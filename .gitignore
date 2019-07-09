@@ -1,0 +1,38 @@
+venv/
+archive/
+cache/
+data/
+figs/
+figures/
+scripts/
+benchmarking/
+
+dynamo.egg-info/
+
+# Python / Byte-compiled / optimized / DLL
+__pycache__/
+*.py[cod]
+*.so
+.cache
+*.h5ad
+
+# always-ignore notebooks
+*.ipynb
+
+# OS or Editor files and folders
+.DS_Store
+Thumbs.db
+.ipynb_checkpoints/
+.directory
+/.idea/
+
+# Docs build
+docs/build
+docs/source/dynamo*
+
+# always-ignore directories
+/build/
+/dist/
+
+.coverage
+test.py
