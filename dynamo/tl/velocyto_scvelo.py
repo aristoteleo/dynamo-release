@@ -270,7 +270,6 @@ def run_dynamo_labeling(adata, log = True, group = False):
 def compare_res(adata, velocyto_res, svelo_res, dynamo_res, a_val, b_val, la_val, alpha_a_val, alpha_i_val, sigma_val, beta_val, gamma_val):
 	'''
 	function to compare results from velocyto and scvelo with our new method
-
 	0. retrieve gamm or gamma with other parameters from velocyto result or scvelo
 	1. plot the correlation between parameters estimated with different methods
 	2. calculate the correltion between those parameters
@@ -281,73 +280,73 @@ def compare_res(adata, velocyto_res, svelo_res, dynamo_res, a_val, b_val, la_val
 	scvelo_gammas = svelo_res.var['velocity_gamma']
 
 	# scatter plot the true gammas with our result
-	plt.subplots(figsize = (14, 5))
+	plt.subplots(figsize = (15, 5))
 	plt.plot()
 	plt.subplot(131)
 	plt.plot(gamma_val, velocyto_gammas, 'o')
-	plt.xlabel('True gamma')
-	plt.ylabel('gamma (velocyto)')
+	plt.xlabel(r'True $\gamma$')
+	plt.ylabel(r'$\gamma$ (velocyto)')
 	plt.subplot(132)
 	plt.plot(gamma_val, scvelo_gammas, 'o')
-	plt.xlabel('True gamma')
-	plt.ylabel('gamma (scvelo)')
+	plt.xlabel(r'True $\gamma$')
+	plt.ylabel(r'$\gamma$ (scvelo)')
 	plt.subplot(133)
 	plt.plot(gamma_val, dynamo_res.uns['dynamo']["gamma"], 'o')
-	plt.xlabel('True gamma')
-	plt.ylabel('gamma (dynamo)')
+	plt.xlabel(r'True $\gamma$')
+	plt.ylabel(r'$\gamma$ (dynamo)')
 
     # what if we only have a small number of parameters? 
-	plt.subplots(figsize = (10, 5))
+	plt.subplots(figsize = (15, 5))
 	plt.plot()
 	plt.subplot(131)
 	plt.plot(alpha_a_val, svelo_res.var['fit_alpha'], 'o')
-	plt.xlabel('True alpha')
-	plt.ylabel('alpha (scvelo)')
+	plt.xlabel(r'True alpha')
+	plt.ylabel(r'$\alpha$ (scvelo)')
 	plt.subplot(132)
 	plt.plot(beta_val, svelo_res.var['fit_beta'], 'o')
-	plt.xlabel('True beta')
-	plt.ylabel('beta (scvelo)')
+	plt.xlabel(r'True $\beta$')
+	plt.ylabel(r'$\beta$ (scvelo)')
 	plt.subplot(133)
 	plt.plot(gamma_val, svelo_res.var['fit_gamma'], 'o')
-	plt.xlabel('True gamma')
-	plt.ylabel('gamma (scvelo)')
-    
+	plt.xlabel(r'True $\gamma$')
+	plt.ylabel(r'$\gamma$ (scvelo)')
+
     #     param_out = pd.DataFrame(index=adata.var.index, columns=['a', 'b', 'la', 'alpha_a', 'alpha_i', 'sigma', 'beta', 'gamma'])
     # what if we only have a small number of parameters? 
-	plt.subplots(figsize = (10, 10))
+	plt.subplots(figsize = (15, 15))
 	plt.subplot(331)
 	plt.plot(a_val, adata.uns['dynamo']["a"], 'o')
-	plt.xlabel('True a')
-	plt.ylabel('a (dynamo)')
+	plt.xlabel(r'True $a$')
+	plt.ylabel(r'$a$ (dynamo)')
 	plt.subplot(332)
 	plt.plot(b_val, adata.uns['dynamo']["b"], 'o')
-	plt.xlabel('True b')
-	plt.ylabel('b (dynamo)')
+	plt.xlabel(r'True $b$')
+	plt.ylabel(r'$b$ (dynamo)')
 	plt.subplot(333)
 	plt.plot(la_val, adata.uns['dynamo']["la"], 'o')
-	plt.xlabel('True la')
-	plt.ylabel('la (dynamo)')
+	plt.xlabel(r'True $l_a$')
+	plt.ylabel(r'$l_a$ (dynamo)')
 	plt.subplot(334)
 	plt.plot(alpha_a_val, adata.uns['dynamo']["alpha_a"], 'o')
-	plt.xlabel('True alpha_a')
-	plt.ylabel('alpha_a (dynamo)')
+	plt.xlabel(r'True $\alpha_a$')
+	plt.ylabel(r'$\alpha_a$ (dynamo)')
 	plt.subplot(335)
 	plt.plot(alpha_i_val, adata.uns['dynamo']["alpha_i"], 'o')
-	plt.xlabel('True alpha_i')
-	plt.ylabel('alpha_i (dynamo)')
+	plt.xlabel(r'True $\alpha_i$')
+	plt.ylabel(r'$\alpha_i$ (dynamo)')
 	plt.subplot(336)
 	plt.plot(sigma_val, adata.uns['dynamo']["sigma"], 'o')
-	plt.xlabel('True sigma')
-	plt.ylabel('sigma (dynamo)')
+	plt.xlabel(r'True $\sigma$')
+	plt.ylabel(r'$\sigma$ (dynamo)')
 	plt.subplot(337)
 	plt.plot(beta_val, adata.uns['dynamo']["beta"], 'o')
-	plt.xlabel('True beta')
-	plt.ylabel('beta (dynamo)')
+	plt.xlabel(r'True $\beta$')
+	plt.ylabel(r'$\beta$ (dynamo)')
 	plt.subplot(338)
 	plt.plot(gamma_val, adata.uns['dynamo']["gamma"], 'o')
-	plt.xlabel('True gamma')
-	plt.ylabel('gamma (dynamo)')
-    
+	plt.xlabel(r'True $\gamma$')
+	plt.ylabel(r'$\gamma$ (dynamo)')
+
 	velocyto_coef = {"gamma": np.corrcoef(gamma_val, velocyto_gammas)[1, 0]}
 	scvelo_coef = {"alpha": np.corrcoef(alpha_a_val, svelo_res.var['fit_alpha'])[1, 0], 
                    "beta": np.corrcoef(beta_val, svelo_res.var['fit_beta'])[1, 0], 
@@ -367,4 +366,3 @@ def compare_res(adata, velocyto_res, svelo_res, dynamo_res, a_val, b_val, la_val
 	return {'velocyto': pd.DataFrame.from_dict(velocyto_coef, orient = 'index').T, \
 	'scvelo': pd.DataFrame.from_dict(scvelo_coef, orient = 'index').T, \
 	'dynamo': pd.DataFrame.from_dict(dynamo_coef, orient = 'index').T}
-
