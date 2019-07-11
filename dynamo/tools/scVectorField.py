@@ -163,179 +163,201 @@ def get_P(Y, V, sigma2, gamma, a):
 
     return P, E
 
-def VectorField(X, Y, Grid, M = None, method = 'SparseVFC'):
-    '''Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
-    Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
+class VectorField:
+    def __init__(self, X, Y, Grid, M = 100, a = 5, beta = 0.1, ecr = 1e-5, gamma = 0.9, lambda_ = 3, minP = 1e-5, MaxIter = 500, theta = 0.75, div_cur_free_kernels = False):
+        self.data = {"X": X, "Y": Y, "Grid": Grid} # should we use annadata here?
 
-    Arguments
-    ---------
-        X: 'np.ndarray'
-            Original data.
-        Y: 'np.ndarray'
-            Original data.
-        Grid: 'np.ndarray'
-            The function that returns diffusion matrix which can be dependent on the variables (for example, genes)
-        M: 'function'
-            The number of basis functions to approximate the vector field. By default, it is 100.
-        method: 'str'
-            Method that is used to reconstruct the vector field analytically. Currently only SparseVFC supported but other
-            improved approaches are under development.
+        self.parameters = {'M': M, "a": a, "beta": beta, "ecr": ecr, "gamma": gamma, "lambda_": lambda_, "minP": minP, "MaxIter": MaxIter, "theta": theta, "div_cur_free_kernels": div_cur_free_kernels}
 
-    Returns
-    -------
-    VecFld: 'dict'
-    A dictionary which contains X, Y, beta, V, C, P, VFCIndex. Where V = f(X), P is the posterior probability and
-    VFCIndex is the indexes of inliers which found by VFC.
-    '''
+    def VectorField(self, method = 'SparseVFC'):
+        '''Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
+        Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
 
-    if(method == 'SparseVFC'):
-        VecFld = SparseVFC(X, Y, Grid, M = M, a = 5, beta = 0.1, ecr = 1e-5, gamma = 0.9, lambda_ = 3, minP = 1e-5, MaxIter = 500, theta = 0.75)
+        Arguments
+        ---------
+            X: 'np.ndarray'
+                Original data.
+            Y: 'np.ndarray'
+                Original data.
+            Grid: 'np.ndarray'
+                The function that returns diffusion matrix which can be dependent on the variables (for example, genes)
+            M: 'function'
+                The number of basis functions to approximate the vector field. By default, it is 100.
+            method: 'str'
+                Method that is used to reconstruct the vector field analytically. Currently only SparseVFC supported but other
+                improved approaches are under development.
 
-    return VecFld
+        Returns
+        -------
+        VecFld: 'dict'
+        A dictionary which contains X, Y, beta, V, C, P, VFCIndex. Where V = f(X), P is the posterior probability and
+        VFCIndex is the indexes of inliers which found by VFC.
+        '''
 
+        if(method == 'SparseVFC'):
+            VecFld = SparseVFC(self.data['X'], self.data['Y'], self.data['Grid'], M = self.parameters['M'], a = self.parameters['a'],
+                               beta = self.parameters['beta'], ecr = self.parameters['ecr'], gamma = self.parameters['gamma'],
+                               lambda_ = self.parameters['lambda_'], minP = self.parameters['minP'], MaxIter = self.parameters['MaxIter'],
+                               theta = self.parameters['theta'])
 
-def evaluate(CorrectIndex, VFCIndex, siz):
-    '''Evaluate the precision, recall, corrRate of the sparseVFC algorithm.
-
-    Arguments
-    ---------
-        CorrectIndex: 'List'
-            Ground truth indexes of the correct vector field samples.
-        VFCIndex: 'List'
-            Indexes of the correct vector field samples learned by VFC.
-        siz: 'int'
-            Number of initial matches.
-
-    Returns
-    -------
-    A tuple of precision, recall, corrRate:
-    Precision, recall, corrRate: Precision and recall of VFC, percentage of initial correct matches.
-
-    See also:: :func:`sparseVFC`.
-    '''
-
-    if len(VFCIndex) == 0:
-        VFCIndex = range(siz)
-
-    VFCCorrect = np.intersect1d(VFCIndex, CorrectIndex)
-    NumCorrectIndex = len(CorrectIndex)
-    NumVFCIndex = len(VFCIndex)
-    NumVFCCorrect = len(VFCCorrect)
-
-    corrRate = NumCorrectIndex/siz
-    precision = NumVFCCorrect/NumVFCIndex
-    recall = NumVFCCorrect/NumCorrectIndex
-
-    print('correct correspondence rate in the original data: %d/%d = %f' % (NumCorrectIndex, siz, corrRate))
-    print('precision rate: %d/%d = %f'% (NumVFCCorrect, NumVFCIndex, precision))
-    print('recall rate: %d/%d = %f' % (NumVFCCorrect, NumCorrectIndex, recall))
-
-    return corrRate, precision, recall
+        return VecFld
 
 
-def con_K_div_cur_free(x, y, sigma = 0.8, gamma = 0.5):
-    '''Learn a convex combination of the divergence-free kernel T_df and curl-free kernel T_cf with a bandwidth sigma and a combination coefficient gamma.
+    def evaluate(self, CorrectIndex, VFCIndex, siz):
+        '''Evaluate the precision, recall, corrRate of the sparseVFC algorithm.
 
-    Arguments
-    ---------
-        x: 'np.ndarray'
-            Original training data points.
-        y: 'np.ndarray'
-            Control points used to build kernel basis functions
-        sigma: 'int'
-            Bandwidth parameter.
-        sigma: 'int'
-            Combination coefficient for the divergence-free or the curl-free kernels.
+        Arguments
+        ---------
+            CorrectIndex: 'List'
+                Ground truth indexes of the correct vector field samples.
+            VFCIndex: 'List'
+                Indexes of the correct vector field samples learned by VFC.
+            siz: 'int'
+                Number of initial matches.
 
-    Returns
-    -------
-    K: 'np.ndarray'
-    the kernel to represent the vector field function.
-    Returns
-    -------
-    A tuple of G (the combined kernel function), divergence-free kernel and curl-free kernel.
+        Returns
+        -------
+        A tuple of precision, recall, corrRate:
+        Precision, recall, corrRate: Precision and recall of VFC, percentage of initial correct matches.
 
-    See also:: :func:`sparseVFC`.
-    '''
-    m, d = x.shape; n, d = y.shape
-    sigma2 = sigma**2
-    G_tmp = np.matlib.tile(x[:, :, None], [1, 1, n]) - np.transpose(np.matlib.tile(y[:, :, None], [1, 1, m]), [2, 1, 0])
-    G_tmp = np.squeeze(np.sum(K**2, 1))
-    G_tmp3 = - G_tmp / sigma2
-    G_tmp = -G_tmp/(2*sigma2)
-    G_tmp = np.exp(G_tmp)/sigma2
-    G_tmp = np.kron(G_tmp, np.ones(d))
+        See also:: :func:`sparseVFC`.
+        '''
 
-    x_tmp = np.matlib.tile(x,[n, 1])
-    y_tmp = np.matlib.tile(y,[1, m]).T
-    y_tmp = y_tmp.reshape((d,m*n)).T
-    xminusy = (x_tmp-y_tmp)
-    G_tmp2 = np.zeros(d*m, d*n)
+        if len(VFCIndex) == 0:
+            VFCIndex = range(siz)
 
-    for i in range(d):
-        for j in range(d):
-            tmp1 = xminusy[:, i].reshape((m, n))
-            tmp2 = xminusy[:, j].reshape((m, n))
-            tmp3 = tmp1 * tmp2
-            tmp4 = np.zeros(d)
-            tmp4[i, j] = 1; tmp4[j, i] = 1
-            G_tmp2 = G_tmp2 + np.kron(tmp3, tmp4)
+        VFCCorrect = np.intersect1d(VFCIndex, CorrectIndex)
+        NumCorrectIndex = len(CorrectIndex)
+        NumVFCIndex = len(VFCIndex)
+        NumVFCCorrect = len(VFCCorrect)
 
-    G_tmp2 = G_tmp2/sigma2
-    G_tmp3 = np.kron((G_tmp3+d-1), np.eye(d))
-    G_tmp4 = np.kron(np.ones(m,n),np.eye(d))-G_tmp2
-    G = (1-gamma)*G_tmp*(G_tmp2+G_tmp3)+gamma*G_tmp*G_tmp4
+        corrRate = NumCorrectIndex/siz
+        precision = NumVFCCorrect/NumVFCIndex
+        recall = NumVFCCorrect/NumCorrectIndex
 
-    return G, (1-gamma)*G_tmp*(G_tmp2+G_tmp3), gamma*G_tmp*G_tmp4
+        print('correct correspondence rate in the original data: %d/%d = %f' % (NumCorrectIndex, siz, corrRate))
+        print('precision rate: %d/%d = %f'% (NumVFCCorrect, NumVFCIndex, precision))
+        print('recall rate: %d/%d = %f' % (NumVFCCorrect, NumCorrectIndex, recall))
 
-def vector_field_function(x, VecFld, autograd = False):
-    '''Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
-    Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
-    '''
+        return corrRate, precision, recall
 
-    K= con_K(x, VecFld['X'], VecFld['beta']) if autograd is False else auto_con_K(x, VecFld['X'], VecFld['beta'])
 
-    K = K.dot(VecFld['C']).T
+    def con_K_div_cur_free(self, x, y, sigma = 0.8, gamma = 0.5):
+        '''Learn a convex combination of the divergence-free kernel T_df and curl-free kernel T_cf with a bandwidth sigma and a combination coefficient gamma.
 
-    return K
+        Arguments
+        ---------
+            x: 'np.ndarray'
+                Original training data points.
+            y: 'np.ndarray'
+                Control points used to build kernel basis functions
+            sigma: 'int'
+                Bandwidth parameter.
+            sigma: 'int'
+                Combination coefficient for the divergence-free or the curl-free kernels.
 
-def vector_field_function_auto(x, VecFld, autograd = False):
-    '''Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
-    Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
-    '''
+        Returns
+        -------
+        K: 'np.ndarray'
+        the kernel to represent the vector field function.
+        Returns
+        -------
+        A tuple of G (the combined kernel function), divergence-free kernel and curl-free kernel.
 
-    K= con_K(x, VecFld['X'], VecFld['beta']) if autograd is False else auto_con_K(x, VecFld['X'], VecFld['beta'])
+        See also:: :func:`sparseVFC`.
+        '''
+        m, d = x.shape; n, d = y.shape
+        sigma2 = sigma**2
+        G_tmp = np.matlib.tile(x[:, :, None], [1, 1, n]) - np.transpose(np.matlib.tile(y[:, :, None], [1, 1, m]), [2, 1, 0])
+        G_tmp = np.squeeze(np.sum(K**2, 1))
+        G_tmp3 = - G_tmp / sigma2
+        G_tmp = -G_tmp/(2*sigma2)
+        G_tmp = np.exp(G_tmp)/sigma2
+        G_tmp = np.kron(G_tmp, np.ones(d))
 
-    K = K.dot(VecFld['C']).T
+        x_tmp = np.matlib.tile(x,[n, 1])
+        y_tmp = np.matlib.tile(y,[1, m]).T
+        y_tmp = y_tmp.reshape((d,m*n)).T
+        xminusy = (x_tmp-y_tmp)
+        G_tmp2 = np.zeros(d*m, d*n)
 
-    return K
+        for i in range(d):
+            for j in range(d):
+                tmp1 = xminusy[:, i].reshape((m, n))
+                tmp2 = xminusy[:, j].reshape((m, n))
+                tmp3 = tmp1 * tmp2
+                tmp4 = np.zeros(d)
+                tmp4[i, j] = 1; tmp4[j, i] = 1
+                G_tmp2 = G_tmp2 + np.kron(tmp3, tmp4)
 
-def auto_con_K(x, y, beta):
-    '''Con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
+        G_tmp2 = G_tmp2/sigma2
+        G_tmp3 = np.kron((G_tmp3+d-1), np.eye(d))
+        G_tmp4 = np.kron(np.ones(m,n),np.eye(d))-G_tmp2
+        G = (1-gamma)*G_tmp*(G_tmp2+G_tmp3)+gamma*G_tmp*G_tmp4
 
-    Arguments
-    ---------
-        x: 'np.ndarray'
-            Original training data points.
-        y: 'np.ndarray'
-            control points used to build kernel basis functions
-        beta: 'np.ndarray'
-            The function that returns diffusion matrix which can be dependent on the variables (for example, genes)
+        return G, (1-gamma)*G_tmp*(G_tmp2+G_tmp3), gamma*G_tmp*G_tmp4
 
-    Returns
-    -------
-    K: 'np.ndarray'
-    the kernel to represent the vector field function.
-    '''
+    def vector_field_function(self, x, VecFld, autograd = False):
+        '''Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
+        Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
+        '''
 
-    n, d = x.shape
-    m, d = y.shape
+        K= con_K(x, VecFld['X'], VecFld['beta']) if autograd is False else auto_con_K(x, VecFld['X'], VecFld['beta'])
 
-    # https://stackoverflow.com/questions/1721802/what-is-the-equivalent-of-matlabs-repmat-in-numpy
-    # https://stackoverflow.com/questions/12787475/matlabs-permute-in-python
-    K = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0])
-    K = np.squeeze(np.sum(K**2, 1))
-    K = - beta * K
-    K = np.exp(K) #
+        K = K.dot(VecFld['C']).T
 
-    return K
+        return K
+
+    def vector_field_function(x, VecFld):
+        '''Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
+        Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
+        '''
+        if(len(x.shape) == 1):
+            x = x[None, :]
+        K= con_K(x, VecFld['X'], VecFld['beta'])
+
+        K = K.dot(VecFld['C'])
+
+        return K.T
+
+    def vector_field_function_auto(self, x, VecFld, autograd = False):
+        '''Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
+        Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
+        '''
+
+        K= con_K(x, VecFld['X'], VecFld['beta']) if autograd is False else auto_con_K(x, VecFld['X'], VecFld['beta'])
+
+        K = K.dot(VecFld['C']).T
+
+        return K
+
+    def auto_con_K(self, x, y, beta):
+        '''Con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
+
+        Arguments
+        ---------
+            x: 'np.ndarray'
+                Original training data points.
+            y: 'np.ndarray'
+                control points used to build kernel basis functions
+            beta: 'np.ndarray'
+                The function that returns diffusion matrix which can be dependent on the variables (for example, genes)
+
+        Returns
+        -------
+        K: 'np.ndarray'
+        the kernel to represent the vector field function.
+        '''
+
+        n, d = x.shape
+        m, d = y.shape
+
+        # https://stackoverflow.com/questions/1721802/what-is-the-equivalent-of-matlabs-repmat-in-numpy
+        # https://stackoverflow.com/questions/12787475/matlabs-permute-in-python
+        K = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0])
+        K = np.squeeze(np.sum(K**2, 1))
+        K = - beta * K
+        K = np.exp(K) #
+
+        return K
+

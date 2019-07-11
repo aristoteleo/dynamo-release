@@ -302,82 +302,6 @@ def action(n_points, tmax, point_start, point_end, boundary, Function, Diffusion
 
     return fval, output_path
 
-
-def Potential(Function, DiffusionMatrix, boundary, n_points=25, fixed_point_only=False, find_fixed_points=False, refpoint=None, stable=None, saddle=None):
-    ''' It implements the least action method to calculate the potential values of fixed points for a given SDE (stochastic
-    differential equation) model. The function requires the vector field function and a diffusion matrix. This code is based
-    on the MATLAB code from Ruoshi Yuan and Ying Tang. Potential landscape of high dimensional nonlinear stochastic dynamics with
-    large noise. Y Tang, R Yuan, G Wang, X Zhu, P Ao - Scientific reports, 2017
-
-    Arguments
-    ---------
-        Function: 'function'
-            The (reconstructed) vector field function.
-        DiffusionMatrix: 'function'
-            The function that returns the diffusion matrix which can variable (for example, gene) dependent.
-        boundary: 'list'
-            The range of variables (genes).
-        n_points: 'int'
-            The number of points along the least action path.
-        fixed_point_only: 'bool'
-            The logic flag to determine whether only the potential for fixed point or entire space should be mapped.
-        find_fixed_points: 'bool'
-            The logic flag to determine whether only the gen_fixed_points function should be run to identify fixed points.
-        refpoint: 'np.ndarray'
-            The reference point to define the potential.
-        stable: 'np.ndarray'
-            The matrix for storing the coordinates (gene expression configuration) of the stable fixed point (characteristic state of a particular cell type).
-        saddle: 'np.ndarray'
-            The matrix for storing the coordinates (gene expression configuration) of the unstable fixed point (characteristic state of cells prime to bifurcation).
-
-    Returns
-    -------
-    fval: 'np.ndarray'
-        The action value for the learned least action path.
-    output_path: 'np.ndarray'
-        The least action path learned
-    '''
-    print('stable is ', stable)
-
-    if (stable is None and saddle is None) or find_fixed_points is True:
-        print('stable is ', stable)
-        stable, saddle = gen_fixed_points(Function, auto_func = False, dim_range = range, RandNum = 100, EqNum = 2) #gen_fixed_points(vector_field_function, auto_func = None, dim_range = [-25, 25], RandNum = 5000, EqNum = 2, x_ini = None)
-
-    print('stable 2 is ', stable)
-    points = np.hstack((stable, saddle))
-    refpoint = stable[:, 0][:, None] if refpoint is None else refpoint
-
-    TotalTime, TotalPoints = 2, n_points
-
-    if fixed_point_only:
-        StateNum = points.shape[1]
-        retmat = np.Inf * np.ones((StateNum, 1))
-        LAP = [None] * StateNum
-        I = range(StateNum)
-    else:
-        dx = (np.diff(boundary))/(TotalPoints-1)
-        dy = dx
-        [X, Y] = np.meshgrid(np.linspace(boundary[0], boundary[1], TotalPoints), np.linspace(boundary[0], boundary[1], TotalPoints))
-        retmat = np.Inf * np.ones((TotalPoints, TotalPoints))
-        LAP = [None] * TotalPoints * TotalPoints
-
-        points = np.vstack((X.flatten(), Y.flatten()))
-        I = range(points.shape[1])
-
-    for ind in I: # action(n_points,tmax,point_start,point_end, boundary, Function, DiffusionMatrix):
-        print('current ind is ', ind)
-        lav, lap = action(TotalPoints, TotalTime, points[:, ind][:, None], refpoint, boundary, Function, DiffusionMatrix)
-
-        i, j = ind % TotalPoints, int(ind / TotalPoints)
-        print('TotalPoints is ', TotalPoints, 'ind is ', ind, 'i, j are', i, ' ', j)
-        if lav < retmat[i, j]:
-            retmat[i, j] = lav
-            LAP[ind] = lap
-        print(retmat)
-
-    return retmat, LAP
-
-
 def ODE(x):
     dx1 = -1 + 9 * x[0] - 2 * pow(x[0], 3) + 9 * x[1] - 2 * pow(x[1], 3)
     dx2 = 1 - 11*x[0] + 2 * pow(x[0], 3) + 11 * x[1] - 2 * pow(x[1], 3)
@@ -396,15 +320,96 @@ def autoODE(x):
     return ret
 
 
-def vector_field_function(x, VecFld):
-    '''Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
-    Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
-    '''
-    if(len(x.shape) == 1):
-        x = x[None, :]
-    K= con_K(x, VecFld['X'], VecFld['beta'])
+class Potential:
+    def __init__(self, Function, DiffusionMatrix, boundary, n_points=25, fixed_point_only=False, find_fixed_points=False, refpoint=None, stable=None, saddle=None):
+        self.VecFld = {"Function": Function, "DiffusionMatrix": DiffusionMatrix} # should we use annadata here?
 
-    K = K.dot(VecFld['C'])
+        self.parameters = {"boundary": boundary, "n_points":n_points, "fixed_point_only": fixed_point_only, "find_fixed_points": find_fixed_points, "refpoint": refpoint, "stable": stable, "saddle": saddle}
 
-    return K.T
+    def map_pot_landscape(self):
+        ''' It implements the least action method to calculate the potential values of fixed points for a given SDE (stochastic
+        differential equation) model. The function requires the vector field function and a diffusion matrix. This code is based
+        on the MATLAB code from Ruoshi Yuan and Ying Tang. Potential landscape of high dimensional nonlinear stochastic dynamics with
+        large noise. Y Tang, R Yuan, G Wang, X Zhu, P Ao - Scientific reports, 2017
 
+        Arguments
+        ---------
+            Function: 'function'
+                The (reconstructed) vector field function.
+            DiffusionMatrix: 'function'
+                The function that returns the diffusion matrix which can variable (for example, gene) dependent.
+            boundary: 'list'
+                The range of variables (genes).
+            n_points: 'int'
+                The number of points along the least action path.
+            fixed_point_only: 'bool'
+                The logic flag to determine whether only the potential for fixed point or entire space should be mapped.
+            find_fixed_points: 'bool'
+                The logic flag to determine whether only the gen_fixed_points function should be run to identify fixed points.
+            refpoint: 'np.ndarray'
+                The reference point to define the potential.
+            stable: 'np.ndarray'
+                The matrix for storing the coordinates (gene expression configuration) of the stable fixed point (characteristic state of a particular cell type).
+            saddle: 'np.ndarray'
+                The matrix for storing the coordinates (gene expression configuration) of the unstable fixed point (characteristic state of cells prime to bifurcation).
+
+        Returns
+        -------
+        fval: 'np.ndarray'
+            The action value for the learned least action path.
+        output_path: 'np.ndarray'
+            The least action path learned
+        '''
+        #  self.VecFld = {"Function": Function} # should we use annadata here?
+        # self.data = {"DiffusionMatrix": DiffusionMatrix} # should we use annadata here?
+        #
+        # self.parameters = {"boundary": boundary, "n_points":n_points, "fixed_point_only": fixed_point_only, "find_fixed_points": find_fixed_points, "refpoint": refpoint, "stable": stable, "saddle": saddle}
+
+        Function, DiffusionMatrix = self.VecFld['Function'], self.VecFld['DiffusionMatrix']
+        boundary, n_points, fixed_point_only, find_fixed_points, refpoint, stable, saddle = self.parameters['boundary'], \
+                                                                                            self.parameters['n_points'], \
+                                                                                            self.parameters['fixed_point_only'], \
+                                                                                            self.parameters['find_fixed_points'], \
+                                                                                            self.parameters['refpoint'], \
+                                                                                            self.parameters['stable'], \
+                                                                                            self.parameters['saddle']
+
+        print('stable is ', stable)
+
+        if (stable is None and saddle is None) or find_fixed_points is True:
+            print('stable is ', stable)
+            stable, saddle = gen_fixed_points(Function, auto_func = False, dim_range = range, RandNum = 100, EqNum = 2) #gen_fixed_points(vector_field_function, auto_func = None, dim_range = [-25, 25], RandNum = 5000, EqNum = 2, x_ini = None)
+
+        print('stable 2 is ', stable)
+        points = np.hstack((stable, saddle))
+        refpoint = stable[:, 0][:, None] if refpoint is None else refpoint
+
+        TotalTime, TotalPoints = 2, n_points
+
+        if fixed_point_only:
+            StateNum = points.shape[1]
+            retmat = np.Inf * np.ones((StateNum, 1))
+            LAP = [None] * StateNum
+            I = range(StateNum)
+        else:
+            dx = (np.diff(boundary))/(TotalPoints-1)
+            dy = dx
+            [X, Y] = np.meshgrid(np.linspace(boundary[0], boundary[1], TotalPoints), np.linspace(boundary[0], boundary[1], TotalPoints))
+            retmat = np.Inf * np.ones((TotalPoints, TotalPoints))
+            LAP = [None] * TotalPoints * TotalPoints
+
+            points = np.vstack((X.flatten(), Y.flatten()))
+            I = range(points.shape[1])
+
+        for ind in I: # action(n_points,tmax,point_start,point_end, boundary, Function, DiffusionMatrix):
+            print('current ind is ', ind)
+            lav, lap = action(TotalPoints, TotalTime, points[:, ind][:, None], refpoint, boundary, Function, DiffusionMatrix)
+
+            i, j = ind % TotalPoints, int(ind / TotalPoints)
+            print('TotalPoints is ', TotalPoints, 'ind is ', ind, 'i, j are', i, ' ', j)
+            if lav < retmat[i, j]:
+                retmat[i, j] = lav
+                LAP[ind] = lap
+            print(retmat)
+
+        return retmat, LAP

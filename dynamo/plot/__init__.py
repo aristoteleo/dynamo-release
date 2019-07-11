@@ -2,4 +2,4 @@
 """
 
 
-from .phase import plotUS, plot_LIC_gray, plot_LIC
+from .phase import plotUS, plot_LIC # , plot_LIC_gray

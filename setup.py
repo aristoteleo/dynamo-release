@@ -9,9 +9,9 @@ setup(
     name="dynamo",
     version=__version__,
     install_requires=['numpy>=1.14', 'scipy>=1.0', 'scikit-learn>=0.19.1',
-                      'python-igraph','anndata>=0.6.18', 'loompy>=2.0.12',
-                      'matplotlib>=2.2', 'setuptools', 'seaborn>=0.9.0',
-                      'sympy>=1.4', 'autograd>=1.2','yt>=3.5.1', 'licpy>=0.2'],
+                      'anndata>=0.6.18', 'loompy>=2.0.12', 'matplotlib>=2.2',
+                      'setuptools', 'seaborn>=0.9.0', 'sympy>=1.4', 'autograd>=1.2',
+                      'yt>=3.5.1'],
     packages=find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
