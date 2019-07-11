@@ -115,6 +115,18 @@ class velocity:
             self.parameters = {'alpha': alpha, 'beta': beta, 'gamma': gamma, 'eta': eta, 'delta': delta}
 
     def vel_u(self, U):
+        """Calculate the unspliced mRNA velocity.
+
+        Arguments
+        ---------
+        U: :class:'numpy.ndarray'
+            A matrix of unspliced mRNA count. Dimension: genes x cells.
+        
+        Returns
+        -------
+        V: :class:'numpy.ndarray'
+            Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
+        """
         if self.parameters['alpha'] is not None and self.parameters['beta'] is not None:
             V = self.parameters['alpha'] - (self.parameters['beta'] * U.T).T
         else:
@@ -122,6 +134,20 @@ class velocity:
         return V
 
     def vel_s(self, U, S):
+        """Calculate the unspliced mRNA velocity.
+
+        Arguments
+        ---------
+        U: :class:'numpy.ndarray'
+            A matrix of unspliced mRNA count. Dimension: genes x cells.
+        S: :class:'numpy.ndarray'
+            A matrix of spliced mRNA count. Dimension: genes x cells.
+        
+        Returns
+        -------
+        V: :class:'numpy.ndarray'
+            Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
+        """
         if self.parameters['beta'] is not None and self.parameters['gamma'] is not None:
             V = self.parameters['beta'] * U.T - self.parameters['gamma'] * S.T
             V = V.T
@@ -130,6 +156,20 @@ class velocity:
         return V
 
     def vel_p(self, S, P):
+        """Calculate the protein velocity.
+
+        Arguments
+        ---------
+        S: :class:'numpy.ndarray'
+            A matrix of spliced mRNA count. Dimension: genes x cells.
+        P: :class:'numpy.ndarray'
+            A matrix of protein count. Dimension: genes x cells.
+        
+        Returns
+        -------
+        V: :class:'numpy.ndarray'
+            Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
+        """
         if self.parameters['eta'] is not None and self.parameters['delta'] is not None:
             V = self.parameters['eta'] * S.T - self.parameters['delta'] * P.T
             V = V.T
@@ -138,6 +178,13 @@ class velocity:
         return V
 
     def get_n_cells(self):
+        """Get the number of cells if the parameter alpha is given.
+        
+        Returns
+        -------
+        n_cells: 'int'
+            The second dimension of the alpha matrix, if alpha is given.
+        """
         if self.parameters['alpha'] is not None:
             n_cells = self.parameters['alpha'].shape[1]
         else:
@@ -145,8 +192,23 @@ class velocity:
         return n_cells
 
     def get_n_genes(self):
+        """Get the number of genes.
+        
+        Returns
+        -------
+        n_genes: 'int'
+            The second dimension of the alpha matrix, if alpha is given. Or, the length of beta, gamma, eta, or delta, if they are given.
+        """
         if self.parameters['alpha'] is not None:
             n_genes = self.parameters['alpha'].shape[0]
+        elif self.parameters['beta'] is not None:
+            n_genes = len(self.parameters['beta'])
+        elif self.parameters['gamma'] is not None:
+            n_genes = len(self.parameters['gamma'])
+        elif self.parameters['eta'] is not None:
+            n_genes = len(self.parameters['eta'])
+        elif self.parameters['delta'] is not None:
+            n_genes = len(self.parameters['delta'])
         else:
             n_genes = np.nan
         return n_genes
