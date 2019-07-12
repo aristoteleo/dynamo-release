@@ -224,6 +224,21 @@ class estimation:
         self.parameters = {'alpha': None, 'beta': None, 'gamma': None, 'eta': None, 'delta': None}
 
     def fit(self, intercept=True, perc_left=5, perc_right=5, clusters=None):
+        """Fit the input data to estimate all or a subset of the parameters
+
+        Arguments
+        ---------
+        intercept: :bool
+            If using steady state assumption for fitting, then:
+            True -- the linear regression is performed with an unfixed intercept;
+            False -- the linear regresssion is performed with a fixed zero intercept.
+        perc_left: :float
+            The percentage of samples included in the linear regression in the left tail. If set to None, then all the samples are included.
+        perc_right: :float
+            The percentage of samples included in the linear regression in the right tail. If set to None, then all the samples are included.
+        clusters: :list
+            A list of n clusters, each element is a list of indices of the samples which belong to this cluster.
+        """
         n = self.get_n_genes()
         # fit mRNA
         if self.asspt_mRNA == 'ss':
@@ -275,6 +290,30 @@ class estimation:
                 self.parameters['delta'] = delta
 
     def fit_gamma_steady_state(self, u, s, intercept=True, perc_left=5, perc_right=5):
+        """Estimate gamma based on the steady state assumption.
+
+        Arguments
+        ---------
+        u: :class:`~numpy.ndarray`
+            A matrix of spliced mRNA count. Dimension: genes x cells.
+        s: :class:`~numpy.ndarray`
+            A matrix of protein count. Dimension: genes x cells.
+        intercept: :bool
+            If using steady state assumption for fitting, then:
+            True -- the linear regression is performed with an unfixed intercept;
+            False -- the linear regresssion is performed with a fixed zero intercept.
+        perc_left: :float
+            The percentage of samples included in the linear regression in the left tail. If set to None, then all the samples are included.
+        perc_right: :float
+            The percentage of samples included in the linear regression in the right tail. If set to None, then all the samples are included.
+
+        Returns
+        -------
+        k: :float
+            The slope of the linear regression model, which is gamma under the steady state assumption.
+        b: :float
+            The intercept of the linear regression model.
+        """
         n = len(u)
         i_left = np.int(perc_left/100.0*n) if perc_left is not None else n
         i_right = np.int((100-perc_right)/100.0*n) if perc_right is not None else 0
@@ -305,6 +344,7 @@ class estimation:
         return alpha
 
     def get_n_genes(self):
+        """Get number of genes."""
         return len(self.data[self.get_exist_data_names()[0]])
 
     def set_parameter(self, name, value):
