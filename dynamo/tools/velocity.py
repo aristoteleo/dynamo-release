@@ -4,9 +4,49 @@ from sklearn.cluster import KMeans
 from sklearn.neighbors import NearestNeighbors
 
 def sol_u(t, u0, alpha, beta):
+    """The analytical solution of unspliced mRNA kinetics.
+
+    Arguments
+    ---------
+    t: :class:`~numpy.ndarray`
+        A vector of time points.
+    u0: float
+        Initial value of u.
+    alpha: float
+        Transcription rate.
+    beta: float
+        Splicing rate constant.
+
+    Returns
+    -------
+    u: :class:`~numpy.ndarray`
+        Unspliced mRNA counts at given time points.
+    """
     return u0*np.exp(-beta*t) + alpha/beta*(1-np.exp(-beta*t))
 
 def sol_s(t, s0, u0, alpha, beta, gamma):
+    """The analytical solution of spliced mRNA kinetics.
+
+    Arguments
+    ---------
+    t: :class:`~numpy.ndarray`
+        A vector of time points.
+    s0: float
+        Initial value of s.
+    u0: float
+        Initial value of u.
+    alpha: float
+        Transcription rate.
+    beta: float
+        Splicing rate constant.
+    gamma: float
+        Degradation rate constant for spliced mRNA.
+
+    Returns
+    -------
+    s: :class:`~numpy.ndarray`
+        Spliced mRNA counts at given time points.
+    """
     exp_gt = np.exp(-gamma*t)
     if beta == gamma:
         s = s0*exp_gt + (beta*u0-alpha)*t*exp_gt + alpha/gamma * (1-exp_gt)
@@ -14,14 +54,66 @@ def sol_s(t, s0, u0, alpha, beta, gamma):
         s = s0*exp_gt + alpha/gamma * (1-exp_gt) + (alpha - u0*beta)/(gamma-beta) * (exp_gt - np.exp(-beta*t))
     return s
 
-def sol_p(t, p0, s0, u0, alpha, beta, gamma, eta, gamma_p):
+def sol_p(t, p0, s0, u0, alpha, beta, gamma, eta, delta):
+    """The analytical solution of protein kinetics.
+
+    Arguments
+    ---------
+    t: :class:`~numpy.ndarray`
+        A vector of time points.
+    p0: float
+        Initial value of p.
+    s0: float
+        Initial value of s.
+    u0: float
+        Initial value of u.
+    alpha: float
+        Transcription rate.
+    beta: float
+        Splicing rate constant.
+    gamma: float
+        Degradation rate constant for spliced mRNA.
+    eta: float
+        Synthesis rate constant for protein.
+    delta: float
+        Degradation rate constant for protein.
+
+    Returns
+    -------
+    p: :class:`~numpy.ndarray`
+        Protein counts at given time points.
+    s: :class:`~numpy.ndarray`
+        Spliced mRNA counts at given time points.
+    u: :class:`~numpy.ndarray`
+        Unspliced mRNA counts at given time points.
+    """
     u = sol_u(t, u0, alpha, beta)
     s = sol_s(t, s0, u0, alpha, beta, gamma)
-    exp_gt = np.exp(-gamma_p*t)
-    p = p0*exp_gt + eta/(gamma_p-gamma)*(s-s0*exp_gt - beta/(gamma_p-beta)*(u-u0*exp_gt-alpha/gamma_p*(1-exp_gt)))
+    exp_gt = np.exp(-delta*t)
+    p = p0*exp_gt + eta/(delta-gamma)*(s-s0*exp_gt - beta/(delta-beta)*(u-u0*exp_gt-alpha/delta*(1-exp_gt)))
     return p, s, u
 
 def fit_linreg(x, y, intercept=True):
+    """Simple linear regression: y = kx + b.
+
+    Arguments
+    ---------
+    x: :class:`~numpy.ndarray`
+        A vector of independent variables.
+    y: :class:`~numpy.ndarray`
+        A vector of dependent variables.
+    intercept: bool
+        If using steady state assumption for fitting, then:
+        True -- the linear regression is performed with an unfixed intercept;
+        False -- the linear regresssion is performed with a fixed zero intercept.
+
+    Returns
+    -------
+    k: float
+        The estimated slope.
+    b: float
+        The estimated intercept.  
+    """
     mask = np.logical_and(~np.isnan(x), ~np.isnan(y))
     xx = x[mask]
     yy = y[mask]
@@ -38,10 +130,34 @@ def fit_linreg(x, y, intercept=True):
         b = 0
     return k, b
 
-def fit_beta_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=None):
+def fit_beta_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=1):
+    """Estimate beta with degradation data using least squares method.
+
+    Arguments
+    ---------
+    t: :class:`~numpy.ndarray`
+        A vector of time points.
+    l: :class:`~numpy.ndarray`
+        A matrix of unspliced, labeled mRNA counts. Dimension: cells x time points
+    u0: float
+        Initial number of unsplcied mRNA.
+    bounds: tuple
+        The bound for gamma. The default is gamma > 0.
+    fixed_l0: bool
+        True: l0 will be calculated by averging the first column of l;
+        False: l0 is a parameter that will be estimated all together with gamma using lsq.
+    beta_0: float
+        Initial guess for beta.
+
+    Returns
+    -------
+    beta: float
+        The estimated value for beta.
+    l0: float
+        The estimated value for the initial spliced, labeled mRNA count.
+    """
     tau = t - np.min(t)
     l0 = np.mean(l[:, tau == 0])
-    if beta_0 is None: beta_0 = 1
 
     if fix_l0:
         f_lsq = lambda b: (sol_u(tau, l0, 0, b) - l).flatten()
@@ -55,6 +171,31 @@ def fit_beta_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=None):
     return beta, l0
 
 def fit_gamma_lsq(t, s, beta, u0, bounds=(0, np.inf), fix_s0=False):
+    """Estimate gamma with degradation data using least squares method.
+
+    Arguments
+    ---------
+    t: :class:`~numpy.ndarray`
+        A vector of time points.
+    s: :class:`~numpy.ndarray`
+        A matrix of spliced, labeled mRNA counts. Dimension: cells x time points
+    beta: float
+        The value of beta.
+    u0: float
+        Initial number of unsplcied mRNA.
+    bounds: tuple
+        The bound for gamma. The default is gamma > 0.
+    fixed_s0: bool
+        True: s0 will be calculated by averging the first column of s;
+        False: s0 is a parameter that will be estimated all together with gamma using lsq.
+
+    Returns
+    -------
+    gamma: float
+        The estimated value for gamma.
+    s0: float
+        The estimated value for the initial spliced mRNA count.
+    """
     tau = t - np.min(t)
     s0 = np.mean(s[:, tau == 0])
     g0 = beta * u0/s0
@@ -71,6 +212,20 @@ def fit_gamma_lsq(t, s, beta, u0, bounds=(0, np.inf), fix_s0=False):
     return gamma, s0
 
 def fit_alpha_synthesis(t, u, beta):
+    """Estimate alpha with synthesis data using linear regression with fixed zero intercept.
+
+    Arguments
+    ---------
+    u: :class:`~numpy.ndarray`
+        A matrix of unspliced mRNA counts. Dimension: cells x time points.
+    beta: float
+        The value of beta.
+
+    Returns
+    -------
+    alpha: float
+        The estimated value for alpha.
+    """
     # fit alpha assuming u=0 at t=0
     expt = np.exp(-beta*t)
 
@@ -80,6 +235,22 @@ def fit_alpha_synthesis(t, u, beta):
     return beta * np.mean(u) / np.mean(x)
 
 def fit_alpha_degradation(t, u, beta, mode=None):
+    """Estimate alpha with degradation data using linear regression.
+
+    Arguments
+    ---------
+    u: :class:`~numpy.ndarray`
+        A matrix of unspliced mRNA counts. Dimension: cells x time points.
+    beta: float
+        The value of beta.
+
+    Returns
+    -------
+    alpha: float
+        The estimated value for alpha.
+    b: float
+        The initial unspliced mRNA count.
+    """
     n = u.size
     tau = t - np.min(t)
     expt = np.exp(beta*tau)
@@ -139,9 +310,9 @@ class velocity:
         Arguments
         ---------
         U: :class:`~numpy.ndarray`
-            A matrix of unspliced mRNA count. Dimension: genes x cells.
+            A matrix of unspliced mRNA counts. Dimension: genes x cells.
         S: :class:`~numpy.ndarray`
-            A matrix of spliced mRNA count. Dimension: genes x cells.
+            A matrix of spliced mRNA counts. Dimension: genes x cells.
 
         Returns
         -------
@@ -161,9 +332,9 @@ class velocity:
         Arguments
         ---------
         S: :class:`~numpy.ndarray`
-            A matrix of spliced mRNA count. Dimension: genes x cells.
+            A matrix of spliced mRNA counts. Dimension: genes x cells.
         P: :class:`~numpy.ndarray`
-            A matrix of protein count. Dimension: genes x cells.
+            A matrix of protein counts. Dimension: genes x cells.
 
         Returns
         -------
@@ -228,15 +399,15 @@ class estimation:
 
         Arguments
         ---------
-        intercept: :bool
+        intercept: bool
             If using steady state assumption for fitting, then:
             True -- the linear regression is performed with an unfixed intercept;
             False -- the linear regresssion is performed with a fixed zero intercept.
-        perc_left: :float
+        perc_left: float
             The percentage of samples included in the linear regression in the left tail. If set to None, then all the samples are included.
-        perc_right: :float
+        perc_right: float
             The percentage of samples included in the linear regression in the right tail. If set to None, then all the samples are included.
-        clusters: :list
+        clusters: list
             A list of n clusters, each element is a list of indices of the samples which belong to this cluster.
         """
         n = self.get_n_genes()
@@ -290,28 +461,28 @@ class estimation:
                 self.parameters['delta'] = delta
 
     def fit_gamma_steady_state(self, u, s, intercept=True, perc_left=5, perc_right=5):
-        """Estimate gamma based on the steady state assumption.
+        """Estimate gamma using linear regression based on the steady state assumption.
 
         Arguments
         ---------
         u: :class:`~numpy.ndarray`
-            A matrix of spliced mRNA count. Dimension: genes x cells.
+            A matrix of spliced mRNA counts. Dimension: genes x cells.
         s: :class:`~numpy.ndarray`
-            A matrix of protein count. Dimension: genes x cells.
-        intercept: :bool
+            A matrix of protein counts. Dimension: genes x cells.
+        intercept: bool
             If using steady state assumption for fitting, then:
             True -- the linear regression is performed with an unfixed intercept;
             False -- the linear regresssion is performed with a fixed zero intercept.
-        perc_left: :float
+        perc_left: float
             The percentage of samples included in the linear regression in the left tail. If set to None, then all the samples are included.
-        perc_right: :float
+        perc_right: float
             The percentage of samples included in the linear regression in the right tail. If set to None, then all the samples are included.
 
         Returns
         -------
-        k: :float
+        k: float
             The slope of the linear regression model, which is gamma under the steady state assumption.
-        b: :float
+        b: float
             The intercept of the linear regression model.
         """
         n = len(u)
@@ -322,6 +493,24 @@ class estimation:
         return fit_linreg(s[mask], u[mask], intercept)
 
     def fit_beta_gamma_lsq(self, t, U, S):
+        """Estimate beta and gamma with the degradation data using the least squares method.
+
+        Arguments
+        ---------
+        t: :class:`~numpy.ndarray`
+            A vector of time points.
+        U: :class:`~numpy.ndarray`
+            A 3D matrix of unspliced mRNA counts. Dimension: genes x cells x time points.
+        S: :class:`~numpy.ndarray`
+            A 3D matrix of spliced mRNA counts. Dimension: genes x cells x time points.
+
+        Returns
+        -------
+        beta: :class:`~numpy.ndarray`
+            A vector of betas for all the genes.
+        gamma: :class:`~numpy.ndarray`
+            A vector of gammas for all the genes.
+        """
         n = len(U)
         beta = np.zeros(n)
         gamma = np.zeros(n)
@@ -331,6 +520,26 @@ class estimation:
         return beta, gamma
 
     def fit_alpha_oneshot(self, t, U, beta, clusters=None):
+        """Estimate alpha with the one-shot data.
+
+        Arguments
+        ---------
+        t: float
+            Labeling duration.
+        U: :class:`~numpy.ndarray`
+            A 3D matrix of unspliced mRNA counts. Dimension: genes x cells x time points.
+        beta: :class:`~numpy.ndarray`
+            A vector of betas for all the genes.
+        clusters: list
+            A list of n clusters, each element is a list of indices of the samples which belong to this cluster.
+
+        Returns
+        -------
+        beta: :class:`~numpy.ndarray`
+            A vector of betas for all the genes.
+        gamma: :class:`~numpy.ndarray`
+            A vector of gammas for all the genes.
+        """
         n_genes, n_cells = U.shape
         if clusters is None:
             clusters = [[i] for i in range(n_cells)]
@@ -348,6 +557,15 @@ class estimation:
         return len(self.data[self.get_exist_data_names()[0]])
 
     def set_parameter(self, name, value):
+        """Set the value for the specified parameter.
+
+        Arguments
+        ---------
+        name: string
+            The name of the parameter. E.g. 'beta'.
+        value: :class:`~numpy.ndarray`
+            A vector of values for the parameter to be set to.
+        """
         if len(np.shape(value)) == 0:
             value = value * np.ones(self.get_n_genes())
         self.parameters[name] = value
@@ -367,6 +585,7 @@ class estimation:
         return ret
 
     def get_exist_data_names(self):
+        """Get the names of all the data that are not 'None'."""
         ret = []
         for k, v in self.data.items():
             if v is not None:
