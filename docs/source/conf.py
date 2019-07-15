@@ -26,6 +26,22 @@ author = 'Xiaojie Qiu, Yan Zhang'
 # The full version, including alpha/beta/rc tags
 release = '0.0.1'
 
+# -- Options for HTML output ----------------------------------------------
+
+html_theme = 'sphinx_rtd_theme'
+html_theme_options = dict(navigation_depth=2)
+html_context = dict(
+    display_github=True,      # Integrate GitHub
+    github_user='aristoteleo',   # organization
+    github_repo='dynamo',     # Repo name
+    github_version='master',  # Version
+    conf_py_path='/docs/source/',
+)
+html_static_path = ['_static']
+
+
+def setup(app):
+    app.add_stylesheet('custom.css')
 
 # -- General configuration ---------------------------------------------------
 
