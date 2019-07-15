@@ -1,8 +1,8 @@
 # functions to run velocyto and scvelo
 import numpy as np
 import pandas as pd
-import velocyto as vcy
-import scvelo as scv
+#import velocyto as vcy
+#import scvelo as scv
 import scipy as scp 
 import matplotlib.pyplot as plt
 from .moments import *
