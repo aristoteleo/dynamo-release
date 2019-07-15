@@ -1,0 +1,2 @@
+setuptools
+sphinx_autodoc_typehints
