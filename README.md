@@ -30,3 +30,6 @@ We would like to sincerely thank the developers of velocyto (La Manno Gioele and
 
 ## Contribution 
 If you want to contribute to the development of dynamo, please check out CONTRIBUTION instruction: [Contribution](https://github.com/aristoteleo/dynamo-release/blob/master/CONTRIBUTING.md)
+
+## Documentation  
+The documentation of dynamo package is available at [readthedocs](https://dynamo-release.readthedocs.io/en/latest/)

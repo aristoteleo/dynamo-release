@@ -26,23 +26,6 @@ author = 'Xiaojie Qiu, Yan Zhang'
 # The full version, including alpha/beta/rc tags
 release = '0.0.1'
 
-# -- Options for HTML output ----------------------------------------------
-
-html_theme = 'sphinx_rtd_theme'
-html_theme_options = dict(navigation_depth=2)
-html_context = dict(
-    display_github=True,      # Integrate GitHub
-    github_user='aristoteleo',   # organization
-    github_repo='dynamo',     # Repo name
-    github_version='master',  # Version
-    conf_py_path='/docs/source/',
-)
-html_static_path = ['_static']
-
-
-def setup(app):
-    app.add_stylesheet('custom.css')
-
 # -- General configuration ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
@@ -76,7 +59,20 @@ exclude_patterns = []
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'alabaster'
+html_theme = 'sphinx_rtd_theme'
+html_theme_options = dict(navigation_depth=2)
+html_context = dict(
+    display_github=True,      # Integrate GitHub
+    github_user='aristoteleo',   # organization
+    github_repo='dynamo',     # Repo name
+    github_version='master',  # Version
+    conf_py_path='/docs/source/',
+)
+html_static_path = ['_static']
+
+
+def setup(app):
+    app.add_stylesheet('custom.css')
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
