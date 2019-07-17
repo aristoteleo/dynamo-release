@@ -24,6 +24,9 @@ Xiaojie Qiu, Yan Zhang, Dian Yang, Shayan Hosseinzadeh, Li Wang, Ruoshi Yuan, So
 biorxiv link: https://www.biorxiv.org/content/10.1101/696724v1
 
 ## Theory behind dynamo
+For the vector field reconstruction and potential landscape mapping, please refer to our preprint. We also released the complete derivation of the matrix form of the moment generation functions for parameter estimation in full_derivation.pdf file in the dynamo-notebook [GitHub repo](https://github.com/aristoteleo/dynamo-notebooks).
+
+The dynamo-notebook repo also provides tutorials on how to use dynamo for reconstructing vector field, calculating least action path and potential of cell states.  
 
 ## Acknowledgement
 We would like to sincerely thank the developers of velocyto (La Manno Gioele and others), scanpy (Alex Wolf and others) and svelo (Volker Bergen and others) on their amazing tools which demonstrate the best practice of scientific programming in Python. Dynamo takes various technical inspiration from those packages. Dynamo is (we are trying to and hope users can contribute to) fully compatible with those tools and velocity estimation from either scvelo or velocyto can both be used as input to learn the functional form of vector field for predicting the cell fate over extended time period and mapping global cell state potential. 
