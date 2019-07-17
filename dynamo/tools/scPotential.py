@@ -1,6 +1,6 @@
 import numpy as np
 import scipy as sc
-import scipy.optimize
+import scipy.optimize 
 from sympy import *
 # from StringFunction import StringFunction
 import autograd.numpy as autonp
