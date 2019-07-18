@@ -6,41 +6,33 @@ Contributing to dynamo
 Before filing an issue
 ----------------------
 * We suggest the users to read the [preprint](https://www.biorxiv.org/content/10.1101/426981v1) to get a general sense of the computational/mathematical foundation and application related to dynamo. 
-* First check the GitHub issues or Google to see if the same or a similar issues has been reported and resolved. This relieves the developers from addressing the same issues and helps them focus on adding new features!
+* First check the GitHub issues, [Google group](https://groups.google.com/forum/#!forum/dynamo-user/) or Google to see if the same or a similar issues has been reported and resolved. This relieves the developers from addressing the same issues and helps them focus on adding new features!
 * Minimal, reproducible example are required when filing a GitHub issue. please check out Matthew Rocklin' [blogpost](http://matthewrocklin.com/blog/work/2018/02/28/minimal-bug-reports) or [stackoverflow's suggestion](https://stackoverflow.com/help/mcve).
-* Provide session information, including the python or packages' version. This can be obtained by running `dynamo.logging.print_versions()`.
-* Users are encouraged to discuss issues and bugs using the [dynamo-py issue tracker](https://github.com/aristoteleo/dynamo/issues) instead of email exchanges. 
+* Provide session information, including the python or packages' version. This can be obtained by running `dynamo.__version__`.
+* Users are encouraged to discuss issues and bugs using the [dynamo issue tracker](https://github.com/aristoteleo/dynamo-release/issues) instead of email exchanges. 
   
 Types of contributions
 ----------------------
 
 We're interested in many different types of contributions, including filing github issues, feature additions, bug fixes, continuous integration improvements, and documentation/website updates, additions, and fixes.
 
-When considering contributing to dynamo, you should begin by posting an issue to the [dynamo issue tracker](https://github.com/aristoteleo/dynamo/issues). The information that you include in that post will differ based on the type of contribution. Your contribution will also need to be fully tested where applicable (discussed further below).
+When considering contributing to dynamo, you should begin by posting an issue to the [dynamo issue tracker](https://github.com/aristoteleo/dynamo-release/issues). The information that you include in that post will differ based on the type of contribution. Your contribution will also need to be fully tested where applicable (discussed further below).
 
-* For feature additions, please describe why the functionality that you are proposing to add is relevant. For it to be relevant, it should be demonstrably useful to dynamo users and it should also fit within the biology/bioinformatics domain. This typically means that a new analytic method is implemented (you should describe why it's useful, ideally including a link to a paper that uses this method), or an existing method is enhanced (e.g., improved performance). We will request benchmark results comparing your method to the pre-existing methods (which would also be required for publication of your method) so pointing to a paper or other document containing benchmark results, or including benchmark results in your issue, will speed up the process. Before contributing a new feature, it's also a good idea to check whether the functionality exists in other Python packages, or if the feature would fit better in another Python package. For example, low-level statistical methods/tests may fit better in a project that is focused on statistics (e.g., [SciPy](http://scipy.org/) or [statsmodels](http://statsmodels.sourceforge.net/)).
+* For feature additions, please describe why the functionality that you are proposing to add is relevant. For it to be relevant, it should be demonstrably useful to dynamo users and it should also fit within the genomics, systems biology or bioinformatics domain. 
 
 * For bug fixes, please provide a detailed description of the bug so other developers can reproduce it. We take bugs in dynamo very seriously. Bugs can be related to errors in code, documentation, or tests. Errors in documentation or tests are usually updated in the next scheduled release of dynamo. Errors in code that could result in incorrect results or inability to access certain functionality may result in a bug fix release of dynamo that is released ahead of schedule.
 
  You should include the following information in your bug report:
 
  1. The exact command(s) necessary to reproduce the bug.
- 2. A link to all necessary input files for reproducing the bug. These files should only be as large as necessary to create the bug. For example, if you have an input file with 10,000 FASTA-formatted sequences but the error only arises due to one of the sequences, create a new FASTA file with only that sequence, run the command that was giving you problems, and verify that you still get an error. Then post that command and link to the trimmed FASTA file. This is *extremely* useful to other developers and it is likely that if you don't provide this information you'll get a response asking for it. Often this process helps you to better understand the bug as well.
+ 2. A link to all necessary input files for reproducing the bug. These files should only be as large as necessary to create the bug. This is *extremely* useful to other developers and it is likely that if you don't provide this information you'll get a response asking for it. Often this process helps you to better understand the bug as well.
 
-* For documentation additions, you should first post an issue describing what you propose to add, where you'd like to add it in the documentation, and a description of why you think it's an important addition. For documentation improvements and fixes, you should post an issue describing what is currently wrong or missing and how you propose to address it. For more information about building and contributing to dynamo's documentation, see our [documentation guide](doc/README.md).
+* For documentation additions, you should first post an issue describing what you propose to add, where you'd like to add it in the documentation, and a description of why you think it's an important addition. For documentation improvements and fixes, you should post an issue describing what is currently wrong or missing and how you propose to address it.
 
 When you post your issue, the dynamo developers will respond to let you know if we agree with the addition or change. It's very important that you go through this step to avoid wasting time working on a feature that we are not interested in including in dynamo. **This initial discussion with the developers is important because dynamo is rapidly changing, including complete re-writes of some of the core objects. If you don't get in touch first you could easily waste time by working on an object or interface that is deprecated.**
 
 Getting started
 ---------------
-
-### "quick fixes"
-
-Some of our issues are labeled as ``quick fix``. Working on [these issues](https://github.com/biocore/dynamo/issues?q=is%3Aopen+is%3Aissue+label%3A%22quick+fix%22) is a good way to get started with contributing to dynamo. These are usually small bugs or documentation errors that will only require one or a few lines of code to fix. Getting started by working on one of these issues will allow you to familiarize yourself with our development process before committing to a large amount of work (e.g., adding a new feature to dynamo). Please post a comment on the issue if you're interested in working on one of these "quick fixes".
-
-### Joining development
-
-Once you are more comfortable with our development process, you can check out the [``on deck`` label](https://github.com/biocore/dynamo/labels/on%20deck) on our issue tracker. These issues represent what our current focus is in the project. As such, they are probably the best place to start if you are looking to join the conversation and contribute code.
 
 Code review
 -----------
@@ -61,7 +53,7 @@ Submitting code to dynamo
 
 dynamo is hosted on [GitHub](http://www.github.com), and we use GitHub's [Pull Request](https://help.github.com/articles/using-pull-requests) mechanism for reviewing and accepting submissions. You should work through the following steps to submit code to dynamo.
 
-1. Begin by [creating an issue](https://github.com/biocore/dynamo/issues) describing your proposed change (see [Types of contributions](#types-of-contributions) for details).
+1. Begin by [creating an issue](https://github.com/aristoteleo/dynamo-release/issues) describing your proposed change (see [Types of contributions](#types-of-contributions) for details).
 
 2. [Fork](https://help.github.com/articles/fork-a-repo) the dynamo repository on the GitHub website.
 
@@ -70,7 +62,7 @@ dynamo is hosted on [GitHub](http://www.github.com), and we use GitHub's [Pull R
 4. Ensure that you have the latest version of all files. This is especially important if you cloned a long time ago, but you'll need to do this before submitting changes regardless. You should do this by adding dynamo as a remote repository and then pulling from that repository. You'll only need to run the ``git remote`` command the first time you do this:
 
  ```
- git remote add upstream https://github.com/biocore/dynamo.git
+ git remote add upstream https://github.com/aristoteleo/dynamo-release.git
  git checkout master
  git pull upstream master
  ```
@@ -113,7 +105,7 @@ dynamo is hosted on [GitHub](http://www.github.com), and we use GitHub's [Pull R
 Setting up a development environment
 ------------------------------------
 
-**Note:** dynamo must be developed in a Python 3.4 or later environment.
+**Note:** dynamo must be developed in a Python 3.6 or later environment.
 
 The recommended way to set up a development environment for contributing to dynamo is using [Anaconda](https://store.continuum.io/cshop/anaconda/) by Continuum Analytics, with its associated command line utility `conda`. The primary benefit of `conda` over `pip` is that on some operating systems (ie Linux), `pip` installs packages from source. This can take a very long time to install Numpy, scipy, matplotlib, etc. `conda` installs these packages using pre-built binaries, so the installation is much faster. Another benefit of `conda` is that it provides both package and environment management, which removes the necessity of using `virtualenv` separately. Not all packages are available using `conda`, therefore our strategy is to install as many packages as possible using `conda`, then install any remaining packages using `pip`.
 
@@ -123,13 +115,13 @@ The recommended way to set up a development environment for contributing to dyna
 
 2. Create a new conda environment
  ```
- conda create -n env_name python=3.4 pip
+ conda create -n env_name python=3.6 pip
  ```
 
  Note that `env_name` can be any name desired, for example
 
  ```
- conda create -n skbio python=3.4 pip
+ conda create -n skbio python=3.6 pip
  ```
 
 3. Activate the environment
@@ -168,12 +160,12 @@ The recommended way to set up a development environment for contributing to dyna
 Coding guidelines
 -----------------
 
-We adhere to the [PEP 8](http://www.python.org/dev/peps/pep-0008/) Python style guidelines. Please see dynamo's [coding guidelines](http://dynamo.org/docs/latest/development/coding_guidelines.html) for more details. Before submitting code to dynamo, you should read this document carefully and apply the guidelines in your code.
+We adhere to the [PEP 8](http://www.python.org/dev/peps/pep-0008/) Python style guidelines. 
 
 Testing guidelines
 ------------------
 
-All code that is added to dynamo must be unit tested, and the unit test code must be submitted in the same pull request as the library code that you are submitting. We will only merge code that is unit tested and that passes the [continuous integration build](https://github.com/biocore/dynamo/blob/master/.travis.yml). This build includes, but is not limited to, the following checks:
+All code that is added to dynamo must be unit tested, and the unit test code must be submitted in the same pull request as the library code that you are submitting. We will only merge code that is unit tested and that passes the [continuous integration build](https://github.com/aristoteleo/dynamo/blob/master/.travis.yml). This build includes, but is not limited to, the following checks:
 
 - Full unit test suite and doctests execute without errors in supported versions of Python 3.
 - C code can be correctly compiled.
@@ -181,16 +173,14 @@ All code that is added to dynamo must be unit tested, and the unit test code mus
 - All tests import functionality from the appropriate minimally deep API.
 - Documentation can be built.
 - Current code coverage is maintained or improved.
-- Code passes ``flake8`` checks.
 
 Running ``make test`` locally during development will include a subset of the full checks performed by Travis-CI.
 
-The dynamo coding guidelines describe our [expectations for unit tests](http://dynamo.org/docs/latest/development/coding_guidelines.html). You should review the unit test section before working on your test code.
 
 Tests can be executed by running ``make test`` from the base directory of the project or from within a Python or IPython session:
 
 ``` python
->>> from skbio.test import pytestrunner
+>>> from dynamo.test import pytestrunner
 >>> pytestrunner()
 # full test suite is executed
 ```

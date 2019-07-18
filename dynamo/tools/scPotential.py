@@ -1,6 +1,6 @@
 import numpy as np
 import scipy as sc
-import scipy.optimize
+import scipy.optimize 
 from sympy import *
 # from StringFunction import StringFunction
 import autograd.numpy as autonp
@@ -67,7 +67,7 @@ def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, x_ini = None):
                 fval = fval_dict['fvec']
                 jacobian_mat = jacobian(auto_func)(np.array(x)) # autonp.array?
 
-            jacobian_mat[np.isfinite(jacobian_mat)] = 0
+            jacobian_mat[np.isinf(jacobian_mat)] = 0
             if fval.dot(fval) < FixedPointConst:
                 FixedPoint[time, :] = x
                 ve, _ = sc.linalg.eig(jacobian_mat)
@@ -194,19 +194,6 @@ def gen_gradient(dim, N, Function, DiffusionMatrix):
 
     return ret, V
 
-# example on how to use Jacobian in sympy
-# x,y=sp.symbols('x,y', real=True)
-# f1=-y
-# f2=x - 3*y*(1-x**2)
-#F = sympy.Matrix([f1,f2])
-#F.jacobian([x,y])
-# Matrix([
-# [        0,         -1],
-# [6*x*y + 1, 3*x**2 - 3]])
-#F.jacobian([x,y]).subs([(x,0), (y,0)])
-# Matrix([
-# [0, -1],
-# [1, -3]])
 
 ##################################################
 # rewrite gen_gradient with autograd or TF
@@ -234,7 +221,7 @@ def IntGrad(points, Function, DiffusionMatrix, dt):
 
     integral = 0
     for k in np.arange(1, points.shape[1]):
-        Tmp = (points[:, k] - points[:, k - 1])[:, None] / dt - Function(points[:, k - 1])
+        Tmp = (points[:, k] - points[:, k - 1]).reshape((-1, 1)) / dt - Function(points[:, k - 1]).reshape((-1, 1))
         integral = integral + (Tmp.T).dot(np.linalg.matrix_power(DiffusionMatrix(points[:, k - 1]), -1)).dot(Tmp) * dt # part of the Eq. 18 in Sci. Rep. paper
     integral = integral / 4
 
@@ -292,15 +279,16 @@ def action(n_points, tmax, point_start, point_end, boundary, Function, Diffusion
     lambda_f = lambda x : IntGrad(np.hstack((point_start, x.reshape((2, -1)), point_end)), Function, DiffusionMatrix, dt)
 
     # initial path as a line connecting start point and end point point_start*ones(1,n_points+1)+(point_end-point_start)*(0:tmax/n_points:tmax)/tmax;
-    initpath = point_start*np.ones((1, n_points+1))+(point_end-point_start) * (np.linspace(0, tmax, n_points + 1, endpoint=True))/tmax
+    initpath = point_start.dot(np.ones((1, n_points+1)))+(point_end-point_start).dot(np.linspace(0, tmax, n_points + 1, endpoint=True).reshape(1, -1))/tmax
 
     Bounds = scipy.optimize.Bounds((np.ones((1, (n_points - 1) * 2)) * boundary[0]).flatten(), (np.ones((1, (n_points - 1) * 2)) * boundary[1]).flatten(), keep_feasible=True)
 
     # sc.optimize.least_squares(lambda_f, initpath[:, 1:n_points].flatten())
-    res = sc.optimize.minimize(lambda_f, initpath[:, 1:n_points], bounds=Bounds) # , options={"maxiter": 250}
+    res = sc.optimize.minimize(lambda_f, initpath[:, 1:n_points], tol = 1e-12) #, bounds=Bounds , options={"maxiter": 250}
     fval, output_path = res['fun'], np.hstack((point_start, res['x'].reshape((2, -1)), point_end))
 
     return fval, output_path
+
 
 def ODE(x):
     dx1 = -1 + 9 * x[0] - 2 * pow(x[0], 3) + 9 * x[1] - 2 * pow(x[1], 3)
