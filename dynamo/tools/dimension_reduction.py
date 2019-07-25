@@ -3,7 +3,6 @@ from sklearn.decomposition import TruncatedSVD
 from sklearn.neighbors import NearestNeighbors
 from sklearn.manifold import TSNE
 from scipy.stats import norm
-import umap
 
 from .psl import *
 
@@ -49,15 +48,16 @@ def reduceDimension(adata, n_pca_components = 25, n_components = 2, normalize_co
         X_dim = bh_tsne.fit_transform(X_pca)
         adata.obsm['X_tSNE'] = X_dim
     elif reduction_method is 'UMAP':
-        X_umap = umap.UMAP(n_components = n_components, n_neighbors).fit(X_pca)
+        import umap
+        X_umap = umap.UMAP(n_components = n_components, n_neighbors = n_neighbors).fit(X_pca)
         X_dim = X_umap.embedding_
         adata.obsm['X_umap'] = X_dim
         adj_mat = X_umap.graph_
-        adata.obsm['UMAP_adj_mat'] = adj_mat
+        adata.uns['UMAP_adj_mat'] = adj_mat
     elif reduction_method is 'PSL':
         adj_mat, X_dim = psl_py(X_pca, d = n_components, K = n_neighbors) # this need to be updated
         adata.obsm['X_psl'] = X_dim
-        adata.obsm['PSL_adj_mat'] = adj_mat
+        adata.uns['PSL_adj_mat'] = adj_mat
 
     # use both existing data and predicted future states in dimension reduction to get the velocity plot in 2D
     # use only the existing data for dimension reduction and then project new data in this reduced dimension

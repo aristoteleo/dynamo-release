@@ -20,3 +20,6 @@ from .scVectorField import SparseVFC, con_K, get_P, VectorField #, evaluate, con
 # potential related
 from .scPotential import gen_fixed_points, gen_gradient, IntGrad, DiffusionMatrix, action, Potential, ODE, autoODE #, vector_field_function
 
+# dimension reduction related
+from .dimension_reduction import reduceDimension
+
