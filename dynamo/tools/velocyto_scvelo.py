@@ -76,11 +76,11 @@ def vlm_to_adata(vlm, trans_mats = None, cells_ixs = None, em_key = None):
 	return adata
 
 def converter(data_in, from_type = 'adata', to_type = 'vlm', dir = '.'): 
-	'''
+	"""
 	convert adata to loom object
 	- we may save to a temp directory automatically 
 	- we may write a on-the-fly converter which doesn't involve saving and reading files  
-	'''
+	"""
 	if(from_type == 'adata'):
 		if(to_type == 'vlm'):
 			file = dir + '/data.loom'
@@ -101,11 +101,11 @@ def converter(data_in, from_type = 'adata', to_type = 'vlm', dir = '.'):
 	return(data_out)
 
 def run_velocyto(adata):
-	'''
+	"""
 	1. convert adata to vlm data
 	2. set up PCA, UMAP, etc.
 	3. estimate the gamma parameter
-	'''
+	"""
 	vlm = converter(adata)
 
 	# U_norm: log2(U_sz + pcount)
@@ -141,11 +141,11 @@ def run_velocyto(adata):
 	return vlm
 
 def run_scvelo(adata): 
-	'''
+	"""
 	1. set up PCA, UMAP, etc. 
 	2. estimate gamma and all other parameters 
 	3. return results (adata.var['velocity_gamma'])
-	'''
+	"""
 	# scv.pp.filter_and_normalize(adata, min_counts=2, min_counts_u=1, n_top_genes=3000)
 	scv.pp.moments(adata) # , n_pcs = 12, n_neighbors = 15, mode = 'distances'
 	scv.tl.velocity(adata)
@@ -268,12 +268,12 @@ def run_dynamo_labeling(adata, log = True, group = False):
 
 
 def compare_res(adata, velocyto_res, svelo_res, dynamo_res, a_val, b_val, la_val, alpha_a_val, alpha_i_val, sigma_val, beta_val, gamma_val):
-	'''
+	"""
 	function to compare results from velocyto and scvelo with our new method
 	0. retrieve gamm or gamma with other parameters from velocyto result or scvelo
 	1. plot the correlation between parameters estimated with different methods
 	2. calculate the correltion between those parameters
-	'''
+	"""
 	# self._offset, self._offset2, self._beta, self._gamma, self._r2, self._velocity_genes
 
 	velocyto_gammas = velocyto_res.gammas

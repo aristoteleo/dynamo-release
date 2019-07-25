@@ -9,7 +9,7 @@ from autograd import grad, jacobian # calculate gradient and jacobian
 # the LAP method should be rewritten in TensorFlow using optimization with SGD
 
 def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, x_ini = None):
-    ''' Calculate the fixed points of (learned) vector field function . Classify the fixed points into classes of stable and saddle points
+    """ Calculate the fixed points of (learned) vector field function . Classify the fixed points into classes of stable and saddle points
     based on the eigenvalue of the Jacobian on the point.
 
     Arguments
@@ -35,7 +35,7 @@ def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, x_ini = None):
     saddle: 'np.ndarray'
         A matrix consists of the coordinates of the unstable steady state
 
-    '''
+    """
 
     ZeroConst = 1e-8
     FixedPointConst = 1e-20
@@ -131,7 +131,7 @@ def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, x_ini = None):
 
 
 def gen_gradient(dim, N, Function, DiffusionMatrix):
-    '''Calculate the gradient of the (learned) vector field function for the least action path (LAP) symbolically
+    """Calculate the gradient of the (learned) vector field function for the least action path (LAP) symbolically
 
     Arguments
     ---------
@@ -150,7 +150,7 @@ def gen_gradient(dim, N, Function, DiffusionMatrix):
         The symbolic function that calculates the gradient of the LAP based on the Jacobian of the vector field function
     V: 'np.ndarray'
         A matrix consists of the coordinates of the unstable steady state
-    '''
+    """
 
     N=N+1
     X=MatrixSymbol('x', dim, N)
@@ -200,7 +200,7 @@ def gen_gradient(dim, N, Function, DiffusionMatrix):
 ##################################################
 
 def IntGrad(points, Function, DiffusionMatrix, dt):
-    '''Calculate the action of the path based on the (reconstructed) vector field function and diffusion matrix (Eq. 18)
+    """Calculate the action of the path based on the (reconstructed) vector field function and diffusion matrix (Eq. 18)
 
     Arguments
     ---------
@@ -217,7 +217,7 @@ def IntGrad(points, Function, DiffusionMatrix, dt):
     -------
     integral: 'np.ndarray'
         The action calculated based on the input path, the vector field function and the diffusion matrix.
-    '''
+    """
 
     integral = 0
     for k in np.arange(1, points.shape[1]):
@@ -229,7 +229,7 @@ def IntGrad(points, Function, DiffusionMatrix, dt):
 
 
 def DiffusionMatrix(x):
-    ''' Diffusion matrix can be variable dependent
+    """ Diffusion matrix can be variable dependent
 
     Arguments
     ---------
@@ -240,7 +240,7 @@ def DiffusionMatrix(x):
     -------
     out: 'np.ndarray'
         The diffusion matrix. By default, it is a diagonal matrix.
-    '''
+    """
     out = np.zeros((x.shape[0], x.shape[0]))
     np.fill_diagonal(out, 1)
 
@@ -248,7 +248,7 @@ def DiffusionMatrix(x):
 
 # rewrite action in TF with SGD
 def action(n_points, tmax, point_start, point_end, boundary, Function, DiffusionMatrix):
-    '''It calculates the minimized action value given an intial path, ODE, and diffusion matrix. The minimization is
+    """It calculates the minimized action value given an intial path, ODE, and diffusion matrix. The minimization is
     realized by scipy.optimize.Bounds function in python (withnot using the gradient of the action function).
 
     Arguments
@@ -272,7 +272,7 @@ def action(n_points, tmax, point_start, point_end, boundary, Function, Diffusion
         The action value for the learned least action path.
     output_path: 'np.ndarray'
         The least action path learned
-    '''
+    """
 
     dim = point_end.shape[0] # genes x cells
     dt = tmax / n_points
@@ -315,7 +315,7 @@ class Potential:
         self.parameters = {"boundary": boundary, "n_points":n_points, "fixed_point_only": fixed_point_only, "find_fixed_points": find_fixed_points, "refpoint": refpoint, "stable": stable, "saddle": saddle}
 
     def map_pot_landscape(self):
-        ''' It implements the least action method to calculate the potential values of fixed points for a given SDE (stochastic
+        """ It implements the least action method to calculate the potential values of fixed points for a given SDE (stochastic
         differential equation) model. The function requires the vector field function and a diffusion matrix. This code is based
         on the MATLAB code from Ruoshi Yuan and Ying Tang. Potential landscape of high dimensional nonlinear stochastic dynamics with
         large noise. Y Tang, R Yuan, G Wang, X Zhu, P Ao - Scientific reports, 2017
@@ -347,7 +347,7 @@ class Potential:
             The action value for the learned least action path.
         output_path: 'np.ndarray'
             The least action path learned
-        '''
+        """
         #  self.VecFld = {"Function": Function} # should we use annadata here?
         # self.data = {"DiffusionMatrix": DiffusionMatrix} # should we use annadata here?
         #

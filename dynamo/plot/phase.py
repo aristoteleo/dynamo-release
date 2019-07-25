@@ -64,7 +64,7 @@ def plot_fitting(adata, gene, log = True, group = False):
 # cellranger data, velocyto, comparison and phase diagram
 
 def plot_LIC_gray(tex):
-    '''GET_P estimates the posterior probability and part of the energy.
+    """GET_P estimates the posterior probability and part of the energy.
 
     Arguments
     ---------
@@ -86,7 +86,7 @@ def plot_LIC_gray(tex):
     E: `np.ndarray'
         Energy, related to equation 26.
 
-    '''
+    """
 
     tex = tex[:, ::-1]
     tex = tex.T
@@ -104,7 +104,7 @@ def plot_LIC_gray(tex):
 
 
 def plot_LIC(U_grid, V_grid, method = 'yt', cmap = "viridis", normalize = False, density = 1, lim=(0,1), const_alpha=False, kernellen=100, xlab='Dim 1', ylab='Dim 2', file = None):
-    '''Visualize vector field with quiver, streamline and line integral convolution (LIC), using velocity estimates on a grid from the associated data.
+    """Visualize vector field with quiver, streamline and line integral convolution (LIC), using velocity estimates on a grid from the associated data.
     A white noise background will be used for texture as default. Adjust the bounds of lim in the range of [0, 1] which applies
     upper and lower bounds to the values of line integral convolution and enhance the visibility of plots. When const_alpha=False,
     alpha will be weighted spatially by the values of line integral convolution; otherwise a constant value of the given alpha is used.
@@ -137,7 +137,7 @@ def plot_LIC(U_grid, V_grid, method = 'yt', cmap = "viridis", normalize = False,
     E: `np.ndarray'
         Energy, related to equation 26.
 
-    '''
+    """
 
     if method == 'yt':
         velocity_x_ori, velocity_y_ori, velocity_z_ori = U_grid, V_grid, np.zeros(U_grid.shape)
