@@ -23,12 +23,41 @@ def plotUS(adata, genes):
 
         cur_axes.plot(points, points, color='red', marker=None, linestyle='--', linewidth=1.0)
 
+def plot_fitting(adata, gene, log = True, group = False):
+    """
+    # add the plotting for fitting the data using only the splicing
+    :param adata:
+    :param gene:
+    :param log:
+    :param group:
+    :return:
+    """
+    groups = [''] if group == False else np.unique(adata.obs[group])
 
-def plotPhase(adata):
-    return
+    T = adata.obs['Time']
+    gene_idx = np.where(adata.var.index.values == gene)[0][0]
 
-def plotPhase(adata):
-    return
+    for cur_grp in groups:
+        alpha, gamma, u0, l0 = adata.uns['dynamo_labeling'].loc[gene, :]
+        u, l = adata.layers['U'][adata.obs[group] == cur_grp, gene_idx].toarray().squeeze(), \
+                    adata.layers['L'][adata.obs[group] == cur_grp, gene_idx].toarray().squeeze()
+        if log:
+            u, l = np.log(u + 1), np.log(l + 1)
+
+        t = np.linspace(T[0], T[-1], 50)
+
+        plt.figure(figsize=(10, 5))
+        plt.subplot(121)
+        plt.plot(T, u.T, linestyle='None', marker='o', markersize=10)
+        plt.plot(t, alpha/gamma + (u0 - alpha/gamma) * np.exp(-gamma*t), '--')
+        plt.xlabel('time (hrs)')
+        plt.title('unlabeled (' + cur_grp + ')')
+
+        plt.subplot(122)
+        plt.plot(T, l.T, linestyle='None', marker='o', markersize=10)
+        plt.plot(t, l0 * np.exp(-gamma*t), '--')
+        plt.xlabel('time (hrs)')
+        plt.title('labeled (' + cur_grp + ')')
 
 # moran'I on the velocity genes, etc.
 
