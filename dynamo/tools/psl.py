@@ -93,24 +93,29 @@ def diag_mat (values):
     return mat
 
 def psl_py(Y, sG = None, dist = None, K = 10, C = 1e3, param_gamma = 1e-3, d = 2, maxIter = 10, verbose = False):
-    """This function is a pure Python implementation of the PSL algorithm
+    """This function is a pure Python implementation of the PSL algorithm.
+
+    Reference: Li Wang and Qi Mao, Probabilistic Dimensionality Reduction via Structure Learning. T-PAMI, VOL. 41, NO. 1, JANUARY 2019
     Arguments
     ---------
-        Y: 'list'
+        Y: 'numpy.ndarray'
             data list
-        sG:
+        sG: 'scipy.sparse.csr_matrix'
             a prior kNN graph passed to the algorithm
-        dist: 'np.ndarray'
-            a dense distance matrix between all vertices. If no distance matrix passed, we will use the kNN based aglorithm,
+        dist: 'numpy.ndarray'
+            a dense distance matrix between all vertices. If no distance matrix passed, we will use the kNN based algorithm,
             otherwise we will use the original algorithm reported in the manuscript.
         K: 'int'
-            number of nearest neighbors used to build the neighborhood graph. Ignored if sG is used
+            number of nearest neighbors used to build the neighborhood graph. Large k can obtain less sparse structures.
+            Ignored if sG is used.
         C: 'int'
-            number of nearest neighbors
+            The penalty parameter for loss term. It controls the preservation of distances. The larger it is, the distance
+            is more strictly preserve. If the structure is very clear, a larger C  is preferred.
         param_gamma: 'int'
-            number of nearest neighbors
+            param_gamma is trying to make a matrix A nonsingular, it is like a round-off parameter. 1e-4 or 1e-5 is good.
+            It corresponds to the variance of prior embedding.
         d: 'int'
-            number of nearest neighbors
+            embedding dimension
         maxIter: 'int'
             Number of maximum iterations
         verbose: 'bool'
@@ -118,10 +123,10 @@ def psl_py(Y, sG = None, dist = None, K = 10, C = 1e3, param_gamma = 1e-3, d = 2
     Returns
     -------
         (S,Z): 'tuple'
-            a numeric value for the d-dimensional unit ball for Euclidean norm
+            a tuple of the adjacency matrix and the reduced low dimension embedding.
     """
 
-    if not sG:
+    if sG is None:
         if not dist:
             tree = ss.cKDTree(Y)
             dist_mat, idx_mat = tree.query(Y, k=K + 1)
@@ -139,8 +144,8 @@ def psl_py(Y, sG = None, dist = None, K = 10, C = 1e3, param_gamma = 1e-3, d = 2
                 cols[location:location+K] = indices[i]
                 dists[location:location+K] = distances[i]
                 location = location + K
-
             sG = csr_matrix((np.array(dists) ** 2, (rows, cols)), shape=(N, N))
+            sG = scipy.sparse.csc_matrix.maximum(sG, sG.T) # symmetrize the matrix
         else:
             N = Y.shape[0]
             sidx = np.argsort(dist)
@@ -157,31 +162,13 @@ def psl_py(Y, sG = None, dist = None, K = 10, C = 1e3, param_gamma = 1e-3, d = 2
             dist = sG
 
     N, D = Y.shape
-    G = csr_matrix(sG.shape)
-    rows, cols = sG.nonzero()
-
-    for i, j in zip(rows, cols): # check this ########
-        max_val = max(sG[i, j], sG[j, i])
-        G[i, j] = max_val
-        G[j, i] = max_val
-
-    # for i, j in zip(rows, cols):
-    #     G[i, j] = max(G[i:i+1, j:j+1], G[j:j+1, i:i+1]) # weird... I just cannot assign the values to G
-    # idx_map = []
-    # sG_list = sG.toarray()
-    # sG_list_T = sG.T.toarray()
-    # # G(Matrix) is already a symmetrical matrix. Why do we need to symmetricalize it?
-    # for i in range(sG_list.shape[0]):
-    #     for j in range(sG_list.shape[1]):
-    #         G[i,j] = max(sG_list_T[i,j], sG_list[i,j])
-    # # symmetrize and find edges in the low triangle
-    # G_tmp = copy.deepcopy(G)
+    G = sG
 
     rows, cols, s0 = scipy.sparse.find(scipy.sparse.tril(G))
 
     # idx_map = np.vstack((rows, cols)).T
 
-    s = s0
+    s = np.ones(s0.shape)
     m = len(s)
     #############################################
     objs = np.zeros(maxIter)
@@ -209,7 +196,9 @@ def psl_py(Y, sG = None, dist = None, K = 10, C = 1e3, param_gamma = 1e-3, d = 2
         P = 0.5 * D * invQ + 0.125 * param_gamma ** 2 * invQYW.dot(invQYW.T)
         logdet_Q =  2 * sum(np.log(np.diag(np.linalg.cholesky(Q.toarray()).T)))
         # log(det(Q))
-        obj = 0.5 * D * logdet_Q - np.sum(S * dist) + 0.25 / C * np.sum(S ** 2) - 0.125 * param_gamma ** 2 * sum(np.diag(np.dot(W.T, np.dot(Y.T, invQYW))))  # trace: #sum(diag(m))
+        obj = 0.5 * D * logdet_Q - scipy.sparse.csr_matrix.sum(scipy.sparse.csr_matrix.multiply(S, dist)) + \
+              0.25 / C * scipy.sparse.csr_matrix.sum(scipy.sparse.csr_matrix.multiply(S, S)) - \
+              0.125 * param_gamma ** 2 * sum(np.diag(np.dot(W.T, np.dot(Y.T, invQYW))))  # trace: #sum(diag(m))
         objs[iter] = obj
 
         if verbose:

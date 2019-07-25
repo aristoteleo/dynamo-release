@@ -67,7 +67,7 @@ def reduceDimension(adata, n_pca_components = 25, n_components = 2, normalize_co
         nn.fit(X)
         dists, neighs = nn.kneighbors(X + adata.layers[velocity_key])
     elif reduction_method is 'UMAP':
-        dists, neighs = X_umap.graph_, X_umap.graph_
+        dists, neighs = X_umap.graph_, X_umap.graph_ # update this part
 
     scale = np.median(dists, axis=1)
     weight = norm.pdf(x = dists, scale=scale[:, None])
@@ -80,4 +80,3 @@ def reduceDimension(adata, n_pca_components = 25, n_components = 2, normalize_co
     adata.obsm['Y_dim'] = Y_dim
 
     return adata
-
