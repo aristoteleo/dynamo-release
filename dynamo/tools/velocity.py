@@ -433,6 +433,15 @@ class estimation:
                         for i in range(n):
                             alpha[i], _ = fit_alpha_degradation(self.t, self.data['uu'][i], self.parameters['beta'][i], mode='fast')
                         self.parameters['alpha'] = alpha
+                elif self._exist_data('ul'):
+                    # gamma estimation
+                    self.parameters['gamma'] = self.fit_gamma_nosplicing_lsq(self.t, self.data['ul'])
+                    #if self._exist_data('uu'):
+                        # alpha estimation
+                        #alpha = np.zeros(n)
+                        #for i in range(n):
+                        #    alpha[i], _ = fit_alpha_synthesis(self.t, self.data['uu'][i], self.parameters['gamma'][i])
+                        #self.parameters['alpha'] = alpha
             elif self.extyp == 'kin':
                 if self._exist_data('ul'):
                     if not self._exist_parameter('beta'):
@@ -518,6 +527,27 @@ class estimation:
             beta[i], u0 = fit_beta_lsq(t, U[i])
             gamma[i], _ = fit_gamma_lsq(t, S[i], beta[i], u0)
         return beta, gamma
+
+    def fit_gamma_nosplicing_lsq(self, t, L):
+        """Estimate gamma with the degradation data using the least squares method when there is no splicing data.
+
+        Arguments
+        ---------
+        t: :class:`~numpy.ndarray`
+            A vector of time points.
+        U: :class:`~numpy.ndarray`
+            A 3D matrix of labeled mRNA counts. Dimension: genes x cells x time points.
+
+        Returns
+        -------
+        gamma: :class:`~numpy.ndarray`
+            A vector of gammas for all the genes.
+        """
+        n = len(L)
+        gamma = np.zeros(n)
+        for i in range(n):
+            gamma[i], _ = fit_beta_lsq(t, L[i])
+        return gamma
 
     def fit_alpha_oneshot(self, t, U, beta, clusters=None):
         """Estimate alpha with the one-shot data.
