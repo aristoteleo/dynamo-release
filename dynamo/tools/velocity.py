@@ -137,8 +137,8 @@ def fit_beta_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=1):
     ---------
     t: :class:`~numpy.ndarray`
         A vector of time points.
-    l: :class:`~numpy.ndarray`
-        A matrix of unspliced, labeled mRNA counts. Dimension: cells x time points
+    l: list
+        A list of unspliced, labeled mRNA counts for each time point. Each element can be a numpy array accounting for multiple cells.
     u0: float
         Initial number of unsplcied mRNA.
     bounds: tuple
@@ -157,14 +157,18 @@ def fit_beta_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=1):
         The estimated value for the initial spliced, labeled mRNA count.
     """
     tau = t - np.min(t)
-    l0 = np.mean(l[:, tau == 0])
+    l0 = np.mean(np.concatenate(l[tau == 0]))
 
     if fix_l0:
-        f_lsq = lambda b: (sol_u(tau, l0, 0, b) - l).flatten()
+        def f_lsq(b):
+            y = sol_u(tau, l0, 0, b)
+            return np.concatenate([y[i] - l[i] for i in range(len(y))])
         ret = least_squares(f_lsq, beta_0, bounds=bounds)
         beta = ret.x
     else:
-        f_lsq = lambda p: (sol_u(tau, p[1], 0, p[0]) - l).flatten()
+        def f_lsq(p):
+            y = sol_u(tau, p[1], 0, p[0])
+            return np.concatenate([y[i] - l[i] for i in range(len(y))])
         ret = least_squares(f_lsq, np.array([beta_0, l0]), bounds=bounds)
         beta = ret.x[0]
         l0 = ret.x[1]
@@ -197,15 +201,21 @@ def fit_gamma_lsq(t, s, beta, u0, bounds=(0, np.inf), fix_s0=False):
         The estimated value for the initial spliced mRNA count.
     """
     tau = t - np.min(t)
-    s0 = np.mean(s[:, tau == 0])
+    s0 = np.mean(np.concatenate(s[tau == 0]))
     g0 = beta * u0/s0
 
     if fix_s0:
-        f_lsq = lambda g: (sol_s(tau, s0, u0, 0, beta, g) - s).flatten()
+        #f_lsq = lambda g: (sol_s(tau, s0, u0, 0, beta, g) - s).flatten()
+        def f_lsq(g):
+            y = sol_s(tau, s0, u0, 0, beta, g)
+            return np.concatenate([y[i] - s[i] for i in range(len(y))])
         ret = least_squares(f_lsq, g0, bounds=bounds)
         gamma = ret.x
     else:
-        f_lsq = lambda p: (sol_s(tau, p[1], u0, 0, beta, p[0]) - s).flatten()
+        #f_lsq = lambda p: (sol_s(tau, p[1], u0, 0, beta, p[0]) - s).flatten()
+        def f_lsq(p):
+            y = sol_s(tau, p[1], u0, 0, beta, p[0])
+            return np.concatenate([y[i] - s[i] for i in range(len(y))])
         ret = least_squares(f_lsq, np.array([g0, s0]), bounds=bounds)
         gamma = ret.x[0]
         s0 = ret.x[1]
@@ -275,6 +285,23 @@ def fit_alpha_degradation(t, u, beta, mode=None):
 
 class velocity:
     def __init__(self, alpha=None, beta=None, gamma=None, eta=None, delta=None, estimation=None):
+        """The class that computes RNA velocity given unknown parameters.
+
+        Arguments
+        ---------
+        alpha: :class:`~numpy.ndarray`
+            A matrix of transcription rate.
+        beta: :class:`~numpy.ndarray`
+            A vector of splicing rate constant for each gene.
+        gamma: :class:`~numpy.ndarray`
+            A vector of spliced mRNA degradation rate constant for each gene.
+        eta: :class:`~numpy.ndarray`
+            A vector of protein synthesis rate constant for each gene.
+        delta: :class:`~numpy.ndarray`
+            A vector of protein degradation rate constant for each gene.
+        estimation: :class:`~estimation`
+            An instance of the estimation class. If this not none, the parameters will be taken from this class instead of the input arguments.
+        """
         if estimation is not None:
             self.parameters = {}
             self.parameters['alpha'] = estimation.parameters['alpha']
@@ -386,6 +413,35 @@ class velocity:
 
 class estimation:
     def __init__(self, U=None, Ul=None, S=None, Sl=None, P=None, t=None, experiment_type='deg', assumption_mRNA=None, assumption_protein='ss'):
+        """The class that estimates parameters with input data.
+
+        Arguments
+        ---------
+        U: :class:`~numpy.ndarray`
+            A matrix of unspliced mRNA count.
+        Ul: :class:`~numpy.ndarray`
+            A matrix of unspliced, labeled mRNA count.
+        S: :class:`~numpy.ndarray`
+            A matrix of spliced mRNA count.
+        Sl: :class:`~numpy.ndarray`
+            A matrix of spliced, labeled mRNA count.
+        P: :class:`~numpy.ndarray`
+            A matrix of protein count.
+        t: :class:`~estimation`
+            A vector of time points.
+        experiment_type: str
+            Labeling experiment type. Available options are: 
+            (1) 'deg': degradation experiment; 
+            (2) 'kin': synthesis experiment; 
+            (3) 'one-shot': one-shot kinetic experiment.
+        assumption_mRNA: str
+            Parameter estimation assumption for mRNA. Available options are: 
+            (1) 'ss': pseudo steady state; 
+            (2) None: kinetic data with no assumption. 
+        assumption_protein: str
+            Parameter estimation assumption for protein. Available options are: 
+            (1) 'ss': pseudo steady state; 
+        """
         self.t = t
         self.data = {'uu': U, 'ul': Ul, 'su': S, 'sl': Sl, 'p': P}
 
@@ -520,12 +576,14 @@ class estimation:
         gamma: :class:`~numpy.ndarray`
             A vector of gammas for all the genes.
         """
-        n = len(U)
+        n = self.get_n_genes(data=U)
         beta = np.zeros(n)
         gamma = np.zeros(n)
         for i in range(n):
-            beta[i], u0 = fit_beta_lsq(t, U[i])
-            gamma[i], _ = fit_gamma_lsq(t, S[i], beta[i], u0)
+            u = np.array([U[j][i] for j in range(len(t))])
+            s = np.array([S[j][i] for j in range(len(t))])
+            beta[i], u0 = fit_beta_lsq(t, u)
+            gamma[i], _ = fit_gamma_lsq(t, s, beta[i], u0)
         return beta, gamma
 
     def fit_gamma_nosplicing_lsq(self, t, L):
@@ -535,7 +593,7 @@ class estimation:
         ---------
         t: :class:`~numpy.ndarray`
             A vector of time points.
-        U: :class:`~numpy.ndarray`
+        L: :class:`~numpy.ndarray`
             A 3D matrix of labeled mRNA counts. Dimension: genes x cells x time points.
 
         Returns
@@ -543,10 +601,11 @@ class estimation:
         gamma: :class:`~numpy.ndarray`
             A vector of gammas for all the genes.
         """
-        n = len(L)
+        n = self.get_n_genes(data=L)
         gamma = np.zeros(n)
         for i in range(n):
-            gamma[i], _ = fit_beta_lsq(t, L[i])
+            l = np.array([L[j][i] for j in range(len(t))])
+            gamma[i], _ = fit_beta_lsq(t, l)
         return gamma
 
     def fit_alpha_oneshot(self, t, U, beta, clusters=None):
@@ -582,9 +641,18 @@ class estimation:
                     alpha[j, i] = np.nan
         return alpha
 
-    def get_n_genes(self):
-        """Get number of genes."""
-        return len(self.data[self.get_exist_data_names()[0]])
+    def get_n_genes(self, key=None, data=None):
+        """Get the number of genes."""
+        if data is None:
+            if key is None:
+                data = self.data[self.get_exist_data_names()[0]]
+            else:
+                data = self.data[key]
+        if type(data) is list:
+            ret = len(data[0])
+        else:
+            ret = len(data)
+        return ret
 
     def set_parameter(self, name, value):
         """Set the value for the specified parameter.
