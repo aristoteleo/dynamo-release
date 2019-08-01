@@ -412,7 +412,7 @@ class velocity:
         return n_genes
 
 class estimation:
-    def __init__(self, U=None, Ul=None, S=None, Sl=None, P=None, t=None, experiment_type='deg', assumption_mRNA=None, assumption_protein='ss'):
+    def __init__(self, U=None, Ul=None, S=None, Sl=None, P=None, t=None, experiment_type='deg', assumption_mRNA=None, assumption_protein='ss', unroll_data=True):
         """The class that estimates parameters with input data.
 
         Arguments
@@ -444,6 +444,8 @@ class estimation:
         """
         self.t = t
         self.data = {'uu': U, 'ul': Ul, 'su': S, 'sl': Sl, 'p': P}
+        if unroll_data:
+            self.unroll_time_series_matrices()
 
         self.extyp = experiment_type
         self.asspt_mRNA = assumption_mRNA
@@ -616,7 +618,7 @@ class estimation:
         t: float
             Labeling duration.
         U: :class:`~numpy.ndarray`
-            A 3D matrix of unspliced mRNA counts. Dimension: genes x cells x time points.
+            A matrix of unspliced mRNA counts. Dimension: genes x cells.
         beta: :class:`~numpy.ndarray`
             A vector of betas for all the genes.
         clusters: list
@@ -640,6 +642,16 @@ class estimation:
                 else:
                     alpha[j, i] = np.nan
         return alpha
+
+    def unroll_time_series_matrices(self):
+        keys = self.get_exist_data_names()
+        time_unrolled = False
+        for k in keys:
+            data = self.data[k]
+            if not time_unrolled and self.t is not None:
+                self.t = np.concatenate([[self.t[i]]*data[i].shape[1] for i in range(len(self.t))])
+            if type(data) is list:
+                self.data[k] = np.concatenate(data, axis=1)
 
     def get_n_genes(self, key=None, data=None):
         """Get the number of genes."""
