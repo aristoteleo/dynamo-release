@@ -137,8 +137,8 @@ def fit_beta_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=1):
     ---------
     t: :class:`~numpy.ndarray`
         A vector of time points.
-    l: list
-        A list of unspliced, labeled mRNA counts for each time point. Each element can be a numpy array accounting for multiple cells.
+    l: :class:`~numpy.ndarray`
+        A vector of unspliced, labeled mRNA counts for each time point.
     u0: float
         Initial number of unsplcied mRNA.
     bounds: tuple
@@ -157,18 +157,14 @@ def fit_beta_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=1):
         The estimated value for the initial spliced, labeled mRNA count.
     """
     tau = t - np.min(t)
-    l0 = np.mean(np.concatenate(l[tau == 0]))
+    l0 = np.mean(l[tau == 0])
 
     if fix_l0:
-        def f_lsq(b):
-            y = sol_u(tau, l0, 0, b)
-            return np.concatenate([y[i] - l[i] for i in range(len(y))])
+        f_lsq = lambda b: sol_u(tau, l0, 0, b) - l
         ret = least_squares(f_lsq, beta_0, bounds=bounds)
         beta = ret.x
     else:
-        def f_lsq(p):
-            y = sol_u(tau, p[1], 0, p[0])
-            return np.concatenate([y[i] - l[i] for i in range(len(y))])
+        f_lsq = lambda p: sol_u(tau, p[1], 0, p[0]) - l
         ret = least_squares(f_lsq, np.array([beta_0, l0]), bounds=bounds)
         beta = ret.x[0]
         l0 = ret.x[1]
@@ -182,7 +178,7 @@ def fit_gamma_lsq(t, s, beta, u0, bounds=(0, np.inf), fix_s0=False):
     t: :class:`~numpy.ndarray`
         A vector of time points.
     s: :class:`~numpy.ndarray`
-        A matrix of spliced, labeled mRNA counts. Dimension: cells x time points
+        A vector of spliced, labeled mRNA counts for each time point.
     beta: float
         The value of beta.
     u0: float
@@ -201,21 +197,15 @@ def fit_gamma_lsq(t, s, beta, u0, bounds=(0, np.inf), fix_s0=False):
         The estimated value for the initial spliced mRNA count.
     """
     tau = t - np.min(t)
-    s0 = np.mean(np.concatenate(s[tau == 0]))
+    s0 = np.mean(s[tau == 0])
     g0 = beta * u0/s0
 
     if fix_s0:
-        #f_lsq = lambda g: (sol_s(tau, s0, u0, 0, beta, g) - s).flatten()
-        def f_lsq(g):
-            y = sol_s(tau, s0, u0, 0, beta, g)
-            return np.concatenate([y[i] - s[i] for i in range(len(y))])
+        f_lsq = lambda g: sol_s(tau, s0, u0, 0, beta, g) - s
         ret = least_squares(f_lsq, g0, bounds=bounds)
         gamma = ret.x
     else:
-        #f_lsq = lambda p: (sol_s(tau, p[1], u0, 0, beta, p[0]) - s).flatten()
-        def f_lsq(p):
-            y = sol_s(tau, p[1], u0, 0, beta, p[0])
-            return np.concatenate([y[i] - s[i] for i in range(len(y))])
+        f_lsq = lambda p: sol_s(tau, p[1], u0, 0, beta, p[0]) - s
         ret = least_squares(f_lsq, np.array([g0, s0]), bounds=bounds)
         gamma = ret.x[0]
         s0 = ret.x[1]
@@ -282,6 +272,30 @@ def fit_alpha_degradation(t, u, beta, mode=None):
     b = ym - k * xm if mode != 'fast' else None
 
     return k * beta, b
+
+def concat_time_series_matrices(mats, t=None):
+    """Concatenate a list of gene x cell matrices into a single matrix.
+
+    Arguments
+    ---------
+    mats: :class:`~numpy.ndarray`
+        A list of gene x cell matrices. The length of the list equals the number of time points
+    t: :class:`~numpy.ndarray` or list
+        A vector or list of time points
+
+    Returns
+    -------
+    ret_mat: :class:`~numpy.ndarray`
+        Concatenated gene x cell matrix.
+    ret_t: :class:`~numpy.ndarray`
+        A vector of time point for each cell.
+    """
+    ret_mat = np.concatenate(mats, axis=1)
+    if t is not None:
+        ret_t = np.concatenate([[t[i]]*mats[i].shape[1] for i in range(len(t))])
+        return ret_mat, ret_t
+    else:
+        return ret_mat
 
 class velocity:
     def __init__(self, alpha=None, beta=None, gamma=None, eta=None, delta=None, estimation=None):
@@ -412,7 +426,7 @@ class velocity:
         return n_genes
 
 class estimation:
-    def __init__(self, U=None, Ul=None, S=None, Sl=None, P=None, t=None, experiment_type='deg', assumption_mRNA=None, assumption_protein='ss', unroll_data=True):
+    def __init__(self, U=None, Ul=None, S=None, Sl=None, P=None, t=None, experiment_type='deg', assumption_mRNA=None, assumption_protein='ss', concat_data=True):
         """The class that estimates parameters with input data.
 
         Arguments
@@ -444,8 +458,8 @@ class estimation:
         """
         self.t = t
         self.data = {'uu': U, 'ul': Ul, 'su': S, 'sl': Sl, 'p': P}
-        if unroll_data:
-            self.unroll_time_series_matrices()
+        if concat_data:
+            self.concatenate_data()
 
         self.extyp = experiment_type
         self.asspt_mRNA = assumption_mRNA
@@ -567,9 +581,9 @@ class estimation:
         t: :class:`~numpy.ndarray`
             A vector of time points.
         U: :class:`~numpy.ndarray`
-            A 3D matrix of unspliced mRNA counts. Dimension: genes x cells x time points.
+            A matrix of unspliced mRNA counts. Dimension: genes x cells.
         S: :class:`~numpy.ndarray`
-            A 3D matrix of spliced mRNA counts. Dimension: genes x cells x time points.
+            A matrix of spliced mRNA counts. Dimension: genes x cells.
 
         Returns
         -------
@@ -582,10 +596,8 @@ class estimation:
         beta = np.zeros(n)
         gamma = np.zeros(n)
         for i in range(n):
-            u = np.array([U[j][i] for j in range(len(t))])
-            s = np.array([S[j][i] for j in range(len(t))])
-            beta[i], u0 = fit_beta_lsq(t, u)
-            gamma[i], _ = fit_gamma_lsq(t, s, beta[i], u0)
+            beta[i], u0 = fit_beta_lsq(t, U[i])
+            gamma[i], _ = fit_gamma_lsq(t, S[i], beta[i], u0)
         return beta, gamma
 
     def fit_gamma_nosplicing_lsq(self, t, L):
@@ -596,7 +608,7 @@ class estimation:
         t: :class:`~numpy.ndarray`
             A vector of time points.
         L: :class:`~numpy.ndarray`
-            A 3D matrix of labeled mRNA counts. Dimension: genes x cells x time points.
+            A matrix of labeled mRNA counts. Dimension: genes x cells.
 
         Returns
         -------
@@ -606,8 +618,7 @@ class estimation:
         n = self.get_n_genes(data=L)
         gamma = np.zeros(n)
         for i in range(n):
-            l = np.array([L[j][i] for j in range(len(t))])
-            gamma[i], _ = fit_beta_lsq(t, l)
+            gamma[i], _ = fit_beta_lsq(t, L[i])
         return gamma
 
     def fit_alpha_oneshot(self, t, U, beta, clusters=None):
@@ -643,15 +654,21 @@ class estimation:
                     alpha[j, i] = np.nan
         return alpha
 
-    def unroll_time_series_matrices(self):
+    def concatenate_data(self):
+        """Concatenate available data into a single matrix. 
+
+        See "concat_time_series_matrices" for details.
+        """
         keys = self.get_exist_data_names()
         time_unrolled = False
         for k in keys:
             data = self.data[k]
-            if not time_unrolled and self.t is not None:
-                self.t = np.concatenate([[self.t[i]]*data[i].shape[1] for i in range(len(self.t))])
             if type(data) is list:
-                self.data[k] = np.concatenate(data, axis=1)
+                if not time_unrolled and self.t is not None:
+                    self.data[k], self.t = concat_time_series_matrices(self.data[k], self.t)
+                    time_unrolled = True
+                else:
+                    self.data[k] = concat_time_series_matrices(self.data[k])
 
     def get_n_genes(self, key=None, data=None):
         """Get the number of genes."""
