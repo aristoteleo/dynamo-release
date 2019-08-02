@@ -138,7 +138,7 @@ def fit_beta_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=1):
     t: :class:`~numpy.ndarray`
         A vector of time points.
     l: :class:`~numpy.ndarray`
-        A matrix of unspliced, labeled mRNA counts. Dimension: cells x time points
+        A vector of unspliced, labeled mRNA counts for each time point.
     u0: float
         Initial number of unsplcied mRNA.
     bounds: tuple
@@ -157,14 +157,14 @@ def fit_beta_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=1):
         The estimated value for the initial spliced, labeled mRNA count.
     """
     tau = t - np.min(t)
-    l0 = np.mean(l[:, tau == 0])
+    l0 = np.mean(l[tau == 0])
 
     if fix_l0:
-        f_lsq = lambda b: (sol_u(tau, l0, 0, b) - l).flatten()
+        f_lsq = lambda b: sol_u(tau, l0, 0, b) - l
         ret = least_squares(f_lsq, beta_0, bounds=bounds)
         beta = ret.x
     else:
-        f_lsq = lambda p: (sol_u(tau, p[1], 0, p[0]) - l).flatten()
+        f_lsq = lambda p: sol_u(tau, p[1], 0, p[0]) - l
         ret = least_squares(f_lsq, np.array([beta_0, l0]), bounds=bounds)
         beta = ret.x[0]
         l0 = ret.x[1]
@@ -178,7 +178,7 @@ def fit_gamma_lsq(t, s, beta, u0, bounds=(0, np.inf), fix_s0=False):
     t: :class:`~numpy.ndarray`
         A vector of time points.
     s: :class:`~numpy.ndarray`
-        A matrix of spliced, labeled mRNA counts. Dimension: cells x time points
+        A vector of spliced, labeled mRNA counts for each time point.
     beta: float
         The value of beta.
     u0: float
@@ -197,15 +197,15 @@ def fit_gamma_lsq(t, s, beta, u0, bounds=(0, np.inf), fix_s0=False):
         The estimated value for the initial spliced mRNA count.
     """
     tau = t - np.min(t)
-    s0 = np.mean(s[:, tau == 0])
+    s0 = np.mean(s[tau == 0])
     g0 = beta * u0/s0
 
     if fix_s0:
-        f_lsq = lambda g: (sol_s(tau, s0, u0, 0, beta, g) - s).flatten()
+        f_lsq = lambda g: sol_s(tau, s0, u0, 0, beta, g) - s
         ret = least_squares(f_lsq, g0, bounds=bounds)
         gamma = ret.x
     else:
-        f_lsq = lambda p: (sol_s(tau, p[1], u0, 0, beta, p[0]) - s).flatten()
+        f_lsq = lambda p: sol_s(tau, p[1], u0, 0, beta, p[0]) - s
         ret = least_squares(f_lsq, np.array([g0, s0]), bounds=bounds)
         gamma = ret.x[0]
         s0 = ret.x[1]
@@ -273,8 +273,49 @@ def fit_alpha_degradation(t, u, beta, mode=None):
 
     return k * beta, b
 
+def concat_time_series_matrices(mats, t=None):
+    """Concatenate a list of gene x cell matrices into a single matrix.
+
+    Arguments
+    ---------
+    mats: :class:`~numpy.ndarray`
+        A list of gene x cell matrices. The length of the list equals the number of time points
+    t: :class:`~numpy.ndarray` or list
+        A vector or list of time points
+
+    Returns
+    -------
+    ret_mat: :class:`~numpy.ndarray`
+        Concatenated gene x cell matrix.
+    ret_t: :class:`~numpy.ndarray`
+        A vector of time point for each cell.
+    """
+    ret_mat = np.concatenate(mats, axis=1)
+    if t is not None:
+        ret_t = np.concatenate([[t[i]]*mats[i].shape[1] for i in range(len(t))])
+        return ret_mat, ret_t
+    else:
+        return ret_mat
+
 class velocity:
     def __init__(self, alpha=None, beta=None, gamma=None, eta=None, delta=None, estimation=None):
+        """The class that computes RNA velocity given unknown parameters.
+
+        Arguments
+        ---------
+        alpha: :class:`~numpy.ndarray`
+            A matrix of transcription rate.
+        beta: :class:`~numpy.ndarray`
+            A vector of splicing rate constant for each gene.
+        gamma: :class:`~numpy.ndarray`
+            A vector of spliced mRNA degradation rate constant for each gene.
+        eta: :class:`~numpy.ndarray`
+            A vector of protein synthesis rate constant for each gene.
+        delta: :class:`~numpy.ndarray`
+            A vector of protein degradation rate constant for each gene.
+        estimation: :class:`~estimation`
+            An instance of the estimation class. If this not none, the parameters will be taken from this class instead of the input arguments.
+        """
         if estimation is not None:
             self.parameters = {}
             self.parameters['alpha'] = estimation.parameters['alpha']
@@ -385,9 +426,40 @@ class velocity:
         return n_genes
 
 class estimation:
-    def __init__(self, U=None, Ul=None, S=None, Sl=None, P=None, t=None, experiment_type='deg', assumption_mRNA=None, assumption_protein='ss'):
+    def __init__(self, U=None, Ul=None, S=None, Sl=None, P=None, t=None, experiment_type='deg', assumption_mRNA=None, assumption_protein='ss', concat_data=True):
+        """The class that estimates parameters with input data.
+
+        Arguments
+        ---------
+        U: :class:`~numpy.ndarray`
+            A matrix of unspliced mRNA count.
+        Ul: :class:`~numpy.ndarray`
+            A matrix of unspliced, labeled mRNA count.
+        S: :class:`~numpy.ndarray`
+            A matrix of spliced mRNA count.
+        Sl: :class:`~numpy.ndarray`
+            A matrix of spliced, labeled mRNA count.
+        P: :class:`~numpy.ndarray`
+            A matrix of protein count.
+        t: :class:`~estimation`
+            A vector of time points.
+        experiment_type: str
+            Labeling experiment type. Available options are: 
+            (1) 'deg': degradation experiment; 
+            (2) 'kin': synthesis experiment; 
+            (3) 'one-shot': one-shot kinetic experiment.
+        assumption_mRNA: str
+            Parameter estimation assumption for mRNA. Available options are: 
+            (1) 'ss': pseudo steady state; 
+            (2) None: kinetic data with no assumption. 
+        assumption_protein: str
+            Parameter estimation assumption for protein. Available options are: 
+            (1) 'ss': pseudo steady state; 
+        """
         self.t = t
         self.data = {'uu': U, 'ul': Ul, 'su': S, 'sl': Sl, 'p': P}
+        if concat_data:
+            self.concatenate_data()
 
         self.extyp = experiment_type
         self.asspt_mRNA = assumption_mRNA
@@ -433,6 +505,16 @@ class estimation:
                         for i in range(n):
                             alpha[i], _ = fit_alpha_degradation(self.t, self.data['uu'][i], self.parameters['beta'][i], mode='fast')
                         self.parameters['alpha'] = alpha
+                elif self._exist_data('ul'):
+                    # gamma estimation
+                    self.parameters['beta'] = np.ones(n)
+                    self.parameters['gamma'] = self.fit_gamma_nosplicing_lsq(self.t, self.data['ul'])
+                    #if self._exist_data('uu'):
+                        # alpha estimation
+                        #alpha = np.zeros(n)
+                        #for i in range(n):
+                        #    alpha[i], _ = fit_alpha_synthesis(self.t, self.data['uu'][i], self.parameters['gamma'][i])
+                        #self.parameters['alpha'] = alpha
             elif self.extyp == 'kin':
                 if self._exist_data('ul'):
                     if not self._exist_parameter('beta'):
@@ -500,9 +582,9 @@ class estimation:
         t: :class:`~numpy.ndarray`
             A vector of time points.
         U: :class:`~numpy.ndarray`
-            A 3D matrix of unspliced mRNA counts. Dimension: genes x cells x time points.
+            A matrix of unspliced mRNA counts. Dimension: genes x cells.
         S: :class:`~numpy.ndarray`
-            A 3D matrix of spliced mRNA counts. Dimension: genes x cells x time points.
+            A matrix of spliced mRNA counts. Dimension: genes x cells.
 
         Returns
         -------
@@ -511,13 +593,34 @@ class estimation:
         gamma: :class:`~numpy.ndarray`
             A vector of gammas for all the genes.
         """
-        n = len(U)
+        n = self.get_n_genes(data=U)
         beta = np.zeros(n)
         gamma = np.zeros(n)
         for i in range(n):
             beta[i], u0 = fit_beta_lsq(t, U[i])
             gamma[i], _ = fit_gamma_lsq(t, S[i], beta[i], u0)
         return beta, gamma
+
+    def fit_gamma_nosplicing_lsq(self, t, L):
+        """Estimate gamma with the degradation data using the least squares method when there is no splicing data.
+
+        Arguments
+        ---------
+        t: :class:`~numpy.ndarray`
+            A vector of time points.
+        L: :class:`~numpy.ndarray`
+            A matrix of labeled mRNA counts. Dimension: genes x cells.
+
+        Returns
+        -------
+        gamma: :class:`~numpy.ndarray`
+            A vector of gammas for all the genes.
+        """
+        n = self.get_n_genes(data=L)
+        gamma = np.zeros(n)
+        for i in range(n):
+            gamma[i], _ = fit_beta_lsq(t, L[i])
+        return gamma
 
     def fit_alpha_oneshot(self, t, U, beta, clusters=None):
         """Estimate alpha with the one-shot data.
@@ -527,7 +630,7 @@ class estimation:
         t: float
             Labeling duration.
         U: :class:`~numpy.ndarray`
-            A 3D matrix of unspliced mRNA counts. Dimension: genes x cells x time points.
+            A matrix of unspliced mRNA counts. Dimension: genes x cells.
         beta: :class:`~numpy.ndarray`
             A vector of betas for all the genes.
         clusters: list
@@ -552,9 +655,34 @@ class estimation:
                     alpha[j, i] = np.nan
         return alpha
 
-    def get_n_genes(self):
-        """Get number of genes."""
-        return len(self.data[self.get_exist_data_names()[0]])
+    def concatenate_data(self):
+        """Concatenate available data into a single matrix. 
+
+        See "concat_time_series_matrices" for details.
+        """
+        keys = self.get_exist_data_names()
+        time_unrolled = False
+        for k in keys:
+            data = self.data[k]
+            if type(data) is list:
+                if not time_unrolled and self.t is not None:
+                    self.data[k], self.t = concat_time_series_matrices(self.data[k], self.t)
+                    time_unrolled = True
+                else:
+                    self.data[k] = concat_time_series_matrices(self.data[k])
+
+    def get_n_genes(self, key=None, data=None):
+        """Get the number of genes."""
+        if data is None:
+            if key is None:
+                data = self.data[self.get_exist_data_names()[0]]
+            else:
+                data = self.data[key]
+        if type(data) is list:
+            ret = len(data[0])
+        else:
+            ret = len(data)
+        return ret
 
     def set_parameter(self, name, value):
         """Set the value for the specified parameter.
