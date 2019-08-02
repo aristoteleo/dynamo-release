@@ -507,6 +507,7 @@ class estimation:
                         self.parameters['alpha'] = alpha
                 elif self._exist_data('ul'):
                     # gamma estimation
+                    self.parameters['beta'] = np.ones(n)
                     self.parameters['gamma'] = self.fit_gamma_nosplicing_lsq(self.t, self.data['ul'])
                     #if self._exist_data('uu'):
                         # alpha estimation
