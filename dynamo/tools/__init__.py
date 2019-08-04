@@ -10,6 +10,7 @@ from .moments import moments, moments_simple, estimation
 from .simulation import Simulator
 
 from .velocity import sol_u, sol_s, sol_p, fit_linreg, fit_beta_lsq, fit_gamma_lsq, fit_alpha_synthesis, fit_alpha_degradation, velocity, estimation
+from .cell_velocities import cell_velocities
 
 # run other velocity tools: 
 from .velocyto_scvelo import vlm_to_adata, converter, run_velocyto, run_scvelo, mean_var_by_time, run_dynamo, run_dynamo_simple_fit, run_dynamo_labeling, compare_res
@@ -21,5 +22,5 @@ from .scVectorField import SparseVFC, con_K, get_P, VectorField #, evaluate, con
 from .scPotential import gen_fixed_points, gen_gradient, IntGrad, DiffusionMatrix, action, Potential, ODE, autoODE #, vector_field_function
 
 # dimension reduction related
-from .dimension_reduction import reduceDimension
+from .dimension_reduction import extract_indices_dist_from_graph, umap_conn_indices_dist_embedding, reduceDimension
 
