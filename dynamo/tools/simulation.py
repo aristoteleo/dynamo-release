@@ -16,7 +16,7 @@ from anndata import AnnData
 
 # deterministic as well as noise 
 def Simulator(a = None, b = None, la = None, aa = None, ai = None, si = None, be = None, ga = None, C0=np.zeros((5, 1)), t_span=[0, 50], n_traj=1, t_eval = None, dt = 1, method = 'Gillespie', verbose=False):
-    '''
+    """
     a: rate of active promoter switches to inactive one
     b: rate of inactive promoter switches to active one
     la: lambda_: 4sU labeling rate
@@ -31,7 +31,7 @@ def Simulator(a = None, b = None, la = None, aa = None, ai = None, si = None, be
     dt: delta t used in simulation
     method: method to simulate the expression dynamics
     verbose: whether to report running information
-    '''
+    """
 
     gene_num, species_num = C0.shape[0:2]
     if method == 'Gillespie':

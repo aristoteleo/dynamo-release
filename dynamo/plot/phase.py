@@ -23,19 +23,48 @@ def plotUS(adata, genes):
 
         cur_axes.plot(points, points, color='red', marker=None, linestyle='--', linewidth=1.0)
 
+def plot_fitting(adata, gene, log = True, group = False):
+    """
+    # add the plotting for fitting the data using only the splicing
+    :param adata:
+    :param gene:
+    :param log:
+    :param group:
+    :return:
+    """
+    groups = [''] if group == False else np.unique(adata.obs[group])
 
-def plotPhase(adata):
-    return
+    T = adata.obs['Time']
+    gene_idx = np.where(adata.var.index.values == gene)[0][0]
 
-def plotPhase(adata):
-    return
+    for cur_grp in groups:
+        alpha, gamma, u0, l0 = adata.uns['dynamo_labeling'].loc[gene, :]
+        u, l = adata.layers['U'][adata.obs[group] == cur_grp, gene_idx].toarray().squeeze(), \
+                    adata.layers['L'][adata.obs[group] == cur_grp, gene_idx].toarray().squeeze()
+        if log:
+            u, l = np.log(u + 1), np.log(l + 1)
+
+        t = np.linspace(T[0], T[-1], 50)
+
+        plt.figure(figsize=(10, 5))
+        plt.subplot(121)
+        plt.plot(T, u.T, linestyle='None', marker='o', markersize=10)
+        plt.plot(t, alpha/gamma + (u0 - alpha/gamma) * np.exp(-gamma*t), '--')
+        plt.xlabel('time (hrs)')
+        plt.title('unlabeled (' + cur_grp + ')')
+
+        plt.subplot(122)
+        plt.plot(T, l.T, linestyle='None', marker='o', markersize=10)
+        plt.plot(t, l0 * np.exp(-gamma*t), '--')
+        plt.xlabel('time (hrs)')
+        plt.title('labeled (' + cur_grp + ')')
 
 # moran'I on the velocity genes, etc.
 
 # cellranger data, velocyto, comparison and phase diagram
 
 def plot_LIC_gray(tex):
-    '''GET_P estimates the posterior probability and part of the energy.
+    """GET_P estimates the posterior probability and part of the energy.
 
     Arguments
     ---------
@@ -57,7 +86,7 @@ def plot_LIC_gray(tex):
     E: `np.ndarray'
         Energy, related to equation 26.
 
-    '''
+    """
 
     tex = tex[:, ::-1]
     tex = tex.T
@@ -75,7 +104,7 @@ def plot_LIC_gray(tex):
 
 
 def plot_LIC(U_grid, V_grid, method = 'yt', cmap = "viridis", normalize = False, density = 1, lim=(0,1), const_alpha=False, kernellen=100, xlab='Dim 1', ylab='Dim 2', file = None):
-    '''Visualize vector field with quiver, streamline and line integral convolution (LIC), using velocity estimates on a grid from the associated data.
+    """Visualize vector field with quiver, streamline and line integral convolution (LIC), using velocity estimates on a grid from the associated data.
     A white noise background will be used for texture as default. Adjust the bounds of lim in the range of [0, 1] which applies
     upper and lower bounds to the values of line integral convolution and enhance the visibility of plots. When const_alpha=False,
     alpha will be weighted spatially by the values of line integral convolution; otherwise a constant value of the given alpha is used.
@@ -108,7 +137,7 @@ def plot_LIC(U_grid, V_grid, method = 'yt', cmap = "viridis", normalize = False,
     E: `np.ndarray'
         Energy, related to equation 26.
 
-    '''
+    """
 
     if method == 'yt':
         velocity_x_ori, velocity_y_ori, velocity_z_ori = U_grid, V_grid, np.zeros(U_grid.shape)

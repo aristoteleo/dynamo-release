@@ -4,7 +4,7 @@ import numpy.matlib
 
 
 def SparseVFC(X, Y, Grid, M = 100, a = 5, beta = 0.1, ecr = 1e-5, gamma = 0.9, lambda_ = 3, minP = 1e-5, MaxIter = 500, theta = 0.75, div_cur_free_kernels = False):
-    '''Apply sparseVFC (vector field consensus) algorithm to learn an analytical function of vector field on the entire space robustly.
+    """Apply sparseVFC (vector field consensus) algorithm to learn an analytical function of vector field on the entire space robustly.
     Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
 
     Arguments
@@ -39,7 +39,7 @@ def SparseVFC(X, Y, Grid, M = 100, a = 5, beta = 0.1, ecr = 1e-5, gamma = 0.9, l
     VecFld: 'dict'
     A dictionary which contains X, Y, beta, V, C, P, VFCIndex. Where V = f(X), P is the posterior probability and
     VFCIndex is the indexes of inliers which found by VFC. Note that V = con_K(Grid, ctrl_pts, beta).dot(C) gives the prediction of velocity on Grid (can be any point in the gene expressionstate space).
-    '''
+    """
 
     N, D = Y.shape
 
@@ -101,7 +101,7 @@ def SparseVFC(X, Y, Grid, M = 100, a = 5, beta = 0.1, ecr = 1e-5, gamma = 0.9, l
 
 
 def con_K(x, y, beta):
-    '''Con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
+    """Con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
 
     Arguments
     ---------
@@ -116,7 +116,7 @@ def con_K(x, y, beta):
     -------
     K: 'np.ndarray'
     the kernel to represent the vector field function.
-    '''
+    """
 
     n, d = x.shape
     m, d = y.shape
@@ -132,7 +132,7 @@ def con_K(x, y, beta):
 
 
 def get_P(Y, V, sigma2, gamma, a):
-    '''GET_P estimates the posterior probability and part of the energy.
+    """GET_P estimates the posterior probability and part of the energy.
 
     Arguments
     ---------
@@ -154,7 +154,7 @@ def get_P(Y, V, sigma2, gamma, a):
     E: `np.ndarray'
         Energy, related to equation 26.
 
-    '''
+    """
     D = Y.shape[1]
     temp1 = np.exp(-np.sum((Y - V)**2, 1) / (2 * sigma2))
     temp2 = (2 * np.pi * sigma2)**(D/2) * (1 - gamma) / (gamma * a)
@@ -170,7 +170,7 @@ class VectorField:
         self.parameters = {'M': M, "a": a, "beta": beta, "ecr": ecr, "gamma": gamma, "lambda_": lambda_, "minP": minP, "MaxIter": MaxIter, "theta": theta, "div_cur_free_kernels": div_cur_free_kernels}
 
     def VectorField(self, method = 'SparseVFC'):
-        '''Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
+        """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
         Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
 
         Arguments
@@ -192,7 +192,7 @@ class VectorField:
         VecFld: 'dict'
         A dictionary which contains X, Y, beta, V, C, P, VFCIndex. Where V = f(X), P is the posterior probability and
         VFCIndex is the indexes of inliers which found by VFC.
-        '''
+        """
 
         if(method == 'SparseVFC'):
             VecFld = SparseVFC(self.data['X'], self.data['Y'], self.data['Grid'], M = self.parameters['M'], a = self.parameters['a'],
@@ -204,7 +204,7 @@ class VectorField:
 
 
     def evaluate(self, CorrectIndex, VFCIndex, siz):
-        '''Evaluate the precision, recall, corrRate of the sparseVFC algorithm.
+        """Evaluate the precision, recall, corrRate of the sparseVFC algorithm.
 
         Arguments
         ---------
@@ -221,7 +221,7 @@ class VectorField:
         Precision, recall, corrRate: Precision and recall of VFC, percentage of initial correct matches.
 
         See also:: :func:`sparseVFC`.
-        '''
+        """
 
         if len(VFCIndex) == 0:
             VFCIndex = range(siz)
@@ -243,7 +243,7 @@ class VectorField:
 
 
     def con_K_div_cur_free(self, x, y, sigma = 0.8, gamma = 0.5):
-        '''Learn a convex combination of the divergence-free kernel T_df and curl-free kernel T_cf with a bandwidth sigma and a combination coefficient gamma.
+        """Learn a convex combination of the divergence-free kernel T_df and curl-free kernel T_cf with a bandwidth sigma and a combination coefficient gamma.
 
         Arguments
         ---------
@@ -265,7 +265,7 @@ class VectorField:
         A tuple of G (the combined kernel function), divergence-free kernel and curl-free kernel.
 
         See also:: :func:`sparseVFC`.
-        '''
+        """
         m, d = x.shape; n, d = y.shape
         sigma2 = sigma**2
         G_tmp = np.matlib.tile(x[:, :, None], [1, 1, n]) - np.transpose(np.matlib.tile(y[:, :, None], [1, 1, m]), [2, 1, 0])
@@ -298,9 +298,9 @@ class VectorField:
         return G, (1-gamma)*G_tmp*(G_tmp2+G_tmp3), gamma*G_tmp*G_tmp4
 
     def vector_field_function(self, x, VecFld, autograd = False):
-        '''Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
+        """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
         Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
-        '''
+        """
 
         K= con_K(x, VecFld['X'], VecFld['beta']) if autograd is False else auto_con_K(x, VecFld['X'], VecFld['beta'])
 
@@ -309,9 +309,9 @@ class VectorField:
         return K
 
     def vector_field_function(x, VecFld):
-        '''Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
+        """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
         Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
-        '''
+        """
         if(len(x.shape) == 1):
             x = x[None, :]
         K= con_K(x, VecFld['X'], VecFld['beta'])
@@ -321,9 +321,9 @@ class VectorField:
         return K.T
 
     def vector_field_function_auto(self, x, VecFld, autograd = False):
-        '''Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
+        """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
         Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
-        '''
+        """
 
         K= con_K(x, VecFld['X'], VecFld['beta']) if autograd is False else auto_con_K(x, VecFld['X'], VecFld['beta'])
 
@@ -332,7 +332,7 @@ class VectorField:
         return K
 
     def auto_con_K(self, x, y, beta):
-        '''Con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
+        """Con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
 
         Arguments
         ---------
@@ -347,7 +347,7 @@ class VectorField:
         -------
         K: 'np.ndarray'
         the kernel to represent the vector field function.
-        '''
+        """
 
         n, d = x.shape
         m, d = y.shape
