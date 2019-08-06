@@ -45,8 +45,8 @@ def extract_indices_dist_from_graph(graph, n_neighbors):
             ind_mat[cur_cell, 1:] = cur_neighbors[1][sorted_indices]
             dist_mat[cur_cell, 1:] = graph[cur_cell][0, cur_neighbors[1][sorted_indices]].A
         else:
-            ind_mat[cur_cell, 1:] = cur_neighbors[1]
-            dist_mat[cur_cell, 1:] = graph[cur_cell][:, cur_neighbors[1]].A
+            ind_mat[cur_cell, 1:] = cur_neighbors[1][1:] # could not broadcast input array from shape (13) into shape (14)
+            dist_mat[cur_cell, 1:] = graph[cur_cell][:, cur_neighbors[1]].A[1:]
 
     return ind_mat, dist_mat
 
@@ -95,6 +95,7 @@ def umap_conn_indices_dist_embedding(X,
 
     from umap.utils import tau_rand_int, deheap_sort
     from umap.rp_tree import rptree_leaf_array, make_forest
+    # https://github.com/lmcinnes/umap/blob/97d33f57459de796774ab2d7fcf73c639835676d/umap/nndescent.py
     from umap.nndescent import (
         make_nn_descent,
         make_initialisations,
@@ -103,13 +104,11 @@ def umap_conn_indices_dist_embedding(X,
     )
     from umap.spectral import spectral_layout
 
-    INT32_MIN = np.iinfo(np.int32).min + 1
-    INT32_MAX = np.iinfo(np.int32).max - 1
     random_state = check_random_state(42)
 
     _raw_data = X
 
-    if X.shape[0] < 4096: #
+    if X.shape[0] < 1: #4096
         dmat = pairwise_distances(X, metric=metric)
         graph = fuzzy_simplicial_set(
             X=dmat,
@@ -121,7 +120,7 @@ def umap_conn_indices_dist_embedding(X,
         # extract knn_indices, knn_dist
         g_tmp = deepcopy(graph)
         g_tmp[graph.nonzero()] = dmat[graph.nonzero()]
-        knn_indices, knn_dists = extract_indices_dist_from_graph(g_tmp, n_neighbors = n_neighbors)
+        knn_indices, knn_dists = extract_indices_dist_from_graph(g_tmp, n_neighbors=n_neighbors)
 
     else:
         # Standard case
@@ -151,34 +150,16 @@ def umap_conn_indices_dist_embedding(X,
         _search_graph = scipy.sparse.lil_matrix(
             (X.shape[0], X.shape[0]), dtype=np.int8
         )
-        _search_graph.rows = knn_indices
-        _search_graph.data = (knn_dists != 0).astype(np.int8)
-        _search_graph = _search_graph.maximum(
+        _search_graph.rows = knn_indices # An array (self.rows) of rows, each of which is a sorted list of column indices of non-zero elements.
+        _search_graph.data = (knn_dists != 0).astype(np.int8) # The corresponding nonzero values are stored in similar fashion in self.data.
+        _search_graph = _search_graph.maximum( # Element-wise maximum between this and another matrix.
             _search_graph.transpose()
         ).tocsr()
-
-        if callable(metric):
-            _distance_func = metric
-        elif metric in dist.named_distances:
-            _distance_func = dist.named_distances[metric]
-        else:
-            raise ValueError(
-                "Metric is neither callable, " + "nor a recognised string"
-            )
-        _dist_args = tuple({}.values())
-
-        _random_init, _tree_init = make_initialisations(
-            _distance_func, _dist_args
-        )
-        _search = make_initialized_nnd_search(
-            _distance_func, _dist_args
-        )
 
     if verbose:
         print("Construct embedding")
 
     a, b = find_ab_params(1, min_dist)
-    # rng_state = random_state.randint(INT32_MIN, INT32_MAX, 3).astype(np.int64)
 
     embedding_ = simplicial_set_embedding(
         data=_raw_data,
@@ -200,7 +181,7 @@ def umap_conn_indices_dist_embedding(X,
     return graph, knn_indices, knn_dists, embedding_
 
 
-def reduceDimension(adata, n_pca_components = 25, n_components = 2, velocity_method = None, n_neighbors = 10, reduction_method='UMAP', velocity_key = 'velocity'): # c("UMAP", 'tSNE', "DDRTree", "ICA", 'none')
+def reduceDimension(adata, n_pca_components=25, n_components=2, velocity_method=None, n_neighbors=10, reduction_method='UMAP', velocity_key='velocity'): # c("UMAP", 'tSNE', "DDRTree", "ICA", 'none')
     """Compute a low dimension reduction projection of an annodata object first with PCA, followed by non-linear dimension reduction methods
 
     Arguments
@@ -228,12 +209,13 @@ def reduceDimension(adata, n_pca_components = 25, n_components = 2, velocity_met
 
     n_obs = adata.shape[0]
 
-    X = adata.X
+    X, X_t = adata.X, adata.X + adata.layers[velocity_key]
 
     if(not 'X_pca' in adata.obsm.keys()):
         transformer = TruncatedSVD(n_components=n_pca_components, random_state=0)
-        X_pca = transformer.fit(X.T).components_.T
-        adata.obsm['X_pca'] = X_pca
+        X_fit = transformer.fit(X)
+        X_pca, X_t_pca = X_fit.transform(X), X_fit.transform(X_t)
+        adata.obsm['X_pca'], adata.obsm['velocity_pca'] = X_pca, X_t_pca - X_pca
     else:
         X_pca = adata.obsm['X_pca']
 
@@ -244,9 +226,8 @@ def reduceDimension(adata, n_pca_components = 25, n_components = 2, velocity_met
     elif reduction_method is 'UMAP':
         graph, knn_indices, knn_dists, X_dim = umap_conn_indices_dist_embedding(X) # X_pca
         adata.obsm['X_umap'] = X_dim.copy()
-        adata.uns['neighbors']['connectivities'] = graph
-        adata.uns['neighbors']['distances'] = knn_dists
-        adata.uns['neighbors']['indices'] = knn_indices
+        adata.uns['neighbors'] = {'params': {'n_neighbors': n_neighbors, 'method': reduction_method}, 'connectivities': graph, \
+                                  'distances': knn_dists, 'indices': knn_indices}
     elif reduction_method is 'PSL':
         adj_mat, X_dim = psl_py(X_pca, d = n_components, K = n_neighbors) # this need to be updated
         adata.obsm['X_psl'] = X_dim
@@ -258,8 +239,7 @@ def reduceDimension(adata, n_pca_components = 25, n_components = 2, velocity_met
         if n_neighbors is None: n_neighbors = int(n_obs / 50)
         nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=-1)
         nn.fit(adata.X)
-        tmp = adata.X + adata.layers[velocity_key]
-        dists, neighs = nn.kneighbors(tmp)
+        dists, neighs = nn.kneighbors(X_t)
         scale = np.median(dists, axis=1)
         weight = norm.pdf(x = dists, scale=scale[:, None])
         p_mass = weight.sum(1)
@@ -269,11 +249,9 @@ def reduceDimension(adata, n_pca_components = 25, n_components = 2, velocity_met
         Y_dim = (X_dim[neighs] * (weight[:, :, None])).sum(1)
         adata.obsm['Y_dim'] = Y_dim
     elif velocity_method is 'UMAP':
-        tmp = adata.X + adata.layers[velocity_key]
-        tmp[tmp < 0] = 0
+        X_t[X_t < 0] = 0
 
-        test_embedding = X_umap.transform(tmp) # use umap's transformer to get the embedding points of future states
+        test_embedding = X_umap.transform(X_t) # use umap's transformer to get the embedding points of future states
         adata.obsm['Y_dim'] = test_embedding
 
     return adata
-
