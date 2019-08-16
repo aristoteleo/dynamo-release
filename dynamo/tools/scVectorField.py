@@ -308,7 +308,7 @@ class VectorField:
 
         return K
 
-    def vector_field_function(x, VecFld):
+    def vector_field_function(x, t, VecFld):
         """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
         Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
         """

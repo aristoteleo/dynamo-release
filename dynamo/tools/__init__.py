@@ -21,6 +21,9 @@ from .scVectorField import SparseVFC, con_K, get_P, VectorField #, evaluate, con
 # potential related
 from .scPotential import gen_fixed_points, gen_gradient, IntGrad, DiffusionMatrix, action, Potential, ODE, autoODE #, vector_field_function
 
+# cell fate related
+from .fate import fate
+
 # dimension reduction related
 from .dimension_reduction import extract_indices_dist_from_graph, umap_conn_indices_dist_embedding, reduceDimension
 

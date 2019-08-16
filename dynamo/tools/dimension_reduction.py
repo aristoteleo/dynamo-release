@@ -108,7 +108,7 @@ def umap_conn_indices_dist_embedding(X,
 
     _raw_data = X
 
-    if X.shape[0] < 1: #4096
+    if X.shape[0] < 4096: #1
         dmat = pairwise_distances(X, metric=metric)
         graph = fuzzy_simplicial_set(
             X=dmat,
