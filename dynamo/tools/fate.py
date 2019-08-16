@@ -33,7 +33,8 @@ def fate(VecFld, init_state, t_end=100, step_size=0.01, direction='both', averag
         Predicted cells states at different time points. Row order corresponds to the element order in t. If init_state
         corresponds to multiple cells, the expression dynamics over time for each cell is concatenated by rows. That is,
         the final dimension of prediction is (len(t) * n_cells, n_features). n_cells: number of cells; n_features: number
-        of genes or number of low dimensional embeddings.
+        of genes or number of low dimensional embeddings. Of note, if the average is set to be True, the average cell state
+        at each time point is calculated for all cells.
     """
 
     V_func = lambda x, t: VectorField.vector_field_function(x=x, t=t, VecFld=VecFld)
