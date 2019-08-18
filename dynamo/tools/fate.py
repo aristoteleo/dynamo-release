@@ -63,7 +63,7 @@ def fate(VecFld, init_state, t_end=100, step_size=0.01, direction='both', averag
             prediction[(n_steps * i):(n_steps * (i + 1)), :] = odeint(V_func, init_state[i, :], t=t0)
         t=t0
     else:
-        raise ('both, forward, backward are the only valid direction argument string')
+        raise Exception('both, forward, backward are the only valid direction argument string')
 
     if average:
         avg = np.zeros((len(t1), init_state.shape[1]))

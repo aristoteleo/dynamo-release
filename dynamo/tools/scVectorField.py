@@ -3,7 +3,7 @@ import scipy
 import numpy.matlib
 
 
-def norm2(X, V, T):
+def norm(X, V, T):
         """Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
         We use the mean of X, Y's center and scale parameters to normalize T.
 
@@ -12,7 +12,7 @@ def norm2(X, V, T):
         X: 'np.ndarray'
             Current state. This corresponds to, for example, the spliced transcriptomic state.
         V: 'np.ndarray'
-            Velocity estimates in delta t. This corresponds to, for example, the inferred spliced transcriptomic velocity estimated calculated by velocyto, scvelo or dynamo.
+            Velocity estimates in delta t. This corresponds to, for example, the inferred spliced transcriptomic velocity estimated calculated by dynamo or velocyto, scvelo.
         T: 'np.ndarray'
             Current state on a grid which is often used to visualize the vector field. This corresponds to, for example, the spliced transcriptomic state.
 
@@ -263,7 +263,7 @@ class VectorField:
         """
 
         if normalize:
-             X, V, T, norm_dict = norm2(self.data['X'], self.data['V'], self.data['Grid'])
+             X, V, T, norm_dict = norm(self.data['X'], self.data['V'], self.data['Grid'])
              self.data['X'], self.data['V'], self.data['Grid'], self.norm_dict = X, V, T, norm_dict
 
         if(method == 'SparseVFC'):
