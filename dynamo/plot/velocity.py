@@ -1,14 +1,40 @@
 import numpy as np
 import pandas as pd
+from plotnine import *
 import matplotlib.pyplot as plt
 import seaborn as sns
-from plotnine import *
 
 import yt
 
 import scipy as sc
 from scipy.sparse import issparse
 #from licpy.lic import runlic
+
+
+# plotting utility functions from https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
+def despline():
+    ax1 = plt.gca()
+    # Hide the right and top spines
+    ax1.spines['right'].set_visible(False)
+    ax1.spines['top'].set_visible(False)
+    # Only show ticks on the left and bottom spines
+    ax1.yaxis.set_ticks_position('left')
+    ax1.xaxis.set_ticks_position('bottom')
+
+def minimal_xticks(start, end):
+    end_ = np.around(end, -int(np.log10(end))+1)
+    xlims = np.linspace(start, end_, 5)
+    xlims_tx = [""]*len(xlims)
+    xlims_tx[0], xlims_tx[-1] = f"{xlims[0]:.0f}", f"{xlims[-1]:.02f}"
+    plt.xticks(xlims, xlims_tx)
+
+
+def minimal_yticks(start, end):
+    end_ = np.around(end, -int(np.log10(end))+1)
+    ylims = np.linspace(start, end_, 5)
+    ylims_tx = [""]*len(ylims)
+    ylims_tx[0], ylims_tx[-1] = f"{ylims[0]:.0f}", f"{ylims[-1]:.02f}"
+    plt.yticks(ylims, ylims_tx)
 
 
 def show_fraction(adata, mode='labelling', group=None):
@@ -25,12 +51,10 @@ def show_fraction(adata, mode='labelling', group=None):
 
     Returns
     -------
-        A ggplot-like plot that produced from plotnine (A equivalent of ggplot2 in R).
+        A ggplot-like plot that shows the fraction of category, produced from plotnine (A equivalent of R's ggplot2 in Python).
     """
-    
-    try:
-        mode in ['labelling', 'splicing', 'full']
-    except:
+
+    if not (mode in ['labelling', 'splicing', 'full']):
         raise Exception('mode can be only one of the labelling, splicing or full')
 
     if mode is 'labelling' and all([i in adata.layers.keys() for i in ['new', 'old']]):
@@ -80,44 +104,92 @@ def show_fraction(adata, mode='labelling', group=None):
                         'spliced, ambiguous, unspliced for the splicing model and uu, ul, su, sl for the full mode')
 
     if group is None:
-        ggplot(data=df, aes(x=variable, y=value)) + geom_violin() + facet_wrap('~group') + xlab('Category') + ylab('Fraction')
+        (ggplot(df, aes(variable, value)) + geom_violin() + facet_wrap('~group') + xlab('Category') + ylab('Fraction'))
     else:
-        ggplot(data=df, aes(x=variable, y=value)) + geom_violin() + facet_wrap('~group') + xlab('Category') + ylab('Fraction')
+        (ggplot(df, aes(variable, value)) + geom_violin() + facet_wrap('~group') + xlab('Category') + ylab('Fraction'))
 
 
-def show_phase(adata, genes, mode='labeling'):
-    """GET_P estimates the posterior probability and part of the energy.
+def show_phase(adata, genes, mode='labeling', vkey='velocity', basis='umap', group=None):
+    """Draw the phase portrait, velocity, expression values on the low dimensional embedding.
 
-    Arguments
-    ---------
-        Y: 'np.ndarray'
-            Original data.
-        V: 'np.ndarray'
-            Original data.
-        sigma2: 'float'
-            sigma2 is defined as sum(sum((Y - V)**2)) / (N * D)
-        gamma: 'float'
-            Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important.
-        a: 'float'
-            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's variation space is a.
+    Parameters
+    ----------
+    adata: :class:`~anndata.AnnData`
+        an Annodata object
+    genes: `list`
+        A list of gene names that are going to be visualized.
+    mode: `string` (default: labeling)
+        Which mode of data do you want to show, can be one of `labeling`, `splicing` and `full`.
+    vkey: `string` (default: velocity)
+        Which velocity key used for visualizing the magnitude of velocity. Can be either velocity in the layers slot or the
+        keys in the obsm slot.
+    basis: `string` (default: umap)
+        Which low dimensional embedding will be used to visualize the cell.
+    group: `string` (default: None)
+        Which group will be used to color cells, only used for the phase portrait because the other two plots are colored
+        by the velocity magnitude or the gene expression value, respectively.
 
     Returns
     -------
-    P: 'np.ndarray'
-        Posterior probability, related to equation 27.
-    E: `np.ndarray'
-        Energy, related to equation 26.
-
+        A matplotlib plot that shows 1) the phase portrait of each category used in velocity embedding, cells' low dimensional
+        embedding, colored either by 2) the gene expression level or 3) the velocity magnitude values.
     """
 
-    u = adata[genes].layers['spliced']
-    s = adata[genes].layers['unspliced']
+    # there is no solution for combining multiple plot in the same figure in plotnine, so a pure matplotlib is used
+    # see more at https://github.com/has2k1/plotnine/issues/46
+    genes = genes[genes in adata.var_name]
+    if len(genes) == 0:
+        raise Exception('adata has no genes listed in your input gene vector: {}'.format(genes))
+    if not basis in adata.obsm.keys():
+        raise Exception('{} is not applied to adata.}'.format(basis))
+    else:
+        embedding = pd.DataFrame({basis + '_0': adata.obsm['X_' + basis].iloc[:, 0], \
+                                  basis + '_1': adata.obsm['X_' + basis].iloc[:, 1]})
 
-    df = pd.DataFrame({"u": u.flatten(), "s": s.flatten(), 'gene': genes * u.shape[0]}, index = range(len(u.T.flatten())))
+    n_cells, n_genes = adata.shape[0], len(genes)
+
+    if vkey in adata.layers.keys():
+        velocity = adata[genes].layers[vkey]
+    elif vkey in adata.obsm.keys():
+        velocity = adata[genes].obsm[vkey]
+    else:
+        raise Exception('adata has no vkey {} in either the layers or the obsm slot'.format(vkey))
+    velocity = np.sum(velocity**2, 1)
+
+    if 'velocity_gamma' in adata.var.columns():
+        gamma = adata.var.gamma[genes].values
+        velocity_offset = [0] * n_cells if not ("velocity_offset" in adata.var.columns()) else \
+            adata.var.velocity_offset[genes].values
+    else:
+        raise Exception('adata does not seem to have velocity_gamma column. Velocity estimation is required before '
+                        'running this function.')
+
+    if not (mode in ['labelling', 'splicing', 'full']):
+        raise Exception('mode can be only one of the labelling, splicing or full')
+
+    if mode is 'labelling' and all([i in adata.layers.keys() for i in ['new', 'old']]):
+        new_mat, old_mat = adata[genes].layers['new'], adata[genes].layers['old']
+        df = pd.DataFrame({"new": new_mat.flatten(), "old": old_mat.flatten(), 'gene': genes * n_cells, 'prediction':
+                           np.repeat(gamma, n_cells) * new_mat.flatten() + np.repeat(velocity_offset, n_cells),
+                           "velocity": genes * n_cells}, index = range(n_cells * n_genes))
+
+    elif mode is 'splicing' and all([i in adata.layers.keys() for i in ['spliced', 'ambiguous', 'unspliced']]):
+        unspliced_mat, spliced_mat = adata.layers['unspliced'], adata.layers['spliced']
+        df = pd.DataFrame({"unspliced": unspliced_mat.flatten(), "spliced": spliced_mat.flatten(), 'gene': genes * n_cells,
+                           'prediction': np.repeat(gamma, n_cells) * unspliced_mat.flatten() + np.repeat(velocity_offset, \
+                            n_cells), "velocity": genes * n_cells}, index = range(n_cells * n_genes))
+
+    elif mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]):
+        uu, ul, su, sl = adata.layers['uu'], adata.layers['ul'], adata.layers['su'], adata.layers['sl']
+        df = pd.DataFrame({"uu": uu.flatten(), "ul": ul.flatten(), "su": su.flatten(), "sl": sl.flatten(),
+                           'gene': genes * n_cells, 'prediction': np.repeat(gamma, n_cells) * uu.flatten() +
+                            np.repeat(velocity_offset, n_cells), "velocity": genes * n_cells}, index = range(n_cells * n_genes))
+
+    else:
+        raise Exception('Your adata is corrupted. Make sure that your layer has keys new, old for the labelling mode, '
+                        'spliced, ambiguous, unspliced for the splicing model and uu, ul, su, sl for the full mode')
 
     # use seaborn to draw the plot:
-    plt.plot()
-    g = sns.relplot(x="u", y="s", col = "gene", data=df)
 
     for cur_axes in g.axes.flatten():
         x0, x1 = cur_axes.get_xlim()
@@ -126,6 +198,35 @@ def show_phase(adata, genes, mode='labeling'):
         points = np.linspace(min(x0, y0), max(x1, y1), 100)
 
         cur_axes.plot(points, points, color='red', marker=None, linestyle='--', linewidth=1.0)
+
+    plt.figure(None, (15,15), dpi=80)
+    nrow, ncol = np.sqrt(3 * n_cells), np.sqrt(3 * n_cells)
+    ncol = ncol - 1 if nrow * (ncol - 1) == 3 * n_cells else ncol
+
+    # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
+    gs = plt.GridSpec(nrow,ncol)
+    for i, gn in enumerate(genes):
+        ax = plt.subplot(gs[i*3])
+        try:
+            ix=np.where(vlm.ra["Gene"] == gn)[0][0]
+        except:
+            continue
+        vcy.scatter_viz(vlm.Sx_sz[ix,:], vlm.Ux_sz[ix,:], c=vlm.colorandum, s=5, alpha=0.4, rasterized=True)
+        cur_pd = df.iloc[df.gene == gn, :]
+        sns.scatterplot(cur_pd.iloc[:, 0], cur_pd.iloc[:, 1], hue=group)
+        plt.title(gn)
+        plt.plot(cur_pd.iloc[:, 0], cur_pd.loc[:, 'prediction'], c="k")
+        plt.ylim(0, np.max(cur_pd.iloc[:, 0])*1.02)
+        plt.xlim(0, np.max(cur_pd.iloc[:, 1])*1.02)
+        minimal_yticks(0, np.max(vlm.Ux_sz[ix,:])*1.02)
+        minimal_xticks(0, np.max(vlm.Sx_sz[ix,:])*1.02)
+        despline()
+
+        df_embedding = pd.concat([embedding, cur_pd.loc[:, 'gene']], ignore_index=False)
+        sns.scatterplot(df_embedding.iloc[:, 0], df_embedding.iloc[:, 1], hue=df_embedding.loc[:, 'gene'])
+        sns.scatterplot(df_embedding.iloc[:, 0], df_embedding.iloc[:, 1], hue=df_embedding.loc[:, 'velocity'])
+
+    plt.tight_layout()
 
 def plot_fitting(adata, gene, log = True, group = False):
     """GET_P estimates the posterior probability and part of the energy.
