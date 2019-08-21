@@ -1,7 +1,5 @@
 import numpy as np
 import pandas as pd
-import plotnine as p9
-import matplotlib.pyplot as plt
 import seaborn as sns
 
 import yt
@@ -13,6 +11,8 @@ from scipy.sparse import issparse
 
 # plotting utility functions from https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
 def despline():
+    import matplotlib.pyplot as plt
+
     ax1 = plt.gca()
     # Hide the right and top spines
     ax1.spines['right'].set_visible(False)
@@ -22,6 +22,8 @@ def despline():
     ax1.xaxis.set_ticks_position('bottom')
 
 def minimal_xticks(start, end):
+    import matplotlib.pyplot as plt
+
     end_ = np.around(end, -int(np.log10(end))+1)
     xlims = np.linspace(start, end_, 5)
     xlims_tx = [""]*len(xlims)
@@ -30,6 +32,8 @@ def minimal_xticks(start, end):
 
 
 def minimal_yticks(start, end):
+    import matplotlib.pyplot as plt
+
     end_ = np.around(end, -int(np.log10(end))+1)
     ylims = np.linspace(start, end_, 5)
     ylims_tx = [""]*len(ylims)
@@ -53,6 +57,8 @@ def show_fraction(adata, mode='labelling', group=None):
     -------
         A ggplot-like plot that shows the fraction of category, produced from plotnine (A equivalent of R's ggplot2 in Python).
     """
+
+    import plotnine as p9
 
     if not (mode in ['labelling', 'splicing', 'full']):
         raise Exception('mode can be only one of the labelling, splicing or full')
@@ -135,6 +141,9 @@ def show_phase(adata, genes, mode='labeling', vkey='velocity', basis='umap', gro
         embedding, colored either by 2) the gene expression level or 3) the velocity magnitude values.
     """
 
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+
     # there is no solution for combining multiple plot in the same figure in plotnine, so a pure matplotlib is used
     # see more at https://github.com/has2k1/plotnine/issues/46
     genes = genes[genes in adata.var_name]
@@ -211,15 +220,13 @@ def show_phase(adata, genes, mode='labeling', vkey='velocity', basis='umap', gro
             ix=np.where(vlm.ra["Gene"] == gn)[0][0]
         except:
             continue
-        vcy.scatter_viz(vlm.Sx_sz[ix,:], vlm.Ux_sz[ix,:], c=vlm.colorandum, s=5, alpha=0.4, rasterized=True)
         cur_pd = df.iloc[df.gene == gn, :]
         sns.scatterplot(cur_pd.iloc[:, 0], cur_pd.iloc[:, 1], hue=group)
         plt.title(gn)
         plt.plot(cur_pd.iloc[:, 0], cur_pd.loc[:, 'prediction'], c="k")
         plt.ylim(0, np.max(cur_pd.iloc[:, 0])*1.02)
         plt.xlim(0, np.max(cur_pd.iloc[:, 1])*1.02)
-        minimal_yticks(0, np.max(vlm.Ux_sz[ix,:])*1.02)
-        minimal_xticks(0, np.max(vlm.Sx_sz[ix,:])*1.02)
+
         despline()
 
         df_embedding = pd.concat([embedding, cur_pd.loc[:, 'gene']], ignore_index=False)
@@ -252,6 +259,7 @@ def plot_fitting(adata, gene, log = True, group = False):
         Energy, related to equation 26.
 
     """
+    import matplotlib.pyplot as plt
 
     groups = [''] if group == False else np.unique(adata.obs[group])
 
@@ -308,6 +316,7 @@ def plot_LIC_gray(tex):
         Energy, related to equation 26.
 
     """
+    import matplotlib.pyplot as plt
 
     tex = tex[:, ::-1]
     tex = tex.T

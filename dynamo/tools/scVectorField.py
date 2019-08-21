@@ -37,6 +37,35 @@ def norm(X, V, T):
 
         return X, V, T, norm_dict
 
+def auto_con_K(self, x, y, beta):
+    """Con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
+
+    Arguments
+    ---------
+        x: 'np.ndarray'
+            Original training data points.
+        y: 'np.ndarray'
+            control points used to build kernel basis functions
+        beta: 'np.ndarray'
+            The function that returns diffusion matrix which can be dependent on the variables (for example, genes)
+
+    Returns
+    -------
+        K: 'np.ndarray'
+            the kernel to represent the vector field function.
+    """
+
+    n, d = x.shape
+    m, d = y.shape
+
+    # https://stackoverflow.com/questions/1721802/what-is-the-equivalent-of-matlabs-repmat-in-numpy
+    # https://stackoverflow.com/questions/12787475/matlabs-permute-in-python
+    K = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0])
+    K = np.squeeze(np.sum(K**2, 1))
+    K = - beta * K
+    K = np.exp(K) #
+
+    return K
 
 def SparseVFC(X, Y, Grid, M = 100, a = 5, beta = 0.1, ecr = 1e-5, gamma = 0.9, lambda_ = 3, minP = 1e-5, MaxIter = 500, theta = 0.75, div_cur_free_kernels = False):
     """Apply sparseVFC (vector field consensus) algorithm to learn an analytical function of vector field on the entire space robustly.
@@ -378,6 +407,7 @@ class VectorField:
 
     def vector_field_function(x, t, VecFld):
         """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
+
         Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
         """
         x=np.array(x).reshape((1, -1))
@@ -391,6 +421,7 @@ class VectorField:
 
     def vector_field_function_auto(self, x, VecFld, autograd = False):
         """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
+
         Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
         """
 
@@ -400,33 +431,4 @@ class VectorField:
 
         return K
 
-    def auto_con_K(self, x, y, beta):
-        """Con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
-
-        Arguments
-        ---------
-            x: 'np.ndarray'
-                Original training data points.
-            y: 'np.ndarray'
-                control points used to build kernel basis functions
-            beta: 'np.ndarray'
-                The function that returns diffusion matrix which can be dependent on the variables (for example, genes)
-
-        Returns
-        -------
-            K: 'np.ndarray'
-                the kernel to represent the vector field function.
-        """
-
-        n, d = x.shape
-        m, d = y.shape
-
-        # https://stackoverflow.com/questions/1721802/what-is-the-equivalent-of-matlabs-repmat-in-numpy
-        # https://stackoverflow.com/questions/12787475/matlabs-permute-in-python
-        K = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0])
-        K = np.squeeze(np.sum(K**2, 1))
-        K = - beta * K
-        K = np.exp(K) #
-
-        return K
 

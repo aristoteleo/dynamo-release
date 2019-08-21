@@ -1,22 +1,27 @@
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
-from matplotlib.colors import LightSource
-
-def show_pseudopot(Xgrid, Ygrid, Zgrid):
-    """
+def show_landscape(Xgrid, Ygrid, Zgrid):
+    """Plot the quasi-potential landscape.
 
     Parameters
     ----------
-    Xgrid
-    Ygrid
-    Zgrid
+	Xgrid: `numpy.ndarray`
+		x-coordinates of the Grid produced from the meshgrid function.
+	Ygrid: `numpy.ndarray`
+			y-coordinates of the Grid produced from the meshgrid function.
+	Zgrid: `numpy.ndarray`
+			z-coordinates or potential at each of the x/y coordinate.
 
     Returns
     -------
+    A 3D plot showing the quasi-potential of each cell state.
 
     """
+
+    from mpl_toolkits.mplot3d import Axes3D
+    import matplotlib.pyplot as plt
+    from matplotlib import cm
+    from matplotlib.ticker import LinearLocator, FormatStrFormatter
+    from matplotlib.colors import LightSource
+
     fig = plt.figure()
     ax = fig.gca(projection='3d')
 
@@ -32,7 +37,7 @@ def show_pseudopot(Xgrid, Ygrid, Zgrid):
     ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
 
     # Add a color bar which maps values to colors.
-    fig.colorbar(surf, shrink=0.5, aspect=5)
+    # fig.colorbar(surf, shrink=0.5, aspect=5)
 
     plt.show()
 

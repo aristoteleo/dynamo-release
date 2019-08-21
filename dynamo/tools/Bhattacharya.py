@@ -1,7 +1,7 @@
 import numpy as np
 # from scipy.integrate import odeint
 from scipy.interpolate import griddata
-from scVectorField import con_K
+
 
 def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTimeSteps=1400):
 	"""A deterministic map of Waddington’s epigenetic landscape for cell fate specification
@@ -25,10 +25,29 @@ def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTim
 
 	Returns
 	-------
-
+	numAttractors: `int`
+		Number of attractors identified by the path integral approach.
+	attractors_num_X_Y: `numpy.ndarray`
+		Attractor number and the corresponding x, y coordinates.
+	sepx_old_new_pathNum: `numpy.ndarray`
+		The IDs of the two attractors for each separaxis per row.
+	numPaths_att `numpy.ndarray`
+		Number of paths per attractor
+	numPaths: `int`
+		Total Number of paths for defined grid spacing.
+	numTimeSteps: `int`
+		A high-enough number for convergence with given dt.
+	pot_path: `numpy.ndarray` (dimension: numPaths x numTimeSteps)
+		Potential along the path.
+	path_tag: `numpy.ndarray` (dimension: numPaths x 1)
+		Tag for given path (to denote basin of attraction).
+	attractors_pot: `numpy.ndarray`
+		Potential value of each identified attractors by the path integral approach.
+	x_path: `numpy.ndarray`
+		x-coord. along path.
+	y_path: `numpy.ndarray`
+		y-coord. along path.
 	"""
-
-	x_ori_coord = np.zeros((45, 45))
 
 	# -- First, generate potential surface from deterministic rate equations –
 
@@ -138,7 +157,7 @@ def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTim
 									 None else np.array([current_att_num_X_Y]) # append array (vertically)
 				attractors_pot = np.vstack((attractors_pot, Pot)) if attractors_pot is not \
 									 None else np.array([Pot])  # append attractor potentials to array (vertically)
-				path_tag[path_counter] = num_attractors # initialize path tag
+				path_tag[path_counter] = num_attractors - 1 # initialize path tag
 				numPaths_att = np.vstack((numPaths_att, 1)) if numPaths_att is not \
 									 None else np.array([1]) # append to array (vertically)
 
@@ -185,12 +204,14 @@ def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTim
 						attractors_num_X_Y = np.vstack((attractors_num_X_Y, current_att_num_X_Y)) # append array (vertically)
 						path_tag[path_counter] = num_attractors - 1# DOUBLE CHECK **
 						numPaths_att = np.vstack((numPaths_att, 1)) # append to array (vertically)
+						attractors_pot = np.vstack((attractors_pot, Pot)) # append attractor potentials to array (vertically)
+
 						# check if start points of current and previous paths are "adjacent" - if so, assign separatrix
 						if (startPt_dist_sqr < (2 * (xyGridSpacing**2))):
 							curr_sepx = [path_tag[path_counter - 1], path_tag[path_counter],  (path_counter - 1)] #create array
 							sepx_old_new_pathNum = np.vstack((sepx_old_new_pathNum, curr_sepx)) if sepx_old_new_pathNum is not \
 									 None else np.array([curr_sepx])# append array (vertically)
-							attractors_pot = np.vstack((attractors_pot, Pot)) # append attractor potentials to array (vertically)
+							# attractors_pot = np.vstack((attractors_pot, Pot)) # append attractor potentials to array (vertically) #????????????????????????????????????????????????????????????????????????????????????
 							num_sepx = num_sepx + 1 #increment no. of separatrices
 					else:
 						# --- check if the attractor of the *previous* path
@@ -215,7 +236,7 @@ def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTim
 								curr_sepx = [path_tag[path_counter - 1], path_tag[path_counter], (path_counter - 1)] #create array
 								sepx_old_new_pathNum = np.vstack((sepx_old_new_pathNum, curr_sepx)) if sepx_old_new_pathNum is not \
 									 None else np.array([curr_sepx]) # append array (vertically)
-								attractors_pot = np.vstack((attractors_pot, pot_p_lastPath)) # append attractor potentials to array vertically)
+								# attractors_pot = np.vstack((attractors_pot, pot_p_lastPath)) # append attractor potentials to array vertically) #????????????????????????????????????????????????????????????????????????????????????
 								num_sepx = num_sepx + 1 # increment no. of separatrices
 
 				else:
@@ -232,27 +253,64 @@ def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTim
 			# increment "path counter"
 			path_counter = path_counter + 1
 
-	return numPaths, numTimeSteps, pot_path, path_tag, attractors_pot, x_path, y_path
+	return attractors_num_X_Y, sepx_old_new_pathNum,  numPaths_att, num_attractors, numPaths, numTimeSteps, pot_path, path_tag, attractors_pot, x_path, y_path
 
-def alignment(numPaths, numTimeSteps, pot_path, path_tag, attractors_pot, x_path, y_path, grid = 100):
-	""" Align potential values so all path-potentials end up at same global min.
+
+def alignment(numPaths, numTimeSteps, pot_path, path_tag, attractors_pot, x_path, y_path, grid = 100, interpolation_method='linear'):
+	""" Align potential values so all path-potentials end up at same global min and then generate potential surface with
+	interpolation on a grid.
 
 	Parameters
 	----------
-	numPaths
-	numTimeSteps
-	pot_path
-	path_tag
-	attractors_pot
-	x_path
-	y_path
+	numPaths: `int`
+		Total Number of paths for defined grid spacing.
+	numTimeSteps: `int`
+		A high-enough number for convergence with given dt.
+	pot_path: `numpy.ndarray` (dimension: numPaths x numTimeSteps)
+		Potential along the path.
+	path_tag: `numpy.ndarray` (dimension: numPaths x 1)
+		Tag for given path (to denote basin of attraction).
+	attractors_pot: `numpy.ndarray`
+		Potential value of each identified attractors by the path integral approach.
+	x_path: `numpy.ndarray`
+		x-coord. along path.
+	y_path: `numpy.ndarray`
+		y-coord. along path.
 	grid: `int`
 		No. of grid lines in x- and y- directions
+	interpolation_method: `string`
+		Method of interpolation in griddata function. One of
+
+	    ``nearest``
+          return the value at the data point closest to
+          the point of interpolation.  See `NearestNDInterpolator` for
+          more details.
+
+        ``linear``
+          tessellate the input point set to n-dimensional
+          simplices, and interpolate linearly on each simplex.  See
+          `LinearNDInterpolator` for more details.
+
+        ``cubic`` (1-D)
+          return the value determined from a cubic
+          spline.
+
+        ``cubic`` (2-D)
+          return the value determined from a
+          piecewise cubic, continuously differentiable (C1), and
+          approximately curvature-minimizing polynomial surface. See
+          `CloughTocher2DInterpolator` for more details.
 
 	Returns
 	-------
-
+	Xgrid: `numpy.ndarray`
+		x-coordinates of the Grid produced from the meshgrid function.
+	Ygrid: `numpy.ndarray`
+			y-coordinates of the Grid produced from the meshgrid function.
+	Zgrid: `numpy.ndarray`
+			z-coordinates or potential at each of the x/y coordinate.
 	"""
+
 	# -- need 1-D "lists" (vectors) to plot all x,y, Pot values along paths --
 	list_size = numPaths*numTimeSteps
 
@@ -265,6 +323,7 @@ def alignment(numPaths, numTimeSteps, pot_path, path_tag, attractors_pot, x_path
 	#"Align" potential values so all path-potentials end up at same global min.
 	for n_path in range(numPaths):
 		tag = path_tag[n_path]
+		# print(tag)
 		del_pot = pot_path[n_path, numTimeSteps - 1] - attractors_pot[tag]
 
 		#align pot. at each time step along path
@@ -290,66 +349,10 @@ def alignment(numPaths, numTimeSteps, pot_path, path_tag, attractors_pot, x_path
 	ylin = np.linspace(min(y_p_list), max(y_p_list), grid)
 	Xgrid,Ygrid = np.meshgrid(xlin,ylin)
 
-	Zgrid = griddata(np.hstack((x_p_list, y_p_list)), pot_p_list, np.vstack((Xgrid.flatten(), Ygrid.flatten())).T, method='linear')
+	Zgrid = griddata(np.hstack((x_p_list, y_p_list)), pot_p_list, np.vstack((Xgrid.flatten(), Ygrid.flatten())).T, method=interpolation_method)
 	Zgrid = Zgrid.reshape(Xgrid.shape)
 
 	# print('Ran surface grid-interpolation okay!\n')
 
 	return Xgrid, Ygrid, Zgrid
 
-import scipy.io
-VecFld = scipy.io.loadmat('/Volumes/xqiu/proj/dynamo/data/VecFld.mat')
-
-def vector_field_function(x, VecFld = VecFld):
-	'''Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
-    Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
-    '''
-	# import dynamo as dyn
-	x=np.array(x).reshape((1, -1))
-	if(len(x.shape) == 1):
-		x = x[None, :]
-	K= con_K(x, VecFld['X'], VecFld['beta'])
-	K = K.dot(VecFld['C'])
-	return K.T
-
-# numPaths, numTimeSteps, pot_path, path_tag, attractors_pot, x_path, y_path = path_integral(vector_field_function, x_lim=[-30, 30], y_lim=[-30, 30], xyGridSpacing=2, dt=1e-2, tol=1e-2, numTimeSteps=1400)
-# Xgrid, Ygrid, Zgrid = alignment(numPaths, numTimeSteps, pot_path, path_tag, attractors_pot, x_path, y_path)
-# from mpl_toolkits.mplot3d import Axes3D
-# import matplotlib.pyplot as plt
-# from matplotlib import cm
-# from matplotlib.ticker import LinearLocator, FormatStrFormatter
-# from matplotlib.colors import LightSource
-#
-# def show_pseudopot(Xgrid, Ygrid, Zgrid):
-#     """
-#
-#     Parameters
-#     ----------
-#     Xgrid
-#     Ygrid
-#     Zgrid
-#
-#     Returns
-#     -------
-#
-#     """
-#     fig = plt.figure()
-#     ax = fig.gca(projection='3d')
-#
-#     # Plot the surface.
-#     ls = LightSource(azdeg=0, altdeg=65)
-#     # Shade data, creating an rgb array.
-#     rgb = ls.shade(Zgrid, plt.cm.RdYlBu)
-#     surf = ax.plot_surface(Xgrid, Ygrid, Zgrid, cmap=cm.coolwarm,
-#                            rstride=1, cstride=1, facecolors=rgb,
-#                            linewidth=0, antialiased=False)
-#     # Customize the z axis.
-#     ax.zaxis.set_major_locator(LinearLocator(10))
-#     ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
-#
-#     # Add a color bar which maps values to colors.
-#     fig.colorbar(surf, shrink=0.5, aspect=5)
-#
-#     plt.show()
-#
-# show_pseudopot(Xgrid, Ygrid, Zgrid)
