@@ -5,6 +5,7 @@ from sympy import *
 # from StringFunction import StringFunction
 import autograd.numpy as autonp
 from autograd import grad, jacobian # calculate gradient and jacobian
+from .Bhattacharya import path_integral, alignment
 
 # the LAP method should be rewritten in TensorFlow using optimization with SGD
 
@@ -310,11 +311,6 @@ def autoODE(x):
 
 class Potential:
     def __init__(self, Function, DiffusionMatrix, boundary, n_points=25, fixed_point_only=False, find_fixed_points=False, refpoint=None, stable=None, saddle=None):
-        self.VecFld = {"Function": Function, "DiffusionMatrix": DiffusionMatrix} # should we use annadata here?
-
-        self.parameters = {"boundary": boundary, "n_points":n_points, "fixed_point_only": fixed_point_only, "find_fixed_points": find_fixed_points, "refpoint": refpoint, "stable": stable, "saddle": saddle}
-
-    def map_pot_landscape(self):
         """ It implements the least action method to calculate the potential values of fixed points for a given SDE (stochastic
         differential equation) model. The function requires the vector field function and a diffusion matrix. This code is based
         on the MATLAB code from Ruoshi Yuan and Ying Tang. Potential landscape of high dimensional nonlinear stochastic dynamics with
@@ -340,64 +336,106 @@ class Potential:
                 The matrix for storing the coordinates (gene expression configuration) of the stable fixed point (characteristic state of a particular cell type).
             saddle: 'np.ndarray'
                 The matrix for storing the coordinates (gene expression configuration) of the unstable fixed point (characteristic state of cells prime to bifurcation).
+        """
+
+        self.VecFld = {"Function": Function, "DiffusionMatrix": DiffusionMatrix} # should we use annadata here?
+
+        self.parameters = {"boundary": boundary, "n_points":n_points, "fixed_point_only": fixed_point_only, "find_fixed_points": find_fixed_points, "refpoint": refpoint, "stable": stable, "saddle": saddle}
+
+    def map_pot_landscape(self, x_lim, y_lim, method='Bhattacharya', xyGridSpacing=2, dt=1e-2, tol=1e-2, numTimeSteps=1400):
+        """Function to map out the pseudo-potential landscape.
+
+        Although it is appealing to define “potential” for biological systems as it is intuitive and familiar from other
+        fields, it is well-known that the definition of a potential function in open biological systems is controversial
+        (Ping Ao 2009). In the conservative system, the negative gradient of potential function is relevant to the velocity
+        vector by ma = −Δψ (where m, a, are the mass and acceleration of the object, respectively). However, a biological
+        system is massless, open and nonconservative, thus methods that directly learn potential function assuming a gradient
+        system are not directly applicable. In 2004, Ao first proposed a framework that decomposes stochastic differential
+        equations into either the gradient or the dissipative part and uses the gradient part to define a physical equivalent
+        of potential in biological systems (P. Ao 2004). Later, various theoretical studies have been conducted towards
+        this very goal (Xing 2010; Wang et al. 2011; J. X. Zhou et al. 2012; Qian 2013; P. Zhou and Li 2016). Bhattacharya
+        and others also recently provided a numeric algorithm to approximate the potential landscape.
+
+        This function implements the Bhattacharya method and the Ying method and will also support other methods shortly.
+
+        Arguments
+        ---------
+            method: 'string' (default: Bhattacharya)
+                Method used to map the pseudo-potential landscape. By default, it is Bhattacharya (A deterministic map of
+                Waddington’s epigenetic landscape for cell fate specification. Sudin Bhattacharya, Qiang Zhang and Melvin
+                E. Andersen). Other methods will be supported include: Tang (), Ping (), Wang (), Zhou ().
 
         Returns
         -------
-        fval: 'np.ndarray'
+        if Bhattacharya is used:
+            Xgrid: 'np.ndarray'
+                The X grid to visualize "potential surface"
+            Ygrid: 'np.ndarray'
+                The Y grid to visualize "potential surface"
+            Zgrid: 'np.ndarray'
+                The interpolate potential corresponding to the X,Y grids.
+
+        if Tang method is used:
+        retmat: 'np.ndarray'
             The action value for the learned least action path.
-        output_path: 'np.ndarray'
+        LAP: 'np.ndarray'
             The least action path learned
         """
-        #  self.VecFld = {"Function": Function} # should we use annadata here?
-        # self.data = {"DiffusionMatrix": DiffusionMatrix} # should we use annadata here?
-        #
-        # self.parameters = {"boundary": boundary, "n_points":n_points, "fixed_point_only": fixed_point_only, "find_fixed_points": find_fixed_points, "refpoint": refpoint, "stable": stable, "saddle": saddle}
 
-        Function, DiffusionMatrix = self.VecFld['Function'], self.VecFld['DiffusionMatrix']
-        boundary, n_points, fixed_point_only, find_fixed_points, refpoint, stable, saddle = self.parameters['boundary'], \
-                                                                                            self.parameters['n_points'], \
-                                                                                            self.parameters['fixed_point_only'], \
-                                                                                            self.parameters['find_fixed_points'], \
-                                                                                            self.parameters['refpoint'], \
-                                                                                            self.parameters['stable'], \
-                                                                                            self.parameters['saddle']
+        if method is "Bhattacharya":
+            numPaths, numTimeSteps, pot_path, path_tag, attractors_pot, x_path, y_path = path_integral(self.VecFld['Function'], \
+            x_lim=x_lim, y_lim=y_lim, xyGridSpacing=xyGridSpacing, dt=dt, tol=tol, numTimeSteps=numTimeSteps)
 
-        print('stable is ', stable)
+            Xgrid, Ygrid, Zgrid = alignment(numPaths, numTimeSteps, pot_path, path_tag, attractors_pot, x_path, y_path)
 
-        if (stable is None and saddle is None) or find_fixed_points is True:
+            return Xgrid, Ygrid, Zgrid
+
+        elif method is 'Tang':
+            Function, DiffusionMatrix = self.VecFld['Function'], self.VecFld['DiffusionMatrix']
+            boundary, n_points, fixed_point_only, find_fixed_points, refpoint, stable, saddle = self.parameters['boundary'], \
+                                                                                                self.parameters['n_points'], \
+                                                                                                self.parameters['fixed_point_only'], \
+                                                                                                self.parameters['find_fixed_points'], \
+                                                                                                self.parameters['refpoint'], \
+                                                                                                self.parameters['stable'], \
+                                                                                                self.parameters['saddle']
+
             print('stable is ', stable)
-            stable, saddle = gen_fixed_points(Function, auto_func = False, dim_range = range, RandNum = 100, EqNum = 2) #gen_fixed_points(vector_field_function, auto_func = None, dim_range = [-25, 25], RandNum = 5000, EqNum = 2, x_ini = None)
 
-        print('stable 2 is ', stable)
-        points = np.hstack((stable, saddle))
-        refpoint = stable[:, 0][:, None] if refpoint is None else refpoint
+            if (stable is None and saddle is None) or find_fixed_points is True:
+                print('stable is ', stable)
+                stable, saddle = gen_fixed_points(Function, auto_func=False, dim_range=range, RandNum=100, EqNum=2) #gen_fixed_points(vector_field_function, auto_func = None, dim_range = [-25, 25], RandNum = 5000, EqNum = 2, x_ini = None)
 
-        TotalTime, TotalPoints = 2, n_points
+            print('stable 2 is ', stable)
+            points = np.hstack((stable, saddle))
+            refpoint = stable[:, 0][:, None] if refpoint is None else refpoint
 
-        if fixed_point_only:
-            StateNum = points.shape[1]
-            retmat = np.Inf * np.ones((StateNum, 1))
-            LAP = [None] * StateNum
-            I = range(StateNum)
-        else:
-            dx = (np.diff(boundary))/(TotalPoints-1)
-            dy = dx
-            [X, Y] = np.meshgrid(np.linspace(boundary[0], boundary[1], TotalPoints), np.linspace(boundary[0], boundary[1], TotalPoints))
-            retmat = np.Inf * np.ones((TotalPoints, TotalPoints))
-            LAP = [None] * TotalPoints * TotalPoints
+            TotalTime, TotalPoints = 2, n_points
 
-            points = np.vstack((X.flatten(), Y.flatten()))
-            I = range(points.shape[1])
+            if fixed_point_only:
+                StateNum = points.shape[1]
+                retmat = np.Inf * np.ones((StateNum, 1))
+                LAP = [None] * StateNum
+                I = range(StateNum)
+            else:
+                dx = (np.diff(boundary))/(TotalPoints-1)
+                dy = dx
+                [X, Y] = np.meshgrid(np.linspace(boundary[0], boundary[1], TotalPoints), np.linspace(boundary[0], boundary[1], TotalPoints))
+                retmat = np.Inf * np.ones((TotalPoints, TotalPoints))
+                LAP = [None] * TotalPoints * TotalPoints
 
-        for ind in I: # action(n_points,tmax,point_start,point_end, boundary, Function, DiffusionMatrix):
-            print('current ind is ', ind)
-            lav, lap = action(TotalPoints, TotalTime, points[:, ind][:, None], refpoint, boundary, Function, DiffusionMatrix)
+                points = np.vstack((X.flatten(), Y.flatten()))
+                I = range(points.shape[1])
 
-            i, j = ind % TotalPoints, int(ind / TotalPoints)
-            print('TotalPoints is ', TotalPoints, 'ind is ', ind, 'i, j are', i, ' ', j)
-            if lav < retmat[i, j]:
-                retmat[i, j] = lav
-                LAP[ind] = lap
-            print(retmat)
+            for ind in I: # action(n_points,tmax,point_start,point_end, boundary, Function, DiffusionMatrix):
+                print('current ind is ', ind)
+                lav, lap = action(TotalPoints, TotalTime, points[:, ind][:, None], refpoint, boundary, Function, DiffusionMatrix)
 
-        return retmat, LAP
+                i, j = ind % TotalPoints, int(ind / TotalPoints)
+                print('TotalPoints is ', TotalPoints, 'ind is ', ind, 'i, j are', i, ' ', j)
+                if lav < retmat[i, j]:
+                    retmat[i, j] = lav
+                    LAP[ind] = lap
+                print(retmat)
+
+            return retmat, LAP

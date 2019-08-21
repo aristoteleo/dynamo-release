@@ -380,6 +380,7 @@ class VectorField:
         """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
         Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
         """
+        x=np.array(x).reshape((1, -1))
         if(len(x.shape) == 1):
             x = x[None, :]
         K= con_K(x, VecFld['X'], VecFld['beta'])

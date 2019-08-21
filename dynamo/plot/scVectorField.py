@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from plotnine import *
+import plotnine as p9
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -104,9 +104,9 @@ def show_fraction(adata, mode='labelling', group=None):
                         'spliced, ambiguous, unspliced for the splicing model and uu, ul, su, sl for the full mode')
 
     if group is None:
-        (ggplot(df, aes(variable, value)) + geom_violin() + facet_wrap('~group') + xlab('Category') + ylab('Fraction'))
+        (p9.ggplot(df, p9.aes(x=variable, y=value)) + p9.geom_violin() + p9.facet_wrap('~group') + p9.xlab('Category') + p9.ylab('Fraction'))
     else:
-        (ggplot(df, aes(variable, value)) + geom_violin() + facet_wrap('~group') + xlab('Category') + ylab('Fraction'))
+        (p9.ggplot(df, p9.aes(x=variable, y=value)) + p9.geom_violin() + p9.facet_wrap('~group') + p9.xlab('Category') + p9.ylab('Fraction'))
 
 
 def show_phase(adata, genes, mode='labeling', vkey='velocity', basis='umap', group=None):

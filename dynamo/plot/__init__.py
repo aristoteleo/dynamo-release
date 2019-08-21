@@ -2,4 +2,4 @@
 """
 
 
-from .velocity import plotUS, plot_LIC # , plot_LIC_gray
+from .scVectorField import show_fraction, show_phase, plot_LIC, plot_fitting # , plot_LIC_gray
