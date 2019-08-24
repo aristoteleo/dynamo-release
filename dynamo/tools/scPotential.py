@@ -1,11 +1,12 @@
 import numpy as np
 import scipy as sc
 import scipy.optimize 
-from sympy import *
+# from sympy import *
 # from StringFunction import StringFunction
-import autograd.numpy as autonp
-from autograd import grad, jacobian # calculate gradient and jacobian
+# import autograd.numpy as autonp
+# from autograd import grad, jacobian # calculate gradient and jacobian
 from .Bhattacharya import path_integral, alignment
+from .Wang import Wang_action, Wang_LAP
 
 # the LAP method should be rewritten in TensorFlow using optimization with SGD
 
