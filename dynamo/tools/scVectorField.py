@@ -3,6 +3,70 @@ import scipy
 import numpy.matlib
 
 
+def norm(X, V, T):
+        """Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
+        We use the mean of X, Y's center and scale parameters to normalize T.
+
+        Arguments
+        ---------
+        X: 'np.ndarray'
+            Current state. This corresponds to, for example, the spliced transcriptomic state.
+        V: 'np.ndarray'
+            Velocity estimates in delta t. This corresponds to, for example, the inferred spliced transcriptomic velocity estimated calculated by dynamo or velocyto, scvelo.
+        T: 'np.ndarray'
+            Current state on a grid which is often used to visualize the vector field. This corresponds to, for example, the spliced transcriptomic state.
+
+        Returns
+        -------
+            Add norm_dict to the class which includes the mean and scale values for X, Y used in normalizing the data.
+        """
+        Y = X + V
+        n, m = X.shape[0], V.shape[0]
+
+        xm = np.mean(X, 0)
+        ym = np.mean(Y, 0)
+
+        x, y, t = X - xm[None, :], Y - ym[None, :], T - (1/2 * (xm[None, :] + ym[None, :]))
+
+        xscale, yscale = np.sqrt(np.sum(np.sum(x**2, 1)) / n), np.sqrt(np.sum(np.sum(y**2, 1)) / m)
+
+        X, Y, T = x / xscale, y / yscale, t / (1/2 * (xscale + yscale))
+
+        X, V, T = X, Y - X, T
+        norm_dict = {"xm": xm, "ym": ym, "xscale": xscale, "yscale": yscale}
+
+        return X, V, T, norm_dict
+
+def auto_con_K(self, x, y, beta):
+    """Con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
+
+    Arguments
+    ---------
+        x: 'np.ndarray'
+            Original training data points.
+        y: 'np.ndarray'
+            control points used to build kernel basis functions
+        beta: 'np.ndarray'
+            The function that returns diffusion matrix which can be dependent on the variables (for example, genes)
+
+    Returns
+    -------
+        K: 'np.ndarray'
+            the kernel to represent the vector field function.
+    """
+
+    n, d = x.shape
+    m, d = y.shape
+
+    # https://stackoverflow.com/questions/1721802/what-is-the-equivalent-of-matlabs-repmat-in-numpy
+    # https://stackoverflow.com/questions/12787475/matlabs-permute-in-python
+    K = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0])
+    K = np.squeeze(np.sum(K**2, 1))
+    K = - beta * K
+    K = np.exp(K) #
+
+    return K
+
 def SparseVFC(X, Y, Grid, M = 100, a = 5, beta = 0.1, ecr = 1e-5, gamma = 0.9, lambda_ = 3, minP = 1e-5, MaxIter = 500, theta = 0.75, div_cur_free_kernels = False):
     """Apply sparseVFC (vector field consensus) algorithm to learn an analytical function of vector field on the entire space robustly.
     Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
@@ -15,24 +79,24 @@ def SparseVFC(X, Y, Grid, M = 100, a = 5, beta = 0.1, ecr = 1e-5, gamma = 0.9, l
             Velocity estimates in delta t. This corresponds to, for example, the inferred spliced transcriptomic velocity estimated calculated by velocyto, scvelo or dynamo.
         Grid: 'np.ndarray'
             Current state on a grid which is often used to visualize the vector field. This corresponds to, for example, the spliced transcriptomic state.
-        M: 'np.ndarray'
-            The number of basis functions to approximate the vector field. By default, it is 100.
-        a: 'float'
-            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's variation space is a. Default Value is 10.
-        beta: 'float'
-            Paramerter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2), Default value is 0.1.
-        ecr: 'float'
-            The minimum limitation of energy change rate in the iteration process. Default value is 1e-5.
-        gamma: 'float'
-            Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important. Default value is 0.9.
-        lambda_: 'float'
-            Represents the trade-off between the goodness of data fit and regularization. Default value is 3.
-        minP: 'float'
-            The posterior probability Matrix P may be singular for matrix inversion. We set the minimum value of P as minP. Default value is 1e-5.
-        MaxIter: 'int'
-            Maximum iterition times. Defualt value is 500.
-        theta: 'float'
-            Define how could be an inlier. If the posterior probability of a sample is an inlier is larger than theta, then it is regarded as an inlier. Default value is 0.75.
+        M: 'int' (default: 100)
+            The number of basis functions to approximate the vector field.
+        a: 'float' (default: 10)
+            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's variation space is a.
+        beta: 'float' (default: 0.1)
+            Paramerter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2),
+        ecr: 'float' (default: 1e-5)
+            The minimum limitation of energy change rate in the iteration process.
+        gamma: 'float' (default: 0.9)
+            Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important.
+        lambda_: 'float' (default: 0.3)
+            Represents the trade-off between the goodness of data fit and regularization.
+        minP: 'float' (default: 1e-5)
+            The posterior probability Matrix P may be singular for matrix inversion. We set the minimum value of P as minP.
+        MaxIter: 'int' (default: 500)
+            Maximum iterition times.
+        theta: 'float' (default: 0.75)
+            Define how could be an inlier. If the posterior probability of a sample is an inlier is larger than theta, then it is regarded as an inlier.
 
     Returns
     -------
@@ -109,8 +173,8 @@ def con_K(x, y, beta):
             Original training data points.
         y: 'np.ndarray'
             Control points used to build kernel basis functions.
-        beta: 'np.ndarray'
-            The function that returns diffusion matrix which can be dependent on the variables (for example, genes)
+        beta: 'float' (default: 0.1)
+            Paramerter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2),
 
     Returns
     -------
@@ -164,38 +228,75 @@ def get_P(Y, V, sigma2, gamma, a):
     return P, E
 
 class VectorField:
-    def __init__(self, X, Y, Grid, M = 100, a = 5, beta = 0.1, ecr = 1e-5, gamma = 0.9, lambda_ = 3, minP = 1e-5, MaxIter = 500, theta = 0.75, div_cur_free_kernels = False):
-        self.data = {"X": X, "Y": Y, "Grid": Grid} # should we use annadata here?
+    def __init__(self, X, V, Grid, M=100, a=5, beta=0.1, ecr=1e-5, gamma=0.9, lambda_=3, minP=1e-5, MaxIter=500, theta=0.75, div_cur_free_kernels=False):
+        """Initialize the VectorField class.
+
+        Parameters
+        ----------
+        X: 'np.ndarray' (dimension: n_obs x n_features)
+                Original data.
+        V: 'np.ndarray' (dimension: n_obs x n_features)
+                Velocities of cells in the same order and dimension of X.
+        Grid: 'np.ndarray'
+                The function that returns diffusion matrix which can be dependent on the variables (for example, genes)
+        M: 'int' (default: 100)
+                The number of basis functions to approximate the vector field.
+        a: `float` (default 5)
+            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's
+            variation space is a.
+        beta: `float` (default: 0.1)
+             Paramerter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2).
+        ecr: `float` (default: 1e-5)
+            The minimum limitation of energy change rate in the iteration process.
+        gamma: `float` (default:  0.9)
+            Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important.
+            Default value is 0.9.
+        lambda_: `float` (default: 3)
+            Represents the trade-off between the goodness of data fit and regularization.
+        minP: `float` (default: 1e-5)
+            The posterior probability Matrix P may be singular for matrix inversion. We set the minimum value of P as minP.
+        MaxIter: `int` (default: 500)
+            Maximum iterition times.
+        theta: `float` (default 0.75)
+            Define how could be an inlier. If the posterior probability of a sample is an inlier is larger than theta, then
+            it is regarded as an inlier.
+        div_cur_free_kernels: `bool` (default: False)
+            A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the vector
+            field.
+        """
+
+        self.data = {"X": X, "V": V, "Grid": Grid} # should we use annadata here?
 
         self.parameters = {'M': M, "a": a, "beta": beta, "ecr": ecr, "gamma": gamma, "lambda_": lambda_, "minP": minP, "MaxIter": MaxIter, "theta": theta, "div_cur_free_kernels": div_cur_free_kernels}
+        self.norm_dict = {}
 
-    def VectorField(self, method = 'SparseVFC'):
+    def VectorField(self, normalize = False, method = 'SparseVFC'):
         """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
         Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
 
         Arguments
         ---------
-            X: 'np.ndarray'
-                Original data.
-            Y: 'np.ndarray'
-                Original data.
-            Grid: 'np.ndarray'
-                The function that returns diffusion matrix which can be dependent on the variables (for example, genes)
-            M: 'function'
-                The number of basis functions to approximate the vector field. By default, it is 100.
-            method: 'str'
-                Method that is used to reconstruct the vector field analytically. Currently only SparseVFC supported but other
+            normalize: 'bool' (default: False)
+                Logic flag to determine whether to normalize the data to have zero means and unit covariance. This is often
+                required for raw dataset (for example, raw UMI counts and RNA velocity values in high dimension). But it is
+                normally not required for low dimensional embeddings by PCA or other non-linear dimension reduction methods.
+            method: 'string'
+                Method that is used to reconstruct the vector field functionally. Currently only SparseVFC supported but other
                 improved approaches are under development.
 
         Returns
         -------
-        VecFld: 'dict'
-        A dictionary which contains X, Y, beta, V, C, P, VFCIndex. Where V = f(X), P is the posterior probability and
-        VFCIndex is the indexes of inliers which found by VFC.
+            VecFld: 'dict'
+                A dictionary which contains X, Y, beta, V, C, P, VFCIndex. Where V = f(X), P is the posterior probability and
+                VFCIndex is the indexes of inliers which found by VFC.
         """
 
+        if normalize:
+             X, V, T, norm_dict = norm(self.data['X'], self.data['V'], self.data['Grid'])
+             self.data['X'], self.data['V'], self.data['Grid'], self.norm_dict = X, V, T, norm_dict
+
         if(method == 'SparseVFC'):
-            VecFld = SparseVFC(self.data['X'], self.data['Y'], self.data['Grid'], M = self.parameters['M'], a = self.parameters['a'],
+            VecFld = SparseVFC(self.data['X'], self.data['V'], self.data['Grid'], M = self.parameters['M'], a = self.parameters['a'],
                                beta = self.parameters['beta'], ecr = self.parameters['ecr'], gamma = self.parameters['gamma'],
                                lambda_ = self.parameters['lambda_'], minP = self.parameters['minP'], MaxIter = self.parameters['MaxIter'],
                                theta = self.parameters['theta'])
@@ -258,11 +359,7 @@ class VectorField:
 
         Returns
         -------
-        K: 'np.ndarray'
-        the kernel to represent the vector field function.
-        Returns
-        -------
-        A tuple of G (the combined kernel function), divergence-free kernel and curl-free kernel.
+            A tuple of G (the combined kernel function), divergence-free kernel and curl-free kernel.
 
         See also:: :func:`sparseVFC`.
         """
@@ -308,10 +405,12 @@ class VectorField:
 
         return K
 
-    def vector_field_function(x, VecFld):
+    def vector_field_function(x, t, VecFld):
         """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
+
         Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
         """
+        x=np.array(x).reshape((1, -1))
         if(len(x.shape) == 1):
             x = x[None, :]
         K= con_K(x, VecFld['X'], VecFld['beta'])
@@ -322,6 +421,7 @@ class VectorField:
 
     def vector_field_function_auto(self, x, VecFld, autograd = False):
         """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
+
         Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
         """
 
@@ -331,33 +431,4 @@ class VectorField:
 
         return K
 
-    def auto_con_K(self, x, y, beta):
-        """Con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
-
-        Arguments
-        ---------
-            x: 'np.ndarray'
-                Original training data points.
-            y: 'np.ndarray'
-                control points used to build kernel basis functions
-            beta: 'np.ndarray'
-                The function that returns diffusion matrix which can be dependent on the variables (for example, genes)
-
-        Returns
-        -------
-        K: 'np.ndarray'
-        the kernel to represent the vector field function.
-        """
-
-        n, d = x.shape
-        m, d = y.shape
-
-        # https://stackoverflow.com/questions/1721802/what-is-the-equivalent-of-matlabs-repmat-in-numpy
-        # https://stackoverflow.com/questions/12787475/matlabs-permute-in-python
-        K = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0])
-        K = np.squeeze(np.sum(K**2, 1))
-        K = - beta * K
-        K = np.exp(K) #
-
-        return K
 
