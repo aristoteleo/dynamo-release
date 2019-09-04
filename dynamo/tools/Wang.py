@@ -118,3 +118,69 @@ def Wang_LAP(X_input, F, D=0.1, lambda_=1):
     res = optimize.basinhopping(Wang_action, x0=X_input, minimizer_kwargs={'args': (dim, F, D, N, lambda_)})
 
     return res
+
+
+def transition_rate(X_input, F, D=0.1, lambda_=1):
+    """Calculate the rate to convert from one cell state to another cell state by taking the optimal path.
+
+     In the small noise limit (D -> 0) the Wentzell-Freidlin theory states that the transition rate from one basin to
+     another one to a leading order is related to the minimum action corresponding zero energy path (Eeff = 0) connecting
+     the starting fixed point and the saddle point x_{sd} by k \approx exp(−S0 (x_{sd})). To take into account that for finite
+     noise, the actual optimal path bypasses the saddle point, in Eqn. 2 of the main text a transition rate is
+     actually estimated by the action of the whole path connecting the two fixed points, giving that the portion of the path
+     following the vector field contributes zero action. Here we have neglected some pre-exponential factor (see Eq. 5.24 of
+     reference [15]), which is expected to be on the order of 1 [12]. (Reference: Epigenetic state network approach for
+     describing cell phenotypic transitions. Ping Wang, Chaoming Song, Hang Zhang, Zhanghan Wu, Xiao-Jun Tian and Jianhua Xing)
+
+    Parameters
+    ----------
+        X_input: `numpy.ndarray`
+            The initial guess of the least action path. Default is a straight line connecting the starting and end path.
+        F: `Function`
+            The reconstructed vector field function
+        D: `float`
+            The diffusion constant. Note that this can be a space-dependent matrix.
+        lamada_: `float`
+            Regularization parameter
+
+    Returns
+    -------
+        The transition to convert from one cell state to another.
+    """
+
+    res = Wang_LAP(X_input, F, D=D, lambda_=lambda_)
+    r = np.exp(-res)
+
+    return r
+
+
+def MFPT(X_input, F, D=0.1, lambda_=1):
+    """Calculate the MFPT (mean first passage time) to convert from one cell state to another cell state by taking the optimal path.
+
+     The mean first-passage time (MFPT) defines an average timescale for a stochastic event to first occur. The MFPT maps
+     a multi-step kinetic process to a coarse-grained timescale for reaching a final state, having started at some initial
+     state. The inverse of the MFPT is an effective rate of the overall reaction. (reference: Mean First-Passage Times in Biology
+     Nicholas F. Polizzi,a Michael J. Therien,b and David N. Beratan)
+
+    Parameters
+    ----------
+        X_input: `numpy.ndarray`
+            The initial guess of the least action path. Default is a straight line connecting the starting and end path.
+        F: `Function`
+            The reconstructed vector field function
+        D: `float`
+            The diffusion constant. Note that this can be a space-dependent matrix.
+        lamada_: `float`
+            Regularization parameter
+
+    Returns
+    -------
+        The transition to convert from one cell state to another.
+    """
+
+    r = transition_rate(X_input, F, D=D, lambda_=lambda_)
+    t = 1/r
+
+    return t
+
+

@@ -69,7 +69,7 @@ def solveQ(D, F, debug=False):
 def Ao_pot_map(vecFunc, X, D=None):
     """Mapping potential landscape with the algorithm developed by Ao method.
     References: Potential in stochastic differential equations: novel construction. Journal of physics A: mathematical and
-        general, Ao Ping, 2014
+        general, Ao Ping, 2004
 
     Parameters
     ----------
@@ -84,8 +84,10 @@ def Ao_pot_map(vecFunc, X, D=None):
     -------
         X: `numpy.ndarray`
             A matrix storing the x-coordinates on the two-dimesional grid.
-       U: `numpy.ndarray`
+        U: `numpy.ndarray`
             A matrix storing the potential value at each position.
+        P: `numpy.ndarray`
+            Steady state distribution or the Boltzmann-Gibbs distribution for the state variable.
     """
 
     nobs, ndim = X.shape
@@ -99,61 +101,8 @@ def Ao_pot_map(vecFunc, X, D=None):
         H = np.linalg.inv(D + Q).dot(F)
         U[i] = - 0.5 * X_s.dot(H).dot(X_s)
 
-    return X, U
+    P = np.exp(-U)
+    P = P / np.sum(P)
 
-# #
-# # # Xgrid, Ygrid, U = Ao_pot_map(vecFunc=two_gene_model, test=1, xlim=[5], ylim=[5], N=50)
-# # # show_landscape(Xgrid, Ygrid, U)
-# # # test on real dataset
-# import scipy.io
-# VecFld = scipy.io.loadmat('/Volumes/xqiu/proj/dynamo/data/VecFld.mat')
-#
-# def vector_field_function(x, VecFld = VecFld):
-#     '''Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
-#     Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
-#     '''
-#     x = x.reshape((1, 2))
-#     K= dyn.tl.con_K(x, VecFld['X'], VecFld['beta'])
-#
-#     K = K.dot(VecFld['C'])
-#
-#     return K.T
-#
-# def vector_field_function_auto(x, VecFld = VecFld, autograd = False):
-#     '''Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
-#     Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
-#     '''
-#     if(len(x.shape) == 1):
-#         x = x[None, :]
-#     K= auto_con_K(x, VecFld['X'], VecFld['beta'])
-#
-#     K = K.dot(VecFld['C'])
-#
-#     return K
-#
-# import dynamo as dyn
-#
-# xlim, ylim = [-25, 25] , [-25, 25]
-# N = 100
-# x_space = np.diff(xlim)[0] / N
-# y_space = np.diff(ylim)[0] / N
-#
-# Xgrid, Ygrid = np.meshgrid(np.arange(xlim[0], xlim[1], x_space), np.arange(xlim[0], xlim[1], y_space))
-#
-# U = Ao_pot_map(vecFunc=vector_field_function, X=np.vstack((Xgrid.flatten(), Ygrid.flatten())).T, D=None)
-# show_landscape(Xgrid, Ygrid, U.reshape(Xgrid.shape))
-#
-# import plotly.graph_objects as go
-#
-# import pandas as pd
-#
-# # Read data from a csv
-# z_data = pd.read_csv('https://raw.githubusercontent.com/plotly/datasets/master/api_docs/mt_bruno_elevation.csv')
-#
-# fig = go.Figure(data=[go.Surface(z=U)])
-#
-# fig.update_layout(title='Mt Bruno Elevation', autosize=False,
-#                   width=500, height=500,
-#                   margin=dict(l=65, r=50, b=65, t=90))
-#
-# fig.show()
+    return X, U, P
+
