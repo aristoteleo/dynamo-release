@@ -108,7 +108,7 @@ def Wang_LAP(X_input, F, D=0.1, lambda_=1):
             The diffusion constant. Note that this can be a space-dependent matrix.
         lamada_: `float`
             Regularization parameter
-            
+
     Returns
     -------
         The least action path and the action way of the inferred path.

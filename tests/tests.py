@@ -92,5 +92,71 @@ def test_Wang_LAP():
 	X_input=np.vstack((x1_input, x2_input))
 
 	dyn.tl.least_action(X_input, F=F, D=0.1, N=20, lamada_=1)
-	res = optimize.basinhopping(least_action, x0=X_input,minimizer_kwargs={'args': (2, F, 0.1, 20, 1)})
+	res = optimize.basinhopping(dyn.tl.least_action, x0=X_input,minimizer_kwargs={'args': (2, F, 0.1, 20, 1)})
 	res
+
+
+def two_gene_model(X, a=1, b=1, k=1, S=0.5, n=4):
+    """Two gene network motif used in `From understanding the development landscape of the canonical fate-switch pair to
+     constructing a dynamic landscape for two-step neural differentiation`, Xiaojie Qiu, Shanshan Ding, Tieliu Shi, Plos one
+     2011.
+
+    Parameters
+    ----------
+        X: `numpy.array` (dimension: 2 x 1)
+            Concentration of two genes.
+        a: `float`
+            Parameter a in the two gene model.
+        b: `float`
+            Parameter b in the two gene model.
+        k: `float`
+            Parameter k in the two gene model.
+        S: `float`
+            Parameter S in the two gene model.
+        n: `float`
+            Parameter n in the two gene model.
+
+    Returns
+    -------
+        F: `numpy.ndarray`
+            matrix (1 x 2) of velocity values at X.
+    """
+
+    x1, x2 = X[0], X[1]
+    F1 = (a * (x1 ** n) / ((S ** n) + (x1 ** n))) + (b * (S ** n) / ((S ** n) + (x2 ** n))) - (k * x1)
+    F2 = (a * (x2 ** n) / ((S ** n) + (x2 ** n))) + (b * (S ** n) / ((S ** n) + (x1 ** n))) - (k * x2)
+
+    F = np.array([[F1], [F2]]).T
+    return F
+
+def test_Ao_LAP():
+    import sympy as sp
+
+    a = 1
+    b = 1
+    k = 1
+    S = 0.5
+    n = 4
+    D = 0.1 * np.eye(2)
+
+    N = 50
+    space = 5 / N
+
+    x1 = sp.Symbol('x1')
+    x2 = sp.Symbol('x2')
+    X = sp.Matrix([x1, x2])
+    F1 = (a * (x1 ** n) / ((S ** n) + (x1 ** n))) + (b * (S ** n) / ((S ** n) + (x2 ** n))) - (k * x1)
+    F2 = (a * (x2 ** n) / ((S ** n) + (x2 ** n))) + (b * (S ** n) / ((S ** n) + (x1 ** n))) - (k * x2)
+    F = sp.Matrix([F1, F2])
+    J = F.jacobian(X)
+    U = np.zeros((N, N))
+
+    for i in range(N):
+        for j in range(N):
+            X_s = np.array([i * space, j * space])
+            # F = J.subs(X, X_s)
+            F = J.subs(x1, X_s[0])
+            F = np.array(F.subs(x2, X_s[1]), dtype=float)
+            Q, _ = dyn.tl.solveQ(D, F)
+            H = np.linalg.inv(D + Q).dot(F)
+            U[i, j] = - 0.5 * X_s @ H @ X_s

@@ -22,6 +22,7 @@ from .scVectorField import SparseVFC, con_K, get_P, VectorField #, evaluate, con
 from .scPotential import gen_fixed_points, gen_gradient, IntGrad, DiffusionMatrix, action, Potential, ODE, autoODE #, vector_field_function
 from .Bhattacharya import path_integral, alignment
 from .Wang import Wang_action, Wang_LAP
+from .Ao import Ao_pot_map
 
 # cell fate related
 from .fate import fate
