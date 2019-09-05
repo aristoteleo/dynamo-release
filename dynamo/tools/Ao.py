@@ -88,11 +88,20 @@ def Ao_pot_map(vecFunc, X, D=None):
             A matrix storing the potential value at each position.
         P: `numpy.ndarray`
             Steady state distribution or the Boltzmann-Gibbs distribution for the state variable.
+        vecMat: `list`
+            List velocity vector at each position from X.
+        S: `list`
+            List of constant symmetric and semi-positive matrix or friction matrix, corresponding to the divergence part,
+            at each position from X.
+        A: `list`
+            List of constant antisymmetric matrix or transverse matrix, corresponding to the curl part, at each position
+            from X.
     """
 
     nobs, ndim = X.shape
     D = 0.1 * np.eye(ndim) if D is None else D
     U = np.zeros((nobs, 1))
+    vecMat, S, A = [None] * nobs, [None] * nobs, [None] * nobs
 
     for i in range(nobs):
         X_s = X[i, :]
@@ -101,8 +110,11 @@ def Ao_pot_map(vecFunc, X, D=None):
         H = np.linalg.inv(D + Q).dot(F)
         U[i] = - 0.5 * X_s.dot(H).dot(X_s)
 
+        vecMat[i] = vecFunc(X_s)
+        S[i], A[i] = (np.linalg.inv(D + Q) + np.linalg.inv((D + Q).T)) / 2, (np.linalg.inv(D + Q) - np.linalg.inv((D + Q).T)) / 2
+
     P = np.exp(-U)
     P = P / np.sum(P)
 
-    return X, U, P
+    return X, U, P, vecMat, S, A
 

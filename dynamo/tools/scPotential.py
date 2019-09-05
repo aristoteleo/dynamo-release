@@ -1,7 +1,7 @@
 import numpy as np
 import scipy as sc
 import scipy.optimize 
-# from sympy import *
+from sympy import *
 # from StringFunction import StringFunction
 # import autograd.numpy as autonp
 # from autograd import grad, jacobian # calculate gradient and jacobian
