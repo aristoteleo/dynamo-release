@@ -10,7 +10,7 @@ from .moments import moments, moments_simple, estimation
 from .simulation import Simulator
 
 from .velocity import sol_u, sol_s, sol_p, fit_linreg, fit_beta_lsq, fit_gamma_lsq, fit_alpha_synthesis, fit_alpha_degradation, velocity, estimation
-from .cell_velocities import cell_velocities
+from .cell_velocities import cell_velocities, markov_combination, makeTransitionMatrix, diffusion
 
 # run other velocity tools: 
 from .velocyto_scvelo import vlm_to_adata, converter, run_velocyto, run_scvelo, mean_var_by_time, run_dynamo, run_dynamo_simple_fit, run_dynamo_labeling, compare_res
