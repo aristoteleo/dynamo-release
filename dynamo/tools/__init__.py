@@ -5,7 +5,7 @@
 # from .dynamo import sol_u, sol_s, fit_gamma_labeling, fit_alpha_labeling, fit_gamma_splicing, fit_gamma
 # from .dynamo_fitting import sol_u, sol_s, sol_p, sol_ode, sol_num, fit_gamma_labeling, fit_beta_lsq, fit_alpha_labeling, fit_alpha_synthesis, fit_gamma_splicing, fit_gamma
 from .gillespie import directMethod, prop_slam, simulate_Gillespie, prop_2bifurgenes, stoich_2bifurgenes, simulate_2bifurgenes, temporal_average, temporal_cov, temporal_interp, convert_nosplice, simulate_multigene, trajectories
-from .moments import moments, moments_simple, estimation
+from .moments import Estimation
 
 from .simulation import Simulator
 

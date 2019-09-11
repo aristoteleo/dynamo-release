@@ -86,7 +86,7 @@ def simulate_Gillespie(a, b, la, aa, ai, si, be, ga, C0, t_span, n_traj, report=
     trajs_C = [[]] * n_traj
 
     for i in range(n_traj):
-        T, C = directMethod(lambda C: prop_slam(C, a, b, la, aa, ai, si, be, ga), update_func, t_span, C0)
+        T, C = directMethod(lambda C: prop_slam(C, a, b, la, aa, ai, si, be, ga), update_func, t_span, C0[i])
         trajs_T[i] = T
         trajs_C[i] = C
         if report:
@@ -209,6 +209,9 @@ class trajectories:
     def append(self, traj_T, traj_C):
         self.trajs_T.append(traj_T)
         self.trajs_C.append(traj_C)
+
+    def interpolate(self, T, round=False):
+        return temporal_interp(T, self.trajs_T, self.trajs_C, round)
 
 
 

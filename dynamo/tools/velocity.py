@@ -213,6 +213,7 @@ def fit_gamma_lsq(t, s, beta, u0, bounds=(0, np.inf), fix_s0=False):
 
 def fit_alpha_synthesis(t, u, beta):
     """Estimate alpha with synthesis data using linear regression with fixed zero intercept.
+    It is assumed that u(0) = 0.
 
     Arguments
     ---------
@@ -272,6 +273,52 @@ def fit_alpha_degradation(t, u, beta, mode=None):
     b = ym - k * xm if mode != 'fast' else None
 
     return k * beta, b
+
+def fit_alpha_beta_synthesis(t, l, bounds=(0, np.inf), alpha_0=1, beta_0=1):
+    """Estimate alpha and beta with synthesis data using least square method.
+    It is assumed that u(0) = 0.
+
+    Arguments
+    ---------
+    l: :class:`~numpy.ndarray`
+        A matrix of labeled mRNA counts. Dimension: cells x time points.
+    beta: float
+        The value of beta.
+
+    Returns
+    -------
+    alpha: float
+        The estimated value for alpha.
+    """
+    tau = np.hstack((0, t))
+    x = np.hstack((0, l))
+
+    f_lsq = lambda p: sol_u(tau, 0, p[0], p[1]) - x
+    ret = least_squares(f_lsq, np.array([alpha_0, beta_0]), bounds=bounds)
+    return ret.x[0], ret.x[1]
+
+def fit_all_synthesis(t, l, bounds=(0, np.inf), alpha_0=1, beta_0=1, gamma_0=1):
+    """Estimate alpha and beta with synthesis data using least square method.
+    It is assumed that u(0) = 0.
+
+    Arguments
+    ---------
+    l: :class:`~numpy.ndarray`
+        A matrix of labeled mRNA counts. Dimension: cells x time points.
+    beta: float
+        The value of beta.
+
+    Returns
+    -------
+    alpha: float
+        The estimated value for alpha.
+    """
+    tau = np.hstack((0, t))
+    x = np.hstack((0, l))
+
+    f_lsq = lambda p: sol_u(tau, 0, p[0], p[1]) + sol_s(tau, 0, 0, p[0], p[1], p[2]) - x
+    ret = least_squares(f_lsq, np.array([alpha_0, beta_0, gamma_0]), bounds=bounds)
+    return ret.x[0], ret.x[1], ret.x[2]
 
 def concat_time_series_matrices(mats, t=None):
     """Concatenate a list of gene x cell matrices into a single matrix.
@@ -516,7 +563,7 @@ class estimation:
                         #    alpha[i], _ = fit_alpha_synthesis(self.t, self.data['uu'][i], self.parameters['gamma'][i])
                         #self.parameters['alpha'] = alpha
             elif self.extyp == 'kin':
-                if self._exist_data('ul'):
+                if np.all(self._exist_data('ul', 'uu', 'su')):
                     if not self._exist_parameter('beta'):
                         # beta & gamma estimation: only works when there're at least 2 time points
                         self.parameters['beta'], self.parameters['gamma'] = self.fit_beta_gamma_lsq(self.t, self.data['uu'], self.data['su'])
@@ -526,6 +573,8 @@ class estimation:
                         for j in range(len(self.data['ul'][i])):
                             alpha[i, j] = fit_alpha_synthesis(self.t, self.data['ul'][i], self.parameters['beta'][i])
                     self.parameters['alpha'] = alpha
+                elif np.all(self._exist_data('ul', 'uu')):
+                    pass
             # 'one_shot'
             elif self.extyp == 'one_shot':
                 if self._exist_data('ul') and self._exist_parameter('beta'):
