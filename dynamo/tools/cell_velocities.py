@@ -1,7 +1,7 @@
 import numpy as np
 import scipy as scp
 from scipy.sparse import coo_matrix, issparse
-from cvxopt import matrix, solvers
+import scipy.linalg
 
 
 def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_cells_trick=False):
@@ -114,6 +114,8 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
 
 
 def markov_combination(x, v, X):
+    from cvxopt import matrix, solvers
+
     n = X.shape[0]
     R = matrix(X - x).T
     H = R.T * R
@@ -163,10 +165,42 @@ def diffusion(M, P0=None, steps=None, backward=False):
         M = M.T
 
     if steps is None:
-        _, b = np.linalg.eig(M) if issparse(M) else scp.sparse.linalg.eigs(M) # source is on column
-        mu = np.real(b[:, 0] / np.sum(b[:, 0])) # steady state distribution
+        # code inspired from  https://github.com/prob140/prob140/blob/master/prob140/markov_chains.py#L284
+        from scipy.sparse.linalg import eigs
+        eigenvalue, eigenvector = scp.linalg.eig(M, left=True, right=False) if not issparse(M) else eigs(M) # source is on the row
+
+        eigenvector = np.real(eigenvector) if not issparse(M) else np.real(eigenvector.T)
+        eigenvalue_1_ind = np.isclose(eigenvalue, 1)
+        mu = eigenvector[:, eigenvalue_1_ind] / np.sum(b[:, eigenvalue_1_ind])
+
+        # Zero out floating poing errors that are negative.
+        indices = np.logical_and(np.isclose(mu, 0),
+                                 mu < 0)
+        mu[indices] = 0 # steady state distribution
+
     else:
         mu = np.nanmean(M.dot(np.linalg.matrix_power(M, steps)), 0) if P0 is None else P0.dot(np.linalg.matrix_power(M, steps))
 
     return mu
 
+
+def expected_return_time(M, backward=False):
+    """Find the expected returning time.
+
+    Parameters
+    ----------
+        M: `numpy.ndarray` (dimension n x n, where n is the cell number)
+            The transition matrix.
+        backward: `bool` (default False)
+            Whether the backward transition will be considered.
+
+    Returns
+    -------
+        T: `numpy.ndarray`
+            The expected return time (1 / steady_state_probability).
+
+    """
+    steady_state = diffusion(M, P0=None, steps=None, backward=backward)
+
+    T = 1 / steady_state
+    return T

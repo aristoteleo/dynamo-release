@@ -1,6 +1,5 @@
 import numpy as np
 from scipy import optimize
-import numdifftools as nda
 
 
 def Wang_action(X_input, F, D, dim, N, lamada_=1):
@@ -50,6 +49,8 @@ def Wang_action(X_input, F, D, dim, N, lamada_=1):
 
 
 def V_jacobina(F, X):
+    import numdifftools as nda
+
     V_jacobina = nda.Jacobian(F)
 
     return V_jacobina(X)
