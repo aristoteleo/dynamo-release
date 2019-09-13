@@ -50,7 +50,7 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
             Y = X_pca[indices[i, 1:]]
             q, u = markov_combination(y, v, Y)
             Q[i] = q.T
-            U[i] = u.T
+            U[i] = (X_embedding[indices[i, 1:]] - X_embedding[i]).T.dot(np.array(q)).T # project in two dimension
 
             delta_X[i, :] = X_embedding[i, :] + U[i]
 
@@ -117,13 +117,15 @@ def markov_combination(x, v, X):
     from cvxopt import matrix, solvers
 
     n = X.shape[0]
-    R = matrix(X - x).T
+    R = matrix((X - x).astype('double')).T
     H = R.T * R
-    f = matrix(v).T * R
+    f = matrix((v).astype('double')).T * R
     G = np.vstack((-np.eye(n),
                    np.ones(n)))
     h = np.zeros(n+1)
     h[-1] = 1
+    solvers.options['show_progress'] = False
+
     p = solvers.qp(H, -f.T, G=matrix(G), h=matrix(h))['x']
     u = R * p
     return p, u
@@ -204,3 +206,4 @@ def expected_return_time(M, backward=False):
 
     T = 1 / steady_state
     return T
+

@@ -39,14 +39,14 @@ def extract_indices_dist_from_graph(graph, n_neighbors):
         ind_mat[cur_cell, 0] = cur_cell
         dist_mat[cur_cell, 0] = 0
 
-        # there could be more than n_neighbors because of an approximate search
-        if len(cur_neighbors[1]) > n_neighbors - 1:
+        # there could be more or less than n_neighbors because of an approximate search
+        if len(cur_neighbors[1]) != n_neighbors - 1:
             sorted_indices = np.argsort(graph[cur_cell][:, cur_neighbors[1]].A)[0][:(n_neighbors - 1)]
             ind_mat[cur_cell, 1:] = cur_neighbors[1][sorted_indices]
             dist_mat[cur_cell, 1:] = graph[cur_cell][0, cur_neighbors[1][sorted_indices]].A
         else:
-            ind_mat[cur_cell, 1:] = cur_neighbors[1][1:] # could not broadcast input array from shape (13) into shape (14)
-            dist_mat[cur_cell, 1:] = graph[cur_cell][:, cur_neighbors[1]].A[1:]
+            ind_mat[cur_cell, 1:] = cur_neighbors[1] # could not broadcast input array from shape (13) into shape (14)
+            dist_mat[cur_cell, 1:] = graph[cur_cell][:, cur_neighbors[1]].A
 
     return ind_mat, dist_mat
 
