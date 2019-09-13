@@ -1,6 +1,5 @@
 import numpy as np
 from scipy.optimize import least_squares
-import numdifftools as nda
 
 # from scPotential import show_landscape
 
@@ -97,6 +96,8 @@ def Ao_pot_map(vecFunc, X, D=None):
             List of constant antisymmetric matrix or transverse matrix, corresponding to the curl part, at each position
             from X.
     """
+
+    import numdifftools as nda
 
     nobs, ndim = X.shape
     D = 0.1 * np.eye(ndim) if D is None else D
