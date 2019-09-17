@@ -37,6 +37,7 @@ def norm(X, V, T):
 
         return X, V, T, norm_dict
 
+
 def auto_con_K(self, x, y, beta):
     """Con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
 
@@ -67,8 +68,9 @@ def auto_con_K(self, x, y, beta):
 
     return K
 
+
 def SparseVFC(X, Y, Grid, M = 100, a = 5, beta = 0.1, ecr = 1e-5, gamma = 0.9, lambda_ = 3, minP = 1e-5, MaxIter = 500, theta = 0.75, div_cur_free_kernels = False):
-    """Apply sparseVFC (vector field consensus) algorithm to learn an analytical function of vector field on the entire space robustly.
+    """Apply sparseVFC (vector field consensus) algorithm to learn a functional form of the vector field on the entire space robustly and efficiently.
     Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
 
     Arguments
@@ -159,7 +161,7 @@ def SparseVFC(X, Y, Grid, M = 100, a = 5, beta = 0.1, ecr = 1e-5, gamma = 0.9, l
 
     grid_V = np.dot(grid_U, C)
 
-    VecFld = {"X": ctrl_pts, "Y": Y, "beta": beta, "V": V, "C": C , "P": P, "VFCIndex": np.where(P > theta)[0], "sigma2": sigma2, "grid": Grid, "grid_V": grid_V}
+    VecFld = {"X": ctrl_pts, "Y": Y, "beta": beta, "V": V, "C": C, "P": P, "VFCIndex": np.where(P > theta)[0], "sigma2": sigma2, "grid": Grid, "grid_V": grid_V}
 
     return VecFld
 
@@ -222,6 +224,7 @@ def get_P(Y, V, sigma2, gamma, a):
     D = Y.shape[1]
     temp1 = np.exp(-np.sum((Y - V)**2, 1) / (2 * sigma2))
     temp2 = (2 * np.pi * sigma2)**(D/2) * (1 - gamma) / (gamma * a)
+    temp1[temp1==0] = np.min(temp1[temp1!=0])
     P = temp1 / (temp1 + temp2)
     E = P.T.dot(np.sum((Y - V)**2, 1)) / (2 * sigma2) + np.sum(P) * np.log(sigma2) * D / 2
 

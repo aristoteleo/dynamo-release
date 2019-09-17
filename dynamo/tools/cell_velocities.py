@@ -1,10 +1,9 @@
 import numpy as np
 import scipy as scp
-from scipy.sparse import coo_matrix, issparse
-import scipy.linalg
+from scipy.sparse import csc_matrix, issparse
 
 
-def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_cells_trick=False):
+def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_cells_trick=False, cores=1):
     """Compute transition probability and project high dimension velocity vector to existing low dimension embedding.
 
     We may consider using umap transform function or applying a neuron net model to project the velocity vectors.
@@ -17,9 +16,9 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
         The dictionary key that corresponds to the estimated velocity values in layers slot.
     basis: 'int' (optional, default umap)
         The dictionary key that corresponds to the reduced dimension in obsm slot.
-    method: `string` (optimal, default 'new')
+    method: `string` (optimal, default 'analytical')
         The method to calculate the transition matrix and project high dimensional vector to low dimension, either new or
-        empirical. "Empiricial" is the method used in the original RNA velocity paper.
+        empirical. "empirical" is the method used in the original RNA velocity paper.
     neg_cells_trick: 'bool' (optional, default False)
         Whether we should handle cells having negative correlations in gene expression difference with high dimensional
         velocity vector separately. This option is inspired from scVelo package (https://github.com/theislab/scvelo).
@@ -42,6 +41,11 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
     delta_X = np.zeros((n, X_embedding.shape[1]))
 
     if method == 'analytical':
+        from cvxopt import matrix, solvers
+        solvers.options['show_progress'] = False
+        # import os
+        # os.environ["OMP_NUM_THREADS"] = str(cores)
+
         Q = np.zeros((n, knn))
         U = np.zeros((n, 2))
         for i in range(n):
@@ -52,10 +56,10 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
             Q[i] = q.T
             U[i] = (X_embedding[indices[i, 1:]] - X_embedding[i]).T.dot(np.array(q)).T # project in two dimension
 
-            delta_X[i, :] = X_embedding[i, :] + U[i]
+            delta_X[i, :] = U[i]
 
         T = makeTransitionMatrix(Q, indices[:, 1:], 1e-4)
-    elif method == 'empiricial':
+    elif method == 'empirical':
         idx = 0
         for i in range(n):
             i_vals = np.zeros((knn, 1))
@@ -105,7 +109,7 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
 
                 delta_X[i, :] = (i_prob - 1 / knn).T.dot(numerator / np.hstack((denominator, denominator)))
 
-        T = coo_matrix((vals.flatten(), (rows.flatten(), cols.flatten())), shape=neighbors.shape)
+        T = csc_matrix((vals.flatten(), (rows.flatten(), cols.flatten())), shape=neighbors.shape)
 
     adata.uns['transition_matrix'] = T
     adata.obsm['velocity_' + basis] = delta_X
@@ -114,8 +118,6 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
 
 
 def markov_combination(x, v, X):
-    from cvxopt import matrix, solvers
-
     n = X.shape[0]
     R = matrix((X - x).astype('double')).T
     H = R.T * R
@@ -124,9 +126,9 @@ def markov_combination(x, v, X):
                    np.ones(n)))
     h = np.zeros(n+1)
     h[-1] = 1
-    solvers.options['show_progress'] = False
 
     p = solvers.qp(H, -f.T, G=matrix(G), h=matrix(h))['x']
+    
     u = R * p
     return p, u
 
