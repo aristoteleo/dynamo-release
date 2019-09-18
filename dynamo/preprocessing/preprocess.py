@@ -3,7 +3,7 @@ import pandas as pd
 from scipy.sparse import issparse
 from anndata import AnnData
 import statsmodels.api as sm
-from sklearn.decomposition import TruncatedSVD
+from sklearn.decomposition import TruncatedSVD, FastICA
 
 
 def szFactor(adata, locfunc=np.nanmean, round_exprs=True, method='mean-geometric-mean-total'):
@@ -127,13 +127,38 @@ def recipe_monocle(adata, method='PCA', num_dim=50, norm_method='log', pseudo_ex
     adata.X = FM
 
     if method == 'PCA':
-        clf = TruncatedSVD(num_dim)
+        clf = TruncatedSVD(num_dim, random_state=2019)
         reduce_dim = clf.fit_transform(FM)
+        adata.uns['explained_variance_ratio'] = clf.explained_variance_ratio_
+    elif method == 'ICA':
+        clf=FastICA(n_components,
+                algorithm='deflation', tol=5e-6, fun='logcosh', max_iter=1000)
+        reduce_dim=ICA.fit_transform(X)
 
     adata.obsm['X_' + method.lower()] = reduce_dim
 
     return adata
 
+
+def gini(adata):
+    """Calculate the Gini coefficient of a numpy array.
+
+    https://github.com/thomasmaxwellnorman/perturbseq_demo/blob/master/perturbseq/util.py
+    """
+
+    # From: https://github.com/oliviaguest/gini
+    # based on bottom eq: http://www.statsdirect.com/help/content/image/stat0206_wmf.gif
+    # from: http://www.statsdirect.com/help/default.htm#nonparametric_methods/gini.htm
+    array = adata.X.flatten() #all values are treated equally, arrays must be 1d
+    if np.amin(array) < 0:
+        array -= np.amin(array) #values cannot be negative
+    array += 0.0000001 # np.min(array[array!=0]) #values cannot be 0
+    array = np.sort(array) #values must be sorted
+    index = np.arange(1,array.shape[0]+1) #index per array element
+    n = array.shape[0] #number of array elements
+    gini = ((np.sum((2 * index - n  - 1) * array)) / (n * np.sum(array))) #Gini coefficient
+
+    adata.var['gini'] = gini
 
 def Dispersion(adata, modelFormulaStr="~ 1", relative_expr=True, min_cells_detected=1, removeOutliers=True):
     """

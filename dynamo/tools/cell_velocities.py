@@ -54,9 +54,6 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
             q, u = markov_combination(y, v, Y)
             Q[i] = q.T
 
-            q[q < tol] = 0
-            q[i] = 1 - np.sum(q)
-
             U[i] = (X_embedding[indices[i, 1:]] - X_embedding[i]).T.dot(np.array(q) ).T # - 1 / knn project in two dimension
 
             delta_X[i, :] = U[i]
