@@ -2,7 +2,6 @@ import numpy as np
 import scipy as scp
 from scipy.sparse import csc_matrix, issparse
 
-
 def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_cells_trick=False, cores=1):
     """Compute transition probability and project high dimension velocity vector to existing low dimension embedding.
 
@@ -41,24 +40,28 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
     delta_X = np.zeros((n, X_embedding.shape[1]))
 
     if method == 'analytical':
-        from cvxopt import matrix, solvers
-        solvers.options['show_progress'] = False
         # import os
         # os.environ["OMP_NUM_THREADS"] = str(cores)
 
         Q = np.zeros((n, knn))
         U = np.zeros((n, 2))
+
+        tol = 1e-4
         for i in range(n):
             y = X_pca[i]
             v = V_mat[i]
             Y = X_pca[indices[i, 1:]]
             q, u = markov_combination(y, v, Y)
             Q[i] = q.T
-            U[i] = (X_embedding[indices[i, 1:]] - X_embedding[i]).T.dot(np.array(q)).T # project in two dimension
+
+            q[q < tol] = 0
+            q[i] = 1 - np.sum(q)
+
+            U[i] = (X_embedding[indices[i, 1:]] - X_embedding[i]).T.dot(np.array(q) ).T # - 1 / knn project in two dimension
 
             delta_X[i, :] = U[i]
 
-        T = makeTransitionMatrix(Q, indices[:, 1:], 1e-4)
+        T = makeTransitionMatrix(Q, indices[:, 1:], tol)
     elif method == 'empirical':
         idx = 0
         for i in range(n):
@@ -118,6 +121,9 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
 
 
 def markov_combination(x, v, X):
+    from cvxopt import matrix, solvers
+    solvers.options['show_progress'] = False
+
     n = X.shape[0]
     R = matrix((X - x).astype('double')).T
     H = R.T * R
