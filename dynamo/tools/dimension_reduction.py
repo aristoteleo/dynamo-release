@@ -219,7 +219,17 @@ def reduceDimension(adata, n_pca_components=25, n_components=2, velocity_method=
     else:
         X_pca = adata.obsm['X_pca']
 
-    if reduction_method is 'tSNE':
+    if reduction_method is "trimap":
+        import trimap
+        triplemap = trimap.TRIMAP(n_inliers=20,
+                                  n_outliers=10,
+                                  n_random=10,
+                                  weight_adj=1000.0,
+                                  apply_pca=False)
+        X_dim = triplemap.fit_transform(X_pca)
+
+        adata.obsm['X_trimap'] = X_dim
+    elif reduction_method is 'tSNE':
         bh_tsne = TSNE(n_components = n_components)
         X_dim = bh_tsne.fit_transform(X_pca)
         adata.obsm['X_tSNE'] = X_dim
