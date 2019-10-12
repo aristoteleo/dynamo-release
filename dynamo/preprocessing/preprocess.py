@@ -1,19 +1,23 @@
 import numpy as np
 import pandas as pd
+import scipy
 from scipy.sparse import issparse
-from anndata import AnnData
-import statsmodels.api as sm
+# from anndata import AnnData
+import warnings
+# import statsmodels.api as sm
 from sklearn.decomposition import TruncatedSVD, FastICA
 
 
-def szFactor(adata, locfunc=np.nanmean, round_exprs=True, method='mean-geometric-mean-total'):
+def szFactor(adata, layers='all', locfunc=np.nanmean, round_exprs=True, method='mean-geometric-mean-total'):
     """Calculate the size factor of the each cell for a AnnData object.
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
     ----------
-        adata: :AnnData
+        adata: :class:`~anndata.AnnData`
             AnnData object
+        layers: str (default: all)
+            The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
         locfunc: `function`
             The function to normalize the data
         round_exprs: `bool`
@@ -27,29 +31,44 @@ def szFactor(adata, locfunc=np.nanmean, round_exprs=True, method='mean-geometric
             A updated anndata object that are updated with the Size_Factor in the obs slot.
     """
 
-    CM = adata.raw if adata.raw is not None else adata.X
-    if round_exprs:
-        CM = CM.astype('int')  # if issparse(CM) else CM.astype(int)
+    layer_keys = list(adata.layers.keys())
+    layer_keys.extend('X')
+    layers = layer_keys if layers is 'all' else list(set(layer_keys).intersection(layers))
 
-    if method == 'mean-geometric-mean-total':
-        cell_total = CM.sum(axis=1)
-        sfs = cell_total / np.exp(locfunc(np.log(cell_total)))
-    else:
-        print('This method is supported!')
+    for layer in layers:
+        if layer is 'raw' or layer is 'X':
+            CM = adata.raw if adata.raw is not None else adata.X
+        else:
+            CM = adata.layers[layer]
 
-    adata.obs['Size_Factor'] = sfs[:, None]
+        if round_exprs:
+            CM = CM.astype('int') # will this affect downstream analysis?
+
+        if method == 'mean-geometric-mean-total':
+            cell_total = CM.sum(axis=1)
+            sfs = cell_total / np.exp(locfunc(np.log(cell_total)))
+        else:
+            print('This method is supported!')
+
+        sfs[~np.isfinite(sfs)] = 1
+        if layer is 'raw' or layer is 'X':
+            adata.obs['Size_Factor'] = sfs
+        else:
+            adata.obs[layer + '_Size_Factor'] = sfs
 
     return adata
 
 
-def normalize_expr_data(adata, norm_method='log', pseudo_expr=1, relative_expr=True):
+def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, relative_expr=True):
     """Normalize the gene expression value for the AnnData object
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
     ----------
-        adata: :AnnData
+        adata: :class:`~anndata.AnnData`
             AnnData object
+        layers: str (default: all)
+            The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
         norm_method: `str`
             The method used to normalize data.
         pseudo_expr: `int`
@@ -63,39 +82,80 @@ def normalize_expr_data(adata, norm_method='log', pseudo_expr=1, relative_expr=T
             A updated anndata object that are updated with normalized expression values, X.
     """
 
-    FM = adata.raw if adata.raw is not None else adata.X
+    layer_keys = list(adata.layers.keys())
+    layer_keys.extend('X')
+    layers = layer_keys if layers is 'all' else list(set(layer_keys).intersection(layers))
 
-    if ('use_for_ordering' in adata.var.columns):
-        FM = FM.loc[adata.var['use_for_ordering'],]
+    layer_sz_column_names = [i + '_Size_Factor' for i in set(layers).difference('X')]
+    layer_sz_column_names.extend(['Size_Factor'])
+    layers_to_sz = set(layer_sz_column_names).difference(adata.obs.keys())
 
-    if norm_method == 'log':
-        if relative_expr:
-            FM = adata.X / adata.obs['Size_Factor'][:, None]
+    if len(layers_to_sz) > 0:
+        layers = pd.Series(layers_to_sz).str.split('_Size_Factor', expand=True).iloc[:, 0].tolist()
+        szFactor(adata, layers=layers, locfunc=np.nanmean, round_exprs=True, method='mean-geometric-mean-total')
 
-        if pseudo_expr is None:
-            pseudo_expr = 1
-
-        if issparse(FM):
-            FM.data = np.log2(FM.data + pseudo_expr)
+    for layer in layers:
+        if layer is 'raw' or layer is 'X':
+            FM = adata.raw if adata.raw is not None else adata.X
+            szfactors = adata.obs['Size_Factor'][:, None]
         else:
-            FM = np.log2(FM + pseudo_expr)
-    else:
-        print(norm_method + ' is not implemented yet')
+            FM = adata.layers[layer]
+            szfactors = adata.obs[layer + 'Size_Factor'][:, None]
 
-    adata.X = FM
+        if 'use_for_ordering' in adata.var.columns:
+            FM = FM[adata.var['use_for_ordering'], :]
+
+        if norm_method == 'log' and layer is not 'protein':
+            if relative_expr:
+                FM = scipy.sparse.diags((1/szfactors).flatten().tolist(), 0).dot(FM) if issparse(FM) else FM / szfactors
+
+            if pseudo_expr is None:
+                pseudo_expr = 1
+
+            if issparse(FM):
+                FM.data = np.log2(FM.data + pseudo_expr)
+            else:
+                FM = np.log2(FM + pseudo_expr)
+
+        elif layer is 'protein': # norm_method == 'clr':
+            if norm_method is not 'clr':
+                warnings.warn('For protein data, log transformation is not recommended. Using clr normalization by default.')
+            """This normalization implements the centered log-ratio (CLR) normalization from Seurat which is computed for
+            each gene (M Stoeckius, ‎2017).
+            """
+            FM = FM.T
+            n_feature = FM.shape[1]
+
+            for i in range(FM.shape[0]):
+                x = FM[i].A
+                res = np.log1p(x / (np.exp(np.nansum(np.log1p(x[x > 0])) / n_feature)))
+                res[np.isnan(res)] = 0
+                # res[res > 100] = 100
+                FM[i] = res
+
+            FM = FM.T
+        else:
+            warnings.warn(norm_method + ' is not implemented yet')
+
+        if layer in ['raw', 'X']:
+            adata.X = FM
+        else:
+            adata.layers['X_' + layer] = FM
 
     return adata
 
 
-def recipe_monocle(adata, method='PCA', num_dim=50, norm_method='log', pseudo_expr=1,
+def recipe_monocle(adata, layer=None, method='PCA', num_dim=50, norm_method='log', pseudo_expr=1,
                    relative_expr=True, scaling=True, **kwargs):
     """
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
     ----------
-        adata: :AnnData
+        adata: :class:`~anndata.AnnData`
             AnnData object
+        layers: str (default: None)
+            The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
         method: `str`
             The linear dimension reduction methods to be used.
         num_dim: `int`
@@ -121,19 +181,24 @@ def recipe_monocle(adata, method='PCA', num_dim=50, norm_method='log', pseudo_ex
 
     adata = normalize_expr_data(adata, norm_method=norm_method, pseudo_expr=pseudo_expr, relative_expr=relative_expr)
 
-    fm_genesums = adata.X.sum(axis=0)
-    FM = adata.X[:, (np.isfinite(fm_genesums)) + (fm_genesums != 0)]
+    if layer is None:
+        FM = adata.X if 'spliced' not in adata.layers.keys() else adata.layers['spliced']
 
-    adata.X = FM
+    fm_genesums = FM.sum(axis=0)
+    valid_ind = (np.isfinite(fm_genesums)) + (fm_genesums != 0)
+    valid_ind = np.array(valid_ind).flatten()
+    FM = FM[:, valid_ind]
 
-    if method == 'PCA':
+    adata = adata[:, valid_ind]
+
+    if method is 'PCA':
         clf = TruncatedSVD(num_dim, random_state=2019)
         reduce_dim = clf.fit_transform(FM)
         adata.uns['explained_variance_ratio'] = clf.explained_variance_ratio_
     elif method == 'ICA':
-        clf=FastICA(n_components,
+        ICA=FastICA(num_dim,
                 algorithm='deflation', tol=5e-6, fun='logcosh', max_iter=1000)
-        reduce_dim=ICA.fit_transform(X)
+        reduce_dim=ICA.fit_transform(FM.toarray())
 
     adata.obsm['X_' + method.lower()] = reduce_dim
 
@@ -159,6 +224,7 @@ def gini(adata):
     gini = ((np.sum((2 * index - n  - 1) * array)) / (n * np.sum(array))) #Gini coefficient
 
     adata.var['gini'] = gini
+
 
 def Dispersion(adata, modelFormulaStr="~ 1", relative_expr=True, min_cells_detected=1, removeOutliers=True):
     """

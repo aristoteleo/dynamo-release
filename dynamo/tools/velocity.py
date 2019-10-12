@@ -456,7 +456,7 @@ class velocity:
         Returns
         -------
         n_genes: int
-            The second dimension of the alpha matrix, if alpha is given. Or, the length of beta, gamma, eta, or delta, if they are given.
+            The first dimension of the alpha matrix, if alpha is given. Or, the length of beta, gamma, eta, or delta, if they are given.
         """
         if self.parameters['alpha'] is not None:
             n_genes = self.parameters['alpha'].shape[0]
@@ -521,10 +521,10 @@ class estimation:
         intercept: bool
             If using steady state assumption for fitting, then:
             True -- the linear regression is performed with an unfixed intercept;
-            False -- the linear regresssion is performed with a fixed zero intercept.
-        perc_left: float
+            False -- the linear regression is performed with a fixed zero intercept.
+        perc_left: float (default: 5)
             The percentage of samples included in the linear regression in the left tail. If set to None, then all the samples are included.
-        perc_right: float
+        perc_right: float (default: 5)
             The percentage of samples included in the linear regression in the right tail. If set to None, then all the samples are included.
         clusters: list
             A list of n clusters, each element is a list of indices of the samples which belong to this cluster.
