@@ -11,7 +11,7 @@ def diffusionMatrix(V_mat):
 
 def compute_velocity_on_grid(X_emb, V_emb, xy_grid_nums, density=None, smooth=None, n_neighbors=None, min_mass=None, autoscale=False,
                              adjust_for_stream=True):
-    """
+    """This function is from scvelo with adaptions. Not used for now.
     """
     n_obs, n_dim = X_emb.shape
     print('n_obs, n_dim', n_obs, n_dim)
