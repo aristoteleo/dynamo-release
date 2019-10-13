@@ -130,7 +130,7 @@ def fit_linreg(x, y, intercept=True):
         b = 0
     return k, b
 
-def fit_beta_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=1):
+def fit_first_order_deg_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=1):
     """Estimate beta with degradation data using least squares method.
 
     Arguments
@@ -501,7 +501,27 @@ class estimation:
             (2) None: kinetic data with no assumption. 
         assumption_protein: str
             Parameter estimation assumption for protein. Available options are: 
-            (1) 'ss': pseudo steady state; 
+            (1) 'ss': pseudo steady state;
+
+        Attributes
+        ----------
+        t: :class:`~estimation`
+            A vector of time points.
+        data: `dict`
+            A dictionary with uu, ul, su, sl, p as its keys.
+        extyp: `str`
+            Labeling experiment type.
+        asspt_mRNA: `str`
+            Parameter estimation assumption for mRNA.
+        asspt_prot: `str`
+            Parameter estimation assumption for protein.
+        parameters: `dict`
+            A dictionary with alpha, beta, gamma, eta, delta as its keys.
+                alpha: transcription rate
+                beta: RNA splicing rate
+                gamma: spliced mRNA degradation rate
+                eta: translation rate
+                delta: protein degradation rate
         """
         self.t = t
         self.data = {'uu': U, 'ul': Ul, 'su': S, 'sl': Sl, 'p': P}
@@ -569,9 +589,10 @@ class estimation:
                         self.parameters['beta'], self.parameters['gamma'] = self.fit_beta_gamma_lsq(self.t, self.data['uu'], self.data['su'])
                     # alpha estimation
                     alpha = np.zeros_like(self.data['ul'])
+                    # assume constant alpha across all cells
                     for i in range(n):
-                        for j in range(len(self.data['ul'][i])):
-                            alpha[i, j] = fit_alpha_synthesis(self.t, self.data['ul'][i], self.parameters['beta'][i])
+                        # for j in range(len(self.data['ul'][i])):
+                        alpha[i, :] = fit_alpha_synthesis(self.t, self.data['ul'][i], self.parameters['beta'][i])
                     self.parameters['alpha'] = alpha
                 elif np.all(self._exist_data('ul', 'uu')):
                     pass
@@ -621,7 +642,7 @@ class estimation:
         i_right = np.int((100-perc_right)/100.0*n) if perc_right is not None else 0
         mask = np.zeros(n, dtype=bool)
         mask[:i_left] = mask[i_right:] = True
-        return fit_linreg(s[mask], u[mask], intercept)
+        return fit_linreg(np.sort(s)[mask], np.sort(u)[mask], intercept)
 
     def fit_beta_gamma_lsq(self, t, U, S):
         """Estimate beta and gamma with the degradation data using the least squares method.
@@ -646,7 +667,7 @@ class estimation:
         beta = np.zeros(n)
         gamma = np.zeros(n)
         for i in range(n):
-            beta[i], u0 = fit_beta_lsq(t, U[i])
+            beta[i], u0 = fit_first_order_deg_lsq(t, U[i])
             gamma[i], _ = fit_gamma_lsq(t, S[i], beta[i], u0)
         return beta, gamma
 
@@ -668,7 +689,7 @@ class estimation:
         n = self.get_n_genes(data=L)
         gamma = np.zeros(n)
         for i in range(n):
-            gamma[i], _ = fit_beta_lsq(t, L[i])
+            gamma[i], _ = fit_first_order_deg_lsq(t, L[i])
         return gamma
 
     def fit_alpha_oneshot(self, t, U, beta, clusters=None):
@@ -687,10 +708,8 @@ class estimation:
 
         Returns
         -------
-        beta: :class:`~numpy.ndarray`
-            A vector of betas for all the genes.
-        gamma: :class:`~numpy.ndarray`
-            A vector of gammas for all the genes.
+        alpha: :class:`~numpy.ndarray`
+            A numpy array with the dimension of n_genes x clusters.
         """
         n_genes, n_cells = U.shape
         if clusters is None:
