@@ -6,7 +6,7 @@ import warnings
 import statsmodels.api as sm
 from scipy.sparse import issparse
 from sklearn.decomposition import TruncatedSVD, FastICA
-from utilities import cook_dist
+from .utilities import cook_dist
 
 def szFactor(adata, layers='all', locfunc=np.nanmean, round_exprs=True, method='mean-geometric-mean-total'):
     """Calculate the size factor of the each cell for a AnnData object.
@@ -649,10 +649,4 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_unflitered=True, min_c
 
     return adata
 
-import scanpy as sc
-# #import AnnData
-adata = sc.read_10x_h5('/Volumes/xqiu/proj/Aristotle/cite_seq/filtered_feature_bc_matrix.h5')
-adata = Dispersion(adata)
-# vstExprs(adata)
-adata = filter_cells(adata)
-adata = filter_genes(adata)
+
