@@ -5,7 +5,7 @@ import numpy as np
 
 # from __future__ import division, print_function
 
-
+# https://stats.stackexchange.com/questions/356053/the-identity-link-function-does-not-respect-the-domain-of-the-gamma-family
 def _weight_matrix(fitted_model):
     """Calculates weight matrix in Poisson regression
 

@@ -45,23 +45,34 @@ def featureGenes(adata, layer='X'):
 
     disp_table = topTable(adata, layer)
 
-    ordering_genes = adata.var['use_for_dynamo']
+    ordering_genes = adata.var['use_for_dynamo'] if 'use_for_dynamo' in adata.var.columns else None
 
-    plt.plot(np.sort(disp_table['mean_expression']), disp_table['dispersion_fit'][np.argsort(disp_table['mean_expression'])], alpha=0.4, color='tab:red')
-    if sum(ordering_genes) > 0:
-        valid_ind = disp_table.gene_id.isin(ordering_genes.index[ordering_genes]).values
-        valid_disp_table = disp_table.iloc[valid_ind, :]
-        plt.scatter(valid_disp_table['mean_expression'], valid_disp_table['dispersion_empirical'], s=3, alpha=0.01,
-                    color='black')
+    layer_keys = list(adata.layers.keys())
+    layer_keys.extend('X')
+    layer = list(set(layer_keys).intersection(layer))[0]
+
+    if layer in ['raw', 'X']:
+        key = 'dispFitInfo'
+    else:
+        key = layer + '_dispFitInfo'
+    mu_linspace = np.linspace(np.min(disp_table['mean_expression']), np.max(disp_table['mean_expression']), num = 1000)
+    disp_fit = adata.uns['dispFitInfo']['disp_func'](mu_linspace)
+
+    plt.plot(mu_linspace, disp_fit, alpha=0.4, color='k')
+    valid_ind = disp_table.gene_id.isin(ordering_genes.index[ordering_genes]).values if ordering_genes is not None else np.ones(disp_table.shape[0], dtype=bool)
+
+    valid_disp_table = disp_table.iloc[valid_ind, :]
+    plt.scatter(valid_disp_table['mean_expression'], valid_disp_table['dispersion_empirical'], s=3, alpha=0.3, color='tab:red')
     neg_disp_table = disp_table.iloc[~valid_ind, :]
 
-    plt.scatter(neg_disp_table['mean_expression'], neg_disp_table['dispersion_empirical'], s=3, alpha=1, color='tab:grey')
+    plt.scatter(neg_disp_table['mean_expression'], neg_disp_table['dispersion_empirical'], s=3, alpha=1, color='tab:blue')
 
     # plt.xlim((0, 100))
     plt.xscale('log')
     plt.yscale('log')
     plt.xlabel('Mean')
     plt.ylabel('Dispersion')
+    plt.show()
 
 # def velocity(adata, type) # type can be either one of the three, cellwise, velocity on grid, streamline plot.
 #	"""

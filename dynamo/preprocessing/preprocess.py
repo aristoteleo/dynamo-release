@@ -42,7 +42,7 @@ def szFactor(adata, layers='all', locfunc=np.nanmean, round_exprs=True, method='
             CM = adata.layers[layer]
 
         if round_exprs:
-            CM = CM.astype('int') # will this affect downstream analysis?
+            CM = CM.round().astype('int') # will this affect downstream analysis?
 
         if method == 'mean-geometric-mean-total':
             cell_total = CM.sum(axis=1)
@@ -141,66 +141,6 @@ def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, r
             adata.X = FM
         else:
             adata.layers['X_' + layer] = FM
-
-    return adata
-
-
-def recipe_monocle(adata, layer=None, method='PCA', num_dim=50, norm_method='log', pseudo_expr=1,
-                   feature_selection = 'gini', n_top_num = 2000, 
-                   relative_expr=True, scaling=True, **kwargs):
-    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
-
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object
-        layers: str (default: None)
-            The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
-        method: `str`
-            The linear dimension reduction methods to be used.
-        num_dim: `int`
-            The number of dimensions reduced to.
-        norm_method: `str`
-            The method to normalize the data.
-        pseudo_expr: `int`
-            A pseudocount added to the gene expression value before log2 normalization.
-        relative_expr: `bool`
-            A logic flag to determine whether we need to divide gene expression values first by size factor before normalization
-        scaling: `str`
-            A logic flag to determine whether we should scale the data before performing linear dimension reduction method.
-        kwargs:
-            Other Parameters passed into the function.
-
-    Returns
-    -------
-        adata: :AnnData
-            A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions.
-    """
-
-    adata = szFactor(adata)
-
-    adata = normalize_expr_data(adata, norm_method=norm_method, pseudo_expr=pseudo_expr, relative_expr=relative_expr)
-
-    if layer is None:
-        FM = adata.X if 'spliced' not in adata.layers.keys() else adata.layers['spliced']
-
-    fm_genesums = FM.sum(axis=0)
-    valid_ind = (np.isfinite(fm_genesums)) + (fm_genesums != 0)
-    valid_ind = np.array(valid_ind).flatten()
-    FM = FM[:, valid_ind]
-
-    adata = adata[:, valid_ind]
-
-    if method is 'PCA':
-        clf = TruncatedSVD(num_dim, random_state=2019)
-        reduce_dim = clf.fit_transform(FM)
-        adata.uns['explained_variance_ratio'] = clf.explained_variance_ratio_
-    elif method == 'ICA':
-        ICA=FastICA(num_dim,
-                algorithm='deflation', tol=5e-6, fun='logcosh', max_iter=1000)
-        reduce_dim=ICA.fit_transform(FM.toarray())
-
-    adata.obsm['X_' + method.lower()] = reduce_dim
 
     return adata
 
@@ -331,24 +271,26 @@ def disp_calc_helper_NB(adata, layers='X', min_cells_detected=1):
     for layer in layers:
         if layer is 'raw' or layer is 'X':
             CM = adata.raw if adata.raw is not None else adata.X
+            szfactors = adata.obs['Size_Factor'][:, None]
         else:
             CM = adata.layers[layer]
+            szfactors = adata.obs[layer + 'Size_Factor'][:, None]
 
-        rounded = CM.astype('int')
+        rounded = CM.round().astype('int')
         lowerDetectedLimit = adata.uns['lowerDetectedLimit'] if 'lowerDetectedLimit' in adata.uns.keys() else 1
         nzGenes = (rounded > lowerDetectedLimit).sum(axis=0)
         nzGenes = nzGenes > min_cells_detected
 
         nzGenes = np.array(nzGenes).flatten()
-        x = CM[:, nzGenes]
+        x = scipy.sparse.diags((1/szfactors).flatten().tolist(), 0).dot(rounded[:, nzGenes]) if issparse(rounded) else rounded[:, nzGenes] / szfactors
 
-        xim = np.mean(1 / adata.obs['Size_Factor']) if 'Size_Factor' in adata.obs.columns else 1
+        xim = np.mean(1 / szfactors) if szfactors is not None else 1
 
         f_expression_mean = x.mean(axis=0)
 
         # For NB: Var(Y) = mu * (1 + mu / k)
         # variance formula
-        f_expression_var = np.mean(np.power(x - f_expression_mean, 2), axis=0) # variance
+        f_expression_var = x.std(axis=0, ddof=1)**2 # np.mean(np.power(x - f_expression_mean, 2), axis=0) # variance with n - 1
         # https://scialert.net/fulltext/?doi=ajms.2010.1.15 method of moments
         disp_guess_meth_moments = f_expression_var - xim * f_expression_mean # variance - mu
 
@@ -428,7 +370,7 @@ def vstExprs(adata, expr_matrix=None, round_vals=True):
     if expr_matrix is None:
         ncounts = adata.X
         if round_vals:
-            ncounts.astype(int)
+            ncounts.round().astype('int')
     else:
         ncounts = expr_matrix
 
@@ -441,7 +383,7 @@ def vstExprs(adata, expr_matrix=None, round_vals=True):
     return res
 
 
-def Dispersion(adata, layers='X', modelFormulaStr="~ 1", min_cells_detected=1, removeOutliers=True):
+def Dispersion(adata, layers='X', modelFormulaStr="~ 1", min_cells_detected=1, removeOutliers=False):
     """ This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
@@ -650,3 +592,66 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_unflitered=True, min_c
     return adata
 
 
+def recipe_monocle(adata, layer=None, method='PCA', num_dim=50, norm_method='log', pseudo_expr=1,
+                   feature_selection = 'dispersion', n_top_genes = 2000,
+                   relative_expr=True, scaling=True, **kwargs):
+    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object
+        layers: str (default: None)
+            The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
+        method: `str`
+            The linear dimension reduction methods to be used.
+        num_dim: `int`
+            The number of dimensions reduced to.
+        norm_method: `str`
+            The method to normalize the data.
+        pseudo_expr: `int`
+            A pseudocount added to the gene expression value before log2 normalization.
+        feature_selection: `str`
+            Which soring datatype, either dispersion or Gini index, to be used to select genes.
+        n_top_genes: `int`
+            How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
+        relative_expr: `bool`
+            A logic flag to determine whether we need to divide gene expression values first by size factor before normalization
+        scaling: `str`
+            A logic flag to determine whether we should scale the data before performing linear dimension reduction method.
+        kwargs:
+            Other Parameters passed into the function.
+
+    Returns
+    -------
+        adata: :AnnData
+            A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions.
+    """
+
+    adata = szFactor(adata)
+    adata = Dispersion(adata)
+    # normalize on all genes
+    adata = normalize_expr_data(adata, norm_method=norm_method, pseudo_expr=pseudo_expr, relative_expr=relative_expr)
+    # set use_for_dynamo
+    adata = filter_genes(adata, sort_by=feature_selection, n_top_genes=n_top_genes, **kwargs)
+    # only use genes pass filter (based on use_for_dynamo) to perform dimension reduction.
+    if layer is None:
+        FM = adata.X[:, adata.var.use_for_dynamo] if 'spliced' not in adata.layers.keys() else adata.layers['spliced'][:, adata.var.use_for_dynamo]
+
+    fm_genesums = FM.sum(axis=0)
+    valid_ind = (np.isfinite(fm_genesums)) + (fm_genesums != 0)
+    valid_ind = np.array(valid_ind).flatten()
+    FM = FM[:, valid_ind]
+
+    if method is 'PCA':
+        clf = TruncatedSVD(num_dim, random_state=2019)
+        reduce_dim = clf.fit_transform(FM)
+        adata.uns['explained_variance_ratio'] = clf.explained_variance_ratio_
+    elif method == 'ICA':
+        ICA=FastICA(num_dim,
+                algorithm='deflation', tol=5e-6, fun='logcosh', max_iter=1000)
+        reduce_dim=ICA.fit_transform(FM.toarray())
+
+    adata.obsm['X_' + method.lower()] = reduce_dim
+
+    return adata
