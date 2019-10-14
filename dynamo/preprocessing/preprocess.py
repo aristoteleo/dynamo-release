@@ -1,12 +1,12 @@
 import numpy as np
 import pandas as pd
 import scipy
-from scipy.sparse import issparse
 # from anndata import AnnData
 import warnings
 import statsmodels.api as sm
+from scipy.sparse import issparse
 from sklearn.decomposition import TruncatedSVD, FastICA
-from .utilities import cook_dist
+from utilities import cook_dist
 
 def szFactor(adata, layers='all', locfunc=np.nanmean, round_exprs=True, method='mean-geometric-mean-total'):
     """Calculate the size factor of the each cell for a AnnData object.
@@ -205,28 +205,56 @@ def recipe_monocle(adata, layer=None, method='PCA', num_dim=50, norm_method='log
     return adata
 
 
-def gini(adata):
+def Gini(adata, layers='all'):
     """Calculate the Gini coefficient of a numpy array.
+     https://github.com/thomasmaxwellnorman/perturbseq_demo/blob/master/perturbseq/util.py
 
-    https://github.com/thomasmaxwellnorman/perturbseq_demo/blob/master/perturbseq/util.py
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object
+        layers: str (default: None)
+            The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
+
+    Returns
+    -------
+        adata: :AnnData
+            A updated anndata object with gini score for the layers (include .X) in the corresponding var columns (layer + '_gini').
     """
 
     # From: https://github.com/oliviaguest/gini
     # based on bottom eq: http://www.statsdirect.com/help/content/image/stat0206_wmf.gif
     # from: http://www.statsdirect.com/help/default.htm#nonparametric_methods/gini.htm
-    array = adata.X.flatten() #all values are treated equally, arrays must be 1d
-    if np.amin(array) < 0:
-        array -= np.amin(array) #values cannot be negative
-    array += 0.0000001 # np.min(array[array!=0]) #values cannot be 0
-    array = np.sort(array) #values must be sorted
-    index = np.arange(1,array.shape[0]+1) #index per array element
-    n = array.shape[0] #number of array elements
-    gini = ((np.sum((2 * index - n  - 1) * array)) / (n * np.sum(array))) #Gini coefficient
 
-    adata.var['gini'] = gini
+    layer_keys = list(adata.layers.keys())
+    layer_keys.extend('X')
+    layers = layer_keys if layers is 'all' else list(set(layer_keys).intersection(layers))
 
-# select feature gene function
-# def featureSelection(adata, mode='gini', min_cell=2, min_cell_u, mean_):
+    for layer in layers:
+        if layer is 'raw' or layer is 'X':
+            array = adata.raw if adata.raw is not None else adata.X
+        else:
+            array = adata.layers[layer]
+
+        n_features = adata.shape[1]
+        gini = np.zeros(n_features)
+
+        for i in np.arange(n_features):
+            cur_array = array[:, i].A if issparse(array) else array[:, i] #all values are treated equally, arrays must be 1d
+            if np.amin(array) < 0:
+                cur_array -= np.amin(cur_array) #values cannot be negative
+            cur_array += 0.0000001 # np.min(array[array!=0]) #values cannot be 0
+            cur_array = np.sort(cur_array) #values must be sorted
+            index = np.arange(1,cur_array.shape[0]+1) #index per array element
+            n = cur_array.shape[0] #number of array elements
+            gini[i] = ((np.sum((2 * index - n  - 1) * cur_array)) / (n * np.sum(cur_array))) #Gini coefficient
+
+        if layer in ['raw', 'X']:
+            adata.var['gini'] = gini
+        else:
+            adata.var[layer, '_gini'] = gini
+
+    return adata
 
 
 def parametricDispersionFit(disp_table, initial_coefs=np.array([1e-6, 1])):
@@ -278,7 +306,7 @@ def parametricDispersionFit(disp_table, initial_coefs=np.array([1e-6, 1])):
     return fit, coefs, good
 
 
-def disp_calc_helper_NB(adata, min_cells_detected, layer='X'):
+def disp_calc_helper_NB(adata, layers='X', min_cells_detected=1):
     """ This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
@@ -295,37 +323,50 @@ def disp_calc_helper_NB(adata, min_cells_detected, layer='X'):
         res: :class:`~pandas.DataFrame`
             A pandas dataframe with mu, dispersion for each gene that passes filters.
     """
-    rounded = adata.raw.astype('int') if adata.raw is not None else adata.X
-    lowerDetectedLimit = adata.uns['lowerDetectedLimit'] if 'lowerDetectedLimit' in adata.uns.keys() else 1
-    nzGenes = (rounded > lowerDetectedLimit).sum(axis=0)
-    nzGenes = nzGenes > min_cells_detected
+    layer_keys = list(adata.layers.keys())
+    layer_keys.extend('X')
+    layers = layer_keys if layers is 'all' else list(set(layer_keys).intersection(layers))
 
-    nzGenes = np.array(nzGenes).flatten()
-    x = adata.X[:, nzGenes]
+    res_list = []
+    for layer in layers:
+        if layer is 'raw' or layer is 'X':
+            CM = adata.raw if adata.raw is not None else adata.X
+        else:
+            CM = adata.layers[layer]
 
-    xim = np.mean(1 / adata.obs['Size_Factor']) if 'Size_Factor' in adata.obs.columns else 1
+        rounded = CM.astype('int')
+        lowerDetectedLimit = adata.uns['lowerDetectedLimit'] if 'lowerDetectedLimit' in adata.uns.keys() else 1
+        nzGenes = (rounded > lowerDetectedLimit).sum(axis=0)
+        nzGenes = nzGenes > min_cells_detected
 
-    f_expression_mean = x.mean(axis=0)
+        nzGenes = np.array(nzGenes).flatten()
+        x = CM[:, nzGenes]
 
-    # For NB: Var(Y) = mu * (1 + mu / k)
-    # variance formula
-    f_expression_var = np.mean(np.power(x - f_expression_mean, 2), axis=0) # variance
-    # https://scialert.net/fulltext/?doi=ajms.2010.1.15 method of moments
-    disp_guess_meth_moments = f_expression_var - xim * f_expression_mean # variance - mu
+        xim = np.mean(1 / adata.obs['Size_Factor']) if 'Size_Factor' in adata.obs.columns else 1
 
-    disp_guess_meth_moments = disp_guess_meth_moments / np.power(f_expression_mean, 2) # this is dispersion parameter (1/k)
+        f_expression_mean = x.mean(axis=0)
 
-    res = pd.DataFrame({"mu": np.array(f_expression_mean).flatten(), "disp": np.array(disp_guess_meth_moments).flatten()})
-    res.loc[res['mu'] == 0, 'mu'] = None
-    res.loc[res['mu'] == 0, 'disp'] = None
-    res.loc[res['disp'] < 0, 'disp'] = 0
+        # For NB: Var(Y) = mu * (1 + mu / k)
+        # variance formula
+        f_expression_var = np.mean(np.power(x - f_expression_mean, 2), axis=0) # variance
+        # https://scialert.net/fulltext/?doi=ajms.2010.1.15 method of moments
+        disp_guess_meth_moments = f_expression_var - xim * f_expression_mean # variance - mu
 
-    res['gene_id'] = adata.var_names[nzGenes]
+        disp_guess_meth_moments = disp_guess_meth_moments / np.power(f_expression_mean, 2) # this is dispersion parameter (1/k)
 
-    return res
+        res = pd.DataFrame({"mu": np.array(f_expression_mean).flatten(), "disp": np.array(disp_guess_meth_moments).flatten()})
+        res.loc[res['mu'] == 0, 'mu'] = None
+        res.loc[res['mu'] == 0, 'disp'] = None
+        res.loc[res['disp'] < 0, 'disp'] = 0
+
+        res['gene_id'] = adata.var_names[nzGenes]
+
+        res_list.append(res)
+
+    return layers, res_list
 
 
-def dispersionTable(adata):
+def topTable(adata, layer='X', mode='dispersion'):
     """ This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
@@ -338,15 +379,27 @@ def dispersionTable(adata):
         disp_df: :class:`~pandas.DataFrame`
             The data frame with the gene_id, mean_expression, dispersion_fit and dispersion_empirical as the columns.
     """
-    if adata.uns["ispFitInfo"]["blind"] is None:
-        raise ("Error: no dispersion model found. Please call estimateDispersions() before calling this function")
+    layer_keys = list(adata.layers.keys())
+    layer_keys.extend('X')
+    layer = list(set(layer_keys).intersection(layer))[0]
 
-    disp_df = pd.DataFrame({"gene_id": adata.uns["dispFitinfo"]["disp_table"]["gene_id"],
-                            "mean_expression": adata.uns["dispFitinfo"]["disp_table"]["mu"],
-                            "dispersion_fit": adata.uns["dispFitinfo"]["disp_table"]["blind"]["mu"],
-                            "dispersion_empirical": adata.uns["dispFitinfo"]["disp_table"]["disp"]})
+    if layer in ['raw', 'X']:
+        key = 'dispFitInfo'
+    else:
+        key = layer + '_dispFitInfo'
 
-    return disp_df
+    if mode is 'dispersion':
+        if adata.uns[key] is None:
+            raise KeyError("Error: no dispersion model found. Please call estimateDispersions() before calling this function")
+
+        top_df = pd.DataFrame({"gene_id": adata.uns[key]["disp_table"]["gene_id"],
+                                "mean_expression": adata.uns[key]["disp_table"]["mu"],
+                                "dispersion_fit": adata.uns[key]['disp_func'](adata.uns[key]["disp_table"]["mu"]),
+                                "dispersion_empirical": adata.uns[key]["disp_table"]["disp"]})
+    elif mode is 'gini':
+        top_df = adata.var[layer + '_gini']
+
+    return top_df
 
 
 def vstExprs(adata, expr_matrix=None, round_vals=True):
@@ -365,13 +418,13 @@ def vstExprs(adata, expr_matrix=None, round_vals=True):
 
     Returns
     -------
-        disp_df: :class:`~pandas.DataFrame`
-            The name of the dispersion function to use for VST.
+        res: :class:`~numpy.ndarray`
+            A numpy array of the gene expression after VST.
 
     """
     fitInfo = adata.uns['dispFitInfo']
 
-    coefs = fitInfo['disp_func']
+    coefs = fitInfo['coefs']
     if expr_matrix is None:
         ncounts = adata.X
         if round_vals:
@@ -380,21 +433,22 @@ def vstExprs(adata, expr_matrix=None, round_vals=True):
         ncounts = expr_matrix
 
     def vst(q): # c( "asymptDisp", "extraPois" )
-        np.log((1 + coefs[1] + 2 * coefs[0] * q +
+        return np.log((1 + coefs[1] + 2 * coefs[0] * q +
                 2 * np.sqrt(coefs[0] * q * (1 + coefs[1] + coefs[0] * q)))
                / (4 * coefs[0])) / np.log(2)
+    res = vst(ncounts.A) if issparse(ncounts) else vst(ncounts)
 
-    return vst(ncounts)
+    return res
 
 
-def Dispersion(adata, layers=None, modelFormulaStr="~ 1", min_cells_detected=1, removeOutliers=True):
+def Dispersion(adata, layers='X', modelFormulaStr="~ 1", min_cells_detected=1, removeOutliers=True):
     """ This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object
-        layers: `str` (default: None)
+        layers: `str` (default: 'X')
             The layer(s) to be used for calculating dispersion. Default is X if there is no spliced layers.
         modelFormulaStr: `str`
             The model formula used to calculate dispersion parameters. Not used.
@@ -406,7 +460,7 @@ def Dispersion(adata, layers=None, modelFormulaStr="~ 1", min_cells_detected=1, 
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            A updated annData object with dispFitinfo added to uns attribute as a new key.
+            A updated annData object with dispFitInfo added to uns attribute as a new key.
     """
     import re
 
@@ -416,50 +470,189 @@ def Dispersion(adata, layers=None, modelFormulaStr="~ 1", min_cells_detected=1, 
 
     cds_pdata = adata.obs  # .loc[:, model_terms]
     cds_pdata['rowname'] = cds_pdata.index.values
-    disp_table = disp_calc_helper_NB(adata[:, :], min_cells_detected)
+    layers, disp_tables = disp_calc_helper_NB(adata[:, :], layers, min_cells_detected)
     # disp_table['disp'] = np.random.uniform(0, 10, 11)
     # disp_table = cds_pdata.apply(disp_calc_helper_NB(adata[:, :], min_cells_detected))
 
     # cds_pdata <- dplyr::group_by_(dplyr::select_(rownames_to_column(pData(cds)), "rowname", .dots=model_terms), .dots=model_terms)
     # disp_table <- as.data.frame(cds_pdata %>% do(disp_calc_helper_NB(cds[,.$rowname], cds@expressionFamily, min_cells_detected)))
+    for ind in np.arange(len(layers)):
+        layer, disp_table = layers[ind], disp_tables[ind]
 
-    if disp_table is None:
-        raise Exception('Parametric dispersion fitting failed, please set a different lowerDetectionLimit')
+        if disp_table is None:
+            raise Exception('Parametric dispersion fitting failed, please set a different lowerDetectionLimit')
 
-    disp_table = disp_table.loc[np.where(disp_table['mu'] != np.nan)[0], :]
+        disp_table = disp_table.loc[np.where(disp_table['mu'] != np.nan)[0], :]
 
-    res = parametricDispersionFit(disp_table)
-    fit, coefs, good = res[0], res[1], res[2]
+        res = parametricDispersionFit(disp_table)
+        fit, coefs, good = res[0], res[1], res[2]
 
-    if removeOutliers:
-        # influence = fit.get_influence()
-        # #CD is the distance and p is p-value
-        # (CD, p) = influence.cooks_distance
+        if removeOutliers:
+            # influence = fit.get_influence()
+            # #CD is the distance and p is p-value
+            # (CD, p) = influence.cooks_distance
 
-        CD = cook_dist(fit, 1 / good['mu'][:, None])
-        cooksCutoff = 4 / good.shape[0]
-        print("Removing ", len(CD[CD > cooksCutoff]), " outliers")
-        outliers = CD > cooksCutoff
-        # use CD.index.values? remove genes that lost when doing parameter fitting
-        lost_gene = set(good.index.values).difference(set(range(len(CD))))
-        outliers[lost_gene] = False
-        res = parametricDispersionFit(good.loc[~ outliers, :])
+            CD = cook_dist(fit, 1 / good['mu'][:, None])
+            cooksCutoff = 4 / good.shape[0]
+            print("Removing ", len(CD[CD > cooksCutoff]), " outliers")
+            outliers = CD > cooksCutoff
+            # use CD.index.values? remove genes that lost when doing parameter fitting
+            lost_gene = set(good.index.values).difference(set(range(len(CD))))
+            outliers[lost_gene] = False
+            res = parametricDispersionFit(good.loc[~ outliers, :])
 
-        fit, coefs = res[0], res[1]
+            fit, coefs = res[0], res[1]
 
-    def ans(q):
-        return coefs[0] + coefs[1] / q
+        def ans(q):
+            return coefs[0] + coefs[1] / q
 
-    adata.uns['dispFitinfo'] = {"disp_table": good, "disp_func": ans}
+        if layer in ['raw', 'X']:
+            adata.uns['dispFitInfo'] = {"disp_table": good, "disp_func": ans, "coefs": coefs}
+        else:
+            adata.uns[layer + '_dispFitInfo'] = {"disp_table": good, "disp_func": ans, "coefs": coefs}
+
     return adata
 
 
+def filter_cells(adata, filter_bool=None, layer='X', keep_unflitered=True, min_expr_genes_s=50, min_expr_genes_u=25, min_expr_genes_p=1,
+                 max_expr_genes_s=np.inf, max_expr_genes_u=np.inf, max_expr_genes_p=np.inf):
+    """Select valid cells basedon a collection of filters.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object
+        filter_bool: :class:`~numpy.ndarray` (default: None)
+            A boolean array from the user to select cells for downstream analysis.
+        layer: `str` (default: `X`)
+            The data from a particular layer (include X) used for feature selection.
+        keep_unflitered: `bool` (default: True)
+            Whether to keep cells that don't pass the filtering in the adata object.
+        min_expr_genes_s: `int` (default: 50)
+            Minimal number of genes with expression for the data in the spliced layer (also used for X)
+        min_expr_genes_u: `int` (default: 25)
+            Minimal number of genes with expression for the data in the unspliced layer
+        min_expr_genes_p: `int` (default: 1)
+            Minimal number of genes with expression for the data in the protein layer
+        max_expr_genes_s: `float` (default: np.inf)
+            Maximal number of genes with expression for the data in the spliced layer (also used for X)
+        max_expr_genes_u: `float` (default: np.inf)
+            Maximal average expression across cells for the data in the unspliced layer
+        max_expr_genes_p: `float` (default: np.inf)
+            Maximal average expression across cells for the data in the protein layer
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            An updated AnnData object with use_for_dynamo as a new column in obs to indicate the selection of cells for
+            downstream analysis. adata will be subsetted with only the cells pass filter if keep_unflitered is set to be
+            False.
+    """
+
+    detected_bool = np.ones(adata.X.shape[0], dtype=bool)
+    detected_bool = (detected_bool) & (((adata.X > 0).sum(1) > min_expr_genes_s) & ((adata.X > 0).sum(1) < max_expr_genes_s)).flatten()
+
+    if "spliced" in adata.layers.keys() & layer is 'spliced':
+        detected_bool = detected_bool & (((adata.layers['spliced'] > 0).sum(1) > min_expr_genes_s) & ((adata.layers['spliced'] > 0).sum(1) < max_expr_genes_s)).flatten()
+    if "unspliced" in adata.layers.keys() & layer is 'unspliced':
+        detected_bool = detected_bool & (((adata.layers['unspliced'] > 0).sum(1) > min_expr_genes_u) & ((adata.layers['unspliced'] > 0).sum(1) < max_expr_genes_u)).flatten()
+    if "protein" in adata.layers.keys() & layer is 'protein':
+        detected_bool = detected_bool & (((adata.layers['protein'] > 0).sum(1) > min_expr_genes_p) & ((adata.layers['protein'] > 0).sum(1) < max_expr_genes_p)).flatten()
+
+    filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
+
+    if keep_unflitered:
+        adata.obs['use_for_dynamo'] = np.array(filter_bool).flatten()
+    else:
+        adata = adata[np.array(filter_bool).flatten(), :]
+        adata.obs['use_for_dynamo'] = True
 
 
+    return adata
 
 
-# plot the dispersion
+def filter_genes(adata, filter_bool=None, layer='X', keep_unflitered=True, min_cell_s=5, min_cell_u=5, min_cell_p=5,
+                 min_avg_exp_s=1e-2, min_avg_exp_u=1e-4, min_avg_exp_p=1e-4, max_avg_exp=100., sort_by='dispersion',
+                 n_top_genes=3000):
+    """Select feature genes basedon a collection of filters.
 
-# filter cells by mean, dispersion
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object
+        filter_bool: :class:`~numpy.ndarray` (default: None)
+            A boolean array from the user to select genes for downstream analysis.
+        layer: `str` (default: `X`)
+            The data from a particular layer (include X) used for feature selection.
+        keep_unflitered: `bool` (default: True)
+            Whether to keep genes that don't pass the filtering in the adata object.
+        min_cell_s: `int` (default: 5)
+            Minimal number of cells with expression for the data in the spliced layer (also used for X)
+        min_cell_u: `int` (default: 5)
+            Minimal number of cells with expression for the data in the unspliced layer
+        min_cell_p: `int` (default: 5)
+            Minimal number of cells with expression for the data in the protein layer
+        min_avg_exp_s: `float` (default: 1e-2)
+            Minimal average expression across cells for the data in the spliced layer (also used for X)
+        min_avg_exp_u: `float` (default: 1e-4)
+            Minimal average expression across cells for the data in the unspliced layer
+        min_avg_exp_p: `float` (default: 1e-4)
+            Minimal average expression across cells for the data in the protein layer
+        max_avg_exp: `float` (default: 100.)
+            Maximal average expression across cells for the data in all layers (also used for X)
+        sort_by: `str` (default: dispersion)
+            Which soring datatype, either dispersion or Gini index, to be used to select genes.
+        n_top_genes
+            How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
 
-# add tom's normalization 
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            An updated AnnData object with use_for_dynamo as a new column in var to indicate the selection of genes for
+            downstream analysis. adata will be subsetted with only the genes pass filter if keep_unflitered is set to be
+            False.
+    """
+
+    detected_bool = np.ones(adata.X.shape[1], dtype=bool)
+    detected_bool = (detected_bool) & (((adata.X > 0).sum(0) > min_cell_s) & (adata.X.mean(0) > min_avg_exp_s) & (adata.X.mean(0) < max_avg_exp)).flatten()
+
+    if "spliced" in adata.layers.keys() & layer is 'spliced':
+        detected_bool = detected_bool & (((adata.layers['spliced'] > 0).sum(0) > min_cell_s) & (adata.layers['spliced'].mean(0) < min_avg_exp_s) & (adata.layers['spliced'].mean(0) < max_avg_exp))
+    if "unspliced" in adata.layers.keys() & layer is 'spliced':
+        detected_bool = detected_bool & (((adata.layers['unspliced'] > 0).sum(0) > min_cell_u) & (adata.layers['unspliced'].mean(0) < min_avg_exp_u) & (adata.layers['unspliced'].mean(0) < max_avg_exp))
+    if "protein" in adata.layers.keys() & layer is 'spliced':
+        detected_bool = detected_bool & (((adata.layers['protein'] > 0).sum(0) > min_cell_p) & (adata.layers['protein'].mean(0) < min_avg_exp_p) & (adata.layers['protein'].mean(0) < max_avg_exp))
+
+    filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
+
+    ### check this
+    if sort_by is 'dispersion':
+        table = topTable(adata, layer, mode=sort_by)
+
+        gene_id = np.argsort(-table.loc[:, 'dispersion_empirical'][table.loc[:, 'dispersion_empirical'] > table.loc[:, 'dispersion_fit']])[:n_top_genes]
+        gene_id = table.iloc[gene_id, :].loc[:, 'gene_id']
+        filter_bool = filter_bool & adata.var.index.isin(gene_id)
+
+    elif sort_by is 'gini':
+        table = topTable(adata, layer, mode='gini')
+
+        gene_id = np.argsort(-table.loc[:, 'gini'])[:n_top_genes]
+        gene_id = table.index[gene_id]
+        filter_bool = filter_bool & gene_id.isin(adata.var.index)
+
+    if keep_unflitered:
+        adata.var['use_for_dynamo'] = np.array(filter_bool).flatten()
+    else:
+        adata = adata[:, np.array(filter_bool).flatten()]
+        adata.var['use_for_dynamo'] = True
+
+
+    return adata
+
+import scanpy as sc
+# #import AnnData
+adata = sc.read_10x_h5('/Volumes/xqiu/proj/Aristotle/cite_seq/filtered_feature_bc_matrix.h5')
+adata = Dispersion(adata)
+# vstExprs(adata)
+adata = filter_cells(adata)
+adata = filter_genes(adata)
