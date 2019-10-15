@@ -2,6 +2,7 @@ import numpy as np
 from scipy.optimize import least_squares
 from sklearn.cluster import KMeans
 from sklearn.neighbors import NearestNeighbors
+from scipy.sparse import issparse
 
 def sol_u(t, u0, alpha, beta):
     """The analytical solution of unspliced mRNA kinetics.
@@ -114,6 +115,9 @@ def fit_linreg(x, y, intercept=True):
     b: float
         The estimated intercept.  
     """
+    x = x.A if issparse(x) else x
+    y = y.A if issparse(y) else y
+
     mask = np.logical_and(~np.isnan(x), ~np.isnan(y))
     xx = x[mask]
     yy = y[mask]
@@ -156,6 +160,8 @@ def fit_first_order_deg_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=1):
     l0: float
         The estimated value for the initial spliced, labeled mRNA count.
     """
+    l = l.A if issparse(l) else l
+
     tau = t - np.min(t)
     l0 = np.mean(l[tau == 0])
 
@@ -196,6 +202,8 @@ def fit_gamma_lsq(t, s, beta, u0, bounds=(0, np.inf), fix_s0=False):
     s0: float
         The estimated value for the initial spliced mRNA count.
     """
+    s = s.A if issparse(s) else s
+
     tau = t - np.min(t)
     s0 = np.mean(s[tau == 0])
     g0 = beta * u0/s0
@@ -227,6 +235,8 @@ def fit_alpha_synthesis(t, u, beta):
     alpha: float
         The estimated value for alpha.
     """
+    u = u.A if issparse(u) else u
+
     # fit alpha assuming u=0 at t=0
     expt = np.exp(-beta*t)
 
@@ -252,6 +262,8 @@ def fit_alpha_degradation(t, u, beta, mode=None):
     b: float
         The initial unspliced mRNA count.
     """
+    u = u.A if issparse(u) else u
+
     n = u.size
     tau = t - np.min(t)
     expt = np.exp(beta*tau)
@@ -290,6 +302,8 @@ def fit_alpha_beta_synthesis(t, l, bounds=(0, np.inf), alpha_0=1, beta_0=1):
     alpha: float
         The estimated value for alpha.
     """
+    l = l.A if issparse(l) else l
+
     tau = np.hstack((0, t))
     x = np.hstack((0, l))
 
@@ -313,6 +327,8 @@ def fit_all_synthesis(t, l, bounds=(0, np.inf), alpha_0=1, beta_0=1, gamma_0=1):
     alpha: float
         The estimated value for alpha.
     """
+    l = l.A if issparse(l) else l
+
     tau = np.hstack((0, t))
     x = np.hstack((0, l))
 
@@ -473,7 +489,7 @@ class velocity:
         return n_genes
 
 class estimation:
-    def __init__(self, U=None, Ul=None, S=None, Sl=None, P=None, t=None, experiment_type='deg', assumption_mRNA=None, assumption_protein='ss', concat_data=True):
+    def __init__(self, U=None, Ul=None, S=None, Sl=None, P=None, t=None, ind_for_proteins=None, experiment_type='deg', assumption_mRNA=None, assumption_protein='ss', concat_data=True):
         """The class that estimates parameters with input data.
 
         Arguments
@@ -490,6 +506,8 @@ class estimation:
             A matrix of protein count.
         t: :class:`~estimation`
             A vector of time points.
+        ind_for_proteins: :class:`~numpy.ndarray`
+            A 1-D vector of the indices in the U, Ul, S, Sl layers that corresponds to the row name in the P layer.
         experiment_type: str
             Labeling experiment type. Available options are: 
             (1) 'deg': degradation experiment; 
@@ -502,6 +520,8 @@ class estimation:
         assumption_protein: str
             Parameter estimation assumption for protein. Available options are: 
             (1) 'ss': pseudo steady state;
+        concat_data: bool (default: True)
+            Whether to concate data
 
         Attributes
         ----------
@@ -532,6 +552,7 @@ class estimation:
         self.asspt_mRNA = assumption_mRNA
         self.asspt_prot = assumption_protein
         self.parameters = {'alpha': None, 'beta': None, 'gamma': None, 'eta': None, 'delta': None}
+        self.ind_for_proteins = ind_for_proteins
 
     def fit(self, intercept=True, perc_left=5, perc_right=5, clusters=None):
         """Fit the input data to estimate all or a subset of the parameters
@@ -555,10 +576,10 @@ class estimation:
             if np.all(self._exist_data('uu', 'su')):
                 self.parameters['beta'] = np.ones(n)
                 gamma = np.zeros(n)
+                U = self.data['uu'] if self.data['ul'] is None else self.data['uu'] + self.data['ul']
+                S = self.data['su'] if self.data['sl'] is None else self.data['su'] + self.data['sl']
                 for i in range(n):
-                    U = self.data['uu'] if self.data['ul'] is None else self.data['uu'] + self.data['ul']
-                    S = self.data['su'] if self.data['sl'] is None else self.data['su'] + self.data['sl']
-                    gamma[i], _ = self.fit_gamma_steady_state(U, S,
+                    gamma[i], _ = self.fit_gamma_steady_state(U[i], S[i],
                             intercept, perc_left, perc_right)
                 self.parameters['gamma'] = gamma
         else:
@@ -603,11 +624,15 @@ class estimation:
 
         # fit protein
         if np.all(self._exist_data('p', 'su')):
-            if self.asspt_prot == 'ss':
+            ind_for_proteins = self.ind_for_proteins
+            n = len(ind_for_proteins) if ind_for_proteins is not None else 0
+
+            if self.asspt_prot == 'ss' and n > 0:
                 self.parameters['eta'] = np.ones(n)
                 delta = np.zeros(n)
                 for i in range(n):
-                    s = self.data['su'][i] + self.data['sl'][i] if self._exist_data('sl') else self.data['su'][i]
+                    s = self.data['su'][i][ind_for_proteins] + self.data['sl'][i][ind_for_proteins] \
+                        if self._exist_data('sl') else self.data['su'][i][ind_for_proteins]
                     delta[i], _ = self.fit_gamma_steady_state(s, self.data['p'][i],
                             intercept, perc_left, perc_right)
                 self.parameters['delta'] = delta
@@ -637,6 +662,9 @@ class estimation:
         b: float
             The intercept of the linear regression model.
         """
+        u = u.A if issparse(u) else u
+        s = s.A if issparse(s) else s
+
         n = len(u)
         i_left = np.int(perc_left/100.0*n) if perc_left is not None else n
         i_right = np.int((100-perc_right)/100.0*n) if perc_right is not None else 0
@@ -747,9 +775,9 @@ class estimation:
             else:
                 data = self.data[key]
         if type(data) is list:
-            ret = len(data[0])
+            ret = len(data[0].A) if issparse(data[0]) else len(data[0])
         else:
-            ret = len(data)
+            ret = data.shape[0]
         return ret
 
     def set_parameter(self, name, value):
@@ -787,3 +815,4 @@ class estimation:
             if v is not None:
                 ret.append(k)
         return ret
+

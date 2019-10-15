@@ -32,17 +32,19 @@ def szFactor(adata, layers='all', locfunc=np.nanmean, round_exprs=True, method='
     """
 
     layer_keys = list(adata.layers.keys())
-    layer_keys.extend('X')
+    layer_keys.extend(['X', 'protein'])
     layers = layer_keys if layers is 'all' else list(set(layer_keys).intersection(layers))
 
     for layer in layers:
         if layer is 'raw' or layer is 'X':
             CM = adata.raw if adata.raw is not None else adata.X
+        elif layer is 'protein' and 'protein' in adata.obsm_keys():
+            CM = adata.obsm['protein']
         else:
             CM = adata.layers[layer]
 
         if round_exprs:
-            CM = CM.round().astype('int') # will this affect downstream analysis?
+            CM = CM.round().astype('int') if not issparse(CM) else CM # will this affect downstream analysis?
 
         if method == 'mean-geometric-mean-total':
             cell_total = CM.sum(axis=1)
@@ -83,7 +85,7 @@ def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, r
     """
 
     layer_keys = list(adata.layers.keys())
-    layer_keys.extend('X')
+    layer_keys.extend(['X', 'protein'])
     layers = layer_keys if layers is 'all' else list(set(layer_keys).intersection(layers))
 
     layer_sz_column_names = [i + '_Size_Factor' for i in set(layers).difference('X')]
@@ -98,9 +100,12 @@ def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, r
         if layer is 'raw' or layer is 'X':
             FM = adata.raw if adata.raw is not None else adata.X
             szfactors = adata.obs['Size_Factor'][:, None]
+        elif layer is 'protein' and 'protein' in adata.obsm_keys():
+           FM = adata.obsm[layer]
+           szfactors = adata.obs[layer + '_Size_Factor'][:, None]
         else:
             FM = adata.layers[layer]
-            szfactors = adata.obs[layer + 'Size_Factor'][:, None]
+            szfactors = adata.obs[layer + '_Size_Factor'][:, None]
 
         if 'use_for_ordering' in adata.var.columns:
             FM = FM[adata.var['use_for_ordering'], :]
@@ -139,6 +144,8 @@ def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, r
 
         if layer in ['raw', 'X']:
             adata.X = FM
+        elif layer is 'protein' and 'protein' in adata.obsm_keys():
+            adata.obsm['X_' + layer] = FM
         else:
             adata.layers['X_' + layer] = FM
 
@@ -167,12 +174,14 @@ def Gini(adata, layers='all'):
     # from: http://www.statsdirect.com/help/default.htm#nonparametric_methods/gini.htm
 
     layer_keys = list(adata.layers.keys())
-    layer_keys.extend('X')
+    layer_keys.extend(['X', 'protein'])
     layers = layer_keys if layers is 'all' else list(set(layer_keys).intersection(layers))
 
     for layer in layers:
         if layer is 'raw' or layer is 'X':
             array = adata.raw if adata.raw is not None else adata.X
+        elif layer is 'protein' and 'protein' in adata.obsm_keys():
+            array = adata.obsm[layer]
         else:
             array = adata.layers[layer]
 
@@ -192,7 +201,7 @@ def Gini(adata, layers='all'):
         if layer in ['raw', 'X']:
             adata.var['gini'] = gini
         else:
-            adata.var[layer, '_gini'] = gini
+            adata.var[layer + '_gini'] = gini
 
     return adata
 
@@ -276,7 +285,7 @@ def disp_calc_helper_NB(adata, layers='X', min_cells_detected=1):
             CM = adata.layers[layer]
             szfactors = adata.obs[layer + 'Size_Factor'][:, None]
 
-        rounded = CM.round().astype('int')
+        rounded = CM.round().astype('int') if not issparse(CM) else CM
         lowerDetectedLimit = adata.uns['lowerDetectedLimit'] if 'lowerDetectedLimit' in adata.uns.keys() else 1
         nzGenes = (rounded > lowerDetectedLimit).sum(axis=0)
         nzGenes = nzGenes > min_cells_detected
@@ -290,7 +299,7 @@ def disp_calc_helper_NB(adata, layers='X', min_cells_detected=1):
 
         # For NB: Var(Y) = mu * (1 + mu / k)
         # variance formula
-        f_expression_var = x.std(axis=0, ddof=1)**2 # np.mean(np.power(x - f_expression_mean, 2), axis=0) # variance with n - 1
+        f_expression_var = x.A.std(axis=0, ddof=1)**2 if issparse(x) else x.std(axis=0, ddof=1)**2 # np.mean(np.power(x - f_expression_mean, 2), axis=0) # variance with n - 1
         # https://scialert.net/fulltext/?doi=ajms.2010.1.15 method of moments
         disp_guess_meth_moments = f_expression_var - xim * f_expression_mean # variance - mu
 
@@ -370,7 +379,7 @@ def vstExprs(adata, expr_matrix=None, round_vals=True):
     if expr_matrix is None:
         ncounts = adata.X
         if round_vals:
-            ncounts.round().astype('int')
+            ncounts.round().astype('int') if not issparse(ncounts) else ncounts
     else:
         ncounts = expr_matrix
 
@@ -498,8 +507,8 @@ def filter_cells(adata, filter_bool=None, layer='X', keep_unflitered=True, min_e
         detected_bool = detected_bool & (((adata.layers['spliced'] > 0).sum(1) > min_expr_genes_s) & ((adata.layers['spliced'] > 0).sum(1) < max_expr_genes_s)).flatten()
     if "unspliced" in adata.layers.keys() & layer is 'unspliced':
         detected_bool = detected_bool & (((adata.layers['unspliced'] > 0).sum(1) > min_expr_genes_u) & ((adata.layers['unspliced'] > 0).sum(1) < max_expr_genes_u)).flatten()
-    if "protein" in adata.layers.keys() & layer is 'protein':
-        detected_bool = detected_bool & (((adata.layers['protein'] > 0).sum(1) > min_expr_genes_p) & ((adata.layers['protein'] > 0).sum(1) < max_expr_genes_p)).flatten()
+    if "protein" in adata.obsm.keys() & layer is 'protein':
+        detected_bool = detected_bool & (((adata.obsm['protein'] > 0).sum(1) > min_expr_genes_p) & ((adata.obsm['protein'] > 0).sum(1) < max_expr_genes_p)).flatten()
 
     filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
 
@@ -562,17 +571,18 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_unflitered=True, min_c
         detected_bool = detected_bool & (((adata.layers['spliced'] > 0).sum(0) > min_cell_s) & (adata.layers['spliced'].mean(0) < min_avg_exp_s) & (adata.layers['spliced'].mean(0) < max_avg_exp))
     if "unspliced" in adata.layers.keys() & layer is 'spliced':
         detected_bool = detected_bool & (((adata.layers['unspliced'] > 0).sum(0) > min_cell_u) & (adata.layers['unspliced'].mean(0) < min_avg_exp_u) & (adata.layers['unspliced'].mean(0) < max_avg_exp))
-    if "protein" in adata.layers.keys() & layer is 'spliced':
-        detected_bool = detected_bool & (((adata.layers['protein'] > 0).sum(0) > min_cell_p) & (adata.layers['protein'].mean(0) < min_avg_exp_p) & (adata.layers['protein'].mean(0) < max_avg_exp))
+    ############################## The following code need to be updated ##############################
+    if "protein" in adata.obsm.keys() & layer is 'spliced':
+        detected_bool = detected_bool & (((adata.obsm['protein'] > 0).sum(0) > min_cell_p) & (adata.obsm['protein'].mean(0) < min_avg_exp_p) & (adata.obsm['protein'].mean(0) < max_avg_exp))
 
     filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
 
     ### check this
     if sort_by is 'dispersion':
         table = topTable(adata, layer, mode=sort_by)
-
-        gene_id = np.argsort(-table.loc[:, 'dispersion_empirical'][table.loc[:, 'dispersion_empirical'] > table.loc[:, 'dispersion_fit']])[:n_top_genes]
-        gene_id = table.iloc[gene_id, :].loc[:, 'gene_id']
+        valid_table = table.loc[table.loc[:, 'dispersion_empirical'] > table.loc[:, 'dispersion_fit'], :]
+        gene_id = np.argsort(-valid_table.loc[:, 'dispersion_empirical'])[:n_top_genes]
+        gene_id = valid_table.iloc[gene_id, :].loc[:, 'gene_id']
         filter_bool = filter_bool & adata.var.index.isin(gene_id)
 
     elif sort_by is 'gini':
@@ -655,3 +665,4 @@ def recipe_monocle(adata, layer=None, method='PCA', num_dim=50, norm_method='log
     adata.obsm['X_' + method.lower()] = reduce_dim
 
     return adata
+

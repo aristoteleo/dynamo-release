@@ -12,6 +12,8 @@ from .simulation import Simulator
 from .velocity import sol_u, sol_s, sol_p, fit_linreg, fit_first_order_deg_lsq, fit_gamma_lsq, fit_alpha_synthesis, fit_alpha_degradation, velocity, estimation
 from .cell_velocities import cell_velocities, markov_combination, makeTransitionMatrix, diffusion
 
+from .dynamics import dynamics
+
 # run other velocity tools: 
 from .velocyto_scvelo import vlm_to_adata, converter, run_velocyto, run_scvelo, mean_var_by_time, run_dynamo, run_dynamo_simple_fit, run_dynamo_labeling, compare_res
 
