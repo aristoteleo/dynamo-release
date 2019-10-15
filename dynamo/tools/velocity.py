@@ -630,10 +630,11 @@ class estimation:
             if self.asspt_prot == 'ss' and n > 0:
                 self.parameters['eta'] = np.ones(n)
                 delta = np.zeros(n)
+                s = self.data['su'][ind_for_proteins] + self.data['sl'][ind_for_proteins] \
+                    if self._exist_data('sl') else self.data['su'][ind_for_proteins]
+
                 for i in range(n):
-                    s = self.data['su'][i][ind_for_proteins] + self.data['sl'][i][ind_for_proteins] \
-                        if self._exist_data('sl') else self.data['su'][i][ind_for_proteins]
-                    delta[i], _ = self.fit_gamma_steady_state(s, self.data['p'][i],
+                    delta[i], _ = self.fit_gamma_steady_state(s[i], self.data['p'][i],
                             intercept, perc_left, perc_right)
                 self.parameters['delta'] = delta
 
