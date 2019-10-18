@@ -3,6 +3,7 @@ from .moments import MomData, Estimation
 import warnings
 import numpy as np
 
+
 # add the moment code in; and incorporate the model selection code later
 def dynamics(adata, mode='steady_state', protein_names=None, experiment_type='deg', assumption_mRNA=None, assumption_protein='ss', concat_data=False):
     """Inclusive model of expression dynamics with scSLAM-seq and multiomics.
@@ -45,11 +46,27 @@ def dynamics(adata, mode='steady_state', protein_names=None, experiment_type='de
         U = adata.layers['X_unspliced'].T
     elif 'unspliced' in adata.layers.keys():
         U = adata.layers['unspliced'].T
+    elif 'X_new' in adata.layers.keys(): # run new / total ratio (NTR)
+        U = adata.layers['X_new'].T
+    elif 'new' in adata.layers.keys():
+        U = adata.layers['new'].T
+    elif 'X_uu' in adata.layers.keys():  # only uu, ul, su, sl provided
+        U = adata.layers['X_uu'].T
+    elif 'uu' in adata.layers.keys():
+        U = adata.layers['uu'].T
 
     if 'X_spliced' in adata.layers.keys():
         S = adata.layers['X_spliced'].T
     elif 'spliced' in adata.layers.keys():
         S = adata.layers['spliced'].T
+    elif 'X_total' in adata.layers.keys(): # run new / total ratio (NTR)
+        U = adata.layers['X_total'].T
+    elif 'total' in adata.layers.keys():
+        U = adata.layers['total'].T
+    elif 'X_su' in adata.layers.keys():
+        U = adata.layers['X_su'].T
+    elif 'su' in adata.layers.keys():
+        U = adata.layers['su'].T
 
     if 'X_ul' in adata.layers.keys():
         Ul = adata.layers['X_ul'].T
@@ -101,6 +118,7 @@ def dynamics(adata, mode='steady_state', protein_names=None, experiment_type='de
         adata.var['velocity_parameter_gamma'] = gamma
         adata.var['velocity_parameter_eta'][ind_for_proteins] = eta
         adata.var['velocity_parameter_delta'][ind_for_proteins] = delta
+        # add velocity_offset here
     elif mode is 'moment':
         Moment = MomData(adata)
         Est = Estimation(Moment)
@@ -119,7 +137,7 @@ def dynamics(adata, mode='steady_state', protein_names=None, experiment_type='de
 
         adata.layer['velocity_U'] = vel_U
         adata.layer['velocity_S'] = vel_S
-        adata.layer['velocity_P'] = vel_P
+        adata.obsm['velocity_P'] = vel_P
 
         adata.var['velocity_parameter_a'] = a
         adata.var['velocity_parameter_b'] = b
@@ -127,9 +145,9 @@ def dynamics(adata, mode='steady_state', protein_names=None, experiment_type='de
         adata.var['velocity_parameter_alpha_i'] = alpha_i
         adata.var['velocity_parameter_beta'] = beta
         adata.var['velocity_parameter_gamma'] = gamma
+        # add velocity_offset here
     elif mode is 'model_selection':
         warnings.warn('Not implemented yet.')
 
     return adata
-
 

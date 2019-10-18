@@ -11,8 +11,7 @@ setup(
     install_requires=['numpy>=1.14', 'scipy>=1.0', 'scikit-learn>=0.19.1', "cvxopt>=1.2.3",
                       'anndata>=0.6.18', 'loompy>=2.0.12', 'matplotlib>=2.2', "trimap>=1.0.11",
                       'setuptools', 'seaborn>=0.9.0', 'sympy>=1.4', 'numdifftools>=0.9.39',
-                      'yt>=3.5.1', 'plotnine>=0.5.1', 'umap-learn>=0.3.9', 'pysal>=2.0.0',
-                      'statsmodels>=0.9.0'],
+                      'yt>=3.5.1', 'umap-learn>=0.3.9', 'pysal>=2.0.0', 'statsmodels>=0.9.0'],
     packages=find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",

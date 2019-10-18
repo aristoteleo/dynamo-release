@@ -634,7 +634,7 @@ def recipe_monocle(adata, layer=None, method='PCA', num_dim=50, norm_method='log
 
     Returns
     -------
-        adata: :AnnData
+        adata: :class:`~anndata.AnnData`
             A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions.
     """
 
@@ -646,7 +646,7 @@ def recipe_monocle(adata, layer=None, method='PCA', num_dim=50, norm_method='log
     adata = filter_genes(adata, sort_by=feature_selection, n_top_genes=n_top_genes, **kwargs)
     # only use genes pass filter (based on use_for_dynamo) to perform dimension reduction.
     if layer is None:
-        FM = adata.X[:, adata.var.use_for_dynamo] if 'spliced' not in adata.layers.keys() else adata.layers['spliced'][:, adata.var.use_for_dynamo]
+        FM = adata.X[:, adata.var.use_for_dynamo.values] if 'spliced' not in adata.layers.keys() else adata.layers['spliced'][:, adata.var.use_for_dynamo.values]
 
     fm_genesums = FM.sum(axis=0)
     valid_ind = (np.isfinite(fm_genesums)) + (fm_genesums != 0)
@@ -654,9 +654,9 @@ def recipe_monocle(adata, layer=None, method='PCA', num_dim=50, norm_method='log
     FM = FM[:, valid_ind]
 
     if method is 'PCA':
-        clf = TruncatedSVD(num_dim, random_state=2019)
+        clf = TruncatedSVD(n_components=num_dim, random_state=2019)
         reduce_dim = clf.fit_transform(FM)
-        adata.uns['explained_variance_ratio'] = clf.explained_variance_ratio_
+        adata.uns['explained_variance_ratio_'] = clf.explained_variance_ratio_
     elif method == 'ICA':
         ICA=FastICA(num_dim,
                 algorithm='deflation', tol=5e-6, fun='logcosh', max_iter=1000)

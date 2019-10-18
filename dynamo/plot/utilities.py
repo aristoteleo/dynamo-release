@@ -1,3 +1,39 @@
+import numpy as np
+from numpy.random import normal
+from sklearn.neighbors import NearestNeighbors
+
+# plotting utility functions from https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
+
+def despline():
+    import matplotlib.pyplot as plt
+
+    ax1 = plt.gca()
+    # Hide the right and top spines
+    ax1.spines['right'].set_visible(False)
+    ax1.spines['top'].set_visible(False)
+    # Only show ticks on the left and bottom spines
+    ax1.yaxis.set_ticks_position('left')
+    ax1.xaxis.set_ticks_position('bottom')
+
+def minimal_xticks(start, end):
+    import matplotlib.pyplot as plt
+
+    end_ = np.around(end, -int(np.log10(end))+1)
+    xlims = np.linspace(start, end_, 5)
+    xlims_tx = [""]*len(xlims)
+    xlims_tx[0], xlims_tx[-1] = f"{xlims[0]:.0f}", f"{xlims[-1]:.02f}"
+    plt.xticks(xlims, xlims_tx)
+
+
+def minimal_yticks(start, end):
+    import matplotlib.pyplot as plt
+
+    end_ = np.around(end, -int(np.log10(end))+1)
+    ylims = np.linspace(start, end_, 5)
+    ylims_tx = [""]*len(ylims)
+    ylims_tx[0], ylims_tx[-1] = f"{ylims[0]:.0f}", f"{ylims[-1]:.02f}"
+    plt.yticks(ylims, ylims_tx)
+
 def diffusionMatrix(V_mat):
     D = np.zeros((V_mat.shape[0], 2, 2))  # this one works for two dimension -- generalize it to high dimensions
     D[:, 0, 0] = np.mean((V_mat[:, :, 0] - np.mean(V_mat[:, :, 0], axis=1)[:, None]) ** 2, axis=1)

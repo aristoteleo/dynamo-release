@@ -1,7 +1,8 @@
 """Mapping Vector Field of Single Cells
 """
 
-
-from .scVectorField import show_fraction, show_phase, plot_LIC, plot_fitting # , plot_LIC_gray
+from .preprocessing import show_fraction, show_phase, featureGenes
+from .dynamics import plot_fitting
+from .scVectorField import plot_LIC # , plot_LIC_gray
 from .scPotential import show_landscape
-from .scatters import featureGenes
+from .scatters import scatters
