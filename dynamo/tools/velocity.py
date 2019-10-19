@@ -403,7 +403,7 @@ class velocity:
             Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
         """
         if self.parameters['alpha'] is not None and self.parameters['beta'] is not None:
-            V = self.parameters['alpha'] - (self.parameters['beta'] * U.T).T
+            V = self.parameters['alpha'] - (self.parameters['beta'].dot(U))
         else:
             V = np.nan
         return V
@@ -424,8 +424,8 @@ class velocity:
             Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
         """
         if self.parameters['beta'] is not None and self.parameters['gamma'] is not None:
-            V = self.parameters['beta'] * U.T - self.parameters['gamma'] * S.T
-            V = V.T
+            V = self.parameters['beta'].dot(U) - self.parameters['gamma'].dot(S)
+            V = V
         else:
             V = np.nan
         return V
@@ -446,8 +446,8 @@ class velocity:
             Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
         """
         if self.parameters['eta'] is not None and self.parameters['delta'] is not None:
-            V = self.parameters['eta'] * S.T - self.parameters['delta'] * P.T
-            V = V.T
+            V = self.parameters['eta'].dot(S) - self.parameters['delta'].dot(P)
+            V = V
         else:
             V = np.nan
         return V
@@ -663,8 +663,8 @@ class estimation:
         b: float
             The intercept of the linear regression model.
         """
-        u = u.A if issparse(u) else u
-        s = s.A if issparse(s) else s
+        u = u.A.flatten() if issparse(u) else u.flatten()
+        s = s.A.flatten() if issparse(s) else s.flatten()
 
         n = len(u)
         i_left = np.int(perc_left/100.0*n) if perc_left is not None else n
