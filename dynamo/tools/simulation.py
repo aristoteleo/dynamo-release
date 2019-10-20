@@ -19,7 +19,7 @@ def Simulator(a = None, b = None, la = None, aa = None, ai = None, si = None, be
     """
     a: rate of active promoter switches to inactive one
     b: rate of inactive promoter switches to active one
-    la: lambda_: 4sU labeling rate
+    la: lambda_: 4sU labelling rate
     aa: transcription rate with active promoter
     ai: transcription rate with inactive promoter
     si: sigma, degradation rate

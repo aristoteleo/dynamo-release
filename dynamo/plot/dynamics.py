@@ -34,7 +34,7 @@ def plot_fitting(adata, gene, log = True, group = False):
     gene_idx = np.where(adata.var.index.values == gene)[0][0]
 
     for cur_grp in groups:
-        alpha, gamma, u0, l0 = adata.uns['dynamo_labeling'].loc[gene, :]
+        alpha, gamma, u0, l0 = adata.uns['dynamo_labelling'].loc[gene, :]
         u, l = adata.layers['U'][adata.obs[group] == cur_grp, gene_idx].toarray().squeeze(), \
                     adata.layers['L'][adata.obs[group] == cur_grp, gene_idx].toarray().squeeze()
         if log:

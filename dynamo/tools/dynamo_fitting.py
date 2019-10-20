@@ -31,7 +31,7 @@ def sol_num(t, p0, s0, u0, alpha, beta, gamma, eta, gamma_p):
     sol = odeint(lambda x, t: sol_ode(x, t, alpha, beta, gamma, eta, gamma_p), np.array([u0, s0, p0]), t)
     return sol
 
-def fit_gamma_labeling(t, l, mode=None, lbound=None):
+def fit_gamma_labelling(t, l, mode=None, lbound=None):
     t = np.array(t, dtype=float)
     l = np.array(l, dtype=float)
     if l.ndim == 1:
@@ -84,7 +84,7 @@ def fit_beta_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=None):
         l0 = ret.x[1]
     return beta, l0
 
-def fit_alpha_labeling(t, u, gamma, mode=None):
+def fit_alpha_labelling(t, u, gamma, mode=None):
     n = u.size
     tau = t - np.min(t)
     expt = np.exp(gamma*tau)

@@ -19,7 +19,7 @@ def dynamics(adata, mode='steady_state', protein_names=None, experiment_type='de
             A list of gene names corresponds to the rows of the measured proteins in the P layer. The names have to be included
             in the adata.var.index.
         experiment_type: str
-            Labeling experiment type. Available options are:
+            labelling experiment type. Available options are:
             (1) 'deg': degradation experiment;
             (2) 'kin': synthesis experiment;
             (3) 'one-shot': one-shot kinetic experiment.
@@ -106,9 +106,12 @@ def dynamics(adata, mode='steady_state', protein_names=None, experiment_type='de
         vel_S = vel.vel_s(U, S)
         vel_P = vel.vel_p(S, P)
 
-        adata.layer['velocity_U'] = vel_U
-        adata.layer['velocity_S'] = vel_S
-        adata.layer['velocity_P'] = vel_P
+        if type(vel_U) is not float:
+            adata.layers['velocity_U'] = vel_U.T
+        if type(vel_S) is not float:
+            adata.layers['velocity_S'] = vel_S.T
+        if type(vel_P) is not float:
+            adata.obsm['velocity_P'] = vel_P.T
 
         if alpha is not None: # for each cell
             adata.varm['velocity_parameter_alpha'] = alpha
@@ -116,8 +119,9 @@ def dynamics(adata, mode='steady_state', protein_names=None, experiment_type='de
         adata.var['velocity_parameter_avg_alpha'] = alpha.mean(1) if alpha is not None else None
         adata.var['velocity_parameter_beta'] = beta
         adata.var['velocity_parameter_gamma'] = gamma
-        adata.var['velocity_parameter_eta'][ind_for_proteins] = eta
-        adata.var['velocity_parameter_delta'][ind_for_proteins] = delta
+        if ind_for_proteins is not None:
+            adata.var['velocity_parameter_eta'][ind_for_proteins] = eta
+            adata.var['velocity_parameter_delta'][ind_for_proteins] = delta
         # add velocity_offset here
     elif mode is 'moment':
         Moment = MomData(adata)
@@ -135,9 +139,12 @@ def dynamics(adata, mode='steady_state', protein_names=None, experiment_type='de
         vel_S = vel.vel_s(U, S)
         vel_P = vel.vel_p(S, P)
 
-        adata.layer['velocity_U'] = vel_U
-        adata.layer['velocity_S'] = vel_S
-        adata.obsm['velocity_P'] = vel_P
+        if type(vel_U) is not float:
+            adata.layers['velocity_U'] = vel_U.T
+        if type(vel_S) is not float:
+            adata.layers['velocity_S'] = vel_S.T
+        if type(vel_P) is not float:
+            adata.obsm['velocity_P'] = vel_P.T
 
         adata.var['velocity_parameter_a'] = a
         adata.var['velocity_parameter_b'] = b

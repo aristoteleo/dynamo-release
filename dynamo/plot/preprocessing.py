@@ -13,8 +13,8 @@ def show_fraction(adata, mode='splicing', group=None):
     ----------
     adata: :class:`~anndata.AnnData`
         an Annodata object
-    mode: `string` (default: labeling)
-        Which mode of data do you want to show, can be one of `labeling`, `splicing` and `full`.
+    mode: `string` (default: labelling)
+        Which mode of data do you want to show, can be one of `labelling`, `splicing` and `full`.
     group: `string` (default: None)
         Which group to facets the data into subplots. Default is None, or no faceting will be used.
 
@@ -178,7 +178,7 @@ def featureGenes(adata, layer='X'):
     plt.show()
 
 
-def phase_portrait(adata, genes, mode='labeling', vkey='S', ekey='X', basis='umap', group=None):
+def phase_portrait(adata, genes, mode='splicing', vkey='S', ekey='X', basis='umap', group=None):
     """Draw the phase portrait, velocity, expression values on the low dimensional embedding.
 
     Parameters
@@ -189,8 +189,8 @@ def phase_portrait(adata, genes, mode='labeling', vkey='S', ekey='X', basis='uma
         A list of gene names that are going to be visualized.
     ekey: `str`
         The layer of data to represent the gene expression level.
-    mode: `string` (default: labeling)
-        Which mode of data do you want to show, can be one of `labeling`, `splicing` and `full`.
+    mode: `string` (default: labelling)
+        Which mode of data do you want to show, can be one of `labelling`, `splicing` and `full`.
     vkey: `string` (default: velocity)
         Which velocity key used for visualizing the magnitude of velocity. Can be either velocity in the layers slot or the
         keys in the obsm slot.
@@ -212,20 +212,20 @@ def phase_portrait(adata, genes, mode='labeling', vkey='S', ekey='X', basis='uma
 
     # there is no solution for combining multiple plot in the same figure in plotnine, so a pure matplotlib is used
     # see more at https://github.com/has2k1/plotnine/issues/46
-    genes, idx = adata.var.index[adata.var.index.isin(genes)], np.where(adata.var.index.isin(genes))[0]
+    genes, idx = adata.var.index[adata.var.index.isin(genes)].tolist(), np.where(adata.var.index.isin(genes))[0]
     if len(genes) == 0:
         raise Exception('adata has no genes listed in your input gene vector: {}'.format(genes))
     if not 'X_' + basis in adata.obsm.keys():
         raise Exception('{} is not applied to adata.}'.format(basis))
     else:
-        embedding = pd.DataFrame({basis + '_0': adata.obsm['X_' + basis].iloc[:, 0], \
-                                  basis + '_1': adata.obsm['X_' + basis].iloc[:, 1]})
+        embedding = pd.DataFrame({basis + '_0': adata.obsm['X_' + basis][:, 0], \
+                                  basis + '_1': adata.obsm['X_' + basis][:, 1]})
 
     if not (mode in ['labelling', 'splicing', 'full']):
         raise Exception('mode can be only one of the labelling, splicing or full')
 
-    layers = adata.layers.keys()
-    layers = layers.extend(['X', 'protein', 'X_protein'])
+    layers = list(adata.layers.keys())
+    layers.extend(['X', 'protein', 'X_protein'])
     if ekey in layers:
         if ekey is 'X':
             E_vec = adata[:, genes].X
@@ -240,19 +240,22 @@ def phase_portrait(adata, genes, mode='labeling', vkey='S', ekey='X', basis='uma
     # different layer for different velocities
 
     if vkey is 'U':
-        V_vec = adata[:, genes].layer['velocity_U']
+        V_vec = adata[:, genes].layers['velocity_U']
         if 'velocity_P' in adata.obsm.keys():
             P_vec = adata[:, genes].layer['velocity_P']
     elif vkey is 'S':
-        V_vec = adata[:, genes].layer['velocity_S']
+        V_vec = adata[:, genes].layers['velocity_S']
         if 'velocity_P' in adata.obsm.keys():
-            P_vec = adata[:, genes].layer['velocity_P']
+            P_vec = adata[:, genes].layers['velocity_P']
     else:
         raise Exception('adata has no vkey {} in either the layers or the obsm slot'.format(vkey))
 
-    if 'velocity_parameter_gamma' in adata.var.columns():
+    if issparse(E_vec):
+        E_vec, V_vec = E_vec.A, V_vec.A
+
+    if 'velocity_parameter_gamma' in adata.var.columns:
         gamma = adata.var.velocity_parameter_gamma[genes].values
-        velocity_offset = [0] * n_cells if not ("velocity_offset" in adata.var.columns()) else \
+        velocity_offset = [0] * n_genes if not ("velocity_offset" in adata.var.columns) else \
             adata.var.velocity_offset[genes].values
     else:
         raise Exception('adata does not seem to have velocity_gamma column. Velocity estimation is required before '
@@ -260,24 +263,27 @@ def phase_portrait(adata, genes, mode='labeling', vkey='S', ekey='X', basis='uma
 
     if mode is 'labelling' and all([i in adata.layers.keys() for i in ['new', 'total']]):
         new_mat, tot_mat = adata[:, genes].layers['new'], adata[:, genes].layers['total']
+        new_mat, tot_mat = (new_mat.A, tot_mat.A) if issparse(new_mat) else (new_mat, tot_mat)
 
         df = pd.DataFrame({"new": new_mat.flatten(), "total": tot_mat.flatten(), 'gene': genes * n_cells, 'prediction':
                            np.tile(gamma, n_cells) * new_mat.flatten() + np.tile(velocity_offset, n_cells),
-                           "expression": E_vec.flatten(), "velocity": V_vec}, index=range(n_cells * n_genes))
+                           "expression": E_vec.flatten(), "velocity": V_vec.flatten()}, index=range(n_cells * n_genes))
 
     elif mode is 'splicing' and all([i in adata.layers.keys() for i in ['spliced', 'unspliced']]):
         unspliced_mat, spliced_mat = adata[:, genes].layers['unspliced'], adata[:, genes].layers['spliced']
+        unspliced_mat, spliced_mat = (unspliced_mat.A, spliced_mat.A) if issparse(unspliced_mat) else (unspliced_mat, spliced_mat)
+
         df = pd.DataFrame({"unspliced": unspliced_mat.flatten(), "spliced": spliced_mat.flatten(), 'gene': genes * n_cells,
                            'prediction': np.tile(gamma, n_cells) * unspliced_mat.flatten() + np.tile(velocity_offset, \
-                            n_cells), "expression": E_vec.flatten(), "velocity": V_vec}, index=range(n_cells * n_genes))
+                            n_cells), "expression": E_vec.flatten(), "velocity": V_vec.flatten()}, index=range(n_cells * n_genes))
 
     elif mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]):
         uu, ul, su, sl = adata[:, genes].layers['uu'], adata[:, genes].layers['ul'], adata[:, genes].layers['su'], \
                          adata[:, genes].layers['sl']
         if 'protein' in adata.obsm.keys():
-            if 'velocity_parameter_eta' in adata.var.columns():
+            if 'velocity_parameter_eta' in adata.var.columns:
                 gamma_P = adata.var.velocity_parameter_eta[genes].values
-                velocity_offset_P = [0] * n_cells if not ("velocity_offset_P" in adata.var.columns()) else \
+                velocity_offset_P = [0] * n_cells if not ("velocity_offset_P" in adata.var.columns) else \
                     adata.var.velocity_offset_P[genes].values
             else:
                 raise Exception(
@@ -285,22 +291,26 @@ def phase_portrait(adata, genes, mode='labeling', vkey='S', ekey='X', basis='uma
                     'running this function.')
 
             P = adata[:, genes].obsm['X_protein'] if ['X_protein'] in adata.obsm.keys() else adata[:, genes].obsm['protein']
+            uu, ul, su, sl, P = (uu.A, ul.A, su.A, sl.A, P.A) if issparse(uu) else (uu, ul, su, sl, P)
+            if issparse(P_vec):
+                P_vec = P_vec.A
+
             # df = pd.DataFrame({"uu": uu.flatten(), "ul": ul.flatten(), "su": su.flatten(), "sl": sl.flatten(), "P": P.flatten(),
             #                    'gene': genes * n_cells, 'prediction': np.tile(gamma, n_cells) * uu.flatten() +
             #                     np.tile(velocity_offset, n_cells), "velocity": genes * n_cells}, index=range(n_cells * n_genes))
             df = pd.DataFrame({"new": (ul + sl).flatten(), "total": (uu + ul + sl + su).flatten(), "S": (sl + su).flatten(), "P": P.flatten(),
                                'gene': genes * n_cells, 'prediction': np.tile(gamma, n_cells) * (uu + ul + sl + su).flatten() + np.tile(velocity_offset, n_cells),
                                'prediction_P': np.tile(gamma_P, n_cells) * (sl + su).flatten() + np.tile(velocity_offset_P, n_cells),
-                               "expression": E_vec.flatten(), "velocity": V_vec, "velocity_protein": P_vec}, index=range(n_cells * n_genes))
+                               "expression": E_vec.flatten(), "velocity": V_vec.flatten(), "velocity_protein": P_vec.flatten()}, index=range(n_cells * n_genes))
         else:
             df = pd.DataFrame({"new": (ul + sl).flatten(), "total": (uu + ul + sl + su).flatten(),
                                'gene': genes * n_cells, 'prediction': np.tile(gamma, n_cells) * (uu + ul + sl + su).flatten() + np.tile(velocity_offset, n_cells),
-                               "expression": E_vec.flatten(), "velocity": V_vec}, index=range(n_cells * n_genes))
+                               "expression": E_vec.flatten(), "velocity": V_vec.flatten()}, index=range(n_cells * n_genes))
     else:
         raise Exception('Your adata is corrupted. Make sure that your layer has keys new, old for the labelling mode, '
                         'spliced, ambiguous, unspliced for the splicing model and uu, ul, su, sl for the full mode')
 
-    n_columns = 6 if 'protein' in adata.obsm.keys() else 3
+    n_columns = 6 if ('protein' in adata.obsm.keys() and mode is 'full') else 3
     nrow, ncol = int(np.ceil(n_columns * n_genes / 6)), 6
     plt.figure(None, (n_columns*nrow, n_columns*ncol), dpi=160)
 
@@ -312,7 +322,7 @@ def phase_portrait(adata, genes, mode='labeling', vkey='S', ekey='X', basis='uma
             ix=np.where(adata.var.index == gn)[0][0]
         except:
             continue
-        cur_pd = df.iloc[df.gene == gn, :]
+        cur_pd = df.loc[df.gene == gn, :]
         sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue=group) # x-axis: S vs y-axis: U
         plt.title(gn)
         plt.plot(cur_pd.iloc[:, 1], cur_pd.loc[:, 'prediction'], c="k")
@@ -321,6 +331,7 @@ def phase_portrait(adata, genes, mode='labeling', vkey='S', ekey='X', basis='uma
 
         despline() # sns.despline()
 
+        df_embedding = pd.concat([embedding, cur_pd], ignore_index=True)
         V_vec = df_embedding.loc[:, 'velocity']
 
         limit = np.max(np.abs(np.percentile(V_vec, [1, 99])))  # upper and lowe limit / saturation
@@ -329,11 +340,10 @@ def phase_portrait(adata, genes, mode='labeling', vkey='S', ekey='X', basis='uma
         V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
         V_vec = np.clip(V_vec, 0, 1)
 
-        df_embedding = pd.concat([embedding, cur_pd.loc[:, 'gene']], ignore_index=False)
         sns.scatterplot(df_embedding.iloc[:, 0], df_embedding.iloc[:, 1], hue=df_embedding.loc[:, 'expression'], ax=ax)
         sns.scatterplot(df_embedding.iloc[:, 0], df_embedding.iloc[:, 1], hue=V_vec, ax=ax)
 
-        if 'protein' in adata.obsm.keys():
+        if 'protein' in adata.obsm.keys() and mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]):
             sns.scatterplot(cur_pd.iloc[:, 3], cur_pd.iloc[:, 2], hue=group) # x-axis: Protein vs. y-axis: Spliced
             plt.title(gn)
             plt.plot(cur_pd.iloc[:, 3], cur_pd.loc[:, 'prediction_P'], c="k")
@@ -355,5 +365,4 @@ def phase_portrait(adata, genes, mode='labeling', vkey='S', ekey='X', basis='uma
             sns.scatterplot(df_embedding.iloc[:, 0], df_embedding.iloc[:, 1], hue=V_vec, ax=ax)
 
     plt.tight_layout()
-
-
+    plt.show()

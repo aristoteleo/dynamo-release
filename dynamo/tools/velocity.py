@@ -2,7 +2,7 @@ import numpy as np
 from scipy.optimize import least_squares
 from sklearn.cluster import KMeans
 from sklearn.neighbors import NearestNeighbors
-from scipy.sparse import issparse
+from scipy.sparse import issparse, csc_matrix
 
 def sol_u(t, u0, alpha, beta):
     """The analytical solution of unspliced mRNA kinetics.
@@ -403,7 +403,13 @@ class velocity:
             Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
         """
         if self.parameters['alpha'] is not None and self.parameters['beta'] is not None:
-            V = self.parameters['alpha'] - (self.parameters['beta'].dot(U))
+            alpha, beta = np.zeros((len(self.parameters['alpha']), len(self.parameters['alpha']))), \
+                          np.zeros((len(self.parameters['alpha']), len(self.parameters['alpha'])))
+            np.fill_diagonal(alpha, self.parameters['alpha'])
+            np.fill_diagonal(beta, self.parameters['beta'])
+
+            V = csc_matrix(alpha) - (csc_matrix(beta).dot(U)) if issparse(U) else \
+                    alpha - (beta.dot(U))
         else:
             V = np.nan
         return V
@@ -424,7 +430,13 @@ class velocity:
             Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
         """
         if self.parameters['beta'] is not None and self.parameters['gamma'] is not None:
-            V = self.parameters['beta'].dot(U) - self.parameters['gamma'].dot(S)
+            beta, gamma = np.zeros((len(self.parameters['beta']), len(self.parameters['beta']))), \
+                          np.zeros((len(self.parameters['beta']), len(self.parameters['beta'])))
+            np.fill_diagonal(beta, self.parameters['beta'])
+            np.fill_diagonal(gamma, self.parameters['gamma'])
+
+            V = csc_matrix(beta).dot(U) - csc_matrix(gamma).dot(S) if issparse(U)  \
+                    else beta.dot(U) - gamma.dot(S)
             V = V
         else:
             V = np.nan
@@ -446,7 +458,13 @@ class velocity:
             Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
         """
         if self.parameters['eta'] is not None and self.parameters['delta'] is not None:
-            V = self.parameters['eta'].dot(S) - self.parameters['delta'].dot(P)
+            eta, delta = np.zeros((len(self.parameters['eta']), len(self.parameters['eta']))), \
+                         np.zeros((len(self.parameters['eta']), len(self.parameters['eta'])))
+            np.fill_diagonal(eta, self.parameters['eta'])
+            np.fill_diagonal(delta, self.parameters['delta'])
+
+            V = csc_matrix(eta).dot(S) - csc_matrix(delta).dot(P) if issparse(P) else \
+                eta.dot(S) - delta.dot(P)
             V = V
         else:
             V = np.nan
@@ -509,7 +527,7 @@ class estimation:
         ind_for_proteins: :class:`~numpy.ndarray`
             A 1-D vector of the indices in the U, Ul, S, Sl layers that corresponds to the row name in the P layer.
         experiment_type: str
-            Labeling experiment type. Available options are: 
+            labelling experiment type. Available options are: 
             (1) 'deg': degradation experiment; 
             (2) 'kin': synthesis experiment; 
             (3) 'one-shot': one-shot kinetic experiment.
@@ -530,7 +548,7 @@ class estimation:
         data: `dict`
             A dictionary with uu, ul, su, sl, p as its keys.
         extyp: `str`
-            Labeling experiment type.
+            labelling experiment type.
         asspt_mRNA: `str`
             Parameter estimation assumption for mRNA.
         asspt_prot: `str`
@@ -727,7 +745,7 @@ class estimation:
         Arguments
         ---------
         t: float
-            Labeling duration.
+            labelling duration.
         U: :class:`~numpy.ndarray`
             A matrix of unspliced mRNA counts. Dimension: genes x cells.
         beta: :class:`~numpy.ndarray`

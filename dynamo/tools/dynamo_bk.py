@@ -13,7 +13,7 @@ def sol_s(t, s0, u0, alpha, beta, gamma):
     exp_gt = np.exp(-gamma*t)
     return s0*exp_gt + alpha/gamma * (1-exp_gt) + (alpha + u0*beta)/(gamma-beta) * (exp_gt - np.exp(-beta*t))
 
-def fit_gamma_labeling(t, l, mode=None, lbound=None):
+def fit_gamma_labelling(t, l, mode=None, lbound=None):
     n = l.size
     tau = t - np.min(t)
     tm = np.mean(tau)
@@ -33,7 +33,7 @@ def fit_gamma_labeling(t, l, mode=None, lbound=None):
 
     return -k, b
 
-def fit_alpha_labeling(t, u, gamma, mode=None):
+def fit_alpha_labelling(t, u, gamma, mode=None):
     n = u.size
     tau = t - np.min(t)
     expt = np.exp(gamma*tau)
