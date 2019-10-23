@@ -12,16 +12,154 @@ from scipy.sparse import issparse
 
 # cellranger data, velocyto, comparison and phase diagram
 
-def cell_wise_velocity(adata, basis, color, cmap, **kwargs):
+def cell_wise_velocity(adata, genes, basis, color, cmap, s_kwargs_dict, layer='X', vkey='S', cell_ind='all', quiver_scale=1, **q_kwargs):
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    sns.set_style('ticks')
+
+    n_cells, n_genes = adata.shape[0], len(genes)
+
+    if cell_ind is "auto":
+        ix_choice = np.range(adata.shape[1])
+    elif cell_ind is 'random':
+        ix_choice = np.random.choice(np.range(adata.shape[1]), size=1000, replace=False)
+    elif type(cell_ind) is int:
+        ix_choice = np.random.choice(np.range(adata.shape[1]), size=cell_ind, replace=False)
+    elif type(cell_ind) is list:
+        ix_choice = cell_ind
+
+    quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_scale, "minlength": 1.5}
+    scatter_kwargs = dict(c="0.8", alpha=0.4, s=10, edgecolor=(0, 0, 0, 1), lw=0.3)
+    scatter_kwargs.update(s_kwargs_dict)
+
+    layer_keys = list(adata.layers.keys())
+    layer_keys.extend(['X', 'protein'])
+
+    if layer is 'X':
+        E_vec = adata[gene].X
+    elif layer in adata.layers.keys():
+        E_vec = adata[gene].layers[layer]
+    elif layer is 'protein': # update subset here
+        E_vec = adata[gene].obsm[layer]
+    else:
+        raise Exception(f'The {layer} you passed in is not existed in the adata object.')
+
+    X = adata.obsm['X_' + basis] if 'X_' + basis in adata.obsm.keys() else None
+    V = adata.layer['velocity_' + vkey] if 'velocity_' + vkey in adata.obsm.layers() else None
+    if X is None:
+        raise Exception(f'The {basis} dimension reduction is not performed over your data yet.')
+    if V is None:
+        raise Exception(f'The {vkey} velocity result does not existed in your data.')
+
+    n_columns = 3 # we may also add random velocity results
+    nrow, ncol = int(np.ceil(n_columns * n_genes / 6)), n_columns
+    plt.figure(None, (n_columns*nrow, n_columns*ncol), dpi=160)
+
+    if issparse(E_vec):
+        E_vec = E_vec.A
+
+    df = pd.DataFrame({"x": np.tile(X[:, 0], n_genes), "y": np.tile(X[:, 1], n_genes), "u": np.tile(V[:, 0], n_genes),
+                       "v": np.tile(V[:, 1], n_genes), 'gene': np.repeat(np.array(genes), n_cells),
+                       "expression": E_vec.flatten()}, index=range(n_cells * n_genes))
+
+    # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
+    gs = plt.GridSpec(nrow, ncol)
+    for i, gn in enumerate(genes):
+        ax = plt.subplot(gs[i*n_columns])
+        try:
+            ix=np.where(adata.var.index == gn)[0][0]
+        except:
+            continue
+
+        cur_pd = df.loc[df.gene == gn, :]
+
+        plt.scatter(cur_pd[:, 0], cur_pd[:, 1], **_scatter_kwargs)
+
+        plt.quiver(cur_pd[ix_choice, 0], cur_pd[ix_choice, 1],
+                   cur_pd[ix_choice, 2], cur_pd[ix_choice, 3],
+                   scale=quiver_scale, **_quiver_kwargs)
+        plt.axis("off")
+
+
+def velocity_on_grid(adata, show_stream_plot=False, **kwargs):
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    sns.set_style('ticks')
+
+    n_cells, n_genes = adata.shape[0], len(genes)
+
+    if cell_ind is "auto":
+        ix_choice = np.range(adata.shape[1])
+    elif cell_ind is 'random':
+        ix_choice = np.random.choice(np.range(adata.shape[1]), size=1000, replace=False)
+    elif type(cell_ind) is int:
+        ix_choice = np.random.choice(np.range(adata.shape[1]), size=cell_ind, replace=False)
+    elif type(cell_ind) is list:
+        ix_choice = cell_ind
+
+    quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_scale, "minlength": 1.5}
+    scatter_kwargs = dict(c="0.8", alpha=0.4, s=10, edgecolor=(0, 0, 0, 1), lw=0.3)
+    scatter_kwargs.update(s_kwargs_dict)
+
+    layer_keys = list(adata.layers.keys())
+    layer_keys.extend(['X', 'protein'])
+
+    if layer is 'X':
+        E_vec = adata[gene].X
+    elif layer in adata.layers.keys():
+        E_vec = adata[gene].layers[layer]
+    elif layer is 'protein': # update subset here
+        E_vec = adata[gene].obsm[layer]
+    else:
+        raise Exception(f'The {layer} you passed in is not existed in the adata object.')
+
+    X = adata.obsm['X_' + basis] if 'X_' + basis in adata.obsm.keys() else None
+    V = adata.layer['velocity_' + vkey] if 'velocity_' + vkey in adata.obsm.layers() else None
+    if X is None:
+        raise Exception(f'The {basis} dimension reduction is not performed over your data yet.')
+    if V is None:
+        raise Exception(f'The {vkey} velocity result does not existed in your data.')
+
+    n_columns = 3 # we may also add random velocity results
+    nrow, ncol = int(np.ceil(n_columns * n_genes / 6)), n_columns
+    plt.figure(None, (n_columns*nrow, n_columns*ncol), dpi=160)
+
+    if issparse(E_vec):
+        E_vec = E_vec.A
+
+    df = pd.DataFrame({"x": np.tile(X[:, 0], n_genes), "y": np.tile(X[:, 1], n_genes), "u": np.tile(V[:, 0], n_genes),
+                       "v": np.tile(V[:, 1], n_genes), 'gene': np.repeat(np.array(genes), n_cells),
+                       "expression": E_vec.flatten()}, index=range(n_cells * n_genes))
+
+    # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
+    gs = plt.GridSpec(nrow, ncol)
+    for i, gn in enumerate(genes):
+        ax = plt.subplot(gs[i*n_columns])
+        try:
+            ix=np.where(adata.var.index == gn)[0][0]
+        except:
+            continue
+
+        cur_pd = df.loc[df.gene == gn, :]
+
+        ax.scatter(cur_pd[:, 0], cur_pd[:, 1], **_scatter_kwargs)
+
+        ax.quiver(cur_pd[ix_choice, 0], cur_pd[ix_choice, 1],
+                   cur_pd[ix_choice, 2], cur_pd[ix_choice, 3],
+                   scale=quiver_scale, **_quiver_kwargs)
+        if show_stream_plot:
+            # X, Y, U, V need to be matrix; update this 
+            ax3.streamplot(X, Y, U, V, color=U, linewidth=2,
+                           cmap='autumn')
+
+        ax.axis("off")
+
+
+def cell_wise_velocity_3d():
     pass
 
-
-def velocity_on_grid(adata, show_stream_plot=False):
+def velocity_on_grid_3d():
     pass
-
-
-
-
 
 # def velocity(adata, type) # type can be either one of the three, cellwise, velocity on grid, streamline plot.
 #	"""
