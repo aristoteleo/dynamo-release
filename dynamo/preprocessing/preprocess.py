@@ -3,7 +3,6 @@ import pandas as pd
 import scipy
 # from anndata import AnnData
 import warnings
-import statsmodels.api as sm
 from scipy.sparse import issparse
 from sklearn.decomposition import TruncatedSVD, FastICA
 from .utilities import cook_dist
@@ -243,6 +242,8 @@ def parametricDispersionFit(disp_table, initial_coefs=np.array([1e-6, 1])):
         good: :class:`~pandas.DataFrame`
             The subsetted dispersion table that is subjected to Gamma fitting.
     """
+    import statsmodels.api as sm
+
     coefs = initial_coefs
     iter = 0
     while True:

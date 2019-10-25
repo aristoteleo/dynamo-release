@@ -216,11 +216,11 @@ def phase_portrait(adata, genes, mode='splicing', vkey='S', ekey='X', basis='uma
     if len(genes) == 0:
         raise Exception('adata has no genes listed in your input gene vector: {}'.format(genes))
     if not 'X_' + basis in adata.obsm.keys():
-        raise Exception('{} is not applied to adata.}'.format(basis))
+        raise Exception('{} is not applied to adata.'.format(basis))
     else:
         embedding = pd.DataFrame({basis + '_0': adata.obsm['X_' + basis][:, 0], \
                                   basis + '_1': adata.obsm['X_' + basis][:, 1]})
-
+        embedding.columns = ['dim_1', 'dim_2']
     if not (mode in ['labelling', 'splicing', 'full']):
         raise Exception('mode can be only one of the labelling, splicing or full')
 
@@ -265,8 +265,8 @@ def phase_portrait(adata, genes, mode='splicing', vkey='S', ekey='X', basis='uma
         new_mat, tot_mat = adata[:, genes].layers['new'], adata[:, genes].layers['total']
         new_mat, tot_mat = (new_mat.A, tot_mat.A) if issparse(new_mat) else (new_mat, tot_mat)
 
-        df = pd.DataFrame({"new": new_mat.flatten(), "total": tot_mat.flatten(), 'gene': genes * n_cells, 'prediction':
-                           np.tile(gamma, n_cells) * new_mat.flatten() + np.tile(velocity_offset, n_cells),
+        df = pd.DataFrame({"new": new_mat.flatten(), "total": tot_mat.flatten(), 'gene': genes * n_cells, 'gamma':
+                           np.tile(gamma, n_cells), 'velocity_offset': np.tile(velocity_offset, n_cells),
                            "expression": E_vec.flatten(), "velocity": V_vec.flatten()}, index=range(n_cells * n_genes))
 
     elif mode is 'splicing' and all([i in adata.layers.keys() for i in ['spliced', 'unspliced']]):
@@ -274,8 +274,8 @@ def phase_portrait(adata, genes, mode='splicing', vkey='S', ekey='X', basis='uma
         unspliced_mat, spliced_mat = (unspliced_mat.A, spliced_mat.A) if issparse(unspliced_mat) else (unspliced_mat, spliced_mat)
 
         df = pd.DataFrame({"unspliced": unspliced_mat.flatten(), "spliced": spliced_mat.flatten(), 'gene': genes * n_cells,
-                           'prediction': np.tile(gamma, n_cells) * unspliced_mat.flatten() + np.tile(velocity_offset, \
-                            n_cells), "expression": E_vec.flatten(), "velocity": V_vec.flatten()}, index=range(n_cells * n_genes))
+                           'gamma': np.tile(gamma, n_cells), 'velocity_offset': np.tile(velocity_offset, n_cells),
+                           "expression": E_vec.flatten(), "velocity": V_vec.flatten()}, index=range(n_cells * n_genes))
 
     elif mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]):
         uu, ul, su, sl = adata[:, genes].layers['uu'], adata[:, genes].layers['ul'], adata[:, genes].layers['su'], \
@@ -299,12 +299,12 @@ def phase_portrait(adata, genes, mode='splicing', vkey='S', ekey='X', basis='uma
             #                    'gene': genes * n_cells, 'prediction': np.tile(gamma, n_cells) * uu.flatten() +
             #                     np.tile(velocity_offset, n_cells), "velocity": genes * n_cells}, index=range(n_cells * n_genes))
             df = pd.DataFrame({"new": (ul + sl).flatten(), "total": (uu + ul + sl + su).flatten(), "S": (sl + su).flatten(), "P": P.flatten(),
-                               'gene': genes * n_cells, 'prediction': np.tile(gamma, n_cells) * (uu + ul + sl + su).flatten() + np.tile(velocity_offset, n_cells),
-                               'prediction_P': np.tile(gamma_P, n_cells) * (sl + su).flatten() + np.tile(velocity_offset_P, n_cells),
+                               'gene': genes * n_cells, 'gamma': np.tile(gamma, n_cells), 'velocity_offset': np.tile(velocity_offset, n_cells),
+                               'gamma_P': np.tile(gamma_P, n_cells), 'velocity_offset_P': np.tile(velocity_offset_P, n_cells),
                                "expression": E_vec.flatten(), "velocity": V_vec.flatten(), "velocity_protein": P_vec.flatten()}, index=range(n_cells * n_genes))
         else:
             df = pd.DataFrame({"new": (ul + sl).flatten(), "total": (uu + ul + sl + su).flatten(),
-                               'gene': genes * n_cells, 'prediction': np.tile(gamma, n_cells) * (uu + ul + sl + su).flatten() + np.tile(velocity_offset, n_cells),
+                               'gene': genes * n_cells, 'gamma': np.tile(gamma, n_cells), 'velocity_offset': np.tile(velocity_offset, n_cells),
                                "expression": E_vec.flatten(), "velocity": V_vec.flatten()}, index=range(n_cells * n_genes))
     else:
         raise Exception('Your adata is corrupted. Make sure that your layer has keys new, old for the labelling mode, '
@@ -312,57 +312,75 @@ def phase_portrait(adata, genes, mode='splicing', vkey='S', ekey='X', basis='uma
 
     n_columns = 6 if ('protein' in adata.obsm.keys() and mode is 'full') else 3
     nrow, ncol = int(np.ceil(n_columns * n_genes / 6)), 6
-    plt.figure(None, (n_columns*nrow, n_columns*ncol), dpi=160)
+    plt.figure(None, (ncol * 6, nrow * 6), dpi=160)
 
     # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
     gs = plt.GridSpec(nrow, ncol)
     for i, gn in enumerate(genes):
-        ax = plt.subplot(gs[i*n_columns])
+        if n_columns is 3:
+            ax1, ax2, ax3 = plt.subplot(gs[i*3]), plt.subplot(gs[i*3+1]), plt.subplot(gs[i*3+2]) 
+        elif n_columns is 6:
+            ax1, ax2, ax3, a4, a5, a6 = plt.subplot(gs[i*3]), plt.subplot(gs[i*3+1]), plt.subplot(gs[i*3+2]), \
+                    plt.subplot(gs[i * 3 + 3]), plt.subplot(gs[i * 3 + 4]), plt.subplot(gs[i * 3 + 5])
         try:
             ix=np.where(adata.var.index == gn)[0][0]
         except:
             continue
         cur_pd = df.loc[df.gene == gn, :]
-        sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue=group) # x-axis: S vs y-axis: U
-        plt.title(gn)
-        plt.plot(cur_pd.iloc[:, 1], cur_pd.loc[:, 'prediction'], c="k")
-        plt.ylim(0, np.max(cur_pd.iloc[:, 0])*1.02)
-        plt.xlim(0, np.max(cur_pd.iloc[:, 1])*1.02)
+        sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue=group, ax=ax1, palette="Set2") # x-axis: S vs y-axis: U
+        ax1.set_title(gn)
+        xnew = np.linspace(0, cur_pd.iloc[:, 1].max())
+        ax1.plot(xnew, xnew * cur_pd.loc[:, 'gamma'].unique() + cur_pd.loc[:, 'velocity_offset'].unique(), c="k")
+        ax1.set_xlim(0, np.max(cur_pd.iloc[:, 1])*1.02)
+        ax1.set_ylim(0, np.max(cur_pd.iloc[:, 0])*1.02)
 
-        despline() # sns.despline()
+        despline(ax1) # sns.despline()
 
-        df_embedding = pd.concat([embedding, cur_pd], ignore_index=True)
+        df_embedding = pd.concat([cur_pd, embedding], axis=1)
         V_vec = df_embedding.loc[:, 'velocity']
 
-        limit = np.max(np.abs(np.percentile(V_vec, [1, 99])))  # upper and lowe limit / saturation
+        limit = np.nanmax(np.abs(np.nanpercentile(V_vec, [1, 99])))  # upper and lowe limit / saturation
 
         V_vec = V_vec + limit  # that is: tmp_colorandum - (-limit)
         V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
         V_vec = np.clip(V_vec, 0, 1)
 
-        sns.scatterplot(df_embedding.iloc[:, 0], df_embedding.iloc[:, 1], hue=df_embedding.loc[:, 'expression'], ax=ax)
-        sns.scatterplot(df_embedding.iloc[:, 0], df_embedding.iloc[:, 1], hue=V_vec, ax=ax)
+        cmap = sns.cubehelix_palette(dark=.3, light=.8, as_cmap=True)
+        sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=df_embedding.loc[:, 'expression'], ax=ax2, palette=cmap, legend=False)
+        ax2.set_title('spliced expression')
+        cmap=sns.diverging_palette(10, 220, sep=80, as_cmap=True)
+        sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=V_vec, ax=ax3, palette=cmap, legend=False)
+        ax3.set_title('RNA velocity')
 
         if 'protein' in adata.obsm.keys() and mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]):
-            sns.scatterplot(cur_pd.iloc[:, 3], cur_pd.iloc[:, 2], hue=group) # x-axis: Protein vs. y-axis: Spliced
-            plt.title(gn)
-            plt.plot(cur_pd.iloc[:, 3], cur_pd.loc[:, 'prediction_P'], c="k")
-            plt.ylim(0, np.max(cur_pd.iloc[:, 3]) * 1.02)
-            plt.xlim(0, np.max(cur_pd.iloc[:, 2]) * 1.02)
+            sns.scatterplot(cur_pd.iloc[:, 3], cur_pd.iloc[:, 2], hue=group, ax=ax4) # x-axis: Protein vs. y-axis: Spliced
+            ax1.set_title(gn)
+            xnew = np.linspace(0, cur_pd.iloc[:, 3].max())
+            ax4.plot(xnew, xnew * cur_pd.loc[:, 'gamma_P'].unique() + cur_pd.loc[:, 'velocity_offset_P'].unique(), c="k")
+            ax4.set_ylim(0, np.max(cur_pd.iloc[:, 3]) * 1.02)
+            ax4.set_xlim(0, np.max(cur_pd.iloc[:, 2]) * 1.02)
 
-            despline()  # sns.despline()
+            despline(ax4)   # sns.despline()
 
             V_vec = df_embedding.loc[:, 'velocity_p']
 
-            limit = np.max(np.abs(np.percentile(V_vec, [1, 99])))  # upper and lowe limit / saturation
+            limit = np.nanmax(np.abs(np.nanpercentile(V_vec, [1, 99])))  # upper and lowe limit / saturation
 
             V_vec = V_vec + limit  # that is: tmp_colorandum - (-limit)
             V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
             V_vec = np.clip(V_vec, 0, 1)
 
             df_embedding = pd.concat([embedding, cur_pd.loc[:, 'gene']], ignore_index=False)
-            sns.scatterplot(df_embedding.iloc[:, 0], df_embedding.iloc[:, 1], hue=df_embedding.loc[:, 'expression'], ax=ax)
-            sns.scatterplot(df_embedding.iloc[:, 0], df_embedding.iloc[:, 1], hue=V_vec, ax=ax)
+
+            cmap = sns.light_palette("navy", as_cmap=True)
+            sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=df_embedding.loc[:, 'expression'], \
+                            ax=a5, legend=False, palette=cmap)
+            ax5.set_title('protein expression')
+            cmap = sns.diverging_palette(145, 280, s=85, l=25, n=7)
+            sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=V_vec, ax=ax6, legend=False, palette=cmap)
+            ax6.set_title('protein velocity')
 
     plt.tight_layout()
     plt.show()
+
+

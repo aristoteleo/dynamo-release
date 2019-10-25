@@ -4,10 +4,10 @@ from sklearn.neighbors import NearestNeighbors
 
 # plotting utility functions from https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
 
-def despline():
+def despline(ax1=None):
     import matplotlib.pyplot as plt
 
-    ax1 = plt.gca()
+    ax1 = plt.gca() if ax1 is None else ax1
     # Hide the right and top spines
     ax1.spines['right'].set_visible(False)
     ax1.spines['top'].set_visible(False)
