@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-import seaborn as sns
+from .utilities import quiver_autoscaler, velocity_on_grid
 
 import yt
 
@@ -12,7 +12,7 @@ from scipy.sparse import issparse
 
 # cellranger data, velocyto, comparison and phase diagram
 
-def cell_wise_velocity(adata, genes, basis='umap', n_columns=1, color=None, cmap=None, s_kwargs_dict={}, layer='X', cell_ind='all', quiver_scale=1, **q_kwargs):
+def cell_wise_velocity(adata, genes, basis='umap', n_columns=1, color=None, cmap=None, s_kwargs_dict={}, layer='X', cell_ind='all', quiver_scale=None, **q_kwargs):
     """Plot the velocity vector of each cell.
 
     Parameters
@@ -25,8 +25,8 @@ def cell_wise_velocity(adata, genes, basis='umap', n_columns=1, color=None, cmap
             The reduced dimension embedding of cells to visualize.
         n_columns: `int  (default: 1)
             The number of columns of the resulting plot.
-        color: `str` or None (default: None)
-            Which attribute of cells (column name in the adata.obs) will be used to color cells.
+        color: `list` or None (default: None)
+            A list of attributes of cells (column names in the adata.obs) will be used to color cells.
         cmap: `plt.cm` or None (default: None)
             The color map function to use.
         s_kwargs_dict: `dict` (default: {})
@@ -35,8 +35,9 @@ def cell_wise_velocity(adata, genes, basis='umap', n_columns=1, color=None, cmap
             Which layer of expression value will be used.
         cell_ind: `str` or `list` (default: all)
             the cell index that will be chosen to draw velocity vectors.
-        quiver_scale: scale of quiver plot (default: 1)
-            The scale of quiver plot to visualize the velocity vector. If velocity vector is too smaller, decrease the value and vice versa.
+        quiver_scale: `float` or None (default: None)
+            scale of quiver plot (default: None). Number of data units per arrow length unit, e.g., m/s per plot width;
+            a smaller scale parameter makes the arrow longer. If None, we will use quiver_autoscaler to calculate the scale.
         q_kwargs:
             Additional parameters that will be passed to plt.quiver function
 
@@ -60,34 +61,26 @@ def cell_wise_velocity(adata, genes, basis='umap', n_columns=1, color=None, cmap
     elif type(cell_ind) is list:
         ix_choice = cell_ind
 
-    quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_scale, "minlength": 1.5}
-    quiver_kwargs.update(q_kwargs)
     scatter_kwargs = dict(alpha=0.4, s=8, edgecolor=(0, 0, 0, 1), lw=0.15)
     if s_kwargs_dict is not None:
         scatter_kwargs.update(s_kwargs_dict)
 
-    layer_keys = list(adata.layers.keys())
-    layer_keys.extend(['X', 'protein'])
+    # layer_keys = list(adata.layers.keys())
+    # layer_keys.extend(['X', 'protein'])
 
     if layer is 'X':
-        E_vec = adata[:, adata.var.index.isin(genes)].X.flatten()
+        E_vec = adata[:, adata.var.index.isin(genes)].X.T
     elif layer in adata.layers.keys():
-        E_vec = adata[:, adata.var.index.isin(genes)].layers[layer].flatten()
+        E_vec = adata[:, adata.var.index.isin(genes)].layers[layer].T
     elif layer is 'protein': # update subset here
-        E_vec = adata[:, adata.var.index.isin(genes)].obsm[layer].flatten()
+        E_vec = adata[:, adata.var.index.isin(genes)].obsm[layer].T
     else:
         raise Exception(f'The {layer} you passed in is not existed in the adata object.')
-    if color is not None:
-        n_genes, genes = 1, [color]
-        E_vec = adata.obs[color].values if color in adata.obs.keys() else np.empty((0, 1))
-        if cmap is None:
-            # List of RGB triplets
-            color_labels = adata.obs[color].unique()
-            rgb_values = sns.color_palette("Set2", len(color_labels))
 
-            # Map label to RGB
-            color_map = pd.DataFrame(zip(color_labels, rgb_values), index=color_labels)
-            cmap = lambda x: color_map.loc[x, 1]
+    if color is not None:
+        color = list(set(color).intersection(adata.obs.keys()))
+        n_genes, genes = len(color), color
+        E_vec = adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
 
     X = adata.obsm['X_' + basis] if 'X_' + basis in adata.obsm.keys() else None
     V = adata.obsm['velocity_' + basis] if 'velocity_' + basis in adata.obsm.keys() else None
@@ -96,15 +89,21 @@ def cell_wise_velocity(adata, genes, basis='umap', n_columns=1, color=None, cmap
     if V is None:
         raise Exception(f'The {basis}_velocity velocity (or velocity) result does not existed in your data.')
     if 0 in E_vec.shape:
-        raise Exception(f'The gene names {genes} (or cell annotation {color}) provided are not existed in your data.')
+        raise Exception(f'The gene names {genes} (or cell annotations {color}) provided are not existed in your data.')
+
+    if quiver_scale is None:
+        quiver_scale = quiver_autoscaler(X, V)
+    quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_scale, "minlength": 1.5}
+    quiver_kwargs.update(q_kwargs)
+
 
     n_columns, plot_per_gene = n_columns, 1 # we may also add random velocity results
     nrow, ncol = int(np.ceil(plot_per_gene * n_genes / n_columns)), n_columns
     plt.figure(None, (3*ncol, 3*nrow)) # , dpi=160
 
-    E_vec = E_vec.A if issparse(E_vec) else E_vec
+    E_vec = E_vec.A.flatten() if issparse(E_vec) else E_vec.flatten()
     V = V.A if issparse(V) else V
-
+    # iterate over cell first then a different dimension/gene/column
     df = pd.DataFrame({"x": np.tile(X[:, 0], n_genes), "y": np.tile(X[:, 1], n_genes), "u": np.tile(V[:, 0], n_genes),
                        "v": np.tile(V[:, 1], n_genes), 'gene': np.repeat(np.array(genes), n_cells),
                        "expression": E_vec}, index=range(n_cells * n_genes))
@@ -116,13 +115,15 @@ def cell_wise_velocity(adata, genes, basis='umap', n_columns=1, color=None, cmap
         try:
             ix=np.where(adata.var.index == gn)[0][0]
         except:
-            continue
+            ix = gn in adata.obs.columns
+            if not ix:
+                continue
 
         cur_pd = df.loc[df.gene == gn, :]
 
         E_vec = cur_pd.loc[:, 'expression']
 
-        if type(E_vec[0]) is float:
+        if color is None:
             limit = np.max(np.abs(np.percentile(E_vec, [1, 99])))  # upper and lowe limit / saturation
 
             E_vec = E_vec + limit  # that is: tmp_colorandum - (-limit)
@@ -131,6 +132,14 @@ def cell_wise_velocity(adata, genes, basis='umap', n_columns=1, color=None, cmap
 
             ax.scatter(cur_pd.iloc[:, 0], cur_pd.iloc[:, 1], c=cmap(E_vec), **scatter_kwargs)
         else:
+            import seaborn as sns
+            # List of RGB triplets
+            color_labels = E_vec.unique()
+            rgb_values = sns.color_palette("Set2", len(color_labels))
+
+            # Map label to RGB
+            color_map = pd.DataFrame(zip(color_labels, rgb_values), index=color_labels)
+
             ax.scatter(cur_pd.iloc[:, 0], cur_pd.iloc[:, 1], c=color_map.loc[E_vec, 1].values, **scatter_kwargs)
 
         ax.quiver(cur_pd.iloc[ix_choice, 0], cur_pd.iloc[ix_choice, 1],
@@ -141,84 +150,211 @@ def cell_wise_velocity(adata, genes, basis='umap', n_columns=1, color=None, cmap
     plt.show()
 
 
-def velocity_on_grid(adata, show_stream_plot=False, **kwargs):
+def grid_velocity(adata, genes, basis='umap', n_columns=1, color=None, cmap=None, s_kwargs_dict={}, layer='X', xy_grid_nums=[30, 30],
+                     g_kwargs_dict={}, quiver_scale=None, **q_kwargs):
     import matplotlib.pyplot as plt
-    import seaborn as sns
-    sns.set_style('ticks')
+
+    if cmap is None and color is None:
+        cmap = plt.cm.RdBu_r
 
     n_cells, n_genes = adata.shape[0], len(genes)
+    # {"alpha": 0.5, "s": 8, "edgecolor": "0.8", "lw": 0.15}
 
-    if cell_ind is "auto":
-        ix_choice = np.range(adata.shape[1])
-    elif cell_ind is 'random':
-        ix_choice = np.random.choice(np.range(adata.shape[1]), size=1000, replace=False)
-    elif type(cell_ind) is int:
-        ix_choice = np.random.choice(np.range(adata.shape[1]), size=cell_ind, replace=False)
-    elif type(cell_ind) is list:
-        ix_choice = cell_ind
-
-    quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_scale, "minlength": 1.5}
-    scatter_kwargs = dict(c="0.8", alpha=0.4, s=10, edgecolor=(0, 0, 0, 1), lw=0.3)
-    scatter_kwargs.update(s_kwargs_dict)
-
-    layer_keys = list(adata.layers.keys())
-    layer_keys.extend(['X', 'protein'])
+    scatter_kwargs = dict(alpha=0.4, s=8, edgecolor=(0, 0, 0, 1), lw=0.15)
+    if s_kwargs_dict is not None:
+        scatter_kwargs.update(s_kwargs_dict)
 
     if layer is 'X':
-        E_vec = adata[gene].X
+        E_vec = adata[:, adata.var.index.isin(genes)].X.T
     elif layer in adata.layers.keys():
-        E_vec = adata[gene].layers[layer]
+        E_vec = adata[:, adata.var.index.isin(genes)].layers[layer].T
     elif layer is 'protein': # update subset here
-        E_vec = adata[gene].obsm[layer]
+        E_vec = adata[:, adata.var.index.isin(genes)].obsm[layer].T
     else:
         raise Exception(f'The {layer} you passed in is not existed in the adata object.')
 
+    if color is not None:
+        color = list(set(color).intersection(adata.obs.keys()))
+        n_genes, genes = len(color), color
+        E_vec = adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
+
     X = adata.obsm['X_' + basis] if 'X_' + basis in adata.obsm.keys() else None
-    V = adata.layer['velocity_' + vkey] if 'velocity_' + vkey in adata.obsm.layers() else None
+    V = adata.obsm['velocity_' + basis] if 'velocity_' + basis in adata.obsm.keys() else None
     if X is None:
         raise Exception(f'The {basis} dimension reduction is not performed over your data yet.')
     if V is None:
-        raise Exception(f'The {vkey} velocity result does not existed in your data.')
+        raise Exception(f'The {basis}_velocity velocity (or velocity) result does not existed in your data.')
+    if 0 in E_vec.shape:
+        raise Exception(f'The gene names {genes} (or cell annotations {color}) provided are not existed in your data.')
 
-    n_columns = 3 # we may also add random velocity results
-    nrow, ncol = int(np.ceil(n_columns * n_genes / 6)), n_columns
-    plt.figure(None, (n_columns*nrow, n_columns*ncol), dpi=160)
+    grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
+                             "adjust_for_stream": True, "V_threshold": None}
+    grid_kwargs_dict.update(g_kwargs_dict)
+    X_grid, V_grid, D = velocity_on_grid(X, V, xy_grid_nums, **grid_kwargs_dict)
 
-    if issparse(E_vec):
-        E_vec = E_vec.A
+    if quiver_scale is None:
+        quiver_scale = quiver_autoscaler(X_grid, V_grid)
+    quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_scale, "minlength": 1.5}
+    quiver_kwargs.update(q_kwargs)
 
+    n_columns, plot_per_gene = n_columns, 1 # we may also add random velocity results
+    nrow, ncol = int(np.ceil(plot_per_gene * n_genes / n_columns)), n_columns
+    plt.figure(None, (3*ncol, 3*nrow)) # , dpi=160
+
+    E_vec = E_vec.A.flatten() if issparse(E_vec) else E_vec.flatten()
+    V = V.A if issparse(V) else V
+    # iterate over cell first then a different dimension/gene/column
     df = pd.DataFrame({"x": np.tile(X[:, 0], n_genes), "y": np.tile(X[:, 1], n_genes), "u": np.tile(V[:, 0], n_genes),
                        "v": np.tile(V[:, 1], n_genes), 'gene': np.repeat(np.array(genes), n_cells),
-                       "expression": E_vec.flatten()}, index=range(n_cells * n_genes))
+                       "expression": E_vec}, index=range(n_cells * n_genes))
 
     # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
     gs = plt.GridSpec(nrow, ncol)
     for i, gn in enumerate(genes):
-        ax = plt.subplot(gs[i*n_columns])
+        ax = plt.subplot(gs[i*plot_per_gene])
         try:
             ix=np.where(adata.var.index == gn)[0][0]
         except:
-            continue
+            ix = gn in adata.obs.columns
+            if not ix:
+                continue
 
         cur_pd = df.loc[df.gene == gn, :]
 
-        ax.scatter(cur_pd[:, 0], cur_pd[:, 1], **_scatter_kwargs)
+        E_vec = cur_pd.loc[:, 'expression']
 
-        ax.quiver(cur_pd[ix_choice, 0], cur_pd[ix_choice, 1],
-                   cur_pd[ix_choice, 2], cur_pd[ix_choice, 3],
-                   scale=quiver_scale, **_quiver_kwargs)
-        if show_stream_plot:
-            # X, Y, U, V need to be matrix; update this
-            ax3.streamplot(X, Y, U, V, color=U, linewidth=2,
-                           cmap='autumn')
+        if color is None:
+            limit = np.max(np.abs(np.percentile(E_vec, [1, 99])))  # upper and lowe limit / saturation
 
+            E_vec = E_vec + limit  # that is: tmp_colorandum - (-limit)
+            E_vec = E_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
+            E_vec = np.clip(E_vec, 0, 1)
+
+            ax.scatter(cur_pd.iloc[:, 0], cur_pd.iloc[:, 1], c=cmap(E_vec), **scatter_kwargs)
+        else:
+            import seaborn as sns
+            # List of RGB triplets
+            color_labels = E_vec.unique()
+            rgb_values = sns.color_palette("Set2", len(color_labels))
+
+            # Map label to RGB
+            color_map = pd.DataFrame(zip(color_labels, rgb_values), index=color_labels)
+
+            ax.scatter(cur_pd.iloc[:, 0], cur_pd.iloc[:, 1], c=color_map.loc[E_vec, 1].values, **scatter_kwargs)
+
+        ax.quiver(X_grid[0], X_grid[1], V_grid[0], V_grid[1], **quiver_kwargs)
         ax.axis("off")
+
+    plt.show()
+
+
+def stremline_plot(adata, genes, basis='umap', n_columns=1, color=None, cmap=None, s_kwargs_dict={}, layer='X', xy_grid_nums=[30, 30],
+                     density=1, g_kwargs_dict={}, V_threshold=1e-5, **streamline_kwargs):
+    import matplotlib.pyplot as plt
+
+    streamplot_kwargs={"density": density, "linewidth": None, "color": None, "cmap": None, "norm": None, "arrowsize": 1, "arrowstyle": '-|>',
+                       "minlength": 0.1, "transform": None, "zorder": None, "start_points": None, "maxlength": 4.0,
+                       "integration_direction": 'both'}
+    streamplot_kwargs.update(streamline_kwargs)
+
+    if cmap is None and color is None:
+        cmap = plt.cm.RdBu_r
+
+    n_cells, n_genes = adata.shape[0], len(genes)
+    # {"alpha": 0.5, "s": 8, "edgecolor": "0.8", "lw": 0.15}
+
+    scatter_kwargs = dict(alpha=0.4, s=8, edgecolor=(0, 0, 0, 1), lw=0.15)
+    if s_kwargs_dict is not None:
+        scatter_kwargs.update(s_kwargs_dict)
+
+    if layer is 'X':
+        E_vec = adata[:, adata.var.index.isin(genes)].X.T
+    elif layer in adata.layers.keys():
+        E_vec = adata[:, adata.var.index.isin(genes)].layers[layer].T
+    elif layer is 'protein': # update subset here
+        E_vec = adata[:, adata.var.index.isin(genes)].obsm[layer].T
+    else:
+        raise Exception(f'The {layer} you passed in is not existed in the adata object.')
+
+    if color is not None:
+        color = list(set(color).intersection(adata.obs.keys()))
+        n_genes, genes = len(color), color
+        E_vec = adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
+
+    X = adata.obsm['X_' + basis] if 'X_' + basis in adata.obsm.keys() else None
+    V = adata.obsm['velocity_' + basis] if 'velocity_' + basis in adata.obsm.keys() else None
+    if X is None:
+        raise Exception(f'The {basis} dimension reduction is not performed over your data yet.')
+    if V is None:
+        raise Exception(f'The {basis}_velocity velocity (or velocity) result does not existed in your data.')
+    if 0 in E_vec.shape:
+        raise Exception(f'The gene names {genes} (or cell annotations {color}) provided are not existed in your data.')
+
+    grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
+                             "adjust_for_stream": True, "V_threshold": V_threshold}
+    grid_kwargs_dict.update(g_kwargs_dict)
+    X_grid, V_grid, D = velocity_on_grid(X, V, xy_grid_nums, **grid_kwargs_dict)
+
+    # if quiver_scale is None:
+    #     quiver_scale = quiver_autoscaler(X_grid, V_grid)
+    # quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_scale, "minlength": 1.5}
+    # quiver_kwargs.update(q_kwargs)
+
+    n_columns, plot_per_gene = n_columns, 1 # we may also add random velocity results
+    nrow, ncol = int(np.ceil(plot_per_gene * n_genes / n_columns)), n_columns
+    plt.figure(None, (3*ncol, 3*nrow)) # , dpi=160
+
+    E_vec = E_vec.A.flatten() if issparse(E_vec) else E_vec.flatten()
+    V = V.A if issparse(V) else V
+    # iterate over cell first then a different dimension/gene/column
+    df = pd.DataFrame({"x": np.tile(X[:, 0], n_genes), "y": np.tile(X[:, 1], n_genes), "u": np.tile(V[:, 0], n_genes),
+                       "v": np.tile(V[:, 1], n_genes), 'gene': np.repeat(np.array(genes), n_cells),
+                       "expression": E_vec}, index=range(n_cells * n_genes))
+
+    # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
+    gs = plt.GridSpec(nrow, ncol)
+    for i, gn in enumerate(genes):
+        ax = plt.subplot(gs[i*plot_per_gene])
+        try:
+            ix=np.where(adata.var.index == gn)[0][0]
+        except:
+            ix = gn in adata.obs.columns
+            if not ix:
+                continue
+
+        cur_pd = df.loc[df.gene == gn, :]
+
+        E_vec = cur_pd.loc[:, 'expression']
+
+        if color is None:
+            limit = np.max(np.abs(np.percentile(E_vec, [1, 99])))  # upper and lowe limit / saturation
+
+            E_vec = E_vec + limit  # that is: tmp_colorandum - (-limit)
+            E_vec = E_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
+            E_vec = np.clip(E_vec, 0, 1)
+
+            ax.scatter(cur_pd.iloc[:, 0], cur_pd.iloc[:, 1], c=cmap(E_vec), **scatter_kwargs)
+        else:
+            import seaborn as sns
+            # List of RGB triplets
+            color_labels = E_vec.unique()
+            rgb_values = sns.color_palette("Set2", len(color_labels))
+
+            # Map label to RGB
+            color_map = pd.DataFrame(zip(color_labels, rgb_values), index=color_labels)
+
+            ax.scatter(cur_pd.iloc[:, 0], cur_pd.iloc[:, 1], c=color_map.loc[E_vec, 1].values, **scatter_kwargs)
+
+        ax.streamplot(X_grid[0], X_grid[1], V_grid[0], V_grid[1], **streamplot_kwargs)
+        ax.axis("off")
+
+    plt.show()
 
 
 def cell_wise_velocity_3d():
     pass
 
-def velocity_on_grid_3d():
+def grid_velocity_3d():
     pass
 
 # def velocity(adata, type) # type can be either one of the three, cellwise, velocity on grid, streamline plot.

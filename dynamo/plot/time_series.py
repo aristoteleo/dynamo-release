@@ -1,7 +1,7 @@
 # include pseudotime and predict cell trajectory
 import numpy as np
 
-def plot_directed_pg(adata, basis='umap', principal_g_transition, Y):
+def plot_directed_pg(adata, principal_g_transition, Y, basis='umap'):
     """
 
     Parameters
