@@ -32,14 +32,20 @@ def szFactor(adata, layers='all', locfunc=np.nanmean, round_exprs=True, method='
     """
 
     layer_keys = list(adata.layers.keys())
-    layer_keys.extend(['X', 'protein'])
+    if 'protein' in adata.obsm.keys():
+        layer_keys.extend(['X', 'protein'])
+    else:
+        layer_keys.extend(['X'])
     layers = layer_keys if layers is 'all' else list(set(layer_keys).intersection(layers))
 
     for layer in layers:
         if layer is 'raw' or layer is 'X':
             CM = adata.raw if adata.raw is not None else adata.X
-        elif layer is 'protein' and 'protein' in adata.obsm_keys():
-            CM = adata.obsm['protein']
+        elif layer is 'protein':
+            if 'protein' in adata.obsm_keys():
+                CM = adata.obsm['protein']
+            else:
+                continue
         else:
             CM = adata.layers[layer]
 
@@ -85,12 +91,15 @@ def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, r
     """
 
     layer_keys = list(adata.layers.keys())
-    layer_keys.extend(['X', 'protein'])
+    if 'protein' in adata.obsm.keys():
+        layer_keys.extend(['X', 'protein'])
+    else:
+        layer_keys.extend(['X'])
     layers = layer_keys if layers is 'all' else list(set(layer_keys).intersection(layers))
 
     layer_sz_column_names = [i + '_Size_Factor' for i in set(layers).difference('X')]
     layer_sz_column_names.extend(['Size_Factor'])
-    layers_to_sz = set(layer_sz_column_names).difference(adata.obs.keys())
+    layers_to_sz = list(set(layer_sz_column_names).difference(adata.obs.keys()))
 
     if len(layers_to_sz) > 0:
         layers = pd.Series(layers_to_sz).str.split('_Size_Factor', expand=True).iloc[:, 0].tolist()
@@ -100,9 +109,12 @@ def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, r
         if layer is 'raw' or layer is 'X':
             FM = adata.raw if adata.raw is not None else adata.X
             szfactors = adata.obs['Size_Factor'][:, None]
-        elif layer is 'protein' and 'protein' in adata.obsm_keys():
-           FM = adata.obsm[layer]
-           szfactors = adata.obs[layer + '_Size_Factor'][:, None]
+        elif layer is 'protein':
+            if 'protein' in adata.obsm_keys():
+               FM = adata.obsm[layer]
+               szfactors = adata.obs[layer + '_Size_Factor'][:, None]
+            else:
+                continue
         else:
             FM = adata.layers[layer]
             szfactors = adata.obs[layer + '_Size_Factor'][:, None]
@@ -174,14 +186,20 @@ def Gini(adata, layers='all'):
     # from: http://www.statsdirect.com/help/default.htm#nonparametric_methods/gini.htm
 
     layer_keys = list(adata.layers.keys())
-    layer_keys.extend(['X', 'protein'])
+    if 'protein' in adata.obsm.keys():
+        layer_keys.extend(['X', 'protein'])
+    else:
+        layer_keys.extend(['X'])
     layers = layer_keys if layers is 'all' else list(set(layer_keys).intersection(layers))
 
     for layer in layers:
         if layer is 'raw' or layer is 'X':
             array = adata.raw if adata.raw is not None else adata.X
-        elif layer is 'protein' and 'protein' in adata.obsm_keys():
-            array = adata.obsm[layer]
+        elif layer is 'protein':
+            if 'protein' in adata.obsm_keys():
+                array = adata.obsm[layer]
+            else:
+                continue
         else:
             array = adata.layers[layer]
 
