@@ -673,15 +673,16 @@ def recipe_monocle(adata, layer=None, method='PCA', num_dim=50, norm_method='log
     FM = FM[:, valid_ind]
 
     if method is 'PCA':
-        clf = TruncatedSVD(n_components=num_dim, random_state=2019)
-        reduce_dim = clf.fit_transform(FM)
-        adata.uns['explained_variance_ratio_'] = clf.explained_variance_ratio_
+        fit = TruncatedSVD(n_components=num_dim, random_state=2019)
+        reduce_dim = fit.fit_transform(FM)
+        adata.uns['explained_variance_ratio_'] = fit.explained_variance_ratio_
     elif method == 'ICA':
-        ICA=FastICA(num_dim,
+        fit=FastICA(num_dim,
                 algorithm='deflation', tol=5e-6, fun='logcosh', max_iter=1000)
-        reduce_dim=ICA.fit_transform(FM.toarray())
+        reduce_dim=fit.fit_transform(FM.toarray())
 
     adata.obsm['X_' + method.lower()] = reduce_dim
+    adata.uns[method+'_fit'] = fit
 
     return adata
 

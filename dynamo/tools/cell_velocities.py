@@ -1,8 +1,9 @@
 import numpy as np
 import scipy as scp
 from scipy.sparse import csc_matrix, issparse
+from .Markov import *
 
-def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_cells_trick=False, cores=1):
+def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_cells_trick=False, xy_grid_nums=(50, 50), cores=1):
     """Compute transition probability and project high dimension velocity vector to existing low dimension embedding.
 
     We may consider using umap transform function or applying a neuron net model to project the velocity vectors.
@@ -40,25 +41,14 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
     delta_X = np.zeros((n, X_embedding.shape[1]))
 
     if method == 'analytical':
-        # import os
-        # os.environ["OMP_NUM_THREADS"] = str(cores)
+        kmc = KernelMarkovChain()
+        ndims = X_pca.shape[1]
+        kmc.fit(X_pca[:, :ndims], V_mat[:, :ndims], neighbor_idx=indices, M_diff=4 * np.eye(ndims), epsilon=None,
+                adaptive_local_kernel=True, tol=1e-7)
+        T = kmc.compute_stationary_distribution()
+        delta_X = kmc.compute_density_corrected_drift(X_embedding, indices, normalize_vector=True)
+        X_grid, V_grid, D = velocity_on_grid(X_embedding, X_embedding + delta_X, xy_grid_nums=xy_grid_nums)
 
-        Q = np.zeros((n, knn))
-        U = np.zeros((n, 2))
-
-        tol = 1e-4
-        for i in range(n):
-            y = X_pca[i]
-            v = V_mat[i]
-            Y = X_pca[indices[i, 1:]]
-            q, u = markov_combination(y, v, Y)
-            Q[i] = q.T
-
-            U[i] = (X_embedding[indices[i, 1:]] - X_embedding[i]).T.dot(np.array(q) - 1 / knn ).T # - 1 / knn project in two dimension
-
-            delta_X[i, :] = U[i]
-
-        T = makeTransitionMatrix(Q, indices[:, 1:], tol)
     elif method == 'empirical':
         idx = 0
         for i in range(n):
@@ -108,44 +98,15 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
                 denominator = np.array([[scp.linalg.norm(numerator[j]) for j in range(knn)]]).T
 
                 delta_X[i, :] = (i_prob - 1 / knn).T.dot(numerator / np.hstack((denominator, denominator)))
+            X_grid, V_grid, D = velocity_on_grid(X_embedding, X_embedding + delta_X, xy_grid_nums=xy_grid_nums)
 
         T = csc_matrix((vals.flatten(), (rows.flatten(), cols.flatten())), shape=neighbors.shape)
 
     adata.uns['transition_matrix'] = T
     adata.obsm['velocity_' + basis] = delta_X
+    adata.uns['grid_velocity_' + basis] = {'X_grid': X_grid, "V_grid": V_grid, "D": D}
 
     return adata
-
-
-def markov_combination(x, v, X):
-    from cvxopt import matrix, solvers
-    solvers.options['show_progress'] = False
-
-    n = X.shape[0]
-    R = matrix((X - x).astype('double')).T
-    H = R.T * R
-    f = matrix((v).astype('double')).T * R
-    G = np.vstack((-np.eye(n),
-                   np.ones(n)))
-    h = np.zeros(n+1)
-    h[-1] = 1
-
-    p = solvers.qp(H, -f.T, G=matrix(G), h=matrix(h))['x']
-    
-    u = R * p
-    return p, u
-
-
-def makeTransitionMatrix(Q, I, tol=0.):
-    n = Q.shape[0]
-    M = np.zeros((n, n))
-
-    for i in range(n):
-        q = Q[i]
-        q[q < tol] = 0
-        M[I[i], i] = q
-        M[i, i] = 1 - np.sum(q)
-    return M
 
 
 def diffusion(M, P0=None, steps=None, backward=False):

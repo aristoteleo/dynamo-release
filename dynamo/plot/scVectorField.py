@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
-from .utilities import quiver_autoscaler, velocity_on_grid
+from .utilities import quiver_autoscaler
+from ..tools.Markov import velocity_on_grid
 
 import yt
 
@@ -12,7 +13,7 @@ from scipy.sparse import issparse
 
 # cellranger data, velocyto, comparison and phase diagram
 
-def cell_wise_velocity(adata, genes, basis='umap', n_columns=1, color=None, cmap=None, s_kwargs_dict={}, layer='X', cell_ind='all', quiver_scale=None, **q_kwargs):
+def cell_wise_velocity(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=None, cmap=None, s_kwargs_dict={}, layer='X', cell_ind='all', quiver_scale=None, **q_kwargs):
     """Plot the velocity vector of each cell.
 
     Parameters
@@ -21,6 +22,10 @@ def cell_wise_velocity(adata, genes, basis='umap', n_columns=1, color=None, cmap
             an Annodata object.
         genes: `list`
             The gene names whose gene expression will be faceted.
+        x: `int` (default: `0`)
+            The column index of the low dimensional embedding for the x-axis
+        y: `int` (default: `1`)
+            The column index of the low dimensional embedding for the y-axis
         basis: `str` (default: `umap`)
             The reduced dimension embedding of cells to visualize.
         n_columns: `int  (default: 1)
@@ -99,10 +104,10 @@ def cell_wise_velocity(adata, genes, basis='umap', n_columns=1, color=None, cmap
 
     n_columns, plot_per_gene = n_columns, 1 # we may also add random velocity results
     nrow, ncol = int(np.ceil(plot_per_gene * n_genes / n_columns)), n_columns
-    plt.figure(None, (3*ncol, 3*nrow)) # , dpi=160
+    plt.figure(None, (ncol * 6, nrow * 6), dpi=160)
 
     E_vec = E_vec.A.flatten() if issparse(E_vec) else E_vec.flatten()
-    V = V.A if issparse(V) else V
+    V = V.A[:, [x, y]] if issparse(V) else V[:, [x, y]]
     # iterate over cell first then a different dimension/gene/column
     df = pd.DataFrame({"x": np.tile(X[:, 0], n_genes), "y": np.tile(X[:, 1], n_genes), "u": np.tile(V[:, 0], n_genes),
                        "v": np.tile(V[:, 1], n_genes), 'gene': np.repeat(np.array(genes), n_cells),
@@ -150,8 +155,46 @@ def cell_wise_velocity(adata, genes, basis='umap', n_columns=1, color=None, cmap
     plt.show()
 
 
-def grid_velocity(adata, genes, basis='umap', n_columns=1, color=None, cmap=None, s_kwargs_dict={}, layer='X', xy_grid_nums=[30, 30],
+def grid_velocity(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=None, cmap=None, s_kwargs_dict={}, layer='X', xy_grid_nums=[30, 30],
                      g_kwargs_dict={}, quiver_scale=None, **q_kwargs):
+    """Plot the velocity vector of each cell.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object.
+        genes: `list`
+            The gene names whose gene expression will be faceted.
+        x: `int` (default: `0`)
+            The column index of the low dimensional embedding for the x-axis
+        y: `int` (default: `1`)
+            The column index of the low dimensional embedding for the y-axis
+        basis: `str` (default: `umap`)
+            The reduced dimension embedding of cells to visualize.
+        n_columns: `int  (default: 1)
+            The number of columns of the resulting plot.
+        color: `list` or None (default: None)
+            A list of attributes of cells (column names in the adata.obs) will be used to color cells.
+        cmap: `plt.cm` or None (default: None)
+            The color map function to use.
+        s_kwargs_dict: `dict` (default: {})
+            The dictionary of the scatter arguments.
+        layer: `str` (default: X)
+            Which layer of expression value will be used.
+        xy_grid_nums: `tuple` (default: (5, 5))
+            the number of grids in either x or y axis.
+        g_kwargs_dict: `dict` (default: {})
+            A dictionary for the parameters that passed into the velocity_on_grid function.
+        quiver_scale: `float` or None (default: None)
+            scale of quiver plot (default: None). Number of data units per arrow length unit, e.g., m/s per plot width;
+            a smaller scale parameter makes the arrow longer. If None, we will use quiver_autoscaler to calculate the scale.
+        q_kwargs:
+            Additional parameters that will be passed to plt.quiver function
+
+    Returns
+    -------
+        Nothing but a cell wise quiver plot
+    """
     import matplotlib.pyplot as plt
 
     if cmap is None and color is None:
@@ -187,10 +230,15 @@ def grid_velocity(adata, genes, basis='umap', n_columns=1, color=None, cmap=None
     if 0 in E_vec.shape:
         raise Exception(f'The gene names {genes} (or cell annotations {color}) provided are not existed in your data.')
 
-    grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
-                             "adjust_for_stream": True, "V_threshold": None}
-    grid_kwargs_dict.update(g_kwargs_dict)
-    X_grid, V_grid, D = velocity_on_grid(X, V, xy_grid_nums, **grid_kwargs_dict)
+    if 'grid_velocity_' + basis in adata.uns.keys():
+        X_grid, V_grid, _ = adata.uns['grid_velocity_' + basis]['X_grid'], adata.uns['grid_velocity_' + basis]['V_grid'], \
+                            adata.uns['grid_velocity_' + basis]['D']
+    else:
+        grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
+                            "adjust_for_stream": True, "V_threshold": None}
+        grid_kwargs_dict.update(g_kwargs_dict)
+
+        X_grid, V_grid, D = velocity_on_grid(X, V, xy_grid_nums, **grid_kwargs_dict)
 
     if quiver_scale is None:
         quiver_scale = quiver_autoscaler(X_grid, V_grid)
@@ -202,7 +250,7 @@ def grid_velocity(adata, genes, basis='umap', n_columns=1, color=None, cmap=None
     plt.figure(None, (3*ncol, 3*nrow)) # , dpi=160
 
     E_vec = E_vec.A.flatten() if issparse(E_vec) else E_vec.flatten()
-    V = V.A if issparse(V) else V
+    V = V.A[:, [x, y]] if issparse(V) else V[:, [x, y]]
     # iterate over cell first then a different dimension/gene/column
     df = pd.DataFrame({"x": np.tile(X[:, 0], n_genes), "y": np.tile(X[:, 1], n_genes), "u": np.tile(V[:, 0], n_genes),
                        "v": np.tile(V[:, 1], n_genes), 'gene': np.repeat(np.array(genes), n_cells),
@@ -248,8 +296,47 @@ def grid_velocity(adata, genes, basis='umap', n_columns=1, color=None, cmap=None
     plt.show()
 
 
-def stremline_plot(adata, genes, basis='umap', n_columns=1, color=None, cmap=None, s_kwargs_dict={}, layer='X', xy_grid_nums=[30, 30],
+def stremline_plot(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=None, cmap=None, s_kwargs_dict={}, layer='X', xy_grid_nums=[30, 30],
                      density=1, g_kwargs_dict={}, V_threshold=1e-5, **streamline_kwargs):
+    """Plot the streamline of vector field based on the sampled cells.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object.
+        genes: `list`
+            The gene names whose gene expression will be faceted.
+        x: `int` (default: `0`)
+            The column index of the low dimensional embedding for the x-axis
+        y: `int` (default: `1`)
+            The column index of the low dimensional embedding for the y-axis
+        basis: `str` (default: `umap`)
+            The reduced dimension embedding of cells to visualize.
+        n_columns: `int  (default: 1)
+            The number of columns of the resulting plot.
+        color: `list` or None (default: None)
+            A list of attributes of cells (column names in the adata.obs) will be used to color cells.
+        cmap: `plt.cm` or None (default: None)
+            The color map function to use.
+        s_kwargs_dict: `dict` (default: {})
+            The dictionary of the scatter arguments.
+        layer: `str` (default: X)
+            Which layer of expression value will be used.
+        xy_grid_nums: `tuple` (default: (5, 5))
+            the number of grids in either x or y axis.
+        density: `float` or None (default: 1)
+            density of the plt.streamplot function.
+        q_kwargs_dict: `dict` (default: {})
+            A dictionary of the parameters for the plt.quiver function.
+        V_threshold:
+            The threshold of velocity value for visualization
+        **streamline_kwargs:
+            Additional parameters that will be passed to plt.streamplot function
+
+    Returns
+    -------
+        Nothing but a cell wise quiver plot
+    """
     import matplotlib.pyplot as plt
 
     streamplot_kwargs={"density": density, "linewidth": None, "color": None, "cmap": None, "norm": None, "arrowsize": 1, "arrowstyle": '-|>',
@@ -305,7 +392,7 @@ def stremline_plot(adata, genes, basis='umap', n_columns=1, color=None, cmap=Non
     plt.figure(None, (3*ncol, 3*nrow)) # , dpi=160
 
     E_vec = E_vec.A.flatten() if issparse(E_vec) else E_vec.flatten()
-    V = V.A if issparse(V) else V
+    V = V.A[:, [x, y]] if issparse(V) else V[:, [x, y]]
     # iterate over cell first then a different dimension/gene/column
     df = pd.DataFrame({"x": np.tile(X[:, 0], n_genes), "y": np.tile(X[:, 1], n_genes), "u": np.tile(V[:, 0], n_genes),
                        "v": np.tile(V[:, 1], n_genes), 'gene': np.repeat(np.array(genes), n_cells),
