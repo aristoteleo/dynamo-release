@@ -15,7 +15,7 @@ def szFactor(adata, layers='all', locfunc=np.nanmean, round_exprs=True, method='
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object
-        layers: str (default: all)
+        layers: str or list (default: all)
             The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
         locfunc: `function`
             The function to normalize the data
@@ -143,11 +143,11 @@ def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, r
             n_feature = FM.shape[1]
 
             for i in range(FM.shape[0]):
-                x = FM[i].A
+                x = FM[i].A if issparse(FM) else FM[i]
                 res = np.log1p(x / (np.exp(np.nansum(np.log1p(x[x > 0])) / n_feature)))
                 res[np.isnan(res)] = 0
                 # res[res > 100] = 100
-                FM[i] = res
+                FM[i] = res # no .A is required
 
             FM = FM.T
         else:
@@ -484,7 +484,7 @@ def Dispersion(adata, layers='X', modelFormulaStr="~ 1", min_cells_detected=1, r
     return adata
 
 
-def filter_cells(adata, filter_bool=None, layer='X', keep_unflitered=True, min_expr_genes_s=50, min_expr_genes_u=25, min_expr_genes_p=1,
+def filter_cells(adata, filter_bool=None, layer='all', keep_unflitered=False, min_expr_genes_s=50, min_expr_genes_u=25, min_expr_genes_p=1,
                  max_expr_genes_s=np.inf, max_expr_genes_u=np.inf, max_expr_genes_p=np.inf):
     """Select valid cells basedon a collection of filters.
 
@@ -494,7 +494,7 @@ def filter_cells(adata, filter_bool=None, layer='X', keep_unflitered=True, min_e
             AnnData object
         filter_bool: :class:`~numpy.ndarray` (default: None)
             A boolean array from the user to select cells for downstream analysis.
-        layer: `str` (default: `X`)
+        layer: `str` (default: `all`)
             The data from a particular layer (include X) used for feature selection.
         keep_unflitered: `bool` (default: True)
             Whether to keep cells that don't pass the filtering in the adata object.
@@ -522,11 +522,11 @@ def filter_cells(adata, filter_bool=None, layer='X', keep_unflitered=True, min_e
     detected_bool = np.ones(adata.X.shape[0], dtype=bool)
     detected_bool = (detected_bool) & (((adata.X > 0).sum(1) > min_expr_genes_s) & ((adata.X > 0).sum(1) < max_expr_genes_s)).flatten()
 
-    if "spliced" in adata.layers.keys() & layer is 'spliced':
+    if "spliced" in adata.layers.keys() & (layer is 'spliced' or layer is 'all'):
         detected_bool = detected_bool & (((adata.layers['spliced'] > 0).sum(1) > min_expr_genes_s) & ((adata.layers['spliced'] > 0).sum(1) < max_expr_genes_s)).flatten()
-    if "unspliced" in adata.layers.keys() & layer is 'unspliced':
+    if "unspliced" in adata.layers.keys() & (layer is 'unspliced' or layer is 'all'):
         detected_bool = detected_bool & (((adata.layers['unspliced'] > 0).sum(1) > min_expr_genes_u) & ((adata.layers['unspliced'] > 0).sum(1) < max_expr_genes_u)).flatten()
-    if "protein" in adata.obsm.keys() & layer is 'protein':
+    if "protein" in adata.obsm.keys() & (layer is 'protein' or layer is 'all'):
         detected_bool = detected_bool & (((adata.obsm['protein'] > 0).sum(1) > min_expr_genes_p) & ((adata.obsm['protein'] > 0).sum(1) < max_expr_genes_p)).flatten()
 
     filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
@@ -596,6 +596,7 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_unflitered=True, min_c
 
     filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
 
+    adata.var['pass_basic_filter'] = np.array(filter_bool).flatten()
     ### check this
     if sort_by is 'dispersion':
         table = topTable(adata, layer, mode=sort_by)

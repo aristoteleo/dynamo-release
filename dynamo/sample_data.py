@@ -6,18 +6,31 @@ import ntpath
 
 
 def get_adata(url, filename=None):
+    """Download example data to local folder.
+
+    Parameters
+    ----------
+        url:
+        filename
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object.
+    """
+
     filename = ntpath.basename(url) if filename is None else filename
 
     filename = './data/' + filename
     if not os.path.exists(filename):
         if not os.path.exists('./data/'):
-            os.system('mkdir data')
+            os.mkdir('data')
 
-    urlretrieve(url, filename)
+        urlretrieve(url, filename) # download the data
 
-    if Path(filename).suffixes[-1][1:] is 'loom':
+    if Path(filename).suffixes[-1][1:] == 'loom':
         adata = read_loom(filename=filename)
-    elif Path(filename).suffixes[-1][1:] is 'h5ad':
+    elif Path(filename).suffixes[-1][1:] == 'h5ad':
         adata = read_h5ad(filename=filename)
 
     adata.var_names_make_unique()
@@ -138,3 +151,6 @@ def pancreatic_endocrinogenesis(url='https://github.com/theislab/scvelo_notebook
     adata = get_adata(url, filename)
 
     return adata
+
+if __name__ == '__main__':
+    DentateGyrus()

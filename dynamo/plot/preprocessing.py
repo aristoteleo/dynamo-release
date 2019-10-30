@@ -345,12 +345,16 @@ def phase_portrait(adata, genes, mode='splicing', vkey='S', ekey='X', basis='uma
         V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
         V_vec = np.clip(V_vec, 0, 1)
 
-        cmap = sns.cubehelix_palette(dark=.3, light=.8, as_cmap=True)
+        cmap = plt.cm.RdBu_r # sns.cubehelix_palette(dark=.3, light=.8, as_cmap=True)
         sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=df_embedding.loc[:, 'expression'], ax=ax2, palette=cmap, legend=False)
         ax2.set_title('spliced expression')
-        cmap=sns.diverging_palette(10, 220, sep=80, as_cmap=True)
+        ax2.set_xlabel(basis + '_1')
+        ax2.set_ylabel(basis + '_2')
+        cmap = plt.cm.Greens # sns.diverging_palette(10, 220, sep=80, as_cmap=True)
         sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=V_vec, ax=ax3, palette=cmap, legend=False)
         ax3.set_title('RNA velocity')
+        ax3.set_xlabel(basis + '_1')
+        ax3.set_ylabel(basis + '_2')
 
         if 'protein' in adata.obsm.keys() and mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]):
             sns.scatterplot(cur_pd.iloc[:, 3], cur_pd.iloc[:, 2], hue=group, ax=ax4) # x-axis: Protein vs. y-axis: Spliced
@@ -376,9 +380,13 @@ def phase_portrait(adata, genes, mode='splicing', vkey='S', ekey='X', basis='uma
             sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=df_embedding.loc[:, 'expression'], \
                             ax=a5, legend=False, palette=cmap)
             ax5.set_title('protein expression')
+            ax5.set_xlabel(basis + '_1')
+            ax5.set_ylabel(basis + '_2')
             cmap = sns.diverging_palette(145, 280, s=85, l=25, n=7)
             sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=V_vec, ax=ax6, legend=False, palette=cmap)
             ax6.set_title('protein velocity')
+            ax6.set_xlabel(basis + '_1')
+            ax6.set_ylabel(basis + '_2')
 
     plt.tight_layout()
     plt.show()

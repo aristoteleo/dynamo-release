@@ -13,7 +13,9 @@ from scipy.sparse import issparse
 
 # cellranger data, velocyto, comparison and phase diagram
 
-def cell_wise_velocity(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=None, cmap=None, s_kwargs_dict={}, layer='X', cell_ind='all', quiver_scale=None, **q_kwargs):
+def cell_wise_velocity(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=None, label_on_embedding=True,
+                       cmap=None, s_kwargs_dict={}, layer='X', cell_ind='all', quiver_scale=None, figsize=None,
+                       **q_kwargs):
     """Plot the velocity vector of each cell.
 
     Parameters
@@ -104,7 +106,10 @@ def cell_wise_velocity(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=
 
     n_columns, plot_per_gene = n_columns, 1 # we may also add random velocity results
     nrow, ncol = int(np.ceil(plot_per_gene * n_genes / n_columns)), n_columns
-    plt.figure(None, (ncol * 6, nrow * 6), dpi=160)
+    if figsize is None:
+        plt.figure(None, (ncol * 3, nrow * 3), dpi=160)
+    else:
+        plt.figure(None, (ncol * figsize[0], nrow * figsize[0]), dpi=160)
 
     E_vec = E_vec.A.flatten() if issparse(E_vec) else E_vec.flatten()
     V = V.A[:, [x, y]] if issparse(V) else V[:, [x, y]]
@@ -147,6 +152,12 @@ def cell_wise_velocity(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=
 
             ax.scatter(cur_pd.iloc[:, 0], cur_pd.iloc[:, 1], c=color_map.loc[E_vec, 1].values, **scatter_kwargs)
 
+            if label_on_embedding:
+                for i in color_labels:
+                    color_cnt = np.median(cur_pd.iloc[np.where(E_vec == i)[0], :2], 0)
+                    ax.text(color_cnt[0], color_cnt[1], str(i),
+                             fontsize=13, bbox={"facecolor": "w", "alpha": 0.6})
+
         ax.quiver(cur_pd.iloc[ix_choice, 0], cur_pd.iloc[ix_choice, 1],
                    cur_pd.iloc[ix_choice, 2], cur_pd.iloc[ix_choice, 3],
                    **quiver_kwargs)
@@ -155,8 +166,9 @@ def cell_wise_velocity(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=
     plt.show()
 
 
-def grid_velocity(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=None, cmap=None, s_kwargs_dict={}, layer='X', xy_grid_nums=[30, 30],
-                     g_kwargs_dict={}, quiver_scale=None, **q_kwargs):
+def grid_velocity(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=None, label_on_embedding=True, cmap=None,
+                  s_kwargs_dict={}, layer='X', xy_grid_nums=[30, 30], g_kwargs_dict={}, quiver_scale=None, figsize=None,
+                  **q_kwargs):
     """Plot the velocity vector of each cell.
 
     Parameters
@@ -238,7 +250,7 @@ def grid_velocity(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=None,
                             "adjust_for_stream": True, "V_threshold": None}
         grid_kwargs_dict.update(g_kwargs_dict)
 
-        X_grid, V_grid, D = velocity_on_grid(X, V, xy_grid_nums, **grid_kwargs_dict)
+        X_grid, V_grid, D = velocity_on_grid(X[:, [x, y]], V[:, [x, y]], xy_grid_nums, **grid_kwargs_dict)
 
     if quiver_scale is None:
         quiver_scale = quiver_autoscaler(X_grid, V_grid)
@@ -247,7 +259,10 @@ def grid_velocity(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=None,
 
     n_columns, plot_per_gene = n_columns, 1 # we may also add random velocity results
     nrow, ncol = int(np.ceil(plot_per_gene * n_genes / n_columns)), n_columns
-    plt.figure(None, (3*ncol, 3*nrow)) # , dpi=160
+    if figsize is None:
+        plt.figure(None, (3*ncol, 3*nrow)) # , dpi=160
+    else:
+        plt.figure(None, (figsize[0]*ncol, figsize[0]*nrow)) # , dpi=160
 
     E_vec = E_vec.A.flatten() if issparse(E_vec) else E_vec.flatten()
     V = V.A[:, [x, y]] if issparse(V) else V[:, [x, y]]
@@ -290,14 +305,21 @@ def grid_velocity(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=None,
 
             ax.scatter(cur_pd.iloc[:, 0], cur_pd.iloc[:, 1], c=color_map.loc[E_vec, 1].values, **scatter_kwargs)
 
+            if label_on_embedding:
+                for i in color_labels:
+                    color_cnt = np.median(cur_pd.iloc[np.where(E_vec == i)[0], :2], 0)
+                    ax.text(color_cnt[0], color_cnt[1], str(i),
+                             fontsize=13, bbox={"facecolor": "w", "alpha": 0.6})
+
         ax.quiver(X_grid[0], X_grid[1], V_grid[0], V_grid[1], **quiver_kwargs)
         ax.axis("off")
 
     plt.show()
 
 
-def stremline_plot(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=None, cmap=None, s_kwargs_dict={}, layer='X', xy_grid_nums=[30, 30],
-                     density=1, g_kwargs_dict={}, V_threshold=1e-5, **streamline_kwargs):
+def stremline_plot(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=None, label_on_embedding=True,
+                   cmap=None, s_kwargs_dict={}, layer='X', xy_grid_nums=[30, 30], density=1, g_kwargs_dict={},
+                   V_threshold=1e-5, figsize=None, **streamline_kwargs):
     """Plot the streamline of vector field based on the sampled cells.
 
     Parameters
@@ -380,7 +402,7 @@ def stremline_plot(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=None
     grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
                              "adjust_for_stream": True, "V_threshold": V_threshold}
     grid_kwargs_dict.update(g_kwargs_dict)
-    X_grid, V_grid, D = velocity_on_grid(X, V, xy_grid_nums, **grid_kwargs_dict)
+    X_grid, V_grid, D = velocity_on_grid(X[:, [x, y]], V[:, [x, y]], xy_grid_nums, **grid_kwargs_dict)
 
     # if quiver_scale is None:
     #     quiver_scale = quiver_autoscaler(X_grid, V_grid)
@@ -389,7 +411,10 @@ def stremline_plot(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=None
 
     n_columns, plot_per_gene = n_columns, 1 # we may also add random velocity results
     nrow, ncol = int(np.ceil(plot_per_gene * n_genes / n_columns)), n_columns
-    plt.figure(None, (3*ncol, 3*nrow)) # , dpi=160
+    if figsize is None:
+        plt.figure(None, (3*ncol, 3*nrow)) # , dpi=160
+    else:
+        plt.figure(None, (figsize[0]*ncol, figsize[1]*nrow)) # , dpi=160
 
     E_vec = E_vec.A.flatten() if issparse(E_vec) else E_vec.flatten()
     V = V.A[:, [x, y]] if issparse(V) else V[:, [x, y]]
@@ -431,6 +456,12 @@ def stremline_plot(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=None
             color_map = pd.DataFrame(zip(color_labels, rgb_values), index=color_labels)
 
             ax.scatter(cur_pd.iloc[:, 0], cur_pd.iloc[:, 1], c=color_map.loc[E_vec, 1].values, **scatter_kwargs)
+
+            if label_on_embedding:
+                for i in color_labels:
+                    color_cnt = np.median(cur_pd.iloc[np.where(E_vec == i)[0], :2], 0)
+                    ax.text(color_cnt[0], color_cnt[1], str(i),
+                             fontsize=13, bbox={"facecolor": "w", "alpha": 0.6})
 
         ax.streamplot(X_grid[0], X_grid[1], V_grid[0], V_grid[1], **streamplot_kwargs)
         ax.axis("off")

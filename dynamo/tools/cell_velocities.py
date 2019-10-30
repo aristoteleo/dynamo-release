@@ -17,11 +17,15 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
     basis: 'int' (optional, default umap)
         The dictionary key that corresponds to the reduced dimension in obsm slot.
     method: `string` (optimal, default 'analytical')
-        The method to calculate the transition matrix and project high dimensional vector to low dimension, either new or
-        empirical. "empirical" is the method used in the original RNA velocity paper.
+        The method to calculate the transition matrix and project high dimensional vector to low dimension, either analytical
+        or empirical. "analytical" is our new approach to learn the transition matrix via diffusion approximation or an Itô
+        kernel. "empirical" is the method used in the original RNA velocity paper via correlation. "analytical" option is
+        better than "empirical" as it not only consider the correlation but also the distance of the nearest neighbors to
+        the high dimensional velocity vector.
     neg_cells_trick: 'bool' (optional, default False)
         Whether we should handle cells having negative correlations in gene expression difference with high dimensional
-        velocity vector separately. This option is inspired from scVelo package (https://github.com/theislab/scvelo).
+        velocity vector separately. This option is inspired from scVelo package (https://github.com/theislab/scvelo). Not
+        required if method is set to be "analytical".
 
     Returns
     -------
@@ -43,8 +47,8 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
     if method == 'analytical':
         kmc = KernelMarkovChain()
         ndims = X_pca.shape[1]
-        kmc.fit(X_pca[:, :ndims], V_mat[:, :ndims], neighbor_idx=indices, M_diff=4 * np.eye(ndims), epsilon=None,
-                adaptive_local_kernel=True, tol=1e-7)
+        kmc.fit(X_pca[:, :ndims], V_mat[:, :ndims],  M_diff=4 * np.eye(ndims), epsilon=None,
+                adaptive_local_kernel=True, tol=1e-7) # neighbor_idx=indices,
         T = kmc.compute_stationary_distribution()
         delta_X = kmc.compute_density_corrected_drift(X_embedding, indices, normalize_vector=True)
         X_grid, V_grid, D = velocity_on_grid(X_embedding, X_embedding + delta_X, xy_grid_nums=xy_grid_nums)

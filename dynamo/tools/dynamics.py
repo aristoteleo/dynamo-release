@@ -2,16 +2,19 @@ from .velocity import velocity, estimation
 from .moments import MomData, Estimation
 import warnings
 import numpy as np
+from scipy.sparse import issparse
 
 
 # add the moment code in; and incorporate the model selection code later
-def dynamics(adata, mode='steady_state', protein_names=None, experiment_type='deg', assumption_mRNA=None, assumption_protein='ss', concat_data=False):
+def dynamics(adata, filter_gene_mode='no', mode='steady_state', protein_names=None, experiment_type='deg', assumption_mRNA=None, assumption_protein='ss', concat_data=False):
     """Inclusive model of expression dynamics with scSLAM-seq and multiomics.
 
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object
+        filter_gene_mode: `str` (default: `final`)
+            The string for indicating the which mode (one of, ['final', 'basic', 'no']) of gene filter will be used.
         mode: `str` (default: steady_state)
             mode indicates which estimation framework will be used. Currently "steady_state" and "moment" methods are supported.
             A "model_selection" mode will be supported soon in which beta and gamma can be variable over time also.
@@ -41,42 +44,69 @@ def dynamics(adata, mode='steady_state', protein_names=None, experiment_type='de
     """
 
     U, Ul, S, Sl, P = None, None, None, None, None
+    if filter_gene_mode is 'final':
+        valid_ind = adata.var.use_for_dynamo
+    elif filter_gene_mode is 'basic':
+        valid_ind = adata.var.pass_basic_filter
+    elif filter_gene_mode is 'no':
+        valid_ind = np.arange(adata.shape[1])
 
     if 'X_unspliced' in adata.layers.keys():
-        U = adata.layers['X_unspliced'].T
+        U = adata[:, valid_ind].layers['X_unspliced'].T
     elif 'unspliced' in adata.layers.keys():
-        U = adata.layers['unspliced'].T
+        U = adata[:, valid_ind].layers['unspliced'].T
     elif 'X_new' in adata.layers.keys(): # run new / total ratio (NTR)
-        U = adata.layers['X_new'].T
+        U = adata[:, valid_ind].layers['X_new'].T
     elif 'new' in adata.layers.keys():
-        U = adata.layers['new'].T
+        U = adata[:, valid_ind].layers['new'].T
     elif 'X_uu' in adata.layers.keys():  # only uu, ul, su, sl provided
-        U = adata.layers['X_uu'].T
-    elif 'uu' in adata.layers.keys():
-        U = adata.layers['uu'].T
+        U = adata[:, valid_ind].layers['X_uu'].T
+    elif 'uu' in adata[:, valid_ind].layers.keys():
+        U = adata[:, valid_ind].layers['uu'].T
 
     if 'X_spliced' in adata.layers.keys():
-        S = adata.layers['X_spliced'].T
+        S = adata[:, valid_ind].layers['X_spliced'].T
     elif 'spliced' in adata.layers.keys():
-        S = adata.layers['spliced'].T
+        S = adata[:, valid_ind].layers['spliced'].T
     elif 'X_total' in adata.layers.keys(): # run new / total ratio (NTR)
-        U = adata.layers['X_total'].T
+        U = adata[:, valid_ind].layers['X_total'].T
     elif 'total' in adata.layers.keys():
-        U = adata.layers['total'].T
+        U = adata[:, valid_ind].layers['total'].T
     elif 'X_su' in adata.layers.keys():
-        U = adata.layers['X_su'].T
+        U = adata[:, valid_ind].layers['X_su'].T
     elif 'su' in adata.layers.keys():
-        U = adata.layers['su'].T
+        U = adata[:, valid_ind].layers['su'].T
 
     if 'X_ul' in adata.layers.keys():
-        Ul = adata.layers['X_ul'].T
+        Ul = adata[:, valid_ind].layers['X_ul'].T
     elif 'ul' in adata.layers.keys():
-        Ul = adata.layers['ul'].T
+        Ul = adata[:, valid_ind].layers['ul'].T
 
     if 'X_sl' in adata.layers.keys():
-        Sl = adata.layers['X_sl'].T
+        Sl = adata[:, valid_ind].layers['X_sl'].T
     elif 'sl' in adata.layers.keys():
-        Sl = adata.layers['sl'].T
+        Sl = adata[:, valid_ind].layers['sl'].T
+
+    if U is not None:
+        if issparse(U):
+            U.data = np.exp(U.data) - 1
+        else:
+            U = np.exp(U) - 1
+    if Ul is not None:
+        if issparse(Ul):
+            Ul.data = np.exp(Ul.data) - 1
+        else:
+            Ul = np.exp(Ul) - 1
+    if S is not None:
+        if issparse(S):
+            S.data = np.exp(S.data) - 1
+        else:
+            S = np.exp(S) - 1
+    if Sl is not None:
+        if issparse(S):
+            Sl.data = np.exp(Sl.data) - 1
+        else:
+            Sl = np.exp(Sl) - 1
 
     ind_for_proteins = None
     if 'X_protein' in adata.obsm.keys():
@@ -87,7 +117,8 @@ def dynamics(adata, mode='steady_state', protein_names=None, experiment_type='de
         if protein_names is None:
             warnings.warn('protein layer exists but protein_names is not provided. No estimation will be performed for protein data.')
         else:
-            ind_for_proteins = [np.where(adata.var.index == i)[0][0] for i in protein_names]
+            protein_names = list(set(adata[:, valid_ind].var.index).intersection(protein_names))
+            ind_for_proteins = [np.where(adata[:, valid_ind].var.index == i)[0][0] for i in protein_names]
 
     t = adata.obs.Time if 'Time' in adata.obs.columns else None
 
