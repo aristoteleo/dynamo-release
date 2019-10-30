@@ -37,10 +37,12 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
     V_mat = adata.obsm['velocity_' + vkey] if 'velocity_' + vkey in adata.obsm.keys() else None
     X_pca, X_embedding = adata.obsm['X_pca'], adata.obsm['X_'+basis]
 
-    n, knn = neighbors.shape[0], indices.shape[1] - 1 #remove the first one in kNN
-    rows = np.zeros((n * knn, 1))
-    cols = np.zeros((n * knn, 1))
-    vals = np.zeros((n * knn, 1))
+    n =  adata.shape[0]
+    if indices is not None:
+        knn = indices.shape[1] - 1 #remove the first one in kNN
+        rows = np.zeros((n * knn, 1))
+        cols = np.zeros((n * knn, 1))
+        vals = np.zeros((n * knn, 1))
 
     delta_X = np.zeros((n, X_embedding.shape[1]))
 
@@ -49,9 +51,11 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
         ndims = X_pca.shape[1]
         kmc.fit(X_pca[:, :ndims], V_mat[:, :ndims],  M_diff=4 * np.eye(ndims), epsilon=None,
                 adaptive_local_kernel=True, tol=1e-7) # neighbor_idx=indices,
-        T = kmc.compute_stationary_distribution()
-        delta_X = kmc.compute_density_corrected_drift(X_embedding, indices, normalize_vector=True)
-        X_grid, V_grid, D = velocity_on_grid(X_embedding, X_embedding + delta_X, xy_grid_nums=xy_grid_nums)
+        T = kmc.P
+        delta_X = kmc.compute_density_corrected_drift(X_embedding, kmc.Idx, normalize_vector=True) # indices, k = 500
+        P = kmc.compute_stationary_distribution()
+        adata.obs['stationary_distribution'] = P
+        X_grid, V_grid, D = velocity_on_grid(X_embedding, delta_X, xy_grid_nums=xy_grid_nums)
 
     elif method == 'empirical':
         idx = 0
@@ -177,3 +181,12 @@ def expected_return_time(M, backward=False):
     T = 1 / steady_state
     return T
 
+# from anndata import read_h5ad
+# adata = read_h5ad('/Users/xqiu/data/tmp2.h5ad')
+# import sys
+# sys.path.insert(0, '/Volumes/xqiu/proj/Aristotle/dynamo-release/dynamo/tools')
+# from Markov import *
+# import dynamo as dyn
+# adata=dyn.tl.reduceDimension(adata, velocity_key='velocity_S')
+#
+# cell_velocities(adata, vkey='pca', basis='umap', method='analytical', cores=1)

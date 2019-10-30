@@ -10,7 +10,7 @@ from .moments import Estimation
 from .simulation import Simulator
 
 from .velocity import sol_u, sol_s, sol_p, fit_linreg, fit_first_order_deg_lsq, fit_gamma_lsq, fit_alpha_synthesis, fit_alpha_degradation, velocity, estimation
-from .cell_velocities import cell_velocities, markov_combination, makeTransitionMatrix, diffusion
+from .cell_velocities import cell_velocities, diffusion, expected_return_time
 
 from .dynamics import dynamics
 

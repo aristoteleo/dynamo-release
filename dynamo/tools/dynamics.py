@@ -46,6 +46,9 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', protein_names
     U, Ul, S, Sl, P = None, None, None, None, None
     if filter_gene_mode is 'final':
         valid_ind = adata.var.use_for_dynamo
+        # import warnings
+        # from scipy.sparse import SparseEfficiencyWarning
+        # warnings.simplefilter('ignore', SparseEfficiencyWarning)
     elif filter_gene_mode is 'basic':
         valid_ind = adata.var.pass_basic_filter
     elif filter_gene_mode is 'no':
@@ -102,6 +105,8 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', protein_names
         else:
             protein_names = list(set(adata[:, valid_ind].var.index).intersection(protein_names))
             ind_for_proteins = [np.where(adata[:, valid_ind].var.index == i)[0][0] for i in protein_names]
+            adata.var['velocity_parameter_gamma'] = False
+            adata.var.loc[ind_for_proteins, 'velocity_parameter_gamma'] = True
 
     t = adata.obs.Time if 'Time' in adata.obs.columns else None
 
@@ -122,13 +127,13 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', protein_names
 
         if type(vel_U) is not float:
             adata.layers['velocity_U'] = csc_matrix((adata.shape))
-            adata[:, valid_ind].layers['velocity_U'] = vel_U.T
+            adata.layers['velocity_U'][:, np.where(valid_ind)[0]] = vel_U.T.tocsc()
         if type(vel_S) is not float:
             adata.layers['velocity_S'] = csc_matrix((adata.shape))
-            adata[:, valid_ind].layers['velocity_S'] = vel_S.T
+            adata.layers['velocity_S'][:, np.where(valid_ind)[0]] = vel_S.T.tocsc()
         if type(vel_P) is not float:
-            adata.obsm['velocity_P'] = csc_matrix((adata.shape))
-            adata[:, valid_ind].obsm['velocity_P'] = vel_P.T
+            adata.obsm['velocity_P'] = csc_matrix((adata.obsm['P'].shape[0], len(ind_for_proteins)))
+            adata.obsm['velocity_P'] = vel_P.T.tocsc()
 
         if alpha is not None: # for each cell
             adata.varm['velocity_parameter_alpha'] = np.nan
@@ -137,13 +142,13 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', protein_names
         adata.var['velocity_parameter_avg_alpha'] = alpha.mean(1) if alpha is not None else None
 
         adata.var['velocity_parameter_beta'], adata.var['velocity_parameter_gamma'] = np.nan, np.nan
-        adata[:, valid_ind].var['velocity_parameter_beta'] = beta
-        adata[:, valid_ind].var['velocity_parameter_gamma'] = gamma
+        adata.var.loc[valid_ind, 'velocity_parameter_beta'] = beta
+        adata.var.loc[valid_ind, 'velocity_parameter_gamma'] = gamma
 
         if ind_for_proteins is not None:
             adata.var['velocity_parameter_eta'], adata.var['velocity_parameter_delta'] = np.nan, np.nan
-            adata[:, valid_ind].var['velocity_parameter_eta'][ind_for_proteins] = eta
-            adata[:, valid_ind].var['velocity_parameter_delta'][ind_for_proteins] = delta
+            adata.var.loc[valid_ind, 'velocity_parameter_eta'][ind_for_proteins] = eta
+            adata.var.loc[valid_ind, 'velocity_parameter_delta'][ind_for_proteins] = delta
         # add velocity_offset here
     elif mode is 'moment':
         Moment = MomData(adata)
@@ -163,27 +168,26 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', protein_names
 
         if type(vel_U) is not float:
             adata.layers['velocity_U'] = csc_matrix((adata.shape))
-            adata[:, valid_ind].layers['velocity_U'] = vel_U.T
+            adata.layers['velocity_U'][:, np.where(valid_ind)[0]] = vel_U.T.tocsc()
         if type(vel_S) is not float:
             adata.layers['velocity_S'] = csc_matrix((adata.shape))
-            adata[:, valid_ind].layers['velocity_S'] = vel_S.T
+            adata.layers['velocity_S'][:, np.where(valid_ind)[0]] = vel_S.T.tocsc()
         if type(vel_P) is not float:
-            adata.layers['velocity_P'] = csc_matrix((adata.shape))
-            adata[:, valid_ind].obsm['velocity_P'] = vel_P.T
+            adata.obsm['velocity_P'] = csc_matrix((adata.obsm['P'].shape[0], len(ind_for_proteins)))
+            adata.obsm['velocity_P'] = vel_P.T.tocsc()
 
         adata.var['velocity_parameter_a'], adata.var['velocity_parameter_b'], adata.var['velocity_parameter_alpha_a'], \
         adata.var['velocity_parameter_alpha_i'], adata.var['velocity_parameter_beta'], \
         adata.var['velocity_parameter_gamma'] = np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
 
-        adata[:, valid_ind].var['velocity_parameter_a'] = a
-        adata[:, valid_ind].var['velocity_parameter_b'] = b
-        adata[:, valid_ind].var['velocity_parameter_alpha_a'] = alpha_a
-        adata[:, valid_ind].var['velocity_parameter_alpha_i'] = alpha_i
-        adata[:, valid_ind].var['velocity_parameter_beta'] = beta
-        adata[:, valid_ind].var['velocity_parameter_gamma'] = gamma
+        adata.var.loc[valid_ind, 'velocity_parameter_a'] = a
+        adata.var.loc[valid_ind, 'velocity_parameter_b'] = b
+        adata.var.loc[valid_ind, 'velocity_parameter_alpha_a'] = alpha_a
+        adata.var.loc[valid_ind, 'velocity_parameter_alpha_i'] = alpha_i
+        adata.var.loc[valid_ind, 'velocity_parameter_beta'] = beta
+        adata.var.loc[valid_ind, 'velocity_parameter_gamma'] = gamma
         # add velocity_offset here
     elif mode is 'model_selection':
         warnings.warn('Not implemented yet.')
 
     return adata
-

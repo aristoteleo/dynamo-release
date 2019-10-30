@@ -13,7 +13,7 @@ from scipy.sparse import issparse
 
 # cellranger data, velocyto, comparison and phase diagram
 
-def cell_wise_velocity(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=None, label_on_embedding=True,
+def cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=None, label_on_embedding=True,
                        cmap=None, s_kwargs_dict={}, layer='X', cell_ind='all', quiver_scale=None, figsize=None,
                        **q_kwargs):
     """Plot the velocity vector of each cell.
@@ -28,7 +28,7 @@ def cell_wise_velocity(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=
             The column index of the low dimensional embedding for the x-axis
         y: `int` (default: `1`)
             The column index of the low dimensional embedding for the y-axis
-        basis: `str` (default: `umap`)
+        basis: `str` (default: `trimap`)
             The reduced dimension embedding of cells to visualize.
         n_columns: `int  (default: 1)
             The number of columns of the resulting plot.
@@ -166,7 +166,7 @@ def cell_wise_velocity(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=
     plt.show()
 
 
-def grid_velocity(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=None, label_on_embedding=True, cmap=None,
+def grid_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=None, label_on_embedding=True, cmap=None,
                   s_kwargs_dict={}, layer='X', xy_grid_nums=[30, 30], g_kwargs_dict={}, quiver_scale=None, figsize=None,
                   **q_kwargs):
     """Plot the velocity vector of each cell.
@@ -181,7 +181,7 @@ def grid_velocity(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=None,
             The column index of the low dimensional embedding for the x-axis
         y: `int` (default: `1`)
             The column index of the low dimensional embedding for the y-axis
-        basis: `str` (default: `umap`)
+        basis: `str` (default: `trimap`)
             The reduced dimension embedding of cells to visualize.
         n_columns: `int  (default: 1)
             The number of columns of the resulting plot.
@@ -317,7 +317,7 @@ def grid_velocity(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=None,
     plt.show()
 
 
-def stremline_plot(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=None, label_on_embedding=True,
+def stremline_plot(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=None, label_on_embedding=True,
                    cmap=None, s_kwargs_dict={}, layer='X', xy_grid_nums=[30, 30], density=1, g_kwargs_dict={},
                    V_threshold=1e-5, figsize=None, **streamline_kwargs):
     """Plot the streamline of vector field based on the sampled cells.
@@ -332,7 +332,7 @@ def stremline_plot(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=None
             The column index of the low dimensional embedding for the x-axis
         y: `int` (default: `1`)
             The column index of the low dimensional embedding for the y-axis
-        basis: `str` (default: `umap`)
+        basis: `str` (default: `trimap`)
             The reduced dimension embedding of cells to visualize.
         n_columns: `int  (default: 1)
             The number of columns of the resulting plot.
@@ -399,10 +399,16 @@ def stremline_plot(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=None
     if 0 in E_vec.shape:
         raise Exception(f'The gene names {genes} (or cell annotations {color}) provided are not existed in your data.')
 
-    grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
-                             "adjust_for_stream": True, "V_threshold": V_threshold}
-    grid_kwargs_dict.update(g_kwargs_dict)
-    X_grid, V_grid, D = velocity_on_grid(X[:, [x, y]], V[:, [x, y]], xy_grid_nums, **grid_kwargs_dict)
+    if 'grid_velocity_' + basis in adata.uns.keys():
+        X_grid, V_grid, _ = adata.uns['grid_velocity_' + basis]['X_grid'], adata.uns['grid_velocity_' + basis]['V_grid'], \
+                            adata.uns['grid_velocity_' + basis]['D']
+    else:
+        grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
+                            "adjust_for_stream": True, "V_threshold": None}
+        grid_kwargs_dict.update(g_kwargs_dict)
+
+        X_grid, V_grid, D = velocity_on_grid(X[:, [x, y]], V[:, [x, y]], xy_grid_nums, **grid_kwargs_dict)
+
 
     # if quiver_scale is None:
     #     quiver_scale = quiver_autoscaler(X_grid, V_grid)
@@ -463,6 +469,7 @@ def stremline_plot(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=None
                     ax.text(color_cnt[0], color_cnt[1], str(i),
                              fontsize=13, bbox={"facecolor": "w", "alpha": 0.6})
 
+        ax.quiver(X_grid[0], X_grid[1], V_grid[0], V_grid[1]) # , **quiver_kwargs
         ax.streamplot(X_grid[0], X_grid[1], V_grid[0], V_grid[1], **streamplot_kwargs)
         ax.axis("off")
 

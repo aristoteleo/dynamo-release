@@ -181,7 +181,7 @@ def umap_conn_indices_dist_embedding(X,
     return graph, knn_indices, knn_dists, embedding_
 
 
-def reduceDimension(adata, n_pca_components=25, n_components=2, velocity_method=None, n_neighbors=10, reduction_method='UMAP', velocity_key='velocity_S'):
+def reduceDimension(adata, n_pca_components=25, n_components=2, velocity_method=None, n_neighbors=10, reduction_method='trimap', velocity_key='velocity_S'):
     """Compute a low dimension reduction projection of an annodata object first with PCA, followed by non-linear dimension reduction methods
 
     Arguments
@@ -237,10 +237,14 @@ def reduceDimension(adata, n_pca_components=25, n_components=2, velocity_method=
         X_dim = triplemap.fit_transform(X_pca)
 
         adata.obsm['X_trimap'] = X_dim
+        adata.uns['neighbors'] = {'params': {'n_neighbors': n_neighbors, 'method': reduction_method}, 'connectivities': None, \
+                                  'distances': None, 'indices': None}
     elif reduction_method is 'tSNE':
         bh_tsne = TSNE(n_components = n_components)
         X_dim = bh_tsne.fit_transform(X_pca)
         adata.obsm['X_tSNE'] = X_dim
+        adata.uns['neighbors'] = {'params': {'n_neighbors': n_neighbors, 'method': reduction_method}, 'connectivities': None, \
+                                  'distances': None, 'indices': None}
     elif reduction_method is 'UMAP':
         graph, knn_indices, knn_dists, X_dim = umap_conn_indices_dist_embedding(X) # X_pca
         adata.obsm['X_umap'] = X_dim.copy()
