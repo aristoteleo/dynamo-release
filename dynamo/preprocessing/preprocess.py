@@ -77,7 +77,7 @@ def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, r
         layers: str (default: all)
             The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
         norm_method: `str`
-            The method used to normalize data.
+            The method used to normalize data. Note that this method only applies to the X data.
         pseudo_expr: `int`
             A pseudocount added to the gene expression value before log2 normalization.
         relative_expr: `bool`
@@ -127,11 +127,11 @@ def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, r
 
             if pseudo_expr is None:
                 pseudo_expr = 1
-
-            if issparse(FM):
-                FM.data = np.log2(FM.data + pseudo_expr)
-            else:
-                FM = np.log2(FM + pseudo_expr)
+            if layer is 'X':
+                if issparse(FM):
+                    FM.data = np.log2(FM.data + pseudo_expr)
+                else:
+                    FM = np.log2(FM + pseudo_expr)
 
         elif layer is 'protein': # norm_method == 'clr':
             if norm_method is not 'clr':

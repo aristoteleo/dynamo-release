@@ -2,11 +2,11 @@ from .velocity import velocity, estimation
 from .moments import MomData, Estimation
 import warnings
 import numpy as np
-from scipy.sparse import issparse
+from scipy.sparse import issparse, csc_matrix
 
 
 # add the moment code in; and incorporate the model selection code later
-def dynamics(adata, filter_gene_mode='no', mode='steady_state', protein_names=None, experiment_type='deg', assumption_mRNA=None, assumption_protein='ss', concat_data=False):
+def dynamics(adata, filter_gene_mode='final', mode='steady_state', protein_names=None, experiment_type='deg', assumption_mRNA=None, assumption_protein='ss', concat_data=False):
     """Inclusive model of expression dynamics with scSLAM-seq and multiomics.
 
     Parameters
@@ -55,10 +55,12 @@ def dynamics(adata, filter_gene_mode='no', mode='steady_state', protein_names=No
         U = adata[:, valid_ind].layers['X_unspliced'].T
     elif 'unspliced' in adata.layers.keys():
         U = adata[:, valid_ind].layers['unspliced'].T
+
     elif 'X_new' in adata.layers.keys(): # run new / total ratio (NTR)
         U = adata[:, valid_ind].layers['X_new'].T
     elif 'new' in adata.layers.keys():
         U = adata[:, valid_ind].layers['new'].T
+
     elif 'X_uu' in adata.layers.keys():  # only uu, ul, su, sl provided
         U = adata[:, valid_ind].layers['X_uu'].T
     elif 'uu' in adata[:, valid_ind].layers.keys():
@@ -68,10 +70,12 @@ def dynamics(adata, filter_gene_mode='no', mode='steady_state', protein_names=No
         S = adata[:, valid_ind].layers['X_spliced'].T
     elif 'spliced' in adata.layers.keys():
         S = adata[:, valid_ind].layers['spliced'].T
+
     elif 'X_total' in adata.layers.keys(): # run new / total ratio (NTR)
         U = adata[:, valid_ind].layers['X_total'].T
     elif 'total' in adata.layers.keys():
         U = adata[:, valid_ind].layers['total'].T
+
     elif 'X_su' in adata.layers.keys():
         U = adata[:, valid_ind].layers['X_su'].T
     elif 'su' in adata.layers.keys():
@@ -86,27 +90,6 @@ def dynamics(adata, filter_gene_mode='no', mode='steady_state', protein_names=No
         Sl = adata[:, valid_ind].layers['X_sl'].T
     elif 'sl' in adata.layers.keys():
         Sl = adata[:, valid_ind].layers['sl'].T
-
-    if U is not None:
-        if issparse(U):
-            U.data = np.exp(U.data) - 1
-        else:
-            U = np.exp(U) - 1
-    if Ul is not None:
-        if issparse(Ul):
-            Ul.data = np.exp(Ul.data) - 1
-        else:
-            Ul = np.exp(Ul) - 1
-    if S is not None:
-        if issparse(S):
-            S.data = np.exp(S.data) - 1
-        else:
-            S = np.exp(S) - 1
-    if Sl is not None:
-        if issparse(S):
-            Sl.data = np.exp(Sl.data) - 1
-        else:
-            Sl = np.exp(Sl) - 1
 
     ind_for_proteins = None
     if 'X_protein' in adata.obsm.keys():
@@ -138,21 +121,29 @@ def dynamics(adata, filter_gene_mode='no', mode='steady_state', protein_names=No
         vel_P = vel.vel_p(S, P)
 
         if type(vel_U) is not float:
-            adata.layers['velocity_U'] = vel_U.T
+            adata.layers['velocity_U'] = csc_matrix((adata.shape))
+            adata[:, valid_ind].layers['velocity_U'] = vel_U.T
         if type(vel_S) is not float:
-            adata.layers['velocity_S'] = vel_S.T
+            adata.layers['velocity_S'] = csc_matrix((adata.shape))
+            adata[:, valid_ind].layers['velocity_S'] = vel_S.T
         if type(vel_P) is not float:
-            adata.obsm['velocity_P'] = vel_P.T
+            adata.obsm['velocity_P'] = csc_matrix((adata.shape))
+            adata[:, valid_ind].obsm['velocity_P'] = vel_P.T
 
         if alpha is not None: # for each cell
-            adata.varm['velocity_parameter_alpha'] = alpha
+            adata.varm['velocity_parameter_alpha'] = np.nan
+            adata[:, valid_ind].varm['velocity_parameter_alpha'] = alpha
 
         adata.var['velocity_parameter_avg_alpha'] = alpha.mean(1) if alpha is not None else None
-        adata.var['velocity_parameter_beta'] = beta
-        adata.var['velocity_parameter_gamma'] = gamma
+
+        adata.var['velocity_parameter_beta'], adata.var['velocity_parameter_gamma'] = np.nan, np.nan
+        adata[:, valid_ind].var['velocity_parameter_beta'] = beta
+        adata[:, valid_ind].var['velocity_parameter_gamma'] = gamma
+
         if ind_for_proteins is not None:
-            adata.var['velocity_parameter_eta'][ind_for_proteins] = eta
-            adata.var['velocity_parameter_delta'][ind_for_proteins] = delta
+            adata.var['velocity_parameter_eta'], adata.var['velocity_parameter_delta'] = np.nan, np.nan
+            adata[:, valid_ind].var['velocity_parameter_eta'][ind_for_proteins] = eta
+            adata[:, valid_ind].var['velocity_parameter_delta'][ind_for_proteins] = delta
         # add velocity_offset here
     elif mode is 'moment':
         Moment = MomData(adata)
@@ -171,18 +162,25 @@ def dynamics(adata, filter_gene_mode='no', mode='steady_state', protein_names=No
         vel_P = vel.vel_p(S, P)
 
         if type(vel_U) is not float:
-            adata.layers['velocity_U'] = vel_U.T
+            adata.layers['velocity_U'] = csc_matrix((adata.shape))
+            adata[:, valid_ind].layers['velocity_U'] = vel_U.T
         if type(vel_S) is not float:
-            adata.layers['velocity_S'] = vel_S.T
+            adata.layers['velocity_S'] = csc_matrix((adata.shape))
+            adata[:, valid_ind].layers['velocity_S'] = vel_S.T
         if type(vel_P) is not float:
-            adata.obsm['velocity_P'] = vel_P.T
+            adata.layers['velocity_P'] = csc_matrix((adata.shape))
+            adata[:, valid_ind].obsm['velocity_P'] = vel_P.T
 
-        adata.var['velocity_parameter_a'] = a
-        adata.var['velocity_parameter_b'] = b
-        adata.var['velocity_parameter_alpha_a'] = alpha_a
-        adata.var['velocity_parameter_alpha_i'] = alpha_i
-        adata.var['velocity_parameter_beta'] = beta
-        adata.var['velocity_parameter_gamma'] = gamma
+        adata.var['velocity_parameter_a'], adata.var['velocity_parameter_b'], adata.var['velocity_parameter_alpha_a'], \
+        adata.var['velocity_parameter_alpha_i'], adata.var['velocity_parameter_beta'], \
+        adata.var['velocity_parameter_gamma'] = np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
+
+        adata[:, valid_ind].var['velocity_parameter_a'] = a
+        adata[:, valid_ind].var['velocity_parameter_b'] = b
+        adata[:, valid_ind].var['velocity_parameter_alpha_a'] = alpha_a
+        adata[:, valid_ind].var['velocity_parameter_alpha_i'] = alpha_i
+        adata[:, valid_ind].var['velocity_parameter_beta'] = beta
+        adata[:, valid_ind].var['velocity_parameter_gamma'] = gamma
         # add velocity_offset here
     elif mode is 'model_selection':
         warnings.warn('Not implemented yet.')

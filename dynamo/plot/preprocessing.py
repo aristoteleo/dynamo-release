@@ -270,7 +270,7 @@ def phase_portrait(adata, genes, mode='splicing', vkey='S', ekey='X', basis='uma
                            "expression": E_vec.flatten(), "velocity": V_vec.flatten()}, index=range(n_cells * n_genes))
 
     elif mode is 'splicing' and all([i in adata.layers.keys() for i in ['spliced', 'unspliced']]):
-        unspliced_mat, spliced_mat = adata[:, genes].layers['unspliced'], adata[:, genes].layers['spliced']
+        unspliced_mat, spliced_mat = adata[:, genes].layers['X_unspliced'], adata[:, genes].layers['X_spliced']
         unspliced_mat, spliced_mat = (unspliced_mat.A, spliced_mat.A) if issparse(unspliced_mat) else (unspliced_mat, spliced_mat)
 
         df = pd.DataFrame({"unspliced": unspliced_mat.flatten(), "spliced": spliced_mat.flatten(), 'gene': genes * n_cells,
@@ -278,8 +278,8 @@ def phase_portrait(adata, genes, mode='splicing', vkey='S', ekey='X', basis='uma
                            "expression": E_vec.flatten(), "velocity": V_vec.flatten()}, index=range(n_cells * n_genes))
 
     elif mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]):
-        uu, ul, su, sl = adata[:, genes].layers['uu'], adata[:, genes].layers['ul'], adata[:, genes].layers['su'], \
-                         adata[:, genes].layers['sl']
+        uu, ul, su, sl = adata[:, genes].layers['X_uu'], adata[:, genes].layers['X_ul'], adata[:, genes].layers['X_su'], \
+                         adata[:, genes].layers['X_sl']
         if 'protein' in adata.obsm.keys():
             if 'velocity_parameter_eta' in adata.var.columns:
                 gamma_P = adata.var.velocity_parameter_eta[genes].values

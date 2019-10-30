@@ -109,7 +109,7 @@ def cell_wise_velocity(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=
     if figsize is None:
         plt.figure(None, (ncol * 3, nrow * 3), dpi=160)
     else:
-        plt.figure(None, (ncol * figsize[0], nrow * figsize[0]), dpi=160)
+        plt.figure(None, (ncol * figsize[0], nrow * figsize[1]), dpi=160)
 
     E_vec = E_vec.A.flatten() if issparse(E_vec) else E_vec.flatten()
     V = V.A[:, [x, y]] if issparse(V) else V[:, [x, y]]
@@ -262,7 +262,7 @@ def grid_velocity(adata, genes, x=0, y=1, basis='umap', n_columns=1, color=None,
     if figsize is None:
         plt.figure(None, (3*ncol, 3*nrow)) # , dpi=160
     else:
-        plt.figure(None, (figsize[0]*ncol, figsize[0]*nrow)) # , dpi=160
+        plt.figure(None, (figsize[0]*ncol, figsize[1]*nrow)) # , dpi=160
 
     E_vec = E_vec.A.flatten() if issparse(E_vec) else E_vec.flatten()
     V = V.A[:, [x, y]] if issparse(V) else V[:, [x, y]]
