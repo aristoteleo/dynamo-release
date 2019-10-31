@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from scipy.sparse import issparse
+from scipy.sparse import issparse, csr_matrix
 
 from ..preprocessing.preprocess import topTable
 from .utilities import despline, minimal_xticks, minimal_yticks
@@ -46,13 +46,17 @@ def show_fraction(adata, mode='splicing', group=None):
             res = df.melt(value_vars=['new_frac_cell', 'old_frac_cell'])
 
     elif mode is 'splicing' and all([i in adata.layers.keys() for i in ['spliced', 'unspliced']]):
-        ambiguous = adata.layers['ambiguous'] if 'ambiguous' in adata.layers.keys() else np.array(0)
+        if 'ambiguous' in adata.layers.keys():
+            ambiguous = adata.layers['ambiguous']
+        else:
+            ambiguous = csr_matrix(np.array([[0]])) if issparse(adata.layers['unspliced']) else np.array([[0]])
 
         unspliced_mat, spliced_mat, ambiguous_mat = adata.layers['unspliced'], adata.layers['spliced'], ambiguous
-        un_cell_sum, sp_cell_sum, am_cell_sum = (np.sum(unspliced_mat, 1), np.sum(spliced_mat, 1), np.sum(ambiguous_mat, 1))  if not \
-            issparse(unspliced_mat) else (unspliced_mat.sum(1).A1, spliced_mat.sum(1).A1, ambiguous_mat.sum(1).A1)
+        un_cell_sum, sp_cell_sum = (np.sum(unspliced_mat, 1), np.sum(spliced_mat, 1)) if not \
+            issparse(unspliced_mat) else (unspliced_mat.sum(1).A1, spliced_mat.sum(1).A1)
 
-        if ambiguous is not np.array(0):
+        if 'ambiguous' in adata.layers.keys():
+            am_cell_sum = ambiguous_mat.sum(1).A1 if issparse(unspliced_mat) else np.sum(ambiguous_mat, 1)
             tot_cell_sum = un_cell_sum + sp_cell_sum + am_cell_sum
             un_frac_cell, sp_frac_cell, am_frac_cell = un_cell_sum / tot_cell_sum, sp_cell_sum / tot_cell_sum, am_cell_sum / tot_cell_sum
             df = pd.DataFrame({'unspliced': un_frac_cell, 'spliced': sp_frac_cell, 'ambiguous': am_frac_cell}, index=adata.obs.index)
@@ -63,10 +67,10 @@ def show_fraction(adata, mode='splicing', group=None):
 
         if group is not None and group in adata.obs.columns:
             df['group'] = adata.obs.loc[:, group]
-            res = df.melt(value_vars=['unspliced', 'spliced', 'ambiguous'], id_vars=['group']) if ambiguous is not np.array(0) else \
+            res = df.melt(value_vars=['unspliced', 'spliced', 'ambiguous'], id_vars=['group']) if 'ambiguous' in adata.layers.keys() else \
                 df.melt(value_vars=['unspliced', 'spliced'], id_vars=['group'])
         else:
-            res = df.melt(value_vars=['unspliced', 'spliced', 'ambiguous']) if ambiguous is not np.array(0) else \
+            res = df.melt(value_vars=['unspliced', 'spliced', 'ambiguous']) if 'ambiguous' in adata.layers.keys() else \
                  df.melt(value_vars=['unspliced', 'spliced'])
 
     elif mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]):

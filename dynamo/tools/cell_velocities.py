@@ -49,7 +49,7 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
     if method == 'analytical':
         kmc = KernelMarkovChain()
         ndims = X_pca.shape[1]
-        kmc.fit(X_pca[:, :ndims], V_mat[:, :ndims],  M_diff=4 * np.eye(ndims), epsilon=None,
+        kmc.fit(X_pca[:, :ndims], V_mat[:, :ndims],  k=min(500, X_pca.shape[0] - 1), M_diff=4 * np.eye(ndims), epsilon=None,
                 adaptive_local_kernel=True, tol=1e-7) # neighbor_idx=indices,
         T = kmc.P
         delta_X = kmc.compute_density_corrected_drift(X_embedding, kmc.Idx, normalize_vector=True) # indices, k = 500

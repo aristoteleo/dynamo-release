@@ -622,7 +622,7 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_unflitered=True, min_c
     return adata
 
 
-def recipe_monocle(adata, layer=None, method='PCA', num_dim=50, norm_method='log', pseudo_expr=1,
+def recipe_monocle(adata, layer=None, gene_to_use=None, method='PCA', num_dim=50, norm_method='log', pseudo_expr=1,
                    feature_selection = 'dispersion', n_top_genes = 2000,
                    relative_expr=True, scaling=True, **kwargs):
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
@@ -633,6 +633,8 @@ def recipe_monocle(adata, layer=None, method='PCA', num_dim=50, norm_method='log
             AnnData object
         layers: str (default: None)
             The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
+        gene_to_use: `list` (default: None)
+            A list genes of gene names that will be used to set as the feature genes for downstream analysis.
         method: `str`
             The linear dimension reduction methods to be used.
         num_dim: `int`
@@ -663,7 +665,10 @@ def recipe_monocle(adata, layer=None, method='PCA', num_dim=50, norm_method='log
     # normalize on all genes
     adata = normalize_expr_data(adata, norm_method=norm_method, pseudo_expr=pseudo_expr, relative_expr=relative_expr)
     # set use_for_dynamo
-    adata = filter_genes(adata, sort_by=feature_selection, n_top_genes=n_top_genes, **kwargs)
+    if gene_to_use is None:
+        adata = filter_genes(adata, sort_by=feature_selection, n_top_genes=n_top_genes, **kwargs)
+    else:
+        adata.var['use_for_dynamo'] = adata.var.index.isin(gene_to_use)
     # only use genes pass filter (based on use_for_dynamo) to perform dimension reduction.
     if layer is None:
         FM = adata.X[:, adata.var.use_for_dynamo.values] if 'spliced' not in adata.layers.keys() else adata.layers['spliced'][:, adata.var.use_for_dynamo.values]

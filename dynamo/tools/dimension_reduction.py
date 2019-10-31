@@ -247,7 +247,7 @@ def reduceDimension(adata, n_pca_components=25, n_components=2, velocity_method=
                                   'distances': None, 'indices': None}
     elif reduction_method is 'UMAP':
         graph, knn_indices, knn_dists, X_dim = umap_conn_indices_dist_embedding(X) # X_pca
-        adata.obsm['X_umap'] = X_dim.copy()
+        adata.obsm['X_umap'] = X_dim
         adata.uns['neighbors'] = {'params': {'n_neighbors': n_neighbors, 'method': reduction_method}, 'connectivities': graph, \
                                   'distances': knn_dists, 'indices': knn_indices}
     elif reduction_method is 'PSL':

@@ -2,7 +2,7 @@ from .velocity import velocity, estimation
 from .moments import MomData, Estimation
 import warnings
 import numpy as np
-from scipy.sparse import issparse, csc_matrix
+from scipy.sparse import issparse, csr_matrix
 
 
 # add the moment code in; and incorporate the model selection code later
@@ -126,14 +126,14 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', protein_names
         vel_P = vel.vel_p(S, P)
 
         if type(vel_U) is not float:
-            adata.layers['velocity_U'] = csc_matrix((adata.shape))
-            adata.layers['velocity_U'][:, np.where(valid_ind)[0]] = vel_U.T.tocsc()
+            adata.layers['velocity_U'] = csr_matrix((adata.shape))
+            adata.layers['velocity_U'][:, np.where(valid_ind)[0]] = vel_U.T.tocsr()
         if type(vel_S) is not float:
-            adata.layers['velocity_S'] = csc_matrix((adata.shape))
-            adata.layers['velocity_S'][:, np.where(valid_ind)[0]] = vel_S.T.tocsc()
+            adata.layers['velocity_S'] = csr_matrix((adata.shape))
+            adata.layers['velocity_S'][:, np.where(valid_ind)[0]] = vel_S.T.tocsr()
         if type(vel_P) is not float:
-            adata.obsm['velocity_P'] = csc_matrix((adata.obsm['P'].shape[0], len(ind_for_proteins)))
-            adata.obsm['velocity_P'] = vel_P.T.tocsc()
+            adata.obsm['velocity_P'] = csr_matrix((adata.obsm['P'].shape[0], len(ind_for_proteins)))
+            adata.obsm['velocity_P'] = vel_P.T.tocsr()
 
         if alpha is not None: # for each cell
             adata.varm['velocity_parameter_alpha'] = np.nan
@@ -167,14 +167,14 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', protein_names
         vel_P = vel.vel_p(S, P)
 
         if type(vel_U) is not float:
-            adata.layers['velocity_U'] = csc_matrix((adata.shape))
-            adata.layers['velocity_U'][:, np.where(valid_ind)[0]] = vel_U.T.tocsc()
+            adata.layers['velocity_U'] = csr_matrix((adata.shape))
+            adata.layers['velocity_U'][:, np.where(valid_ind)[0]] = vel_U.T.tocsr()
         if type(vel_S) is not float:
-            adata.layers['velocity_S'] = csc_matrix((adata.shape))
-            adata.layers['velocity_S'][:, np.where(valid_ind)[0]] = vel_S.T.tocsc()
+            adata.layers['velocity_S'] = csr_matrix((adata.shape))
+            adata.layers['velocity_S'][:, np.where(valid_ind)[0]] = vel_S.T.tocsr()
         if type(vel_P) is not float:
-            adata.obsm['velocity_P'] = csc_matrix((adata.obsm['P'].shape[0], len(ind_for_proteins)))
-            adata.obsm['velocity_P'] = vel_P.T.tocsc()
+            adata.obsm['velocity_P'] = csr_matrix((adata.obsm['P'].shape[0], len(ind_for_proteins)))
+            adata.obsm['velocity_P'] = vel_P.T.tocsr()
 
         adata.var['velocity_parameter_a'], adata.var['velocity_parameter_b'], adata.var['velocity_parameter_alpha_a'], \
         adata.var['velocity_parameter_alpha_i'], adata.var['velocity_parameter_beta'], \

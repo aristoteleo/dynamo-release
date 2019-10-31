@@ -470,6 +470,10 @@ def stremline_plot(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=No
                              fontsize=13, bbox={"facecolor": "w", "alpha": 0.6})
 
         ax.quiver(X_grid[0], X_grid[1], V_grid[0], V_grid[1]) # , **quiver_kwargs
+        if V_threshold is not None:
+            bool_filter = np.logical_or(V_grid[0] < V_threshold, V_grid[1] < V_threshold)
+            V_grid[bool_filter] = np.nan
+
         ax.streamplot(X_grid[0], X_grid[1], V_grid[0], V_grid[1], **streamplot_kwargs)
         ax.axis("off")
 
