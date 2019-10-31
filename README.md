@@ -5,7 +5,7 @@ Understanding how gene expression in single cells progress over time is vital fo
 
 ## Dynamo workflow 
 
-![dynamo_workflow](https://www.dropbox.com/s/qnh34zgtt6vdz8e/dynamo_workflow.png?raw=1)
+![dynamo_workflow](https://www.dropbox.com/s/awwcs97exu01kvs/dynamo_workflow.png?raw=1)
 
 In the following, you can see python snippets that highlight each of the main steps in dynamo. 
 
