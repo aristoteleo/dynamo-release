@@ -2,50 +2,55 @@ import numpy as np
 import scipy as scp
 from scipy.sparse import csc_matrix, issparse
 from .Markov import *
+from numba import jit
 
-def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_cells_trick=False, xy_grid_nums=(50, 50), cores=1):
+def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_cells_trick=False, calc_rnd_vel=False,
+                    xy_grid_nums=(50, 50), random_seed=19491001):
     """Compute transition probability and project high dimension velocity vector to existing low dimension embedding.
 
     We may consider using umap transform function or applying a neuron net model to project the velocity vectors.
 
     Arguments
     ---------
-    adata: :class:`~anndata.AnnData`
-        an Annodata object
-    vkey: 'int' (optional, default velocity)
-        The dictionary key that corresponds to the estimated velocity values in layers slot.
-    basis: 'int' (optional, default umap)
-        The dictionary key that corresponds to the reduced dimension in obsm slot.
-    method: `string` (optimal, default 'analytical')
-        The method to calculate the transition matrix and project high dimensional vector to low dimension, either analytical
-        or empirical. "analytical" is our new approach to learn the transition matrix via diffusion approximation or an Itô
-        kernel. "empirical" is the method used in the original RNA velocity paper via correlation. "analytical" option is
-        better than "empirical" as it not only consider the correlation but also the distance of the nearest neighbors to
-        the high dimensional velocity vector.
-    neg_cells_trick: 'bool' (optional, default False)
-        Whether we should handle cells having negative correlations in gene expression difference with high dimensional
-        velocity vector separately. This option is inspired from scVelo package (https://github.com/theislab/scvelo). Not
-        required if method is set to be "analytical".
+        adata: :class:`~anndata.AnnData`
+            an Annodata object
+        vkey: 'int' (optional, default velocity)
+            The dictionary key that corresponds to the estimated velocity values in layers slot.
+        basis: 'int' (optional, default umap)
+            The dictionary key that corresponds to the reduced dimension in obsm slot.
+        method: `string` (optimal, default 'analytical')
+            The method to calculate the transition matrix and project high dimensional vector to low dimension, either analytical
+            or empirical. "analytical" is our new approach to learn the transition matrix via diffusion approximation or an Itô
+            kernel. "empirical" is the method used in the original RNA velocity paper via correlation. "analytical" option is
+            better than "empirical" as it not only consider the correlation but also the distance of the nearest neighbors to
+            the high dimensional velocity vector.
+        neg_cells_trick: 'bool' (optional, default False)
+            Whether we should handle cells having negative correlations in gene expression difference with high dimensional
+            velocity vector separately. This option is inspired from scVelo package (https://github.com/theislab/scvelo). Not
+            required if method is set to be "analytical".
+        calc_rnd_vel: `bool` (default: `False`)
+            A logic flag to determine whether we will calculate the random velocity vectors which can be plotted downstream
+            as a negative control and used to adjust the quiver scale of the velocity field.
+        xy_grid_nums: `tuple` (default: (50, 50).
+            A tuple of number of grids on each dimension.
+        random_seed: `int` (default: 19491001)
+            The random seed for numba to ensure consistency of the random velocity vectors. Default value 19491001 is a special
+            day for those who care.
 
     Returns
     -------
-    Returns an updated `~anndata.AnnData` with transition_matrix and projected embedding of high dimension velocity vector
-    in the existing embeding of current cell state, calculated using method from (La Manno et al. 2018).
+        Adata: :class:`~anndata.AnnData`
+            Returns an updated `~anndata.AnnData` with transition_matrix and projected embedding of high dimension velocity vector
+            in the existing embeding of current cell state, calculated using method from (La Manno et al. 2018).
     """
+    if calc_rnd_vel:
+        numba_random_seed(random_seed)
 
     neighbors, dist, indices = adata.uns['neighbors']['connectivities'], adata.uns['neighbors']['distances'], adata.uns['neighbors']['indices']
     V_mat = adata.obsm['velocity_' + vkey] if 'velocity_' + vkey in adata.obsm.keys() else None
     X_pca, X_embedding = adata.obsm['X_pca'], adata.obsm['X_'+basis]
 
-    n =  adata.shape[0]
-    if indices is not None:
-        knn = indices.shape[1] - 1 #remove the first one in kNN
-        rows = np.zeros((n * knn, 1))
-        cols = np.zeros((n * knn, 1))
-        vals = np.zeros((n * knn, 1))
-
-    delta_X = np.zeros((n, X_embedding.shape[1]))
-
+    # add both source and sink distribution
     if method == 'analytical':
         kmc = KernelMarkovChain()
         ndims = X_pca.shape[1]
@@ -57,62 +62,35 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
         adata.obs['stationary_distribution'] = P
         X_grid, V_grid, D = velocity_on_grid(X_embedding, delta_X, xy_grid_nums=xy_grid_nums)
 
-    elif method == 'empirical':
-        idx = 0
-        for i in range(n):
-            i_vals = np.zeros((knn, 1))
-            velocity = V_mat[i, :] # project V_mat to pca space
-            diff_velocity = np.sign(velocity) * np.sqrt(np.abs(velocity))
+        if calc_rnd_vel:
+            kmc = KernelMarkovChain()
+            ndims = X_pca.shape[1]
+            permute_rows_nsign(V_mat)
+            kmc.fit(X_pca[:, :ndims], V_mat[:, :ndims], k=min(500, X_pca.shape[0] - 1), M_diff=4 * np.eye(ndims),
+                    epsilon=None,
+                    adaptive_local_kernel=True, tol=1e-7)  # neighbor_idx=indices,
+            T_rnd = kmc.P
+            delta_X_rnd = kmc.compute_density_corrected_drift(X_embedding, kmc.Idx,
+                                                          normalize_vector=True)  # indices, k = 500
+            P_rnd = kmc.compute_stationary_distribution()
+            adata.obs['stationary_distribution_rnd'] = P_rnd
+            X_grid_rnd, V_grid_rnd, D_rnd = velocity_on_grid(X_embedding, delta_X_rnd, xy_grid_nums=xy_grid_nums)
 
-            for j in np.arange(1, knn + 1):
-                neighbor_ind_j = indices[i, j]
-                diff = X_pca[neighbor_ind_j, :] - X_pca[i, :]
-                diff_rho = np.sign(diff) * np.sqrt(np.abs(diff))
-                pearson_corr = np.corrcoef(diff_rho, diff_velocity)[0, 1]
+    elif method == 'empirical': # add random velocity vectors calculation below
+        T, delta_X, X_grid, V_grid, D = _empirical_vec(X_pca, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors)
 
-                rows[idx] = i
-                cols[idx] = neighbor_ind_j
-                i_vals[j - 1] = pearson_corr
-                idx = idx + 1
-
-            if neg_cells_trick:
-                val_ind_vec = np.array(range(i*knn,(i+1)*knn))
-                for sig in [-1, 1]:
-                    cur_ind = np.where(np.sign(i_vals) == sig)[0]
-                    if len(cur_ind) == 0:
-                        continue
-
-                    cur_i_vals = i_vals[cur_ind]
-                    sigma = max(abs(cur_i_vals))
-                    exp_i_vals = np.exp(np.abs(cur_i_vals) / sigma)
-                    denominator = sum(exp_i_vals)
-                    i_prob = exp_i_vals / denominator
-                    vals[val_ind_vec[cur_ind]] = sig * i_prob
-
-                    j_vec = indices[i, 1:][cur_ind]
-                    numerator = sig * np.array([X_embedding[j, :] - X_embedding[i, :] for j in j_vec])
-                    denominator = np.array([[scp.linalg.norm(numerator[j]) for j in range(len(j_vec))]]).T
-
-                    delta_X[i, :] += 0.5 * (i_prob - 1 / len(cur_ind)).T.dot(numerator / np.hstack((denominator, denominator))).flatten()
-            else:
-                sigma = max(abs(i_vals))
-                exp_i_vals = np.exp(i_vals / sigma)
-                denominator = sum(exp_i_vals)
-                i_prob = exp_i_vals / denominator
-                vals[i*knn:(i+1)*knn] = i_prob
-
-                j_vec = indices[i, 1:]
-                numerator = np.array([X_embedding[j, :] - X_embedding[i, :] for j in j_vec])
-                denominator = np.array([[scp.linalg.norm(numerator[j]) for j in range(knn)]]).T
-
-                delta_X[i, :] = (i_prob - 1 / knn).T.dot(numerator / np.hstack((denominator, denominator)))
-            X_grid, V_grid, D = velocity_on_grid(X_embedding, X_embedding + delta_X, xy_grid_nums=xy_grid_nums)
-
-        T = csc_matrix((vals.flatten(), (rows.flatten(), cols.flatten())), shape=neighbors.shape)
+        if calc_rnd_vel:
+            permute_rows_nsign(V_mat)
+            T_rnd, delta_X_rnd, X_grid_rnd, V_grid_rnd, D_rnd = _empirical_vec(X_pca, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors)
 
     adata.uns['transition_matrix'] = T
     adata.obsm['velocity_' + basis] = delta_X
     adata.uns['grid_velocity_' + basis] = {'X_grid': X_grid, "V_grid": V_grid, "D": D}
+
+    if calc_rnd_vel:
+        adata.uns['transition_matrix_rnd'] = T_rnd
+        adata.obsm['velocity_' + basis + '_rnd'] = delta_X_rnd
+        adata.uns['grid_velocity_' + basis + '_rnd'] = {'X_grid': X_grid_rnd, "V_grid": V_grid_rnd, "D": D_rnd}
 
     return adata
 
@@ -181,12 +159,109 @@ def expected_return_time(M, backward=False):
     T = 1 / steady_state
     return T
 
-# from anndata import read_h5ad
-# adata = read_h5ad('/Users/xqiu/data/tmp2.h5ad')
-# import sys
-# sys.path.insert(0, '/Volumes/xqiu/proj/Aristotle/dynamo-release/dynamo/tools')
-# from Markov import *
-# import dynamo as dyn
-# adata=dyn.tl.reduceDimension(adata, velocity_key='velocity_S')
-#
-# cell_velocities(adata, vkey='pca', basis='umap', method='analytical', cores=1)
+
+def _empirical_vec(X_pca, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors):
+    """utility function for calculating the transition matrix or low dimensional velocity embedding via the original correlation kernel."""
+    n =  X_pca.shape[0]
+    if indices is not None:
+        knn = indices.shape[1] - 1 #remove the first one in kNN
+        rows = np.zeros((n * knn, 1))
+        cols = np.zeros((n * knn, 1))
+        vals = np.zeros((n * knn, 1))
+
+    delta_X = np.zeros((n, X_embedding.shape[1]))
+
+    for i in range(n):
+        i_vals = np.zeros((knn, 1))
+        velocity = V_mat[i, :]  # project V_mat to pca space
+        diff_velocity = np.sign(velocity) * np.sqrt(np.abs(velocity))
+
+        for j in np.arange(1, knn + 1):
+            neighbor_ind_j = indices[i, j]
+            diff = X_pca[neighbor_ind_j, :] - X_pca[i, :]
+            diff_rho = np.sign(diff) * np.sqrt(np.abs(diff))
+            pearson_corr = np.corrcoef(diff_rho, diff_velocity)[0, 1]
+
+            rows[idx] = i
+            cols[idx] = neighbor_ind_j
+            i_vals[j - 1] = pearson_corr
+            idx = idx + 1
+
+        if neg_cells_trick:
+            val_ind_vec = np.array(range(i * knn, (i + 1) * knn))
+            for sig in [-1, 1]:
+                cur_ind = np.where(np.sign(i_vals) == sig)[0]
+                if len(cur_ind) == 0:
+                    continue
+
+                cur_i_vals = i_vals[cur_ind]
+                sigma = max(abs(cur_i_vals))
+                exp_i_vals = np.exp(np.abs(cur_i_vals) / sigma)
+                denominator = sum(exp_i_vals)
+                i_prob = exp_i_vals / denominator
+                vals[val_ind_vec[cur_ind]] = sig * i_prob
+
+                j_vec = indices[i, 1:][cur_ind]
+                numerator = sig * np.array([X_embedding[j, :] - X_embedding[i, :] for j in j_vec])
+                denominator = np.array([[scp.linalg.norm(numerator[j]) for j in range(len(j_vec))]]).T
+
+                delta_X[i, :] += 0.5 * (i_prob - 1 / len(cur_ind)).T.dot(
+                    numerator / np.hstack((denominator, denominator))).flatten()
+        else:
+            sigma = max(abs(i_vals))
+            exp_i_vals = np.exp(i_vals / sigma)
+            denominator = sum(exp_i_vals)
+            i_prob = exp_i_vals / denominator
+            vals[i * knn:(i + 1) * knn] = i_prob
+
+            j_vec = indices[i, 1:]
+            numerator = np.array([X_embedding[j, :] - X_embedding[i, :] for j in j_vec])
+            denominator = np.array([[scp.linalg.norm(numerator[j]) for j in range(knn)]]).T
+
+            delta_X[i, :] = (i_prob - 1 / knn).T.dot(numerator / np.hstack((denominator, denominator)))
+
+        X_grid, V_grid, D = velocity_on_grid(X_embedding, X_embedding + delta_X, xy_grid_nums=xy_grid_nums)
+
+    T = csc_matrix((vals.flatten(), (rows.flatten(), cols.flatten())), shape=neighbors.shape)
+
+    return T, delta_X, X_grid, V_grid, D
+
+
+# utility functions for calculating the random cell velocities
+@jit(nopython=True)
+def numba_random_seed(seed):
+    """Same as np.random.seed but for numba. Function adapated from velocyto.
+
+
+    Parameters
+    ----------
+        seed: `int`
+            Random seed value
+
+    Returns
+    -------
+        Nothing but set the random seed in numba.
+
+    """
+    np.random.seed(seed)
+
+
+@jit(nopython=True)
+def permute_rows_nsign(A):
+    """Permute in place the entries and randomly switch the sign for each row of a matrix independently. Function adapted
+    from velocyto
+
+    Parameters
+    ----------
+        A: `np.array`
+            A numpy array that will be permuted.
+
+    Returns
+    -------
+        Nothing but permute entries and signs for each row of the input matrix in place.
+    """
+
+    plmi = np.array([+1, -1])
+    for i in range(A.shape[0]):
+        np.random.shuffle(A[i, :])
+        A[i, :] = A[i, :] * np.random.choice(plmi, size=A.shape[1])

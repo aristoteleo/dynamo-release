@@ -551,3 +551,4 @@ class ContinuousTimeMarkovChain(MarkovChain):
         p = np.real(null_space(self.P)[:, 0].flatten())
         p = p / np.sum(p)
         return p
+
