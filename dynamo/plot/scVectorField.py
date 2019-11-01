@@ -3,7 +3,6 @@ import pandas as pd
 from .utilities import quiver_autoscaler
 from ..tools.Markov import velocity_on_grid
 
-import yt
 
 import scipy as sc
 from scipy.sparse import issparse
@@ -45,6 +44,8 @@ def cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, colo
         quiver_scale: `float` or None (default: None)
             scale of quiver plot (default: None). Number of data units per arrow length unit, e.g., m/s per plot width;
             a smaller scale parameter makes the arrow longer. If None, we will use quiver_autoscaler to calculate the scale.
+        figsize: `None` or `[float, float]` (default: None)
+            The width and height of a figure.
         q_kwargs:
             Additional parameters that will be passed to plt.quiver function
 
@@ -167,8 +168,8 @@ def cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, colo
 
 
 def grid_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=None, label_on_embedding=True, cmap=None,
-                  s_kwargs_dict={}, layer='X', xy_grid_nums=[30, 30], g_kwargs_dict={}, quiver_scale=None, figsize=None,
-                  **q_kwargs):
+                  s_kwargs_dict={}, layer='X', xy_grid_nums=[30, 30], g_kwargs_dict={}, quiver_scale=None, V_threshold=None,
+                  figsize=None, **q_kwargs):
     """Plot the velocity vector of each cell.
 
     Parameters
@@ -200,6 +201,10 @@ def grid_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=Non
         quiver_scale: `float` or None (default: None)
             scale of quiver plot (default: None). Number of data units per arrow length unit, e.g., m/s per plot width;
             a smaller scale parameter makes the arrow longer. If None, we will use quiver_autoscaler to calculate the scale.
+        V_threshold: None or float (default: None)
+            The threshold of velocity value for visualization
+        figsize: `None` or `[float, float]` (default: None)
+            The width and height of a figure.
         q_kwargs:
             Additional parameters that will be passed to plt.quiver function
 
@@ -310,6 +315,10 @@ def grid_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=Non
                     color_cnt = np.median(cur_pd.iloc[np.where(E_vec == i)[0], :2], 0)
                     ax.text(color_cnt[0], color_cnt[1], str(i),
                              fontsize=13, bbox={"facecolor": "w", "alpha": 0.6})
+        if V_threshold is not None:
+            mass = np.sqrt((V_grid ** 2).sum(0))
+            if V_threshold is not None:
+                V_grid[0][mass.reshape(V_grid[0].shape) < V_threshold] = np.nan
 
         ax.quiver(X_grid[0], X_grid[1], V_grid[0], V_grid[1], **quiver_kwargs)
         ax.axis("off")
@@ -350,8 +359,10 @@ def stremline_plot(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=No
             density of the plt.streamplot function.
         q_kwargs_dict: `dict` (default: {})
             A dictionary of the parameters for the plt.quiver function.
-        V_threshold:
+        V_threshold: `None` or `float`
             The threshold of velocity value for visualization
+        figsize: `None` or `[float, float]` (default: None)
+            The width and height of a figure.
         **streamline_kwargs:
             Additional parameters that will be passed to plt.streamplot function
 
@@ -471,8 +482,9 @@ def stremline_plot(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=No
 
         ax.quiver(X_grid[0], X_grid[1], V_grid[0], V_grid[1]) # , **quiver_kwargs
         if V_threshold is not None:
-            bool_filter = np.logical_or(V_grid[0] < V_threshold, V_grid[1] < V_threshold)
-            V_grid[bool_filter] = np.nan
+            mass = np.sqrt((V_grid ** 2).sum(0))
+            if V_threshold is not None:
+                V_grid[0][mass.reshape(V_grid[0].shape) < V_threshold] = np.nan
 
         ax.streamplot(X_grid[0], X_grid[1], V_grid[0], V_grid[1], **streamplot_kwargs)
         ax.axis("off")
@@ -534,7 +546,8 @@ def plot_LIC_gray(tex):
     plt.imshow(texture)
 
 
-def plot_LIC(U_grid, V_grid, method = 'yt', cmap = "viridis", normalize = False, density = 1, lim=(0,1), const_alpha=False, kernellen=100, xlab='Dim 1', ylab='Dim 2', file = None):
+def line_integral_conv(adata, basis='trimap', U_grid=None, V_grid=None, method = 'yt', cmap = "viridis", normalize = False,
+                       density = 1, lim=(0,1), const_alpha=False, kernellen=100, V_threshold=None, file = None, g_kwargs_dict=None):
     """Visualize vector field with quiver, streamline and line integral convolution (LIC), using velocity estimates on a grid from the associated data.
     A white noise background will be used for texture as default. Adjust the bounds of lim in the range of [0, 1] which applies
     upper and lower bounds to the values of line integral convolution and enhance the visibility of plots. When const_alpha=False,
@@ -542,9 +555,13 @@ def plot_LIC(U_grid, V_grid, method = 'yt', cmap = "viridis", normalize = False,
 
     Arguments
     ---------
-        U_grid: 'np.ndarray'
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains U_grid and V_grid data
+        basis: `str` (default: trimap)
+            The dimension reduction method to use.
+        U_grid: 'np.ndarray' (default: None)
             Original data.
-        V_grid: 'np.ndarray'
+        V_grid: 'np.ndarray' (default: None)
             Original data.
         method: 'float'
             sigma2 is defined as sum(sum((Y - V)**2)) / (N * D)
@@ -560,17 +577,43 @@ def plot_LIC(U_grid, V_grid, method = 'yt', cmap = "viridis", normalize = False,
             Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's variation space is a.
         kernellen: 'float'
             Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's variation space is a.
+        V_threshold: `float` or `None` (default: None)
+            The threshold of velocity value for visualization
 
     Returns
     -------
-    P: 'np.ndarray'
-        Posterior probability, related to equation 27.
-    E: `np.ndarray'
-        Energy, related to equation 26.
-
+        Nothing, but plot the vector field with quiver, streamline and line integral convolution (LIC).
     """
+    X = adata.obsm['X_' + basis] if 'X_' + basis in adata.obsm.keys() else None
+    V = adata.obsm['velocity_' + basis] if 'velocity_' + basis in adata.obsm.keys() else None
+    if X is None:
+        raise Exception(f'The {basis} dimension reduction is not performed over your data yet.')
+    if V is None:
+        raise Exception(f'The {basis}_velocity velocity (or velocity) result does not existed in your data.')
+
+    if V_threshold is not None:
+        mass = np.sqrt((V_grid ** 2).sum(0))
+        if V_threshold is not None:
+            V_grid[0][mass.reshape(V_grid[0].shape) < V_threshold] = np.nan
+
+    if 'grid_VF_' + basis in adata.uns.keys():
+        # first check whether the sparseVFC reconstructed vector field exists
+        X_grid, V_grid, _ = adata.uns['grid_VF_' + basis]['X_grid'], adata.uns['grid_VF_' + basis]['V_grid']
+    elif 'grid_velocity_' + basis in adata.uns.keys():
+        # then check whether the Gaussian Kernel vector field exists
+        X_grid, V_grid, _ = adata.uns['grid_velocity_' + basis]['X_grid'], adata.uns['grid_velocity_' + basis]['V_grid'], \
+                            adata.uns['grid_velocity_' + basis]['D']
+    else:
+        # if no VF or Gaussian Kernel vector fields, recreate it
+        grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
+                            "adjust_for_stream": True, "V_threshold": None}
+        grid_kwargs_dict.update(g_kwargs_dict)
+
+        X_grid, V_grid, D = velocity_on_grid(X[:, [1, 2]], V[:, [1, 2]], [50, 50], **grid_kwargs_dict)
 
     if method == 'yt':
+        import yt
+
         velocity_x_ori, velocity_y_ori, velocity_z_ori = U_grid, V_grid, np.zeros(U_grid.shape)
         velocity_x = np.repeat(velocity_x_ori[:, :, np.newaxis], V_grid.shape[1], axis=2)
         velocity_y = np.repeat(velocity_y_ori[:, :, np.newaxis], V_grid.shape[1], axis=2)
@@ -592,8 +635,8 @@ def plot_LIC(U_grid, V_grid, method = 'yt', cmap = "viridis", normalize = False,
         slc.annotate_streamlines('velocity_x', 'velocity_y', density=density)
         slc.annotate_line_integral_convolution('velocity_x', 'velocity_y', lim=lim, const_alpha=const_alpha, kernellen=kernellen)
 
-        slc.set_xlabel(xlab)
-        slc.set_ylabel(ylab)
+        slc.set_xlabel(basis + '_1')
+        slc.set_ylabel(basis + '_2')
 
         slc.show()
 
