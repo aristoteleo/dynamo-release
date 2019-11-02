@@ -598,10 +598,10 @@ def line_integral_conv(adata, basis='trimap', U_grid=None, V_grid=None, method =
 
     if 'grid_VF_' + basis in adata.uns.keys():
         # first check whether the sparseVFC reconstructed vector field exists
-        X_grid, V_grid, _ = adata.uns['grid_VF_' + basis]['X_grid'], adata.uns['grid_VF_' + basis]['V_grid']
+        X_grid_, V_grid_, _ = adata.uns['grid_VF_' + basis]['X_grid'], adata.uns['grid_VF_' + basis]['V_grid']
     elif 'grid_velocity_' + basis in adata.uns.keys():
         # then check whether the Gaussian Kernel vector field exists
-        X_grid, V_grid, _ = adata.uns['grid_velocity_' + basis]['X_grid'], adata.uns['grid_velocity_' + basis]['V_grid'], \
+        X_grid_, V_grid_, _ = adata.uns['grid_velocity_' + basis]['X_grid'], adata.uns['grid_velocity_' + basis]['V_grid'], \
                             adata.uns['grid_velocity_' + basis]['D']
     else:
         # if no VF or Gaussian Kernel vector fields, recreate it
@@ -609,7 +609,10 @@ def line_integral_conv(adata, basis='trimap', U_grid=None, V_grid=None, method =
                             "adjust_for_stream": True, "V_threshold": None}
         grid_kwargs_dict.update(g_kwargs_dict)
 
-        X_grid, V_grid, D = velocity_on_grid(X[:, [1, 2]], V[:, [1, 2]], [50, 50], **grid_kwargs_dict)
+        X_grid_, V_grid_, D = velocity_on_grid(X[:, [1, 2]], V[:, [1, 2]], [50, 50], **grid_kwargs_dict)
+
+    U_grid = X_grid_ if U_grid is None else U_grid
+    V_grid = V_grid_ if V_grid is None else V_grid
 
     if method == 'yt':
         import yt

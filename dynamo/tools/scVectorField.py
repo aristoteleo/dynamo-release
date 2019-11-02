@@ -108,6 +108,7 @@ def SparseVFC(X, Y, Grid, M = 100, a = 5, beta = 0.1, ecr = 1e-5, gamma = 0.9, l
     """
 
     N, D = Y.shape
+    grid_U = None
 
     # Construct kernel matrix K
     M = 500 if M is None else M
@@ -119,7 +120,8 @@ def SparseVFC(X, Y, Grid, M = 100, a = 5, beta = 0.1, ecr = 1e-5, gamma = 0.9, l
 
     K = con_K(ctrl_pts, ctrl_pts, beta) if div_cur_free_kernels is False else con_K_div_cur_free(ctrl_pts, ctrl_pts)[0]
     U = con_K(X, ctrl_pts, beta) if div_cur_free_kernels is False else con_K_div_cur_free(X, ctrl_pts)[0]
-    grid_U = con_K(Grid, ctrl_pts, beta) if div_cur_free_kernels is False else con_K_div_cur_free(Grid, ctrl_pts)[0]
+    if Grid is not None:
+        grid_U = con_K(Grid, ctrl_pts, beta) if div_cur_free_kernels is False else con_K_div_cur_free(Grid, ctrl_pts)[0]
     M = ctrl_pts.shape[0]
 
     # Initialization
@@ -159,7 +161,8 @@ def SparseVFC(X, Y, Grid, M = 100, a = 5, beta = 0.1, ecr = 1e-5, gamma = 0.9, l
 
         iter += 1
 
-    grid_V = np.dot(grid_U, C)
+    if Grid is not None:
+        grid_V = np.dot(grid_U, C)
 
     VecFld = {"X": ctrl_pts, "Y": Y, "beta": beta, "V": V, "C": C, "P": P, "VFCIndex": np.where(P > theta)[0], "sigma2": sigma2, "grid": Grid, "grid_V": grid_V}
 
@@ -230,8 +233,62 @@ def get_P(Y, V, sigma2, gamma, a):
 
     return P, E
 
-class VectorField:
-    def __init__(self, X, V, Grid, M=100, a=5, beta=0.1, ecr=1e-5, gamma=0.9, lambda_=3, minP=1e-5, MaxIter=500, theta=0.75, div_cur_free_kernels=False):
+
+def VectorField(adata, basis='trimap', grid_velocity=False, grid_num=50, velocity_key='velocity_S', method='sparseVFC', **kwargs):
+    """Learn an function of high dimensional vector field from sparse single cell samples in the entire space robustly.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains U_grid and V_grid data
+        basis: `str` (default: trimap)
+            The dimension reduction method to use.
+        grid_velocity: `bool` (default: False)
+            Whether to generate grid velocity. Note that by default it is set to be False, but for datasets with embedding
+            dimension less than 4, the grid velocity will still be generated. Please note that number of total grids in
+            the space increases exponentially as the number of dimensions increases. So it may quickly lead to lack of
+            memory, for example, with grid_num set to be 50 and dimension is 6 (50^6 total grids).
+        grid_num: `int` (default: 50)
+            The number of grids in each dimension for generating the grid velocity.
+        velocity_key: `str` (default: `velocity_S`)
+            The key from the adata layer for the velocity matrix.
+        method: `str` (default: `sparseVFC`)
+            Method that is used to reconstruct the vector field functionally. Currently only SparseVFC supported but other
+            improved approaches are under development.
+        kwargs:
+            Other additional parameters passed to the vectorfield class.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that is updated with the VecFld dictionary in the uns attribute.
+    """
+
+    X = adata.obsm['X_' + basis][:, :] if basis is not 'X' else adata.X
+    V = adata.obsm['velocity_' + basis][:, :] if basis is not 'X' else adata.layers[velocity_key]
+
+    Grid = None
+    if X.shape[1] < 4 or grid_velocity:
+        # smart way for generating high dimensional grids and convert into a row matrix
+        min_vec, max_vec = X.min(0) - 0.01 * abs(X.min(0)), X.max(0) + 0.01 * abs(X.max(0))
+
+        Grid_list = np.meshgrid(*[np.linspace(i, j, grid_num) for i, j in zip(min_vec, max_vec)])
+        Grid = np.array([i.flatten() for i in Grid_list]).T
+
+    if X is None:
+        raise Exception(f'X is None. Make sure you passed the correct X or {basis} dimension reduction method.')
+    elif V is None:
+        raise Exception('V is None. Make sure you passed the correct V.')
+
+    VecFld = vectorfield(X, V, Grid, **kwargs)
+    func = VecFld.fit(normalize=False, method=method)
+
+    adata.uns['VecFld'] = func
+    return adata
+
+
+class vectorfield:
+    def __init__(self, X=None, V=None, Grid=None, M=100, a=5, beta=0.1, ecr=1e-5, gamma=0.9, lambda_=3, minP=1e-5, MaxIter=500, theta=0.75, div_cur_free_kernels=False):
         """Initialize the VectorField class.
 
         Parameters
@@ -268,13 +325,13 @@ class VectorField:
             field.
         """
 
-        self.data = {"X": X, "V": V, "Grid": Grid} # should we use annadata here?
+        self.data = {"X": X, "V": V, "Grid": Grid}
 
         self.parameters = {'M': M, "a": a, "beta": beta, "ecr": ecr, "gamma": gamma, "lambda_": lambda_, "minP": minP, "MaxIter": MaxIter, "theta": theta, "div_cur_free_kernels": div_cur_free_kernels}
         self.norm_dict = {}
 
-    def VectorField(self, normalize = False, method = 'SparseVFC'):
-        """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
+    def fit(self, normalize = False, method='SparseVFC'):
+        """Learn an function of vector field from sparse single cell samples in the entire space robustly.
         Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
 
         Arguments

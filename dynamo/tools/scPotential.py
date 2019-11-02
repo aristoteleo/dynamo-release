@@ -6,6 +6,7 @@ from sympy import *
 # import autograd.numpy as autonp
 # from autograd import grad, jacobian # calculate gradient and jacobian
 from .Bhattacharya import path_integral, alignment
+from .Ao import Ao_pot_map
 from .Wang import Wang_action, Wang_LAP
 
 # the LAP method should be rewritten in TensorFlow using optimization with SGD
@@ -311,7 +312,7 @@ def autoODE(x):
 
 
 class Potential:
-    def __init__(self, Function, DiffusionMatrix, boundary, n_points=25, fixed_point_only=False, find_fixed_points=False, refpoint=None, stable=None, saddle=None):
+    def __init__(self, adata, basis, Function=None, DiffMat=None, boundary=None, n_points=25, fixed_point_only=False, find_fixed_points=False, refpoint=None, stable=None, saddle=None):
         """ It implements the least action method to calculate the potential values of fixed points for a given SDE (stochastic
         differential equation) model. The function requires the vector field function and a diffusion matrix. This code is based
         on the MATLAB code from Ruoshi Yuan and Ying Tang. Potential landscape of high dimensional nonlinear stochastic dynamics with
@@ -319,9 +320,13 @@ class Potential:
 
         Arguments
         ---------
+            adata: :class:`~anndata.AnnData`
+                AnnData object that contains U_grid and V_grid data
+            basis: `str` (default: trimap)
+                The dimension reduction method to use.
             Function: 'function'
                 The (reconstructed) vector field function.
-            DiffusionMatrix: 'function'
+            DiffMat: 'function'
                 The function that returns the diffusion matrix which can variable (for example, gene) dependent.
             boundary: 'list'
                 The range of variables (genes).
@@ -338,12 +343,14 @@ class Potential:
             saddle: 'np.ndarray'
                 The matrix for storing the coordinates (gene expression configuration) of the unstable fixed point (characteristic state of cells prime to bifurcation).
         """
+        Function = adata.uns['VecFld'] if Function is None else Function
+        DiffMat = DiffusionMatrix if DiffMat is None else DiffMat
 
-        self.VecFld = {"Function": Function, "DiffusionMatrix": DiffusionMatrix} # should we use annadata here?
+        self.VecFld = {"Function": Function, "DiffusionMatrix": DiffMat} # should we use annadata here?
 
         self.parameters = {"boundary": boundary, "n_points":n_points, "fixed_point_only": fixed_point_only, "find_fixed_points": find_fixed_points, "refpoint": refpoint, "stable": stable, "saddle": saddle}
 
-    def map_pot_landscape(self, x_lim, y_lim, method='Bhattacharya', xyGridSpacing=2, dt=1e-2, tol=1e-2, numTimeSteps=1400):
+    def fit(self, adata, basis, x_lim, y_lim, method='Bhattacharya', xyGridSpacing=2, dt=1e-2, tol=1e-2, numTimeSteps=1400):
         """Function to map out the pseudo-potential landscape.
 
         Although it is appealing to define “potential” for biological systems as it is intuitive and familiar from other
@@ -361,6 +368,10 @@ class Potential:
 
         Arguments
         ---------
+            adata: :class:`~anndata.AnnData`
+                AnnData object that contains U_grid and V_grid data
+            basis: `str` (default: trimap)
+                The dimension reduction method to use.
             method: 'string' (default: Bhattacharya)
                 Method used to map the pseudo-potential landscape. By default, it is Bhattacharya (A deterministic map of
                 Waddington’s epigenetic landscape for cell fate specification. Sudin Bhattacharya, Qiang Zhang and Melvin
@@ -383,14 +394,21 @@ class Potential:
             The least action path learned
         """
 
-        if method is "Bhattacharya":
+        if method is "Ao":
+            X = adata.obsm['X_' + basis]
+            X, U, P, vecMat, S, A = Ao_pot_map(self.VecFld['Function'], X, D=self.VecFld['DiffusionMatrix'])
+
+            adata.uns['grid_Pot_' + basis] = {'Xgrid': X, "Ygrid": U, 'Zgrid': P, 'S': S, 'A': A}
+        elif method is "Bhattacharya":
             numPaths, numTimeSteps, pot_path, path_tag, attractors_pot, x_path, y_path = path_integral(self.VecFld['Function'], \
             x_lim=x_lim, y_lim=y_lim, xyGridSpacing=xyGridSpacing, dt=dt, tol=tol, numTimeSteps=numTimeSteps)
 
             Xgrid, Ygrid, Zgrid = alignment(numPaths, numTimeSteps, pot_path, path_tag, attractors_pot, x_path, y_path)
 
-            return Xgrid, Ygrid, Zgrid
+            adata.uns['grid_Pot_' + basis] = {'Xgrid': Xgrid, "Ygrid": Ygrid, 'Zgrid': Zgrid}
 
+            return adata
+        # make sure to also obtain Xgrid, Ygrid, Zgrid, etc.
         elif method is 'Tang':
             Function, DiffusionMatrix = self.VecFld['Function'], self.VecFld['DiffusionMatrix']
             boundary, n_points, fixed_point_only, find_fixed_points, refpoint, stable, saddle = self.parameters['boundary'], \
@@ -439,4 +457,7 @@ class Potential:
                     LAP[ind] = lap
                 print(retmat)
 
-            return retmat, LAP
+            # adata.uns['grid_Pot_' + basis] = {'Xgrid': Xgrid, "Ygrid": Ygrid, 'Zgrid': Zgrid}
+
+            return adata
+            # return retmat, LAP
