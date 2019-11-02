@@ -235,23 +235,25 @@ def get_P(Y, V, sigma2, gamma, a):
 
 
 def VectorField(adata, basis='trimap', grid_velocity=False, grid_num=50, velocity_key='velocity_S', method='sparseVFC', **kwargs):
-    """Learn an function of high dimensional vector field from sparse single cell samples in the entire space robustly.
+    """Learn a function of high dimensional vector field from sparse single cell samples in the entire space robustly.
 
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
-            AnnData object that contains U_grid and V_grid data
+            AnnData object that contains embedding and velocity data
         basis: `str` (default: trimap)
-            The dimension reduction method to use.
+            The embedding data to use.
         grid_velocity: `bool` (default: False)
             Whether to generate grid velocity. Note that by default it is set to be False, but for datasets with embedding
             dimension less than 4, the grid velocity will still be generated. Please note that number of total grids in
             the space increases exponentially as the number of dimensions increases. So it may quickly lead to lack of
-            memory, for example, with grid_num set to be 50 and dimension is 6 (50^6 total grids).
+            memory, for example, it cannot allocate the array with grid_num set to be 50 and dimension is 6 (50^6 total
+            grids) on 32 G memory computer. Although grid velocity may not be generated, the vector field function can still
+            be learned for thousands of dimensions and we can still predict the transcriptomic cell states over long time period.
         grid_num: `int` (default: 50)
             The number of grids in each dimension for generating the grid velocity.
         velocity_key: `str` (default: `velocity_S`)
-            The key from the adata layer for the velocity matrix.
+            The key from the adata layer that corresponds to the velocity matrix.
         method: `str` (default: `sparseVFC`)
             Method that is used to reconstruct the vector field functionally. Currently only SparseVFC supported but other
             improved approaches are under development.
@@ -261,7 +263,7 @@ def VectorField(adata, basis='trimap', grid_velocity=False, grid_num=50, velocit
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the VecFld dictionary in the uns attribute.
+            `AnnData` object that is updated with the `VecFld` dictionary in the `uns` attribute.
     """
 
     X = adata.obsm['X_' + basis][:, :] if basis is not 'X' else adata.X

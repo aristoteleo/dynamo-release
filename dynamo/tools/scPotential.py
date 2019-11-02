@@ -311,8 +311,46 @@ def autoODE(x):
     return ret
 
 
-class Potential:
-    def __init__(self, adata, basis, Function=None, DiffMat=None, boundary=None, n_points=25, fixed_point_only=False, find_fixed_points=False, refpoint=None, stable=None, saddle=None):
+def Potential(adata, DiffMat=None, method='Ao', **kwargs):
+    """Function to map out the pseudo-potential landscape.
+
+    Although it is appealing to define “potential” for biological systems as it is intuitive and familiar from other
+    fields, it is well-known that the definition of a potential function in open biological systems is controversial
+    (Ping Ao 2009). In the conservative system, the negative gradient of potential function is relevant to the velocity
+    vector by ma = −Δψ (where m, a, are the mass and acceleration of the object, respectively). However, a biological
+    system is massless, open and nonconservative, thus methods that directly learn potential function assuming a gradient
+    system are not directly applicable. In 2004, Ao first proposed a framework that decomposes stochastic differential
+    equations into either the gradient or the dissipative part and uses the gradient part to define a physical equivalent
+    of potential in biological systems (P. Ao 2004). Later, various theoretical studies have been conducted towards
+    this very goal (Xing 2010; Wang et al. 2011; J. X. Zhou et al. 2012; Qian 2013; P. Zhou and Li 2016). Bhattacharya
+    and others also recently provided a numeric algorithm to approximate the potential landscape.
+
+    This function implements the Ao, Bhattacharya method and Ying method and will also support other methods shortly.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains embedding and velocity data
+        method: `str` (default: `Ao`)
+            Method to map the potential landscape.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            `AnnData` object that is updated with the `Pot` dictionary in the `uns` attribute.
+
+    """
+
+    Function = adata.uns['VecFld']
+    DiffMat = DiffusionMatrix if DiffMat is None else DiffMat
+    pot = Pot(Function, DiffMat, **kwargs)
+    pot.fit(method=method)
+
+    return adata
+
+
+class Pot:
+    def __init__(self, Function=None, DiffMat=None, boundary=None, n_points=25, fixed_point_only=False, find_fixed_points=False, refpoint=None, stable=None, saddle=None):
         """ It implements the least action method to calculate the potential values of fixed points for a given SDE (stochastic
         differential equation) model. The function requires the vector field function and a diffusion matrix. This code is based
         on the MATLAB code from Ruoshi Yuan and Ying Tang. Potential landscape of high dimensional nonlinear stochastic dynamics with
@@ -320,10 +358,6 @@ class Potential:
 
         Arguments
         ---------
-            adata: :class:`~anndata.AnnData`
-                AnnData object that contains U_grid and V_grid data
-            basis: `str` (default: trimap)
-                The dimension reduction method to use.
             Function: 'function'
                 The (reconstructed) vector field function.
             DiffMat: 'function'
@@ -343,14 +377,13 @@ class Potential:
             saddle: 'np.ndarray'
                 The matrix for storing the coordinates (gene expression configuration) of the unstable fixed point (characteristic state of cells prime to bifurcation).
         """
-        Function = adata.uns['VecFld'] if Function is None else Function
-        DiffMat = DiffusionMatrix if DiffMat is None else DiffMat
+
 
         self.VecFld = {"Function": Function, "DiffusionMatrix": DiffMat} # should we use annadata here?
 
         self.parameters = {"boundary": boundary, "n_points":n_points, "fixed_point_only": fixed_point_only, "find_fixed_points": find_fixed_points, "refpoint": refpoint, "stable": stable, "saddle": saddle}
 
-    def fit(self, adata, basis, x_lim, y_lim, method='Bhattacharya', xyGridSpacing=2, dt=1e-2, tol=1e-2, numTimeSteps=1400):
+    def fit(self, adata, basis, x_lim, y_lim, method='Ao', xyGridSpacing=2, dt=1e-2, tol=1e-2, numTimeSteps=1400):
         """Function to map out the pseudo-potential landscape.
 
         Although it is appealing to define “potential” for biological systems as it is intuitive and familiar from other
@@ -364,7 +397,7 @@ class Potential:
         this very goal (Xing 2010; Wang et al. 2011; J. X. Zhou et al. 2012; Qian 2013; P. Zhou and Li 2016). Bhattacharya
         and others also recently provided a numeric algorithm to approximate the potential landscape.
 
-        This function implements the Bhattacharya method and the Ying method and will also support other methods shortly.
+        This function implements the Ao, Bhattacharya method and Ying method and will also support other methods shortly.
 
         Arguments
         ---------

@@ -3,6 +3,24 @@ import numpy as np
 from scipy.integrate import odeint
 
 
+# by default, use the transcriptome state of source cells
+def Fate(adata, init_state, **kwargs):
+    """
+
+    Parameters
+    ----------
+    adata
+    init_state
+    kwargs
+
+    Returns
+    -------
+
+    """
+    VecFld = adata.uns['VecFld']
+    fate(VecFld, init_state, **kwargs)
+
+
 def fate(VecFld, init_state, t_end=100, step_size=0.01, direction='both', average=False):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector field
     functions from one or a set of initial cell state(s).

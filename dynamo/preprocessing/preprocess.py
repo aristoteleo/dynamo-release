@@ -586,12 +586,12 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_unflitered=True, min_c
     detected_bool = np.ones(adata.X.shape[1], dtype=bool)
     detected_bool = (detected_bool) & (((adata.X > 0).sum(0) > min_cell_s) & (adata.X.mean(0) > min_avg_exp_s) & (adata.X.mean(0) < max_avg_exp)).flatten()
 
-    if "spliced" in adata.layers.keys() & layer is 'spliced':
+    if "spliced" in adata.layers.keys() and layer is 'spliced':
         detected_bool = detected_bool & (((adata.layers['spliced'] > 0).sum(0) > min_cell_s) & (adata.layers['spliced'].mean(0) < min_avg_exp_s) & (adata.layers['spliced'].mean(0) < max_avg_exp))
-    if "unspliced" in adata.layers.keys() & layer is 'spliced':
+    if "unspliced" in adata.layers.keys() and layer is 'spliced':
         detected_bool = detected_bool & (((adata.layers['unspliced'] > 0).sum(0) > min_cell_u) & (adata.layers['unspliced'].mean(0) < min_avg_exp_u) & (adata.layers['unspliced'].mean(0) < max_avg_exp))
     ############################## The following code need to be updated ##############################
-    if "protein" in adata.obsm.keys() & layer is 'spliced':
+    if "protein" in adata.obsm.keys() and layer is 'spliced':
         detected_bool = detected_bool & (((adata.obsm['protein'] > 0).sum(0) > min_cell_p) & (adata.obsm['protein'].mean(0) < min_avg_exp_p) & (adata.obsm['protein'].mean(0) < max_avg_exp))
 
     filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
