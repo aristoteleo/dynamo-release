@@ -66,7 +66,7 @@ def szFactor(adata, layers='all', locfunc=np.nanmean, round_exprs=True, method='
     return adata
 
 
-def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, relative_expr=True):
+def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, relative_expr=True, keep_unflitered=True):
     """Normalize the gene expression value for the AnnData object
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
@@ -82,12 +82,19 @@ def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, r
             A pseudocount added to the gene expression value before log2 normalization.
         relative_expr: `bool`
             A logic flag to determine whether we need to divide gene expression values first by size factor before normalization
+        keep_unflitered: `bool` (default: `True`)
+            A logic flag to determine whether we will only store feature genes in the adata object. If it is False, size factor
+            will be recalculated only for the selected feature genes.
 
     Returns
     -------
         adata: :AnnData
             A updated anndata object that are updated with normalized expression values, X.
     """
+
+    if 'use_for_dynamo' in adata.var.columns and keep_unflitered is True:
+        adata = adata[:, adata.var[:, 'use_for_dynamo']]
+        adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.contains('Size_Factor')]
 
     layer_keys = list(adata.layers.keys())
     if 'protein' in adata.obsm.keys():
@@ -117,9 +124,6 @@ def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, r
         else:
             FM = adata.layers[layer]
             szfactors = adata.obs[layer + '_Size_Factor'][:, None]
-
-        if 'use_for_ordering' in adata.var.columns:
-            FM = FM[adata.var['use_for_ordering'], :]
 
         if norm_method == 'log' and layer is not 'protein':
             if relative_expr:
@@ -588,10 +592,10 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_unflitered=True, min_c
 
     if "spliced" in adata.layers.keys() and layer is 'spliced':
         detected_bool = detected_bool & (((adata.layers['spliced'] > 0).sum(0) > min_cell_s) & (adata.layers['spliced'].mean(0) < min_avg_exp_s) & (adata.layers['spliced'].mean(0) < max_avg_exp))
-    if "unspliced" in adata.layers.keys() and layer is 'spliced':
+    if "unspliced" in adata.layers.keys() and layer is 'unspliced':
         detected_bool = detected_bool & (((adata.layers['unspliced'] > 0).sum(0) > min_cell_u) & (adata.layers['unspliced'].mean(0) < min_avg_exp_u) & (adata.layers['unspliced'].mean(0) < max_avg_exp))
     ############################## The following code need to be updated ##############################
-    if "protein" in adata.obsm.keys() and layer is 'spliced':
+    if "protein" in adata.obsm.keys() and layer is 'protein':
         detected_bool = detected_bool & (((adata.obsm['protein'] > 0).sum(0) > min_cell_p) & (adata.obsm['protein'].mean(0) < min_avg_exp_p) & (adata.obsm['protein'].mean(0) < max_avg_exp))
 
     filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
@@ -624,7 +628,7 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_unflitered=True, min_c
 
 def recipe_monocle(adata, layer=None, gene_to_use=None, method='PCA', num_dim=50, norm_method='log', pseudo_expr=1,
                    feature_selection = 'dispersion', n_top_genes = 2000,
-                   relative_expr=True, scaling=True, **kwargs):
+                   relative_expr=True, keep_unflitered=True, **kwargs):
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
@@ -649,8 +653,8 @@ def recipe_monocle(adata, layer=None, gene_to_use=None, method='PCA', num_dim=50
             How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
         relative_expr: `bool`
             A logic flag to determine whether we need to divide gene expression values first by size factor before normalization
-        scaling: `str`
-            A logic flag to determine whether we should scale the data before performing linear dimension reduction method.
+        keep_unflitered: `bool` (default: True)
+            Whether to keep genes that don't pass the filtering in the adata object.
         kwargs:
             Other Parameters passed into the function.
 
@@ -662,16 +666,21 @@ def recipe_monocle(adata, layer=None, gene_to_use=None, method='PCA', num_dim=50
 
     adata = szFactor(adata)
     adata = Dispersion(adata)
-    # normalize on all genes
-    adata = normalize_expr_data(adata, norm_method=norm_method, pseudo_expr=pseudo_expr, relative_expr=relative_expr)
     # set use_for_dynamo
     if gene_to_use is None:
-        adata = filter_genes(adata, sort_by=feature_selection, n_top_genes=n_top_genes, **kwargs)
+        adata = filter_genes(adata, sort_by=feature_selection, n_top_genes=n_top_genes, keep_unflitered=keep_unflitered, **kwargs)
     else:
         adata.var['use_for_dynamo'] = adata.var.index.isin(gene_to_use)
+    # normalize on all genes
+    adata = normalize_expr_data(adata, norm_method=norm_method, pseudo_expr=pseudo_expr, relative_expr=relative_expr, keep_unflitered=keep_unflitered)
     # only use genes pass filter (based on use_for_dynamo) to perform dimension reduction.
     if layer is None:
         FM = adata.X[:, adata.var.use_for_dynamo.values] if 'spliced' not in adata.layers.keys() else adata.layers['spliced'][:, adata.var.use_for_dynamo.values]
+    else:
+        if layer is 'X':
+            FM = adata.X[:, adata.var.use_for_dynamo.values]
+        else:
+            adata.layers[layer][:, adata.var.use_for_dynamo.values]
 
     fm_genesums = FM.sum(axis=0)
     valid_ind = (np.isfinite(fm_genesums)) + (fm_genesums != 0)
