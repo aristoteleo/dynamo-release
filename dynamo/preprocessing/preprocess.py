@@ -92,7 +92,7 @@ def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, r
             A updated anndata object that are updated with normalized expression values, X.
     """
 
-    if 'use_for_dynamo' in adata.var.columns and keep_unflitered is True:
+    if 'use_for_dynamo' in adata.var.columns and keep_unflitered is False:
         adata = adata[:, adata.var[:, 'use_for_dynamo']]
         adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.contains('Size_Factor')]
 
