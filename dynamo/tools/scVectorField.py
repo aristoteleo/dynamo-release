@@ -162,6 +162,7 @@ def SparseVFC(X, Y, Grid, M = 100, a = 5, beta = 0.1, ecr = 1e-5, gamma = 0.9, l
 
         iter += 1
 
+    grid_V = None
     if Grid is not None:
         grid_V = np.dot(grid_U, C)
 

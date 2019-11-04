@@ -617,26 +617,33 @@ def line_integral_conv(adata, basis='trimap', U_grid=None, V_grid=None, method =
     if 'VecFld_' + basis in adata.uns.keys():
         # first check whether the sparseVFC reconstructed vector field exists
         X_grid_, V_grid = adata.uns['VecFld_' + basis]['grid'], adata.uns['VecFld_' + basis]['grid_V']
+        N = int(np.sqrt(V_grid.shape[0]))
+        U_grid = np.reshape(V_grid[:, 0], (N, N)).T
+        V_grid = np.reshape(V_grid[:, 1], (N, N)).T
+
     elif 'grid_velocity_' + basis in adata.uns.keys():
         # then check whether the Gaussian Kernel vector field exists
         X_grid_, V_grid_, _ = adata.uns['grid_velocity_' + basis]['X_grid'], adata.uns['grid_velocity_' + basis]['V_grid'], \
                             adata.uns['grid_velocity_' + basis]['D']
+        N = int(np.sqrt(V_grid.shape[0]))
+        U_grid = np.reshape(V_grid[:, 0], (N, N)).T
+        V_grid = np.reshape(V_grid[:, 1], (N, N)).T
     else:
         # if no VF or Gaussian Kernel vector fields, recreate it
         grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
                             "adjust_for_stream": True, "V_threshold": None}
         grid_kwargs_dict.update(g_kwargs_dict)
 
-        X_grid_, V_grid_, D = velocity_on_grid(X[:, [1, 2]], V[:, [1, 2]], [50, 50], **grid_kwargs_dict)
+        N=50
+        X_grid_, V_grid_, D = velocity_on_grid(X[:, [1, 2]], V[:, [1, 2]], [N, N], **grid_kwargs_dict)
+        U_grid = np.reshape(V_grid[:, 0], (N, N)).T
+        V_grid = np.reshape(V_grid[:, 1], (N, N)).T
 
     U_grid = X_grid_ if U_grid is None else U_grid
     V_grid = V_grid_ if V_grid is None else V_grid
 
     if method == 'yt':
         import yt
-        N = int(np.sqrt(V_grid.shape[0]))
-        U_grid = np.reshape(V_grid[:, 0], (N, N)).T
-        V_grid = np.reshape(V_grid[:, 1], (N, N)).T
 
         velocity_x_ori, velocity_y_ori, velocity_z_ori = U_grid, V_grid, np.zeros(U_grid.shape)
         velocity_x = np.repeat(velocity_x_ori[:, :, np.newaxis], V_grid.shape[1], axis=2)
