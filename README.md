@@ -78,9 +78,9 @@ that visualize the cell-wise velocity vector, velocity vector on a grid or the s
 basis='trimap'
 gene_list = ['Rgs20', 'Eya1']
 dyn.pl.cell_wise_velocity(adata, genes=gene_list, basis=basis, n_columns=3) 
-dyn.pl.grid_velocity(adata, genes=gene_list, basis=basis, n_columns=2, figsize=[8, 8])  
-dyn.pl.grid_velocity(adata, genes=gene_list,  basis=basis, n_columns=1, figsize=[8, 8], color=['ClusterName'])  
-dyn.pl.stremline_plot(adata, genes=gene_list, n_columns=2, figsize=[8, 8], density=3) 
+dyn.pl.grid_velocity(adata, genes=gene_list, basis=basis, n_columns=2, figsize=[8, 8], method='Gaussian')  
+dyn.pl.grid_velocity(adata, genes=gene_list,  basis=basis, n_columns=1, figsize=[8, 8], color=['ClusterName'], method='Gaussian')  
+dyn.pl.stremline_plot(adata, genes=gene_list, n_columns=2, figsize=[8, 8], density=3, method='Gaussian') 
 ```
 Obviously we don't want to stop here. Let us move to the real exciting part of dynamo in the next section to learn the velocity vector in the full transcriptomic space and to map the potential 
 landscape. 
@@ -90,8 +90,11 @@ from arbitrary initial cell states. You can experiment it via the dyn.tl.VectorF
 ```python
 # seventh step: learn vector field
 dyn.tl.VectorField(adata) 
-dyn.tl.fate(adata)
+dyn.pl.grid_velocity(adata, genes=gene_list, basis=basis, n_columns=2, figsize=[8, 8], method='SparseVFC')  
+dyn.pl.grid_velocity(adata, genes=gene_list,  basis=basis, n_columns=1, figsize=[8, 8], color=['ClusterName'], method='SparseVFC')  
+dyn.pl.stremline_plot(adata, genes=gene_list, n_columns=2, figsize=[8, 8], density=3, method='SparseVFC') 
 dyn.pl.line_integral_conv(adata)
+dyn.tl.Fate(adata)
 ```
 
 Potential landscape is an intuitive concept that is widely used in various disciplines. It provides a global description of cell state stability. Once we learnt vector field, dynamo allows you 

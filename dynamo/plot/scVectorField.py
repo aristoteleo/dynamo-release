@@ -170,7 +170,7 @@ def cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, colo
     plt.show()
 
 
-def grid_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=None, label_on_embedding=True, cmap=None,
+def grid_velocity(adata, genes, x=0, y=1, method='SparseVFC', basis='trimap', n_columns=1, color=None, label_on_embedding=True, cmap=None,
                   s_kwargs_dict={}, layer='X', xy_grid_nums=[30, 30], g_kwargs_dict={}, quiver_scale=None, V_threshold=None,
                   figsize=None, **q_kwargs):
     """Plot the velocity vector of each cell.
@@ -185,6 +185,9 @@ def grid_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=Non
             The column index of the low dimensional embedding for the x-axis
         y: `int` (default: `1`)
             The column index of the low dimensional embedding for the y-axis
+        method: `str` (default: `SparseVFC`)
+            Method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the empirical method
+            Gaussian kernel method from RNA velocity (Gaussian).
         basis: `str` (default: `trimap`)
             The reduced dimension embedding of cells to visualize.
         n_columns: `int  (default: 1)
@@ -251,7 +254,14 @@ def grid_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=Non
     if 0 in E_vec.shape:
         raise Exception(f'The gene names {genes} (or cell annotations {color}) provided are not existed in your data.')
 
-    if 'grid_velocity_' + basis in adata.uns.keys():
+    if method is 'SparseVFC':
+        if 'VecFld_' + basis not in adata.uns.keys():
+            dyn.tl.VectorField(adata, basis=basis)
+        X_grid, V_grid =  adata.uns['VecFld_' + basis]['grid'], adata.uns['VecFld_' + basis]['grid_V']
+        N = int(np.sqrt(V_grid.shape[0]))
+        X_grid, V_grid = np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]), \
+                         np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))])
+    elif 'grid_velocity_' + basis in adata.uns.keys():
         X_grid, V_grid, _ = adata.uns['grid_velocity_' + basis]['X_grid'], adata.uns['grid_velocity_' + basis]['V_grid'], \
                             adata.uns['grid_velocity_' + basis]['D']
     else:
@@ -334,7 +344,7 @@ def grid_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=Non
     plt.show()
 
 
-def stremline_plot(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=None, label_on_embedding=True,
+def stremline_plot(adata, genes, x=0, y=1, method='sparseVFC', basis='trimap', n_columns=1, color=None, label_on_embedding=True,
                    cmap=None, s_kwargs_dict={}, layer='X', xy_grid_nums=[30, 30], density=1, g_kwargs_dict={},
                    V_threshold=1e-5, figsize=None, show_quiver=True, **streamline_kwargs):
     """Plot the streamline of vector field based on the sampled cells.
@@ -349,6 +359,9 @@ def stremline_plot(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=No
             The column index of the low dimensional embedding for the x-axis
         y: `int` (default: `1`)
             The column index of the low dimensional embedding for the y-axis
+        method: `str` (default: `SparseVFC`)
+            Method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the empirical method
+            Gaussian kernel method from RNA velocity (Gaussian).
         basis: `str` (default: `trimap`)
             The reduced dimension embedding of cells to visualize.
         n_columns: `int  (default: 1)
@@ -421,7 +434,14 @@ def stremline_plot(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=No
     if 0 in E_vec.shape:
         raise Exception(f'The gene names {genes} (or cell annotations {color}) provided are not existed in your data.')
 
-    if 'grid_velocity_' + basis in adata.uns.keys():
+    if method is 'SparseVFC':
+        if 'VecFld_' + basis not in adata.uns.keys():
+            dyn.tl.VectorField(adata, basis=basis)
+        X_grid, V_grid =  adata.uns['VecFld_' + basis]['grid'], adata.uns['VecFld_' + basis]['grid_V']
+        N = int(np.sqrt(V_grid.shape[0]))
+        X_grid, V_grid = np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]), \
+                 np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))])
+    elif 'grid_velocity_' + basis in adata.uns.keys():
         X_grid, V_grid, _ = adata.uns['grid_velocity_' + basis]['X_grid'], adata.uns['grid_velocity_' + basis]['V_grid'], \
                             adata.uns['grid_velocity_' + basis]['D']
     else:
