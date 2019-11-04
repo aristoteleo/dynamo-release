@@ -1,6 +1,7 @@
 import numpy as np
 import scipy
 import numpy.matlib
+from scipy.sparse import issparse
 
 
 def norm(X, V, T):
@@ -234,7 +235,7 @@ def get_P(Y, V, sigma2, gamma, a):
     return P, E
 
 
-def VectorField(adata, basis='trimap', grid_velocity=False, grid_num=50, velocity_key='velocity_S', method='sparseVFC', **kwargs):
+def VectorField(adata, basis='trimap', grid_velocity=False, grid_num=50, velocity_key='velocity_S', method='SparseVFC', **kwargs):
     """Learn a function of high dimensional vector field from sparse single cell samples in the entire space robustly.
 
     Parameters
@@ -269,6 +270,9 @@ def VectorField(adata, basis='trimap', grid_velocity=False, grid_num=50, velocit
     X = adata.obsm['X_' + basis][:, :] if basis is not 'X' else adata.X
     V = adata.obsm['velocity_' + basis][:, :] if basis is not 'X' else adata.layers[velocity_key]
 
+    if issparse(X) and basis is 'X':
+        X, V = X.A[:, adata.var.use_for_dynamo], V.A[:, adata.var.use_for_dynamo]
+
     Grid = None
     if X.shape[1] < 4 or grid_velocity:
         # smart way for generating high dimensional grids and convert into a row matrix
@@ -285,7 +289,11 @@ def VectorField(adata, basis='trimap', grid_velocity=False, grid_num=50, velocit
     VecFld = vectorfield(X, V, Grid, **kwargs)
     func = VecFld.fit(normalize=False, method=method)
 
-    adata.uns['VecFld'] = func
+    if basis is not 'X':
+        adata.uns['VecFld_' + basis] = func
+    else:
+        adata.uns['VecFld'] = func
+
     return adata
 
 

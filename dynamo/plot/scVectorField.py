@@ -603,6 +603,7 @@ def line_integral_conv(adata, basis='trimap', U_grid=None, V_grid=None, method =
     """
     X = adata.obsm['X_' + basis] if 'X_' + basis in adata.obsm.keys() else None
     V = adata.obsm['velocity_' + basis] if 'velocity_' + basis in adata.obsm.keys() else None
+
     if X is None:
         raise Exception(f'The {basis} dimension reduction is not performed over your data yet.')
     if V is None:
@@ -613,9 +614,9 @@ def line_integral_conv(adata, basis='trimap', U_grid=None, V_grid=None, method =
         if V_threshold is not None:
             V_grid[0][mass.reshape(V_grid[0].shape) < V_threshold] = np.nan
 
-    if 'grid_VF_' + basis in adata.uns.keys():
+    if 'VecFld_' + basis in adata.uns.keys():
         # first check whether the sparseVFC reconstructed vector field exists
-        X_grid_, V_grid_, _ = adata.uns['grid_VF_' + basis]['X_grid'], adata.uns['grid_VF_' + basis]['V_grid']
+        X_grid_, V_grid = adata.uns['VecFld_' + basis]['grid'], adata.uns['VecFld_' + basis]['grid_V']
     elif 'grid_velocity_' + basis in adata.uns.keys():
         # then check whether the Gaussian Kernel vector field exists
         X_grid_, V_grid_, _ = adata.uns['grid_velocity_' + basis]['X_grid'], adata.uns['grid_velocity_' + basis]['V_grid'], \
@@ -633,6 +634,9 @@ def line_integral_conv(adata, basis='trimap', U_grid=None, V_grid=None, method =
 
     if method == 'yt':
         import yt
+        N = int(np.sqrt(V_grid.shape[0]))
+        U_grid = np.reshape(V_grid[:, 0], (N, N)).T
+        V_grid = np.reshape(V_grid[:, 1], (N, N)).T
 
         velocity_x_ori, velocity_y_ori, velocity_z_ori = U_grid, V_grid, np.zeros(U_grid.shape)
         velocity_x = np.repeat(velocity_x_ori[:, :, np.newaxis], V_grid.shape[1], axis=2)
