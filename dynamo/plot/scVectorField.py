@@ -54,6 +54,7 @@ def cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, colo
         Nothing but a cell wise quiver plot
     """
     import matplotlib.pyplot as plt
+    import matplotlib.patheffects as PathEffects
 
     if cmap is None and color is None:
         cmap = plt.cm.RdBu_r
@@ -104,13 +105,12 @@ def cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, colo
     quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_scale, "minlength": 1.5}
     quiver_kwargs.update(q_kwargs)
 
-
     n_columns, plot_per_gene = n_columns, 1 # we may also add random velocity results
     nrow, ncol = int(np.ceil(plot_per_gene * n_genes / n_columns)), n_columns
     if figsize is None:
         plt.figure(None, (ncol * 3, nrow * 3), dpi=160)
     else:
-        plt.figure(None, (ncol * figsize[0], nrow * figsize[1]), dpi=160)
+        plt.figure(None, (figsize[0]*ncol, figsize[1]*nrow)) # , dpi=160
 
     E_vec = E_vec.A.flatten() if issparse(E_vec) else E_vec.flatten()
     V = V.A[:, [x, y]] if issparse(V) else V[:, [x, y]]
@@ -156,8 +156,11 @@ def cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, colo
             if label_on_embedding:
                 for i in color_labels:
                     color_cnt = np.median(cur_pd.iloc[np.where(E_vec == i)[0], :2], 0)
-                    ax.text(color_cnt[0], color_cnt[1], str(i),
-                             fontsize=13, bbox={"facecolor": "w", "alpha": 0.6})
+                    txt=ax.text(color_cnt[0], color_cnt[1], str(i),
+                             fontsize=13) # , bbox={"facecolor": "w", "alpha": 0.6}
+                    txt.set_path_effects([
+                        PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.1),
+                        PathEffects.Normal()])
 
         ax.quiver(cur_pd.iloc[ix_choice, 0], cur_pd.iloc[ix_choice, 1],
                    cur_pd.iloc[ix_choice, 2], cur_pd.iloc[ix_choice, 3],
@@ -213,6 +216,7 @@ def grid_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=Non
         Nothing but a cell wise quiver plot
     """
     import matplotlib.pyplot as plt
+    import matplotlib.patheffects as PathEffects
 
     if cmap is None and color is None:
         cmap = plt.cm.RdBu_r
@@ -313,8 +317,12 @@ def grid_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=Non
             if label_on_embedding:
                 for i in color_labels:
                     color_cnt = np.median(cur_pd.iloc[np.where(E_vec == i)[0], :2], 0)
-                    ax.text(color_cnt[0], color_cnt[1], str(i),
-                             fontsize=13, bbox={"facecolor": "w", "alpha": 0.6})
+                    txt=ax.text(color_cnt[0], color_cnt[1], str(i),
+                             fontsize=13) # , bbox={"facecolor": "w", "alpha": 0.6}
+                    txt.set_path_effects([
+                        PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.1),
+                        PathEffects.Normal()])
+
         if V_threshold is not None:
             mass = np.sqrt((V_grid ** 2).sum(0))
             if V_threshold is not None:
@@ -373,6 +381,7 @@ def stremline_plot(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=No
         Nothing but a cell wise quiver plot
     """
     import matplotlib.pyplot as plt
+    import matplotlib.patheffects as PathEffects
 
     streamplot_kwargs={"density": density, "linewidth": None, "color": None, "cmap": None, "norm": None, "arrowsize": 1, "arrowstyle": '-|>',
                        "minlength": 0.1, "transform": None, "zorder": None, "start_points": None, "maxlength": 4.0,
@@ -479,8 +488,11 @@ def stremline_plot(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=No
             if label_on_embedding:
                 for i in color_labels:
                     color_cnt = np.median(cur_pd.iloc[np.where(E_vec == i)[0], :2], 0)
-                    ax.text(color_cnt[0], color_cnt[1], str(i),
-                             fontsize=13, bbox={"facecolor": "w", "alpha": 0.6})
+                    txt=ax.text(color_cnt[0], color_cnt[1], str(i),
+                             fontsize=13) # , bbox={"facecolor": "w", "alpha": 0.6}
+                    txt.set_path_effects([
+                        PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.1),
+                        PathEffects.Normal()])
         if show_quiver:
             ax.quiver(X_grid[0], X_grid[1], V_grid[0], V_grid[1], color = 'gray', alpha = 0.7) # , **quiver_kwargs
 
