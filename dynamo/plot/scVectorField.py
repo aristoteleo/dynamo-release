@@ -328,7 +328,7 @@ def grid_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=Non
 
 def stremline_plot(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=None, label_on_embedding=True,
                    cmap=None, s_kwargs_dict={}, layer='X', xy_grid_nums=[30, 30], density=1, g_kwargs_dict={},
-                   V_threshold=1e-5, figsize=None, **streamline_kwargs):
+                   V_threshold=1e-5, figsize=None, show_quiver=True, **streamline_kwargs):
     """Plot the streamline of vector field based on the sampled cells.
 
     Parameters
@@ -363,6 +363,8 @@ def stremline_plot(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=No
             The threshold of velocity value for visualization
         figsize: `None` or `[float, float]` (default: None)
             The width and height of a figure.
+        show_quiver: `bool` (default: True)
+            Whether also show the quiver plot in additional to the streamline plot.
         **streamline_kwargs:
             Additional parameters that will be passed to plt.streamplot function
 
@@ -479,12 +481,15 @@ def stremline_plot(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=No
                     color_cnt = np.median(cur_pd.iloc[np.where(E_vec == i)[0], :2], 0)
                     ax.text(color_cnt[0], color_cnt[1], str(i),
                              fontsize=13, bbox={"facecolor": "w", "alpha": 0.6})
+        if show_quiver:
+            ax.quiver(X_grid[0], X_grid[1], V_grid[0], V_grid[1], color = 'gray', alpha = 0.7) # , **quiver_kwargs
 
-        ax.quiver(X_grid[0], X_grid[1], V_grid[0], V_grid[1]) # , **quiver_kwargs
+        mass = np.sqrt((V_grid ** 2).sum(0))
         if V_threshold is not None:
-            mass = np.sqrt((V_grid ** 2).sum(0))
             if V_threshold is not None:
                 V_grid[0][mass.reshape(V_grid[0].shape) < V_threshold] = np.nan
+
+        streamplot_kwargs.update({"linewidth": 4 * mass / mass[~np.isnan(mass)].max()})
 
         ax.streamplot(X_grid[0], X_grid[1], V_grid[0], V_grid[1], **streamplot_kwargs)
         ax.axis("off")
