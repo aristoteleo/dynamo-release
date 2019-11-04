@@ -10,7 +10,7 @@ Understanding how gene expression in single cells progress over time is vital fo
 In the following, you can see python snippets that highlight each of the main steps in dynamo. 
 
 Surely the first step in applying dynamo is to load some datasets of interests. Dynamo uses [AnnData](https://anndata.readthedocs.io/en/latest/) as its 
-container so you can load loom file, h5 or h5ad, etc. files that generated from Kallisto + bustool, velocyto, scanpy or even 10x cellranger (because dynamo 
+container so you can load loom, h5 or h5ad, etc. files that generated from Kallisto + bustool, velocyto, scanpy or even 10x cellranger (because dynamo 
 can be reduced as a regular scRNA-seq analysis toolkit) via `read_loom`, `read_h5`, `read_h5ad`. Dynamo also provides a function (`read_NASC_seq`) to load output files 
 from the [NASC-seq pipeline](https://github.com/sandberg-lab/NASC-seq) that applied to single cell based SLAM-seq experiments. If you want to learn 
 protein velocity, you should then attach the protein abundance data to the `.obsm` attribute of the `AnnData` object via the `protein` key. 
@@ -26,31 +26,31 @@ adata = dyn.read_loom(filename, **param) # (or use read_h5ad, read_NASC_seq to i
 adata = dyn.sample_data.DentateGyrus()  # there are many sample datasets available. 
 ```
 
-Next you may want to first check the fraction of the spliced, unspliced or new (metabolic labeled ) or total mRNAs in your 
+Next you may want to first check the fraction of the spliced, unspliced or new (metabolic labeled) or total mRNAs in your 
 data by `show_fraction`. Then you are ready to run the `recipe_monocle` function that performs preprocessing of the data in a single 
 shot. `recipe_monocle` uses similar strategy from [Monocle 3](https://cole-trapnell-lab.github.io/monocle3/) to normalize all 
-datasets in different layers (the spliced and unspliced or new (metabolic labeled ) and total mRNAs or others). You can check the `mean-dispersion` 
+datasets in different layers (the spliced and unspliced or new (metabolic labeled) and total mRNAs or others). You can check the `mean-dispersion` 
 plot to see where do the automatically selected feature genes locate and also the `variance explained plot` to take a glance 
 at the variance explained by principal components. 
 ```python
 # second step: preprocess
 dyn.pl.show_fraction(adata)
-adata = dyn.pp.recipe_monocle(adata, n_top_genes=3000)
+dyn.pp.recipe_monocle(adata, n_top_genes=3000)
 dyn.pl.featureGenes(adata)
 dyn.pl.variance_explained(adata)
 ```
 
-Next you will want to learn the velocity values for all genes that pass some filters (default it is all the selected feature genes) in each cell. 
-The `dyn.tl.dynamics` do all the hard work for you. It automatically checks the data you have and learn the velocity vectors accordingly. For example, 
+Next you will want to learn the velocity values for all genes that pass some filters (default it is all the selected feature genes) across cells. 
+The `dyn.tl.dynamics` does all the hard work for you. It automatically checks the data you have and learns the velocity vectors accordingly. For example, 
 if you have scSLAM-seq data (identified by the `new` and `total` or `uu`, `ul`, `su` and `sl` layers, etc.), dynamo will learn the transcription, splicing and degradation 
 rates for each gene. We developed two mode of estimation, either the `steady_state` assumption (from the seminal [RNA velocity](https://www.nature.com/articles/s41586-018-0414-6) work) 
-or the `moment` model.  
+or the `moment` model (see the full derivation of this [model](https://github.com/aristoteleo/dynamo-notebooks/blob/master/full_derivation.pdf)).  
 ```python
 # third step: learning dynamics
 dyn.tl.dynamics(adata)
 ```
 
-You would like to also use different dimension reduction approach to reduce your scRNA-seq into low dimensional embedding. By default, we use the novel 
+You would like to also use different dimension reduction approaches to reduce your scRNA-seq into low dimensional embedding. By default, we use the novel 
 [trimap](https://github.com/eamid/trimap) dimension reduction method, which uses triplet constraints to form a low-dimensional embedding of a set of points. 
 `trimap` is arguably more scalable and better at preserving the global structure of the data than `UMAP`. Note that we also generalized diffusion map so we can 
 performing dimension reduction via diffusion while also considering drift. A class of structural learning based dimension reduction methods from us will also 
@@ -62,7 +62,7 @@ dyn.tl.reduceDimension(adata, velocity_key='velocity_S',reduction_method='trimap
 
 You love to see the velocity vector on low dimensional embedding. To get there, you want to first apply our improved transition matrix reconstruction method. In
 contrast to the "correlation kernel" from [velocyto](https://github.com/velocyto-team/velocyto.py) or [scVelo](https://github.com/theislab/scvelo), dynamo is powered 
-by the [Itô kernel](https://twitter.com/Xiaojie_Qiu/status/1188875696178753537) that not only consider the correlation between the vector from any cell to its nearest 
+by the [Itô kernel](https://twitter.com/Xiaojie_Qiu/status/1188875696178753537) that not only considers the correlation between the vector from any cell to its nearest 
 neighbors and its velocity vector but also the corresponding distances. We expect this new kernel will enable us to visualize more intricate vector flow or steady states 
 in low dimension. We also expect it will improve the calculation of the stationary distribution or source states of sampled cells. 
 ```python
@@ -71,17 +71,18 @@ dyn.tl.cell_velocities(adata, vkey='pca', basis='trimap', method='analytical')
 ```
 
 At this stage, you may already cannot wait to see how does the velocity vector looks like in low dimension space. Similar to velocyto and scvelo, we provide three plotting utilities 
-that visualize the cell-wise velocity vector, velocity vector on a grid or the stream line plot that integrate along grid velocity vectors via fourth-order Runger-Kutta algorithm. 
+that visualize the cell-wise velocity vector, velocity vector on a grid or the stream line plot that integrates along grid velocity vectors via fourth-order Runger-Kutta algorithm. 
 
 ```python
 # sixth step: visualize vector field
+basis='trimap'
 gene_list = ['Rgs20', 'Eya1']
 dyn.pl.cell_wise_velocity(adata, genes=gene_list, basis=basis, n_columns=3) 
 dyn.pl.grid_velocity(adata, genes=gene_list, basis=basis, n_columns=2, figsize=[8, 8])  
 dyn.pl.grid_velocity(adata, genes=gene_list,  basis=basis, n_columns=1, figsize=[8, 8], color=['ClusterName'])  
 dyn.pl.stremline_plot(adata, genes=gene_list, n_columns=2, figsize=[8, 8], density=3) 
 ```
-Obviously we don't want to stop here. Let us move to the real exciting part of dynamo in the next section to learn the velocity vector in the full transcriptomic space and map the potential 
+Obviously we don't want to stop here. Let us move to the real exciting part of dynamo in the next section to learn the velocity vector in the full transcriptomic space and to map the potential 
 landscape. 
 
 Dynamo aspires to learn a vector field function in the transcriptomic space. With the learnt vector field, you can then predict the cell fate in high dimension over arbitrary time scale 
@@ -93,8 +94,8 @@ dyn.tl.fate(adata)
 dyn.pl.line_integral_conv(adata)
 ```
 
-Potential landscape is an intuitive concept that is widely used in various discipline. It provides a global description of cell state stability. Once we learnt vector field, dynamo allows you 
-to map the potential landscape and the least action path that convert from any cell type (state) to any other cell type (state) with the highest probability. You can experiment it via the `dyn.tl.Potential` and 
+Potential landscape is an intuitive concept that is widely used in various disciplines. It provides a global description of cell state stability. Once we learnt vector field, dynamo allows you 
+to map the potential landscape and the least action paths that convert from any cell types (states) to any other cell types (states) with the highest probability. You can experiment it via the `dyn.tl.Potential` and 
 the `dyn.tl.action` function. 
 ```python
 # eigth step: map potential landscape
