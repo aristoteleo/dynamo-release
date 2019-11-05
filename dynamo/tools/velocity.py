@@ -113,7 +113,9 @@ def fit_linreg(x, y, intercept=True):
     k: float
         The estimated slope.
     b: float
-        The estimated intercept.  
+        The estimated intercept.
+    r2: float
+        coefficient of determination or r square.
     """
     x = x.A if issparse(x) else x
     y = y.A if issparse(y) else y
@@ -132,7 +134,11 @@ def fit_linreg(x, y, intercept=True):
     else:
         k = np.mean(yy) / np.mean(xx)
         b = 0
-    return k, b
+
+    SS_tot_n = np.var(yy)
+    SS_res_n = np.mean((yy - k * xx - b) ** 2)
+    r2 = 1 - SS_res_n / SS_tot_n
+    return k, b, r2
 
 def fit_first_order_deg_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=1):
     """Estimate beta with degradation data using least squares method.
@@ -261,6 +267,8 @@ def fit_alpha_degradation(t, u, beta, mode=None):
         The estimated value for alpha.
     b: float
         The initial unspliced mRNA count.
+    r2: float
+        coefficient of determination or r square.
     """
     u = u.A if issparse(u) else u
 
@@ -283,8 +291,11 @@ def fit_alpha_degradation(t, u, beta, mode=None):
 
     # calculate intercept
     b = ym - k * xm if mode != 'fast' else None
+    SS_tot_n = np.var(y)
+    SS_res_n = np.mean((y - k * x - b) ** 2) if b is not None else np.mean((y - k * x) ** 2)
+    r2 = 1 - SS_res_n / SS_tot_n
 
-    return k * beta, b
+    return k * beta, b, r2
 
 def fit_alpha_beta_synthesis(t, l, bounds=(0, np.inf), alpha_0=1, beta_0=1):
     """Estimate alpha and beta with synthesis data using least square method.
@@ -570,6 +581,7 @@ class estimation:
         self.asspt_mRNA = assumption_mRNA
         self.asspt_prot = assumption_protein
         self.parameters = {'alpha': None, 'beta': None, 'gamma': None, 'eta': None, 'delta': None}
+        self.aux_param = {'gamma_intercept': None, 'gamma_r2': None, 'delta_intercept': None, 'delta_r2': None}
         self.ind_for_proteins = ind_for_proteins
 
     def fit(self, intercept=True, perc_left=5, perc_right=5, clusters=None):
@@ -593,13 +605,13 @@ class estimation:
         if self.asspt_mRNA == 'ss':
             if np.all(self._exist_data('uu', 'su')):
                 self.parameters['beta'] = np.ones(n)
-                gamma = np.zeros(n)
+                gamma, gamma_intercept, gamma_r2 = np.zeros(n), np.zeros(n), np.zeros(n)
                 U = self.data['uu'] if self.data['ul'] is None else self.data['uu'] + self.data['ul']
                 S = self.data['su'] if self.data['sl'] is None else self.data['su'] + self.data['sl']
                 for i in range(n):
-                    gamma[i], _ = self.fit_gamma_steady_state(U[i], S[i],
+                    gamma[i], gamma_intercept[i], gamma_r2[i] = self.fit_gamma_steady_state(U[i], S[i],
                             intercept, perc_left, perc_right)
-                self.parameters['gamma'] = gamma
+                self.parameters['gamma'], self.aux_param['gamma_intercept'], self.aux_param['gamma_r2'] = gamma, gamma_intercept, gamma_r2
         else:
             if self.extyp == 'deg':
                 if np.all(self._exist_data('ul', 'sl')):
@@ -609,7 +621,7 @@ class estimation:
                         # alpha estimation
                         alpha = np.zeros(n)
                         for i in range(n):
-                            alpha[i], _ = fit_alpha_degradation(self.t, self.data['uu'][i], self.parameters['beta'][i], mode='fast')
+                            alpha[i], _, _ = fit_alpha_degradation(self.t, self.data['uu'][i], self.parameters['beta'][i], mode='fast')
                         self.parameters['alpha'] = alpha
                 elif self._exist_data('ul'):
                     # gamma estimation
@@ -647,14 +659,15 @@ class estimation:
 
             if self.asspt_prot == 'ss' and n > 0:
                 self.parameters['eta'] = np.ones(n)
-                delta = np.zeros(n)
+                delta, delta_intercept, delta_r2 = np.zeros(n), np.zeros(n), np.zeros(n)
+
                 s = self.data['su'][ind_for_proteins] + self.data['sl'][ind_for_proteins] \
                     if self._exist_data('sl') else self.data['su'][ind_for_proteins]
 
                 for i in range(n):
-                    delta[i], _ = self.fit_gamma_steady_state(s[i], self.data['p'][i],
+                    delta[i], delta_intercept[i], delta_r2[i] = self.fit_gamma_steady_state(s[i], self.data['p'][i],
                             intercept, perc_left, perc_right)
-                self.parameters['delta'] = delta
+                self.parameters['delta'], self.aux_param['delta_intercept'], self.aux_param['delta_r2'] = delta, delta_intercept, delta_r2
 
     def fit_gamma_steady_state(self, u, s, intercept=True, perc_left=5, perc_right=5):
         """Estimate gamma using linear regression based on the steady state assumption.

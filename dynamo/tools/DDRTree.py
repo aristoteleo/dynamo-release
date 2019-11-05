@@ -93,7 +93,7 @@ def eye (m, n):
     mat = np.eye(m, n)
     return mat
 
-def DDRTree_py(X,maxIter,sigma,gamma,eps=0,dim=2,Lambda = 1.0,ncenter = None):
+def DDRTree_py(X,maxIter,sigma,gamma,eps=0,dim=2,Lambda = 1.0,ncenter = None, keep_history=False):
     '''
     Arguments
     ---------
@@ -135,7 +135,8 @@ def DDRTree_py(X,maxIter,sigma,gamma,eps=0,dim=2,Lambda = 1.0,ncenter = None):
 
     #main loop
     objs = []
-    history = pd.DataFrame(index= [i for i in range(maxIter)],columns=['W', 'Z', 'Y', 'stree', 'R','objs'])
+    if keep_history:
+        history = pd.DataFrame(index= [i for i in range(maxIter)],columns=['W', 'Z', 'Y', 'stree', 'R','objs'])
     for iter in range(maxIter):
 
         #Kruskal method to find optimal B
@@ -161,11 +162,12 @@ def DDRTree_py(X,maxIter,sigma,gamma,eps=0,dim=2,Lambda = 1.0,ncenter = None):
         objs.append((np.dot(xwz,xwz)) + Lambda * np.trace( np.dot(Y , np.dot(L , Y.T)))+ gamma * obj1)
         print('iter = ',iter,'obj = ',objs[iter],'\n')
 
-        history.iloc[iter]['W'] = W
-        history.iloc[iter]['Z'] = Z
-        history.iloc[iter]['Y'] = Y
-        history.iloc[iter]['stree'] = stree
-        history.iloc[iter]['R'] = R
+        if keep_history:
+            history.iloc[iter]['W'] = W
+            history.iloc[iter]['Z'] = Z
+            history.iloc[iter]['Y'] = Y
+            history.iloc[iter]['stree'] = stree
+            history.iloc[iter]['R'] = R
 
         if iter>0:
             if abs((objs[iter] - objs[iter-1])/abs(objs[iter-1])) < eps:
@@ -181,6 +183,9 @@ def DDRTree_py(X,maxIter,sigma,gamma,eps=0,dim=2,Lambda = 1.0,ncenter = None):
         Z = np.dot(W.T , C)
         Y = np.dot(np.dot(Z,R),inv(csr_matrix((Lambda / gamma)*L + Gamma)).toarray())
 
-    history.iloc[iter]['obs'] = objs
+    if keep_history:
+        history.iloc[iter]['obs'] = objs
 
-    return history
+        return history
+    else:
+        return Z, Y, stree, R, W, Q, C, objs

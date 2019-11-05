@@ -58,8 +58,8 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
                 adaptive_local_kernel=True, tol=1e-7) # neighbor_idx=indices,
         T = kmc.P
         delta_X = kmc.compute_density_corrected_drift(X_embedding, kmc.Idx, normalize_vector=True) # indices, k = 500
-        P = kmc.compute_stationary_distribution()
-        adata.obs['stationary_distribution'] = P
+        # P = kmc.compute_stationary_distribution()
+        # adata.obs['stationary_distribution'] = P
         X_grid, V_grid, D = velocity_on_grid(X_embedding, delta_X, xy_grid_nums=xy_grid_nums)
 
         if calc_rnd_vel:
@@ -72,8 +72,8 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
             T_rnd = kmc.P
             delta_X_rnd = kmc.compute_density_corrected_drift(X_embedding, kmc.Idx,
                                                           normalize_vector=True)  # indices, k = 500
-            P_rnd = kmc.compute_stationary_distribution()
-            adata.obs['stationary_distribution_rnd'] = P_rnd
+            # P_rnd = kmc.compute_stationary_distribution()
+            # adata.obs['stationary_distribution_rnd'] = P_rnd
             X_grid_rnd, V_grid_rnd, D_rnd = velocity_on_grid(X_embedding, delta_X_rnd, xy_grid_nums=xy_grid_nums)
 
     elif method == 'empirical': # add random velocity vectors calculation below
@@ -93,6 +93,70 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
         adata.uns['grid_velocity_' + basis + '_rnd'] = {'X_grid': X_grid_rnd, "V_grid": V_grid_rnd, "D": D_rnd}
 
     return adata
+
+
+def stationary_distribution(adata, direction='both', calc_rnd=True):
+    """Compute stationary distribution of cells using the transition matrix.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object
+        direction: `str` (default: `both`)
+            The direction of diffusion for calculating the stationary distribution, can be one of `both`, `forward`, `backward`.
+        calc_rnd: `bool` (default: `True`)
+            Whether to also calculate the stationary distribution from the control randomized transition matrix.
+    Returns
+    -------
+        Adata: :class:`~anndata.AnnData`
+            Returns an updated `~anndata.AnnData` with source, sink stationary distributions and the randomized results,
+            depending on the direction and calc_rnd arguments.
+    """
+
+    T = adata.uns['transition_matrix']
+
+    if direction is 'both':
+        adata.uns['source_steady_state_distribution'] = diffusion(T, backward=True)
+        adata.uns['sink_steady_state_distribution'] = diffusion(T)
+        if calc_rnd:
+            T_rnd = adata.uns['transition_matrix_rnd']
+            adata.uns['source_steady_state_distribution_rnd'] = diffusion(T_rnd, backward=True)
+            adata.uns['sink_steady_state_distribution_rnd'] = diffusion(T_rnd)
+    elif direction is 'forward':
+        adata.uns['sink_steady_state_distribution'] = diffusion(T)
+        if calc_rnd:
+            T_rnd = adata.uns['transition_matrix_rnd']
+            adata.uns['sink_steady_state_distribution_rnd'] = diffusion(T_rnd)
+    elif direction is 'backward':
+        adata.uns['source_steady_state_distribution'] = diffusion(T, backward=True)
+        if calc_rnd:
+            T_rnd = adata.uns['transition_matrix_rnd']
+            adata.uns['source_steady_state_distribution_rnd'] = diffusion(T_rnd, backward=True)
+
+
+def generalized_diffusion_map(adata, **kwargs):
+    """Apply the diffusion map algorithm on the transition matrix build from Itô kernel.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the constructed transition matrix.'
+        kwargs:
+            Additional parameters that will be passed to the diffusion_map_embedding function. 
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that updated with X_diffusion_map embedding in obsm attribute.
+    """
+
+    kmc = KernelMarkovChain()
+    kmc.P = adata.uns['transition_matrix']
+    dm_args = {"n_dims": 2, "t": 1}
+    dm_args.update(kwargs)
+    dm = kmc.diffusion_map_embedding(*dm_args)
+
+    adata.obsm['X_diffusion_map'] = dm
 
 
 def diffusion(M, P0=None, steps=None, backward=False):
@@ -117,6 +181,7 @@ def diffusion(M, P0=None, steps=None, backward=False):
 
     if backward is True:
         M = M.T
+        M = M / M.T.sum(1)
 
     if steps is None:
         # code inspired from  https://github.com/prob140/prob140/blob/master/prob140/markov_chains.py#L284
@@ -125,7 +190,7 @@ def diffusion(M, P0=None, steps=None, backward=False):
 
         eigenvector = np.real(eigenvector) if not issparse(M) else np.real(eigenvector.T)
         eigenvalue_1_ind = np.isclose(eigenvalue, 1)
-        mu = eigenvector[:, eigenvalue_1_ind] / np.sum(b[:, eigenvalue_1_ind])
+        mu = eigenvector[:, eigenvalue_1_ind] / np.sum(eigenvector[:, eigenvalue_1_ind])
 
         # Zero out floating poing errors that are negative.
         indices = np.logical_and(np.isclose(mu, 0),

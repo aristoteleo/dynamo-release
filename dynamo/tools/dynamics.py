@@ -145,10 +145,19 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', protein_names
         adata.var.loc[valid_ind, 'velocity_parameter_beta'] = beta
         adata.var.loc[valid_ind, 'velocity_parameter_gamma'] = gamma
 
+        gamma_intercept, gamma_r2, delta_intercept, delta_r2 = est.aux_param.values()
+        gamma_r2[~np.isfinite(gamma_r2)] = 0,
+        adata.var.loc[valid_ind, 'velocity_parameter_gamma_intercept'] = gamma_intercept
+        adata.var.loc[valid_ind, 'velocity_parameter_gamma_r2'] = gamma_r2
+
         if ind_for_proteins is not None:
+            delta_r2[~np.isfinite(delta_r2)] = 0
             adata.var['velocity_parameter_eta'], adata.var['velocity_parameter_delta'] = np.nan, np.nan
             adata.var.loc[valid_ind, 'velocity_parameter_eta'][ind_for_proteins] = eta
             adata.var.loc[valid_ind, 'velocity_parameter_delta'][ind_for_proteins] = delta
+            adata.var.loc[valid_ind, 'velocity_parameter_delta_intercept'][ind_for_proteins] = delta_intercept
+            adata.var.loc[valid_ind, 'velocity_parameter_delta_r2'][ind_for_proteins] = delta_r2
+
         # add velocity_offset here
     elif mode is 'moment':
         Moment = MomData(adata)

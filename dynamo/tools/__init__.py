@@ -10,7 +10,7 @@ from .moments import Estimation
 from .simulation import Simulator
 
 from .velocity import sol_u, sol_s, sol_p, fit_linreg, fit_first_order_deg_lsq, fit_gamma_lsq, fit_alpha_synthesis, fit_alpha_degradation, velocity, estimation
-from .cell_velocities import cell_velocities, diffusion, expected_return_time
+from .cell_velocities import cell_velocities, generalized_diffusion_map, stationary_distribution, diffusion, expected_return_time
 
 from .dynamics import dynamics
 
@@ -35,3 +35,5 @@ from .fate import Fate, fate
 # dimension reduction related
 from .dimension_reduction import extract_indices_dist_from_graph, umap_conn_indices_dist_embedding, reduceDimension
 
+# Pseudotime related
+from .DDRTree import DDRTree_py as DDRTree
