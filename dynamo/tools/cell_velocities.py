@@ -142,7 +142,7 @@ def generalized_diffusion_map(adata, **kwargs):
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the constructed transition matrix.'
         kwargs:
-            Additional parameters that will be passed to the diffusion_map_embedding function. 
+            Additional parameters that will be passed to the diffusion_map_embedding function.
 
     Returns
     -------
