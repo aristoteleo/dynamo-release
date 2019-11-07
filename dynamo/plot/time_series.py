@@ -36,13 +36,68 @@ def plot_directed_pg(adata, principal_g_transition, Y, basis='umap'):
     plt.show()
 
 
-def kinetic_curves(adata, genes, layer='X', time='pseudotime', color_map='viridis'):
-    pass
+def kinetic_curves(adata, genes, color=None, layer='X', time='pseudotime', ncol=4, c_palette='Set2'):
+    """Plot the gene expression dynamics over time (pseudotime or inferred real time) as kinetic curves.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object.
+        genes: `list`
+            The gene names whose gene expression will be faceted.
+        color: `list` or None (default: None)
+            A list of attributes of cells (column names in the adata.obs) will be used to color cells.
+        layer: `str` (default: X)
+            Which layer of expression value will be used.
+        time: `str` (default: `pseudotime`)
+            The .obs column that will be used for timing each cell.
+        ncol: `int` (default: 4)
+            Number of columns in each facet grid.
+        c_palette: Name of color_palette supported in seaborn color_palette function (default: None)
+            The color map function to use.
+    Returns
+    -------
+        Nothing but plots the kinetic curves that shows the gene expression dynamics over time.
+    """
+
+    import pandas as pd
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+
+    valid_genes = list(set(genes).intersection(adata.var.index))
+
+    time = adata.obs[time].values
+    time = time[np.isfinite(time)]
+
+    if layer is 'X':
+        exprs = adata[:, adata.var.index.isin(valid_genes)].X
+    elif layer in adata.layers.keys():
+        exprs = adata[:, adata.var.index.isin(valid_genes)].layers[layer]
+    elif layer is 'protein': # update subset here
+        exprs = adata[:, adata.var.index.isin(valid_genes)].obsm[layer]
+    else:
+        raise Exception(f'The {layer} you passed in is not existed in the adata object.')
+
+    if color is not None:
+        color = list(set(color).intersection(adata.obs.keys()))
+        Color = adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
+
+    exprs_df = pd.DataFrame({'Time': np.repeat(time, len(valid_genes)), 'Expression': exprs.flatten(), \
+                             'Gene': np.tile(valid_genes, adata.shape[0])})
+    if len(Color) > 0:
+        exprs_df['Color'] = np.repeat(Color, len(valid_genes))
+        sns.lmplot(x="time", y="tip", data=exprs_df, order=3, col='Gene', hue='Color', palette=sns.color_palette(c_palette), \
+                   col_wrap=ncol, line_kws={"color": "gray"},  scatter_kws={"s": 3})
+    else:
+        sns.lmplot(x="time", y="tip", data=exprs_df, order=3, col='Gene', col_wrap=ncol, line_kws={"color": "gray"}, \
+                   scatter_kws={"s": 3})
+
+    plt.show()
 
 
 def kinetic_heatmap(adata, genes, layer='X', time='pseudotime', color_map='viridis', show_col_color=False, \
                     cluster_row_col=(False, False), figsize=(11.5, 6)):
-    """Plot the gene expression dynamics over time (pseudotime or inferred real time).
+    """Plot the gene expression dynamics over time (pseudotime or inferred real time) in a heatmap.
 
     Parameters
     ----------
@@ -86,7 +141,7 @@ def kinetic_heatmap(adata, genes, layer='X', time='pseudotime', color_map='virid
     else:
         raise Exception(f'The {layer} you passed in is not existed in the adata object.')
 
-    time, all=_ident_switch_point(exprs, time, interpolate=True, spaced_num=100)
+    time, all=_half_max_ordering(exprs, time, interpolate=True, spaced_num=100)
     df = pd.DataFrame(all, index=valid_genes)
 
     sns_heatmap = sns.clustermap(df, col_colors=col_color, col_cluster=cluster_row_col[0], row_cluster=cluster_row_col[1], cmap=color_map, \
@@ -96,7 +151,7 @@ def kinetic_heatmap(adata, genes, layer='X', time='pseudotime', color_map='virid
     plt.show()
 
 
-def _ident_switch_point(exprs, time, interpolate=False, spaced_num=100):
+def _half_max_ordering(exprs, time, interpolate=False, spaced_num=100):
     """Implement the half-max ordering algorithm from HA Pliner, Molecular Cell, 2018.
 
     Parameters
@@ -113,7 +168,7 @@ def _ident_switch_point(exprs, time, interpolate=False, spaced_num=100):
     Returns
     -------
         all: `np.ndarray`
-            The ordered smoothed, scaled expression matrix.
+            The ordered smoothed, scaled expression matrix, the first group is up, then down, followed by the transient gene groups.
     """
 
     from .utilities import Loess

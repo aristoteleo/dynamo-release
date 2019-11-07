@@ -5,7 +5,7 @@ from .Markov import *
 from numba import jit
 
 def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_cells_trick=False, calc_rnd_vel=False,
-                    xy_grid_nums=(50, 50), random_seed=19491001):
+                    xy_grid_nums=(50, 50), sample_fraction=None, random_seed=19491001):
     """Compute transition probability and project high dimension velocity vector to existing low dimension embedding.
 
     We may consider using umap transform function or applying a neuron net model to project the velocity vectors.
@@ -33,6 +33,8 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
             as a negative control and used to adjust the quiver scale of the velocity field.
         xy_grid_nums: `tuple` (default: (50, 50).
             A tuple of number of grids on each dimension.
+        sample_fraction: `None` or `float` (default: None)
+            The downsampled fraction of kNN for the purpose of acceleration.
         random_seed: `int` (default: 19491001)
             The random seed for numba to ensure consistency of the random velocity vectors. Default value 19491001 is a special
             day for those who care.
@@ -55,7 +57,7 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
         kmc = KernelMarkovChain()
         ndims = X_pca.shape[1]
         kmc.fit(X_pca[:, :ndims], V_mat[:, :ndims],  k=min(500, X_pca.shape[0] - 1), M_diff=4 * np.eye(ndims), epsilon=None,
-                adaptive_local_kernel=True, tol=1e-7) # neighbor_idx=indices,
+                adaptive_local_kernel=True, tol=1e-7, sample_fraction=sample_fraction) # neighbor_idx=indices,
         T = kmc.P
         delta_X = kmc.compute_density_corrected_drift(X_embedding, kmc.Idx, normalize_vector=True) # indices, k = 500
         # P = kmc.compute_stationary_distribution()

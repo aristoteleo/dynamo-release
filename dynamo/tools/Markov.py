@@ -304,13 +304,24 @@ class KernelMarkovChain(MarkovChain):
         self.Idx = None
 
     def fit(self, X, V, M_diff, neighbor_idx=None, k=200, epsilon=None, adaptive_local_kernel=False, tol=1e-4,
-            sparse_construct=True):
+            sparse_construct=True, sample_fraction=None):
         # compute connectivity
         if neighbor_idx is None:
             nbrs = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(X)
             _, self.Idx = nbrs.kneighbors(X)
         else:
             self.Idx = neighbor_idx
+        # apply kNN downsampling to accelerate calculation (adapted from velocyto)
+        if sample_fraction is not None:
+            neighbor_idx = self.Idx
+            p = np.linspace(0.5, 1, neighbor_idx.shape[1])
+            p = p / p.sum()
+
+            sampling_ixs = np.stack((np.random.choice(np.arange(1,neigh_ixs.shape[1]-1),
+                                                      size=int(sampled_fraction * (n_neighbors + 1)),
+                                                      replace=False,
+                                                      p=p) for i in range(neighbor_idx.shape[0])), 0)
+            self.Idx = self.Idx[np.arange(neighbor_idx.shape[0])[:, None], sampling_ixs]
         n = X.shape[0]
         if sparse_construct:
             self.P = sp.lil_matrix((n, n))

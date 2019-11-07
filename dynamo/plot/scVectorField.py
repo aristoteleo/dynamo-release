@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from .utilities import quiver_autoscaler
 from ..tools.Markov import velocity_on_grid
+from ..tools.scVectorField import VectorField
 
 
 import scipy as sc
@@ -256,7 +257,7 @@ def grid_velocity(adata, genes, x=0, y=1, method='SparseVFC', basis='trimap', n_
 
     if method is 'SparseVFC':
         if 'VecFld_' + basis not in adata.uns.keys():
-            dyn.tl.VectorField(adata, basis=basis)
+            VectorField(adata, basis=basis)
         X_grid, V_grid =  adata.uns['VecFld_' + basis]['grid'], adata.uns['VecFld_' + basis]['grid_V']
         N = int(np.sqrt(V_grid.shape[0]))
         X_grid, V_grid = np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]), \
@@ -436,7 +437,7 @@ def stremline_plot(adata, genes, x=0, y=1, method='sparseVFC', basis='trimap', n
 
     if method is 'SparseVFC':
         if 'VecFld_' + basis not in adata.uns.keys():
-            dyn.tl.VectorField(adata, basis=basis)
+            VectorField(adata, basis=basis)
         X_grid, V_grid =  adata.uns['VecFld_' + basis]['grid'], adata.uns['VecFld_' + basis]['grid_V']
         N = int(np.sqrt(V_grid.shape[0]))
         X_grid, V_grid = np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]), \
