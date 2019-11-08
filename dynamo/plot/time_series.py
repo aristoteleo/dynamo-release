@@ -78,6 +78,7 @@ def kinetic_curves(adata, genes, color=None, layer='X', time='pseudotime', ncol=
     else:
         raise Exception(f'The {layer} you passed in is not existed in the adata object.')
 
+    Color = np.empty((0, 1))
     if color is not None:
         color = list(set(color).intersection(adata.obs.keys()))
         Color = adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))

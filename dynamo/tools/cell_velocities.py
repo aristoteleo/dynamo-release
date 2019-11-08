@@ -97,13 +97,15 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
     return adata
 
 
-def stationary_distribution(adata, direction='both', calc_rnd=True):
+def stationary_distribution(adata, method='kmc', direction='both', calc_rnd=True):
     """Compute stationary distribution of cells using the transition matrix.
 
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
             an Annodata object
+        method: `str` (default: `kmc`)
+            The method to calculate the stationary distribution.
         direction: `str` (default: `both`)
             The direction of diffusion for calculating the stationary distribution, can be one of `both`, `forward`, `backward`.
         calc_rnd: `bool` (default: `True`)
@@ -115,25 +117,35 @@ def stationary_distribution(adata, direction='both', calc_rnd=True):
             depending on the direction and calc_rnd arguments.
     """
 
-    T = adata.uns['transition_matrix']
+    T = adata.uns['transition_matrix'] # row is the source and columns are targets
 
-    if direction is 'both':
-        adata.uns['source_steady_state_distribution'] = diffusion(T, backward=True)
-        adata.uns['sink_steady_state_distribution'] = diffusion(T)
-        if calc_rnd:
-            T_rnd = adata.uns['transition_matrix_rnd']
-            adata.uns['source_steady_state_distribution_rnd'] = diffusion(T_rnd, backward=True)
-            adata.uns['sink_steady_state_distribution_rnd'] = diffusion(T_rnd)
-    elif direction is 'forward':
-        adata.uns['sink_steady_state_distribution'] = diffusion(T)
-        if calc_rnd:
-            T_rnd = adata.uns['transition_matrix_rnd']
-            adata.uns['sink_steady_state_distribution_rnd'] = diffusion(T_rnd)
-    elif direction is 'backward':
-        adata.uns['source_steady_state_distribution'] = diffusion(T, backward=True)
-        if calc_rnd:
-            T_rnd = adata.uns['transition_matrix_rnd']
-            adata.uns['source_steady_state_distribution_rnd'] = diffusion(T_rnd, backward=True)
+    if method is 'kmc':
+        kmc = KernelMarkovChain()
+        kmc.P = T
+        if direction is 'both':
+            adata.uns['source_steady_state_distribution'] = kmc.compute_stationary_distribution()
+            kmc.P = T.T / T.T.sum(0)
+
+            adata.uns['sink_steady_state_distribution'] = kmc.compute_stationary_distribution()
+    else:
+        T = T.T
+        if direction is 'both':
+            adata.uns['source_steady_state_distribution'] = diffusion(T, backward=True)
+            adata.uns['sink_steady_state_distribution'] = diffusion(T)
+            if calc_rnd:
+                T_rnd = adata.uns['transition_matrix_rnd']
+                adata.uns['source_steady_state_distribution_rnd'] = diffusion(T_rnd, backward=True)
+                adata.uns['sink_steady_state_distribution_rnd'] = diffusion(T_rnd)
+        elif direction is 'forward':
+            adata.uns['sink_steady_state_distribution'] = diffusion(T)
+            if calc_rnd:
+                T_rnd = adata.uns['transition_matrix_rnd']
+                adata.uns['sink_steady_state_distribution_rnd'] = diffusion(T_rnd)
+        elif direction is 'backward':
+            adata.uns['source_steady_state_distribution'] = diffusion(T, backward=True)
+            if calc_rnd:
+                T_rnd = adata.uns['transition_matrix_rnd']
+                adata.uns['source_steady_state_distribution_rnd'] = diffusion(T_rnd, backward=True)
 
 
 def generalized_diffusion_map(adata, **kwargs):
@@ -183,12 +195,12 @@ def diffusion(M, P0=None, steps=None, backward=False):
 
     if backward is True:
         M = M.T
-        M = M / M.T.sum(1)
+        M = M / M.sum(1)
 
     if steps is None:
         # code inspired from  https://github.com/prob140/prob140/blob/master/prob140/markov_chains.py#L284
         from scipy.sparse.linalg import eigs
-        eigenvalue, eigenvector = scp.linalg.eig(M, left=True, right=False) if not issparse(M) else eigs(M) # source is on the row
+        eigenvalue, eigenvector = scp.linalg.eig(M, left=True, right=False) # if not issparse(M) else eigs(M) # source is on the row
 
         eigenvector = np.real(eigenvector) if not issparse(M) else np.real(eigenvector.T)
         eigenvalue_1_ind = np.isclose(eigenvalue, 1)

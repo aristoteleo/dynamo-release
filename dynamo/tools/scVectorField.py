@@ -465,30 +465,16 @@ class vectorfield:
 
         return G, (1-gamma)*G_tmp*(G_tmp2+G_tmp3), gamma*G_tmp*G_tmp4
 
-    def vector_field_function(self, x, VecFld, autograd = False):
-        """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
-        Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
-        """
-
-        K= con_K(x, VecFld['X'], VecFld['beta']) if autograd is False else auto_con_K(x, VecFld['X'], VecFld['beta'])
-
-        K = K.dot(VecFld['C']).T
-
-        return K
-
-    def vector_field_function(x, t, VecFld):
-        """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
-
-        Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
-        """
-        x=np.array(x).reshape((1, -1))
-        if(len(x.shape) == 1):
-            x = x[None, :]
-        K= con_K(x, VecFld['X'], VecFld['beta'])
-
-        K = K.dot(VecFld['C'])
-
-        return K.T
+    # def vector_field_function(self, x, VecFld, autograd = False):
+    #     """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
+    #     Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
+    #     """
+    #
+    #     K= con_K(x, VecFld['X'], VecFld['beta']) if autograd is False else auto_con_K(x, VecFld['X'], VecFld['beta'])
+    #
+    #     K = K.dot(VecFld['C']).T
+    #
+    #     return K
 
     def vector_field_function_auto(self, x, VecFld, autograd = False):
         """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
@@ -503,3 +489,16 @@ class vectorfield:
         return K
 
 
+def vector_field_function(x, t, VecFld):
+    """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
+
+    Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
+    """
+    x=np.array(x).reshape((1, -1))
+    if(len(x.shape) == 1):
+        x = x[None, :]
+    K= con_K(x, VecFld['X'], VecFld['beta'])
+
+    K = K.dot(VecFld['C'])
+
+    return K.T
