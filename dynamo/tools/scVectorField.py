@@ -107,7 +107,7 @@ def SparseVFC(X, Y, Grid, M = 100, a = 5, beta = 0.1, ecr = 1e-5, gamma = 0.9, l
     A dictionary which contains X, Y, beta, V, C, P, VFCIndex. Where V = f(X), P is the posterior probability and
     VFCIndex is the indexes of inliers which found by VFC. Note that V = con_K(Grid, ctrl_pts, beta).dot(C) gives the prediction of velocity on Grid (can be any point in the gene expressionstate space).
     """
-
+    Y[~np.isfinite(Y)] = 0 # set nan velocity to 0.
     N, D = Y.shape
     grid_U = None
 
@@ -130,7 +130,8 @@ def SparseVFC(X, Y, Grid, M = 100, a = 5, beta = 0.1, ecr = 1e-5, gamma = 0.9, l
     C = np.zeros((M, D))
     iter, tecr, E = 1, 1, 1
     sigma2 = sum(sum((Y - V)**2)) / (N * D) ## test this
-
+    sigma2 = 1e-7 if sigma2 > 1e-8 else sigma2
+    print('sigma2 is ', sigma2)
     while iter < MaxIter and tecr > ecr and sigma2 > 1e-8:
         # E_step
         E_old = E
