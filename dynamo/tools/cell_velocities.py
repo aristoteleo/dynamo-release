@@ -123,10 +123,33 @@ def stationary_distribution(adata, method='kmc', direction='both', calc_rnd=True
         kmc = KernelMarkovChain()
         kmc.P = T
         if direction is 'both':
-            adata.uns['source_steady_state_distribution'] = kmc.compute_stationary_distribution()
-            kmc.P = T.T / T.T.sum(0)
-
             adata.uns['sink_steady_state_distribution'] = kmc.compute_stationary_distribution()
+            kmc.P = T.T / T.T.sum(0)
+            adata.uns['source_steady_state_distribution'] = kmc.compute_stationary_distribution()
+
+            if calc_rnd:
+                T_rnd = adata.uns['transition_matrix_rnd']
+                kmc.P = T_rnd
+                adata.uns['sink_steady_state_distribution_rnd'] = kmc.compute_stationary_distribution()
+                kmc.P = T_rnd.T / T_rnd.T.sum(0)
+                adata.uns['source_steady_state_distribution_rnd'] = kmc.compute_stationary_distribution()
+
+        elif direction is 'forward':
+            adata.uns['sink_steady_state_distribution'] = kmc.compute_stationary_distribution()
+
+            if calc_rnd:
+                T_rnd = adata.uns['transition_matrix_rnd']
+                kmc.P = T_rnd
+                adata.uns['sink_steady_state_distribution_rnd'] = kmc.compute_stationary_distribution()
+        elif direction is 'backward':
+            kmc.P = T.T / T.T.sum(0)
+            adata.uns['source_steady_state_distribution'] = kmc.compute_stationary_distribution()
+
+            if calc_rnd:
+                T_rnd = adata.uns['transition_matrix_rnd']
+                kmc.P = T_rnd.T / T_rnd.T.sum(0)
+                adata.uns['sink_steady_state_distribution_rnd'] = kmc.compute_stationary_distribution()
+
     else:
         T = T.T
         if direction is 'both':
