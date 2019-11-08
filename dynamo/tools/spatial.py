@@ -1,3 +1,5 @@
+import numpy as np
+import pandas as pd
 import pysal
 
 def spatial_test(adata, type = 'expression'):
@@ -39,8 +41,8 @@ def spatial_test(adata, type = 'expression'):
         Moran_I.append(mbi.I)
         p_value.append(mbi.p_norm)
 
-    Moran_res = pd.DataFrame({"Moran_I": Moran_I, "p_value": p_value})
+    Moran_res = pd.DataFrame({"Moran_I": Moran_I, "Moran_p_value": p_value}, index=adata.var.index)
 
-    adata.uns['Moran_' + type] = Moran_res
+    adata.var = pd.concat([adata.var, Moran_res], axis=1)
 
     return adata

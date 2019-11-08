@@ -1,6 +1,7 @@
 import numpy as np
 import scipy
 import numpy.matlib
+from scipy.sparse import issparse
 
 
 def norm(X, V, T):
@@ -106,8 +107,9 @@ def SparseVFC(X, Y, Grid, M = 100, a = 5, beta = 0.1, ecr = 1e-5, gamma = 0.9, l
     A dictionary which contains X, Y, beta, V, C, P, VFCIndex. Where V = f(X), P is the posterior probability and
     VFCIndex is the indexes of inliers which found by VFC. Note that V = con_K(Grid, ctrl_pts, beta).dot(C) gives the prediction of velocity on Grid (can be any point in the gene expressionstate space).
     """
-
+    Y[~np.isfinite(Y)] = 0 # set nan velocity to 0.
     N, D = Y.shape
+    grid_U = None
 
     # Construct kernel matrix K
     M = 500 if M is None else M
@@ -119,7 +121,8 @@ def SparseVFC(X, Y, Grid, M = 100, a = 5, beta = 0.1, ecr = 1e-5, gamma = 0.9, l
 
     K = con_K(ctrl_pts, ctrl_pts, beta) if div_cur_free_kernels is False else con_K_div_cur_free(ctrl_pts, ctrl_pts)[0]
     U = con_K(X, ctrl_pts, beta) if div_cur_free_kernels is False else con_K_div_cur_free(X, ctrl_pts)[0]
-    grid_U = con_K(Grid, ctrl_pts, beta) if div_cur_free_kernels is False else con_K_div_cur_free(Grid, ctrl_pts)[0]
+    if Grid is not None:
+        grid_U = con_K(Grid, ctrl_pts, beta) if div_cur_free_kernels is False else con_K_div_cur_free(Grid, ctrl_pts)[0]
     M = ctrl_pts.shape[0]
 
     # Initialization
@@ -127,6 +130,7 @@ def SparseVFC(X, Y, Grid, M = 100, a = 5, beta = 0.1, ecr = 1e-5, gamma = 0.9, l
     C = np.zeros((M, D))
     iter, tecr, E = 1, 1, 1
     sigma2 = sum(sum((Y - V)**2)) / (N * D) ## test this
+    # sigma2 = 1e-7 if sigma2 > 1e-8 else sigma2
 
     while iter < MaxIter and tecr > ecr and sigma2 > 1e-8:
         # E_step
@@ -159,7 +163,9 @@ def SparseVFC(X, Y, Grid, M = 100, a = 5, beta = 0.1, ecr = 1e-5, gamma = 0.9, l
 
         iter += 1
 
-    grid_V = np.dot(grid_U, C)
+    grid_V = None
+    if Grid is not None:
+        grid_V = np.dot(grid_U, C)
 
     VecFld = {"X": ctrl_pts, "Y": Y, "beta": beta, "V": V, "C": C, "P": P, "VFCIndex": np.where(P > theta)[0], "sigma2": sigma2, "grid": Grid, "grid_V": grid_V}
 
@@ -230,8 +236,71 @@ def get_P(Y, V, sigma2, gamma, a):
 
     return P, E
 
-class VectorField:
-    def __init__(self, X, V, Grid, M=100, a=5, beta=0.1, ecr=1e-5, gamma=0.9, lambda_=3, minP=1e-5, MaxIter=500, theta=0.75, div_cur_free_kernels=False):
+
+def VectorField(adata, basis='trimap', grid_velocity=False, grid_num=50, velocity_key='velocity_S', method='SparseVFC', **kwargs):
+    """Learn a function of high dimensional vector field from sparse single cell samples in the entire space robustly.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains embedding and velocity data
+        basis: `str` (default: trimap)
+            The embedding data to use.
+        grid_velocity: `bool` (default: False)
+            Whether to generate grid velocity. Note that by default it is set to be False, but for datasets with embedding
+            dimension less than 4, the grid velocity will still be generated. Please note that number of total grids in
+            the space increases exponentially as the number of dimensions increases. So it may quickly lead to lack of
+            memory, for example, it cannot allocate the array with grid_num set to be 50 and dimension is 6 (50^6 total
+            grids) on 32 G memory computer. Although grid velocity may not be generated, the vector field function can still
+            be learned for thousands of dimensions and we can still predict the transcriptomic cell states over long time period.
+        grid_num: `int` (default: 50)
+            The number of grids in each dimension for generating the grid velocity.
+        velocity_key: `str` (default: `velocity_S`)
+            The key from the adata layer that corresponds to the velocity matrix.
+        method: `str` (default: `sparseVFC`)
+            Method that is used to reconstruct the vector field functionally. Currently only SparseVFC supported but other
+            improved approaches are under development.
+        kwargs:
+            Other additional parameters passed to the vectorfield class.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            `AnnData` object that is updated with the `VecFld` dictionary in the `uns` attribute.
+    """
+
+    X = adata.obsm['X_' + basis][:, :] if basis is not 'X' else adata.X
+    V = adata.obsm['velocity_' + basis][:, :] if basis is not 'X' else adata.layers[velocity_key]
+
+    if issparse(X) and basis is 'X':
+        X, V = X.A[:, adata.var.use_for_dynamo], V.A[:, adata.var.use_for_dynamo]
+
+    Grid = None
+    if X.shape[1] < 4 or grid_velocity:
+        # smart way for generating high dimensional grids and convert into a row matrix
+        min_vec, max_vec = X.min(0) - 0.01 * abs(X.min(0)), X.max(0) + 0.01 * abs(X.max(0))
+
+        Grid_list = np.meshgrid(*[np.linspace(i, j, grid_num) for i, j in zip(min_vec, max_vec)])
+        Grid = np.array([i.flatten() for i in Grid_list]).T
+
+    if X is None:
+        raise Exception(f'X is None. Make sure you passed the correct X or {basis} dimension reduction method.')
+    elif V is None:
+        raise Exception('V is None. Make sure you passed the correct V.')
+
+    VecFld = vectorfield(X, V, Grid, **kwargs)
+    func = VecFld.fit(normalize=False, method=method)
+
+    if basis is not 'X':
+        adata.uns['VecFld_' + basis] = func
+    else:
+        adata.uns['VecFld'] = func
+
+    return adata
+
+
+class vectorfield:
+    def __init__(self, X=None, V=None, Grid=None, M=100, a=5, beta=0.1, ecr=1e-5, gamma=0.9, lambda_=3, minP=1e-5, MaxIter=500, theta=0.75, div_cur_free_kernels=False):
         """Initialize the VectorField class.
 
         Parameters
@@ -268,13 +337,13 @@ class VectorField:
             field.
         """
 
-        self.data = {"X": X, "V": V, "Grid": Grid} # should we use annadata here?
+        self.data = {"X": X, "V": V, "Grid": Grid}
 
         self.parameters = {'M': M, "a": a, "beta": beta, "ecr": ecr, "gamma": gamma, "lambda_": lambda_, "minP": minP, "MaxIter": MaxIter, "theta": theta, "div_cur_free_kernels": div_cur_free_kernels}
         self.norm_dict = {}
 
-    def VectorField(self, normalize = False, method = 'SparseVFC'):
-        """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
+    def fit(self, normalize = False, method='SparseVFC'):
+        """Learn an function of vector field from sparse single cell samples in the entire space robustly.
         Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
 
         Arguments
@@ -397,30 +466,16 @@ class VectorField:
 
         return G, (1-gamma)*G_tmp*(G_tmp2+G_tmp3), gamma*G_tmp*G_tmp4
 
-    def vector_field_function(self, x, VecFld, autograd = False):
-        """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
-        Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
-        """
-
-        K= con_K(x, VecFld['X'], VecFld['beta']) if autograd is False else auto_con_K(x, VecFld['X'], VecFld['beta'])
-
-        K = K.dot(VecFld['C']).T
-
-        return K
-
-    def vector_field_function(x, t, VecFld):
-        """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
-
-        Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
-        """
-        x=np.array(x).reshape((1, -1))
-        if(len(x.shape) == 1):
-            x = x[None, :]
-        K= con_K(x, VecFld['X'], VecFld['beta'])
-
-        K = K.dot(VecFld['C'])
-
-        return K.T
+    # def vector_field_function(self, x, VecFld, autograd = False):
+    #     """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
+    #     Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
+    #     """
+    #
+    #     K= con_K(x, VecFld['X'], VecFld['beta']) if autograd is False else auto_con_K(x, VecFld['X'], VecFld['beta'])
+    #
+    #     K = K.dot(VecFld['C']).T
+    #
+    #     return K
 
     def vector_field_function_auto(self, x, VecFld, autograd = False):
         """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
@@ -435,3 +490,16 @@ class VectorField:
         return K
 
 
+def vector_field_function(x, t, VecFld):
+    """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
+
+    Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
+    """
+    x=np.array(x).reshape((1, -1))
+    if(len(x.shape) == 1):
+        x = x[None, :]
+    K= con_K(x, VecFld['X'], VecFld['beta'])
+
+    K = K.dot(VecFld['C'])
+
+    return K.T

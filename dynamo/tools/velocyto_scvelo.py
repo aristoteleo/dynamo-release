@@ -229,7 +229,7 @@ def run_dynamo_simple_fit(adata, log = True):
     return adata 
 
 
-def run_dynamo_labeling(adata, log = True, group = False):
+def run_dynamo_labelling(adata, log = True, group = False):
     ncells, gene_num = adata.X.shape 
     
     # estimation all parameters
@@ -250,8 +250,8 @@ def run_dynamo_labeling(adata, log = True, group = False):
             else: 
                 cur_U, cur_L = cur_U.toarray().squeeze(), cur_L.toarray().squeeze()
 
-            gamma, l0 = fit_gamma_labeling(T, cur_L, mode=None)
-            alpha, u0 = fit_alpha_labeling(T, cur_U, gamma, mode=None)
+            gamma, l0 = fit_gamma_labelling(T, cur_L, mode=None)
+            alpha, u0 = fit_alpha_labelling(T, cur_U, gamma, mode=None)
             tmp = [alpha, gamma, u0, l0]
             all_parm.extend(tmp)
 
@@ -262,7 +262,7 @@ def run_dynamo_labeling(adata, log = True, group = False):
 
         param_out.iloc[i, :] = all_parm
     
-    adata.uns.update({"dynamo_labeling": param_out})
+    adata.uns.update({"dynamo_labelling": param_out})
     
     return adata 
 

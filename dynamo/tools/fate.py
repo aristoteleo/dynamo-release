@@ -1,6 +1,41 @@
 from .scVectorField import VectorField
 import numpy as np
 from scipy.integrate import odeint
+from .scVectorField import vector_field_function
+from scipy.sparse import issparse
+
+
+# by default, use the transcriptome state of source cells
+def Fate(adata, query_cell_str="steady_states=='root'", init_state=None, **kwargs):
+    """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector field
+    functions from one or a set of initial cell state(s).
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        query_cell_str: `str` or `List` (default: `root`)
+            cell
+        init_state: `numpy.ndarray` or None (default: None)
+            Initial cell states for the historical or future cell state prediction with numerical integration.
+        kwargs:
+            Additional parameters that will be passed into the fate function.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that is updated with uns.
+    """
+    cell_index = adata.obs.query(query_cell_str).index
+    if init_state is None:
+        init_state = adata[cell_index, :].X
+        if issparse(init_state):
+            init_state = init_state.A[:, adata.var.use_for_dynamo]
+
+    VecFld = adata.uns['VecFld']
+    t, prediction = fate(VecFld, init_state, **kwargs)
+
+    adata.uns['Fate'] = {'t': t, 'prediction': prediction}
 
 
 def fate(VecFld, init_state, t_end=100, step_size=0.01, direction='both', average=False):
@@ -37,7 +72,7 @@ def fate(VecFld, init_state, t_end=100, step_size=0.01, direction='both', averag
         at each time point is calculated for all cells.
     """
 
-    V_func = lambda x, t: VectorField.vector_field_function(x=x, t=t, VecFld=VecFld)
+    V_func = lambda x, t: vector_field_function(x=x, t=t, VecFld=VecFld)
 
     t1=np.arange(0, t_end, step_size)
     n_cell, n_feature, n_steps = init_state.shape[0], init_state.shape[1], len(t1)

@@ -181,7 +181,7 @@ def umap_conn_indices_dist_embedding(X,
     return graph, knn_indices, knn_dists, embedding_
 
 
-def reduceDimension(adata, n_pca_components=25, n_components=2, velocity_method=None, n_neighbors=10, reduction_method='UMAP', velocity_key='velocity'): # c("UMAP", 'tSNE', "DDRTree", "ICA", 'none')
+def reduceDimension(adata, n_pca_components=25, n_components=2, n_neighbors=10, reduction_method='trimap', velocity_key='velocity_S'):
     """Compute a low dimension reduction projection of an annodata object first with PCA, followed by non-linear dimension reduction methods
 
     Arguments
@@ -192,14 +192,12 @@ def reduceDimension(adata, n_pca_components=25, n_components=2, velocity_method=
         Number of PCA components.  
     n_components: 'int' (optional, default 50)
         The dimension of the space to embed into.
-    velocity_method: 'str' (optional, default None)
-        Which method to learn the 2D velocity projection.
     n_neighbors: 'int' (optional, default 10)
         Number of nearest neighbors when constructing adjacency matrix. 
     reduction_method: 'str' (optional, default PSL)
         Non-linear dimension reduction method to further reduce dimension based on the top n_pca_components PCA components. Currently, PSL 
         (probablistic structure learning, a new dimension reduction by us), tSNE or UMAP are supported. 
-    velocity_key: 'str' (optional, default velocity)
+    velocity_key: 'str' (optional, default velocity_S)
         The dictionary key that corresponds to the estimated velocity values. 
 
     Returns
@@ -209,23 +207,50 @@ def reduceDimension(adata, n_pca_components=25, n_components=2, velocity_method=
 
     n_obs = adata.shape[0]
 
-    X, X_t = adata.X, adata.X + adata.layers[velocity_key]
+    if 'use_for_dynamo' in adata.var.keys():
+        X = adata.X[:, adata.var.use_for_dynamo.values]
+        if velocity_key is not None:
+            X_t = adata.X[:, adata.var.use_for_dynamo.values] + adata.layers[velocity_key][:, adata.var.use_for_dynamo.values]
+    else:
+        X = adata.X
+        if velocity_key is not None:
+            X_t = adata.X + adata.layers[velocity_key]
 
-    if(not 'X_pca' in adata.obsm.keys()):
+    if((not 'X_pca' in adata.obsm.keys()) or 'pca_fit' not in adata.uns.keys()):
         transformer = TruncatedSVD(n_components=n_pca_components, random_state=0)
         X_fit = transformer.fit(X)
-        X_pca, X_t_pca = X_fit.transform(X), X_fit.transform(X_t)
-        adata.obsm['X_pca'], adata.obsm['velocity_pca'] = X_pca, X_t_pca - X_pca
+        X_pca = X_fit.transform(X)
+        adata.obsm['X_pca'] = X_pca
+        if velocity_key is not None and "velocity_pca" not in adata.obsm.keys():
+            X_t_pca = X_fit.transform(X_t)
+            adata.obsm['velocity_pca'] = X_t_pca - X_pca
     else:
         X_pca = adata.obsm['X_pca']
+        if velocity_key is not None and "velocity_pca" not in adata.obsm.keys():
+            X_t_pca = adata.uns['pca_fit'].fit_transform(X_t)
+            adata.obsm['velocity_pca'] = X_t_pca - X_pca
 
-    if reduction_method is 'tSNE':
+    if reduction_method is "trimap":
+        import trimap
+        triplemap = trimap.TRIMAP(n_inliers=20,
+                                  n_outliers=10,
+                                  n_random=10,
+                                  weight_adj=1000.0,
+                                  apply_pca=False)
+        X_dim = triplemap.fit_transform(X_pca)
+
+        adata.obsm['X_trimap'] = X_dim
+        adata.uns['neighbors'] = {'params': {'n_neighbors': n_neighbors, 'method': reduction_method}, 'connectivities': None, \
+                                  'distances': None, 'indices': None}
+    elif reduction_method is 'tSNE':
         bh_tsne = TSNE(n_components = n_components)
         X_dim = bh_tsne.fit_transform(X_pca)
         adata.obsm['X_tSNE'] = X_dim
+        adata.uns['neighbors'] = {'params': {'n_neighbors': n_neighbors, 'method': reduction_method}, 'connectivities': None, \
+                                  'distances': None, 'indices': None}
     elif reduction_method is 'UMAP':
         graph, knn_indices, knn_dists, X_dim = umap_conn_indices_dist_embedding(X) # X_pca
-        adata.obsm['X_umap'] = X_dim.copy()
+        adata.obsm['X_umap'] = X_dim
         adata.uns['neighbors'] = {'params': {'n_neighbors': n_neighbors, 'method': reduction_method}, 'connectivities': graph, \
                                   'distances': knn_dists, 'indices': knn_indices}
     elif reduction_method is 'PSL':
@@ -233,25 +258,10 @@ def reduceDimension(adata, n_pca_components=25, n_components=2, velocity_method=
         adata.obsm['X_psl'] = X_dim
         adata.uns['PSL_adj_mat'] = adj_mat
 
-    # use both existing data and predicted future states in dimension reduction to get the velocity plot in 2D
-    # use only the existing data for dimension reduction and then project new data in this reduced dimension
-    if velocity_method is not 'UMAP':
-        if n_neighbors is None: n_neighbors = int(n_obs / 50)
-        nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=-1)
-        nn.fit(adata.X)
-        dists, neighs = nn.kneighbors(X_t)
-        scale = np.median(dists, axis=1)
-        weight = norm.pdf(x = dists, scale=scale[:, None])
-        p_mass = weight.sum(1)
-        weight = weight / p_mass[:, None]
-
-        # calculate the embedding for the predicted future states of cells using a Gaussian kernel
-        Y_dim = (X_dim[neighs] * (weight[:, :, None])).sum(1)
-        adata.obsm['Y_dim'] = Y_dim
-    elif velocity_method is 'UMAP':
-        X_t[X_t < 0] = 0
-
-        test_embedding = X_umap.transform(X_t) # use umap's transformer to get the embedding points of future states
-        adata.obsm['Y_dim'] = test_embedding
-
     return adata
+
+if __name__ == '__main__':
+    import anndata
+    adata = anndata.read_h5ad('/Users/xqiu/data/tmp.h5ad')
+
+    dyn.tl.reduceDimension(tmp, velocity_key='velocity_S')

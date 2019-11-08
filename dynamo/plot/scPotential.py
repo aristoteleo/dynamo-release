@@ -1,20 +1,31 @@
-def show_landscape(Xgrid, Ygrid, Zgrid):
+def show_landscape(adata, Xgrid, Ygrid, Zgrid, basis='trimap'):
     """Plot the quasi-potential landscape.
 
     Parameters
     ----------
-	Xgrid: `numpy.ndarray`
-		x-coordinates of the Grid produced from the meshgrid function.
-	Ygrid: `numpy.ndarray`
-			y-coordinates of the Grid produced from the meshgrid function.
-	Zgrid: `numpy.ndarray`
-			z-coordinates or potential at each of the x/y coordinate.
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains Xgrid, Ygrid and Zgrid data for visualizing potential landscape.
+        Xgrid: `numpy.ndarray`
+            x-coordinates of the Grid produced from the meshgrid function.
+        Ygrid: `numpy.ndarray`
+                y-coordinates of the Grid produced from the meshgrid function.
+        Zgrid: `numpy.ndarray`
+                z-coordinates or potential at each of the x/y coordinate.
+        basis: `str` (default: trimap)
+            The method of dimension reduction. By default it is trimap. Currently it is not checked with Xgrid and Ygrid.
 
     Returns
     -------
-    A 3D plot showing the quasi-potential of each cell state.
+        A 3D plot showing the quasi-potential of each cell state.
 
     """
+
+    if 'grid_Pot_' + basis in adata.uns.keys():
+        Xgrid_, Ygrid_, Zgrid_ = adata.uns['grid_Pot_' + basis]['Xgrid'], adata.uns['grid_Pot_' + basis]['Ygrid'], adata.uns['grid_Pot_' + basis]['Zgrid']
+
+    Xgrid = Xgrid_ if Xgrid is None else Xgrid
+    Ygrid = Ygrid_ if Ygrid is None else Ygrid
+    Zgrid = Zgrid_ if Zgrid is None else Zgrid
 
     from mpl_toolkits.mplot3d import Axes3D
     import matplotlib.pyplot as plt
@@ -38,6 +49,9 @@ def show_landscape(Xgrid, Ygrid, Zgrid):
 
     # Add a color bar which maps values to colors.
     # fig.colorbar(surf, shrink=0.5, aspect=5)
+    ax.set_xlabel(basis + '_1')
+    ax.set_ylabel(basis + '_2')
+    ax.set_zlabel('U')
 
     plt.show()
 
