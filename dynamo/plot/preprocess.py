@@ -324,7 +324,7 @@ def phase_portrait(adata, genes, mode='splicing', vkey='S', ekey='X', basis='uma
         if n_columns is 3:
             ax1, ax2, ax3 = plt.subplot(gs[i*3]), plt.subplot(gs[i*3+1]), plt.subplot(gs[i*3+2])
         elif n_columns is 6:
-            ax1, ax2, ax3, a4, a5, a6 = plt.subplot(gs[i*3]), plt.subplot(gs[i*3+1]), plt.subplot(gs[i*3+2]), \
+            ax1, ax2, ax3, ax4, ax5, ax6 = plt.subplot(gs[i*3]), plt.subplot(gs[i*3+1]), plt.subplot(gs[i*3+2]), \
                     plt.subplot(gs[i * 3 + 3]), plt.subplot(gs[i * 3 + 4]), plt.subplot(gs[i * 3 + 5])
         try:
             ix=np.where(adata.var.index == gn)[0][0]

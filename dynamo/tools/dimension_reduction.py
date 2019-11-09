@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.decomposition import TruncatedSVD
 from sklearn.neighbors import NearestNeighbors
-from sklearn.manifold import TSNE
+# from sklearn.manifold import TSNE
 import scipy
 from scipy.stats import norm
 
@@ -181,7 +181,7 @@ def umap_conn_indices_dist_embedding(X,
     return graph, knn_indices, knn_dists, embedding_
 
 
-def reduceDimension(adata, n_pca_components=25, n_components=2, n_neighbors=10, reduction_method='trimap', velocity_key='velocity_S'):
+def reduceDimension(adata, n_pca_components=25, n_components=2, n_neighbors=10, reduction_method='trimap', velocity_key='velocity_S', cores=1):
     """Compute a low dimension reduction projection of an annodata object first with PCA, followed by non-linear dimension reduction methods
 
     Arguments
@@ -243,13 +243,16 @@ def reduceDimension(adata, n_pca_components=25, n_components=2, n_neighbors=10, 
         adata.uns['neighbors'] = {'params': {'n_neighbors': n_neighbors, 'method': reduction_method}, 'connectivities': None, \
                                   'distances': None, 'indices': None}
     elif reduction_method is 'tSNE':
-        bh_tsne = TSNE(n_components = n_components)
-        X_dim = bh_tsne.fit_transform(X_pca)
+        from fitsne import FItSNE
+        X_dim=FItSNE(X_pca, nthreads=cores) # use FitSNE
+
+        # bh_tsne = TSNE(n_components = n_components)
+        # X_dim = bh_tsne.fit_transform(X_pca)
         adata.obsm['X_tSNE'] = X_dim
         adata.uns['neighbors'] = {'params': {'n_neighbors': n_neighbors, 'method': reduction_method}, 'connectivities': None, \
                                   'distances': None, 'indices': None}
     elif reduction_method is 'UMAP':
-        graph, knn_indices, knn_dists, X_dim = umap_conn_indices_dist_embedding(X) # X_pca
+        graph, knn_indices, knn_dists, X_dim = umap_conn_indices_dist_embedding(X_pca) # X_pca
         adata.obsm['X_umap'] = X_dim
         adata.uns['neighbors'] = {'params': {'n_neighbors': n_neighbors, 'method': reduction_method}, 'connectivities': graph, \
                                   'distances': knn_dists, 'indices': knn_indices}
