@@ -194,11 +194,13 @@ def reduceDimension(adata, n_pca_components=25, n_components=2, n_neighbors=10, 
         The dimension of the space to embed into.
     n_neighbors: 'int' (optional, default 10)
         Number of nearest neighbors when constructing adjacency matrix. 
-    reduction_method: 'str' (optional, default PSL)
+    reduction_method: 'str' (optional, default trimap)
         Non-linear dimension reduction method to further reduce dimension based on the top n_pca_components PCA components. Currently, PSL 
-        (probablistic structure learning, a new dimension reduction by us), tSNE or UMAP are supported. 
+        (probablistic structure learning, a new dimension reduction by us), tSNE (fitsne instead of traditional tSNE used) or UMAP are supported.
     velocity_key: 'str' (optional, default velocity_S)
         The dictionary key that corresponds to the estimated velocity values. 
+    cores: `int` (optional, default `1`)
+        Number of cores. Used only when the tSNE reduction_method is used.
 
     Returns
     -------
