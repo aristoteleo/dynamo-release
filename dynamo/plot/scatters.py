@@ -4,7 +4,8 @@ from scipy.sparse import issparse
 from .utilities import despline, minimal_xticks, minimal_yticks
 
 
-def scatters(adata, genes, x=0, y=1, mode='splicing', type='expression', vkey='S', ekey='X', basis='umap', n_columns=1, color=None, **kwargs):
+def scatters(adata, genes, x=0, y=1, mode='splicing', type='expression', vkey='S', ekey='X', basis='umap', n_columns=1, \
+             color=None, figsize=None, **kwargs):
     """Scatter plot of cells for phase portrait or for low embedding embedding, colored by gene expression, velocity or cell groups.
 
     Parameters
@@ -28,6 +29,8 @@ def scatters(adata, genes, x=0, y=1, mode='splicing', type='expression', vkey='S
             The layer of data to represent the gene expression level.
         basis: `string` (default: umap)
             Which low dimensional embedding will be used to visualize the cell.
+        figsize: `None` or `[float, float]` (default: None)
+            The width and height of a figure.
         figsize: `None` or `[float, float]` (default: None)
             The width and height of a figure.
         **kwargs:
@@ -157,7 +160,10 @@ def scatters(adata, genes, x=0, y=1, mode='splicing', type='expression', vkey='S
         n_columns = 2 * n_columns if ('protein' in adata.obsm.keys() and mode is 'full') else n_columns
         plot_per_gene = 2 if ('protein' in adata.obsm.keys() and mode is 'full') else 1
         nrow, ncol = int(np.ceil(plot_per_gene * n_genes / n_columns)), n_columns
-        plt.figure(None, (ncol * 6, nrow * 6), dpi=160)
+        if figsize is None:
+            plt.figure(None, (3 * ncol, 3 * nrow))  # , dpi=160
+        else:
+            plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow))  # , dpi=160
 
         # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
         gs = plt.GridSpec(nrow, ncol)
@@ -181,7 +187,6 @@ def scatters(adata, genes, x=0, y=1, mode='splicing', type='expression', vkey='S
                 ax1.set_title(gn)
                 xnew = np.linspace(0, cur_pd.iloc[:, 1].max())
                 ax1.plot(xnew, xnew * cur_pd.loc[:, 'gamma'].unique() + cur_pd.loc[:, 'velocity_offset'].unique(), c="k")
-                ax1.set_title(gn)
                 ax1.set_xlim(0, np.max(cur_pd.iloc[:, 1])*1.02)
                 ax1.set_ylim(0, np.max(cur_pd.iloc[:, 0])*1.02)
 
@@ -252,7 +257,10 @@ def scatters(adata, genes, x=0, y=1, mode='splicing', type='expression', vkey='S
                            "color": full_color_vec})
 
         nrow, ncol = int(np.ceil(len(color) / n_columns)), n_columns
-        plt.figure(None, (ncol * 6, nrow * 6), dpi=160)
+        if figsize is None:
+            plt.figure(None, (3 * ncol, 3 * nrow))  # , dpi=160
+        else:
+            plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow))  # , dpi=160
 
         # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
         gs = plt.GridSpec(nrow, ncol)
