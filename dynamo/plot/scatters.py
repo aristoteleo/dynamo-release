@@ -4,7 +4,7 @@ from scipy.sparse import issparse
 from .utilities import despline, minimal_xticks, minimal_yticks
 
 
-def scatters(adata, genes, x=0, y=1, mode='splicing', type='expression', vkey='S', ekey='X', basis='umap', color=None):
+def scatters(adata, genes, x=0, y=1, mode='splicing', type='expression', vkey='S', ekey='X', basis='umap', n_columns=1, color=None, **kwargs):
     """Scatter plot of cells for phase portrait or for low embedding embedding, colored by gene expression, velocity or cell groups.
 
     Parameters
@@ -17,28 +17,19 @@ def scatters(adata, genes, x=0, y=1, mode='splicing', type='expression', vkey='S
             The column index of the low dimensional embedding for the x-axis
         y: `int` (default: `1`)
             The column index of the low dimensional embedding for the y-axis
-        current_layer: `str` (default: X)
-            Which layer of expression value will be used.
-        color: `list` or None (default: None)
-            A list of attributes of cells (column names in the adata.obs) will be used to color cells.
-        use_raw: `bool` (defaul: False)
-            `str` (default: X)
-                Which layer of expression value will be used.
-        Vkey: `str` ('S`)
-            The key for the velocity
-        Ekey: `str` (`spliced`)
-            The key for the gene expression.
-        basis`str` (default: `trimap`)
-            The reduced dimension embedding of cells to visualize.
-        n_columns: `int  (default: 1)
-            The number of columns of the resulting plot.
+        mode: `string` (default: labelling)
+            Which mode of data do you want to show, can be one of `labelling`, `splicing` and `full`.
         type: `str` (default: `expression`)
             Which plotting type to use, either embedding, expression, velocity or phase.
-        cmap: `plt.cm` or None (default: None)
-            The color map function to use.
+        vkey: `string` (default: velocity)
+            Which velocity key used for visualizing the magnitude of velocity. Can be either velocity in the layers slot or the
+            keys in the obsm slot.
+        ekey: `str`
+            The layer of data to represent the gene expression level.
+        basis: `string` (default: umap)
+            Which low dimensional embedding will be used to visualize the cell.
         figsize: `None` or `[float, float]` (default: None)
             The width and height of a figure.
-        gs: `plt.XX`
         **kwargs:
             Additional parameters that will be passed to plt.scatter function
 
@@ -50,6 +41,10 @@ def scatters(adata, genes, x=0, y=1, mode='splicing', type='expression', vkey='S
     import matplotlib.pyplot as plt
     import seaborn as sns
     # sns.set_style('ticks')
+
+    scatter_kwargs = dict(alpha=0.4, s=8, edgecolor=(0, 0, 0, 1), lw=0.15)
+    if kwargs is not None:
+        scatter_kwargs.update(kwargs)
 
     # there is no solution for combining multiple plot in the same figure in plotnine, so a pure matplotlib is used
     # see more at https://github.com/has2k1/plotnine/issues/46
@@ -80,7 +75,12 @@ def scatters(adata, genes, x=0, y=1, mode='splicing', type='expression', vkey='S
 
     color_vec=np.repeat(np.nan, n_cells)
     if color is not None:
-        color_vec = list(set(color).intersection(adata.obs.keys()))
+        color = list(set(color).intersection(adata.obs.keys()))
+        if len(color) > 0 and type is not 'embedding':
+            color_vec = adata.obs[color[0]].values
+        else:
+            color_vec = adata.obs[color[0]].values
+            full_color_vec = adata.obs[color].values.flatten()
 
     if vkey is 'U':
         V_vec = adata[:, genes].layers['velocity_U']
@@ -153,90 +153,121 @@ def scatters(adata, genes, x=0, y=1, mode='splicing', type='expression', vkey='S
         raise Exception('Your adata is corrupted. Make sure that your layer has keys new, old for the labelling mode, '
                         'spliced, ambiguous, unspliced for the splicing model and uu, ul, su, sl for the full mode')
 
-    n_columns = 6 if ('protein' in adata.obsm.keys() and mode is 'full') else 3
-    nrow, ncol = int(np.ceil(n_columns * n_genes / 6)), 6
-    plt.figure(None, (ncol * 6, nrow * 6), dpi=160)
+    if type is not 'embedding':
+        n_columns = 2 * n_columns if ('protein' in adata.obsm.keys() and mode is 'full') else n_columns
+        plot_per_gene = 2 if ('protein' in adata.obsm.keys() and mode is 'full') else 1
+        nrow, ncol = int(np.ceil(plot_per_gene * n_genes / n_columns)), n_columns
+        plt.figure(None, (ncol * 6, nrow * 6), dpi=160)
 
-    # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
-    gs = plt.GridSpec(nrow, ncol)
-    for i, gn in enumerate(genes):
-        if n_columns is 3:
-            ax1, ax2, ax3 = plt.subplot(gs[i*3]), plt.subplot(gs[i*3+1]), plt.subplot(gs[i*3+2])
-        elif n_columns is 6:
-            ax1, ax2, ax3, ax4, ax5, ax6 = plt.subplot(gs[i*3]), plt.subplot(gs[i*3+1]), plt.subplot(gs[i*3+2]), \
-                    plt.subplot(gs[i * 3 + 3]), plt.subplot(gs[i * 3 + 4]), plt.subplot(gs[i * 3 + 5])
-        try:
-            ix=np.where(adata.var.index == gn)[0][0]
-        except:
-            continue
-        cur_pd = df.loc[df.gene == gn, :]
-        if type is 'phase':
-            if cur_pd.color.unique() != np.nan:
-                sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue="expression", ax=ax1, palette="viridis") # x-axis: S vs y-axis: U
-            else:
-                sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue=color, ax=ax1, palette="Set2") # x-axis: S vs y-axis: U
+        # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
+        gs = plt.GridSpec(nrow, ncol)
 
-            ax1.set_title(gn)
-            xnew = np.linspace(0, cur_pd.iloc[:, 1].max())
-            ax1.plot(xnew, xnew * cur_pd.loc[:, 'gamma'].unique() + cur_pd.loc[:, 'velocity_offset'].unique(), c="k")
-            ax1.set_title(gn)
-            ax1.set_xlim(0, np.max(cur_pd.iloc[:, 1])*1.02)
-            ax1.set_ylim(0, np.max(cur_pd.iloc[:, 0])*1.02)
+        for i, gn in enumerate(genes):
+            if plot_per_gene is 2:
+                ax1, ax2 = plt.subplot(gs[i*2]), plt.subplot(gs[i*2+1])
+            elif plot_per_gene is 1:
+                ax1 = plt.subplot(gs[i])
+            try:
+                ix=np.where(adata.var.index == gn)[0][0]
+            except:
+                continue
+            cur_pd = df.loc[df.gene == gn, :]
+            if type is 'phase':
+                if cur_pd.color.unique() != np.nan:
+                    sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue="expression", ax=ax1, palette="viridis", **scatter_kwargs) # x-axis: S vs y-axis: U
+                else:
+                    sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue=color, ax=ax1, palette="Set2", **scatter_kwargs) # x-axis: S vs y-axis: U
 
-            despline(ax1) # sns.despline()
-        elif type is 'velocity':
-            df_embedding = pd.concat([cur_pd, embedding], axis=1)
-            V_vec = df_embedding.loc[:, 'velocity']
+                ax1.set_title(gn)
+                xnew = np.linspace(0, cur_pd.iloc[:, 1].max())
+                ax1.plot(xnew, xnew * cur_pd.loc[:, 'gamma'].unique() + cur_pd.loc[:, 'velocity_offset'].unique(), c="k")
+                ax1.set_title(gn)
+                ax1.set_xlim(0, np.max(cur_pd.iloc[:, 1])*1.02)
+                ax1.set_ylim(0, np.max(cur_pd.iloc[:, 0])*1.02)
 
-            limit = np.nanmax(np.abs(np.nanpercentile(V_vec, [1, 99])))  # upper and lowe limit / saturation
+                despline(ax1) # sns.despline()
 
-            V_vec = V_vec + limit  # that is: tmp_colorandum - (-limit)
-            V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
-            V_vec = np.clip(V_vec, 0, 1)
+                if plot_per_gene == 2 and ('protein' in adata.obsm.keys() and mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']])):
+                    sns.scatterplot(cur_pd.iloc[:, 3], cur_pd.iloc[:, 2], hue=color, ax=ax2, **scatter_kwargs)  # x-axis: Protein vs. y-axis: Spliced
+                    ax2.set_title(gn)
+                    xnew = np.linspace(0, cur_pd.iloc[:, 3].max())
+                    ax2.plot(xnew, xnew * cur_pd.loc[:, 'gamma_P'].unique() + cur_pd.loc[:, 'velocity_offset_P'].unique(),
+                             c="k")
+                    ax2.set_ylim(0, np.max(cur_pd.iloc[:, 3]) * 1.02)
+                    ax2.set_xlim(0, np.max(cur_pd.iloc[:, 2]) * 1.02)
 
-            cmap = plt.cm.RdBu_r # sns.cubehelix_palette(dark=.3, light=.8, as_cmap=True)
-            sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=df_embedding.loc[:, 'expression'], ax=ax2, palette=cmap, legend=False)
-            ax2.set_title(gn + '(' + ekey + ')')
-            ax2.set_xlabel(basis + '_1')
-            ax2.set_ylabel(basis + '_2')
-        elif type is 'expression':
-            cmap = plt.cm.Greens # sns.diverging_palette(10, 220, sep=80, as_cmap=True)
-            sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=V_vec, ax=ax3, palette=cmap, legend=False)
-            ax3.set_title(gn + '(' + vkey + ')')
-            ax3.set_xlabel(basis + '_1')
-            ax3.set_ylabel(basis + '_2')
+                    despline(ax2)  # sns.despline()
 
-        if 'protein' in adata.obsm.keys() and mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]):
-            sns.scatterplot(cur_pd.iloc[:, 3], cur_pd.iloc[:, 2], hue=group, ax=ax4) # x-axis: Protein vs. y-axis: Spliced
-            ax4.set_title(gn)
-            xnew = np.linspace(0, cur_pd.iloc[:, 3].max())
-            ax4.plot(xnew, xnew * cur_pd.loc[:, 'gamma_P'].unique() + cur_pd.loc[:, 'velocity_offset_P'].unique(), c="k")
-            ax4.set_ylim(0, np.max(cur_pd.iloc[:, 3]) * 1.02)
-            ax4.set_xlim(0, np.max(cur_pd.iloc[:, 2]) * 1.02)
+            elif type is 'velocity':
+                df_embedding = pd.concat([cur_pd, embedding], axis=1)
+                V_vec = df_embedding.loc[:, 'velocity']
 
-            despline(ax4)   # sns.despline()
+                limit = np.nanmax(np.abs(np.nanpercentile(V_vec, [1, 99])))  # upper and lowe limit / saturation
 
-            V_vec = df_embedding.loc[:, 'velocity_p']
+                V_vec = V_vec + limit  # that is: tmp_colorandum - (-limit)
+                V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
+                V_vec = np.clip(V_vec, 0, 1)
 
-            limit = np.nanmax(np.abs(np.nanpercentile(V_vec, [1, 99])))  # upper and lowe limit / saturation
+                cmap = plt.cm.RdBu_r # sns.cubehelix_palette(dark=.3, light=.8, as_cmap=True)
+                sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=df_embedding.loc[:, 'expression'], ax=ax1, \
+                                palette=cmap, legend=False, **scatter_kwargs)
+                ax1.set_title(gn + '(' + ekey + ')')
+                ax1.set_xlabel(basis + '_1')
+                ax1.set_ylabel(basis + '_2')
 
-            V_vec = V_vec + limit  # that is: tmp_colorandum - (-limit)
-            V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
-            V_vec = np.clip(V_vec, 0, 1)
+                if plot_per_gene == 2:
+                    V_vec = df_embedding.loc[:, 'velocity_offset_P']
 
-            df_embedding = pd.concat([embedding, cur_pd.loc[:, 'gene']], ignore_index=False)
+                    limit = np.nanmax(np.abs(np.nanpercentile(V_vec, [1, 99])))  # upper and lowe limit / saturation
 
-            cmap = sns.light_palette("navy", as_cmap=True)
-            sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=df_embedding.loc[:, 'expression'], \
-                            ax=ax5, legend=False, palette=cmap)
-            ax5.set_title(gn + '(protein expression)')
-            ax5.set_xlabel(basis + '_1')
-            ax5.set_ylabel(basis + '_2')
-            cmap = sns.diverging_palette(145, 280, s=85, l=25, n=7)
-            sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=V_vec, ax=ax6, legend=False, palette=cmap)
-            ax6.set_title(gn + '(protein velocity)')
-            ax6.set_xlabel(basis + '_1')
-            ax6.set_ylabel(basis + '_2')
+                    V_vec = V_vec + limit  # that is: tmp_colorandum - (-limit)
+                    V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
+                    V_vec = np.clip(V_vec, 0, 1)
+
+                    cmap = plt.cm.RdBu_r  # sns.cubehelix_palette(dark=.3, light=.8, as_cmap=True)
+                    sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=V_vec, ax=ax2, palette=cmap, legend=False, **scatter_kwargs)
+                    ax2.set_title(gn + '(' + ekey + ')')
+                    ax2.set_xlabel(basis + '_1')
+                    ax2.set_ylabel(basis + '_2')
+            elif type is 'expression':
+                cmap = plt.cm.Greens # sns.diverging_palette(10, 220, sep=80, as_cmap=True)
+                sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=df_embedding.loc[:, 'expression'], ax=ax1, \
+                                palette=cmap, legend=False, **scatter_kwargs)
+                ax1.set_title(gn + '(' + vkey + ')')
+                ax1.set_xlabel(basis + '_1')
+                ax1.set_ylabel(basis + '_2')
+
+                if 'protein' in adata.obsm.keys() and mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]):
+                    df_embedding = pd.concat([embedding, cur_pd.loc[:, 'P']], ignore_index=False)
+
+                    cmap = sns.light_palette("navy", as_cmap=True)
+                    sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=df_embedding.loc[:, 'expression'], \
+                                    ax=ax2, legend=False, palette=cmap, **scatter_kwargs)
+                    ax2.set_title(gn + '(protein expression)')
+                    ax2.set_xlabel(basis + '_1')
+                    ax2.set_ylabel(basis + '_2')
+
+    elif type is 'embedding':
+        df = pd.DataFrame({basis + '_0': np.repeat(embedding.iloc[:, 0], n_genes), basis + '_1': np.repeat(embedding.iloc[:, 1], n_genes),
+                           "color": full_color_vec})
+
+        nrow, ncol = int(np.ceil(len(color) / n_columns)), n_columns
+        plt.figure(None, (ncol * 6, nrow * 6), dpi=160)
+
+        # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
+        gs = plt.GridSpec(nrow, ncol)
+
+        for i, clr in enumerate(color):
+            ax1 = plt.subplot(gs[i])
+
+            cur_pd = df.loc[df.gene == clr, :]
+
+            cmap = plt.cm.Set2 if type(cur_pd.loc[0, 'color']) is not float else plt.cm.Greens # sns.diverging_palette(10, 220, sep=80, as_cmap=True)
+            sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=cur_pd.loc[:, 'color'], ax=ax1, palette=cmap, \
+                            legend=False, **scatter_kwargs)
+            ax1.set_title(color)
+            ax1.set_xlabel(basis + '_1')
+            ax1.set_ylabel(basis + '_2')
 
     plt.tight_layout()
     plt.show()

@@ -193,18 +193,18 @@ def phase_portraits(adata, genes, x=0, y=1, mode='splicing', vkey='S', ekey='X',
         A list of gene names that are going to be visualized.
     x: `int` (default: `0`)
             The column index of the low dimensional embedding for the x-axis
-        y: `int` (default: `1`)
+    y: `int` (default: `1`)
             The column index of the low dimensional embedding for the y-axis
-    ekey: `str`
-        The layer of data to represent the gene expression level.
     mode: `string` (default: labelling)
         Which mode of data do you want to show, can be one of `labelling`, `splicing` and `full`.
     vkey: `string` (default: velocity)
         Which velocity key used for visualizing the magnitude of velocity. Can be either velocity in the layers slot or the
         keys in the obsm slot.
+    ekey: `str`
+        The layer of data to represent the gene expression level.
     basis: `string` (default: umap)
         Which low dimensional embedding will be used to visualize the cell.
-    group: `string` (default: None)
+    color: `string` (default: None)
         Which group will be used to color cells, only used for the phase portrait because the other two plots are colored
         by the velocity magnitude or the gene expression value, respectively.
 
@@ -247,7 +247,7 @@ def phase_portraits(adata, genes, x=0, y=1, mode='splicing', vkey='S', ekey='X',
 
     color_vec=np.repeat(np.nan, n_cells)
     if color is not None:
-        color_vec = list(set(color).intersection(adata.obs.keys()))
+        color_vec = adata.obs[color].values
 
     if vkey is 'U':
         V_vec = adata[:, genes].layers['velocity_U']
@@ -372,7 +372,7 @@ def phase_portraits(adata, genes, x=0, y=1, mode='splicing', vkey='S', ekey='X',
         ax3.set_ylabel(basis + '_2')
 
         if 'protein' in adata.obsm.keys() and mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]):
-            sns.scatterplot(cur_pd.iloc[:, 3], cur_pd.iloc[:, 2], hue=group, ax=ax4) # x-axis: Protein vs. y-axis: Spliced
+            sns.scatterplot(cur_pd.iloc[:, 3], cur_pd.iloc[:, 2], hue=color, ax=ax4) # x-axis: Protein vs. y-axis: Spliced
             ax4.set_title(gn)
             xnew = np.linspace(0, cur_pd.iloc[:, 3].max())
             ax4.plot(xnew, xnew * cur_pd.loc[:, 'gamma_P'].unique() + cur_pd.loc[:, 'velocity_offset_P'].unique(), c="k")
@@ -392,7 +392,7 @@ def phase_portraits(adata, genes, x=0, y=1, mode='splicing', vkey='S', ekey='X',
             df_embedding = pd.concat([embedding, cur_pd.loc[:, 'gene']], ignore_index=False)
 
             cmap = sns.light_palette("navy", as_cmap=True)
-            sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=df_embedding.loc[:, 'expression'], \
+            sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=df_embedding.loc[:, 'P'], \
                             ax=ax5, legend=False, palette=cmap)
             ax5.set_title(gn + '(protein expression)')
             ax5.set_xlabel(basis + '_1')
