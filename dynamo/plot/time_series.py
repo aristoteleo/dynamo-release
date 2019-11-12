@@ -1,5 +1,6 @@
 # include pseudotime and predict cell trajectory
 import numpy as np
+from scipy.sparse import issparse
 
 def plot_directed_pg(adata, principal_g_transition, Y, basis='umap'):
     """
@@ -83,14 +84,17 @@ def kinetic_curves(adata, genes, color=None, layer='X', time='pseudotime', ncol=
         color = list(set(color).intersection(adata.obs.keys()))
         Color = adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
 
+    exprs = exprs.A if issparse(exprs) else exprs
     exprs_df = pd.DataFrame({'Time': np.repeat(time, len(valid_genes)), 'Expression': exprs.flatten(), \
                              'Gene': np.tile(valid_genes, adata.shape[0])})
+
+    # https://stackoverflow.com/questions/43920341/python-seaborn-facetgrid-change-titles
     if len(Color) > 0:
         exprs_df['Color'] = np.repeat(Color, len(valid_genes))
-        sns.lmplot(x="time", y="tip", data=exprs_df, order=3, col='Gene', hue='Color', palette=sns.color_palette(c_palette), \
+        sns.lmplot(x="Time", y="Expression", data=exprs_df, order=3, col='Gene', hue='Color', palette=sns.color_palette(c_palette), \
                    col_wrap=ncol, line_kws={"color": "gray"},  scatter_kws={"s": 3})
     else:
-        sns.lmplot(x="time", y="tip", data=exprs_df, order=3, col='Gene', col_wrap=ncol, line_kws={"color": "gray"}, \
+        sns.lmplot(x="Time", y="Expression", data=exprs_df, order=3, col='Gene', col_wrap=ncol, line_kws={"color": "gray"}, \
                    scatter_kws={"s": 3})
 
     plt.show()
@@ -142,12 +146,13 @@ def kinetic_heatmap(adata, genes, layer='X', time='pseudotime', color_map='virid
     else:
         raise Exception(f'The {layer} you passed in is not existed in the adata object.')
 
+    exprs = exprs.A if issparse(exprs) else exprs
     time, all=_half_max_ordering(exprs, time, interpolate=True, spaced_num=100)
     df = pd.DataFrame(all, index=valid_genes)
 
-    sns_heatmap = sns.clustermap(df, col_colors=col_color, col_cluster=cluster_row_col[0], row_cluster=cluster_row_col[1], cmap=color_map, \
+    sns_heatmap = sns.clustermap(df, col_cluster=cluster_row_col[0], row_cluster=cluster_row_col[1], cmap=color_map, \
                         xticklabels=False, figsize=figsize)
-    if not show_col_color: sns_heatmap.set_visible(False)
+    # if not show_col_color: sns_heatmap.set_visible(False)
 
     plt.show()
 
@@ -176,11 +181,11 @@ def _half_max_ordering(exprs, time, interpolate=False, spaced_num=100):
     gene_num = exprs.shape[0]
     cell_num = exprs.shape[1] if interpolate else spaced_num
     if interpolate:
-        hm_mat_scaled, hm_mat_scaled_z = np.zeros((gene_num, cell_num)), np.zeros(gene_num, cell_num)
+        hm_mat_scaled, hm_mat_scaled_z = np.zeros((gene_num, cell_num)), np.zeros((gene_num, cell_num))
     else:
         hm_mat_scaled, hm_mat_scaled_z = np.zeros_like(exprs), np.zeros_like(exprs)
 
-    transient, trans_max, half_max = np.zero(gene_num), np.zero(gene_num), np.zero(gene_num)
+    transient, trans_max, half_max = np.zeros(gene_num), np.zeros(gene_num), np.zeros(gene_num)
     for i in range(gene_num):
         x = exprs[i]
         x_rng = [np.min(x), np.max(x)]
@@ -191,7 +196,7 @@ def _half_max_ordering(exprs, time, interpolate=False, spaced_num=100):
 
         if interpolate:
             time = np.linspace(np.min(time), np.max(time), spaced_num)
-            for j in range(cell_num):
+            for j in range(spaced_num):
                 tmp[j] = loess.estimate(time[j], window=7, use_matrix=False, degree=1)
         else:
             for j in range(cell_num):
@@ -213,12 +218,12 @@ def _half_max_ordering(exprs, time, interpolate=False, spaced_num=100):
 
     begin = np.arange(max([5, 0.05 * cell_num]))
     end = np.arange(exprs.shape[1] - max([5, 0.05 * cell_num]), cell_num)
-    trans_indx = np.logical_and(transient > 1, ~ trans_max in np.concatenate((begin, end)))
+    trans_indx = np.logical_and(transient > 1, not [i in np.concatenate((begin, end)) for i in trans_max])
 
     trans, half_max_trans = hm_mat_scaled[trans_indx, :], half_max[trans_indx]
     nt = hm_mat_scaled[~trans_indx, :]
-    up, half_max_up = nt[nt[:, 0] < nt[:, nt.shape[1]], :], half_max[nt[:, 0] < nt[:, nt.shape[1]]]
-    down, half_max_down = nt[nt[:, 0] > nt[:, nt.shape[1]], :], half_max[nt[:, 0] > nt[:, nt.shape[1]]]
+    up, half_max_up = nt[nt[:, 0] < nt[:, nt.shape[1] - 1], :], half_max[nt[:, 0] < nt[:, nt.shape[1] - 1]]
+    down, half_max_down = nt[nt[:, 0] >= nt[:, nt.shape[1] - 1], :], half_max[nt[:, 0] >= nt[:, nt.shape[1] - 1]]
 
     trans, up, down = trans[np.argsort(half_max_trans), :], up[np.argsort(half_max_up), :], down[np.argsort(half_max_down), :]
 
