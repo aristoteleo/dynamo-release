@@ -8,6 +8,7 @@ with open("README.md", "r") as fh:
 setup(
     name="dynamo",
     version=__version__,
+    python_requires='>=3.6',
     install_requires=['numpy>=1.14', 'scipy>=1.0', 'scikit-learn>=0.19.1', "cvxopt>=1.2.3",
                       'anndata>=0.6.18', 'loompy>=2.0.12', 'matplotlib>=2.2', "trimap>=1.0.11",
                       'setuptools', 'seaborn>=0.9.0', 'sympy>=1.4', 'numdifftools>=0.9.39',
