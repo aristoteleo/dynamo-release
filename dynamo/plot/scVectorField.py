@@ -71,7 +71,7 @@ def cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, colo
     elif type(cell_ind) is list:
         ix_choice = cell_ind
 
-    scatter_kwargs = dict(alpha=0.4, s=8, edgecolor=(0, 0, 0, 1), lw=0.15)
+    scatter_kwargs = dict(alpha=0.4, s=8, edgecolor=None, linewidth=0)
     if s_kwargs_dict is not None:
         scatter_kwargs.update(s_kwargs_dict)
 
@@ -228,7 +228,7 @@ def grid_velocity(adata, genes, x=0, y=1, method='SparseVFC', basis='trimap', n_
     n_cells, n_genes = adata.shape[0], len(genes)
     # {"alpha": 0.5, "s": 8, "edgecolor": "0.8", "lw": 0.15}
 
-    scatter_kwargs = dict(alpha=0.4, s=8, edgecolor=(0, 0, 0, 1), lw=0.15)
+    scatter_kwargs = dict(alpha=0.4, s=8, edgecolor=None, linewidth=0)
     if s_kwargs_dict is not None:
         scatter_kwargs.update(s_kwargs_dict)
 
@@ -408,7 +408,7 @@ def stremline_plot(adata, genes, x=0, y=1, method='sparseVFC', basis='trimap', n
     n_cells, n_genes = adata.shape[0], len(genes)
     # {"alpha": 0.5, "s": 8, "edgecolor": "0.8", "lw": 0.15}
 
-    scatter_kwargs = dict(alpha=0.4, s=8, edgecolor=(0, 0, 0, 1), lw=0.15)
+    scatter_kwargs = dict(alpha=0.4, s=8, edgecolor=None, linewidth=0)
     if s_kwargs_dict is not None:
         scatter_kwargs.update(s_kwargs_dict)
 

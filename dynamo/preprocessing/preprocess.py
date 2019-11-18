@@ -605,16 +605,17 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_unflitered=True, min_c
     if sort_by is 'dispersion':
         table = topTable(adata, layer, mode=sort_by)
         valid_table = table.loc[table.loc[:, 'dispersion_empirical'] > table.loc[:, 'dispersion_fit'], :]
+        valid_table = valid_table.loc[filter_bool, :]
         gene_id = np.argsort(-valid_table.loc[:, 'dispersion_empirical'])[:n_top_genes]
         gene_id = valid_table.iloc[gene_id, :].loc[:, 'gene_id']
-        filter_bool = filter_bool & adata.var.index.isin(gene_id)
+        filter_bool = adata.var.index.isin(gene_id)
 
     elif sort_by is 'gini':
         table = topTable(adata, layer, mode='gini')
-
-        gene_id = np.argsort(-table.loc[:, 'gini'])[:n_top_genes]
-        gene_id = table.index[gene_id]
-        filter_bool = filter_bool & gene_id.isin(adata.var.index)
+        valid_table = table.loc[filter_bool, :]
+        gene_id = np.argsort(-valid_table.loc[:, 'gini'])[:n_top_genes]
+        gene_id = valid_table.index[gene_id]
+        filter_bool = gene_id.isin(adata.var.index)
 
     if keep_unflitered:
         adata.var['use_for_dynamo'] = np.array(filter_bool).flatten()
@@ -672,7 +673,8 @@ def recipe_monocle(adata, layer=None, gene_to_use=None, method='PCA', num_dim=50
     else:
         adata.var['use_for_dynamo'] = adata.var.index.isin(gene_to_use)
     # normalize on all genes
-    adata = normalize_expr_data(adata, norm_method=norm_method, pseudo_expr=pseudo_expr, relative_expr=relative_expr, keep_unflitered=keep_unflitered)
+    adata = normalize_expr_data(adata, norm_method=norm_method, pseudo_expr=pseudo_expr,
+                                relative_expr=relative_expr, keep_unflitered=keep_unflitered)
     # only use genes pass filter (based on use_for_dynamo) to perform dimension reduction.
     if layer is None:
         FM = adata.X[:, adata.var.use_for_dynamo.values] if 'spliced' not in adata.layers.keys() else adata.layers['spliced'][:, adata.var.use_for_dynamo.values]

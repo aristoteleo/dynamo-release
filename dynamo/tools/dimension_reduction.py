@@ -196,7 +196,7 @@ def reduceDimension(adata, n_pca_components=25, n_components=2, n_neighbors=10, 
         Number of nearest neighbors when constructing adjacency matrix. 
     reduction_method: 'str' (optional, default trimap)
         Non-linear dimension reduction method to further reduce dimension based on the top n_pca_components PCA components. Currently, PSL 
-        (probablistic structure learning, a new dimension reduction by us), tSNE (fitsne instead of traditional tSNE used) or UMAP are supported.
+        (probablistic structure learning, a new dimension reduction by us), tSNE (fitsne instead of traditional tSNE used) or umap are supported.
     velocity_key: 'str' (optional, default velocity_S)
         The dictionary key that corresponds to the estimated velocity values. 
     cores: `int` (optional, default `1`)
@@ -253,12 +253,12 @@ def reduceDimension(adata, n_pca_components=25, n_components=2, n_neighbors=10, 
         adata.obsm['X_tSNE'] = X_dim
         adata.uns['neighbors'] = {'params': {'n_neighbors': n_neighbors, 'method': reduction_method}, 'connectivities': None, \
                                   'distances': None, 'indices': None}
-    elif reduction_method is 'UMAP':
+    elif reduction_method is 'umap':
         graph, knn_indices, knn_dists, X_dim = umap_conn_indices_dist_embedding(X_pca) # X_pca
         adata.obsm['X_umap'] = X_dim
         adata.uns['neighbors'] = {'params': {'n_neighbors': n_neighbors, 'method': reduction_method}, 'connectivities': graph, \
                                   'distances': knn_dists, 'indices': knn_indices}
-    elif reduction_method is 'PSL':
+    elif reduction_method is 'psl':
         adj_mat, X_dim = psl_py(X_pca, d = n_components, K = n_neighbors) # this need to be updated
         adata.obsm['X_psl'] = X_dim
         adata.uns['PSL_adj_mat'] = adj_mat
