@@ -15,7 +15,7 @@ def Fate(adata, query_cell_str="steady_states=='root'", init_state=None, **kwarg
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
         query_cell_str: `str` or `List` (default: `root`)
-            cell
+            a string that will be used as arugments for the query method of the pandas data frame (obs.query(query_cell_str)).
         init_state: `numpy.ndarray` or None (default: None)
             Initial cell states for the historical or future cell state prediction with numerical integration.
         kwargs:
@@ -24,13 +24,13 @@ def Fate(adata, query_cell_str="steady_states=='root'", init_state=None, **kwarg
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with uns.
+            AnnData object that is updated with the dictionary Fate (includes `t` and `prediction` keys) in uns attribute.
     """
     cell_index = adata.obs.query(query_cell_str).index
     if init_state is None:
-        init_state = adata[cell_index, :].X
+        init_state = adata[cell_index, adata.var.use_for_dynamo].X
         if issparse(init_state):
-            init_state = init_state.A[:, adata.var.use_for_dynamo]
+            init_state = init_state.A
 
     VecFld = adata.uns['VecFld']
     t, prediction = fate(VecFld, init_state, **kwargs)
@@ -38,7 +38,7 @@ def Fate(adata, query_cell_str="steady_states=='root'", init_state=None, **kwarg
     adata.uns['Fate'] = {'t': t, 'prediction': prediction}
 
 
-def fate(VecFld, init_state, t_end=100, step_size=0.01, direction='both', average=False):
+def fate(VecFld, init_state, t_end=100, step_size=None, direction='both', average=False):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector field
     functions from one or a set of initial cell state(s).
 
@@ -52,8 +52,9 @@ def fate(VecFld, init_state, t_end=100, step_size=0.01, direction='both', averag
         t_end: `float` (default 100)
             The length of the time period from which to predict cell state forward or backward over time. This is used
             by the odeint function.
-        step_size: `float` (default 0.01)
-            Step size for integrating the future or history cell state, used by the odeint function.
+        step_size: `float` or None (default None)
+            Step size for integrating the future or history cell state, used by the odeint function. By default it is None,
+            and the step_size will be automatically calculated to ensure 250 total integration time-steps will be used.
         direction: `string` (default: both)
             The direction to predict the cell fate. One of the `forward`, `backward`or `both` string.
         average: `bool` (default: False)
@@ -74,11 +75,14 @@ def fate(VecFld, init_state, t_end=100, step_size=0.01, direction='both', averag
 
     V_func = lambda x, t: vector_field_function(x=x, t=t, VecFld=VecFld)
 
-    t1=np.arange(0, t_end, step_size)
+    if step_size is None:
+        t1=np.linspace(0, t_end, 250)
+    else:
+        t1 = np.arange(0, t_end + step_size, step_size)
     n_cell, n_feature, n_steps = init_state.shape[0], init_state.shape[1], len(t1)
 
     if direction is 'both':
-        t0=-t1
+        t0 = - t1[::-1] # reverse and negate the time-points
 
         history, future = np.zeros((n_cell * n_steps, n_feature)), np.zeros((n_cell * n_steps, n_feature))
         for i in range(n_cell):
@@ -92,7 +96,7 @@ def fate(VecFld, init_state, t_end=100, step_size=0.01, direction='both', averag
             prediction[(n_steps * i):(n_steps * (i + 1)), :] = odeint(V_func, init_state[i, :], t=t1)
         t=t1
     elif direction is "backward":
-        t0=-t1
+        t0 = - t1[::-1] # reverse and negate the time-points
         prediction = np.zeros((n_cell * n_steps, n_feature))
         for i in range(n_cell):
             prediction[(n_steps * i):(n_steps * (i + 1)), :] = odeint(V_func, init_state[i, :], t=t0)
@@ -101,9 +105,10 @@ def fate(VecFld, init_state, t_end=100, step_size=0.01, direction='both', averag
         raise Exception('both, forward, backward are the only valid direction argument string')
 
     if average:
-        avg = np.zeros((len(t1), init_state.shape[1]))
+        avg = np.zeros((len(t), init_state.shape[1]))
+
         for i in range(len(t)):
-            avg[i, :] = np.mean(prediction[range(n_cell) * n_steps + i, :], 0)
+            avg[i, :] = np.mean(prediction[np.array(range(n_cell)) * n_steps + i, :], 0)
         prediction = avg
 
     return t, prediction

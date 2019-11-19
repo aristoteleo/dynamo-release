@@ -3,41 +3,41 @@ import numpy as np
 from scipy.sparse import issparse
 
 def plot_directed_pg(adata, principal_g_transition, Y, basis='umap'):
-    """
+        """
 
-    Parameters
-    ----------
-    principal_g_transition
+        Parameters
+        ----------
+        principal_g_transition
 
-    Returns
-    -------
+        Returns
+        -------
 
-    """
+        """
 
-    import networkx as nx
-    import matplotlib.pyplot as plt
+        import networkx as nx
+        import matplotlib.pyplot as plt
 
-    G = nx.from_numpy_matrix(principal_g_transition, create_using=nx.DiGraph())
-    W = []
-    for n, nbrs in G.adj.items():
-        for nbr, eattr in nbrs.items():
-            W.append(eattr['weight'])
+        G = nx.from_numpy_matrix(principal_g_transition, create_using=nx.DiGraph())
+        W = []
+        for n, nbrs in G.adj.items():
+            for nbr, eattr in nbrs.items():
+                W.append(eattr['weight'])
 
-    options = {
-        'width': 30,
-        'arrowstyle': '-|>',
-        'arrowsize': 10,
-    }
-    edge_color = 'gray'
-    plt.figure(figsize=[10, 10])
+        options = {
+            'width': 30,
+            'arrowstyle': '-|>',
+            'arrowsize': 10,
+        }
+        edge_color = 'gray'
+        plt.figure(figsize=[10, 10])
 
-    nx.draw(G, pos=Y, with_labels=False, node_color='skyblue', node_size=1,
-            edge_color=edge_color, width=W / np.max(W) * 1, edge_cmap=plt.cm.Blues, options=options)
+        nx.draw(G, pos=Y, with_labels=False, node_color='skyblue', node_size=1,
+                edge_color=edge_color, width=W / np.max(W) * 1, edge_cmap=plt.cm.Blues, options=options)
 
-    plt.show()
+        plt.show()
 
 
-def kinetic_curves(adata, genes, color=None, layer='X', time='pseudotime', ncol=4, c_palette='Set2'):
+def kinetic_curves(adata, genes, mode='vector_field', color=None, layer='X', time='pseudotime', ncol=4, c_palette='Set2'):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) as kinetic curves.
 
     Parameters
@@ -46,12 +46,15 @@ def kinetic_curves(adata, genes, color=None, layer='X', time='pseudotime', ncol=
             an Annodata object.
         genes: `list`
             The gene names whose gene expression will be faceted.
+        mode: `str` (default: `vector_field`)
+            Which data mode will be used, either vector_field or pseudotime. if mode is vector_field, the trajectory predicted by
+            vector field function will be used, otherwise pseudotime trajectory (defined by time argument) will be used.
         color: `list` or None (default: None)
             A list of attributes of cells (column names in the adata.obs) will be used to color cells.
         layer: `str` (default: X)
-            Which layer of expression value will be used.
+            Which layer of expression value will be used. Not used if mode is `vector_field`.
         time: `str` (default: `pseudotime`)
-            The .obs column that will be used for timing each cell.
+            The .obs column that will be used for timing each cell, only used when mode is `vector_field`.
         ncol: `int` (default: 4)
             Number of columns in each facet grid.
         c_palette: Name of color_palette supported in seaborn color_palette function (default: None)
@@ -67,41 +70,46 @@ def kinetic_curves(adata, genes, color=None, layer='X', time='pseudotime', ncol=
 
     valid_genes = list(set(genes).intersection(adata.var.index))
 
-    time = adata.obs[time].values
+    time = adata.obs[time].values if mode is not 'vector_field' else adata.uns['Fate']['t']
     time = time[np.isfinite(time)]
 
-    if layer is 'X':
-        exprs = adata[:, adata.var.index.isin(valid_genes)].X
-    elif layer in adata.layers.keys():
-        exprs = adata[:, adata.var.index.isin(valid_genes)].layers[layer]
-    elif layer is 'protein': # update subset here
-        exprs = adata[:, adata.var.index.isin(valid_genes)].obsm[layer]
+    if mode is not 'vector_field':
+        if layer is 'X':
+            exprs = adata[:, adata.var.index.isin(valid_genes)].X
+        elif layer in adata.layers.keys():
+            exprs = adata[:, adata.var.index.isin(valid_genes)].layers[layer]
+        elif layer is 'protein': # update subset here
+            exprs = adata[:, adata.var.index.isin(valid_genes)].obsm[layer]
+        else:
+            raise Exception(f'The {layer} you passed in is not existed in the adata object.')
     else:
-        raise Exception(f'The {layer} you passed in is not existed in the adata object.')
+        exprs = adata.uns['Fate']['prediction'][:, adata.var.index.isin(valid_genes)]
 
     Color = np.empty((0, 1))
-    if color is not None:
+    if color is not None and mode is not 'vector_field':
         color = list(set(color).intersection(adata.obs.keys()))
         Color = adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
 
     exprs = exprs.A if issparse(exprs) else exprs
     exprs_df = pd.DataFrame({'Time': np.repeat(time, len(valid_genes)), 'Expression': exprs.flatten(), \
-                             'Gene': np.tile(valid_genes, adata.shape[0])})
+                             'Gene': np.tile(valid_genes, exprs.shape[0])})
 
     # https://stackoverflow.com/questions/43920341/python-seaborn-facetgrid-change-titles
     if len(Color) > 0:
         exprs_df['Color'] = np.repeat(Color, len(valid_genes))
-        sns.lmplot(x="Time", y="Expression", data=exprs_df, order=3, col='Gene', hue='Color', palette=sns.color_palette(c_palette), \
+        g = sns.lmplot(x="Time", y="Expression", data=exprs_df, order=3, col='Gene', hue='Color', palette=sns.color_palette(c_palette), \
                    col_wrap=ncol, line_kws={"color": "gray"},  scatter_kws={"s": 3})
     else:
-        sns.lmplot(x="Time", y="Expression", data=exprs_df, order=3, col='Gene', col_wrap=ncol, line_kws={"color": "gray"}, \
+        g = sns.lmplot(x="Time", y="Expression", data=exprs_df, order=3, col='Gene', col_wrap=ncol, line_kws={"color": "gray"}, \
                    scatter_kws={"s": 3})
+
+    g.set(xlim=(np.min(time), np.max(time)))
 
     plt.show()
 
 
-def kinetic_heatmap(adata, genes, layer='X', time='pseudotime', color_map='viridis', show_col_color=False, \
-                    cluster_row_col=(False, False), figsize=(11.5, 6)):
+def kinetic_heatmap(adata, genes, mode='vector_field', layer='X', time='pseudotime', color_map='viridis', show_col_color=False, \
+                    cluster_row_col=(False, False), figsize=(11.5, 6), **kwargs):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) in a heatmap.
 
     Parameters
@@ -110,6 +118,9 @@ def kinetic_heatmap(adata, genes, layer='X', time='pseudotime', color_map='virid
             an Annodata object.
         genes: `list`
             The gene names whose gene expression will be faceted.
+        mode: `str` (default: `vector_field`)
+            Which data mode will be used, either vector_field or pseudotime. if mode is vector_field, the trajectory predicted by
+            vector field function will be used, otherwise pseudotime trajectory (defined by time argument) will be used.
         layer: `str` (default: X)
             Which layer of expression value will be used.
         time: `str` (default: `pseudotime`)
@@ -134,24 +145,31 @@ def kinetic_heatmap(adata, genes, layer='X', time='pseudotime', color_map='virid
 
     valid_genes = list(set(genes).intersection(adata.var.index))
 
-    time = adata.obs[time].values
+    time = adata.obs[time].values if mode is not 'vector_field' else adata.uns['Fate']['t']
     time = time[np.isfinite(time)]
 
-    if layer is 'X':
-        exprs = adata[:, adata.var.index.isin(valid_genes)].X.T
-    elif layer in adata.layers.keys():
-        exprs = adata[:, adata.var.index.isin(valid_genes)].layers[layer].T
-    elif layer is 'protein': # update subset here
-        exprs = adata[:, adata.var.index.isin(valid_genes)].obsm[layer].T
+    if mode is not 'vector_field':
+        if layer is 'X':
+            exprs = adata[:, adata.var.index.isin(valid_genes)].X.T
+        elif layer in adata.layers.keys():
+            exprs = adata[:, adata.var.index.isin(valid_genes)].layers[layer].T
+        elif layer is 'protein': # update subset here
+            exprs = adata[:, adata.var.index.isin(valid_genes)].obsm[layer].T
+        else:
+            raise Exception(f'The {layer} you passed in is not existed in the adata object.')
     else:
-        raise Exception(f'The {layer} you passed in is not existed in the adata object.')
+        exprs = adata.uns['Fate']['prediction'][:, adata.var.index.isin(valid_genes)].T
 
     exprs = exprs.A if issparse(exprs) else exprs
-    time, all=_half_max_ordering(exprs, time, interpolate=True, spaced_num=100)
-    df = pd.DataFrame(all, index=valid_genes)
+    time, all, valid_ind =_half_max_ordering(exprs, time, interpolate=True, spaced_num=100)
+    df = pd.DataFrame(all, index=np.array(valid_genes)[valid_ind])
+
+    heatmap_kwargs = dict(xticklabels=False, yticklabels='auto')
+    if kwargs is not None:
+        heatmap_kwargs.update(kwargs)
 
     sns_heatmap = sns.clustermap(df, col_cluster=cluster_row_col[0], row_cluster=cluster_row_col[1], cmap=color_map, \
-                        xticklabels=False, figsize=figsize)
+                        figsize=figsize, **heatmap_kwargs)
     # if not show_col_color: sns_heatmap.set_visible(False)
 
     plt.show()
@@ -173,13 +191,17 @@ def _half_max_ordering(exprs, time, interpolate=False, spaced_num=100):
 
     Returns
     -------
+        time: `np.ndarray`
+            The time at which the loess is evaluated.
         all: `np.ndarray`
             The ordered smoothed, scaled expression matrix, the first group is up, then down, followed by the transient gene groups.
+        valid_ind: `np.ndarray`
+            The indices of valid genes that Loess smoothed.
     """
 
     from .utilities import Loess
     gene_num = exprs.shape[0]
-    cell_num = exprs.shape[1] if interpolate else spaced_num
+    cell_num = spaced_num if interpolate else exprs.shape[1]
     if interpolate:
         hm_mat_scaled, hm_mat_scaled_z = np.zeros((gene_num, cell_num)), np.zeros((gene_num, cell_num))
     else:
@@ -206,7 +228,7 @@ def _half_max_ordering(exprs, time, interpolate=False, spaced_num=100):
         scale_tmp = (tmp - np.mean(tmp)) / np.std(tmp)
         hm_mat_scaled_z[i] = scale_tmp
 
-        count, current = 0, hm_mat_scaled_z[i, j] < 0
+        count, current = 0, hm_mat_scaled_z[i, 0] < 0 # check this
         for j in range(cell_num):
             if not (scale_tmp[j] < 0 == current):
                 count = count + 1
@@ -222,11 +244,11 @@ def _half_max_ordering(exprs, time, interpolate=False, spaced_num=100):
 
     trans, half_max_trans = hm_mat_scaled[trans_indx, :], half_max[trans_indx]
     nt = hm_mat_scaled[~trans_indx, :]
-    up, half_max_up = nt[nt[:, 0] < nt[:, nt.shape[1] - 1], :], half_max[nt[:, 0] < nt[:, nt.shape[1] - 1]]
-    down, half_max_down = nt[nt[:, 0] >= nt[:, nt.shape[1] - 1], :], half_max[nt[:, 0] >= nt[:, nt.shape[1] - 1]]
+    up, half_max_up = nt[nt[:, 0] < nt[:, -1], :], half_max[nt[:, 0] < nt[:, -1]]
+    down, half_max_down = nt[nt[:, 0] >= nt[:, -1], :], half_max[nt[:, 0] >= nt[:, -1]]
 
     trans, up, down = trans[np.argsort(half_max_trans), :], up[np.argsort(half_max_up), :], down[np.argsort(half_max_down), :]
 
     all = np.vstack((up, down, trans))
 
-    return time, all
+    return time, all, np.isfinite(nt[:, 0]) & np.isfinite(nt[:, -1])
