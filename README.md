@@ -108,13 +108,22 @@ dyn.pl.Potential(adata)
 
 ## Installation
 
-Note that this is our first alpha version of **Dynamo** (as of July 9th, 2019). Dynamo is still under active development. Stable version of Dynamo will be released when it is ready. Until then, please use **Dynamo** with caution. We welcome any bugs reports (via GitHub issue reporter) and especially code contribution  (via GitHub pull requests) of **Dynamo** from users to make it an accessible, useful and extendable tool. For discussion about different usage cases, comments or suggestions related to our manuscript and questions regarding the underlying mathematical formulation of dynamo, we provided a google group [goolge group](https://groups.google.com/forum/#!forum/dynamo-user/). Dynamo developers can be reached by <xqiu.sc@gmail.com>. To install the newest version of dynamo, you can git clone our repo and then use::
+Note that this is our first alpha version of **Dynamo** (as of July 9th, 2019). Dynamo is still under active development. Stable version of Dynamo will be released when it is ready. Until then, please use **Dynamo** with caution. We welcome any bugs reports (via GitHub issue reporter) and especially code contribution  (via GitHub pull requests) of **Dynamo** from users to make it an accessible, useful and extendable tool. For discussion about different usage cases, comments or suggestions related to our manuscript and questions regarding the underlying mathematical formulation of dynamo, we provided a google group [goolge group](https://groups.google.com/forum/#!forum/dynamo-user/). Dynamo developers can be reached by <xqiu.sc@gmail.com>. To install the newest version of dynamo, you can git clone our repo and then use:
 
 ```sh
-pip install directory_to_dynamo_release_repo/
+git clone git@github.com:aristoteleo/dynamo-release.git
+pip install dynamo-release/ --user 
+```
+Note that `--user` flag is used to install the package to your home directory instead, in cases you don't have the root privilege. 
+
+Alternatively, You can install **Dynamo** when you are in the dyname-release folder
+```sh
+git clone git@github.com:aristoteleo/dynamo-release.git
+cd dynamo-release/ 
+python setup.py install --user 
 ```
 
-Alternatively, You can install **Dynamo** from source, using the following script:
+from source, using the following script:
 ```sh
 pip install git+https://github.com:aristoteleo/dynamo-release
 ```
