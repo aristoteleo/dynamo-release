@@ -6,7 +6,7 @@ from scipy.sparse import issparse
 
 
 # by default, use the transcriptome state of source cells
-def Fate(adata, query_cell_str="steady_states=='root'", init_state=None, **kwargs):
+def Fate(adata, basis='X', query_cell_str="steady_states=='root'", init_state=None, **kwargs):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector field
     functions from one or a set of initial cell state(s).
 
@@ -14,6 +14,8 @@ def Fate(adata, query_cell_str="steady_states=='root'", init_state=None, **kwarg
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        basis: `str` (default: 'X')
+            The embedding data to use.
         query_cell_str: `str` or `List` (default: `root`)
             a string that will be used as arugments for the query method of the pandas data frame (obs.query(query_cell_str)).
         init_state: `numpy.ndarray` or None (default: None)
@@ -28,14 +30,19 @@ def Fate(adata, query_cell_str="steady_states=='root'", init_state=None, **kwarg
     """
     cell_index = adata.obs.query(query_cell_str).index
     if init_state is None:
-        init_state = adata[cell_index, adata.var.use_for_dynamo].X
-        if issparse(init_state):
-            init_state = init_state.A
+        init_state = adata[cell_index, :].X if basis is 'X' else adata[cell_index, :].obsm['X_' + basis]
 
-    VecFld = adata.uns['VecFld']
+        if basis is 'X' and 'use_for_dynamo' in adata.var_keys():
+            init_state = init_state[:, adata.var.use_for_dynamo]
+
+    if issparse(init_state):
+        init_state = init_state.A
+
+    VecFld = adata.uns['VecFld'] if basis is 'X' else adata.uns['VecFld_' + basis]
     t, prediction = fate(VecFld, init_state, **kwargs)
 
-    adata.uns['Fate'] = {'t': t, 'prediction': prediction}
+    fate_key = 'Fate' if basis is 'X' else 'Fate_' + basis
+    adata.uns[fate_key] = {'t': t, 'prediction': prediction}
 
 
 def fate(VecFld, init_state, t_end=100, step_size=None, direction='both', average=False):

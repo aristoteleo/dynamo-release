@@ -627,7 +627,7 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_unflitered=True, min_c
     return adata
 
 
-def recipe_monocle(adata, layer=None, gene_to_use=None, method='PCA', num_dim=50, norm_method='log', pseudo_expr=1,
+def recipe_monocle(adata, layer=None, gene_to_use=None, method='pca', num_dim=50, norm_method='log', pseudo_expr=1,
                    feature_selection = 'dispersion', n_top_genes = 2000,
                    relative_expr=True, keep_unflitered=True, **kwargs):
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
@@ -689,11 +689,11 @@ def recipe_monocle(adata, layer=None, gene_to_use=None, method='PCA', num_dim=50
     valid_ind = np.array(valid_ind).flatten()
     FM = FM[:, valid_ind]
 
-    if method is 'PCA':
+    if method is 'pca':
         fit = TruncatedSVD(n_components=num_dim, random_state=2019)
         reduce_dim = fit.fit_transform(FM)
         adata.uns['explained_variance_ratio_'] = fit.explained_variance_ratio_
-    elif method == 'ICA':
+    elif method == 'ica':
         fit=FastICA(num_dim,
                 algorithm='deflation', tol=5e-6, fun='logcosh', max_iter=1000)
         reduce_dim=fit.fit_transform(FM.toarray())

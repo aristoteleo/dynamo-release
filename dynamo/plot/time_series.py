@@ -37,7 +37,7 @@ def plot_directed_pg(adata, principal_g_transition, Y, basis='umap'):
         plt.show()
 
 
-def kinetic_curves(adata, genes, mode='vector_field', color=None, layer='X', time='pseudotime', ncol=4, c_palette='Set2'):
+def kinetic_curves(adata, genes, mode='vector_field', basis='X', project_back_to_high_dim=False, layer='X', time='pseudotime', ncol=4, color=None, c_palette='Set2'):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) as kinetic curves.
 
     Parameters
@@ -49,6 +49,11 @@ def kinetic_curves(adata, genes, mode='vector_field', color=None, layer='X', tim
         mode: `str` (default: `vector_field`)
             Which data mode will be used, either vector_field or pseudotime. if mode is vector_field, the trajectory predicted by
             vector field function will be used, otherwise pseudotime trajectory (defined by time argument) will be used.
+        basis: `str` (default: `X`)
+            The embedding data used for drawing the kinetic gene expression curves, only used when mode is `vector_field`.
+        project_back_to_high_dim: `bool` (default: `False`)
+            Whether to map the coordinates in low dimension back to high dimension to visualize the gene expression curves,
+            only used when mode is `vector_field` and basis is not `X`. Currently only works when basis is 'pca' and 'umap'.
         color: `list` or None (default: None)
             A list of attributes of cells (column names in the adata.obs) will be used to color cells.
         layer: `str` (default: X)
@@ -83,7 +88,14 @@ def kinetic_curves(adata, genes, mode='vector_field', color=None, layer='X', tim
         else:
             raise Exception(f'The {layer} you passed in is not existed in the adata object.')
     else:
-        exprs = adata.uns['Fate']['prediction'][:, adata.var.index.isin(valid_genes)]
+        if basis is 'X':
+            exprs = adata.uns['Fate']['prediction'][:, adata.var.index.isin(valid_genes)]
+        else:
+            exprs = adata.uns['Fate_' + basis]['prediction']
+            if project_back_to_high_dim is False:
+                valid_genes = [basis + '_' + str(i) for i in np.arange(exprs.shape[1])]
+            else:
+                exprs = adata.uns[basis + '_fit'].inverse_transform(exprs)
 
     Color = np.empty((0, 1))
     if color is not None and mode is not 'vector_field':
@@ -108,7 +120,7 @@ def kinetic_curves(adata, genes, mode='vector_field', color=None, layer='X', tim
     plt.show()
 
 
-def kinetic_heatmap(adata, genes, mode='vector_field', layer='X', time='pseudotime', color_map='viridis', show_col_color=False, \
+def kinetic_heatmap(adata, genes, mode='vector_field', basis='X', project_back_to_high_dim=False, layer='X', time='pseudotime', color_map='viridis', half_max_ordering=True, show_col_color=False, \
                     cluster_row_col=(False, False), figsize=(11.5, 6), **kwargs):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) in a heatmap.
 
@@ -121,12 +133,19 @@ def kinetic_heatmap(adata, genes, mode='vector_field', layer='X', time='pseudoti
         mode: `str` (default: `vector_field`)
             Which data mode will be used, either vector_field or pseudotime. if mode is vector_field, the trajectory predicted by
             vector field function will be used, otherwise pseudotime trajectory (defined by time argument) will be used.
+        basis: `str` (default: `X`)
+            The embedding data used for drawing the kinetic gene expression heatmap, only used when mode is `vector_field`.
+        project_back_to_high_dim: `bool` (default: `False`)
+            Whether to map the coordinates in low dimension back to high dimension to visualize the gene expression curves,
+            only used when mode is `vector_field` and basis is not `X`. Currently only works when basis is 'pca' and 'umap'.
         layer: `str` (default: X)
             Which layer of expression value will be used.
         time: `str` (default: `pseudotime`)
             The .obs column that will be used for timing each cell.
         color_map: `str` (default: `viridis`)
             Color map that will be used to color the gene expression.
+        half_max_ordering: `bool` (default: `True`)
+            Whether to order genes into up, down and transit groups by the half max ordering algorithm. 
         show_col_color: `bool` (default: `False`)
             Whether to show the color bar.
         cluster_row_col: `(bool, bool)` (default: `[False, False]`)
@@ -158,11 +177,22 @@ def kinetic_heatmap(adata, genes, mode='vector_field', layer='X', time='pseudoti
         else:
             raise Exception(f'The {layer} you passed in is not existed in the adata object.')
     else:
-        exprs = adata.uns['Fate']['prediction'][:, adata.var.index.isin(valid_genes)].T
+        if basis is 'X':
+            exprs = adata.uns['Fate']['prediction'][:, adata.var.index.isin(valid_genes)].T
+        else:
+            exprs = adata.uns['Fate_' + basis]['prediction'].T
+            if project_back_to_high_dim is False:
+                valid_genes = [basis + '_' + str(i) for i in np.arange(exprs.shape[1])]
+            else:
+                exprs = adata.uns[basis + '_fit'].inverse_transform(exprs)
 
     exprs = exprs.A if issparse(exprs) else exprs
-    time, all, valid_ind =_half_max_ordering(exprs, time, interpolate=True, spaced_num=100)
-    df = pd.DataFrame(all, index=np.array(valid_genes)[valid_ind])
+
+    if half_max_ordering:
+        time, all, valid_ind =_half_max_ordering(exprs, time, interpolate=True, spaced_num=100)
+        df = pd.DataFrame(all, index=np.array(valid_genes)[valid_ind])
+    else:
+        df = pd.DataFrame(exprs, index=np.array(valid_genes))
 
     heatmap_kwargs = dict(xticklabels=False, yticklabels='auto')
     if kwargs is not None:
@@ -199,7 +229,7 @@ def _half_max_ordering(exprs, time, interpolate=False, spaced_num=100):
             The indices of valid genes that Loess smoothed.
     """
 
-    from .utilities import Loess
+    from utilities import Loess
     gene_num = exprs.shape[0]
     cell_num = spaced_num if interpolate else exprs.shape[1]
     if interpolate:
@@ -252,3 +282,11 @@ def _half_max_ordering(exprs, time, interpolate=False, spaced_num=100):
     all = np.vstack((up, down, trans))
 
     return time, all, np.isfinite(nt[:, 0]) & np.isfinite(nt[:, -1])
+
+if __name__ is '__main__':
+    import scanpy as sc
+    adata=sc.read_h5ad('/Volumes/xqiu/proj/Aristotle/backup/adata.h5ad')
+    kinetic_curves(adata, genes=adata.var.index[adata.var.velocity_genes][:25])
+    kinetic_heatmap(adata, basis='pca', half_max_ordering=False,
+                    genes=adata.var.index[adata.var.velocity_genes][:25])
+
