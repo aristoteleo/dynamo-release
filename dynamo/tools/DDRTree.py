@@ -10,7 +10,7 @@ from scipy.sparse import csr_matrix
 
 def cal_ncenter(ncells, ncells_limit=100):
 
-    res = np.round(2 * ncells_limit * np.log(ncells) / np.log(ncells) + np.log(ncells_limit))
+    res = np.round(2 * ncells_limit * np.log(ncells) / (np.log(ncells) + np.log(ncells_limit)))
 
     return res
 
