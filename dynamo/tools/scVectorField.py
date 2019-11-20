@@ -269,8 +269,8 @@ def VectorField(adata, basis='trimap', grid_velocity=False, grid_num=50, velocit
             `AnnData` object that is updated with the `VecFld` dictionary in the `uns` attribute.
     """
 
-    X = adata.obsm['X_' + basis][:, :] if basis is not 'X' else adata.X
-    V = adata.obsm['velocity_' + basis][:, :] if basis is not 'X' else adata.layers[velocity_key]
+    X = adata.obsm['X_' + basis].copy() if basis is not 'X' else adata.X.copy()
+    V = adata.obsm['velocity_' + basis].copy() if basis is not 'X' else adata.layers[velocity_key].copy()
 
     if issparse(X) and basis is 'X':
         X, V = X.A[:, adata.var.use_for_dynamo], V.A[:, adata.var.use_for_dynamo]

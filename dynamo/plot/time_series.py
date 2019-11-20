@@ -229,7 +229,7 @@ def _half_max_ordering(exprs, time, interpolate=False, spaced_num=100):
             The indices of valid genes that Loess smoothed.
     """
 
-    from utilities import Loess
+    from .utilities import Loess
     gene_num = exprs.shape[0]
     cell_num = spaced_num if interpolate else exprs.shape[1]
     if interpolate:
@@ -282,11 +282,3 @@ def _half_max_ordering(exprs, time, interpolate=False, spaced_num=100):
     all = np.vstack((up, down, trans))
 
     return time, all, np.isfinite(nt[:, 0]) & np.isfinite(nt[:, -1])
-
-if __name__ is '__main__':
-    import scanpy as sc
-    adata=sc.read_h5ad('/Volumes/xqiu/proj/Aristotle/backup/adata.h5ad')
-    kinetic_curves(adata, genes=adata.var.index[adata.var.velocity_genes][:25])
-    kinetic_heatmap(adata, basis='pca', half_max_ordering=False,
-                    genes=adata.var.index[adata.var.velocity_genes][:25])
-

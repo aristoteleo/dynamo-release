@@ -1,4 +1,10 @@
-def two_genes_motif(x, 
+import numpy as np
+from random import uniform
+from anndata import AnnData
+import pandas as pd
+
+
+def two_genes_motif(x,
                     a1 = 1,
                     a2 = 1,
                     b1 = 1,
@@ -19,15 +25,15 @@ def two_genes_motif(x,
 
 
 def neurogenesis(x,     
-            mature_mu = 0
-            n = 4
-            k = 1
-            a = 4
-            eta = 0.25
-            eta_m = 0.125
-            eta_b = 0.1
-            a_s = 2.2
-            a_e = 6
+            mature_mu = 0,
+            n = 4,
+            k = 1,
+            a = 4,
+            eta = 0.25,
+            eta_m = 0.125,
+            eta_b = 0.1,
+            a_s = 2.2,
+            a_e = 6,
             mx = 10):
     """The ODE model for the neurogenesis system that used in benchmarking Monocle 2, Scribe and dynamo (here), original from Xiaojie Qiu, et. al, 2011.  
     """
@@ -52,11 +58,56 @@ def neurogenesis(x,
 
 
 def state_space_sampler(ode, dim, min_val=0, max_val=4, N=10000): 
-    """Sample N points from the dim dimension gene expression space while restricting the values to be between min_val and max_val. Velocity vector at the sampled points will be calculated according to ode function. 
-
+    """Sample N points from the dim dimension gene expression space while restricting the values to be between min_val and max_val. Velocity vector at the sampled points will be calculated according to ode function.
     """
 
-    X = np.array([ [uniform(min_val, max_val) for i in dim] for _ in range(N) ])
-    V = np.clip( X + ode(X), a_min=min_val, a_max=None)
+    X = np.array([ [uniform(min_val, max_val) for _ in range(dim)] for _ in range(N) ])
+    Y = np.clip( X + ode(X), a_min=min_val, a_max=None)
 
-    return X, V 
+    return X, Y
+
+
+# Simulate the neurogenesis data via gillespie model?
+def Simulator_deterministic(motif='neurogenesis'):
+    """Simulate the gene expression dynamics via deterministic ODE model
+
+    Parameters
+    ----------
+    motif: `str` (default: `neurogenesis`)
+        Name of the network motif that will be used in the simulation.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object containing the simulated data.
+    """
+
+    if motif is 'neurogenesis':
+        cell_num = 50000
+        X, Y = state_space_sampler(ode=neurogenesis, dim=13, min_val=0, max_val=6, N=cell_num)
+
+        gene_name = np.array(["Pax6", "Mash1", "Brn2", "Zic1", "Tuj1", "Hes5", "Scl", "Olig2", "Stat3", "Myt1L", "Alhd1L",
+                              "Sox8", "Maturation"])
+    elif motif is 'twogenes':
+        cell_num = 5000
+        X, Y = state_space_sampler(ode=two_genes_motif, dim=2, min_val=0, max_val=4, N=cell_num)
+        gene_name = np.array(['Pu.1', 'Gata.1'])
+
+    var = pd.DataFrame({'gene_short_name': gene_name})  # use the real name in simulation?
+    var.set_index('gene_short_name', inplace=True)
+
+    # provide more annotation for cells next:
+    cell_ids = ['cell_%d' % (i) for i in range(cell_num)]  # first n_traj and then steps
+    obs = pd.DataFrame({'Cell_name': cell_ids})
+    obs.set_index('Cell_name', inplace=True)
+
+    layers = {'velocity': Y - X}  # ambiguous is required for velocyto
+
+    adata = AnnData(X.copy(), obs.copy(), var.copy(), layers=layers.copy())
+
+    # remove cells that has no expression
+    adata = adata[adata.X.sum(1) > 0, :]
+
+    return adata
+
+

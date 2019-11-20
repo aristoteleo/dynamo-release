@@ -4,10 +4,7 @@
 # inclusive expression dynamics model related 
 # from .dynamo import sol_u, sol_s, fit_gamma_labelling, fit_alpha_labelling, fit_gamma_splicing, fit_gamma
 # from .dynamo_fitting import sol_u, sol_s, sol_p, sol_ode, sol_num, fit_gamma_labelling, fit_beta_lsq, fit_alpha_labelling, fit_alpha_synthesis, fit_gamma_splicing, fit_gamma
-from .gillespie import directMethod, prop_slam, simulate_Gillespie, prop_2bifurgenes, stoich_2bifurgenes, simulate_2bifurgenes, temporal_average, temporal_cov, temporal_interp, convert_nosplice, simulate_multigene, trajectories
 from .moments import Estimation
-
-from .simulation import Simulator
 
 from .velocity import sol_u, sol_s, sol_p, fit_linreg, fit_first_order_deg_lsq, fit_gamma_lsq, fit_alpha_synthesis, fit_alpha_degradation, velocity, estimation
 from .cell_velocities import cell_velocities, generalized_diffusion_map, stationary_distribution, diffusion, expected_return_time
@@ -37,3 +34,4 @@ from .dimension_reduction import extract_indices_dist_from_graph, umap_conn_indi
 
 # Pseudotime related
 from .DDRTree import DDRTree_py as DDRTree
+from .DDRTree import cal_ncenter

@@ -6,7 +6,7 @@ from scipy.sparse import issparse
 
 
 # by default, use the transcriptome state of source cells
-def Fate(adata, basis='X', query_cell_str="steady_states=='root'", init_state=None, **kwargs):
+def Fate(adata, basis='X', query_cell_str="steady_states=='root'", init_state=None, direction='both', average=False, **kwargs):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector field
     functions from one or a set of initial cell state(s).
 
@@ -20,6 +20,11 @@ def Fate(adata, basis='X', query_cell_str="steady_states=='root'", init_state=No
             a string that will be used as arugments for the query method of the pandas data frame (obs.query(query_cell_str)).
         init_state: `numpy.ndarray` or None (default: None)
             Initial cell states for the historical or future cell state prediction with numerical integration.
+        direction: `string` (default: both)
+            The direction to predict the cell fate. One of the `forward`, `backward` or `both` string.
+        average: `bool` (default: False)
+            A boolean flag to determine whether to smooth the trajectory by calculating the average cell state at each time
+            step.
         kwargs:
             Additional parameters that will be passed into the fate function.
 
@@ -39,7 +44,7 @@ def Fate(adata, basis='X', query_cell_str="steady_states=='root'", init_state=No
         init_state = init_state.A
 
     VecFld = adata.uns['VecFld'] if basis is 'X' else adata.uns['VecFld_' + basis]
-    t, prediction = fate(VecFld, init_state, **kwargs)
+    t, prediction = fate(VecFld, init_state, direction=direction, average=average, **kwargs)
 
     fate_key = 'Fate' if basis is 'X' else 'Fate_' + basis
     adata.uns[fate_key] = {'t': t, 'prediction': prediction}
