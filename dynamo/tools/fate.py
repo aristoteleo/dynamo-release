@@ -94,7 +94,7 @@ def fate(VecFld, init_state, t_end=100, step_size=None, direction='both', averag
     n_cell, n_feature, n_steps = init_state.shape[0], init_state.shape[1], len(t1)
 
     if direction is 'both':
-        t0 = - t1[::-1] # reverse and negate the time-points
+        t0 = - t1 #[::-1] # reverse and negate the time-points
 
         history, future = np.zeros((n_cell * n_steps, n_feature)), np.zeros((n_cell * n_steps, n_feature))
         for i in range(n_cell):
@@ -108,7 +108,7 @@ def fate(VecFld, init_state, t_end=100, step_size=None, direction='both', averag
             prediction[(n_steps * i):(n_steps * (i + 1)), :] = odeint(V_func, init_state[i, :], t=t1)
         t=t1
     elif direction is "backward":
-        t0 = - t1[::-1] # reverse and negate the time-points
+        t0 = - t1 #[::-1] # reverse and negate the time-points
         prediction = np.zeros((n_cell * n_steps, n_feature))
         for i in range(n_cell):
             prediction[(n_steps * i):(n_steps * (i + 1)), :] = odeint(V_func, init_state[i, :], t=t0)

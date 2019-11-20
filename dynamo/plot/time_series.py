@@ -37,7 +37,8 @@ def plot_directed_pg(adata, principal_g_transition, Y, basis='umap'):
         plt.show()
 
 
-def kinetic_curves(adata, genes, mode='vector_field', basis='X', project_back_to_high_dim=False, layer='X', time='pseudotime', ncol=4, color=None, c_palette='Set2'):
+def kinetic_curves(adata, genes, mode='vector_field', basis='X', project_back_to_high_dim=False, layer='X', time='pseudotime', \
+                   dist_threshold=1e-10, ncol=4, color=None, c_palette='Set2'):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) as kinetic curves.
 
     Parameters
@@ -60,6 +61,9 @@ def kinetic_curves(adata, genes, mode='vector_field', basis='X', project_back_to
             Which layer of expression value will be used. Not used if mode is `vector_field`.
         time: `str` (default: `pseudotime`)
             The .obs column that will be used for timing each cell, only used when mode is `vector_field`.
+        dist_threshold: `float` or None (default: 1e-10)
+            The threshold for the distance between two points in the gene expression state, i.e, x(t), x(t+1). If below this threshold,
+            we assume steady state is achieved and those data points will not be considered.
         ncol: `int` (default: 4)
             Number of columns in each facet grid.
         c_palette: Name of color_palette supported in seaborn color_palette function (default: None)
@@ -103,8 +107,18 @@ def kinetic_curves(adata, genes, mode='vector_field', basis='X', project_back_to
         Color = adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
 
     exprs = exprs.A if issparse(exprs) else exprs
+    # time = np.sort(time)
+    # exprs = exprs[np.argsort(time), :]
+
+    if dist_threshold is not None:
+        valid_ind = list(np.where(np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold)[0] + 1)
+        valid_ind.insert(0, 0)
+        exprs = exprs[valid_ind, :]
+
+    time=time[valid_ind]
     exprs_df = pd.DataFrame({'Time': np.repeat(time, len(valid_genes)), 'Expression': exprs.flatten(), \
                              'Gene': np.tile(valid_genes, exprs.shape[0])})
+
 
     # https://stackoverflow.com/questions/43920341/python-seaborn-facetgrid-change-titles
     if len(Color) > 0:
@@ -120,7 +134,8 @@ def kinetic_curves(adata, genes, mode='vector_field', basis='X', project_back_to
     plt.show()
 
 
-def kinetic_heatmap(adata, genes, mode='vector_field', basis='X', project_back_to_high_dim=False, layer='X', time='pseudotime', color_map='viridis', half_max_ordering=True, show_col_color=False, \
+def kinetic_heatmap(adata, genes, mode='vector_field', basis='X', project_back_to_high_dim=False, layer='X', time='pseudotime',
+                    color_map='viridis', half_max_ordering=True, show_col_color=False, dist_threshold=1e-10,
                     cluster_row_col=(False, False), figsize=(11.5, 6), **kwargs):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) in a heatmap.
 
@@ -148,6 +163,9 @@ def kinetic_heatmap(adata, genes, mode='vector_field', basis='X', project_back_t
             Whether to order genes into up, down and transit groups by the half max ordering algorithm. 
         show_col_color: `bool` (default: `False`)
             Whether to show the color bar.
+        dist_threshold: `float` or None (default: 1e-10)
+            The threshold for the distance between two points in the gene expression state, i.e, x(t), x(t+1). If below this threshold,
+            we assume steady state is achieved and those data points will not be considered.
         cluster_row_col: `(bool, bool)` (default: `[False, False]`)
             Whether to cluster the row or columns.
         figsize: `str` (default: `(11.5, 6)`
@@ -187,6 +205,13 @@ def kinetic_heatmap(adata, genes, mode='vector_field', basis='X', project_back_t
                 exprs = adata.uns[basis + '_fit'].inverse_transform(exprs)
 
     exprs = exprs.A if issparse(exprs) else exprs
+
+    # time = np.sort(time)
+    # exprs = exprs[np.argsort(time), :]
+    if dist_threshold is not None:
+        valid_ind = list(np.where(np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold)[0] + 1)
+        valid_ind.insert(0, 0)
+        exprs = exprs[valid_ind, :]
 
     if half_max_ordering:
         time, all, valid_ind =_half_max_ordering(exprs, time, interpolate=True, spaced_num=100)
