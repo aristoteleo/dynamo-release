@@ -6,7 +6,7 @@ from scipy.sparse import issparse
 
 
 # by default, use the transcriptome state of source cells
-def Fate(adata, basis='X', query_cell_str="steady_states=='root'", init_state=None, direction='both', average=False, **kwargs):
+def Fate(adata, VecFld_true=None, basis='X', query_cell_str="steady_states=='root'", init_state=None, t_end=1, direction='both', average=False, **kwargs):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector field
     functions from one or a set of initial cell state(s).
 
@@ -14,12 +14,17 @@ def Fate(adata, basis='X', query_cell_str="steady_states=='root'", init_state=No
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        true_ODE: `function`
+            The true ODE function, useful when the data is generated through simulation. Replace VecFld arugment when this has been set.
         basis: `str` (default: 'X')
             The embedding data to use.
         query_cell_str: `str` or `List` (default: `root`)
             a string that will be used as arugments for the query method of the pandas data frame (obs.query(query_cell_str)).
         init_state: `numpy.ndarray` or None (default: None)
             Initial cell states for the historical or future cell state prediction with numerical integration.
+        t_end: `float` (default 100)
+            The length of the time period from which to predict cell state forward or backward over time. This is used
+            by the odeint function.
         direction: `string` (default: both)
             The direction to predict the cell fate. One of the `forward`, `backward` or `both` string.
         average: `bool` (default: False)
@@ -44,13 +49,15 @@ def Fate(adata, basis='X', query_cell_str="steady_states=='root'", init_state=No
         init_state = init_state.A
 
     VecFld = adata.uns['VecFld'] if basis is 'X' else adata.uns['VecFld_' + basis]
-    t, prediction = fate(VecFld, init_state, direction=direction, average=average, **kwargs)
+    t, prediction = fate(VecFld, init_state, VecFld_true=VecFld_true, direction=direction, t_end=t_end, average=average, **kwargs)
 
-    fate_key = 'Fate' if basis is 'X' else 'Fate_' + basis
-    adata.uns[fate_key] = {'t': t, 'prediction': prediction}
+    if VecFld_true is None:
+        fate_key = 'Fate' if basis is 'X' else 'Fate_' + basis
+        adata.uns[fate_key] = {'t': t, 'prediction': prediction}
+    else:
+        adata.uns["fate_true"] = {'t': t, 'prediction': prediction}
 
-
-def fate(VecFld, init_state, t_end=100, step_size=None, direction='both', average=False):
+def fate(VecFld, init_state, VecFld_true = None, t_end=1, step_size=None, direction='both', average=False):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector field
     functions from one or a set of initial cell state(s).
 
@@ -61,6 +68,8 @@ def fate(VecFld, init_state, t_end=100, step_size=None, direction='both', averag
             transcriptomic space.
         init_state: `numpy.ndarray`
             Initial cell states for the historical or future cell state prediction with numerical integration.
+        true_ODE: `function`
+            The true ODE function, useful when the data is generated through simulation. Replace VecFld arugment when this has been set.
         t_end: `float` (default 100)
             The length of the time period from which to predict cell state forward or backward over time. This is used
             by the odeint function.
@@ -85,7 +94,7 @@ def fate(VecFld, init_state, t_end=100, step_size=None, direction='both', averag
         at each time point is calculated for all cells.
     """
 
-    V_func = lambda x, t: vector_field_function(x=x, t=t, VecFld=VecFld)
+    V_func = lambda x, t: vector_field_function(x=x, t=t, VecFld=VecFld) if VecFld_true is None else VecFld_true
 
     if step_size is None:
         t1=np.linspace(0, t_end, 250)

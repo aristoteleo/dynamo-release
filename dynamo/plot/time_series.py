@@ -114,8 +114,8 @@ def kinetic_curves(adata, genes, mode='vector_field', basis='X', project_back_to
         valid_ind = list(np.where(np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold)[0] + 1)
         valid_ind.insert(0, 0)
         exprs = exprs[valid_ind, :]
+        time = time[valid_ind]
 
-    time=time[valid_ind]
     exprs_df = pd.DataFrame({'Time': np.repeat(time, len(valid_genes)), 'Expression': exprs.flatten(), \
                              'Gene': np.tile(valid_genes, exprs.shape[0])})
 

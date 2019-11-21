@@ -110,4 +110,3 @@ def Simulator_deterministic(motif='neurogenesis'):
 
     return adata
 
-
