@@ -2,6 +2,7 @@ import numpy as np
 import scipy as sc
 import scipy.optimize 
 from sympy import *
+import numdifftools as nda
 # from StringFunction import StringFunction
 # import autograd.numpy as autonp
 # from autograd import grad, jacobian # calculate gradient and jacobian
@@ -61,14 +62,14 @@ def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, x_ini = None):
             x, fval_dict, _, _ = sc.optimize.fsolve(func, x0, maxfev=450000, xtol=FixedPointConst, full_output=True)
             # fjac: the orthogonal matrix, q, produced by the QR factorization of the final approximate Jacobian matrix,
             # stored column wise; r: upper triangular matrix produced by QR factorization of the same matrix
-            if auto_func is None:
-                fval, q, r = fval_dict['fvec'], fval_dict['fjac'], fval_dict['r']
-                matrixr=np.zeros((EqNum, EqNum))
-                matrixr[np.triu_indices(EqNum)]=fval_dict["r"]
-                jacobian_mat=(fval_dict["fjac"]).dot(matrixr)
-            else:
-                fval = fval_dict['fvec']
-                jacobian_mat = jacobian(auto_func)(np.array(x)) # autonp.array?
+            # if auto_func is None:
+            #     fval, q, r = fval_dict['fvec'], fval_dict['fjac'], fval_dict['r']
+            #     matrixr=np.zeros((EqNum, EqNum))
+            #     matrixr[np.triu_indices(EqNum)]=fval_dict["r"]
+            #     jacobian_mat=(fval_dict["fjac"]).dot(matrixr)
+            # else:
+            fval = fval_dict['fvec']
+            jacobian_mat = nda.Jacobian(func)(np.array(x)) # autonp.array?
 
             jacobian_mat[np.isinf(jacobian_mat)] = 0
             if fval.dot(fval) < FixedPointConst:
@@ -85,14 +86,14 @@ def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, x_ini = None):
             x0 = x_ini[time, :]
             x, fval_dict, _, _ = sc.optimize.fsolve(func, x0, maxfev=450000, xtol=FixedPointConst, full_output=True)
 
-            if auto_func is None:
-                fval, q, r = fval_dict['fvec'], fval_dict['fjac'], fval_dict['r']
-                matrixr=np.zeros((EqNum, EqNum))
-                matrixr[np.triu_indices(EqNum)]=fval_dict["r"]
-                jacobian_mat=(fval_dict["fjac"]).dot(matrixr)
-            else:
-                fval = fval_dict['fvec']
-                jacobian_mat = jacobian(auto_func)(np.array(x)) # autonp.array?
+            # if auto_func is None:
+            #     fval, q, r = fval_dict['fvec'], fval_dict['fjac'], fval_dict['r']
+            #     matrixr=np.zeros((EqNum, EqNum))
+            #     matrixr[np.triu_indices(EqNum)]=fval_dict["r"]
+            #     jacobian_mat=(fval_dict["fjac"]).dot(matrixr)
+            # else:
+            fval = fval_dict['fvec']
+            jacobian_mat = nda.Jacobian(func)(np.array(x)) # autonp.array?
 
             jacobian_mat[np.isfinite(jacobian_mat)] = 0
             if fval.dot(fval) < FixedPointConst:
