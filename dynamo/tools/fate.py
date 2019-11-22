@@ -14,7 +14,7 @@ def Fate(adata, VecFld_true=None, basis='X', query_cell_str="steady_states=='roo
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        true_ODE: `function`
+        VecFld_true: `function`
             The true ODE function, useful when the data is generated through simulation. Replace VecFld arugment when this has been set.
         basis: `str` (default: 'X')
             The embedding data to use.
@@ -22,7 +22,7 @@ def Fate(adata, VecFld_true=None, basis='X', query_cell_str="steady_states=='roo
             a string that will be used as arugments for the query method of the pandas data frame (obs.query(query_cell_str)).
         init_state: `numpy.ndarray` or None (default: None)
             Initial cell states for the historical or future cell state prediction with numerical integration.
-        t_end: `float` (default 100)
+        t_end: `float` (default 1)
             The length of the time period from which to predict cell state forward or backward over time. This is used
             by the odeint function.
         direction: `string` (default: both)
@@ -55,7 +55,8 @@ def Fate(adata, VecFld_true=None, basis='X', query_cell_str="steady_states=='roo
         fate_key = 'Fate' if basis is 'X' else 'Fate_' + basis
         adata.uns[fate_key] = {'t': t, 'prediction': prediction}
     else:
-        adata.uns["fate_true"] = {'t': t, 'prediction': prediction}
+        adata.uns["Fate_true"] = {'t': t, 'prediction': prediction}
+
 
 def fate(VecFld, init_state, VecFld_true = None, t_end=1, step_size=None, direction='both', average=False):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector field
@@ -68,9 +69,9 @@ def fate(VecFld, init_state, VecFld_true = None, t_end=1, step_size=None, direct
             transcriptomic space.
         init_state: `numpy.ndarray`
             Initial cell states for the historical or future cell state prediction with numerical integration.
-        true_ODE: `function`
+        VecFld_true: `function`
             The true ODE function, useful when the data is generated through simulation. Replace VecFld arugment when this has been set.
-        t_end: `float` (default 100)
+        t_end: `float` (default 1)
             The length of the time period from which to predict cell state forward or backward over time. This is used
             by the odeint function.
         step_size: `float` or None (default None)
