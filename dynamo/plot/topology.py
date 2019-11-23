@@ -4,6 +4,7 @@ import scipy
 from ..tools.scVectorField import vector_field_function
 from ..tools.scPotential import gen_fixed_points
 
+
 def plot_flow_field(ax, f, u_range, v_range, args=(), n_grid=100):
     """Plots the flow field with line thickness proportional to speed.
     code adapted from: http://be150.caltech.edu/2017/handouts/dynamical_systems_approaches.html
@@ -13,7 +14,7 @@ def plot_flow_field(ax, f, u_range, v_range, args=(), n_grid=100):
     ax : Matplotlib Axis instance
         Axis on which to make the plot
     f : function for form f(y, t, *args)
-        The right-hand-side of the dynamical system.
+        The right-hand-side (rhs) of the dynamical system.
         Must return a 2-array.
     u_range : array_like, shape (2,)
         Range of values for u-axis.
@@ -85,17 +86,20 @@ def plot_null_clines(ax, f, a_range, b_range, colors=['#1f77b4', '#1f77b4'], lw=
 
 
 # if multiple points are very close, maybe combine them together?
-def plot_fixed_points(ax, f, saddle=None, stable=None, **fix_points_kwargs):
+def plot_fixed_points(ax, f, dim_range=[0, 6], saddle=None, stable=None, **fix_points_kwargs):
     """Add fixed points to plot."""
     # Compute fixed points
 
     if saddle is None and stable is None:
-        fix_points_dict = {"auto_func": None, "dim_range": [-10, 10], "RandNum": 5000, "EqNum": 2, "x_ini": None}
+        fix_points_dict = {"auto_func": None, "dim_range": dim_range, "RandNum": 5000, "EqNum": 2, "x_ini": None}
         if fix_points_kwargs is not None:
             fix_points_dict.update(fix_points_kwargs)
 
         stable, saddle = gen_fixed_points(func=f, **fix_points_dict)
-
+        stable = stable[:, np.logical_and(dim_range[0] > stable[0], stable[0] < dim_range[1]) &
+                           np.logical_and(dim_range[0] > stable[1], stable[1] < dim_range[1])]
+        saddle = saddle[:, np.logical_and(dim_range[0] > saddle[0], saddle[0] < dim_range[1]) &
+                           np.logical_and(dim_range[0] > saddle[1], saddle[1] < dim_range[1])]
     # Plot
     for i in range(stable.shape[1]): # attractors
         ax.plot(*stable[:, i], '.', color='black', markersize=20)
@@ -104,6 +108,7 @@ def plot_fixed_points(ax, f, saddle=None, stable=None, **fix_points_kwargs):
                 markeredgewidth=2, markersize=20)
 
     return ax
+
 
 def plot_traj(ax, f, y0, t, args=(), color='black', lw=2):
     """Plots a trajectory on a phase portrait.
@@ -138,11 +143,23 @@ def plot_traj(ax, f, y0, t, args=(), color='black', lw=2):
 
 
 def plot_separatrix(ax, f, saddle, a_range, b_range, t_max=30, eps=1e-6,
-                           color='tomato', lw=3):
+                           color='tomato', lw=3, **fix_points_kwargs):
     """Plot separatrix on phase portrait.
         code adapted from: http://be150.caltech.edu/2017/handouts/dynamical_systems_approaches.html
 
     """
+    # Compute fixed points
+
+    if saddle is None:
+        fix_points_dict = {"auto_func": None, "dim_range": [min(a_range[0], b_range[0]), max(a_range[1], b_range[1])], "RandNum": 5000, "EqNum": 2, "x_ini": None}
+        if fix_points_kwargs is not None:
+            fix_points_dict.update(fix_points_kwargs)
+
+        stable, saddle = gen_fixed_points(func=f, **fix_points_dict)
+
+        saddle = saddle[:, np.logical_and(saddle[0] >= a_range[0], saddle[0] <= a_range[1]) &
+                           np.logical_and(saddle[1] >= b_range[0], saddle[1] <= b_range[1])]
+
     # If only no saddle point, no separatrix
     if len(saddle) < 1:
         return ax
@@ -185,8 +202,9 @@ def plot_separatrix(ax, f, saddle, a_range, b_range, t_max=30, eps=1e-6,
     return ax
 
 
-def topography(adata, basis, init_state, t, xlim, ylim, VecFld_true=None, plot=True, **fixed_points_kwargs):
-    """ Plot the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system.
+def topography(adata, basis, t, xlim, ylim, init_state=None, VF=None, plot=True, **fixed_points_kwargs):
+    """ Plot the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system
+    for single cells. The plot is created on two dimensional space.
 
     Parameters
     ----------
@@ -203,7 +221,7 @@ def topography(adata, basis, init_state, t, xlim, ylim, VecFld_true=None, plot=T
             The range of x-coordinate
         ylim: `numpy.ndarray`
             The range of y-coordinate
-        VecFld_true: `function` or None (default: None)
+        VF: `function` or None (default: None)
             The true vector field function if known and want to demonstrate
         plot: `bool`
             Whether or not to plot the topography plot
@@ -212,15 +230,16 @@ def topography(adata, basis, init_state, t, xlim, ylim, VecFld_true=None, plot=T
 
     Returns
     -------
-
+        Nothing but plots the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system
+        for single cells.
     """
 
     import matplotlib.pyplot as plt
 
     VecFld = adata.uns['VecFld'] if basis is 'X' else adata.uns['VecFld_' + basis]
 
-    f_ori = lambda x: vector_field_function(x=x, t=None, VecFld=VecFld)
-    f = lambda x, t: vector_field_function(x=x, t=t, VecFld=VecFld) if VecFld_true is None else VecFld_true
+    if VF is None:
+        VF = lambda x, t=None: vector_field_function(x=x, t=t, VecFld=VecFld)
 
     # Set up the figure
     fig, ax = plt.subplots(1, 1)
@@ -229,24 +248,29 @@ def topography(adata, basis, init_state, t, xlim, ylim, VecFld_true=None, plot=T
     ax.set_aspect('equal')
 
     # Build the plot
-    xlim = [0, 6] if xlim else None
-    ylim = [0, 6] if ylim else None
+    xlim = [0, 6] if xlim is None else xlim
+    ylim = [0, 6] if ylim is None else ylim
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
 
-    ax = plot_flow_field(ax, f, xlim, ylim)
-    ax = plot_null_clines(ax, f, xlim, ylim)
+    ax = plot_flow_field(ax, VF, xlim, ylim)
+    ax = plot_null_clines(ax, VF, xlim, ylim)
 
     fix_points_dict = {"auto_func": None, "dim_range": xlim, "RandNum": 5000, "EqNum": 2, "x_ini": None}
 
     if fixed_points_kwargs is not None:
         fix_points_dict.update(fixed_points_kwargs)
 
-    stable, saddle = gen_fixed_points(func=f_ori, **fix_points_dict)
-    ax = plot_fixed_points(ax, f_ori, saddle=saddle, stable=stable)
-    ax = plot_separatrix(ax, f, saddle, a_range, b_range)
+    stable, saddle = gen_fixed_points(func=VF, **fix_points_dict)
+    stable = stable[:, np.logical_and(stable[0] >= xlim[0], stable[0] <= xlim[1]) &
+                       np.logical_and(stable[1] >= ylim[0], stable[1] <= ylim[1])]
+    saddle = saddle[:, np.logical_and(saddle[0] >= xlim[0], saddle[0] <= xlim[1]) &
+                       np.logical_and(saddle[1] >= ylim[0], saddle[1] <= ylim[1])]
+    ax = plot_fixed_points(ax, VF, dim_range=xlim, saddle=saddle, stable=stable)
+    ax = plot_separatrix(ax, VF, saddle, xlim, ylim)
 
-    ax = plot_traj(ax, f, init_state, t)
+    if init_state is not None:
+        ax = plot_traj(ax, VF, init_state, t)
 
     if plot:
         plt.show()

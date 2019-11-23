@@ -9,7 +9,7 @@ from .Bhattacharya import path_integral, alignment
 from .Ao import Ao_pot_map
 from .Wang import Wang_action, Wang_LAP
 
-# the LAP method should be rewritten in TensorFlow using optimization with SGD
+# the LAP method should be rewritten in TensorFlow/PyTorch using optimization with SGD
 
 def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, x_ini = None):
     """ Calculate the fixed points of (learned) vector field function . Classify the fixed points into classes of stable and saddle points
@@ -292,24 +292,6 @@ def action(n_points, tmax, point_start, point_end, boundary, Function, Diffusion
     fval, output_path = res['fun'], np.hstack((point_start, res['x'].reshape((2, -1)), point_end))
 
     return fval, output_path
-
-
-def ODE(x):
-    dx1 = -1 + 9 * x[0] - 2 * pow(x[0], 3) + 9 * x[1] - 2 * pow(x[1], 3)
-    dx2 = 1 - 11*x[0] + 2 * pow(x[0], 3) + 11 * x[1] - 2 * pow(x[1], 3)
-
-    ret = np.array([[dx1], [dx2]]).reshape(x.shape)
-
-    return ret
-
-
-def autoODE(x):
-    dx1 = -1 + 9 * x[0] - 2 * pow(x[0], 3) + 9 * x[1] - 2 * pow(x[1], 3)
-    dx2 = 1 - 11*x[0] + 2 * pow(x[0], 3) + 11 * x[1] - 2 * pow(x[1], 3)
-
-    ret = autonp.array([[dx1], [dx2]]).reshape(x.shape)
-
-    return ret
 
 
 def Potential(adata, DiffMat=None, method='Ao', **kwargs):

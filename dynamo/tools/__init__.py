@@ -21,7 +21,7 @@ from .scVectorField import SparseVFC, con_K, get_P, VectorField, vector_field_fu
 from .Markov import markov_combination, compute_markov_trans_prob, compute_kernel_trans_prob, compute_drift_kernel, compute_drift_local_kernel, compute_density_kernel, makeTransitionMatrix, compute_tau, smoothen_drift_on_grid, MarkovChain, KernelMarkovChain, DiscreteTimeMarkovChain, ContinuousTimeMarkovChain
 
 # potential related
-from .scPotential import gen_fixed_points, gen_gradient, IntGrad, DiffusionMatrix, action, Potential, ODE, autoODE #, vector_field_function
+from .scPotential import gen_fixed_points, gen_gradient, IntGrad, DiffusionMatrix, action, Potential #, vector_field_function
 from .Bhattacharya import path_integral, alignment
 from .Wang import Wang_action, Wang_LAP, transition_rate, MFPT
 from .Ao import Ao_pot_map

@@ -7,14 +7,14 @@ Created on Wed Jan 30 11:21:25 2019
 """
 
 import numpy as np
-from .gillespie import *
+from .gillespie_utils import *
 import pandas as pd
 import scipy.sparse
 from anndata import AnnData
 
 
 # deterministic as well as noise
-def Simulator(a=None, b=None, la=None, aa=None, ai=None, si=None, be=None, ga=None, C0=np.zeros((5, 1)), t_span=[0, 50],
+def Gillespie(a=None, b=None, la=None, aa=None, ai=None, si=None, be=None, ga=None, C0=np.zeros((5, 1)), t_span=[0, 50],
               n_traj=1, t_eval=None, dt=1, method='Gillespie', verbose=False):
     """A simulator of RNA dynamics that includes RNA bursting, transcription, metabolic labeling, splicing, transcription, RNA/protein degradation
 
