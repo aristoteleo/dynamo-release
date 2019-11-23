@@ -68,31 +68,33 @@ def plot_null_clines(ax, f, a_range, b_range, colors=['#1f77b4', '#1f77b4'], lw=
     res_a, res_b = np.zeros_like(nca_a), np.zeros_like(nca_a)
 
     for i in range(200):
-        nullc_a = lambda a: f(np.array([a, nca_b[i]]), t=None)[0]
-        nullc_b = lambda b: f(np.array([nca_a[i], b]), t=None)[1]
-        res_a[i]= scipy.optimize.fsolve(nullc_a, [0])
-        res_b[i] = scipy.optimize.fsolve(nullc_b, [0])
+        nullc_a = lambda a: f(np.array([a[0], nca_b[i]]), t=None)[0] # given y-coordinates, calculate x
+        nullc_b = lambda b: f(np.array([nca_a[i], b[0]]), t=None)[1] # given x-coordinates, calculate y
+        res_a[i]= scipy.optimize.fsolve(nullc_a, 0)
+        res_b[i] = scipy.optimize.fsolve(nullc_b, 0)
 
     # # b-nullcline
     # ncb_a = np.linspace(a_range[0], a_range[1], 200)
     # ncb_b = beta / (1 + ncb_a**n)
 
     # Plot
-    ax.plot(nca_a, res_a, lw=lw, color=colors[0])
-    ax.plot(nca_b, res_b, lw=lw, color=colors[1])
+    ax.plot(res_a, nca_b, lw=lw, color=colors[0])
+    ax.plot(nca_a, res_b, lw=lw, color=colors[1])
     
     return ax
 
 
 # if multiple points are very close, maybe combine them together?
-def plot_fixed_points(ax, f, **fix_points_kwargs):
+def plot_fixed_points(ax, f, saddle=None, stable=None, **fix_points_kwargs):
     """Add fixed points to plot."""
     # Compute fixed points
-    fix_points_dict = {"auto_func": None, "dim_range": [-10, 10], "RandNum": 5000, "EqNum": 2, "x_ini": None}
-    if fix_points_kwargs is not None:
-        fix_points_dict.update(fix_points_kwargs)
 
-    stable, saddle = gen_fixed_points(func=f, **fix_points_dict)
+    if saddle is None and stable is None:
+        fix_points_dict = {"auto_func": None, "dim_range": [-10, 10], "RandNum": 5000, "EqNum": 2, "x_ini": None}
+        if fix_points_kwargs is not None:
+            fix_points_dict.update(fix_points_kwargs)
+
+        stable, saddle = gen_fixed_points(func=f, **fix_points_dict)
 
     # Plot
     for i in range(stable.shape[1]): # attractors
@@ -174,76 +176,80 @@ def plot_separatrix(ax, f, saddle, a_range, b_range, t_max=30, eps=1e-6,
         sep_a = np.concatenate((ab_lower[::-1,0], ab_upper[:,0]))
         sep_b = np.concatenate((ab_lower[::-1,1], ab_upper[:,1]))
 
+        # Plot
+        ax.plot(sep_a, sep_b, '-', color=color, lw=lw)
+
         all_sep_a = sep_a if all_sep_a is None else np.concatenate((all_sep_a, sep_a))
         all_sep_b = sep_b if all_sep_b is None else np.concatenate((all_sep_b, sep_b))
 
-    # Plot
-    ax.plot(all_sep_a, all_sep_b, '-', color=color, lw=lw)
-    
     return ax
 
 
-def plot_topology(adata, basis, y0, t, a_range, b_range, VecFld_true=None, plot=True, **fixed_points_kwargs):
+def topography(adata, basis, init_state, t, xlim, ylim, VecFld_true=None, plot=True, **fixed_points_kwargs):
+    """ Plot the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object.
+        basis: `str` (default: `trimap`)
+            The reduced dimension embedding of cells to visualize.
+        init_state: `numpy.ndarray`
+            Initial cell states for the historical or future cell state prediction with numerical integration.
+        t:  t_end: `float` (default 1)
+            The length of the time period from which to predict cell state forward or backward over time. This is used
+            by the odeint function.
+        xlim: `numpy.ndarray`
+            The range of x-coordinate
+        ylim: `numpy.ndarray`
+            The range of y-coordinate
+        VecFld_true: `function` or None (default: None)
+            The true vector field function if known and want to demonstrate
+        plot: `bool`
+            Whether or not to plot the topography plot
+        fixed_points_kwargs: `dict`
+            A dictionary of parameters for calculating the fixed points.
+
+    Returns
+    -------
+
+    """
+
     import matplotlib.pyplot as plt
 
     VecFld = adata.uns['VecFld'] if basis is 'X' else adata.uns['VecFld_' + basis]
+
+    f_ori = lambda x: vector_field_function(x=x, t=None, VecFld=VecFld)
     f = lambda x, t: vector_field_function(x=x, t=t, VecFld=VecFld) if VecFld_true is None else VecFld_true
 
     # Set up the figure
     fig, ax = plt.subplots(1, 1)
-    ax.set_xlabel('a')
-    ax.set_ylabel('b')
+    ax.set_xlabel(basis + '_1')
+    ax.set_ylabel(basis + '_2')
     ax.set_aspect('equal')
 
     # Build the plot
-    a_range = [0, 6] if a_range else None
-    b_range = [0, 6] if b_range else None
-    ax.set_xlim(a_range)
-    ax.set_ylim(b_range)
+    xlim = [0, 6] if xlim else None
+    ylim = [0, 6] if ylim else None
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
 
-    ax = plot_flow_field(ax, f, a_range, b_range)
-    ax = plot_null_clines(ax, f, a_range, b_range)
-    ax = plot_fixed_points(ax, f)
-    fix_points_dict = {"auto_func": None, "dim_range": [-10, 10], "RandNum": 5000, "EqNum": 2, "x_ini": None}
+    ax = plot_flow_field(ax, f, xlim, ylim)
+    ax = plot_null_clines(ax, f, xlim, ylim)
+
+    fix_points_dict = {"auto_func": None, "dim_range": xlim, "RandNum": 5000, "EqNum": 2, "x_ini": None}
 
     if fixed_points_kwargs is not None:
         fix_points_dict.update(fixed_points_kwargs)
 
-    stable, saddle = gen_fixed_points(func=VecFld, **fix_points_dict)
+    stable, saddle = gen_fixed_points(func=f_ori, **fix_points_dict)
+    ax = plot_fixed_points(ax, f_ori, saddle=saddle, stable=stable)
     ax = plot_separatrix(ax, f, saddle, a_range, b_range)
-    ax = plot_traj(ax, f, np.array([0.5, 0.5]), np.linspace(0, 2, 250))
+
+    ax = plot_traj(ax, f, init_state, t)
 
     if plot:
         plt.show()
     else:
         return ax
 
-
-if __name__ is '__main__':
-    import matplotlib.pyplot as plt
-    import dynamo as dyn
-    VecFld = dyn.tl.ODE
-    f = lambda x, t: VecFld(x=x)
-
-    # Set up the figure
-    fig, ax = plt.subplots(1, 1)
-    ax.set_xlabel('a')
-    ax.set_ylabel('b')
-    ax.set_aspect('equal')
-
-    # Build the plot
-    a_range = [-3, 3]
-    b_range = [-3, 3]
-    ax.set_xlim(a_range)
-    ax.set_ylim(b_range)
-
-    ax = plot_flow_field(ax, f, a_range, b_range)
-    ax = plot_null_clines(ax, f, a_range, b_range)
-    ax = plot_fixed_points(ax, f)
-    fix_points_dict = {"auto_func": None, "dim_range": [-10, 10], "RandNum": 5000, "EqNum": 2, "x_ini": None}
-
-    stable, saddle = dyn.tl.gen_fixed_points(func=VecFld, **fix_points_dict)
-    ax = plot_separatrix(ax, f, saddle, a_range, b_range)
-    ax = plot_traj(ax, f, np.array([0.5, 0.5]), np.linspace(0, 2, 250))
-
-    plt.show()

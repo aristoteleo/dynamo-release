@@ -8,6 +8,7 @@ del get_version
 from . import pp
 from . import tl
 from . import pl
+from . import sim
 from .data_io import *
 from . import sample_data
 from . import configuration

@@ -2,7 +2,6 @@ import numpy as np
 import scipy as sc
 import scipy.optimize 
 from sympy import *
-import numdifftools as nda
 # from StringFunction import StringFunction
 # import autograd.numpy as autonp
 # from autograd import grad, jacobian # calculate gradient and jacobian
@@ -40,6 +39,7 @@ def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, x_ini = None):
         A matrix consists of the coordinates of the unstable steady state
 
     """
+    import numdifftools as nda
 
     ZeroConst = 1e-8
     FixedPointConst = 1e-20
