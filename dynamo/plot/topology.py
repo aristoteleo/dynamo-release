@@ -56,13 +56,13 @@ def plot_flow_field(ax, f, u_range, v_range, start_points=None, args=(), n_grid=
         ax.streamplot(uu, vv, u_vel, v_vel, linewidth=lw, arrowsize=1.2,
                       density=1, color='thistle')
     else:
-        ax.streamplot(uu, vv, u_vel, v_vel, linewidth=lw * 2, arrowsize=1.2, start_points = start_points,
+        ax.streamplot(uu, vv, u_vel, v_vel, linewidth=1.5*lw, arrowsize=1.2, start_points = start_points,
                       density=1, color='tomato')
 
     return ax
 
 
-def plot_null_clines(ax, f, a_range, b_range, fixed_points=None, method='point_wise', colors=['#1f77b4', '#1f77b4'], lw=3):
+def plot_null_clines(ax, f, a_range, b_range, fixed_points, method='point_wise', n_points=80, colors=['#1f77b4', '#1f77b4'], lw=3):
     """Add nullclines to ax.
         code adapted from: http://be150.caltech.edu/2017/handouts/dynamical_systems_approaches.html
     """
@@ -71,18 +71,44 @@ def plot_null_clines(ax, f, a_range, b_range, fixed_points=None, method='point_w
     # a_bounds, b_bounds = Bounds(a_range[0], a_range[1]), Bounds(b_range[0], b_range[1])
 
     # a/b-nullcline
-    nca_a = np.linspace(a_range[0], a_range[1], 200)
-    nca_b = np.linspace(b_range[0], b_range[1], 200)
-    res_a, res_b = np.zeros_like(nca_a), np.zeros_like(nca_a)
-
     if method is 'point_wise':
-        for i in range(200):
-            nullc_a = lambda a: f(np.array([a[0], nca_b[i]]), t=None)[0] # given y-coordinates, calculate x
-            nullc_b = lambda b: f(np.array([nca_a[i], b[0]]), t=None)[1] # given x-coordinates, calculate y
-            res_a[i] = scipy.optimize.fsolve(nullc_a, res_a[i - 1] + abs(np.random.normal(0, 1e-1, 1))) if i > 0 \
-                else scipy.optimize.fsolve(nullc_a, nca_a[i] + abs(np.random.normal(0, 1e-1, 1)))
-            res_b[i] = scipy.optimize.fsolve(nullc_b, res_b[i - 1] - abs(np.random.normal(0, 1e-1, 1))) if i > 0 \
-                else scipy.optimize.fsolve(nullc_b, nca_b[i] - abs(np.random.normal(0, 1e-1, 1)))
+        x_sort, y_sort = np.argsort(fixed_points[0]), np.argsort(fixed_points[1])
+
+        for fp_ind in range(fixed_points.shape[1] + 1):
+            if fp_ind is 0: # reverse this so that we can use the first fixed points as initial guess
+                nca_a = np.linspace(a_range[0], fixed_points[0][x_sort][fp_ind], n_points)[::-1]
+                nca_b = np.linspace(b_range[0], fixed_points[1][y_sort][fp_ind], n_points)[::-1]
+                ini_guess = 0
+            elif fp_ind <= fixed_points.shape[1] - 1:
+                nca_a = np.linspace(fixed_points[0][x_sort][fp_ind - 1], fixed_points[0][x_sort][fp_ind], n_points)
+                nca_b = np.linspace(fixed_points[1][y_sort][fp_ind - 1], fixed_points[1][y_sort][fp_ind], n_points) # b_range[1]
+                ini_guess = fp_ind
+            else:
+                nca_a = np.linspace(fixed_points[0][x_sort][fp_ind - 1], a_range[1], n_points)
+                nca_b = np.linspace(fixed_points[1][y_sort][fp_ind - 1], b_range[1], n_points) # b_range[1]
+                ini_guess = fp_ind - 1
+
+            res_a_f, res_a_b, res_b_f, res_b_b = np.zeros_like(nca_a), np.zeros_like(nca_a), np.zeros_like(nca_a), np.zeros_like(nca_a)
+
+            for i in range(n_points):
+                nullc_a = lambda a: f(np.array([a[0], nca_b[i]]), t=None)[0] # given y-coordinates, calculate x
+                nullc_b = lambda b: f(np.array([nca_a[i], b[0]]), t=None)[1] # given x-coordinates, calculate y
+                res_a_f[i] = scipy.optimize.fsolve(nullc_a, res_a_f[i - 1] + abs(np.random.normal(0, 1e-1, 1))) if i > 0 \
+                    else scipy.optimize.fsolve(nullc_a, fixed_points[0][y_sort][ini_guess] + abs(np.random.normal(0, 1e-1, 1)))
+                res_b_f[i] = scipy.optimize.fsolve(nullc_b, res_b_f[i - 1] + (np.random.normal(0, 1e-1, 1))) if i > 0 \
+                    else scipy.optimize.fsolve(nullc_b, fixed_points[1][x_sort][ini_guess] + (np.random.normal(0, 1e-1, 1)))
+                # res_a_b[i] = scipy.optimize.fsolve(nullc_a, res_a_b[i - 1] + abs(np.random.normal(0, 1e-1, 1))) if i > 0 \
+                #     else scipy.optimize.fsolve(nullc_a, fixed_points[0][y_sort][ini_guess] - abs(np.random.normal(0, 1e-1, 1)))
+                # res_b_b[i] = scipy.optimize.fsolve(nullc_b, res_b_b[i - 1] + (np.random.normal(0, 1e-1, 1))) if i > 0 \
+                #     else scipy.optimize.fsolve(nullc_b, fixed_points[1][x_sort][ini_guess] - (np.random.normal(0, 1e-1, 1)))
+
+            res_a, res_b = np.hstack((res_a_f, res_a_b)), np.hstack((res_b_f, res_b_b))
+
+            # ax.plot(res_a, np.hstack((nca_b, nca_b)), lw=lw, color=colors[0])
+            # ax.plot(np.hstack((nca_a, nca_a)), res_b, lw=lw, color=colors[1])
+            #
+            ax.plot(res_a_f, nca_b, lw=lw, color=colors[0])
+            ax.plot(nca_a, res_b_f, lw=lw, color=colors[1])
             # res_a[i] = optimize.shgo(nullc_a, a_bounds)
             # res_b[i] = optimize.shgo(nullc_b, b_bounds)
     # elif method is 'path_like':
@@ -99,8 +125,7 @@ def plot_null_clines(ax, f, a_range, b_range, fixed_points=None, method='point_w
     #     fval, output_path = res['fun'], np.hstack((point_start, res['x'].reshape((2, -1)), point_end))
 
     # Plot
-    ax.plot(res_a, nca_b, lw=lw, color=colors[0])
-    ax.plot(nca_a, res_b, lw=lw, color=colors[1])
+
     
     return ax
 
@@ -296,7 +321,7 @@ def topography(adata, basis, xlim, ylim, t, terms=['streamline', 'nullcline', 'f
     if 'nullcline' in terms:
         points = np.hstack((stable, saddle))
 
-        ax = plot_null_clines(ax, VF, xlim, ylim)
+        ax = plot_null_clines(ax, VF, xlim, ylim, fixed_points=points)
 
     if 'fixed_points' in terms:
         ax = plot_fixed_points(ax, VF, dim_range=xlim, saddle=saddle, stable=stable)
