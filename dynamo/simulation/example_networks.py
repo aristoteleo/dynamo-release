@@ -20,8 +20,12 @@ def toggle(ab, t=None, beta=5, gamma=1, n=2):
 
 def Ying_model(x, t=None):
     """network used in the potential landscape paper from Ying, et. al: https://www.nature.com/articles/s41598-017-15889-2"""
-    dx1 = -1 + 9 * x[0] - 2 * pow(x[0], 3) + 9 * x[1] - 2 * pow(x[1], 3)
-    dx2 = 1 - 11*x[0] + 2 * pow(x[0], 3) + 11 * x[1] - 2 * pow(x[1], 3)
+    if len(x.shape) == 2:
+        dx1 = -1 + 9 * x[:, 0] - 2 * pow(x[:, 0], 3) + 9 * x[:, 1] - 2 * pow(x[:, 1], 3)
+        dx2 = 1 - 11*x[:, 0] + 2 * pow(x[:, 0], 3) + 11 * x[:, 1] - 2 * pow(x[:, 1], 3)
+    else:
+        dx1 = -1 + 9 * x[0] - 2 * pow(x[0], 3) + 9 * x[1] - 2 * pow(x[1], 3)
+        dx2 = 1 - 11*x[0] + 2 * pow(x[0], 3) + 11 * x[1] - 2 * pow(x[1], 3)
 
     ret = np.array([[dx1], [dx2]]).reshape(x.shape)
 
@@ -160,3 +164,21 @@ def Simulator(motif='neurogenesis'):
 
     return adata
 
+
+if __name__ is '__main__':
+    import dynamo as dyn
+    # toggle_adata = dyn.sim.Simulator(motif='toggle')
+    # dyn.tl.VectorField(toggle_adata, basis='X', velocity_key='velocity')
+    #
+    # dyn.pl.topography(toggle_adata, VF=None, basis='X', init_state=None, t=np.linspace(0, 10, 200),
+    #                   xlim=[0, 6], ylim=[0, 6], plot=True)
+    #
+    # two_genes_adata = dyn.sim.Simulator(motif='twogenes')
+    # dyn.tl.VectorField(two_genes_adata, basis='X', velocity_key='velocity')
+    #
+    # dyn.pl.topography(two_genes_adata, VF=None, basis='X', init_state=None, t=np.linspace(0, 10, 200),
+    #                   xlim=[0, 6], ylim=[0, 6], plot=True)
+
+    adata=dyn.read_h5ad('/Volumes/xqiu/proj/Aristotle/backup/vector_field_hippocampus.h5ad')
+    dyn.pl.topography(adata, VF=None, basis='X', init_state=None, t=None,
+                      xlim=[-27, 27], ylim=[-27, 27], plot=True)

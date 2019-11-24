@@ -160,3 +160,6 @@ def test_Ao_LAP():
             Q, _ = dyn.tl.solveQ(D, F)
             H = np.linalg.inv(D + Q).dot(F)
             U[i, j] = - 0.5 * X_s @ H @ X_s
+
+
+
