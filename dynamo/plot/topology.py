@@ -56,7 +56,7 @@ def plot_flow_field(ax, f, u_range, v_range, start_points=None, args=(), n_grid=
         ax.streamplot(uu, vv, u_vel, v_vel, linewidth=lw, arrowsize=1.2,
                       density=1, color='thistle')
     else:
-        ax.streamplot(uu, vv, u_vel, v_vel, linewidth=1.5*lw, arrowsize=1.2, start_points = start_points,
+        ax.streamplot(uu, vv, u_vel, v_vel, linewidth=3, arrowsize=1.2, start_points = start_points,
                       density=1, color='tomato')
 
     return ax
@@ -97,36 +97,13 @@ def plot_null_clines(ax, f, a_range, b_range, fixed_points, method='point_wise',
                     else scipy.optimize.fsolve(nullc_a, fixed_points[0][y_sort][ini_guess] + abs(np.random.normal(0, 1e-1, 1)))
                 res_b_f[i] = scipy.optimize.fsolve(nullc_b, res_b_f[i - 1] + (np.random.normal(0, 1e-1, 1))) if i > 0 \
                     else scipy.optimize.fsolve(nullc_b, fixed_points[1][x_sort][ini_guess] + (np.random.normal(0, 1e-1, 1)))
-                # res_a_b[i] = scipy.optimize.fsolve(nullc_a, res_a_b[i - 1] + abs(np.random.normal(0, 1e-1, 1))) if i > 0 \
-                #     else scipy.optimize.fsolve(nullc_a, fixed_points[0][y_sort][ini_guess] - abs(np.random.normal(0, 1e-1, 1)))
-                # res_b_b[i] = scipy.optimize.fsolve(nullc_b, res_b_b[i - 1] + (np.random.normal(0, 1e-1, 1))) if i > 0 \
-                #     else scipy.optimize.fsolve(nullc_b, fixed_points[1][x_sort][ini_guess] - (np.random.normal(0, 1e-1, 1)))
 
             res_a, res_b = np.hstack((res_a_f, res_a_b)), np.hstack((res_b_f, res_b_b))
 
-            # ax.plot(res_a, np.hstack((nca_b, nca_b)), lw=lw, color=colors[0])
-            # ax.plot(np.hstack((nca_a, nca_a)), res_b, lw=lw, color=colors[1])
-            #
+            # Plot
             ax.plot(res_a_f, nca_b, lw=lw, color=colors[0])
             ax.plot(nca_a, res_b_f, lw=lw, color=colors[1])
-            # res_a[i] = optimize.shgo(nullc_a, a_bounds)
-            # res_b[i] = optimize.shgo(nullc_b, b_bounds)
-    # elif method is 'path_like':
-    #     # initial path as a line connecting start point and end point point_start*ones(1,n_points+1)+(point_end-point_start)*(0:tmax/n_points:tmax)/tmax;
-    #     initpath = point_start.dot(np.ones((1, n_points + 1))) + (point_end - point_start).dot(
-    #         np.linspace(0, tmax, n_points + 1, endpoint=True).reshape(1, -1)) / tmax
-    #
-    #     Bounds = scipy.optimize.Bounds((np.ones((1, (n_points - 1) * 2)) * boundary[0]).flatten(),
-    #                                    (np.ones((1, (n_points - 1) * 2)) * boundary[1]).flatten(), keep_feasible=True)
-    #
-    #     # sc.optimize.least_squares(lambda_f, initpath[:, 1:n_points].flatten())
-    #     res = sc.optimize.minimize(lambda_f, initpath[:, 1:n_points],
-    #                                tol=1e-12)  # , bounds=Bounds , options={"maxiter": 250}
-    #     fval, output_path = res['fun'], np.hstack((point_start, res['x'].reshape((2, -1)), point_end))
 
-    # Plot
-
-    
     return ax
 
 
