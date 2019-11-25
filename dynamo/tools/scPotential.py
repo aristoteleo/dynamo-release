@@ -98,7 +98,8 @@ def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, reverse=False, 
         for time in range(x_ini.shape[0]):
             x0 = x_ini[time, :]
             x, fval_dict, _, _ = sc.optimize.fsolve(func_, x0, maxfev=450000, xtol=FixedPointConst, full_output=True)
-
+            # fjac: the orthogonal matrix, q, produced by the QR factorization of the final approximate Jacobian matrix,
+            # stored column wise; r: upper triangular matrix produced by QR factorization of the same matrix
             # if auto_func is None:
             #     fval, q, r = fval_dict['fvec'], fval_dict['fjac'], fval_dict['r']
             #     matrixr=np.zeros((EqNum, EqNum))
@@ -108,7 +109,7 @@ def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, reverse=False, 
             fval = fval_dict['fvec']
             jacobian_mat = nda.Jacobian(func_)(np.array(x)) # autonp.array?
 
-            jacobian_mat[np.isfinite(jacobian_mat)] = 0
+            jacobian_mat[np.isinf(jacobian_mat)] = 0
             if fval.dot(fval) < FixedPointConst:
                 FixedPoint[time, :] = x
                 ve, _ = sc.linalg.eig(jacobian_mat)
@@ -117,7 +118,7 @@ def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, reverse=False, 
                         Type[time] = -1
                         break
                 if not Type[time]:
-                    Type[time]=1
+                    Type[time] = 1
 
     for time in range(RandNum):
         if Type[time] == 0:

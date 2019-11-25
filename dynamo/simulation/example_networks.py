@@ -148,7 +148,7 @@ def Simulator(motif='neurogenesis', clip=True):
         gene_name = np.array(['Pu.1', 'Gata.1'])
     elif motif is 'Ying':
         cell_num = 5000
-        X, Y = state_space_sampler(ode=Ying_model, dim=2, clip=clip, min_val=-1, max_val=3, N=cell_num)
+        X, Y = state_space_sampler(ode=Ying_model, dim=2, clip=clip, min_val=-3, max_val=3, N=cell_num)
         gene_name = np.array(['X', 'Y'])
 
     var = pd.DataFrame({'gene_short_name': gene_name})  # use the real name in simulation?
