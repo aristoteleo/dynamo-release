@@ -280,7 +280,7 @@ def grid_velocity(adata, genes, x=0, y=1, method='SparseVFC', basis='trimap', n_
     n_columns, plot_per_gene = n_columns, 1 # we may also add random velocity results
     nrow, ncol = int(np.ceil(plot_per_gene * n_genes / n_columns)), n_columns
     if figsize is None:
-        plt.figure(None, (3*ncol, 3*nrow)) # , dpi=160
+        plt.figure(None, (3*ncol, 3*nrow), dpi=160) #
     else:
         plt.figure(None, (figsize[0]*ncol, figsize[1]*nrow)) # , dpi=160
 
@@ -461,7 +461,7 @@ def stremline_plot(adata, genes, x=0, y=1, method='sparseVFC', basis='trimap', n
     n_columns, plot_per_gene = n_columns, 1 # we may also add random velocity results
     nrow, ncol = int(np.ceil(plot_per_gene * n_genes / n_columns)), n_columns
     if figsize is None:
-        plt.figure(None, (3*ncol, 3*nrow)) # , dpi=160
+        plt.figure(None, (3*ncol, 3*nrow), dpi=160) #
     else:
         plt.figure(None, (figsize[0]*ncol, figsize[1]*nrow)) # , dpi=160
 

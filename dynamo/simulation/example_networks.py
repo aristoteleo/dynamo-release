@@ -23,11 +23,13 @@ def Ying_model(x, t=None):
     if len(x.shape) == 2:
         dx1 = -1 + 9 * x[:, 0] - 2 * pow(x[:, 0], 3) + 9 * x[:, 1] - 2 * pow(x[:, 1], 3)
         dx2 = 1 - 11*x[:, 0] + 2 * pow(x[:, 0], 3) + 11 * x[:, 1] - 2 * pow(x[:, 1], 3)
+
+        ret = np.array([dx1, dx2]).T
     else:
         dx1 = -1 + 9 * x[0] - 2 * pow(x[0], 3) + 9 * x[1] - 2 * pow(x[1], 3)
         dx2 = 1 - 11*x[0] + 2 * pow(x[0], 3) + 11 * x[1] - 2 * pow(x[1], 3)
 
-    ret = np.array([[dx1], [dx2]]).reshape(x.shape)
+        ret = np.array([dx1, dx2])
 
     return ret
 
@@ -104,23 +106,25 @@ def neurogenesis(x, t = None,
     return dx
 
 
-def state_space_sampler(ode, dim, min_val=0, max_val=4, N=10000): 
+def state_space_sampler(ode, dim, clip=True, min_val=0, max_val=4, N=10000):
     """Sample N points from the dim dimension gene expression space while restricting the values to be between min_val and max_val. Velocity vector at the sampled points will be calculated according to ode function.
     """
 
     X = np.array([ [uniform(min_val, max_val) for _ in range(dim)] for _ in range(N) ])
-    Y = np.clip( X + ode(X), a_min=min_val, a_max=None)
+    Y = np.clip( X + ode(X), a_min=min_val, a_max=None) if clip else X + ode(X)
 
     return X, Y
 
 
-def Simulator(motif='neurogenesis'):
+def Simulator(motif='neurogenesis', clip=True):
     """Simulate the gene expression dynamics via deterministic ODE model
 
     Parameters
     ----------
     motif: `str` (default: `neurogenesis`)
         Name of the network motif that will be used in the simulation.
+    clip: `bool` (default: `True`)
+        Whether to clip data points that are negative.  
 
     Returns
     -------
@@ -144,7 +148,7 @@ def Simulator(motif='neurogenesis'):
         gene_name = np.array(['Pu.1', 'Gata.1'])
     elif motif is 'Ying':
         cell_num = 5000
-        X, Y = state_space_sampler(ode=Ying_model, dim=2, min_val=-2, max_val=3, N=cell_num)
+        X, Y = state_space_sampler(ode=Ying_model, dim=2, clip=clip, min_val=-1, max_val=3, N=cell_num)
         gene_name = np.array(['X', 'Y'])
 
     var = pd.DataFrame({'gene_short_name': gene_name})  # use the real name in simulation?
@@ -160,21 +164,21 @@ def Simulator(motif='neurogenesis'):
     adata = AnnData(X.copy(), obs.copy(), var.copy(), layers=layers.copy())
 
     # remove cells that has no expression
-    adata = adata[adata.X.sum(1) > 0, :]
+    adata = adata[adata.X.sum(1) > 0, :] if clip else adata
 
     return adata
 
 
 if __name__ is '__main__':
     import dynamo as dyn
-    # toggle_adata = dyn.sim.Simulator(motif='toggle')
-    # dyn.tl.VectorField(toggle_adata, basis='X', velocity_key='velocity')
-    #
-    # dyn.pl.topography(toggle_adata, VF=None, basis='X', init_state=None, t=np.linspace(0, 10, 200),
-    #                   xlim=[0, 6], ylim=[0, 6], plot=True)
-    #
-    two_genes_adata = dyn.sim.Simulator(motif='twogenes')
-    dyn.tl.VectorField(two_genes_adata, basis='X', velocity_key='velocity')
+    toggle_adata = dyn.sim.Simulator(motif='toggle')
+    dyn.tl.VectorField(toggle_adata, basis='X', velocity_key='velocity')
+
+    dyn.pl.topography(toggle_adata, VF=None, basis='X', init_state=None, t=np.linspace(0, 10, 200),
+                      xlim=[0, 6], ylim=[0, 6], plot=True)
+
+    # two_genes_adata = dyn.sim.Simulator(motif='twogenes')
+    # dyn.tl.VectorField(two_genes_adata, basis='X', velocity_key='velocity')
     #
     # dyn.pl.topography(two_genes_adata, VF=None, basis='X', init_state=None, t=np.linspace(0, 10, 200),
     #                   xlim=[0, 6], ylim=[0, 6], plot=True)
@@ -182,4 +186,9 @@ if __name__ is '__main__':
     # adata=dyn.read_h5ad('/Volumes/xqiu/proj/Aristotle/backup/vector_field_hippocampus.h5ad')
     # dyn.pl.topography(adata, VF=None, basis='X', init_state=None, t=None,
     #                   xlim=[-27, 27], ylim=[-27, 27], plot=True)
-    dyn.pl.topography(two_genes_adata, VF=dyn.sim.two_genes_motif, basis='X', init_state=None, t=None, xlim=[0, 6], ylim=[0, 6], plot=True)
+    # dyn.pl.topography(two_genes_adata, VF=dyn.sim.two_genes_motif, basis='X', init_state=None, t=None, xlim=[0, 6], ylim=[0, 6], plot=True)
+    # Ying_adata = dyn.sim.Simulator(motif='Ying', clip=False)
+    # dyn.tl.VectorField(Ying_adata, basis='X', velocity_key='velocity', M=500, beta=2)
+    #
+    # dyn.pl.topography(Ying_adata, VF=None, basis='X', init_state=None, t=None,
+    #                   xlim=[-3, 3], ylim=[-3, 3], plot=True, reverse=True)

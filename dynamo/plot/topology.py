@@ -284,25 +284,42 @@ def topography(adata, basis, xlim, ylim, t=None, terms=['streamline', 'nullcline
         ax = plot_flow_field(ax, VF, xlim, ylim)
 
     if 'nullcline' in terms  or 'fixed_points' in terms or 'separatrices' in terms:
-        fix_points_dict = {"auto_func": None, "dim_range": xlim, "RandNum": 5000, "EqNum": 2, "x_ini": None}
+        fix_points_dict = {"auto_func": None, "dim_range": xlim, "RandNum": 5000, "EqNum": 2, "x_ini": None, "reverse": False, "grid_num": 50}
 
         if fixed_points_kwargs is not None:
             fix_points_dict.update(fixed_points_kwargs)
 
-        stable, saddle = gen_fixed_points(func=VF, **fix_points_dict)
+        # reverse vector field for identifying repellers
+        if fix_points_dict['reverse']:
+            from scipy.spatial.distance import cdist
+
+            stable_r, saddle_r = gen_fixed_points(func=VF, **fix_points_dict)
+            fix_points_dict['reverse'] = False
+            stable_f, saddle_f = gen_fixed_points(func=VF, **fix_points_dict)
+
+            # remove duplicated points
+            tmp = cdist(stable_r.T, stable_f.T)
+            stable_f = stable_f[:, list(set(np.arange(stable_f.shape[1])).difference(np.where(tmp < 1e-15)[1]))]
+            tmp = cdist(saddle_r.T, saddle_f.T)
+            saddle_f = saddle_f[:, list(set(np.arange(saddle_f.shape[1])).difference(np.where(tmp < 1e-15)[1]))]
+
+            stable, saddle = np.hstack((stable_r, stable_f)), np.hstack((saddle_r, saddle_f))
+        else:
+            stable, saddle = gen_fixed_points(func=VF, **fix_points_dict)
+
         stable = stable[:, np.logical_and(stable[0] >= xlim[0], stable[0] <= xlim[1]) &
                            np.logical_and(stable[1] >= ylim[0], stable[1] <= ylim[1])]
         saddle = saddle[:, np.logical_and(saddle[0] >= xlim[0], saddle[0] <= xlim[1]) &
                            np.logical_and(saddle[1] >= ylim[0], saddle[1] <= ylim[1])]
-
-    if 'nullcline' in terms:
         points = np.hstack((stable, saddle))
+
+    if 'nullcline' in terms and points.shape[1] > 0:
 
         ax = plot_null_clines(ax, VF, xlim, ylim, fixed_points=points)
 
-    if 'fixed_points' in terms:
+    if 'fixed_points' in terms and points.shape[1] > 0:
         ax = plot_fixed_points(ax, VF, dim_range=xlim, saddle=saddle, stable=stable)
-    if 'separatrices' in terms:
+    if 'separatrices' in terms and saddle.shape[1] > 0:
         if stable.shape[1] > 2:
             ax = plot_flow_field(ax, VF, xlim, ylim, start_points=saddle.T - 0.01)
             ax = plot_flow_field(ax, VF, xlim, ylim, start_points=saddle.T + 0.01)
