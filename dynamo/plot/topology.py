@@ -224,7 +224,7 @@ def plot_separatrix(ax, f, saddle, a_range, b_range, t, eps=1e-6,
     return ax
 
 
-def topography(adata, basis, xlim, ylim, t, terms=['streamline', 'nullcline', 'fixed_points', 'separatrices', 'trajectory'], init_state=None, VF=None, plot=True, **fixed_points_kwargs):
+def topography(adata, basis, xlim, ylim, t=None, terms=['streamline', 'nullcline', 'fixed_points', 'separatrices', 'trajectory'], init_state=None, VF=None, plot=True, **fixed_points_kwargs):
     """ Plot the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system
     for single cells. The plot is created on two dimensional space.
 

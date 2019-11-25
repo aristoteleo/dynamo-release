@@ -32,7 +32,7 @@ def Ying_model(x, t=None):
     return ret
 
 
-def two_genes_motif(x,
+def two_genes_motif(x, t=None,
                     a1 = 1,
                     a2 = 1,
                     b1 = 1,
@@ -144,7 +144,7 @@ def Simulator(motif='neurogenesis'):
         gene_name = np.array(['Pu.1', 'Gata.1'])
     elif motif is 'Ying':
         cell_num = 5000
-        X, Y = state_space_sampler(ode=Ying_model, dim=2, min_val=0, max_val=6, N=cell_num)
+        X, Y = state_space_sampler(ode=Ying_model, dim=2, min_val=-2, max_val=3, N=cell_num)
         gene_name = np.array(['X', 'Y'])
 
     var = pd.DataFrame({'gene_short_name': gene_name})  # use the real name in simulation?
@@ -167,18 +167,19 @@ def Simulator(motif='neurogenesis'):
 
 if __name__ is '__main__':
     import dynamo as dyn
-    toggle_adata = dyn.sim.Simulator(motif='toggle')
-    dyn.tl.VectorField(toggle_adata, basis='X', velocity_key='velocity')
-
-    dyn.pl.topography(toggle_adata, VF=None, basis='X', init_state=None, t=np.linspace(0, 10, 200),
-                      xlim=[0, 6], ylim=[0, 6], plot=True)
-
+    # toggle_adata = dyn.sim.Simulator(motif='toggle')
+    # dyn.tl.VectorField(toggle_adata, basis='X', velocity_key='velocity')
+    #
+    # dyn.pl.topography(toggle_adata, VF=None, basis='X', init_state=None, t=np.linspace(0, 10, 200),
+    #                   xlim=[0, 6], ylim=[0, 6], plot=True)
+    #
     two_genes_adata = dyn.sim.Simulator(motif='twogenes')
     dyn.tl.VectorField(two_genes_adata, basis='X', velocity_key='velocity')
-
-    dyn.pl.topography(two_genes_adata, VF=None, basis='X', init_state=None, t=np.linspace(0, 10, 200),
-                      xlim=[0, 6], ylim=[0, 6], plot=True)
+    #
+    # dyn.pl.topography(two_genes_adata, VF=None, basis='X', init_state=None, t=np.linspace(0, 10, 200),
+    #                   xlim=[0, 6], ylim=[0, 6], plot=True)
 
     # adata=dyn.read_h5ad('/Volumes/xqiu/proj/Aristotle/backup/vector_field_hippocampus.h5ad')
     # dyn.pl.topography(adata, VF=None, basis='X', init_state=None, t=None,
     #                   xlim=[-27, 27], ylim=[-27, 27], plot=True)
+    dyn.pl.topography(two_genes_adata, VF=dyn.sim.two_genes_motif, basis='X', init_state=None, t=None, xlim=[0, 6], ylim=[0, 6], plot=True)
