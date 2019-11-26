@@ -171,11 +171,11 @@ def Simulator(motif='neurogenesis', clip=True):
 
 if __name__ is '__main__':
     import dynamo as dyn
-    toggle_adata = dyn.sim.Simulator(motif='toggle')
-    dyn.tl.VectorField(toggle_adata, basis='X', velocity_key='velocity')
-
-    dyn.pl.topography(toggle_adata, VF=None, basis='X', init_state=None, t=np.linspace(0, 10, 200),
-                      xlim=[0, 6], ylim=[0, 6], plot=True)
+    # toggle_adata = dyn.sim.Simulator(motif='toggle')
+    # dyn.tl.VectorField(toggle_adata, basis='X', velocity_key='velocity')
+    #
+    # dyn.pl.topography(toggle_adata, VF=None, basis='X', init_state=None, t=np.linspace(0, 10, 200),
+    #                   xlim=[0, 6], ylim=[0, 6], plot=True)
 
     # two_genes_adata = dyn.sim.Simulator(motif='twogenes')
     # dyn.tl.VectorField(two_genes_adata, basis='X', velocity_key='velocity')
@@ -192,3 +192,24 @@ if __name__ is '__main__':
     #
     # dyn.pl.topography(Ying_adata, VF=None, basis='X', init_state=None, t=None,
     #                   xlim=[-3, 3], ylim=[-3, 3], plot=True, reverse=True)
+
+    adata = dyn.read_loom('/Users/xqiu/Desktop/possorted_genome_bam_QY31K.loom')
+
+    dyn.pl.show_fraction(adata)
+    dyn.pp.recipe_monocle(adata, n_top_genes=3000)
+    dyn.pl.variance_explained(adata)
+    dyn.pl.feature_genes(adata)
+    import time
+    start_time = time.time()
+    dyn.tl.dynamics(adata)
+    print("--- %s seconds ---" % (time.time() - start_time))
+    dyn.tl.reduceDimension(adata, velocity_key='velocity_S',reduction_method='trimap')
+    dyn.tl.cell_velocities(adata, vkey='pca', basis='trimap', method='analytical')
+    gene_list=["Gpr50"]
+    color = ['stationary_distribution']
+    dyn.pl.cell_wise_velocity(adata, genes=gene_list, basis='trimap', n_columns=3) # ['GRIA3', 'LINC00982', 'AFF2']
+
+    dyn.pl.grid_velocity(adata, genes=gene_list, basis='trimap', n_columns=2, figsize=[8, 8])  # ['GRIA3', 'LINC00982', 'AFF2']
+    dyn.pl.stremline_plot(adata, genes=gene_list,  basis='trimap', n_columns=2, figsize=[8, 8], density=3)  # ['GRIA3', 'LINC00982', 'AFF2'] color=['ClusterName'],
+    # show stationary distribution
+    dyn.tl.stationary_distribution(adata)

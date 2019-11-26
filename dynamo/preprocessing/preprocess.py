@@ -588,15 +588,15 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_unflitered=True, min_c
     """
 
     detected_bool = np.ones(adata.X.shape[1], dtype=bool)
-    detected_bool = (detected_bool) & (((adata.X > 0).sum(0) > min_cell_s) & (adata.X.mean(0) > min_avg_exp_s) & (adata.X.mean(0) < max_avg_exp)).flatten()
+    detected_bool = (detected_bool) & np.array(((adata.X > 0).sum(0) > min_cell_s) & (adata.X.mean(0) > min_avg_exp_s) & (adata.X.mean(0) < max_avg_exp)).flatten()
 
     if "spliced" in adata.layers.keys() and layer is 'spliced':
-        detected_bool = detected_bool & (((adata.layers['spliced'] > 0).sum(0) > min_cell_s) & (adata.layers['spliced'].mean(0) < min_avg_exp_s) & (adata.layers['spliced'].mean(0) < max_avg_exp))
+        detected_bool = detected_bool & np.array(((adata.layers['spliced'] > 0).sum(0) > min_cell_s) & (adata.layers['spliced'].mean(0) < min_avg_exp_s) & (adata.layers['spliced'].mean(0) < max_avg_exp)).flatten()
     if "unspliced" in adata.layers.keys() and layer is 'unspliced':
-        detected_bool = detected_bool & (((adata.layers['unspliced'] > 0).sum(0) > min_cell_u) & (adata.layers['unspliced'].mean(0) < min_avg_exp_u) & (adata.layers['unspliced'].mean(0) < max_avg_exp))
+        detected_bool = detected_bool & np.array(((adata.layers['unspliced'] > 0).sum(0) > min_cell_u) & (adata.layers['unspliced'].mean(0) < min_avg_exp_u) & (adata.layers['unspliced'].mean(0) < max_avg_exp)).flatten()
     ############################## The following code need to be updated ##############################
     if "protein" in adata.obsm.keys() and layer is 'protein':
-        detected_bool = detected_bool & (((adata.obsm['protein'] > 0).sum(0) > min_cell_p) & (adata.obsm['protein'].mean(0) < min_avg_exp_p) & (adata.obsm['protein'].mean(0) < max_avg_exp))
+        detected_bool = detected_bool & np.array(((adata.obsm['protein'] > 0).sum(0) > min_cell_p) & (adata.obsm['protein'].mean(0) < min_avg_exp_p) & (adata.obsm['protein'].mean(0) < max_avg_exp)).flatten()
 
     filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
 
@@ -604,10 +604,11 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_unflitered=True, min_c
     ### check this
     if sort_by is 'dispersion':
         table = topTable(adata, layer, mode=sort_by)
-        valid_table = table.loc[table.loc[:, 'dispersion_empirical'] > table.loc[:, 'dispersion_fit'], :]
-        valid_table = valid_table.loc[filter_bool, :]
+        table = table.set_index(['gene_id'])
+        valid_table = valid_table = table.query("dispersion_empirical > dispersion_fit")
+        valid_table = valid_table.loc[set(adata.var.index[filter_bool]).intersection(valid_table.index), :]
         gene_id = np.argsort(-valid_table.loc[:, 'dispersion_empirical'])[:n_top_genes]
-        gene_id = valid_table.iloc[gene_id, :].loc[:, 'gene_id']
+        gene_id = valid_table.iloc[gene_id, :].index
         filter_bool = adata.var.index.isin(gene_id)
 
     elif sort_by is 'gini':
