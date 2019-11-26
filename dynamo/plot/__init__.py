@@ -8,3 +8,4 @@ from .scPotential import show_landscape
 from .scatters import scatters
 from .time_series import kinetic_heatmap, kinetic_curves, plot_directed_pg
 from .utilities import quiver_autoscaler
+from .topology import plot_flow_field, plot_fixed_points, plot_null_clines, plot_separatrix, plot_traj, topography

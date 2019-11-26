@@ -8,6 +8,12 @@ from scipy.sparse.linalg import inv
 from scipy.sparse import csr_matrix
 
 
+def cal_ncenter(ncells, ncells_limit=100):
+
+    res = np.round(2 * ncells_limit * np.log(ncells) / (np.log(ncells) + np.log(ncells_limit)))
+
+    return res
+
 def pca_projection(C,L):
     '''solve the problem size(C) = NxN, size(W) = NxL. max_W trace( W' C W ) : W' W = I
 
@@ -156,11 +162,10 @@ def DDRTree_py(X,maxIter,sigma,gamma,eps=0,dim=2,Lambda = 1.0,ncenter = None, ke
         Gamma = np.diag(sum(R))
 
         # termination condition
-        print()
         obj1 = - sigma * sum(np.log(np.sum(np.exp(- tmp_distZY/sigma),1))- tem_min_dist.T[0]/ sigma)
         xwz = np.linalg.norm(X - np.dot(W , Z),2)
         objs.append((np.dot(xwz,xwz)) + Lambda * np.trace( np.dot(Y , np.dot(L , Y.T)))+ gamma * obj1)
-        print('iter = ',iter,'obj = ',objs[iter],'\n')
+        print('iter = ',iter,'obj = ', objs[iter])
 
         if keep_history:
             history.iloc[iter]['W'] = W

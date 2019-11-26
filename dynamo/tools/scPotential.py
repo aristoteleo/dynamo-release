@@ -9,9 +9,9 @@ from .Bhattacharya import path_integral, alignment
 from .Ao import Ao_pot_map
 from .Wang import Wang_action, Wang_LAP
 
-# the LAP method should be rewritten in TensorFlow using optimization with SGD
+# the LAP method should be rewritten in TensorFlow/PyTorch using optimization with SGD
 
-def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, x_ini = None):
+def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, reverse=False, grid_num=50, x_ini = None):
     """ Calculate the fixed points of (learned) vector field function . Classify the fixed points into classes of stable and saddle points
     based on the eigenvalue of the Jacobian on the point.
 
@@ -19,7 +19,7 @@ def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, x_ini = None):
     ---------
         func: 'function'
             The function of the (learned) vector field function that are required to fixed points for
-        auto_func: 'np.ndarray'
+        auto_func: 'np.ndarray' (not used)
             The function that is written with autograd of the same ODE equations that is used to calculate the Jacobian matrix.
             If auto_func is set to be None, Jacobian is calculated through the fjac, r returned from fsolve.
         dim_range: 'list'
@@ -28,6 +28,10 @@ def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, x_ini = None):
             The number of random initial points to sample
         EqNum: 'int'
             The number of equations (dimension) of the system
+        reverse: `bool`
+            Whether to reverse the sign (direction) of vector field (VF).
+        grid_num: `int` (default: 50)
+            The number of grids on each dimension, only used when the EqNum is 2 and x_ini is None.
         x_ini: 'np.ndarray'
             The user provided initial points that is used to find the fixed points
 
@@ -39,10 +43,20 @@ def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, x_ini = None):
         A matrix consists of the coordinates of the unstable steady state
 
     """
+    import numdifftools as nda
 
+    if reverse is True :
+        func_ = lambda x: -func(x)
+    else:
+        func_ = func
     ZeroConst = 1e-8
     FixedPointConst = 1e-20
     MaxSolution = 1000
+
+    if x_ini is None and EqNum < 4:
+        _min, _max = [dim_range[0]] * EqNum, [dim_range[1]] * EqNum
+        Grid_list = np.meshgrid(*[np.linspace(i, j, grid_num) for i, j in zip(_min, _max)])
+        x_ini = np.array([i.flatten() for i in Grid_list]).T
 
     RandNum = RandNum if x_ini is None else x_ini.shape[0] # RandNum set to the manually input steady state estimates
     FixedPoint = np.zeros((RandNum, EqNum))
@@ -58,17 +72,17 @@ def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, x_ini = None):
     if x_ini is None:
         for time in range(RandNum):
             x0 = np.random.uniform(0, 1, EqNum) * (dim_range[1] - dim_range[0]) + dim_range[0]
-            x, fval_dict, _, _ = sc.optimize.fsolve(func, x0, maxfev=450000, xtol=FixedPointConst, full_output=True)
+            x, fval_dict, _, _ = sc.optimize.fsolve(func_, x0, maxfev=450000, xtol=FixedPointConst, full_output=True)
             # fjac: the orthogonal matrix, q, produced by the QR factorization of the final approximate Jacobian matrix,
             # stored column wise; r: upper triangular matrix produced by QR factorization of the same matrix
-            if auto_func is None:
-                fval, q, r = fval_dict['fvec'], fval_dict['fjac'], fval_dict['r']
-                matrixr=np.zeros((EqNum, EqNum))
-                matrixr[np.triu_indices(EqNum)]=fval_dict["r"]
-                jacobian_mat=(fval_dict["fjac"]).dot(matrixr)
-            else:
-                fval = fval_dict['fvec']
-                jacobian_mat = jacobian(auto_func)(np.array(x)) # autonp.array?
+            # if auto_func is None:
+            #     fval, q, r = fval_dict['fvec'], fval_dict['fjac'], fval_dict['r']
+            #     matrixr=np.zeros((EqNum, EqNum))
+            #     matrixr[np.triu_indices(EqNum)]=fval_dict["r"]
+            #     jacobian_mat=(fval_dict["fjac"]).dot(matrixr)
+            # else:
+            fval = fval_dict['fvec']
+            jacobian_mat = nda.Jacobian(func_)(np.array(x)) # autonp.array?
 
             jacobian_mat[np.isinf(jacobian_mat)] = 0
             if fval.dot(fval) < FixedPointConst:
@@ -83,18 +97,19 @@ def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, x_ini = None):
     else:
         for time in range(x_ini.shape[0]):
             x0 = x_ini[time, :]
-            x, fval_dict, _, _ = sc.optimize.fsolve(func, x0, maxfev=450000, xtol=FixedPointConst, full_output=True)
+            x, fval_dict, _, _ = sc.optimize.fsolve(func_, x0, maxfev=450000, xtol=FixedPointConst, full_output=True)
+            # fjac: the orthogonal matrix, q, produced by the QR factorization of the final approximate Jacobian matrix,
+            # stored column wise; r: upper triangular matrix produced by QR factorization of the same matrix
+            # if auto_func is None:
+            #     fval, q, r = fval_dict['fvec'], fval_dict['fjac'], fval_dict['r']
+            #     matrixr=np.zeros((EqNum, EqNum))
+            #     matrixr[np.triu_indices(EqNum)]=fval_dict["r"]
+            #     jacobian_mat=(fval_dict["fjac"]).dot(matrixr)
+            # else:
+            fval = fval_dict['fvec']
+            jacobian_mat = nda.Jacobian(func_)(np.array(x)) # autonp.array?
 
-            if auto_func is None:
-                fval, q, r = fval_dict['fvec'], fval_dict['fjac'], fval_dict['r']
-                matrixr=np.zeros((EqNum, EqNum))
-                matrixr[np.triu_indices(EqNum)]=fval_dict["r"]
-                jacobian_mat=(fval_dict["fjac"]).dot(matrixr)
-            else:
-                fval = fval_dict['fvec']
-                jacobian_mat = jacobian(auto_func)(np.array(x)) # autonp.array?
-
-            jacobian_mat[np.isfinite(jacobian_mat)] = 0
+            jacobian_mat[np.isinf(jacobian_mat)] = 0
             if fval.dot(fval) < FixedPointConst:
                 FixedPoint[time, :] = x
                 ve, _ = sc.linalg.eig(jacobian_mat)
@@ -103,7 +118,8 @@ def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, x_ini = None):
                         Type[time] = -1
                         break
                 if not Type[time]:
-                    Type[time]=1
+                    Type[time] = 1
+
     for time in range(RandNum):
         if Type[time] == 0:
             continue
@@ -291,24 +307,6 @@ def action(n_points, tmax, point_start, point_end, boundary, Function, Diffusion
     fval, output_path = res['fun'], np.hstack((point_start, res['x'].reshape((2, -1)), point_end))
 
     return fval, output_path
-
-
-def ODE(x):
-    dx1 = -1 + 9 * x[0] - 2 * pow(x[0], 3) + 9 * x[1] - 2 * pow(x[1], 3)
-    dx2 = 1 - 11*x[0] + 2 * pow(x[0], 3) + 11 * x[1] - 2 * pow(x[1], 3)
-
-    ret = np.array([[dx1], [dx2]]).reshape(x.shape)
-
-    return ret
-
-
-def autoODE(x):
-    dx1 = -1 + 9 * x[0] - 2 * pow(x[0], 3) + 9 * x[1] - 2 * pow(x[1], 3)
-    dx2 = 1 - 11*x[0] + 2 * pow(x[0], 3) + 11 * x[1] - 2 * pow(x[1], 3)
-
-    ret = autonp.array([[dx1], [dx2]]).reshape(x.shape)
-
-    return ret
 
 
 def Potential(adata, DiffMat=None, method='Ao', **kwargs):
