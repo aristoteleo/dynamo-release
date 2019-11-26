@@ -99,7 +99,7 @@ def eye (m, n):
     mat = np.eye(m, n)
     return mat
 
-def DDRTree_py(X,maxIter,sigma,gamma,eps=0,dim=2,Lambda = 1.0,ncenter = None, keep_history=False):
+def DDRTree_py(X, maxIter, sigma, gamma, eps=0, dim=2, Lambda=1.0, ncenter=None, keep_history=False):
     '''
     Arguments
     ---------
