@@ -488,6 +488,72 @@ def Dispersion(adata, layers='X', modelFormulaStr="~ 1", min_cells_detected=1, r
     return adata
 
 
+def SVRs(adata, filter_bool=None, layers='X', min_expr_cells=2, min_expr_avg=0, max_expr_avg=20, svr_gamma=None,
+                         winsorize=False, winsor_perc=(1, 99.5), sort_inverse=False):
+    """This function is modified from https://github.com/velocyto-team/velocyto.py/blob/master/velocyto/analysis.py
+
+    """
+    from sklearn.svm import SVR
+
+    layer_keys = list(adata.layers.keys())
+    if 'protein' in adata.obsm.keys():
+        layer_keys.extend(['X'])
+    else:
+        layer_keys.extend(['X'])
+    layers = layer_keys if layers is 'all' else list(set(layer_keys).intersection(layers))
+
+    for layer in layers:
+        if layer is 'raw' or layer is 'X':
+            CM = adata.raw if adata.raw is not None else adata.X
+        elif layer is 'protein':
+            if 'protein' in adata.obsm_keys():
+                CM = adata.obsm['protein']
+            else:
+                continue
+        else:
+            CM = adata.layers[layer]
+        if winsorize:
+            if min_expr_cells <= ((100 - winsor_perc[1]) * CM.shape[0] * 0.01):
+                min_expr_cells = int(np.ceil((100 - winsor_perc[0]) * CM.shape[1] * 0.01)) + 2
+
+        detected_bool = np.array(((CM > 0).sum(0) > min_expr_cells) & (CM.mean(0) < max_expr_avg) & (
+                    CM.mean(0) > min_expr_avg)).flatten()
+
+        if filter_bool is not None:
+            detected_bool = filter_bool & detected_bool
+
+        valid_CM = CM[:, detected_bool]
+        if winsorize:
+            down, up = np.percentile(valid_CM, winsor_perc, 0)
+            Sfw = np.clip(valid_CM, down[None, :], up[None, :])
+            mu = Sfw.mean(0)
+            sigma = Sfw.std(0, ddof=1)
+        else:
+            mu = np.array(valid_CM.mean(0)).flatten()
+            sigma = np.array(valid_CM.A.std(0, ddof=1)).flatten() if issparse(valid_CM) else valid_CM.std(0, ddof=1)
+
+        cv = sigma / mu
+        log_m = np.array(np.log2(mu)).flatten()
+        log_cv = np.array(np.log2(cv)).flatten()
+
+        if svr_gamma is None:
+            svr_gamma = 150. / len(mu)
+        # Fit the Support Vector Regression
+        clf = SVR(gamma=svr_gamma)
+        clf.fit(log_m[:, None], log_cv)
+        fitted_fun = clf.predict
+        ff = fitted_fun(log_m[:, None])
+        score = log_cv - ff
+        if sort_inverse:
+            score = - score
+
+        adata.var['mean'], adata.var['CV'], adata.var['score'] = np.nan, np.nan, -1
+        adata.var.loc[detected_bool, 'mean'], adata.var.loc[detected_bool, 'CV'], adata.var.loc[detected_bool, 'score'] = np.array(mu).flatten(), np.array(cv).flatten(), np.array(score).flatten()
+        adata.uns['velocyto_SVR'] = {"SVR": fitted_fun, "detected_bool": detected_bool}
+
+        adata
+
+
 def filter_cells(adata, filter_bool=None, layer='all', keep_unflitered=False, min_expr_genes_s=50, min_expr_genes_u=25, min_expr_genes_p=1,
                  max_expr_genes_s=np.inf, max_expr_genes_u=np.inf, max_expr_genes_p=np.inf):
     """Select valid cells basedon a collection of filters.
@@ -610,13 +676,21 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_unflitered=True, min_c
         gene_id = np.argsort(-valid_table.loc[:, 'dispersion_empirical'])[:n_top_genes]
         gene_id = valid_table.iloc[gene_id, :].index
         filter_bool = adata.var.index.isin(gene_id)
-
     elif sort_by is 'gini':
         table = topTable(adata, layer, mode='gini')
         valid_table = table.loc[filter_bool, :]
         gene_id = np.argsort(-valid_table.loc[:, 'gini'])[:n_top_genes]
         gene_id = valid_table.index[gene_id]
         filter_bool = gene_id.isin(adata.var.index)
+    elif sort_by is 'SVR':
+        # min_cell_s=5, min_cell_u=5, min_cell_p=5,
+        #                  min_avg_exp_s=1e-2, min_avg_exp_u=1e-4, min_avg_exp_p=1e-4, max_avg_exp=100., sort_by='dispersion',
+        #                  n_top_genes=3000
+        SVRs(adata, layers=layer, filter_bool=filter_bool, min_expr_cells=0, min_expr_avg=0, max_expr_avg=np.inf,
+             svr_gamma=None, winsorize=False, winsor_perc=(1, 99.5), sort_inverse=False)
+        score = adata.var['score']
+        nth_score = np.sort(score)[::-1][n_top_genes]
+        filter_bool = adata.var['score'] > nth_score
 
     if keep_unflitered:
         adata.var['use_for_dynamo'] = np.array(filter_bool).flatten()
@@ -703,4 +777,3 @@ def recipe_monocle(adata, layer=None, gene_to_use=None, method='pca', num_dim=50
     adata.uns[method+'_fit'] = fit
 
     return adata
-
