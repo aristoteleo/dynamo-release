@@ -28,11 +28,11 @@ def calc_mom_all_genes(T, adata, fcn_mom):
     return Mn, Mo, Mt, Mr
 
 class MomData(AnnData):
-    def __init__(self, adata, has_nan=False):
+    def __init__(self, adata, time_key='Time', has_nan=False):
         #self.data = adata
         self.__dict__ = adata.__dict__
         # calculate first and second moments from data
-        self.times = np.array(self.obs['Time'].values, dtype=float)
+        self.times = np.array(self.obs[time_key].values, dtype=float)
         self.uniq_times = np.unique(self.times)
         nT = self.get_n_times()
         ng = self.get_n_genes()
@@ -48,19 +48,19 @@ class MomData(AnnData):
                 self.V[g] = strat_mom(L, self.times, np.var)
 
     def get_n_genes(self):
-        return len(self.var['Gene'])
+        return self.var.shape[0] #len(self.var['Gene'])
 
     def get_n_cell(self):
-        return len(self.obs['Cell'])
+        return self.obs.shape[0] #len(self.obs['Cell'])
 
     def get_n_times(self):
         return len(self.uniq_times)
 
 class Estimation:
-    def __init__(self, adata, adata_u=None, param_ranges=None, has_nan=False):
+    def __init__(self, adata, adata_u=None, time_key='Time', param_ranges=None, has_nan=False):
         # initialize simulator
-        self.data = MomData(adata, has_nan)
-        self.data_u = MomData(adata_u, has_nan) if adata_u is not None else None
+        self.data = MomData(adata, time_key, has_nan)
+        self.data_u = MomData(adata_u, time_key, has_nan) if adata_u is not None else None
         if param_ranges is None:
             param_ranges = {'a': [0, 10], 'b': [0, 10], 'alpha_a': [10, 1000], \
             'alpha_i': [0, 10], 'beta': [0, 10], 'gamma': [0, 10]}

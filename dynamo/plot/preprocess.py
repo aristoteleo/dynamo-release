@@ -143,6 +143,8 @@ def feature_genes(adata, layer='X', mode='Dispersion'):
             AnnData object
         layer: `str` (default: `X`)
             The data from a particular layer (include X) used for making the feature gene plot.
+        mode: `str` (default: `Dispersion)
+            The method to select the feature genes.
 
     Returns
     -------

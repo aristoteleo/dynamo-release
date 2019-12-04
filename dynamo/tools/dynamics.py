@@ -5,8 +5,8 @@ import numpy as np
 from scipy.sparse import issparse, csr_matrix
 
 
-# add the moment code in; and incorporate the model selection code later
-def dynamics(adata, filter_gene_mode='final', mode='steady_state', protein_names=None, experiment_type='deg', assumption_mRNA=None, assumption_protein='ss', concat_data=False):
+# incorporate the model selection code soon
+def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Time', protein_names=None, experiment_type='deg', assumption_mRNA=None, assumption_protein='ss', concat_data=False):
     """Inclusive model of expression dynamics with scSLAM-seq and multiomics.
 
     Parameters
@@ -18,6 +18,8 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', protein_names
         mode: `str` (default: steady_state)
             mode indicates which estimation framework will be used. Currently "steady_state" and "moment" methods are supported.
             A "model_selection" mode will be supported soon in which beta and gamma can be variable over time also.
+        time_key: `str` (default: Time)
+            The column name for the time label of cells in .obs, only used when mode is `moment`.
         protein_names: `List`
             A list of gene names corresponds to the rows of the measured proteins in the P layer. The names have to be included
             in the adata.var.index.
@@ -160,8 +162,9 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', protein_names
 
         # add velocity_offset here
     elif mode is 'moment':
-        Moment = MomData(adata)
-        Est = Estimation(Moment)
+        Moment = MomData(adata, time_key)
+        adata.uns['M'], adata.uns['V'] = Moment.M, Moment.V
+        Est = Estimation(Moment, time_key)
         params, costs = Est.fit()
         a, b, alpha_a, alpha_i, beta, gamma = params
 
