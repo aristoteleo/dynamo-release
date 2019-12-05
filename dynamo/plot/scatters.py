@@ -108,8 +108,8 @@ def scatters(adata, genes, x=0, y=1, mode='splicing', type='expression', vkey='S
         if issparse(E_vec):
             E_vec, V_vec = E_vec.A, V_vec.A
 
-        if 'velocity_parameter_gamma' in adata.var.columns:
-            gamma = adata.var.velocity_parameter_gamma[genes].values
+        if 'kinetic_parameter_gamma' in adata.var.columns:
+            gamma = adata.var.kinetic_parameter_gamma[genes].values
             velocity_offset = [0] * n_genes if not ("velocity_offset" in adata.var.columns) else \
                 adata.var.velocity_offset[genes].values
         else:
@@ -136,8 +136,8 @@ def scatters(adata, genes, x=0, y=1, mode='splicing', type='expression', vkey='S
             uu, ul, su, sl = adata[:, genes].layers['X_uu'], adata[:, genes].layers['X_ul'], adata[:, genes].layers['X_su'], \
                              adata[:, genes].layers['X_sl']
             if 'protein' in adata.obsm.keys():
-                if 'velocity_parameter_eta' in adata.var.columns:
-                    gamma_P = adata.var.velocity_parameter_eta[genes].values
+                if 'kinetic_parameter_eta' in adata.var.columns:
+                    gamma_P = adata.var.kinetic_parameter_eta[genes].values
                     velocity_offset_P = [0] * n_cells if not ("velocity_offset_P" in adata.var.columns) else \
                         adata.var.velocity_offset_P[genes].values
                 else:

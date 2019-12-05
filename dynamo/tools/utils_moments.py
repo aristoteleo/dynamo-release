@@ -9,7 +9,19 @@ Created on Wed Sep 4 18:29:24 2019
 from numpy import *
 from scipy.integrate import odeint
 from scipy.optimize import least_squares
+from numba import jitclass          # import the decorator
+from numba import int32, float32    # import the types
 
+spec = [
+    ('a', float32),          # a simple scalar field
+    ('b', float32),          # an array field
+    ('alpha_a', float32),
+    ('alpha_i', float32),
+    ('beta', float32),
+    ('gamma', float32),
+]
+
+@jitclass(spec)
 class moments:
     def __init__(self, a=None, b=None, alpha_a=None, alpha_i=None, beta=None, gamma=None):
         # species

@@ -14,14 +14,14 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
         adata: :class:`~anndata.AnnData`
             AnnData object
         filter_gene_mode: `str` (default: `final`)
-            The string for indicating the which mode (one of, ['final', 'basic', 'no']) of gene filter will be used.
+            The string for indicating which mode (one of, ['final', 'basic', 'no']) of gene filter will be used.
         mode: `str` (default: steady_state)
-            mode indicates which estimation framework will be used. Currently "steady_state" and "moment" methods are supported.
-            A "model_selection" mode will be supported soon in which beta and gamma can be variable over time also.
+            string indicates which estimation mode will be used. Currently "steady_state" and "moment" methods are supported.
+            A "model_selection" mode will be supported soon in which alpha, beta and gamma will be modeled as a function of time.
         time_key: `str` (default: Time)
-            The column name for the time label of cells in .obs, only used when mode is `moment`.
+            The column key for the time label of cells in .obs. Used for either "steady_state" or non-"steady_state" mode or `moment` mode  with labeled data.
         protein_names: `List`
-            A list of gene names corresponds to the rows of the measured proteins in the P layer. The names have to be included
+            A list of gene names corresponds to the rows of the measured proteins in the X_protein of the obsm attribute. The names have to be included
             in the adata.var.index.
         experiment_type: str
             labelling experiment type. Available options are:
@@ -42,10 +42,10 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object
+            A updated AnnData object with estimated kinetic parameters and inferred velocity included.
     """
 
-    U, Ul, S, Sl, P = None, None, None, None, None
+    U, Ul, S, Sl, P = None, None, None, None, None # U: unlabeled unspliced; S: unlabel spliced: S
     if filter_gene_mode is 'final':
         valid_ind = adata.var.use_for_dynamo
         # import warnings
@@ -67,7 +67,7 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
         U = adata[:, valid_ind].layers['new'].T
 
     elif 'X_uu' in adata.layers.keys():  # only uu, ul, su, sl provided
-        U = adata[:, valid_ind].layers['X_uu'].T
+        U = adata[:, valid_ind].layers['X_uu'].T # unlabel unspliced: U
     elif 'uu' in adata[:, valid_ind].layers.keys():
         U = adata[:, valid_ind].layers['uu'].T
 
@@ -77,14 +77,14 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
         S = adata[:, valid_ind].layers['spliced'].T
 
     elif 'X_total' in adata.layers.keys(): # run new / total ratio (NTR)
-        U = adata[:, valid_ind].layers['X_total'].T
+        S = adata[:, valid_ind].layers['X_total'].T
     elif 'total' in adata.layers.keys():
-        U = adata[:, valid_ind].layers['total'].T
+        S = adata[:, valid_ind].layers['total'].T
 
-    elif 'X_su' in adata.layers.keys():
-        U = adata[:, valid_ind].layers['X_su'].T
+    elif 'X_su' in adata.layers.keys(): # unlabel spliced: S
+        S = adata[:, valid_ind].layers['X_su'].T
     elif 'su' in adata.layers.keys():
-        U = adata[:, valid_ind].layers['su'].T
+        S = adata[:, valid_ind].layers['su'].T
 
     if 'X_ul' in adata.layers.keys():
         Ul = adata[:, valid_ind].layers['X_ul'].T
@@ -107,10 +107,10 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
         else:
             protein_names = list(set(adata[:, valid_ind].var.index).intersection(protein_names))
             ind_for_proteins = [np.where(adata[:, valid_ind].var.index == i)[0][0] for i in protein_names]
-            adata.var['velocity_parameter_gamma'] = False
-            adata.var.loc[ind_for_proteins, 'velocity_parameter_gamma'] = True
+            adata.var['is_protein_velocity_genes'] = False
+            adata.var.loc[ind_for_proteins, 'is_protein_velocity_genes'] = True
 
-    t = adata.obs.Time if 'Time' in adata.obs.columns else None
+    t = adata.obs[time_key] if time_key in adata.obs.columns else None
 
     if Ul is None or Sl is None:
         assumption_mRNA = 'ss'
@@ -129,7 +129,7 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
 
         if type(vel_U) is not float:
             adata.layers['velocity_U'] = csr_matrix((adata.shape))
-            adata.layers['velocity_U'][:, np.where(valid_ind)[0]] = vel_U.T.tocsr()
+            adata.layers['velocity_U'][:, np.where(valid_ind)[0]] = vel_U.T.tocsr() # np.where(valid_ind)[0] required for sparse matrix
         if type(vel_S) is not float:
             adata.layers['velocity_S'] = csr_matrix((adata.shape))
             adata.layers['velocity_S'][:, np.where(valid_ind)[0]] = vel_S.T.tocsr()
@@ -138,27 +138,27 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
             adata.obsm['velocity_P'] = vel_P.T.tocsr()
 
         if alpha is not None: # for each cell
-            adata.varm['velocity_parameter_alpha'] = np.nan
-            adata[:, valid_ind].varm['velocity_parameter_alpha'] = alpha
+            adata.varm['kinetic_parameter_alpha'] = np.nan
+            adata[:, valid_ind].varm['kinetic_parameter_alpha'] = alpha
 
-        adata.var['velocity_parameter_avg_alpha'] = alpha.mean(1) if alpha is not None else None
+        adata.var['kinetic_parameter_avg_alpha'] = alpha.mean(1) if alpha is not None else None
 
-        adata.var['velocity_parameter_beta'], adata.var['velocity_parameter_gamma'] = np.nan, np.nan
-        adata.var.loc[valid_ind, 'velocity_parameter_beta'] = beta
-        adata.var.loc[valid_ind, 'velocity_parameter_gamma'] = gamma
+        adata.var['kinetic_parameter_beta'], adata.var['kinetic_parameter_gamma'] = np.nan, np.nan
+        adata.var.loc[valid_ind, 'kinetic_parameter_beta'] = beta
+        adata.var.loc[valid_ind, 'kinetic_parameter_gamma'] = gamma
 
         gamma_intercept, gamma_r2, delta_intercept, delta_r2 = est.aux_param.values()
         gamma_r2[~np.isfinite(gamma_r2)] = 0,
-        adata.var.loc[valid_ind, 'velocity_parameter_gamma_intercept'] = gamma_intercept
-        adata.var.loc[valid_ind, 'velocity_parameter_gamma_r2'] = gamma_r2
+        adata.var.loc[valid_ind, 'kinetic_parameter_gamma_intercept'] = gamma_intercept
+        adata.var.loc[valid_ind, 'kinetic_parameter_gamma_r2'] = gamma_r2
 
         if ind_for_proteins is not None:
             delta_r2[~np.isfinite(delta_r2)] = 0
-            adata.var['velocity_parameter_eta'], adata.var['velocity_parameter_delta'] = np.nan, np.nan
-            adata.var.loc[valid_ind, 'velocity_parameter_eta'][ind_for_proteins] = eta
-            adata.var.loc[valid_ind, 'velocity_parameter_delta'][ind_for_proteins] = delta
-            adata.var.loc[valid_ind, 'velocity_parameter_delta_intercept'][ind_for_proteins] = delta_intercept
-            adata.var.loc[valid_ind, 'velocity_parameter_delta_r2'][ind_for_proteins] = delta_r2
+            adata.var['kinetic_parameter_eta'], adata.var['kinetic_parameter_delta'] = np.nan, np.nan
+            adata.var.loc[valid_ind, 'kinetic_parameter_eta'][ind_for_proteins] = eta
+            adata.var.loc[valid_ind, 'kinetic_parameter_delta'][ind_for_proteins] = delta
+            adata.var.loc[valid_ind, 'kinetic_parameter_delta_intercept'][ind_for_proteins] = delta_intercept
+            adata.var.loc[valid_ind, 'kinetic_parameter_delta_r2'][ind_for_proteins] = delta_r2
 
         # add velocity_offset here
     elif mode is 'moment':
@@ -166,7 +166,7 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
         adata.uns['M'], adata.uns['V'] = Moment.M, Moment.V
         Est = Estimation(Moment, time_key)
         params, costs = Est.fit()
-        a, b, alpha_a, alpha_i, beta, gamma = params
+        a, b, alpha_a, alpha_i, beta, gamma = params[:, 0], params[:, 1], params[:, 2], params[:, 3], params[:, 4], params[:, 5]
 
         def fbar(x_a, x_i, a, b):
             return b / (a + b) * x_a + a / (a + b) * x_i
@@ -188,16 +188,16 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
             adata.obsm['velocity_P'] = csr_matrix((adata.obsm['P'].shape[0], len(ind_for_proteins)))
             adata.obsm['velocity_P'] = vel_P.T.tocsr()
 
-        adata.var['velocity_parameter_a'], adata.var['velocity_parameter_b'], adata.var['velocity_parameter_alpha_a'], \
-        adata.var['velocity_parameter_alpha_i'], adata.var['velocity_parameter_beta'], \
-        adata.var['velocity_parameter_gamma'] = np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
+        adata.var['kinetic_parameter_a'], adata.var['kinetic_parameter_b'], adata.var['kinetic_parameter_alpha_a'], \
+        adata.var['kinetic_parameter_alpha_i'], adata.var['kinetic_parameter_beta'], \
+        adata.var['kinetic_parameter_gamma'] = np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
 
-        adata.var.loc[valid_ind, 'velocity_parameter_a'] = a
-        adata.var.loc[valid_ind, 'velocity_parameter_b'] = b
-        adata.var.loc[valid_ind, 'velocity_parameter_alpha_a'] = alpha_a
-        adata.var.loc[valid_ind, 'velocity_parameter_alpha_i'] = alpha_i
-        adata.var.loc[valid_ind, 'velocity_parameter_beta'] = beta
-        adata.var.loc[valid_ind, 'velocity_parameter_gamma'] = gamma
+        adata.var.loc[valid_ind, 'kinetic_parameter_a'] = a
+        adata.var.loc[valid_ind, 'kinetic_parameter_b'] = b
+        adata.var.loc[valid_ind, 'kinetic_parameter_alpha_a'] = alpha_a
+        adata.var.loc[valid_ind, 'kinetic_parameter_alpha_i'] = alpha_i
+        adata.var.loc[valid_ind, 'kinetic_parameter_beta'] = beta
+        adata.var.loc[valid_ind, 'kinetic_parameter_gamma'] = gamma
         # add velocity_offset here
     elif mode is 'model_selection':
         warnings.warn('Not implemented yet.')

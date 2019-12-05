@@ -218,7 +218,7 @@ def reduceDimension(adata, n_pca_components=25, n_components=2, n_neighbors=10, 
         if velocity_key is not None:
             X_t = adata.X + adata.layers[velocity_key]
 
-    if((not 'X_pca' in adata.obsm.keys()) or 'pca_fit' not in adata.uns.keys()):
+    if((not 'X_pca' in adata.obsm.keys()) or 'pca_fit' not in adata.uns.keys()) or reduction_method is "pca":
         transformer = TruncatedSVD(n_components=n_pca_components, random_state=0)
         X_fit = transformer.fit(X)
         X_pca = X_fit.transform(X)
@@ -262,6 +262,9 @@ def reduceDimension(adata, n_pca_components=25, n_components=2, n_neighbors=10, 
         adj_mat, X_dim = psl_py(X_pca, d = n_components, K = n_neighbors) # this need to be updated
         adata.obsm['X_psl'] = X_dim
         adata.uns['PSL_adj_mat'] = adj_mat
+
+    else:
+        raise Exception('reduction_method {} is not supported.'.format(reduction_method))
 
     return adata
 
