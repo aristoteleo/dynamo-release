@@ -414,7 +414,7 @@ class velocity:
             Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
         """
         if self.parameters['alpha'] is not None and self.parameters['beta'] is not None:
-            alpha, beta = np.repeat(self.parameters['alpha'], U.shape[1], axis = 1), \
+            alpha, beta = np.repeat(self.parameters['alpha'], U.shape[1], axis=1), \
                           np.zeros((len(self.parameters['alpha']), len(self.parameters['alpha'])))
             np.fill_diagonal(beta, self.parameters['beta'])
 
@@ -599,7 +599,7 @@ class estimation:
         clusters: list
             A list of n clusters, each element is a list of indices of the samples which belong to this cluster.
         """
-        n = self.get_n_genes()
+        n = self.data['uu'].shape[0] # get_n_genes()
         # fit mRNA
         if self.asspt_mRNA == 'ss':
             if np.all(self._exist_data('uu', 'su')):
@@ -722,7 +722,7 @@ class estimation:
         gamma: :class:`~numpy.ndarray`
             A vector of gammas for all the genes.
         """
-        n = self.get_n_genes(data=U)
+        n = U.shape[0] # self.get_n_genes(data=U)
         beta = np.zeros(n)
         gamma = np.zeros(n)
         for i in range(n):
@@ -745,7 +745,7 @@ class estimation:
         gamma: :class:`~numpy.ndarray`
             A vector of gammas for all the genes.
         """
-        n = self.get_n_genes(data=L)
+        n = L.shape[0] # self.get_n_genes(data=L)
         gamma = np.zeros(n)
         for i in range(n):
             gamma[i], _ = fit_first_order_deg_lsq(t, L[i])

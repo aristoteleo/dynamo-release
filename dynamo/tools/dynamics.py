@@ -54,7 +54,7 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
     elif filter_gene_mode is 'basic':
         valid_ind = adata.var.pass_basic_filter
     elif filter_gene_mode is 'no':
-        valid_ind = np.arange(adata.shape[1])
+        valid_ind = np.repeat([True], adata.shape[1])
 
     if 'X_unspliced' in adata.layers.keys():
         U = adata[:, valid_ind].layers['X_unspliced'].T
@@ -63,9 +63,10 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
 
     elif 'X_new' in adata.layers.keys(): # run new / total ratio (NTR)
         U = adata[:, valid_ind].layers['X_new'].T
+        Ul = adata[:, valid_ind].layers['X_new'].T
     elif 'new' in adata.layers.keys():
         U = adata[:, valid_ind].layers['new'].T
-
+        Ul = adata[:, valid_ind].layers['new'].T
     elif 'X_uu' in adata.layers.keys():  # only uu, ul, su, sl provided
         U = adata[:, valid_ind].layers['X_uu'].T # unlabel unspliced: U
     elif 'uu' in adata[:, valid_ind].layers.keys():
@@ -110,7 +111,7 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
             adata.var['is_protein_velocity_genes'] = False
             adata.var.loc[ind_for_proteins, 'is_protein_velocity_genes'] = True
 
-    t = adata.obs[time_key] if time_key in adata.obs.columns else None
+    t = np.array(adata.obs[time_key], dtype='float') if time_key in adata.obs.columns else None
 
     if (Ul is None or Sl is None) and t is None:
         assumption_mRNA = 'ss'
@@ -129,13 +130,13 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
 
         if type(vel_U) is not float:
             adata.layers['velocity_U'] = csr_matrix((adata.shape))
-            adata.layers['velocity_U'][:, np.where(valid_ind)[0]] = vel_U.T.tocsr() # np.where(valid_ind)[0] required for sparse matrix
+            adata.layers['velocity_U'][:, np.where(valid_ind)[0]] = vel_U.T.tocsr() if issparse(vel_U) else csr_matrix(vel_U.T) # np.where(valid_ind)[0] required for sparse matrix
         if type(vel_S) is not float:
             adata.layers['velocity_S'] = csr_matrix((adata.shape))
-            adata.layers['velocity_S'][:, np.where(valid_ind)[0]] = vel_S.T.tocsr()
+            adata.layers['velocity_S'][:, np.where(valid_ind)[0]] = vel_S.T.tocsr() if issparse(vel_S) else csr_matrix(vel_S.T)
         if type(vel_P) is not float:
             adata.obsm['velocity_P'] = csr_matrix((adata.obsm['P'].shape[0], len(ind_for_proteins)))
-            adata.obsm['velocity_P'] = vel_P.T.tocsr()
+            adata.obsm['velocity_P'] = vel_P.T.tocsr() if issparse(vel_P) else csr_matrix(vel_P.T)
 
         if alpha is not None: # for each cell
             adata.varm['kinetic_parameter_alpha'] = np.nan
@@ -148,7 +149,8 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
         adata.var.loc[valid_ind, 'kinetic_parameter_gamma'] = gamma
 
         gamma_intercept, gamma_r2, delta_intercept, delta_r2 = est.aux_param.values()
-        gamma_r2[~np.isfinite(gamma_r2)] = 0,
+        if gamma_r2 is not None:
+            gamma_r2[~np.isfinite(gamma_r2)] = 0 
         adata.var.loc[valid_ind, 'kinetic_parameter_gamma_intercept'] = gamma_intercept
         adata.var.loc[valid_ind, 'kinetic_parameter_gamma_r2'] = gamma_r2
 
