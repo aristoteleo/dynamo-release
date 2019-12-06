@@ -2,33 +2,23 @@ import numpy as np
 from .scatters import scatters
 
 
-def plot_fitting(adata, gene, log = True, group = False):
-    """GET_P estimates the posterior probability and part of the energy.
+def plot_fitting(adata, gene, log=True, group=None):
+    """
 
-    Arguments
-    ---------
-        Y: 'np.ndarray'
-            Original data.
-        V: 'np.ndarray'
-            Original data.
-        sigma2: 'float'
-            sigma2 is defined as sum(sum((Y - V)**2)) / (N * D)
-        gamma: 'float'
-            Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important.
-        a: 'float'
-            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's variation space is a.
+    Parameters
+    ----------
+        adata
+        gene
+        log
+        group
 
     Returns
     -------
-    P: 'np.ndarray'
-        Posterior probability, related to equation 27.
-    E: `np.ndarray'
-        Energy, related to equation 26.
-
     """
+
     import matplotlib.pyplot as plt
 
-    groups = [''] if group == False else np.unique(adata.obs[group])
+    groups = [''] if group is None else np.unique(adata.obs[group])
 
     T = adata.obs['Time']
     gene_idx = np.where(adata.var.index.values == gene)[0][0]
@@ -71,6 +61,7 @@ def dynamics(adata, gene_names, color, dims=[0, 1], current_layer='spliced', use
     -------
 
     """
+
     import matplotlib.pyplot as plt
     genes = list(set(gene_names).intersection(adata.var.index))
     for i, gn in enumerate(genes):

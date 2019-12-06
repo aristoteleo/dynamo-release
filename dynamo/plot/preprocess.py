@@ -154,15 +154,14 @@ def feature_genes(adata, layer='X', mode='Dispersion'):
 
     if mode is 'Dispersion':
         table = topTable(adata, layer)
-        x_min, x_max = np.min(table['mean_expression']), np.max(table['mean_expression'])
-        table.set_index('gene_id')
+        x_min, x_max = np.nanmin(table['mean_expression']), np.nanmax(table['mean_expression'])
     elif mode is 'SVR':
         if not np.all(pd.Series(['CV', 'score']).isin(adata.var.columns)):
             raise Exception('Looks like you have not run support vector machine regression yet, try run velocyto_SVR first.')
         else:
             table = adata.var.loc[:, ['mean', 'CV', 'score']]
             table=table.loc[np.isfinite(table['CV']) & np.isfinite(table['mean']), :]
-            x_min, x_max = np.min(table['mean']), np.max(table['mean'])
+            x_min, x_max = np.nanmin(table['mean']), np.nanmax(table['mean'])
 
     ordering_genes = adata.var['use_for_dynamo'] if 'use_for_dynamo' in adata.var.columns else None
 
@@ -184,18 +183,18 @@ def feature_genes(adata, layer='X', mode='Dispersion'):
     if mode is 'Dispersion':
         plt.scatter(valid_disp_table['mean_expression'], valid_disp_table['dispersion_empirical'], s=3, alpha=0.3, color='tab:red')
     elif mode is 'SVR':
-        plt.scatter(valid_disp_table['mean'], valid_disp_table['CV'], s=3, alpha=0.3, color='tab:red')
+        plt.scatter(np.log(valid_disp_table['mean']), valid_disp_table['CV'], s=3, alpha=0.3, color='tab:red')
 
     neg_disp_table = table.iloc[~valid_ind, :]
 
     if mode is 'Dispersion':
         plt.scatter(neg_disp_table['mean_expression'], neg_disp_table['dispersion_empirical'], s=3, alpha=1, color='tab:blue')
     elif mode is 'SVR':
-        plt.scatter(neg_disp_table['mean'], neg_disp_table['CV'], s=3, alpha=1, color='tab:blue')
-
+        plt.scatter(np.log(neg_disp_table['mean']), neg_disp_table['CV'], s=3, alpha=1, color='tab:blue')
 
     # plt.xlim((0, 100))
-    plt.xscale('log')
+    if mode is 'Dispersion':
+        plt.xscale('log')
     plt.yscale('log')
     plt.xlabel('Mean (log)')
     plt.ylabel('Dispersion (log)') if mode is 'Dispersion' else plt.ylabel('CV (log)')

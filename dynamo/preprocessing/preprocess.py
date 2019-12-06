@@ -370,6 +370,8 @@ def topTable(adata, layer='X', mode='dispersion'):
                                 "mean_expression": adata.uns[key]["disp_table"]["mu"],
                                 "dispersion_fit": adata.uns[key]['disp_func'](adata.uns[key]["disp_table"]["mu"]),
                                 "dispersion_empirical": adata.uns[key]["disp_table"]["disp"]})
+        top_df = top_df.set_index('gene_id')
+
     elif mode is 'gini':
         top_df = adata.var[layer + '_gini']
 
@@ -549,7 +551,9 @@ def SVRs(adata, filter_bool=None, layers='X', min_expr_cells=2, min_expr_avg=0, 
 
         adata.var['mean'], adata.var['CV'], adata.var['score'] = np.nan, np.nan, -1
         adata.var.loc[detected_bool, 'mean'], adata.var.loc[detected_bool, 'CV'], adata.var.loc[detected_bool, 'score'] = np.array(mu).flatten(), np.array(cv).flatten(), np.array(score).flatten()
-        adata.uns['velocyto_SVR'] = {"SVR": fitted_fun, "detected_bool": detected_bool}
+
+        key = "velocyto_SVR" if layer is 'raw' or layer is 'X' else layer + "velocyto_SVR"
+        adata.uns[key] = {"SVR": fitted_fun, "detected_bool": detected_bool}
 
         adata
 

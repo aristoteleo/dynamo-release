@@ -1,8 +1,9 @@
 import numpy as np
 from scipy.optimize import least_squares
-from sklearn.cluster import KMeans
-from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import issparse, csc_matrix
+# from sklearn.cluster import KMeans
+# from sklearn.neighbors import NearestNeighbors
+
 
 def sol_u(t, u0, alpha, beta):
     """The analytical solution of unspliced mRNA kinetics.
@@ -535,7 +536,7 @@ class estimation:
         t: :class:`~estimation`
             A vector of time points.
         ind_for_proteins: :class:`~numpy.ndarray`
-            A 1-D vector of the indices in the U, Ul, S, Sl layers that corresponds to the row name in the P layer.
+            A 1-D vector of the indices in the U, Ul, S, Sl layers that corresponds to the row name in the protein or X_protein key of obsm attribute.
         experiment_type: str
             labelling experiment type. Available options are: 
             (1) 'deg': degradation experiment; 
