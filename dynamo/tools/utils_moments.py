@@ -21,7 +21,7 @@ spec = [
     ('gamma', float32),
 ]
 
-@jitclass(spec)
+# @jitclass(spec)
 class moments:
     def __init__(self, a=None, b=None, alpha_a=None, alpha_i=None, beta=None, gamma=None):
         # species
@@ -284,7 +284,7 @@ class estimation:
             ret = self.simulator.get_all_central_moments()
         elif experiment_type == 'nosplice':
             ret = self.simulator.get_nosplice_central_moments()
-        ret = self.normalize_data(ret).flatten() if normalize else x_data.flatten()
+        ret = self.normalize_data(ret).flatten() if normalize else ret.flatten()
         ret[isnan(ret)] = 0
         return ret - x_data_norm
 
@@ -295,7 +295,9 @@ class estimation:
             if p0.ndim == 1:
                 p0 = [p0]
             n_p0 = len(p0)
+
         x_data_norm = self.normalize_data(x_data) if normalize else x_data
+
         if bounds is None:
             bounds = (self.get_bound(0), self.get_bound(1))
         

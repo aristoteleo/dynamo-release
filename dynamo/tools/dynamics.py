@@ -112,7 +112,7 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
 
     t = adata.obs[time_key] if time_key in adata.obs.columns else None
 
-    if Ul is None or Sl is None:
+    if (Ul is None or Sl is None) and t is None:
         assumption_mRNA = 'ss'
 
     if mode is 'steady_state':
@@ -164,7 +164,7 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
     elif mode is 'moment':
         Moment = MomData(adata, time_key)
         adata.uns['M'], adata.uns['V'] = Moment.M, Moment.V
-        Est = Estimation(Moment, time_key, normalize=False) # data is already normalized
+        Est = Estimation(Moment, time_key=time_key, normalize=False) # data is already normalized
         params, costs = Est.fit()
         a, b, alpha_a, alpha_i, beta, gamma = params[:, 0], params[:, 1], params[:, 2], params[:, 3], params[:, 4], params[:, 5]
 
@@ -180,13 +180,13 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
 
         if type(vel_U) is not float:
             adata.layers['velocity_U'] = csr_matrix((adata.shape))
-            adata.layers['velocity_U'][:, np.where(valid_ind)[0]] = vel_U.T.tocsr()
+            adata.layers['velocity_U'][:, np.where(valid_ind)[0]] = vel_U.T.tocsr() if issparse(vel_U) else csr_matrix(vel_U.T)
         if type(vel_S) is not float:
             adata.layers['velocity_S'] = csr_matrix((adata.shape))
-            adata.layers['velocity_S'][:, np.where(valid_ind)[0]] = vel_S.T.tocsr()
+            adata.layers['velocity_S'][:, np.where(valid_ind)[0]] = vel_S.T.tocsr() if issparse(vel_S) else csr_matrix(vel_S.T)
         if type(vel_P) is not float:
             adata.obsm['velocity_P'] = csr_matrix((adata.obsm['P'].shape[0], len(ind_for_proteins)))
-            adata.obsm['velocity_P'] = vel_P.T.tocsr()
+            adata.obsm['velocity_P'] = vel_P.T.tocsr() if issparse(vel_P) else csr_matrix(vel_P.T)
 
         adata.var['kinetic_parameter_a'], adata.var['kinetic_parameter_b'], adata.var['kinetic_parameter_alpha_a'], \
         adata.var['kinetic_parameter_alpha_i'], adata.var['kinetic_parameter_beta'], \
@@ -203,3 +203,4 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
         warnings.warn('Not implemented yet.')
 
     return adata
+

@@ -171,6 +171,13 @@ def Simulator(motif='neurogenesis', clip=True):
 
 if __name__ is '__main__':
     import dynamo as dyn
+
+    adata_all = dyn.read_h5ad('/Volumes/xqiu/proj/Aristotle/backup/adata_all.h5ad')
+    dyn.tl.dynamics(adata_all[:, :10], mode='moment', filter_gene_mode='no')
+
+    adata_deg = dyn.read_h5ad('/Volumes/xqiu/proj/Aristotle/backup/adata_deg.h5ad')
+    dyn.tl.dynamics(adata_deg[:, :25], experiment_type='deg', filter_gene_mode='no', time_key='hour')
+
     # toggle_adata = dyn.sim.Simulator(motif='toggle')
     # dyn.tl.VectorField(toggle_adata, basis='X', velocity_key='velocity')
     #

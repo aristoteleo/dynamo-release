@@ -414,9 +414,8 @@ class velocity:
             Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
         """
         if self.parameters['alpha'] is not None and self.parameters['beta'] is not None:
-            alpha, beta = np.zeros((len(self.parameters['alpha']), len(self.parameters['alpha']))), \
+            alpha, beta = np.repeat(self.parameters['alpha'], U.shape[1], axis = 1), \
                           np.zeros((len(self.parameters['alpha']), len(self.parameters['alpha'])))
-            np.fill_diagonal(alpha, self.parameters['alpha'])
             np.fill_diagonal(beta, self.parameters['beta'])
 
             V = csc_matrix(alpha) - (csc_matrix(beta).dot(U)) if issparse(U) else \

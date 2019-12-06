@@ -110,7 +110,7 @@ def compute_partition(adata, transition_matrix, cell_membership, principal_g, gr
     return direct_principal_g
 
 
-if __name__ == '__main__':
-    import anndata
-    adata=anndata.read_h5ad('')
-    Pseudotime(adata)
+# if __name__ == '__main__':
+#     # import anndata
+#     # adata=anndata.read_h5ad('')
+#     # Pseudotime(adata)

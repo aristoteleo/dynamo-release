@@ -268,8 +268,8 @@ def reduceDimension(adata, n_pca_components=25, n_components=2, n_neighbors=10, 
 
     return adata
 
-if __name__ == '__main__':
-    import anndata
-    adata = anndata.read_h5ad('/Users/xqiu/data/tmp.h5ad')
-
-    dyn.tl.reduceDimension(tmp, velocity_key='velocity_S')
+# if __name__ == '__main__':
+#     # import anndata
+#     # adata = anndata.read_h5ad('/Users/xqiu/data/tmp.h5ad')
+#     #
+#     # dyn.tl.reduceDimension(tmp, velocity_key='velocity_S')
