@@ -164,7 +164,7 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
     elif mode is 'moment':
         Moment = MomData(adata, time_key)
         adata.uns['M'], adata.uns['V'] = Moment.M, Moment.V
-        Est = Estimation(Moment, time_key)
+        Est = Estimation(Moment, time_key, normalize=False) # data is already normalized
         params, costs = Est.fit()
         a, b, alpha_a, alpha_i, beta, gamma = params[:, 0], params[:, 1], params[:, 2], params[:, 3], params[:, 4], params[:, 5]
 
@@ -198,7 +198,7 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
         adata.var.loc[valid_ind, 'kinetic_parameter_alpha_i'] = alpha_i
         adata.var.loc[valid_ind, 'kinetic_parameter_beta'] = beta
         adata.var.loc[valid_ind, 'kinetic_parameter_gamma'] = gamma
-        # add velocity_offset here
+        # add protein related parameters in the moment model below:
     elif mode is 'model_selection':
         warnings.warn('Not implemented yet.')
 

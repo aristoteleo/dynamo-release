@@ -274,7 +274,7 @@ class estimation:
         #     ret[i] = log10(x + 1)
         return log10(X + 1)
 
-    def f_lsq(self, params, t, x_data_norm, method='analytical', experiment_type=None):
+    def f_lsq(self, params, t, x_data_norm, method='analytical', normalize=True, experiment_type=None):
         self.simulator.set_params(*params)
         if method == 'numerical':
             self.simulator.integrate(t, self.simulator.x0)
@@ -284,18 +284,18 @@ class estimation:
             ret = self.simulator.get_all_central_moments()
         elif experiment_type == 'nosplice':
             ret = self.simulator.get_nosplice_central_moments()
-        ret = self.normalize_data(ret).flatten()
+        ret = self.normalize_data(ret).flatten() if normalize else x_data.flatten()
         ret[isnan(ret)] = 0
         return ret - x_data_norm
 
-    def fit_lsq(self, t, x_data, p0=None, n_p0=1, bounds=None, sample_method='lhs', method='analytical', experiment_type=None):
+    def fit_lsq(self, t, x_data, p0=None, n_p0=1, bounds=None, sample_method='lhs', method='analytical', normalize=True, experiment_type=None):
         if p0 is None:
             p0 = self.sample_p0(n_p0, sample_method)
         else:
             if p0.ndim == 1:
                 p0 = [p0]
             n_p0 = len(p0)
-        x_data_norm = self.normalize_data(x_data)
+        x_data_norm = self.normalize_data(x_data) if normalize else x_data
         if bounds is None:
             bounds = (self.get_bound(0), self.get_bound(1))
         

@@ -1,4 +1,4 @@
-from anndata import AnnData, read_h5ad
+from anndata import AnnData
 import numpy as np
 from .utils_moments import estimation
 
@@ -11,7 +11,7 @@ def strat_mom(arr, strata, fcn_mom):
     return np.array([fcn_mom(y) for y in x])
 
 def calc_mom_all_genes(T, adata, fcn_mom):
-    ng = len(adata.var['Gene'])
+    ng = adata.var.shape[0]
     nT = len(np.unique(T))
     Mn = np.zeros((ng, nT))
     Mo = np.zeros((ng, nT))
@@ -48,22 +48,23 @@ class MomData(AnnData):
                 self.V[g] = strat_mom(L, self.times, np.var)
 
     def get_n_genes(self):
-        return self.var.shape[0] #len(self.var['Gene'])
+        return self.var.shape[0]
 
     def get_n_cell(self):
-        return self.obs.shape[0] #len(self.obs['Cell'])
+        return self.obs.shape[0]
 
     def get_n_times(self):
         return len(self.uniq_times)
 
 class Estimation:
-    def __init__(self, adata, adata_u=None, time_key='Time', param_ranges=None, has_nan=False):
-        # initialize simulator
+    def __init__(self, adata, adata_u=None, time_key='Time', normalize=True, param_ranges=None, has_nan=False):
+        # initialize Estimation
         self.data = MomData(adata, time_key, has_nan)
         self.data_u = MomData(adata_u, time_key, has_nan) if adata_u is not None else None
         if param_ranges is None:
             param_ranges = {'a': [0, 10], 'b': [0, 10], 'alpha_a': [10, 1000], \
             'alpha_i': [0, 10], 'beta': [0, 10], 'gamma': [0, 10]}
+        self.normalize = normalize
         self.param_ranges = param_ranges
         self.n_params = len(param_ranges)
 
@@ -81,14 +82,14 @@ class Estimation:
             m = self.data.M[gene_no, :].T
             v = self.data.V[gene_no, :].T
             x_data = np.vstack((m, v))
-            popt, cost = estm.fit_lsq(self.data.uniq_times, x_data, p0=None, n_p0=n_p0, experiment_type='nosplice')
+            popt, cost = estm.fit_lsq(self.data.uniq_times, x_data, p0=None, n_p0=n_p0, normalize=self.normalize, experiment_type='nosplice')
         else:
             mu = self.data_u.M[gene_no, :].T
             ms = self.data.M[gene_no, :].T
             vu = self.data_u.V[gene_no, :].T
             vs = self.data.V[gene_no, :].T
             x_data = np.vstack((mu, ms, vu, vs))
-            popt, cost = estm.fit_lsq(self.data.uniq_times, x_data, p0=None, n_p0=n_p0, experiment_type=None)
+            popt, cost = estm.fit_lsq(self.data.uniq_times, x_data, p0=None, n_p0=n_p0, normalize=self.normalize, experiment_type=None)
         return popt, cost
 
     def fit(self, n_p0=10):
