@@ -10,11 +10,11 @@ from numpy import *
 from scipy.integrate import odeint
 from scipy.optimize import least_squares
 from numba import jitclass          # import the decorator
-from numba import int32, float32    # import the types
+from numba import float32           # import the types
 
 spec = [
-    ('a', float32),          # a simple scalar field
-    ('b', float32),          # an array field
+    ('a', float32),
+    ('b', float32),
     ('alpha_a', float32),
     ('alpha_i', float32),
     ('beta', float32),
@@ -302,7 +302,7 @@ class estimation:
         costs = zeros(n_p0)
         X = []
         for i in range(n_p0):
-            ret = least_squares(lambda p: self.f_lsq(p, t, x_data_norm.flatten(), method, experiment_type), p0[i], bounds=bounds)
+            ret = least_squares(lambda p: self.f_lsq(p, t, x_data_norm.flatten(), method, normalize=True, experiment_type=experiment_type), p0[i], bounds=bounds)
             costs[i] = ret.cost
             X.append(ret.x)
         i_min = argmin(costs)
