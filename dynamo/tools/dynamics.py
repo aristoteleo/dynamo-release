@@ -144,9 +144,10 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
 
         adata.var['kinetic_parameter_avg_alpha'] = alpha.mean(1) if alpha is not None else None
 
-        adata.var['kinetic_parameter_beta'], adata.var['kinetic_parameter_gamma'] = np.nan, np.nan
+        adata.var['kinetic_parameter_beta'], adata.var['kinetic_parameter_gamma'], adata.var.loc['RNA_half_life'] = np.nan, np.nan, np.nan
         adata.var.loc[valid_ind, 'kinetic_parameter_beta'] = beta
         adata.var.loc[valid_ind, 'kinetic_parameter_gamma'] = gamma
+        adata.var.loc[valid_ind, 'RNA_half_life'] = np.log(2) / gamma
 
         gamma_intercept, gamma_r2, delta_intercept, delta_r2 = est.aux_param.values()
         if gamma_r2 is not None:
@@ -156,12 +157,12 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
 
         if ind_for_proteins is not None:
             delta_r2[~np.isfinite(delta_r2)] = 0
-            adata.var['kinetic_parameter_eta'], adata.var['kinetic_parameter_delta'] = np.nan, np.nan
+            adata.var['kinetic_parameter_eta'], adata.var['kinetic_parameter_delta'], adata.var['protein_half_life'] = np.nan, np.nan, np.nan
             adata.var.loc[valid_ind, 'kinetic_parameter_eta'][ind_for_proteins] = eta
             adata.var.loc[valid_ind, 'kinetic_parameter_delta'][ind_for_proteins] = delta
             adata.var.loc[valid_ind, 'kinetic_parameter_delta_intercept'][ind_for_proteins] = delta_intercept
             adata.var.loc[valid_ind, 'kinetic_parameter_delta_r2'][ind_for_proteins] = delta_r2
-
+            adata.var.loc[valid_ind, 'protein_half_life'][ind_for_proteins] = np.log(2) / delta
         # add velocity_offset here
     elif mode is 'moment':
         Moment = MomData(adata, time_key)
@@ -191,8 +192,8 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
             adata.obsm['velocity_P'] = vel_P.T.tocsr() if issparse(vel_P) else csr_matrix(vel_P.T)
 
         adata.var['kinetic_parameter_a'], adata.var['kinetic_parameter_b'], adata.var['kinetic_parameter_alpha_a'], \
-        adata.var['kinetic_parameter_alpha_i'], adata.var['kinetic_parameter_beta'], \
-        adata.var['kinetic_parameter_gamma'] = np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
+        adata.var['kinetic_parameter_alpha_i'], adata.var['kinetic_parameter_beta'],  adata.var['protein_half_life'], \
+        adata.var['kinetic_parameter_gamma'],  adata.var['RNA_half_life'] = np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
 
         adata.var.loc[valid_ind, 'kinetic_parameter_a'] = a
         adata.var.loc[valid_ind, 'kinetic_parameter_b'] = b
@@ -200,6 +201,7 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
         adata.var.loc[valid_ind, 'kinetic_parameter_alpha_i'] = alpha_i
         adata.var.loc[valid_ind, 'kinetic_parameter_beta'] = beta
         adata.var.loc[valid_ind, 'kinetic_parameter_gamma'] = gamma
+        adata.var.loc[valid_ind, 'RNA_half_life'] = np.log(2) / gamma
         # add protein related parameters in the moment model below:
     elif mode is 'model_selection':
         warnings.warn('Not implemented yet.')

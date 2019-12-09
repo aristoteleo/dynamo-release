@@ -53,7 +53,7 @@ def extract_indices_dist_from_graph(graph, n_neighbors):
 def umap_conn_indices_dist_embedding(X,
         n_neighbors=15,
         n_components=2,
-        metric="euclidean",
+        metric="cosine",
         min_dist=0.1,
         random_state=0,
         verbose=False):

@@ -552,7 +552,7 @@ def SVRs(adata, filter_bool=None, layers='X', min_expr_cells=2, min_expr_avg=0, 
         adata.var['mean'], adata.var['CV'], adata.var['score'] = np.nan, np.nan, -1
         adata.var.loc[detected_bool, 'mean'], adata.var.loc[detected_bool, 'CV'], adata.var.loc[detected_bool, 'score'] = np.array(mu).flatten(), np.array(cv).flatten(), np.array(score).flatten()
 
-        key = "velocyto_SVR" if layer is 'raw' or layer is 'X' else layer + "velocyto_SVR"
+        key = "velocyto_SVR" if layer is 'raw' or layer is 'X' else layer + "_velocyto_SVR"
         adata.uns[key] = {"SVR": fitted_fun, "detected_bool": detected_bool}
 
         adata
@@ -674,7 +674,6 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_unflitered=True, min_c
     ### check this
     if sort_by is 'dispersion':
         table = topTable(adata, layer, mode=sort_by)
-        table = table.set_index(['gene_id'])
         valid_table = valid_table = table.query("dispersion_empirical > dispersion_fit")
         valid_table = valid_table.loc[set(adata.var.index[filter_bool]).intersection(valid_table.index), :]
         gene_id = np.argsort(-valid_table.loc[:, 'dispersion_empirical'])[:n_top_genes]
