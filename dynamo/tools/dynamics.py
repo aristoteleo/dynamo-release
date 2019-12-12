@@ -144,7 +144,7 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
 
         adata.var['kinetic_parameter_avg_alpha'] = alpha.mean(1) if alpha is not None else None
 
-        adata.var['kinetic_parameter_beta'], adata.var['kinetic_parameter_gamma'], adata.var.loc['RNA_half_life'] = np.nan, np.nan, np.nan
+        adata.var['kinetic_parameter_beta'], adata.var['kinetic_parameter_gamma'], adata.var['RNA_half_life'] = np.nan, np.nan, np.nan
         adata.var.loc[valid_ind, 'kinetic_parameter_beta'] = beta
         adata.var.loc[valid_ind, 'kinetic_parameter_gamma'] = gamma
         adata.var.loc[valid_ind, 'RNA_half_life'] = np.log(2) / gamma

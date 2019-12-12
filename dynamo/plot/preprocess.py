@@ -32,8 +32,8 @@ def show_fraction(adata, mode='splicing', group=None):
     if mode is 'labelling' and (all([i in adata.layers.keys() for i in ['new', 'total']])):
         new_mat, total_mat = adata.layers['new'], adata.layers['total']
 
-        new_cell_sum, tot_cell_sum = np.sum(new_mat, 1), np.sum(total_mat, 1) if not issparse(new_mat) else new_mat.sum(1).A1, \
-                                     total_mat.sum(1).A1
+        new_cell_sum, tot_cell_sum = (np.sum(new_mat, 1), np.sum(total_mat, 1)) if not issparse(new_mat) else (new_mat.sum(1).A1, \
+                                     total_mat.sum(1).A1)
 
         new_frac_cell = new_cell_sum / tot_cell_sum
         old_frac_cell = 1 - new_frac_cell

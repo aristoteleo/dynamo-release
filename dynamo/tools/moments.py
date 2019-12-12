@@ -1,5 +1,6 @@
 from anndata import AnnData
 import numpy as np
+from scipy.sparse import issparse
 from .utils_moments import estimation
 
 def stratify(arr, strata):
@@ -39,7 +40,8 @@ class MomData(AnnData):
         self.M = np.zeros((ng, nT))      # first moments (data)
         self.V = np.zeros((ng, nT))      # second moments (data)
         for g in range(ng):
-            L = np.array(self[:, g].layers['new'], dtype=float)        # consider using the `adata.obs_vector`, `adata.var_vector` methods or accessing the array directly.
+            tmp = self[:, g].layers['new']
+            L = np.array(tmp.A, dtype=float) if issparse(tmp) else np.array(tmp, dtype=float)  # consider using the `adata.obs_vector`, `adata.var_vector` methods or accessing the array directly.
             if has_nan:
                 self.M[g] = strat_mom(L, self.times, np.nanmean)
                 self.V[g] = strat_mom(L, self.times, np.nanvar)
