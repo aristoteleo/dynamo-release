@@ -149,11 +149,21 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
         adata.var.loc[valid_ind, 'kinetic_parameter_gamma'] = gamma
         adata.var.loc[valid_ind, 'RNA_half_life'] = np.log(2) / gamma
 
-        gamma_intercept, gamma_r2, delta_intercept, delta_r2 = est.aux_param.values()
+        alpha_intercept, alpha_r2, gamma_intercept, gamma_r2, delta_intercept, delta_r2, uu0, ul0, su0, sl0 = est.aux_param.values()
+        if alpha_r2 is not None:
+            alpha_r2[~np.isfinite(alpha_r2)] = 0
+        adata.var.loc[valid_ind, 'kinetic_parameter_alpha_intercept'] = alpha_intercept
+        adata.var.loc[valid_ind, 'kinetic_parameter_alpha_r2'] = alpha_r2
+
         if gamma_r2 is not None:
             gamma_r2[~np.isfinite(gamma_r2)] = 0 
         adata.var.loc[valid_ind, 'kinetic_parameter_gamma_intercept'] = gamma_intercept
         adata.var.loc[valid_ind, 'kinetic_parameter_gamma_r2'] = gamma_r2
+
+        adata.var.loc[valid_ind, 'kinetic_parameter_uu0'] = uu0
+        adata.var.loc[valid_ind, 'kinetic_parameter_ul0'] = ul0
+        adata.var.loc[valid_ind, 'kinetic_parameter_su0'] = su0
+        adata.var.loc[valid_ind, 'kinetic_parameter_sl0'] = sl0
 
         if ind_for_proteins is not None:
             delta_r2[~np.isfinite(delta_r2)] = 0
