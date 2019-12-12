@@ -442,8 +442,8 @@ class velocity:
             Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
         """
         if self.parameters['alpha'] is not None and self.parameters['beta'] is not None:
-            alpha, beta = np.repeat(self.parameters['alpha'], U.shape[1], axis=1), \
-                          np.zeros((len(self.parameters['alpha']), len(self.parameters['alpha'])))
+            alpha, beta = np.repeat(self.parameters['alpha'].reshape((-1, 1)), U.shape[1], axis=1), \
+                          np.zeros((len(self.parameters['beta']), len(self.parameters['beta'])))
             np.fill_diagonal(beta, self.parameters['beta'])
 
             V = csc_matrix(alpha) - (csc_matrix(beta).dot(U)) if issparse(U) else \
@@ -644,18 +644,18 @@ class estimation:
             if self.extyp == 'deg':
                 if np.all(self._exist_data('ul', 'sl')):
                     # beta & gamma estimation
-                    self.parameters['beta'], self.parameters['gamma'], self.parameters['ul0'], self.parameters['sl0'] = \
+                    self.parameters['beta'], self.parameters['gamma'], self.aux_param['ul0'], self.aux_param['sl0'] = \
                         self.fit_beta_gamma_lsq(self.t, self.data['ul'], self.data['sl'])
                     if self._exist_data('uu'):
                         # alpha estimation
                         alpha, uu0, r2 = np.zeros(n), np.zeros(n), np.zeros(n)
                         for i in range(n):
                             alpha[i], uu0[i], r2[i] = fit_alpha_degradation(self.t, self.data['uu'][i], self.parameters['beta'][i], intercept=True)
-                        self.parameters['alpha'], self.parameters['alpha_intercept'], self.parameters['alpha_r2'] = alpha, uu0, r2
+                        self.parameters['alpha'], self.aux_param['alpha_intercept'], self.aux_param['alpha_r2'] = alpha, uu0, r2
                 elif self._exist_data('ul'):
                     # gamma estimation
                     self.parameters['beta'] = np.ones(n)
-                    self.parameters['gamma'], self.parameters['ul0'] = self.fit_gamma_nosplicing_lsq(self.t, self.data['ul'])
+                    self.parameters['gamma'], self.aux_param['ul0'] = self.fit_gamma_nosplicing_lsq(self.t, self.data['ul'])
                     if self._exist_data('uu'):
                         # alpha estimation
 
@@ -672,7 +672,7 @@ class estimation:
                 if np.all(self._exist_data('ul', 'uu', 'su')):
                     if not self._exist_parameter('beta'):
                         warn("beta & gamma estimation: only works when there're at least 2 time points.")
-                        self.parameters['beta'], self.parameters['gamma'], self.parameters['uu0'], self.parameters['su0'] = self.fit_beta_gamma_lsq(self.t, self.data['uu'], self.data['su'])
+                        self.parameters['beta'], self.parameters['gamma'], self.aux_param['uu0'], self.aux_param['su0'] = self.fit_beta_gamma_lsq(self.t, self.data['uu'], self.data['su'])
                     # alpha estimation
                     alpha = np.zeros_like(self.data['ul'])
                     # assume constant alpha across all cells

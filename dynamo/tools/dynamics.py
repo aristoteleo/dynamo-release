@@ -6,7 +6,8 @@ from scipy.sparse import issparse, csr_matrix
 
 
 # incorporate the model selection code soon
-def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Time', protein_names=None, experiment_type='deg', assumption_mRNA=None, assumption_protein='ss', concat_data=False):
+def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Time', protein_names=None, experiment_type='deg', \
+             assumption_mRNA=None, assumption_protein='ss', concat_data=False, log_unnormalized=True):
     """Inclusive model of expression dynamics with scSLAM-seq and multiomics.
 
     Parameters
@@ -59,43 +60,59 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
     if 'X_unspliced' in adata.layers.keys():
         U = adata[:, valid_ind].layers['X_unspliced'].T
     elif 'unspliced' in adata.layers.keys():
-        U = adata[:, valid_ind].layers['unspliced'].T
+        raw = adata[:, valid_ind].layers['unspliced'].T
+        raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        U = raw
 
     elif 'X_new' in adata.layers.keys(): # run new / total ratio (NTR)
         U = adata[:, valid_ind].layers['X_new'].T
         Ul = adata[:, valid_ind].layers['X_new'].T
     elif 'new' in adata.layers.keys():
-        U = adata[:, valid_ind].layers['new'].T
-        Ul = adata[:, valid_ind].layers['new'].T
+        raw = adata[:, valid_ind].layers['new'].T
+        raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        U = raw
+        Ul = raw
     elif 'X_uu' in adata.layers.keys():  # only uu, ul, su, sl provided
         U = adata[:, valid_ind].layers['X_uu'].T # unlabel unspliced: U
     elif 'uu' in adata[:, valid_ind].layers.keys():
-        U = adata[:, valid_ind].layers['uu'].T
+        raw = adata[:, valid_ind].layers['uu'].T
+        raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        U = raw
 
     if 'X_spliced' in adata.layers.keys():
         S = adata[:, valid_ind].layers['X_spliced'].T
     elif 'spliced' in adata.layers.keys():
-        S = adata[:, valid_ind].layers['spliced'].T
+        raw = adata[:, valid_ind].layers['spliced'].T
+        raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        S = raw
 
     elif 'X_total' in adata.layers.keys(): # run new / total ratio (NTR)
         S = adata[:, valid_ind].layers['X_total'].T
     elif 'total' in adata.layers.keys():
-        S = adata[:, valid_ind].layers['total'].T
+        raw = adata[:, valid_ind].layers['total'].T
+        raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        S = raw
 
     elif 'X_su' in adata.layers.keys(): # unlabel spliced: S
         S = adata[:, valid_ind].layers['X_su'].T
     elif 'su' in adata.layers.keys():
-        S = adata[:, valid_ind].layers['su'].T
+        raw = adata[:, valid_ind].layers['su'].T
+        raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        S = raw
 
     if 'X_ul' in adata.layers.keys():
         Ul = adata[:, valid_ind].layers['X_ul'].T
     elif 'ul' in adata.layers.keys():
-        Ul = adata[:, valid_ind].layers['ul'].T
+        raw = adata[:, valid_ind].layers['ul'].T
+        raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        Ul = raw
 
     if 'X_sl' in adata.layers.keys():
         Sl = adata[:, valid_ind].layers['X_sl'].T
     elif 'sl' in adata.layers.keys():
-        Sl = adata[:, valid_ind].layers['sl'].T
+        raw = adata[:, valid_ind].layers['sl'].T
+        raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        Sl = raw
 
     ind_for_proteins = None
     if 'X_protein' in adata.obsm.keys():
@@ -115,6 +132,10 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
 
     if (Ul is None or Sl is None) and t is None:
         assumption_mRNA = 'ss'
+    else:
+        if 'X_total' in adata.layers.keys() or 'total' in adata.layers.keys():
+            old = S - Ul
+            U = old
 
     if mode is 'steady_state':
         est = estimation(U=U, Ul=Ul, S=S, Sl=Sl, P=P, t=t, ind_for_proteins=ind_for_proteins, experiment_type=experiment_type, assumption_mRNA=assumption_mRNA, \
@@ -138,13 +159,16 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
             adata.obsm['velocity_P'] = csr_matrix((adata.obsm['P'].shape[0], len(ind_for_proteins)))
             adata.obsm['velocity_P'] = vel_P.T.tocsr() if issparse(vel_P) else csr_matrix(vel_P.T)
 
-        if alpha is not None: # for each cell
-            adata.varm['kinetic_parameter_alpha'] = np.nan
-            adata[:, valid_ind].varm['kinetic_parameter_alpha'] = alpha
+        if alpha is not None:
+            if len(alpha.shape) > 1: # for each cell
+                adata.varm['kinetic_parameter_alpha'] = None
+                adata[:, valid_ind].varm['kinetic_parameter_alpha'] = alpha
+                adata.var['kinetic_parameter_avg_alpha'] = alpha.mean(1)
+            elif len(alpha.shape) is 1:
+                adata.var['kinetic_parameter_alpha'] = None
+                adata.var.loc[valid_ind, 'kinetic_parameter_alpha'] = alpha
 
-        adata.var['kinetic_parameter_avg_alpha'] = alpha.mean(1) if alpha is not None else None
-
-        adata.var['kinetic_parameter_beta'], adata.var['kinetic_parameter_gamma'], adata.var['RNA_half_life'] = np.nan, np.nan, np.nan
+        adata.var['kinetic_parameter_beta'], adata.var['kinetic_parameter_gamma'], adata.var['RNA_half_life'] = None, None, None
         adata.var.loc[valid_ind, 'kinetic_parameter_beta'] = beta
         adata.var.loc[valid_ind, 'kinetic_parameter_gamma'] = gamma
         adata.var.loc[valid_ind, 'RNA_half_life'] = np.log(2) / gamma
@@ -167,7 +191,7 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
 
         if ind_for_proteins is not None:
             delta_r2[~np.isfinite(delta_r2)] = 0
-            adata.var['kinetic_parameter_eta'], adata.var['kinetic_parameter_delta'], adata.var['protein_half_life'] = np.nan, np.nan, np.nan
+            adata.var['kinetic_parameter_eta'], adata.var['kinetic_parameter_delta'], adata.var['protein_half_life'] = None, None, None
             adata.var.loc[valid_ind, 'kinetic_parameter_eta'][ind_for_proteins] = eta
             adata.var.loc[valid_ind, 'kinetic_parameter_delta'][ind_for_proteins] = delta
             adata.var.loc[valid_ind, 'kinetic_parameter_delta_intercept'][ind_for_proteins] = delta_intercept
@@ -203,7 +227,7 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
 
         adata.var['kinetic_parameter_a'], adata.var['kinetic_parameter_b'], adata.var['kinetic_parameter_alpha_a'], \
         adata.var['kinetic_parameter_alpha_i'], adata.var['kinetic_parameter_beta'],  adata.var['protein_half_life'], \
-        adata.var['kinetic_parameter_gamma'],  adata.var['RNA_half_life'] = np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
+        adata.var['kinetic_parameter_gamma'],  adata.var['RNA_half_life'] = None, None, None, None, None, None, None, None
 
         adata.var.loc[valid_ind, 'kinetic_parameter_a'] = a
         adata.var.loc[valid_ind, 'kinetic_parameter_b'] = b
