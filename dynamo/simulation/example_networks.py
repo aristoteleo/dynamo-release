@@ -181,7 +181,7 @@ if __name__ is '__main__':
     adata = dyn.read_h5ad('/Users/xqiu/Desktop/neuron_12_11.h5ad')
     # adata = dyn.read_h5ad('/home/xqiu/proj/Aristotle/data/u_penn_data/neuron_12_11.h5ad')
     adata=dyn.tl.dynamics(adata[:, :25], experiment_type='deg', filter_gene_mode='no', time_key='time')
-    dyn.pl.plot_fitting(adata, vkey=adata.var_names[:5], tkey='time')
+    dyn.pl.metabolic_labeling_fit(adata, vkey=adata.var_names[:5], tkey='time')
     #dyn.tl.dynamics(adata, experiment_type='deg', filter_gene_mode='no', time_key='minutes')
 
     # toggle_adata = dyn.sim.Simulator(motif='toggle')
