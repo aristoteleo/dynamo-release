@@ -178,10 +178,10 @@ if __name__ is '__main__':
     # adata_deg = dyn.read_h5ad('/Volumes/xqiu/proj/Aristotle/backup/adata_deg_first_25_genes.h5ad')
     # dyn.tl.dynamics(adata_deg[:, :25], experiment_type='deg', filter_gene_mode='no', time_key='hour')
 
-    adata = dyn.read_h5ad('/Users/xqiu/Desktop/neuron_12_11.h5ad')
-    # adata = dyn.read_h5ad('/home/xqiu/proj/Aristotle/data/u_penn_data/neuron_12_11.h5ad')
-    adata=dyn.tl.dynamics(adata[:, :25], experiment_type='deg', filter_gene_mode='no', time_key='time')
-    dyn.pl.metabolic_labeling_fit(adata, vkey=adata.var_names[:5], tkey='time')
+    # adata = dyn.read_h5ad('/Users/xqiu/Desktop/neuron_12_11.h5ad')
+    adata = dyn.read_h5ad('/Users/xqiu/Desktop/ESC_12_11.h5ad')
+    # adata=dyn.tl.dynamics(adata[:, :25], experiment_type='deg', filter_gene_mode='no', time_key='time')
+    # dyn.pl.metabolic_labeling_fit(adata, vkey=adata.var_names[:5], tkey='minutes')
     #dyn.tl.dynamics(adata, experiment_type='deg', filter_gene_mode='no', time_key='minutes')
 
     # toggle_adata = dyn.sim.Simulator(motif='toggle')

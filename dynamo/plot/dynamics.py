@@ -91,6 +91,8 @@ def metabolic_labeling_fit(adata, vkey, tkey, experiment_type='deg', unit='hours
             pass
         elif experiment_type is 'coassay':
             pass
+        elif experiment_type is 'multi_time_series':
+            pass
 
     if show: plt.show()
 

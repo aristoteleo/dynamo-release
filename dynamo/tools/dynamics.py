@@ -6,7 +6,7 @@ from scipy.sparse import issparse, csr_matrix
 
 
 # incorporate the model selection code soon
-def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Time', protein_names=None, experiment_type='deg', \
+def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time', protein_names=None, experiment_type='deg', \
              assumption_mRNA=None, assumption_protein='ss', concat_data=False, log_unnormalized=True):
     """Inclusive model of expression dynamics with scSLAM-seq and multiomics.
 
@@ -16,10 +16,10 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
             AnnData object
         filter_gene_mode: `str` (default: `final`)
             The string for indicating which mode (one of, ['final', 'basic', 'no']) of gene filter will be used.
-        mode: `str` (default: steady_state)
-            string indicates which estimation mode will be used. Currently "steady_state" and "moment" methods are supported.
+        mode: `str` (default: deterministic)
+            string indicates which estimation mode will be used. Currently "deterministic" and "moment" methods are supported.
             A "model_selection" mode will be supported soon in which alpha, beta and gamma will be modeled as a function of time.
-        time_key: `str` (default: Time)
+        tkey: `str` (default: Time)
             The column key for the time label of cells in .obs. Used for either "steady_state" or non-"steady_state" mode or `moment` mode  with labeled data.
         protein_names: `List`
             A list of gene names corresponds to the rows of the measured proteins in the X_protein of the obsm attribute. The names have to be included
@@ -128,7 +128,7 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
             adata.var['is_protein_velocity_genes'] = False
             adata.var.loc[ind_for_proteins, 'is_protein_velocity_genes'] = True
 
-    t = np.array(adata.obs[time_key], dtype='float') if time_key in adata.obs.columns else None
+    t = np.array(adata.obs[tkey], dtype='float') if tkey in adata.obs.columns else None
 
     if (Ul is None or Sl is None) and t is None:
         assumption_mRNA = 'ss'
@@ -137,9 +137,9 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
             old = S - Ul
             U = old
 
-    if mode is 'steady_state':
-        est = estimation(U=U, Ul=Ul, S=S, Sl=Sl, P=P, t=t, ind_for_proteins=ind_for_proteins, experiment_type=experiment_type, assumption_mRNA=assumption_mRNA, \
-                         assumption_protein=assumption_protein, concat_data=concat_data)
+    if mode is 'deterministic':
+        est = estimation(U=U, Ul=Ul, S=S, Sl=Sl, P=P, t=t, ind_for_proteins=ind_for_proteins, experiment_type=experiment_type, \
+                         assumption_mRNA=assumption_mRNA, assumption_protein=assumption_protein, concat_data=concat_data)
         est.fit()
 
         alpha, beta, gamma, eta, delta = est.parameters.values()
@@ -159,44 +159,55 @@ def dynamics(adata, filter_gene_mode='final', mode='steady_state', time_key='Tim
             adata.obsm['velocity_P'] = csr_matrix((adata.obsm['P'].shape[0], len(ind_for_proteins)))
             adata.obsm['velocity_P'] = vel_P.T.tocsr() if issparse(vel_P) else csr_matrix(vel_P.T)
 
-        if alpha is not None:
-            if len(alpha.shape) > 1: # for each cell
-                adata.varm['kinetic_parameter_alpha'] = None
-                adata[:, valid_ind].varm['kinetic_parameter_alpha'] = alpha
-                adata.var['kinetic_parameter_avg_alpha'] = alpha.mean(1)
-            elif len(alpha.shape) is 1:
-                adata.var['kinetic_parameter_alpha'] = None
-                adata.var.loc[valid_ind, 'kinetic_parameter_alpha'] = alpha
+        if experiment_type is 'mix_std_stm':
+            adata.var['kinetic_parameter_alpha'], adata.var['kinetic_parameter_alpha_std'] = None, None
+            adata.var.loc[valid_ind, 'kinetic_parameter_alpha'], adata.var.loc[valid_ind, 'kinetic_parameter_alpha_std'] = alpha[1].mean(1), alpha[0].mean(1)
 
-        adata.var['kinetic_parameter_beta'], adata.var['kinetic_parameter_gamma'], adata.var['RNA_half_life'] = None, None, None
-        adata.var.loc[valid_ind, 'kinetic_parameter_beta'] = beta
-        adata.var.loc[valid_ind, 'kinetic_parameter_gamma'] = gamma
-        adata.var.loc[valid_ind, 'RNA_half_life'] = np.log(2) / gamma
+            adata.var['kinetic_parameter_beta'], adata.var['kinetic_parameter_gamma'], adata.var['RNA_half_life'] = None, None, None
+            adata.var['kinetic_parameter_beta_std'], adata.var['kinetic_parameter_gamma_std'], adata.var['RNA_half_life_std'] = None, None, None
 
-        alpha_intercept, alpha_r2, gamma_intercept, gamma_r2, delta_intercept, delta_r2, uu0, ul0, su0, sl0 = est.aux_param.values()
-        if alpha_r2 is not None:
-            alpha_r2[~np.isfinite(alpha_r2)] = 0
-        adata.var.loc[valid_ind, 'kinetic_parameter_alpha_intercept'] = alpha_intercept
-        adata.var.loc[valid_ind, 'kinetic_parameter_alpha_r2'] = alpha_r2
+            adata.var.loc[valid_ind, 'kinetic_parameter_beta'], adata.var.loc[valid_ind, 'kinetic_parameter_beta_std'] = beta[:, 1], beta[:, 0]
+            adata.var.loc[valid_ind, 'kinetic_parameter_gamma'], adata.var.loc[valid_ind, 'kinetic_parameter_gamma_std'] = gamma[:, 1], gamma[:, 0]
+            adata.var.loc[valid_ind, 'RNA_half_life'], adata.var.loc[valid_ind, 'RNA_half_life_std'] = np.log(2) / gamma[:, 1], np.log(2) / gamma[:, 0]
+        else:
+            if alpha is not None:
+                if len(alpha.shape) > 1: # for each cell
+                    adata.varm['kinetic_parameter_alpha'] = None
+                    adata[:, valid_ind].varm['kinetic_parameter_alpha'] = alpha
+                    adata.var['kinetic_parameter_avg_alpha'] = alpha.mean(1)
+                elif len(alpha.shape) is 1:
+                    adata.var['kinetic_parameter_alpha'] = None
+                    adata.var.loc[valid_ind, 'kinetic_parameter_alpha'] = alpha
 
-        if gamma_r2 is not None:
-            gamma_r2[~np.isfinite(gamma_r2)] = 0 
-        adata.var.loc[valid_ind, 'kinetic_parameter_gamma_intercept'] = gamma_intercept
-        adata.var.loc[valid_ind, 'kinetic_parameter_gamma_r2'] = gamma_r2
+            adata.var['kinetic_parameter_beta'], adata.var['kinetic_parameter_gamma'], adata.var['RNA_half_life'] = None, None, None
+            adata.var.loc[valid_ind, 'kinetic_parameter_beta'] = beta
+            adata.var.loc[valid_ind, 'kinetic_parameter_gamma'] = gamma
+            adata.var.loc[valid_ind, 'RNA_half_life'] = np.log(2) / gamma
 
-        adata.var.loc[valid_ind, 'kinetic_parameter_uu0'] = uu0
-        adata.var.loc[valid_ind, 'kinetic_parameter_ul0'] = ul0
-        adata.var.loc[valid_ind, 'kinetic_parameter_su0'] = su0
-        adata.var.loc[valid_ind, 'kinetic_parameter_sl0'] = sl0
+            alpha_intercept, alpha_r2, gamma_intercept, gamma_r2, delta_intercept, delta_r2, uu0, ul0, su0, sl0 = est.aux_param.values()
+            if alpha_r2 is not None:
+                alpha_r2[~np.isfinite(alpha_r2)] = 0
+            adata.var.loc[valid_ind, 'kinetic_parameter_alpha_intercept'] = alpha_intercept
+            adata.var.loc[valid_ind, 'kinetic_parameter_alpha_r2'] = alpha_r2
 
-        if ind_for_proteins is not None:
-            delta_r2[~np.isfinite(delta_r2)] = 0
-            adata.var['kinetic_parameter_eta'], adata.var['kinetic_parameter_delta'], adata.var['protein_half_life'] = None, None, None
-            adata.var.loc[valid_ind, 'kinetic_parameter_eta'][ind_for_proteins] = eta
-            adata.var.loc[valid_ind, 'kinetic_parameter_delta'][ind_for_proteins] = delta
-            adata.var.loc[valid_ind, 'kinetic_parameter_delta_intercept'][ind_for_proteins] = delta_intercept
-            adata.var.loc[valid_ind, 'kinetic_parameter_delta_r2'][ind_for_proteins] = delta_r2
-            adata.var.loc[valid_ind, 'protein_half_life'][ind_for_proteins] = np.log(2) / delta
+            if gamma_r2 is not None:
+                gamma_r2[~np.isfinite(gamma_r2)] = 0
+            adata.var.loc[valid_ind, 'kinetic_parameter_gamma_intercept'] = gamma_intercept
+            adata.var.loc[valid_ind, 'kinetic_parameter_gamma_r2'] = gamma_r2
+
+            adata.var.loc[valid_ind, 'kinetic_parameter_uu0'] = uu0
+            adata.var.loc[valid_ind, 'kinetic_parameter_ul0'] = ul0
+            adata.var.loc[valid_ind, 'kinetic_parameter_su0'] = su0
+            adata.var.loc[valid_ind, 'kinetic_parameter_sl0'] = sl0
+
+            if ind_for_proteins is not None:
+                delta_r2[~np.isfinite(delta_r2)] = 0
+                adata.var['kinetic_parameter_eta'], adata.var['kinetic_parameter_delta'], adata.var['protein_half_life'] = None, None, None
+                adata.var.loc[valid_ind, 'kinetic_parameter_eta'][ind_for_proteins] = eta
+                adata.var.loc[valid_ind, 'kinetic_parameter_delta'][ind_for_proteins] = delta
+                adata.var.loc[valid_ind, 'kinetic_parameter_delta_intercept'][ind_for_proteins] = delta_intercept
+                adata.var.loc[valid_ind, 'kinetic_parameter_delta_r2'][ind_for_proteins] = delta_r2
+                adata.var.loc[valid_ind, 'protein_half_life'][ind_for_proteins] = np.log(2) / delta
         # add velocity_offset here
     elif mode is 'moment':
         Moment = MomData(adata, time_key)
