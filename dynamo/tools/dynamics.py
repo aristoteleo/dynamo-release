@@ -210,9 +210,9 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
                 adata.var.loc[valid_ind, 'protein_half_life'][ind_for_proteins] = np.log(2) / delta
         # add velocity_offset here
     elif mode is 'moment':
-        Moment = MomData(adata, time_key)
+        Moment = MomData(adata, tkey)
         adata.uns['M'], adata.uns['V'] = Moment.M, Moment.V
-        Est = Estimation(Moment, time_key=time_key, normalize=False) # data is already normalized
+        Est = Estimation(Moment, time_key=tkey, normalize=False) # data is already normalized
         params, costs = Est.fit()
         a, b, alpha_a, alpha_i, beta, gamma = params[:, 0], params[:, 1], params[:, 2], params[:, 3], params[:, 4], params[:, 5]
 

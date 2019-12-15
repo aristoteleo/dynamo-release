@@ -488,7 +488,7 @@ class velocity:
             Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
         """
         if self.parameters['alpha'] is not None and self.parameters['beta'] is not None:
-            if len(self.parameters['alpha']) == 1:
+            if type(self.parameters['alpha']) is not tuple and len(self.parameters['alpha']) == 1:
                 if len(self.parameters['alpha'].shape) == 2:
                     alpha, beta = self.parameters['alpha'], np.zeros((len(self.parameters['beta']), len(self.parameters['beta'])))
                 else:
@@ -526,7 +526,7 @@ class velocity:
             Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
         """
         if self.parameters['beta'] is not None and self.parameters['gamma'] is not None:
-            if len(self.parameters['gamma']) == 1:
+            if len(self.parameters['gamma'].shape) == 1:
                 beta, gamma = np.zeros((len(self.parameters['beta']), len(self.parameters['beta']))), \
                               np.zeros((len(self.parameters['beta']), len(self.parameters['beta'])))
                 np.fill_diagonal(beta, self.parameters['beta'])
