@@ -32,8 +32,8 @@ def show_fraction(adata, mode='splicing', group=None):
     if mode is 'labelling' and (all([i in adata.layers.keys() for i in ['new', 'total']])):
         new_mat, total_mat = adata.layers['new'], adata.layers['total']
 
-        new_cell_sum, tot_cell_sum = np.sum(new_mat, 1), np.sum(total_mat, 1) if not issparse(new_mat) else new_mat.sum(1).A1, \
-                                     total_mat.sum(1).A1
+        new_cell_sum, tot_cell_sum = (np.sum(new_mat, 1), np.sum(total_mat, 1)) if not issparse(new_mat) else (new_mat.sum(1).A1, \
+                                     total_mat.sum(1).A1)
 
         new_frac_cell = new_cell_sum / tot_cell_sum
         old_frac_cell = 1 - new_frac_cell
@@ -134,7 +134,7 @@ def variance_explained(adata, threshold=0.002, n_pcs=None):
     plt.show()
 
 
-def feature_genes(adata, layer='X'):
+def feature_genes(adata, layer='X', mode='Dispersion'):
     """Plot selected feature genes on top of the mean vs. dispersion scatterplot.
 
     Parameters
@@ -143,6 +143,8 @@ def feature_genes(adata, layer='X'):
             AnnData object
         layer: `str` (default: `X`)
             The data from a particular layer (include X) used for making the feature gene plot.
+        mode: `str` (default: `Dispersion)
+            The method to select the feature genes.
 
     Returns
     -------
@@ -150,7 +152,16 @@ def feature_genes(adata, layer='X'):
     """
     import matplotlib.pyplot as plt
 
-    disp_table = topTable(adata, layer)
+    if mode is 'Dispersion':
+        table = topTable(adata, layer)
+        x_min, x_max = np.nanmin(table['mean_expression']), np.nanmax(table['mean_expression'])
+    elif mode is 'SVR':
+        if not np.all(pd.Series(['CV', 'score']).isin(adata.var.columns)):
+            raise Exception('Looks like you have not run support vector machine regression yet, try run velocyto_SVR first.')
+        else:
+            table = adata.var.loc[:, ['mean', 'CV', 'score']]
+            table=table.loc[np.isfinite(table['CV']) & np.isfinite(table['mean']), :]
+            x_min, x_max = np.nanmin(table['mean']), np.nanmax(table['mean'])
 
     ordering_genes = adata.var['use_for_dynamo'] if 'use_for_dynamo' in adata.var.columns else None
 
@@ -159,26 +170,34 @@ def feature_genes(adata, layer='X'):
     layer = list(set(layer_keys).intersection(layer))[0]
 
     if layer in ['raw', 'X']:
-        key = 'dispFitInfo'
+        key = 'dispFitInfo' if mode is 'Dispersion' else 'velocyto_SVR'
     else:
-        key = layer + '_dispFitInfo'
-    mu_linspace = np.linspace(np.min(disp_table['mean_expression']), np.max(disp_table['mean_expression']), num=1000)
-    disp_fit = adata.uns['dispFitInfo']['disp_func'](mu_linspace)
+        key = layer + '_dispFitInfo' if mode is 'Dispersion' else layer + 'velocyto_SVR'
+    mu_linspace = np.linspace(x_min, x_max, num=1000)
+    fit = adata.uns[key]['disp_func'](mu_linspace) if mode is 'Dispersion' else adata.uns[key]['SVR'](mu_linspace.reshape(-1, 1))
 
-    plt.plot(mu_linspace, disp_fit, alpha=0.4, color='k')
-    valid_ind = disp_table.gene_id.isin(ordering_genes.index[ordering_genes]).values if ordering_genes is not None else np.ones(disp_table.shape[0], dtype=bool)
+    plt.plot(mu_linspace, fit, alpha=0.4, color='k')
+    valid_ind = table.index.isin(ordering_genes.index[ordering_genes]) if ordering_genes is not None else np.ones(table.shape[0], dtype=bool)
 
-    valid_disp_table = disp_table.iloc[valid_ind, :]
-    plt.scatter(valid_disp_table['mean_expression'], valid_disp_table['dispersion_empirical'], s=3, alpha=0.3, color='tab:red')
-    neg_disp_table = disp_table.iloc[~valid_ind, :]
+    valid_disp_table = table.iloc[valid_ind, :]
+    if mode is 'Dispersion':
+        plt.scatter(valid_disp_table['mean_expression'], valid_disp_table['dispersion_empirical'], s=3, alpha=0.3, color='tab:red')
+    elif mode is 'SVR':
+        plt.scatter(np.log(valid_disp_table['mean']), valid_disp_table['CV'], s=3, alpha=0.3, color='tab:red')
 
-    plt.scatter(neg_disp_table['mean_expression'], neg_disp_table['dispersion_empirical'], s=3, alpha=1, color='tab:blue')
+    neg_disp_table = table.iloc[~valid_ind, :]
+
+    if mode is 'Dispersion':
+        plt.scatter(neg_disp_table['mean_expression'], neg_disp_table['dispersion_empirical'], s=3, alpha=1, color='tab:blue')
+    elif mode is 'SVR':
+        plt.scatter(np.log(neg_disp_table['mean']), neg_disp_table['CV'], s=3, alpha=1, color='tab:blue')
 
     # plt.xlim((0, 100))
-    plt.xscale('log')
+    if mode is 'Dispersion':
+        plt.xscale('log')
     plt.yscale('log')
-    plt.xlabel('Mean')
-    plt.ylabel('Dispersion')
+    plt.xlabel('Mean (log)')
+    plt.ylabel('Dispersion (log)') if mode is 'Dispersion' else plt.ylabel('CV (log)')
     plt.show()
 
 
@@ -272,8 +291,8 @@ def phase_portraits(adata, genes, x=0, y=1, mode='splicing', vkey='S', ekey='X',
     if issparse(E_vec):
         E_vec, V_vec = E_vec.A, V_vec.A
 
-    if 'velocity_parameter_gamma' in adata.var.columns:
-        gamma = adata.var.velocity_parameter_gamma[genes].values
+    if 'kinetic_parameter_gamma' in adata.var.columns:
+        gamma = adata.var.kinetic_parameter_gamma[genes].values
         velocity_offset = [0] * n_genes if not ("velocity_offset" in adata.var.columns) else \
             adata.var.velocity_offset[genes].values
     else:
@@ -300,8 +319,8 @@ def phase_portraits(adata, genes, x=0, y=1, mode='splicing', vkey='S', ekey='X',
         uu, ul, su, sl = adata[:, genes].layers['X_uu'], adata[:, genes].layers['X_ul'], adata[:, genes].layers['X_su'], \
                          adata[:, genes].layers['X_sl']
         if 'protein' in adata.obsm.keys():
-            if 'velocity_parameter_eta' in adata.var.columns:
-                gamma_P = adata.var.velocity_parameter_eta[genes].values
+            if 'kinetic_parameter_eta' in adata.var.columns:
+                gamma_P = adata.var.kinetic_parameter_eta[genes].values
                 velocity_offset_P = [0] * n_cells if not ("velocity_offset_P" in adata.var.columns) else \
                     adata.var.velocity_offset_P[genes].values
             else:

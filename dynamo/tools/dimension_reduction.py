@@ -53,7 +53,7 @@ def extract_indices_dist_from_graph(graph, n_neighbors):
 def umap_conn_indices_dist_embedding(X,
         n_neighbors=15,
         n_components=2,
-        metric="euclidean",
+        metric="cosine",
         min_dist=0.1,
         random_state=0,
         verbose=False):
@@ -218,7 +218,7 @@ def reduceDimension(adata, n_pca_components=25, n_components=2, n_neighbors=10, 
         if velocity_key is not None:
             X_t = adata.X + adata.layers[velocity_key]
 
-    if((not 'X_pca' in adata.obsm.keys()) or 'pca_fit' not in adata.uns.keys()):
+    if((not 'X_pca' in adata.obsm.keys()) or 'pca_fit' not in adata.uns.keys()) or reduction_method is "pca":
         transformer = TruncatedSVD(n_components=n_pca_components, random_state=0)
         X_fit = transformer.fit(X)
         X_pca = X_fit.transform(X)
@@ -263,10 +263,13 @@ def reduceDimension(adata, n_pca_components=25, n_components=2, n_neighbors=10, 
         adata.obsm['X_psl'] = X_dim
         adata.uns['PSL_adj_mat'] = adj_mat
 
+    else:
+        raise Exception('reduction_method {} is not supported.'.format(reduction_method))
+
     return adata
 
-if __name__ == '__main__':
-    import anndata
-    adata = anndata.read_h5ad('/Users/xqiu/data/tmp.h5ad')
-
-    dyn.tl.reduceDimension(tmp, velocity_key='velocity_S')
+# if __name__ == '__main__':
+#     # import anndata
+#     # adata = anndata.read_h5ad('/Users/xqiu/data/tmp.h5ad')
+#     #
+#     # dyn.tl.reduceDimension(tmp, velocity_key='velocity_S')

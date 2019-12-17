@@ -171,11 +171,32 @@ def Simulator(motif='neurogenesis', clip=True):
 
 if __name__ is '__main__':
     import dynamo as dyn
-    toggle_adata = dyn.sim.Simulator(motif='toggle')
-    dyn.tl.VectorField(toggle_adata, basis='X', velocity_key='velocity')
 
-    dyn.pl.topography(toggle_adata, VF=None, basis='X', init_state=None, t=np.linspace(0, 10, 200),
-                      xlim=[0, 6], ylim=[0, 6], plot=True)
+    # adata_all = dyn.read_h5ad('/Volumes/xqiu/proj/Aristotle/backup/adata_all_first_10_genes.h5ad')
+    # dyn.tl.dynamics(adata_all[:, :10], mode='moment', filter_gene_mode='no')
+
+    # adata_deg = dyn.read_h5ad('/Volumes/xqiu/proj/Aristotle/backup/adata_deg_first_25_genes.h5ad')
+    # dyn.tl.dynamics(adata_deg[:, :25], experiment_type='deg', filter_gene_mode='no', time_key='hour')
+
+    # adata = dyn.read_h5ad('/Users/xqiu/Desktop/neuron_12_11.h5ad')
+    adata = dyn.read_h5ad('/Users/xqiu/Desktop/ESC_12_11.h5ad')
+    dyn.tl.dynamics(adata[:, :25], filter_gene_mode='no')
+    tmp=dyn.tl.dynamics(adata[:, :25], experiment_type='deg', filter_gene_mode='no', tkey='minutes')
+    dyn.tl.dynamics(adata[:, :25])
+    dyn.tl.dynamics(adata[:, :25], experiment_type='deg', filter_gene_mode='no', tkey='minutes')
+    dyn.tl.dynamics(adata[:, :25], experiment_type='kin', filter_gene_mode='no', tkey='minutes')
+    dyn.tl.dynamics(adata[:, :5], experiment_type='mix_std_stm', filter_gene_mode='no', tkey='minutes')
+    dyn.tl.dynamics(adata[:, :25], mode='moment', filter_gene_mode='no', tkey='minutes')
+
+    # adata=dyn.tl.dynamics(adata[:, :25], experiment_type='deg', filter_gene_mode='no', time_key='time')
+    # dyn.pl.metabolic_labeling_fit(adata, vkey=adata.var_names[:5], tkey='minutes')
+    #dyn.tl.dynamics(adata, experiment_type='deg', filter_gene_mode='no', time_key='minutes')
+
+    # toggle_adata = dyn.sim.Simulator(motif='toggle')
+    # dyn.tl.VectorField(toggle_adata, basis='X', velocity_key='velocity')
+    #
+    # dyn.pl.topography(toggle_adata, VF=None, basis='X', init_state=None, t=np.linspace(0, 10, 200),
+    #                   xlim=[0, 6], ylim=[0, 6], plot=True)
 
     # two_genes_adata = dyn.sim.Simulator(motif='twogenes')
     # dyn.tl.VectorField(two_genes_adata, basis='X', velocity_key='velocity')
@@ -192,3 +213,5 @@ if __name__ is '__main__':
     #
     # dyn.pl.topography(Ying_adata, VF=None, basis='X', init_state=None, t=None,
     #                   xlim=[-3, 3], ylim=[-3, 3], plot=True, reverse=True)
+
+

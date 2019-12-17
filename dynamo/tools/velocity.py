@@ -1,8 +1,11 @@
 import numpy as np
 from scipy.optimize import least_squares
-from sklearn.cluster import KMeans
-from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import issparse, csc_matrix
+from warnings import warn
+from .moments import strat_mom
+# from sklearn.cluster import KMeans
+# from sklearn.neighbors import NearestNeighbors
+
 
 def sol_u(t, u0, alpha, beta):
     """The analytical solution of unspliced mRNA kinetics.
@@ -24,6 +27,35 @@ def sol_u(t, u0, alpha, beta):
         Unspliced mRNA counts at given time points.
     """
     return u0*np.exp(-beta*t) + alpha/beta*(1-np.exp(-beta*t))
+
+def sol_u_2p(t, u0, t1, alpha0, alpha1, beta):
+    """The combined 2-piece analytical solution of unspliced mRNA kinetics.
+
+    Arguments
+    ---------
+    t0: :class:`~numpy.ndarray`
+        A vector of time points for both steady state and stimulation labeling.
+    u0: float
+        Initial value of u.
+    t1: :class:`~numpy.ndarray`
+        The time point when the cells switch from steady state to stimulation.
+    alpha0: float
+        Transcription rate for steady state labeling.
+    alpha1: float
+        Transcription rate for stimulation based labeling.
+    beta: float
+        Splicing rate constant.
+
+    Returns
+    -------
+    u: :class:`~numpy.ndarray`
+        Unspliced mRNA counts at given time points.
+    """
+    u1 = sol_u(t1, u0, alpha0, beta)
+    u_pre = sol_u(t[t <= t1], u0, alpha0, beta)
+    u_aft = sol_u(t[t > t1] - t1, u1, alpha1, beta)
+
+    return np.concatenate((u_pre, u_aft))
 
 def sol_s(t, s0, u0, alpha, beta, gamma):
     """The analytical solution of spliced mRNA kinetics.
@@ -99,9 +131,9 @@ def fit_linreg(x, y, intercept=True):
 
     Arguments
     ---------
-    x: :class:`~numpy.ndarray`
+    x: :class:`~numpy.ndarray` or sparse `csr_matrix`
         A vector of independent variables.
-    y: :class:`~numpy.ndarray`
+    y: :class:`~numpy.ndarray` or sparse `csr_matrix`
         A vector of dependent variables.
     intercept: bool
         If using steady state assumption for fitting, then:
@@ -115,7 +147,7 @@ def fit_linreg(x, y, intercept=True):
     b: float
         The estimated intercept.
     r2: float
-        coefficient of determination or r square.
+        Coefficient of determination or r square.
     """
     x = x.A if issparse(x) else x
     y = y.A if issparse(y) else y
@@ -147,15 +179,13 @@ def fit_first_order_deg_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=1):
     ---------
     t: :class:`~numpy.ndarray`
         A vector of time points.
-    l: :class:`~numpy.ndarray`
+    l: :class:`~numpy.ndarray` or sparse `csr_matrix`
         A vector of unspliced, labeled mRNA counts for each time point.
-    u0: float
-        Initial number of unsplcied mRNA.
     bounds: tuple
-        The bound for gamma. The default is gamma > 0.
+        The bound for beta. The default is beta > 0.
     fixed_l0: bool
-        True: l0 will be calculated by averging the first column of l;
-        False: l0 is a parameter that will be estimated all together with gamma using lsq.
+        True: l0 will be calculated by averaging the first column of l;
+        False: l0 is a parameter that will be estimated all together with beta using lsq.
     beta_0: float
         Initial guess for beta.
 
@@ -166,7 +196,7 @@ def fit_first_order_deg_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=1):
     l0: float
         The estimated value for the initial spliced, labeled mRNA count.
     """
-    l = l.A if issparse(l) else l
+    l = l.A.flatten() if issparse(l) else l
 
     tau = t - np.min(t)
     l0 = np.mean(l[tau == 0])
@@ -189,16 +219,16 @@ def fit_gamma_lsq(t, s, beta, u0, bounds=(0, np.inf), fix_s0=False):
     ---------
     t: :class:`~numpy.ndarray`
         A vector of time points.
-    s: :class:`~numpy.ndarray`
+    s: :class:`~numpy.ndarray` or sparse `csr_matrix`
         A vector of spliced, labeled mRNA counts for each time point.
     beta: float
         The value of beta.
     u0: float
-        Initial number of unsplcied mRNA.
+        Initial number of unspliced mRNA.
     bounds: tuple
         The bound for gamma. The default is gamma > 0.
     fixed_s0: bool
-        True: s0 will be calculated by averging the first column of s;
+        True: s0 will be calculated by averaging the first column of s;
         False: s0 is a parameter that will be estimated all together with gamma using lsq.
 
     Returns
@@ -208,7 +238,7 @@ def fit_gamma_lsq(t, s, beta, u0, bounds=(0, np.inf), fix_s0=False):
     s0: float
         The estimated value for the initial spliced mRNA count.
     """
-    s = s.A if issparse(s) else s
+    s = s.A.flatten() if issparse(s) else s
 
     tau = t - np.min(t)
     s0 = np.mean(s[tau == 0])
@@ -219,10 +249,13 @@ def fit_gamma_lsq(t, s, beta, u0, bounds=(0, np.inf), fix_s0=False):
         ret = least_squares(f_lsq, g0, bounds=bounds)
         gamma = ret.x
     else:
-        f_lsq = lambda p: sol_s(tau, p[1], u0, 0, beta, p[0]) - s
-        ret = least_squares(f_lsq, np.array([g0, s0]), bounds=bounds)
-        gamma = ret.x[0]
-        s0 = ret.x[1]
+        if np.isfinite(g0):
+            f_lsq = lambda p: sol_s(tau, p[1], u0, 0, beta, p[0]) - s
+            ret = least_squares(f_lsq, np.array([g0, s0]), bounds=bounds)
+            gamma = ret.x[0]
+            s0 = ret.x[1]
+        else:
+            gamma, s0 = np.nan, 0
     return gamma, s0
 
 def fit_alpha_synthesis(t, u, beta):
@@ -231,7 +264,9 @@ def fit_alpha_synthesis(t, u, beta):
 
     Arguments
     ---------
-    u: :class:`~numpy.ndarray`
+    t: :class:`~numpy.ndarray`
+        A vector of time points.
+    u: :class:`~numpy.ndarray` or sparse `csr_matrix`
         A matrix of unspliced mRNA counts. Dimension: cells x time points.
     beta: float
         The value of beta.
@@ -251,15 +286,21 @@ def fit_alpha_synthesis(t, u, beta):
 
     return beta * np.mean(u) / np.mean(x)
 
-def fit_alpha_degradation(t, u, beta, mode=None):
+def fit_alpha_degradation(t, u, beta, intercept=True):
     """Estimate alpha with degradation data using linear regression.
 
     Arguments
     ---------
-    u: :class:`~numpy.ndarray`
+    t: :class:`~numpy.ndarray`
+        A vector of time points.
+    u: :class:`~numpy.ndarray` or sparse `csr_matrix`
         A matrix of unspliced mRNA counts. Dimension: cells x time points.
     beta: float
         The value of beta.
+    intercept: bool
+        If using steady state assumption for fitting, then:
+        True -- the linear regression is performed with an unfixed intercept;
+        False -- the linear regresssion is performed with a fixed zero intercept.
 
     Returns
     -------
@@ -268,7 +309,7 @@ def fit_alpha_degradation(t, u, beta, mode=None):
     b: float
         The initial unspliced mRNA count.
     r2: float
-        coefficient of determination or r square.
+        Coefficient of determination or r square.
     """
     u = u.A if issparse(u) else u
 
@@ -290,7 +331,7 @@ def fit_alpha_degradation(t, u, beta, mode=None):
     k = cov / var_x
 
     # calculate intercept
-    b = ym - k * xm if mode != 'fast' else None
+    b = ym - k * xm if intercept else 0
     SS_tot_n = np.var(y)
     SS_res_n = np.mean((y - k * x - b) ** 2) if b is not None else np.mean((y - k * x) ** 2)
     r2 = 1 - SS_res_n / SS_tot_n
@@ -303,14 +344,22 @@ def fit_alpha_beta_synthesis(t, l, bounds=(0, np.inf), alpha_0=1, beta_0=1):
 
     Arguments
     ---------
-    l: :class:`~numpy.ndarray`
+    t: :class:`~numpy.ndarray`
+        A vector of time points.
+    l: :class:`~numpy.ndarray` or sparse `csr_matrix`
         A matrix of labeled mRNA counts. Dimension: cells x time points.
-    beta: float
-        The value of beta.
+    bounds: tuple
+        The bound for alpha and beta. The default is alpha / beta > 0.
+    alpha_0: float
+        Initial guess for alpha.
+    beta_0: float
+        Initial guess for beta.
 
     Returns
     -------
     alpha: float
+        The estimated value for alpha.
+    beta: float
         The estimated value for alpha.
     """
     l = l.A if issparse(l) else l
@@ -323,20 +372,32 @@ def fit_alpha_beta_synthesis(t, l, bounds=(0, np.inf), alpha_0=1, beta_0=1):
     return ret.x[0], ret.x[1]
 
 def fit_all_synthesis(t, l, bounds=(0, np.inf), alpha_0=1, beta_0=1, gamma_0=1):
-    """Estimate alpha and beta with synthesis data using least square method.
-    It is assumed that u(0) = 0.
+    """Estimate alpha, beta and gamma with synthesis data using least square method.
+    It is assumed that u(0) = 0 and s(0) = 0.
 
     Arguments
     ---------
-    l: :class:`~numpy.ndarray`
+    t: :class:`~numpy.ndarray`
+        A vector of time points.
+    l: :class:`~numpy.ndarray` or sparse `csr_matrix`
         A matrix of labeled mRNA counts. Dimension: cells x time points.
-    beta: float
-        The value of beta.
+    bounds: tuple
+        The bound for alpha and beta. The default is alpha / beta > 0.
+    alpha_0: float
+        Initial guess for alpha.
+    beta_0: float
+        Initial guess for beta.
+    gamma_0: float
+        Initial guess for gamma.
 
     Returns
     -------
     alpha: float
         The estimated value for alpha.
+    beta: float
+        The estimated value for beta.
+    gamma: float
+        The estimated value for gamma.
     """
     l = l.A if issparse(l) else l
 
@@ -388,7 +449,7 @@ class velocity:
         delta: :class:`~numpy.ndarray`
             A vector of protein degradation rate constant for each gene.
         estimation: :class:`~estimation`
-            An instance of the estimation class. If this not none, the parameters will be taken from this class instead of the input arguments.
+            An instance of the estimation class. If this not None, the parameters will be taken from this class instead of the input arguments.
         """
         if estimation is not None:
             self.parameters = {}
@@ -405,19 +466,52 @@ class velocity:
 
         Arguments
         ---------
-        U: :class:`~numpy.ndarray`
+        U: :class:`~numpy.ndarray` or sparse `csr_matrix`
             A matrix of unspliced mRNA count. Dimension: genes x cells.
 
         Returns
         -------
-        V: :class:`~numpy.ndarray`
+        V: :class:`~numpy.ndarray` or sparse `csr_matrix`
             Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
         """
         if self.parameters['alpha'] is not None and self.parameters['beta'] is not None:
-            alpha, beta = np.zeros((len(self.parameters['alpha']), len(self.parameters['alpha']))), \
-                          np.zeros((len(self.parameters['alpha']), len(self.parameters['alpha'])))
-            np.fill_diagonal(alpha, self.parameters['alpha'])
-            np.fill_diagonal(beta, self.parameters['beta'])
+            if type(self.parameters['alpha']) is not tuple:
+                if len(self.parameters['alpha'].shape) == 2:
+                    alpha = self.parameters['alpha']
+                    if len(self.parameters['beta'].shape) == 2:
+                        beta = np.zeros((len(self.parameters['beta'][:, 1]), len(self.parameters['beta'][:, 1])))
+                        np.fill_diagonal(beta, self.parameters['beta'][:, 1])
+                    else:
+                        beta = np.zeros((len(self.parameters['beta']), len(self.parameters['beta'])))
+                        np.fill_diagonal(beta, self.parameters['beta'])
+                else:
+                    alpha = np.repeat(self.parameters['alpha'].reshape((-1, 1)), U.shape[1], axis=1)
+
+                    if len(self.parameters['beta'].shape) == 2:
+                        beta = np.zeros((len(self.parameters['beta'][:, 1]), len(self.parameters['beta'][:, 1])))
+                        np.fill_diagonal(beta, self.parameters['beta'][:, 1])
+                    else:
+                        beta = np.zeros((len(self.parameters['beta']), len(self.parameters['beta'])))
+                        np.fill_diagonal(beta, self.parameters['beta'])
+
+            else: # need to correct the velocity vector prediction when you use mix_std_stm experiments
+                if len(self.parameters['alpha'][1].shape) == 2:
+                    alpha = self.parameters['alpha'][1]
+                    if len(self.parameters['beta'].shape) == 2:
+                        beta = np.zeros((len(self.parameters['beta'][:, 1]), len(self.parameters['beta'][:, 1])))
+                        np.fill_diagonal(beta, self.parameters['beta'][:, 1])
+                    else:
+                        beta = np.zeros((len(self.parameters['beta']), len(self.parameters['beta'])))
+                        np.fill_diagonal(beta, self.parameters['beta'])
+                else:
+                    alpha = np.repeat(self.parameters['alpha'][1].reshape((-1, 1)), U.shape[1], axis=1)
+
+                    if len(self.parameters['beta'].shape) == 2:
+                        beta = np.zeros((len(self.parameters['beta'][:, 1]), len(self.parameters['beta'][:, 1])))
+                        np.fill_diagonal(beta, self.parameters['beta'][:, 1])
+                    else:
+                        beta = np.zeros((len(self.parameters['beta']), len(self.parameters['beta'])))
+                        np.fill_diagonal(beta, self.parameters['beta'])
 
             V = csc_matrix(alpha) - (csc_matrix(beta).dot(U)) if issparse(U) else \
                     alpha - (beta.dot(U))
@@ -430,25 +524,35 @@ class velocity:
 
         Arguments
         ---------
-        U: :class:`~numpy.ndarray`
+        U: :class:`~numpy.ndarray` or sparse `csr_matrix`
             A matrix of unspliced mRNA counts. Dimension: genes x cells.
-        S: :class:`~numpy.ndarray`
+        S: :class:`~numpy.ndarray` or sparse `csr_matrix`
             A matrix of spliced mRNA counts. Dimension: genes x cells.
 
         Returns
         -------
-        V: :class:`~numpy.ndarray`
+        V: :class:`~numpy.ndarray` or sparse `csr_matrix`
             Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
         """
         if self.parameters['beta'] is not None and self.parameters['gamma'] is not None:
-            beta, gamma = np.zeros((len(self.parameters['beta']), len(self.parameters['beta']))), \
-                          np.zeros((len(self.parameters['beta']), len(self.parameters['beta'])))
-            np.fill_diagonal(beta, self.parameters['beta'])
-            np.fill_diagonal(gamma, self.parameters['gamma'])
+            if len(self.parameters['gamma'].shape) == 1:
+                beta, gamma = np.zeros((len(self.parameters['beta']), len(self.parameters['beta']))), \
+                              np.zeros((len(self.parameters['beta']), len(self.parameters['beta'])))
+                np.fill_diagonal(beta, self.parameters['beta'])
+                np.fill_diagonal(gamma, self.parameters['gamma'])
+            else:
+                if len(self.parameters['beta'].shape) == 2:
+                    beta = np.zeros((len(self.parameters['beta'][:, 1]), len(self.parameters['beta'][:, 1])))
+                    np.fill_diagonal(beta, self.parameters['beta'][:, 1])
+                else:
+                    beta = np.zeros((len(self.parameters['beta']), len(self.parameters['beta'])))
+                    np.fill_diagonal(beta, self.parameters['beta'])
 
-            V = csc_matrix(beta).dot(U) - csc_matrix(gamma).dot(S) if issparse(U)  \
+                gamma = np.zeros((len(self.parameters['gamma'][:, 1]), len(self.parameters['gamma'][:, 1])))
+                np.fill_diagonal(gamma, self.parameters['gamma'][:, 1])
+
+            V = csc_matrix(beta).dot(U) - csc_matrix(gamma).dot(S) if issparse(U) \
                     else beta.dot(U) - gamma.dot(S)
-            V = V
         else:
             V = np.nan
         return V
@@ -458,25 +562,37 @@ class velocity:
 
         Arguments
         ---------
-        S: :class:`~numpy.ndarray`
+        S: :class:`~numpy.ndarray` or sparse `csr_matrix`
             A matrix of spliced mRNA counts. Dimension: genes x cells.
-        P: :class:`~numpy.ndarray`
+        P: :class:`~numpy.ndarray` or sparse `csr_matrix`
             A matrix of protein counts. Dimension: genes x cells.
 
         Returns
         -------
-        V: :class:`~numpy.ndarray`
+        V: :class:`~numpy.ndarray` or sparse `csr_matrix`
             Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
         """
         if self.parameters['eta'] is not None and self.parameters['delta'] is not None:
-            eta, delta = np.zeros((len(self.parameters['eta']), len(self.parameters['eta']))), \
-                         np.zeros((len(self.parameters['eta']), len(self.parameters['eta'])))
-            np.fill_diagonal(eta, self.parameters['eta'])
-            np.fill_diagonal(delta, self.parameters['delta'])
+            if len(self.parameters['delta'].shape) == 1:
+                eta, delta = np.zeros((len(self.parameters['eta']), len(self.parameters['eta']))), \
+                             np.zeros((len(self.parameters['eta']), len(self.parameters['eta'])))
+                np.fill_diagonal(eta, self.parameters['eta'])
+                np.fill_diagonal(delta, self.parameters['delta'])
+
+            else:
+                eta = np.zeros((len(self.parameters['eta'][:, 1]), len(self.parameters['eta'][:, 1])))
+                np.fill_diagonal(eta, self.parameters['eta'][:, 1])
+
+                if len(self.parameters['delta'].shape) == 2:
+                    delta = np.zeros((len(self.parameters['delta'][:, 1]), len(self.parameters['delta'][:, 1])))
+                    np.fill_diagonal(delta, self.parameters['delta'][:, 1])
+                else:
+                    delta = np.zeros((len(self.parameters['delta']), len(self.parameters['delta'])))
+                    np.fill_diagonal(delta, self.parameters['delta'])
+
 
             V = csc_matrix(eta).dot(S) - csc_matrix(delta).dot(P) if issparse(P) else \
-                eta.dot(S) - delta.dot(P)
-            V = V
+                    eta.dot(S) - delta.dot(P)
         else:
             V = np.nan
         return V
@@ -523,20 +639,20 @@ class estimation:
 
         Arguments
         ---------
-        U: :class:`~numpy.ndarray`
+        U: :class:`~numpy.ndarray` or sparse `csr_matrix`
             A matrix of unspliced mRNA count.
-        Ul: :class:`~numpy.ndarray`
+        Ul: :class:`~numpy.ndarray` or sparse `csr_matrix`
             A matrix of unspliced, labeled mRNA count.
-        S: :class:`~numpy.ndarray`
+        S: :class:`~numpy.ndarray` or sparse `csr_matrix`
             A matrix of spliced mRNA count.
-        Sl: :class:`~numpy.ndarray`
+        Sl: :class:`~numpy.ndarray` or sparse `csr_matrix`
             A matrix of spliced, labeled mRNA count.
-        P: :class:`~numpy.ndarray`
+        P: :class:`~numpy.ndarray` or sparse `csr_matrix`
             A matrix of protein count.
         t: :class:`~estimation`
             A vector of time points.
         ind_for_proteins: :class:`~numpy.ndarray`
-            A 1-D vector of the indices in the U, Ul, S, Sl layers that corresponds to the row name in the P layer.
+            A 1-D vector of the indices in the U, Ul, S, Sl layers that corresponds to the row name in the protein or X_protein key of obsm attribute.
         experiment_type: str
             labelling experiment type. Available options are: 
             (1) 'deg': degradation experiment; 
@@ -550,7 +666,7 @@ class estimation:
             Parameter estimation assumption for protein. Available options are: 
             (1) 'ss': pseudo steady state;
         concat_data: bool (default: True)
-            Whether to concate data
+            Whether to concatenate data
 
         Attributes
         ----------
@@ -581,7 +697,8 @@ class estimation:
         self.asspt_mRNA = assumption_mRNA
         self.asspt_prot = assumption_protein
         self.parameters = {'alpha': None, 'beta': None, 'gamma': None, 'eta': None, 'delta': None}
-        self.aux_param = {'gamma_intercept': None, 'gamma_r2': None, 'delta_intercept': None, 'delta_r2': None}
+        self.aux_param = {'alpha_intercept': None, 'alpha_r2': None, 'gamma_intercept': None, 'gamma_r2': None, 'delta_intercept': None, \
+                          'delta_r2': None, "uu0": None, "ul0": None, "su0": None, "sl0": None} # note that alpha_intercept also corresponds to u0 in fit_alpha_degradation, similar to fit_first_order_deg_lsq
         self.ind_for_proteins = ind_for_proteins
 
     def fit(self, intercept=True, perc_left=5, perc_right=5, clusters=None):
@@ -600,7 +717,7 @@ class estimation:
         clusters: list
             A list of n clusters, each element is a list of indices of the samples which belong to this cluster.
         """
-        n = self.get_n_genes()
+        n = self.data['uu'].shape[0] # get_n_genes()
         # fit mRNA
         if self.asspt_mRNA == 'ss':
             if np.all(self._exist_data('uu', 'su')):
@@ -616,42 +733,60 @@ class estimation:
             if self.extyp == 'deg':
                 if np.all(self._exist_data('ul', 'sl')):
                     # beta & gamma estimation
-                    self.parameters['beta'], self.parameters['gamma'] = self.fit_beta_gamma_lsq(self.t, self.data['ul'], self.data['sl'])
+                    self.parameters['beta'], self.parameters['gamma'], self.aux_param['ul0'], self.aux_param['sl0'] = \
+                        self.fit_beta_gamma_lsq(self.t, self.data['ul'], self.data['sl'])
                     if self._exist_data('uu'):
                         # alpha estimation
-                        alpha = np.zeros(n)
+                        alpha, uu0, r2 = np.zeros(n), np.zeros(n), np.zeros(n)
                         for i in range(n):
-                            alpha[i], _, _ = fit_alpha_degradation(self.t, self.data['uu'][i], self.parameters['beta'][i], mode='fast')
-                        self.parameters['alpha'] = alpha
+                            alpha[i], uu0[i], r2[i] = fit_alpha_degradation(self.t, self.data['uu'][i], self.parameters['beta'][i], intercept=True)
+                        self.parameters['alpha'], self.aux_param['alpha_intercept'], self.aux_param['alpha_r2'] = alpha, uu0, r2
                 elif self._exist_data('ul'):
                     # gamma estimation
                     self.parameters['beta'] = np.ones(n)
-                    self.parameters['gamma'] = self.fit_gamma_nosplicing_lsq(self.t, self.data['ul'])
-                    #if self._exist_data('uu'):
+                    self.parameters['gamma'], self.aux_param['ul0'] = self.fit_gamma_nosplicing_lsq(self.t, self.data['ul'])
+                    if self._exist_data('uu'):
                         # alpha estimation
-                        #alpha = np.zeros(n)
-                        #for i in range(n):
-                        #    alpha[i], _ = fit_alpha_synthesis(self.t, self.data['uu'][i], self.parameters['gamma'][i])
-                        #self.parameters['alpha'] = alpha
-            elif self.extyp == 'kin':
+
+                        warn("Here we assume beta to be 1, precisely we need  to convert the unit from labeling time, eg. hour or minutes,"
+                             "to splicing time. For example if the labeling time is 1 hour and if splicing finishes in 1 minute,"
+                             "then the labeling time is 60 splicing units. Without knowing the physical time used, the alpha estimated"
+                             "below only reflects the relative magnitude and should be used with caution.")
+
+                        alpha = np.zeros(n)
+                        for i in range(n):
+                           alpha[i] = fit_alpha_synthesis(self.t, self.data['uu'][i], self.parameters['beta'][i]) # self.parameters['gamma'][i]
+                        self.parameters['alpha'] = alpha
+            elif (self.extyp == 'kin' or self.extyp == 'one_shot') and len(np.unique(self.t)) > 1:
                 if np.all(self._exist_data('ul', 'uu', 'su')):
                     if not self._exist_parameter('beta'):
-                        # beta & gamma estimation: only works when there're at least 2 time points
-                        self.parameters['beta'], self.parameters['gamma'] = self.fit_beta_gamma_lsq(self.t, self.data['uu'], self.data['su'])
+                        warn("beta & gamma estimation: only works when there're at least 2 time points.")
+                        self.parameters['beta'], self.parameters['gamma'], self.aux_param['uu0'], self.aux_param['su0'] = self.fit_beta_gamma_lsq(self.t, self.data['uu'], self.data['su'])
                     # alpha estimation
-                    alpha = np.zeros_like(self.data['ul'])
+                    alpha = np.zeros_like(self.data['ul'].A) if issparse(self.data['ul']) else np.zeros_like(self.data['ul'])
                     # assume constant alpha across all cells
                     for i in range(n):
                         # for j in range(len(self.data['ul'][i])):
                         alpha[i, :] = fit_alpha_synthesis(self.t, self.data['ul'][i], self.parameters['beta'][i])
                     self.parameters['alpha'] = alpha
                 elif np.all(self._exist_data('ul', 'uu')):
-                    pass
+                    gamma = self.fit_beta_lsq(self.t, self.data['uu'])
+                    # alpha: one-shot
             # 'one_shot'
             elif self.extyp == 'one_shot':
                 if self._exist_data('ul') and self._exist_parameter('beta'):
                     self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
-
+            elif self.extyp == 'mix_std_stm':
+                if np.all(self._exist_data('ul', 'uu', 'su')):
+                    self.parameters['beta'], self.parameters['gamma'], self.aux_param['uu0'], self.aux_param['su0'] = \
+                        self.fit_beta_gamma_lsq(self.t, self.data['uu'], self.data['su'])
+                    # alpha estimation
+                    # assume constant alpha across all cells
+                    # for i in range(n):
+                    #     # for j in range(len(self.data['ul'][i])):
+                    self.parameters['alpha'] = self.fit_alpha_lsq_mix_std_stm(self.data['ul'], self.parameters['beta'])
+                elif np.all(self._exist_data('ul', 'uu')):
+                    pass
         # fit protein
         if np.all(self._exist_data('p', 'su')):
             ind_for_proteins = self.ind_for_proteins
@@ -674,9 +809,9 @@ class estimation:
 
         Arguments
         ---------
-        u: :class:`~numpy.ndarray`
+        u: :class:`~numpy.ndarray` or sparse `csr_matrix`
             A matrix of spliced mRNA counts. Dimension: genes x cells.
-        s: :class:`~numpy.ndarray`
+        s: :class:`~numpy.ndarray` or sparse `csr_matrix`
             A matrix of protein counts. Dimension: genes x cells.
         intercept: bool
             If using steady state assumption for fitting, then:
@@ -693,6 +828,8 @@ class estimation:
             The slope of the linear regression model, which is gamma under the steady state assumption.
         b: float
             The intercept of the linear regression model.
+        r2: float
+            Coefficient of determination or r square.
         """
         u = u.A.flatten() if issparse(u) else u.flatten()
         s = s.A.flatten() if issparse(s) else s.flatten()
@@ -722,14 +859,22 @@ class estimation:
             A vector of betas for all the genes.
         gamma: :class:`~numpy.ndarray`
             A vector of gammas for all the genes.
+        u0: float
+            Initial value of u.
+        s0: float
+            Initial value of s.
         """
-        n = self.get_n_genes(data=U)
+        n = U.shape[0] # self.get_n_genes(data=U)
         beta = np.zeros(n)
         gamma = np.zeros(n)
+        u0, s0 = np.zeros(n), np.zeros(n)
         for i in range(n):
-            beta[i], u0 = fit_first_order_deg_lsq(t, U[i])
-            gamma[i], _ = fit_gamma_lsq(t, S[i], beta[i], u0)
-        return beta, gamma
+            beta[i], u0[i] = fit_first_order_deg_lsq(t, U[i])
+            if np.isfinite(u0[i]):
+                gamma[i], s0[i] = fit_gamma_lsq(t, S[i], beta[i], u0[i])
+            else:
+                gamma[i], s0[i] = np.nan, np.nan
+        return beta, gamma, u0, s0
 
     def fit_gamma_nosplicing_lsq(self, t, L):
         """Estimate gamma with the degradation data using the least squares method when there is no splicing data.
@@ -745,12 +890,50 @@ class estimation:
         -------
         gamma: :class:`~numpy.ndarray`
             A vector of gammas for all the genes.
+        l0: float
+            The estimated value for the initial spliced, labeled mRNA count.
         """
-        n = self.get_n_genes(data=L)
+        n = L.shape[0] # self.get_n_genes(data=L)
         gamma = np.zeros(n)
+        l0 = np.zeros(n)
+
         for i in range(n):
-            gamma[i], _ = fit_first_order_deg_lsq(t, L[i])
-        return gamma
+            gamma[i], l0 = fit_first_order_deg_lsq(t, L[i].A[0]) if issparse(L) else fit_first_order_deg_lsq(t, L[i])
+        return gamma, l0
+
+    def fit_alpha_lsq_mix_std_stm(self, ul, beta, bounds=(0, np.inf), clusters=None):
+        alpha_std_ini, alpha_stm_ini, alpha_std, alpha_stm = np.zeros((ul.shape)), np.zeros((ul.shape)), np.zeros((ul.shape)), np.zeros((ul.shape))
+
+        # calculate alpha initial guess:
+        t_std, t_stm = np.max(self.t) - self.t, self.t
+        valid_t_std_ind, valid_t_stm_ind = np.logical_or(t_std == 0, t_std == np.max(t_std)), np.logical_or(t_stm == 0, t_stm == np.max(t_stm))
+        valid_t_std = t_std[valid_t_std_ind]
+        valid_t_stm = t_stm[valid_t_stm_ind]
+        alpha_std_ini = np.mean(self.fit_alpha_oneshot(valid_t_std, ul[:, valid_t_std_ind], beta, clusters), 1)
+        alpha_stm_ini = np.mean(self.fit_alpha_oneshot(valid_t_stm, ul[:, valid_t_stm_ind], beta, clusters), 1)
+
+        # calculate alpha
+        def u_est(t_, beta, alpha0, alpha1):
+            t_, t_uniq = self.t, np.unique(t_)
+            u0, u1 = np.zeros(len(t_uniq) - 2), np.zeros(len(t_uniq) - 2)
+            for ind in np.arange(1, len(t_uniq) - 1):
+                t_i = t_uniq[ind]
+                t, t1 = np.max(t_uniq) - t_i, t_i
+                u0[ind - 1] = sol_u(t, 0, alpha0, beta)
+                u1[ind - 1] = sol_u(t1, u0[ind - 1], alpha1, beta)
+
+            return u1
+
+        for i in range(ul.shape[0]):
+            l = ul[i]
+            l_mean = strat_mom(l.A.flatten(), self.t, np.nanmean) if issparse(l) else strat_mom(l, self.t, np.nanmean)
+            beta_ = beta[i]
+
+            f_lsq = lambda a, beta_ = beta_, l_mean = l_mean: u_est(self.t, beta_, a[0], a[1]) - l_mean[np.arange(1, len(l_mean) - 1)] # include the variance constraints
+            ret = least_squares(f_lsq, [alpha_std_ini[i], alpha_stm_ini[i]], bounds=bounds)
+            alpha_std[i], alpha_stm[i] = ret.x
+
+        return alpha_std, alpha_stm
 
     def fit_alpha_oneshot(self, t, U, beta, clusters=None):
         """Estimate alpha with the one-shot data.
@@ -778,7 +961,7 @@ class estimation:
         for i, c in enumerate(clusters):
             for j in range(n_genes):
                 if len(c) > 0:
-                    alpha[j, i] = fit_alpha_synthesis(t, U[j][c], beta[j])
+                    alpha[j, i] = fit_alpha_synthesis(t, U[j].A[0][c], beta[j]) if issparse(U) else fit_alpha_synthesis(t, U[j][c], beta[j])
                 else:
                     alpha[j, i] = np.nan
         return alpha
