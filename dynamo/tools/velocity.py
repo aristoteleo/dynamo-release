@@ -913,9 +913,6 @@ class estimation:
         alpha_std_ini = np.mean(self.fit_alpha_oneshot(valid_t_std, ul[:, valid_t_std_ind], beta, clusters), 1)
         alpha_stm_ini = np.mean(self.fit_alpha_oneshot(valid_t_stm, ul[:, valid_t_stm_ind], beta, clusters), 1)
 
-        import time
-        v1_start = time.time()
-        # calculate alpha (V1)
         def u_est(t_, beta, alpha0, alpha1):
             t_uniq = np.unique(t_)
             u1 = np.zeros(len(t_uniq) - 2)
@@ -934,38 +931,6 @@ class estimation:
             f_lsq = lambda a, t = t, beta_ = beta_, l_mean = l_mean: u_est(t, beta_, a[0], a[1]) - l_mean[np.arange(1, len(l_mean) - 1)] # include the variance constraints
             ret = least_squares(f_lsq, [alpha_std_ini[i], alpha_stm_ini[i]], bounds=bounds)
             alpha_std[i], alpha_stm[i] = ret.x
-
-        v1_end = time.time()
-        print('v1 result: ', alpha_std, alpha_stm)
-
-        # calculate alpha # V(2)
-        v2_start = time.time()
-        def u_est(t_, beta, alpha0, alpha1):
-            t_uniq = np.unique(t_)
-            valid_t = t[np.logical_and(t != np.min(t_uniq), (t != np.max(t_uniq)))]
-            u1 = np.zeros(len(valid_t))
-            for ind in range(len(valid_t)):
-                t_i = valid_t[ind]
-                u0 = sol_u(np.max(t_uniq) - t_i, 0, alpha0, beta)
-                u1[ind] = sol_u(t_i, u0, alpha1, beta)
-
-            return u1
-
-        for i in range(ul.shape[0]):
-            l = ul[i]
-            t_uniq = np.unique(t)
-            valid_t = np.logical_and(t != np.min(t_uniq), (t != np.max(t_uniq)))
-            valid_l = l.A.flatten()[valid_t] if issparse(l) else l[valid_t]
-            beta_ = beta[i]
-
-            f_lsq = lambda a, t = t, beta_ = beta_: u_est(t, beta_, a[0], a[1]) - valid_l # include the variance constraints
-            ret = least_squares(f_lsq, [alpha_std_ini[i], alpha_stm_ini[i]], bounds=bounds)
-            alpha_std[i], alpha_stm[i] = ret.x
-
-        v2_end = time.time()
-        print('v2 result: ', alpha_std, alpha_stm)
-
-        print('v1 time: ', v1_end - v1_start, ' v2 time: ', v2_end - v2_start)
 
         return alpha_std, alpha_stm
 
