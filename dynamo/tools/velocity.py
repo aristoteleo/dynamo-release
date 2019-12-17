@@ -784,7 +784,7 @@ class estimation:
                     # assume constant alpha across all cells
                     # for i in range(n):
                     #     # for j in range(len(self.data['ul'][i])):
-                    self.parameters['alpha'] = self.fit_alpha_lsq_mix_std_stm(self.data['ul'], self.parameters['beta'])
+                    self.parameters['alpha'] = self.fit_alpha_lsq_mix_std_stm(self.t, self.data['ul'], self.parameters['beta'])
                 elif np.all(self._exist_data('ul', 'uu')):
                     pass
         # fit protein
@@ -901,37 +901,71 @@ class estimation:
             gamma[i], l0 = fit_first_order_deg_lsq(t, L[i].A[0]) if issparse(L) else fit_first_order_deg_lsq(t, L[i])
         return gamma, l0
 
-    def fit_alpha_lsq_mix_std_stm(self, ul, beta, bounds=(0, np.inf), clusters=None):
-        alpha_std_ini, alpha_stm_ini, alpha_std, alpha_stm = np.zeros((ul.shape)), np.zeros((ul.shape)), np.zeros((ul.shape)), np.zeros((ul.shape))
+    def fit_alpha_lsq_mix_std_stm(self, t, ul, beta, bounds=(0, np.inf), clusters=None):
+        alpha_std_ini, alpha_stm_ini, alpha_std, alpha_stm = np.zeros(ul.shape), np.zeros(ul.shape), np.zeros(ul.shape), np.zeros(ul.shape)
 
         # calculate alpha initial guess:
-        t_std, t_stm = np.max(self.t) - self.t, self.t
-        valid_t_std_ind, valid_t_stm_ind = np.logical_or(t_std == 0, t_std == np.max(t_std)), np.logical_or(t_stm == 0, t_stm == np.max(t_stm))
+        t = np.array(t) if type(t) is list else t
+        t_std, t_stm = np.max(t) - t, t
+        valid_t_std_ind, valid_t_stm_ind = t_std == np.max(t_std), t_stm == np.max(t_stm)
         valid_t_std = t_std[valid_t_std_ind]
         valid_t_stm = t_stm[valid_t_stm_ind]
         alpha_std_ini = np.mean(self.fit_alpha_oneshot(valid_t_std, ul[:, valid_t_std_ind], beta, clusters), 1)
         alpha_stm_ini = np.mean(self.fit_alpha_oneshot(valid_t_stm, ul[:, valid_t_stm_ind], beta, clusters), 1)
 
-        # calculate alpha
+        import time
+        v1_start = time.time()
+        # calculate alpha (V1)
         def u_est(t_, beta, alpha0, alpha1):
-            t_, t_uniq = self.t, np.unique(t_)
-            u0, u1 = np.zeros(len(t_uniq) - 2), np.zeros(len(t_uniq) - 2)
+            t_uniq = np.unique(t_)
+            u1 = np.zeros(len(t_uniq) - 2)
             for ind in np.arange(1, len(t_uniq) - 1):
                 t_i = t_uniq[ind]
-                t, t1 = np.max(t_uniq) - t_i, t_i
-                u0[ind - 1] = sol_u(t, 0, alpha0, beta)
-                u1[ind - 1] = sol_u(t1, u0[ind - 1], alpha1, beta)
+                u0 = sol_u(np.max(t_uniq) - t_i, 0, alpha0, beta)
+                u1[ind - 1] = sol_u(t_i, u0, alpha1, beta)
 
             return u1
 
         for i in range(ul.shape[0]):
             l = ul[i]
-            l_mean = strat_mom(l.A.flatten(), self.t, np.nanmean) if issparse(l) else strat_mom(l, self.t, np.nanmean)
+            l_mean = strat_mom(l.A.flatten(), t, np.nanmean) if issparse(l) else strat_mom(l, t, np.nanmean)
             beta_ = beta[i]
 
-            f_lsq = lambda a, beta_ = beta_, l_mean = l_mean: u_est(self.t, beta_, a[0], a[1]) - l_mean[np.arange(1, len(l_mean) - 1)] # include the variance constraints
+            f_lsq = lambda a, t = t, beta_ = beta_, l_mean = l_mean: u_est(t, beta_, a[0], a[1]) - l_mean[np.arange(1, len(l_mean) - 1)] # include the variance constraints
             ret = least_squares(f_lsq, [alpha_std_ini[i], alpha_stm_ini[i]], bounds=bounds)
             alpha_std[i], alpha_stm[i] = ret.x
+
+        v1_end = time.time()
+        print('v1 result: ', alpha_std, alpha_stm)
+
+        # calculate alpha # V(2)
+        v2_start = time.time()
+        def u_est(t_, beta, alpha0, alpha1):
+            t_uniq = np.unique(t_)
+            valid_t = t[np.logical_and(t != np.min(t_uniq), (t != np.max(t_uniq)))]
+            u1 = np.zeros(len(valid_t))
+            for ind in range(len(valid_t)):
+                t_i = valid_t[ind]
+                u0 = sol_u(np.max(t_uniq) - t_i, 0, alpha0, beta)
+                u1[ind] = sol_u(t_i, u0, alpha1, beta)
+
+            return u1
+
+        for i in range(ul.shape[0]):
+            l = ul[i]
+            t_uniq = np.unique(t)
+            valid_t = np.logical_and(t != np.min(t_uniq), (t != np.max(t_uniq)))
+            valid_l = l.A.flatten()[valid_t] if issparse(l) else l[valid_t]
+            beta_ = beta[i]
+
+            f_lsq = lambda a, t = t, beta_ = beta_: u_est(t, beta_, a[0], a[1]) - valid_l # include the variance constraints
+            ret = least_squares(f_lsq, [alpha_std_ini[i], alpha_stm_ini[i]], bounds=bounds)
+            alpha_std[i], alpha_stm[i] = ret.x
+
+        v2_end = time.time()
+        print('v2 result: ', alpha_std, alpha_stm)
+
+        print('v1 time: ', v1_end - v1_start, ' v2 time: ', v2_end - v2_start)
 
         return alpha_std, alpha_stm
 

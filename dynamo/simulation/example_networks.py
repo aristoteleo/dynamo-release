@@ -180,11 +180,11 @@ if __name__ is '__main__':
 
     # adata = dyn.read_h5ad('/Users/xqiu/Desktop/neuron_12_11.h5ad')
     adata = dyn.read_h5ad('/Users/xqiu/Desktop/ESC_12_11.h5ad')
-    dyn.tl.dynamics(adata[:, :25], filter_gene_mode='no')
-    tmp=dyn.tl.dynamics(adata[:, :25], experiment_type='deg', filter_gene_mode='no', tkey='minutes')
-    dyn.tl.dynamics(adata[:, :25])
-    dyn.tl.dynamics(adata[:, :25], experiment_type='deg', filter_gene_mode='no', tkey='minutes')
-    dyn.tl.dynamics(adata[:, :25], experiment_type='kin', filter_gene_mode='no', tkey='minutes')
+    # dyn.tl.dynamics(adata[:, :25], filter_gene_mode='no')
+    # tmp=dyn.tl.dynamics(adata[:, :25], experiment_type='deg', filter_gene_mode='no', tkey='minutes')
+    # dyn.tl.dynamics(adata[:, :25])
+    # dyn.tl.dynamics(adata[:, :25], experiment_type='deg', filter_gene_mode='no', tkey='minutes')
+    # dyn.tl.dynamics(adata[:, :25], experiment_type='kin', filter_gene_mode='no', tkey='minutes')
     dyn.tl.dynamics(adata[:, :5], experiment_type='mix_std_stm', filter_gene_mode='no', tkey='minutes')
     dyn.tl.dynamics(adata[:, :25], mode='moment', filter_gene_mode='no', tkey='minutes')
 
