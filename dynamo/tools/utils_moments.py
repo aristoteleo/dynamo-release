@@ -272,7 +272,8 @@ class estimation:
         #     x = X[i]
         #     #ret[i] = x / max(x)
         #     ret[i] = log10(x + 1)
-        return log10(X + 1)
+        res = log10(X) if all(X > 0) else log10(X + 1)
+        return res
 
     def f_lsq(self, params, t, x_data_norm, method='analytical', normalize=True, experiment_type=None):
         self.simulator.set_params(*params)

@@ -62,22 +62,29 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
     elif filter_gene_mode is 'no':
         valid_ind = np.repeat([True], adata.shape[1])
 
+    normalized, has_splicing, has_labeling, has_protein = False, False, False, False
     if 'X_unspliced' in adata.layers.keys():
+        has_splicing, normalized = True, True
         U = adata[:, valid_ind].layers['X_unspliced'].T
     elif 'unspliced' in adata.layers.keys():
+        has_splicing = True
         raw = adata[:, valid_ind].layers['unspliced'].T
         raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
         U = raw
 
     elif 'X_new' in adata.layers.keys():  # run new / total ratio (NTR)
+        has_labeling, normalized = True, True
         U = adata[:, valid_ind].layers['X_new'].T
         Ul = adata[:, valid_ind].layers['X_new'].T
     elif 'new' in adata.layers.keys():
+        has_labeling = True
         raw = adata[:, valid_ind].layers['new'].T
         raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
         U = raw
         Ul = raw
     elif 'X_uu' in adata.layers.keys():  # only uu, ul, su, sl provided
+        has_splicing, has_labeling, normalized = True, True, True
+
         U = adata[:, valid_ind].layers['X_uu'].T  # unlabel unspliced: U
     elif 'uu' in adata[:, valid_ind].layers.keys():
         raw = adata[:, valid_ind].layers['uu'].T
@@ -125,6 +132,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
     elif 'protein' in adata.obsm.keys():
         P = adata.obsm['protein'].T
     if P is not None:
+        has_protein = True
         if protein_names is None:
             warnings.warn(
                 'protein layer exists but protein_names is not provided. No estimation will be performed for protein data.')
@@ -225,7 +233,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
     elif mode is 'moment':
         Moment = MomData(adata, tkey)
         adata.uns['M'], adata.uns['V'] = Moment.M, Moment.V
-        Est = Estimation(Moment, time_key=tkey, normalize=False)  # data is already normalized
+        Est = Estimation(Moment, time_key=tkey, normalize=(not normalized))  # data is already normalized
         params, costs = Est.fit()
         a, b, alpha_a, alpha_i, beta, gamma = params[:, 0], params[:, 1], params[:, 2], params[:, 3], params[:,
                                                                                                       4], params[:, 5]
@@ -269,4 +277,6 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
     elif mode is 'model_selection':
         warnings.warn('Not implemented yet.')
 
+    adata.uns['dynamics'] = {'experiment_type': experiment_type, "normalized": normalized, "mode": mode, "has_splicing": has_splicing,
+                             "has_labeling": has_labeling, "has_protein": has_protein}
     return adata

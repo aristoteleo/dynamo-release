@@ -179,18 +179,21 @@ if __name__ is '__main__':
     # dyn.tl.dynamics(adata_deg[:, :25], experiment_type='deg', filter_gene_mode='no', time_key='hour')
 
     # adata = dyn.read_h5ad('/Users/xqiu/Desktop/neuron_12_11.h5ad')
-    adata = dyn.read_h5ad('/Users/xqiu/Desktop/ESC_12_11.h5ad')
+    # adata = dyn.read_h5ad('/Users/xqiu/Desktop/ESC_12_11.h5ad')
+    adata = dyn.read_h5ad('/Users/xqiu/Desktop/neuron_12_11.h5ad')
+    tmp = dyn.tl.dynamics(adata[:, example_genes], mode='moment', filter_gene_mode='no', tkey='time')
+    dyn.pl.metabolic_labeling_fit(tmp, vkey=tmp.var_names, tkey='time', unit='minutes')
+
     # dyn.tl.dynamics(adata[:, :25], filter_gene_mode='no')
     # tmp=dyn.tl.dynamics(adata[:, :25], experiment_type='deg', filter_gene_mode='no', tkey='minutes')
     # dyn.tl.dynamics(adata[:, :25])
     # dyn.tl.dynamics(adata[:, :25], experiment_type='deg', filter_gene_mode='no', tkey='minutes')
     # dyn.tl.dynamics(adata[:, :25], experiment_type='kin', filter_gene_mode='no', tkey='minutes')
-    dyn.tl.dynamics(adata[:, :5], experiment_type='mix_std_stm', filter_gene_mode='no', tkey='minutes')
-    dyn.tl.dynamics(adata[:, :25], mode='moment', filter_gene_mode='no', tkey='minutes')
-
+    # dyn.tl.dynamics(adata[:, :5], experiment_type='mix_std_stm', filter_gene_mode='no', tkey='minutes')
+    # tmp = dyn.tl.dynamics(adata[:, :25], mode='moment', filter_gene_mode='no', tkey='minutes')
     # adata=dyn.tl.dynamics(adata[:, :25], experiment_type='deg', filter_gene_mode='no', time_key='time')
-    # dyn.pl.metabolic_labeling_fit(adata, vkey=adata.var_names[:5], tkey='minutes')
-    #dyn.tl.dynamics(adata, experiment_type='deg', filter_gene_mode='no', time_key='minutes')
+    # dyn.pl.metabolic_labeling_fit(tmp, vkey=adata.var_names[:5], tkey='minutes')
+    #dyn.tl.dynamics(adata, filter_gene_mode='no', time_key='minutes')
 
     # toggle_adata = dyn.sim.Simulator(motif='toggle')
     # dyn.tl.VectorField(toggle_adata, basis='X', velocity_key='velocity')
