@@ -99,11 +99,13 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         S = raw
 
     elif 'X_total' in adata.layers.keys():  # run new / total ratio (NTR)
-        S = adata[:, valid_ind].layers['X_total'].T
+        total = adata[:, valid_ind].layers['X_total'].T
+        if experiment_type is not 'kin' and experiment_type is not 'mix_std_stm': S = total
     elif 'total' in adata.layers.keys():
-        raw = adata[:, valid_ind].layers['total'].T
-        raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
-        S = raw
+        total = adata[:, valid_ind].layers['total'].T
+        if experiment_type is not 'kin' and experiment_type is not 'mix_std_stm':
+            raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+            S = total
 
     elif 'X_su' in adata.layers.keys():  # unlabel spliced: S
         S = adata[:, valid_ind].layers['X_su'].T
@@ -148,7 +150,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         assumption_mRNA = 'ss'
     else:
         if 'X_total' in adata.layers.keys() or 'total' in adata.layers.keys():
-            old = S - Ul
+            old = total - Ul
             U = old
 
     if mode is 'deterministic':
@@ -277,6 +279,6 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
     elif mode is 'model_selection':
         warnings.warn('Not implemented yet.')
 
-    adata.uns['dynamics'] = {'experiment_type': experiment_type, "normalized": normalized, "mode": mode, "has_splicing": has_splicing,
+    adata.uns['dynamics'] = {'asspt_mRNA': assumption_mRNA, 'experiment_type': experiment_type, "normalized": normalized, "mode": mode, "has_splicing": has_splicing,
                              "has_labeling": has_labeling, "has_protein": has_protein}
     return adata

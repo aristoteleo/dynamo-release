@@ -4,7 +4,9 @@ from .scatters import scatters
 from ..tools.velocity import sol_u, sol_s
 from ..tools.utils_moments import moments
 
-def metabolic_labeling_fit(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, group=None, ncols=None, figsize=None, dpi=None, boxwidth=0.5, show=True):
+
+def metabolic_labeling_fit(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, group=None, ncols=None,
+                           figsize=None, dpi=None, boxwidth=0.5, barwidth=0.35, show=True):
     """ Plot the data and fitting of different metabolic labeling experiments.
 
     Parameters
@@ -40,7 +42,7 @@ def metabolic_labeling_fit(adata, vkey, tkey, unit='hours', log=True, y_log_scal
     import matplotlib.pyplot as plt
     # import seaborn as sns
 
-    experiment_type, _, mode, has_splicing, has_labeling, has_protein = adata.uns['dynamics'].values()
+    asspt_mRNA, experiment_type, _, mode, has_splicing, has_labeling, has_protein = adata.uns['dynamics'].values()
 
     groups = [''] if group is None else np.unique(adata.obs[group])
 
@@ -55,15 +57,19 @@ def metabolic_labeling_fit(adata, vkey, tkey, unit='hours', log=True, y_log_scal
             tmp = [adata[:, gene_idx].layers['X_ul'].A.T, adata.layers['X_sl'].A.T] if 'X_ul' in adata.layers.keys() else \
                     [adata[:, gene_idx].layers['ul'].A.T, adata.layers['sl'].A.T]
             x_data = [tmp[0].A, tmp[1].A] if issparse(tmp[0]) else tmp
-        else:
-            sub_plot_n = 2 if experiment_type is 'deg' else 4 if experiment_type is 'kin' else 8 if experiment_type is 'moment' else 1
+        elif experiment_type is 'kin'or experiment_type is 'deg':
+            sub_plot_n = 4
+        elif experiment_type is 'mix_std_stm':
+            sub_plot_n = 8 # ? two alpha
     else:
         if mode is 'moment':
             sub_plot_n = 2
             tmp = adata[:, gene_idx].layers['X_new'].T if 'X_new' in adata.layers.keys() else adata[:, gene_idx].layers['new'].T
             x_data = [tmp.A] if issparse(tmp) else [tmp]
-        else:
-            sub_plot_n = 2 if experiment_type is 'deg' else 4 if experiment_type is 'kin' else 8 if experiment_type is 'moment' else 1
+        elif experiment_type is 'kin'or experiment_type is 'deg':
+            sub_plot_n = 2
+        elif experiment_type is 'mix_std_stm':
+            sub_plot_n = 4 #  ? two alpha
 
     ncols = len(gene_idx) if ncols is None else min(len(gene_idx), ncols)
     nrows = int(np.ceil(len(gene_idx) * sub_plot_n / ncols))
@@ -75,7 +81,10 @@ def metabolic_labeling_fit(adata, vkey, tkey, unit='hours', log=True, y_log_scal
         #
         t = np.linspace(Tsort[0], Tsort[-1], Tsort[-1] - Tsort[0])
 
-        if mode is 'moment':
+        if asspt_mRNA is 'ss':
+            # run the phase plot
+            pass
+        elif mode is 'moment':
             a, b, alpha_a, alpha_i, beta, gamma = adata.var.loc[gene_name, \
              [prefix + 'a', prefix + 'b', prefix + 'alpha_a', prefix + 'alpha_i', prefix + 'beta', prefix + 'gamma']]
             params = {'a': a, 'b': b, 'alpha_a': alpha_a, 'alpha_i': alpha_i, 'beta': beta, 'gamma': gamma} # "la": 1, "si": 0,
@@ -84,7 +93,7 @@ def metabolic_labeling_fit(adata, vkey, tkey, unit='hours', log=True, y_log_scal
             mom_data = mom.get_all_central_moments() if has_splicing else mom.get_nosplice_central_moments()
 
             # n_mean, n_var = x_data[:2, :], x_data[2:, :]
-            if has_splicing and has_labeling:
+            if has_splicing:
                 title_ = ['(unspliced labeled)', '(spliced labeled)',
                           '(unspliced labeled)', '(spliced labeled)']
                 Obs_m = [adata.uns['M_ul'], adata.uns['M_sl']]
@@ -118,69 +127,160 @@ def metabolic_labeling_fit(adata, vkey, tkey, unit='hours', log=True, y_log_scal
                 ax.set_title(gene_name + title_[j])
                 if y_log_scale: ax.set_yscale('log')
         elif experiment_type is 'deg':
-            new, old = adata[:, gene_name].layers['new'], adata[:, gene_name].layers['total'] - \
-                       adata[:, gene_name].layers['new']
-            u, l = (old.toarray().squeeze(), new.toarray().squeeze()) if issparse(old) else (old.squeeze(), new.squeeze())
+            if has_splicing:
+                layers = ['X_uu', 'X_ul', 'X_su', 'X_sl'] if 'X_ul' in adata.layers.keys() else ['uu', 'ul', 'su', 'sl']
+                uu, ul, su, sl = adata[:, gene_name].layers[layers[0]], adata[:, gene_name].layers[layers[1]], \
+                           adata[:, gene_name].layers[layers[2]], adata[:, gene_name].layers[layers[3]]
+                uu, ul, su, sl = (uu.toarray().squeeze(), ul.toarray().squeeze(), su.toarray().squeeze(), sl.toarray().squeeze()) \
+                    if issparse(uu) else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
+                alpha, beta, gamma, ul0, sl0 = adata.var.loc[
+                    gene_name, [prefix + 'alpha', prefix + 'beta', prefix + 'gamma', prefix + 'ul0', prefix + 'sl0']]
+                # $u$ - unlabeled, unspliced
+                # $s$ - unlabeled, spliced
+                # $w$ - labeled, unspliced
+                # $l$ - labeled, spliced
+                #
+                u = sol_u(t, ul0, 0, beta)
+                s = sol_s(t, sl0, ul0, 0, beta, gamma)
+                w = sol_u(t, 0, alpha, beta)
+                l = sol_s(t, 0, 0, alpha, beta, gamma)
+            else:
+                layers = ['X_new', 'X_total'] if 'X_new' in adata.layers.keys() else ['new', 'total']
+                uu, ul, su, sl = adata[:, gene_name].layers[layers[0]], adata[:, gene_name].layers[layers[0]], None, None
+                uu, ul = (uu.toarray().squeeze(), ul.toarray().squeeze()) if issparse(uu) else (uu.squeeze(), ul.squeeze())
+                alpha, gamma, ul0 = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'ul0']]
 
-            if log:
-                u, l = np.log(u + 1), np.log(l + 1)
-            alpha, gamma, u0, l0 = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'uu0', prefix + 'ul0']]
-            if u0 is None or np.isnan(u0):
-                u0 = np.mean(u[T == np.min(T)])
-            # [adata.obs[group] == cur_grp, gene_idx]
-
-            # beta, gamma, alpha
-            row_ind = int(np.floor(idx/ncols)) # make sure unlabled and labeled are in the same column.
-            ax1 = plt.subplot(gs[row_ind * ncols * sub_plot_n + idx % ncols])
-            ax1 = sns.violinplot(x=T.values, y=u.T, ax=ax1) #ax1.plot(T, u.T, linestyle='None', marker='o', markersize=10)
-            ax1.plot(t, alpha/gamma + (u0 - alpha/gamma) * np.exp(-gamma*t), 'k--')
-            ax1.set_xlabel('time (' + unit + ')')
-            ax1.set_ylabel('Expression')
-            ax1.set_title(gene_name + '(unlabeled)')
-
-            ax2 = plt.subplot(gs[(1 + sub_plot_n * row_ind) * ncols + idx % ncols])
-            ax2 = sns.violinplot(x=T.values, y=l.T, ax=ax2) # ax2.plot(T, l.T, linestyle='None', marker='o', markersize=10)
-            ax2.plot(t, l0 * np.exp(-gamma*t), 'k--')
-            ax2.set_xlabel('time (' + unit + ')')
-            ax2.set_ylabel('Expression')
-            ax2.set_title(gene_name + '(labeled)')
-        elif experiment_type is 'kin':
-            uu, ul, su, sl = adata[:, gene_name].layers['uu'], adata[:, gene_name].layers['ul'], \
-                       adata[:, gene_name].layers['su'], adata[:, gene_name].layers['sl']
-            uu, ul, su, sl = (uu.toarray().squeeze(), ul.toarray().squeeze(), su.toarray().squeeze(), sl.toarray().squeeze()) \
-                if issparse(old) else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
-
-            alpha, gamma, uu0, su0 = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'uu0', prefix + 'su0']]
-            beta = 1
-            u = sol_u(t, uu0, 0, beta)
-            s = sol_s(t, su0, uu0, 0, beta, gamma)
-            w = sol_u(t, 0, alpha, beta)
-            l = sol_s(t, 0, 0, alpha, beta, gamma)
+                # require no beta functions
+                u = sol_u(t, ul0, 0, gamma)
+                s = None # sol_s(t, su0, uu0, 0, 1, gamma)
+                w = sol_u(t, 0, alpha, gamma)
+                l = None # sol_s(t, 0, 0, alpha, 1, gamma)
 
             Obs, Pred = np.vstack((uu, ul, su, sl)), np.vstack((u, w, s, l))
             title_ = ['(unspliced unlabeled)', '(unspliced labeled)', '(spliced unlabeled)', '(spliced labeled)']
 
-            for j in range(4):
+            for j in range(sub_plot_n):
                 row_ind = int(np.floor(idx/ncols)) # make sure unlabled and labeled are in the same column.
-                ax = plt.subplot(gs[(row_ind * sub_plot_n + i) * ncols + idx % ncols])
-                ax = sns.violinplot(x=T.values, y=Obs[i], ax=ax) #ax1.plot(T, u.T, linestyle='None', marker='o', markersize=10)
+                ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols + i % ncols])
+                ax.boxplot(x=[Obs[i][T == std] for std in Tsort], positions=Tsort, widths=boxwidth,
+                           showfliers=False)
+                ax.plot(t, u, 'k--')
+                ax.set_xlabel('time (' + unit + ')')
+                ax.set_ylabel('Expression')
+                ax.set_title(gene_name + title_[j])
+        elif experiment_type is 'kin':
+            if has_splicing:
+                layers = ['X_uu', 'X_ul', 'X_su', 'X_sl'] if 'X_ul' in adata.layers.keys() else ['uu', 'ul', 'su', 'sl']
+                uu, ul, su, sl = adata[:, gene_name].layers[layers[0]], adata[:, gene_name].layers[layers[1]], \
+                           adata[:, gene_name].layers[layers[2]], adata[:, gene_name].layers[layers[3]]
+                uu, ul, su, sl = (uu.toarray().squeeze(), ul.toarray().squeeze(), su.toarray().squeeze(), sl.toarray().squeeze()) \
+                    if issparse(uu) else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
+                alpha, beta, gamma, uu0, su0 = adata.var.loc[
+                    gene_name, [prefix + 'alpha', prefix + 'beta', prefix + 'gamma', prefix + 'uu0', prefix + 'su0']]
+                # $u$ - unlabeled, unspliced
+                # $s$ - unlabeled, spliced
+                # $w$ - labeled, unspliced
+                # $l$ - labeled, spliced
+                #
+                u = sol_u(t, uu0, 0, beta)
+                s = sol_s(t, su0, uu0, 0, beta, gamma)
+                w = sol_u(t, 0, alpha, beta)
+                l = sol_s(t, 0, 0, alpha, beta, gamma)
+            else:
+                layers = ['X_new', 'X_total'] if 'X_new' in adata.layers.keys() else ['new', 'total']
+                uu, ul, su, sl = adata[:, gene_name].layers[layers[0]], adata[:, gene_name].layers[layers[0]], None, None
+                uu, ul = (uu.toarray().squeeze(), ul.toarray().squeeze()) if issparse(uu) else (uu.squeeze(), ul.squeeze())
+                alpha, gamma, uu0, su0 = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'uu0', prefix + 'su0']]
+
+                # require no beta functions
+                u = sol_u(t, uu0, 0, gamma)
+                s = None # sol_s(t, su0, uu0, 0, 1, gamma)
+                w = sol_u(t, 0, alpha, gamma)
+                l = None # sol_s(t, 0, 0, alpha, 1, gamma)
+
+            Obs, Pred = np.vstack((uu, ul, su, sl)), np.vstack((u, w, s, l))
+            title_ = ['(unspliced unlabeled)', '(unspliced labeled)', '(spliced unlabeled)', '(spliced labeled)']
+
+            for j in range(sub_plot_n):
+                row_ind = int(np.floor(idx/ncols)) # make sure unlabled and labeled are in the same column.
+                ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols + i % ncols])
+                ax.boxplot(x=[Obs[i][T == std] for std in Tsort], positions=Tsort, widths=boxwidth,
+                           showfliers=False)
                 ax.plot(t, u, 'k--')
                 ax.set_xlabel('time (' + unit + ')')
                 ax.set_ylabel('Expression')
                 ax.set_title(gene_name + title_[j])
         elif experiment_type is 'mix_std_stmu':
-            uu, ul, su, sl = adata[:, gene_name].layers['uu'], adata[:, gene_name].layers['ul'], \
-                       adata[:, gene_name].layers['su'], adata[:, gene_name].layers['sl']
-            uu, ul, su, sl = (uu.toarray().squeeze(), ul.toarray().squeeze(), su.toarray().squeeze(), sl.toarray().squeeze()) \
-                if issparse(old) else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
+            # we need to visualize two
+            if has_splicing:
+                layers = ['X_uu', 'X_ul', 'X_su', 'X_sl'] if 'X_ul' in adata.layers.keys() else ['uu', 'ul', 'su', 'sl']
+                uu, ul, su, sl = adata[:, gene_name].layers[layers[0]], adata[:, gene_name].layers[layers[1]], \
+                           adata[:, gene_name].layers[layers[2]], adata[:, gene_name].layers[layers[3]]
+                uu, ul, su, sl = (uu.toarray().squeeze(), ul.toarray().squeeze(), su.toarray().squeeze(), sl.toarray().squeeze()) \
+                    if issparse(uu) else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
+                beta, gamma, uu0, su0 = adata.var.loc[gene_name, [prefix + 'beta', prefix + 'gamma', prefix + 'uu0', prefix + 'su0']]
+                group_list = [adata.var.loc[gene_name, prefix + 'alpha_std'].to_list(),
+                              adata.var.loc[gene_name, prefix + 'alpha'].to_list()]
+                # $u$ - unlabeled, unspliced
+                # $s$ - unlabeled, spliced
+                # $w$ - labeled, unspliced
+                # $l$ - labeled, spliced
+                #
+                u = sol_u(t, uu0, 0, beta)
+                s = sol_s(t, su0, uu0, 0, beta, gamma)
+                w = sol_u(t, 0, alpha, beta)
+                l = sol_s(t, 0, 0, alpha, beta, gamma)
+                j_species = 1
+            else:
+                layers = ['X_new', 'X_total'] if 'X_new' in adata.layers.keys() else ['new', 'total']
+                uu, ul, su, sl = adata[:, gene_name].layers[layers[0]], adata[:, gene_name].layers[layers[0]], None, None
+                uu, ul = (uu.toarray().squeeze(), ul.toarray().squeeze()) if issparse(uu) else (uu.squeeze(), ul.squeeze())
+                gamma, uu0, su0 = adata.var.loc[gene_name, [prefix + 'gamma', prefix + 'uu0', prefix + 'su0']]
+                group_list = [adata.var.loc[gene_name, prefix + 'alpha_std'].to_list(),
+                              adata.var.loc[gene_name, prefix + 'alpha'].to_list()]
+
+                # require no beta functions
+                u = sol_u(t, uu0, 0, gamma)
+                s = None # sol_s(t, su0, uu0, 0, 1, gamma)
+                w = sol_u(t, 0, alpha, gamma)
+                l = None # sol_s(t, 0, 0, alpha, 1, gamma)
+                j_species = 1
+
+            Obs, Pred = np.vstack((uu, ul, su, sl)), np.vstack((u, w, s, l))
+            title_ = ['(unspliced unlabeled)', '(unspliced labeled)', '(spliced unlabeled)', '(spliced labeled)']
+
+            x = np.arange(len(gene_name))  # the label locations
+            group_width = barwidth / len(group_list)
+            bar_coord, group_name, group_ind = [-1, 1], ['steady state', 'stimulation'], 0
+
+            ax.set_title('alpha between steady state or stimulation')
+            for cur_group in group_list:
+                ax.bar(x + bar_coord[group_ind] * group_width, cur_group, 0.35, label=group_name[group_ind])
+
+                # Add gene name, experimental type, etc.
+                ax.set_ylabel('alpha (translation rate)')
+                ax.set_xticks(x)
+                ax.set_xticklabels(gene_name)
+                group_ind += 1
+            ax.legend()
+
+            for j in range(sub_plot_n):
+                row_ind = int(np.floor(idx/ncols)) # make sure unlabled and labeled are in the same column.
+                ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols + i % ncols])
+                ax.boxplot(x=[Obs[i][T == std] for std in Tsort], positions=Tsort, widths=boxwidth,
+                           showfliers=False)
+                ax.plot(t, u, 'k--')
+                ax.set_xlabel('time (' + unit + ')')
+                ax.set_ylabel('Expression')
+                ax.set_title(gene_name + title_[j])
 
             alpha, gamma, uu0, su0 = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'uu0', prefix + 'su0']]
         elif experiment_type is 'one_shot':
             pass
         elif experiment_type is 'multi_time_series':
-            pass
+            pass # group by different groups
         elif experiment_type is 'coassay':
-            pass
+            pass # show protein velocity (steady state and the Gamma distribution model)
 
     if show: plt.show()
 

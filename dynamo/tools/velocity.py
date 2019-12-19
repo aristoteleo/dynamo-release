@@ -126,6 +126,28 @@ def sol_p(t, p0, s0, u0, alpha, beta, gamma, eta, delta):
     p = p0*exp_gt + eta/(delta-gamma)*(s-s0*exp_gt - beta/(delta-beta)*(u-u0*exp_gt-alpha/delta*(1-exp_gt)))
     return p, s, u
 
+def solve_gamma(t, old, total):
+    """ Analytical solution to calculate gamma (degradation rate)
+
+    Parameters
+    ----------
+    t: `float`
+        Metabolic labeling time period.
+    old: :class:`~numpy.ndarray` or sparse `csr_matrix`
+        A vector of old RNA amount in each cell
+    total: :class:`~numpy.ndarray` or sparse `csr_matrix`
+        A vector of total RNA amount in each cell
+
+    Returns
+    -------
+    Returns the degradation rate (gamma)
+    """
+
+    old, total = np.mean(old.A), np.mean(total.A) if issparse(old) else np.mean(old), np.mean(total)
+    gamma = - 1/t * np.log(old / total)
+
+    return gamma
+
 def fit_linreg(x, y, intercept=True):
     """Simple linear regression: y = kx + b.
 
@@ -698,7 +720,7 @@ class estimation:
         self.asspt_prot = assumption_protein
         self.parameters = {'alpha': None, 'beta': None, 'gamma': None, 'eta': None, 'delta': None}
         self.aux_param = {'alpha_intercept': None, 'alpha_r2': None, 'gamma_intercept': None, 'gamma_r2': None, 'delta_intercept': None, \
-                          'delta_r2': None, "uu0": None, "ul0": None, "su0": None, "sl0": None} # note that alpha_intercept also corresponds to u0 in fit_alpha_degradation, similar to fit_first_order_deg_lsq
+                          'delta_r2': None, "uu0": None, "ul0": None, "su0": None, "sl0": None, 'U0': None, 'S0': None, 'total0': None} # note that alpha_intercept also corresponds to u0 in fit_alpha_degradation, similar to fit_first_order_deg_lsq
         self.ind_for_proteins = ind_for_proteins
 
     def fit(self, intercept=True, perc_left=5, perc_right=5, clusters=None):
@@ -770,7 +792,17 @@ class estimation:
                         alpha[i, :] = fit_alpha_synthesis(self.t, self.data['ul'][i], self.parameters['beta'][i])
                     self.parameters['alpha'] = alpha
                 elif np.all(self._exist_data('ul', 'uu')):
-                    gamma = self.fit_beta_lsq(self.t, self.data['uu'])
+                    n = self.data['uu'].shape[0]  # self.get_n_genes(data=U)
+                    u0, gamma = np.zeros(n), np.zeros(n)
+                    for i in range(n):
+                        gamma[i], u0[i] = fit_first_order_deg_lsq(self.t, self.data['uu'][i])
+                    self.parameters['gamma'], self.aux_param[' n'] = gamma, u0
+                    alpha = np.zeros_like(self.data['ul'].A) if issparse(self.data['ul']) else np.zeros_like(self.data['ul'])
+                    # assume constant alpha across all cells
+                    for i in range(n):
+                        # for j in range(len(self.data['ul'][i])):
+                        alpha[i, :] = fit_alpha_synthesis(self.t, self.data['ul'][i], self.parameters['gamma'][i])
+                    self.parameters['alpha'] = alpha
                     # alpha: one-shot
             # 'one_shot'
             elif self.extyp == 'one_shot':
@@ -778,15 +810,32 @@ class estimation:
                     self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
             elif self.extyp == 'mix_std_stm':
                 if np.all(self._exist_data('ul', 'uu', 'su')):
-                    self.parameters['beta'], self.parameters['gamma'], self.aux_param['uu0'], self.aux_param['su0'] = \
-                        self.fit_beta_gamma_lsq(self.t, self.data['uu'], self.data['su'])
+                    gamma, beta, total, U = np.zeros(n), np.zeros(n), np.zeros(n), np.zeros(n)
+                    for i in range(n): # can also use the two extreme time points and apply sci-fate like approach.
+                        tmp = self.uu[i, self.t == 0] + self.ul[i, self.t == 0] + self.su[i, self.t == 0] + self.sl[i, self.t == 0]
+                        total[i], gamma[i] = np.mean(tmp.A) if issparse(tmp) else np.mean(tmp), solve_gamma(np.max(self.t), self.uu[i, self.t == 0] + self.su[i, self.t == 0], tmp)
+                        # same for beta
+                        tmp = self.uu[i, self.t == 0] + self.ul[i, self.t == 0]
+                        U[i], beta[i] = np.mean(tmp.A) if issparse(tmp) else np.mean(tmp), solve_gamma(np.max(self.t), self.uu[i, self.t == 0], tmp)
+
+                    self.parameters['beta'], self.parameters['gamma'], self.aux_param['total0'], self.aux_param['U0'] = beta, gamma, total, U
                     # alpha estimation
                     # assume constant alpha across all cells
                     # for i in range(n):
                     #     # for j in range(len(self.data['ul'][i])):
                     self.parameters['alpha'] = self.fit_alpha_lsq_mix_std_stm(self.t, self.data['ul'], self.parameters['beta'])
                 elif np.all(self._exist_data('ul', 'uu')):
-                    pass
+                    n = self.data['uu'].shape[0]  # self.get_n_genes(data=U)
+                    gamma, U = np.zeros(n), np.zeros(n)
+                    for i in range(n): # can also use the two extreme time points and apply sci-fate like approach.
+                        tmp = self.uu[i, self.t == 0] + self.ul[i, self.t == 0]
+                        U[i], gamma[i] = np.mean(tmp.A) if issparse(tmp) else np.mean(tmp), solve_gamma(np.max(self.t), self.uu[i, self.t == 0], tmp)
+                    self.parameters['gamma'], self.parameters['U0'] = gamma, U
+                    # alpha estimation
+                    # assume constant alpha across all cells
+                    # for i in range(n):
+                    #     # for j in range(len(self.data['ul'][i])):
+                    self.parameters['alpha'] = self.fit_alpha_lsq_mix_std_stm(self.t, self.data['ul'], self.parameters['gamma'])
         # fit protein
         if np.all(self._exist_data('p', 'su')):
             ind_for_proteins = self.ind_for_proteins
@@ -901,9 +950,7 @@ class estimation:
             gamma[i], l0 = fit_first_order_deg_lsq(t, L[i].A[0]) if issparse(L) else fit_first_order_deg_lsq(t, L[i])
         return gamma, l0
 
-    def fit_alpha_lsq_mix_std_stm(self, t, ul, beta, bounds=(0, np.inf), clusters=None):
-        alpha_std_ini, alpha_stm_ini, alpha_std, alpha_stm = np.zeros(ul.shape), np.zeros(ul.shape), np.zeros(ul.shape), np.zeros(ul.shape)
-
+    def fit_alpha_lsq_mix_std_stm(self, t, ul, beta, bounds=(0, np.inf), clusters=None, alpha_time_dependent=False):
         # calculate alpha initial guess:
         t = np.array(t) if type(t) is list else t
         t_std, t_stm = np.max(t) - t, t
@@ -913,24 +960,45 @@ class estimation:
         alpha_std_ini = np.mean(self.fit_alpha_oneshot(valid_t_std, ul[:, valid_t_std_ind], beta, clusters), 1)
         alpha_stm_ini = np.mean(self.fit_alpha_oneshot(valid_t_stm, ul[:, valid_t_stm_ind], beta, clusters), 1)
 
-        def u_est(t_, beta, alpha0, alpha1):
-            t_uniq = np.unique(t_)
-            u1 = np.zeros(len(t_uniq) - 2)
-            for ind in np.arange(1, len(t_uniq) - 1):
-                t_i = t_uniq[ind]
-                u0 = sol_u(np.max(t_uniq) - t_i, 0, alpha0, beta)
-                u1[ind - 1] = sol_u(t_i, u0, alpha1, beta)
+        if alpha_time_dependent is False:
+            alpha_std, alpha_stm = np.zeros(ul.shape), np.zeros(ul.shape)
+            def u_est(t_, beta, alpha0, alpha1):
+                t_uniq = np.unique(t_)
+                u1 = np.zeros(len(t_uniq) - 2)
+                for ind in np.arange(1, len(t_uniq) - 1):
+                    t_i = t_uniq[ind]
+                    u0 = sol_u(np.max(t_uniq) - t_i, 0, alpha0, beta)
+                    u1[ind - 1] = sol_u(t_i, u0, alpha1, beta)
 
-            return u1
+                return u1
 
-        for i in range(ul.shape[0]):
-            l = ul[i]
-            l_mean = strat_mom(l.A.flatten(), t, np.nanmean) if issparse(l) else strat_mom(l, t, np.nanmean)
-            beta_ = beta[i]
+            for i in range(ul.shape[0]):
+                l = ul[i]
+                l_mean = strat_mom(l.A.flatten(), t, np.nanmean) if issparse(l) else strat_mom(l, t, np.nanmean)
+                beta_ = beta[i]
 
-            f_lsq = lambda a, t = t, beta_ = beta_, l_mean = l_mean: u_est(t, beta_, a[0], a[1]) - l_mean[np.arange(1, len(l_mean) - 1)] # include the variance constraints
-            ret = least_squares(f_lsq, [alpha_std_ini[i], alpha_stm_ini[i]], bounds=bounds)
-            alpha_std[i], alpha_stm[i] = ret.x
+                f_lsq = lambda a, t = t, beta_ = beta_, l_mean = l_mean: u_est(t, beta_, a[0], a[1]) - l_mean[np.arange(1, len(l_mean) - 1)] # include the variance constraints
+                ret = least_squares(f_lsq, [alpha_std_ini[i], alpha_stm_ini[i]], bounds=bounds)
+                alpha_std[i], alpha_stm[i] = ret.x
+        else:
+            alpha_stm, alpha_std = np.zeros((ul.shape[0], len(np.unique(t)))), alpha_std_ini
+
+            def u_est(t0, t1, beta, alpha0, alpha1):
+                u0 = sol_u(t0, 0, alpha0, beta)
+                u1 = sol_u(t1, u0, alpha1, beta)
+
+                return u1
+
+            for i in range(ul.shape[0]):
+                l = ul[i]
+                l_mean = strat_mom(l.A.flatten(), t, np.nanmean) if issparse(l) else strat_mom(l, t, np.nanmean)
+                alpha0, beta_ = alpha_std[i], beta[i]
+
+                t_uniq, t_max = np.unique(t), np.max(t)
+                for ind in np.arange(1, len(t_uniq) - 1):
+                    f_lsq = lambda a, t0=t_max - t_uniq[ind], t1=t_uniq[ind], alpha0=alpha0, beta_=beta_, l_mean_=l_mean[ind]: u_est(t0, t1, beta_, alpha0, a) - l_mean_  # include the variance constraints
+                    ret = least_squares(f_lsq, [alpha_stm_ini[i]], bounds=bounds)
+                    alpha_stm[i] = ret.x
 
         return alpha_std, alpha_stm
 
@@ -1029,4 +1097,3 @@ class estimation:
             if v is not None:
                 ret.append(k)
         return ret
-
