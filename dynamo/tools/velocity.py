@@ -148,6 +148,34 @@ def solve_gamma(t, old, total):
 
     return gamma
 
+def solve_alpha_2p(t0, t1, alpha0, beta, u1):
+    """Given known steady state alpha and beta, solve stimulation alpha for a mixed steady state and stimulation labeling experiment.
+
+    Parameters
+    ----------
+    t0: `float`
+        Time period for steady state labeling.
+    t1: `float`
+        Time period for stimulation labeling.
+    alpha0: `float`
+        steady state transcription rate calculated from one-shot experiment mode.
+    beta: `float`
+        steady state (and simulation) splicing rate calculated from one-shot experiment mode.
+    u1: :class:`~numpy.ndarray` or sparse `csr_matrix`
+        A vector of labeled RNA amount in each cell
+
+    Returns
+    -------
+    Returns the transcription rate (alpha1) for the stimulation period in the data.
+    """
+
+    u1 = np.mean(u1.A) if issparse(u1) else np.mean(u1)
+
+    u0 = alpha0 / beta * (1 - np.exp(- beta * t0))
+    alpha1 = beta * (u1 - u0 * np.exp(-beta * t1)) / (1 - np.exp(-beta * t1))
+
+    return alpha1
+
 def fit_linreg(x, y, intercept=True):
     """Simple linear regression: y = kx + b.
 
@@ -728,15 +756,15 @@ class estimation:
 
         Arguments
         ---------
-        intercept: bool
+        intercept: `bool`
             If using steady state assumption for fitting, then:
             True -- the linear regression is performed with an unfixed intercept;
             False -- the linear regression is performed with a fixed zero intercept.
-        perc_left: float (default: 5)
+        perc_left: `float` (default: 5)
             The percentage of samples included in the linear regression in the left tail. If set to None, then all the samples are included.
-        perc_right: float (default: 5)
+        perc_right: `float` (default: 5)
             The percentage of samples included in the linear regression in the right tail. If set to None, then all the samples are included.
-        clusters: list
+        clusters: `list`
             A list of n clusters, each element is a list of indices of the samples which belong to this cluster.
         """
         n = self.data['uu'].shape[0] # get_n_genes()
@@ -806,6 +834,7 @@ class estimation:
                     # alpha: one-shot
             # 'one_shot'
             elif self.extyp == 'one_shot':
+                # calculate when having splicing or no splicing
                 if self._exist_data('ul') and self._exist_parameter('beta'):
                     self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
             elif self.extyp == 'mix_std_stm':
@@ -823,7 +852,7 @@ class estimation:
                     # assume constant alpha across all cells
                     # for i in range(n):
                     #     # for j in range(len(self.data['ul'][i])):
-                    self.parameters['alpha'] = self.fit_alpha_lsq_mix_std_stm(self.t, self.data['ul'], self.parameters['beta'])
+                    self.parameters['alpha'] = self.solve_alpha_mix_std_stm(self.t, self.data['ul'], self.parameters['beta'])
                 elif np.all(self._exist_data('ul', 'uu')):
                     n = self.data['uu'].shape[0]  # self.get_n_genes(data=U)
                     gamma, U = np.zeros(n), np.zeros(n)
@@ -835,7 +864,7 @@ class estimation:
                     # assume constant alpha across all cells
                     # for i in range(n):
                     #     # for j in range(len(self.data['ul'][i])):
-                    self.parameters['alpha'] = self.fit_alpha_lsq_mix_std_stm(self.t, self.data['ul'], self.parameters['gamma'])
+                    self.parameters['alpha'] = self.solve_alpha_mix_std_stm(self.t, self.data['ul'], self.parameters['gamma'])
         # fit protein
         if np.all(self._exist_data('p', 'su')):
             ind_for_proteins = self.ind_for_proteins
@@ -950,57 +979,47 @@ class estimation:
             gamma[i], l0 = fit_first_order_deg_lsq(t, L[i].A[0]) if issparse(L) else fit_first_order_deg_lsq(t, L[i])
         return gamma, l0
 
-    def fit_alpha_lsq_mix_std_stm(self, t, ul, beta, bounds=(0, np.inf), clusters=None, alpha_time_dependent=False):
+    def solve_alpha_mix_std_stm(self, t, ul, beta, clusters=None, alpha_time_dependent=True):
+        """Estimate the steady state transcription rate and analtyically calculate the stimulation transcription rate
+        given beta for a mixed steady state and stimulation labeling experiment
+
+        Parameters
+        ----------
+        t: `list` or `numpy.ndarray`
+            Time period for stimulation state labeling for each cell.
+        ul:
+            A vector of labeled RNA amount in each cell.
+        beta: `numpy.ndarray`
+            A list of splicing rate for genes.
+        clusters: `list`
+            A list of n clusters, each element is a list of indices of the samples which belong to this cluster.
+        alpha_time_dependent: `bool`
+            Whether or not to model the simulation alpha rate as a time dependent variable.
+
+        Returns
+        -------
+        alpha_std, alpha_stm: `numpy.ndarray`, `numpy.ndarray`
+            The constant steady state transcription rate (alpha_std) or time-dependent or time-independent (determined by
+            alpha_time_dependent) transcription rate (alpha_stm)
+        """
+
         # calculate alpha initial guess:
         t = np.array(t) if type(t) is list else t
-        t_std, t_stm = np.max(t) - t, t
-        valid_t_std_ind, valid_t_stm_ind = t_std == np.max(t_std), t_stm == np.max(t_stm)
+        t_std, t_stm, t_uniq, t_max = np.max(t) - t, t, np.unique(t), np.max(t)
+        valid_t_std_ind = t_std == np.max(t_std)
         valid_t_std = t_std[valid_t_std_ind]
-        valid_t_stm = t_stm[valid_t_stm_ind]
         alpha_std_ini = np.mean(self.fit_alpha_oneshot(valid_t_std, ul[:, valid_t_std_ind], beta, clusters), 1)
-        alpha_stm_ini = np.mean(self.fit_alpha_oneshot(valid_t_stm, ul[:, valid_t_stm_ind], beta, clusters), 1)
 
-        if alpha_time_dependent is False:
-            alpha_std, alpha_stm = np.zeros(ul.shape), np.zeros(ul.shape)
-            def u_est(t_, beta, alpha0, alpha1):
-                t_uniq = np.unique(t_)
-                u1 = np.zeros(len(t_uniq) - 2)
-                for ind in np.arange(1, len(t_uniq) - 1):
-                    t_i = t_uniq[ind]
-                    u0 = sol_u(np.max(t_uniq) - t_i, 0, alpha0, beta)
-                    u1[ind - 1] = sol_u(t_i, u0, alpha1, beta)
+        alpha_std, alpha_stm = alpha_std_ini, np.zeros((ul.shape, len(t_uniq) - 1)) # don't include 0 stimulation point
 
-                return u1
+        for i in range(ul.shape[0]):
+            l = ul[i]
+            for t_ind in np.arange(1, len(t_uniq)):
+                alpha_stm[i, t_ind] = solve_alpha_2p(t_max - t_uniq[t_ind], t_uniq[t_ind], alpha_std[i], beta[i], l)
+        if not alpha_time_dependent:
+            alpha_stm = alpha_stm.min(1)
 
-            for i in range(ul.shape[0]):
-                l = ul[i]
-                l_mean = strat_mom(l.A.flatten(), t, np.nanmean) if issparse(l) else strat_mom(l, t, np.nanmean)
-                beta_ = beta[i]
-
-                f_lsq = lambda a, t = t, beta_ = beta_, l_mean = l_mean: u_est(t, beta_, a[0], a[1]) - l_mean[np.arange(1, len(l_mean) - 1)] # include the variance constraints
-                ret = least_squares(f_lsq, [alpha_std_ini[i], alpha_stm_ini[i]], bounds=bounds)
-                alpha_std[i], alpha_stm[i] = ret.x
-        else:
-            alpha_stm, alpha_std = np.zeros((ul.shape[0], len(np.unique(t)))), alpha_std_ini
-
-            def u_est(t0, t1, beta, alpha0, alpha1):
-                u0 = sol_u(t0, 0, alpha0, beta)
-                u1 = sol_u(t1, u0, alpha1, beta)
-
-                return u1
-
-            for i in range(ul.shape[0]):
-                l = ul[i]
-                l_mean = strat_mom(l.A.flatten(), t, np.nanmean) if issparse(l) else strat_mom(l, t, np.nanmean)
-                alpha0, beta_ = alpha_std[i], beta[i]
-
-                t_uniq, t_max = np.unique(t), np.max(t)
-                for ind in np.arange(1, len(t_uniq) - 1):
-                    f_lsq = lambda a, t0=t_max - t_uniq[ind], t1=t_uniq[ind], alpha0=alpha0, beta_=beta_, l_mean_=l_mean[ind]: u_est(t0, t1, beta_, alpha0, a) - l_mean_  # include the variance constraints
-                    ret = least_squares(f_lsq, [alpha_stm_ini[i]], bounds=bounds)
-                    alpha_stm[i] = ret.x
-
-        return alpha_std, alpha_stm
+        return (alpha_std, alpha_stm)
 
     def fit_alpha_oneshot(self, t, U, beta, clusters=None):
         """Estimate alpha with the one-shot data.
