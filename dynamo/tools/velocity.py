@@ -528,8 +528,8 @@ class velocity:
             Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
         """
 
-        t = self.t
-        t_uniq, t_uniq_cnt = np.unique(self.t, return_counts=True)
+        t = self.parameters['t']
+        t_uniq, t_uniq_cnt = np.unique(self.parameters['t'], return_counts=True)
         if self.parameters['alpha'] is not None and self.parameters['beta'] is not None:
             if type(self.parameters['alpha']) is not tuple:
                 if self.parameters['alpha'].shape[1] == U.shape[1]:
@@ -590,8 +590,8 @@ class velocity:
             Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
         """
 
-        t = self.t
-        t_uniq, t_uniq_cnt = np.unique(self.t, return_counts=True)
+        t = self.parameters['t']
+        t_uniq, t_uniq_cnt = np.unique(self.parameters['t'], return_counts=True)
         if self.parameters['beta'] is not None and self.parameters['gamma'] is not None:
             if len(self.parameters['gamma'].shape) == 1:
                 gamma = np.repeat(self.parameters['beta'].reshape((-1, 1)), U.shape[1], axis=1)
@@ -631,8 +631,8 @@ class velocity:
             Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
         """
 
-        t = self.t
-        t_uniq, t_uniq_cnt = np.unique(self.t, return_counts=True)
+        t = self.parameters['t']
+        t_uniq, t_uniq_cnt = np.unique(self.parameters['t'], return_counts=True)
         if self.parameters['eta'] is not None and self.parameters['delta'] is not None:
             if len(self.parameters['eta'].shape) == 1:
                 eta = np.repeat(self.parameters['eta'].reshape((-1, 1)), S.shape[1], axis=1)

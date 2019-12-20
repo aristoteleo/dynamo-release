@@ -1,11 +1,11 @@
 import numpy as np
 from scipy.sparse import issparse
 from .scatters import scatters
-from ..tools.velocity import sol_u, sol_s
+from ..tools.velocity import sol_u, sol_s, sol_u_2p
 from ..tools.utils_moments import moments
 
 
-def metabolic_labeling_fit(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, group=None, ncols=None,
+def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, group=None, ncols=None,
                            figsize=None, dpi=None, boxwidth=0.5, barwidth=0.35, show=True):
     """ Plot the data and fitting of different metabolic labeling experiments.
 
@@ -42,12 +42,12 @@ def metabolic_labeling_fit(adata, vkey, tkey, unit='hours', log=True, y_log_scal
     import matplotlib.pyplot as plt
     # import seaborn as sns
 
-    asspt_mRNA, experiment_type, _, mode, has_splicing, has_labeling, has_protein = adata.uns['dynamics'].values()
+    t, asspt_mRNA, experiment_type, _, mode, has_splicing, has_labeling, has_protein = adata.uns['dynamics'].values()
 
     groups = [''] if group is None else np.unique(adata.obs[group])
 
-    T = adata.obs[tkey]
-    Tsort = T.unique()
+    T = adata.obs[tkey].values if t is None else t
+    Tsort = np.unique(T)
     gene_idx = [np.where(adata.var.index.values == gene)[0][0] for gene in vkey]
     prefix = 'kinetic_parameter_'
 
@@ -60,7 +60,7 @@ def metabolic_labeling_fit(adata, vkey, tkey, unit='hours', log=True, y_log_scal
         elif experiment_type is 'kin'or experiment_type is 'deg':
             sub_plot_n = 4
         elif experiment_type is 'mix_std_stm':
-            sub_plot_n = 8 # ? two alpha
+            sub_plot_n = 5
     else:
         if mode is 'moment':
             sub_plot_n = 2
@@ -69,17 +69,18 @@ def metabolic_labeling_fit(adata, vkey, tkey, unit='hours', log=True, y_log_scal
         elif experiment_type is 'kin'or experiment_type is 'deg':
             sub_plot_n = 2
         elif experiment_type is 'mix_std_stm':
-            sub_plot_n = 4 #  ? two alpha
+            sub_plot_n = 3
 
     ncols = len(gene_idx) if ncols is None else min(len(gene_idx), ncols)
     nrows = int(np.ceil(len(gene_idx) * sub_plot_n / ncols))
     figsize = [7, 5] if figsize is None else figsize
     gs = plt.GridSpec(nrows, ncols, plt.figure(None, (figsize[0] * ncols, figsize[1] * nrows), dpi=dpi))
 
+    # we need to visualize gene in row-wise mode
     for i, idx in enumerate(gene_idx):
         gene_name = adata.var_names[idx]
         #
-        t = np.linspace(Tsort[0], Tsort[-1], Tsort[-1] - Tsort[0])
+        t = np.linspace(Tsort[0], Tsort[-1], Tsort[-1] - Tsort[0] + 1)
 
         if asspt_mRNA is 'ss':
             # run the phase plot
@@ -210,71 +211,89 @@ def metabolic_labeling_fit(adata, vkey, tkey, unit='hours', log=True, y_log_scal
                 ax.set_xlabel('time (' + unit + ')')
                 ax.set_ylabel('Expression')
                 ax.set_title(gene_name + title_[j])
-        elif experiment_type is 'mix_std_stmu':
-            # we need to visualize two
+        elif experiment_type is 'mix_std_stm':
             if has_splicing:
                 layers = ['X_uu', 'X_ul', 'X_su', 'X_sl'] if 'X_ul' in adata.layers.keys() else ['uu', 'ul', 'su', 'sl']
                 uu, ul, su, sl = adata[:, gene_name].layers[layers[0]], adata[:, gene_name].layers[layers[1]], \
                            adata[:, gene_name].layers[layers[2]], adata[:, gene_name].layers[layers[3]]
                 uu, ul, su, sl = (uu.toarray().squeeze(), ul.toarray().squeeze(), su.toarray().squeeze(), sl.toarray().squeeze()) \
                     if issparse(uu) else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
-                beta, gamma, uu0, su0 = adata.var.loc[gene_name, [prefix + 'beta', prefix + 'gamma', prefix + 'uu0', prefix + 'su0']]
-                group_list = [adata.var.loc[gene_name, prefix + 'alpha_std'].to_list(),
-                              adata.var.loc[gene_name, prefix + 'alpha'].to_list()]
+                beta, gamma, alpha_std = adata.var.loc[gene_name, [prefix + 'beta', prefix + 'gamma', prefix + 'alpha_std']]
+                alpha_stm = adata[:, gene_name].varm[prefix + 'alpha'].flatten()
+
                 # $u$ - unlabeled, unspliced
                 # $s$ - unlabeled, spliced
                 # $w$ - labeled, unspliced
                 # $l$ - labeled, spliced
                 #
-                u = sol_u(t, uu0, 0, beta)
-                s = sol_s(t, su0, uu0, 0, beta, gamma)
-                w = sol_u(t, 0, alpha, beta)
-                l = sol_s(t, 0, 0, alpha, beta, gamma)
-                j_species = 1
+                # calculate labeled unspliced and spliced mRNA amount
+                u1, s1 = np.zeros(len(Tsort) - 1), np.zeros(len(Tsort) - 1)
+                for ind in np.arange(1, len(Tsort)):
+                    t_i = Tsort[ind]
+                    u0 = sol_u(np.max(Tsort) - t_i, 0, alpha_std, beta)
+                    u1[ind - 1], s1[ind - 1] = sol_u(t_i, u0, alpha_stm[ind - 1], beta), sol_u(np.max(Tsort), 0, beta, gamma)
+
+                Obs, Pred = np.vstack((ul, sl, uu, su)), np.vstack((u1.reshape(1, -1), s1.reshape(1, -1)))
+                j_species, title_ = 4, ['unspliced labeled (new)', 'spliced labeled (new)', 'unspliced unlabeled (old)', 'spliced unlabeled (old)', 'alpha (steady state vs. stimulation)']
             else:
                 layers = ['X_new', 'X_total'] if 'X_new' in adata.layers.keys() else ['new', 'total']
-                uu, ul, su, sl = adata[:, gene_name].layers[layers[0]], adata[:, gene_name].layers[layers[0]], None, None
+                uu, ul = adata[:, gene_name].layers[layers[1]] - adata[:, gene_name].layers[layers[0]], adata[:, gene_name].layers[layers[0]]
                 uu, ul = (uu.toarray().squeeze(), ul.toarray().squeeze()) if issparse(uu) else (uu.squeeze(), ul.squeeze())
-                gamma, uu0, su0 = adata.var.loc[gene_name, [prefix + 'gamma', prefix + 'uu0', prefix + 'su0']]
-                group_list = [adata.var.loc[gene_name, prefix + 'alpha_std'].to_list(),
-                              adata.var.loc[gene_name, prefix + 'alpha'].to_list()]
+                gamma, alpha_std = adata.var.loc[gene_name, [prefix + 'gamma', prefix + 'alpha_std']]
+                alpha_stm = adata[:, gene_name].varm[prefix + 'alpha'].flatten()
 
                 # require no beta functions
-                u = sol_u(t, uu0, 0, gamma)
-                s = None # sol_s(t, su0, uu0, 0, 1, gamma)
-                w = sol_u(t, 0, alpha, gamma)
-                l = None # sol_s(t, 0, 0, alpha, 1, gamma)
-                j_species = 1
+                u1 = np.zeros(len(Tsort) - 1)
+                for ind in np.arange(1, len(Tsort)):
+                    t_i = Tsort[ind]
+                    u0 = sol_u(np.max(Tsort) - t_i, 0, alpha_std, gamma)
+                    u1[ind - 1] = sol_u(t_i, u0, alpha_stm[ind - 1], gamma)
 
-            Obs, Pred = np.vstack((uu, ul, su, sl)), np.vstack((u, w, s, l))
-            title_ = ['(unspliced unlabeled)', '(unspliced labeled)', '(spliced unlabeled)', '(spliced labeled)']
+                Obs, Pred = np.vstack((ul, uu)), np.vstack((u1.reshape(1, -1)))
+                j_species, title_ = 2, ['labeled (new)', 'unlabeled (old)', 'alpha (steady state vs. stimulation)']
 
-            x = np.arange(len(gene_name))  # the label locations
-            group_width = barwidth / len(group_list)
-            bar_coord, group_name, group_ind = [-1, 1], ['steady state', 'stimulation'], 0
-
-            ax.set_title('alpha between steady state or stimulation')
-            for cur_group in group_list:
-                ax.bar(x + bar_coord[group_ind] * group_width, cur_group, 0.35, label=group_name[group_ind])
-
-                # Add gene name, experimental type, etc.
-                ax.set_ylabel('alpha (translation rate)')
-                ax.set_xticks(x)
-                ax.set_xticklabels(gene_name)
-                group_ind += 1
-            ax.legend()
+            if log: Obs = np.log(Obs + 1)
+            group_list = [np.repeat(alpha_std, len(alpha_stm)), alpha_stm]
 
             for j in range(sub_plot_n):
-                row_ind = int(np.floor(idx/ncols)) # make sure unlabled and labeled are in the same column.
+                row_ind = int(np.floor(i / ncols))  # make sure all related plots for the same gene in the same column.
                 ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols + i % ncols])
-                ax.boxplot(x=[Obs[i][T == std] for std in Tsort], positions=Tsort, widths=boxwidth,
-                           showfliers=False)
-                ax.plot(t, u, 'k--')
-                ax.set_xlabel('time (' + unit + ')')
-                ax.set_ylabel('Expression')
-                ax.set_title(gene_name + title_[j])
+                if j < j_species / 2:
+                    ax.boxplot(x=[Obs[j][T == std] for std in Tsort], positions=Tsort, widths=boxwidth,
+                               showfliers=False)
+                    ax.plot(Tsort[1:], Pred[j], 'k--')
+                    ax.set_xlabel('time (' + unit + ')')
+                    ax.set_ylabel('Expression')
+                    ax.set_title(gene_name + '-' + title_[j])
 
-            alpha, gamma, uu0, su0 = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'uu0', prefix + 'su0']]
+                    if y_log_scale: ax.set_yscale('log')
+                elif j < j_species:
+                    ax.boxplot(x=[Obs[j][T == std] for std in Tsort], positions=Tsort, widths=boxwidth,
+                               showfliers=False)
+                    ax.set_xlabel('time (' + unit + ')')
+                    ax.set_ylabel('Expression')
+                    ax.set_title(gene_name + '-' + title_[j])
+
+                    if y_log_scale: ax.set_yscale('log')
+                else:
+                    x = Tsort[1:]  # the label locations
+                    group_width = barwidth / 2
+                    bar_coord, group_name, group_ind = [-1, 1], ['steady state', 'stimulation'], 0
+
+                    for group_ind in range(len(group_list)):
+                        cur_group = group_list[group_ind]
+                        ax.bar(x + bar_coord[group_ind] * group_width, cur_group, barwidth, label=group_name[group_ind])
+                        # Add gene name, experimental type, etc.
+                        ax.set_xlabel('time (' + unit + ')')
+                        ax.set_ylabel('alpha (translation rate)')
+                        ax.set_xticks(x)
+                        ax.set_xticklabels(x)
+                        group_ind += 1
+                    ax.legend()
+
+                ax.set_xlabel('time (' + unit + ')')
+                ax.set_title(gene_name + '-' + title_[j])
+
         elif experiment_type is 'one_shot':
             pass
         elif experiment_type is 'multi_time_series':
@@ -285,7 +304,7 @@ def metabolic_labeling_fit(adata, vkey, tkey, unit='hours', log=True, y_log_scal
     if show: plt.show()
 
 
-def dynamics(adata, gene_names, color, dims=[0, 1], current_layer='spliced', use_raw=False, Vkey='S', Ekey='spliced',
+def dynamics_(adata, gene_names, color, dims=[0, 1], current_layer='spliced', use_raw=False, Vkey='S', Ekey='spliced',
              basis='umap', mode='all', cmap=None, gs=None, **kwargs):
     """
 

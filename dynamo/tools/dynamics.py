@@ -181,9 +181,11 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
 
         if experiment_type is 'mix_std_stm':
             if alpha is not None:
+                adata.varm['kinetic_parameter_alpha'] = np.zeros((adata.shape[1], alpha[1].shape[1]))
+                adata.varm['kinetic_parameter_alpha'] [valid_ind, :] = alpha[1]
                 adata.var['kinetic_parameter_alpha'], adata.var['kinetic_parameter_alpha_std'] = None, None
                 adata.var.loc[valid_ind, 'kinetic_parameter_alpha'], adata.var.loc[
-                    valid_ind, 'kinetic_parameter_alpha_std'] = alpha[1].mean(1), alpha[0].mean(1)
+                    valid_ind, 'kinetic_parameter_alpha_std'] = alpha[1][:, -1], alpha[0]
 
             adata.var['kinetic_parameter_beta'], adata.var['kinetic_parameter_gamma'], adata.var['RNA_half_life'] = None, None, None
 
@@ -279,6 +281,6 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
     elif mode is 'model_selection':
         warnings.warn('Not implemented yet.')
 
-    adata.uns['dynamics'] = {'asspt_mRNA': assumption_mRNA, 'experiment_type': experiment_type, "normalized": normalized, "mode": mode, "has_splicing": has_splicing,
+    adata.uns['dynamics'] = {'t': t, 'asspt_mRNA': assumption_mRNA, 'experiment_type': experiment_type, "normalized": normalized, "mode": mode, "has_splicing": has_splicing,
                              "has_labeling": has_labeling, "has_protein": has_protein}
     return adata
