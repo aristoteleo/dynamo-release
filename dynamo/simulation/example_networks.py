@@ -186,7 +186,7 @@ if __name__ is '__main__':
     tmp = dyn.tl.dynamics(adata[:, example_genes], experiment_type='mix_std_stm', filter_gene_mode='no', tkey='time')
     # dyn.pl.metabolic_labeling_fit(tmp, vkey=tmp.var_names, tkey='time', unit='minutes')
     # tmp = dyn.tl.dynamics(adata[:, example_genes], experiment_type='kin', filter_gene_mode='no', tkey='time')
-    dyn.pl.metabolic_labeling_fit(tmp, vkey=tmp.var_names, tkey='time', unit='minutes')
+    dyn.pl.dynamics(tmp, vkey=tmp.var_names, tkey='time', unit='minutes')
 
     # dyn.tl.dynamics(adata[:, :25], filter_gene_mode='no')
     # tmp=dyn.tl.dynamics(adata[:, :25], experiment_type='deg', filter_gene_mode='no', tkey='minutes')

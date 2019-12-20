@@ -1,12 +1,12 @@
 import numpy as np
 from scipy.sparse import issparse
 from .scatters import scatters
-from ..tools.velocity import sol_u, sol_s, sol_u_2p
+from ..tools.velocity import sol_u, sol_s
 from ..tools.utils_moments import moments
 
 
 def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, group=None, ncols=None,
-                           figsize=None, dpi=None, boxwidth=0.5, barwidth=0.35, show=True):
+                           figsize=None, dpi=None, boxwidth=None, barwidth=None, show=True):
     """ Plot the data and fitting of different metabolic labeling experiments.
 
     Parameters
@@ -50,6 +50,12 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
     Tsort = np.unique(T)
     gene_idx = [np.where(adata.var.index.values == gene)[0][0] for gene in vkey]
     prefix = 'kinetic_parameter_'
+
+    if boxwidth is None:
+        boxwidth = 0.8 * (np.diff(Tsort).min() / 2)
+
+    if barwidth is None:
+        barwidth = 0.8 * (np.diff(Tsort).min() / 2)
 
     if has_splicing:
         if mode is 'moment':
@@ -259,7 +265,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                 row_ind = int(np.floor(i / ncols))  # make sure all related plots for the same gene in the same column.
                 ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols + i % ncols])
                 if j < j_species / 2:
-                    ax.boxplot(x=[Obs[j][T == std] for std in Tsort], positions=Tsort, widths=boxwidth,
+                    ax.boxplot(x=[Obs[j][T == std] for std in Tsort[1:]], positions=Tsort[1:], widths=boxwidth,
                                showfliers=False)
                     ax.plot(Tsort[1:], Pred[j], 'k--')
                     ax.set_xlabel('time (' + unit + ')')
