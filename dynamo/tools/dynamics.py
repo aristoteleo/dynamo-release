@@ -247,7 +247,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
 
         alpha = fbar(alpha_a, alpha_i, a, b)[:, None]  ### dimension need to be matched up
 
-        params = {'alpha': alpha.flatten(), 'beta': beta, 'gamma': gamma}
+        params = {'alpha': alpha, 'beta': beta, 'gamma': gamma, 't': t}
         vel = velocity(**params)
         vel_U = vel.vel_u(U)
         vel_S = vel.vel_s(U, S)

@@ -269,18 +269,20 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                                showfliers=False)
                     ax.plot(Tsort[1:], Pred[j], 'k--')
                     ax.set_xlabel('time (' + unit + ')')
-                    ax.set_ylabel('Expression')
-                    ax.set_title(gene_name + '-' + title_[j])
+                    ax.set_title(gene_name + ': ' + title_[j])
 
-                    if y_log_scale: ax.set_yscale('log')
+                    if y_log_scale:
+                        ax.set_yscale('log')
+                        ax.set_ylabel('Expression (log)')
                 elif j < j_species:
                     ax.boxplot(x=[Obs[j][T == std] for std in Tsort], positions=Tsort, widths=boxwidth,
                                showfliers=False)
                     ax.set_xlabel('time (' + unit + ')')
-                    ax.set_ylabel('Expression')
-                    ax.set_title(gene_name + '-' + title_[j])
+                    ax.set_title(gene_name + ': ' + title_[j])
 
-                    if y_log_scale: ax.set_yscale('log')
+                    if y_log_scale:
+                        ax.set_yscale('log')
+                        ax.set_ylabel('Expression (log)')
                 else:
                     x = Tsort[1:]  # the label locations
                     group_width = barwidth / 2
@@ -298,7 +300,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                     ax.legend()
 
                 ax.set_xlabel('time (' + unit + ')')
-                ax.set_title(gene_name + '-' + title_[j])
+                ax.set_title(gene_name + ': ' + title_[j])
 
         elif experiment_type is 'one_shot':
             pass

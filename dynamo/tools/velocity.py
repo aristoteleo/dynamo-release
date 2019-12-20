@@ -540,7 +540,7 @@ class velocity:
                         cell_inds = t == t_uniq[i]
                         alpha[:, cell_inds] = np.repeat(self.parameters['alpha'][:, i], t_uniq_cnt[i], axis=1)
                 else:
-                    alpha = np.repeat(self.parameters['alpha'].mean(1), U.shape[1], axis=1)
+                    alpha = np.repeat(self.parameters['alpha'], U.shape[1], axis=1)
 
                 if len(self.parameters['beta'].shape) == 1:
                     beta = np.repeat(self.parameters['beta'].reshape((-1, 1)), U.shape[1], axis=1)
@@ -558,7 +558,7 @@ class velocity:
                         cell_inds = t == t_uniq[i]
                         alpha[:, cell_inds] = np.repeat(self.parameters['alpha'][1][:, i], t_uniq_cnt[i], axis=1)
                 else:
-                    alpha = np.repeat(self.parameters['alpha'][1].mean(1), U.shape[1], axis=1)
+                    alpha = np.repeat(self.parameters['alpha'][1], U.shape[1], axis=1)
 
             if len(self.parameters['beta'].shape) == 1:
                 beta = np.repeat(self.parameters['beta'].reshape((-1, 1)), U.shape[1], axis=1)
