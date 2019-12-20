@@ -143,7 +143,7 @@ def solve_gamma(t, old, total):
     Returns the degradation rate (gamma)
     """
 
-    old, total = np.mean(old.A), np.mean(total.A) if issparse(old) else np.mean(old), np.mean(total)
+    old, total = np.mean(old), np.mean(total)
     gamma = - 1/t * np.log(old / total)
 
     return gamma
@@ -169,7 +169,7 @@ def solve_alpha_2p(t0, t1, alpha0, beta, u1):
     Returns the transcription rate (alpha1) for the stimulation period in the data.
     """
 
-    u1 = np.mean(u1.A) if issparse(u1) else np.mean(u1)
+    u1 = np.mean(u1)
 
     u0 = alpha0 / beta * (1 - np.exp(- beta * t0))
     alpha1 = beta * (u1 - u0 * np.exp(-beta * t1)) / (1 - np.exp(-beta * t1))
@@ -483,7 +483,7 @@ def concat_time_series_matrices(mats, t=None):
         return ret_mat
 
 class velocity:
-    def __init__(self, alpha=None, beta=None, gamma=None, eta=None, delta=None, estimation=None):
+    def __init__(self, alpha=None, beta=None, gamma=None, eta=None, delta=None, t=None, estimation=None):
         """The class that computes RNA velocity given unknown parameters.
 
         Arguments
@@ -498,6 +498,8 @@ class velocity:
             A vector of protein synthesis rate constant for each gene.
         delta: :class:`~numpy.ndarray`
             A vector of protein degradation rate constant for each gene.
+        t: :class:`~numpy.ndarray` or None (default: None)
+            A vector of the measured time points for cells
         estimation: :class:`~estimation`
             An instance of the estimation class. If this not None, the parameters will be taken from this class instead of the input arguments.
         """
@@ -508,8 +510,9 @@ class velocity:
             self.parameters['gamma'] = estimation.parameters['gamma']
             self.parameters['eta'] = estimation.parameters['eta']
             self.parameters['delta'] = estimation.parameters['delta']
+            self.parameters['t'] = estimation.t
         else:
-            self.parameters = {'alpha': alpha, 'beta': beta, 'gamma': gamma, 'eta': eta, 'delta': delta}
+            self.parameters = {'alpha': alpha, 'beta': beta, 'gamma': gamma, 'eta': eta, 'delta': delta, 't': t}
 
     def vel_u(self, U):
         """Calculate the unspliced mRNA velocity.
@@ -524,47 +527,49 @@ class velocity:
         V: :class:`~numpy.ndarray` or sparse `csr_matrix`
             Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
         """
+
+        t = self.t
+        t_uniq, t_uniq_cnt = np.unique(self.t, return_counts=True)
         if self.parameters['alpha'] is not None and self.parameters['beta'] is not None:
             if type(self.parameters['alpha']) is not tuple:
-                if len(self.parameters['alpha'].shape) == 2:
+                if self.parameters['alpha'].shape[1] == U.shape[1]:
                     alpha = self.parameters['alpha']
-                    if len(self.parameters['beta'].shape) == 2:
-                        beta = np.zeros((len(self.parameters['beta'][:, 1]), len(self.parameters['beta'][:, 1])))
-                        np.fill_diagonal(beta, self.parameters['beta'][:, 1])
-                    else:
-                        beta = np.zeros((len(self.parameters['beta']), len(self.parameters['beta'])))
-                        np.fill_diagonal(beta, self.parameters['beta'])
+                elif self.parameters['alpha'].shape[1] == len(t_uniq):
+                    alpha = np.zeros_like(U.shape)
+                    for i in range(t_uniq):
+                        cell_inds = t == t_uniq[i]
+                        alpha[:, cell_inds] = np.repeat(self.parameters['alpha'][:, i], t_uniq_cnt[i], axis=1)
                 else:
-                    alpha = np.repeat(self.parameters['alpha'].reshape((-1, 1)), U.shape[1], axis=1)
+                    alpha = np.repeat(self.parameters['alpha'].mean(1), U.shape[1], axis=1)
 
-                    if len(self.parameters['beta'].shape) == 2:
-                        beta = np.zeros((len(self.parameters['beta'][:, 1]), len(self.parameters['beta'][:, 1])))
-                        np.fill_diagonal(beta, self.parameters['beta'][:, 1])
-                    else:
-                        beta = np.zeros((len(self.parameters['beta']), len(self.parameters['beta'])))
-                        np.fill_diagonal(beta, self.parameters['beta'])
-
+                if len(self.parameters['beta'].shape) == 1:
+                    beta = np.repeat(self.parameters['beta'].reshape((-1, 1)), U.shape[1], axis=1)
+                elif len(self.parameters['beta'].shape) == len(t_uniq):
+                    beta = np.zeros_like(U.shape)
+                    for i in range(t_uniq):
+                        cell_inds = t == t_uniq[i]
+                        beta[:, cell_inds] = np.repeat(self.parameters['beta'][:, i], t_uniq_cnt[i], axis=1)
             else: # need to correct the velocity vector prediction when you use mix_std_stm experiments
-                if len(self.parameters['alpha'][1].shape) == 2:
+                if self.parameters['alpha'][1].shape[1] == U.shape[1]:
                     alpha = self.parameters['alpha'][1]
-                    if len(self.parameters['beta'].shape) == 2:
-                        beta = np.zeros((len(self.parameters['beta'][:, 1]), len(self.parameters['beta'][:, 1])))
-                        np.fill_diagonal(beta, self.parameters['beta'][:, 1])
-                    else:
-                        beta = np.zeros((len(self.parameters['beta']), len(self.parameters['beta'])))
-                        np.fill_diagonal(beta, self.parameters['beta'])
+                elif self.parameters['alpha'][1].shape[1] == len(t_uniq):
+                    alpha = np.zeros_like(U.shape)
+                    for i in range(t_uniq):
+                        cell_inds = t == t_uniq[i]
+                        alpha[:, cell_inds] = np.repeat(self.parameters['alpha'][1][:, i], t_uniq_cnt[i], axis=1)
                 else:
-                    alpha = np.repeat(self.parameters['alpha'][1].reshape((-1, 1)), U.shape[1], axis=1)
+                    alpha = np.repeat(self.parameters['alpha'][1].mean(1), U.shape[1], axis=1)
 
-                    if len(self.parameters['beta'].shape) == 2:
-                        beta = np.zeros((len(self.parameters['beta'][:, 1]), len(self.parameters['beta'][:, 1])))
-                        np.fill_diagonal(beta, self.parameters['beta'][:, 1])
-                    else:
-                        beta = np.zeros((len(self.parameters['beta']), len(self.parameters['beta'])))
-                        np.fill_diagonal(beta, self.parameters['beta'])
+            if len(self.parameters['beta'].shape) == 1:
+                beta = np.repeat(self.parameters['beta'].reshape((-1, 1)), U.shape[1], axis=1)
+            elif self.parameters['beta'].shape[1] == len(t_uniq):
+                beta = np.zeros_like(U.shape)
+                for i in range(t_uniq):
+                    cell_inds = t == t_uniq[i]
+                    beta[:, cell_inds] = np.repeat(self.parameters['beta'][:, i], t_uniq_cnt[i], axis=1)
 
-            V = csc_matrix(alpha) - (csc_matrix(beta).dot(U)) if issparse(U) else \
-                    alpha - (beta.dot(U))
+            V = csc_matrix(alpha) - (csc_matrix(beta).multiply(U)) if issparse(U) else \
+                    alpha - beta * U
         else:
             V = np.nan
         return V
@@ -584,25 +589,28 @@ class velocity:
         V: :class:`~numpy.ndarray` or sparse `csr_matrix`
             Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
         """
+
+        t = self.t
+        t_uniq, t_uniq_cnt = np.unique(self.t, return_counts=True)
         if self.parameters['beta'] is not None and self.parameters['gamma'] is not None:
             if len(self.parameters['gamma'].shape) == 1:
-                beta, gamma = np.zeros((len(self.parameters['beta']), len(self.parameters['beta']))), \
-                              np.zeros((len(self.parameters['beta']), len(self.parameters['beta'])))
-                np.fill_diagonal(beta, self.parameters['beta'])
-                np.fill_diagonal(gamma, self.parameters['gamma'])
-            else:
-                if len(self.parameters['beta'].shape) == 2:
-                    beta = np.zeros((len(self.parameters['beta'][:, 1]), len(self.parameters['beta'][:, 1])))
-                    np.fill_diagonal(beta, self.parameters['beta'][:, 1])
-                else:
-                    beta = np.zeros((len(self.parameters['beta']), len(self.parameters['beta'])))
-                    np.fill_diagonal(beta, self.parameters['beta'])
+                gamma = np.repeat(self.parameters['beta'].reshape((-1, 1)), U.shape[1], axis=1)
+            elif self.parameters['beta'].shape[1] == len(t_uniq):
+                beta = np.zeros_like(U.shape)
+                for i in range(t_uniq):
+                    cell_inds = t == t_uniq[i]
+                    beta[:, cell_inds] = np.repeat(self.parameters['beta'][:, i], t_uniq_cnt[i], axis=1)
 
-                gamma = np.zeros((len(self.parameters['gamma'][:, 1]), len(self.parameters['gamma'][:, 1])))
-                np.fill_diagonal(gamma, self.parameters['gamma'][:, 1])
+            if len(self.parameters['beta'].shape) == 1:
+                beta = np.repeat(self.parameters['gamma'].reshape((-1, 1)), U.shape[1], axis=1)
+            elif self.parameters['gamma'].shape[1] == len(t_uniq):
+                gamma = np.zeros_like(U.shape)
+                for i in range(t_uniq):
+                    cell_inds = t == t_uniq[i]
+                    gamma[:, cell_inds] = np.repeat(self.parameters['gamma'][:, i], t_uniq_cnt[i], axis=1)
 
-            V = csc_matrix(beta).dot(U) - csc_matrix(gamma).dot(S) if issparse(U) \
-                    else beta.dot(U) - gamma.dot(S)
+            V = csc_matrix(beta).multiply(U)  - csc_matrix(gamma).multiply(S) if issparse(U) \
+                    else beta * U - gamma * S
         else:
             V = np.nan
         return V
@@ -622,27 +630,28 @@ class velocity:
         V: :class:`~numpy.ndarray` or sparse `csr_matrix`
             Each column of V is a velocity vector for the corresponding cell. Dimension: genes x cells.
         """
+
+        t = self.t
+        t_uniq, t_uniq_cnt = np.unique(self.t, return_counts=True)
         if self.parameters['eta'] is not None and self.parameters['delta'] is not None:
+            if len(self.parameters['eta'].shape) == 1:
+                eta = np.repeat(self.parameters['eta'].reshape((-1, 1)), S.shape[1], axis=1)
+            elif self.parameters['eta'].shape[1] == len(t_uniq):
+                eta = np.zeros_like(S.shape)
+                for i in range(t_uniq):
+                    cell_inds = t == t_uniq[i]
+                    eta[:, cell_inds] = np.repeat(self.parameters['eta'][:, i], t_uniq_cnt[i], axis=1)
+
             if len(self.parameters['delta'].shape) == 1:
-                eta, delta = np.zeros((len(self.parameters['eta']), len(self.parameters['eta']))), \
-                             np.zeros((len(self.parameters['eta']), len(self.parameters['eta'])))
-                np.fill_diagonal(eta, self.parameters['eta'])
-                np.fill_diagonal(delta, self.parameters['delta'])
+                delta = np.repeat(self.parameters['delta'].reshape((-1, 1)), S.shape[1], axis=1)
+            elif self.parameters['delta'].shape[1] == len(t_uniq):
+                delta = np.zeros_like(S.shape)
+                for i in range(t_uniq):
+                    cell_inds = t == t_uniq[i]
+                    delta[:, cell_inds] = np.repeat(self.parameters['delta'][:, i], t_uniq_cnt[i], axis=1)
 
-            else:
-                eta = np.zeros((len(self.parameters['eta'][:, 1]), len(self.parameters['eta'][:, 1])))
-                np.fill_diagonal(eta, self.parameters['eta'][:, 1])
-
-                if len(self.parameters['delta'].shape) == 2:
-                    delta = np.zeros((len(self.parameters['delta'][:, 1]), len(self.parameters['delta'][:, 1])))
-                    np.fill_diagonal(delta, self.parameters['delta'][:, 1])
-                else:
-                    delta = np.zeros((len(self.parameters['delta']), len(self.parameters['delta'])))
-                    np.fill_diagonal(delta, self.parameters['delta'])
-
-
-            V = csc_matrix(eta).dot(S) - csc_matrix(delta).dot(P) if issparse(P) else \
-                    eta.dot(S) - delta.dot(P)
+            V = csc_matrix(eta).multiply(S) - csc_matrix(delta).multiply(P) if issparse(P) else \
+                    eta * S - delta * P
         else:
             V = np.nan
         return V
@@ -834,18 +843,32 @@ class estimation:
                     # alpha: one-shot
             # 'one_shot'
             elif self.extyp == 'one_shot':
+                t_uniq = np.unique(self.t)
+                if len(t_uniq) > 1:
+                    raise Exception('By definition, one-shot experiment should involve only one time point measurement!')
                 # calculate when having splicing or no splicing
                 if self._exist_data('ul') and self._exist_parameter('beta'):
                     self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
+                elif self._exist_data('ul') and self._exist_data('uu'):
+                    beta, U = np.zeros(n), np.zeros(n)
+                    for i in range(n): # can also use the two extreme time points and apply sci-fate like approach.
+                        tmp = self.data['uu'][i] + self.data['ul'][i]
+                        U[i], beta[i] = np.mean(tmp), solve_gamma(np.max(self.t), self.data['uu'][i], tmp)
+                    self.parameters['beta'] = beta
+
+                    self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
+
             elif self.extyp == 'mix_std_stm':
                 if np.all(self._exist_data('ul', 'uu', 'su')):
                     gamma, beta, total, U = np.zeros(n), np.zeros(n), np.zeros(n), np.zeros(n)
                     for i in range(n): # can also use the two extreme time points and apply sci-fate like approach.
-                        tmp = self.uu[i, self.t == 0] + self.ul[i, self.t == 0] + self.su[i, self.t == 0] + self.sl[i, self.t == 0]
-                        total[i], gamma[i] = np.mean(tmp.A) if issparse(tmp) else np.mean(tmp), solve_gamma(np.max(self.t), self.uu[i, self.t == 0] + self.su[i, self.t == 0], tmp)
+                        tmp = self.data['uu'][i, self.t == 0] + self.data['ul'][i, self.t == 0] + self.data['su'][i, self.t == 0] + self.data['sl'][i, self.t == 0]
+                        total[i] = np.mean(tmp)
+                        gamma[i] = solve_gamma(np.max(self.t), self.data['uu'][i, self.t == 0] + self.data['su'][i, self.t == 0], tmp)
                         # same for beta
-                        tmp = self.uu[i, self.t == 0] + self.ul[i, self.t == 0]
-                        U[i], beta[i] = np.mean(tmp.A) if issparse(tmp) else np.mean(tmp), solve_gamma(np.max(self.t), self.uu[i, self.t == 0], tmp)
+                        tmp = self.data['uu'][i, self.t == 0] + self.data['ul'][i, self.t == 0]
+                        U[i] = np.mean(tmp)
+                        beta[i] = solve_gamma(np.max(self.t), self.data['uu'][i, self.t == 0], tmp)
 
                     self.parameters['beta'], self.parameters['gamma'], self.aux_param['total0'], self.aux_param['U0'] = beta, gamma, total, U
                     # alpha estimation
@@ -857,9 +880,10 @@ class estimation:
                     n = self.data['uu'].shape[0]  # self.get_n_genes(data=U)
                     gamma, U = np.zeros(n), np.zeros(n)
                     for i in range(n): # can also use the two extreme time points and apply sci-fate like approach.
-                        tmp = self.uu[i, self.t == 0] + self.ul[i, self.t == 0]
-                        U[i], gamma[i] = np.mean(tmp.A) if issparse(tmp) else np.mean(tmp), solve_gamma(np.max(self.t), self.uu[i, self.t == 0], tmp)
-                    self.parameters['gamma'], self.parameters['U0'] = gamma, U
+                        tmp = self.data['uu'][i, self.t == 0] + self.data['ul'][i, self.t == 0]
+                        U[i] = np.mean(tmp)
+                        gamma[i] = solve_gamma(np.max(self.t), self.data['uu'][i, self.t == 0], tmp)
+                    self.parameters['gamma'], self.aux_param['U0'] = gamma, U
                     # alpha estimation
                     # assume constant alpha across all cells
                     # for i in range(n):
@@ -981,7 +1005,9 @@ class estimation:
 
     def solve_alpha_mix_std_stm(self, t, ul, beta, clusters=None, alpha_time_dependent=True):
         """Estimate the steady state transcription rate and analtyically calculate the stimulation transcription rate
-        given beta for a mixed steady state and stimulation labeling experiment
+        given beta and steady state alpha for a mixed steady state and stimulation labeling experiment. 
+        
+        This approach assumes constant beta or gamma for both steady state or stimulation period.
 
         Parameters
         ----------
@@ -1010,12 +1036,12 @@ class estimation:
         valid_t_std = t_std[valid_t_std_ind]
         alpha_std_ini = np.mean(self.fit_alpha_oneshot(valid_t_std, ul[:, valid_t_std_ind], beta, clusters), 1)
 
-        alpha_std, alpha_stm = alpha_std_ini, np.zeros((ul.shape, len(t_uniq) - 1)) # don't include 0 stimulation point
+        alpha_std, alpha_stm = alpha_std_ini, np.zeros((ul.shape[0], len(t_uniq) - 1)) # don't include 0 stimulation point
 
         for i in range(ul.shape[0]):
             l = ul[i]
             for t_ind in np.arange(1, len(t_uniq)):
-                alpha_stm[i, t_ind] = solve_alpha_2p(t_max - t_uniq[t_ind], t_uniq[t_ind], alpha_std[i], beta[i], l)
+                alpha_stm[i, t_ind - 1] = solve_alpha_2p(t_max - t_uniq[t_ind], t_uniq[t_ind], alpha_std[i], beta[i], l)
         if not alpha_time_dependent:
             alpha_stm = alpha_stm.min(1)
 

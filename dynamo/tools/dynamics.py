@@ -162,7 +162,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
 
         alpha, beta, gamma, eta, delta = est.parameters.values()
         # do this for a vector?
-        vel = velocity(**est.parameters)
+        vel = velocity(estimation=est)
         vel_U = vel.vel_u(U)
         vel_S = vel.vel_s(U, S)
         vel_P = vel.vel_p(S, P)

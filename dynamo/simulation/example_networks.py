@@ -180,7 +180,6 @@ if __name__ is '__main__':
 
     # adata = dyn.read_h5ad('/Users/xqiu/Desktop/neuron_12_11.h5ad')
     # adata = dyn.read_h5ad('/Users/xqiu/Desktop/ESC_12_11.h5ad')
-
     adata = dyn.read_h5ad('/Users/xqiu/Desktop/neuron_12_11.h5ad')
     # tmp = dyn.tl.dynamics(adata[:, example_genes], experiment_type='kin', filter_gene_mode='no', tkey='time')
     # dyn.pl.metabolic_labeling_fit(tmp, vkey=tmp.var_names, tkey='time', unit='minutes')
