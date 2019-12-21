@@ -7,8 +7,7 @@ from scipy.sparse import issparse, csr_matrix
 
 # incorporate the model selection code soon
 def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time', protein_names=None,
-             experiment_type='deg', \
-             assumption_mRNA=None, assumption_protein='ss', concat_data=False, log_unnormalized=True):
+             experiment_type='deg', assumption_mRNA=None, assumption_protein='ss', concat_data=False, log_unnormalized=True):
     """Inclusive model of expression dynamics with scSLAM-seq and multiomics.
 
     Parameters
@@ -146,6 +145,9 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
 
     t = np.array(adata.obs[tkey], dtype='float') if tkey in adata.obs.columns else None
 
+    """
+    check assumption_mRNA ...??????????????
+    """
     if (Ul is None or Sl is None) and t is None:
         assumption_mRNA = 'ss'
     else:
@@ -208,7 +210,8 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
             adata.var.loc[valid_ind, 'kinetic_parameter_gamma'] = gamma
             adata.var.loc[valid_ind, 'RNA_half_life'] = np.log(2) / gamma
 
-            alpha_intercept, alpha_r2, gamma_intercept, gamma_r2, delta_intercept, delta_r2, uu0, ul0, su0, sl0 = est.aux_param.values()
+            alpha_intercept, alpha_r2, gamma_intercept, gamma_r2, delta_intercept, delta_r2, uu0, ul0, su0, sl0, U0, S0, total0 = \
+                est.aux_param.values()
             if alpha_r2 is not None:
                 alpha_r2[~np.isfinite(alpha_r2)] = 0
             adata.var.loc[valid_ind, 'kinetic_parameter_alpha_intercept'] = alpha_intercept

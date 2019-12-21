@@ -127,7 +127,7 @@ def sol_p(t, p0, s0, u0, alpha, beta, gamma, eta, delta):
     return p, s, u
 
 def solve_gamma(t, old, total):
-    """ Analytical solution to calculate gamma (degradation rate)
+    """ Analytical solution to calculate gamma (degradation rate) using first-order degradation kinetics.
 
     Parameters
     ----------
@@ -831,22 +831,15 @@ class estimation:
                         alpha, uu0, r2 = np.zeros(n), np.zeros(n), np.zeros(n)
                         for i in range(n):
                             alpha[i], uu0[i], r2[i] = fit_alpha_degradation(self.t, self.data['uu'][i], self.parameters['beta'][i], intercept=True)
-                        self.parameters['alpha'], self.aux_param['alpha_intercept'], self.aux_param['alpha_r2'] = alpha, uu0, r2
+                        self.parameters['alpha'], self.aux_param['alpha_intercept'], self.aux_param['uu0'], self.aux_param['alpha_r2'] = alpha, uu0, uu0, r2
                 elif self._exist_data('ul'):
                     # gamma estimation
-                    self.parameters['beta'] = np.ones(n)
                     self.parameters['gamma'], self.aux_param['ul0'] = self.fit_gamma_nosplicing_lsq(self.t, self.data['ul'])
                     if self._exist_data('uu'):
                         # alpha estimation
-
-                        warn("Here we assume beta to be 1, precisely we need  to convert the unit from labeling time, eg. hour or minutes,"
-                             "to splicing time. For example if the labeling time is 1 hour and if splicing finishes in 1 minute,"
-                             "then the labeling time is 60 splicing units. Without knowing the physical time used, the alpha estimated"
-                             "below only reflects the relative magnitude and should be used with caution.")
-
                         alpha = np.zeros(n)
                         for i in range(n):
-                           alpha[i] = fit_alpha_synthesis(self.t, self.data['uu'][i], self.parameters['beta'][i]) # self.parameters['gamma'][i]
+                           alpha[i] = fit_alpha_synthesis(self.t, self.data['uu'][i],  self.parameters['gamma'][i])
                         self.parameters['alpha'] = alpha
             elif (self.extyp == 'kin' or self.extyp == 'one_shot') and len(np.unique(self.t)) > 1:
                 if np.all(self._exist_data('ul', 'uu', 'su')):
@@ -865,7 +858,7 @@ class estimation:
                     u0, gamma = np.zeros(n), np.zeros(n)
                     for i in range(n):
                         gamma[i], u0[i] = fit_first_order_deg_lsq(self.t, self.data['uu'][i])
-                    self.parameters['gamma'], self.aux_param[' n'] = gamma, u0
+                    self.parameters['gamma'], self.aux_param[' uu0'] = gamma, u0
                     alpha = np.zeros_like(self.data['ul'].A) if issparse(self.data['ul']) else np.zeros_like(self.data['ul'])
                     # assume constant alpha across all cells
                     for i in range(n):
@@ -879,16 +872,30 @@ class estimation:
                 if len(t_uniq) > 1:
                     raise Exception('By definition, one-shot experiment should involve only one time point measurement!')
                 # calculate when having splicing or no splicing
-                if self._exist_data('ul') and self._exist_parameter('beta'):
-                    self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
-                elif self._exist_data('ul') and self._exist_data('uu'):
-                    beta, U = np.zeros(n), np.zeros(n)
-                    for i in range(n): # can also use the two extreme time points and apply sci-fate like approach.
-                        tmp = self.data['uu'][i] + self.data['ul'][i]
-                        U[i], beta[i] = np.mean(tmp), solve_gamma(np.max(self.t), self.data['uu'][i], tmp)
-                    self.parameters['beta'] = beta
+                if np.all(self._exist_data('ul', 'uu', 'sl', 'su')):
+                    if self._exist_data('ul') and self._exist_data('uu'):
+                        beta, gamma, U0, S0 = np.zeros(n), np.zeros(n), np.zeros(n), np.zeros(n)
+                        for i in range(n): # can also use the two extreme time points and apply sci-fate like approach.
+                            S, U = self.data['su'][i] + self.data['sl'][i], self.data['uu'][i] + self.data['ul'][i]
 
-                    self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
+                            S0[i], gamma[i] = np.mean(S), solve_gamma(np.max(self.t), self.data['su'][i], S)
+                            U0[i], beta[i] = np.mean(U), solve_gamma(np.max(self.t), self.data['uu'][i], U)
+                        self.parameters['U0'], self.parameters['S0'], self.parameters['beta'] = U0, S0, beta
+
+                        self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
+                    elif self._exist_data('ul') and self._exist_parameter('beta'):
+                        self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
+                else:
+                    if self._exist_data('ul') and self._exist_data('uu'):
+                        gamma, total0 = np.zeros(n), np.zeros(n)
+                        for i in range(n):
+                            total = self.data['uu'][i] + self.data['ul'][i]
+                            total0[i], gamma[i] = np.mean(total), solve_gamma(np.max(self.t), self.data['uu'][i], total)
+                        self.parameters['total0'], self.parameters['gamma'] = total0, gamma
+
+                        self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
+                    elif self._exist_data('ul') and self._exist_parameter('beta'):
+                        self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
 
             elif self.extyp == 'mix_std_stm':
                 if np.all(self._exist_data('ul', 'uu', 'su')):
