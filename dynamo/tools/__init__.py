@@ -6,7 +6,7 @@
 # from .dynamo_fitting import sol_u, sol_s, sol_p, sol_ode, sol_num, fit_gamma_labelling, fit_beta_lsq, fit_alpha_labelling, fit_alpha_synthesis, fit_gamma_splicing, fit_gamma
 from .moments import Estimation
 
-from .velocity import sol_u, sol_s, sol_p, fit_linreg, fit_first_order_deg_lsq, fit_gamma_lsq, fit_alpha_synthesis, fit_alpha_degradation, velocity, estimation
+from .velocity import sol_u, sol_s, sol_p, fit_linreg, fit_first_order_deg_lsq, solve_first_order_deg, fit_gamma_lsq, fit_alpha_synthesis, fit_alpha_degradation, velocity, estimation
 from .cell_velocities import cell_velocities, generalized_diffusion_map, stationary_distribution, diffusion, expected_return_time
 
 from .dynamics import dynamics

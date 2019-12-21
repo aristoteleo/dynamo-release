@@ -262,6 +262,38 @@ def fit_first_order_deg_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=1):
         l0 = ret.x[1]
     return beta, l0
 
+def solve_first_order_deg(t, l):
+    """Solve for the initial amount and the rate constant of a species (for example, labeled mRNA) with time-series data
+    under first-order degration kinetics model.
+
+    Parameters
+    ----------
+    t: :class:`~numpy.ndarray`
+        A vector of time points.
+    l: :class:`~numpy.ndarray` or sparse `csr_matrix`
+        A vector of labeled mRNA counts for each time point.
+
+    Returns
+    -------
+    l0:: `float`
+        The intial counts of the species  (for example, labeled mRNA).
+    k: `float`
+        Degradation rate constant.
+    half_life: `float`
+        Half-life the species.
+    """
+
+    x = l.A.flatten() if issparse(l) else l
+
+    t_uniq = np.unique(t)
+    x_stra = strat_mom(x, t, np.nanmean)
+    x_stra_ = x_stra[1:] / x_stra[0]
+    k = np.mean(- np.log(x_stra_) / t_uniq[1:])
+
+    l0, half_life = np.mean(x_stra / np.exp(- k * t_uniq)), np.log(2) / k
+
+    return l0, k, half_life
+
 def fit_gamma_lsq(t, s, beta, u0, bounds=(0, np.inf), fix_s0=False):
     """Estimate gamma with degradation data using least squares method.
 

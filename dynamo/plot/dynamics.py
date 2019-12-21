@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.sparse import issparse
 from .scatters import scatters
-from ..tools.velocity import sol_u, sol_s
+from ..tools.velocity import sol_u, sol_s, solve_first_order_deg
 from ..tools.utils_moments import moments
 
 
@@ -47,15 +47,15 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
     groups = [''] if group is None else np.unique(adata.obs[group])
 
     T = adata.obs[tkey].values if t is None else t
-    Tsort = np.unique(T)
+    T_uniq = np.unique(T)
     gene_idx = [np.where(adata.var.index.values == gene)[0][0] for gene in vkey]
     prefix = 'kinetic_parameter_'
 
     if boxwidth is None:
-        boxwidth = 0.8 * (np.diff(Tsort).min() / 2)
+        boxwidth = 0.8 * (np.diff(T_uniq).min() / 2)
 
     if barwidth is None:
-        barwidth = 0.8 * (np.diff(Tsort).min() / 2)
+        barwidth = 0.8 * (np.diff(T_uniq).min() / 2)
 
     if has_splicing:
         if mode is 'moment':
@@ -86,7 +86,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
     for i, idx in enumerate(gene_idx):
         gene_name = adata.var_names[idx]
         #
-        t = np.linspace(Tsort[0], Tsort[-1], Tsort[-1] - Tsort[0] + 1)
+        t = np.linspace(0, T_uniq[-1], 1000)
 
         if asspt_mRNA is 'ss':
             # run the phase plot
@@ -116,15 +116,15 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                 row_ind = int(np.floor(i/ncols)) # make sure all related plots for the same gene in the same column.
                 ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols + i % ncols])
                 if j < j_species:
-                    ax.boxplot(x=[x_data[j][i][T == std] for std in Tsort],  positions=Tsort, widths=boxwidth, showfliers=False)  # x=T.values, y= # ax1.plot(T, u.T, linestyle='None', marker='o', markersize=10)
-                    ax.scatter(Tsort, Obs_m[j][i], c='r')  # ax1.plot(T, u.T, linestyle='None', marker='o', markersize=10)
+                    ax.boxplot(x=[x_data[j][i][T == std] for std in T_uniq],  positions=T_uniq, widths=boxwidth, showfliers=False)  # x=T.values, y= # ax1.plot(T, u.T, linestyle='None', marker='o', markersize=10)
+                    ax.scatter(T_uniq, Obs_m[j][i], c='r')  # ax1.plot(T, u.T, linestyle='None', marker='o', markersize=10)
                     if y_log_scale:
                         ax.set_ylabel('Expression (log)')
                     else:
                         ax.set_ylabel('Expression')
                     ax.plot(t, mom_data[j], 'k--')
                 else:
-                    ax.scatter(Tsort, Obs_v[j - j_species][i], c='r')
+                    ax.scatter(T_uniq, Obs_v[j - j_species][i], c='r')
                     if y_log_scale:
                         ax.set_ylabel('Variance (log)')
                     else:
@@ -132,6 +132,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                     ax.plot(t, mom_data[j], 'k--')
                 ax.set_xlabel('time (' + unit + ')')
                 ax.set_title(gene_name + title_[j])
+                
                 if y_log_scale: ax.set_yscale('log')
         elif experiment_type is 'deg':
             if has_splicing:
@@ -169,7 +170,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
             for j in range(sub_plot_n):
                 row_ind = int(np.floor(idx/ncols)) # make sure unlabled and labeled are in the same column.
                 ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols + i % ncols])
-                ax.boxplot(x=[Obs[i][T == std] for std in Tsort], positions=Tsort, widths=boxwidth,
+                ax.boxplot(x=[Obs[i][T == std] for std in T_uniq], positions=T_uniq, widths=boxwidth,
                            showfliers=False)
                 ax.plot(t, u, 'k--')
                 ax.set_xlabel('time (' + unit + ')')
@@ -211,7 +212,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
             for j in range(sub_plot_n):
                 row_ind = int(np.floor(idx/ncols)) # make sure unlabled and labeled are in the same column.
                 ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols + i % ncols])
-                ax.boxplot(x=[Obs[i][T == std] for std in Tsort], positions=Tsort, widths=boxwidth,
+                ax.boxplot(x=[Obs[i][T == std] for std in T_uniq], positions=T_uniq, widths=boxwidth,
                            showfliers=False)
                 ax.plot(t, u, 'k--')
                 ax.set_xlabel('time (' + unit + ')')
@@ -226,6 +227,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                     if issparse(uu) else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
                 beta, gamma, alpha_std = adata.var.loc[gene_name, [prefix + 'beta', prefix + 'gamma', prefix + 'alpha_std']]
                 alpha_stm = adata[:, gene_name].varm[prefix + 'alpha'].flatten()
+                alpha_stm0, k, _ = solve_first_order_deg(T_uniq[1:], alpha_stm)
 
                 # $u$ - unlabeled, unspliced
                 # $s$ - unlabeled, spliced
@@ -233,11 +235,12 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                 # $l$ - labeled, spliced
                 #
                 # calculate labeled unspliced and spliced mRNA amount
-                u1, s1 = np.zeros(len(Tsort) - 1), np.zeros(len(Tsort) - 1)
-                for ind in np.arange(1, len(Tsort)):
-                    t_i = Tsort[ind]
-                    u0 = sol_u(np.max(Tsort) - t_i, 0, alpha_std, beta)
-                    u1[ind - 1], s1[ind - 1] = sol_u(t_i, u0, alpha_stm[ind - 1], beta), sol_u(np.max(Tsort), 0, beta, gamma)
+                u1, s1 = np.zeros(len(t) - 1), np.zeros(len(t) - 1)
+                for ind in np.arange(1, len(t)):
+                    t_i = t[ind]
+                    u0 = sol_u(np.max(t) - t_i, 0, alpha_std, beta)
+                    alpha_stm_t_i = alpha_stm0 * np.exp(-k * t_i)
+                    u1[ind - 1], s1[ind - 1] = sol_u(t_i, u0, alpha_stm_t_i, beta), sol_u(np.max(t), 0, beta, gamma)
 
                 Obs, Pred = np.vstack((ul, sl, uu, su)), np.vstack((u1.reshape(1, -1), s1.reshape(1, -1)))
                 j_species, title_ = 4, ['unspliced labeled (new)', 'spliced labeled (new)', 'unspliced unlabeled (old)', 'spliced unlabeled (old)', 'alpha (steady state vs. stimulation)']
@@ -248,12 +251,14 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                 gamma, alpha_std = adata.var.loc[gene_name, [prefix + 'gamma', prefix + 'alpha_std']]
                 alpha_stm = adata[:, gene_name].varm[prefix + 'alpha'].flatten()
 
+                alpha_stm0, k, _ = solve_first_order_deg(T_uniq[1:], alpha_stm)
                 # require no beta functions
-                u1 = np.zeros(len(Tsort) - 1)
-                for ind in np.arange(1, len(Tsort)):
-                    t_i = Tsort[ind]
-                    u0 = sol_u(np.max(Tsort) - t_i, 0, alpha_std, gamma)
-                    u1[ind - 1] = sol_u(t_i, u0, alpha_stm[ind - 1], gamma)
+                u1 = np.zeros(len(t) - 1)
+                for ind in np.arange(1, len(t)):
+                    t_i = t[ind]
+                    u0 = sol_u(np.max(t) - t_i, 0, alpha_std, gamma)
+                    alpha_stm_t_i = alpha_stm0 * np.exp(-k * t_i)
+                    u1[ind - 1] = sol_u(t_i, u0, alpha_stm_t_i, gamma)
 
                 Obs, Pred = np.vstack((ul, uu)), np.vstack((u1.reshape(1, -1)))
                 j_species, title_ = 2, ['labeled (new)', 'unlabeled (old)', 'alpha (steady state vs. stimulation)']
@@ -265,17 +270,19 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                 row_ind = int(np.floor(i / ncols))  # make sure all related plots for the same gene in the same column.
                 ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols + i % ncols])
                 if j < j_species / 2:
-                    ax.boxplot(x=[Obs[j][T == std] for std in Tsort[1:]], positions=Tsort[1:], widths=boxwidth,
+                    ax.boxplot(x=[Obs[j][T == std] for std in T_uniq[1:]], positions=T_uniq[1:], widths=boxwidth,
                                showfliers=False)
-                    ax.plot(Tsort[1:], Pred[j], 'k--')
+                    ax.plot(t[1:], Pred[j], 'k--')
                     ax.set_xlabel('time (' + unit + ')')
                     ax.set_title(gene_name + ': ' + title_[j])
 
                     if y_log_scale:
                         ax.set_yscale('log')
                         ax.set_ylabel('Expression (log)')
+                    else:
+                        ax.set_ylabel('Expression')
                 elif j < j_species:
-                    ax.boxplot(x=[Obs[j][T == std] for std in Tsort], positions=Tsort, widths=boxwidth,
+                    ax.boxplot(x=[Obs[j][T == std] for std in T_uniq], positions=T_uniq, widths=boxwidth,
                                showfliers=False)
                     ax.set_xlabel('time (' + unit + ')')
                     ax.set_title(gene_name + ': ' + title_[j])
@@ -283,8 +290,11 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                     if y_log_scale:
                         ax.set_yscale('log')
                         ax.set_ylabel('Expression (log)')
+                    else:
+                        ax.set_ylabel('Expression')
+
                 else:
-                    x = Tsort[1:]  # the label locations
+                    x = T_uniq[1:]  # the label locations
                     group_width = barwidth / 2
                     bar_coord, group_name, group_ind = [-1, 1], ['steady state', 'stimulation'], 0
 
