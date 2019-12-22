@@ -167,14 +167,14 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                 alpha, gamma, ul0 = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'ul0']]
 
                 # require no beta functions
-                uu0 = np.mean(uu0[T == np.min(T)])
+                uu0 = np.mean(uu[T == np.min(T)])
                 u = sol_u(t, uu0, alpha, gamma)
                 s = None # sol_s(t, su0, uu0, 0, 1, gamma)
                 w = sol_u(t, ul0, 0, gamma)
                 l = None # sol_s(t, 0, 0, alpha, 1, gamma)
                 title_ = ['(unlabeled)', '(labeled)']
 
-                Obs, Pred = np.vstack((uu, ul, su, sl)), np.vstack((u, w, s, l))
+                Obs, Pred = np.vstack((uu, ul)), np.vstack((u, w))
 
             for j in range(sub_plot_n):
                 row_ind = int(np.floor(idx/ncols)) # make sure unlabled and labeled are in the same column.
@@ -216,7 +216,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                 uu, ul = adata[:, gene_name].layers[layers[1]] - adata[:, gene_name].layers[layers[0]], \
                                  adata[:, gene_name].layers[layers[0]]
                 uu, ul = (uu.toarray().squeeze(), ul.toarray().squeeze()) if issparse(uu) else (uu.squeeze(), ul.squeeze())
-                alpha, gamma, uu0 = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'ul0']]
+                alpha, gamma, uu0 = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'uu0']]
 
                 # require no beta functions
                 u = sol_u(t, uu0, 0, gamma)
