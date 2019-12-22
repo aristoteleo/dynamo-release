@@ -48,13 +48,14 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
 
     T = adata.obs[tkey].values if t is None else t
     T_uniq = np.unique(T)
+    t = np.linspace(0, T_uniq[-1], 1000)
     gene_idx = [np.where(adata.var.index.values == gene)[0][0] for gene in vkey]
     prefix = 'kinetic_parameter_'
 
-    if boxwidth is None:
+    if boxwidth is None and len(T_uniq) > 1:
         boxwidth = 0.8 * (np.diff(T_uniq).min() / 2)
 
-    if barwidth is None:
+    if barwidth is None and len(T_uniq) > 1:
         barwidth = 0.8 * (np.diff(T_uniq).min() / 2)
 
     if has_splicing:
@@ -63,8 +64,10 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
             tmp = [adata[:, gene_idx].layers['X_ul'].A.T, adata.layers['X_sl'].A.T] if 'X_ul' in adata.layers.keys() else \
                     [adata[:, gene_idx].layers['ul'].A.T, adata.layers['sl'].A.T]
             x_data = [tmp[0].A, tmp[1].A] if issparse(tmp[0]) else tmp
-        elif experiment_type is 'kin'or experiment_type is 'deg':
+        elif experiment_type is 'kin' or experiment_type is 'deg':
             sub_plot_n = 4
+        elif experiment_type is 'one_shot': # just the labeled RNA
+            sub_plot_n = 1
         elif experiment_type is 'mix_std_stm':
             sub_plot_n = 5
     else:
@@ -74,6 +77,8 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
             x_data = [tmp.A] if issparse(tmp) else [tmp]
         elif experiment_type is 'kin'or experiment_type is 'deg':
             sub_plot_n = 2
+        elif experiment_type is 'one_shot': # just the labeled RNA
+            sub_plot_n = 1
         elif experiment_type is 'mix_std_stm':
             sub_plot_n = 3
 
@@ -85,8 +90,6 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
     # we need to visualize gene in row-wise mode
     for i, idx in enumerate(gene_idx):
         gene_name = adata.var_names[idx]
-        #
-        t = np.linspace(0, T_uniq[-1], 1000)
 
         if asspt_mRNA is 'ss':
             # run the phase plot
@@ -141,40 +144,50 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                            adata[:, gene_name].layers[layers[2]], adata[:, gene_name].layers[layers[3]]
                 uu, ul, su, sl = (uu.toarray().squeeze(), ul.toarray().squeeze(), su.toarray().squeeze(), sl.toarray().squeeze()) \
                     if issparse(uu) else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
-                alpha, beta, gamma, ul0, sl0 = adata.var.loc[
-                    gene_name, [prefix + 'alpha', prefix + 'beta', prefix + 'gamma', prefix + 'ul0', prefix + 'sl0']]
+                alpha, beta, gamma, ul0, sl0, uu0 = adata.var.loc[
+                    gene_name, [prefix + 'alpha', prefix + 'beta', prefix + 'gamma', prefix + 'ul0', prefix + 'sl0', prefix + 'uu0']]
                 # $u$ - unlabeled, unspliced
                 # $s$ - unlabeled, spliced
                 # $w$ - labeled, unspliced
                 # $l$ - labeled, spliced
                 #
-                u = sol_u(t, ul0, 0, beta)
-                s = sol_s(t, sl0, ul0, 0, beta, gamma)
-                w = sol_u(t, 0, alpha, beta)
-                l = sol_s(t, 0, 0, alpha, beta, gamma)
+                u = sol_u(t, uu0, alpha, beta)
+                su0 = np.mean(su[T == np.min(T)])
+                s = sol_s(t, su0, uu0, 0, beta, gamma)
+                w = sol_u(t, ul0, 0, beta)
+                l = sol_s(t, sl0, ul0, 0, beta, gamma)
+                title_ = ['(unspliced unlabeled)', '(unspliced labeled)', '(spliced unlabeled)', '(spliced labeled)']
+
+                Obs, Pred = np.vstack((uu, ul, su, sl)), np.vstack((u, w, s, l))
             else:
                 layers = ['X_new', 'X_total'] if 'X_new' in adata.layers.keys() else ['new', 'total']
-                uu, ul, su, sl = adata[:, gene_name].layers[layers[0]], adata[:, gene_name].layers[layers[0]], None, None
+                uu, ul = adata[:, gene_name].layers[layers[1]] - adata[:, gene_name].layers[layers[0]], \
+                                 adata[:, gene_name].layers[layers[0]]
                 uu, ul = (uu.toarray().squeeze(), ul.toarray().squeeze()) if issparse(uu) else (uu.squeeze(), ul.squeeze())
                 alpha, gamma, ul0 = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'ul0']]
 
                 # require no beta functions
-                u = sol_u(t, ul0, 0, gamma)
+                uu0 = np.mean(uu0[T == np.min(T)])
+                u = sol_u(t, uu0, alpha, gamma)
                 s = None # sol_s(t, su0, uu0, 0, 1, gamma)
-                w = sol_u(t, 0, alpha, gamma)
+                w = sol_u(t, ul0, 0, gamma)
                 l = None # sol_s(t, 0, 0, alpha, 1, gamma)
+                title_ = ['(unlabeled)', '(labeled)']
 
-            Obs, Pred = np.vstack((uu, ul, su, sl)), np.vstack((u, w, s, l))
-            title_ = ['(unspliced unlabeled)', '(unspliced labeled)', '(spliced unlabeled)', '(spliced labeled)']
+                Obs, Pred = np.vstack((uu, ul, su, sl)), np.vstack((u, w, s, l))
 
             for j in range(sub_plot_n):
                 row_ind = int(np.floor(idx/ncols)) # make sure unlabled and labeled are in the same column.
                 ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols + i % ncols])
-                ax.boxplot(x=[Obs[i][T == std] for std in T_uniq], positions=T_uniq, widths=boxwidth,
+                ax.boxplot(x=[Obs[j][T == std] for std in T_uniq], positions=T_uniq, widths=boxwidth,
                            showfliers=False)
-                ax.plot(t, u, 'k--')
+                ax.plot(t, Pred[j], 'k--')
                 ax.set_xlabel('time (' + unit + ')')
-                ax.set_ylabel('Expression')
+                if y_log_scale:
+                    ax.set_yscale('log')
+                    ax.set_ylabel('Expression (log)')
+                else:
+                    ax.set_ylabel('Expression')
                 ax.set_title(gene_name + title_[j])
         elif experiment_type is 'kin':
             if has_splicing:
@@ -194,11 +207,16 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                 s = sol_s(t, su0, uu0, 0, beta, gamma)
                 w = sol_u(t, 0, alpha, beta)
                 l = sol_s(t, 0, 0, alpha, beta, gamma)
+
+                title_ = ['(unspliced unlabeled)', '(unspliced labeled)', '(spliced unlabeled)', '(spliced labeled)']
+
+                Obs, Pred = np.vstack((uu, ul, su, sl)), np.vstack((u, w, s, l))
             else:
                 layers = ['X_new', 'X_total'] if 'X_new' in adata.layers.keys() else ['new', 'total']
-                uu, ul, su, sl = adata[:, gene_name].layers[layers[0]], adata[:, gene_name].layers[layers[0]], None, None
+                uu, ul = adata[:, gene_name].layers[layers[1]] - adata[:, gene_name].layers[layers[0]], \
+                                 adata[:, gene_name].layers[layers[0]]
                 uu, ul = (uu.toarray().squeeze(), ul.toarray().squeeze()) if issparse(uu) else (uu.squeeze(), ul.squeeze())
-                alpha, gamma, uu0, su0 = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'uu0', prefix + 'su0']]
+                alpha, gamma, uu0 = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'ul0']]
 
                 # require no beta functions
                 u = sol_u(t, uu0, 0, gamma)
@@ -206,18 +224,74 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                 w = sol_u(t, 0, alpha, gamma)
                 l = None # sol_s(t, 0, 0, alpha, 1, gamma)
 
-            Obs, Pred = np.vstack((uu, ul, su, sl)), np.vstack((u, w, s, l))
-            title_ = ['(unspliced unlabeled)', '(unspliced labeled)', '(spliced unlabeled)', '(spliced labeled)']
+                title_ = ['(unlabeled)', '(labeled)']
+
+                Obs, Pred = np.vstack((uu, ul)), np.vstack((u, w))
 
             for j in range(sub_plot_n):
                 row_ind = int(np.floor(idx/ncols)) # make sure unlabled and labeled are in the same column.
                 ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols + i % ncols])
-                ax.boxplot(x=[Obs[i][T == std] for std in T_uniq], positions=T_uniq, widths=boxwidth,
+                ax.boxplot(x=[Obs[j][T == std] for std in T_uniq], positions=T_uniq, widths=boxwidth,
                            showfliers=False)
-                ax.plot(t, u, 'k--')
+                ax.plot(t, Pred[j], 'k--')
                 ax.set_xlabel('time (' + unit + ')')
-                ax.set_ylabel('Expression')
+                if y_log_scale:
+                    ax.set_yscale('log')
+                    ax.set_ylabel('Expression (log)')
+                else:
+                    ax.set_ylabel('Expression')
                 ax.set_title(gene_name + title_[j])
+        elif experiment_type is 'one_shot':
+            if has_splicing:
+                layers = ['X_uu', 'X_ul', 'X_su', 'X_sl'] if 'X_ul' in adata.layers.keys() else ['uu', 'ul', 'su', 'sl']
+                uu, ul, su, sl = adata[:, gene_name].layers[layers[0]], adata[:, gene_name].layers[layers[1]], \
+                                 adata[:, gene_name].layers[layers[2]], adata[:, gene_name].layers[layers[3]]
+                uu, ul, su, sl = (uu.toarray().squeeze(), ul.toarray().squeeze(), su.toarray().squeeze(), sl.toarray().squeeze()) \
+                    if issparse(uu) else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
+                alpha, beta, gamma, U0, S0 = adata.var.loc[
+                    gene_name, [prefix + 'alpha', prefix + 'beta', prefix + 'gamma', prefix + 'U0', prefix + 'S0']]
+                # $u$ - unlabeled, unspliced
+                # $s$ - unlabeled, spliced
+                # $w$ - labeled, unspliced
+                # $l$ - labeled, spliced
+                #
+                U_sol = sol_u(t, U0, 0, beta)
+                S_sol = sol_u(t, S0, 0, gamma)
+                l = sol_s(t, 0, 0, alpha, beta, gamma)
+
+                L = su + sl
+                title_ = ['labeled']
+            else:
+                layers = ['X_new', 'X_total'] if 'X_new' in adata.layers.keys() else ['new', 'total']
+                uu, ul = adata[:, gene_name].layers[layers[1]] - adata[:, gene_name].layers[layers[0]], \
+                         adata[:, gene_name].layers[layers[0]]
+                uu, ul = (uu.toarray().squeeze(), ul.toarray().squeeze()) if issparse(uu) else (
+                uu.squeeze(), ul.squeeze())
+                alpha, gamma, total0 = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'total0']]
+
+                # require no beta functions
+                old = sol_u(t, total0, 0, gamma)
+                s = None  # sol_s(t, su0, uu0, 0, 1, gamma)
+                w = None
+                l = sol_u(t, 0, alpha, gamma)  # sol_s(t, 0, 0, alpha, 1, gamma)
+
+                L = ul
+                title_ = ['labeled']
+
+            Obs, Pred = np.hstack((np.zeros(L.shape), L)), np.hstack(l)
+
+            row_ind = int(np.floor(idx / ncols))  # make sure unlabled and labeled are in the same column.
+            ax = plt.subplot(gs[(row_ind * sub_plot_n) * ncols + i % ncols])
+            ax.boxplot(x=[Obs[np.hstack((np.zeros_like(T), T)) == std] for std in [0, T_uniq[0]]], positions=[0, T_uniq[0]], widths=boxwidth,
+                       showfliers=False)
+            ax.plot(t, Pred, 'k--')
+            ax.set_xlabel('time (' + unit + ')')
+            if y_log_scale:
+                ax.set_yscale('log')
+                ax.set_ylabel('Expression (log)')
+            else:
+                ax.set_ylabel('Expression')
+            ax.set_title(gene_name + title_[j])
         elif experiment_type is 'mix_std_stm':
             if has_splicing:
                 layers = ['X_uu', 'X_ul', 'X_su', 'X_sl'] if 'X_ul' in adata.layers.keys() else ['uu', 'ul', 'su', 'sl']
@@ -311,9 +385,6 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
 
                 ax.set_xlabel('time (' + unit + ')')
                 ax.set_title(gene_name + ': ' + title_[j])
-
-        elif experiment_type is 'one_shot':
-            pass
         elif experiment_type is 'multi_time_series':
             pass # group by different groups
         elif experiment_type is 'coassay':

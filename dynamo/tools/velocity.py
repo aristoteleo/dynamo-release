@@ -858,7 +858,7 @@ class estimation:
                     u0, gamma = np.zeros(n), np.zeros(n)
                     for i in range(n):
                         gamma[i], u0[i] = fit_first_order_deg_lsq(self.t, self.data['uu'][i])
-                    self.parameters['gamma'], self.aux_param[' uu0'] = gamma, u0
+                    self.parameters['gamma'], self.aux_param['uu0'] = gamma, u0
                     alpha = np.zeros_like(self.data['ul'].A) if issparse(self.data['ul']) else np.zeros_like(self.data['ul'])
                     # assume constant alpha across all cells
                     for i in range(n):
@@ -873,29 +873,29 @@ class estimation:
                     raise Exception('By definition, one-shot experiment should involve only one time point measurement!')
                 # calculate when having splicing or no splicing
                 if np.all(self._exist_data('ul', 'uu', 'sl', 'su')):
-                    if self._exist_data('ul') and self._exist_data('uu'):
+                    if self._exist_data('ul') and self._exist_parameter('beta', 'gamma'):
+                        self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
+                    else:
                         beta, gamma, U0, S0 = np.zeros(n), np.zeros(n), np.zeros(n), np.zeros(n)
                         for i in range(n): # can also use the two extreme time points and apply sci-fate like approach.
                             S, U = self.data['su'][i] + self.data['sl'][i], self.data['uu'][i] + self.data['ul'][i]
 
                             S0[i], gamma[i] = np.mean(S), solve_gamma(np.max(self.t), self.data['su'][i], S)
                             U0[i], beta[i] = np.mean(U), solve_gamma(np.max(self.t), self.data['uu'][i], U)
-                        self.parameters['U0'], self.parameters['S0'], self.parameters['beta'] = U0, S0, beta
+                        self.aux_param['U0'], self.aux_param['S0'], self.parameters['beta'] = U0, S0, beta
 
                         self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
-                    elif self._exist_data('ul') and self._exist_parameter('beta'):
-                        self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
                 else:
-                    if self._exist_data('ul') and self._exist_data('uu'):
+                    if self._exist_data('ul') and self._exist_parameter('gamma'):
+                        self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['gamma'], clusters)
+                    elif self._exist_data('ul') and self._exist_data('uu'):
                         gamma, total0 = np.zeros(n), np.zeros(n)
                         for i in range(n):
                             total = self.data['uu'][i] + self.data['ul'][i]
                             total0[i], gamma[i] = np.mean(total), solve_gamma(np.max(self.t), self.data['uu'][i], total)
-                        self.parameters['total0'], self.parameters['gamma'] = total0, gamma
+                        self.aux_param['total0'], self.parameters['gamma'] = total0, gamma
 
-                        self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
-                    elif self._exist_data('ul') and self._exist_parameter('beta'):
-                        self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
+                        self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['gamma'], clusters)
 
             elif self.extyp == 'mix_std_stm':
                 if np.all(self._exist_data('ul', 'uu', 'su')):

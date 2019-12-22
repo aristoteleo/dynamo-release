@@ -185,9 +185,12 @@ if __name__ is '__main__':
     # tmp = dyn.tl.dynamics(adata[:, example_genes], experiment_type='kin', filter_gene_mode='no', tkey='time')
     # dyn.pl.metabolic_labeling_fit(tmp, vkey=tmp.var_names, tkey='time', unit='minutes')
     # tmp = dyn.tl.dynamics(adata[:, example_genes], experiment_type='mix_std_stm', filter_gene_mode='no', tkey='hours')
-    tmp = dyn.tl.dynamics(adata[:, example_genes], experiment_type='kin', filter_gene_mode='no', tkey='hours')
+    # tmp = adata[:, example_genes]
+    # tmp = dyn.tl.dynamics(tmp[tmp.obs.hours == 2, :], experiment_type='one_shot', filter_gene_mode='no', tkey='hours')
+    # dyn.pl.dynamics(tmp, vkey=tmp.var_names, tkey='hours', unit='hours')
+    # tmp = dyn.tl.dynamics(adata[:, example_genes], experiment_type='kin', filter_gene_mode='no', tkey='hours')
     # dyn.pl.metabolic_labeling_fit(tmp, vkey=tmp.var_names, tkey='time', unit='minutes')
-    # tmp = dyn.tl.dynamics(adata[:, example_genes], experiment_type='kin', filter_gene_mode='no', tkey='time')
+    tmp = dyn.tl.dynamics(adata[:, example_genes], experiment_type='kin', filter_gene_mode='no', tkey='time')
     dyn.pl.dynamics(tmp, vkey=tmp.var_names, tkey='hours', unit='hours')
 
     # dyn.tl.dynamics(adata[:, :25], filter_gene_mode='no')
