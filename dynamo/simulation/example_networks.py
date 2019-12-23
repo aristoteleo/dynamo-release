@@ -181,7 +181,6 @@ if __name__ is '__main__':
     # adata = dyn.read_h5ad('/Users/xqiu/Desktop/neuron_12_11.h5ad')
     adata = dyn.read_h5ad('/Users/xqiu/Desktop/ESC_12_11.h5ad')
     adata.obs['hours'] = adata.obs['minutes'] / 60
-
     # adata = dyn.read_h5ad('/Users/xqiu/Desktop/neuron_12_11.h5ad')
     # adata.obs['hours'] = adata.obs['time'] / 60
 

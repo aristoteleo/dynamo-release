@@ -354,9 +354,9 @@ class KernelMarkovChain(MarkovChain):
                 k = k / D[0, self.Idx[i]]
             else:
                 k = np.matrix(k)
-            if np.sum(k) == 0:
-                print(i)
-                print(tau)
+            # if np.sum(k) == 0:
+            #     print(i)
+            #     print(tau)
             p = k / np.sum(k)
             p[p <= tol] = 0  # tolerance check
             p = p / np.sum(p)

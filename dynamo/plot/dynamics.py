@@ -1,8 +1,10 @@
+import sys
 import numpy as np
 from scipy.sparse import issparse
 from .scatters import scatters
 from ..tools.velocity import sol_u, sol_s, solve_first_order_deg
 from ..tools.utils_moments import moments
+from ..tools.moments import strat_mom
 
 
 def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, group=None, ncols=None,
@@ -119,7 +121,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                 row_ind = int(np.floor(i/ncols)) # make sure all related plots for the same gene in the same column.
                 ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols + i % ncols])
                 if j < j_species:
-                    ax.boxplot(x=[x_data[j][i][T == std] for std in T_uniq],  positions=T_uniq, widths=boxwidth, showfliers=False)  # x=T.values, y= # ax1.plot(T, u.T, linestyle='None', marker='o', markersize=10)
+                    ax.boxplot(x=[x_data[j][i][T == std] for std in T_uniq],  positions=T_uniq, widths=boxwidth, showfliers=False, showmeans=True)  # x=T.values, y= # ax1.plot(T, u.T, linestyle='None', marker='o', markersize=10)
                     ax.scatter(T_uniq, Obs_m[j][i], c='r')  # ax1.plot(T, u.T, linestyle='None', marker='o', markersize=10)
                     if y_log_scale:
                         ax.set_ylabel('Expression (log)')
@@ -144,6 +146,9 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                            adata[:, gene_name].layers[layers[2]], adata[:, gene_name].layers[layers[3]]
                 uu, ul, su, sl = (uu.toarray().squeeze(), ul.toarray().squeeze(), su.toarray().squeeze(), sl.toarray().squeeze()) \
                     if issparse(uu) else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
+
+                sl = np.log(sl + 1) / (np.log(ul + 1) + np.log(uu + 1) + np.log(su + 1) + np.log(sl + 1) + sys.float_info.epsilon)
+
                 alpha, beta, gamma, ul0, sl0, uu0 = adata.var.loc[
                     gene_name, [prefix + 'alpha', prefix + 'beta', prefix + 'gamma', prefix + 'ul0', prefix + 'sl0', prefix + 'uu0']]
                 # $u$ - unlabeled, unspliced
@@ -164,6 +169,9 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                 uu, ul = adata[:, gene_name].layers[layers[1]] - adata[:, gene_name].layers[layers[0]], \
                                  adata[:, gene_name].layers[layers[0]]
                 uu, ul = (uu.toarray().squeeze(), ul.toarray().squeeze()) if issparse(uu) else (uu.squeeze(), ul.squeeze())
+
+                ul = np.log(ul + 1) / (np.log(ul + 1) + np.log(uu + 1) + sys.float_info.epsilon)
+
                 alpha, gamma, ul0 = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'ul0']]
 
                 # require no beta functions
@@ -180,7 +188,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                 row_ind = int(np.floor(idx/ncols)) # make sure unlabled and labeled are in the same column.
                 ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols + i % ncols])
                 ax.boxplot(x=[Obs[j][T == std] for std in T_uniq], positions=T_uniq, widths=boxwidth,
-                           showfliers=False)
+                           showfliers=False, showmeans=True)
                 ax.plot(t, Pred[j], 'k--')
                 ax.set_xlabel('time (' + unit + ')')
                 if y_log_scale:
@@ -232,7 +240,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                 row_ind = int(np.floor(idx/ncols)) # make sure unlabled and labeled are in the same column.
                 ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols + i % ncols])
                 ax.boxplot(x=[Obs[j][T == std] for std in T_uniq], positions=T_uniq, widths=boxwidth,
-                           showfliers=False)
+                           showfliers=False, showmeans=True)
                 ax.plot(t, Pred[j], 'k--')
                 ax.set_xlabel('time (' + unit + ')')
                 if y_log_scale:
@@ -283,7 +291,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
             row_ind = int(np.floor(idx / ncols))  # make sure unlabled and labeled are in the same column.
             ax = plt.subplot(gs[(row_ind * sub_plot_n) * ncols + i % ncols])
             ax.boxplot(x=[Obs[np.hstack((np.zeros_like(T), T)) == std] for std in [0, T_uniq[0]]], positions=[0, T_uniq[0]], widths=boxwidth,
-                       showfliers=False)
+                       showfliers=False, showmeans=True)
             ax.plot(t, Pred, 'k--')
             ax.set_xlabel('time (' + unit + ')')
             if y_log_scale:
@@ -345,7 +353,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                 ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols + i % ncols])
                 if j < j_species / 2:
                     ax.boxplot(x=[Obs[j][T == std] for std in T_uniq[1:]], positions=T_uniq[1:], widths=boxwidth,
-                               showfliers=False)
+                               showfliers=False, showmeans=True)
                     ax.plot(t[1:], Pred[j], 'k--')
                     ax.set_xlabel('time (' + unit + ')')
                     ax.set_title(gene_name + ': ' + title_[j])
@@ -357,7 +365,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                         ax.set_ylabel('Expression')
                 elif j < j_species:
                     ax.boxplot(x=[Obs[j][T == std] for std in T_uniq], positions=T_uniq, widths=boxwidth,
-                               showfliers=False)
+                               showfliers=False, showmeans=True)
                     ax.set_xlabel('time (' + unit + ')')
                     ax.set_title(gene_name + ': ' + title_[j])
 

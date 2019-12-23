@@ -249,7 +249,7 @@ def fit_first_order_deg_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=1):
     l = l.A.flatten() if issparse(l) else l
 
     tau = t - np.min(t)
-    l0 = np.mean(l[tau == 0])
+    l0 = np.nanmean(l[tau == 0])
 
     if fix_l0:
         f_lsq = lambda b: sol_u(tau, l0, 0, b) - l
@@ -825,7 +825,7 @@ class estimation:
                 if np.all(self._exist_data('ul', 'sl')):
                     # beta & gamma estimation
                     self.parameters['beta'], self.parameters['gamma'], self.aux_param['ul0'], self.aux_param['sl0'] = \
-                        self.fit_beta_gamma_lsq(self.t, self.data['ul'], self.data['sl'])
+                        self.fit_beta_gamma_lsq(self.t, self.data['ul'], self.data['sl'] / (self.data['uu'] + self.data['ul'] + self.data['su'] + self.data['sl']))
                     if self._exist_data('uu'):
                         # alpha estimation
                         alpha, uu0, r2 = np.zeros(n), np.zeros(n), np.zeros(n)
@@ -834,7 +834,14 @@ class estimation:
                         self.parameters['alpha'], self.aux_param['alpha_intercept'], self.aux_param['uu0'], self.aux_param['alpha_r2'] = alpha, uu0, uu0, r2
                 elif self._exist_data('ul'):
                     # gamma estimation
-                    self.parameters['gamma'], self.aux_param['ul0'] = self.fit_gamma_nosplicing_lsq(self.t, self.data['ul'])
+
+                    # use mean + var for fitting degradation parameter k
+                    t_uniq = np.unique(self.t)
+                    U_i_m, U_i_v = np.zeros((self.data['ul'].shape[0], len(t_uniq))), np.zeros((self.data['ul'].shape[0], len(t_uniq)))
+                    division = self.data['ul'] / (self.data['uu'] + self.data['ul'])
+                    for i in range(self.data['ul'].shape[0]):
+                        U_i_m[i], U_i_v[i] = strat_mom(np.array(division[i]).flatten(), self.t, np.nanmean), strat_mom(np.array(division[i]).flatten(), self.t, np.nanvar)
+                    self.parameters['gamma'], self.aux_param['ul0'] = self.fit_gamma_nosplicing_lsq(t_uniq, U_i_m)
                     if self._exist_data('uu'):
                         # alpha estimation
                         alpha = np.zeros(n)
@@ -1009,8 +1016,11 @@ class estimation:
         beta = np.zeros(n)
         gamma = np.zeros(n)
         u0, s0 = np.zeros(n), np.zeros(n)
+
         for i in range(n):
-            beta[i], u0[i] = fit_first_order_deg_lsq(t, U[i])
+            # use mean + var for fitting degradation parameter k
+            U_i_m, U_i_v = strat_mom(U[i], t, np.nanmean), strat_mom(U[i], t, np.nanvar)
+            beta[i], u0[i] = fit_first_order_deg_lsq(np.unique(t), U_i_m) # U[i]
             if np.isfinite(u0[i]):
                 gamma[i], s0[i] = fit_gamma_lsq(t, S[i], beta[i], u0[i])
             else:
