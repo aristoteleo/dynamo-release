@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 from scipy.optimize import least_squares
 from scipy.sparse import issparse, csc_matrix
@@ -725,7 +726,8 @@ class velocity:
         return n_genes
 
 class estimation:
-    def __init__(self, U=None, Ul=None, S=None, Sl=None, P=None, t=None, ind_for_proteins=None, experiment_type='deg', assumption_mRNA=None, assumption_protein='ss', concat_data=True):
+    def __init__(self, U=None, Ul=None, S=None, Sl=None, P=None, U_fraction=None, Ul_fraction=None, S_fraction=None, Sl_fraction=None, P_fraction=None,
+                 t=None, ind_for_proteins=None, experiment_type='deg', assumption_mRNA=None, assumption_protein='ss', concat_data=True):
         """The class that estimates parameters with input data.
 
         Arguments
@@ -780,7 +782,8 @@ class estimation:
                 delta: protein degradation rate
         """
         self.t = t
-        self.data = {'uu': U, 'ul': Ul, 'su': S, 'sl': Sl, 'p': P}
+        self.data = {'uu': U, 'ul': Ul, 'su': S, 'sl': Sl, 'p': P,
+                     'uu_fraction': U_fraction, 'ul_fraction': Ul_fraction, 'su_fraction': S_fraction, 'sl_fraction': Sl_fraction}
         if concat_data:
             self.concatenate_data()
 
@@ -825,7 +828,7 @@ class estimation:
                 if np.all(self._exist_data('ul', 'sl')):
                     # beta & gamma estimation
                     self.parameters['beta'], self.parameters['gamma'], self.aux_param['ul0'], self.aux_param['sl0'] = \
-                        self.fit_beta_gamma_lsq(self.t, self.data['ul'], self.data['sl'] / (self.data['uu'] + self.data['ul'] + self.data['su'] + self.data['sl']))
+                        self.fit_beta_gamma_lsq(self.t, self.data['ul'], self.data['sl'])
                     if self._exist_data('uu'):
                         # alpha estimation
                         alpha, uu0, r2 = np.zeros(n), np.zeros(n), np.zeros(n)
@@ -838,9 +841,10 @@ class estimation:
                     # use mean + var for fitting degradation parameter k
                     t_uniq = np.unique(self.t)
                     U_i_m, U_i_v = np.zeros((self.data['ul'].shape[0], len(t_uniq))), np.zeros((self.data['ul'].shape[0], len(t_uniq)))
-                    division = self.data['ul'] / (self.data['uu'] + self.data['ul'])
                     for i in range(self.data['ul'].shape[0]):
-                        U_i_m[i], U_i_v[i] = strat_mom(np.array(division[i]).flatten(), self.t, np.nanmean), strat_mom(np.array(division[i]).flatten(), self.t, np.nanvar)
+                        tmp = self.data['ul'][i]
+                        L = np.array(tmp.A, dtype=float) if issparse(tmp) else np.array(tmp, dtype=float)  # consider using the `adata.obs_vector`, `adata.var_vector` methods or accessing the array directly.
+                        U_i_m[i], U_i_v[i] = strat_mom(L, self.t, np.nanmean), strat_mom(L, self.t, np.nanvar)
                     self.parameters['gamma'], self.aux_param['ul0'] = self.fit_gamma_nosplicing_lsq(t_uniq, U_i_m)
                     if self._exist_data('uu'):
                         # alpha estimation
@@ -1018,9 +1022,7 @@ class estimation:
         u0, s0 = np.zeros(n), np.zeros(n)
 
         for i in range(n):
-            # use mean + var for fitting degradation parameter k
-            U_i_m, U_i_v = strat_mom(U[i], t, np.nanmean), strat_mom(U[i], t, np.nanvar)
-            beta[i], u0[i] = fit_first_order_deg_lsq(np.unique(t), U_i_m) # U[i]
+            beta[i], u0[i] = fit_first_order_deg_lsq(t, U[i])
             if np.isfinite(u0[i]):
                 gamma[i], s0[i] = fit_gamma_lsq(t, S[i], beta[i], u0[i])
             else:

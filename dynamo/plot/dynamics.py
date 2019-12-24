@@ -147,7 +147,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                 uu, ul, su, sl = (uu.toarray().squeeze(), ul.toarray().squeeze(), su.toarray().squeeze(), sl.toarray().squeeze()) \
                     if issparse(uu) else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
 
-                sl = np.log(sl + 1) / (np.log(ul + 1) + np.log(uu + 1) + np.log(su + 1) + np.log(sl + 1) + sys.float_info.epsilon)
+                sl = (np.log(sl + 1) + sys.float_info.epsilon) / (np.log(ul + 1) + np.log(uu + 1) + np.log(su + 1) + np.log(sl + 1) + sys.float_info.epsilon)
 
                 alpha, beta, gamma, ul0, sl0, uu0 = adata.var.loc[
                     gene_name, [prefix + 'alpha', prefix + 'beta', prefix + 'gamma', prefix + 'ul0', prefix + 'sl0', prefix + 'uu0']]
@@ -170,7 +170,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                                  adata[:, gene_name].layers[layers[0]]
                 uu, ul = (uu.toarray().squeeze(), ul.toarray().squeeze()) if issparse(uu) else (uu.squeeze(), ul.squeeze())
 
-                ul = np.log(ul + 1) / (np.log(ul + 1) + np.log(uu + 1) + sys.float_info.epsilon)
+                ul = (np.log(ul + 1) + sys.float_info.epsilon) / (np.log(ul + 1) + np.log(uu + 1) + sys.float_info.epsilon)
 
                 alpha, gamma, ul0 = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'ul0']]
 

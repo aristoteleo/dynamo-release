@@ -1,13 +1,14 @@
 from .velocity import velocity, estimation
 from .moments import MomData, Estimation
-import warnings
+import warnings, sys
 import numpy as np
 from scipy.sparse import issparse, csr_matrix
 
 
 # incorporate the model selection code soon
 def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time', protein_names=None,
-             experiment_type='deg', assumption_mRNA=None, assumption_protein='ss', concat_data=False, log_unnormalized=True):
+             experiment_type='deg', assumption_mRNA=None, assumption_protein='ss', concat_data=False,
+             get_fraction_for_deg=True, log_unnormalized=True):
     """Inclusive model of expression dynamics with scSLAM-seq and multiomics.
 
     Parameters
@@ -39,6 +40,10 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
             (1) 'ss': pseudo steady state;
         concat_data: bool (default: False)
             Whether to concatenate data before estimation. If your data is a list of matrices for each time point, this need to be set as True.
+        get_fraction_for_deg: bool (default: True)
+            Whether to calculate the fraction of relevant (labeled or unlabeled) species when using first order degradation model to estimate beta or gamma.
+        log_unnormalized: bool (default: True)
+            Whether to concatenate data before estimation. If your data is a list of matrices for each time point, this need to be set as True.
 
     Returns
     -------
@@ -67,7 +72,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         U = adata[:, valid_ind].layers['X_unspliced'].T
     elif 'unspliced' in adata.layers.keys():
         has_splicing = True
-        raw = adata[:, valid_ind].layers['unspliced'].T
+        raw, row_unspliced = adata[:, valid_ind].layers['unspliced'].T, adata[:, valid_ind].layers['unspliced'].T
         raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
         U = raw
 
@@ -77,7 +82,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         Ul = adata[:, valid_ind].layers['X_new'].T
     elif 'new' in adata.layers.keys():
         has_labeling = True
-        raw = adata[:, valid_ind].layers['new'].T
+        raw, raw_new = adata[:, valid_ind].layers['new'].T, adata[:, valid_ind].layers['new'].T
         raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
         U = raw
         Ul = raw
@@ -86,14 +91,14 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
 
         U = adata[:, valid_ind].layers['X_uu'].T  # unlabel unspliced: U
     elif 'uu' in adata[:, valid_ind].layers.keys():
-        raw = adata[:, valid_ind].layers['uu'].T
+        raw, raw_uu = adata[:, valid_ind].layers['uu'].T, adata[:, valid_ind].layers['uu'].T
         raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
         U = raw
 
     if 'X_spliced' in adata.layers.keys():
         S = adata[:, valid_ind].layers['X_spliced'].T
     elif 'spliced' in adata.layers.keys():
-        raw = adata[:, valid_ind].layers['spliced'].T
+        raw, raw_spliced = adata[:, valid_ind].layers['spliced'].T, adata[:, valid_ind].layers['spliced'].T
         raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
         S = raw
 
@@ -101,7 +106,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         total = adata[:, valid_ind].layers['X_total'].T
         if experiment_type is not 'kin' and experiment_type is not 'mix_std_stm': S = total
     elif 'total' in adata.layers.keys():
-        total = adata[:, valid_ind].layers['total'].T
+        total, raw_total = adata[:, valid_ind].layers['total'].T, adata[:, valid_ind].layers['total'].T
         if experiment_type is not 'kin' and experiment_type is not 'mix_std_stm':
             raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
             S = total
@@ -109,21 +114,21 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
     elif 'X_su' in adata.layers.keys():  # unlabel spliced: S
         S = adata[:, valid_ind].layers['X_su'].T
     elif 'su' in adata.layers.keys():
-        raw = adata[:, valid_ind].layers['su'].T
+        raw, raw_su = adata[:, valid_ind].layers['su'].T, adata[:, valid_ind].layers['su'].T
         raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
         S = raw
 
     if 'X_ul' in adata.layers.keys():
         Ul = adata[:, valid_ind].layers['X_ul'].T
     elif 'ul' in adata.layers.keys():
-        raw = adata[:, valid_ind].layers['ul'].T
+        raw, raw_ul = adata[:, valid_ind].layers['ul'].T, adata[:, valid_ind].layers['ul'].T
         raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
         Ul = raw
 
     if 'X_sl' in adata.layers.keys():
         Sl = adata[:, valid_ind].layers['X_sl'].T
     elif 'sl' in adata.layers.keys():
-        raw = adata[:, valid_ind].layers['sl'].T
+        raw, raw_sl = adata[:, valid_ind].layers['sl'].T, adata[:, valid_ind].layers['sl'].T
         raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
         Sl = raw
 
@@ -146,18 +151,13 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
     t = np.array(adata.obs[tkey], dtype='float') if tkey in adata.obs.columns else None
 
     """
-    check assumption_mRNA ...??????????????
+    check assumption_mRNA ...
     """
-    if (Ul is None or Sl is None) and t is None:
-        assumption_mRNA = 'ss'
-    else:
-        if 'X_total' in adata.layers.keys() or 'total' in adata.layers.keys():
-            old = total - Ul
-            U = old
 
     if mode is 'deterministic':
-        est = estimation(U=U, Ul=Ul, S=S, Sl=Sl, P=P, t=t, ind_for_proteins=ind_for_proteins,
-                         experiment_type=experiment_type, \
+        est = estimation(U=U, Ul=Ul, S=S, Sl=Sl, P=P,
+                         t=t, ind_for_proteins=ind_for_proteins,
+                         experiment_type=experiment_type,
                          assumption_mRNA=assumption_mRNA, assumption_protein=assumption_protein,
                          concat_data=concat_data)
         est.fit()
