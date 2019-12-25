@@ -7,7 +7,7 @@ from ..tools.utils_moments import moments
 from ..tools.moments import strat_mom
 
 
-def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, group=None, ncols=None,
+def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y_log_scale=False, group=None, ncols=None,
                            figsize=None, dpi=None, boxwidth=None, barwidth=None, show=True):
     """ Plot the data and fitting of different metabolic labeling experiments.
 
@@ -66,6 +66,9 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
             tmp = [adata[:, gene_idx].layers['X_ul'].A.T, adata.layers['X_sl'].A.T] if 'X_ul' in adata.layers.keys() else \
                     [adata[:, gene_idx].layers['ul'].A.T, adata.layers['sl'].A.T]
             x_data = [tmp[0].A, tmp[1].A] if issparse(tmp[0]) else tmp
+            if log_unnormalized and 'X_ul' not in adata.layers.keys():
+                x_data = [np.log(tmp[0].A + 1), np.log(tmp[1].A + 1)]
+
         elif experiment_type is 'kin' or experiment_type is 'deg':
             sub_plot_n = 4
         elif experiment_type is 'one_shot': # just the labeled RNA
@@ -77,6 +80,9 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
             sub_plot_n = 2
             tmp = adata[:, gene_idx].layers['X_new'].T if 'X_new' in adata.layers.keys() else adata[:, gene_idx].layers['new'].T
             x_data = [tmp.A] if issparse(tmp) else [tmp]
+
+            if log_unnormalized and 'X_new' not in adata.layers.keys():
+                x_data = [np.log(tmp[0].A + 1)]
         elif experiment_type is 'kin'or experiment_type is 'deg':
             sub_plot_n = 2
         elif experiment_type is 'one_shot': # just the labeled RNA
@@ -147,7 +153,8 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                 uu, ul, su, sl = (uu.toarray().squeeze(), ul.toarray().squeeze(), su.toarray().squeeze(), sl.toarray().squeeze()) \
                     if issparse(uu) else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
 
-                sl = (np.log(sl + 1) + sys.float_info.epsilon) / (np.log(ul + 1) + np.log(uu + 1) + np.log(su + 1) + np.log(sl + 1) + sys.float_info.epsilon)
+                if log_unnormalized and layers == ['uu', 'ul', 'su', 'sl']:
+                    uu, ul, su, sl = np.log(uu + 1), np.log(ul + 1), np.log(su + 1), np.log(sl + 1)
 
                 alpha, beta, gamma, ul0, sl0, uu0 = adata.var.loc[
                     gene_name, [prefix + 'alpha', prefix + 'beta', prefix + 'gamma', prefix + 'ul0', prefix + 'sl0', prefix + 'uu0']]
@@ -170,7 +177,8 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                                  adata[:, gene_name].layers[layers[0]]
                 uu, ul = (uu.toarray().squeeze(), ul.toarray().squeeze()) if issparse(uu) else (uu.squeeze(), ul.squeeze())
 
-                ul = (np.log(ul + 1) + sys.float_info.epsilon) / (np.log(ul + 1) + np.log(uu + 1) + sys.float_info.epsilon)
+                if log_unnormalized and layers == ['new', 'total']:
+                    uu, ul = np.log(uu + 1), np.log(ul + 1)
 
                 alpha, gamma, ul0 = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'ul0']]
 
@@ -204,6 +212,10 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                            adata[:, gene_name].layers[layers[2]], adata[:, gene_name].layers[layers[3]]
                 uu, ul, su, sl = (uu.toarray().squeeze(), ul.toarray().squeeze(), su.toarray().squeeze(), sl.toarray().squeeze()) \
                     if issparse(uu) else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
+
+                if log_unnormalized and layers == ['uu', 'ul', 'su', 'sl']:
+                    uu, ul, su, sl = np.log(uu + 1), np.log(ul + 1), np.log(su + 1), np.log(sl + 1)
+
                 alpha, beta, gamma, uu0, su0 = adata.var.loc[
                     gene_name, [prefix + 'alpha', prefix + 'beta', prefix + 'gamma', prefix + 'uu0', prefix + 'su0']]
                 # $u$ - unlabeled, unspliced
@@ -224,6 +236,10 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                 uu, ul = adata[:, gene_name].layers[layers[1]] - adata[:, gene_name].layers[layers[0]], \
                                  adata[:, gene_name].layers[layers[0]]
                 uu, ul = (uu.toarray().squeeze(), ul.toarray().squeeze()) if issparse(uu) else (uu.squeeze(), ul.squeeze())
+
+                if log_unnormalized and layers == ['new', 'total']:
+                    uu, ul = np.log(uu + 1), np.log(ul + 1)
+
                 alpha, gamma, uu0 = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'uu0']]
 
                 # require no beta functions
@@ -256,6 +272,10 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                                  adata[:, gene_name].layers[layers[2]], adata[:, gene_name].layers[layers[3]]
                 uu, ul, su, sl = (uu.toarray().squeeze(), ul.toarray().squeeze(), su.toarray().squeeze(), sl.toarray().squeeze()) \
                     if issparse(uu) else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
+
+                if log_unnormalized and layers == ['uu', 'ul', 'su', 'sl']:
+                    uu, ul, su, sl = np.log(uu + 1), np.log(ul + 1), np.log(su + 1), np.log(sl + 1)
+
                 alpha, beta, gamma, U0, S0 = adata.var.loc[
                     gene_name, [prefix + 'alpha', prefix + 'beta', prefix + 'gamma', prefix + 'U0', prefix + 'S0']]
                 # $u$ - unlabeled, unspliced
@@ -275,6 +295,10 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                          adata[:, gene_name].layers[layers[0]]
                 uu, ul = (uu.toarray().squeeze(), ul.toarray().squeeze()) if issparse(uu) else (
                 uu.squeeze(), ul.squeeze())
+
+                if log_unnormalized and layers == ['new', 'total']:
+                    uu, ul = np.log(uu + 1), np.log(ul + 1)
+
                 alpha, gamma, total0 = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'total0']]
 
                 # require no beta functions
@@ -307,6 +331,10 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                            adata[:, gene_name].layers[layers[2]], adata[:, gene_name].layers[layers[3]]
                 uu, ul, su, sl = (uu.toarray().squeeze(), ul.toarray().squeeze(), su.toarray().squeeze(), sl.toarray().squeeze()) \
                     if issparse(uu) else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
+
+                if log_unnormalized and layers == ['uu', 'ul', 'su', 'sl']:
+                    uu, ul, su, sl = np.log(uu + 1), np.log(ul + 1), np.log(su + 1), np.log(sl + 1)
+
                 beta, gamma, alpha_std = adata.var.loc[gene_name, [prefix + 'beta', prefix + 'gamma', prefix + 'alpha_std']]
                 alpha_stm = adata[:, gene_name].varm[prefix + 'alpha'].flatten()
                 alpha_stm0, k, _ = solve_first_order_deg(T_uniq[1:], alpha_stm)
@@ -330,6 +358,10 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, y_log_scale = False, gro
                 layers = ['X_new', 'X_total'] if 'X_new' in adata.layers.keys() else ['new', 'total']
                 uu, ul = adata[:, gene_name].layers[layers[1]] - adata[:, gene_name].layers[layers[0]], adata[:, gene_name].layers[layers[0]]
                 uu, ul = (uu.toarray().squeeze(), ul.toarray().squeeze()) if issparse(uu) else (uu.squeeze(), ul.squeeze())
+
+                if log_unnormalized and layers == ['new', 'total']:
+                    uu, ul = np.log(uu + 1), np.log(ul + 1)
+
                 gamma, alpha_std = adata.var.loc[gene_name, [prefix + 'gamma', prefix + 'alpha_std']]
                 alpha_stm = adata[:, gene_name].varm[prefix + 'alpha'].flatten()
 

@@ -843,14 +843,19 @@ class estimation:
                     U_i_m, U_i_v = np.zeros((self.data['ul'].shape[0], len(t_uniq))), np.zeros((self.data['ul'].shape[0], len(t_uniq)))
                     for i in range(self.data['ul'].shape[0]):
                         tmp = self.data['ul'][i]
-                        L = np.array(tmp.A, dtype=float) if issparse(tmp) else np.array(tmp, dtype=float)  # consider using the `adata.obs_vector`, `adata.var_vector` methods or accessing the array directly.
+                        L = np.array(tmp.A.flatten(), dtype=float) if issparse(tmp) else np.array(tmp, dtype=float)  # consider using the `adata.obs_vector`, `adata.var_vector` methods or accessing the array directly.
                         U_i_m[i], U_i_v[i] = strat_mom(L, self.t, np.nanmean), strat_mom(L, self.t, np.nanvar)
                     self.parameters['gamma'], self.aux_param['ul0'] = self.fit_gamma_nosplicing_lsq(t_uniq, U_i_m)
                     if self._exist_data('uu'):
                         # alpha estimation
                         alpha = np.zeros(n)
+                        U_i_m, U_i_v = np.zeros((self.data['ul'].shape[0], len(t_uniq))), np.zeros(
+                            (self.data['ul'].shape[0], len(t_uniq)))
                         for i in range(n):
-                           alpha[i] = fit_alpha_synthesis(self.t, self.data['uu'][i],  self.parameters['gamma'][i])
+                            tmp = self.data['uu'][i]
+                            L = np.array(tmp.A.flatten(), dtype=float) if issparse(tmp) else np.array(tmp, dtype=float)  # consider using the `adata.obs_vector`, `adata.var_vector` methods or accessing the array directly.
+                            U_i_m[i], U_i_v[i] = strat_mom(L, self.t, np.nanmean), strat_mom(L, self.t, np.nanvar)
+                            alpha[i] = fit_alpha_synthesis(t_uniq, U_i_m[i],  self.parameters['gamma'][i])
                         self.parameters['alpha'] = alpha
             elif (self.extyp == 'kin' or self.extyp == 'one_shot') and len(np.unique(self.t)) > 1:
                 if np.all(self._exist_data('ul', 'uu', 'su')):
@@ -1051,7 +1056,7 @@ class estimation:
         l0 = np.zeros(n)
 
         for i in range(n):
-            gamma[i], l0 = fit_first_order_deg_lsq(t, L[i].A[0]) if issparse(L) else fit_first_order_deg_lsq(t, L[i])
+            gamma[i], l0[i] = fit_first_order_deg_lsq(t, L[i].A[0]) if issparse(L) else fit_first_order_deg_lsq(t, L[i])
         return gamma, l0
 
     def solve_alpha_mix_std_stm(self, t, ul, beta, clusters=None, alpha_time_dependent=True):

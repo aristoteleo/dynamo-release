@@ -8,7 +8,7 @@ from scipy.sparse import issparse, csr_matrix
 # incorporate the model selection code soon
 def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time', protein_names=None,
              experiment_type='deg', assumption_mRNA=None, assumption_protein='ss', concat_data=False,
-             get_fraction_for_deg=True, log_unnormalized=True):
+             log_unnormalized=True):
     """Inclusive model of expression dynamics with scSLAM-seq and multiomics.
 
     Parameters
@@ -73,7 +73,10 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
     elif 'unspliced' in adata.layers.keys():
         has_splicing = True
         raw, row_unspliced = adata[:, valid_ind].layers['unspliced'].T, adata[:, valid_ind].layers['unspliced'].T
-        raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        if issparse(raw):
+            raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        else:
+            raw = np.log(raw + 1) if log_unnormalized else raw
         U = raw
 
     elif 'X_new' in adata.layers.keys():  # run new / total ratio (NTR)
@@ -83,7 +86,10 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
     elif 'new' in adata.layers.keys():
         has_labeling = True
         raw, raw_new = adata[:, valid_ind].layers['new'].T, adata[:, valid_ind].layers['new'].T
-        raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        if issparse(raw):
+            raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        else:
+            raw = np.log(raw + 1) if log_unnormalized else raw
         U = raw
         Ul = raw
     elif 'X_uu' in adata.layers.keys():  # only uu, ul, su, sl provided
@@ -92,14 +98,20 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         U = adata[:, valid_ind].layers['X_uu'].T  # unlabel unspliced: U
     elif 'uu' in adata[:, valid_ind].layers.keys():
         raw, raw_uu = adata[:, valid_ind].layers['uu'].T, adata[:, valid_ind].layers['uu'].T
-        raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        if issparse(raw):
+            raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        else:
+            raw = np.log(raw + 1) if log_unnormalized else raw
         U = raw
 
     if 'X_spliced' in adata.layers.keys():
         S = adata[:, valid_ind].layers['X_spliced'].T
     elif 'spliced' in adata.layers.keys():
         raw, raw_spliced = adata[:, valid_ind].layers['spliced'].T, adata[:, valid_ind].layers['spliced'].T
-        raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        if issparse(raw):
+            raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        else:
+            raw = np.log(raw + 1) if log_unnormalized else raw
         S = raw
 
     elif 'X_total' in adata.layers.keys():  # run new / total ratio (NTR)
@@ -108,28 +120,40 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
     elif 'total' in adata.layers.keys():
         total, raw_total = adata[:, valid_ind].layers['total'].T, adata[:, valid_ind].layers['total'].T
         if experiment_type is not 'kin' and experiment_type is not 'mix_std_stm':
-            raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+            if issparse(raw):
+                raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+            else:
+                raw = np.log(raw + 1) if log_unnormalized else raw
             S = total
 
     elif 'X_su' in adata.layers.keys():  # unlabel spliced: S
         S = adata[:, valid_ind].layers['X_su'].T
     elif 'su' in adata.layers.keys():
         raw, raw_su = adata[:, valid_ind].layers['su'].T, adata[:, valid_ind].layers['su'].T
-        raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        if issparse(raw):
+            raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        else:
+            raw = np.log(raw + 1) if log_unnormalized else raw
         S = raw
 
     if 'X_ul' in adata.layers.keys():
         Ul = adata[:, valid_ind].layers['X_ul'].T
     elif 'ul' in adata.layers.keys():
         raw, raw_ul = adata[:, valid_ind].layers['ul'].T, adata[:, valid_ind].layers['ul'].T
-        raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        if issparse(raw):
+            raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        else:
+            raw = np.log(raw + 1) if log_unnormalized else raw
         Ul = raw
 
     if 'X_sl' in adata.layers.keys():
         Sl = adata[:, valid_ind].layers['X_sl'].T
     elif 'sl' in adata.layers.keys():
         raw, raw_sl = adata[:, valid_ind].layers['sl'].T, adata[:, valid_ind].layers['sl'].T
-        raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        if issparse(raw):
+            raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        else:
+            raw = np.log(raw + 1) if log_unnormalized else raw
         Sl = raw
 
     ind_for_proteins = None
