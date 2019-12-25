@@ -1,10 +1,8 @@
-import sys
 import numpy as np
 from scipy.sparse import issparse
 from .scatters import scatters
 from ..tools.velocity import sol_u, sol_s, solve_first_order_deg
 from ..tools.utils_moments import moments
-from ..tools.moments import strat_mom
 
 
 def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y_log_scale=False, group=None, ncols=None,

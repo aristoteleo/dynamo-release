@@ -1,4 +1,4 @@
-import warnings, sys
+import warnings
 import numpy as np
 from .velocity import velocity, estimation
 from .moments import MomData, Estimation

@@ -1,4 +1,3 @@
-import sys
 import numpy as np
 from scipy.optimize import least_squares
 from scipy.sparse import issparse, csc_matrix
