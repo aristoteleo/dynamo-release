@@ -63,7 +63,10 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
     elif filter_gene_mode is 'no':
         valid_ind = np.repeat([True], adata.shape[1])
 
-    t = np.array(adata.obs[tkey], dtype='float') if tkey in adata.obs.columns else None
+    if tkey in adata.obs.columns:
+        t = np.array(adata.obs[tkey], dtype='float')
+    else:
+        raise Exception('the tkey ', tkey, ' provided is not a valid column name in .obs.')
 
     U, Ul, S, Sl, P = None, None, None, None, None  # U: unlabeled unspliced; S: unlabel spliced: S
     normalized, has_splicing, has_labeling, has_protein = False, False, False, False
@@ -85,7 +88,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         U = adata[:, valid_ind].layers['X_total'].T - adata[:, valid_ind].layers['X_new'].T
         Ul = adata[:, valid_ind].layers['X_new'].T
     elif 'new' in adata.layers.keys():
-        has_labeling, assumption_mRNA = True, None
+        has_labeling = True
         raw, raw_new, old = adata[:, valid_ind].layers['new'].T, adata[:, valid_ind].layers['new'].T, adata[:, valid_ind].layers['total'].T - adata[:, valid_ind].layers['new'].T
         if issparse(raw):
             raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
@@ -272,6 +275,19 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
 
         params = {'alpha': alpha, 'beta': beta, 'gamma': gamma, 't': t}
         vel = velocity(**params)
+
+        if 'X_new' in adata.layers.keys():  # run new / total ratio (NTR)
+            U = subset_adata.layers['X_new'].T
+            S = subset_adata.layers['X_total'].T -subset_adata.layers['X_new'].T
+        elif 'new' in adata.layers.keys():
+            U = subset_adata.layers['new'].T
+            S = subset_adata.layers['total'].T - subset_adata.layers['new'].T
+            if issparse(U):
+                U.data = np.log(U.data + 1) if log_unnormalized else U.data
+                S.data = np.log(S.data + 1) if log_unnormalized else S.data
+            else:
+                U = np.log(U + 1) if log_unnormalized else U
+                S = np.log(S + 1) if log_unnormalized else S
 
         vel_U = vel.vel_u(U)
         vel_S = vel.vel_s(U, S)
