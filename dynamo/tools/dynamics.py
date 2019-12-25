@@ -1,9 +1,9 @@
-from .velocity import velocity, estimation
-from .moments import MomData, Estimation
 import warnings, sys
 import numpy as np
+from .velocity import velocity, estimation
+from .moments import MomData, Estimation
 from scipy.sparse import issparse, csr_matrix
-
+from .utils import get_U_S_for_velocity_estimation
 
 # incorporate the model selection code soon
 def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time', protein_names=None,
@@ -63,6 +63,8 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
     elif filter_gene_mode is 'no':
         valid_ind = np.repeat([True], adata.shape[1])
 
+    subset_adata = adata[:, valid_ind].copy()
+
     if tkey in adata.obs.columns:
         t = np.array(adata.obs[tkey], dtype='float')
     else:
@@ -71,25 +73,25 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
     U, Ul, S, Sl, P = None, None, None, None, None  # U: unlabeled unspliced; S: unlabel spliced: S
     normalized, has_splicing, has_labeling, has_protein = False, False, False, False
 
-    if 'X_unspliced' in adata.layers.keys():
+    if 'X_unspliced' in subset_adata.layers.keys():
         has_splicing, normalized = True, True
-        U = adata[:, valid_ind].layers['X_unspliced'].T
-    elif 'unspliced' in adata.layers.keys():
+        U = subset_adata.layers['X_unspliced'].T
+    elif 'unspliced' in subset_adata.layers.keys():
         has_splicing = True
-        raw, row_unspliced = adata[:, valid_ind].layers['unspliced'].T, adata[:, valid_ind].layers['unspliced'].T
+        raw, row_unspliced = subset_adata.layers['unspliced'].T, subset_adata.layers['unspliced'].T
         if issparse(raw):
             raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
         else:
             raw = np.log(raw + 1) if log_unnormalized else raw
         U = raw
 
-    elif 'X_new' in adata.layers.keys():  # run new / total ratio (NTR)
+    elif 'X_new' in subset_adata.layers.keys():  # run new / total ratio (NTR)
         has_labeling, normalized = True, True
-        U = adata[:, valid_ind].layers['X_total'].T - adata[:, valid_ind].layers['X_new'].T
-        Ul = adata[:, valid_ind].layers['X_new'].T
-    elif 'new' in adata.layers.keys():
+        U = subset_adata.layers['X_total'].T - subset_adata.layers['X_new'].T
+        Ul = subset_adata.layers['X_new'].T
+    elif 'new' in subset_adata.layers.keys():
         has_labeling = True
-        raw, raw_new, old = adata[:, valid_ind].layers['new'].T, adata[:, valid_ind].layers['new'].T, adata[:, valid_ind].layers['total'].T - adata[:, valid_ind].layers['new'].T
+        raw, raw_new, old = subset_adata.layers['new'].T, subset_adata.layers['new'].T, subset_adata.layers['total'].T - subset_adata.layers['new'].T
         if issparse(raw):
             raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
             old.data = np.log(old.data + 1) if log_unnormalized else old.data
@@ -98,52 +100,52 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
             old = np.log(old + 1) if log_unnormalized else old
         U = old
         Ul = raw
-    elif 'X_uu' in adata.layers.keys():  # only uu, ul, su, sl provided
+    elif 'X_uu' in subset_adata.layers.keys():  # only uu, ul, su, sl provided
         has_splicing, has_labeling, normalized = True, True, True
 
-        U = adata[:, valid_ind].layers['X_uu'].T  # unlabel unspliced: U
-    elif 'uu' in adata[:, valid_ind].layers.keys():
-        raw, raw_uu = adata[:, valid_ind].layers['uu'].T, adata[:, valid_ind].layers['uu'].T
+        U = subset_adata.layers['X_uu'].T  # unlabel unspliced: U
+    elif 'uu' in subset_adata.layers.keys():
+        raw, raw_uu = subset_adata.layers['uu'].T, subset_adata.layers['uu'].T
         if issparse(raw):
             raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
         else:
             raw = np.log(raw + 1) if log_unnormalized else raw
         U = raw
 
-    if 'X_spliced' in adata.layers.keys():
-        S = adata[:, valid_ind].layers['X_spliced'].T
-    elif 'spliced' in adata.layers.keys():
-        raw, raw_spliced = adata[:, valid_ind].layers['spliced'].T, adata[:, valid_ind].layers['spliced'].T
+    if 'X_spliced' in subset_adata.layers.keys():
+        S = subset_adata.layers['X_spliced'].T
+    elif 'spliced' in subset_adata.layers.keys():
+        raw, raw_spliced = subset_adata.layers['spliced'].T, subset_adata.layers['spliced'].T
         if issparse(raw):
             raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
         else:
             raw = np.log(raw + 1) if log_unnormalized else raw
         S = raw
 
-    elif 'X_su' in adata.layers.keys():  # unlabel spliced: S
-        S = adata[:, valid_ind].layers['X_su'].T
-    elif 'su' in adata.layers.keys():
-        raw, raw_su = adata[:, valid_ind].layers['su'].T, adata[:, valid_ind].layers['su'].T
+    elif 'X_su' in subset_adata.layers.keys():  # unlabel spliced: S
+        S = subset_adata.layers['X_su'].T
+    elif 'su' in subset_adata.layers.keys():
+        raw, raw_su = subset_adata.layers['su'].T, subset_adata.layers['su'].T
         if issparse(raw):
             raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
         else:
             raw = np.log(raw + 1) if log_unnormalized else raw
         S = raw
 
-    if 'X_ul' in adata.layers.keys():
-        Ul = adata[:, valid_ind].layers['X_ul'].T
-    elif 'ul' in adata.layers.keys():
-        raw, raw_ul = adata[:, valid_ind].layers['ul'].T, adata[:, valid_ind].layers['ul'].T
+    if 'X_ul' in subset_adata.layers.keys():
+        Ul = subset_adata.layers['X_ul'].T
+    elif 'ul' in subset_adata.layers.keys():
+        raw, raw_ul = subset_adata.layers['ul'].T, subset_adata.layers['ul'].T
         if issparse(raw):
             raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
         else:
             raw = np.log(raw + 1) if log_unnormalized else raw
         Ul = raw
 
-    if 'X_sl' in adata.layers.keys():
-        Sl = adata[:, valid_ind].layers['X_sl'].T
-    elif 'sl' in adata.layers.keys():
-        raw, raw_sl = adata[:, valid_ind].layers['sl'].T, adata[:, valid_ind].layers['sl'].T
+    if 'X_sl' in subset_adata.layers.keys():
+        Sl = subset_adata.layers['X_sl'].T
+    elif 'sl' in subset_adata.layers.keys():
+        raw, raw_sl = subset_adata.layers['sl'].T, subset_adata.layers['sl'].T
         if issparse(raw):
             raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
         else:
@@ -151,9 +153,9 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         Sl = raw
 
     ind_for_proteins = None
-    if 'X_protein' in adata.obsm.keys():
-        P = adata.obsm['X_protein'].T
-    elif 'protein' in adata.obsm.keys():
+    if 'X_protein' in subset_adata.obsm.keys():
+        P = subset_adata.obsm['X_protein'].T
+    elif 'protein' in subset_adata.obsm.keys():
         P = adata.obsm['protein'].T
     if P is not None:
         has_protein = True
@@ -161,10 +163,10 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
             warnings.warn(
                 'protein layer exists but protein_names is not provided. No estimation will be performed for protein data.')
         else:
-            protein_names = list(set(adata[:, valid_ind].var.index).intersection(protein_names))
-            ind_for_proteins = [np.where(adata[:, valid_ind].var.index == i)[0][0] for i in protein_names]
-            adata.var['is_protein_velocity_genes'] = False
-            adata.var.loc[ind_for_proteins, 'is_protein_velocity_genes'] = True
+            protein_names = list(set(subset_adata.var.index).intersection(protein_names))
+            ind_for_proteins = [np.where(subset_adata.var.index == i)[0][0] for i in protein_names]
+            subset_adata.var['is_protein_velocity_genes'] = False
+            subset_adata.var.loc[ind_for_proteins, 'is_protein_velocity_genes'] = True
 
     if not has_labeling:
         assumption_mRNA = 'ss'
@@ -178,7 +180,8 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         est.fit()
 
         alpha, beta, gamma, eta, delta = est.parameters.values()
-        # do this for a vector?
+
+        U, S = get_U_S_for_velocity_estimation(subset_adata, has_splicing, log_unnormalized)
         vel = velocity(estimation=est)
         vel_U = vel.vel_u(U)
         vel_S = vel.vel_s(U, S)
@@ -253,8 +256,6 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
                 adata.var.loc[valid_ind, 'protein_half_life'][ind_for_proteins] = np.log(2) / delta
         # add velocity_offset here
     elif mode is 'moment':
-        subset_adata = adata[:, valid_ind].copy()
-
         # a few hard code to set up data for moment mode:
         if log_unnormalized and 'X_total' not in subset_adata.layers.keys():
             if issparse(subset_adata.layers['total']):
@@ -276,19 +277,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         params = {'alpha': alpha, 'beta': beta, 'gamma': gamma, 't': t}
         vel = velocity(**params)
 
-        if 'X_new' in adata.layers.keys():  # run new / total ratio (NTR)
-            U = subset_adata.layers['X_new'].T
-            S = subset_adata.layers['X_total'].T -subset_adata.layers['X_new'].T
-        elif 'new' in adata.layers.keys():
-            U = subset_adata.layers['new'].T
-            S = subset_adata.layers['total'].T - subset_adata.layers['new'].T
-            if issparse(U):
-                U.data = np.log(U.data + 1) if log_unnormalized else U.data
-                S.data = np.log(S.data + 1) if log_unnormalized else S.data
-            else:
-                U = np.log(U + 1) if log_unnormalized else U
-                S = np.log(S + 1) if log_unnormalized else S
-
+        U, S = get_U_S_for_velocity_estimation(subset_adata, has_splicing, log_unnormalized)
         vel_U = vel.vel_u(U)
         vel_S = vel.vel_s(U, S)
         vel_P = vel.vel_p(S, P)
