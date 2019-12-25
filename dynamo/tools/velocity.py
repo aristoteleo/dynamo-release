@@ -827,13 +827,16 @@ class estimation:
             if self.extyp == 'deg':
                 if np.all(self._exist_data('ul', 'sl')):
                     # beta & gamma estimation
+                    ul_m, ul_v, t_uniq = cal_12_mom(self.data['ul'], self.t)
+                    sl_m, sl_v, _ = cal_12_mom(self.data['sl'], self.t)
                     self.parameters['beta'], self.parameters['gamma'], self.aux_param['ul0'], self.aux_param['sl0'] = \
-                        self.fit_beta_gamma_lsq(self.t, self.data['ul'], self.data['sl'])
+                        self.fit_beta_gamma_lsq(t_uniq, ul_m, sl_m)
                     if self._exist_data('uu'):
                         # alpha estimation
+                        uu_m, uu_v, _ = cal_12_mom(self.data['uu'], self.t)
                         alpha, uu0, r2 = np.zeros(n), np.zeros(n), np.zeros(n)
                         for i in range(n):
-                            alpha[i], uu0[i], r2[i] = fit_alpha_degradation(self.t, self.data['uu'][i], self.parameters['beta'][i], intercept=True)
+                            alpha[i], uu0[i], r2[i] = fit_alpha_degradation(t_uniq, uu_m[i], self.parameters['beta'][i], intercept=True)
                         self.parameters['alpha'], self.aux_param['alpha_intercept'], self.aux_param['uu0'], self.aux_param['alpha_r2'] = alpha, uu0, uu0, r2
                 elif self._exist_data('ul'):
                     # gamma estimation
@@ -843,7 +846,7 @@ class estimation:
                     if self._exist_data('uu'):
                         # alpha estimation
                         alpha, alpha_b, alpha_r2 = np.zeros(n), np.zeros(n), np.zeros(n)
-                        uu_m, uu_v, t_uniq = cal_12_mom(self.data['uu'], self.t)
+                        uu_m, uu_v, _ = cal_12_mom(self.data['uu'], self.t)
                         for i in range(n):
                             alpha[i], alpha_b[i], alpha_r2[i] = fit_alpha_degradation(t_uniq, uu_m[i], self.parameters['gamma'][i])
                         self.parameters['alpha'], self.aux_param['alpha_intercept'], self.aux_param['uu0'], self.aux_param['alpha_r2'] = alpha, alpha_b, alpha_b, alpha_r2,
@@ -851,25 +854,31 @@ class estimation:
                 if np.all(self._exist_data('ul', 'uu', 'su')):
                     if not self._exist_parameter('beta'):
                         warn("beta & gamma estimation: only works when there're at least 2 time points.")
-                        self.parameters['beta'], self.parameters['gamma'], self.aux_param['uu0'], self.aux_param['su0'] = self.fit_beta_gamma_lsq(self.t, self.data['uu'], self.data['su'])
+                        uu_m, uu_v, t_uniq = cal_12_mom(self.data['uu'], self.t)
+                        su_m, su_v, _ = cal_12_mom(self.data['su'], self.t)
+
+                        self.parameters['beta'], self.parameters['gamma'], self.aux_param['uu0'], self.aux_param['su0'] = self.fit_beta_gamma_lsq(t_uniq, uu_m, su_m)
                     # alpha estimation
+                    ul_m, ul_v, t_uniq = cal_12_mom(self.data['ul'], self.t)
                     alpha = np.zeros_like(self.data['ul'].A) if issparse(self.data['ul']) else np.zeros_like(self.data['ul'])
                     # assume constant alpha across all cells
                     for i in range(n):
                         # for j in range(len(self.data['ul'][i])):
-                        alpha[i, :] = fit_alpha_synthesis(self.t, self.data['ul'][i], self.parameters['beta'][i])
+                        alpha[i, :] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters['beta'][i])
                     self.parameters['alpha'] = alpha
                 elif np.all(self._exist_data('ul', 'uu')):
                     n = self.data['uu'].shape[0]  # self.get_n_genes(data=U)
                     u0, gamma = np.zeros(n), np.zeros(n)
+                    uu_m, uu_v, t_uniq = cal_12_mom(self.data['uu'], self.t)
                     for i in range(n):
-                        gamma[i], u0[i] = fit_first_order_deg_lsq(self.t, self.data['uu'][i])
+                        gamma[i], u0[i] = fit_first_order_deg_lsq(t_uniq, uu_m[i])
                     self.parameters['gamma'], self.aux_param['uu0'] = gamma, u0
                     alpha = np.zeros_like(self.data['ul'].A) if issparse(self.data['ul']) else np.zeros_like(self.data['ul'])
                     # assume constant alpha across all cells
+                    ul_m, ul_v, _ = cal_12_mom(self.data['ul'], self.t)
                     for i in range(n):
                         # for j in range(len(self.data['ul'][i])):
-                        alpha[i, :] = fit_alpha_synthesis(self.t, self.data['ul'][i], self.parameters['gamma'][i])
+                        alpha[i, :] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters['gamma'][i])
                     self.parameters['alpha'] = alpha
                     # alpha: one-shot
             # 'one_shot'
