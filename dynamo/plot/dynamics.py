@@ -130,6 +130,8 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
                     ax.boxplot(x=[x_data[j][i][T == std] for std in T_uniq],  positions=T_uniq, widths=boxwidth, showfliers=False, showmeans=True)  # x=T.values, y= # ax1.plot(T, u.T, linestyle='None', marker='o', markersize=10)
                     ax.scatter(T_uniq, Obs_m[j][i], c='r')  # ax1.plot(T, u.T, linestyle='None', marker='o', markersize=10)
                     if y_log_scale:
+                        ax.set_yscale('log')
+                    if log_unnormalized:
                         ax.set_ylabel('Expression (log)')
                     else:
                         ax.set_ylabel('Expression')
@@ -137,7 +139,9 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
                 else:
                     ax.scatter(T_uniq, Obs_v[j - j_species][i], c='r')
                     if y_log_scale:
-                        ax.set_ylabel('Variance (log)')
+                        ax.set_yscale('log')
+                    if log_unnormalized:
+                        ax.set_ylabel('Variance (log expression)')
                     else:
                         ax.set_ylabel('Variance')
                     ax.plot(t, mom_data[j], 'k--')
@@ -180,10 +184,9 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
                 if log_unnormalized and layers == ['new', 'total']:
                     uu, ul = np.log(uu + 1), np.log(ul + 1)
 
-                alpha, gamma, ul0 = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'ul0']]
+                alpha, gamma, uu0, ul0 = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'uu0', prefix + 'ul0']]
 
                 # require no beta functions
-                uu0 = np.mean(uu[T == np.min(T)])
                 u = sol_u(t, uu0, alpha, gamma)
                 s = None # sol_s(t, su0, uu0, 0, 1, gamma)
                 w = sol_u(t, ul0, 0, gamma)
@@ -201,6 +204,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
                 ax.set_xlabel('time (' + unit + ')')
                 if y_log_scale:
                     ax.set_yscale('log')
+                if log_unnormalized:
                     ax.set_ylabel('Expression (log)')
                 else:
                     ax.set_ylabel('Expression')
@@ -261,6 +265,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
                 ax.set_xlabel('time (' + unit + ')')
                 if y_log_scale:
                     ax.set_yscale('log')
+                if log_unnormalized:
                     ax.set_ylabel('Expression (log)')
                 else:
                     ax.set_ylabel('Expression')
@@ -320,6 +325,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
             ax.set_xlabel('time (' + unit + ')')
             if y_log_scale:
                 ax.set_yscale('log')
+            if log_unnormalized:
                 ax.set_ylabel('Expression (log)')
             else:
                 ax.set_ylabel('Expression')
@@ -392,6 +398,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
 
                     if y_log_scale:
                         ax.set_yscale('log')
+                    if log_unnormalized:
                         ax.set_ylabel('Expression (log)')
                     else:
                         ax.set_ylabel('Expression')
@@ -403,6 +410,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
 
                     if y_log_scale:
                         ax.set_yscale('log')
+                    if log_unnormalized:
                         ax.set_ylabel('Expression (log)')
                     else:
                         ax.set_ylabel('Expression')

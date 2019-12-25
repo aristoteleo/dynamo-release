@@ -118,13 +118,13 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         total = adata[:, valid_ind].layers['X_total'].T
         if experiment_type is not 'kin' and experiment_type is not 'mix_std_stm': S = total
     elif 'total' in adata.layers.keys():
-        total, raw_total = adata[:, valid_ind].layers['total'].T, adata[:, valid_ind].layers['total'].T
+        raw, raw_total = adata[:, valid_ind].layers['total'].T, adata[:, valid_ind].layers['total'].T
         if experiment_type is not 'kin' and experiment_type is not 'mix_std_stm':
             if issparse(raw):
                 raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
             else:
                 raw = np.log(raw + 1) if log_unnormalized else raw
-            S = total
+            S = raw
 
     elif 'X_su' in adata.layers.keys():  # unlabel spliced: S
         S = adata[:, valid_ind].layers['X_su'].T
@@ -177,6 +177,12 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
     """
     check assumption_mRNA ...
     """
+    if (Ul is None or Sl is None) and t is None:
+        assumption_mRNA = 'ss'
+    else:
+        if 'X_total' in adata.layers.keys() or 'total' in adata.layers.keys():
+            old = S - Ul
+            U = old
 
     if mode is 'deterministic':
         est = estimation(U=U, Ul=Ul, S=S, Sl=Sl, P=P,

@@ -3,7 +3,7 @@ import numpy as np
 from scipy.optimize import least_squares
 from scipy.sparse import issparse, csc_matrix
 from warnings import warn
-from .moments import strat_mom
+from .utils import cal_12_mom
 # from sklearn.cluster import KMeans
 # from sklearn.neighbors import NearestNeighbors
 
@@ -443,7 +443,7 @@ def fit_alpha_beta_synthesis(t, l, bounds=(0, np.inf), alpha_0=1, beta_0=1):
     alpha: float
         The estimated value for alpha.
     beta: float
-        The estimated value for alpha.
+        The estimated value for beta.
     """
     l = l.A if issparse(l) else l
 
@@ -837,26 +837,16 @@ class estimation:
                         self.parameters['alpha'], self.aux_param['alpha_intercept'], self.aux_param['uu0'], self.aux_param['alpha_r2'] = alpha, uu0, uu0, r2
                 elif self._exist_data('ul'):
                     # gamma estimation
-
                     # use mean + var for fitting degradation parameter k
-                    t_uniq = np.unique(self.t)
-                    U_i_m, U_i_v = np.zeros((self.data['ul'].shape[0], len(t_uniq))), np.zeros((self.data['ul'].shape[0], len(t_uniq)))
-                    for i in range(self.data['ul'].shape[0]):
-                        tmp = self.data['ul'][i]
-                        L = np.array(tmp.A.flatten(), dtype=float) if issparse(tmp) else np.array(tmp, dtype=float)  # consider using the `adata.obs_vector`, `adata.var_vector` methods or accessing the array directly.
-                        U_i_m[i], U_i_v[i] = strat_mom(L, self.t, np.nanmean), strat_mom(L, self.t, np.nanvar)
-                    self.parameters['gamma'], self.aux_param['ul0'] = self.fit_gamma_nosplicing_lsq(t_uniq, U_i_m)
+                    ul_m, ul_v, t_uniq = cal_12_mom(self.data['ul'], self.t)
+                    self.parameters['gamma'], self.aux_param['ul0'] = self.fit_gamma_nosplicing_lsq(t_uniq, ul_m)
                     if self._exist_data('uu'):
                         # alpha estimation
-                        alpha = np.zeros(n)
-                        U_i_m, U_i_v = np.zeros((self.data['ul'].shape[0], len(t_uniq))), np.zeros(
-                            (self.data['ul'].shape[0], len(t_uniq)))
+                        alpha, alpha_b, alpha_r2 = np.zeros(n), np.zeros(n), np.zeros(n)
+                        uu_m, uu_v, t_uniq = cal_12_mom(self.data['uu'], self.t)
                         for i in range(n):
-                            tmp = self.data['uu'][i]
-                            L = np.array(tmp.A.flatten(), dtype=float) if issparse(tmp) else np.array(tmp, dtype=float)  # consider using the `adata.obs_vector`, `adata.var_vector` methods or accessing the array directly.
-                            U_i_m[i], U_i_v[i] = strat_mom(L, self.t, np.nanmean), strat_mom(L, self.t, np.nanvar)
-                            alpha[i] = fit_alpha_synthesis(t_uniq, U_i_m[i],  self.parameters['gamma'][i])
-                        self.parameters['alpha'] = alpha
+                            alpha[i], alpha_b[i], alpha_r2[i] = fit_alpha_degradation(t_uniq, uu_m[i], self.parameters['gamma'][i])
+                        self.parameters['alpha'], self.aux_param['alpha_intercept'], self.aux_param['uu0'], self.aux_param['alpha_r2'] = alpha, alpha_b, alpha_b, alpha_r2,
             elif (self.extyp == 'kin' or self.extyp == 'one_shot') and len(np.unique(self.t)) > 1:
                 if np.all(self._exist_data('ul', 'uu', 'su')):
                     if not self._exist_parameter('beta'):
