@@ -4,6 +4,7 @@ from scipy.optimize import least_squares
 from scipy.sparse import issparse, csc_matrix
 from warnings import warn
 from .utils import cal_12_mom
+from .moments import strat_mom
 # from sklearn.cluster import KMeans
 # from sklearn.neighbors import NearestNeighbors
 

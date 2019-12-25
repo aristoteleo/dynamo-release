@@ -66,8 +66,8 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
             tmp = [adata[:, gene_idx].layers['X_ul'].A.T, adata.layers['X_sl'].A.T] if 'X_ul' in adata.layers.keys() else \
                     [adata[:, gene_idx].layers['ul'].A.T, adata.layers['sl'].A.T]
             x_data = [tmp[0].A, tmp[1].A] if issparse(tmp[0]) else tmp
-            # if log_unnormalized and 'X_ul' not in adata.layers.keys():
-            #     x_data = [np.log(tmp[0] + 1), np.log(tmp[1] + 1)]
+            if log_unnormalized and 'X_ul' not in adata.layers.keys():
+                x_data = [np.log(tmp[0] + 1), np.log(tmp[1] + 1)]
 
         elif experiment_type is 'kin' or experiment_type is 'deg':
             sub_plot_n = 4
@@ -81,8 +81,8 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
             tmp = adata[:, gene_idx].layers['X_new'].T if 'X_new' in adata.layers.keys() else adata[:, gene_idx].layers['new'].T
             x_data = [tmp.A] if issparse(tmp) else [tmp]
 
-            # if log_unnormalized and 'X_new' not in adata.layers.keys():
-            #     x_data = [np.log(x_data[0] + 1)]
+            if log_unnormalized and 'X_new' not in adata.layers.keys():
+                x_data = [np.log(x_data[0] + 1)]
         elif experiment_type is 'kin'or experiment_type is 'deg':
             sub_plot_n = 2
         elif experiment_type is 'one_shot': # just the labeled RNA
@@ -132,7 +132,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
                     if y_log_scale:
                         ax.set_yscale('log')
                     if log_unnormalized:
-                        ax.set_ylabel('Expression') #  (log)
+                        ax.set_ylabel('Expression (log)') #
                     else:
                         ax.set_ylabel('Expression')
                     ax.plot(t, mom_data[j], 'k--')
@@ -141,7 +141,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
                     if y_log_scale:
                         ax.set_yscale('log')
                     if log_unnormalized:
-                        ax.set_ylabel('Variance') #  (log expression)
+                        ax.set_ylabel('Variance (log expression)') #
                     else:
                         ax.set_ylabel('Variance')
                     ax.plot(t, mom_data[j], 'k--')
@@ -328,7 +328,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
                 ax.set_ylabel('Expression (log)')
             else:
                 ax.set_ylabel('Expression')
-            ax.set_title(gene_name + title_[j])
+            ax.set_title(gene_name + title_[0])
         elif experiment_type is 'mix_std_stm':
             if has_splicing:
                 layers = ['X_uu', 'X_ul', 'X_su', 'X_sl'] if 'X_ul' in adata.layers.keys() else ['uu', 'ul', 'su', 'sl']

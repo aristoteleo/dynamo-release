@@ -126,6 +126,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
             else:
                 raw = np.log(raw + 1) if log_unnormalized else raw
             S = raw
+        raw_total = raw
 
     elif 'X_su' in adata.layers.keys():  # unlabel spliced: S
         S = adata[:, valid_ind].layers['X_su'].T
@@ -180,7 +181,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         assumption_mRNA = 'ss'
     else:
         if 'X_total' in adata.layers.keys() or 'total' in adata.layers.keys():
-            old = S - Ul
+            old = raw_total - Ul
             U = old
 
     if mode is 'deterministic':
@@ -272,13 +273,13 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         # a few hard code to set up data for moment mode:
         if log_unnormalized and 'X_total' not in subset_adata.layers.keys():
             if issparse(subset_adata.layers['total']):
-                subset_adata.layers['new'].subset_adata, subset_adata.layers['total'].data = np.log(subset_adata.layers['new'].data + 1), np.log(subset_adata.layers['total'].data + 1)
+                subset_adata.layers['new'].data, subset_adata.layers['total'].data = np.log(subset_adata.layers['new'].data + 1), np.log(subset_adata.layers['total'].data + 1)
             else:
                 subset_adata.layers['total'], subset_adata.layers['total'] = np.log(subset_adata.layers['new'] + 1), np.log(subset_adata.layers['total'] + 1)
 
         Moment = MomData(subset_adata, tkey)
         adata.uns['M'], adata.uns['V'] = Moment.M, Moment.V
-        Est = Estimation(Moment, time_key=tkey, normalize=True) # (not log_unnormalized)  # data is already normalized
+        Est = Estimation(Moment, time_key=tkey, normalize=True) #  # data is already normalized
         params, costs = Est.fit()
         a, b, alpha_a, alpha_i, beta, gamma = params[:, 0], params[:, 1], params[:, 2], params[:, 3], params[:,
                                                                                                       4], params[:, 5]
