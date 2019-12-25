@@ -50,9 +50,6 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         adata: :class:`~anndata.AnnData`
             A updated AnnData object with estimated kinetic parameters and inferred velocity included.
     """
-
-    U, Ul, S, Sl, P = None, None, None, None, None  # U: unlabeled unspliced; S: unlabel spliced: S
-
     if 'use_for_dynamo' not in adata.var.columns and 'pass_basic_filter' not in adata.var.columns:
         filter_gene_mode = 'no'
 
@@ -66,7 +63,11 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
     elif filter_gene_mode is 'no':
         valid_ind = np.repeat([True], adata.shape[1])
 
+    t = np.array(adata.obs[tkey], dtype='float') if tkey in adata.obs.columns else None
+
+    U, Ul, S, Sl, P = None, None, None, None, None  # U: unlabeled unspliced; S: unlabel spliced: S
     normalized, has_splicing, has_labeling, has_protein = False, False, False, False
+
     if 'X_unspliced' in adata.layers.keys():
         has_splicing, normalized = True, True
         U = adata[:, valid_ind].layers['X_unspliced'].T
@@ -172,8 +173,6 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
             adata.var['is_protein_velocity_genes'] = False
             adata.var.loc[ind_for_proteins, 'is_protein_velocity_genes'] = True
 
-    t = np.array(adata.obs[tkey], dtype='float') if tkey in adata.obs.columns else None
-
     """
     check assumption_mRNA ...
     """
@@ -268,13 +267,21 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
                 adata.var.loc[valid_ind, 'protein_half_life'][ind_for_proteins] = np.log(2) / delta
         # add velocity_offset here
     elif mode is 'moment':
-        Moment = MomData(adata, tkey)
+        subset_adata = adata[:, valid_ind].copy()
+
+        # a few hard code to set up data for moment mode:
+        if log_unnormalized and 'X_total' not in subset_adata.layers.keys():
+            if issparse(subset_adata.layers['total']):
+                subset_adata.layers['new'].subset_adata, subset_adata.layers['total'].data = np.log(subset_adata.layers['new'].data + 1), np.log(subset_adata.layers['total'].data + 1)
+            else:
+                subset_adata.layers['total'], subset_adata.layers['total'] = np.log(subset_adata.layers['new'] + 1), np.log(subset_adata.layers['total'] + 1)
+
+        Moment = MomData(subset_adata, tkey)
         adata.uns['M'], adata.uns['V'] = Moment.M, Moment.V
-        Est = Estimation(Moment, time_key=tkey, normalize=(not normalized))  # data is already normalized
+        Est = Estimation(Moment, time_key=tkey, normalize=True) # (not log_unnormalized)  # data is already normalized
         params, costs = Est.fit()
         a, b, alpha_a, alpha_i, beta, gamma = params[:, 0], params[:, 1], params[:, 2], params[:, 3], params[:,
                                                                                                       4], params[:, 5]
-
         def fbar(x_a, x_i, a, b):
             return b / (a + b) * x_a + a / (a + b) * x_i
 
@@ -282,6 +289,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
 
         params = {'alpha': alpha, 'beta': beta, 'gamma': gamma, 't': t}
         vel = velocity(**params)
+
         vel_U = vel.vel_u(U)
         vel_S = vel.vel_s(U, S)
         vel_P = vel.vel_p(S, P)
@@ -294,7 +302,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
             adata.layers['velocity_S'] = csr_matrix((adata.shape))
             adata.layers['velocity_S'][:, np.where(valid_ind)[0]] = vel_S.T.tocsr() if issparse(vel_S) else csr_matrix(
                 vel_S.T)
-        if type(vel_P) is not float:
+        if type(vel_P) is not float and ind_for_proteins is not None:
             adata.obsm['velocity_P'] = csr_matrix((adata.obsm['P'].shape[0], len(ind_for_proteins)))
             adata.obsm['velocity_P'] = vel_P.T.tocsr() if issparse(vel_P) else csr_matrix(vel_P.T)
 
