@@ -82,16 +82,18 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
 
     elif 'X_new' in adata.layers.keys():  # run new / total ratio (NTR)
         has_labeling, normalized = True, True
-        U = adata[:, valid_ind].layers['X_new'].T
+        U = adata[:, valid_ind].layers['X_total'].T - adata[:, valid_ind].layers['X_new'].T
         Ul = adata[:, valid_ind].layers['X_new'].T
     elif 'new' in adata.layers.keys():
-        has_labeling = True
-        raw, raw_new = adata[:, valid_ind].layers['new'].T, adata[:, valid_ind].layers['new'].T
+        has_labeling, assumption_mRNA = True, None
+        raw, raw_new, old = adata[:, valid_ind].layers['new'].T, adata[:, valid_ind].layers['new'].T, adata[:, valid_ind].layers['total'].T - adata[:, valid_ind].layers['new'].T
         if issparse(raw):
             raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+            old.data = np.log(old.data + 1) if log_unnormalized else old.data
         else:
             raw = np.log(raw + 1) if log_unnormalized else raw
-        U = raw
+            old = np.log(old + 1) if log_unnormalized else old
+        U = old
         Ul = raw
     elif 'X_uu' in adata.layers.keys():  # only uu, ul, su, sl provided
         has_splicing, has_labeling, normalized = True, True, True
@@ -114,19 +116,6 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         else:
             raw = np.log(raw + 1) if log_unnormalized else raw
         S = raw
-
-    elif 'X_total' in adata.layers.keys():  # run new / total ratio (NTR)
-        total = adata[:, valid_ind].layers['X_total'].T
-        if experiment_type is not 'kin' and experiment_type is not 'mix_std_stm': S = total
-    elif 'total' in adata.layers.keys():
-        raw, raw_total = adata[:, valid_ind].layers['total'].T, adata[:, valid_ind].layers['total'].T
-        if experiment_type is not 'kin' and experiment_type is not 'mix_std_stm':
-            if issparse(raw):
-                raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
-            else:
-                raw = np.log(raw + 1) if log_unnormalized else raw
-            S = raw
-        raw_total = raw
 
     elif 'X_su' in adata.layers.keys():  # unlabel spliced: S
         S = adata[:, valid_ind].layers['X_su'].T
@@ -174,15 +163,8 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
             adata.var['is_protein_velocity_genes'] = False
             adata.var.loc[ind_for_proteins, 'is_protein_velocity_genes'] = True
 
-    """
-    check assumption_mRNA ...
-    """
-    if (Ul is None or Sl is None) and t is None:
+    if not has_labeling:
         assumption_mRNA = 'ss'
-    else:
-        if 'X_total' in adata.layers.keys() or 'total' in adata.layers.keys():
-            old = raw_total - Ul
-            U = old
 
     if mode is 'deterministic':
         est = estimation(U=U, Ul=Ul, S=S, Sl=Sl, P=P,
