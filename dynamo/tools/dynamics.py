@@ -1,8 +1,8 @@
 import warnings
 import numpy as np
+from scipy.sparse import issparse, csr_matrix
 from .velocity import velocity, estimation
 from .moments import MomData, Estimation
-from scipy.sparse import issparse, csr_matrix
 from .utils import get_U_S_for_velocity_estimation
 
 # incorporate the model selection code soon

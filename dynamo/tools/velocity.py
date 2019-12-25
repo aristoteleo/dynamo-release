@@ -913,16 +913,17 @@ class estimation:
                         self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['gamma'], clusters)
 
             elif self.extyp == 'mix_std_stm':
+                t_min, t_max = np.min(self.t), np.max(self.t)
                 if np.all(self._exist_data('ul', 'uu', 'su')):
                     gamma, beta, total, U = np.zeros(n), np.zeros(n), np.zeros(n), np.zeros(n)
                     for i in range(n): # can also use the two extreme time points and apply sci-fate like approach.
-                        tmp = self.data['uu'][i, self.t == 0] + self.data['ul'][i, self.t == 0] + self.data['su'][i, self.t == 0] + self.data['sl'][i, self.t == 0]
+                        tmp = self.data['uu'][i, self.t == t_max] + self.data['ul'][i, self.t == t_max] + self.data['su'][i, self.t == t_max] + self.data['sl'][i, self.t == t_max]
                         total[i] = np.mean(tmp)
-                        gamma[i] = solve_gamma(np.max(self.t), self.data['uu'][i, self.t == 0] + self.data['su'][i, self.t == 0], tmp)
+                        gamma[i] = solve_gamma(t_max, self.data['uu'][i, self.t == t_max] + self.data['su'][i, self.t ==t_max], tmp)
                         # same for beta
-                        tmp = self.data['uu'][i, self.t == 0] + self.data['ul'][i, self.t == 0]
+                        tmp = self.data['uu'][i, self.t == t_max] + self.data['ul'][i, self.t == t_max]
                         U[i] = np.mean(tmp)
-                        beta[i] = solve_gamma(np.max(self.t), self.data['uu'][i, self.t == 0], tmp)
+                        beta[i] = solve_gamma(np.max(self.t), self.data['uu'][i, self.t == t_max], tmp)
 
                     self.parameters['beta'], self.parameters['gamma'], self.aux_param['total0'], self.aux_param['U0'] = beta, gamma, total, U
                     # alpha estimation
@@ -933,10 +934,16 @@ class estimation:
                 elif np.all(self._exist_data('ul', 'uu')):
                     n = self.data['uu'].shape[0]  # self.get_n_genes(data=U)
                     gamma, U = np.zeros(n), np.zeros(n)
-                    for i in range(n): # can also use the two extreme time points and apply sci-fate like approach.
-                        tmp = self.data['uu'][i, self.t == 0] + self.data['ul'][i, self.t == 0]
-                        U[i] = np.mean(tmp)
-                        gamma[i] = solve_gamma(np.max(self.t), self.data['uu'][i, self.t == 0], tmp)
+                    for i in range(n): # apply sci-fate like approach (can also use one-single time point to estimate gamma)
+                        # tmp = self.data['uu'][i, self.t == 0] + self.data['ul'][i, self.t == 0]
+                        tmp_ = self.data['uu'][i, self.t == t_max] + self.data['ul'][i, self.t == t_max]
+
+                        U[i] = np.mean(tmp_)
+                        # gamma_1 = solve_gamma(np.max(self.t), self.data['uu'][i, self.t == 0], tmp) # steady state
+                        gamma_2 = solve_gamma(t_max, self.data['uu'][i, self.t == t_max], tmp_) # stimulation
+                        # gamma_3 = solve_gamma(np.max(self.t), self.data['uu'][i, self.t == np.max(self.t)], tmp) # sci-fate
+                        gamma[i] = gamma_2
+                        # print('Steady state, stimulation, sci-fate like gamma values are ', gamma_1, '; ', gamma_2, '; ', gamma_3)
                     self.parameters['gamma'], self.aux_param['U0'] = gamma, U
                     # alpha estimation
                     # assume constant alpha across all cells
@@ -1087,10 +1094,8 @@ class estimation:
         # calculate alpha initial guess:
         t = np.array(t) if type(t) is list else t
         t_std, t_stm, t_uniq, t_max = np.max(t) - t, t, np.unique(t), np.max(t)
-        valid_t_std_ind = t_std == np.max(t_std)
-        valid_t_std = t_std[valid_t_std_ind]
-        alpha_std_ini = np.mean(self.fit_alpha_oneshot(valid_t_std, ul[:, valid_t_std_ind], beta, clusters), 1)
-
+        t_max = np.max(t_std)
+        alpha_std_ini = self.fit_alpha_oneshot(np.array([t_max]), np.mean(ul[:, t == 0], 1), beta, clusters).flatten()
         alpha_std, alpha_stm = alpha_std_ini, np.zeros((ul.shape[0], len(t_uniq) - 1)) # don't include 0 stimulation point
 
         for i in range(ul.shape[0]):
@@ -1098,7 +1103,7 @@ class estimation:
             for t_ind in np.arange(1, len(t_uniq)):
                 alpha_stm[i, t_ind - 1] = solve_alpha_2p(t_max - t_uniq[t_ind], t_uniq[t_ind], alpha_std[i], beta[i], l)
         if not alpha_time_dependent:
-            alpha_stm = alpha_stm.min(1)
+            alpha_stm = alpha_stm.mean(1)
 
         return (alpha_std, alpha_stm)
 
