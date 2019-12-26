@@ -144,7 +144,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
                         ax.set_ylabel('Variance')
                     ax.plot(t, mom_data[j], 'k--')
                 ax.set_xlabel('time (' + unit + ')')
-                ax.set_title(gene_name + title_[j])
+                ax.set_title(gene_name +  " " + title_[j])
 
         elif experiment_type is 'deg':
             if has_splicing:
@@ -199,7 +199,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
                            showfliers=False, showmeans=True)
                 ax.plot(t, Pred[j], 'k--')
                 if j == sub_plot_n - 1:
-                    ax.text(0.8, 0.8, r'$t_{1/2} = $' + "{0:.2f}".format(half_life), ha='right', va='top', transform=ax.transAxes)
+                    ax.text(0.8, 0.8, r'$t_{1/2} = $' + "{0:.2f}".format(half_life) + unit[0], ha='right', va='top', transform=ax.transAxes)
                 ax.set_xlabel('time (' + unit + ')')
                 if y_log_scale:
                     ax.set_yscale('log')
@@ -207,7 +207,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
                     ax.set_ylabel('Expression (log)')
                 else:
                     ax.set_ylabel('Expression')
-                ax.set_title(gene_name + title_[j])
+                ax.set_title(gene_name + " " + title_[j])
         elif experiment_type is 'kin':
             if has_splicing:
                 layers = ['X_uu', 'X_ul', 'X_su', 'X_sl'] if 'X_ul' in adata.layers.keys() else ['uu', 'ul', 'su', 'sl']
@@ -268,7 +268,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
                     ax.set_ylabel('Expression (log)')
                 else:
                     ax.set_ylabel('Expression')
-                ax.set_title(gene_name + title_[j])
+                ax.set_title(gene_name +  " " + title_[j])
         elif experiment_type is 'one_shot':
             if has_splicing:
                 layers = ['X_uu', 'X_ul', 'X_su', 'X_sl'] if 'X_ul' in adata.layers.keys() else ['uu', 'ul', 'su', 'sl']
@@ -328,7 +328,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
                 ax.set_ylabel('Expression (log)')
             else:
                 ax.set_ylabel('Expression')
-            ax.set_title(gene_name + title_[0])
+            ax.set_title(gene_name +  " " + title_[0])
         elif experiment_type is 'mix_std_stm':
             if has_splicing:
                 layers = ['X_uu', 'X_ul', 'X_su', 'X_sl'] if 'X_ul' in adata.layers.keys() else ['uu', 'ul', 'su', 'sl']
