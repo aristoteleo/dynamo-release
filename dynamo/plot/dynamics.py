@@ -157,8 +157,8 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
                 if log_unnormalized and layers == ['uu', 'ul', 'su', 'sl']:
                     uu, ul, su, sl = np.log(uu + 1), np.log(ul + 1), np.log(su + 1), np.log(sl + 1)
 
-                alpha, beta, gamma, ul0, sl0, uu0 = adata.var.loc[
-                    gene_name, [prefix + 'alpha', prefix + 'beta', prefix + 'gamma', prefix + 'ul0', prefix + 'sl0', prefix + 'uu0']]
+                alpha, beta, gamma, ul0, sl0, uu0, half_life = adata.var.loc[
+                    gene_name, [prefix + 'alpha', prefix + 'beta', prefix + 'gamma', prefix + 'ul0', prefix + 'sl0', prefix + 'uu0', 'RNA_half_life']]
                 # $u$ - unlabeled, unspliced
                 # $s$ - unlabeled, spliced
                 # $w$ - labeled, unspliced
@@ -181,7 +181,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
                 if log_unnormalized and layers == ['new', 'total']:
                     uu, ul = np.log(uu + 1), np.log(ul + 1)
 
-                alpha, gamma, uu0, ul0 = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'uu0', prefix + 'ul0']]
+                alpha, gamma, uu0, ul0, half_life = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'uu0', prefix + 'ul0', 'RNA_half_life']]
 
                 # require no beta functions
                 u = sol_u(t, uu0, alpha, gamma)
@@ -193,11 +193,13 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
                 Obs, Pred = np.vstack((uu, ul)), np.vstack((u, w))
 
             for j in range(sub_plot_n):
-                row_ind = int(np.floor(idx/ncols)) # make sure unlabled and labeled are in the same column.
+                row_ind = int(np.floor(i/ncols)) # make sure unlabled and labeled are in the same column.
                 ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols + i % ncols])
                 ax.boxplot(x=[Obs[j][T == std] for std in T_uniq], positions=T_uniq, widths=boxwidth,
                            showfliers=False, showmeans=True)
                 ax.plot(t, Pred[j], 'k--')
+                if j == sub_plot_n - 1:
+                    ax.text(0.8, 0.8, r'$t_{1/2} = $' + "{0:.2f}".format(half_life), ha='right', va='top', transform=ax.transAxes)
                 ax.set_xlabel('time (' + unit + ')')
                 if y_log_scale:
                     ax.set_yscale('log')
@@ -254,7 +256,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
                 Obs, Pred = np.vstack((uu, ul)), np.vstack((u, w))
 
             for j in range(sub_plot_n):
-                row_ind = int(np.floor(idx/ncols)) # make sure unlabled and labeled are in the same column.
+                row_ind = int(np.floor(i/ncols)) # make sure unlabled and labeled are in the same column.
                 ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols + i % ncols])
                 ax.boxplot(x=[Obs[j][T == std] for std in T_uniq], positions=T_uniq, widths=boxwidth,
                            showfliers=False, showmeans=True)
@@ -314,7 +316,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
 
             Obs, Pred = np.hstack((np.zeros(L.shape), L)), np.hstack(l)
 
-            row_ind = int(np.floor(idx / ncols))  # make sure unlabled and labeled are in the same column.
+            row_ind = int(np.floor(i / ncols))  # make sure unlabled and labeled are in the same column.
             ax = plt.subplot(gs[(row_ind * sub_plot_n) * ncols + i % ncols])
             ax.boxplot(x=[Obs[np.hstack((np.zeros_like(T), T)) == std] for std in [0, T_uniq[0]]], positions=[0, T_uniq[0]], widths=boxwidth,
                        showfliers=False, showmeans=True)

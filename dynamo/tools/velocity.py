@@ -1093,9 +1093,9 @@ class estimation:
 
         # calculate alpha initial guess:
         t = np.array(t) if type(t) is list else t
-        t_std, t_stm, t_uniq, t_max = np.max(t) - t, t, np.unique(t), np.max(t)
+        t_std, t_stm, t_uniq, t_max, t_min = np.max(t) - t, t, np.unique(t), np.max(t), np.min(t)
         t_max = np.max(t_std)
-        alpha_std_ini = self.fit_alpha_oneshot(np.array([t_max]), np.mean(ul[:, t == 0], 1), beta, clusters).flatten()
+        alpha_std_ini = self.fit_alpha_oneshot(np.array([t_max]), np.mean(ul[:, t == t_min], 1), beta, clusters).flatten()
         alpha_std, alpha_stm = alpha_std_ini, np.zeros((ul.shape[0], len(t_uniq) - 1)) # don't include 0 stimulation point
 
         for i in range(ul.shape[0]):
