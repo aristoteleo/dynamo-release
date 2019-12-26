@@ -228,17 +228,19 @@ def syn_deg_data(model_lab, model_unlab, n_trajs, i_t_cp, trajs_CP, Tl, n_cell, 
     trajs_T, trajs_C = simulate(model_unlab, C0=C0, t_span=[0, 10], n_traj=n_cell, report=True)
     # interpolate labeling data
     trajs_C = temporal_interp(Tl, trajs_T, trajs_C, round=True)
-    uu_deg, su_deg, ul_deg, sl_deg, pr_deg = np.zeros((len(Tl), len(n_trajs))), np.zeros((len(Tl), len(n_trajs))), \
-                                             np.zeros((len(Tl), len(n_trajs))), np.zeros((len(Tl), len(n_trajs))), \
-                                             np.zeros((len(Tl), len(n_trajs)))
+    gene_num = 2
+    uu_deg, su_deg, ul_deg, sl_deg, pr_deg = np.zeros((gene_num, len(Tl) * n_trajs)), np.zeros((gene_num, len(Tl) * n_trajs)), \
+                                             np.zeros((gene_num, len(Tl) * n_trajs)), np.zeros((gene_num, len(Tl) * n_trajs)), \
+                                             np.zeros((gene_num, len(Tl) * n_trajs))
     for i, t in enumerate(Tl):
         u = [trajs_C[j][(0, 2), i] for j in range(n_trajs)]
         s = [trajs_C[j][(1, 3), i] for j in range(n_trajs)]
         w = [trajs_C[j][(4, 6), i] for j in range(n_trajs)]
         l = [trajs_C[j][(5, 7), i] for j in range(n_trajs)]
 
-        uu_deg[i], su_deg[i], ul_deg[i], sl_deg[i], pr_deg[i] = np.array(u), np.array(s), np.array(w), np.array(
-            l), np.array(p)
+        uu_deg[:, (i*n_trajs):((i+1)*n_trajs)], su_deg[:, (i*n_trajs):((i+1)*n_trajs)], \
+        ul_deg[:, (i*n_trajs):((i+1)*n_trajs)], sl_deg[:, (i*n_trajs):((i+1)*n_trajs)], \
+        pr_deg[:, (i*n_trajs):((i+1)*n_trajs)] = np.array(u).T, np.array(s).T, np.array(w).T, np.array(l).T, np.array(p).T
 
     return uu_deg, su_deg, ul_deg, sl_deg, pr_deg
 
@@ -262,10 +264,10 @@ def osc_diff_dup(n_species, trajs_C, model_lab, model_unlab, n_cell):
     trajs_CP = temporal_interp(T_CP, trajs_T, trajs_C, round=True)
 
     # synthesize labeling data (kinetics) at each checkpoint
-    t_lab = 1.0
-    uu_kin, su_kin, ul_kin, sl_kin, pr_kin = np.zeros((len(T_CP), len(n_trajs))), np.zeros((len(T_CP), len(n_trajs))), \
-                                             np.zeros((len(T_CP), len(n_trajs))), np.zeros((len(T_CP), len(n_trajs))), \
-                                             np.zeros((len(T_CP), len(n_trajs)))
+    t_lab, gene_num = 1.0, 2
+    uu_kin, su_kin, ul_kin, sl_kin, pr_kin = np.zeros((gene_num, n_cell * len(T_CP))), np.zeros((gene_num, n_cell * len(T_CP))), \
+                                             np.zeros((gene_num, n_cell * len(T_CP))), np.zeros((gene_num, n_cell * len(T_CP))), \
+                                             np.zeros((gene_num, n_cell * len(T_CP)))
     for i, t_cp in enumerate(T_CP):
         C0 = [trajs_CP[j][:, i] for j in range(n_trajs)]
         trajs_T, trajs_C = simulate(model_lab, C0=C0, t_span=[0, t_lab], n_traj=n_cell, report=True)
@@ -275,8 +277,9 @@ def osc_diff_dup(n_species, trajs_C, model_lab, model_unlab, n_cell):
         l = [trajs_C[j][(5, 7), -1] for j in range(n_trajs)]
         p = [trajs_C[j][(8, 9), -1] for j in range(n_trajs)]
 
-        uu_kin[i], su_kin[i], ul_kin[i], sl_kin[i], pr_kin[i] = np.array(u), np.array(s), np.array(w), np.array(
-            l), np.array(p)
+        uu_kin[:, (i*n_cell):((i+1)*n_cell)], su_kin[:, (i*n_cell):((i+1)*n_cell)], \
+        ul_kin[:, (i*n_cell):((i+1)*n_cell)], sl_kin[:, (i*n_cell):((i+1)*n_cell)], \
+        pr_kin[:, (i*n_cell):((i+1)*n_cell)] = np.array(u).T, np.array(s).T, np.array(w).T, np.array(l).T, np.array(p).T
 
     Tl = np.array([0, 1, 2, 4, 8])
     # at the beginning
