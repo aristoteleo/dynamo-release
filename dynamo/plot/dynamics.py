@@ -6,7 +6,7 @@ from ..tools.velocity import sol_u, sol_s, solve_first_order_deg
 from ..tools.utils_moments import moments
 
 
-def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y_log_scale=False, group=None, ncols=None,
+def dynamics(adata, vkey, tkey, unit='hours', log_unnormalized=True, y_log_scale=False, group=None, ncols=None,
                            figsize=None, dpi=None, boxwidth=None, barwidth=None, show=True):
     """ Plot the data and fitting of different metabolic labeling experiments.
 
@@ -348,7 +348,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
                     uu, ul, su, sl = np.log(uu + 1), np.log(ul + 1), np.log(su + 1), np.log(sl + 1)
 
                 beta, gamma, alpha_std = adata.var.loc[gene_name, [prefix + 'beta', prefix + 'gamma', prefix + 'alpha_std']]
-                alpha_stm = adata[:, gene_name].varm[prefix + 'alpha'].flatten()
+                alpha_stm = adata[:, gene_name].varm[prefix + 'alpha'].flatten()[1:]
                 alpha_stm0, k, _ = solve_first_order_deg(T_uniq[1:], alpha_stm)
 
                 # $u$ - unlabeled, unspliced
@@ -357,14 +357,19 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
                 # $l$ - labeled, spliced
                 #
                 # calculate labeled unspliced and spliced mRNA amount
-                u1, s1 = np.zeros(len(t) - 1), np.zeros(len(t) - 1)
+                u1, s1, u1_, s1_ = np.zeros(len(t) - 1), np.zeros(len(t) - 1), np.zeros(len(t) - 1), np.zeros(len(t) - 1)
                 for ind in np.arange(1, len(t)):
                     t_i = t[ind]
                     u0 = sol_u(np.max(t) - t_i, 0, alpha_std, beta)
                     alpha_stm_t_i = alpha_stm0 * np.exp(-k * t_i)
                     u1[ind - 1], s1[ind - 1] = sol_u(t_i, u0, alpha_stm_t_i, beta), sol_u(np.max(t), 0, beta, gamma)
+                for ind in np.arange(1, len(T_uniq)):
+                    t_i = T_uniq[ind]
+                    u0 = sol_u(np.max(T_uniq) - t_i, 0, alpha_std, beta)
+                    alpha_stm_t_i = alpha_stm[ind - 1]
+                    u1_[ind - 1], s1_[ind - 1] = sol_u(t_i, u0, alpha_stm_t_i, beta), sol_u(np.max(T_uniq), 0, beta, gamma)
 
-                Obs, Pred = np.vstack((ul, sl, uu, su)), np.vstack((u1.reshape(1, -1), s1.reshape(1, -1)))
+                Obs, Pred, Pred_ = np.vstack((ul, sl, uu, su)), np.vstack((u1.reshape(1, -1), s1.reshape(1, -1))), np.vstack((u1.reshape(1, -1), s1.reshape(1, -1)))
                 j_species, title_ = 4, ['unspliced labeled (new)', 'spliced labeled (new)', 'unspliced unlabeled (old)', 'spliced unlabeled (old)', 'alpha (steady state vs. stimulation)']
             else:
                 layers = ['X_new', 'X_total'] if 'X_new' in adata.layers.keys() else ['new', 'total']
@@ -375,21 +380,26 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
                     uu, ul = np.log(uu + 1), np.log(ul + 1)
 
                 gamma, alpha_std = adata.var.loc[gene_name, [prefix + 'gamma', prefix + 'alpha_std']]
-                alpha_stm = adata[:, gene_name].varm[prefix + 'alpha'].flatten()
+                alpha_stm = adata[:, gene_name].varm[prefix + 'alpha'].flatten()[1:]
 
                 alpha_stm0, k, _ = solve_first_order_deg(T_uniq[1:], alpha_stm)
                 # require no beta functions
-                u1 = np.zeros(len(t) - 1)
+                u1, u1_ = np.zeros(len(t) - 1), np.zeros(len(T_uniq) - 1) # interpolation or original time point
                 for ind in np.arange(1, len(t)):
                     t_i = t[ind]
                     u0 = sol_u(np.max(t) - t_i, 0, alpha_std, gamma)
                     alpha_stm_t_i = alpha_stm0 * np.exp(-k * t_i)
                     u1[ind - 1] = sol_u(t_i, u0, alpha_stm_t_i, gamma)
 
-                Obs, Pred = np.vstack((ul, uu)), np.vstack((u1.reshape(1, -1)))
+                for ind in np.arange(1, len(T_uniq)):
+                    t_i = T_uniq[ind]
+                    u0 = sol_u(np.max(T_uniq) - t_i, 0, alpha_std, gamma)
+                    alpha_stm_t_i = alpha_stm[ind - 1]
+                    u1_[ind - 1] = sol_u(t_i, u0, alpha_stm_t_i, gamma)
+
+                Obs, Pred, Pred_ = np.vstack((ul, uu)), np.vstack((u1.reshape(1, -1))), np.vstack((u1_.reshape(1, -1)))
                 j_species, title_ = 2, ['labeled (new)', 'unlabeled (old)', 'alpha (steady state vs. stimulation)']
 
-            if log: Obs = np.log(Obs + 1)
             group_list = [np.repeat(alpha_std, len(alpha_stm)), alpha_stm]
 
             for j in range(sub_plot_n):
@@ -399,6 +409,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
                     ax.boxplot(x=[Obs[j][T == std] for std in T_uniq[1:]], positions=T_uniq[1:], widths=boxwidth,
                                showfliers=False, showmeans=True)
                     ax.plot(t[1:], Pred[j], 'k--')
+                    ax.scatter(T_uniq[1:], Pred_[j], s=20, c='red')
                     ax.set_xlabel('time (' + unit + ')')
                     ax.set_title(gene_name + ': ' + title_[j])
 

@@ -258,6 +258,14 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
     elif mode is 'moment':
         # a few hard code to set up data for moment mode:
         if 'uu' in subset_adata.layers.keys() or 'X_uu' in subset_adata.layers.keys():
+            if log_unnormalized and 'uu' not in subset_adata.layers.keys():
+                if issparse(subset_adata.layers['uu']):
+                    subset_adata.layers['uu'].data, subset_adata.layers['ul'].data, subset_adata.layers['su'].data, subset_adata.layers['sl'].data = \
+                        np.log(subset_adata.layers['uu'].data + 1), np.log(subset_adata.layers['ul'].data + 1), np.log(subset_adata.layers['su'].data + 1), np.log(subset_adata.layers['sl'].data + 1)
+                else:
+                    subset_adata.layers['uu'], subset_adata.layers['ul'], subset_adata.layers['su'], subset_adata.layers['sl'] = \
+                        np.log(subset_adata.layers['uu'] + 1), np.log(subset_adata.layers['ul'] + 1), np.log(subset_adata.layers['su'] + 1), np.log(subset_adata.layers['sl'] + 1)
+
             subset_adata_u, subset_adata_s = subset_adata.copy(), subset_adata.copy()
             del subset_adata_u.layers['su'], subset_adata_u.layers['sl'], subset_adata_s.layers['uu'], subset_adata_s.layers['ul']
             subset_adata_u.layers['new'], subset_adata_u.layers['old'], subset_adata_s.layers['new'], subset_adata_s.layers['old'] = \

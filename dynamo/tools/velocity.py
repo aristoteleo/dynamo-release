@@ -369,7 +369,48 @@ def fit_alpha_synthesis(t, u, beta):
 
     return beta * np.mean(u) / np.mean(x)
 
+# add a lsq version to constrain u0 to be larger than 0
 def fit_alpha_degradation(t, u, beta, intercept=True):
+    """Estimate alpha with degradation data using linear regression.
+
+    Arguments
+    ---------
+    t: :class:`~numpy.ndarray`
+        A vector of time points.
+    u: :class:`~numpy.ndarray` or sparse `csr_matrix`
+        A matrix of unspliced mRNA counts. Dimension: cells x time points.
+    beta: float
+        The value of beta.
+    intercept: bool
+        If using steady state assumption for fitting, then:
+        True -- the linear regression is performed with an unfixed intercept;
+        False -- the linear regresssion is performed with a fixed zero intercept.
+
+    Returns
+    -------
+    alpha: float
+        The estimated value for alpha.
+    b: float
+        The initial unspliced mRNA count.
+    r2: float
+        Coefficient of determination or r square.
+    """
+    x = u.A if issparse(u) else u
+
+    tau = t - np.min(t)
+
+    f_lsq = lambda p: sol_u(tau, p[0], p[1], beta) - x
+    ret = least_squares(f_lsq, np.array([1, 1]), bounds=(0, np.inf))
+    alpha, u0 = ret.x[0], ret.x[1]
+
+    # calculate r-squared
+    SS_tot_n = np.var(x)
+    SS_res_n = np.mean((f_lsq(alpha, u0)) ** 2)
+    r2 = 1 - SS_res_n / SS_tot_n
+
+    return alpha, u0, r2
+
+def solve_alpha_degradation(t, u, beta, intercept=True):
     """Estimate alpha with degradation data using linear regression.
 
     Arguments
@@ -568,8 +609,8 @@ class velocity:
                 if self.parameters['alpha'].shape[1] == U.shape[1]:
                     alpha = self.parameters['alpha']
                 elif self.parameters['alpha'].shape[1] == len(t_uniq):
-                    alpha = np.zeros_like(U.shape)
-                    for i in range(t_uniq):
+                    alpha = np.zeros(U.shape)
+                    for i in range(len(t_uniq)):
                         cell_inds = t == t_uniq[i]
                         alpha[:, cell_inds] = np.repeat(self.parameters['alpha'][:, i], t_uniq_cnt[i], axis=1)
                 else:
@@ -586,10 +627,10 @@ class velocity:
                 if self.parameters['alpha'][1].shape[1] == U.shape[1]:
                     alpha = self.parameters['alpha'][1]
                 elif self.parameters['alpha'][1].shape[1] == len(t_uniq):
-                    alpha = np.zeros_like(U.shape)
-                    for i in range(t_uniq):
+                    alpha = np.zeros(U.shape)
+                    for i in range(len(t_uniq)):
                         cell_inds = t == t_uniq[i]
-                        alpha[:, cell_inds] = np.repeat(self.parameters['alpha'][1][:, i], t_uniq_cnt[i], axis=1)
+                        alpha[:, cell_inds] = np.repeat(self.parameters['alpha'][1][:, i].reshape(-1, 1), t_uniq_cnt[i], axis=1)
                 else:
                     alpha = np.repeat(self.parameters['alpha'][1], U.shape[1], axis=1)
 
@@ -597,9 +638,9 @@ class velocity:
                 beta = np.repeat(self.parameters['beta'].reshape((-1, 1)), U.shape[1], axis=1)
             elif self.parameters['beta'].shape[1] == len(t_uniq):
                 beta = np.zeros_like(U.shape)
-                for i in range(t_uniq):
+                for i in range(len(t_uniq)):
                     cell_inds = t == t_uniq[i]
-                    beta[:, cell_inds] = np.repeat(self.parameters['beta'][:, i], t_uniq_cnt[i], axis=1)
+                    beta[:, cell_inds] = np.repeat(self.parameters['beta'][:, i].reshape(-1, 1), t_uniq_cnt[i], axis=1)
 
             V = csc_matrix(alpha) - (csc_matrix(beta).multiply(U)) if issparse(U) else \
                     alpha - beta * U
@@ -1084,7 +1125,7 @@ class estimation:
         alpha_time_dependent: `bool`
             Whether or not to model the simulation alpha rate as a time dependent variable.
 
-        Returns
+        Returns`
         -------
         alpha_std, alpha_stm: `numpy.ndarray`, `numpy.ndarray`
             The constant steady state transcription rate (alpha_std) or time-dependent or time-independent (determined by
@@ -1094,14 +1135,14 @@ class estimation:
         # calculate alpha initial guess:
         t = np.array(t) if type(t) is list else t
         t_std, t_stm, t_uniq, t_max, t_min = np.max(t) - t, t, np.unique(t), np.max(t), np.min(t)
-        t_max = np.max(t_std)
-        alpha_std_ini = self.fit_alpha_oneshot(np.array([t_max]), np.mean(ul[:, t == t_min], 1), beta, clusters).flatten()
-        alpha_std, alpha_stm = alpha_std_ini, np.zeros((ul.shape[0], len(t_uniq) - 1)) # don't include 0 stimulation point
 
+        alpha_std_ini = self.fit_alpha_oneshot(np.array([t_max]), np.mean(ul[:, t == t_min], 1), beta, clusters).flatten()
+        alpha_std, alpha_stm = alpha_std_ini, np.zeros((ul.shape[0], len(t_uniq)))
+        alpha_stm[:, 0] = alpha_std_ini # 0 stimulation point is the steady state transcription
         for i in range(ul.shape[0]):
-            l = ul[i]
+            l = ul[i].A.flatten() if issparse(ul) else ul[i]
             for t_ind in np.arange(1, len(t_uniq)):
-                alpha_stm[i, t_ind - 1] = solve_alpha_2p(t_max - t_uniq[t_ind], t_uniq[t_ind], alpha_std[i], beta[i], l)
+                alpha_stm[i, t_ind] = solve_alpha_2p(t_max - t_uniq[t_ind], t_uniq[t_ind], alpha_std[i], beta[i], l[t==t_uniq[t_ind]])
         if not alpha_time_dependent:
             alpha_stm = alpha_stm.mean(1)
 
