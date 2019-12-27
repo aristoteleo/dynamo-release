@@ -59,6 +59,8 @@ def Gillespie(a=None, b=None, la=None, aa=None, ai=None, si=None, be=None, ga=No
     """
 
     gene_num, species_num = C0.shape[0:2]
+    P = None
+
     if method == 'basic':
         if t_eval is None:
             steps = (t_span[1] - t_span[0]) // dt  # // int; %% remainder
@@ -152,6 +154,8 @@ def Gillespie(a=None, b=None, la=None, aa=None, ai=None, si=None, be=None, ga=No
         sl = np.hstack((sl_kin, deg_begin[3], deg_end[3])).T
 
         E = uu + ul + su + sl
+        P = np.hstack((pr_kin, deg_begin[4], deg_end[4])).T # append to .obsm attribute
+
         layers = {'uu': scipy.sparse.csc_matrix((uu).astype(int)),
                   'ul': scipy.sparse.csc_matrix((ul).astype(int)),
                   'su': scipy.sparse.csc_matrix((su).astype(int)),
@@ -219,6 +223,8 @@ def Gillespie(a=None, b=None, la=None, aa=None, ai=None, si=None, be=None, ga=No
         sl = np.hstack((sl_kin, deg_begin[3], deg_end[3])).T
 
         E = uu + ul + su + sl
+        P = np.hstack((pr_kin, deg_begin[4], deg_end[4])).T # append to .obsm attribute
+
         layers = {'uu': scipy.sparse.csc_matrix((uu).astype(int)),
                   'ul': scipy.sparse.csc_matrix((ul).astype(int)),
                   'su': scipy.sparse.csc_matrix((su).astype(int)),
@@ -255,7 +261,8 @@ def Gillespie(a=None, b=None, la=None, aa=None, ai=None, si=None, be=None, ga=No
     var.set_index('gene_short_name', inplace=True)
 
     adata = AnnData(scipy.sparse.csc_matrix(E.astype(int)).copy(), obs.copy(), var.copy(), layers=layers.copy())
-
+    if P is not None:
+        adata.obsm['protein'] = P
     # remove cells that has no expression
     adata = adata[np.array(adata.X.sum(1)).flatten() > 0, :]
 

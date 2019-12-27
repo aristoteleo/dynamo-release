@@ -102,9 +102,9 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         Ul = raw
     elif 'X_uu' in subset_adata.layers.keys():  # only uu, ul, su, sl provided
         has_splicing, has_labeling, normalized = True, True, True
-
         U = subset_adata.layers['X_uu'].T  # unlabel unspliced: U
     elif 'uu' in subset_adata.layers.keys():
+        has_splicing, has_labeling, normalized = True, True, False
         raw, raw_uu = subset_adata.layers['uu'].T, subset_adata.layers['uu'].T
         if issparse(raw):
             raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
@@ -156,7 +156,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
     if 'X_protein' in subset_adata.obsm.keys():
         P = subset_adata.obsm['X_protein'].T
     elif 'protein' in subset_adata.obsm.keys():
-        P = adata.obsm['protein'].T
+        P = subset_adata.obsm['protein'].T
     if P is not None:
         has_protein = True
         if protein_names is None:
@@ -257,15 +257,25 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         # add velocity_offset here
     elif mode is 'moment':
         # a few hard code to set up data for moment mode:
-        if log_unnormalized and 'X_total' not in subset_adata.layers.keys():
-            if issparse(subset_adata.layers['total']):
-                subset_adata.layers['new'].data, subset_adata.layers['total'].data = np.log(subset_adata.layers['new'].data + 1), np.log(subset_adata.layers['total'].data + 1)
-            else:
-                subset_adata.layers['total'], subset_adata.layers['total'] = np.log(subset_adata.layers['new'] + 1), np.log(subset_adata.layers['total'] + 1)
+        if 'uu' in subset_adata.layers.keys() or 'X_uu' in subset_adata.layers.keys():
+            subset_adata_u, subset_adata_s = subset_adata.copy(), subset_adata.copy()
+            del subset_adata_u.layers['su'], subset_adata_u.layers['sl'], subset_adata_s.layers['uu'], subset_adata_s.layers['ul']
+            subset_adata_u.layers['new'], subset_adata_u.layers['old'], subset_adata_s.layers['new'], subset_adata_s.layers['old'] = \
+                subset_adata_u.layers.pop('ul'), subset_adata_u.layers.pop('uu'), subset_adata_s.layers.pop('sl'), subset_adata_s.layers.pop('su')
+            Moment, Moment_ = MomData(subset_adata_s, tkey), MomData(subset_adata_u, tkey)
+            adata.uns['M_sl'], adata.uns['V_sl'], adata.uns['M_ul'], adata.uns['V_ul'] = Moment.M, Moment.V, Moment_.M, Moment_.V
+            del Moment_
+            Est = Estimation(Moment, adata_u=subset_adata_u, time_key=tkey, normalize=True) #  # data is already normalized
+        else:
+            if log_unnormalized and 'X_total' not in subset_adata.layers.keys():
+                if issparse(subset_adata.layers['total']):
+                    subset_adata.layers['new'].data, subset_adata.layers['total'].data = np.log(subset_adata.layers['new'].data + 1), np.log(subset_adata.layers['total'].data + 1)
+                else:
+                    subset_adata.layers['total'], subset_adata.layers['total'] = np.log(subset_adata.layers['new'] + 1), np.log(subset_adata.layers['total'] + 1)
 
-        Moment = MomData(subset_adata, tkey)
-        adata.uns['M'], adata.uns['V'] = Moment.M, Moment.V
-        Est = Estimation(Moment, time_key=tkey, normalize=True) #  # data is already normalized
+            Moment = MomData(subset_adata, tkey)
+            adata.uns['M'], adata.uns['V'] = Moment.M, Moment.V
+            Est = Estimation(Moment, time_key=tkey, normalize=True) #  # data is already normalized
         params, costs = Est.fit()
         a, b, alpha_a, alpha_i, beta, gamma = params[:, 0], params[:, 1], params[:, 2], params[:, 3], params[:,
                                                                                                       4], params[:, 5]

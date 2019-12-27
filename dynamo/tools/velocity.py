@@ -834,7 +834,7 @@ class estimation:
                     if self._exist_data('uu'):
                         # alpha estimation
                         uu_m, uu_v, _ = cal_12_mom(self.data['uu'], self.t)
-                        alpha, uu0, r2 = np.zeros(n), np.zeros(n), np.zeros(n)
+                        alpha, uu0, r2 = np.zeros((n, 1)), np.zeros(n), np.zeros(n)
                         for i in range(n):
                             alpha[i], uu0[i], r2[i] = fit_alpha_degradation(t_uniq, uu_m[i], self.parameters['beta'][i], intercept=True)
                         self.parameters['alpha'], self.aux_param['alpha_intercept'], self.aux_param['uu0'], self.aux_param['alpha_r2'] = alpha, uu0, uu0, r2

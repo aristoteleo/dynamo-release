@@ -1,4 +1,5 @@
 import numpy as np
+import sys
 from scipy.sparse import issparse
 from .scatters import scatters
 from ..tools.velocity import sol_u, sol_s, solve_first_order_deg
@@ -164,6 +165,8 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
                 # $w$ - labeled, unspliced
                 # $l$ - labeled, spliced
                 #
+                beta = sys.float_info.epsilon if beta == 0 else beta
+                gamma = sys.float_info.epsilon if gamma == 0 else gamma
                 u = sol_u(t, uu0, alpha, beta)
                 su0 = np.mean(su[T == np.min(T)])
                 s = sol_s(t, su0, uu0, 0, beta, gamma)
@@ -226,6 +229,8 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
                 # $w$ - labeled, unspliced
                 # $l$ - labeled, spliced
                 #
+                beta = sys.float_info.epsilon if beta == 0 else beta
+                gamma = sys.float_info.epsilon if gamma == 0 else gamma
                 u = sol_u(t, uu0, 0, beta)
                 s = sol_s(t, su0, uu0, 0, beta, gamma)
                 w = sol_u(t, 0, alpha, beta)
@@ -287,6 +292,8 @@ def dynamics(adata, vkey, tkey, unit='hours', log=True, log_unnormalized=True, y
                 # $w$ - labeled, unspliced
                 # $l$ - labeled, spliced
                 #
+                beta = sys.float_info.epsilon if beta == 0 else beta
+                gamma = sys.float_info.epsilon if gamma == 0 else gamma
                 U_sol = sol_u(t, U0, 0, beta)
                 S_sol = sol_u(t, S0, 0, gamma)
                 l = sol_s(t, 0, 0, alpha, beta, gamma)
