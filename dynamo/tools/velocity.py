@@ -390,7 +390,7 @@ def fit_alpha_degradation(t, u, beta, intercept=True):
     -------
     alpha: float
         The estimated value for alpha.
-    b: float
+    u0: float
         The initial unspliced mRNA count.
     r2: float
         Coefficient of determination or r square.
@@ -405,7 +405,7 @@ def fit_alpha_degradation(t, u, beta, intercept=True):
 
     # calculate r-squared
     SS_tot_n = np.var(x)
-    SS_res_n = np.mean((f_lsq(alpha, u0)) ** 2)
+    SS_res_n = np.mean((f_lsq([alpha, u0])) ** 2)
     r2 = 1 - SS_res_n / SS_tot_n
 
     return alpha, u0, r2
@@ -1125,7 +1125,7 @@ class estimation:
         alpha_time_dependent: `bool`
             Whether or not to model the simulation alpha rate as a time dependent variable.
 
-        Returns`
+        Returns
         -------
         alpha_std, alpha_stm: `numpy.ndarray`, `numpy.ndarray`
             The constant steady state transcription rate (alpha_std) or time-dependent or time-independent (determined by

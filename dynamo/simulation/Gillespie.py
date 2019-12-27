@@ -140,7 +140,7 @@ def Gillespie(a=None, b=None, la=None, aa=None, ai=None, si=None, be=None, ga=No
         model_treat_lab = sim_diff(*list(params_treat_lab.values()))
 
         # synthesize steady state before treatment
-        n_cell = 5
+        n_cell = 50
         c0 = np.array([40, 100, 40, 100, 0, 0, 0, 0, 1000, 1000]) # same as the os model after this line of code
 
         n_species = len(c0)
@@ -148,37 +148,40 @@ def Gillespie(a=None, b=None, la=None, aa=None, ai=None, si=None, be=None, ga=No
 
         uu_kin, su_kin, ul_kin, sl_kin, pr_kin, deg_begin, deg_end = osc_diff_dup(n_species, trajs_C, model_treat_lab, model_treat_unlab, n_cell)
 
-        uu = np.hstack((uu_kin, deg_begin[0], deg_end[0])).T
-        ul = np.hstack((ul_kin, deg_begin[1], deg_end[1])).T
-        su = np.hstack((su_kin, deg_begin[2], deg_end[2])).T
-        sl = np.hstack((sl_kin, deg_begin[3], deg_end[3])).T
+        uu = np.vstack((uu_kin, deg_begin[0], deg_end[0]))
+        ul = np.vstack((ul_kin, deg_begin[1], deg_end[1]))
+        su = np.vstack((su_kin, deg_begin[2], deg_end[2]))
+        sl = np.vstack((sl_kin, deg_begin[3], deg_end[3]))
 
         E = uu + ul + su + sl
-        P = np.hstack((pr_kin, deg_begin[4], deg_end[4])).T # append to .obsm attribute
+        P = np.vstack((pr_kin, deg_begin[4], deg_end[4])) # append to .obsm attribute
 
         layers = {'uu': scipy.sparse.csc_matrix((uu).astype(int)),
                   'ul': scipy.sparse.csc_matrix((ul).astype(int)),
                   'su': scipy.sparse.csc_matrix((su).astype(int)),
                   'sl': scipy.sparse.csc_matrix((sl).astype(int))}  # ambiguous is required for velocyto
-        kin_len, begin_len, end_len = uu_kin.shape[1], deg_begin[0].shape[1], deg_end[0].shape[1]
-        kin_cell_ids, kin_Trajectory, kin_Step = ['kin_traj_%d_step_%d' % (j, i)  for i in range(8) for j in range(n_cell)], \
-                                                 ['%d' % j for i in range(8) for j in range(n_cell)], \
-                                                 ['%d' % i for i in range(8) for j in range(n_cell)]  # first n_traj and then steps
-        begin_cell_ids, begin_Trajectory, begin_Step = ['begin_deg_traj_%d_step_%d' % (i, j) for i in range(5) for j in range(n_cell)], \
-                                                 ['%d' % j for i in range(5) for j in range(n_cell)], \
-                                                 ['%d' % i for i in range(5) for j in range(n_cell)]  # first n_traj and then steps
-        end_cell_ids, end_Trajectory, end_Step = ['end_deg_traj_%d_step_%d' % (i, j) for i in range(5) for j in range(n_cell)] , \
-                                                 ['%d' % j for i in range(5) for j in range(n_cell)], \
-                                                 ['%d' % i for i in range(5) for j in range(n_cell)] # first n_traj and then steps
+        kin_len, begin_len, end_len = uu_kin.shape[0], deg_begin[0].shape[0], deg_end[0].shape[0]
+
+        kin_T_CP, deg_label_t = [0, 5, 10, 40, 100, 200, 300, 400], [0, 1, 2, 4, 8]
+        # label time for kinetics experiment is 1 (actually it is one-shot experiment)
+        kin_cell_ids, kin_Trajectory, kin_Step = ['kin_traj_%d_time_%d' % (j, i)  for i in kin_T_CP for j in range(n_cell)], \
+                                                 ['%d' % j for i in kin_T_CP for j in range(n_cell)], \
+                                                 ['%d' % i for i in kin_T_CP for j in range(n_cell)]  # first n_traj and then steps
+        begin_cell_ids, begin_Trajectory, begin_Step = ['begin_deg_traj_%d_time_%d' % (i, j) for i in deg_label_t for j in range(n_cell)], \
+                                                 ['%d' % j for i in deg_label_t for j in range(n_cell)], \
+                                                 ['%d' % i for i in deg_label_t for j in range(n_cell)]  # first n_traj and then steps
+        end_cell_ids, end_Trajectory, end_Step = ['end_deg_traj_%d_time_%d' % (i, j) for i in deg_label_t for j in range(n_cell)] , \
+                                                 ['%d' % j for i in deg_label_t for j in range(n_cell)], \
+                                                 ['%d' % i for i in deg_label_t for j in range(n_cell)] # first n_traj and then steps
         cell_ids, Trajectory, Step = kin_cell_ids, kin_Trajectory, kin_Step
         cell_ids.extend(begin_cell_ids); Trajectory.extend(begin_Trajectory); Step.extend(begin_Step)
         cell_ids.extend(end_cell_ids); Trajectory.extend(end_Trajectory); Step.extend(end_Step)
 
-        obs = pd.DataFrame({'Cell_name': cell_ids,
-                            'Trajectory': Trajectory,
-                            'Step': Step,
+        obs = pd.DataFrame({'cell_name': cell_ids,
+                            'trajectory': Trajectory,
+                            'time': Step,
                             'experiment_type': pd.Series(['kin', 'deg_beign', 'deg_end']).repeat([kin_len, begin_len, end_len]).values})
-        obs.set_index('Cell_name', inplace=True)
+        obs.set_index('cell_name', inplace=True)
     elif method == 'oscillation':
         gene_num = 2
 
@@ -211,44 +214,47 @@ def Gillespie(a=None, b=None, la=None, aa=None, ai=None, si=None, be=None, ga=No
         model_lab = sim_osc(*list(params_lab.values()))
 
         # synthesize steady state before treatment
-        n_cell = 5
+        n_cell = 50
         c0 = np.array([70, 70 * beta / gamma, 70, 70 * beta / gamma, 0, 0, 0, 0, 70 * zeta, 70 * zeta])
         n_species = len(c0)
         trajs_T, trajs_C = simulate(model_unlab, C0=[c0] * n_cell, t_span=[0, 100], n_traj=n_cell, report=True)
         uu_kin, su_kin, ul_kin, sl_kin, pr_kin, deg_begin, deg_end = osc_diff_dup(n_species, trajs_C, model_lab, model_unlab, n_cell)
 
-        uu = np.hstack((uu_kin, deg_begin[0], deg_end[0])).T
-        ul = np.hstack((ul_kin, deg_begin[1], deg_end[1])).T
-        su = np.hstack((su_kin, deg_begin[2], deg_end[2])).T
-        sl = np.hstack((sl_kin, deg_begin[3], deg_end[3])).T
+        uu = np.vstack((uu_kin, deg_begin[0], deg_end[0]))
+        ul = np.vstack((ul_kin, deg_begin[1], deg_end[1]))
+        su = np.vstack((su_kin, deg_begin[2], deg_end[2]))
+        sl = np.vstack((sl_kin, deg_begin[3], deg_end[3]))
 
         E = uu + ul + su + sl
-        P = np.hstack((pr_kin, deg_begin[4], deg_end[4])).T # append to .obsm attribute
+        P = np.vstack((pr_kin, deg_begin[4], deg_end[4])) # append to .obsm attribute
 
         layers = {'uu': scipy.sparse.csc_matrix((uu).astype(int)),
                   'ul': scipy.sparse.csc_matrix((ul).astype(int)),
                   'su': scipy.sparse.csc_matrix((su).astype(int)),
                   'sl': scipy.sparse.csc_matrix((sl).astype(int))}  # ambiguous is required for velocyto
 
-        kin_len, begin_len, end_len = uu_kin.shape[1], deg_begin[0].shape[1], deg_end[0].shape[1]
-        kin_cell_ids, kin_Trajectory, kin_Step = ['kin_traj_%d_step_%d' % (j, i)  for i in range(8) for j in range(n_cell)], \
-                                                 ['%d' % j for i in range(8) for j in range(n_cell)], \
-                                                 ['%d' % i for i in range(8) for j in range(n_cell)]  # first n_traj and then steps
-        begin_cell_ids, begin_Trajectory, begin_Step = ['begin_deg_traj_%d_step_%d' % (i, j) for i in range(5) for j in range(n_cell)], \
-                                                 ['%d' % j for i in range(5) for j in range(n_cell)], \
-                                                 ['%d' % i for i in range(5) for j in range(n_cell)]  # first n_traj and then steps
-        end_cell_ids, end_Trajectory, end_Step = ['end_deg_traj_%d_step_%d' % (i, j) for i in range(5) for j in range(n_cell)] , \
-                                                 ['%d' % j for i in range(5) for j in range(n_cell)], \
-                                                 ['%d' % i for i in range(5) for j in range(n_cell)] # first n_traj and then steps
+        kin_len, begin_len, end_len = uu_kin.shape[0], deg_begin[0].shape[0], deg_end[0].shape[0]
+
+        kin_T_CP, deg_label_t = [0, 5, 10, 40, 100, 200, 300, 400], [0, 1, 2, 4, 8]
+        # label time for kinetics experiment is 1 (actually it is one-shot experiment)
+        kin_cell_ids, kin_Trajectory, kin_Step = ['kin_traj_%d_time_%d' % (j, i)  for i in kin_T_CP for j in range(n_cell)], \
+                                                 ['%d' % j for i in kin_T_CP for j in range(n_cell)], \
+                                                 ['%d' % i for i in kin_T_CP for j in range(n_cell)]  # first n_traj and then steps
+        begin_cell_ids, begin_Trajectory, begin_Step = ['begin_deg_traj_%d_time_%d' % (i, j) for i in deg_label_t for j in range(n_cell)], \
+                                                 ['%d' % j for i in deg_label_t for j in range(n_cell)], \
+                                                 ['%d' % i for i in deg_label_t for j in range(n_cell)]  # first n_traj and then steps
+        end_cell_ids, end_Trajectory, end_Step = ['end_deg_traj_%d_time_%d' % (i, j) for i in deg_label_t for j in range(n_cell)] , \
+                                                 ['%d' % j for i in deg_label_t for j in range(n_cell)], \
+                                                 ['%d' % i for i in deg_label_t for j in range(n_cell)] # first n_traj and then steps
         cell_ids, Trajectory, Step = kin_cell_ids, kin_Trajectory, kin_Step
         cell_ids.extend(begin_cell_ids); Trajectory.extend(begin_Trajectory); Step.extend(begin_Step)
         cell_ids.extend(end_cell_ids); Trajectory.extend(end_Trajectory); Step.extend(end_Step)
 
-        obs = pd.DataFrame({'Cell_name': cell_ids,
-                            'Trajectory': Trajectory,
-                            'Step': Step,
+        obs = pd.DataFrame({'cell_name': cell_ids,
+                            'trajectory': Trajectory,
+                            'time': Step,
                             'experiment_type': pd.Series(['kin', 'deg_beign', 'deg_end']).repeat([kin_len, begin_len, end_len]).values})
-        obs.set_index('Cell_name', inplace=True)
+        obs.set_index('cell_name', inplace=True)
     else:
         raise Exception('method not implemented!')
     # anadata: observation x variable (cells x genes)
