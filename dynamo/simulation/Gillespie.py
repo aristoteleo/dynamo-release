@@ -140,32 +140,35 @@ def Gillespie(a=None, b=None, la=None, aa=None, ai=None, si=None, be=None, ga=No
         model_treat_lab = sim_diff(*list(params_treat_lab.values()))
 
         # synthesize steady state before treatment
-        n_cell = 50
+        n_cell = 5
         c0 = np.array([40, 100, 40, 100, 0, 0, 0, 0, 1000, 1000]) # same as the os model after this line of code
 
         n_species = len(c0)
         trajs_T, trajs_C = simulate(model_untreat_unlab, C0=[c0] * n_cell, t_span=[0, 200], n_traj=n_cell, report=True)
 
-        uu_kin, su_kin, ul_kin, sl_kin, pr_kin, deg_begin, deg_end = osc_diff_dup(n_species, trajs_C, model_treat_lab, model_treat_unlab, n_cell)
+        kin_5, kin_40, kin_200, kin_300, one_shot, deg_begin, deg_end = osc_diff_dup(n_species, trajs_C, model_treat_lab, model_treat_unlab, n_cell)
 
-        uu = np.vstack((uu_kin, deg_begin[0], deg_end[0]))
-        su = np.vstack((su_kin, deg_begin[1], deg_end[1]))
-        ul = np.vstack((ul_kin, deg_begin[2], deg_end[2]))
-        sl = np.vstack((sl_kin, deg_begin[3], deg_end[3]))
+        uu = np.vstack((kin_5[0], kin_40[0], kin_200[0], kin_300[0], one_shot[0], deg_begin[0], deg_end[0]))
+        su = np.vstack((kin_5[1], kin_40[1], kin_200[1], kin_300[1], one_shot[1], deg_begin[1], deg_end[1]))
+        ul = np.vstack((kin_5[2], kin_40[2], kin_200[2], kin_300[2], one_shot[2], deg_begin[2], deg_end[2]))
+        sl = np.vstack((kin_5[3], kin_40[3], kin_200[3], kin_300[3], one_shot[3], deg_begin[3], deg_end[3]))
 
         E = uu + ul + su + sl
-        P = np.vstack((pr_kin, deg_begin[4], deg_end[4])) # append to .obsm attribute
+        P = np.vstack((kin_5[4], kin_40[4], kin_200[4], kin_300[4], one_shot[4], deg_begin[4], deg_end[4])) # append to .obsm attribute
 
         layers = {'uu': scipy.sparse.csc_matrix((uu).astype(int)),
                   'ul': scipy.sparse.csc_matrix((ul).astype(int)),
                   'su': scipy.sparse.csc_matrix((su).astype(int)),
                   'sl': scipy.sparse.csc_matrix((sl).astype(int))}  # ambiguous is required for velocyto
 
-        kin_len, begin_len, end_len = uu_kin.shape[0], deg_begin[0].shape[0], deg_end[0].shape[0]
-        kin_T_CP, deg_label_t = [0, 5, 10, 40, 100, 200, 300, 400], [0, 1, 2, 4, 8]
+        kin_len, one_shot_len, begin_len, end_len = kin_5[0].shape[0], one_shot[0].shape[0], deg_begin[0].shape[0], deg_end[0].shape[0]
+        kin_Tl, kin_T_CP, deg_label_t = [0, .1, .2, .4, .8], [0, 5, 10, 40, 100, 200, 300, 400], [0, 1, 2, 4, 8]
 
         # label time for kinetics experiment is 1 (actually it is one-shot experiment)
-        kin_cell_ids, kin_Trajectory, kin_Step = ['kin_traj_%d_time_%d' % (i, j) for j in kin_T_CP for i in range(n_cell)], \
+        kin_cell_ids, kin_Trajectory, kin_Step = ['kin_traj_%d_time_%d' % (i, j) for j in kin_Tl for i in range(n_cell)], \
+                                                 ['%d' % i for j in kin_Tl for i in range(n_cell)], \
+                                                 ['%d' % j for j in kin_Tl for i in range(n_cell)]
+        one_shot_cell_ids, one_shot_Trajectory, one_shot_Step = ['one_shot_traj_%d_time_%d' % (i, j) for j in kin_T_CP for i in range(n_cell)], \
                                                  ['%d' % i for j in kin_T_CP for i in range(n_cell)], \
                                                  ['%d' % j for j in kin_T_CP for i in range(n_cell)]  # first n_traj and then steps
         begin_cell_ids, begin_Trajectory, begin_Step = ['begin_deg_traj_%d_time_%d' % (i, j) for j in deg_label_t for i in range(n_cell)], \
@@ -174,14 +177,15 @@ def Gillespie(a=None, b=None, la=None, aa=None, ai=None, si=None, be=None, ga=No
         end_cell_ids, end_Trajectory, end_Step = ['end_deg_traj_%d_time_%d' % (i, j) for j in deg_label_t for i in range(n_cell)] , \
                                                  ['%d' % i for j in deg_label_t for i in range(n_cell)], \
                                                  ['%d' % j for j in deg_label_t for i in range(n_cell)] # first n_traj and then steps
-        cell_ids, Trajectory, Step = kin_cell_ids, kin_Trajectory, kin_Step
+        cell_ids, Trajectory, Step = kin_cell_ids * 4, kin_Trajectory * 4, kin_Step * 4
+        cell_ids.extend(one_shot_cell_ids); Trajectory.extend(one_shot_Trajectory); Step.extend(one_shot_Step)
         cell_ids.extend(begin_cell_ids); Trajectory.extend(begin_Trajectory); Step.extend(begin_Step)
         cell_ids.extend(end_cell_ids); Trajectory.extend(end_Trajectory); Step.extend(end_Step)
 
         obs = pd.DataFrame({'cell_name': cell_ids,
                             'trajectory': Trajectory,
                             'time': Step,
-                            'experiment_type': pd.Series(['kin', 'deg_beign', 'deg_end']).repeat([kin_len, begin_len, end_len]).values})
+                            'experiment_type': pd.Series(['kin_t_5', 'kin_t_40', 'kin_t_200', 'kin_t_300', 'one_shot', 'deg_beign', 'deg_end']).repeat([kin_len, kin_len, kin_len, kin_len, one_shot_len, begin_len, end_len]).values})
         obs.set_index('cell_name', inplace=True)
     elif method == 'oscillation':
         gene_num = 2

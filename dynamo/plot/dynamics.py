@@ -169,7 +169,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log_unnormalized=True, y_log_scale
                 gamma = sys.float_info.epsilon if gamma == 0 else gamma
                 u = sol_u(t, uu0, alpha, beta)
                 su0 = np.mean(su[T == np.min(T)])
-                s = sol_s(t, su0, uu0, 0, beta, gamma)
+                s = sol_s(t, su0, uu0, alpha, beta, gamma)
                 w = sol_u(t, ul0, 0, beta)
                 l = sol_s(t, sl0, ul0, 0, beta, gamma)
                 title_ = ['(unspliced unlabeled)', '(unspliced labeled)', '(spliced unlabeled)', '(spliced labeled)']
