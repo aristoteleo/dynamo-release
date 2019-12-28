@@ -298,7 +298,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log_unnormalized=True, y_log_scale
                 S_sol = sol_u(t, S0, 0, gamma)
                 l = sol_s(t, 0, 0, alpha, beta, gamma)
 
-                L = su + sl
+                L = sl
                 title_ = ['labeled']
             else:
                 layers = ['X_new', 'X_total'] if 'X_new' in adata.layers.keys() else ['new', 'total']
@@ -357,7 +357,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log_unnormalized=True, y_log_scale
                 # $l$ - labeled, spliced
                 #
                 # calculate labeled unspliced and spliced mRNA amount
-                u1, s1, u1_, s1_ = np.zeros(len(t) - 1), np.zeros(len(t) - 1), np.zeros(len(t) - 1), np.zeros(len(t) - 1)
+                u1, s1, u1_, s1_ = np.zeros(len(t) - 1), np.zeros(len(t) - 1), np.zeros(len(T_uniq) - 1), np.zeros(len(T_uniq) - 1)
                 for ind in np.arange(1, len(t)):
                     t_i = t[ind]
                     u0 = sol_u(np.max(t) - t_i, 0, alpha_std, beta)
@@ -369,7 +369,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log_unnormalized=True, y_log_scale
                     alpha_stm_t_i = alpha_stm[ind - 1]
                     u1_[ind - 1], s1_[ind - 1] = sol_u(t_i, u0, alpha_stm_t_i, beta), sol_u(np.max(T_uniq), 0, beta, gamma)
 
-                Obs, Pred, Pred_ = np.vstack((ul, sl, uu, su)), np.vstack((u1.reshape(1, -1), s1.reshape(1, -1))), np.vstack((u1.reshape(1, -1), s1.reshape(1, -1)))
+                Obs, Pred, Pred_ = np.vstack((ul, sl, uu, su)), np.vstack((u1.reshape(1, -1), s1.reshape(1, -1))), np.vstack((u1_.reshape(1, -1), s1_.reshape(1, -1)))
                 j_species, title_ = 4, ['unspliced labeled (new)', 'spliced labeled (new)', 'unspliced unlabeled (old)', 'spliced unlabeled (old)', 'alpha (steady state vs. stimulation)']
             else:
                 layers = ['X_new', 'X_total'] if 'X_new' in adata.layers.keys() else ['new', 'total']

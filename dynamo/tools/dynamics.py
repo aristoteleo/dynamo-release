@@ -258,7 +258,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
     elif mode is 'moment':
         # a few hard code to set up data for moment mode:
         if 'uu' in subset_adata.layers.keys() or 'X_uu' in subset_adata.layers.keys():
-            if log_unnormalized and 'uu' not in subset_adata.layers.keys():
+            if log_unnormalized and 'X_uu' not in subset_adata.layers.keys():
                 if issparse(subset_adata.layers['uu']):
                     subset_adata.layers['uu'].data, subset_adata.layers['ul'].data, subset_adata.layers['su'].data, subset_adata.layers['sl'].data = \
                         np.log(subset_adata.layers['uu'].data + 1), np.log(subset_adata.layers['ul'].data + 1), np.log(subset_adata.layers['su'].data + 1), np.log(subset_adata.layers['sl'].data + 1)

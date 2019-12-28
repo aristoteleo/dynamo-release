@@ -608,7 +608,7 @@ class velocity:
             if type(self.parameters['alpha']) is not tuple:
                 if self.parameters['alpha'].shape[1] == U.shape[1]:
                     alpha = self.parameters['alpha']
-                elif self.parameters['alpha'].shape[1] == len(t_uniq):
+                elif self.parameters['alpha'].shape[1] == len(t_uniq) and len(t_uniq) > 1:
                     alpha = np.zeros(U.shape)
                     for i in range(len(t_uniq)):
                         cell_inds = t == t_uniq[i]
@@ -618,7 +618,7 @@ class velocity:
 
                 if len(self.parameters['beta'].shape) == 1:
                     beta = np.repeat(self.parameters['beta'].reshape((-1, 1)), U.shape[1], axis=1)
-                elif len(self.parameters['beta'].shape) == len(t_uniq):
+                elif len(self.parameters['beta'].shape) == len(t_uniq) and len(t_uniq) > 1:
                     beta = np.zeros_like(U.shape)
                     for i in range(t_uniq):
                         cell_inds = t == t_uniq[i]
@@ -626,7 +626,7 @@ class velocity:
             else: # need to correct the velocity vector prediction when you use mix_std_stm experiments
                 if self.parameters['alpha'][1].shape[1] == U.shape[1]:
                     alpha = self.parameters['alpha'][1]
-                elif self.parameters['alpha'][1].shape[1] == len(t_uniq):
+                elif self.parameters['alpha'][1].shape[1] == len(t_uniq) and len(t_uniq) > 1:
                     alpha = np.zeros(U.shape)
                     for i in range(len(t_uniq)):
                         cell_inds = t == t_uniq[i]
@@ -636,7 +636,7 @@ class velocity:
 
             if len(self.parameters['beta'].shape) == 1:
                 beta = np.repeat(self.parameters['beta'].reshape((-1, 1)), U.shape[1], axis=1)
-            elif self.parameters['beta'].shape[1] == len(t_uniq):
+            elif self.parameters['beta'].shape[1] == len(t_uniq) and len(t_uniq) > 1:
                 beta = np.zeros_like(U.shape)
                 for i in range(len(t_uniq)):
                     cell_inds = t == t_uniq[i]
@@ -669,7 +669,7 @@ class velocity:
         if self.parameters['beta'] is not None and self.parameters['gamma'] is not None:
             if len(self.parameters['gamma'].shape) == 1:
                 gamma = np.repeat(self.parameters['beta'].reshape((-1, 1)), U.shape[1], axis=1)
-            elif self.parameters['beta'].shape[1] == len(t_uniq):
+            elif self.parameters['beta'].shape[1] == len(t_uniq) and len(t_uniq) > 1:
                 beta = np.zeros_like(U.shape)
                 for i in range(t_uniq):
                     cell_inds = t == t_uniq[i]
@@ -677,7 +677,7 @@ class velocity:
 
             if len(self.parameters['beta'].shape) == 1:
                 beta = np.repeat(self.parameters['gamma'].reshape((-1, 1)), U.shape[1], axis=1)
-            elif self.parameters['gamma'].shape[1] == len(t_uniq):
+            elif self.parameters['gamma'].shape[1] == len(t_uniq) and len(t_uniq) > 1:
                 gamma = np.zeros_like(U.shape)
                 for i in range(t_uniq):
                     cell_inds = t == t_uniq[i]
@@ -710,7 +710,7 @@ class velocity:
         if self.parameters['eta'] is not None and self.parameters['delta'] is not None:
             if len(self.parameters['eta'].shape) == 1:
                 eta = np.repeat(self.parameters['eta'].reshape((-1, 1)), S.shape[1], axis=1)
-            elif self.parameters['eta'].shape[1] == len(t_uniq):
+            elif self.parameters['eta'].shape[1] == len(t_uniq) and len(t_uniq) > 0:
                 eta = np.zeros_like(S.shape)
                 for i in range(t_uniq):
                     cell_inds = t == t_uniq[i]
@@ -718,7 +718,7 @@ class velocity:
 
             if len(self.parameters['delta'].shape) == 1:
                 delta = np.repeat(self.parameters['delta'].reshape((-1, 1)), S.shape[1], axis=1)
-            elif self.parameters['delta'].shape[1] == len(t_uniq):
+            elif self.parameters['delta'].shape[1] == len(t_uniq) and len(t_uniq) > 1:
                 delta = np.zeros_like(S.shape)
                 for i in range(t_uniq):
                     cell_inds = t == t_uniq[i]
@@ -929,7 +929,7 @@ class estimation:
                     raise Exception('By definition, one-shot experiment should involve only one time point measurement!')
                 # calculate when having splicing or no splicing
                 if np.all(self._exist_data('ul', 'uu', 'sl', 'su')):
-                    if self._exist_data('ul') and self._exist_parameter('beta', 'gamma'):
+                    if self._exist_data('ul') and self._exist_parameter('beta', 'gamma').all():
                         self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
                     else:
                         beta, gamma, U0, S0 = np.zeros(n), np.zeros(n), np.zeros(n), np.zeros(n)
@@ -938,7 +938,7 @@ class estimation:
 
                             S0[i], gamma[i] = np.mean(S), solve_gamma(np.max(self.t), self.data['su'][i], S)
                             U0[i], beta[i] = np.mean(U), solve_gamma(np.max(self.t), self.data['uu'][i], U)
-                        self.aux_param['U0'], self.aux_param['S0'], self.parameters['beta'] = U0, S0, beta
+                        self.aux_param['U0'], self.aux_param['S0'], self.parameters['beta'], self.parameters['gamma'] = U0, S0, beta, gamma
 
                         self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
                 else:
