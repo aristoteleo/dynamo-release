@@ -1,11 +1,10 @@
 import numpy as np
 import pandas as pd
 import scipy
-# from anndata import AnnData
 import warnings
 from scipy.sparse import issparse
 from sklearn.decomposition import TruncatedSVD, FastICA
-from .utilities import cook_dist
+from .utilities import cook_dist, get_layer_keys
 
 def szFactor(adata, layers='all', locfunc=np.nanmean, round_exprs=True, method='mean-geometric-mean-total'):
     """Calculate the size factor of the each cell for a AnnData object.
@@ -30,16 +29,15 @@ def szFactor(adata, layers='all', locfunc=np.nanmean, round_exprs=True, method='
             A updated anndata object that are updated with the Size_Factor in the obs slot.
     """
 
-    layer_keys = list(adata.layers.keys())
-    if 'protein' in adata.obsm.keys():
-        layer_keys.extend(['X', 'protein'])
-    else:
-        layer_keys.extend(['X'])
-    layers = layer_keys if layers is 'all' else list(set(layer_keys).intersection(layers))
+    layers = get_layer_keys(adata, layers)
+    if 'raw' in layers and adata.raw is None:
+        adata.raw = adata.X
 
     for layer in layers:
-        if layer is 'raw' or layer is 'X':
-            CM = adata.raw if adata.raw is not None else adata.X
+        if layer is 'raw':
+            CM = adata.raw
+        elif layer is 'X':
+            CM = adata.X
         elif layer is 'protein':
             if 'protein' in adata.obsm_keys():
                 CM = adata.obsm['protein']
@@ -49,7 +47,10 @@ def szFactor(adata, layers='all', locfunc=np.nanmean, round_exprs=True, method='
             CM = adata.layers[layer]
 
         if round_exprs:
-            CM = CM.round().astype('int') if not issparse(CM) else CM # will this affect downstream analysis?
+            if issparse(CM):
+                CM.data = np.round(CM.data, 0)
+            else:
+                CM = CM.round().astype('int')
 
         if method == 'mean-geometric-mean-total':
             cell_total = CM.sum(axis=1)
@@ -58,7 +59,10 @@ def szFactor(adata, layers='all', locfunc=np.nanmean, round_exprs=True, method='
             print('This method is supported!')
 
         sfs[~np.isfinite(sfs)] = 1
-        if layer is 'raw' or layer is 'X':
+        if layer is 'raw':
+            adata.obs[layer + '_Size_Factor'] = sfs
+            adata.obs['Size_Factor'] = sfs
+        elif layer is 'X':
             adata.obs['Size_Factor'] = sfs
         else:
             adata.obs[layer + '_Size_Factor'] = sfs
@@ -96,12 +100,7 @@ def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, r
         adata = adata[:, adata.var[:, 'use_for_dynamo']]
         adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.contains('Size_Factor')]
 
-    layer_keys = list(adata.layers.keys())
-    if 'protein' in adata.obsm.keys():
-        layer_keys.extend(['X', 'protein'])
-    else:
-        layer_keys.extend(['X'])
-    layers = layer_keys if layers is 'all' else list(set(layer_keys).intersection(layers))
+    layers = get_layer_keys(adata, layers)
 
     layer_sz_column_names = [i + '_Size_Factor' for i in set(layers).difference('X')]
     layer_sz_column_names.extend(['Size_Factor'])
@@ -109,11 +108,15 @@ def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, r
 
     if len(layers_to_sz) > 0:
         layers = pd.Series(layers_to_sz).str.split('_Size_Factor', expand=True).iloc[:, 0].tolist()
+        if 'Size_Factor' in layers: layers[np.where(np.array(layers) == 'Size_Factor')[0][0]] = 'X'
         szFactor(adata, layers=layers, locfunc=np.nanmean, round_exprs=True, method='mean-geometric-mean-total')
 
     for layer in layers:
-        if layer is 'raw' or layer is 'X':
-            FM = adata.raw if adata.raw is not None else adata.X
+        if layer is 'raw':
+            FM = adata.raw
+            szfactors = adata.obs[layer + 'Size_Factor'][:, None]
+        elif layer is 'X':
+            FM = adata.X
             szfactors = adata.obs['Size_Factor'][:, None]
         elif layer is 'protein':
             if 'protein' in adata.obsm_keys():
@@ -151,7 +154,7 @@ def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, r
                 res = np.log1p(x / (np.exp(np.nansum(np.log1p(x[x > 0])) / n_feature)))
                 res[np.isnan(res)] = 0
                 # res[res > 100] = 100
-                FM[i] = res # no .A is required
+                FM[i] = res # no .A is required # https://stackoverflow.com/questions/28427236/set-row-of-csr-matrix
 
             FM = FM.T
         else:
@@ -188,16 +191,13 @@ def Gini(adata, layers='all'):
     # based on bottom eq: http://www.statsdirect.com/help/content/image/stat0206_wmf.gif
     # from: http://www.statsdirect.com/help/default.htm#nonparametric_methods/gini.htm
 
-    layer_keys = list(adata.layers.keys())
-    if 'protein' in adata.obsm.keys():
-        layer_keys.extend(['X', 'protein'])
-    else:
-        layer_keys.extend(['X'])
-    layers = layer_keys if layers is 'all' else list(set(layer_keys).intersection(layers))
+    layers = get_layer_keys(adata, layers)
 
     for layer in layers:
-        if layer is 'raw' or layer is 'X':
-            array = adata.raw if adata.raw is not None else adata.X
+        if layer is 'raw':
+            array = adata.raw
+        elif layer is 'X':
+            array = adata.X
         elif layer is 'protein':
             if 'protein' in adata.obsm_keys():
                 array = adata.obsm[layer]
@@ -295,26 +295,35 @@ def disp_calc_helper_NB(adata, layers='X', min_cells_detected=1):
         res: :class:`~pandas.DataFrame`
             A pandas dataframe with mu, dispersion for each gene that passes filters.
     """
-    layer_keys = list(adata.layers.keys())
-    layer_keys.extend('X')
-    layers = layer_keys if layers is 'all' else list(set(layer_keys).intersection(layers))
+    layers = get_layer_keys(adata, layers=layers, include_protein=False)
 
     res_list = []
     for layer in layers:
-        if layer is 'raw' or layer is 'X':
-            CM = adata.raw if adata.raw is not None else adata.X
+        if layer is 'raw':
+            CM = adata.raw
+            szfactors = adata.obs[layer + 'Size_Factor'][:, None]
+        elif layer is 'X':
+            CM = adata.X
             szfactors = adata.obs['Size_Factor'][:, None]
         else:
             CM = adata.layers[layer]
             szfactors = adata.obs[layer + 'Size_Factor'][:, None]
 
-        rounded = CM.round().astype('int') if not issparse(CM) else CM
+        if issparse(CM):
+            CM.data = np.round(CM.data, 0)
+            rounded = CM
+        else:
+            rounded = CM.round().astype('int')
+
         lowerDetectedLimit = adata.uns['lowerDetectedLimit'] if 'lowerDetectedLimit' in adata.uns.keys() else 1
         nzGenes = (rounded > lowerDetectedLimit).sum(axis=0)
         nzGenes = nzGenes > min_cells_detected
 
-        nzGenes = np.array(nzGenes).flatten()
-        x = scipy.sparse.diags((1/szfactors).flatten().tolist(), 0).dot(rounded[:, nzGenes]) if issparse(rounded) else rounded[:, nzGenes] / szfactors
+        nzGenes = nzGenes.A1 if issparse(rounded) else nzGenes
+        if layer is layer.__contains__('X_'):
+            x = rounded[:, nzGenes]
+        else:
+            x = scipy.sparse.diags((1/szfactors).flatten().tolist(), 0).dot(rounded[:, nzGenes]) if issparse(rounded) else rounded[:, nzGenes] / szfactors
 
         xim = np.mean(1 / szfactors) if szfactors is not None else 1
 
@@ -353,11 +362,9 @@ def topTable(adata, layer='X', mode='dispersion'):
         disp_df: :class:`~pandas.DataFrame`
             The data frame with the gene_id, mean_expression, dispersion_fit and dispersion_empirical as the columns.
     """
-    layer_keys = list(adata.layers.keys())
-    layer_keys.extend('X')
-    layer = list(set(layer_keys).intersection(layer))[0]
+    layer = get_layer_keys(adata, layers=layer, include_protein=False)[0]
 
-    if layer in ['raw', 'X']:
+    if layer in ['X']:
         key = 'dispFitInfo'
     else:
         key = layer + '_dispFitInfo'
@@ -404,7 +411,10 @@ def vstExprs(adata, expr_matrix=None, round_vals=True):
     if expr_matrix is None:
         ncounts = adata.X
         if round_vals:
-            ncounts.round().astype('int') if not issparse(ncounts) else ncounts
+            if issparse(ncounts):
+                ncounts.data = np.round(ncounts.data, 0)
+            else:
+                ncounts = ncounts.round().astype('int')
     else:
         ncounts = expr_matrix
 
@@ -452,7 +462,7 @@ def Dispersion(adata, layers='X', modelFormulaStr="~ 1", min_cells_detected=1, r
 
     # cds_pdata <- dplyr::group_by_(dplyr::select_(rownames_to_column(pData(cds)), "rowname", .dots=model_terms), .dots=model_terms)
     # disp_table <- as.data.frame(cds_pdata %>% do(disp_calc_helper_NB(cds[,.$rowname], cds@expressionFamily, min_cells_detected)))
-    for ind in np.arange(len(layers)):
+    for ind in range(len(layers)):
         layer, disp_table = layers[ind], disp_tables[ind]
 
         if disp_table is None:
@@ -464,17 +474,17 @@ def Dispersion(adata, layers='X', modelFormulaStr="~ 1", min_cells_detected=1, r
         fit, coefs, good = res[0], res[1], res[2]
 
         if removeOutliers:
-            # influence = fit.get_influence()
+            # influence = fit.get_influence().cooks_distance()
             # #CD is the distance and p is p-value
             # (CD, p) = influence.cooks_distance
 
-            CD = cook_dist(fit, 1 / good['mu'][:, None])
+            CD = cook_dist(fit, 1 / good['mu'][:, None], good)
             cooksCutoff = 4 / good.shape[0]
             print("Removing ", len(CD[CD > cooksCutoff]), " outliers")
             outliers = CD > cooksCutoff
             # use CD.index.values? remove genes that lost when doing parameter fitting
             lost_gene = set(good.index.values).difference(set(range(len(CD))))
-            outliers[lost_gene] = False
+            outliers[lost_gene] = True
             res = parametricDispersionFit(good.loc[~ outliers, :])
 
             fit, coefs = res[0], res[1]
@@ -482,7 +492,7 @@ def Dispersion(adata, layers='X', modelFormulaStr="~ 1", min_cells_detected=1, r
         def ans(q):
             return coefs[0] + coefs[1] / q
 
-        if layer in ['raw', 'X']:
+        if layer is 'X':
             adata.uns['dispFitInfo'] = {"disp_table": good, "disp_func": ans, "coefs": coefs}
         else:
             adata.uns[layer + '_dispFitInfo'] = {"disp_table": good, "disp_func": ans, "coefs": coefs}
@@ -497,12 +507,7 @@ def SVRs(adata, filter_bool=None, layers='X', min_expr_cells=2, min_expr_avg=0, 
     """
     from sklearn.svm import SVR
 
-    layer_keys = list(adata.layers.keys())
-    if 'protein' in adata.obsm.keys():
-        layer_keys.extend(['X'])
-    else:
-        layer_keys.extend(['X'])
-    layers = layer_keys if layers is 'all' else list(set(layer_keys).intersection(layers))
+    layers = get_layer_keys(adata, layers)
 
     for layer in layers:
         if layer is 'raw' or layer is 'X':
@@ -596,11 +601,11 @@ def filter_cells(adata, filter_bool=None, layer='all', keep_unflitered=False, mi
     detected_bool = np.ones(adata.X.shape[0], dtype=bool)
     detected_bool = (detected_bool) & (((adata.X > 0).sum(1) > min_expr_genes_s) & ((adata.X > 0).sum(1) < max_expr_genes_s)).flatten()
 
-    if "spliced" in adata.layers.keys() & (layer is 'spliced' or layer is 'all'):
+    if ("spliced" in adata.layers.keys()) & (layer is 'spliced' or layer is 'all'):
         detected_bool = detected_bool & (((adata.layers['spliced'] > 0).sum(1) > min_expr_genes_s) & ((adata.layers['spliced'] > 0).sum(1) < max_expr_genes_s)).flatten()
-    if "unspliced" in adata.layers.keys() & (layer is 'unspliced' or layer is 'all'):
+    if ("unspliced" in adata.layers.keys()) & (layer is 'unspliced' or layer is 'all'):
         detected_bool = detected_bool & (((adata.layers['unspliced'] > 0).sum(1) > min_expr_genes_u) & ((adata.layers['unspliced'] > 0).sum(1) < max_expr_genes_u)).flatten()
-    if "protein" in adata.obsm.keys() & (layer is 'protein' or layer is 'all'):
+    if ("protein" in adata.obsm.keys()) & (layer is 'protein' or layer is 'all'):
         detected_bool = detected_bool & (((adata.obsm['protein'] > 0).sum(1) > min_expr_genes_p) & ((adata.obsm['protein'] > 0).sum(1) < max_expr_genes_p)).flatten()
 
     filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
@@ -665,6 +670,7 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_unflitered=True, min_c
     if "unspliced" in adata.layers.keys() and layer is 'unspliced':
         detected_bool = detected_bool & np.array(((adata.layers['unspliced'] > 0).sum(0) > min_cell_u) & (adata.layers['unspliced'].mean(0) < min_avg_exp_u) & (adata.layers['unspliced'].mean(0) < max_avg_exp)).flatten()
     ############################## The following code need to be updated ##############################
+    # just remove genes that are not following the protein criteria
     if "protein" in adata.obsm.keys() and layer is 'protein':
         detected_bool = detected_bool & np.array(((adata.obsm['protein'] > 0).sum(0) > min_cell_p) & (adata.obsm['protein'].mean(0) < min_avg_exp_p) & (adata.obsm['protein'].mean(0) < max_avg_exp)).flatten()
 
@@ -674,7 +680,7 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_unflitered=True, min_c
     ### check this
     if sort_by is 'dispersion':
         table = topTable(adata, layer, mode=sort_by)
-        valid_table = valid_table = table.query("dispersion_empirical > dispersion_fit")
+        valid_table = table.query("dispersion_empirical > dispersion_fit")
         valid_table = valid_table.loc[set(adata.var.index[filter_bool]).intersection(valid_table.index), :]
         gene_id = np.argsort(-valid_table.loc[:, 'dispersion_empirical'])[:n_top_genes]
         gene_id = valid_table.iloc[gene_id, :].index
@@ -707,7 +713,7 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_unflitered=True, min_c
 
 def recipe_monocle(adata, layer=None, gene_to_use=None, method='pca', num_dim=50, norm_method='log', pseudo_expr=1,
                    feature_selection = 'dispersion', n_top_genes = 2000,
-                   relative_expr=True, keep_unflitered=True, **kwargs):
+                   relative_expr=True, keep_unflitered_cells=True, keep_unflitered_genes=True, fc_kwargs=None, fg_kwargs=None):
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
@@ -745,14 +751,28 @@ def recipe_monocle(adata, layer=None, gene_to_use=None, method='pca', num_dim=50
 
     adata = szFactor(adata)
     adata = Dispersion(adata)
+
+    filter_cells_kwargs = {"filter_bool": None, "layer": 'all', "min_expr_genes_s": 50, "min_expr_genes_u": 25, "min_expr_genes_p": 1,
+                 "max_expr_genes_s": np.inf, "max_expr_genes_u": np.inf, "max_expr_genes_p": np.inf}
+    if fc_kwargs is not None: filter_cells_kwargs.update(fc_kwargs)
+
+    adata = filter_cells(adata, keep_unflitered=keep_unflitered_cells, **filter_cells_kwargs)
+
+    filter_genes_kwargs = {"filter_bool": None, "layer": 'X', "min_cell_s": 5, "min_cell_u": 5, "min_cell_p": 5,
+                 "min_avg_exp_s": 1e-2, "min_avg_exp_u": 1e-4, "min_avg_exp_p": 1e-4, "max_avg_exp": 100.}
+    if fg_kwargs is not None: filter_genes_kwargs.update(fg_kwargs)
     # set use_for_dynamo
     if gene_to_use is None:
-        adata = filter_genes(adata, sort_by=feature_selection, n_top_genes=n_top_genes, keep_unflitered=keep_unflitered, **kwargs)
+        adata = filter_genes(adata, sort_by=feature_selection, n_top_genes=n_top_genes, keep_unflitered=keep_unflitered_genes, **filter_genes_kwargs)
     else:
         adata.var['use_for_dynamo'] = adata.var.index.isin(gene_to_use)
+        if not keep_unflitered_genes:
+            adata = adata[:, adata.var['use_for_dynamo']]
+
     # normalize on all genes
     adata = normalize_expr_data(adata, norm_method=norm_method, pseudo_expr=pseudo_expr,
-                                relative_expr=relative_expr, keep_unflitered=keep_unflitered)
+                                relative_expr=relative_expr, keep_unflitered=keep_unflitered_genes)
+
     # only use genes pass filter (based on use_for_dynamo) to perform dimension reduction.
     if layer is None:
         FM = adata.X[:, adata.var.use_for_dynamo.values] if 'spliced' not in adata.layers.keys() else adata.layers['spliced'][:, adata.var.use_for_dynamo.values]

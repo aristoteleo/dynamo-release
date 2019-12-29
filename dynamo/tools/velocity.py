@@ -710,7 +710,7 @@ class velocity:
         if self.parameters['eta'] is not None and self.parameters['delta'] is not None:
             if len(self.parameters['eta'].shape) == 1:
                 eta = np.repeat(self.parameters['eta'].reshape((-1, 1)), S.shape[1], axis=1)
-            elif self.parameters['eta'].shape[1] == len(t_uniq) and len(t_uniq) > 0:
+            elif self.parameters['eta'].shape[1] == len(t_uniq) and len(t_uniq) > 1:
                 eta = np.zeros_like(S.shape)
                 for i in range(t_uniq):
                     cell_inds = t == t_uniq[i]

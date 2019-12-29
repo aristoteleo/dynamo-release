@@ -296,9 +296,9 @@ def dynamics(adata, vkey, tkey, unit='hours', log_unnormalized=True, y_log_scale
                 gamma = sys.float_info.epsilon if gamma == 0 else gamma
                 U_sol = sol_u(t, U0, 0, beta)
                 S_sol = sol_u(t, S0, 0, gamma)
-                l = sol_s(t, 0, 0, alpha, beta, gamma)
+                l = sol_u(t, 0, 0, beta) + sol_s(t, 0, 0, alpha, beta, gamma)
 
-                L = sl
+                L = sl + ul
                 title_ = ['labeled']
             else:
                 layers = ['X_new', 'X_total'] if 'X_new' in adata.layers.keys() else ['new', 'total']

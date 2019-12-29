@@ -1,5 +1,5 @@
 import numpy as np
-# implmentation of Cooks' distance
+# implmentation of Cooks' distance (but this is for Poisson distribution fitting)
 
 # https://stackoverflow.com/questions/47686227/poisson-regression-in-statsmodels-and-r
 
@@ -73,19 +73,35 @@ def _hat_matrix(X, W):
     return np.dot(WsqrtX, np.dot(XtWX_inv, XtWsqrt))
 
 
-def cook_dist(model, X):
+def cook_dist(model, X, good):
     # Weight matrix
     W = _weight_matrix(model)
 
     # Hat matrix
     H = _hat_matrix(X, W)
-    hii = np.diag(H)  # Diagonal values of hat matrix
+    hii = np.diag(H)  # Diagonal values of hat matrix # fit.get_influence().hat_matrix_diag
 
     # Pearson residuals
     r = model.resid_pearson
 
     # Cook's distance (formula used by R = (res/(1 - hat))^2 * hat/(dispersion * p))
     # Note: dispersion is 1 since we aren't modeling overdispersion
-    cooks_d = (r / (1 - hii)) ** 2 * hii / (1 * 2)
+
+    resid = good.disp - model.predict(good)
+    rss = np.sum(resid ** 2)
+    MSE = rss / (good.shape[0] - 2)
+    # use the formula from: https://www.mathworks.com/help/stats/cooks-distance.html
+    cooks_d = r**2 / (2 * MSE)  * hii / (1 - hii)**2 #(r / (1 - hii)) ** 2 *  / (1 * 2)
 
     return cooks_d
+
+
+def get_layer_keys(adata, layers='all', include_protein=True):
+    layer_keys = list(adata.layers.keys())
+    if 'protein' in adata.obsm.keys() and include_protein:
+        layer_keys.extend(['X', 'protein'])
+    else:
+        layer_keys.extend(['X'])
+    layers = layer_keys if layers is 'all' else list(set(layer_keys).intersection(layers))
+
+    return layers

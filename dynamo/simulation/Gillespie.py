@@ -59,7 +59,7 @@ def Gillespie(a=None, b=None, la=None, aa=None, ai=None, si=None, be=None, ga=No
     """
 
     gene_num, species_num = C0.shape[0:2]
-    P = None
+    adata_no_splicing, P = None, None
 
     if method == 'basic':
         if t_eval is None:
@@ -140,7 +140,7 @@ def Gillespie(a=None, b=None, la=None, aa=None, ai=None, si=None, be=None, ga=No
         model_treat_lab = sim_diff(*list(params_treat_lab.values()))
 
         # synthesize steady state before treatment
-        n_cell = 5
+        n_cell = 50
         c0 = np.array([40, 100, 40, 100, 0, 0, 0, 0, 1000, 1000]) # same as the os model after this line of code
 
         n_species = len(c0)
@@ -153,13 +153,15 @@ def Gillespie(a=None, b=None, la=None, aa=None, ai=None, si=None, be=None, ga=No
         ul = np.vstack((kin_5[2], kin_40[2], kin_200[2], kin_300[2], one_shot[2], deg_begin[2], deg_end[2]))
         sl = np.vstack((kin_5[3], kin_40[3], kin_200[3], kin_300[3], one_shot[3], deg_begin[3], deg_end[3]))
 
-        E = uu + ul + su + sl
+        E,  New = uu + ul + su + sl, ul + sl
         P = np.vstack((kin_5[4], kin_40[4], kin_200[4], kin_300[4], one_shot[4], deg_begin[4], deg_end[4])) # append to .obsm attribute
 
         layers = {'uu': scipy.sparse.csc_matrix((uu).astype(int)),
                   'ul': scipy.sparse.csc_matrix((ul).astype(int)),
                   'su': scipy.sparse.csc_matrix((su).astype(int)),
                   'sl': scipy.sparse.csc_matrix((sl).astype(int))}  # ambiguous is required for velocyto
+        layers_no_splicing = {'new': scipy.sparse.csc_matrix((New).astype(int)),
+                  'total': scipy.sparse.csc_matrix((E).astype(int))}  # ambiguous is required for velocyto
 
         kin_len, one_shot_len, begin_len, end_len = kin_5[0].shape[0], one_shot[0].shape[0], deg_begin[0].shape[0], deg_end[0].shape[0]
         kin_Tl, kin_T_CP, deg_label_t = [0, .1, .2, .4, .8], [0, 5, 10, 40, 100, 200, 300, 400], [0, 1, 2, 4, 8]
@@ -219,7 +221,7 @@ def Gillespie(a=None, b=None, la=None, aa=None, ai=None, si=None, be=None, ga=No
         model_lab = sim_osc(*list(params_lab.values()))
 
         # synthesize steady state before treatment
-        n_cell = 5
+        n_cell = 50
         c0 = np.array([70, 70 * beta / gamma, 70, 70 * beta / gamma, 0, 0, 0, 0, 70 * zeta, 70 * zeta])
 
         n_species = len(c0)
@@ -232,7 +234,7 @@ def Gillespie(a=None, b=None, la=None, aa=None, ai=None, si=None, be=None, ga=No
         ul = np.vstack((kin_5[2], kin_40[2], kin_200[2], kin_300[2], one_shot[2], deg_begin[2], deg_end[2]))
         sl = np.vstack((kin_5[3], kin_40[3], kin_200[3], kin_300[3], one_shot[3], deg_begin[3], deg_end[3]))
 
-        E = uu + ul + su + sl
+        E,  New = uu + ul + su + sl, ul + sl
         P = np.vstack((kin_5[4], kin_40[4], kin_200[4], kin_300[4], one_shot[4], deg_begin[4],
                        deg_end[4]))  # append to .obsm attribute
 
@@ -240,6 +242,8 @@ def Gillespie(a=None, b=None, la=None, aa=None, ai=None, si=None, be=None, ga=No
                   'ul': scipy.sparse.csc_matrix((ul).astype(int)),
                   'su': scipy.sparse.csc_matrix((su).astype(int)),
                   'sl': scipy.sparse.csc_matrix((sl).astype(int))}  # ambiguous is required for velocyto
+        layers_no_splicing = {'new': scipy.sparse.csc_matrix((New).astype(int)),
+                  'total': scipy.sparse.csc_matrix((E).astype(int))}  # ambiguous is required for velocyto
 
         kin_len, one_shot_len, begin_len, end_len = kin_5[0].shape[0], one_shot[0].shape[0], deg_begin[0].shape[0], \
                                                     deg_end[0].shape[0]
@@ -288,9 +292,12 @@ def Gillespie(a=None, b=None, la=None, aa=None, ai=None, si=None, be=None, ga=No
     var.set_index('gene_short_name', inplace=True)
 
     adata = AnnData(scipy.sparse.csc_matrix(E.astype(int)).copy(), obs.copy(), var.copy(), layers=layers.copy())
+    adata_no_splicing = AnnData(scipy.sparse.csc_matrix(E.astype(int)).copy(), obs.copy(), var.copy(), layers=layers_no_splicing.copy())
     if P is not None:
         adata.obsm['protein'] = P
+        adata_no_splicing.obsm['protein'] = P
     # remove cells that has no expression
     adata = adata[np.array(adata.X.sum(1)).flatten() > 0, :]
+    adata_no_splicing = adata_no_splicing[np.array(adata_no_splicing.X.sum(1)).flatten() > 0, :]
 
-    return adata
+    return adata, adata_no_splicing
