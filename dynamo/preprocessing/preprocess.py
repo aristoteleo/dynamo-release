@@ -422,7 +422,7 @@ def vstExprs(adata, expr_matrix=None, round_vals=True):
         return np.log((1 + coefs[1] + 2 * coefs[0] * q +
                 2 * np.sqrt(coefs[0] * q * (1 + coefs[1] + coefs[0] * q)))
                / (4 * coefs[0])) / np.log(2)
-    res = vst(ncounts.A) if issparse(ncounts) else vst(ncounts)
+    res = vst(ncounts.toarray()) if issparse(ncounts) else vst(ncounts)
 
     return res
 
@@ -510,8 +510,10 @@ def SVRs(adata, filter_bool=None, layers='X', min_expr_cells=2, min_expr_avg=0, 
     layers = get_layer_keys(adata, layers)
 
     for layer in layers:
-        if layer is 'raw' or layer is 'X':
-            CM = adata.raw if adata.raw is not None else adata.X
+        if layer is 'raw':
+            CM = adata.raw
+        elif layer is 'X':
+            CM = adata.X
         elif layer is 'protein':
             if 'protein' in adata.obsm_keys():
                 CM = adata.obsm['protein']
@@ -554,8 +556,8 @@ def SVRs(adata, filter_bool=None, layers='X', min_expr_cells=2, min_expr_avg=0, 
         if sort_inverse:
             score = - score
 
-        adata.var['mean'], adata.var['CV'], adata.var['score'] = np.nan, np.nan, -1
-        adata.var.loc[detected_bool, 'mean'], adata.var.loc[detected_bool, 'CV'], adata.var.loc[detected_bool, 'score'] = np.array(mu).flatten(), np.array(cv).flatten(), np.array(score).flatten()
+        adata.var['log_m'], adata.var['log_cv'], adata.var['score'] = np.nan, np.nan, -np.inf
+        adata.var.loc[detected_bool, 'log_m'], adata.var.loc[detected_bool, 'log_cv'], adata.var.loc[detected_bool, 'score'] = np.array(log_m).flatten(), np.array(log_cv).flatten(), np.array(score).flatten()
 
         key = "velocyto_SVR" if layer is 'raw' or layer is 'X' else layer + "_velocyto_SVR"
         adata.uns[key] = {"SVR": fitted_fun, "detected_bool": detected_bool}
@@ -563,7 +565,7 @@ def SVRs(adata, filter_bool=None, layers='X', min_expr_cells=2, min_expr_avg=0, 
         adata
 
 
-def filter_cells(adata, filter_bool=None, layer='all', keep_unflitered=False, min_expr_genes_s=50, min_expr_genes_u=25, min_expr_genes_p=1,
+def filter_cells(adata, filter_bool=None, layer='all', keep_flitered=False, min_expr_genes_s=50, min_expr_genes_u=25, min_expr_genes_p=1,
                  max_expr_genes_s=np.inf, max_expr_genes_u=np.inf, max_expr_genes_p=np.inf):
     """Select valid cells basedon a collection of filters.
 
@@ -575,7 +577,7 @@ def filter_cells(adata, filter_bool=None, layer='all', keep_unflitered=False, mi
             A boolean array from the user to select cells for downstream analysis.
         layer: `str` (default: `all`)
             The data from a particular layer (include X) used for feature selection.
-        keep_unflitered: `bool` (default: True)
+        keep_flitered: `bool` (default: False)
             Whether to keep cells that don't pass the filtering in the adata object.
         min_expr_genes_s: `int` (default: 50)
             Minimal number of genes with expression for the data in the spliced layer (also used for X)
@@ -610,7 +612,7 @@ def filter_cells(adata, filter_bool=None, layer='all', keep_unflitered=False, mi
 
     filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
 
-    if keep_unflitered:
+    if keep_flitered:
         adata.obs['use_for_dynamo'] = np.array(filter_bool).flatten()
     else:
         adata = adata[np.array(filter_bool).flatten(), :]
@@ -620,7 +622,7 @@ def filter_cells(adata, filter_bool=None, layer='all', keep_unflitered=False, mi
     return adata
 
 
-def filter_genes(adata, filter_bool=None, layer='X', keep_unflitered=True, min_cell_s=5, min_cell_u=5, min_cell_p=5,
+def filter_genes(adata, filter_bool=None, layer='X', keep_flitered=True, min_cell_s=5, min_cell_u=5, min_cell_p=5,
                  min_avg_exp_s=1e-2, min_avg_exp_u=1e-4, min_avg_exp_p=1e-4, max_avg_exp=100., sort_by='dispersion',
                  n_top_genes=3000):
     """Select feature genes basedon a collection of filters.
@@ -633,7 +635,7 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_unflitered=True, min_c
             A boolean array from the user to select genes for downstream analysis.
         layer: `str` (default: `X`)
             The data from a particular layer (include X) used for feature selection.
-        keep_unflitered: `bool` (default: True)
+        keep_flitered: `bool` (default: True)
             Whether to keep genes that don't pass the filtering in the adata object.
         min_cell_s: `int` (default: 5)
             Minimal number of cells with expression for the data in the spliced layer (also used for X)
@@ -677,7 +679,7 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_unflitered=True, min_c
     filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
 
     adata.var['pass_basic_filter'] = np.array(filter_bool).flatten()
-    ### check this
+    n_top_genes = np.min([n_top_genes, adata.shape[1]])
     if sort_by is 'dispersion':
         table = topTable(adata, layer, mode=sort_by)
         valid_table = table.query("dispersion_empirical > dispersion_fit")
@@ -688,7 +690,7 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_unflitered=True, min_c
     elif sort_by is 'gini':
         table = topTable(adata, layer, mode='gini')
         valid_table = table.loc[filter_bool, :]
-        gene_id = np.argsort(-valid_table.loc[:, 'gini'])[:n_top_genes]
+        gene_id = np.argsort(-valid_table.loc[:, 'gini'])[:]
         gene_id = valid_table.index[gene_id]
         filter_bool = gene_id.isin(adata.var.index)
     elif sort_by is 'SVR':
@@ -701,7 +703,8 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_unflitered=True, min_c
         nth_score = np.sort(score)[::-1][n_top_genes]
         filter_bool = adata.var['score'] > nth_score
 
-    if keep_unflitered:
+    adata.var['use_for_dynamo'] = False # reset use_for_dynamo
+    if keep_flitered:
         adata.var['use_for_dynamo'] = np.array(filter_bool).flatten()
     else:
         adata = adata[:, np.array(filter_bool).flatten()]
@@ -711,15 +714,17 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_unflitered=True, min_c
     return adata
 
 
-def recipe_monocle(adata, layer=None, gene_to_use=None, method='pca', num_dim=50, norm_method='log', pseudo_expr=1,
+def recipe_monocle(adata, normalized=False, layer=None, gene_to_use=None, method='pca', num_dim=50, norm_method='log', pseudo_expr=1,
                    feature_selection = 'dispersion', n_top_genes = 2000,
-                   relative_expr=True, keep_unflitered_cells=True, keep_unflitered_genes=True, fc_kwargs=None, fg_kwargs=None):
+                   relative_expr=True, keep_flitered_cells=True, keep_flitered_genes=True, fc_kwargs=None, fg_kwargs=None):
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object
+        normalized: bool (default: False)
+            If you already normalized your data (or run recipe_monocle already), set this to be true to avoid renormalizing your data.
         layers: str (default: None)
             The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
         gene_to_use: `list` (default: None)
@@ -738,40 +743,45 @@ def recipe_monocle(adata, layer=None, gene_to_use=None, method='pca', num_dim=50
             How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
         relative_expr: `bool`
             A logic flag to determine whether we need to divide gene expression values first by size factor before normalization
-        keep_unflitered: `bool` (default: True)
+        keep_flitered_cells: `bool` (default: True)
             Whether to keep genes that don't pass the filtering in the adata object.
-        kwargs:
-            Other Parameters passed into the function.
+        keep_flitered_genes: `bool` (default: True)
+            Whether to keep genes that don't pass the filtering in the adata object.
+        fc_kwargs:
+            Other Parameters passed into the filter_genes function.
+        fg_kwargs:
+            Other Parameters passed into the filter_cells function.
 
     Returns
     -------
         adata: :class:`~anndata.AnnData`
             A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions.
     """
-
-    adata = szFactor(adata)
-    adata = Dispersion(adata)
+    if not normalized:
+        adata = szFactor(adata)
+        adata = Dispersion(adata)
 
     filter_cells_kwargs = {"filter_bool": None, "layer": 'all', "min_expr_genes_s": 50, "min_expr_genes_u": 25, "min_expr_genes_p": 1,
                  "max_expr_genes_s": np.inf, "max_expr_genes_u": np.inf, "max_expr_genes_p": np.inf}
     if fc_kwargs is not None: filter_cells_kwargs.update(fc_kwargs)
 
-    adata = filter_cells(adata, keep_unflitered=keep_unflitered_cells, **filter_cells_kwargs)
+    adata = filter_cells(adata, keep_flitered=keep_flitered_cells, **filter_cells_kwargs)
 
     filter_genes_kwargs = {"filter_bool": None, "layer": 'X', "min_cell_s": 5, "min_cell_u": 5, "min_cell_p": 5,
                  "min_avg_exp_s": 1e-2, "min_avg_exp_u": 1e-4, "min_avg_exp_p": 1e-4, "max_avg_exp": 100.}
     if fg_kwargs is not None: filter_genes_kwargs.update(fg_kwargs)
     # set use_for_dynamo
     if gene_to_use is None:
-        adata = filter_genes(adata, sort_by=feature_selection, n_top_genes=n_top_genes, keep_unflitered=keep_unflitered_genes, **filter_genes_kwargs)
+        adata = filter_genes(adata, sort_by=feature_selection, n_top_genes=n_top_genes, keep_flitered=keep_flitered_genes, **filter_genes_kwargs)
     else:
         adata.var['use_for_dynamo'] = adata.var.index.isin(gene_to_use)
-        if not keep_unflitered_genes:
+        if not keep_flitered_genes:
             adata = adata[:, adata.var['use_for_dynamo']]
 
     # normalize on all genes
-    adata = normalize_expr_data(adata, norm_method=norm_method, pseudo_expr=pseudo_expr,
-                                relative_expr=relative_expr, keep_unflitered=keep_unflitered_genes)
+    if not normalized:
+        adata = normalize_expr_data(adata, norm_method=norm_method, pseudo_expr=pseudo_expr,
+                                    relative_expr=relative_expr, keep_unflitered=keep_flitered_genes)
 
     # only use genes pass filter (based on use_for_dynamo) to perform dimension reduction.
     if layer is None:

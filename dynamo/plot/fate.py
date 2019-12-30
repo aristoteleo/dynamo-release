@@ -44,7 +44,7 @@ class StreamFuncAnim(Animation): #
         while True:
             pts = list(pts)
             pts.append((random_xy(self.xlim), random_xy(self.ylim)))
-            pts = self.displace(np.array(pts[-1]).reshape(-1, 1), self.dt)
+            pts = [self.displace(np.array(cur_pts).reshape(-1, 1), self.dt) for cur_pts in pts]
             pts = np.asarray(pts)
             pts = remove_particles(pts, self.xlim, self.ylim)
             self.ax.lines = []
@@ -54,8 +54,7 @@ class StreamFuncAnim(Animation): #
             yield lines, # return line so that blit works properly
 
 def random_xy(lim):
-    _range = np.diff(lim)
-    return list(_range * np.random.rand(1)[0] + lim[0])
+    return list(np.random.uniform(lim[0], lim[1], 1))
 
 def remove_particles(pts, xlim, ylim):
     if len(pts) == 0:

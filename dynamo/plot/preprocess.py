@@ -3,6 +3,7 @@ import pandas as pd
 from scipy.sparse import issparse, csr_matrix
 
 from ..preprocessing.preprocess import topTable
+from ..preprocessing.utilities import get_layer_keys
 from .utilities import despline, minimal_xticks, minimal_yticks
 
 
@@ -152,27 +153,26 @@ def feature_genes(adata, layer='X', mode='Dispersion'):
     """
     import matplotlib.pyplot as plt
 
+    layer = get_layer_keys(adata, layer, include_protein=False)[0]
+    if layer in ['raw', 'X']:
+        key = 'dispFitInfo' if mode is 'Dispersion' else 'velocyto_SVR'
+    else:
+        key = layer + '_dispFitInfo' if mode is 'Dispersion' else layer + '_velocyto_SVR'
+
     if mode is 'Dispersion':
         table = topTable(adata, layer)
         x_min, x_max = np.nanmin(table['mean_expression']), np.nanmax(table['mean_expression'])
     elif mode is 'SVR':
-        if not np.all(pd.Series(['CV', 'score']).isin(adata.var.columns)):
+        if not np.all(pd.Series(['log_cv', 'score']).isin(adata.var.columns)):
             raise Exception('Looks like you have not run support vector machine regression yet, try run velocyto_SVR first.')
         else:
-            table = adata.var.loc[:, ['mean', 'CV', 'score']]
-            table=table.loc[np.isfinite(table['CV']) & np.isfinite(table['mean']), :]
-            x_min, x_max = np.nanmin(table['mean']), np.nanmax(table['mean'])
+            detected_bool = adata.uns[key]['detected_bool']
+            table = adata.var.loc[detected_bool, ['log_m', 'log_cv', 'score']]
+            table = table.loc[np.isfinite(table['log_m']) & np.isfinite(table['log_cv']), :]
+            x_min, x_max = np.nanmin(table['log_m']), np.nanmax(table['log_m'])
 
     ordering_genes = adata.var['use_for_dynamo'] if 'use_for_dynamo' in adata.var.columns else None
 
-    layer_keys = list(adata.layers.keys())
-    layer_keys.extend('X')
-    layer = list(set(layer_keys).intersection(layer))[0]
-
-    if layer in ['raw', 'X']:
-        key = 'dispFitInfo' if mode is 'Dispersion' else 'velocyto_SVR'
-    else:
-        key = layer + '_dispFitInfo' if mode is 'Dispersion' else layer + 'velocyto_SVR'
     mu_linspace = np.linspace(x_min, x_max, num=1000)
     fit = adata.uns[key]['disp_func'](mu_linspace) if mode is 'Dispersion' else adata.uns[key]['SVR'](mu_linspace.reshape(-1, 1))
 
@@ -183,14 +183,14 @@ def feature_genes(adata, layer='X', mode='Dispersion'):
     if mode is 'Dispersion':
         plt.scatter(valid_disp_table['mean_expression'], valid_disp_table['dispersion_empirical'], s=3, alpha=0.3, color='tab:red')
     elif mode is 'SVR':
-        plt.scatter(np.log(valid_disp_table['mean']), valid_disp_table['CV'], s=3, alpha=0.3, color='tab:red')
+        plt.scatter(valid_disp_table['log_m'], valid_disp_table['log_cv'], s=3, alpha=0.3, color='tab:red')
 
     neg_disp_table = table.iloc[~valid_ind, :]
 
     if mode is 'Dispersion':
         plt.scatter(neg_disp_table['mean_expression'], neg_disp_table['dispersion_empirical'], s=3, alpha=1, color='tab:blue')
     elif mode is 'SVR':
-        plt.scatter(np.log(neg_disp_table['mean']), neg_disp_table['CV'], s=3, alpha=1, color='tab:blue')
+        plt.scatter(neg_disp_table['log_m'], neg_disp_table['log_cv'], s=3, alpha=1, color='tab:blue')
 
     # plt.xlim((0, 100))
     if mode is 'Dispersion':

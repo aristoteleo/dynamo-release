@@ -58,6 +58,11 @@ def scSLAMseq():
 def scifate():
     pass
 
+def scNT_seq():
+    pass
+
+def cite_seq():
+    pass
 
 def DentateGyrus(url='http://pklab.med.harvard.edu/velocyto/DentateGyrus/DentateGyrus.loom', filename=None):
     """The Dentate Gyrus dataset used in https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb.
