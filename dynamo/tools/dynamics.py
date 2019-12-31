@@ -65,11 +65,6 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
 
     subset_adata = adata[:, valid_ind].copy()
 
-    if tkey in adata.obs.columns:
-        t = np.array(adata.obs[tkey], dtype='float')
-    else:
-        raise Exception('the tkey ', tkey, ' provided is not a valid column name in .obs.')
-
     U, Ul, S, Sl, P = None, None, None, None, None  # U: unlabeled unspliced; S: unlabel spliced: S
     normalized, has_splicing, has_labeling, has_protein = False, False, False, False
 
@@ -171,6 +166,13 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
     if not has_labeling:
         assumption_mRNA = 'ss'
 
+    if tkey in adata.obs.columns and has_labeling:
+        t = np.array(adata.obs[tkey], dtype='float')
+    elif tkey not in adata.obs.columns and has_labeling:
+        raise Exception('the tkey ', tkey, ' provided is not a valid column name in .obs.')
+    else:
+        t = None
+
     if mode is 'deterministic':
         est = estimation(U=U, Ul=Ul, S=S, Sl=Sl, P=P,
                          t=t, ind_for_proteins=ind_for_proteins,
@@ -181,7 +183,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
 
         alpha, beta, gamma, eta, delta = est.parameters.values()
 
-        U, S = get_U_S_for_velocity_estimation(subset_adata, has_splicing, log_unnormalized)
+        U, S = get_U_S_for_velocity_estimation(subset_adata, has_splicing, has_labeling, log_unnormalized)
         vel = velocity(estimation=est)
         vel_U = vel.vel_u(U)
         vel_S = vel.vel_s(U, S)

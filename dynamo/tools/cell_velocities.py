@@ -50,7 +50,7 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
 
     neighbors, dist, indices = adata.uns['neighbors']['connectivities'], adata.uns['neighbors']['distances'], adata.uns['neighbors']['indices']
     V_mat = adata.obsm['velocity_' + vkey] if 'velocity_' + vkey in adata.obsm.keys() else None
-    X_pca, X_embedding = adata.obsm['X_pca'], adata.obsm['X_'+basis]
+    X_pca, X_embedding = adata.obsm['X_pca'], adata.obsm['X_'+basis][:, :2]
 
     # add both source and sink distribution
     if method == 'analytical':

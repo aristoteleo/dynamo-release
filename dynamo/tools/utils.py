@@ -11,25 +11,36 @@ def cal_12_mom(data, t):
 
     return m, v, t_uniq
 
-def get_U_S_for_velocity_estimation(subset_adata, has_splicing, log_unnormalized):
+def get_U_S_for_velocity_estimation(subset_adata, has_splicing, has_labeling, log_unnormalized):
     if has_splicing:
-        if 'X_uu' in subset_adata.layers.keys():  # unlabel spliced: S
-            uu, ul, su, sl = subset_adata.layers['X_uu'].T, subset_adata.layers['X_ul'].T, \
-                             subset_adata.layers['X_su'].T, subset_adata.layers['X_sl'].T
-        else:
-            uu, ul, su, sl = subset_adata.layers['uu'].T, subset_adata.layers['ul'].T, \
-                             subset_adata.layers['su'].T, subset_adata.layers['sl'].T
-            if issparse(uu):
-                uu.data = np.log(uu.data + 1) if log_unnormalized else uu.data
-                ul.data = np.log(ul.data + 1) if log_unnormalized else ul.data
-                su.data = np.log(su.data + 1) if log_unnormalized else su.data
-                sl.data = np.log(sl.data + 1) if log_unnormalized else sl.data
+        if has_labeling:
+            if 'X_uu' in subset_adata.layers.keys():  # unlabel spliced: S
+                uu, ul, su, sl = subset_adata.layers['X_uu'].T, subset_adata.layers['X_ul'].T, \
+                                 subset_adata.layers['X_su'].T, subset_adata.layers['X_sl'].T
             else:
-                uu = np.log(uu + 1) if log_unnormalized else uu
-                ul = np.log(ul + 1) if log_unnormalized else ul
-                su = np.log(su + 1) if log_unnormalized else su
-                sl = np.log(sl + 1) if log_unnormalized else sl
-
+                uu, ul, su, sl = subset_adata.layers['uu'].T, subset_adata.layers['ul'].T, \
+                                 subset_adata.layers['su'].T, subset_adata.layers['sl'].T
+                if issparse(uu):
+                    uu.data = np.log(uu.data + 1) if log_unnormalized else uu.data
+                    ul.data = np.log(ul.data + 1) if log_unnormalized else ul.data
+                    su.data = np.log(su.data + 1) if log_unnormalized else su.data
+                    sl.data = np.log(sl.data + 1) if log_unnormalized else sl.data
+                else:
+                    uu = np.log(uu + 1) if log_unnormalized else uu
+                    ul = np.log(ul + 1) if log_unnormalized else ul
+                    su = np.log(su + 1) if log_unnormalized else su
+                    sl = np.log(sl + 1) if log_unnormalized else sl
+        else:
+            if 'X_unspliced' in subset_adata.layers.keys():  # unlabel spliced: S
+                ul, sl = subset_adata.layers['X_unspliced'].T, subset_adata.layers['X_spliced'].T
+            else:
+                ul, sl = subset_adata.layers['unspliced'].T, subset_adata.layers['spliced'].T
+                if issparse(uu):
+                    ul.data = np.log(ul.data + 1) if log_unnormalized else ul.data
+                    sl.data = np.log(sl.data + 1) if log_unnormalized else sl.data
+                else:
+                    ul = np.log(ul + 1) if log_unnormalized else ul
+                    sl = np.log(sl + 1) if log_unnormalized else sl
         U, S = ul, sl
     else:
         if 'X_new' in subset_adata.layers.keys():  # run new / total ratio (NTR)

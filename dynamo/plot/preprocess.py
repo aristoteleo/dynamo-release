@@ -127,7 +127,7 @@ def variance_explained(adata, threshold=0.002, n_pcs=None):
 
     var_ = adata.uns["explained_variance_ratio_"]
     plt.plot(np.cumsum(var_))
-    tmp = np.diff(np.diff(np.cumsum(var_))>threshold)
+    tmp = np.diff(np.diff(np.cumsum(var_)) > threshold)
     n_comps = n_pcs if n_pcs is not None else np.where(tmp)[0][0] if np.any(tmp) else 20
     plt.axvline(n_comps, c="k")
     plt.xlabel('PCs')
@@ -135,7 +135,7 @@ def variance_explained(adata, threshold=0.002, n_pcs=None):
     plt.show()
 
 
-def feature_genes(adata, layer='X', mode='Dispersion'):
+def feature_genes(adata, layer='X', mode=None):
     """Plot selected feature genes on top of the mean vs. dispersion scatterplot.
 
     Parameters
@@ -144,22 +144,23 @@ def feature_genes(adata, layer='X', mode='Dispersion'):
             AnnData object
         layer: `str` (default: `X`)
             The data from a particular layer (include X) used for making the feature gene plot.
-        mode: `str` (default: `Dispersion)
-            The method to select the feature genes.
+        mode: None or `str` (default: None)
+            The method to select the feature genes (can be either `dispersion`, `gini` or `SVR`).
 
     Returns
     -------
-
+        Nothing but plots the selected feature genes via the mean, CV plot.
     """
     import matplotlib.pyplot as plt
+    mode = adata.uns['feature_selection'] if mode is None else mode
 
     layer = get_layer_keys(adata, layer, include_protein=False)[0]
     if layer in ['raw', 'X']:
-        key = 'dispFitInfo' if mode is 'Dispersion' else 'velocyto_SVR'
+        key = 'dispFitInfo' if mode is 'dispersion' else 'velocyto_SVR'
     else:
-        key = layer + '_dispFitInfo' if mode is 'Dispersion' else layer + '_velocyto_SVR'
+        key = layer + '_dispFitInfo' if mode is 'dispersion' else layer + '_velocyto_SVR'
 
-    if mode is 'Dispersion':
+    if mode is 'dispersion':
         table = topTable(adata, layer)
         x_min, x_max = np.nanmin(table['mean_expression']), np.nanmax(table['mean_expression'])
     elif mode is 'SVR':
@@ -174,30 +175,30 @@ def feature_genes(adata, layer='X', mode='Dispersion'):
     ordering_genes = adata.var['use_for_dynamo'] if 'use_for_dynamo' in adata.var.columns else None
 
     mu_linspace = np.linspace(x_min, x_max, num=1000)
-    fit = adata.uns[key]['disp_func'](mu_linspace) if mode is 'Dispersion' else adata.uns[key]['SVR'](mu_linspace.reshape(-1, 1))
+    fit = adata.uns[key]['disp_func'](mu_linspace) if mode is 'dispersion' else adata.uns[key]['SVR'](mu_linspace.reshape(-1, 1))
 
     plt.plot(mu_linspace, fit, alpha=0.4, color='k')
     valid_ind = table.index.isin(ordering_genes.index[ordering_genes]) if ordering_genes is not None else np.ones(table.shape[0], dtype=bool)
 
     valid_disp_table = table.iloc[valid_ind, :]
-    if mode is 'Dispersion':
+    if mode is 'dispersion':
         plt.scatter(valid_disp_table['mean_expression'], valid_disp_table['dispersion_empirical'], s=3, alpha=0.3, color='tab:red')
     elif mode is 'SVR':
         plt.scatter(valid_disp_table['log_m'], valid_disp_table['log_cv'], s=3, alpha=0.3, color='tab:red')
 
     neg_disp_table = table.iloc[~valid_ind, :]
 
-    if mode is 'Dispersion':
+    if mode is 'dispersion':
         plt.scatter(neg_disp_table['mean_expression'], neg_disp_table['dispersion_empirical'], s=3, alpha=1, color='tab:blue')
     elif mode is 'SVR':
         plt.scatter(neg_disp_table['log_m'], neg_disp_table['log_cv'], s=3, alpha=1, color='tab:blue')
 
     # plt.xlim((0, 100))
-    if mode is 'Dispersion':
+    if mode is 'dispersion':
         plt.xscale('log')
     plt.yscale('log')
     plt.xlabel('Mean (log)')
-    plt.ylabel('Dispersion (log)') if mode is 'Dispersion' else plt.ylabel('CV (log)')
+    plt.ylabel('Dispersion (log)') if mode is 'dispersion' else plt.ylabel('CV (log)')
     plt.show()
 
 

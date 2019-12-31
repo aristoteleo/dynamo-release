@@ -92,8 +92,8 @@ def cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, colo
         n_genes, genes = len(color), color
         E_vec = adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
 
-    X = adata.obsm['X_' + basis] if 'X_' + basis in adata.obsm.keys() else None
-    V = adata.obsm['velocity_' + basis] if 'velocity_' + basis in adata.obsm.keys() else None
+    X = adata.obsm['X_' + basis][:, :2] if 'X_' + basis in adata.obsm.keys() else None
+    V = adata.obsm['velocity_' + basis][:, :2] if 'velocity_' + basis in adata.obsm.keys() else None
     if X is None:
         raise Exception(f'The {basis} dimension reduction is not performed over your data yet.')
     if V is None:
@@ -246,8 +246,8 @@ def grid_velocity(adata, genes, x=0, y=1, method='SparseVFC', basis='trimap', n_
         n_genes, genes = len(color), color
         E_vec = adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
 
-    X = adata.obsm['X_' + basis] if 'X_' + basis in adata.obsm.keys() else None
-    V = adata.obsm['velocity_' + basis] if 'velocity_' + basis in adata.obsm.keys() else None
+    X = adata.obsm['X_' + basis][:, :2] if 'X_' + basis in adata.obsm.keys() else None
+    V = adata.obsm['velocity_' + basis][:, :2] if 'velocity_' + basis in adata.obsm.keys() else None
     if X is None:
         raise Exception(f'The {basis} dimension reduction is not performed over your data yet.')
     if V is None:
@@ -255,7 +255,7 @@ def grid_velocity(adata, genes, x=0, y=1, method='SparseVFC', basis='trimap', n_
     if 0 in E_vec.shape:
         raise Exception(f'The gene names {genes} (or cell annotations {color}) provided are not existed in your data.')
 
-    if method is 'SparseVFC':
+    if method is 'SparseVFC' and basis is not 'pca':
         if 'VecFld_' + basis not in adata.uns.keys():
             VectorField(adata, basis=basis)
         X_grid, V_grid =  adata.uns['VecFld_' + basis]['grid'], adata.uns['VecFld_' + basis]['grid_V']
@@ -426,8 +426,8 @@ def stremline_plot(adata, genes, x=0, y=1, method='sparseVFC', basis='trimap', n
         n_genes, genes = len(color), color
         E_vec = adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
 
-    X = adata.obsm['X_' + basis] if 'X_' + basis in adata.obsm.keys() else None
-    V = adata.obsm['velocity_' + basis] if 'velocity_' + basis in adata.obsm.keys() else None
+    X = adata.obsm['X_' + basis][:, :2] if 'X_' + basis in adata.obsm.keys() else None
+    V = adata.obsm['velocity_' + basis][:, :2] if 'velocity_' + basis in adata.obsm.keys() else None
     if X is None:
         raise Exception(f'The {basis} dimension reduction is not performed over your data yet.')
     if V is None:
@@ -435,7 +435,7 @@ def stremline_plot(adata, genes, x=0, y=1, method='sparseVFC', basis='trimap', n
     if 0 in E_vec.shape:
         raise Exception(f'The gene names {genes} (or cell annotations {color}) provided are not existed in your data.')
 
-    if method is 'SparseVFC':
+    if method is 'SparseVFC' and basis is not 'pca':
         if 'VecFld_' + basis not in adata.uns.keys():
             VectorField(adata, basis=basis)
         X_grid, V_grid =  adata.uns['VecFld_' + basis]['grid'], adata.uns['VecFld_' + basis]['grid_V']
@@ -622,8 +622,8 @@ def line_integral_conv(adata, basis='trimap', U_grid=None, V_grid=None, method =
     -------
         Nothing, but plot the vector field with quiver, streamline and line integral convolution (LIC).
     """
-    X = adata.obsm['X_' + basis] if 'X_' + basis in adata.obsm.keys() else None
-    V = adata.obsm['velocity_' + basis] if 'velocity_' + basis in adata.obsm.keys() else None
+    X = adata.obsm['X_' + basis][:, :2] if 'X_' + basis in adata.obsm.keys() else None
+    V = adata.obsm['velocity_' + basis][:, :2] if 'velocity_' + basis in adata.obsm.keys() else None
 
     if X is None:
         raise Exception(f'The {basis} dimension reduction is not performed over your data yet.')
@@ -698,7 +698,7 @@ def line_integral_conv(adata, basis='trimap', U_grid=None, V_grid=None, method =
             # plt.rc('xtick', labelsize=8)
             # plt.rc('ytick', labelsize=8)
             # plt.rc('axes', labelsize=8)
-            slc.save(file, mpl_kwargs = {figsize: [2, 2]})
+            slc.save(file, mpl_kwargs = {"figsize": [2, 2]})
     elif method == 'lic':
         velocyto_tex = runlic(V_grid, V_grid, 100)
         plot_LIC_gray(velocyto_tex)

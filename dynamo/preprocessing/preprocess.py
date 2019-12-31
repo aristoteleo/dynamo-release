@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import scipy
 import warnings
-from scipy.sparse import issparse
+from scipy.sparse import issparse, csr_matrix
 from sklearn.decomposition import TruncatedSVD, FastICA
 from .utilities import cook_dist, get_layer_keys
 
@@ -130,7 +130,7 @@ def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, r
 
         if norm_method == 'log' and layer is not 'protein':
             if relative_expr:
-                FM = scipy.sparse.diags((1/szfactors).flatten().tolist(), 0).dot(FM) if issparse(FM) else FM / szfactors
+                FM = FM.multiply(csr_matrix(1/szfactors)) if issparse(FM) else FM / szfactors
 
             if pseudo_expr is None:
                 pseudo_expr = 1
@@ -323,7 +323,7 @@ def disp_calc_helper_NB(adata, layers='X', min_cells_detected=1):
         if layer is layer.__contains__('X_'):
             x = rounded[:, nzGenes]
         else:
-            x = scipy.sparse.diags((1/szfactors).flatten().tolist(), 0).dot(rounded[:, nzGenes]) if issparse(rounded) else rounded[:, nzGenes] / szfactors
+            x = rounded[:, nzGenes].multiply(csr_matrix(1/szfactors)) if issparse(rounded) else rounded[:, nzGenes] / szfactors
 
         xim = np.mean(1 / szfactors) if szfactors is not None else 1
 
@@ -714,8 +714,8 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_flitered=True, min_cel
     return adata
 
 
-def recipe_monocle(adata, normalized=False, layer=None, gene_to_use=None, method='pca', num_dim=50, norm_method='log', pseudo_expr=1,
-                   feature_selection = 'dispersion', n_top_genes = 2000,
+def recipe_monocle(adata, normalized=False, layer=None, genes_to_use=None, method='pca', num_dim=50, norm_method='log', pseudo_expr=1,
+                   feature_selection='SVR', n_top_genes = 2000,
                    relative_expr=True, keep_flitered_cells=True, keep_flitered_genes=True, fc_kwargs=None, fg_kwargs=None):
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
@@ -727,7 +727,7 @@ def recipe_monocle(adata, normalized=False, layer=None, gene_to_use=None, method
             If you already normalized your data (or run recipe_monocle already), set this to be true to avoid renormalizing your data.
         layers: str (default: None)
             The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
-        gene_to_use: `list` (default: None)
+        genes_to_use: `list` (default: None)
             A list genes of gene names that will be used to set as the feature genes for downstream analysis.
         method: `str`
             The linear dimension reduction methods to be used.
@@ -738,7 +738,7 @@ def recipe_monocle(adata, normalized=False, layer=None, gene_to_use=None, method
         pseudo_expr: `int`
             A pseudocount added to the gene expression value before log2 normalization.
         feature_selection: `str`
-            Which soring datatype, either dispersion or Gini index, to be used to select genes.
+            Which soring datatype, either dispersion, SVR or Gini index, to be used to select genes.
         n_top_genes: `int`
             How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
         relative_expr: `bool`
@@ -771,10 +771,10 @@ def recipe_monocle(adata, normalized=False, layer=None, gene_to_use=None, method
                  "min_avg_exp_s": 1e-2, "min_avg_exp_u": 1e-4, "min_avg_exp_p": 1e-4, "max_avg_exp": 100.}
     if fg_kwargs is not None: filter_genes_kwargs.update(fg_kwargs)
     # set use_for_dynamo
-    if gene_to_use is None:
+    if genes_to_use is None:
         adata = filter_genes(adata, sort_by=feature_selection, n_top_genes=n_top_genes, keep_flitered=keep_flitered_genes, **filter_genes_kwargs)
     else:
-        adata.var['use_for_dynamo'] = adata.var.index.isin(gene_to_use)
+        adata.var['use_for_dynamo'] = adata.var.index.isin(genes_to_use)
         if not keep_flitered_genes:
             adata = adata[:, adata.var['use_for_dynamo']]
 
@@ -785,7 +785,7 @@ def recipe_monocle(adata, normalized=False, layer=None, gene_to_use=None, method
 
     # only use genes pass filter (based on use_for_dynamo) to perform dimension reduction.
     if layer is None:
-        FM = adata.X[:, adata.var.use_for_dynamo.values] if 'spliced' not in adata.layers.keys() else adata.layers['spliced'][:, adata.var.use_for_dynamo.values]
+        FM = adata.X[:, adata.var.use_for_dynamo.values] if 'spliced' not in adata.layers.keys() else adata.layers['X_spliced'][:, adata.var.use_for_dynamo.values]
     else:
         if layer is 'X':
             FM = adata.X[:, adata.var.use_for_dynamo.values]
@@ -798,8 +798,8 @@ def recipe_monocle(adata, normalized=False, layer=None, gene_to_use=None, method
     FM = FM[:, valid_ind]
 
     if method is 'pca':
-        fit = TruncatedSVD(n_components=num_dim, random_state=2019)
-        reduce_dim = fit.fit_transform(FM)
+        fit = TruncatedSVD(n_components=num_dim + 1, random_state=2019)
+        reduce_dim = fit.fit_transform(FM)[:, 1:]
         adata.uns['explained_variance_ratio_'] = fit.explained_variance_ratio_
     elif method == 'ica':
         fit=FastICA(num_dim,
@@ -807,6 +807,6 @@ def recipe_monocle(adata, normalized=False, layer=None, gene_to_use=None, method
         reduce_dim=fit.fit_transform(FM.toarray())
 
     adata.obsm['X_' + method.lower()] = reduce_dim
-    adata.uns[method+'_fit'] = fit
+    adata.uns[method+'_fit'], adata.uns['feature_selection'] = fit, feature_selection
 
     return adata
