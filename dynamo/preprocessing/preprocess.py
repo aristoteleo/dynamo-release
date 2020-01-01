@@ -70,7 +70,6 @@ def szFactor(adata, layers='all', locfunc=np.nanmean, round_exprs=True, method='
 
     return adata
 
-# Change the location of this, the gene filter happens after normalized by size factor
 def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, relative_expr=True, keep_filtered=True):
     """Normalize the gene expression value for the AnnData object
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
@@ -135,11 +134,10 @@ def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, r
 
             if pseudo_expr is None:
                 pseudo_expr = 1
-            if layer is 'X':
-                if issparse(FM):
-                    FM.data = np.log2(FM.data + pseudo_expr)
-                else:
-                    FM = np.log2(FM + pseudo_expr)
+            if issparse(FM):
+                FM.data = np.log2(FM.data + pseudo_expr)
+            else:
+                FM = np.log2(FM + pseudo_expr)
 
         elif layer is 'protein': # norm_method == 'clr':
             if norm_method is not 'clr':
@@ -331,9 +329,8 @@ def disp_calc_helper_NB(adata, layers='X', min_cells_detected=1):
         f_expression_mean = x.mean(axis=0)
 
         # For NB: Var(Y) = mu * (1 + mu / k)
-        # variance formula np.sqrt(adata.X.multiply(adata.X).mean(0).A1 - mu ** 2)
         # x.A.var(axis=0, ddof=1)
-        f_expression_var = (x.multiply(x).mean(0).A1 - f_expression_mean.A1 ** 2) * x.shape[0] / (x.shape[0] - 1)  if issparse(x) else x.var(axis=0, ddof=1)**2 # np.mean(np.power(x - f_expression_mean, 2), axis=0) # variance with n - 1
+        f_expression_var = (x.multiply(x).mean(0).A1 - f_expression_mean.A1 ** 2) * x.shape[0] / (x.shape[0] - 1) if issparse(x) else x.var(axis=0, ddof=1)**2 # np.mean(np.power(x - f_expression_mean, 2), axis=0) # variance with n - 1
         # https://scialert.net/fulltext/?doi=ajms.2010.1.15 method of moments
         disp_guess_meth_moments = f_expression_var - xim * f_expression_mean # variance - mu
 
@@ -514,7 +511,7 @@ def SVRs(adata, filter_bool=None, layers='X', min_expr_cells=2, min_expr_avg=0, 
     for layer in layers:
         if layer is 'raw':
             CM = adata.X if adata.raw is None else adata.raw
-            szfactors = adata.obs[layer + '_Size_Factor'][:, None]
+            szfactors = adata.obs[layer + '_Size_Factor'][:, None] if adata.raw is None else adata.obs['Size_Factor'][:, None]
         elif layer is 'X':
             CM = adata.X
             szfactors = adata.obs['Size_Factor'][:, None]
@@ -798,21 +795,20 @@ def recipe_monocle(adata, normalized=None, layer=None, genes_to_use=None, method
         if not keep_filtered_genes:
             adata = adata[:, adata.var['use_for_dynamo']]
 
-    # or normalize genes by size factor first
-    # try using the log
-    # normalize on all genes
     if not normalized:
         adata = normalize_expr_data(adata, norm_method=norm_method, pseudo_expr=pseudo_expr,
                                     relative_expr=relative_expr, keep_filtered=keep_filtered_genes)
 
     # only use genes pass filter (based on use_for_dynamo) to perform dimension reduction.
     if layer is None:
-        FM = adata.X[:, adata.var.use_for_dynamo.values] #if 'X_spliced' not in adata.layers.keys() else adata.layers['X_spliced'][:, adata.var.use_for_dynamo.values]
+        FM = adata.X[:, adata.var.use_for_dynamo.values]
     else:
         if layer is 'X':
             FM = adata.X[:, adata.var.use_for_dynamo.values]
+        elif layer is 'protein' in adata.obsm_keys():
+            FM = adata.obsm['X_' + layer]
         else:
-            FM = adata.layers[layer][:, adata.var.use_for_dynamo.values]
+            FM = adata.layers['X_' + layer][:, adata.var.use_for_dynamo.values]
 
     fm_genesums = FM.sum(axis=0)
     valid_ind = (np.isfinite(fm_genesums)) + (fm_genesums != 0)
