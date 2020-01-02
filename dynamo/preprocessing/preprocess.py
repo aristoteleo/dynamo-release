@@ -772,7 +772,9 @@ def recipe_monocle(adata, normalized=None, layer=None, genes_to_use=None, method
         adata: :class:`~anndata.AnnData`
             A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions.
     """
-    if normalized is None: # automatically detect whether the data is normalized (only works for UMI based data).
+
+    # automatically detect whether the data is normalized (only works for UMI based data).
+    if normalized is None:
         normalized = not np.allclose((adata.X.data[:20] if issparse(adata.X) else adata.X[:, 0]) % 1, 0, atol=1e-3)
     if not normalized:
         adata = szFactor(adata)
@@ -787,6 +789,7 @@ def recipe_monocle(adata, normalized=None, layer=None, genes_to_use=None, method
     filter_genes_kwargs = {"filter_bool": None, "layer": 'X', "min_cell_s": 5, "min_cell_u": 5, "min_cell_p": 5,
                  "min_avg_exp_s": 1e-2, "min_avg_exp_u": 1e-4, "min_avg_exp_p": 1e-4, "max_avg_exp": 100.}
     if fg_kwargs is not None: filter_genes_kwargs.update(fg_kwargs)
+
     # set use_for_dynamo
     if genes_to_use is None:
         adata = filter_genes(adata, sort_by=feature_selection, n_top_genes=n_top_genes, keep_filtered=keep_filtered_genes, **filter_genes_kwargs)
@@ -805,7 +808,7 @@ def recipe_monocle(adata, normalized=None, layer=None, genes_to_use=None, method
     else:
         if layer is 'X':
             FM = adata.X[:, adata.var.use_for_dynamo.values]
-        elif layer is 'protein' in adata.obsm_keys():
+        elif layer is 'protein':
             FM = adata.obsm['X_' + layer]
         else:
             FM = adata.layers['X_' + layer][:, adata.var.use_for_dynamo.values]
@@ -816,8 +819,8 @@ def recipe_monocle(adata, normalized=None, layer=None, genes_to_use=None, method
     FM = FM[:, valid_ind]
 
     if method is 'pca':
-        fit = TruncatedSVD(n_components=num_dim + 1, random_state=2019)
-        reduce_dim = fit.fit_transform(FM)[:, 1:]
+        fit = TruncatedSVD(n_components=num_dim + 1, random_state=2019) # unscaled PCA
+        reduce_dim = fit.fit_transform(FM)[:, 1:] # first columns is related to the total UMI (or library size)
         adata.uns['explained_variance_ratio_'] = fit.explained_variance_ratio_[1:]
     elif method == 'ica':
         fit=FastICA(num_dim,
