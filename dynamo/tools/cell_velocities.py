@@ -45,11 +45,12 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
             Returns an updated `~anndata.AnnData` with transition_matrix and projected embedding of high dimension velocity vector
             in the existing embeding of current cell state, calculated using method from (La Manno et al. 2018).
     """
+
     if calc_rnd_vel:
         numba_random_seed(random_seed)
 
     neighbors, dist, indices = adata.uns['neighbors']['connectivities'], adata.uns['neighbors']['distances'], adata.uns['neighbors']['indices']
-    V_mat = adata.obsm['velocity_' + vkey] if 'velocity_' + vkey in adata.obsm.keys() else None
+    V_mat = adata.obsm['_velocity_' + vkey] if '_velocity_' + vkey in adata.obsm.keys() else None
     X_pca, X_embedding = adata.obsm['X_pca'], adata.obsm['X_'+basis][:, :2]
 
     # add both source and sink distribution

@@ -115,7 +115,7 @@ def cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, colo
 
     if quiver_scale is None:
         quiver_scale = quiver_autoscaler(X, V)
-    quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_scale, "minlength": 1.5}
+    quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_scale, "minlength": 1.5, "alpha": 0.4}
     quiver_kwargs.update(q_kwargs)
 
     n_columns, plot_per_gene = n_columns, 1 # we may also add random velocity results
@@ -277,7 +277,7 @@ def grid_velocity(adata, genes, x=0, y=1, method='SparseVFC', basis='trimap', n_
     if 0 in E_vec.shape:
         raise Exception(f'The gene names {genes} (or cell annotations {color}) provided are not existed in your data.')
 
-    if method is 'SparseVFC' and adata.obsm['X_' + basis].shape[1] > 2:
+    if method is 'SparseVFC' and adata.obsm['X_' + basis].shape[1] == 2:
         if 'VecFld_' + basis not in adata.uns.keys():
             VectorField(adata, basis=basis)
         X_grid, V_grid =  adata.uns['VecFld_' + basis]['grid'], adata.uns['VecFld_' + basis]['grid_V']
@@ -296,7 +296,7 @@ def grid_velocity(adata, genes, x=0, y=1, method='SparseVFC', basis='trimap', n_
 
     if quiver_scale is None:
         quiver_scale = quiver_autoscaler(X_grid, V_grid)
-    quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_scale, "minlength": 1.5}
+    quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_scale, "minlength": 1.5, "alpha": 0.4}
     quiver_kwargs.update(q_kwargs)
 
     n_columns, plot_per_gene = n_columns, 1 # we may also add random velocity results
@@ -467,7 +467,7 @@ def stremline_plot(adata, genes, x=0, y=1, method='sparseVFC', basis='trimap', n
     if 0 in E_vec.shape:
         raise Exception(f'The gene names {genes} (or cell annotations {color}) provided are not existed in your data.')
 
-    if method is 'SparseVFC' and adata.obsm['X_' + basis].shape[1] > 2:
+    if method is 'SparseVFC' and adata.obsm['X_' + basis].shape[1] == 2:
         if 'VecFld_' + basis not in adata.uns.keys():
             VectorField(adata, basis=basis)
         X_grid, V_grid =  adata.uns['VecFld_' + basis]['grid'], adata.uns['VecFld_' + basis]['grid_V']

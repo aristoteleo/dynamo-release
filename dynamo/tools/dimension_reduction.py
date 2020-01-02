@@ -220,14 +220,14 @@ def reduceDimension(adata, n_pca_components=25, n_components=2, n_neighbors=10, 
         X_fit = transformer.fit(X)
         X_pca = X_fit.transform(X)
         adata.obsm['X_pca'] = X_pca
-        if velocity_key is not None and "velocity_pca" not in adata.obsm.keys():
+        if velocity_key is not None and "_velocity_pca" not in adata.obsm.keys():
             X_t_pca = X_fit.transform(X_t)
-            adata.obsm['velocity_pca'] = X_t_pca - X_pca
+            adata.obsm['_velocity_pca'] = X_t_pca - X_pca
     else:
         X_pca = adata.obsm['X_pca'][:, :n_pca_components]
-        if velocity_key is not None and "velocity_pca" not in adata.obsm.keys():
+        if velocity_key is not None and "_velocity_pca" not in adata.obsm.keys():
             X_t_pca = adata.uns['pca_fit'].fit_transform(X_t)
-            adata.obsm['velocity_pca'] = X_t_pca[:, :n_pca_components] - X_pca
+            adata.obsm['_velocity_pca'] = X_t_pca[:, :n_pca_components] - X_pca
         adata.obsm['X_pca'] = X_pca
 
     if reduction_method is "trimap":
