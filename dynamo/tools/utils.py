@@ -57,3 +57,25 @@ def get_U_S_for_velocity_estimation(subset_adata, has_splicing, has_labeling, lo
                 S = np.log(S + 1) if log_unnormalized else S
 
     return U, S
+
+def lhsclassic(n_samples, n_dim):
+
+    # From PyDOE
+    # Generate the intervals
+    cut = np.linspace(0, 1, n_samples + 1)
+
+    # Fill points uniformly in each interval
+    u = np.random.rand(n_samples, n_dim)
+    a = cut[:n_samples]
+    b = cut[1:n_samples + 1]
+    rdpoints = np.zeros(u.shape)
+    for j in range(n_dim):
+        rdpoints[:, j] = u[:, j] * (b - a) + a
+
+    # Make the random pairings
+    H = np.zeros(rdpoints.shape)
+    for j in range(n_dim):
+        order = np.random.permutation(range(n_samples))
+        H[:, j] = rdpoints[order, j]
+
+    return H
