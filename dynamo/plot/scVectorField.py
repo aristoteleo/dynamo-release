@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 from .utilities import quiver_autoscaler
+from ..tools.dimension_reduction import reduceDimension
+from ..tools.cell_velocities import cell_velocities
 from ..tools.Markov import velocity_on_grid
 from ..tools.scVectorField import VectorField
 
@@ -92,12 +94,22 @@ def cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, colo
         n_genes, genes = len(color), color
         E_vec = adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
 
-    X = adata.obsm['X_' + basis][:, :2] if 'X_' + basis in adata.obsm.keys() else None
-    V = adata.obsm['velocity_' + basis][:, :2] if 'velocity_' + basis in adata.obsm.keys() else None
-    if X is None:
-        raise Exception(f'The {basis} dimension reduction is not performed over your data yet.')
-    if V is None:
-        raise Exception(f'The {basis}_velocity velocity (or velocity) result does not existed in your data.')
+    if ('X_' + basis in adata.obsm.keys()) and ('velocity_' + basis in adata.obsm.keys()):
+        X = adata.obsm['X_' + basis][:, [x, y]]
+        V = adata.obsm['velocity_' + basis][:, [x, y]]
+    else:
+        if 'X_' + basis not in adata.obsm.keys():
+            reduceDimension(adata, velocity_key='velocity_S', reduction_method=basis)
+        if 'kmc' not in adata.uns_keys():
+            cell_velocities(adata, vkey='pca', basis=basis, method='analytical')
+            X = adata.obsm['X_' + basis][:, [x, y]]
+            V = adata.obsm['velocity_' + basis][:, [x, y]]
+        else:
+            kmc = adata.uns['kmc']
+            X = adata.obsm['X_' + basis][:, [x, y]]
+            V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
+            adata.obsm['velocity_' + basis] = V
+
     if 0 in E_vec.shape:
         raise Exception(f'The gene names {genes} (or cell annotations {color}) provided are not existed in your data.')
 
@@ -246,16 +258,26 @@ def grid_velocity(adata, genes, x=0, y=1, method='SparseVFC', basis='trimap', n_
         n_genes, genes = len(color), color
         E_vec = adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
 
-    X = adata.obsm['X_' + basis][:, :2] if 'X_' + basis in adata.obsm.keys() else None
-    V = adata.obsm['velocity_' + basis][:, :2] if 'velocity_' + basis in adata.obsm.keys() else None
-    if X is None:
-        raise Exception(f'The {basis} dimension reduction is not performed over your data yet.')
-    if V is None:
-        raise Exception(f'The {basis}_velocity velocity (or velocity) result does not existed in your data.')
+    if ('X_' + basis in adata.obsm.keys()) and ('velocity_' + basis in adata.obsm.keys()):
+        X = adata.obsm['X_' + basis][:, [x, y]]
+        V = adata.obsm['velocity_' + basis][:, [x, y]]
+    else:
+        if 'X_' + basis not in adata.obsm.keys():
+            reduceDimension(adata, velocity_key='velocity_S', reduction_method=basis)
+        if 'kmc' not in adata.uns_keys():
+            cell_velocities(adata, vkey='pca', basis=basis, method='analytical')
+            X = adata.obsm['X_' + basis][:, [x, y]]
+            V = adata.obsm['velocity_' + basis][:, [x, y]]
+        else:
+            kmc = adata.uns['kmc']
+            X = adata.obsm['X_' + basis][:, [x, y]]
+            V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
+            adata.obsm['velocity_' + basis] = V
+
     if 0 in E_vec.shape:
         raise Exception(f'The gene names {genes} (or cell annotations {color}) provided are not existed in your data.')
 
-    if method is 'SparseVFC' and basis is not 'pca':
+    if method is 'SparseVFC' and adata.obsm['X_' + basis].shape[1] > 2:
         if 'VecFld_' + basis not in adata.uns.keys():
             VectorField(adata, basis=basis)
         X_grid, V_grid =  adata.uns['VecFld_' + basis]['grid'], adata.uns['VecFld_' + basis]['grid_V']
@@ -426,16 +448,26 @@ def stremline_plot(adata, genes, x=0, y=1, method='sparseVFC', basis='trimap', n
         n_genes, genes = len(color), color
         E_vec = adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
 
-    X = adata.obsm['X_' + basis][:, :2] if 'X_' + basis in adata.obsm.keys() else None
-    V = adata.obsm['velocity_' + basis][:, :2] if 'velocity_' + basis in adata.obsm.keys() else None
-    if X is None:
-        raise Exception(f'The {basis} dimension reduction is not performed over your data yet.')
-    if V is None:
-        raise Exception(f'The {basis}_velocity velocity (or velocity) result does not existed in your data.')
+    if ('X_' + basis in adata.obsm.keys()) and ('velocity_' + basis in adata.obsm.keys()):
+        X = adata.obsm['X_' + basis][:, [x, y]]
+        V = adata.obsm['velocity_' + basis][:, [x, y]]
+    else:
+        if 'X_' + basis not in adata.obsm.keys():
+            reduceDimension(adata, velocity_key='velocity_S', reduction_method=basis)
+        if 'kmc' not in adata.uns_keys():
+            cell_velocities(adata, vkey='pca', basis=basis, method='analytical')
+            X = adata.obsm['X_' + basis][:, [x, y]]
+            V = adata.obsm['velocity_' + basis][:, [x, y]]
+        else:
+            kmc = adata.uns['kmc']
+            X = adata.obsm['X_' + basis][:, [x, y]]
+            V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
+            adata.obsm['velocity_' + basis] = V
+
     if 0 in E_vec.shape:
         raise Exception(f'The gene names {genes} (or cell annotations {color}) provided are not existed in your data.')
 
-    if method is 'SparseVFC' and basis is not 'pca':
+    if method is 'SparseVFC' and adata.obsm['X_' + basis].shape[1] > 2:
         if 'VecFld_' + basis not in adata.uns.keys():
             VectorField(adata, basis=basis)
         X_grid, V_grid =  adata.uns['VecFld_' + basis]['grid'], adata.uns['VecFld_' + basis]['grid_V']

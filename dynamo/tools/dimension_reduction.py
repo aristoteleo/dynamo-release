@@ -1,9 +1,6 @@
-import numpy as np
 from sklearn.decomposition import TruncatedSVD
-from sklearn.neighbors import NearestNeighbors
-# from sklearn.manifold import TSNE
 import scipy
-from scipy.stats import norm
+import warnings
 
 from copy import deepcopy
 
@@ -255,7 +252,9 @@ def reduceDimension(adata, n_pca_components=25, n_components=2, n_neighbors=10, 
         adata.uns['neighbors'] = {'params': {'n_neighbors': n_neighbors, 'method': reduction_method}, 'connectivities': None, \
                                   'distances': None, 'indices': None}
     elif reduction_method is 'umap':
-        graph, knn_indices, knn_dists, X_dim = umap_conn_indices_dist_embedding(X_pca) # X_pca
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            graph, knn_indices, knn_dists, X_dim = umap_conn_indices_dist_embedding(X_pca) # X_pca
         adata.obsm['X_umap'] = X_dim
         adata.uns['neighbors'] = {'params': {'n_neighbors': n_neighbors, 'method': reduction_method}, 'connectivities': graph, \
                                   'distances': knn_dists, 'indices': knn_indices}

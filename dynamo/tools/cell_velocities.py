@@ -78,6 +78,7 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
             # adata.obs['stationary_distribution_rnd'] = P_rnd
             X_grid_rnd, V_grid_rnd, D_rnd = velocity_on_grid(X_embedding, delta_X_rnd, xy_grid_nums=xy_grid_nums)
 
+        adata.uns['transition_matrix'] = kmc
     elif method == 'empirical': # add random velocity vectors calculation below
         T, delta_X, X_grid, V_grid, D = _empirical_vec(X_pca, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors)
 
