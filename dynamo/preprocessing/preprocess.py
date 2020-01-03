@@ -113,19 +113,19 @@ def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, r
 
     for layer in layers:
         if layer is 'raw':
-            FM = adata.raw
+            FM = adata.raw.copy()
             szfactors = adata.obs[layer + 'Size_Factor'][:, None]
         elif layer is 'X':
-            FM = adata.X
+            FM = adata.X.copy()
             szfactors = adata.obs['Size_Factor'][:, None]
         elif layer is 'protein':
             if 'protein' in adata.obsm_keys():
-               FM = adata.obsm[layer]
+               FM = adata.obsm[layer].copy()
                szfactors = adata.obs[layer + '_Size_Factor'][:, None]
             else:
                 continue
         else:
-            FM = adata.layers[layer]
+            FM = adata.layers[layer].copy()
             szfactors = adata.obs[layer + '_Size_Factor'][:, None]
 
         if norm_method == 'log' and layer is not 'protein':
@@ -510,19 +510,19 @@ def SVRs(adata, filter_bool=None, layers='X', min_expr_cells=2, min_expr_avg=0, 
 
     for layer in layers:
         if layer is 'raw':
-            CM = adata.X if adata.raw is None else adata.raw
+            CM = adata.X.copy() if adata.raw is None else adata.raw
             szfactors = adata.obs[layer + '_Size_Factor'][:, None] if adata.raw is None else adata.obs['Size_Factor'][:, None]
         elif layer is 'X':
-            CM = adata.X
+            CM = adata.X.copy()
             szfactors = adata.obs['Size_Factor'][:, None]
         elif layer is 'protein':
             if 'protein' in adata.obsm_keys():
-                CM = adata.obsm['protein']
+                CM = adata.obsm['protein'].copy()
                 szfactors = adata.obs[layer + '_Size_Factor'][:, None]
             else:
                 continue
         else:
-            CM = adata.layers[layer]
+            CM = adata.layers[layer].copy()
             szfactors = adata.obs[layer + '_Size_Factor'][:, None]
 
         if issparse(CM):
@@ -712,7 +712,7 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_filtered=True, min_cel
         # nth_score = np.sort(score)[::-1][n_top_genes]
         # filter_bool = adata.var['score'] > nth_score
 
-        valid_table = adata.var.loc[filter_bool, 'score']
+        valid_table = adata.var.loc[filter_bool, :]
         gene_id = np.argsort(-valid_table.loc[:, 'score'])[:n_top_genes]
         gene_id = valid_table.iloc[gene_id, :].index
         filter_bool = adata.var.index.isin(gene_id)

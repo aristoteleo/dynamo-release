@@ -7,7 +7,7 @@ from .utils import get_U_S_for_velocity_estimation
 
 # incorporate the model selection code soon
 def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time', protein_names=None,
-             experiment_type='deg', assumption_mRNA=None, assumption_protein='ss', concat_data=False,
+             experiment_type='deg', assumption_mRNA=None, assumption_protein='ss', NTR_vel = True, concat_data=False,
              log_unnormalized=True):
     """Inclusive model of expression dynamics with scSLAM-seq and multiomics.
 
@@ -38,6 +38,8 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         assumption_protein: str
             Parameter estimation assumption for protein. Available options are:
             (1) 'ss': pseudo steady state;
+        NTR_vel: bool (default: True)
+            Whether use NTR velocity
         concat_data: bool (default: False)
             Whether to concatenate data before estimation. If your data is a list of matrices for each time point, this need to be set as True.
         get_fraction_for_deg: bool (default: True)
@@ -183,7 +185,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
 
         alpha, beta, gamma, eta, delta = est.parameters.values()
 
-        U, S = get_U_S_for_velocity_estimation(subset_adata, has_splicing, has_labeling, log_unnormalized)
+        U, S = get_U_S_for_velocity_estimation(subset_adata, has_splicing, has_labeling, log_unnormalized, NTR_vel)
         vel = velocity(estimation=est)
         vel_U = vel.vel_u(U)
         vel_S = vel.vel_s(U, S)
@@ -297,7 +299,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         params = {'alpha': alpha, 'beta': beta, 'gamma': gamma, 't': t}
         vel = velocity(**params)
 
-        U, S = get_U_S_for_velocity_estimation(subset_adata, has_splicing, log_unnormalized)
+        U, S = get_U_S_for_velocity_estimation(subset_adata, has_splicing, log_unnormalized, NTR_vel)
         vel_U = vel.vel_u(U)
         vel_S = vel.vel_s(U, S)
         vel_P = vel.vel_p(S, P)

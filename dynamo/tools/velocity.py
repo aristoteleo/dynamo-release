@@ -767,8 +767,8 @@ class velocity:
         return n_genes
 
 class estimation:
-    def __init__(self, U=None, Ul=None, S=None, Sl=None, P=None, U_fraction=None, Ul_fraction=None, S_fraction=None, Sl_fraction=None, P_fraction=None,
-                 t=None, ind_for_proteins=None, experiment_type='deg', assumption_mRNA=None, assumption_protein='ss', concat_data=True):
+    def __init__(self, U=None, Ul=None, S=None, Sl=None, P=None, t=None, ind_for_proteins=None, experiment_type='deg',
+                 assumption_mRNA=None, assumption_protein='ss', concat_data=True):
         """The class that estimates parameters with input data.
 
         Arguments
@@ -823,8 +823,7 @@ class estimation:
                 delta: protein degradation rate
         """
         self.t = t
-        self.data = {'uu': U, 'ul': Ul, 'su': S, 'sl': Sl, 'p': P,
-                     'uu_fraction': U_fraction, 'ul_fraction': Ul_fraction, 'su_fraction': S_fraction, 'sl_fraction': Sl_fraction}
+        self.data = {'uu': U, 'ul': Ul, 'su': S, 'sl': Sl, 'p': P}
         if concat_data:
             self.concatenate_data()
 
@@ -1043,8 +1042,8 @@ class estimation:
         i_right = np.int((100-perc_right)/100.0*n) if perc_right is not None else 0
         mask = np.zeros(n, dtype=bool)
         mask[:i_left] = mask[i_right:] = True
-        total_order = np.argsort(s + u)
-        return fit_linreg(s[total_order[mask]], u[total_order[mask]], intercept)
+        extreme_ind = np.argsort(s + u)[mask]
+        return fit_linreg(s[extreme_ind], u[extreme_ind], intercept)
 
     def fit_beta_gamma_lsq(self, t, U, S):
         """Estimate beta and gamma with the degradation data using the least squares method.

@@ -11,7 +11,7 @@ def cal_12_mom(data, t):
 
     return m, v, t_uniq
 
-def get_U_S_for_velocity_estimation(subset_adata, has_splicing, has_labeling, log_unnormalized):
+def get_U_S_for_velocity_estimation(subset_adata, has_splicing, has_labeling, log_unnormalized, NTR):
     if has_splicing:
         if has_labeling:
             if 'X_uu' in subset_adata.layers.keys():  # unlabel spliced: S
@@ -30,12 +30,13 @@ def get_U_S_for_velocity_estimation(subset_adata, has_splicing, has_labeling, lo
                     ul = np.log(ul + 1) if log_unnormalized else ul
                     su = np.log(su + 1) if log_unnormalized else su
                     sl = np.log(sl + 1) if log_unnormalized else sl
+            ul, sl = (ul + sl , uu + ul + su + sl) if NTR else (ul, sl)
         else:
             if 'X_unspliced' in subset_adata.layers.keys():  # unlabel spliced: S
                 ul, sl = subset_adata.layers['X_unspliced'].T, subset_adata.layers['X_spliced'].T
             else:
                 ul, sl = subset_adata.layers['unspliced'].T, subset_adata.layers['spliced'].T
-                if issparse(uu):
+                if issparse(ul):
                     ul.data = np.log(ul.data + 1) if log_unnormalized else ul.data
                     sl.data = np.log(sl.data + 1) if log_unnormalized else sl.data
                 else:
@@ -45,10 +46,10 @@ def get_U_S_for_velocity_estimation(subset_adata, has_splicing, has_labeling, lo
     else:
         if 'X_new' in subset_adata.layers.keys():  # run new / total ratio (NTR)
             U = subset_adata.layers['X_new'].T
-            S = subset_adata.layers['X_total'].T - subset_adata.layers['X_new'].T
+            S = subset_adata.layers['X_total'].T if NTR else subset_adata.layers['X_total'].T - subset_adata.layers['X_new'].T
         elif 'new' in subset_adata.layers.keys():
             U = subset_adata.layers['new'].T
-            S = subset_adata.layers['total'].T - subset_adata.layers['new'].T
+            S = subset_adata.layers['total'].T if NTR else subset_adata.layers['total'].T - subset_adata.layers['new'].T
             if issparse(U):
                 U.data = np.log(U.data + 1) if log_unnormalized else U.data
                 S.data = np.log(S.data + 1) if log_unnormalized else S.data
