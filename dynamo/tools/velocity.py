@@ -1043,7 +1043,8 @@ class estimation:
         i_right = np.int((100-perc_right)/100.0*n) if perc_right is not None else 0
         mask = np.zeros(n, dtype=bool)
         mask[:i_left] = mask[i_right:] = True
-        return fit_linreg(np.sort(s)[mask], np.sort(u)[mask], intercept)
+        total_order = np.argsort(s + u)
+        return fit_linreg(s[total_order[mask]], u[total_order[mask]], intercept)
 
     def fit_beta_gamma_lsq(self, t, U, S):
         """Estimate beta and gamma with the degradation data using the least squares method.
