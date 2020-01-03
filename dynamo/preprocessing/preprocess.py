@@ -7,31 +7,33 @@ from sklearn.decomposition import TruncatedSVD, FastICA
 from .utilities import cook_dist, get_layer_keys
 
 def szFactor(adata, layers='all', locfunc=np.nanmean, round_exprs=True, method='mean-geometric-mean-total'):
-    """Calculate the size factor of the each cell for a AnnData object.
+    """Calculate the size factor of the each cell using geometric mean of total UMI across cells for a AnnData object.
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
     ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object
-        layers: str or list (default: all)
-            The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
-        locfunc: `function`
-            The function to normalize the data
-        round_exprs: `bool`
+        adata: :class:`~anndata.AnnData`.
+            AnnData object.
+        layers: str or list (default: `all`)
+            The layer(s) to be normalized. Default is `all`, including RNA (X, raw) or spliced, unspliced, protein, etc.
+        locfunc: `function` (default: `np.nanmean`)
+            The function to normalize the data.
+        round_exprs: `bool` (default: `True`)
             A logic flag to determine whether the gene expression should be rounded into integers.
-        method: `str`
-            The method used to calculate the expected total reads / UMI. Only mean-geometric-mean-total is supported.
+        method: `str` (default: `mean-geometric-mean-total`)
+            The method used to calculate the expected total reads / UMI used in size factor calculation.
+            Only `mean-geometric-mean-total` and `median` are supported. When `median` is used, `locfunc` will be replaced with
+            `np.nanmedian`.
 
     Returns
     -------
         adata: :AnnData
-            A updated anndata object that are updated with the Size_Factor in the obs slot.
+            A updated anndata object that are updated with the `Size_Factor` (`layer_` + `Size_Factor`) column(s) in the obs attribute.
     """
 
     layers = get_layer_keys(adata, layers)
     if 'raw' in layers and adata.raw is None:
-        adata.raw = adata.X
+        adata.raw = adata.X.copy()
 
     for layer in layers:
         if layer is 'raw':
@@ -52,12 +54,15 @@ def szFactor(adata, layers='all', locfunc=np.nanmean, round_exprs=True, method='
             else:
                 CM = CM.round().astype('int')
 
+        cell_total = CM.sum(axis=1)
+        cell_total += cell_total == 0  # avoid infinity value after log (0)
+
         if method == 'mean-geometric-mean-total':
-            cell_total = CM.sum(axis=1)
-            cell_total += cell_total == 0 # avoid infinity value after log (0)
             sfs = cell_total / np.exp(locfunc(np.log(cell_total)))
+        elif method == "median":
+            sfs = cell_total / np.nanmedian(cell_total)
         else:
-            print('This method is supported!')
+            print('This method is not supported!')
 
         sfs[~np.isfinite(sfs)] = 1
         if layer is 'raw':
@@ -77,15 +82,15 @@ def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, r
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
-            AnnData object
-        layers: str (default: all)
+            AnnData object.
+        layers: str (default: `all`)
             The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
-        norm_method: `str`
-            The method used to normalize data. Note that this method only applies to the X data.
-        pseudo_expr: `int`
+        norm_method: `str` (default: `log`)
+            The method used to normalize data.
+        pseudo_expr: `int` (default: `1`)
             A pseudocount added to the gene expression value before log2 normalization.
-        relative_expr: `bool`
-            A logic flag to determine whether we need to divide gene expression values first by size factor before normalization
+        relative_expr: `bool` (default: `True`)
+            A logic flag to determine whether we need to divide gene expression values first by size factor before normalization.
         keep_filtered: `bool` (default: `True`)
             A logic flag to determine whether we will only store feature genes in the adata object. If it is False, size factor
             will be recalculated only for the selected feature genes.
@@ -93,7 +98,7 @@ def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, r
     Returns
     -------
         adata: :AnnData
-            A updated anndata object that are updated with normalized expression values, X.
+            A updated anndata object that are updated with normalized expression values for different layers.
     """
 
     if 'use_for_dynamo' in adata.var.columns and keep_filtered is False:
@@ -113,31 +118,31 @@ def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, r
 
     for layer in layers:
         if layer is 'raw':
-            FM = adata.raw.copy()
+            CM = adata.raw
             szfactors = adata.obs[layer + 'Size_Factor'][:, None]
         elif layer is 'X':
-            FM = adata.X.copy()
+            CM = adata.X
             szfactors = adata.obs['Size_Factor'][:, None]
         elif layer is 'protein':
             if 'protein' in adata.obsm_keys():
-               FM = adata.obsm[layer].copy()
-               szfactors = adata.obs[layer + '_Size_Factor'][:, None]
+               CM = adata.obsm[layer]
+               szfactors = adata.obs['protein_Size_Factor'][:, None]
             else:
                 continue
         else:
-            FM = adata.layers[layer].copy()
+            CM = adata.layers[layer]
             szfactors = adata.obs[layer + '_Size_Factor'][:, None]
 
         if norm_method == 'log' and layer is not 'protein':
             if relative_expr:
-                FM = FM.multiply(csr_matrix(1/szfactors)) if issparse(FM) else FM / szfactors
+                CM = CM.multiply(csr_matrix(1/szfactors)) if issparse(CM) else CM / szfactors
 
             if pseudo_expr is None:
                 pseudo_expr = 1
-            if issparse(FM):
-                FM.data = np.log2(FM.data + pseudo_expr)
+            if issparse(CM):
+                CM.data = np.log2(CM.data + pseudo_expr)
             else:
-                FM = np.log2(FM + pseudo_expr)
+                CM = np.log2(CM + pseudo_expr)
 
         elif layer is 'protein': # norm_method == 'clr':
             if norm_method is not 'clr':
@@ -145,26 +150,26 @@ def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, r
             """This normalization implements the centered log-ratio (CLR) normalization from Seurat which is computed for
             each gene (M Stoeckius, ‎2017).
             """
-            FM = FM.T
-            n_feature = FM.shape[1]
+            CM = CM.T
+            n_feature = CM.shape[1]
 
-            for i in range(FM.shape[0]):
-                x = FM[i].A if issparse(FM) else FM[i]
+            for i in range(CM.shape[0]):
+                x = CM[i].A if issparse(CM) else CM[i]
                 res = np.log1p(x / (np.exp(np.nansum(np.log1p(x[x > 0])) / n_feature)))
                 res[np.isnan(res)] = 0
                 # res[res > 100] = 100
-                FM[i] = res # no .A is required # https://stackoverflow.com/questions/28427236/set-row-of-csr-matrix
+                CM[i] = res # no .A is required # https://stackoverflow.com/questions/28427236/set-row-of-csr-matrix
 
-            FM = FM.T
+            CM = CM.T
         else:
             warnings.warn(norm_method + ' is not implemented yet')
 
         if layer in ['raw', 'X']:
-            adata.X = FM
+            adata.X = CM
         elif layer is 'protein' and 'protein' in adata.obsm_keys():
-            adata.obsm['X_' + layer] = FM
+            adata.obsm['X_protein'] = CM
         else:
-            adata.layers['X_' + layer] = FM
+            adata.layers['X_' + layer] = CM
 
     return adata
 
@@ -194,29 +199,29 @@ def Gini(adata, layers='all'):
 
     for layer in layers:
         if layer is 'raw':
-            array = adata.raw
+            CM = adata.raw
         elif layer is 'X':
-            array = adata.X
+            CM = adata.X
         elif layer is 'protein':
             if 'protein' in adata.obsm_keys():
-                array = adata.obsm[layer]
+                CM = adata.obsm[layer]
             else:
                 continue
         else:
-            array = adata.layers[layer]
+            CM = adata.layers[layer]
 
         n_features = adata.shape[1]
         gini = np.zeros(n_features)
 
         for i in np.arange(n_features):
-            cur_array = array[:, i].A if issparse(array) else array[:, i] #all values are treated equally, arrays must be 1d
-            if np.amin(array) < 0:
-                cur_array -= np.amin(cur_array) #values cannot be negative
-            cur_array += 0.0000001 # np.min(array[array!=0]) #values cannot be 0
-            cur_array = np.sort(cur_array) #values must be sorted
-            index = np.arange(1,cur_array.shape[0]+1) #index per array element
-            n = cur_array.shape[0] #number of array elements
-            gini[i] = ((np.sum((2 * index - n  - 1) * cur_array)) / (n * np.sum(cur_array))) #Gini coefficient
+            cur_cm = CM[:, i].A if issparse(CM) else CM[:, i] #all values are treated equally, arrays must be 1d
+            if np.amin(CM) < 0:
+                cur_cm -= np.amin(cur_cm) #values cannot be negative
+            cur_cm += 0.0000001 # np.min(array[array!=0]) #values cannot be 0
+            cur_cm = np.sort(cur_cm) #values must be sorted
+            index = np.arange(1,cur_cm.shape[0]+1) #index per array element
+            n = cur_cm.shape[0] #number of array elements
+            gini[i] = ((np.sum((2 * index - n  - 1) * cur_cm)) / (n * np.sum(cur_cm))) #Gini coefficient
 
         if layer in ['raw', 'X']:
             adata.var['gini'] = gini
@@ -503,6 +508,34 @@ def SVRs(adata, filter_bool=None, layers='X', min_expr_cells=2, min_expr_avg=0, 
                          winsorize=False, winsor_perc=(1, 99.5), sort_inverse=False):
     """This function is modified from https://github.com/velocyto-team/velocyto.py/blob/master/velocyto/analysis.py
 
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object.
+        filter_bool: :class:`~numpy.ndarray` (default: None)
+            A boolean array from the user to select cells for downstream analysis.
+        layers: `str` (default: 'X')
+            The layer(s) to be used for calculating dispersion score via support vector regression (SVR). Default is X if there is no spliced layers.
+        min_expr_cells: `int` (default: `2`)
+            minimum number of cells that express that gene for it to be considered in the fit.
+        min_expr_avg: `int` (default: `0`)
+            The minimum average of genes across cells accepted.
+        max_expr_avg: `float` (defaul: `20`)
+            The maximum average of genes across cells accepted before treating house-keeping/outliers for removal.
+        svr_gamma: `float` or None (default: `None`)
+            the gamma hyper-parameter of the SVR.
+        winsorize: `bool` (default: `False`)
+            Wether to winsorize the data for the cv vs mean model.
+        winsor_perc: `tuple` (default: `(1, 99.5)`)
+            the up and lower bound of the winsorization.
+        sort_inverse: `bool` (default: `False`)
+            if True it sorts genes from less noisy to more noisy (to use for size estimation not for feature selection).
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            A updated annData object with `log_m`, `log_cv`, `score` added to .obs columns and `SVR` added to uns attribute
+            as a new key.
     """
     from sklearn.svm import SVR
 
@@ -511,7 +544,7 @@ def SVRs(adata, filter_bool=None, layers='X', min_expr_cells=2, min_expr_avg=0, 
     for layer in layers:
         if layer is 'raw':
             CM = adata.X.copy() if adata.raw is None else adata.raw
-            szfactors = adata.obs[layer + '_Size_Factor'][:, None] if adata.raw is None else adata.obs['Size_Factor'][:, None]
+            szfactors = adata.obs[layer + '_Size_Factor'][:, None] if adata.raw is not None else adata.obs['Size_Factor'][:, None]
         elif layer is 'X':
             CM = adata.X.copy()
             szfactors = adata.obs['Size_Factor'][:, None]
@@ -532,7 +565,7 @@ def SVRs(adata, filter_bool=None, layers='X', min_expr_cells=2, min_expr_avg=0, 
 
         if winsorize:
             if min_expr_cells <= ((100 - winsor_perc[1]) * CM.shape[0] * 0.01):
-                min_expr_cells = int(np.ceil((100 - winsor_perc[0]) * CM.shape[1] * 0.01)) + 2
+                min_expr_cells = int(np.ceil((100 - winsor_perc[1]) * CM.shape[1] * 0.01)) + 2
 
         detected_bool = np.array(((CM > 0).sum(0) > min_expr_cells) & (CM.mean(0) < max_expr_avg) & (
                     CM.mean(0) > min_expr_avg)).flatten()
@@ -542,8 +575,8 @@ def SVRs(adata, filter_bool=None, layers='X', min_expr_cells=2, min_expr_avg=0, 
 
         valid_CM = CM[:, detected_bool]
         if winsorize:
-            down, up = np.percentile(valid_CM, winsor_perc, 0)
-            Sfw = np.clip(valid_CM, down[None, :], up[None, :])
+            down, up = np.percentile(valid_CM.A, winsor_perc, 0) if issparse(valid_CM) else np.percentile(valid_CM, winsor_perc, 0)
+            Sfw = np.clip(valid_CM.A, down[None, :], up[None, :]) if issparse(valid_CM) else np.percentile(valid_CM, winsor_perc, 0)
             mu = Sfw.mean(0)
             sigma = Sfw.std(0, ddof=1)
         else:
@@ -581,31 +614,31 @@ def filter_cells(adata, filter_bool=None, layer='all', keep_filtered=False, min_
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
-            AnnData object
-        filter_bool: :class:`~numpy.ndarray` (default: None)
+            AnnData object.
+        filter_bool: :class:`~numpy.ndarray` (default: `None`)
             A boolean array from the user to select cells for downstream analysis.
         layer: `str` (default: `all`)
             The data from a particular layer (include X) used for feature selection.
-        keep_filtered: `bool` (default: False)
+        keep_filtered: `bool` (default: `False`)
             Whether to keep cells that don't pass the filtering in the adata object.
-        min_expr_genes_s: `int` (default: 50)
-            Minimal number of genes with expression for the data in the spliced layer (also used for X)
-        min_expr_genes_u: `int` (default: 25)
-            Minimal number of genes with expression for the data in the unspliced layer
-        min_expr_genes_p: `int` (default: 1)
-            Minimal number of genes with expression for the data in the protein layer
-        max_expr_genes_s: `float` (default: np.inf)
-            Maximal number of genes with expression for the data in the spliced layer (also used for X)
-        max_expr_genes_u: `float` (default: np.inf)
-            Maximal average expression across cells for the data in the unspliced layer
-        max_expr_genes_p: `float` (default: np.inf)
-            Maximal average expression across cells for the data in the protein layer
+        min_expr_genes_s: `int` (default: `50`)
+            Minimal number of genes with expression for a cell in the data from the spliced layer (also used for X).
+        min_expr_genes_u: `int` (default: `25`)
+            Minimal number of genes with expression for a cell in the data from the unspliced layer.
+        min_expr_genes_p: `int` (default: `1`)
+            Minimal number of genes with expression for a cell in the data from in the protein layer.
+        max_expr_genes_s: `float` (default: `np.inf`)
+            Maximal number of genes with expression for a cell in the data from the spliced layer (also used for X).
+        max_expr_genes_u: `float` (default: `np.inf`)
+            Maximal number of genes with expression for a cell in the data from the unspliced layer.
+        max_expr_genes_p: `float` (default: `np.inf`)
+            Maximal number of protein with expression for a cell in the data from the protein layer.
 
     Returns
     -------
         adata: :class:`~anndata.AnnData`
             An updated AnnData object with use_for_dynamo as a new column in obs to indicate the selection of cells for
-            downstream analysis. adata will be subsetted with only the cells pass filter if keep_unflitered is set to be
+            downstream analysis. adata will be subsetted with only the cells pass filtering if keep_filtered is set to be
             False.
     """
 
@@ -627,7 +660,6 @@ def filter_cells(adata, filter_bool=None, layer='all', keep_filtered=False, min_
         adata = adata[np.array(filter_bool).flatten(), :]
         adata.obs['use_for_dynamo'] = True
 
-
     return adata
 
 
@@ -639,38 +671,37 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_filtered=True, min_cel
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
-            AnnData object
+            AnnData object.
         filter_bool: :class:`~numpy.ndarray` (default: None)
             A boolean array from the user to select genes for downstream analysis.
         layer: `str` (default: `X`)
             The data from a particular layer (include X) used for feature selection.
-        keep_filtered: `bool` (default: True)
+        keep_filtered: `bool` (default: `True`)
             Whether to keep genes that don't pass the filtering in the adata object.
-        min_cell_s: `int` (default: 5)
-            Minimal number of cells with expression for the data in the spliced layer (also used for X)
-        min_cell_u: `int` (default: 5)
-            Minimal number of cells with expression for the data in the unspliced layer
-        min_cell_p: `int` (default: 5)
-            Minimal number of cells with expression for the data in the protein layer
-        min_avg_exp_s: `float` (default: 1e-2)
-            Minimal average expression across cells for the data in the spliced layer (also used for X)
-        min_avg_exp_u: `float` (default: 1e-4)
-            Minimal average expression across cells for the data in the unspliced layer
-        min_avg_exp_p: `float` (default: 1e-4)
-            Minimal average expression across cells for the data in the protein layer
-        max_avg_exp: `float` (default: 100.)
-            Maximal average expression across cells for the data in all layers (also used for X)
-        sort_by: `str` (default: dispersion)
-            Which soring datatype, either dispersion or Gini index, to be used to select genes.
-        n_top_genes
+        min_cell_s: `int` (default: `5`)
+            Minimal number of cells with expression for the data in the spliced layer (also used for X).
+        min_cell_u: `int` (default: `5`)
+            Minimal number of cells with expression for the data in the unspliced layer.
+        min_cell_p: `int` (default: `5`)
+            Minimal number of cells with expression for the data in the protein layer.
+        min_avg_exp_s: `float` (default: `1e-2`)
+            Minimal average expression across cells for the data in the spliced layer (also used for X).
+        min_avg_exp_u: `float` (default: `1e-4`)
+            Minimal average expression across cells for the data in the unspliced layer.
+        min_avg_exp_p: `float` (default: `1e-4`)
+            Minimal average expression across cells for the data in the protein layer.
+        max_avg_exp: `float` (default: `100`.)
+            Maximal average expression across cells for the data in all layers (also used for X).
+        sort_by: `str` (default: `SVR`)
+            Which soring method, either SVR, dispersion or Gini index, to be used to select genes.
+        n_top_genes: `int` (default: `int`)
             How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
 
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            An updated AnnData object with use_for_dynamo as a new column in var to indicate the selection of genes for
-            downstream analysis. adata will be subsetted with only the genes pass filter if keep_unflitered is set to be
-            False.
+            An updated AnnData object with use_for_dynamo as a new column in .var attributes to indicate the selection of genes for
+            downstream analysis. adata will be subsetted with only the genes pass filter if keep_unflitered is set to be False.
     """
 
     detected_bool = np.ones(adata.X.shape[1], dtype=bool)
@@ -690,7 +721,7 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_filtered=True, min_cel
     adata.var['pass_basic_filter'] = np.array(filter_bool).flatten()
     n_top_genes = np.min([n_top_genes, adata.shape[1]])
     if sort_by is 'dispersion':
-        table = topTable(adata, layer, mode=sort_by)
+        table = topTable(adata, layer, mode='dispersion')
         valid_table = table.query("dispersion_empirical > dispersion_fit")
         valid_table = valid_table.loc[set(adata.var.index[filter_bool]).intersection(valid_table.index), :]
         gene_id = np.argsort(-valid_table.loc[:, 'dispersion_empirical'])[:n_top_genes]
@@ -699,18 +730,12 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_filtered=True, min_cel
     elif sort_by is 'gini':
         table = topTable(adata, layer, mode='gini')
         valid_table = table.loc[filter_bool, :]
-        gene_id = np.argsort(-valid_table.loc[:, 'gini'])[:]
+        gene_id = np.argsort(-valid_table.loc[:, 'gini'])[:n_top_genes]
         gene_id = valid_table.index[gene_id]
         filter_bool = gene_id.isin(adata.var.index)
     elif sort_by is 'SVR':
-        # min_cell_s=5, min_cell_u=5, min_cell_p=5,
-        #                  min_avg_exp_s=1e-2, min_avg_exp_u=1e-4, min_avg_exp_p=1e-4, max_avg_exp=100., sort_by='dispersion',
-        #                  n_top_genes=3000
         SVRs(adata, layers=layer, filter_bool=filter_bool, min_expr_cells=0, min_expr_avg=0, max_expr_avg=np.inf,
              svr_gamma=None, winsorize=False, winsor_perc=(1, 99.5), sort_inverse=False)
-        # score, adata.var['score'][~filter_bool] = adata.var['score'][filter_bool], None
-        # nth_score = np.sort(score)[::-1][n_top_genes]
-        # filter_bool = adata.var['score'] > nth_score
 
         valid_table = adata.var.loc[filter_bool, :]
         gene_id = np.argsort(-valid_table.loc[:, 'score'])[:n_top_genes]
@@ -735,45 +760,45 @@ def recipe_monocle(adata, normalized=None, layer=None, genes_to_use=None, method
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
-            AnnData object
-        normalized: `None` or `bool` (default: False)
-            If you already normalized your data (or run recipe_monocle already), set this to be true to avoid renormalizing your data.
-            By default it is set to be None and the first 20 values (adata.X is sparse) or first column will be checked to
+            AnnData object.
+        normalized: `None` or `bool` (default: `None`)
+            If you already normalized your data (or run recipe_monocle already), set this to be `True` to avoid renormalizing your data.
+            By default it is set to be `None` and the first 20 values of adata.X (if adata.X is sparse) or its first column will be checked to
             determine whether you already normalized your data. This only works for UMI based or read-counts data.
-        layer: str (default: None)
+        layer: str (default: `None`)
             The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
-        genes_to_use: `list` (default: None)
+        genes_to_use: `list` (default: `None`)
             A list genes of gene names that will be used to set as the feature genes for downstream analysis.
-        method: `str`
+        method: `str` (default: `log`)
             The linear dimension reduction methods to be used.
-        num_dim: `int`
-            The number of dimensions reduced to.
-        norm_method: `str`
+        num_dim: `int` (default: `50`)
+            The number of linear dimensions reduced to.
+        norm_method: `str` (default: `log`)
             The method to normalize the data.
-        pseudo_expr: `int`
+        pseudo_expr: `int` (default: `1`)
             A pseudocount added to the gene expression value before log2 normalization.
-        feature_selection: `str`
-            Which soring datatype, either dispersion, SVR or Gini index, to be used to select genes.
-        n_top_genes: `int`
+        feature_selection: `str` (default: `SVR`)
+            Which soring method, either dispersion, SVR or Gini index, to be used to select genes.
+        n_top_genes: `int` (default: `2000`)
             How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
-        relative_expr: `bool`
-            A logic flag to determine whether we need to divide gene expression values first by size factor before normalization
-        keep_filtered_cells: `bool` (default: True)
+        relative_expr: `bool` (default: `True`)
+            A logic flag to determine whether we need to divide gene expression values first by size factor before normalization.
+        keep_filtered_cells: `bool` (default: `True`)
             Whether to keep genes that don't pass the filtering in the adata object.
-        keep_filtered_genes: `bool` (default: True)
+        keep_filtered_genes: `bool` (default: `True`)
             Whether to keep genes that don't pass the filtering in the adata object.
-        fc_kwargs:
+        fc_kwargs: `dict` or None (default: `None`)
             Other Parameters passed into the filter_genes function.
-        fg_kwargs:
+        fg_kwargs: `dict` or None (default: `None`)
             Other Parameters passed into the filter_cells function.
 
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions.
+            A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions, etc.
     """
 
-    # automatically detect whether the data is normalized (only works for UMI based data).
+    # automatically detect whether the data is normalized (only works for readcounts / UMI based data).
     if normalized is None:
         normalized = not np.allclose((adata.X.data[:20] if issparse(adata.X) else adata.X[:, 0]) % 1, 0, atol=1e-3)
     if not normalized:
@@ -804,28 +829,28 @@ def recipe_monocle(adata, normalized=None, layer=None, genes_to_use=None, method
 
     # only use genes pass filter (based on use_for_dynamo) to perform dimension reduction.
     if layer is None:
-        FM = adata.X[:, adata.var.use_for_dynamo.values]
+        CM = adata.X[:, adata.var.use_for_dynamo.values]
     else:
         if layer is 'X':
-            FM = adata.X[:, adata.var.use_for_dynamo.values]
+            CM = adata.X[:, adata.var.use_for_dynamo.values]
         elif layer is 'protein':
-            FM = adata.obsm['X_' + layer]
+            CM = adata.obsm['X_protein']
         else:
-            FM = adata.layers['X_' + layer][:, adata.var.use_for_dynamo.values]
+            CM = adata.layers['X_' + layer][:, adata.var.use_for_dynamo.values]
 
-    fm_genesums = FM.sum(axis=0)
-    valid_ind = (np.isfinite(fm_genesums)) + (fm_genesums != 0)
+    cm_genesums = CM.sum(axis=0)
+    valid_ind = (np.isfinite(cm_genesums)) + (cm_genesums != 0)
     valid_ind = np.array(valid_ind).flatten()
-    FM = FM[:, valid_ind]
+    CM = CM[:, valid_ind]
 
     if method is 'pca':
         fit = TruncatedSVD(n_components=num_dim + 1, random_state=2019) # unscaled PCA
-        reduce_dim = fit.fit_transform(FM)[:, 1:] # first columns is related to the total UMI (or library size)
+        reduce_dim = fit.fit_transform(CM)[:, 1:] # first columns is related to the total UMI (or library size)
         adata.uns['explained_variance_ratio_'] = fit.explained_variance_ratio_[1:]
     elif method == 'ica':
         fit=FastICA(num_dim,
                 algorithm='deflation', tol=5e-6, fun='logcosh', max_iter=1000)
-        reduce_dim=fit.fit_transform(FM.toarray())
+        reduce_dim=fit.fit_transform(CM.toarray())
 
     adata.obsm['X_' + method.lower()] = reduce_dim
     adata.uns[method+'_fit'], adata.uns['feature_selection'] = fit, feature_selection
