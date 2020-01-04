@@ -129,13 +129,16 @@ def variance_explained(adata, threshold=0.002, n_pcs=None):
     import matplotlib.pyplot as plt
 
     var_ = adata.uns["explained_variance_ratio_"]
-    # var_ = var_ / var_.sum()
-    plt.plot(np.cumsum(var_), c='k')
+    _, ax = plt.subplots()
+    ax.plot(var_, c='k')
     tmp = np.diff(np.diff(np.cumsum(var_)) > threshold)
     n_comps = n_pcs if n_pcs is not None else np.where(tmp)[0][0] if np.any(tmp) else 20
-    plt.axvline(n_comps, c="r")
-    plt.xlabel('PCs')
-    plt.ylabel('Cumulative variance')
+    ax.axvline(n_comps, c="r")
+    ax.set_xlabel('PCs')
+    ax.set_ylabel('Variance explained')
+    ax.set_xticks(list(ax.get_xticks()) + [40, 51])
+    ax.set_xlim(0, len(var_))
+
     plt.show()
 
 
