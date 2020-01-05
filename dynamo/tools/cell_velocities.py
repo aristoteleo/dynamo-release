@@ -4,7 +4,7 @@ from scipy.sparse import csc_matrix, issparse
 from .Markov import *
 from numba import jit
 
-def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_cells_trick=False, calc_rnd_vel=False,
+def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', num_pcs=None, neg_cells_trick=False, calc_rnd_vel=False,
                     xy_grid_nums=(50, 50), sample_fraction=None, random_seed=19491001, **kmc_kwargs):
     """Compute transition probability and project high dimension velocity vector to existing low dimension embedding.
 
@@ -52,6 +52,7 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', neg_ce
     neighbors, dist, indices = adata.uns['neighbors']['connectivities'], adata.uns['neighbors']['distances'], adata.uns['neighbors']['indices']
     V_mat = adata.obsm['_velocity_' + vkey] if '_velocity_' + vkey in adata.obsm.keys() else None
     X_pca, X_embedding = adata.obsm['X_pca'], adata.obsm['X_'+basis][:, :2]
+    X_pca = X_pca if num_pcs is None else X_pca[:, :num_pcs]
 
     # add both source and sink distribution
     if method == 'analytical':

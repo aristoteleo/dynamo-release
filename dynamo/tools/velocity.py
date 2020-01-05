@@ -665,7 +665,7 @@ class velocity:
                 beta = np.repeat(self.parameters['beta'].reshape((-1, 1)), U.shape[1], axis=1)
             elif self.parameters['beta'].shape[1] == len(t_uniq) and len(t_uniq) > 1:
                 beta = np.zeros_like(U.shape)
-                for i in range(t_uniq):
+                for i in range(len(t_uniq)):
                     cell_inds = t == t_uniq[i]
                     beta[:, cell_inds] = np.repeat(self.parameters['beta'][:, i], t_uniq_cnt[i], axis=1)
             else:
@@ -675,7 +675,7 @@ class velocity:
                 gamma = np.repeat(self.parameters['gamma'].reshape((-1, 1)), U.shape[1], axis=1)
             elif self.parameters['gamma'].shape[1] == len(t_uniq) and len(t_uniq) > 1:
                 gamma = np.zeros_like(U.shape)
-                for i in range(t_uniq):
+                for i in range(len(t_uniq)):
                     cell_inds = t == t_uniq[i]
                     gamma[:, cell_inds] = np.repeat(self.parameters['gamma'][:, i], t_uniq_cnt[i], axis=1)
             else:
@@ -710,17 +710,21 @@ class velocity:
                 eta = np.repeat(self.parameters['eta'].reshape((-1, 1)), S.shape[1], axis=1)
             elif self.parameters['eta'].shape[1] == len(t_uniq) and len(t_uniq) > 1:
                 eta = np.zeros_like(S.shape)
-                for i in range(t_uniq):
+                for i in range(len(t_uniq)):
                     cell_inds = t == t_uniq[i]
                     eta[:, cell_inds] = np.repeat(self.parameters['eta'][:, i], t_uniq_cnt[i], axis=1)
+            else:
+                eta = np.repeat(self.parameters['eta'], S.shape[1], axis=1)
 
             if len(self.parameters['delta'].shape) == 1:
                 delta = np.repeat(self.parameters['delta'].reshape((-1, 1)), S.shape[1], axis=1)
             elif self.parameters['delta'].shape[1] == len(t_uniq) and len(t_uniq) > 1:
                 delta = np.zeros_like(S.shape)
-                for i in range(t_uniq):
+                for i in range(len(t_uniq)):
                     cell_inds = t == t_uniq[i]
                     delta[:, cell_inds] = np.repeat(self.parameters['delta'][:, i], t_uniq_cnt[i], axis=1)
+            else:
+                delta = np.repeat(self.parameters['delta'], S.shape[1], axis=1)
 
             V = csr_matrix(eta).multiply(S) - csr_matrix(delta).multiply(P) if issparse(P) else \
                     eta * S - delta * P
@@ -784,12 +788,14 @@ class estimation:
         t: :class:`~estimation`
             A vector of time points.
         ind_for_proteins: :class:`~numpy.ndarray`
-            A 1-D vector of the indices in the U, Ul, S, Sl layers that corresponds to the row name in the protein or X_protein key of obsm attribute.
+            A 1-D vector of the indices in the U, Ul, S, Sl layers that corresponds to the row name in the `protein` or
+            `X_protein` key of `.obsm` attribute.
         experiment_type: str
             labelling experiment type. Available options are: 
             (1) 'deg': degradation experiment; 
             (2) 'kin': synthesis experiment; 
-            (3) 'one-shot': one-shot kinetic experiment.
+            (3) 'one-shot': one-shot kinetic experiment;
+            (4) 'mix_std_stm': a mixed steady state and stimulation labeling experiment.
         assumption_mRNA: str
             Parameter estimation assumption for mRNA. Available options are: 
             (1) 'ss': pseudo steady state; 
@@ -887,7 +893,7 @@ class estimation:
                         uu_m, uu_v, _ = cal_12_mom(self.data['uu'], self.t)
                         for i in range(n):
                             alpha[i], alpha_b[i], alpha_r2[i] = fit_alpha_degradation(t_uniq, uu_m[i], self.parameters['gamma'][i])
-                        self.parameters['alpha'], self.aux_param['alpha_intercept'], self.aux_param['uu0'], self.aux_param['alpha_r2'] = alpha, alpha_b, alpha_b, alpha_r2,
+                        self.parameters['alpha'], self.aux_param['alpha_intercept'], self.aux_param['uu0'], self.aux_param['alpha_r2'] = alpha, alpha_b, alpha_b, alpha_r2
             elif (self.extyp == 'kin' or self.extyp == 'one_shot') and len(np.unique(self.t)) > 1:
                 if np.all(self._exist_data('ul', 'uu', 'su')):
                     if not self._exist_parameter('beta'):
@@ -965,9 +971,6 @@ class estimation:
 
                     self.parameters['beta'], self.parameters['gamma'], self.aux_param['total0'], self.aux_param['U0'] = beta, gamma, total, U
                     # alpha estimation
-                    # assume constant alpha across all cells
-                    # for i in range(n):
-                    #     # for j in range(len(self.data['ul'][i])):
                     self.parameters['alpha'] = self.solve_alpha_mix_std_stm(self.t, self.data['ul'], self.parameters['beta'])
                 elif np.all(self._exist_data('ul', 'uu')):
                     n = self.data['uu'].shape[0]  # self.get_n_genes(data=U)
@@ -984,9 +987,6 @@ class estimation:
                         # print('Steady state, stimulation, sci-fate like gamma values are ', gamma_1, '; ', gamma_2, '; ', gamma_3)
                     self.parameters['gamma'], self.aux_param['U0'] = gamma, U
                     # alpha estimation
-                    # assume constant alpha across all cells
-                    # for i in range(n):
-                    #     # for j in range(len(self.data['ul'][i])):
                     self.parameters['alpha'] = self.solve_alpha_mix_std_stm(self.t, self.data['ul'], self.parameters['gamma'])
         # fit protein
         if np.all(self._exist_data('p', 'su')):
@@ -1011,9 +1011,9 @@ class estimation:
         Arguments
         ---------
         u: :class:`~numpy.ndarray` or sparse `csr_matrix`
-            A matrix of spliced mRNA counts. Dimension: genes x cells.
+            A matrix of unspliced mRNA counts. Dimension: genes x cells.
         s: :class:`~numpy.ndarray` or sparse `csr_matrix`
-            A matrix of protein counts. Dimension: genes x cells.
+            A matrix of spliced mRNA counts. Dimension: genes x cells.
         intercept: bool
             If using steady state assumption for fitting, then:
             True -- the linear regression is performed with an unfixed intercept;
@@ -1105,10 +1105,10 @@ class estimation:
         return gamma, l0
 
     def solve_alpha_mix_std_stm(self, t, ul, beta, clusters=None, alpha_time_dependent=True):
-        """Estimate the steady state transcription rate and analtyically calculate the stimulation transcription rate
+        """Estimate the steady state transcription rate and analytically calculate the stimulation transcription rate
         given beta and steady state alpha for a mixed steady state and stimulation labeling experiment. 
         
-        This approach assumes constant beta or gamma for both steady state or stimulation period.
+        This approach assumes the same constant beta or gamma for both steady state or stimulation period.
 
         Parameters
         ----------

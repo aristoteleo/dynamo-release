@@ -41,7 +41,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
             Parameter estimation assumption for protein. Available options are:
             (1) 'ss': pseudo steady state;
         NTR_vel: `bool` (default: `True`)
-            Whether use NTR velocity.
+            Whether to use NTR (new/total ratio) velocity.
         concat_data: `bool` (default: `False`)
             Whether to concatenate data before estimation. If your data is a list of matrices for each time point, this need to be set as True.
         log_unnormalized: `bool` (default: `True`)

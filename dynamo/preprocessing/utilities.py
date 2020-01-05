@@ -97,7 +97,7 @@ def cook_dist(model, X, good):
 
 
 def get_layer_keys(adata, layers='all', include_protein=True):
-    """Get the list of available layers keys.
+    """Get the list of available layers' keys.
     """
     layer_keys = list(adata.layers.keys())
     if 'protein' in adata.obsm.keys() and include_protein:
