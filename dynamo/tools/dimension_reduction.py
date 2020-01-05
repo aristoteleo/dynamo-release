@@ -1,28 +1,26 @@
 from sklearn.decomposition import TruncatedSVD
 import scipy
 import warnings
-
 from copy import deepcopy
-
 from .psl import *
 
 
 def extract_indices_dist_from_graph(graph, n_neighbors):
-    """Extract the matrices for index, distance from the associate kNN sparse graph
+    """Extract the matrices for index, distance from the associated kNN sparse graph
 
     Arguments
     ---------
-    graph: sparse matrix (`.X`, dtype `float32`)
-        Sparse matrix of the kNN graph (n_cell x n_cell). The element in the matrix corresponds to the distance between cells.
-    n_neighbors: 'int' (optional, default 15)
-        The number of nearest neighbors of the kNN graph.
+        graph: sparse matrix (`.X`, dtype `float32`)
+            Sparse matrix of the kNN graph (n_cell x n_cell). The element in the matrix corresponds to the distance between cells.
+        n_neighbors: 'int' (optional, default 15)
+            The number of nearest neighbors of the kNN graph.
 
     Returns
     -------
-    ind_mat: :class:`~numpy.ndarray`
-        The matrix (n_cell x n_neighbors) that stores the indices for the each cell's n_neighbors nearest neighbors.
-    dist_mat: :class:`~numpy.ndarray`
-        The matrix (n_cell x n_neighbors) that stores the distances for the each cell's n_neighbors nearest neighbors.
+        ind_mat: :class:`~numpy.ndarray`
+            The matrix (n_cell x n_neighbors) that stores the indices for the each cell's n_neighbors nearest neighbors.
+        dist_mat: :class:`~numpy.ndarray`
+            The matrix (n_cell x n_neighbors) that stores the distances for the each cell's n_neighbors nearest neighbors.
     """
 
     n_cells = graph.shape[0]
@@ -30,22 +28,24 @@ def extract_indices_dist_from_graph(graph, n_neighbors):
     dist_mat = np.zeros((n_cells, n_neighbors), dtype=graph.dtype)
 
     for cur_cell in range(n_cells):
-        cur_neighbors = graph[cur_cell, :].nonzero()  #returns the coordinate tuple for non-zero items
+        cur_neighbors = graph[cur_cell, :].nonzero()  # returns the coordinate tuple for non-zero items
 
         # set itself as the nearest neighbor
         ind_mat[cur_cell, 0] = cur_cell
         dist_mat[cur_cell, 0] = 0
 
         # there could be more or less than n_neighbors because of an approximate search
-        if len(cur_neighbors[1]) != n_neighbors - 1:
+        cur_n_neighbors = len(cur_neighbors[1])
+        if cur_n_neighbors != n_neighbors - 1:  # could not broadcast input array from shape (13) into shape (14)
             sorted_indices = np.argsort(graph[cur_cell][:, cur_neighbors[1]].A)[0][:(n_neighbors - 1)]
             ind_mat[cur_cell, 1:] = cur_neighbors[1][sorted_indices]
             dist_mat[cur_cell, 1:] = graph[cur_cell][0, cur_neighbors[1][sorted_indices]].A
         else:
-            ind_mat[cur_cell, 1:] = cur_neighbors[1] # could not broadcast input array from shape (13) into shape (14)
+            ind_mat[cur_cell, 1:] = cur_neighbors[1]
             dist_mat[cur_cell, 1:] = graph[cur_cell][:, cur_neighbors[1]].A
 
     return ind_mat, dist_mat
+
 
 def umap_conn_indices_dist_embedding(X,
         n_neighbors=15,
@@ -54,52 +54,40 @@ def umap_conn_indices_dist_embedding(X,
         min_dist=0.1,
         random_state=0,
         verbose=False):
-    """Compute connectivity graph, matrices for kNN neighbor indices, distance and low dimension embedding with UMAP.
+    """Compute connectivity graph, matrices for kNN neighbor indices, distance matrix and low dimension embedding with UMAP.
     This code is adapted from umap-learn (https://github.com/lmcinnes/umap/blob/97d33f57459de796774ab2d7fcf73c639835676d/umap/umap_.py)
 
     Arguments
     ---------
-    X: sparse matrix (`.X`, dtype `float32`)
-        expression matrix (n_cell x n_genes)
-    n_neighbors: 'int' (optional, default 15)
-        The number of nearest neighbors to compute for each sample in ``X``.
-    n_components: 'int' (optional, default 2)
-        The dimension of the space to embed into.
-    metric: 'str' or `callable` (optional, default cosine)
-        The metric to use for the computation.
-    min_dist: 'float' (optional, default 0.1)
-        The effective minimum distance between embedded points. Smaller values will result in a more clustered/clumped
-        embedding where nearby points on the manifold are drawn closer together, while larger values will result on a
-        more even dispersal of points. The value should be set relative to the ``spread`` value, which determines the
-        scale at which embedded points will be spread out.
-    random_state: `int`, `RandomState` instance or `None`, optional (default: None)
-        If int, random_state is the seed used by the random number generator; If RandomState instance, random_state is
-        the random number generator; If None, the random number generator is the RandomState instance used by `numpy.random`.
-    verbose: `bool` (optional, default False)
-        Controls verbosity of logging.
+        X: sparse matrix (`.X`, dtype `float32`)
+            expression matrix (n_cell x n_genes)
+        n_neighbors: 'int' (optional, default 15)
+            The number of nearest neighbors to compute for each sample in ``X``.
+        n_components: 'int' (optional, default 2)
+            The dimension of the space to embed into.
+        metric: 'str' or `callable` (optional, default `cosine`)
+            The metric to use for the computation.
+        min_dist: 'float' (optional, default `0.1`)
+            The effective minimum distance between embedded points. Smaller values will result in a more clustered/clumped
+            embedding where nearby points on the manifold are drawn closer together, while larger values will result on a
+            more even dispersal of points. The value should be set relative to the ``spread`` value, which determines the
+            scale at which embedded points will be spread out.
+        random_state: `int`, `RandomState` instance or `None`, optional (default: None)
+            If int, random_state is the seed used by the random number generator; If RandomState instance, random_state is
+            the random number generator; If None, the random number generator is the RandomState instance used by `numpy.random`.
+        verbose: `bool` (optional, default False)
+            Controls verbosity of logging.
 
     Returns
     -------
-    Returns an updated `adata` with reduced dimension data for spliced counts, projected future transcript counts 'Y_dim' and adjacency matrix when possible.
+        graph, knn_indices, knn_dists, embedding_
+            A tuple of kNN graph (`graph`), indices of nearest neighbors of each cell (knn_indicies), distances of nearest
+            neighbors (knn_dists) and finally the low dimensional embedding (embedding_).
     """
 
     from sklearn.utils import check_random_state
     from sklearn.metrics import pairwise_distances
     from umap.umap_ import nearest_neighbors, fuzzy_simplicial_set, simplicial_set_embedding, find_ab_params
-
-    import umap.sparse as sparse
-    import umap.distances as dist
-
-    from umap.utils import tau_rand_int, deheap_sort
-    from umap.rp_tree import rptree_leaf_array, make_forest
-    # https://github.com/lmcinnes/umap/blob/97d33f57459de796774ab2d7fcf73c639835676d/umap/nndescent.py
-    from umap.nndescent import (
-        make_nn_descent,
-        make_initialisations,
-        make_initialized_nnd_search,
-        initialise_search,
-    )
-    from umap.spectral import spectral_layout
 
     random_state = check_random_state(42)
 
@@ -118,7 +106,6 @@ def umap_conn_indices_dist_embedding(X,
         g_tmp = deepcopy(graph)
         g_tmp[graph.nonzero()] = dmat[graph.nonzero()]
         knn_indices, knn_dists = extract_indices_dist_from_graph(g_tmp, n_neighbors=n_neighbors)
-
     else:
         # Standard case
         (knn_indices, knn_dists, rp_forest) = nearest_neighbors(
@@ -216,18 +203,18 @@ def reduceDimension(adata, n_pca_components=25, n_components=2, n_neighbors=10, 
             X_t = adata.X + adata.layers[velocity_key]
 
     if((not 'X_pca' in adata.obsm.keys()) or 'pca_fit' not in adata.uns.keys()) or reduction_method is "pca":
-        transformer = TruncatedSVD(n_components=n_pca_components, random_state=0)
+        transformer = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)
         X_fit = transformer.fit(X)
-        X_pca = X_fit.transform(X)
+        X_pca = X_fit.transform(X)[:, 1:]
         adata.obsm['X_pca'] = X_pca
         if velocity_key is not None and "_velocity_pca" not in adata.obsm.keys():
-            X_t_pca = X_fit.transform(X_t)
+            X_t_pca = X_fit.transform(X_t)[:, 1:]
             adata.obsm['_velocity_pca'] = X_t_pca - X_pca
     else:
         X_pca = adata.obsm['X_pca'][:, :n_pca_components]
         if velocity_key is not None and "_velocity_pca" not in adata.obsm.keys():
             X_t_pca = adata.uns['pca_fit'].fit_transform(X_t)
-            adata.obsm['_velocity_pca'] = X_t_pca[:, :n_pca_components] - X_pca
+            adata.obsm['_velocity_pca'] = X_t_pca[:, 1:(n_pca_components + 1)] - X_pca
         adata.obsm['X_pca'] = X_pca
 
     if reduction_method is "trimap":
@@ -243,7 +230,11 @@ def reduceDimension(adata, n_pca_components=25, n_components=2, n_neighbors=10, 
         adata.uns['neighbors'] = {'params': {'n_neighbors': n_neighbors, 'method': reduction_method}, 'connectivities': None, \
                                   'distances': None, 'indices': None}
     elif reduction_method is 'tSNE':
-        from fitsne import FItSNE
+        try:
+            from fitsne import FItSNE
+        except ImportError:
+            print('Please first install fitsne to perform accelerated tSNE method. Install instruction is provided here: https://pypi.org/project/fitsne/')
+
         X_dim=FItSNE(X_pca, nthreads=cores) # use FitSNE
 
         # bh_tsne = TSNE(n_components = n_components)
@@ -259,7 +250,7 @@ def reduceDimension(adata, n_pca_components=25, n_components=2, n_neighbors=10, 
         adata.uns['neighbors'] = {'params': {'n_neighbors': n_neighbors, 'method': reduction_method}, 'connectivities': graph, \
                                   'distances': knn_dists, 'indices': knn_indices}
     elif reduction_method is 'psl':
-        adj_mat, X_dim = psl_py(X_pca, d = n_components, K = n_neighbors) # this need to be updated
+        adj_mat, X_dim = psl_py(X_pca, d=n_components, K=n_neighbors) # this need to be updated
         adata.obsm['X_psl'] = X_dim
         adata.uns['PSL_adj_mat'] = adj_mat
 
@@ -267,9 +258,3 @@ def reduceDimension(adata, n_pca_components=25, n_components=2, n_neighbors=10, 
         raise Exception('reduction_method {} is not supported.'.format(reduction_method))
 
     return adata
-
-# if __name__ == '__main__':
-#     # import anndata
-#     # adata = anndata.read_h5ad('/Users/xqiu/data/tmp.h5ad')
-#     #
-#     # dyn.tl.reduceDimension(tmp, velocity_key='velocity_S')
