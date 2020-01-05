@@ -136,7 +136,7 @@ def variance_explained(adata, threshold=0.002, n_pcs=None):
     ax.axvline(n_comps, c="r")
     ax.set_xlabel('PCs')
     ax.set_ylabel('Variance explained')
-    ax.set_xticks(list(ax.get_xticks()) + [40, 51])
+    ax.set_xticks(list(ax.get_xticks()) + [n_comps])
     ax.set_xlim(0, len(var_))
 
     plt.show()

@@ -9,49 +9,50 @@ from .utils import get_U_S_for_velocity_estimation
 def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time', protein_names=None,
              experiment_type='deg', assumption_mRNA=None, assumption_protein='ss', NTR_vel = True, concat_data=False,
              log_unnormalized=True):
-    """Inclusive model of expression dynamics with scSLAM-seq and multiomics.
+    """Inclusive model of expression dynamics considers splicing, metabolic labeling and protein translation. It supports
+    learning high-dimensional velocity vector samples for droplet based (10x, inDrop, drop-seq, etc), scSLAM-seq, NASC-seq
+    sci-fate, scNT-seq or cite-seq datasets.
 
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
-            AnnData object
+            AnnData object.
         filter_gene_mode: `str` (default: `final`)
             The string for indicating which mode (one of, ['final', 'basic', 'no']) of gene filter will be used.
-        mode: `str` (default: deterministic)
+        mode: `str` (default: `deterministic`)
             string indicates which estimation mode will be used. Currently "deterministic" and "moment" methods are supported.
             A "model_selection" mode will be supported soon in which alpha, beta and gamma will be modeled as a function of time.
-        tkey: `str` (default: Time)
+        tkey: `str` (default: `Time`)
             The column key for the time label of cells in .obs. Used for either "steady_state" or non-"steady_state" mode or `moment` mode  with labeled data.
         protein_names: `List`
-            A list of gene names corresponds to the rows of the measured proteins in the X_protein of the obsm attribute. The names have to be included
+            A list of gene names corresponds to the rows of the measured proteins in the `X_protein` of the `obsm` attribute. The names have to be included
             in the adata.var.index.
-        experiment_type: str
+        experiment_type: `str`
             labelling experiment type. Available options are:
             (1) 'deg': degradation experiment;
-            (2) 'kin': synthesis experiment;
+            (2) 'kin': synthesis/kinetics experiment;
             (3) 'one-shot': one-shot kinetic experiment.
-        assumption_mRNA: str
+        assumption_mRNA: `str`
             Parameter estimation assumption for mRNA. Available options are:
             (1) 'ss': pseudo steady state;
             (2) None: kinetic data with no assumption.
             If no labelling data exists, assumption_mRNA will automatically set to be 'ss'.
-        assumption_protein: str
+        assumption_protein: `str`
             Parameter estimation assumption for protein. Available options are:
             (1) 'ss': pseudo steady state;
-        NTR_vel: bool (default: True)
-            Whether use NTR velocity
-        concat_data: bool (default: False)
+        NTR_vel: `bool` (default: `True`)
+            Whether use NTR velocity.
+        concat_data: `bool` (default: `False`)
             Whether to concatenate data before estimation. If your data is a list of matrices for each time point, this need to be set as True.
-        get_fraction_for_deg: bool (default: True)
-            Whether to calculate the fraction of relevant (labeled or unlabeled) species when using first order degradation model to estimate beta or gamma.
-        log_unnormalized: bool (default: True)
-            Whether to concatenate data before estimation. If your data is a list of matrices for each time point, this need to be set as True.
+        log_unnormalized: `bool` (default: `True`)
+            Whether to log transform the unnormalized data.
 
     Returns
     -------
         adata: :class:`~anndata.AnnData`
             A updated AnnData object with estimated kinetic parameters and inferred velocity included.
     """
+
     if 'use_for_dynamo' not in adata.var.columns and 'pass_basic_filter' not in adata.var.columns:
         filter_gene_mode = 'no'
 
@@ -81,6 +82,15 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         else:
             raw = np.log(raw + 1) if log_unnormalized else raw
         U = raw
+    if 'X_spliced' in subset_adata.layers.keys():
+        S = subset_adata.layers['X_spliced'].T
+    elif 'spliced' in subset_adata.layers.keys():
+        raw, raw_spliced = subset_adata.layers['spliced'].T, subset_adata.layers['spliced'].T
+        if issparse(raw):
+            raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        else:
+            raw = np.log(raw + 1) if log_unnormalized else raw
+        S = raw
 
     elif 'X_new' in subset_adata.layers.keys():  # run new / total ratio (NTR)
         has_labeling, normalized = True, True
@@ -97,6 +107,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
             old = np.log(old + 1) if log_unnormalized else old
         U = old
         Ul = raw
+
     elif 'X_uu' in subset_adata.layers.keys():  # only uu, ul, su, sl provided
         has_splicing, has_labeling, normalized = True, True, True
         U = subset_adata.layers['X_uu'].T  # unlabel unspliced: U
@@ -108,27 +119,6 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         else:
             raw = np.log(raw + 1) if log_unnormalized else raw
         U = raw
-
-    if 'X_spliced' in subset_adata.layers.keys():
-        S = subset_adata.layers['X_spliced'].T
-    elif 'spliced' in subset_adata.layers.keys():
-        raw, raw_spliced = subset_adata.layers['spliced'].T, subset_adata.layers['spliced'].T
-        if issparse(raw):
-            raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
-        else:
-            raw = np.log(raw + 1) if log_unnormalized else raw
-        S = raw
-
-    elif 'X_su' in subset_adata.layers.keys():  # unlabel spliced: S
-        S = subset_adata.layers['X_su'].T
-    elif 'su' in subset_adata.layers.keys():
-        raw, raw_su = subset_adata.layers['su'].T, subset_adata.layers['su'].T
-        if issparse(raw):
-            raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
-        else:
-            raw = np.log(raw + 1) if log_unnormalized else raw
-        S = raw
-
     if 'X_ul' in subset_adata.layers.keys():
         Ul = subset_adata.layers['X_ul'].T
     elif 'ul' in subset_adata.layers.keys():
@@ -138,7 +128,6 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         else:
             raw = np.log(raw + 1) if log_unnormalized else raw
         Ul = raw
-
     if 'X_sl' in subset_adata.layers.keys():
         Sl = subset_adata.layers['X_sl'].T
     elif 'sl' in subset_adata.layers.keys():
@@ -148,6 +137,15 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         else:
             raw = np.log(raw + 1) if log_unnormalized else raw
         Sl = raw
+    if 'X_su' in subset_adata.layers.keys():  # unlabel spliced: S
+        S = subset_adata.layers['X_su'].T
+    elif 'su' in subset_adata.layers.keys():
+        raw, raw_su = subset_adata.layers['su'].T, subset_adata.layers['su'].T
+        if issparse(raw):
+            raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        else:
+            raw = np.log(raw + 1) if log_unnormalized else raw
+        S = raw
 
     ind_for_proteins = None
     if 'X_protein' in subset_adata.obsm.keys():
@@ -168,10 +166,11 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
     if not has_labeling:
         assumption_mRNA = 'ss'
 
-    if tkey in adata.obs.columns and has_labeling:
-        t = np.array(adata.obs[tkey], dtype='float')
-    elif tkey not in adata.obs.columns and has_labeling:
-        raise Exception('the tkey ', tkey, ' provided is not a valid column name in .obs.')
+    if has_labeling:
+        if tkey in adata.obs.columns:
+            t = np.array(adata.obs[tkey], dtype='float')
+        else:
+            raise Exception('the tkey ', tkey, ' provided is not a valid column name in .obs.')
     else:
         t = None
 
@@ -206,7 +205,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         if experiment_type is 'mix_std_stm':
             if alpha is not None:
                 adata.varm['kinetic_parameter_alpha'] = np.zeros((adata.shape[1], alpha[1].shape[1]))
-                adata.varm['kinetic_parameter_alpha'] [valid_ind, :] = alpha[1]
+                adata.varm['kinetic_parameter_alpha'][valid_ind, :] = alpha[1]
                 adata.var['kinetic_parameter_alpha'], adata.var['kinetic_parameter_alpha_std'] = None, None
                 adata.var.loc[valid_ind, 'kinetic_parameter_alpha'], adata.var.loc[
                     valid_ind, 'kinetic_parameter_alpha_std'] = alpha[1][:, -1], alpha[0]
@@ -248,6 +247,9 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
             adata.var.loc[valid_ind, 'kinetic_parameter_ul0'] = ul0
             adata.var.loc[valid_ind, 'kinetic_parameter_su0'] = su0
             adata.var.loc[valid_ind, 'kinetic_parameter_sl0'] = sl0
+            adata.var.loc[valid_ind, 'kinetic_parameter_U0'] = U0
+            adata.var.loc[valid_ind, 'kinetic_parameter_S0'] = S0
+            adata.var.loc[valid_ind, 'kinetic_parameter_total0'] = total0
 
             if ind_for_proteins is not None:
                 delta_r2[~np.isfinite(delta_r2)] = 0
@@ -258,7 +260,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
                 adata.var.loc[valid_ind, 'kinetic_parameter_delta_intercept'][ind_for_proteins] = delta_intercept
                 adata.var.loc[valid_ind, 'kinetic_parameter_delta_r2'][ind_for_proteins] = delta_r2
                 adata.var.loc[valid_ind, 'protein_half_life'][ind_for_proteins] = np.log(2) / delta
-        # add velocity_offset here
+
     elif mode is 'moment':
         # a few hard code to set up data for moment mode:
         if 'uu' in subset_adata.layers.keys() or 'X_uu' in subset_adata.layers.keys():
@@ -294,7 +296,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         def fbar(x_a, x_i, a, b):
             return b / (a + b) * x_a + a / (a + b) * x_i
 
-        alpha = fbar(alpha_a, alpha_i, a, b)[:, None]  ### dimension need to be matched up
+        alpha = fbar(alpha_a, alpha_i, a, b)[:, None]  
 
         params = {'alpha': alpha, 'beta': beta, 'gamma': gamma, 't': t}
         vel = velocity(**params)

@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.optimize import least_squares
-from scipy.sparse import issparse, csc_matrix
+from scipy.sparse import issparse, csr_matrix
 from warnings import warn
 from .utils import cal_12_mom
 from .moments import strat_mom
@@ -34,7 +34,7 @@ def sol_u_2p(t, u0, t1, alpha0, alpha1, beta):
 
     Arguments
     ---------
-    t0: :class:`~numpy.ndarray`
+    t: :class:`~numpy.ndarray`
         A vector of time points for both steady state and stimulation labeling.
     u0: float
         Initial value of u.
@@ -163,7 +163,7 @@ def solve_alpha_2p(t0, t1, alpha0, beta, u1):
     beta: `float`
         steady state (and simulation) splicing rate calculated from one-shot experiment mode.
     u1: :class:`~numpy.ndarray` or sparse `csr_matrix`
-        A vector of labeled RNA amount in each cell
+        A vector of labeled RNA amount in each cell observed at time t0 + t1.
 
     Returns
     -------
@@ -369,9 +369,9 @@ def fit_alpha_synthesis(t, u, beta):
 
     return beta * np.mean(u) / np.mean(x)
 
-# add a lsq version to constrain u0 to be larger than 0
 def fit_alpha_degradation(t, u, beta, intercept=True):
-    """Estimate alpha with degradation data using linear regression.
+    """Estimate alpha with degradation data using linear regression. This is a lsq version of the following function that
+    constrains u0 to be larger than 0
 
     Arguments
     ---------
@@ -558,7 +558,7 @@ def concat_time_series_matrices(mats, t=None):
 
 class velocity:
     def __init__(self, alpha=None, beta=None, gamma=None, eta=None, delta=None, t=None, estimation=None):
-        """The class that computes RNA velocity given unknown parameters.
+        """The class that computes RNA/protein velocity given unknown parameters.
 
         Arguments
         ---------
@@ -615,14 +615,6 @@ class velocity:
                         alpha[:, cell_inds] = np.repeat(self.parameters['alpha'][:, i], t_uniq_cnt[i], axis=1)
                 else:
                     alpha = np.repeat(self.parameters['alpha'], U.shape[1], axis=1)
-
-                if len(self.parameters['beta'].shape) == 1:
-                    beta = np.repeat(self.parameters['beta'].reshape((-1, 1)), U.shape[1], axis=1)
-                elif len(self.parameters['beta'].shape) == len(t_uniq) and len(t_uniq) > 1:
-                    beta = np.zeros_like(U.shape)
-                    for i in range(t_uniq):
-                        cell_inds = t == t_uniq[i]
-                        beta[:, cell_inds] = np.repeat(self.parameters['beta'][:, i], t_uniq_cnt[i], axis=1)
             else: # need to correct the velocity vector prediction when you use mix_std_stm experiments
                 if self.parameters['alpha'][1].shape[1] == U.shape[1]:
                     alpha = self.parameters['alpha'][1]
@@ -641,8 +633,10 @@ class velocity:
                 for i in range(len(t_uniq)):
                     cell_inds = t == t_uniq[i]
                     beta[:, cell_inds] = np.repeat(self.parameters['beta'][:, i].reshape(-1, 1), t_uniq_cnt[i], axis=1)
+            else:
+                beta = np.repeat(self.parameters['beta'], U.shape[1], axis=1)
 
-            V = csc_matrix(alpha) - (csc_matrix(beta).multiply(U)) if issparse(U) else \
+            V = csr_matrix(alpha) - (csr_matrix(beta).multiply(U)) if issparse(U) else \
                     alpha - beta * U
         else:
             V = np.nan
@@ -667,23 +661,27 @@ class velocity:
         t = self.parameters['t']
         t_uniq, t_uniq_cnt = np.unique(self.parameters['t'], return_counts=True)
         if self.parameters['beta'] is not None and self.parameters['gamma'] is not None:
-            if len(self.parameters['gamma'].shape) == 1:
-                gamma = np.repeat(self.parameters['beta'].reshape((-1, 1)), U.shape[1], axis=1)
+            if len(self.parameters['beta'].shape) == 1:
+                beta = np.repeat(self.parameters['beta'].reshape((-1, 1)), U.shape[1], axis=1)
             elif self.parameters['beta'].shape[1] == len(t_uniq) and len(t_uniq) > 1:
                 beta = np.zeros_like(U.shape)
                 for i in range(t_uniq):
                     cell_inds = t == t_uniq[i]
                     beta[:, cell_inds] = np.repeat(self.parameters['beta'][:, i], t_uniq_cnt[i], axis=1)
+            else:
+                beta = np.repeat(self.parameters['beta'], U.shape[1], axis=1)
 
-            if len(self.parameters['beta'].shape) == 1:
-                beta = np.repeat(self.parameters['gamma'].reshape((-1, 1)), U.shape[1], axis=1)
+            if len(self.parameters['gamma'].shape) == 1:
+                gamma = np.repeat(self.parameters['gamma'].reshape((-1, 1)), U.shape[1], axis=1)
             elif self.parameters['gamma'].shape[1] == len(t_uniq) and len(t_uniq) > 1:
                 gamma = np.zeros_like(U.shape)
                 for i in range(t_uniq):
                     cell_inds = t == t_uniq[i]
                     gamma[:, cell_inds] = np.repeat(self.parameters['gamma'][:, i], t_uniq_cnt[i], axis=1)
+            else:
+                gamma = np.repeat(self.parameters['gamma'], U.shape[1], axis=1)
 
-            V = csc_matrix(beta).multiply(U)  - csc_matrix(gamma).multiply(S) if issparse(U) \
+            V = csr_matrix(beta).multiply(U) - csr_matrix(gamma).multiply(S) if issparse(U) \
                     else beta * U - gamma * S
         else:
             V = np.nan
@@ -724,7 +722,7 @@ class velocity:
                     cell_inds = t == t_uniq[i]
                     delta[:, cell_inds] = np.repeat(self.parameters['delta'][:, i], t_uniq_cnt[i], axis=1)
 
-            V = csc_matrix(eta).multiply(S) - csc_matrix(delta).multiply(P) if issparse(P) else \
+            V = csr_matrix(eta).multiply(S) - csr_matrix(delta).multiply(P) if issparse(P) else \
                     eta * S - delta * P
         else:
             V = np.nan
