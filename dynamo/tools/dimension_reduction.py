@@ -222,6 +222,7 @@ def reduceDimension(adata, n_pca_components=25, n_components=2, n_neighbors=10, 
         triplemap = trimap.TRIMAP(n_inliers=20,
                                   n_outliers=10,
                                   n_random=10,
+                                  distance='angular', # cosine
                                   weight_adj=1000.0,
                                   apply_pca=False)
         X_dim = triplemap.fit_transform(X_pca)

@@ -1,4 +1,3 @@
-import numpy as np
 import scipy as scp
 from scipy.sparse import csc_matrix, issparse
 from .Markov import *
@@ -8,30 +7,34 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', num_pc
                     xy_grid_nums=(50, 50), sample_fraction=None, random_seed=19491001, **kmc_kwargs):
     """Compute transition probability and project high dimension velocity vector to existing low dimension embedding.
 
-    We may consider using umap transform function or applying a neuron net model to project the velocity vectors.
+    It is powered by the Itô kernel that not only considers the correlation between the vector from any cell to its
+    nearest neighbors and its velocity vector but also the corresponding distances. We expect this new kernel will enable
+    us to visualize more intricate vector flow or steady states in low dimension. We also expect it will improve the
+    calculation of the stationary distribution or source states of sampled cells. The original "correlation" velocity projection
+    method is also supported.
 
     Arguments
     ---------
         adata: :class:`~anndata.AnnData`
-            an Annodata object
-        vkey: 'int' (optional, default velocity)
-            The dictionary key that corresponds to the estimated velocity values in layers slot.
-        basis: 'int' (optional, default umap)
-            The dictionary key that corresponds to the reduced dimension in obsm slot.
-        method: `string` (optimal, default 'analytical')
-            The method to calculate the transition matrix and project high dimensional vector to low dimension, either analytical
-            or empirical. "analytical" is our new approach to learn the transition matrix via diffusion approximation or an Itô
+            an Annodata object.
+        vkey: 'int' (optional, default `velocity`)
+            The dictionary key that corresponds to the estimated velocity values in layers attribute.
+        basis: 'int' (optional, default `umap`)
+            The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
+        method: `string` (optimal, default `analytical`)
+            The method to calculate the transition matrix and project high dimensional vector to low dimension, either `analytical`
+            or `empirical`. "analytical" is our new approach to learn the transition matrix via diffusion approximation or an Itô
             kernel. "empirical" is the method used in the original RNA velocity paper via correlation. "analytical" option is
-            better than "empirical" as it not only consider the correlation but also the distance of the nearest neighbors to
+            better than "empirical" as it not only considers the correlation but also the distance of the nearest neighbors to
             the high dimensional velocity vector.
-        neg_cells_trick: 'bool' (optional, default False)
+        neg_cells_trick: 'bool' (optional, default `False`)
             Whether we should handle cells having negative correlations in gene expression difference with high dimensional
             velocity vector separately. This option is inspired from scVelo package (https://github.com/theislab/scvelo). Not
             required if method is set to be "analytical".
         calc_rnd_vel: `bool` (default: `False`)
             A logic flag to determine whether we will calculate the random velocity vectors which can be plotted downstream
             as a negative control and used to adjust the quiver scale of the velocity field.
-        xy_grid_nums: `tuple` (default: (50, 50).
+        xy_grid_nums: `tuple` (default: `(50, 50)`).
             A tuple of number of grids on each dimension.
         sample_fraction: `None` or `float` (default: None)
             The downsampled fraction of kNN for the purpose of acceleration.
@@ -43,7 +46,8 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', num_pc
     -------
         Adata: :class:`~anndata.AnnData`
             Returns an updated `~anndata.AnnData` with transition_matrix and projected embedding of high dimension velocity vector
-            in the existing embeding of current cell state, calculated using method from (La Manno et al. 2018).
+            in the existing embedding of current cell state, calculated using either the Itô kernel method (default) or the diffusion
+            approximation or the method from (La Manno et al. 2018).
     """
 
     if calc_rnd_vel:
@@ -61,7 +65,8 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', num_pc
         kmc_args = {"M_diff": 0.25 * np.eye(ndims), "epsilon": 10**2, "adaptive_local_kernel": True, "tol": 1e-7}
         kmc_args.update(kmc_kwargs)
 
-        kmc.fit(X_pca[:, :ndims], V_mat[:, :ndims],  k=min(500, X_pca.shape[0] - 1), sample_fraction=sample_fraction, **kmc_args) # neighbor_idx=indices,
+        # number of kNN in neighbor_idx may be too small
+        kmc.fit(X_pca[:, :ndims], V_mat[:, :ndims], neighbor_idx=indices, k=min(500, X_pca.shape[0] - 1), sample_fraction=sample_fraction, **kmc_args)
         T = kmc.P
         delta_X = kmc.compute_density_corrected_drift(X_embedding, kmc.Idx, normalize_vector=True) # indices, k = 500
         # P = kmc.compute_stationary_distribution()
@@ -269,7 +274,7 @@ def expected_return_time(M, backward=False):
 
 def _empirical_vec(X_pca, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors):
     """utility function for calculating the transition matrix or low dimensional velocity embedding via the original correlation kernel."""
-    n =  X_pca.shape[0]
+    n = X_pca.shape[0]
     if indices is not None:
         knn = indices.shape[1] - 1 #remove the first one in kNN
         rows = np.zeros((n * knn, 1))
@@ -277,7 +282,7 @@ def _empirical_vec(X_pca, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_
         vals = np.zeros((n * knn, 1))
 
     delta_X = np.zeros((n, X_embedding.shape[1]))
-
+    idx = 0
     for i in range(n):
         i_vals = np.zeros((knn, 1))
         velocity = V_mat[i, :]  # project V_mat to pca space

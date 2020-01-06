@@ -317,8 +317,8 @@ class KernelMarkovChain(MarkovChain):
             p = np.linspace(0.5, 1, neighbor_idx.shape[1])
             p = p / p.sum()
 
-            sampling_ixs = np.stack((np.random.choice(np.arange(1,neigh_ixs.shape[1]-1),
-                                                      size=int(sampled_fraction * (n_neighbors + 1)),
+            sampling_ixs = np.stack((np.random.choice(np.arange(1,neighbor_idx.shape[1]-1),
+                                                      size=int(sample_fraction * (neighbor_idx.shape[1] + 1)),
                                                       replace=False,
                                                       p=p) for i in range(neighbor_idx.shape[0])), 0)
             self.Idx = self.Idx[np.arange(neighbor_idx.shape[0])[:, None], sampling_ixs]

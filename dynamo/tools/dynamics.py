@@ -7,7 +7,7 @@ from .utils import get_U_S_for_velocity_estimation
 
 # incorporate the model selection code soon
 def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time', protein_names=None,
-             experiment_type='deg', assumption_mRNA=None, assumption_protein='ss', NTR_vel = True, concat_data=False,
+             experiment_type=None, assumption_mRNA=None, assumption_protein='ss', NTR_vel = True, concat_data=False,
              log_unnormalized=True):
     """Inclusive model of expression dynamics considers splicing, metabolic labeling and protein translation. It supports
     learning high-dimensional velocity vector samples for droplet based (10x, inDrop, drop-seq, etc), scSLAM-seq, NASC-seq
@@ -72,10 +72,10 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
     normalized, has_splicing, has_labeling, has_protein = False, False, False, False
 
     if 'X_unspliced' in subset_adata.layers.keys():
-        has_splicing, normalized = True, True
+        has_splicing, normalized, assumption_mRNA = True, True, 'ss'
         U = subset_adata.layers['X_unspliced'].T
     elif 'unspliced' in subset_adata.layers.keys():
-        has_splicing = True
+        has_splicing, assumption_mRNA = True, 'ss'
         raw, row_unspliced = subset_adata.layers['unspliced'].T, subset_adata.layers['unspliced'].T
         if issparse(raw):
             raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
@@ -93,11 +93,11 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         S = raw
 
     elif 'X_new' in subset_adata.layers.keys():  # run new / total ratio (NTR)
-        has_labeling, normalized = True, True
+        has_labeling, normalized, assumption_mRNA = True, True, 'ss'
         U = subset_adata.layers['X_total'].T - subset_adata.layers['X_new'].T
         Ul = subset_adata.layers['X_new'].T
     elif 'new' in subset_adata.layers.keys():
-        has_labeling = True
+        has_labeling, assumption_mRNA = True, 'ss'
         raw, raw_new, old = subset_adata.layers['new'].T, subset_adata.layers['new'].T, subset_adata.layers['total'].T - subset_adata.layers['new'].T
         if issparse(raw):
             raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
@@ -163,8 +163,8 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
             subset_adata.var['is_protein_velocity_genes'] = False
             subset_adata.var.loc[ind_for_proteins, 'is_protein_velocity_genes'] = True
 
-    if not has_labeling:
-        assumption_mRNA = 'ss'
+    if experiment_type is not None or mode is 'moment':
+        assumption_mRNA = None
 
     if has_labeling:
         if tkey in adata.obs.columns:
@@ -301,7 +301,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         params = {'alpha': alpha, 'beta': beta, 'gamma': gamma, 't': t}
         vel = velocity(**params)
 
-        U, S = get_U_S_for_velocity_estimation(subset_adata, has_splicing, log_unnormalized, NTR_vel)
+        U, S = get_U_S_for_velocity_estimation(subset_adata, has_splicing, has_labeling, log_unnormalized, NTR_vel)
         vel_U = vel.vel_u(U)
         vel_S = vel.vel_s(U, S)
         vel_P = vel.vel_p(S, P)

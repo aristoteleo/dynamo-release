@@ -6,7 +6,7 @@ from scipy.sparse import issparse, csr_matrix
 from sklearn.decomposition import TruncatedSVD, FastICA
 from .utilities import cook_dist, get_layer_keys
 
-def szFactor(adata, layers='all', locfunc=np.nanmean, round_exprs=True, method='mean-geometric-mean-total'):
+def szFactor(adata, layers='all', total_layers=None, locfunc=np.nanmean, round_exprs=True, method='mean-geometric-mean-total'):
     """Calculate the size factor of the each cell using geometric mean of total UMI across cells for a AnnData object.
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
@@ -16,6 +16,8 @@ def szFactor(adata, layers='all', locfunc=np.nanmean, round_exprs=True, method='
             AnnData object.
         layers: str or list (default: `all`)
             The layer(s) to be normalized. Default is `all`, including RNA (X, raw) or spliced, unspliced, protein, etc.
+        total_layers: list or None (default `None`)
+            The layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"], ["uu", "ul", "su", "sl"] or ["new", "old"], etc.
         locfunc: `function` (default: `np.nanmean`)
             The function to normalize the data.
         round_exprs: `bool` (default: `True`)
@@ -30,6 +32,12 @@ def szFactor(adata, layers='all', locfunc=np.nanmean, round_exprs=True, method='
         adata: :AnnData
             A updated anndata object that are updated with the `Size_Factor` (`layer_` + `Size_Factor`) column(s) in the obs attribute.
     """
+
+    if total_layers is not None and len(set(adata.layers.keys()).difference(total_layers)) == 0:
+        total = None
+        for t_key in total_layers:
+            total = adata.layers[t_key] if total is None else total + adata.layers[t_key]
+        adata['total_'] = total
 
     layers = get_layer_keys(adata, layers)
     if 'raw' in layers and adata.raw is None:
@@ -70,12 +78,16 @@ def szFactor(adata, layers='all', locfunc=np.nanmean, round_exprs=True, method='
             adata.obs['Size_Factor'] = sfs
         elif layer is 'X':
             adata.obs['Size_Factor'] = sfs
+        elif layer is 'total_':
+            adata.obs['total_Size_Factor'] = sfs
         else:
             adata.obs[layer + '_Size_Factor'] = sfs
+    if total_layers is not None and len(set(adata.layers.keys()).difference(total_layers)) == 0:
+        del adata.layers['total_']
 
     return adata
 
-def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, relative_expr=True, keep_filtered=True):
+def normalize_expr_data(adata, layers='all', total_szfactor=None, norm_method='log', pseudo_expr=1, relative_expr=True, keep_filtered=True):
     """Normalize the gene expression value for the AnnData object
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
@@ -83,8 +95,10 @@ def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, r
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object.
-        layers: str (default: `all`)
+        layers: `str` (default: `all`)
             The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
+        total_szfactor: `str` (default: `None`)
+            The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
         norm_method: `str` (default: `log`)
             The method used to normalize data.
         pseudo_expr: `int` (default: `1`)
@@ -106,6 +120,7 @@ def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, r
         adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.contains('Size_Factor')]
 
     layers = get_layer_keys(adata, layers)
+
 
     layer_sz_column_names = [i + '_Size_Factor' for i in set(layers).difference('X')]
     layer_sz_column_names.extend(['Size_Factor'])
@@ -135,6 +150,9 @@ def normalize_expr_data(adata, layers='all', norm_method='log', pseudo_expr=1, r
 
         if norm_method == 'log' and layer is not 'protein':
             if relative_expr:
+                if total_szfactor is not None and total_szfactor in adata.obs.keys():
+                    szfactors = adata.obs[total_szfactor][:, None]
+
                 CM = CM.multiply(csr_matrix(1/szfactors)) if issparse(CM) else CM / szfactors
 
             if pseudo_expr is None:
@@ -504,7 +522,7 @@ def Dispersion(adata, layers='X', modelFormulaStr="~ 1", min_cells_detected=1, r
     return adata
 
 
-def SVRs(adata, filter_bool=None, layers='X', min_expr_cells=2, min_expr_avg=0, max_expr_avg=20, svr_gamma=None,
+def SVRs(adata, filter_bool=None, layers='X', total_szfactor=None, min_expr_cells=2, min_expr_avg=0, max_expr_avg=20, svr_gamma=None,
                          winsorize=False, winsor_perc=(1, 99.5), sort_inverse=False):
     """This function is modified from https://github.com/velocyto-team/velocyto.py/blob/master/velocyto/analysis.py
 
@@ -516,6 +534,8 @@ def SVRs(adata, filter_bool=None, layers='X', min_expr_cells=2, min_expr_avg=0, 
             A boolean array from the user to select cells for downstream analysis.
         layers: `str` (default: 'X')
             The layer(s) to be used for calculating dispersion score via support vector regression (SVR). Default is X if there is no spliced layers.
+        total_szfactor: `str` (default: `None`)
+            The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
         min_expr_cells: `int` (default: `2`)
             minimum number of cells that express that gene for it to be considered in the fit.
         min_expr_avg: `int` (default: `0`)
@@ -558,6 +578,8 @@ def SVRs(adata, filter_bool=None, layers='X', min_expr_cells=2, min_expr_avg=0, 
             CM = adata.layers[layer].copy()
             szfactors = adata.obs[layer + '_Size_Factor'][:, None]
 
+        if total_szfactor is not None and total_szfactor in adata.obs.keys():
+            szfactors = adata.obs[total_szfactor][:, None]
         if issparse(CM):
             sparsefuncs.inplace_row_scale(CM, 1 / szfactors)
         else:
@@ -663,7 +685,7 @@ def filter_cells(adata, filter_bool=None, layer='all', keep_filtered=False, min_
     return adata
 
 
-def filter_genes(adata, filter_bool=None, layer='X', keep_filtered=True, min_cell_s=5, min_cell_u=5, min_cell_p=5,
+def filter_genes(adata, filter_bool=None, layer='X', total_szfactor=None, keep_filtered=True, min_cell_s=5, min_cell_u=5, min_cell_p=5,
                  min_avg_exp_s=1e-2, min_avg_exp_u=1e-4, min_avg_exp_p=1e-4, max_avg_exp=100., sort_by='SVR',
                  n_top_genes=2000):
     """Select feature genes based on a collection of filters.
@@ -676,6 +698,8 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_filtered=True, min_cel
             A boolean array from the user to select genes for downstream analysis.
         layer: `str` (default: `X`)
             The data from a particular layer (include X) used for feature selection.
+        total_szfactor: `str` (default: `None`)
+            The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
         keep_filtered: `bool` (default: `True`)
             Whether to keep genes that don't pass the filtering in the adata object.
         min_cell_s: `int` (default: `5`)
@@ -734,7 +758,7 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_filtered=True, min_cel
         gene_id = valid_table.index[gene_id]
         filter_bool = gene_id.isin(adata.var.index)
     elif sort_by is 'SVR':
-        SVRs(adata, layers=layer, filter_bool=filter_bool, min_expr_cells=0, min_expr_avg=0, max_expr_avg=np.inf,
+        SVRs(adata, layers=layer, total_szfactor=total_szfactor, filter_bool=filter_bool, min_expr_cells=0, min_expr_avg=0, max_expr_avg=np.inf,
              svr_gamma=None, winsorize=False, winsor_perc=(1, 99.5), sort_inverse=False)
 
         valid_table = adata.var.loc[filter_bool, :]
@@ -752,7 +776,7 @@ def filter_genes(adata, filter_bool=None, layer='X', keep_filtered=True, min_cel
     return adata
 
 
-def recipe_monocle(adata, normalized=None, layer=None, genes_to_use=None, method='pca', num_dim=50, norm_method='log', pseudo_expr=1,
+def recipe_monocle(adata, normalized=None, layer=None, total_layers=None, genes_to_use=None, method='pca', num_dim=50, norm_method='log', pseudo_expr=1,
                    feature_selection='SVR', n_top_genes=2000, relative_expr=True, keep_filtered_cells=True, keep_filtered_genes=True,
                    fc_kwargs=None, fg_kwargs=None):
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
@@ -767,6 +791,8 @@ def recipe_monocle(adata, normalized=None, layer=None, genes_to_use=None, method
             determine whether you already normalized your data. This only works for UMI based or read-counts data.
         layer: str (default: `None`)
             The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
+        total_layers: list or None (default `None`)
+            The layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"], ["uu", "ul", "su", "sl"] or ["new", "old"], etc.
         genes_to_use: `list` (default: `None`)
             A list genes of gene names that will be used to set as the feature genes for downstream analysis.
         method: `str` (default: `log`)
@@ -802,7 +828,7 @@ def recipe_monocle(adata, normalized=None, layer=None, genes_to_use=None, method
     if normalized is None:
         normalized = not np.allclose((adata.X.data[:20] if issparse(adata.X) else adata.X[:, 0]) % 1, 0, atol=1e-3)
     if not normalized:
-        adata = szFactor(adata)
+        adata = szFactor(adata, total_layers=total_layers)
         adata = Dispersion(adata)
 
     filter_cells_kwargs = {"filter_bool": None, "layer": 'all', "min_expr_genes_s": 50, "min_expr_genes_u": 25, "min_expr_genes_p": 1,
@@ -824,7 +850,8 @@ def recipe_monocle(adata, normalized=None, layer=None, genes_to_use=None, method
             adata = adata[:, adata.var['use_for_dynamo']]
 
     if not normalized:
-        adata = normalize_expr_data(adata, norm_method=norm_method, pseudo_expr=pseudo_expr,
+        total_szfactor = 'total_Size_Factor' if total_layers is not None else None
+        adata = normalize_expr_data(adata, total_szfactor=total_szfactor, norm_method=norm_method, pseudo_expr=pseudo_expr,
                                     relative_expr=relative_expr, keep_filtered=keep_filtered_genes)
 
     # only use genes pass filter (based on use_for_dynamo) to perform dimension reduction.

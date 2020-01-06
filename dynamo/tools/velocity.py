@@ -867,6 +867,15 @@ class estimation:
                     gamma[i], gamma_intercept[i], gamma_r2[i] = self.fit_gamma_steady_state(U[i], S[i],
                             intercept, perc_left, perc_right)
                 self.parameters['gamma'], self.aux_param['gamma_intercept'], self.aux_param['gamma_r2'] = gamma, gamma_intercept, gamma_r2
+            elif np.all(self._exist_data('uu', 'ul')):
+                self.parameters['beta'] = np.ones(n)
+                gamma, gamma_intercept, gamma_r2 = np.zeros(n), np.zeros(n), np.zeros(n)
+                U = self.data['ul']
+                S = self.data['uu'] + self.data['ul']
+                for i in range(n):
+                    gamma[i], gamma_intercept[i], gamma_r2[i] = self.fit_gamma_steady_state(U[i], S[i],
+                            intercept, perc_left, perc_right)
+                self.parameters['gamma'], self.aux_param['gamma_intercept'], self.aux_param['gamma_r2'] = gamma, gamma_intercept, gamma_r2
         else:
             if self.extyp == 'deg':
                 if np.all(self._exist_data('ul', 'sl')):
