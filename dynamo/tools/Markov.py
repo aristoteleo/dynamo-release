@@ -317,8 +317,8 @@ class KernelMarkovChain(MarkovChain):
             p = np.linspace(0.5, 1, neighbor_idx.shape[1])
             p = p / p.sum()
 
-            sampling_ixs = np.stack((np.random.choice(np.arange(1,neigh_ixs.shape[1]-1),
-                                                      size=int(sampled_fraction * (n_neighbors + 1)),
+            sampling_ixs = np.stack((np.random.choice(np.arange(1,neighbor_idx.shape[1]-1),
+                                                      size=int(sample_fraction * (neighbor_idx.shape[1] + 1)),
                                                       replace=False,
                                                       p=p) for i in range(neighbor_idx.shape[0])), 0)
             self.Idx = self.Idx[np.arange(neighbor_idx.shape[0])[:, None], sampling_ixs]
@@ -354,9 +354,9 @@ class KernelMarkovChain(MarkovChain):
                 k = k / D[0, self.Idx[i]]
             else:
                 k = np.matrix(k)
-            if np.sum(k) == 0:
-                print(i)
-                print(tau)
+            # if np.sum(k) == 0:
+            #     print(i)
+            #     print(tau)
             p = k / np.sum(k)
             p[p <= tol] = 0  # tolerance check
             p = p / np.sum(p)

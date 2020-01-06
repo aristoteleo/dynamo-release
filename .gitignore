@@ -8,6 +8,7 @@ figs/
 figures/
 scripts/
 benchmarking/
+debug/
 
 dynamo.egg-info/
 

@@ -242,22 +242,9 @@ class estimation:
     def _lhsclassic(self, samples):
         # From PyDOE
         # Generate the intervals
-        cut = linspace(0, 1, samples + 1)    
-        
-        # Fill points uniformly in each interval
-        u = random.rand(samples, self.n_params)
-        a = cut[:samples]
-        b = cut[1:samples + 1]
-        rdpoints = zeros_like(u)
-        for j in range(self.n_params):
-            rdpoints[:, j] = u[:, j]*(b-a) + a
-        
-        # Make the random pairings
-        H = zeros_like(rdpoints)
-        for j in range(self.n_params):
-            order = random.permutation(range(samples))
-            H[:, j] = rdpoints[order, j]
-        
+        from .utils import lhsclassic
+        H = lhsclassic(samples, self.n_params)
+
         return H
 
     def get_bound(self, index):
@@ -272,7 +259,8 @@ class estimation:
         #     x = X[i]
         #     #ret[i] = x / max(x)
         #     ret[i] = log10(x + 1)
-        return log10(X + 1)
+        res = log(X + 1)
+        return res
 
     def f_lsq(self, params, t, x_data_norm, method='analytical', normalize=True, experiment_type=None):
         self.simulator.set_params(*params)
