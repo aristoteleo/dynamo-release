@@ -855,7 +855,7 @@ class estimation:
         clusters: `list`
             A list of n clusters, each element is a list of indices of the samples which belong to this cluster.
         """
-        n = self.data['uu'].shape[0] # get_n_genes()
+        n = self.get_n_genes()
         # fit mRNA
         if self.asspt_mRNA == 'ss':
             if np.all(self._exist_data('uu', 'su')):
