@@ -656,18 +656,19 @@ def dynamics(adata, vkey, unit='hours', log_unnormalized=True, y_log_scale=False
 
             row_ind = int(np.floor(i / ncols))  # make sure unlabled and labeled are in the same column.
             ax = plt.subplot(gs[(row_ind * sub_plot_n) * ncols + i % ncols])
-            if true_param_prefix is not None and has_splicing:
-                ax.text(0.05, 0.95, r'$\alpha^{true}$: {0:.2f} $\alpha^{est}$: {0:.2f} \n'
-                                    r'$\beta^{true}$: {0:.2f} $\beta^{est}$: {0:.2f} \n'
-                                    r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_alpha, alpha,
-                                                                                                  true_beta, beta,
-                                                                                                  true_gamma, gamma),
-                        ha='right', va='top', transform=ax.transAxes)
-            else:
-                ax.text(0.05, 0.95, r'$\alpha^{true}$: {0:.2f} $\alpha^{est}$: {0:.2f} \n'
-                                    r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_alpha, alpha,
-                                                                                                  true_gamma, gamma),
-                        ha='right', va='top', transform=ax.transAxes)
+            if true_param_prefix is not None:
+                if has_splicing:
+                    ax.text(0.05, 0.95, r'$\alpha^{true}$: {0:.2f} $\alpha^{est}$: {0:.2f} \n'
+                                        r'$\beta^{true}$: {0:.2f} $\beta^{est}$: {0:.2f} \n'
+                                        r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_alpha, alpha,
+                                                                                                      true_beta, beta,
+                                                                                                      true_gamma, gamma),
+                            ha='right', va='top', transform=ax.transAxes)
+                else:
+                    ax.text(0.05, 0.95, r'$\alpha^{true}$: {0:.2f} $\alpha^{est}$: {0:.2f} \n'
+                                        r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_alpha, alpha,
+                                                                                                      true_gamma, gamma),
+                            ha='right', va='top', transform=ax.transAxes)
             ax.boxplot(x=[Obs[np.hstack((np.zeros_like(T), T)) == std] for std in [0, T_uniq[0]]], positions=[0, T_uniq[0]], widths=boxwidth,
                        showfliers=False, showmeans=True)
             ax.plot(t, Pred, 'k--')
