@@ -59,6 +59,7 @@ def get_U_S_for_velocity_estimation(subset_adata, has_splicing, has_labeling, lo
 
     return U, S
 
+
 def lhsclassic(n_samples, n_dim):
 
     # From PyDOE
@@ -80,3 +81,11 @@ def lhsclassic(n_samples, n_dim):
         H[:, j] = rdpoints[order, j]
 
     return H
+
+
+def norm_loglikelihood(x, mu, sig):
+    """Calculate log-likelihood for the data.
+    """
+    ll = - 0.5 * np.log(2 * np.pi) - 0.5 * (x - mu)**2 / sig**2
+
+    return np.sum(ll)

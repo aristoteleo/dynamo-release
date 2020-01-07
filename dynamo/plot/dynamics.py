@@ -51,7 +51,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log_unnormalized=True, y_log_scale
     T_uniq = np.unique(T)
     t = np.linspace(0, T_uniq[-1], 1000)
     gene_idx = [np.where(adata.var.index.values == gene)[0][0] for gene in vkey]
-    prefix = 'kinetic_parameter_'
+    prefix = '' # kinetic_parameter_
 
     if boxwidth is None and len(T_uniq) > 1:
         boxwidth = 0.8 * (np.diff(T_uniq).min() / 2)
@@ -159,7 +159,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log_unnormalized=True, y_log_scale
                     uu, ul, su, sl = np.log(uu + 1), np.log(ul + 1), np.log(su + 1), np.log(sl + 1)
 
                 alpha, beta, gamma, ul0, sl0, uu0, half_life = adata.var.loc[
-                    gene_name, [prefix + 'alpha', prefix + 'beta', prefix + 'gamma', prefix + 'ul0', prefix + 'sl0', prefix + 'uu0', 'RNA_half_life']]
+                    gene_name, [prefix + 'alpha', prefix + 'beta', prefix + 'gamma', prefix + 'ul0', prefix + 'sl0', prefix + 'uu0', 'half_life']]
                 # $u$ - unlabeled, unspliced
                 # $s$ - unlabeled, spliced
                 # $w$ - labeled, unspliced
@@ -184,7 +184,7 @@ def dynamics(adata, vkey, tkey, unit='hours', log_unnormalized=True, y_log_scale
                 if log_unnormalized and layers == ['new', 'total']:
                     uu, ul = np.log(uu + 1), np.log(ul + 1)
 
-                alpha, gamma, uu0, ul0, half_life = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'uu0', prefix + 'ul0', 'RNA_half_life']]
+                alpha, gamma, uu0, ul0, half_life = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'uu0', prefix + 'ul0', 'half_life']]
 
                 # require no beta functions
                 u = sol_u(t, uu0, alpha, gamma)

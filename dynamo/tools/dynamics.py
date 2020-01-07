@@ -204,62 +204,62 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
 
         if experiment_type is 'mix_std_stm':
             if alpha is not None:
-                adata.varm['kinetic_parameter_alpha'] = np.zeros((adata.shape[1], alpha[1].shape[1]))
-                adata.varm['kinetic_parameter_alpha'][valid_ind, :] = alpha[1]
-                adata.var['kinetic_parameter_alpha'], adata.var['kinetic_parameter_alpha_std'] = None, None
-                adata.var.loc[valid_ind, 'kinetic_parameter_alpha'], adata.var.loc[
-                    valid_ind, 'kinetic_parameter_alpha_std'] = alpha[1][:, -1], alpha[0]
+                adata.varm['alpha'] = np.zeros((adata.shape[1], alpha[1].shape[1]))
+                adata.varm['alpha'][valid_ind, :] = alpha[1]
+                adata.var['alpha'], adata.var['alpha_std'] = None, None
+                adata.var.loc[valid_ind, 'alpha'], adata.var.loc[
+                    valid_ind, 'alpha_std'] = alpha[1][:, -1], alpha[0]
 
-            adata.var['kinetic_parameter_beta'], adata.var['kinetic_parameter_gamma'], adata.var['RNA_half_life'] = None, None, None
+            adata.var['beta'], adata.var['gamma'], adata.var['half_life'] = None, None, None
 
-            adata.var.loc[valid_ind, 'kinetic_parameter_beta'] = beta
-            adata.var.loc[valid_ind, 'kinetic_parameter_gamma'] = gamma
-            adata.var.loc[valid_ind, 'RNA_half_life'] = np.log(2) / gamma
+            adata.var.loc[valid_ind, 'beta'] = beta
+            adata.var.loc[valid_ind, 'gamma'] = gamma
+            adata.var.loc[valid_ind, 'half_life'] = np.log(2) / gamma
         else:
             if alpha is not None:
                 if len(alpha.shape) > 1:  # for each cell
-                    adata.varm['kinetic_parameter_alpha'] = np.zeros((alpha.shape)) # adata.shape
-                    adata.varm['kinetic_parameter_alpha'] = alpha # [:, valid_ind]
-                    adata.var.loc[valid_ind, 'kinetic_parameter_alpha'] = alpha.mean(1)
+                    adata.varm['alpha'] = np.zeros((alpha.shape)) # adata.shape
+                    adata.varm['alpha'] = alpha # [:, valid_ind]
+                    adata.var.loc[valid_ind, 'alpha'] = alpha.mean(1)
                 elif len(alpha.shape) is 1:
-                    adata.var['kinetic_parameter_alpha'] = None
-                    adata.var.loc[valid_ind, 'kinetic_parameter_alpha'] = alpha
+                    adata.var['alpha'] = None
+                    adata.var.loc[valid_ind, 'alpha'] = alpha
 
-            adata.var['kinetic_parameter_beta'], adata.var['kinetic_parameter_gamma'], adata.var[
-                'RNA_half_life'] = None, None, None
-            adata.var.loc[valid_ind, 'kinetic_parameter_beta'] = beta
-            adata.var.loc[valid_ind, 'kinetic_parameter_gamma'] = gamma
-            adata.var.loc[valid_ind, 'RNA_half_life'] = np.log(2) / gamma
+            adata.var['beta'], adata.var['gamma'], adata.var[
+                'half_life'] = None, None, None
+            adata.var.loc[valid_ind, 'beta'] = beta
+            adata.var.loc[valid_ind, 'gamma'] = gamma
+            adata.var.loc[valid_ind, 'half_life'] = np.log(2) / gamma
 
             alpha_intercept, alpha_r2, gamma_intercept, gamma_r2, delta_intercept, delta_r2, uu0, ul0, su0, sl0, U0, S0, total0 = \
                 est.aux_param.values()
             if alpha_r2 is not None:
                 alpha_r2[~np.isfinite(alpha_r2)] = 0
-            adata.var.loc[valid_ind, 'kinetic_parameter_alpha_intercept'] = alpha_intercept
-            adata.var.loc[valid_ind, 'kinetic_parameter_alpha_r2'] = alpha_r2
+            adata.var.loc[valid_ind, 'alpha_b'] = alpha_intercept
+            adata.var.loc[valid_ind, 'alpha_r2'] = alpha_r2
 
             if gamma_r2 is not None:
                 gamma_r2[~np.isfinite(gamma_r2)] = 0
-            adata.var.loc[valid_ind, 'kinetic_parameter_gamma_intercept'] = gamma_intercept
-            adata.var.loc[valid_ind, 'kinetic_parameter_gamma_r2'] = gamma_r2
+            adata.var.loc[valid_ind, 'gamma_b'] = gamma_intercept
+            adata.var.loc[valid_ind, 'gamma_r2'] = gamma_r2
 
-            adata.var.loc[valid_ind, 'kinetic_parameter_uu0'] = uu0
-            adata.var.loc[valid_ind, 'kinetic_parameter_ul0'] = ul0
-            adata.var.loc[valid_ind, 'kinetic_parameter_su0'] = su0
-            adata.var.loc[valid_ind, 'kinetic_parameter_sl0'] = sl0
-            adata.var.loc[valid_ind, 'kinetic_parameter_U0'] = U0
-            adata.var.loc[valid_ind, 'kinetic_parameter_S0'] = S0
-            adata.var.loc[valid_ind, 'kinetic_parameter_total0'] = total0
+            adata.var.loc[valid_ind, 'uu0'] = uu0
+            adata.var.loc[valid_ind, 'ul0'] = ul0
+            adata.var.loc[valid_ind, 'su0'] = su0
+            adata.var.loc[valid_ind, 'sl0'] = sl0
+            adata.var.loc[valid_ind, 'U0'] = U0
+            adata.var.loc[valid_ind, 'S0'] = S0
+            adata.var.loc[valid_ind, 'total0'] = total0
 
             if ind_for_proteins is not None:
                 delta_r2[~np.isfinite(delta_r2)] = 0
-                adata.var['kinetic_parameter_eta'], adata.var['kinetic_parameter_delta'], adata.var[
+                adata.var['eta'], adata.var['delta'], adata.var[
                     'protein_half_life'] = None, None, None
-                adata.var.loc[valid_ind, 'kinetic_parameter_eta'][ind_for_proteins] = eta
-                adata.var.loc[valid_ind, 'kinetic_parameter_delta'][ind_for_proteins] = delta
-                adata.var.loc[valid_ind, 'kinetic_parameter_delta_intercept'][ind_for_proteins] = delta_intercept
-                adata.var.loc[valid_ind, 'kinetic_parameter_delta_r2'][ind_for_proteins] = delta_r2
-                adata.var.loc[valid_ind, 'protein_half_life'][ind_for_proteins] = np.log(2) / delta
+                adata.var.loc[valid_ind, 'eta'][ind_for_proteins] = eta
+                adata.var.loc[valid_ind, 'delta'][ind_for_proteins] = delta
+                adata.var.loc[valid_ind, 'delta_b'][ind_for_proteins] = delta_intercept
+                adata.var.loc[valid_ind, 'delta_r2'][ind_for_proteins] = delta_r2
+                adata.var.loc[valid_ind, 'p_half_life'][ind_for_proteins] = np.log(2) / delta
 
     elif mode is 'moment':
         # a few hard code to set up data for moment mode:
@@ -318,18 +318,18 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
             adata.obsm['velocity_P'] = csr_matrix((adata.obsm['P'].shape[0], len(ind_for_proteins)))
             adata.obsm['velocity_P'] = vel_P.T.tocsr() if issparse(vel_P) else csr_matrix(vel_P.T)
 
-        adata.var['kinetic_parameter_a'], adata.var['kinetic_parameter_b'], adata.var['kinetic_parameter_alpha_a'], \
-        adata.var['kinetic_parameter_alpha_i'], adata.var['kinetic_parameter_beta'], adata.var['protein_half_life'], \
-        adata.var['kinetic_parameter_gamma'], adata.var[
-            'RNA_half_life'] = None, None, None, None, None, None, None, None
+        adata.var['a'], adata.var['b'], adata.var['alpha_a'], \
+        adata.var['alpha_i'], adata.var['beta'], adata.var['protein_half_life'], \
+        adata.var['gamma'], adata.var[
+            'half_life'] = None, None, None, None, None, None, None, None
 
-        adata.var.loc[valid_ind, 'kinetic_parameter_a'] = a
-        adata.var.loc[valid_ind, 'kinetic_parameter_b'] = b
-        adata.var.loc[valid_ind, 'kinetic_parameter_alpha_a'] = alpha_a
-        adata.var.loc[valid_ind, 'kinetic_parameter_alpha_i'] = alpha_i
-        adata.var.loc[valid_ind, 'kinetic_parameter_beta'] = beta
-        adata.var.loc[valid_ind, 'kinetic_parameter_gamma'] = gamma
-        adata.var.loc[valid_ind, 'RNA_half_life'] = np.log(2) / gamma
+        adata.var.loc[valid_ind, 'a'] = a
+        adata.var.loc[valid_ind, 'b'] = b
+        adata.var.loc[valid_ind, 'alpha_a'] = alpha_a
+        adata.var.loc[valid_ind, 'alpha_i'] = alpha_i
+        adata.var.loc[valid_ind, 'beta'] = beta
+        adata.var.loc[valid_ind, 'gamma'] = gamma
+        adata.var.loc[valid_ind, 'half_life'] = np.log(2) / gamma
         # add protein related parameters in the moment model below:
     elif mode is 'model_selection':
         warnings.warn('Not implemented yet.')

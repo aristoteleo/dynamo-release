@@ -37,7 +37,7 @@ def szFactor(adata, layers='all', total_layers=None, locfunc=np.nanmean, round_e
         total = None
         for t_key in total_layers:
             total = adata.layers[t_key] if total is None else total + adata.layers[t_key]
-        adata['total_'] = total
+        adata['_total_'] = total
 
     layers = get_layer_keys(adata, layers)
     if 'raw' in layers and adata.raw is None:
@@ -80,10 +80,9 @@ def szFactor(adata, layers='all', total_layers=None, locfunc=np.nanmean, round_e
             adata.obs['Size_Factor'] = sfs
         elif layer is 'total_':
             adata.obs['total_Size_Factor'] = sfs
+            del adata.layers['_total_']
         else:
             adata.obs[layer + '_Size_Factor'] = sfs
-    if total_layers is not None and len(set(adata.layers.keys()).difference(total_layers)) == 0:
-        del adata.layers['total_']
 
     return adata
 
