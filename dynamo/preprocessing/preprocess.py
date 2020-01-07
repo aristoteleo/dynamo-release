@@ -37,7 +37,7 @@ def szFactor(adata, layers='all', total_layers=None, locfunc=np.nanmean, round_e
         total = None
         for t_key in total_layers:
             total = adata.layers[t_key] if total is None else total + adata.layers[t_key]
-        adata['_total_'] = total
+        adata.layers['_total_'] = total
 
     layers = get_layer_keys(adata, layers)
     if 'raw' in layers and adata.raw is None:
