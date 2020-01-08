@@ -283,7 +283,7 @@ def dynamics(adata, vkey, unit='hours', log_unnormalized=True, y_log_scale=False
 
     import matplotlib.pyplot as plt
 
-    T, asspt_mRNA, experiment_type, _, mode, has_splicing, has_labeling, has_protein = adata.uns['dynamics'].values()
+    T, group, asspt_mRNA, experiment_type, _, mode, has_splicing, has_labeling, has_protein = adata.uns['dynamics'].values()
     if asspt_mRNA is 'ss':
         # run the phase plot
         warnings.warn("dynamics plot doesn't support steady state mode, use phase_portraits function instead.")
