@@ -282,19 +282,22 @@ def dynamics(adata, vkey, unit='hours', log_unnormalized=True, y_log_scale=False
     """
 
     import matplotlib.pyplot as plt
+    if group is not None and group + "_dynamics" in adata.uns_keys():
+        uns_key = group + "_dynamics"
+        _group, grp_len = np.unique(adata.obs[group]), len(np.unique(adata.obs[group]))
+    else:
+        uns_key = "dynamics"
+        _group, grp_len = ['_all_cells'], 1
 
-    T, group, asspt_mRNA, experiment_type, _, mode, has_splicing, has_labeling, has_protein = adata.uns['dynamics'].values()
+    T, group, asspt_mRNA, experiment_type, _, mode, has_splicing, has_labeling, has_protein = adata.uns[uns_key].values()
     if asspt_mRNA is 'ss':
         # run the phase plot
         warnings.warn("dynamics plot doesn't support steady state mode, use phase_portraits function instead.")
         phase_portraits(adata)
 
-    groups = [''] if group is None else np.unique(adata.obs[group])
-
     T_uniq = np.unique(T)
     t = np.linspace(0, T_uniq[-1], 1000)
     gene_idx = [np.where(adata.var.index.values == gene)[0][0] for gene in vkey]
-    prefix = '' # kinetic_parameter_
 
     if boxwidth is None and len(T_uniq) > 1:
         boxwidth = 0.8 * (np.diff(T_uniq).min() / 2)
@@ -321,484 +324,490 @@ def dynamics(adata, vkey, unit='hours', log_unnormalized=True, y_log_scale=False
         elif experiment_type is 'mix_std_stm':
             sub_plot_n = 3
 
-    ncols = len(gene_idx) if ncols is None else min(len(gene_idx), ncols)
-    nrows = int(np.ceil(len(gene_idx) * sub_plot_n / ncols))
+    ncols = len(gene_idx) * grp_len if ncols is None else min(len(gene_idx) * grp_len, ncols)
+    nrows = int(np.ceil(len(gene_idx) * sub_plot_n * grp_len / ncols))
     figsize = [7, 5] if figsize is None else figsize
     gs = plt.GridSpec(nrows, ncols, plt.figure(None, (figsize[0] * ncols, figsize[1] * nrows), dpi=dpi))
 
     # we need to visualize gene in row-wise mode
-    for i, idx in enumerate(gene_idx):
-        gene_name = adata.var_names[idx]
+    for grp_idx, cur_grp in enumerate(_group):
+        if cur_grp == '_all_cells':
+            prefix = ''  # kinetic_parameter_
+        else:
+            prefix = group + '_' + cur_grp + '_'
 
-        if mode is 'moment':
-            a, b, alpha_a, alpha_i, beta, gamma = adata.var.loc[gene_name, \
-             [prefix + 'a', prefix + 'b', prefix + 'alpha_a', prefix + 'alpha_i', prefix + 'beta', prefix + 'gamma']]
-            params = {'a': a, 'b': b, 'alpha_a': alpha_a, 'alpha_i': alpha_i, 'beta': beta, 'gamma': gamma} # "la": 1, "si": 0,
-            mom = moments(*list(params.values()))
-            mom.integrate(t)
-            mom_data = mom.get_all_central_moments() if has_splicing else mom.get_nosplice_central_moments()
-            if true_param_prefix is not None:
-                true_a, true_b, true_alpha_a, true_alpha_i, true_beta, true_gamma = adata.var.loc[gene_name, \
-                                                                    [true_param_prefix + 'a', true_param_prefix + 'b', true_param_prefix + 'alpha_a',
-                                                                     true_param_prefix + 'alpha_i', true_param_prefix + 'beta',
-                                                                     true_param_prefix + 'gamma']]
-                true_params = {'a': true_a, 'b': true_b, 'alpha_a': true_alpha_a, 'alpha_i': true_alpha_i, 'beta': true_beta,
-                          'gamma': true_gamma}  # "la": 1, "si": 0,
-                true_mom = moments(*list(true_params.values()))
-                true_mom.integrate(t)
-                true_mom_data = true_mom.get_all_central_moments() if has_splicing else true_mom.get_nosplice_central_moments()
+        for i, idx in enumerate(gene_idx):
+            gene_name = adata.var_names[idx]
 
-            # n_mean, n_var = x_data[:2, :], x_data[2:, :]
-            if has_splicing:
-                tmp = [adata[:, gene_idx].layers['X_ul'].A.T,
-                       adata.layers['X_sl'].A.T] if 'X_ul' in adata.layers.keys() else \
-                    [adata[:, gene_idx].layers['ul'].A.T, adata.layers['sl'].A.T]
-                x_data = [tmp[0].A, tmp[1].A] if issparse(tmp[0]) else tmp
-                if log_unnormalized and 'X_ul' not in adata.layers.keys():
-                    x_data = [np.log(tmp[0] + 1), np.log(tmp[1] + 1)]
+            if mode is 'moment':
+                a, b, alpha_a, alpha_i, beta, gamma = adata.var.loc[gene_name, \
+                 [prefix + 'a', prefix + 'b', prefix + 'alpha_a', prefix + 'alpha_i', prefix + 'beta', prefix + 'gamma']]
+                params = {'a': a, 'b': b, 'alpha_a': alpha_a, 'alpha_i': alpha_i, 'beta': beta, 'gamma': gamma} # "la": 1, "si": 0,
+                mom = moments(*list(params.values()))
+                mom.integrate(t)
+                mom_data = mom.get_all_central_moments() if has_splicing else mom.get_nosplice_central_moments()
+                if true_param_prefix is not None:
+                    true_a, true_b, true_alpha_a, true_alpha_i, true_beta, true_gamma = adata.var.loc[gene_name, \
+                                                                        [true_param_prefix + 'a', true_param_prefix + 'b', true_param_prefix + 'alpha_a',
+                                                                         true_param_prefix + 'alpha_i', true_param_prefix + 'beta',
+                                                                         true_param_prefix + 'gamma']]
+                    true_params = {'a': true_a, 'b': true_b, 'alpha_a': true_alpha_a, 'alpha_i': true_alpha_i, 'beta': true_beta,
+                              'gamma': true_gamma}  # "la": 1, "si": 0,
+                    true_mom = moments(*list(true_params.values()))
+                    true_mom.integrate(t)
+                    true_mom_data = true_mom.get_all_central_moments() if has_splicing else true_mom.get_nosplice_central_moments()
 
-                title_ = ['(unspliced labeled)', '(spliced labeled)',
-                          '(unspliced labeled)', '(spliced labeled)']
-                Obs_m = [adata.uns['M_ul'], adata.uns['M_sl']]
-                Obs_v = [adata.uns['V_ul'], adata.uns['V_sl']]
-                j_species = 2 # number of species
-            else:
-                tmp = adata[:, gene_idx].layers['X_new'].T if 'X_new' in adata.layers.keys() else \
-                adata[:, gene_idx].layers['new'].T
-                x_data = [tmp.A] if issparse(tmp) else [tmp]
+                # n_mean, n_var = x_data[:2, :], x_data[2:, :]
+                if has_splicing:
+                    tmp = [adata[:, gene_name].layers['X_ul'].A.T,
+                           adata.layers['X_sl'].A.T] if 'X_ul' in adata.layers.keys() else \
+                        [adata[:, gene_name].layers['ul'].A.T, adata.layers['sl'].A.T]
+                    x_data = [tmp[0].A, tmp[1].A] if issparse(tmp[0]) else tmp
+                    if log_unnormalized and 'X_ul' not in adata.layers.keys():
+                        x_data = [np.log(tmp[0] + 1), np.log(tmp[1] + 1)]
 
-                if log_unnormalized and 'X_new' not in adata.layers.keys():
-                    x_data = [np.log(x_data[0] + 1)]
-                # only use new key for calculation, so we only have M, V
-                title_ = [' (labeled)', ' (labeled)']
-                Obs_m, Obs_v = [adata.uns['M']], [adata.uns['V']]
-                j_species = 1
+                    title_ = ['(unspliced labeled)', '(spliced labeled)',
+                              '(unspliced labeled)', '(spliced labeled)']
+                    Obs_m = [adata.uns['M_ul'], adata.uns['M_sl']]
+                    Obs_v = [adata.uns['V_ul'], adata.uns['V_sl']]
+                    j_species = 2 # number of species
+                else:
+                    tmp = adata[:, gene_name].layers['X_new'].T if 'X_new' in adata.layers.keys() else \
+                    adata[:, gene_name].layers['new'].T
+                    x_data = [tmp.A] if issparse(tmp) else [tmp]
 
-            for j in range(sub_plot_n):
-                row_ind = int(np.floor(i/ncols)) # make sure all related plots for the same gene in the same column.
-                ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols + i % ncols])
-                if true_param_prefix is not None and j == 0:
-                    if has_splicing:
-                        ax.text(0.15, 0.92, r'$a^{true}$: {0:.2f} $a^{est}$: {0:.2f} \n'
+                    if log_unnormalized and 'X_new' not in adata.layers.keys():
+                        x_data = [np.log(x_data[0] + 1)]
+                    # only use new key for calculation, so we only have M, V
+                    title_ = [' (labeled)', ' (labeled)']
+                    Obs_m, Obs_v = [adata.uns['M']], [adata.uns['V']]
+                    j_species = 1
+
+                for j in range(sub_plot_n):
+                    row_ind = int(np.floor(i/ncols)) # make sure all related plots for the same gene in the same column.
+                    ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols * grp_len + (i % ncols - 1) * grp_len + 1])
+                    if true_param_prefix is not None and j == 0:
+                        if has_splicing:
+                            ax.text(0.15, 0.92, r'$a^{true}$: {0:.2f} $a^{est}$: {0:.2f} \n'
+                                                r'$b^{true}$: {0:.2f} $b^{est}$: {0:.2f} \n'
+                                                r'$\alpha_a^{true}$: {0:.2f} $\alpha_a^{est}$: {0:.2f} \n'
+                                                r'$\alpha_i^{true}$: {0:.2f} $\alpha_i^{est}$: {0:.2f} \n'
+                                                r'$\beta^{true}$: {0:.2f} $\beta^{est}$: {0:.2f} \n'
+                                                r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_a, a, true_b, b, true_alpha_a, alpha_a, true_alpha_i, alpha_i, true_beta, beta, true_gamma, gamma),
+                                    ha='right', va='top', transform=ax.transAxes)
+                        else:
+                            ax.text(0.15, 0.92, r'$a^{true}$: {0:.2f} $a^{est}$: {0:.2f} \n'
                                             r'$b^{true}$: {0:.2f} $b^{est}$: {0:.2f} \n'
                                             r'$\alpha_a^{true}$: {0:.2f} $\alpha_a^{est}$: {0:.2f} \n'
                                             r'$\alpha_i^{true}$: {0:.2f} $\alpha_i^{est}$: {0:.2f} \n'
-                                            r'$\beta^{true}$: {0:.2f} $\beta^{est}$: {0:.2f} \n'
-                                            r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_a, a, true_b, b, true_alpha_a, alpha_a, true_alpha_i, alpha_i, true_beta, beta, true_gamma, gamma),
+                                            r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_a, a, true_b, b, true_alpha_a, alpha_a, true_alpha_i, alpha_i, true_gamma, gamma),
                                 ha='right', va='top', transform=ax.transAxes)
+                    if j < j_species:
+                        ax.boxplot(x=[x_data[j][i][T == std] for std in T_uniq],  positions=T_uniq, widths=boxwidth, showfliers=False, showmeans=True)  # x=T.values, y= # ax1.plot(T, u.T, linestyle='None', marker='o', markersize=10)
+                        # ax.scatter(T_uniq, Obs_m[j][i], c='r')  # ax1.plot(T, u.T, linestyle='None', marker='o', markersize=10)
+                        if y_log_scale:
+                            ax.set_yscale('log')
+                        if log_unnormalized:
+                            ax.set_ylabel('Expression (log)') #
+                        else:
+                            ax.set_ylabel('Expression')
+                        ax.plot(t, mom_data[j], 'k--')
+                        if true_param_prefix is not None: ax.plot(t, true_mom_data[j], 'r--')
                     else:
-                        ax.text(0.15, 0.92, r'$a^{true}$: {0:.2f} $a^{est}$: {0:.2f} \n'
-                                        r'$b^{true}$: {0:.2f} $b^{est}$: {0:.2f} \n'
-                                        r'$\alpha_a^{true}$: {0:.2f} $\alpha_a^{est}$: {0:.2f} \n'
-                                        r'$\alpha_i^{true}$: {0:.2f} $\alpha_i^{est}$: {0:.2f} \n'
-                                        r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_a, a, true_b, b, true_alpha_a, alpha_a, true_alpha_i, alpha_i, true_gamma, gamma),
-                            ha='right', va='top', transform=ax.transAxes)
-                if j < j_species:
-                    ax.boxplot(x=[x_data[j][i][T == std] for std in T_uniq],  positions=T_uniq, widths=boxwidth, showfliers=False, showmeans=True)  # x=T.values, y= # ax1.plot(T, u.T, linestyle='None', marker='o', markersize=10)
-                    # ax.scatter(T_uniq, Obs_m[j][i], c='r')  # ax1.plot(T, u.T, linestyle='None', marker='o', markersize=10)
-                    if y_log_scale:
-                        ax.set_yscale('log')
-                    if log_unnormalized:
-                        ax.set_ylabel('Expression (log)') #
-                    else:
-                        ax.set_ylabel('Expression')
-                    ax.plot(t, mom_data[j], 'k--')
-                    if true_param_prefix is not None: ax.plot(t, true_mom_data[j], 'r--')
-                else:
-                    ax.scatter(T_uniq, Obs_v[j - j_species][i]) # , c='r'
-                    if y_log_scale:
-                        ax.set_yscale('log')
-                    if log_unnormalized:
-                        ax.set_ylabel('Variance (log expression)') #
-                    else:
-                        ax.set_ylabel('Variance')
-                    ax.plot(t, mom_data[j], 'k--')
-                    if true_param_prefix is not None: ax.plot(t, true_mom_data[j], 'r--')
+                        ax.scatter(T_uniq, Obs_v[j - j_species][i]) # , c='r'
+                        if y_log_scale:
+                            ax.set_yscale('log')
+                        if log_unnormalized:
+                            ax.set_ylabel('Variance (log expression)') #
+                        else:
+                            ax.set_ylabel('Variance')
+                        ax.plot(t, mom_data[j], 'k--')
+                        if true_param_prefix is not None: ax.plot(t, true_mom_data[j], 'r--')
 
-                ax.set_xlabel('time (' + unit + ')')
-                ax.set_title(gene_name +  " " + title_[j])
-
-        elif experiment_type is 'deg':
-            if has_splicing:
-                layers = ['X_uu', 'X_ul', 'X_su', 'X_sl'] if 'X_ul' in adata.layers.keys() else ['uu', 'ul', 'su', 'sl']
-                uu, ul, su, sl = adata[:, gene_name].layers[layers[0]], adata[:, gene_name].layers[layers[1]], \
-                           adata[:, gene_name].layers[layers[2]], adata[:, gene_name].layers[layers[3]]
-                uu, ul, su, sl = (uu.toarray().squeeze(), ul.toarray().squeeze(), su.toarray().squeeze(), sl.toarray().squeeze()) \
-                    if issparse(uu) else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
-
-                if log_unnormalized and layers == ['uu', 'ul', 'su', 'sl']:
-                    uu, ul, su, sl = np.log(uu + 1), np.log(ul + 1), np.log(su + 1), np.log(sl + 1)
-
-                alpha, beta, gamma, ul0, sl0, uu0, half_life = adata.var.loc[
-                    gene_name, [prefix + 'alpha', prefix + 'beta', prefix + 'gamma', prefix + 'ul0', prefix + 'sl0', prefix + 'uu0', 'half_life']]
-                # $u$ - unlabeled, unspliced
-                # $s$ - unlabeled, spliced
-                # $w$ - labeled, unspliced
-                # $l$ - labeled, spliced
-                #
-                beta = sys.float_info.epsilon if beta == 0 else beta
-                gamma = sys.float_info.epsilon if gamma == 0 else gamma
-                u = sol_u(t, uu0, alpha, beta)
-                su0 = np.mean(su[T == np.min(T)]) # this should also be estimated
-                s = sol_s(t, su0, uu0, alpha, beta, gamma)
-                w = sol_u(t, ul0, 0, beta)
-                l = sol_s(t, sl0, ul0, 0, beta, gamma)
-                if true_param_prefix is not None:
-                    true_alpha, true_beta, true_gamma = adata.var.loc[gene_name, [true_param_prefix + 'alpha', true_param_prefix + 'beta', true_param_prefix + 'gamma']]
-                    true_u = sol_u(t, uu0, true_alpha, true_beta)
-                    true_s = sol_s(t, su0, uu0, true_alpha, true_beta, true_gamma)
-                    true_w = sol_u(t, ul0, 0, true_beta)
-                    true_l = sol_s(t, sl0, ul0, 0, true_beta, true_gamma)
-
-                    true_p = np.vstack((true_u, true_w, true_s, true_l))
-
-                title_ = ['(unspliced unlabeled)', '(unspliced labeled)', '(spliced unlabeled)', '(spliced labeled)']
-
-                Obs, Pred = np.vstack((uu, ul, su, sl)), np.vstack((u, w, s, l))
-            else:
-                layers = ['X_new', 'X_total'] if 'X_new' in adata.layers.keys() else ['new', 'total']
-                uu, ul = adata[:, gene_name].layers[layers[1]] - adata[:, gene_name].layers[layers[0]], \
-                                 adata[:, gene_name].layers[layers[0]]
-                uu, ul = (uu.toarray().squeeze(), ul.toarray().squeeze()) if issparse(uu) else (uu.squeeze(), ul.squeeze())
-
-                if log_unnormalized and layers == ['new', 'total']:
-                    uu, ul = np.log(uu + 1), np.log(ul + 1)
-
-                alpha, gamma, uu0, ul0, half_life = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'uu0', prefix + 'ul0', 'half_life']]
-
-                # require no beta functions
-                u = sol_u(t, uu0, alpha, gamma)
-                s = None # sol_s(t, su0, uu0, 0, 1, gamma)
-                w = sol_u(t, ul0, 0, gamma)
-                l = None # sol_s(t, 0, 0, alpha, 1, gamma)
-                title_ = ['(unlabeled)', '(labeled)']
-                if true_param_prefix is not None:
-                    true_alpha, true_gamma = adata.var.loc[gene_name, [true_param_prefix + 'alpha', true_param_prefix + 'gamma']]
-                    true_u = sol_u(t, uu0, true_alpha, true_gamma)
-                    true_w = sol_u(t, ul0, 0, true_gamma)
-
-                    true_p = np.vstack((true_u, true_w))
-
-                Obs, Pred = np.vstack((uu, ul)), np.vstack((u, w))
-
-            for j in range(sub_plot_n):
-                row_ind = int(np.floor(i/ncols)) # make sure unlabled and labeled are in the same column.
-                ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols + i % ncols])
-                if true_param_prefix is not None and j == 0:
-                    if has_splicing:
-                        ax.text(0.75, 0.70, r'$\alpha^{true}$: {0:.2f} $\alpha^{est}$: {0:.2f} \n'
-                                            r'$\beta^{true}$: {0:.2f} $\beta^{est}$: {0:.2f} \n'
-                                            r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_alpha, alpha, true_beta, beta, true_gamma, gamma),
-                                ha='right', va='top', transform=ax.transAxes)
-                    else:
-                        ax.text(0.75, 0.80, r'$\alpha^{true}$: {0:.2f} $\alpha^{est}$: {0:.2f} \n'
-                                            r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_alpha, alpha, true_gamma, gamma),
-                                ha='right', va='top', transform=ax.transAxes)
-
-                ax.boxplot(x=[Obs[j][T == std] for std in T_uniq], positions=T_uniq, widths=boxwidth,
-                           showfliers=False, showmeans=True)
-                ax.plot(t, Pred[j], 'k--')
-                if true_param_prefix is not None: ax.plot(t, true_p[j], 'r--')
-                if j == sub_plot_n - 1:
-                    ax.text(0.8, 0.8, r'$t_{1/2} = $' + "{0:.2f}".format(half_life) + unit[0], ha='right', va='top', transform=ax.transAxes)
-                ax.set_xlabel('time (' + unit + ')')
-                if y_log_scale:
-                    ax.set_yscale('log')
-                if log_unnormalized:
-                    ax.set_ylabel('Expression (log)')
-                else:
-                    ax.set_ylabel('Expression')
-                ax.set_title(gene_name + " " + title_[j])
-        elif experiment_type is 'kin':
-            if has_splicing:
-                layers = ['X_uu', 'X_ul', 'X_su', 'X_sl'] if 'X_ul' in adata.layers.keys() else ['uu', 'ul', 'su', 'sl']
-                uu, ul, su, sl = adata[:, gene_name].layers[layers[0]], adata[:, gene_name].layers[layers[1]], \
-                           adata[:, gene_name].layers[layers[2]], adata[:, gene_name].layers[layers[3]]
-                uu, ul, su, sl = (uu.toarray().squeeze(), ul.toarray().squeeze(), su.toarray().squeeze(), sl.toarray().squeeze()) \
-                    if issparse(uu) else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
-
-                if log_unnormalized and layers == ['uu', 'ul', 'su', 'sl']:
-                    uu, ul, su, sl = np.log(uu + 1), np.log(ul + 1), np.log(su + 1), np.log(sl + 1)
-
-                alpha, beta, gamma, uu0, su0 = adata.var.loc[
-                    gene_name, [prefix + 'alpha', prefix + 'beta', prefix + 'gamma', prefix + 'uu0', prefix + 'su0']]
-                # $u$ - unlabeled, unspliced
-                # $s$ - unlabeled, spliced
-                # $w$ - labeled, unspliced
-                # $l$ - labeled, spliced
-                #
-                beta = sys.float_info.epsilon if beta == 0 else beta
-                gamma = sys.float_info.epsilon if gamma == 0 else gamma
-                u = sol_u(t, uu0, 0, beta)
-                s = sol_s(t, su0, uu0, 0, beta, gamma)
-                w = sol_u(t, 0, alpha, beta)
-                l = sol_s(t, 0, 0, alpha, beta, gamma)
-                if true_param_prefix is not None:
-                    true_alpha, true_beta, true_gamma = adata.var.loc[gene_name, [true_param_prefix + 'alpha', true_param_prefix + 'beta', true_param_prefix + 'gamma']]
-                    true_u = sol_u(t, uu0, 0, true_beta)
-                    true_s = sol_s(t, su0, uu0, 0, true_beta, true_gamma)
-                    true_w = sol_u(t, 0, true_alpha, true_beta)
-                    true_l = sol_s(t, 0, 0, true_alpha, true_beta, true_gamma)
-
-                    true_p = np.vstack((true_u, true_w, true_s, true_l))
-
-                title_ = ['(unspliced unlabeled)', '(unspliced labeled)', '(spliced unlabeled)', '(spliced labeled)']
-
-                Obs, Pred = np.vstack((uu, ul, su, sl)), np.vstack((u, w, s, l))
-            else:
-                layers = ['X_new', 'X_total'] if 'X_new' in adata.layers.keys() else ['new', 'total']
-                uu, ul = adata[:, gene_name].layers[layers[1]] - adata[:, gene_name].layers[layers[0]], \
-                                 adata[:, gene_name].layers[layers[0]]
-                uu, ul = (uu.toarray().squeeze(), ul.toarray().squeeze()) if issparse(uu) else (uu.squeeze(), ul.squeeze())
-
-                if log_unnormalized and layers == ['new', 'total']:
-                    uu, ul = np.log(uu + 1), np.log(ul + 1)
-
-                alpha, gamma, uu0 = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'uu0']]
-
-                # require no beta functions
-                u = sol_u(t, uu0, 0, gamma)
-                s = None # sol_s(t, su0, uu0, 0, 1, gamma)
-                w = sol_u(t, 0, alpha, gamma)
-                l = None # sol_s(t, 0, 0, alpha, 1, gamma)
-                if true_param_prefix is not None:
-                    true_alpha, true_gamma = adata.var.loc[gene_name, [true_param_prefix + 'alpha', true_param_prefix + 'gamma']]
-                    true_u = sol_u(t, uu0, 0, true_gamma)
-                    true_w = sol_u(t, 0, true_alpha, true_gamma)
-
-                    true_p = np.vstack((true_u, true_w))
-
-                title_ = ['(unlabeled)', '(labeled)']
-
-                Obs, Pred = np.vstack((uu, ul)), np.vstack((u, w))
-
-            for j in range(sub_plot_n):
-                row_ind = int(np.floor(i/ncols)) # make sure unlabled and labeled are in the same column.
-                ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols + i % ncols])
-                if true_param_prefix is not None and j == 0:
-                    if has_splicing:
-                        ax.text(0.75, 0.95, r'$\alpha^{true}$: {0:.2f} $\alpha^{est}$: {0:.2f} \n'
-                                            r'$\beta^{true}$: {0:.2f} $\beta^{est}$: {0:.2f} \n'
-                                            r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_alpha, alpha, true_beta, beta, true_gamma, gamma),
-                                ha='right', va='top', transform=ax.transAxes)
-                    else:
-                        ax.text(0.75, 0.95, r'$\alpha^{true}$: {0:.2f} $\alpha^{est}$: {0:.2f} \n'
-                                            r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_alpha, alpha, true_gamma, gamma),
-                                ha='right', va='top', transform=ax.transAxes)
-
-                ax.boxplot(x=[Obs[j][T == std] for std in T_uniq], positions=T_uniq, widths=boxwidth,
-                           showfliers=False, showmeans=True)
-                ax.plot(t, Pred[j], 'k--')
-                if true_param_prefix is not None: ax.plot(t, true_p[j], 'k--')
-                ax.set_xlabel('time (' + unit + ')')
-                if y_log_scale:
-                    ax.set_yscale('log')
-                if log_unnormalized:
-                    ax.set_ylabel('Expression (log)')
-                else:
-                    ax.set_ylabel('Expression')
-                ax.set_title(gene_name +  " " + title_[j])
-        elif experiment_type is 'one_shot':
-            if has_splicing:
-                layers = ['X_uu', 'X_ul', 'X_su', 'X_sl'] if 'X_ul' in adata.layers.keys() else ['uu', 'ul', 'su', 'sl']
-                uu, ul, su, sl = adata[:, gene_name].layers[layers[0]], adata[:, gene_name].layers[layers[1]], \
-                                 adata[:, gene_name].layers[layers[2]], adata[:, gene_name].layers[layers[3]]
-                uu, ul, su, sl = (uu.toarray().squeeze(), ul.toarray().squeeze(), su.toarray().squeeze(), sl.toarray().squeeze()) \
-                    if issparse(uu) else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
-
-                if log_unnormalized and layers == ['uu', 'ul', 'su', 'sl']:
-                    uu, ul, su, sl = np.log(uu + 1), np.log(ul + 1), np.log(su + 1), np.log(sl + 1)
-
-                alpha, beta, gamma, U0, S0 = adata.var.loc[
-                    gene_name, [prefix + 'alpha', prefix + 'beta', prefix + 'gamma', prefix + 'U0', prefix + 'S0']]
-                # $u$ - unlabeled, unspliced
-                # $s$ - unlabeled, spliced
-                # $w$ - labeled, unspliced
-                # $l$ - labeled, spliced
-                #
-                beta = sys.float_info.epsilon if beta == 0 else beta
-                gamma = sys.float_info.epsilon if gamma == 0 else gamma
-                U_sol = sol_u(t, U0, 0, beta)
-                S_sol = sol_u(t, S0, 0, gamma)
-                l = sol_u(t, 0, alpha, beta) + sol_s(t, 0, 0, alpha, beta, gamma)
-                L = sl + ul
-                if true_param_prefix is not None:
-                    true_alpha, true_beta, true_gamma = adata.var.loc[gene_name, [true_param_prefix + 'alpha', true_param_prefix + 'beta', true_param_prefix + 'gamma']]
-                    true_l = sol_u(t, 0, true_alpha, true_beta) + sol_s(t, 0, 0, true_alpha, true_beta, true_gamma)
-
-                title_ = ['labeled']
-            else:
-                layers = ['X_new', 'X_total'] if 'X_new' in adata.layers.keys() else ['new', 'total']
-                uu, ul = adata[:, gene_name].layers[layers[1]] - adata[:, gene_name].layers[layers[0]], \
-                         adata[:, gene_name].layers[layers[0]]
-                uu, ul = (uu.toarray().squeeze(), ul.toarray().squeeze()) if issparse(uu) else (
-                uu.squeeze(), ul.squeeze())
-
-                if log_unnormalized and layers == ['new', 'total']:
-                    uu, ul = np.log(uu + 1), np.log(ul + 1)
-
-                alpha, gamma, total0 = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'total0']]
-
-                # require no beta functions
-                old = sol_u(t, total0, 0, gamma)
-                s = None  # sol_s(t, su0, uu0, 0, 1, gamma)
-                w = None
-                l = sol_u(t, 0, alpha, gamma)  # sol_s(t, 0, 0, alpha, 1, gamma)
-                L = ul
-                if true_param_prefix is not None:
-                    true_alpha, true_gamma = adata.var.loc[gene_name, [true_param_prefix + 'alpha', true_param_prefix + 'gamma']]
-                    true_l = sol_u(t, 0, true_alpha, true_gamma)  # sol_s(t, 0, 0, alpha, 1, gamma)
-
-                title_ = ['labeled']
-
-            Obs, Pred = np.hstack((np.zeros(L.shape), L)), np.hstack(l)
-            if true_param_prefix is not None: true_p = np.hstack(true_l)
-
-            row_ind = int(np.floor(i / ncols))  # make sure unlabled and labeled are in the same column.
-            ax = plt.subplot(gs[(row_ind * sub_plot_n) * ncols + i % ncols])
-            if true_param_prefix is not None:
-                if has_splicing:
-                    ax.text(0.05, 0.95, r'$\alpha^{true}$: {0:.2f} $\alpha^{est}$: {0:.2f} \n'
-                                        r'$\beta^{true}$: {0:.2f} $\beta^{est}$: {0:.2f} \n'
-                                        r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_alpha, alpha,
-                                                                                                      true_beta, beta,
-                                                                                                      true_gamma, gamma),
-                            ha='right', va='top', transform=ax.transAxes)
-                else:
-                    ax.text(0.05, 0.95, r'$\alpha^{true}$: {0:.2f} $\alpha^{est}$: {0:.2f} \n'
-                                        r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_alpha, alpha,
-                                                                                                      true_gamma, gamma),
-                            ha='right', va='top', transform=ax.transAxes)
-            ax.boxplot(x=[Obs[np.hstack((np.zeros_like(T), T)) == std] for std in [0, T_uniq[0]]], positions=[0, T_uniq[0]], widths=boxwidth,
-                       showfliers=False, showmeans=True)
-            ax.plot(t, Pred, 'k--')
-            if true_param_prefix is not None: ax.plot(t, true_p, 'r--')
-            ax.set_xlabel('time (' + unit + ')')
-            if y_log_scale:
-                ax.set_yscale('log')
-            if log_unnormalized:
-                ax.set_ylabel('Expression (log)')
-            else:
-                ax.set_ylabel('Expression')
-            ax.set_title(gene_name +  " " + title_[0])
-        elif experiment_type is 'mix_std_stm':
-            if has_splicing:
-                layers = ['X_uu', 'X_ul', 'X_su', 'X_sl'] if 'X_ul' in adata.layers.keys() else ['uu', 'ul', 'su', 'sl']
-                uu, ul, su, sl = adata[:, gene_name].layers[layers[0]], adata[:, gene_name].layers[layers[1]], \
-                           adata[:, gene_name].layers[layers[2]], adata[:, gene_name].layers[layers[3]]
-                uu, ul, su, sl = (uu.toarray().squeeze(), ul.toarray().squeeze(), su.toarray().squeeze(), sl.toarray().squeeze()) \
-                    if issparse(uu) else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
-
-                if log_unnormalized and layers == ['uu', 'ul', 'su', 'sl']:
-                    uu, ul, su, sl = np.log(uu + 1), np.log(ul + 1), np.log(su + 1), np.log(sl + 1)
-
-                beta, gamma, alpha_std = adata.var.loc[gene_name, [prefix + 'beta', prefix + 'gamma', prefix + 'alpha_std']]
-                alpha_stm = adata[:, gene_name].varm[prefix + 'alpha'].flatten()[1:]
-                alpha_stm0, k, _ = solve_first_order_deg(T_uniq[1:], alpha_stm)
-
-                # $u$ - unlabeled, unspliced
-                # $s$ - unlabeled, spliced
-                # $w$ - labeled, unspliced
-                # $l$ - labeled, spliced
-                #
-                # calculate labeled unspliced and spliced mRNA amount
-                u1, s1, u1_, s1_ = np.zeros(len(t) - 1), np.zeros(len(t) - 1), np.zeros(len(T_uniq) - 1), np.zeros(len(T_uniq) - 1)
-                for ind in np.arange(1, len(t)):
-                    t_i = t[ind]
-                    u0 = sol_u(np.max(t) - t_i, 0, alpha_std, beta)
-                    alpha_stm_t_i = alpha_stm0 * np.exp(-k * t_i)
-                    u1[ind - 1], s1[ind - 1] = sol_u(t_i, u0, alpha_stm_t_i, beta), sol_u(np.max(t), 0, beta, gamma)
-                for ind in np.arange(1, len(T_uniq)):
-                    t_i = T_uniq[ind]
-                    u0 = sol_u(np.max(T_uniq) - t_i, 0, alpha_std, beta)
-                    alpha_stm_t_i = alpha_stm[ind - 1]
-                    u1_[ind - 1], s1_[ind - 1] = sol_u(t_i, u0, alpha_stm_t_i, beta), sol_u(np.max(T_uniq), 0, beta, gamma)
-
-                Obs, Pred, Pred_ = np.vstack((ul, sl, uu, su)), np.vstack((u1.reshape(1, -1), s1.reshape(1, -1))), np.vstack((u1_.reshape(1, -1), s1_.reshape(1, -1)))
-                j_species, title_ = 4, ['unspliced labeled (new)', 'spliced labeled (new)', 'unspliced unlabeled (old)', 'spliced unlabeled (old)', 'alpha (steady state vs. stimulation)']
-            else:
-                layers = ['X_new', 'X_total'] if 'X_new' in adata.layers.keys() else ['new', 'total']
-                uu, ul = adata[:, gene_name].layers[layers[1]] - adata[:, gene_name].layers[layers[0]], adata[:, gene_name].layers[layers[0]]
-                uu, ul = (uu.toarray().squeeze(), ul.toarray().squeeze()) if issparse(uu) else (uu.squeeze(), ul.squeeze())
-
-                if log_unnormalized and layers == ['new', 'total']:
-                    uu, ul = np.log(uu + 1), np.log(ul + 1)
-
-                gamma, alpha_std = adata.var.loc[gene_name, [prefix + 'gamma', prefix + 'alpha_std']]
-                alpha_stm = adata[:, gene_name].varm[prefix + 'alpha'].flatten()[1:]
-
-                alpha_stm0, k, _ = solve_first_order_deg(T_uniq[1:], alpha_stm)
-                # require no beta functions
-                u1, u1_ = np.zeros(len(t) - 1), np.zeros(len(T_uniq) - 1) # interpolation or original time point
-                for ind in np.arange(1, len(t)):
-                    t_i = t[ind]
-                    u0 = sol_u(np.max(t) - t_i, 0, alpha_std, gamma)
-                    alpha_stm_t_i = alpha_stm0 * np.exp(-k * t_i)
-                    u1[ind - 1] = sol_u(t_i, u0, alpha_stm_t_i, gamma)
-
-                for ind in np.arange(1, len(T_uniq)):
-                    t_i = T_uniq[ind]
-                    u0 = sol_u(np.max(T_uniq) - t_i, 0, alpha_std, gamma)
-                    alpha_stm_t_i = alpha_stm[ind - 1]
-                    u1_[ind - 1] = sol_u(t_i, u0, alpha_stm_t_i, gamma)
-
-                Obs, Pred, Pred_ = np.vstack((ul, uu)), np.vstack((u1.reshape(1, -1))), np.vstack((u1_.reshape(1, -1)))
-                j_species, title_ = 2, ['labeled (new)', 'unlabeled (old)', 'alpha (steady state vs. stimulation)']
-
-            group_list = [np.repeat(alpha_std, len(alpha_stm)), alpha_stm]
-
-            for j in range(sub_plot_n):
-                row_ind = int(np.floor(i / ncols))  # make sure all related plots for the same gene in the same column.
-                ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols + i % ncols])
-                if j < j_species / 2:
-                    ax.boxplot(x=[Obs[j][T == std] for std in T_uniq[1:]], positions=T_uniq[1:], widths=boxwidth,
-                               showfliers=False, showmeans=True)
-                    ax.plot(t[1:], Pred[j], 'k--')
-                    ax.scatter(T_uniq[1:], Pred_[j], s=20, c='red')
                     ax.set_xlabel('time (' + unit + ')')
-                    ax.set_title(gene_name + ': ' + title_[j])
+                    ax.set_title(gene_name +  " " + title_[j])
 
-                    if y_log_scale:
-                        ax.set_yscale('log')
-                    if log_unnormalized:
-                        ax.set_ylabel('Expression (log)')
-                    else:
-                        ax.set_ylabel('Expression')
-                elif j < j_species:
+            elif experiment_type is 'deg':
+                if has_splicing:
+                    layers = ['X_uu', 'X_ul', 'X_su', 'X_sl'] if 'X_ul' in adata.layers.keys() else ['uu', 'ul', 'su', 'sl']
+                    uu, ul, su, sl = adata[:, gene_name].layers[layers[0]], adata[:, gene_name].layers[layers[1]], \
+                               adata[:, gene_name].layers[layers[2]], adata[:, gene_name].layers[layers[3]]
+                    uu, ul, su, sl = (uu.toarray().squeeze(), ul.toarray().squeeze(), su.toarray().squeeze(), sl.toarray().squeeze()) \
+                        if issparse(uu) else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
+
+                    if log_unnormalized and layers == ['uu', 'ul', 'su', 'sl']:
+                        uu, ul, su, sl = np.log(uu + 1), np.log(ul + 1), np.log(su + 1), np.log(sl + 1)
+
+                    alpha, beta, gamma, ul0, sl0, uu0, half_life = adata.var.loc[
+                        gene_name, [prefix + 'alpha', prefix + 'beta', prefix + 'gamma', prefix + 'ul0', prefix + 'sl0', prefix + 'uu0', 'half_life']]
+                    # $u$ - unlabeled, unspliced
+                    # $s$ - unlabeled, spliced
+                    # $w$ - labeled, unspliced
+                    # $l$ - labeled, spliced
+                    #
+                    beta = sys.float_info.epsilon if beta == 0 else beta
+                    gamma = sys.float_info.epsilon if gamma == 0 else gamma
+                    u = sol_u(t, uu0, alpha, beta)
+                    su0 = np.mean(su[T == np.min(T)]) # this should also be estimated
+                    s = sol_s(t, su0, uu0, alpha, beta, gamma)
+                    w = sol_u(t, ul0, 0, beta)
+                    l = sol_s(t, sl0, ul0, 0, beta, gamma)
+                    if true_param_prefix is not None:
+                        true_alpha, true_beta, true_gamma = adata.var.loc[gene_name, [true_param_prefix + 'alpha', true_param_prefix + 'beta', true_param_prefix + 'gamma']]
+                        true_u = sol_u(t, uu0, true_alpha, true_beta)
+                        true_s = sol_s(t, su0, uu0, true_alpha, true_beta, true_gamma)
+                        true_w = sol_u(t, ul0, 0, true_beta)
+                        true_l = sol_s(t, sl0, ul0, 0, true_beta, true_gamma)
+
+                        true_p = np.vstack((true_u, true_w, true_s, true_l))
+
+                    title_ = ['(unspliced unlabeled)', '(unspliced labeled)', '(spliced unlabeled)', '(spliced labeled)']
+
+                    Obs, Pred = np.vstack((uu, ul, su, sl)), np.vstack((u, w, s, l))
+                else:
+                    layers = ['X_new', 'X_total'] if 'X_new' in adata.layers.keys() else ['new', 'total']
+                    uu, ul = adata[:, gene_name].layers[layers[1]] - adata[:, gene_name].layers[layers[0]], \
+                                     adata[:, gene_name].layers[layers[0]]
+                    uu, ul = (uu.toarray().squeeze(), ul.toarray().squeeze()) if issparse(uu) else (uu.squeeze(), ul.squeeze())
+
+                    if log_unnormalized and layers == ['new', 'total']:
+                        uu, ul = np.log(uu + 1), np.log(ul + 1)
+
+                    alpha, gamma, uu0, ul0, half_life = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'uu0', prefix + 'ul0', 'half_life']]
+
+                    # require no beta functions
+                    u = sol_u(t, uu0, alpha, gamma)
+                    s = None # sol_s(t, su0, uu0, 0, 1, gamma)
+                    w = sol_u(t, ul0, 0, gamma)
+                    l = None # sol_s(t, 0, 0, alpha, 1, gamma)
+                    title_ = ['(unlabeled)', '(labeled)']
+                    if true_param_prefix is not None:
+                        true_alpha, true_gamma = adata.var.loc[gene_name, [true_param_prefix + 'alpha', true_param_prefix + 'gamma']]
+                        true_u = sol_u(t, uu0, true_alpha, true_gamma)
+                        true_w = sol_u(t, ul0, 0, true_gamma)
+
+                        true_p = np.vstack((true_u, true_w))
+
+                    Obs, Pred = np.vstack((uu, ul)), np.vstack((u, w))
+
+                for j in range(sub_plot_n):
+                    row_ind = int(np.floor(i/ncols)) # make sure unlabled and labeled are in the same column.
+                    ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols * grp_len + (i % ncols - 1) * grp_len + 1])
+                    if true_param_prefix is not None and j == 0:
+                        if has_splicing:
+                            ax.text(0.75, 0.70, r'$\alpha^{true}$: {0:.2f} $\alpha^{est}$: {0:.2f} \n'
+                                                r'$\beta^{true}$: {0:.2f} $\beta^{est}$: {0:.2f} \n'
+                                                r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_alpha, alpha, true_beta, beta, true_gamma, gamma),
+                                    ha='right', va='top', transform=ax.transAxes)
+                        else:
+                            ax.text(0.75, 0.80, r'$\alpha^{true}$: {0:.2f} $\alpha^{est}$: {0:.2f} \n'
+                                                r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_alpha, alpha, true_gamma, gamma),
+                                    ha='right', va='top', transform=ax.transAxes)
+
                     ax.boxplot(x=[Obs[j][T == std] for std in T_uniq], positions=T_uniq, widths=boxwidth,
                                showfliers=False, showmeans=True)
+                    ax.plot(t, Pred[j], 'k--')
+                    if true_param_prefix is not None: ax.plot(t, true_p[j], 'r--')
+                    if j == sub_plot_n - 1:
+                        ax.text(0.8, 0.8, r'$t_{1/2} = $' + "{0:.2f}".format(half_life) + unit[0], ha='right', va='top', transform=ax.transAxes)
                     ax.set_xlabel('time (' + unit + ')')
-                    ax.set_title(gene_name + ': ' + title_[j])
-
                     if y_log_scale:
                         ax.set_yscale('log')
                     if log_unnormalized:
                         ax.set_ylabel('Expression (log)')
                     else:
                         ax.set_ylabel('Expression')
+                    ax.set_title(gene_name + " " + title_[j])
+            elif experiment_type is 'kin':
+                if has_splicing:
+                    layers = ['X_uu', 'X_ul', 'X_su', 'X_sl'] if 'X_ul' in adata.layers.keys() else ['uu', 'ul', 'su', 'sl']
+                    uu, ul, su, sl = adata[:, gene_name].layers[layers[0]], adata[:, gene_name].layers[layers[1]], \
+                               adata[:, gene_name].layers[layers[2]], adata[:, gene_name].layers[layers[3]]
+                    uu, ul, su, sl = (uu.toarray().squeeze(), ul.toarray().squeeze(), su.toarray().squeeze(), sl.toarray().squeeze()) \
+                        if issparse(uu) else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
 
+                    if log_unnormalized and layers == ['uu', 'ul', 'su', 'sl']:
+                        uu, ul, su, sl = np.log(uu + 1), np.log(ul + 1), np.log(su + 1), np.log(sl + 1)
+
+                    alpha, beta, gamma, uu0, su0 = adata.var.loc[
+                        gene_name, [prefix + 'alpha', prefix + 'beta', prefix + 'gamma', prefix + 'uu0', prefix + 'su0']]
+                    # $u$ - unlabeled, unspliced
+                    # $s$ - unlabeled, spliced
+                    # $w$ - labeled, unspliced
+                    # $l$ - labeled, spliced
+                    #
+                    beta = sys.float_info.epsilon if beta == 0 else beta
+                    gamma = sys.float_info.epsilon if gamma == 0 else gamma
+                    u = sol_u(t, uu0, 0, beta)
+                    s = sol_s(t, su0, uu0, 0, beta, gamma)
+                    w = sol_u(t, 0, alpha, beta)
+                    l = sol_s(t, 0, 0, alpha, beta, gamma)
+                    if true_param_prefix is not None:
+                        true_alpha, true_beta, true_gamma = adata.var.loc[gene_name, [true_param_prefix + 'alpha', true_param_prefix + 'beta', true_param_prefix + 'gamma']]
+                        true_u = sol_u(t, uu0, 0, true_beta)
+                        true_s = sol_s(t, su0, uu0, 0, true_beta, true_gamma)
+                        true_w = sol_u(t, 0, true_alpha, true_beta)
+                        true_l = sol_s(t, 0, 0, true_alpha, true_beta, true_gamma)
+
+                        true_p = np.vstack((true_u, true_w, true_s, true_l))
+
+                    title_ = ['(unspliced unlabeled)', '(unspliced labeled)', '(spliced unlabeled)', '(spliced labeled)']
+
+                    Obs, Pred = np.vstack((uu, ul, su, sl)), np.vstack((u, w, s, l))
                 else:
-                    x = T_uniq[1:]  # the label locations
-                    group_width = barwidth / 2
-                    bar_coord, group_name, group_ind = [-1, 1], ['steady state', 'stimulation'], 0
+                    layers = ['X_new', 'X_total'] if 'X_new' in adata.layers.keys() else ['new', 'total']
+                    uu, ul = adata[:, gene_name].layers[layers[1]] - adata[:, gene_name].layers[layers[0]], \
+                                     adata[:, gene_name].layers[layers[0]]
+                    uu, ul = (uu.toarray().squeeze(), ul.toarray().squeeze()) if issparse(uu) else (uu.squeeze(), ul.squeeze())
 
-                    for group_ind in range(len(group_list)):
-                        cur_group = group_list[group_ind]
-                        ax.bar(x + bar_coord[group_ind] * group_width, cur_group, barwidth, label=group_name[group_ind])
-                        # Add gene name, experimental type, etc.
-                        ax.set_xlabel('time (' + unit + ')')
-                        ax.set_ylabel('alpha (translation rate)')
-                        ax.set_xticks(x)
-                        ax.set_xticklabels(x)
-                        group_ind += 1
-                    ax.legend()
+                    if log_unnormalized and layers == ['new', 'total']:
+                        uu, ul = np.log(uu + 1), np.log(ul + 1)
 
+                    alpha, gamma, uu0 = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'uu0']]
+
+                    # require no beta functions
+                    u = sol_u(t, uu0, 0, gamma)
+                    s = None # sol_s(t, su0, uu0, 0, 1, gamma)
+                    w = sol_u(t, 0, alpha, gamma)
+                    l = None # sol_s(t, 0, 0, alpha, 1, gamma)
+                    if true_param_prefix is not None:
+                        true_alpha, true_gamma = adata.var.loc[gene_name, [true_param_prefix + 'alpha', true_param_prefix + 'gamma']]
+                        true_u = sol_u(t, uu0, 0, true_gamma)
+                        true_w = sol_u(t, 0, true_alpha, true_gamma)
+
+                        true_p = np.vstack((true_u, true_w))
+
+                    title_ = ['(unlabeled)', '(labeled)']
+
+                    Obs, Pred = np.vstack((uu, ul)), np.vstack((u, w))
+
+                for j in range(sub_plot_n):
+                    row_ind = int(np.floor(i/ncols)) # make sure unlabled and labeled are in the same column.
+                    ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols * grp_len + (i % ncols - 1) * grp_len + 1])
+                    if true_param_prefix is not None and j == 0:
+                        if has_splicing:
+                            ax.text(0.75, 0.95, r'$\alpha^{true}$: {0:.2f} $\alpha^{est}$: {0:.2f} \n'
+                                                r'$\beta^{true}$: {0:.2f} $\beta^{est}$: {0:.2f} \n'
+                                                r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_alpha, alpha, true_beta, beta, true_gamma, gamma),
+                                    ha='right', va='top', transform=ax.transAxes)
+                        else:
+                            ax.text(0.75, 0.95, r'$\alpha^{true}$: {0:.2f} $\alpha^{est}$: {0:.2f} \n'
+                                                r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_alpha, alpha, true_gamma, gamma),
+                                    ha='right', va='top', transform=ax.transAxes)
+
+                    ax.boxplot(x=[Obs[j][T == std] for std in T_uniq], positions=T_uniq, widths=boxwidth,
+                               showfliers=False, showmeans=True)
+                    ax.plot(t, Pred[j], 'k--')
+                    if true_param_prefix is not None: ax.plot(t, true_p[j], 'k--')
+                    ax.set_xlabel('time (' + unit + ')')
+                    if y_log_scale:
+                        ax.set_yscale('log')
+                    if log_unnormalized:
+                        ax.set_ylabel('Expression (log)')
+                    else:
+                        ax.set_ylabel('Expression')
+                    ax.set_title(gene_name +  " " + title_[j])
+            elif experiment_type is 'one_shot':
+                if has_splicing:
+                    layers = ['X_uu', 'X_ul', 'X_su', 'X_sl'] if 'X_ul' in adata.layers.keys() else ['uu', 'ul', 'su', 'sl']
+                    uu, ul, su, sl = adata[:, gene_name].layers[layers[0]], adata[:, gene_name].layers[layers[1]], \
+                                     adata[:, gene_name].layers[layers[2]], adata[:, gene_name].layers[layers[3]]
+                    uu, ul, su, sl = (uu.toarray().squeeze(), ul.toarray().squeeze(), su.toarray().squeeze(), sl.toarray().squeeze()) \
+                        if issparse(uu) else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
+
+                    if log_unnormalized and layers == ['uu', 'ul', 'su', 'sl']:
+                        uu, ul, su, sl = np.log(uu + 1), np.log(ul + 1), np.log(su + 1), np.log(sl + 1)
+
+                    alpha, beta, gamma, U0, S0 = adata.var.loc[
+                        gene_name, [prefix + 'alpha', prefix + 'beta', prefix + 'gamma', prefix + 'U0', prefix + 'S0']]
+                    # $u$ - unlabeled, unspliced
+                    # $s$ - unlabeled, spliced
+                    # $w$ - labeled, unspliced
+                    # $l$ - labeled, spliced
+                    #
+                    beta = sys.float_info.epsilon if beta == 0 else beta
+                    gamma = sys.float_info.epsilon if gamma == 0 else gamma
+                    U_sol = sol_u(t, U0, 0, beta)
+                    S_sol = sol_u(t, S0, 0, gamma)
+                    l = sol_u(t, 0, alpha, beta) + sol_s(t, 0, 0, alpha, beta, gamma)
+                    L = sl + ul
+                    if true_param_prefix is not None:
+                        true_alpha, true_beta, true_gamma = adata.var.loc[gene_name, [true_param_prefix + 'alpha', true_param_prefix + 'beta', true_param_prefix + 'gamma']]
+                        true_l = sol_u(t, 0, true_alpha, true_beta) + sol_s(t, 0, 0, true_alpha, true_beta, true_gamma)
+
+                    title_ = ['labeled']
+                else:
+                    layers = ['X_new', 'X_total'] if 'X_new' in adata.layers.keys() else ['new', 'total']
+                    uu, ul = adata[:, gene_name].layers[layers[1]] - adata[:, gene_name].layers[layers[0]], \
+                             adata[:, gene_name].layers[layers[0]]
+                    uu, ul = (uu.toarray().squeeze(), ul.toarray().squeeze()) if issparse(uu) else (
+                    uu.squeeze(), ul.squeeze())
+
+                    if log_unnormalized and layers == ['new', 'total']:
+                        uu, ul = np.log(uu + 1), np.log(ul + 1)
+
+                    alpha, gamma, total0 = adata.var.loc[gene_name, [prefix + 'alpha', prefix + 'gamma', prefix + 'total0']]
+
+                    # require no beta functions
+                    old = sol_u(t, total0, 0, gamma)
+                    s = None  # sol_s(t, su0, uu0, 0, 1, gamma)
+                    w = None
+                    l = sol_u(t, 0, alpha, gamma)  # sol_s(t, 0, 0, alpha, 1, gamma)
+                    L = ul
+                    if true_param_prefix is not None:
+                        true_alpha, true_gamma = adata.var.loc[gene_name, [true_param_prefix + 'alpha', true_param_prefix + 'gamma']]
+                        true_l = sol_u(t, 0, true_alpha, true_gamma)  # sol_s(t, 0, 0, alpha, 1, gamma)
+
+                    title_ = ['labeled']
+
+                Obs, Pred = np.hstack((np.zeros(L.shape), L)), np.hstack(l)
+                if true_param_prefix is not None: true_p = np.hstack(true_l)
+
+                row_ind = int(np.floor(i / ncols))  # make sure unlabled and labeled are in the same column.
+                ax = plt.subplot(gs[(row_ind * sub_plot_n) * ncols * grp_len + (i % ncols - 1) * grp_len + 1])
+                if true_param_prefix is not None:
+                    if has_splicing:
+                        ax.text(0.05, 0.95, r'$\alpha^{true}$: {0:.2f} $\alpha^{est}$: {0:.2f} \n'
+                                            r'$\beta^{true}$: {0:.2f} $\beta^{est}$: {0:.2f} \n'
+                                            r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_alpha, alpha,
+                                                                                                          true_beta, beta,
+                                                                                                          true_gamma, gamma),
+                                ha='right', va='top', transform=ax.transAxes)
+                    else:
+                        ax.text(0.05, 0.95, r'$\alpha^{true}$: {0:.2f} $\alpha^{est}$: {0:.2f} \n'
+                                            r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_alpha, alpha,
+                                                                                                          true_gamma, gamma),
+                                ha='right', va='top', transform=ax.transAxes)
+                ax.boxplot(x=[Obs[np.hstack((np.zeros_like(T), T)) == std] for std in [0, T_uniq[0]]], positions=[0, T_uniq[0]], widths=boxwidth,
+                           showfliers=False, showmeans=True)
+                ax.plot(t, Pred, 'k--')
+                if true_param_prefix is not None: ax.plot(t, true_p, 'r--')
                 ax.set_xlabel('time (' + unit + ')')
-                ax.set_title(gene_name + ': ' + title_[j])
-        elif experiment_type is 'multi_time_series':
-            pass # group by different groups
-        elif experiment_type is 'coassay':
-            pass # show protein velocity (steady state and the Gamma distribution model)
+                if y_log_scale:
+                    ax.set_yscale('log')
+                if log_unnormalized:
+                    ax.set_ylabel('Expression (log)')
+                else:
+                    ax.set_ylabel('Expression')
+                ax.set_title(gene_name +  " " + title_[0])
+            elif experiment_type is 'mix_std_stm':
+                if has_splicing:
+                    layers = ['X_uu', 'X_ul', 'X_su', 'X_sl'] if 'X_ul' in adata.layers.keys() else ['uu', 'ul', 'su', 'sl']
+                    uu, ul, su, sl = adata[:, gene_name].layers[layers[0]], adata[:, gene_name].layers[layers[1]], \
+                               adata[:, gene_name].layers[layers[2]], adata[:, gene_name].layers[layers[3]]
+                    uu, ul, su, sl = (uu.toarray().squeeze(), ul.toarray().squeeze(), su.toarray().squeeze(), sl.toarray().squeeze()) \
+                        if issparse(uu) else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
+
+                    if log_unnormalized and layers == ['uu', 'ul', 'su', 'sl']:
+                        uu, ul, su, sl = np.log(uu + 1), np.log(ul + 1), np.log(su + 1), np.log(sl + 1)
+
+                    beta, gamma, alpha_std = adata.var.loc[gene_name, [prefix + 'beta', prefix + 'gamma', prefix + 'alpha_std']]
+                    alpha_stm = adata[:, gene_name].varm[prefix + 'alpha'].flatten()[1:]
+                    alpha_stm0, k, _ = solve_first_order_deg(T_uniq[1:], alpha_stm)
+
+                    # $u$ - unlabeled, unspliced
+                    # $s$ - unlabeled, spliced
+                    # $w$ - labeled, unspliced
+                    # $l$ - labeled, spliced
+                    #
+                    # calculate labeled unspliced and spliced mRNA amount
+                    u1, s1, u1_, s1_ = np.zeros(len(t) - 1), np.zeros(len(t) - 1), np.zeros(len(T_uniq) - 1), np.zeros(len(T_uniq) - 1)
+                    for ind in np.arange(1, len(t)):
+                        t_i = t[ind]
+                        u0 = sol_u(np.max(t) - t_i, 0, alpha_std, beta)
+                        alpha_stm_t_i = alpha_stm0 * np.exp(-k * t_i)
+                        u1[ind - 1], s1[ind - 1] = sol_u(t_i, u0, alpha_stm_t_i, beta), sol_u(np.max(t), 0, beta, gamma)
+                    for ind in np.arange(1, len(T_uniq)):
+                        t_i = T_uniq[ind]
+                        u0 = sol_u(np.max(T_uniq) - t_i, 0, alpha_std, beta)
+                        alpha_stm_t_i = alpha_stm[ind - 1]
+                        u1_[ind - 1], s1_[ind - 1] = sol_u(t_i, u0, alpha_stm_t_i, beta), sol_u(np.max(T_uniq), 0, beta, gamma)
+
+                    Obs, Pred, Pred_ = np.vstack((ul, sl, uu, su)), np.vstack((u1.reshape(1, -1), s1.reshape(1, -1))), np.vstack((u1_.reshape(1, -1), s1_.reshape(1, -1)))
+                    j_species, title_ = 4, ['unspliced labeled (new)', 'spliced labeled (new)', 'unspliced unlabeled (old)', 'spliced unlabeled (old)', 'alpha (steady state vs. stimulation)']
+                else:
+                    layers = ['X_new', 'X_total'] if 'X_new' in adata.layers.keys() else ['new', 'total']
+                    uu, ul = adata[:, gene_name].layers[layers[1]] - adata[:, gene_name].layers[layers[0]], adata[:, gene_name].layers[layers[0]]
+                    uu, ul = (uu.toarray().squeeze(), ul.toarray().squeeze()) if issparse(uu) else (uu.squeeze(), ul.squeeze())
+
+                    if log_unnormalized and layers == ['new', 'total']:
+                        uu, ul = np.log(uu + 1), np.log(ul + 1)
+
+                    gamma, alpha_std = adata.var.loc[gene_name, [prefix + 'gamma', prefix + 'alpha_std']]
+                    alpha_stm = adata[:, gene_name].varm[prefix + 'alpha'].flatten()[1:]
+
+                    alpha_stm0, k, _ = solve_first_order_deg(T_uniq[1:], alpha_stm)
+                    # require no beta functions
+                    u1, u1_ = np.zeros(len(t) - 1), np.zeros(len(T_uniq) - 1) # interpolation or original time point
+                    for ind in np.arange(1, len(t)):
+                        t_i = t[ind]
+                        u0 = sol_u(np.max(t) - t_i, 0, alpha_std, gamma)
+                        alpha_stm_t_i = alpha_stm0 * np.exp(-k * t_i)
+                        u1[ind - 1] = sol_u(t_i, u0, alpha_stm_t_i, gamma)
+
+                    for ind in np.arange(1, len(T_uniq)):
+                        t_i = T_uniq[ind]
+                        u0 = sol_u(np.max(T_uniq) - t_i, 0, alpha_std, gamma)
+                        alpha_stm_t_i = alpha_stm[ind - 1]
+                        u1_[ind - 1] = sol_u(t_i, u0, alpha_stm_t_i, gamma)
+
+                    Obs, Pred, Pred_ = np.vstack((ul, uu)), np.vstack((u1.reshape(1, -1))), np.vstack((u1_.reshape(1, -1)))
+                    j_species, title_ = 2, ['labeled (new)', 'unlabeled (old)', 'alpha (steady state vs. stimulation)']
+
+                group_list = [np.repeat(alpha_std, len(alpha_stm)), alpha_stm]
+
+                for j in range(sub_plot_n):
+                    row_ind = int(np.floor(i / ncols))  # make sure all related plots for the same gene in the same column.
+                    ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols * grp_len + (i % ncols - 1) * grp_len + 1])
+                    if j < j_species / 2:
+                        ax.boxplot(x=[Obs[j][T == std] for std in T_uniq[1:]], positions=T_uniq[1:], widths=boxwidth,
+                                   showfliers=False, showmeans=True)
+                        ax.plot(t[1:], Pred[j], 'k--')
+                        ax.scatter(T_uniq[1:], Pred_[j], s=20, c='red')
+                        ax.set_xlabel('time (' + unit + ')')
+                        ax.set_title(gene_name + ': ' + title_[j])
+
+                        if y_log_scale:
+                            ax.set_yscale('log')
+                        if log_unnormalized:
+                            ax.set_ylabel('Expression (log)')
+                        else:
+                            ax.set_ylabel('Expression')
+                    elif j < j_species:
+                        ax.boxplot(x=[Obs[j][T == std] for std in T_uniq], positions=T_uniq, widths=boxwidth,
+                                   showfliers=False, showmeans=True)
+                        ax.set_xlabel('time (' + unit + ')')
+                        ax.set_title(gene_name + ': ' + title_[j])
+
+                        if y_log_scale:
+                            ax.set_yscale('log')
+                        if log_unnormalized:
+                            ax.set_ylabel('Expression (log)')
+                        else:
+                            ax.set_ylabel('Expression')
+
+                    else:
+                        x = T_uniq[1:]  # the label locations
+                        group_width = barwidth / 2
+                        bar_coord, group_name, group_ind = [-1, 1], ['steady state', 'stimulation'], 0
+
+                        for group_ind in range(len(group_list)):
+                            cur_group = group_list[group_ind]
+                            ax.bar(x + bar_coord[group_ind] * group_width, cur_group, barwidth, label=group_name[group_ind])
+                            # Add gene name, experimental type, etc.
+                            ax.set_xlabel('time (' + unit + ')')
+                            ax.set_ylabel('alpha (translation rate)')
+                            ax.set_xticks(x)
+                            ax.set_xticklabels(x)
+                            group_ind += 1
+                        ax.legend()
+
+                    ax.set_xlabel('time (' + unit + ')')
+                    ax.set_title(gene_name + ': ' + title_[j])
+            elif experiment_type is 'multi_time_series':
+                pass # group by different groups
+            elif experiment_type is 'coassay':
+                pass # show protein velocity (steady state and the Gamma distribution model)
 
     if show: plt.show()
 

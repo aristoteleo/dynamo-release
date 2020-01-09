@@ -376,6 +376,11 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         elif mode is 'model_selection':
             warnings.warn('Not implemented yet.')
 
-    adata.uns['dynamics'] = {'t': t, "group": group, 'asspt_mRNA': assumption_mRNA, 'experiment_type': experiment_type, "normalized": normalized, "mode": mode, "has_splicing": has_splicing,
+    if group is not None and group in adata.obs[group]:
+        uns_key = group + "_dynamics"
+    else:
+        uns_key = "dynamics"
+
+    adata.uns[uns_key] = {'t': t, "group": group, 'asspt_mRNA': assumption_mRNA, 'experiment_type': experiment_type, "normalized": normalized, "mode": mode, "has_splicing": has_splicing,
                              "has_labeling": has_labeling, "has_protein": has_protein}
     return adata
