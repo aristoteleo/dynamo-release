@@ -347,10 +347,14 @@ def dynamics(adata, vkey, unit='hours', log_unnormalized=True, y_log_scale=False
                 mom.integrate(t)
                 mom_data = mom.get_all_central_moments() if has_splicing else mom.get_nosplice_central_moments()
                 if true_param_prefix is not None:
-                    true_a, true_b, true_alpha_a, true_alpha_i, true_beta, true_gamma = adata.var.loc[gene_name, \
-                                                                        [true_param_prefix + 'a', true_param_prefix + 'b', true_param_prefix + 'alpha_a',
-                                                                         true_param_prefix + 'alpha_i', true_param_prefix + 'beta',
-                                                                         true_param_prefix + 'gamma']]
+                    true_a, true_b, true_alpha_a, true_alpha_i, true_beta, true_gamma = \
+                        adata.var.loc[gene_name, true_param_prefix + 'a'] if true_param_prefix + 'a' in adata.var_keys() else -np.inf, \
+                        adata.var.loc[gene_name, true_param_prefix + 'b'] if true_param_prefix + 'b' in adata.var_keys() else -np.inf, \
+                        adata.var.loc[gene_name, true_param_prefix + 'alpha_a'] if true_param_prefix + 'alpha_a' in adata.var_keys() else -np.inf, \
+                        adata.var.loc[gene_name, true_param_prefix + 'alpha_i'] if true_param_prefix + 'alpha_i' in adata.var_keys() else -np.inf, \
+                        adata.var.loc[gene_name, true_param_prefix + 'beta'] if true_param_prefix + 'beta' in adata.var_keys() else -np.inf, \
+                        adata.var.loc[gene_name, true_param_prefix + 'gamma'] if true_param_prefix + 'gamma' in adata.var_keys() else -np.inf
+
                     true_params = {'a': true_a, 'b': true_b, 'alpha_a': true_alpha_a, 'alpha_i': true_alpha_i, 'beta': true_beta,
                               'gamma': true_gamma}  # "la": 1, "si": 0,
                     true_mom = moments(*list(true_params.values()))
@@ -388,20 +392,20 @@ def dynamics(adata, vkey, unit='hours', log_unnormalized=True, y_log_scale=False
                     ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols * grp_len + (i % ncols - 1) * grp_len + 1])
                     if true_param_prefix is not None and j == 0:
                         if has_splicing:
-                            ax.text(0.15, 0.92, r'$a^{true}$: {0:.2f} $a^{est}$: {0:.2f} \n'
-                                                r'$b^{true}$: {0:.2f} $b^{est}$: {0:.2f} \n'
-                                                r'$\alpha_a^{true}$: {0:.2f} $\alpha_a^{est}$: {0:.2f} \n'
-                                                r'$\alpha_i^{true}$: {0:.2f} $\alpha_i^{est}$: {0:.2f} \n'
-                                                r'$\beta^{true}$: {0:.2f} $\beta^{est}$: {0:.2f} \n'
-                                                r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_a, a, true_b, b, true_alpha_a, alpha_a, true_alpha_i, alpha_i, true_beta, beta, true_gamma, gamma),
-                                    ha='right', va='top', transform=ax.transAxes)
+                            ax.text(0.05, 0.92, r'$a$' + ': {0:.2f}; '.format(true_a) + r'$\hat a$' + ': {0:.2f} \n'.format(a) +
+                                                r'$b$' + ': {0:.2f}; '.format(true_b) + r'$\hat b$' + ': {0:.2f} \n'.format(b) +
+                                                r'$\alpha_a$' + ': {0:.2f}; '.format(true_alpha_a) + r'$\hat \alpha_a$' + ': {0:.2f} \n'.format(alpha_a) +
+                                                r'$\alpha_i$' + ': {0:.2f}; '.format(true_alpha_i) + r'$\hat \alpha_i$' + ': {0:.2f} \n'.format(alpha_i) +
+                                                r'$\beta$' + ': {0:.2f}; '.format(true_beta) + r'$\hat \beta$' + ': {0:.2f} \n'.format(beta) +
+                                                r'$\gamma$' + ': {0:.2f}; '.format(true_gamma) + r'$\hat \gamma$' + ': {0:.2f} \n'.format(gamma),
+                                    ha='left', va='top', transform=ax.transAxes)
                         else:
-                            ax.text(0.15, 0.92, r'$a^{true}$: {0:.2f} $a^{est}$: {0:.2f} \n'
-                                            r'$b^{true}$: {0:.2f} $b^{est}$: {0:.2f} \n'
-                                            r'$\alpha_a^{true}$: {0:.2f} $\alpha_a^{est}$: {0:.2f} \n'
-                                            r'$\alpha_i^{true}$: {0:.2f} $\alpha_i^{est}$: {0:.2f} \n'
-                                            r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_a, a, true_b, b, true_alpha_a, alpha_a, true_alpha_i, alpha_i, true_gamma, gamma),
-                                ha='right', va='top', transform=ax.transAxes)
+                            ax.text(0.05, 0.92, r'$a$' + ': {0:.2f}; '.format(true_a) + r'$\hat a$' + ': {0:.2f} \n'.format(a) +
+                                                r'$b$' + ': {0:.2f}; '.format(true_b) + r'$\hat b$' + ': {0:.2f} \n'.format(b) +
+                                                r'$\alpha_a$' + ': {0:.2f}; '.format(true_alpha_a) + r'$\hat \alpha_a$' + ': {0:.2f} \n'.format(alpha_a) +
+                                                r'$\alpha_i$' + ': {0:.2f}; '.format(true_alpha_i) + r'$\hat \alpha_i$' + ': {0:.2f} \n'.format(alpha_i) +
+                                                r'$\gamma$' + ': {0:.2f}; '.format(true_gamma) + r'$\hat \gamma$' + ': {0:.2f} \n'.format(gamma),
+                                ha='left', va='top', transform=ax.transAxes)
                     if j < j_species:
                         ax.boxplot(x=[x_data[j][i][T == std] for std in T_uniq],  positions=T_uniq, widths=boxwidth, showfliers=False, showmeans=True)  # x=T.values, y= # ax1.plot(T, u.T, linestyle='None', marker='o', markersize=10)
                         # ax.scatter(T_uniq, Obs_m[j][i], c='r')  # ax1.plot(T, u.T, linestyle='None', marker='o', markersize=10)
@@ -453,7 +457,10 @@ def dynamics(adata, vkey, unit='hours', log_unnormalized=True, y_log_scale=False
                     w = sol_u(t, ul0, 0, beta)
                     l = sol_s(t, sl0, ul0, 0, beta, gamma)
                     if true_param_prefix is not None:
-                        true_alpha, true_beta, true_gamma = adata.var.loc[gene_name, [true_param_prefix + 'alpha', true_param_prefix + 'beta', true_param_prefix + 'gamma']]
+                        true_alpha, true_beta, true_gamma = adata.var.loc[gene_name, true_param_prefix + 'alpha'] if true_param_prefix + 'alpha' in adata.var_keys() else -np.inf, \
+                                                            adata.var.loc[gene_name, true_param_prefix + 'beta'] if true_param_prefix + 'beta' in adata.var_keys() else -np.inf, \
+                                                            adata.var.loc[gene_name, true_param_prefix + 'gamma'] if true_param_prefix + 'gamma' in adata.var_keys() else -np.inf
+
                         true_u = sol_u(t, uu0, true_alpha, true_beta)
                         true_s = sol_s(t, su0, uu0, true_alpha, true_beta, true_gamma)
                         true_w = sol_u(t, ul0, 0, true_beta)
@@ -482,7 +489,8 @@ def dynamics(adata, vkey, unit='hours', log_unnormalized=True, y_log_scale=False
                     l = None # sol_s(t, 0, 0, alpha, 1, gamma)
                     title_ = ['(unlabeled)', '(labeled)']
                     if true_param_prefix is not None:
-                        true_alpha, true_gamma = adata.var.loc[gene_name, [true_param_prefix + 'alpha', true_param_prefix + 'gamma']]
+                        true_alpha, true_gamma = adata.var.loc[gene_name, true_param_prefix + 'alpha'] if true_param_prefix + 'alpha' in adata.var_keys() else -np.inf, \
+                                                 adata.var.loc[gene_name, true_param_prefix + 'gamma'] if true_param_prefix + 'gamma' in adata.var_keys() else -np.inf
                         true_u = sol_u(t, uu0, true_alpha, true_gamma)
                         true_w = sol_u(t, ul0, 0, true_gamma)
 
@@ -495,13 +503,13 @@ def dynamics(adata, vkey, unit='hours', log_unnormalized=True, y_log_scale=False
                     ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols * grp_len + (i % ncols - 1) * grp_len + 1])
                     if true_param_prefix is not None and j == 0:
                         if has_splicing:
-                            ax.text(0.75, 0.70, r'$\alpha^{true}$: {0:.2f} $\alpha^{est}$: {0:.2f} \n'
-                                                r'$\beta^{true}$: {0:.2f} $\beta^{est}$: {0:.2f} \n'
-                                                r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_alpha, alpha, true_beta, beta, true_gamma, gamma),
+                            ax.text(0.75, 0.50, r'$\alpha$' + ': {0:.2f}; '.format(true_alpha) + r'$\hat \alpha$' + ': {0:.2f} \n'.format(alpha) +
+                                                r'$\beta$' + ': {0:.2f}; '.format(true_beta) + r'$\hat \beta$' + ': {0:.2f} \n'.format(beta) +
+                                                r'$\gamma$' + ': {0:.2f}; '.format(true_gamma) + r'$\hat \gamma$' + ': {0:.2f} \n'.format(gamma),
                                     ha='right', va='top', transform=ax.transAxes)
                         else:
-                            ax.text(0.75, 0.80, r'$\alpha^{true}$: {0:.2f} $\alpha^{est}$: {0:.2f} \n'
-                                                r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_alpha, alpha, true_gamma, gamma),
+                            ax.text(0.75, 0.50, r'$\alpha$' + ': {0:.2f}; '.format(true_alpha) + r'$\hat \alpha$' + ': {0:.2f} \n'.format(alpha) +
+                                                r'$\gamma$' + ': {0:.2f}; '.format(true_gamma) + r'$\hat \gamma$' + ': {0:.2f} \n'.format(gamma),
                                     ha='right', va='top', transform=ax.transAxes)
 
                     ax.boxplot(x=[Obs[j][T == std] for std in T_uniq], positions=T_uniq, widths=boxwidth,
@@ -543,7 +551,9 @@ def dynamics(adata, vkey, unit='hours', log_unnormalized=True, y_log_scale=False
                     w = sol_u(t, 0, alpha, beta)
                     l = sol_s(t, 0, 0, alpha, beta, gamma)
                     if true_param_prefix is not None:
-                        true_alpha, true_beta, true_gamma = adata.var.loc[gene_name, [true_param_prefix + 'alpha', true_param_prefix + 'beta', true_param_prefix + 'gamma']]
+                        true_alpha, true_beta, true_gamma = adata.var.loc[gene_name, true_param_prefix + 'alpha'] if true_param_prefix + 'alpha' in adata.var_keys() else -np.inf, \
+                                                            adata.var.loc[gene_name, true_param_prefix + 'beta'] if true_param_prefix + 'beta' in adata.var_keys() else -np.inf, \
+                                                            adata.var.loc[gene_name, true_param_prefix + 'gamma'] if true_param_prefix + 'gamma' in adata.var_keys() else -np.inf
                         true_u = sol_u(t, uu0, 0, true_beta)
                         true_s = sol_s(t, su0, uu0, 0, true_beta, true_gamma)
                         true_w = sol_u(t, 0, true_alpha, true_beta)
@@ -571,7 +581,8 @@ def dynamics(adata, vkey, unit='hours', log_unnormalized=True, y_log_scale=False
                     w = sol_u(t, 0, alpha, gamma)
                     l = None # sol_s(t, 0, 0, alpha, 1, gamma)
                     if true_param_prefix is not None:
-                        true_alpha, true_gamma = adata.var.loc[gene_name, [true_param_prefix + 'alpha', true_param_prefix + 'gamma']]
+                        true_alpha, true_gamma = adata.var.loc[gene_name, true_param_prefix + 'alpha'] if true_param_prefix + 'alpha' in adata.var_keys() else -np.inf, \
+                                                 adata.var.loc[gene_name, true_param_prefix + 'gamma'] if true_param_prefix + 'gamma' in adata.var_keys() else -np.inf
                         true_u = sol_u(t, uu0, 0, true_gamma)
                         true_w = sol_u(t, 0, true_alpha, true_gamma)
 
@@ -586,13 +597,13 @@ def dynamics(adata, vkey, unit='hours', log_unnormalized=True, y_log_scale=False
                     ax = plt.subplot(gs[(row_ind * sub_plot_n + j) * ncols * grp_len + (i % ncols - 1) * grp_len + 1])
                     if true_param_prefix is not None and j == 0:
                         if has_splicing:
-                            ax.text(0.75, 0.95, r'$\alpha^{true}$: {0:.2f} $\alpha^{est}$: {0:.2f} \n'
-                                                r'$\beta^{true}$: {0:.2f} $\beta^{est}$: {0:.2f} \n'
-                                                r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_alpha, alpha, true_beta, beta, true_gamma, gamma),
+                            ax.text(0.75, 0.90, r'$\alpha$' + ': {0:.2f}; '.format(true_alpha) + r'$\hat \alpha$' + ': {0:.2f} \n'.format(alpha) +
+                                                r'$\beta$' + ': {0:.2f}; '.format(true_beta) + r'$\hat \beta$' + ': {0:.2f} \n'.format(beta) +
+                                                r'$\gamma$' + ': {0:.2f}; '.format(true_gamma) + r'$\hat \gamma$' + ': {0:.2f} \n'.format(gamma),
                                     ha='right', va='top', transform=ax.transAxes)
                         else:
-                            ax.text(0.75, 0.95, r'$\alpha^{true}$: {0:.2f} $\alpha^{est}$: {0:.2f} \n'
-                                                r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_alpha, alpha, true_gamma, gamma),
+                            ax.text(0.75, 0.90, r'$\alpha$' + ': {0:.2f}; '.format(true_alpha) + r'$\hat \alpha$' + ': {0:.2f} \n'.format(alpha) +
+                                                r'$\gamma$' + ': {0:.2f}; '.format(true_gamma) + r'$\hat \gamma$' + ': {0:.2f} \n'.format(gamma),
                                     ha='right', va='top', transform=ax.transAxes)
 
                     ax.boxplot(x=[Obs[j][T == std] for std in T_uniq], positions=T_uniq, widths=boxwidth,
@@ -632,7 +643,9 @@ def dynamics(adata, vkey, unit='hours', log_unnormalized=True, y_log_scale=False
                     l = sol_u(t, 0, alpha, beta) + sol_s(t, 0, 0, alpha, beta, gamma)
                     L = sl + ul
                     if true_param_prefix is not None:
-                        true_alpha, true_beta, true_gamma = adata.var.loc[gene_name, [true_param_prefix + 'alpha', true_param_prefix + 'beta', true_param_prefix + 'gamma']]
+                        true_alpha, true_beta, true_gamma = adata.var.loc[gene_name, true_param_prefix + 'alpha'] if true_param_prefix + 'alpha' in adata.var_keys() else -np.inf, \
+                                                            adata.var.loc[gene_name, true_param_prefix + 'beta'] if true_param_prefix + 'beta' in adata.var_keys() else -np.inf, \
+                                                            adata.var.loc[gene_name, true_param_prefix + 'gamma'] if true_param_prefix + 'gamma' in adata.var_keys() else -np.inf
                         true_l = sol_u(t, 0, true_alpha, true_beta) + sol_s(t, 0, 0, true_alpha, true_beta, true_gamma)
 
                     title_ = ['labeled']
@@ -655,7 +668,8 @@ def dynamics(adata, vkey, unit='hours', log_unnormalized=True, y_log_scale=False
                     l = sol_u(t, 0, alpha, gamma)  # sol_s(t, 0, 0, alpha, 1, gamma)
                     L = ul
                     if true_param_prefix is not None:
-                        true_alpha, true_gamma = adata.var.loc[gene_name, [true_param_prefix + 'alpha', true_param_prefix + 'gamma']]
+                        true_alpha, true_gamma = adata.var.loc[gene_name, true_param_prefix + 'alpha'] if true_param_prefix + 'alpha' in adata.var_keys() else -np.inf, \
+                                                 adata.var.loc[gene_name, true_param_prefix + 'gamma'] if true_param_prefix + 'gamma' in adata.var_keys() else -np.inf
                         true_l = sol_u(t, 0, true_alpha, true_gamma)  # sol_s(t, 0, 0, alpha, 1, gamma)
 
                     title_ = ['labeled']
@@ -667,17 +681,14 @@ def dynamics(adata, vkey, unit='hours', log_unnormalized=True, y_log_scale=False
                 ax = plt.subplot(gs[(row_ind * sub_plot_n) * ncols * grp_len + (i % ncols - 1) * grp_len + 1])
                 if true_param_prefix is not None:
                     if has_splicing:
-                        ax.text(0.05, 0.95, r'$\alpha^{true}$: {0:.2f} $\alpha^{est}$: {0:.2f} \n'
-                                            r'$\beta^{true}$: {0:.2f} $\beta^{est}$: {0:.2f} \n'
-                                            r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_alpha, alpha,
-                                                                                                          true_beta, beta,
-                                                                                                          true_gamma, gamma),
-                                ha='right', va='top', transform=ax.transAxes)
+                        ax.text(0.05, 0.90, r'$\alpha$ ' + ': {0:.2f}; '.format(true_alpha) + r'$\hat \alpha$' + ': {0:.2f} \n'.format(alpha) +
+                                r'$\beta$' + ': {0:.2f}; '.format(true_beta) + r'$\hat \beta$' + ': {0:.2f} \n'.format(beta) +
+                                r'$\gamma$' + ': {0:.2f}; '.format(true_gamma) + r'$\hat \gamma$' + ': {0:.2f} \n'.format(gamma),
+                                ha='left', va='top', transform=ax.transAxes)
                     else:
-                        ax.text(0.05, 0.95, r'$\alpha^{true}$: {0:.2f} $\alpha^{est}$: {0:.2f} \n'
-                                            r'$\gamma^{true}$: {0:.2f} $\gamma^{est}$: {0:.2f} \n'.format(true_alpha, alpha,
-                                                                                                          true_gamma, gamma),
-                                ha='right', va='top', transform=ax.transAxes)
+                        ax.text(0.05, 0.90, r'$\alpha$' + ': {0:.2f}; '.format(true_alpha) + r'$\hat \alpha$' + ': {0:.2f} \n'.format(alpha) +
+                                r'$\gamma$' + ': {0:.2f}; '.format(true_gamma) + r'$\hat \gamma$' + ': {0:.2f} \n'.format(gamma),
+                                ha='left', va='top', transform=ax.transAxes)
                 ax.boxplot(x=[Obs[np.hstack((np.zeros_like(T), T)) == std] for std in [0, T_uniq[0]]], positions=[0, T_uniq[0]], widths=boxwidth,
                            showfliers=False, showmeans=True)
                 ax.plot(t, Pred, 'k--')
