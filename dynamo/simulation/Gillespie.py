@@ -288,7 +288,11 @@ def Gillespie(a=None, b=None, la=None, aa=None, ai=None, si=None, be=None, ga=No
         print('we have %s cell and %s genes.' % (E.shape[0], E.shape[1]))
 
     var = pd.DataFrame(
-        {'gene_short_name': ['gene_%d' % (i) for i in range(gene_num)]})  # use the real name in simulation?
+        {'gene_short_name': ['gene_%d' % (i) for i in range(gene_num)],
+         'true_beta': [beta, beta],
+         'true_gamma': [gamma, gamma],
+         'true_eta': [eta, eta],
+         'true_delta': [delta, delta]})  # use the real name in simulation?
     var.set_index('gene_short_name', inplace=True)
 
     adata = AnnData(scipy.sparse.csc_matrix(E.astype(int)).copy(), obs.copy(), var.copy(), layers=layers.copy())

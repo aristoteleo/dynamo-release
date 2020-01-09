@@ -220,9 +220,9 @@ def simulate(model, C0, t_span, n_traj, report=False):
 
 
 # synthesize labeling data (kinetics) at different time points (multi-time-series)
-def syn_kin_data(model_lab, n_trajs, i_t_cp, trajs_CP, Tl, n_cell):
-    C0 = [trajs_CP[j][:, i_t_cp] for j in range(n_trajs)]
-    # label for 10 unit of time
+def syn_kin_data(model_lab, n_trajs, t_idx, trajs_CP, Tl, n_cell):
+    C0 = [trajs_CP[j][:, t_idx] for j in range(n_trajs)]
+    # label for 1 unit of time
     trajs_T, trajs_C = simulate(model_lab, C0=C0, t_span=[0, 1], n_traj=n_cell, report=True)
     # interpolate labeling data
     trajs_C = temporal_interp(Tl, trajs_T, trajs_C, round=True)
@@ -245,8 +245,8 @@ def syn_kin_data(model_lab, n_trajs, i_t_cp, trajs_CP, Tl, n_cell):
 
 
 # synthesize labeling data (degradation) at the begining and the end
-def syn_deg_data(model_lab, model_unlab, n_trajs, i_t_cp, trajs_CP, Tl, n_cell):
-    C0 = [trajs_CP[j][:, i_t_cp] for j in range(n_trajs)]
+def syn_deg_data(model_lab, model_unlab, n_trajs, t_idx, trajs_CP, Tl, n_cell):
+    C0 = [trajs_CP[j][:, t_idx] for j in range(n_trajs)]
     # label for 10 unit of time
     trajs_T, trajs_C = simulate(model_lab, C0=C0, t_span=[0, 10], n_traj=n_cell, report=True)
     # stop labeling, and detect at t = 0, 1, 2, 4, 8
