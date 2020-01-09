@@ -359,9 +359,9 @@ def dynamics(adata, vkey, unit='hours', log_unnormalized=True, y_log_scale=False
 
                 # n_mean, n_var = x_data[:2, :], x_data[2:, :]
                 if has_splicing:
-                    tmp = [adata[:, gene_name].layers['X_ul'].A.T,
+                    tmp = [adata[:, gene_idx].layers['X_ul'].A.T,
                            adata.layers['X_sl'].A.T] if 'X_ul' in adata.layers.keys() else \
-                        [adata[:, gene_name].layers['ul'].A.T, adata.layers['sl'].A.T]
+                        [adata[:, gene_idx].layers['ul'].A.T, adata.layers['sl'].A.T]
                     x_data = [tmp[0].A, tmp[1].A] if issparse(tmp[0]) else tmp
                     if log_unnormalized and 'X_ul' not in adata.layers.keys():
                         x_data = [np.log(tmp[0] + 1), np.log(tmp[1] + 1)]
@@ -372,8 +372,8 @@ def dynamics(adata, vkey, unit='hours', log_unnormalized=True, y_log_scale=False
                     Obs_v = [adata.uns['V_ul'], adata.uns['V_sl']]
                     j_species = 2 # number of species
                 else:
-                    tmp = adata[:, gene_name].layers['X_new'].T if 'X_new' in adata.layers.keys() else \
-                    adata[:, gene_name].layers['new'].T
+                    tmp = adata[:, gene_idx].layers['X_new'].T if 'X_new' in adata.layers.keys() else \
+                    adata[:, gene_idx].layers['new'].T
                     x_data = [tmp.A] if issparse(tmp) else [tmp]
 
                     if log_unnormalized and 'X_new' not in adata.layers.keys():
