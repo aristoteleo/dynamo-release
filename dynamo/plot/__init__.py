@@ -1,6 +1,7 @@
 """Mapping Vector Field of Single Cells
 """
 
+from .theme import
 from .preprocess import show_fraction, feature_genes, variance_explained
 from .dynamics import phase_portraits, dynamics
 from .scVectorField import cell_wise_velocity, grid_velocity, stremline_plot, line_integral_conv # , plot_LIC_gray
