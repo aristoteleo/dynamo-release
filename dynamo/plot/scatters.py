@@ -1,11 +1,98 @@
+# code adapted from https://github.com/lmcinnes/umap/blob/7e051d8f3c4adca90ca81eb45f6a9d1372c076cf/umap/plot.py
+from ..configuration import _themes
+from .utilities import despline, minimal_xticks, minimal_yticks
+
 import numpy as np
 import pandas as pd
 from scipy.sparse import issparse
-from .utilities import despline, minimal_xticks, minimal_yticks
+
+import numba
+from warnings import warn
+
+import matplotlib.colors
+import matplotlib.cm
+from matplotlib.patches import Patch
+import matplotlib.pyplot as plt
+
+import datashader as ds
+import datashader.transfer_functions as tf
+import datashader.bundling as bd
+
+import bokeh.plotting as bpl
+import bokeh.transform as btr
+from bokeh.plotting import output_notebook, output_file, show
+
+import holoviews as hv
+import holoviews.operation.datashader as hd
 
 
-def scatters(adata, genes, x=0, y=1, mode='splicing', type='expression', vkey='S', ekey='X', basis='umap', n_columns=1, \
-             color=None, figsize=None, legend=False, **kwargs):
+def _to_hex(arr):
+    return [matplotlib.colors.to_hex(c) for c in arr]
+
+
+# https://stackoverflow.com/questions/8468855/convert-a-rgb-colour-value-to-decimal
+"""Convert RGB color to decimal RGB integers are typically treated as three distinct bytes where the left-most (highest-order) 
+byte is red, the middle byte is green and the right-most (lowest-order) byte is blue. """
+
+@numba.vectorize(["uint8(uint32)", "uint8(uint32)"])
+def _red(x):
+    return (x & 0xFF0000) >> 16
+
+
+@numba.vectorize(["uint8(uint32)", "uint8(uint32)"])
+def _green(x):
+    return (x & 0x00FF00) >> 8
+
+
+@numba.vectorize(["uint8(uint32)", "uint8(uint32)"])
+def _blue(x):
+    return x & 0x0000FF
+
+
+def _embed_datashader_in_an_axis(datashader_image, ax):
+    img_rev = datashader_image.data[::-1]
+    mpl_img = np.dstack([_blue(img_rev), _green(img_rev), _red(img_rev)])
+    ax.imshow(mpl_img)
+    return ax
+
+
+def _get_extent(points):
+    """Compute bounds on a space with appropriate padding"""
+    min_x = np.min(points[:, 0])
+    max_x = np.max(points[:, 0])
+    min_y = np.min(points[:, 1])
+    max_y = np.max(points[:, 1])
+
+    extent = (
+        np.round(min_x - 0.05 * (max_x - min_x)),
+        np.round(max_x + 0.05 * (max_x - min_x)),
+        np.round(min_y - 0.05 * (max_y - min_y)),
+        np.round(max_y + 0.05 * (max_y - min_y)),
+    )
+
+    return extent
+
+
+def _select_font_color(background):
+    if background == "black":
+        font_color = "white"
+    elif background.startswith("#"):
+        mean_val = np.mean(
+            [int("0x" + c) for c in (background[1:3], background[3:5], background[5:7])]
+        )
+        if mean_val > 126:
+            font_color = "black"
+        else:
+            font_color = "white"
+
+    else:
+        font_color = "black"
+
+    return font_color
+
+
+def scatters(adata, genes, x=0, y=1, theme='fire', mode='splicing', type='expression', vkey='S', ekey='X', basis='umap', n_columns=1, \
+             color=None, figsize=None, legend=False, ax=None, **kwargs):
     """Scatter plot of cells for phase portrait or for low embedding embedding, colored by gene expression, velocity or cell groups.
 
     Parameters
@@ -18,6 +105,19 @@ def scatters(adata, genes, x=0, y=1, mode='splicing', type='expression', vkey='S
             The column index of the low dimensional embedding for the x-axis
         y: `int` (default: `1`)
             The column index of the low dimensional embedding for the y-axis
+        theme: `str` (optional, default `None`)
+            A color theme to use for plotting. A small set of
+            predefined themes are provided which have relatively
+            good aesthetics. Available themes are:
+               * 'blue'
+               * 'red'
+               * 'green'
+               * 'inferno'
+               * 'fire'
+               * 'viridis'
+               * 'darkblue'
+               * 'darkred'
+               * 'darkgreen'
         mode: `string` (default: labelling)
             Which mode of data do you want to show, can be one of `labelling`, `splicing` and `full`.
         type: `str` (default: `expression`)
@@ -47,14 +147,13 @@ def scatters(adata, genes, x=0, y=1, mode='splicing', type='expression', vkey='S
 
     import matplotlib.pyplot as plt
     import seaborn as sns
-    # sns.set_style('ticks')
 
-    scatter_kwargs = dict(alpha=0.4, s=8, edgecolor=None, linewidth=0) # (0, 0, 0, 1)
+    font_color = _select_font_color(background)
+    point_size = 100.0 / np.sqrt(adata.shape[0])
+    scatter_kwargs = dict(alpha=0.4, s=point_size, edgecolor=None, linewidth=0) # (0, 0, 0, 1)
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
 
-    # there is no solution for combining multiple plot in the same figure in plotnine, so a pure matplotlib is used
-    # see more at https://github.com/has2k1/plotnine/issues/46
     genes, idx = adata.var.index[adata.var.index.isin(genes)].tolist(), np.where(adata.var.index.isin(genes))[0]
     if len(genes) == 0:
         raise Exception('adata has no genes listed in your input gene vector: {}'.format(genes))
@@ -80,7 +179,7 @@ def scatters(adata, genes, x=0, y=1, mode='splicing', type='expression', vkey='S
 
     n_cells, n_genes = adata.shape[0], len(genes)
 
-    color_vec=np.repeat(np.nan, n_cells)
+    color_vec = np.repeat(np.nan, n_cells)
     if color is not None:
         color = list(set(color).intersection(adata.obs.keys()))
         if len(color) > 0 and type is not 'embedding':
@@ -108,12 +207,12 @@ def scatters(adata, genes, x=0, y=1, mode='splicing', type='expression', vkey='S
         if issparse(E_vec):
             E_vec, V_vec = E_vec.A, V_vec.A
 
-        if 'kinetic_parameter_gamma' in adata.var.columns:
-            gamma = adata.var.kinetic_parameter_gamma[genes].values
-            velocity_offset = [0] * n_genes if not ("velocity_offset" in adata.var.columns) else \
-                adata.var.velocity_offset[genes].values
+        if 'gamma' in adata.var.columns:
+            gamma = adata.var.gamma[genes].values
+            velocity_offset = [0] * n_genes if not ("gamma_b" in adata.var.columns) else \
+                adata.var.gamma_b[genes].values
         else:
-            raise Exception('adata does not seem to have velocity_gamma column. Velocity estimation is required before '
+            raise Exception('adata does not seem to have gamma column. Velocity estimation is required before '
                             'running this function.')
 
         if mode is 'labelling' and all([i in adata.layers.keys() for i in ['new', 'total']]):
@@ -166,13 +265,49 @@ def scatters(adata, genes, x=0, y=1, mode='splicing', type='expression', vkey='S
                             'spliced, ambiguous, unspliced for the splicing model and uu, ul, su, sl for the full mode')
 
     if type is not 'embedding':
+        if type is "phase":
+            if df.color.unique() != np.nan:
+                if theme is None: theme = 'viridis'
+                cmap = _themes[theme]["cmap"]
+                color_key_cmap = _themes[theme]["color_key_cmap"]
+                background = _themes[theme]["background"]
+
+                # num_labels = unique_labels.shape[0]
+                # color_key = plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
+                # legend_elements = [
+                #     Patch(facecolor=color_key[i], label=unique_labels[i])
+                #     for i, k in enumerate(unique_labels)
+                # ]
+
+            else:
+                if theme is None: theme = 'fire'
+                cmap = _themes[theme]["cmap"]
+                color_key_cmap = _themes[theme]["color_key_cmap"]
+                background = _themes[theme]["background"]
+        elif type is "velocity":
+            if theme is None: theme = 'fire'
+            cmap = _themes[theme]["cmap"]
+            color_key_cmap = _themes[theme]["color_key_cmap"]
+            background = _themes[theme]["background"]
+        elif type is 'expression':
+            if theme is None: theme = 'green'
+            cmap = _themes[theme]["cmap"]
+            color_key_cmap = _themes[theme]["color_key_cmap"]
+            background = _themes[theme]["background"]
+    else:
+        if theme is None: theme = 'blue'
+        cmap = _themes[theme]["cmap"]
+        color_key_cmap = _themes[theme]["color_key_cmap"]
+        background = _themes[theme]["background"]
+
+    if type is not 'embedding':
         n_columns = 2 * n_columns if ('protein' in adata.obsm.keys() and mode is 'full') else n_columns
         plot_per_gene = 2 if ('protein' in adata.obsm.keys() and mode is 'full') else 1
         nrow, ncol = int(np.ceil(plot_per_gene * n_genes / n_columns)), n_columns
         if figsize is None:
-            plt.figure(None, (3 * ncol, 3 * nrow))  # , dpi=160
+            plt.figure(None, (3 * ncol, 3 * nrow), facecolor=background)  # , dpi=160
         else:
-            plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow))  # , dpi=160
+            plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)  # , dpi=160
 
         # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
         gs = plt.GridSpec(nrow, ncol)
@@ -187,11 +322,11 @@ def scatters(adata, genes, x=0, y=1, mode='splicing', type='expression', vkey='S
             except:
                 continue
             cur_pd = df.loc[df.gene == gn, :]
-            if type is 'phase':
+            if type is 'phase': # viridis, set2
                 if cur_pd.color.unique() != np.nan:
-                    g = sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue="expression", ax=ax1, palette="viridis", legend=legend, **scatter_kwargs) # x-axis: S vs y-axis: U
+                    g = sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue="expression", ax=ax1, palette=cmap, legend=legend, **scatter_kwargs) # x-axis: S vs y-axis: U
                 else:
-                    g = sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue=color, ax=ax1, palette="Set2", legend=legend, **scatter_kwargs) # x-axis: S vs y-axis: U
+                    g = sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue=color, ax=ax1, palette=cmap, legend=legend, **scatter_kwargs) # x-axis: S vs y-axis: U
 
                 if legend:
                     g.legend(loc='center left', bbox_to_anchor=(0.125, 0.125), ncol=1)
@@ -285,9 +420,9 @@ def scatters(adata, genes, x=0, y=1, mode='splicing', type='expression', vkey='S
     else:
         nrow, ncol = int(np.ceil(len(color) / n_columns)), n_columns
         if figsize is None:
-            plt.figure(None, (3 * ncol, 3 * nrow))  # , dpi=160
+            plt.figure(None, (3 * ncol, 3 * nrow), facecolor=background)  # , dpi=160
         else:
-            plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow))  # , dpi=160
+            plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)  # , dpi=160
 
         # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
         gs = plt.GridSpec(nrow, ncol)
