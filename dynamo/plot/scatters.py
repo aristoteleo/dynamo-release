@@ -1,6 +1,6 @@
 # code adapted from https://github.com/lmcinnes/umap/blob/7e051d8f3c4adca90ca81eb45f6a9d1372c076cf/umap/plot.py
 from ..configuration import _themes
-from .utilities import despline, minimal_xticks, minimal_yticks
+from .utilities import despline, set_spine_linewidth
 
 import numpy as np
 import pandas as pd
@@ -207,11 +207,11 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
         df = pd.DataFrame({basis + '_0': np.repeat(embedding.iloc[:, 0], n_genes), basis + '_1': np.repeat(embedding.iloc[:, 1], n_genes),
                            "color": full_color_vec, "group": np.tile(color, n_cells)})
     else:
-        if vkey is 'U':
+        if vkey == 'velocity_U':
             V_vec = adata[:, genes].layers['velocity_U']
             if 'velocity_P' in adata.obsm.keys():
                 P_vec = adata[:, genes].layer['velocity_P']
-        elif vkey is 'S':
+        elif vkey == 'velocity_S':
             V_vec = adata[:, genes].layers['velocity_S']
             if 'velocity_P' in adata.obsm.keys():
                 P_vec = adata[:, genes].layers['velocity_P']
@@ -278,13 +278,13 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
             raise Exception('Your adata is corrupted. Make sure that your layer has keys new, old for the labelling mode, '
                             'spliced, ambiguous, unspliced for the splicing model and uu, ul, su, sl for the full mode')
 
-    if type is not 'embedding':
+    if type == 'embedding':
         if theme is None: theme = 'glasbey_dark'
         cmap = _themes[theme]["cmap"]
         color_key_cmap = _themes[theme]["color_key_cmap"]
         background = _themes[theme]["background"]
     else:
-        if type is "phase":
+        if type == "phase":
             if df.color.unique() != np.nan:
                 if theme is None: theme = 'viridis'
                 cmap = _themes[theme]["cmap"]
@@ -303,29 +303,37 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
                 cmap = _themes[theme]["cmap"]
                 color_key_cmap = _themes[theme]["color_key_cmap"]
                 background = _themes[theme]["background"]
-        elif type is "velocity":
+        elif type == "velocity":
             if theme is None: theme = 'div_blue_red'
             cmap = _themes[theme]["cmap"]
             color_key_cmap = _themes[theme]["color_key_cmap"]
             background = _themes[theme]["background"]
-        elif type is 'expression':
+        elif type == 'expression':
             if theme is None: theme = 'green'
             cmap = _themes[theme]["cmap"]
             color_key_cmap = _themes[theme]["color_key_cmap"]
             background = _themes[theme]["background"]
 
     font_color = _select_font_color(background)
+    if background == 'black':
+        # https://github.com/matplotlib/matplotlib/blob/master/lib/matplotlib/mpl-data/stylelib/dark_background.mplstyle
+        sns.set(rc={'axes.facecolor': background, 'axes.edgecolor': background, 'figure.facecolor': background, 'figure.edgecolor': background,
+                    'axes.grid': False, "ytick.color": "w", "xtick.color": "w", "axes.labelcolor": "w", "axes.edgecolor": "w",
+                    "savefig.facecolor": 'k', "savefig.edgecolor": 'k', "grid.color": 'w', "text.color": 'w',
+                    "lines.color": 'w', "patch.edgecolor": 'w', 'figure.edgecolor': 'w',
+                    })
+    else:
+        sns.set(rc={'axes.facecolor': background, 'figure.facecolor': background, 'axes.grid': False})
 
-    if type is 'embedding':
+    if type == 'embedding':
         nrow, ncol = int(np.ceil(len(color) / n_columns)), n_columns
         if figsize is None:
-            plt.figure(None, (3 * ncol, 3 * nrow), facecolor=background)
+            plt.figure(None, (7 * ncol, 5 * nrow), facecolor=background)
         else:
             plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)
 
         # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
         gs = plt.GridSpec(nrow, ncol)
-
 
         for i, clr in enumerate(color):
             ax1 = plt.subplot(gs[i])
@@ -333,7 +341,8 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
             cur_pd = df.loc[df.group == clr, :]
 
             labels = cur_pd.loc[:, 'color']
-            unique_labels, label_len = np.unique(labels), len(unique_labels)
+            unique_labels = np.unique(labels)
+            label_len = len(unique_labels)
             color_key = plt.get_cmap(color_key_cmap)(np.linspace(0, 1, label_len))
 
             colors = pd.Series(labels).map(color_key) #cmap = plt.cm.Set2 #if type(cur_pd.loc[:, 'color'][0]) is not float else plt.cm.Greens # sns.diverging_palette(10, 220, sep=80, as_cmap=True)
@@ -349,7 +358,7 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
             else:
                 g.legend(loc=legend, bbox_to_anchor=(0.125, 0.125), ncol=1 if label_len < 15 else 2)
 
-
+            set_spine_linewidth(ax1, 1)
             ax1.set_title(color)
             ax1.set_xlabel(basis + '_1')
             ax1.set_ylabel(basis + '_2')
@@ -358,7 +367,7 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
         plot_per_gene = 2 if ('protein' in adata.obsm.keys() and mode is 'full') else 1
         nrow, ncol = int(np.ceil(plot_per_gene * n_genes / n_columns)), n_columns
         if figsize is None:
-            plt.figure(None, (3 * ncol, 3 * nrow), facecolor=background)  # , dpi=160
+            plt.figure(None, (7 * ncol, 5 * nrow), facecolor=background)  # , dpi=160
         else:
             plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)  # , dpi=160
 
@@ -381,8 +390,9 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
                     g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1)
                 else:
                     g = sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue=cur_pd.color, ax=ax1, palette=cmap, legend='brief', **scatter_kwargs) # x-axis: S vs y-axis: U
-                    g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1 if len(color) < 15 else 2)
+                    if color is not None: g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1 if len(cur_pd.color.unique()) < 15 else 2)
 
+                set_spine_linewidth(ax1, 1)
                 ax1.set_title(gn)
                 xnew = np.linspace(0, cur_pd.iloc[:, 1].max())
                 ax1.plot(xnew, xnew * cur_pd.loc[:, 'gamma'].unique() + cur_pd.loc[:, 'velocity_offset'].unique(), c="k")
@@ -393,8 +403,9 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
 
                 if plot_per_gene == 2 and ('protein' in adata.obsm.keys() and mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']])):
                     g = sns.scatterplot(cur_pd.iloc[:, 3], cur_pd.iloc[:, 2], hue=cur_pd.color, ax=ax2, legend='brief', **scatter_kwargs)  # x-axis: Protein vs. y-axis: Spliced
-                    g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1 if len(color) < 15 else 2)
+                    if cur_pd.color.unique() is not np.nan: g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1 if len(cur_pd.color.unique()) < 15 else 2)
 
+                    set_spine_linewidth(ax2, 1)
                     ax2.set_title(gn)
                     xnew = np.linspace(0, cur_pd.iloc[:, 3].max())
                     ax2.plot(xnew, xnew * cur_pd.loc[:, 'gamma_P'].unique() + cur_pd.loc[:, 'velocity_offset_P'].unique(),
@@ -405,7 +416,7 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
 
                     despline(ax2)  # sns.despline()
 
-            elif type is 'velocity':
+            elif type == 'velocity':
                 df_embedding = pd.concat([cur_pd, embedding], axis=1)
                 V_vec = df_embedding.loc[:, 'velocity']
 
@@ -419,8 +430,9 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
                 #cmap = plt.cm.RdBu_r # sns.cubehelix_palette(dark=.3, light=.8, as_cmap=True)
                 g=sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=V_vec, ax=ax1, \
                                 palette=cmap, legend='brief', **scatter_kwargs)
-                g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1 if len(color) < 15 else 2)
+                g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1)
 
+                set_spine_linewidth(ax1, 1)
                 ax1.set_title(gn + '(' + ekey + ')')
                 ax1.set_xlabel(basis + '_1')
                 ax1.set_ylabel(basis + '_2')
@@ -436,18 +448,21 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
 
                     # cmap = plt.cm.RdBu_r  # sns.cubehelix_palette(dark=.3, light=.8, as_cmap=True)
                     g = sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=V_vec, ax=ax2, palette=cmap, legend='brief', **scatter_kwargs)
-                    g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1 if len(color) < 15 else 2)
+                    g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1)
 
+                    set_spine_linewidth(ax2, 1)
                     ax2.set_title(gn + '(' + ekey + ')')
                     ax2.set_xlabel(basis + '_1')
                     ax2.set_ylabel(basis + '_2')
-            elif type is 'expression':
+
+            elif type == 'expression':
                 # cmap = plt.cm.Greens # sns.diverging_palette(10, 220, sep=80, as_cmap=True)
-                expression = np.clip(df_embedding.loc[:, 'expression'] / np.percentile(df_embedding.loc[:, 'expression'], 99), 0, 1)
+                expression = np.clip(cur_pd.loc[:, 'expression'] / np.percentile(cur_pd.loc[:, 'expression'], 99), 0, 1)
                 g = sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=expression, ax=ax1, \
                                 palette=cmap, legend='brief', **scatter_kwargs)
-                g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1 if len(color) < 15 else 2)
+                if color is not None: g.legend(loc='best', bbox_to_anchor=(0.125, 0.125))
 
+                set_spine_linewidth(ax1, 1)
                 ax1.set_title(gn + '(' + vkey + ')')
                 ax1.set_xlabel(basis + '_1')
                 ax1.set_ylabel(basis + '_2')
@@ -460,8 +475,9 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
 
                     g = sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=expression, \
                                     ax=ax2, legend='brief', palette=cmap, **scatter_kwargs)
-                    g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1 if len(color) < 15 else 2)
+                    g.legend(loc='best', bbox_to_anchor=(0.125, 0.125))
 
+                    set_spine_linewidth(ax2, 1)
                     ax2.set_title(gn + '(protein expression)')
                     ax2.set_xlabel(basis + '_1')
                     ax2.set_ylabel(basis + '_2')

@@ -33,6 +33,10 @@ def minimal_yticks(start, end):
     ylims_tx[0], ylims_tx[-1] = f"{ylims[0]:.0f}", f"{ylims[-1]:.02f}"
     plt.yticks(ylims, ylims_tx)
 
+def set_spine_linewidth(ax, lw):
+    for axis in ['top','bottom','left','right']:
+      ax.spines[axis].set_linewidth(lw)
+
 
 def quiver_autoscaler(X_emb, V_emb):
     """Function to automatically calculate the value for the scale parameter of quiver plot, adapted from scVelo
