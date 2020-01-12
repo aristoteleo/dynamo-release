@@ -91,7 +91,7 @@ def _select_font_color(background):
     return font_color
 
 
-def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_key='S', ekey='X', basis='umap', n_columns=1, \
+def scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key='S', ekey='X', basis='umap', n_columns=1, \
              color=None, pointsize=None, figsize=None, legend='on data', ax=None, **kwargs):
     """Scatter plot of cells for phase portrait or for low embedding embedding, colored by gene expression, velocity or cell groups.
 
@@ -136,7 +136,7 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
         basis: `string` (default: umap)
             Which low dimensional embedding will be used to visualize the cell.
         pointsize: `None` or `float` (default: None)
-            The scale of the point size. Actual point cell size is calculated as `100.0 / np.sqrt(adata.shape[0]) * pointsize`
+            The scale of the point size. Actual point cell size is calculated as `500.0 / np.sqrt(adata.shape[0]) * pointsize`
         figsize: `None` or `[float, float]` (default: None)
             The width and height of a figure.
         legend: `str` (default: `on data`)
@@ -279,14 +279,25 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
                             'spliced, ambiguous, unspliced for the splicing model and uu, ul, su, sl for the full mode')
 
     if type == 'embedding':
-        if theme is None: theme = 'glasbey_dark'
+        if theme is None:
+            if True: # should also support continous mapping if the color key is not categorical
+                import colorcet
+                theme = 'glasbey_dark'
+                # add glasbey_bw_minc_20_maxl_70 theme for cell annotation in dark background
+                glasbey_dark_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
+                    "glasbey_dark_cmap", colorcet.glasbey_bw_minc_20_maxl_70
+                )
+                plt.register_cmap("glasbey_dark", glasbey_dark_cmap)
+
+            else:
+                theme = 'inferno'
         cmap = _themes[theme]["cmap"]
         color_key_cmap = _themes[theme]["color_key_cmap"]
         background = _themes[theme]["background"]
     else:
         if type == "phase":
-            if df.color.unique() != np.nan:
-                if theme is None: theme = 'viridis'
+            if all(df.color.unique() != np.nan): # color corresponds to expression
+                if theme is None: theme = 'inferno'
                 cmap = _themes[theme]["cmap"]
                 color_key_cmap = _themes[theme]["color_key_cmap"]
                 background = _themes[theme]["background"]
@@ -299,7 +310,7 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
                 # ]
 
             else:
-                if theme is None: theme = 'fire'
+                if theme is None: theme = 'glasbey_dark' # color corresponds to categories
                 cmap = _themes[theme]["cmap"]
                 color_key_cmap = _themes[theme]["color_key_cmap"]
                 background = _themes[theme]["background"]
@@ -309,7 +320,7 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
             color_key_cmap = _themes[theme]["color_key_cmap"]
             background = _themes[theme]["background"]
         elif type == 'expression':
-            if theme is None: theme = 'green'
+            if theme is None: theme = 'inferno'
             cmap = _themes[theme]["cmap"]
             color_key_cmap = _themes[theme]["color_key_cmap"]
             background = _themes[theme]["background"]
@@ -344,11 +355,11 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
             unique_labels = np.unique(cur_pd.loc[:, 'color'].values)
             g = sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=cur_pd.loc[:, 'color'],
                                 palette=plt.get_cmap(color_key_cmap), ax=ax1, \
-                                legend='brief', **scatter_kwargs)
+                                legend='full', **scatter_kwargs)
             if legend == 'on data':
                 for i in unique_labels:
                     color_cnt = np.nanmedian(df.iloc[np.where(color == i)[0], :2], 0)
-                    txt = ax1.text(color_cnt[0], color_cnt[1], str(i), fontsize=13, c='k') # c
+                    txt = ax1.text(color_cnt[0], color_cnt[1], str(i), fontsize=13, c=font_color, zorder=0) # c
                     txt.set_path_effects([
                         PathEffects.Stroke(linewidth=5, foreground=font_color, alpha=0.1), #'w'
                         PathEffects.Normal()])
@@ -357,7 +368,7 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
                 ax1.legend(loc=legend, bbox_to_anchor=(0.125, 0.125), ncol=1 if len(unique_labels) < 15 else 2)
 
             set_spine_linewidth(ax1, 1)
-            ax1.set_title(color)
+            ax1.set_title(clr)
             ax1.set_xlabel(basis + '_1')
             ax1.set_ylabel(basis + '_2')
     else:
@@ -383,11 +394,11 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
                 continue
             cur_pd = df.loc[df.gene == gn, :]
             if type is 'phase': # viridis, set2
-                if cur_pd.color.unique() == np.nan:
+                if all(cur_pd.color.unique() == np.nan):
                     g = sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue=cur_pd.expression, ax=ax1, palette=cmap, legend='brief', **scatter_kwargs) # x-axis: S vs y-axis: U
                     g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1)
                 else:
-                    g = sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue=cur_pd.color, ax=ax1, palette=cmap, legend='brief', **scatter_kwargs) # x-axis: S vs y-axis: U
+                    g = sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue=cur_pd.color, ax=ax1, palette=cmap, legend='full', **scatter_kwargs) # x-axis: S vs y-axis: U
                     if color is not None: g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1 if len(cur_pd.color.unique()) < 15 else 2)
 
                 set_spine_linewidth(ax1, 1)
@@ -430,7 +441,7 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
                 g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1)
 
                 set_spine_linewidth(ax1, 1)
-                ax1.set_title(gn + '(' + ekey + ')')
+                ax1.set_title(gn + ' (' + vkey + ')')
                 ax1.set_xlabel(basis + '_1')
                 ax1.set_ylabel(basis + '_2')
 
@@ -448,7 +459,7 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
                     g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1)
 
                     set_spine_linewidth(ax2, 1)
-                    ax2.set_title(gn + '(' + ekey + ')')
+                    ax2.set_title(gn + ' (' + vkey + ')')
                     ax2.set_xlabel(basis + '_1')
                     ax2.set_ylabel(basis + '_2')
 
@@ -460,7 +471,7 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
                 if color is not None: g.legend(loc='best', bbox_to_anchor=(0.125, 0.125))
 
                 set_spine_linewidth(ax1, 1)
-                ax1.set_title(gn + '(' + vkey + ')')
+                ax1.set_title(gn + ' (' + ekey + ')')
                 ax1.set_xlabel(basis + '_1')
                 ax1.set_ylabel(basis + '_2')
 
@@ -475,7 +486,7 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
                     g.legend(loc='best', bbox_to_anchor=(0.125, 0.125))
 
                     set_spine_linewidth(ax2, 1)
-                    ax2.set_title(gn + '(protein expression)')
+                    ax2.set_title(gn + ' (protein expression)')
                     ax2.set_xlabel(basis + '_1')
                     ax2.set_ylabel(basis + '_2')
 

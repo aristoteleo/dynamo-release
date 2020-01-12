@@ -19,7 +19,7 @@ darkpurple_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
 )
 # add RdBu_r theme for velocity
 div_blue_red_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-    "div_blue_red_cmap", colorcet.diverging_bwr_55_98_c37
+    "div_blue_red", colorcet.diverging_bwr_55_98_c37
 )
 # add glasbey_bw_minc_20_maxl_70 theme for cell annotation in dark background
 glasbey_dark_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
@@ -99,7 +99,7 @@ _themes = {
     },
     "glasbey_dark": {
         "cmap": "glasbey_dark",
-        "color_key_cmap": "glasbey_dark_cmap",
+        "color_key_cmap": "glasbey_dark",
         "background": "black",
         "edge_cmap": "gray_r",
     },
