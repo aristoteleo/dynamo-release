@@ -61,12 +61,12 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         filter_gene_mode = 'no'
 
     if filter_gene_mode is 'final':
-        valid_ind = adata.var.use_for_dynamo
+        valid_ind = adata.var.use_for_dynamo.values
         # import warnings
         # from scipy.sparse import SparseEfficiencyWarning
         # warnings.simplefilter('ignore', SparseEfficiencyWarning)
     elif filter_gene_mode is 'basic':
-        valid_ind = adata.var.pass_basic_filter
+        valid_ind = adata.var.pass_basic_filter.values
     elif filter_gene_mode is 'no':
         valid_ind = np.repeat([True], adata.shape[1])
 

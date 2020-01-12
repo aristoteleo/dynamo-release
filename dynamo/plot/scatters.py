@@ -249,7 +249,7 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
             uu, ul, su, sl = adata[:, genes].layers['X_uu'], adata[:, genes].layers['X_ul'], adata[:, genes].layers['X_su'], \
                              adata[:, genes].layers['X_sl']
             if 'protein' in adata.obsm.keys():
-                if 'eta' in adata.var.columns:
+                if 'delta' in adata.var.columns:
                     gamma_P = adata.var.delta[genes].values
                     velocity_offset_P = [0] * n_cells if not ("delta_b" in adata.var.columns) else \
                         adata.var.delta_b[genes].values
@@ -279,7 +279,7 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
                             'spliced, ambiguous, unspliced for the splicing model and uu, ul, su, sl for the full mode')
 
     if type is not 'embedding':
-        if theme is None: theme = 'blue'
+        if theme is None: theme = 'glasbey_dark'
         cmap = _themes[theme]["cmap"]
         color_key_cmap = _themes[theme]["color_key_cmap"]
         background = _themes[theme]["background"]
@@ -304,7 +304,7 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
                 color_key_cmap = _themes[theme]["color_key_cmap"]
                 background = _themes[theme]["background"]
         elif type is "velocity":
-            if theme is None: theme = 'fire'
+            if theme is None: theme = 'div_blue_red'
             cmap = _themes[theme]["cmap"]
             color_key_cmap = _themes[theme]["color_key_cmap"]
             background = _themes[theme]["background"]
@@ -342,9 +342,9 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
             if legend is 'on data':
                 for i in unique_labels:
                     color_cnt = np.nanmedian(df.iloc[np.where(color == i)[0], :2], 0)
-                    txt = ax1.text(color_cnt[0], color_cnt[1], str(i), fontsize=13, c=color_key.iloc[i, :])
+                    txt = ax1.text(color_cnt[0], color_cnt[1], str(i), fontsize=13, c=color_key.iloc[i, :]) # c
                     txt.set_path_effects([
-                        PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.1),
+                        PathEffects.Stroke(linewidth=5, foreground=font_color, alpha=0.1), #'w'
                         PathEffects.Normal()])
             else:
                 g.legend(loc=legend, bbox_to_anchor=(0.125, 0.125), ncol=1 if label_len < 15 else 2)
@@ -411,6 +411,7 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
 
                 limit = np.nanmax(np.abs(np.nanpercentile(V_vec, [1, 99])))  # upper and lowe limit / saturation
 
+                # transform the data so that 0.5 corresponds to 0 in the original data space.
                 V_vec = V_vec + limit  # that is: tmp_colorandum - (-limit)
                 V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
                 V_vec = np.clip(V_vec, 0, 1)
