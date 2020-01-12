@@ -92,7 +92,7 @@ def _select_font_color(background):
 
 
 def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_key='S', ekey='X', basis='umap', n_columns=1, \
-             color=None, figsize=None, legend='on data', ax=None, **kwargs):
+             color=None, pointsize=None, figsize=None, legend='on data', ax=None, **kwargs):
     """Scatter plot of cells for phase portrait or for low embedding embedding, colored by gene expression, velocity or cell groups.
 
     Parameters
@@ -135,8 +135,8 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
             The layer of data to represent the gene expression level.
         basis: `string` (default: umap)
             Which low dimensional embedding will be used to visualize the cell.
-        figsize: `None` or `[float, float]` (default: None)
-            The width and height of a figure.
+        pointsize: `None` or `float` (default: None)
+            The scale of the point size. Actual point cell size is calculated as `100.0 / np.sqrt(adata.shape[0]) * pointsize`
         figsize: `None` or `[float, float]` (default: None)
             The width and height of a figure.
         legend: `str` (default: `on data`)
@@ -154,7 +154,7 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
     import matplotlib.patheffects as PathEffects
     import seaborn as sns
 
-    point_size = 100.0 / np.sqrt(adata.shape[0])
+    point_size = 500.0 / np.sqrt(adata.shape[0]) if pointsize is None else 500.0 / np.sqrt(adata.shape[0]) * pointsize
     scatter_kwargs = dict(alpha=0.4, s=point_size, edgecolor=None, linewidth=0) # (0, 0, 0, 1)
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
@@ -325,6 +325,7 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
     else:
         sns.set(rc={'axes.facecolor': background, 'figure.facecolor': background, 'axes.grid': False})
 
+    n_columns = min(n_genes, n_columns)
     if type == 'embedding':
         nrow, ncol = int(np.ceil(len(color) / n_columns)), n_columns
         if figsize is None:
@@ -340,23 +341,20 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
 
             cur_pd = df.loc[df.group == clr, :]
 
-            labels = cur_pd.loc[:, 'color']
-            unique_labels = np.unique(labels)
-            label_len = len(unique_labels)
-            color_key = plt.get_cmap(color_key_cmap)(np.linspace(0, 1, label_len))
-
-            colors = pd.Series(labels).map(color_key) #cmap = plt.cm.Set2 #if type(cur_pd.loc[:, 'color'][0]) is not float else plt.cm.Greens # sns.diverging_palette(10, 220, sep=80, as_cmap=True)
-            g=sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], c=colors, ax=ax1, \
-                            legend='brief', **scatter_kwargs) # hue=cur_pd.loc[:, 'color'], cmap = plt.cm.Set2
-            if legend is 'on data':
+            unique_labels = np.unique(cur_pd.loc[:, 'color'].values)
+            g = sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=cur_pd.loc[:, 'color'],
+                                palette=plt.get_cmap(color_key_cmap), ax=ax1, \
+                                legend='brief', **scatter_kwargs)
+            if legend == 'on data':
                 for i in unique_labels:
                     color_cnt = np.nanmedian(df.iloc[np.where(color == i)[0], :2], 0)
-                    txt = ax1.text(color_cnt[0], color_cnt[1], str(i), fontsize=13, c=color_key.iloc[i, :]) # c
+                    txt = ax1.text(color_cnt[0], color_cnt[1], str(i), fontsize=13, c='k') # c
                     txt.set_path_effects([
                         PathEffects.Stroke(linewidth=5, foreground=font_color, alpha=0.1), #'w'
                         PathEffects.Normal()])
             else:
-                g.legend(loc=legend, bbox_to_anchor=(0.125, 0.125), ncol=1 if label_len < 15 else 2)
+                # ax1.set_legend(loc=legend, bbox_to_anchor=(0.125, 0.125), ncol=1 if label_len < 15 else 2)
+                ax1.legend(loc=legend, bbox_to_anchor=(0.125, 0.125), ncol=1 if len(unique_labels) < 15 else 2)
 
             set_spine_linewidth(ax1, 1)
             ax1.set_title(color)
@@ -395,7 +393,7 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
                 set_spine_linewidth(ax1, 1)
                 ax1.set_title(gn)
                 xnew = np.linspace(0, cur_pd.iloc[:, 1].max())
-                ax1.plot(xnew, xnew * cur_pd.loc[:, 'gamma'].unique() + cur_pd.loc[:, 'velocity_offset'].unique(), c="k")
+                ax1.plot(xnew, xnew * cur_pd.loc[:, 'gamma'].unique() + cur_pd.loc[:, 'velocity_offset'].unique(), linewidth=2)
                 ax1.set_xlim(0, np.max(cur_pd.iloc[:, 1])*1.02)
                 ax1.set_ylim(0, np.max(cur_pd.iloc[:, 0])*1.02)
 
@@ -408,8 +406,7 @@ def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_k
                     set_spine_linewidth(ax2, 1)
                     ax2.set_title(gn)
                     xnew = np.linspace(0, cur_pd.iloc[:, 3].max())
-                    ax2.plot(xnew, xnew * cur_pd.loc[:, 'gamma_P'].unique() + cur_pd.loc[:, 'velocity_offset_P'].unique(),
-                             c="k")
+                    ax2.plot(xnew, xnew * cur_pd.loc[:, 'gamma_P'].unique() + cur_pd.loc[:, 'velocity_offset_P'].unique(), linewidth=2)
 
                     ax2.set_ylim(0, np.max(cur_pd.iloc[:, 3]) * 1.02)
                     ax2.set_xlim(0, np.max(cur_pd.iloc[:, 2]) * 1.02)
