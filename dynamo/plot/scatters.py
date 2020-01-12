@@ -91,8 +91,8 @@ def _select_font_color(background):
     return font_color
 
 
-def scatters(adata, genes, x=0, y=1, theme='fire', mode='splicing', type='expression', vkey='S', ekey='X', basis='umap', n_columns=1, \
-             color=None, figsize=None, legend=False, ax=None, **kwargs):
+def scatters(adata, genes, x=0, y=1, theme='fire', type='expression', velocity_key='S', ekey='X', basis='umap', n_columns=1, \
+             color=None, figsize=None, legend='on data', ax=None, **kwargs):
     """Scatter plot of cells for phase portrait or for low embedding embedding, colored by gene expression, velocity or cell groups.
 
     Parameters
@@ -118,13 +118,19 @@ def scatters(adata, genes, x=0, y=1, theme='fire', mode='splicing', type='expres
                * 'darkblue'
                * 'darkred'
                * 'darkgreen'
-        mode: `string` (default: labelling)
-            Which mode of data do you want to show, can be one of `labelling`, `splicing` and `full`.
         type: `str` (default: `expression`)
-            Which plotting type to use, either embedding, expression, velocity or phase.
-        vkey: `string` (default: velocity)
-            Which velocity key used for visualizing the magnitude of velocity. Can be either velocity in the layers slot or the
-            keys in the obsm slot.
+            Which plotting type to use, either expression, embedding, velocity or phase.
+                * 'embedding': visualize low dimensional embedding of cells, cells can be colored by different annotations,
+                  each within its own panel
+                * 'expression': visualize low dimensional embedding of cells, cells can be colored by expression of different
+                  genes, each within its own panel
+                * 'velocity': visualize low dimensional embedding of cells, cells can be colored by velocity values of different
+                  genes, each within its own panel.
+                * 'phase': visualize S-U (spliced vs. unspliced) or P-S (protein vs. spliced) plot for different genes across cells,
+                  each gene has its own panel. Cell can be colored by a single annotation.
+        velocity_key: `string` (default: `S`)
+            Which (suffix of) the velocity key used for visualizing the magnitude of velocity. Can be either in the layers attribute or the
+            keys in the obsm attribute. The full key name can be retrieved by `vkey + '_velocity'`.
         ekey: `str`
             The layer of data to represent the gene expression level.
         basis: `string` (default: umap)
@@ -133,10 +139,9 @@ def scatters(adata, genes, x=0, y=1, theme='fire', mode='splicing', type='expres
             The width and height of a figure.
         figsize: `None` or `[float, float]` (default: None)
             The width and height of a figure.
-        legend: `False`, `brief` or `full`
-            the legend parameter in seaborn. How to draw the legend. If “brief”, numeric hue and size variables will be
-            represented with a sample of evenly spaced values. If “full”, every group will get an entry in the legend.
-            If False, no legend data is added and no legend is drawn.
+        legend: `str` (default: `on data`)
+            Where to put the legend.  Legend is drawn by seaborn with “brief” mode, numeric hue and size variables will be
+            represented with a sample of evenly spaced values. By default legend is drawn on top of cells.
         **kwargs:
             Additional parameters that will be passed to plt.scatter function
 
@@ -146,9 +151,9 @@ def scatters(adata, genes, x=0, y=1, theme='fire', mode='splicing', type='expres
     """
 
     import matplotlib.pyplot as plt
+    import matplotlib.patheffects as PathEffects
     import seaborn as sns
 
-    font_color = _select_font_color(background)
     point_size = 100.0 / np.sqrt(adata.shape[0])
     scatter_kwargs = dict(alpha=0.4, s=point_size, edgecolor=None, linewidth=0) # (0, 0, 0, 1)
     if kwargs is not None:
@@ -164,8 +169,15 @@ def scatters(adata, genes, x=0, y=1, theme='fire', mode='splicing', type='expres
                                   basis + '_1': adata.obsm['X_' + basis][:, y]})
         embedding.columns = ['dim_1', 'dim_2']
 
-    if not (mode in ['labelling', 'splicing', 'full']):
-        raise Exception('mode can be only one of the labelling, splicing or full')
+    if all([i in adata.layers.keys() for i in ['X_new', 'X_total']]):
+        mode = 'labeling'
+    elif all([i in adata.layers.keys() for i in ['X_spliced', 'X_unspliced']]):
+        mode = 'splicing'
+    elif all([i in adata.layers.keys() for i in ['X_uu', 'X_ul', 'X_su', 'X_sl']]):
+        mode = 'full'
+    else:
+        raise Exception('your data should be in one of the proper mode: labelling (has X_new/X_total layers), splicing '
+                        '(has X_spliced/X_unspliced layers) or full (has X_uu/X_ul/X_su/X_sl layers)')
 
     layers = list(adata.layers.keys())
     layers.extend(['X', 'protein', 'X_protein'])
@@ -185,9 +197,11 @@ def scatters(adata, genes, x=0, y=1, theme='fire', mode='splicing', type='expres
         if len(color) > 0 and type is not 'embedding':
             color_vec = adata.obs[color[0]].values
         else:
-            n_genes = len(color)
+            n_genes = len(color) # set n_genes as the number of obs keys
             color_vec = adata.obs[color[0]].values
             full_color_vec = adata.obs[color].values.flatten()
+
+    if 'velocity_' not in velocity_key: vkey = 'velocity_' + velocity_key
 
     if type is 'embedding':
         df = pd.DataFrame({basis + '_0': np.repeat(embedding.iloc[:, 0], n_genes), basis + '_1': np.repeat(embedding.iloc[:, 1], n_genes),
@@ -202,7 +216,7 @@ def scatters(adata, genes, x=0, y=1, theme='fire', mode='splicing', type='expres
             if 'velocity_P' in adata.obsm.keys():
                 P_vec = adata[:, genes].layers['velocity_P']
         else:
-            raise Exception('adata has no vkey {} in either the layers or the obsm slot'.format(vkey))
+            raise Exception('adata has no vkey {} in either the layers or the obsm attribute'.format(vkey))
 
         if issparse(E_vec):
             E_vec, V_vec = E_vec.A, V_vec.A
@@ -215,15 +229,15 @@ def scatters(adata, genes, x=0, y=1, theme='fire', mode='splicing', type='expres
             raise Exception('adata does not seem to have gamma column. Velocity estimation is required before '
                             'running this function.')
 
-        if mode is 'labelling' and all([i in adata.layers.keys() for i in ['new', 'total']]):
-            new_mat, tot_mat = adata[:, genes].layers['new'], adata[:, genes].layers['total']
+        if mode is 'labelling':
+            new_mat, tot_mat = adata[:, genes].layers['X_new'], adata[:, genes].layers['X_total']
             new_mat, tot_mat = (new_mat.A, tot_mat.A) if issparse(new_mat) else (new_mat, tot_mat)
 
             df = pd.DataFrame({"new": new_mat.flatten(), "total": tot_mat.flatten(), 'gene': genes * n_cells, 'gamma':
                                np.tile(gamma, n_cells), 'velocity_offset': np.tile(velocity_offset, n_cells),
                                "expression": E_vec.flatten(), "velocity": V_vec.flatten(), 'color': np.repeat(color_vec, n_genes)}, index=range(n_cells * n_genes))
 
-        elif mode is 'splicing' and all([i in adata.layers.keys() for i in ['spliced', 'unspliced']]):
+        elif mode is 'splicing':
             unspliced_mat, spliced_mat = adata[:, genes].layers['X_unspliced'], adata[:, genes].layers['X_spliced']
             unspliced_mat, spliced_mat = (unspliced_mat.A, spliced_mat.A) if issparse(unspliced_mat) else (unspliced_mat, spliced_mat)
 
@@ -231,14 +245,14 @@ def scatters(adata, genes, x=0, y=1, theme='fire', mode='splicing', type='expres
                                'gamma': np.tile(gamma, n_cells), 'velocity_offset': np.tile(velocity_offset, n_cells),
                                "expression": E_vec.flatten(), "velocity": V_vec.flatten(), 'color': np.repeat(color_vec, n_genes)}, index=range(n_cells * n_genes))
 
-        elif mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]):
+        elif mode is 'full':
             uu, ul, su, sl = adata[:, genes].layers['X_uu'], adata[:, genes].layers['X_ul'], adata[:, genes].layers['X_su'], \
                              adata[:, genes].layers['X_sl']
             if 'protein' in adata.obsm.keys():
-                if 'kinetic_parameter_eta' in adata.var.columns:
-                    gamma_P = adata.var.kinetic_parameter_eta[genes].values
-                    velocity_offset_P = [0] * n_cells if not ("velocity_offset_P" in adata.var.columns) else \
-                        adata.var.velocity_offset_P[genes].values
+                if 'eta' in adata.var.columns:
+                    gamma_P = adata.var.delta[genes].values
+                    velocity_offset_P = [0] * n_cells if not ("delta_b" in adata.var.columns) else \
+                        adata.var.delta_b[genes].values
                 else:
                     raise Exception(
                         'adata does not seem to have velocity_gamma column. Velocity estimation is required before '
@@ -265,6 +279,11 @@ def scatters(adata, genes, x=0, y=1, theme='fire', mode='splicing', type='expres
                             'spliced, ambiguous, unspliced for the splicing model and uu, ul, su, sl for the full mode')
 
     if type is not 'embedding':
+        if theme is None: theme = 'blue'
+        cmap = _themes[theme]["cmap"]
+        color_key_cmap = _themes[theme]["color_key_cmap"]
+        background = _themes[theme]["background"]
+    else:
         if type is "phase":
             if df.color.unique() != np.nan:
                 if theme is None: theme = 'viridis'
@@ -294,13 +313,47 @@ def scatters(adata, genes, x=0, y=1, theme='fire', mode='splicing', type='expres
             cmap = _themes[theme]["cmap"]
             color_key_cmap = _themes[theme]["color_key_cmap"]
             background = _themes[theme]["background"]
-    else:
-        if theme is None: theme = 'blue'
-        cmap = _themes[theme]["cmap"]
-        color_key_cmap = _themes[theme]["color_key_cmap"]
-        background = _themes[theme]["background"]
 
-    if type is not 'embedding':
+    font_color = _select_font_color(background)
+
+    if type is 'embedding':
+        nrow, ncol = int(np.ceil(len(color) / n_columns)), n_columns
+        if figsize is None:
+            plt.figure(None, (3 * ncol, 3 * nrow), facecolor=background)
+        else:
+            plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)
+
+        # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
+        gs = plt.GridSpec(nrow, ncol)
+
+
+        for i, clr in enumerate(color):
+            ax1 = plt.subplot(gs[i])
+
+            cur_pd = df.loc[df.group == clr, :]
+
+            labels = cur_pd.loc[:, 'color']
+            unique_labels, label_len = np.unique(labels), len(unique_labels)
+            color_key = plt.get_cmap(color_key_cmap)(np.linspace(0, 1, label_len))
+
+            colors = pd.Series(labels).map(color_key) #cmap = plt.cm.Set2 #if type(cur_pd.loc[:, 'color'][0]) is not float else plt.cm.Greens # sns.diverging_palette(10, 220, sep=80, as_cmap=True)
+            g=sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], c=colors, ax=ax1, \
+                            legend='brief', **scatter_kwargs) # hue=cur_pd.loc[:, 'color'], cmap = plt.cm.Set2
+            if legend is 'on data':
+                for i in unique_labels:
+                    color_cnt = np.nanmedian(df.iloc[np.where(color == i)[0], :2], 0)
+                    txt = ax1.text(color_cnt[0], color_cnt[1], str(i), fontsize=13, c=color_key.iloc[i, :])
+                    txt.set_path_effects([
+                        PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.1),
+                        PathEffects.Normal()])
+            else:
+                g.legend(loc=legend, bbox_to_anchor=(0.125, 0.125), ncol=1 if label_len < 15 else 2)
+
+
+            ax1.set_title(color)
+            ax1.set_xlabel(basis + '_1')
+            ax1.set_ylabel(basis + '_2')
+    else:
         n_columns = 2 * n_columns if ('protein' in adata.obsm.keys() and mode is 'full') else n_columns
         plot_per_gene = 2 if ('protein' in adata.obsm.keys() and mode is 'full') else 1
         nrow, ncol = int(np.ceil(plot_per_gene * n_genes / n_columns)), n_columns
@@ -323,13 +376,12 @@ def scatters(adata, genes, x=0, y=1, theme='fire', mode='splicing', type='expres
                 continue
             cur_pd = df.loc[df.gene == gn, :]
             if type is 'phase': # viridis, set2
-                if cur_pd.color.unique() != np.nan:
-                    g = sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue="expression", ax=ax1, palette=cmap, legend=legend, **scatter_kwargs) # x-axis: S vs y-axis: U
+                if cur_pd.color.unique() == np.nan:
+                    g = sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue=cur_pd.expression, ax=ax1, palette=cmap, legend='brief', **scatter_kwargs) # x-axis: S vs y-axis: U
+                    g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1)
                 else:
-                    g = sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue=color, ax=ax1, palette=cmap, legend=legend, **scatter_kwargs) # x-axis: S vs y-axis: U
-
-                if legend:
-                    g.legend(loc='center left', bbox_to_anchor=(0.125, 0.125), ncol=1)
+                    g = sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue=cur_pd.color, ax=ax1, palette=cmap, legend='brief', **scatter_kwargs) # x-axis: S vs y-axis: U
+                    g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1 if len(color) < 15 else 2)
 
                 ax1.set_title(gn)
                 xnew = np.linspace(0, cur_pd.iloc[:, 1].max())
@@ -340,9 +392,8 @@ def scatters(adata, genes, x=0, y=1, theme='fire', mode='splicing', type='expres
                 despline(ax1) # sns.despline()
 
                 if plot_per_gene == 2 and ('protein' in adata.obsm.keys() and mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']])):
-                    g = sns.scatterplot(cur_pd.iloc[:, 3], cur_pd.iloc[:, 2], hue=color, ax=ax2, legend=legend, **scatter_kwargs)  # x-axis: Protein vs. y-axis: Spliced
-                    if legend:
-                        g.legend(loc='center left', bbox_to_anchor=(0.125, 0.125), ncol=1)
+                    g = sns.scatterplot(cur_pd.iloc[:, 3], cur_pd.iloc[:, 2], hue=cur_pd.color, ax=ax2, legend='brief', **scatter_kwargs)  # x-axis: Protein vs. y-axis: Spliced
+                    g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1 if len(color) < 15 else 2)
 
                     ax2.set_title(gn)
                     xnew = np.linspace(0, cur_pd.iloc[:, 3].max())
@@ -364,11 +415,10 @@ def scatters(adata, genes, x=0, y=1, theme='fire', mode='splicing', type='expres
                 V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
                 V_vec = np.clip(V_vec, 0, 1)
 
-                cmap = plt.cm.RdBu_r # sns.cubehelix_palette(dark=.3, light=.8, as_cmap=True)
-                g=sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=df_embedding.loc[:, 'expression'], ax=ax1, \
-                                palette=cmap, legend=legend, **scatter_kwargs)
-                if legend:
-                    g.legend(loc='center left', bbox_to_anchor=(0.125, 0.125), ncol=1)
+                #cmap = plt.cm.RdBu_r # sns.cubehelix_palette(dark=.3, light=.8, as_cmap=True)
+                g=sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=V_vec, ax=ax1, \
+                                palette=cmap, legend='brief', **scatter_kwargs)
+                g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1 if len(color) < 15 else 2)
 
                 ax1.set_title(gn + '(' + ekey + ')')
                 ax1.set_xlabel(basis + '_1')
@@ -383,22 +433,19 @@ def scatters(adata, genes, x=0, y=1, theme='fire', mode='splicing', type='expres
                     V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
                     V_vec = np.clip(V_vec, 0, 1)
 
-                    cmap = plt.cm.RdBu_r  # sns.cubehelix_palette(dark=.3, light=.8, as_cmap=True)
-                    g = sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=V_vec, ax=ax2, palette=cmap, legend=legend, **scatter_kwargs)
-
-                    if legend:
-                        g.legend(loc='center left', bbox_to_anchor=(0.125, 0.125), ncol=1)
+                    # cmap = plt.cm.RdBu_r  # sns.cubehelix_palette(dark=.3, light=.8, as_cmap=True)
+                    g = sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=V_vec, ax=ax2, palette=cmap, legend='brief', **scatter_kwargs)
+                    g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1 if len(color) < 15 else 2)
 
                     ax2.set_title(gn + '(' + ekey + ')')
                     ax2.set_xlabel(basis + '_1')
                     ax2.set_ylabel(basis + '_2')
             elif type is 'expression':
-                cmap = plt.cm.Greens # sns.diverging_palette(10, 220, sep=80, as_cmap=True)
-                g = sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=df_embedding.loc[:, 'expression'], ax=ax1, \
-                                palette=cmap, legend=legend, **scatter_kwargs)
-
-                if legend:
-                    g.legend(loc='center left', bbox_to_anchor=(0.125, 0.125), ncol=1)
+                # cmap = plt.cm.Greens # sns.diverging_palette(10, 220, sep=80, as_cmap=True)
+                expression = np.clip(df_embedding.loc[:, 'expression'] / np.percentile(df_embedding.loc[:, 'expression'], 99), 0, 1)
+                g = sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=expression, ax=ax1, \
+                                palette=cmap, legend='brief', **scatter_kwargs)
+                g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1 if len(color) < 15 else 2)
 
                 ax1.set_title(gn + '(' + vkey + ')')
                 ax1.set_xlabel(basis + '_1')
@@ -407,40 +454,17 @@ def scatters(adata, genes, x=0, y=1, theme='fire', mode='splicing', type='expres
                 if 'protein' in adata.obsm.keys() and mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]):
                     df_embedding = pd.concat([embedding, cur_pd.loc[:, 'P']], ignore_index=False)
 
-                    cmap = sns.light_palette("navy", as_cmap=True)
-                    g = sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=df_embedding.loc[:, 'expression'], \
-                                    ax=ax2, legend=legend, palette=cmap, **scatter_kwargs)
-                    if legend:
-                        g.legend(loc='center left', bbox_to_anchor=(0.125, 0.125), ncol=1)
+                    # cmap = sns.light_palette("navy", as_cmap=True)
+                    expression = np.clip(df_embedding.loc[:, 'expression'] / np.percentile(df_embedding.loc[:, 'expression'], 99), 0, 1)
+
+                    g = sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=expression, \
+                                    ax=ax2, legend='brief', palette=cmap, **scatter_kwargs)
+                    g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1 if len(color) < 15 else 2)
 
                     ax2.set_title(gn + '(protein expression)')
                     ax2.set_xlabel(basis + '_1')
                     ax2.set_ylabel(basis + '_2')
 
-    else:
-        nrow, ncol = int(np.ceil(len(color) / n_columns)), n_columns
-        if figsize is None:
-            plt.figure(None, (3 * ncol, 3 * nrow), facecolor=background)  # , dpi=160
-        else:
-            plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)  # , dpi=160
-
-        # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
-        gs = plt.GridSpec(nrow, ncol)
-
-        for i, clr in enumerate(color):
-            ax1 = plt.subplot(gs[i])
-
-            cur_pd = df.loc[df.group == clr, :]
-
-            cmap = plt.cm.Set2 #if type(cur_pd.loc[:, 'color'][0]) is not float else plt.cm.Greens # sns.diverging_palette(10, 220, sep=80, as_cmap=True)
-            g=sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=cur_pd.loc[:, 'color'], ax=ax1, palette=cmap, \
-                            legend=legend, **scatter_kwargs)
-            if legend:
-                g.legend(loc='center left', bbox_to_anchor=(0.125, 0.125), ncol=1)
-
-            ax1.set_title(color)
-            ax1.set_xlabel(basis + '_1')
-            ax1.set_ylabel(basis + '_2')
 
     plt.tight_layout()
     plt.show()

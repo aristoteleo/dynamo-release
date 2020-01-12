@@ -181,8 +181,9 @@ def reduceDimension(adata, n_pca_components=25, n_components=2, n_neighbors=10, 
     reduction_method: 'str' (optional, default trimap)
         Non-linear dimension reduction method to further reduce dimension based on the top n_pca_components PCA components. Currently, PSL 
         (probablistic structure learning, a new dimension reduction by us), tSNE (fitsne instead of traditional tSNE used) or umap are supported.
-    velocity_key: 'str' (optional, default velocity_S)
-        The dictionary key that corresponds to the estimated velocity values. 
+    velocity_key: `string` (default: `S`)
+        Which (suffix of) the velocity key used for visualizing the magnitude of velocity. Can be either in the layers attribute or the
+        keys in the obsm attribute. The full key name can be retrieved by `vkey + '_velocity'`.
     cores: `int` (optional, default `1`)
         Number of cores. Used only when the tSNE reduction_method is used.
 
@@ -192,6 +193,7 @@ def reduceDimension(adata, n_pca_components=25, n_components=2, n_neighbors=10, 
     """
 
     n_obs = adata.shape[0]
+    if 'velocity_' not in velocity_key: velocity_key = 'velocity_' + velocity_key
 
     if 'use_for_dynamo' in adata.var.keys():
         X = adata.X[:, adata.var.use_for_dynamo.values]
