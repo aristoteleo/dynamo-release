@@ -57,19 +57,23 @@ def scatter_with_legend(fig, ax, df, color, font_color, x, y, c, cmap, legend, *
     import matplotlib.patheffects as PathEffects
 
     unique_labels = np.unique(c)
-    g = sns.scatterplot(x, y, hue=c,
-                        palette=cmap, ax=ax, \
-                        legend='full', **scatter_kwargs)
+
     if legend == 'on data':
+        g = sns.scatterplot(x, y, hue=c,
+                            palette=cmap, ax=ax, \
+                            legend=False, **scatter_kwargs)
+
         for i in unique_labels:
-            color_cnt = np.nanmedian(df.iloc[np.where(color == i)[0], :2], 0)
-            txt = ax.text(color_cnt[0], color_cnt[1], str(i), fontsize=13, c=font_color, zorder=0)  # c
+            color_cnt = np.nanmedian(df.iloc[np.where(c == i)[0], :2], 0)
+            txt = ax.text(color_cnt[0], color_cnt[1], str(i), fontsize=13, c=font_color, zorder=1000)  # c
             txt.set_path_effects([
                 PathEffects.Stroke(linewidth=5, foreground=font_color, alpha=0.1),  # 'w'
                 PathEffects.Normal()])
     else:
-        # ax1.set_legend(loc=legend, bbox_to_anchor=(0.125, 0.125), ncol=1 if label_len < 15 else 2)
-        ax.legend(loc=legend, bbox_to_anchor=(0.125, 0.125), ncol=1 if len(unique_labels) < 15 else 2)
+        g = sns.scatterplot(x, y, hue=c,
+                            palette=cmap, ax=ax, \
+                            legend='full', **scatter_kwargs)
+        ax.legend(loc=legend, ncol=1 if len(unique_labels) < 15 else 2)
 
     return fig, ax
 

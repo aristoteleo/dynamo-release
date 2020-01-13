@@ -92,7 +92,7 @@ def _select_font_color(background):
 
 
 def scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key='S', ekey='X', basis='umap', n_columns=1, \
-             color=None, pointsize=None, figsize=None, legend='on data', ax=None, **kwargs):
+             color=None, pointsize=None, figsize=None, legend='on data', ax=None, normalize=False, **kwargs):
     """Scatter plot of cells for phase portrait or for low embedding embedding, colored by gene expression, velocity or cell groups.
 
     Parameters
@@ -142,6 +142,8 @@ def scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key
         legend: `str` (default: `on data`)
             Where to put the legend.  Legend is drawn by seaborn with “brief” mode, numeric hue and size variables will be
             represented with a sample of evenly spaced values. By default legend is drawn on top of cells.
+        normalize: `bool` (default: `True`)
+            Whether to normalize the expression / velocity or other continous data so that the value will be scaled between 0 and 1.
         **kwargs:
             Additional parameters that will be passed to plt.scatter function
 
@@ -309,12 +311,27 @@ def scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key
                 # ]
 
             else:
-                if theme is None: theme = 'glasbey_dark' # color corresponds to categories
+                if theme is None:
+                    import colorcet
+                    theme = 'glasbey_dark'
+                    # add glasbey_bw_minc_20_maxl_70 theme for cell annotation in dark background
+                    glasbey_dark_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
+                        "glasbey_dark_cmap", colorcet.glasbey_bw_minc_20_maxl_70
+                    )
+                    plt.register_cmap("glasbey_dark", glasbey_dark_cmap)
+
                 cmap = _themes[theme]["cmap"]
                 color_key_cmap = _themes[theme]["color_key_cmap"]
                 background = _themes[theme]["background"]
         elif type == "velocity":
-            if theme is None: theme = 'div_blue_red'
+            if theme is None:
+                import colorcet
+                theme = 'div_blue_red'
+                # add RdBu_r theme for velocity
+                div_blue_red_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
+                    "div_blue_red", colorcet.diverging_bwr_55_98_c37
+                )
+                plt.register_cmap("div_blue_red", div_blue_red_cmap)
             cmap = _themes[theme]["cmap"]
             color_key_cmap = _themes[theme]["color_key_cmap"]
             background = _themes[theme]["background"]
@@ -413,15 +430,14 @@ def scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key
                     despline(ax2)  # sns.despline()
 
             elif type == 'velocity':
-                df_embedding = pd.concat([cur_pd, embedding], axis=1)
-                V_vec = df_embedding.loc[:, 'velocity']
+                V_vec = cur_pd.loc[:, 'velocity']
+                if normalize:
+                    limit = np.nanmax(np.abs(np.nanpercentile(V_vec, [1, 99])))  # upper and lowe limit / saturation
 
-                limit = np.nanmax(np.abs(np.nanpercentile(V_vec, [1, 99])))  # upper and lowe limit / saturation
-
-                # transform the data so that 0.5 corresponds to 0 in the original data space.
-                V_vec = V_vec + limit  # that is: tmp_colorandum - (-limit)
-                V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
-                V_vec = np.clip(V_vec, 0, 1)
+                    # transform the data so that 0.5 corresponds to 0 in the original data space.
+                    V_vec = V_vec + limit  # that is: tmp_colorandum - (-limit)
+                    V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
+                    V_vec = np.clip(V_vec, 0, 1)
 
                 #cmap = plt.cm.RdBu_r # sns.cubehelix_palette(dark=.3, light=.8, as_cmap=True)
                 fig, ax1 = scatter_with_colorbar(fig, ax1, embedding.iloc[:, 0], embedding.iloc[:, 1], V_vec,
@@ -433,13 +449,14 @@ def scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key
                 ax1.set_ylabel(basis + '_2')
 
                 if plot_per_gene == 2:
-                    V_vec = df_embedding.loc[:, 'velocity_offset_P']
+                    V_vec = cur_pd.loc[:, 'velocity_offset_P']
 
-                    limit = np.nanmax(np.abs(np.nanpercentile(V_vec, [1, 99])))  # upper and lowe limit / saturation
+                    if normalize:
+                        limit = np.nanmax(np.abs(np.nanpercentile(V_vec, [1, 99])))  # upper and lowe limit / saturation
 
-                    V_vec = V_vec + limit  # that is: tmp_colorandum - (-limit)
-                    V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
-                    V_vec = np.clip(V_vec, 0, 1)
+                        V_vec = V_vec + limit  # that is: tmp_colorandum - (-limit)
+                        V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
+                        V_vec = np.clip(V_vec, 0, 1)
 
                     # cmap = plt.cm.RdBu_r  # sns.cubehelix_palette(dark=.3, light=.8, as_cmap=True)
                     fig, ax2 = scatter_with_colorbar(fig, ax2, embedding.iloc[:, 0], embedding.iloc[:, 1], V_vec,
@@ -452,7 +469,10 @@ def scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key
 
             elif type == 'expression':
                 # cmap = plt.cm.Greens # sns.diverging_palette(10, 220, sep=80, as_cmap=True)
-                expression = np.clip(cur_pd.loc[:, 'expression'] / np.percentile(cur_pd.loc[:, 'expression'], 99), 0, 1)
+                expression = cur_pd.loc[:, 'expression']
+                if normalize:
+                    expression = np.clip(expression / np.percentile(expression, 99), 0, 1)
+
                 fig, ax1 = scatter_with_colorbar(fig, ax1, embedding.iloc[:, 0], embedding.iloc[:, 1], expression,
                                                    cmap, **scatter_kwargs)
 
@@ -462,9 +482,9 @@ def scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key
                 ax1.set_ylabel(basis + '_2')
 
                 if 'protein' in adata.obsm.keys() and mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]):
-                    df_embedding = pd.concat([embedding, cur_pd.loc[:, 'P']], ignore_index=False)
-
-                    expression = np.clip(df_embedding.loc[:, 'expression'] / np.percentile(df_embedding.loc[:, 'expression'], 99), 0, 1)
+                    expression = cur_pd.loc[:, 'P']
+                    if normalize:
+                        expression = np.clip(expression / np.percentile(expression, 99), 0, 1)
 
                     fig, ax2 = scatter_with_colorbar(fig, ax2, embedding.iloc[:, 0], embedding.iloc[:, 1], expression,
                                                        cmap, **scatter_kwargs)

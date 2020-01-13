@@ -210,12 +210,14 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
 
             if type(vel_U) is not float:
                 if cur_grp == _group[0]: adata.layers['velocity_U'] = csr_matrix((adata.shape))
-                adata.layers['velocity_U'][cur_cells_bools,:][:, valid_ind] = vel_U.T.tocsr() if issparse(vel_U) else csr_matrix(
-                    vel_U.T)  # np.where(valid_ind)[0] required for sparse matrix
+                tmp = csr_matrix((np.sum(cur_cells_bools), adata.shape[1]))
+                tmp[:, valid_ind] = vel_U.T.tocsc() if issparse(vel_U) else csr_matrix(vel_U.T)
+                adata.layers['velocity_U'][cur_cells_bools, :] = tmp  # np.where(valid_ind)[0] required for sparse matrix
             if type(vel_S) is not float:
                 if cur_grp == _group[0]: adata.layers['velocity_S'] = csr_matrix((adata.shape))
-                adata.layers['velocity_S'][cur_cells_bools,:][:, valid_ind] = vel_S.T.tocsr() if issparse(vel_S) else csr_matrix(
-                    vel_S.T)
+                tmp = csr_matrix((np.sum(cur_cells_bools), adata.shape[1]))
+                tmp[:, valid_ind] = vel_S.T.tocsc() if issparse(vel_S) else csr_matrix(vel_S.T)
+                adata.layers['velocity_S'][cur_cells_bools, :] = tmp  # np.where(valid_ind)[0] required for sparse matrix
             if type(vel_P) is not float:
                 if cur_grp == _group[0]: adata.obsm['velocity_P'] = csr_matrix((adata.obsm['P'].shape[0], len(ind_for_proteins)))
                 adata.obsm['velocity_P'][cur_cells_bools, :] = vel_P.T.tocsr() if issparse(vel_P) else csr_matrix(vel_P.T)
@@ -350,12 +352,15 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
 
             if type(vel_U) is not float:
                 if cur_grp == _group[0]: adata.layers['velocity_U'] = csr_matrix((adata.shape))
-                adata.layers['velocity_U'][cur_cells_bools,:][:, valid_ind] = vel_U.T.tocsr() if issparse(vel_U) else csr_matrix(
-                    vel_U.T)
+                tmp = csr_matrix((np.sum(cur_cells_bools), adata.shape[1]))
+                tmp[:, valid_ind] = vel_U.T.tocsc() if issparse(vel_U) else csr_matrix(vel_U.T)
+                adata.layers['velocity_U'][cur_cells_bools, :] = tmp  # np.where(valid_ind)[0] required for sparse matrix
             if type(vel_S) is not float:
                 if cur_grp == _group[0]: adata.layers['velocity_S'] = csr_matrix((adata.shape))
-                adata.layers['velocity_S'][cur_cells_bools,:][:, valid_ind] = vel_S.T.tocsr() if issparse(vel_S) else csr_matrix(
-                    vel_S.T)
+                tmp = csr_matrix((np.sum(cur_cells_bools), adata.shape[1]))
+                tmp[:, valid_ind] = vel_S.T.tocsc() if issparse(vel_S) else csr_matrix(vel_S.T)
+                adata.layers['velocity_S'][cur_cells_bools, :] = tmp  # np.where(valid_ind)[0] required for sparse matrix
+
             if type(vel_P) is not float and ind_for_proteins is not None:
                 if cur_grp == _group[0]: adata.obsm['velocity_P'] = csr_matrix((adata.obsm['P'].shape[0], len(ind_for_proteins)))
                 adata.obsm['velocity_P'][cur_cells_bools, :] = vel_P.T.tocsr() if issparse(vel_P) else csr_matrix(vel_P.T)
