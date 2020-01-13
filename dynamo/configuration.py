@@ -23,7 +23,7 @@ div_blue_red_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
 )
 # add glasbey_bw_minc_20_maxl_70 theme for cell annotation in dark background
 glasbey_dark_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-    "glasbey_dark_cmap", colorcet.glasbey_bw_minc_20_maxl_70
+    "glasbey_dark", colorcet.glasbey_bw_minc_20_maxl_70
 )
 
 # register cmap
@@ -93,7 +93,7 @@ _themes = {
     },
     "div_blue_red": {
         "cmap": "div_blue_red",
-        "color_key_cmap": "CET_D9",
+        "color_key_cmap": "div_blue_red",
         "background": "black",
         "edge_cmap": "gray_r",
     },

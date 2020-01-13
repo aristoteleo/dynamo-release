@@ -340,9 +340,9 @@ def scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key
     if type == 'embedding':
         nrow, ncol = int(np.ceil(len(color) / n_columns)), n_columns
         if figsize is None:
-            plt.figure(None, (7 * ncol, 5 * nrow), facecolor=background)
+            fig = plt.figure(None, (7 * ncol, 5 * nrow), facecolor=background)
         else:
-            plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)
+            fig = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)
 
         # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
         gs = plt.GridSpec(nrow, ncol)
@@ -376,9 +376,9 @@ def scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key
         plot_per_gene = 2 if ('protein' in adata.obsm.keys() and mode is 'full') else 1
         nrow, ncol = int(np.ceil(plot_per_gene * n_genes / n_columns)), n_columns
         if figsize is None:
-            plt.figure(None, (7 * ncol, 5 * nrow), facecolor=background)  # , dpi=160
+            fig = plt.figure(None, (7 * ncol, 5 * nrow), facecolor=background)  # , dpi=160
         else:
-            plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)  # , dpi=160
+            fig = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)  # , dpi=160
 
         # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
         gs = plt.GridSpec(nrow, ncol)
@@ -396,10 +396,16 @@ def scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key
             if type is 'phase': # viridis, set2
                 if all(cur_pd.color.unique() == np.nan):
                     g = sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue=cur_pd.expression, ax=ax1, palette=cmap, legend='brief', **scatter_kwargs) # x-axis: S vs y-axis: U
-                    g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1)
+                    # g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1)
+                    divider = make_axes_locatable(g)
+                    cax = divider.append_axes('right', size='5%', pad=0.05)
+                    plt.colorbar(g, cax=cax, orientation='vertical')
                 else:
                     g = sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue=cur_pd.color, ax=ax1, palette=cmap, legend='full', **scatter_kwargs) # x-axis: S vs y-axis: U
-                    if color is not None: g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1 if len(cur_pd.color.unique()) < 15 else 2)
+                    # if color is not None: g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1 if len(cur_pd.color.unique()) < 15 else 2)
+                    divider = make_axes_locatable(g)
+                    cax = divider.append_axes('right', size='5%', pad=0.05)
+                    plt.colorbar(g, cax=cax, orientation='vertical')
 
                 set_spine_linewidth(ax1, 1)
                 ax1.set_title(gn)
@@ -412,7 +418,10 @@ def scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key
 
                 if plot_per_gene == 2 and ('protein' in adata.obsm.keys() and mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']])):
                     g = sns.scatterplot(cur_pd.iloc[:, 3], cur_pd.iloc[:, 2], hue=cur_pd.color, ax=ax2, legend='brief', **scatter_kwargs)  # x-axis: Protein vs. y-axis: Spliced
-                    if cur_pd.color.unique() is not np.nan: g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1 if len(cur_pd.color.unique()) < 15 else 2)
+                    # if cur_pd.color.unique() is not np.nan: g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1 if len(cur_pd.color.unique()) < 15 else 2)
+                    divider = make_axes_locatable(g)
+                    cax = divider.append_axes('right', size='5%', pad=0.05)
+                    plt.colorbar(g, cax=cax, orientation='vertical')
 
                     set_spine_linewidth(ax2, 1)
                     ax2.set_title(gn)
@@ -438,7 +447,10 @@ def scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key
                 #cmap = plt.cm.RdBu_r # sns.cubehelix_palette(dark=.3, light=.8, as_cmap=True)
                 g=sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=V_vec, ax=ax1, \
                                 palette=cmap, legend='brief', **scatter_kwargs)
-                g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1)
+                # g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1)
+                divider = make_axes_locatable(g)
+                cax = divider.append_axes('right', size='5%', pad=0.05)
+                plt.colorbar(g, cax=cax, orientation='vertical')
 
                 set_spine_linewidth(ax1, 1)
                 ax1.set_title(gn + ' (' + vkey + ')')
@@ -456,7 +468,10 @@ def scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key
 
                     # cmap = plt.cm.RdBu_r  # sns.cubehelix_palette(dark=.3, light=.8, as_cmap=True)
                     g = sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=V_vec, ax=ax2, palette=cmap, legend='brief', **scatter_kwargs)
-                    g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1)
+                    # g.legend(loc='best', bbox_to_anchor=(0.125, 0.125), ncol=1)
+                    divider = make_axes_locatable(g)
+                    cax = divider.append_axes('right', size='5%', pad=0.05)
+                    plt.colorbar(g, cax=cax, orientation='vertical')
 
                     set_spine_linewidth(ax2, 1)
                     ax2.set_title(gn + ' (' + vkey + ')')
@@ -467,8 +482,11 @@ def scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key
                 # cmap = plt.cm.Greens # sns.diverging_palette(10, 220, sep=80, as_cmap=True)
                 expression = np.clip(cur_pd.loc[:, 'expression'] / np.percentile(cur_pd.loc[:, 'expression'], 99), 0, 1)
                 g = sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=expression, ax=ax1, \
-                                palette=cmap, legend='brief', **scatter_kwargs)
-                if color is not None: g.legend(loc='best', bbox_to_anchor=(0.125, 0.125))
+                                palette=cmap, legend=False, **scatter_kwargs)
+                # if color is not None: g.legend(loc='best', bbox_to_anchor=(0.125, 0.125))
+                divider = make_axes_locatable(g)
+                cax = divider.append_axes('right', size='5%', pad=0.05)
+                plt.colorbar(g, cax=cax, orientation='vertical')
 
                 set_spine_linewidth(ax1, 1)
                 ax1.set_title(gn + ' (' + ekey + ')')
@@ -482,8 +500,11 @@ def scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key
                     expression = np.clip(df_embedding.loc[:, 'expression'] / np.percentile(df_embedding.loc[:, 'expression'], 99), 0, 1)
 
                     g = sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=expression, \
-                                    ax=ax2, legend='brief', palette=cmap, **scatter_kwargs)
-                    g.legend(loc='best', bbox_to_anchor=(0.125, 0.125))
+                                    ax=ax2, legend=False, palette=cmap, **scatter_kwargs)
+                    # g.legend(loc='best', bbox_to_anchor=(0.125, 0.125))
+                    divider = make_axes_locatable(g)
+                    cax = divider.append_axes('right', size='5%', pad=0.05)
+                    plt.colorbar(g, cax=cax, orientation='vertical')
 
                     set_spine_linewidth(ax2, 1)
                     ax2.set_title(gn + ' (protein expression)')
