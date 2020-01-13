@@ -33,9 +33,45 @@ def minimal_yticks(start, end):
     ylims_tx[0], ylims_tx[-1] = f"{ylims[0]:.0f}", f"{ylims[-1]:.02f}"
     plt.yticks(ylims, ylims_tx)
 
+
 def set_spine_linewidth(ax, lw):
     for axis in ['top','bottom','left','right']:
       ax.spines[axis].set_linewidth(lw)
+
+    return ax
+
+def scatter_with_colorbar(fig, ax, x, y, c, cmap, **scatter_kwargs):
+    # https://stackoverflow.com/questions/32462881/add-colorbar-to-existing-axis
+    from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    g = ax.scatter(x, y, c=c, cmap=cmap, **scatter_kwargs)
+    fig.colorbar(g, cax=cax, orientation='vertical')
+
+    return fig, ax
+
+
+def scatter_with_legend(fig, ax, df, color, font_color, x, y, c, cmap, legend, **scatter_kwargs):
+    import seaborn as sns
+    import matplotlib.patheffects as PathEffects
+
+    unique_labels = np.unique(c)
+    g = sns.scatterplot(x, y, hue=c,
+                        palette=cmap, ax=ax, \
+                        legend='full', **scatter_kwargs)
+    if legend == 'on data':
+        for i in unique_labels:
+            color_cnt = np.nanmedian(df.iloc[np.where(color == i)[0], :2], 0)
+            txt = ax.text(color_cnt[0], color_cnt[1], str(i), fontsize=13, c=font_color, zorder=0)  # c
+            txt.set_path_effects([
+                PathEffects.Stroke(linewidth=5, foreground=font_color, alpha=0.1),  # 'w'
+                PathEffects.Normal()])
+    else:
+        # ax1.set_legend(loc=legend, bbox_to_anchor=(0.125, 0.125), ncol=1 if label_len < 15 else 2)
+        ax.legend(loc=legend, bbox_to_anchor=(0.125, 0.125), ncol=1 if len(unique_labels) < 15 else 2)
+
+    return fig, ax
 
 
 def quiver_autoscaler(X_emb, V_emb):
