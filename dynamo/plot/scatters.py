@@ -414,6 +414,9 @@ def scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key
                 ax1.set_ylim(0, np.max(cur_pd.iloc[:, 0])*1.02)
 
                 despline(ax1) # sns.despline()
+                set_spine_linewidth(ax1, 1)
+                ax1.set_xlabel('spliced')
+                ax1.set_ylabel('unspliced')
 
                 if plot_per_gene == 2 and ('protein' in adata.obsm.keys() and mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']])):
                     fig, ax2 = scatter_with_colorbar(fig, ax2, cur_pd.iloc[:, 3], cur_pd.iloc[:, 2], cur_pd.color,
@@ -428,6 +431,8 @@ def scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key
                     ax2.set_xlim(0, np.max(cur_pd.iloc[:, 2]) * 1.02)
 
                     despline(ax2)  # sns.despline()
+                    ax1.set_xlabel('spliced')
+                    ax1.set_ylabel('unspliced')
 
             elif type == 'velocity':
                 V_vec = cur_pd.loc[:, 'velocity']

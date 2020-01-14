@@ -54,8 +54,6 @@ def phase_portraits(adata, genes, x=0, y=1, mode='splicing', vkey='S', ekey='X',
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
 
-    # there is no solution for combining multiple plot in the same figure in plotnine, so a pure matplotlib is used
-    # see more at https://github.com/has2k1/plotnine/issues/46
     genes, idx = adata.var.index[adata.var.index.isin(genes)].tolist(), np.where(adata.var.index.isin(genes))[0]
     if len(genes) == 0:
         raise Exception('adata has no genes listed in your input gene vector: {}'.format(genes))
