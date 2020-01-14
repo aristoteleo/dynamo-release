@@ -1,40 +1,58 @@
-# code adapted from https://github.com/lmcinnes/umap/blob/7e051d8f3c4adca90ca81eb45f6a9d1372c076cf/umap/plot.py
-# need to integrate with DDRTree and possibly GRN learnt from Scribe.
+"""
+# code are largely adapted from https://github.com/lmcinnes/umap/blob/7e051d8f3c4adca90ca81eb45f6a9d1372c076cf/umap/plot.py
+The code base will be extended extensively to consider the following cases:
+    1. nneighbors: kNN graph constructed from umap/scKDTree/annoy, etc
+    2. mutual kNN shared between spliced or unspliced layer
+    3. principal graph that learnt from DDRTree, L1graph or other principal graph algorithms
+    4. regulatory network learnt from Scribe
+    5. spatial kNN graph
+    6. others
+"""
 
+from .utilities import _select_font_color, _get_extent, _embed_datashader_in_an_axis
+import datashader as ds
+import datashader.transfer_functions as tf
+import datashader.bundling as bd
 
-def _plt_connectivity(Y, connectivity):
-        """
+def _plt_connectivity(coord, connectivity):
+    """Plot connectivity graph via networkx and matplotlib.
 
-        Parameters
-        ----------
-        principal_g_transition
+    Parameters
+    ----------
+        coord: `dict`
+            A dictionary where the keys are the graph node names and values are the corresponding coordinates of the node.
+        connectivity: `scipy.sparse.csr_matrix`
+            A csr sparse matrix of the cell connectivities.
 
-        Returns
-        -------
+    Returns
+    -------
+        Nothing but a connectivity graph plot built upon networkx and matplotlib.
+    """
 
-        """
+    import networkx as nx
+    import matplotlib.pyplot as plt
 
-        import networkx as nx
-        import matplotlib.pyplot as plt
+    if_symmetric = (abs(connectivity-connectivity.T) > 1e-10).nnz == 0
 
-        G = nx.from_numpy_matrix(connectivity, create_using=nx.DiGraph())
-        W = []
-        for n, nbrs in G.adj.items():
-            for nbr, eattr in nbrs.items():
-                W.append(eattr['weight'])
+    G = nx.from_scipy_sparse_matrix(connectivity, create_using=nx.Graph()) if if_symmetric else \
+        nx.from_scipy_sparse_matrix(connectivity, create_using=nx.DiGraph())
+    W = []
+    for n, nbrs in G.adj.items():
+        for nbr, eattr in nbrs.items():
+            W.append(eattr['weight'])
 
-        options = {
-            'width': 30,
-            'arrowstyle': '-|>',
-            'arrowsize': 10,
-        }
-        edge_color = 'gray'
-        plt.figure(figsize=[10, 10])
+    options = {
+        'width': 30,
+        'arrowstyle': '-|>',
+        'arrowsize': 10,
+    }
+    edge_color = 'gray'
+    plt.figure(figsize=[10, 10])
 
-        nx.draw(G, pos=Y, with_labels=False, node_color='skyblue', node_size=1,
-                edge_color=edge_color, width=W / np.max(W) * 1, edge_cmap=plt.cm.Blues, options=options)
+    nx.draw(G, pos=coord, with_labels=False, node_color='skyblue', node_size=1,
+            edge_color=edge_color, width=W / np.max(W) * 1, edge_cmap=plt.cm.Blues, options=options)
 
-        plt.show()
+    plt.show()
 
 
 def _datashade_points(
@@ -50,9 +68,6 @@ def _datashade_points(
     height=800,
     show_legend=True,
 ):
-    import datashader as ds
-    import datashader.transfer_functions as tf
-    import datashader.bundling as bd
 
     """Use datashader to plot points"""
     extent = _get_extent(points)
@@ -168,10 +183,11 @@ def connectivity(
     utility will attempt to do the hard work of avoiding
     overplotting issues and provide options for plotting the
     points as well as using edge bundling for graph visualization.
+
     Parameters
     ----------
-    umap_object: trained UMAP object
-        A trained UMAP object that has a 2D embedding.
+    adata: :class:`~anndata.AnnData`
+        an Annodata object that include the umap embedding and simplicial graph.
     edge_bundling: string or None (optional, default None)
         The edge bundling method to use. Currently supported
         are None or 'hammer'. See the datashader docs
@@ -263,10 +279,10 @@ def connectivity(
         edge_cmap = _themes[theme]["edge_cmap"]
         background = _themes[theme]["background"]
 
-    points = umap_object.embedding_
+    points = adata.obsm['X_umap']
     point_df = pd.DataFrame(points, columns=("x", "y"))
 
-    point_size = 100.0 / np.sqrt(points.shape[0])
+    point_size = 500.0 / np.sqrt(points.shape[0])
     if point_size > 1:
         px_size = int(np.round(point_size))
     else:
@@ -277,7 +293,7 @@ def connectivity(
     else:
         edge_how = "eq_hist"
 
-    coo_graph = umap_object.graph_.tocoo()
+    coo_graph = adata.uns['neighbors']['connectivities'].tocoo()
     edge_df = pd.DataFrame(
         np.vstack([coo_graph.row, coo_graph.col, coo_graph.data]).T,
         columns=("source", "target", "weight"),
@@ -340,16 +356,6 @@ def connectivity(
     _embed_datashader_in_an_axis(result, ax)
 
     ax.set(xticks=[], yticks=[])
-    ax.text(
-        0.99,
-        0.01,
-        "UMAP: n_neighbors={}, min_dist={}".format(
-            umap_object.n_neighbors, umap_object.min_dist
-        ),
-        transform=ax.transAxes,
-        horizontalalignment="right",
-        color=font_color,
-    )
 
     return ax
 

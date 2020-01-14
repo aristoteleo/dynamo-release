@@ -1,5 +1,72 @@
 import numpy as np
 import math
+import numba
+import matplotlib
+
+
+def _to_hex(arr):
+    return [matplotlib.colors.to_hex(c) for c in arr]
+
+# https://stackoverflow.com/questions/8468855/convert-a-rgb-colour-value-to-decimal
+"""Convert RGB color to decimal RGB integers are typically treated as three distinct bytes where the left-most (highest-order) 
+byte is red, the middle byte is green and the right-most (lowest-order) byte is blue. """
+
+@numba.vectorize(["uint8(uint32)", "uint8(uint32)"])
+def _red(x):
+    return (x & 0xFF0000) >> 16
+
+
+@numba.vectorize(["uint8(uint32)", "uint8(uint32)"])
+def _green(x):
+    return (x & 0x00FF00) >> 8
+
+
+@numba.vectorize(["uint8(uint32)", "uint8(uint32)"])
+def _blue(x):
+    return x & 0x0000FF
+
+
+def _embed_datashader_in_an_axis(datashader_image, ax):
+    img_rev = datashader_image.data[::-1]
+    mpl_img = np.dstack([_blue(img_rev), _green(img_rev), _red(img_rev)])
+    ax.imshow(mpl_img)
+    return ax
+
+
+def _get_extent(points):
+    """Compute bounds on a space with appropriate padding"""
+    min_x = np.min(points[:, 0])
+    max_x = np.max(points[:, 0])
+    min_y = np.min(points[:, 1])
+    max_y = np.max(points[:, 1])
+
+    extent = (
+        np.round(min_x - 0.05 * (max_x - min_x)),
+        np.round(max_x + 0.05 * (max_x - min_x)),
+        np.round(min_y - 0.05 * (max_y - min_y)),
+        np.round(max_y + 0.05 * (max_y - min_y)),
+    )
+
+    return extent
+
+
+def _select_font_color(background):
+    if background == "black":
+        font_color = "white"
+    elif background.startswith("#"):
+        mean_val = np.mean(
+            [int("0x" + c) for c in (background[1:3], background[3:5], background[5:7])]
+        )
+        if mean_val > 126:
+            font_color = "black"
+        else:
+            font_color = "white"
+
+    else:
+        font_color = "black"
+
+    return font_color
+
 
 # plotting utility functions from https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
 
