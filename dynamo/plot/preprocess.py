@@ -3,7 +3,7 @@ import pandas as pd
 from scipy.sparse import issparse, csr_matrix
 
 from ..preprocessing.preprocess import topTable
-from ..preprocessing.utilities import get_layer_keys
+from ..preprocessing.utils import get_layer_keys
 
 
 def show_fraction(adata, group=None):

@@ -9,10 +9,17 @@ The code base will be extended extensively to consider the following cases:
     6. others
 """
 
-from .utilities import _select_font_color, _get_extent, _embed_datashader_in_an_axis
+from .utils import _select_font_color, _get_extent, _embed_datashader_in_an_axis
+from .utils import is_gene_name, _to_hex
+from ..configuration import _themes
+
+import pandas as pd
+import numpy as np
+from warnings import warn
 import datashader as ds
 import datashader.transfer_functions as tf
 import datashader.bundling as bd
+
 
 def _plt_connectivity(coord, connectivity):
     """Plot connectivity graph via networkx and matplotlib.
@@ -60,20 +67,23 @@ def _datashade_points(
     ax=None,
     labels=None,
     values=None,
+    highlights=None,
     cmap="Blues",
     color_key=None,
     color_key_cmap="Spectral",
     background="white",
-    width=800,
-    height=800,
+    width=700,
+    height=500,
     show_legend=True,
 ):
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Patch
 
     """Use datashader to plot points"""
     extent = _get_extent(points)
     canvas = ds.Canvas(
-        plot_width=width,
-        plot_height=height,
+        plot_width=int(width),
+        plot_height=int(height),
         x_range=(extent[0], extent[1]),
         y_range=(extent[2], extent[3]),
     )
@@ -91,22 +101,40 @@ def _datashade_points(
                 )
             )
 
+        labels = np.array(labels, dtype='str')
         data["label"] = pd.Categorical(labels)
-        aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
         if color_key is None and color_key_cmap is None:
+            aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
             result = tf.shade(aggregation, how="eq_hist")
         elif color_key is None:
-            unique_labels = np.unique(labels)
-            num_labels = unique_labels.shape[0]
-            color_key = _to_hex(
-                plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
-            )
+            if highlights is None:
+                aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
+                unique_labels = np.unique(labels)
+                num_labels = unique_labels.shape[0]
+                color_key = _to_hex(
+                    plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
+                )
+            else:
+                highlights.append('other')
+                unique_labels = np.array(highlights)
+                num_labels = unique_labels.shape[0]
+                color_key = _to_hex(
+                    plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
+                )
+                color_key[-1] = '#bdbdbd' # lightgray hex code https://www.color-hex.com/color/d3d3d3
+
+                labels[[i not in highlights for i in labels]] = 'other'
+                data["label"] = pd.Categorical(labels)
+                aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
+
             legend_elements = [
                 Patch(facecolor=color_key[i], label=k)
                 for i, k in enumerate(unique_labels)
             ]
             result = tf.shade(aggregation, color_key=color_key, how="eq_hist")
         else:
+            aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
+
             legend_elements = [
                 Patch(facecolor=color_key[k], label=k) for k in color_key.keys()
             ]
@@ -157,20 +185,23 @@ def _datashade_points(
         return result
 
 
-def connectivity(
-        adata,
+def connectivity_base(
+        x,
+        y,
+        edge_df,
         edge_bundling=None,
         edge_cmap="gray_r",
-        show_points=False,
+        show_points=True,
         labels=None,
         values=None,
+        highlights=None,
         theme=None,
-        cmap="Blues",
+        cmap="blue",
         color_key=None,
         color_key_cmap="Spectral",
         background="white",
-        width=800,
-        height=800,
+        figsize=(7,5),
+        ax=None,
 ):
     """Plot connectivity relationships of the underlying UMAP
     simplicial set data structure. Internally UMAP will make
@@ -186,8 +217,8 @@ def connectivity(
 
     Parameters
     ----------
-    adata: :class:`~anndata.AnnData`
-        an Annodata object that include the umap embedding and simplicial graph.
+    x:
+    y:
     edge_bundling: string or None (optional, default None)
         The edge bundling method to use. Currently supported
         are None or 'hammer'. See the datashader docs
@@ -273,13 +304,17 @@ def connectivity(
         If you are using a notbooks and have ``%matplotlib inline`` set
         then this will simply display inline.
     """
+
+    import matplotlib.pyplot as plt
+    dpi = plt.rcParams["figure.dpi"]
+
     if theme is not None:
         cmap = _themes[theme]["cmap"]
         color_key_cmap = _themes[theme]["color_key_cmap"]
         edge_cmap = _themes[theme]["edge_cmap"]
         background = _themes[theme]["background"]
 
-    points = adata.obsm['X_umap']
+    points = np.array([x, y]).T
     point_df = pd.DataFrame(points, columns=("x", "y"))
 
     point_size = 500.0 / np.sqrt(points.shape[0])
@@ -293,18 +328,10 @@ def connectivity(
     else:
         edge_how = "eq_hist"
 
-    coo_graph = adata.uns['neighbors']['connectivities'].tocoo()
-    edge_df = pd.DataFrame(
-        np.vstack([coo_graph.row, coo_graph.col, coo_graph.data]).T,
-        columns=("source", "target", "weight"),
-    )
-    edge_df["source"] = edge_df.source.astype(np.int32)
-    edge_df["target"] = edge_df.target.astype(np.int32)
-
     extent = _get_extent(points)
     canvas = ds.Canvas(
-        plot_width=width,
-        plot_height=height,
+        plot_width=int(figsize[0] * dpi),
+        plot_height=int(figsize[1] * dpi),
         x_range=(extent[0], extent[1]),
         y_range=(extent[2], extent[3]),
     )
@@ -333,13 +360,14 @@ def connectivity(
             None,
             labels,
             values,
+            highlights,
             cmap,
             color_key,
             color_key_cmap,
             None,
-            width,
-            height,
-            show_legend,
+            figsize[0] * dpi,
+            figsize[1] * dpi,
+            True,
         )
         if px_size > 1:
             point_img = tf.dynspread(point_img, threshold=0.5, max_px=px_size)
@@ -349,14 +377,156 @@ def connectivity(
 
     font_color = _select_font_color(background)
 
-    dpi = plt.rcParams["figure.dpi"]
-    fig = plt.figure(figsize=(width / dpi, height / dpi))
-    ax = fig.add_subplot(111)
+    if ax is None:
+        fig = plt.figure(figsize=figsize)
+        ax = fig.add_subplot(111)
 
     _embed_datashader_in_an_axis(result, ax)
 
     ax.set(xticks=[], yticks=[])
 
     return ax
+
+
+def nneighbors(adata,
+        x=0,
+        y=1,
+        color=None,
+        basis='umap',
+        layer='X',
+        highlights=None,
+        edge_bundling=None,
+        edge_cmap="gray_r",
+        show_points=True,
+        labels=None,
+        values=None,
+        theme=None,
+        cmap=None,
+        color_key=None,
+        color_key_cmap=None,
+        background="white",
+        n_columns=1,
+        figsize=(7,5),
+        axis=None):
+    """
+    Plot nearest neighbor graph of cells used to embed data into low dimension space.
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object that include the umap embedding and simplicial graph.
+        x: `int`
+            The first component of the embedding.
+        y: `int`
+            The second component of the embedding.
+        color: `str` or list of `str` or None (default: None)
+            Gene name(s) or cell annotation column(s)
+        basis: `str` or list of `str` (default: `X`)
+        layer: `str` or list of `str` (default: `X`)
+        highlights
+        edge_bundling
+        edge_cmap
+        show_points
+        labels
+        values
+        theme
+        cmap
+        color_key
+        color_key_cmap
+        background
+        n_columns
+        width
+        height
+        axis
+
+    Returns
+    -------
+
+    """
+    import matplotlib.pyplot as plt
+
+    if type(x) is not int or type(y) is not int:
+        raise Exception('x, y have to be integers (components in the a particular embedding {}) for nneighbor '
+                        'function'.format(basis))
+
+    n_c, n_l, n_b = 0 if color is None else len(color), 0 if layer is None else len(layer), 0 if basis is None else len(basis)
+    c_is_gene_name = [is_gene_name(adata, i) for i in list(color)] if n_c > 0 else None
+    cnt, gene_num = 0, sum(c_is_gene_name)
+
+    coo_graph = adata.uns['neighbors']['connectivities'].tocoo()
+    edge_df = pd.DataFrame(
+        np.vstack([coo_graph.row, coo_graph.col, coo_graph.data]).T,
+        columns=("source", "target", "weight"),
+    )
+    edge_df["source"] = edge_df.source.astype(np.int32)
+    edge_df["target"] = edge_df.target.astype(np.int32)
+
+    total_panels, n_columns = n_c * n_l * n_b, min(gene_num, n_columns)
+    nrow, ncol = int(np.ceil(total_panels / n_columns)), n_columns
+    if figsize is None: figsize = plt.rcParams['figsize']
+
+    if total_panels > 1:
+        plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)
+        gs = plt.GridSpec(nrow, ncol)
+
+    i = 0
+    for cur_b in basis:
+        for cur_l in layer:
+            prefix = cur_l + '_'
+            x_, y_ = adata.obsm[prefix + cur_b][:, int(x)], adata.obsm[prefix + cur_b][:, int(y)]
+            for cur_c in color:
+                color = adata.obs_vector(cur_c, layer=cur_l)
+                is_not_continous = np.allclose(color[color > 0][:20] % 1, 0, atol=1e-3)
+                if is_not_continous:
+                    labels = color
+                    theme = 'glasbey_dark'
+                else:
+                    values = color
+                    theme = 'inferno' if cur_l is not 'velocity' else 'div_blue_red'
+
+                if total_panels > 1:
+                    ax = plt.subplot(gs[i])
+                i += 1
+
+                connectivity_base(
+                    x_, y_, edge_df,
+                    edge_bundling,
+                    edge_cmap,
+                    show_points,
+                    labels,
+                    values,
+                    highlights,
+                    theme,
+                    cmap,
+                    color_key,
+                    color_key_cmap,
+                    background,
+                    figsize,
+                    ax
+                )
+
+    plt.tight_layout()
+    plt.show()
+
+def pgraph():
+    """Plot nearest principal graph of cells that learnt from graph embedding algorithms.
+
+    :return:
+    """
+    pass
+
+def cgroups():
+    """Plot transition matrix graph of groups of cells that produced clustering or other group from graph embedding algorithms.
+
+    :return:
+    """
+    pass
+
+def causal_net():
+    """Plot causal regulatory networks of genes that learnt from Scribe.
+
+    :return:
+    """
+    pass
+
 
 

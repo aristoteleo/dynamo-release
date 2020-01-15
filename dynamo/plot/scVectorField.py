@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from .utilities import quiver_autoscaler
+from .utils import quiver_autoscaler
 from ..tools.dimension_reduction import reduceDimension
 from ..tools.cell_velocities import cell_velocities
 from ..tools.Markov import velocity_on_grid

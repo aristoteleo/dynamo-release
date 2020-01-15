@@ -4,7 +4,7 @@ from sklearn.utils import sparsefuncs
 import warnings
 from scipy.sparse import issparse, csr_matrix
 from sklearn.decomposition import TruncatedSVD, FastICA
-from .utilities import cook_dist, get_layer_keys
+from .utils import cook_dist, get_layer_keys
 
 def szFactor(adata, layers='all', total_layers=None, locfunc=np.nanmean, round_exprs=True, method='mean-geometric-mean-total'):
     """Calculate the size factor of the each cell using geometric mean of total UMI across cells for a AnnData object.

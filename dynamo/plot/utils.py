@@ -4,8 +4,17 @@ import numba
 import matplotlib
 
 
+def is_gene_name(adata, var):
+    return var in adata.var.index
+
+
+def is_cell_anno_column(adata, var):
+    return var in adata.obs.columns
+
+
 def _to_hex(arr):
     return [matplotlib.colors.to_hex(c) for c in arr]
+
 
 # https://stackoverflow.com/questions/8468855/convert-a-rgb-colour-value-to-decimal
 """Convert RGB color to decimal RGB integers are typically treated as three distinct bytes where the left-most (highest-order) 

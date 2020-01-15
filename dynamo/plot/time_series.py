@@ -220,7 +220,7 @@ def _half_max_ordering(exprs, time, interpolate=False, spaced_num=100):
             The indices of valid genes that Loess smoothed.
     """
 
-    from .utilities import Loess
+    from .utils import Loess
     gene_num = exprs.shape[0]
     cell_num = spaced_num if interpolate else exprs.shape[1]
     if interpolate:

@@ -1,6 +1,6 @@
 # code adapted from https://github.com/lmcinnes/umap/blob/7e051d8f3c4adca90ca81eb45f6a9d1372c076cf/umap/plot.py
 from ..configuration import _themes
-from .utilities import despline, set_spine_linewidth, scatter_with_colorbar, scatter_with_legend, _select_font_color
+from .utils import despline, set_spine_linewidth, scatter_with_colorbar, scatter_with_legend, _select_font_color
 
 import numpy as np
 import pandas as pd
@@ -289,10 +289,9 @@ def scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key
     n_columns = min(n_genes, n_columns)
     if type == 'embedding':
         nrow, ncol = int(np.ceil(len(color) / n_columns)), n_columns
-        if figsize is None:
-            fig = plt.figure(None, (7 * ncol, 5 * nrow), facecolor=background)
-        else:
-            fig = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)
+
+        if figsize is None: figsize = plt.rcParams['figsize']
+        fig = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)
 
         # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
         gs = plt.GridSpec(nrow, ncol)
@@ -313,10 +312,7 @@ def scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key
         n_columns = 2 * n_columns if ('protein' in adata.obsm.keys() and mode is 'full') else n_columns
         plot_per_gene = 2 if ('protein' in adata.obsm.keys() and mode is 'full') else 1
         nrow, ncol = int(np.ceil(plot_per_gene * n_genes / n_columns)), n_columns
-        if figsize is None:
-            fig = plt.figure(None, (7 * ncol, 5 * nrow), facecolor=background)  # , dpi=160
-        else:
-            fig = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)  # , dpi=160
+        fig = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)
 
         # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
         gs = plt.GridSpec(nrow, ncol)
