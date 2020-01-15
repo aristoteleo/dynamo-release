@@ -9,8 +9,8 @@ The code base will be extended extensively to consider the following cases:
     6. others
 """
 
-from .utils import _select_font_color, _get_extent, _embed_datashader_in_an_axis
-from .utils import is_gene_name, _to_hex
+from .utils import _select_font_color, _get_extent, _embed_datashader_in_an_axis, _to_hex
+from .utils import is_gene_name, is_list_of_lists
 from ..configuration import _themes
 
 import pandas as pd
@@ -68,10 +68,10 @@ def _datashade_points(
     labels=None,
     values=None,
     highlights=None,
-    cmap="Blues",
+    cmap="blue",
     color_key=None,
     color_key_cmap="Spectral",
-    background="white",
+    background="black",
     width=700,
     height=500,
     show_legend=True,
@@ -199,7 +199,7 @@ def connectivity_base(
         cmap="blue",
         color_key=None,
         color_key_cmap="Spectral",
-        background="white",
+        background="black",
         figsize=(7,5),
         ax=None,
 ):
@@ -217,8 +217,10 @@ def connectivity_base(
 
     Parameters
     ----------
-    x:
-    y:
+    x: `int`
+        The first component of the embedding.
+    y: `int`
+        The second component of the embedding.
     edge_bundling: string or None (optional, default None)
         The edge bundling method to use. Currently supported
         are None or 'hammer'. See the datashader docs
@@ -375,8 +377,6 @@ def connectivity_base(
     else:
         result = edge_img
 
-    font_color = _select_font_color(background)
-
     if ax is None:
         fig = plt.figure(figsize=figsize)
         ax = fig.add_subplot(111)
@@ -404,10 +404,10 @@ def nneighbors(adata,
         cmap=None,
         color_key=None,
         color_key_cmap=None,
-        background="white",
-        n_columns=1,
+        background="black",
+        ncols=1,
         figsize=(7,5),
-        axis=None):
+        ax=None):
     """
     Plot nearest neighbor graph of cells used to embed data into low dimension space.
     Parameters
@@ -421,28 +421,99 @@ def nneighbors(adata,
         color: `str` or list of `str` or None (default: None)
             Gene name(s) or cell annotation column(s)
         basis: `str` or list of `str` (default: `X`)
+            Which low dimensional embedding will be used to visualize the cell.
         layer: `str` or list of `str` (default: `X`)
-        highlights
-        edge_bundling
-        edge_cmap
-        show_points
-        labels
-        values
-        theme
-        cmap
-        color_key
-        color_key_cmap
-        background
-        n_columns
-        width
-        height
-        axis
+            The layers of data to represent the gene expression level.
+        highlights: `list`, `list of list` or None (default: `None`)
+            The list that cells will be restricted to.
+        edge_bundling: string or None (optional, default None)
+            The edge bundling method to use. Currently supported
+            are None or 'hammer'. See the datashader docs
+            on graph visualization for more details.
+        edge_cmap: string (default 'gray_r')
+            The name of a matplotlib colormap to use for shading/
+            coloring the edges of the connectivity graph. Note that
+            the ``theme``, if specified, will override this.
+        show_points: bool (optional False)
+            Whether to display the points over top of the edge
+            connectivity. Further options allow for coloring/
+            shading the points accordingly.
+        labels: array, shape (n_samples,) (optional, default None)
+            An array of labels (assumed integer or categorical),
+            one for each data sample.
+            This will be used for coloring the points in
+            the plot according to their label. Note that
+            this option is mutually exclusive to the ``values``
+            option.
+        values: array, shape (n_samples,) (optional, default None)
+            An array of values (assumed float or continuous),
+            one for each sample.
+            This will be used for coloring the points in
+            the plot according to a colorscale associated
+            to the total range of values. Note that this
+            option is mutually exclusive to the ``labels``
+            option.
+        theme: string (optional, default None)
+            A color theme to use for plotting. A small set of
+            predefined themes are provided which have relatively
+            good aesthetics. Available themes are:
+               * 'blue'
+               * 'red'
+               * 'green'
+               * 'inferno'
+               * 'fire'
+               * 'viridis'
+               * 'darkblue'
+               * 'darkred'
+               * 'darkgreen'
+        cmap: string (optional, default 'Blues')
+            The name of a matplotlib colormap to use for coloring
+            or shading points. If no labels or values are passed
+            this will be used for shading points according to
+            density (largely only of relevance for very large
+            datasets). If values are passed this will be used for
+            shading according the value. Note that if theme
+            is passed then this value will be overridden by the
+            corresponding option of the theme.
+        color_key: dict or array, shape (n_categories) (optional, default None)
+            A way to assign colors to categoricals. This can either be
+            an explicit dict mapping labels to colors (as strings of form
+            '#RRGGBB'), or an array like object providing one color for
+            each distinct category being provided in ``labels``. Either
+            way this mapping will be used to color points according to
+            the label. Note that if theme
+            is passed then this value will be overridden by the
+            corresponding option of the theme.
+        color_key_cmap: string (optional, default 'Spectral')
+            The name of a matplotlib colormap to use for categorical coloring.
+            If an explicit ``color_key`` is not given a color mapping for
+            categories can be generated from the label list and selecting
+            a matching list of colors from the given colormap. Note
+            that if theme
+            is passed then this value will be overridden by the
+            corresponding option of the theme.
+        background: string (optional, default 'white)
+            The color of the background. Usually this will be either
+            'white' or 'black', but any color name will work. Ideally
+            one wants to match this appropriately to the colors being
+            used for points etc. This is one of the things that themes
+            handle for you. Note that if theme
+            is passed then this value will be overridden by the
+            corresponding option of the theme.
+            ncols: `int`
+                The number of columns of the plot.
+            figsize: `list` or `tuple` (default: (7, 5))
+                The width and height of a figure.
+            ax: `matplotlib.axes._subplots.AxesSubplot`
+                The axis that the connectivity plot will attached to. Only workable if the
+                argument combination involves a single ax.
 
     Returns
     -------
 
     """
     import matplotlib.pyplot as plt
+    import seaborn as sns
 
     if type(x) is not int or type(y) is not int:
         raise Exception('x, y have to be integers (components in the a particular embedding {}) for nneighbor '
@@ -460,9 +531,20 @@ def nneighbors(adata,
     edge_df["source"] = edge_df.source.astype(np.int32)
     edge_df["target"] = edge_df.target.astype(np.int32)
 
-    total_panels, n_columns = n_c * n_l * n_b, min(gene_num, n_columns)
-    nrow, ncol = int(np.ceil(total_panels / n_columns)), n_columns
+    total_panels, ncols = n_c * n_l * n_b, min(gene_num, ncols)
+    nrow, ncol = int(np.ceil(total_panels / ncols)), ncols
     if figsize is None: figsize = plt.rcParams['figsize']
+
+    font_color = _select_font_color(background)
+    if background == 'black':
+        # https://github.com/matplotlib/matplotlib/blob/master/lib/matplotlib/mpl-data/stylelib/dark_background.mplstyle
+        sns.set(rc={'axes.facecolor': background, 'axes.edgecolor': background, 'figure.facecolor': background, 'figure.edgecolor': background,
+                    'axes.grid': False, "ytick.color": font_color, "xtick.color": font_color, "axes.labelcolor": font_color, "axes.edgecolor": font_color,
+                    "savefig.facecolor": 'k', "savefig.edgecolor": 'k', "grid.color": font_color, "text.color": font_color,
+                    "lines.color": font_color, "patch.edgecolor": font_color, 'figure.edgecolor': font_color,
+                    })
+    else:
+        sns.set(rc={'axes.facecolor': background, 'figure.facecolor': background, 'axes.grid': False})
 
     if total_panels > 1:
         plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)
@@ -472,20 +554,30 @@ def nneighbors(adata,
     for cur_b in basis:
         for cur_l in layer:
             prefix = cur_l + '_'
-            x_, y_ = adata.obsm[prefix + cur_b][:, int(x)], adata.obsm[prefix + cur_b][:, int(y)]
+            if prefix + cur_b in adata.obsm.keys():
+                x_, y_ = adata.obsm[prefix + cur_b][:, int(x)], adata.obsm[prefix + cur_b][:, int(y)]
+            else:
+                continue
             for cur_c in color:
-                color = adata.obs_vector(cur_c, layer=cur_l)
-                is_not_continous = np.allclose(color[color > 0][:20] % 1, 0, atol=1e-3)
+                _color = adata.obs_vector(cur_c, layer=cur_l)
+                is_not_continous = np.allclose(_color[_color > 0][:20] % 1, 0, atol=1e-3)
                 if is_not_continous:
-                    labels = color
-                    theme = 'glasbey_dark'
+                    labels = _color
+                    if theme is None: theme = 'glasbey_dark'
                 else:
-                    values = color
-                    theme = 'inferno' if cur_l is not 'velocity' else 'div_blue_red'
+                    values = _color
+                    if theme is None: theme = 'inferno' if cur_l is not 'velocity' else 'div_blue_red'
 
                 if total_panels > 1:
                     ax = plt.subplot(gs[i])
                 i += 1
+
+                # if highligts is a list of lists
+                if is_list_of_lists(highlights):
+                    _highlights = highlights[color.index(cur_c)]
+                    _highlights = _highlights if all([i in _color for i in _highlights]) else None
+                else:
+                    _highlights = highlights if all([i in _color for i in highlights]) else None
 
                 connectivity_base(
                     x_, y_, edge_df,
@@ -494,7 +586,7 @@ def nneighbors(adata,
                     show_points,
                     labels,
                     values,
-                    highlights,
+                    _highlights,
                     theme,
                     cmap,
                     color_key,
@@ -504,25 +596,32 @@ def nneighbors(adata,
                     ax
                 )
 
+                ax.set_xlabel(cur_b + '_1', )
+                ax.set_ylabel(cur_b + '_2')
+                ax.set_title(cur_c)
+
     plt.tight_layout()
     plt.show()
 
-def pgraph():
-    """Plot nearest principal graph of cells that learnt from graph embedding algorithms.
 
-    :return:
+def pgraph():
+    """Plot principal graph of cells that learnt from graph embedding algorithms.
+
+    return:
     """
     pass
+
 
 def cgroups():
-    """Plot transition matrix graph of groups of cells that produced clustering or other group from graph embedding algorithms.
+    """Plot transition matrix graph of groups of cells that produced from clustering or other grouping procedures.
 
     :return:
     """
     pass
 
+
 def causal_net():
-    """Plot causal regulatory networks of genes that learnt from Scribe.
+    """Plot causal regulatory networks of genes learnt with Scribe (https://github.com/aristoteleo/Scribe-py).
 
     :return:
     """

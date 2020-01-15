@@ -11,6 +11,8 @@ def is_gene_name(adata, var):
 def is_cell_anno_column(adata, var):
     return var in adata.obs.columns
 
+def is_list_of_lists(list_of_lists):
+    all(isinstance(elem, list) for elem in list_of_lists)
 
 def _to_hex(arr):
     return [matplotlib.colors.to_hex(c) for c in arr]
