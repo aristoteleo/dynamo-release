@@ -166,6 +166,22 @@ def umap_conn_indices_dist_embedding(X,
     return graph, knn_indices, knn_dists, embedding_
 
 
+def mnn_from_list(knn_graph_list):
+    """Apply reduce function to calculate the mutual kNN.
+    """
+    import functools
+    mnn = functools.reduce(scipy.minimum, knn_graph_list)
+    return mnn
+
+
+def normalize_knn_graph(knn):
+    """normalize the knn graph so that each row will be sum up to 1.
+    """
+    knn = knn / (knn.sum(axis=1))
+
+    return knn
+
+
 def mnn(adata, n_pca_components=25, layers='all', use_pca_fit=True, save_all_to_adata=False):
     """ Function to calculate mutual nearest neighbor graph across specific data layers.
 
@@ -185,7 +201,9 @@ def mnn(adata, n_pca_components=25, layers='all', use_pca_fit=True, save_all_to_
 
     Returns
     -------
-
+        adata: :AnnData
+            A updated anndata object that are updated with the `mnn` or other relevant data that are calculated during mnn
+            calculation.
     """
     if use_pca_fit:
         if 'pca_fit' in adata.uns.keys():
@@ -219,14 +237,22 @@ def mnn(adata, n_pca_components=25, layers='all', use_pca_fit=True, save_all_to_
         knn_graph_list.append(graph)
 
     mnn = mnn_from_list(knn_graph_list)
-    adata.uns['mm'] = mnn
+    adata.uns['mnn'] = normalize_knn_graph(mnn)
 
     return adata
 
-def mnn_from_list(knn_graph_list):
-    """Apply reduce function to calculate the mutual kNN.
-    """
-    import functools
-    mnn = functools.reduce(scipy.minimum, knn_graph_list)
-    return mnn
+def smoother(adata, layers='all'):
+    if 'mnn' not in adata.uns:
+        adata = mnn(adata, n_pca_components=25, layers='all', use_pca_fit=True, save_all_to_adata=False)
 
+    layers = get_layer_keys(adata, layers, False)
+    layers = [layer for layer in layers if layer.startswith('X_') and (not layer.endswith('_matrix') or
+                                                                       not layer.endswith('_ambiguous'))]
+
+    mapper = {'X_spliced': 's', 'X_unspliced': 'u', 'X_new': 'n', 'X_old': 'o',
+              'X_uu': 'uu', 'X_ul': 'ul', 'X_su': 'su', 'X_sl': 'sl'}
+    for layer in layers:
+        layer_X = adata.layers[layer]
+        adata['M_' + mapper[layer]] = adata.uns['mnn'].dot(layer_X)
+
+    return adata
