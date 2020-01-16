@@ -252,10 +252,13 @@ def smoother(adata, layers='all'):
     layers = [layer for layer in layers if layer.startswith('X_') and (not layer.endswith('_matrix') and
                                                                        not layer.endswith('_ambiguous'))]
 
-    mapper = {'X_spliced': 's', 'X_unspliced': 'u', 'X_new': 'n', 'X_old': 'o',
-              'X_uu': 'uu', 'X_ul': 'ul', 'X_su': 'su', 'X_sl': 'sl'}
+    mapper = {'X_spliced': 'M_s', 'X_unspliced': 'M_u', 'X_new': 'M_n', 'X_old': 'M_o',
+              'X_uu': 'M_uu', 'X_ul': 'M_ul', 'X_su': 'M_su', 'X_sl': 'M_sl', 'X_protein': 'M_p'}
     for layer in layers:
         layer_X = adata.layers[layer]
-        adata.layers['M_' + mapper[layer]] = adata.uns['mnn'].dot(layer_X)
+        adata.layers[mapper[layer]] = adata.uns['mnn'].dot(layer_X)
+
+    if 'X_protein' in adata.obsm.keys(): # may need to update with mnn or just use knn from protein layer itself.
+        adata.obsm[mapper['X_protein']] = adata.uns['mnn'].dot(adata.obsm['X_protein'])
 
     return adata

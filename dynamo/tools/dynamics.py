@@ -1,12 +1,13 @@
 import warnings
 import numpy as np
 from scipy.sparse import issparse, csr_matrix
+from .connectivity import smoother
 from .velocity import velocity, estimation
 from .moments import MomData, Estimation
 from .utils import get_U_S_for_velocity_estimation
 
 # incorporate the model selection code soon
-def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time', group=None, protein_names=None,
+def dynamics(adata, filter_gene_mode='final', mode='deterministic', use_smoothed=True, tkey='Time', group=None, protein_names=None,
              experiment_type=None, assumption_mRNA=None, assumption_protein='ss', NTR_vel=True, concat_data=False,
              log_unnormalized=True):
     """Inclusive model of expression dynamics considers splicing, metabolic labeling and protein translation. It supports
@@ -22,6 +23,8 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         mode: `str` (default: `deterministic`)
             string indicates which estimation mode will be used. Currently "deterministic" and "moment" methods are supported.
             A "model_selection" mode will be supported soon in which alpha, beta and gamma will be modeled as a function of time.
+        use_smoothed: `bool` (default: `True`)
+            Whether to use the smoothed data when calculating velocity for each gene.
         tkey: `str` (default: `Time`)
             The column key for the time label of cells in .obs. Used for either "steady_state" or non-"steady_state" mode or `moment`
             mode  with labeled data.
@@ -70,6 +73,9 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
     elif filter_gene_mode is 'no':
         valid_ind = np.repeat([True], adata.shape[1])
 
+    if use_smoothed and len([i for i in adata.layers.keys() if i.startswith('M_')]) < 2:
+        smoother(adata)
+
     valid_adata = adata[:, valid_ind].copy()
     if group is not None and group in adata.obs[group]:
         _group = adata.obs[group].unique()
@@ -89,9 +95,12 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
         U, Ul, S, Sl, P = None, None, None, None, None  # U: unlabeled unspliced; S: unlabel spliced: S
         normalized, has_splicing, has_labeling, has_protein = False, False, False, False
 
+        mapper = {'X_spliced': 'M_s', 'X_unspliced': 'M_u', 'X_new': 'M_n', 'X_old': 'M_o',
+                  'X_uu': 'M_uu', 'X_ul': 'M_ul', 'X_su': 'M_su', 'X_sl': 'M_sl', 'X_protein': 'M_p'}
+
         if 'X_unspliced' in subset_adata.layers.keys():
             has_splicing, normalized, assumption_mRNA = True, True, 'ss'
-            U = subset_adata.layers['X_unspliced'].T
+            U = subset_adata.layers[mapper['X_unspliced']].T if smoothed else subset_adata.layers['X_unspliced'].T
         elif 'unspliced' in subset_adata.layers.keys():
             has_splicing, assumption_mRNA = True, 'ss'
             raw, row_unspliced = subset_adata.layers['unspliced'].T, subset_adata.layers['unspliced'].T
@@ -101,7 +110,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
                 raw = np.log(raw + 1) if log_unnormalized else raw
             U = raw
         if 'X_spliced' in subset_adata.layers.keys():
-            S = subset_adata.layers['X_spliced'].T
+            S = subset_adata.layers[mapper['X_spliced']].T if smoothed else subset_adata.layers['X_spliced'].T
         elif 'spliced' in subset_adata.layers.keys():
             raw, raw_spliced = subset_adata.layers['spliced'].T, subset_adata.layers['spliced'].T
             if issparse(raw):
@@ -112,8 +121,8 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
 
         elif 'X_new' in subset_adata.layers.keys():  # run new / total ratio (NTR)
             has_labeling, normalized, assumption_mRNA = True, True, 'ss'
-            U = subset_adata.layers['X_total'].T - subset_adata.layers['X_new'].T
-            Ul = subset_adata.layers['X_new'].T
+            U = subset_adata.layers[mapper['X_total']].T - subset_adata.layers[mapper['X_new']].T if smoothed else subset_adata.layers['X_total'].T - subset_adata.layers['X_new'].T
+            Ul = subset_adata.layers[mapper['X_new']].T if smoothed else subset_adata.layers['X_new'].T
         elif 'new' in subset_adata.layers.keys():
             has_labeling, assumption_mRNA = True, 'ss'
             raw, raw_new, old = subset_adata.layers['new'].T, subset_adata.layers['new'].T, subset_adata.layers['total'].T - subset_adata.layers['new'].T
@@ -128,7 +137,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
 
         elif 'X_uu' in subset_adata.layers.keys():  # only uu, ul, su, sl provided
             has_splicing, has_labeling, normalized = True, True, True
-            U = subset_adata.layers['X_uu'].T  # unlabel unspliced: U
+            U = subset_adata.layers[mapper['X_uu']].T if smoothed else subset_adata.layers['X_uu'].T  # unlabel unspliced: U
         elif 'uu' in subset_adata.layers.keys():
             has_splicing, has_labeling, normalized = True, True, False
             raw, raw_uu = subset_adata.layers['uu'].T, subset_adata.layers['uu'].T
@@ -138,7 +147,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
                 raw = np.log(raw + 1) if log_unnormalized else raw
             U = raw
         if 'X_ul' in subset_adata.layers.keys():
-            Ul = subset_adata.layers['X_ul'].T
+            Ul = subset_adata.layers[mapper['X_ul']].T if smoothed else subset_adata.layers['X_ul'].T
         elif 'ul' in subset_adata.layers.keys():
             raw, raw_ul = subset_adata.layers['ul'].T, subset_adata.layers['ul'].T
             if issparse(raw):
@@ -147,7 +156,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
                 raw = np.log(raw + 1) if log_unnormalized else raw
             Ul = raw
         if 'X_sl' in subset_adata.layers.keys():
-            Sl = subset_adata.layers['X_sl'].T
+            Sl = subset_adata.layers[mapper['X_sl']].T if smoothed else subset_adata.layers['X_sl'].T
         elif 'sl' in subset_adata.layers.keys():
             raw, raw_sl = subset_adata.layers['sl'].T, subset_adata.layers['sl'].T
             if issparse(raw):
@@ -156,7 +165,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
                 raw = np.log(raw + 1) if log_unnormalized else raw
             Sl = raw
         if 'X_su' in subset_adata.layers.keys():  # unlabel spliced: S
-            S = subset_adata.layers['X_su'].T
+            S = subset_adata.layers[mapper['X_su']].T if smoothed else subset_adata.layers['X_su'].T
         elif 'su' in subset_adata.layers.keys():
             raw, raw_su = subset_adata.layers['su'].T, subset_adata.layers['su'].T
             if issparse(raw):
@@ -167,7 +176,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', tkey='Time',
 
         ind_for_proteins = None
         if 'X_protein' in subset_adata.obsm.keys():
-            P = subset_adata.obsm['X_protein'].T
+            P = subset_adata.layers[mapper['X_protein']].T if smoothed else subset_adata.obsm['X_protein'].T
         elif 'protein' in subset_adata.obsm.keys():
             P = subset_adata.obsm['protein'].T
         if P is not None:
