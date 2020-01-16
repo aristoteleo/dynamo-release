@@ -280,3 +280,4 @@ class Loess(object):
             a = mean_y - b * mean_x
             y = a + b * n_x
         return self.denormalize_y(y)
+

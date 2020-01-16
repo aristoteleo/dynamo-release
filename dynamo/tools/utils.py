@@ -1,7 +1,5 @@
 import numpy as np
 from scipy.sparse import issparse
-from scipy.spatial import cKDTree
-from numba import jit, float32, int32, int8
 from .moments import strat_mom
 
 def cal_12_mom(data, t):
@@ -93,15 +91,3 @@ def norm_loglikelihood(x, mu, sig):
     return np.sum(ll)
 
 
-@jit((float32[:, :], float32[:, :], int8, int8, int8))
-def find_mutual_nn(data1, data2, k1, k2, n_jobs):
-    k_index_1 = cKDTree(data1).query(x=data2, k=k1, n_jobs=n_jobs)[1]
-    k_index_2 = cKDTree(data2).query(x=data1, k=k2, n_jobs=n_jobs)[1]
-    mutual_1 = []
-    mutual_2 = []
-    for index_2 in range(data2.shape[0]):
-        for index_1 in k_index_1[index_2]:
-            if index_2 in k_index_2[index_1]:
-                mutual_1.append(index_1)
-                mutual_2.append(index_2)
-    return mutual_1, mutual_2
