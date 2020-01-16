@@ -33,7 +33,7 @@ from .fate import Fate, fate
 from .dimension_reduction import reduceDimension
 
 # mnn related
-from .connectivity import mnn
+from .connectivity import mnn, smoother
 
 # Pseudotime related
 from .DDRTree import DDRTree_py as DDRTree

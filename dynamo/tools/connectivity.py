@@ -4,6 +4,7 @@ from sklearn.decomposition import TruncatedSVD
 import warnings
 from copy import deepcopy
 from inspect import signature
+from sklearn.utils import sparsefuncs
 from ..preprocessing.utils import get_layer_keys
 
 def extract_indices_dist_from_graph(graph, n_neighbors):
@@ -170,19 +171,21 @@ def mnn_from_list(knn_graph_list):
     """Apply reduce function to calculate the mutual kNN.
     """
     import functools
-    mnn = functools.reduce(scipy.minimum, knn_graph_list)
+    mnn = functools.reduce(scipy.sparse.csr.csr_matrix.minimum, knn_graph_list)
     return mnn
 
 
 def normalize_knn_graph(knn):
     """normalize the knn graph so that each row will be sum up to 1.
     """
-    knn = knn / (knn.sum(axis=1))
+    knn.setdiag(1)
+    knn = knn.astype('float64')
+    sparsefuncs.inplace_row_scale(knn, 1 / knn.sum(axis=1).A1)
 
     return knn
 
 
-def mnn(adata, n_pca_components=25, layers='all', use_pca_fit=True, save_all_to_adata=False):
+def mnn(adata, n_pca_components=25, n_neighbors=250, layers='all', use_pca_fit=True, save_all_to_adata=False):
     """ Function to calculate mutual nearest neighbor graph across specific data layers.
 
     Parameters
@@ -212,7 +215,7 @@ def mnn(adata, n_pca_components=25, layers='all', use_pca_fit=True, save_all_to_
             raise Exception('use_pca_fit is set to be True, but there is no pca fit results in .uns attribute.')
 
     layers = get_layer_keys(adata, layers, False)
-    layers = [layer for layer in layers if layer.startswith('X_') and (not layer.endswith('_matrix') or
+    layers = [layer for layer in layers if layer.startswith('X_') and (not layer.endswith('_matrix') and
                                                                        not layer.endswith('_ambiguous'))]
     knn_graph_list = []
     for layer in layers:
@@ -221,11 +224,11 @@ def mnn(adata, n_pca_components=25, layers='all', use_pca_fit=True, save_all_to_
             layer_pca = fiter.fit_transform(layer_X)[:, 1:]
         else:
             transformer = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)
-            layer_pca = transformer.fit_transform(layer_X)
+            layer_pca = transformer.fit_transform(layer_X)[:, 1:]
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            graph, knn_indices, knn_dists, X_dim = umap_conn_indices_dist_embedding(layer_pca)
+            graph, knn_indices, knn_dists, X_dim = umap_conn_indices_dist_embedding(layer_pca, n_neighbors=n_neighbors)
 
         if save_all_to_adata:
             adata.obsm[layer + '_pca'], adata.obsm[layer + '_umap'] = layer_pca, X_dim
@@ -234,7 +237,7 @@ def mnn(adata, n_pca_components=25, layers='all', use_pca_fit=True, save_all_to_
             adata.uns[layer + '_neighbors'] = {'params': {'n_neighbors': eval(n_neighbors), 'method': 'umap'},
                                       'connectivities': graph, 'distances': knn_dists, 'indices': knn_indices}
 
-        knn_graph_list.append(graph)
+        knn_graph_list.append(graph > 0)
 
     mnn = mnn_from_list(knn_graph_list)
     adata.uns['mnn'] = normalize_knn_graph(mnn)
@@ -242,17 +245,17 @@ def mnn(adata, n_pca_components=25, layers='all', use_pca_fit=True, save_all_to_
     return adata
 
 def smoother(adata, layers='all'):
-    if 'mnn' not in adata.uns:
+    if 'mnn' not in adata.uns.keys():
         adata = mnn(adata, n_pca_components=25, layers='all', use_pca_fit=True, save_all_to_adata=False)
 
     layers = get_layer_keys(adata, layers, False)
-    layers = [layer for layer in layers if layer.startswith('X_') and (not layer.endswith('_matrix') or
+    layers = [layer for layer in layers if layer.startswith('X_') and (not layer.endswith('_matrix') and
                                                                        not layer.endswith('_ambiguous'))]
 
     mapper = {'X_spliced': 's', 'X_unspliced': 'u', 'X_new': 'n', 'X_old': 'o',
               'X_uu': 'uu', 'X_ul': 'ul', 'X_su': 'su', 'X_sl': 'sl'}
     for layer in layers:
         layer_X = adata.layers[layer]
-        adata['M_' + mapper[layer]] = adata.uns['mnn'].dot(layer_X)
+        adata.layers['M_' + mapper[layer]] = adata.uns['mnn'].dot(layer_X)
 
     return adata
