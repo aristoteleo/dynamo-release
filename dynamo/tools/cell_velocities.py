@@ -1,9 +1,9 @@
 import scipy as scp
-from scipy.sparse import csc_matrix, issparse
+from scipy.sparse import csr_matrix, issparse
 from .Markov import *
 from numba import jit
 
-def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', num_pcs=None, neg_cells_trick=False, calc_rnd_vel=False,
+def cell_velocities(adata, ekey='M_s', vkey='velocity_S', basis='umap', method='analytical', neg_cells_trick=False, calc_rnd_vel=False,
                     xy_grid_nums=(50, 50), sample_fraction=None, random_seed=19491001, **kmc_kwargs):
     """Compute transition probability and project high dimension velocity vector to existing low dimension embedding.
 
@@ -17,7 +17,10 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', num_pc
     ---------
         adata: :class:`~anndata.AnnData`
             an Annodata object.
-        vkey: 'int' (optional, default `velocity`)
+        ekey: `str` (optional, default `M_s`)
+            The dictionary key that corresponds to the gene expression in the layer attribute. By default, it is the smoothed expression
+            `M_s`.
+        vkey: 'str' (optional, default `velocity`)
             The dictionary key that corresponds to the estimated velocity values in layers attribute.
         basis: 'int' (optional, default `umap`)
             The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
@@ -54,19 +57,20 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', num_pc
         numba_random_seed(random_seed)
 
     neighbors, dist, indices = adata.uns['neighbors']['connectivities'], adata.uns['neighbors']['distances'], adata.uns['neighbors']['indices']
-    V_mat = adata.obsm['_velocity_' + vkey] if '_velocity_' + vkey in adata.obsm.keys() else None
-    X_pca, X_embedding = adata.obsm['X_pca'], adata.obsm['X_'+basis][:, :2]
-    X_pca = X_pca if num_pcs is None else X_pca[:, :num_pcs]
+    V_mat = adata.layers[vkey] if vkey in adata.layers.keys() else None
+    X, X_embedding = adata.layers[ekey], adata.obsm['X_'+basis][:, :2]
+    V_mat = V_mat.A if issparse(V_mat) else V_mat
+    X = X.A if issparse(X) else X
 
     # add both source and sink distribution
     if method == 'analytical':
         kmc = KernelMarkovChain()
-        ndims = X_pca.shape[1]
+        ndims = X.shape[1]
         kmc_args = {"M_diff": 0.25 * np.eye(ndims), "epsilon": 10**2, "adaptive_local_kernel": True, "tol": 1e-7}
         kmc_args.update(kmc_kwargs)
 
         # number of kNN in neighbor_idx may be too small
-        kmc.fit(X_pca[:, :ndims], V_mat[:, :ndims], neighbor_idx=indices, k=min(500, X_pca.shape[0] - 1), sample_fraction=sample_fraction, **kmc_args)
+        kmc.fit(X, V_mat, neighbor_idx=indices, k=min(500, X.shape[0] - 1), sample_fraction=sample_fraction, **kmc_args)
         T = kmc.P
         delta_X = kmc.compute_density_corrected_drift(X_embedding, kmc.Idx, normalize_vector=True) # indices, k = 500
         # P = kmc.compute_stationary_distribution()
@@ -75,9 +79,9 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', num_pc
 
         if calc_rnd_vel:
             kmc = KernelMarkovChain()
-            ndims = X_pca.shape[1]
+            ndims = X.shape[1]
             permute_rows_nsign(V_mat)
-            kmc.fit(X_pca[:, :ndims], V_mat[:, :ndims], k=min(500, X_pca.shape[0] - 1), M_diff=4 * np.eye(ndims),
+            kmc.fit(X, V_mat, k=min(500, X.shape[0] - 1), M_diff=4 * np.eye(ndims),
                     epsilon=None,
                     adaptive_local_kernel=True, tol=1e-7)  # neighbor_idx=indices,
             T_rnd = kmc.P
@@ -89,11 +93,11 @@ def cell_velocities(adata, vkey='pca', basis='umap', method='analytical', num_pc
 
         adata.uns['transition_matrix'] = kmc
     elif method == 'empirical': # add random velocity vectors calculation below
-        T, delta_X, X_grid, V_grid, D = _empirical_vec(X_pca, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors)
+        T, delta_X, X_grid, V_grid, D = _empirical_vec(X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors)
 
         if calc_rnd_vel:
             permute_rows_nsign(V_mat)
-            T_rnd, delta_X_rnd, X_grid_rnd, V_grid_rnd, D_rnd = _empirical_vec(X_pca, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors)
+            T_rnd, delta_X_rnd, X_grid_rnd, V_grid_rnd, D_rnd = _empirical_vec(X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors)
 
     adata.uns['transition_matrix'] = T
     adata.obsm['velocity_' + basis] = delta_X
@@ -334,7 +338,7 @@ def _empirical_vec(X_pca, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_
 
         X_grid, V_grid, D = velocity_on_grid(X_embedding, X_embedding + delta_X, xy_grid_nums=xy_grid_nums)
 
-    T = csc_matrix((vals.flatten(), (rows.flatten(), cols.flatten())), shape=neighbors.shape)
+    T = csr_matrix((vals.flatten(), (rows.flatten(), cols.flatten())), shape=neighbors.shape)
 
     return T, delta_X, X_grid, V_grid, D
 

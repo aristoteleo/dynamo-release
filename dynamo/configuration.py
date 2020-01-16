@@ -1,4 +1,5 @@
-import colorcet, matplotlib
+import colorcet
+import matplotlib
 from matplotlib import rcParams, cm, colors
 from cycler import cycler
 import matplotlib.pyplot as plt
