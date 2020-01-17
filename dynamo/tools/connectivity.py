@@ -179,7 +179,7 @@ def normalize_knn_graph(knn):
     """normalize the knn graph so that each row will be sum up to 1.
     """
     knn.setdiag(1)
-    knn = knn.astype('float64')
+    knn = knn.astype('float32')
     sparsefuncs.inplace_row_scale(knn, 1 / knn.sum(axis=1).A1)
 
     return knn
@@ -244,10 +244,14 @@ def mnn(adata, n_pca_components=25, n_neighbors=250, layers='all', use_pca_fit=T
 
     return adata
 
-def smoother(adata, layers='all'):
-    if 'mnn' not in adata.uns.keys():
-        adata = mnn(adata, n_pca_components=25, layers='all', use_pca_fit=True, save_all_to_adata=False)
-
+def smoother(adata, use_mnn=True, layers='all'):
+    if use_mnn:
+        if 'mnn' not in adata.uns.keys():
+            adata = mnn(adata, n_pca_components=25, layers='all', use_pca_fit=True, save_all_to_adata=False)
+        kNN = adata.uns['mnn']
+    else:
+        kNN, _, _, _ = umap_conn_indices_dist_embedding(adata.obsm['X_pca'], n_neighbors=30)
+        kNN = normalize_knn_graph(kNN > 0)
     layers = get_layer_keys(adata, layers, False)
     layers = [layer for layer in layers if layer.startswith('X_') and (not layer.endswith('_matrix') and
                                                                        not layer.endswith('_ambiguous'))]
@@ -256,9 +260,9 @@ def smoother(adata, layers='all'):
               'X_uu': 'M_uu', 'X_ul': 'M_ul', 'X_su': 'M_su', 'X_sl': 'M_sl', 'X_protein': 'M_p'}
     for layer in layers:
         layer_X = adata.layers[layer]
-        adata.layers[mapper[layer]] = adata.uns['mnn'].dot(layer_X)
+        adata.layers[mapper[layer]] = kNN.dot(layer_X)
 
     if 'X_protein' in adata.obsm.keys(): # may need to update with mnn or just use knn from protein layer itself.
-        adata.obsm[mapper['X_protein']] = adata.uns['mnn'].dot(adata.obsm['X_protein'])
+        adata.obsm[mapper['X_protein']] = kNN.dot(adata.obsm['X_protein'])
 
     return adata

@@ -394,10 +394,17 @@ def norm_loglikelihood(x, mu, sig):
 
 # ---------------------------------------------------------------------------------------------------
 # velocity related
-def set_velocity_genes(adata, vkey='velocity_S', use_for_pcs=True):
+def set_velocity_genes(adata, vkey='velocity_S', min_r2=0.1, use_for_dynamo=True):
     layer = vkey.split('_')[1]
 
     if layer is 'U':
-        adata.var['use_for_velocity'] = adata.var.alpha_r2 > 0
+        adata.var['use_for_velocity'] = (adata.var.alpha_r2 > min_r2) & adata.var.use_for_dynamo if use_for_dynamo \
+            else adata.var.alpha_r2 > min_r2
     elif layer is 'S':
-        adata.var['use_for_velocity'] = adata.var.gamma_r2 > 0
+        adata.var['use_for_velocity'] = (adata.var.gamma_r2 > min_r2) & adata.var.use_for_dynamo if use_for_dynamo \
+            else adata.var.gamma_r2 > min_r2
+    elif layer is 'P':
+        adata.var['use_for_velocity'] = (adata.var.delta_r2 > min_r2) & adata.var.use_for_dynamo if use_for_dynamo \
+            else adata.var.delta_r2 > min_r2
+
+    return adata
