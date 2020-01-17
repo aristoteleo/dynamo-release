@@ -273,7 +273,23 @@ def smoothen_drift_on_grid(X, V, n_grid, nbrs=None, k=None, smoothness=1):
     U = (V[neighs[:, :k]] * gaussian_w[:, :, None]).sum(1) / np.maximum(1, total_p_mass)[:, None]  # weighed average
     return U, gridpoints_coordinates
 
+def get_iterative_indices(indices, index, n_recurse_neighbors=2, max_neighs=None):
+    # These codes are borrowed from scvelo. Need to be rewritten later.
+    def iterate_indices(indices, index, n_recurse_neighbors):
+        return indices[iterate_indices(indices, index, n_recurse_neighbors - 1)] \
+            if n_recurse_neighbors > 1 else indices[index]
+    indices = np.unique(iterate_indices(indices, index, n_recurse_neighbors))
+    if max_neighs is not None and len(indices) > max_neighs:
+        indices = np.random.choice(indices, max_neighs, replace=False)
+    return indices
 
+def append_iterative_neighbor_indices(indices, n_recurse_neighbors=2, max_neighs=None):
+    indices_rec = []
+    for i in range(indices.shape[0]):
+        neig = get_iterative_indices(indices, i, n_recurse_neighbors, max_neighs)
+        indices_rec.append(neig)
+    return indices_rec
+    
 class MarkovChain:
     def __init__(self, P=None):
         self.P = P
@@ -303,14 +319,18 @@ class KernelMarkovChain(MarkovChain):
         self.Kd = None
         self.Idx = None
 
-    def fit(self, X, V, M_diff, neighbor_idx=None, k=200, epsilon=None, adaptive_local_kernel=False, tol=1e-4,
+    def fit(self, X, V, M_diff, neighbor_idx=None, n_recurse_neighbors=None, k=200, epsilon=None, adaptive_local_kernel=False, tol=1e-4,
             sparse_construct=True, sample_fraction=None):
         # compute connectivity
         if neighbor_idx is None:
             nbrs = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(X)
             _, self.Idx = nbrs.kneighbors(X)
         else:
-            self.Idx = neighbor_idx
+            if n_recurse_neighbors is not None:
+                self.Idx = append_iterative_neighbor_indices(neighbor_idx, n_recurse_neighbors)
+            else:
+                self.Idx = neighbor_idx
+        
         # apply kNN downsampling to accelerate calculation (adapted from velocyto)
         if sample_fraction is not None:
             neighbor_idx = self.Idx
@@ -322,6 +342,7 @@ class KernelMarkovChain(MarkovChain):
                                                       replace=False,
                                                       p=p) for i in range(neighbor_idx.shape[0])), 0)
             self.Idx = self.Idx[np.arange(neighbor_idx.shape[0])[:, None], sampling_ixs]
+        
         n = X.shape[0]
         if sparse_construct:
             self.P = sp.lil_matrix((n, n))
@@ -354,9 +375,6 @@ class KernelMarkovChain(MarkovChain):
                 k = k / D[0, self.Idx[i]]
             else:
                 k = np.matrix(k)
-            # if np.sum(k) == 0:
-            #     print(i)
-            #     print(tau)
             p = k / np.sum(k)
             p[p <= tol] = 0  # tolerance check
             p = p / np.sum(p)
@@ -378,18 +396,25 @@ class KernelMarkovChain(MarkovChain):
             V[i] = (X - X[i]).T.dot(P[:, i].A.flatten())
         return V
 
-    def compute_density_corrected_drift(self, X, neighbor_idx, k=None, num_prop=1, normalize_vector=False):
+    def compute_density_corrected_drift(self, X, neighbor_idx=None, k=None, num_prop=1, normalize_vector=False, correct_by_mean=True):
         n = self.get_num_states()
         V = np.zeros_like(X)
         P = self.propagate_P(num_prop)
-        if k is None:
-            k = neighbor_idx.shape[1]
+        if neighbor_idx is None: neighbor_idx = self.Idx
         for i in range(n):
             Idx = neighbor_idx[i]
             D = X[Idx] - X[i]
             if normalize_vector:
                 D = D / np.linalg.norm(D, 1)
-            p = P[Idx, i].A.flatten() - 1 / k
+            p = P[Idx, i].A.flatten()
+            if k is None:
+                if not correct_by_mean:
+                    k_inv = 1/len(Idx)
+                else:
+                    k_inv = np.mean(p)
+            else:
+                k_inv = 1/k
+            p -= k_inv
             V[i] = D.T.dot(p)
         return V
 

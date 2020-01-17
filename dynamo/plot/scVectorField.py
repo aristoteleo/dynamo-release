@@ -367,7 +367,7 @@ def grid_velocity(adata, genes, x=0, y=1, method='SparseVFC', basis='trimap', n_
     plt.show()
 
 
-def stremline_plot(adata, genes, x=0, y=1, method='sparseVFC', basis='trimap', n_columns=1, color=None, label_on_embedding=True,
+def streamline_plot(adata, genes, x=0, y=1, method='sparseVFC', basis='trimap', n_columns=1, color=None, label_on_embedding=True,
                    cmap=None, s_kwargs_dict={}, layer='X', xy_grid_nums=[30, 30], density=1, g_kwargs_dict={},
                    V_threshold=1e-5, figsize=None, show_quiver=True, **streamline_kwargs):
     """Plot the streamline of vector field based on the sampled cells.
