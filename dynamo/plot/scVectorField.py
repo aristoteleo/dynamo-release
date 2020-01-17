@@ -101,7 +101,7 @@ def cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, colo
         if 'X_' + basis not in adata.obsm.keys():
             reduceDimension(adata, velocity_key='velocity_S', reduction_method=basis)
         if 'kmc' not in adata.uns_keys():
-            cell_velocities(adata, vkey='pca', basis=basis, method='analytical')
+            cell_velocities(adata, vkey='velocity_S', basis=basis, method='analytical')
             X = adata.obsm['X_' + basis][:, [x, y]]
             V = adata.obsm['velocity_' + basis][:, [x, y]]
         else:
@@ -265,7 +265,7 @@ def grid_velocity(adata, genes, x=0, y=1, method='SparseVFC', basis='trimap', n_
         if 'X_' + basis not in adata.obsm.keys():
             reduceDimension(adata, velocity_key='velocity_S', reduction_method=basis)
         if 'kmc' not in adata.uns_keys():
-            cell_velocities(adata, vkey='pca', basis=basis, method='analytical')
+            cell_velocities(adata, vkey='velocity_S', basis=basis, method='analytical')
             X = adata.obsm['X_' + basis][:, [x, y]]
             V = adata.obsm['velocity_' + basis][:, [x, y]]
         else:
@@ -455,7 +455,7 @@ def stremline_plot(adata, genes, x=0, y=1, method='sparseVFC', basis='trimap', n
         if 'X_' + basis not in adata.obsm.keys():
             reduceDimension(adata, velocity_key='velocity_S', reduction_method=basis)
         if 'kmc' not in adata.uns_keys():
-            cell_velocities(adata, vkey='pca', basis=basis, method='analytical')
+            cell_velocities(adata, vkey='velocity_S', basis=basis, method='analytical')
             X = adata.obsm['X_' + basis][:, [x, y]]
             V = adata.obsm['velocity_' + basis][:, [x, y]]
         else:

@@ -373,7 +373,7 @@ class KernelMarkovChain(MarkovChain):
     def compute_drift(self, X, num_prop=1):
         n = self.get_num_states()
         V = np.zeros_like(X)
-        P = self.propagate_P(num_prop)
+        P = self.propagate_P(int(num_prop))
         for i in range(n):
             V[i] = (X - X[i]).T.dot(P[:, i].A.flatten())
         return V

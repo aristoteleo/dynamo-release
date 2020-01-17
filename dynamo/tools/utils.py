@@ -392,4 +392,12 @@ def norm_loglikelihood(x, mu, sig):
 
     return np.sum(ll)
 
+# ---------------------------------------------------------------------------------------------------
+# velocity related
+def set_velocity_genes(adata, vkey='velocity_S', use_for_pcs=True):
+    layer = vkey.split('_')[1]
 
+    if layer is 'U':
+        adata.var['use_for_velocity'] = adata.var.alpha_r2 > 0
+    elif layer is 'S':
+        adata.var['use_for_velocity'] = adata.var.gamma_r2 > 0
