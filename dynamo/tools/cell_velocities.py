@@ -57,8 +57,14 @@ def cell_velocities(adata, ekey='M_s', vkey='velocity_S', basis='umap', method='
         numba_random_seed(random_seed)
 
     neighbors, dist, indices = adata.uns['neighbors']['connectivities'], adata.uns['neighbors']['distances'], adata.uns['neighbors']['indices']
-    V_mat = adata.layers[vkey] if vkey in adata.layers.keys() else None
-    X, X_embedding = adata.layers[ekey], adata.obsm['X_'+basis][:, :2]
+    if 'use_for_dynamo' in adata.var.keys():
+        X = adata[:, adata.var.use_for_dynamo.values].layers[ekey]
+        V_mat = adata[:, adata.var.use_for_dynamo.values].layers[vkey] if vkey in adata.layers.keys() else None
+    else:
+        X = adata.layers[ekey]
+        V_mat = adata.layers[vkey] if vkey in adata.layers.keys() else None
+
+    X_embedding = adata.obsm['X_'+basis][:, :2]
     V_mat = V_mat.A if issparse(V_mat) else V_mat
     X = X.A if issparse(X) else X
 
