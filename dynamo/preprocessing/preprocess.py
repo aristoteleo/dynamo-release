@@ -825,10 +825,12 @@ def recipe_monocle(adata, normalized=None, layer=None, total_layers=None, genes_
 
     # automatically detect whether the data is normalized (only works for readcounts / UMI based data).
     if normalized is None:
-        normalized = not np.allclose((adata.X.data[:20] if issparse(adata.X) else adata.X[:, 0]) % 1, 0, atol=1e-3)
-    if not normalized:
+        _szFactor = not np.allclose((adata.X.data[:20] if issparse(adata.X) else adata.X[:, 0]) % 1, 0, atol=1e-3)
+        if _szFactor: _logged = not np.allclose(np.sum(adata.X.sum(1)[np.random.choice(adata.n_obs, 10)] - adata.X.sum(1)[0]), 0, atol=1e-1)
+
+    if not _szFactor or 'Size_Factor' not in adata.var_keys():
         adata = szFactor(adata, total_layers=total_layers)
-        adata = Dispersion(adata)
+        if feature_selection == 'Dispersion': adata = Dispersion(adata)
 
     filter_cells_kwargs = {"filter_bool": None, "layer": 'all', "min_expr_genes_s": 50, "min_expr_genes_u": 25, "min_expr_genes_p": 1,
                  "max_expr_genes_s": np.inf, "max_expr_genes_u": np.inf, "max_expr_genes_p": np.inf}
@@ -848,7 +850,7 @@ def recipe_monocle(adata, normalized=None, layer=None, total_layers=None, genes_
         if not keep_filtered_genes:
             adata = adata[:, adata.var['use_for_dynamo']]
 
-    if not normalized:
+    if not _logged:
         total_szfactor = 'total_Size_Factor' if total_layers is not None else None
         adata = normalize_expr_data(adata, total_szfactor=total_szfactor, norm_method=norm_method, pseudo_expr=pseudo_expr,
                                     relative_expr=relative_expr, keep_filtered=keep_filtered_genes)
