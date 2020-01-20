@@ -7,7 +7,7 @@ from .utils import set_velocity, set_param_deterministic, set_param_moment
 from .utils import moment_model
 
 # incorporate the model selection code soon
-def dynamics(adata, filter_gene_mode='final', mode='deterministic', use_smoothed=True, tkey='Time', group=None, protein_names=None,
+def dynamics(adata, tkey=None, filter_gene_mode='final', mode='deterministic', use_smoothed=True, group=None, protein_names=None,
              experiment_type=None, assumption_mRNA=None, assumption_protein='ss', NTR_vel=True, concat_data=False,
              log_unnormalized=True):
     """Inclusive model of expression dynamics considers splicing, metabolic labeling and protein translation. It supports
@@ -18,6 +18,9 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', use_smoothed
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object.
+        tkey: `str` or None (default: None)
+            The column key for the time label of cells in .obs. Used for either "steady_state" or non-"steady_state" mode or `moment`
+            mode  with labeled data.
         filter_gene_mode: `str` (default: `final`)
             The string for indicating which mode (one of, ['final', 'basic', 'no']) of gene filter will be used.
         mode: `str` (default: `deterministic`)
@@ -25,9 +28,6 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', use_smoothed
             A "model_selection" mode will be supported soon in which alpha, beta and gamma will be modeled as a function of time.
         use_smoothed: `bool` (default: `True`)
             Whether to use the smoothed data when calculating velocity for each gene.
-        tkey: `str` (default: `Time`)
-            The column key for the time label of cells in .obs. Used for either "steady_state" or non-"steady_state" mode or `moment`
-            mode  with labeled data.
         group: `str` or None (default: `None`)
             The column key/name that identifies the grouping information (for example, clusters that correspond to different cell types)
             of cells. This will be used to estimate group-specific (i.e cell-type specific) kinetic parameters.
@@ -97,7 +97,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', use_smoothed
 
             alpha, beta, gamma, eta, delta = est.parameters.values()
 
-            U, S = get_U_S_for_velocity_estimation(subset_adata, has_splicing, has_labeling, log_unnormalized, NTR_vel)
+            U, S = get_U_S_for_velocity_estimation(subset_adata, use_smoothed, has_splicing, has_labeling, log_unnormalized, NTR_vel)
             vel = velocity(estimation=est)
             vel_U = vel.vel_u(U)
             vel_S = vel.vel_s(U, S)
@@ -122,7 +122,7 @@ def dynamics(adata, filter_gene_mode='final', mode='deterministic', use_smoothed
             params = {'alpha': alpha, 'beta': beta, 'gamma': gamma, 't': t}
             vel = velocity(**params)
 
-            U, S = get_U_S_for_velocity_estimation(subset_adata, has_splicing, has_labeling, log_unnormalized, NTR_vel)
+            U, S = get_U_S_for_velocity_estimation(subset_adata, use_smoothed, has_splicing, has_labeling, log_unnormalized, NTR_vel)
             vel_U = vel.vel_u(U)
             vel_S = vel.vel_s(U, S)
             vel_P = vel.vel_p(S, P)

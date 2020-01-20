@@ -1,5 +1,6 @@
 import numpy as np
 import scipy
+from scipy.sparse import issparse
 from sklearn.decomposition import TruncatedSVD
 import warnings
 from copy import deepcopy
@@ -185,7 +186,7 @@ def normalize_knn_graph(knn):
     return knn
 
 
-def mnn(adata, n_pca_components=25, n_neighbors=250, layers='all', use_pca_fit=True, save_all_to_adata=False):
+def mnn(adata, n_pca_components=25, n_neighbors=250, layers='all', use_pca_fit=False, save_all_to_adata=False):
     """ Function to calculate mutual nearest neighbor graph across specific data layers.
 
     Parameters
@@ -244,7 +245,7 @@ def mnn(adata, n_pca_components=25, n_neighbors=250, layers='all', use_pca_fit=T
 
     return adata
 
-def smoother(adata, use_mnn=True, layers='all'):
+def smoother(adata, use_mnn=False, layers='all'):
     if use_mnn:
         if 'mnn' not in adata.uns.keys():
             adata = mnn(adata, n_pca_components=25, layers='all', use_pca_fit=True, save_all_to_adata=False)
@@ -252,14 +253,21 @@ def smoother(adata, use_mnn=True, layers='all'):
     else:
         kNN, _, _, _ = umap_conn_indices_dist_embedding(adata.obsm['X_pca'], n_neighbors=30)
         kNN = normalize_knn_graph(kNN > 0)
+
     layers = get_layer_keys(adata, layers, False)
     layers = [layer for layer in layers if layer.startswith('X_') and (not layer.endswith('_matrix') and
-                                                                       not layer.endswith('_ambiguous'))]
+                                                               not layer.endswith('_ambiguous'))]
 
-    mapper = {'X_spliced': 'M_s', 'X_unspliced': 'M_u', 'X_new': 'M_n', 'X_old': 'M_o',
+    mapper = {'X_spliced': 'M_s', 'X_unspliced': 'M_u', 'X_new': 'M_n', 'X_old': 'M_o', 'X_total': 'M_t',
               'X_uu': 'M_uu', 'X_ul': 'M_ul', 'X_su': 'M_su', 'X_sl': 'M_sl', 'X_protein': 'M_p'}
     for layer in layers:
         layer_X = adata.layers[layer]
+
+        if issparse(layer_X):
+            layer_X.data = 2**layer_X.data - 1
+        else:
+            layer_X = 2** layer_X - 1
+
         adata.layers[mapper[layer]] = kNN.dot(layer_X)
 
     if 'X_protein' in adata.obsm.keys(): # may need to update with mnn or just use knn from protein layer itself.

@@ -823,9 +823,11 @@ def recipe_monocle(adata, normalized=None, layer=None, total_layers=None, genes_
             A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions, etc.
     """
 
-    # automatically detect whether the data is normalized (only works for readcounts / UMI based data).
+    _szFactor, _logged = False, False
     if normalized is None:
+        # automatically detect whether the data is size-factor normalized -- no integers (only works for readcounts / UMI based data).
         _szFactor = not np.allclose((adata.X.data[:20] if issparse(adata.X) else adata.X[:, 0]) % 1, 0, atol=1e-3)
+        # check whether total UMI is the same -- if not the same, logged
         if _szFactor: _logged = not np.allclose(np.sum(adata.X.sum(1)[np.random.choice(adata.n_obs, 10)] - adata.X.sum(1)[0]), 0, atol=1e-1)
 
     if not _szFactor or 'Size_Factor' not in adata.var_keys():

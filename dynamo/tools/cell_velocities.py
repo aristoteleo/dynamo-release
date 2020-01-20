@@ -5,7 +5,7 @@ from .Markov import *
 from .connectivity import extract_indices_dist_from_graph
 from .utils import set_velocity_genes
 
-def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=True, basis='umap', method='analytical', neg_cells_trick=False, calc_rnd_vel=False,
+def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=False, basis='umap', method='analytical', neg_cells_trick=False, calc_rnd_vel=False,
                     xy_grid_nums=(50, 50), correct_density=True, sample_fraction=None, random_seed=19491001, **kmc_kwargs):
     """Compute transition probability and project high dimension velocity vector to existing low dimension embedding.
 
@@ -90,7 +90,7 @@ def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=True, basis='u
         kmc.fit(X, V_mat, neighbor_idx=indices, sample_fraction=sample_fraction, **kmc_args) #
         T = kmc.P
         if correct_density:
-            delta_X = kmc.compute_density_corrected_drift(X_embedding, kmc.Idx, normalize_vector=False) # indices, k = 500
+            delta_X = kmc.compute_density_corrected_drift(X_embedding, kmc.Idx, normalize_vector=True) # indices, k = 500
         else:
             delta_X = kmc.compute_drift(X_embedding) # indices, k = 500
 

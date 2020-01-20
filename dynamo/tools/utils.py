@@ -34,7 +34,7 @@ def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, pro
     U, Ul, S, Sl, P = None, None, None, None, None  # U: unlabeled unspliced; S: unlabel spliced: S
     normalized, has_splicing, has_labeling, has_protein = False, False, False, False
 
-    mapper = {'X_spliced': 'M_s', 'X_unspliced': 'M_u', 'X_new': 'M_n', 'X_old': 'M_o',
+    mapper = {'X_spliced': 'M_s', 'X_unspliced': 'M_u', 'X_new': 'M_n', 'X_old': 'M_o', 'X_total': 'M_t',
               'X_uu': 'M_uu', 'X_ul': 'M_ul', 'X_su': 'M_su', 'X_sl': 'M_sl', 'X_protein': 'M_p'}
 
     if 'X_unspliced' in subset_adata.layers.keys():
@@ -253,12 +253,19 @@ def set_param_moment(adata, a, b, alpha_a, alpha_i, beta, gamma, kin_param_pre, 
 
     return adata
 
-def get_U_S_for_velocity_estimation(subset_adata, has_splicing, has_labeling, log_unnormalized, NTR):
+def get_U_S_for_velocity_estimation(subset_adata, use_smoothed, has_splicing, has_labeling, log_unnormalized, NTR):
+    mapper = {'X_spliced': 'M_s', 'X_unspliced': 'M_u', 'X_new': 'M_n', 'X_old': 'M_o', 'X_total': 'M_t',
+              'X_uu': 'M_uu', 'X_ul': 'M_ul', 'X_su': 'M_su', 'X_sl': 'M_sl'}
+
     if has_splicing:
         if has_labeling:
             if 'X_uu' in subset_adata.layers.keys():  # unlabel spliced: S
-                uu, ul, su, sl = subset_adata.layers['X_uu'].T, subset_adata.layers['X_ul'].T, \
-                                 subset_adata.layers['X_su'].T, subset_adata.layers['X_sl'].T
+                if use_smoothed:
+                    uu, ul, su, sl = subset_adata.layers[mapper['X_uu']].T, subset_adata.layers[mapper['X_ul']].T, \
+                                     subset_adata.layers[mapper['X_su']].T, subset_adata.layers[mapper['X_sl']].T
+                else:
+                    uu, ul, su, sl = subset_adata.layers[mapper['X_uu']].T, subset_adata.layers[mapper['X_ul']].T, \
+                                     subset_adata.layers[mapper['X_su']].T, subset_adata.layers[mapper['X_sl']].T
             else:
                 uu, ul, su, sl = subset_adata.layers['uu'].T, subset_adata.layers['ul'].T, \
                                  subset_adata.layers['su'].T, subset_adata.layers['sl'].T
@@ -275,7 +282,10 @@ def get_U_S_for_velocity_estimation(subset_adata, has_splicing, has_labeling, lo
             ul, sl = (ul + sl , uu + ul + su + sl) if NTR else (ul, sl)
         else:
             if 'X_unspliced' in subset_adata.layers.keys():  # unlabel spliced: S
-                ul, sl = subset_adata.layers['X_unspliced'].T, subset_adata.layers['X_spliced'].T
+                if use_smoothed:
+                    ul, sl = subset_adata.layers[mapper['X_unspliced']].T, subset_adata.layers[mapper['X_spliced']].T
+                else:
+                    ul, sl = subset_adata.layers['X_unspliced'].T, subset_adata.layers['X_spliced'].T
             else:
                 ul, sl = subset_adata.layers['unspliced'].T, subset_adata.layers['spliced'].T
                 if issparse(ul):
@@ -287,8 +297,12 @@ def get_U_S_for_velocity_estimation(subset_adata, has_splicing, has_labeling, lo
         U, S = ul, sl
     else:
         if 'X_new' in subset_adata.layers.keys():  # run new / total ratio (NTR)
-            U = subset_adata.layers['X_new'].T
-            S = subset_adata.layers['X_total'].T if NTR else subset_adata.layers['X_total'].T - subset_adata.layers['X_new'].T
+            if use_smoothed:
+                U = subset_adata.layers[mapper['X_new']].T
+                S = subset_adata.layers[mapper['X_total']].T if NTR else subset_adata.layers[mapper['X_total']].T - subset_adata.layers[mapper['X_new']].T
+            else:
+                U = subset_adata.layers['X_new'].T
+                S = subset_adata.layers['X_total'].T if NTR else subset_adata.layers['X_total'].T - subset_adata.layers['X_new'].T
         elif 'new' in subset_adata.layers.keys():
             U = subset_adata.layers['new'].T
             S = subset_adata.layers['total'].T if NTR else subset_adata.layers['total'].T - subset_adata.layers['new'].T
