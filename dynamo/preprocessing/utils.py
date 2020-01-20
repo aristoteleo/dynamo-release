@@ -124,4 +124,4 @@ def get_shared_counts(adata, layers, min_shared_count, type='gene'):
     if type == 'gene':
         return np.array(_sum.sum(0).A1 > min_shared_count) if issparse(adata.layers[layers[0]]) else np.array(_sum.sum(0) > min_shared_count)
     if type == 'cells':
-        return np.array(_sum.sum(1).A1 > min_shared_count) if issparse(adata.layers[layers[0]]) else np.array(_sum.sum(0) > min_shared_count)
+        return np.array(_sum.sum(1).A1 > min_shared_count) if issparse(adata.layers[layers[0]]) else np.array(_sum.sum(1) > min_shared_count)

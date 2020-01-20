@@ -746,9 +746,6 @@ def filter_genes(adata, filter_bool=None, layer='all', total_szfactor=None, keep
         layers = get_layer_keys(adata, 'all', False)
         detected_bool = detected_bool & get_shared_counts(adata, layers, shared_count, 'gene')
 
-    detected_bool = detected_bool & np.array(((adata.layers['unspliced'] > 0).sum(0) > min_cell_u) & (
-                    adata.layers['unspliced'].mean(0) > min_avg_exp_u) & (
-                                                             adata.layers['unspliced'].mean(0) < max_avg_exp)).flatten()
     ############################## The following code need to be updated ##############################
     # just remove genes that are not following the protein criteria
     if "protein" in adata.obsm.keys() and layer is 'protein':

@@ -94,7 +94,7 @@ def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=False, n_pca_c
             Y_pca = pca.transform(X + V_mat)
             V_pca = Y_pca - X_pca
 
-            X, V_mat = X_pca, V_pca
+            X, V_mat = X_pca[:, :n_pca_components], V_pca[:, :n_pca_components]
 
         kmc.fit(X, V_mat, neighbor_idx=indices, sample_fraction=sample_fraction, **kmc_args) #
         T = kmc.P
