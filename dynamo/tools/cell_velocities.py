@@ -88,9 +88,10 @@ def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=False, n_pca_c
 
         # number of kNN in neighbor_idx may be too small
         if n_pca_components is not None:
-            PCA.fit(X)
-            X_pca = PCA.transform(X)
-            Y_pca = PCA.transform(X + V_mat)
+            pca = PCA()
+            pca.fit(X)
+            X_pca = pca.transform(X)
+            Y_pca = pca.transform(X + V_mat)
             V_pca = Y_pca - X_pca
 
             X, V_mat = X_pca, V_pca

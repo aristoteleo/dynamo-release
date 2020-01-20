@@ -111,8 +111,8 @@ def get_layer_keys(adata, layers='all', include_protein=True):
     return layers
 
 def get_shared_counts(adata, layers, min_shared_count, type='gene'):
-
     layers = list(set(layers).difference(['X', 'matrix', 'ambiguous']))
+
     _nonzeros = reduce(lambda a, b: (adata.layers[a] > 0).multiply(adata.layers[b] > 0), layers) if \
         issparse(adata.layers[layers[0]]) else \
         reduce(lambda a, b: (adata.layers[a] > 0) * (adata.layers[b] > 0), layers)

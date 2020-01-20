@@ -850,13 +850,13 @@ def recipe_monocle(adata, normalized=None, layer=None, total_layers=None, genes_
         if feature_selection == 'Dispersion': adata = Dispersion(adata)
 
     filter_cells_kwargs = {"filter_bool": None, "layer": 'all', "min_expr_genes_s": 50, "min_expr_genes_u": 25, "min_expr_genes_p": 1,
-                 "max_expr_genes_s": np.inf, "max_expr_genes_u": np.inf, "max_expr_genes_p": np.inf}
+                 "max_expr_genes_s": np.inf, "max_expr_genes_u": np.inf, "max_expr_genes_p": np.inf, "shared_count": None}
     if fc_kwargs is not None: filter_cells_kwargs.update(fc_kwargs)
 
     adata = filter_cells(adata, keep_filtered=keep_filtered_cells, **filter_cells_kwargs)
 
     filter_genes_kwargs = {"filter_bool": None, "layer": 'X', "min_cell_s": 5, "min_cell_u": 5, "min_cell_p": 5,
-                 "min_avg_exp_s": 1e-2, "min_avg_exp_u": 1e-4, "min_avg_exp_p": 1e-4, "max_avg_exp": 100.}
+                 "min_avg_exp_s": 1e-2, "min_avg_exp_u": 1e-4, "min_avg_exp_p": 1e-4, "max_avg_exp": 100., "shared_count": 30}
     if fg_kwargs is not None: filter_genes_kwargs.update(fg_kwargs)
 
     # set use_for_dynamo

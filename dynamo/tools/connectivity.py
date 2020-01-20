@@ -245,7 +245,7 @@ def mnn(adata, n_pca_components=25, n_neighbors=250, layers='all', use_pca_fit=T
 
     return adata
 
-def smoother(adata, use_mnn=True, layers='all'):
+def smoother(adata, use_mnn=False, layers='all'):
     if use_mnn:
         if 'mnn' not in adata.uns.keys():
             adata = mnn(adata, n_pca_components=25, layers='all', use_pca_fit=True, save_all_to_adata=False)

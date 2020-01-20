@@ -18,14 +18,14 @@ def cal_12_mom(data, t):
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
 def get_valid_inds(adata, filter_gene_mode):
-    if filter_gene_mode is 'final':
+    if filter_gene_mode == 'final':
         valid_ind = adata.var.use_for_dynamo.values
         # import warnings
         # from scipy.sparse import SparseEfficiencyWarning
         # warnings.simplefilter('ignore', SparseEfficiencyWarning)
-    elif filter_gene_mode is 'basic':
+    elif filter_gene_mode == 'basic':
         valid_ind = adata.var.pass_basic_filter.values
-    elif filter_gene_mode is 'no':
+    elif filter_gene_mode == 'no':
         valid_ind = np.repeat([True], adata.shape[1])
 
     return valid_ind
