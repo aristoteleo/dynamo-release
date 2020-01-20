@@ -5,7 +5,7 @@ from .Markov import *
 from .connectivity import extract_indices_dist_from_graph
 from .utils import set_velocity_genes
 
-def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=False, basis='umap', method='analytical', neg_cells_trick=False, calc_rnd_vel=False,
+def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=False, n_pca_components=25, basis='umap', method='analytical', neg_cells_trick=False, calc_rnd_vel=False,
                     xy_grid_nums=(50, 50), correct_density=True, sample_fraction=None, random_seed=19491001, **kmc_kwargs):
     """Compute transition probability and project high dimension velocity vector to existing low dimension embedding.
 
@@ -82,11 +82,19 @@ def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=False, basis='
     # add both source and sink distribution
     if method == 'analytical':
         kmc = KernelMarkovChain()
-        n = X.shape[1]
-        kmc_args = {"n_recurse_neighbors": 2, "M_diff": 0.25 * np.eye(n), "epsilon": None, "adaptive_local_kernel": True, "tol": 1e-7}
+        n = X.shape[1] if n_pca_components is None else n_pca_components
+        kmc_args = {"n_recurse_neighbors": 2, "M_diff": 1 * np.eye(n), "epsilon": None, "adaptive_local_kernel": True, "tol": 1e-7}
         kmc_args.update(kmc_kwargs)
 
         # number of kNN in neighbor_idx may be too small
+        if n_pca_components is not None:
+            PCA.fit(X)
+            X_pca = PCA.transform(X)
+            Y_pca = PCA.transform(X + V_mat)
+            V_pca = Y_pca - X_pca
+
+            X, V_mat = X_pca, V_pca
+
         kmc.fit(X, V_mat, neighbor_idx=indices, sample_fraction=sample_fraction, **kmc_args) #
         T = kmc.P
         if correct_density:

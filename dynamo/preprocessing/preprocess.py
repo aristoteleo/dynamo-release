@@ -4,7 +4,7 @@ from sklearn.utils import sparsefuncs
 import warnings
 from scipy.sparse import issparse, csr_matrix
 from sklearn.decomposition import TruncatedSVD, FastICA
-from .utils import cook_dist, get_layer_keys
+from .utils import cook_dist, get_layer_keys, get_shared_counts
 
 def szFactor(adata, layers='all', total_layers=None, locfunc=np.nanmean, round_exprs=True, method='mean-geometric-mean-total'):
     """Calculate the size factor of the each cell using geometric mean of total UMI across cells for a AnnData object.
@@ -629,7 +629,7 @@ def SVRs(adata, filter_bool=None, layers='X', total_szfactor=None, min_expr_cell
 
 
 def filter_cells(adata, filter_bool=None, layer='all', keep_filtered=False, min_expr_genes_s=50, min_expr_genes_u=25, min_expr_genes_p=1,
-                 max_expr_genes_s=np.inf, max_expr_genes_u=np.inf, max_expr_genes_p=np.inf):
+                 max_expr_genes_s=np.inf, max_expr_genes_u=np.inf, max_expr_genes_p=np.inf, shared_count=None):
     """Select valid cells based on a collection of filters.
 
     Parameters
@@ -654,6 +654,8 @@ def filter_cells(adata, filter_bool=None, layer='all', keep_filtered=False, min_
             Maximal number of genes with expression for a cell in the data from the unspliced layer.
         max_expr_genes_p: `float` (default: `np.inf`)
             Maximal number of protein with expression for a cell in the data from the protein layer.
+        shared_count: `float` (default: `30`)
+            The minimal shared number of counts for each cell across genes between layers.
 
     Returns
     -------
@@ -673,6 +675,10 @@ def filter_cells(adata, filter_bool=None, layer='all', keep_filtered=False, min_
     if ("protein" in adata.obsm.keys()) & (layer is 'protein' or layer is 'all'):
         detected_bool = detected_bool & (((adata.obsm['protein'] > 0).sum(1) > min_expr_genes_p) & ((adata.obsm['protein'] > 0).sum(1) < max_expr_genes_p)).flatten()
 
+    if shared_count is not None:
+        layers = get_layer_keys(adata, layer, False)
+        detected_bool = detected_bool & get_shared_counts(adata, layers, shared_count, 'cell')
+
     filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
 
     if keep_filtered:
@@ -684,8 +690,8 @@ def filter_cells(adata, filter_bool=None, layer='all', keep_filtered=False, min_
     return adata
 
 
-def filter_genes(adata, filter_bool=None, layer='X', total_szfactor=None, keep_filtered=True, min_cell_s=5, min_cell_u=5, min_cell_p=5,
-                 min_avg_exp_s=1e-2, min_avg_exp_u=1e-4, min_avg_exp_p=1e-4, max_avg_exp=100., sort_by='SVR',
+def filter_genes(adata, filter_bool=None, layer='all', total_szfactor=None, keep_filtered=True, min_cell_s=5, min_cell_u=5, min_cell_p=5,
+                 min_avg_exp_s=1e-2, min_avg_exp_u=1e-4, min_avg_exp_p=1e-4, max_avg_exp=100., shared_count=30, sort_by='SVR',
                  n_top_genes=2000):
     """Select feature genes based on a collection of filters.
 
@@ -715,6 +721,8 @@ def filter_genes(adata, filter_bool=None, layer='X', total_szfactor=None, keep_f
             Minimal average expression across cells for the data in the protein layer.
         max_avg_exp: `float` (default: `100`.)
             Maximal average expression across cells for the data in all layers (also used for X).
+        shared_count: `float` (default: `30`)
+            The minimal shared number of counts for each genes across cell between layers.
         sort_by: `str` (default: `SVR`)
             Which soring method, either SVR, dispersion or Gini index, to be used to select genes.
         n_top_genes: `int` (default: `int`)
@@ -730,10 +738,17 @@ def filter_genes(adata, filter_bool=None, layer='X', total_szfactor=None, keep_f
     detected_bool = np.ones(adata.X.shape[1], dtype=bool)
     detected_bool = (detected_bool) & np.array(((adata.X > 0).sum(0) > min_cell_s) & (adata.X.mean(0) > min_avg_exp_s) & (adata.X.mean(0) < max_avg_exp)).flatten()
 
-    if "spliced" in adata.layers.keys() and layer is 'spliced':
+    if "spliced" in adata.layers.keys() and (layer is 'spliced' or layer is 'all'):
         detected_bool = detected_bool & np.array(((adata.layers['spliced'] > 0).sum(0) > min_cell_s) & (adata.layers['spliced'].mean(0) > min_avg_exp_s) & (adata.layers['spliced'].mean(0) < max_avg_exp)).flatten()
-    if "unspliced" in adata.layers.keys() and layer is 'unspliced':
+    if "unspliced" in adata.layers.keys() and (layer is 'unspliced' or layer is 'all'):
         detected_bool = detected_bool & np.array(((adata.layers['unspliced'] > 0).sum(0) > min_cell_u) & (adata.layers['unspliced'].mean(0) > min_avg_exp_u) & (adata.layers['unspliced'].mean(0) < max_avg_exp)).flatten()
+    if shared_count is not None:
+        layers = get_layer_keys(adata, 'all', False)
+        detected_bool = detected_bool & get_shared_counts(adata, layers, shared_count, 'gene')
+
+    detected_bool = detected_bool & np.array(((adata.layers['unspliced'] > 0).sum(0) > min_cell_u) & (
+                    adata.layers['unspliced'].mean(0) > min_avg_exp_u) & (
+                                                             adata.layers['unspliced'].mean(0) < max_avg_exp)).flatten()
     ############################## The following code need to be updated ##############################
     # just remove genes that are not following the protein criteria
     if "protein" in adata.obsm.keys() and layer is 'protein':

@@ -1,4 +1,6 @@
 import numpy as np
+from scipy.sparse import issparse
+from functools import reduce
 # implmentation of Cooks' distance (but this is for Poisson distribution fitting)
 
 # https://stackoverflow.com/questions/47686227/poisson-regression-in-statsmodels-and-r
@@ -107,3 +109,19 @@ def get_layer_keys(adata, layers='all', include_protein=True):
     layers = layer_keys if layers is 'all' else list(set(layer_keys).intersection(layers))
 
     return layers
+
+def get_shared_counts(adata, layers, min_shared_count, type='gene'):
+
+    layers = list(set(layers).difference(['X', 'matrix', 'ambiguous']))
+    _nonzeros = reduce(lambda a, b: (adata.layers[a] > 0).multiply(adata.layers[b] > 0), layers) if \
+        issparse(adata.layers[layers[0]]) else \
+        reduce(lambda a, b: (adata.layers[a] > 0) * (adata.layers[b] > 0), layers)
+
+    _sum = reduce(lambda a, b: _nonzeros.multiply(adata.layers[a]) + _nonzeros.multiply(adata.layers[b]), layers) if \
+        issparse(adata.layers[layers[0]]) else \
+        reduce(lambda a, b: _nonzeros.multiply(adata.layers[a]) + _nonzeros.multiply(adata.layers[b]), layers)
+
+    if type == 'gene':
+        return np.array(_sum.sum(0).A1 > min_shared_count) if issparse(adata.layers[layers[0]]) else np.array(_sum.sum(0) > min_shared_count)
+    if type == 'cells':
+        return np.array(_sum.sum(1).A1 > min_shared_count) if issparse(adata.layers[layers[0]]) else np.array(_sum.sum(0) > min_shared_count)

@@ -53,7 +53,7 @@ def extract_indices_dist_from_graph(graph, n_neighbors):
 def umap_conn_indices_dist_embedding(X,
         n_neighbors=30,
         n_components=2,
-        metric="cosine",
+        metric="euclidean",
         min_dist=0.1,
         random_state=0,
         verbose=False):
@@ -186,7 +186,7 @@ def normalize_knn_graph(knn):
     return knn
 
 
-def mnn(adata, n_pca_components=25, n_neighbors=250, layers='all', use_pca_fit=False, save_all_to_adata=False):
+def mnn(adata, n_pca_components=25, n_neighbors=250, layers='all', use_pca_fit=True, save_all_to_adata=False):
     """ Function to calculate mutual nearest neighbor graph across specific data layers.
 
     Parameters
@@ -245,7 +245,7 @@ def mnn(adata, n_pca_components=25, n_neighbors=250, layers='all', use_pca_fit=F
 
     return adata
 
-def smoother(adata, use_mnn=False, layers='all'):
+def smoother(adata, use_mnn=True, layers='all'):
     if use_mnn:
         if 'mnn' not in adata.uns.keys():
             adata = mnn(adata, n_pca_components=25, layers='all', use_pca_fit=True, save_all_to_adata=False)
