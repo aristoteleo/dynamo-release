@@ -74,7 +74,10 @@ def compute_drift_kernel(x, v, X, inv_s):
     k = np.zeros(n)
     for i in range(n):
         d = X[i] - x
-        k[i] = np.exp(-0.25 * (d - v) @ inv_s @ (d - v).T)
+        if np.isscalar(inv_s):
+            k[i] = np.exp(-0.25 * inv_s * (d-v).dot(d-v))
+        else:
+            k[i] = np.exp(-0.25 * (d-v) @ inv_s @ (d-v).T)
     return k
 
 
@@ -125,7 +128,10 @@ def compute_drift_local_kernel(x, v, X, inv_s):
         tau_invs = (1 / (1e2 * v.dot(v))) * inv_s
     for i in range(n):
         d = D[i]
-        k[i] = np.exp(-0.25 * (d-tau_v) @ tau_invs @ (d-tau_v).T)
+        if np.isscalar(tau_invs):
+            k[i] = np.exp(-0.25 * tau_invs * (d-tau_v).dot(d-tau_v))
+        else:
+            k[i] = np.exp(-0.25 * (d-tau_v) @ tau_invs @ (d-tau_v).T)
     return k
 
 
@@ -321,8 +327,6 @@ class KernelMarkovChain(MarkovChain):
 
     def fit(self, X, V, M_diff, neighbor_idx=None, n_recurse_neighbors=None, k=200, epsilon=None, adaptive_local_kernel=False, tol=1e-4,
             sparse_construct=True, sample_fraction=None):
-        if np.isscalar(M_diff):
-            M_diff = M_diff * np.eye(X.shape[1])
         # compute connectivity
         if neighbor_idx is None:
             nbrs = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(X)
@@ -364,7 +368,10 @@ class KernelMarkovChain(MarkovChain):
             D = np.sum(self.Kd, 0)
 
         # compute transition prob.
-        inv_s = np.linalg.inv(M_diff)
+        if np.isscalar(M_diff):
+            inv_s = 1/M_diff
+        else:
+            inv_s = np.linalg.inv(M_diff)
         for i in range(n):
             y = X[i]
             v = V[i]
