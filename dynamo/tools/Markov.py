@@ -119,14 +119,14 @@ def compute_drift_local_kernel(x, v, X, inv_s):
         tau = np.mean(dists[i_dir] / vds[i_dir])
         if tau > 1e2: tau = 1e2
         tau_v = tau * v
-        tau_invs = (1 / (tau * np.linalg.norm(v))) * inv_s
+        tau_invs = (1 / (tau * v.dot(v))) * inv_s
     else:
         tau_v = 0
-        tau_invs = (1 / (1e2 * np.linalg.norm(v))) * inv_s
+        tau_invs = (1 / (1e2 * v.dot(v))) * inv_s
     for i in range(n):
         d = D[i]
-        k[i] = np.exp(-0.25 * (d - tau_v) @ tau_invs @ (d - tau_v).T)
-    return k, tau_invs
+        k[i] = np.exp(-0.25 * (d-tau_v) @ tau_invs @ (d-tau_v).T)
+    return k
 
 
 @jit(nopython=True)
@@ -321,6 +321,8 @@ class KernelMarkovChain(MarkovChain):
 
     def fit(self, X, V, M_diff, neighbor_idx=None, n_recurse_neighbors=None, k=200, epsilon=None, adaptive_local_kernel=False, tol=1e-4,
             sparse_construct=True, sample_fraction=None):
+        if np.isscalar(M_diff):
+            M_diff = M_diff * np.eye(X.shape[1])
         # compute connectivity
         if neighbor_idx is None:
             nbrs = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(X)
@@ -368,7 +370,7 @@ class KernelMarkovChain(MarkovChain):
             v = V[i]
             Y = X[self.Idx[i]]
             if adaptive_local_kernel:
-                k, tau = compute_drift_local_kernel(y, v, Y, inv_s)
+                k = compute_drift_local_kernel(y, v, Y, inv_s)
             else:
                 k = compute_drift_kernel(y, v, Y, inv_s)
             if epsilon is not None:
