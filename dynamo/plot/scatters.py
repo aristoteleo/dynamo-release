@@ -1,6 +1,7 @@
 # code adapted from https://github.com/lmcinnes/umap/blob/7e051d8f3c4adca90ca81eb45f6a9d1372c076cf/umap/plot.py
 from ..configuration import _themes
 from .utils import despline, set_spine_linewidth, scatter_with_colorbar, scatter_with_legend, _select_font_color
+from ..tools.utils import get_mapper
 
 import numpy as np
 import pandas as pd
@@ -85,6 +86,7 @@ def scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key
     -------
         Nothing but a scatter plot of cells.
     """
+    mapper = get_mapper()
 
     import matplotlib.pyplot as plt
     import seaborn as sns
@@ -118,11 +120,11 @@ def scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key
     layers.extend(['X', 'protein', 'X_protein'])
     if ekey in layers:
         if ekey is 'X':
-            E_vec = adata[:, genes].X
+            E_vec = adata[:, genes].layers[mapper['X']] if mapper['X'] in adata.layers.keys() else adata[:, genes].X
         elif ekey in ['protein', 'X_protein']:
-            E_vec = adata[:, genes].obsm[ekey]
+            E_vec = adata[:, genes].layers[mapper[ekey]] if (ekey in mapper.keys()) and (mapper[ekey] in adata.obsm_keys()) else adata[:, genes].obsm[ekey]
         else:
-            E_vec = adata[:, genes].layers[ekey]
+            E_vec = adata[:, genes].layers[mapper[ekey]] if (ekey in mapper.keys()) and (mapper[ekey] in adata.layers.keys()) else adata[:, genes].layers[ekey]
 
     n_cells, n_genes = adata.shape[0], len(genes)
 

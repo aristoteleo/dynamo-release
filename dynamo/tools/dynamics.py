@@ -2,7 +2,7 @@ import warnings
 import numpy as np
 from .connectivity import smoother
 from .velocity import velocity, estimation
-from .utils import get_valid_inds, get_data_for_velocity_estimation, get_U_S_for_velocity_estimation
+from .utils import get_mapper, get_valid_inds, get_data_for_velocity_estimation, get_U_S_for_velocity_estimation
 from .utils import set_velocity, set_param_deterministic, set_param_moment
 from .utils import moment_model
 

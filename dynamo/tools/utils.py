@@ -3,6 +3,14 @@ from scipy.sparse import issparse, csr_matrix
 from .moments import strat_mom, MomData, Estimation
 import warnings
 
+
+# ---------------------------------------------------------------------------------------------------
+# others
+def get_mapper():
+    mapper = {'X_spliced': 'M_s', 'X_unspliced': 'M_u', 'X_new': 'M_n', 'X_old': 'M_o', 'X_total': 'M_t',
+              'X_uu': 'M_uu', 'X_ul': 'M_ul', 'X_su': 'M_su', 'X_sl': 'M_sl', 'X_protein': 'M_p', 'X': 'M_s'}
+    return mapper
+
 # ---------------------------------------------------------------------------------------------------
 # moment related:
 def cal_12_mom(data, t):
@@ -34,8 +42,7 @@ def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, pro
     U, Ul, S, Sl, P = None, None, None, None, None  # U: unlabeled unspliced; S: unlabel spliced: S
     normalized, has_splicing, has_labeling, has_protein = False, False, False, False
 
-    mapper = {'X_spliced': 'M_s', 'X_unspliced': 'M_u', 'X_new': 'M_n', 'X_old': 'M_o', 'X_total': 'M_t',
-              'X_uu': 'M_uu', 'X_ul': 'M_ul', 'X_su': 'M_su', 'X_sl': 'M_sl', 'X_protein': 'M_p'}
+    mapper = get_mapper()
 
     if 'X_unspliced' in subset_adata.layers.keys():
         has_splicing, normalized, assumption_mRNA = True, True, 'ss'
@@ -254,8 +261,7 @@ def set_param_moment(adata, a, b, alpha_a, alpha_i, beta, gamma, kin_param_pre, 
     return adata
 
 def get_U_S_for_velocity_estimation(subset_adata, use_smoothed, has_splicing, has_labeling, log_unnormalized, NTR):
-    mapper = {'X_spliced': 'M_s', 'X_unspliced': 'M_u', 'X_new': 'M_n', 'X_old': 'M_o', 'X_total': 'M_t',
-              'X_uu': 'M_uu', 'X_ul': 'M_ul', 'X_su': 'M_su', 'X_sl': 'M_sl'}
+    mapper = get_mapper()
 
     if has_splicing:
         if has_labeling:
@@ -422,3 +428,4 @@ def set_velocity_genes(adata, vkey='velocity_S', min_r2=0.1, use_for_dynamo=True
             else adata.var.delta_r2 > min_r2
 
     return adata
+

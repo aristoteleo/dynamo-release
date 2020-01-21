@@ -7,6 +7,7 @@ from copy import deepcopy
 from inspect import signature
 from sklearn.utils import sparsefuncs
 from ..preprocessing.utils import get_layer_keys
+from .utils import get_mapper
 
 def extract_indices_dist_from_graph(graph, n_neighbors):
     """Extract the matrices for index, distance from the associated kNN sparse graph
@@ -246,6 +247,8 @@ def mnn(adata, n_pca_components=25, n_neighbors=250, layers='all', use_pca_fit=T
     return adata
 
 def smoother(adata, use_mnn=False, layers='all'):
+    mapper = get_mapper()
+
     if use_mnn:
         if 'mnn' not in adata.uns.keys():
             adata = mnn(adata, n_pca_components=25, layers='all', use_pca_fit=True, save_all_to_adata=False)
@@ -258,8 +261,6 @@ def smoother(adata, use_mnn=False, layers='all'):
     layers = [layer for layer in layers if layer.startswith('X_') and (not layer.endswith('_matrix') and
                                                                not layer.endswith('_ambiguous'))]
 
-    mapper = {'X_spliced': 'M_s', 'X_unspliced': 'M_u', 'X_new': 'M_n', 'X_old': 'M_o', 'X_total': 'M_t',
-              'X_uu': 'M_uu', 'X_ul': 'M_ul', 'X_su': 'M_su', 'X_sl': 'M_sl', 'X_protein': 'M_p'}
     for layer in layers:
         layer_X = adata.layers[layer]
 
@@ -274,3 +275,4 @@ def smoother(adata, use_mnn=False, layers='all'):
         adata.obsm[mapper['X_protein']] = kNN.dot(adata.obsm['X_protein'])
 
     return adata
+
