@@ -83,7 +83,7 @@ def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=False, n_pca_c
     if method == 'analytical':
         kmc = KernelMarkovChain()
         n = X.shape[1] if n_pca_components is None else n_pca_components
-        kmc_args = {"n_recurse_neighbors": 2, "M_diff": 1 * np.eye(n), "epsilon": None, "adaptive_local_kernel": True, "tol": 1e-7}
+        kmc_args = {"n_recurse_neighbors": 2, "M_diff": 0.2, "epsilon": None, "adaptive_local_kernel": True, "tol": 1e-7}
         kmc_args.update(kmc_kwargs)
 
         # number of kNN in neighbor_idx may be too small

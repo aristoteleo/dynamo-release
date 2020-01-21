@@ -74,7 +74,10 @@ def compute_drift_kernel(x, v, X, inv_s):
     k = np.zeros(n)
     for i in range(n):
         d = X[i] - x
-        k[i] = np.exp(-0.25 * (d - v) @ inv_s @ (d - v).T)
+        if np.isscalar(inv_s):
+            k[i] = np.exp(-0.25 * inv_s * (d-v).dot(d-v))
+        else:
+            k[i] = np.exp(-0.25 * (d-v) @ inv_s @ (d-v).T)
     return k
 
 
@@ -119,14 +122,17 @@ def compute_drift_local_kernel(x, v, X, inv_s):
         tau = np.mean(dists[i_dir] / vds[i_dir])
         if tau > 1e2: tau = 1e2
         tau_v = tau * v
-        tau_invs = (1 / (tau * np.linalg.norm(v))) * inv_s
+        tau_invs = (1 / (tau * v.dot(v))) * inv_s
     else:
         tau_v = 0
-        tau_invs = (1 / (1e2 * np.linalg.norm(v))) * inv_s
+        tau_invs = (1 / (1e2 * v.dot(v))) * inv_s
     for i in range(n):
         d = D[i]
-        k[i] = np.exp(-0.25 * (d - tau_v) @ tau_invs @ (d - tau_v).T)
-    return k, tau_invs
+        if np.isscalar(tau_invs):
+            k[i] = np.exp(-0.25 * tau_invs * (d-tau_v).dot(d-tau_v))
+        else:
+            k[i] = np.exp(-0.25 * (d-tau_v) @ tau_invs @ (d-tau_v).T)
+    return k
 
 
 @jit(nopython=True)
@@ -362,13 +368,16 @@ class KernelMarkovChain(MarkovChain):
             D = np.sum(self.Kd, 0)
 
         # compute transition prob.
-        inv_s = np.linalg.inv(M_diff)
+        if np.isscalar(M_diff):
+            inv_s = 1/M_diff
+        else:
+            inv_s = np.linalg.inv(M_diff)
         for i in range(n):
             y = X[i]
             v = V[i]
             Y = X[self.Idx[i]]
             if adaptive_local_kernel:
-                k, tau = compute_drift_local_kernel(y, v, Y, inv_s)
+                k = compute_drift_local_kernel(y, v, Y, inv_s)
             else:
                 k = compute_drift_kernel(y, v, Y, inv_s)
             if epsilon is not None:
