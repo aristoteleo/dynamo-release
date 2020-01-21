@@ -4,7 +4,7 @@ from sklearn.utils import sparsefuncs
 import warnings
 from scipy.sparse import issparse, csr_matrix
 from sklearn.decomposition import TruncatedSVD, FastICA
-from .utilities import cook_dist, get_layer_keys
+from .utils import cook_dist, get_layer_keys, get_shared_counts
 
 def szFactor(adata, layers='all', total_layers=None, locfunc=np.nanmean, round_exprs=True, method='mean-geometric-mean-total'):
     """Calculate the size factor of the each cell using geometric mean of total UMI across cells for a AnnData object.
@@ -37,7 +37,7 @@ def szFactor(adata, layers='all', total_layers=None, locfunc=np.nanmean, round_e
         total = None
         for t_key in total_layers:
             total = adata.layers[t_key] if total is None else total + adata.layers[t_key]
-        adata['total_'] = total
+        adata.layers['_total_'] = total
 
     layers = get_layer_keys(adata, layers)
     if 'raw' in layers and adata.raw is None:
@@ -80,10 +80,9 @@ def szFactor(adata, layers='all', total_layers=None, locfunc=np.nanmean, round_e
             adata.obs['Size_Factor'] = sfs
         elif layer is 'total_':
             adata.obs['total_Size_Factor'] = sfs
+            del adata.layers['_total_']
         else:
             adata.obs[layer + '_Size_Factor'] = sfs
-    if total_layers is not None and len(set(adata.layers.keys()).difference(total_layers)) == 0:
-        del adata.layers['total_']
 
     return adata
 
@@ -630,7 +629,7 @@ def SVRs(adata, filter_bool=None, layers='X', total_szfactor=None, min_expr_cell
 
 
 def filter_cells(adata, filter_bool=None, layer='all', keep_filtered=False, min_expr_genes_s=50, min_expr_genes_u=25, min_expr_genes_p=1,
-                 max_expr_genes_s=np.inf, max_expr_genes_u=np.inf, max_expr_genes_p=np.inf):
+                 max_expr_genes_s=np.inf, max_expr_genes_u=np.inf, max_expr_genes_p=np.inf, shared_count=None):
     """Select valid cells based on a collection of filters.
 
     Parameters
@@ -655,6 +654,8 @@ def filter_cells(adata, filter_bool=None, layer='all', keep_filtered=False, min_
             Maximal number of genes with expression for a cell in the data from the unspliced layer.
         max_expr_genes_p: `float` (default: `np.inf`)
             Maximal number of protein with expression for a cell in the data from the protein layer.
+        shared_count: `float` (default: `30`)
+            The minimal shared number of counts for each cell across genes between layers.
 
     Returns
     -------
@@ -674,6 +675,10 @@ def filter_cells(adata, filter_bool=None, layer='all', keep_filtered=False, min_
     if ("protein" in adata.obsm.keys()) & (layer is 'protein' or layer is 'all'):
         detected_bool = detected_bool & (((adata.obsm['protein'] > 0).sum(1) > min_expr_genes_p) & ((adata.obsm['protein'] > 0).sum(1) < max_expr_genes_p)).flatten()
 
+    if shared_count is not None:
+        layers = get_layer_keys(adata, layer, False)
+        detected_bool = detected_bool & get_shared_counts(adata, layers, shared_count, 'cell')
+
     filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
 
     if keep_filtered:
@@ -685,8 +690,8 @@ def filter_cells(adata, filter_bool=None, layer='all', keep_filtered=False, min_
     return adata
 
 
-def filter_genes(adata, filter_bool=None, layer='X', total_szfactor=None, keep_filtered=True, min_cell_s=5, min_cell_u=5, min_cell_p=5,
-                 min_avg_exp_s=1e-2, min_avg_exp_u=1e-4, min_avg_exp_p=1e-4, max_avg_exp=100., sort_by='SVR',
+def filter_genes(adata, filter_bool=None, layer='all', total_szfactor=None, keep_filtered=True, min_cell_s=5, min_cell_u=5, min_cell_p=5,
+                 min_avg_exp_s=1e-2, min_avg_exp_u=1e-4, min_avg_exp_p=1e-4, max_avg_exp=100., shared_count=30, sort_by='SVR',
                  n_top_genes=2000):
     """Select feature genes based on a collection of filters.
 
@@ -716,6 +721,8 @@ def filter_genes(adata, filter_bool=None, layer='X', total_szfactor=None, keep_f
             Minimal average expression across cells for the data in the protein layer.
         max_avg_exp: `float` (default: `100`.)
             Maximal average expression across cells for the data in all layers (also used for X).
+        shared_count: `float` (default: `30`)
+            The minimal shared number of counts for each genes across cell between layers.
         sort_by: `str` (default: `SVR`)
             Which soring method, either SVR, dispersion or Gini index, to be used to select genes.
         n_top_genes: `int` (default: `int`)
@@ -731,10 +738,14 @@ def filter_genes(adata, filter_bool=None, layer='X', total_szfactor=None, keep_f
     detected_bool = np.ones(adata.X.shape[1], dtype=bool)
     detected_bool = (detected_bool) & np.array(((adata.X > 0).sum(0) > min_cell_s) & (adata.X.mean(0) > min_avg_exp_s) & (adata.X.mean(0) < max_avg_exp)).flatten()
 
-    if "spliced" in adata.layers.keys() and layer is 'spliced':
+    if "spliced" in adata.layers.keys() and (layer is 'spliced' or layer is 'all'):
         detected_bool = detected_bool & np.array(((adata.layers['spliced'] > 0).sum(0) > min_cell_s) & (adata.layers['spliced'].mean(0) > min_avg_exp_s) & (adata.layers['spliced'].mean(0) < max_avg_exp)).flatten()
-    if "unspliced" in adata.layers.keys() and layer is 'unspliced':
+    if "unspliced" in adata.layers.keys() and (layer is 'unspliced' or layer is 'all'):
         detected_bool = detected_bool & np.array(((adata.layers['unspliced'] > 0).sum(0) > min_cell_u) & (adata.layers['unspliced'].mean(0) > min_avg_exp_u) & (adata.layers['unspliced'].mean(0) < max_avg_exp)).flatten()
+    if shared_count is not None:
+        layers = get_layer_keys(adata, 'all', False)
+        detected_bool = detected_bool & get_shared_counts(adata, layers, shared_count, 'gene')
+
     ############################## The following code need to be updated ##############################
     # just remove genes that are not following the protein criteria
     if "protein" in adata.obsm.keys() and layer is 'protein':
@@ -824,21 +835,25 @@ def recipe_monocle(adata, normalized=None, layer=None, total_layers=None, genes_
             A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions, etc.
     """
 
-    # automatically detect whether the data is normalized (only works for readcounts / UMI based data).
+    _szFactor, _logged = False, False
     if normalized is None:
-        normalized = not np.allclose((adata.X.data[:20] if issparse(adata.X) else adata.X[:, 0]) % 1, 0, atol=1e-3)
-    if not normalized:
+        # automatically detect whether the data is size-factor normalized -- no integers (only works for readcounts / UMI based data).
+        _szFactor = not np.allclose((adata.X.data[:20] if issparse(adata.X) else adata.X[:, 0]) % 1, 0, atol=1e-3)
+        # check whether total UMI is the same -- if not the same, logged
+        if _szFactor: _logged = not np.allclose(np.sum(adata.X.sum(1)[np.random.choice(adata.n_obs, 10)] - adata.X.sum(1)[0]), 0, atol=1e-1)
+
+    if not _szFactor or 'Size_Factor' not in adata.var_keys():
         adata = szFactor(adata, total_layers=total_layers)
-        adata = Dispersion(adata)
+        if feature_selection == 'Dispersion': adata = Dispersion(adata)
 
     filter_cells_kwargs = {"filter_bool": None, "layer": 'all', "min_expr_genes_s": 50, "min_expr_genes_u": 25, "min_expr_genes_p": 1,
-                 "max_expr_genes_s": np.inf, "max_expr_genes_u": np.inf, "max_expr_genes_p": np.inf}
+                 "max_expr_genes_s": np.inf, "max_expr_genes_u": np.inf, "max_expr_genes_p": np.inf, "shared_count": None}
     if fc_kwargs is not None: filter_cells_kwargs.update(fc_kwargs)
 
     adata = filter_cells(adata, keep_filtered=keep_filtered_cells, **filter_cells_kwargs)
 
     filter_genes_kwargs = {"filter_bool": None, "layer": 'X', "min_cell_s": 5, "min_cell_u": 5, "min_cell_p": 5,
-                 "min_avg_exp_s": 1e-2, "min_avg_exp_u": 1e-4, "min_avg_exp_p": 1e-4, "max_avg_exp": 100.}
+                 "min_avg_exp_s": 1e-2, "min_avg_exp_u": 1e-4, "min_avg_exp_p": 1e-4, "max_avg_exp": 100., "shared_count": 30}
     if fg_kwargs is not None: filter_genes_kwargs.update(fg_kwargs)
 
     # set use_for_dynamo
@@ -849,7 +864,7 @@ def recipe_monocle(adata, normalized=None, layer=None, total_layers=None, genes_
         if not keep_filtered_genes:
             adata = adata[:, adata.var['use_for_dynamo']]
 
-    if not normalized:
+    if not _logged:
         total_szfactor = 'total_Size_Factor' if total_layers is not None else None
         adata = normalize_expr_data(adata, total_szfactor=total_szfactor, norm_method=norm_method, pseudo_expr=pseudo_expr,
                                     relative_expr=relative_expr, keep_filtered=keep_filtered_genes)

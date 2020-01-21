@@ -237,7 +237,7 @@ def velocity_on_grid(X_emb, V_emb, xy_grid_nums, density=None, smooth=None, n_ne
         if V_threshold is not None:
             V_grid[0][mass.reshape(V_grid[0].shape) < V_threshold] = np.nan
     else:
-        from ..plot.utilities import quiver_autoscaler
+        from ..plot.utils import quiver_autoscaler
 
         if min_mass is None: min_mass = np.clip(np.percentile(p_mass, 99) / 100, 1e-2, 1)
         X_grid, V_grid = X_grid[p_mass > min_mass], V_grid[p_mass > min_mass]
@@ -391,7 +391,7 @@ class KernelMarkovChain(MarkovChain):
     def compute_drift(self, X, num_prop=1):
         n = self.get_num_states()
         V = np.zeros_like(X)
-        P = self.propagate_P(num_prop)
+        P = self.propagate_P(int(num_prop))
         for i in range(n):
             V[i] = (X - X[i]).T.dot(P[:, i].A.flatten())
         return V

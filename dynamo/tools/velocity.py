@@ -1014,7 +1014,7 @@ class estimation:
                             intercept, perc_left, perc_right)
                 self.parameters['delta'], self.aux_param['delta_intercept'], self.aux_param['delta_r2'] = delta, delta_intercept, delta_r2
 
-    def fit_gamma_steady_state(self, u, s, intercept=True, perc_left=5, perc_right=5):
+    def fit_gamma_steady_state(self, u, s, intercept=True, perc_left=5, perc_right=5, normalize=True):
         """Estimate gamma using linear regression based on the steady state assumption.
 
         Arguments
@@ -1045,11 +1045,21 @@ class estimation:
         s = s.A.flatten() if issparse(s) else s.flatten()
 
         n = len(u)
+
         i_left = np.int(perc_left/100.0*n) if perc_left is not None else n
         i_right = np.int((100-perc_right)/100.0*n) if perc_right is not None else 0
+
         mask = np.zeros(n, dtype=bool)
         mask[:i_left] = mask[i_right:] = True
-        extreme_ind = np.argsort(s + u)[mask]
+
+        if normalize:
+            su = s / np.clip(np.max(s), 1e-3, None)
+            su += u / np.clip(np.max(u), 1e-3, None)
+        else:
+            su = s + u
+            
+        extreme_ind = np.argsort(su)[mask]
+
         return fit_linreg(s[extreme_ind], u[extreme_ind], intercept)
 
     def fit_beta_gamma_lsq(self, t, U, S):

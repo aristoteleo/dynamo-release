@@ -30,7 +30,10 @@ from .Ao import Ao_pot_map
 from .fate import Fate, fate
 
 # dimension reduction related
-from .dimension_reduction import extract_indices_dist_from_graph, umap_conn_indices_dist_embedding, reduceDimension
+from .dimension_reduction import reduceDimension
+
+# mnn related
+from .connectivity import mnn, smoother
 
 # Pseudotime related
 from .DDRTree import DDRTree_py as DDRTree
