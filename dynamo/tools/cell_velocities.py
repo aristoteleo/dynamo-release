@@ -24,6 +24,12 @@ def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=False, n_pca_c
             `M_s`.
         vkey: 'str' (optional, default `velocity`)
             The dictionary key that corresponds to the estimated velocity values in layers attribute.
+        use_mnn: `bool` (optional, default `False`)
+            Whether to use mutual nearest neighbors for projecting the high dimensional velocity vectors.
+        n_pca_components: `int` (optional, default `25`)
+            The number of pca components to project the high dimensional X, V before calculating transition matrix for velocity visualization.
+        min_r2: `float` (optional, default `0.5`)
+            The minimal value of r-squared of the gamma fit for selecting velocity genes.
         basis: 'int' (optional, default `umap`)
             The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
         method: `string` (optimal, default `analytical`)
@@ -68,9 +74,9 @@ def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=False, n_pca_c
                                    adata.uns['neighbors']['indices']
 
     if 'use_for_dynamo' in adata.var.keys():
-        adata = set_velocity_genes(adata, vkey='velocity_S', min_r2=0.5, use_for_dynamo=True)
+        adata = set_velocity_genes(adata, vkey='velocity_S', min_r2=min_r2, use_for_dynamo=True)
     else:
-        adata = set_velocity_genes(adata, vkey='velocity_S', min_r2=0.5, use_for_dynamo=False)
+        adata = set_velocity_genes(adata, vkey='velocity_S', min_r2=min_r2, use_for_dynamo=False)
 
     X = adata[:, adata.var.use_for_velocity.values].layers[ekey]
     V_mat = adata[:, adata.var.use_for_velocity.values].layers[vkey] if vkey in adata.layers.keys() else None
@@ -78,11 +84,12 @@ def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=False, n_pca_c
     X_embedding = adata.obsm['X_'+basis][:, :2]
     V_mat = V_mat.A if issparse(V_mat) else V_mat
     X = X.A if issparse(X) else X
+    finite_ind = np.isfinite(V_mat.sum(0))
+    X, V_mat = X[:, finite_ind], V_mat[:, finite_ind]
 
     # add both source and sink distribution
     if method == 'analytical':
         kmc = KernelMarkovChain()
-        n = X.shape[1] if n_pca_components is None else n_pca_components
         kmc_args = {"n_recurse_neighbors": 2, "M_diff": 0.2, "epsilon": None, "adaptive_local_kernel": True, "tol": 1e-7}
         kmc_args.update(kmc_kwargs)
 

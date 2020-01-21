@@ -994,9 +994,10 @@ class estimation:
                         # gamma_3 = solve_gamma(np.max(self.t), self.data['uu'][i, self.t == np.max(self.t)], tmp) # sci-fate
                         gamma[i] = gamma_2
                         # print('Steady state, stimulation, sci-fate like gamma values are ', gamma_1, '; ', gamma_2, '; ', gamma_3)
-                    self.parameters['gamma'], self.aux_param['U0'] = gamma, U
+                    self.parameters['gamma'], self.aux_param['U0'], self.parameters['beta'] = gamma, U, np.ones(gamma.shape)
                     # alpha estimation
                     self.parameters['alpha'] = self.solve_alpha_mix_std_stm(self.t, self.data['ul'], self.parameters['gamma'])
+
         # fit protein
         if np.all(self._exist_data('p', 'su')):
             ind_for_proteins = self.ind_for_proteins
