@@ -1031,6 +1031,8 @@ class estimation:
             The percentage of samples included in the linear regression in the left tail. If set to None, then all the samples are included.
         perc_right: float
             The percentage of samples included in the linear regression in the right tail. If set to None, then all the samples are included.
+        normalize: bool
+            Whether to first normalize the
 
         Returns
         -------
@@ -1057,7 +1059,7 @@ class estimation:
             su += u / np.clip(np.max(u), 1e-3, None)
         else:
             su = s + u
-            
+
         extreme_ind = np.argsort(su)[mask]
 
         return fit_linreg(s[extreme_ind], u[extreme_ind], intercept)

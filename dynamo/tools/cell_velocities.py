@@ -5,7 +5,7 @@ from .Markov import *
 from .connectivity import extract_indices_dist_from_graph
 from .utils import set_velocity_genes
 
-def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=False, n_pca_components=25, basis='umap', method='analytical', neg_cells_trick=False, calc_rnd_vel=False,
+def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=False, n_pca_components=25, min_r2=0.5, basis='umap', method='analytical', neg_cells_trick=False, calc_rnd_vel=False,
                     xy_grid_nums=(50, 50), correct_density=True, sample_fraction=None, random_seed=19491001, **kmc_kwargs):
     """Compute transition probability and project high dimension velocity vector to existing low dimension embedding.
 
@@ -68,9 +68,9 @@ def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=False, n_pca_c
                                    adata.uns['neighbors']['indices']
 
     if 'use_for_dynamo' in adata.var.keys():
-        adata = set_velocity_genes(adata, vkey='velocity_S', min_r2=0.1, use_for_dynamo=True)
+        adata = set_velocity_genes(adata, vkey='velocity_S', min_r2=0.5, use_for_dynamo=True)
     else:
-        adata = set_velocity_genes(adata, vkey='velocity_S', min_r2=0.1, use_for_dynamo=False)
+        adata = set_velocity_genes(adata, vkey='velocity_S', min_r2=0.5, use_for_dynamo=False)
 
     X = adata[:, adata.var.use_for_velocity.values].layers[ekey]
     V_mat = adata[:, adata.var.use_for_velocity.values].layers[vkey] if vkey in adata.layers.keys() else None
