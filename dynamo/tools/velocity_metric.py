@@ -1,4 +1,6 @@
 import numpy as np
+import import scipy as sp
+import numdifftools as nd
 from scipy.stats import pearsonr
 from scipy.spatial.distance import cosine
 from scipy.sparse import issparse
@@ -84,9 +86,18 @@ def cell_wise_confidence(adata, ekey='M_s', vkey='velocity_S', method='jaccard')
     return adata
 
 
-def curl():
-    pass
+def curl(f,x):
+    jac = nd.Jacobian(f)(x)
+    return sp.array([jac[1,0]-jac[0,1]]) # 2D curl
 
-def divergence():
-    pass
 
+def divergence(f):
+    num_dims = len(f)
+    return np.ufunc.reduce(np.add, [np.gradient(f[i], axis=i) for i in range(num_dims)])
+
+
+if __name__ == "__main__":
+    plt.pcolormesh(x, y, g)
+    plt.colorbar()
+    plt.savefig( 'Div' + str(NY) +'.png', format = 'png')
+    plt.show()
