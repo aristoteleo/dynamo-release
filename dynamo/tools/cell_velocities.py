@@ -22,7 +22,7 @@ def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=False, n_pca_c
         ekey: `str` (optional, default `M_s`)
             The dictionary key that corresponds to the gene expression in the layer attribute. By default, it is the smoothed expression
             `M_s`.
-        vkey: 'str' (optional, default `velocity`)
+        vkey: 'str' (optional, default `velocity_S`)
             The dictionary key that corresponds to the estimated velocity values in layers attribute.
         use_mnn: `bool` (optional, default `False`)
             Whether to use mutual nearest neighbors for projecting the high dimensional velocity vectors.

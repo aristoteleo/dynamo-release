@@ -15,16 +15,15 @@ def cell_wise_confidence(adata, ekey='X', vkey='velocity_S', method='jaccard'):
             an Annodata object.
         ekey: `str` (optional, default `M_s`)
             The dictionary key that corresponds to the gene expression in the layer attribute. By default, it is the
-            smoothed expression
-            `M_s`.
-        vkey: 'str' (optional, default `velocity`)
+            smoothed expression `M_s`.
+        vkey: 'str' (optional, default `velocity_S`)
             The dictionary key that corresponds to the estimated velocity values in layers attribute.
         method: `str` (optional, default `jaccard`)
             Which method will be used for calculating the cell wise velocity confidence metric. By default it uses
             `jaccard` index, which measures how well each velocity vector meets the geometric constraints defined by the
             local neighborhood structure. Jaccard index is calculated as the fraction of the number of the intersected
             set of nearest neighbors from each cell at current expression state (X) and that from the future expression
-            state (X + V) over the number of the union of this two sets. The `cosine` or `correlation` method is similar
+            state (X + V) over the number of the union of these two sets. The `cosine` or `correlation` method is similar
             to that used by scVelo (https://github.com/theislab/scvelo).
 
     Returns
@@ -58,8 +57,8 @@ def cell_wise_confidence(adata, ekey='X', vkey='velocity_S', method='jaccard'):
         confidence = np.zeros(adata.n_obs)
         for i in range(adata.n_obs):
             neigh_ids = indices[i]
-            confidence[i] = np.mean([pearsonr(X[i].A.flatten(), V[j][0].A.flatten())[0] for j in neigh_ids])
-            
+            confidence[i] = np.mean([pearsonr(X[i].A.flatten(), V[j].A.flatten())[0] for j in neigh_ids])
+
     else:
         raise Exception('The input {} method for cell-wise velocity confidence calculation is not implemented'
                         ' yet'.format(method))
