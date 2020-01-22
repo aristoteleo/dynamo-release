@@ -6,7 +6,7 @@ from .connectivity import umap_conn_indices_dist_embedding, mnn_from_list
 from .utils import get_finite_inds
 
 
-def cell_wise_confidence(adata, ekey='X', vkey='velocity_S', method='jaccard'):
+def cell_wise_confidence(adata, ekey='M_s', vkey='velocity_S', method='jaccard'):
     """ Calculate the cell-wise velocity confidence metric.
 
     Parameters
@@ -38,10 +38,23 @@ def cell_wise_confidence(adata, ekey='X', vkey='velocity_S', method='jaccard'):
     finite_inds = get_finite_inds(V, 0)
     X, V = X[:, finite_inds], V[:, finite_inds]
     if method == 'jaccard':
-        V_neighbors, _, _, _ = umap_conn_indices_dist_embedding(X + V, n_neighbors=n_neigh)
+        from sklearn.decomposition import TruncatedSVD
 
-        union_ = X_neighbors + V_neighbors > 0
-        intersect_ = mnn_from_list([X_neighbors, V_neighbors]) > 0
+        n_pca_components = adata.obsm['X_pca'].shape[1]
+        transformer = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)
+        Xt = X + V
+        if issparse(Xt):
+            Xt.data[Xt.data < 0] = 0
+            Xt.data = np.log2(Xt.data + 1)
+        else:
+            Xt = np.log2(Xt + 1)
+        X_fit = transformer.fit(Xt)
+        Xt_pca = X_fit.transform(Xt)[:, 1:]
+
+        V_neighbors, _, _, _ = umap_conn_indices_dist_embedding(Xt_pca, n_neighbors=n_neigh)
+        X_neighbors_, V_neighbors_ = X_neighbors.dot(X_neighbors), V_neighbors.dot(V_neighbors)
+        union_ = X_neighbors_ + V_neighbors_ > 0
+        intersect_ = mnn_from_list([X_neighbors_, V_neighbors_]) > 0
 
         confidence = (intersect_.sum(1) / union_.sum(1)).A1 if issparse(X) else intersect_.sum(1) / union_.sum(1)
 
@@ -50,7 +63,7 @@ def cell_wise_confidence(adata, ekey='X', vkey='velocity_S', method='jaccard'):
         confidence = np.zeros(adata.n_obs)
         for i in range(adata.n_obs):
             neigh_ids = indices[i]
-            confidence[i] = np.mean([cosine(X[i].A.flatten(), V[j][0].A.flatten()) for j in neigh_ids])
+            confidence[i] = np.mean([cosine(X[i].A.flatten(), V[j].A.flatten()) for j in neigh_ids])
 
     elif method == 'correlation':
         indices = adata.uns['neighbors']['indices']
@@ -59,6 +72,9 @@ def cell_wise_confidence(adata, ekey='X', vkey='velocity_S', method='jaccard'):
             neigh_ids = indices[i]
             confidence[i] = np.mean([pearsonr(X[i].A.flatten(), V[j].A.flatten())[0] for j in neigh_ids])
 
+    elif method == 'divergence':
+        pass
+
     else:
         raise Exception('The input {} method for cell-wise velocity confidence calculation is not implemented'
                         ' yet'.format(method))
@@ -66,3 +82,11 @@ def cell_wise_confidence(adata, ekey='X', vkey='velocity_S', method='jaccard'):
     adata.obs['confidence'] = confidence
 
     return adata
+
+
+def curl():
+    pass
+
+def divergence():
+    pass
+
