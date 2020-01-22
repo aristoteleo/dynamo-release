@@ -173,7 +173,9 @@ def mnn_from_list(knn_graph_list):
     """Apply reduce function to calculate the mutual kNN.
     """
     import functools
-    mnn = functools.reduce(scipy.sparse.csr.csr_matrix.minimum, knn_graph_list)
+    mnn = functools.reduce(scipy.sparse.csr.csr_matrix.minimum, knn_graph_list) if issparse(knn_graph_list[0]) else \
+        functools.reduce(scipy.minimum, knn_graph_list)
+
     return mnn
 
 

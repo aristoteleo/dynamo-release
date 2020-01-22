@@ -11,6 +11,11 @@ def get_mapper():
               'X_uu': 'M_uu', 'X_ul': 'M_ul', 'X_su': 'M_su', 'X_sl': 'M_sl', 'X_protein': 'M_p', 'X': 'M_s'}
     return mapper
 
+def get_finite_inds(X, ax=0):
+    finite_inds = np.isfinite(X.sum(ax).A1) if issparse(X) else np.isfinite(X.sum(ax))
+
+    return finite_inds
+
 # ---------------------------------------------------------------------------------------------------
 # moment related:
 def cal_12_mom(data, t):

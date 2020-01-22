@@ -3,7 +3,7 @@ from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import PCA
 from .Markov import *
 from .connectivity import extract_indices_dist_from_graph
-from .utils import set_velocity_genes
+from .utils import set_velocity_genes, get_finite_inds
 
 def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=False, n_pca_components=25, min_r2=0.5, basis='umap', method='analytical', neg_cells_trick=False, calc_rnd_vel=False,
                     xy_grid_nums=(50, 50), correct_density=True, sample_fraction=None, random_seed=19491001, **kmc_kwargs):
@@ -84,8 +84,8 @@ def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=False, n_pca_c
     X_embedding = adata.obsm['X_'+basis][:, :2]
     V_mat = V_mat.A if issparse(V_mat) else V_mat
     X = X.A if issparse(X) else X
-    finite_ind = np.isfinite(V_mat.sum(0))
-    X, V_mat = X[:, finite_ind], V_mat[:, finite_ind]
+    finite_inds = get_finite_inds(V_mat)
+    X, V_mat = X[:, finite_inds], V_mat[:, finite_inds]
 
     # add both source and sink distribution
     if method == 'analytical':
