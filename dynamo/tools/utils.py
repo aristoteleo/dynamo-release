@@ -292,7 +292,7 @@ def get_U_S_for_velocity_estimation(subset_adata, use_smoothed, has_splicing, ha
                     sl = np.log(sl + 1) if log_unnormalized else sl
             ul, sl = (ul + sl , uu + ul + su + sl) if NTR else (ul, sl)
         else:
-            if 'X_unspliced' in subset_adata.layers.keys():  # unlabel spliced: S
+            if ('X_unspliced' in subset_adata.layers.keys()) or (mapper['X_unspliced'] in subset_adata.layers.keys()):  # unlabel spliced: S
                 if use_smoothed:
                     ul, sl = subset_adata.layers[mapper['X_unspliced']].T, subset_adata.layers[mapper['X_spliced']].T
                 else:
@@ -307,7 +307,7 @@ def get_U_S_for_velocity_estimation(subset_adata, use_smoothed, has_splicing, ha
                     sl = np.log(sl + 1) if log_unnormalized else sl
         U, S = ul, sl
     else:
-        if 'X_new' in subset_adata.layers.keys():  # run new / total ratio (NTR)
+        if ('X_new' in subset_adata.layers.keys()) or (mapper['X_new'] in subset_adata.layers.keys):  # run new / total ratio (NTR)
             if use_smoothed:
                 U = subset_adata.layers[mapper['X_new']].T
                 S = subset_adata.layers[mapper['X_total']].T if NTR else subset_adata.layers[mapper['X_total']].T - subset_adata.layers[mapper['X_new']].T

@@ -1,5 +1,5 @@
 import numpy as np
-import import scipy as sp
+import scipy as sp
 import numdifftools as nd
 from scipy.stats import pearsonr
 from scipy.spatial.distance import cosine
@@ -97,7 +97,8 @@ def divergence(f):
 
 
 if __name__ == "__main__":
-    plt.pcolormesh(x, y, g)
-    plt.colorbar()
-    plt.savefig( 'Div' + str(NY) +'.png', format = 'png')
-    plt.show()
+    import matplotlib.pyplot as plt
+    # plt.pcolormesh(x, y, g)
+    # plt.colorbar()
+    # plt.savefig( 'Div' + str(NY) +'.png', format = 'png')
+    # plt.show()
