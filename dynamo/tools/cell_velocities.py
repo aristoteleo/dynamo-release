@@ -3,9 +3,9 @@ from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import PCA
 from .Markov import *
 from .connectivity import extract_indices_dist_from_graph
-from .utils import set_velocity_genes, get_finite_inds
+from .utils import set_velocity_genes, get_finite_inds, get_ekey_vkey_from_adata
 
-def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=False, n_pca_components=25, min_r2=0.5, basis='umap', method='analytical', neg_cells_trick=False, calc_rnd_vel=False,
+def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, n_pca_components=25, min_r2=0.5, basis='umap', method='analytical', neg_cells_trick=False, calc_rnd_vel=False,
                     xy_grid_nums=(50, 50), correct_density=True, sample_fraction=None, random_seed=19491001, **kmc_kwargs):
     """Compute transition probability and project high dimension velocity vector to existing low dimension embedding.
 
@@ -19,13 +19,14 @@ def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=False, n_pca_c
     ---------
         adata: :class:`~anndata.AnnData`
             an Annodata object.
-        ekey: `str` (optional, default `M_s`)
-            The dictionary key that corresponds to the gene expression in the layer attribute. By default, it is the smoothed expression
-            `M_s`.
-        vkey: 'str' (optional, default `velocity_S`)
+        ekey: `str` or None (optional, default `None`)
+            The dictionary key that corresponds to the gene expression in the layer attribute. By default, ekey and vkey will be automatically
+            detected from the adata object.
+        vkey: 'str' or None (optional, default `None`)
             The dictionary key that corresponds to the estimated velocity values in layers attribute.
         use_mnn: `bool` (optional, default `False`)
-            Whether to use mutual nearest neighbors for projecting the high dimensional velocity vectors.
+            Whether to use mutual nearest neighbors for projecting the high dimensional velocity vectors. By default, we don't use the mutual
+            nearest neighbors. 
         n_pca_components: `int` (optional, default `25`)
             The number of pca components to project the high dimensional X, V before calculating transition matrix for velocity visualization.
         min_r2: `float` (optional, default `0.5`)
@@ -62,6 +63,8 @@ def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=False, n_pca_c
             in the existing embedding of current cell state, calculated using either the Itô kernel method (default) or the diffusion
             approximation or the method from (La Manno et al. 2018).
     """
+
+    ekey, vkey = get_ekey_vkey_from_adata(adata) if (ekey is None or vkey is None) else (ekey, vkey)
 
     if calc_rnd_vel:
         numba_random_seed(random_seed)

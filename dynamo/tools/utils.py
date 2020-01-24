@@ -275,8 +275,8 @@ def get_U_S_for_velocity_estimation(subset_adata, use_smoothed, has_splicing, ha
                     uu, ul, su, sl = subset_adata.layers[mapper['X_uu']].T, subset_adata.layers[mapper['X_ul']].T, \
                                      subset_adata.layers[mapper['X_su']].T, subset_adata.layers[mapper['X_sl']].T
                 else:
-                    uu, ul, su, sl = subset_adata.layers[mapper['X_uu']].T, subset_adata.layers[mapper['X_ul']].T, \
-                                     subset_adata.layers[mapper['X_su']].T, subset_adata.layers[mapper['X_sl']].T
+                    uu, ul, su, sl = subset_adata.layers['X_uu'].T, subset_adata.layers['X_ul'].T, \
+                                     subset_adata.layers['X_su'].T, subset_adata.layers['X_sl'].T
             else:
                 uu, ul, su, sl = subset_adata.layers['uu'].T, subset_adata.layers['ul'].T, \
                                  subset_adata.layers['su'].T, subset_adata.layers['sl'].T
@@ -290,7 +290,7 @@ def get_U_S_for_velocity_estimation(subset_adata, use_smoothed, has_splicing, ha
                     ul = np.log(ul + 1) if log_unnormalized else ul
                     su = np.log(su + 1) if log_unnormalized else su
                     sl = np.log(sl + 1) if log_unnormalized else sl
-            ul, sl = (ul + sl , uu + ul + su + sl) if NTR else (ul, sl)
+            ul, sl = (ul + sl, uu + ul + su + sl) if NTR else (ul, sl)
         else:
             if ('X_unspliced' in subset_adata.layers.keys()) or (mapper['X_unspliced'] in subset_adata.layers.keys()):  # unlabel spliced: S
                 if use_smoothed:
@@ -434,3 +434,66 @@ def set_velocity_genes(adata, vkey='velocity_S', min_r2=0.1, use_for_dynamo=True
 
     return adata
 
+def get_ekey_vkey_from_adata(adata):
+
+    dynamics_key = [i for i in adata.uns.keys() if i.endswith('dynamics')][0]
+    experiment_type, use_smoothed = adata.uns[dynamics_key]['experiment_type'], adata.uns[dynamics_key]['use_smoothed']
+    has_splicing, has_labeling = adata.uns[dynamics_key]['has_splicing'], adata.uns[dynamics_key]['has_labeling']
+    NTR = adata.uns[dynamics_key]['NTR_vel']
+
+    mapper = get_mapper()
+
+    if has_splicing:
+        if has_labeling:
+            if 'X_uu' in adata.layers.keys():  # unlabel spliced: S
+                if use_smoothed:
+                    uu, ul, su, sl = adata.layers[mapper['X_uu']], adata.layers[mapper['X_ul']], adata.layers[mapper['X_su']], adata.layers[mapper['X_sl']]
+                    ul, sl = (ul + sl, uu + ul + su + sl) if NTR else (ul, sl)
+                    adata.layers['M_U'], adata.layers['M_S'] = ul, sl
+                else:
+                    uu, ul, su, sl = adata.layers['X_uu'], adata.layers['X_ul'], adata.layers['X_su'], adata.layers['X_sl']
+                    ul, sl = (ul + sl, uu + ul + su + sl) if NTR else (ul, sl)
+                    adata.layers['X_U'], adata.layers['X_S'] = ul, sl
+            else:
+                raise Exception('The input data you have is not normalized/log trnasformed or smoothed and normalized/log trnasformed!')
+
+            if experiment_type == 'kinetics':
+                ekey, vkey = ('M_U', 'velocity_U') if use_smoothed else ('X_U', 'velocity_U')
+            elif experiment_type == 'degradation':
+                ekey, vkey = ('M_S', 'velocity_S') if use_smoothed else ('X_S', 'velocity_S')
+            elif experiment_type == 'one_shot':
+                ekey, vkey = ('M_U', 'velocity_U') if use_smoothed else ('X_U', 'velocity_U')
+            elif experiment_type == 'mix_std_stm':
+                ekey, vkey = ('M_S', 'velocity_U') if use_smoothed else ('X_U', 'velocity_U')
+        else:
+            if ('X_unspliced' in adata.layers.keys()) or (mapper['X_unspliced'] in adata.layers.keys()):  # unlabel spliced: S
+                if use_smoothed:
+                    ul, sl = mapper['X_unspliced'], mapper['X_spliced']
+                else:
+                    ul, sl = 'X_unspliced', 'X_spliced'
+            else:
+                raise Exception('The input data you have is not normalized/log trnasformed or smoothed and normalized/log trnasformed!')
+            ekey, vkey = ('M_s', 'velocity_S') if use_smoothed else ('X_spliced', 'velocity_S')
+    else:
+        if ('X_new' in adata.layers.keys()) or (mapper['X_new'] in adata.layers.keys):  # run new / total ratio (NTR)
+            # if use_smoothed:
+            #     U = adata.layers[mapper['X_new']].T
+            #     S = adata.layers[mapper['X_total']].T if NTR else adata.layers[mapper['X_total']].T - adata.layers[mapper['X_new']].T
+            # else:
+            #     U = adata.layers['X_new'].T
+            #     S = adata.layers['X_total'].T if NTR else adata.layers['X_total'].T - adata.layers['X_new'].T
+
+            if experiment_type == 'kinetics':
+                ekey, vkey = (mapper['X_new'], 'velocity_U') if use_smoothed else ('X_new', 'velocity_U')
+            elif experiment_type == 'degradation':
+                ekey, vkey = (mapper['X_total'], 'velocity_S') if use_smoothed else ('X_total', 'velocity_S')
+            elif experiment_type == 'one_shot':
+                ekey, vkey = (mapper['X_new'], 'velocity_U') if use_smoothed else ('X_new', 'velocity_U')
+            elif experiment_type == 'mix_std_stm':
+                ekey, vkey = (mapper['X_new'], 'velocity_U') if use_smoothed else ('X_new', 'velocity_U')
+
+        elif 'new' in adata.layers.keys():
+            raise Exception(
+                'The input data you have is not normalized/log trnasformed or smoothed and normalized/log trnasformed!')
+
+    return ekey, vkey
