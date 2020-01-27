@@ -173,7 +173,9 @@ def mnn_from_list(knn_graph_list):
     """Apply reduce function to calculate the mutual kNN.
     """
     import functools
-    mnn = functools.reduce(scipy.sparse.csr.csr_matrix.minimum, knn_graph_list)
+    mnn = functools.reduce(scipy.sparse.csr.csr_matrix.minimum, knn_graph_list) if issparse(knn_graph_list[0]) else \
+        functools.reduce(scipy.minimum, knn_graph_list)
+
     return mnn
 
 
@@ -254,7 +256,9 @@ def smoother(adata, use_mnn=False, layers='all'):
             adata = mnn(adata, n_pca_components=25, layers='all', use_pca_fit=True, save_all_to_adata=False)
         kNN = adata.uns['mnn']
     else:
-        kNN, _, _, _ = umap_conn_indices_dist_embedding(adata.obsm['X_pca'], n_neighbors=30)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            kNN, _, _, _ = umap_conn_indices_dist_embedding(adata.obsm['X_pca'], n_neighbors=30)
         kNN = normalize_knn_graph(kNN > 0)
 
     layers = get_layer_keys(adata, layers, False)

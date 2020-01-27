@@ -3,9 +3,9 @@ from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import PCA
 from .Markov import *
 from .connectivity import extract_indices_dist_from_graph
-from .utils import set_velocity_genes
+from .utils import set_velocity_genes, get_finite_inds, get_ekey_vkey_from_adata
 
-def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=False, n_pca_components=25, basis='umap', method='analytical', neg_cells_trick=False, calc_rnd_vel=False,
+def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, n_pca_components=25, min_r2=0.5, basis='umap', method='analytical', neg_cells_trick=False, calc_rnd_vel=False,
                     xy_grid_nums=(50, 50), correct_density=True, sample_fraction=None, random_seed=19491001, **kmc_kwargs):
     """Compute transition probability and project high dimension velocity vector to existing low dimension embedding.
 
@@ -19,11 +19,18 @@ def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=False, n_pca_c
     ---------
         adata: :class:`~anndata.AnnData`
             an Annodata object.
-        ekey: `str` (optional, default `M_s`)
-            The dictionary key that corresponds to the gene expression in the layer attribute. By default, it is the smoothed expression
-            `M_s`.
-        vkey: 'str' (optional, default `velocity`)
+        ekey: `str` or None (optional, default `None`)
+            The dictionary key that corresponds to the gene expression in the layer attribute. By default, ekey and vkey will be automatically
+            detected from the adata object.
+        vkey: 'str' or None (optional, default `None`)
             The dictionary key that corresponds to the estimated velocity values in layers attribute.
+        use_mnn: `bool` (optional, default `False`)
+            Whether to use mutual nearest neighbors for projecting the high dimensional velocity vectors. By default, we don't use the mutual
+            nearest neighbors. 
+        n_pca_components: `int` (optional, default `25`)
+            The number of pca components to project the high dimensional X, V before calculating transition matrix for velocity visualization.
+        min_r2: `float` (optional, default `0.5`)
+            The minimal value of r-squared of the gamma fit for selecting velocity genes.
         basis: 'int' (optional, default `umap`)
             The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
         method: `string` (optimal, default `analytical`)
@@ -57,6 +64,8 @@ def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=False, n_pca_c
             approximation or the method from (La Manno et al. 2018).
     """
 
+    ekey, vkey = get_ekey_vkey_from_adata(adata) if (ekey is None or vkey is None) else (ekey, vkey)
+
     if calc_rnd_vel:
         numba_random_seed(random_seed)
 
@@ -68,9 +77,9 @@ def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=False, n_pca_c
                                    adata.uns['neighbors']['indices']
 
     if 'use_for_dynamo' in adata.var.keys():
-        adata = set_velocity_genes(adata, vkey='velocity_S', min_r2=0.1, use_for_dynamo=True)
+        adata = set_velocity_genes(adata, vkey='velocity_S', min_r2=min_r2, use_for_dynamo=True)
     else:
-        adata = set_velocity_genes(adata, vkey='velocity_S', min_r2=0.1, use_for_dynamo=False)
+        adata = set_velocity_genes(adata, vkey='velocity_S', min_r2=min_r2, use_for_dynamo=False)
 
     X = adata[:, adata.var.use_for_velocity.values].layers[ekey]
     V_mat = adata[:, adata.var.use_for_velocity.values].layers[vkey] if vkey in adata.layers.keys() else None
@@ -78,11 +87,12 @@ def cell_velocities(adata, ekey='M_s', vkey='velocity_S', use_mnn=False, n_pca_c
     X_embedding = adata.obsm['X_'+basis][:, :2]
     V_mat = V_mat.A if issparse(V_mat) else V_mat
     X = X.A if issparse(X) else X
+    finite_inds = get_finite_inds(V_mat)
+    X, V_mat = X[:, finite_inds], V_mat[:, finite_inds]
 
     # add both source and sink distribution
     if method == 'analytical':
         kmc = KernelMarkovChain()
-        n = X.shape[1] if n_pca_components is None else n_pca_components
         kmc_args = {"n_recurse_neighbors": 2, "M_diff": 0.2, "epsilon": None, "adaptive_local_kernel": True, "tol": 1e-7}
         kmc_args.update(kmc_kwargs)
 

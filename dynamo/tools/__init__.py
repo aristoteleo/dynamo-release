@@ -15,6 +15,7 @@ from .dynamics import dynamics
 from .velocyto_scvelo import vlm_to_adata, converter, run_velocyto, run_scvelo, mean_var_by_time, run_dynamo, run_dynamo_simple_fit, run_dynamo_labelling, compare_res
 
 # vector field related
+from .velocity_metric import cell_wise_confidence 
 from .scVectorField import SparseVFC, con_K, get_P, VectorField, vector_field_function #, evaluate, con_K_div_cur_free, vector_field_function, vector_field_function_auto, auto_con_K
 
 # Markov chain related:

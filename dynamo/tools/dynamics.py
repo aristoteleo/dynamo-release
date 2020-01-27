@@ -140,5 +140,5 @@ def dynamics(adata, tkey=None, filter_gene_mode='final', mode='deterministic', u
         uns_key = "dynamics"
 
     adata.uns[uns_key] = {'t': t, "group": group, 'asspt_mRNA': assumption_mRNA, 'experiment_type': experiment_type, "normalized": normalized, "mode": mode, "has_splicing": has_splicing,
-                             "has_labeling": has_labeling, "has_protein": has_protein}
+                             "has_labeling": has_labeling, "has_protein": has_protein, "use_smoothed": use_smoothed, "NTR_vel": NTR_vel, "log_unnormalized": log_unnormalized}
     return adata

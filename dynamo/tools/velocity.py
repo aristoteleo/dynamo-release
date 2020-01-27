@@ -177,7 +177,7 @@ def solve_alpha_2p(t0, t1, alpha0, beta, u1):
 
     return alpha1
 
-def fit_linreg(x, y, intercept=True):
+def fit_linreg(x, y, intercept=False):
     """Simple linear regression: y = kx + b.
 
     Arguments
@@ -369,7 +369,7 @@ def fit_alpha_synthesis(t, u, beta):
 
     return beta * np.mean(u) / np.mean(x)
 
-def fit_alpha_degradation(t, u, beta, intercept=True):
+def fit_alpha_degradation(t, u, beta, intercept=False):
     """Estimate alpha with degradation data using linear regression. This is a lsq version of the following function that
     constrains u0 to be larger than 0
 
@@ -410,7 +410,7 @@ def fit_alpha_degradation(t, u, beta, intercept=True):
 
     return alpha, u0, r2
 
-def solve_alpha_degradation(t, u, beta, intercept=True):
+def solve_alpha_degradation(t, u, beta, intercept=False):
     """Estimate alpha with degradation data using linear regression.
 
     Arguments
@@ -839,7 +839,7 @@ class estimation:
                           'delta_r2': None, "uu0": None, "ul0": None, "su0": None, "sl0": None, 'U0': None, 'S0': None, 'total0': None} # note that alpha_intercept also corresponds to u0 in fit_alpha_degradation, similar to fit_first_order_deg_lsq
         self.ind_for_proteins = ind_for_proteins
 
-    def fit(self, intercept=True, perc_left=5, perc_right=5, clusters=None):
+    def fit(self, intercept=False, perc_left=5, perc_right=5, clusters=None):
         """Fit the input data to estimate all or a subset of the parameters
 
         Arguments
@@ -994,9 +994,10 @@ class estimation:
                         # gamma_3 = solve_gamma(np.max(self.t), self.data['uu'][i, self.t == np.max(self.t)], tmp) # sci-fate
                         gamma[i] = gamma_2
                         # print('Steady state, stimulation, sci-fate like gamma values are ', gamma_1, '; ', gamma_2, '; ', gamma_3)
-                    self.parameters['gamma'], self.aux_param['U0'] = gamma, U
+                    self.parameters['gamma'], self.aux_param['U0'], self.parameters['beta'] = gamma, U, np.ones(gamma.shape)
                     # alpha estimation
                     self.parameters['alpha'] = self.solve_alpha_mix_std_stm(self.t, self.data['ul'], self.parameters['gamma'])
+
         # fit protein
         if np.all(self._exist_data('p', 'su')):
             ind_for_proteins = self.ind_for_proteins
@@ -1031,6 +1032,8 @@ class estimation:
             The percentage of samples included in the linear regression in the left tail. If set to None, then all the samples are included.
         perc_right: float
             The percentage of samples included in the linear regression in the right tail. If set to None, then all the samples are included.
+        normalize: bool
+            Whether to first normalize the
 
         Returns
         -------
@@ -1057,7 +1060,7 @@ class estimation:
             su += u / np.clip(np.max(u), 1e-3, None)
         else:
             su = s + u
-            
+
         extreme_ind = np.argsort(su)[mask]
 
         return fit_linreg(s[extreme_ind], u[extreme_ind], intercept)
