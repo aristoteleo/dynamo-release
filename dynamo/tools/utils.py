@@ -464,7 +464,7 @@ def get_ekey_vkey_from_adata(adata):
             elif experiment_type == 'one_shot':
                 ekey, vkey = ('M_U', 'velocity_U') if use_smoothed else ('X_U', 'velocity_U')
             elif experiment_type == 'mix_std_stm':
-                ekey, vkey = ('M_S', 'velocity_U') if use_smoothed else ('X_U', 'velocity_U')
+                ekey, vkey = ('M_U', 'velocity_U') if use_smoothed else ('X_U', 'velocity_U')
         else:
             if ('X_unspliced' in adata.layers.keys()) or (mapper['X_unspliced'] in adata.layers.keys()):  # unlabel spliced: S
                 if use_smoothed:
@@ -476,13 +476,7 @@ def get_ekey_vkey_from_adata(adata):
             ekey, vkey = ('M_s', 'velocity_S') if use_smoothed else ('X_spliced', 'velocity_S')
     else:
         if ('X_new' in adata.layers.keys()) or (mapper['X_new'] in adata.layers.keys):  # run new / total ratio (NTR)
-            # if use_smoothed:
-            #     U = adata.layers[mapper['X_new']].T
-            #     S = adata.layers[mapper['X_total']].T if NTR else adata.layers[mapper['X_total']].T - adata.layers[mapper['X_new']].T
-            # else:
-            #     U = adata.layers['X_new'].T
-            #     S = adata.layers['X_total'].T if NTR else adata.layers['X_total'].T - adata.layers['X_new'].T
-
+            # we may also create M_U, M_S layers? 
             if experiment_type == 'kinetics':
                 ekey, vkey = (mapper['X_new'], 'velocity_U') if use_smoothed else ('X_new', 'velocity_U')
             elif experiment_type == 'degradation':
