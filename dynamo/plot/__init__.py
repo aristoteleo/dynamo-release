@@ -9,5 +9,5 @@ from .scVectorField import cell_wise_velocity, grid_velocity, streamline_plot, l
 from .scPotential import show_landscape
 from .connectivity import nneighbors
 from .time_series import kinetic_heatmap, kinetic_curves
-from .topology import plot_flow_field, plot_fixed_points, plot_null_clines, plot_separatrix, plot_traj, topography
+from .topology import plot_flow_field, plot_fixed_points, plot_nullclines, plot_separatrix, plot_traj, topography
 from .utils import quiver_autoscaler
