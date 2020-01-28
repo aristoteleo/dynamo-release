@@ -223,6 +223,12 @@ def fit_linreg(x, y, intercept=False):
     r2 = 1 - SS_res_n / SS_tot_n
     return k, b, r2
 
+def fit_stochastic_lin_reg(u, s, us, ss):
+    x = np.vstack((u, u + 2*us))
+    y = np.vstack((s, s - 2*ss))
+    k = np.mean(np.sum(y*x, 0)) / np.mean(np.sum(x*x, 0))
+    return k
+
 def fit_first_order_deg_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=1):
     """Estimate beta with degradation data using least squares method.
 
