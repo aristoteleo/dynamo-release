@@ -3,6 +3,7 @@ import pandas as pd
 import math
 import numba
 import matplotlib
+from matplotlib.patches import Patch
 import matplotlib.patheffects as PathEffects
 from warnings import warn
 
@@ -100,14 +101,12 @@ def _matplotlib_points(
     color_key=None,
     color_key_cmap="Spectral",
     background="white",
-    width=700,
-    height=500,
+    width=7,
+    height=5,
     show_legend=True,
     **kwargs
 ):
     import matplotlib.pyplot as plt
-    from matplotlib.patches import Patch
-    import matplotlib.patheffects as PathEffects
 
     dpi = plt.rcParams["figure.dpi"]
     width, height = width * dpi, height * dpi
@@ -244,8 +243,6 @@ def _datashade_points(
     show_legend=True,
 ):
     import matplotlib.pyplot as plt
-    from matplotlib.patches import Patch
-    import matplotlib.patheffects as PathEffects
 
     import datashader.transfer_functions as tf
     import datashader as ds
@@ -598,7 +595,6 @@ def points(
 
                 points = adata.obsm['X_' + basis]
 
-
                 if total_panels > 1:
                     ax = plt.subplot(gs[i])
                 i += 1
@@ -652,7 +648,6 @@ def points(
     if total_panels == 1: return ax
 
 
-
 def interactive(
     umap_object,
     labels=None,
@@ -663,8 +658,8 @@ def interactive(
     color_key=None,
     color_key_cmap="Spectral",
     background="white",
-    width=800,
-    height=800,
+    width=7,
+    height=5,
     point_size=None,
 ):
     """Create an interactive bokeh plot of a UMAP embedding.
@@ -763,6 +758,9 @@ def interactive(
     import holoviews as hv
     import holoviews.operation.datashader as hd
     import matplotlib.pyplot as plt
+
+    dpi = plt.rcParams["figure.dpi"]
+    width, height = width * dpi, height * dpi
 
     if theme is not None:
         cmap = _themes[theme]["cmap"]
