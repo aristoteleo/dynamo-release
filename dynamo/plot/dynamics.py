@@ -194,38 +194,73 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
         cur_pd = df.loc[df.gene == gn, :]
         if cur_pd.color.unique() != np.nan:
             # sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue="expression", ax=ax1, palette="viridis", **scatter_kwargs) # x-axis: S vs y-axis: U
-            ax1 = _matplotlib_points(
-                cur_pd,
-                ax=ax1,
-                labels=None,
-                values=cur_pd.loc[:, 'expression'],
-                highlights=None,
-                cmap=continous_cmap,
-                color_key=None,
-                color_key_cmap=continous_color_key_cmap,
-                background=continous_background,
-                width=figsize[0],
-                height=figsize[1],
-                show_legend=legend,
-                **scatter_kwargs
-            )
+            if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
+                ax1 = _matplotlib_points(
+                    cur_pd,
+                    ax=ax1,
+                    labels=None,
+                    values=cur_pd.loc[:, 'expression'],
+                    highlights=None,
+                    cmap=continous_cmap,
+                    color_key=None,
+                    color_key_cmap=continous_color_key_cmap,
+                    background=continous_background,
+                    width=figsize[0],
+                    height=figsize[1],
+                    show_legend=legend,
+                    **scatter_kwargs
+                )
+            else:
+                ax1 = _datashade_points(
+                    cur_pd,
+                    ax=ax1,
+                    labels=None,
+                    values=cur_pd.loc[:, 'expression'],
+                    highlights=None,
+                    cmap=continous_cmap,
+                    color_key=None,
+                    color_key_cmap=continous_color_key_cmap,
+                    background=continous_background,
+                    width=figsize[0],
+                    height=figsize[1],
+                    show_legend=legend,
+                    **scatter_kwargs
+                )
         else:
             # sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue=color, ax=ax1, palette="Set2", **scatter_kwargs) # x-axis: S vs y-axis: U
-            ax1 = _matplotlib_points(
-                cur_pd,
-                ax=ax1,
-                labels=color,
-                values=None,
-                highlights=None,
-                cmap=discrete_cmap,
-                color_key=None,
-                color_key_cmap=discrete_color_key_cmap,
-                background=discrete_background,
-                width=figsize[0],
-                height=figsize[1],
-                show_legend=legend,
-                **scatter_kwargs
-            )
+            if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
+                ax1 = _matplotlib_points(
+                    cur_pd,
+                    ax=ax1,
+                    labels=color,
+                    values=None,
+                    highlights=None,
+                    cmap=discrete_cmap,
+                    color_key=None,
+                    color_key_cmap=discrete_color_key_cmap,
+                    background=discrete_background,
+                    width=figsize[0],
+                    height=figsize[1],
+                    show_legend=legend,
+                    **scatter_kwargs
+                )
+            else:
+                ax1 = _datashade_points(
+                    cur_pd,
+                    ax=ax1,
+                    labels=color,
+                    values=None,
+                    highlights=None,
+                    cmap=discrete_cmap,
+                    color_key=None,
+                    color_key_cmap=discrete_color_key_cmap,
+                    background=discrete_background,
+                    width=figsize[0],
+                    height=figsize[1],
+                    show_legend=legend,
+                    **scatter_kwargs
+                )
+
         ax1.set_title(gn)
         xnew = np.linspace(0, cur_pd.iloc[:, 1].max())
         ax1.plot(xnew, xnew * cur_pd.loc[:, 'gamma'].unique() + cur_pd.loc[:, 'velocity_offset'].unique(), c="k")
@@ -245,21 +280,38 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
 
         cmap = plt.cm.RdBu_r # sns.cubehelix_palette(dark=.3, light=.8, as_cmap=True)
         # sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=df_embedding.loc[:, 'expression'], ax=ax2, palette=cmap, legend=False, **scatter_kwargs)
-        ax2 = _matplotlib_points(
-            cur_pd.iloc[:, :2],
-            ax=ax2,
-            labels=None,
-            values=df_embedding.loc[:, 'expression'],
-            highlights=None,
-            cmap=continous_cmap,
-            color_key=None,
-            color_key_cmap=continous_color_key_cmap,
-            background=continous_background,
-            width=figsize[0],
-            height=figsize[1],
-            show_legend=legend,
-            **scatter_kwargs
-        )
+        if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
+            ax2 = _matplotlib_points(
+                cur_pd.iloc[:, :2],
+                ax=ax2,
+                labels=None,
+                values=df_embedding.loc[:, 'expression'],
+                highlights=None,
+                cmap=continous_cmap,
+                color_key=None,
+                color_key_cmap=continous_color_key_cmap,
+                background=continous_background,
+                width=figsize[0],
+                height=figsize[1],
+                show_legend=legend,
+                **scatter_kwargs
+            )
+        else:
+            ax2 = _datashade_points(
+                cur_pd.iloc[:, :2],
+                ax=ax2,
+                labels=None,
+                values=df_embedding.loc[:, 'expression'],
+                highlights=None,
+                cmap=continous_cmap,
+                color_key=None,
+                color_key_cmap=continous_color_key_cmap,
+                background=continous_background,
+                width=figsize[0],
+                height=figsize[1],
+                show_legend=legend,
+                **scatter_kwargs
+            )
 
         ax2.set_title(gn + '(' + ekey + ')')
         ax2.set_xlabel(basis + '_1')
@@ -267,21 +319,38 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
         cmap = plt.cm.Greens # sns.diverging_palette(10, 220, sep=80, as_cmap=True)
 
         # sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=V_vec, ax=ax3, palette=cmap, legend=False, **scatter_kwargs)
-        ax3 = _matplotlib_points(
-            cur_pd.iloc[:, :2],
-            ax=ax3,
-            labels=None,
-            values=V_vec,
-            highlights=None,
-            cmap=divergent_cmap,
-            color_key=None,
-            color_key_cmap=divergent_color_key_cmap,
-            background=divergent_background,
-            width=figsize[0],
-            height=figsize[1],
-            show_legend=legend,
-            **scatter_kwargs
-        )
+        if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
+            ax3 = _matplotlib_points(
+                cur_pd.iloc[:, :2],
+                ax=ax3,
+                labels=None,
+                values=V_vec,
+                highlights=None,
+                cmap=divergent_cmap,
+                color_key=None,
+                color_key_cmap=divergent_color_key_cmap,
+                background=divergent_background,
+                width=figsize[0],
+                height=figsize[1],
+                show_legend=legend,
+                **scatter_kwargs
+            )
+        else:
+            ax3 = _datashade_points(
+                cur_pd.iloc[:, :2],
+                ax=ax3,
+                labels=None,
+                values=V_vec,
+                highlights=None,
+                cmap=divergent_cmap,
+                color_key=None,
+                color_key_cmap=divergent_color_key_cmap,
+                background=divergent_background,
+                width=figsize[0],
+                height=figsize[1],
+                show_legend=legend,
+                **scatter_kwargs
+            )
 
         ax3.set_title(gn + '(' + vkey + ')')
         ax3.set_xlabel(basis + '_1')
@@ -291,38 +360,72 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
             # sns.scatterplot(cur_pd.iloc[:, 3], cur_pd.iloc[:, 2], hue=color, ax=ax4, **scatter_kwargs) # x-axis: Protein vs. y-axis: Spliced
             if cur_pd.color.unique() != np.nan:
                 # sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue="expression", ax=ax4, palette="viridis", **scatter_kwargs) # x-axis: S vs y-axis: U
-                ax4 = _matplotlib_points(
-                    cur_pd,
-                    ax=ax4,
-                    labels=None,
-                    values=cur_pd.loc[:, 'expression'],
-                    highlights=None,
-                    cmap=continous_cmap,
-                    color_key=None,
-                    color_key_cmap=continous_color_key_cmap,
-                    background=continous_background,
-                    width=figsize[0],
-                    height=figsize[1],
-                    show_legend=legend,
-                    **scatter_kwargs
-                )
+                if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
+                    ax4 = _matplotlib_points(
+                        cur_pd,
+                        ax=ax4,
+                        labels=None,
+                        values=cur_pd.loc[:, 'expression'],
+                        highlights=None,
+                        cmap=continous_cmap,
+                        color_key=None,
+                        color_key_cmap=continous_color_key_cmap,
+                        background=continous_background,
+                        width=figsize[0],
+                        height=figsize[1],
+                        show_legend=legend,
+                        **scatter_kwargs
+                    )
+                else:
+                    ax4 = _datashade_points(
+                        cur_pd,
+                        ax=ax4,
+                        labels=None,
+                        values=cur_pd.loc[:, 'expression'],
+                        highlights=None,
+                        cmap=continous_cmap,
+                        color_key=None,
+                        color_key_cmap=continous_color_key_cmap,
+                        background=continous_background,
+                        width=figsize[0],
+                        height=figsize[1],
+                        show_legend=legend,
+                        **scatter_kwargs
+                    )
             else:
                 # sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue=color, ax=ax4, palette="Set2", **scatter_kwargs) # x-axis: S vs y-axis: U
-                ax4 = _matplotlib_points(
-                    cur_pd,
-                    ax=ax4,
-                    labels=color,
-                    values=None,
-                    highlights=None,
-                    cmap=discrete_cmap,
-                    color_key=None,
-                    color_key_cmap=discrete_color_key_cmap,
-                    background=discrete_background,
-                    width=figsize[0],
-                    height=figsize[1],
-                    show_legend=legend,
-                    **scatter_kwargs
-                )
+                if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
+                    ax4 = _matplotlib_points(
+                        cur_pd,
+                        ax=ax4,
+                        labels=color,
+                        values=None,
+                        highlights=None,
+                        cmap=discrete_cmap,
+                        color_key=None,
+                        color_key_cmap=discrete_color_key_cmap,
+                        background=discrete_background,
+                        width=figsize[0],
+                        height=figsize[1],
+                        show_legend=legend,
+                        **scatter_kwargs
+                    )
+                else:
+                    ax4 = _datashade_points(
+                        cur_pd,
+                        ax=ax4,
+                        labels=color,
+                        values=None,
+                        highlights=None,
+                        cmap=discrete_cmap,
+                        color_key=None,
+                        color_key_cmap=discrete_color_key_cmap,
+                        background=discrete_background,
+                        width=figsize[0],
+                        height=figsize[1],
+                        show_legend=legend,
+                        **scatter_kwargs
+                    )
 
             ax4.set_title(gn)
             xnew = np.linspace(0, cur_pd.iloc[:, 3].max())
@@ -345,21 +448,38 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
             cmap = sns.light_palette("navy", as_cmap=True)
             # sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=df_embedding.loc[:, 'P'], \
             #                 ax=ax5, legend=False, palette=cmap, **scatter_kwargs)
-            ax5 = _matplotlib_points(
-                cur_pd.iloc[:, :1],
-                ax=ax5,
-                labels=None,
-                values=embedding.loc[:, 'P'],
-                highlights=None,
-                cmap=continous_cmap,
-                color_key=None,
-                color_key_cmap=continous_color_key_cmap,
-                background=continous_background,
-                width=figsize[0],
-                height=figsize[1],
-                show_legend=legend,
-                **scatter_kwargs
-            )
+            if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
+                ax5 = _matplotlib_points(
+                    cur_pd.iloc[:, :1],
+                    ax=ax5,
+                    labels=None,
+                    values=embedding.loc[:, 'P'],
+                    highlights=None,
+                    cmap=continous_cmap,
+                    color_key=None,
+                    color_key_cmap=continous_color_key_cmap,
+                    background=continous_background,
+                    width=figsize[0],
+                    height=figsize[1],
+                    show_legend=legend,
+                    **scatter_kwargs
+                )
+            else:
+                ax5 = _datashade_points(
+                    cur_pd.iloc[:, :1],
+                    ax=ax5,
+                    labels=None,
+                    values=embedding.loc[:, 'P'],
+                    highlights=None,
+                    cmap=continous_cmap,
+                    color_key=None,
+                    color_key_cmap=continous_color_key_cmap,
+                    background=continous_background,
+                    width=figsize[0],
+                    height=figsize[1],
+                    show_legend=legend,
+                    **scatter_kwargs
+                )
 
             ax5.set_title(gn + '(protein expression)')
             ax5.set_xlabel(basis + '_1')
@@ -367,21 +487,38 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
             cmap = sns.diverging_palette(145, 280, s=85, l=25, n=7)
 
             # sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=V_vec, ax=ax6, legend=False, palette=cmap, **scatter_kwargs)
-            ax6 = _matplotlib_points(
-                embedding.iloc[:, :1],
-                ax=ax6,
-                labels=None,
-                values=V_vec,
-                highlights=None,
-                cmap=divergent_cmap,
-                color_key=None,
-                color_key_cmap=divergent_color_key_cmap,
-                background=divergent_background,
-                width=figsize[0],
-                height=figsize[1],
-                show_legend=legend,
-                **scatter_kwargs
-            )
+            if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
+                ax6 = _matplotlib_points(
+                    embedding.iloc[:, :1],
+                    ax=ax6,
+                    labels=None,
+                    values=V_vec,
+                    highlights=None,
+                    cmap=divergent_cmap,
+                    color_key=None,
+                    color_key_cmap=divergent_color_key_cmap,
+                    background=divergent_background,
+                    width=figsize[0],
+                    height=figsize[1],
+                    show_legend=legend,
+                    **scatter_kwargs
+                )
+            else:
+                ax6 = _datashade_points(
+                    embedding.iloc[:, :1],
+                    ax=ax6,
+                    labels=None,
+                    values=V_vec,
+                    highlights=None,
+                    cmap=divergent_cmap,
+                    color_key=None,
+                    color_key_cmap=divergent_color_key_cmap,
+                    background=divergent_background,
+                    width=figsize[0],
+                    height=figsize[1],
+                    show_legend=legend,
+                    **scatter_kwargs
+                )
 
             ax6.set_title(gn + '(protein velocity)')
             ax6.set_xlabel(basis + '_1')
