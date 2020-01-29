@@ -618,21 +618,22 @@ def points(
 
                 if is_not_continous:
                     labels = _color.to_dense()
-                    if theme is None: theme = 'glasbey_dark'
+                    _theme_ = 'glasbey_dark' if theme is None else theme
                 else:
                     values = _color
-                    if theme is None: theme = 'inferno' if cur_l is not 'velocity' else 'div_blue_red'
+                    if theme is None:
+                        _theme_ = 'inferno' if cur_l is not 'velocity' else 'div_blue_red'
+                    else:
+                        _theme_ = theme
 
-                _cmap = _themes[theme]["cmap"] if cmap is None else cmap
-                _color_key_cmap = _themes[theme]["color_key_cmap"] if color_key_cmap is None else color_key_cmap
-                _background = _themes[theme]["background"] if background is None else background
+                _cmap = _themes[_theme_]["cmap"] if cmap is None else cmap
+                _color_key_cmap = _themes[_theme_]["color_key_cmap"] if color_key_cmap is None else color_key_cmap
+                _background = _themes[_theme_]["background"] if background is None else background
 
                 if labels is not None and values is not None:
                     raise ValueError(
                         "Conflicting options; only one of labels or values should be set"
                     )
-
-                # points = adata.obsm['X_' + cur_b]
 
                 if total_panels > 1:
                     ax = plt.subplot(gs[i])

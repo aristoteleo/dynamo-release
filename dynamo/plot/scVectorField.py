@@ -988,7 +988,7 @@ def streamline_plot(
 
         X_grid, V_grid, D = velocity_on_grid(X[:, [x, y]], V[:, [x, y]], xy_grid_nums, **grid_kwargs_dict)
 
-    streamplot_kwargs={"density": density, "linewidth": None, "color": None, "cmap": None, "norm": None, "arrowsize": 1, "arrowstyle": '-|>',
+    streamplot_kwargs={"density": density, "linewidth": None, "cmap": None, "norm": None, "arrowsize": 1, "arrowstyle": '-|>',
                        "minlength": 0.1, "transform": None, "zorder": None, "start_points": None, "maxlength": 4.0,
                        "integration_direction": 'both'}
     streamplot_kwargs.update(streamline_kwargs)
