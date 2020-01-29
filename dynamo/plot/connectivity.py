@@ -9,8 +9,8 @@ The code base will be extended extensively to consider the following cases:
     6. others
 """
 
-from .utils import _select_font_color, _get_extent, _embed_datashader_in_an_axis, _to_hex
-from .utils import is_gene_name, is_list_of_lists
+from .utils import _select_font_color, _get_extent, _embed_datashader_in_an_axis, _datashade_points
+from .utils import is_list_of_lists # is_gene_name
 from ..configuration import _themes
 
 import pandas as pd
@@ -60,129 +60,6 @@ def _plt_connectivity(coord, connectivity):
             edge_color=edge_color, width=W / np.max(W) * 1, edge_cmap=plt.cm.Blues, options=options)
 
     plt.show()
-
-
-def _datashade_points(
-    points,
-    ax=None,
-    labels=None,
-    values=None,
-    highlights=None,
-    cmap="blue",
-    color_key=None,
-    color_key_cmap="Spectral",
-    background="black",
-    width=700,
-    height=500,
-    show_legend=True,
-):
-    import matplotlib.pyplot as plt
-    from matplotlib.patches import Patch
-
-    """Use datashader to plot points"""
-    extent = _get_extent(points)
-    canvas = ds.Canvas(
-        plot_width=int(width),
-        plot_height=int(height),
-        x_range=(extent[0], extent[1]),
-        y_range=(extent[2], extent[3]),
-    )
-    data = pd.DataFrame(points, columns=("x", "y"))
-
-    legend_elements = None
-
-    # Color by labels
-    if labels is not None:
-        if labels.shape[0] != points.shape[0]:
-            raise ValueError(
-                "Labels must have a label for "
-                "each sample (size mismatch: {} {})".format(
-                    labels.shape[0], points.shape[0]
-                )
-            )
-
-        labels = np.array(labels, dtype='str')
-        data["label"] = pd.Categorical(labels)
-        if color_key is None and color_key_cmap is None:
-            aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
-            result = tf.shade(aggregation, how="eq_hist")
-        elif color_key is None:
-            if highlights is None:
-                aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
-                unique_labels = np.unique(labels)
-                num_labels = unique_labels.shape[0]
-                color_key = _to_hex(
-                    plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
-                )
-            else:
-                highlights.append('other')
-                unique_labels = np.array(highlights)
-                num_labels = unique_labels.shape[0]
-                color_key = _to_hex(
-                    plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
-                )
-                color_key[-1] = '#bdbdbd' # lightgray hex code https://www.color-hex.com/color/d3d3d3
-
-                labels[[i not in highlights for i in labels]] = 'other'
-                data["label"] = pd.Categorical(labels)
-                aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
-
-            legend_elements = [
-                Patch(facecolor=color_key[i], label=k)
-                for i, k in enumerate(unique_labels)
-            ]
-            result = tf.shade(aggregation, color_key=color_key, how="eq_hist")
-        else:
-            aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
-
-            legend_elements = [
-                Patch(facecolor=color_key[k], label=k) for k in color_key.keys()
-            ]
-            result = tf.shade(aggregation, color_key=color_key, how="eq_hist")
-
-    # Color by values
-    elif values is not None:
-        if values.shape[0] != points.shape[0]:
-            raise ValueError(
-                "Values must have a value for "
-                "each sample (size mismatch: {} {})".format(
-                    values.shape[0], points.shape[0]
-                )
-            )
-        unique_values = np.unique(values)
-        if unique_values.shape[0] >= 256:
-            min_val, max_val = np.min(values), np.max(values)
-            bin_size = (max_val - min_val) / 255.0
-            data["val_cat"] = pd.Categorical(
-                np.round((values - min_val) / bin_size).astype(np.int16)
-            )
-            aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("val_cat"))
-            color_key = _to_hex(plt.get_cmap(cmap)(np.linspace(0, 1, 256)))
-            result = tf.shade(aggregation, color_key=color_key, how="eq_hist")
-        else:
-            data["val_cat"] = pd.Categorical(values)
-            aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("val_cat"))
-            color_key_cols = _to_hex(
-                plt.get_cmap(cmap)(np.linspace(0, 1, unique_values.shape[0]))
-            )
-            color_key = dict(zip(unique_values, color_key_cols))
-            result = tf.shade(aggregation, color_key=color_key, how="eq_hist")
-
-    # Color by density (default datashader option)
-    else:
-        aggregation = canvas.points(data, "x", "y", agg=ds.count())
-        result = tf.shade(aggregation, cmap=plt.get_cmap(cmap))
-
-    if background is not None:
-        result = tf.set_background(result, background)
-
-    if ax is not None:
-        _embed_datashader_in_an_axis(result, ax)
-        if show_legend and legend_elements is not None:
-            ax.legend(handles=legend_elements)
-        return ax
-    else:
-        return result
 
 
 def connectivity_base(
@@ -520,8 +397,8 @@ def nneighbors(adata,
                         'function'.format(basis))
 
     n_c, n_l, n_b = 0 if color is None else len(color), 0 if layer is None else len(layer), 0 if basis is None else len(basis)
-    c_is_gene_name = [is_gene_name(adata, i) for i in list(color)] if n_c > 0 else None
-    cnt, gene_num = 0, sum(c_is_gene_name)
+    # c_is_gene_name = [is_gene_name(adata, i) for i in list(color)] if n_c > 0 else [False] * n_c
+    # cnt, gene_num = 0, sum(c_is_gene_name)
 
     coo_graph = adata.uns['neighbors']['connectivities'].tocoo()
     edge_df = pd.DataFrame(
@@ -531,7 +408,7 @@ def nneighbors(adata,
     edge_df["source"] = edge_df.source.astype(np.int32)
     edge_df["target"] = edge_df.target.astype(np.int32)
 
-    total_panels, ncols = n_c * n_l * n_b, min(gene_num, ncols)
+    total_panels, ncols = n_c * n_l * n_b, min(n_c, ncols)
     nrow, ncol = int(np.ceil(total_panels / ncols)), ncols
     if figsize is None: figsize = plt.rcParams['figsize']
 
@@ -560,7 +437,7 @@ def nneighbors(adata,
                 continue
             for cur_c in color:
                 _color = adata.obs_vector(cur_c, layer=cur_l)
-                is_not_continous = np.allclose(_color[_color > 0][:20] % 1, 0, atol=1e-3)
+                is_not_continous = _color.dtype.name == 'category'
                 if is_not_continous:
                     labels = _color
                     if theme is None: theme = 'glasbey_dark'
@@ -572,7 +449,7 @@ def nneighbors(adata,
                     ax = plt.subplot(gs[i])
                 i += 1
 
-                # if highligts is a list of lists
+                # if highligts is a list of lists - each list is relate to each color element
                 if is_list_of_lists(highlights):
                     _highlights = highlights[color.index(cur_c)]
                     _highlights = _highlights if all([i in _color for i in _highlights]) else None

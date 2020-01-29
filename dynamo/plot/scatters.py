@@ -303,7 +303,7 @@ def scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key
 
             cur_pd = df.loc[df.group == clr, :]
 
-            scatter_with_legend(fig, ax1, df, color, font_color, embedding.iloc[:, 0], embedding.iloc[:, 1],
+            scatter_with_legend(fig, ax1, df, font_color, embedding.iloc[:, 0], embedding.iloc[:, 1],
                                 cur_pd.loc[:, 'color'], plt.get_cmap(color_key_cmap), legend, **scatter_kwargs)
 
             set_spine_linewidth(ax1, 1)
