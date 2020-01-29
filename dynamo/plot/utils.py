@@ -198,7 +198,7 @@ def _matplotlib_points(
             )
         # reorder data so that high values points will be on top of background points
         sorted_id = np.argsort(values)
-        values, points = values[sorted_id, :], points[sorted_id, :]
+        values, points = values[sorted_id], points[sorted_id, :]
 
         ax.scatter(points[:, 0], points[:, 1], s=point_size, c=values, cmap=cmap, rasterized=True, **kwargs)
 
@@ -220,9 +220,9 @@ def _matplotlib_points(
                     PathEffects.Normal()])
         else:
             if type(show_legend) == 'str':
-                ax.legend(handles=legend_elements, loc=show_legend, ncol=unique_labels // 15)
+                ax.legend(handles=legend_elements, loc=show_legend, ncol=len(unique_labels) // 15 + 1)
             else:
-                ax.legend(handles=legend_elements, loc='best', ncol=unique_labels // 15)
+                ax.legend(handles=legend_elements, loc='best', ncol=len(unique_labels) // 15 + 1)
 
     return ax
 
@@ -327,7 +327,7 @@ def _datashade_points(
             )
         # reorder data so that high values points will be on top of background points
         sorted_id = np.argsort(values)
-        values, data = values[sorted_id, :], data[sorted_id, :]
+        values, data = values[sorted_id], data[sorted_id, :]
 
         unique_values = np.unique(values)
         if unique_values.shape[0] >= 256:

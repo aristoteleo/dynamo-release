@@ -617,45 +617,46 @@ def points(
                 is_not_continous = _color.dtype.name == 'category'
 
                 if is_not_continous:
-                    labels = _color
+                    labels = _color.to_dense()
                     if theme is None: theme = 'glasbey_dark'
                 else:
                     values = _color
                     if theme is None: theme = 'inferno' if cur_l is not 'velocity' else 'div_blue_red'
 
-                if cmap is None: cmap = _themes[theme]["cmap"]
-                if color_key_cmap is None: color_key_cmap = _themes[theme]["color_key_cmap"]
-                if background is None: background = _themes[theme]["background"]
+                _cmap = _themes[theme]["cmap"] if cmap is None else cmap
+                _color_key_cmap = _themes[theme]["color_key_cmap"] if color_key_cmap is None else color_key_cmap
+                _background = _themes[theme]["background"] if background is None else background
 
                 if labels is not None and values is not None:
                     raise ValueError(
                         "Conflicting options; only one of labels or values should be set"
                     )
 
-                points = adata.obsm['X_' + basis]
+                # points = adata.obsm['X_' + cur_b]
 
                 if total_panels > 1:
                     ax = plt.subplot(gs[i])
                 i += 1
 
                 # if highligts is a list of lists - each list is relate to each color element
-                if is_list_of_lists(highlights):
-                    _highlights = highlights[color.index(cur_c)]
-                    _highlights = _highlights if all([i in _color for i in _highlights]) else None
-                else:
-                    _highlights = highlights if all([i in _color for i in highlights]) else None
+                if highlights is not None:
+                    if is_list_of_lists(highlights):
+                        _highlights = highlights[color.index(cur_c)]
+                        _highlights = _highlights if all([i in _color for i in _highlights]) else None
+                    else:
+                        _highlights = highlights if all([i in _color for i in highlights]) else None
 
                 if points.shape[0] <= figsize[0] * figsize[1] * 1000:
                     ax = _matplotlib_points(
-                        points,
+                        points.values,
                         ax,
                         labels,
                         values,
                         highlights,
-                        cmap,
+                        _cmap,
                         color_key,
-                        color_key_cmap,
-                        background,
+                        _color_key_cmap,
+                        _background,
                         figsize[0],
                         figsize[1],
                         show_legend,
@@ -663,15 +664,15 @@ def points(
                     )
                 else:
                     ax = _datashade_points(
-                        points,
+                        points.values,
                         ax,
                         labels,
                         values,
                         highlights,
-                        cmap,
+                        _cmap,
                         color_key,
-                        color_key_cmap,
-                        background,
+                        _color_key_cmap,
+                        _background,
                         figsize[0],
                         figsize[1],
                         show_legend,
@@ -683,6 +684,8 @@ def points(
                 ax.set_title(cur_c)
 
                 axes_list.append(ax)
+
+                labels, values = None, None # reset labels and values
     # dyn.configuration.reset_rcParams()
     if save_or_show == 'show':
         plt.tight_layout()
