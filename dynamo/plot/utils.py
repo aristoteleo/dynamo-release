@@ -3,16 +3,17 @@ import pandas as pd
 import math
 import numba
 import matplotlib
+import matplotlib.patheffects as PathEffects
 from warnings import warn
 
 from ..configuration import _themes
+from ..tools.utils import get_mapper
 
 
 # ---------------------------------------------------------------------------------------------------
 # variable checking utilities
 def is_gene_name(adata, var):
     return var in adata.var.index
-
 
 def is_cell_anno_column(adata, var):
     return var in adata.obs.columns
@@ -99,12 +100,17 @@ def _matplotlib_points(
     color_key=None,
     color_key_cmap="Spectral",
     background="white",
-    width=800,
-    height=800,
+    width=700,
+    height=500,
     show_legend=True,
+    **kwargs
 ):
     import matplotlib.pyplot as plt
     from matplotlib.patches import Patch
+    import matplotlib.patheffects as PathEffects
+
+    dpi = plt.rcParams["figure.dpi"]
+    width, height = width * dpi, height * dpi
 
     """Use matplotlib to plot points"""
     point_size = 100.0 / np.sqrt(points.shape[0])
@@ -119,6 +125,8 @@ def _matplotlib_points(
     ax.set_facecolor(background)
 
     # Color by labels
+    unique_labels = []
+
     if labels is not None:
         if labels.shape[0] != points.shape[0]:
             raise ValueError(
@@ -179,7 +187,7 @@ def _matplotlib_points(
             ]
             colors = pd.Series(labels).map(new_color_key)
 
-        ax.scatter(points[:, 0], points[:, 1], s=point_size, c=colors)
+        ax.scatter(points[:, 0], points[:, 1], s=point_size, c=colors, rasterized=True, **kwargs)
 
     # Color by values
     elif values is not None:
@@ -194,18 +202,184 @@ def _matplotlib_points(
         sorted_id = np.argsort(values)
         values, points = values[sorted_id, :], points[sorted_id, :]
 
-        ax.scatter(points[:, 0], points[:, 1], s=point_size, c=values, cmap=cmap)
+        ax.scatter(points[:, 0], points[:, 1], s=point_size, c=values, cmap=cmap, rasterized=True, **kwargs)
 
     # No color (just pick the midpoint of the cmap)
     else:
 
         color = plt.get_cmap(cmap)(0.5)
-        ax.scatter(points[:, 0], points[:, 1], s=point_size, c=color)
+        ax.scatter(points[:, 0], points[:, 1], s=point_size, c=color, rasterized=True, **kwargs)
 
     if show_legend and legend_elements is not None:
-        ax.legend(handles=legend_elements)
+        if len(unique_labels) > 1 and show_legend == 'on data':
+            font_color = 'white' if background is 'black' else 'black'
+            for i in unique_labels:
+                color_cnt = np.nanmedian(points.iloc[np.where(labels == i)[0], :2], 0)
+                txt = plt.text(color_cnt[0], color_cnt[1], str(i),
+                               fontsize=13, c=font_color, zorder=1000)  #
+                txt.set_path_effects([
+                    PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.1),
+                    PathEffects.Normal()])
+        else:
+            if type(show_legend) == 'str':
+                ax.legend(handles=legend_elements, loc=show_legend, ncol=unique_labels // 15)
+            else:
+                ax.legend(handles=legend_elements, loc='best', ncol=unique_labels // 15)
 
     return ax
+
+
+def _datashade_points(
+    points,
+    ax=None,
+    labels=None,
+    values=None,
+    highlights=None,
+    cmap="blue",
+    color_key=None,
+    color_key_cmap="Spectral",
+    background="black",
+    width=7,
+    height=5,
+    show_legend=True,
+):
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Patch
+    import matplotlib.patheffects as PathEffects
+
+    import datashader.transfer_functions as tf
+    import datashader as ds
+
+    dpi = plt.rcParams["figure.dpi"]
+    width, height = width * dpi, height * dpi
+
+    """Use datashader to plot points"""
+    extent = _get_extent(points)
+    canvas = ds.Canvas(
+        plot_width=int(width),
+        plot_height=int(height),
+        x_range=(extent[0], extent[1]),
+        y_range=(extent[2], extent[3]),
+    )
+    data = pd.DataFrame(points, columns=("x", "y"))
+
+    legend_elements = None
+
+    # Color by labels
+    if labels is not None:
+        if labels.shape[0] != points.shape[0]:
+            raise ValueError(
+                "Labels must have a label for "
+                "each sample (size mismatch: {} {})".format(
+                    labels.shape[0], points.shape[0]
+                )
+            )
+
+        labels = np.array(labels, dtype='str')
+        data["label"] = pd.Categorical(labels)
+        if color_key is None and color_key_cmap is None:
+            aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
+            result = tf.shade(aggregation, how="eq_hist")
+        elif color_key is None:
+            if highlights is None:
+                aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
+                unique_labels = np.unique(labels)
+                num_labels = unique_labels.shape[0]
+                color_key = _to_hex(
+                    plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
+                )
+            else:
+                highlights.append('other')
+                unique_labels = np.array(highlights)
+                num_labels = unique_labels.shape[0]
+                color_key = _to_hex(
+                    plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
+                )
+                color_key[-1] = '#bdbdbd' # lightgray hex code https://www.color-hex.com/color/d3d3d3
+
+                labels[[i not in highlights for i in labels]] = 'other'
+                data["label"] = pd.Categorical(labels)
+
+                # reorder data so that highlighting points will be on top of background points
+                highlight_ids, background_ids = data["label"] != 'other', data["label"] == 'other'
+                reorder_data = data.copy(deep=True)
+                reorder_data.iloc[:sum(background_ids), :], reorder_data.iloc[sum(background_ids):, :] = \
+                    data.iloc[background_ids, :], data.iloc[highlight_ids, :]
+                aggregation = canvas.points(reorder_data, "x", "y", agg=ds.count_cat("label"))
+
+            legend_elements = [
+                Patch(facecolor=color_key[i], label=k)
+                for i, k in enumerate(unique_labels)
+            ]
+            result = tf.shade(aggregation, color_key=color_key, how="eq_hist")
+        else:
+            aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
+
+            legend_elements = [
+                Patch(facecolor=color_key[k], label=k) for k in color_key.keys()
+            ]
+            result = tf.shade(aggregation, color_key=color_key, how="eq_hist")
+
+    # Color by values
+    elif values is not None:
+        if values.shape[0] != points.shape[0]:
+            raise ValueError(
+                "Values must have a value for "
+                "each sample (size mismatch: {} {})".format(
+                    values.shape[0], points.shape[0]
+                )
+            )
+        # reorder data so that high values points will be on top of background points
+        sorted_id = np.argsort(values)
+        values, data = values[sorted_id, :], data[sorted_id, :]
+
+        unique_values = np.unique(values)
+        if unique_values.shape[0] >= 256:
+            min_val, max_val = np.min(values), np.max(values)
+            bin_size = (max_val - min_val) / 255.0
+            data["val_cat"] = pd.Categorical(
+                np.round((values - min_val) / bin_size).astype(np.int16)
+            )
+            aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("val_cat"))
+            color_key = _to_hex(plt.get_cmap(cmap)(np.linspace(0, 1, 256)))
+            result = tf.shade(aggregation, color_key=color_key, how="eq_hist")
+        else:
+            data["val_cat"] = pd.Categorical(values)
+            aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("val_cat"))
+            color_key_cols = _to_hex(
+                plt.get_cmap(cmap)(np.linspace(0, 1, unique_values.shape[0]))
+            )
+            color_key = dict(zip(unique_values, color_key_cols))
+            result = tf.shade(aggregation, color_key=color_key, how="eq_hist")
+
+    # Color by density (default datashader option)
+    else:
+        aggregation = canvas.points(data, "x", "y", agg=ds.count())
+        result = tf.shade(aggregation, cmap=plt.get_cmap(cmap))
+
+    if background is not None:
+        result = tf.set_background(result, background)
+
+    if ax is not None:
+        _embed_datashader_in_an_axis(result, ax)
+        if show_legend and legend_elements is not None:
+            if len(unique_labels) > 1 and show_legend == 'on data':
+                font_color = 'white' if background is 'black' else 'black'
+                for i in unique_labels:
+                    color_cnt = np.nanmedian(points.iloc[np.where(labels == i)[0], :2], 0)
+                    txt = plt.text(color_cnt[0], color_cnt[1], str(i),
+                                   fontsize=13, c=font_color, zorder=1000)  #
+                    txt.set_path_effects([
+                        PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.1),
+                        PathEffects.Normal()])
+            else:
+                if type(show_legend) == 'str':
+                    ax.legend(handles=legend_elements, loc=show_legend, ncol=unique_labels // 15)
+                else:
+                    ax.legend(handles=legend_elements, loc='best', ncol=unique_labels // 15)
+        return ax
+    else:
+        return result
 
 
 def points(
@@ -216,9 +390,6 @@ def points(
         basis='umap',
         layer='X',
         highlights=None,
-        edge_bundling=None,
-        edge_cmap="gray_r",
-        show_points=True,
         labels=None,
         values=None,
         theme=None,
@@ -227,9 +398,12 @@ def points(
         color_key_cmap=None,
         background="black",
         ncols=1,
+        pointsize=None,
         figsize=(7,5),
         show_legend=True,
-        ax=None):
+        use_smoothed=True,
+        ax=None,
+        **kwargs):
     """Plot an embedding as points. Currently this only works
     for 2D embeddings. While there are many optional parameters
     to further control and tailor the plotting, you need only
@@ -323,21 +497,38 @@ def points(
     import matplotlib.pyplot as plt
     import seaborn as sns
 
-    if type(x) is not int or type(y) is not int:
-        raise Exception('x, y have to be integers (components in the a particular embedding {}) for nneighbor '
-                        'function'.format(basis))
+    x, y = x[0], y[0]
+
+    if use_smoothed: mapper = get_mapper()
+
 
     n_c, n_l, n_b = 0 if color is None else len(color), 0 if layer is None else len(layer), 0 if basis is None else len(basis)
-    # c_is_gene_name = [is_gene_name(adata, i) for i in list(color)] if n_c > 0 else [False] * n_c
-    # cnt, gene_num = 0, sum(c_is_gene_name)
 
-    coo_graph = adata.uns['neighbors']['connectivities'].tocoo()
-    edge_df = pd.DataFrame(
-        np.vstack([coo_graph.row, coo_graph.col, coo_graph.data]).T,
-        columns=("source", "target", "weight"),
-    )
-    edge_df["source"] = edge_df.source.astype(np.int32)
-    edge_df["target"] = edge_df.target.astype(np.int32)
+    point_size = 500.0 / np.sqrt(adata.shape[0]) if pointsize is None else 500.0 / np.sqrt(adata.shape[0]) * pointsize
+    scatter_kwargs = dict(alpha=0.4, s=point_size, edgecolor=None, linewidth=0) # (0, 0, 0, 1)
+    if kwargs is not None:
+        scatter_kwargs.update(kwargs)
+
+    if all([i in adata.layers.keys() for i in ['X_new', 'X_total']]):
+        mode = 'labeling'
+    elif all([i in adata.layers.keys() for i in ['X_spliced', 'X_unspliced']]):
+        mode = 'splicing'
+    elif all([i in adata.layers.keys() for i in ['X_uu', 'X_ul', 'X_su', 'X_sl']]):
+        mode = 'full'
+    else:
+        raise Exception('your data should be in one of the proper mode: labelling (has X_new/X_total layers), splicing '
+                        '(has X_spliced/X_unspliced layers) or full (has X_uu/X_ul/X_su/X_sl layers)')
+
+    font_color = _select_font_color(background)
+    if background == 'black':
+        # https://github.com/matplotlib/matplotlib/blob/master/lib/matplotlib/mpl-data/stylelib/dark_background.mplstyle
+        sns.set(rc={'axes.facecolor': background, 'axes.edgecolor': background, 'figure.facecolor': background, 'figure.edgecolor': background,
+                    'axes.grid': False, "ytick.color": "w", "xtick.color": "w", "axes.labelcolor": "w", "axes.edgecolor": "w",
+                    "savefig.facecolor": 'k', "savefig.edgecolor": 'k', "grid.color": 'w', "text.color": font_color,
+                    "lines.color": 'w', "patch.edgecolor": 'w', 'figure.edgecolor': 'w',
+                    })
+    else:
+        sns.set(rc={'axes.facecolor': background, 'figure.facecolor': background, "text.color": font_color, 'axes.grid': False})
 
     total_panels, ncols = n_c * n_l * n_b, min(n_c, ncols)
     nrow, ncol = int(np.ceil(total_panels / ncols)), ncols
@@ -361,20 +552,52 @@ def points(
     i = 0
     for cur_b in basis:
         for cur_l in layer:
+            if use_smoothed: cur_l_smoothed = mapper[cur_l]
             prefix = cur_l + '_'
+
             if prefix + cur_b in adata.obsm.keys():
                 x_, y_ = adata.obsm[prefix + cur_b][:, int(x)], adata.obsm[prefix + cur_b][:, int(y)]
             else:
                 continue
             for cur_c in color:
-                _color = adata.obs_vector(cur_c, layer=cur_l)
+                if cur_l in ['protein', 'X_protein']:
+                    _color = adata.obsm[cur_l].loc[cur_c, :]
+                else:
+                    _color = adata.obs_vector(cur_c, layer=cur_l)
+
+                if type(x) is int and type(y) is int:
+                    points = pd.DataFrame({cur_b + '_0': adata.obsm[prefix + cur_b][:, x], \
+                                              cur_b + '_1': adata.obsm[prefix + cur_b][:, y]})
+                    points.columns = [cur_b + '_1', cur_b + '_2']
+                elif is_gene_name(x) and is_gene_name(y):
+                    points = pd.DataFrame({x: adata.obs_vector(x, cur_l_smoothed), \
+                                              y: adata.obs_vector(y, cur_l_smoothed)})
+                    points.columns = [x + ' (' + cur_l_smoothed + ')', y + ' (' + cur_l_smoothed + ')']
+                elif is_cell_anno_column(x) and is_gene_name(y):
+                    points = pd.DataFrame({x: adata.obs_vector(x), \
+                                              y: adata.obs_vector(y, cur_l_smoothed)})
+                    points.columns = [x, y + ' (' + cur_l_smoothed + ')']
+
                 is_not_continous = _color.dtype.name == 'category'
+
                 if is_not_continous:
                     labels = _color
                     if theme is None: theme = 'glasbey_dark'
                 else:
                     values = _color
                     if theme is None: theme = 'inferno' if cur_l is not 'velocity' else 'div_blue_red'
+
+                if cmap is None: cmap = _themes[theme]["cmap"]
+                if color_key_cmap is None: color_key_cmap = _themes[theme]["color_key_cmap"]
+                if background is None: background = _themes[theme]["background"]
+
+                if labels is not None and values is not None:
+                    raise ValueError(
+                        "Conflicting options; only one of labels or values should be set"
+                    )
+
+                points = adata.obsm['X_' + basis]
+
 
                 if total_panels > 1:
                     ax = plt.subplot(gs[i])
@@ -387,85 +610,46 @@ def points(
                 else:
                     _highlights = highlights if all([i in _color for i in highlights]) else None
 
-                connectivity_base(
-                    x_, y_, edge_df,
-                    edge_bundling,
-                    edge_cmap,
-                    show_points,
-                    labels,
-                    values,
-                    _highlights,
-                    theme,
-                    cmap,
-                    color_key,
-                    color_key_cmap,
-                    background,
-                    figsize,
-                    ax
-                )
+                if points.shape[0] <= figsize[0] * figsize[1] * 1000:
+                    ax = _matplotlib_points(
+                        points,
+                        ax,
+                        labels,
+                        values,
+                        highlights,
+                        cmap,
+                        color_key,
+                        color_key_cmap,
+                        background,
+                        figsize[0],
+                        figsize[1],
+                        show_legend
+                    )
+                else:
+                    ax = _datashade_points(
+                        points,
+                        ax,
+                        labels,
+                        values,
+                        highlights,
+                        cmap,
+                        color_key,
+                        color_key_cmap,
+                        background,
+                        figsize[0],
+                        figsize[1],
+                        show_legend
+                    )
 
-                ax.set_xlabel(cur_b + '_1', )
-                ax.set_ylabel(cur_b + '_2')
+                ax.set_xlabel(points.columns[0])
+                ax.set_ylabel(points.columns[1])
                 ax.set_title(cur_c)
 
     plt.tight_layout()
     plt.show()
 
-
-#----------------------------------------------------------------------------------------------------
-    if theme is not None:
-        cmap = _themes[theme]["cmap"]
-        color_key_cmap = _themes[theme]["color_key_cmap"]
-        background = _themes[theme]["background"]
-
-    if labels is not None and values is not None:
-        raise ValueError(
-            "Conflicting options; only one of labels or values should be set"
-        )
-
-    points = adata.obsm['X_' + basis]
-
-    if points.shape[1] != 2:
-        raise ValueError("Plotting is currently only implemented for 2D embeddings")
-
-    font_color = _select_font_color(background)
-
-    # dpi = plt.rcParams["figure.dpi"]
-    # fig = plt.figure(figsize=(width / dpi, height / dpi))
-    # ax = fig.add_subplot(111)
-
-    if points.shape[0] <= width * height // 10:
-        ax = _matplotlib_points(
-            points,
-            ax,
-            labels,
-            values,
-            cmap,
-            color_key,
-            color_key_cmap,
-            background,
-            width,
-            height,
-            show_legend,
-        )
-    else:
-        ax = _datashade_points(
-            points,
-            ax,
-            labels,
-            values,
-            cmap,
-            color_key,
-            color_key_cmap,
-            background,
-            width,
-            height,
-            show_legend,
-        )
-
-    ax.set(xticks=[], yticks=[])
-
-    return ax
+    # dyn.configuration.reset_rcParams()
+    if total_panels == 1: return ax
 
 
 
@@ -574,6 +758,7 @@ def interactive(
     import bokeh.plotting as bpl
     import bokeh.transform as btr
     from bokeh.plotting import output_notebook, output_file, show
+    import datashader as ds
 
     import holoviews as hv
     import holoviews.operation.datashader as hd
@@ -704,294 +889,6 @@ def interactive(
     return plot
 
 
-def scatters(adata, gene_names, color, dims=[0, 1], current_layer='spliced', use_raw=False, Vkey='S', Ekey='spliced',
-             basis='umap', mode='expression', label_on_embedding=True, cmap=None, gs=None, **kwargs):
-    """Scatter
-
-    Parameters
-    ----------
-        adata
-        gene_names
-        color
-        dims
-        current_layer
-        use_raw
-        Vkey
-        Ekey
-        basis
-        mode
-        cmap
-        gs
-        kwargs
-
-    Returns
-    -------
-
-    """
-
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-    import matplotlib.patheffects as PathEffects
-
-    color = adata.obs.loc[:, color]
-    if mode is 'expression' and cmap is None:
-        cmap = plt.cm.Greens  # qualitative
-    elif mode is 'velocity' and cmap is None:
-        cmap = plt.cm.RdBu_r  # diverging
-    elif mode is 'phase':
-        from matplotlib import cm
-        viridis = cm.get_cmap('viridis', len(np.unique(color)))
-        cmap = viridis
-
-    # plt.figure(None, (17, 2.8), dpi=80)
-    # gs = plt.GridSpec(1, 6)
-
-    gene_names = list(set(gene_names).intersection(adata.var.index))
-    ix = np.where(adata.var.index.isin(gene_names))[0][0]
-
-    # do the RNA/protein phase diagram on the same plot
-    if mode is 'phase':
-        gamma, q = adata.var.velocity_parameter_gamma[ix], adata.var.velocity_parameter_q[ix]
-        if use_raw:
-            x, y = adata.layers['spliced'][:, ix], adata.layers['unspliced'][: ix] if current_layer is 'spliced' else \
-                adata.layers['protein'][:, ix], adata.layers['spliced'][: ix]
-        else:
-            x, y = adata.layers['X_spliced'][:, ix], adata.layers['X_unspliced'][
-                                                     : ix] if current_layer is 'spliced' else \
-                adata.layers['X_protein'][:, ix], adata.layers['X_spliced'][: ix]
-
-        plt.scatter(x, y, s=5, alpha=0.4, rasterized=True)  # , c=vlm.colorandum
-        plt.title(gene_names)
-        xnew = np.linspace(0, x.max())
-        plt.plot(xnew, gamma * xnew + q, c="k")
-        plt.ylim(0, np.max(y) * 1.02)
-        plt.xlim(0, np.max(x) * 1.02)
-        minimal_yticks(0, y * 1.02)
-        minimal_xticks(0, x * 1.02)
-        despline()
-    elif mode is 'velocity':
-        kwarg_plot = {"alpha": 0.5, "s": 8, "edgecolor": "0.8", "lw": 0.15}
-        kwarg_plot.update(kwargs)
-
-        x, y = adata.obsm['X_' + basis][:, dims[0]], adata.obsm['X_' + basis][:, dims[1]]
-
-        if gs is None:
-            fig = plt.figure(figsize=(10, 10))
-            plt.subplot(111)
-        else:
-            plt.subplot(gs)
-
-        if Vkey is 'U':
-            V_vec = adata.layer['velocity_U'][:, ix]
-        elif Vkey is 'S':
-            V_vec = adata.layer['velocity_S'][:, ix]
-        elif Vkey is 'P':
-            V_vec = adata.layer['velocity_P'][:, ix]
-
-        if (np.abs(V_vec) > 0.00005).sum() < 10:  # If S vs U scatterplot it is flat
-            print("S vs U scatterplot it is flat")
-            return
-        limit = np.max(np.abs(np.percentile(V_vec, [1, 99])))  # upper and lowe limit / saturation
-        V_vec = V_vec + limit  # that is: tmp_colorandum - (-limit)
-        V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
-        V_vec = np.clip(V_vec, 0, 1)
-
-        plt.scatter(x, y, rasterized=True, c=np.reshape(cmap(V_vec), x.shape), **kwarg_plot)
-        plt.axis("off")
-        plt.title(f"{gene_names}")
-    elif mode is 'expression':
-        kwarg_plot = {"alpha": 0.15, "s": 8, "edgecolor": "0.8", "lw": 0.15}
-        kwarg_plot.update(kwargs)
-        if gs is None:
-            fig = plt.figure(figsize=(10, 10))
-            plt.subplot(111)
-        else:
-            plt.subplot(gs)
-
-        x, y = adata.obsm['X_' + basis][:, dims[0]], adata.obsm['X_' + basis][:, dims[1]]
-        if use_raw:
-            if Ekey == 'X':
-                E_vec = adata.X[:, ix]
-            else:
-                E_vec = adata.layers[Ekey][:, ix]
-        else:
-            if Ekey == 'X':
-                E_vec = adata.X[:, ix]
-            else:
-                E_vec = adata.layers['X_' + Ekey][:, ix]
-
-        E_vec = E_vec / np.percentile(E_vec, 99)
-        # tmp_colorandum = np.log2(tmp_colorandum+1)
-        E_vec = np.clip(E_vec, 0, 1)
-
-        color_labels = color.unique()
-        flatui = ["#9b59b6", "#3498db", "#95a5a6", "#e74c3c", "#34495e", "#2ecc71"]
-        #         sns.palplot(sns.color_palette(flatui))
-
-        rgb_values = sns.color_palette(flatui, len(color_labels))  # viridis
-
-        # Map label to RGB
-        color_map = pd.DataFrame(zip(color_labels, rgb_values), index=color_labels)
-
-        # ax.scatter(cur_pd.iloc[:, 0], cur_pd.iloc[:, 1], c=color_map.loc[E_vec, 1].values, **scatter_kwargs)
-        df = pd.DataFrame(
-            {"x": x, "y": y},  # 'gene': np.repeat(np.array(genes), n_cells), "expression": E_vec},
-            index=range(x.shape[0]))
-
-        ax = plt.scatter(x, y, rasterized=True, c=color_map.loc[color, 1].values,
-                         **kwarg_plot)  # , label=color.tolist()
-        plt.legend(loc='best')  # bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.
-
-        if label_on_embedding:
-            for i in color_labels:
-                color_cnt = np.nanmedian(df.iloc[np.where(color == i)[0], :2], 0)
-                txt = plt.text(color_cnt[0], color_cnt[1], str(i),
-                               fontsize=13, c=color_map.loc[i, 1], bbox={"facecolor": "w", "alpha": 0.6})  #
-                txt.set_path_effects([
-                    PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.1),
-                    PathEffects.Normal()])
-
-        #         plt.legend((p1[0]), (header[0]), fontsize=12, ncol=1, framealpha=0, fancybox=True)
-        #         plt.axis("off")
-        plt.title(f"{gene_names}")
-
-    plt.show()
-
-
-def _datashade_points(
-    points,
-    ax=None,
-    labels=None,
-    values=None,
-    highlights=None,
-    cmap="blue",
-    color_key=None,
-    color_key_cmap="Spectral",
-    background="black",
-    width=700,
-    height=500,
-    show_legend=True,
-):
-    import matplotlib.pyplot as plt
-    from matplotlib.patches import Patch
-    import datashader.transfer_functions as tf
-
-    """Use datashader to plot points"""
-    extent = _get_extent(points)
-    canvas = ds.Canvas(
-        plot_width=int(width),
-        plot_height=int(height),
-        x_range=(extent[0], extent[1]),
-        y_range=(extent[2], extent[3]),
-    )
-    data = pd.DataFrame(points, columns=("x", "y"))
-
-    legend_elements = None
-
-    # Color by labels
-    if labels is not None:
-        if labels.shape[0] != points.shape[0]:
-            raise ValueError(
-                "Labels must have a label for "
-                "each sample (size mismatch: {} {})".format(
-                    labels.shape[0], points.shape[0]
-                )
-            )
-
-        labels = np.array(labels, dtype='str')
-        data["label"] = pd.Categorical(labels)
-        if color_key is None and color_key_cmap is None:
-            aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
-            result = tf.shade(aggregation, how="eq_hist")
-        elif color_key is None:
-            if highlights is None:
-                aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
-                unique_labels = np.unique(labels)
-                num_labels = unique_labels.shape[0]
-                color_key = _to_hex(
-                    plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
-                )
-            else:
-                highlights.append('other')
-                unique_labels = np.array(highlights)
-                num_labels = unique_labels.shape[0]
-                color_key = _to_hex(
-                    plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
-                )
-                color_key[-1] = '#bdbdbd' # lightgray hex code https://www.color-hex.com/color/d3d3d3
-
-                labels[[i not in highlights for i in labels]] = 'other'
-                data["label"] = pd.Categorical(labels)
-
-                # reorder data so that highlighting points will be on top of background points
-                highlight_ids, background_ids = data["label"] != 'other', data["label"] == 'other'
-                reorder_data = data.copy(deep=True)
-                reorder_data.iloc[:sum(background_ids), :], reorder_data.iloc[sum(background_ids):, :] = \
-                    data.iloc[background_ids, :], data.iloc[highlight_ids, :]
-                aggregation = canvas.points(reorder_data, "x", "y", agg=ds.count_cat("label"))
-
-            legend_elements = [
-                Patch(facecolor=color_key[i], label=k)
-                for i, k in enumerate(unique_labels)
-            ]
-            result = tf.shade(aggregation, color_key=color_key, how="eq_hist")
-        else:
-            aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
-
-            legend_elements = [
-                Patch(facecolor=color_key[k], label=k) for k in color_key.keys()
-            ]
-            result = tf.shade(aggregation, color_key=color_key, how="eq_hist")
-
-    # Color by values
-    elif values is not None:
-        if values.shape[0] != points.shape[0]:
-            raise ValueError(
-                "Values must have a value for "
-                "each sample (size mismatch: {} {})".format(
-                    values.shape[0], points.shape[0]
-                )
-            )
-        # reorder data so that high values points will be on top of background points
-        sorted_id = np.argsort(values)
-        values, data = values[sorted_id, :], data[sorted_id, :]
-
-        unique_values = np.unique(values)
-        if unique_values.shape[0] >= 256:
-            min_val, max_val = np.min(values), np.max(values)
-            bin_size = (max_val - min_val) / 255.0
-            data["val_cat"] = pd.Categorical(
-                np.round((values - min_val) / bin_size).astype(np.int16)
-            )
-            aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("val_cat"))
-            color_key = _to_hex(plt.get_cmap(cmap)(np.linspace(0, 1, 256)))
-            result = tf.shade(aggregation, color_key=color_key, how="eq_hist")
-        else:
-            data["val_cat"] = pd.Categorical(values)
-            aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("val_cat"))
-            color_key_cols = _to_hex(
-                plt.get_cmap(cmap)(np.linspace(0, 1, unique_values.shape[0]))
-            )
-            color_key = dict(zip(unique_values, color_key_cols))
-            result = tf.shade(aggregation, color_key=color_key, how="eq_hist")
-
-    # Color by density (default datashader option)
-    else:
-        aggregation = canvas.points(data, "x", "y", agg=ds.count())
-        result = tf.shade(aggregation, cmap=plt.get_cmap(cmap))
-
-    if background is not None:
-        result = tf.set_background(result, background)
-
-    if ax is not None:
-        _embed_datashader_in_an_axis(result, ax)
-        if show_legend and legend_elements is not None:
-            ax.legend(handles=legend_elements)
-        return ax
-    else:
-        return result
-
-
 # ---------------------------------------------------------------------------------------------------
 # plotting utilities borrow from velocyto
 # link - https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
@@ -1069,7 +966,7 @@ def scatter_with_legend(fig, ax, df, font_color, x, y, c, cmap, legend, **scatte
         g = sns.scatterplot(x, y, hue=c,
                             palette=cmap, ax=ax, \
                             legend='full', **scatter_kwargs)
-        ax.legend(loc=legend, ncol=1 if len(unique_labels) < 15 else 2)
+        ax.legend(loc=legend, ncol=unique_labels // 15)
 
     return fig, ax
 
