@@ -540,11 +540,13 @@ def points(
     import matplotlib.pyplot as plt
     import seaborn as sns
 
-    x, y = x[0], y[0]
+    x, y = x[0] if type(x) != int else x, y[0] if type(y) != int else y
 
     if use_smoothed: mapper = get_mapper()
 
-
+    # check layer, basis -> convert to list
+    if type(layer) is str: layer = [layer]
+    if type(basis) is str: basis = [basis]
     n_c, n_l, n_b = 0 if color is None else len(color), 0 if layer is None else len(layer), 0 if basis is None else len(basis)
 
     point_size = 500.0 / np.sqrt(adata.shape[0]) if pointsize is None else 500.0 / np.sqrt(adata.shape[0]) * pointsize

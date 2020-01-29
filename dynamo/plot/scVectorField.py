@@ -617,7 +617,7 @@ def plot_LIC_gray(tex):
     plt.imshow(texture)
 
 
-def _line_integral_conv(adata, basis='trimap', U_grid=None, V_grid=None, method = 'yt', cmap = "viridis", normalize = False,
+def line_integral_conv(adata, basis='trimap', U_grid=None, V_grid=None, method = 'yt', cmap = "viridis", normalize = False,
                        density = 1, lim=(0,1), const_alpha=False, kernellen=100, V_threshold=None, file = None, g_kwargs_dict=None):
     """Visualize vector field with quiver, streamline and line integral convolution (LIC), using velocity estimates on a grid from the associated data.
     A white noise background will be used for texture as default. Adjust the bounds of lim in the range of [0, 1] which applies
@@ -990,7 +990,7 @@ def streamline_plot(
 
     streamplot_kwargs={"density": density, "linewidth": None, "color": None, "cmap": None, "norm": None, "arrowsize": 1, "arrowstyle": '-|>',
                        "minlength": 0.1, "transform": None, "zorder": None, "start_points": None, "maxlength": 4.0,
-                       "integration_direction": 'both', "color": }
+                       "integration_direction": 'both'}
     streamplot_kwargs.update(streamline_kwargs)
     mass = np.sqrt((V_grid ** 2).sum(0))
     streamplot_kwargs.update({"linewidth": 4 * mass / mass[~np.isnan(mass)].max()})
@@ -1024,3 +1024,5 @@ def streamline_plot(
 
     plt.tight_layout()
     plt.show()
+
+# refactor line_conv_integration

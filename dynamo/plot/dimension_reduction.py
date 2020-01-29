@@ -46,7 +46,7 @@ def pca(
         ax,
         **kwargs)
 
-def UMAP(
+def umap(
         adata,
         x=0,
         y=1,
@@ -136,7 +136,7 @@ def trimap(
         ax,
         **kwargs)
 
-def tSNE(
+def tsne(
         adata,
         x=0,
         y=1,
