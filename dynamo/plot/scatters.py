@@ -445,6 +445,7 @@ def points(
         show_legend=True,
         use_smoothed=True,
         ax=None,
+        save_or_show='show',
         **kwargs):
     """Plot an embedding as points. Currently this only works
     for 2D embeddings. While there are many optional parameters
@@ -551,16 +552,6 @@ def points(
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
 
-    if all([i in adata.layers.keys() for i in ['X_new', 'X_total']]):
-        mode = 'labeling'
-    elif all([i in adata.layers.keys() for i in ['X_spliced', 'X_unspliced']]):
-        mode = 'splicing'
-    elif all([i in adata.layers.keys() for i in ['X_uu', 'X_ul', 'X_su', 'X_sl']]):
-        mode = 'full'
-    else:
-        raise Exception('your data should be in one of the proper mode: labelling (has X_new/X_total layers), splicing '
-                        '(has X_spliced/X_unspliced layers) or full (has X_uu/X_ul/X_su/X_sl layers)')
-
     font_color = _select_font_color(background)
     if background == 'black':
         # https://github.com/matplotlib/matplotlib/blob/master/lib/matplotlib/mpl-data/stylelib/dark_background.mplstyle
@@ -592,6 +583,7 @@ def points(
         gs = plt.GridSpec(nrow, ncol)
 
     i = 0
+    axes_list = []
     for cur_b in basis:
         for cur_l in layer:
             if use_smoothed: cur_l_smoothed = mapper[cur_l]
@@ -664,7 +656,8 @@ def points(
                         background,
                         figsize[0],
                         figsize[1],
-                        show_legend
+                        show_legend,
+                        **kwargs
                     )
                 else:
                     ax = _datashade_points(
@@ -679,16 +672,18 @@ def points(
                         background,
                         figsize[0],
                         figsize[1],
-                        show_legend
+                        show_legend,
+                        **kwargs
                     )
 
                 ax.set_xlabel(points.columns[0])
                 ax.set_ylabel(points.columns[1])
                 ax.set_title(cur_c)
 
-    plt.tight_layout()
-    plt.show()
-
+                axes_list.append(ax)
     # dyn.configuration.reset_rcParams()
-    if total_panels == 1: return ax
-
+    if save_or_show == 'show':
+        plt.tight_layout()
+        plt.show()
+    elif save_or_show == 'return':
+        return axes_list, font_color
