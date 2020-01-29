@@ -3,14 +3,15 @@ import pandas as pd
 import sys
 import warnings
 from scipy.sparse import issparse
-from .utils import despline
+from .utils import despline, _matplotlib_points, _datashade_points
 from .scatters import scatters
 from ..tools.velocity import sol_u, sol_s, solve_first_order_deg
 from ..tools.utils_moments import moments
+from ..tools.utils import get_mapper
 
 
-def phase_portraits(adata, genes, x=0, y=1, mode='splicing', vkey='S', ekey='X', basis='umap', color=None, figsize=None, \
-                    **kwargs):
+def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', basis='umap', color=None, figsize=None, \
+                    legend='on data', **kwargs):
     """Draw the phase portrait, velocity, expression values on the low dimensional embedding.
 
     Parameters
@@ -23,8 +24,8 @@ def phase_portraits(adata, genes, x=0, y=1, mode='splicing', vkey='S', ekey='X',
             The column index of the low dimensional embedding for the x-axis
     y: `int` (default: `1`)
             The column index of the low dimensional embedding for the y-axis
-    mode: `string` (default: labelling)
-        Which mode of data do you want to show, can be one of `labelling`, `splicing` and `full`.
+    pointsize: `None` or `float` (default: None)
+            The scale of the point size. Actual point cell size is calculated as `500.0 / np.sqrt(adata.shape[0]) * pointsize`
     vkey: `string` (default: velocity)
         Which velocity key used for visualizing the magnitude of velocity. Can be either velocity in the layers slot or the
         keys in the obsm slot.
@@ -37,6 +38,9 @@ def phase_portraits(adata, genes, x=0, y=1, mode='splicing', vkey='S', ekey='X',
         by the velocity magnitude or the gene expression value, respectively.
     figsize: `None` or `[float, float]` (default: None)
             The width and height of a figure.
+    legend: `str` (default: `on data`)
+            Where to put the legend.  Legend is drawn by seaborn with “brief” mode, numeric hue and size variables will be
+            represented with a sample of evenly spaced values. By default legend is drawn on top of cells.
     **kwargs:
             Additional parameters that will be passed to plt.scatter function
 
@@ -48,9 +52,10 @@ def phase_portraits(adata, genes, x=0, y=1, mode='splicing', vkey='S', ekey='X',
 
     import matplotlib.pyplot as plt
     import seaborn as sns
-    # sns.set_style('ticks')
+    mapper = get_mapper()
 
-    scatter_kwargs = dict(alpha=0.4, s=8, edgecolor=(0, 0, 0, 1), lw=0.15)
+    point_size = 500.0 / np.sqrt(adata.shape[0]) if pointsize is None else 500.0 / np.sqrt(adata.shape[0]) * pointsize
+    scatter_kwargs = dict(alpha=0.4, s=point_size, edgecolor=None, linewidth=0) # (0, 0, 0, 1)
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
 
@@ -64,18 +69,25 @@ def phase_portraits(adata, genes, x=0, y=1, mode='splicing', vkey='S', ekey='X',
                                   basis + '_1': adata.obsm['X_' + basis][:, y]})
         embedding.columns = ['dim_1', 'dim_2']
 
-    if not (mode in ['labelling', 'splicing', 'full']):
-        raise Exception('mode can be only one of the labelling, splicing or full')
+    if all([i in adata.layers.keys() for i in ['X_new', 'X_total']]):
+        mode = 'labeling'
+    elif all([i in adata.layers.keys() for i in ['X_spliced', 'X_unspliced']]):
+        mode = 'splicing'
+    elif all([i in adata.layers.keys() for i in ['X_uu', 'X_ul', 'X_su', 'X_sl']]):
+        mode = 'full'
+    else:
+        raise Exception('your data should be in one of the proper mode: labelling (has X_new/X_total layers), splicing '
+                        '(has X_spliced/X_unspliced layers) or full (has X_uu/X_ul/X_su/X_sl layers)')
 
     layers = list(adata.layers.keys())
     layers.extend(['X', 'protein', 'X_protein'])
     if ekey in layers:
         if ekey is 'X':
-            E_vec = adata[:, genes].X
+            E_vec = adata[:, genes].layers[mapper['X']] if mapper['X'] in adata.layers.keys() else adata[:, genes].X
         elif ekey in ['protein', 'X_protein']:
-            E_vec = adata[:, genes].obsm[ekey]
+            E_vec = adata[:, genes].layers[mapper[ekey]] if (ekey in mapper.keys()) and (mapper[ekey] in adata.obsm_keys()) else adata[:, genes].obsm[ekey]
         else:
-            E_vec = adata[:, genes].layers[ekey]
+            E_vec = adata[:, genes].layers[mapper[ekey]] if (ekey in mapper.keys()) and (mapper[ekey] in adata.layers.keys()) else adata[:, genes].layers[ekey]
 
     n_cells, n_genes = adata.shape[0], len(genes)
 
@@ -83,11 +95,12 @@ def phase_portraits(adata, genes, x=0, y=1, mode='splicing', vkey='S', ekey='X',
     if color is not None:
         color_vec = adata.obs[color].values
 
-    if vkey is 'U':
+    if 'velocity_' not in vkey: vkey = 'velocity_' + vkey
+    if vkey is 'velocity_U':
         V_vec = adata[:, genes].layers['velocity_U']
         if 'velocity_P' in adata.obsm.keys():
             P_vec = adata[:, genes].layer['velocity_P']
-    elif vkey is 'S':
+    elif vkey is 'velocity_S':
         V_vec = adata[:, genes].layers['velocity_S']
         if 'velocity_P' in adata.obsm.keys():
             P_vec = adata[:, genes].layers['velocity_P']
@@ -97,23 +110,23 @@ def phase_portraits(adata, genes, x=0, y=1, mode='splicing', vkey='S', ekey='X',
     if issparse(E_vec):
         E_vec, V_vec = E_vec.A, V_vec.A
 
-    if 'kinetic_parameter_gamma' in adata.var.columns:
+    if 'gamma' in adata.var.columns:
         gamma = adata.var.kinetic_parameter_gamma[genes].values
-        velocity_offset = [0] * n_genes if not ("velocity_offset" in adata.var.columns) else \
+        velocity_offset = [0] * n_genes if not ("gamma_b" in adata.var.columns) else \
             adata.var.velocity_offset[genes].values
     else:
         raise Exception('adata does not seem to have velocity_gamma column. Velocity estimation is required before '
                         'running this function.')
 
-    if mode is 'labelling' and all([i in adata.layers.keys() for i in ['new', 'total']]):
-        new_mat, tot_mat = adata[:, genes].layers['new'], adata[:, genes].layers['total']
+    if mode is 'labelling':
+        new_mat, tot_mat = adata[:, genes].layers['X_new'], adata[:, genes].layers['X_total']
         new_mat, tot_mat = (new_mat.A, tot_mat.A) if issparse(new_mat) else (new_mat, tot_mat)
 
         df = pd.DataFrame({"new": new_mat.flatten(), "total": tot_mat.flatten(), 'gene': genes * n_cells, 'gamma':
                            np.tile(gamma, n_cells), 'velocity_offset': np.tile(velocity_offset, n_cells),
                            "expression": E_vec.flatten(), "velocity": V_vec.flatten(), 'color': np.repeat(color_vec, n_genes)}, index=range(n_cells * n_genes))
 
-    elif mode is 'splicing' and all([i in adata.layers.keys() for i in ['spliced', 'unspliced']]):
+    elif mode is 'splicing':
         unspliced_mat, spliced_mat = adata[:, genes].layers['X_unspliced'], adata[:, genes].layers['X_spliced']
         unspliced_mat, spliced_mat = (unspliced_mat.A, spliced_mat.A) if issparse(unspliced_mat) else (unspliced_mat, spliced_mat)
 
@@ -121,14 +134,14 @@ def phase_portraits(adata, genes, x=0, y=1, mode='splicing', vkey='S', ekey='X',
                            'gamma': np.tile(gamma, n_cells), 'velocity_offset': np.tile(velocity_offset, n_cells),
                            "expression": E_vec.flatten(), "velocity": V_vec.flatten(), 'color': np.repeat(color_vec, n_genes)}, index=range(n_cells * n_genes))
 
-    elif mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]):
+    elif mode is 'full':
         uu, ul, su, sl = adata[:, genes].layers['X_uu'], adata[:, genes].layers['X_ul'], adata[:, genes].layers['X_su'], \
                          adata[:, genes].layers['X_sl']
         if 'protein' in adata.obsm.keys():
-            if 'kinetic_parameter_eta' in adata.var.columns:
-                gamma_P = adata.var.kinetic_parameter_eta[genes].values
-                velocity_offset_P = [0] * n_cells if not ("velocity_offset_P" in adata.var.columns) else \
-                    adata.var.velocity_offset_P[genes].values
+            if 'delta' in adata.var.columns:
+                gamma_P = adata.var.delta[genes].values
+                velocity_offset_P = [0] * n_cells if not ("delta_b" in adata.var.columns) else \
+                    adata.var.delta_b[genes].values
             else:
                 raise Exception(
                     'adata does not seem to have velocity_gamma column. Velocity estimation is required before '
@@ -161,6 +174,11 @@ def phase_portraits(adata, genes, x=0, y=1, mode='splicing', vkey='S', ekey='X',
     else:
         plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow))  # , dpi=160
 
+    discrete_theme, continous_theme, divergent_theme = 'glasbey_dark', 'inferno', 'div_blue_red'
+    discrete_cmap, discrete_color_key_cmap, discrete_background = _themes[discrete_theme]["cmap"], _themes[discrete_theme]["color_key_cmap"], _themes[discrete_theme]["background"]
+    continous_cmap, continous_color_key_cmap, continous_background = _themes[continous_theme]["cmap"], _themes[continous_theme]["color_key_cmap"], _themes[continous_theme]["background"]
+    divergent_cmap, divergent_color_key_cmap, divergent_background = _themes[divergent_theme]["cmap"], _themes[divergent_theme]["color_key_cmap"], _themes[divergent_theme]["background"]
+
     # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
     gs = plt.GridSpec(nrow, ncol)
     for i, gn in enumerate(genes):
@@ -175,10 +193,39 @@ def phase_portraits(adata, genes, x=0, y=1, mode='splicing', vkey='S', ekey='X',
             continue
         cur_pd = df.loc[df.gene == gn, :]
         if cur_pd.color.unique() != np.nan:
-            sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue="expression", ax=ax1, palette="viridis", **scatter_kwargs) # x-axis: S vs y-axis: U
+            # sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue="expression", ax=ax1, palette="viridis", **scatter_kwargs) # x-axis: S vs y-axis: U
+            ax1 = _matplotlib_points(
+                cur_pd,
+                ax=ax1,
+                labels=None,
+                values=cur_pd.loc[:, 'expression'],
+                highlights=None,
+                cmap=continous_cmap,
+                color_key=None,
+                color_key_cmap=continous_color_key_cmap,
+                background=continous_background,
+                width=figsize[0],
+                height=figsize[1],
+                show_legend=legend,
+                **scatter_kwargs
+            )
         else:
-            sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue=color, ax=ax1, palette="Set2", **scatter_kwargs) # x-axis: S vs y-axis: U
-
+            # sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue=color, ax=ax1, palette="Set2", **scatter_kwargs) # x-axis: S vs y-axis: U
+            ax1 = _matplotlib_points(
+                cur_pd,
+                ax=ax1,
+                labels=color,
+                values=None,
+                highlights=None,
+                cmap=discrete_cmap,
+                color_key=None,
+                color_key_cmap=discrete_color_key_cmap,
+                background=discrete_background,
+                width=figsize[0],
+                height=figsize[1],
+                show_legend=legend,
+                **scatter_kwargs
+            )
         ax1.set_title(gn)
         xnew = np.linspace(0, cur_pd.iloc[:, 1].max())
         ax1.plot(xnew, xnew * cur_pd.loc[:, 'gamma'].unique() + cur_pd.loc[:, 'velocity_offset'].unique(), c="k")
@@ -197,18 +244,86 @@ def phase_portraits(adata, genes, x=0, y=1, mode='splicing', vkey='S', ekey='X',
         V_vec = np.clip(V_vec, 0, 1)
 
         cmap = plt.cm.RdBu_r # sns.cubehelix_palette(dark=.3, light=.8, as_cmap=True)
-        sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=df_embedding.loc[:, 'expression'], ax=ax2, palette=cmap, legend=False, **scatter_kwargs)
+        # sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=df_embedding.loc[:, 'expression'], ax=ax2, palette=cmap, legend=False, **scatter_kwargs)
+        ax2 = _matplotlib_points(
+            cur_pd.iloc[:, :2],
+            ax=ax2,
+            labels=None,
+            values=df_embedding.loc[:, 'expression'],
+            highlights=None,
+            cmap=continous_cmap,
+            color_key=None,
+            color_key_cmap=continous_color_key_cmap,
+            background=continous_background,
+            width=figsize[0],
+            height=figsize[1],
+            show_legend=legend,
+            **scatter_kwargs
+        )
+
         ax2.set_title(gn + '(' + ekey + ')')
         ax2.set_xlabel(basis + '_1')
         ax2.set_ylabel(basis + '_2')
         cmap = plt.cm.Greens # sns.diverging_palette(10, 220, sep=80, as_cmap=True)
-        sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=V_vec, ax=ax3, palette=cmap, legend=False, **scatter_kwargs)
+
+        # sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=V_vec, ax=ax3, palette=cmap, legend=False, **scatter_kwargs)
+        ax3 = _matplotlib_points(
+            cur_pd.iloc[:, :2],
+            ax=ax3,
+            labels=None,
+            values=V_vec,
+            highlights=None,
+            cmap=divergent_cmap,
+            color_key=None,
+            color_key_cmap=divergent_color_key_cmap,
+            background=divergent_background,
+            width=figsize[0],
+            height=figsize[1],
+            show_legend=legend,
+            **scatter_kwargs
+        )
+
         ax3.set_title(gn + '(' + vkey + ')')
         ax3.set_xlabel(basis + '_1')
         ax3.set_ylabel(basis + '_2')
 
         if 'protein' in adata.obsm.keys() and mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]):
-            sns.scatterplot(cur_pd.iloc[:, 3], cur_pd.iloc[:, 2], hue=color, ax=ax4, **scatter_kwargs) # x-axis: Protein vs. y-axis: Spliced
+            # sns.scatterplot(cur_pd.iloc[:, 3], cur_pd.iloc[:, 2], hue=color, ax=ax4, **scatter_kwargs) # x-axis: Protein vs. y-axis: Spliced
+            if cur_pd.color.unique() != np.nan:
+                # sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue="expression", ax=ax4, palette="viridis", **scatter_kwargs) # x-axis: S vs y-axis: U
+                ax4 = _matplotlib_points(
+                    cur_pd,
+                    ax=ax4,
+                    labels=None,
+                    values=cur_pd.loc[:, 'expression'],
+                    highlights=None,
+                    cmap=continous_cmap,
+                    color_key=None,
+                    color_key_cmap=continous_color_key_cmap,
+                    background=continous_background,
+                    width=figsize[0],
+                    height=figsize[1],
+                    show_legend=legend,
+                    **scatter_kwargs
+                )
+            else:
+                # sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue=color, ax=ax4, palette="Set2", **scatter_kwargs) # x-axis: S vs y-axis: U
+                ax4 = _matplotlib_points(
+                    cur_pd,
+                    ax=ax4,
+                    labels=color,
+                    values=None,
+                    highlights=None,
+                    cmap=discrete_cmap,
+                    color_key=None,
+                    color_key_cmap=discrete_color_key_cmap,
+                    background=discrete_background,
+                    width=figsize[0],
+                    height=figsize[1],
+                    show_legend=legend,
+                    **scatter_kwargs
+                )
+
             ax4.set_title(gn)
             xnew = np.linspace(0, cur_pd.iloc[:, 3].max())
             ax4.plot(xnew, xnew * cur_pd.loc[:, 'gamma_P'].unique() + cur_pd.loc[:, 'velocity_offset_P'].unique(), c="k")
@@ -228,13 +343,46 @@ def phase_portraits(adata, genes, x=0, y=1, mode='splicing', vkey='S', ekey='X',
             df_embedding = pd.concat([embedding, cur_pd.loc[:, 'gene']], ignore_index=False)
 
             cmap = sns.light_palette("navy", as_cmap=True)
-            sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=df_embedding.loc[:, 'P'], \
-                            ax=ax5, legend=False, palette=cmap, **scatter_kwargs)
+            # sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=df_embedding.loc[:, 'P'], \
+            #                 ax=ax5, legend=False, palette=cmap, **scatter_kwargs)
+            ax5 = _matplotlib_points(
+                cur_pd.iloc[:, :1],
+                ax=ax5,
+                labels=None,
+                values=embedding.loc[:, 'P'],
+                highlights=None,
+                cmap=continous_cmap,
+                color_key=None,
+                color_key_cmap=continous_color_key_cmap,
+                background=continous_background,
+                width=figsize[0],
+                height=figsize[1],
+                show_legend=legend,
+                **scatter_kwargs
+            )
+
             ax5.set_title(gn + '(protein expression)')
             ax5.set_xlabel(basis + '_1')
             ax5.set_ylabel(basis + '_2')
             cmap = sns.diverging_palette(145, 280, s=85, l=25, n=7)
-            sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=V_vec, ax=ax6, legend=False, palette=cmap, **scatter_kwargs)
+
+            # sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=V_vec, ax=ax6, legend=False, palette=cmap, **scatter_kwargs)
+            ax6 = _matplotlib_points(
+                embedding.iloc[:, :1],
+                ax=ax6,
+                labels=None,
+                values=V_vec,
+                highlights=None,
+                cmap=divergent_cmap,
+                color_key=None,
+                color_key_cmap=divergent_color_key_cmap,
+                background=divergent_background,
+                width=figsize[0],
+                height=figsize[1],
+                show_legend=legend,
+                **scatter_kwargs
+            )
+
             ax6.set_title(gn + '(protein velocity)')
             ax6.set_xlabel(basis + '_1')
             ax6.set_ylabel(basis + '_2')

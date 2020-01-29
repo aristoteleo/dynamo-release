@@ -1,5 +1,5 @@
 # """ plotting utilities that are built based on scSLAM-seq paper
-from .utils import points
+from .scatters import points
 
 def pca(
         adata,
@@ -96,7 +96,7 @@ def trimap(
         x=0,
         y=1,
         color=None,
-        basis='umap',
+        basis='trimap',
         layer='X',
         highlights=None,
         labels=None,
@@ -141,7 +141,7 @@ def tSNE(
         x=0,
         y=1,
         color=None,
-        basis='umap',
+        basis='tSNE',
         layer='X',
         highlights=None,
         labels=None,
@@ -181,4 +181,4 @@ def tSNE(
         ax,
         **kwargs)
 
-
+# add leidan, louvain, etc.
