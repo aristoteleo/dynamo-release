@@ -3,15 +3,16 @@ import pandas as pd
 import sys
 import warnings
 from scipy.sparse import issparse
-from .utils import despline, _matplotlib_points, _datashade_points
+from .utils import despline, _matplotlib_points, _datashade_points, _select_font_color
 from .scatters import scatters
 from ..tools.velocity import sol_u, sol_s, solve_first_order_deg
 from ..tools.utils_moments import moments
 from ..tools.utils import get_mapper
+from ..configuration import _themes
 
 
-def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', basis='umap', color=None, figsize=None, \
-                    legend='on data', **kwargs):
+def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', basis='umap', color=None, figsize=(7, 5), \
+                    ncols=None, legend='on data', **kwargs):
     """Draw the phase portrait, velocity, expression values on the low dimensional embedding.
 
     Parameters
@@ -96,24 +97,23 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
         color_vec = adata.obs[color].values
 
     if 'velocity_' not in vkey: vkey = 'velocity_' + vkey
-    if vkey is 'velocity_U':
+    if vkey == 'velocity_U':
         V_vec = adata[:, genes].layers['velocity_U']
         if 'velocity_P' in adata.obsm.keys():
             P_vec = adata[:, genes].layer['velocity_P']
-    elif vkey is 'velocity_S':
+    elif vkey == 'velocity_S':
         V_vec = adata[:, genes].layers['velocity_S']
         if 'velocity_P' in adata.obsm.keys():
             P_vec = adata[:, genes].layers['velocity_P']
     else:
         raise Exception('adata has no vkey {} in either the layers or the obsm slot'.format(vkey))
 
-    if issparse(E_vec):
-        E_vec, V_vec = E_vec.A, V_vec.A
+    E_vec, V_vec = E_vec.A if issparse(E_vec) else E_vec, V_vec.A if issparse(V_vec) else V_vec
 
     if 'gamma' in adata.var.columns:
-        gamma = adata.var.kinetic_parameter_gamma[genes].values
+        gamma = adata.var.gamma[genes].values
         velocity_offset = [0] * n_genes if not ("gamma_b" in adata.var.columns) else \
-            adata.var.velocity_offset[genes].values
+            adata.var.gamma_b[genes].values
     else:
         raise Exception('adata does not seem to have velocity_gamma column. Velocity estimation is required before '
                         'running this function.')
@@ -167,8 +167,9 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
         raise Exception('Your adata is corrupted. Make sure that your layer has keys new, old for the labelling mode, '
                         'spliced, ambiguous, unspliced for the splicing model and uu, ul, su, sl for the full mode')
 
-    n_columns = 6 if ('protein' in adata.obsm.keys() and mode is 'full') else 3
-    nrow, ncol = int(np.ceil(n_columns * n_genes / 6)), 6
+    num_per_gene = 6 if ('protein' in adata.obsm.keys() and mode is 'full') else 3
+    ncols = min([num_per_gene, ncols]) if ncols == None else num_per_gene
+    nrow, ncol = int(np.ceil(num_per_gene * n_genes / ncols)), ncols
     if figsize is None:
         plt.figure(None, (3 * ncol, 3 * nrow))  # , dpi=160
     else:
@@ -179,12 +180,23 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
     continous_cmap, continous_color_key_cmap, continous_background = _themes[continous_theme]["cmap"], _themes[continous_theme]["color_key_cmap"], _themes[continous_theme]["background"]
     divergent_cmap, divergent_color_key_cmap, divergent_background = _themes[divergent_theme]["cmap"], _themes[divergent_theme]["color_key_cmap"], _themes[divergent_theme]["background"]
 
+    font_color = _select_font_color(discrete_background)
+    if discrete_background == 'black':
+        # https://github.com/matplotlib/matplotlib/blob/master/lib/matplotlib/mpl-data/stylelib/dark_background.mplstyle
+        sns.set(rc={'axes.facecolor': discrete_background, 'axes.edgecolor': discrete_background, 'figure.facecolor': discrete_background, 'figure.edgecolor': discrete_background,
+                    'axes.grid': False, "ytick.color": "w", "xtick.color": "w", "axes.labelcolor": "w", "axes.edgecolor": "w",
+                    "savefig.facecolor": 'k', "savefig.edgecolor": 'k', "grid.color": 'w', "text.color": 'w',
+                    "lines.color": 'w', "patch.edgecolor": 'w', 'figure.edgecolor': 'w',
+                    })
+    else:
+        sns.set(rc={'axes.facecolor': discrete_background, 'figure.facecolor': discrete_background, 'axes.grid': False})
+
     # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
     gs = plt.GridSpec(nrow, ncol)
     for i, gn in enumerate(genes):
-        if n_columns is 3:
+        if num_per_gene is 3:
             ax1, ax2, ax3 = plt.subplot(gs[i*3]), plt.subplot(gs[i*3+1]), plt.subplot(gs[i*3+2])
-        elif n_columns is 6:
+        elif num_per_gene is 6:
             ax1, ax2, ax3, ax4, ax5, ax6 = plt.subplot(gs[i*3]), plt.subplot(gs[i*3+1]), plt.subplot(gs[i*3+2]), \
                     plt.subplot(gs[i * 3 + 3]), plt.subplot(gs[i * 3 + 4]), plt.subplot(gs[i * 3 + 5])
         try:
@@ -196,7 +208,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
             # sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue="expression", ax=ax1, palette="viridis", **scatter_kwargs) # x-axis: S vs y-axis: U
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
                 ax1 = _matplotlib_points(
-                    cur_pd,
+                    cur_pd.iloc[:, [1, 0]].values,
                     ax=ax1,
                     labels=None,
                     values=cur_pd.loc[:, 'expression'],
@@ -212,7 +224,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                 )
             else:
                 ax1 = _datashade_points(
-                    cur_pd,
+                    cur_pd.iloc[:, [1, 0]].values,
                     ax=ax1,
                     labels=None,
                     values=cur_pd.loc[:, 'expression'],
@@ -230,7 +242,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
             # sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue=color, ax=ax1, palette="Set2", **scatter_kwargs) # x-axis: S vs y-axis: U
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
                 ax1 = _matplotlib_points(
-                    cur_pd,
+                    cur_pd.iloc[:, [1, 0]].values,
                     ax=ax1,
                     labels=color,
                     values=None,
@@ -246,7 +258,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                 )
             else:
                 ax1 = _datashade_points(
-                    cur_pd,
+                    cur_pd.iloc[:, [1, 0]].values,
                     ax=ax1,
                     labels=color,
                     values=None,
@@ -263,14 +275,14 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
 
         ax1.set_title(gn)
         xnew = np.linspace(0, cur_pd.iloc[:, 1].max())
-        ax1.plot(xnew, xnew * cur_pd.loc[:, 'gamma'].unique() + cur_pd.loc[:, 'velocity_offset'].unique(), c="k")
+        ax1.plot(xnew, xnew * cur_pd.loc[:, 'gamma'].unique() + cur_pd.loc[:, 'velocity_offset'].unique(), c=font_color)
         ax1.set_xlim(0, np.max(cur_pd.iloc[:, 1])*1.02)
         ax1.set_ylim(0, np.max(cur_pd.iloc[:, 0])*1.02)
 
         despline(ax1) # sns.despline()
 
         df_embedding = pd.concat([cur_pd, embedding], axis=1)
-        V_vec = df_embedding.loc[:, 'velocity']
+        V_vec = cur_pd.loc[:, 'velocity']
 
         limit = np.nanmax(np.abs(np.nanpercentile(V_vec, [1, 99])))  # upper and lowe limit / saturation
 
@@ -282,10 +294,10 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
         # sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=df_embedding.loc[:, 'expression'], ax=ax2, palette=cmap, legend=False, **scatter_kwargs)
         if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
             ax2 = _matplotlib_points(
-                cur_pd.iloc[:, :2],
+                embedding.iloc[:, :2].values,
                 ax=ax2,
                 labels=None,
-                values=df_embedding.loc[:, 'expression'],
+                values=cur_pd.loc[:, 'expression'].values,
                 highlights=None,
                 cmap=continous_cmap,
                 color_key=None,
@@ -298,10 +310,10 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
             )
         else:
             ax2 = _datashade_points(
-                cur_pd.iloc[:, :2],
+                embedding.iloc[:, :2].values,
                 ax=ax2,
                 labels=None,
-                values=df_embedding.loc[:, 'expression'],
+                values=cur_pd.loc[:, 'expression'],
                 highlights=None,
                 cmap=continous_cmap,
                 color_key=None,
@@ -321,7 +333,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
         # sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=V_vec, ax=ax3, palette=cmap, legend=False, **scatter_kwargs)
         if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
             ax3 = _matplotlib_points(
-                cur_pd.iloc[:, :2],
+                embedding.iloc[:, :2].values,
                 ax=ax3,
                 labels=None,
                 values=V_vec,
@@ -337,7 +349,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
             )
         else:
             ax3 = _datashade_points(
-                cur_pd.iloc[:, :2],
+                embedding.iloc[:, :2].values,
                 ax=ax3,
                 labels=None,
                 values=V_vec,
@@ -362,7 +374,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                 # sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue="expression", ax=ax4, palette="viridis", **scatter_kwargs) # x-axis: S vs y-axis: U
                 if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
                     ax4 = _matplotlib_points(
-                        cur_pd,
+                        cur_pd.iloc[:, [3, 2]].values,
                         ax=ax4,
                         labels=None,
                         values=cur_pd.loc[:, 'expression'],
@@ -378,7 +390,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                     )
                 else:
                     ax4 = _datashade_points(
-                        cur_pd,
+                        cur_pd.iloc[:, [3, 2]].values,
                         ax=ax4,
                         labels=None,
                         values=cur_pd.loc[:, 'expression'],
@@ -396,7 +408,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                 # sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue=color, ax=ax4, palette="Set2", **scatter_kwargs) # x-axis: S vs y-axis: U
                 if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
                     ax4 = _matplotlib_points(
-                        cur_pd,
+                        cur_pd.iloc[:, [1, 0]].values,
                         ax=ax4,
                         labels=color,
                         values=None,
@@ -412,7 +424,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                     )
                 else:
                     ax4 = _datashade_points(
-                        cur_pd,
+                        cur_pd.iloc[:, [1, 0]].values,
                         ax=ax4,
                         labels=color,
                         values=None,
@@ -429,7 +441,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
 
             ax4.set_title(gn)
             xnew = np.linspace(0, cur_pd.iloc[:, 3].max())
-            ax4.plot(xnew, xnew * cur_pd.loc[:, 'gamma_P'].unique() + cur_pd.loc[:, 'velocity_offset_P'].unique(), c="k")
+            ax4.plot(xnew, xnew * cur_pd.loc[:, 'gamma_P'].unique() + cur_pd.loc[:, 'velocity_offset_P'].unique(), c=font_color)
             ax4.set_ylim(0, np.max(cur_pd.iloc[:, 3]) * 1.02)
             ax4.set_xlim(0, np.max(cur_pd.iloc[:, 2]) * 1.02)
 
@@ -450,7 +462,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
             #                 ax=ax5, legend=False, palette=cmap, **scatter_kwargs)
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
                 ax5 = _matplotlib_points(
-                    cur_pd.iloc[:, :1],
+                    embedding.iloc[:, :2],
                     ax=ax5,
                     labels=None,
                     values=embedding.loc[:, 'P'],
@@ -466,7 +478,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                 )
             else:
                 ax5 = _datashade_points(
-                    cur_pd.iloc[:, :1],
+                    embedding.iloc[:, :2],
                     ax=ax5,
                     labels=None,
                     values=embedding.loc[:, 'P'],
@@ -489,7 +501,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
             # sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=V_vec, ax=ax6, legend=False, palette=cmap, **scatter_kwargs)
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
                 ax6 = _matplotlib_points(
-                    embedding.iloc[:, :1],
+                    embedding.iloc[:, :2],
                     ax=ax6,
                     labels=None,
                     values=V_vec,
@@ -505,7 +517,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                 )
             else:
                 ax6 = _datashade_points(
-                    embedding.iloc[:, :1],
+                    embedding.iloc[:, :2],
                     ax=ax6,
                     labels=None,
                     values=V_vec,

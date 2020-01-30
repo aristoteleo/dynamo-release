@@ -110,8 +110,8 @@ def _matplotlib_points(
     dpi = plt.rcParams["figure.dpi"]
     width, height = width * dpi, height * dpi
 
-    """Use matplotlib to plot points"""
-    point_size = 100.0 / np.sqrt(points.shape[0])
+    # """Use matplotlib to plot points"""
+    # point_size = 500.0 / np.sqrt(points.shape[0])
 
     legend_elements = None
 
@@ -185,7 +185,7 @@ def _matplotlib_points(
             ]
             colors = pd.Series(labels).map(new_color_key)
 
-        ax.scatter(points[:, 0], points[:, 1], s=point_size, c=colors, rasterized=True, **kwargs)
+        ax.scatter(points[:, 0], points[:, 1], c=colors, rasterized=True, **kwargs)
 
     # Color by values
     elif values is not None:
@@ -200,13 +200,13 @@ def _matplotlib_points(
         sorted_id = np.argsort(values)
         values, points = values[sorted_id], points[sorted_id, :]
 
-        ax.scatter(points[:, 0], points[:, 1], s=point_size, c=values, cmap=cmap, rasterized=True, **kwargs)
+        ax.scatter(points[:, 0], points[:, 1], c=values, cmap=cmap, rasterized=True, **kwargs)
 
     # No color (just pick the midpoint of the cmap)
     else:
 
         color = plt.get_cmap(cmap)(0.5)
-        ax.scatter(points[:, 0], points[:, 1], s=point_size, c=color, rasterized=True, **kwargs)
+        ax.scatter(points[:, 0], points[:, 1], c=color, rasterized=True, **kwargs)
 
     if show_legend and legend_elements is not None:
         if len(unique_labels) > 1 and show_legend == 'on data':
@@ -370,9 +370,9 @@ def _datashade_points(
                         PathEffects.Normal()])
             else:
                 if type(show_legend) == 'str':
-                    ax.legend(handles=legend_elements, loc=show_legend, ncol=unique_labels // 15)
+                    ax.legend(handles=legend_elements, loc=show_legend, ncol=len(unique_labels) // 15 + 1)
                 else:
-                    ax.legend(handles=legend_elements, loc='best', ncol=unique_labels // 15)
+                    ax.legend(handles=legend_elements, loc='best', ncol=len(unique_labels) // 15 + 1)
         return ax
     else:
         return result

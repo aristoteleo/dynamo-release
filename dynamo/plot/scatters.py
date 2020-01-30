@@ -14,7 +14,7 @@ import matplotlib.colors
 import matplotlib.cm
 
 
-def scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key='S', ekey='X', basis='umap', n_columns=1, \
+def _scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key='S', ekey='X', basis='umap', n_columns=1, \
              color=None, pointsize=None, figsize=None, legend='on data', ax=None, normalize=False, **kwargs):
     """Scatter plot of cells for phase portrait or for low embedding embedding, colored by gene expression, velocity or cell groups.
 
@@ -424,7 +424,7 @@ def scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key
     plt.show()
 
 
-def points(
+def scatters(
         adata,
         x=0,
         y=1,

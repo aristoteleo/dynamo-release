@@ -1,5 +1,5 @@
 # """ plotting utilities that are built based on scSLAM-seq paper
-from .scatters import points
+from .scatters import scatters
 
 def pca(
         adata,
@@ -23,7 +23,7 @@ def pca(
         use_smoothed=True,
         ax=None,
         **kwargs):
-    points(
+    scatters(
         adata,
         x,
         y,
@@ -68,7 +68,7 @@ def umap(
         use_smoothed=True,
         ax=None,
         **kwargs):
-    points(
+    scatters(
         adata,
         x,
         y,
@@ -113,7 +113,7 @@ def trimap(
         use_smoothed=True,
         ax=None,
         **kwargs):
-    points(
+    scatters(
         adata,
         x,
         y,
@@ -158,7 +158,7 @@ def tsne(
         use_smoothed=True,
         ax=None,
         **kwargs):
-    points(
+    scatters(
         adata,
         x,
         y,

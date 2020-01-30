@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from .scatters import points
+from .scatters import scatters
 from .utils import quiver_autoscaler
 from ..tools.dimension_reduction import reduceDimension
 from ..tools.cell_velocities import cell_velocities
@@ -786,7 +786,7 @@ def cell_wise_velocity(
     quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_scale, "minlength": 1.5, "alpha": 0.4}
     quiver_kwargs.update(cell_wise_kwargs)
 
-    axes_list, font_color = points(
+    axes_list, font_color = scatters(
         adata,
         x,
         y,
@@ -895,7 +895,7 @@ def grid_velocity(
     quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_scale, "minlength": 1.5, "alpha": 0.4}
     quiver_kwargs.update(grid_kwargs)
 
-    axes_list, font_color = points(
+    axes_list, font_color = scatters(
         adata,
         x,
         y,
@@ -995,7 +995,7 @@ def streamline_plot(
     mass = np.sqrt((V_grid ** 2).sum(0))
     streamplot_kwargs.update({"linewidth": 4 * mass / mass[~np.isnan(mass)].max()})
 
-    axes_list, font_color = points(
+    axes_list, font_color = scatters(
         adata,
         x,
         y,
