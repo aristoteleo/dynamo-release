@@ -61,6 +61,9 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
         scatter_kwargs.update(kwargs)
 
     genes, idx = adata.var.index[adata.var.index.isin(genes)].tolist(), np.where(adata.var.index.isin(genes))[0]
+    genes, idx = np.array(genes)[np.isfinite(adata.var.loc[genes, ['gamma']]).values.flatten()].tolist(), \
+                 np.array(idx)[np.isfinite(adata.var.loc[genes, ['gamma']]).values.flatten()].tolist()
+
     if len(genes) == 0:
         raise Exception('adata has no genes listed in your input gene vector: {}'.format(genes))
     if not 'X_' + basis in adata.obsm.keys():
@@ -205,7 +208,6 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
             continue
         cur_pd = df.loc[df.gene == gn, :]
         if cur_pd.color.unique() != np.nan:
-            # sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue="expression", ax=ax1, palette="viridis", **scatter_kwargs) # x-axis: S vs y-axis: U
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
                 ax1 = _matplotlib_points(
                     cur_pd.iloc[:, [1, 0]].values,
@@ -239,7 +241,6 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                     **scatter_kwargs
                 )
         else:
-            # sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue=color, ax=ax1, palette="Set2", **scatter_kwargs) # x-axis: S vs y-axis: U
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
                 ax1 = _matplotlib_points(
                     cur_pd.iloc[:, [1, 0]].values,
@@ -290,8 +291,6 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
         V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
         V_vec = np.clip(V_vec, 0, 1)
 
-        cmap = plt.cm.RdBu_r # sns.cubehelix_palette(dark=.3, light=.8, as_cmap=True)
-        # sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=df_embedding.loc[:, 'expression'], ax=ax2, palette=cmap, legend=False, **scatter_kwargs)
         if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
             ax2 = _matplotlib_points(
                 embedding.iloc[:, :2].values,
@@ -328,9 +327,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
         ax2.set_title(gn + '(' + ekey + ')')
         ax2.set_xlabel(basis + '_1')
         ax2.set_ylabel(basis + '_2')
-        cmap = plt.cm.Greens # sns.diverging_palette(10, 220, sep=80, as_cmap=True)
 
-        # sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=V_vec, ax=ax3, palette=cmap, legend=False, **scatter_kwargs)
         if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
             ax3 = _matplotlib_points(
                 embedding.iloc[:, :2].values,
@@ -369,9 +366,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
         ax3.set_ylabel(basis + '_2')
 
         if 'protein' in adata.obsm.keys() and mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]):
-            # sns.scatterplot(cur_pd.iloc[:, 3], cur_pd.iloc[:, 2], hue=color, ax=ax4, **scatter_kwargs) # x-axis: Protein vs. y-axis: Spliced
             if cur_pd.color.unique() != np.nan:
-                # sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue="expression", ax=ax4, palette="viridis", **scatter_kwargs) # x-axis: S vs y-axis: U
                 if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
                     ax4 = _matplotlib_points(
                         cur_pd.iloc[:, [3, 2]].values,
@@ -405,7 +400,6 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                         **scatter_kwargs
                     )
             else:
-                # sns.scatterplot(cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], hue=color, ax=ax4, palette="Set2", **scatter_kwargs) # x-axis: S vs y-axis: U
                 if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
                     ax4 = _matplotlib_points(
                         cur_pd.iloc[:, [1, 0]].values,
@@ -455,11 +449,6 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
             V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
             V_vec = np.clip(V_vec, 0, 1)
 
-            df_embedding = pd.concat([embedding, cur_pd.loc[:, 'gene']], ignore_index=False)
-
-            cmap = sns.light_palette("navy", as_cmap=True)
-            # sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=df_embedding.loc[:, 'P'], \
-            #                 ax=ax5, legend=False, palette=cmap, **scatter_kwargs)
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
                 ax5 = _matplotlib_points(
                     embedding.iloc[:, :2],
@@ -496,9 +485,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
             ax5.set_title(gn + '(protein expression)')
             ax5.set_xlabel(basis + '_1')
             ax5.set_ylabel(basis + '_2')
-            cmap = sns.diverging_palette(145, 280, s=85, l=25, n=7)
 
-            # sns.scatterplot(embedding.iloc[:, 0], embedding.iloc[:, 1], hue=V_vec, ax=ax6, legend=False, palette=cmap, **scatter_kwargs)
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
                 ax6 = _matplotlib_points(
                     embedding.iloc[:, :2],
