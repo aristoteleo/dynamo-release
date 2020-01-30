@@ -60,7 +60,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
 
-    genes, idx = adata.var.index[adata.var.index.isin(genes)].tolist(), np.where(adata.var.index.isin(genes))[0]
+    genes, idx = adata.var.index[adata.var.index.isin(genes)], np.where(adata.var.index.isin(genes))[0]
     genes, idx = np.array(genes)[np.isfinite(adata.var.loc[genes, ['gamma']]).values.flatten()].tolist(), \
                  np.array(idx)[np.isfinite(adata.var.loc[genes, ['gamma']]).values.flatten()].tolist()
 
