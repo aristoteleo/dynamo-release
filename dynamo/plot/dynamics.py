@@ -61,8 +61,9 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
         scatter_kwargs.update(kwargs)
 
     genes, idx = adata.var.index[adata.var.index.isin(genes)], np.where(adata.var.index.isin(genes))[0]
-    genes, idx = np.array(genes)[np.isfinite(adata.var.loc[genes, ['gamma']]).values.flatten()].tolist(), \
-                 np.array(idx)[np.isfinite(adata.var.loc[genes, ['gamma']]).values.flatten()].tolist()
+    # avoid object for dtype in the gamma column https://stackoverflow.com/questions/40809503/python-numpy-typeerror-ufunc-isfinite-not-supported-for-the-input-types
+    valid_id = np.isfinite(np.array(adata.var.loc[genes, ['gamma']], dtype='float')).flatten()
+    genes, idx = np.array(genes)[valid_id].tolist(), idx[valid_id].tolist()
 
     if len(genes) == 0:
         raise Exception('adata has no genes listed in your input gene vector: {}'.format(genes))
@@ -275,6 +276,8 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                 )
 
         ax1.set_title(gn)
+        ax1.set_xlabel('spliced')
+        ax1.set_ylabel('unspliced')
         xnew = np.linspace(0, cur_pd.iloc[:, 1].max())
         ax1.plot(xnew, xnew * cur_pd.loc[:, 'gamma'].unique() + cur_pd.loc[:, 'velocity_offset'].unique(), c=font_color)
         ax1.set_xlim(0, np.max(cur_pd.iloc[:, 1])*1.02)
@@ -434,6 +437,9 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                     )
 
             ax4.set_title(gn)
+            ax1.set_xlabel('spliced')
+            ax1.set_ylabel('protein')
+            
             xnew = np.linspace(0, cur_pd.iloc[:, 3].max())
             ax4.plot(xnew, xnew * cur_pd.loc[:, 'gamma_P'].unique() + cur_pd.loc[:, 'velocity_offset_P'].unique(), c=font_color)
             ax4.set_ylim(0, np.max(cur_pd.iloc[:, 3]) * 1.02)
