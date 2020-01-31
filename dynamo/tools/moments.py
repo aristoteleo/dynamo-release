@@ -28,6 +28,13 @@ def calc_mom_all_genes(T, adata, fcn_mom):
         Mr[g] = strat_mom(rho, T, fcn_mom)
     return Mn, Mo, Mt, Mr
 
+def calc_2nd_moment(X, Y, W, normalize_W=False):
+    if normalize_W:
+        
+    return (W @ Y).multiply(X)
+
+
+
 class MomData(AnnData):
     def __init__(self, adata, time_key='Time', has_nan=False):
         #self.data = adata
