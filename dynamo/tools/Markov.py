@@ -325,17 +325,17 @@ class KernelMarkovChain(MarkovChain):
         self.Kd = None
         self.Idx = None
 
-    def fit(self, X, V, M_diff, neighbor_idx=None, n_recurse_neighbors=None, k=200, epsilon=None, adaptive_local_kernel=False, tol=1e-4,
+    def fit(self, X, V, M_diff, neighbor_idx=None, n_recurse_neighbors=None, k=30, epsilon=None, adaptive_local_kernel=False, tol=1e-4,
             sparse_construct=True, sample_fraction=None):
         # compute connectivity
         if neighbor_idx is None:
             nbrs = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(X)
-            _, self.Idx = nbrs.kneighbors(X)
+            _, neighbor_idx = nbrs.kneighbors(X)
+
+        if n_recurse_neighbors is not None:
+            self.Idx = append_iterative_neighbor_indices(neighbor_idx, n_recurse_neighbors)
         else:
-            if n_recurse_neighbors is not None:
-                self.Idx = append_iterative_neighbor_indices(neighbor_idx, n_recurse_neighbors)
-            else:
-                self.Idx = neighbor_idx
+            self.Idx = neighbor_idx
         
         # apply kNN downsampling to accelerate calculation (adapted from velocyto)
         if sample_fraction is not None:

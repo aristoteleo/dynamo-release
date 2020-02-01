@@ -5,8 +5,9 @@ from .Markov import *
 from .connectivity import extract_indices_dist_from_graph
 from .utils import set_velocity_genes, get_finite_inds, get_ekey_vkey_from_adata
 
-def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, n_pca_components=25, min_r2=0.5, basis='umap', method='analytical', neg_cells_trick=False, calc_rnd_vel=False,
-                    xy_grid_nums=(50, 50), correct_density=True, sample_fraction=None, random_seed=19491001, **kmc_kwargs):
+def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_basis=False, n_pca_components=25, min_r2=0.5, basis='umap', method='analytical',
+                    neg_cells_trick=False, calc_rnd_vel=False, xy_grid_nums=(50, 50), correct_density=True, sample_fraction=None,
+                    random_seed=19491001, **kmc_kwargs):
     """Compute transition probability and project high dimension velocity vector to existing low dimension embedding.
 
     It is powered by the Itô kernel that not only considers the correlation between the vector from any cell to its
@@ -26,7 +27,9 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, n_pca_components
             The dictionary key that corresponds to the estimated velocity values in layers attribute.
         use_mnn: `bool` (optional, default `False`)
             Whether to use mutual nearest neighbors for projecting the high dimensional velocity vectors. By default, we don't use the mutual
-            nearest neighbors. 
+            nearest neighbors.
+        neighbors_from_basis: `bool` (optional, default `False`)
+            Whether to construct nearest neighbors from low dimensional space as defined by the `basis`.
         n_pca_components: `int` (optional, default `25`)
             The number of pca components to project the high dimensional X, V before calculating transition matrix for velocity visualization.
         min_r2: `float` (optional, default `0.5`)
@@ -106,7 +109,11 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, n_pca_components
 
             X, V_mat = X_pca[:, :n_pca_components], V_pca[:, :n_pca_components]
 
-        kmc.fit(X, V_mat, neighbor_idx=indices, sample_fraction=sample_fraction, **kmc_args) #
+        if neighbors_from_basis:
+            kmc.fit(X, V_mat, neighbor_idx=None, sample_fraction=sample_fraction, **kmc_args) #
+        else:
+            kmc.fit(X, V_mat, neighbor_idx=indices, sample_fraction=sample_fraction, **kmc_args) #
+
         T = kmc.P
         if correct_density:
             delta_X = kmc.compute_density_corrected_drift(X_embedding, kmc.Idx, normalize_vector=True) # indices, k = 500

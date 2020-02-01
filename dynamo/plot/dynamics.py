@@ -39,6 +39,9 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
         by the velocity magnitude or the gene expression value, respectively.
     figsize: `None` or `[float, float]` (default: None)
             The width and height of a figure.
+    ncols: `None` or `int` (default: None)
+    ncol: `None` or `int` (default: None)
+            Number of columns in each facet grid.
     legend: `str` (default: `on data`)
             Where to put the legend.  Legend is drawn by seaborn with “brief” mode, numeric hue and size variables will be
             represented with a sample of evenly spaced values. By default legend is drawn on top of cells.
@@ -439,7 +442,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
             ax4.set_title(gn)
             ax1.set_xlabel('spliced')
             ax1.set_ylabel('protein')
-            
+
             xnew = np.linspace(0, cur_pd.iloc[:, 3].max())
             ax4.plot(xnew, xnew * cur_pd.loc[:, 'gamma_P'].unique() + cur_pd.loc[:, 'velocity_offset_P'].unique(), c=font_color)
             ax4.set_ylim(0, np.max(cur_pd.iloc[:, 3]) * 1.02)
