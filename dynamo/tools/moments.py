@@ -28,12 +28,22 @@ def calc_mom_all_genes(T, adata, fcn_mom):
         Mr[g] = strat_mom(rho, T, fcn_mom)
     return Mn, Mo, Mt, Mr
 
-def calc_2nd_moment(X, Y, W, normalize_W=False):
+def calc_1nd_moment(X, W, normalize_W=True):
     if normalize_W:
-        
-    return (W @ Y).multiply(X)
+        d = np.sum(W, 1)
+        W = np.diag(1/d) @ W
+    return W @ X
 
-
+def calc_2nd_moment(X, Y, W, normalize_W=True, center=False, mX=None, mY=None):
+    if normalize_W:
+        d = np.sum(W, 1)
+        W = np.diag(1/d) @ W
+    XY = np.multiply(W @ Y, X)
+    if center:
+        mX = calc_1nd_moment(X, W, False) if mX is None else mX
+        mY = calc_1nd_moment(Y, W, False) if mY is None else mY
+        XY = XY - np.multiply(mX, mY)
+    return XY
 
 class MomData(AnnData):
     def __init__(self, adata, time_key='Time', has_nan=False):
