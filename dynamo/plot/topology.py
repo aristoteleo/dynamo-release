@@ -2,7 +2,9 @@ import numpy as np
 import scipy
 import matplotlib.pyplot as plt
 
-def plot_flow_field(vecfld, x_range, y_range, ax=None, start_points=None, n_grid=100, lw_min=0.5, lw_max=3, color='thistle', color_start_points='tomato'):
+from ..tools.topology import VectorField2D, vector_field_function, compute_separatrices
+
+def plot_flow_field(vecfld, x_range, y_range, start_points=None, n_grid=100, lw_min=0.5, lw_max=3, color='thistle', color_start_points='tomato', ax=None):
     """Plots the flow field with line thickness proportional to speed.
     code adapted from: http://be150.caltech.edu/2017/handouts/dynamical_systems_approaches.html
 
@@ -55,7 +57,7 @@ def plot_flow_field(vecfld, x_range, y_range, ax=None, start_points=None, n_grid
         ax.streamplot(uu, vv, u_vel, v_vel, linewidth=lw_max, arrowsize=1.2, start_points = start_points,
                       density=1, color=color_start_points)
 
-def plot_nullclines(vecfld, ax=None, colors=['#189e1a', '#1f77b4'], lw=3):
+def plot_nullclines(vecfld, colors=['#189e1a', '#1f77b4'], lw=3, ax=None):
     """Plot nullclines stored in the VectorField2D class.
 
     Arguments
@@ -72,7 +74,7 @@ def plot_nullclines(vecfld, ax=None, colors=['#189e1a', '#1f77b4'], lw=3):
     for ncy in vecfld.NCy:
         plt.plot(*ncy.T, c=colors[1], lw=lw)
 
-def plot_fixed_points(vecfld, ax=None, marker='o', markersize=20, markercolor='k', filltype=['full', 'top', 'none']):
+def plot_fixed_points(vecfld, marker='o', markersize=20, markercolor='k', filltype=['full', 'top', 'none'], ax=None):
     """Plot fixed points stored in the VectorField2D class.
     
     Arguments
@@ -90,7 +92,7 @@ def plot_fixed_points(vecfld, ax=None, marker='o', markersize=20, markercolor='k
     for i in range(len(Xss)):
         ax.plot(*Xss[i], marker=marker, markersize=markersize, c=markercolor, fillstyle=filltype[int(ftype[i] + 1)], linestyle='none')
 
-def plot_traj(ax, f, y0, t, args=(), color='black', lw=2):
+def plot_traj(f, y0, t, args=(), color='black', lw=2, ax=None):
     """Plots a trajectory on a phase portrait.
     code adapted from: http://be150.caltech.edu/2017/handouts/dynamical_systems_approaches.html
 
@@ -122,8 +124,8 @@ def plot_traj(ax, f, y0, t, args=(), color='black', lw=2):
     return ax
 
 
-def plot_separatrix(vecfld, x_range, y_range, t, ax=None, eps=1e-6,
-                           color='tomato', lw=3, **fix_points_kwargs):
+def plot_separatrix(vecfld, x_range, y_range, t, eps=1e-6,
+                           color='tomato', lw=3, ax=None):
     """Plot separatrix on phase portrait.
         code adapted from: http://be150.caltech.edu/2017/handouts/dynamical_systems_approaches.html
 
@@ -161,8 +163,8 @@ def plot_separatrix(vecfld, x_range, y_range, t, ax=None, eps=1e-6,
             ab_lower = scipy.integrate.odeint(rhs, ab0, t)
 
             # Concatenate, reversing lower so points are sequential
-            sep_a = np.concatenate((ab_lower[::-1,0], ab_upper[:,0]))
-            sep_b = np.concatenate((ab_lower[::-1,1], ab_upper[:,1]))
+            sep_a = np.concatenate((ab_lower[::-1, 0], ab_upper[:, 0]))
+            sep_b = np.concatenate((ab_lower[::-1, 1], ab_upper[:, 1]))
 
             # Plot
             ax.plot(sep_a, sep_b, '-', color=color, lw=lw)
@@ -170,7 +172,8 @@ def plot_separatrix(vecfld, x_range, y_range, t, ax=None, eps=1e-6,
             all_sep_a = sep_a if all_sep_a is None else np.concatenate((all_sep_a, sep_a))
             all_sep_b = sep_b if all_sep_b is None else np.concatenate((all_sep_b, sep_b))
 
-def topography(adata, basis, xlim, ylim, t=None, terms=['streamline', 'nullcline', 'fixed_points', 'separatrices', 'trajectory'], init_state=None, VF=None, plot=True, **fixed_points_kwargs):
+def topography(adata, basis, xlim, ylim, t=None, terms=['streamline', 'nullcline', 'fixed_points', 'separatrices', 'trajectory'],
+               init_state=None, VF=None, plot=True):
     """ Plot the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system
     for single cells. The plot is created on two dimensional space.
 
@@ -204,10 +207,20 @@ def topography(adata, basis, xlim, ylim, t=None, terms=['streamline', 'nullcline
         for single cells or return the corresponding axis, depending on the plot argument.
     """
 
-    VecFld = adata.uns['VecFld'] if basis is 'X' else adata.uns['VecFld_' + basis]
+    VF = adata.uns['VecFld'] if basis is 'X' else adata.uns['VecFld_' + basis]
+
+    min_, max_ = adata.obsm['X_' + basis].min(0), adata.obsm['X_' + basis].max(0)
+
+    xlim = [min_[0] - (max_[0] - min_[0]) * 0.05, max_[0] + (max_[0] - min_[0]) * 0.05] if xlim is None else xlim
+    ylim = [min_[1] - (max_[1] - min_[1]) * 0.05, max_[1] + (max_[1] - min_[1]) * 0.05] if ylim is None else ylim
 
     if VF is None:
-        VF = lambda x, t=None: vector_field_function(x=x, t=t, VecFld=VecFld)
+        raise Exception('')
+    else:
+        vecfld = VectorField2D(lambda x: vector_field_function(x, VF))
+        vecfld.find_fixed_points_by_sampling(10, xlim, ylim)
+        vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
+        sep = compute_separatrices(vecfld.Xss.get_X(), vecfld.Xss.get_J(), vecfld.func, xlim, ylim)
 
     # Set up the figure
     fig, ax = plt.subplots(1, 1)
@@ -216,62 +229,26 @@ def topography(adata, basis, xlim, ylim, t=None, terms=['streamline', 'nullcline
     ax.set_aspect('equal')
 
     # Build the plot
-    xlim = [0, 6] if xlim is None else xlim
-    ylim = [0, 6] if ylim is None else ylim
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
 
     if t is None:
-        t = np.linspace(0, max(max(np.diff(xlim), np.diff(ylim)) / np.percentile(VecFld['grid_V'].__abs__(), 5)), 1e7)
+        t = np.linspace(0, max(max(np.diff(xlim), np.diff(ylim)) / np.percentile(np.abs(VF['grid_V']), 5)), 1e7)
 
     if 'streamline' in terms:
-        ax = plot_flow_field(ax, VF, xlim, ylim)
+        ax = plot_flow_field(vecfld, xlim, ylim, ax=ax)
 
-    if 'nullcline' in terms  or 'fixed_points' in terms or 'separatrices' in terms:
-        fix_points_dict = {"auto_func": None, "dim_range": xlim, "RandNum": 5000, "EqNum": 2, "x_ini": None, "reverse": False, "grid_num": 50}
+    if 'nullcline' in terms:
+        ax = plot_nullclines(vecfld, ax=ax)
 
-        if fixed_points_kwargs is not None:
-            fix_points_dict.update(fixed_points_kwargs)
+    if 'fixed_points' in terms:
+        ax = plot_fixed_points(vecfld, ax=ax)
 
-        # reverse vector field for identifying repellers
-        if fix_points_dict['reverse']:
-            from scipy.spatial.distance import cdist
-
-            stable_r, saddle_r = gen_fixed_points(func=VF, **fix_points_dict)
-            fix_points_dict['reverse'] = False
-            stable_f, saddle_f = gen_fixed_points(func=VF, **fix_points_dict)
-
-            # remove duplicated points
-            tmp = cdist(stable_r.T, stable_f.T)
-            stable_f = stable_f[:, list(set(np.arange(stable_f.shape[1])).difference(np.where(tmp < 1e-15)[1]))]
-            tmp = cdist(saddle_r.T, saddle_f.T)
-            saddle_f = saddle_f[:, list(set(np.arange(saddle_f.shape[1])).difference(np.where(tmp < 1e-15)[1]))]
-
-            stable, saddle = np.hstack((stable_r, stable_f)), np.hstack((saddle_r, saddle_f))
-        else:
-            stable, saddle = gen_fixed_points(func=VF, **fix_points_dict)
-
-        stable = stable[:, np.logical_and(stable[0] >= xlim[0], stable[0] <= xlim[1]) &
-                           np.logical_and(stable[1] >= ylim[0], stable[1] <= ylim[1])]
-        saddle = saddle[:, np.logical_and(saddle[0] >= xlim[0], saddle[0] <= xlim[1]) &
-                           np.logical_and(saddle[1] >= ylim[0], saddle[1] <= ylim[1])]
-        points = np.hstack((stable, saddle))
-
-    if 'nullcline' in terms and points.shape[1] > 0:
-        ax = plot_nullclines(ax, VF, xlim, ylim, fixed_points=points)
-
-    if 'fixed_points' in terms and points.shape[1] > 0:
-        ax = plot_fixed_points(ax, VF, dim_range=xlim, saddle=saddle, stable=stable)
-
-    if 'separatrices' in terms and saddle.shape[1] > 0:
-        if stable.shape[1] > 2:
-            ax = plot_flow_field(ax, VF, xlim, ylim, start_points=saddle.T - 0.01)
-            ax = plot_flow_field(ax, VF, xlim, ylim, start_points=saddle.T + 0.01)
-        else:
-            ax = plot_separatrix(ax, VF, saddle, xlim, ylim, t=t)
+    if 'separatrices' in terms:
+        ax = plot_separatrix(vecfld, xlim, ylim, t=t, ax=ax)
 
     if init_state is not None and 'trajectory' in terms:
-        ax = plot_traj(ax, VF, init_state, t)
+        ax = plot_traj(VF, init_state, t, ax=ax)
 
     if plot:
         plt.show()
