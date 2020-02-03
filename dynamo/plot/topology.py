@@ -178,7 +178,7 @@ def plot_separatrix(vecfld, x_range, y_range, t, eps=1e-6,
 
 
 def topography(adata, basis, xlim, ylim, t=None, terms=['streamline', 'nullcline', 'fixed_points', 'separatrices', 'trajectory'],
-               init_state=None, VF=None, plot=True):
+               init_state=None, plot=True):
     """Plot the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system
     for single cells. The plot is created on two dimensional space.
 
@@ -199,8 +199,6 @@ def topography(adata, basis, xlim, ylim, t=None, terms=['streamline', 'nullcline
             A list of plotting items to include in the final topography figure.
         init_state: `numpy.ndarray` (default: None)
             Initial cell states for the historical or future cell state prediction with numerical integration.
-        VF: `function` or None (default: None)
-            The true vector field function if known and want to demonstrate.
         plot: `bool` (default: True)
             Whether or not to plot the topography plot or just return the axis object.
 
@@ -210,20 +208,17 @@ def topography(adata, basis, xlim, ylim, t=None, terms=['streamline', 'nullcline
         for single cells or return the corresponding axis, depending on the plot argument.
     """
 
-    VF = adata.uns['VecFld'] if basis is 'X' else adata.uns['VecFld_' + basis]
+    uns_key = 'VecFld' if basis == 'X' else 'VecFld_' + basis
 
-    min_, max_ = adata.obsm['X_' + basis].min(0), adata.obsm['X_' + basis].max(0)
-
-    xlim = [min_[0] - (max_[0] - min_[0]) * 0.05, max_[0] + (max_[0] - min_[0]) * 0.05] if xlim is None else xlim
-    ylim = [min_[1] - (max_[1] - min_[1]) * 0.05, max_[1] + (max_[1] - min_[1]) * 0.05] if ylim is None else ylim
-
-    if VF is None:
+    if uns_key not in adata.uns.keys():
         raise Exception('Functional vector field is not calculated yet. Please first run VectorField function.')
+    elif 'VecFld2D' not in adata.uns['VecFld'].keys():
+        raise Exception('Topology can only support ploting on 2 dimension space. Please run VectorField with a basis '
+                        'of only two dimensions.')
     else:
-        vecfld = VectorField2D(lambda x: vector_field_function(x, VF))
-        vecfld.find_fixed_points_by_sampling(10, xlim, ylim)
-        vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
-        # sep = compute_separatrices(vecfld.Xss.get_X(), vecfld.Xss.get_J(), vecfld.func, xlim, ylim)
+        VF, vecfld = adata.uns[uns_key]["VecFld"], adata.uns['VecFld']["VecFld2D"]
+        xlim, ylim = adata.uns['VecFld']["xlim"] if xlim is None else xlim, \
+                     adata.uns['VecFld']["ylim"] if ylim is None else ylim
 
     # Set up the figure
     fig, ax = plt.subplots(1, 1)

@@ -307,12 +307,12 @@ def VectorField(adata, basis='trimap', grid_velocity=False, grid_num=50, velocit
 
         adata.uns['VecFld_2d_' + basis] = vecfld
 
-        if basis is not 'X':
-            adata.uns['VecFld_' + basis] = {"VecFld": func, "VecFld2D": vecfld}
+        if basis != 'X':
+            adata.uns['VecFld_' + basis] = {"VecFld": func, "VecFld2D": vecfld, "xlim": xlim, "ylim": ylim}
         else:
-            adata.uns['VecFld'] = {"VecFld": func, "VecFld2D": vecfld}
+            adata.uns['VecFld'] = {"VecFld": func, "VecFld2D": vecfld, "xlim": xlim, "ylim": ylim}
     else:
-        if basis is not 'X':
+        if basis != 'X':
             adata.uns['VecFld_' + basis] = {"VecFld": func}
         else:
             adata.uns['VecFld'] = {"VecFld": func}
