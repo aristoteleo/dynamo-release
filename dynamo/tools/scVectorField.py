@@ -3,6 +3,8 @@ import scipy
 import numpy.matlib
 from scipy.sparse import issparse
 
+from .topology import VectorField2D
+
 
 def norm(X, V, T):
         """Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
@@ -291,10 +293,29 @@ def VectorField(adata, basis='trimap', grid_velocity=False, grid_num=50, velocit
     VecFld = vectorfield(X, V, Grid, **kwargs)
     func = VecFld.fit(normalize=False, method=method)
 
-    if basis is not 'X':
-        adata.uns['VecFld_' + basis] = func
+    if X.shape[1] == 2:
+        min_, max_ = adata.obsm['X_' + basis].min(0), adata.obsm['X_' + basis].max(0)
+
+        xlim = [min_[0] - (max_[0] - min_[0]) * 0.05, max_[0] + (max_[0] - min_[0]) * 0.05]
+        ylim = [min_[1] - (max_[1] - min_[1]) * 0.05, max_[1] + (max_[1] - min_[1]) * 0.05]
+
+
+        vecfld = VectorField2D(lambda x: vector_field_function(x, func))
+        vecfld.find_fixed_points_by_sampling(10, xlim, ylim)
+        vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
+        # sep = compute_separatrices(vecfld.Xss.get_X(), vecfld.Xss.get_J(), vecfld.func, xlim, ylim)
+
+        adata.uns['VecFld_2d_' + basis] = vecfld
+
+        if basis is not 'X':
+            adata.uns['VecFld_' + basis] = {"VecFld": func, "VecFld2D": vecfld}
+        else:
+            adata.uns['VecFld'] = {"VecFld": func, "VecFld2D": vecfld}
     else:
-        adata.uns['VecFld'] = func
+        if basis is not 'X':
+            adata.uns['VecFld_' + basis] = {"VecFld": func}
+        else:
+            adata.uns['VecFld'] = {"VecFld": func}
 
     return adata
 

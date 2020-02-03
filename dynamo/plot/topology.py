@@ -2,7 +2,8 @@ import numpy as np
 import scipy
 import matplotlib.pyplot as plt
 
-from ..tools.topology import VectorField2D, vector_field_function, compute_separatrices
+from ..tools.topology import VectorField2D, vector_field_function # , compute_separatrices
+
 
 def plot_flow_field(vecfld, x_range, y_range, start_points=None, n_grid=100, lw_min=0.5, lw_max=3, color='thistle', color_start_points='tomato', ax=None):
     """Plots the flow field with line thickness proportional to speed.
@@ -57,6 +58,7 @@ def plot_flow_field(vecfld, x_range, y_range, start_points=None, n_grid=100, lw_
         ax.streamplot(uu, vv, u_vel, v_vel, linewidth=lw_max, arrowsize=1.2, start_points = start_points,
                       density=1, color=color_start_points)
 
+
 def plot_nullclines(vecfld, colors=['#189e1a', '#1f77b4'], lw=3, ax=None):
     """Plot nullclines stored in the VectorField2D class.
 
@@ -73,6 +75,7 @@ def plot_nullclines(vecfld, colors=['#189e1a', '#1f77b4'], lw=3, ax=None):
         plt.plot(*ncx.T, c=colors[0], lw=lw)
     for ncy in vecfld.NCy:
         plt.plot(*ncy.T, c=colors[1], lw=lw)
+
 
 def plot_fixed_points(vecfld, marker='o', markersize=20, markercolor='k', filltype=['full', 'top', 'none'], ax=None):
     """Plot fixed points stored in the VectorField2D class.
@@ -91,6 +94,7 @@ def plot_fixed_points(vecfld, marker='o', markersize=20, markercolor='k', fillty
         ax = plt.gca()
     for i in range(len(Xss)):
         ax.plot(*Xss[i], marker=marker, markersize=markersize, c=markercolor, fillstyle=filltype[int(ftype[i] + 1)], linestyle='none')
+
 
 def plot_traj(f, y0, t, args=(), color='black', lw=2, ax=None):
     """Plots a trajectory on a phase portrait.
@@ -172,9 +176,10 @@ def plot_separatrix(vecfld, x_range, y_range, t, eps=1e-6,
             all_sep_a = sep_a if all_sep_a is None else np.concatenate((all_sep_a, sep_a))
             all_sep_b = sep_b if all_sep_b is None else np.concatenate((all_sep_b, sep_b))
 
+
 def topography(adata, basis, xlim, ylim, t=None, terms=['streamline', 'nullcline', 'fixed_points', 'separatrices', 'trajectory'],
                init_state=None, VF=None, plot=True):
-    """ Plot the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system
+    """Plot the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system
     for single cells. The plot is created on two dimensional space.
 
     Parameters
@@ -198,8 +203,6 @@ def topography(adata, basis, xlim, ylim, t=None, terms=['streamline', 'nullcline
             The true vector field function if known and want to demonstrate.
         plot: `bool` (default: True)
             Whether or not to plot the topography plot or just return the axis object.
-        fixed_points_kwargs: `dict`
-            A dictionary of parameters for calculating the fixed points.
 
     Returns
     -------
@@ -215,12 +218,12 @@ def topography(adata, basis, xlim, ylim, t=None, terms=['streamline', 'nullcline
     ylim = [min_[1] - (max_[1] - min_[1]) * 0.05, max_[1] + (max_[1] - min_[1]) * 0.05] if ylim is None else ylim
 
     if VF is None:
-        raise Exception('')
+        raise Exception('Functional vector field is not calculated yet. Please first run VectorField function.')
     else:
         vecfld = VectorField2D(lambda x: vector_field_function(x, VF))
         vecfld.find_fixed_points_by_sampling(10, xlim, ylim)
         vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
-        sep = compute_separatrices(vecfld.Xss.get_X(), vecfld.Xss.get_J(), vecfld.func, xlim, ylim)
+        # sep = compute_separatrices(vecfld.Xss.get_X(), vecfld.Xss.get_J(), vecfld.func, xlim, ylim)
 
     # Set up the figure
     fig, ax = plt.subplots(1, 1)
@@ -248,7 +251,7 @@ def topography(adata, basis, xlim, ylim, t=None, terms=['streamline', 'nullcline
         ax = plot_separatrix(vecfld, xlim, ylim, t=t, ax=ax)
 
     if init_state is not None and 'trajectory' in terms:
-        ax = plot_traj(VF, init_state, t, ax=ax)
+        ax = plot_traj(vecfld.func, init_state, t, ax=ax)
 
     if plot:
         plt.show()
