@@ -17,36 +17,36 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
 
     Parameters
     ----------
-    adata: :class:`~anndata.AnnData`
-        an Annodata object
-    genes: `list`
-        A list of gene names that are going to be visualized.
-    x: `int` (default: `0`)
-            The column index of the low dimensional embedding for the x-axis
-    y: `int` (default: `1`)
-            The column index of the low dimensional embedding for the y-axis
-    pointsize: `None` or `float` (default: None)
-            The scale of the point size. Actual point cell size is calculated as `500.0 / np.sqrt(adata.shape[0]) * pointsize`
-    vkey: `string` (default: velocity)
-        Which velocity key used for visualizing the magnitude of velocity. Can be either velocity in the layers slot or the
-        keys in the obsm slot.
-    ekey: `str`
-        The layer of data to represent the gene expression level.
-    basis: `string` (default: umap)
-        Which low dimensional embedding will be used to visualize the cell.
-    color: `string` (default: None)
-        Which group will be used to color cells, only used for the phase portrait because the other two plots are colored
-        by the velocity magnitude or the gene expression value, respectively.
-    figsize: `None` or `[float, float]` (default: None)
-            The width and height of a figure.
-    ncols: `None` or `int` (default: None)
-    ncol: `None` or `int` (default: None)
-            Number of columns in each facet grid.
-    legend: `str` (default: `on data`)
-            Where to put the legend.  Legend is drawn by seaborn with “brief” mode, numeric hue and size variables will be
-            represented with a sample of evenly spaced values. By default legend is drawn on top of cells.
-    **kwargs:
-            Additional parameters that will be passed to plt.scatter function
+        adata: :class:`~anndata.AnnData`
+            an Annodata object
+        genes: `list`
+            A list of gene names that are going to be visualized.
+        x: `int` (default: `0`)
+                The column index of the low dimensional embedding for the x-axis
+        y: `int` (default: `1`)
+                The column index of the low dimensional embedding for the y-axis
+        pointsize: `None` or `float` (default: None)
+                The scale of the point size. Actual point cell size is calculated as `500.0 / np.sqrt(adata.shape[0]) * pointsize`
+        vkey: `string` (default: velocity)
+            Which velocity key used for visualizing the magnitude of velocity. Can be either velocity in the layers slot or the
+            keys in the obsm slot.
+        ekey: `str`
+            The layer of data to represent the gene expression level.
+        basis: `string` (default: umap)
+            Which low dimensional embedding will be used to visualize the cell.
+        color: `string` (default: None)
+            Which group will be used to color cells, only used for the phase portrait because the other two plots are colored
+            by the velocity magnitude or the gene expression value, respectively.
+        figsize: `None` or `[float, float]` (default: None)
+                The width and height of a figure.
+        ncols: `None` or `int` (default: None)
+        ncol: `None` or `int` (default: None)
+                Number of columns in each facet grid.
+        legend: `str` (default: `on data`)
+                Where to put the legend.  Legend is drawn by seaborn with “brief” mode, numeric hue and size variables will be
+                represented with a sample of evenly spaced values. By default legend is drawn on top of cells.
+        **kwargs:
+                Additional parameters that will be passed to plt.scatter function
 
     Returns
     -------

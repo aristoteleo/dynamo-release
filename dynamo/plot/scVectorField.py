@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+from scipy.sparse import issparse
+
 from .scatters import scatters
 from .utils import quiver_autoscaler
 from ..tools.dimension_reduction import reduceDimension
@@ -7,9 +9,11 @@ from ..tools.cell_velocities import cell_velocities
 from ..tools.Markov import velocity_on_grid
 from ..tools.scVectorField import VectorField
 
+from .scatters import docstrings
+
+docstrings.delete_params('scatters.parameters', 'show_legend', 'kwargs')
 
 import scipy as sc
-from scipy.sparse import issparse
 #from licpy.lic import runlic
 
 # moran'I on the velocity genes, etc.
@@ -736,13 +740,14 @@ def line_integral_conv(adata, basis='trimap', U_grid=None, V_grid=None, method =
         velocyto_tex = runlic(V_grid, V_grid, 100)
         plot_LIC_gray(velocyto_tex)
 
+
+@docstrings.with_indent(4)
 def cell_wise_velocity(
         adata,
-        cell_ind='all',
+        basis='umap',
         x=0,
         y=1,
         color=None,
-        basis='umap',
         layer='X',
         highlights=None,
         labels=None,
@@ -758,9 +763,29 @@ def cell_wise_velocity(
         show_legend=True,
         use_smoothed=True,
         ax=None,
+        cell_ind='all',
         quiver_scale=None,
         s_kwargs_dict={},
         **cell_wise_kwargs):
+    """Plot the velocity vector of each cell.
+
+    Parameters
+    ----------
+        %(scatter.parameters.no_show_legend|kwargs)s
+        cell_ind: `str` or `list` (default: all)
+            the cell index that will be chosen to draw velocity vectors.
+        quiver_scale: `float` or None (default: None)
+            scale of quiver plot (default: None). Number of data units per arrow length unit, e.g., m/s per plot width;
+            a smaller scale parameter makes the arrow longer. If None, we will use quiver_autoscaler to calculate the scale.
+        s_kwargs_dict: `dict` (default: {})
+            The dictionary of the scatter arguments.
+        cell_wise_kwargs:
+            Additional parameters that will be passed to plt.quiver function
+    Returns
+    -------
+        Nothing but a cell wise quiver plot.
+    """
+
     import matplotlib.pyplot as plt
 
     if ('X_' + basis in adata.obsm.keys()) and ('velocity_' + basis in adata.obsm.keys()):
@@ -788,10 +813,10 @@ def cell_wise_velocity(
 
     axes_list, font_color = scatters(
         adata,
+        basis,
         x,
         y,
         color,
-        basis,
         layer,
         highlights,
         labels,
@@ -828,14 +853,13 @@ def cell_wise_velocity(
     plt.show()
 
 
+@docstrings.with_indent(4)
 def grid_velocity(
         adata,
-        method='SparseVFC',
-        xy_grid_nums=[30, 30],
+        basis='umap',
         x=0,
         y=1,
         color=None,
-        basis='umap',
         layer='X',
         highlights=None,
         labels=None,
@@ -851,9 +875,33 @@ def grid_velocity(
         show_legend=True,
         use_smoothed=True,
         ax=None,
+        method='SparseVFC',
+        xy_grid_nums=[30, 30],
         quiver_scale=None,
         s_kwargs_dict={},
         **grid_kwargs):
+    """Plot the velocity vector of each cell.
+
+    Parameters
+    ----------
+        %(scatter.parameters.no_show_legend|kwargs)s
+        method: `str` (default: `SparseVFC`)
+            Method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the empirical method
+            Gaussian kernel method from RNA velocity (Gaussian).
+        xy_grid_nums: `tuple` (default: (30, 30))
+            the number of grids in either x or y axis.
+        quiver_scale: `float` or None (default: None)
+            scale of quiver plot (default: None). Number of data units per arrow length unit, e.g., m/s per plot width;
+            a smaller scale parameter makes the arrow longer. If None, we will use quiver_autoscaler to calculate the scale.
+        s_kwargs_dict: `dict` (default: {})
+            The dictionary of the scatter arguments.
+        grid_kwargs:
+            Additional parameters that will be passed to plt.quiver function
+
+    Returns
+    -------
+        Nothing but a cell wise quiver plot.
+    """
 
     import matplotlib.pyplot as plt
 
@@ -897,10 +945,10 @@ def grid_velocity(
 
     axes_list, font_color = scatters(
         adata,
+        basis,
         x,
         y,
         color,
-        basis,
         layer,
         highlights,
         labels,
@@ -926,15 +974,13 @@ def grid_velocity(
     plt.show()
 
 
+@docstrings.with_indent(4)
 def streamline_plot(
         adata,
-        method='SparseVFC',
-        xy_grid_nums=[30, 30],
-        density=1,
+        basis='umap',
         x=0,
         y=1,
         color=None,
-        basis='umap',
         layer='X',
         highlights=None,
         labels=None,
@@ -950,8 +996,31 @@ def streamline_plot(
         show_legend=True,
         use_smoothed=True,
         ax=None,
+        method='SparseVFC',
+        xy_grid_nums=[30, 30],
+        density=1,
         s_kwargs_dict={},
         **streamline_kwargs):
+    """Plot the velocity vector of each cell.
+
+    Parameters
+    ----------
+        %(scatter.parameters.no_show_legend|kwargs)s
+        method: `str` (default: `SparseVFC`)
+            Method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the empirical method
+            Gaussian kernel method from RNA velocity (Gaussian).
+        xy_grid_nums: `tuple` (default: (30, 30))
+            the number of grids in either x or y axis.
+        density: `float` or None (default: 1)
+            density of the plt.streamplot function.
+        s_kwargs_dict: `dict` (default: {})
+            The dictionary of the scatter arguments.
+        streamline_kwargs:
+            Additional parameters that will be passed to plt.streamplot function
+    Returns
+    -------
+        Nothing but a cell wise quiver plot.
+    """
 
     import matplotlib.pyplot as plt
 
@@ -997,10 +1066,10 @@ def streamline_plot(
 
     axes_list, font_color = scatters(
         adata,
+        basis,
         x,
         y,
         color,
-        basis,
         layer,
         highlights,
         labels,
@@ -1020,7 +1089,7 @@ def streamline_plot(
         **s_kwargs_dict)
 
     for i in range(len(axes_list)):
-        axes_list[i].streamplot(X_grid[0], X_grid[1], V_grid[0], V_grid[1], color = font_color, **streamplot_kwargs)
+        axes_list[i].streamplot(X_grid[0], X_grid[1], V_grid[0], V_grid[1], color=font_color, **streamplot_kwargs)
 
     plt.tight_layout()
     plt.show()

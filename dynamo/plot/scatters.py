@@ -537,6 +537,8 @@ def scatters(
             The desired height of the plot in pixels
         show_legend: bool (optional, default True)
             Whether to display a legend of the labels
+        kwargs:
+            Additional arguments passed to plt.scatters.
 
     Returns
     -------
