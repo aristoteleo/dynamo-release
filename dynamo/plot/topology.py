@@ -258,7 +258,7 @@ def topography(adata, basis, xlim, ylim, t=None, terms=['streamline', 'nullcline
         points = np.hstack((stable, saddle))
 
     if 'nullcline' in terms and points.shape[1] > 0:
-        ax = plot_null_clines(ax, VF, xlim, ylim, fixed_points=points)
+        ax = plot_nullclines(ax, VF, xlim, ylim, fixed_points=points)
 
     if 'fixed_points' in terms and points.shape[1] > 0:
         ax = plot_fixed_points(ax, VF, dim_range=xlim, saddle=saddle, stable=stable)

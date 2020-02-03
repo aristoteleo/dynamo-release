@@ -900,7 +900,7 @@ def grid_velocity(
 
     Returns
     -------
-        Nothing but a cell wise quiver plot.
+        Nothing but a quiver plot on the grid.
     """
 
     import matplotlib.pyplot as plt
@@ -1019,7 +1019,7 @@ def streamline_plot(
             Additional parameters that will be passed to plt.streamplot function
     Returns
     -------
-        Nothing but a cell wise quiver plot.
+        Nothing but a streamline plot that integrates paths in the vector field.
     """
 
     import matplotlib.pyplot as plt
