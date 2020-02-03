@@ -2,7 +2,7 @@
 from .scatters import scatters
 from .scatters import docstrings
 
-docstrings.delete_params('scatters.parameters', 'basis')
+docstrings.delete_params('scatters.parameters', 'adata', 'basis')
 @docstrings.with_indent(4)
 def pca(
         adata,
@@ -13,7 +13,8 @@ def pca(
 
     Parameters
     ----------
-    %(scatters.parameters.no_basis)s
+        adata: an anndata object.
+        %(scatters.parameters.no_adata|basis)s
 
     Returns
     -------
@@ -48,7 +49,8 @@ def umap(
 
     Parameters
     ----------
-    %(scatters.parameters.no_basis)s
+        adata: an anndata object.
+        %(scatters.parameters.no_adata|basis)s
 
     Returns
     -------
@@ -60,7 +62,7 @@ def umap(
     >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
     >>> adata = dyn.pp.recipe_monocle(adata)
     >>> dyn.tl.dynamics(adata)
-    >>> dyn.pl.phate(
+    >>> dyn.pl.umap(
     ...     adata,
     ...     color='Clusters'
     ... )
@@ -83,7 +85,8 @@ def trimap(
 
     Parameters
     ----------
-    %(scatters.parameters.no_basis)s
+        adata: an anndata object.
+        %(scatters.parameters.no_adata|basis)s
 
     Returns
     -------
@@ -95,14 +98,14 @@ def trimap(
     >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
     >>> adata = dyn.pp.recipe_monocle(adata)
     >>> dyn.tl.dynamics(adata)
-    >>> dyn.pl.phate(
+    >>> dyn.pl.trimap(
     ...     adata,
     ...     color='Clusters'
     ... )
     """
     scatters(
         adata,
-        'trip',
+        'trimap',
         *args,
         **kwargs)
 
@@ -117,7 +120,8 @@ def tsne(
 
     Parameters
     ----------
-    %(scatters.parameters.no_basis)s
+        adata: an anndata object.
+        %(scatters.parameters.no_adata|basis)s
 
     Returns
     -------
@@ -129,7 +133,7 @@ def tsne(
     >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
     >>> adata = dyn.pp.recipe_monocle(adata)
     >>> dyn.tl.dynamics(adata)
-    >>> dyn.pl.phate(
+    >>> dyn.pl.tsne(
     ...     adata,
     ...     color='Clusters'
     ... )

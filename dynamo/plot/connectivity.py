@@ -12,6 +12,7 @@ The code base will be extended extensively to consider the following cases:
 from .utils import _select_font_color, _get_extent, _embed_datashader_in_an_axis, _datashade_points
 from .utils import is_list_of_lists # is_gene_name
 from ..configuration import _themes
+from ..docrep import DocstringProcessor
 
 import pandas as pd
 import numpy as np
@@ -20,6 +21,7 @@ import datashader as ds
 import datashader.transfer_functions as tf
 import datashader.bundling as bd
 
+docstrings = DocstringProcessor()
 
 def _plt_connectivity(coord, connectivity):
     """Plot connectivity graph via networkx and matplotlib.
@@ -62,16 +64,17 @@ def _plt_connectivity(coord, connectivity):
     plt.show()
 
 
+@docstrings.get_sectionsf('con_base')
 def connectivity_base(
         x,
         y,
         edge_df,
+        highlights=None,
         edge_bundling=None,
         edge_cmap="gray_r",
         show_points=True,
         labels=None,
         values=None,
-        highlights=None,
         theme=None,
         cmap="blue",
         color_key=None,
@@ -94,88 +97,94 @@ def connectivity_base(
 
     Parameters
     ----------
-    x: `int`
-        The first component of the embedding.
-    y: `int`
-        The second component of the embedding.
-    edge_bundling: string or None (optional, default None)
-        The edge bundling method to use. Currently supported
-        are None or 'hammer'. See the datashader docs
-        on graph visualization for more details.
-    edge_cmap: string (default 'gray_r')
-        The name of a matplotlib colormap to use for shading/
-        coloring the edges of the connectivity graph. Note that
-        the ``theme``, if specified, will override this.
-    show_points: bool (optional False)
-        Whether to display the points over top of the edge
-        connectivity. Further options allow for coloring/
-        shading the points accordingly.
-    labels: array, shape (n_samples,) (optional, default None)
-        An array of labels (assumed integer or categorical),
-        one for each data sample.
-        This will be used for coloring the points in
-        the plot according to their label. Note that
-        this option is mutually exclusive to the ``values``
-        option.
-    values: array, shape (n_samples,) (optional, default None)
-        An array of values (assumed float or continuous),
-        one for each sample.
-        This will be used for coloring the points in
-        the plot according to a colorscale associated
-        to the total range of values. Note that this
-        option is mutually exclusive to the ``labels``
-        option.
-    theme: string (optional, default None)
-        A color theme to use for plotting. A small set of
-        predefined themes are provided which have relatively
-        good aesthetics. Available themes are:
-           * 'blue'
-           * 'red'
-           * 'green'
-           * 'inferno'
-           * 'fire'
-           * 'viridis'
-           * 'darkblue'
-           * 'darkred'
-           * 'darkgreen'
-    cmap: string (optional, default 'Blues')
-        The name of a matplotlib colormap to use for coloring
-        or shading points. If no labels or values are passed
-        this will be used for shading points according to
-        density (largely only of relevance for very large
-        datasets). If values are passed this will be used for
-        shading according the value. Note that if theme
-        is passed then this value will be overridden by the
-        corresponding option of the theme.
-    color_key: dict or array, shape (n_categories) (optional, default None)
-        A way to assign colors to categoricals. This can either be
-        an explicit dict mapping labels to colors (as strings of form
-        '#RRGGBB'), or an array like object providing one color for
-        each distinct category being provided in ``labels``. Either
-        way this mapping will be used to color points according to
-        the label. Note that if theme
-        is passed then this value will be overridden by the
-        corresponding option of the theme.
-    color_key_cmap: string (optional, default 'Spectral')
-        The name of a matplotlib colormap to use for categorical coloring.
-        If an explicit ``color_key`` is not given a color mapping for
-        categories can be generated from the label list and selecting
-        a matching list of colors from the given colormap. Note
-        that if theme
-        is passed then this value will be overridden by the
-        corresponding option of the theme.
-    background: string (optional, default 'white)
-        The color of the background. Usually this will be either
-        'white' or 'black', but any color name will work. Ideally
-        one wants to match this appropriately to the colors being
-        used for points etc. This is one of the things that themes
-        handle for you. Note that if theme
-        is passed then this value will be overridden by the
-        corresponding option of the theme.
-    width: int (optional, default 800)
-        The desired width of the plot in pixels.
-    height: int (optional, default 800)
-        The desired height of the plot in pixels
+        x: `int`
+            The first component of the embedding.
+        y: `int`
+            The second component of the embedding.
+        edge_df `pd.DataFrame`
+            The dataframe denotes the graph edge pairs. The three columns
+            include 'source', 'target' and 'weight'.
+        highlights: `list`, `list of list` or None (default: `None`)
+            The list that cells will be restricted to.
+        edge_bundling: string or None (optional, default None)
+            The edge bundling method to use. Currently supported
+            are None or 'hammer'. See the datashader docs
+            on graph visualization for more details.
+        edge_cmap: string (default 'gray_r')
+            The name of a matplotlib colormap to use for shading/
+            coloring the edges of the connectivity graph. Note that
+            the ``theme``, if specified, will override this.
+        show_points: bool (optional False)
+            Whether to display the points over top of the edge
+            connectivity. Further options allow for coloring/
+            shading the points accordingly.
+        labels: array, shape (n_samples,) (optional, default None)
+            An array of labels (assumed integer or categorical),
+            one for each data sample.
+            This will be used for coloring the points in
+            the plot according to their label. Note that
+            this option is mutually exclusive to the ``values``
+            option.
+        values: array, shape (n_samples,) (optional, default None)
+            An array of values (assumed float or continuous),
+            one for each sample.
+            This will be used for coloring the points in
+            the plot according to a colorscale associated
+            to the total range of values. Note that this
+            option is mutually exclusive to the ``labels``
+            option.
+        theme: string (optional, default None)
+            A color theme to use for plotting. A small set of
+            predefined themes are provided which have relatively
+            good aesthetics. Available themes are:
+               * 'blue'
+               * 'red'
+               * 'green'
+               * 'inferno'
+               * 'fire'
+               * 'viridis'
+               * 'darkblue'
+               * 'darkred'
+               * 'darkgreen'
+        cmap: string (optional, default 'Blues')
+            The name of a matplotlib colormap to use for coloring
+            or shading points. If no labels or values are passed
+            this will be used for shading points according to
+            density (largely only of relevance for very large
+            datasets). If values are passed this will be used for
+            shading according the value. Note that if theme
+            is passed then this value will be overridden by the
+            corresponding option of the theme.
+        color_key: dict or array, shape (n_categories) (optional, default None)
+            A way to assign colors to categoricals. This can either be
+            an explicit dict mapping labels to colors (as strings of form
+            '#RRGGBB'), or an array like object providing one color for
+            each distinct category being provided in ``labels``. Either
+            way this mapping will be used to color points according to
+            the label. Note that if theme
+            is passed then this value will be overridden by the
+            corresponding option of the theme.
+        color_key_cmap: string (optional, default 'Spectral')
+            The name of a matplotlib colormap to use for categorical coloring.
+            If an explicit ``color_key`` is not given a color mapping for
+            categories can be generated from the label list and selecting
+            a matching list of colors from the given colormap. Note
+            that if theme
+            is passed then this value will be overridden by the
+            corresponding option of the theme.
+        background: string (optional, default 'white)
+            The color of the background. Usually this will be either
+            'white' or 'black', but any color name will work. Ideally
+            one wants to match this appropriately to the colors being
+            used for points etc. This is one of the things that themes
+            handle for you. Note that if theme
+            is passed then this value will be overridden by the
+            corresponding option of the theme.
+        width: int (optional, default 800)
+            The desired width of the plot in pixels.
+        height: int (optional, default 800)
+            The desired height of the plot in pixels
+
     Returns
     -------
     result: matplotlib axis
@@ -265,6 +274,8 @@ def connectivity_base(
     return ax
 
 
+docstrings.delete_params('con_base.parameters', 'edge_df')
+@docstrings.with_indent(4)
 def nneighbors(adata,
         x=0,
         y=1,
@@ -272,6 +283,7 @@ def nneighbors(adata,
         basis='umap',
         layer='X',
         highlights=None,
+        ncols=1,
         edge_bundling=None,
         edge_cmap="gray_r",
         show_points=True,
@@ -282,11 +294,10 @@ def nneighbors(adata,
         color_key=None,
         color_key_cmap=None,
         background="black",
-        ncols=1,
         figsize=(7,5),
         ax=None):
-    """
-    Plot nearest neighbor graph of cells used to embed data into low dimension space.
+    """Plot nearest neighbor graph of cells used to embed data into low dimension space.
+
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
@@ -303,92 +314,13 @@ def nneighbors(adata,
             The layers of data to represent the gene expression level.
         highlights: `list`, `list of list` or None (default: `None`)
             The list that cells will be restricted to.
-        edge_bundling: string or None (optional, default None)
-            The edge bundling method to use. Currently supported
-            are None or 'hammer'. See the datashader docs
-            on graph visualization for more details.
-        edge_cmap: string (default 'gray_r')
-            The name of a matplotlib colormap to use for shading/
-            coloring the edges of the connectivity graph. Note that
-            the ``theme``, if specified, will override this.
-        show_points: bool (optional False)
-            Whether to display the points over top of the edge
-            connectivity. Further options allow for coloring/
-            shading the points accordingly.
-        labels: array, shape (n_samples,) (optional, default None)
-            An array of labels (assumed integer or categorical),
-            one for each data sample.
-            This will be used for coloring the points in
-            the plot according to their label. Note that
-            this option is mutually exclusive to the ``values``
-            option.
-        values: array, shape (n_samples,) (optional, default None)
-            An array of values (assumed float or continuous),
-            one for each sample.
-            This will be used for coloring the points in
-            the plot according to a colorscale associated
-            to the total range of values. Note that this
-            option is mutually exclusive to the ``labels``
-            option.
-        theme: string (optional, default None)
-            A color theme to use for plotting. A small set of
-            predefined themes are provided which have relatively
-            good aesthetics. Available themes are:
-               * 'blue'
-               * 'red'
-               * 'green'
-               * 'inferno'
-               * 'fire'
-               * 'viridis'
-               * 'darkblue'
-               * 'darkred'
-               * 'darkgreen'
-        cmap: string (optional, default 'Blues')
-            The name of a matplotlib colormap to use for coloring
-            or shading points. If no labels or values are passed
-            this will be used for shading points according to
-            density (largely only of relevance for very large
-            datasets). If values are passed this will be used for
-            shading according the value. Note that if theme
-            is passed then this value will be overridden by the
-            corresponding option of the theme.
-        color_key: dict or array, shape (n_categories) (optional, default None)
-            A way to assign colors to categoricals. This can either be
-            an explicit dict mapping labels to colors (as strings of form
-            '#RRGGBB'), or an array like object providing one color for
-            each distinct category being provided in ``labels``. Either
-            way this mapping will be used to color points according to
-            the label. Note that if theme
-            is passed then this value will be overridden by the
-            corresponding option of the theme.
-        color_key_cmap: string (optional, default 'Spectral')
-            The name of a matplotlib colormap to use for categorical coloring.
-            If an explicit ``color_key`` is not given a color mapping for
-            categories can be generated from the label list and selecting
-            a matching list of colors from the given colormap. Note
-            that if theme
-            is passed then this value will be overridden by the
-            corresponding option of the theme.
-        background: string (optional, default 'white)
-            The color of the background. Usually this will be either
-            'white' or 'black', but any color name will work. Ideally
-            one wants to match this appropriately to the colors being
-            used for points etc. This is one of the things that themes
-            handle for you. Note that if theme
-            is passed then this value will be overridden by the
-            corresponding option of the theme.
-            ncols: `int`
-                The number of columns of the plot.
-            figsize: `list` or `tuple` (default: (7, 5))
-                The width and height of a figure.
-            ax: `matplotlib.axes._subplots.AxesSubplot`
-                The axis that the connectivity plot will attached to. Only workable if the
-                argument combination involves a single ax.
+        %(con_base.parameters.no_edge_df)s
 
     Returns
     -------
-
+    Nothing but plot the nearest neighbor graph.
     """
+
     import matplotlib.pyplot as plt
     import seaborn as sns
 
