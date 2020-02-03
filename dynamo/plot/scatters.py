@@ -5,6 +5,7 @@ from .utils import is_gene_name, is_cell_anno_column, is_list_of_lists
 from .utils import _matplotlib_points, _datashade_points
 
 from ..tools.utils import get_mapper
+from ..docrep import DocstringProcessor
 
 import numpy as np
 import pandas as pd
@@ -13,6 +14,7 @@ from scipy.sparse import issparse
 import matplotlib.colors
 import matplotlib.cm
 
+docstrings = DocstringProcessor()
 
 def _scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key='S', ekey='X', basis='umap', n_columns=1, \
              color=None, pointsize=None, figsize=None, legend='on data', ax=None, normalize=False, **kwargs):
@@ -424,12 +426,13 @@ def _scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_ke
     plt.show()
 
 
+@docstrings.get_sectionsf('scatters')
 def scatters(
         adata,
+        basis='umap',
         x=0,
         y=1,
         color=None,
-        basis='umap',
         layer='X',
         highlights=None,
         labels=None,
@@ -461,6 +464,10 @@ def scatters(
     adata: an anndata object.
     basis: `str`
         The reduced dimension.
+    x: `int` (default: `0`)
+        The column index of the low dimensional embedding for the x-axis.
+    y: `int` (default: `1`)
+        The column index of the low dimensional embedding for the y-axis.
     labels: array, shape (n_samples,) (optional, default None)
         An array of labels (assumed integer or categorical),
         one for each data sample.
@@ -545,6 +552,7 @@ def scatters(
     if use_smoothed: mapper = get_mapper()
 
     # check layer, basis -> convert to list
+    if type(color) is str: color = [color]
     if type(layer) is str: layer = [layer]
     if type(basis) is str: basis = [basis]
     n_c, n_l, n_b = 0 if color is None else len(color), 0 if layer is None else len(layer), 0 if basis is None else len(basis)

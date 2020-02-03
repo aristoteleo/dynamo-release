@@ -62,7 +62,7 @@ def safe_modulo(s, meta, checked='', print_warning=True, stacklevel=2):
     Examples
     --------
     The effects are demonstrated by this example::
-        >>> from docrep import safe_modulo
+        >>> from dynamo.docrep import safe_modulo
         >>> s = "That's %(one)s string %(with)s missing 'with' and %s key"
         >>> s % {'one': 1}          # raises KeyError because of missing 'with'
         Traceback (most recent call last):
@@ -108,7 +108,7 @@ class DocstringProcessor(object):
     Examples
     --------
     Create docstring processor via::
-        >>> from docrep import DocstringProcessor
+        >>> from dynamo.docrep import DocstringProcessor
         >>> d = DocstringProcessor(doc_key='My doc string')
     And then use it as a decorator to process the docstring::
         >>> @d
@@ -604,7 +604,7 @@ class DocstringProcessor(object):
         --------
         To extract just two parameters from a function and reuse their
         docstrings, you can type::
-            >>> from docrep import DocstringProcessor
+            >>> from dynamo.docrep import DocstringProcessor
             >>> d = DocstringProcessor()
             >>> @d.get_sectionsf('do_something')
             ... def do_something(a=1, b=2, c=3):
@@ -700,7 +700,7 @@ class DocstringProcessor(object):
         --------
         To extract just two return arguments from a function and reuse their
         docstrings, you can type::
-            >>> from docrep import DocstringProcessor
+            >>> from dynamo.docrep import DocstringProcessor
             >>> d = DocstringProcessor()
             >>> @d.get_sectionsf('do_something', sections=['Returns'])
             ... def do_something():
