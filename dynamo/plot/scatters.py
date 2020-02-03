@@ -459,6 +459,7 @@ def scatters(
     colour points by a categorical labelling or numeric values.
     This method is intended to be used within a Jupyter
     notebook with ``%matplotlib inline``.
+
     Parameters
     ----------
     adata: an anndata object.
@@ -536,6 +537,7 @@ def scatters(
         The desired height of the plot in pixels
     show_legend: bool (optional, default True)
         Whether to display a legend of the labels
+
     Returns
     -------
     result: matplotlib axis

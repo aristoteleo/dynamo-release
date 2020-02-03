@@ -2,7 +2,7 @@
 from .scatters import scatters
 from .scatters import docstrings
 
-docstrings.delete_params('scatters.parameters', 'pca')
+docstrings.delete_params('scatters.parameters', 'basis')
 @docstrings.with_indent(4)
 def pca(
         adata,
@@ -13,7 +13,7 @@ def pca(
 
     Parameters
     ----------
-    %(scatters.parameters.no_pca)s
+    %(scatters.parameters.no_basis)s
 
     Returns
     -------
@@ -41,32 +41,14 @@ def pca(
 @docstrings.with_indent(4)
 def umap(
         adata,
-        x=0,
-        y=1,
-        color=None,
-        basis='umap',
-        layer='X',
-        highlights=None,
-        labels=None,
-        values=None,
-        theme=None,
-        cmap=None,
-        color_key=None,
-        color_key_cmap=None,
-        background="black",
-        ncols=1,
-        pointsize=None,
-        figsize=(7,5),
-        show_legend=True,
-        use_smoothed=True,
-        ax=None,
+        *args,
         **kwargs):
     """\
     Scatter plot with umap basis.
 
     Parameters
     ----------
-    %(scatters.parameters.no_pca)s
+    %(scatters.parameters.no_basis)s
 
     Returns
     -------
@@ -87,56 +69,21 @@ def umap(
     scatters(
         adata,
         'umap',
-        x,
-        y,
-        color,
-        layer,
-        highlights,
-        labels,
-        values,
-        theme,
-        cmap,
-        color_key,
-        color_key_cmap,
-        background,
-        ncols,
-        pointsize,
-        figsize,
-        show_legend,
-        use_smoothed,
-        ax,
+        *args,
         **kwargs)
 
 
 @docstrings.with_indent(4)
 def trimap(
         adata,
-        basis='trimap',
-        x=0,
-        y=1,
-        color=None,
-        layer='X',
-        highlights=None,
-        labels=None,
-        values=None,
-        theme=None,
-        cmap=None,
-        color_key=None,
-        color_key_cmap=None,
-        background="black",
-        ncols=1,
-        pointsize=None,
-        figsize=(7,5),
-        show_legend=True,
-        use_smoothed=True,
-        ax=None,
+        *args,
         **kwargs):
     """\
     Scatter plot with trimap basis.
 
     Parameters
     ----------
-    %(scatters.parameters.no_pca)s
+    %(scatters.parameters.no_basis)s
 
     Returns
     -------
@@ -155,57 +102,22 @@ def trimap(
     """
     scatters(
         adata,
-        'trimap',
-        x,
-        y,
-        color,
-        layer,
-        highlights,
-        labels,
-        values,
-        theme,
-        cmap,
-        color_key,
-        color_key_cmap,
-        background,
-        ncols,
-        pointsize,
-        figsize,
-        show_legend,
-        use_smoothed,
-        ax,
+        'trip',
+        *args,
         **kwargs)
 
 
 @docstrings.with_indent(4)
 def tsne(
         adata,
-        basis='tSNE',
-        x=0,
-        y=1,
-        color=None,
-        layer='X',
-        highlights=None,
-        labels=None,
-        values=None,
-        theme=None,
-        cmap=None,
-        color_key=None,
-        color_key_cmap=None,
-        background="black",
-        ncols=1,
-        pointsize=None,
-        figsize=(7,5),
-        show_legend=True,
-        use_smoothed=True,
-        ax=None,
+        *args,
         **kwargs):
     """\
     Scatter plot with tsne basis.
 
     Parameters
     ----------
-    %(scatters.parameters.no_pca)s
+    %(scatters.parameters.no_basis)s
 
     Returns
     -------
@@ -224,25 +136,8 @@ def tsne(
     """
     scatters(
         adata,
-        'tSNE',
-        x,
-        y,
-        color,
-        layer,
-        highlights,
-        labels,
-        values,
-        theme,
-        cmap,
-        color_key,
-        color_key_cmap,
-        background,
-        ncols,
-        pointsize,
-        figsize,
-        show_legend,
-        use_smoothed,
-        ax,
+        'tsne',
+        *args,
         **kwargs)
 
 # add leidan, louvain, etc.
