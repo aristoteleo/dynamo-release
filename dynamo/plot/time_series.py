@@ -5,7 +5,7 @@ from scipy.sparse import issparse
 from ..docrep import DocstringProcessor
 docstrings = DocstringProcessor()
 
-docstrings.get_sectionsf('kin_curves')
+@docstrings.get_sectionsf('kin_curves')
 def kinetic_curves(adata, genes, mode='vector_field', basis='X', project_back_to_high_dim=False, layer='X', time='pseudotime', \
                    dist_threshold=1e-10, ncol=4, color=None, c_palette='Set2'):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) as kinetic curves.
@@ -103,7 +103,7 @@ def kinetic_curves(adata, genes, mode='vector_field', basis='X', project_back_to
     plt.show()
 
 
-docstrings.delete_kwargs('kin_curve', 'ncol', 'color', 'c_palette')
+docstrings.delete_params('kin_curves.parameters', 'ncol', 'color', 'c_palette')
 @docstrings.with_indent(4)
 def kinetic_heatmap(adata, genes, mode='vector_field', basis='X', project_back_to_high_dim=False, layer='X',
                     time='pseudotime', dist_threshold=1e-10, color_map='viridis', half_max_ordering=True,
@@ -112,7 +112,7 @@ def kinetic_heatmap(adata, genes, mode='vector_field', basis='X', project_back_t
 
     Parameters
     ----------
-        %(kin_curves.parameters.no_ncol_color_c_palette)s
+        %(kin_curves.parameters.no_ncol|color|c_palette)s
         color_map: `str` (default: `viridis`)
             Color map that will be used to color the gene expression.
         half_max_ordering: `bool` (default: `True`)

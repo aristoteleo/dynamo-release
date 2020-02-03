@@ -771,7 +771,7 @@ def cell_wise_velocity(
 
     Parameters
     ----------
-        %(scatter.parameters.no_show_legend|kwargs)s
+        %(scatters.parameters.no_show_legend|kwargs)s
         cell_ind: `str` or `list` (default: all)
             the cell index that will be chosen to draw velocity vectors.
         quiver_scale: `float` or None (default: None)
@@ -884,7 +884,7 @@ def grid_velocity(
 
     Parameters
     ----------
-        %(scatter.parameters.no_show_legend|kwargs)s
+        %(scatters.parameters.no_show_legend|kwargs)s
         method: `str` (default: `SparseVFC`)
             Method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the empirical method
             Gaussian kernel method from RNA velocity (Gaussian).
@@ -1005,7 +1005,7 @@ def streamline_plot(
 
     Parameters
     ----------
-        %(scatter.parameters.no_show_legend|kwargs)s
+        %(scatters.parameters.no_show_legend|kwargs)s
         method: `str` (default: `SparseVFC`)
             Method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the empirical method
             Gaussian kernel method from RNA velocity (Gaussian).

@@ -491,3 +491,35 @@ def get_ekey_vkey_from_adata(adata):
                 'The input data you have is not normalized/log trnasformed or smoothed and normalized/log trnasformed!')
 
     return ekey, vkey
+
+# ---------------------------------------------------------------------------------------------------
+# vector field related
+def con_K(x, y, beta):
+    """Con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
+
+    Arguments
+    ---------
+        x: 'np.ndarray'
+            Original training data points.
+        y: 'np.ndarray'
+            Control points used to build kernel basis functions.
+        beta: 'float' (default: 0.1)
+            Paramerter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2),
+
+    Returns
+    -------
+    K: 'np.ndarray'
+    the kernel to represent the vector field function.
+    """
+
+    n, d = x.shape
+    m, d = y.shape
+
+    # https://stackoverflow.com/questions/1721802/what-is-the-equivalent-of-matlabs-repmat-in-numpy
+    # https://stackoverflow.com/questions/12787475/matlabs-permute-in-python
+    K = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0])
+    K = np.squeeze(np.sum(K**2, 1))
+    K = - beta * K
+    K = np.exp(K) #
+
+    return K

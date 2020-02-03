@@ -4,7 +4,7 @@ import numpy.matlib
 from scipy.sparse import issparse
 
 from .topology import VectorField2D
-
+from .utils import con_K
 
 def norm(X, V, T):
         """Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
@@ -172,37 +172,6 @@ def SparseVFC(X, Y, Grid, M = 100, a = 5, beta = 0.1, ecr = 1e-5, gamma = 0.9, l
     VecFld = {"X": ctrl_pts, "Y": Y, "beta": beta, "V": V, "C": C, "P": P, "VFCIndex": np.where(P > theta)[0], "sigma2": sigma2, "grid": Grid, "grid_V": grid_V}
 
     return VecFld
-
-
-def con_K(x, y, beta):
-    """Con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
-
-    Arguments
-    ---------
-        x: 'np.ndarray'
-            Original training data points.
-        y: 'np.ndarray'
-            Control points used to build kernel basis functions.
-        beta: 'float' (default: 0.1)
-            Paramerter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2),
-
-    Returns
-    -------
-    K: 'np.ndarray'
-    the kernel to represent the vector field function.
-    """
-
-    n, d = x.shape
-    m, d = y.shape
-
-    # https://stackoverflow.com/questions/1721802/what-is-the-equivalent-of-matlabs-repmat-in-numpy
-    # https://stackoverflow.com/questions/12787475/matlabs-permute-in-python
-    K = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0])
-    K = np.squeeze(np.sum(K**2, 1))
-    K = - beta * K
-    K = np.exp(K) #
-
-    return K
 
 
 def get_P(Y, V, sigma2, gamma, a):

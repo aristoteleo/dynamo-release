@@ -5,7 +5,7 @@ from scipy.optimize import fsolve
 from scipy.spatial.distance import pdist
 from scipy.linalg import eig
 from scipy.integrate import odeint
-from .scVectorField import con_K
+from .utils import con_K
 
 def vector_field_function(x, VecFld, dim=None):
     """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
