@@ -48,7 +48,7 @@ def Fate(adata, VecFld_true=None, basis='X', query_cell_str="steady_states=='roo
     if issparse(init_state):
         init_state = init_state.A
 
-    VecFld = adata.uns['VecFld'] if basis is 'X' else adata.uns['VecFld_' + basis]
+    VecFld = adata.uns['VecFld']["VecFld"] if basis is 'X' else adata.uns['VecFld_' + basis]["VecFld"]
     t, prediction = fate(VecFld, init_state, VecFld_true=VecFld_true, direction=direction, t_end=t_end, average=average, **kwargs)
 
     if VecFld_true is None:

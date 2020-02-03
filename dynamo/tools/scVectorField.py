@@ -305,8 +305,6 @@ def VectorField(adata, basis='trimap', grid_velocity=False, grid_num=50, velocit
         vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
         # sep = compute_separatrices(vecfld.Xss.get_X(), vecfld.Xss.get_J(), vecfld.func, xlim, ylim)
 
-        adata.uns['VecFld_2d_' + basis] = vecfld
-
         if basis != 'X':
             adata.uns['VecFld_' + basis] = {"VecFld": func, "VecFld2D": vecfld, "xlim": xlim, "ylim": ylim}
         else:
