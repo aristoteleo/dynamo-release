@@ -327,7 +327,7 @@ def _datashade_points(
             )
         # reorder data so that high values points will be on top of background points
         sorted_id = np.argsort(values)
-        values, data = values[sorted_id], data[sorted_id, :]
+        values, data = values[sorted_id], data.iloc[sorted_id, :]
 
         unique_values = np.unique(values)
         if unique_values.shape[0] >= 256:

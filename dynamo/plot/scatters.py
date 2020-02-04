@@ -10,6 +10,7 @@ from ..docrep import DocstringProcessor
 import numpy as np
 import pandas as pd
 from scipy.sparse import issparse
+from numbers import Number
 
 import matplotlib.colors
 import matplotlib.cm
@@ -626,10 +627,12 @@ def scatters(
                                               y: adata.obs_vector(y, cur_l_smoothed)})
                     points.columns = [x, y + ' (' + cur_l_smoothed + ')']
 
-                is_not_continous = _color.dtype.name == 'category'
+                # https://stackoverflow.com/questions/4187185/how-can-i-check-if-my-python-object-is-a-number
+                # answer from Boris.
+                is_not_continous = not isinstance(_color[0], Number)
 
                 if is_not_continous:
-                    labels = _color.to_dense()
+                    labels = _color.to_dense() if issparse(_color) else _color
                     _theme_ = 'glasbey_dark' if theme is None else theme
                 else:
                     values = _color
