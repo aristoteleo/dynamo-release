@@ -3,7 +3,7 @@ import scipy
 import numpy.matlib
 from scipy.sparse import issparse
 
-from .topography import topology
+from .topography import topography
 from .utils import con_K, vector_field_function
 
 
@@ -264,7 +264,7 @@ def VectorField(adata, basis='trimap', grid_velocity=False, grid_num=50, velocit
     func = VecFld.fit(normalize=False, method=method)
 
     if X.shape[1] == 2:
-        adata = topology(adata, basis, VecFld=func)
+        adata = topography(adata, basis, VecFld=func)
     else:
         if basis != 'X':
             adata.uns['VecFld_' + basis] = {"VecFld": func}
