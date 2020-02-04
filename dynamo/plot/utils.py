@@ -330,6 +330,7 @@ def _datashade_points(
         sorted_id = np.argsort(values)
         values, data = values[sorted_id], data.iloc[sorted_id, :]
 
+        values[np.isnan(values)] = 0
         unique_values = np.unique(values)
         if unique_values.shape[0] >= 256:
             min_val, max_val = np.min(values), np.max(values)

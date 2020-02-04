@@ -215,7 +215,7 @@ def topography(adata, basis, xlim=None, ylim=None, t=None, terms=['streamline', 
     if uns_key not in adata.uns.keys():
         raise Exception('Functional vector field is not calculated yet. Please first run VectorField function.')
     elif 'VecFld2D' not in adata.uns[uns_key].keys():
-        raise Exception('Topology can only support ploting on 2 dimension space. Please run VectorField with a basis '
+        raise Exception('Topology can only support plotting on 2 dimension space. Please run VectorField with a basis '
                         'of only two dimensions.')
     else:
         VF, vecfld = adata.uns[uns_key]["VecFld"], adata.uns[uns_key]["VecFld2D"]
