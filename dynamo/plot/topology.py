@@ -135,7 +135,7 @@ def plot_separatrix(vecfld, x_range, y_range, t, eps=1e-6,
 
     """
     # No saddle point, no separatrix.
-    fps, ftypes = vecfld.get_fixed_points(get_types=False)
+    fps, ftypes = vecfld.get_fixed_points(get_types=True)
     J = vecfld.Xss.get_J()
     saddle = fps[ftypes == 0]
     Jacobian = J[[ftypes == 0]]
@@ -146,7 +146,7 @@ def plot_separatrix(vecfld, x_range, y_range, t, eps=1e-6,
             a, b = ab
             # Stop integrating if we get the edge of where we want to integrate
             if x_range[0] < a < x_range[1] and y_range[0] < b < y_range[1]:
-                return -vecfld.func(ab, t)
+                return -vecfld.func(ab)
             else:
                 return np.array([0, 0])
 
@@ -177,7 +177,7 @@ def plot_separatrix(vecfld, x_range, y_range, t, eps=1e-6,
             all_sep_b = sep_b if all_sep_b is None else np.concatenate((all_sep_b, sep_b))
 
 
-def topography(adata, basis, xlim, ylim, t=None, terms=['streamline', 'nullcline', 'fixed_points', 'separatrices', 'trajectory'],
+def topography(adata, basis, xlim=None, ylim=None, t=None, terms=['streamline', 'nullcline', 'fixed_points', 'separatrices', 'trajectory'],
                init_state=None, plot=True):
     """Plot the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system
     for single cells. The plot is created on two dimensional space.
@@ -212,13 +212,13 @@ def topography(adata, basis, xlim, ylim, t=None, terms=['streamline', 'nullcline
 
     if uns_key not in adata.uns.keys():
         raise Exception('Functional vector field is not calculated yet. Please first run VectorField function.')
-    elif 'VecFld2D' not in adata.uns['VecFld'].keys():
+    elif 'VecFld2D' not in adata.uns[uns_key].keys():
         raise Exception('Topology can only support ploting on 2 dimension space. Please run VectorField with a basis '
                         'of only two dimensions.')
     else:
-        VF, vecfld = adata.uns[uns_key]["VecFld"], adata.uns['VecFld']["VecFld2D"]
-        xlim, ylim = adata.uns['VecFld']["xlim"] if xlim is None else xlim, \
-                     adata.uns['VecFld']["ylim"] if ylim is None else ylim
+        VF, vecfld = adata.uns[uns_key]["VecFld"], adata.uns[uns_key]["VecFld2D"]
+        xlim, ylim = adata.uns[uns_key]["xlim"] if xlim is None else xlim, \
+                     adata.uns[uns_key]["ylim"] if ylim is None else ylim
 
     # Set up the figure
     fig, ax = plt.subplots(1, 1)
@@ -231,7 +231,7 @@ def topography(adata, basis, xlim, ylim, t=None, terms=['streamline', 'nullcline
     ax.set_ylim(ylim)
 
     if t is None:
-        t = np.linspace(0, max(max(np.diff(xlim), np.diff(ylim)) / np.percentile(np.abs(VF['grid_V']), 5)), 1e7)
+        t = np.linspace(0, max(max(np.diff(xlim), np.diff(ylim)) / np.percentile(np.abs(VF['grid_V']), 5)), 10000000)
 
     if 'streamline' in terms:
         ax = plot_flow_field(vecfld, xlim, ylim, ax=ax)

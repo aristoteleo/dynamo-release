@@ -924,13 +924,13 @@ def grid_velocity(
     if method == 'SparseVFC' and adata.obsm['X_' + basis].shape[1] == 2:
         if 'VecFld_' + basis not in adata.uns.keys():
             VectorField(adata, basis=basis)
-        X_grid, V_grid =  adata.uns['VecFld_' + basis]['grid'], adata.uns['VecFld_' + basis]['grid_V']
+        X_grid, V_grid =  adata.uns['VecFld_' + basis]["VecFld"]['grid'], adata.uns['VecFld_' + basis]["VecFld"]['grid_V']
         N = int(np.sqrt(V_grid.shape[0]))
         X_grid, V_grid = np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]), \
                          np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))])
     elif 'grid_velocity_' + basis in adata.uns.keys():
-        X_grid, V_grid, _ = adata.uns['grid_velocity_' + basis]['X_grid'], adata.uns['grid_velocity_' + basis]['V_grid'], \
-                            adata.uns['grid_velocity_' + basis]['D']
+        X_grid, V_grid, _ = adata.uns['grid_velocity_' + basis]["VecFld"]['X_grid'], adata.uns['grid_velocity_' + basis]["VecFld"]['V_grid'], \
+                            adata.uns['grid_velocity_' + basis]["VecFld"]['D']
     else:
         grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
                             "adjust_for_stream": True, "V_threshold": None}
@@ -1043,13 +1043,13 @@ def streamline_plot(
     if method == 'SparseVFC' and adata.obsm['X_' + basis].shape[1] == 2:
         if 'VecFld_' + basis not in adata.uns.keys():
             VectorField(adata, basis=basis)
-        X_grid, V_grid =  adata.uns['VecFld_' + basis]['grid'], adata.uns['VecFld_' + basis]['grid_V']
+        X_grid, V_grid =  adata.uns['VecFld_' + basis]["VecFld"]['grid'], adata.uns['VecFld_' + basis]["VecFld"]['grid_V']
         N = int(np.sqrt(V_grid.shape[0]))
         X_grid, V_grid = np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]), \
                          np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))])
     elif 'grid_velocity_' + basis in adata.uns.keys():
-        X_grid, V_grid, _ = adata.uns['grid_velocity_' + basis]['X_grid'], adata.uns['grid_velocity_' + basis]['V_grid'], \
-                            adata.uns['grid_velocity_' + basis]['D']
+        X_grid, V_grid, _ = adata.uns['grid_velocity_' + basis]["VecFld"]['X_grid'], adata.uns['grid_velocity_' + basis]["VecFld"]['V_grid'], \
+                            adata.uns['grid_velocity_' + basis]["VecFld"]['D']
     else:
         grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
                             "adjust_for_stream": True, "V_threshold": None}
