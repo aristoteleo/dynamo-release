@@ -17,6 +17,7 @@ from .velocyto_scvelo import vlm_to_adata, converter, run_velocyto, run_scvelo, 
 # vector field related
 from .velocity_metric import cell_wise_confidence 
 from .scVectorField import SparseVFC, con_K, get_P, VectorField #, evaluate, con_K_div_cur_free, vector_field_function, vector_field_function_auto, auto_con_K
+from .topography import FixedPoints, VectorField2D, topography
 
 # Markov chain related:
 from .Markov import markov_combination, compute_markov_trans_prob, compute_kernel_trans_prob, compute_drift_kernel, compute_drift_local_kernel, compute_density_kernel, makeTransitionMatrix, compute_tau, smoothen_drift_on_grid, MarkovChain, KernelMarkovChain, DiscreteTimeMarkovChain, ContinuousTimeMarkovChain

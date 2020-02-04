@@ -6,6 +6,7 @@ from scipy.spatial.distance import pdist
 from scipy.linalg import eig
 from scipy.integrate import odeint
 
+from .utils import vector_field_function
 
 def index_condensed_matrix(n, i, j):
     """Return the index of a condensed n-by-n square matrix by the row index i and column index j of the square form.
@@ -381,3 +382,42 @@ class VectorField2D:
         dict_vf['Xss'] = self.Xss.get_X()
         dict_vf['J'] = self.Xss.get_J()
         return dict_vf
+
+
+def topography(adata, basis, VecFld=None):
+    """Map the topography of the single cell vector field in (first) two dimensions.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object.
+        basis: `str` (default: `trimap`)
+            The reduced dimension embedding of cells to visualize.
+        VecFld: `dictionary` or None (default: None)
+            The reconstructed vector field function.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            `AnnData` object that is updated with the `VecFld` or 'VecFld_' + basis dictionary in the `uns` attribute.
+            The `VecFld2D` key stores an instance of the VectorField2D class which presumably has fixed points, nullcline,
+             separatrix, computed and stored.
+    """
+    if VecFld == None: VecFld = adata.uns['VecFld']['VecFld']
+    X_basis = adata.obsm['X_' + basis][:, :2]
+    min_, max_ = X_basis.min(0), X_basis.max(0)
+
+    xlim = [min_[0] - (max_[0] - min_[0]) * 0.05, max_[0] + (max_[0] - min_[0]) * 0.05]
+    ylim = [min_[1] - (max_[1] - min_[1]) * 0.05, max_[1] + (max_[1] - min_[1]) * 0.05]
+
+    vecfld = VectorField2D(lambda x: vector_field_function(x, None, VecFld, [0, 1]))
+    vecfld.find_fixed_points_by_sampling(10, xlim, ylim)
+    vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
+    # sep = compute_separatrices(vecfld.Xss.get_X(), vecfld.Xss.get_J(), vecfld.func, xlim, ylim)
+
+    if basis != 'X':
+        adata.uns['VecFld_' + basis] = {"VecFld": VecFld, "VecFld2D": vecfld, "xlim": xlim, "ylim": ylim}
+    else:
+        adata.uns['VecFld'] = {"VecFld": VecFld, "VecFld2D": vecfld, "xlim": xlim, "ylim": ylim}
+
+    return adata

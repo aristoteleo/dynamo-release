@@ -14,6 +14,6 @@ from .dimension_reduction import pca, tsne, umap, trimap
 from .connectivity import nneighbors
 
 from .scVectorField import cell_wise_velocity, grid_velocity, streamline_plot, line_integral_conv # , plot_LIC_gray
-from .topology import plot_flow_field, plot_fixed_points, plot_nullclines, plot_separatrix, plot_traj, topography
+from .topography import plot_flow_field, plot_fixed_points, plot_nullclines, plot_separatrix, plot_traj, topography
 
 from .scPotential import show_landscape

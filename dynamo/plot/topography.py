@@ -2,7 +2,7 @@ import numpy as np
 import scipy
 import matplotlib.pyplot as plt
 
-from ..tools.topology import VectorField2D # , compute_separatrices
+from ..tools.topography import VectorField2D # , compute_separatrices
 
 
 def plot_flow_field(vecfld, x_range, y_range, start_points=None, n_grid=100, lw_min=0.5, lw_max=3, color='thistle', color_start_points='tomato', ax=None):
@@ -178,7 +178,7 @@ def plot_separatrix(vecfld, x_range, y_range, t, eps=1e-6,
 
 
 def topography(adata, basis, xlim=None, ylim=None, t=None, terms=['streamline', 'nullcline', 'fixed_points', 'separatrices', 'trajectory'],
-               init_state=None, plot=True):
+               init_state=None, figsize=(5, 5), plot=True):
     """Plot the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system
     for single cells. The plot is created on two dimensional space.
 
@@ -199,6 +199,8 @@ def topography(adata, basis, xlim=None, ylim=None, t=None, terms=['streamline', 
             A list of plotting items to include in the final topography figure.
         init_state: `numpy.ndarray` (default: None)
             Initial cell states for the historical or future cell state prediction with numerical integration.
+        figsize: `tuple` (default: (5, 5)
+            The size of figure.
         plot: `bool` (default: True)
             Whether or not to plot the topography plot or just return the axis object.
 
@@ -221,7 +223,7 @@ def topography(adata, basis, xlim=None, ylim=None, t=None, terms=['streamline', 
                      adata.uns[uns_key]["ylim"] if ylim is None else ylim
 
     # Set up the figure
-    fig, ax = plt.subplots(1, 1)
+    fig, ax = plt.subplots(1, 1, figsize=figsize)
     ax.set_xlabel(basis + '_1')
     ax.set_ylabel(basis + '_2')
     ax.set_aspect('equal')
