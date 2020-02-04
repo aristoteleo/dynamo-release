@@ -4,7 +4,7 @@ import numpy.matlib
 from scipy.sparse import issparse
 
 from .topology import VectorField2D
-from .utils import con_K
+from .utils import con_K, vector_field_function
 
 def norm(X, V, T):
         """Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
@@ -269,7 +269,7 @@ def VectorField(adata, basis='trimap', grid_velocity=False, grid_num=50, velocit
         ylim = [min_[1] - (max_[1] - min_[1]) * 0.05, max_[1] + (max_[1] - min_[1]) * 0.05]
 
 
-        vecfld = VectorField2D(lambda x: vector_field_function(x, func))
+        vecfld = VectorField2D(lambda x: vector_field_function(x, None, func))
         vecfld.find_fixed_points_by_sampling(10, xlim, ylim)
         vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
         # sep = compute_separatrices(vecfld.Xss.get_X(), vecfld.Xss.get_J(), vecfld.func, xlim, ylim)
@@ -478,16 +478,16 @@ class vectorfield:
         return K
 
 
-def vector_field_function(x, t, VecFld):
-    """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
-
-    Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
-    """
-    x=np.array(x).reshape((1, -1))
-    if(len(x.shape) == 1):
-        x = x[None, :]
-    K= con_K(x, VecFld['X'], VecFld['beta'])
-
-    K = K.dot(VecFld['C'])
-
-    return K.T
+# def vector_field_function(x, t, VecFld):
+#     """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
+#
+#     Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
+#     """
+#     x=np.array(x).reshape((1, -1))
+#     if(len(x.shape) == 1):
+#         x = x[None, :]
+#     K= con_K(x, VecFld['X'], VecFld['beta'])
+#
+#     K = K.dot(VecFld['C'])
+#
+#     return K.T

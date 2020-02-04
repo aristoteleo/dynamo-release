@@ -2,7 +2,7 @@ import numpy as np
 import scipy
 import matplotlib.pyplot as plt
 
-from ..tools.topology import VectorField2D, vector_field_function # , compute_separatrices
+from ..tools.topology import VectorField2D # , compute_separatrices
 
 
 def plot_flow_field(vecfld, x_range, y_range, start_points=None, n_grid=100, lw_min=0.5, lw_max=3, color='thistle', color_start_points='tomato', ax=None):

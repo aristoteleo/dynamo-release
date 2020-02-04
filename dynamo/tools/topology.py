@@ -5,23 +5,6 @@ from scipy.optimize import fsolve
 from scipy.spatial.distance import pdist
 from scipy.linalg import eig
 from scipy.integrate import odeint
-from .utils import con_K
-
-def vector_field_function(x, VecFld, dim=None):
-    """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
-    Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
-    """
-    # x=np.array(x).reshape((1, -1))
-    x = np.array(x)
-    if (x.ndim == 1):
-        x = x[None, :]
-    K = con_K(x, VecFld['X'], VecFld['beta'])
-
-    if dim is None:
-        K = K.dot(VecFld['C'])
-    else:
-        K = K.dot(VecFld['C'][:, dim])
-    return K
 
 
 def index_condensed_matrix(n, i, j):

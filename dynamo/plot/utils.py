@@ -240,6 +240,7 @@ def _datashade_points(
     width=7,
     height=5,
     show_legend=True,
+    **kwargs
 ):
     import matplotlib.pyplot as plt
 

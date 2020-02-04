@@ -523,3 +523,20 @@ def con_K(x, y, beta):
     K = np.exp(K) #
 
     return K
+
+
+def vector_field_function(x, t, VecFld, dim=None):
+    """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
+    Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
+    """
+    # x=np.array(x).reshape((1, -1))
+    x = np.array(x)
+    if (x.ndim == 1):
+        x = x[None, :]
+    K = con_K(x, VecFld['X'], VecFld['beta'])
+
+    if dim is None:
+        K = K.dot(VecFld['C'])
+    else:
+        K = K.dot(VecFld['C'][:, dim])
+    return K

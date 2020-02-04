@@ -1,12 +1,13 @@
 import numpy as np
 import scipy as sc
 import scipy.optimize 
-from sympy import *
-# from StringFunction import StringFunction
-# import autograd.numpy as autonp
-# from autograd import grad, jacobian # calculate gradient and jacobian
+
 from .Bhattacharya import path_integral, alignment
 from .Ao import Ao_pot_map
+
+# import autograd.numpy as autonp
+# from autograd import grad, jacobian # calculate gradient and jacobian
+
 from .Wang import Wang_action, Wang_LAP
 
 # the LAP method should be rewritten in TensorFlow/PyTorch using optimization with SGD
@@ -171,6 +172,9 @@ def gen_gradient(dim, N, Function, DiffusionMatrix):
         A matrix consists of the coordinates of the unstable steady state
     """
 
+    from sympy import MatrixSymbol, Identity, symbols, Matrix, simplify
+    from StringFunction import StringFunction
+
     N=N+1
     X=MatrixSymbol('x', dim, N)
     X2=MatrixSymbol('y', dim, N)
@@ -209,7 +213,7 @@ def gen_gradient(dim, N, Function, DiffusionMatrix):
         return ret
                 
             """ % str(str_V_processed)
-    ret = StringFunction(f_str, independent_variable = x, dt = dt, x = x)
+    ret = StringFunction(f_str, independent_variable=x, dt=dt, x=x)
 
     return ret, V
 

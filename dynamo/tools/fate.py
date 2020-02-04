@@ -1,8 +1,8 @@
 from .scVectorField import VectorField
 import numpy as np
 from scipy.integrate import odeint
-from .scVectorField import vector_field_function
 from scipy.sparse import issparse
+from .utils import vector_field_function
 
 
 # by default, use the transcriptome state of source cells
