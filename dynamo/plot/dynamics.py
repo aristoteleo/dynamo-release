@@ -175,7 +175,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                         'spliced, ambiguous, unspliced for the splicing model and uu, ul, su, sl for the full mode')
 
     num_per_gene = 6 if ('protein' in adata.obsm.keys() and mode is 'full') else 3
-    ncols = min([num_per_gene, ncols]) if ncols == None else num_per_gene
+    ncols = min([num_per_gene, ncols]) if ncols is not None else num_per_gene
     nrow, ncol = int(np.ceil(num_per_gene * n_genes / ncols)), ncols
     if figsize is None:
         plt.figure(None, (3 * ncol, 3 * nrow))  # , dpi=160

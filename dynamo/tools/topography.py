@@ -408,7 +408,7 @@ def topography(adata, basis, VecFld=None):
             VecFld = adata.uns['VecFld_' + basis]['VecFld']
         else:
             raise Exception("VecFld is not constructed yet, please first run dyn.tl.VectorField(adata, basis=basis_name)."
-                            "basis_name can be any name for the basis.")
+                            " basis_name can be any name for the basis.")
     X_basis = adata.obsm['X_' + basis][:, :2]
     min_, max_ = X_basis.min(0), X_basis.max(0)
 
