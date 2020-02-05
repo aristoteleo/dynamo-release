@@ -9,6 +9,8 @@ from ..docrep import DocstringProcessor
 
 import numpy as np
 import pandas as pd
+from pandas.api.types import is_categorical
+
 from scipy.sparse import issparse
 from numbers import Number
 
@@ -632,7 +634,7 @@ def scatters(
                 is_not_continous = not isinstance(_color[0], Number)
 
                 if is_not_continous:
-                    labels = _color.to_dense() if issparse(_color) else _color
+                    labels = _color.to_dense() if is_categorical(_color) else _color
                     _theme_ = 'glasbey_dark' if theme is None else theme
                 else:
                     values = _color

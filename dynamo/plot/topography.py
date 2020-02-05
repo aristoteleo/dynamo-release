@@ -2,7 +2,7 @@ import numpy as np
 import scipy
 import matplotlib.pyplot as plt
 
-from ..tools.topography import VectorField2D # , compute_separatrices
+from ..tools.topography import topography # , compute_separatrices
 
 
 def plot_flow_field(vecfld, x_range, y_range, start_points=None, n_grid=100, lw_min=0.5, lw_max=3, color='thistle', color_start_points='tomato', ax=None):
@@ -213,10 +213,9 @@ def topography(adata, basis, xlim=None, ylim=None, t=None, terms=['streamline', 
     uns_key = 'VecFld' if basis == 'X' else 'VecFld_' + basis
 
     if uns_key not in adata.uns.keys():
-        raise Exception('Functional vector field is not calculated yet. Please first run VectorField function.')
+        topography(adata, basis, VecFld=None)
     elif 'VecFld2D' not in adata.uns[uns_key].keys():
-        raise Exception('Topology can only support plotting on 2 dimension space. Please run VectorField with a basis '
-                        'of only two dimensions.')
+        topography(adata, basis, VecFld=None)
     else:
         VF, vecfld = adata.uns[uns_key]["VecFld"], adata.uns[uns_key]["VecFld2D"]
         xlim, ylim = adata.uns[uns_key]["xlim"] if xlim is None else xlim, \
