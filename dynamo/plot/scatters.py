@@ -664,7 +664,7 @@ def scatters(
                     else:
                         _highlights = highlights if all([i in _color for i in highlights]) else None
 
-                if points.shape[0] <= figsize[0] * figsize[1] * 1000:
+                if points.shape[0] <= figsize[0] * figsize[1] * 100000:
                     ax = _matplotlib_points(
                         points.values,
                         ax,
@@ -706,6 +706,7 @@ def scatters(
                 labels, values = None, None # reset labels and values
     # dyn.configuration.reset_rcParams()
     if save_or_show == 'show':
+        if show_legend: plt.subplots_adjust(right=0.85)
         plt.tight_layout()
         plt.show()
     elif save_or_show == 'return':

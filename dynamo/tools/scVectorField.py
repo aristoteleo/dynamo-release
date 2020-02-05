@@ -209,7 +209,7 @@ def get_P(Y, V, sigma2, gamma, a):
     return P, E
 
 
-def VectorField(adata, basis='trimap', grid_velocity=False, grid_num=50, velocity_key='velocity_S', method='SparseVFC', **kwargs):
+def VectorField(adata, basis='trimap', dims=None, grid_velocity=False, grid_num=50, velocity_key='velocity_S', method='SparseVFC', **kwargs):
     """Learn a function of high dimensional vector field from sparse single cell samples in the entire space robustly.
 
     Parameters
@@ -218,6 +218,8 @@ def VectorField(adata, basis='trimap', grid_velocity=False, grid_num=50, velocit
             AnnData object that contains embedding and velocity data
         basis: `str` (default: trimap)
             The embedding data to use.
+        dims: `list` or None (default: None)
+            The dimensions that will be used for reconstructing vector field functions.
         grid_velocity: `bool` (default: False)
             Whether to generate grid velocity. Note that by default it is set to be False, but for datasets with embedding
             dimension less than 4, the grid velocity will still be generated. Please note that number of total grids in
@@ -246,6 +248,9 @@ def VectorField(adata, basis='trimap', grid_velocity=False, grid_num=50, velocit
 
     if issparse(X) and basis is 'X':
         X, V = X.A[:, adata.var.use_for_dynamo], V.A[:, adata.var.use_for_dynamo]
+
+    if dims is not None and basis is not 'X':
+        X, V = X[:, dims], V[:, dims]
 
     Grid = None
     if X.shape[1] < 4 or grid_velocity:

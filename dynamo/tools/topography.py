@@ -403,7 +403,12 @@ def topography(adata, basis, VecFld=None):
             The `VecFld2D` key stores an instance of the VectorField2D class which presumably has fixed points, nullcline,
              separatrix, computed and stored.
     """
-    if VecFld == None: VecFld = adata.uns['VecFld']['VecFld']
+    if VecFld == None:
+        if 'VecFld_' + basis in adata.uns.keys():
+            VecFld = adata.uns['VecFld_' + basis]['VecFld']
+        else:
+            raise Exception("VecFld is not constructed yet, please first run dyn.tl.VectorField(adata, basis=basis_name)."
+                            "basis_name can be any name for the basis.")
     X_basis = adata.obsm['X_' + basis][:, :2]
     min_, max_ = X_basis.min(0), X_basis.max(0)
 

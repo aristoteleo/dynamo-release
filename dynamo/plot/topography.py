@@ -2,8 +2,7 @@ import numpy as np
 import scipy
 import matplotlib.pyplot as plt
 
-from ..tools.topography import topography # , compute_separatrices
-
+from ..tools.topography import topography as _topology # , compute_separatrices
 
 def plot_flow_field(vecfld, x_range, y_range, start_points=None, n_grid=100, lw_min=0.5, lw_max=3, color='thistle', color_start_points='tomato', ax=None):
     """Plots the flow field with line thickness proportional to speed.
@@ -213,9 +212,9 @@ def topography(adata, basis, xlim=None, ylim=None, t=None, terms=['streamline', 
     uns_key = 'VecFld' if basis == 'X' else 'VecFld_' + basis
 
     if uns_key not in adata.uns.keys():
-        topography(adata, basis, VecFld=None)
+        _topology(adata, basis, VecFld=None)
     elif 'VecFld2D' not in adata.uns[uns_key].keys():
-        topography(adata, basis, VecFld=None)
+        _topology(adata, basis, VecFld=None)
     else:
         VF, vecfld = adata.uns[uns_key]["VecFld"], adata.uns[uns_key]["VecFld2D"]
         xlim, ylim = adata.uns[uns_key]["xlim"] if xlim is None else xlim, \
@@ -232,7 +231,7 @@ def topography(adata, basis, xlim=None, ylim=None, t=None, terms=['streamline', 
     ax.set_ylim(ylim)
 
     if t is None:
-        t = np.linspace(0, max(max(np.diff(xlim), np.diff(ylim)) / np.percentile(np.abs(VF['grid_V']), 5)), 10000000)
+        t = np.linspace(0, max(max(np.diff(xlim), np.diff(ylim)) / np.percentile(np.abs(VF['grid_V']), 5)), 10000)
 
     if 'streamline' in terms:
         ax = plot_flow_field(vecfld, xlim, ylim, ax=ax)

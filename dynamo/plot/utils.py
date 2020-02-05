@@ -4,6 +4,7 @@ import math
 import numba
 import matplotlib
 from matplotlib.patches import Patch
+from matplotlib.lines import Line2D
 import matplotlib.patheffects as PathEffects
 from warnings import warn
 
@@ -103,6 +104,8 @@ def _matplotlib_points(
     width=7,
     height=5,
     show_legend=True,
+    vmin=2,
+    vmax=98,
     **kwargs
 ):
     import matplotlib.pyplot as plt
@@ -138,10 +141,6 @@ def _matplotlib_points(
                 unique_labels = np.unique(labels)
                 num_labels = unique_labels.shape[0]
                 color_key = plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
-                legend_elements = [
-                    Patch(facecolor=color_key[i], label=unique_labels[i])
-                    for i, k in enumerate(unique_labels)
-                ]
             else:
                 highlights.append('other')
                 unique_labels = np.array(highlights)
@@ -160,16 +159,14 @@ def _matplotlib_points(
                 reorder_data.iloc[:sum(background_ids), :], reorder_data.iloc[sum(background_ids):, :] = \
                     points.iloc[background_ids, :], points.iloc[highlight_ids, :]
 
-                legend_elements = [
-                    Patch(facecolor=color_key[i], label=unique_labels[i])
-                    for i, k in enumerate(unique_labels)
-                ]
+                points = reorder_data
 
         if isinstance(color_key, dict):
             colors = pd.Series(labels).map(color_key)
             unique_labels = np.unique(labels)
             legend_elements = [
-                Patch(facecolor=color_key[k], label=k) for k in unique_labels
+                # Patch(facecolor=color_key[k], label=k) for k in unique_labels
+                Line2D([0], [0], marker='o', color=color_key[k], label=k, markersize=15) for k in unique_labels
             ]
         else:
             unique_labels = np.unique(labels)
@@ -180,7 +177,8 @@ def _matplotlib_points(
 
             new_color_key = {k: color_key[i] for i, k in enumerate(unique_labels)}
             legend_elements = [
-                Patch(facecolor=color_key[i], label=k)
+                # Patch(facecolor=color_key[i], label=k)
+                Line2D([0], [0], marker='o', color=color_key[i], label=k, markersize=15)
                 for i, k in enumerate(unique_labels)
             ]
             colors = pd.Series(labels).map(new_color_key)
@@ -200,11 +198,18 @@ def _matplotlib_points(
         sorted_id = np.argsort(values)
         values, points = values[sorted_id], points[sorted_id, :]
 
-        ax.scatter(points[:, 0], points[:, 1], c=values, cmap=cmap, rasterized=True, **kwargs)
+        _vmin = np.min(values) if vmin is None else np.percentile(values, vmin)
+        _vmax = np.min(values) if vmin is None else np.percentile(values, vmax)
+
+        ax.scatter(points[:, 0], points[:, 1], c=values, cmap=cmap, vmin=_vmin, vmax=_vmax, rasterized=True, **kwargs)
+
+        norm = matplotlib.colors.Normalize(vmin=_vmin, vmax=_vmax)
+        mappable = matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
+        mappable.set_array(values)
+        plt.colorbar(mappable, ax=ax)
 
     # No color (just pick the midpoint of the cmap)
     else:
-
         color = plt.get_cmap(cmap)(0.5)
         ax.scatter(points[:, 0], points[:, 1], c=color, rasterized=True, **kwargs)
 
@@ -212,18 +217,15 @@ def _matplotlib_points(
         if len(unique_labels) > 1 and show_legend == 'on data':
             font_color = 'white' if background is 'black' else 'black'
             for i in unique_labels:
-                color_cnt = np.nanmedian(points.iloc[np.where(labels == i)[0], :2], 0)
+                color_cnt = np.nanmedian(points[np.where(labels == i)[0], :2], 0)
                 txt = plt.text(color_cnt[0], color_cnt[1], str(i),
                                fontsize=13, c=font_color, zorder=1000)  #
                 txt.set_path_effects([
                     PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.1),
                     PathEffects.Normal()])
         else:
-            if type(show_legend) == 'str':
-                ax.legend(handles=legend_elements, loc=show_legend, ncol=len(unique_labels) // 15 + 1)
-            else:
-                ax.legend(handles=legend_elements, loc='best', ncol=len(unique_labels) // 15 + 1)
-
+            ax.legend(handles=legend_elements, bbox_to_anchor=(1.04, 1), loc="upper left",
+                      ncol=len(unique_labels) // 15 + 1)
     return ax
 
 
@@ -240,6 +242,8 @@ def _datashade_points(
     width=7,
     height=5,
     show_legend=True,
+    vmin=2,
+    vmax=98,
     **kwargs
 ):
     import matplotlib.pyplot as plt
@@ -331,6 +335,11 @@ def _datashade_points(
         values, data = values[sorted_id], data.iloc[sorted_id, :]
 
         values[np.isnan(values)] = 0
+        _vmin = np.min(values) if vmin is None else np.percentile(values, vmin)
+        _vmax = np.min(values) if vmin is None else np.percentile(values, vmax)
+
+        values = np.clip(values, _vmin, _vmax)
+
         unique_values = np.unique(values)
         if unique_values.shape[0] >= 256:
             min_val, max_val = np.min(values), np.max(values)
