@@ -1,12 +1,4 @@
 # code adapted from https://github.com/lmcinnes/umap/blob/7e051d8f3c4adca90ca81eb45f6a9d1372c076cf/umap/plot.py
-from ..configuration import _themes
-from .utils import despline, set_spine_linewidth, scatter_with_colorbar, scatter_with_legend, _select_font_color
-from .utils import is_gene_name, is_cell_anno_column, is_list_of_lists
-from .utils import _matplotlib_points, _datashade_points
-
-from ..tools.utils import get_mapper
-from ..docrep import DocstringProcessor
-
 import numpy as np
 import pandas as pd
 from pandas.api.types import is_categorical
@@ -16,6 +8,14 @@ from numbers import Number
 
 import matplotlib.colors
 import matplotlib.cm
+
+from ..configuration import _themes, set_figure_params
+from .utils import despline, set_spine_linewidth, scatter_with_colorbar, scatter_with_legend, _select_font_color
+from .utils import is_gene_name, is_cell_anno_column, is_list_of_lists
+from .utils import _matplotlib_points, _datashade_points
+
+from ..tools.utils import get_mapper
+from ..docrep import DocstringProcessor
 
 docstrings = DocstringProcessor()
 
@@ -444,7 +444,7 @@ def scatters(
         cmap=None,
         color_key=None,
         color_key_cmap=None,
-        background="black",
+        background=None,
         ncols=1,
         pointsize=None,
         figsize=(7,5),
@@ -526,7 +526,7 @@ def scatters(
             that if theme
             is passed then this value will be overridden by the
             corresponding option of the theme.
-        background: string (optional, default 'white)
+        background: string or None (optional, default 'None`)
             The color of the background. Usually this will be either
             'white' or 'black', but any color name will work. Ideally
             one wants to match this appropriately to the colors being
@@ -552,7 +552,11 @@ def scatters(
     """
 
     import matplotlib.pyplot as plt
-    import seaborn as sns
+    from matplotlib import rcParams
+    if background is not None:
+        set_figure_params(background=background)
+    else:
+        background = rcParams.get('figure.facecolor')
 
     x, y = x[0] if type(x) != int else x, y[0] if type(y) != int else y
 
@@ -570,30 +574,10 @@ def scatters(
         scatter_kwargs.update(kwargs)
 
     font_color = _select_font_color(background)
-    if background == 'black':
-        # https://github.com/matplotlib/matplotlib/blob/master/lib/matplotlib/mpl-data/stylelib/dark_background.mplstyle
-        sns.set(rc={'axes.facecolor': background, 'axes.edgecolor': background, 'figure.facecolor': background, 'figure.edgecolor': background,
-                    'axes.grid': False, "ytick.color": "w", "xtick.color": "w", "axes.labelcolor": "w", "axes.edgecolor": "w",
-                    "savefig.facecolor": 'k', "savefig.edgecolor": 'k', "grid.color": 'w', "text.color": font_color,
-                    "lines.color": 'w', "patch.edgecolor": 'w', 'figure.edgecolor': 'w',
-                    })
-    else:
-        sns.set(rc={'axes.facecolor': background, 'figure.facecolor': background, "text.color": font_color, 'axes.grid': False})
 
     total_panels, ncols = n_c * n_l * n_b, min(n_c, ncols)
     nrow, ncol = int(np.ceil(total_panels / ncols)), ncols
     if figsize is None: figsize = plt.rcParams['figsize']
-
-    font_color = _select_font_color(background)
-    if background == 'black':
-        # https://github.com/matplotlib/matplotlib/blob/master/lib/matplotlib/mpl-data/stylelib/dark_background.mplstyle
-        sns.set(rc={'axes.facecolor': background, 'axes.edgecolor': background, 'figure.facecolor': background, 'figure.edgecolor': background,
-                    'axes.grid': False, "ytick.color": font_color, "xtick.color": font_color, "axes.labelcolor": font_color, "axes.edgecolor": font_color,
-                    "savefig.facecolor": 'k', "savefig.edgecolor": 'k', "grid.color": font_color, "text.color": font_color,
-                    "lines.color": font_color, "patch.edgecolor": font_color, 'figure.edgecolor': font_color,
-                    })
-    else:
-        sns.set(rc={'axes.facecolor': background, 'figure.facecolor': background, 'axes.grid': False})
 
     if total_panels > 1:
         plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)
@@ -635,11 +619,20 @@ def scatters(
 
                 if is_not_continous:
                     labels = _color.to_dense() if is_categorical(_color) else _color
-                    _theme_ = 'glasbey_dark' if theme is None else theme
+                    if theme is None:
+                        if background == 'black':
+                            _theme_ = 'glasbey_dark'
+                        else:
+                            _theme_ = 'glasbey_white'
+                    else:
+                        _theme_ = theme
                 else:
                     values = _color
                     if theme is None:
-                        _theme_ = 'inferno' if cur_l is not 'velocity' else 'div_blue_red'
+                        if background == 'black':
+                            _theme_ = 'inferno' if cur_l is not 'velocity' else 'div_blue_black_red'
+                        else:
+                            _theme_ = 'inferno' if cur_l is not 'velocity' else 'div_blue_red'
                     else:
                         _theme_ = theme
 

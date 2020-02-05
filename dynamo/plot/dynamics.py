@@ -8,11 +8,11 @@ from .scatters import scatters
 from ..tools.velocity import sol_u, sol_s, solve_first_order_deg
 from ..tools.utils_moments import moments
 from ..tools.utils import get_mapper
-from ..configuration import _themes
+from ..configuration import _themes, set_figure_params
 
 
 def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', basis='umap', color=None, figsize=(7, 5), \
-                    ncols=None, legend='on data', **kwargs):
+                    ncols=None, legend='on data', background=None, **kwargs):
     """Draw the phase portrait, velocity, expression values on the low dimensional embedding.
 
     Parameters
@@ -55,7 +55,10 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
     """
 
     import matplotlib.pyplot as plt
-    import seaborn as sns
+    from matplotlib import rcParams
+    if background is not None:
+        set_figure_params(background=background)
+
     mapper = get_mapper()
 
     point_size = 500.0 / np.sqrt(adata.shape[0]) if pointsize is None else 500.0 / np.sqrt(adata.shape[0]) * pointsize
@@ -182,21 +185,25 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
     else:
         plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow))  # , dpi=160
 
-    discrete_theme, continous_theme, divergent_theme = 'glasbey_dark', 'inferno', 'div_blue_red'
+    if rcParams.get('figure.facecolor') == "black":
+        discrete_theme, continous_theme, divergent_theme = 'glasbey_dark', 'inferno', 'div_blue_black_red'
+    elif rcParams.get('figure.facecolor') == "white":
+        discrete_theme, continous_theme, divergent_theme = 'glasbey_white', 'inferno', 'div_blue_red'
+
     discrete_cmap, discrete_color_key_cmap, discrete_background = _themes[discrete_theme]["cmap"], _themes[discrete_theme]["color_key_cmap"], _themes[discrete_theme]["background"]
     continous_cmap, continous_color_key_cmap, continous_background = _themes[continous_theme]["cmap"], _themes[continous_theme]["color_key_cmap"], _themes[continous_theme]["background"]
     divergent_cmap, divergent_color_key_cmap, divergent_background = _themes[divergent_theme]["cmap"], _themes[divergent_theme]["color_key_cmap"], _themes[divergent_theme]["background"]
 
     font_color = _select_font_color(discrete_background)
-    if discrete_background == 'black':
-        # https://github.com/matplotlib/matplotlib/blob/master/lib/matplotlib/mpl-data/stylelib/dark_background.mplstyle
-        sns.set(rc={'axes.facecolor': discrete_background, 'axes.edgecolor': discrete_background, 'figure.facecolor': discrete_background, 'figure.edgecolor': discrete_background,
-                    'axes.grid': False, "ytick.color": "w", "xtick.color": "w", "axes.labelcolor": "w", "axes.edgecolor": "w",
-                    "savefig.facecolor": 'k', "savefig.edgecolor": 'k', "grid.color": 'w', "text.color": 'w',
-                    "lines.color": 'w', "patch.edgecolor": 'w', 'figure.edgecolor': 'w',
-                    })
-    else:
-        sns.set(rc={'axes.facecolor': discrete_background, 'figure.facecolor': discrete_background, 'axes.grid': False})
+    # if discrete_background == 'black':
+    #     # https://github.com/matplotlib/matplotlib/blob/master/lib/matplotlib/mpl-data/stylelib/dark_background.mplstyle
+    #     sns.set(rc={'axes.facecolor': discrete_background, 'axes.edgecolor': discrete_background, 'figure.facecolor': discrete_background, 'figure.edgecolor': discrete_background,
+    #                 'axes.grid': False, "ytick.color": "w", "xtick.color": "w", "axes.labelcolor": "w", "axes.edgecolor": "w",
+    #                 "savefig.facecolor": 'k', "savefig.edgecolor": 'k', "grid.color": 'w', "text.color": 'w',
+    #                 "lines.color": 'w', "patch.edgecolor": 'w', 'figure.edgecolor': 'w',
+    #                 })
+    # else:
+    #     sns.set(rc={'axes.facecolor': discrete_background, 'figure.facecolor': discrete_background, 'axes.grid': False})
 
     # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
     gs = plt.GridSpec(nrow, ncol)
@@ -330,7 +337,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                 **scatter_kwargs
             )
 
-        ax2.set_title(gn + '(' + ekey + ')')
+        ax2.set_title(gn + ' (' + ekey + ')')
         ax2.set_xlabel(basis + '_1')
         ax2.set_ylabel(basis + '_2')
 
@@ -367,7 +374,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                 **scatter_kwargs
             )
 
-        ax3.set_title(gn + '(' + vkey + ')')
+        ax3.set_title(gn + ' (' + vkey + ')')
         ax3.set_xlabel(basis + '_1')
         ax3.set_ylabel(basis + '_2')
 
@@ -491,7 +498,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                     **scatter_kwargs
                 )
 
-            ax5.set_title(gn + '(protein expression)')
+            ax5.set_title(gn + ' (protein expression)')
             ax5.set_xlabel(basis + '_1')
             ax5.set_ylabel(basis + '_2')
 
@@ -528,7 +535,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                     **scatter_kwargs
                 )
 
-            ax6.set_title(gn + '(protein velocity)')
+            ax6.set_title(gn + ' (protein velocity)')
             ax6.set_xlabel(basis + '_1')
             ax6.set_ylabel(basis + '_2')
 

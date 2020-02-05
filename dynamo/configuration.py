@@ -18,9 +18,17 @@ darkred_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
 darkpurple_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
     "darkpurple", colorcet.linear_bmw_5_95_c89
 )
+# add gkr theme for velocity
+div_blue_black_red_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
+    "div_blue_black_red", colorcet.diverging_gkr_60_10_c40
+)
 # add RdBu_r theme for velocity
 div_blue_red_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
     "div_blue_red", colorcet.diverging_bwr_55_98_c37
+)
+# add glasbey_bw for cell annotation in white background
+glasbey_white_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
+    "glasbey_white", colorcet.glasbey_bw
 )
 # add glasbey_bw_minc_20_maxl_70 theme for cell annotation in dark background
 glasbey_dark_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
@@ -33,7 +41,9 @@ plt.register_cmap("darkblue", darkblue_cmap)
 plt.register_cmap("darkgreen", darkgreen_cmap)
 plt.register_cmap("darkred", darkred_cmap)
 plt.register_cmap("darkpurple", darkpurple_cmap)
+plt.register_cmap("div_blue_black_red", div_blue_black_red_cmap)
 plt.register_cmap("div_blue_red", div_blue_red_cmap)
+plt.register_cmap("glasbey_white", glasbey_white_cmap)
 plt.register_cmap("glasbey_dark", glasbey_dark_cmap)
 
 
@@ -92,16 +102,28 @@ _themes = {
         "background": "black",
         "edge_cmap": "darkpurple",
     },
+    "div_blue_black_red": {
+        "cmap": "div_blue_black_red",
+        "color_key_cmap": "div_blue_black_red",
+        "background": "black",
+        "edge_cmap": "gray_r",
+    },
     "div_blue_red": {
         "cmap": "div_blue_red",
         "color_key_cmap": "div_blue_red",
-        "background": "black",
+        "background": "white",
         "edge_cmap": "gray_r",
     },
     "glasbey_dark": {
         "cmap": "glasbey_dark",
         "color_key_cmap": "glasbey_dark",
         "background": "black",
+        "edge_cmap": "gray",
+    },
+    "glasbey_white": {
+        "cmap": "glasbey_white",
+        "color_key_cmap": "glasbey_white",
+        "background": "white",
         "edge_cmap": "gray_r",
     },
 }
@@ -131,11 +153,31 @@ cyc_20 = list(map(colors.to_hex, cm.tab20c.colors))
 #     theme(plot.margin=unit(c(0,0,0,0), "lines"))
 # }
 
-def config_dynamo_rcParams(prop_cycle=cyc_20, fontsize=8, color_map=None, frameon=None):
+def dyn_theme(background='black'):
+    # https://github.com/matplotlib/matplotlib/blob/master/lib/matplotlib/mpl-data/stylelib/dark_background.mplstyle
+
+    if background == 'black':
+        rcParams.update({"lines.color": 'w', "patch.edgecolor": 'w',
+                         "text.color": 'w',
+                         'axes.facecolor': background, 'axes.edgecolor': "white", "axes.labelcolor": "w",
+                         "xtick.color": "w", "ytick.color": "w",
+                         'figure.facecolor': background, 'figure.edgecolor': background,
+                         "savefig.facecolor": background, "savefig.edgecolor": background, "grid.color": 'w',
+                         'axes.grid': False,
+                    })
+    else:
+        pass
+
+
+def config_dynamo_rcParams(background='black', prop_cycle=cyc_20, fontsize=8, color_map=None, frameon=None):
     """Configure matplotlib.rcParams to dynamo defaults (based on ggplot style and scanpy).
 
     Parameters
     ----------
+        background: `str` (default: black)
+            The background color of the plot. By default we use the black ground
+            which is great for presentation. Setting it to `white` background will
+            be suitable for producing figures for publication.
         prop_cycle: `list` (default: cyc_20)
             A list with hex color codes
         fontsize: float (default: 6)
@@ -253,13 +295,15 @@ def config_dynamo_rcParams(prop_cycle=cyc_20, fontsize=8, color_map=None, frameo
         'RdBu_r' if color_map is None else color_map
     )
 
+    dyn_theme(background)
+
     # frame (default: True)
     frameon = False if frameon is None else frameon
     global _frameon
     _frameon = frameon
 
 
-def set_figure_params(dynamo=True, fontsize=8, figsize=(6.5, 5), dpi=None, dpi_save=None, frameon=None, vector_friendly=True,
+def set_figure_params(dynamo=True, background='black', fontsize=8, figsize=(6.5, 5), dpi=None, dpi_save=None, frameon=None, vector_friendly=True,
                       color_map=None, format='pdf', transparent=False, ipython_format='png2x'):
     """Set resolution/size, styling and format of figures.
        This function is adapted from: https://github.com/theislab/scanpy/blob/f539870d7484675876281eb1c475595bf4a69bdb/scanpy/_settings.py
@@ -267,6 +311,10 @@ def set_figure_params(dynamo=True, fontsize=8, figsize=(6.5, 5), dpi=None, dpi_s
     ---------
         dynamo: `bool` (default: `True`)
             Init default values for :obj:`matplotlib.rcParams` suited for dynamo.
+        background: `str` (default: black)
+            The background color of the plot. By default we use the black ground
+            which is great for presentation. Setting it to `white` background will
+            be suitable for producing figures for publication.
         fontsize: `[float, float]` or None (default: `6`)
         figsize: `(float, float)` (default: `(6.5, 5)`)
             Width and height for default figure size.
@@ -306,7 +354,7 @@ def set_figure_params(dynamo=True, fontsize=8, figsize=(6.5, 5), dpi=None, dpi_s
     file_format_figs = format
 
     if dynamo:
-        config_dynamo_rcParams(fontsize=fontsize, color_map=color_map)
+        config_dynamo_rcParams(background=background, fontsize=fontsize, color_map=color_map)
     if figsize is not None:
         rcParams['figure.figsize'] = figsize
 

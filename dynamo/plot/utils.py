@@ -166,7 +166,7 @@ def _matplotlib_points(
             unique_labels = np.unique(labels)
             legend_elements = [
                 # Patch(facecolor=color_key[k], label=k) for k in unique_labels
-                Line2D([0], [0], marker='o', color=color_key[k], label=k, linestyle='None', markersize=15) for k in unique_labels
+                Line2D([0], [0], marker='o', color=color_key[k], label=k, linestyle='None') for k in unique_labels
             ]
         else:
             unique_labels = np.unique(labels)
@@ -178,7 +178,7 @@ def _matplotlib_points(
             new_color_key = {k: color_key[i] for i, k in enumerate(unique_labels)}
             legend_elements = [
                 # Patch(facecolor=color_key[i], label=k)
-                Line2D([0], [0], marker='o', color=color_key[i], label=k, linestyle='None', markersize=15)
+                Line2D([0], [0], marker='o', color=color_key[i], label=k, linestyle='None')
                 for i, k in enumerate(unique_labels)
             ]
             colors = pd.Series(labels).map(new_color_key)
