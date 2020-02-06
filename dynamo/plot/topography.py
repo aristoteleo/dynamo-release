@@ -3,31 +3,50 @@ import scipy
 import matplotlib.pyplot as plt
 
 from ..tools.topography import topography as _topology # , compute_separatrices
+from ..configuration import set_figure_params
 
-def plot_flow_field(vecfld, x_range, y_range, start_points=None, n_grid=100, lw_min=0.5, lw_max=3, color='thistle', color_start_points='tomato', ax=None):
+def plot_flow_field(vecfld, x_range, y_range, n_grid=100, lw_min=0.5, lw_max=3,
+                    start_points=None, background=None, ax=None):
     """Plots the flow field with line thickness proportional to speed.
     code adapted from: http://be150.caltech.edu/2017/handouts/dynamical_systems_approaches.html
 
     Parameters
     ----------
-    ax : Matplotlib Axis instance
-        Axis on which to make the plot
     vecfld: :class:`~VectorField2D`
         An instance of the VectorField2D class which presumably has fixed points computed and stored.
-    x_range : array_like, shape (2,)
+    x_range: array_like, shape (2,)
         Range of values for x-axis.
-    y_range : array_like, shape (2,)
+    y_range: array_like, shape (2,)
         Range of values for y-axis.
     n_grid : int, default 100
         Number of grid points to use in computing
         derivatives on phase portrait.
-        
+    lw_min, lw_max: `float` (defaults: 0.5, 3)
+        The smallest and largest linewidth allowed for the stream lines.
+    start_points: np.ndarray (default: None)
+        The initial point from which the streamline will be draw.
+    background: `str` or None (default: None)
+        The background color of the plot.
+    ax : Matplotlib Axis instance
+        Axis on which to make the plot
+
     Returns
     -------
     output : Matplotlib Axis instance
         Axis with streamplot included.
     """
-    
+
+    from matplotlib import rcParams
+    if background is not None:
+        set_figure_params(background=background)
+    else:
+        background = rcParams.get('figure.facecolor')
+
+    if background == 'black':
+        color, color_start_points = 'white', 'red'
+    else:
+        color, color_start_points = 'thistle', 'tomato'
+
     # Set up u,v space
     u = np.linspace(x_range[0], x_range[1], n_grid)
     v = np.linspace(y_range[0], y_range[1], n_grid)
@@ -54,55 +73,89 @@ def plot_flow_field(vecfld, x_range, y_range, start_points=None, n_grid=100, lw_
         ax.streamplot(uu, vv, u_vel, v_vel, linewidth=lw, arrowsize=1.2,
                       density=1, color=color)
     else:
-        ax.streamplot(uu, vv, u_vel, v_vel, linewidth=lw_max, arrowsize=1.2, start_points = start_points,
+        ax.streamplot(uu, vv, u_vel, v_vel, linewidth=lw_max, arrowsize=1.2, start_points=start_points,
                       density=1, color=color_start_points)
 
+    return ax
 
-def plot_nullclines(vecfld, colors=['#189e1a', '#1f77b4'], lw=3, ax=None):
+def plot_nullclines(vecfld, lw=3, background=None, ax=None):
     """Plot nullclines stored in the VectorField2D class.
 
     Arguments
     ---------
         vecfld: :class:`~VectorField2D`
             An instance of the VectorField2D class which presumably has fixed points computed and stored.
+        lw: `float` (default: 3)
+            The linewidth of the nullcline.
+        background: `str` or None (default: None)
+            The background color of the plot.
         ax: :class:`~matplotlib.axes.Axes`
             The matplotlib axes used for plotting. Default is to use the current axis.
     """
+    from matplotlib import rcParams
+    if background is not None:
+        set_figure_params(background=background)
+    else:
+        background = rcParams.get('figure.facecolor')
+
+    if background == 'black':
+        colors = ['#189e1a', '#1f77b4']
+    else:
+        colors = ['#189e1a', '#1f77b4']
+
     if ax is None:
         ax = plt.gca()
     for ncx in vecfld.NCx:
-        plt.plot(*ncx.T, c=colors[0], lw=lw)
+        ax.plot(*ncx.T, c=colors[0], lw=lw)
     for ncy in vecfld.NCy:
-        plt.plot(*ncy.T, c=colors[1], lw=lw)
+        ax.plot(*ncy.T, c=colors[1], lw=lw)
 
+    return ax
 
-def plot_fixed_points(vecfld, marker='o', markersize=20, markercolor='k', filltype=['full', 'top', 'none'], ax=None):
+def plot_fixed_points(vecfld, marker='o', markersize=20, filltype=['full', 'top', 'none'], background=None, ax=None):
     """Plot fixed points stored in the VectorField2D class.
     
     Arguments
     ---------
         vecfld: :class:`~VectorField2D`
             An instance of the VectorField2D class which presumably has fixed points computed and stored.
+        marker: `str` (default: `o`)
+            The marker type. Any string supported by matplotlib.markers.
+        markersize: `float` (default: 20)
+            The size of the marker.
+        filltype: list
+            The fill type used for stable, saddle, and unstable fixed points. Default is 'full', 'top' and 'none',
+            respectively.
+        background: `str` or None (default: None)
+            The background color of the plot.
         ax: :class:`~matplotlib.axes.Axes`
             The matplotlib axes used for plotting. Default is to use the current axis.
-        filltype: list
-            The fill type used for stable, saddle, and unstable fixed points. Default is 'full', 'top' and 'none', respectively.
     """
+    from matplotlib import rcParams
+    if background is not None:
+        set_figure_params(background=background)
+    else:
+        background = rcParams.get('figure.facecolor')
+
+    if background == 'black':
+        markercolor = ['#ffffff']
+    else:
+        markercolor = ['#189e1a', '#1f77b4']
+
     Xss, ftype = vecfld.get_fixed_points(get_types=True)
     if ax is None:
         ax = plt.gca()
     for i in range(len(Xss)):
         ax.plot(*Xss[i], marker=marker, markersize=markersize, c=markercolor, fillstyle=filltype[int(ftype[i] + 1)], linestyle='none')
 
+    return ax
 
-def plot_traj(f, y0, t, args=(), color='black', lw=2, ax=None):
+def plot_traj(f, y0, t, args=(), lw=2, background=None, ax=None):
     """Plots a trajectory on a phase portrait.
     code adapted from: http://be150.caltech.edu/2017/handouts/dynamical_systems_approaches.html
 
     Parameters
     ----------
-    ax : Matplotlib Axis instance
-        Axis on which to make the plot
     f : function for form f(y, t, *args)
         The right-hand-side of the dynamical system.
         Must return a 2-array.
@@ -112,27 +165,70 @@ def plot_traj(f, y0, t, args=(), color='black', lw=2, ax=None):
         Time points for trajectory.
     args : tuple, default ()
         Additional arguments to be passed to f
-    n_grid : int, default 100
-        Number of grid points to use in computing
-        derivatives on phase portrait.
-        
+    lw : `float`, (default: 2)
+        The line width of the trajectory.
+    background: `str` or None (default: None)
+        The background color of the plot.
+    ax : Matplotlib Axis instance
+        Axis on which to make the plot
+
     Returns
     -------
     output : Matplotlib Axis instance
         Axis with streamplot included.
     """
-    
+    from matplotlib import rcParams
+    if background is not None:
+        set_figure_params(background=background)
+    else:
+        background = rcParams.get('figure.facecolor')
+
+    if background == 'black':
+        color = ['#ffffff']
+    else:
+        color = 'black'
+
     y = scipy.integrate.odeint(f, y0, t, args=args)
     ax.plot(*y.transpose(), color=color, lw=lw)
+
     return ax
 
 
-def plot_separatrix(vecfld, x_range, y_range, t, eps=1e-6,
-                           color='tomato', lw=3, ax=None):
+def plot_separatrix(vecfld, x_range, y_range, t, noise=1e-6, lw=3, background=None, ax=None):
     """Plot separatrix on phase portrait.
+
+    Parameters
+    ----------
+        vecfld: :class:`~VectorField2D`
+            An instance of the VectorField2D class which presumably has fixed points computed and stored.
+        x_range: array_like, shape (2,)
+            Range of values for x-axis.
+        y_range: array_like, shape (2,)
+        t : array_like
+            Time points for trajectory.
+        noise : tuple, default ()
+            A small noise added to steady states for drawing the separatrix.
+        lw : `float`, (default: 2)
+            The line width of the trajectory.
+        background: `str` or None (default: None)
+            The background color of the plot.
+        ax : Matplotlib Axis instance
+            Axis on which to make the plot
+
         code adapted from: http://be150.caltech.edu/2017/handouts/dynamical_systems_approaches.html
 
     """
+    from matplotlib import rcParams
+    if background is not None:
+        set_figure_params(background=background)
+    else:
+        background = rcParams.get('figure.facecolor')
+
+    if background == 'black':
+        color = ['#ffffff']
+    else:
+        color = 'tomato'
+
     # No saddle point, no separatrix.
     fps, ftypes = vecfld.get_fixed_points(get_types=True)
     J = vecfld.Xss.get_J()
@@ -158,11 +254,11 @@ def plot_separatrix(vecfld, x_range, y_range, t, eps=1e-6,
             fps = saddle[i]
             J = Jacobian[i]
             # Build upper right branch of separatrix
-            ab0 = fps + eps
+            ab0 = fps + noise
             ab_upper = scipy.integrate.odeint(rhs, ab0, t)
 
             # Build lower left branch of separatrix
-            ab0 = fps - eps
+            ab0 = fps - noise
             ab_lower = scipy.integrate.odeint(rhs, ab0, t)
 
             # Concatenate, reversing lower so points are sequential
@@ -175,9 +271,10 @@ def plot_separatrix(vecfld, x_range, y_range, t, eps=1e-6,
             all_sep_a = sep_a if all_sep_a is None else np.concatenate((all_sep_a, sep_a))
             all_sep_b = sep_b if all_sep_b is None else np.concatenate((all_sep_b, sep_b))
 
+    return ax
 
-def topography(adata, basis, xlim=None, ylim=None, t=None, terms=['streamline', 'nullcline', 'fixed_points', 'separatrices', 'trajectory'],
-               init_state=None, figsize=(5, 5), plot=True):
+def topography(adata, basis, xlim=None, ylim=None, t=None, terms=['streamline', 'nullcline', 'separatrices', 'trajectory', 'fixed_points'],
+               init_state=None, figsize=(5, 5), background=None, plot=True):
     """Plot the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system
     for single cells. The plot is created on two dimensional space.
 
@@ -187,19 +284,21 @@ def topography(adata, basis, xlim=None, ylim=None, t=None, terms=['streamline', 
             an Annodata object.
         basis: `str` (default: `trimap`)
             The reduced dimension embedding of cells to visualize.
-        t:  t_end: `float` (default 1)
-            The length of the time period from which to predict cell state forward or backward over time. This is used
-            by the odeint function.
         xlim: `numpy.ndarray`
             The range of x-coordinate
         ylim: `numpy.ndarray`
             The range of y-coordinate
+        t:  t_end: `float` (default 1)
+            The length of the time period from which to predict cell state forward or backward over time. This is used
+            by the odeint function.
         terms: `list` (default: ['streamline', 'nullcline', 'fixed_points', 'separatrices', 'trajectory'])
             A list of plotting items to include in the final topography figure.
         init_state: `numpy.ndarray` (default: None)
             Initial cell states for the historical or future cell state prediction with numerical integration.
         figsize: `tuple` (default: (5, 5)
             The size of figure.
+        background: `str` or None (default: None)
+            The background color of the plot.
         plot: `bool` (default: True)
             Whether or not to plot the topography plot or just return the axis object.
 
@@ -208,6 +307,11 @@ def topography(adata, basis, xlim=None, ylim=None, t=None, terms=['streamline', 
         Plot the streamline, fixed points (attractors / saddles), nullcline, separatrices of a recovered dynamic system
         for single cells or return the corresponding axis, depending on the plot argument.
     """
+    from matplotlib import rcParams
+    if background is not None:
+        set_figure_params(background=background)
+    else:
+        background = rcParams.get('figure.facecolor')
 
     uns_key = 'VecFld' if basis == 'X' else 'VecFld_' + basis
 
@@ -234,19 +338,19 @@ def topography(adata, basis, xlim=None, ylim=None, t=None, terms=['streamline', 
         t = np.linspace(0, max(max(np.diff(xlim), np.diff(ylim)) / np.percentile(np.abs(VF['grid_V']), 5)), 10000)
 
     if 'streamline' in terms:
-        ax = plot_flow_field(vecfld, xlim, ylim, ax=ax)
+        ax = plot_flow_field(vecfld, xlim, ylim, background=background, ax=ax)
 
     if 'nullcline' in terms:
-        ax = plot_nullclines(vecfld, ax=ax)
+        ax = plot_nullclines(vecfld, background=background, ax=ax)
 
     if 'fixed_points' in terms:
-        ax = plot_fixed_points(vecfld, ax=ax)
+        ax = plot_fixed_points(vecfld, background=background, ax=ax)
 
     if 'separatrices' in terms:
-        ax = plot_separatrix(vecfld, xlim, ylim, t=t, ax=ax)
+        ax = plot_separatrix(vecfld, xlim, ylim, t=t, background=background, ax=ax)
 
     if init_state is not None and 'trajectory' in terms:
-        ax = plot_traj(vecfld.func, init_state, t, ax=ax)
+        ax = plot_traj(vecfld.func, init_state, t, background=background, ax=ax)
 
     if plot:
         plt.show()

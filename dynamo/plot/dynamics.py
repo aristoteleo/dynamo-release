@@ -66,10 +66,11 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
 
-    genes, idx = adata.var.index[adata.var.index.isin(genes)], np.where(adata.var.index.isin(genes))[0]
+    idx = np.logical_and(adata.var.index.isin(genes), adata.var.use_for_dynamo)
+    genes, idx = adata.var.index[idx].tolist(), np.where(idx)[0].tolist()
     # avoid object for dtype in the gamma column https://stackoverflow.com/questions/40809503/python-numpy-typeerror-ufunc-isfinite-not-supported-for-the-input-types
-    valid_id = np.isfinite(np.array(adata.var.loc[genes, ['gamma']], dtype='float')).flatten()
-    genes, idx = np.array(genes)[valid_id].tolist(), idx[valid_id].tolist()
+    # valid_id = np.isfinite(np.array(adata.var.loc[genes, ['gamma']], dtype='float')).flatten()
+    # genes, idx = np.array(genes)[valid_id].tolist(), idx[valid_id].tolist()
 
     if len(genes) == 0:
         raise Exception('adata has no genes listed in your input gene vector: {}'.format(genes))
@@ -188,7 +189,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
     if rcParams.get('figure.facecolor') == "black":
         discrete_theme, continous_theme, divergent_theme = 'glasbey_dark', 'inferno', 'div_blue_black_red'
     elif rcParams.get('figure.facecolor') == "white":
-        discrete_theme, continous_theme, divergent_theme = 'glasbey_white', 'inferno', 'div_blue_red'
+        discrete_theme, continous_theme, divergent_theme = 'glasbey_white', 'viridis', 'div_blue_red'
 
     discrete_cmap, discrete_color_key_cmap, discrete_background = _themes[discrete_theme]["cmap"], _themes[discrete_theme]["color_key_cmap"], _themes[discrete_theme]["background"]
     continous_cmap, continous_color_key_cmap, continous_background = _themes[continous_theme]["cmap"], _themes[continous_theme]["color_key_cmap"], _themes[continous_theme]["background"]

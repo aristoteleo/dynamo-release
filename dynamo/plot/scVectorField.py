@@ -844,9 +844,13 @@ def cell_wise_velocity(
     elif type(cell_ind) is list:
         ix_choice = cell_ind
 
+    if background == 'black':
+        quiver_color = 'red'
+    else:
+        quiver_color = 'black'
     for i in range(len(axes_list)):
         axes_list[i].quiver(df.iloc[ix_choice, 0], df.iloc[ix_choice, 1],
-                  df.iloc[ix_choice, 2], df.iloc[ix_choice, 3], color = font_color,
+                  df.iloc[ix_choice, 2], df.iloc[ix_choice, 3], color=quiver_color,
                   **quiver_kwargs)
 
     plt.tight_layout()
@@ -967,8 +971,12 @@ def grid_velocity(
         'return',
         **s_kwargs_dict)
 
+    if background == 'black':
+        quiver_color = 'red'
+    else:
+        quiver_color = 'black'
     for i in range(len(axes_list)):
-        axes_list[i].quiver(X_grid[0], X_grid[1], V_grid[0], V_grid[1], color=font_color, **quiver_kwargs)
+        axes_list[i].quiver(X_grid[0], X_grid[1], V_grid[0], V_grid[1], color=quiver_color, **quiver_kwargs)
 
     plt.tight_layout()
     plt.show()
@@ -1088,8 +1096,12 @@ def streamline_plot(
         'return',
         **s_kwargs_dict)
 
+    if background == 'black':
+        quiver_color = 'red'
+    else:
+        quiver_color = 'black'
     for i in range(len(axes_list)):
-        axes_list[i].streamplot(X_grid[0], X_grid[1], V_grid[0], V_grid[1], color=font_color, **streamplot_kwargs)
+        axes_list[i].streamplot(X_grid[0], X_grid[1], V_grid[0], V_grid[1], color=quiver_color, **streamplot_kwargs)
 
     plt.tight_layout()
     plt.show()

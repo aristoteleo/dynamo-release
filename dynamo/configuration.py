@@ -28,7 +28,7 @@ div_blue_red_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
 )
 # add glasbey_bw for cell annotation in white background
 glasbey_white_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-    "glasbey_white", colorcet.glasbey_bw
+    "glasbey_white", colorcet.glasbey_bw_minc_20
 )
 # add glasbey_bw_minc_20_maxl_70 theme for cell annotation in dark background
 glasbey_dark_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
@@ -57,7 +57,7 @@ _themes = {
     "viridis": {
         "cmap": "viridis",
         "color_key_cmap": "Spectral",
-        "background": "black",
+        "background": "white",
         "edge_cmap": "gray",
     },
     "inferno": {

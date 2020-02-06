@@ -632,7 +632,7 @@ def scatters(
                         if background == 'black':
                             _theme_ = 'inferno' if cur_l is not 'velocity' else 'div_blue_black_red'
                         else:
-                            _theme_ = 'inferno' if cur_l is not 'velocity' else 'div_blue_red'
+                            _theme_ = 'viridis' if cur_l is not 'velocity' else 'div_blue_red'
                     else:
                         _theme_ = theme
 
@@ -671,7 +671,7 @@ def scatters(
                         figsize[0],
                         figsize[1],
                         show_legend,
-                        **kwargs
+                        **scatter_kwargs
                     )
                 else:
                     ax = _datashade_points(
@@ -687,7 +687,7 @@ def scatters(
                         figsize[0],
                         figsize[1],
                         show_legend,
-                        **kwargs
+                        **scatter_kwargs
                     )
 
                 ax.set_xlabel(points.columns[0])
