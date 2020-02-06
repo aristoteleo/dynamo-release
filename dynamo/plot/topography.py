@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from ..tools.topography import topography as _topology # , compute_separatrices
 from ..configuration import set_figure_params
 
+
 def plot_flow_field(vecfld, x_range, y_range, n_grid=100, lw_min=0.5, lw_max=3,
                     start_points=None, background=None, ax=None):
     """Plots the flow field with line thickness proportional to speed.
@@ -112,7 +113,7 @@ def plot_nullclines(vecfld, lw=3, background=None, ax=None):
 
     return ax
 
-def plot_fixed_points(vecfld, marker='o', markersize=20, filltype=['full', 'top', 'none'], background=None, ax=None):
+def plot_fixed_points(vecfld, marker='o', markersize=10, filltype=['full', 'top', 'none'], background=None, ax=None):
     """Plot fixed points stored in the VectorField2D class.
     
     Arguments
@@ -138,9 +139,9 @@ def plot_fixed_points(vecfld, marker='o', markersize=20, filltype=['full', 'top'
         background = rcParams.get('figure.facecolor')
 
     if background == 'black':
-        markercolor = ['#ffffff']
+        markercolor = '#ffffff'
     else:
-        markercolor = ['#189e1a', '#1f77b4']
+        markercolor = 'k'
 
     Xss, ftype = vecfld.get_fixed_points(get_types=True)
     if ax is None:
@@ -273,7 +274,7 @@ def plot_separatrix(vecfld, x_range, y_range, t, noise=1e-6, lw=3, background=No
 
     return ax
 
-def topography(adata, basis, xlim=None, ylim=None, t=None, terms=['streamline', 'nullcline', 'separatrices', 'trajectory', 'fixed_points'],
+def topography(adata, basis, xlim=None, ylim=None, t=None, terms=['streamline', 'nullcline', 'trajectory', 'fixed_points'],
                init_state=None, figsize=(5, 5), background=None, plot=True):
     """Plot the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system
     for single cells. The plot is created on two dimensional space.
@@ -291,7 +292,7 @@ def topography(adata, basis, xlim=None, ylim=None, t=None, terms=['streamline', 
         t:  t_end: `float` (default 1)
             The length of the time period from which to predict cell state forward or backward over time. This is used
             by the odeint function.
-        terms: `list` (default: ['streamline', 'nullcline', 'fixed_points', 'separatrices', 'trajectory'])
+        terms: `list` (default: ['streamline', 'nullcline', 'fixed_points', 'trajectory'])
             A list of plotting items to include in the final topography figure.
         init_state: `numpy.ndarray` (default: None)
             Initial cell states for the historical or future cell state prediction with numerical integration.

@@ -787,6 +787,7 @@ def cell_wise_velocity(
     """
 
     import matplotlib.pyplot as plt
+    from matplotlib import rcParams
 
     if ('X_' + basis in adata.obsm.keys()) and ('velocity_' + basis in adata.obsm.keys()):
         X = adata.obsm['X_' + basis][:, [x, y]]
@@ -843,6 +844,9 @@ def cell_wise_velocity(
         ix_choice = np.random.choice(np.range(adata.shape[0]), size=cell_ind, replace=False)
     elif type(cell_ind) is list:
         ix_choice = cell_ind
+
+    if background is None:
+        background = rcParams.get('figure.facecolor')
 
     if background == 'black':
         quiver_color = 'red'
@@ -908,6 +912,7 @@ def grid_velocity(
     """
 
     import matplotlib.pyplot as plt
+    from matplotlib import rcParams
 
     if ('X_' + basis in adata.obsm.keys()) and ('velocity_' + basis in adata.obsm.keys()):
         X = adata.obsm['X_' + basis][:, [x, y]]
@@ -971,6 +976,9 @@ def grid_velocity(
         'return',
         **s_kwargs_dict)
 
+    if background is None:
+        background = rcParams.get('figure.facecolor')
+
     if background == 'black':
         quiver_color = 'red'
     else:
@@ -1031,6 +1039,7 @@ def streamline_plot(
     """
 
     import matplotlib.pyplot as plt
+    from matplotlib import rcParams
 
     if ('X_' + basis in adata.obsm.keys()) and ('velocity_' + basis in adata.obsm.keys()):
         X = adata.obsm['X_' + basis][:, [x, y]]
@@ -1095,6 +1104,9 @@ def streamline_plot(
         ax,
         'return',
         **s_kwargs_dict)
+
+    if background is None:
+        background = rcParams.get('figure.facecolor')
 
     if background == 'black':
         quiver_color = 'red'
