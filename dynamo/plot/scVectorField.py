@@ -8,6 +8,7 @@ from ..tools.dimension_reduction import reduceDimension
 from ..tools.cell_velocities import cell_velocities
 from ..tools.Markov import velocity_on_grid
 from ..tools.scVectorField import VectorField
+from ..tools.utils import update_dict
 
 from .scatters import docstrings
 
@@ -121,7 +122,7 @@ def _cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, col
     if quiver_scale is None:
         quiver_scale = quiver_autoscaler(X, V)
     quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_scale, "minlength": 1.5, "alpha": 0.4}
-    quiver_kwargs.update(q_kwargs)
+    quiver_kwargs = update_dict(quiver_kwargs, q_kwargs)
 
     n_columns, plot_per_gene = n_columns, 1 # we may also add random velocity results
     nrow, ncol = int(np.ceil(plot_per_gene * n_genes / n_columns)), n_columns
@@ -815,14 +816,10 @@ def cell_wise_velocity(
         edgecolors = 'gray'
     else:
         edgecolors = 'gray'
-    # quiver_kwargs = {"units": 'xy', "angles": 'xy', 'scale': quiver_scale, "scale_units": 'xy', "width": 0.25,
-    #                  "headwidth": 3, "headlength": 5, "headaxislength": 4.5, "minshaft": 1, "minlength": 1,
-    #                  "pivot": "tail", "linewidth": 2, "edgecolors": edgecolors, "alpha": 0.8, "zorder": 3}
     quiver_kwargs = {"units": 'xy', "angles": 'xy', 'scale': quiver_scale, "scale_units": 'xy', "width": 0.001,
                      "headwidth": 3, "headlength": 5, "headaxislength": 4.5, "minshaft": 1, "minlength": 1,
-                     "pivot": "tail", "linewidth": .2, "edgecolors": edgecolors, "linewidth": .2,
-                     "color": edgecolors, "zorder": 3}
-    quiver_kwargs.update(cell_wise_kwargs)
+                     "pivot": "tail", "linewidth": .2, "edgecolors": edgecolors, "alpha": 0.8, "zorder": 3}
+    quiver_kwargs = update_dict(quiver_kwargs, cell_wise_kwargs)
 
     axes_list, color_list, font_color = scatters(
         adata,
@@ -950,7 +947,7 @@ def grid_velocity(
     else:
         grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
                             "adjust_for_stream": True, "V_threshold": None}
-        grid_kwargs_dict.update(grid_kwargs)
+        grid_kwargs_dict = update_dict(grid_kwargs_dict, grid_kwargs)
 
         X_grid, V_grid, D = velocity_on_grid(X[:, [x, y]], V[:, [x, y]], xy_grid_nums, **grid_kwargs_dict)
 
@@ -969,7 +966,7 @@ def grid_velocity(
                      "headwidth": 3, "headlength": 5, "headaxislength": 4.5, "minshaft": 1, "minlength": 1,
                      "pivot": "tail", "linewidth": .2, "edgecolors": edgecolors, "linewidth": .2,
                      "color": edgecolors, "zorder": 3}
-    quiver_kwargs.update(q_kwargs_dict)
+    quiver_kwargs = update_dict(quiver_kwargs, q_kwargs_dict)
 
     axes_list, _, font_color = scatters(
         adata,
@@ -1089,7 +1086,8 @@ def streamline_plot(
     streamplot_kwargs={"density": density, "linewidth": None, "cmap": None, "norm": None, "arrowsize": 1, "arrowstyle": '-|>',
                        "minlength": 0.1, "transform": None, "zorder": 10, "start_points": None, "maxlength": 4.0,
                        "integration_direction": 'both'}
-    streamplot_kwargs.update(streamline_kwargs)
+    streamplot_kwargs = update_dict(streamplot_kwargs, streamline_kwargs)
+
     mass = np.sqrt((V_grid ** 2).sum(0))
     streamplot_kwargs.update({"linewidth": 4 * mass / mass[~np.isnan(mass)].max()})
 

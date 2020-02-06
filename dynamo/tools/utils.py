@@ -16,6 +16,10 @@ def get_finite_inds(X, ax=0):
 
     return finite_inds
 
+def update_dict(dict1, dict2):
+    dict1.update((k, dict2[k]) for k in dict1.keys() & dict2.keys())
+
+    return dict1
 # ---------------------------------------------------------------------------------------------------
 # moment related:
 def cal_12_mom(data, t):
