@@ -807,12 +807,20 @@ def cell_wise_velocity(
 
     df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "u": V[:, 0], "v": V[:, 1]})
 
+    if background is None:
+        background = rcParams.get('figure.facecolor')
     if quiver_scale is None:
         quiver_scale = quiver_autoscaler(X, V)
-    quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_scale, "minlength": 1.5, "alpha": 0.4}
+    if background == 'black':
+        edgecolors = 'white'
+    else:
+        edgecolors = 'black'
+    quiver_kwargs = {"units": 'xy', "angles": 'xy', 'scale': quiver_scale, "scale_units": 'xy', "width": 0.001,
+                     "headwidth": 3, "headlength": 5, "headaxislength": 4.5, "minshaft": 1, "minlength": 1,
+                     "pivot": "tail", "linewidth": .2, "edgecolors": edgecolors, "zorder": 3}
     quiver_kwargs.update(cell_wise_kwargs)
 
-    axes_list, font_color = scatters(
+    axes_list, color_list, font_color = scatters(
         adata,
         basis,
         x,
@@ -845,17 +853,9 @@ def cell_wise_velocity(
     elif type(cell_ind) is list:
         ix_choice = cell_ind
 
-    if background is None:
-        background = rcParams.get('figure.facecolor')
-
-    if background == 'black':
-        quiver_color = 'red'
-    else:
-        quiver_color = 'black'
     for i in range(len(axes_list)):
         axes_list[i].quiver(df.iloc[ix_choice, 0], df.iloc[ix_choice, 1],
-                  df.iloc[ix_choice, 2], df.iloc[ix_choice, 3], color=quiver_color,
-                  **quiver_kwargs)
+                  df.iloc[ix_choice, 2], df.iloc[ix_choice, 3], color=color_list[i], **quiver_kwargs)
 
     plt.tight_layout()
     plt.show()
@@ -947,12 +947,24 @@ def grid_velocity(
 
         X_grid, V_grid, D = velocity_on_grid(X[:, [x, y]], V[:, [x, y]], xy_grid_nums, **grid_kwargs_dict)
 
+
+    if background is None:
+        background = rcParams.get('figure.facecolor')
+
+    if background == 'black':
+        edgecolors = 'red'
+    else:
+        edgecolors = 'black'
+
     if quiver_scale is None:
         quiver_scale = quiver_autoscaler(X_grid, V_grid)
-    quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_scale, "minlength": 1.5, "alpha": 0.4}
+    quiver_kwargs = {"units": 'xy', "angles": 'xy', 'scale': quiver_scale, "scale_units": 'xy', "width": 0.001,
+                     "headwidth": 3, "headlength": 5, "headaxislength": 4.5, "minshaft": 1, "minlength": 1,
+                     "pivot": "tail", "linewidth": .2, "edgecolors": edgecolors, "linewidth": .2,
+                     "color": edgecolors, "zorder": 3}
     quiver_kwargs.update(grid_kwargs)
 
-    axes_list, font_color = scatters(
+    axes_list, _, font_color = scatters(
         adata,
         basis,
         x,
@@ -976,15 +988,8 @@ def grid_velocity(
         'return',
         **s_kwargs_dict)
 
-    if background is None:
-        background = rcParams.get('figure.facecolor')
-
-    if background == 'black':
-        quiver_color = 'red'
-    else:
-        quiver_color = 'black'
     for i in range(len(axes_list)):
-        axes_list[i].quiver(X_grid[0], X_grid[1], V_grid[0], V_grid[1], color=quiver_color, **quiver_kwargs)
+        axes_list[i].quiver(X_grid[0], X_grid[1], V_grid[0], V_grid[1], **quiver_kwargs)
 
     plt.tight_layout()
     plt.show()
@@ -1075,13 +1080,13 @@ def streamline_plot(
         X_grid, V_grid, D = velocity_on_grid(X[:, [x, y]], V[:, [x, y]], xy_grid_nums, **grid_kwargs_dict)
 
     streamplot_kwargs={"density": density, "linewidth": None, "cmap": None, "norm": None, "arrowsize": 1, "arrowstyle": '-|>',
-                       "minlength": 0.1, "transform": None, "zorder": None, "start_points": None, "maxlength": 4.0,
+                       "minlength": 0.1, "transform": None, "zorder": 10, "start_points": None, "maxlength": 4.0,
                        "integration_direction": 'both'}
     streamplot_kwargs.update(streamline_kwargs)
     mass = np.sqrt((V_grid ** 2).sum(0))
     streamplot_kwargs.update({"linewidth": 4 * mass / mass[~np.isnan(mass)].max()})
 
-    axes_list, font_color = scatters(
+    axes_list, _, font_color = scatters(
         adata,
         basis,
         x,
@@ -1109,11 +1114,11 @@ def streamline_plot(
         background = rcParams.get('figure.facecolor')
 
     if background == 'black':
-        quiver_color = 'red'
+        streamline_color = 'red'
     else:
-        quiver_color = 'black'
+        streamline_color = 'black'
     for i in range(len(axes_list)):
-        axes_list[i].streamplot(X_grid[0], X_grid[1], V_grid[0], V_grid[1], color=quiver_color, **streamplot_kwargs)
+        axes_list[i].streamplot(X_grid[0], X_grid[1], V_grid[0], V_grid[1], color=streamline_color, **streamplot_kwargs)
 
     plt.tight_layout()
     plt.show()

@@ -208,10 +208,13 @@ def _matplotlib_points(
         mappable.set_array(values)
         plt.colorbar(mappable, ax=ax)
 
+        cmap = matplotlib.cm.get_cmap(cmap)
+        colors = cmap(values)
+
     # No color (just pick the midpoint of the cmap)
     else:
-        color = plt.get_cmap(cmap)(0.5)
-        ax.scatter(points[:, 0], points[:, 1], c=color, rasterized=True, **kwargs)
+        colors = plt.get_cmap(cmap)(0.5)
+        ax.scatter(points[:, 0], points[:, 1], c=colors, rasterized=True, **kwargs)
 
     if show_legend and legend_elements is not None:
         if len(unique_labels) > 1 and show_legend == 'on data':
@@ -226,7 +229,7 @@ def _matplotlib_points(
         else:
             ax.legend(handles=legend_elements, bbox_to_anchor=(1.04, 1), loc="upper left",
                       ncol=len(unique_labels) // 15 + 1)
-    return ax
+    return ax, colors
 
 
 def _datashade_points(

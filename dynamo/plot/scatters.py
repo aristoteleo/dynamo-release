@@ -569,7 +569,7 @@ def scatters(
     n_c, n_l, n_b = 0 if color is None else len(color), 0 if layer is None else len(layer), 0 if basis is None else len(basis)
 
     point_size = 500.0 / np.sqrt(adata.shape[0]) if pointsize is None else 500.0 / np.sqrt(adata.shape[0]) * pointsize
-    scatter_kwargs = dict(alpha=0.4, s=point_size, edgecolor=None, linewidth=0) # (0, 0, 0, 1)
+    scatter_kwargs = dict(alpha=0.2, s=point_size, edgecolor=None, linewidth=0) # (0, 0, 0, 1)
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
 
@@ -584,7 +584,7 @@ def scatters(
         gs = plt.GridSpec(nrow, ncol)
 
     i = 0
-    axes_list = []
+    axes_list, color_list = [], []
     for cur_b in basis:
         for cur_l in layer:
             if use_smoothed: cur_l_smoothed = mapper[cur_l]
@@ -658,7 +658,7 @@ def scatters(
                         _highlights = highlights if all([i in _color for i in highlights]) else None
 
                 if points.shape[0] <= figsize[0] * figsize[1] * 100000:
-                    ax = _matplotlib_points(
+                    ax, color = _matplotlib_points(
                         points.values,
                         ax,
                         labels,
@@ -695,6 +695,7 @@ def scatters(
                 ax.set_title(cur_c)
 
                 axes_list.append(ax)
+                color_list.append(color)
 
                 labels, values = None, None # reset labels and values
     # dyn.configuration.reset_rcParams()
@@ -703,4 +704,4 @@ def scatters(
         plt.tight_layout()
         plt.show()
     elif save_or_show == 'return':
-        return axes_list, font_color
+        return axes_list, color_list, font_color

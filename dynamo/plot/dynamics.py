@@ -62,7 +62,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
     mapper = get_mapper()
 
     point_size = 500.0 / np.sqrt(adata.shape[0]) if pointsize is None else 500.0 / np.sqrt(adata.shape[0]) * pointsize
-    scatter_kwargs = dict(alpha=0.4, s=point_size, edgecolor=None, linewidth=0) # (0, 0, 0, 1)
+    scatter_kwargs = dict(alpha=0.2, s=point_size, edgecolor=None, linewidth=0) # (0, 0, 0, 1)
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
 
@@ -221,7 +221,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
         cur_pd = df.loc[df.gene == gn, :]
         if cur_pd.color.unique() != np.nan:
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
-                ax1 = _matplotlib_points(
+                ax1, _ = _matplotlib_points(
                     cur_pd.iloc[:, [1, 0]].values,
                     ax=ax1,
                     labels=None,
@@ -237,7 +237,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                     **scatter_kwargs
                 )
             else:
-                ax1 = _datashade_points(
+                ax1, _ = _datashade_points(
                     cur_pd.iloc[:, [1, 0]].values,
                     ax=ax1,
                     labels=None,
@@ -254,7 +254,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                 )
         else:
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
-                ax1 = _matplotlib_points(
+                ax1, _ = _matplotlib_points(
                     cur_pd.iloc[:, [1, 0]].values,
                     ax=ax1,
                     labels=color,
@@ -270,7 +270,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                     **scatter_kwargs
                 )
             else:
-                ax1 = _datashade_points(
+                ax1, _ = _datashade_points(
                     cur_pd.iloc[:, [1, 0]].values,
                     ax=ax1,
                     labels=color,
@@ -306,7 +306,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
         V_vec = np.clip(V_vec, 0, 1)
 
         if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
-            ax2 = _matplotlib_points(
+            ax2, _ = _matplotlib_points(
                 embedding.iloc[:, :2].values,
                 ax=ax2,
                 labels=None,
@@ -322,7 +322,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                 **scatter_kwargs
             )
         else:
-            ax2 = _datashade_points(
+            ax2, _ = _datashade_points(
                 embedding.iloc[:, :2].values,
                 ax=ax2,
                 labels=None,
@@ -343,7 +343,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
         ax2.set_ylabel(basis + '_2')
 
         if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
-            ax3 = _matplotlib_points(
+            ax3, _ = _matplotlib_points(
                 embedding.iloc[:, :2].values,
                 ax=ax3,
                 labels=None,
@@ -359,7 +359,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                 **scatter_kwargs
             )
         else:
-            ax3 = _datashade_points(
+            ax3, _ = _datashade_points(
                 embedding.iloc[:, :2].values,
                 ax=ax3,
                 labels=None,
@@ -382,7 +382,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
         if 'protein' in adata.obsm.keys() and mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]):
             if cur_pd.color.unique() != np.nan:
                 if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
-                    ax4 = _matplotlib_points(
+                    ax4, _ = _matplotlib_points(
                         cur_pd.iloc[:, [3, 2]].values,
                         ax=ax4,
                         labels=None,
@@ -398,7 +398,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                         **scatter_kwargs
                     )
                 else:
-                    ax4 = _datashade_points(
+                    ax4, _ = _datashade_points(
                         cur_pd.iloc[:, [3, 2]].values,
                         ax=ax4,
                         labels=None,
@@ -415,7 +415,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                     )
             else:
                 if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
-                    ax4 = _matplotlib_points(
+                    ax4, _ = _matplotlib_points(
                         cur_pd.iloc[:, [1, 0]].values,
                         ax=ax4,
                         labels=color,
@@ -431,7 +431,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                         **scatter_kwargs
                     )
                 else:
-                    ax4 = _datashade_points(
+                    ax4, _ = _datashade_points(
                         cur_pd.iloc[:, [1, 0]].values,
                         ax=ax4,
                         labels=color,
@@ -467,7 +467,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
             V_vec = np.clip(V_vec, 0, 1)
 
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
-                ax5 = _matplotlib_points(
+                ax5, _ = _matplotlib_points(
                     embedding.iloc[:, :2],
                     ax=ax5,
                     labels=None,
@@ -483,7 +483,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                     **scatter_kwargs
                 )
             else:
-                ax5 = _datashade_points(
+                ax5, _ = _datashade_points(
                     embedding.iloc[:, :2],
                     ax=ax5,
                     labels=None,
@@ -504,7 +504,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
             ax5.set_ylabel(basis + '_2')
 
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
-                ax6 = _matplotlib_points(
+                ax6 , _= _matplotlib_points(
                     embedding.iloc[:, :2],
                     ax=ax6,
                     labels=None,
@@ -520,7 +520,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                     **scatter_kwargs
                 )
             else:
-                ax6 = _datashade_points(
+                ax6, _ = _datashade_points(
                     embedding.iloc[:, :2],
                     ax=ax6,
                     labels=None,
