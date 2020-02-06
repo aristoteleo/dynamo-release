@@ -812,12 +812,16 @@ def cell_wise_velocity(
     if quiver_scale is None:
         quiver_scale = quiver_autoscaler(X, V)
     if background == 'black':
-        edgecolors = 'white'
+        edgecolors = 'gray'
     else:
-        edgecolors = 'black'
+        edgecolors = 'gray'
+    # quiver_kwargs = {"units": 'xy', "angles": 'xy', 'scale': quiver_scale, "scale_units": 'xy', "width": 0.25,
+    #                  "headwidth": 3, "headlength": 5, "headaxislength": 4.5, "minshaft": 1, "minlength": 1,
+    #                  "pivot": "tail", "linewidth": 2, "edgecolors": edgecolors, "alpha": 0.8, "zorder": 3}
     quiver_kwargs = {"units": 'xy', "angles": 'xy', 'scale': quiver_scale, "scale_units": 'xy', "width": 0.001,
                      "headwidth": 3, "headlength": 5, "headaxislength": 4.5, "minshaft": 1, "minlength": 1,
-                     "pivot": "tail", "linewidth": .2, "edgecolors": edgecolors, "zorder": 3}
+                     "pivot": "tail", "linewidth": .2, "edgecolors": edgecolors, "linewidth": .2,
+                     "color": edgecolors, "zorder": 3}
     quiver_kwargs.update(cell_wise_kwargs)
 
     axes_list, color_list, font_color = scatters(
@@ -887,6 +891,7 @@ def grid_velocity(
         xy_grid_nums=[30, 30],
         quiver_scale=None,
         s_kwargs_dict={},
+        q_kwargs_dict={},
         **grid_kwargs):
     """Plot the velocity vector of each cell.
 
@@ -903,6 +908,8 @@ def grid_velocity(
             a smaller scale parameter makes the arrow longer. If None, we will use quiver_autoscaler to calculate the scale.
         s_kwargs_dict: `dict` (default: {})
             The dictionary of the scatter arguments.
+        q_kwargs_dict: `dict` (default: {})
+            The dictionary of the quiver arguments.
         grid_kwargs:
             Additional parameters that will be passed to plt.quiver function
 
@@ -952,9 +959,9 @@ def grid_velocity(
         background = rcParams.get('figure.facecolor')
 
     if background == 'black':
-        edgecolors = 'red'
+        edgecolors = 'gray'
     else:
-        edgecolors = 'black'
+        edgecolors = 'gray'
 
     if quiver_scale is None:
         quiver_scale = quiver_autoscaler(X_grid, V_grid)
@@ -962,7 +969,7 @@ def grid_velocity(
                      "headwidth": 3, "headlength": 5, "headaxislength": 4.5, "minshaft": 1, "minlength": 1,
                      "pivot": "tail", "linewidth": .2, "edgecolors": edgecolors, "linewidth": .2,
                      "color": edgecolors, "zorder": 3}
-    quiver_kwargs.update(grid_kwargs)
+    quiver_kwargs.update(q_kwargs_dict)
 
     axes_list, _, font_color = scatters(
         adata,

@@ -384,7 +384,7 @@ class VectorField2D:
         return dict_vf
 
 
-def topography(adata, basis, VecFld=None):
+def topography(adata, basis, n=25, VecFld=None):
     """Map the topography of the single cell vector field in (first) two dimensions.
 
     Parameters
@@ -393,6 +393,8 @@ def topography(adata, basis, VecFld=None):
             an Annodata object.
         basis: `str` (default: `trimap`)
             The reduced dimension embedding of cells to visualize.
+        n: `int` (default: `10`)
+            Number of samples for calculating the fixed points.
         VecFld: `dictionary` or None (default: None)
             The reconstructed vector field function.
 
@@ -416,7 +418,7 @@ def topography(adata, basis, VecFld=None):
     ylim = [min_[1] - (max_[1] - min_[1]) * 0.05, max_[1] + (max_[1] - min_[1]) * 0.05]
 
     vecfld = VectorField2D(lambda x: vector_field_function(x, None, VecFld, [0, 1]))
-    vecfld.find_fixed_points_by_sampling(10, xlim, ylim)
+    vecfld.find_fixed_points_by_sampling(n, xlim, ylim)
     vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
     # sep = compute_separatrices(vecfld.Xss.get_X(), vecfld.Xss.get_J(), vecfld.func, xlim, ylim)
 

@@ -221,8 +221,7 @@ def _matplotlib_points(
             font_color = 'white' if background is 'black' else 'black'
             for i in unique_labels:
                 color_cnt = np.nanmedian(points[np.where(labels == i)[0], :2], 0)
-                txt = plt.text(color_cnt[0], color_cnt[1], str(i),
-                               fontsize=13, c=font_color, zorder=1000)  #
+                txt = plt.text(color_cnt[0], color_cnt[1], str(i), c=font_color, zorder=1000)  #
                 txt.set_path_effects([
                     PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.1),
                     PathEffects.Normal()])

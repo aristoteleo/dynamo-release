@@ -265,11 +265,17 @@ def VectorField(adata, basis='trimap', dims=None, grid_velocity=False, grid_num=
     elif V is None:
         raise Exception('V is None. Make sure you passed the correct V.')
 
-    VecFld = vectorfield(X, V, Grid, **kwargs)
+    vf_kwargs = {"M": 100, "a": 5, "beta": 0.1, "ecr": 1e-5, "gamma": 0.9, "lambda_": 3,
+                 "minP": 1e-5, "MaxIter": 500, "theta": 0.75, "div_cur_free_kernels": False}
+    vf_kwargs.update((k, kwargs[k]) for k in vf_kwargs.keys() & kwargs.keys())
+
+    VecFld = vectorfield(X, V, Grid, **vf_kwargs)
     func = VecFld.fit(normalize=False, method=method)
 
     if X.shape[1] == 2:
-        adata = topography(adata, basis, VecFld=func)
+        tp_kwargs = {"n": 25}
+        tp_kwargs.update((k, kwargs[k]) for k in tp_kwargs.keys() & kwargs.keys())
+        adata = topography(adata, basis, VecFld=func, **tp_kwargs)
     else:
         if basis != 'X':
             adata.uns['VecFld_' + basis] = {"VecFld": func}
