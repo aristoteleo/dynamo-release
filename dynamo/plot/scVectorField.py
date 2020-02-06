@@ -816,9 +816,9 @@ def cell_wise_velocity(
         edgecolors = 'gray'
     else:
         edgecolors = 'gray'
-    quiver_kwargs = {"units": 'xy', "angles": 'xy', 'scale': quiver_scale, "scale_units": 'xy', "width": 0.001,
+    quiver_kwargs = {"units": 'xy', "angles": 'xy', 'scale': quiver_scale, "scale_units": 'xy', "width": 0.01,
                      "headwidth": 3, "headlength": 5, "headaxislength": 4.5, "minshaft": 1, "minlength": 1,
-                     "pivot": "tail", "linewidth": .2, "edgecolors": edgecolors, "alpha": 0.8, "zorder": 3}
+                     "pivot": "tail", "linewidth": .2, "edgecolors": edgecolors, "alpha": 1, "zorder": 10}
     quiver_kwargs = update_dict(quiver_kwargs, cell_wise_kwargs)
 
     axes_list, color_list, font_color = scatters(
@@ -962,10 +962,10 @@ def grid_velocity(
 
     if quiver_scale is None:
         quiver_scale = quiver_autoscaler(X_grid, V_grid)
-    quiver_kwargs = {"units": 'xy', "angles": 'xy', 'scale': quiver_scale, "scale_units": 'xy', "width": 0.001,
+    quiver_kwargs = {"units": 'xy', "angles": 'xy', 'scale': quiver_scale, "scale_units": 'xy', "width": 0.01,
                      "headwidth": 3, "headlength": 5, "headaxislength": 4.5, "minshaft": 1, "minlength": 1,
                      "pivot": "tail", "linewidth": .2, "edgecolors": edgecolors, "linewidth": .2,
-                     "color": edgecolors, "zorder": 3}
+                     "color": edgecolors, "alpha": 1, "zorder": 10}
     quiver_kwargs = update_dict(quiver_kwargs, q_kwargs_dict)
 
     axes_list, _, font_color = scatters(
@@ -1084,8 +1084,8 @@ def streamline_plot(
         X_grid, V_grid, D = velocity_on_grid(X[:, [x, y]], V[:, [x, y]], xy_grid_nums, **grid_kwargs_dict)
 
     streamplot_kwargs={"density": density, "linewidth": None, "cmap": None, "norm": None, "arrowsize": 1, "arrowstyle": '-|>',
-                       "minlength": 0.1, "transform": None, "zorder": 10, "start_points": None, "maxlength": 4.0,
-                       "integration_direction": 'both'}
+                       "minlength": 0.1, "transform": None, "start_points": None, "maxlength": 4.0,
+                       "integration_direction": 'both', "zorder": 10}
     streamplot_kwargs = update_dict(streamplot_kwargs, streamline_kwargs)
 
     mass = np.sqrt((V_grid ** 2).sum(0))

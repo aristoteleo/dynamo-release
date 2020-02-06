@@ -66,14 +66,20 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
 
-    idx = np.logical_and(adata.var.index.isin(genes), adata.var.use_for_dynamo)
-    genes, idx = adata.var.index[idx].tolist(), np.where(idx)[0].tolist()
+    if type(genes) == str: genes = [genes]
+    _genes = list(set(adata.var.index).intersection(genes))
+
     # avoid object for dtype in the gamma column https://stackoverflow.com/questions/40809503/python-numpy-typeerror-ufunc-isfinite-not-supported-for-the-input-types
-    # valid_id = np.isfinite(np.array(adata.var.loc[genes, ['gamma']], dtype='float')).flatten()
-    # genes, idx = np.array(genes)[valid_id].tolist(), idx[valid_id].tolist()
+    valid_id = np.isfinite(np.array(adata.var.loc[_genes, 'gamma'], dtype='float')).flatten()
+    genes = np.array(_genes)[valid_id].tolist()
+    # idx = [adata.var.index.to_list().index(i) for i in genes]
 
     if len(genes) == 0:
-        raise Exception('adata has no genes listed in your input gene vector: {}'.format(genes))
+        raise Exception("adata has no genes listed in your input gene vector or "
+                        "velocity estimation for those genes are not performed. "
+                        "Please try to run dyn.tl.dynamics(adata, filter_gene_mode='no')"
+                        "to estimate velocity for all genes: {}".format(_genes))
+
     if not 'X_' + basis in adata.obsm.keys():
         raise Exception('{} is not applied to adata.'.format(basis))
     else:
@@ -196,15 +202,6 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
     divergent_cmap, divergent_color_key_cmap, divergent_background = _themes[divergent_theme]["cmap"], _themes[divergent_theme]["color_key_cmap"], _themes[divergent_theme]["background"]
 
     font_color = _select_font_color(discrete_background)
-    # if discrete_background == 'black':
-    #     # https://github.com/matplotlib/matplotlib/blob/master/lib/matplotlib/mpl-data/stylelib/dark_background.mplstyle
-    #     sns.set(rc={'axes.facecolor': discrete_background, 'axes.edgecolor': discrete_background, 'figure.facecolor': discrete_background, 'figure.edgecolor': discrete_background,
-    #                 'axes.grid': False, "ytick.color": "w", "xtick.color": "w", "axes.labelcolor": "w", "axes.edgecolor": "w",
-    #                 "savefig.facecolor": 'k', "savefig.edgecolor": 'k', "grid.color": 'w', "text.color": 'w',
-    #                 "lines.color": 'w', "patch.edgecolor": 'w', 'figure.edgecolor': 'w',
-    #                 })
-    # else:
-    #     sns.set(rc={'axes.facecolor': discrete_background, 'figure.facecolor': discrete_background, 'axes.grid': False})
 
     # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
     gs = plt.GridSpec(nrow, ncol)

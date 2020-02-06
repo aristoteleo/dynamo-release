@@ -166,7 +166,14 @@ def dyn_theme(background='black'):
                          'axes.grid': False,
                     })
     else:
-        pass
+        rcParams.update({"lines.color": 'k', "patch.edgecolor": 'k',
+                         "text.color": 'k',
+                         'axes.facecolor': background, 'axes.edgecolor': "white", "axes.labelcolor": "k",
+                         "xtick.color": "k", "ytick.color": "k",
+                         'figure.facecolor': background, 'figure.edgecolor': background,
+                         "savefig.facecolor": background, "savefig.edgecolor": background, "grid.color": 'k',
+                         'axes.grid': False,
+                         })
 
 
 def config_dynamo_rcParams(background='black', prop_cycle=cyc_20, fontsize=8, color_map=None, frameon=None):
