@@ -787,9 +787,9 @@ def filter_genes(adata, filter_bool=None, layer='all', total_szfactor=None, keep
     return adata
 
 
-def recipe_monocle(adata, normalized=None, layer=None, total_layers=None, genes_to_use=None, method='pca', num_dim=50, norm_method='log', pseudo_expr=1,
-                   feature_selection='SVR', n_top_genes=2000, relative_expr=True, keep_filtered_cells=True, keep_filtered_genes=True,
-                   fc_kwargs=None, fg_kwargs=None):
+def recipe_monocle(adata, normalized=None, layer=None, total_layers=None, genes_to_use=None, method='pca', num_dim=30,
+                   norm_method='log', pseudo_expr=1, feature_selection='SVR', n_top_genes=2000, relative_expr=True,
+                   keep_filtered_cells=True, keep_filtered_genes=True, fc_kwargs=None, fg_kwargs=None):
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
@@ -842,7 +842,7 @@ def recipe_monocle(adata, normalized=None, layer=None, total_layers=None, genes_
         # check whether total UMI is the same -- if not the same, logged
         if _szFactor: _logged = not np.allclose(np.sum(adata.X.sum(1)[np.random.choice(adata.n_obs, 10)] - adata.X.sum(1)[0]), 0, atol=1e-1)
 
-    if not _szFactor or 'Size_Factor' not in adata.var_keys():
+    if not _szFactor or 'Size_Factor' not in adata.obs_keys():
         adata = szFactor(adata, total_layers=total_layers)
         if feature_selection == 'Dispersion': adata = Dispersion(adata)
 

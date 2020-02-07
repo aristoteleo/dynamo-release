@@ -1,6 +1,8 @@
 import numpy as np
+import pandas as pd
 from scipy.sparse import issparse
 from functools import reduce
+
 # implmentation of Cooks' distance (but this is for Poisson distribution fitting)
 
 # https://stackoverflow.com/questions/47686227/poisson-regression-in-statsmodels-and-r
@@ -113,6 +115,7 @@ def get_layer_keys(adata, layers='all', include_protein=True):
 
 def get_shared_counts(adata, layers, min_shared_count, type='gene'):
     layers = list(set(layers).difference(['X', 'matrix', 'ambiguous', 'spanning']))
+    layers = np.array(layers)[~pd.DataFrame(layers)[0].str.startswith('X_').values]
 
     _nonzeros = reduce(lambda a, b: (adata.layers[a] > 0).multiply(adata.layers[b] > 0), layers) if \
         issparse(adata.layers[layers[0]]) else \
