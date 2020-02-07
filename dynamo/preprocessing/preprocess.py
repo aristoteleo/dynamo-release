@@ -3,10 +3,10 @@ import pandas as pd
 from sklearn.utils import sparsefuncs
 import warnings
 from scipy.sparse import issparse, csr_matrix
-from sklearn.decomposition import TruncatedSVD, FastICA
+from sklearn.decomposition import PCA, TruncatedSVD, FastICA
 from .utils import cook_dist, get_layer_keys, get_shared_counts
 
-def szFactor(adata, layers='all', total_layers=None, locfunc=np.nanmean, round_exprs=True, method='mean-geometric-mean-total'):
+def szFactor(adata, layers='all', total_layers=None, locfunc=np.nanmean, round_exprs=True, method='median'):
     """Calculate the size factor of the each cell using geometric mean of total UMI across cells for a AnnData object.
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
@@ -86,7 +86,8 @@ def szFactor(adata, layers='all', total_layers=None, locfunc=np.nanmean, round_e
 
     return adata
 
-def normalize_expr_data(adata, layers='all', total_szfactor=None, norm_method='log', pseudo_expr=1, relative_expr=True, keep_filtered=True):
+def normalize_expr_data(adata, layers='all', total_szfactor=None, norm_method='log', pseudo_expr=1,
+                        relative_expr=True, keep_filtered=True):
     """Normalize the gene expression value for the AnnData object
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
@@ -99,9 +100,9 @@ def normalize_expr_data(adata, layers='all', total_szfactor=None, norm_method='l
         total_szfactor: `str` (default: `None`)
             The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
         norm_method: `str` (default: `log`)
-            The method used to normalize data.
+            The method used to normalize data. Can be either `log` or `log2`.
         pseudo_expr: `int` (default: `1`)
-            A pseudocount added to the gene expression value before log2 normalization.
+            A pseudocount added to the gene expression value before log/log2 normalization.
         relative_expr: `bool` (default: `True`)
             A logic flag to determine whether we need to divide gene expression values first by size factor before normalization.
         keep_filtered: `bool` (default: `True`)
@@ -147,7 +148,7 @@ def normalize_expr_data(adata, layers='all', total_szfactor=None, norm_method='l
             CM = adata.layers[layer]
             szfactors = adata.obs[layer + '_Size_Factor'][:, None]
 
-        if norm_method == 'log' and layer is not 'protein':
+        if norm_method in ['log', 'log2'] and layer is not 'protein':
             if relative_expr:
                 if total_szfactor is not None and total_szfactor in adata.obs.keys():
                     szfactors = adata.obs[total_szfactor][:, None]
@@ -157,9 +158,9 @@ def normalize_expr_data(adata, layers='all', total_szfactor=None, norm_method='l
             if pseudo_expr is None:
                 pseudo_expr = 1
             if issparse(CM):
-                CM.data = np.log2(CM.data + pseudo_expr)
+                CM.data = np.log2(CM.data + pseudo_expr) if norm_method == 'log2' else np.log(CM.data + pseudo_expr)
             else:
-                CM = np.log2(CM + pseudo_expr)
+                CM = np.log2(CM + pseudo_expr) if norm_method == 'log2' else np.log(CM + pseudo_expr)
 
         elif layer is 'protein': # norm_method == 'clr':
             if norm_method is not 'clr':
@@ -188,6 +189,7 @@ def normalize_expr_data(adata, layers='all', total_szfactor=None, norm_method='l
         else:
             adata.layers['X_' + layer] = CM
 
+    adata.uns['pp_log'] = norm_method
     return adata
 
 
@@ -352,7 +354,7 @@ def disp_calc_helper_NB(adata, layers='X', min_cells_detected=1):
 
         # For NB: Var(Y) = mu * (1 + mu / k)
         # x.A.var(axis=0, ddof=1)
-        f_expression_var = (x.multiply(x).mean(0).A1 - f_expression_mean.A1 ** 2) * x.shape[0] / (x.shape[0] - 1) if issparse(x) else x.var(axis=0, ddof=1)**2 # np.mean(np.power(x - f_expression_mean, 2), axis=0) # variance with n - 1
+        f_expression_var = (x.multiply(x).mean(0).A1 - f_expression_mean.A1 ** 2) * x.shape[0] / (x.shape[0] - 1) if issparse(x) else x.var(axis=0, ddof=0)**2 # np.mean(np.power(x - f_expression_mean, 2), axis=0) # variance with n - 1
         # https://scialert.net/fulltext/?doi=ajms.2010.1.15 method of moments
         disp_guess_meth_moments = f_expression_var - xim * f_expression_mean # variance - mu
 
@@ -599,10 +601,10 @@ def SVRs(adata, filter_bool=None, layers='X', total_szfactor=None, min_expr_cell
             down, up = np.percentile(valid_CM.A, winsor_perc, 0) if issparse(valid_CM) else np.percentile(valid_CM, winsor_perc, 0)
             Sfw = np.clip(valid_CM.A, down[None, :], up[None, :]) if issparse(valid_CM) else np.percentile(valid_CM, winsor_perc, 0)
             mu = Sfw.mean(0)
-            sigma = Sfw.std(0, ddof=1)
+            sigma = Sfw.std(0, ddof=0)
         else:
             mu = np.array(valid_CM.mean(0)).flatten()
-            sigma = np.array(np.sqrt(valid_CM.multiply(valid_CM).mean(0).A1 - mu ** 2)).flatten() if issparse(valid_CM) else valid_CM.std(0, ddof=1)
+            sigma = np.array(np.sqrt(valid_CM.multiply(valid_CM).mean(0).A1 - mu ** 2)).flatten() if issparse(valid_CM) else valid_CM.std(0, ddof=0)
 
         cv = sigma / mu
         log_m = np.array(np.log2(mu)).flatten()
@@ -735,7 +737,7 @@ def filter_genes(adata, filter_bool=None, layer='all', total_szfactor=None, keep
             downstream analysis. adata will be subsetted with only the genes pass filter if keep_unflitered is set to be False.
     """
 
-    detected_bool = np.ones(adata.X.shape[1], dtype=bool)
+    detected_bool = np.ones(adata.shape[1], dtype=bool)
     detected_bool = (detected_bool) & np.array(((adata.X > 0).sum(0) > min_cell_s) & (adata.X.mean(0) > min_avg_exp_s) & (adata.X.mean(0) < max_avg_exp)).flatten()
 
     if "spliced" in adata.layers.keys() and (layer is 'spliced' or layer is 'all'):
@@ -754,33 +756,37 @@ def filter_genes(adata, filter_bool=None, layer='all', total_szfactor=None, keep
     filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
 
     adata.var['pass_basic_filter'] = np.array(filter_bool).flatten()
-    n_top_genes = np.min([n_top_genes, adata.shape[1]])
-    if sort_by is 'dispersion':
-        table = topTable(adata, layer, mode='dispersion')
-        valid_table = table.query("dispersion_empirical > dispersion_fit")
-        valid_table = valid_table.loc[set(adata.var.index[filter_bool]).intersection(valid_table.index), :]
-        gene_id = np.argsort(-valid_table.loc[:, 'dispersion_empirical'])[:n_top_genes]
-        gene_id = valid_table.iloc[gene_id, :].index
-        filter_bool = adata.var.index.isin(gene_id)
-    elif sort_by is 'gini':
-        table = topTable(adata, layer, mode='gini')
-        valid_table = table.loc[filter_bool, :]
-        gene_id = np.argsort(-valid_table.loc[:, 'gini'])[:n_top_genes]
-        gene_id = valid_table.index[gene_id]
-        filter_bool = gene_id.isin(adata.var.index)
-    elif sort_by is 'SVR':
-        SVRs(adata, layers=layer, total_szfactor=total_szfactor, filter_bool=filter_bool, min_expr_cells=0, min_expr_avg=0, max_expr_avg=np.inf,
-             svr_gamma=None, winsorize=False, winsor_perc=(1, 99.5), sort_inverse=False)
 
-        valid_table = adata.var.loc[filter_bool, :]
-        gene_id = np.argsort(-valid_table.loc[:, 'score'])[:n_top_genes]
-        gene_id = valid_table.iloc[gene_id, :].index
-        filter_bool = adata.var.index.isin(gene_id)
+    if adata.shape[1] <= n_top_genes:
+        filter_bool = np.ones(adata.shape[1], dtype=bool)
+    else:
+        if sort_by is 'dispersion':
+            table = topTable(adata, layer, mode='dispersion')
+            valid_table = table.query("dispersion_empirical > dispersion_fit")
+            valid_table = valid_table.loc[set(adata.var.index[filter_bool]).intersection(valid_table.index), :]
+            gene_id = np.argsort(-valid_table.loc[:, 'dispersion_empirical'])[:n_top_genes]
+            gene_id = valid_table.iloc[gene_id, :].index
+            filter_bool = adata.var.index.isin(gene_id)
+        elif sort_by is 'gini':
+            table = topTable(adata, layer, mode='gini')
+            valid_table = table.loc[filter_bool, :]
+            gene_id = np.argsort(-valid_table.loc[:, 'gini'])[:n_top_genes]
+            gene_id = valid_table.index[gene_id]
+            filter_bool = gene_id.isin(adata.var.index)
+        elif sort_by is 'SVR':
+            SVRs(adata, layers=layer, total_szfactor=total_szfactor, filter_bool=filter_bool, min_expr_cells=0, min_expr_avg=0, max_expr_avg=np.inf,
+                 svr_gamma=None, winsorize=False, winsor_perc=(1, 99.5), sort_inverse=False)
+
+            valid_table = adata.var.loc[filter_bool, :]
+            gene_id = np.argsort(-valid_table.loc[:, 'score'])[:n_top_genes]
+            _filter_bool = np.zeros(adata.X.shape[1], dtype=bool)
+            _filter_bool[np.where(filter_bool)[0][gene_id]] = True
+            filter_bool = _filter_bool
 
     if keep_filtered:
-        adata.var['use_for_dynamo'] = np.array(filter_bool).flatten()
+        adata.var['use_for_dynamo'] = filter_bool
     else:
-        adata = adata[:, np.array(filter_bool).flatten()]
+        adata._inplace_subset_var(filter_bool)
         adata.var['use_for_dynamo'] = True
 
 
@@ -813,7 +819,7 @@ def recipe_monocle(adata, normalized=None, layer=None, total_layers=None, genes_
         norm_method: `str` (default: `log`)
             The method to normalize the data.
         pseudo_expr: `int` (default: `1`)
-            A pseudocount added to the gene expression value before log2 normalization.
+            A pseudocount added to the gene expression value before log/log2 normalization.
         feature_selection: `str` (default: `SVR`)
             Which soring method, either dispersion, SVR or Gini index, to be used to select genes.
         n_top_genes: `int` (default: `2000`)
@@ -852,8 +858,8 @@ def recipe_monocle(adata, normalized=None, layer=None, total_layers=None, genes_
 
     adata = filter_cells(adata, keep_filtered=keep_filtered_cells, **filter_cells_kwargs)
 
-    filter_genes_kwargs = {"filter_bool": None, "layer": 'X', "min_cell_s": 5, "min_cell_u": 5, "min_cell_p": 5,
-                 "min_avg_exp_s": 1e-2, "min_avg_exp_u": 1e-4, "min_avg_exp_p": 1e-4, "max_avg_exp": 100., "shared_count": 30}
+    filter_genes_kwargs = {"filter_bool": None, "layer": 'X', "min_cell_s": 0, "min_cell_u": 0, "min_cell_p": 0,
+                 "min_avg_exp_s": 0, "min_avg_exp_u": 0, "min_avg_exp_p": 0, "max_avg_exp": np.inf, "shared_count": 30}
     if fg_kwargs is not None: filter_genes_kwargs.update(fg_kwargs)
 
     # set use_for_dynamo
@@ -886,8 +892,13 @@ def recipe_monocle(adata, normalized=None, layer=None, total_layers=None, genes_
     CM = CM[:, valid_ind]
 
     if method is 'pca':
-        fit = TruncatedSVD(n_components=num_dim + 1, random_state=2019) # unscaled PCA
-        reduce_dim = fit.fit_transform(CM)[:, 1:] # first columns is related to the total UMI (or library size)
+        if adata.n_obs < 100000:
+            fit = PCA(n_components=num_dim, svd_solver='arpack', random_state=0)
+            reduce_dim = fit.fit_transform(CM.toarray()) if issparse(CM) else fit.fit_transform(CM)
+        else:
+            fit = TruncatedSVD(n_components=num_dim + 1, random_state=0) # unscaled PCA
+            reduce_dim = fit.fit_transform(CM)[:, 1:] # first columns is related to the total UMI (or library size)
+
         adata.uns['explained_variance_ratio_'] = fit.explained_variance_ratio_[1:]
     elif method == 'ica':
         fit=FastICA(num_dim,

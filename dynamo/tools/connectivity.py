@@ -253,13 +253,14 @@ def smoother(adata, use_mnn=False, layers='all'):
 
     if use_mnn:
         if 'mnn' not in adata.uns.keys():
-            adata = mnn(adata, n_pca_components=25, layers='all', use_pca_fit=True, save_all_to_adata=False)
+            adata = mnn(adata, n_pca_components=30, layers='all', use_pca_fit=True, save_all_to_adata=False)
         kNN = adata.uns['mnn']
     else:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             kNN, _, _, _ = umap_conn_indices_dist_embedding(adata.obsm['X_pca'], n_neighbors=30)
-        kNN = normalize_knn_graph(kNN > 0)
+
+    conn = normalize_knn_graph(kNN > 0)
 
     layers = get_layer_keys(adata, layers, False)
     layers = [layer for layer in layers if layer.startswith('X_') and (not layer.endswith('_matrix') and
@@ -269,14 +270,14 @@ def smoother(adata, use_mnn=False, layers='all'):
         layer_X = adata.layers[layer]
 
         if issparse(layer_X):
-            layer_X.data = 2**layer_X.data - 1
+            layer_X.data = 2**layer_X.data - 1 if adata.uns['pp_log'] == 'log2' else np.exp(layer_X.data) - 1
         else:
-            layer_X = 2** layer_X - 1
+            layer_X = 2** layer_X - 1 if adata.uns['pp_log'] == 'log2' else np.exp(layer_X) - 1
 
-        adata.layers[mapper[layer]] = kNN.dot(layer_X)
+        adata.layers[mapper[layer]] = conn.dot(layer_X)
 
     if 'X_protein' in adata.obsm.keys(): # may need to update with mnn or just use knn from protein layer itself.
-        adata.obsm[mapper['X_protein']] = kNN.dot(adata.obsm['X_protein'])
+        adata.obsm[mapper['X_protein']] = conn.dot(adata.obsm['X_protein'])
 
     return adata
 

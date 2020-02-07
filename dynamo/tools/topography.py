@@ -414,8 +414,8 @@ def topography(adata, basis, n=25, VecFld=None):
     X_basis = adata.obsm['X_' + basis][:, :2]
     min_, max_ = X_basis.min(0), X_basis.max(0)
 
-    xlim = [min_[0] - (max_[0] - min_[0]) * 0.05, max_[0] + (max_[0] - min_[0]) * 0.05]
-    ylim = [min_[1] - (max_[1] - min_[1]) * 0.05, max_[1] + (max_[1] - min_[1]) * 0.05]
+    xlim = [min_[0] - (max_[0] - min_[0]) * 0.1, max_[0] + (max_[0] - min_[0]) * 0.1]
+    ylim = [min_[1] - (max_[1] - min_[1]) * 0.1, max_[1] + (max_[1] - min_[1]) * 0.1]
 
     vecfld = VectorField2D(lambda x: vector_field_function(x, None, VecFld, [0, 1]))
     vecfld.find_fixed_points_by_sampling(n, xlim, ylim)
