@@ -521,7 +521,7 @@ def Dispersion(adata, layers='X', modelFormulaStr="~ 1", min_cells_detected=1, r
     return adata
 
 
-def SVRs(adata, filter_bool=None, layers='X', total_szfactor=None, min_expr_cells=2, min_expr_avg=0, max_expr_avg=20, svr_gamma=None,
+def SVRs(adata, filter_bool=None, layers='X', total_szfactor=None, min_expr_cells=0, min_expr_avg=0, max_expr_avg=0, svr_gamma=None,
                          winsorize=False, winsor_perc=(1, 99.5), sort_inverse=False):
     """This function is modified from https://github.com/velocyto-team/velocyto.py/blob/master/velocyto/analysis.py
 
@@ -582,7 +582,7 @@ def SVRs(adata, filter_bool=None, layers='X', total_szfactor=None, min_expr_cell
         if issparse(CM):
             sparsefuncs.inplace_row_scale(CM, 1 / szfactors)
         else:
-            CM /= 1 / szfactors
+            CM /= szfactors
 
         if winsorize:
             if min_expr_cells <= ((100 - winsor_perc[1]) * CM.shape[0] * 0.01):
@@ -690,8 +690,8 @@ def filter_cells(adata, filter_bool=None, layer='all', keep_filtered=False, min_
     return adata
 
 
-def filter_genes(adata, filter_bool=None, layer='all', total_szfactor=None, keep_filtered=True, min_cell_s=5, min_cell_u=5, min_cell_p=5,
-                 min_avg_exp_s=1e-2, min_avg_exp_u=1e-4, min_avg_exp_p=1e-4, max_avg_exp=100., shared_count=30, sort_by='SVR',
+def filter_genes(adata, filter_bool=None, layer='all', total_szfactor=None, keep_filtered=True, min_cell_s=0, min_cell_u=0, min_cell_p=0,
+                 min_avg_exp_s=0, min_avg_exp_u=0, min_avg_exp_p=0, max_avg_exp=0., shared_count=30, sort_by='SVR',
                  n_top_genes=2000):
     """Select feature genes based on a collection of filters.
 
