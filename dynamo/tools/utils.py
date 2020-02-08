@@ -47,9 +47,10 @@ def get_valid_inds(adata, filter_gene_mode):
 
     return valid_ind
 
-def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, protein_names, experiment_type, log_unnormalized):
+def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, protein_names, experiment_type,
+                                     log_unnormalized, NTR_vel):
     U, Ul, S, Sl, P = None, None, None, None, None  # U: unlabeled unspliced; S: unlabel spliced: S
-    normalized, has_splicing, has_labeling, has_protein = False, False, False, False
+    normalized, has_splicing, has_labeling, has_protein, assumption_mRNA = False, False, False, False, None
 
     mapper = get_mapper()
 
@@ -75,12 +76,12 @@ def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, pro
         S = raw
 
     elif 'X_new' in subset_adata.layers.keys() or mapper['X_new'] in subset_adata.layers.keys():  # run new / total ratio (NTR)
-        has_labeling, normalized, assumption_mRNA = True, True, 'ss'
+        has_labeling, normalized, assumption_mRNA = True, True, 'ss' if NTR_vel and experiment_type is None else None
         U = subset_adata.layers[mapper['X_total']].T - subset_adata.layers[mapper['X_new']].T if use_smoothed else \
         subset_adata.layers['X_total'].T - subset_adata.layers['X_new'].T
         Ul = subset_adata.layers[mapper['X_new']].T if use_smoothed else subset_adata.layers['X_new'].T
     elif 'new' in subset_adata.layers.keys():
-        has_labeling, assumption_mRNA = True, 'ss'
+        has_labeling, assumption_mRNA = True, 'ss' if NTR_vel and experiment_type is None else None
         raw, raw_new, old = subset_adata.layers['new'].T, subset_adata.layers['new'].T, subset_adata.layers['total'].T - \
                             subset_adata.layers['new'].T
         if issparse(raw):
@@ -93,11 +94,11 @@ def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, pro
         Ul = raw
 
     elif 'X_uu' in subset_adata.layers.keys() or mapper['X_uu'] in subset_adata.layers.keys():  # only uu, ul, su, sl provided
-        has_splicing, has_labeling, normalized = True, True, True
+        has_splicing, has_labeling, normalized, assumption_mRNA = True, True, True, None
         U = subset_adata.layers[mapper['X_uu']].T if use_smoothed else subset_adata.layers[
             'X_uu'].T  # unlabel unspliced: U
     elif 'uu' in subset_adata.layers.keys():
-        has_splicing, has_labeling, normalized = True, True, False
+        has_splicing, has_labeling, normalized, assumption_mRNA = True, True, False, None
         raw, raw_uu = subset_adata.layers['uu'].T, subset_adata.layers['uu'].T
         if issparse(raw):
             raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
@@ -152,14 +153,28 @@ def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, pro
         assumption_mRNA = None
 
     if has_labeling:
-        if tkey in subset_adata.obs.columns:
+        if tkey is None:
+            warnings.warn("dynamo finds that your data has labeling, but you didn't provide a `tkey` for"
+                            "metabolic labeling experiments, so experiment_type is set to be `one-shot`.")
+            experiment_type = 'one-shot'
+        elif tkey in subset_adata.obs.columns:
             t = np.array(subset_adata.obs[tkey], dtype='float')
+            if len(np.unique(t)) == 1:
+                experiment_type = 'one-shot'
+            else:
+                labeled_sum = U.sum(0) if Ul is None else Ul.sum(0)
+                cov = np.mean(labeled_sum.A1 * t) if issparse(U) else np.mean(labeled_sum * t)
+                var_x = np.mean(t * t)
+                k = cov / var_x
+
+                # total labeled RNA amount will increase (decrease) in kinetic (degradation) experiments over time.
+                experiment_type = 'kin' if k > 0 else 'deg'
         else:
             raise Exception('the tkey ', tkey, ' provided is not a valid column name in .obs.')
     else:
         t = None
 
-    return U, Ul, S, Sl, P, t, normalized, has_splicing, has_labeling, has_protein, ind_for_proteins, assumption_mRNA
+    return U, Ul, S, Sl, P, t, normalized, has_splicing, has_labeling, has_protein, ind_for_proteins, assumption_mRNA, experiment_type
 
 def set_velocity(adata, vel_U, vel_S, vel_P, _group, cur_grp, cur_cells_bools, valid_ind, ind_for_proteins):
     if type(vel_U) is not float:

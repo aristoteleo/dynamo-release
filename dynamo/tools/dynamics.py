@@ -7,7 +7,7 @@ from .utils import set_velocity, set_param_deterministic, set_param_moment
 from .utils import moment_model
 
 # incorporate the model selection code soon
-def dynamics(adata, tkey=None, filter_gene_mode='final', mode='deterministic', use_smoothed=True, group=None, protein_names=None,
+def dynamics(adata, tkey=None, filter_gene_mode='no', mode='deterministic', use_smoothed=True, group=None, protein_names=None,
              experiment_type=None, assumption_mRNA=None, assumption_protein='ss', NTR_vel=True, concat_data=False,
              log_unnormalized=True):
     """Inclusive model of expression dynamics considers splicing, metabolic labeling and protein translation. It supports
@@ -21,8 +21,8 @@ def dynamics(adata, tkey=None, filter_gene_mode='final', mode='deterministic', u
         tkey: `str` or None (default: None)
             The column key for the time label of cells in .obs. Used for either "steady_state" or non-"steady_state" mode or `moment`
             mode  with labeled data.
-        filter_gene_mode: `str` (default: `final`)
-            The string for indicating which mode (one of, ['final', 'basic', 'no']) of gene filter will be used.
+        filter_gene_mode: `str` (default: `no`)
+            The string for indicating which mode (one of, {'final', 'basic', 'no'}) of gene filter will be used.
         mode: `str` (default: `deterministic`)
             string indicates which estimation mode will be used. Currently "deterministic" and "moment" methods are supported.
             A "model_selection" mode will be supported soon in which alpha, beta and gamma will be modeled as a function of time.
@@ -84,8 +84,17 @@ def dynamics(adata, tkey=None, filter_gene_mode='final', mode='deterministic', u
             cur_cells_bools = (valid_adata.obs[group] == cur_grp).values
             subset_adata = valid_adata[cur_cells_bools]
 
-        U, Ul, S, Sl, P, t, normalized, has_splicing, has_labeling, has_protein, ind_for_proteins, assumption_mRNA = \
-            get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, protein_names, experiment_type, log_unnormalized)
+        U, Ul, S, Sl, P, t, normalized, has_splicing, has_labeling, has_protein, ind_for_proteins, assumption_mRNA, exp_type = \
+            get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, protein_names, experiment_type,
+                                             log_unnormalized, NTR_vel)
+
+        if experiment_type is not None:
+            if experiment_type!= exp_type:
+                warnings.warn('dynamo detects the experiment type of your data as {}, but your input experiment_type '
+                              'is {}'.format(exp_type, experiment_type))
+        else:
+            experiment_type = exp_type
+            # add log information
 
         if mode is 'deterministic':
             est = estimation(U=U, Ul=Ul, S=S, Sl=Sl, P=P,
