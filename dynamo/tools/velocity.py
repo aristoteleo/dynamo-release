@@ -846,7 +846,7 @@ class estimation:
                           'delta_r2': None, "uu0": None, "ul0": None, "su0": None, "sl0": None, 'U0': None, 'S0': None, 'total0': None} # note that alpha_intercept also corresponds to u0 in fit_alpha_degradation, similar to fit_first_order_deg_lsq
         self.ind_for_proteins = ind_for_proteins
 
-    def fit(self, intercept=True, perc_left=None, perc_right=5, clusters=None):
+    def fit(self, intercept=False, perc_left=None, perc_right=5, clusters=None):
         """Fit the input data to estimate all or a subset of the parameters
 
         Arguments
