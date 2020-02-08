@@ -7,7 +7,7 @@ from .utils import set_velocity_genes, get_finite_inds, get_ekey_vkey_from_adata
 
 def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_basis=False, n_pca_components=30, min_r2=0.01,
                     basis='umap', method='analytical', neg_cells_trick=False, calc_rnd_vel=False, xy_grid_nums=(50, 50),
-                    correct_density=True, sample_fraction=None, random_seed=19491001, **kmc_kwargs):
+                    correct_density=True, scale=True, sample_fraction=None, random_seed=19491001, **kmc_kwargs):
     """Compute transition probability and project high dimension velocity vector to existing low dimension embedding.
 
     It is powered by the Itô kernel that not only considers the correlation between the vector from any cell to its
@@ -96,7 +96,7 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_b
     # add both source and sink distribution
     if method == 'analytical':
         kmc = KernelMarkovChain()
-        kmc_args = {"n_recurse_neighbors": 2, "M_diff": 0.2, "epsilon": None, "adaptive_local_kernel": True, "tol": 1e-7}
+        kmc_args = {"n_recurse_neighbors": 2, "M_diff": 2, "epsilon": None, "adaptive_local_kernel": True, "tol": 1e-7}
         kmc_args.update(kmc_kwargs)
 
         # number of kNN in neighbor_idx may be too small
@@ -116,9 +116,9 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_b
 
         T = kmc.P
         if correct_density:
-            delta_X = kmc.compute_density_corrected_drift(X_embedding, kmc.Idx, normalize_vector=True) # indices, k = 500
+            delta_X = kmc.compute_density_corrected_drift(X_embedding, kmc.Idx, normalize_vector=True, scale=scale) # indices, k = 500
         else:
-            delta_X = kmc.compute_drift(X_embedding) # indices, k = 500
+            delta_X = kmc.compute_drift(X_embedding, num_prop=1, scale=scale) # indices, k = 500
 
 
         # P = kmc.compute_stationary_distribution()

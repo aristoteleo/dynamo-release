@@ -68,7 +68,7 @@ def compute_kernel_trans_prob(x, v, X, inv_s, cont_time=False):
     return p
 
 
-@jit(nopython=True)
+# @jit(nopython=True)
 def compute_drift_kernel(x, v, X, inv_s):
     n = X.shape[0]
     k = np.zeros(n)
@@ -384,7 +384,7 @@ class KernelMarkovChain(MarkovChain):
                 k = k / D[0, self.Idx[i]]
             else:
                 k = np.matrix(k)
-            p = k / np.sum(k)
+            p = k / np.sum(k) if np.sum(k) > 0 else np.ones_like(k) / n
             p[p <= tol] = 0  # tolerance check
             p = p / np.sum(p)
             self.P[self.Idx[i], i] = p.A[0]
@@ -397,15 +397,16 @@ class KernelMarkovChain(MarkovChain):
             ret = self.P * ret # sparse matrix (ret) is a `np.matrix`
         return ret
 
-    def compute_drift(self, X, num_prop=1):
+    def compute_drift(self, X, num_prop=1, scale=True):
         n = self.get_num_states()
         V = np.zeros_like(X)
         P = self.propagate_P(int(num_prop))
         for i in range(n):
             V[i] = (X - X[i]).T.dot(P[:, i].A.flatten())
-        return V
+        return V * 1 / V.max() if scale else V
 
-    def compute_density_corrected_drift(self, X, neighbor_idx=None, k=None, num_prop=1, normalize_vector=False, correct_by_mean=True):
+    def compute_density_corrected_drift(self, X, neighbor_idx=None, k=None, num_prop=1, normalize_vector=False,
+                                        correct_by_mean=True, scale=True):
         n = self.get_num_states()
         V = np.zeros_like(X)
         P = self.propagate_P(num_prop)
@@ -425,7 +426,7 @@ class KernelMarkovChain(MarkovChain):
                 k_inv = 1/k
             p -= k_inv
             V[i] = D.T.dot(p)
-        return V
+        return V * 1 / V.max() if scale else V
 
     def compute_stationary_distribution(self):
         # if self.W is None:
