@@ -33,7 +33,7 @@ def szFactor(adata, layers='all', total_layers=None, locfunc=np.nanmean, round_e
             A updated anndata object that are updated with the `Size_Factor` (`layer_` + `Size_Factor`) column(s) in the obs attribute.
     """
 
-    if total_layers is not None and len(set(adata.layers.keys()).difference(total_layers)) == 0:
+    if total_layers is not None and len(set(total_layers).difference(adata.layers.keys())) == 0:
         total = None
         for t_key in total_layers:
             total = adata.layers[t_key] if total is None else total + adata.layers[t_key]
@@ -62,7 +62,7 @@ def szFactor(adata, layers='all', total_layers=None, locfunc=np.nanmean, round_e
             else:
                 CM = CM.round().astype('int')
 
-        cell_total = CM.sum(axis=1)
+        cell_total = CM.sum(axis=1).A1 if issparse(CM) else CM.sum(axis=1).A1
         cell_total += cell_total == 0  # avoid infinity value after log (0)
 
         if method == 'mean-geometric-mean-total':
