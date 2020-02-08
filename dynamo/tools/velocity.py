@@ -177,7 +177,7 @@ def solve_alpha_2p(t0, t1, alpha0, beta, u1):
 
     return alpha1
 
-def fit_linreg(x, y, intercept=False):
+def fit_linreg(x, y, mask, intercept=False):
     """Simple linear regression: y = kx + b.
 
     Arguments
@@ -203,13 +203,14 @@ def fit_linreg(x, y, intercept=False):
     x = x.A if issparse(x) else x
     y = y.A if issparse(y) else y
 
-    mask = np.logical_and(~np.isnan(x), ~np.isnan(y))
-    xx = x[mask]
-    yy = y[mask]
-    ym = np.mean(yy)
-    xm = np.mean(xx)
+    _mask = np.logical_and(~np.isnan(x), ~np.isnan(y))
+    xx = x[mask & _mask]
+    yy = y[mask & _mask]
 
     if intercept:
+        ym = np.mean(yy)
+        xm = np.mean(xx)
+
         cov = np.mean(xx * yy) - xm * ym
         var_x = np.mean(xx * xx) - xm * xm
         k = cov / var_x
@@ -223,10 +224,11 @@ def fit_linreg(x, y, intercept=False):
         k = cov / var_x
         b = 0
 
-    SS_tot_n = np.var(yy)
-    SS_res_n = np.mean((yy - k * xx - b) ** 2)
-    r2 = 1 - SS_res_n / SS_tot_n
-    return k, b, r2
+    SS_tot_n, all_SS_tot_n = np.var(yy), np.var(y[_mask])
+    SS_res_n, all_SS_res_n = np.mean((yy - k * xx - b) ** 2), np.mean((y[_mask] - k * x[_mask] - b) ** 2)
+    r2, all_r2 = 1 - SS_res_n / SS_tot_n, 1 - all_SS_res_n / all_SS_tot_n
+
+    return k, b, r2, all_r2
 
 def fit_first_order_deg_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=1):
     """Estimate beta with degradation data using least squares method.
@@ -844,7 +846,7 @@ class estimation:
                           'delta_r2': None, "uu0": None, "ul0": None, "su0": None, "sl0": None, 'U0': None, 'S0': None, 'total0': None} # note that alpha_intercept also corresponds to u0 in fit_alpha_degradation, similar to fit_first_order_deg_lsq
         self.ind_for_proteins = ind_for_proteins
 
-    def fit(self, intercept=False, perc_left=5, perc_right=5, clusters=None):
+    def fit(self, intercept=True, perc_left=None, perc_right=5, clusters=None):
         """Fit the input data to estimate all or a subset of the parameters
 
         Arguments
@@ -869,7 +871,7 @@ class estimation:
                 U = self.data['uu'] if self.data['ul'] is None else self.data['uu'] + self.data['ul']
                 S = self.data['su'] if self.data['sl'] is None else self.data['su'] + self.data['sl']
                 for i in range(n):
-                    gamma[i], gamma_intercept[i], gamma_r2[i] = self.fit_gamma_steady_state(U[i], S[i],
+                    gamma[i], gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_steady_state(U[i], S[i],
                             intercept, perc_left, perc_right)
                 self.parameters['gamma'], self.aux_param['gamma_intercept'], self.aux_param['gamma_r2'] = gamma, gamma_intercept, gamma_r2
             elif np.all(self._exist_data('uu', 'ul')):
@@ -878,7 +880,7 @@ class estimation:
                 U = self.data['ul']
                 S = self.data['uu'] + self.data['ul']
                 for i in range(n):
-                    gamma[i], gamma_intercept[i], gamma_r2[i] = self.fit_gamma_steady_state(U[i], S[i],
+                    gamma[i], gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_steady_state(U[i], S[i],
                             intercept, perc_left, perc_right)
                 self.parameters['gamma'], self.aux_param['gamma_intercept'], self.aux_param['gamma_r2'] = gamma, gamma_intercept, gamma_r2
         else:
@@ -1016,11 +1018,11 @@ class estimation:
                     if self._exist_data('sl') else self.data['su'][ind_for_proteins]
 
                 for i in range(n):
-                    delta[i], delta_intercept[i], delta_r2[i] = self.fit_gamma_steady_state(s[i], self.data['p'][i],
+                    delta[i], delta_intercept[i], _, delta_r2[i] = self.fit_gamma_steady_state(s[i], self.data['p'][i],
                             intercept, perc_left, perc_right)
                 self.parameters['delta'], self.aux_param['delta_intercept'], self.aux_param['delta_r2'] = delta, delta_intercept, delta_r2
 
-    def fit_gamma_steady_state(self, u, s, intercept=True, perc_left=5, perc_right=5, normalize=True):
+    def fit_gamma_steady_state(self, u, s, intercept=True, perc_left=None, perc_right=5, normalize=True):
         """Estimate gamma using linear regression based on the steady state assumption.
 
         Arguments
@@ -1034,7 +1036,7 @@ class estimation:
             True -- the linear regression is performed with an unfixed intercept;
             False -- the linear regresssion is performed with a fixed zero intercept.
         perc_left: float
-            The percentage of samples included in the linear regression in the left tail. If set to None, then all the samples are included.
+            The percentage of samples included in the linear regression in the left tail. If set to None, then all the left samples are excluded.
         perc_right: float
             The percentage of samples included in the linear regression in the right tail. If set to None, then all the samples are included.
         normalize: bool
@@ -1047,18 +1049,17 @@ class estimation:
         b: float
             The intercept of the linear regression model.
         r2: float
-            Coefficient of determination or r square.
+            Coefficient of determination or r square for the extreme data points.
+        r2: float
+            Coefficient of determination or r square for the extreme data points.
+        all_r2: float
+            Coefficient of determination or r square for all data points.
         """
+        if not intercept and perc_left is None: perc_left = perc_right
         u = u.A.flatten() if issparse(u) else u.flatten()
         s = s.A.flatten() if issparse(s) else s.flatten()
 
         n = len(u)
-
-        i_left = np.int(perc_left/100.0*n) if perc_left is not None else n
-        i_right = np.int((100-perc_right)/100.0*n) if perc_right is not None else 0
-
-        mask = np.zeros(n, dtype=bool)
-        mask[:i_left] = mask[i_right:] = True
 
         if normalize:
             su = s / np.clip(np.max(s), 1e-3, None)
@@ -1066,9 +1067,15 @@ class estimation:
         else:
             su = s + u
 
-        extreme_ind = np.argsort(su)[mask]
+        if perc_left is None:
+            mask = su >= np.percentile(su, 100 - perc_right, axis=0)
+        elif perc_right is None:
+            mask = np.ones(n, dtype=bool)
+        else:
+            left, right = np.percentile(su, [perc_left, 100 - perc_right], axis=0)
+            mask = (su <= left) | (su >= right)
 
-        return fit_linreg(s[extreme_ind], u[extreme_ind], intercept)
+        return fit_linreg(s, u, mask, intercept)
 
     def fit_beta_gamma_lsq(self, t, U, S):
         """Estimate beta and gamma with the degradation data using the least squares method.

@@ -5,9 +5,9 @@ from .Markov import *
 from .connectivity import extract_indices_dist_from_graph
 from .utils import set_velocity_genes, get_finite_inds, get_ekey_vkey_from_adata
 
-def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_basis=False, n_pca_components=25, min_r2=0.5, basis='umap', method='analytical',
-                    neg_cells_trick=False, calc_rnd_vel=False, xy_grid_nums=(50, 50), correct_density=True, sample_fraction=None,
-                    random_seed=19491001, **kmc_kwargs):
+def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_basis=False, n_pca_components=30, min_r2=0.01,
+                    basis='umap', method='analytical', neg_cells_trick=False, calc_rnd_vel=False, xy_grid_nums=(50, 50),
+                    correct_density=True, sample_fraction=None, random_seed=19491001, **kmc_kwargs):
     """Compute transition probability and project high dimension velocity vector to existing low dimension embedding.
 
     It is powered by the Itô kernel that not only considers the correlation between the vector from any cell to its
@@ -101,7 +101,7 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_b
 
         # number of kNN in neighbor_idx may be too small
         if n_pca_components is not None:
-            pca = PCA()
+            pca = PCA(n_components=n_pca_components, svd_solver='arpack', random_state=0)
             pca.fit(X)
             X_pca = pca.transform(X)
             Y_pca = pca.transform(X + V_mat)

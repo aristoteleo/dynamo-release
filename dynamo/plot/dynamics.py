@@ -87,11 +87,14 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                                   basis + '_1': adata.obsm['X_' + basis][:, y]})
         embedding.columns = ['dim_1', 'dim_2']
 
-    if all([i in adata.layers.keys() for i in ['X_new', 'X_total']]):
+    if all([i in adata.layers.keys() for i in ['X_new', 'X_total']]) or \
+            all([i in adata.layers.keys() for i in [mapper['X_new'], mapper['X_total']]]):
         mode = 'labeling'
-    elif all([i in adata.layers.keys() for i in ['X_spliced', 'X_unspliced']]):
+    elif all([i in adata.layers.keys() for i in ['X_spliced', 'X_unspliced']]) or \
+            all([i in adata.layers.keys() for i in [mapper['X_spliced'], mapper['X_unspliced']]]):
         mode = 'splicing'
-    elif all([i in adata.layers.keys() for i in ['X_uu', 'X_ul', 'X_su', 'X_sl']]):
+    elif all([i in adata.layers.keys() for i in ['X_uu', 'X_ul', 'X_su', 'X_sl']]) or \
+            all([i in adata.layers.keys() for i in [mapper['X_uu'], mapper['X_ul'], mapper['X_su'], mapper['X_sl']]]):
         mode = 'full'
     else:
         raise Exception('your data should be in one of the proper mode: labelling (has X_new/X_total layers), splicing '
@@ -136,7 +139,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                         'running this function.')
 
     if mode is 'labelling':
-        new_mat, tot_mat = adata[:, genes].layers['X_new'], adata[:, genes].layers['X_total']
+        new_mat, tot_mat = adata[:, genes].layers[mapper['X_new']], adata[:, genes].layers[mapper['X_total']]
         new_mat, tot_mat = (new_mat.A, tot_mat.A) if issparse(new_mat) else (new_mat, tot_mat)
 
         df = pd.DataFrame({"new": new_mat.flatten(), "total": tot_mat.flatten(), 'gene': genes * n_cells, 'gamma':
@@ -144,7 +147,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                            "expression": E_vec.flatten(), "velocity": V_vec.flatten(), 'color': np.repeat(color_vec, n_genes)}, index=range(n_cells * n_genes))
 
     elif mode is 'splicing':
-        unspliced_mat, spliced_mat = adata[:, genes].layers['X_unspliced'], adata[:, genes].layers['X_spliced']
+        unspliced_mat, spliced_mat = adata[:, genes].layers[mapper['X_unspliced']], adata[:, genes].layers[mapper['X_spliced']]
         unspliced_mat, spliced_mat = (unspliced_mat.A, spliced_mat.A) if issparse(unspliced_mat) else (unspliced_mat, spliced_mat)
 
         df = pd.DataFrame({"unspliced": unspliced_mat.flatten(), "spliced": spliced_mat.flatten(), 'gene': genes * n_cells,
@@ -152,8 +155,8 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                            "expression": E_vec.flatten(), "velocity": V_vec.flatten(), 'color': np.repeat(color_vec, n_genes)}, index=range(n_cells * n_genes))
 
     elif mode is 'full':
-        uu, ul, su, sl = adata[:, genes].layers['X_uu'], adata[:, genes].layers['X_ul'], adata[:, genes].layers['X_su'], \
-                         adata[:, genes].layers['X_sl']
+        uu, ul, su, sl = adata[:, genes].layers[mapper['X_uu']], adata[:, genes].layers[mapper['X_ul']], adata[:, genes].layers[mapper['X_su']], \
+                         adata[:, genes].layers[mapper['X_sl']]
         if 'protein' in adata.obsm.keys():
             if 'delta' in adata.var.columns:
                 gamma_P = adata.var.delta[genes].values
@@ -164,7 +167,8 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
                     'adata does not seem to have velocity_gamma column. Velocity estimation is required before '
                     'running this function.')
 
-            P = adata[:, genes].obsm['X_protein'] if ['X_protein'] in adata.obsm.keys() else adata[:, genes].obsm['protein']
+            P = adata[:, genes].obsm[mapper['X_protein']] if (['X_protein'] in adata.obsm.keys() or [mapper['X_protein']] in adata.obsm.keys()) \
+                else adata[:, genes].obsm['protein']
             uu, ul, su, sl, P = (uu.A, ul.A, su.A, sl.A, P.A) if issparse(uu) else (uu, ul, su, sl, P)
             if issparse(P_vec):
                 P_vec = P_vec.A

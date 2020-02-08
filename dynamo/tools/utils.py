@@ -53,7 +53,7 @@ def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, pro
 
     mapper = get_mapper()
 
-    if 'X_unspliced' in subset_adata.layers.keys():
+    if 'X_unspliced' in subset_adata.layers.keys() or mapper['X_unspliced'] in subset_adata.layers.keys():
         has_splicing, normalized, assumption_mRNA = True, True, 'ss'
         U = subset_adata.layers[mapper['X_unspliced']].T if use_smoothed else subset_adata.layers['X_unspliced'].T
     elif 'unspliced' in subset_adata.layers.keys():
@@ -64,7 +64,7 @@ def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, pro
         else:
             raw = np.log(raw + 1) if log_unnormalized else raw
         U = raw
-    if 'X_spliced' in subset_adata.layers.keys():
+    if 'X_spliced' in subset_adata.layers.keys() or mapper['X_spliced'] in subset_adata.layers.keys():
         S = subset_adata.layers[mapper['X_spliced']].T if use_smoothed else subset_adata.layers['X_spliced'].T
     elif 'spliced' in subset_adata.layers.keys():
         raw, raw_spliced = subset_adata.layers['spliced'].T, subset_adata.layers['spliced'].T
@@ -74,7 +74,7 @@ def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, pro
             raw = np.log(raw + 1) if log_unnormalized else raw
         S = raw
 
-    elif 'X_new' in subset_adata.layers.keys():  # run new / total ratio (NTR)
+    elif 'X_new' in subset_adata.layers.keys() or mapper['X_new'] in subset_adata.layers.keys():  # run new / total ratio (NTR)
         has_labeling, normalized, assumption_mRNA = True, True, 'ss'
         U = subset_adata.layers[mapper['X_total']].T - subset_adata.layers[mapper['X_new']].T if use_smoothed else \
         subset_adata.layers['X_total'].T - subset_adata.layers['X_new'].T
@@ -92,7 +92,7 @@ def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, pro
         U = old
         Ul = raw
 
-    elif 'X_uu' in subset_adata.layers.keys():  # only uu, ul, su, sl provided
+    elif 'X_uu' in subset_adata.layers.keys() or mapper['X_uu'] in subset_adata.layers.keys():  # only uu, ul, su, sl provided
         has_splicing, has_labeling, normalized = True, True, True
         U = subset_adata.layers[mapper['X_uu']].T if use_smoothed else subset_adata.layers[
             'X_uu'].T  # unlabel unspliced: U
@@ -104,7 +104,7 @@ def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, pro
         else:
             raw = np.log(raw + 1) if log_unnormalized else raw
         U = raw
-    if 'X_ul' in subset_adata.layers.keys():
+    if 'X_ul' in subset_adata.layers.keys() or mapper['X_ul'] in subset_adata.layers.keys():
         Ul = subset_adata.layers[mapper['X_ul']].T if use_smoothed else subset_adata.layers['X_ul'].T
     elif 'ul' in subset_adata.layers.keys():
         raw, raw_ul = subset_adata.layers['ul'].T, subset_adata.layers['ul'].T
@@ -113,7 +113,7 @@ def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, pro
         else:
             raw = np.log(raw + 1) if log_unnormalized else raw
         Ul = raw
-    if 'X_sl' in subset_adata.layers.keys():
+    if 'X_sl' in subset_adata.layers.keys() or mapper['X_sl'] in subset_adata.layers.keys():
         Sl = subset_adata.layers[mapper['X_sl']].T if use_smoothed else subset_adata.layers['X_sl'].T
     elif 'sl' in subset_adata.layers.keys():
         raw, raw_sl = subset_adata.layers['sl'].T, subset_adata.layers['sl'].T
@@ -122,7 +122,7 @@ def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, pro
         else:
             raw = np.log(raw + 1) if log_unnormalized else raw
         Sl = raw
-    if 'X_su' in subset_adata.layers.keys():  # unlabel spliced: S
+    if 'X_su' in subset_adata.layers.keys() or mapper['X_su'] in subset_adata.layers.keys(): # unlabel spliced: S
         S = subset_adata.layers[mapper['X_su']].T if use_smoothed else subset_adata.layers['X_su'].T
     elif 'su' in subset_adata.layers.keys():
         raw, raw_su = subset_adata.layers['su'].T, subset_adata.layers['su'].T
@@ -133,8 +133,8 @@ def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, pro
         S = raw
 
     ind_for_proteins = None
-    if 'X_protein' in subset_adata.obsm.keys():
-        P = subset_adata.layers[mapper['X_protein']].T if use_smoothed else subset_adata.obsm['X_protein'].T
+    if 'X_protein' in subset_adata.obsm.keys() or mapper['X_protein'] in subset_adata.obsm.keys():
+        P = subset_adata.obsm[mapper['X_protein']].T if use_smoothed else subset_adata.obsm['X_protein'].T
     elif 'protein' in subset_adata.obsm.keys():
         P = subset_adata.obsm['protein'].T
     if P is not None:
@@ -423,18 +423,18 @@ def norm_loglikelihood(x, mu, sig):
 
 # ---------------------------------------------------------------------------------------------------
 # velocity related
-def set_velocity_genes(adata, vkey='velocity_S', min_r2=0.1, use_for_dynamo=True):
+def set_velocity_genes(adata, vkey='velocity_S', min_r2=0.01, min_alpha=0, min_gamma=0.01, min_delta=0.01, use_for_dynamo=True):
     layer = vkey.split('_')[1]
 
     if layer is 'U':
-        adata.var['use_for_velocity'] = (adata.var.alpha_r2 > min_r2) & adata.var.use_for_dynamo if use_for_dynamo \
-            else adata.var.alpha_r2 > min_r2
+        adata.var['use_for_velocity'] = (adata.var.alpha > min_alpha) & (adata.var.alpha_r2 > min_r2) & adata.var.use_for_dynamo \
+            if use_for_dynamo else (adata.var.alpha > min_alpha) & (adata.var.alpha_r2 > min_r2)
     elif layer is 'S':
-        adata.var['use_for_velocity'] = (adata.var.gamma_r2 > min_r2) & adata.var.use_for_dynamo if use_for_dynamo \
-            else adata.var.gamma_r2 > min_r2
+        adata.var['use_for_velocity'] = (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2) & adata.var.use_for_dynamo \
+            if use_for_dynamo else (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2)
     elif layer is 'P':
-        adata.var['use_for_velocity'] = (adata.var.delta_r2 > min_r2) & adata.var.use_for_dynamo if use_for_dynamo \
-            else adata.var.delta_r2 > min_r2
+        adata.var['use_for_velocity'] = (adata.var.delta > min_delta) & (adata.var.delta_r2 > min_r2) & adata.var.use_for_dynamo \
+            if use_for_dynamo else (adata.var.delta > min_delta) & (adata.var.delta_r2 > min_r2)
 
     return adata
 

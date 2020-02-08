@@ -62,7 +62,7 @@ def szFactor(adata, layers='all', total_layers=None, locfunc=np.nanmean, round_e
             else:
                 CM = CM.round().astype('int')
 
-        cell_total = CM.sum(axis=1).A1 if issparse(CM) else CM.sum(axis=1).A1
+        cell_total = CM.sum(axis=1).A1 if issparse(CM) else CM.sum(axis=1)
         cell_total += cell_total == 0  # avoid infinity value after log (0)
 
         if method == 'mean-geometric-mean-total':
