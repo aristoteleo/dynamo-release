@@ -275,7 +275,7 @@ def plot_separatrix(vecfld, x_range, y_range, t, noise=1e-6, lw=3, background=No
     return ax
 
 def topography(adata, basis, xlim=None, ylim=None, t=None, terms=('streamline', 'nullcline', 'trajectory', 'fixed_points'),
-               init_state=None, figsize=(5, 5), background=None, plot=True, ax=None):
+               init_state=None, figsize=(7, 5), background=None, plot=True, ax=None):
     """Plot the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system
     for single cells. The plot is created on two dimensional space.
 

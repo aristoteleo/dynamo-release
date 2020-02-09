@@ -89,19 +89,20 @@ def dynamics(adata, tkey=None, filter_gene_mode='no', mode='deterministic', use_
                                              log_unnormalized, NTR_vel)
 
         if experiment_type is not None:
-            if experiment_type!= exp_type:
+            if experiment_type != exp_type:
                 warnings.warn('dynamo detects the experiment type of your data as {}, but your input experiment_type '
                               'is {}'.format(exp_type, experiment_type))
-            use_smoothed = False
         else:
             experiment_type = exp_type
+            assumption_mRNA, use_smoothed = None, False
             # add log information
 
         if mode is 'deterministic':
             est = estimation(U=U, Ul=Ul, S=S, Sl=Sl, P=P,
                              t=t, ind_for_proteins=ind_for_proteins,
                              experiment_type=experiment_type,
-                             assumption_mRNA=assumption_mRNA, assumption_protein=assumption_protein,
+                             assumption_mRNA=assumption_mRNA,
+                             assumption_protein=assumption_protein,
                              concat_data=concat_data)
             est.fit()
 

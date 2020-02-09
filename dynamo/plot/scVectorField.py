@@ -944,7 +944,7 @@ def grid_velocity(
     elif method == 'gaussian' and adata.obsm['X_' + basis].shape[1] == 2:
         grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
                             "adjust_for_stream": True, "V_threshold": None}
-        grid_kwargs_dict.update(grid_kwargs)
+        grid_kwargs_dict = update_dict(grid_kwargs_dict, grid_kwargs)
 
         X_grid, V_grid, D = velocity_on_grid(X[:, [x, y]], V[:, [x, y]], xy_grid_nums, **grid_kwargs_dict)
     elif 'grid_velocity_' + basis in adata.uns.keys():
@@ -1079,7 +1079,7 @@ def streamline_plot(
     elif method == 'gaussian' and adata.obsm['X_' + basis].shape[1] == 2:
         grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
                             "adjust_for_stream": True, "V_threshold": None}
-        grid_kwargs_dict.update(streamline_kwargs)
+        grid_kwargs_dict = update_dict(grid_kwargs_dict, streamline_kwargs)
 
         X_grid, V_grid, D = velocity_on_grid(X[:, [x, y]], V[:, [x, y]], xy_grid_nums, **grid_kwargs_dict)
     elif 'grid_velocity_' + basis in adata.uns.keys():

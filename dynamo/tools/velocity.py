@@ -920,11 +920,11 @@ class estimation:
                         self.parameters['beta'], self.parameters['gamma'], self.aux_param['uu0'], self.aux_param['su0'] = self.fit_beta_gamma_lsq(t_uniq, uu_m, su_m)
                     # alpha estimation
                     ul_m, ul_v, t_uniq = cal_12_mom(self.data['ul'], self.t)
-                    alpha = np.zeros_like(self.data['ul'].A) if issparse(self.data['ul']) else np.zeros_like(self.data['ul'])
-                    # assume constant alpha across all cells
+                    alpha = np.zeros(self.data['ul'].shape[1])
+                    # let us only assume one alpha for each gene in all cells
                     for i in range(n):
                         # for j in range(len(self.data['ul'][i])):
-                        alpha[i, :] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters['beta'][i])
+                        alpha[i] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters['beta'][i])
                     self.parameters['alpha'] = alpha
                 elif np.all(self._exist_data('ul', 'uu')):
                     n = self.data['uu'].shape[0]  # self.get_n_genes(data=U)
@@ -933,16 +933,16 @@ class estimation:
                     for i in range(n):
                         gamma[i], u0[i] = fit_first_order_deg_lsq(t_uniq, uu_m[i])
                     self.parameters['gamma'], self.aux_param['uu0'] = gamma, u0
-                    alpha = np.zeros_like(self.data['ul'].A) if issparse(self.data['ul']) else np.zeros_like(self.data['ul'])
-                    # assume constant alpha across all cells
+                    alpha = np.zeros(self.data['ul'].shape[1])
+                    # let us only assume one alpha for each gene in all cells
                     ul_m, ul_v, _ = cal_12_mom(self.data['ul'], self.t)
                     for i in range(n):
                         # for j in range(len(self.data['ul'][i])):
-                        alpha[i, :] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters['gamma'][i])
+                        alpha[i] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters['gamma'][i])
                     self.parameters['alpha'] = alpha
                     # alpha: one-shot
             # 'one_shot'
-            elif self.extyp == 'one_shot':
+            elif self.extyp == 'one_shot' or self.extyp == 'one-shot':
                 t_uniq = np.unique(self.t)
                 if len(t_uniq) > 1:
                     raise Exception('By definition, one-shot experiment should involve only one time point measurement!')
@@ -959,7 +959,15 @@ class estimation:
                             U0[i], beta[i] = np.mean(U), solve_gamma(np.max(self.t), self.data['uu'][i], U)
                         self.aux_param['U0'], self.aux_param['S0'], self.parameters['beta'], self.parameters['gamma'] = U0, S0, beta, gamma
 
-                        self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
+                        ul_m, ul_v, t_uniq = cal_12_mom(self.data['ul'], self.t)
+                        alpha = np.zeros(self.data['ul'].shape[1])
+                        # let us only assume one alpha for each gene in all cells
+                        for i in range(n):
+                            # for j in range(len(self.data['ul'][i])):
+                            alpha[i] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters['beta'][i])
+
+                        self.parameters['alpha'] = alpha
+                        # self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
                 else:
                     if self._exist_data('ul') and self._exist_parameter('gamma'):
                         self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['gamma'], clusters)
@@ -970,7 +978,15 @@ class estimation:
                             total0[i], gamma[i] = np.mean(total), solve_gamma(np.max(self.t), self.data['uu'][i], total)
                         self.aux_param['total0'], self.parameters['gamma'] = total0, gamma
 
-                        self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['gamma'], clusters)
+                        ul_m, ul_v, t_uniq = cal_12_mom(self.data['ul'], self.t)
+                        # let us only assume one alpha for each gene in all cells
+                        alpha = np.zeros(self.data['ul'].shape[1])
+                        for i in range(n):
+                            # for j in range(len(self.data['ul'][i])):
+                            alpha[i] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters['gamma'][i]) # ul_m[i]
+
+                        self.parameters['alpha'] = alpha
+                        # self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['gamma'], clusters)
 
             elif self.extyp == 'mix_std_stm':
                 t_min, t_max = np.min(self.t), np.max(self.t)

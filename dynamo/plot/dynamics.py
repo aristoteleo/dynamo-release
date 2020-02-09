@@ -138,7 +138,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
         raise Exception('adata does not seem to have velocity_gamma column. Velocity estimation is required before '
                         'running this function.')
 
-    if mode is 'labelling':
+    if mode is 'labeling':
         new_mat, tot_mat = adata[:, genes].layers[mapper['X_new']], adata[:, genes].layers[mapper['X_total']]
         new_mat, tot_mat = (new_mat.A, tot_mat.A) if issparse(new_mat) else (new_mat, tot_mat)
 
