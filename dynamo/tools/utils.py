@@ -461,12 +461,15 @@ def set_velocity_genes(adata, vkey='velocity_S', min_r2=0.01, min_alpha=0, min_g
     layer = vkey.split('_')[1]
 
     if layer is 'U':
+        if np.all(adata.var.alpha_r2.values == None): adata.var.alpha_r2 = 1
         adata.var['use_for_velocity'] = (adata.var.alpha > min_alpha) & (adata.var.alpha_r2 > min_r2) & adata.var.use_for_dynamo \
             if use_for_dynamo else (adata.var.alpha > min_alpha) & (adata.var.alpha_r2 > min_r2)
     elif layer is 'S':
+        if np.all(adata.var.gamma_r2.values == None): adata.var.gamma_r2 = 1
         adata.var['use_for_velocity'] = (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2) & adata.var.use_for_dynamo \
             if use_for_dynamo else (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2)
     elif layer is 'P':
+        if np.all(adata.var.delta_r2.values == None): adata.var.delta_r2 = 1
         adata.var['use_for_velocity'] = (adata.var.delta > min_delta) & (adata.var.delta_r2 > min_r2) & adata.var.use_for_dynamo \
             if use_for_dynamo else (adata.var.delta > min_delta) & (adata.var.delta_r2 > min_r2)
 

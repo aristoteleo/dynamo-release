@@ -209,14 +209,14 @@ def get_P(Y, V, sigma2, gamma, a):
     return P, E
 
 
-def VectorField(adata, basis='trimap', dims=None, grid_velocity=False, grid_num=50, velocity_key='velocity_S', method='SparseVFC', **kwargs):
+def VectorField(adata, basis='umap', dims=None, grid_velocity=False, grid_num=50, velocity_key='velocity_S', method='SparseVFC', **kwargs):
     """Learn a function of high dimensional vector field from sparse single cell samples in the entire space robustly.
 
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains embedding and velocity data
-        basis: `str` (default: trimap)
+        basis: `str` (default: umap)
             The embedding data to use.
         dims: `list` or None (default: None)
             The dimensions that will be used for reconstructing vector field functions.

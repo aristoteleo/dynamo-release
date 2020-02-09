@@ -5,20 +5,20 @@ from .psl import *
 from .connectivity import umap_conn_indices_dist_embedding
 
 
-def reduceDimension(adata, n_pca_components=25, n_components=2, n_neighbors=10, reduction_method='trimap', cores=1):
+def reduceDimension(adata, n_pca_components=30, n_components=2, n_neighbors=30, reduction_method='umap', cores=1):
     """Compute a low dimension reduction projection of an annodata object first with PCA, followed by non-linear dimension reduction methods
 
     Arguments
     ---------
     adata: :class:`~anndata.AnnData`
         an Annodata object 
-    n_pca_components: 'int' (optional, default 50)
+    n_pca_components: 'int' (optional, default 30)
         Number of PCA components.  
-    n_components: 'int' (optional, default 50)
+    n_components: 'int' (optional, default 2)
         The dimension of the space to embed into.
-    n_neighbors: 'int' (optional, default 10)
+    n_neighbors: 'int' (optional, default 30)
         Number of nearest neighbors when constructing adjacency matrix. 
-    reduction_method: 'str' (optional, default trimap)
+    reduction_method: 'str' (optional, default umap)
         Non-linear dimension reduction method to further reduce dimension based on the top n_pca_components PCA components. Currently, PSL 
         (probablistic structure learning, a new dimension reduction by us), tSNE (fitsne instead of traditional tSNE used) or umap are supported.
     cores: `int` (optional, default `1`)
@@ -76,7 +76,7 @@ def reduceDimension(adata, n_pca_components=25, n_components=2, n_neighbors=10, 
     elif reduction_method == 'umap':
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            graph, knn_indices, knn_dists, X_dim = umap_conn_indices_dist_embedding(X_pca) # X_pca
+            graph, knn_indices, knn_dists, X_dim = umap_conn_indices_dist_embedding(X_pca, n_neighbors) # X_pca
         adata.obsm['X_umap'] = X_dim
         adata.uns['neighbors'] = {'params': {'n_neighbors': n_neighbors, 'method': reduction_method}, 'connectivities': graph, \
                                   'distances': knn_dists, 'indices': knn_indices}

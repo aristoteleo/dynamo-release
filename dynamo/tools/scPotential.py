@@ -385,7 +385,7 @@ class Pot:
 
         self.parameters = {"boundary": boundary, "n_points":n_points, "fixed_point_only": fixed_point_only, "find_fixed_points": find_fixed_points, "refpoint": refpoint, "stable": stable, "saddle": saddle}
 
-    def fit(self, adata, basis, x_lim, y_lim, method='Ao', xyGridSpacing=2, dt=1e-2, tol=1e-2, numTimeSteps=1400):
+    def fit(self, adata, x_lim, y_lim, basis = 'umap', method='Ao', xyGridSpacing=2, dt=1e-2, tol=1e-2, numTimeSteps=1400):
         """Function to map out the pseudo-potential landscape.
 
         Although it is appealing to define “potential” for biological systems as it is intuitive and familiar from other
@@ -405,7 +405,11 @@ class Pot:
         ---------
             adata: :class:`~anndata.AnnData`
                 AnnData object that contains U_grid and V_grid data
-            basis: `str` (default: trimap)
+            x_lim: `list`
+                Lower or upper limit of x-axis.
+            y_lim: `list`
+                Lower or upper limit of y-axis
+            basis: `str` (default: umap)
                 The dimension reduction method to use.
             method: 'string' (default: Bhattacharya)
                 Method used to map the pseudo-potential landscape. By default, it is Bhattacharya (A deterministic map of

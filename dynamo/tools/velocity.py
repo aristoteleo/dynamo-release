@@ -611,7 +611,10 @@ class velocity:
 
         t = self.parameters['t']
         t_uniq, t_uniq_cnt = np.unique(self.parameters['t'], return_counts=True)
-        if self.parameters['alpha'] is not None and self.parameters['beta'] is not None:
+        if self.parameters['alpha'] is not None:
+            if self.parameters['beta'] is None and self.parameters['gamma'] is not None:
+                self.parameters['beta'] = self.parameters['gamma']
+
             if type(self.parameters['alpha']) is not tuple:
                 if self.parameters['alpha'].shape[1] == U.shape[1]:
                     alpha = self.parameters['alpha']
@@ -667,7 +670,10 @@ class velocity:
 
         t = self.parameters['t']
         t_uniq, t_uniq_cnt = np.unique(self.parameters['t'], return_counts=True)
-        if self.parameters['beta'] is not None and self.parameters['gamma'] is not None:
+        if self.parameters['gamma'] is not None:
+            if self.parameters['beta'] is None and self.parameters['alpha'] is not None:
+                self.parameters['beta'] = self.parameters['alpha']
+
             if len(self.parameters['beta'].shape) == 1:
                 beta = np.repeat(self.parameters['beta'].reshape((-1, 1)), U.shape[1], axis=1)
             elif self.parameters['beta'].shape[1] == len(t_uniq) and len(t_uniq) > 1:
