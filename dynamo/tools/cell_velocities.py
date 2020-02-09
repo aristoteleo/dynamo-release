@@ -5,6 +5,8 @@ from .Markov import *
 from .connectivity import extract_indices_dist_from_graph
 from .utils import set_velocity_genes, get_finite_inds, get_ekey_vkey_from_adata
 
+from .dimension_reduction import reduceDimension
+
 def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_basis=False, n_pca_components=30, min_r2=0.01,
                     basis='umap', method='analytical', neg_cells_trick=False, calc_rnd_vel=False, xy_grid_nums=(50, 50),
                     correct_density=True, scale=True, sample_fraction=None, random_seed=19491001, **kmc_kwargs):
@@ -67,7 +69,7 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_b
             approximation or the method from (La Manno et al. 2018).
     """
 
-    ekey, vkey = get_ekey_vkey_from_adata(adata) if (ekey is None or vkey is None) else (ekey, vkey)
+    ekey, vkey, layer = get_ekey_vkey_from_adata(adata) if (ekey is None or vkey is None) else (ekey, vkey)
 
     if calc_rnd_vel:
         numba_random_seed(random_seed)
@@ -87,7 +89,12 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_b
     X = adata[:, adata.var.use_for_velocity.values].layers[ekey]
     V_mat = adata[:, adata.var.use_for_velocity.values].layers[vkey] if vkey in adata.layers.keys() else None
 
-    X_embedding = adata.obsm['X_'+basis][:, :2]
+    if vkey == 'velocity_S':
+        X_embedding = adata.obsm['X_'+basis][:, :2]
+    else:
+        reduceDimension(adata, layer=layer, n_pca_components=30, n_components=2, n_neighbors=30, reduction_method=basis, cores=1)
+        X_embedding = adata.obsm[layer + '_' + basis][:, :2]
+
     V_mat = V_mat.A if issparse(V_mat) else V_mat
     X = X.A if issparse(X) else X
     finite_inds = get_finite_inds(V_mat)

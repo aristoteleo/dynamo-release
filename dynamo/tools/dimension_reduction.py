@@ -1,17 +1,20 @@
-from sklearn.decomposition import TruncatedSVD
+from sklearn.decomposition import PCA, TruncatedSVD
+from scipy.sparse import issparse
 import warnings
 from .psl import *
 
 from .connectivity import umap_conn_indices_dist_embedding
 
 
-def reduceDimension(adata, n_pca_components=30, n_components=2, n_neighbors=30, reduction_method='umap', cores=1):
+def reduceDimension(adata, layer='X', n_pca_components=30, n_components=2, n_neighbors=30, reduction_method='umap', cores=1):
     """Compute a low dimension reduction projection of an annodata object first with PCA, followed by non-linear dimension reduction methods
 
     Arguments
     ---------
     adata: :class:`~anndata.AnnData`
-        an Annodata object 
+        an Annodata object
+    layer: str (default: X)
+            The layer where the dimension reduction will be performed.
     n_pca_components: 'int' (optional, default 30)
         Number of PCA components.  
     n_components: 'int' (optional, default 2)
@@ -29,21 +32,45 @@ def reduceDimension(adata, n_pca_components=30, n_components=2, n_neighbors=30, 
     Returns an updated `adata` with reduced dimension data for spliced counts, projected future transcript counts 'Y_dim'.
     """
 
-    n_obs = adata.shape[0]
+    layer = layer if layer.startswith('X_') else 'X_' + layer
+    if layer not in adata.layers.keys():
+        raise Exception('The layer X_{} you provided is not existed in adata.'.format(layer))
+    pca_key = 'X_pca' if layer == 'X' else layer + '_pca'
+    embedding_key = 'X_' + reduction_method if layer == 'X' else layer + '_' + reduction_method
+    neighbor_key = 'neighbors' if layer == 'X' else layer + '_neighbors'
 
     if 'use_for_dynamo' in adata.var.keys():
-        X = adata.X[:, adata.var.use_for_dynamo.values]
+        X = adata.X[:, adata.var.use_for_dynamo.values] if layer == 'X' else \
+            np.log(adata[:, adata.var.use_for_dynamo.values].layers[layer] + 1)
     else:
-        X = adata.X
+        X = adata.X if layer == 'X' else np.log(adata.layers[layer] + 1)
 
-    if((not 'X_pca' in adata.obsm.keys()) or 'pca_fit' not in adata.uns.keys()) or reduction_method is "pca":
-        transformer = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)
-        X_fit = transformer.fit(X)
-        X_pca = X_fit.transform(X)[:, 1:]
-        adata.obsm['X_pca'] = X_pca
+    if layer == 'X':
+        if((pca_key not in adata.obsm.keys()) or 'pca_fit' not in adata.uns.keys()) or reduction_method is "pca":
+            if adata.n_obs < 100000:
+                fit = PCA(n_components=n_pca_components, svd_solver='arpack', random_state=0)
+                X_pca = fit.fit_transform(X.toarray()) if issparse(X) else fit.fit_transform(X)
+                adata.obsm[pca_key] = X_pca
+            else:
+                fit = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)  # unscaled PCA
+                X_pca = fit.fit_transform(X)[:, 1:]  # first columns is related to the total UMI (or library size)
+                adata.obsm[pca_key] = X_pca
+        else:
+            X_pca = adata.obsm[pca_key][:, :n_pca_components]
+            adata.obsm[pca_key] = X_pca
     else:
-        X_pca = adata.obsm['X_pca'][:, :n_pca_components]
-        adata.obsm['X_pca'] = X_pca
+        if(pca_key not in adata.obsm.keys()) or reduction_method is "pca":
+            if adata.n_obs < 100000:
+                fit = PCA(n_components=n_pca_components, svd_solver='arpack', random_state=0)
+                X_pca = fit.fit_transform(X.toarray()) if issparse(X) else fit.fit_transform(X)
+                adata.obsm[pca_key] = X_pca
+            else:
+                fit = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)  # unscaled PCA
+                X_pca = fit.fit_transform(X)[:, 1:]  # first columns is related to the total UMI (or library size)
+                adata.obsm[pca_key] = X_pca
+        else:
+            X_pca = adata.obsm[pca_key][:, :n_pca_components]
+            adata.obsm[pca_key] = X_pca
 
     if reduction_method == "trimap":
         import trimap
@@ -55,8 +82,8 @@ def reduceDimension(adata, n_pca_components=30, n_components=2, n_neighbors=30, 
                                   apply_pca=False)
         X_dim = triplemap.fit_transform(X_pca)
 
-        adata.obsm['X_trimap'] = X_dim
-        adata.uns['neighbors'] = {'params': {'n_neighbors': n_neighbors, 'method': reduction_method}, 'connectivities': None, \
+        adata.obsm[embedding_key] = X_dim
+        adata.uns[neighbor_key] = {'params': {'n_neighbors': n_neighbors, 'method': reduction_method}, 'connectivities': None, \
                                   'distances': None, 'indices': None}
     elif reduction_method == 'diffusion_map':
         pass
@@ -70,20 +97,20 @@ def reduceDimension(adata, n_pca_components=30, n_components=2, n_neighbors=30, 
 
         # bh_tsne = TSNE(n_components = n_components)
         # X_dim = bh_tsne.fit_transform(X_pca)
-        adata.obsm['X_tSNE'] = X_dim
-        adata.uns['neighbors'] = {'params': {'n_neighbors': n_neighbors, 'method': reduction_method}, 'connectivities': None, \
+        adata.obsm[embedding_key] = X_dim
+        adata.uns[neighbor_key] = {'params': {'n_neighbors': n_neighbors, 'method': reduction_method}, 'connectivities': None, \
                                   'distances': None, 'indices': None}
     elif reduction_method == 'umap':
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             graph, knn_indices, knn_dists, X_dim = umap_conn_indices_dist_embedding(X_pca, n_neighbors) # X_pca
-        adata.obsm['X_umap'] = X_dim
-        adata.uns['neighbors'] = {'params': {'n_neighbors': n_neighbors, 'method': reduction_method}, 'connectivities': graph, \
+        adata.obsm[embedding_key] = X_dim
+        adata.uns[neighbor_key] = {'params': {'n_neighbors': n_neighbors, 'method': reduction_method}, 'connectivities': graph, \
                                   'distances': knn_dists, 'indices': knn_indices}
     elif reduction_method is 'psl':
         adj_mat, X_dim = psl_py(X_pca, d=n_components, K=n_neighbors) # this need to be updated
-        adata.obsm['X_psl'] = X_dim
-        adata.uns['PSL_adj_mat'] = adj_mat
+        adata.obsm[embedding_key] = X_dim
+        adata.uns[neighbor_key] = adj_mat
 
     else:
         raise Exception('reduction_method {} is not supported.'.format(reduction_method))

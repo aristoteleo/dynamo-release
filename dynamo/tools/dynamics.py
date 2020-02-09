@@ -94,7 +94,7 @@ def dynamics(adata, tkey=None, filter_gene_mode='no', mode='deterministic', use_
                               'is {}'.format(exp_type, experiment_type))
         else:
             experiment_type = exp_type
-            assumption_mRNA, use_smoothed = None, False
+            assumption_mRNA = None
             # add log information
 
         if mode is 'deterministic':
@@ -104,7 +104,11 @@ def dynamics(adata, tkey=None, filter_gene_mode='no', mode='deterministic', use_
                              assumption_mRNA=assumption_mRNA,
                              assumption_protein=assumption_protein,
                              concat_data=concat_data)
-            est.fit()
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+
+                est.fit()
 
             alpha, beta, gamma, eta, delta = est.parameters.values()
 

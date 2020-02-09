@@ -926,7 +926,7 @@ class estimation:
                         self.parameters['beta'], self.parameters['gamma'], self.aux_param['uu0'], self.aux_param['su0'] = self.fit_beta_gamma_lsq(t_uniq, uu_m, su_m)
                     # alpha estimation
                     ul_m, ul_v, t_uniq = cal_12_mom(self.data['ul'], self.t)
-                    alpha = np.zeros(self.data['ul'].shape[1])
+                    alpha = np.zeros(n)
                     # let us only assume one alpha for each gene in all cells
                     for i in range(n):
                         # for j in range(len(self.data['ul'][i])):
@@ -939,7 +939,7 @@ class estimation:
                     for i in range(n):
                         gamma[i], u0[i] = fit_first_order_deg_lsq(t_uniq, uu_m[i])
                     self.parameters['gamma'], self.aux_param['uu0'] = gamma, u0
-                    alpha = np.zeros(self.data['ul'].shape[1])
+                    alpha = np.zeros(n)
                     # let us only assume one alpha for each gene in all cells
                     ul_m, ul_v, _ = cal_12_mom(self.data['ul'], self.t)
                     for i in range(n):
@@ -966,7 +966,7 @@ class estimation:
                         self.aux_param['U0'], self.aux_param['S0'], self.parameters['beta'], self.parameters['gamma'] = U0, S0, beta, gamma
 
                         ul_m, ul_v, t_uniq = cal_12_mom(self.data['ul'], self.t)
-                        alpha = np.zeros(self.data['ul'].shape[1])
+                        alpha = np.zeros(n)
                         # let us only assume one alpha for each gene in all cells
                         for i in range(n):
                             # for j in range(len(self.data['ul'][i])):
@@ -986,10 +986,10 @@ class estimation:
 
                         ul_m, ul_v, t_uniq = cal_12_mom(self.data['ul'], self.t)
                         # let us only assume one alpha for each gene in all cells
-                        alpha = np.zeros(self.data['ul'].shape[1])
+                        alpha = np.zeros(n)
                         for i in range(n):
                             # for j in range(len(self.data['ul'][i])):
-                            alpha[i] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters['gamma'][i]) # ul_m[i]
+                            alpha[i] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters['gamma'][i]) # ul_m[i] / t_uniq
 
                         self.parameters['alpha'] = alpha
                         # self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['gamma'], clusters)
