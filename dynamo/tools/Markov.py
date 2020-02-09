@@ -208,44 +208,55 @@ def velocity_on_grid(X_emb, V_emb, xy_grid_nums, density=None, smooth=None, n_ne
     density = 1 if density is None else density
     smooth = .5 if smooth is None else smooth
 
-    grs = []
+    grs, scale = [], 0
     for dim_i in range(n_dim):
         m, M = np.min(X_emb[:, dim_i]), np.max(X_emb[:, dim_i])
         m = m - .01 * np.abs(M - m)
         M = M + .01 * np.abs(M - m)
         gr = np.linspace(m, M, xy_grid_nums[dim_i] * density)
+        scale += gr[1] - gr[0]
         grs.append(gr)
+
+    scale = scale / n_dim * smooth
 
     meshes_tuple = np.meshgrid(*grs)
     X_grid = np.vstack([i.flat for i in meshes_tuple]).T
 
     # estimate grid velocities
-    if n_neighbors is None: n_neighbors = int(n_obs / 50)
+    if n_neighbors is None: n_neighbors = np.max([10, int(n_obs / 50)])
     nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=-1)
     nn.fit(X_emb)
     dists, neighs = nn.kneighbors(X_grid)
 
-    scale = np.mean([(g[1] - g[0]) for g in grs]) * smooth
     weight = norm.pdf(x=dists, scale=scale)
     p_mass = weight.sum(1)
 
-    V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[:, None]
+    V_grid = (V_emb[neighs] * (weight / p_mass[:, None])[:, :, None]).sum(1) # / np.maximum(1, p_mass)[:, None]
 
     # calculate diffusion matrix D
     D = diffusionMatrix(V_emb[neighs])
 
     if adjust_for_stream:
         X_grid = np.stack([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])])
-        ns = int(np.sqrt(len(V_grid[:, 0])))
+        ns = int(np.sqrt(V_grid.shape[0]))
         V_grid = V_grid.T.reshape(2, ns, ns)
 
         mass = np.sqrt((V_grid ** 2).sum(0))
         if V_threshold is not None:
             V_grid[0][mass.reshape(V_grid[0].shape) < V_threshold] = np.nan
+        else:
+            if min_mass is None: min_mass = 1e-5
+            min_mass = np.clip(min_mass, None, np.max(mass) * .9)
+            cutoff = mass.reshape(V_grid[0].shape) < min_mass
+
+            length = np.sum(np.mean(np.abs(V_emb[neighs]), axis=1), axis=1).T.reshape(ns, ns)
+            cutoff |= length < np.percentile(length, 5)
+
+            V_grid[0][cutoff] = np.nan
     else:
         from ..plot.utils import quiver_autoscaler
 
-        if min_mass is None: min_mass = np.clip(np.percentile(p_mass, 99) / 100, 1e-2, 1)
+        if min_mass is None: min_mass = np.clip(np.percentile(p_mass, 99) / 100, 1e-5, 1)
         X_grid, V_grid = X_grid[p_mass > min_mass], V_grid[p_mass > min_mass]
 
         if autoscale: V_grid /= 3 * quiver_autoscaler(X_grid, V_grid)

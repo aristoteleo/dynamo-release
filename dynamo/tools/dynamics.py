@@ -92,6 +92,7 @@ def dynamics(adata, tkey=None, filter_gene_mode='no', mode='deterministic', use_
             if experiment_type!= exp_type:
                 warnings.warn('dynamo detects the experiment type of your data as {}, but your input experiment_type '
                               'is {}'.format(exp_type, experiment_type))
+            use_smoothed = False
         else:
             experiment_type = exp_type
             # add log information

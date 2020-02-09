@@ -941,16 +941,19 @@ def grid_velocity(
         N = int(np.sqrt(V_grid.shape[0]))
         X_grid, V_grid = np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]), \
                          np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))])
-    elif 'grid_velocity_' + basis in adata.uns.keys():
-        X_grid, V_grid, _ = adata.uns['grid_velocity_' + basis]["VecFld"]['X_grid'], adata.uns['grid_velocity_' + basis]["VecFld"]['V_grid'], \
-                            adata.uns['grid_velocity_' + basis]["VecFld"]['D']
-    else:
+    elif method == 'gaussian' and adata.obsm['X_' + basis].shape[1] == 2:
         grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
                             "adjust_for_stream": True, "V_threshold": None}
-        grid_kwargs_dict = update_dict(grid_kwargs_dict, grid_kwargs)
+        grid_kwargs_dict.update(grid_kwargs)
 
         X_grid, V_grid, D = velocity_on_grid(X[:, [x, y]], V[:, [x, y]], xy_grid_nums, **grid_kwargs_dict)
-
+    elif 'grid_velocity_' + basis in adata.uns.keys():
+        X_grid, V_grid, _ = adata.uns['grid_velocity_' + basis]["VecFld"]['X_grid'], \
+                            adata.uns['grid_velocity_' + basis]["VecFld"]['V_grid'], \
+                            adata.uns['grid_velocity_' + basis]["VecFld"]['D']
+    else:
+        raise Exception('Vector field learning method {} is not supported or the grid velocity is collected for '
+                        'the current adata object.'.format(method))
 
     if background is None:
         background = rcParams.get('figure.facecolor')
@@ -1073,15 +1076,18 @@ def streamline_plot(
         N = int(np.sqrt(V_grid.shape[0]))
         X_grid, V_grid = np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]), \
                          np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))])
-    elif 'grid_velocity_' + basis in adata.uns.keys():
-        X_grid, V_grid, _ = adata.uns['grid_velocity_' + basis]["VecFld"]['X_grid'], adata.uns['grid_velocity_' + basis]["VecFld"]['V_grid'], \
-                            adata.uns['grid_velocity_' + basis]["VecFld"]['D']
-    else:
+    elif method == 'gaussian' and adata.obsm['X_' + basis].shape[1] == 2:
         grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
                             "adjust_for_stream": True, "V_threshold": None}
         grid_kwargs_dict.update(streamline_kwargs)
 
         X_grid, V_grid, D = velocity_on_grid(X[:, [x, y]], V[:, [x, y]], xy_grid_nums, **grid_kwargs_dict)
+    elif 'grid_velocity_' + basis in adata.uns.keys():
+        X_grid, V_grid, _ = adata.uns['grid_velocity_' + basis]["VecFld"]['X_grid'], adata.uns['grid_velocity_' + basis]["VecFld"]['V_grid'], \
+                            adata.uns['grid_velocity_' + basis]["VecFld"]['D']
+    else:
+        raise Exception('Vector field learning method {} is not supported or the grid velocity is collected for '
+                        'the current adata object.'.format(method))
 
     streamplot_kwargs={"density": density, "linewidth": None, "cmap": None, "norm": None, "arrowsize": 1, "arrowstyle": '-|>',
                        "minlength": 0.1, "transform": None, "start_points": None, "maxlength": 4.0,

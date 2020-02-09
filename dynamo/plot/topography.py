@@ -274,8 +274,8 @@ def plot_separatrix(vecfld, x_range, y_range, t, noise=1e-6, lw=3, background=No
 
     return ax
 
-def topography(adata, basis, xlim=None, ylim=None, t=None, terms=['streamline', 'nullcline', 'trajectory', 'fixed_points'],
-               init_state=None, figsize=(5, 5), background=None, plot=True):
+def topography(adata, basis, xlim=None, ylim=None, t=None, terms=('streamline', 'nullcline', 'trajectory', 'fixed_points'),
+               init_state=None, figsize=(5, 5), background=None, plot=True, ax=None):
     """Plot the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system
     for single cells. The plot is created on two dimensional space.
 
@@ -292,8 +292,8 @@ def topography(adata, basis, xlim=None, ylim=None, t=None, terms=['streamline', 
         t:  t_end: `float` (default 1)
             The length of the time period from which to predict cell state forward or backward over time. This is used
             by the odeint function.
-        terms: `list` (default: ['streamline', 'nullcline', 'fixed_points', 'trajectory'])
-            A list of plotting items to include in the final topography figure.
+        terms: `tuple` (default: ('streamline', 'nullcline', 'fixed_points', 'trajectory'))
+            A tuple of plotting items to include in the final topography figure.
         init_state: `numpy.ndarray` (default: None)
             Initial cell states for the historical or future cell state prediction with numerical integration.
         figsize: `tuple` (default: (5, 5)
@@ -302,6 +302,8 @@ def topography(adata, basis, xlim=None, ylim=None, t=None, terms=['streamline', 
             The background color of the plot.
         plot: `bool` (default: True)
             Whether or not to plot the topography plot or just return the axis object.
+        ax : Matplotlib Axis instance
+            Axis on which to make the plot
 
     Returns
     -------
@@ -326,7 +328,12 @@ def topography(adata, basis, xlim=None, ylim=None, t=None, terms=['streamline', 
                      adata.uns[uns_key]["ylim"] if ylim is None else ylim
 
     # Set up the figure
-    fig, ax = plt.subplots(1, 1, figsize=figsize)
+    if ax is None:
+        fig, ax = plt.subplots(1, 1)
+        has_fig = True
+    else:
+        has_fig = False
+
     ax.set_xlabel(basis + '_1')
     ax.set_ylabel(basis + '_2')
     ax.set_aspect('equal')
@@ -352,6 +359,11 @@ def topography(adata, basis, xlim=None, ylim=None, t=None, terms=['streamline', 
 
     if init_state is not None and 'trajectory' in terms:
         ax = plot_traj(vecfld.func, init_state, t, background=background, ax=ax)
+
+    # set the figure size
+    if has_fig:
+        fig.set_figwidth(figsize[0])
+        fig.set_figheight(figsize[1])
 
     if plot:
         plt.show()
