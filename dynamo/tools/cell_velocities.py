@@ -69,7 +69,7 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_b
             approximation or the method from (La Manno et al. 2018).
     """
 
-    ekey, vkey, layer = get_ekey_vkey_from_adata(adata) if (ekey is None or vkey is None) else (ekey, vkey)
+    ekey, vkey, layer = get_ekey_vkey_from_adata(adata) if (ekey is None or vkey is None) else (ekey, vkey, None)
 
     if calc_rnd_vel:
         numba_random_seed(random_seed)
@@ -92,7 +92,8 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_b
     if vkey == 'velocity_S':
         X_embedding = adata.obsm['X_'+basis][:, :2]
     else:
-        reduceDimension(adata, layer=layer, n_pca_components=30, n_components=2, n_neighbors=30, reduction_method=basis, cores=1)
+        adata = reduceDimension(adata, layer=layer, n_pca_components=30, n_components=2, n_neighbors=30, reduction_method=basis, cores=1)
+        layer = layer if layer.startswith('X_') else 'X_' + layer
         X_embedding = adata.obsm[layer + '_' + basis][:, :2]
 
     V_mat = V_mat.A if issparse(V_mat) else V_mat

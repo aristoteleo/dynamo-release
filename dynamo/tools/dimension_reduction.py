@@ -32,21 +32,31 @@ def reduceDimension(adata, layer='X', n_pca_components=30, n_components=2, n_nei
     Returns an updated `adata` with reduced dimension data for spliced counts, projected future transcript counts 'Y_dim'.
     """
 
-    layer = layer if layer.startswith('X_') else 'X_' + layer
-    if layer not in adata.layers.keys():
-        raise Exception('The layer X_{} you provided is not existed in adata.'.format(layer))
+    layer = layer if layer.startswith('X') else 'X_' + layer
+    if layer is not 'X' and layer not in adata.layers.keys():
+        raise Exception('The layer {} you provided is not existed in adata.'.format(layer))
     pca_key = 'X_pca' if layer == 'X' else layer + '_pca'
     embedding_key = 'X_' + reduction_method if layer == 'X' else layer + '_' + reduction_method
     neighbor_key = 'neighbors' if layer == 'X' else layer + '_neighbors'
 
     if 'use_for_dynamo' in adata.var.keys():
         X = adata.X[:, adata.var.use_for_dynamo.values] if layer == 'X' else \
-            np.log(adata[:, adata.var.use_for_dynamo.values].layers[layer] + 1)
+            adata[:, adata.var.use_for_dynamo.values].layers[layer]
+
+        if issparse(X):
+            X.data = np.log(X.data + 1)
+        else:
+            X = np.log(X + 1)
     else:
-        X = adata.X if layer == 'X' else np.log(adata.layers[layer] + 1)
+        X = adata.X if layer == 'X' else adata.layers[layer]
+
+        if issparse(X):
+            X.data = np.log(X.data + 1)
+        else:
+            X = np.log(X + 1)
 
     if layer == 'X':
-        if((pca_key not in adata.obsm.keys()) or 'pca_fit' not in adata.uns.keys()) or reduction_method is "pca":
+        if ((pca_key not in adata.obsm.keys()) or 'pca_fit' not in adata.uns.keys()) or reduction_method is "pca":
             if adata.n_obs < 100000:
                 fit = PCA(n_components=n_pca_components, svd_solver='arpack', random_state=0)
                 X_pca = fit.fit_transform(X.toarray()) if issparse(X) else fit.fit_transform(X)

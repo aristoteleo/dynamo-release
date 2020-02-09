@@ -616,7 +616,9 @@ class velocity:
                 self.parameters['beta'] = self.parameters['gamma']
 
             if type(self.parameters['alpha']) is not tuple:
-                if self.parameters['alpha'].shape[1] == U.shape[1]:
+                if len(self.parameters['beta'].shape) == 1:
+                    alpha = np.repeat(self.parameters['alpha'].reshape((-1, 1)), U.shape[1], axis=1)
+                elif self.parameters['alpha'].shape[1] == U.shape[1]:
                     alpha = self.parameters['alpha']
                 elif self.parameters['alpha'].shape[1] == len(t_uniq) and len(t_uniq) > 1:
                     alpha = np.zeros(U.shape)
