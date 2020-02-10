@@ -41,7 +41,7 @@ def cal_12_mom(data, t):
 # dynamics related:
 def one_shot_gamma_alpha(k, t, l):
     gamma = - np.log(1 - k) / t
-    alpha = l * (gamma / (1 - np.exp(-gamma * t)))[0]
+    alpha = l * (gamma / k)[0]
 
     return gamma, alpha
 

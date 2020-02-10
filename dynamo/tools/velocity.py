@@ -678,6 +678,8 @@ class velocity:
 
             if len(self.parameters['beta'].shape) == 1:
                 beta = np.repeat(self.parameters['beta'].reshape((-1, 1)), U.shape[1], axis=1)
+            elif self.parameters['beta'].shape[1] == U.shape[1]:
+                beta = self.parameters['beta']
             elif self.parameters['beta'].shape[1] == len(t_uniq) and len(t_uniq) > 1:
                 beta = np.zeros_like(U.shape)
                 for i in range(len(t_uniq)):
@@ -688,6 +690,8 @@ class velocity:
 
             if len(self.parameters['gamma'].shape) == 1:
                 gamma = np.repeat(self.parameters['gamma'].reshape((-1, 1)), U.shape[1], axis=1)
+            elif self.parameters['gamma'].shape[1] == U.shape[1]:
+                gamma = self.parameters['gamma']
             elif self.parameters['gamma'].shape[1] == len(t_uniq) and len(t_uniq) > 1:
                 gamma = np.zeros_like(U.shape)
                 for i in range(len(t_uniq)):
@@ -723,6 +727,8 @@ class velocity:
         if self.parameters['eta'] is not None and self.parameters['delta'] is not None:
             if len(self.parameters['eta'].shape) == 1:
                 eta = np.repeat(self.parameters['eta'].reshape((-1, 1)), S.shape[1], axis=1)
+            elif self.parameters['eta'].shape[1] == S.shape[1]:
+                eta = self.parameters['eta']
             elif self.parameters['eta'].shape[1] == len(t_uniq) and len(t_uniq) > 1:
                 eta = np.zeros_like(S.shape)
                 for i in range(len(t_uniq)):
@@ -733,6 +739,8 @@ class velocity:
 
             if len(self.parameters['delta'].shape) == 1:
                 delta = np.repeat(self.parameters['delta'].reshape((-1, 1)), S.shape[1], axis=1)
+            elif self.parameters['delta'].shape[1] == S.shape[1]:
+                delta = self.parameters['delta']
             elif self.parameters['delta'].shape[1] == len(t_uniq) and len(t_uniq) > 1:
                 delta = np.zeros_like(S.shape)
                 for i in range(len(t_uniq)):
