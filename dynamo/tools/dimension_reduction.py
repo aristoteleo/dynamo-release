@@ -4,6 +4,7 @@ import warnings
 from .psl import *
 
 from .connectivity import umap_conn_indices_dist_embedding
+from ..preprocessing.utils import pca
 
 
 def reduceDimension(adata, layer='X', n_pca_components=30, n_components=2, n_neighbors=30, reduction_method='umap', cores=1):
@@ -40,44 +41,35 @@ def reduceDimension(adata, layer='X', n_pca_components=30, n_components=2, n_nei
     neighbor_key = 'neighbors' if layer == 'X' else layer + '_neighbors'
 
     if 'use_for_dynamo' in adata.var.keys():
-        X = adata.X[:, adata.var.use_for_dynamo.values] if layer == 'X' else \
-            adata[:, adata.var.use_for_dynamo.values].layers[layer]
-
-        if issparse(X):
-            X.data = np.log(X.data + 1)
+        if layer == 'X':
+            X = adata.X[:, adata.var.use_for_dynamo.values]
         else:
-            X = np.log(X + 1)
+            X = adata[:, adata.var.use_for_dynamo.values].layers[layer]
+
+            if issparse(X):
+                X.data = np.log(X.data + 1)
+            else:
+                X = np.log(X + 1)
     else:
-        X = adata.X if layer == 'X' else adata.layers[layer]
-
-        if issparse(X):
-            X.data = np.log(X.data + 1)
+        if layer == 'X':
+            X = adata.X
         else:
-            X = np.log(X + 1)
+            X = adata.layers[layer]
+
+            if issparse(X):
+                X.data = np.log(X.data + 1)
+            else:
+                X = np.log(X + 1)
 
     if layer == 'X':
         if ((pca_key not in adata.obsm.keys()) or 'pca_fit' not in adata.uns.keys()) or reduction_method is "pca":
-            if adata.n_obs < 100000:
-                fit = PCA(n_components=n_pca_components, svd_solver='arpack', random_state=0)
-                X_pca = fit.fit_transform(X.toarray()) if issparse(X) else fit.fit_transform(X)
-                adata.obsm[pca_key] = X_pca
-            else:
-                fit = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)  # unscaled PCA
-                X_pca = fit.fit_transform(X)[:, 1:]  # first columns is related to the total UMI (or library size)
-                adata.obsm[pca_key] = X_pca
+            adata, _, X_pca = pca(adata, X, n_pca_components, pca_key)
         else:
             X_pca = adata.obsm[pca_key][:, :n_pca_components]
             adata.obsm[pca_key] = X_pca
     else:
         if(pca_key not in adata.obsm.keys()) or reduction_method is "pca":
-            if adata.n_obs < 100000:
-                fit = PCA(n_components=n_pca_components, svd_solver='arpack', random_state=0)
-                X_pca = fit.fit_transform(X.toarray()) if issparse(X) else fit.fit_transform(X)
-                adata.obsm[pca_key] = X_pca
-            else:
-                fit = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)  # unscaled PCA
-                X_pca = fit.fit_transform(X)[:, 1:]  # first columns is related to the total UMI (or library size)
-                adata.obsm[pca_key] = X_pca
+            adata, _, X_pca = pca(adata, X, n_pca_components, pca_key)
         else:
             X_pca = adata.obsm[pca_key][:, :n_pca_components]
             adata.obsm[pca_key] = X_pca

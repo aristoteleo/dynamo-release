@@ -2,7 +2,7 @@ import numpy as np
 from scipy.optimize import least_squares
 from scipy.sparse import issparse, csr_matrix
 from warnings import warn
-from .utils import cal_12_mom
+from .utils import cal_12_mom, one_shot_gamma_alpha
 from .moments import strat_mom
 # from sklearn.cluster import KMeans
 # from sklearn.neighbors import NearestNeighbors
@@ -616,7 +616,7 @@ class velocity:
                 self.parameters['beta'] = self.parameters['gamma']
 
             if type(self.parameters['alpha']) is not tuple:
-                if len(self.parameters['beta'].shape) == 1:
+                if len(self.parameters['alpha'].shape) == 1:
                     alpha = np.repeat(self.parameters['alpha'].reshape((-1, 1)), U.shape[1], axis=1)
                 elif self.parameters['alpha'].shape[1] == U.shape[1]:
                     alpha = self.parameters['alpha']
@@ -854,7 +854,7 @@ class estimation:
                           'delta_r2': None, "uu0": None, "ul0": None, "su0": None, "sl0": None, 'U0': None, 'S0': None, 'total0': None} # note that alpha_intercept also corresponds to u0 in fit_alpha_degradation, similar to fit_first_order_deg_lsq
         self.ind_for_proteins = ind_for_proteins
 
-    def fit(self, intercept=False, perc_left=None, perc_right=5, clusters=None):
+    def fit(self, intercept=False, perc_left=None, perc_right=5, clusters=None, mode="combined"):
         """Fit the input data to estimate all or a subset of the parameters
 
         Arguments
@@ -980,21 +980,31 @@ class estimation:
                     if self._exist_data('ul') and self._exist_parameter('gamma'):
                         self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['gamma'], clusters)
                     elif self._exist_data('ul') and self._exist_data('uu'):
-                        gamma, total0 = np.zeros(n), np.zeros(n)
-                        for i in range(n):
-                            total = self.data['uu'][i] + self.data['ul'][i]
-                            total0[i], gamma[i] = np.mean(total), solve_gamma(np.max(self.t), self.data['uu'][i], total)
-                        self.aux_param['total0'], self.parameters['gamma'] = total0, gamma
+                        if mode == 'sci-fate' or mode == 'sci_fate':
+                            gamma, total0 = np.zeros(n), np.zeros(n)
+                            for i in range(n):
+                                total = self.data['uu'][i] + self.data['ul'][i]
+                                total0[i], gamma[i] = np.mean(total), solve_gamma(np.max(self.t), self.data['uu'][i], total)
+                            self.aux_param['total0'], self.parameters['gamma'] = total0, gamma
 
-                        ul_m, ul_v, t_uniq = cal_12_mom(self.data['ul'], self.t)
-                        # let us only assume one alpha for each gene in all cells
-                        alpha = np.zeros(n)
-                        for i in range(n):
-                            # for j in range(len(self.data['ul'][i])):
-                            alpha[i] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters['gamma'][i]) # ul_m[i] / t_uniq
+                            ul_m, ul_v, t_uniq = cal_12_mom(self.data['ul'], self.t)
+                            # let us only assume one alpha for each gene in all cells
+                            alpha = np.zeros(n)
+                            for i in range(n):
+                                # for j in range(len(self.data['ul'][i])):
+                                alpha[i] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters['gamma'][i]) # ul_m[i] / t_uniq
 
-                        self.parameters['alpha'] = alpha
-                        # self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['gamma'], clusters)
+                            self.parameters['alpha'] = alpha
+                            # self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['gamma'], clusters)
+                        elif mode == 'combined':
+                            self.parameters['alpha'] = csr_matrix(self.data['ul'].shape) if issparse(self.data['ul']) else np.zeros_like(self.data['ul'].shape)
+                            t_uniq, gamma, gamma_intercept, gamma_r2 = np.unique(self.t), np.zeros(n), np.zeros(n), np.zeros(n)
+                            U, S = self.data['ul'], self.data['uu'] + self.data['ul']
+
+                            for i in range(n):
+                                k, gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_steady_state(U[i], S[i], False, None, perc_right)
+                                gamma[i], self.parameters['alpha'][i] = one_shot_gamma_alpha(k, t_uniq, csr_matrix(U[i]))
+                            self.parameters['gamma'],  self.aux_param['gamma_r2'], self.aux_param['alpha_r2'] = gamma, gamma_r2, gamma_r2
 
             elif self.extyp == 'mix_std_stm':
                 t_min, t_max = np.min(self.t), np.max(self.t)

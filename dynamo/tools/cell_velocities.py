@@ -3,7 +3,7 @@ from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import PCA
 from .Markov import *
 from .connectivity import extract_indices_dist_from_graph
-from .utils import set_velocity_genes, get_finite_inds, get_ekey_vkey_from_adata
+from .utils import set_velocity_genes, get_finite_inds, get_ekey_vkey_from_adata, get_mapper_inverse
 
 from .dimension_reduction import reduceDimension
 
@@ -69,7 +69,9 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_b
             approximation or the method from (La Manno et al. 2018).
     """
 
-    ekey, vkey, layer = get_ekey_vkey_from_adata(adata) if (ekey is None or vkey is None) else (ekey, vkey, None)
+    mapper_r = get_mapper_inverse()
+    layer = mapper_r[ekey] if (ekey is not None and ekey in mapper_r.keys()) else ekey
+    ekey, vkey, layer = get_ekey_vkey_from_adata(adata) if (ekey is None or vkey is None) else (ekey, vkey, layer)
 
     if calc_rnd_vel:
         numba_random_seed(random_seed)
@@ -93,7 +95,7 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_b
         X_embedding = adata.obsm['X_'+basis][:, :2]
     else:
         adata = reduceDimension(adata, layer=layer, n_pca_components=30, n_components=2, n_neighbors=30, reduction_method=basis, cores=1)
-        layer = layer if layer.startswith('X_') else 'X_' + layer
+        layer = layer if layer.startswith('X') else 'X_' + layer
         X_embedding = adata.obsm[layer + '_' + basis][:, :2]
 
     V_mat = V_mat.A if issparse(V_mat) else V_mat

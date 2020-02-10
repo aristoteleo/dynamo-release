@@ -35,18 +35,18 @@ def extract_indices_dist_from_graph(graph, n_neighbors):
         cur_neighbors = graph[cur_cell, :].nonzero()  # returns the coordinate tuple for non-zero items
 
         # set itself as the nearest neighbor
-        ind_mat[cur_cell, 0] = cur_cell
-        dist_mat[cur_cell, 0] = 0
+        ind_mat[cur_cell, :] = cur_cell
+        dist_mat[cur_cell, :] = 0
 
         # there could be more or less than n_neighbors because of an approximate search
         cur_n_neighbors = len(cur_neighbors[1])
-        if cur_n_neighbors != n_neighbors - 1:  # could not broadcast input array from shape (13) into shape (14)
+        if cur_n_neighbors > n_neighbors - 1:
             sorted_indices = np.argsort(graph[cur_cell][:, cur_neighbors[1]].A)[0][:(n_neighbors - 1)]
             ind_mat[cur_cell, 1:] = cur_neighbors[1][sorted_indices]
             dist_mat[cur_cell, 1:] = graph[cur_cell][0, cur_neighbors[1][sorted_indices]].A
         else:
-            ind_mat[cur_cell, 1:] = cur_neighbors[1]
-            dist_mat[cur_cell, 1:] = graph[cur_cell][:, cur_neighbors[1]].A
+            ind_mat[cur_cell, 1:(cur_n_neighbors + 1)] = cur_neighbors[1]
+            dist_mat[cur_cell, 1:(cur_n_neighbors + 1)] = graph[cur_cell][:, cur_neighbors[1]].A
 
     return ind_mat, dist_mat
 

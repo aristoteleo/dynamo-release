@@ -11,6 +11,12 @@ def get_mapper():
               'X_uu': 'M_uu', 'X_ul': 'M_ul', 'X_su': 'M_su', 'X_sl': 'M_sl', 'X_protein': 'M_p', 'X': 'M_s'}
     return mapper
 
+def get_mapper_inverse():
+    mapper = get_mapper()
+
+    return dict([(v, k) for k, v in mapper.items()])
+
+
 def get_finite_inds(X, ax=0):
     finite_inds = np.isfinite(X.sum(ax).A1) if issparse(X) else np.isfinite(X.sum(ax))
 
@@ -31,7 +37,17 @@ def cal_12_mom(data, t):
 
     return m, v, t_uniq
 
+# ---------------------------------------------------------------------------------------------------
+# dynamics related:
+def one_shot_gamma_alpha(k, t, l):
+    gamma = - np.log(1 - k) / t
+    alpha = l * (gamma / (1 - np.exp(-gamma * t)))[0]
 
+    return gamma, alpha
+
+def one_shot_k(gamma, t):
+    k = 1 - np.exp(- gamma * t)
+    return k
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
 def get_valid_inds(adata, filter_gene_mode):
@@ -230,8 +246,9 @@ def set_param_deterministic(adata, est, alpha, beta, gamma, eta, delta, experime
     else:
         if alpha is not None:
             if len(alpha.shape) > 1:  # for each cell
-                if cur_grp == _group[0]: adata.varm[kin_param_pre + 'alpha'] = np.zeros((alpha.shape))  # adata.shape
-                adata.varm[kin_param_pre + 'alpha'] = alpha  # [:, valid_ind]
+                if cur_grp == _group[0]: adata.varm[kin_param_pre + 'alpha'] = csr_matrix(np.zeros((adata.shape[::-1]))) \
+                    if issparse(alpha) else np.zeros((adata.shape[::-1])) #
+                adata.varm[kin_param_pre + 'alpha'][valid_ind, :] = alpha  #
                 adata.var.loc[valid_ind, kin_param_pre + 'alpha'] = alpha.mean(1)
             elif len(alpha.shape) is 1:
                 if cur_grp == _group[0]: adata.var[kin_param_pre + 'alpha'] = None
@@ -457,7 +474,7 @@ def norm_loglikelihood(x, mu, sig):
 
 # ---------------------------------------------------------------------------------------------------
 # velocity related
-def set_velocity_genes(adata, vkey='velocity_S', min_r2=0.01, min_alpha=0, min_gamma=0.01, min_delta=0.01, use_for_dynamo=True):
+def set_velocity_genes(adata, vkey='velocity_S', min_r2=-1, min_alpha=-1, min_gamma=-1, min_delta=-1, use_for_dynamo=True):
     layer = vkey.split('_')[1]
 
     if layer is 'U':

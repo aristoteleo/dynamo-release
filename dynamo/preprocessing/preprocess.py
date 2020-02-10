@@ -3,7 +3,9 @@ import pandas as pd
 from sklearn.utils import sparsefuncs
 import warnings
 from scipy.sparse import issparse, csr_matrix
-from sklearn.decomposition import PCA, TruncatedSVD, FastICA
+from sklearn.decomposition import FastICA
+
+from .utils import pca
 from .utils import cook_dist, get_layer_keys, get_shared_counts
 
 def szFactor(adata, layers='all', total_layers=None, locfunc=np.nanmean, round_exprs=True, method='median'):
@@ -886,26 +888,22 @@ def recipe_monocle(adata, normalized=None, layer=None, total_layers=None, genes_
         else:
             CM = adata.layers['X_' + layer][:, adata.var.use_for_dynamo.values]
 
-    cm_genesums = CM.sum(axis=0)
-    valid_ind = (np.isfinite(cm_genesums)) + (cm_genesums != 0)
-    valid_ind = np.array(valid_ind).flatten()
-    CM = CM[:, valid_ind]
-
     if method is 'pca':
-        if adata.n_obs < 100000:
-            fit = PCA(n_components=num_dim, svd_solver='arpack', random_state=0)
-            reduce_dim = fit.fit_transform(CM.toarray()) if issparse(CM) else fit.fit_transform(CM)
-        else:
-            fit = TruncatedSVD(n_components=num_dim + 1, random_state=0) # unscaled PCA
-            reduce_dim = fit.fit_transform(CM)[:, 1:] # first columns is related to the total UMI (or library size)
+        adata, fit, _ = pca(adata, CM, num_dim, 'X_' + method.lower())
 
         adata.uns['explained_variance_ratio_'] = fit.explained_variance_ratio_[1:]
     elif method == 'ica':
+        cm_genesums = CM.sum(axis=0)
+        valid_ind = (np.isfinite(cm_genesums)) + (cm_genesums != 0)
+        valid_ind = np.array(valid_ind).flatten()
+        CM = CM[:, valid_ind]
+
         fit=FastICA(num_dim,
                 algorithm='deflation', tol=5e-6, fun='logcosh', max_iter=1000)
         reduce_dim=fit.fit_transform(CM.toarray())
 
-    adata.obsm['X_' + method.lower()] = reduce_dim
+        adata.obsm['X_' + method.lower()] = reduce_dim
+
     adata.uns[method+'_fit'], adata.uns['feature_selection'] = fit, feature_selection
 
     return adata

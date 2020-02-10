@@ -9,7 +9,7 @@ from .utils import moment_model
 # incorporate the model selection code soon
 def dynamics(adata, tkey=None, filter_gene_mode='no', mode='deterministic', use_smoothed=True, group=None, protein_names=None,
              experiment_type=None, assumption_mRNA=None, assumption_protein='ss', NTR_vel=True, concat_data=False,
-             log_unnormalized=True):
+             log_unnormalized=True, fit_mode='combined'):
     """Inclusive model of expression dynamics considers splicing, metabolic labeling and protein translation. It supports
     learning high-dimensional velocity vector samples for droplet based (10x, inDrop, drop-seq, etc), scSLAM-seq, NASC-seq
     sci-fate, scNT-seq or cite-seq datasets.
@@ -93,8 +93,10 @@ def dynamics(adata, tkey=None, filter_gene_mode='no', mode='deterministic', use_
                 warnings.warn('dynamo detects the experiment type of your data as {}, but your input experiment_type '
                               'is {}'.format(exp_type, experiment_type))
         else:
-            experiment_type = exp_type
-            assumption_mRNA = None
+            if exp_type is not None:
+                experiment_type = exp_type
+                assumption_mRNA = None
+                NTR_vel = False
             # add log information
 
         if mode is 'deterministic':
@@ -108,7 +110,7 @@ def dynamics(adata, tkey=None, filter_gene_mode='no', mode='deterministic', use_
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
 
-                est.fit()
+                est.fit(mode=fit_mode)
 
             alpha, beta, gamma, eta, delta = est.parameters.values()
 
