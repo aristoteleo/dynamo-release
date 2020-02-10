@@ -106,10 +106,12 @@ def cook_dist(model, X, good):
 # ---------------------------------------------------------------------------------------------------
 # preprocess utilities
 
-def get_layer_keys(adata, layers='all', include_protein=True):
+def get_layer_keys(adata, layers='all', remove_normalized=True, include_protein=True):
     """Get the list of available layers' keys.
     """
     layer_keys = list(adata.layers.keys())
+    if remove_normalized: layer_keys = [i for i in layer_keys if not i.startswith('X_')]
+
     if 'protein' in adata.obsm.keys() and include_protein:
         layer_keys.extend(['X', 'protein'])
     else:
@@ -118,6 +120,7 @@ def get_layer_keys(adata, layers='all', include_protein=True):
 
     layers = list(set(layers).difference(['matrix', 'ambiguous', 'spanning']))
     return layers
+
 
 def get_shared_counts(adata, layers, min_shared_count, type='gene'):
     layers = list(set(layers).difference(['X', 'matrix', 'ambiguous', 'spanning']))

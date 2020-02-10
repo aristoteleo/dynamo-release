@@ -218,7 +218,7 @@ def mnn(adata, n_pca_components=25, n_neighbors=250, layers='all', use_pca_fit=T
         else:
             raise Exception('use_pca_fit is set to be True, but there is no pca fit results in .uns attribute.')
 
-    layers = get_layer_keys(adata, layers, False)
+    layers = get_layer_keys(adata, layers, False, False)
     layers = [layer for layer in layers if layer.startswith('X_') and (not layer.endswith('_matrix') and
                                                                        not layer.endswith('_ambiguous'))]
     knn_graph_list = []
@@ -262,12 +262,12 @@ def smoother(adata, use_mnn=False, layers='all'):
 
     conn = normalize_knn_graph(kNN > 0)
 
-    layers = get_layer_keys(adata, layers, False)
+    layers = get_layer_keys(adata, layers, False, False)
     layers = [layer for layer in layers if layer.startswith('X_') and (not layer.endswith('_matrix') and
                                                                not layer.endswith('_ambiguous'))]
 
     for layer in layers:
-        layer_X = adata.layers[layer]
+        layer_X = adata.layers[layer].copy()
 
         if issparse(layer_X):
             layer_X.data = 2**layer_X.data - 1 if adata.uns['pp_log'] == 'log2' else np.exp(layer_X.data) - 1

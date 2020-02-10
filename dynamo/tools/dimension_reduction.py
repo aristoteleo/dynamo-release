@@ -45,21 +45,11 @@ def reduceDimension(adata, layer='X', n_pca_components=30, n_components=2, n_nei
             X = adata.X[:, adata.var.use_for_dynamo.values]
         else:
             X = adata[:, adata.var.use_for_dynamo.values].layers[layer]
-
-            if issparse(X):
-                X.data = np.log(X.data + 1)
-            else:
-                X = np.log(X + 1)
     else:
         if layer == 'X':
             X = adata.X
         else:
             X = adata.layers[layer]
-
-            if issparse(X):
-                X.data = np.log(X.data + 1)
-            else:
-                X = np.log(X + 1)
 
     if layer == 'X':
         if ((pca_key not in adata.obsm.keys()) or 'pca_fit' not in adata.uns.keys()) or reduction_method is "pca":

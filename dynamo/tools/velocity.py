@@ -676,6 +676,8 @@ class velocity:
             if self.parameters['beta'] is None and self.parameters['alpha'] is not None:
                 no_beta = True
                 self.parameters['beta'] = self.parameters['alpha']
+            else:
+                no_beta = False
 
             if len(self.parameters['beta'].shape) == 1:
                 beta = np.repeat(self.parameters['beta'].reshape((-1, 1)), U.shape[1], axis=1)
