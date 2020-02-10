@@ -132,7 +132,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
 
     if 'gamma' in adata.var.columns:
         gamma = adata.var.gamma[genes].values
-        velocity_offset = [0] * n_genes if not ("gamma_b" in adata.var.columns) else \
+        velocity_offset = [0] * n_genes if (not ("gamma_b" in adata.var.columns) or adata.var.gamma_b.unique() is None) else \
             adata.var.gamma_b[genes].values
     else:
         raise Exception('adata does not seem to have velocity_gamma column. Velocity estimation is required before '
@@ -160,7 +160,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
         if 'protein' in adata.obsm.keys():
             if 'delta' in adata.var.columns:
                 gamma_P = adata.var.delta[genes].values
-                velocity_offset_P = [0] * n_cells if not ("delta_b" in adata.var.columns) else \
+                velocity_offset_P = [0] * n_cells if (not ("delta_b" in adata.var.columns) or adata.var.gamma_b.unique() is None) else \
                     adata.var.delta_b[genes].values
             else:
                 raise Exception(
