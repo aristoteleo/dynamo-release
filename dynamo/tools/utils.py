@@ -246,8 +246,8 @@ def set_param_deterministic(adata, est, alpha, beta, gamma, eta, delta, experime
     else:
         if alpha is not None:
             if len(alpha.shape) > 1:  # for each cell
-                if cur_grp == _group[0]: adata.varm[kin_param_pre + 'alpha'] = csr_matrix(np.zeros((adata.shape[::-1]))) \
-                    if issparse(alpha) else np.zeros((adata.shape[::-1])) #
+                if cur_grp == _group[0]: adata.varm[kin_param_pre + 'alpha'] = csr_matrix(np.zeros(adata.shape[::-1])) \
+                    if issparse(alpha) else np.zeros(adata.shape[::-1]) #
                 adata.varm[kin_param_pre + 'alpha'][valid_ind, :] = alpha  #
                 adata.var.loc[valid_ind, kin_param_pre + 'alpha'] = alpha.mean(1)
             elif len(alpha.shape) is 1:
@@ -474,7 +474,7 @@ def norm_loglikelihood(x, mu, sig):
 
 # ---------------------------------------------------------------------------------------------------
 # velocity related
-def set_velocity_genes(adata, vkey='velocity_S', min_r2=-1, min_alpha=-1, min_gamma=-1, min_delta=-1, use_for_dynamo=True):
+def set_velocity_genes(adata, vkey='velocity_S', min_r2=0.01, min_alpha=0, min_gamma=0, min_delta=0, use_for_dynamo=True):
     layer = vkey.split('_')[1]
 
     if layer is 'U':

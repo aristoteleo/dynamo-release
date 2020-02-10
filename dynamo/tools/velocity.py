@@ -1003,7 +1003,7 @@ class estimation:
 
                             for i in range(n):
                                 k, gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_steady_state(U[i], S[i], False, None, perc_right)
-                                gamma[i], self.parameters['alpha'][i] = one_shot_gamma_alpha(k, t_uniq, csr_matrix(U[i]))
+                                gamma[i], self.parameters['alpha'][i] = one_shot_gamma_alpha(k, t_uniq, U[i])
                             self.parameters['gamma'],  self.aux_param['gamma_r2'], self.aux_param['alpha_r2'] = gamma, gamma_r2, gamma_r2
 
             elif self.extyp == 'mix_std_stm':

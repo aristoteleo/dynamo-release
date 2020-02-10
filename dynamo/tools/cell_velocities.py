@@ -3,7 +3,7 @@ from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import PCA
 from .Markov import *
 from .connectivity import extract_indices_dist_from_graph
-from .utils import set_velocity_genes, get_finite_inds, get_ekey_vkey_from_adata, get_mapper_inverse
+from .utils import set_velocity_genes, get_finite_inds, get_ekey_vkey_from_adata, get_mapper_inverse, update_dict
 
 from .dimension_reduction import reduceDimension
 
@@ -94,7 +94,7 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_b
     if vkey == 'velocity_S':
         X_embedding = adata.obsm['X_'+basis][:, :2]
     else:
-        adata = reduceDimension(adata, layer=layer, n_pca_components=30, n_components=2, n_neighbors=30, reduction_method=basis, cores=1)
+        adata = reduceDimension(adata, layer=layer, reduction_method=basis)
         layer = layer if layer.startswith('X') else 'X_' + layer
         X_embedding = adata.obsm[layer + '_' + basis][:, :2]
 
@@ -107,11 +107,11 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_b
     if method == 'analytical':
         kmc = KernelMarkovChain()
         kmc_args = {"n_recurse_neighbors": 2, "M_diff": 2, "epsilon": None, "adaptive_local_kernel": True, "tol": 1e-7}
-        kmc_args.update(kmc_kwargs)
+        kmc_args = update_dict(kmc_args, kmc_kwargs)
 
         # number of kNN in neighbor_idx may be too small
         if n_pca_components is not None:
-            pca = PCA(n_components=n_pca_components, svd_solver='arpack', random_state=0)
+            pca = PCA(n_components=min(n_pca_components, X.shape[1] - 1), svd_solver='arpack', random_state=0)
             pca.fit(X)
             X_pca = pca.transform(X)
             Y_pca = pca.transform(X + V_mat)
@@ -129,7 +129,6 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_b
             delta_X = kmc.compute_density_corrected_drift(X_embedding, kmc.Idx, normalize_vector=True, scale=scale) # indices, k = 500
         else:
             delta_X = kmc.compute_drift(X_embedding, num_prop=1, scale=scale) # indices, k = 500
-
 
         # P = kmc.compute_stationary_distribution()
         # adata.obs['stationary_distribution'] = P
