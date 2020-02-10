@@ -674,6 +674,7 @@ class velocity:
         t_uniq, t_uniq_cnt = np.unique(self.parameters['t'], return_counts=True)
         if self.parameters['gamma'] is not None:
             if self.parameters['beta'] is None and self.parameters['alpha'] is not None:
+                no_beta = True
                 self.parameters['beta'] = self.parameters['alpha']
 
             if len(self.parameters['beta'].shape) == 1:
@@ -700,8 +701,12 @@ class velocity:
             else:
                 gamma = np.repeat(self.parameters['gamma'], U.shape[1], axis=1)
 
-            V = csr_matrix(beta).multiply(U) - csr_matrix(gamma).multiply(S) if issparse(U) \
+            if no_beta:
+                V = csr_matrix(beta) - csr_matrix(gamma).multiply(S) if issparse(U) \
                     else beta * U - gamma * S
+            else:
+                V = csr_matrix(beta).multiply(U) - csr_matrix(gamma).multiply(S) if issparse(U) \
+                        else beta * U - gamma * S
         else:
             V = np.nan
         return V
