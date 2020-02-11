@@ -958,7 +958,10 @@ class estimation:
                     u0, gamma = np.zeros(n), np.zeros(n)
                     uu_m, uu_v, t_uniq = cal_12_mom(self.data['uu'], self.t)
                     for i in range(n):
-                        gamma[i], u0[i] = fit_first_order_deg_lsq(t_uniq, uu_m[i])
+                        try:
+                            gamma[i], u0[i] = fit_first_order_deg_lsq(t_uniq, uu_m[i])
+                        except:
+                            gamma[i], u0[i] = 0, 0
                     self.parameters['gamma'], self.aux_param['uu0'] = gamma, u0
                     alpha = np.zeros(n)
                     # let us only assume one alpha for each gene in all cells
