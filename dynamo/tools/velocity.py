@@ -2,7 +2,7 @@ import numpy as np
 from scipy.optimize import least_squares
 from scipy.sparse import issparse, csr_matrix
 from warnings import warn
-from .utils import cal_12_mom
+from .utils import cal_12_mom, one_shot_gamma_alpha
 from .moments import strat_mom
 # from sklearn.cluster import KMeans
 # from sklearn.neighbors import NearestNeighbors
@@ -177,7 +177,7 @@ def solve_alpha_2p(t0, t1, alpha0, beta, u1):
 
     return alpha1
 
-def fit_linreg(x, y, intercept=False):
+def fit_linreg(x, y, mask, intercept=False):
     """Simple linear regression: y = kx + b.
 
     Arguments
@@ -203,25 +203,32 @@ def fit_linreg(x, y, intercept=False):
     x = x.A if issparse(x) else x
     y = y.A if issparse(y) else y
 
-    mask = np.logical_and(~np.isnan(x), ~np.isnan(y))
-    xx = x[mask]
-    yy = y[mask]
-    ym = np.mean(yy)
-    xm = np.mean(xx)
+    _mask = np.logical_and(~np.isnan(x), ~np.isnan(y))
+    xx = x[mask & _mask]
+    yy = y[mask & _mask]
 
     if intercept:
+        ym = np.mean(yy)
+        xm = np.mean(xx)
+
         cov = np.mean(xx * yy) - xm * ym
         var_x = np.mean(xx * xx) - xm * xm
         k = cov / var_x
         b = ym - k * xm
+        # assume b is always positive
+        if b < 0: k, b = np.mean(xx * yy) / np.mean(xx * xx), 0
     else:
-        k = np.mean(yy) / np.mean(xx)
+        # use uncentered cov and var_x
+        cov = np.mean(xx * yy)
+        var_x = np.mean(xx * xx)
+        k = cov / var_x
         b = 0
 
-    SS_tot_n = np.var(yy)
-    SS_res_n = np.mean((yy - k * xx - b) ** 2)
-    r2 = 1 - SS_res_n / SS_tot_n
-    return k, b, r2
+    SS_tot_n, all_SS_tot_n = np.var(yy), np.var(y[_mask])
+    SS_res_n, all_SS_res_n = np.mean((yy - k * xx - b) ** 2), np.mean((y[_mask] - k * x[_mask] - b) ** 2)
+    r2, all_r2 = 1 - SS_res_n / SS_tot_n, 1 - all_SS_res_n / all_SS_tot_n
+
+    return k, b, r2, all_r2
 
 def fit_stochastic_lin_reg(u, s, us, ss):
     x = np.vstack((u, u + 2*us))
@@ -610,9 +617,17 @@ class velocity:
 
         t = self.parameters['t']
         t_uniq, t_uniq_cnt = np.unique(self.parameters['t'], return_counts=True)
-        if self.parameters['alpha'] is not None and self.parameters['beta'] is not None:
+        if self.parameters['alpha'] is not None:
+            if self.parameters['beta'] is None and self.parameters['gamma'] is not None:
+                no_beta = True
+                self.parameters['beta'] = self.parameters['gamma']
+            else:
+                no_beta = False
+
             if type(self.parameters['alpha']) is not tuple:
-                if self.parameters['alpha'].shape[1] == U.shape[1]:
+                if len(self.parameters['alpha'].shape) == 1:
+                    alpha = np.repeat(self.parameters['alpha'].reshape((-1, 1)), U.shape[1], axis=1)
+                elif self.parameters['alpha'].shape[1] == U.shape[1]:
                     alpha = self.parameters['alpha']
                 elif self.parameters['alpha'].shape[1] == len(t_uniq) and len(t_uniq) > 1:
                     alpha = np.zeros(U.shape)
@@ -642,6 +657,7 @@ class velocity:
             else:
                 beta = np.repeat(self.parameters['beta'], U.shape[1], axis=1)
 
+            if no_beta: self.parameters['beta'] = None
             V = csr_matrix(alpha) - (csr_matrix(beta).multiply(U)) if issparse(U) else \
                     alpha - beta * U
         else:
@@ -666,9 +682,17 @@ class velocity:
 
         t = self.parameters['t']
         t_uniq, t_uniq_cnt = np.unique(self.parameters['t'], return_counts=True)
-        if self.parameters['beta'] is not None and self.parameters['gamma'] is not None:
+        if self.parameters['gamma'] is not None:
+            if self.parameters['beta'] is None and self.parameters['alpha'] is not None:
+                no_beta = True
+                self.parameters['beta'] = self.parameters['alpha']
+            else:
+                no_beta = False
+
             if len(self.parameters['beta'].shape) == 1:
                 beta = np.repeat(self.parameters['beta'].reshape((-1, 1)), U.shape[1], axis=1)
+            elif self.parameters['beta'].shape[1] == U.shape[1]:
+                beta = self.parameters['beta']
             elif self.parameters['beta'].shape[1] == len(t_uniq) and len(t_uniq) > 1:
                 beta = np.zeros_like(U.shape)
                 for i in range(len(t_uniq)):
@@ -679,6 +703,8 @@ class velocity:
 
             if len(self.parameters['gamma'].shape) == 1:
                 gamma = np.repeat(self.parameters['gamma'].reshape((-1, 1)), U.shape[1], axis=1)
+            elif self.parameters['gamma'].shape[1] == U.shape[1]:
+                gamma = self.parameters['gamma']
             elif self.parameters['gamma'].shape[1] == len(t_uniq) and len(t_uniq) > 1:
                 gamma = np.zeros_like(U.shape)
                 for i in range(len(t_uniq)):
@@ -687,8 +713,12 @@ class velocity:
             else:
                 gamma = np.repeat(self.parameters['gamma'], U.shape[1], axis=1)
 
-            V = csr_matrix(beta).multiply(U) - csr_matrix(gamma).multiply(S) if issparse(U) \
-                    else beta * U - gamma * S
+            if no_beta:
+                V = csr_matrix(beta) - csr_matrix(gamma).multiply(S) if issparse(U) \
+                    else beta - gamma * S
+            else:
+                V = csr_matrix(beta).multiply(U) - csr_matrix(gamma).multiply(S) if issparse(U) \
+                        else beta * U - gamma * S
         else:
             V = np.nan
         return V
@@ -714,6 +744,8 @@ class velocity:
         if self.parameters['eta'] is not None and self.parameters['delta'] is not None:
             if len(self.parameters['eta'].shape) == 1:
                 eta = np.repeat(self.parameters['eta'].reshape((-1, 1)), S.shape[1], axis=1)
+            elif self.parameters['eta'].shape[1] == S.shape[1]:
+                eta = self.parameters['eta']
             elif self.parameters['eta'].shape[1] == len(t_uniq) and len(t_uniq) > 1:
                 eta = np.zeros_like(S.shape)
                 for i in range(len(t_uniq)):
@@ -724,6 +756,8 @@ class velocity:
 
             if len(self.parameters['delta'].shape) == 1:
                 delta = np.repeat(self.parameters['delta'].reshape((-1, 1)), S.shape[1], axis=1)
+            elif self.parameters['delta'].shape[1] == S.shape[1]:
+                delta = self.parameters['delta']
             elif self.parameters['delta'].shape[1] == len(t_uniq) and len(t_uniq) > 1:
                 delta = np.zeros_like(S.shape)
                 for i in range(len(t_uniq)):
@@ -845,7 +879,7 @@ class estimation:
                           'delta_r2': None, "uu0": None, "ul0": None, "su0": None, "sl0": None, 'U0': None, 'S0': None, 'total0': None} # note that alpha_intercept also corresponds to u0 in fit_alpha_degradation, similar to fit_first_order_deg_lsq
         self.ind_for_proteins = ind_for_proteins
 
-    def fit(self, intercept=False, perc_left=5, perc_right=5, clusters=None):
+    def fit(self, intercept=False, perc_left=None, perc_right=5, clusters=None, mode="combined"):
         """Fit the input data to estimate all or a subset of the parameters
 
         Arguments
@@ -870,7 +904,7 @@ class estimation:
                 U = self.data['uu'] if self.data['ul'] is None else self.data['uu'] + self.data['ul']
                 S = self.data['su'] if self.data['sl'] is None else self.data['su'] + self.data['sl']
                 for i in range(n):
-                    gamma[i], gamma_intercept[i], gamma_r2[i] = self.fit_gamma_steady_state(U[i], S[i],
+                    gamma[i], gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_steady_state(U[i], S[i],
                             intercept, perc_left, perc_right)
                 self.parameters['gamma'], self.aux_param['gamma_intercept'], self.aux_param['gamma_r2'] = gamma, gamma_intercept, gamma_r2
             elif np.all(self._exist_data('uu', 'ul')):
@@ -879,7 +913,7 @@ class estimation:
                 U = self.data['ul']
                 S = self.data['uu'] + self.data['ul']
                 for i in range(n):
-                    gamma[i], gamma_intercept[i], gamma_r2[i] = self.fit_gamma_steady_state(U[i], S[i],
+                    gamma[i], gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_steady_state(U[i], S[i],
                             intercept, perc_left, perc_right)
                 self.parameters['gamma'], self.aux_param['gamma_intercept'], self.aux_param['gamma_r2'] = gamma, gamma_intercept, gamma_r2
         else:
@@ -919,29 +953,32 @@ class estimation:
                         self.parameters['beta'], self.parameters['gamma'], self.aux_param['uu0'], self.aux_param['su0'] = self.fit_beta_gamma_lsq(t_uniq, uu_m, su_m)
                     # alpha estimation
                     ul_m, ul_v, t_uniq = cal_12_mom(self.data['ul'], self.t)
-                    alpha = np.zeros_like(self.data['ul'].A) if issparse(self.data['ul']) else np.zeros_like(self.data['ul'])
-                    # assume constant alpha across all cells
+                    alpha = np.zeros(n)
+                    # let us only assume one alpha for each gene in all cells
                     for i in range(n):
                         # for j in range(len(self.data['ul'][i])):
-                        alpha[i, :] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters['beta'][i])
+                        alpha[i] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters['beta'][i])
                     self.parameters['alpha'] = alpha
                 elif np.all(self._exist_data('ul', 'uu')):
                     n = self.data['uu'].shape[0]  # self.get_n_genes(data=U)
                     u0, gamma = np.zeros(n), np.zeros(n)
                     uu_m, uu_v, t_uniq = cal_12_mom(self.data['uu'], self.t)
                     for i in range(n):
-                        gamma[i], u0[i] = fit_first_order_deg_lsq(t_uniq, uu_m[i])
+                        try:
+                            gamma[i], u0[i] = fit_first_order_deg_lsq(t_uniq, uu_m[i])
+                        except:
+                            gamma[i], u0[i] = 0, 0
                     self.parameters['gamma'], self.aux_param['uu0'] = gamma, u0
-                    alpha = np.zeros_like(self.data['ul'].A) if issparse(self.data['ul']) else np.zeros_like(self.data['ul'])
-                    # assume constant alpha across all cells
+                    alpha = np.zeros(n)
+                    # let us only assume one alpha for each gene in all cells
                     ul_m, ul_v, _ = cal_12_mom(self.data['ul'], self.t)
                     for i in range(n):
                         # for j in range(len(self.data['ul'][i])):
-                        alpha[i, :] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters['gamma'][i])
+                        alpha[i] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters['gamma'][i])
                     self.parameters['alpha'] = alpha
                     # alpha: one-shot
             # 'one_shot'
-            elif self.extyp == 'one_shot':
+            elif self.extyp == 'one_shot' or self.extyp == 'one-shot':
                 t_uniq = np.unique(self.t)
                 if len(t_uniq) > 1:
                     raise Exception('By definition, one-shot experiment should involve only one time point measurement!')
@@ -958,18 +995,44 @@ class estimation:
                             U0[i], beta[i] = np.mean(U), solve_gamma(np.max(self.t), self.data['uu'][i], U)
                         self.aux_param['U0'], self.aux_param['S0'], self.parameters['beta'], self.parameters['gamma'] = U0, S0, beta, gamma
 
-                        self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
+                        ul_m, ul_v, t_uniq = cal_12_mom(self.data['ul'], self.t)
+                        alpha = np.zeros(n)
+                        # let us only assume one alpha for each gene in all cells
+                        for i in range(n):
+                            # for j in range(len(self.data['ul'][i])):
+                            alpha[i] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters['beta'][i])
+
+                        self.parameters['alpha'] = alpha
+                        # self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
                 else:
                     if self._exist_data('ul') and self._exist_parameter('gamma'):
                         self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['gamma'], clusters)
                     elif self._exist_data('ul') and self._exist_data('uu'):
-                        gamma, total0 = np.zeros(n), np.zeros(n)
-                        for i in range(n):
-                            total = self.data['uu'][i] + self.data['ul'][i]
-                            total0[i], gamma[i] = np.mean(total), solve_gamma(np.max(self.t), self.data['uu'][i], total)
-                        self.aux_param['total0'], self.parameters['gamma'] = total0, gamma
+                        if mode == 'sci-fate' or mode == 'sci_fate':
+                            gamma, total0 = np.zeros(n), np.zeros(n)
+                            for i in range(n):
+                                total = self.data['uu'][i] + self.data['ul'][i]
+                                total0[i], gamma[i] = np.mean(total), solve_gamma(np.max(self.t), self.data['uu'][i], total)
+                            self.aux_param['total0'], self.parameters['gamma'] = total0, gamma
 
-                        self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['gamma'], clusters)
+                            ul_m, ul_v, t_uniq = cal_12_mom(self.data['ul'], self.t)
+                            # let us only assume one alpha for each gene in all cells
+                            alpha = np.zeros(n)
+                            for i in range(n):
+                                # for j in range(len(self.data['ul'][i])):
+                                alpha[i] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters['gamma'][i]) # ul_m[i] / t_uniq
+
+                            self.parameters['alpha'] = alpha
+                            # self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['gamma'], clusters)
+                        elif mode == 'combined':
+                            self.parameters['alpha'] = csr_matrix(self.data['ul'].shape) if issparse(self.data['ul']) else np.zeros_like(self.data['ul'].shape)
+                            t_uniq, gamma, gamma_intercept, gamma_r2 = np.unique(self.t), np.zeros(n), np.zeros(n), np.zeros(n)
+                            U, S = self.data['ul'], self.data['uu'] + self.data['ul']
+
+                            for i in range(n):
+                                k, gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_steady_state(U[i], S[i], False, None, perc_right)
+                                gamma[i], self.parameters['alpha'][i] = one_shot_gamma_alpha(k, t_uniq, U[i])
+                            self.parameters['gamma'],  self.aux_param['gamma_r2'], self.aux_param['alpha_r2'] = gamma, gamma_r2, gamma_r2
 
             elif self.extyp == 'mix_std_stm':
                 t_min, t_max = np.min(self.t), np.max(self.t)
@@ -1017,11 +1080,11 @@ class estimation:
                     if self._exist_data('sl') else self.data['su'][ind_for_proteins]
 
                 for i in range(n):
-                    delta[i], delta_intercept[i], delta_r2[i] = self.fit_gamma_steady_state(s[i], self.data['p'][i],
+                    delta[i], delta_intercept[i], _, delta_r2[i] = self.fit_gamma_steady_state(s[i], self.data['p'][i],
                             intercept, perc_left, perc_right)
                 self.parameters['delta'], self.aux_param['delta_intercept'], self.aux_param['delta_r2'] = delta, delta_intercept, delta_r2
 
-    def fit_gamma_steady_state(self, u, s, intercept=True, perc_left=5, perc_right=5, normalize=True):
+    def fit_gamma_steady_state(self, u, s, intercept=True, perc_left=None, perc_right=5, normalize=True):
         """Estimate gamma using linear regression based on the steady state assumption.
 
         Arguments
@@ -1035,7 +1098,7 @@ class estimation:
             True -- the linear regression is performed with an unfixed intercept;
             False -- the linear regresssion is performed with a fixed zero intercept.
         perc_left: float
-            The percentage of samples included in the linear regression in the left tail. If set to None, then all the samples are included.
+            The percentage of samples included in the linear regression in the left tail. If set to None, then all the left samples are excluded.
         perc_right: float
             The percentage of samples included in the linear regression in the right tail. If set to None, then all the samples are included.
         normalize: bool
@@ -1048,18 +1111,17 @@ class estimation:
         b: float
             The intercept of the linear regression model.
         r2: float
-            Coefficient of determination or r square.
+            Coefficient of determination or r square for the extreme data points.
+        r2: float
+            Coefficient of determination or r square for the extreme data points.
+        all_r2: float
+            Coefficient of determination or r square for all data points.
         """
+        if not intercept and perc_left is None: perc_left = perc_right
         u = u.A.flatten() if issparse(u) else u.flatten()
         s = s.A.flatten() if issparse(s) else s.flatten()
 
         n = len(u)
-
-        i_left = np.int(perc_left/100.0*n) if perc_left is not None else n
-        i_right = np.int((100-perc_right)/100.0*n) if perc_right is not None else 0
-
-        mask = np.zeros(n, dtype=bool)
-        mask[:i_left] = mask[i_right:] = True
 
         if normalize:
             su = s / np.clip(np.max(s), 1e-3, None)
@@ -1067,9 +1129,15 @@ class estimation:
         else:
             su = s + u
 
-        extreme_ind = np.argsort(su)[mask]
+        if perc_left is None:
+            mask = su >= np.percentile(su, 100 - perc_right, axis=0)
+        elif perc_right is None:
+            mask = np.ones(n, dtype=bool)
+        else:
+            left, right = np.percentile(su, [perc_left, 100 - perc_right], axis=0)
+            mask = (su <= left) | (su >= right)
 
-        return fit_linreg(s[extreme_ind], u[extreme_ind], intercept)
+        return fit_linreg(s, u, mask, intercept)
 
     def fit_beta_gamma_lsq(self, t, U, S):
         """Estimate beta and gamma with the degradation data using the least squares method.

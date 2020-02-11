@@ -9,11 +9,10 @@ setup(
     name="dynamo",
     version=__version__,
     python_requires='>=3.6',
-    install_requires=['numpy>=1.14', 'scipy>=1.0', 'scikit-learn>=0.19.1', "cvxopt>=1.2.3",
-                     'anndata>=0.6.18', 'loompy>=2.0.12', 'matplotlib>=2.2', "trimap>=1.0.11",
-                     'setuptools', 'seaborn>=0.9.0', 'sympy>=1.4', 'numdifftools>=0.9.39',
-                     'yt>=3.5.1', 'umap-learn>=0.3.9', 'pysal>=2.0.0', 'statsmodels>=0.9.0',
-                     'numba>=0.46.0', 'colorcet>=2.0.2', 'datashader>=0.9.0', 'bokeh>=1.4.0', 'holoviews>=1.9.2'], # , 'fitsne>=1.0.1'
+    install_requires=['numpy>=1.18.1', 'pandas>=0.25.1', 'scipy>=1.0', 'scikit-learn>=0.19.1', "cvxopt>=1.2.3",
+                      'anndata>=0.6.18', 'loompy>=2.0.12', 'matplotlib>=2.2', "trimap>=1.0.11", 'setuptools',
+                      'numdifftools>=0.9.39', 'umap-learn>=0.3.9', 'statsmodels>=0.9.0', 'numba>=0.46.0',
+                      'colorcet>=2.0.2', 'datashader>=0.9.0', 'bokeh>=1.4.0', 'holoviews>=1.9.2'], # ,'seaborn>=0.9.0',  'fitsne>=1.0.1''pysal>=2.0.0', 'yt>=3.5.1', 'sympy>=1.4',
     packages=find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",
@@ -29,5 +28,5 @@ setup(
     license='BSD',
     url="https://github.com/aristoteleo/dynamo-release",
     download_url=f"https://github.com/aristoteleo/dynamo-release",
-    keywords=["VectorField", "singlecell", "velocity", "scSLAMseq", "potential"]
+    keywords=["VectorField", "singlecell", "velocity", "scNT-seq", "sci-fate", "NASC-seq", "scSLAMseq", "potential"]
     )

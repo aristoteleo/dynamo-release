@@ -1,4 +1,4 @@
-def show_landscape(adata, Xgrid, Ygrid, Zgrid, basis='trimap'):
+def show_landscape(adata, Xgrid, Ygrid, Zgrid, basis='umap'):
     """Plot the quasi-potential landscape.
 
     Parameters
@@ -11,7 +11,7 @@ def show_landscape(adata, Xgrid, Ygrid, Zgrid, basis='trimap'):
                 y-coordinates of the Grid produced from the meshgrid function.
         Zgrid: `numpy.ndarray`
                 z-coordinates or potential at each of the x/y coordinate.
-        basis: `str` (default: trimap)
+        basis: `str` (default: umap)
             The method of dimension reduction. By default it is trimap. Currently it is not checked with Xgrid and Ygrid.
 
     Returns

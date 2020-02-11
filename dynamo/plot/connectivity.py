@@ -9,9 +9,10 @@ The code base will be extended extensively to consider the following cases:
     6. others
 """
 
-from .utils import _select_font_color, _get_extent, _embed_datashader_in_an_axis, _to_hex
-from .utils import is_gene_name, is_list_of_lists
+from .utils import _select_font_color, _get_extent, _embed_datashader_in_an_axis, _datashade_points
+from .utils import is_list_of_lists # is_gene_name
 from ..configuration import _themes
+from ..docrep import DocstringProcessor
 
 import pandas as pd
 import numpy as np
@@ -20,6 +21,7 @@ import datashader as ds
 import datashader.transfer_functions as tf
 import datashader.bundling as bd
 
+docstrings = DocstringProcessor()
 
 def _plt_connectivity(coord, connectivity):
     """Plot connectivity graph via networkx and matplotlib.
@@ -62,139 +64,17 @@ def _plt_connectivity(coord, connectivity):
     plt.show()
 
 
-def _datashade_points(
-    points,
-    ax=None,
-    labels=None,
-    values=None,
-    highlights=None,
-    cmap="blue",
-    color_key=None,
-    color_key_cmap="Spectral",
-    background="black",
-    width=700,
-    height=500,
-    show_legend=True,
-):
-    import matplotlib.pyplot as plt
-    from matplotlib.patches import Patch
-
-    """Use datashader to plot points"""
-    extent = _get_extent(points)
-    canvas = ds.Canvas(
-        plot_width=int(width),
-        plot_height=int(height),
-        x_range=(extent[0], extent[1]),
-        y_range=(extent[2], extent[3]),
-    )
-    data = pd.DataFrame(points, columns=("x", "y"))
-
-    legend_elements = None
-
-    # Color by labels
-    if labels is not None:
-        if labels.shape[0] != points.shape[0]:
-            raise ValueError(
-                "Labels must have a label for "
-                "each sample (size mismatch: {} {})".format(
-                    labels.shape[0], points.shape[0]
-                )
-            )
-
-        labels = np.array(labels, dtype='str')
-        data["label"] = pd.Categorical(labels)
-        if color_key is None and color_key_cmap is None:
-            aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
-            result = tf.shade(aggregation, how="eq_hist")
-        elif color_key is None:
-            if highlights is None:
-                aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
-                unique_labels = np.unique(labels)
-                num_labels = unique_labels.shape[0]
-                color_key = _to_hex(
-                    plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
-                )
-            else:
-                highlights.append('other')
-                unique_labels = np.array(highlights)
-                num_labels = unique_labels.shape[0]
-                color_key = _to_hex(
-                    plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
-                )
-                color_key[-1] = '#bdbdbd' # lightgray hex code https://www.color-hex.com/color/d3d3d3
-
-                labels[[i not in highlights for i in labels]] = 'other'
-                data["label"] = pd.Categorical(labels)
-                aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
-
-            legend_elements = [
-                Patch(facecolor=color_key[i], label=k)
-                for i, k in enumerate(unique_labels)
-            ]
-            result = tf.shade(aggregation, color_key=color_key, how="eq_hist")
-        else:
-            aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
-
-            legend_elements = [
-                Patch(facecolor=color_key[k], label=k) for k in color_key.keys()
-            ]
-            result = tf.shade(aggregation, color_key=color_key, how="eq_hist")
-
-    # Color by values
-    elif values is not None:
-        if values.shape[0] != points.shape[0]:
-            raise ValueError(
-                "Values must have a value for "
-                "each sample (size mismatch: {} {})".format(
-                    values.shape[0], points.shape[0]
-                )
-            )
-        unique_values = np.unique(values)
-        if unique_values.shape[0] >= 256:
-            min_val, max_val = np.min(values), np.max(values)
-            bin_size = (max_val - min_val) / 255.0
-            data["val_cat"] = pd.Categorical(
-                np.round((values - min_val) / bin_size).astype(np.int16)
-            )
-            aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("val_cat"))
-            color_key = _to_hex(plt.get_cmap(cmap)(np.linspace(0, 1, 256)))
-            result = tf.shade(aggregation, color_key=color_key, how="eq_hist")
-        else:
-            data["val_cat"] = pd.Categorical(values)
-            aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("val_cat"))
-            color_key_cols = _to_hex(
-                plt.get_cmap(cmap)(np.linspace(0, 1, unique_values.shape[0]))
-            )
-            color_key = dict(zip(unique_values, color_key_cols))
-            result = tf.shade(aggregation, color_key=color_key, how="eq_hist")
-
-    # Color by density (default datashader option)
-    else:
-        aggregation = canvas.points(data, "x", "y", agg=ds.count())
-        result = tf.shade(aggregation, cmap=plt.get_cmap(cmap))
-
-    if background is not None:
-        result = tf.set_background(result, background)
-
-    if ax is not None:
-        _embed_datashader_in_an_axis(result, ax)
-        if show_legend and legend_elements is not None:
-            ax.legend(handles=legend_elements)
-        return ax
-    else:
-        return result
-
-
+@docstrings.get_sectionsf('con_base')
 def connectivity_base(
         x,
         y,
         edge_df,
+        highlights=None,
         edge_bundling=None,
         edge_cmap="gray_r",
         show_points=True,
         labels=None,
         values=None,
-        highlights=None,
         theme=None,
         cmap="blue",
         color_key=None,
@@ -217,88 +97,94 @@ def connectivity_base(
 
     Parameters
     ----------
-    x: `int`
-        The first component of the embedding.
-    y: `int`
-        The second component of the embedding.
-    edge_bundling: string or None (optional, default None)
-        The edge bundling method to use. Currently supported
-        are None or 'hammer'. See the datashader docs
-        on graph visualization for more details.
-    edge_cmap: string (default 'gray_r')
-        The name of a matplotlib colormap to use for shading/
-        coloring the edges of the connectivity graph. Note that
-        the ``theme``, if specified, will override this.
-    show_points: bool (optional False)
-        Whether to display the points over top of the edge
-        connectivity. Further options allow for coloring/
-        shading the points accordingly.
-    labels: array, shape (n_samples,) (optional, default None)
-        An array of labels (assumed integer or categorical),
-        one for each data sample.
-        This will be used for coloring the points in
-        the plot according to their label. Note that
-        this option is mutually exclusive to the ``values``
-        option.
-    values: array, shape (n_samples,) (optional, default None)
-        An array of values (assumed float or continuous),
-        one for each sample.
-        This will be used for coloring the points in
-        the plot according to a colorscale associated
-        to the total range of values. Note that this
-        option is mutually exclusive to the ``labels``
-        option.
-    theme: string (optional, default None)
-        A color theme to use for plotting. A small set of
-        predefined themes are provided which have relatively
-        good aesthetics. Available themes are:
-           * 'blue'
-           * 'red'
-           * 'green'
-           * 'inferno'
-           * 'fire'
-           * 'viridis'
-           * 'darkblue'
-           * 'darkred'
-           * 'darkgreen'
-    cmap: string (optional, default 'Blues')
-        The name of a matplotlib colormap to use for coloring
-        or shading points. If no labels or values are passed
-        this will be used for shading points according to
-        density (largely only of relevance for very large
-        datasets). If values are passed this will be used for
-        shading according the value. Note that if theme
-        is passed then this value will be overridden by the
-        corresponding option of the theme.
-    color_key: dict or array, shape (n_categories) (optional, default None)
-        A way to assign colors to categoricals. This can either be
-        an explicit dict mapping labels to colors (as strings of form
-        '#RRGGBB'), or an array like object providing one color for
-        each distinct category being provided in ``labels``. Either
-        way this mapping will be used to color points according to
-        the label. Note that if theme
-        is passed then this value will be overridden by the
-        corresponding option of the theme.
-    color_key_cmap: string (optional, default 'Spectral')
-        The name of a matplotlib colormap to use for categorical coloring.
-        If an explicit ``color_key`` is not given a color mapping for
-        categories can be generated from the label list and selecting
-        a matching list of colors from the given colormap. Note
-        that if theme
-        is passed then this value will be overridden by the
-        corresponding option of the theme.
-    background: string (optional, default 'white)
-        The color of the background. Usually this will be either
-        'white' or 'black', but any color name will work. Ideally
-        one wants to match this appropriately to the colors being
-        used for points etc. This is one of the things that themes
-        handle for you. Note that if theme
-        is passed then this value will be overridden by the
-        corresponding option of the theme.
-    width: int (optional, default 800)
-        The desired width of the plot in pixels.
-    height: int (optional, default 800)
-        The desired height of the plot in pixels
+        x: `int`
+            The first component of the embedding.
+        y: `int`
+            The second component of the embedding.
+        edge_df `pd.DataFrame`
+            The dataframe denotes the graph edge pairs. The three columns
+            include 'source', 'target' and 'weight'.
+        highlights: `list`, `list of list` or None (default: `None`)
+            The list that cells will be restricted to.
+        edge_bundling: string or None (optional, default None)
+            The edge bundling method to use. Currently supported
+            are None or 'hammer'. See the datashader docs
+            on graph visualization for more details.
+        edge_cmap: string (default 'gray_r')
+            The name of a matplotlib colormap to use for shading/
+            coloring the edges of the connectivity graph. Note that
+            the ``theme``, if specified, will override this.
+        show_points: bool (optional False)
+            Whether to display the points over top of the edge
+            connectivity. Further options allow for coloring/
+            shading the points accordingly.
+        labels: array, shape (n_samples,) (optional, default None)
+            An array of labels (assumed integer or categorical),
+            one for each data sample.
+            This will be used for coloring the points in
+            the plot according to their label. Note that
+            this option is mutually exclusive to the ``values``
+            option.
+        values: array, shape (n_samples,) (optional, default None)
+            An array of values (assumed float or continuous),
+            one for each sample.
+            This will be used for coloring the points in
+            the plot according to a colorscale associated
+            to the total range of values. Note that this
+            option is mutually exclusive to the ``labels``
+            option.
+        theme: string (optional, default None)
+            A color theme to use for plotting. A small set of
+            predefined themes are provided which have relatively
+            good aesthetics. Available themes are:
+               * 'blue'
+               * 'red'
+               * 'green'
+               * 'inferno'
+               * 'fire'
+               * 'viridis'
+               * 'darkblue'
+               * 'darkred'
+               * 'darkgreen'
+        cmap: string (optional, default 'Blues')
+            The name of a matplotlib colormap to use for coloring
+            or shading points. If no labels or values are passed
+            this will be used for shading points according to
+            density (largely only of relevance for very large
+            datasets). If values are passed this will be used for
+            shading according the value. Note that if theme
+            is passed then this value will be overridden by the
+            corresponding option of the theme.
+        color_key: dict or array, shape (n_categories) (optional, default None)
+            A way to assign colors to categoricals. This can either be
+            an explicit dict mapping labels to colors (as strings of form
+            '#RRGGBB'), or an array like object providing one color for
+            each distinct category being provided in ``labels``. Either
+            way this mapping will be used to color points according to
+            the label. Note that if theme
+            is passed then this value will be overridden by the
+            corresponding option of the theme.
+        color_key_cmap: string (optional, default 'Spectral')
+            The name of a matplotlib colormap to use for categorical coloring.
+            If an explicit ``color_key`` is not given a color mapping for
+            categories can be generated from the label list and selecting
+            a matching list of colors from the given colormap. Note
+            that if theme
+            is passed then this value will be overridden by the
+            corresponding option of the theme.
+        background: string (optional, default 'white)
+            The color of the background. Usually this will be either
+            'white' or 'black', but any color name will work. Ideally
+            one wants to match this appropriately to the colors being
+            used for points etc. This is one of the things that themes
+            handle for you. Note that if theme
+            is passed then this value will be overridden by the
+            corresponding option of the theme.
+        width: int (optional, default 800)
+            The desired width of the plot in pixels.
+        height: int (optional, default 800)
+            The desired height of the plot in pixels
+
     Returns
     -------
     result: matplotlib axis
@@ -388,6 +274,8 @@ def connectivity_base(
     return ax
 
 
+docstrings.delete_params('con_base.parameters', 'edge_df')
+@docstrings.with_indent(4)
 def nneighbors(adata,
         x=0,
         y=1,
@@ -395,6 +283,7 @@ def nneighbors(adata,
         basis='umap',
         layer='X',
         highlights=None,
+        ncols=1,
         edge_bundling=None,
         edge_cmap="gray_r",
         show_points=True,
@@ -405,11 +294,10 @@ def nneighbors(adata,
         color_key=None,
         color_key_cmap=None,
         background="black",
-        ncols=1,
         figsize=(7,5),
         ax=None):
-    """
-    Plot nearest neighbor graph of cells used to embed data into low dimension space.
+    """Plot nearest neighbor graph of cells used to embed data into low dimension space.
+
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
@@ -426,92 +314,13 @@ def nneighbors(adata,
             The layers of data to represent the gene expression level.
         highlights: `list`, `list of list` or None (default: `None`)
             The list that cells will be restricted to.
-        edge_bundling: string or None (optional, default None)
-            The edge bundling method to use. Currently supported
-            are None or 'hammer'. See the datashader docs
-            on graph visualization for more details.
-        edge_cmap: string (default 'gray_r')
-            The name of a matplotlib colormap to use for shading/
-            coloring the edges of the connectivity graph. Note that
-            the ``theme``, if specified, will override this.
-        show_points: bool (optional False)
-            Whether to display the points over top of the edge
-            connectivity. Further options allow for coloring/
-            shading the points accordingly.
-        labels: array, shape (n_samples,) (optional, default None)
-            An array of labels (assumed integer or categorical),
-            one for each data sample.
-            This will be used for coloring the points in
-            the plot according to their label. Note that
-            this option is mutually exclusive to the ``values``
-            option.
-        values: array, shape (n_samples,) (optional, default None)
-            An array of values (assumed float or continuous),
-            one for each sample.
-            This will be used for coloring the points in
-            the plot according to a colorscale associated
-            to the total range of values. Note that this
-            option is mutually exclusive to the ``labels``
-            option.
-        theme: string (optional, default None)
-            A color theme to use for plotting. A small set of
-            predefined themes are provided which have relatively
-            good aesthetics. Available themes are:
-               * 'blue'
-               * 'red'
-               * 'green'
-               * 'inferno'
-               * 'fire'
-               * 'viridis'
-               * 'darkblue'
-               * 'darkred'
-               * 'darkgreen'
-        cmap: string (optional, default 'Blues')
-            The name of a matplotlib colormap to use for coloring
-            or shading points. If no labels or values are passed
-            this will be used for shading points according to
-            density (largely only of relevance for very large
-            datasets). If values are passed this will be used for
-            shading according the value. Note that if theme
-            is passed then this value will be overridden by the
-            corresponding option of the theme.
-        color_key: dict or array, shape (n_categories) (optional, default None)
-            A way to assign colors to categoricals. This can either be
-            an explicit dict mapping labels to colors (as strings of form
-            '#RRGGBB'), or an array like object providing one color for
-            each distinct category being provided in ``labels``. Either
-            way this mapping will be used to color points according to
-            the label. Note that if theme
-            is passed then this value will be overridden by the
-            corresponding option of the theme.
-        color_key_cmap: string (optional, default 'Spectral')
-            The name of a matplotlib colormap to use for categorical coloring.
-            If an explicit ``color_key`` is not given a color mapping for
-            categories can be generated from the label list and selecting
-            a matching list of colors from the given colormap. Note
-            that if theme
-            is passed then this value will be overridden by the
-            corresponding option of the theme.
-        background: string (optional, default 'white)
-            The color of the background. Usually this will be either
-            'white' or 'black', but any color name will work. Ideally
-            one wants to match this appropriately to the colors being
-            used for points etc. This is one of the things that themes
-            handle for you. Note that if theme
-            is passed then this value will be overridden by the
-            corresponding option of the theme.
-            ncols: `int`
-                The number of columns of the plot.
-            figsize: `list` or `tuple` (default: (7, 5))
-                The width and height of a figure.
-            ax: `matplotlib.axes._subplots.AxesSubplot`
-                The axis that the connectivity plot will attached to. Only workable if the
-                argument combination involves a single ax.
+        %(con_base.parameters.no_edge_df)s
 
     Returns
     -------
-
+    Nothing but plot the nearest neighbor graph.
     """
+
     import matplotlib.pyplot as plt
     import seaborn as sns
 
@@ -520,8 +329,8 @@ def nneighbors(adata,
                         'function'.format(basis))
 
     n_c, n_l, n_b = 0 if color is None else len(color), 0 if layer is None else len(layer), 0 if basis is None else len(basis)
-    c_is_gene_name = [is_gene_name(adata, i) for i in list(color)] if n_c > 0 else None
-    cnt, gene_num = 0, sum(c_is_gene_name)
+    # c_is_gene_name = [is_gene_name(adata, i) for i in list(color)] if n_c > 0 else [False] * n_c
+    # cnt, gene_num = 0, sum(c_is_gene_name)
 
     coo_graph = adata.uns['neighbors']['connectivities'].tocoo()
     edge_df = pd.DataFrame(
@@ -531,7 +340,7 @@ def nneighbors(adata,
     edge_df["source"] = edge_df.source.astype(np.int32)
     edge_df["target"] = edge_df.target.astype(np.int32)
 
-    total_panels, ncols = n_c * n_l * n_b, min(gene_num, ncols)
+    total_panels, ncols = n_c * n_l * n_b, min(n_c, ncols)
     nrow, ncol = int(np.ceil(total_panels / ncols)), ncols
     if figsize is None: figsize = plt.rcParams['figsize']
 
@@ -560,7 +369,7 @@ def nneighbors(adata,
                 continue
             for cur_c in color:
                 _color = adata.obs_vector(cur_c, layer=cur_l)
-                is_not_continous = np.allclose(_color[_color > 0][:20] % 1, 0, atol=1e-3)
+                is_not_continous = _color.dtype.name == 'category'
                 if is_not_continous:
                     labels = _color
                     if theme is None: theme = 'glasbey_dark'
@@ -572,7 +381,7 @@ def nneighbors(adata,
                     ax = plt.subplot(gs[i])
                 i += 1
 
-                # if highligts is a list of lists
+                # if highligts is a list of lists - each list is relate to each color element
                 if is_list_of_lists(highlights):
                     _highlights = highlights[color.index(cur_c)]
                     _highlights = _highlights if all([i in _color for i in _highlights]) else None

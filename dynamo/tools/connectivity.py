@@ -35,18 +35,18 @@ def extract_indices_dist_from_graph(graph, n_neighbors):
         cur_neighbors = graph[cur_cell, :].nonzero()  # returns the coordinate tuple for non-zero items
 
         # set itself as the nearest neighbor
-        ind_mat[cur_cell, 0] = cur_cell
-        dist_mat[cur_cell, 0] = 0
+        ind_mat[cur_cell, :] = cur_cell
+        dist_mat[cur_cell, :] = 0
 
         # there could be more or less than n_neighbors because of an approximate search
         cur_n_neighbors = len(cur_neighbors[1])
-        if cur_n_neighbors != n_neighbors - 1:  # could not broadcast input array from shape (13) into shape (14)
+        if cur_n_neighbors > n_neighbors - 1:
             sorted_indices = np.argsort(graph[cur_cell][:, cur_neighbors[1]].A)[0][:(n_neighbors - 1)]
             ind_mat[cur_cell, 1:] = cur_neighbors[1][sorted_indices]
             dist_mat[cur_cell, 1:] = graph[cur_cell][0, cur_neighbors[1][sorted_indices]].A
         else:
-            ind_mat[cur_cell, 1:] = cur_neighbors[1]
-            dist_mat[cur_cell, 1:] = graph[cur_cell][:, cur_neighbors[1]].A
+            ind_mat[cur_cell, 1:(cur_n_neighbors + 1)] = cur_neighbors[1]
+            dist_mat[cur_cell, 1:(cur_n_neighbors + 1)] = graph[cur_cell][:, cur_neighbors[1]].A
 
     return ind_mat, dist_mat
 
@@ -218,7 +218,7 @@ def mnn(adata, n_pca_components=25, n_neighbors=250, layers='all', use_pca_fit=T
         else:
             raise Exception('use_pca_fit is set to be True, but there is no pca fit results in .uns attribute.')
 
-    layers = get_layer_keys(adata, layers, False)
+    layers = get_layer_keys(adata, layers, False, False)
     layers = [layer for layer in layers if layer.startswith('X_') and (not layer.endswith('_matrix') and
                                                                        not layer.endswith('_ambiguous'))]
     knn_graph_list = []
@@ -253,30 +253,31 @@ def smoother(adata, use_mnn=False, layers='all'):
 
     if use_mnn:
         if 'mnn' not in adata.uns.keys():
-            adata = mnn(adata, n_pca_components=25, layers='all', use_pca_fit=True, save_all_to_adata=False)
+            adata = mnn(adata, n_pca_components=30, layers='all', use_pca_fit=True, save_all_to_adata=False)
         kNN = adata.uns['mnn']
     else:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             kNN, _, _, _ = umap_conn_indices_dist_embedding(adata.obsm['X_pca'], n_neighbors=30)
-        kNN = normalize_knn_graph(kNN > 0)
 
-    layers = get_layer_keys(adata, layers, False)
+    conn = normalize_knn_graph(kNN > 0)
+
+    layers = get_layer_keys(adata, layers, False, False)
     layers = [layer for layer in layers if layer.startswith('X_') and (not layer.endswith('_matrix') and
                                                                not layer.endswith('_ambiguous'))]
 
     for layer in layers:
-        layer_X = adata.layers[layer]
+        layer_X = adata.layers[layer].copy()
 
         if issparse(layer_X):
-            layer_X.data = 2**layer_X.data - 1
+            layer_X.data = 2**layer_X.data - 1 if adata.uns['pp_log'] == 'log2' else np.exp(layer_X.data) - 1
         else:
-            layer_X = 2** layer_X - 1
+            layer_X = 2** layer_X - 1 if adata.uns['pp_log'] == 'log2' else np.exp(layer_X) - 1
 
-        adata.layers[mapper[layer]] = kNN.dot(layer_X)
+        adata.layers[mapper[layer]] = conn.dot(layer_X)
 
     if 'X_protein' in adata.obsm.keys(): # may need to update with mnn or just use knn from protein layer itself.
-        adata.obsm[mapper['X_protein']] = kNN.dot(adata.obsm['X_protein'])
+        adata.obsm[mapper['X_protein']] = conn.dot(adata.obsm['X_protein'])
 
     return adata
 

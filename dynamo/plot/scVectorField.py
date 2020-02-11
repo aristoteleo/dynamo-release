@@ -1,21 +1,27 @@
 import numpy as np
 import pandas as pd
+from scipy.sparse import issparse
+
+from .scatters import scatters
 from .utils import quiver_autoscaler
 from ..tools.dimension_reduction import reduceDimension
 from ..tools.cell_velocities import cell_velocities
 from ..tools.Markov import velocity_on_grid
 from ..tools.scVectorField import VectorField
+from ..tools.utils import update_dict
 
+from .scatters import docstrings
+
+docstrings.delete_params('scatters.parameters', 'show_legend', 'kwargs')
 
 import scipy as sc
-from scipy.sparse import issparse
 #from licpy.lic import runlic
 
 # moran'I on the velocity genes, etc.
 
 # cellranger data, velocyto, comparison and phase diagram
 
-def cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=None, label_on_embedding=True,
+def _cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=None, label_on_embedding=True,
                        cmap=None, s_kwargs_dict={}, layer='X', cell_ind='all', quiver_scale=None, figsize=None,
                        **q_kwargs):
     """Plot the velocity vector of each cell.
@@ -116,7 +122,7 @@ def cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, colo
     if quiver_scale is None:
         quiver_scale = quiver_autoscaler(X, V)
     quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_scale, "minlength": 1.5, "alpha": 0.4}
-    quiver_kwargs.update(q_kwargs)
+    quiver_kwargs = update_dict(quiver_kwargs, q_kwargs)
 
     n_columns, plot_per_gene = n_columns, 1 # we may also add random velocity results
     nrow, ncol = int(np.ceil(plot_per_gene * n_genes / n_columns)), n_columns
@@ -183,7 +189,7 @@ def cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, colo
     plt.show()
 
 
-def grid_velocity(adata, genes, x=0, y=1, method='SparseVFC', basis='trimap', n_columns=1, color=None, label_on_embedding=True, cmap=None,
+def _grid_velocity(adata, genes, x=0, y=1, method='SparseVFC', basis='trimap', n_columns=1, color=None, label_on_embedding=True, cmap=None,
                   s_kwargs_dict={}, layer='X', xy_grid_nums=[30, 30], g_kwargs_dict={}, quiver_scale=None, V_threshold=None,
                   figsize=None, **q_kwargs):
     """Plot the velocity vector of each cell.
@@ -367,7 +373,7 @@ def grid_velocity(adata, genes, x=0, y=1, method='SparseVFC', basis='trimap', n_
     plt.show()
 
 
-def streamline_plot(adata, genes, x=0, y=1, method='sparseVFC', basis='trimap', n_columns=1, color=None, label_on_embedding=True,
+def _streamline_plot(adata, genes, x=0, y=1, method='sparseVFC', basis='trimap', n_columns=1, color=None, label_on_embedding=True,
                    cmap=None, s_kwargs_dict={}, layer='X', xy_grid_nums=[30, 30], density=1, g_kwargs_dict={},
                    V_threshold=1e-5, figsize=None, show_quiver=True, **streamline_kwargs):
     """Plot the streamline of vector field based on the sampled cells.
@@ -735,3 +741,397 @@ def line_integral_conv(adata, basis='trimap', U_grid=None, V_grid=None, method =
         velocyto_tex = runlic(V_grid, V_grid, 100)
         plot_LIC_gray(velocyto_tex)
 
+
+@docstrings.with_indent(4)
+def cell_wise_velocity(
+        adata,
+        basis='umap',
+        x=0,
+        y=1,
+        color=None,
+        layer='X',
+        highlights=None,
+        labels=None,
+        values=None,
+        theme=None,
+        cmap=None,
+        color_key=None,
+        color_key_cmap=None,
+        background=None,
+        ncols=1,
+        pointsize=None,
+        figsize=(7,5),
+        show_legend=True,
+        use_smoothed=True,
+        ax=None,
+        cell_ind='all',
+        quiver_scale=None,
+        s_kwargs_dict={},
+        **cell_wise_kwargs):
+    """Plot the velocity vector of each cell.
+
+    Parameters
+    ----------
+        %(scatters.parameters.no_show_legend|kwargs)s
+        cell_ind: `str` or `list` (default: all)
+            the cell index that will be chosen to draw velocity vectors.
+        quiver_scale: `float` or None (default: None)
+            scale of quiver plot (default: None). Number of data units per arrow length unit, e.g., m/s per plot width;
+            a smaller scale parameter makes the arrow longer. If None, we will use quiver_autoscaler to calculate the scale.
+        s_kwargs_dict: `dict` (default: {})
+            The dictionary of the scatter arguments.
+        cell_wise_kwargs:
+            Additional parameters that will be passed to plt.quiver function
+    Returns
+    -------
+        Nothing but a cell wise quiver plot.
+    """
+
+    import matplotlib.pyplot as plt
+    from matplotlib import rcParams
+
+    if ('X_' + basis in adata.obsm.keys()) and ('velocity_' + basis in adata.obsm.keys()):
+        X = adata.obsm['X_' + basis][:, [x, y]]
+        V = adata.obsm['velocity_' + basis][:, [x, y]]
+    else:
+        if 'X_' + basis not in adata.obsm.keys():
+            reduceDimension(adata, velocity_key='velocity_S', reduction_method=basis)
+        if 'kmc' not in adata.uns_keys():
+            cell_velocities(adata, vkey='velocity_S', basis=basis, method='analytical')
+            X = adata.obsm['X_' + basis][:, [x, y]]
+            V = adata.obsm['velocity_' + basis][:, [x, y]]
+        else:
+            kmc = adata.uns['kmc']
+            X = adata.obsm['X_' + basis][:, [x, y]]
+            V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
+            adata.obsm['velocity_' + basis] = V
+
+    df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "u": V[:, 0], "v": V[:, 1]})
+
+    if background is None:
+        background = rcParams.get('figure.facecolor')
+    if quiver_scale is None:
+        quiver_scale = quiver_autoscaler(X, V)
+    if background == 'black':
+        edgecolors = 'gray'
+    else:
+        edgecolors = 'gray'
+    quiver_kwargs = {"units": 'xy', "angles": 'xy', 'scale': quiver_scale, "scale_units": 'xy', "width": 0.01,
+                     "headwidth": 3, "headlength": 5, "headaxislength": 4.5, "minshaft": 1, "minlength": 1,
+                     "pivot": "tail", "linewidth": .2, "edgecolors": edgecolors, "alpha": 1, "zorder": 10}
+    quiver_kwargs = update_dict(quiver_kwargs, cell_wise_kwargs)
+
+    axes_list, color_list, font_color = scatters(
+        adata,
+        basis,
+        x,
+        y,
+        color,
+        layer,
+        highlights,
+        labels,
+        values,
+        theme,
+        cmap,
+        color_key,
+        color_key_cmap,
+        background,
+        ncols,
+        pointsize,
+        figsize,
+        show_legend,
+        use_smoothed,
+        ax,
+        'return',
+        **s_kwargs_dict)
+
+    if cell_ind is "all":
+        ix_choice = np.arange(adata.shape[0])
+    elif cell_ind is 'random':
+        ix_choice = np.random.choice(np.range(adata.shape[0]), size=1000, replace=False)
+    elif type(cell_ind) is int:
+        ix_choice = np.random.choice(np.range(adata.shape[0]), size=cell_ind, replace=False)
+    elif type(cell_ind) is list:
+        ix_choice = cell_ind
+
+    for i in range(len(axes_list)):
+        axes_list[i].quiver(df.iloc[ix_choice, 0], df.iloc[ix_choice, 1],
+                  df.iloc[ix_choice, 2], df.iloc[ix_choice, 3], color=color_list[i], **quiver_kwargs)
+
+    plt.tight_layout()
+    plt.show()
+
+
+@docstrings.with_indent(4)
+def grid_velocity(
+        adata,
+        basis='umap',
+        x=0,
+        y=1,
+        color=None,
+        layer='X',
+        highlights=None,
+        labels=None,
+        values=None,
+        theme=None,
+        cmap=None,
+        color_key=None,
+        color_key_cmap=None,
+        background=None,
+        ncols=1,
+        pointsize=None,
+        figsize=(7,5),
+        show_legend=True,
+        use_smoothed=True,
+        ax=None,
+        method='SparseVFC',
+        xy_grid_nums=[30, 30],
+        quiver_scale=None,
+        s_kwargs_dict={},
+        q_kwargs_dict={},
+        **grid_kwargs):
+    """Plot the velocity vector of each cell.
+
+    Parameters
+    ----------
+        %(scatters.parameters.no_show_legend|kwargs)s
+        method: `str` (default: `SparseVFC`)
+            Method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the empirical method
+            Gaussian kernel method from RNA velocity (Gaussian).
+        xy_grid_nums: `tuple` (default: (30, 30))
+            the number of grids in either x or y axis.
+        quiver_scale: `float` or None (default: None)
+            scale of quiver plot (default: None). Number of data units per arrow length unit, e.g., m/s per plot width;
+            a smaller scale parameter makes the arrow longer. If None, we will use quiver_autoscaler to calculate the scale.
+        s_kwargs_dict: `dict` (default: {})
+            The dictionary of the scatter arguments.
+        q_kwargs_dict: `dict` (default: {})
+            The dictionary of the quiver arguments.
+        grid_kwargs:
+            Additional parameters that will be passed to plt.quiver function
+
+    Returns
+    -------
+        Nothing but a quiver plot on the grid.
+    """
+
+    import matplotlib.pyplot as plt
+    from matplotlib import rcParams
+
+    if ('X_' + basis in adata.obsm.keys()) and ('velocity_' + basis in adata.obsm.keys()):
+        X = adata.obsm['X_' + basis][:, [x, y]]
+        V = adata.obsm['velocity_' + basis][:, [x, y]]
+    else:
+        if 'X_' + basis not in adata.obsm.keys():
+            reduceDimension(adata, velocity_key='velocity_S', reduction_method=basis)
+        if 'kmc' not in adata.uns_keys():
+            cell_velocities(adata, vkey='velocity_S', basis=basis, method='analytical')
+            X = adata.obsm['X_' + basis][:, [x, y]]
+            V = adata.obsm['velocity_' + basis][:, [x, y]]
+        else:
+            kmc = adata.uns['kmc']
+            X = adata.obsm['X_' + basis][:, [x, y]]
+            V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
+            adata.obsm['velocity_' + basis] = V
+
+    if method == 'SparseVFC' and adata.obsm['X_' + basis].shape[1] == 2:
+        if 'VecFld_' + basis not in adata.uns.keys():
+            VectorField(adata, basis=basis)
+        X_grid, V_grid =  adata.uns['VecFld_' + basis]["VecFld"]['grid'], adata.uns['VecFld_' + basis]["VecFld"]['grid_V']
+        N = int(np.sqrt(V_grid.shape[0]))
+        X_grid, V_grid = np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]), \
+                         np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))])
+    elif method == 'gaussian' and adata.obsm['X_' + basis].shape[1] == 2:
+        grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
+                            "adjust_for_stream": True, "V_threshold": None}
+        grid_kwargs_dict = update_dict(grid_kwargs_dict, grid_kwargs)
+
+        X_grid, V_grid, D = velocity_on_grid(X[:, [x, y]], V[:, [x, y]], xy_grid_nums, **grid_kwargs_dict)
+    elif 'grid_velocity_' + basis in adata.uns.keys():
+        X_grid, V_grid, _ = adata.uns['grid_velocity_' + basis]["VecFld"]['X_grid'], \
+                            adata.uns['grid_velocity_' + basis]["VecFld"]['V_grid'], \
+                            adata.uns['grid_velocity_' + basis]["VecFld"]['D']
+    else:
+        raise Exception('Vector field learning method {} is not supported or the grid velocity is collected for '
+                        'the current adata object.'.format(method))
+
+    if background is None:
+        background = rcParams.get('figure.facecolor')
+
+    if background == 'black':
+        edgecolors = 'gray'
+    else:
+        edgecolors = 'gray'
+
+    if quiver_scale is None:
+        quiver_scale = quiver_autoscaler(X_grid, V_grid)
+    quiver_kwargs = {"units": 'xy', "angles": 'xy', 'scale': quiver_scale, "scale_units": 'xy', "width": 0.01,
+                     "headwidth": 3, "headlength": 5, "headaxislength": 4.5, "minshaft": 1, "minlength": 1,
+                     "pivot": "tail", "linewidth": .2, "edgecolors": edgecolors, "linewidth": .2,
+                     "color": edgecolors, "alpha": 1, "zorder": 10}
+    quiver_kwargs = update_dict(quiver_kwargs, q_kwargs_dict)
+
+    axes_list, _, font_color = scatters(
+        adata,
+        basis,
+        x,
+        y,
+        color,
+        layer,
+        highlights,
+        labels,
+        values,
+        theme,
+        cmap,
+        color_key,
+        color_key_cmap,
+        background,
+        ncols,
+        pointsize,
+        figsize,
+        show_legend,
+        use_smoothed,
+        ax,
+        'return',
+        **s_kwargs_dict)
+
+    for i in range(len(axes_list)):
+        axes_list[i].quiver(X_grid[0], X_grid[1], V_grid[0], V_grid[1], **quiver_kwargs)
+
+    plt.tight_layout()
+    plt.show()
+
+
+@docstrings.with_indent(4)
+def streamline_plot(
+        adata,
+        basis='umap',
+        x=0,
+        y=1,
+        color=None,
+        layer='X',
+        highlights=None,
+        labels=None,
+        values=None,
+        theme=None,
+        cmap=None,
+        color_key=None,
+        color_key_cmap=None,
+        background=None,
+        ncols=1,
+        pointsize=None,
+        figsize=(7, 5),
+        show_legend=True,
+        use_smoothed=True,
+        ax=None,
+        method='SparseVFC',
+        xy_grid_nums=[30, 30],
+        density=1,
+        s_kwargs_dict={},
+        **streamline_kwargs):
+    """Plot the velocity vector of each cell.
+
+    Parameters
+    ----------
+        %(scatters.parameters.no_show_legend|kwargs)s
+        method: `str` (default: `SparseVFC`)
+            Method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the empirical method
+            Gaussian kernel method from RNA velocity (Gaussian).
+        xy_grid_nums: `tuple` (default: (30, 30))
+            the number of grids in either x or y axis.
+        density: `float` or None (default: 1)
+            density of the plt.streamplot function.
+        s_kwargs_dict: `dict` (default: {})
+            The dictionary of the scatter arguments.
+        streamline_kwargs:
+            Additional parameters that will be passed to plt.streamplot function
+    Returns
+    -------
+        Nothing but a streamline plot that integrates paths in the vector field.
+    """
+
+    import matplotlib.pyplot as plt
+    from matplotlib import rcParams
+
+    if ('X_' + basis in adata.obsm.keys()) and ('velocity_' + basis in adata.obsm.keys()):
+        X = adata.obsm['X_' + basis][:, [x, y]]
+        V = adata.obsm['velocity_' + basis][:, [x, y]]
+    else:
+        if 'X_' + basis not in adata.obsm.keys():
+            reduceDimension(adata, velocity_key='velocity_S', reduction_method=basis)
+        if 'kmc' not in adata.uns_keys():
+            cell_velocities(adata, vkey='velocity_S', basis=basis, method='analytical')
+            X = adata.obsm['X_' + basis][:, [x, y]]
+            V = adata.obsm['velocity_' + basis][:, [x, y]]
+        else:
+            kmc = adata.uns['kmc']
+            X = adata.obsm['X_' + basis][:, [x, y]]
+            V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
+            adata.obsm['velocity_' + basis] = V
+
+    if method == 'SparseVFC' and adata.obsm['X_' + basis].shape[1] == 2:
+        if 'VecFld_' + basis not in adata.uns.keys():
+            VectorField(adata, basis=basis)
+        X_grid, V_grid =  adata.uns['VecFld_' + basis]["VecFld"]['grid'], adata.uns['VecFld_' + basis]["VecFld"]['grid_V']
+        N = int(np.sqrt(V_grid.shape[0]))
+        X_grid, V_grid = np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]), \
+                         np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))])
+    elif method == 'gaussian' and adata.obsm['X_' + basis].shape[1] == 2:
+        grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
+                            "adjust_for_stream": True, "V_threshold": None}
+        grid_kwargs_dict = update_dict(grid_kwargs_dict, streamline_kwargs)
+
+        X_grid, V_grid, D = velocity_on_grid(X[:, [x, y]], V[:, [x, y]], xy_grid_nums, **grid_kwargs_dict)
+    elif 'grid_velocity_' + basis in adata.uns.keys():
+        X_grid, V_grid, _ = adata.uns['grid_velocity_' + basis]["VecFld"]['X_grid'], adata.uns['grid_velocity_' + basis]["VecFld"]['V_grid'], \
+                            adata.uns['grid_velocity_' + basis]["VecFld"]['D']
+    else:
+        raise Exception('Vector field learning method {} is not supported or the grid velocity is collected for '
+                        'the current adata object.'.format(method))
+
+    streamplot_kwargs={"density": density, "linewidth": None, "cmap": None, "norm": None, "arrowsize": 1, "arrowstyle": '-|>',
+                       "minlength": 0.1, "transform": None, "start_points": None, "maxlength": 4.0,
+                       "integration_direction": 'both', "zorder": 10}
+    streamplot_kwargs = update_dict(streamplot_kwargs, streamline_kwargs)
+
+    mass = np.sqrt((V_grid ** 2).sum(0))
+    streamplot_kwargs.update({"linewidth": 4 * mass / mass[~np.isnan(mass)].max()})
+
+    axes_list, _, font_color = scatters(
+        adata,
+        basis,
+        x,
+        y,
+        color,
+        layer,
+        highlights,
+        labels,
+        values,
+        theme,
+        cmap,
+        color_key,
+        color_key_cmap,
+        background,
+        ncols,
+        pointsize,
+        figsize,
+        show_legend,
+        use_smoothed,
+        ax,
+        'return',
+        **s_kwargs_dict)
+
+    if background is None:
+        background = rcParams.get('figure.facecolor')
+
+    if background == 'black':
+        streamline_color = 'red'
+    else:
+        streamline_color = 'black'
+    for i in range(len(axes_list)):
+        axes_list[i].streamplot(X_grid[0], X_grid[1], V_grid[0], V_grid[1], color=streamline_color, **streamplot_kwargs)
+
+    plt.tight_layout()
+    plt.show()
+
+# refactor line_conv_integration

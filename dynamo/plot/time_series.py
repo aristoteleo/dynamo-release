@@ -2,7 +2,10 @@
 import numpy as np
 from scipy.sparse import issparse
 
+from ..docrep import DocstringProcessor
+docstrings = DocstringProcessor()
 
+@docstrings.get_sectionsf('kin_curves')
 def kinetic_curves(adata, genes, mode='vector_field', basis='X', project_back_to_high_dim=False, layer='X', time='pseudotime', \
                    dist_threshold=1e-10, ncol=4, color=None, c_palette='Set2'):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) as kinetic curves.
@@ -100,38 +103,22 @@ def kinetic_curves(adata, genes, mode='vector_field', basis='X', project_back_to
     plt.show()
 
 
-def kinetic_heatmap(adata, genes, mode='vector_field', basis='X', project_back_to_high_dim=False, layer='X', time='pseudotime',
-                    color_map='viridis', half_max_ordering=True, show_col_color=False, dist_threshold=1e-10,
-                    cluster_row_col=(False, False), figsize=(11.5, 6), **kwargs):
+docstrings.delete_params('kin_curves.parameters', 'ncol', 'color', 'c_palette')
+@docstrings.with_indent(4)
+def kinetic_heatmap(adata, genes, mode='vector_field', basis='X', project_back_to_high_dim=False, layer='X',
+                    time='pseudotime', dist_threshold=1e-10, color_map='viridis', half_max_ordering=True,
+                    show_col_color=False, cluster_row_col=(False, False), figsize=(11.5, 6), **kwargs):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) in a heatmap.
 
     Parameters
     ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object.
-        genes: `list`
-            The gene names whose gene expression will be faceted.
-        mode: `str` (default: `vector_field`)
-            Which data mode will be used, either vector_field or pseudotime. if mode is vector_field, the trajectory predicted by
-            vector field function will be used, otherwise pseudotime trajectory (defined by time argument) will be used.
-        basis: `str` (default: `X`)
-            The embedding data used for drawing the kinetic gene expression heatmap, only used when mode is `vector_field`.
-        project_back_to_high_dim: `bool` (default: `False`)
-            Whether to map the coordinates in low dimension back to high dimension to visualize the gene expression curves,
-            only used when mode is `vector_field` and basis is not `X`. Currently only works when basis is 'pca' and 'umap'.
-        layer: `str` (default: X)
-            Which layer of expression value will be used.
-        time: `str` (default: `pseudotime`)
-            The .obs column that will be used for timing each cell.
+        %(kin_curves.parameters.no_ncol|color|c_palette)s
         color_map: `str` (default: `viridis`)
             Color map that will be used to color the gene expression.
         half_max_ordering: `bool` (default: `True`)
             Whether to order genes into up, down and transit groups by the half max ordering algorithm. 
         show_col_color: `bool` (default: `False`)
             Whether to show the color bar.
-        dist_threshold: `float` or None (default: 1e-10)
-            The threshold for the distance between two points in the gene expression state, i.e, x(t), x(t+1). If below this threshold,
-            we assume steady state is achieved and those data points will not be considered.
         cluster_row_col: `(bool, bool)` (default: `[False, False]`)
             Whether to cluster the row or columns.
         figsize: `str` (default: `(11.5, 6)`
@@ -139,7 +126,7 @@ def kinetic_heatmap(adata, genes, mode='vector_field', basis='X', project_back_t
 
     Returns
     -------
-        Nothing but plots the a heatmap that shows the gene expression dynamics over time.
+        Nothing but plots a heatmap that shows the gene expression dynamics over time.
     """
 
     import pandas as pd

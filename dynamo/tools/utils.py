@@ -11,11 +11,21 @@ def get_mapper():
               'X_uu': 'M_uu', 'X_ul': 'M_ul', 'X_su': 'M_su', 'X_sl': 'M_sl', 'X_protein': 'M_p', 'X': 'M_s'}
     return mapper
 
+def get_mapper_inverse():
+    mapper = get_mapper()
+
+    return dict([(v, k) for k, v in mapper.items()])
+
+
 def get_finite_inds(X, ax=0):
     finite_inds = np.isfinite(X.sum(ax).A1) if issparse(X) else np.isfinite(X.sum(ax))
 
     return finite_inds
 
+def update_dict(dict1, dict2):
+    dict1.update((k, dict2[k]) for k in dict1.keys() & dict2.keys())
+
+    return dict1
 # ---------------------------------------------------------------------------------------------------
 # moment related:
 def cal_12_mom(data, t):
@@ -27,7 +37,17 @@ def cal_12_mom(data, t):
 
     return m, v, t_uniq
 
+# ---------------------------------------------------------------------------------------------------
+# dynamics related:
+def one_shot_gamma_alpha(k, t, l):
+    gamma = - np.log(1 - k) / t
+    alpha = l * (gamma / k)[0]
 
+    return gamma, alpha
+
+def one_shot_k(gamma, t):
+    k = 1 - np.exp(- gamma * t)
+    return k
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
 def get_valid_inds(adata, filter_gene_mode):
@@ -43,13 +63,15 @@ def get_valid_inds(adata, filter_gene_mode):
 
     return valid_ind
 
-def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, protein_names, experiment_type, log_unnormalized):
+def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, protein_names, experiment_type,
+                                     log_unnormalized, NTR_vel):
     U, Ul, S, Sl, P = None, None, None, None, None  # U: unlabeled unspliced; S: unlabel spliced: S
-    normalized, has_splicing, has_labeling, has_protein = False, False, False, False
+    normalized, has_splicing, has_labeling, has_protein, assumption_mRNA = False, False, False, False, None
 
     mapper = get_mapper()
 
-    if 'X_unspliced' in subset_adata.layers.keys():
+    # splicing data
+    if 'X_unspliced' in subset_adata.layers.keys() or mapper['X_unspliced'] in subset_adata.layers.keys():
         has_splicing, normalized, assumption_mRNA = True, True, 'ss'
         U = subset_adata.layers[mapper['X_unspliced']].T if use_smoothed else subset_adata.layers['X_unspliced'].T
     elif 'unspliced' in subset_adata.layers.keys():
@@ -60,7 +82,7 @@ def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, pro
         else:
             raw = np.log(raw + 1) if log_unnormalized else raw
         U = raw
-    if 'X_spliced' in subset_adata.layers.keys():
+    if 'X_spliced' in subset_adata.layers.keys() or mapper['X_spliced'] in subset_adata.layers.keys():
         S = subset_adata.layers[mapper['X_spliced']].T if use_smoothed else subset_adata.layers['X_spliced'].T
     elif 'spliced' in subset_adata.layers.keys():
         raw, raw_spliced = subset_adata.layers['spliced'].T, subset_adata.layers['spliced'].T
@@ -70,13 +92,14 @@ def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, pro
             raw = np.log(raw + 1) if log_unnormalized else raw
         S = raw
 
-    elif 'X_new' in subset_adata.layers.keys():  # run new / total ratio (NTR)
-        has_labeling, normalized, assumption_mRNA = True, True, 'ss'
+    # labeling without splicing
+    if 'X_new' in subset_adata.layers.keys() or mapper['X_new'] in subset_adata.layers.keys():  # run new / total ratio (NTR)
+        has_labeling, normalized, assumption_mRNA = True, True, 'ss' if NTR_vel and experiment_type is None else None
         U = subset_adata.layers[mapper['X_total']].T - subset_adata.layers[mapper['X_new']].T if use_smoothed else \
         subset_adata.layers['X_total'].T - subset_adata.layers['X_new'].T
         Ul = subset_adata.layers[mapper['X_new']].T if use_smoothed else subset_adata.layers['X_new'].T
     elif 'new' in subset_adata.layers.keys():
-        has_labeling, assumption_mRNA = True, 'ss'
+        has_labeling, assumption_mRNA = True, 'ss' if NTR_vel and experiment_type is None else None
         raw, raw_new, old = subset_adata.layers['new'].T, subset_adata.layers['new'].T, subset_adata.layers['total'].T - \
                             subset_adata.layers['new'].T
         if issparse(raw):
@@ -88,39 +111,55 @@ def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, pro
         U = old
         Ul = raw
 
-    elif 'X_uu' in subset_adata.layers.keys():  # only uu, ul, su, sl provided
-        has_splicing, has_labeling, normalized = True, True, True
-        U = subset_adata.layers[mapper['X_uu']].T if use_smoothed else subset_adata.layers[
-            'X_uu'].T  # unlabel unspliced: U
-    elif 'uu' in subset_adata.layers.keys():
-        has_splicing, has_labeling, normalized = True, True, False
+    # labeling plus splicing
+    if ('X_uu' in subset_adata.layers.keys() or mapper['X_uu'] in subset_adata.layers.keys()) and \
+            np.all(([i in subset_adata.layers.keys() for i in ['X_ul', 'X_sl', 'X_su']])):  # only uu, ul, su, sl provided
+        has_splicing, has_labeling, normalized, assumption_mRNA = True, True, True, \
+                                                                  'ss' if NTR_vel and experiment_type is None else None
+        if use_smoothed and mapper['X_uu'] in subset_adata.layers.keys():
+            U = subset_adata.layers[mapper['X_uu']].T
+        else:
+            U = subset_adata.layers['X_uu'].T  # unlabel unspliced: U
+
+        if use_smoothed and mapper['X_ul'] in subset_adata.layers.keys():
+            Ul = subset_adata.layers[mapper['X_ul']].T
+        else:
+            Ul = subset_adata.layers['X_ul'].T
+
+        if use_smoothed and mapper['X_sl'] in subset_adata.layers.keys():
+            Sl = subset_adata.layers[mapper['X_sl']].T
+        else:
+            Sl = subset_adata.layers['X_sl'].T
+
+        if use_smoothed and mapper['X_su'] in subset_adata.layers.keys(): # unlabel spliced: S
+            S = subset_adata.layers[mapper['X_su']].T
+        else:
+            S = subset_adata.layers['X_su'].T
+
+    elif 'uu' in subset_adata.layers.keys() and np.all(([i in subset_adata.layers.keys() for i in ['ul', 'sl', 'su']])):
+        has_splicing, has_labeling, normalized, assumption_mRNA = True, True, False, \
+                                                                  'ss' if NTR_vel and experiment_type is None else None
         raw, raw_uu = subset_adata.layers['uu'].T, subset_adata.layers['uu'].T
         if issparse(raw):
             raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
         else:
             raw = np.log(raw + 1) if log_unnormalized else raw
         U = raw
-    if 'X_ul' in subset_adata.layers.keys():
-        Ul = subset_adata.layers[mapper['X_ul']].T if use_smoothed else subset_adata.layers['X_ul'].T
-    elif 'ul' in subset_adata.layers.keys():
+
         raw, raw_ul = subset_adata.layers['ul'].T, subset_adata.layers['ul'].T
         if issparse(raw):
             raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
         else:
             raw = np.log(raw + 1) if log_unnormalized else raw
         Ul = raw
-    if 'X_sl' in subset_adata.layers.keys():
-        Sl = subset_adata.layers[mapper['X_sl']].T if use_smoothed else subset_adata.layers['X_sl'].T
-    elif 'sl' in subset_adata.layers.keys():
+
         raw, raw_sl = subset_adata.layers['sl'].T, subset_adata.layers['sl'].T
         if issparse(raw):
             raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
         else:
             raw = np.log(raw + 1) if log_unnormalized else raw
         Sl = raw
-    if 'X_su' in subset_adata.layers.keys():  # unlabel spliced: S
-        S = subset_adata.layers[mapper['X_su']].T if use_smoothed else subset_adata.layers['X_su'].T
-    elif 'su' in subset_adata.layers.keys():
+
         raw, raw_su = subset_adata.layers['su'].T, subset_adata.layers['su'].T
         if issparse(raw):
             raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
@@ -129,8 +168,8 @@ def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, pro
         S = raw
 
     ind_for_proteins = None
-    if 'X_protein' in subset_adata.obsm.keys():
-        P = subset_adata.layers[mapper['X_protein']].T if use_smoothed else subset_adata.obsm['X_protein'].T
+    if 'X_protein' in subset_adata.obsm.keys() or mapper['X_protein'] in subset_adata.obsm.keys():
+        P = subset_adata.obsm[mapper['X_protein']].T if use_smoothed else subset_adata.obsm['X_protein'].T
     elif 'protein' in subset_adata.obsm.keys():
         P = subset_adata.obsm['protein'].T
     if P is not None:
@@ -148,14 +187,29 @@ def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, pro
         assumption_mRNA = None
 
     if has_labeling:
-        if tkey in subset_adata.obs.columns:
+        if tkey is None:
+            warnings.warn("dynamo finds that your data has labeling, but you didn't provide a `tkey` for"
+                            "metabolic labeling experiments, so experiment_type is set to be `one-shot`.")
+            experiment_type = 'one-shot'
+            t = np.ones_like(subset_adata.n_obs)
+        elif tkey in subset_adata.obs.columns:
             t = np.array(subset_adata.obs[tkey], dtype='float')
+            if len(np.unique(t)) == 1:
+                experiment_type = 'one-shot'
+            else:
+                labeled_sum = U.sum(0) if Ul is None else Ul.sum(0)
+                cov = np.mean(labeled_sum.A1 * t) if issparse(U) else np.mean(labeled_sum * t)
+                var_x = np.mean(t * t)
+                k = cov / var_x
+
+                # total labeled RNA amount will increase (decrease) in kinetic (degradation) experiments over time.
+                experiment_type = 'kin' if k > 0 else 'deg'
         else:
             raise Exception('the tkey ', tkey, ' provided is not a valid column name in .obs.')
     else:
         t = None
 
-    return U, Ul, S, Sl, P, t, normalized, has_splicing, has_labeling, has_protein, ind_for_proteins, assumption_mRNA
+    return U, Ul, S, Sl, P, t, normalized, has_splicing, has_labeling, has_protein, ind_for_proteins, assumption_mRNA, experiment_type
 
 def set_velocity(adata, vel_U, vel_S, vel_P, _group, cur_grp, cur_cells_bools, valid_ind, ind_for_proteins):
     if type(vel_U) is not float:
@@ -192,8 +246,9 @@ def set_param_deterministic(adata, est, alpha, beta, gamma, eta, delta, experime
     else:
         if alpha is not None:
             if len(alpha.shape) > 1:  # for each cell
-                if cur_grp == _group[0]: adata.varm[kin_param_pre + 'alpha'] = np.zeros((alpha.shape))  # adata.shape
-                adata.varm[kin_param_pre + 'alpha'] = alpha  # [:, valid_ind]
+                if cur_grp == _group[0]: adata.varm[kin_param_pre + 'alpha'] = csr_matrix(np.zeros(adata.shape[::-1])) \
+                    if issparse(alpha) else np.zeros(adata.shape[::-1]) #
+                adata.varm[kin_param_pre + 'alpha'][valid_ind, :] = alpha  #
                 adata.var.loc[valid_ind, kin_param_pre + 'alpha'] = alpha.mean(1)
             elif len(alpha.shape) is 1:
                 if cur_grp == _group[0]: adata.var[kin_param_pre + 'alpha'] = None
@@ -419,18 +474,21 @@ def norm_loglikelihood(x, mu, sig):
 
 # ---------------------------------------------------------------------------------------------------
 # velocity related
-def set_velocity_genes(adata, vkey='velocity_S', min_r2=0.1, use_for_dynamo=True):
+def set_velocity_genes(adata, vkey='velocity_S', min_r2=0.01, min_alpha=0, min_gamma=0, min_delta=0, use_for_dynamo=True):
     layer = vkey.split('_')[1]
 
     if layer is 'U':
-        adata.var['use_for_velocity'] = (adata.var.alpha_r2 > min_r2) & adata.var.use_for_dynamo if use_for_dynamo \
-            else adata.var.alpha_r2 > min_r2
+        if np.all(adata.var.alpha_r2.values == None): adata.var.alpha_r2 = 1
+        adata.var['use_for_velocity'] = (adata.var.alpha > min_alpha) & (adata.var.alpha_r2 > min_r2) & adata.var.use_for_dynamo \
+            if use_for_dynamo else (adata.var.alpha > min_alpha) & (adata.var.alpha_r2 > min_r2)
     elif layer is 'S':
-        adata.var['use_for_velocity'] = (adata.var.gamma_r2 > min_r2) & adata.var.use_for_dynamo if use_for_dynamo \
-            else adata.var.gamma_r2 > min_r2
+        if np.all(adata.var.gamma_r2.values == None): adata.var.gamma_r2 = 1
+        adata.var['use_for_velocity'] = (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2) & adata.var.use_for_dynamo \
+            if use_for_dynamo else (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2)
     elif layer is 'P':
-        adata.var['use_for_velocity'] = (adata.var.delta_r2 > min_r2) & adata.var.use_for_dynamo if use_for_dynamo \
-            else adata.var.delta_r2 > min_r2
+        if np.all(adata.var.delta_r2.values == None): adata.var.delta_r2 = 1
+        adata.var['use_for_velocity'] = (adata.var.delta > min_delta) & (adata.var.delta_r2 > min_r2) & adata.var.use_for_dynamo \
+            if use_for_dynamo else (adata.var.delta > min_delta) & (adata.var.delta_r2 > min_r2)
 
     return adata
 
@@ -442,6 +500,7 @@ def get_ekey_vkey_from_adata(adata):
     NTR = adata.uns[dynamics_key]['NTR_vel']
 
     mapper = get_mapper()
+    layer = []
 
     if has_splicing:
         if has_labeling:
@@ -457,14 +516,14 @@ def get_ekey_vkey_from_adata(adata):
             else:
                 raise Exception('The input data you have is not normalized/log trnasformed or smoothed and normalized/log trnasformed!')
 
-            if experiment_type == 'kinetics':
-                ekey, vkey = ('M_U', 'velocity_U') if use_smoothed else ('X_U', 'velocity_U')
-            elif experiment_type == 'degradation':
-                ekey, vkey = ('M_S', 'velocity_S') if use_smoothed else ('X_S', 'velocity_S')
+            if experiment_type == 'kin':
+                ekey, vkey, layer = ('M_U', 'velocity_U', 'X_U') if use_smoothed else ('X_U', 'velocity_U', 'X_U')
+            elif experiment_type == 'deg':
+                ekey, vkey, layer = ('M_S', 'velocity_S', 'X_S') if use_smoothed else ('X_S', 'velocity_S', 'X_S')
             elif experiment_type == 'one_shot':
-                ekey, vkey = ('M_U', 'velocity_U') if use_smoothed else ('X_U', 'velocity_U')
+                ekey, vkey, layer = ('M_U', 'velocity_U', 'X_U') if use_smoothed else ('X_U', 'velocity_U', 'X_U')
             elif experiment_type == 'mix_std_stm':
-                ekey, vkey = ('M_U', 'velocity_U') if use_smoothed else ('X_U', 'velocity_U')
+                ekey, vkey, layer = ('M_U', 'velocity_U', 'X_U') if use_smoothed else ('X_U', 'velocity_U', 'X_U')
         else:
             if ('X_unspliced' in adata.layers.keys()) or (mapper['X_unspliced'] in adata.layers.keys()):  # unlabel spliced: S
                 if use_smoothed:
@@ -473,21 +532,71 @@ def get_ekey_vkey_from_adata(adata):
                     ul, sl = 'X_unspliced', 'X_spliced'
             else:
                 raise Exception('The input data you have is not normalized/log trnasformed or smoothed and normalized/log trnasformed!')
-            ekey, vkey = ('M_s', 'velocity_S') if use_smoothed else ('X_spliced', 'velocity_S')
+            ekey, vkey, layer = ('M_s', 'velocity_S', 'X_spliced') if use_smoothed else ('X_spliced', 'velocity_S', 'X_spliced')
     else:
+        # use_smoothed: False
         if ('X_new' in adata.layers.keys()) or (mapper['X_new'] in adata.layers.keys):  # run new / total ratio (NTR)
             # we may also create M_U, M_S layers? 
-            if experiment_type == 'kinetics':
-                ekey, vkey = (mapper['X_new'], 'velocity_U') if use_smoothed else ('X_new', 'velocity_U')
-            elif experiment_type == 'degradation':
-                ekey, vkey = (mapper['X_total'], 'velocity_S') if use_smoothed else ('X_total', 'velocity_S')
-            elif experiment_type == 'one_shot':
-                ekey, vkey = (mapper['X_new'], 'velocity_U') if use_smoothed else ('X_new', 'velocity_U')
+            if experiment_type == 'kin':
+                ekey, vkey, layer = (mapper['X_new'], 'velocity_U', 'X_new') if use_smoothed else ('X_new', 'velocity_U', 'X_new')
+            elif experiment_type == 'deg':
+                ekey, vkey, layer = (mapper['X_total'], 'velocity_S', 'X_total') if use_smoothed else ('X_total', 'velocity_S', 'X_total')
+            elif experiment_type == 'one-shot' or experiment_type == 'one_shot':
+                ekey, vkey, layer = (mapper['X_new'], 'velocity_U', 'X_new') if use_smoothed else ('X_new', 'velocity_U', 'X_new')
             elif experiment_type == 'mix_std_stm':
-                ekey, vkey = (mapper['X_new'], 'velocity_U') if use_smoothed else ('X_new', 'velocity_U')
+                ekey, vkey, layer = (mapper['X_new'], 'velocity_U', 'X_new') if use_smoothed else ('X_new', 'velocity_U', 'X_new')
 
         elif 'new' in adata.layers.keys():
             raise Exception(
                 'The input data you have is not normalized/log trnasformed or smoothed and normalized/log trnasformed!')
 
-    return ekey, vkey
+    return ekey, vkey, layer
+
+# ---------------------------------------------------------------------------------------------------
+# vector field related
+def con_K(x, y, beta):
+    """Con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
+
+    Arguments
+    ---------
+        x: 'np.ndarray'
+            Original training data points.
+        y: 'np.ndarray'
+            Control points used to build kernel basis functions.
+        beta: 'float' (default: 0.1)
+            Paramerter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2),
+
+    Returns
+    -------
+    K: 'np.ndarray'
+    the kernel to represent the vector field function.
+    """
+
+    n, d = x.shape
+    m, d = y.shape
+
+    # https://stackoverflow.com/questions/1721802/what-is-the-equivalent-of-matlabs-repmat-in-numpy
+    # https://stackoverflow.com/questions/12787475/matlabs-permute-in-python
+    K = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0])
+    K = np.squeeze(np.sum(K**2, 1))
+    K = - beta * K
+    K = np.exp(K) #
+
+    return K
+
+
+def vector_field_function(x, t, VecFld, dim=None):
+    """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
+    Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
+    """
+    # x=np.array(x).reshape((1, -1))
+    x = np.array(x)
+    if (x.ndim == 1):
+        x = x[None, :]
+    K = con_K(x, VecFld['X'], VecFld['beta'])
+
+    if dim is None:
+        K = K.dot(VecFld['C'])
+    else:
+        K = K.dot(VecFld['C'][:, dim])
+    return K

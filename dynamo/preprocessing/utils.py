@@ -1,6 +1,11 @@
 import numpy as np
+import pandas as pd
 from scipy.sparse import issparse
 from functools import reduce
+from sklearn.decomposition import PCA, TruncatedSVD
+
+
+# ---------------------------------------------------------------------------------------------------
 # implmentation of Cooks' distance (but this is for Poisson distribution fitting)
 
 # https://stackoverflow.com/questions/47686227/poisson-regression-in-statsmodels-and-r
@@ -98,20 +103,28 @@ def cook_dist(model, X, good):
     return cooks_d
 
 
-def get_layer_keys(adata, layers='all', include_protein=True):
+# ---------------------------------------------------------------------------------------------------
+# preprocess utilities
+
+def get_layer_keys(adata, layers='all', remove_normalized=True, include_protein=True):
     """Get the list of available layers' keys.
     """
     layer_keys = list(adata.layers.keys())
+    if remove_normalized: layer_keys = [i for i in layer_keys if not i.startswith('X_')]
+
     if 'protein' in adata.obsm.keys() and include_protein:
         layer_keys.extend(['X', 'protein'])
     else:
         layer_keys.extend(['X'])
     layers = layer_keys if layers is 'all' else list(set(layer_keys).intersection(layers))
 
+    layers = list(set(layers).difference(['matrix', 'ambiguous', 'spanning']))
     return layers
 
+
 def get_shared_counts(adata, layers, min_shared_count, type='gene'):
-    layers = list(set(layers).difference(['X', 'matrix', 'ambiguous']))
+    layers = list(set(layers).difference(['X', 'matrix', 'ambiguous', 'spanning']))
+    layers = np.array(layers)[~pd.DataFrame(layers)[0].str.startswith('X_').values]
 
     _nonzeros = reduce(lambda a, b: (adata.layers[a] > 0).multiply(adata.layers[b] > 0), layers) if \
         issparse(adata.layers[layers[0]]) else \
@@ -119,9 +132,30 @@ def get_shared_counts(adata, layers, min_shared_count, type='gene'):
 
     _sum = reduce(lambda a, b: _nonzeros.multiply(adata.layers[a]) + _nonzeros.multiply(adata.layers[b]), layers) if \
         issparse(adata.layers[layers[0]]) else \
-        reduce(lambda a, b: _nonzeros.multiply(adata.layers[a]) + _nonzeros.multiply(adata.layers[b]), layers)
+        reduce(lambda a, b: np.multiply(_nonzeros, adata.layers[a]) + np.multiply(_nonzeros, adata.layers[b]), layers)
 
     if type == 'gene':
         return np.array(_sum.sum(0).A1 > min_shared_count) if issparse(adata.layers[layers[0]]) else np.array(_sum.sum(0) > min_shared_count)
     if type == 'cells':
         return np.array(_sum.sum(1).A1 > min_shared_count) if issparse(adata.layers[layers[0]]) else np.array(_sum.sum(1) > min_shared_count)
+
+
+# ---------------------------------------------------------------------------------------------------
+# pca
+
+def pca(adata, X, n_pca_components, pca_key):
+    cm_genesums = X.sum(axis=0)
+    valid_ind = (np.isfinite(cm_genesums)) + (cm_genesums != 0)
+    valid_ind = np.array(valid_ind).flatten()
+    CM = X[:, valid_ind]
+
+    if adata.n_obs < 100000:
+        fit = PCA(n_components=n_pca_components, svd_solver='arpack', random_state=0)
+        X_pca = fit.fit_transform(CM.toarray()) if issparse(X) else fit.fit_transform(X)
+        adata.obsm[pca_key] = X_pca
+    else:
+        fit = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)  # unscaled PCA
+        X_pca = fit.fit_transform(CM)[:, 1:]  # first columns is related to the total UMI (or library size)
+        adata.obsm[pca_key] = X_pca
+
+    return adata, fit, X_pca

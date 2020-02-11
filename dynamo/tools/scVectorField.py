@@ -3,6 +3,9 @@ import scipy
 import numpy.matlib
 from scipy.sparse import issparse
 
+from .topography import topography
+from .utils import con_K, update_dict
+
 
 def norm(X, V, T):
         """Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
@@ -172,37 +175,6 @@ def SparseVFC(X, Y, Grid, M = 100, a = 5, beta = 0.1, ecr = 1e-5, gamma = 0.9, l
     return VecFld
 
 
-def con_K(x, y, beta):
-    """Con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
-
-    Arguments
-    ---------
-        x: 'np.ndarray'
-            Original training data points.
-        y: 'np.ndarray'
-            Control points used to build kernel basis functions.
-        beta: 'float' (default: 0.1)
-            Paramerter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2),
-
-    Returns
-    -------
-    K: 'np.ndarray'
-    the kernel to represent the vector field function.
-    """
-
-    n, d = x.shape
-    m, d = y.shape
-
-    # https://stackoverflow.com/questions/1721802/what-is-the-equivalent-of-matlabs-repmat-in-numpy
-    # https://stackoverflow.com/questions/12787475/matlabs-permute-in-python
-    K = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0])
-    K = np.squeeze(np.sum(K**2, 1))
-    K = - beta * K
-    K = np.exp(K) #
-
-    return K
-
-
 def get_P(Y, V, sigma2, gamma, a):
     """GET_P estimates the posterior probability and part of the energy.
 
@@ -237,15 +209,17 @@ def get_P(Y, V, sigma2, gamma, a):
     return P, E
 
 
-def VectorField(adata, basis='trimap', grid_velocity=False, grid_num=50, velocity_key='velocity_S', method='SparseVFC', **kwargs):
+def VectorField(adata, basis='umap', dims=None, grid_velocity=False, grid_num=50, velocity_key='velocity_S', method='SparseVFC', **kwargs):
     """Learn a function of high dimensional vector field from sparse single cell samples in the entire space robustly.
 
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains embedding and velocity data
-        basis: `str` (default: trimap)
+        basis: `str` (default: umap)
             The embedding data to use.
+        dims: `list` or None (default: None)
+            The dimensions that will be used for reconstructing vector field functions.
         grid_velocity: `bool` (default: False)
             Whether to generate grid velocity. Note that by default it is set to be False, but for datasets with embedding
             dimension less than 4, the grid velocity will still be generated. Please note that number of total grids in
@@ -275,6 +249,9 @@ def VectorField(adata, basis='trimap', grid_velocity=False, grid_num=50, velocit
     if issparse(X) and basis is 'X':
         X, V = X.A[:, adata.var.use_for_dynamo], V.A[:, adata.var.use_for_dynamo]
 
+    if dims is not None and basis is not 'X':
+        X, V = X[:, dims], V[:, dims]
+
     Grid = None
     if X.shape[1] < 4 or grid_velocity:
         # smart way for generating high dimensional grids and convert into a row matrix
@@ -288,13 +265,23 @@ def VectorField(adata, basis='trimap', grid_velocity=False, grid_num=50, velocit
     elif V is None:
         raise Exception('V is None. Make sure you passed the correct V.')
 
-    VecFld = vectorfield(X, V, Grid, **kwargs)
+    vf_kwargs = {"M": 100, "a": 5, "beta": 0.1, "ecr": 1e-5, "gamma": 0.9, "lambda_": 3,
+                 "minP": 1e-5, "MaxIter": 500, "theta": 0.75, "div_cur_free_kernels": False}
+    vf_kwargs = update_dict(vf_kwargs, kwargs)
+
+    VecFld = vectorfield(X, V, Grid, **vf_kwargs)
     func = VecFld.fit(normalize=False, method=method)
 
-    if basis is not 'X':
-        adata.uns['VecFld_' + basis] = func
+    if X.shape[1] == 2:
+        tp_kwargs = {"n": 25}
+        tp_kwargs = update_dict(tp_kwargs, kwargs)
+
+        adata = topography(adata, basis, VecFld=func, **tp_kwargs)
     else:
-        adata.uns['VecFld'] = func
+        if basis != 'X':
+            adata.uns['VecFld_' + basis] = {"VecFld": func}
+        else:
+            adata.uns['VecFld'] = {"VecFld": func}
 
     return adata
 
@@ -490,16 +477,16 @@ class vectorfield:
         return K
 
 
-def vector_field_function(x, t, VecFld):
-    """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
-
-    Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
-    """
-    x=np.array(x).reshape((1, -1))
-    if(len(x.shape) == 1):
-        x = x[None, :]
-    K= con_K(x, VecFld['X'], VecFld['beta'])
-
-    K = K.dot(VecFld['C'])
-
-    return K.T
+# def vector_field_function(x, t, VecFld):
+#     """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
+#
+#     Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
+#     """
+#     x=np.array(x).reshape((1, -1))
+#     if(len(x.shape) == 1):
+#         x = x[None, :]
+#     K= con_K(x, VecFld['X'], VecFld['beta'])
+#
+#     K = K.dot(VecFld['C'])
+#
+#     return K.T

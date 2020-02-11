@@ -3,10 +3,13 @@ from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import PCA
 from .Markov import *
 from .connectivity import extract_indices_dist_from_graph
-from .utils import set_velocity_genes, get_finite_inds, get_ekey_vkey_from_adata
+from .utils import set_velocity_genes, get_finite_inds, get_ekey_vkey_from_adata, get_mapper_inverse, update_dict
 
-def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, n_pca_components=25, min_r2=0.5, basis='umap', method='analytical', neg_cells_trick=False, calc_rnd_vel=False,
-                    xy_grid_nums=(50, 50), correct_density=True, sample_fraction=None, random_seed=19491001, **kmc_kwargs):
+from .dimension_reduction import reduceDimension
+
+def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_basis=False, n_pca_components=30, min_r2=0.01,
+                    basis='umap', method='analytical', neg_cells_trick=False, calc_rnd_vel=False, xy_grid_nums=(50, 50),
+                    correct_density=True, scale=True, sample_fraction=None, random_seed=19491001, **kmc_kwargs):
     """Compute transition probability and project high dimension velocity vector to existing low dimension embedding.
 
     It is powered by the Itô kernel that not only considers the correlation between the vector from any cell to its
@@ -26,7 +29,9 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, n_pca_components
             The dictionary key that corresponds to the estimated velocity values in layers attribute.
         use_mnn: `bool` (optional, default `False`)
             Whether to use mutual nearest neighbors for projecting the high dimensional velocity vectors. By default, we don't use the mutual
-            nearest neighbors. 
+            nearest neighbors.
+        neighbors_from_basis: `bool` (optional, default `False`)
+            Whether to construct nearest neighbors from low dimensional space as defined by the `basis`.
         n_pca_components: `int` (optional, default `25`)
             The number of pca components to project the high dimensional X, V before calculating transition matrix for velocity visualization.
         min_r2: `float` (optional, default `0.5`)
@@ -64,7 +69,9 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, n_pca_components
             approximation or the method from (La Manno et al. 2018).
     """
 
-    ekey, vkey = get_ekey_vkey_from_adata(adata) if (ekey is None or vkey is None) else (ekey, vkey)
+    mapper_r = get_mapper_inverse()
+    layer = mapper_r[ekey] if (ekey is not None and ekey in mapper_r.keys()) else ekey
+    ekey, vkey, layer = get_ekey_vkey_from_adata(adata) if (ekey is None or vkey is None) else (ekey, vkey, layer)
 
     if calc_rnd_vel:
         numba_random_seed(random_seed)
@@ -84,7 +91,13 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, n_pca_components
     X = adata[:, adata.var.use_for_velocity.values].layers[ekey]
     V_mat = adata[:, adata.var.use_for_velocity.values].layers[vkey] if vkey in adata.layers.keys() else None
 
-    X_embedding = adata.obsm['X_'+basis][:, :2]
+    if vkey == 'velocity_S':
+        X_embedding = adata.obsm['X_'+basis][:, :2]
+    else:
+        adata = reduceDimension(adata, layer=layer, reduction_method=basis)
+        layer = layer if layer.startswith('X') else 'X_' + layer
+        X_embedding = adata.obsm[layer + '_' + basis][:, :2]
+
     V_mat = V_mat.A if issparse(V_mat) else V_mat
     X = X.A if issparse(X) else X
     finite_inds = get_finite_inds(V_mat)
@@ -93,12 +106,12 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, n_pca_components
     # add both source and sink distribution
     if method == 'analytical':
         kmc = KernelMarkovChain()
-        kmc_args = {"n_recurse_neighbors": 2, "M_diff": 0.2, "epsilon": None, "adaptive_local_kernel": True, "tol": 1e-7}
-        kmc_args.update(kmc_kwargs)
+        kmc_args = {"n_recurse_neighbors": 2, "M_diff": 2, "epsilon": None, "adaptive_local_kernel": True, "tol": 1e-7}
+        kmc_args = update_dict(kmc_args, kmc_kwargs)
 
         # number of kNN in neighbor_idx may be too small
         if n_pca_components is not None:
-            pca = PCA()
+            pca = PCA(n_components=min(n_pca_components, X.shape[1] - 1), svd_solver='arpack', random_state=0)
             pca.fit(X)
             X_pca = pca.transform(X)
             Y_pca = pca.transform(X + V_mat)
@@ -106,13 +119,16 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, n_pca_components
 
             X, V_mat = X_pca[:, :n_pca_components], V_pca[:, :n_pca_components]
 
-        kmc.fit(X, V_mat, neighbor_idx=indices, sample_fraction=sample_fraction, **kmc_args) #
+        if neighbors_from_basis:
+            kmc.fit(X, V_mat, neighbor_idx=None, sample_fraction=sample_fraction, **kmc_args) #
+        else:
+            kmc.fit(X, V_mat, neighbor_idx=indices, sample_fraction=sample_fraction, **kmc_args) #
+
         T = kmc.P
         if correct_density:
-            delta_X = kmc.compute_density_corrected_drift(X_embedding, kmc.Idx, normalize_vector=True) # indices, k = 500
+            delta_X = kmc.compute_density_corrected_drift(X_embedding, kmc.Idx, normalize_vector=True, scale=scale) # indices, k = 500
         else:
-            delta_X = kmc.compute_drift(X_embedding) # indices, k = 500
-
+            delta_X = kmc.compute_drift(X_embedding, num_prop=1, scale=scale) # indices, k = 500
 
         # P = kmc.compute_stationary_distribution()
         # adata.obs['stationary_distribution'] = P

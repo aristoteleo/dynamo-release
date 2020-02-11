@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.integrate import odeint
-from ..tools.scVectorField import vector_field_function
+from ..tools.utils import vector_field_function
 from .fate_utilities import Animation
 
 
@@ -10,7 +10,7 @@ class StreamFuncAnim(Animation): #
         self.dt = dt
         # Initialize velocity field and displace *functions*
         self.f = lambda x, t=None: vector_field_function(x, t=0, VecFld=VecFld)
-        self.displace = lambda x, dt: odeint(VF, x.flatten(), [0, dt])
+        self.displace = lambda x, dt: odeint(self.f, x.flatten(), [0, dt])
         # Save bounds of plot
         self.xlim = xlim
         self.ylim = ylim if ylim is not None else xlim
