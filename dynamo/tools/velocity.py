@@ -613,7 +613,10 @@ class velocity:
         t_uniq, t_uniq_cnt = np.unique(self.parameters['t'], return_counts=True)
         if self.parameters['alpha'] is not None:
             if self.parameters['beta'] is None and self.parameters['gamma'] is not None:
+                no_beta = True
                 self.parameters['beta'] = self.parameters['gamma']
+            else:
+                no_beta = False
 
             if type(self.parameters['alpha']) is not tuple:
                 if len(self.parameters['alpha'].shape) == 1:
@@ -648,6 +651,7 @@ class velocity:
             else:
                 beta = np.repeat(self.parameters['beta'], U.shape[1], axis=1)
 
+            if no_beta: self.parameters['beta'] = None
             V = csr_matrix(alpha) - (csr_matrix(beta).multiply(U)) if issparse(U) else \
                     alpha - beta * U
         else:
@@ -705,7 +709,7 @@ class velocity:
 
             if no_beta:
                 V = csr_matrix(beta) - csr_matrix(gamma).multiply(S) if issparse(U) \
-                    else beta * U - gamma * S
+                    else beta - gamma * S
             else:
                 V = csr_matrix(beta).multiply(U) - csr_matrix(gamma).multiply(S) if issparse(U) \
                         else beta * U - gamma * S

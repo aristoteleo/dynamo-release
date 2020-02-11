@@ -7,7 +7,7 @@ from .utils import despline, _matplotlib_points, _datashade_points, _select_font
 from .scatters import scatters
 from ..tools.velocity import sol_u, sol_s, solve_first_order_deg
 from ..tools.utils_moments import moments
-from ..tools.utils import get_mapper
+from ..tools.utils import get_mapper, one_shot_k
 from ..configuration import _themes, set_figure_params
 
 
@@ -112,7 +112,7 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
 
     n_cells, n_genes = adata.shape[0], len(genes)
 
-    color_vec=np.repeat(np.nan, n_cells)
+    color_vec = np.repeat(np.nan, n_cells)
     if color is not None:
         color_vec = adata.obs[color].values
 
