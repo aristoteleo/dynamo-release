@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.sparse import issparse, csr_matrix
+from scipy.sparse import issparse, csr_matrix, lil_matrix
 from .moments import strat_mom, MomData, Estimation
 import warnings
 
@@ -26,6 +26,20 @@ def update_dict(dict1, dict2):
     dict1.update((k, dict2[k]) for k in dict1.keys() & dict2.keys())
 
     return dict1
+
+def closest_node(node, nodes):
+    nodes = np.asarray(nodes)
+    dist_2 = np.sum((nodes - node)**2, axis=1)
+    return np.argmin(dist_2)
+
+def elem_prod(X, Y):
+    if issparse(X):
+        return X.multiply(Y)
+    elif issparse(Y):
+        return Y.multiply(X)
+    else:
+        return np.multiply(X, Y)
+
 # ---------------------------------------------------------------------------------------------------
 # moment related:
 def cal_12_mom(data, t):
@@ -37,6 +51,43 @@ def cal_12_mom(data, t):
 
     return m, v, t_uniq
 
+def gaussian_kernel(X, nbr_idx, sigma, k=None, dists=None):
+    n = X.shape[0]
+    if dists is None:
+        dists = []
+        for i in range(n):
+            d = X[nbr_idx[i][:k]] - X[i]
+            dists.append(np.sum(elem_prod(d, d), 1).flatten())
+    W = lil_matrix((n, n))
+    s2_inv = 1 / (2 * sigma ** 2)
+    for i in range(n):
+        W[i, nbr_idx[i][:k]] = np.exp(-s2_inv * dists[i][:k]**2)
+    return csr_matrix(W)
+
+def calc_1nd_moment(X, W, normalize_W=True):
+    if normalize_W:
+        if type(W) == np.ndarray:
+            d = np.sum(W, 1).flatten()
+        else:
+            d = np.sum(W, 1).A.flatten()
+        W = np.diag(1/d) @ W
+        return W @ X, W
+    else:
+        return W @ X
+
+def calc_2nd_moment(X, Y, W, normalize_W=True, center=False, mX=None, mY=None):
+    if normalize_W:
+        if type(W) == np.ndarray:
+            d = np.sum(W, 1).flatten()
+        else:
+            d = np.sum(W, 1).A.flatten()
+        W = np.diag(1/d) @ W
+    XY = W @ elem_prod(Y, X)
+    if center:
+        mX = calc_1nd_moment(X, W, False) if mX is None else mX
+        mY = calc_1nd_moment(Y, W, False) if mY is None else mY
+        XY = XY - elem_prod(mX, mY)
+    return XY
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
 def one_shot_gamma_alpha(k, t, l):

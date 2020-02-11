@@ -2,7 +2,7 @@ import numpy as np
 from scipy.optimize import least_squares
 from scipy.sparse import issparse, csr_matrix
 from warnings import warn
-from .utils import cal_12_mom, one_shot_gamma_alpha
+from .utils import cal_12_mom, one_shot_gamma_alpha, elem_prod
 from .moments import strat_mom
 # from sklearn.cluster import KMeans
 # from sklearn.neighbors import NearestNeighbors
@@ -230,11 +230,23 @@ def fit_linreg(x, y, mask, intercept=False):
 
     return k, b, r2, all_r2
 
-def fit_stochastic_lin_reg(u, s, us, ss):
-    x = np.vstack((u, u + 2*us))
-    y = np.vstack((s, s - 2*ss))
-    k = np.mean(np.sum(y*x, 0)) / np.mean(np.sum(x*x, 0))
-    return k
+def fit_stochastic_linreg(u, s, us, ss):
+    y = np.vstack((u.flatten(), (u + 2*us).flatten()))
+    x = np.vstack((s.flatten(), (2*ss - s).flatten()))
+    k = np.mean(np.sum(elem_prod(y, x), 0)) / np.mean(np.sum(elem_prod(x, x), 0))
+
+    # construct the error covariance matrix
+    E = y - k*x
+    cov_inv = np.linalg.pinv(E @ E.T)
+
+    # generalized least squares
+    xy = 0
+    xx = 0
+    for i in range(x.shape[1]):
+        xy += y[:, i].T @ cov_inv @ x[:, i]
+        xx += x[:, i].T @ cov_inv @ x[:, i]
+    gamma = xy/xx
+    return gamma
 
 def fit_first_order_deg_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=1):
     """Estimate beta with degradation data using least squares method.
