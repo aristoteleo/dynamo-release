@@ -331,10 +331,13 @@ class MarkovChain:
 
 
 class KernelMarkovChain(MarkovChain):
-    def __init__(self, P=None):
+    def __init__(self, P=None, Idx=None, n_recurse_neighbors=None):
         super().__init__(P)
         self.Kd = None
-        self.Idx = None
+        if n_recurse_neighbors is not None and Idx is not None:
+            self.Idx = append_iterative_neighbor_indices(Idx, n_recurse_neighbors)
+        else:
+            self.Idx = Idx
 
     def fit(self, X, V, M_diff, neighbor_idx=None, n_recurse_neighbors=None, k=30, epsilon=None, adaptive_local_kernel=False, tol=1e-4,
             sparse_construct=True, sample_fraction=None):
