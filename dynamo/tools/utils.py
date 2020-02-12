@@ -69,10 +69,10 @@ def calc_1nd_moment(X, W, normalize_W=True):
             d = np.sum(W, 1).flatten()
         else:
             d = np.sum(W, 1).A.flatten()
-        W = diags(1/d).multiply(W) if issparse(W) else np.diag(1/d) @ W
-        return (W.multiply(X), W) if issparse(W) else (W @ X, W)
+        W = diags(1/d).dot(W) if issparse(W) else np.diag(1/d) @ W
+        return (W.dot(X), W) if issparse(W) else (W @ X, W)
     else:
-        return W.multiply(csr_matrix(X)) if issparse(W) else W @ X
+        return W.dot(csr_matrix(X)) if issparse(W) else W @ X
 
 def calc_2nd_moment(X, Y, W, normalize_W=True, center=False, mX=None, mY=None):
     if normalize_W:
@@ -80,7 +80,7 @@ def calc_2nd_moment(X, Y, W, normalize_W=True, center=False, mX=None, mY=None):
             d = np.sum(W, 1).flatten()
         else:
             d = W.sum(1).A.flatten()
-        W = diags(1/d).multiply(W) if issparse(W) else np.diag(1/d) @ W
+        W = diags(1/d).dot(W) if issparse(W) else np.diag(1/d) @ W
 
     XY = W.multiply(elem_prod(Y, X)) if issparse(W) else W @ elem_prod(Y, X)
 
