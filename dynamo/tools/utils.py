@@ -82,7 +82,7 @@ def calc_2nd_moment(X, Y, W, normalize_W=True, center=False, mX=None, mY=None):
             d = W.sum(1).A.flatten()
         W = diags(1/d).dot(W) if issparse(W) else np.diag(1/d) @ W
 
-    XY = W.multiply(elem_prod(Y, X)) if issparse(W) else W @ elem_prod(Y, X)
+    XY = W @ elem_prod(Y, X)
 
     if center:
         mX = calc_1nd_moment(X, W, False) if mX is None else mX
