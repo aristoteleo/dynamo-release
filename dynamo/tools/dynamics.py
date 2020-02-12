@@ -8,7 +8,7 @@ from .utils import moment_model
 
 # incorporate the model selection code soon
 def dynamics(adata, tkey=None, filter_gene_mode='final', mode='deterministic', use_smoothed=True, group=None, protein_names=None,
-             experiment_type='conventional', assumption_mRNA=None, assumption_protein='ss', NTR_vel=True, concat_data=False,
+             experiment_type=None, assumption_mRNA=None, assumption_protein='ss', NTR_vel=True, concat_data=False,
              log_unnormalized=True, one_shot_method='combined'):
     """Inclusive model of expression dynamics considers splicing, metabolic labeling and protein translation. It supports
     learning high-dimensional velocity vector samples for droplet based (10x, inDrop, drop-seq, etc), scSLAM-seq, NASC-seq
@@ -40,7 +40,7 @@ def dynamics(adata, tkey=None, filter_gene_mode='final', mode='deterministic', u
             A list of gene names corresponds to the rows of the measured proteins in the `X_protein` of the `obsm` attribute.
             The names have to be included in the adata.var.index.
         experiment_type: `str`
-            labelling experiment type. Available options are:
+            single cell RNA-seq experiment type. Available options are:
             (1) 'conventional': conventional single-cell RNA-seq experiment;
             (1) 'deg': degradation experiment;
             (2) 'kin': synthesis/kinetics experiment;
@@ -96,18 +96,14 @@ def dynamics(adata, tkey=None, filter_gene_mode='final', mode='deterministic', u
             get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, protein_names, experiment_type,
                                              log_unnormalized, NTR_vel)
 
-        if experiment_type is not None:
-            assumption_mRNA = None
-
+        if exp_type is not None:
             if experiment_type != exp_type:
                 warnings.warn('dynamo detects the experiment type of your data as {}, but your input experiment_type '
                               'is {}'.format(exp_type, experiment_type))
-        else:
-            if exp_type is not None:
-                experiment_type = exp_type
-                assumption_mRNA = None
-                NTR_vel = False
-            # add log information
+
+            experiment_type = exp_type
+            assumption_mRNA = 'ss' if exp_type == 'conventional' else None
+            NTR_vel = False
 
         if mode == 'moment' and experiment_type not in ['conventional', 'kin']:
             """

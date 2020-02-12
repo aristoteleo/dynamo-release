@@ -132,8 +132,9 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
 
     if 'gamma' in adata.var.columns:
         gamma = adata.var.gamma[genes].values
-        velocity_offset = [0] * n_genes if (not ("gamma_b" in adata.var.columns) or adata.var.gamma_b.unique() is None) else \
+        velocity_offset = [0] * n_genes if (not ("gamma_b" in adata.var.columns) or adata.var.gamma_b.unique()[0] is None) else \
             adata.var.gamma_b[genes].values
+        velocity_offset[~ np.isfinite(velocity_offset)] = 0
     else:
         raise Exception('adata does not seem to have velocity_gamma column. Velocity estimation is required before '
                         'running this function.')

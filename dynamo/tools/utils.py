@@ -258,6 +258,8 @@ def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, pro
     if experiment_type is not None or mode is 'moment':
         assumption_mRNA = None
 
+    experiment_type = 'conventional'
+
     if has_labeling:
         if tkey is None:
             warnings.warn("dynamo finds that your data has labeling, but you didn't provide a `tkey` for"
