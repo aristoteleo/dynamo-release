@@ -281,7 +281,7 @@ def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, pro
         else:
             raise Exception('the tkey ', tkey, ' provided is not a valid column name in .obs.')
         if mode == 'moment':
-            US = subset_adata.layers['M_nt'].T, S2 = subset_adata.layers['M_tt'].T if not has_splicing else None, None
+            US = subset_adata.layers['M_tn'].T, S2 = subset_adata.layers['M_tt'].T if not has_splicing else None, None
     else:
         t = None
         if mode == 'moment': US, S2 = subset_adata.layers['M_us'].T, subset_adata.layers['M_ss'].T
