@@ -968,8 +968,8 @@ class estimation:
                     S = self.data['su'] if self.data['sl'] is None else self.data['su'] + self.data['sl']
                     US, S2 = self.data['us'], self.data['s2']
                     for i in range(n):
-                        gamma[i], gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_stochasic(U[i], S[i], US[i], S2[i],
-                                                                                                perc_left=None, perc_right=5, normalize=True)
+                        gamma[i], gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_stochastic(U[i], S[i], US[i], S2[i],
+                                                                                                 perc_left=None, perc_right=5, normalize=True)
                     self.parameters['gamma'], self.aux_param['gamma_intercept'], self.aux_param['gamma_r2'] = gamma, gamma_intercept, gamma_r2
                 elif np.all(self._exist_data('uu', 'ul')):
                     self.parameters['beta'] = np.ones(n)
@@ -978,8 +978,8 @@ class estimation:
                     S = self.data['uu'] + self.data['ul']
                     US, S2 = self.data['us'], self.data['s2']
                     for i in range(n):
-                        gamma[i], gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_stochasic(U[i], S[i], US[i], S2[i],
-                                                                                                perc_left=None, perc_right=5, normalize=True)
+                        gamma[i], gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_stochastic(U[i], S[i], US[i], S2[i],
+                                                                                                 perc_left=None, perc_right=5, normalize=True)
                     self.parameters['gamma'], self.aux_param['gamma_intercept'], self.aux_param['gamma_r2'] = gamma, gamma_intercept, gamma_r2
         else:
             if self.extyp == 'deg':
@@ -1190,7 +1190,7 @@ class estimation:
 
         return fit_linreg(s, u, mask, intercept)
 
-    def fit_gamma_stochasic(self, u, s, us, ss, perc_left=None, perc_right=5, normalize=True):
+    def fit_gamma_stochastic(self, u, s, us, ss, perc_left=None, perc_right=5, normalize=True):
         """Estimate gamma using linear regression based on the steady state assumption.
 
         Arguments

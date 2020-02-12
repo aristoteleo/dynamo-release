@@ -936,7 +936,7 @@ def grid_velocity(
 
     if method == 'SparseVFC' and adata.obsm['X_' + basis].shape[1] == 2:
         if 'VecFld_' + basis not in adata.uns.keys():
-            VectorField(adata, basis=basis)
+            VectorField(adata, basis=basis, dims=[0, 1])
         X_grid, V_grid =  adata.uns['VecFld_' + basis]["VecFld"]['grid'], adata.uns['VecFld_' + basis]["VecFld"]['grid_V']
         N = int(np.sqrt(V_grid.shape[0]))
         X_grid, V_grid = np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]), \
@@ -1071,7 +1071,7 @@ def streamline_plot(
 
     if method == 'SparseVFC' and adata.obsm['X_' + basis].shape[1] == 2:
         if 'VecFld_' + basis not in adata.uns.keys():
-            VectorField(adata, basis=basis)
+            VectorField(adata, basis=basis, dims=[0, 1])
         X_grid, V_grid =  adata.uns['VecFld_' + basis]["VecFld"]['grid'], adata.uns['VecFld_' + basis]["VecFld"]['grid_V']
         N = int(np.sqrt(V_grid.shape[0]))
         X_grid, V_grid = np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]), \
