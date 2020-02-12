@@ -2,8 +2,7 @@ import numpy as np
 from scipy.optimize import least_squares
 from scipy.sparse import issparse, csr_matrix
 from warnings import warn
-from .utils import calc_12_mom_labeling, one_shot_gamma_alpha, elem_prod
-from .utils import gaussian_kernel, calc_1nd_moment, calc_2nd_moment
+from .utils import calc_12_mom_labeling, one_shot_gamma_alpha, elem_prod, find_extreme
 from .moments import strat_mom
 # from sklearn.cluster import KMeans
 # from sklearn.neighbors import NearestNeighbors
@@ -199,7 +198,9 @@ def fit_linreg(x, y, mask, intercept=False):
     b: float
         The estimated intercept.
     r2: float
-        Coefficient of determination or r square.
+        Coefficient of determination or r square calculated with the extreme data points.
+    all_r2: float
+        The r2 calculated using all data points.
     """
     x = x.A if issparse(x) else x
     y = y.A if issparse(y) else y
@@ -232,6 +233,30 @@ def fit_linreg(x, y, mask, intercept=False):
     return k, b, r2, all_r2
 
 def fit_stochastic_linreg(u, s, us, ss):
+    """Simple linear regression: y = kx + b.
+
+    Arguments
+    ---------
+    u: :class:`~numpy.ndarray` or sparse `csr_matrix`
+        A vector of first moments (mean) of unspliced (or new) RNA expression.
+    s: :class:`~numpy.ndarray` or sparse `csr_matrix`
+        A vector of first moments (mean) of spliced (or total) RNA expression.
+    us: :class:`~numpy.ndarray` or sparse `csr_matrix`
+        A vector of second moments (uncentered co-variance) of unspliced/spliced (or new/total) RNA expression.
+    ss: :class:`~numpy.ndarray` or sparse `csr_matrix`
+        A vector of second moments (uncentered variance) of spliced (or total) RNA expression.
+
+    Returns
+    -------
+    k: float
+        The estimated slope.
+    b: float
+        The estimated intercept.
+    r2: float
+        Coefficient of determination or r square calculated with the extreme data points.
+    all_r2: float
+        The r2 calculated using all data points.
+    """
     y = np.vstack((u.flatten(), (u + 2*us).flatten()))
     x = np.vstack((s.flatten(), (2*ss - s).flatten()))
     k = np.mean(np.sum(elem_prod(y, x), 0)) / np.mean(np.sum(elem_prod(x, x), 0))
@@ -247,6 +272,7 @@ def fit_stochastic_linreg(u, s, us, ss):
         xy += y[:, i].T @ cov_inv @ x[:, i]
         xx += x[:, i].T @ cov_inv @ x[:, i]
     gamma = xy/xx
+
     return gamma
 
 def fit_first_order_deg_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=1):
@@ -942,7 +968,7 @@ class estimation:
                     S = self.data['su'] if self.data['sl'] is None else self.data['su'] + self.data['sl']
                     US, S2 = self.data['us'], self.data['s2']
                     for i in range(n):
-                        gamma[i], gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_stochasic(self, U[i], S[i], US[i], S2[i], intercept=True,
+                        gamma[i], gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_stochasic(U[i], S[i], US[i], S2[i],
                                                                                                 perc_left=None, perc_right=5, normalize=True)
                     self.parameters['gamma'], self.aux_param['gamma_intercept'], self.aux_param['gamma_r2'] = gamma, gamma_intercept, gamma_r2
                 elif np.all(self._exist_data('uu', 'ul')):
@@ -952,7 +978,7 @@ class estimation:
                     S = self.data['uu'] + self.data['ul']
                     US, S2 = self.data['us'], self.data['s2']
                     for i in range(n):
-                        gamma[i], gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_stochasic(self, U[i], S[i], US[i], S2[i], intercept=True,
+                        gamma[i], gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_stochasic(U[i], S[i], US[i], S2[i],
                                                                                                 perc_left=None, perc_right=5, normalize=True)
                     self.parameters['gamma'], self.aux_param['gamma_intercept'], self.aux_param['gamma_r2'] = gamma, gamma_intercept, gamma_r2
         else:
@@ -1160,25 +1186,11 @@ class estimation:
         u = u.A.flatten() if issparse(u) else u.flatten()
         s = s.A.flatten() if issparse(s) else s.flatten()
 
-        n = len(u)
-
-        if normalize:
-            su = s / np.clip(np.max(s), 1e-3, None)
-            su += u / np.clip(np.max(u), 1e-3, None)
-        else:
-            su = s + u
-
-        if perc_left is None:
-            mask = su >= np.percentile(su, 100 - perc_right, axis=0)
-        elif perc_right is None:
-            mask = np.ones(n, dtype=bool)
-        else:
-            left, right = np.percentile(su, [perc_left, 100 - perc_right], axis=0)
-            mask = (su <= left) | (su >= right)
+        mask = find_extreme(s, u, normalize=normalize, perc_left=perc_left, perc_right=perc_right)
 
         return fit_linreg(s, u, mask, intercept)
 
-    def fit_gamma_stochasic(self, u, s, us, ss, intercept=True, perc_left=None, perc_right=5, normalize=True):
+    def fit_gamma_stochasic(self, u, s, us, ss, perc_left=None, perc_right=5, normalize=True):
         """Estimate gamma using linear regression based on the steady state assumption.
 
         Arguments
@@ -1187,10 +1199,10 @@ class estimation:
             A matrix of unspliced mRNA counts. Dimension: genes x cells.
         s: :class:`~numpy.ndarray` or sparse `csr_matrix`
             A matrix of spliced mRNA counts. Dimension: genes x cells.
-        intercept: bool
-            If using steady state assumption for fitting, then:
-            True -- the linear regression is performed with an unfixed intercept;
-            False -- the linear regresssion is performed with a fixed zero intercept.
+        us: :class:`~numpy.ndarray` or sparse `csr_matrix`
+            A matrix of unspliced mRNA counts. Dimension: genes x cells.
+        ss: :class:`~numpy.ndarray` or sparse `csr_matrix`
+            A matrix of spliced mRNA counts. Dimension: genes x cells.
         perc_left: float
             The percentage of samples included in the linear regression in the left tail. If set to None, then all the left samples are excluded.
         perc_right: float
@@ -1211,25 +1223,12 @@ class estimation:
         all_r2: float
             Coefficient of determination or r square for all data points.
         """
-        if not intercept and perc_left is None: perc_left = perc_right
         u = u.A.flatten() if issparse(u) else u.flatten()
         s = s.A.flatten() if issparse(s) else s.flatten()
+        us = us.A.flatten() if issparse(us) else us.flatten()
+        ss = ss.A.flatten() if issparse(ss) else ss.flatten()
 
-        n = len(u)
-
-        if normalize:
-            su = s / np.clip(np.max(s), 1e-3, None)
-            su += u / np.clip(np.max(u), 1e-3, None)
-        else:
-            su = s + u
-
-        if perc_left is None:
-            mask = su >= np.percentile(su, 100 - perc_right, axis=0)
-        elif perc_right is None:
-            mask = np.ones(n, dtype=bool)
-        else:
-            left, right = np.percentile(su, [perc_left, 100 - perc_right], axis=0)
-            mask = (su <= left) | (su >= right)
+        mask = find_extreme(s, u, normalize=normalize, perc_left=perc_left, perc_right=perc_right)
 
         k = fit_stochastic_linreg(u[mask], s[mask], us[mask], ss[mask])
 

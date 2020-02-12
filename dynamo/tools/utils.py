@@ -61,6 +61,7 @@ def gaussian_kernel(X, nbr_idx, sigma, k=None, dists=None):
     s2_inv = 1 / (2 * sigma ** 2)
     for i in range(n):
         W[i, nbr_idx[i][:k]] = np.exp(-s2_inv * dists[i][:k]**2)
+
     return csr_matrix(W)
 
 def calc_1nd_moment(X, W, normalize_W=True):
@@ -69,10 +70,10 @@ def calc_1nd_moment(X, W, normalize_W=True):
             d = np.sum(W, 1).flatten()
         else:
             d = np.sum(W, 1).A.flatten()
-        W = diags(1/d).dot(W) if issparse(W) else np.diag(1/d) @ W
-        return (W.dot(X), W) if issparse(W) else (W @ X, W)
+        W = diags(1/d) @ W if issparse(W) else np.diag(1/d) @ W
+        return W @ X, W
     else:
-        return W.dot(csr_matrix(X)) if issparse(W) else W @ X
+        return W @ X
 
 def calc_2nd_moment(X, Y, W, normalize_W=True, center=False, mX=None, mY=None):
     if normalize_W:
@@ -80,9 +81,9 @@ def calc_2nd_moment(X, Y, W, normalize_W=True, center=False, mX=None, mY=None):
             d = np.sum(W, 1).flatten()
         else:
             d = W.sum(1).A.flatten()
-        W = diags(1/d).dot(W) if issparse(W) else np.diag(1/d) @ W
+        W = diags(1/d) @ W if issparse(W) else np.diag(1/d) @ W
 
-    XY = W.multiply(elem_prod(Y, X)) if issparse(W) else W @ elem_prod(Y, X)
+    XY = W @ elem_prod(Y, X)
 
     if center:
         mX = calc_1nd_moment(X, W, False) if mX is None else mX
@@ -120,7 +121,7 @@ def get_valid_inds(adata, filter_gene_mode):
 
 def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, protein_names, experiment_type,
                                      log_unnormalized, NTR_vel):
-    U, Ul, S, Sl, P = None, None, None, None, None  # U: unlabeled unspliced; S: unlabel spliced: S
+    U, Ul, S, Sl, P, US, S2,  = None, None, None, None, None, None, None, # U: unlabeled unspliced; S: unlabel spliced: S
     normalized, has_splicing, has_labeling, has_protein, assumption_mRNA = False, False, False, False, None
 
     mapper = get_mapper()
@@ -265,7 +266,7 @@ def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, pro
             US = subset_adata.layers['M_nt'].T, S2 = subset_adata.layers['M_tt'].T if not has_splicing else None, None
     else:
         t = None
-        if mode == 'moment': US = subset_adata.layers['M_us'].T, S2 = subset_adata.layers['M_ss'].T
+        if mode == 'moment': US, S2 = subset_adata.layers['M_us'].T, subset_adata.layers['M_ss'].T
 
     return U, Ul, S, Sl, P, US, S2, t, normalized, has_splicing, has_labeling, has_protein, ind_for_proteins, assumption_mRNA, experiment_type
 
@@ -532,6 +533,24 @@ def norm_loglikelihood(x, mu, sig):
 
 # ---------------------------------------------------------------------------------------------------
 # velocity related
+
+def find_extreme(s, u, normalize=True, perc_left=None, perc_right=None):
+    if normalize:
+        su = s / np.clip(np.max(s), 1e-3, None)
+        su += u / np.clip(np.max(u), 1e-3, None)
+    else:
+        su = s + u
+
+    if perc_left is None:
+        mask = su >= np.percentile(su, 100 - perc_right, axis=0)
+    elif perc_right is None:
+        mask = np.ones_like(su, dtype=bool)
+    else:
+        left, right = np.percentile(su, [perc_left, 100 - perc_right], axis=0)
+        mask = (su <= left) | (su >= right)
+
+    return mask
+
 def set_velocity_genes(adata, vkey='velocity_S', min_r2=0.01, min_alpha=0, min_gamma=0, min_delta=0, use_for_dynamo=True):
     layer = vkey.split('_')[1]
 

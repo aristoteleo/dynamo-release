@@ -269,7 +269,7 @@ def smoother(adata, use_gaussian_kernel=True, use_mnn=False, layers='all'):
     layers = get_layer_keys(adata, layers, False, False)
     layers = [layer for layer in layers if layer.startswith('X_') and (not layer.endswith('_matrix') and
                                                                not layer.endswith('_ambiguous'))]
-    layers.sort() # ensure we get M_us, M_nt, etc.
+    layers.sort(reverse=True) # ensure we get M_us, M_tn, etc (instead of M_su or M_nt).
     for i, layer in enumerate(layers):
         layer_X = adata.layers[layer].copy()
 
@@ -279,7 +279,7 @@ def smoother(adata, use_gaussian_kernel=True, use_mnn=False, layers='all'):
             layer_X = 2 ** layer_X - 1 if adata.uns['pp_log'] == 'log2' else np.exp(layer_X) - 1
 
         if mapper[layer] not in adata.layers.keys():
-            adata.layers[mapper[layer]] = calc_1nd_moment(layer_X, conn) if use_gaussian_kernel else conn.dot(layer_X)
+            adata.layers[mapper[layer]] = calc_1nd_moment(layer_X, conn)[0] if use_gaussian_kernel else conn.dot(layer_X)
 
         for layer2 in layers[i:]:
             layer_y = adata.layers[layer2].copy()
@@ -290,9 +290,9 @@ def smoother(adata, use_gaussian_kernel=True, use_mnn=False, layers='all'):
                 layer_y = 2 ** layer_y - 1 if adata.uns['pp_log'] == 'log2' else np.exp(layer_y) - 1
 
             if mapper[layer2] not in adata.layers.keys():
-                adata.layers[mapper[layer2]] = calc_1nd_moment(layer_y, conn) if use_gaussian_kernel else conn.dot(layer_y)
+                adata.layers[mapper[layer2]] = calc_1nd_moment(layer_y, conn)[0] if use_gaussian_kernel else conn.dot(layer_y)
 
-            adata.layers['M_' + layer[0] + layer2[0]] = calc_2nd_moment(layer_X, layer_y, conn, normalize_W=True,
+            adata.layers['M_' + layer[2] + layer2[2]] = calc_2nd_moment(layer_X, layer_y, conn, normalize_W=True,
                                         center=False, mX=adata.layers[mapper[layer]], mY=adata.layers[mapper[layer2]])
 
     if 'X_protein' in adata.obsm.keys(): # may need to update with mnn or just use knn from protein layer itself.
