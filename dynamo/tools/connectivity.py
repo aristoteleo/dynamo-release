@@ -262,24 +262,27 @@ def smoother(adata, use_gaussian_kernel=True, use_mnn=False, layers='all'):
             kNN, knn_indices, knn_dists, _ = umap_conn_indices_dist_embedding(X, n_neighbors=30)
 
     if use_gaussian_kernel and not use_mnn:
-        conn = gaussian_kernel(X, knn_indices, sigma=0.5, k=None, dists=knn_dists)
+        conn = gaussian_kernel(X, knn_indices, sigma=10, k=None, dists=knn_dists)
     else:
         conn = normalize_knn_graph(kNN > 0)
 
     layers = get_layer_keys(adata, layers, False, False)
-    layers = [layer for layer in layers if layer.startswith('X_') and (not layer.endswith('_matrix') and
-                                                               not layer.endswith('_ambiguous'))]
-    layers.sort() # ensure we get M_us, M_nt, etc.
+    layers = [layer for layer in layers if layer.startswith('X_') and (not layer.endswith('matrix') and
+                                                               not layer.endswith('ambiguous'))]
+    layers.sort(reverse=True) # ensure we get M_us, M_tn, etc (instead of M_su or M_nt).
     for i, layer in enumerate(layers):
-        layer_X = adata.layers[layer].copy()
+        layer_x = adata.layers[layer].copy()
 
-        if issparse(layer_X):
-            layer_X.data = 2**layer_X.data - 1 if adata.uns['pp_log'] == 'log2' else np.exp(layer_X.data) - 1
+        if issparse(layer_x):
+            layer_x.data = 2**layer_x.data - 1 if adata.uns['pp_log'] == 'log2' else np.exp(layer_x.data) - 1
         else:
-            layer_X = 2 ** layer_X - 1 if adata.uns['pp_log'] == 'log2' else np.exp(layer_X) - 1
+            layer_x = 2 ** layer_x - 1 if adata.uns['pp_log'] == 'log2' else np.exp(layer_x) - 1
 
         if mapper[layer] not in adata.layers.keys():
-            adata.layers[mapper[layer]] = calc_1nd_moment(layer_X, conn) if use_gaussian_kernel else conn.dot(layer_X)
+            if use_gaussian_kernel:
+                adata.layers[mapper[layer]], conn = calc_1nd_moment(layer_x, conn, True)
+            else:
+                conn.dot(layer_x)
 
         for layer2 in layers[i:]:
             layer_y = adata.layers[layer2].copy()
@@ -290,10 +293,9 @@ def smoother(adata, use_gaussian_kernel=True, use_mnn=False, layers='all'):
                 layer_y = 2 ** layer_y - 1 if adata.uns['pp_log'] == 'log2' else np.exp(layer_y) - 1
 
             if mapper[layer2] not in adata.layers.keys():
-                adata.layers[mapper[layer2]] = calc_1nd_moment(layer_y, conn) if use_gaussian_kernel else conn.dot(layer_y)
+                adata.layers[mapper[layer2]] = calc_1nd_moment(layer_y, conn, False) if use_gaussian_kernel else conn.dot(layer_y)
 
-            adata.layers['M_' + layer[0] + layer2[0]] = calc_2nd_moment(layer_X, layer_y, conn, normalize_W=True,
-                                        center=False, mX=adata.layers[mapper[layer]], mY=adata.layers[mapper[layer2]])
+            adata.layers['M_' + layer[2] + layer2[2]] = calc_2nd_moment(layer_x, layer_y, conn, mX=layer_x, mY=layer_y)
 
     if 'X_protein' in adata.obsm.keys(): # may need to update with mnn or just use knn from protein layer itself.
         adata.obsm[mapper['X_protein']] = conn.dot(adata.obsm['X_protein'])

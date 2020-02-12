@@ -7,8 +7,8 @@ from .utils import set_velocity, set_param_deterministic, set_param_moment
 from .utils import moment_model
 
 # incorporate the model selection code soon
-def dynamics(adata, tkey=None, filter_gene_mode='no', mode='deterministic', use_smoothed=True, group=None, protein_names=None,
-             experiment_type='conventional', assumption_mRNA=None, assumption_protein='ss', NTR_vel=True, concat_data=False,
+def dynamics(adata, tkey=None, filter_gene_mode='final', mode='deterministic', use_smoothed=True, group=None, protein_names=None,
+             experiment_type=None, assumption_mRNA=None, assumption_protein='ss', NTR_vel=True, concat_data=False,
              log_unnormalized=True, one_shot_method='combined'):
     """Inclusive model of expression dynamics considers splicing, metabolic labeling and protein translation. It supports
     learning high-dimensional velocity vector samples for droplet based (10x, inDrop, drop-seq, etc), scSLAM-seq, NASC-seq
@@ -21,7 +21,7 @@ def dynamics(adata, tkey=None, filter_gene_mode='no', mode='deterministic', use_
         tkey: `str` or None (default: None)
             The column key for the time label of cells in .obs. Used for either "steady_state" or non-"steady_state" mode or `moment`
             mode  with labeled data.
-        filter_gene_mode: `str` (default: `no`)
+        filter_gene_mode: `str` (default: `final`)
             The string for indicating which mode (one of, {'final', 'basic', 'no'}) of gene filter will be used.
         mode: `str` (default: `deterministic`)
             string indicates which estimation mode will be used. Currently "deterministic" and "moment" methods are supported.
@@ -40,7 +40,7 @@ def dynamics(adata, tkey=None, filter_gene_mode='no', mode='deterministic', use_
             A list of gene names corresponds to the rows of the measured proteins in the `X_protein` of the `obsm` attribute.
             The names have to be included in the adata.var.index.
         experiment_type: `str`
-            labelling experiment type. Available options are:
+            single cell RNA-seq experiment type. Available options are:
             (1) 'conventional': conventional single-cell RNA-seq experiment;
             (1) 'deg': degradation experiment;
             (2) 'kin': synthesis/kinetics experiment;
@@ -96,16 +96,14 @@ def dynamics(adata, tkey=None, filter_gene_mode='no', mode='deterministic', use_
             get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, protein_names, experiment_type,
                                              log_unnormalized, NTR_vel)
 
-        if experiment_type is not None:
+        if exp_type is not None:
             if experiment_type != exp_type:
                 warnings.warn('dynamo detects the experiment type of your data as {}, but your input experiment_type '
                               'is {}'.format(exp_type, experiment_type))
-        else:
-            if exp_type is not None:
-                experiment_type = exp_type
-                assumption_mRNA = None
-                NTR_vel = False
-            # add log information
+
+            experiment_type = exp_type
+            assumption_mRNA = 'ss' if exp_type == 'conventional' else None
+            NTR_vel = False
 
         if mode == 'moment' and experiment_type not in ['conventional', 'kin']:
             """
@@ -115,7 +113,7 @@ def dynamics(adata, tkey=None, filter_gene_mode='no', mode='deterministic', use_
             mode = 'deterministic'
 
         if mode is 'deterministic' or (experiment_type is not 'kin' and mode is 'moment'):
-            est = estimation(U=U, Ul=Ul, S=S, Sl=Sl, P=P, US=None, S2=None,
+            est = estimation(U=U, Ul=Ul, S=S, Sl=Sl, P=P, US=US, S2=S2,
                              t=t, ind_for_proteins=ind_for_proteins,
                              experiment_type=experiment_type,
                              assumption_mRNA=assumption_mRNA,
@@ -126,9 +124,9 @@ def dynamics(adata, tkey=None, filter_gene_mode='no', mode='deterministic', use_
                 warnings.simplefilter("ignore")
 
                 if experiment_type in ['one-shot', 'one_shot']:
-                    est.fit(mode=mode, one_shot_method=one_shot_method)
+                    est.fit(one_shot_method=one_shot_method)
                 else:
-                    est.fit(mode=mode)
+                    est.fit()
 
             alpha, beta, gamma, eta, delta = est.parameters.values()
 

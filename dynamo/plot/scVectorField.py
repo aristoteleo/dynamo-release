@@ -934,9 +934,9 @@ def grid_velocity(
             V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
             adata.obsm['velocity_' + basis] = V
 
-    if method == 'SparseVFC' and adata.obsm['X_' + basis].shape[1] == 2:
+    if method == 'SparseVFC':
         if 'VecFld_' + basis not in adata.uns.keys():
-            VectorField(adata, basis=basis)
+            VectorField(adata, basis=basis, dims=[0, 1])
         X_grid, V_grid =  adata.uns['VecFld_' + basis]["VecFld"]['grid'], adata.uns['VecFld_' + basis]["VecFld"]['grid_V']
         N = int(np.sqrt(V_grid.shape[0]))
         X_grid, V_grid = np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]), \
@@ -1069,9 +1069,9 @@ def streamline_plot(
             V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
             adata.obsm['velocity_' + basis] = V
 
-    if method == 'SparseVFC' and adata.obsm['X_' + basis].shape[1] == 2:
+    if method == 'SparseVFC':
         if 'VecFld_' + basis not in adata.uns.keys():
-            VectorField(adata, basis=basis)
+            VectorField(adata, basis=basis, dims=[0, 1])
         X_grid, V_grid =  adata.uns['VecFld_' + basis]["VecFld"]['grid'], adata.uns['VecFld_' + basis]["VecFld"]['grid_V']
         N = int(np.sqrt(V_grid.shape[0]))
         X_grid, V_grid = np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]), \
