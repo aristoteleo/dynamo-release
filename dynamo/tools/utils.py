@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.sparse import issparse, csr_matrix, lil_matrix
+from scipy.sparse import issparse, csr_matrix, lil_matrix, diags
 from .moments import strat_mom, MomData, Estimation
 import warnings
 
@@ -15,7 +15,6 @@ def get_mapper_inverse():
     mapper = get_mapper()
 
     return dict([(v, k) for k, v in mapper.items()])
-
 
 def get_finite_inds(X, ax=0):
     finite_inds = np.isfinite(X.sum(ax).A1) if issparse(X) else np.isfinite(X.sum(ax))
@@ -42,7 +41,7 @@ def elem_prod(X, Y):
 
 # ---------------------------------------------------------------------------------------------------
 # moment related:
-def cal_12_mom(data, t):
+def calc_12_mom_labeling(data, t):
     t_uniq = np.unique(t)
     m, v = np.zeros((data.shape[0], len(t_uniq))), np.zeros((data.shape[0], len(t_uniq)))
     for i in range(data.shape[0]):
@@ -70,24 +69,28 @@ def calc_1nd_moment(X, W, normalize_W=True):
             d = np.sum(W, 1).flatten()
         else:
             d = np.sum(W, 1).A.flatten()
-        W = np.diag(1/d) @ W
-        return W @ X, W
+        W = diags(1/d).dot(W) if issparse(W) else np.diag(1/d) @ W
+        return (W.dot(X), W) if issparse(W) else (W @ X, W)
     else:
-        return W @ X
+        return W.dot(csr_matrix(X)) if issparse(W) else W @ X
 
 def calc_2nd_moment(X, Y, W, normalize_W=True, center=False, mX=None, mY=None):
     if normalize_W:
         if type(W) == np.ndarray:
             d = np.sum(W, 1).flatten()
         else:
-            d = np.sum(W, 1).A.flatten()
-        W = np.diag(1/d) @ W
-    XY = W @ elem_prod(Y, X)
+            d = W.sum(1).A.flatten()
+        W = diags(1/d).dot(W) if issparse(W) else np.diag(1/d) @ W
+
+    XY = W.multiply(elem_prod(Y, X)) if issparse(W) else W @ elem_prod(Y, X)
+
     if center:
         mX = calc_1nd_moment(X, W, False) if mX is None else mX
         mY = calc_1nd_moment(Y, W, False) if mY is None else mY
         XY = XY - elem_prod(mX, mY)
+
     return XY
+
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
 def one_shot_gamma_alpha(k, t, l):
@@ -99,6 +102,7 @@ def one_shot_gamma_alpha(k, t, l):
 def one_shot_k(gamma, t):
     k = 1 - np.exp(- gamma * t)
     return k
+
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
 def get_valid_inds(adata, filter_gene_mode):
@@ -257,10 +261,13 @@ def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, pro
                 experiment_type = 'kin' if k > 0 else 'deg'
         else:
             raise Exception('the tkey ', tkey, ' provided is not a valid column name in .obs.')
+        if mode == 'moment':
+            US = subset_adata.layers['M_nt'].T, S2 = subset_adata.layers['M_tt'].T if not has_splicing else None, None
     else:
         t = None
+        if mode == 'moment': US = subset_adata.layers['M_us'].T, S2 = subset_adata.layers['M_ss'].T
 
-    return U, Ul, S, Sl, P, t, normalized, has_splicing, has_labeling, has_protein, ind_for_proteins, assumption_mRNA, experiment_type
+    return U, Ul, S, Sl, P, US, S2, t, normalized, has_splicing, has_labeling, has_protein, ind_for_proteins, assumption_mRNA, experiment_type
 
 def set_velocity(adata, vel_U, vel_S, vel_P, _group, cur_grp, cur_cells_bools, valid_ind, ind_for_proteins):
     if type(vel_U) is not float:
@@ -634,7 +641,6 @@ def con_K(x, y, beta):
     K = np.exp(K) #
 
     return K
-
 
 def vector_field_function(x, t, VecFld, dim=None):
     """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.

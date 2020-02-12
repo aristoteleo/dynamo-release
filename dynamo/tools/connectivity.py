@@ -7,7 +7,7 @@ from copy import deepcopy
 from inspect import signature
 from sklearn.utils import sparsefuncs
 from ..preprocessing.utils import get_layer_keys
-from .utils import get_mapper
+from .utils import get_mapper, gaussian_kernel, calc_1nd_moment, calc_2nd_moment
 
 def extract_indices_dist_from_graph(graph, n_neighbors):
     """Extract the matrices for index, distance from the associated kNN sparse graph
@@ -248,7 +248,7 @@ def mnn(adata, n_pca_components=25, n_neighbors=250, layers='all', use_pca_fit=T
 
     return adata
 
-def smoother(adata, use_mnn=False, layers='all'):
+def smoother(adata, use_gaussian_kernel=True, use_mnn=False, layers='all'):
     mapper = get_mapper()
 
     if use_mnn:
@@ -256,25 +256,44 @@ def smoother(adata, use_mnn=False, layers='all'):
             adata = mnn(adata, n_pca_components=30, layers='all', use_pca_fit=True, save_all_to_adata=False)
         kNN = adata.uns['mnn']
     else:
+        X = adata.obsm['X_pca']
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            kNN, _, _, _ = umap_conn_indices_dist_embedding(adata.obsm['X_pca'], n_neighbors=30)
+            kNN, knn_indices, knn_dists, _ = umap_conn_indices_dist_embedding(X, n_neighbors=30)
 
-    conn = normalize_knn_graph(kNN > 0)
+    if use_gaussian_kernel and not use_mnn:
+        conn = gaussian_kernel(X, knn_indices, sigma=0.5, k=None, dists=knn_dists)
+    else:
+        conn = normalize_knn_graph(kNN > 0)
 
     layers = get_layer_keys(adata, layers, False, False)
     layers = [layer for layer in layers if layer.startswith('X_') and (not layer.endswith('_matrix') and
                                                                not layer.endswith('_ambiguous'))]
-
-    for layer in layers:
+    layers.sort() # ensure we get M_us, M_nt, etc.
+    for i, layer in enumerate(layers):
         layer_X = adata.layers[layer].copy()
 
         if issparse(layer_X):
             layer_X.data = 2**layer_X.data - 1 if adata.uns['pp_log'] == 'log2' else np.exp(layer_X.data) - 1
         else:
-            layer_X = 2** layer_X - 1 if adata.uns['pp_log'] == 'log2' else np.exp(layer_X) - 1
+            layer_X = 2 ** layer_X - 1 if adata.uns['pp_log'] == 'log2' else np.exp(layer_X) - 1
 
-        adata.layers[mapper[layer]] = conn.dot(layer_X)
+        if mapper[layer] not in adata.layers.keys():
+            adata.layers[mapper[layer]] = calc_1nd_moment(layer_X, conn) if use_gaussian_kernel else conn.dot(layer_X)
+
+        for layer2 in layers[i:]:
+            layer_y = adata.layers[layer2].copy()
+
+            if issparse(layer_y):
+                layer_y.data = 2 ** layer_y.data - 1 if adata.uns['pp_log'] == 'log2' else np.exp(layer_y.data) - 1
+            else:
+                layer_y = 2 ** layer_y - 1 if adata.uns['pp_log'] == 'log2' else np.exp(layer_y) - 1
+
+            if mapper[layer2] not in adata.layers.keys():
+                adata.layers[mapper[layer2]] = calc_1nd_moment(layer_y, conn) if use_gaussian_kernel else conn.dot(layer_y)
+
+            adata.layers['M_' + layer[0] + layer2[0]] = calc_2nd_moment(layer_X, layer_y, conn, normalize_W=True,
+                                        center=False, mX=adata.layers[mapper[layer]], mY=adata.layers[mapper[layer2]])
 
     if 'X_protein' in adata.obsm.keys(): # may need to update with mnn or just use knn from protein layer itself.
         adata.obsm[mapper['X_protein']] = conn.dot(adata.obsm['X_protein'])
