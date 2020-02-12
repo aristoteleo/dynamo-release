@@ -8,8 +8,8 @@ from .utils import moment_model
 
 # incorporate the model selection code soon
 def dynamics(adata, tkey=None, filter_gene_mode='no', mode='deterministic', use_smoothed=True, group=None, protein_names=None,
-             experiment_type=None, assumption_mRNA=None, assumption_protein='ss', NTR_vel=True, concat_data=False,
-             log_unnormalized=True, fit_mode='combined'):
+             experiment_type='conventional', assumption_mRNA=None, assumption_protein='ss', NTR_vel=True, concat_data=False,
+             log_unnormalized=True, one_shot_method='combined'):
     """Inclusive model of expression dynamics considers splicing, metabolic labeling and protein translation. It supports
     learning high-dimensional velocity vector samples for droplet based (10x, inDrop, drop-seq, etc), scSLAM-seq, NASC-seq
     sci-fate, scNT-seq or cite-seq datasets.
@@ -26,6 +26,11 @@ def dynamics(adata, tkey=None, filter_gene_mode='no', mode='deterministic', use_
         mode: `str` (default: `deterministic`)
             string indicates which estimation mode will be used. Currently "deterministic" and "moment" methods are supported.
             A "model_selection" mode will be supported soon in which alpha, beta and gamma will be modeled as a function of time.
+            Note that deterministic model only considers the mean of RNA species (based on the deterministic ordinary different
+            equations) while moment method considers both first moment and second moment (uncentered variance) of RNA species (
+            based on the stochastic master equations). Currently moment mode is supported for either the conventional scRNA-seq
+            dataset or the kinetic experiments. However, one-shot, degradation and other innovative ways of labeling experiments
+            will also be supported shortly.
         use_smoothed: `bool` (default: `True`)
             Whether to use the smoothed data when calculating velocity for each gene.
         group: `str` or None (default: `None`)
@@ -36,19 +41,22 @@ def dynamics(adata, tkey=None, filter_gene_mode='no', mode='deterministic', use_
             The names have to be included in the adata.var.index.
         experiment_type: `str`
             labelling experiment type. Available options are:
+            (1) 'conventional': conventional single-cell RNA-seq experiment;
             (1) 'deg': degradation experiment;
             (2) 'kin': synthesis/kinetics experiment;
             (3) 'one-shot': one-shot kinetic experiment.
         assumption_mRNA: `str`
             Parameter estimation assumption for mRNA. Available options are:
             (1) 'ss': pseudo steady state;
-            (2) None: kinetic data with no assumption.
-            If no labelling data exists, assumption_mRNA will automatically set to be 'ss'.
+            (2) None: degradation and kinetic data with no assumption.
+            If no labelling data exists, assumption_mRNA will automatically set to be 'ss'. For one-shot experiment, assumption_mRNA
+            is set to be None. However we will use steady state assumption to estimate parameters alpha and gamma either by a deterministic
+            linear regression or the first order decay approach in line of the sci-fate paper.
         assumption_protein: `str`
             Parameter estimation assumption for protein. Available options are:
             (1) 'ss': pseudo steady state;
         NTR_vel: `bool` (default: `True`)
-            Whether to use NTR (new/total ratio) velocity.
+            Whether to use NTR (new/total ratio) velocity for labeling datasets.
         concat_data: `bool` (default: `False`)
             Whether to concatenate data before estimation. If your data is a list of matrices for each time point, this need to be set as True.
         log_unnormalized: `bool` (default: `True`)
@@ -65,7 +73,7 @@ def dynamics(adata, tkey=None, filter_gene_mode='no', mode='deterministic', use_
 
     valid_ind = get_valid_inds(adata, filter_gene_mode)
 
-    if use_smoothed and len([i for i in adata.layers.keys() if i.startswith('M_')]) < 2:
+    if mode == 'moment' or (use_smoothed and len([i for i in adata.layers.keys() if i.startswith('M_')]) < 2):
         smoother(adata)
 
     valid_adata = adata[:, valid_ind].copy()
@@ -84,7 +92,7 @@ def dynamics(adata, tkey=None, filter_gene_mode='no', mode='deterministic', use_
             cur_cells_bools = (valid_adata.obs[group] == cur_grp).values
             subset_adata = valid_adata[cur_cells_bools]
 
-        U, Ul, S, Sl, P, t, normalized, has_splicing, has_labeling, has_protein, ind_for_proteins, assumption_mRNA, exp_type = \
+        U, Ul, S, Sl, P, US, S2, t, normalized, has_splicing, has_labeling, has_protein, ind_for_proteins, assumption_mRNA, exp_type = \
             get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, protein_names, experiment_type,
                                              log_unnormalized, NTR_vel)
 
@@ -99,8 +107,15 @@ def dynamics(adata, tkey=None, filter_gene_mode='no', mode='deterministic', use_
                 NTR_vel = False
             # add log information
 
-        if mode is 'deterministic':
-            est = estimation(U=U, Ul=Ul, S=S, Sl=Sl, P=P,
+        if mode == 'moment' and experiment_type not in ['conventional', 'kin']:
+            """
+            # temporially convert to deterministic mode as moment mode for one-shot, 
+            degradation and other types of labeling experiment is ongoing."""
+
+            mode = 'deterministic'
+
+        if mode is 'deterministic' or (experiment_type is not 'kin' and mode is 'moment'):
+            est = estimation(U=U, Ul=Ul, S=S, Sl=Sl, P=P, US=None, S2=None,
                              t=t, ind_for_proteins=ind_for_proteins,
                              experiment_type=experiment_type,
                              assumption_mRNA=assumption_mRNA,
@@ -110,7 +125,10 @@ def dynamics(adata, tkey=None, filter_gene_mode='no', mode='deterministic', use_
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
 
-                est.fit(mode=fit_mode)
+                if experiment_type in ['one-shot', 'one_shot']:
+                    est.fit(mode=mode, one_shot_method=one_shot_method)
+                else:
+                    est.fit(mode=mode)
 
             alpha, beta, gamma, eta, delta = est.parameters.values()
 

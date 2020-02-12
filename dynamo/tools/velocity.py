@@ -2,7 +2,8 @@ import numpy as np
 from scipy.optimize import least_squares
 from scipy.sparse import issparse, csr_matrix
 from warnings import warn
-from .utils import cal_12_mom, one_shot_gamma_alpha, elem_prod
+from .utils import calc_12_mom_labeling, one_shot_gamma_alpha, elem_prod
+from .utils import gaussian_kernel, calc_1nd_moment, calc_2nd_moment
 from .moments import strat_mom
 # from sklearn.cluster import KMeans
 # from sklearn.neighbors import NearestNeighbors
@@ -821,7 +822,7 @@ class velocity:
         return n_genes
 
 class estimation:
-    def __init__(self, U=None, Ul=None, S=None, Sl=None, P=None, t=None, ind_for_proteins=None, experiment_type='deg',
+    def __init__(self, U=None, Ul=None, S=None, Sl=None, P=None, US=None, S2=None, t=None, ind_for_proteins=None, experiment_type='deg',
                  assumption_mRNA=None, assumption_protein='ss', concat_data=True):
         """The class that estimates parameters with input data.
 
@@ -837,6 +838,10 @@ class estimation:
             A matrix of spliced, labeled mRNA count.
         P: :class:`~numpy.ndarray` or sparse `csr_matrix`
             A matrix of protein count.
+        US: :class:`~numpy.ndarray` or sparse `csr_matrix`
+            A matrix of second moment of unspliced/spliced gene expression count for conventional or NTR velocity.
+        S2: :class:`~numpy.ndarray` or sparse `csr_matrix`
+            A matrix of second moment of spliced gene expression count for conventional or NTR velocity.
         t: :class:`~estimation`
             A vector of time points.
         ind_for_proteins: :class:`~numpy.ndarray`
@@ -879,7 +884,7 @@ class estimation:
                 delta: protein degradation rate
         """
         self.t = t
-        self.data = {'uu': U, 'ul': Ul, 'su': S, 'sl': Sl, 'p': P}
+        self.data = {'uu': U, 'ul': Ul, 'su': S, 'sl': Sl, 'p': P, 'us': US, 's2': S2}
         if concat_data:
             self.concatenate_data()
 
@@ -891,7 +896,7 @@ class estimation:
                           'delta_r2': None, "uu0": None, "ul0": None, "su0": None, "sl0": None, 'U0': None, 'S0': None, 'total0': None} # note that alpha_intercept also corresponds to u0 in fit_alpha_degradation, similar to fit_first_order_deg_lsq
         self.ind_for_proteins = ind_for_proteins
 
-    def fit(self, intercept=False, perc_left=None, perc_right=5, clusters=None, mode="combined"):
+    def fit(self, intercept=False, perc_left=None, perc_right=5, clusters=None, one_shot_method="combined"):
         """Fit the input data to estimate all or a subset of the parameters
 
         Arguments
@@ -909,36 +914,58 @@ class estimation:
         """
         n = self.get_n_genes()
         # fit mRNA
-        if self.asspt_mRNA == 'ss':
-            if np.all(self._exist_data('uu', 'su')):
-                self.parameters['beta'] = np.ones(n)
-                gamma, gamma_intercept, gamma_r2 = np.zeros(n), np.zeros(n), np.zeros(n)
-                U = self.data['uu'] if self.data['ul'] is None else self.data['uu'] + self.data['ul']
-                S = self.data['su'] if self.data['sl'] is None else self.data['su'] + self.data['sl']
-                for i in range(n):
-                    gamma[i], gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_steady_state(U[i], S[i],
-                            intercept, perc_left, perc_right)
-                self.parameters['gamma'], self.aux_param['gamma_intercept'], self.aux_param['gamma_r2'] = gamma, gamma_intercept, gamma_r2
-            elif np.all(self._exist_data('uu', 'ul')):
-                self.parameters['beta'] = np.ones(n)
-                gamma, gamma_intercept, gamma_r2 = np.zeros(n), np.zeros(n), np.zeros(n)
-                U = self.data['ul']
-                S = self.data['uu'] + self.data['ul']
-                for i in range(n):
-                    gamma[i], gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_steady_state(U[i], S[i],
-                            intercept, perc_left, perc_right)
-                self.parameters['gamma'], self.aux_param['gamma_intercept'], self.aux_param['gamma_r2'] = gamma, gamma_intercept, gamma_r2
+        if self.extyp == 'conventional':
+            if self.asspt_mRNA == 'ss':
+                if np.all(self._exist_data('uu', 'su')):
+                    self.parameters['beta'] = np.ones(n)
+                    gamma, gamma_intercept, gamma_r2 = np.zeros(n), np.zeros(n), np.zeros(n)
+                    U = self.data['uu'] if self.data['ul'] is None else self.data['uu'] + self.data['ul']
+                    S = self.data['su'] if self.data['sl'] is None else self.data['su'] + self.data['sl']
+                    for i in range(n):
+                        gamma[i], gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_steady_state(U[i], S[i],
+                                intercept, perc_left, perc_right)
+                    self.parameters['gamma'], self.aux_param['gamma_intercept'], self.aux_param['gamma_r2'] = gamma, gamma_intercept, gamma_r2
+                elif np.all(self._exist_data('uu', 'ul')):
+                    self.parameters['beta'] = np.ones(n)
+                    gamma, gamma_intercept, gamma_r2 = np.zeros(n), np.zeros(n), np.zeros(n)
+                    U = self.data['ul']
+                    S = self.data['uu'] + self.data['ul']
+                    for i in range(n):
+                        gamma[i], gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_steady_state(U[i], S[i],
+                                intercept, perc_left, perc_right)
+                    self.parameters['gamma'], self.aux_param['gamma_intercept'], self.aux_param['gamma_r2'] = gamma, gamma_intercept, gamma_r2
+            else:
+                if np.all(self._exist_data('uu', 'su')):
+                    self.parameters['beta'] = np.ones(n)
+                    gamma, gamma_intercept, gamma_r2 = np.zeros(n), np.zeros(n), np.zeros(n)
+                    U = self.data['uu'] if self.data['ul'] is None else self.data['uu'] + self.data['ul']
+                    S = self.data['su'] if self.data['sl'] is None else self.data['su'] + self.data['sl']
+                    US, S2 = self.data['us'], self.data['s2']
+                    for i in range(n):
+                        gamma[i], gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_stochasic(self, U[i], S[i], US[i], S2[i], intercept=True,
+                                                                                                perc_left=None, perc_right=5, normalize=True)
+                    self.parameters['gamma'], self.aux_param['gamma_intercept'], self.aux_param['gamma_r2'] = gamma, gamma_intercept, gamma_r2
+                elif np.all(self._exist_data('uu', 'ul')):
+                    self.parameters['beta'] = np.ones(n)
+                    gamma, gamma_intercept, gamma_r2 = np.zeros(n), np.zeros(n), np.zeros(n)
+                    U = self.data['ul']
+                    S = self.data['uu'] + self.data['ul']
+                    US, S2 = self.data['us'], self.data['s2']
+                    for i in range(n):
+                        gamma[i], gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_stochasic(self, U[i], S[i], US[i], S2[i], intercept=True,
+                                                                                                perc_left=None, perc_right=5, normalize=True)
+                    self.parameters['gamma'], self.aux_param['gamma_intercept'], self.aux_param['gamma_r2'] = gamma, gamma_intercept, gamma_r2
         else:
             if self.extyp == 'deg':
                 if np.all(self._exist_data('ul', 'sl')):
                     # beta & gamma estimation
-                    ul_m, ul_v, t_uniq = cal_12_mom(self.data['ul'], self.t)
-                    sl_m, sl_v, _ = cal_12_mom(self.data['sl'], self.t)
+                    ul_m, ul_v, t_uniq = calc_12_mom_labeling(self.data['ul'], self.t)
+                    sl_m, sl_v, _ = calc_12_mom_labeling(self.data['sl'], self.t)
                     self.parameters['beta'], self.parameters['gamma'], self.aux_param['ul0'], self.aux_param['sl0'] = \
                         self.fit_beta_gamma_lsq(t_uniq, ul_m, sl_m)
                     if self._exist_data('uu'):
                         # alpha estimation
-                        uu_m, uu_v, _ = cal_12_mom(self.data['uu'], self.t)
+                        uu_m, uu_v, _ = calc_12_mom_labeling(self.data['uu'], self.t)
                         alpha, uu0, r2 = np.zeros((n, 1)), np.zeros(n), np.zeros(n)
                         for i in range(n):
                             alpha[i], uu0[i], r2[i] = fit_alpha_degradation(t_uniq, uu_m[i], self.parameters['beta'][i], intercept=True)
@@ -946,12 +973,12 @@ class estimation:
                 elif self._exist_data('ul'):
                     # gamma estimation
                     # use mean + var for fitting degradation parameter k
-                    ul_m, ul_v, t_uniq = cal_12_mom(self.data['ul'], self.t)
+                    ul_m, ul_v, t_uniq = calc_12_mom_labeling(self.data['ul'], self.t)
                     self.parameters['gamma'], self.aux_param['ul0'] = self.fit_gamma_nosplicing_lsq(t_uniq, ul_m)
                     if self._exist_data('uu'):
                         # alpha estimation
                         alpha, alpha_b, alpha_r2 = np.zeros(n), np.zeros(n), np.zeros(n)
-                        uu_m, uu_v, _ = cal_12_mom(self.data['uu'], self.t)
+                        uu_m, uu_v, _ = calc_12_mom_labeling(self.data['uu'], self.t)
                         for i in range(n):
                             alpha[i], alpha_b[i], alpha_r2[i] = fit_alpha_degradation(t_uniq, uu_m[i], self.parameters['gamma'][i])
                         self.parameters['alpha'], self.aux_param['alpha_intercept'], self.aux_param['uu0'], self.aux_param['alpha_r2'] = alpha, alpha_b, alpha_b, alpha_r2
@@ -959,12 +986,12 @@ class estimation:
                 if np.all(self._exist_data('ul', 'uu', 'su')):
                     if not self._exist_parameter('beta'):
                         warn("beta & gamma estimation: only works when there're at least 2 time points.")
-                        uu_m, uu_v, t_uniq = cal_12_mom(self.data['uu'], self.t)
-                        su_m, su_v, _ = cal_12_mom(self.data['su'], self.t)
+                        uu_m, uu_v, t_uniq = calc_12_mom_labeling(self.data['uu'], self.t)
+                        su_m, su_v, _ = calc_12_mom_labeling(self.data['su'], self.t)
 
                         self.parameters['beta'], self.parameters['gamma'], self.aux_param['uu0'], self.aux_param['su0'] = self.fit_beta_gamma_lsq(t_uniq, uu_m, su_m)
                     # alpha estimation
-                    ul_m, ul_v, t_uniq = cal_12_mom(self.data['ul'], self.t)
+                    ul_m, ul_v, t_uniq = calc_12_mom_labeling(self.data['ul'], self.t)
                     alpha = np.zeros(n)
                     # let us only assume one alpha for each gene in all cells
                     for i in range(n):
@@ -974,7 +1001,7 @@ class estimation:
                 elif np.all(self._exist_data('ul', 'uu')):
                     n = self.data['uu'].shape[0]  # self.get_n_genes(data=U)
                     u0, gamma = np.zeros(n), np.zeros(n)
-                    uu_m, uu_v, t_uniq = cal_12_mom(self.data['uu'], self.t)
+                    uu_m, uu_v, t_uniq = calc_12_mom_labeling(self.data['uu'], self.t)
                     for i in range(n):
                         try:
                             gamma[i], u0[i] = fit_first_order_deg_lsq(t_uniq, uu_m[i])
@@ -983,7 +1010,7 @@ class estimation:
                     self.parameters['gamma'], self.aux_param['uu0'] = gamma, u0
                     alpha = np.zeros(n)
                     # let us only assume one alpha for each gene in all cells
-                    ul_m, ul_v, _ = cal_12_mom(self.data['ul'], self.t)
+                    ul_m, ul_v, _ = calc_12_mom_labeling(self.data['ul'], self.t)
                     for i in range(n):
                         # for j in range(len(self.data['ul'][i])):
                         alpha[i] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters['gamma'][i])
@@ -1007,7 +1034,7 @@ class estimation:
                             U0[i], beta[i] = np.mean(U), solve_gamma(np.max(self.t), self.data['uu'][i], U)
                         self.aux_param['U0'], self.aux_param['S0'], self.parameters['beta'], self.parameters['gamma'] = U0, S0, beta, gamma
 
-                        ul_m, ul_v, t_uniq = cal_12_mom(self.data['ul'], self.t)
+                        ul_m, ul_v, t_uniq = calc_12_mom_labeling(self.data['ul'], self.t)
                         alpha = np.zeros(n)
                         # let us only assume one alpha for each gene in all cells
                         for i in range(n):
@@ -1020,14 +1047,14 @@ class estimation:
                     if self._exist_data('ul') and self._exist_parameter('gamma'):
                         self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['gamma'], clusters)
                     elif self._exist_data('ul') and self._exist_data('uu'):
-                        if mode == 'sci-fate' or mode == 'sci_fate':
+                        if one_shot_method in ['sci-fate', 'sci_fate']:
                             gamma, total0 = np.zeros(n), np.zeros(n)
                             for i in range(n):
                                 total = self.data['uu'][i] + self.data['ul'][i]
                                 total0[i], gamma[i] = np.mean(total), solve_gamma(np.max(self.t), self.data['uu'][i], total)
                             self.aux_param['total0'], self.parameters['gamma'] = total0, gamma
 
-                            ul_m, ul_v, t_uniq = cal_12_mom(self.data['ul'], self.t)
+                            ul_m, ul_v, t_uniq = calc_12_mom_labeling(self.data['ul'], self.t)
                             # let us only assume one alpha for each gene in all cells
                             alpha = np.zeros(n)
                             for i in range(n):
@@ -1036,7 +1063,7 @@ class estimation:
 
                             self.parameters['alpha'] = alpha
                             # self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['gamma'], clusters)
-                        elif mode == 'combined':
+                        elif one_shot_method == 'combined':
                             self.parameters['alpha'] = csr_matrix(self.data['ul'].shape) if issparse(self.data['ul']) else np.zeros_like(self.data['ul'].shape)
                             t_uniq, gamma, gamma_intercept, gamma_r2 = np.unique(self.t), np.zeros(n), np.zeros(n), np.zeros(n)
                             U, S = self.data['ul'], self.data['uu'] + self.data['ul']
@@ -1150,6 +1177,67 @@ class estimation:
             mask = (su <= left) | (su >= right)
 
         return fit_linreg(s, u, mask, intercept)
+
+    def fit_gamma_stochasic(self, u, s, us, ss, intercept=True, perc_left=None, perc_right=5, normalize=True):
+        """Estimate gamma using linear regression based on the steady state assumption.
+
+        Arguments
+        ---------
+        u: :class:`~numpy.ndarray` or sparse `csr_matrix`
+            A matrix of unspliced mRNA counts. Dimension: genes x cells.
+        s: :class:`~numpy.ndarray` or sparse `csr_matrix`
+            A matrix of spliced mRNA counts. Dimension: genes x cells.
+        intercept: bool
+            If using steady state assumption for fitting, then:
+            True -- the linear regression is performed with an unfixed intercept;
+            False -- the linear regresssion is performed with a fixed zero intercept.
+        perc_left: float
+            The percentage of samples included in the linear regression in the left tail. If set to None, then all the left samples are excluded.
+        perc_right: float
+            The percentage of samples included in the linear regression in the right tail. If set to None, then all the samples are included.
+        normalize: bool
+            Whether to first normalize the
+
+        Returns
+        -------
+        k: float
+            The slope of the linear regression model, which is gamma under the steady state assumption.
+        b: float
+            The intercept of the linear regression model.
+        r2: float
+            Coefficient of determination or r square for the extreme data points.
+        r2: float
+            Coefficient of determination or r square for the extreme data points.
+        all_r2: float
+            Coefficient of determination or r square for all data points.
+        """
+        if not intercept and perc_left is None: perc_left = perc_right
+        u = u.A.flatten() if issparse(u) else u.flatten()
+        s = s.A.flatten() if issparse(s) else s.flatten()
+
+        n = len(u)
+
+        if normalize:
+            su = s / np.clip(np.max(s), 1e-3, None)
+            su += u / np.clip(np.max(u), 1e-3, None)
+        else:
+            su = s + u
+
+        if perc_left is None:
+            mask = su >= np.percentile(su, 100 - perc_right, axis=0)
+        elif perc_right is None:
+            mask = np.ones(n, dtype=bool)
+        else:
+            left, right = np.percentile(su, [perc_left, 100 - perc_right], axis=0)
+            mask = (su <= left) | (su >= right)
+
+        k = fit_stochastic_linreg(u[mask], s[mask], us[mask], ss[mask])
+
+        SS_tot_n, all_SS_tot_n = np.var(u[mask]), np.var(u)
+        SS_res_n, all_SS_res_n = np.mean((u[mask] - k * s[mask]) ** 2), np.mean((u - k * s) ** 2)
+        r2, all_r2 = 1 - SS_res_n / SS_tot_n, 1 - all_SS_res_n / all_SS_tot_n
+
+        return k, 0, r2, all_r2
 
     def fit_beta_gamma_lsq(self, t, U, S):
         """Estimate beta and gamma with the degradation data using the least squares method.
