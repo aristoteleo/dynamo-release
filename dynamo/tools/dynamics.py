@@ -102,7 +102,7 @@ def dynamics(adata, tkey=None, filter_gene_mode='final', mode='deterministic', u
                               'is {}'.format(exp_type, experiment_type))
 
             experiment_type = exp_type
-            assumption_mRNA = 'ss' if exp_type == 'conventional' else None
+            assumption_mRNA = 'ss' if exp_type == 'conventional' and mode == 'deterministic' else None
             NTR_vel = False
 
         if mode == 'moment' and experiment_type not in ['conventional', 'kin']:

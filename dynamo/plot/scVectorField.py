@@ -3,7 +3,7 @@ import pandas as pd
 from scipy.sparse import issparse
 
 from .scatters import scatters
-from .utils import quiver_autoscaler
+from .utils import quiver_autoscaler, default_quiver_args
 from ..tools.dimension_reduction import reduceDimension
 from ..tools.cell_velocities import cell_velocities
 from ..tools.Markov import velocity_on_grid
@@ -766,6 +766,7 @@ def cell_wise_velocity(
         ax=None,
         cell_ind='all',
         quiver_scale=None,
+        quiver_length=None,
         s_kwargs_dict={},
         **cell_wise_kwargs):
     """Plot the velocity vector of each cell.
@@ -813,12 +814,14 @@ def cell_wise_velocity(
     if quiver_scale is None:
         quiver_scale = quiver_autoscaler(X, V)
     if background == 'black':
-        edgecolors = 'gray'
+        edgecolors = 'white'
     else:
-        edgecolors = 'gray'
-    quiver_kwargs = {"units": 'xy', "angles": 'xy', 'scale': quiver_scale, "scale_units": 'xy', "width": 0.01,
-                     "headwidth": 3, "headlength": 5, "headaxislength": 4.5, "minshaft": 1, "minlength": 1,
-                     "pivot": "tail", "linewidth": .2, "edgecolors": edgecolors, "alpha": 1, "zorder": 10}
+        edgecolors = 'black'
+
+    head_w, head_l, ax_l, scale = default_quiver_args(quiver_scale, quiver_length)
+    quiver_kwargs = {"units": 'xy', "angles": 'xy', 'scale': scale, "scale_units": 'xy', "width": 0.0005,
+                     "headwidth": head_w, "headlength": head_l, "headaxislength": ax_l, "minshaft": 1, "minlength": 1,
+                     "pivot": "tail", "linewidth": .1, "edgecolors": edgecolors, "alpha": 1, "zorder": 10}
     quiver_kwargs = update_dict(quiver_kwargs, cell_wise_kwargs)
 
     axes_list, color_list, font_color = scatters(
@@ -879,7 +882,7 @@ def grid_velocity(
         color_key_cmap=None,
         background=None,
         ncols=1,
-        pointsize=None,
+        pointsize=4,
         figsize=(7,5),
         show_legend=True,
         use_smoothed=True,
@@ -887,6 +890,7 @@ def grid_velocity(
         method='SparseVFC',
         xy_grid_nums=[30, 30],
         quiver_scale=None,
+        quiver_length=None,
         s_kwargs_dict={},
         q_kwargs_dict={},
         **grid_kwargs):
@@ -936,14 +940,14 @@ def grid_velocity(
 
     if method == 'SparseVFC':
         if 'VecFld_' + basis not in adata.uns.keys():
-            VectorField(adata, basis=basis, dims=[0, 1])
+            VectorField(adata, basis=basis, dims=[x, y])
         X_grid, V_grid =  adata.uns['VecFld_' + basis]["VecFld"]['grid'], adata.uns['VecFld_' + basis]["VecFld"]['grid_V']
         N = int(np.sqrt(V_grid.shape[0]))
         X_grid, V_grid = np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]), \
                          np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))])
-    elif method == 'gaussian' and adata.obsm['X_' + basis].shape[1] == 2:
+    elif method == 'gaussian':
         grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
-                            "adjust_for_stream": True, "V_threshold": None}
+                            "adjust_for_stream": False, "V_threshold": None}
         grid_kwargs_dict = update_dict(grid_kwargs_dict, grid_kwargs)
 
         X_grid, V_grid, D = velocity_on_grid(X[:, [x, y]], V[:, [x, y]], xy_grid_nums, **grid_kwargs_dict)
@@ -957,16 +961,17 @@ def grid_velocity(
 
     if background is None:
         background = rcParams.get('figure.facecolor')
-
-    if background == 'black':
-        edgecolors = 'gray'
-    else:
-        edgecolors = 'gray'
-
     if quiver_scale is None:
         quiver_scale = quiver_autoscaler(X_grid, V_grid)
-    quiver_kwargs = {"units": 'xy', "angles": 'xy', 'scale': quiver_scale, "scale_units": 'xy', "width": 0.01,
-                     "headwidth": 3, "headlength": 5, "headaxislength": 4.5, "minshaft": 1, "minlength": 1,
+    if background == 'black':
+        edgecolors = 'white'
+    else:
+        edgecolors = 'black'
+
+    head_w, head_l, ax_l, scale = default_quiver_args(quiver_scale, quiver_length)
+
+    quiver_kwargs = {"units": 'xy', "angles": 'xy', 'scale': scale, "scale_units": 'xy', "width": 0.0005,
+                     "headwidth": head_w, "headlength": head_l, "headaxislength": ax_l, "minshaft": 1, "minlength": 1,
                      "pivot": "tail", "linewidth": .2, "edgecolors": edgecolors, "linewidth": .2,
                      "color": edgecolors, "alpha": 1, "zorder": 10}
     quiver_kwargs = update_dict(quiver_kwargs, q_kwargs_dict)
@@ -1019,7 +1024,7 @@ def streamline_plot(
         color_key_cmap=None,
         background=None,
         ncols=1,
-        pointsize=None,
+        pointsize=8,
         figsize=(7, 5),
         show_legend=True,
         use_smoothed=True,
@@ -1071,12 +1076,12 @@ def streamline_plot(
 
     if method == 'SparseVFC':
         if 'VecFld_' + basis not in adata.uns.keys():
-            VectorField(adata, basis=basis, dims=[0, 1])
+            VectorField(adata, basis=basis, dims=[x, y])
         X_grid, V_grid =  adata.uns['VecFld_' + basis]["VecFld"]['grid'], adata.uns['VecFld_' + basis]["VecFld"]['grid_V']
         N = int(np.sqrt(V_grid.shape[0]))
         X_grid, V_grid = np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]), \
                          np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))])
-    elif method == 'gaussian' and adata.obsm['X_' + basis].shape[1] == 2:
+    elif method == 'gaussian':
         grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
                             "adjust_for_stream": True, "V_threshold": None}
         grid_kwargs_dict = update_dict(grid_kwargs_dict, streamline_kwargs)

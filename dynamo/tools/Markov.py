@@ -256,7 +256,7 @@ def velocity_on_grid(X_emb, V_emb, xy_grid_nums, density=None, smooth=None, n_ne
     else:
         from ..plot.utils import quiver_autoscaler
 
-        if min_mass is None: min_mass = np.clip(np.percentile(p_mass, 99) / 100, 1e-5, 1)
+        if min_mass is None: min_mass = np.clip(np.percentile(p_mass, 99) / 100, 1e-5, None)
         X_grid, V_grid = X_grid[p_mass > min_mass], V_grid[p_mass > min_mass]
 
         if autoscale: V_grid /= 3 * quiver_autoscaler(X_grid, V_grid)
