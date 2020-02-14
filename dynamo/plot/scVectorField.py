@@ -944,11 +944,11 @@ def grid_velocity(
         if 'VecFld_' + basis not in adata.uns.keys():
             VectorField(adata, basis=basis, dims=[x, y])
         X_grid, V_grid =  adata.uns['VecFld_' + basis]["VecFld"]['grid'], adata.uns['VecFld_' + basis]["VecFld"]['grid_V']
-        # N = int(np.sqrt(V_grid.shape[0]))
-        # X_grid, V_grid = np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]), \
-        #                  np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))])
-        X_grid, V_grid = grid_velocity_filter(V[:, [x, y]], None, None, X_grid, V_grid, min_mass=None, autoscale=False,
-                             adjust_for_stream=False, V_threshold=None)
+        N = int(np.sqrt(V_grid.shape[0]))
+        X_grid, V_grid = np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]), \
+                         np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))])
+        # X_grid, V_grid = grid_velocity_filter(V[:, [x, y]], None, None, X_grid, V_grid, min_mass=None, autoscale=False,
+        #                      adjust_for_stream=False, V_threshold=None)
     elif method == 'gaussian':
         grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
                             "adjust_for_stream": False, "V_threshold": None}
@@ -1085,10 +1085,10 @@ def streamline_plot(
             VectorField(adata, basis=basis, dims=[x, y])
         X_grid, V_grid =  adata.uns['VecFld_' + basis]["VecFld"]['grid'], adata.uns['VecFld_' + basis]["VecFld"]['grid_V']
         N = int(np.sqrt(V_grid.shape[0]))
-        # X_grid, V_grid = np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]), \
-        #                  np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))])
-        X_grid, V_grid = grid_velocity_filter(V[:, [x, y]], None, None, X_grid, V_grid, min_mass=None, autoscale=False,
-                             adjust_for_stream=True, V_threshold=None)
+        X_grid, V_grid = np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]), \
+                         np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))])
+        # X_grid, V_grid = grid_velocity_filter(V[:, [x, y]], None, None, X_grid, V_grid, min_mass=None, autoscale=False,
+        #                      adjust_for_stream=True, V_threshold=None)
     elif method == 'gaussian':
         grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
                             "adjust_for_stream": True, "V_threshold": None}

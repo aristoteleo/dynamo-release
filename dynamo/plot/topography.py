@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 
 from ..tools.topography import topography as _topology # , compute_separatrices
 from ..configuration import set_figure_params
-
+from .scatters import scatters
+from .scatters import docstrings
 
 def plot_flow_field(vecfld, x_range, y_range, n_grid=100, lw_min=0.5, lw_max=3,
                     start_points=None, background=None, ax=None):
@@ -189,7 +190,7 @@ def plot_traj(f, y0, t, args=(), lw=2, background=None, ax=None):
     else:
         color = 'black'
 
-    y = scipy.integrate.odeint(f, y0, t, args=args)
+    y = scipy.integrate.odeint(lambda x, t: f(x), y0, t, args=args)
     ax.plot(*y.transpose(), color=color, lw=lw)
 
     return ax
@@ -274,17 +275,42 @@ def plot_separatrix(vecfld, x_range, y_range, t, noise=1e-6, lw=3, background=No
 
     return ax
 
-def topography(adata, basis='umap', xlim=None, ylim=None, t=None, terms=('streamline', 'nullcline', 'trajectory', 'fixed_points'),
-               init_state=None, figsize=(7, 5), background=None, plot=True, ax=None):
+
+@docstrings.with_indent(4)
+def topography(
+        adata,
+        basis='umap',
+        x=0,
+        y=1,
+        color=None,
+        layer='X',
+        highlights=None,
+        labels=None,
+        values=None,
+        theme=None,
+        cmap=None,
+        color_key=None,
+        color_key_cmap=None,
+        background=None,
+        ncols=1,
+        pointsize=None,
+        figsize=(7,5),
+        show_legend=True,
+        use_smoothed=True,
+        xlim=None,
+        ylim=None,
+        t=None,
+        terms=('streamline', 'fixed_points'),
+        init_state=None,
+        ax=None,
+        s_kwargs_dict={},
+        **topography_kwargs):
     """Plot the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system
     for single cells. The plot is created on two dimensional space.
 
     Parameters
     ----------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object.
-        basis: `str` (default: `umap`)
-            The reduced dimension embedding of cells to visualize.
+        %(scatters.parameters.no_show_legend|kwargs)s
         xlim: `numpy.ndarray`
             The range of x-coordinate
         ylim: `numpy.ndarray`
@@ -292,18 +318,14 @@ def topography(adata, basis='umap', xlim=None, ylim=None, t=None, terms=('stream
         t:  t_end: `float` (default 1)
             The length of the time period from which to predict cell state forward or backward over time. This is used
             by the odeint function.
-        terms: `tuple` (default: ('streamline', 'nullcline', 'fixed_points', 'trajectory'))
-            A tuple of plotting items to include in the final topography figure.
+        terms: `tuple` (default: ('streamline', 'fixed_points'))
+            A tuple of plotting items to include in the final topography figure.  ('streamline', 'nullcline', 'fixed_points', 'trajectory')
         init_state: `numpy.ndarray` (default: None)
             Initial cell states for the historical or future cell state prediction with numerical integration.
-        figsize: `tuple` (default: (5, 5)
-            The size of figure.
-        background: `str` or None (default: None)
-            The background color of the plot.
-        plot: `bool` (default: True)
-            Whether or not to plot the topography plot or just return the axis object.
-        ax : Matplotlib Axis instance
-            Axis on which to make the plot
+        s_kwargs_dict: `dict` (default: {})
+            The dictionary of the scatter arguments.
+        topography_kwargs:
+            Additional parameters that will be passed to plt.quiver function
 
     Returns
     -------
@@ -327,46 +349,59 @@ def topography(adata, basis='umap', xlim=None, ylim=None, t=None, terms=('stream
         xlim, ylim = adata.uns[uns_key]["xlim"] if xlim is None else xlim, \
                      adata.uns[uns_key]["ylim"] if ylim is None else ylim
 
-    # Set up the figure
-    if ax is None:
-        fig, ax = plt.subplots(1, 1)
-        has_fig = True
-    else:
-        has_fig = False
+    axes_list, color_list, font_color = scatters(
+        adata,
+        basis,
+        x,
+        y,
+        color,
+        layer,
+        highlights,
+        labels,
+        values,
+        theme,
+        cmap,
+        color_key,
+        color_key_cmap,
+        background,
+        ncols,
+        pointsize,
+        figsize,
+        show_legend,
+        use_smoothed,
+        ax,
+        'return',
+        **s_kwargs_dict)
 
-    ax.set_xlabel(basis + '_1')
-    ax.set_ylabel(basis + '_2')
-    ax.set_aspect('equal')
+    for i in range(len(axes_list)):
+        ax = axes_list[i]
 
-    # Build the plot
-    ax.set_xlim(xlim)
-    ax.set_ylim(ylim)
+        ax.set_xlabel(basis + '_1')
+        ax.set_ylabel(basis + '_2')
+        ax.set_aspect('equal')
 
-    if t is None:
-        t = np.linspace(0, max(max(np.diff(xlim), np.diff(ylim)) / np.percentile(np.abs(VF['grid_V']), 5)), 10000)
+        # Build the plot
+        ax.set_xlim(xlim)
+        ax.set_ylim(ylim)
 
-    if 'streamline' in terms:
-        ax = plot_flow_field(vecfld, xlim, ylim, background=background, ax=ax)
+        if t is None:
+            t = np.linspace(0, max(max(np.diff(xlim), np.diff(ylim)) / np.percentile(np.abs(VF['grid_V']), 5)), 10000)
 
-    if 'nullcline' in terms:
-        ax = plot_nullclines(vecfld, background=background, ax=ax)
+        if 'streamline' in terms:
+            ax = plot_flow_field(vecfld, xlim, ylim, background=background, ax=ax)
 
-    if 'fixed_points' in terms:
-        ax = plot_fixed_points(vecfld, background=background, ax=ax)
+        if 'nullcline' in terms:
+            ax = plot_nullclines(vecfld, background=background, ax=ax)
 
-    if 'separatrices' in terms:
-        ax = plot_separatrix(vecfld, xlim, ylim, t=t, background=background, ax=ax)
+        if 'fixed_points' in terms:
+            ax = plot_fixed_points(vecfld, background=background, ax=ax)
 
-    if init_state is not None and 'trajectory' in terms:
-        ax = plot_traj(vecfld.func, init_state, t, background=background, ax=ax)
+        if 'separatrices' in terms:
+            ax = plot_separatrix(vecfld, xlim, ylim, t=t, background=background, ax=ax)
 
-    # set the figure size
-    if has_fig:
-        fig.set_figwidth(figsize[0])
-        fig.set_figheight(figsize[1])
+        if init_state is not None and 'trajectory' in terms:
+            ax = plot_traj(vecfld.func, init_state, t, background=background, ax=ax)
 
-    if plot:
+        plt.tight_layout()
         plt.show()
-    else:
-        return ax
 
