@@ -319,7 +319,8 @@ def topography(
             The length of the time period from which to predict cell state forward or backward over time. This is used
             by the odeint function.
         terms: `tuple` (default: ('streamline', 'fixed_points'))
-            A tuple of plotting items to include in the final topography figure.  ('streamline', 'nullcline', 'fixed_points', 'trajectory')
+            A tuple of plotting items to include in the final topography figure.  ('streamline', 'nullcline', 'fixed_points',
+             'separatrix', 'trajectory') are all the items that we can support.
         init_state: `numpy.ndarray` (default: None)
             Initial cell states for the historical or future cell state prediction with numerical integration.
         s_kwargs_dict: `dict` (default: {})
@@ -402,6 +403,5 @@ def topography(
         if init_state is not None and 'trajectory' in terms:
             ax = plot_traj(vecfld.func, init_state, t, background=background, ax=ax)
 
-        plt.tight_layout()
-        plt.show()
-
+    plt.tight_layout()
+    plt.show()
