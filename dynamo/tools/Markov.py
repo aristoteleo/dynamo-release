@@ -198,6 +198,38 @@ def diffusionMatrix(V_mat):
 
     return D / 2
 
+def grid_velocity_filter(V_emb, neighs, p_mass, X_grid, V_grid, min_mass=None, autoscale=False,
+                             adjust_for_stream=True, V_threshold=None):
+    if adjust_for_stream:
+        X_grid = np.stack([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])])
+        ns = int(np.sqrt(V_grid.shape[0]))
+        V_grid = V_grid.T.reshape(2, ns, ns)
+
+        mass = np.sqrt((V_grid ** 2).sum(0))
+        if V_threshold is not None:
+            V_grid[0][mass.reshape(V_grid[0].shape) < V_threshold] = np.nan
+        else:
+            if min_mass is None: min_mass = 1e-5
+            min_mass = np.clip(min_mass, None, np.max(mass) * .9)
+            cutoff = mass.reshape(V_grid[0].shape) < min_mass
+
+            if neighs is not None:
+                length = np.sum(np.mean(np.abs(V_emb[neighs]), axis=1), axis=1).T.reshape(ns, ns)
+                cutoff |= length < np.percentile(length, 5)
+
+            V_grid[0][cutoff] = np.nan
+    else:
+        from ..plot.utils import quiver_autoscaler
+        if p_mass is None:
+            p_mass = np.sqrt((V_grid ** 2).sum(1))
+            if min_mass is None: min_mass = np.clip(np.percentile(p_mass, 5), 1e-5, None)
+        else:
+            if min_mass is None: min_mass = np.clip(np.percentile(p_mass, 99) / 100, 1e-5, None)
+        X_grid, V_grid = X_grid[p_mass > min_mass], V_grid[p_mass > min_mass]
+
+        if autoscale: V_grid /= 3 * quiver_autoscaler(X_grid, V_grid)
+
+    return X_grid, V_grid
 
 def velocity_on_grid(X_emb, V_emb, xy_grid_nums, density=None, smooth=None, n_neighbors=None, min_mass=None, autoscale=False,
                              adjust_for_stream=True, V_threshold=None):
@@ -231,35 +263,13 @@ def velocity_on_grid(X_emb, V_emb, xy_grid_nums, density=None, smooth=None, n_ne
     weight = norm.pdf(x=dists, scale=scale)
     p_mass = weight.sum(1)
 
-    V_grid = (V_emb[neighs] * (weight / p_mass[:, None])[:, :, None]).sum(1) # / np.maximum(1, p_mass)[:, None]
-
+    # V_grid = (V_emb[neighs] * (weight / p_mass[:, None])[:, :, None]).sum(1) # / np.maximum(1, p_mass)[:, None]
+    V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[:, None]
     # calculate diffusion matrix D
     D = diffusionMatrix(V_emb[neighs])
 
-    if adjust_for_stream:
-        X_grid = np.stack([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])])
-        ns = int(np.sqrt(V_grid.shape[0]))
-        V_grid = V_grid.T.reshape(2, ns, ns)
-
-        mass = np.sqrt((V_grid ** 2).sum(0))
-        if V_threshold is not None:
-            V_grid[0][mass.reshape(V_grid[0].shape) < V_threshold] = np.nan
-        else:
-            if min_mass is None: min_mass = 1e-5
-            min_mass = np.clip(min_mass, None, np.max(mass) * .9)
-            cutoff = mass.reshape(V_grid[0].shape) < min_mass
-
-            length = np.sum(np.mean(np.abs(V_emb[neighs]), axis=1), axis=1).T.reshape(ns, ns)
-            cutoff |= length < np.percentile(length, 5)
-
-            V_grid[0][cutoff] = np.nan
-    else:
-        from ..plot.utils import quiver_autoscaler
-
-        if min_mass is None: min_mass = np.clip(np.percentile(p_mass, 99) / 100, 1e-5, 1)
-        X_grid, V_grid = X_grid[p_mass > min_mass], V_grid[p_mass > min_mass]
-
-        if autoscale: V_grid /= 3 * quiver_autoscaler(X_grid, V_grid)
+    X_grid, V_grid = grid_velocity_filter(V_emb, neighs, p_mass, X_grid, V_grid, min_mass=min_mass, autoscale=autoscale,
+                            adjust_for_stream=adjust_for_stream, V_threshold=V_threshold)
 
     return X_grid, V_grid, D
 

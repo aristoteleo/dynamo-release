@@ -745,6 +745,17 @@ def quiver_autoscaler(X_emb, V_emb):
 
     return Q.scale / scale_factor * 2
 
+def default_quiver_args(arrow_size, arrow_len=None):
+    if isinstance(arrow_size, (list, tuple)) and len(arrow_size) == 3:
+        head_w, head_l, ax_l = arrow_size
+    elif type(arrow_size) in [int, float]:
+        head_w, head_l, ax_l = 10 * arrow_size, 12 * arrow_size, 8 * arrow_size
+    else:
+        head_w, head_l, ax_l = 10, 12, 8
+
+    scale = 1 / arrow_len if arrow_len is not None else 1 / arrow_size
+
+    return head_w, head_l, ax_l, scale
 
 # ---------------------------------------------------------------------------------------------------
 # the following Loess class is taken from:

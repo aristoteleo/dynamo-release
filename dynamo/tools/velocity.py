@@ -940,7 +940,7 @@ class estimation:
         """
         n = self.get_n_genes()
         # fit mRNA
-            if self.extyp == 'conventional':
+        if self.extyp == 'conventional':
             if self.asspt_mRNA == 'ss':
                 if np.all(self._exist_data('uu', 'su')):
                     self.parameters['beta'] = np.ones(n)
