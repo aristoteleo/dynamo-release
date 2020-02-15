@@ -22,7 +22,7 @@ import scipy as sc
 # cellranger data, velocyto, comparison and phase diagram
 
 def _cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=None, label_on_embedding=True,
-                       cmap=None, s_kwargs_dict={}, layer='X', cell_ind='all', quiver_scale=None, figsize=None,
+                       cmap=None, s_kwargs_dict={}, layer='X', cell_ind='all', quiver_size=None, figsize=None,
                        **q_kwargs):
     """Plot the velocity vector of each cell.
 
@@ -50,7 +50,7 @@ def _cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, col
             Which layer of expression value will be used.
         cell_ind: `str` or `list` (default: all)
             the cell index that will be chosen to draw velocity vectors.
-        quiver_scale: `float` or None (default: None)
+        quiver_size: `float` or None (default: None)
             scale of quiver plot (default: None). Number of data units per arrow length unit, e.g., m/s per plot width;
             a smaller scale parameter makes the arrow longer. If None, we will use quiver_autoscaler to calculate the scale.
         figsize: `None` or `[float, float]` (default: None)
@@ -119,9 +119,9 @@ def _cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, col
     if 0 in E_vec.shape:
         raise Exception(f'The gene names {genes} (or cell annotations {color}) provided are not existed in your data.')
 
-    if quiver_scale is None:
-        quiver_scale = quiver_autoscaler(X, V)
-    quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_scale, "minlength": 1.5, "alpha": 0.4}
+    if quiver_size is None:
+        quiver_size = quiver_autoscaler(X, V)
+    quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_size, "minlength": 1.5, "alpha": 0.4}
     quiver_kwargs = update_dict(quiver_kwargs, q_kwargs)
 
     n_columns, plot_per_gene = n_columns, 1 # we may also add random velocity results
@@ -190,7 +190,7 @@ def _cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, col
 
 
 def _grid_velocity(adata, genes, x=0, y=1, method='SparseVFC', basis='trimap', n_columns=1, color=None, label_on_embedding=True, cmap=None,
-                  s_kwargs_dict={}, layer='X', xy_grid_nums=[30, 30], g_kwargs_dict={}, quiver_scale=None, V_threshold=None,
+                  s_kwargs_dict={}, layer='X', xy_grid_nums=[30, 30], g_kwargs_dict={}, quiver_size=None, V_threshold=None,
                   figsize=None, **q_kwargs):
     """Plot the velocity vector of each cell.
 
@@ -223,7 +223,7 @@ def _grid_velocity(adata, genes, x=0, y=1, method='SparseVFC', basis='trimap', n
             the number of grids in either x or y axis.
         g_kwargs_dict: `dict` (default: {})
             A dictionary for the parameters that passed into the velocity_on_grid function.
-        quiver_scale: `float` or None (default: None)
+        quiver_size: `float` or None (default: None)
             scale of quiver plot (default: None). Number of data units per arrow length unit, e.g., m/s per plot width;
             a smaller scale parameter makes the arrow longer. If None, we will use quiver_autoscaler to calculate the scale.
         V_threshold: None or float (default: None)
@@ -300,9 +300,9 @@ def _grid_velocity(adata, genes, x=0, y=1, method='SparseVFC', basis='trimap', n
 
         X_grid, V_grid, D = velocity_on_grid(X[:, [x, y]], V[:, [x, y]], xy_grid_nums, **grid_kwargs_dict)
 
-    if quiver_scale is None:
-        quiver_scale = quiver_autoscaler(X_grid, V_grid)
-    quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_scale, "minlength": 1.5, "alpha": 0.4}
+    if quiver_size is None:
+        quiver_size = quiver_autoscaler(X_grid, V_grid)
+    quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_size, "minlength": 1.5, "alpha": 0.4}
     quiver_kwargs.update(q_kwargs)
 
     n_columns, plot_per_gene = n_columns, 1 # we may also add random velocity results
@@ -491,9 +491,9 @@ def _streamline_plot(adata, genes, x=0, y=1, method='sparseVFC', basis='trimap',
         X_grid, V_grid, D = velocity_on_grid(X[:, [x, y]], V[:, [x, y]], xy_grid_nums, **grid_kwargs_dict)
 
 
-    # if quiver_scale is None:
-    #     quiver_scale = quiver_autoscaler(X_grid, V_grid)
-    # quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_scale, "minlength": 1.5}
+    # if quiver_size is None:
+    #     quiver_size = quiver_autoscaler(X_grid, V_grid)
+    # quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_size, "minlength": 1.5}
     # quiver_kwargs.update(q_kwargs)
 
     n_columns, plot_per_gene = n_columns, 1 # we may also add random velocity results
@@ -765,7 +765,7 @@ def cell_wise_velocity(
         use_smoothed=True,
         ax=None,
         cell_ind='all',
-        quiver_scale=None,
+        quiver_size=None,
         quiver_length=None,
         s_kwargs_dict={},
         **cell_wise_kwargs):
@@ -776,9 +776,14 @@ def cell_wise_velocity(
         %(scatters.parameters.no_show_legend|kwargs)s
         cell_ind: `str` or `list` (default: all)
             the cell index that will be chosen to draw velocity vectors.
-        quiver_scale: `float` or None (default: None)
-            scale of quiver plot (default: None). Number of data units per arrow length unit, e.g., m/s per plot width;
-            a smaller scale parameter makes the arrow longer. If None, we will use quiver_autoscaler to calculate the scale.
+        quiver_size: `float` or None (default: None)
+            The size of quiver. If None, we will use set quiver_size to be 1. Note that quiver quiver_size is used to calculate
+            the head_width (10 x quiver_size), head_length (12 x quiver_size) and headaxislength (8 x quiver_size) of the quiver.
+            This is done via the `default_quiver_args` function which also calculate the scale of the quiver (1 / quiver_length).
+        quiver_length: `float` or None (default: None)
+            The length of quiver. The quiver length which will be used to calculate scale of quiver. Note that befoe applying
+            `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale of quiver indicates
+            the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller scale parameter makes the arrow longer.
         s_kwargs_dict: `dict` (default: {})
             The dictionary of the scatter arguments.
         cell_wise_kwargs:
@@ -813,14 +818,14 @@ def cell_wise_velocity(
 
     if background is None:
         background = rcParams.get('figure.facecolor')
-    if quiver_scale is None:
-        quiver_scale = 1
+    if quiver_size is None:
+        quiver_size = 1
     if background == 'black':
         edgecolors = 'white'
     else:
         edgecolors = 'black'
 
-    head_w, head_l, ax_l, scale = default_quiver_args(quiver_scale, quiver_length) #
+    head_w, head_l, ax_l, scale = default_quiver_args(quiver_size, quiver_length) #
     quiver_kwargs = {"angles": 'xy', 'scale': scale, "scale_units": 'xy', "width": 0.0005,
                      "headwidth": head_w, "headlength": head_l, "headaxislength": ax_l, "minshaft": 1, "minlength": 1,
                      "pivot": "tail", "linewidth": .1, "edgecolors": edgecolors, "alpha": 1, "zorder": 10}
@@ -891,7 +896,7 @@ def grid_velocity(
         ax=None,
         method='gaussian',
         xy_grid_nums=[30, 30],
-        quiver_scale=None,
+        quiver_size=None,
         quiver_length=None,
         s_kwargs_dict={},
         q_kwargs_dict={},
@@ -906,15 +911,20 @@ def grid_velocity(
             Gaussian kernel method from RNA velocity (Gaussian).
         xy_grid_nums: `tuple` (default: (30, 30))
             the number of grids in either x or y axis.
-        quiver_scale: `float` or None (default: None)
-            scale of quiver plot (default: None). Number of data units per arrow length unit, e.g., m/s per plot width;
-            a smaller scale parameter makes the arrow longer. If None, we will use quiver_autoscaler to calculate the scale.
+        quiver_size: `float` or None (default: None)
+            The size of quiver. If None, we will use set quiver_size to be 1. Note that quiver quiver_size is used to calculate
+            the head_width (10 x quiver_size), head_length (12 x quiver_size) and headaxislength (8 x quiver_size) of the quiver.
+            This is done via the `default_quiver_args` function which also calculate the scale of the quiver (1 / quiver_length).
+        quiver_length: `float` or None (default: None)
+            The length of quiver. The quiver length which will be used to calculate scale of quiver. Note that befoe applying
+            `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale of quiver indicates
+            the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller scale parameter makes the arrow longer.
         s_kwargs_dict: `dict` (default: {})
             The dictionary of the scatter arguments.
         q_kwargs_dict: `dict` (default: {})
             The dictionary of the quiver arguments.
         grid_kwargs:
-            Additional parameters that will be passed to plt.quiver function
+            Additional parameters that will be passed to velocity_on_grid function.
 
     Returns
     -------
@@ -967,14 +977,14 @@ def grid_velocity(
 
     if background is None:
         background = rcParams.get('figure.facecolor')
-    if quiver_scale is None:
-        quiver_scale = 1
+    if quiver_size is None:
+        quiver_size = 1
     if background == 'black':
         edgecolors = 'white'
     else:
         edgecolors = 'black'
 
-    head_w, head_l, ax_l, scale = default_quiver_args(quiver_scale, quiver_length)
+    head_w, head_l, ax_l, scale = default_quiver_args(quiver_size, quiver_length)
 
     quiver_kwargs = {"angles": 'xy', 'scale': scale, "scale_units": 'xy', "width": 0.0005,
                      "headwidth": head_w, "headlength": head_l, "headaxislength": ax_l, "minshaft": 1, "minlength": 1,
