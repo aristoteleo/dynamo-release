@@ -4,15 +4,32 @@ import sys
 import warnings
 from scipy.sparse import issparse
 from .utils import despline, _matplotlib_points, _datashade_points, _select_font_color
+from .utils import quiver_autoscaler, default_quiver_args
 from .scatters import scatters
 from ..tools.velocity import sol_u, sol_s, solve_first_order_deg
 from ..tools.utils_moments import moments
 from ..tools.utils import get_mapper, one_shot_k
+from ..tools.utils import update_dict
 from ..configuration import _themes, set_figure_params
 
 
-def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', basis='umap', color=None, figsize=(7, 5), \
-                    ncols=None, legend='on data', background=None, **kwargs):
+def phase_portraits(adata,
+                    genes,
+                    x=0,
+                    y=1,
+                    pointsize=None,
+                    vkey='S',
+                    ekey='X',
+                    basis='umap',
+                    color=None,
+                    figsize=(7, 5),
+                    ncols=None,
+                    legend='on data',
+                    background=None,
+                    quiver_scale=None,
+                    quiver_length=None,
+                    q_kwargs_dict={},
+                    **kwargs):
     """Draw the phase portrait, velocity, expression values on the low dimensional embedding.
 
     Parameters
@@ -45,6 +62,11 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
         legend: `str` (default: `on data`)
                 Where to put the legend.  Legend is drawn by seaborn with “brief” mode, numeric hue and size variables will be
                 represented with a sample of evenly spaced values. By default legend is drawn on top of cells.
+        quiver_scale: `float` or None (default: None)
+            scale of quiver plot (default: None). Number of data units per arrow length unit, e.g., m/s per plot width;
+            a smaller scale parameter makes the arrow longer. If None, we will use quiver_autoscaler to calculate the scale.
+        q_kwargs_dict: `dict` (default: {})
+            The dictionary of the quiver arguments.
         **kwargs:
                 Additional parameters that will be passed to plt.scatter function
 
@@ -142,21 +164,30 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
         new_mat, tot_mat = adata[:, genes].layers[mapper['X_new']], adata[:, genes].layers[mapper['X_total']]
         new_mat, tot_mat = (new_mat.A, tot_mat.A) if issparse(new_mat) else (new_mat, tot_mat)
 
+        vel_u, vel_s = adata[:, genes].layers['velocity_U'].A, adata[:, genes].layers['velocity_S'].A
+
         df = pd.DataFrame({"new": new_mat.flatten(), "total": tot_mat.flatten(), 'gene': genes * n_cells, 'gamma':
                            np.tile(gamma, n_cells), 'velocity_offset': np.tile(velocity_offset, n_cells),
-                           "expression": E_vec.flatten(), "velocity": V_vec.flatten(), 'color': np.repeat(color_vec, n_genes)}, index=range(n_cells * n_genes))
+                           "expression": E_vec.flatten(), "velocity": V_vec.flatten(),
+                           'color': np.repeat(color_vec, n_genes), "vel_u": vel_u.flatten(), "vel_s": vel_s.flaten()},
+                          index=range(n_cells * n_genes))
 
     elif mode is 'splicing':
         unspliced_mat, spliced_mat = adata[:, genes].layers[mapper['X_unspliced']], adata[:, genes].layers[mapper['X_spliced']]
         unspliced_mat, spliced_mat = (unspliced_mat.A, spliced_mat.A) if issparse(unspliced_mat) else (unspliced_mat, spliced_mat)
 
+        vel_u, vel_s = np.zeros_like(adata[:, genes].layers['velocity_S'].A), adata[:, genes].layers['velocity_S'].A
+
         df = pd.DataFrame({"unspliced": unspliced_mat.flatten(), "spliced": spliced_mat.flatten(), 'gene': genes * n_cells,
                            'gamma': np.tile(gamma, n_cells), 'velocity_offset': np.tile(velocity_offset, n_cells),
-                           "expression": E_vec.flatten(), "velocity": V_vec.flatten(), 'color': np.repeat(color_vec, n_genes)}, index=range(n_cells * n_genes))
+                           "expression": E_vec.flatten(), "velocity": V_vec.flatten(), 'color': np.repeat(color_vec, n_genes),
+                           "vel_u": vel_u.flatten(), "vel_s": vel_s.flaten()}, index=range(n_cells * n_genes))
 
     elif mode is 'full':
         uu, ul, su, sl = adata[:, genes].layers[mapper['X_uu']], adata[:, genes].layers[mapper['X_ul']], adata[:, genes].layers[mapper['X_su']], \
                          adata[:, genes].layers[mapper['X_sl']]
+
+        vel_u, vel_s = np.zeros_like(adata[:, genes].layers['velocity_S'].A), adata[:, genes].layers['velocity_S'].A
         if 'protein' in adata.obsm.keys():
             if 'delta' in adata.var.columns:
                 gamma_P = adata.var.delta[genes].values
@@ -173,17 +204,22 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
             if issparse(P_vec):
                 P_vec = P_vec.A
 
+            vel_p = np.zeros_like(adata.obsm['velocity_P'][:, :])
+
             # df = pd.DataFrame({"uu": uu.flatten(), "ul": ul.flatten(), "su": su.flatten(), "sl": sl.flatten(), "P": P.flatten(),
             #                    'gene': genes * n_cells, 'prediction': np.tile(gamma, n_cells) * uu.flatten() +
             #                     np.tile(velocity_offset, n_cells), "velocity": genes * n_cells}, index=range(n_cells * n_genes))
             df = pd.DataFrame({"new": (ul + sl).flatten(), "total": (uu + ul + sl + su).flatten(), "S": (sl + su).flatten(), "P": P.flatten(),
                                'gene': genes * n_cells, 'gamma': np.tile(gamma, n_cells), 'velocity_offset': np.tile(velocity_offset, n_cells),
                                'gamma_P': np.tile(gamma_P, n_cells), 'velocity_offset_P': np.tile(velocity_offset_P, n_cells),
-                               "expression": E_vec.flatten(), "velocity": V_vec.flatten(), "velocity_protein": P_vec.flatten(), 'color': np.repeat(color_vec, n_genes)}, index=range(n_cells * n_genes))
+                               "expression": E_vec.flatten(), "velocity": V_vec.flatten(), "velocity_protein": P_vec.flatten(),
+                               'color': np.repeat(color_vec, n_genes), "vel_u": vel_u.flatten(), "vel_s": vel_s.flaten(), "vel_p": vel_p.flatten()}, index=range(n_cells * n_genes))
         else:
+            vel_u, vel_s = np.zeros_like(adata[:, genes].layers['velocity_S'].A), adata[:, genes].layers['velocity_S'].A
             df = pd.DataFrame({"new": (ul + sl).flatten(), "total": (uu + ul + sl + su).flatten(),
                                'gene': genes * n_cells, 'gamma': np.tile(gamma, n_cells), 'velocity_offset': np.tile(velocity_offset, n_cells),
-                               "expression": E_vec.flatten(), "velocity": V_vec.flatten(), 'color': np.repeat(color_vec, n_genes)}, index=range(n_cells * n_genes))
+                               "expression": E_vec.flatten(), "velocity": V_vec.flatten(), 'color': np.repeat(color_vec, n_genes),
+                               "vel_u": vel_u.flatten(), "vel_s": vel_s.flaten()}, index=range(n_cells * n_genes))
     else:
         raise Exception('Your adata is corrupted. Make sure that your layer has keys new, old for the labelling mode, '
                         'spliced, ambiguous, unspliced for the splicing model and uu, ul, su, sl for the full mode')
@@ -292,10 +328,33 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
         ax1.set_ylabel('unspliced')
         xnew = np.linspace(0, cur_pd.iloc[:, 1].max())
         ax1.plot(xnew, xnew * cur_pd.loc[:, 'gamma'].unique() + cur_pd.loc[:, 'velocity_offset'].unique(), c=font_color)
-        ax1.set_xlim(0, np.max(cur_pd.iloc[:, 1])*1.02)
-        ax1.set_ylim(0, np.max(cur_pd.iloc[:, 0])*1.02)
+        X_array, V_array = cur_pd.iloc[:, [1, 0]], cur_pd.loc[:, ['vel_s', 'vel_u']]
+        ax1.set_xlim(0, np.max(X_array[:, 0])*1.02)
+        ax1.set_ylim(0, np.max(X_array[:, 1])*1.02)
 
         despline(ax1) # sns.despline()
+
+        # add quiver:
+        V_array /= (3 * quiver_autoscaler(X_array, V_array))
+
+        if background is None:
+            background = rcParams.get('figure.facecolor')
+        if quiver_scale is None:
+            quiver_scale = 1
+        if background == 'black':
+            edgecolors = 'white'
+        else:
+            edgecolors = 'black'
+
+        head_w, head_l, ax_l, scale = default_quiver_args(quiver_scale, quiver_length)
+
+        quiver_kwargs = {"angles": 'xy', 'scale': scale, "scale_units": 'xy', "width": 0.0005,
+                         "headwidth": head_w, "headlength": head_l, "headaxislength": ax_l, "minshaft": 1,
+                         "minlength": 1,
+                         "pivot": "tail", "linewidth": .2, "edgecolors": edgecolors, "linewidth": .2,
+                         "color": edgecolors, "alpha": 1, "zorder": 10}
+        quiver_kwargs = update_dict(quiver_kwargs, q_kwargs_dict)
+        ax1.quiver(X_array[:, 0], X_array[:, 1], V_array[:, 0], V_array[:, 1], **quiver_kwargs)
 
         df_embedding = pd.concat([cur_pd, embedding], axis=1)
         V_vec = cur_pd.loc[:, 'velocity']
@@ -454,10 +513,33 @@ def phase_portraits(adata, genes, x=0, y=1, pointsize=None, vkey='S', ekey='X', 
 
             xnew = np.linspace(0, cur_pd.iloc[:, 3].max())
             ax4.plot(xnew, xnew * cur_pd.loc[:, 'gamma_P'].unique() + cur_pd.loc[:, 'velocity_offset_P'].unique(), c=font_color)
-            ax4.set_ylim(0, np.max(cur_pd.iloc[:, 3]) * 1.02)
-            ax4.set_xlim(0, np.max(cur_pd.iloc[:, 2]) * 1.02)
+            X_array, V_array = cur_pd.iloc[:, [3, 2]], cur_pd.loc[:, ['vel_p', 'vel_s']]
+            ax4.set_ylim(0, np.max(X_array[:, 0]) * 1.02)
+            ax4.set_xlim(0, np.max(X_array[:, 1]) * 1.02)
 
-            despline(ax4)   # sns.despline()
+            despline(ax1)  # sns.despline()
+
+            # add quiver:
+            V_array /= (3 * quiver_autoscaler(X_array, V_array))
+
+            if background is None:
+                background = rcParams.get('figure.facecolor')
+            if quiver_scale is None:
+                quiver_scale = 1
+            if background == 'black':
+                edgecolors = 'white'
+            else:
+                edgecolors = 'black'
+
+            head_w, head_l, ax_l, scale = default_quiver_args(quiver_scale, quiver_length)
+
+            quiver_kwargs = {"angles": 'xy', 'scale': scale, "scale_units": 'xy', "width": 0.0005,
+                             "headwidth": head_w, "headlength": head_l, "headaxislength": ax_l, "minshaft": 1,
+                             "minlength": 1,
+                             "pivot": "tail", "linewidth": .2, "edgecolors": edgecolors, "linewidth": .2,
+                             "color": edgecolors, "alpha": 1, "zorder": 10}
+            quiver_kwargs = update_dict(quiver_kwargs, q_kwargs_dict)
+            ax4.quiver(X_array[:, 0], X_array[:, 1], V_array[:, 0], V_array[:, 1], **quiver_kwargs)
 
             V_vec = df_embedding.loc[:, 'velocity_p']
 

@@ -7,7 +7,7 @@ from .utils import set_velocity, set_param_deterministic, set_param_moment
 from .utils import moment_model
 
 # incorporate the model selection code soon
-def dynamics(adata, tkey=None, filter_gene_mode='final', mode='deterministic', use_smoothed=True, group=None, protein_names=None,
+def dynamics(adata, tkey=None, filter_gene_mode='final', mode='moment', use_smoothed=True, group=None, protein_names=None,
              experiment_type=None, assumption_mRNA=None, assumption_protein='ss', NTR_vel=True, concat_data=False,
              log_unnormalized=True, one_shot_method='combined'):
     """Inclusive model of expression dynamics considers splicing, metabolic labeling and protein translation. It supports
