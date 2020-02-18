@@ -553,10 +553,13 @@ def scatters(
 
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
+    from matplotlib.colors import to_hex
+
     if background is not None:
         set_figure_params(background=background)
     else:
-        background = rcParams.get('figure.facecolor')
+        _background = rcParams.get('figure.facecolor')
+        background = to_hex(_background) if type(_background) is tuple else background
 
     x, y = x[0] if type(x) != int else x, y[0] if type(y) != int else y
 

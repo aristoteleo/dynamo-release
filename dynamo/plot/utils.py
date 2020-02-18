@@ -74,11 +74,13 @@ def _get_extent(points):
 
 
 def _select_font_color(background):
-    if background == "black":
+    if background in ['k', "black"]:
         font_color = "white"
+    elif background in ['w', 'white']:
+        font_color = 'black'
     elif background.startswith("#"):
         mean_val = np.mean(
-            [int("0x" + c) for c in (background[1:3], background[3:5], background[5:7])]
+            [int("0x" + c, 0) for c in (background[1:3], background[3:5], background[5:7])]
         )
         if mean_val > 126:
             font_color = "black"
@@ -377,7 +379,7 @@ def _datashade_points(
                 for i in unique_labels:
                     color_cnt = np.nanmedian(points.iloc[np.where(labels == i)[0], :2], 0)
                     txt = plt.text(color_cnt[0], color_cnt[1], str(i),
-                                   fontsize=13, color=font_color, zorder=1000,
+                                   color=font_color, zorder=1000,
                                    verticalalignment='center', horizontalalignment='center', weight='bold')  #
                     txt.set_path_effects([
                         PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.6),
@@ -700,7 +702,7 @@ def scatter_with_legend(fig, ax, df, font_color, x, y, c, cmap, legend, **scatte
 
         for i in unique_labels:
             color_cnt = np.nanmedian(df.iloc[np.where(c == i)[0], :2], 0)
-            txt = ax.text(color_cnt[0], color_cnt[1], str(i), fontsize=13, color=font_color, zorder=1000,
+            txt = ax.text(color_cnt[0], color_cnt[1], str(i), color=font_color, zorder=1000,
                           verticalalignment='center', horizontalalignment='center', weight='bold')  # c
             txt.set_path_effects([
                 PathEffects.Stroke(linewidth=5, foreground=font_color, alpha=0.6),  # 'w'

@@ -1112,7 +1112,7 @@ def streamline_plot(
         raise Exception('Vector field learning method {} is not supported or the grid velocity is collected for '
                         'the current adata object.'.format(method))
 
-    streamplot_kwargs={"density": density * 2, "linewidth": None, "cmap": None, "norm": None, "arrowsize": 1, "arrowstyle": '-|>',
+    streamplot_kwargs={"density": density, "linewidth": None, "cmap": None, "norm": None, "arrowsize": 1, "arrowstyle": '-|>',
                        "minlength": 0.1, "transform": None, "start_points": None, "maxlength": 4.0,
                        "integration_direction": 'both', "zorder": 10}
     streamplot_kwargs = update_dict(streamplot_kwargs, streamline_kwargs)
