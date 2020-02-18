@@ -5,7 +5,7 @@ Understanding how gene expression in single cells progress over time is vital fo
 
 ![dynamo_demo](https://www.dropbox.com/s/gjs0totz6z0x9zb/dynamo_demo.png?raw=1)
 
-[Dynamo workflow](https://github.com/aristoteleo/dynamo-release/wiki/Dynamo-workflow) - [Installation](https://github.com/aristoteleo/dynamo-release/wiki/Dynamo-workflow#installation) - [Citation](https://github.com/aristoteleo/dynamo-release/wiki/Dynamo-workflow#citation) - [Theory behind dynamo](https://github.com/aristoteleo/dynamo-release/wiki/Dynamo-workflow#theory-behind-dynamo)
+[Dynamo tutorials](https://github.com/aristoteleo/dynamo-tutorials) - [Dynamo workflow](https://github.com/aristoteleo/dynamo-release/wiki/Dynamo-workflow) - [Installation](https://github.com/aristoteleo/dynamo-release/wiki/Dynamo-workflow#installation) - [Citation](https://github.com/aristoteleo/dynamo-release/wiki/Dynamo-workflow#citation) - [Theory behind dynamo](https://github.com/aristoteleo/dynamo-release/wiki/Dynamo-workflow#theory-behind-dynamo)
 
 ## Acknowledgement
 We would like to sincerely thank the developers of velocyto (La Manno Gioele and others), scanpy (Alex Wolf and others) and svelo (Volker Bergen and others) on their amazing tools which demonstrate the best practice of scientific programming in Python. Dynamo takes various technical inspiration from those packages. Dynamo is (we are trying to and hope users can contribute to) fully compatible with those tools and velocity estimation from either scvelo or velocyto can both be used as input to learn the functional form of vector field for predicting the cell fate over extended time period and mapping global cell state potential. 
