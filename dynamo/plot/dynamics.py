@@ -26,7 +26,7 @@ def phase_portraits(adata,
                     ncols=None,
                     legend='on data',
                     background=None,
-                    show_quiver=True,
+                    show_quiver=False,
                     quiver_size=None,
                     quiver_length=None,
                     q_kwargs_dict={},
@@ -245,7 +245,7 @@ def phase_portraits(adata,
 
     if rcParams.get('figure.facecolor') == "black":
         discrete_theme, continous_theme, divergent_theme = 'glasbey_dark', 'inferno', 'div_blue_black_red'
-    elif rcParams.get('figure.facecolor') == "white":
+    else:
         discrete_theme, continous_theme, divergent_theme = 'glasbey_white', 'viridis', 'div_blue_red'
 
     discrete_cmap, discrete_color_key_cmap, discrete_background = _themes[discrete_theme]["cmap"], _themes[discrete_theme]["color_key_cmap"], _themes[discrete_theme]["background"]

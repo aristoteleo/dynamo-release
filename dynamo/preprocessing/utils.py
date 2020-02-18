@@ -140,6 +140,27 @@ def get_shared_counts(adata, layers, min_shared_count, type='gene'):
         return np.array(_sum.sum(1).A1 > min_shared_count) if issparse(adata.layers[layers[0]]) else np.array(_sum.sum(1) > min_shared_count)
 
 
+def clusters_stats(U, S, clusters_uid, cluster_ix, size_limit=40):
+    """Calculate the averages per cluster
+
+    If the cluster is too small (size<size_limit) the average of the toal is reported instead
+    This function is taken from velocyto in order to reproduce velocyto's DentateGyrus notebook.
+    """
+    U_avgs = np.zeros((S.shape[0], len(clusters_uid)))
+    S_avgs = np.zeros((S.shape[0], len(clusters_uid)))
+    avgU_div_avgS = np.zeros((S.shape[0], len(clusters_uid)))
+    slopes_by_clust = np.zeros((S.shape[0], len(clusters_uid)))
+
+    for i, uid in enumerate(clusters_uid):
+        cluster_filter = cluster_ix == i
+        n_cells = np.sum(cluster_filter)
+        if n_cells > size_limit:
+            U_avgs[:, i], S_avgs[:, i] = U[:, cluster_filter].mean(1), S[:, cluster_filter].mean(1)
+        else:
+            U_avgs[:, i], S_avgs[:, i] = U.mean(1), S.mean(1)
+
+    return U_avgs, S_avgs
+
 # ---------------------------------------------------------------------------------------------------
 # pca
 

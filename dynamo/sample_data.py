@@ -157,7 +157,7 @@ def pancreatic_endocrinogenesis(url='https://github.com/theislab/scvelo_notebook
 
     return adata
 
-def DentateGyrus_scvelo(url='https://www.dropbox.com/s/3w1wzb0b68fhdsw/dentategyrus_scv.h5ad?dl=1', filename=None):
+def DentateGyrus_scvelo(url='https://www.dropbox.com/s/3w1wzb0b68fhdsw/dentategyrus_scv.h5ad?dl=1', filename='dentategyrus_scv.h5ad'):
     """The Dentate Gyrus dataset used in https://github.com/theislab/scvelo_notebooks/tree/master/data/DentateGyrus.
     This data consists of 13, 913 genes across 2, 930 cells.
 

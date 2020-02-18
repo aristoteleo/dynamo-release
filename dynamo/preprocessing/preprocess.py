@@ -6,6 +6,7 @@ from scipy.sparse import issparse, csr_matrix
 from sklearn.decomposition import FastICA
 
 from .utils import pca
+from .utils import clusters_stats
 from .utils import cook_dist, get_layer_keys, get_shared_counts
 
 def szFactor(adata, layers='all', total_layers=None, locfunc=np.nanmean, round_exprs=True, method='median'):
@@ -693,9 +694,68 @@ def filter_cells(adata, filter_bool=None, layer='all', keep_filtered=False, min_
 
     return adata
 
+def _filter_genes_by_clusters(adata, cluster, min_avg_U=0.02, min_avg_S=0.08, size_limit=40):
+        """Prepare filtering genes on the basis of cluster-wise expression threshold
+
+        Arguments
+        ---------
+        min_avg_U: float
+            Include genes that have unspliced average bigger than `min_avg_U` in at least one of the clusters
+        min_avg_S: float
+            Include genes that have spliced average bigger than `min_avg_U` in at least one of the clusters
+        Note: the two conditions are combined by and "&" logical operator.
+        This function is taken from velocyto in order to reproduce velocyto's DentateGyrus notebook.
+
+        Returns
+        -------
+        Nothing but it creates the attribute
+        clu_avg_selected: np.ndarray bool
+            The gene cluster that is selected
+        To perform the filtering use the method `filter_genes`
+        """
+        U, S, cluster_uid = adata.layers['unspliced'], adata.layers['spliced'], adata.obs[cluster]
+        cluster_uid, cluster_ix = np.unique(adata.obs.ClusterName, return_inverse=True)
+
+        U_avgs, S_avgs = clusters_stats(U, S, cluster_uid, cluster_ix, size_limit=size_limit)
+        clu_avg_selected = (U_avgs.max(1) > min_avg_U) & (S_avgs.max(1) > min_avg_S)
+
+        return clu_avg_selected
+
+def _filter_genes(adata, filter_bool=None, layer='all', min_cell_s=0, min_cell_u=0, min_cell_p=0,
+                 min_avg_exp_s=0, min_avg_exp_u=0, min_avg_exp_p=0, max_avg_exp=0.,
+                 min_count_s=0, min_count_u=0, min_count_p=0, shared_count=30):
+
+    detected_bool = np.ones(adata.shape[1], dtype=bool)
+    detected_bool = (detected_bool) & np.array(((adata.X > 0).sum(0) > min_cell_s) & (adata.X.mean(0) > min_avg_exp_s) & (adata.X.mean(0) < max_avg_exp)).flatten()
+
+    if "spliced" in adata.layers.keys() and (layer is 'spliced' or layer is 'all'):
+        detected_bool = detected_bool & np.array(((adata.layers['spliced'] > 0).sum(0) > min_cell_s) & \
+                        (adata.layers['spliced'].mean(0) > min_avg_exp_s) & \
+                        (adata.layers['spliced'].mean(0) < max_avg_exp) & \
+                        (adata.layers['spliced'].sum(0) > min_count_s)).flatten()
+    if "unspliced" in adata.layers.keys() and (layer is 'unspliced' or layer is 'all'):
+        detected_bool = detected_bool & np.array(((adata.layers['unspliced'] > 0).sum(0) > min_cell_u) & \
+                        (adata.layers['unspliced'].mean(0) > min_avg_exp_u) & \
+                        (adata.layers['unspliced'].mean(0) < max_avg_exp) &
+                        (adata.layers['unspliced'].sum(0) > min_count_u)).flatten()
+    if shared_count is not None:
+        layers = get_layer_keys(adata, 'all', False)
+        detected_bool = detected_bool & get_shared_counts(adata, layers, shared_count, 'gene')
+
+    ############################## The following code need to be updated ##############################
+    # just remove genes that are not following the protein criteria
+    if "protein" in adata.obsm.keys() and layer is 'protein':
+        detected_bool = detected_bool & np.array(((adata.obsm['protein'] > 0).sum(0) > min_cell_p) & \
+                        (adata.obsm['protein'].mean(0) > min_avg_exp_p) & \
+                        (adata.obsm['protein'].mean(0) < max_avg_exp) & \
+                        (adata.layers['protein'].sum(0) > min_count_p)).flatten()
+
+    filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
+
+    return filter_bool
 
 def filter_genes(adata, filter_bool=None, layer='all', total_szfactor=None, keep_filtered=True, min_cell_s=0, min_cell_u=0, min_cell_p=0,
-                 min_avg_exp_s=0, min_avg_exp_u=0, min_avg_exp_p=0, max_avg_exp=0., shared_count=30, sort_by='SVR',
+                 min_avg_exp_s=0, min_avg_exp_u=0, min_avg_exp_p=0, max_avg_exp=0., min_count_s=0, min_count_u=0, min_count_p=0, shared_count=30, sort_by='SVR',
                  n_top_genes=2000):
     """Select feature genes based on a collection of filters.
 
@@ -739,24 +799,9 @@ def filter_genes(adata, filter_bool=None, layer='all', total_szfactor=None, keep
             downstream analysis. adata will be subsetted with only the genes pass filter if keep_unflitered is set to be False.
     """
 
-    detected_bool = np.ones(adata.shape[1], dtype=bool)
-    detected_bool = (detected_bool) & np.array(((adata.X > 0).sum(0) > min_cell_s) & (adata.X.mean(0) > min_avg_exp_s) & (adata.X.mean(0) < max_avg_exp)).flatten()
-
-    if "spliced" in adata.layers.keys() and (layer is 'spliced' or layer is 'all'):
-        detected_bool = detected_bool & np.array(((adata.layers['spliced'] > 0).sum(0) > min_cell_s) & (adata.layers['spliced'].mean(0) > min_avg_exp_s) & (adata.layers['spliced'].mean(0) < max_avg_exp)).flatten()
-    if "unspliced" in adata.layers.keys() and (layer is 'unspliced' or layer is 'all'):
-        detected_bool = detected_bool & np.array(((adata.layers['unspliced'] > 0).sum(0) > min_cell_u) & (adata.layers['unspliced'].mean(0) > min_avg_exp_u) & (adata.layers['unspliced'].mean(0) < max_avg_exp)).flatten()
-    if shared_count is not None:
-        layers = get_layer_keys(adata, 'all', False)
-        detected_bool = detected_bool & get_shared_counts(adata, layers, shared_count, 'gene')
-
-    ############################## The following code need to be updated ##############################
-    # just remove genes that are not following the protein criteria
-    if "protein" in adata.obsm.keys() and layer is 'protein':
-        detected_bool = detected_bool & np.array(((adata.obsm['protein'] > 0).sum(0) > min_cell_p) & (adata.obsm['protein'].mean(0) > min_avg_exp_p) & (adata.obsm['protein'].mean(0) < max_avg_exp)).flatten()
-
-    filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
-
+    filter_bool = _filter_genes(adata, filter_bool=filter_bool, layer=layer, min_cell_s=min_cell_s, min_cell_u=min_cell_u, min_cell_p=min_cell_p,
+                 min_avg_exp_s=min_avg_exp_s, min_avg_exp_u=min_avg_exp_u, min_avg_exp_p=min_avg_exp_p, max_avg_exp=max_avg_exp,
+                 min_count_s=min_count_s, min_count_u=min_count_u, min_count_p=min_count_p, shared_count=shared_count)
     adata.var['pass_basic_filter'] = np.array(filter_bool).flatten()
 
     if adata.shape[1] <= n_top_genes:
