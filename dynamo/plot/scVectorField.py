@@ -866,7 +866,7 @@ def cell_wise_velocity(
 
     for i in range(len(axes_list)):
         axes_list[i].quiver(df.iloc[ix_choice, 0], df.iloc[ix_choice, 1],
-                  df.iloc[ix_choice, 2], df.iloc[ix_choice, 3], color=color_list[i], **quiver_kwargs)
+                  df.iloc[ix_choice, 2], df.iloc[ix_choice, 3], color=color_list[i], facecolors=color_list[i], **quiver_kwargs)
 
     plt.tight_layout()
     plt.show()
@@ -988,7 +988,7 @@ def grid_velocity(
 
     quiver_kwargs = {"angles": 'xy', 'scale': scale, "scale_units": 'xy', "width": 0.0005,
                      "headwidth": head_w, "headlength": head_l, "headaxislength": ax_l, "minshaft": 1, "minlength": 1,
-                     "pivot": "tail", "linewidth": .2, "edgecolors": edgecolors, "linewidth": .2,
+                     "pivot": "tail", "linewidth": .2, "edgecolors": edgecolors, "linewidth": .2, "facecolors": edgecolors,
                      "color": edgecolors, "alpha": 1, "zorder": 10}
     quiver_kwargs = update_dict(quiver_kwargs, q_kwargs_dict)
 
@@ -1112,7 +1112,7 @@ def streamline_plot(
         raise Exception('Vector field learning method {} is not supported or the grid velocity is collected for '
                         'the current adata object.'.format(method))
 
-    streamplot_kwargs={"density": density, "linewidth": None, "cmap": None, "norm": None, "arrowsize": 1, "arrowstyle": '-|>',
+    streamplot_kwargs={"density": density * 2, "linewidth": None, "cmap": None, "norm": None, "arrowsize": 1, "arrowstyle": '-|>',
                        "minlength": 0.1, "transform": None, "start_points": None, "maxlength": 4.0,
                        "integration_direction": 'both', "zorder": 10}
     streamplot_kwargs = update_dict(streamplot_kwargs, streamline_kwargs)

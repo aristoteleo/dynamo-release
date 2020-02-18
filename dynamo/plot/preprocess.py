@@ -23,7 +23,6 @@ def show_fraction(adata, group=None):
 
     import matplotlib.pyplot as plt
     import seaborn as sns
-    sns.set_style('ticks')
 
     mode = None
     if pd.Series(['spliced', 'unspliced']).isin(adata.layers.keys()).all():

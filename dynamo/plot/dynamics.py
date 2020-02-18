@@ -269,7 +269,7 @@ def phase_portraits(adata,
         cur_pd = df.loc[df.gene == gn, :]
         if cur_pd.color.unique() != np.nan:
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
-                ax1, _ = _matplotlib_points(
+                ax1, color = _matplotlib_points(
                     cur_pd.iloc[:, [1, 0]].values,
                     ax=ax1,
                     labels=None,
@@ -285,7 +285,7 @@ def phase_portraits(adata,
                     **scatter_kwargs
                 )
             else:
-                ax1, _ = _datashade_points(
+                ax1, color = _datashade_points(
                     cur_pd.iloc[:, [1, 0]].values,
                     ax=ax1,
                     labels=None,
@@ -302,7 +302,7 @@ def phase_portraits(adata,
                 )
         else:
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
-                ax1, _ = _matplotlib_points(
+                ax1, color = _matplotlib_points(
                     cur_pd.iloc[:, [1, 0]].values,
                     ax=ax1,
                     labels=color,
@@ -318,7 +318,7 @@ def phase_portraits(adata,
                     **scatter_kwargs
                 )
             else:
-                ax1, _ = _datashade_points(
+                ax1, color = _datashade_points(
                     cur_pd.iloc[:, [1, 0]].values,
                     ax=ax1,
                     labels=color,
@@ -360,7 +360,7 @@ def phase_portraits(adata,
                              "headwidth": head_w, "headlength": head_l, "headaxislength": ax_l, "minshaft": 1,
                              "minlength": 1,
                              "pivot": "tail", "linewidth": .2, "edgecolors": edgecolors, "linewidth": .2,
-                             "color": edgecolors, "alpha": 1, "zorder": 10}
+                             "color": color, "alpha": 1, "zorder": 10}
             quiver_kwargs = update_dict(quiver_kwargs, q_kwargs_dict)
             ax1.quiver(X_array[:, 0], X_array[:, 1], V_array[:, 0], V_array[:, 1], **quiver_kwargs)
 
@@ -455,7 +455,7 @@ def phase_portraits(adata,
         if 'protein' in adata.obsm.keys() and mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]):
             if cur_pd.color.unique() != np.nan:
                 if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
-                    ax4, _ = _matplotlib_points(
+                    ax4, color = _matplotlib_points(
                         cur_pd.iloc[:, [3, 2]].values,
                         ax=ax4,
                         labels=None,
@@ -471,7 +471,7 @@ def phase_portraits(adata,
                         **scatter_kwargs
                     )
                 else:
-                    ax4, _ = _datashade_points(
+                    ax4, color = _datashade_points(
                         cur_pd.iloc[:, [3, 2]].values,
                         ax=ax4,
                         labels=None,
@@ -488,7 +488,7 @@ def phase_portraits(adata,
                     )
             else:
                 if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
-                    ax4, _ = _matplotlib_points(
+                    ax4, color = _matplotlib_points(
                         cur_pd.iloc[:, [1, 0]].values,
                         ax=ax4,
                         labels=color,
@@ -504,7 +504,7 @@ def phase_portraits(adata,
                         **scatter_kwargs
                     )
                 else:
-                    ax4, _ = _datashade_points(
+                    ax4, color = _datashade_points(
                         cur_pd.iloc[:, [1, 0]].values,
                         ax=ax4,
                         labels=color,
@@ -547,7 +547,7 @@ def phase_portraits(adata,
                                  "headwidth": head_w, "headlength": head_l, "headaxislength": ax_l, "minshaft": 1,
                                  "minlength": 1,
                                  "pivot": "tail", "linewidth": .2, "edgecolors": edgecolors, "linewidth": .2,
-                                 "color": edgecolors, "alpha": 1, "zorder": 10}
+                                 "color": color, "alpha": 1, "zorder": 10}
                 quiver_kwargs = update_dict(quiver_kwargs, q_kwargs_dict)
                 ax4.quiver(X_array[:, 0], X_array[:, 1], V_array[:, 0], V_array[:, 1], **quiver_kwargs)
 
