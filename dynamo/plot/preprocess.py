@@ -128,7 +128,7 @@ def variance_explained(adata, threshold=0.002, n_pcs=None):
 
     var_ = adata.uns["explained_variance_ratio_"]
     _, ax = plt.subplots()
-    ax.plot(var_, c='k')
+    ax.plot(var_, c='r')
     tmp = np.diff(np.diff(np.cumsum(var_)) > threshold)
     n_comps = n_pcs if n_pcs is not None else np.where(tmp)[0][0] if np.any(tmp) else 20
     ax.axvline(n_comps, c="r")
@@ -188,9 +188,9 @@ def feature_genes(adata, layer='X', mode=None):
 
     valid_disp_table = table.iloc[valid_ind, :]
     if mode is 'dispersion':
-        plt.scatter(valid_disp_table['mean_expression'], valid_disp_table['dispersion_empirical'], s=3, alpha=1, color='xkcd:black')
+        plt.scatter(valid_disp_table['mean_expression'], valid_disp_table['dispersion_empirical'], s=3, alpha=1, color='xkcd:red')
     elif mode is 'SVR':
-        plt.scatter(valid_disp_table['log_m'], valid_disp_table['log_cv'], s=3, alpha=1, color='xkcd:black')
+        plt.scatter(valid_disp_table['log_m'], valid_disp_table['log_cv'], s=3, alpha=1, color='xkcd:red')
 
     neg_disp_table = table.iloc[~valid_ind, :]
 
