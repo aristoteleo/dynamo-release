@@ -559,7 +559,7 @@ def scatters(
         set_figure_params(background=background)
     else:
         _background = rcParams.get('figure.facecolor')
-        background = to_hex(_background) if type(_background) is tuple else background
+        background = to_hex(_background) if type(_background) is tuple else _background
 
     x, y = x[0] if type(x) != int else x, y[0] if type(y) != int else y
 

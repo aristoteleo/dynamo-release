@@ -795,6 +795,7 @@ def cell_wise_velocity(
 
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
+    from matplotlib.colors import to_hex
 
     if ('X_' + basis in adata.obsm.keys()) and ('velocity_' + basis in adata.obsm.keys()):
         X = adata.obsm['X_' + basis][:, [x, y]]
@@ -817,7 +818,9 @@ def cell_wise_velocity(
     df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "u": V[:, 0], "v": V[:, 1]})
 
     if background is None:
-        background = rcParams.get('figure.facecolor')
+        _background = rcParams.get('figure.facecolor')
+        background = to_hex(_background) if type(_background) is tuple else _background
+
     if quiver_size is None:
         quiver_size = 1
     if background == 'black':
@@ -933,6 +936,7 @@ def grid_velocity(
 
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
+    from matplotlib.colors import to_hex
 
     if ('X_' + basis in adata.obsm.keys()) and ('velocity_' + basis in adata.obsm.keys()):
         X = adata.obsm['X_' + basis][:, [x, y]]
@@ -976,7 +980,8 @@ def grid_velocity(
     V_grid /= (3 * quiver_autoscaler(X_grid, V_grid))
 
     if background is None:
-        background = rcParams.get('figure.facecolor')
+        _background = rcParams.get('figure.facecolor')
+        background = to_hex(_background) if type(_background) is tuple else _background
     if quiver_size is None:
         quiver_size = 1
     if background == 'black':
@@ -1073,6 +1078,7 @@ def streamline_plot(
 
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
+    from matplotlib.colors import to_hex
 
     if ('X_' + basis in adata.obsm.keys()) and ('velocity_' + basis in adata.obsm.keys()):
         X = adata.obsm['X_' + basis][:, [x, y]]
@@ -1145,7 +1151,8 @@ def streamline_plot(
         **s_kwargs_dict)
 
     if background is None:
-        background = rcParams.get('figure.facecolor')
+        _background = rcParams.get('figure.facecolor')
+        background = to_hex(_background) if type(_background) is tuple else _background
 
     if background == 'black':
         streamline_color = 'red'
