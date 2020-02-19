@@ -622,8 +622,8 @@ def plot_LIC_gray(tex):
     plt.imshow(texture)
 
 
-def line_integral_conv(adata, basis='trimap', U_grid=None, V_grid=None, method = 'yt', cmap = "viridis", normalize = False,
-                       density = 1, lim=(0,1), const_alpha=False, kernellen=100, V_threshold=None, file = None, g_kwargs_dict=None):
+def line_integral_conv(adata, basis='umap', U_grid=None, V_grid=None, method='yt', cmap="viridis", normalize=False,
+                       density=1, lim=(0,1), const_alpha=False, kernellen=100, V_threshold=None, file = None, g_kwargs_dict=None):
     """Visualize vector field with quiver, streamline and line integral convolution (LIC), using velocity estimates on a grid from the associated data.
     A white noise background will be used for texture as default. Adjust the bounds of lim in the range of [0, 1] which applies
     upper and lower bounds to the values of line integral convolution and enhance the visibility of plots. When const_alpha=False,
@@ -675,7 +675,7 @@ def line_integral_conv(adata, basis='trimap', U_grid=None, V_grid=None, method =
 
     if 'VecFld_' + basis in adata.uns.keys():
         # first check whether the sparseVFC reconstructed vector field exists
-        X_grid_, V_grid = adata.uns['VecFld_' + basis]['grid'], adata.uns['VecFld_' + basis]['grid_V']
+        X_grid_, V_grid = adata.uns['VecFld_' + basis]['VecFld']['grid'], adata.uns['VecFld_' + basis]['VecFld']['grid_V']
         N = int(np.sqrt(V_grid.shape[0]))
         U_grid = np.reshape(V_grid[:, 0], (N, N)).T
         V_grid = np.reshape(V_grid[:, 1], (N, N)).T
