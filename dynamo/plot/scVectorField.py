@@ -622,8 +622,22 @@ def plot_LIC_gray(tex):
     plt.imshow(texture)
 
 
-def line_integral_conv(adata, basis='umap', U_grid=None, V_grid=None, method='yt', cmap="viridis", normalize=False,
-                       density=1, lim=(0,1), const_alpha=False, kernellen=100, V_threshold=None, file = None, g_kwargs_dict=None):
+def line_integral_conv(
+        adata,
+        basis='umap',
+        U_grid=None,
+        V_grid=None,
+        xy_grid_nums=[50, 50],
+        method='yt',
+        cmap="viridis",
+        normalize=False,
+        density=1,
+        lim=(0, 1),
+        const_alpha=False,
+        kernellen=100,
+        V_threshold=None,
+        file=None,
+        g_kwargs_dict=None):
     """Visualize vector field with quiver, streamline and line integral convolution (LIC), using velocity estimates on a grid from the associated data.
     A white noise background will be used for texture as default. Adjust the bounds of lim in the range of [0, 1] which applies
     upper and lower bounds to the values of line integral convolution and enhance the visibility of plots. When const_alpha=False,
@@ -636,9 +650,11 @@ def line_integral_conv(adata, basis='umap', U_grid=None, V_grid=None, method='yt
         basis: `str` (default: trimap)
             The dimension reduction method to use.
         U_grid: 'np.ndarray' (default: None)
-            Original data.
+            Original velocity on the first dimension of a 2 d grid.
         V_grid: 'np.ndarray' (default: None)
-            Original data.
+            Original velocity on the second dimension of a 2 d grid.
+        xy_grid_nums: `tuple` (default: (50, 50))
+            the number of grids in either x or y axis. The number of grids has to be the same on both dimensions.
         method: 'float'
             sigma2 is defined as sum(sum((Y - V)**2)) / (N * D)
         cmap: 'float'
@@ -668,41 +684,43 @@ def line_integral_conv(adata, basis='umap', U_grid=None, V_grid=None, method='yt
     if V is None:
         raise Exception(f'The {basis}_velocity velocity (or velocity) result does not existed in your data.')
 
+    if U_grid is None or V_grid is None:
+        if 'VecFld_' + basis in adata.uns.keys():
+            # first check whether the sparseVFC reconstructed vector field exists
+            X_grid_, V_grid = adata.uns['VecFld_' + basis]['VecFld']['grid'], adata.uns['VecFld_' + basis]['VecFld']['grid_V']
+            N = int(np.sqrt(V_grid.shape[0]))
+            U_grid = np.reshape(V_grid[:, 0], (N, N)).T
+            V_grid = np.reshape(V_grid[:, 1], (N, N)).T
+
+        elif 'grid_velocity_' + basis in adata.uns.keys():
+            # then check whether the Gaussian Kernel vector field exists
+            X_grid_, V_grid_, _ = adata.uns['grid_velocity_' + basis]['X_grid'], adata.uns['grid_velocity_' + basis]['V_grid'], \
+                                adata.uns['grid_velocity_' + basis]['D']
+            N = int(np.sqrt(V_grid_.shape[0]))
+            U_grid = np.reshape(V_grid[:, 0], (N, N)).T
+            V_grid = np.reshape(V_grid[:, 1], (N, N)).T
+        else:
+            # if no VF or Gaussian Kernel vector fields, recreate it
+            grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
+                                "adjust_for_stream": True, "V_threshold": None}
+            grid_kwargs_dict.update(g_kwargs_dict)
+
+            N=xy_grid_nums[1]
+            X_grid_, V_grid_, D = velocity_on_grid(X[:, [1, 2]], V[:, [1, 2]], xy_grid_nums, **grid_kwargs_dict)
+            U_grid = np.reshape(V_grid_[:, 0], (N, N)).T
+            V_grid = np.reshape(V_grid_[:, 1], (N, N)).T
+
     if V_threshold is not None:
         mass = np.sqrt((V_grid ** 2).sum(0))
         if V_threshold is not None:
             V_grid[0][mass.reshape(V_grid[0].shape) < V_threshold] = np.nan
 
-    if 'VecFld_' + basis in adata.uns.keys():
-        # first check whether the sparseVFC reconstructed vector field exists
-        X_grid_, V_grid = adata.uns['VecFld_' + basis]['VecFld']['grid'], adata.uns['VecFld_' + basis]['VecFld']['grid_V']
-        N = int(np.sqrt(V_grid.shape[0]))
-        U_grid = np.reshape(V_grid[:, 0], (N, N)).T
-        V_grid = np.reshape(V_grid[:, 1], (N, N)).T
-
-    elif 'grid_velocity_' + basis in adata.uns.keys():
-        # then check whether the Gaussian Kernel vector field exists
-        X_grid_, V_grid_, _ = adata.uns['grid_velocity_' + basis]['X_grid'], adata.uns['grid_velocity_' + basis]['V_grid'], \
-                            adata.uns['grid_velocity_' + basis]['D']
-        N = int(np.sqrt(V_grid.shape[0]))
-        U_grid = np.reshape(V_grid[:, 0], (N, N)).T
-        V_grid = np.reshape(V_grid[:, 1], (N, N)).T
-    else:
-        # if no VF or Gaussian Kernel vector fields, recreate it
-        grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
-                            "adjust_for_stream": True, "V_threshold": None}
-        grid_kwargs_dict.update(g_kwargs_dict)
-
-        N=50
-        X_grid_, V_grid_, D = velocity_on_grid(X[:, [1, 2]], V[:, [1, 2]], [N, N], **grid_kwargs_dict)
-        U_grid = np.reshape(V_grid[:, 0], (N, N)).T
-        V_grid = np.reshape(V_grid[:, 1], (N, N)).T
-
-    U_grid = X_grid_ if U_grid is None else U_grid
-    V_grid = V_grid_ if V_grid is None else V_grid
-
     if method == 'yt':
-        import yt
+        try:
+            import yt
+        except ImportError:
+            print('Please first install yt package to use the line integral convolution plot method. '
+                  'Install instruction is provided here: https://yt-project.org/')
 
         velocity_x_ori, velocity_y_ori, velocity_z_ori = U_grid, V_grid, np.zeros(U_grid.shape)
         velocity_x = np.repeat(velocity_x_ori[:, :, np.newaxis], V_grid.shape[1], axis=2)
@@ -721,7 +739,7 @@ def line_integral_conv(adata, basis='umap', U_grid=None, V_grid=None, method='yt
         slc.set_cmap("velocity_sum", cmap)
         slc.set_log("velocity_sum", False)
 
-        slc.annotate_velocity(normalize = normalize)
+        slc.annotate_velocity(normalize=normalize)
         slc.annotate_streamlines('velocity_x', 'velocity_y', density=density)
         slc.annotate_line_integral_convolution('velocity_x', 'velocity_y', lim=lim, const_alpha=const_alpha, kernellen=kernellen)
 
@@ -736,7 +754,7 @@ def line_integral_conv(adata, basis='umap', U_grid=None, V_grid=None, method='yt
             # plt.rc('xtick', labelsize=8)
             # plt.rc('ytick', labelsize=8)
             # plt.rc('axes', labelsize=8)
-            slc.save(file, mpl_kwargs = {"figsize": [2, 2]})
+            slc.save(file, mpl_kwargs={"figsize": [2, 2]})
     elif method == 'lic':
         velocyto_tex = runlic(V_grid, V_grid, 100)
         plot_LIC_gray(velocyto_tex)
@@ -899,7 +917,7 @@ def grid_velocity(
         use_smoothed=True,
         ax=None,
         method='gaussian',
-        xy_grid_nums=[30, 30],
+        xy_grid_nums=[50, 50],
         quiver_size=None,
         quiver_length=None,
         s_kwargs_dict={},
@@ -913,7 +931,7 @@ def grid_velocity(
         method: `str` (default: `SparseVFC`)
             Method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the empirical method
             Gaussian kernel method from RNA velocity (Gaussian).
-        xy_grid_nums: `tuple` (default: (30, 30))
+        xy_grid_nums: `tuple` (default: (50, 50))
             the number of grids in either x or y axis.
         quiver_size: `float` or None (default: None)
             The size of quiver. If None, we will use set quiver_size to be 1. Note that quiver quiver_size is used to calculate
@@ -1053,7 +1071,7 @@ def streamline_plot(
         use_smoothed=True,
         ax=None,
         method='gaussian',
-        xy_grid_nums=[30, 30],
+        xy_grid_nums=[50, 50],
         density=1,
         s_kwargs_dict={},
         **streamline_kwargs):
@@ -1065,7 +1083,7 @@ def streamline_plot(
         method: `str` (default: `SparseVFC`)
             Method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the empirical method
             Gaussian kernel method from RNA velocity (Gaussian).
-        xy_grid_nums: `tuple` (default: (30, 30))
+        xy_grid_nums: `tuple` (default: (50, 50))
             the number of grids in either x or y axis.
         density: `float` or None (default: 1)
             density of the plt.streamplot function.
