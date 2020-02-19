@@ -202,7 +202,7 @@ def plot_traj(f, y0, t, args=(), lw=2, background=None, integration_direction='b
         ax = _plot_traj(y0, t, args, integration_direction, ax, color, lw, f)
     else:
         for i in range(y0.shape[1]):
-            cur_y0 = y0[:, i]
+            cur_y0 = y0[i, :]
             ax = _plot_traj(cur_y0, t, args, integration_direction, ax, color, lw, f)
 
     return ax
@@ -336,7 +336,8 @@ def topography(
             A tuple of plotting items to include in the final topography figure.  ('streamline', 'nullcline', 'fixed_points',
              'separatrix', 'trajectory') are all the items that we can support.
         init_state: `numpy.ndarray` (default: None)
-            Initial cell states for the historical or future cell state prediction with numerical integration.
+            Initial cell states for the historical or future cell state prediction with numerical integration. It can be
+            either a one-dimensional array or N x 2 dimension array.
         integration_direction: `str` (default: `forward`)
             Integrate the trajectory in forward, backward or both directions. default is 'both'.
         approx: `bool` (default: False)
