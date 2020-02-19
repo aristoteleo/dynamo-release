@@ -1,4 +1,5 @@
 import numpy as np
+import scipy
 import pandas as pd
 import math
 import numba
@@ -763,6 +764,21 @@ def default_quiver_args(arrow_size, arrow_len=None):
     scale = 1 / arrow_len if arrow_len is not None else 1 / arrow_size
 
     return head_w, head_l, ax_l, scale
+
+# ---------------------------------------------------------------------------------------------------
+def _plot_traj(y0, t, args, integration_direction, ax, color, lw, f):
+    if integration_direction == 'forward':
+        y = scipy.integrate.odeint(lambda x, t: f(x), y0, t, args=args)
+    elif integration_direction == 'backward':
+        y = scipy.integrate.odeint(lambda x, t: f(x), y0, -t, args=args)
+    elif integration_direction == 'both':
+        y = scipy.integrate.odeint(lambda x, t: f(x), y0, np.hstack((t, -t)), args=args)
+
+    ax.plot(*y.transpose(), color=color, lw=lw, linestyle='dashed', alpha=0.5)
+
+    ax.scatter(*y0, color=color, marker="*")
+
+    return ax
 
 # ---------------------------------------------------------------------------------------------------
 # the following Loess class is taken from:

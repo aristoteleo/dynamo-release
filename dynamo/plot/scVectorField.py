@@ -637,7 +637,7 @@ def line_integral_conv(
         kernellen=100,
         V_threshold=None,
         file=None,
-        g_kwargs_dict=None):
+        g_kwargs_dict={}):
     """Visualize vector field with quiver, streamline and line integral convolution (LIC), using velocity estimates on a grid from the associated data.
     A white noise background will be used for texture as default. Adjust the bounds of lim in the range of [0, 1] which applies
     upper and lower bounds to the values of line integral convolution and enhance the visibility of plots. When const_alpha=False,
@@ -696,19 +696,17 @@ def line_integral_conv(
             # then check whether the Gaussian Kernel vector field exists
             X_grid_, V_grid_, _ = adata.uns['grid_velocity_' + basis]['X_grid'], adata.uns['grid_velocity_' + basis]['V_grid'], \
                                 adata.uns['grid_velocity_' + basis]['D']
-            N = int(np.sqrt(V_grid_.shape[0]))
-            U_grid = np.reshape(V_grid[:, 0], (N, N)).T
-            V_grid = np.reshape(V_grid[:, 1], (N, N)).T
+            U_grid = V_grid_[0, :, :].T
+            V_grid = V_grid_[1, :, :].T
         else:
             # if no VF or Gaussian Kernel vector fields, recreate it
             grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
                                 "adjust_for_stream": True, "V_threshold": None}
             grid_kwargs_dict.update(g_kwargs_dict)
 
-            N=xy_grid_nums[1]
-            X_grid_, V_grid_, D = velocity_on_grid(X[:, [1, 2]], V[:, [1, 2]], xy_grid_nums, **grid_kwargs_dict)
-            U_grid = np.reshape(V_grid_[:, 0], (N, N)).T
-            V_grid = np.reshape(V_grid_[:, 1], (N, N)).T
+            X_grid_, V_grid_, _ = velocity_on_grid(X[:, [0, 1]], V[:, [0, 1]], xy_grid_nums, **grid_kwargs_dict)
+            U_grid = V_grid_[0, :, :].T
+            V_grid = V_grid_[1, :, :].T
 
     if V_threshold is not None:
         mass = np.sqrt((V_grid ** 2).sum(0))
