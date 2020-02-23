@@ -55,7 +55,13 @@ def umap_conn_indices_dist_embedding(X,
         n_neighbors=30,
         n_components=2,
         metric="euclidean",
-        min_dist=0.1,
+        min_dist=0.5,
+        spread=1.0,
+        n_epochs=None,
+        alpha=1.0,
+        gamma=1.0,
+        negative_sample_rate=5,
+        init_pos='spectral',
         random_state=0,
         verbose=False):
     """Compute connectivity graph, matrices for kNN neighbor indices, distance matrix and low dimension embedding with UMAP.
@@ -76,6 +82,25 @@ def umap_conn_indices_dist_embedding(X,
             embedding where nearby points on the manifold are drawn closer together, while larger values will result on a
             more even dispersal of points. The value should be set relative to the ``spread`` value, which determines the
             scale at which embedded points will be spread out.
+        spread: `float` (optional, default 1.0)
+            The effective scale of embedded points. In combination with min_dist this determines how clustered/clumped the
+            embedded points are.
+        n_epochs: 'int' (optional, default None)
+            The number of training epochs to be used in optimizing the low dimensional embedding. Larger values result in
+            more accurate embeddings. If None is specified a value will be selected based on the size of the input dataset
+            (200 for large datasets, 500 for small).
+        alpha: `float` (optional, default 1.0)
+            Initial learning rate for the SGD.
+        gamma: `float` (optional, default 1.0)
+            Weight to apply to negative samples. Values higher than one will result in greater weight being given to
+            negative samples.
+        negative_sample_rate: `float` (optional, default 5)
+            The number of negative samples to select per positive sample in the optimization process. Increasing this value
+             will result in greater repulsive force being applied, greater optimization cost, but slightly more accuracy.
+             The number of negative edge/1-simplex samples to use per positive edge/1-simplex sample in optimizing the low
+             dimensional embedding.
+        init_pos: 'spectral':
+            How to initialize the low dimensional embedding. Use a spectral embedding of the fuzzy 1-skeleton
         random_state: `int`, `RandomState` instance or `None`, optional (default: None)
             If int, random_state is the seed used by the random number generator; If RandomState instance, random_state is
             the random number generator; If None, the random number generator is the RandomState instance used by `numpy.random`.
@@ -93,7 +118,7 @@ def umap_conn_indices_dist_embedding(X,
     from sklearn.metrics import pairwise_distances
     from umap.umap_ import nearest_neighbors, fuzzy_simplicial_set, simplicial_set_embedding, find_ab_params
 
-    random_state = check_random_state(42)
+    random_state = check_random_state(random_state)
 
     _raw_data = X
 
@@ -147,19 +172,19 @@ def umap_conn_indices_dist_embedding(X,
     if verbose:
         print("Construct embedding")
 
-    a, b = find_ab_params(1, min_dist)
+    a, b = find_ab_params(spread, min_dist)
 
     embedding_ = simplicial_set_embedding(
         data=_raw_data,
         graph=graph,
         n_components=n_components,
-        initial_alpha=1.0, # learning_rate
+        initial_alpha=alpha, # learning_rate
         a=a,
         b=b,
-        gamma=1.0,
-        negative_sample_rate=5,
-        n_epochs=0,
-        init="spectral",
+        gamma=gamma,
+        negative_sample_rate=negative_sample_rate,
+        n_epochs=n_epochs,
+        init=init_pos,
         random_state=random_state,
         metric=metric,
         metric_kwds={},
