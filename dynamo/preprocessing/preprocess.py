@@ -8,6 +8,8 @@ from sklearn.decomposition import FastICA
 from .utils import pca
 from .utils import clusters_stats
 from .utils import cook_dist, get_layer_keys, get_shared_counts
+from .utils import get_svr_filter
+
 
 def szFactor(adata, layers='all', total_layers=None, locfunc=np.nanmean, round_exprs=True, method='median'):
     """Calculate the size factor of the each cell using geometric mean of total UMI across cells for a AnnData object.
@@ -580,21 +582,24 @@ def SVRs(adata, filter_bool=None, layers='X', total_szfactor=None, min_expr_cell
                 continue
         else:
             CM = adata.layers[layer].copy()
-            szfactors = adata.obs[layer + '_Size_Factor'][:, None]
+            szfactors = adata.obs[layer + '_Size_Factor'][:, None] if layer + '_Size_Factor' in adata.obs.columns \
+                else None
 
         if total_szfactor is not None and total_szfactor in adata.obs.keys():
-            szfactors = adata.obs[total_szfactor][:, None]
-        if issparse(CM):
-            sparsefuncs.inplace_row_scale(CM, 1 / szfactors)
-        else:
-            CM /= szfactors
+            szfactors = adata.obs[total_szfactor][:, None] if total_szfactor in adata.obs.columns else None
+
+        if szfactors is not None:
+            if issparse(CM):
+                sparsefuncs.inplace_row_scale(CM, 1 / szfactors)
+            else:
+                CM /= szfactors
 
         if winsorize:
             if min_expr_cells <= ((100 - winsor_perc[1]) * CM.shape[0] * 0.01):
                 min_expr_cells = int(np.ceil((100 - winsor_perc[1]) * CM.shape[1] * 0.01)) + 2
 
-        detected_bool = np.array(((CM > 0).sum(0) > min_expr_cells) & (CM.mean(0) < max_expr_avg) & (
-                    CM.mean(0) > min_expr_avg)).flatten()
+        detected_bool = np.array(((CM > 0).sum(0) >= min_expr_cells) & (CM.mean(0) <= max_expr_avg) & (
+                    CM.mean(0) >= min_expr_avg)).flatten()
 
         if filter_bool is not None:
             detected_bool = filter_bool & detected_bool
@@ -604,10 +609,10 @@ def SVRs(adata, filter_bool=None, layers='X', total_szfactor=None, min_expr_cell
             down, up = np.percentile(valid_CM.A, winsor_perc, 0) if issparse(valid_CM) else np.percentile(valid_CM, winsor_perc, 0)
             Sfw = np.clip(valid_CM.A, down[None, :], up[None, :]) if issparse(valid_CM) else np.percentile(valid_CM, winsor_perc, 0)
             mu = Sfw.mean(0)
-            sigma = Sfw.std(0, ddof=0)
+            sigma = Sfw.std(0, ddof=1)
         else:
             mu = np.array(valid_CM.mean(0)).flatten()
-            sigma = np.array(np.sqrt(valid_CM.multiply(valid_CM).mean(0).A1 - mu ** 2)).flatten() if issparse(valid_CM) else valid_CM.std(0, ddof=0)
+            sigma = np.array(np.sqrt((valid_CM.multiply(valid_CM).mean(0).A1 - (mu) ** 2) * (adata.n_obs) / (adata.n_obs - 1))) if issparse(valid_CM) else valid_CM.std(0, ddof=1)
 
         cv = sigma / mu
         log_m = np.array(np.log2(mu)).flatten()
@@ -624,13 +629,15 @@ def SVRs(adata, filter_bool=None, layers='X', total_szfactor=None, min_expr_cell
         if sort_inverse:
             score = - score
 
-        adata.var['log_m'], adata.var['log_cv'], adata.var['score'] = np.nan, np.nan, -np.inf
-        adata.var.loc[detected_bool, 'log_m'], adata.var.loc[detected_bool, 'log_cv'], adata.var.loc[detected_bool, 'score'] = np.array(log_m).flatten(), np.array(log_cv).flatten(), np.array(score).flatten()
+        prefix = '' if layer == 'X' else layer + '_'
+        adata.var[prefix + 'log_m'], adata.var[prefix + 'log_cv'], adata.var[prefix + 'score'] = np.nan, np.nan, -np.inf
+        adata.var.loc[detected_bool, prefix + 'log_m'], adata.var.loc[detected_bool, prefix + 'log_cv'], adata.var.loc[detected_bool, prefix + 'score'] = \
+            np.array(log_m).flatten(), np.array(log_cv).flatten(), np.array(score).flatten()
 
         key = "velocyto_SVR" if layer is 'raw' or layer is 'X' else layer + "_velocyto_SVR"
         adata.uns[key] = {"SVR": fitted_fun, "detected_bool": detected_bool}
 
-        adata
+    return adata
 
 
 def filter_cells(adata, filter_bool=None, layer='all', keep_filtered=False, min_expr_genes_s=50, min_expr_genes_u=25, min_expr_genes_p=1,
@@ -759,7 +766,7 @@ def filter_genes_(adata, filter_bool=None, layer='all', min_cell_s=0, min_cell_u
 
 def filter_genes(adata, filter_bool=None, layer='all', total_szfactor=None, keep_filtered=True, min_cell_s=0, min_cell_u=0, min_cell_p=0,
                  min_avg_exp_s=0, min_avg_exp_u=0, min_avg_exp_p=0, max_avg_exp=0., min_count_s=0, min_count_u=0, min_count_p=0, shared_count=30, sort_by='SVR',
-                 n_top_genes=2000):
+                 n_top_genes=2000, SVRs_kwargs={}):
     """Select feature genes based on a collection of filters.
 
     Parameters
@@ -824,14 +831,12 @@ def filter_genes(adata, filter_bool=None, layer='all', total_szfactor=None, keep
             gene_id = valid_table.index[gene_id]
             filter_bool = gene_id.isin(adata.var.index)
         elif sort_by is 'SVR':
-            SVRs(adata, layers=layer, total_szfactor=total_szfactor, filter_bool=filter_bool, min_expr_cells=0, min_expr_avg=0, max_expr_avg=np.inf,
-                 svr_gamma=None, winsorize=False, winsor_perc=(1, 99.5), sort_inverse=False)
+            SVRs_args = {"min_expr_cells": 0, "min_expr_avg": 0, "max_expr_avg": np.inf,
+                 "svr_gamma": None, "winsorize": False, "winsor_perc": (1, 99.5), "sort_inverse":False}
+            SVRs_args = SVRs_args.update(SVRs_kwargs)
+            SVRs(adata, layers=layer, total_szfactor=total_szfactor, filter_bool=filter_bool, **SVRs_args)
 
-            valid_table = adata.var.loc[filter_bool, :]
-            gene_id = np.argsort(-valid_table.loc[:, 'score'])[:n_top_genes]
-            _filter_bool = np.zeros(adata.X.shape[1], dtype=bool)
-            _filter_bool[np.where(filter_bool)[0][gene_id]] = True
-            filter_bool = _filter_bool
+            filter_bool = get_svr_filter(adata, layer=layer, n_top_genes=n_top_genes)
 
     if keep_filtered:
         adata.var['use_for_dynamo'] = filter_bool

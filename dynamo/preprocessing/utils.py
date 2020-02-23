@@ -116,7 +116,7 @@ def get_layer_keys(adata, layers='all', remove_normalized=True, include_protein=
         layer_keys.extend(['X', 'protein'])
     else:
         layer_keys.extend(['X'])
-    layers = layer_keys if layers is 'all' else list(set(layer_keys).intersection(layers))
+    layers = layer_keys if layers is 'all' else list(set(layer_keys).intersection(list(layers)))
 
     layers = list(set(layers).difference(['matrix', 'ambiguous', 'spanning']))
     return layers
@@ -161,6 +161,22 @@ def clusters_stats(U, S, clusters_uid, cluster_ix, size_limit=40):
 
     return U_avgs, S_avgs
 
+def get_svr_filter(adata, layer='spliced', n_top_genes=3000):
+    score_name = 'score' if layer in ['X', 'all'] else layer + '_score'
+    valid_idx = np.where(np.isfinite(adata.var.loc[:, score_name]))[0]
+
+    valid_table = adata.var.iloc[valid_idx, :]
+    nth_score = np.sort(valid_table.loc[:, score_name])[::-1][n_top_genes]
+
+    feature_gene_idx = np.where(valid_table.loc[:, score_name] >= nth_score)[0][:n_top_genes]
+
+    adata.var.loc[:, 'use_for_dynamo'] = False
+    adata.var.loc[adata.var.index[feature_gene_idx], 'use_for_dynamo'] = True
+
+    filter_bool = np.zeros(adata.n_vars, dtype=bool)
+    filter_bool[valid_idx[feature_gene_idx]] = True
+
+    return filter_bool
 # ---------------------------------------------------------------------------------------------------
 # pca
 
