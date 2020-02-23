@@ -1028,6 +1028,7 @@ def recipe_velocyto(adata, total_layers=None, method='pca', num_dim=30, norm_met
     CM = adata.X
     if method is 'pca':
         adata, fit, _ = pca(adata, CM, num_dim, 'X_' + method.lower())
+        # adata.obsm['X_' + method.lower()] = reduce_dim
 
         adata.uns['explained_variance_ratio_'] = fit.explained_variance_ratio_[1:]
     elif method == 'ica':
