@@ -57,7 +57,7 @@ def umap_conn_indices_dist_embedding(X,
         metric="euclidean",
         min_dist=0.5,
         spread=1.0,
-        n_epochs=None,
+        n_epochs=0,
         alpha=1.0,
         gamma=1.0,
         negative_sample_rate=5,
@@ -85,7 +85,7 @@ def umap_conn_indices_dist_embedding(X,
         spread: `float` (optional, default 1.0)
             The effective scale of embedded points. In combination with min_dist this determines how clustered/clumped the
             embedded points are.
-        n_epochs: 'int' (optional, default None)
+        n_epochs: 'int' (optional, default 0)
             The number of training epochs to be used in optimizing the low dimensional embedding. Larger values result in
             more accurate embeddings. If None is specified a value will be selected based on the size of the input dataset
             (200 for large datasets, 500 for small).

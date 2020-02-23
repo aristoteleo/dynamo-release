@@ -9,7 +9,7 @@ from .utils import pca
 from .utils import clusters_stats
 from .utils import cook_dist, get_layer_keys, get_shared_counts
 from .utils import get_svr_filter
-
+from ..tools.utils import update_dict
 
 def szFactor(adata, layers='all', total_layers=None, locfunc=np.nanmean, round_exprs=True, method='median'):
     """Calculate the size factor of the each cell using geometric mean of total UMI across cells for a AnnData object.
@@ -841,7 +841,7 @@ def filter_genes(adata, filter_bool=None, layer='all', total_szfactor=None, keep
         elif sort_by is 'SVR':
             SVRs_args = {"min_expr_cells": 0, "min_expr_avg": 0, "max_expr_avg": np.inf,
                  "svr_gamma": None, "winsorize": False, "winsor_perc": (1, 99.5), "sort_inverse":False}
-            SVRs_args = SVRs_args.update(SVRs_kwargs)
+            SVRs_args = update_dict(SVRs_args, SVRs_kwargs)
             SVRs(adata, layers=layer, total_szfactor=total_szfactor, filter_bool=filter_bool, **SVRs_args)
 
             filter_bool = get_svr_filter(adata, layer=layer, n_top_genes=n_top_genes)
