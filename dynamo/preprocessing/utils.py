@@ -146,18 +146,18 @@ def clusters_stats(U, S, clusters_uid, cluster_ix, size_limit=40):
     If the cluster is too small (size<size_limit) the average of the toal is reported instead
     This function is taken from velocyto in order to reproduce velocyto's DentateGyrus notebook.
     """
-    U_avgs = np.zeros((S.shape[0], len(clusters_uid)))
-    S_avgs = np.zeros((S.shape[0], len(clusters_uid)))
-    avgU_div_avgS = np.zeros((S.shape[0], len(clusters_uid)))
-    slopes_by_clust = np.zeros((S.shape[0], len(clusters_uid)))
+    U_avgs = np.zeros((S.shape[1], len(clusters_uid)))
+    S_avgs = np.zeros((S.shape[1], len(clusters_uid)))
+    avgU_div_avgS = np.zeros((S.shape[1], len(clusters_uid)))
+    slopes_by_clust = np.zeros((S.shape[1], len(clusters_uid)))
 
     for i, uid in enumerate(clusters_uid):
         cluster_filter = cluster_ix == i
         n_cells = np.sum(cluster_filter)
         if n_cells > size_limit:
-            U_avgs[:, i], S_avgs[:, i] = U[:, cluster_filter].mean(1), S[:, cluster_filter].mean(1)
+            U_avgs[:, i], S_avgs[:, i] = U[cluster_filter, :].mean(0), S[cluster_filter, :].mean(0)
         else:
-            U_avgs[:, i], S_avgs[:, i] = U.mean(1), S.mean(1)
+            U_avgs[:, i], S_avgs[:, i] = U.mean(0), S.mean(0)
 
     return U_avgs, S_avgs
 

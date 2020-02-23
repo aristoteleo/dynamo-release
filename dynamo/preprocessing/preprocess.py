@@ -721,7 +721,7 @@ def filter_genes_by_clusters_(adata, cluster, min_avg_U=0.02, min_avg_S=0.08, si
         To perform the filtering use the method `filter_genes`
         """
         U, S, cluster_uid = adata.layers['unspliced'], adata.layers['spliced'], adata.obs[cluster]
-        cluster_uid, cluster_ix = np.unique(adata.obs.ClusterName, return_inverse=True)
+        cluster_uid, cluster_ix = np.unique(cluster_uid, return_inverse=True)
 
         U_avgs, S_avgs = clusters_stats(U, S, cluster_uid, cluster_ix, size_limit=size_limit)
         clu_avg_selected = (U_avgs.max(1) > min_avg_U) & (S_avgs.max(1) > min_avg_S)
