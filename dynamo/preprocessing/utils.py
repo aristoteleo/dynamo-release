@@ -144,7 +144,7 @@ def clusters_stats(U, S, clusters_uid, cluster_ix, size_limit=40):
     """Calculate the averages per cluster
 
     If the cluster is too small (size<size_limit) the average of the toal is reported instead
-    This function is taken from velocyto in order to reproduce velocyto's DentateGyrus notebook.
+    This function is modified from velocyto in order to reproduce velocyto's DentateGyrus notebook.
     """
     U_avgs = np.zeros((S.shape[1], len(clusters_uid)))
     S_avgs = np.zeros((S.shape[1], len(clusters_uid)))

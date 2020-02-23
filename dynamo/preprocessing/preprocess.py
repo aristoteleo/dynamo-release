@@ -74,6 +74,8 @@ def szFactor(adata, layers='all', total_layers=None, locfunc=np.nanmean, round_e
             sfs = cell_total / np.exp(locfunc(np.log(cell_total)))
         elif method == "median":
             sfs = cell_total / np.nanmedian(cell_total)
+        elif method == "mean":
+            sfs = cell_total / np.nanmean(cell_total)
         else:
             print('This method is not supported!')
 
@@ -81,13 +83,17 @@ def szFactor(adata, layers='all', total_layers=None, locfunc=np.nanmean, round_e
         if layer is 'raw':
             adata.obs[layer + '_Size_Factor'] = sfs
             adata.obs['Size_Factor'] = sfs
+            adata.obs['initial_cell_size'] = cell_total
         elif layer is 'X':
             adata.obs['Size_Factor'] = sfs
+            adata.obs['initial_cell_size'] = cell_total
         elif layer is 'total_':
             adata.obs['total_Size_Factor'] = sfs
+            adata.obs['initial_' + layer + 'cell_size'] = cell_total
             del adata.layers['_total_']
         else:
             adata.obs[layer + '_Size_Factor'] = sfs
+            adata.obs['initial_' + layer + '_cell_size'] = cell_total
 
     return adata
 
@@ -528,7 +534,7 @@ def Dispersion(adata, layers='X', modelFormulaStr="~ 1", min_cells_detected=1, r
     return adata
 
 
-def SVRs(adata, filter_bool=None, layers='X', total_szfactor=None, min_expr_cells=0, min_expr_avg=0, max_expr_avg=0, svr_gamma=None,
+def SVRs(adata, filter_bool=None, layers='X', relative_expr=False, total_szfactor=None, min_expr_cells=0, min_expr_avg=0, max_expr_avg=0, svr_gamma=None,
                          winsorize=False, winsor_perc=(1, 99.5), sort_inverse=False):
     """This function is modified from https://github.com/velocyto-team/velocyto.py/blob/master/velocyto/analysis.py
 
@@ -540,6 +546,8 @@ def SVRs(adata, filter_bool=None, layers='X', total_szfactor=None, min_expr_cell
             A boolean array from the user to select cells for downstream analysis.
         layers: `str` (default: 'X')
             The layer(s) to be used for calculating dispersion score via support vector regression (SVR). Default is X if there is no spliced layers.
+        relative_expr: `bool` (default: `False`)
+            A logic flag to determine whether we need to divide gene expression values first by size factor before run SVR.
         total_szfactor: `str` (default: `None`)
             The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
         min_expr_cells: `int` (default: `2`)
@@ -588,7 +596,7 @@ def SVRs(adata, filter_bool=None, layers='X', total_szfactor=None, min_expr_cell
         if total_szfactor is not None and total_szfactor in adata.obs.keys():
             szfactors = adata.obs[total_szfactor][:, None] if total_szfactor in adata.obs.columns else None
 
-        if szfactors is not None:
+        if szfactors is not None and relative_expr:
             if issparse(CM):
                 sparsefuncs.inplace_row_scale(CM, 1 / szfactors)
             else:
@@ -953,6 +961,82 @@ def recipe_monocle(adata, normalized=None, layer=None, total_layers=None, genes_
 
         fit=FastICA(num_dim,
                 algorithm='deflation', tol=5e-6, fun='logcosh', max_iter=1000)
+        reduce_dim=fit.fit_transform(CM.toarray())
+
+        adata.obsm['X_' + method.lower()] = reduce_dim
+
+    adata.uns[method+'_fit'], adata.uns['feature_selection'] = fit, feature_selection
+
+    return adata
+
+def recipe_velocyto(adata, total_layers=None, method='pca', num_dim=30, norm_method='log', pseudo_expr=1,
+                    feature_selection='SVR', n_top_genes=2000, relative_expr=True, keep_filtered_genes=True):
+    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object.
+        total_layers: list or None (default `None`)
+            The layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"], ["uu", "ul", "su", "sl"] or ["new", "old"], etc.
+        method: `str` (default: `log`)
+            The linear dimension reduction methods to be used.
+        num_dim: `int` (default: `50`)
+            The number of linear dimensions reduced to.
+        norm_method: `str` (default: `log`)
+            The method to normalize the data.
+        pseudo_expr: `int` (default: `1`)
+            A pseudocount added to the gene expression value before log/log2 normalization.
+        feature_selection: `str` (default: `SVR`)
+            Which soring method, either dispersion, SVR or Gini index, to be used to select genes.
+        n_top_genes: `int` (default: `2000`)
+            How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
+        relative_expr: `bool` (default: `True`)
+            A logic flag to determine whether we need to divide gene expression values first by size factor before normalization.
+        keep_filtered_genes: `bool` (default: `True`)
+            Whether to keep genes that don't pass the filtering in the adata object.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions, etc.
+    """
+    adata = szFactor(adata, method = "mean", total_layers=total_layers)
+    initial_Ucell_size = adata.layers['unspliced'].sum(1)
+
+    filter_bool = initial_Ucell_size > np.percentile(initial_Ucell_size, 0.4)
+
+    adata = filter_cells(adata, filter_bool=np.array(filter_bool).flatten())
+
+    filter_bool = filter_genes_(adata, min_cell_s=30, min_count_s=40, shared_count=None)
+
+    adata = adata[:, filter_bool]
+
+    adata = SVRs(adata, layers=['spliced'], min_expr_cells=2, max_expr_avg=35, min_expr_avg=0)
+
+    filter_bool = get_svr_filter(adata, layer='spliced', n_top_genes=n_top_genes)
+
+    adata = adata[:, filter_bool]
+    filter_bool_gene = filter_genes_(adata, min_cell_s=0, min_count_s=0, min_count_u=25, min_cell_u=20,
+                                            shared_count=None)
+    filter_bool_cluster = filter_genes_by_clusters_(adata, min_avg_S=0.08, min_avg_U=0.01, cluster="Clusters")
+
+    adata = adata[:, filter_bool_gene & filter_bool_cluster]
+
+    adata = normalize_expr_data(adata, total_szfactor=None, norm_method=norm_method, pseudo_expr=pseudo_expr,
+                                relative_expr=relative_expr, keep_filtered=keep_filtered_genes)
+    CM = adata.X
+    if method is 'pca':
+        adata, fit, _ = pca(adata, CM, num_dim, 'X_' + method.lower())
+
+        adata.uns['explained_variance_ratio_'] = fit.explained_variance_ratio_[1:]
+    elif method == 'ica':
+        cm_genesums = CM.sum(axis=0)
+        valid_ind = (np.isfinite(cm_genesums)) + (cm_genesums != 0)
+        valid_ind = np.array(valid_ind).flatten()
+        CM = CM[:, valid_ind]
+
+        fit=FastICA(num_dim, algorithm='deflation', tol=5e-6, fun='logcosh', max_iter=1000)
         reduce_dim=fit.fit_transform(CM.toarray())
 
         adata.obsm['X_' + method.lower()] = reduce_dim
