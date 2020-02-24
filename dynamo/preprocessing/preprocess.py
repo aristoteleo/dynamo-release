@@ -1001,7 +1001,7 @@ def recipe_velocyto(adata, total_layers=None, method='pca', num_dim=30, norm_met
         adata: :class:`~anndata.AnnData`
             A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions, etc.
     """
-    adata = szFactor(adata, method = "mean", total_layers=total_layers)
+    adata = szFactor(adata, method="mean", total_layers=total_layers)
     initial_Ucell_size = adata.layers['unspliced'].sum(1)
 
     filter_bool = initial_Ucell_size > np.percentile(initial_Ucell_size, 0.4)
@@ -1030,7 +1030,6 @@ def recipe_velocyto(adata, total_layers=None, method='pca', num_dim=30, norm_met
         adata, fit, _ = pca(adata, CM, num_dim, 'X_' + method.lower())
         # adata.obsm['X_' + method.lower()] = reduce_dim
 
-        adata.uns['explained_variance_ratio_'] = fit.explained_variance_ratio_[1:]
     elif method == 'ica':
         cm_genesums = CM.sum(axis=0)
         valid_ind = (np.isfinite(cm_genesums)) + (cm_genesums != 0)

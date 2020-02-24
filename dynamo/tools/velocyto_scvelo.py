@@ -96,7 +96,7 @@ def vlm_to_adata(vlm, n_comps=30, basis='umap', trans_mats=None, cells_ixs=None)
 		ind_mat, dist_mat = extract_indices_dist_from_graph(vlm.emedding_knn, n_neighbors)
 		uns['neighbors'] = {"connectivities": vlm.emedding_knn, "distances": dist_mat, "indices": ind_mat}
 
-	uns['dynamics'] = {'t': None, "group": None, 'asspt_mRNA': None, 'experiment_type': 'conventional',
+	uns['dynamics'] = {'t': None, "group": None, 'asspt_mRNA': 'ss', 'experiment_type': 'conventional',
 						"normalized": True, "mode": 'deterministic', "has_splicing": True,
 						"has_labeling": False, "has_protein": False, "use_smoothed": True,
 						"NTR_vel": False, "log_unnormalized": True}

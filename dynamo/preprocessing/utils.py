@@ -190,9 +190,13 @@ def pca(adata, X, n_pca_components, pca_key):
         fit = PCA(n_components=n_pca_components, svd_solver='arpack', random_state=0)
         X_pca = fit.fit_transform(CM.toarray()) if issparse(X) else fit.fit_transform(X)
         adata.obsm[pca_key] = X_pca
+
+        adata.uns['explained_variance_ratio_'] = fit.explained_variance_ratio_
     else:
         fit = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)  # unscaled PCA
         X_pca = fit.fit_transform(CM)[:, 1:]  # first columns is related to the total UMI (or library size)
         adata.obsm[pca_key] = X_pca
+
+        adata.uns['explained_variance_ratio_'] = fit.explained_variance_ratio_[1:]
 
     return adata, fit, X_pca
