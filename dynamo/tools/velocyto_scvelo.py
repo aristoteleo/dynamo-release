@@ -8,13 +8,19 @@ import matplotlib.pyplot as plt
 from .moments import *
 from anndata import AnnData
 
-def vlm_to_adata(vlm, n_comps=30, trans_mats=None, cells_ixs=None, basis=None):
+def vlm_to_adata(vlm, n_comps=30, basis='umap', trans_mats=None, cells_ixs=None):
 	""" Conversion function from the velocyto world to the dynamo world.
 		Code original from scSLAM-seq repository
 
     Parameters
     ----------
 		vlm: VelocytoLoom Object
+			The VelocytoLoom object that will be converted into adata.
+		n_comps: `int` (default: 30)
+			The number of pc components that will be stored.
+		basis: `str` (default: `umap`)
+			The embedding that will be used to store the vlm.ts attribute. Note that velocyto doesn't usually use
+			umap as embedding although `umap` as set as default for the convenience of dynamo itself.
 		trans_mats: None or dict
 			A dict of all relevant transition matrices
 		cell_ixs: list of int
@@ -27,7 +33,7 @@ def vlm_to_adata(vlm, n_comps=30, trans_mats=None, cells_ixs=None, basis=None):
 	from collections import OrderedDict
 
 	# set obs, var
-	obs, var = vlm.ca, vlm.ra
+	obs, var = pd.DataFrame(vlm.ca), pd.DataFrame(vlm.ra)
 	if 'CellID' in obs.keys(): obs['obs_names'] = obs.pop('CellID')
 	if 'Gene' in var.keys(): var['var_names'] = var.pop('Gene')
 
@@ -54,16 +60,16 @@ def vlm_to_adata(vlm, n_comps=30, trans_mats=None, cells_ixs=None, basis=None):
 		velocity_S=csr_matrix(vlm.velocity.T))
 
 	# set X_spliced / X_unspliced
-	if hasattr(vlm, 'S_norm'): layers['X_spliced'] = csr_matrix(vlm.S_norm)
-	if hasattr(vlm, 'U_norm'): layers['X_unspliced'] = csr_matrix(vlm.U_norm)
-	if hasattr(vlm, 'S_sz') and not hasattr(vlm, 'S_norm'): layers['X_spliced'] = csr_matrix(np.log2(vlm.S_sz + 1))
-	if hasattr(vlm, 'U_sz') and hasattr(vlm, 'U_norm'): layers['X_unspliced'] = csr_matrix(np.log2(vlm.U_sz + 1))
+	if hasattr(vlm, 'S_norm'): layers['X_spliced'] = csr_matrix(vlm.S_norm).T
+	if hasattr(vlm, 'U_norm'): layers['X_unspliced'] = csr_matrix(vlm.U_norm).T
+	if hasattr(vlm, 'S_sz') and not hasattr(vlm, 'S_norm'): layers['X_spliced'] = csr_matrix(np.log2(vlm.S_sz + 1)).T
+	if hasattr(vlm, 'U_sz') and hasattr(vlm, 'U_norm'): layers['X_unspliced'] = csr_matrix(np.log2(vlm.U_sz + 1)).T
 
 	# set M_s / M_u
-	if hasattr(vlm, 'Sx'): layers['M_s'] = csr_matrix(vlm.Sx)
-	if hasattr(vlm, 'Ux'): layers['M_u'] = csr_matrix(vlm.Ux)
-	if hasattr(vlm, 'Sx_sz') and not hasattr(vlm, 'Sx'): layers['M_s'] = csr_matrix(vlm.Sx_sz)
-	if hasattr(vlm, 'Ux_sz') and hasattr(vlm, 'Ux'): layers['M_u'] = csr_matrix(vlm.Ux_sz)
+	if hasattr(vlm, 'Sx'): layers['M_s'] = csr_matrix(vlm.Sx).T
+	if hasattr(vlm, 'Ux'): layers['M_u'] = csr_matrix(vlm.Ux).T
+	if hasattr(vlm, 'Sx_sz') and not hasattr(vlm, 'Sx'): layers['M_s'] = csr_matrix(vlm.Sx_sz).T
+	if hasattr(vlm, 'Ux_sz') and hasattr(vlm, 'Ux'): layers['M_u'] = csr_matrix(vlm.Ux_sz).T
 
 	# set obsm
 	obsm = {}
@@ -84,6 +90,16 @@ def vlm_to_adata(vlm, n_comps=30, trans_mats=None, cells_ixs=None, basis=None):
 			uns[key] = trans_mats[key]
 	if cells_ixs is not None:
 		uns['cell_ixs'] = cells_ixs
+	if hasattr(vlm, 'embedding_knn'):
+		from .connectivity import extract_indices_dist_from_graph
+		n_neighbors = np.unique((vlm.embedding_knn > 0).sum(1)).min()
+		ind_mat, dist_mat = extract_indices_dist_from_graph(vlm.emedding_knn, n_neighbors)
+		uns['neighbors'] = {"connectivities": vlm.emedding_knn, "distances": dist_mat, "indices": ind_mat}
+
+	uns['dynamics'] = {'t': None, "group": None, 'asspt_mRNA': None, 'experiment_type': 'conventional',
+						"normalized": True, "mode": 'deterministic', "has_splicing": True,
+						"has_labeling": False, "has_protein": False, "use_smoothed": True,
+						"NTR_vel": False, "log_unnormalized": True}
 
 	# set X
 	if hasattr(vlm, 'S_norm'):
