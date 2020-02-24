@@ -76,7 +76,7 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_b
     if calc_rnd_vel:
         numba_random_seed(random_seed)
 
-    if (not neighbors_from_basis) or ('neighbors' not in adata.uns.keys()):
+    if (not neighbors_from_basis) and ('neighbors' in adata.uns.keys()):
         if use_mnn:
             neighbors = adata.uns['mnn']
             indices, dist = extract_indices_dist_from_graph(neighbors, adata.uns['neighbors']['indices'].shape[1])
