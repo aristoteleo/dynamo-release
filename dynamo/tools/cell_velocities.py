@@ -76,12 +76,13 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_b
     if calc_rnd_vel:
         numba_random_seed(random_seed)
 
-    if use_mnn:
-        neighbors = adata.uns['mnn']
-        indices, dist = extract_indices_dist_from_graph(neighbors, adata.uns['neighbors']['indices'].shape[1])
-    else:
-        neighbors, dist, indices = adata.uns['neighbors']['connectivities'], adata.uns['neighbors']['distances'], \
-                                   adata.uns['neighbors']['indices']
+    if (not neighbors_from_basis) and ('neighbors' in adata.uns.keys()):
+        if use_mnn:
+            neighbors = adata.uns['mnn']
+            indices, dist = extract_indices_dist_from_graph(neighbors, adata.uns['neighbors']['indices'].shape[1])
+        else:
+            neighbors, dist, indices = adata.uns['neighbors']['connectivities'], adata.uns['neighbors']['distances'], \
+                                       adata.uns['neighbors']['indices']
 
     if 'use_for_dynamo' in adata.var.keys():
         adata = set_velocity_genes(adata, vkey='velocity_S', min_r2=min_r2, use_for_dynamo=True)

@@ -116,7 +116,7 @@ def get_layer_keys(adata, layers='all', remove_normalized=True, include_protein=
         layer_keys.extend(['X', 'protein'])
     else:
         layer_keys.extend(['X'])
-    layers = layer_keys if layers is 'all' else list(set(layer_keys).intersection(layers))
+    layers = layer_keys if layers is 'all' else list(set(layer_keys).intersection(list(layers)))
 
     layers = list(set(layers).difference(['matrix', 'ambiguous', 'spanning']))
     return layers
@@ -135,11 +135,48 @@ def get_shared_counts(adata, layers, min_shared_count, type='gene'):
         reduce(lambda a, b: np.multiply(_nonzeros, adata.layers[a]) + np.multiply(_nonzeros, adata.layers[b]), layers)
 
     if type == 'gene':
-        return np.array(_sum.sum(0).A1 > min_shared_count) if issparse(adata.layers[layers[0]]) else np.array(_sum.sum(0) > min_shared_count)
+        return np.array(_sum.sum(0).A1 >= min_shared_count) if issparse(adata.layers[layers[0]]) else np.array(_sum.sum(0) >= min_shared_count)
     if type == 'cells':
-        return np.array(_sum.sum(1).A1 > min_shared_count) if issparse(adata.layers[layers[0]]) else np.array(_sum.sum(1) > min_shared_count)
+        return np.array(_sum.sum(1).A1 >= min_shared_count) if issparse(adata.layers[layers[0]]) else np.array(_sum.sum(1) >= min_shared_count)
 
 
+def clusters_stats(U, S, clusters_uid, cluster_ix, size_limit=40):
+    """Calculate the averages per cluster
+
+    If the cluster is too small (size<size_limit) the average of the toal is reported instead
+    This function is modified from velocyto in order to reproduce velocyto's DentateGyrus notebook.
+    """
+    U_avgs = np.zeros((S.shape[1], len(clusters_uid)))
+    S_avgs = np.zeros((S.shape[1], len(clusters_uid)))
+    avgU_div_avgS = np.zeros((S.shape[1], len(clusters_uid)))
+    slopes_by_clust = np.zeros((S.shape[1], len(clusters_uid)))
+
+    for i, uid in enumerate(clusters_uid):
+        cluster_filter = cluster_ix == i
+        n_cells = np.sum(cluster_filter)
+        if n_cells > size_limit:
+            U_avgs[:, i], S_avgs[:, i] = U[cluster_filter, :].mean(0), S[cluster_filter, :].mean(0)
+        else:
+            U_avgs[:, i], S_avgs[:, i] = U.mean(0), S.mean(0)
+
+    return U_avgs, S_avgs
+
+def get_svr_filter(adata, layer='spliced', n_top_genes=3000):
+    score_name = 'score' if layer in ['X', 'all'] else layer + '_score'
+    valid_idx = np.where(np.isfinite(adata.var.loc[:, score_name]))[0]
+
+    valid_table = adata.var.iloc[valid_idx, :]
+    nth_score = np.sort(valid_table.loc[:, score_name])[::-1][n_top_genes]
+
+    feature_gene_idx = np.where(valid_table.loc[:, score_name] >= nth_score)[0][:n_top_genes]
+
+    adata.var.loc[:, 'use_for_dynamo'] = False
+    adata.var.loc[adata.var.index[feature_gene_idx], 'use_for_dynamo'] = True
+
+    filter_bool = np.zeros(adata.n_vars, dtype=bool)
+    filter_bool[valid_idx[feature_gene_idx]] = True
+
+    return filter_bool
 # ---------------------------------------------------------------------------------------------------
 # pca
 
@@ -153,9 +190,13 @@ def pca(adata, X, n_pca_components, pca_key):
         fit = PCA(n_components=n_pca_components, svd_solver='arpack', random_state=0)
         X_pca = fit.fit_transform(CM.toarray()) if issparse(X) else fit.fit_transform(X)
         adata.obsm[pca_key] = X_pca
+
+        adata.uns['explained_variance_ratio_'] = fit.explained_variance_ratio_
     else:
         fit = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)  # unscaled PCA
         X_pca = fit.fit_transform(CM)[:, 1:]  # first columns is related to the total UMI (or library size)
         adata.obsm[pca_key] = X_pca
+
+        adata.uns['explained_variance_ratio_'] = fit.explained_variance_ratio_[1:]
 
     return adata, fit, X_pca

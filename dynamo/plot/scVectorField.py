@@ -22,7 +22,7 @@ import scipy as sc
 # cellranger data, velocyto, comparison and phase diagram
 
 def _cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, color=None, label_on_embedding=True,
-                       cmap=None, s_kwargs_dict={}, layer='X', cell_ind='all', quiver_scale=None, figsize=None,
+                       cmap=None, s_kwargs_dict={}, layer='X', cell_ind='all', quiver_size=None, figsize=None,
                        **q_kwargs):
     """Plot the velocity vector of each cell.
 
@@ -50,7 +50,7 @@ def _cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, col
             Which layer of expression value will be used.
         cell_ind: `str` or `list` (default: all)
             the cell index that will be chosen to draw velocity vectors.
-        quiver_scale: `float` or None (default: None)
+        quiver_size: `float` or None (default: None)
             scale of quiver plot (default: None). Number of data units per arrow length unit, e.g., m/s per plot width;
             a smaller scale parameter makes the arrow longer. If None, we will use quiver_autoscaler to calculate the scale.
         figsize: `None` or `[float, float]` (default: None)
@@ -105,7 +105,7 @@ def _cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, col
         V = adata.obsm['velocity_' + basis][:, [x, y]]
     else:
         if 'X_' + basis not in adata.obsm.keys():
-            reduceDimension(adata, velocity_key='velocity_S', reduction_method=basis)
+            reduceDimension(adata, vkey='velocity_S', reduction_method=basis)
         if 'kmc' not in adata.uns_keys():
             cell_velocities(adata, vkey='velocity_S', basis=basis, method='analytical')
             X = adata.obsm['X_' + basis][:, [x, y]]
@@ -119,9 +119,9 @@ def _cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, col
     if 0 in E_vec.shape:
         raise Exception(f'The gene names {genes} (or cell annotations {color}) provided are not existed in your data.')
 
-    if quiver_scale is None:
-        quiver_scale = quiver_autoscaler(X, V)
-    quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_scale, "minlength": 1.5, "alpha": 0.4}
+    if quiver_size is None:
+        quiver_size = quiver_autoscaler(X, V)
+    quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_size, "minlength": 1.5, "alpha": 0.4}
     quiver_kwargs = update_dict(quiver_kwargs, q_kwargs)
 
     n_columns, plot_per_gene = n_columns, 1 # we may also add random velocity results
@@ -190,7 +190,7 @@ def _cell_wise_velocity(adata, genes, x=0, y=1, basis='trimap', n_columns=1, col
 
 
 def _grid_velocity(adata, genes, x=0, y=1, method='SparseVFC', basis='trimap', n_columns=1, color=None, label_on_embedding=True, cmap=None,
-                  s_kwargs_dict={}, layer='X', xy_grid_nums=[30, 30], g_kwargs_dict={}, quiver_scale=None, V_threshold=None,
+                  s_kwargs_dict={}, layer='X', xy_grid_nums=[30, 30], g_kwargs_dict={}, quiver_size=None, V_threshold=None,
                   figsize=None, **q_kwargs):
     """Plot the velocity vector of each cell.
 
@@ -223,7 +223,7 @@ def _grid_velocity(adata, genes, x=0, y=1, method='SparseVFC', basis='trimap', n
             the number of grids in either x or y axis.
         g_kwargs_dict: `dict` (default: {})
             A dictionary for the parameters that passed into the velocity_on_grid function.
-        quiver_scale: `float` or None (default: None)
+        quiver_size: `float` or None (default: None)
             scale of quiver plot (default: None). Number of data units per arrow length unit, e.g., m/s per plot width;
             a smaller scale parameter makes the arrow longer. If None, we will use quiver_autoscaler to calculate the scale.
         V_threshold: None or float (default: None)
@@ -269,7 +269,7 @@ def _grid_velocity(adata, genes, x=0, y=1, method='SparseVFC', basis='trimap', n
         V = adata.obsm['velocity_' + basis][:, [x, y]]
     else:
         if 'X_' + basis not in adata.obsm.keys():
-            reduceDimension(adata, velocity_key='velocity_S', reduction_method=basis)
+            reduceDimension(adata, vkey='velocity_S', reduction_method=basis)
         if 'kmc' not in adata.uns_keys():
             cell_velocities(adata, vkey='velocity_S', basis=basis, method='analytical')
             X = adata.obsm['X_' + basis][:, [x, y]]
@@ -300,9 +300,9 @@ def _grid_velocity(adata, genes, x=0, y=1, method='SparseVFC', basis='trimap', n
 
         X_grid, V_grid, D = velocity_on_grid(X[:, [x, y]], V[:, [x, y]], xy_grid_nums, **grid_kwargs_dict)
 
-    if quiver_scale is None:
-        quiver_scale = quiver_autoscaler(X_grid, V_grid)
-    quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_scale, "minlength": 1.5, "alpha": 0.4}
+    if quiver_size is None:
+        quiver_size = quiver_autoscaler(X_grid, V_grid)
+    quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_size, "minlength": 1.5, "alpha": 0.4}
     quiver_kwargs.update(q_kwargs)
 
     n_columns, plot_per_gene = n_columns, 1 # we may also add random velocity results
@@ -459,7 +459,7 @@ def _streamline_plot(adata, genes, x=0, y=1, method='sparseVFC', basis='trimap',
         V = adata.obsm['velocity_' + basis][:, [x, y]]
     else:
         if 'X_' + basis not in adata.obsm.keys():
-            reduceDimension(adata, velocity_key='velocity_S', reduction_method=basis)
+            reduceDimension(adata, vkey='velocity_S', reduction_method=basis)
         if 'kmc' not in adata.uns_keys():
             cell_velocities(adata, vkey='velocity_S', basis=basis, method='analytical')
             X = adata.obsm['X_' + basis][:, [x, y]]
@@ -491,9 +491,9 @@ def _streamline_plot(adata, genes, x=0, y=1, method='sparseVFC', basis='trimap',
         X_grid, V_grid, D = velocity_on_grid(X[:, [x, y]], V[:, [x, y]], xy_grid_nums, **grid_kwargs_dict)
 
 
-    # if quiver_scale is None:
-    #     quiver_scale = quiver_autoscaler(X_grid, V_grid)
-    # quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_scale, "minlength": 1.5}
+    # if quiver_size is None:
+    #     quiver_size = quiver_autoscaler(X_grid, V_grid)
+    # quiver_kwargs = {"angles": 'xy', "scale_units": 'xy', 'scale': quiver_size, "minlength": 1.5}
     # quiver_kwargs.update(q_kwargs)
 
     n_columns, plot_per_gene = n_columns, 1 # we may also add random velocity results
@@ -622,8 +622,22 @@ def plot_LIC_gray(tex):
     plt.imshow(texture)
 
 
-def line_integral_conv(adata, basis='trimap', U_grid=None, V_grid=None, method = 'yt', cmap = "viridis", normalize = False,
-                       density = 1, lim=(0,1), const_alpha=False, kernellen=100, V_threshold=None, file = None, g_kwargs_dict=None):
+def line_integral_conv(
+        adata,
+        basis='umap',
+        U_grid=None,
+        V_grid=None,
+        xy_grid_nums=[50, 50],
+        method='yt',
+        cmap="viridis",
+        normalize=False,
+        density=1,
+        lim=(0, 1),
+        const_alpha=False,
+        kernellen=100,
+        V_threshold=None,
+        file=None,
+        g_kwargs_dict={}):
     """Visualize vector field with quiver, streamline and line integral convolution (LIC), using velocity estimates on a grid from the associated data.
     A white noise background will be used for texture as default. Adjust the bounds of lim in the range of [0, 1] which applies
     upper and lower bounds to the values of line integral convolution and enhance the visibility of plots. When const_alpha=False,
@@ -636,9 +650,11 @@ def line_integral_conv(adata, basis='trimap', U_grid=None, V_grid=None, method =
         basis: `str` (default: trimap)
             The dimension reduction method to use.
         U_grid: 'np.ndarray' (default: None)
-            Original data.
+            Original velocity on the first dimension of a 2 d grid.
         V_grid: 'np.ndarray' (default: None)
-            Original data.
+            Original velocity on the second dimension of a 2 d grid.
+        xy_grid_nums: `tuple` (default: (50, 50))
+            the number of grids in either x or y axis. The number of grids has to be the same on both dimensions.
         method: 'float'
             sigma2 is defined as sum(sum((Y - V)**2)) / (N * D)
         cmap: 'float'
@@ -668,41 +684,41 @@ def line_integral_conv(adata, basis='trimap', U_grid=None, V_grid=None, method =
     if V is None:
         raise Exception(f'The {basis}_velocity velocity (or velocity) result does not existed in your data.')
 
+    if U_grid is None or V_grid is None:
+        if 'VecFld_' + basis in adata.uns.keys():
+            # first check whether the sparseVFC reconstructed vector field exists
+            X_grid_, V_grid = adata.uns['VecFld_' + basis]['VecFld']['grid'], adata.uns['VecFld_' + basis]['VecFld']['grid_V']
+            N = int(np.sqrt(V_grid.shape[0]))
+            U_grid = np.reshape(V_grid[:, 0], (N, N)).T
+            V_grid = np.reshape(V_grid[:, 1], (N, N)).T
+
+        elif 'grid_velocity_' + basis in adata.uns.keys():
+            # then check whether the Gaussian Kernel vector field exists
+            X_grid_, V_grid_, _ = adata.uns['grid_velocity_' + basis]['X_grid'], adata.uns['grid_velocity_' + basis]['V_grid'], \
+                                adata.uns['grid_velocity_' + basis]['D']
+            U_grid = V_grid_[0, :, :].T
+            V_grid = V_grid_[1, :, :].T
+        else:
+            # if no VF or Gaussian Kernel vector fields, recreate it
+            grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
+                                "adjust_for_stream": True, "V_threshold": None}
+            grid_kwargs_dict.update(g_kwargs_dict)
+
+            X_grid_, V_grid_, _ = velocity_on_grid(X[:, [0, 1]], V[:, [0, 1]], xy_grid_nums, **grid_kwargs_dict)
+            U_grid = V_grid_[0, :, :].T
+            V_grid = V_grid_[1, :, :].T
+
     if V_threshold is not None:
         mass = np.sqrt((V_grid ** 2).sum(0))
         if V_threshold is not None:
             V_grid[0][mass.reshape(V_grid[0].shape) < V_threshold] = np.nan
 
-    if 'VecFld_' + basis in adata.uns.keys():
-        # first check whether the sparseVFC reconstructed vector field exists
-        X_grid_, V_grid = adata.uns['VecFld_' + basis]['grid'], adata.uns['VecFld_' + basis]['grid_V']
-        N = int(np.sqrt(V_grid.shape[0]))
-        U_grid = np.reshape(V_grid[:, 0], (N, N)).T
-        V_grid = np.reshape(V_grid[:, 1], (N, N)).T
-
-    elif 'grid_velocity_' + basis in adata.uns.keys():
-        # then check whether the Gaussian Kernel vector field exists
-        X_grid_, V_grid_, _ = adata.uns['grid_velocity_' + basis]['X_grid'], adata.uns['grid_velocity_' + basis]['V_grid'], \
-                            adata.uns['grid_velocity_' + basis]['D']
-        N = int(np.sqrt(V_grid.shape[0]))
-        U_grid = np.reshape(V_grid[:, 0], (N, N)).T
-        V_grid = np.reshape(V_grid[:, 1], (N, N)).T
-    else:
-        # if no VF or Gaussian Kernel vector fields, recreate it
-        grid_kwargs_dict = {"density": None, "smooth": None, "n_neighbors": None, "min_mass": None, "autoscale": False,
-                            "adjust_for_stream": True, "V_threshold": None}
-        grid_kwargs_dict.update(g_kwargs_dict)
-
-        N=50
-        X_grid_, V_grid_, D = velocity_on_grid(X[:, [1, 2]], V[:, [1, 2]], [N, N], **grid_kwargs_dict)
-        U_grid = np.reshape(V_grid[:, 0], (N, N)).T
-        V_grid = np.reshape(V_grid[:, 1], (N, N)).T
-
-    U_grid = X_grid_ if U_grid is None else U_grid
-    V_grid = V_grid_ if V_grid is None else V_grid
-
     if method == 'yt':
-        import yt
+        try:
+            import yt
+        except ImportError:
+            print('Please first install yt package to use the line integral convolution plot method. '
+                  'Install instruction is provided here: https://yt-project.org/')
 
         velocity_x_ori, velocity_y_ori, velocity_z_ori = U_grid, V_grid, np.zeros(U_grid.shape)
         velocity_x = np.repeat(velocity_x_ori[:, :, np.newaxis], V_grid.shape[1], axis=2)
@@ -721,7 +737,7 @@ def line_integral_conv(adata, basis='trimap', U_grid=None, V_grid=None, method =
         slc.set_cmap("velocity_sum", cmap)
         slc.set_log("velocity_sum", False)
 
-        slc.annotate_velocity(normalize = normalize)
+        slc.annotate_velocity(normalize=normalize)
         slc.annotate_streamlines('velocity_x', 'velocity_y', density=density)
         slc.annotate_line_integral_convolution('velocity_x', 'velocity_y', lim=lim, const_alpha=const_alpha, kernellen=kernellen)
 
@@ -736,7 +752,7 @@ def line_integral_conv(adata, basis='trimap', U_grid=None, V_grid=None, method =
             # plt.rc('xtick', labelsize=8)
             # plt.rc('ytick', labelsize=8)
             # plt.rc('axes', labelsize=8)
-            slc.save(file, mpl_kwargs = {"figsize": [2, 2]})
+            slc.save(file, mpl_kwargs={"figsize": [2, 2]})
     elif method == 'lic':
         velocyto_tex = runlic(V_grid, V_grid, 100)
         plot_LIC_gray(velocyto_tex)
@@ -765,7 +781,7 @@ def cell_wise_velocity(
         use_smoothed=True,
         ax=None,
         cell_ind='all',
-        quiver_scale=None,
+        quiver_size=None,
         quiver_length=None,
         s_kwargs_dict={},
         **cell_wise_kwargs):
@@ -776,9 +792,14 @@ def cell_wise_velocity(
         %(scatters.parameters.no_show_legend|kwargs)s
         cell_ind: `str` or `list` (default: all)
             the cell index that will be chosen to draw velocity vectors.
-        quiver_scale: `float` or None (default: None)
-            scale of quiver plot (default: None). Number of data units per arrow length unit, e.g., m/s per plot width;
-            a smaller scale parameter makes the arrow longer. If None, we will use quiver_autoscaler to calculate the scale.
+        quiver_size: `float` or None (default: None)
+            The size of quiver. If None, we will use set quiver_size to be 1. Note that quiver quiver_size is used to calculate
+            the head_width (10 x quiver_size), head_length (12 x quiver_size) and headaxislength (8 x quiver_size) of the quiver.
+            This is done via the `default_quiver_args` function which also calculate the scale of the quiver (1 / quiver_length).
+        quiver_length: `float` or None (default: None)
+            The length of quiver. The quiver length which will be used to calculate scale of quiver. Note that befoe applying
+            `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale of quiver indicates
+            the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller scale parameter makes the arrow longer.
         s_kwargs_dict: `dict` (default: {})
             The dictionary of the scatter arguments.
         cell_wise_kwargs:
@@ -790,13 +811,15 @@ def cell_wise_velocity(
 
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
+    from matplotlib.colors import to_hex
 
     if ('X_' + basis in adata.obsm.keys()) and ('velocity_' + basis in adata.obsm.keys()):
         X = adata.obsm['X_' + basis][:, [x, y]]
         V = adata.obsm['velocity_' + basis][:, [x, y]]
     else:
         if 'X_' + basis not in adata.obsm.keys():
-            reduceDimension(adata, velocity_key='velocity_S', reduction_method=basis)
+            layer, basis = basis.split('_')
+            reduceDimension(adata, layer=layer, reduction_method=basis)
         if 'kmc' not in adata.uns_keys():
             cell_velocities(adata, vkey='velocity_S', basis=basis, method='analytical')
             X = adata.obsm['X_' + basis][:, [x, y]]
@@ -812,15 +835,17 @@ def cell_wise_velocity(
     df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "u": V[:, 0], "v": V[:, 1]})
 
     if background is None:
-        background = rcParams.get('figure.facecolor')
-    if quiver_scale is None:
-        quiver_scale = 1
+        _background = rcParams.get('figure.facecolor')
+        background = to_hex(_background) if type(_background) is tuple else _background
+
+    if quiver_size is None:
+        quiver_size = 1
     if background == 'black':
         edgecolors = 'white'
     else:
         edgecolors = 'black'
 
-    head_w, head_l, ax_l, scale = default_quiver_args(quiver_scale, quiver_length) #
+    head_w, head_l, ax_l, scale = default_quiver_args(quiver_size, quiver_length) #
     quiver_kwargs = {"angles": 'xy', 'scale': scale, "scale_units": 'xy', "width": 0.0005,
                      "headwidth": head_w, "headlength": head_l, "headaxislength": ax_l, "minshaft": 1, "minlength": 1,
                      "pivot": "tail", "linewidth": .1, "edgecolors": edgecolors, "alpha": 1, "zorder": 10}
@@ -861,7 +886,7 @@ def cell_wise_velocity(
 
     for i in range(len(axes_list)):
         axes_list[i].quiver(df.iloc[ix_choice, 0], df.iloc[ix_choice, 1],
-                  df.iloc[ix_choice, 2], df.iloc[ix_choice, 3], color=color_list[i], **quiver_kwargs)
+                  df.iloc[ix_choice, 2], df.iloc[ix_choice, 3], color=color_list[i], facecolors=color_list[i], **quiver_kwargs)
 
     plt.tight_layout()
     plt.show()
@@ -890,8 +915,8 @@ def grid_velocity(
         use_smoothed=True,
         ax=None,
         method='gaussian',
-        xy_grid_nums=[30, 30],
-        quiver_scale=None,
+        xy_grid_nums=[50, 50],
+        quiver_size=None,
         quiver_length=None,
         s_kwargs_dict={},
         q_kwargs_dict={},
@@ -904,17 +929,22 @@ def grid_velocity(
         method: `str` (default: `SparseVFC`)
             Method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the empirical method
             Gaussian kernel method from RNA velocity (Gaussian).
-        xy_grid_nums: `tuple` (default: (30, 30))
+        xy_grid_nums: `tuple` (default: (50, 50))
             the number of grids in either x or y axis.
-        quiver_scale: `float` or None (default: None)
-            scale of quiver plot (default: None). Number of data units per arrow length unit, e.g., m/s per plot width;
-            a smaller scale parameter makes the arrow longer. If None, we will use quiver_autoscaler to calculate the scale.
+        quiver_size: `float` or None (default: None)
+            The size of quiver. If None, we will use set quiver_size to be 1. Note that quiver quiver_size is used to calculate
+            the head_width (10 x quiver_size), head_length (12 x quiver_size) and headaxislength (8 x quiver_size) of the quiver.
+            This is done via the `default_quiver_args` function which also calculate the scale of the quiver (1 / quiver_length).
+        quiver_length: `float` or None (default: None)
+            The length of quiver. The quiver length which will be used to calculate scale of quiver. Note that befoe applying
+            `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale of quiver indicates
+            the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller scale parameter makes the arrow longer.
         s_kwargs_dict: `dict` (default: {})
             The dictionary of the scatter arguments.
         q_kwargs_dict: `dict` (default: {})
             The dictionary of the quiver arguments.
         grid_kwargs:
-            Additional parameters that will be passed to plt.quiver function
+            Additional parameters that will be passed to velocity_on_grid function.
 
     Returns
     -------
@@ -923,13 +953,15 @@ def grid_velocity(
 
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
+    from matplotlib.colors import to_hex
 
     if ('X_' + basis in adata.obsm.keys()) and ('velocity_' + basis in adata.obsm.keys()):
         X = adata.obsm['X_' + basis][:, [x, y]]
         V = adata.obsm['velocity_' + basis][:, [x, y]]
     else:
         if 'X_' + basis not in adata.obsm.keys():
-            reduceDimension(adata, velocity_key='velocity_S', reduction_method=basis)
+            layer, basis = basis.split('_')
+            reduceDimension(adata, layer=layer, reduction_method=basis)
         if 'kmc' not in adata.uns_keys():
             cell_velocities(adata, vkey='velocity_S', basis=basis, method='analytical')
             X = adata.obsm['X_' + basis][:, [x, y]]
@@ -966,19 +998,20 @@ def grid_velocity(
     V_grid /= (3 * quiver_autoscaler(X_grid, V_grid))
 
     if background is None:
-        background = rcParams.get('figure.facecolor')
-    if quiver_scale is None:
-        quiver_scale = 1
+        _background = rcParams.get('figure.facecolor')
+        background = to_hex(_background) if type(_background) is tuple else _background
+    if quiver_size is None:
+        quiver_size = 1
     if background == 'black':
         edgecolors = 'white'
     else:
         edgecolors = 'black'
 
-    head_w, head_l, ax_l, scale = default_quiver_args(quiver_scale, quiver_length)
+    head_w, head_l, ax_l, scale = default_quiver_args(quiver_size, quiver_length)
 
     quiver_kwargs = {"angles": 'xy', 'scale': scale, "scale_units": 'xy', "width": 0.0005,
                      "headwidth": head_w, "headlength": head_l, "headaxislength": ax_l, "minshaft": 1, "minlength": 1,
-                     "pivot": "tail", "linewidth": .2, "edgecolors": edgecolors, "linewidth": .2,
+                     "pivot": "tail", "linewidth": .2, "edgecolors": edgecolors, "linewidth": .2, "facecolors": edgecolors,
                      "color": edgecolors, "alpha": 1, "zorder": 10}
     quiver_kwargs = update_dict(quiver_kwargs, q_kwargs_dict)
 
@@ -1036,7 +1069,7 @@ def streamline_plot(
         use_smoothed=True,
         ax=None,
         method='gaussian',
-        xy_grid_nums=[30, 30],
+        xy_grid_nums=[50, 50],
         density=1,
         s_kwargs_dict={},
         **streamline_kwargs):
@@ -1048,7 +1081,7 @@ def streamline_plot(
         method: `str` (default: `SparseVFC`)
             Method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the empirical method
             Gaussian kernel method from RNA velocity (Gaussian).
-        xy_grid_nums: `tuple` (default: (30, 30))
+        xy_grid_nums: `tuple` (default: (50, 50))
             the number of grids in either x or y axis.
         density: `float` or None (default: 1)
             density of the plt.streamplot function.
@@ -1063,13 +1096,15 @@ def streamline_plot(
 
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
+    from matplotlib.colors import to_hex
 
     if ('X_' + basis in adata.obsm.keys()) and ('velocity_' + basis in adata.obsm.keys()):
         X = adata.obsm['X_' + basis][:, [x, y]]
         V = adata.obsm['velocity_' + basis][:, [x, y]]
     else:
         if 'X_' + basis not in adata.obsm.keys():
-            reduceDimension(adata, velocity_key='velocity_S', reduction_method=basis)
+            layer, basis = basis.split('_')
+            reduceDimension(adata, layer=layer, reduction_method=basis)
         if 'kmc' not in adata.uns_keys():
             cell_velocities(adata, vkey='velocity_S', basis=basis, method='analytical')
             X = adata.obsm['X_' + basis][:, [x, y]]
@@ -1135,7 +1170,8 @@ def streamline_plot(
         **s_kwargs_dict)
 
     if background is None:
-        background = rcParams.get('figure.facecolor')
+        _background = rcParams.get('figure.facecolor')
+        background = to_hex(_background) if type(_background) is tuple else _background
 
     if background == 'black':
         streamline_color = 'red'

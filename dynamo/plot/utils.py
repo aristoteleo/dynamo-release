@@ -1,4 +1,5 @@
 import numpy as np
+import scipy
 import pandas as pd
 import math
 import numba
@@ -74,11 +75,15 @@ def _get_extent(points):
 
 
 def _select_font_color(background):
-    if background == "black":
+    if background in ['k', "black"]:
         font_color = "white"
+    elif background in ['w', 'white']:
+        font_color = 'black'
     elif background.startswith("#"):
         mean_val = np.mean(
-            [int("0x" + c) for c in (background[1:3], background[3:5], background[5:7])]
+            # specify 0 as the base in order to invoke this prefix-guessing behavior;
+            # omitting it means to assume base-10
+            [int("0x" + c, 0) for c in (background[1:3], background[3:5], background[5:7])]
         )
         if mean_val > 126:
             font_color = "black"
@@ -220,9 +225,10 @@ def _matplotlib_points(
             font_color = 'white' if background is 'black' else 'black'
             for i in unique_labels:
                 color_cnt = np.nanmedian(points[np.where(labels == i)[0], :2], 0)
-                txt = plt.text(color_cnt[0], color_cnt[1], str(i), c=font_color, zorder=1000)  #
+                txt = plt.text(color_cnt[0], color_cnt[1], str(i), color=font_color, zorder=1000,
+                               verticalalignment='center', horizontalalignment='center', weight='bold')  #
                 txt.set_path_effects([
-                    PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.1),
+                    PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.6),
                     PathEffects.Normal()])
         else:
             ax.legend(handles=legend_elements, bbox_to_anchor=(1.04, 1), loc="upper left",
@@ -376,9 +382,10 @@ def _datashade_points(
                 for i in unique_labels:
                     color_cnt = np.nanmedian(points.iloc[np.where(labels == i)[0], :2], 0)
                     txt = plt.text(color_cnt[0], color_cnt[1], str(i),
-                                   fontsize=13, c=font_color, zorder=1000)  #
+                                   color=font_color, zorder=1000,
+                                   verticalalignment='center', horizontalalignment='center', weight='bold')  #
                     txt.set_path_effects([
-                        PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.1),
+                        PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.6),
                         PathEffects.Normal()])
             else:
                 if type(show_legend) == 'str':
@@ -698,9 +705,10 @@ def scatter_with_legend(fig, ax, df, font_color, x, y, c, cmap, legend, **scatte
 
         for i in unique_labels:
             color_cnt = np.nanmedian(df.iloc[np.where(c == i)[0], :2], 0)
-            txt = ax.text(color_cnt[0], color_cnt[1], str(i), fontsize=13, c=font_color, zorder=1000)  # c
+            txt = ax.text(color_cnt[0], color_cnt[1], str(i), color=font_color, zorder=1000,
+                          verticalalignment='center', horizontalalignment='center', weight='bold')  # c
             txt.set_path_effects([
-                PathEffects.Stroke(linewidth=5, foreground=font_color, alpha=0.1),  # 'w'
+                PathEffects.Stroke(linewidth=5, foreground=font_color, alpha=0.6),  # 'w'
                 PathEffects.Normal()])
     else:
         g = sns.scatterplot(x, y, hue=c,
@@ -756,6 +764,21 @@ def default_quiver_args(arrow_size, arrow_len=None):
     scale = 1 / arrow_len if arrow_len is not None else 1 / arrow_size
 
     return head_w, head_l, ax_l, scale
+
+# ---------------------------------------------------------------------------------------------------
+def _plot_traj(y0, t, args, integration_direction, ax, color, lw, f):
+    if integration_direction == 'forward':
+        y = scipy.integrate.odeint(lambda x, t: f(x), y0, t, args=args)
+    elif integration_direction == 'backward':
+        y = scipy.integrate.odeint(lambda x, t: f(x), y0, -t, args=args)
+    elif integration_direction == 'both':
+        y = scipy.integrate.odeint(lambda x, t: f(x), y0, np.hstack((-t[::-1], t)), args=args)
+
+    ax.plot(*y.transpose(), color=color, lw=lw, linestyle='dashed', alpha=0.5)
+
+    ax.scatter(*y0, color=color, marker="*")
+
+    return ax
 
 # ---------------------------------------------------------------------------------------------------
 # the following Loess class is taken from:

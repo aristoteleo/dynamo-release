@@ -6,9 +6,10 @@ from ..tools.topography import topography as _topology # , compute_separatrices
 from ..configuration import set_figure_params
 from .scatters import scatters
 from .scatters import docstrings
+from .utils import _plot_traj
 
 def plot_flow_field(vecfld, x_range, y_range, n_grid=100, lw_min=0.5, lw_max=3,
-                    start_points=None, background=None, ax=None):
+                    start_points=None, integration_direction='both', background=None, ax=None):
     """Plots the flow field with line thickness proportional to speed.
     code adapted from: http://be150.caltech.edu/2017/handouts/dynamical_systems_approaches.html
 
@@ -26,7 +27,9 @@ def plot_flow_field(vecfld, x_range, y_range, n_grid=100, lw_min=0.5, lw_max=3,
     lw_min, lw_max: `float` (defaults: 0.5, 3)
         The smallest and largest linewidth allowed for the stream lines.
     start_points: np.ndarray (default: None)
-        The initial point from which the streamline will be draw.
+        The initial points from which the streamline will be draw.
+    integration_direction:  {'forward', 'backward', 'both'} (default: `both`)
+        Integrate the streamline in forward, backward or both directions. default is 'both'.
     background: `str` or None (default: None)
         The background color of the plot.
     ax : Matplotlib Axis instance
@@ -75,8 +78,11 @@ def plot_flow_field(vecfld, x_range, y_range, n_grid=100, lw_min=0.5, lw_max=3,
         ax.streamplot(uu, vv, u_vel, v_vel, linewidth=lw, arrowsize=1.2,
                       density=1, color=color)
     else:
+        if len(start_points.shape) == 1: start_points.reshape((1, 2))
+        ax.scatter(*start_points, c=color, marker="*")
+
         ax.streamplot(uu, vv, u_vel, v_vel, linewidth=lw_max, arrowsize=1.2, start_points=start_points,
-                      density=1, color=color_start_points)
+                      integration_direction=integration_direction, density=1, color=color_start_points)
 
     return ax
 
@@ -152,7 +158,7 @@ def plot_fixed_points(vecfld, marker='o', markersize=10, filltype=['full', 'top'
 
     return ax
 
-def plot_traj(f, y0, t, args=(), lw=2, background=None, ax=None):
+def plot_traj(f, y0, t, args=(), lw=2, background=None, integration_direction='both', ax=None):
     """Plots a trajectory on a phase portrait.
     code adapted from: http://be150.caltech.edu/2017/handouts/dynamical_systems_approaches.html
 
@@ -171,6 +177,8 @@ def plot_traj(f, y0, t, args=(), lw=2, background=None, ax=None):
         The line width of the trajectory.
     background: `str` or None (default: None)
         The background color of the plot.
+    integration_direction: `str` (default: `forward`)
+        Integrate the trajectory in forward, backward or both directions. default is 'both'.
     ax : Matplotlib Axis instance
         Axis on which to make the plot
 
@@ -190,8 +198,12 @@ def plot_traj(f, y0, t, args=(), lw=2, background=None, ax=None):
     else:
         color = 'black'
 
-    y = scipy.integrate.odeint(lambda x, t: f(x), y0, t, args=args)
-    ax.plot(*y.transpose(), color=color, lw=lw)
+    if len(y0.shape) == 1:
+        ax = _plot_traj(y0, t, args, integration_direction, ax, color, lw, f)
+    else:
+        for i in range(y0.shape[0]):
+            cur_y0 = y0[i, :]
+            ax = _plot_traj(cur_y0, t, args, integration_direction, ax, color, lw, f)
 
     return ax
 
@@ -302,6 +314,8 @@ def topography(
         t=None,
         terms=('streamline', 'fixed_points'),
         init_state=None,
+        integration_direction='both',
+        approx=False,
         ax=None,
         s_kwargs_dict={},
         **topography_kwargs):
@@ -322,7 +336,12 @@ def topography(
             A tuple of plotting items to include in the final topography figure.  ('streamline', 'nullcline', 'fixed_points',
              'separatrix', 'trajectory') are all the items that we can support.
         init_state: `numpy.ndarray` (default: None)
-            Initial cell states for the historical or future cell state prediction with numerical integration.
+            Initial cell states for the historical or future cell state prediction with numerical integration. It can be
+            either a one-dimensional array or N x 2 dimension array.
+        integration_direction: `str` (default: `forward`)
+            Integrate the trajectory in forward, backward or both directions. default is 'both'.
+        approx: `bool` (default: False)
+            Whether to use streamplot to draw the integration line from the init_state.
         s_kwargs_dict: `dict` (default: {})
             The dictionary of the scatter arguments.
         topography_kwargs:
@@ -338,6 +357,10 @@ def topography(
         set_figure_params(background=background)
     else:
         background = rcParams.get('figure.facecolor')
+
+    if approx:
+        if 'streamline' not in terms: terms.append('streamline')
+        if 'trajectory' in terms: terms = list(set(terms).difference('trajectory'))
 
     uns_key = 'VecFld' if basis == 'X' else 'VecFld_' + basis
 
@@ -386,10 +409,13 @@ def topography(
         ax.set_ylim(ylim)
 
         if t is None:
-            t = np.linspace(0, max(max(np.diff(xlim), np.diff(ylim)) / np.percentile(np.abs(VF['grid_V']), 5)), 10000)
+            t = np.linspace(0, max(max(np.diff(xlim), np.diff(ylim)) / np.min(VF['grid_V']), 1), 10000)
 
         if 'streamline' in terms:
-            ax = plot_flow_field(vecfld, xlim, ylim, background=background, ax=ax)
+            if approx:
+                ax = plot_flow_field(vecfld, xlim, ylim, background=background, start_points=init_state, integration_direction=integration_direction, ax=ax)
+            else:
+                ax = plot_flow_field(vecfld, xlim, ylim, background=background, ax=ax)
 
         if 'nullcline' in terms:
             ax = plot_nullclines(vecfld, background=background, ax=ax)
@@ -401,7 +427,8 @@ def topography(
             ax = plot_separatrix(vecfld, xlim, ylim, t=t, background=background, ax=ax)
 
         if init_state is not None and 'trajectory' in terms:
-            ax = plot_traj(vecfld.func, init_state, t, background=background, ax=ax)
+            if not approx:
+                ax = plot_traj(vecfld.func, init_state, t, background=background, integration_direction=integration_direction, ax=ax)
 
     plt.tight_layout()
     plt.show()

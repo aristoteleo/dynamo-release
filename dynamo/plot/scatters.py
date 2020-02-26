@@ -553,10 +553,13 @@ def scatters(
 
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
+    from matplotlib.colors import to_hex
+
     if background is not None:
         set_figure_params(background=background)
     else:
-        background = rcParams.get('figure.facecolor')
+        _background = rcParams.get('figure.facecolor')
+        background = to_hex(_background) if type(_background) is tuple else _background
 
     x, y = x[0] if type(x) != int else x, y[0] if type(y) != int else y
 
@@ -615,7 +618,7 @@ def scatters(
 
                 # https://stackoverflow.com/questions/4187185/how-can-i-check-if-my-python-object-is-a-number
                 # answer from Boris.
-                is_not_continous = not isinstance(_color[0], Number)
+                is_not_continous = (not isinstance(_color[0], Number) or type(_color) == pd.Series)
 
                 if is_not_continous:
                     labels = _color.to_dense() if is_categorical(_color) else _color

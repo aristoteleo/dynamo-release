@@ -23,7 +23,6 @@ def show_fraction(adata, group=None):
 
     import matplotlib.pyplot as plt
     import seaborn as sns
-    sns.set_style('ticks')
 
     mode = None
     if pd.Series(['spliced', 'unspliced']).isin(adata.layers.keys()).all():
@@ -129,7 +128,7 @@ def variance_explained(adata, threshold=0.002, n_pcs=None):
 
     var_ = adata.uns["explained_variance_ratio_"]
     _, ax = plt.subplots()
-    ax.plot(var_, c='k')
+    ax.plot(var_, c='r')
     tmp = np.diff(np.diff(np.cumsum(var_)) > threshold)
     n_comps = n_pcs if n_pcs is not None else np.where(tmp)[0][0] if np.any(tmp) else 20
     ax.axvline(n_comps, c="r")
@@ -162,22 +161,23 @@ def feature_genes(adata, layer='X', mode=None):
     mode = adata.uns['feature_selection'] if mode is None else mode
 
     layer = get_layer_keys(adata, layer, include_protein=False)[0]
-    if layer in ['raw', 'X']:
-        key = 'dispFitInfo' if mode is 'dispersion' else 'velocyto_SVR'
-    else:
-        key = layer + '_dispFitInfo' if mode is 'dispersion' else layer + '_velocyto_SVR'
 
     if mode is 'dispersion':
+        key = 'dispFitInfo' if layer in ['raw', 'X'] else layer + '_dispFitInfo'
+
         table = topTable(adata, layer)
         x_min, x_max = np.nanmin(table['mean_expression']), np.nanmax(table['mean_expression'])
     elif mode is 'SVR':
-        if not np.all(pd.Series(['log_m', 'score']).isin(adata.var.columns)):
+        prefix = '' if layer == 'X' else layer + '_'
+        key = "velocyto_SVR" if layer is 'raw' or layer is 'X' else layer + "_velocyto_SVR"
+
+        if not np.all(pd.Series([prefix + 'log_m', prefix + 'score']).isin(adata.var.columns)):
             raise Exception('Looks like you have not run support vector machine regression yet, try run SVRs first.')
         else:
             detected_bool = adata.uns[key]['detected_bool']
-            table = adata.var.loc[detected_bool, ['log_m', 'log_cv', 'score']]
-            table = table.loc[np.isfinite(table['log_m']) & np.isfinite(table['log_cv']), :]
-            x_min, x_max = np.nanmin(table['log_m']), np.nanmax(table['log_m'])
+            table = adata.var.loc[detected_bool, [prefix + 'log_m', prefix + 'log_cv', prefix + 'score']]
+            table = table.loc[np.isfinite(table[prefix + 'log_m']) & np.isfinite(table[prefix + 'log_cv']), :]
+            x_min, x_max = np.nanmin(table[prefix + 'log_m']), np.nanmax(table[prefix + 'log_m'])
 
     ordering_genes = adata.var['use_for_dynamo'] if 'use_for_dynamo' in adata.var.columns else None
 
@@ -189,16 +189,16 @@ def feature_genes(adata, layer='X', mode=None):
 
     valid_disp_table = table.iloc[valid_ind, :]
     if mode is 'dispersion':
-        plt.scatter(valid_disp_table['mean_expression'], valid_disp_table['dispersion_empirical'], s=3, alpha=1, color='xkcd:black')
+        plt.scatter(valid_disp_table['mean_expression'], valid_disp_table['dispersion_empirical'], s=3, alpha=1, color='xkcd:red')
     elif mode is 'SVR':
-        plt.scatter(valid_disp_table['log_m'], valid_disp_table['log_cv'], s=3, alpha=1, color='xkcd:black')
+        plt.scatter(valid_disp_table[prefix + 'log_m'], valid_disp_table[prefix + 'log_cv'], s=3, alpha=1, color='xkcd:red')
 
     neg_disp_table = table.iloc[~valid_ind, :]
 
     if mode is 'dispersion':
         plt.scatter(neg_disp_table['mean_expression'], neg_disp_table['dispersion_empirical'], s=3, alpha=0.5, color='xkcd:grey')
     elif mode is 'SVR':
-        plt.scatter(neg_disp_table['log_m'], neg_disp_table['log_cv'], s=3, alpha=0.5, color='xkcd:grey')
+        plt.scatter(neg_disp_table[prefix + 'log_m'], neg_disp_table[prefix + 'log_cv'], s=3, alpha=0.5, color='xkcd:grey')
 
     # plt.xlim((0, 100))
     if mode is 'dispersion':

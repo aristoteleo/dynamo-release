@@ -6,7 +6,10 @@ from scipy.sparse import issparse, csr_matrix
 from sklearn.decomposition import FastICA
 
 from .utils import pca
+from .utils import clusters_stats
 from .utils import cook_dist, get_layer_keys, get_shared_counts
+from .utils import get_svr_filter
+from ..tools.utils import update_dict
 
 def szFactor(adata, layers='all', total_layers=None, locfunc=np.nanmean, round_exprs=True, method='median'):
     """Calculate the size factor of the each cell using geometric mean of total UMI across cells for a AnnData object.
@@ -71,6 +74,8 @@ def szFactor(adata, layers='all', total_layers=None, locfunc=np.nanmean, round_e
             sfs = cell_total / np.exp(locfunc(np.log(cell_total)))
         elif method == "median":
             sfs = cell_total / np.nanmedian(cell_total)
+        elif method == "mean":
+            sfs = cell_total / np.nanmean(cell_total)
         else:
             print('This method is not supported!')
 
@@ -78,13 +83,17 @@ def szFactor(adata, layers='all', total_layers=None, locfunc=np.nanmean, round_e
         if layer is 'raw':
             adata.obs[layer + '_Size_Factor'] = sfs
             adata.obs['Size_Factor'] = sfs
+            adata.obs['initial_cell_size'] = cell_total
         elif layer is 'X':
             adata.obs['Size_Factor'] = sfs
+            adata.obs['initial_cell_size'] = cell_total
         elif layer is 'total_':
             adata.obs['total_Size_Factor'] = sfs
+            adata.obs['initial_' + layer + 'cell_size'] = cell_total
             del adata.layers['_total_']
         else:
             adata.obs[layer + '_Size_Factor'] = sfs
+            adata.obs['initial_' + layer + '_cell_size'] = cell_total
 
     return adata
 
@@ -525,7 +534,7 @@ def Dispersion(adata, layers='X', modelFormulaStr="~ 1", min_cells_detected=1, r
     return adata
 
 
-def SVRs(adata, filter_bool=None, layers='X', total_szfactor=None, min_expr_cells=0, min_expr_avg=0, max_expr_avg=0, svr_gamma=None,
+def SVRs(adata, filter_bool=None, layers='X', relative_expr=False, total_szfactor=None, min_expr_cells=0, min_expr_avg=0, max_expr_avg=0, svr_gamma=None,
                          winsorize=False, winsor_perc=(1, 99.5), sort_inverse=False):
     """This function is modified from https://github.com/velocyto-team/velocyto.py/blob/master/velocyto/analysis.py
 
@@ -537,6 +546,8 @@ def SVRs(adata, filter_bool=None, layers='X', total_szfactor=None, min_expr_cell
             A boolean array from the user to select cells for downstream analysis.
         layers: `str` (default: 'X')
             The layer(s) to be used for calculating dispersion score via support vector regression (SVR). Default is X if there is no spliced layers.
+        relative_expr: `bool` (default: `False`)
+            A logic flag to determine whether we need to divide gene expression values first by size factor before run SVR.
         total_szfactor: `str` (default: `None`)
             The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
         min_expr_cells: `int` (default: `2`)
@@ -579,21 +590,24 @@ def SVRs(adata, filter_bool=None, layers='X', total_szfactor=None, min_expr_cell
                 continue
         else:
             CM = adata.layers[layer].copy()
-            szfactors = adata.obs[layer + '_Size_Factor'][:, None]
+            szfactors = adata.obs[layer + '_Size_Factor'][:, None] if layer + '_Size_Factor' in adata.obs.columns \
+                else None
 
         if total_szfactor is not None and total_szfactor in adata.obs.keys():
-            szfactors = adata.obs[total_szfactor][:, None]
-        if issparse(CM):
-            sparsefuncs.inplace_row_scale(CM, 1 / szfactors)
-        else:
-            CM /= szfactors
+            szfactors = adata.obs[total_szfactor][:, None] if total_szfactor in adata.obs.columns else None
+
+        if szfactors is not None and relative_expr:
+            if issparse(CM):
+                sparsefuncs.inplace_row_scale(CM, 1 / szfactors)
+            else:
+                CM /= szfactors
 
         if winsorize:
             if min_expr_cells <= ((100 - winsor_perc[1]) * CM.shape[0] * 0.01):
                 min_expr_cells = int(np.ceil((100 - winsor_perc[1]) * CM.shape[1] * 0.01)) + 2
 
-        detected_bool = np.array(((CM > 0).sum(0) > min_expr_cells) & (CM.mean(0) < max_expr_avg) & (
-                    CM.mean(0) > min_expr_avg)).flatten()
+        detected_bool = np.array(((CM > 0).sum(0) >= min_expr_cells) & (CM.mean(0) <= max_expr_avg) & (
+                    CM.mean(0) >= min_expr_avg)).flatten()
 
         if filter_bool is not None:
             detected_bool = filter_bool & detected_bool
@@ -603,10 +617,10 @@ def SVRs(adata, filter_bool=None, layers='X', total_szfactor=None, min_expr_cell
             down, up = np.percentile(valid_CM.A, winsor_perc, 0) if issparse(valid_CM) else np.percentile(valid_CM, winsor_perc, 0)
             Sfw = np.clip(valid_CM.A, down[None, :], up[None, :]) if issparse(valid_CM) else np.percentile(valid_CM, winsor_perc, 0)
             mu = Sfw.mean(0)
-            sigma = Sfw.std(0, ddof=0)
+            sigma = Sfw.std(0, ddof=1)
         else:
             mu = np.array(valid_CM.mean(0)).flatten()
-            sigma = np.array(np.sqrt(valid_CM.multiply(valid_CM).mean(0).A1 - mu ** 2)).flatten() if issparse(valid_CM) else valid_CM.std(0, ddof=0)
+            sigma = np.array(np.sqrt((valid_CM.multiply(valid_CM).mean(0).A1 - (mu) ** 2) * (adata.n_obs) / (adata.n_obs - 1))) if issparse(valid_CM) else valid_CM.std(0, ddof=1)
 
         cv = sigma / mu
         log_m = np.array(np.log2(mu)).flatten()
@@ -623,13 +637,15 @@ def SVRs(adata, filter_bool=None, layers='X', total_szfactor=None, min_expr_cell
         if sort_inverse:
             score = - score
 
-        adata.var['log_m'], adata.var['log_cv'], adata.var['score'] = np.nan, np.nan, -np.inf
-        adata.var.loc[detected_bool, 'log_m'], adata.var.loc[detected_bool, 'log_cv'], adata.var.loc[detected_bool, 'score'] = np.array(log_m).flatten(), np.array(log_cv).flatten(), np.array(score).flatten()
+        prefix = '' if layer == 'X' else layer + '_'
+        adata.var[prefix + 'log_m'], adata.var[prefix + 'log_cv'], adata.var[prefix + 'score'] = np.nan, np.nan, -np.inf
+        adata.var.loc[detected_bool, prefix + 'log_m'], adata.var.loc[detected_bool, prefix + 'log_cv'], adata.var.loc[detected_bool, prefix + 'score'] = \
+            np.array(log_m).flatten(), np.array(log_cv).flatten(), np.array(score).flatten()
 
         key = "velocyto_SVR" if layer is 'raw' or layer is 'X' else layer + "_velocyto_SVR"
         adata.uns[key] = {"SVR": fitted_fun, "detected_bool": detected_bool}
 
-        adata
+    return adata
 
 
 def filter_cells(adata, filter_bool=None, layer='all', keep_filtered=False, min_expr_genes_s=50, min_expr_genes_u=25, min_expr_genes_p=1,
@@ -670,14 +686,14 @@ def filter_cells(adata, filter_bool=None, layer='all', keep_filtered=False, min_
     """
 
     detected_bool = np.ones(adata.X.shape[0], dtype=bool)
-    detected_bool = (detected_bool) & (((adata.X > 0).sum(1) > min_expr_genes_s) & ((adata.X > 0).sum(1) < max_expr_genes_s)).flatten()
+    detected_bool = (detected_bool) & (((adata.X > 0).sum(1) >= min_expr_genes_s) & ((adata.X > 0).sum(1) <= max_expr_genes_s)).flatten()
 
     if ("spliced" in adata.layers.keys()) & (layer is 'spliced' or layer is 'all'):
-        detected_bool = detected_bool & (((adata.layers['spliced'] > 0).sum(1) > min_expr_genes_s) & ((adata.layers['spliced'] > 0).sum(1) < max_expr_genes_s)).flatten()
+        detected_bool = detected_bool & (((adata.layers['spliced'] > 0).sum(1) >= min_expr_genes_s) & ((adata.layers['spliced'] > 0).sum(1) <= max_expr_genes_s)).flatten()
     if ("unspliced" in adata.layers.keys()) & (layer is 'unspliced' or layer is 'all'):
-        detected_bool = detected_bool & (((adata.layers['unspliced'] > 0).sum(1) > min_expr_genes_u) & ((adata.layers['unspliced'] > 0).sum(1) < max_expr_genes_u)).flatten()
+        detected_bool = detected_bool & (((adata.layers['unspliced'] > 0).sum(1) >= min_expr_genes_u) & ((adata.layers['unspliced'] > 0).sum(1) <= max_expr_genes_u)).flatten()
     if ("protein" in adata.obsm.keys()) & (layer is 'protein' or layer is 'all'):
-        detected_bool = detected_bool & (((adata.obsm['protein'] > 0).sum(1) > min_expr_genes_p) & ((adata.obsm['protein'] > 0).sum(1) < max_expr_genes_p)).flatten()
+        detected_bool = detected_bool & (((adata.obsm['protein'] > 0).sum(1) >= min_expr_genes_p) & ((adata.obsm['protein'] > 0).sum(1) <= max_expr_genes_p)).flatten()
 
     if shared_count is not None:
         layers = get_layer_keys(adata, layer, False)
@@ -693,10 +709,76 @@ def filter_cells(adata, filter_bool=None, layer='all', keep_filtered=False, min_
 
     return adata
 
+def filter_genes_by_clusters_(adata, cluster, min_avg_U=0.02, min_avg_S=0.08, size_limit=40):
+        """Prepare filtering genes on the basis of cluster-wise expression threshold
+        This function is taken from velocyto in order to reproduce velocyto's DentateGyrus notebook.
+
+        Arguments
+        ---------
+            adata: :class:`~anndata.AnnData`
+                AnnData object.
+            cluster: `str`
+                A column in the adata.obs attribute which will be used for cluster specific expression filtering.
+            min_avg_U: float
+                Include genes that have unspliced average bigger than `min_avg_U` in at least one of the clusters
+            min_avg_S: float
+                Include genes that have spliced average bigger than `min_avg_U` in at least one of the clusters
+            Note: the two conditions are combined by and "&" logical operator.
+
+        Returns
+        -------
+        Nothing but it creates the attribute
+        clu_avg_selected: np.ndarray bool
+            The gene cluster that is selected
+        To perform the filtering use the method `filter_genes`
+        """
+        U, S, cluster_uid = adata.layers['unspliced'], adata.layers['spliced'], adata.obs[cluster]
+        cluster_uid, cluster_ix = np.unique(cluster_uid, return_inverse=True)
+
+        U_avgs, S_avgs = clusters_stats(U, S, cluster_uid, cluster_ix, size_limit=size_limit)
+        clu_avg_selected = (U_avgs.max(1) > min_avg_U) & (S_avgs.max(1) > min_avg_S)
+
+        return clu_avg_selected
+
+def filter_genes_(adata, filter_bool=None, layer='all', min_cell_s=0, min_cell_u=0, min_cell_p=0,
+                 min_avg_exp_s=0, min_avg_exp_u=0, min_avg_exp_p=0, max_avg_exp=np.infty,
+                 min_count_s=0, min_count_u=0, min_count_p=0, shared_count=30):
+
+    detected_bool = np.ones(adata.shape[1], dtype=bool)
+    detected_bool = (detected_bool) & np.array(((adata.X > 0).sum(0) >= min_cell_s) & \
+                                      (adata.X.mean(0) >= min_avg_exp_s)  & \
+                                      (adata.X.mean(0) <= max_avg_exp) & \
+                                      (adata.X.sum(0) >= min_count_s)).flatten()
+
+    if "spliced" in adata.layers.keys() and (layer is 'spliced' or layer is 'all'):
+        detected_bool = detected_bool & np.array(((adata.layers['spliced'] > 0).sum(0) >= min_cell_s) & \
+                        (adata.layers['spliced'].mean(0) >= min_avg_exp_s) & \
+                        (adata.layers['spliced'].mean(0) <= max_avg_exp) & \
+                        (adata.layers['spliced'].sum(0) >= min_count_s)).flatten()
+    if "unspliced" in adata.layers.keys() and (layer is 'unspliced' or layer is 'all'):
+        detected_bool = detected_bool & np.array(((adata.layers['unspliced'] > 0).sum(0) >= min_cell_u) & \
+                        (adata.layers['unspliced'].mean(0) >= min_avg_exp_u) & \
+                        (adata.layers['unspliced'].mean(0) <= max_avg_exp) &
+                        (adata.layers['unspliced'].sum(0) >= min_count_u)).flatten()
+    if shared_count is not None:
+        layers = get_layer_keys(adata, 'all', False)
+        detected_bool = detected_bool & get_shared_counts(adata, layers, shared_count, 'gene')
+
+    ############################## The following code need to be updated ##############################
+    # just remove genes that are not following the protein criteria
+    if "protein" in adata.obsm.keys() and layer is 'protein':
+        detected_bool = detected_bool & np.array(((adata.obsm['protein'] > 0).sum(0) >= min_cell_p) & \
+                        (adata.obsm['protein'].mean(0) >= min_avg_exp_p) & \
+                        (adata.obsm['protein'].mean(0) <= max_avg_exp) & \
+                        (adata.layers['protein'].sum(0) >= min_count_p)).flatten()
+
+    filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
+
+    return filter_bool
 
 def filter_genes(adata, filter_bool=None, layer='all', total_szfactor=None, keep_filtered=True, min_cell_s=0, min_cell_u=0, min_cell_p=0,
-                 min_avg_exp_s=0, min_avg_exp_u=0, min_avg_exp_p=0, max_avg_exp=0., shared_count=30, sort_by='SVR',
-                 n_top_genes=2000):
+                 min_avg_exp_s=0, min_avg_exp_u=0, min_avg_exp_p=0, max_avg_exp=0., min_count_s=0, min_count_u=0, min_count_p=0, shared_count=30, sort_by='SVR',
+                 n_top_genes=2000, SVRs_kwargs={}):
     """Select feature genes based on a collection of filters.
 
     Parameters
@@ -739,24 +821,9 @@ def filter_genes(adata, filter_bool=None, layer='all', total_szfactor=None, keep
             downstream analysis. adata will be subsetted with only the genes pass filter if keep_unflitered is set to be False.
     """
 
-    detected_bool = np.ones(adata.shape[1], dtype=bool)
-    detected_bool = (detected_bool) & np.array(((adata.X > 0).sum(0) > min_cell_s) & (adata.X.mean(0) > min_avg_exp_s) & (adata.X.mean(0) < max_avg_exp)).flatten()
-
-    if "spliced" in adata.layers.keys() and (layer is 'spliced' or layer is 'all'):
-        detected_bool = detected_bool & np.array(((adata.layers['spliced'] > 0).sum(0) > min_cell_s) & (adata.layers['spliced'].mean(0) > min_avg_exp_s) & (adata.layers['spliced'].mean(0) < max_avg_exp)).flatten()
-    if "unspliced" in adata.layers.keys() and (layer is 'unspliced' or layer is 'all'):
-        detected_bool = detected_bool & np.array(((adata.layers['unspliced'] > 0).sum(0) > min_cell_u) & (adata.layers['unspliced'].mean(0) > min_avg_exp_u) & (adata.layers['unspliced'].mean(0) < max_avg_exp)).flatten()
-    if shared_count is not None:
-        layers = get_layer_keys(adata, 'all', False)
-        detected_bool = detected_bool & get_shared_counts(adata, layers, shared_count, 'gene')
-
-    ############################## The following code need to be updated ##############################
-    # just remove genes that are not following the protein criteria
-    if "protein" in adata.obsm.keys() and layer is 'protein':
-        detected_bool = detected_bool & np.array(((adata.obsm['protein'] > 0).sum(0) > min_cell_p) & (adata.obsm['protein'].mean(0) > min_avg_exp_p) & (adata.obsm['protein'].mean(0) < max_avg_exp)).flatten()
-
-    filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
-
+    filter_bool = filter_genes_(adata, filter_bool=filter_bool, layer=layer, min_cell_s=min_cell_s, min_cell_u=min_cell_u, min_cell_p=min_cell_p,
+                 min_avg_exp_s=min_avg_exp_s, min_avg_exp_u=min_avg_exp_u, min_avg_exp_p=min_avg_exp_p, max_avg_exp=max_avg_exp,
+                 min_count_s=min_count_s, min_count_u=min_count_u, min_count_p=min_count_p, shared_count=shared_count)
     adata.var['pass_basic_filter'] = np.array(filter_bool).flatten()
 
     if adata.shape[1] <= n_top_genes:
@@ -776,14 +843,12 @@ def filter_genes(adata, filter_bool=None, layer='all', total_szfactor=None, keep
             gene_id = valid_table.index[gene_id]
             filter_bool = gene_id.isin(adata.var.index)
         elif sort_by is 'SVR':
-            SVRs(adata, layers=layer, total_szfactor=total_szfactor, filter_bool=filter_bool, min_expr_cells=0, min_expr_avg=0, max_expr_avg=np.inf,
-                 svr_gamma=None, winsorize=False, winsor_perc=(1, 99.5), sort_inverse=False)
+            SVRs_args = {"min_expr_cells": 0, "min_expr_avg": 0, "max_expr_avg": np.inf,
+                 "svr_gamma": None, "winsorize": False, "winsor_perc": (1, 99.5), "sort_inverse":False}
+            SVRs_args = update_dict(SVRs_args, SVRs_kwargs)
+            SVRs(adata, layers=layer, total_szfactor=total_szfactor, filter_bool=filter_bool, **SVRs_args)
 
-            valid_table = adata.var.loc[filter_bool, :]
-            gene_id = np.argsort(-valid_table.loc[:, 'score'])[:n_top_genes]
-            _filter_bool = np.zeros(adata.X.shape[1], dtype=bool)
-            _filter_bool[np.where(filter_bool)[0][gene_id]] = True
-            filter_bool = _filter_bool
+            filter_bool = get_svr_filter(adata, layer=layer, n_top_genes=n_top_genes)
 
     if keep_filtered:
         adata.var['use_for_dynamo'] = filter_bool
@@ -900,6 +965,85 @@ def recipe_monocle(adata, normalized=None, layer=None, total_layers=None, genes_
 
         fit=FastICA(num_dim,
                 algorithm='deflation', tol=5e-6, fun='logcosh', max_iter=1000)
+        reduce_dim=fit.fit_transform(CM.toarray())
+
+        adata.obsm['X_' + method.lower()] = reduce_dim
+
+    adata.uns[method+'_fit'], adata.uns['feature_selection'] = fit, feature_selection
+
+    return adata
+
+def recipe_velocyto(adata, total_layers=None, method='pca', num_dim=30, norm_method='log', pseudo_expr=1,
+                    feature_selection='SVR', n_top_genes=2000, cluster='Clusters', relative_expr=True, keep_filtered_genes=True):
+    """This function is adapted from the velocyto's DentateGyrus notebook.
+.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object.
+        total_layers: list or None (default `None`)
+            The layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"], ["uu", "ul", "su", "sl"] or ["new", "old"], etc.
+        method: `str` (default: `log`)
+            The linear dimension reduction methods to be used.
+        num_dim: `int` (default: `50`)
+            The number of linear dimensions reduced to.
+        norm_method: `str` (default: `log`)
+            The method to normalize the data.
+        pseudo_expr: `int` (default: `1`)
+            A pseudocount added to the gene expression value before log/log2 normalization.
+        feature_selection: `str` (default: `SVR`)
+            Which soring method, either dispersion, SVR or Gini index, to be used to select genes.
+        n_top_genes: `int` (default: `2000`)
+            How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
+        cluster: `str`
+            A column in the adata.obs attribute which will be used for cluster specific expression filtering.
+        relative_expr: `bool` (default: `True`)
+            A logic flag to determine whether we need to divide gene expression values first by size factor before normalization.
+        keep_filtered_genes: `bool` (default: `True`)
+            Whether to keep genes that don't pass the filtering in the adata object.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions, etc.
+    """
+    adata = szFactor(adata, method="mean", total_layers=total_layers)
+    initial_Ucell_size = adata.layers['unspliced'].sum(1)
+
+    filter_bool = initial_Ucell_size > np.percentile(initial_Ucell_size, 0.4)
+
+    adata = filter_cells(adata, filter_bool=np.array(filter_bool).flatten())
+
+    filter_bool = filter_genes_(adata, min_cell_s=30, min_count_s=40, shared_count=None)
+
+    adata = adata[:, filter_bool]
+
+    adata = SVRs(adata, layers=['spliced'], min_expr_cells=2, max_expr_avg=35, min_expr_avg=0)
+
+    filter_bool = get_svr_filter(adata, layer='spliced', n_top_genes=n_top_genes)
+
+    adata = adata[:, filter_bool]
+    filter_bool_gene = filter_genes_(adata, min_cell_s=0, min_count_s=0, min_count_u=25, min_cell_u=20,
+                                            shared_count=None)
+    filter_bool_cluster = filter_genes_by_clusters_(adata, min_avg_S=0.08, min_avg_U=0.01, cluster=cluster)
+
+    adata = adata[:, filter_bool_gene & filter_bool_cluster]
+
+    adata = normalize_expr_data(adata, total_szfactor=None, norm_method=norm_method, pseudo_expr=pseudo_expr,
+                                relative_expr=relative_expr, keep_filtered=keep_filtered_genes)
+    CM = adata.X
+    if method is 'pca':
+        adata, fit, _ = pca(adata, CM, num_dim, 'X_' + method.lower())
+        # adata.obsm['X_' + method.lower()] = reduce_dim
+
+    elif method == 'ica':
+        cm_genesums = CM.sum(axis=0)
+        valid_ind = (np.isfinite(cm_genesums)) + (cm_genesums != 0)
+        valid_ind = np.array(valid_ind).flatten()
+        CM = CM[:, valid_ind]
+
+        fit=FastICA(num_dim, algorithm='deflation', tol=5e-6, fun='logcosh', max_iter=1000)
         reduce_dim=fit.fit_transform(CM.toarray())
 
         adata.obsm['X_' + method.lower()] = reduce_dim
