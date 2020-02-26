@@ -772,7 +772,9 @@ def _plot_traj(y0, t, args, integration_direction, ax, color, lw, f):
     elif integration_direction == 'backward':
         y = scipy.integrate.odeint(lambda x, t: f(x), y0, -t, args=args)
     elif integration_direction == 'both':
-        y = scipy.integrate.odeint(lambda x, t: f(x), y0, np.hstack((-t[::-1], t)), args=args)
+        y_f = scipy.integrate.odeint(lambda x, t: f(x), y0, t, args=args)
+        y_b = scipy.integrate.odeint(lambda x, t: f(x), y0, -t, args=args)
+        y = np.vstack((y_b[::-1, :], y_f))
 
     ax.plot(*y.transpose(), color=color, lw=lw, linestyle='dashed', alpha=0.5)
 

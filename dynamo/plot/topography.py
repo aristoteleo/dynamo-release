@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import scipy
 import matplotlib.pyplot as plt
 
@@ -6,7 +7,7 @@ from ..tools.topography import topography as _topology # , compute_separatrices
 from ..configuration import set_figure_params
 from .scatters import scatters
 from .scatters import docstrings
-from .utils import _plot_traj
+from .utils import _plot_traj, quiver_autoscaler
 
 def plot_flow_field(vecfld, x_range, y_range, n_grid=100, lw_min=0.5, lw_max=3,
                     start_points=None, integration_direction='both', background=None, ax=None):
@@ -313,11 +314,16 @@ def topography(
         ylim=None,
         t=None,
         terms=('streamline', 'fixed_points'),
+        init_cells=None,
         init_state=None,
-        integration_direction='both',
+        quiver_source='raw',
+        fate='both',
         approx=False,
+        quiver_size=None,
+        quiver_length=None,
         ax=None,
         s_kwargs_dict={},
+        q_kwargs_dict={},
         **topography_kwargs):
     """Plot the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system
     for single cells. The plot is created on two dimensional space.
@@ -335,15 +341,37 @@ def topography(
         terms: `tuple` (default: ('streamline', 'fixed_points'))
             A tuple of plotting items to include in the final topography figure.  ('streamline', 'nullcline', 'fixed_points',
              'separatrix', 'trajectory') are all the items that we can support.
+        init_cells: `list` (default: None)
+            Cell name or indices of the initial cell states for the historical or future cell state prediction with numerical integration.
+            If the names in init_cells are not find in the adata.obs_name, it will be treated as cell indices and must be integers.
         init_state: `numpy.ndarray` (default: None)
             Initial cell states for the historical or future cell state prediction with numerical integration. It can be
-            either a one-dimensional array or N x 2 dimension array.
-        integration_direction: `str` (default: `forward`)
-            Integrate the trajectory in forward, backward or both directions. default is 'both'.
+            either a one-dimensional array or N x 2 dimension array. The `init_state` will be replaced to that defined by init_cells if
+            init_cells are not None.
+        quiver_source: `numpy.ndarray` {'raw', 'reconstructed'} (default: None)
+            The data source that will be used to draw the quiver plot. If `init_cells` is provided, this will set to be the projected RNA
+            velocity before vector field reconstruction automatically. If `init_cells` is not provided, this will set to be the velocity
+            vectors calculated from the reconstructed vector field function automatically. If quiver_source is `reconstructed`, the velocity
+            vectors calculated from the reconstructed vector field function will be used.
+        fate: `str` {"history", 'future', 'both'} (default: `both`)
+            Predict the historial, future or both cell fates. This corresponds to integrating the trajectory in forward,
+            backward or both directions defined by the reconstructed vector field function. default is 'both'.
         approx: `bool` (default: False)
             Whether to use streamplot to draw the integration line from the init_state.
+        quiver_size: `float` or None (default: None)
+            The size of quiver. If None, we will use set quiver_size to be 1. Note that quiver quiver_size is used to calculate
+            the head_width (10 x quiver_size), head_length (12 x quiver_size) and headaxislength (8 x quiver_size) of the quiver.
+            This is done via the `default_quiver_args` function which also calculate the scale of the quiver (1 / quiver_length).
+        quiver_length: `float` or None (default: None)
+            The length of quiver. The quiver length which will be used to calculate scale of quiver. Note that befoe applying
+            `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale of quiver indicates
+            the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller scale parameter makes the arrow longer.
+        ax: Matplotlib Axis instance
+            Axis on which to make the plot
         s_kwargs_dict: `dict` (default: {})
             The dictionary of the scatter arguments.
+        q_kwargs_dict:
+            Additional parameters that will be passed to plt.quiver function
         topography_kwargs:
             Additional parameters that will be passed to plt.quiver function
 
@@ -368,11 +396,22 @@ def topography(
         _topology(adata, basis, VecFld=None)
     elif 'VecFld2D' not in adata.uns[uns_key].keys():
         _topology(adata, basis, VecFld=None)
-    else:
-        VF, vecfld = adata.uns[uns_key]["VecFld"], adata.uns[uns_key]["VecFld2D"]
+    elif 'VecFld2D' in adata.uns[uns_key].keys() and type(adata.uns[uns_key]['VecFld2D']) == str:
+        _topology(adata, basis, VecFld=None)
 
+    VF, vecfld = adata.uns[uns_key]["VecFld"], adata.uns[uns_key]["VecFld2D"]
     xlim, ylim = adata.uns[uns_key]["xlim"] if xlim is None else xlim, \
                  adata.uns[uns_key]["ylim"] if ylim is None else ylim
+
+    if init_cells is not None:
+        intersect_cell_names = list(set(init_cells).intersection(adata.obs_name))
+        init_state = adata.obsm['X_' + basis][init_cells, :] if len(intersect_cell_names) else \
+            adata[intersect_cell_names].obsm['X_' + basis].copy()
+        V = adata.obsm['velocity_' + basis][init_cells, :] if len(intersect_cell_names) else \
+            adata[intersect_cell_names].obsm['velocity_' + basis].copy()
+    if quiver_source == 'reconstructed' or (init_state is not None and init_cells is None):
+        from ..tools.utils import vector_field_function
+        V = vector_field_function(init_state, None, vecfld, [0, 1])
 
     axes_list, color_list, font_color = scatters(
         adata,
@@ -410,9 +449,11 @@ def topography(
         ax.set_ylim(ylim)
 
         if t is None:
-            max_t = max(max(np.diff(xlim), np.diff(ylim)) / np.min(np.abs(VF['grid_V'])))
+            max_t = max(np.diff(xlim), np.diff(ylim))[0] / np.min(np.abs(VF['grid_V']))
 
             t = np.linspace(0, max_t, 10**int(np.log10(max_t)))
+
+        integration_direction = 'both' if fate == 'both' else 'forward' if fate == 'future' else 'backward' if fate == 'history' else "both"
 
         if 'streamline' in terms:
             if approx:
@@ -432,6 +473,34 @@ def topography(
         if init_state is not None and 'trajectory' in terms:
             if not approx:
                 ax = plot_traj(vecfld.func, init_state, t, background=background, integration_direction=integration_direction, ax=ax)
+
+        # show quivers for the init_state cells
+        if init_state is not None:
+            from .utils import default_quiver_args
+            from ..tools.utils import update_dict
+
+            X = init_state
+            V /= (3 * quiver_autoscaler(X, V))
+
+            df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "u": V[:, 0], "v": V[:, 1]})
+
+            if quiver_size is None:
+                quiver_size = 1
+            if background == 'black':
+                edgecolors = 'white'
+            else:
+                edgecolors = 'black'
+
+            head_w, head_l, ax_l, scale = default_quiver_args(quiver_size, quiver_length)  #
+            quiver_kwargs = {"angles": 'xy', 'scale': scale, "scale_units": 'xy', "width": 0.0005,
+                             "headwidth": head_w, "headlength": head_l, "headaxislength": ax_l, "minshaft": 1,
+                             "minlength": 1,
+                             "pivot": "tail", "linewidth": .1, "edgecolors": edgecolors, "alpha": 1, "zorder": 10}
+            quiver_kwargs = update_dict(quiver_kwargs, q_kwargs_dict)
+
+            ax.quiver(df.iloc[:, 0], df.iloc[:, 1],
+                                df.iloc[:, 2], df.iloc[:, 3], color='red',
+                                facecolors='gray', **quiver_kwargs)
 
     plt.tight_layout()
     plt.show()
