@@ -79,7 +79,7 @@ def plot_flow_field(vecfld, x_range, y_range, n_grid=100, lw_min=0.5, lw_max=3,
                       density=1, color=color)
     else:
         if len(start_points.shape) == 1: start_points.reshape((1, 2))
-        ax.scatter(*start_points, color=color, marker="*")
+        ax.scatter(*start_points, c=color, marker="*")
 
         ax.streamplot(uu, vv, u_vel, v_vel, linewidth=lw_max, arrowsize=1.2, start_points=start_points,
                       integration_direction=integration_direction, density=1, color=color_start_points)
@@ -201,7 +201,7 @@ def plot_traj(f, y0, t, args=(), lw=2, background=None, integration_direction='b
     if len(y0.shape) == 1:
         ax = _plot_traj(y0, t, args, integration_direction, ax, color, lw, f)
     else:
-        for i in range(y0.shape[1]):
+        for i in range(y0.shape[0]):
             cur_y0 = y0[i, :]
             ax = _plot_traj(cur_y0, t, args, integration_direction, ax, color, lw, f)
 
@@ -358,6 +358,10 @@ def topography(
     else:
         background = rcParams.get('figure.facecolor')
 
+    if approx:
+        if 'streamline' not in terms: terms.append('streamline')
+        if 'trajectory' in terms: terms = list(set(terms).difference('trajectory'))
+
     uns_key = 'VecFld' if basis == 'X' else 'VecFld_' + basis
 
     if uns_key not in adata.uns.keys():
@@ -405,7 +409,7 @@ def topography(
         ax.set_ylim(ylim)
 
         if t is None:
-            t = np.linspace(0, max(max(np.diff(xlim), np.diff(ylim)) / np.percentile(np.abs(VF['grid_V']), 5)), 10000)
+            t = np.linspace(0, max(max(np.diff(xlim), np.diff(ylim)) / np.min(VF['grid_V']), 1), 10000)
 
         if 'streamline' in terms:
             if approx:

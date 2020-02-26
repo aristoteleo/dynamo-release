@@ -711,15 +711,19 @@ def filter_cells(adata, filter_bool=None, layer='all', keep_filtered=False, min_
 
 def filter_genes_by_clusters_(adata, cluster, min_avg_U=0.02, min_avg_S=0.08, size_limit=40):
         """Prepare filtering genes on the basis of cluster-wise expression threshold
+        This function is taken from velocyto in order to reproduce velocyto's DentateGyrus notebook.
 
         Arguments
         ---------
-        min_avg_U: float
-            Include genes that have unspliced average bigger than `min_avg_U` in at least one of the clusters
-        min_avg_S: float
-            Include genes that have spliced average bigger than `min_avg_U` in at least one of the clusters
-        Note: the two conditions are combined by and "&" logical operator.
-        This function is taken from velocyto in order to reproduce velocyto's DentateGyrus notebook.
+            adata: :class:`~anndata.AnnData`
+                AnnData object.
+            cluster: `str`
+                A column in the adata.obs attribute which will be used for cluster specific expression filtering.
+            min_avg_U: float
+                Include genes that have unspliced average bigger than `min_avg_U` in at least one of the clusters
+            min_avg_S: float
+                Include genes that have spliced average bigger than `min_avg_U` in at least one of the clusters
+            Note: the two conditions are combined by and "&" logical operator.
 
         Returns
         -------
@@ -970,8 +974,9 @@ def recipe_monocle(adata, normalized=None, layer=None, total_layers=None, genes_
     return adata
 
 def recipe_velocyto(adata, total_layers=None, method='pca', num_dim=30, norm_method='log', pseudo_expr=1,
-                    feature_selection='SVR', n_top_genes=2000, relative_expr=True, keep_filtered_genes=True):
-    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
+                    feature_selection='SVR', n_top_genes=2000, cluster='Clusters', relative_expr=True, keep_filtered_genes=True):
+    """This function is adapted from the velocyto's DentateGyrus notebook.
+.
 
     Parameters
     ----------
@@ -991,6 +996,8 @@ def recipe_velocyto(adata, total_layers=None, method='pca', num_dim=30, norm_met
             Which soring method, either dispersion, SVR or Gini index, to be used to select genes.
         n_top_genes: `int` (default: `2000`)
             How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
+        cluster: `str`
+            A column in the adata.obs attribute which will be used for cluster specific expression filtering.
         relative_expr: `bool` (default: `True`)
             A logic flag to determine whether we need to divide gene expression values first by size factor before normalization.
         keep_filtered_genes: `bool` (default: `True`)
@@ -1019,7 +1026,7 @@ def recipe_velocyto(adata, total_layers=None, method='pca', num_dim=30, norm_met
     adata = adata[:, filter_bool]
     filter_bool_gene = filter_genes_(adata, min_cell_s=0, min_count_s=0, min_count_u=25, min_cell_u=20,
                                             shared_count=None)
-    filter_bool_cluster = filter_genes_by_clusters_(adata, min_avg_S=0.08, min_avg_U=0.01, cluster="Clusters")
+    filter_bool_cluster = filter_genes_by_clusters_(adata, min_avg_S=0.08, min_avg_U=0.01, cluster=cluster)
 
     adata = adata[:, filter_bool_gene & filter_bool_cluster]
 
