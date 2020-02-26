@@ -80,7 +80,7 @@ def plot_flow_field(vecfld, x_range, y_range, n_grid=100, lw_min=0.5, lw_max=3,
                       density=1, color=color)
     else:
         if len(start_points.shape) == 1: start_points.reshape((1, 2))
-        ax.scatter(*start_points, c=color, marker="*")
+        ax.scatter(*start_points, marker="*")
 
         ax.streamplot(uu, vv, u_vel, v_vel, linewidth=lw_max, arrowsize=1.2, start_points=start_points,
                       integration_direction=integration_direction, density=1, color=color_start_points)
@@ -404,14 +404,14 @@ def topography(
                  adata.uns[uns_key]["ylim"] if ylim is None else ylim
 
     if init_cells is not None:
-        intersect_cell_names = list(set(init_cells).intersection(adata.obs_name))
-        init_state = adata.obsm['X_' + basis][init_cells, :] if len(intersect_cell_names) else \
+        intersect_cell_names = list(set(init_cells).intersection(adata.obs_names))
+        init_state = adata.obsm['X_' + basis][init_cells, :] if len(intersect_cell_names) == 0 else \
             adata[intersect_cell_names].obsm['X_' + basis].copy()
-        V = adata.obsm['velocity_' + basis][init_cells, :] if len(intersect_cell_names) else \
+        V = adata.obsm['velocity_' + basis][init_cells, :] if len(intersect_cell_names) == 0 else \
             adata[intersect_cell_names].obsm['velocity_' + basis].copy()
     if quiver_source == 'reconstructed' or (init_state is not None and init_cells is None):
         from ..tools.utils import vector_field_function
-        V = vector_field_function(init_state, None, vecfld, [0, 1])
+        V = vector_field_function(init_state, None, VF, [0, 1])
 
     axes_list, color_list, font_color = scatters(
         adata,
@@ -502,5 +502,5 @@ def topography(
                                 df.iloc[:, 2], df.iloc[:, 3], color='red',
                                 facecolors='gray', **quiver_kwargs)
 
-    plt.tight_layout()
+    # plt.tight_layout()
     plt.show()
