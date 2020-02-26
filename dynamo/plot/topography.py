@@ -370,8 +370,9 @@ def topography(
         _topology(adata, basis, VecFld=None)
     else:
         VF, vecfld = adata.uns[uns_key]["VecFld"], adata.uns[uns_key]["VecFld2D"]
-        xlim, ylim = adata.uns[uns_key]["xlim"] if xlim is None else xlim, \
-                     adata.uns[uns_key]["ylim"] if ylim is None else ylim
+
+    xlim, ylim = adata.uns[uns_key]["xlim"] if xlim is None else xlim, \
+                 adata.uns[uns_key]["ylim"] if ylim is None else ylim
 
     axes_list, color_list, font_color = scatters(
         adata,
@@ -409,7 +410,9 @@ def topography(
         ax.set_ylim(ylim)
 
         if t is None:
-            t = np.linspace(0, max(max(np.diff(xlim), np.diff(ylim)) / np.min(VF['grid_V']), 1), 10000)
+            max_t = max(max(np.diff(xlim), np.diff(ylim)) / np.min(np.abs(VF['grid_V'])))
+
+            t = np.linspace(0, max_t, 10**int(np.log10(max_t)))
 
         if 'streamline' in terms:
             if approx:

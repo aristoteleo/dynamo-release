@@ -268,7 +268,7 @@ def phase_portraits(adata,
             continue
         cur_pd = df.loc[df.gene == gn, :]
         if cur_pd.color.unique() != np.nan:
-            if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
+            if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
                 ax1, color = _matplotlib_points(
                     cur_pd.iloc[:, [1, 0]].values,
                     ax=ax1,
@@ -301,7 +301,7 @@ def phase_portraits(adata,
                     **scatter_kwargs
                 )
         else:
-            if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
+            if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
                 ax1, color = _matplotlib_points(
                     cur_pd.iloc[:, [1, 0]].values,
                     ax=ax1,
@@ -378,7 +378,7 @@ def phase_portraits(adata,
         V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
         V_vec = np.clip(V_vec, 0, 1)
 
-        if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
+        if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
             ax2, _ = _matplotlib_points(
                 embedding.iloc[:, :2].values,
                 ax=ax2,
@@ -415,7 +415,7 @@ def phase_portraits(adata,
         ax2.set_xlabel(basis + '_1')
         ax2.set_ylabel(basis + '_2')
 
-        if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
+        if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
             ax3, _ = _matplotlib_points(
                 embedding.iloc[:, :2].values,
                 ax=ax3,
@@ -454,7 +454,7 @@ def phase_portraits(adata,
 
         if 'protein' in adata.obsm.keys() and mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]):
             if cur_pd.color.unique() != np.nan:
-                if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
+                if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
                     ax4, color = _matplotlib_points(
                         cur_pd.iloc[:, [3, 2]].values,
                         ax=ax4,
@@ -487,7 +487,7 @@ def phase_portraits(adata,
                         **scatter_kwargs
                     )
             else:
-                if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
+                if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
                     ax4, color = _matplotlib_points(
                         cur_pd.iloc[:, [1, 0]].values,
                         ax=ax4,
@@ -564,7 +564,7 @@ def phase_portraits(adata,
             V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
             V_vec = np.clip(V_vec, 0, 1)
 
-            if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
+            if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
                 ax5, _ = _matplotlib_points(
                     embedding.iloc[:, :2],
                     ax=ax5,
@@ -601,7 +601,7 @@ def phase_portraits(adata,
             ax5.set_xlabel(basis + '_1')
             ax5.set_ylabel(basis + '_2')
 
-            if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000:
+            if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
                 ax6 , _= _matplotlib_points(
                     embedding.iloc[:, :2],
                     ax=ax6,
