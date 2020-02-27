@@ -118,6 +118,7 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_b
             Y_pca = pca.transform(X + V_mat)
             V_pca = Y_pca - X_pca
 
+            adata.obsm['velocity_pca'], adata.obsm['velocity_pca'] = X_pca, V_pca
             X, V_mat = X_pca[:, :n_pca_components], V_pca[:, :n_pca_components]
 
         if neighbors_from_basis:

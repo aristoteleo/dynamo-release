@@ -1,4 +1,5 @@
 import numpy as np
+import scipy
 from scipy.sparse import issparse, csr_matrix, lil_matrix, diags
 from .moments import strat_mom, MomData, Estimation
 import warnings
@@ -723,3 +724,20 @@ def vector_field_function(x, t, VecFld, dim=None):
     else:
         K = K.dot(VecFld['C'][:, dim])
     return K
+
+def integrate_vf(y0, t, args, integration_direction, f):
+    '''integrating along vector field function'''
+
+    if integration_direction == 'forward':
+        t = t
+        y = scipy.integrate.odeint(lambda x, t: f(x), y0, t, args=args)
+    elif integration_direction == 'backward':
+        t = -t
+        y = scipy.integrate.odeint(lambda x, t: f(x), y0, t, args=args)
+    elif integration_direction == 'both':
+        y_f = scipy.integrate.odeint(lambda x, t: f(x), y0, t, args=args)
+        y_b = scipy.integrate.odeint(lambda x, t: f(x), y0, -t, args=args)
+        y = np.vstack((y_b[::-1, :], y_f))
+        t = np.hstack(-t[::-1], t)
+
+    return t, y

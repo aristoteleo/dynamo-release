@@ -1,5 +1,4 @@
 import numpy as np
-import scipy
 import pandas as pd
 import math
 import numba
@@ -10,7 +9,7 @@ import matplotlib.patheffects as PathEffects
 from warnings import warn
 
 from ..configuration import _themes
-
+from ..tools.utils import integrate_vf
 
 # ---------------------------------------------------------------------------------------------------
 # variable checking utilities
@@ -767,14 +766,7 @@ def default_quiver_args(arrow_size, arrow_len=None):
 
 # ---------------------------------------------------------------------------------------------------
 def _plot_traj(y0, t, args, integration_direction, ax, color, lw, f):
-    if integration_direction == 'forward':
-        y = scipy.integrate.odeint(lambda x, t: f(x), y0, t, args=args)
-    elif integration_direction == 'backward':
-        y = scipy.integrate.odeint(lambda x, t: f(x), y0, -t, args=args)
-    elif integration_direction == 'both':
-        y_f = scipy.integrate.odeint(lambda x, t: f(x), y0, t, args=args)
-        y_b = scipy.integrate.odeint(lambda x, t: f(x), y0, -t, args=args)
-        y = np.vstack((y_b[::-1, :], y_f))
+    _, y = integrate_vf(y0, t, args, integration_direction, f)
 
     ax.plot(*y.transpose(), color=color, lw=lw, linestyle='dashed', alpha=0.5)
 

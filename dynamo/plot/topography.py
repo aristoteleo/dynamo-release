@@ -80,7 +80,7 @@ def plot_flow_field(vecfld, x_range, y_range, n_grid=100, lw_min=0.5, lw_max=3,
                       density=1, color=color)
     else:
         if len(start_points.shape) == 1: start_points.reshape((1, 2))
-        ax.scatter(*start_points, marker="*")
+        ax.scatter(*start_points, marker="*", zorder=100)
 
         ax.streamplot(uu, vv, u_vel, v_vel, linewidth=lw_max, arrowsize=1.2, start_points=start_points,
                       integration_direction=integration_direction, density=1, color=color_start_points)
@@ -340,7 +340,7 @@ def topography(
             by the odeint function.
         terms: `tuple` (default: ('streamline', 'fixed_points'))
             A tuple of plotting items to include in the final topography figure.  ('streamline', 'nullcline', 'fixed_points',
-             'separatrix', 'trajectory') are all the items that we can support.
+             'separatrix', 'trajectory', 'quiver') are all the items that we can support.
         init_cells: `list` (default: None)
             Cell name or indices of the initial cell states for the historical or future cell state prediction with numerical integration.
             If the names in init_cells are not find in the adata.obs_name, it will be treated as cell indices and must be integers.
@@ -405,13 +405,15 @@ def topography(
 
     if init_cells is not None:
         intersect_cell_names = list(set(init_cells).intersection(adata.obs_names))
-        init_state = adata.obsm['X_' + basis][init_cells, :] if len(intersect_cell_names) == 0 else \
+        _init_states = adata.obsm['X_' + basis][init_cells, :] if len(intersect_cell_names) == 0 else \
             adata[intersect_cell_names].obsm['X_' + basis].copy()
         V = adata.obsm['velocity_' + basis][init_cells, :] if len(intersect_cell_names) == 0 else \
             adata[intersect_cell_names].obsm['velocity_' + basis].copy()
-    if quiver_source == 'reconstructed' or (init_state is not None and init_cells is None):
+
+    if init_states is None: init_states = _init_states
+    if quiver_source == 'reconstructed' or (init_states is not None and init_cells is None):
         from ..tools.utils import vector_field_function
-        V = vector_field_function(init_state, None, VF, [0, 1])
+        V = vector_field_function(init_states, None, VF, [0, 1])
 
     axes_list, color_list, font_color = scatters(
         adata,
@@ -438,15 +440,15 @@ def topography(
         **s_kwargs_dict)
 
     for i in range(len(axes_list)):
-        ax = axes_list[i]
+        # ax = axes_list[i]
 
-        ax.set_xlabel(basis + '_1')
-        ax.set_ylabel(basis + '_2')
-        ax.set_aspect('equal')
+        axes_list[i].set_xlabel(basis + '_1')
+        axes_list[i].set_ylabel(basis + '_2')
+        axes_list[i].set_aspect('equal')
 
         # Build the plot
-        ax.set_xlim(xlim)
-        ax.set_ylim(ylim)
+        axes_list[i].set_xlim(xlim)
+        axes_list[i].set_ylim(ylim)
 
         if t is None:
             max_t = max(np.diff(xlim), np.diff(ylim))[0] / np.min(np.abs(VF['grid_V']))
@@ -457,29 +459,29 @@ def topography(
 
         if 'streamline' in terms:
             if approx:
-                ax = plot_flow_field(vecfld, xlim, ylim, background=background, start_points=init_state, integration_direction=integration_direction, ax=ax)
+                axes_list[i] = plot_flow_field(vecfld, xlim, ylim, background=background, start_points=init_states, integration_direction=integration_direction, ax=axes_list[i])
             else:
-                ax = plot_flow_field(vecfld, xlim, ylim, background=background, ax=ax)
+                axes_list[i] = plot_flow_field(vecfld, xlim, ylim, background=background, ax=axes_list[i])
 
         if 'nullcline' in terms:
-            ax = plot_nullclines(vecfld, background=background, ax=ax)
+            axes_list[i] = plot_nullclines(vecfld, background=background, ax=axes_list[i])
 
         if 'fixed_points' in terms:
-            ax = plot_fixed_points(vecfld, background=background, ax=ax)
+            axes_list[i] = plot_fixed_points(vecfld, background=background, ax=axes_list[i])
 
         if 'separatrices' in terms:
-            ax = plot_separatrix(vecfld, xlim, ylim, t=t, background=background, ax=ax)
+            axes_list[i] = plot_separatrix(vecfld, xlim, ylim, t=t, background=background, ax=axes_list[i])
 
-        if init_state is not None and 'trajectory' in terms:
+        if init_states is not None and 'trajectory' in terms:
             if not approx:
-                ax = plot_traj(vecfld.func, init_state, t, background=background, integration_direction=integration_direction, ax=ax)
+                axes_list[i] = plot_traj(vecfld.func, init_states, t, background=background, integration_direction=integration_direction, ax=axes_list[i])
 
-        # show quivers for the init_state cells
-        if init_state is not None:
+        # show quivers for the init_states cells
+        if init_states is not None and 'quiver' in terms:
             from .utils import default_quiver_args
             from ..tools.utils import update_dict
 
-            X = init_state
+            X = init_states
             V /= (3 * quiver_autoscaler(X, V))
 
             df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "u": V[:, 0], "v": V[:, 1]})
@@ -497,10 +499,9 @@ def topography(
                              "minlength": 1,
                              "pivot": "tail", "linewidth": .1, "edgecolors": edgecolors, "alpha": 1, "zorder": 10}
             quiver_kwargs = update_dict(quiver_kwargs, q_kwargs_dict)
+            # axes_list[i].quiver(X_grid[:, 0], X_grid[:, 1], V_grid[:, 0], V_grid[:, 1], **quiver_kwargs)
+            axes_list[i].quiver(df.iloc[:, 0], df.iloc[:, 1],
+                                df.iloc[:, 2], df.iloc[:, 3], **quiver_kwargs) # color='red',  facecolors='gray'
 
-            ax.quiver(df.iloc[:, 0], df.iloc[:, 1],
-                                df.iloc[:, 2], df.iloc[:, 3], color='red',
-                                facecolors='gray', **quiver_kwargs)
-
-    # plt.tight_layout()
+    plt.tight_layout()
     plt.show()

@@ -1,12 +1,9 @@
-from .scVectorField import VectorField
 import numpy as np
-from scipy.integrate import odeint
 from scipy.sparse import issparse
-from .utils import vector_field_function
+from .utils import vector_field_function, integrate_vf
 
 
-# by default, use the transcriptome state of source cells
-def Fate(adata, VecFld_true=None, basis='X', query_cell_str="steady_states=='root'", init_state=None, t_end=1, direction='both', average=False, **kwargs):
+def Fate(adata, init_cells, init_states=None, basis='pca', t_end=None, direction='both', average=False, VecFld_true=None, **kwargs):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector field
     functions from one or a set of initial cell state(s).
 
@@ -14,15 +11,16 @@ def Fate(adata, VecFld_true=None, basis='X', query_cell_str="steady_states=='roo
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        VecFld_true: `function`
-            The true ODE function, useful when the data is generated through simulation. Replace VecFld arugment when this has been set.
-        basis: `str` (default: 'X')
+        init_cells: `list` (default: None)
+            Cell name or indices of the initial cell states for the historical or future cell state prediction with numerical integration.
+            If the names in init_cells are not find in the adata.obs_name, it will be treated as cell indices and must be integers.
+        init_states: `numpy.ndarray` or None (default: None)
+            Initial cell states for the historical or future cell state prediction with numerical integration.
+        basis: `str` (default: 'pca')
             The embedding data to use.
         query_cell_str: `str` or `List` (default: `root`)
             a string that will be used as arugments for the query method of the pandas data frame (obs.query(query_cell_str)).
-        init_state: `numpy.ndarray` or None (default: None)
-            Initial cell states for the historical or future cell state prediction with numerical integration.
-        t_end: `float` (default 1)
+        t_end: `float` (default None)
             The length of the time period from which to predict cell state forward or backward over time. This is used
             by the odeint function.
         direction: `string` (default: both)
@@ -30,6 +28,8 @@ def Fate(adata, VecFld_true=None, basis='X', query_cell_str="steady_states=='roo
         average: `bool` (default: False)
             A boolean flag to determine whether to smooth the trajectory by calculating the average cell state at each time
             step.
+        VecFld_true: `function`
+            The true ODE function, useful when the data is generated through simulation. Replace VecFld arugment when this has been set.
         kwargs:
             Additional parameters that will be passed into the fate function.
 
@@ -38,18 +38,27 @@ def Fate(adata, VecFld_true=None, basis='X', query_cell_str="steady_states=='roo
         adata: :class:`~anndata.AnnData`
             AnnData object that is updated with the dictionary Fate (includes `t` and `prediction` keys) in uns attribute.
     """
-    cell_index = adata.obs.query(query_cell_str).index
-    if init_state is None:
-        init_state = adata[cell_index, :].X if basis is 'X' else adata[cell_index, :].obsm['X_' + basis]
-
+    if init_cells is not None:
+        intersect_cell_names = list(set(init_cells).intersection(adata.obs_names))
         if basis is 'X' and 'use_for_dynamo' in adata.var_keys():
-            init_state = init_state[:, adata.var.use_for_dynamo]
+            _init_states = init_states[:, adata.var.use_for_dynamo]
+        else:
+            _init_states = adata.obsm['X_' + basis][init_cells, :] if len(intersect_cell_names) == 0 else \
+                adata[intersect_cell_names].obsm['X_' + basis].copy()
 
-    if issparse(init_state):
-        init_state = init_state.A
+    if init_states is None: init_states = _init_states
 
     VecFld = adata.uns['VecFld']["VecFld"] if basis is 'X' else adata.uns['VecFld_' + basis]["VecFld"]
-    t, prediction = fate(VecFld, init_state, VecFld_true=VecFld_true, direction=direction, t_end=t_end, average=average, **kwargs)
+
+    if t_end is None:
+        xmin, xmax = adata.obsm['X_pca'].min(0), adata.obsm['X_pca'].max(0)
+        t_end = max(xmax - xmin)[0] / np.min(np.abs(VecFld['grid_V']))
+
+    if issparse(init_states):
+        init_states = init_states.A
+
+    VecFld = adata.uns['VecFld']["VecFld"] if basis is 'X' else adata.uns['VecFld_' + basis]["VecFld"]
+    t, prediction, avg = fate(VecFld, init_states, VecFld_true=VecFld_true, direction=direction, t_end=t_end, average=average, **kwargs)
 
     if VecFld_true is None:
         fate_key = 'Fate' if basis is 'X' else 'Fate_' + basis
@@ -58,7 +67,7 @@ def Fate(adata, VecFld_true=None, basis='X', query_cell_str="steady_states=='roo
         adata.uns["Fate_true"] = {'t': t, 'prediction': prediction}
 
 
-def fate(VecFld, init_state, VecFld_true = None, t_end=1, step_size=None, direction='both', average=False):
+def fate(VecFld, init_states, VecFld_true = None, t_end=1, step_size=None, direction='both', average=False):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector field
     functions from one or a set of initial cell state(s).
 
@@ -67,7 +76,7 @@ def fate(VecFld, init_state, VecFld_true = None, t_end=1, step_size=None, direct
         VecFld: `function`
             Functional form of the vector field reconstructed from sparse single cell samples. It is applicable to the entire
             transcriptomic space.
-        init_state: `numpy.ndarray`
+        init_states: `numpy.ndarray`
             Initial cell states for the historical or future cell state prediction with numerical integration.
         VecFld_true: `function`
             The true ODE function, useful when the data is generated through simulation. Replace VecFld arugment when this has been set.
@@ -88,7 +97,7 @@ def fate(VecFld, init_state, VecFld_true = None, t_end=1, step_size=None, direct
     t: `numpy.ndarray`
         The time at which the cell state are predicted.
     prediction: `numpy.ndarray`
-        Predicted cells states at different time points. Row order corresponds to the element order in t. If init_state
+        Predicted cells states at different time points. Row order corresponds to the element order in t. If init_states
         corresponds to multiple cells, the expression dynamics over time for each cell is concatenated by rows. That is,
         the final dimension of prediction is (len(t) * n_cells, n_features). n_cells: number of cells; n_features: number
         of genes or number of low dimensional embeddings. Of note, if the average is set to be True, the average cell state
@@ -98,42 +107,40 @@ def fate(VecFld, init_state, VecFld_true = None, t_end=1, step_size=None, direct
     V_func = lambda x, t: vector_field_function(x=x, t=t, VecFld=VecFld) if VecFld_true is None else VecFld_true
 
     if step_size is None:
-        t1=np.linspace(0, t_end, 250)
+        t_linspace = np.linspace(0, t_end, 10**int(np.log10(t_end)))
     else:
-        t1 = np.arange(0, t_end + step_size, step_size)
-    n_cell, n_feature, n_steps = init_state.shape[0], init_state.shape[1], len(t1)
+        t_linspace = np.arange(0, t_end + step_size, step_size)
 
-    if direction is 'both':
-        t0 = - t1 #[::-1] # reverse and negate the time-points
+    n_cell, n_feature, n_steps = init_states.shape[0], init_states.shape[1], len(t_linspace)
 
-        history, future = np.zeros((n_cell * n_steps, n_feature)), np.zeros((n_cell * n_steps, n_feature))
+    if direction == 'both':
+        prediction = np.zeros((n_cell * n_steps * 2, n_feature))
+
+        avg = np.zeros((n_steps * 2, n_feature))
+
         for i in range(n_cell):
-            history[(n_steps * i):(n_steps * (i + 1)), :] = odeint(V_func, init_state[i, :], t=t0)
-            future[(n_steps * i):(n_steps * (i + 1)), :] = odeint(V_func, init_state[i, :], t=t1)
-        t, prediction = np.hstack((t0, t1)), np.vstack((history, future))
-    elif direction is 'forward':
+            t, y = integrate_vf(init_states[i, :], t_linspace, {}, direction, V_func)
+            prediction[(n_steps * i * 2):(n_steps * (i + 1) * 2), :] = y
+
+            for j in range(len(t)):
+                avg[j, :] = np.mean(prediction[np.array(range(n_cell)) * n_steps + i, :], 0)
+
+    elif direction in ['forward', 'backward']:
         prediction = np.zeros((n_cell * n_steps, n_feature))
+        avg = np.zeros((n_steps, n_feature))
 
         for i in range(n_cell):
-            prediction[(n_steps * i):(n_steps * (i + 1)), :] = odeint(V_func, init_state[i, :], t=t1)
-        t=t1
-    elif direction is "backward":
-        t0 = - t1 #[::-1] # reverse and negate the time-points
-        prediction = np.zeros((n_cell * n_steps, n_feature))
-        for i in range(n_cell):
-            prediction[(n_steps * i):(n_steps * (i + 1)), :] = odeint(V_func, init_state[i, :], t=t0)
-        t=t0
+            t, y = integrate_vf(init_states[i, :], t_linspace, {}, direction, V_func)
+            prediction[(n_steps * i):(n_steps * (i + 1)), :] = y
+
+            for j in range(len(t)):
+                avg[j, :] = np.mean(prediction[np.array(range(n_cell)) * n_steps + i, :], 0)
     else:
-        raise Exception('both, forward, backward are the only valid direction argument string')
+        raise Exception('both, forward, backward are the only valid direction argument strings')
 
-    if average:
-        avg = np.zeros((len(t), init_state.shape[1]))
+    if average: prediction = avg
 
-        for i in range(len(t)):
-            avg[i, :] = np.mean(prediction[np.array(range(n_cell)) * n_steps + i, :], 0)
-        prediction = avg
-
-    return t, prediction
+    return t, prediction, avg
 
 # def fate_(adata, time, direction = 'forward'):
 #     from .moments import *
