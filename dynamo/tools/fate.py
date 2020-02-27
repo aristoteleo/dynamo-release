@@ -52,7 +52,7 @@ def Fate(adata, init_cells, init_states=None, basis='pca', t_end=None, direction
 
     if t_end is None:
         xmin, xmax = adata.obsm['X_pca'].min(0), adata.obsm['X_pca'].max(0)
-        t_end = max(xmax - xmin)[0] / np.min(np.abs(VecFld['grid_V']))
+        t_end = max(xmax - xmin) / np.min(np.abs(VecFld['V']))
 
     if issparse(init_states):
         init_states = init_states.A
@@ -104,10 +104,10 @@ def fate(VecFld, init_states, VecFld_true = None, t_end=1, step_size=None, direc
         at each time point is calculated for all cells.
     """
 
-    V_func = lambda x, t: vector_field_function(x=x, t=t, VecFld=VecFld) if VecFld_true is None else VecFld_true
+    V_func = lambda x: vector_field_function(x=x, t=None, VecFld=VecFld) if VecFld_true is None else VecFld_true
 
     if step_size is None:
-        t_linspace = np.linspace(0, t_end, 10**int(np.log10(t_end)))
+        t_linspace = np.linspace(0, t_end, 10**(max(int(np.log10(t_end)), 6)))
     else:
         t_linspace = np.arange(0, t_end + step_size, step_size)
 
@@ -119,7 +119,7 @@ def fate(VecFld, init_states, VecFld_true = None, t_end=1, step_size=None, direc
         avg = np.zeros((n_steps * 2, n_feature))
 
         for i in range(n_cell):
-            t, y = integrate_vf(init_states[i, :], t_linspace, {}, direction, V_func)
+            t, y = integrate_vf(init_states[i, :], t_linspace, (), direction, V_func)
             prediction[(n_steps * i * 2):(n_steps * (i + 1) * 2), :] = y
 
             for j in range(len(t)):
