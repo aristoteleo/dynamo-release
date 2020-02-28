@@ -187,8 +187,9 @@ def pca(adata, X, n_pca_components, pca_key):
     CM = X[:, valid_ind]
 
     if adata.n_obs < 100000:
-        fit = PCA(n_components=n_pca_components, svd_solver='arpack', random_state=0)
-        X_pca = fit.fit_transform(CM.toarray()) if issparse(X) else fit.fit_transform(X)
+        pca = PCA(n_components=n_pca_components, svd_solver='arpack', random_state=0)
+        fit = pca.fit(CM.toarray()) if issparse(CM) else pca.fit(CM)
+        X_pca = fit.transform(CM.toarray()) if issparse(CM) else fit.fit(CM)
         adata.obsm[pca_key] = X_pca
 
         adata.uns['explained_variance_ratio_'] = fit.explained_variance_ratio_

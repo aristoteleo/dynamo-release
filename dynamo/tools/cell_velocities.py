@@ -112,13 +112,24 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_b
 
         # number of kNN in neighbor_idx may be too small
         if n_pca_components is not None:
-            pca = PCA(n_components=min(n_pca_components, X.shape[1] - 1), svd_solver='arpack', random_state=0)
-            pca.fit(X)
-            X_pca = pca.transform(X)
-            Y_pca = pca.transform(X + V_mat)
+            if 'pca_fit' not in adata.uns_keys() or type(adata.uns['pca_fit']) == str:
+                pca = PCA(n_components=min(n_pca_components, X.shape[1] - 1), svd_solver='arpack', random_state=0)
+                pca_fit = pca.fit(X)
+                adata.uns['pca_fit'] = pca_fit
+                X_pca = pca_fit.transform(X)
+                adata.obsm['X_pca'] = X_pca
+            else:
+                pca_fit = adata.uns['pca_fit']
+                if 'X_pca' in adata.obsm_keys():
+                    X_pca = adata.obsm['X_pca']
+                else:
+                    X_pca = pca_fit.transform(X)
+                    adata.obsm['X_pca'] = X_pca
+
+            Y_pca = pca_fit.transform(X + V_mat)
             V_pca = Y_pca - X_pca
 
-            adata.obsm['velocity_pca'], adata.obsm['velocity_pca'] = X_pca, V_pca
+            adata.obsm['X_pca'], adata.obsm['velocity_pca'] = X_pca, V_pca
             X, V_mat = X_pca[:, :n_pca_components], V_pca[:, :n_pca_components]
 
         if neighbors_from_basis:

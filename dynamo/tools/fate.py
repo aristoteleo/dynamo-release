@@ -60,6 +60,9 @@ def Fate(adata, init_cells, init_states=None, basis='pca', t_end=None, direction
     VecFld = adata.uns['VecFld']["VecFld"] if basis is 'X' else adata.uns['VecFld_' + basis]["VecFld"]
     t, prediction = fate(VecFld, init_states, VecFld_true=VecFld_true, direction=direction, t_end=t_end, average=average, **kwargs)
 
+    if basis == 'pca':
+        prediction = adata.uns['pca_fit'].inverse_transform(prediction)
+
     if VecFld_true is None:
         fate_key = 'Fate' if basis is 'X' else 'Fate_' + basis
         adata.uns[fate_key] = {'t': t, 'prediction': prediction}

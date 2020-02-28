@@ -761,7 +761,7 @@ def integrate_vf(init_states, t, args, integration_direction, f, interpolation_n
             raise Exception('both, forward, backward are the only valid direction argument strings')
 
         if interpolation_num is not None:
-            vids = np.where((np.diff(Y.T) < 1e-3).sum(0) < Y.shape[1])[0]
+            vids = np.where((np.diff(y.T) < 1e-3).sum(0) < y.shape[1])[0]
             valid_ids = vids if valid_ids is None else list(set(valid_ids).union(vids))
 
         Y = y if Y is None else np.hstack((Y, y))

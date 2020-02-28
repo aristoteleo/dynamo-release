@@ -203,7 +203,7 @@ def plot_traj(f, y0, t, args=(), lw=2, background=None, integration_direction='b
         ax = _plot_traj(y0, t, args, integration_direction, ax, color, lw, f)
     else:
         for i in range(y0.shape[0]):
-            cur_y0 = y0[0, None] # don't drop dimension
+            cur_y0 = y0[i, None] # don't drop dimension
             ax = _plot_traj(cur_y0, t, args, integration_direction, ax, color, lw, f)
 
     return ax
