@@ -58,7 +58,7 @@ def Fate(adata, init_cells, init_states=None, basis='pca', t_end=None, direction
         init_states = init_states.A
 
     VecFld = adata.uns['VecFld']["VecFld"] if basis is 'X' else adata.uns['VecFld_' + basis]["VecFld"]
-    t, prediction, avg = fate(VecFld, init_states, VecFld_true=VecFld_true, direction=direction, t_end=t_end, average=average, **kwargs)
+    t, prediction = fate(VecFld, init_states, VecFld_true=VecFld_true, direction=direction, t_end=t_end, average=average, **kwargs)
 
     if VecFld_true is None:
         fate_key = 'Fate' if basis is 'X' else 'Fate_' + basis
@@ -67,7 +67,7 @@ def Fate(adata, init_cells, init_states=None, basis='pca', t_end=None, direction
         adata.uns["Fate_true"] = {'t': t, 'prediction': prediction}
 
 
-def fate(VecFld, init_states, VecFld_true = None, t_end=1, step_size=None, direction='both', average=False):
+def fate(VecFld, init_states, VecFld_true = None, t_end=1, step_size=None, direction='both', interpolation_num=250, average=False):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector field
     functions from one or a set of initial cell state(s).
 
@@ -88,6 +88,8 @@ def fate(VecFld, init_states, VecFld_true = None, t_end=1, step_size=None, direc
             and the step_size will be automatically calculated to ensure 250 total integration time-steps will be used.
         direction: `string` (default: both)
             The direction to predict the cell fate. One of the `forward`, `backward`or `both` string.
+        interpolation_num: `int` (default: 250)
+            The number of uniformly interpolated time points.
         average: `bool` (default: False)
             A boolean flag to determine whether to smooth the trajectory by calculating the average cell state at each time
             step.
@@ -107,40 +109,13 @@ def fate(VecFld, init_states, VecFld_true = None, t_end=1, step_size=None, direc
     V_func = lambda x: vector_field_function(x=x, t=None, VecFld=VecFld) if VecFld_true is None else VecFld_true
 
     if step_size is None:
-        t_linspace = np.linspace(0, t_end, 10**(max(int(np.log10(t_end)), 6)))
+        t_linspace = np.linspace(0, t_end, 10**(min(int(np.log10(t_end)), 7)))
     else:
         t_linspace = np.arange(0, t_end + step_size, step_size)
 
-    n_cell, n_feature, n_steps = init_states.shape[0], init_states.shape[1], len(t_linspace)
-
-    if direction == 'both':
-        prediction = np.zeros((n_cell * n_steps * 2, n_feature))
-
-        avg = np.zeros((n_steps * 2, n_feature))
-
-        for i in range(n_cell):
-            t, y = integrate_vf(init_states[i, :], t_linspace, (), direction, V_func)
-            prediction[(n_steps * i * 2):(n_steps * (i + 1) * 2), :] = y
-
-            for j in range(len(t)):
-                avg[j, :] = np.mean(prediction[np.array(range(n_cell)) * n_steps + i, :], 0)
-
-    elif direction in ['forward', 'backward']:
-        prediction = np.zeros((n_cell * n_steps, n_feature))
-        avg = np.zeros((n_steps, n_feature))
-
-        for i in range(n_cell):
-            t, y = integrate_vf(init_states[i, :], t_linspace, {}, direction, V_func)
-            prediction[(n_steps * i):(n_steps * (i + 1)), :] = y
-
-            for j in range(len(t)):
-                avg[j, :] = np.mean(prediction[np.array(range(n_cell)) * n_steps + i, :], 0)
-    else:
-        raise Exception('both, forward, backward are the only valid direction argument strings')
-
-    if average: prediction = avg
-
-    return t, prediction, avg
+    t, prediction = integrate_vf(init_states, t_linspace, (), direction, V_func, interpolation_num=interpolation_num,
+                                 average=average)
+    return t, prediction
 
 # def fate_(adata, time, direction = 'forward'):
 #     from .moments import *

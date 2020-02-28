@@ -203,7 +203,7 @@ def plot_traj(f, y0, t, args=(), lw=2, background=None, integration_direction='b
         ax = _plot_traj(y0, t, args, integration_direction, ax, color, lw, f)
     else:
         for i in range(y0.shape[0]):
-            cur_y0 = y0[i, :]
+            cur_y0 = y0[0, None] # don't drop dimension
             ax = _plot_traj(cur_y0, t, args, integration_direction, ax, color, lw, f)
 
     return ax
@@ -453,7 +453,7 @@ def topography(
         if t is None:
             max_t = max(np.diff(xlim), np.diff(ylim))[0] / np.min(np.abs(VF['grid_V']))
 
-            t = np.linspace(0, max_t, 10**(max(int(np.log10(max_t)), 8)))
+            t = np.linspace(0, max_t, 10**(min(int(np.log10(max_t)), 8)))
 
         integration_direction = 'both' if fate == 'both' else 'forward' if fate == 'future' else 'backward' if fate == 'history' else "both"
 

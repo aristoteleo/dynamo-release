@@ -156,6 +156,11 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_b
         if calc_rnd_vel:
             permute_rows_nsign(V_mat)
             T_rnd, delta_X_rnd, X_grid_rnd, V_grid_rnd, D_rnd = _empirical_vec(X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors)
+    elif method == 'transform':
+        X_v = umap_trans.transform(X + V_mat)
+        delta_X = X_v - X_embedding
+
+        X_grid, V_grid, D = velocity_on_grid(X_embedding, delta_X, xy_grid_nums=xy_grid_nums)
 
     adata.uns['transition_matrix'] = T
     adata.obsm['velocity_' + basis] = delta_X
