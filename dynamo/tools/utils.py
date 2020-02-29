@@ -745,16 +745,16 @@ def integrate_vf(init_states, t, args, integration_direction, f, interpolation_n
     for i in range(n_cell):
         y0 = init_states[i, :]
         if integration_direction == 'forward':
-            t = t
+            t_trans = t
             y = scipy.integrate.odeint(lambda x, t: f(x), y0, t, args=args)
         elif integration_direction == 'backward':
-            t = -t
+            t_trans = -t
             y = scipy.integrate.odeint(lambda x, t: f(x), y0, t, args=args)
         elif integration_direction == 'both':
             y_f = scipy.integrate.odeint(lambda x, t: f(x), y0, t, args=args)
             y_b = scipy.integrate.odeint(lambda x, t: f(x), y0, -t, args=args)
             y = np.vstack((y_b[::-1, :], y_f))
-            t = np.hstack((-t[::-1], t))
+            t_trans = np.hstack((-t[::-1], t))
 
             if interpolation_num is not None: interpolation_num = interpolation_num * 2
         else:
@@ -764,7 +764,7 @@ def integrate_vf(init_states, t, args, integration_direction, f, interpolation_n
             vids = np.where((np.diff(y.T) < 1e-3).sum(0) < y.shape[1])[0]
             valid_ids = vids if valid_ids is None else list(set(valid_ids).union(vids))
 
-        Y = y if Y is None else np.hstack((Y, y))
+        Y = y if Y is None else np.vstack((Y, y))
 
         if integration_direction == 'both' and average:
             avg[i, :] = np.mean(prediction[np.array(range(n_cell)) * 2 * n_steps + i, :], 0)
@@ -774,13 +774,14 @@ def integrate_vf(init_states, t, args, integration_direction, f, interpolation_n
     if average: Y = avg
 
     if interpolation_num is not None:
-        t, Y = t[valid_ids], Y[valid_ids, :]
+        valid_t_trans = t_trans[valid_ids]
 
         _Y = None
         for i in range(n_cell):
-            t_linspace = np.linspace(t[0], t[-1], interpolation_num)
-            f = interpolate.interp1d(t, Y[i:(i + 1) * len(t), :].T)
-            _Y = f(t_linspace) if _Y is None else np.vstack((_Y, f(t_linspace)))
+            cur_Y = Y[i:(i + 1) * len(t_trans), :][valid_ids, :]
+            t_linspace = np.linspace(valid_t_trans[0], valid_t_trans[-1], interpolation_num)
+            f = interpolate.interp1d(valid_t_trans, cur_Y.T)
+            _Y = f(t_linspace) if _Y is None else np.hstack((_Y, f(t_linspace)))
 
         t, Y = t_linspace, _Y.T
 

@@ -32,7 +32,7 @@ from .Ao import Ao_pot_map
 from .fate import Fate, fate
 
 # dimension reduction related
-from .dimension_reduction import reduceDimension
+from .dimension_reduction import reduceDimension #, run_umap
 
 # mnn related
 from .connectivity import mnn, smoother

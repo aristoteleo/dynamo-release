@@ -135,7 +135,8 @@ def kinetic_heatmap(adata, genes, mode='vector_field', basis='X', project_back_t
 
     valid_genes = list(set(genes).intersection(adata.var.index))
 
-    time = adata.obs[time].values if mode is not 'vector_field' else adata.uns['Fate']['t']
+    fate_key = 'Fate' if basis is 'X' else 'Fate_' + basis
+    time = adata.obs[time].values if mode is not 'vector_field' else adata.uns[fate_key]['t']
     time = time[np.isfinite(time)]
 
     if mode is not 'vector_field':
@@ -151,7 +152,7 @@ def kinetic_heatmap(adata, genes, mode='vector_field', basis='X', project_back_t
         if basis is 'X':
             exprs = adata.uns['Fate']['prediction'][:, adata.var.index.isin(valid_genes)].T
         else:
-            exprs = adata.uns['Fate_' + basis]['prediction'].T
+            exprs = adata.uns[fate_key]['prediction'].T
             if project_back_to_high_dim is False:
                 valid_genes = [basis + '_' + str(i) for i in np.arange(exprs.shape[1])]
             else:
