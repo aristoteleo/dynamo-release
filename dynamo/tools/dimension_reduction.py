@@ -1,6 +1,3 @@
-from sklearn.decomposition import PCA, TruncatedSVD
-from scipy.sparse import issparse
-import umap
 import warnings
 from .psl import *
 
@@ -8,7 +5,6 @@ from .utils import update_dict
 from .connectivity import umap_conn_indices_dist_embedding, extract_indices_dist_from_graph
 from ..preprocessing.utils import pca
 
-from .connectivity import docstrings
 
 def reduceDimension(adata,
                     layer='X',
@@ -111,12 +107,13 @@ def reduceDimension(adata,
         umap_kwargs = update_dict(_umap_kwargs, kwargs)
 
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore") # , **umap_kwargs
-            mapper, graph, knn_indices, knn_dists, X_dim = umap_conn_indices_dist_embedding(X_pca, n_neighbors) # X_pca
+            warnings.simplefilter("ignore")
+            mapper, graph, knn_indices, knn_dists, X_dim = umap_conn_indices_dist_embedding(X_pca, n_neighbors, **umap_kwargs) # X_pca
 
         adata.obsm[embedding_key] = X_dim
         adata.uns[neighbor_key] = {'params': {'n_neighbors': n_neighbors, 'method': reduction_method}, 'connectivities': graph, \
-                                  'distances': knn_dists, 'indices': knn_indices, "mapper": mapper}
+                                  'distances': knn_dists, 'indices': knn_indices}
+        adata.uns['umap_fit'] = mapper
     elif reduction_method is 'psl':
         adj_mat, X_dim = psl_py(X_pca, d=n_components, K=n_neighbors) # this need to be updated
         adata.obsm[embedding_key] = X_dim

@@ -60,15 +60,28 @@ def Fate(adata, init_cells, init_states=None, basis='pca', t_end=None, direction
     VecFld = adata.uns['VecFld']["VecFld"] if basis is 'X' else adata.uns['VecFld_' + basis]["VecFld"]
     t, prediction = fate(VecFld, init_states, VecFld_true=VecFld_true, direction=direction, t_end=t_end, average=average, **kwargs)
 
-    # if basis == 'pca':
-    #     prediction = adata.uns['pca_fit'].inverse_transform(prediction)
+    high_prediction = None
+    if basis == 'pca':
+        high_prediction = adata.uns['pca_fit'].inverse_transform(prediction)
+    elif basis == 'umap':
+        # this requires umap 0.4 
+        high_prediction = adata.uns['umap_fit'].inverse_transform(prediction)
+        ndim = adata.uns['umap_fit']._raw_data.shape[1]
+
+        if 'X_pca' in adata.obsm_keys():
+            if ndim == adata.obsm['X_pca'].shape[1]: # lift the dimension up again
+                high_prediction = adata.uns['pca_fit'].inverse_transform(high_prediction)
+
+    fate_key = 'Fate' if basis is 'X' else 'Fate_' + basis
 
     if VecFld_true is None:
-        fate_key = 'Fate' if basis is 'X' else 'Fate_' + basis
-        adata.uns[fate_key] = {'t': t, 'prediction': prediction}
+        adata.uns[fate_key] = {'t': t, 'prediction': prediction, 'VecFld_true': VecFld_true} if high_prediction is None \
+            else {'t': t, 'prediction': prediction, 'high_prediction': high_prediction, 'VecFld_true': VecFld_true}
     else:
-        adata.uns["Fate_true"] = {'t': t, 'prediction': prediction}
+        adata.uns[fate_key] = {'t': t, 'prediction': prediction} if high_prediction is None \
+            else {'t': t, 'prediction': prediction, 'high_prediction': high_prediction}
 
+    return adata
 
 def fate(VecFld, init_states, VecFld_true = None, t_end=1, step_size=None, direction='both', interpolation_num=250, average=False):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector field
