@@ -6,7 +6,7 @@ from ..docrep import DocstringProcessor
 docstrings = DocstringProcessor()
 
 @docstrings.get_sectionsf('kin_curves')
-def kinetic_curves(adata, genes, mode='vector_field', basis='pca', project_back_to_high_dim=True, layer='X', time='pseudotime', \
+def kinetic_curves(adata, genes, mode='vector_field', basis=None, layer='X', project_back_to_high_dim=True, time='pseudotime', \
                    dist_threshold=1e-10, ncol=4, color=None, c_palette='Set2'):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) as kinetic curves.
 
@@ -19,15 +19,15 @@ def kinetic_curves(adata, genes, mode='vector_field', basis='pca', project_back_
         mode: `str` (default: `vector_field`)
             Which data mode will be used, either vector_field or pseudotime. if mode is vector_field, the trajectory predicted by
             vector field function will be used, otherwise pseudotime trajectory (defined by time argument) will be used.
-        basis: `str` (default: `X`)
+        basis: `str` or None (default: `None`)
             The embedding data used for drawing the kinetic gene expression curves, only used when mode is `vector_field`.
+        layer: `str` (default: X)
+            Which layer of expression value will be used. Not used if mode is `vector_field`.
         project_back_to_high_dim: `bool` (default: `False`)
             Whether to map the coordinates in low dimension back to high dimension to visualize the gene expression curves,
             only used when mode is `vector_field` and basis is not `X`. Currently only works when basis is 'pca' and 'umap'.
         color: `list` or None (default: None)
             A list of attributes of cells (column names in the adata.obs) will be used to color cells.
-        layer: `str` (default: X)
-            Which layer of expression value will be used. Not used if mode is `vector_field`.
         time: `str` (default: `pseudotime`)
             The .obs column that will be used for timing each cell, only used when mode is `vector_field`.
         dist_threshold: `float` or None (default: 1e-10)
@@ -46,30 +46,7 @@ def kinetic_curves(adata, genes, mode='vector_field', basis='pca', project_back_
     import seaborn as sns
     import matplotlib.pyplot as plt
 
-    valid_genes = list(set(genes).intersection(adata.var.index))
-
-    fate_key = 'Fate' if basis is 'X' else 'Fate_' + basis
-    time = adata.obs[time].values if mode is not 'vector_field' else adata.uns[fate_key]['t']
-    time = time[np.isfinite(time)]
-
-    if mode is not 'vector_field':
-        if layer is 'X':
-            exprs = adata[:, adata.var.index.isin(valid_genes)].X
-        elif layer in adata.layers.keys():
-            exprs = adata[:, adata.var.index.isin(valid_genes)].layers[layer]
-        elif layer is 'protein': # update subset here
-            exprs = adata[:, adata.var.index.isin(valid_genes)].obsm[layer]
-        else:
-            raise Exception(f'The {layer} you passed in is not existed in the adata object.')
-    else:
-        if basis is 'X':
-            exprs = adata.uns['Fate']['prediction'][:, adata.var.index.isin(valid_genes)].T
-        else:
-            exprs = adata.uns[fate_key]['prediction'].T
-            if project_back_to_high_dim is False:
-                valid_genes = [basis + '_' + str(i) for i in np.arange(exprs.shape[1])]
-            else:
-                exprs = adata.uns[fate_key]['high_prediction'].T
+    exprs, valid_genes, time = fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim)
 
     Color = np.empty((0, 1))
     if color is not None and mode is not 'vector_field':
@@ -86,9 +63,8 @@ def kinetic_curves(adata, genes, mode='vector_field', basis='pca', project_back_
         exprs = exprs[valid_ind, :]
         #time = time[valid_ind]
 
-    exprs_df = pd.DataFrame({'Time': np.repeat(time, len(valid_ind)), 'Expression': exprs.flatten(), \
-                             'Gene': np.tile(valid_genes, exprs.shape[1])})
-
+    exprs_df = pd.DataFrame({'Time': np.repeat(time, len(valid_genes)), 'Expression': exprs.flatten(), \
+                             'Gene': np.tile(valid_genes, exprs.shape[0])})
 
     # https://stackoverflow.com/questions/43920341/python-seaborn-facetgrid-change-titles
     if len(Color) > 0:
@@ -106,9 +82,9 @@ def kinetic_curves(adata, genes, mode='vector_field', basis='pca', project_back_
 
 docstrings.delete_params('kin_curves.parameters', 'ncol', 'color', 'c_palette')
 @docstrings.with_indent(4)
-def kinetic_heatmap(adata, genes, mode='vector_field', basis='pca', project_back_to_high_dim=True, layer='X',
-                    time='pseudotime', dist_threshold=1e-10, color_map='viridis', half_max_ordering=True,
-                    show_col_color=False, cluster_row_col=(False, False), figsize=(11.5, 6), **kwargs):
+def kinetic_heatmap(adata, genes, mode='vector_field', basis='pca', layer='X', project_back_to_high_dim=True,
+                    time='pseudotime', dist_threshold=1e-10, color_map='viridis', half_max_ordering=False,
+                    show_col_color=False, cluster_row_col=[False, False], figsize=(11.5, 6), **kwargs):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) in a heatmap.
 
     Parameters
@@ -120,7 +96,7 @@ def kinetic_heatmap(adata, genes, mode='vector_field', basis='pca', project_back
             Whether to order genes into up, down and transit groups by the half max ordering algorithm. 
         show_col_color: `bool` (default: `False`)
             Whether to show the color bar.
-        cluster_row_col: `(bool, bool)` (default: `[False, False]`)
+        cluster_row_col: `[bool, bool]` (default: `[False, False]`)
             Whether to cluster the row or columns.
         figsize: `str` (default: `(11.5, 6)`
             Size of figure
@@ -134,35 +110,10 @@ def kinetic_heatmap(adata, genes, mode='vector_field', basis='pca', project_back
     import seaborn as sns
     import matplotlib.pyplot as plt
 
-    valid_genes = list(set(genes).intersection(adata.var.index))
-
-    fate_key = 'Fate' if basis is 'X' else 'Fate_' + basis
-    time = adata.obs[time].values if mode is not 'vector_field' else adata.uns[fate_key]['t']
-    time = time[np.isfinite(time)]
-
-    if mode is not 'vector_field':
-        if layer is 'X':
-            exprs = adata[:, adata.var.index.isin(valid_genes)].X.T
-        elif layer in adata.layers.keys():
-            exprs = adata[:, adata.var.index.isin(valid_genes)].layers[layer].T
-        elif layer is 'protein': # update subset here
-            exprs = adata[:, adata.var.index.isin(valid_genes)].obsm[layer].T
-        else:
-            raise Exception(f'The {layer} you passed in is not existed in the adata object.')
-    else:
-        if basis is 'X':
-            exprs = adata.uns['Fate']['prediction'][:, adata.var.index.isin(valid_genes)].T
-        else:
-            exprs = adata.uns[fate_key]['prediction'].T
-            if project_back_to_high_dim is False:
-                valid_genes = [basis + '_' + str(i) for i in np.arange(exprs.shape[0])]
-            else:
-                exprs = adata.uns[fate_key]['high_prediction'].T
+    exprs, valid_genes, time = fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim)
 
     exprs = exprs.A if issparse(exprs) else exprs
 
-    # time = np.sort(time)
-    # exprs = exprs[np.argsort(time), :]
     if dist_threshold is not None:
         valid_ind = list(np.where(np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold)[0] + 1)
         valid_ind.insert(0, 0)
@@ -170,9 +121,10 @@ def kinetic_heatmap(adata, genes, mode='vector_field', basis='pca', project_back
 
     if half_max_ordering:
         time, all, valid_ind =_half_max_ordering(exprs, time, interpolate=True, spaced_num=100)
-        df = pd.DataFrame(all, index=np.array(valid_genes)[valid_ind])
+        df = pd.DataFrame(all, index=valid_genes)
     else:
-        df = pd.DataFrame(exprs, index=np.array(valid_genes)[valid_ind])
+        cluster_row_col[1] = True
+        df = pd.DataFrame(exprs.T, index=valid_genes)
 
     heatmap_kwargs = dict(xticklabels=False, yticklabels='auto')
     if kwargs is not None:
@@ -262,3 +214,38 @@ def _half_max_ordering(exprs, time, interpolate=False, spaced_num=100):
     all = np.vstack((up, down, trans))
 
     return time, all, np.isfinite(nt[:, 0]) & np.isfinite(nt[:, -1])
+
+def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim):
+    import pandas as pd
+
+    if basis is not None:
+        fate_key = 'fate_' + basis
+    else:
+        fate_key = 'fate' if layer == 'X' else 'fate_' + layer
+
+    time = adata.obs[time].values if mode is not 'vector_field' else adata.uns[fate_key]['t']
+    time = time[np.isfinite(time)]
+
+    if mode is not 'vector_field':
+        valid_genes = list(set(genes).intersection(adata.var.index))
+
+        if layer is 'X':
+            exprs = adata[np.isfinite(time), valid_genes].X
+        elif layer in adata.layers.keys():
+            exprs = adata[np.isfinite(time), valid_genes].layers[layer]
+        elif layer is 'protein': # update subset here
+            exprs = adata[np.isfinite(time), valid_genes].obsm[layer]
+        else:
+            raise Exception(f'The {layer} you passed in is not existed in the adata object.')
+    else:
+        fate_genes = adata.uns[fate_key]['genes']
+        valid_genes = list(set(genes).intersection(fate_genes))
+
+        if project_back_to_high_dim:
+            exprs = adata.uns[fate_key]['high_prediction']
+            exprs = exprs[np.isfinite(time), :][:, pd.Series(fate_genes).isin(valid_genes)]
+        else:
+            exprs = adata.uns[fate_key]['prediction'][np.isfinite(time), :].T
+            valid_genes = [basis + '_' + str(i) for i in np.arange(exprs.shape[1])]
+
+    return exprs, valid_genes, time

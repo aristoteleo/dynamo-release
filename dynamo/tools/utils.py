@@ -32,9 +32,10 @@ def update_dict(dict1, dict2):
     return dict1
 
 
-def closest_node(node, nodes):
-    nodes = np.asarray(nodes)
-    dist_2 = np.sum((nodes - node) ** 2, axis=1)
+def closest_cell(coord, cells):
+    cells = np.asarray(cells)
+    dist_2 = np.sum((cells - coord) ** 2, axis=1)
+
     return np.argmin(dist_2)
 
 
@@ -45,8 +46,6 @@ def elem_prod(X, Y):
         return Y.multiply(X)
     else:
         return np.multiply(X, Y)
-
-
 # ---------------------------------------------------------------------------------------------------
 # moment related:
 def calc_12_mom_labeling(data, t):
@@ -734,10 +733,8 @@ def integrate_vf(init_states, t, args, integration_direction, f, interpolation_n
 
     if n_cell > 1:
         if integration_direction == 'both':
-            prediction = np.zeros((n_cell * n_steps * 2, n_feature))
             if average: avg = np.zeros((n_steps * 2, n_feature))
         else:
-            prediction = np.zeros((n_cell * n_steps, n_feature))
             if average: avg = np.zeros((n_steps, n_feature))
 
     Y = None
@@ -779,7 +776,7 @@ def integrate_vf(init_states, t, args, integration_direction, f, interpolation_n
 
         t, Y = _t, _Y.T
 
-    if average:
+    if n_cell > 1 and average:
         t_len = int(len(t)/n_cell / 2) if integration_direction == 'both' else int(len(t)/n_cell)
         for i in range(t_len):
             avg[i, :] = np.mean(Y[np.arange(n_cell) * t_len + i, :], 0)
