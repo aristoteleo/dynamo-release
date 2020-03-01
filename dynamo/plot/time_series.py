@@ -64,7 +64,12 @@ def kinetic_curves(adata, genes, mode='vector_field', basis=None, layer='X', pro
         #time = time[valid_ind]
 
     exprs_df = pd.DataFrame({'Time': np.repeat(time, len(valid_genes)), 'Expression': exprs.flatten(), \
-                             'Gene': np.tile(valid_genes, exprs.shape[0])})
+                             'Gene': np.tile(valid_genes, len(time))})
+    exprs_df = exprs_df.query("Gene in @genes")
+    
+    if exprs_df.shape[0]:
+        raise Exception('No genes you provided are detected. Please make sure the genes provided are from the genes '
+                        'used for vector field reconstructed when layer is set.')
 
     # https://stackoverflow.com/questions/43920341/python-seaborn-facetgrid-change-titles
     if len(Color) > 0:
@@ -82,7 +87,7 @@ def kinetic_curves(adata, genes, mode='vector_field', basis=None, layer='X', pro
 
 docstrings.delete_params('kin_curves.parameters', 'ncol', 'color', 'c_palette')
 @docstrings.with_indent(4)
-def kinetic_heatmap(adata, genes, mode='vector_field', basis='pca', layer='X', project_back_to_high_dim=True,
+def kinetic_heatmap(adata, genes, mode='vector_field', basis=None, layer='X', project_back_to_high_dim=True,
                     time='pseudotime', dist_threshold=1e-10, color_map='viridis', half_max_ordering=False,
                     show_col_color=False, cluster_row_col=[False, False], figsize=(11.5, 6), **kwargs):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) in a heatmap.
@@ -215,6 +220,7 @@ def _half_max_ordering(exprs, time, interpolate=False, spaced_num=100):
 
     return time, all, np.isfinite(nt[:, 0]) & np.isfinite(nt[:, -1])
 
+
 def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim):
     import pandas as pd
 
@@ -241,11 +247,14 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
         fate_genes = adata.uns[fate_key]['genes']
         valid_genes = list(set(genes).intersection(fate_genes))
 
-        if project_back_to_high_dim:
+        if project_back_to_high_dim and basis is not None:
             exprs = adata.uns[fate_key]['high_prediction']
             exprs = exprs[np.isfinite(time), :][:, pd.Series(fate_genes).isin(valid_genes)]
-        else:
-            exprs = adata.uns[fate_key]['prediction'][np.isfinite(time), :].T
+        elif project_back_to_high_dim is False and basis is not None:
+            exprs = adata.uns[fate_key]['prediction'][np.isfinite(time), :]
             valid_genes = [basis + '_' + str(i) for i in np.arange(exprs.shape[1])]
+        else:
+            exprs = adata.uns[fate_key]['prediction'][np.isfinite(time), :]
+            valid_genes = adata.var_names[adata.var.use_for_velocity]
 
     return exprs, valid_genes, time

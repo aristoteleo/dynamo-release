@@ -65,7 +65,8 @@ def fate(adata, init_cells, init_states=None, basis=None, layer='X', genes=None,
         #     else adata.var_names[adata.var.use_for_velocity]
         # ----------- enable the function to only only a subset genes -----------
 
-        valid_genes = adata.var_names[adata.var.use_for_velocity]
+        vf_key = 'VecFld' if layer == 'X' else 'VecFld_' + layer
+        valid_genes = adata.uns[vf_key]['genes']
         _init_states = adata[:, valid_genes].X if layer == 'X' else adata[:, valid_genes].layers[layer]
         if issparse(_init_states): _init_states = _init_states.A
         if layer == 'X':
@@ -167,7 +168,7 @@ def _fate(VecFld, init_states, VecFld_true = None, t_end=1, step_size=None, dire
     V_func = lambda x: vector_field_function(x=x, t=None, VecFld=VecFld) if VecFld_true is None else VecFld_true
 
     if step_size is None:
-        max_steps = (7 / (init_states.shape[1] / 300), 4)
+        max_steps = int(max(7 / (init_states.shape[1] / 300), 4)) if init_states.shape[1] > 300 else 7
         t_linspace = np.linspace(0, t_end, 10**(np.min([int(np.log10(t_end)), max_steps])))
     else:
         t_linspace = np.arange(0, t_end + step_size, step_size)
