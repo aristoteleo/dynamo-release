@@ -66,8 +66,8 @@ def kinetic_curves(adata, genes, mode='vector_field', basis=None, layer='X', pro
     exprs_df = pd.DataFrame({'Time': np.repeat(time, len(valid_genes)), 'Expression': exprs.flatten(), \
                              'Gene': np.tile(valid_genes, len(time))})
     exprs_df = exprs_df.query("Gene in @genes")
-    
-    if exprs_df.shape[0]:
+
+    if exprs_df.shape[0] == 0:
         raise Exception('No genes you provided are detected. Please make sure the genes provided are from the genes '
                         'used for vector field reconstructed when layer is set.')
 
@@ -247,14 +247,15 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
         fate_genes = adata.uns[fate_key]['genes']
         valid_genes = list(set(genes).intersection(fate_genes))
 
-        if project_back_to_high_dim and basis is not None:
-            exprs = adata.uns[fate_key]['high_prediction']
-            exprs = exprs[np.isfinite(time), :][:, pd.Series(fate_genes).isin(valid_genes)]
-        elif project_back_to_high_dim is False and basis is not None:
-            exprs = adata.uns[fate_key]['prediction'][np.isfinite(time), :]
-            valid_genes = [basis + '_' + str(i) for i in np.arange(exprs.shape[1])]
+        if basis is not None:
+            if project_back_to_high_dim:
+                exprs = adata.uns[fate_key]['high_prediction']
+                exprs = exprs[np.isfinite(time), :][:, pd.Series(fate_genes).isin(valid_genes)]
+            else:
+                exprs = adata.uns[fate_key]['prediction'][np.isfinite(time), :]
+                valid_genes = [basis + '_' + str(i) for i in np.arange(exprs.shape[1])]
         else:
             exprs = adata.uns[fate_key]['prediction'][np.isfinite(time), :]
-            valid_genes = adata.var_names[adata.var.use_for_velocity]
+            valid_genes = fate_genes
 
     return exprs, valid_genes, time
