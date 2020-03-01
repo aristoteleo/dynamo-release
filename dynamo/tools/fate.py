@@ -3,7 +3,7 @@ from scipy.sparse import issparse
 from .utils import vector_field_function, integrate_vf
 
 
-def Fate(adata, init_cells, init_states=None, basis='pca', t_end=None, direction='both', average=False, VecFld_true=None, **kwargs):
+def Fate(adata, init_cells, init_states=None, basis='pca', t_end=None, direction='both', average=True, VecFld_true=None, **kwargs):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector field
     functions from one or a set of initial cell state(s).
 
@@ -25,7 +25,7 @@ def Fate(adata, init_cells, init_states=None, basis='pca', t_end=None, direction
             by the odeint function.
         direction: `string` (default: both)
             The direction to predict the cell fate. One of the `forward`, `backward` or `both` string.
-        average: `bool` (default: False)
+        average: `bool` (default: True)
             A boolean flag to determine whether to smooth the trajectory by calculating the average cell state at each time
             step.
         VecFld_true: `function`
@@ -64,7 +64,7 @@ def Fate(adata, init_cells, init_states=None, basis='pca', t_end=None, direction
     if basis == 'pca':
         high_prediction = adata.uns['pca_fit'].inverse_transform(prediction)
     elif basis == 'umap':
-        # this requires umap 0.4 
+        # this requires umap 0.4
         high_prediction = adata.uns['umap_fit'].inverse_transform(prediction)
         ndim = adata.uns['umap_fit']._raw_data.shape[1]
 
@@ -83,7 +83,7 @@ def Fate(adata, init_cells, init_states=None, basis='pca', t_end=None, direction
 
     return adata
 
-def fate(VecFld, init_states, VecFld_true = None, t_end=1, step_size=None, direction='both', interpolation_num=250, average=False):
+def fate(VecFld, init_states, VecFld_true = None, t_end=1, step_size=None, direction='both', interpolation_num=250, average=True):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector field
     functions from one or a set of initial cell state(s).
 
@@ -106,7 +106,7 @@ def fate(VecFld, init_states, VecFld_true = None, t_end=1, step_size=None, direc
             The direction to predict the cell fate. One of the `forward`, `backward`or `both` string.
         interpolation_num: `int` (default: 250)
             The number of uniformly interpolated time points.
-        average: `bool` (default: False)
+        average: `bool` (default: True)
             A boolean flag to determine whether to smooth the trajectory by calculating the average cell state at each time
             step.
 

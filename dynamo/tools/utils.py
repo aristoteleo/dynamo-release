@@ -745,11 +745,11 @@ def integrate_vf(init_states, t, args, integration_direction, f, interpolation_n
     for i in range(n_cell):
         y0 = init_states[i, :]
         if integration_direction == 'forward':
+            y = scipy.integrate.odeint(lambda x, t: f(x), y0, t, args=args)
             t_trans = t
-            y = scipy.integrate.odeint(lambda x, t: f(x), y0, t, args=args)
         elif integration_direction == 'backward':
+            y = scipy.integrate.odeint(lambda x, t: f(x), y0, -t, args=args)
             t_trans = -t
-            y = scipy.integrate.odeint(lambda x, t: f(x), y0, t, args=args)
         elif integration_direction == 'both':
             y_f = scipy.integrate.odeint(lambda x, t: f(x), y0, t, args=args)
             y_b = scipy.integrate.odeint(lambda x, t: f(x), y0, -t, args=args)
@@ -766,23 +766,23 @@ def integrate_vf(init_states, t, args, integration_direction, f, interpolation_n
 
         Y = y if Y is None else np.vstack((Y, y))
 
-        if integration_direction == 'both' and average:
-            avg[i, :] = np.mean(prediction[np.array(range(n_cell)) * 2 * n_steps + i, :], 0)
-        elif integration_direction in ['forward', 'backward'] and average:
-            avg[i, :] = np.mean(prediction[np.array(range(n_cell)) * n_steps + i, :], 0)
-
-    if average: Y = avg
-
     if interpolation_num is not None:
         valid_t_trans = t_trans[valid_ids]
 
-        _Y = None
+        _t, _Y = None, None
         for i in range(n_cell):
             cur_Y = Y[i:(i + 1) * len(t_trans), :][valid_ids, :]
             t_linspace = np.linspace(valid_t_trans[0], valid_t_trans[-1], interpolation_num)
             f = interpolate.interp1d(valid_t_trans, cur_Y.T)
             _Y = f(t_linspace) if _Y is None else np.hstack((_Y, f(t_linspace)))
+            _t = t_linspace if _t is None else np.hstack((_t, t_linspace))
 
-        t, Y = t_linspace, _Y.T
+        t, Y = _t, _Y.T
+
+    if average:
+        t_len = int(len(t)/n_cell / 2) if integration_direction == 'both' else int(len(t)/n_cell)
+        for i in range(t_len):
+            avg[i, :] = np.mean(Y[np.arange(n_cell) * t_len + i, :], 0)
+        Y = avg
 
     return t, Y

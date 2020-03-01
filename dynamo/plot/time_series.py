@@ -6,7 +6,7 @@ from ..docrep import DocstringProcessor
 docstrings = DocstringProcessor()
 
 @docstrings.get_sectionsf('kin_curves')
-def kinetic_curves(adata, genes, mode='vector_field', basis='X', project_back_to_high_dim=False, layer='X', time='pseudotime', \
+def kinetic_curves(adata, genes, mode='vector_field', basis='pca', project_back_to_high_dim=True, layer='X', time='pseudotime', \
                    dist_threshold=1e-10, ncol=4, color=None, c_palette='Set2'):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) as kinetic curves.
 
@@ -48,7 +48,8 @@ def kinetic_curves(adata, genes, mode='vector_field', basis='X', project_back_to
 
     valid_genes = list(set(genes).intersection(adata.var.index))
 
-    time = adata.obs[time].values if mode is not 'vector_field' else adata.uns['Fate']['t']
+    fate_key = 'Fate' if basis is 'X' else 'Fate_' + basis
+    time = adata.obs[time].values if mode is not 'vector_field' else adata.uns[fate_key]['t']
     time = time[np.isfinite(time)]
 
     if mode is not 'vector_field':
@@ -62,13 +63,13 @@ def kinetic_curves(adata, genes, mode='vector_field', basis='X', project_back_to
             raise Exception(f'The {layer} you passed in is not existed in the adata object.')
     else:
         if basis is 'X':
-            exprs = adata.uns['Fate']['prediction'][:, adata.var.index.isin(valid_genes)]
+            exprs = adata.uns['Fate']['prediction'][:, adata.var.index.isin(valid_genes)].T
         else:
-            exprs = adata.uns['Fate_' + basis]['prediction']
+            exprs = adata.uns[fate_key]['prediction'].T
             if project_back_to_high_dim is False:
                 valid_genes = [basis + '_' + str(i) for i in np.arange(exprs.shape[1])]
             else:
-                exprs = adata.uns[basis + '_fit'].inverse_transform(exprs)
+                exprs = adata.uns[fate_key]['high_prediction'].T
 
     Color = np.empty((0, 1))
     if color is not None and mode is not 'vector_field':
@@ -83,10 +84,10 @@ def kinetic_curves(adata, genes, mode='vector_field', basis='X', project_back_to
         valid_ind = list(np.where(np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold)[0] + 1)
         valid_ind.insert(0, 0)
         exprs = exprs[valid_ind, :]
-        time = time[valid_ind]
+        #time = time[valid_ind]
 
-    exprs_df = pd.DataFrame({'Time': np.repeat(time, len(valid_genes)), 'Expression': exprs.flatten(), \
-                             'Gene': np.tile(valid_genes, exprs.shape[0])})
+    exprs_df = pd.DataFrame({'Time': np.repeat(time, len(valid_ind)), 'Expression': exprs.flatten(), \
+                             'Gene': np.tile(valid_genes, exprs.shape[1])})
 
 
     # https://stackoverflow.com/questions/43920341/python-seaborn-facetgrid-change-titles
@@ -105,7 +106,7 @@ def kinetic_curves(adata, genes, mode='vector_field', basis='X', project_back_to
 
 docstrings.delete_params('kin_curves.parameters', 'ncol', 'color', 'c_palette')
 @docstrings.with_indent(4)
-def kinetic_heatmap(adata, genes, mode='vector_field', basis='X', project_back_to_high_dim=False, layer='X',
+def kinetic_heatmap(adata, genes, mode='vector_field', basis='pca', project_back_to_high_dim=True, layer='X',
                     time='pseudotime', dist_threshold=1e-10, color_map='viridis', half_max_ordering=True,
                     show_col_color=False, cluster_row_col=(False, False), figsize=(11.5, 6), **kwargs):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) in a heatmap.
@@ -154,9 +155,9 @@ def kinetic_heatmap(adata, genes, mode='vector_field', basis='X', project_back_t
         else:
             exprs = adata.uns[fate_key]['prediction'].T
             if project_back_to_high_dim is False:
-                valid_genes = [basis + '_' + str(i) for i in np.arange(exprs.shape[1])]
+                valid_genes = [basis + '_' + str(i) for i in np.arange(exprs.shape[0])]
             else:
-                exprs = adata.uns[basis + '_fit'].inverse_transform(exprs)
+                exprs = adata.uns[fate_key]['high_prediction'].T
 
     exprs = exprs.A if issparse(exprs) else exprs
 
@@ -171,7 +172,7 @@ def kinetic_heatmap(adata, genes, mode='vector_field', basis='X', project_back_t
         time, all, valid_ind =_half_max_ordering(exprs, time, interpolate=True, spaced_num=100)
         df = pd.DataFrame(all, index=np.array(valid_genes)[valid_ind])
     else:
-        df = pd.DataFrame(exprs, index=np.array(valid_genes))
+        df = pd.DataFrame(exprs, index=np.array(valid_genes)[valid_ind])
 
     heatmap_kwargs = dict(xticklabels=False, yticklabels='auto')
     if kwargs is not None:
