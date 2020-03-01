@@ -179,7 +179,7 @@ def kinetic_heatmap(adata, genes, mode='vector_field', basis='pca', project_back
         heatmap_kwargs.update(kwargs)
 
     sns_heatmap = sns.clustermap(df, col_cluster=cluster_row_col[0], row_cluster=cluster_row_col[1], cmap=color_map, \
-                        figsize=figsize, **heatmap_kwargs)
+                        figsize=figsize, standard_scale=True,  **heatmap_kwargs)
     # if not show_col_color: sns_heatmap.set_visible(False)
 
     plt.show()

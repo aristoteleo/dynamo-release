@@ -29,7 +29,7 @@ from .Wang import Wang_action, Wang_LAP, transition_rate, MFPT
 from .Ao import Ao_pot_map
 
 # cell fate related
-from .fate import Fate, fate
+from .fate import fate, _fate
 
 # dimension reduction related
 from .dimension_reduction import reduceDimension #, run_umap

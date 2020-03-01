@@ -770,7 +770,7 @@ def _plot_traj(y0, t, args, integration_direction, ax, color, lw, f):
 
     ax.plot(*y.transpose(), color=color, lw=lw, linestyle='dashed', alpha=0.5)
 
-    ax.scatter(*y0, color=color, marker="*")
+    ax.scatter(*y0.transpose(), color=color, marker="*")
 
     return ax
 

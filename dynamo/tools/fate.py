@@ -3,7 +3,7 @@ from scipy.sparse import issparse
 from .utils import vector_field_function, integrate_vf
 
 
-def Fate(adata, init_cells, init_states=None, basis='pca', t_end=None, direction='both', average=True, VecFld_true=None, **kwargs):
+def fate(adata, init_cells, init_states=None, basis='pca', t_end=None, direction='both', average=True, VecFld_true=None, **kwargs):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector field
     functions from one or a set of initial cell state(s).
 
@@ -58,7 +58,7 @@ def Fate(adata, init_cells, init_states=None, basis='pca', t_end=None, direction
         init_states = init_states.A
 
     VecFld = adata.uns['VecFld']["VecFld"] if basis is 'X' else adata.uns['VecFld_' + basis]["VecFld"]
-    t, prediction = fate(VecFld, init_states, VecFld_true=VecFld_true, direction=direction, t_end=t_end, average=average, **kwargs)
+    t, prediction = _fate(VecFld, init_states, VecFld_true=VecFld_true, direction=direction, t_end=t_end, average=average, **kwargs)
 
     high_prediction = None
     if basis == 'pca':
@@ -83,7 +83,7 @@ def Fate(adata, init_cells, init_states=None, basis='pca', t_end=None, direction
 
     return adata
 
-def fate(VecFld, init_states, VecFld_true = None, t_end=1, step_size=None, direction='both', interpolation_num=250, average=True):
+def _fate(VecFld, init_states, VecFld_true = None, t_end=1, step_size=None, direction='both', interpolation_num=250, average=True):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector field
     functions from one or a set of initial cell state(s).
 
