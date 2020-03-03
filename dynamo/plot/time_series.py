@@ -57,7 +57,7 @@ def kinetic_curves(adata, genes, mode='vector_field', basis=None, layer='X', pro
         Color = adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
 
     exprs = exprs.A if issparse(exprs) else exprs
-    if standard_scale: (exprs - np.min(exprs)) / np.ptp(exprs)
+    if standard_scale is not None: exprs = (exprs - np.min(exprs, axis=standard_scale)) / np.ptp(exprs, axis=standard_scale)
 
     # time = np.sort(time)
     # exprs = exprs[np.argsort(time), :]
@@ -80,9 +80,10 @@ def kinetic_curves(adata, genes, mode='vector_field', basis=None, layer='X', pro
     if len(Color) > 0:
         exprs_df['Color'] = np.repeat(Color, len(valid_genes))
         g = sns.relplot(x="Time", y="Expression", data=exprs_df, col='Gene', hue='Color', palette=sns.color_palette(c_palette), \
-                   col_wrap=ncol, sharex=True, sharey=False)
+                   col_wrap=ncol, kind='line', facet_kws={"sharex": True, "sharey": False})
     else:
-        g = sns.relplot(x="Time", y="Expression", data=exprs_df, col='Gene', col_wrap=ncol, sharex=True, sharey=False)
+        g = sns.relplot(x="Time", y="Expression", data=exprs_df, col='Gene', col_wrap=ncol, kind='line',
+                        facet_kws={"sharex": True, "sharey": False})
 
     plt.show()
 
@@ -90,7 +91,7 @@ def kinetic_curves(adata, genes, mode='vector_field', basis=None, layer='X', pro
 docstrings.delete_params('kin_curves.parameters', 'ncol', 'color', 'c_palette')
 @docstrings.with_indent(4)
 def kinetic_heatmap(adata, genes, mode='vector_field', basis=None, layer='X', project_back_to_high_dim=True,
-                    time='pseudotime', dist_threshold=1e-10, color_map=None, half_max_ordering=False,
+                    time='pseudotime', dist_threshold=1e-10, color_map='BrBG', half_max_ordering=True,
                     show_col_color=False, cluster_row_col=[False, False], figsize=(11.5, 6), standard_scale=0,
                     **kwargs):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) in a heatmap.
@@ -98,8 +99,9 @@ def kinetic_heatmap(adata, genes, mode='vector_field', basis=None, layer='X', pr
     Parameters
     ----------
         %(kin_curves.parameters.no_ncol|color|c_palette)s
-        color_map: `str` (default: `viridis`)
-            Color map that will be used to color the gene expression.
+        color_map: `str` (default: `BrBG`)
+            Color map that will be used to color the gene expression. If `half_max_ordering` is True, the
+            color map need to be divergent, good examples, include `BrBG`, `RdBu_r` or `coolwarm`, etc.
         half_max_ordering: `bool` (default: `True`)
             Whether to order genes into up, down and transit groups by the half max ordering algorithm. 
         show_col_color: `bool` (default: `False`)
@@ -130,8 +132,10 @@ def kinetic_heatmap(adata, genes, mode='vector_field', basis=None, layer='X', pr
         valid_ind.insert(0, 0)
         exprs = exprs[valid_ind, :]
 
+    if standard_scale: exprs = (exprs - np.min(exprs, axis=0)) / np.ptp(exprs, axis=0)
+
     if half_max_ordering:
-        time, all, valid_ind =_half_max_ordering(exprs, time, interpolate=True, spaced_num=100)
+        time, all, valid_ind =_half_max_ordering(exprs.T, time, mode=mode, interpolate=True, spaced_num=100)
         df = pd.DataFrame(all, index=valid_genes)
     else:
         cluster_row_col[1] = True
@@ -148,7 +152,7 @@ def kinetic_heatmap(adata, genes, mode='vector_field', basis=None, layer='X', pr
     plt.show()
 
 
-def _half_max_ordering(exprs, time, interpolate=False, spaced_num=100):
+def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):
     """Implement the half-max ordering algorithm from HA Pliner, Molecular Cell, 2018.
 
     Parameters
@@ -172,7 +176,11 @@ def _half_max_ordering(exprs, time, interpolate=False, spaced_num=100):
             The indices of valid genes that Loess smoothed.
     """
 
-    from .utils import Loess
+    if mode == 'vector_field':
+        interpolate = False
+    else:
+        from .utils import Loess
+
     gene_num = exprs.shape[0]
     cell_num = spaced_num if interpolate else exprs.shape[1]
     if interpolate:
@@ -183,19 +191,16 @@ def _half_max_ordering(exprs, time, interpolate=False, spaced_num=100):
     transient, trans_max, half_max = np.zeros(gene_num), np.zeros(gene_num), np.zeros(gene_num)
     for i in range(gene_num):
         x = exprs[i]
-        x_rng = [np.min(x), np.max(x)]
-        norm_x = (x - x_rng[0]) / np.diff(x_rng)
-        loess = Loess(time, norm_x)
-
         tmp = np.zeros(cell_num)
 
         if interpolate:
+            loess = Loess(time, x)
+
             time = np.linspace(np.min(time), np.max(time), spaced_num)
             for j in range(spaced_num):
                 tmp[j] = loess.estimate(time[j], window=7, use_matrix=False, degree=1)
         else:
-            for j in range(cell_num):
-                tmp[j] = loess.estimate(time[j], window=7, use_matrix=False, degree=1)
+            tmp = x
 
         hm_mat_scaled[i] = tmp
         scale_tmp = (tmp - np.mean(tmp)) / np.std(tmp)
