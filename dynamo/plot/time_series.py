@@ -113,6 +113,9 @@ def kinetic_heatmap(adata, genes, mode='vector_field', basis=None, layer='X', pr
         standard_scale: `int` (default: 1)
             Either 0 (rows) or 1 (columns). Whether or not to standardize that dimension, meaning for each row or column,
             subtract the minimum and divide each by its maximum.
+        kwargs:
+            All other keyword arguments are passed to heatmap(). Currently `xticklabels=False, yticklabels='auto'` is passed
+            to heatmap() by default.
 
     Returns
     -------
@@ -132,7 +135,7 @@ def kinetic_heatmap(adata, genes, mode='vector_field', basis=None, layer='X', pr
         valid_ind.insert(0, 0)
         exprs = exprs[valid_ind, :]
 
-    if standard_scale: exprs = (exprs - np.min(exprs, axis=0)) / np.ptp(exprs, axis=0)
+    if standard_scale is not None: exprs = (exprs - np.min(exprs, axis=standard_scale)) / np.ptp(exprs, axis=standard_scale)
 
     if half_max_ordering:
         time, all, valid_ind =_half_max_ordering(exprs.T, time, mode=mode, interpolate=True, spaced_num=100)
@@ -161,6 +164,9 @@ def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):
             The gene expression matrix (ngenes x ncells) ordered along time (either pseudotime or inferred real time).
         time: `np.ndarray`
             Pseudotime or inferred real time.
+        mode: `str` (default: `vector_field`)
+            Which data mode will be used, either vector_field or pseudotime. if mode is vector_field, the trajectory predicted by
+            vector field function will be used, otherwise pseudotime trajectory (defined by time argument) will be used.
         interpolate: `bool` (default: `False`)
             Whether to interpolate the data when performing the loess fitting.
         spaced_num: `float` (default: `100`)

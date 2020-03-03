@@ -451,7 +451,7 @@ def topography(
         axes_list[i].set_ylim(ylim)
 
         if t is None:
-            max_t = np.max(np.diff(xlim), np.diff(ylim))[0] / np.min(np.abs(VF['grid_V']))
+            max_t = np.max((np.diff(xlim), np.diff(ylim))) / np.min(np.abs(VF['grid_V']))
 
             t = np.linspace(0, max_t, 10**(np.min(int(np.log10(max_t)), 8)))
 
