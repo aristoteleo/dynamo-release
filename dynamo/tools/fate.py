@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.sparse import issparse
-from .utils import vector_field_function, integrate_vf
+from .utils import vector_field_function, integrate_vf_ivp
 
 
 def fate(adata, init_cells, init_states=None, basis=None, layer='X', genes=None, t_end=None, direction='both', average='origin', VecFld_true=None, **kwargs):
@@ -173,7 +173,7 @@ def _fate(VecFld, init_states, VecFld_true = None, t_end=1, step_size=None, dire
     else:
         t_linspace = np.arange(0, t_end + step_size, step_size)
 
-    t, prediction = integrate_vf(init_states, t_linspace, (), direction, V_func, interpolation_num=interpolation_num,
+    t, prediction = integrate_vf_ivp(init_states, t_linspace, (), direction, V_func, interpolation_num=interpolation_num,
                                  average=average)
     return t, prediction
 

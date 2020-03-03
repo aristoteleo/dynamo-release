@@ -2,6 +2,7 @@ import numpy as np
 import scipy
 from scipy import interpolate
 from scipy.sparse import issparse, csr_matrix, lil_matrix, diags
+from scipy.integrate import odeint, solve_ivp
 from .moments import strat_mom, MomData, Estimation
 import warnings
 
@@ -726,7 +727,7 @@ def vector_field_function(x, t, VecFld, dim=None):
     return K
 
 
-def integrate_vf(init_states, t, args, integration_direction, f, interpolation_num=None, average=False):
+def integrate_vf(init_states, t, args, integration_direction, f, interpolation_num=None, average=True):
     '''integrating along vector field function'''
 
     n_cell, n_feature, n_steps = init_states.shape[0], init_states.shape[1], len(t) if interpolation_num is None else interpolation_num
@@ -750,7 +751,7 @@ def integrate_vf(init_states, t, args, integration_direction, f, interpolation_n
         elif integration_direction == 'both':
             y_f = scipy.integrate.odeint(lambda x, t: f(x), y0, t, args=args)
             y_b = scipy.integrate.odeint(lambda x, t: f(x), y0, -t, args=args)
-            y = np.vstack((y_b[::-1, :], y_f))
+            y = np.hstack((y_b[::-1, :], y_f))
             t_trans = np.hstack((-t[::-1], t))
 
             if interpolation_num is not None: interpolation_num = interpolation_num * 2
@@ -783,3 +784,52 @@ def integrate_vf(init_states, t, args, integration_direction, f, interpolation_n
         Y = avg
 
     return t, Y
+
+def integrate_vf_ivp(init_states, t, args, integration_direction, f, interpolation_num=None, average=True):
+    '''integrating along vector field function using the initial value problem solver from scipy.integrate'''
+
+    n_cell, n_feature = init_states.shape
+    max_step = np.abs(t[-1] - t[0]) / 1e5
+
+    T, Y, SOL = [], [], []
+
+    for i in range(n_cell):
+        y0 = init_states[i, :]
+        ivp_f, ivp_f_event = lambda t, x: f(x), lambda t, x: np.sum(np.linalg.norm(f(x)) < 1e-5) - 1
+        ivp_f_event.terminal = True
+
+        if integration_direction == 'forward':
+            y_ivp = solve_ivp(ivp_f, [t[0], t[-1]], y0, events=ivp_f_event, args=args, max_step=max_step, dense_output=True)
+            y, t_trans, sol = y_ivp.y, y_ivp.t, y_ivp.sol
+        elif integration_direction == 'backward':
+            y_ivp = solve_ivp(ivp_f, [-t[0], -t[-1]], y0, events=ivp_f_event, args=args, max_step=max_step, dense_output=True)
+            y, t_trans, sol = y_ivp.y, y_ivp.t, y_ivp.sol
+        elif integration_direction == 'both':
+            y_ivp_f = solve_ivp(ivp_f, [t[0], t[-1]], y0, events=ivp_f_event, args=args, max_step=max_step, dense_output=True)
+            y_ivp_b = solve_ivp(ivp_f, [-t[0], -t[-1]], y0, events=ivp_f_event, args=args, max_step=max_step, dense_output=True)
+            y, t_trans = np.hstack((y_ivp_b.y[::-1, :], y_ivp_f.y)), np.hstack((y_ivp_b.t[::-1], y_ivp_f.t))
+            sol = [y_ivp_b.sol, y_ivp_f.sol]
+
+            if interpolation_num is not None: interpolation_num = interpolation_num * 2
+        else:
+            raise Exception('both, forward, backward are the only valid direction argument strings')
+
+        T.extend(t_trans)
+        Y.append(y)
+        SOL.append(sol)
+
+    valid_t_trans = np.unique(T)
+
+    _Y = None
+    for i in range(n_cell):
+        cur_Y = SOL[i](valid_t_trans) if integration_direction != "both" else \
+            np.vstack((SOL[i][0](valid_t_trans)[::-1, :], SOL[i][1](valid_t_trans)))
+        _Y = cur_Y if _Y is None else np.hstack((_Y, cur_Y))
+
+    t, Y = valid_t_trans, _Y.T
+
+    if n_cell > 1 and average:
+        Y = np.mean(Y, 0)
+
+    return t, Y
+

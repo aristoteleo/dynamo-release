@@ -9,7 +9,7 @@ import matplotlib.patheffects as PathEffects
 from warnings import warn
 
 from ..configuration import _themes
-from ..tools.utils import integrate_vf
+from ..tools.utils import integrate_vf_ivp
 
 # ---------------------------------------------------------------------------------------------------
 # variable checking utilities
@@ -766,7 +766,7 @@ def default_quiver_args(arrow_size, arrow_len=None):
 
 # ---------------------------------------------------------------------------------------------------
 def _plot_traj(y0, t, args, integration_direction, ax, color, lw, f):
-    _, y = integrate_vf(y0, t, args, integration_direction, f)
+    _, y = integrate_vf_ivp(y0, t, args, integration_direction, f)
 
     ax.plot(*y.transpose(), color=color, lw=lw, linestyle='dashed', alpha=0.5)
 
