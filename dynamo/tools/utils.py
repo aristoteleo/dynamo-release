@@ -778,7 +778,7 @@ def integrate_vf(init_states, t, args, integration_direction, f, interpolation_n
         t, Y = _t, _Y.T
 
     if n_cell > 1 and average:
-        t_len = int(len(t)/n_cell / 2) if integration_direction == 'both' else int(len(t)/n_cell)
+        t_len = int(len(t)/n_cell)
         for i in range(t_len):
             avg[i, :] = np.mean(Y[np.arange(n_cell) * t_len + i, :], 0)
         Y = avg
@@ -789,7 +789,7 @@ def integrate_vf_ivp(init_states, t, args, integration_direction, f, interpolati
     '''integrating along vector field function using the initial value problem solver from scipy.integrate'''
 
     n_cell, n_feature = init_states.shape
-    max_step = np.abs(t[-1] - t[0]) / 1e5
+    max_step = np.abs(t[-1] - t[0]) / 2500
 
     T, Y, SOL = [], [], []
 
@@ -821,15 +821,21 @@ def integrate_vf_ivp(init_states, t, args, integration_direction, f, interpolati
     valid_t_trans = np.unique(T)
 
     _Y = None
+    if integration_direction == "both": neg_t_len = sum(valid_t_trans < 0)
     for i in range(n_cell):
         cur_Y = SOL[i](valid_t_trans) if integration_direction != "both" else \
-            np.vstack((SOL[i][0](valid_t_trans)[::-1, :], SOL[i][1](valid_t_trans)))
+            np.hstack((SOL[i][0](valid_t_trans[:neg_t_len]), SOL[i][1](valid_t_trans[neg_t_len:])))
         _Y = cur_Y if _Y is None else np.hstack((_Y, cur_Y))
 
-    t, Y = valid_t_trans, _Y.T
+    t, Y = valid_t_trans, _Y
 
     if n_cell > 1 and average:
-        Y = np.mean(Y, 0)
+        t_len = int(len(t)/n_cell)
+        avg = np.zeros((n_feature, t_len))
 
-    return t, Y
+        for i in range(t_len):
+            avg[:, i] = np.mean(Y[:, np.arange(n_cell) * t_len + i], 1)
+        Y = avg
+
+    return t, Y.T
 

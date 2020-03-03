@@ -7,7 +7,7 @@ docstrings = DocstringProcessor()
 
 @docstrings.get_sectionsf('kin_curves')
 def kinetic_curves(adata, genes, mode='vector_field', basis=None, layer='X', project_back_to_high_dim=True, time='pseudotime', \
-                   dist_threshold=1e-10, ncol=4, color=None, c_palette='Set2'):
+                   dist_threshold=1e-10, ncol=4, color=None, c_palette='Set2', standard_scale=0):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) as kinetic curves.
 
     Parameters
@@ -37,6 +37,9 @@ def kinetic_curves(adata, genes, mode='vector_field', basis=None, layer='X', pro
             Number of columns in each facet grid.
         c_palette: Name of color_palette supported in seaborn color_palette function (default: None)
             The color map function to use.
+        standard_scale: `int` (default: 1)
+            Either 0 (rows) or 1 (columns). Whether or not to standardize that dimension, meaning for each row or column,
+            subtract the minimum and divide each by its maximum.
     Returns
     -------
         Nothing but plots the kinetic curves that shows the gene expression dynamics over time.
@@ -54,6 +57,8 @@ def kinetic_curves(adata, genes, mode='vector_field', basis=None, layer='X', pro
         Color = adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
 
     exprs = exprs.A if issparse(exprs) else exprs
+    if standard_scale: (exprs - np.min(exprs)) / np.ptp(exprs)
+
     # time = np.sort(time)
     # exprs = exprs[np.argsort(time), :]
 
@@ -74,13 +79,10 @@ def kinetic_curves(adata, genes, mode='vector_field', basis=None, layer='X', pro
     # https://stackoverflow.com/questions/43920341/python-seaborn-facetgrid-change-titles
     if len(Color) > 0:
         exprs_df['Color'] = np.repeat(Color, len(valid_genes))
-        g = sns.lmplot(x="Time", y="Expression", data=exprs_df, order=3, col='Gene', hue='Color', palette=sns.color_palette(c_palette), \
-                   col_wrap=ncol, line_kws={"color": "gray"},  scatter_kws={"s": 3})
+        g = sns.relplot(x="Time", y="Expression", data=exprs_df, col='Gene', hue='Color', palette=sns.color_palette(c_palette), \
+                   col_wrap=ncol, sharex=True, sharey=False)
     else:
-        g = sns.lmplot(x="Time", y="Expression", data=exprs_df, order=3, col='Gene', col_wrap=ncol, line_kws={"color": "gray"}, \
-                   scatter_kws={"s": 3})
-
-    g.set(xlim=(np.min(time), np.max(time)))
+        g = sns.relplot(x="Time", y="Expression", data=exprs_df, col='Gene', col_wrap=ncol, sharex=True, sharey=False)
 
     plt.show()
 
@@ -88,8 +90,9 @@ def kinetic_curves(adata, genes, mode='vector_field', basis=None, layer='X', pro
 docstrings.delete_params('kin_curves.parameters', 'ncol', 'color', 'c_palette')
 @docstrings.with_indent(4)
 def kinetic_heatmap(adata, genes, mode='vector_field', basis=None, layer='X', project_back_to_high_dim=True,
-                    time='pseudotime', dist_threshold=1e-10, color_map='viridis', half_max_ordering=False,
-                    show_col_color=False, cluster_row_col=[False, False], figsize=(11.5, 6), **kwargs):
+                    time='pseudotime', dist_threshold=1e-10, color_map=None, half_max_ordering=False,
+                    show_col_color=False, cluster_row_col=[False, False], figsize=(11.5, 6), standard_scale=0,
+                    **kwargs):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) in a heatmap.
 
     Parameters
@@ -105,6 +108,9 @@ def kinetic_heatmap(adata, genes, mode='vector_field', basis=None, layer='X', pr
             Whether to cluster the row or columns.
         figsize: `str` (default: `(11.5, 6)`
             Size of figure
+        standard_scale: `int` (default: 1)
+            Either 0 (rows) or 1 (columns). Whether or not to standardize that dimension, meaning for each row or column,
+            subtract the minimum and divide each by its maximum.
 
     Returns
     -------
@@ -136,7 +142,7 @@ def kinetic_heatmap(adata, genes, mode='vector_field', basis=None, layer='X', pr
         heatmap_kwargs.update(kwargs)
 
     sns_heatmap = sns.clustermap(df, col_cluster=cluster_row_col[0], row_cluster=cluster_row_col[1], cmap=color_map, \
-                        figsize=figsize, standard_scale=True,  **heatmap_kwargs)
+                        figsize=figsize, standard_scale=standard_scale,  **heatmap_kwargs)
     # if not show_col_color: sns_heatmap.set_visible(False)
 
     plt.show()
