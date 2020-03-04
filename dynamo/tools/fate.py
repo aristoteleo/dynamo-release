@@ -49,37 +49,43 @@ def fate(adata, init_cells, init_states=None, basis=None, layer='X', genes=None,
             AnnData object that is updated with the dictionary Fate (includes `t` and `prediction` keys) in uns attribute.
     """
 
-    if basis is not None:
-        if init_cells is not None:
-            if type(init_cells) == str: init_cells = [init_cells]
-            intersect_cell_names = list(set(init_cells).intersection(adata.obs_names))
-            _init_states = adata.obsm['X_' + basis][init_cells, :] if len(intersect_cell_names) == 0 else \
-                    adata[intersect_cell_names].obsm['X_' + basis].copy()
+    if init_states is None and init_cells is not None:
+        if type(init_cells) == str: init_cells = [init_cells]
+        intersect_cell_names = list(set(init_cells).intersection(adata.obs_names))
+        _cell_names = init_cells if len(intersect_cell_names) == 0 else intersect_cell_names
 
-        valid_genes = [basis + '_' + str(i) for i in np.arange(_init_states.shape[1])]
+        if basis is not None:
+            init_states = adata[_cell_names].obsm['X_' + basis].copy()
+            if len(_cell_names) == 1: init_states = init_states.reshape((1, -1))
 
-        fate_key = 'fate_' + basis
-        VecFld = adata.uns['VecFld_' + basis]["VecFld"]
-        X = adata.obsm['X_' + basis]
-    else:
-        # valid_genes = list(set(genes).intersection(adata.var_names[adata.var.use_for_velocity]) if genes is not None \
-        #     else adata.var_names[adata.var.use_for_velocity]
-        # ----------- enable the function to only only a subset genes -----------
+            valid_genes = [basis + '_' + str(i) for i in np.arange(init_states.shape[1])]
 
-        vf_key = 'VecFld' if layer == 'X' else 'VecFld_' + layer
-        valid_genes = adata.uns[vf_key]['genes']
-        _init_states = adata[:, valid_genes].X if layer == 'X' else adata[:, valid_genes].layers[layer]
-        if issparse(_init_states): _init_states = _init_states.A
-        if layer == 'X':
-            VecFld = adata.uns['VecFld']["VecFld"]
-            X = adata[:, valid_genes].X
+            fate_key = 'fate_' + basis
+            VecFld = adata.uns['VecFld_' + basis]["VecFld"]
+            X = adata.obsm['X_' + basis]
         else:
-            VecFld = adata.uns['VecFld_' + layer]["VecFld"]
-            X = adata[:, valid_genes].layers[layer]
+            # valid_genes = list(set(genes).intersection(adata.var_names[adata.var.use_for_velocity]) if genes is not None \
+            #     else adata.var_names[adata.var.use_for_velocity]
+            # ----------- enable the function to only only a subset genes -----------
 
-        fate_key = 'fate' if layer == 'X' else 'fate_' + layer
+            vf_key = 'VecFld' if layer == 'X' else 'VecFld_' + layer
+            valid_genes = adata.uns[vf_key]['genes']
+            init_states = adata[_cell_names, :][:, valid_genes].X if layer == 'X' else adata[_cell_names, :][:, valid_genes].layers[layer]
+            if issparse(init_states): init_states = init_states.A
+            if len(_cell_names) == 1: init_states = init_states.reshape((1, -1))
 
-    if init_states is None: init_states = _init_states
+            if layer == 'X':
+                VecFld = adata.uns['VecFld']["VecFld"]
+                X = adata[:, valid_genes].X
+            else:
+                VecFld = adata.uns['VecFld_' + layer]["VecFld"]
+                X = adata[:, valid_genes].layers[layer]
+
+            fate_key = 'fate' if layer == 'X' else 'fate_' + layer
+
+    if init_states is None:
+        raise Exception('Either init_state or init_cells should be provided.')
+
     if init_states.shape[0] > 1 and average == 'origin':
             init_states = init_states.mean(0).reshape((1, -1))
 
