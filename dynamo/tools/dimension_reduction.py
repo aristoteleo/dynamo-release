@@ -113,7 +113,7 @@ def reduceDimension(adata,
         adata.obsm[embedding_key] = X_dim
         adata.uns[neighbor_key] = {'params': {'n_neighbors': n_neighbors, 'method': reduction_method}, 'connectivities': graph, \
                                   'distances': knn_dists, 'indices': knn_indices}
-        adata.uns['umap_fit'] = mapper
+        adata.uns['umap_fit'] = {"fit": mapper, "n_pca_components": n_pca_components}
     elif reduction_method is 'psl':
         adj_mat, X_dim = psl_py(X_pca, d=n_components, K=n_neighbors) # this need to be updated
         adata.obsm[embedding_key] = X_dim

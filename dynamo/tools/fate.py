@@ -51,6 +51,7 @@ def fate(adata, init_cells, init_states=None, basis=None, layer='X', genes=None,
 
     if basis is not None:
         if init_cells is not None:
+            if type(init_cells) == str: init_cells = [init_cells]
             intersect_cell_names = list(set(init_cells).intersection(adata.obs_names))
             _init_states = adata.obsm['X_' + basis][init_cells, :] if len(intersect_cell_names) == 0 else \
                     adata[intersect_cell_names].obsm['X_' + basis].copy()

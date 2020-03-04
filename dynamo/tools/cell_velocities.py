@@ -112,24 +112,22 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_b
 
         # number of kNN in neighbor_idx may be too small
         if n_pca_components is not None:
-            if 'pca_fit' not in adata.uns_keys() or type(adata.uns['pca_fit']) == str:
+            if 'velocity_pca_fit' not in adata.uns_keys() or type(adata.uns['velocity_pca_fit']) == str:
                 pca = PCA(n_components=min(n_pca_components, X.shape[1] - 1), svd_solver='arpack', random_state=0)
                 pca_fit = pca.fit(X)
-                adata.uns['pca_fit'] = pca_fit
                 X_pca = pca_fit.transform(X)
-                adata.obsm['X_pca'] = X_pca
-            else:
-                pca_fit = adata.uns['pca_fit']
-                if 'X_pca' in adata.obsm_keys():
-                    X_pca = adata.obsm['X_pca']
-                else:
-                    X_pca = pca_fit.transform(X)
-                    adata.obsm['X_pca'] = X_pca
+
+                adata.uns['velocity_pca_fit'] = pca_fit
+                adata.uns["velocity_PCs"] = pca_fit.components_.T
+                adata.obsm['X_velocity_pca'] = X_pca
+
+            X_pca, PCs, pca_fit = adata.obsm['X_velocity_pca'], adata.uns["velocity_PCs"], adata.uns['velocity_pca_fit']
 
             Y_pca = pca_fit.transform(X + V_mat)
             V_pca = Y_pca - X_pca
+            # V_pca = (V_mat - V_mat.mean(0)).dot(PCs)
 
-            adata.obsm['X_pca'], adata.obsm['velocity_pca'] = X_pca, V_pca
+            adata.obsm['velocity_pca'] = V_pca
             X, V_mat = X_pca[:, :n_pca_components], V_pca[:, :n_pca_components]
 
         if neighbors_from_basis:
@@ -168,8 +166,24 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_b
             permute_rows_nsign(V_mat)
             T_rnd, delta_X_rnd, X_grid_rnd, V_grid_rnd, D_rnd = _empirical_vec(X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors)
     elif method == 'transform':
-        X_v = umap_trans.transform(X + V_mat)
-        delta_X = X_v - X_embedding
+        umap_trans, n_pca_components = adata.uns['umap_fit']['fit'], adata.uns['umap_fit']['n_pca_components']
+
+        if 'pca_fit' not in adata.uns_keys() or type(adata.uns['pca_fit']) == str:
+            CM = adata.X[:, adata.var.use_for_dynamo.values]
+            from ..preprocessing.utils import pca
+
+            adata, pca_fit, X_pca = pca(adata, CM, n_pca_components, 'X_pca')
+            adata.uns['pca_fit'] = pca_fit
+
+        X_pca, pca_fit = adata.obsm['X_pca'], adata.uns['pca_fit']
+        V = adata[:, adata.var.use_for_dynamo.values].layers[vkey] if vkey in adata.layers.keys() else None
+        CM, V = CM.A if issparse(CM) else CM, V.A if issparse(V) else V
+        V[np.isnan(V)] = 0
+        Y_pca = pca_fit.transform(CM.A + V.A) if issparse(V) else pca_fit.transform(CM + V)
+
+        Y = umap_trans.transform(Y_pca)
+
+        delta_X = Y - X_embedding
 
         X_grid, V_grid, D = velocity_on_grid(X_embedding, delta_X, xy_grid_nums=xy_grid_nums)
 

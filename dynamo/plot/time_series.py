@@ -139,8 +139,8 @@ def kinetic_heatmap(adata, genes, mode='vector_field', basis=None, layer='X', pr
     if standard_scale is not None: exprs = (exprs - np.min(exprs, axis=standard_scale)) / np.ptp(exprs, axis=standard_scale)
 
     if half_max_ordering:
-        time, all, valid_ind =_half_max_ordering(exprs.T, time, mode=mode, interpolate=True, spaced_num=100)
-        df = pd.DataFrame(all, index=valid_genes)
+        time, all, valid_ind, gene_idx =_half_max_ordering(exprs.T, time, mode=mode, interpolate=True, spaced_num=100)
+        df = pd.DataFrame(all, index=np.array(valid_genes)[gene_idx])
     else:
         cluster_row_col[1] = True
         df = pd.DataFrame(exprs.T, index=valid_genes)
@@ -181,6 +181,8 @@ def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):
             The ordered smoothed, scaled expression matrix, the first group is up, then down, followed by the transient gene groups.
         valid_ind: `np.ndarray`
             The indices of valid genes that Loess smoothed.
+        gene_idx: `np.ndarray`
+            The indices of genes that are used for the half-max ordering plot.
     """
 
     if mode == 'vector_field':
@@ -227,13 +229,14 @@ def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):
     end = np.arange(exprs.shape[1] - max([5, 0.05 * cell_num]), cell_num)
     trans_indx = np.logical_and(transient > 1, not [i in np.concatenate((begin, end)) for i in trans_max])
 
-    trans, half_max_trans = hm_mat_scaled[trans_indx, :], half_max[trans_indx]
-    nt = hm_mat_scaled[~trans_indx, :]
-    up, half_max_up = nt[nt[:, 0] < nt[:, -1], :], half_max[nt[:, 0] < nt[:, -1]]
-    down, half_max_down = nt[nt[:, 0] >= nt[:, -1], :], half_max[nt[:, 0] >= nt[:, -1]]
+    trans_idx, trans, half_max_trans = np.where(trans_indx)[0], hm_mat_scaled[trans_indx, :], half_max[trans_indx]
+    nt_idx, nt = np.where(~trans_indx)[0], hm_mat_scaled[~trans_indx, :]
+    up_idx, up, half_max_up = np.where(nt[:, 0] < nt[:, -1])[0], nt[nt[:, 0] < nt[:, -1], :], half_max[nt[:, 0] < nt[:, -1]]
+    down_indx, down, half_max_down = np.where(nt[:, 0] >= nt[:, -1])[0], nt[nt[:, 0] >= nt[:, -1], :], half_max[nt[:, 0] >= nt[:, -1]]
 
     trans, up, down = trans[np.argsort(half_max_trans), :], up[np.argsort(half_max_up), :], down[np.argsort(half_max_down), :]
 
     all = np.vstack((up, down, trans))
+    gene_idx = np.hstack((nt_idx[up_idx][np.argsort(half_max_up)], nt_idx[down_indx][np.argsort(half_max_down)], trans_idx))
 
-    return time, all, np.isfinite(nt[:, 0]) & np.isfinite(nt[:, -1])
+    return time, all, np.isfinite(nt[:, 0]) & np.isfinite(nt[:, -1]), gene_idx

@@ -83,7 +83,7 @@ def plot_flow_field(vecfld, x_range, y_range, n_grid=100, lw_min=0.5, lw_max=3,
         ax.scatter(*start_points, marker="*", zorder=100)
 
         ax.streamplot(uu, vv, u_vel, v_vel, linewidth=lw_max, arrowsize=1.2, start_points=start_points,
-                      integration_direction=integration_direction, density=1, color=color_start_points)
+                      integration_direction=integration_direction, density=10, color=color_start_points)
 
     return ax
 

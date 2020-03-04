@@ -953,16 +953,16 @@ def recipe_monocle(adata, normalized=None, layer=None, total_layers=None, genes_
         else:
             CM = adata.layers['X_' + layer][:, adata.var.use_for_dynamo.values]
 
+    cm_genesums = CM.sum(axis=0)
+    valid_ind = np.logical_and(np.isfinite(cm_genesums),  cm_genesums != 0)
+    valid_ind = np.array(valid_ind).flatten()
+    adata.var.use_for_dynamo[adata.var.use_for_dynamo[~ valid_ind]] = False
+
     if method is 'pca':
         adata, fit, _ = pca(adata, CM, num_dim, 'X_' + method.lower())
 
         adata.uns['explained_variance_ratio_'] = fit.explained_variance_ratio_[1:]
     elif method == 'ica':
-        cm_genesums = CM.sum(axis=0)
-        valid_ind = (np.isfinite(cm_genesums)) + (cm_genesums != 0)
-        valid_ind = np.array(valid_ind).flatten()
-        CM = CM[:, valid_ind]
-
         fit=FastICA(num_dim,
                 algorithm='deflation', tol=5e-6, fun='logcosh', max_iter=1000)
         reduce_dim=fit.fit_transform(CM.toarray())
@@ -1033,6 +1033,13 @@ def recipe_velocyto(adata, total_layers=None, method='pca', num_dim=30, norm_met
     adata = normalize_expr_data(adata, total_szfactor=None, norm_method=norm_method, pseudo_expr=pseudo_expr,
                                 relative_expr=relative_expr, keep_filtered=keep_filtered_genes)
     CM = adata.X
+    cm_genesums = CM.sum(axis=0)
+    valid_ind = np.logical_and(np.isfinite(cm_genesums),  cm_genesums != 0)
+    valid_ind = np.array(valid_ind).flatten()
+    adata.var.use_for_dynamo[adata.var.use_for_dynamo[~ valid_ind]] = False
+
+    CM = CM[:, valid_ind]
+
     if method is 'pca':
         adata, fit, _ = pca(adata, CM, num_dim, 'X_' + method.lower())
         # adata.obsm['X_' + method.lower()] = reduce_dim
