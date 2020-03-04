@@ -839,3 +839,44 @@ def integrate_vf_ivp(init_states, t, args, integration_direction, f, interpolati
 
     return t, Y.T
 
+
+# ---------------------------------------------------------------------------------------------------
+# fate related
+def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim):
+    import pandas as pd
+
+    if basis is not None:
+        fate_key = 'fate_' + basis
+    else:
+        fate_key = 'fate' if layer == 'X' else 'fate_' + layer
+
+    time = adata.obs[time].values if mode is not 'vector_field' else adata.uns[fate_key]['t']
+
+    if mode is not 'vector_field':
+        valid_genes = list(set(genes).intersection(adata.var.index))
+
+        if layer is 'X':
+            exprs = adata[np.isfinite(time), valid_genes].X
+        elif layer in adata.layers.keys():
+            exprs = adata[np.isfinite(time), valid_genes].layers[layer]
+        elif layer is 'protein': # update subset here
+            exprs = adata[np.isfinite(time), valid_genes].obsm[layer]
+        else:
+            raise Exception(f'The {layer} you passed in is not existed in the adata object.')
+    else:
+        fate_genes = adata.uns[fate_key]['genes']
+        valid_genes = list(set(genes).intersection(fate_genes))
+
+        if basis is not None:
+            if project_back_to_high_dim:
+                exprs = adata.uns[fate_key]['high_prediction']
+                exprs = exprs[np.isfinite(time), :][:, pd.Series(fate_genes).isin(valid_genes)]
+            else:
+                exprs = adata.uns[fate_key]['prediction'][np.isfinite(time), :]
+                valid_genes = [basis + '_' + str(i) for i in np.arange(exprs.shape[1])]
+        else:
+            exprs = adata.uns[fate_key]['prediction'][np.isfinite(time), :][:, pd.Series(fate_genes).isin(valid_genes)]
+
+    time = time[np.isfinite(time)]
+
+    return exprs, valid_genes, time

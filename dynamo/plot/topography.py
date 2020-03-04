@@ -410,7 +410,8 @@ def topography(
         V = adata.obsm['velocity_' + basis][init_cells, :] if len(intersect_cell_names) == 0 else \
             adata[intersect_cell_names].obsm['velocity_' + basis].copy()
 
-    if init_states is None: init_states = _init_states
+        if init_states is None: init_states = _init_states
+
     if quiver_source == 'reconstructed' or (init_states is not None and init_cells is None):
         from ..tools.utils import vector_field_function
         V = vector_field_function(init_states, None, VF, [0, 1])
@@ -453,7 +454,7 @@ def topography(
         if t is None:
             max_t = np.max((np.diff(xlim), np.diff(ylim))) / np.min(np.abs(VF['grid_V']))
 
-            t = np.linspace(0, max_t, 10**(np.min(int(np.log10(max_t)), 8)))
+            t = np.linspace(0, max_t, 10**(np.min((int(np.log10(max_t)), 8))))
 
         integration_direction = 'both' if fate == 'both' else 'forward' if fate == 'future' else 'backward' if fate == 'history' else "both"
 
