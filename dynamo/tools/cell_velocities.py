@@ -179,7 +179,7 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_b
         V = adata[:, adata.var.use_for_dynamo.values].layers[vkey] if vkey in adata.layers.keys() else None
         CM, V = CM.A if issparse(CM) else CM, V.A if issparse(V) else V
         V[np.isnan(V)] = 0
-        Y_pca = pca_fit.transform(CM.A + V.A) if issparse(V) else pca_fit.transform(CM + V)
+        Y_pca = pca_fit.transform(CM + V)
 
         Y = umap_trans.transform(Y_pca)
 

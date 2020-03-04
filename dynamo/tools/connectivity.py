@@ -291,7 +291,7 @@ def mnn(adata, n_pca_components=25, n_neighbors=250, layers='all', use_pca_fit=T
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            graph, knn_indices, knn_dists, X_dim = umap_conn_indices_dist_embedding(layer_pca, n_neighbors=n_neighbors)
+            graph, knn_indices, knn_dists, X_dim = umap_conn_indices_dist_embedding(layer_pca, n_neighbors=n_neighbors, return_mapper=False)
 
         if save_all_to_adata:
             adata.obsm[layer + '_pca'], adata.obsm[layer + '_umap'] = layer_pca, X_dim
@@ -318,7 +318,7 @@ def smoother(adata, use_gaussian_kernel=True, use_mnn=False, layers='all'):
         X = adata.obsm['X_pca']
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            kNN, knn_indices, knn_dists, _ = umap_conn_indices_dist_embedding(X, n_neighbors=30)
+            kNN, knn_indices, knn_dists, _ = umap_conn_indices_dist_embedding(X, n_neighbors=30, return_mapper=False)
 
     if use_gaussian_kernel and not use_mnn:
         conn = gaussian_kernel(X, knn_indices, sigma=10, k=None, dists=knn_dists)

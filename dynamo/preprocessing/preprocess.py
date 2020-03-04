@@ -956,7 +956,7 @@ def recipe_monocle(adata, normalized=None, layer=None, total_layers=None, genes_
     cm_genesums = CM.sum(axis=0)
     valid_ind = np.logical_and(np.isfinite(cm_genesums),  cm_genesums != 0)
     valid_ind = np.array(valid_ind).flatten()
-    adata.var.use_for_dynamo[adata.var.use_for_dynamo[~ valid_ind]] = False
+    adata.var.use_for_dynamo[np.where(adata.var.use_for_dynamo)[0][~ valid_ind]] = False
 
     if method is 'pca':
         adata, fit, _ = pca(adata, CM, num_dim, 'X_' + method.lower())
@@ -1036,7 +1036,7 @@ def recipe_velocyto(adata, total_layers=None, method='pca', num_dim=30, norm_met
     cm_genesums = CM.sum(axis=0)
     valid_ind = np.logical_and(np.isfinite(cm_genesums),  cm_genesums != 0)
     valid_ind = np.array(valid_ind).flatten()
-    adata.var.use_for_dynamo[adata.var.use_for_dynamo[~ valid_ind]] = False
+    adata.var.use_for_dynamo[np.where(adata.var.use_for_dynamo)[0][~ valid_ind]] = False
 
     CM = CM[:, valid_ind]
 
