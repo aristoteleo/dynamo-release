@@ -123,11 +123,17 @@ def state_graph(adata, group, basis='umap', layer=None, sample_num=100):
             knn_ind, knn_dist = kdt.query(Y, k=1, return_distance=True)
 
             for k, cur_knn_dist in enumerate(knn_dist):
+                avg_time = np.zeros((1, len(groups)))
+                _graph = np.zeros((1, len(groups)))
+
                 if cur_knn_dist < 1e-3:
                     cell_id = knn_ind[k]
                     ind_other_cell_type = uniq_grp.index(groups[cell_id])
-                    grp_graph[i, ind_other_cell_type] += 1
-                    grp_avg_time[i, ind_other_cell_type] += t[k]
+                    _graph[ind_other_cell_type] += 1
+                    avg_time[ind_other_cell_type] += t[k]
+
+            grp_avg_time[i, :] += avg_time / _graph
+            grp_graph[i, :] += (_graph > 0).astype('float')
 
         grp_avg_time[i, :] /= grp_graph[i, :]
         grp_graph[i, :] /= cell_num
