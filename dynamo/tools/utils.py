@@ -880,3 +880,50 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
     time = time[np.isfinite(time)]
 
     return exprs, valid_genes, time
+
+
+def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
+    if init_states is None and init_cells is not None:
+        if type(init_cells) == str: init_cells = [init_cells]
+        intersect_cell_names = list(set(init_cells).intersection(adata.obs_names))
+        _cell_names = init_cells if len(intersect_cell_names) == 0 else intersect_cell_names
+
+        if basis is not None:
+            valid_genes = [basis + '_' + str(i) for i in np.arange(init_states.shape[1])]
+
+            init_states = adata[_cell_names].obsm['X_' + basis].copy()
+            if len(_cell_names) == 1: init_states = init_states.reshape((1, -1))
+            VecFld = adata.uns['VecFld_' + basis]["VecFld"]
+            X = adata.obsm['X_' + basis]
+        else:
+            # valid_genes = list(set(genes).intersection(adata.var_names[adata.var.use_for_velocity]) if genes is not None \
+            #     else adata.var_names[adata.var.use_for_velocity]
+            # ----------- enable the function to only only a subset genes -----------
+
+            vf_key = 'VecFld' if layer == 'X' else 'VecFld_' + layer
+            valid_genes = adata.uns[vf_key]['genes']
+            init_states = adata[_cell_names, :][:, valid_genes].X if layer == 'X' else adata[_cell_names, :][:, valid_genes].layers[layer]
+            if issparse(init_states): init_states = init_states.A
+            if len(_cell_names) == 1: init_states = init_states.reshape((1, -1))
+
+            if layer == 'X':
+                VecFld = adata.uns['VecFld']["VecFld"]
+                X = adata[:, valid_genes].X
+            else:
+                VecFld = adata.uns['VecFld_' + layer]["VecFld"]
+                X = adata[:, valid_genes].layers[layer]
+
+    if init_states is None:
+        raise Exception('Either init_state or init_cells should be provided.')
+
+    if init_states.shape[0] > 1 and average == 'origin':
+            init_states = init_states.mean(0).reshape((1, -1))
+
+    if t_end is None:
+        xmin, xmax = X.min(0), X.max(0)
+        t_end = np.max(xmax - xmin) / np.min(np.abs(VecFld['V']))
+
+    if issparse(init_states):
+        init_states = init_states.A
+
+    return init_states, VecFld, t_end, valid_genes

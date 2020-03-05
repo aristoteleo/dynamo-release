@@ -1,6 +1,6 @@
 import numpy as np
-from scipy.sparse import issparse
 from .utils import vector_field_function, integrate_vf_ivp
+from .utils import fetch_states
 
 
 def fate(adata, init_cells, init_states=None, basis=None, layer='X', genes=None, t_end=None, direction='both', average='origin', VecFld_true=None, **kwargs):
@@ -49,52 +49,12 @@ def fate(adata, init_cells, init_states=None, basis=None, layer='X', genes=None,
             AnnData object that is updated with the dictionary Fate (includes `t` and `prediction` keys) in uns attribute.
     """
 
-    if init_states is None and init_cells is not None:
-        if type(init_cells) == str: init_cells = [init_cells]
-        intersect_cell_names = list(set(init_cells).intersection(adata.obs_names))
-        _cell_names = init_cells if len(intersect_cell_names) == 0 else intersect_cell_names
+    if basis is not None:
+        fate_key = 'fate_' + basis
+    else:
+        fate_key = 'fate' if layer == 'X' else 'fate_' + layer
 
-        if basis is not None:
-            init_states = adata[_cell_names].obsm['X_' + basis].copy()
-            if len(_cell_names) == 1: init_states = init_states.reshape((1, -1))
-
-            valid_genes = [basis + '_' + str(i) for i in np.arange(init_states.shape[1])]
-
-            fate_key = 'fate_' + basis
-            VecFld = adata.uns['VecFld_' + basis]["VecFld"]
-            X = adata.obsm['X_' + basis]
-        else:
-            # valid_genes = list(set(genes).intersection(adata.var_names[adata.var.use_for_velocity]) if genes is not None \
-            #     else adata.var_names[adata.var.use_for_velocity]
-            # ----------- enable the function to only only a subset genes -----------
-
-            vf_key = 'VecFld' if layer == 'X' else 'VecFld_' + layer
-            valid_genes = adata.uns[vf_key]['genes']
-            init_states = adata[_cell_names, :][:, valid_genes].X if layer == 'X' else adata[_cell_names, :][:, valid_genes].layers[layer]
-            if issparse(init_states): init_states = init_states.A
-            if len(_cell_names) == 1: init_states = init_states.reshape((1, -1))
-
-            if layer == 'X':
-                VecFld = adata.uns['VecFld']["VecFld"]
-                X = adata[:, valid_genes].X
-            else:
-                VecFld = adata.uns['VecFld_' + layer]["VecFld"]
-                X = adata[:, valid_genes].layers[layer]
-
-            fate_key = 'fate' if layer == 'X' else 'fate_' + layer
-
-    if init_states is None:
-        raise Exception('Either init_state or init_cells should be provided.')
-
-    if init_states.shape[0] > 1 and average == 'origin':
-            init_states = init_states.mean(0).reshape((1, -1))
-
-    if t_end is None:
-        xmin, xmax = X.min(0), X.max(0)
-        t_end = np.max(xmax - xmin) / np.min(np.abs(VecFld['V']))
-
-    if issparse(init_states):
-        init_states = init_states.A
+    init_states, VecFld, t_end, valid_genes = fetch_states(adata, init_states, init_cells, basis, layer, average, t_end)
 
     t, prediction = _fate(VecFld, init_states, VecFld_true=VecFld_true, direction=direction, t_end=t_end, average=True, **kwargs)
 
@@ -133,7 +93,7 @@ def fate(adata, init_cells, init_states=None, basis=None, layer='X', genes=None,
     return adata
 
 
-def _fate(VecFld, init_states, VecFld_true = None, t_end=1, step_size=None, direction='both', interpolation_num=250, average=True):
+def _fate(VecFld, init_states, VecFld_true = None, t_end=None, step_size=None, direction='both', interpolation_num=250, average=True):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector field
     functions from one or a set of initial cell state(s).
 
@@ -146,7 +106,7 @@ def _fate(VecFld, init_states, VecFld_true = None, t_end=1, step_size=None, dire
             Initial cell states for the historical or future cell state prediction with numerical integration.
         VecFld_true: `function`
             The true ODE function, useful when the data is generated through simulation. Replace VecFld arugment when this has been set.
-        t_end: `float` (default 1)
+        t_end: `float` (default None)
             The length of the time period from which to predict cell state forward or backward over time. This is used
             by the odeint function.
         step_size: `float` or None (default None)
@@ -210,3 +170,5 @@ def _fate(VecFld, init_states, VecFld_true = None, t_end=1, step_size=None, dire
 #
 #     adata.uns['prediction'] = gene_exprs
 #     return adata
+
+
