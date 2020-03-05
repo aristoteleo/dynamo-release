@@ -60,14 +60,14 @@ def kinetic_curves(adata, genes, mode='vector_field', basis=None, layer='X', pro
     exprs = exprs.A if issparse(exprs) else exprs
     if standard_scale is not None: exprs = (exprs - np.min(exprs, axis=standard_scale)) / np.ptp(exprs, axis=standard_scale)
 
-    # time = np.sort(time)
-    # exprs = exprs[np.argsort(time), :]
+    time = np.sort(time)
+    exprs = exprs[np.argsort(time), :]
 
     if dist_threshold is not None:
         valid_ind = list(np.where(np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold)[0] + 1)
         valid_ind.insert(0, 0)
         exprs = exprs[valid_ind, :]
-        #time = time[valid_ind]
+        time = time[valid_ind]
 
     exprs_df = pd.DataFrame({'Time': np.repeat(time, len(valid_genes)), 'Expression': exprs.flatten(), \
                              'Gene': np.tile(valid_genes, len(time))})
