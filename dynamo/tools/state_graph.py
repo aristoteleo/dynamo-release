@@ -1,5 +1,9 @@
 import numpy as np
-from scipy.spatial.distance import cdist
+from scipy.spatial import cKDTree
+from tqdm import tqdm
+
+from .fate import _fate
+from .utils import fetch_states
 
 def remove_redundant_points_trajectory(X, tol=1e-4, output_discard=False):
     """"""
@@ -63,71 +67,71 @@ def classify_clone_cell_type(adata, clone, clone_column, cell_type_column, cell_
 
     return cell_type
 
-def state_graph(adata, group, basis='umap', layer=None):
-    from .fate import _fate
-    from .utils import fetch_states
+def state_graph(adata, group, basis='umap', layer=None, sample_num=100):
+    """Estimate the transition probability between cell types using method of vector field integrations.
 
-    groups, uniq_grp = adata.obs[group], adata.obs[group].unique()
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that will be used to calculate a cell type (group) transition graph.
+        group: `str`
+            The attribute to group cells (column names in the adata.obs).
+        basis: `str` or None (default: `umap`)
+            The embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the reconstructed trajectory
+            will be projected back to high dimensional space via the `inverse_transform` function.
+        layer: `str` or None (default: `None`)
+            Which layer of the data will be used for predicting cell fate with the reconstructed vector field function.
+            The layer once provided, will override the `basis` argument and then predicting cell fate in high dimensional space.
+        sample_num: `int` (default: 100)
+            The number of cells to sample in each group that will be used for calculating the transitoin graph between cell
+            groups. This is required for facilitating the calculation.
+
+    Returns
+    -------
+        An updated adata object that is added with the `group + '_graph'` key, including the transition graph
+        and the average transition time.
+    """
+
+    groups, uniq_grp = adata.obs[group], adata.obs[group].unique().to_list()
     grp_graph = np.zeros((len(uniq_grp), len(uniq_grp)))
-    grp_transition = np.zeros((len(uniq_grp), len(uniq_grp)))
+    grp_avg_time = np.zeros((len(uniq_grp), len(uniq_grp)))
 
-    for i, cur_grp in enumerate(uniq_grp):
-        init_cells = adata.obs_name[groups == cur_grp]
-        init_states, VecFld, t_end, valid_genes = fetch_states(adata, init_states=None, init_cells=init_cells, basis=basis,
+    all_X, VecFld, t_end, valid_genes = fetch_states(adata, init_states=None, init_cells=adata.obs_names, basis=basis,
+                                                           layer=layer, average=False, t_end=None)
+    kdt = cKDTree(all_X, leaf_size=30, metric='euclidean')
+
+    for i, cur_grp in enumerate(tqdm(uniq_grp, desc='iterate groups:')):
+        init_cells = adata.obs_names[groups == cur_grp]
+        if sample_num is not None:
+            cell_num = np.min((sample_num, len(init_cells)))
+            ind = np.random.choice(len(init_cells), cell_num, replace=False)
+            init_cells = init_cells[ind]
+
+        init_states, _, _, _ = fetch_states(adata, init_states=None, init_cells=init_cells, basis=basis,
                                                                layer=layer, average=False, t_end=None)
-
         t, X = _fate(VecFld, init_states, VecFld_true=None, t_end=t_end, step_size=None, direction='forward',
                               interpolation_num=250, average=False)
-        len_per_cell = int(X.shape[0] / len(init_cells))
 
-        for j in np.range(len(init_cells)):
-            cur_ind = np.range(j * len_per_cell, (j + 1) * len_per_cell)
-            Y, arclength, T = arclength_sampling(X[cur_ind], 0.1, t=t[cur_ind])
+        len_per_cell = len(t)
+        cell_num = int(X.shape[0] / len(t))
 
-            for k, cur_other_grp in enumerate(set(uniq_grp).difference(cur_grp)):
-                cur_other_cells = adata.obs_name[groups == cur_other_grp]
-                others, _, _, _ = fetch_states(adata, init_states=None, init_cells=cur_other_cells, basis=basis, layer=layer,
-                                       average=False, t_end=None)
-                cd = cdist(Y, others)
-                min_dists = cd.min(1)
+        for j in np.arange(cell_num):
+            cur_ind = np.arange(j * len_per_cell, (j + 1) * len_per_cell)
+            # Y, arclength, T = arclength_sampling(X[cur_ind], 0.1, t=t[cur_ind])
+            Y = X[cur_ind]
 
-                if np.sum(min_dists < 1e-3) > 0:
-                    ind_other_cell_type = uniq_grp.index(cur_other_grp)
+            knn_ind, knn_dist = kdt.query(Y, k=1, return_distance=True)
+
+            for k, cur_knn_dist in enumerate(knn_dist):
+                if cur_knn_dist < 1e-3:
+                    cell_id = knn_ind[k]
+                    ind_other_cell_type = uniq_grp.index(groups[cell_id])
                     grp_graph[i, ind_other_cell_type] += 1
-                    grp_transition[i, ind_other_cell_type] += np.mean(T[np.where(min_dists < 1e-3)[0]])
+                    grp_avg_time[i, ind_other_cell_type] += t[k]
 
-        grp_transition[i, :] /= grp_graph[i, :]
-        grp_graph[i, :] /= len(init_cells)
+        grp_avg_time[i, :] /= grp_graph[i, :]
+        grp_graph[i, :] /= cell_num
 
-    return grp_graph, grp_transition
+    adata.uns[group + '_graph'] = {"group_graph": grp_graph, "group_avg_time": grp_avg_time}
 
-# write function to draw the figures
-
-if __name__ == '__main__':
-    # from scipy.integrate import solve_ivp
-    # def func(t, x):
-    #     return -x
-    #
-    # def hit_ground(t, x):
-    #     return x[0] - 1e-3
-    #
-    # hit_ground.terminal = True
-    #
-    # def steady_state(t, x):
-    #     dxdt = func(t, x)
-    #     return np.linalg.norm(np.abs(dxdt)) - 1e-5
-    #
-    # steady_state.terminal = True
-    #
-    # t = np.linspace(0, 1000, 100000)
-    # ret = solve_ivp(func, [t[0], t[-1]], np.array([10, 5]), t_eval=t, events=steady_state, vectorized=True)
-    #
-    # t = np.linspace(0, 1e8, 100000)
-    # VecFld = adata.uns['VecFld']
-    # X = adata[:, adata.var.use_for_velocity].X.A
-    # V_func = lambda t, x: dyn.tl.vector_field_function(x=x, t=None, VecFld=VecFld)
-    # ivp_f_event = lambda t, x: np.sum(np.linalg.norm(V_func(t, x)) < 1e-5) - 1
-    # ivp_f_event.terminal = True
-    # ret = solve_ivp(V_func, [t[0], t[-1]], X, t_eval=t, events=ivp_f_event, vectorized=True)
-    adata = dyn.read_h5ad('/Users/xqiu/Desktop/cell_tag.h5ad')
-    state_graph(adata, group='Cell type annotation', basis='umap', layer=None)
+    return adata

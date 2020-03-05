@@ -30,6 +30,7 @@ from .Ao import Ao_pot_map
 
 # cell fate related
 from .fate import fate, _fate
+from .state_graph import state_graph
 
 # dimension reduction related
 from .dimension_reduction import reduceDimension #, run_umap

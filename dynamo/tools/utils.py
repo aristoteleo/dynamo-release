@@ -889,12 +889,12 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
         _cell_names = init_cells if len(intersect_cell_names) == 0 else intersect_cell_names
 
         if basis is not None:
-            valid_genes = [basis + '_' + str(i) for i in np.arange(init_states.shape[1])]
-
             init_states = adata[_cell_names].obsm['X_' + basis].copy()
             if len(_cell_names) == 1: init_states = init_states.reshape((1, -1))
             VecFld = adata.uns['VecFld_' + basis]["VecFld"]
             X = adata.obsm['X_' + basis]
+
+            valid_genes = [basis + '_' + str(i) for i in np.arange(init_states.shape[1])]
         else:
             # valid_genes = list(set(genes).intersection(adata.var_names[adata.var.use_for_velocity]) if genes is not None \
             #     else adata.var_names[adata.var.use_for_velocity]
