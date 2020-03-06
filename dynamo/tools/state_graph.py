@@ -24,6 +24,8 @@ def state_graph(adata, group, approx=True, basis='umap', layer=None, arc_sample=
             AnnData object that will be used to calculate a cell type (group) transition graph.
         group: `str`
             The attribute to group cells (column names in the adata.obs).
+        approx: `bool` (default: False)
+            Whether to use streamplot to get the integration lines from each cell.
         basis: `str` or None (default: `umap`)
             The embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the reconstructed trajectory
             will be projected back to high dimensional space via the `inverse_transform` function.
@@ -63,7 +65,8 @@ def state_graph(adata, group, approx=True, basis='umap', layer=None, arc_sample=
             X_grid, V_grid = np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]), \
                              np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))])
 
-            t, X = integrate_streamline(X_grid[0], X_grid[1], V_grid[0], V_grid[1], 'forward', init_states)
+            t, X = integrate_streamline(X_grid[0], X_grid[1], V_grid[0], V_grid[1], integration_direction='forward',
+                                        init_states=init_states, interpolation_num=250, average=False)
 
         else:
             t, X = _fate(VecFld, init_states, VecFld_true=None, t_end=t_end, step_size=None, direction='forward',

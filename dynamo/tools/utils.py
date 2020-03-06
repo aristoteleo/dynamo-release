@@ -852,9 +852,11 @@ def integrate_streamline(X, Y, U, V, integration_direction, init_states, interpo
     res = np.zeros((n_cell * interpolation_num, 2))
 
     for i in range(n_cell):
-        strm = plt.streamplot(X, Y, U, V, start_points=init_states[i, None], integration_direction=integration_direction)
+        strm = plt.streamplot(X, Y, U, V, start_points=init_states[i, None], integration_direction=integration_direction,
+                              density=10)
         strm_res = np.array(strm.lines.get_segments()).reshape((-1, 2))
 
+        if len(strm_res) == 0: continue
         t = np.arange(strm_res.shape[0])
         t_linspace = np.linspace(t[0], t[-1], interpolation_num)
         f = interpolate.interp1d(t, strm_res.T)
