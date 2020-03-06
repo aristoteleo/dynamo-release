@@ -3,59 +3,7 @@ from scipy.spatial import cKDTree
 from tqdm import tqdm
 
 from .fate import _fate
-from .utils import fetch_states
-
-def remove_redundant_points_trajectory(X, tol=1e-4, output_discard=False):
-    """"""
-    X = np.atleast_2d(X)
-    discard = np.zeros(len(X), dtype=bool)
-    if X.shape[0] > 1:
-        for i in range(len(X)-1):
-            dist = np.linalg.norm(X[i+1] - X[i])
-            if dist < tol:
-                discard[i+1] = True
-        X = X[~discard]
-    if output_discard:
-        return X, discard
-    else:
-        return X
-
-def arclength_sampling(X, step_length, t=None):
-    """uniformly sample data points on an arc curve that generated from vector field predictions."""
-    Y = []
-    x0 = X[0]
-    T = [] if t is not None else None
-    t0 = t[0] if t is not None else None
-    i = 1
-    terminate = False
-    arclength = 0
-    while(i < len(X) - 1 and not terminate):
-        l = 0
-        for j in range(i, len(X)-1):
-            tangent = X[j] - x0 if j==i else X[j] - X[j-1]
-            d = np.linalg.norm(tangent)
-            if l + d >= step_length:
-                x = x0 if j==i else X[j-1]
-                y = x + (step_length-l) * tangent/d
-                if t is not None:
-                    tau = t0 if j==i else t[j-1]
-                    tau += (step_length-l)/d * (t[j] - tau)
-                    T.append(tau)
-                    t0 = tau
-                Y.append(y)
-                x0 = y
-                i = j
-                break
-            else:
-                l += d
-        arclength += step_length
-        if l + d < step_length:
-            terminate = True
-    if T is not None:
-        return np.array(Y), arclength, T
-    else:
-        return np.array(Y), arclength
-
+from .utils import fetch_states, remove_redundant_points_trajectory, arclength_sampling, integrate_streamline
 
 def classify_clone_cell_type(adata, clone, clone_column, cell_type_column, cell_type_to_excluded):
     """find the dominant cell type of all the cells that are from the same clone"""
@@ -67,7 +15,7 @@ def classify_clone_cell_type(adata, clone, clone_column, cell_type_column, cell_
 
     return cell_type
 
-def state_graph(adata, group, basis='umap', layer=None, sample_num=100):
+def state_graph(adata, group, approx=True, basis='umap', layer=None, arc_sample=False, sample_num=100):
     """Estimate the transition probability between cell types using method of vector field integrations.
 
     Parameters
@@ -98,7 +46,7 @@ def state_graph(adata, group, basis='umap', layer=None, sample_num=100):
 
     all_X, VecFld, t_end, valid_genes = fetch_states(adata, init_states=None, init_cells=adata.obs_names, basis=basis,
                                                            layer=layer, average=False, t_end=None)
-    kdt = cKDTree(all_X, leaf_size=30, metric='euclidean')
+    kdt = cKDTree(all_X, leafsize=30)
 
     for i, cur_grp in enumerate(tqdm(uniq_grp, desc='iterate groups:')):
         init_cells = adata.obs_names[groups == cur_grp]
@@ -109,31 +57,47 @@ def state_graph(adata, group, basis='umap', layer=None, sample_num=100):
 
         init_states, _, _, _ = fetch_states(adata, init_states=None, init_cells=init_cells, basis=basis,
                                                                layer=layer, average=False, t_end=None)
-        t, X = _fate(VecFld, init_states, VecFld_true=None, t_end=t_end, step_size=None, direction='forward',
-                              interpolation_num=250, average=False)
+        if approx:
+            X_grid, V_grid =  adata.uns['VecFld_' + basis]["VecFld"]['grid'], adata.uns['VecFld_' + basis]["VecFld"]['grid_V']
+            N = int(np.sqrt(V_grid.shape[0]))
+            X_grid, V_grid = np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]), \
+                             np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))])
+
+            t, X = integrate_streamline(X_grid[0], X_grid[1], V_grid[0], V_grid[1], 'forward', init_states)
+
+        else:
+            t, X = _fate(VecFld, init_states, VecFld_true=None, t_end=t_end, step_size=None, direction='forward',
+                         interpolation_num=250, average=False)
 
         len_per_cell = len(t)
         cell_num = int(X.shape[0] / len(t))
 
+        knn_dist_, knn_ind_ = kdt.query(init_states, k=2)
+        dist_min, dist_threshold = np.max([knn_dist_[:, 1].min(), 1e-3]), np.mean(knn_dist_[:, 1])
+
         for j in np.arange(cell_num):
             cur_ind = np.arange(j * len_per_cell, (j + 1) * len_per_cell)
-            # Y, arclength, T = arclength_sampling(X[cur_ind], 0.1, t=t[cur_ind])
-            Y = X[cur_ind]
+            Y, arclength, T_bool = remove_redundant_points_trajectory(X[cur_ind], tol=dist_min, output_discard=True)
 
-            knn_ind, knn_dist = kdt.query(Y, k=1, return_distance=True)
+            if arc_sample:
+                Y, arclength, T = arclength_sampling(Y, arclength / 1000, t=t[~T_bool])
+            else:
+                T = t[~T_bool]
+
+            knn_dist, knn_ind = kdt.query(Y, k=1)
+
+            avg_time = [0] * len(uniq_grp)
+            _graph = [0] * len(uniq_grp)
 
             for k, cur_knn_dist in enumerate(knn_dist):
-                avg_time = np.zeros((1, len(groups)))
-                _graph = np.zeros((1, len(groups)))
-
-                if cur_knn_dist < 1e-3:
+                if cur_knn_dist < dist_threshold:
                     cell_id = knn_ind[k]
                     ind_other_cell_type = uniq_grp.index(groups[cell_id])
                     _graph[ind_other_cell_type] += 1
-                    avg_time[ind_other_cell_type] += t[k]
+                    avg_time[ind_other_cell_type] += T[k]
 
-            grp_avg_time[i, :] += avg_time / _graph
-            grp_graph[i, :] += (_graph > 0).astype('float')
+            grp_avg_time[i, :] += (np.array(avg_time) / np.array(_graph)).flatten()
+            grp_graph[i, :] += (np.array(_graph) > 0).astype('float').flatten()
 
         grp_avg_time[i, :] /= grp_graph[i, :]
         grp_graph[i, :] /= cell_num

@@ -798,6 +798,7 @@ def integrate_vf_ivp(init_states, t, args, integration_direction, f, interpolati
         ivp_f, ivp_f_event = lambda t, x: f(x), lambda t, x: np.sum(np.linalg.norm(f(x)) < 1e-5) - 1
         ivp_f_event.terminal = True
 
+        print('\nintegrating cell ', i, '; Expression: ', init_states[i, :])
         if integration_direction == 'forward':
             y_ivp = solve_ivp(ivp_f, [t[0], t[-1]], y0, events=ivp_f_event, args=args, max_step=max_step, dense_output=True)
             y, t_trans, sol = y_ivp.y, y_ivp.t, y_ivp.sol
@@ -817,6 +818,8 @@ def integrate_vf_ivp(init_states, t, args, integration_direction, f, interpolati
         T.extend(t_trans)
         Y.append(y)
         SOL.append(sol)
+
+        print("\nintegration time: ", len(t_trans))
 
     valid_t_trans = np.unique(T)
 
@@ -839,6 +842,37 @@ def integrate_vf_ivp(init_states, t, args, integration_direction, f, interpolati
 
     return t, Y.T
 
+
+def integrate_streamline(X, Y, U, V, integration_direction, init_states, interpolation_num=250, average=True):
+    """use streamline's integrator to alleviate stacking of the solve_ivp. Need to update with the correct time."""
+    import matplotlib.pyplot as plt
+
+    n_cell = init_states.shape[0]
+
+    res = np.zeros((n_cell * interpolation_num, 2))
+
+    for i in range(n_cell):
+        strm = plt.streamplot(X, Y, U, V, start_points=init_states[i, None], integration_direction=integration_direction)
+        strm_res = np.array(strm.lines.get_segments()).reshape((-1, 2))
+
+        t = np.arange(strm_res.shape[0])
+        t_linspace = np.linspace(t[0], t[-1], interpolation_num)
+        f = interpolate.interp1d(t, strm_res.T)
+
+        cur_rng = np.arange(i * interpolation_num, (i + 1) * interpolation_num)
+        res[cur_rng, :] = f(t_linspace).T
+
+    if n_cell > 1 and average:
+        t_len = len(t_linspace)
+        avg = np.zeros((t_len, 2))
+
+        for i in range(t_len):
+            cur_rng = np.arange(n_cell) * t_len + i
+            avg[i, :] = np.mean(res[cur_rng, :], 0)
+
+        res = avg
+
+    return t_linspace, res
 
 # ---------------------------------------------------------------------------------------------------
 # fate related
@@ -927,3 +961,69 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
         init_states = init_states.A
 
     return init_states, VecFld, t_end, valid_genes
+
+# ---------------------------------------------------------------------------------------------------
+# arc curve related
+def remove_redundant_points_trajectory(X, tol=1e-4, output_discard=False):
+    """remove consecutive data points that are too close to each other."""
+    X = np.atleast_2d(X)
+    discard = np.zeros(len(X), dtype=bool)
+    if X.shape[0] > 1:
+        for i in range(len(X)-1):
+            dist = np.linalg.norm(X[i+1] - X[i])
+            if dist < tol:
+                discard[i+1] = True
+        X = X[~discard]
+
+    arclength = 0
+
+    x0 = X[0]
+    for i in range(1, len(X)):
+        tangent = X[i] - x0 if i == 1 else X[i] - X[i-1]
+        d = np.linalg.norm(tangent)
+
+        arclength += d
+
+    if output_discard:
+        return X, arclength, discard
+    else:
+        return X, arclength
+
+
+def arclength_sampling(X, step_length, t=None):
+    """uniformly sample data points on an arc curve that generated from vector field predictions."""
+    Y = []
+    x0 = X[0]
+    T = [] if t is not None else None
+    t0 = t[0] if t is not None else None
+    i = 1
+    terminate = False
+    arclength = 0
+
+    while(i < len(X) - 1 and not terminate):
+        l = 0
+        for j in range(i, len(X)-1):
+            tangent = X[j] - x0 if j==i else X[j] - X[j-1]
+            d = np.linalg.norm(tangent)
+            if l + d >= step_length:
+                x = x0 if j==i else X[j-1]
+                y = x + (step_length-l) * tangent/d
+                if t is not None:
+                    tau = t0 if j==i else t[j-1]
+                    tau += (step_length-l)/d * (t[j] - tau)
+                    T.append(tau)
+                    t0 = tau
+                Y.append(y)
+                x0 = y
+                i = j
+                break
+            else:
+                l += d
+        arclength += step_length
+        if l + d < step_length:
+            terminate = True
+
+    if T is not None:
+        return np.array(Y), arclength, T
+    else:
+        return np.array(Y), arclength
