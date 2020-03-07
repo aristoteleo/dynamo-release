@@ -180,22 +180,21 @@ def get_svr_filter(adata, layer='spliced', n_top_genes=3000):
 # ---------------------------------------------------------------------------------------------------
 # pca
 
-def pca(adata, X, n_pca_components, pca_key):
-    cm_genesums = X.sum(axis=0)
-    valid_ind = (np.isfinite(cm_genesums)) + (cm_genesums != 0)
-    valid_ind = np.array(valid_ind).flatten()
-    CM = X[:, valid_ind]
+def pca(adata, CM, n_pca_components, pca_key):
 
     if adata.n_obs < 100000:
-        fit = PCA(n_components=n_pca_components, svd_solver='arpack', random_state=0)
-        X_pca = fit.fit_transform(CM.toarray()) if issparse(X) else fit.fit_transform(X)
+        pca = PCA(n_components=n_pca_components, svd_solver='arpack', random_state=0)
+        fit = pca.fit(CM.toarray()) if issparse(CM) else pca.fit(CM)
+        X_pca = fit.transform(CM.toarray()) if issparse(CM) else fit.transform(CM)
         adata.obsm[pca_key] = X_pca
+        adata.uns["PCs"] = fit.components_.T
 
         adata.uns['explained_variance_ratio_'] = fit.explained_variance_ratio_
     else:
         fit = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)  # unscaled PCA
         X_pca = fit.fit_transform(CM)[:, 1:]  # first columns is related to the total UMI (or library size)
         adata.obsm[pca_key] = X_pca
+        adata.uns["PCs"] = fit.components_.T
 
         adata.uns['explained_variance_ratio_'] = fit.explained_variance_ratio_[1:]
 

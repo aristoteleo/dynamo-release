@@ -1,5 +1,8 @@
 import numpy as np
+import scipy
+from scipy import interpolate
 from scipy.sparse import issparse, csr_matrix, lil_matrix, diags
+from scipy.integrate import odeint, solve_ivp
 from .moments import strat_mom, MomData, Estimation
 import warnings
 
@@ -30,9 +33,10 @@ def update_dict(dict1, dict2):
     return dict1
 
 
-def closest_node(node, nodes):
-    nodes = np.asarray(nodes)
-    dist_2 = np.sum((nodes - node) ** 2, axis=1)
+def closest_cell(coord, cells):
+    cells = np.asarray(cells)
+    dist_2 = np.sum((cells - coord) ** 2, axis=1)
+
     return np.argmin(dist_2)
 
 
@@ -43,8 +47,6 @@ def elem_prod(X, Y):
         return Y.multiply(X)
     else:
         return np.multiply(X, Y)
-
-
 # ---------------------------------------------------------------------------------------------------
 # moment related:
 def calc_12_mom_labeling(data, t):
@@ -723,3 +725,307 @@ def vector_field_function(x, t, VecFld, dim=None):
     else:
         K = K.dot(VecFld['C'][:, dim])
     return K
+
+
+def integrate_vf(init_states, t, args, integration_direction, f, interpolation_num=None, average=True):
+    '''integrating along vector field function'''
+
+    n_cell, n_feature, n_steps = init_states.shape[0], init_states.shape[1], len(t) if interpolation_num is None else interpolation_num
+
+    if n_cell > 1:
+        if integration_direction == 'both':
+            if average: avg = np.zeros((n_steps * 2, n_feature))
+        else:
+            if average: avg = np.zeros((n_steps, n_feature))
+
+    Y = None
+    if interpolation_num is not None: valid_ids = None
+    for i in range(n_cell):
+        y0 = init_states[i, :]
+        if integration_direction == 'forward':
+            y = scipy.integrate.odeint(lambda x, t: f(x), y0, t, args=args)
+            t_trans = t
+        elif integration_direction == 'backward':
+            y = scipy.integrate.odeint(lambda x, t: f(x), y0, -t, args=args)
+            t_trans = -t
+        elif integration_direction == 'both':
+            y_f = scipy.integrate.odeint(lambda x, t: f(x), y0, t, args=args)
+            y_b = scipy.integrate.odeint(lambda x, t: f(x), y0, -t, args=args)
+            y = np.hstack((y_b[::-1, :], y_f))
+            t_trans = np.hstack((-t[::-1], t))
+
+            if interpolation_num is not None: interpolation_num = interpolation_num * 2
+        else:
+            raise Exception('both, forward, backward are the only valid direction argument strings')
+
+        if interpolation_num is not None:
+            vids = np.where((np.diff(y.T) < 1e-3).sum(0) < y.shape[1])[0]
+            valid_ids = vids if valid_ids is None else list(set(valid_ids).union(vids))
+
+        Y = y if Y is None else np.vstack((Y, y))
+
+    if interpolation_num is not None:
+        valid_t_trans = t_trans[valid_ids]
+
+        _t, _Y = None, None
+        for i in range(n_cell):
+            cur_Y = Y[i:(i + 1) * len(t_trans), :][valid_ids, :]
+            t_linspace = np.linspace(valid_t_trans[0], valid_t_trans[-1], interpolation_num)
+            f = interpolate.interp1d(valid_t_trans, cur_Y.T)
+            _Y = f(t_linspace) if _Y is None else np.hstack((_Y, f(t_linspace)))
+            _t = t_linspace if _t is None else np.hstack((_t, t_linspace))
+
+        t, Y = _t, _Y.T
+
+    if n_cell > 1 and average:
+        t_len = int(len(t)/n_cell)
+        for i in range(t_len):
+            avg[i, :] = np.mean(Y[np.arange(n_cell) * t_len + i, :], 0)
+        Y = avg
+
+    return t, Y
+
+def integrate_vf_ivp(init_states, t, args, integration_direction, f, interpolation_num=None, average=True):
+    '''integrating along vector field function using the initial value problem solver from scipy.integrate'''
+
+    n_cell, n_feature = init_states.shape
+    max_step = np.abs(t[-1] - t[0]) / 2500
+
+    T, Y, SOL = [], [], []
+
+    for i in range(n_cell):
+        y0 = init_states[i, :]
+        ivp_f, ivp_f_event = lambda t, x: f(x), lambda t, x: np.sum(np.linalg.norm(f(x)) < 1e-5) - 1
+        ivp_f_event.terminal = True
+
+        print('\nintegrating cell ', i, '; Expression: ', init_states[i, :])
+        if integration_direction == 'forward':
+            y_ivp = solve_ivp(ivp_f, [t[0], t[-1]], y0, events=ivp_f_event, args=args, max_step=max_step, dense_output=True)
+            y, t_trans, sol = y_ivp.y, y_ivp.t, y_ivp.sol
+        elif integration_direction == 'backward':
+            y_ivp = solve_ivp(ivp_f, [-t[0], -t[-1]], y0, events=ivp_f_event, args=args, max_step=max_step, dense_output=True)
+            y, t_trans, sol = y_ivp.y, y_ivp.t, y_ivp.sol
+        elif integration_direction == 'both':
+            y_ivp_f = solve_ivp(ivp_f, [t[0], t[-1]], y0, events=ivp_f_event, args=args, max_step=max_step, dense_output=True)
+            y_ivp_b = solve_ivp(ivp_f, [-t[0], -t[-1]], y0, events=ivp_f_event, args=args, max_step=max_step, dense_output=True)
+            y, t_trans = np.hstack((y_ivp_b.y[::-1, :], y_ivp_f.y)), np.hstack((y_ivp_b.t[::-1], y_ivp_f.t))
+            sol = [y_ivp_b.sol, y_ivp_f.sol]
+
+            if interpolation_num is not None: interpolation_num = interpolation_num * 2
+        else:
+            raise Exception('both, forward, backward are the only valid direction argument strings')
+
+        T.extend(t_trans)
+        Y.append(y)
+        SOL.append(sol)
+
+        print("\nintegration time: ", len(t_trans))
+
+    valid_t_trans = np.unique(T)
+
+    _Y = None
+    if integration_direction == "both": neg_t_len = sum(valid_t_trans < 0)
+    for i in range(n_cell):
+        cur_Y = SOL[i](valid_t_trans) if integration_direction != "both" else \
+            np.hstack((SOL[i][0](valid_t_trans[:neg_t_len]), SOL[i][1](valid_t_trans[neg_t_len:])))
+        _Y = cur_Y if _Y is None else np.hstack((_Y, cur_Y))
+
+    t, Y = valid_t_trans, _Y
+
+    if n_cell > 1 and average:
+        t_len = int(len(t)/n_cell)
+        avg = np.zeros((n_feature, t_len))
+
+        for i in range(t_len):
+            avg[:, i] = np.mean(Y[:, np.arange(n_cell) * t_len + i], 1)
+        Y = avg
+
+    return t, Y.T
+
+
+def integrate_streamline(X, Y, U, V, integration_direction, init_states, interpolation_num=250, average=True):
+    """use streamline's integrator to alleviate stacking of the solve_ivp. Need to update with the correct time."""
+    import matplotlib.pyplot as plt
+
+    n_cell = init_states.shape[0]
+
+    res = np.zeros((n_cell * interpolation_num, 2))
+
+    for i in range(n_cell):
+        strm = plt.streamplot(X, Y, U, V, start_points=init_states[i, None], integration_direction=integration_direction,
+                              density=10)
+        strm_res = np.array(strm.lines.get_segments()).reshape((-1, 2))
+
+        if len(strm_res) == 0: continue
+        t = np.arange(strm_res.shape[0])
+        t_linspace = np.linspace(t[0], t[-1], interpolation_num)
+        f = interpolate.interp1d(t, strm_res.T)
+
+        cur_rng = np.arange(i * interpolation_num, (i + 1) * interpolation_num)
+        res[cur_rng, :] = f(t_linspace).T
+
+    if n_cell > 1 and average:
+        t_len = len(t_linspace)
+        avg = np.zeros((t_len, 2))
+
+        for i in range(t_len):
+            cur_rng = np.arange(n_cell) * t_len + i
+            avg[i, :] = np.mean(res[cur_rng, :], 0)
+
+        res = avg
+
+    return t_linspace, res
+
+# ---------------------------------------------------------------------------------------------------
+# fate related
+def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim):
+    import pandas as pd
+
+    if basis is not None:
+        fate_key = 'fate_' + basis
+    else:
+        fate_key = 'fate' if layer == 'X' else 'fate_' + layer
+
+    time = adata.obs[time].values if mode is not 'vector_field' else adata.uns[fate_key]['t']
+
+    if mode is not 'vector_field':
+        valid_genes = list(set(genes).intersection(adata.var.index))
+
+        if layer is 'X':
+            exprs = adata[np.isfinite(time), valid_genes].X
+        elif layer in adata.layers.keys():
+            exprs = adata[np.isfinite(time), valid_genes].layers[layer]
+        elif layer is 'protein': # update subset here
+            exprs = adata[np.isfinite(time), valid_genes].obsm[layer]
+        else:
+            raise Exception(f'The {layer} you passed in is not existed in the adata object.')
+    else:
+        fate_genes = adata.uns[fate_key]['genes']
+        valid_genes = list(set(genes).intersection(fate_genes))
+
+        if basis is not None:
+            if project_back_to_high_dim:
+                exprs = adata.uns[fate_key]['high_prediction']
+                exprs = exprs[np.isfinite(time), :][:, pd.Series(fate_genes).isin(valid_genes)]
+            else:
+                exprs = adata.uns[fate_key]['prediction'][np.isfinite(time), :]
+                valid_genes = [basis + '_' + str(i) for i in np.arange(exprs.shape[1])]
+        else:
+            exprs = adata.uns[fate_key]['prediction'][np.isfinite(time), :][:, pd.Series(fate_genes).isin(valid_genes)]
+
+    time = time[np.isfinite(time)]
+
+    return exprs, valid_genes, time
+
+
+def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
+    if init_states is None and init_cells is not None:
+        if type(init_cells) == str: init_cells = [init_cells]
+        intersect_cell_names = list(set(init_cells).intersection(adata.obs_names))
+        _cell_names = init_cells if len(intersect_cell_names) == 0 else intersect_cell_names
+
+        if basis is not None:
+            init_states = adata[_cell_names].obsm['X_' + basis].copy()
+            if len(_cell_names) == 1: init_states = init_states.reshape((1, -1))
+            VecFld = adata.uns['VecFld_' + basis]["VecFld"]
+            X = adata.obsm['X_' + basis]
+
+            valid_genes = [basis + '_' + str(i) for i in np.arange(init_states.shape[1])]
+        else:
+            # valid_genes = list(set(genes).intersection(adata.var_names[adata.var.use_for_velocity]) if genes is not None \
+            #     else adata.var_names[adata.var.use_for_velocity]
+            # ----------- enable the function to only only a subset genes -----------
+
+            vf_key = 'VecFld' if layer == 'X' else 'VecFld_' + layer
+            valid_genes = adata.uns[vf_key]['genes']
+            init_states = adata[_cell_names, :][:, valid_genes].X if layer == 'X' else adata[_cell_names, :][:, valid_genes].layers[layer]
+            if issparse(init_states): init_states = init_states.A
+            if len(_cell_names) == 1: init_states = init_states.reshape((1, -1))
+
+            if layer == 'X':
+                VecFld = adata.uns['VecFld']["VecFld"]
+                X = adata[:, valid_genes].X
+            else:
+                VecFld = adata.uns['VecFld_' + layer]["VecFld"]
+                X = adata[:, valid_genes].layers[layer]
+
+    if init_states is None:
+        raise Exception('Either init_state or init_cells should be provided.')
+
+    if init_states.shape[0] > 1 and average == 'origin':
+            init_states = init_states.mean(0).reshape((1, -1))
+
+    if t_end is None:
+        xmin, xmax = X.min(0), X.max(0)
+        t_end = np.max(xmax - xmin) / np.min(np.abs(VecFld['V']))
+
+    if issparse(init_states):
+        init_states = init_states.A
+
+    return init_states, VecFld, t_end, valid_genes
+
+# ---------------------------------------------------------------------------------------------------
+# arc curve related
+def remove_redundant_points_trajectory(X, tol=1e-4, output_discard=False):
+    """remove consecutive data points that are too close to each other."""
+    X = np.atleast_2d(X)
+    discard = np.zeros(len(X), dtype=bool)
+    if X.shape[0] > 1:
+        for i in range(len(X)-1):
+            dist = np.linalg.norm(X[i+1] - X[i])
+            if dist < tol:
+                discard[i+1] = True
+        X = X[~discard]
+
+    arclength = 0
+
+    x0 = X[0]
+    for i in range(1, len(X)):
+        tangent = X[i] - x0 if i == 1 else X[i] - X[i-1]
+        d = np.linalg.norm(tangent)
+
+        arclength += d
+
+    if output_discard:
+        return X, arclength, discard
+    else:
+        return X, arclength
+
+
+def arclength_sampling(X, step_length, t=None):
+    """uniformly sample data points on an arc curve that generated from vector field predictions."""
+    Y = []
+    x0 = X[0]
+    T = [] if t is not None else None
+    t0 = t[0] if t is not None else None
+    i = 1
+    terminate = False
+    arclength = 0
+
+    while(i < len(X) - 1 and not terminate):
+        l = 0
+        for j in range(i, len(X)-1):
+            tangent = X[j] - x0 if j==i else X[j] - X[j-1]
+            d = np.linalg.norm(tangent)
+            if l + d >= step_length:
+                x = x0 if j==i else X[j-1]
+                y = x + (step_length-l) * tangent/d
+                if t is not None:
+                    tau = t0 if j==i else t[j-1]
+                    tau += (step_length-l)/d * (t[j] - tau)
+                    T.append(tau)
+                    t0 = tau
+                Y.append(y)
+                x0 = y
+                i = j
+                break
+            else:
+                l += d
+        arclength += step_length
+        if l + d < step_length:
+            terminate = True
+
+    if T is not None:
+        return np.array(Y), arclength, T
+    else:
+        return np.array(Y), arclength

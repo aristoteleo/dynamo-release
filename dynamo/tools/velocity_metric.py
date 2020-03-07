@@ -100,7 +100,7 @@ def jaccard(X, V, n_pca_components, n_neigh, X_neighbors):
     X_fit = transformer.fit(Xt)
     Xt_pca = X_fit.transform(Xt)[:, 1:]
 
-    V_neighbors, _, _, _ = umap_conn_indices_dist_embedding(Xt_pca, n_neighbors=n_neigh)
+    V_neighbors, _, _, _ = umap_conn_indices_dist_embedding(Xt_pca, n_neighbors=n_neigh, return_mapper=False)
     X_neighbors_, V_neighbors_ = X_neighbors.dot(X_neighbors), V_neighbors.dot(V_neighbors)
     union_ = X_neighbors_ + V_neighbors_ > 0
     intersect_ = mnn_from_list([X_neighbors_, V_neighbors_]) > 0

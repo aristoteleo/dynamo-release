@@ -9,6 +9,9 @@ from sklearn.utils import sparsefuncs
 from ..preprocessing.utils import get_layer_keys
 from .utils import get_mapper, gaussian_kernel, calc_1nd_moment, calc_2nd_moment
 
+from ..docrep import DocstringProcessor
+docstrings = DocstringProcessor()
+
 def extract_indices_dist_from_graph(graph, n_neighbors):
     """Extract the matrices for index, distance from the associated kNN sparse graph
 
@@ -51,6 +54,7 @@ def extract_indices_dist_from_graph(graph, n_neighbors):
     return ind_mat, dist_mat
 
 
+@docstrings.get_sectionsf('umap_ann')
 def umap_conn_indices_dist_embedding(X,
         n_neighbors=30,
         n_components=2,
@@ -63,7 +67,9 @@ def umap_conn_indices_dist_embedding(X,
         negative_sample_rate=5,
         init_pos='spectral',
         random_state=0,
-        verbose=False):
+        return_mapper=True,
+        verbose=False,
+        **umap_kwargs):
     """Compute connectivity graph, matrices for kNN neighbor indices, distance matrix and low dimension embedding with UMAP.
     This code is adapted from umap-learn (https://github.com/lmcinnes/umap/blob/97d33f57459de796774ab2d7fcf73c639835676d/umap/umap_.py)
 
@@ -191,7 +197,35 @@ def umap_conn_indices_dist_embedding(X,
         verbose=verbose
     )
 
-    return graph, knn_indices, knn_dists, embedding_
+    if return_mapper:
+        import umap
+        from .utils import update_dict
+        if n_epochs == 0: n_epochs = None
+
+        _umap_kwargs = {"angular_rp_forest": False, "local_connectivity": 1.0, "metric_kwds": None,
+                        "set_op_mix_ratio": 1.0, "target_metric": 'categorical', "target_metric_kwds": None,
+                        "target_n_neighbors": -1, "target_weight": 0.5, "transform_queue_size": 4.0,
+                        "transform_seed": 42}
+        umap_kwargs = update_dict(_umap_kwargs, umap_kwargs)
+
+        mapper = umap.UMAP(n_neighbors=n_neighbors,
+                           n_components=n_components,
+                           metric=metric,
+                           min_dist=min_dist,
+                           spread=spread,
+                           n_epochs=n_epochs,
+                           learning_rate=alpha,
+                           repulsion_strength=gamma,
+                           negative_sample_rate=negative_sample_rate,
+                           init=init_pos,
+                           random_state=random_state,
+                           verbose=verbose,
+                           **umap_kwargs
+        ).fit(X)
+
+        return mapper, graph, knn_indices, knn_dists, embedding_
+    else:
+        return graph, knn_indices, knn_dists, embedding_
 
 
 def mnn_from_list(knn_graph_list):
@@ -257,7 +291,7 @@ def mnn(adata, n_pca_components=25, n_neighbors=250, layers='all', use_pca_fit=T
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            graph, knn_indices, knn_dists, X_dim = umap_conn_indices_dist_embedding(layer_pca, n_neighbors=n_neighbors)
+            graph, knn_indices, knn_dists, X_dim = umap_conn_indices_dist_embedding(layer_pca, n_neighbors=n_neighbors, return_mapper=False)
 
         if save_all_to_adata:
             adata.obsm[layer + '_pca'], adata.obsm[layer + '_umap'] = layer_pca, X_dim
@@ -284,7 +318,7 @@ def smoother(adata, use_gaussian_kernel=True, use_mnn=False, layers='all'):
         X = adata.obsm['X_pca']
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            kNN, knn_indices, knn_dists, _ = umap_conn_indices_dist_embedding(X, n_neighbors=30)
+            kNN, knn_indices, knn_dists, _ = umap_conn_indices_dist_embedding(X, n_neighbors=30, return_mapper=False)
 
     if use_gaussian_kernel and not use_mnn:
         conn = gaussian_kernel(X, knn_indices, sigma=10, k=None, dists=knn_dists)

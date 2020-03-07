@@ -384,7 +384,7 @@ class VectorField2D:
         return dict_vf
 
 
-def topography(adata, basis, n=25, VecFld=None):
+def topography(adata, basis='umap', layer=None, X=None, dims=None, n=25, VecFld=None):
     """Map the topography of the single cell vector field in (first) two dimensions.
 
     Parameters
@@ -393,6 +393,11 @@ def topography(adata, basis, n=25, VecFld=None):
             an Annodata object.
         basis: `str` (default: `trimap`)
             The reduced dimension embedding of cells to visualize.
+        X: 'np.ndarray' (dimension: n_obs x n_features)
+                Original data.
+        layer: `str` or None (default: None)
+            Which layer of the data will be used for vector field function reconstruction. This will be used in conjunction
+            with X.
         n: `int` (default: `10`)
             Number of samples for calculating the fixed points.
         VecFld: `dictionary` or None (default: None)
@@ -411,20 +416,30 @@ def topography(adata, basis, n=25, VecFld=None):
         else:
             raise Exception("VecFld is not constructed yet, please first run dyn.tl.VectorField(adata, basis=basis_name)."
                             " basis_name can be any name for the basis.")
-    X_basis = adata.obsm['X_' + basis][:, :2]
+
+    if dims is None: dims = [0, 1]
+    X_basis = adata.obsm['X_' + basis][:, dims] if X is None else X[:, dims]
     min_, max_ = X_basis.min(0), X_basis.max(0)
 
     xlim = [min_[0] - (max_[0] - min_[0]) * 0.1, max_[0] + (max_[0] - min_[0]) * 0.1]
     ylim = [min_[1] - (max_[1] - min_[1]) * 0.1, max_[1] + (max_[1] - min_[1]) * 0.1]
 
-    vecfld = VectorField2D(lambda x: vector_field_function(x, None, VecFld, [0, 1]))
+    vecfld = VectorField2D(lambda x: vector_field_function(x, None, VecFld, dims))
     vecfld.find_fixed_points_by_sampling(n, xlim, ylim)
     vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
     # sep = compute_separatrices(vecfld.Xss.get_X(), vecfld.Xss.get_J(), vecfld.func, xlim, ylim)
+    #
 
-    if basis != 'X':
-        adata.uns['VecFld_' + basis] = {"VecFld": VecFld, "VecFld2D": vecfld, "xlim": xlim, "ylim": ylim}
+    if layer is None:
+        if 'VecFld_' + basis in adata.uns_keys():
+            adata.uns['VecFld_' + basis].update({"VecFld": VecFld, "VecFld2D": vecfld, "xlim": xlim, "ylim": ylim})
+        else:
+            adata.uns['VecFld_' + basis] = {"VecFld": VecFld, "VecFld2D": vecfld, "xlim": xlim, "ylim": ylim}
     else:
-        adata.uns['VecFld'] = {"VecFld": VecFld, "VecFld2D": vecfld, "xlim": xlim, "ylim": ylim}
+        vf_key = 'VecFld' if layer == 'X' else 'VecFld_' + layer
+        if 'VecFld' in adata.uns_keys():
+            adata.uns[vf_key].update({"VecFld": VecFld, "VecFld2D": vecfld, "xlim": xlim, "ylim": ylim})
+        else:
+            adata.uns[vf_key] = {"VecFld": VecFld, "VecFld2D": vecfld, "xlim": xlim, "ylim": ylim}
 
     return adata

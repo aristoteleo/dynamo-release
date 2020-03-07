@@ -476,7 +476,7 @@ def _streamline_plot(adata, genes, x=0, y=1, method='sparseVFC', basis='trimap',
     if method is 'SparseVFC' and adata.obsm['X_' + basis].shape[1] == 2:
         if 'VecFld_' + basis not in adata.uns.keys():
             VectorField(adata, basis=basis)
-        X_grid, V_grid =  adata.uns['VecFld_' + basis]['grid'], adata.uns['VecFld_' + basis]['grid_V']
+        X_grid, V_grid =  adata.uns['VecFld_' + basis]['VecFld']['grid'], adata.uns['VecFld_' + basis]['VecFld']['grid_V']
         N = int(np.sqrt(V_grid.shape[0]))
         X_grid, V_grid = np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]), \
                  np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))])

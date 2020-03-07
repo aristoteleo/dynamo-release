@@ -209,17 +209,25 @@ def get_P(Y, V, sigma2, gamma, a):
     return P, E
 
 
-def VectorField(adata, basis='umap', dims=None, grid_velocity=False, grid_num=50, velocity_key='velocity_S', method='SparseVFC', **kwargs):
+def VectorField(adata, basis=None, layer='X', dims=None, genes=None, grid_velocity=False, grid_num=50, velocity_key='velocity_S', method='SparseVFC', **kwargs):
     """Learn a function of high dimensional vector field from sparse single cell samples in the entire space robustly.
 
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains embedding and velocity data
-        basis: `str` (default: umap)
-            The embedding data to use.
+        basis: `str` or None (default: `None`)
+            The embedding data to use. The vector field function will be learned on the low dimensional embedding and can be then
+            projected back to the high dimensional space.
+        layer: `str` or None (default: `X`)
+            Which layer of the data will be used for vector field function reconstruction. The layer once provided, will override
+            the `basis` argument and then learn the vector field function in high dimensional space.
         dims: `list` or None (default: None)
             The dimensions that will be used for reconstructing vector field functions.
+        genes: `list` or None (default: None)
+            The gene names whose gene expression will be used for vector field reconstruction. By default (when genes is
+            set to None), the genes used for velocity embedding (var.use_for_velocity) will be used for vector field reconstruction.
+            Note that the genes to be used need to have velocity calculated.
         grid_velocity: `bool` (default: False)
             Whether to generate grid velocity. Note that by default it is set to be False, but for datasets with embedding
             dimension less than 4, the grid velocity will still be generated. Please note that number of total grids in
@@ -243,14 +251,20 @@ def VectorField(adata, basis='umap', dims=None, grid_velocity=False, grid_num=50
             `AnnData` object that is updated with the `VecFld` dictionary in the `uns` attribute.
     """
 
-    X = adata.obsm['X_' + basis].copy() if basis is not 'X' else adata.X.copy()
-    V = adata.obsm['velocity_' + basis].copy() if basis is not 'X' else adata.layers[velocity_key].copy()
+    if basis is not None:
+        X = adata.obsm['X_' + basis].copy()
+        V = adata.obsm['velocity_' + basis].copy()
 
-    if issparse(X) and basis is 'X':
-        X, V = X.A[:, adata.var.use_for_dynamo], V.A[:, adata.var.use_for_dynamo]
+        if dims is not None:
+            X, V = X[:, dims], V[:, dims]
+    else:
+        valid_genes = list(set(genes).intersection(adata.var.index)) if genes is not None \
+            else adata.var_names[adata.var.use_for_velocity]
+        X = adata[:, valid_genes].X.copy() if layer == 'X' else adata[:, valid_genes].layers[layer].copy()
+        V = adata[:, valid_genes].layers[velocity_key].copy()
 
-    if dims is not None and basis is not 'X':
-        X, V = X[:, dims], V[:, dims]
+        if issparse(X):
+            X, V = X.A, V.A
 
     Grid = None
     if X.shape[1] < 4 or grid_velocity:
@@ -272,16 +286,18 @@ def VectorField(adata, basis='umap', dims=None, grid_velocity=False, grid_num=50
     VecFld = vectorfield(X, V, Grid, **vf_kwargs)
     func = VecFld.fit(normalize=False, method=method)
 
+    if basis is not None:
+        adata.uns['VecFld_' + basis] = {"VecFld": func, "vf_kwargs": vf_kwargs, "dims": dims}
+    else:
+        vf_key = 'VecFld' if layer == 'X' else 'VecFld_' + layer
+        adata.uns[vf_key] = {"VecFld": func, "vf_kwargs": vf_kwargs, 'layer': layer, "genes": genes,
+                               "velocity_key": velocity_key}
+
     if X.shape[1] == 2:
         tp_kwargs = {"n": 25}
         tp_kwargs = update_dict(tp_kwargs, kwargs)
 
-        adata = topography(adata, basis, VecFld=func, **tp_kwargs)
-    else:
-        if basis != 'X':
-            adata.uns['VecFld_' + basis] = {"VecFld": func}
-        else:
-            adata.uns['VecFld'] = {"VecFld": func}
+        adata = topography(adata, basis=basis, X=X, layer=layer, dims=[0, 1], VecFld=func, **tp_kwargs)
 
     return adata
 
