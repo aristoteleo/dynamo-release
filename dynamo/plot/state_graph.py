@@ -56,6 +56,8 @@ def state_graph(adata,
 
     Pl = adata.uns['Cell type annotation_graph']['group_graph']
     Pl[Pl - Pl.T < 0] = 0
+    Pl /= Pl.sum(1)[:, None]
+
     for i, cur_grp in enumerate(uniq_grp):
         group_median[i, :] = np.nanmedian(points[np.where(groups == cur_grp)[0], :2], 0)
 

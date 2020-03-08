@@ -780,6 +780,7 @@ def cell_wise_velocity(
         show_legend=True,
         use_smoothed=True,
         ax=None,
+        aggregate=None,
         cell_ind='all',
         quiver_size=None,
         quiver_length=None,
@@ -873,6 +874,7 @@ def cell_wise_velocity(
         use_smoothed,
         ax,
         'return',
+        aggregate,
         **s_kwargs_dict)
 
     if cell_ind is "all":
@@ -914,6 +916,7 @@ def grid_velocity(
         show_legend=True,
         use_smoothed=True,
         ax=None,
+        aggregate=None,
         method='gaussian',
         xy_grid_nums=[50, 50],
         quiver_size=None,
@@ -1037,6 +1040,7 @@ def grid_velocity(
         use_smoothed,
         ax,
         'return',
+        aggregate,
         **s_kwargs_dict)
 
     for i in range(len(axes_list)):
@@ -1068,6 +1072,7 @@ def streamline_plot(
         show_legend=True,
         use_smoothed=True,
         ax=None,
+        aggregate=None,
         method='gaussian',
         xy_grid_nums=[50, 50],
         density=1,
@@ -1167,6 +1172,7 @@ def streamline_plot(
         use_smoothed,
         ax,
         'return',
+        aggregate,
         **s_kwargs_dict)
 
     if background is None:

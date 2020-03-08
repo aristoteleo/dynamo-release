@@ -854,7 +854,7 @@ def integrate_streamline(X, Y, U, V, integration_direction, init_states, interpo
 
     for i in range(n_cell):
         strm = plt.streamplot(X, Y, U, V, start_points=init_states[i, None], integration_direction=integration_direction,
-                              density=10)
+                              density=100)
         strm_res = np.array(strm.lines.get_segments()).reshape((-1, 2))
 
         if len(strm_res) == 0:
@@ -880,6 +880,8 @@ def integrate_streamline(X, Y, U, V, integration_direction, init_states, interpo
             avg[i, :] = np.mean(res[cur_rng, :], 0)
 
         res = avg
+
+    plt.close()
 
     return t_linspace, res
 

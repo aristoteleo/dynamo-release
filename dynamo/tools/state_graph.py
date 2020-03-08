@@ -60,7 +60,7 @@ def state_graph(adata, group, approx=True, basis='umap', layer=None, arc_sample=
 
         init_states, _, _, _ = fetch_states(adata, init_states=None, init_cells=init_cells, basis=basis,
                                                                layer=layer, average=False, t_end=None)
-        if approx:
+        if approx and basis != 'pca' and layer is None:
             X_grid, V_grid =  adata.uns['VecFld_' + basis]["VecFld"]['grid'], adata.uns['VecFld_' + basis]["VecFld"]['grid_V']
             N = int(np.sqrt(V_grid.shape[0]))
             X_grid, V_grid = np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]), \
@@ -90,9 +90,6 @@ def state_graph(adata, group, approx=True, basis='umap', layer=None, arc_sample=
 
             knn_dist, knn_ind = kdt.query(Y, k=1)
 
-            # avg_time = np.array((1, len(uniq_grp)))
-            # _graph = np.array((1, len(uniq_grp)))
-
             # set up a dataframe with group and time
             pass_t = np.where(knn_dist < dist_threshold)[0]
             pass_df = pd.DataFrame({'group': adata[knn_ind[pass_t]].obs[group], 't': T[pass_t]})
@@ -104,16 +101,6 @@ def state_graph(adata, group, approx=True, basis='umap', layer=None, arc_sample=
                 ind_other_cell_type = [uniq_grp.index(k) for k in np.array(pass_groups)[confident_pass_check]]
                 grp_graph[i, ind_other_cell_type] += 1
                 grp_avg_time[i, ind_other_cell_type] += pass_df.groupby('group')['t'].mean()[confident_pass_check].values
-
-            # for k, cur_knn_dist in enumerate(knn_dist):
-            #     if cur_knn_dist < dist_threshold:
-            #         cell_id = knn_ind[k]
-            #         ind_other_cell_type = uniq_grp.index(groups[cell_id])
-            #         _graph[ind_other_cell_type] += 1
-            #         avg_time[ind_other_cell_type] += T[k]
-            #
-            # grp_avg_time[i, :] += (np.array(avg_time) / np.array(_graph)).flatten()
-            # grp_graph[i, :] += (np.array(_graph) > 0).astype('float').flatten()
 
         # average across cells
         grp_avg_time[i, :] /= grp_graph[i, :]

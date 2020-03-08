@@ -14,6 +14,8 @@ from .utils import despline, set_spine_linewidth, scatter_with_colorbar, scatter
 from .utils import is_gene_name, is_cell_anno_column, is_list_of_lists
 from .utils import _matplotlib_points, _datashade_points
 
+from ..tools.utils import update_dict
+
 from ..tools.utils import get_mapper
 from ..docrep import DocstringProcessor
 
@@ -452,6 +454,7 @@ def scatters(
         use_smoothed=True,
         ax=None,
         save_or_show='show',
+        aggregate=None,
         **kwargs):
     """Plot an embedding as points. Currently this only works
     for 2D embeddings. While there are many optional parameters
@@ -540,6 +543,8 @@ def scatters(
             The desired height of the plot in pixels
         show_legend: bool (optional, default True)
             Whether to display a legend of the labels
+        aggregate: `str` or `None` (default: `None`)
+            The column in adata.obs that will be used to aggregate data points.
         kwargs:
             Additional arguments passed to plt.scatters.
 
@@ -616,6 +621,22 @@ def scatters(
                                               y: adata.obs_vector(y, cur_l_smoothed)})
                     points.columns = [x, y + ' (' + cur_l_smoothed + ')']
 
+                if aggregate is not None:
+                    groups, uniq_grp = adata.obs[aggregate], adata.obs[aggregate].unique().to_list()
+                    group_color, group_median = np.zeros((1, len(uniq_grp))).flatten() if isinstance(_color[0], Number) else \
+                                                    np.zeros((1, len(uniq_grp))).astype('str').flatten(), np.zeros((len(uniq_grp), 2))
+
+                    grp_size = adata.obs[aggregate].value_counts().values
+                    scatter_kwargs = {'s': grp_size} if scatter_kwargs is None else update_dict(scatter_kwargs, {'s': grp_size})
+
+                    for ind, cur_grp in enumerate(uniq_grp):
+                        group_median[ind, :] = np.nanmedian(points.iloc[np.where(groups == cur_grp)[0], :2], 0)
+                        if isinstance(_color[0], Number):
+                            group_color[ind] = np.nanmedian(np.array(_color)[np.where(groups == cur_grp)[0]])
+                        else:
+                            group_color[ind] = pd.Series(_color)[np.where(groups == cur_grp)[0]].value_counts().index[0]
+
+                    points, _color = pd.DataFrame(group_median, index=uniq_grp, columns=points.columns), group_color
                 # https://stackoverflow.com/questions/4187185/how-can-i-check-if-my-python-object-is-a-number
                 # answer from Boris.
                 is_not_continous = (not isinstance(_color[0], Number) or type(_color) == pd.Series)

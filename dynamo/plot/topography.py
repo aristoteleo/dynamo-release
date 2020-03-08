@@ -322,6 +322,7 @@ def topography(
         quiver_size=None,
         quiver_length=None,
         ax=None,
+        aggregate=None,
         s_kwargs_dict={},
         q_kwargs_dict={},
         **topography_kwargs):
@@ -438,6 +439,7 @@ def topography(
         use_smoothed,
         ax,
         'return',
+        aggregate,
         **s_kwargs_dict)
 
     for i in range(len(axes_list)):
