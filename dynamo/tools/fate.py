@@ -104,7 +104,7 @@ def _fate(VecFld, init_states, VecFld_true = None, t_end=None, step_size=None, d
             transcriptomic space.
         init_states: `numpy.ndarray`
             Initial cell states for the historical or future cell state prediction with numerical integration.
-        VecFld_true: `function`
+        VecFld_true: `function` or `None`
             The true ODE function, useful when the data is generated through simulation. Replace VecFld arugment when this has been set.
         t_end: `float` (default None)
             The length of the time period from which to predict cell state forward or backward over time. This is used

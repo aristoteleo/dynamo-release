@@ -14,10 +14,10 @@ def create_edge_patches_from_markov_chain(P, X, width=3, node_rad=0, tol=1e-7, c
     arrows = []
     for i in range(P.shape[0]):
         for j in range(P.shape[0]):
-            if P[j, i] > tol:
-                arrows.append(create_edge_patch(X[i], X[j], width=P[j, i] * width, node_rad=node_rad,
+            if P[i, j] > tol:
+                arrows.append(create_edge_patch(X[i], X[j], width=P[i, j] * width, node_rad=node_rad,
                                                 connectionstyle=connectionstyle, facecolor=facecolor,
-                                                alpha=min(2 * P[j, i], 1), **kwargs))
+                                                alpha=min(2 * P[i, j], 1), **kwargs))
     return arrows
 
 

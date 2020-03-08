@@ -849,11 +849,11 @@ def integrate_streamline(X, Y, U, V, integration_direction, init_states, interpo
 
     n_cell = init_states.shape[0]
 
-    res = np.zeros((n_cell * interpolation_num, 2))
+    res = None
 
     for i in range(n_cell):
         strm = plt.streamplot(X, Y, U, V, start_points=init_states[i, None], integration_direction=integration_direction,
-                              density=10)
+                              density=100)
         strm_res = np.array(strm.lines.get_segments()).reshape((-1, 2))
 
         if len(strm_res) == 0: continue
@@ -861,8 +861,9 @@ def integrate_streamline(X, Y, U, V, integration_direction, init_states, interpo
         t_linspace = np.linspace(t[0], t[-1], interpolation_num)
         f = interpolate.interp1d(t, strm_res.T)
 
-        cur_rng = np.arange(i * interpolation_num, (i + 1) * interpolation_num)
-        res[cur_rng, :] = f(t_linspace).T
+        res = f(t_linspace).T if res is None else np.vstack(res, f(t_linspace).T)
+
+    n_cell = int(res.shape[0] / interpolation_num)
 
     if n_cell > 1 and average:
         t_len = len(t_linspace)
@@ -921,7 +922,7 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
 def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
     if init_states is None and init_cells is not None:
         if type(init_cells) == str: init_cells = [init_cells]
-        intersect_cell_names = list(set(init_cells).intersection(adata.obs_names))
+        intersect_cell_names =  sorted(set(init_cells).intersection(adata.obs_names), key=lambda x: list(init_cells).index(x))
         _cell_names = init_cells if len(intersect_cell_names) == 0 else intersect_cell_names
 
         if basis is not None:
@@ -952,7 +953,7 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
     if init_states is None:
         raise Exception('Either init_state or init_cells should be provided.')
 
-    if init_states.shape[0] > 1 and average == 'origin':
+    if init_states.shape[0] > 1 and average in ['origin', True]:
             init_states = init_states.mean(0).reshape((1, -1))
 
     if t_end is None:

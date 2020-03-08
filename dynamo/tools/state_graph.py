@@ -1,3 +1,4 @@
+import pandas as pd
 import numpy as np
 from scipy.spatial import cKDTree
 from tqdm import tqdm
@@ -89,19 +90,32 @@ def state_graph(adata, group, approx=True, basis='umap', layer=None, arc_sample=
 
             knn_dist, knn_ind = kdt.query(Y, k=1)
 
-            avg_time = [0] * len(uniq_grp)
-            _graph = [0] * len(uniq_grp)
+            # avg_time = np.array((1, len(uniq_grp)))
+            # _graph = np.array((1, len(uniq_grp)))
 
-            for k, cur_knn_dist in enumerate(knn_dist):
-                if cur_knn_dist < dist_threshold:
-                    cell_id = knn_ind[k]
-                    ind_other_cell_type = uniq_grp.index(groups[cell_id])
-                    _graph[ind_other_cell_type] += 1
-                    avg_time[ind_other_cell_type] += T[k]
+            # set up a dataframe with group and time
+            pass_t = np.where(knn_dist < dist_threshold)[0]
+            pass_df = pd.DataFrame({'group': adata[knn_ind[pass_t]].obs[group], 't': T[pass_t]})
+            # only consider trajectory that pass at least 10 cells in group as confident pass
+            pass_group_counter = pass_df.group.value_counts()
+            pass_groups, confident_pass_check = pass_group_counter.index.tolist(), np.where(pass_group_counter > 10)[0]
+            # assign the transition matrix and average transition time
+            if len(confident_pass_check) > 0:
+                ind_other_cell_type = [uniq_grp.index(k) for k in np.array(pass_groups)[confident_pass_check]]
+                grp_graph[i, ind_other_cell_type] += 1
+                grp_avg_time[i, ind_other_cell_type] += pass_df.groupby('group')['t'].mean()[confident_pass_check].values
 
-            grp_avg_time[i, :] += (np.array(avg_time) / np.array(_graph)).flatten()
-            grp_graph[i, :] += (np.array(_graph) > 0).astype('float').flatten()
+            # for k, cur_knn_dist in enumerate(knn_dist):
+            #     if cur_knn_dist < dist_threshold:
+            #         cell_id = knn_ind[k]
+            #         ind_other_cell_type = uniq_grp.index(groups[cell_id])
+            #         _graph[ind_other_cell_type] += 1
+            #         avg_time[ind_other_cell_type] += T[k]
+            #
+            # grp_avg_time[i, :] += (np.array(avg_time) / np.array(_graph)).flatten()
+            # grp_graph[i, :] += (np.array(_graph) > 0).astype('float').flatten()
 
+        # average across cells
         grp_avg_time[i, :] /= grp_graph[i, :]
         grp_graph[i, :] /= cell_num
 
