@@ -849,20 +849,26 @@ def integrate_streamline(X, Y, U, V, integration_direction, init_states, interpo
 
     n_cell = init_states.shape[0]
 
-    res = None
+    res = np.zeros((n_cell * interpolation_num, 2))
+    j = -1 # this index will become 0 when the first trajectory found
 
     for i in range(n_cell):
         strm = plt.streamplot(X, Y, U, V, start_points=init_states[i, None], integration_direction=integration_direction,
-                              density=100)
+                              density=10)
         strm_res = np.array(strm.lines.get_segments()).reshape((-1, 2))
 
-        if len(strm_res) == 0: continue
+        if len(strm_res) == 0:
+            continue
+        else:
+            j += 1
         t = np.arange(strm_res.shape[0])
         t_linspace = np.linspace(t[0], t[-1], interpolation_num)
         f = interpolate.interp1d(t, strm_res.T)
 
-        res = f(t_linspace).T if res is None else np.vstack(res, f(t_linspace).T)
+        cur_rng = np.arange(j * interpolation_num, (j + 1) * interpolation_num)
+        res[cur_rng, :] = f(t_linspace).T
 
+    res = res[:cur_rng[-1], :] # remove all empty trajectories
     n_cell = int(res.shape[0] / interpolation_num)
 
     if n_cell > 1 and average:
