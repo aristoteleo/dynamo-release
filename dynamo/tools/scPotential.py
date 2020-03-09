@@ -1,6 +1,6 @@
 import numpy as np
 import scipy as sc
-import scipy.optimize 
+import scipy.optimize
 
 from .Bhattacharya import path_integral, alignment
 from .Ao import Ao_pot_map
@@ -12,7 +12,10 @@ from .Wang import Wang_action, Wang_LAP
 
 # the LAP method should be rewritten in TensorFlow/PyTorch using optimization with SGD
 
-def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, reverse=False, grid_num=50, x_ini = None):
+
+def gen_fixed_points(
+    func, auto_func, dim_range, RandNum, EqNum, reverse=False, grid_num=50, x_ini=None
+):
     """ Calculate the fixed points of (learned) vector field function . Classify the fixed points into classes of stable and saddle points
     based on the eigenvalue of the Jacobian on the point.
 
@@ -46,7 +49,7 @@ def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, reverse=False, 
     """
     import numdifftools as nda
 
-    if reverse is True :
+    if reverse is True:
         func_ = lambda x: -func(x)
     else:
         func_ = func
@@ -56,10 +59,14 @@ def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, reverse=False, 
 
     if x_ini is None and EqNum < 4:
         _min, _max = [dim_range[0]] * EqNum, [dim_range[1]] * EqNum
-        Grid_list = np.meshgrid(*[np.linspace(i, j, grid_num) for i, j in zip(_min, _max)])
+        Grid_list = np.meshgrid(
+            *[np.linspace(i, j, grid_num) for i, j in zip(_min, _max)]
+        )
         x_ini = np.array([i.flatten() for i in Grid_list]).T
 
-    RandNum = RandNum if x_ini is None else x_ini.shape[0] # RandNum set to the manually input steady state estimates
+    RandNum = (
+        RandNum if x_ini is None else x_ini.shape[0]
+    )  # RandNum set to the manually input steady state estimates
     FixedPoint = np.zeros((RandNum, EqNum))
     Type = np.zeros((RandNum, 1))
 
@@ -72,8 +79,13 @@ def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, reverse=False, 
 
     if x_ini is None:
         for time in range(RandNum):
-            x0 = np.random.uniform(0, 1, EqNum) * (dim_range[1] - dim_range[0]) + dim_range[0]
-            x, fval_dict, _, _ = sc.optimize.fsolve(func_, x0, maxfev=450000, xtol=FixedPointConst, full_output=True)
+            x0 = (
+                np.random.uniform(0, 1, EqNum) * (dim_range[1] - dim_range[0])
+                + dim_range[0]
+            )
+            x, fval_dict, _, _ = sc.optimize.fsolve(
+                func_, x0, maxfev=450000, xtol=FixedPointConst, full_output=True
+            )
             # fjac: the orthogonal matrix, q, produced by the QR factorization of the final approximate Jacobian matrix,
             # stored column wise; r: upper triangular matrix produced by QR factorization of the same matrix
             # if auto_func is None:
@@ -82,8 +94,8 @@ def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, reverse=False, 
             #     matrixr[np.triu_indices(EqNum)]=fval_dict["r"]
             #     jacobian_mat=(fval_dict["fjac"]).dot(matrixr)
             # else:
-            fval = fval_dict['fvec']
-            jacobian_mat = nda.Jacobian(func_)(np.array(x)) # autonp.array?
+            fval = fval_dict["fvec"]
+            jacobian_mat = nda.Jacobian(func_)(np.array(x))  # autonp.array?
 
             jacobian_mat[np.isinf(jacobian_mat)] = 0
             if fval.dot(fval) < FixedPointConst:
@@ -98,7 +110,9 @@ def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, reverse=False, 
     else:
         for time in range(x_ini.shape[0]):
             x0 = x_ini[time, :]
-            x, fval_dict, _, _ = sc.optimize.fsolve(func_, x0, maxfev=450000, xtol=FixedPointConst, full_output=True)
+            x, fval_dict, _, _ = sc.optimize.fsolve(
+                func_, x0, maxfev=450000, xtol=FixedPointConst, full_output=True
+            )
             # fjac: the orthogonal matrix, q, produced by the QR factorization of the final approximate Jacobian matrix,
             # stored column wise; r: upper triangular matrix produced by QR factorization of the same matrix
             # if auto_func is None:
@@ -107,8 +121,8 @@ def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, reverse=False, 
             #     matrixr[np.triu_indices(EqNum)]=fval_dict["r"]
             #     jacobian_mat=(fval_dict["fjac"]).dot(matrixr)
             # else:
-            fval = fval_dict['fvec']
-            jacobian_mat = nda.Jacobian(func_)(np.array(x)) # autonp.array?
+            fval = fval_dict["fvec"]
+            jacobian_mat = nda.Jacobian(func_)(np.array(x))  # autonp.array?
 
             jacobian_mat[np.isinf(jacobian_mat)] = 0
             if fval.dot(fval) < FixedPointConst:
@@ -127,7 +141,9 @@ def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, reverse=False, 
         elif Type[time] == 1:
             for i in range(StableNum + 1):
                 temp = StablePoint[i, :] - FixedPoint[time, :]
-                if i is not StableNum + 1 and temp.dot(temp) < ZeroConst: # avoid duplicated attractors
+                if (
+                    i is not StableNum + 1 and temp.dot(temp) < ZeroConst
+                ):  # avoid duplicated attractors
                     StableTimes[i] = StableTimes[i] + 1
                     break
             if i is StableNum:
@@ -137,7 +153,9 @@ def gen_fixed_points(func, auto_func, dim_range, RandNum, EqNum, reverse=False, 
         elif Type[time] == -1:
             for i in range(SaddleNum + 1):
                 temp = SaddlePoint[i, :] - FixedPoint[time, :]
-                if i is not SaddlePoint and temp.dot(temp) < ZeroConst: # avoid duplicated saddle point
+                if (
+                    i is not SaddlePoint and temp.dot(temp) < ZeroConst
+                ):  # avoid duplicated saddle point
                     SaddleTimes[i] = SaddleTimes[i] + 1
                     break
             if i is SaddleNum:
@@ -175,9 +193,9 @@ def gen_gradient(dim, N, Function, DiffusionMatrix):
     from sympy import MatrixSymbol, Identity, symbols, Matrix, simplify
     from StringFunction import StringFunction
 
-    N=N+1
-    X=MatrixSymbol('x', dim, N)
-    X2=MatrixSymbol('y', dim, N)
+    N = N + 1
+    X = MatrixSymbol("x", dim, N)
+    X2 = MatrixSymbol("y", dim, N)
 
     # for i in range(dim):
     #     for j in range(N):
@@ -185,26 +203,31 @@ def gen_gradient(dim, N, Function, DiffusionMatrix):
 
     S = 0 * Identity(1)
 
-    dt=symbols('dt')
-    for k in np.arange(1, N): # equation 18
+    dt = symbols("dt")
+    for k in np.arange(1, N):  # equation 18
         k
         # S+1/4*dt*((X(:,k)-X(:,k-1))/dt-ODE(X(:,k-1))).'*(DiffusionMatrix(X(:,k-1)))^(-1)*((X(:,k)-X(:,k-1))/dt-ODE(X(:,k-1)));
-        t1 = 1/4*dt*((X[:, k] - X[:, k-1]) / dt - Matrix(Function(X[:, k-1]))).T
+        t1 = (
+            1
+            / 4
+            * dt
+            * ((X[:, k] - X[:, k - 1]) / dt - Matrix(Function(X[:, k - 1]))).T
+        )
 
         t2 = Matrix(np.linalg.inv(DiffusionMatrix(X[:, k - 1])))
-        t3 = (X[:, k]-X[:, k-1])/dt - Matrix(Function(X[:, k-1]))
+        t3 = (X[:, k] - X[:, k - 1]) / dt - Matrix(Function(X[:, k - 1]))
         S = S + t1 * t2 * t3
 
     J_res = Matrix(S).jacobian(Matrix(X).reshape(Matrix(X).shape[1] * 2, 1))
-    ret=simplify(J_res) #
+    ret = simplify(J_res)  #
     # ret=simplify(jacobian(S,reshape(X,[],1)));
     ret = ret.reshape(X.shape[0], X.shape[1])
     # ret=reshape(ret,2,[]);
-    V = ret.reshape(X.shape[0], X.shape[1]) # retsubs(X, X2)
+    V = ret.reshape(X.shape[0], X.shape[1])  # retsubs(X, X2)
 
     # convert the result into a function by st.StringFunction
     str_V = str(V)
-    str_V_processed = str_V.replace('transpose', '').replace('Matrix', 'np.array')
+    str_V_processed = str_V.replace("transpose", "").replace("Matrix", "np.array")
 
     f_str = """
     def graident(dt, x):
@@ -212,7 +235,9 @@ def gen_gradient(dim, N, Function, DiffusionMatrix):
         
         return ret
                 
-            """ % str(str_V_processed)
+            """ % str(
+        str_V_processed
+    )
     ret = StringFunction(f_str, independent_variable=x, dt=dt, x=x)
 
     return ret, V
@@ -221,6 +246,7 @@ def gen_gradient(dim, N, Function, DiffusionMatrix):
 ##################################################
 # rewrite gen_gradient with autograd or TF
 ##################################################
+
 
 def IntGrad(points, Function, DiffusionMatrix, dt):
     """Calculate the action of the path based on the (reconstructed) vector field function and diffusion matrix (Eq. 18)
@@ -244,8 +270,16 @@ def IntGrad(points, Function, DiffusionMatrix, dt):
 
     integral = 0
     for k in np.arange(1, points.shape[1]):
-        Tmp = (points[:, k] - points[:, k - 1]).reshape((-1, 1)) / dt - Function(points[:, k - 1]).reshape((-1, 1))
-        integral = integral + (Tmp.T).dot(np.linalg.matrix_power(DiffusionMatrix(points[:, k - 1]), -1)).dot(Tmp) * dt # part of the Eq. 18 in Sci. Rep. paper
+        Tmp = (points[:, k] - points[:, k - 1]).reshape((-1, 1)) / dt - Function(
+            points[:, k - 1]
+        ).reshape((-1, 1))
+        integral = (
+            integral
+            + (Tmp.T)
+            .dot(np.linalg.matrix_power(DiffusionMatrix(points[:, k - 1]), -1))
+            .dot(Tmp)
+            * dt
+        )  # part of the Eq. 18 in Sci. Rep. paper
     integral = integral / 4
 
     return integral[0, 0]
@@ -268,6 +302,7 @@ def DiffusionMatrix(x):
     np.fill_diagonal(out, 1)
 
     return out
+
 
 # rewrite action in TF with SGD
 def action(n_points, tmax, point_start, point_end, boundary, Function, DiffusionMatrix):
@@ -297,23 +332,43 @@ def action(n_points, tmax, point_start, point_end, boundary, Function, Diffusion
         The least action path learned
     """
 
-    dim = point_end.shape[0] # genes x cells
+    dim = point_end.shape[0]  # genes x cells
     dt = tmax / n_points
-    lambda_f = lambda x : IntGrad(np.hstack((point_start, x.reshape((2, -1)), point_end)), Function, DiffusionMatrix, dt)
+    lambda_f = lambda x: IntGrad(
+        np.hstack((point_start, x.reshape((2, -1)), point_end)),
+        Function,
+        DiffusionMatrix,
+        dt,
+    )
 
     # initial path as a line connecting start point and end point point_start*ones(1,n_points+1)+(point_end-point_start)*(0:tmax/n_points:tmax)/tmax;
-    initpath = point_start.dot(np.ones((1, n_points+1)))+(point_end-point_start).dot(np.linspace(0, tmax, n_points + 1, endpoint=True).reshape(1, -1))/tmax
+    initpath = (
+        point_start.dot(np.ones((1, n_points + 1)))
+        + (point_end - point_start).dot(
+            np.linspace(0, tmax, n_points + 1, endpoint=True).reshape(1, -1)
+        )
+        / tmax
+    )
 
-    Bounds = scipy.optimize.Bounds((np.ones((1, (n_points - 1) * 2)) * boundary[0]).flatten(), (np.ones((1, (n_points - 1) * 2)) * boundary[1]).flatten(), keep_feasible=True)
+    Bounds = scipy.optimize.Bounds(
+        (np.ones((1, (n_points - 1) * 2)) * boundary[0]).flatten(),
+        (np.ones((1, (n_points - 1) * 2)) * boundary[1]).flatten(),
+        keep_feasible=True,
+    )
 
     # sc.optimize.least_squares(lambda_f, initpath[:, 1:n_points].flatten())
-    res = sc.optimize.minimize(lambda_f, initpath[:, 1:n_points], tol = 1e-12) #, bounds=Bounds , options={"maxiter": 250}
-    fval, output_path = res['fun'], np.hstack((point_start, res['x'].reshape((2, -1)), point_end))
+    res = sc.optimize.minimize(
+        lambda_f, initpath[:, 1:n_points], tol=1e-12
+    )  # , bounds=Bounds , options={"maxiter": 250}
+    fval, output_path = (
+        res["fun"],
+        np.hstack((point_start, res["x"].reshape((2, -1)), point_end)),
+    )
 
     return fval, output_path
 
 
-def Potential(adata, DiffMat=None, method='Ao', **kwargs):
+def Potential(adata, DiffMat=None, method="Ao", **kwargs):
     """Function to map out the pseudo-potential landscape.
 
     Although it is appealing to define “potential” for biological systems as it is intuitive and familiar from other
@@ -343,7 +398,7 @@ def Potential(adata, DiffMat=None, method='Ao', **kwargs):
 
     """
 
-    Function = adata.uns['VecFld']["VecFld"]
+    Function = adata.uns["VecFld"]["VecFld"]
     DiffMat = DiffusionMatrix if DiffMat is None else DiffMat
     pot = Pot(Function, DiffMat, **kwargs)
     pot.fit(method=method)
@@ -352,7 +407,18 @@ def Potential(adata, DiffMat=None, method='Ao', **kwargs):
 
 
 class Pot:
-    def __init__(self, Function=None, DiffMat=None, boundary=None, n_points=25, fixed_point_only=False, find_fixed_points=False, refpoint=None, stable=None, saddle=None):
+    def __init__(
+        self,
+        Function=None,
+        DiffMat=None,
+        boundary=None,
+        n_points=25,
+        fixed_point_only=False,
+        find_fixed_points=False,
+        refpoint=None,
+        stable=None,
+        saddle=None,
+    ):
         """ It implements the least action method to calculate the potential values of fixed points for a given SDE (stochastic
         differential equation) model. The function requires the vector field function and a diffusion matrix. This code is based
         on the MATLAB code from Ruoshi Yuan and Ying Tang. Potential landscape of high dimensional nonlinear stochastic dynamics with
@@ -380,12 +446,33 @@ class Pot:
                 The matrix for storing the coordinates (gene expression configuration) of the unstable fixed point (characteristic state of cells prime to bifurcation).
         """
 
+        self.VecFld = {
+            "Function": Function,
+            "DiffusionMatrix": DiffMat,
+        }  # should we use annadata here?
 
-        self.VecFld = {"Function": Function, "DiffusionMatrix": DiffMat} # should we use annadata here?
+        self.parameters = {
+            "boundary": boundary,
+            "n_points": n_points,
+            "fixed_point_only": fixed_point_only,
+            "find_fixed_points": find_fixed_points,
+            "refpoint": refpoint,
+            "stable": stable,
+            "saddle": saddle,
+        }
 
-        self.parameters = {"boundary": boundary, "n_points":n_points, "fixed_point_only": fixed_point_only, "find_fixed_points": find_fixed_points, "refpoint": refpoint, "stable": stable, "saddle": saddle}
-
-    def fit(self, adata, x_lim, y_lim, basis = 'umap', method='Ao', xyGridSpacing=2, dt=1e-2, tol=1e-2, numTimeSteps=1400):
+    def fit(
+        self,
+        adata,
+        x_lim,
+        y_lim,
+        basis="umap",
+        method="Ao",
+        xyGridSpacing=2,
+        dt=1e-2,
+        tol=1e-2,
+        numTimeSteps=1400,
+    ):
         """Function to map out the pseudo-potential landscape.
 
         Although it is appealing to define “potential” for biological systems as it is intuitive and familiar from other
@@ -434,37 +521,87 @@ class Pot:
         """
 
         if method is "Ao":
-            X = adata.obsm['X_' + basis]
-            X, U, P, vecMat, S, A = Ao_pot_map(self.VecFld['Function'], X, D=self.VecFld['DiffusionMatrix'])
+            X = adata.obsm["X_" + basis]
+            X, U, P, vecMat, S, A = Ao_pot_map(
+                self.VecFld["Function"], X, D=self.VecFld["DiffusionMatrix"]
+            )
 
-            adata.uns['grid_Pot_' + basis] = {'Xgrid': X, "Ygrid": U, 'Zgrid': P, 'S': S, 'A': A}
+            adata.uns["grid_Pot_" + basis] = {
+                "Xgrid": X,
+                "Ygrid": U,
+                "Zgrid": P,
+                "S": S,
+                "A": A,
+            }
         elif method is "Bhattacharya":
-            numPaths, numTimeSteps, pot_path, path_tag, attractors_pot, x_path, y_path = path_integral(self.VecFld['Function'], \
-            x_lim=x_lim, y_lim=y_lim, xyGridSpacing=xyGridSpacing, dt=dt, tol=tol, numTimeSteps=numTimeSteps)
+            (
+                numPaths,
+                numTimeSteps,
+                pot_path,
+                path_tag,
+                attractors_pot,
+                x_path,
+                y_path,
+            ) = path_integral(
+                self.VecFld["Function"],
+                x_lim=x_lim,
+                y_lim=y_lim,
+                xyGridSpacing=xyGridSpacing,
+                dt=dt,
+                tol=tol,
+                numTimeSteps=numTimeSteps,
+            )
 
-            Xgrid, Ygrid, Zgrid = alignment(numPaths, numTimeSteps, pot_path, path_tag, attractors_pot, x_path, y_path)
+            Xgrid, Ygrid, Zgrid = alignment(
+                numPaths,
+                numTimeSteps,
+                pot_path,
+                path_tag,
+                attractors_pot,
+                x_path,
+                y_path,
+            )
 
-            adata.uns['grid_Pot_' + basis] = {'Xgrid': Xgrid, "Ygrid": Ygrid, 'Zgrid': Zgrid}
+            adata.uns["grid_Pot_" + basis] = {
+                "Xgrid": Xgrid,
+                "Ygrid": Ygrid,
+                "Zgrid": Zgrid,
+            }
 
             return adata
         # make sure to also obtain Xgrid, Ygrid, Zgrid, etc.
-        elif method is 'Tang':
-            Function, DiffusionMatrix = self.VecFld['Function'], self.VecFld['DiffusionMatrix']
-            boundary, n_points, fixed_point_only, find_fixed_points, refpoint, stable, saddle = self.parameters['boundary'], \
-                                                                                                self.parameters['n_points'], \
-                                                                                                self.parameters['fixed_point_only'], \
-                                                                                                self.parameters['find_fixed_points'], \
-                                                                                                self.parameters['refpoint'], \
-                                                                                                self.parameters['stable'], \
-                                                                                                self.parameters['saddle']
+        elif method is "Tang":
+            Function, DiffusionMatrix = (
+                self.VecFld["Function"],
+                self.VecFld["DiffusionMatrix"],
+            )
+            (
+                boundary,
+                n_points,
+                fixed_point_only,
+                find_fixed_points,
+                refpoint,
+                stable,
+                saddle,
+            ) = (
+                self.parameters["boundary"],
+                self.parameters["n_points"],
+                self.parameters["fixed_point_only"],
+                self.parameters["find_fixed_points"],
+                self.parameters["refpoint"],
+                self.parameters["stable"],
+                self.parameters["saddle"],
+            )
 
-            print('stable is ', stable)
+            print("stable is ", stable)
 
             if (stable is None and saddle is None) or find_fixed_points is True:
-                print('stable is ', stable)
-                stable, saddle = gen_fixed_points(Function, auto_func=False, dim_range=range, RandNum=100, EqNum=2) #gen_fixed_points(vector_field_function, auto_func = None, dim_range = [-25, 25], RandNum = 5000, EqNum = 2, x_ini = None)
+                print("stable is ", stable)
+                stable, saddle = gen_fixed_points(
+                    Function, auto_func=False, dim_range=range, RandNum=100, EqNum=2
+                )  # gen_fixed_points(vector_field_function, auto_func = None, dim_range = [-25, 25], RandNum = 5000, EqNum = 2, x_ini = None)
 
-            print('stable 2 is ', stable)
+            print("stable 2 is ", stable)
             points = np.hstack((stable, saddle))
             refpoint = stable[:, 0][:, None] if refpoint is None else refpoint
 
@@ -476,21 +613,45 @@ class Pot:
                 LAP = [None] * StateNum
                 I = range(StateNum)
             else:
-                dx = (np.diff(boundary))/(TotalPoints-1)
+                dx = (np.diff(boundary)) / (TotalPoints - 1)
                 dy = dx
-                [X, Y] = np.meshgrid(np.linspace(boundary[0], boundary[1], TotalPoints), np.linspace(boundary[0], boundary[1], TotalPoints))
+                [X, Y] = np.meshgrid(
+                    np.linspace(boundary[0], boundary[1], TotalPoints),
+                    np.linspace(boundary[0], boundary[1], TotalPoints),
+                )
                 retmat = np.Inf * np.ones((TotalPoints, TotalPoints))
                 LAP = [None] * TotalPoints * TotalPoints
 
                 points = np.vstack((X.flatten(), Y.flatten()))
                 I = range(points.shape[1])
 
-            for ind in I: # action(n_points,tmax,point_start,point_end, boundary, Function, DiffusionMatrix):
-                print('current ind is ', ind)
-                lav, lap = action(TotalPoints, TotalTime, points[:, ind][:, None], refpoint, boundary, Function, DiffusionMatrix)
+            for (
+                ind
+            ) in (
+                I
+            ):  # action(n_points,tmax,point_start,point_end, boundary, Function, DiffusionMatrix):
+                print("current ind is ", ind)
+                lav, lap = action(
+                    TotalPoints,
+                    TotalTime,
+                    points[:, ind][:, None],
+                    refpoint,
+                    boundary,
+                    Function,
+                    DiffusionMatrix,
+                )
 
                 i, j = ind % TotalPoints, int(ind / TotalPoints)
-                print('TotalPoints is ', TotalPoints, 'ind is ', ind, 'i, j are', i, ' ', j)
+                print(
+                    "TotalPoints is ",
+                    TotalPoints,
+                    "ind is ",
+                    ind,
+                    "i, j are",
+                    i,
+                    " ",
+                    j,
+                )
                 if lav < retmat[i, j]:
                     retmat[i, j] = lav
                     LAP[ind] = lap

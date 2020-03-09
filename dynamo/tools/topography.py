@@ -8,6 +8,7 @@ from scipy.integrate import odeint
 
 from .utils import vector_field_function
 
+
 def index_condensed_matrix(n, i, j):
     """Return the index of a condensed n-by-n square matrix by the row index i and column index j of the square form.
 
@@ -51,10 +52,10 @@ def find_fixed_points(X0, func_vf, tol_redundant=1e-4, full_output=False):
     for x0 in X0:
         if full_output:
             x, info_dict, _, _ = fsolve(func_vf, x0, full_output=True)
-            fval.append(info_dict['fvec'])
+            fval.append(info_dict["fvec"])
             # compute Jacobian
-            Q = info_dict['fjac']
-            R = form_triu_matrix(info_dict['r'])
+            Q = info_dict["fjac"]
+            R = form_triu_matrix(info_dict["r"])
             J.append(Q.T @ R)
         else:
             x = fsolve(func_vf, x0)
@@ -93,7 +94,7 @@ def continuation(x0, func, s_max, ds=0.01, v0=None, param_axis=0, param_directio
     else:
         v = v0
     s = 0
-    while (s <= s_max):
+    while s <= s_max:
         x1 = ret[-1]
         x = pac_onestep(x1, func, v, ds)
         ret.append(x)
@@ -120,11 +121,14 @@ def clip_curves(curves, domain, tol_discont=None):
                     clip_away[i] = True
         # clip curve and assemble
         i_start = 0
-        while (i_start < len(cur) - 1):
+        while i_start < len(cur) - 1:
             if not clip_away[i_start]:
                 for i_end in range(i_start, len(cur)):
-                    if clip_away[i_end]: break
-                ret.append(cur[i_start: i_end])  # a tiny bit of the end could be chopped off
+                    if clip_away[i_end]:
+                        break
+                ret.append(
+                    cur[i_start:i_end]
+                )  # a tiny bit of the end could be chopped off
                 i_start = i_end
             else:
                 i_start += 1
@@ -134,7 +138,8 @@ def clip_curves(curves, domain, tol_discont=None):
 def compute_nullclines_2d(X0, fdx, fdy, x_range, y_range, s_max=None, ds=None):
     if s_max is None:
         s_max = 5 * ((x_range[1] - x_range[0]) + (y_range[1] - y_range[0]))
-    if ds is None: ds = s_max / 1e3
+    if ds is None:
+        ds = s_max / 1e3
 
     NCx = []
     NCy = []
@@ -161,10 +166,10 @@ def compute_separatrices(Xss, Js, func, x_range, y_range, t=50, n_sample=500, ep
         w, v = eig(J)
         I_stable = np.where(np.real(w) < 0)[0]
         print(I_stable)
-        for j in I_stable: # I_unstable
+        for j in I_stable:  # I_unstable
             u = np.real(v[j])
             u = u / np.linalg.norm(u)
-            print('u=%f, %f' % (u[0], u[1]))
+            print("u=%f, %f" % (u[0], u[1]))
 
             # Parameters for building separatrix
             T = np.linspace(0, t, n_sample)
@@ -210,7 +215,9 @@ def find_intersection_2d(curve1, curve2, tol_redundant=1e-4):
     return np.array(P)
 
 
-def find_fixed_points_nullcline(func, NCx, NCy, sample_interval=0.5, tol_redundant=1e-4, full_output=False):
+def find_fixed_points_nullcline(
+    func, NCx, NCy, sample_interval=0.5, tol_redundant=1e-4, full_output=False
+):
     test_Px = []
     for i in range(len(NCx)):
         test_Px.append(set_test_points_on_curve(NCx[i], sample_interval))
@@ -344,47 +351,59 @@ class VectorField2D:
                     ftype[i] = -1
             return X, ftype
 
-    def find_fixed_points_by_sampling(self, n, x_range, y_range, lhs=True, tol_redundant=1e-4):
+    def find_fixed_points_by_sampling(
+        self, n, x_range, y_range, lhs=True, tol_redundant=1e-4
+    ):
         if lhs:
             from .utils import lhsclassic
+
             X0 = lhsclassic(n, 2)
         else:
             X0 = np.random.rand(n, 2)
         X0[:, 0] = X0[:, 0] * (x_range[1] - x_range[0]) + x_range[0]
         X0[:, 1] = X0[:, 1] * (y_range[1] - y_range[0]) + y_range[0]
-        X, J, _ = find_fixed_points(X0, self.func, tol_redundant=tol_redundant, full_output=True)
+        X, J, _ = find_fixed_points(
+            X0, self.func, tol_redundant=tol_redundant, full_output=True
+        )
         # remove points that are outside the domain
         outside = is_outside(X, [x_range, y_range])
         self.Xss.add_fixed_points(X[~outside], J[~outside], tol_redundant)
 
     def find_nearest_fixed_point(self, x, x_range, y_range, tol_redundant=1e-4):
-        X, J, _ = find_fixed_points(x, self.func, tol_redundant=tol_redundant, full_output=True)
+        X, J, _ = find_fixed_points(
+            x, self.func, tol_redundant=tol_redundant, full_output=True
+        )
         # remove point if outside the domain
         outside = is_outside(X, [x_range, y_range])[0]
         if not outside:
             self.Xss.add_fixed_points(X, J, tol_redundant)
 
-    def compute_nullclines(self, x_range, y_range, find_new_fixed_points=False, tol_redundant=1e-4):
+    def compute_nullclines(
+        self, x_range, y_range, find_new_fixed_points=False, tol_redundant=1e-4
+    ):
         # compute arguments
         s_max = 5 * ((x_range[1] - x_range[0]) + (y_range[1] - y_range[0]))
         ds = s_max / 1e3
-        self.NCx, self.NCy = compute_nullclines_2d(self.Xss.get_X(), self.fx, self.fy, x_range, y_range, s_max=s_max,
-                                                   ds=ds)
+        self.NCx, self.NCy = compute_nullclines_2d(
+            self.Xss.get_X(), self.fx, self.fy, x_range, y_range, s_max=s_max, ds=ds
+        )
         if find_new_fixed_points:
             sample_interval = ds * 10
-            X, J = find_fixed_points_nullcline(self.func, self.NCx, self.NCy, sample_interval, tol_redundant, True)
+            X, J = find_fixed_points_nullcline(
+                self.func, self.NCx, self.NCy, sample_interval, tol_redundant, True
+            )
             outside = is_outside(X, [x_range, y_range])
             self.Xss.add_fixed_points(X[~outside], J[~outside], tol_redundant)
 
     def output_to_dict(self, dict_vf):
-        dict_vf['NCx'] = self.NCx
-        dict_vf['NCy'] = self.NCy
-        dict_vf['Xss'] = self.Xss.get_X()
-        dict_vf['J'] = self.Xss.get_J()
+        dict_vf["NCx"] = self.NCx
+        dict_vf["NCy"] = self.NCy
+        dict_vf["Xss"] = self.Xss.get_X()
+        dict_vf["J"] = self.Xss.get_J()
         return dict_vf
 
 
-def topography(adata, basis='umap', layer=None, X=None, dims=None, n=25, VecFld=None):
+def topography(adata, basis="umap", layer=None, X=None, dims=None, n=25, VecFld=None):
     """Map the topography of the single cell vector field in (first) two dimensions.
 
     Parameters
@@ -411,14 +430,17 @@ def topography(adata, basis='umap', layer=None, X=None, dims=None, n=25, VecFld=
              separatrix, computed and stored.
     """
     if VecFld == None:
-        if 'VecFld_' + basis in adata.uns.keys():
-            VecFld = adata.uns['VecFld_' + basis]['VecFld']
+        if "VecFld_" + basis in adata.uns.keys():
+            VecFld = adata.uns["VecFld_" + basis]["VecFld"]
         else:
-            raise Exception("VecFld is not constructed yet, please first run dyn.tl.VectorField(adata, basis=basis_name)."
-                            " basis_name can be any name for the basis.")
+            raise Exception(
+                "VecFld is not constructed yet, please first run dyn.tl.VectorField(adata, basis=basis_name)."
+                " basis_name can be any name for the basis."
+            )
 
-    if dims is None: dims = [0, 1]
-    X_basis = adata.obsm['X_' + basis][:, dims] if X is None else X[:, dims]
+    if dims is None:
+        dims = [0, 1]
+    X_basis = adata.obsm["X_" + basis][:, dims] if X is None else X[:, dims]
     min_, max_ = X_basis.min(0), X_basis.max(0)
 
     xlim = [min_[0] - (max_[0] - min_[0]) * 0.1, max_[0] + (max_[0] - min_[0]) * 0.1]
@@ -431,15 +453,29 @@ def topography(adata, basis='umap', layer=None, X=None, dims=None, n=25, VecFld=
     #
 
     if layer is None:
-        if 'VecFld_' + basis in adata.uns_keys():
-            adata.uns['VecFld_' + basis].update({"VecFld": VecFld, "VecFld2D": vecfld, "xlim": xlim, "ylim": ylim})
+        if "VecFld_" + basis in adata.uns_keys():
+            adata.uns["VecFld_" + basis].update(
+                {"VecFld": VecFld, "VecFld2D": vecfld, "xlim": xlim, "ylim": ylim}
+            )
         else:
-            adata.uns['VecFld_' + basis] = {"VecFld": VecFld, "VecFld2D": vecfld, "xlim": xlim, "ylim": ylim}
+            adata.uns["VecFld_" + basis] = {
+                "VecFld": VecFld,
+                "VecFld2D": vecfld,
+                "xlim": xlim,
+                "ylim": ylim,
+            }
     else:
-        vf_key = 'VecFld' if layer == 'X' else 'VecFld_' + layer
-        if 'VecFld' in adata.uns_keys():
-            adata.uns[vf_key].update({"VecFld": VecFld, "VecFld2D": vecfld, "xlim": xlim, "ylim": ylim})
+        vf_key = "VecFld" if layer == "X" else "VecFld_" + layer
+        if "VecFld" in adata.uns_keys():
+            adata.uns[vf_key].update(
+                {"VecFld": VecFld, "VecFld2D": vecfld, "xlim": xlim, "ylim": ylim}
+            )
         else:
-            adata.uns[vf_key] = {"VecFld": VecFld, "VecFld2D": vecfld, "xlim": xlim, "ylim": ylim}
+            adata.uns[vf_key] = {
+                "VecFld": VecFld,
+                "VecFld2D": vecfld,
+                "xlim": xlim,
+                "ylim": ylim,
+            }
 
     return adata

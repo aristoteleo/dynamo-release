@@ -2,12 +2,11 @@
 from .scatters import scatters
 from .scatters import docstrings
 
-docstrings.delete_params('scatters.parameters', 'adata', 'basis')
+docstrings.delete_params("scatters.parameters", "adata", "basis")
+
+
 @docstrings.with_indent(4)
-def pca(
-        adata,
-        *args,
-        **kwargs):
+def pca(adata, *args, **kwargs):
     """\
     Scatter plot with pca basis.
 
@@ -32,18 +31,11 @@ def pca(
     ... )
     """
 
-    scatters(
-        adata,
-        'pca',
-        *args,
-        **kwargs)
+    scatters(adata, "pca", *args, **kwargs)
 
 
 @docstrings.with_indent(4)
-def umap(
-        adata,
-        *args,
-        **kwargs):
+def umap(adata, *args, **kwargs):
     """\
     Scatter plot with umap basis.
 
@@ -68,18 +60,11 @@ def umap(
     ... )
     """
 
-    scatters(
-        adata,
-        'umap',
-        *args,
-        **kwargs)
+    scatters(adata, "umap", *args, **kwargs)
 
 
 @docstrings.with_indent(4)
-def trimap(
-        adata,
-        *args,
-        **kwargs):
+def trimap(adata, *args, **kwargs):
     """\
     Scatter plot with trimap basis.
 
@@ -103,18 +88,11 @@ def trimap(
     ...     color='Clusters'
     ... )
     """
-    scatters(
-        adata,
-        'trimap',
-        *args,
-        **kwargs)
+    scatters(adata, "trimap", *args, **kwargs)
 
 
 @docstrings.with_indent(4)
-def tsne(
-        adata,
-        *args,
-        **kwargs):
+def tsne(adata, *args, **kwargs):
     """\
     Scatter plot with tsne basis.
 
@@ -138,10 +116,7 @@ def tsne(
     ...     color='Clusters'
     ... )
     """
-    scatters(
-        adata,
-        'tsne',
-        *args,
-        **kwargs)
+    scatters(adata, "tsne", *args, **kwargs)
+
 
 # add leidan, louvain, etc.

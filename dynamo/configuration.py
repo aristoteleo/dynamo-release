@@ -153,30 +153,53 @@ cyc_20 = list(map(colors.to_hex, cm.tab20c.colors))
 #     theme(plot.margin=unit(c(0,0,0,0), "lines"))
 # }
 
-def dyn_theme(background='black'):
+
+def dyn_theme(background="black"):
     # https://github.com/matplotlib/matplotlib/blob/master/lib/matplotlib/mpl-data/stylelib/dark_background.mplstyle
 
-    if background == 'black':
-        rcParams.update({"lines.color": 'w', "patch.edgecolor": 'w',
-                         "text.color": 'w',
-                         'axes.facecolor': background, 'axes.edgecolor': "white", "axes.labelcolor": "w",
-                         "xtick.color": "w", "ytick.color": "w",
-                         'figure.facecolor': background, 'figure.edgecolor': background,
-                         "savefig.facecolor": background, "savefig.edgecolor": background, "grid.color": 'w',
-                         'axes.grid': False,
-                    })
+    if background == "black":
+        rcParams.update(
+            {
+                "lines.color": "w",
+                "patch.edgecolor": "w",
+                "text.color": "w",
+                "axes.facecolor": background,
+                "axes.edgecolor": "white",
+                "axes.labelcolor": "w",
+                "xtick.color": "w",
+                "ytick.color": "w",
+                "figure.facecolor": background,
+                "figure.edgecolor": background,
+                "savefig.facecolor": background,
+                "savefig.edgecolor": background,
+                "grid.color": "w",
+                "axes.grid": False,
+            }
+        )
     else:
-        rcParams.update({"lines.color": 'k', "patch.edgecolor": 'k',
-                         "text.color": 'k',
-                         'axes.facecolor': background, 'axes.edgecolor': "white", "axes.labelcolor": "k",
-                         "xtick.color": "k", "ytick.color": "k",
-                         'figure.facecolor': background, 'figure.edgecolor': background,
-                         "savefig.facecolor": background, "savefig.edgecolor": background, "grid.color": 'k',
-                         'axes.grid': False,
-                         })
+        rcParams.update(
+            {
+                "lines.color": "k",
+                "patch.edgecolor": "k",
+                "text.color": "k",
+                "axes.facecolor": background,
+                "axes.edgecolor": "white",
+                "axes.labelcolor": "k",
+                "xtick.color": "k",
+                "ytick.color": "k",
+                "figure.facecolor": background,
+                "figure.edgecolor": background,
+                "savefig.facecolor": background,
+                "savefig.edgecolor": background,
+                "grid.color": "k",
+                "axes.grid": False,
+            }
+        )
 
 
-def config_dynamo_rcParams(background='black', prop_cycle=cyc_20, fontsize=8, color_map=None, frameon=None):
+def config_dynamo_rcParams(
+    background="black", prop_cycle=cyc_20, fontsize=8, color_map=None, frameon=None
+):
     """Configure matplotlib.rcParams to dynamo defaults (based on ggplot style and scanpy).
 
     Parameters
@@ -200,21 +223,23 @@ def config_dynamo_rcParams(background='black', prop_cycle=cyc_20, fontsize=8, co
 
     # from http://www.huyng.com/posts/sane-color-scheme-for-matplotlib/
 
-    rcParams['patch.linewidth'] = 0.5
-    rcParams['patch.facecolor'] = "348ABD" # blue
-    rcParams['patch.edgecolor'] = "EEEEEE"
-    rcParams['patch.antialiased'] = True
+    rcParams["patch.linewidth"] = 0.5
+    rcParams["patch.facecolor"] = "348ABD"  # blue
+    rcParams["patch.edgecolor"] = "EEEEEE"
+    rcParams["patch.antialiased"] = True
 
-    rcParams['font.size'] = 10.0
+    rcParams["font.size"] = 10.0
 
-    rcParams['axes.facecolor'] = "E5E5E5"
-    rcParams['axes.edgecolor'] = "white"
-    rcParams['axes.linewidth'] = 1
-    rcParams['axes.grid'] = True
+    rcParams["axes.facecolor"] = "E5E5E5"
+    rcParams["axes.edgecolor"] = "white"
+    rcParams["axes.linewidth"] = 1
+    rcParams["axes.grid"] = True
     # rcParams['axes.titlesize'] =  "x-large"
     # rcParams['axes.labelsize'] = "large"
-    rcParams['axes.labelcolor'] = "555555"
-    rcParams['axes.axisbelow'] = True  # grid/ticks are below elements (e.g., lines, text)
+    rcParams["axes.labelcolor"] = "555555"
+    rcParams[
+        "axes.axisbelow"
+    ] = True  # grid/ticks are below elements (e.g., lines, text)
 
     # rcParams['axes.prop_cycle'] = cycler('color', ['E24A33', '348ABD', '988ED5', '777777', 'FBC15E', '8EBA42', 'FFB5B8'])
     # # E24A33 : red
@@ -226,81 +251,79 @@ def config_dynamo_rcParams(background='black', prop_cycle=cyc_20, fontsize=8, co
     # # FFB5B8 : pink
 
     # rcParams['xtick.color'] = "555555"
-    rcParams['xtick.direction'] = "out"
+    rcParams["xtick.direction"] = "out"
 
     # rcParams['ytick.color'] = "555555"
-    rcParams['ytick.direction'] = "out"
+    rcParams["ytick.direction"] = "out"
 
-    rcParams['grid.color'] = "white"
-    rcParams['grid.linestyle'] = "-"  # solid line
+    rcParams["grid.color"] = "white"
+    rcParams["grid.linestyle"] = "-"  # solid line
 
-    rcParams['figure.facecolor'] = "white"
-    rcParams['figure.edgecolor'] = "white" # 0.5
+    rcParams["figure.facecolor"] = "white"
+    rcParams["figure.edgecolor"] = "white"  # 0.5
 
     # the following code is modified from scanpy
     # https://github.com/theislab/scanpy/blob/178a0981405ba8ccfd5031eb15bc07b3a45d2730/scanpy/plotting/_rcmod.py
 
     # dpi options (mpl default: 100, 100)
-    rcParams['figure.dpi'] = 100
-    rcParams['savefig.dpi'] = 160
+    rcParams["figure.dpi"] = 100
+    rcParams["savefig.dpi"] = 160
 
     # figure (default: 0.125, 0.96, 0.15, 0.91)
-    rcParams['figure.figsize'] = (6.5, 5)
-    rcParams['figure.subplot.left'] = 0.18
-    rcParams['figure.subplot.right'] = 0.96
-    rcParams['figure.subplot.bottom'] = 0.15
-    rcParams['figure.subplot.top'] = 0.91
+    rcParams["figure.figsize"] = (6.5, 5)
+    rcParams["figure.subplot.left"] = 0.18
+    rcParams["figure.subplot.right"] = 0.96
+    rcParams["figure.subplot.bottom"] = 0.15
+    rcParams["figure.subplot.top"] = 0.91
 
     # lines (defaults:  1.5, 6, 1)
-    rcParams['lines.linewidth'] = 1.5  # the line width of the frame
-    rcParams['lines.markersize'] = 6
-    rcParams['lines.markeredgewidth'] = 1
+    rcParams["lines.linewidth"] = 1.5  # the line width of the frame
+    rcParams["lines.markersize"] = 6
+    rcParams["lines.markeredgewidth"] = 1
 
     # font
-    rcParams['font.sans-serif'] = [
-        'Helvetica',
-        'Arial',
-        'DejaVu Sans',
-        'Bitstream Vera Sans',
-        'sans-serif',
+    rcParams["font.sans-serif"] = [
+        "Helvetica",
+        "Arial",
+        "DejaVu Sans",
+        "Bitstream Vera Sans",
+        "sans-serif",
     ]
     fontsize = fontsize
     labelsize = 0.90 * fontsize
 
     # fonsizes (default: 10, medium, large, medium)
-    rcParams['font.size'] = fontsize
-    rcParams['legend.fontsize'] = labelsize
-    rcParams['axes.titlesize'] = fontsize
-    rcParams['axes.labelsize'] = labelsize
+    rcParams["font.size"] = fontsize
+    rcParams["legend.fontsize"] = labelsize
+    rcParams["axes.titlesize"] = fontsize
+    rcParams["axes.labelsize"] = labelsize
 
     # legend (default: 1, 1, 2, 0.8)
-    rcParams['legend.numpoints'] = 1
-    rcParams['legend.scatterpoints'] = 1
-    rcParams['legend.handlelength'] = 0.5
-    rcParams['legend.handletextpad'] = 0.4
+    rcParams["legend.numpoints"] = 1
+    rcParams["legend.scatterpoints"] = 1
+    rcParams["legend.handlelength"] = 0.5
+    rcParams["legend.handletextpad"] = 0.4
 
     # color cycle
-    rcParams['axes.prop_cycle'] = cycler(color=prop_cycle) # use tab20c by default
+    rcParams["axes.prop_cycle"] = cycler(color=prop_cycle)  # use tab20c by default
 
     # lines
-    rcParams['axes.linewidth'] = 0.8
-    rcParams['axes.edgecolor'] = 'black'
-    rcParams['axes.facecolor'] = 'white'
+    rcParams["axes.linewidth"] = 0.8
+    rcParams["axes.edgecolor"] = "black"
+    rcParams["axes.facecolor"] = "white"
 
     # ticks (default: k, k, medium, medium)
-    rcParams['xtick.color'] = 'k'
-    rcParams['ytick.color'] = 'k'
-    rcParams['xtick.labelsize'] = labelsize
-    rcParams['ytick.labelsize'] = labelsize
+    rcParams["xtick.color"] = "k"
+    rcParams["ytick.color"] = "k"
+    rcParams["xtick.labelsize"] = labelsize
+    rcParams["ytick.labelsize"] = labelsize
 
     # axes grid (default: False, #b0b0b0)
-    rcParams['axes.grid'] = False
-    rcParams['grid.color'] = '.8'
+    rcParams["axes.grid"] = False
+    rcParams["grid.color"] = ".8"
 
     # color map
-    rcParams['image.cmap'] = (
-        'RdBu_r' if color_map is None else color_map
-    )
+    rcParams["image.cmap"] = "RdBu_r" if color_map is None else color_map
 
     dyn_theme(background)
 
@@ -310,8 +333,20 @@ def config_dynamo_rcParams(background='black', prop_cycle=cyc_20, fontsize=8, co
     _frameon = frameon
 
 
-def set_figure_params(dynamo=True, background='black', fontsize=8, figsize=(6.5, 5), dpi=None, dpi_save=None, frameon=None, vector_friendly=True,
-                      color_map=None, format='pdf', transparent=False, ipython_format='png2x'):
+def set_figure_params(
+    dynamo=True,
+    background="black",
+    fontsize=8,
+    figsize=(6.5, 5),
+    dpi=None,
+    dpi_save=None,
+    frameon=None,
+    vector_friendly=True,
+    color_map=None,
+    format="pdf",
+    transparent=False,
+    ipython_format="png2x",
+):
     """Set resolution/size, styling and format of figures.
        This function is adapted from: https://github.com/theislab/scanpy/blob/f539870d7484675876281eb1c475595bf4a69bdb/scanpy/_settings.py
     Arguments
@@ -347,6 +382,7 @@ def set_figure_params(dynamo=True, background='black', fontsize=8, figsize=(6.5,
 
     try:
         import IPython
+
         if isinstance(ipython_format, str):
             ipython_format = [ipython_format]
         IPython.display.set_matplotlib_formats(*ipython_format)
@@ -361,9 +397,11 @@ def set_figure_params(dynamo=True, background='black', fontsize=8, figsize=(6.5,
     file_format_figs = format
 
     if dynamo:
-        config_dynamo_rcParams(background=background, fontsize=fontsize, color_map=color_map)
+        config_dynamo_rcParams(
+            background=background, fontsize=fontsize, color_map=color_map
+        )
     if figsize is not None:
-        rcParams['figure.figsize'] = figsize
+        rcParams["figure.figsize"] = figsize
 
     if dpi is not None:
         rcParams["figure.dpi"] = dpi
@@ -379,4 +417,5 @@ def set_figure_params(dynamo=True, background='black', fontsize=8, figsize=(6.5,
 def reset_rcParams():
     """Reset `matplotlib.rcParams` to defaults."""
     from matplotlib import rcParamsDefault
+
     rcParams.update(rcParamsDefault)

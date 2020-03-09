@@ -3,7 +3,19 @@ from .utils import vector_field_function, integrate_vf_ivp
 from .utils import fetch_states
 
 
-def fate(adata, init_cells, init_states=None, basis=None, layer='X', genes=None, t_end=None, direction='both', average='origin', VecFld_true=None, **kwargs):
+def fate(
+    adata,
+    init_cells,
+    init_states=None,
+    basis=None,
+    layer="X",
+    genes=None,
+    t_end=None,
+    direction="both",
+    average="origin",
+    VecFld_true=None,
+    **kwargs
+):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales.
 
      This is achieved by integrating the reconstructed vector field function from one or a set of initial cell state(s).
@@ -50,50 +62,105 @@ def fate(adata, init_cells, init_states=None, basis=None, layer='X', genes=None,
     """
 
     if basis is not None:
-        fate_key = 'fate_' + basis
+        fate_key = "fate_" + basis
     else:
-        fate_key = 'fate' if layer == 'X' else 'fate_' + layer
+        fate_key = "fate" if layer == "X" else "fate_" + layer
 
-    init_states, VecFld, t_end, valid_genes = fetch_states(adata, init_states, init_cells, basis, layer, average, t_end)
+    init_states, VecFld, t_end, valid_genes = fetch_states(
+        adata, init_states, init_cells, basis, layer, average, t_end
+    )
 
-    t, prediction = _fate(VecFld, init_states, VecFld_true=VecFld_true, direction=direction, t_end=t_end, average=True, **kwargs)
+    t, prediction = _fate(
+        VecFld,
+        init_states,
+        VecFld_true=VecFld_true,
+        direction=direction,
+        t_end=t_end,
+        average=True,
+        **kwargs
+    )
 
     high_prediction = None
-    if basis == 'pca':
-        high_prediction = adata.uns['pca_fit'].inverse_transform(prediction)
+    if basis == "pca":
+        high_prediction = adata.uns["pca_fit"].inverse_transform(prediction)
         if adata.var.use_for_dynamo.sum() == high_prediction.shape[1]:
             valid_genes = adata.var_names[adata.var.use_for_dynamo]
         else:
             valid_genes = adata.var_names[adata.var.use_for_velocity]
 
-    elif basis == 'umap':
+    elif basis == "umap":
         # this requires umap 0.4
-        high_prediction = adata.uns['umap_fit'].inverse_transform(prediction)
-        ndim = adata.uns['umap_fit']._raw_data.shape[1]
+        high_prediction = adata.uns["umap_fit"].inverse_transform(prediction)
+        ndim = adata.uns["umap_fit"]._raw_data.shape[1]
 
-        if 'X_pca' in adata.obsm_keys():
-            if ndim == adata.obsm['X_pca'].shape[1]: # lift the dimension up again
-                high_prediction = adata.uns['pca_fit'].inverse_transform(prediction)
+        if "X_pca" in adata.obsm_keys():
+            if ndim == adata.obsm["X_pca"].shape[1]:  # lift the dimension up again
+                high_prediction = adata.uns["pca_fit"].inverse_transform(prediction)
 
         if adata.var.use_for_dynamo.sum() == high_prediction.shape[1]:
             valid_genes = adata.var_names[adata.var.use_for_dynamo]
         elif adata.var.use_for_velocity.sum() == high_prediction.shape[1]:
             valid_genes = adata.var_names[adata.var.use_for_velocity]
         else:
-            raise Exception('looks like a customized set of genes is used for pca analysis of the adata. '
-                            'Try rerunning pca analysis with default settings for this function to work.')
+            raise Exception(
+                "looks like a customized set of genes is used for pca analysis of the adata. "
+                "Try rerunning pca analysis with default settings for this function to work."
+            )
 
     if VecFld_true is None:
-        adata.uns[fate_key] = {"init_states": init_states, "average": average, 't': t, 'prediction': prediction, 'VecFld_true': VecFld_true, "genes": valid_genes} if high_prediction is None \
-            else {"init_states": init_states, "average": average, 't': t, 'prediction': prediction, 'high_prediction': high_prediction, 'VecFld_true': VecFld_true, "genes": valid_genes}
+        adata.uns[fate_key] = (
+            {
+                "init_states": init_states,
+                "average": average,
+                "t": t,
+                "prediction": prediction,
+                "VecFld_true": VecFld_true,
+                "genes": valid_genes,
+            }
+            if high_prediction is None
+            else {
+                "init_states": init_states,
+                "average": average,
+                "t": t,
+                "prediction": prediction,
+                "high_prediction": high_prediction,
+                "VecFld_true": VecFld_true,
+                "genes": valid_genes,
+            }
+        )
     else:
-        adata.uns[fate_key] = {"init_states": init_states, "average": average, 't': t, 'prediction': prediction, "genes": valid_genes} if high_prediction is None \
-            else {"init_states": init_states, "average": average, 't': t, 'prediction': prediction, 'high_prediction': high_prediction, "genes": valid_genes}
+        adata.uns[fate_key] = (
+            {
+                "init_states": init_states,
+                "average": average,
+                "t": t,
+                "prediction": prediction,
+                "genes": valid_genes,
+            }
+            if high_prediction is None
+            else {
+                "init_states": init_states,
+                "average": average,
+                "t": t,
+                "prediction": prediction,
+                "high_prediction": high_prediction,
+                "genes": valid_genes,
+            }
+        )
 
     return adata
 
 
-def _fate(VecFld, init_states, VecFld_true = None, t_end=None, step_size=None, direction='both', interpolation_num=250, average=True):
+def _fate(
+    VecFld,
+    init_states,
+    VecFld_true=None,
+    t_end=None,
+    step_size=None,
+    direction="both",
+    interpolation_num=250,
+    average=True,
+):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector field
     functions from one or a set of initial cell state(s).
 
@@ -132,17 +199,35 @@ def _fate(VecFld, init_states, VecFld_true = None, t_end=None, step_size=None, d
         at each time point is calculated for all cells.
     """
 
-    V_func = lambda x: vector_field_function(x=x, t=None, VecFld=VecFld) if VecFld_true is None else VecFld_true
+    V_func = (
+        lambda x: vector_field_function(x=x, t=None, VecFld=VecFld)
+        if VecFld_true is None
+        else VecFld_true
+    )
 
     if step_size is None:
-        max_steps = int(max(7 / (init_states.shape[1] / 300), 4)) if init_states.shape[1] > 300 else 7
-        t_linspace = np.linspace(0, t_end, 10**(np.min([int(np.log10(t_end)), max_steps])))
+        max_steps = (
+            int(max(7 / (init_states.shape[1] / 300), 4))
+            if init_states.shape[1] > 300
+            else 7
+        )
+        t_linspace = np.linspace(
+            0, t_end, 10 ** (np.min([int(np.log10(t_end)), max_steps]))
+        )
     else:
         t_linspace = np.arange(0, t_end + step_size, step_size)
 
-    t, prediction = integrate_vf_ivp(init_states, t_linspace, (), direction, V_func, interpolation_num=interpolation_num,
-                                 average=average)
+    t, prediction = integrate_vf_ivp(
+        init_states,
+        t_linspace,
+        (),
+        direction,
+        V_func,
+        interpolation_num=interpolation_num,
+        average=average,
+    )
     return t, prediction
+
 
 # def fate_(adata, time, direction = 'forward'):
 #     from .moments import *
@@ -170,5 +255,3 @@ def _fate(VecFld, init_states, VecFld_true = None, t_end=None, step_size=None, d
 #
 #     adata.uns['prediction'] = gene_exprs
 #     return adata
-
-

@@ -86,7 +86,9 @@ def cook_dist(model, X, good):
 
     # Hat matrix
     H = _hat_matrix(X, W)
-    hii = np.diag(H)  # Diagonal values of hat matrix # fit.get_influence().hat_matrix_diag
+    hii = np.diag(
+        H
+    )  # Diagonal values of hat matrix # fit.get_influence().hat_matrix_diag
 
     # Pearson residuals
     r = model.resid_pearson
@@ -98,7 +100,9 @@ def cook_dist(model, X, good):
     rss = np.sum(resid ** 2)
     MSE = rss / (good.shape[0] - 2)
     # use the formula from: https://www.mathworks.com/help/stats/cooks-distance.html
-    cooks_d = r**2 / (2 * MSE)  * hii / (1 - hii)**2 #(r / (1 - hii)) ** 2 *  / (1 * 2)
+    cooks_d = (
+        r ** 2 / (2 * MSE) * hii / (1 - hii) ** 2
+    )  # (r / (1 - hii)) ** 2 *  / (1 * 2)
 
     return cooks_d
 
@@ -106,43 +110,73 @@ def cook_dist(model, X, good):
 # ---------------------------------------------------------------------------------------------------
 # preprocess utilities
 
-def get_layer_keys(adata, layers='all', remove_normalized=True, include_protein=True):
+
+def get_layer_keys(adata, layers="all", remove_normalized=True, include_protein=True):
     """Get the list of available layers' keys.
     """
     layer_keys = list(adata.layers.keys())
-    if remove_normalized: layer_keys = [i for i in layer_keys if not i.startswith('X_')]
+    if remove_normalized:
+        layer_keys = [i for i in layer_keys if not i.startswith("X_")]
 
-    if 'protein' in adata.obsm.keys() and include_protein:
-        layer_keys.extend(['X', 'protein'])
+    if "protein" in adata.obsm.keys() and include_protein:
+        layer_keys.extend(["X", "protein"])
     else:
-        layer_keys.extend(['X'])
-    layers = layer_keys if layers is 'all' else list(set(layer_keys).intersection(list(layers)))
+        layer_keys.extend(["X"])
+    layers = (
+        layer_keys
+        if layers is "all"
+        else list(set(layer_keys).intersection(list(layers)))
+    )
 
-    layers = list(set(layers).difference(['matrix', 'ambiguous', 'spanning']))
+    layers = list(set(layers).difference(["matrix", "ambiguous", "spanning"]))
     return layers
 
 
-def get_shared_counts(adata, layers, min_shared_count, type='gene'):
-    layers = list(set(layers).difference(['X', 'matrix', 'ambiguous', 'spanning']))
-    layers = np.array(layers)[~pd.DataFrame(layers)[0].str.startswith('X_').values]
+def get_shared_counts(adata, layers, min_shared_count, type="gene"):
+    layers = list(set(layers).difference(["X", "matrix", "ambiguous", "spanning"]))
+    layers = np.array(layers)[~pd.DataFrame(layers)[0].str.startswith("X_").values]
 
     _nonzeros, _sum = None, None
     for layer in layers:
         if issparse(adata.layers[layers[0]]):
-            _nonzeros = adata.layers[layer] > 0 if _nonzeros is None else _nonzeros.multiply(adata.layers[layer] > 0)
+            _nonzeros = (
+                adata.layers[layer] > 0
+                if _nonzeros is None
+                else _nonzeros.multiply(adata.layers[layer] > 0)
+            )
         else:
-            _nonzeros = adata.layers[layer] > 0 if _nonzeros is None else _nonzeros * (adata.layers[layer] > 0)
+            _nonzeros = (
+                adata.layers[layer] > 0
+                if _nonzeros is None
+                else _nonzeros * (adata.layers[layer] > 0)
+            )
 
     for layer in layers:
         if issparse(adata.layers[layers[0]]):
-            _sum = _nonzeros.multiply(adata.layers[layer]) if _sum is None else _sum + _nonzeros.multiply(adata.layers[layer])
+            _sum = (
+                _nonzeros.multiply(adata.layers[layer])
+                if _sum is None
+                else _sum + _nonzeros.multiply(adata.layers[layer])
+            )
         else:
-            _sum = np.multiply(_nonzeros, adata.layers[layer]) if _sum is None else _sum + np.multiply(_nonzeros, adata.layers[layer])
+            _sum = (
+                np.multiply(_nonzeros, adata.layers[layer])
+                if _sum is None
+                else _sum + np.multiply(_nonzeros, adata.layers[layer])
+            )
 
-    if type == 'gene':
-        return np.array(_sum.sum(0).A1 >= min_shared_count) if issparse(adata.layers[layers[0]]) else np.array(_sum.sum(0) >= min_shared_count)
-    if type == 'cells':
-        return np.array(_sum.sum(1).A1 >= min_shared_count) if issparse(adata.layers[layers[0]]) else np.array(_sum.sum(1) >= min_shared_count)
+    if type == "gene":
+        return (
+            np.array(_sum.sum(0).A1 >= min_shared_count)
+            if issparse(adata.layers[layers[0]])
+            else np.array(_sum.sum(0) >= min_shared_count)
+        )
+    if type == "cells":
+        return (
+            np.array(_sum.sum(1).A1 >= min_shared_count)
+            if issparse(adata.layers[layers[0]])
+            else np.array(_sum.sum(1) >= min_shared_count)
+        )
 
 
 def clusters_stats(U, S, clusters_uid, cluster_ix, size_limit=40):
@@ -160,47 +194,62 @@ def clusters_stats(U, S, clusters_uid, cluster_ix, size_limit=40):
         cluster_filter = cluster_ix == i
         n_cells = np.sum(cluster_filter)
         if n_cells > size_limit:
-            U_avgs[:, i], S_avgs[:, i] = U[cluster_filter, :].mean(0), S[cluster_filter, :].mean(0)
+            U_avgs[:, i], S_avgs[:, i] = (
+                U[cluster_filter, :].mean(0),
+                S[cluster_filter, :].mean(0),
+            )
         else:
             U_avgs[:, i], S_avgs[:, i] = U.mean(0), S.mean(0)
 
     return U_avgs, S_avgs
 
-def get_svr_filter(adata, layer='spliced', n_top_genes=3000):
-    score_name = 'score' if layer in ['X', 'all'] else layer + '_score'
+
+def get_svr_filter(adata, layer="spliced", n_top_genes=3000):
+    score_name = "score" if layer in ["X", "all"] else layer + "_score"
     valid_idx = np.where(np.isfinite(adata.var.loc[:, score_name]))[0]
 
     valid_table = adata.var.iloc[valid_idx, :]
-    nth_score = np.sort(valid_table.loc[:, score_name])[::-1][np.min((n_top_genes, valid_table.shape[0]-1))]
+    nth_score = np.sort(valid_table.loc[:, score_name])[::-1][
+        np.min((n_top_genes, valid_table.shape[0] - 1))
+    ]
 
-    feature_gene_idx = np.where(valid_table.loc[:, score_name] >= nth_score)[0][:n_top_genes]
+    feature_gene_idx = np.where(valid_table.loc[:, score_name] >= nth_score)[0][
+        :n_top_genes
+    ]
 
-    adata.var.loc[:, 'use_for_dynamo'] = False
-    adata.var.loc[adata.var.index[feature_gene_idx], 'use_for_dynamo'] = True
+    adata.var.loc[:, "use_for_dynamo"] = False
+    adata.var.loc[adata.var.index[feature_gene_idx], "use_for_dynamo"] = True
 
     filter_bool = np.zeros(adata.n_vars, dtype=bool)
     filter_bool[valid_idx[feature_gene_idx]] = True
 
     return filter_bool
+
+
 # ---------------------------------------------------------------------------------------------------
 # pca
+
 
 def pca(adata, CM, n_pca_components, pca_key):
 
     if adata.n_obs < 100000:
-        pca = PCA(n_components=n_pca_components, svd_solver='arpack', random_state=0)
+        pca = PCA(n_components=n_pca_components, svd_solver="arpack", random_state=0)
         fit = pca.fit(CM.toarray()) if issparse(CM) else pca.fit(CM)
         X_pca = fit.transform(CM.toarray()) if issparse(CM) else fit.transform(CM)
         adata.obsm[pca_key] = X_pca
         adata.uns["PCs"] = fit.components_.T
 
-        adata.uns['explained_variance_ratio_'] = fit.explained_variance_ratio_
+        adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_
     else:
-        fit = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)  # unscaled PCA
-        X_pca = fit.fit_transform(CM)[:, 1:]  # first columns is related to the total UMI (or library size)
+        fit = TruncatedSVD(
+            n_components=n_pca_components + 1, random_state=0
+        )  # unscaled PCA
+        X_pca = fit.fit_transform(CM)[
+            :, 1:
+        ]  # first columns is related to the total UMI (or library size)
         adata.obsm[pca_key] = X_pca
         adata.uns["PCs"] = fit.components_.T
 
-        adata.uns['explained_variance_ratio_'] = fit.explained_variance_ratio_[1:]
+        adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
     return adata, fit, X_pca

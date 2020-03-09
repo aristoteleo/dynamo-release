@@ -22,7 +22,7 @@ import warnings
 import matplotlib.animation as _animation
 
 
-__all__ = ['Animation']
+__all__ = ["Animation"]
 
 
 class Animation(object):
@@ -54,6 +54,7 @@ class Animation(object):
     plot, while `animate` method is what accepts arguments that alter the
     animation.
     """
+
     def __init__(self):
         """Initialize plot for animation.
         Replace this method to initialize the plot. The only requirement is
@@ -97,13 +98,13 @@ class Animation(object):
             set to 100 frames.
         """
         reusable_generator = lambda: iter(self.update())
-        kwargs['init_background'] = self.init_background
+        kwargs["init_background"] = self.init_background
 
         self._warn_num_frames = False
-        if hasattr(self, 'num_frames') and 'save_count' not in kwargs:
-            kwargs['save_count'] = self.num_frames
-        if 'save_count' not in kwargs:
-            kwargs['save_count'] = 100
+        if hasattr(self, "num_frames") and "save_count" not in kwargs:
+            kwargs["save_count"] = self.num_frames
+        if "save_count" not in kwargs:
+            kwargs["save_count"] = 100
             self._warn_num_frames = True
 
         self._ani = _GenAnimation(self.fig, reusable_generator, **kwargs)
@@ -138,7 +139,7 @@ class Animation(object):
             use include: title, artist, genre, subject, copyright, comment.
         """
 
-        if not hasattr(self, '_ani'):
+        if not hasattr(self, "_ani"):
             raise RuntimeError("Run `animate` method before calling `save`!")
             return
         if self._warn_num_frames:
@@ -146,11 +147,18 @@ class Animation(object):
             warnings.warn(msg % self.__class__.__name__)
         self._ani.save(filename, **kwargs)
 
+
 # matplotlib.animation.FuncAnimation(fig, func, frames=None, init_func=None, fargs=None, save_count=None, *, cache_frame_data=True, **kwargs)[source]
 class _GenAnimation(_animation.FuncAnimation):
-
-    def __init__(self, fig, frames, init_background=None, save_count=None, cache_frame_data=True,
-                 **kwargs):
+    def __init__(
+        self,
+        fig,
+        frames,
+        init_background=None,
+        save_count=None,
+        cache_frame_data=True,
+        **kwargs
+    ):
         self._iter_gen = frames
         self._cache_frame_data = cache_frame_data
 

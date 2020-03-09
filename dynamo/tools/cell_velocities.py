@@ -3,13 +3,36 @@ from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import PCA
 from .Markov import *
 from .connectivity import extract_indices_dist_from_graph
-from .utils import set_velocity_genes, get_finite_inds, get_ekey_vkey_from_adata, get_mapper_inverse, update_dict
+from .utils import (
+    set_velocity_genes,
+    get_finite_inds,
+    get_ekey_vkey_from_adata,
+    get_mapper_inverse,
+    update_dict,
+)
 
 from .dimension_reduction import reduceDimension
 
-def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_basis=False, n_pca_components=30, min_r2=0.01,
-                    basis='umap', method='analytical', neg_cells_trick=False, calc_rnd_vel=False, xy_grid_nums=(50, 50),
-                    correct_density=True, scale=True, sample_fraction=None, random_seed=19491001, **kmc_kwargs):
+
+def cell_velocities(
+    adata,
+    ekey=None,
+    vkey=None,
+    use_mnn=False,
+    neighbors_from_basis=False,
+    n_pca_components=30,
+    min_r2=0.01,
+    basis="umap",
+    method="analytical",
+    neg_cells_trick=False,
+    calc_rnd_vel=False,
+    xy_grid_nums=(50, 50),
+    correct_density=True,
+    scale=True,
+    sample_fraction=None,
+    random_seed=19491001,
+    **kmc_kwargs
+):
     """Compute transition probability and project high dimension velocity vector to existing low dimension embedding.
 
     It is powered by the Itô kernel that not only considers the correlation between the vector from any cell to its
@@ -71,33 +94,50 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_b
 
     mapper_r = get_mapper_inverse()
     layer = mapper_r[ekey] if (ekey is not None and ekey in mapper_r.keys()) else ekey
-    ekey, vkey, layer = get_ekey_vkey_from_adata(adata) if (ekey is None or vkey is None) else (ekey, vkey, layer)
+    ekey, vkey, layer = (
+        get_ekey_vkey_from_adata(adata)
+        if (ekey is None or vkey is None)
+        else (ekey, vkey, layer)
+    )
 
     if calc_rnd_vel:
         numba_random_seed(random_seed)
 
-    if (not neighbors_from_basis) and ('neighbors' in adata.uns.keys()):
+    if (not neighbors_from_basis) and ("neighbors" in adata.uns.keys()):
         if use_mnn:
-            neighbors = adata.uns['mnn']
-            indices, dist = extract_indices_dist_from_graph(neighbors, adata.uns['neighbors']['indices'].shape[1])
+            neighbors = adata.uns["mnn"]
+            indices, dist = extract_indices_dist_from_graph(
+                neighbors, adata.uns["neighbors"]["indices"].shape[1]
+            )
         else:
-            neighbors, dist, indices = adata.uns['neighbors']['connectivities'], adata.uns['neighbors']['distances'], \
-                                       adata.uns['neighbors']['indices']
+            neighbors, dist, indices = (
+                adata.uns["neighbors"]["connectivities"],
+                adata.uns["neighbors"]["distances"],
+                adata.uns["neighbors"]["indices"],
+            )
 
-    if 'use_for_dynamo' in adata.var.keys():
-        adata = set_velocity_genes(adata, vkey='velocity_S', min_r2=min_r2, use_for_dynamo=True)
+    if "use_for_dynamo" in adata.var.keys():
+        adata = set_velocity_genes(
+            adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamo=True
+        )
     else:
-        adata = set_velocity_genes(adata, vkey='velocity_S', min_r2=min_r2, use_for_dynamo=False)
+        adata = set_velocity_genes(
+            adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamo=False
+        )
 
     X = adata[:, adata.var.use_for_velocity.values].layers[ekey]
-    V_mat = adata[:, adata.var.use_for_velocity.values].layers[vkey] if vkey in adata.layers.keys() else None
+    V_mat = (
+        adata[:, adata.var.use_for_velocity.values].layers[vkey]
+        if vkey in adata.layers.keys()
+        else None
+    )
 
-    if vkey == 'velocity_S':
-        X_embedding = adata.obsm['X_'+basis][:, :2]
+    if vkey == "velocity_S":
+        X_embedding = adata.obsm["X_" + basis][:, :2]
     else:
         adata = reduceDimension(adata, layer=layer, reduction_method=basis)
-        layer = layer if layer.startswith('X') else 'X_' + layer
-        X_embedding = adata.obsm[layer + '_' + basis][:, :2]
+        layer = layer if layer.startswith("X") else "X_" + layer
+        X_embedding = adata.obsm[layer + "_" + basis][:, :2]
 
     V_mat = V_mat.A if issparse(V_mat) else V_mat
     X = X.A if issparse(X) else X
@@ -105,45 +145,76 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_b
     X, V_mat = X[:, finite_inds], V_mat[:, finite_inds]
 
     # add both source and sink distribution
-    if method == 'analytical':
+    if method == "analytical":
         kmc = KernelMarkovChain()
-        kmc_args = {"n_recurse_neighbors": 2, "M_diff": 2, "epsilon": None, "adaptive_local_kernel": True, "tol": 1e-7}
+        kmc_args = {
+            "n_recurse_neighbors": 2,
+            "M_diff": 2,
+            "epsilon": None,
+            "adaptive_local_kernel": True,
+            "tol": 1e-7,
+        }
         kmc_args = update_dict(kmc_args, kmc_kwargs)
 
         # number of kNN in neighbor_idx may be too small
         if n_pca_components is not None:
-            if 'velocity_pca_fit' not in adata.uns_keys() or type(adata.uns['velocity_pca_fit']) == str:
-                pca = PCA(n_components=min(n_pca_components, X.shape[1] - 1), svd_solver='arpack', random_state=0)
+            if (
+                "velocity_pca_fit" not in adata.uns_keys()
+                or type(adata.uns["velocity_pca_fit"]) == str
+            ):
+                pca = PCA(
+                    n_components=min(n_pca_components, X.shape[1] - 1),
+                    svd_solver="arpack",
+                    random_state=0,
+                )
                 pca_fit = pca.fit(X)
                 X_pca = pca_fit.transform(X)
 
-                adata.uns['velocity_pca_fit'] = pca_fit
+                adata.uns["velocity_pca_fit"] = pca_fit
                 adata.uns["velocity_PCs"] = pca_fit.components_.T
-                adata.obsm['X_velocity_pca'] = X_pca
+                adata.obsm["X_velocity_pca"] = X_pca
 
-            X_pca, PCs, pca_fit = adata.obsm['X_velocity_pca'], adata.uns["velocity_PCs"], adata.uns['velocity_pca_fit']
+            X_pca, PCs, pca_fit = (
+                adata.obsm["X_velocity_pca"],
+                adata.uns["velocity_PCs"],
+                adata.uns["velocity_pca_fit"],
+            )
 
             Y_pca = pca_fit.transform(X + V_mat)
             V_pca = Y_pca - X_pca
             # V_pca = (V_mat - V_mat.mean(0)).dot(PCs)
 
-            adata.obsm['velocity_pca'] = V_pca
+            adata.obsm["velocity_pca"] = V_pca
             X, V_mat = X_pca[:, :n_pca_components], V_pca[:, :n_pca_components]
 
         if neighbors_from_basis:
-            kmc.fit(X, V_mat, neighbor_idx=None, sample_fraction=sample_fraction, **kmc_args) #
+            kmc.fit(
+                X, V_mat, neighbor_idx=None, sample_fraction=sample_fraction, **kmc_args
+            )  #
         else:
-            kmc.fit(X, V_mat, neighbor_idx=indices, sample_fraction=sample_fraction, **kmc_args) #
+            kmc.fit(
+                X,
+                V_mat,
+                neighbor_idx=indices,
+                sample_fraction=sample_fraction,
+                **kmc_args
+            )  #
 
         T = kmc.P
         if correct_density:
-            delta_X = kmc.compute_density_corrected_drift(X_embedding, kmc.Idx, normalize_vector=True, scale=scale) # indices, k = 500
+            delta_X = kmc.compute_density_corrected_drift(
+                X_embedding, kmc.Idx, normalize_vector=True, scale=scale
+            )  # indices, k = 500
         else:
-            delta_X = kmc.compute_drift(X_embedding, num_prop=1, scale=scale) # indices, k = 500
+            delta_X = kmc.compute_drift(
+                X_embedding, num_prop=1, scale=scale
+            )  # indices, k = 500
 
         # P = kmc.compute_stationary_distribution()
         # adata.obs['stationary_distribution'] = P
-        X_grid, V_grid, D = velocity_on_grid(X_embedding, delta_X, xy_grid_nums=xy_grid_nums)
+        X_grid, V_grid, D = velocity_on_grid(
+            X_embedding, delta_X, xy_grid_nums=xy_grid_nums
+        )
 
         if calc_rnd_vel:
             kmc = KernelMarkovChain()
@@ -151,32 +222,47 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_b
             kmc.fit(X, V_mat, **kmc_args)  # neighbor_idx=indices,
             T_rnd = kmc.P
             if correct_density:
-                delta_X_rnd = kmc.compute_density_corrected_drift(X_embedding, kmc.Idx, normalize_vector=True)  # indices, k = 500
+                delta_X_rnd = kmc.compute_density_corrected_drift(
+                    X_embedding, kmc.Idx, normalize_vector=True
+                )  # indices, k = 500
             else:
                 delta_X_rnd = kmc.compute_drift(X_embedding)
             # P_rnd = kmc.compute_stationary_distribution()
             # adata.obs['stationary_distribution_rnd'] = P_rnd
-            X_grid_rnd, V_grid_rnd, D_rnd = velocity_on_grid(X_embedding, delta_X_rnd, xy_grid_nums=xy_grid_nums)
+            X_grid_rnd, V_grid_rnd, D_rnd = velocity_on_grid(
+                X_embedding, delta_X_rnd, xy_grid_nums=xy_grid_nums
+            )
 
-        adata.uns['kmc'] = kmc
-    elif method == 'empirical': # add random velocity vectors calculation below
-        T, delta_X, X_grid, V_grid, D = _empirical_vec(X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors)
+        adata.uns["kmc"] = kmc
+    elif method == "empirical":  # add random velocity vectors calculation below
+        T, delta_X, X_grid, V_grid, D = _empirical_vec(
+            X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors
+        )
 
         if calc_rnd_vel:
             permute_rows_nsign(V_mat)
-            T_rnd, delta_X_rnd, X_grid_rnd, V_grid_rnd, D_rnd = _empirical_vec(X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors)
-    elif method == 'transform':
-        umap_trans, n_pca_components = adata.uns['umap_fit']['fit'], adata.uns['umap_fit']['n_pca_components']
+            T_rnd, delta_X_rnd, X_grid_rnd, V_grid_rnd, D_rnd = _empirical_vec(
+                X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors
+            )
+    elif method == "transform":
+        umap_trans, n_pca_components = (
+            adata.uns["umap_fit"]["fit"],
+            adata.uns["umap_fit"]["n_pca_components"],
+        )
 
-        if 'pca_fit' not in adata.uns_keys() or type(adata.uns['pca_fit']) == str:
+        if "pca_fit" not in adata.uns_keys() or type(adata.uns["pca_fit"]) == str:
             CM = adata.X[:, adata.var.use_for_dynamo.values]
             from ..preprocessing.utils import pca
 
-            adata, pca_fit, X_pca = pca(adata, CM, n_pca_components, 'X_pca')
-            adata.uns['pca_fit'] = pca_fit
+            adata, pca_fit, X_pca = pca(adata, CM, n_pca_components, "X_pca")
+            adata.uns["pca_fit"] = pca_fit
 
-        X_pca, pca_fit = adata.obsm['X_pca'], adata.uns['pca_fit']
-        V = adata[:, adata.var.use_for_dynamo.values].layers[vkey] if vkey in adata.layers.keys() else None
+        X_pca, pca_fit = adata.obsm["X_pca"], adata.uns["pca_fit"]
+        V = (
+            adata[:, adata.var.use_for_dynamo.values].layers[vkey]
+            if vkey in adata.layers.keys()
+            else None
+        )
         CM, V = CM.A if issparse(CM) else CM, V.A if issparse(V) else V
         V[np.isnan(V)] = 0
         Y_pca = pca_fit.transform(CM + V)
@@ -185,21 +271,27 @@ def cell_velocities(adata, ekey=None, vkey=None, use_mnn=False, neighbors_from_b
 
         delta_X = Y - X_embedding
 
-        X_grid, V_grid, D = velocity_on_grid(X_embedding, delta_X, xy_grid_nums=xy_grid_nums)
+        X_grid, V_grid, D = velocity_on_grid(
+            X_embedding, delta_X, xy_grid_nums=xy_grid_nums
+        )
 
-    adata.uns['transition_matrix'] = T
-    adata.obsm['velocity_' + basis] = delta_X
-    adata.uns['grid_velocity_' + basis] = {'X_grid': X_grid, "V_grid": V_grid, "D": D}
+    adata.uns["transition_matrix"] = T
+    adata.obsm["velocity_" + basis] = delta_X
+    adata.uns["grid_velocity_" + basis] = {"X_grid": X_grid, "V_grid": V_grid, "D": D}
 
     if calc_rnd_vel:
-        adata.uns['transition_matrix_rnd'] = T_rnd
-        adata.obsm['velocity_' + basis + '_rnd'] = delta_X_rnd
-        adata.uns['grid_velocity_' + basis + '_rnd'] = {'X_grid': X_grid_rnd, "V_grid": V_grid_rnd, "D": D_rnd}
+        adata.uns["transition_matrix_rnd"] = T_rnd
+        adata.obsm["velocity_" + basis + "_rnd"] = delta_X_rnd
+        adata.uns["grid_velocity_" + basis + "_rnd"] = {
+            "X_grid": X_grid_rnd,
+            "V_grid": V_grid_rnd,
+            "D": D_rnd,
+        }
 
     return adata
 
 
-def stationary_distribution(adata, method='kmc', direction='both', calc_rnd=True):
+def stationary_distribution(adata, method="kmc", direction="both", calc_rnd=True):
     """Compute stationary distribution of cells using the transition matrix.
 
     Parameters
@@ -219,58 +311,78 @@ def stationary_distribution(adata, method='kmc', direction='both', calc_rnd=True
             depending on the direction and calc_rnd arguments.
     """
 
-    T = adata.uns['transition_matrix'] # row is the source and columns are targets
+    T = adata.uns["transition_matrix"]  # row is the source and columns are targets
 
-    if method is 'kmc':
+    if method is "kmc":
         kmc = KernelMarkovChain()
         kmc.P = T
-        if direction is 'both':
-            adata.obs['sink_steady_state_distribution'] = kmc.compute_stationary_distribution()
+        if direction is "both":
+            adata.obs[
+                "sink_steady_state_distribution"
+            ] = kmc.compute_stationary_distribution()
             kmc.P = T.T / T.T.sum(0)
-            adata.obs['source_steady_state_distribution'] = kmc.compute_stationary_distribution()
+            adata.obs[
+                "source_steady_state_distribution"
+            ] = kmc.compute_stationary_distribution()
 
             if calc_rnd:
-                T_rnd = adata.uns['transition_matrix_rnd']
+                T_rnd = adata.uns["transition_matrix_rnd"]
                 kmc.P = T_rnd
-                adata.obs['sink_steady_state_distribution_rnd'] = kmc.compute_stationary_distribution()
+                adata.obs[
+                    "sink_steady_state_distribution_rnd"
+                ] = kmc.compute_stationary_distribution()
                 kmc.P = T_rnd.T / T_rnd.T.sum(0)
-                adata.obs['source_steady_state_distribution_rnd'] = kmc.compute_stationary_distribution()
+                adata.obs[
+                    "source_steady_state_distribution_rnd"
+                ] = kmc.compute_stationary_distribution()
 
-        elif direction is 'forward':
-            adata.obs['sink_steady_state_distribution'] = kmc.compute_stationary_distribution()
+        elif direction is "forward":
+            adata.obs[
+                "sink_steady_state_distribution"
+            ] = kmc.compute_stationary_distribution()
 
             if calc_rnd:
-                T_rnd = adata.uns['transition_matrix_rnd']
+                T_rnd = adata.uns["transition_matrix_rnd"]
                 kmc.P = T_rnd
-                adata.obs['sink_steady_state_distribution_rnd'] = kmc.compute_stationary_distribution()
-        elif direction is 'backward':
+                adata.obs[
+                    "sink_steady_state_distribution_rnd"
+                ] = kmc.compute_stationary_distribution()
+        elif direction is "backward":
             kmc.P = T.T / T.T.sum(0)
-            adata.obs['source_steady_state_distribution'] = kmc.compute_stationary_distribution()
+            adata.obs[
+                "source_steady_state_distribution"
+            ] = kmc.compute_stationary_distribution()
 
             if calc_rnd:
-                T_rnd = adata.uns['transition_matrix_rnd']
+                T_rnd = adata.uns["transition_matrix_rnd"]
                 kmc.P = T_rnd.T / T_rnd.T.sum(0)
-                adata.obs['sink_steady_state_distribution_rnd'] = kmc.compute_stationary_distribution()
+                adata.obs[
+                    "sink_steady_state_distribution_rnd"
+                ] = kmc.compute_stationary_distribution()
 
     else:
         T = T.T
-        if direction is 'both':
-            adata.obs['source_steady_state_distribution'] = diffusion(T, backward=True)
-            adata.obs['sink_steady_state_distribution'] = diffusion(T)
+        if direction is "both":
+            adata.obs["source_steady_state_distribution"] = diffusion(T, backward=True)
+            adata.obs["sink_steady_state_distribution"] = diffusion(T)
             if calc_rnd:
-                T_rnd = adata.uns['transition_matrix_rnd']
-                adata.obs['source_steady_state_distribution_rnd'] = diffusion(T_rnd, backward=True)
-                adata.obs['sink_steady_state_distribution_rnd'] = diffusion(T_rnd)
-        elif direction is 'forward':
-            adata.obs['sink_steady_state_distribution'] = diffusion(T)
+                T_rnd = adata.uns["transition_matrix_rnd"]
+                adata.obs["source_steady_state_distribution_rnd"] = diffusion(
+                    T_rnd, backward=True
+                )
+                adata.obs["sink_steady_state_distribution_rnd"] = diffusion(T_rnd)
+        elif direction is "forward":
+            adata.obs["sink_steady_state_distribution"] = diffusion(T)
             if calc_rnd:
-                T_rnd = adata.uns['transition_matrix_rnd']
-                adata.obs['sink_steady_state_distribution_rnd'] = diffusion(T_rnd)
-        elif direction is 'backward':
-            adata.obs['source_steady_state_distribution'] = diffusion(T, backward=True)
+                T_rnd = adata.uns["transition_matrix_rnd"]
+                adata.obs["sink_steady_state_distribution_rnd"] = diffusion(T_rnd)
+        elif direction is "backward":
+            adata.obs["source_steady_state_distribution"] = diffusion(T, backward=True)
             if calc_rnd:
-                T_rnd = adata.uns['transition_matrix_rnd']
-                adata.obs['source_steady_state_distribution_rnd'] = diffusion(T_rnd, backward=True)
+                T_rnd = adata.uns["transition_matrix_rnd"]
+                adata.obs["source_steady_state_distribution_rnd"] = diffusion(
+                    T_rnd, backward=True
+                )
 
 
 def generalized_diffusion_map(adata, **kwargs):
@@ -290,12 +402,12 @@ def generalized_diffusion_map(adata, **kwargs):
     """
 
     kmc = KernelMarkovChain()
-    kmc.P = adata.uns['transition_matrix']
+    kmc.P = adata.uns["transition_matrix"]
     dm_args = {"n_dims": 2, "t": 1}
     dm_args.update(kwargs)
     dm = kmc.diffusion_map_embedding(*dm_args)
 
-    adata.obsm['X_diffusion_map'] = dm
+    adata.obsm["X_diffusion_map"] = dm
 
 
 def diffusion(M, P0=None, steps=None, backward=False):
@@ -325,19 +437,27 @@ def diffusion(M, P0=None, steps=None, backward=False):
     if steps is None:
         # code inspired from  https://github.com/prob140/prob140/blob/master/prob140/markov_chains.py#L284
         from scipy.sparse.linalg import eigs
-        eigenvalue, eigenvector = scp.linalg.eig(M, left=True, right=False) # if not issparse(M) else eigs(M) # source is on the row
 
-        eigenvector = np.real(eigenvector) if not issparse(M) else np.real(eigenvector.T)
+        eigenvalue, eigenvector = scp.linalg.eig(
+            M, left=True, right=False
+        )  # if not issparse(M) else eigs(M) # source is on the row
+
+        eigenvector = (
+            np.real(eigenvector) if not issparse(M) else np.real(eigenvector.T)
+        )
         eigenvalue_1_ind = np.isclose(eigenvalue, 1)
         mu = eigenvector[:, eigenvalue_1_ind] / np.sum(eigenvector[:, eigenvalue_1_ind])
 
         # Zero out floating poing errors that are negative.
-        indices = np.logical_and(np.isclose(mu, 0),
-                                 mu < 0)
-        mu[indices] = 0 # steady state distribution
+        indices = np.logical_and(np.isclose(mu, 0), mu < 0)
+        mu[indices] = 0  # steady state distribution
 
     else:
-        mu = np.nanmean(M.dot(np.linalg.matrix_power(M, steps)), 0) if P0 is None else P0.dot(np.linalg.matrix_power(M, steps))
+        mu = (
+            np.nanmean(M.dot(np.linalg.matrix_power(M, steps)), 0)
+            if P0 is None
+            else P0.dot(np.linalg.matrix_power(M, steps))
+        )
 
     return mu
 
@@ -364,11 +484,13 @@ def expected_return_time(M, backward=False):
     return T
 
 
-def _empirical_vec(X_pca, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors):
+def _empirical_vec(
+    X_pca, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors
+):
     """utility function for calculating the transition matrix or low dimensional velocity embedding via the original correlation kernel."""
     n = X_pca.shape[0]
     if indices is not None:
-        knn = indices.shape[1] - 1 #remove the first one in kNN
+        knn = indices.shape[1] - 1  # remove the first one in kNN
         rows = np.zeros((n * knn, 1))
         cols = np.zeros((n * knn, 1))
         vals = np.zeros((n * knn, 1))
@@ -406,27 +528,43 @@ def _empirical_vec(X_pca, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_
                 vals[val_ind_vec[cur_ind]] = sig * i_prob
 
                 j_vec = indices[i, 1:][cur_ind]
-                numerator = sig * np.array([X_embedding[j, :] - X_embedding[i, :] for j in j_vec])
-                denominator = np.array([[scp.linalg.norm(numerator[j]) for j in range(len(j_vec))]]).T
+                numerator = sig * np.array(
+                    [X_embedding[j, :] - X_embedding[i, :] for j in j_vec]
+                )
+                denominator = np.array(
+                    [[scp.linalg.norm(numerator[j]) for j in range(len(j_vec))]]
+                ).T
 
-                delta_X[i, :] += 0.5 * (i_prob - 1 / len(cur_ind)).T.dot(
-                    numerator / np.hstack((denominator, denominator))).flatten()
+                delta_X[i, :] += (
+                    0.5
+                    * (i_prob - 1 / len(cur_ind))
+                    .T.dot(numerator / np.hstack((denominator, denominator)))
+                    .flatten()
+                )
         else:
             sigma = max(abs(i_vals))
             exp_i_vals = np.exp(i_vals / sigma)
             denominator = sum(exp_i_vals)
             i_prob = exp_i_vals / denominator
-            vals[i * knn:(i + 1) * knn] = i_prob
+            vals[i * knn : (i + 1) * knn] = i_prob
 
             j_vec = indices[i, 1:]
             numerator = np.array([X_embedding[j, :] - X_embedding[i, :] for j in j_vec])
-            denominator = np.array([[scp.linalg.norm(numerator[j]) for j in range(knn)]]).T
+            denominator = np.array(
+                [[scp.linalg.norm(numerator[j]) for j in range(knn)]]
+            ).T
 
-            delta_X[i, :] = (i_prob - 1 / knn).T.dot(numerator / np.hstack((denominator, denominator)))
+            delta_X[i, :] = (i_prob - 1 / knn).T.dot(
+                numerator / np.hstack((denominator, denominator))
+            )
 
-        X_grid, V_grid, D = velocity_on_grid(X_embedding, X_embedding + delta_X, xy_grid_nums=xy_grid_nums)
+        X_grid, V_grid, D = velocity_on_grid(
+            X_embedding, X_embedding + delta_X, xy_grid_nums=xy_grid_nums
+        )
 
-    T = csr_matrix((vals.flatten(), (rows.flatten(), cols.flatten())), shape=neighbors.shape)
+    T = csr_matrix(
+        (vals.flatten(), (rows.flatten(), cols.flatten())), shape=neighbors.shape
+    )
 
     return T, delta_X, X_grid, V_grid, D
 
