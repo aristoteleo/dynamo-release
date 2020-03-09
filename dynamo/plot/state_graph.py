@@ -1,5 +1,8 @@
-from .scatters import scatters, docstrings
 import numpy as np
+
+from .scatters import scatters, docstrings
+docstrings.delete_params('scatters.parameters', 'aggregate', 'kwargs')
+
 
 def create_edge_patch(posA, posB, width=1, node_rad=0, connectionstyle='arc3, rad=0.25', facecolor='k', **kwargs):
     import matplotlib.patches as pat
@@ -54,7 +57,7 @@ def state_graph(adata,
         group: `str` or `None` (default: `None`)
             The column in adata.obs that will be used to aggregate data points for the purpose of creating a cell type
             transition model.
-        %(scatters.parameters.no_aggregate)s
+        %(scatters.parameters.no_aggregate|kwargs)s
         s_kwargs_dict: `dict` (default: {})
             The dictionary of the scatter arguments.
     Returns

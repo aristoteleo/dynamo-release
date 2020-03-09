@@ -396,7 +396,7 @@ class KernelMarkovChain(MarkovChain):
             inv_s = 1/M_diff
         else:
             inv_s = np.linalg.inv(M_diff)
-        for i in range(n):
+        for i in tqdm(range(n), desc='compute transiton matrix'):
             y = X[i]
             v = V[i]
             Y = X[self.Idx[i]]
