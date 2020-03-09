@@ -1,5 +1,5 @@
 # create by Yan Zhang, minor adjusted by Xiaojie Qiu
-
+from tqdm import tqdm
 import numpy as np
 import scipy.sparse as sp
 from sklearn.neighbors import NearestNeighbors
@@ -425,7 +425,7 @@ class KernelMarkovChain(MarkovChain):
         n = self.get_num_states()
         V = np.zeros_like(X)
         P = self.propagate_P(int(num_prop))
-        for i in range(n):
+        for i in tqdm(range(n), desc='compute drift'):
             V[i] = (X - X[i]).T.dot(P[:, i].A.flatten())
         return V * 1 / V.max() if scale else V
 
@@ -435,7 +435,7 @@ class KernelMarkovChain(MarkovChain):
         V = np.zeros_like(X)
         P = self.propagate_P(num_prop)
         if neighbor_idx is None: neighbor_idx = self.Idx
-        for i in range(n):
+        for i in tqdm(range(n), desc='calculating density corrected drift'):
             Idx = neighbor_idx[i]
             D = X[Idx] - X[i]
             if normalize_vector:

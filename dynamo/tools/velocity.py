@@ -269,7 +269,7 @@ def fit_stochastic_linreg(u, s, us, ss):
     # generalized least squares
     xy = 0
     xx = 0
-    for i in tqdm(range(x.shape[1]), 'fitting genes with GMM'):
+    for i in range(x.shape[1]):
         xy += y[:, i].T @ cov_inv @ x[:, i]
         xx += x[:, i].T @ cov_inv @ x[:, i]
     gamma = xy/xx
@@ -1145,7 +1145,7 @@ class estimation:
                 s = self.data['su'][ind_for_proteins] + self.data['sl'][ind_for_proteins] \
                     if self._exist_data('sl') else self.data['su'][ind_for_proteins]
 
-                for i in tqdm(range(n), desc='solving delta'):
+                for i in tqdm(range(n), desc='estimating delta'):
                     delta[i], delta_intercept[i], _, delta_r2[i] = self.fit_gamma_steady_state(s[i], self.data['p'][i],
                             intercept, perc_left, perc_right)
                 self.parameters['delta'], self.aux_param['delta_intercept'], self.aux_param['delta_r2'] = delta, delta_intercept, delta_r2

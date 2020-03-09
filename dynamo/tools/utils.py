@@ -1,3 +1,4 @@
+from tqdm import tqdm
 import numpy as np
 import scipy
 from scipy import interpolate
@@ -740,7 +741,7 @@ def integrate_vf(init_states, t, args, integration_direction, f, interpolation_n
 
     Y = None
     if interpolation_num is not None: valid_ids = None
-    for i in range(n_cell):
+    for i in tqdm(range(n_cell), desc='integrating vector field'):
         y0 = init_states[i, :]
         if integration_direction == 'forward':
             y = scipy.integrate.odeint(lambda x, t: f(x), y0, t, args=args)
@@ -793,7 +794,7 @@ def integrate_vf_ivp(init_states, t, args, integration_direction, f, interpolati
 
     T, Y, SOL = [], [], []
 
-    for i in range(n_cell):
+    for i in tqdm(range(n_cell), desc='integration with ivp solver'):
         y0 = init_states[i, :]
         ivp_f, ivp_f_event = lambda t, x: f(x), lambda t, x: np.sum(np.linalg.norm(f(x)) < 1e-5) - 1
         ivp_f_event.terminal = True
@@ -852,7 +853,7 @@ def integrate_streamline(X, Y, U, V, integration_direction, init_states, interpo
     res = np.zeros((n_cell * interpolation_num, 2))
     j = -1 # this index will become 0 when the first trajectory found
 
-    for i in range(n_cell):
+    for i in tqdm(range(n_cell), 'integration with streamline'):
         strm = plt.streamplot(X, Y, U, V, start_points=init_states[i, None], integration_direction=integration_direction,
                               density=100)
         strm_res = np.array(strm.lines.get_segments()).reshape((-1, 2))
