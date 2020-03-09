@@ -126,13 +126,18 @@ def get_shared_counts(adata, layers, min_shared_count, type='gene'):
     layers = list(set(layers).difference(['X', 'matrix', 'ambiguous', 'spanning']))
     layers = np.array(layers)[~pd.DataFrame(layers)[0].str.startswith('X_').values]
 
-    _nonzeros = reduce(lambda a, b: (adata.layers[a] > 0).multiply(adata.layers[b] > 0), layers) if \
-        issparse(adata.layers[layers[0]]) else \
-        reduce(lambda a, b: (adata.layers[a] > 0) * (adata.layers[b] > 0), layers)
+    _nonzeros, _sum = None, None
+    for layer in layers:
+        if issparse(adata.layers[layers[0]]):
+            _nonzeros = adata.layers[layer] > 0 if _nonzeros is None else (_nonzeros > 0).multiply(adata.layers[layer] > 0)
+        else:
+            _nonzeros = adata.layers[layer] > 0 if _nonzeros is None else (_nonzeros > 0) * (adata.layers[layer] > 0)
 
-    _sum = reduce(lambda a, b: _nonzeros.multiply(adata.layers[a]) + _nonzeros.multiply(adata.layers[b]), layers) if \
-        issparse(adata.layers[layers[0]]) else \
-        reduce(lambda a, b: np.multiply(_nonzeros, adata.layers[a]) + np.multiply(_nonzeros, adata.layers[b]), layers)
+    for layer in layers:
+        if issparse(adata.layers[layers[0]]):
+            _sum = _nonzeros.multiply(adata.layers[layer]) if _sum is None else _sum + _nonzeros.multiply(adata.layers[layer])
+        else:
+            _sum = np.multiply(_nonzeros, adata.layers[layer]) if _sum is None else _sum + np.multiply(_nonzeros, adata.layers[layer])
 
     if type == 'gene':
         return np.array(_sum.sum(0).A1 >= min_shared_count) if issparse(adata.layers[layers[0]]) else np.array(_sum.sum(0) >= min_shared_count)
@@ -166,7 +171,7 @@ def get_svr_filter(adata, layer='spliced', n_top_genes=3000):
     valid_idx = np.where(np.isfinite(adata.var.loc[:, score_name]))[0]
 
     valid_table = adata.var.iloc[valid_idx, :]
-    nth_score = np.sort(valid_table.loc[:, score_name])[::-1][n_top_genes]
+    nth_score = np.sort(valid_table.loc[:, score_name])[::-1][np.min((n_top_genes, valid_table.shape[0]-1))]
 
     feature_gene_idx = np.where(valid_table.loc[:, score_name] >= nth_score)[0][:n_top_genes]
 

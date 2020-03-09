@@ -46,8 +46,8 @@ def state_graph(adata,
                 save_or_show='return',
                 s_kwargs_dict={},
                 **kwargs):
-    """Plot a summarized cell type (state) transition graph. This function tries to create a model that summarize
-    the possible cell type transitions based on the reconstructed vector function.
+    """Plot a summarized cell type (state) transition graph. This function tries to create a model that summarizes
+    the possible cell type transitions based on the reconstructed vector field function.
 
     Parameters
     ----------
@@ -59,8 +59,8 @@ def state_graph(adata,
             The dictionary of the scatter arguments.
     Returns
     -------
-        Plot the streamline, fixed points (attractors / saddles), nullcline, separatrices of a recovered dynamic system
-        for single cells or return the corresponding axis, depending on the plot argument.
+        Plot the a model of cell fate transition that summarizes the possible lineage commitments between different cell
+        types.
     """
 
     import matplotlib.pyplot as plt
