@@ -1,3 +1,4 @@
+from tqdm import tqdm
 import numpy as np
 from scipy.optimize import least_squares
 from scipy.sparse import issparse, csr_matrix
@@ -268,7 +269,7 @@ def fit_stochastic_linreg(u, s, us, ss):
     # generalized least squares
     xy = 0
     xx = 0
-    for i in range(x.shape[1]):
+    for i in tqdm(range(x.shape[1]), 'fitting genes with GMM'):
         xy += y[:, i].T @ cov_inv @ x[:, i]
         xx += x[:, i].T @ cov_inv @ x[:, i]
     gamma = xy/xx
@@ -947,7 +948,7 @@ class estimation:
                     gamma, gamma_intercept, gamma_r2 = np.zeros(n), np.zeros(n), np.zeros(n)
                     U = self.data['uu'] if self.data['ul'] is None else self.data['uu'] + self.data['ul']
                     S = self.data['su'] if self.data['sl'] is None else self.data['su'] + self.data['sl']
-                    for i in range(n):
+                    for i in tqdm(range(n), desc='estimating gamma'):
                         gamma[i], gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_steady_state(U[i], S[i],
                                 intercept, perc_left, perc_right)
                     self.parameters['gamma'], self.aux_param['gamma_intercept'], self.aux_param['gamma_r2'] = gamma, gamma_intercept, gamma_r2
@@ -956,7 +957,7 @@ class estimation:
                     gamma, gamma_intercept, gamma_r2 = np.zeros(n), np.zeros(n), np.zeros(n)
                     U = self.data['ul']
                     S = self.data['uu'] + self.data['ul']
-                    for i in range(n):
+                    for i in tqdm(range(n), desc='estimating gamma'):
                         gamma[i], gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_steady_state(U[i], S[i],
                                 intercept, perc_left, perc_right)
                     self.parameters['gamma'], self.aux_param['gamma_intercept'], self.aux_param['gamma_r2'] = gamma, gamma_intercept, gamma_r2
@@ -967,7 +968,7 @@ class estimation:
                     U = self.data['uu'] if self.data['ul'] is None else self.data['uu'] + self.data['ul']
                     S = self.data['su'] if self.data['sl'] is None else self.data['su'] + self.data['sl']
                     US, S2 = self.data['us'], self.data['s2']
-                    for i in range(n):
+                    for i in tqdm(range(n), desc='estimating gamma'):
                         gamma[i], gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_stochastic(U[i], S[i], US[i], S2[i],
                                                                                                  perc_left=None, perc_right=5, normalize=True)
                     self.parameters['gamma'], self.aux_param['gamma_intercept'], self.aux_param['gamma_r2'] = gamma, gamma_intercept, gamma_r2
@@ -977,7 +978,7 @@ class estimation:
                     U = self.data['ul']
                     S = self.data['uu'] + self.data['ul']
                     US, S2 = self.data['us'], self.data['s2']
-                    for i in range(n):
+                    for i in tqdm(range(n), desc='estimating gamma'):
                         gamma[i], gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_stochastic(U[i], S[i], US[i], S2[i],
                                                                                                  perc_left=None, perc_right=5, normalize=True)
                     self.parameters['gamma'], self.aux_param['gamma_intercept'], self.aux_param['gamma_r2'] = gamma, gamma_intercept, gamma_r2
@@ -1005,7 +1006,7 @@ class estimation:
                         # alpha estimation
                         alpha, alpha_b, alpha_r2 = np.zeros(n), np.zeros(n), np.zeros(n)
                         uu_m, uu_v, _ = calc_12_mom_labeling(self.data['uu'], self.t)
-                        for i in range(n):
+                        for i in tqdm(range(n), desc='estimating alpha'):
                             alpha[i], alpha_b[i], alpha_r2[i] = fit_alpha_degradation(t_uniq, uu_m[i], self.parameters['gamma'][i])
                         self.parameters['alpha'], self.aux_param['alpha_intercept'], self.aux_param['uu0'], self.aux_param['alpha_r2'] = alpha, alpha_b, alpha_b, alpha_r2
             elif (self.extyp == 'kin' or self.extyp == 'one_shot') and len(np.unique(self.t)) > 1:
@@ -1020,7 +1021,7 @@ class estimation:
                     ul_m, ul_v, t_uniq = calc_12_mom_labeling(self.data['ul'], self.t)
                     alpha = np.zeros(n)
                     # let us only assume one alpha for each gene in all cells
-                    for i in range(n):
+                    for i in tqdm(range(n), desc='estimating alpha'):
                         # for j in range(len(self.data['ul'][i])):
                         alpha[i] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters['beta'][i])
                     self.parameters['alpha'] = alpha
@@ -1028,7 +1029,7 @@ class estimation:
                     n = self.data['uu'].shape[0]  # self.get_n_genes(data=U)
                     u0, gamma = np.zeros(n), np.zeros(n)
                     uu_m, uu_v, t_uniq = calc_12_mom_labeling(self.data['uu'], self.t)
-                    for i in range(n):
+                    for i in tqdm(range(n), desc='estimating gamma'):
                         try:
                             gamma[i], u0[i] = fit_first_order_deg_lsq(t_uniq, uu_m[i])
                         except:
@@ -1037,7 +1038,7 @@ class estimation:
                     alpha = np.zeros(n)
                     # let us only assume one alpha for each gene in all cells
                     ul_m, ul_v, _ = calc_12_mom_labeling(self.data['ul'], self.t)
-                    for i in range(n):
+                    for i in tqdm(range(n), desc='estimating gamma'):
                         # for j in range(len(self.data['ul'][i])):
                         alpha[i] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters['gamma'][i])
                     self.parameters['alpha'] = alpha
@@ -1063,7 +1064,7 @@ class estimation:
                         ul_m, ul_v, t_uniq = calc_12_mom_labeling(self.data['ul'], self.t)
                         alpha = np.zeros(n)
                         # let us only assume one alpha for each gene in all cells
-                        for i in range(n):
+                        for i in tqdm(range(n), desc='estimating alpha'):
                             # for j in range(len(self.data['ul'][i])):
                             alpha[i] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters['beta'][i])
 
@@ -1075,7 +1076,7 @@ class estimation:
                     elif self._exist_data('ul') and self._exist_data('uu'):
                         if one_shot_method in ['sci-fate', 'sci_fate']:
                             gamma, total0 = np.zeros(n), np.zeros(n)
-                            for i in range(n):
+                            for i in tqdm(range(n), desc='estimating gamma'):
                                 total = self.data['uu'][i] + self.data['ul'][i]
                                 total0[i], gamma[i] = np.mean(total), solve_gamma(np.max(self.t), self.data['uu'][i], total)
                             self.aux_param['total0'], self.parameters['gamma'] = total0, gamma
@@ -1083,7 +1084,7 @@ class estimation:
                             ul_m, ul_v, t_uniq = calc_12_mom_labeling(self.data['ul'], self.t)
                             # let us only assume one alpha for each gene in all cells
                             alpha = np.zeros(n)
-                            for i in range(n):
+                            for i in tqdm(range(n), desc='estimating alpha'):
                                 # for j in range(len(self.data['ul'][i])):
                                 alpha[i] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters['gamma'][i]) # ul_m[i] / t_uniq
 
@@ -1094,7 +1095,7 @@ class estimation:
                             t_uniq, gamma, gamma_intercept, gamma_r2 = np.unique(self.t), np.zeros(n), np.zeros(n), np.zeros(n)
                             U, S = self.data['ul'], self.data['uu'] + self.data['ul']
 
-                            for i in range(n):
+                            for i in tqdm(range(n), desc='estimating gamma'):
                                 k, gamma_intercept[i], _, gamma_r2[i] = self.fit_gamma_steady_state(U[i], S[i], False, None, perc_right)
                                 gamma[i], self.parameters['alpha'][i] = one_shot_gamma_alpha(k, t_uniq, U[i])
                             self.parameters['gamma'],  self.aux_param['gamma_r2'], self.aux_param['alpha_r2'] = gamma, gamma_r2, gamma_r2
@@ -1103,7 +1104,7 @@ class estimation:
                 t_min, t_max = np.min(self.t), np.max(self.t)
                 if np.all(self._exist_data('ul', 'uu', 'su')):
                     gamma, beta, total, U = np.zeros(n), np.zeros(n), np.zeros(n), np.zeros(n)
-                    for i in range(n): # can also use the two extreme time points and apply sci-fate like approach.
+                    for i in tqdm(range(n), desc='solving gamma/beta'): # can also use the two extreme time points and apply sci-fate like approach.
                         tmp = self.data['uu'][i, self.t == t_max] + self.data['ul'][i, self.t == t_max] + self.data['su'][i, self.t == t_max] + self.data['sl'][i, self.t == t_max]
                         total[i] = np.mean(tmp)
                         gamma[i] = solve_gamma(t_max, self.data['uu'][i, self.t == t_max] + self.data['su'][i, self.t ==t_max], tmp)
@@ -1118,7 +1119,7 @@ class estimation:
                 elif np.all(self._exist_data('ul', 'uu')):
                     n = self.data['uu'].shape[0]  # self.get_n_genes(data=U)
                     gamma, U = np.zeros(n), np.zeros(n)
-                    for i in range(n): # apply sci-fate like approach (can also use one-single time point to estimate gamma)
+                    for i in tqdm(range(n), desc='solving gamma, alpha'): # apply sci-fate like approach (can also use one-single time point to estimate gamma)
                         # tmp = self.data['uu'][i, self.t == 0] + self.data['ul'][i, self.t == 0]
                         tmp_ = self.data['uu'][i, self.t == t_max] + self.data['ul'][i, self.t == t_max]
 
@@ -1144,7 +1145,7 @@ class estimation:
                 s = self.data['su'][ind_for_proteins] + self.data['sl'][ind_for_proteins] \
                     if self._exist_data('sl') else self.data['su'][ind_for_proteins]
 
-                for i in range(n):
+                for i in tqdm(range(n), desc='solving delta'):
                     delta[i], delta_intercept[i], _, delta_r2[i] = self.fit_gamma_steady_state(s[i], self.data['p'][i],
                             intercept, perc_left, perc_right)
                 self.parameters['delta'], self.aux_param['delta_intercept'], self.aux_param['delta_r2'] = delta, delta_intercept, delta_r2
@@ -1266,7 +1267,7 @@ class estimation:
         gamma = np.zeros(n)
         u0, s0 = np.zeros(n), np.zeros(n)
 
-        for i in range(n):
+        for i in tqdm(range(n), desc='estimating beta, gamma'):
             beta[i], u0[i] = fit_first_order_deg_lsq(t, U[i])
             if np.isfinite(u0[i]):
                 gamma[i], s0[i] = fit_gamma_lsq(t, S[i], beta[i], u0[i])
@@ -1295,7 +1296,7 @@ class estimation:
         gamma = np.zeros(n)
         l0 = np.zeros(n)
 
-        for i in range(n):
+        for i in tqdm(range(n), desc='estimating gamma'):
             gamma[i], l0[i] = fit_first_order_deg_lsq(t, L[i].A[0]) if issparse(L) else fit_first_order_deg_lsq(t, L[i])
         return gamma, l0
 
@@ -1332,7 +1333,7 @@ class estimation:
         alpha_std_ini = self.fit_alpha_oneshot(np.array([t_max]), np.mean(ul[:, t == t_min], 1), beta, clusters).flatten()
         alpha_std, alpha_stm = alpha_std_ini, np.zeros((ul.shape[0], len(t_uniq)))
         alpha_stm[:, 0] = alpha_std_ini # 0 stimulation point is the steady state transcription
-        for i in range(ul.shape[0]):
+        for i in tqdm(range(ul.shape[0]), desc='solving steady state alpha and induction alpha'):
             l = ul[i].A.flatten() if issparse(ul) else ul[i]
             for t_ind in np.arange(1, len(t_uniq)):
                 alpha_stm[i, t_ind] = solve_alpha_2p(t_max - t_uniq[t_ind], t_uniq[t_ind], alpha_std[i], beta[i], l[t==t_uniq[t_ind]])
@@ -1365,7 +1366,7 @@ class estimation:
             clusters = [[i] for i in range(n_cells)]
         alpha = np.zeros((n_genes, len(clusters)))
         for i, c in enumerate(clusters):
-            for j in range(n_genes):
+            for j in tqdm(range(n_genes), desc='estimating alpha'):
                 if len(c) > 0:
                     alpha[j, i] = fit_alpha_synthesis(t, U[j].A[0][c], beta[j]) if issparse(U) else fit_alpha_synthesis(t, U[j][c], beta[j])
                 else:

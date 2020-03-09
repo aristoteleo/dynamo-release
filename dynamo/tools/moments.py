@@ -1,3 +1,4 @@
+from tqdm import tqdm
 from anndata import AnnData
 import numpy as np
 from scipy.sparse import issparse
@@ -18,7 +19,7 @@ def calc_mom_all_genes(T, adata, fcn_mom):
     Mo = np.zeros((ng, nT))
     Mt = np.zeros((ng, nT))
     Mr = np.zeros((ng, nT))
-    for g in range(ng):
+    for g in tqdm(range(ng), desc='calculating 1/2 moments'):
         L = np.array(adata[:, g].layers['new'], dtype=float)
         U = np.array(adata[:, g].layers['old'], dtype=float)
         rho = L/(L+U+0.01)
@@ -56,7 +57,7 @@ class MomData(AnnData):
         ng = self.get_n_genes()
         self.M = np.zeros((ng, nT))      # first moments (data)
         self.V = np.zeros((ng, nT))      # second moments (data)
-        for g in range(ng):
+        for g in tqdm(range(ng), desc='calculating 1/2 moments'):
             tmp = self[:, g].layers['new']
             L = np.array(tmp.A, dtype=float) if issparse(tmp) else np.array(tmp, dtype=float)  # consider using the `adata.obs_vector`, `adata.var_vector` methods or accessing the array directly.
             if has_nan:
@@ -115,7 +116,7 @@ class Estimation:
         ng = self.data.get_n_genes()
         params = np.zeros((ng, self.n_params))
         costs = np.zeros(ng)
-        for i in range(ng):
+        for i in tqdm(range(ng), desc='fitting genes'):
             params[i], costs[i] = self.fit_gene(i, n_p0)
         return params, costs
         
