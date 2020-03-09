@@ -282,8 +282,8 @@ def get_data_for_velocity_estimation(subset_adata, mode, use_smoothed, tkey, pro
                 experiment_type = 'kin' if k > 0 else 'deg'
         else:
             raise Exception('the tkey ', tkey, ' provided is not a valid column name in .obs.')
-        if mode == 'moment':
-            US = subset_adata.layers['M_tn'].T, S2 = subset_adata.layers['M_tt'].T if not has_splicing else None, None
+        if mode == 'moment' and all([x in subset_adata.layers.keys() for x in ['M_tn', 'M_tt']]):
+            US, S2 = subset_adata.layers['M_tn'].T, subset_adata.layers['M_tt'].T if not has_splicing else None, None
     else:
         t = None
         if mode == 'moment': US, S2 = subset_adata.layers['M_us'].T, subset_adata.layers['M_ss'].T
@@ -498,8 +498,8 @@ def moment_model(adata, subset_adata, _group, cur_grp, log_unnormalized, tkey):
             t_ind = 0
             g_len, t_len = len(_group), len(np.unique(adata.obs[tkey]))
             adata.uns['M_sl'], adata.uns['V_sl'], adata.uns['M_ul'], adata.uns['V_ul'] = \
-                np.zeros((adata.shape[1], g_len * t_len)), np.zeros((adata.shape[1], g_len * t_len)), np.zeros(
-                    (adata.shape[1], g_len * t_len)), np.zeros((adata.shape[1], g_len * t_len))
+                np.zeros((Moment.M.shape[0], g_len * t_len)), np.zeros((Moment.M.shape[0], g_len * t_len)), np.zeros(
+                    (Moment.M.shape[0], g_len * t_len)), np.zeros((Moment.M.shape[0], g_len * t_len))
 
         adata.uns['M_sl'][:, (t_len * t_ind):(t_len * (t_ind + 1))], \
         adata.uns['V_sl'][:, (t_len * t_ind):(t_len * (t_ind + 1))], \

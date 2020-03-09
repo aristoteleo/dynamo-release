@@ -129,9 +129,9 @@ def get_shared_counts(adata, layers, min_shared_count, type='gene'):
     _nonzeros, _sum = None, None
     for layer in layers:
         if issparse(adata.layers[layers[0]]):
-            _nonzeros = adata.layers[layer] > 0 if _nonzeros is None else (_nonzeros > 0).multiply(adata.layers[layer] > 0)
+            _nonzeros = adata.layers[layer] > 0 if _nonzeros is None else _nonzeros.multiply(adata.layers[layer] > 0)
         else:
-            _nonzeros = adata.layers[layer] > 0 if _nonzeros is None else (_nonzeros > 0) * (adata.layers[layer] > 0)
+            _nonzeros = adata.layers[layer] > 0 if _nonzeros is None else _nonzeros * (adata.layers[layer] > 0)
 
     for layer in layers:
         if issparse(adata.layers[layers[0]]):

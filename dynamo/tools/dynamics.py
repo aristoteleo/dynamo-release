@@ -74,7 +74,10 @@ def dynamics(adata, tkey=None, filter_gene_mode='final', mode='moment', use_smoo
     valid_ind = get_valid_inds(adata, filter_gene_mode)
 
     if mode == 'moment' or (use_smoothed and len([i for i in adata.layers.keys() if i.startswith('M_')]) < 2):
-        smoother(adata)
+        if experiment_type == 'kin':
+            use_smoothed = False
+        else:
+            smoother(adata)
 
     valid_adata = adata[:, valid_ind].copy()
     if group is not None and group in adata.obs[group]:
