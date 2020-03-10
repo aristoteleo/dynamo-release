@@ -1,8 +1,7 @@
 from tqdm import tqdm
-import numpy as np
-from scipy.sparse import issparse, csr_matrix
+from scipy.sparse import csr_matrix
 from warnings import warn
-from .utils import calc_12_mom_labeling, one_shot_gamma_alpha, find_extreme
+from .utils import calc_12_mom_labeling, one_shot_gamma_alpha
 from .velocity_utils import *
 # from sklearn.cluster import KMeans
 # from sklearn.neighbors import NearestNeighbors

@@ -998,7 +998,7 @@ def get_ekey_vkey_from_adata(adata):
                         adata.layers[mapper["X_su"]],
                         adata.layers[mapper["X_sl"]],
                     )
-                    ul, sl = (ul + sl, uu + ul + su + sl) if NTR else (ul, sl)
+                    ul, sl = (ul + sl, uu + ul + su + sl) if NTR else (ul + uu, sl + su)
                     adata.layers["M_U"], adata.layers["M_S"] = ul, sl
                 else:
                     uu, ul, su, sl = (
@@ -1007,7 +1007,7 @@ def get_ekey_vkey_from_adata(adata):
                         adata.layers["X_su"],
                         adata.layers["X_sl"],
                     )
-                    ul, sl = (ul + sl, uu + ul + su + sl) if NTR else (ul, sl)
+                    ul, sl = (ul + sl, uu + ul + su + sl) if NTR else (ul + uu, sl + su)
                     adata.layers["X_U"], adata.layers["X_S"] = ul, sl
             else:
                 raise Exception(
