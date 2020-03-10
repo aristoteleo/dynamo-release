@@ -938,6 +938,7 @@ def set_velocity_genes(
     layer = vkey.split("_")[1]
 
     if layer is "U":
+        if 'alpha_r2' not in adata.var.columns: adata.var['alpha_r2'] = None
         if np.all(adata.var.alpha_r2.values == None):
             adata.var.alpha_r2 = 1
         adata.var["use_for_velocity"] = (
@@ -948,8 +949,8 @@ def set_velocity_genes(
             else (adata.var.alpha > min_alpha) & (adata.var.alpha_r2 > min_r2)
         )
     elif layer is "S":
-        if np.all(adata.var.gamma_r2.values == None):
-            adata.var.gamma_r2 = 1
+        if 'gamma_r2' not in adata.var.columns: adata.var['gamma_r2'] = None
+        if np.all(adata.var.gamma_r2.values == None): adata.var.gamma_r2 = 1
         adata.var["use_for_velocity"] = (
             (adata.var.gamma > min_gamma)
             & (adata.var.gamma_r2 > min_r2)
@@ -958,6 +959,7 @@ def set_velocity_genes(
             else (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2)
         )
     elif layer is "P":
+        if 'delta_r2' not in adata.var.columns: adata.var['delta_r2'] = None
         if np.all(adata.var.delta_r2.values == None):
             adata.var.delta_r2 = 1
         adata.var["use_for_velocity"] = (

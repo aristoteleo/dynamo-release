@@ -305,6 +305,9 @@ def dynamics(
     else:
         uns_key = "dynamics"
 
+    if has_splicing and has_labeling:
+        adata.layers['X_U'], adata.layers['X_S'] = adata.layers['X_uu'] + adata.layers['X_ul'], adata.layers['X_su'] + adata.layers['X_sl']
+
     adata.uns[uns_key] = {
         "t": t,
         "group": group,
@@ -319,4 +322,5 @@ def dynamics(
         "NTR_vel": NTR_vel,
         "log_unnormalized": log_unnormalized,
     }
+
     return adata
