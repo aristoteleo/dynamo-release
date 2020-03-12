@@ -43,7 +43,7 @@ from .velocyto_scvelo import (
 )
 
 # vector field related
-from .velocity_metric import cell_wise_confidence
+from .metric_velocity import cell_wise_confidence
 from .scVectorField import (
     SparseVFC,
     con_K,
