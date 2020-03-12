@@ -1,7 +1,7 @@
-from utils import lhsclassic
+from .utils import lhsclassic
 import numpy as np
 from scipy.optimize import least_squares
-from utils_kinetics import *
+from .utils_kinetics import *
 import warnings
 
 def estimate_p0_deg_nosp(x_data, time):
@@ -113,9 +113,50 @@ class Estimation:
         return self.popt, self.cost
 
 class EstimationKin(Estimation):
-    '''An estimation class for kinetics experiments.'''
+    '''An estimation class for kinetics experiments.
+        Order of species: <unspliced>, <spliced>, <uu>, <ss>, <us>
+    '''
     def __init__(self, ranges, x0=None):
         super().__init__(ranges, Moments(), x0)
+
+    def extract_data_from_simulator(self):
+        ret = np.zeros((5, len(self.simulator.t)))
+        ret[0] = self.simulator.get_nu()
+        ret[1] = self.simulator.get_nx()
+        ret[2] = self.simulator.x[:, self.simulator.uu]
+        ret[3] = self.simulator.x[:, self.simulator.xx]
+        ret[4] = self.simulator.x[:, self.simulator.ux]
+        return ret
+
+    def get_alpha(self):
+        return self.popt[0]
+
+    def get_beta(self):
+        return self.popt[1]
+
+    def get_gamma(self):
+        return self.popt[2]
+
+    def calc_spl_half_life(self):
+        return np.log(2)/self.get_beta()
+
+    def calc_deg_half_life(self):
+        return np.log(2)/self.get_gamma()
+
+class EstimationKinNosp(Estimation):
+    '''An estimation class for kinetics experiments (without splicing).
+        Order of species: <r>, <rr>
+    '''
+    def __init__(self, ranges, x0=None):
+        super().__init__(ranges, Moments(), x0)
+
+    def extract_data_from_simulator(self):
+        ret = np.zeros((2, len(self.simulator.t)))
+        ret[0] = self.simulator.get_n_labeled()
+        ret[1] = self.simulator.x[:, self.simulator.uu] \
+            + self.simulator.x[:, self.simulator.xx]    \
+            + 2*self.simulator.x[:, self.simulator.ux]
+        return ret
 
     def get_alpha(self):
         return self.popt[0]
@@ -133,7 +174,9 @@ class EstimationKin(Estimation):
         return np.log(2)/self.get_gamma()
 
 class EstimationDeg(Estimation):
-    '''An estimation class for degradation (with splicing) experiments.'''
+    '''An estimation class for degradation (with splicing) experiments.
+        Order of species: <unspliced>, <spliced>, <uu>, <ss>, <us>
+    '''
     def __init__(self, ranges, x0=None):
         super().__init__(ranges, Moments_NoSwitching(), x0)
 
@@ -150,7 +193,9 @@ class EstimationDeg(Estimation):
         return np.log(2)/self.get_gamma()
 
 class EstimationDegNosp(Estimation):
-    '''An estimation class for degradation (no splicing) experiments.'''
+    '''An estimation class for degradation (no splicing) experiments.
+        Order of species: <r>, <rr>
+    '''
     def __init__(self, ranges, x0=None):
         super().__init__(ranges, Moments_NoSwitchingNoSplicing(), x0)
 

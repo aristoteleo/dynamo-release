@@ -339,7 +339,7 @@ class estimation:
                     t,
                     x_data_norm.flatten(),
                     method,
-                    normalize=True,
+                    normalize=normalize,
                     experiment_type=experiment_type,
                 ),
                 p0[i],

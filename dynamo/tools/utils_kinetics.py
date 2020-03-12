@@ -152,8 +152,8 @@ class Moments_NoSwitching(LinearODE):
         self.u = 0
         self.s = 1
         self.uu = 2
-        self.us = 3
-        self.ss = 4
+        self.ss = 3
+        self.us = 4
 
         n_species = 5
 
