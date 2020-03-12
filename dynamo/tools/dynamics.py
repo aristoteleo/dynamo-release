@@ -43,7 +43,7 @@ def dynamics(
             The string for indicating which mode (one of, {'final', 'basic', 'no'}) of gene filter will be used.
         mode: `str` (default: `deterministic`)
             String indicates which estimation mode will be used. This parameter should be used in conjunction with assumption_mRNA.
-            * Available options when the assumption is 'ss' include:
+            * Available options when the `assumption_mRNA` is 'ss' include:
             (1) 'linear_regression': The canonical method from the seminar RNA velocity paper based on deterministic ordinary
             differential equations;
             (2) 'gmm': The new generalized methods of moments from us that is based on master equations, similar to the
@@ -53,9 +53,9 @@ def dynamics(
             Note that all those methods require using extreme data points (except negbin) for the estimation. Extreme data points
             are defined as the data from cells where the expression of unspliced / spliced or new / total RNA, etc. are in the
             top or bottom, 5%, for example. `linear_regression` only considers the mean of RNA species (based on the deterministic
-            ordinary different equations) while moment based methods (`gmm`, `negbin`) considers both first moment and second moment
-            (uncentered variance) of RNA species (based on the stochastic master equations).
-            * Available options when the assumption is 'kinetic' include:
+            ordinary different equations) while moment based methods (`gmm`, `negbin`) considers both first moment (mean) and
+            second moment (uncentered variance) of RNA species (based on the stochastic master equations).
+            * Available options when the `assumption_mRNA` is 'kinetic' include:
             (1) 'deterministic': The method based on deterministic ordinary differential equations;
             (2) 'stochastic' or `moment`: The new method from us that is based on master equations;
             Note that `kinetic` model implicitly assumes the `experiment_type` is not `conventional`. Thus `deterministic`,
@@ -73,13 +73,13 @@ def dynamics(
         experiment_type: `str`
             single cell RNA-seq experiment type. Available options are:
             (1) 'conventional': conventional single-cell RNA-seq experiment;
-            (2) 'deg': degradation experiment;
-            (3) 'kin': synthesis/kinetics experiment;
+            (2) 'deg': chase/degradation experiment;
+            (3) 'kin': pulse/synthesis/kinetics experiment;
             (4) 'one-shot': one-shot kinetic experiment.
         assumption_mRNA: `str`
             Parameter estimation assumption for mRNA. Available options are:
             (1) 'ss': pseudo steady state;
-            (2) 'kinetic': degradation and kinetic data without steady state assumption.
+            (2) 'kinetic' or None: degradation and kinetic data without steady state assumption.
             If no labelling data exists, assumption_mRNA will automatically set to be 'ss'. For one-shot experiment, assumption_mRNA
             is set to be None. However we will use steady state assumption to estimate parameters alpha and gamma either by a deterministic
             linear regression or the first order decay approach in line of the sci-fate paper.
