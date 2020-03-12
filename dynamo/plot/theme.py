@@ -17,4 +17,3 @@ from bokeh.plotting import output_notebook, output_file, show
 
 import holoviews as hv
 import holoviews.operation.datashader as hd
-

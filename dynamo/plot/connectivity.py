@@ -9,8 +9,13 @@ The code base will be extended extensively to consider the following cases:
     6. others
 """
 
-from .utils import _select_font_color, _get_extent, _embed_datashader_in_an_axis, _datashade_points
-from .utils import is_list_of_lists # is_gene_name
+from .utils import (
+    _select_font_color,
+    _get_extent,
+    _embed_datashader_in_an_axis,
+    _datashade_points,
+)
+from .utils import is_list_of_lists  # is_gene_name
 from ..configuration import _themes
 from ..docrep import DocstringProcessor
 
@@ -22,6 +27,7 @@ import datashader.transfer_functions as tf
 import datashader.bundling as bd
 
 docstrings = DocstringProcessor()
+
 
 def _plt_connectivity(coord, connectivity):
     """Plot connectivity graph via networkx and matplotlib.
@@ -41,47 +47,59 @@ def _plt_connectivity(coord, connectivity):
     import networkx as nx
     import matplotlib.pyplot as plt
 
-    if_symmetric = (abs(connectivity-connectivity.T) > 1e-10).nnz == 0
+    if_symmetric = (abs(connectivity - connectivity.T) > 1e-10).nnz == 0
 
-    G = nx.from_scipy_sparse_matrix(connectivity, create_using=nx.Graph()) if if_symmetric else \
-        nx.from_scipy_sparse_matrix(connectivity, create_using=nx.DiGraph())
+    G = (
+        nx.from_scipy_sparse_matrix(connectivity, create_using=nx.Graph())
+        if if_symmetric
+        else nx.from_scipy_sparse_matrix(connectivity, create_using=nx.DiGraph())
+    )
     W = []
     for n, nbrs in G.adj.items():
         for nbr, eattr in nbrs.items():
-            W.append(eattr['weight'])
+            W.append(eattr["weight"])
 
     options = {
-        'width': 30,
-        'arrowstyle': '-|>',
-        'arrowsize': 10,
+        "width": 30,
+        "arrowstyle": "-|>",
+        "arrowsize": 10,
     }
-    edge_color = 'gray'
+    edge_color = "gray"
     plt.figure(figsize=[10, 10])
 
-    nx.draw(G, pos=coord, with_labels=False, node_color='skyblue', node_size=1,
-            edge_color=edge_color, width=W / np.max(W) * 1, edge_cmap=plt.cm.Blues, options=options)
+    nx.draw(
+        G,
+        pos=coord,
+        with_labels=False,
+        node_color="skyblue",
+        node_size=1,
+        edge_color=edge_color,
+        width=W / np.max(W) * 1,
+        edge_cmap=plt.cm.Blues,
+        options=options,
+    )
 
     plt.show()
 
 
-@docstrings.get_sectionsf('con_base')
+@docstrings.get_sectionsf("con_base")
 def connectivity_base(
-        x,
-        y,
-        edge_df,
-        highlights=None,
-        edge_bundling=None,
-        edge_cmap="gray_r",
-        show_points=True,
-        labels=None,
-        values=None,
-        theme=None,
-        cmap="blue",
-        color_key=None,
-        color_key_cmap="Spectral",
-        background="black",
-        figsize=(7,5),
-        ax=None,
+    x,
+    y,
+    edge_df,
+    highlights=None,
+    edge_bundling=None,
+    edge_cmap="gray_r",
+    show_points=True,
+    labels=None,
+    values=None,
+    theme=None,
+    cmap="blue",
+    color_key=None,
+    color_key_cmap="Spectral",
+    background="black",
+    figsize=(7, 5),
+    ax=None,
 ):
     """Plot connectivity relationships of the underlying UMAP
     simplicial set data structure. Internally UMAP will make
@@ -194,6 +212,7 @@ def connectivity_base(
     """
 
     import matplotlib.pyplot as plt
+
     dpi = plt.rcParams["figure.dpi"]
 
     if theme is not None:
@@ -274,28 +293,32 @@ def connectivity_base(
     return ax
 
 
-docstrings.delete_params('con_base.parameters', 'edge_df')
+docstrings.delete_params("con_base.parameters", "edge_df")
+
+
 @docstrings.with_indent(4)
-def nneighbors(adata,
-        x=0,
-        y=1,
-        color=None,
-        basis='umap',
-        layer='X',
-        highlights=None,
-        ncols=1,
-        edge_bundling=None,
-        edge_cmap="gray_r",
-        show_points=True,
-        labels=None,
-        values=None,
-        theme=None,
-        cmap=None,
-        color_key=None,
-        color_key_cmap=None,
-        background="black",
-        figsize=(7,5),
-        ax=None):
+def nneighbors(
+    adata,
+    x=0,
+    y=1,
+    color=None,
+    basis="umap",
+    layer="X",
+    highlights=None,
+    ncols=1,
+    edge_bundling=None,
+    edge_cmap="gray_r",
+    show_points=True,
+    labels=None,
+    values=None,
+    theme=None,
+    cmap=None,
+    color_key=None,
+    color_key_cmap=None,
+    background="black",
+    figsize=(7, 5),
+    ax=None,
+):
     """Plot nearest neighbor graph of cells used to embed data into low dimension space.
 
     Parameters
@@ -325,14 +348,20 @@ def nneighbors(adata,
     import seaborn as sns
 
     if type(x) is not int or type(y) is not int:
-        raise Exception('x, y have to be integers (components in the a particular embedding {}) for nneighbor '
-                        'function'.format(basis))
+        raise Exception(
+            "x, y have to be integers (components in the a particular embedding {}) for nneighbor "
+            "function".format(basis)
+        )
 
-    n_c, n_l, n_b = 0 if color is None else len(color), 0 if layer is None else len(layer), 0 if basis is None else len(basis)
+    n_c, n_l, n_b = (
+        0 if color is None else len(color),
+        0 if layer is None else len(layer),
+        0 if basis is None else len(basis),
+    )
     # c_is_gene_name = [is_gene_name(adata, i) for i in list(color)] if n_c > 0 else [False] * n_c
     # cnt, gene_num = 0, sum(c_is_gene_name)
 
-    coo_graph = adata.uns['neighbors']['connectivities'].tocoo()
+    coo_graph = adata.uns["neighbors"]["connectivities"].tocoo()
     edge_df = pd.DataFrame(
         np.vstack([coo_graph.row, coo_graph.col, coo_graph.data]).T,
         columns=("source", "target", "weight"),
@@ -342,18 +371,40 @@ def nneighbors(adata,
 
     total_panels, ncols = n_c * n_l * n_b, min(n_c, ncols)
     nrow, ncol = int(np.ceil(total_panels / ncols)), ncols
-    if figsize is None: figsize = plt.rcParams['figsize']
+    if figsize is None:
+        figsize = plt.rcParams["figsize"]
 
     font_color = _select_font_color(background)
-    if background == 'black':
+    if background == "black":
         # https://github.com/matplotlib/matplotlib/blob/master/lib/matplotlib/mpl-data/stylelib/dark_background.mplstyle
-        sns.set(rc={'axes.facecolor': background, 'axes.edgecolor': background, 'figure.facecolor': background, 'figure.edgecolor': background,
-                    'axes.grid': False, "ytick.color": font_color, "xtick.color": font_color, "axes.labelcolor": font_color, "axes.edgecolor": font_color,
-                    "savefig.facecolor": 'k', "savefig.edgecolor": 'k', "grid.color": font_color, "text.color": font_color,
-                    "lines.color": font_color, "patch.edgecolor": font_color, 'figure.edgecolor': font_color,
-                    })
+        sns.set(
+            rc={
+                "axes.facecolor": background,
+                "axes.edgecolor": background,
+                "figure.facecolor": background,
+                "figure.edgecolor": background,
+                "axes.grid": False,
+                "ytick.color": font_color,
+                "xtick.color": font_color,
+                "axes.labelcolor": font_color,
+                "axes.edgecolor": font_color,
+                "savefig.facecolor": "k",
+                "savefig.edgecolor": "k",
+                "grid.color": font_color,
+                "text.color": font_color,
+                "lines.color": font_color,
+                "patch.edgecolor": font_color,
+                "figure.edgecolor": font_color,
+            }
+        )
     else:
-        sns.set(rc={'axes.facecolor': background, 'figure.facecolor': background, 'axes.grid': False})
+        sns.set(
+            rc={
+                "axes.facecolor": background,
+                "figure.facecolor": background,
+                "axes.grid": False,
+            }
+        )
 
     if total_panels > 1:
         plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)
@@ -362,20 +413,25 @@ def nneighbors(adata,
     i = 0
     for cur_b in basis:
         for cur_l in layer:
-            prefix = cur_l + '_'
+            prefix = cur_l + "_"
             if prefix + cur_b in adata.obsm.keys():
-                x_, y_ = adata.obsm[prefix + cur_b][:, int(x)], adata.obsm[prefix + cur_b][:, int(y)]
+                x_, y_ = (
+                    adata.obsm[prefix + cur_b][:, int(x)],
+                    adata.obsm[prefix + cur_b][:, int(y)],
+                )
             else:
                 continue
             for cur_c in color:
                 _color = adata.obs_vector(cur_c, layer=cur_l)
-                is_not_continous = _color.dtype.name == 'category'
+                is_not_continous = _color.dtype.name == "category"
                 if is_not_continous:
                     labels = _color
-                    if theme is None: theme = 'glasbey_dark'
+                    if theme is None:
+                        theme = "glasbey_dark"
                 else:
                     values = _color
-                    if theme is None: theme = 'inferno' if cur_l is not 'velocity' else 'div_blue_red'
+                    if theme is None:
+                        theme = "inferno" if cur_l is not "velocity" else "div_blue_red"
 
                 if total_panels > 1:
                     ax = plt.subplot(gs[i])
@@ -384,12 +440,18 @@ def nneighbors(adata,
                 # if highligts is a list of lists - each list is relate to each color element
                 if is_list_of_lists(highlights):
                     _highlights = highlights[color.index(cur_c)]
-                    _highlights = _highlights if all([i in _color for i in _highlights]) else None
+                    _highlights = (
+                        _highlights if all([i in _color for i in _highlights]) else None
+                    )
                 else:
-                    _highlights = highlights if all([i in _color for i in highlights]) else None
+                    _highlights = (
+                        highlights if all([i in _color for i in highlights]) else None
+                    )
 
                 connectivity_base(
-                    x_, y_, edge_df,
+                    x_,
+                    y_,
+                    edge_df,
                     edge_bundling,
                     edge_cmap,
                     show_points,
@@ -402,11 +464,11 @@ def nneighbors(adata,
                     color_key_cmap,
                     background,
                     figsize,
-                    ax
+                    ax,
                 )
 
-                ax.set_xlabel(cur_b + '_1', )
-                ax.set_ylabel(cur_b + '_2')
+                ax.set_xlabel(cur_b + "_1",)
+                ax.set_ylabel(cur_b + "_2")
                 ax.set_title(cur_c)
 
     plt.tight_layout()
@@ -435,6 +497,3 @@ def causal_net():
     :return:
     """
     pass
-
-
-

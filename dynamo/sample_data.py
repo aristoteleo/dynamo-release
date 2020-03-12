@@ -21,16 +21,16 @@ def get_adata(url, filename=None):
 
     filename = ntpath.basename(url) if filename is None else filename
 
-    filename = './data/' + filename
+    filename = "./data/" + filename
     if not os.path.exists(filename):
-        if not os.path.exists('./data/'):
-            os.mkdir('data')
+        if not os.path.exists("./data/"):
+            os.mkdir("data")
 
-        urlretrieve(url, filename) # download the data
+        urlretrieve(url, filename)  # download the data
 
-    if Path(filename).suffixes[-1][1:] == 'loom':
+    if Path(filename).suffixes[-1][1:] == "loom":
         adata = read_loom(filename=filename)
-    elif Path(filename).suffixes[-1][1:] == 'h5ad':
+    elif Path(filename).suffixes[-1][1:] == "h5ad":
         adata = read_h5ad(filename=filename)
 
     adata.var_names_make_unique()
@@ -58,13 +58,19 @@ def scSLAMseq():
 def scifate():
     pass
 
+
 def scNT_seq():
     pass
+
 
 def cite_seq():
     pass
 
-def DentateGyrus(url='http://pklab.med.harvard.edu/velocyto/DentateGyrus/DentateGyrus.loom', filename=None):
+
+def DentateGyrus(
+    url="http://pklab.med.harvard.edu/velocyto/DentateGyrus/DentateGyrus.loom",
+    filename=None,
+):
     """The Dentate Gyrus dataset used in https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb.
     This data consists of 27, 998 genes across 18, 213 cells.
 
@@ -79,7 +85,10 @@ def DentateGyrus(url='http://pklab.med.harvard.edu/velocyto/DentateGyrus/Dentate
     return adata
 
 
-def Haber(url='http://pklab.med.harvard.edu/velocyto/Haber_et_al/Haber_et_al.loom', filename=None):
+def Haber(
+    url="http://pklab.med.harvard.edu/velocyto/Haber_et_al/Haber_et_al.loom",
+    filename=None,
+):
     """The Haber dataset used in https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/Haber_et_al.ipynb
     This data consists of 27, 998 genes across 7, 216 cells.
 
@@ -88,15 +97,20 @@ def Haber(url='http://pklab.med.harvard.edu/velocyto/Haber_et_al/Haber_et_al.loo
         Returns `adata` object
     """
     adata = get_adata(url, filename)
-    urlretrieve("http://pklab.med.harvard.edu/velocyto/Haber_et_al/goatools_cellcycle_genes.txt",
-                "data/goatools_cellcycle_genes.txt")
+    urlretrieve(
+        "http://pklab.med.harvard.edu/velocyto/Haber_et_al/goatools_cellcycle_genes.txt",
+        "data/goatools_cellcycle_genes.txt",
+    )
     cell_cycle_genes = open("data/goatools_cellcycle_genes.txt").read().split()
-    adata.var.loc[:, 'cell_cycle_genes']=adata.var.index.isin(cell_cycle_genes)
+    adata.var.loc[:, "cell_cycle_genes"] = adata.var.index.isin(cell_cycle_genes)
 
     return adata
 
 
-def hgForebrainGlutamatergic(url='http://pklab.med.harvard.edu/velocyto/hgForebrainGlut/hgForebrainGlut.loom', filename=None):
+def hgForebrainGlutamatergic(
+    url="http://pklab.med.harvard.edu/velocyto/hgForebrainGlut/hgForebrainGlut.loom",
+    filename=None,
+):
     """The hgForebrainGlutamatergic dataset used in https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/hgForebrainGlutamatergic.ipynb
     This data consists of 32, 738 genes across 1, 720 cells.
 
@@ -105,15 +119,20 @@ def hgForebrainGlutamatergic(url='http://pklab.med.harvard.edu/velocyto/hgForebr
         Returns `adata` object
     """
     adata = get_adata(url, filename)
-    urlretrieve("http://pklab.med.harvard.edu/velocyto/Haber_et_al/goatools_cellcycle_genes.txt",
-                "data/goatools_cellcycle_genes.txt")
+    urlretrieve(
+        "http://pklab.med.harvard.edu/velocyto/Haber_et_al/goatools_cellcycle_genes.txt",
+        "data/goatools_cellcycle_genes.txt",
+    )
     cell_cycle_genes = open("data/goatools_cellcycle_genes.txt").read().split()
-    adata.var.loc[:, 'cell_cycle_genes']=adata.var.index.isin(cell_cycle_genes)
+    adata.var.loc[:, "cell_cycle_genes"] = adata.var.index.isin(cell_cycle_genes)
 
     return adata
 
 
-def chromaffin(url ='https://www.dropbox.com/s/awevuz836tlclvw/onefilepercell_A1_unique_and_others_J2CH1.loom?dl=1', filename="onefilepercell_A1_unique_and_others_J2CH1.loom"): #
+def chromaffin(
+    url="https://www.dropbox.com/s/awevuz836tlclvw/onefilepercell_A1_unique_and_others_J2CH1.loom?dl=1",
+    filename="onefilepercell_A1_unique_and_others_J2CH1.loom",
+):  #
     """The chromaffin dataset used in http://pklab.med.harvard.edu/velocyto/notebooks/R/chromaffin2.nb.html
     This data consists of 32, 738 genes across 1, 720 cells.
 
@@ -128,7 +147,7 @@ def chromaffin(url ='https://www.dropbox.com/s/awevuz836tlclvw/onefilepercell_A1
     return adata
 
 
-def BM(url = 'http://pklab.med.harvard.edu/velocyto/mouseBM/SCG71.loom', filename=None):
+def BM(url="http://pklab.med.harvard.edu/velocyto/mouseBM/SCG71.loom", filename=None):
     """The BM dataset used in http://pklab.med.harvard.edu/velocyto/notebooks/R/SCG71.nb.html
     This data consists of 24, 421genes across 6, 667 cells.
 
@@ -142,7 +161,10 @@ def BM(url = 'http://pklab.med.harvard.edu/velocyto/mouseBM/SCG71.loom', filenam
     return adata
 
 
-def pancreatic_endocrinogenesis(url='https://github.com/theislab/scvelo_notebooks/raw/master/data/Pancreas/endocrinogenesis_day15.h5ad', filename=None):
+def pancreatic_endocrinogenesis(
+    url="https://github.com/theislab/scvelo_notebooks/raw/master/data/Pancreas/endocrinogenesis_day15.h5ad",
+    filename=None,
+):
     """Pancreatic endocrinogenesis. Data from scvelo
 
         Pancreatic epithelial and Ngn3-Venus fusion (NVF) cells during secondary transition / embryonic day 15.5.
@@ -157,7 +179,11 @@ def pancreatic_endocrinogenesis(url='https://github.com/theislab/scvelo_notebook
 
     return adata
 
-def DentateGyrus_scvelo(url='https://www.dropbox.com/s/3w1wzb0b68fhdsw/dentategyrus_scv.h5ad?dl=1', filename='dentategyrus_scv.h5ad'):
+
+def DentateGyrus_scvelo(
+    url="https://www.dropbox.com/s/3w1wzb0b68fhdsw/dentategyrus_scv.h5ad?dl=1",
+    filename="dentategyrus_scv.h5ad",
+):
     """The Dentate Gyrus dataset used in https://github.com/theislab/scvelo_notebooks/tree/master/data/DentateGyrus.
     This data consists of 13, 913 genes across 2, 930 cells.
 
@@ -171,5 +197,6 @@ def DentateGyrus_scvelo(url='https://www.dropbox.com/s/3w1wzb0b68fhdsw/dentategy
 
     return adata
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     DentateGyrus()

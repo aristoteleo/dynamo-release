@@ -4,11 +4,25 @@ from scipy.sparse import issparse
 from ..tools.utils import fetch_exprs
 
 from ..docrep import DocstringProcessor
+
 docstrings = DocstringProcessor()
 
-@docstrings.get_sectionsf('kin_curves')
-def kinetic_curves(adata, genes, mode='vector_field', basis=None, layer='X', project_back_to_high_dim=True, time='pseudotime', \
-                   dist_threshold=1e-10, ncol=4, color=None, c_palette='Set2', standard_scale=0):
+
+@docstrings.get_sectionsf("kin_curves")
+def kinetic_curves(
+    adata,
+    genes,
+    mode="vector_field",
+    basis=None,
+    layer="X",
+    project_back_to_high_dim=True,
+    time="pseudotime",
+    dist_threshold=1e-10,
+    ncol=4,
+    color=None,
+    c_palette="Set2",
+    standard_scale=0,
+):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) as kinetic curves.
 
     Parameters
@@ -50,51 +64,99 @@ def kinetic_curves(adata, genes, mode='vector_field', basis=None, layer='X', pro
     import seaborn as sns
     import matplotlib.pyplot as plt
 
-    exprs, valid_genes, time = fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim)
+    exprs, valid_genes, time = fetch_exprs(
+        adata, basis, layer, genes, time, mode, project_back_to_high_dim
+    )
 
     Color = np.empty((0, 1))
-    if color is not None and mode is not 'vector_field':
+    if color is not None and mode is not "vector_field":
         color = list(set(color).intersection(adata.obs.keys()))
-        Color = adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
+        Color = (
+            adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
+        )
 
     exprs = exprs.A if issparse(exprs) else exprs
-    if standard_scale is not None: exprs = (exprs - np.min(exprs, axis=standard_scale)) / np.ptp(exprs, axis=standard_scale)
+    if standard_scale is not None:
+        exprs = (exprs - np.min(exprs, axis=standard_scale)) / np.ptp(
+            exprs, axis=standard_scale
+        )
 
     time = np.sort(time)
     exprs = exprs[np.argsort(time), :]
 
     if dist_threshold is not None:
-        valid_ind = list(np.where(np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold)[0] + 1)
+        valid_ind = list(
+            np.where(np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold)[0]
+            + 1
+        )
         valid_ind.insert(0, 0)
         exprs = exprs[valid_ind, :]
         time = time[valid_ind]
 
-    exprs_df = pd.DataFrame({'Time': np.repeat(time, len(valid_genes)), 'Expression': exprs.flatten(), \
-                             'Gene': np.tile(valid_genes, len(time))})
+    exprs_df = pd.DataFrame(
+        {
+            "Time": np.repeat(time, len(valid_genes)),
+            "Expression": exprs.flatten(),
+            "Gene": np.tile(valid_genes, len(time)),
+        }
+    )
     exprs_df = exprs_df.query("Gene in @genes")
 
     if exprs_df.shape[0] == 0:
-        raise Exception('No genes you provided are detected. Please make sure the genes provided are from the genes '
-                        'used for vector field reconstructed when layer is set.')
+        raise Exception(
+            "No genes you provided are detected. Please make sure the genes provided are from the genes "
+            "used for vector field reconstructed when layer is set."
+        )
 
     # https://stackoverflow.com/questions/43920341/python-seaborn-facetgrid-change-titles
     if len(Color) > 0:
-        exprs_df['Color'] = np.repeat(Color, len(valid_genes))
-        g = sns.relplot(x="Time", y="Expression", data=exprs_df, col='Gene', hue='Color', palette=sns.color_palette(c_palette), \
-                   col_wrap=ncol, kind='line', facet_kws={"sharex": True, "sharey": False})
+        exprs_df["Color"] = np.repeat(Color, len(valid_genes))
+        g = sns.relplot(
+            x="Time",
+            y="Expression",
+            data=exprs_df,
+            col="Gene",
+            hue="Color",
+            palette=sns.color_palette(c_palette),
+            col_wrap=ncol,
+            kind="line",
+            facet_kws={"sharex": True, "sharey": False},
+        )
     else:
-        g = sns.relplot(x="Time", y="Expression", data=exprs_df, col='Gene', col_wrap=ncol, kind='line',
-                        facet_kws={"sharex": True, "sharey": False})
+        g = sns.relplot(
+            x="Time",
+            y="Expression",
+            data=exprs_df,
+            col="Gene",
+            col_wrap=ncol,
+            kind="line",
+            facet_kws={"sharex": True, "sharey": False},
+        )
 
     plt.show()
 
 
-docstrings.delete_params('kin_curves.parameters', 'ncol', 'color', 'c_palette')
+docstrings.delete_params("kin_curves.parameters", "ncol", "color", "c_palette")
+
+
 @docstrings.with_indent(4)
-def kinetic_heatmap(adata, genes, mode='vector_field', basis=None, layer='X', project_back_to_high_dim=True,
-                    time='pseudotime', dist_threshold=1e-10, color_map='BrBG', half_max_ordering=True,
-                    show_col_color=False, cluster_row_col=[False, False], figsize=(11.5, 6), standard_scale=0,
-                    **kwargs):
+def kinetic_heatmap(
+    adata,
+    genes,
+    mode="vector_field",
+    basis=None,
+    layer="X",
+    project_back_to_high_dim=True,
+    time="pseudotime",
+    dist_threshold=1e-10,
+    color_map="BrBG",
+    half_max_ordering=True,
+    show_col_color=False,
+    cluster_row_col=[False, False],
+    figsize=(11.5, 6),
+    standard_scale=0,
+    **kwargs
+):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) in a heatmap.
 
     Parameters
@@ -127,30 +189,47 @@ def kinetic_heatmap(adata, genes, mode='vector_field', basis=None, layer='X', pr
     import seaborn as sns
     import matplotlib.pyplot as plt
 
-    exprs, valid_genes, time = fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim)
+    exprs, valid_genes, time = fetch_exprs(
+        adata, basis, layer, genes, time, mode, project_back_to_high_dim
+    )
 
     exprs = exprs.A if issparse(exprs) else exprs
 
     if dist_threshold is not None:
-        valid_ind = list(np.where(np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold)[0] + 1)
+        valid_ind = list(
+            np.where(np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold)[0]
+            + 1
+        )
         valid_ind.insert(0, 0)
         exprs = exprs[valid_ind, :]
 
-    if standard_scale is not None: exprs = (exprs - np.min(exprs, axis=standard_scale)) / np.ptp(exprs, axis=standard_scale)
+    if standard_scale is not None:
+        exprs = (exprs - np.min(exprs, axis=standard_scale)) / np.ptp(
+            exprs, axis=standard_scale
+        )
 
     if half_max_ordering:
-        time, all, valid_ind, gene_idx =_half_max_ordering(exprs.T, time, mode=mode, interpolate=True, spaced_num=100)
+        time, all, valid_ind, gene_idx = _half_max_ordering(
+            exprs.T, time, mode=mode, interpolate=True, spaced_num=100
+        )
         df = pd.DataFrame(all, index=np.array(valid_genes)[gene_idx])
     else:
         cluster_row_col[1] = True
         df = pd.DataFrame(exprs.T, index=valid_genes)
 
-    heatmap_kwargs = dict(xticklabels=False, yticklabels='auto')
+    heatmap_kwargs = dict(xticklabels=False, yticklabels="auto")
     if kwargs is not None:
         heatmap_kwargs.update(kwargs)
 
-    sns_heatmap = sns.clustermap(df, col_cluster=cluster_row_col[0], row_cluster=cluster_row_col[1], cmap=color_map, \
-                        figsize=figsize, standard_scale=standard_scale,  **heatmap_kwargs)
+    sns_heatmap = sns.clustermap(
+        df,
+        col_cluster=cluster_row_col[0],
+        row_cluster=cluster_row_col[1],
+        cmap=color_map,
+        figsize=figsize,
+        standard_scale=standard_scale,
+        **heatmap_kwargs
+    )
     # if not show_col_color: sns_heatmap.set_visible(False)
 
     plt.show()
@@ -185,7 +264,7 @@ def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):
             The indices of genes that are used for the half-max ordering plot.
     """
 
-    if mode == 'vector_field':
+    if mode == "vector_field":
         interpolate = False
     else:
         from .utils import Loess
@@ -193,11 +272,18 @@ def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):
     gene_num = exprs.shape[0]
     cell_num = spaced_num if interpolate else exprs.shape[1]
     if interpolate:
-        hm_mat_scaled, hm_mat_scaled_z = np.zeros((gene_num, cell_num)), np.zeros((gene_num, cell_num))
+        hm_mat_scaled, hm_mat_scaled_z = (
+            np.zeros((gene_num, cell_num)),
+            np.zeros((gene_num, cell_num)),
+        )
     else:
         hm_mat_scaled, hm_mat_scaled_z = np.zeros_like(exprs), np.zeros_like(exprs)
 
-    transient, trans_max, half_max = np.zeros(gene_num), np.zeros(gene_num), np.zeros(gene_num)
+    transient, trans_max, half_max = (
+        np.zeros(gene_num),
+        np.zeros(gene_num),
+        np.zeros(gene_num),
+    )
     for i in range(gene_num):
         x = exprs[i]
         tmp = np.zeros(cell_num)
@@ -215,7 +301,7 @@ def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):
         scale_tmp = (tmp - np.mean(tmp)) / np.std(tmp)
         hm_mat_scaled_z[i] = scale_tmp
 
-        count, current = 0, hm_mat_scaled_z[i, 0] < 0 # check this
+        count, current = 0, hm_mat_scaled_z[i, 0] < 0  # check this
         for j in range(cell_num):
             if not (scale_tmp[j] < 0 == current):
                 count = count + 1
@@ -227,16 +313,40 @@ def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):
 
     begin = np.arange(max([5, 0.05 * cell_num]))
     end = np.arange(exprs.shape[1] - max([5, 0.05 * cell_num]), cell_num)
-    trans_indx = np.logical_and(transient > 1, not [i in np.concatenate((begin, end)) for i in trans_max])
+    trans_indx = np.logical_and(
+        transient > 1, not [i in np.concatenate((begin, end)) for i in trans_max]
+    )
 
-    trans_idx, trans, half_max_trans = np.where(trans_indx)[0], hm_mat_scaled[trans_indx, :], half_max[trans_indx]
+    trans_idx, trans, half_max_trans = (
+        np.where(trans_indx)[0],
+        hm_mat_scaled[trans_indx, :],
+        half_max[trans_indx],
+    )
     nt_idx, nt = np.where(~trans_indx)[0], hm_mat_scaled[~trans_indx, :]
-    up_idx, up, half_max_up = np.where(nt[:, 0] < nt[:, -1])[0], nt[nt[:, 0] < nt[:, -1], :], half_max[nt[:, 0] < nt[:, -1]]
-    down_indx, down, half_max_down = np.where(nt[:, 0] >= nt[:, -1])[0], nt[nt[:, 0] >= nt[:, -1], :], half_max[nt[:, 0] >= nt[:, -1]]
+    up_idx, up, half_max_up = (
+        np.where(nt[:, 0] < nt[:, -1])[0],
+        nt[nt[:, 0] < nt[:, -1], :],
+        half_max[nt[:, 0] < nt[:, -1]],
+    )
+    down_indx, down, half_max_down = (
+        np.where(nt[:, 0] >= nt[:, -1])[0],
+        nt[nt[:, 0] >= nt[:, -1], :],
+        half_max[nt[:, 0] >= nt[:, -1]],
+    )
 
-    trans, up, down = trans[np.argsort(half_max_trans), :], up[np.argsort(half_max_up), :], down[np.argsort(half_max_down), :]
+    trans, up, down = (
+        trans[np.argsort(half_max_trans), :],
+        up[np.argsort(half_max_up), :],
+        down[np.argsort(half_max_down), :],
+    )
 
     all = np.vstack((up, down, trans))
-    gene_idx = np.hstack((nt_idx[up_idx][np.argsort(half_max_up)], nt_idx[down_indx][np.argsort(half_max_down)], trans_idx))
+    gene_idx = np.hstack(
+        (
+            nt_idx[up_idx][np.argsort(half_max_up)],
+            nt_idx[down_indx][np.argsort(half_max_down)],
+            trans_idx,
+        )
+    )
 
     return time, all, np.isfinite(nt[:, 0]) & np.isfinite(nt[:, -1]), gene_idx

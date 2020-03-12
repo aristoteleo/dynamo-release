@@ -2,7 +2,7 @@ from .DDRTree import DDRTree_py as DDRTree
 import numpy as np
 
 
-def Pseudotime(adata, layer='X', method='DDRTree', **kwargs):
+def Pseudotime(adata, layer="X", method="DDRTree", **kwargs):
     """
 
     Parameters
@@ -17,23 +17,34 @@ def Pseudotime(adata, layer='X', method='DDRTree', **kwargs):
 
     """
 
-    X = adata.layers['X_' + layer].T if layer is not 'X' else adata.X.T
+    X = adata.layers["X_" + layer].T if layer is not "X" else adata.X.T
 
-    DDRTree_kwargs = {"maxIter": 10, "sigma": 0.001, "gamma": 10, "eps": 0, "dim": 2, "Lambda": 5 * X.shape[1], \
-                      "ncenter": _cal_ncenter(X.shape[1])}
+    DDRTree_kwargs = {
+        "maxIter": 10,
+        "sigma": 0.001,
+        "gamma": 10,
+        "eps": 0,
+        "dim": 2,
+        "Lambda": 5 * X.shape[1],
+        "ncenter": _cal_ncenter(X.shape[1]),
+    }
     DDRTree_kwargs.update(kwargs)
 
-    if method is 'DDRTree':
-        Z, Y, stree, R, W, Q, C, objs=DDRTree(X, **DDRTree_kwargs)
+    if method is "DDRTree":
+        Z, Y, stree, R, W, Q, C, objs = DDRTree(X, **DDRTree_kwargs)
 
-    transition_matrix, cell_membership, principal_g = adata.uns['transition_matrix'], R, stree
+    transition_matrix, cell_membership, principal_g = (
+        adata.uns["transition_matrix"],
+        R,
+        stree,
+    )
 
     final_g = compute_partition(transition_matrix, cell_membership, principal_g)
     direct_g = final_g.copy()
     tmp = final_g - final_g.T
     direct_g[np.where(tmp < 0)] = 0
 
-    adata.uns['directed_principal_g'] = direct_g
+    adata.uns["directed_principal_g"] = direct_g
 
     # identify branch points and tip points
 
@@ -45,14 +56,18 @@ def Pseudotime(adata, layer='X', method='DDRTree', **kwargs):
 
 
 def _cal_ncenter(ncells, ncells_limit=100):
-    if (ncells <= ncells_limit):
+    if ncells <= ncells_limit:
         return None
     else:
-        return np.round(2 * ncells_limit * np.log(ncells)/(np.log(ncells) + np.log(ncells_limit)))
+        return np.round(
+            2 * ncells_limit * np.log(ncells) / (np.log(ncells) + np.log(ncells_limit))
+        )
 
 
 # make this function to also calculate the directed graph between clusters:
-def compute_partition(adata, transition_matrix, cell_membership, principal_g, group=None):
+def compute_partition(
+    adata, transition_matrix, cell_membership, principal_g, group=None
+):
     """
 
     Parameters
@@ -71,10 +86,10 @@ def compute_partition(adata, transition_matrix, cell_membership, principal_g, gr
 
     # http://active-analytics.com/blog/rvspythonwhyrisstillthekingofstatisticalcomputing/
     if group is not None and group in adata.obs.columns:
-        from patsy import dmatrix # dmatrices, dmatrix, demo_data
+        from patsy import dmatrix  # dmatrices, dmatrix, demo_data
 
         data = adata.obs
-        data.columns[data.columns == group] = 'group_'
+        data.columns[data.columns == group] = "group_"
 
         cell_membership = csr_matrix(dmatrix("~group_+0", data=data))
 

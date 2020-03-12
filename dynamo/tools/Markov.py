@@ -1,5 +1,5 @@
 # create by Yan Zhang, minor adjusted by Xiaojie Qiu
-
+from tqdm import tqdm
 import numpy as np
 import scipy.sparse as sp
 from sklearn.neighbors import NearestNeighbors
@@ -10,21 +10,22 @@ from numba import jit
 
 def markov_combination(x, v, X):
     from cvxopt import matrix, solvers
+
     n = X.shape[0]
     R = matrix(X - x).T
     H = R.T * R
     f = matrix(v).T * R
-    G = np.vstack((-np.eye(n),
-                   np.ones(n)))
+    G = np.vstack((-np.eye(n), np.ones(n)))
     h = np.zeros(n + 1)
     h[-1] = 1
-    p = solvers.qp(H, -f.T, G=matrix(G), h=matrix(h))['x']
+    p = solvers.qp(H, -f.T, G=matrix(G), h=matrix(h))["x"]
     u = R * p
     return p, u
 
 
 def compute_markov_trans_prob(x, v, X, s=None, cont_time=False):
     from cvxopt import matrix, solvers
+
     n = X.shape[0]
     R = X - x
     # normalize R, v, and s
@@ -48,11 +49,10 @@ def compute_markov_trans_prob(x, v, X, s=None, cont_time=False):
         G = -np.eye(n)
         h = np.zeros(n)
     else:
-        G = np.vstack((-np.eye(n),
-                       np.ones(n)))
+        G = np.vstack((-np.eye(n), np.ones(n)))
         h = np.zeros(n + 1)
         h[-1] = 1
-    p = solvers.qp(matrix(H), matrix(-f), G=matrix(G), h=matrix(h))['x']
+    p = solvers.qp(matrix(H), matrix(-f), G=matrix(G), h=matrix(h))["x"]
     p = np.array(p).flatten()
     return p
 
@@ -75,13 +75,13 @@ def compute_drift_kernel(x, v, X, inv_s):
     for i in range(n):
         d = X[i] - x
         if np.isscalar(inv_s):
-            k[i] = np.exp(-0.25 * inv_s * (d-v).dot(d-v))
+            k[i] = np.exp(-0.25 * inv_s * (d - v).dot(d - v))
         else:
-            k[i] = np.exp(-0.25 * (d-v) @ inv_s @ (d-v).T)
+            k[i] = np.exp(-0.25 * (d - v) @ inv_s @ (d - v).T)
     return k
 
 
-'''def compute_drift_local_kernel(x, v, X, inv_s):
+"""def compute_drift_local_kernel(x, v, X, inv_s):
     n = X.shape[0]
     k = np.zeros(n)
     # compute tau
@@ -102,7 +102,7 @@ def compute_drift_kernel(x, v, X, inv_s):
     for i in range(n):
         d = D[i]
         k[i] = np.exp(-0.25 * (d-tau_v) @ tau_invs @ (d-tau_v).T)
-    return k, tau_invs'''
+    return k, tau_invs"""
 
 
 # @jit(nopython=True)
@@ -120,7 +120,8 @@ def compute_drift_local_kernel(x, v, X, inv_s):
     i_dir = np.logical_and(vds >= np.quantile(vds, 0.7), vds > 0)
     if np.any(i_dir):
         tau = np.mean(dists[i_dir] / vds[i_dir])
-        if tau > 1e2: tau = 1e2
+        if tau > 1e2:
+            tau = 1e2
         tau_v = tau * v
         tau_invs = (1 / (tau * v.dot(v))) * inv_s
     else:
@@ -129,9 +130,9 @@ def compute_drift_local_kernel(x, v, X, inv_s):
     for i in range(n):
         d = D[i]
         if np.isscalar(tau_invs):
-            k[i] = np.exp(-0.25 * tau_invs * (d-tau_v).dot(d-tau_v))
+            k[i] = np.exp(-0.25 * tau_invs * (d - tau_v).dot(d - tau_v))
         else:
-            k[i] = np.exp(-0.25 * (d-tau_v) @ tau_invs @ (d-tau_v).T)
+            k[i] = np.exp(-0.25 * (d - tau_v) @ tau_invs @ (d - tau_v).T)
     return k
 
 
@@ -146,7 +147,7 @@ def compute_density_kernel(x, X, inv_eps):
 
 
 @jit(nopython=True)
-def makeTransitionMatrix(Qnn, I, tol=0.):
+def makeTransitionMatrix(Qnn, I, tol=0.0):
     n = Qnn.shape[0]
     M = np.zeros((n, n))
 
@@ -161,7 +162,7 @@ def makeTransitionMatrix(Qnn, I, tol=0.):
 @jit(nopython=True)
 def compute_tau(X, V, k=100, nbr_idx=None):
     if nbr_idx is None:
-        nbrs = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(X)
+        nbrs = NearestNeighbors(n_neighbors=k, algorithm="ball_tree").fit(X)
         dists, _ = nbrs.kneighbors(X)
     else:
         dists = np.zeros(nbr_idx.shape)
@@ -189,17 +190,36 @@ def diffusionMatrix(V_mat):
         Return the cell-specific diffusion matrix
     """
 
-    D = np.zeros((V_mat.shape[0], 2, 2))  # this one works for two dimension -- generalize it to high dimensions
-    D[:, 0, 0] = np.mean((V_mat[:, :, 0] - np.mean(V_mat[:, :, 0], axis=1)[:, None]) ** 2, axis=1)
-    D[:, 1, 1] = np.mean((V_mat[:, :, 1] - np.mean(V_mat[:, :, 1], axis=1)[:, None]) ** 2, axis=1)
-    D[:, 0, 1] = np.mean((V_mat[:, :, 0] - np.mean(V_mat[:, :, 0], axis=1)[:, None]) * (
-                V_mat[:, :, 0] - np.mean(V_mat[:, :, 0], axis=1)[:, None]), axis=1)
+    D = np.zeros(
+        (V_mat.shape[0], 2, 2)
+    )  # this one works for two dimension -- generalize it to high dimensions
+    D[:, 0, 0] = np.mean(
+        (V_mat[:, :, 0] - np.mean(V_mat[:, :, 0], axis=1)[:, None]) ** 2, axis=1
+    )
+    D[:, 1, 1] = np.mean(
+        (V_mat[:, :, 1] - np.mean(V_mat[:, :, 1], axis=1)[:, None]) ** 2, axis=1
+    )
+    D[:, 0, 1] = np.mean(
+        (V_mat[:, :, 0] - np.mean(V_mat[:, :, 0], axis=1)[:, None])
+        * (V_mat[:, :, 0] - np.mean(V_mat[:, :, 0], axis=1)[:, None]),
+        axis=1,
+    )
     D[:, 1, 0] = D[:, 0, 1]
 
     return D / 2
 
-def grid_velocity_filter(V_emb, neighs, p_mass, X_grid, V_grid, min_mass=None, autoscale=False,
-                             adjust_for_stream=True, V_threshold=None):
+
+def grid_velocity_filter(
+    V_emb,
+    neighs,
+    p_mass,
+    X_grid,
+    V_grid,
+    min_mass=None,
+    autoscale=False,
+    adjust_for_stream=True,
+    V_threshold=None,
+):
     if adjust_for_stream:
         X_grid = np.stack([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])])
         ns = int(np.sqrt(V_grid.shape[0]))
@@ -209,42 +229,60 @@ def grid_velocity_filter(V_emb, neighs, p_mass, X_grid, V_grid, min_mass=None, a
         if V_threshold is not None:
             V_grid[0][mass.reshape(V_grid[0].shape) < V_threshold] = np.nan
         else:
-            if min_mass is None: min_mass = 1e-5
-            min_mass = np.clip(min_mass, None, np.max(mass) * .9)
+            if min_mass is None:
+                min_mass = 1e-5
+            min_mass = np.clip(min_mass, None, np.max(mass) * 0.9)
             cutoff = mass.reshape(V_grid[0].shape) < min_mass
 
             if neighs is not None:
-                length = np.sum(np.mean(np.abs(V_emb[neighs]), axis=1), axis=1).T.reshape(ns, ns)
+                length = np.sum(
+                    np.mean(np.abs(V_emb[neighs]), axis=1), axis=1
+                ).T.reshape(ns, ns)
                 cutoff |= length < np.percentile(length, 5)
 
             V_grid[0][cutoff] = np.nan
     else:
         from ..plot.utils import quiver_autoscaler
+
         if p_mass is None:
             p_mass = np.sqrt((V_grid ** 2).sum(1))
-            if min_mass is None: min_mass = np.clip(np.percentile(p_mass, 5), 1e-5, None)
+            if min_mass is None:
+                min_mass = np.clip(np.percentile(p_mass, 5), 1e-5, None)
         else:
-            if min_mass is None: min_mass = np.clip(np.percentile(p_mass, 99) / 100, 1e-5, None)
+            if min_mass is None:
+                min_mass = np.clip(np.percentile(p_mass, 99) / 100, 1e-5, None)
         X_grid, V_grid = X_grid[p_mass > min_mass], V_grid[p_mass > min_mass]
 
-        if autoscale: V_grid /= 3 * quiver_autoscaler(X_grid, V_grid)
+        if autoscale:
+            V_grid /= 3 * quiver_autoscaler(X_grid, V_grid)
 
     return X_grid, V_grid
 
-def velocity_on_grid(X_emb, V_emb, xy_grid_nums, density=None, smooth=None, n_neighbors=None, min_mass=None, autoscale=False,
-                             adjust_for_stream=True, V_threshold=None):
+
+def velocity_on_grid(
+    X_emb,
+    V_emb,
+    xy_grid_nums,
+    density=None,
+    smooth=None,
+    n_neighbors=None,
+    min_mass=None,
+    autoscale=False,
+    adjust_for_stream=True,
+    V_threshold=None,
+):
     """Function to calculate the velocity vectors on a grid for grid vector field  quiver plot and streamplot, adapted from scVelo
     """
 
     n_obs, n_dim = X_emb.shape
     density = 1 if density is None else density
-    smooth = .5 if smooth is None else smooth
+    smooth = 0.5 if smooth is None else smooth
 
     grs, scale = [], 0
     for dim_i in range(n_dim):
         m, M = np.min(X_emb[:, dim_i]), np.max(X_emb[:, dim_i])
-        m = m - .01 * np.abs(M - m)
-        M = M + .01 * np.abs(M - m)
+        m = m - 0.01 * np.abs(M - m)
+        M = M + 0.01 * np.abs(M - m)
         gr = np.linspace(m, M, xy_grid_nums[dim_i] * density)
         scale += gr[1] - gr[0]
         grs.append(gr)
@@ -255,7 +293,8 @@ def velocity_on_grid(X_emb, V_emb, xy_grid_nums, density=None, smooth=None, n_ne
     X_grid = np.vstack([i.flat for i in meshes_tuple]).T
 
     # estimate grid velocities
-    if n_neighbors is None: n_neighbors = np.max([10, int(n_obs / 50)])
+    if n_neighbors is None:
+        n_neighbors = np.max([10, int(n_obs / 50)])
     nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=-1)
     nn.fit(X_emb)
     dists, neighs = nn.kneighbors(X_grid)
@@ -264,14 +303,26 @@ def velocity_on_grid(X_emb, V_emb, xy_grid_nums, density=None, smooth=None, n_ne
     p_mass = weight.sum(1)
 
     # V_grid = (V_emb[neighs] * (weight / p_mass[:, None])[:, :, None]).sum(1) # / np.maximum(1, p_mass)[:, None]
-    V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[:, None]
+    V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[
+        :, None
+    ]
     # calculate diffusion matrix D
     D = diffusionMatrix(V_emb[neighs])
 
-    X_grid, V_grid = grid_velocity_filter(V_emb, neighs, p_mass, X_grid, V_grid, min_mass=min_mass, autoscale=autoscale,
-                            adjust_for_stream=adjust_for_stream, V_threshold=V_threshold)
+    X_grid, V_grid = grid_velocity_filter(
+        V_emb,
+        neighs,
+        p_mass,
+        X_grid,
+        V_grid,
+        min_mass=min_mass,
+        autoscale=autoscale,
+        adjust_for_stream=adjust_for_stream,
+        V_threshold=V_threshold,
+    )
 
     return X_grid, V_grid, D
+
 
 def smoothen_drift_on_grid(X, V, n_grid, nbrs=None, k=None, smoothness=1):
     # These codes are borrowed from velocyto. Need to be rewritten later.
@@ -287,28 +338,39 @@ def smoothen_drift_on_grid(X, V, n_grid, nbrs=None, k=None, smoothness=1):
     gridpoints_coordinates = np.vstack([i.flat for i in meshes_tuple]).T
 
     if nbrs is None:
-        if k is None: k = 100
-        nbrs = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(X)
+        if k is None:
+            k = 100
+        nbrs = NearestNeighbors(n_neighbors=k, algorithm="ball_tree").fit(X)
     dists, neighs = nbrs.kneighbors(gridpoints_coordinates)
 
     from scipy.stats import norm as normal
+
     std = np.mean([(g[1] - g[0]) for g in grs])
     # isotropic gaussian kernel
     gaussian_w = normal.pdf(loc=0, scale=smoothness * std, x=dists[:, :k])
     total_p_mass = gaussian_w.sum(1)
 
-    U = (V[neighs[:, :k]] * gaussian_w[:, :, None]).sum(1) / np.maximum(1, total_p_mass)[:, None]  # weighed average
+    U = (
+        (V[neighs[:, :k]] * gaussian_w[:, :, None]).sum(1)
+        / np.maximum(1, total_p_mass)[:, None]
+    )  # weighed average
     return U, gridpoints_coordinates
+
 
 def get_iterative_indices(indices, index, n_recurse_neighbors=2, max_neighs=None):
     # These codes are borrowed from scvelo. Need to be rewritten later.
     def iterate_indices(indices, index, n_recurse_neighbors):
-        return indices[iterate_indices(indices, index, n_recurse_neighbors - 1)] \
-            if n_recurse_neighbors > 1 else indices[index]
+        return (
+            indices[iterate_indices(indices, index, n_recurse_neighbors - 1)]
+            if n_recurse_neighbors > 1
+            else indices[index]
+        )
+
     indices = np.unique(iterate_indices(indices, index, n_recurse_neighbors))
     if max_neighs is not None and len(indices) > max_neighs:
         indices = np.random.choice(indices, max_neighs, replace=False)
     return indices
+
 
 def append_iterative_neighbor_indices(indices, n_recurse_neighbors=2, max_neighs=None):
     indices_rec = []
@@ -316,7 +378,8 @@ def append_iterative_neighbor_indices(indices, n_recurse_neighbors=2, max_neighs
         neig = get_iterative_indices(indices, i, n_recurse_neighbors, max_neighs)
         indices_rec.append(neig)
     return indices_rec
-    
+
+
 class MarkovChain:
     def __init__(self, P=None):
         self.P = P
@@ -349,30 +412,52 @@ class KernelMarkovChain(MarkovChain):
         else:
             self.Idx = Idx
 
-    def fit(self, X, V, M_diff, neighbor_idx=None, n_recurse_neighbors=None, k=30, epsilon=None, adaptive_local_kernel=False, tol=1e-4,
-            sparse_construct=True, sample_fraction=None):
+    def fit(
+        self,
+        X,
+        V,
+        M_diff,
+        neighbor_idx=None,
+        n_recurse_neighbors=None,
+        k=30,
+        epsilon=None,
+        adaptive_local_kernel=False,
+        tol=1e-4,
+        sparse_construct=True,
+        sample_fraction=None,
+    ):
         # compute connectivity
         if neighbor_idx is None:
-            nbrs = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(X)
+            nbrs = NearestNeighbors(n_neighbors=k, algorithm="ball_tree").fit(X)
             _, neighbor_idx = nbrs.kneighbors(X)
 
         if n_recurse_neighbors is not None:
-            self.Idx = append_iterative_neighbor_indices(neighbor_idx, n_recurse_neighbors)
+            self.Idx = append_iterative_neighbor_indices(
+                neighbor_idx, n_recurse_neighbors
+            )
         else:
             self.Idx = neighbor_idx
-        
+
         # apply kNN downsampling to accelerate calculation (adapted from velocyto)
         if sample_fraction is not None:
             neighbor_idx = self.Idx
             p = np.linspace(0.5, 1, neighbor_idx.shape[1])
             p = p / p.sum()
 
-            sampling_ixs = np.stack((np.random.choice(np.arange(1,neighbor_idx.shape[1]-1),
-                                                      size=int(sample_fraction * (neighbor_idx.shape[1] + 1)),
-                                                      replace=False,
-                                                      p=p) for i in range(neighbor_idx.shape[0])), 0)
+            sampling_ixs = np.stack(
+                (
+                    np.random.choice(
+                        np.arange(1, neighbor_idx.shape[1] - 1),
+                        size=int(sample_fraction * (neighbor_idx.shape[1] + 1)),
+                        replace=False,
+                        p=p,
+                    )
+                    for i in range(neighbor_idx.shape[0])
+                ),
+                0,
+            )
             self.Idx = self.Idx[np.arange(neighbor_idx.shape[0])[:, None], sampling_ixs]
-        
+
         n = X.shape[0]
         if sparse_construct:
             self.P = sp.lil_matrix((n, n))
@@ -387,16 +472,18 @@ class KernelMarkovChain(MarkovChain):
                 self.Kd = np.zeros((n, n))
             inv_eps = 1 / epsilon
             for i in range(n):
-                self.Kd[i, self.Idx[i]] = compute_density_kernel(X[i], X[self.Idx[i]], inv_eps)
+                self.Kd[i, self.Idx[i]] = compute_density_kernel(
+                    X[i], X[self.Idx[i]], inv_eps
+                )
             self.Kd = sp.csc_matrix(self.Kd)
             D = np.sum(self.Kd, 0)
 
         # compute transition prob.
         if np.isscalar(M_diff):
-            inv_s = 1/M_diff
+            inv_s = 1 / M_diff
         else:
             inv_s = np.linalg.inv(M_diff)
-        for i in range(n):
+        for i in tqdm(range(n), desc="compute transiton matrix"):
             y = X[i]
             v = V[i]
             Y = X[self.Idx[i]]
@@ -418,24 +505,33 @@ class KernelMarkovChain(MarkovChain):
     def propagate_P(self, num_prop):
         ret = sp.csc_matrix(self.P, copy=True)
         for i in range(num_prop - 1):
-            ret = self.P * ret # sparse matrix (ret) is a `np.matrix`
+            ret = self.P * ret  # sparse matrix (ret) is a `np.matrix`
         return ret
 
     def compute_drift(self, X, num_prop=1, scale=True):
         n = self.get_num_states()
         V = np.zeros_like(X)
         P = self.propagate_P(int(num_prop))
-        for i in range(n):
+        for i in tqdm(range(n), desc="compute drift"):
             V[i] = (X - X[i]).T.dot(P[:, i].A.flatten())
         return V * 1 / V.max() if scale else V
 
-    def compute_density_corrected_drift(self, X, neighbor_idx=None, k=None, num_prop=1, normalize_vector=False,
-                                        correct_by_mean=True, scale=True):
+    def compute_density_corrected_drift(
+        self,
+        X,
+        neighbor_idx=None,
+        k=None,
+        num_prop=1,
+        normalize_vector=False,
+        correct_by_mean=True,
+        scale=True,
+    ):
         n = self.get_num_states()
         V = np.zeros_like(X)
         P = self.propagate_P(num_prop)
-        if neighbor_idx is None: neighbor_idx = self.Idx
-        for i in range(n):
+        if neighbor_idx is None:
+            neighbor_idx = self.Idx
+        for i in tqdm(range(n), desc="calculating density corrected drift"):
             Idx = neighbor_idx[i]
             D = X[Idx] - X[i]
             if normalize_vector:
@@ -443,11 +539,11 @@ class KernelMarkovChain(MarkovChain):
             p = P[Idx, i].A.flatten()
             if k is None:
                 if not correct_by_mean:
-                    k_inv = 1/len(Idx)
+                    k_inv = 1 / len(Idx)
                 else:
                     k_inv = np.mean(p)
             else:
-                k_inv = 1/k
+                k_inv = 1 / k
             p -= k_inv
             V[i] = D.T.dot(p)
         return V * 1 / V.max() if scale else V
@@ -455,7 +551,7 @@ class KernelMarkovChain(MarkovChain):
     def compute_stationary_distribution(self):
         # if self.W is None:
         # self.eigsys()
-        _, vecs = sp.linalg.eigs(self.P, k=1, which='LR')
+        _, vecs = sp.linalg.eigs(self.P, k=1, which="LR")
         p = np.abs(np.real(vecs[:, 0]))
         p = p / np.sum(p)
         return p
@@ -463,8 +559,8 @@ class KernelMarkovChain(MarkovChain):
     def diffusion_map_embedding(self, n_dims=2, t=1):
         # if self.W is None:
         #    self.eigsys()
-        vals, vecs = sp.linalg.eigs(self.P.T, k=n_dims + 1, which='LR')
-        Y = np.real(vals[1:n_dims + 1] ** t) * np.real(vecs[:, 1:n_dims + 1])
+        vals, vecs = sp.linalg.eigs(self.P.T, k=n_dims + 1, which="LR")
+        Y = np.real(vals[1 : n_dims + 1] ** t) * np.real(vecs[:, 1 : n_dims + 1])
         return Y
 
 
@@ -473,28 +569,30 @@ class DiscreteTimeMarkovChain(MarkovChain):
         super().__init__(P)
         self.Kd = None
 
-    def fit(self, X, V, k, s=None, method='qp', eps=None, tol=1e-4): # pass index
+    def fit(self, X, V, k, s=None, method="qp", eps=None, tol=1e-4):  # pass index
         # the parameter k will be replaced by a connectivity matrix in the future.
         self.__reset__()
         # knn clustering
-        nbrs = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(X)
+        nbrs = NearestNeighbors(n_neighbors=k, algorithm="ball_tree").fit(X)
         _, Idx = nbrs.kneighbors(X)
         # compute transition prob.
         n = X.shape[0]
         self.P = np.zeros((n, n))
-        if method == 'kernel':
+        if method == "kernel":
             inv_s = np.linalg.inv(s)
             # compute density kernel
             if eps is not None:
                 self.Kd = np.zeros((n, n))
                 inv_eps = 1 / eps
                 for i in range(n):
-                    self.Kd[i, Idx[i]] = compute_density_kernel(X[i], X[Idx[i]], inv_eps)
+                    self.Kd[i, Idx[i]] = compute_density_kernel(
+                        X[i], X[Idx[i]], inv_eps
+                    )
                 D = np.sum(self.Kd, 0)
         for i in range(n):
             y = X[i]
             v = V[i]
-            if method == 'qp':
+            if method == "qp":
                 Y = X[Idx[i, 1:]]
                 p = compute_markov_trans_prob(y, v, Y, s)
                 p[p <= tol] = 0  # tolerance check
@@ -531,14 +629,16 @@ class DiscreteTimeMarkovChain(MarkovChain):
             k = n
         V = np.zeros_like(X)
         for i in range(n):
-            d = X - X[i] ###############################no self.nbrs_idx[i] is here.... may be wrong?
+            d = (
+                X - X[i]
+            )  ###############################no self.nbrs_idx[i] is here.... may be wrong?
             if normalize_vector:
                 d /= np.linalg.norm(d)
             V[i] = d.T.dot(self.P[:, i] - 1 / k)
         return V
 
-    def solve_distribution(self, p0, n, method='naive'):
-        if method == 'naive':
+    def solve_distribution(self, p0, n, method="naive"):
+        if method == "naive":
             p = p0
             for _ in range(n):
                 p = self.P.dot(p)
@@ -548,8 +648,8 @@ class DiscreteTimeMarkovChain(MarkovChain):
             p = np.real(self.W @ np.diag(self.D ** n) @ np.linalg.inv(self.W)).dot(p0)
         return p
 
-    def compute_stationary_distribution(self, method='eig'):
-        if method == 'solve':
+    def compute_stationary_distribution(self, method="eig"):
+        if method == "solve":
             p = np.real(null_space(self.P - np.eye(self.P.shape[0])[:, 0]).flatten())
         else:
             if self.W is None:
@@ -561,7 +661,7 @@ class DiscreteTimeMarkovChain(MarkovChain):
     def diffusion_map_embedding(self, n_dims=2, t=1):
         if self.W is None:
             self.eigsys()
-        Y = np.real(self.D[1:n_dims + 1] ** t) * np.real(self.U[:, 1:n_dims + 1])
+        Y = np.real(self.D[1 : n_dims + 1] ** t) * np.real(self.U[:, 1 : n_dims + 1])
         return Y
 
 
@@ -575,7 +675,7 @@ class ContinuousTimeMarkovChain(MarkovChain):
         self.__reset__()
         # knn clustering
         if self.nbrs_idx is None:
-            nbrs = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(X)
+            nbrs = NearestNeighbors(n_neighbors=k, algorithm="ball_tree").fit(X)
             _, Idx = nbrs.kneighbors(X)
             self.nbrs_idx = Idx
         else:
@@ -590,7 +690,7 @@ class ContinuousTimeMarkovChain(MarkovChain):
             p = compute_markov_trans_prob(y, v, Y, s, cont_time=True)
             p[p <= tol] = 0  # tolerance check
             self.P[Idx[i, 1:], i] = p
-            self.P[i, i] = - np.sum(p)
+            self.P[i, i] = -np.sum(p)
 
     def compute_drift(self, X):
         n = self.get_num_states()
@@ -614,11 +714,12 @@ class ContinuousTimeMarkovChain(MarkovChain):
     def solve_distribution(self, p0, t):
         if self.D is None:
             self.eigsys()
-        p = np.real(self.W @ np.diag(np.exp(self.D * t)) @ np.linalg.inv(self.W)).dot(p0)
+        p = np.real(self.W @ np.diag(np.exp(self.D * t)) @ np.linalg.inv(self.W)).dot(
+            p0
+        )
         return p
 
     def compute_stationary_distribution(self):
         p = np.real(null_space(self.P)[:, 0].flatten())
         p = p / np.sum(p)
         return p
-

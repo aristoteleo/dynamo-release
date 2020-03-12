@@ -4,9 +4,10 @@ from ..tools.utils import vector_field_function
 from .fate_utilities import Animation
 
 
-class StreamFuncAnim(Animation): #
+class StreamFuncAnim(Animation):  #
     def __init__(self, VecFld, dt=0.05, xlim=(-1, 1), ylim=None):
         import matplotlib.pyplot as plt
+
         self.dt = dt
         # Initialize velocity field and displace *functions*
         self.f = lambda x, t=None: vector_field_function(x, t=0, VecFld=VecFld)
@@ -16,7 +17,7 @@ class StreamFuncAnim(Animation): #
         self.ylim = ylim if ylim is not None else xlim
         # Animation objects must create `fig` and `ax` attributes.
         self.fig, self.ax = plt.subplots()
-        self.ax.set_aspect('equal')
+        self.ax.set_aspect("equal")
 
     def init_background(self):
         """Draw background with streamlines of flow.
@@ -34,7 +35,7 @@ class StreamFuncAnim(Animation): #
             for j in range(uu.shape[1]):
                 u_vel[i, j], v_vel[i, j] = self.f(np.array([uu[i, j], vv[i, j]]), None)
 
-        streamline = self.ax.streamplot(uu, vv, u_vel, v_vel, color='0.7')
+        streamline = self.ax.streamplot(uu, vv, u_vel, v_vel, color="0.7")
 
         return streamline
 
@@ -44,29 +45,36 @@ class StreamFuncAnim(Animation): #
         while True:
             pts = list(pts)
             pts.append((random_xy(self.xlim), random_xy(self.ylim)))
-            pts = [self.displace(np.array(cur_pts).reshape(-1, 1), self.dt) for cur_pts in pts]
+            pts = [
+                self.displace(np.array(cur_pts).reshape(-1, 1), self.dt)
+                for cur_pts in pts
+            ]
             pts = np.asarray(pts)
             pts = remove_particles(pts, self.xlim, self.ylim)
             self.ax.lines = []
 
             x, y = np.asarray(pts).transpose()
-            lines, = self.ax.plot(x, y, 'ro')
-            yield lines, # return line so that blit works properly
+            (lines,) = self.ax.plot(x, y, "ro")
+            yield lines,  # return line so that blit works properly
+
 
 def random_xy(lim):
     return list(np.random.uniform(lim[0], lim[1], 1))
+
 
 def remove_particles(pts, xlim, ylim):
     if len(pts) == 0:
         return []
     outside_xlim = (pts[:, 0] < xlim[0]) | (pts[:, 0] > xlim[1])
     outside_ylim = (pts[:, 1] < ylim[0]) | (pts[:, 1] > ylim[1])
-    keep = ~(outside_xlim|outside_ylim)
+    keep = ~(outside_xlim | outside_ylim)
     return pts[keep]
+
 
 class Flow(StreamFuncAnim):
     def init_background(self):
         StreamFuncAnim.init_background(self)
+
 
 """
 # use example 

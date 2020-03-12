@@ -6,13 +6,15 @@ import scipy.sparse
 
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import eigs
+
 # from scikits.sparse.cholmod import cholesky
 
 # use for convert list of list to a list (https://stackoverflow.com/questions/952914/how-to-make-a-flat-list-out-of-list-of-lists)
 import functools
 import operator
 
-def sqdist (a,b):
+
+def sqdist(a, b):
     """calculate the square distance between a, b
     Arguments
     ---------
@@ -26,8 +28,8 @@ def sqdist (a,b):
     dist: 'np.ndarray'
         A numeric value for the different between a and b
     """
-    aa = np.sum(a**2, axis=0)
-    bb = np.sum(b**2, axis=0)
+    aa = np.sum(a ** 2, axis=0)
+    bb = np.sum(b ** 2, axis=0)
     ab = a.T.dot(b)
 
     aa_repmat = matlib.repmat(aa[:, None], 1, b.shape[1])
@@ -37,7 +39,8 @@ def sqdist (a,b):
 
     return dist
 
-def repmat (X, m, n):
+
+def repmat(X, m, n):
     """This function returns an array containing m (n) copies of A in the row (column) dimensions. The size of B is
     size(A)*n when A is a matrix.For example, repmat(np.matrix(1:4), 2, 3) returns a 4-by-6 matrix.
     Arguments
@@ -57,7 +60,8 @@ def repmat (X, m, n):
 
     return xy_rep
 
-def eye (m, n):
+
+def eye(m, n):
     """Equivalent of eye (matlab)
     Arguments
     ---------
@@ -73,7 +77,8 @@ def eye (m, n):
     mat = np.eye(m, n)
     return mat
 
-def diag_mat (values):
+
+def diag_mat(values):
     """Equivalent of diag (matlab)
     Arguments
     ---------
@@ -87,12 +92,15 @@ def diag_mat (values):
     # mat = np.zeros((len(values),len(values)))
     # for i in range(len(values)):
     #     mat[i][i] = values[i]
-    mat = np.zeros((len(values),len(values)))
+    mat = np.zeros((len(values), len(values)))
     np.fill_diagonal(mat, values)
 
     return mat
 
-def psl_py(Y, sG = None, dist = None, K = 10, C = 1e3, param_gamma = 1e-3, d = 2, maxIter = 10, verbose = False):
+
+def psl_py(
+    Y, sG=None, dist=None, K=10, C=1e3, param_gamma=1e-3, d=2, maxIter=10, verbose=False
+):
     """This function is a pure Python implementation of the PSL algorithm.
 
     Reference: Li Wang and Qi Mao, Probabilistic Dimensionality Reduction via Structure Learning. T-PAMI, VOL. 41, NO. 1, JANUARY 2019
@@ -140,23 +148,27 @@ def psl_py(Y, sG = None, dist = None, K = 10, C = 1e3, param_gamma = 1e-3, d = 2
             location = 0
 
             for i in range(N):
-                rows[location:location+K] = i
-                cols[location:location+K] = indices[i]
-                dists[location:location+K] = distances[i]
+                rows[location : location + K] = i
+                cols[location : location + K] = indices[i]
+                dists[location : location + K] = distances[i]
                 location = location + K
             sG = csr_matrix((np.array(dists) ** 2, (rows, cols)), shape=(N, N))
-            sG = scipy.sparse.csc_matrix.maximum(sG, sG.T) # symmetrize the matrix
+            sG = scipy.sparse.csc_matrix.maximum(sG, sG.T)  # symmetrize the matrix
         else:
             N = Y.shape[0]
             sidx = np.argsort(dist)
             # flatten first rows and then cols
-            i = repmat(sidx[:, 0][:, None], K, 1).flatten() # .reshape(1, -1)[0]
-            j = sidx[:, 1:K+1].T.flatten() # .reshape(1, -1)[0]
-            sG = csr_matrix((np.repeat(1, N * K), (i, j)), shape=(N, N)) # [1 for k in range(N * K)]
+            i = repmat(sidx[:, 0][:, None], K, 1).flatten()  # .reshape(1, -1)[0]
+            j = sidx[:, 1 : K + 1].T.flatten()  # .reshape(1, -1)[0]
+            sG = csr_matrix(
+                (np.repeat(1, N * K), (i, j)), shape=(N, N)
+            )  # [1 for k in range(N * K)]
 
     if not dist:
         if list(set(sG.data)) == [1]:
-            print('Error: sG should not just be an adjacency graph and has to include the distance information between vertices!')
+            print(
+                "Error: sG should not just be an adjacency graph and has to include the distance information between vertices!"
+            )
             exit()
         else:
             dist = sG
@@ -174,11 +186,18 @@ def psl_py(Y, sG = None, dist = None, K = 10, C = 1e3, param_gamma = 1e-3, d = 2
     objs = np.zeros(maxIter)
 
     for iter in range(maxIter):
-        S = csr_matrix((s, (rows, cols)), shape=(N, N)) # .toarray()
+        S = csr_matrix((s, (rows, cols)), shape=(N, N))  # .toarray()
         S = S + S.T
-        Q = scipy.sparse.diags(functools.reduce(operator.concat, S.sum(axis=1)[:, 0].tolist())) - \
-            S + 0.25 * (param_gamma + 1) * scipy.sparse.eye(N, N) ##################
-        R = scipy.linalg.cholesky(Q.toarray())  # Cholesky Decomposition of a Sparse Matrix
+        Q = (
+            scipy.sparse.diags(
+                functools.reduce(operator.concat, S.sum(axis=1)[:, 0].tolist())
+            )
+            - S
+            + 0.25 * (param_gamma + 1) * scipy.sparse.eye(N, N)
+        )  ##################
+        R = scipy.linalg.cholesky(
+            Q.toarray()
+        )  # Cholesky Decomposition of a Sparse Matrix
         invR = scipy.sparse.linalg.inv(csr_matrix(R))  # R:solve(R)
         # invR = np.matrix(invR)
         # invQ = invR*invR.T
@@ -186,7 +205,7 @@ def psl_py(Y, sG = None, dist = None, K = 10, C = 1e3, param_gamma = 1e-3, d = 2
         invQ = invR.dot(invR.T)
         left = invR.T.dot(Y)
 
-        #res = scipy.sparse.linalg.svds(left, k = d)
+        # res = scipy.sparse.linalg.svds(left, k = d)
         res = scipy.linalg.svd(left)
         Lambda = res[1][:d]
         W = res[2][:, :2]
@@ -194,32 +213,43 @@ def psl_py(Y, sG = None, dist = None, K = 10, C = 1e3, param_gamma = 1e-3, d = 2
         invQYW = invQY.dot(W)
 
         P = 0.5 * D * invQ + 0.125 * param_gamma ** 2 * invQYW.dot(invQYW.T)
-        logdet_Q =  2 * sum(np.log(np.diag(np.linalg.cholesky(Q.toarray()).T)))
+        logdet_Q = 2 * sum(np.log(np.diag(np.linalg.cholesky(Q.toarray()).T)))
         # log(det(Q))
-        obj = 0.5 * D * logdet_Q - scipy.sparse.csr_matrix.sum(scipy.sparse.csr_matrix.multiply(S, dist)) + \
-              0.25 / C * scipy.sparse.csr_matrix.sum(scipy.sparse.csr_matrix.multiply(S, S)) - \
-              0.125 * param_gamma ** 2 * sum(np.diag(np.dot(W.T, np.dot(Y.T, invQYW))))  # trace: #sum(diag(m))
+        obj = (
+            0.5 * D * logdet_Q
+            - scipy.sparse.csr_matrix.sum(scipy.sparse.csr_matrix.multiply(S, dist))
+            + 0.25
+            / C
+            * scipy.sparse.csr_matrix.sum(scipy.sparse.csr_matrix.multiply(S, S))
+            - 0.125 * param_gamma ** 2 * sum(np.diag(np.dot(W.T, np.dot(Y.T, invQYW))))
+        )  # trace: #sum(diag(m))
         objs[iter] = obj
 
         if verbose:
             if iter == 0:
-                print('i = ', iter+1, ', obj = ', obj)
+                print("i = ", iter + 1, ", obj = ", obj)
             else:
                 rel_obj_diff = abs(obj - objs[iter - 1]) / abs(objs[iter - 1])
-                print('i = ', iter, ', obj = ', obj, ', rel_obj_diff = ', rel_obj_diff)
+                print("i = ", iter, ", obj = ", obj, ", rel_obj_diff = ", rel_obj_diff)
         subgrad = np.zeros(m)
 
         for i in range(len(rows)):
-            subgrad[i] = P[rows[i], rows[i]] + P[cols[i], cols[i]] - P[rows[i], cols[i]] - P[cols[i], rows[i]] - \
-                         1 / C * S[rows[i], cols[i]] - 2 * dist[rows[i], cols[i]]
+            subgrad[i] = (
+                P[rows[i], rows[i]]
+                + P[cols[i], cols[i]]
+                - P[rows[i], cols[i]]
+                - P[cols[i], rows[i]]
+                - 1 / C * S[rows[i], cols[i]]
+                - 2 * dist[rows[i], cols[i]]
+            )
 
-        s = s + 1 / (iter+1) * subgrad
+        s = s + 1 / (iter + 1) * subgrad
         s[s < 0] = 0
 
-        #print("print s:",s)
+        # print("print s:",s)
         if param_gamma != 0:
-            #print("print invQY:",invQY)
-            #print("print W:",W)
+            # print("print invQY:",invQY)
+            # print("print W:",W)
 
             Z = 0.25 * (param_gamma + 1) * np.dot(invQY, W)
         else:
@@ -237,7 +267,7 @@ def psl_py(Y, sG = None, dist = None, K = 10, C = 1e3, param_gamma = 1e-3, d = 2
             np.fill_diagonal(tmp, np.sqrt(v))
             Z = np.dot(U, tmp)
 
-    return (S,Z)
+    return (S, Z)
 
 
 def logdet(A):

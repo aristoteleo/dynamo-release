@@ -10,17 +10,43 @@ import matplotlib.colors
 import matplotlib.cm
 
 from ..configuration import _themes, set_figure_params
-from .utils import despline, set_spine_linewidth, scatter_with_colorbar, scatter_with_legend, _select_font_color
+from .utils import (
+    despline,
+    set_spine_linewidth,
+    scatter_with_colorbar,
+    scatter_with_legend,
+    _select_font_color,
+)
 from .utils import is_gene_name, is_cell_anno_column, is_list_of_lists
 from .utils import _matplotlib_points, _datashade_points
+
+from ..tools.utils import update_dict
 
 from ..tools.utils import get_mapper
 from ..docrep import DocstringProcessor
 
 docstrings = DocstringProcessor()
 
-def _scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_key='S', ekey='X', basis='umap', n_columns=1, \
-             color=None, pointsize=None, figsize=None, legend='on data', ax=None, normalize=False, **kwargs):
+
+def _scatters(
+    adata,
+    genes,
+    x=0,
+    y=1,
+    theme=None,
+    type="expression",
+    velocity_key="S",
+    ekey="X",
+    basis="umap",
+    n_columns=1,
+    color=None,
+    pointsize=None,
+    figsize=None,
+    legend="on data",
+    ax=None,
+    normalize=False,
+    **kwargs
+):
     """Scatter plot of cells for phase portrait or for low embedding embedding, colored by gene expression, velocity or cell groups.
 
     Parameters
@@ -82,137 +108,260 @@ def _scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_ke
 
     import matplotlib.pyplot as plt
     import seaborn as sns
+
     mapper = get_mapper()
 
-    point_size = 500.0 / np.sqrt(adata.shape[0]) if pointsize is None else 500.0 / np.sqrt(adata.shape[0]) * pointsize
-    scatter_kwargs = dict(alpha=0.4, s=point_size, edgecolor=None, linewidth=0) # (0, 0, 0, 1)
+    point_size = (
+        500.0 / np.sqrt(adata.shape[0])
+        if pointsize is None
+        else 500.0 / np.sqrt(adata.shape[0]) * pointsize
+    )
+    scatter_kwargs = dict(
+        alpha=0.4, s=point_size, edgecolor=None, linewidth=0
+    )  # (0, 0, 0, 1)
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
 
-    genes, idx = adata.var.index[adata.var.index.isin(genes)].tolist(), np.where(adata.var.index.isin(genes))[0]
+    genes, idx = (
+        adata.var.index[adata.var.index.isin(genes)].tolist(),
+        np.where(adata.var.index.isin(genes))[0],
+    )
     if len(genes) == 0:
-        raise Exception('adata has no genes listed in your input gene vector: {}'.format(genes))
-    if not 'X_' + basis in adata.obsm.keys():
-        raise Exception('{} is not applied to adata.'.format(basis))
+        raise Exception(
+            "adata has no genes listed in your input gene vector: {}".format(genes)
+        )
+    if not "X_" + basis in adata.obsm.keys():
+        raise Exception("{} is not applied to adata.".format(basis))
     else:
-        embedding = pd.DataFrame({basis + '_0': adata.obsm['X_' + basis][:, x], \
-                                  basis + '_1': adata.obsm['X_' + basis][:, y]})
-        embedding.columns = ['dim_1', 'dim_2']
+        embedding = pd.DataFrame(
+            {
+                basis + "_0": adata.obsm["X_" + basis][:, x],
+                basis + "_1": adata.obsm["X_" + basis][:, y],
+            }
+        )
+        embedding.columns = ["dim_1", "dim_2"]
 
-    if all([i in adata.layers.keys() for i in ['X_new', 'X_total']]):
-        mode = 'labeling'
-    elif all([i in adata.layers.keys() for i in ['X_spliced', 'X_unspliced']]):
-        mode = 'splicing'
-    elif all([i in adata.layers.keys() for i in ['X_uu', 'X_ul', 'X_su', 'X_sl']]):
-        mode = 'full'
+    if all([i in adata.layers.keys() for i in ["X_new", "X_total"]]):
+        mode = "labeling"
+    elif all([i in adata.layers.keys() for i in ["X_spliced", "X_unspliced"]]):
+        mode = "splicing"
+    elif all([i in adata.layers.keys() for i in ["X_uu", "X_ul", "X_su", "X_sl"]]):
+        mode = "full"
     else:
-        raise Exception('your data should be in one of the proper mode: labelling (has X_new/X_total layers), splicing '
-                        '(has X_spliced/X_unspliced layers) or full (has X_uu/X_ul/X_su/X_sl layers)')
+        raise Exception(
+            "your data should be in one of the proper mode: labelling (has X_new/X_total layers), splicing "
+            "(has X_spliced/X_unspliced layers) or full (has X_uu/X_ul/X_su/X_sl layers)"
+        )
 
     layers = list(adata.layers.keys())
-    layers.extend(['X', 'protein', 'X_protein'])
+    layers.extend(["X", "protein", "X_protein"])
     if ekey in layers:
-        if ekey is 'X':
-            E_vec = adata[:, genes].layers[mapper['X']] if mapper['X'] in adata.layers.keys() else adata[:, genes].X
-        elif ekey in ['protein', 'X_protein']:
-            E_vec = adata[:, genes].layers[mapper[ekey]] if (ekey in mapper.keys()) and (mapper[ekey] in adata.obsm_keys()) else adata[:, genes].obsm[ekey]
+        if ekey is "X":
+            E_vec = (
+                adata[:, genes].layers[mapper["X"]]
+                if mapper["X"] in adata.layers.keys()
+                else adata[:, genes].X
+            )
+        elif ekey in ["protein", "X_protein"]:
+            E_vec = (
+                adata[:, genes].layers[mapper[ekey]]
+                if (ekey in mapper.keys()) and (mapper[ekey] in adata.obsm_keys())
+                else adata[:, genes].obsm[ekey]
+            )
         else:
-            E_vec = adata[:, genes].layers[mapper[ekey]] if (ekey in mapper.keys()) and (mapper[ekey] in adata.layers.keys()) else adata[:, genes].layers[ekey]
+            E_vec = (
+                adata[:, genes].layers[mapper[ekey]]
+                if (ekey in mapper.keys()) and (mapper[ekey] in adata.layers.keys())
+                else adata[:, genes].layers[ekey]
+            )
 
     n_cells, n_genes = adata.shape[0], len(genes)
 
     color_vec = np.repeat(np.nan, n_cells)
     if color is not None:
         color = list(set(color).intersection(adata.obs.keys()))
-        if len(color) > 0 and type is not 'embedding':
+        if len(color) > 0 and type is not "embedding":
             color_vec = adata.obs[color[0]].values
         else:
-            n_genes = len(color) # set n_genes as the number of obs keys
+            n_genes = len(color)  # set n_genes as the number of obs keys
             color_vec = adata.obs[color[0]].values
             full_color_vec = adata.obs[color].values.flatten()
 
-    if 'velocity_' not in velocity_key: vkey = 'velocity_' + velocity_key
+    if "velocity_" not in velocity_key:
+        vkey = "velocity_" + velocity_key
 
-    if type is 'embedding':
-        df = pd.DataFrame({basis + '_0': np.repeat(embedding.iloc[:, 0], n_genes), basis + '_1': np.repeat(embedding.iloc[:, 1], n_genes),
-                           "color": full_color_vec, "group": np.tile(color, n_cells)})
+    if type is "embedding":
+        df = pd.DataFrame(
+            {
+                basis + "_0": np.repeat(embedding.iloc[:, 0], n_genes),
+                basis + "_1": np.repeat(embedding.iloc[:, 1], n_genes),
+                "color": full_color_vec,
+                "group": np.tile(color, n_cells),
+            }
+        )
     else:
-        if vkey == 'velocity_U':
-            V_vec = adata[:, genes].layers['velocity_U']
-            if 'velocity_P' in adata.obsm.keys():
-                P_vec = adata[:, genes].layer['velocity_P']
-        elif vkey == 'velocity_S':
-            V_vec = adata[:, genes].layers['velocity_S']
-            if 'velocity_P' in adata.obsm.keys():
-                P_vec = adata[:, genes].layers['velocity_P']
+        if vkey == "velocity_U":
+            V_vec = adata[:, genes].layers["velocity_U"]
+            if "velocity_P" in adata.obsm.keys():
+                P_vec = adata[:, genes].layer["velocity_P"]
+        elif vkey == "velocity_S":
+            V_vec = adata[:, genes].layers["velocity_S"]
+            if "velocity_P" in adata.obsm.keys():
+                P_vec = adata[:, genes].layers["velocity_P"]
         else:
-            raise Exception('adata has no vkey {} in either the layers or the obsm attribute'.format(vkey))
+            raise Exception(
+                "adata has no vkey {} in either the layers or the obsm attribute".format(
+                    vkey
+                )
+            )
 
         if issparse(E_vec):
             E_vec, V_vec = E_vec.A, V_vec.A
 
-        if 'gamma' in adata.var.columns:
+        if "gamma" in adata.var.columns:
             gamma = adata.var.gamma[genes].values
-            velocity_offset = [0] * n_genes if not ("gamma_b" in adata.var.columns) else \
-                adata.var.gamma_b[genes].values
+            velocity_offset = (
+                [0] * n_genes
+                if not ("gamma_b" in adata.var.columns)
+                else adata.var.gamma_b[genes].values
+            )
         else:
-            raise Exception('adata does not seem to have gamma column. Velocity estimation is required before '
-                            'running this function.')
+            raise Exception(
+                "adata does not seem to have gamma column. Velocity estimation is required before "
+                "running this function."
+            )
 
-        if mode is 'labelling':
-            new_mat, tot_mat = adata[:, genes].layers['X_new'], adata[:, genes].layers['X_total']
-            new_mat, tot_mat = (new_mat.A, tot_mat.A) if issparse(new_mat) else (new_mat, tot_mat)
+        if mode is "labelling":
+            new_mat, tot_mat = (
+                adata[:, genes].layers["X_new"],
+                adata[:, genes].layers["X_total"],
+            )
+            new_mat, tot_mat = (
+                (new_mat.A, tot_mat.A) if issparse(new_mat) else (new_mat, tot_mat)
+            )
 
-            df = pd.DataFrame({"new": new_mat.flatten(), "total": tot_mat.flatten(), 'gene': genes * n_cells, 'gamma':
-                               np.tile(gamma, n_cells), 'velocity_offset': np.tile(velocity_offset, n_cells),
-                               "expression": E_vec.flatten(), "velocity": V_vec.flatten(), 'color': np.repeat(color_vec, n_genes)}, index=range(n_cells * n_genes))
+            df = pd.DataFrame(
+                {
+                    "new": new_mat.flatten(),
+                    "total": tot_mat.flatten(),
+                    "gene": genes * n_cells,
+                    "gamma": np.tile(gamma, n_cells),
+                    "velocity_offset": np.tile(velocity_offset, n_cells),
+                    "expression": E_vec.flatten(),
+                    "velocity": V_vec.flatten(),
+                    "color": np.repeat(color_vec, n_genes),
+                },
+                index=range(n_cells * n_genes),
+            )
 
-        elif mode is 'splicing':
-            unspliced_mat, spliced_mat = adata[:, genes].layers['X_unspliced'], adata[:, genes].layers['X_spliced']
-            unspliced_mat, spliced_mat = (unspliced_mat.A, spliced_mat.A) if issparse(unspliced_mat) else (unspliced_mat, spliced_mat)
+        elif mode is "splicing":
+            unspliced_mat, spliced_mat = (
+                adata[:, genes].layers["X_unspliced"],
+                adata[:, genes].layers["X_spliced"],
+            )
+            unspliced_mat, spliced_mat = (
+                (unspliced_mat.A, spliced_mat.A)
+                if issparse(unspliced_mat)
+                else (unspliced_mat, spliced_mat)
+            )
 
-            df = pd.DataFrame({"unspliced": unspliced_mat.flatten(), "spliced": spliced_mat.flatten(), 'gene': genes * n_cells,
-                               'gamma': np.tile(gamma, n_cells), 'velocity_offset': np.tile(velocity_offset, n_cells),
-                               "expression": E_vec.flatten(), "velocity": V_vec.flatten(), 'color': np.repeat(color_vec, n_genes)}, index=range(n_cells * n_genes))
+            df = pd.DataFrame(
+                {
+                    "unspliced": unspliced_mat.flatten(),
+                    "spliced": spliced_mat.flatten(),
+                    "gene": genes * n_cells,
+                    "gamma": np.tile(gamma, n_cells),
+                    "velocity_offset": np.tile(velocity_offset, n_cells),
+                    "expression": E_vec.flatten(),
+                    "velocity": V_vec.flatten(),
+                    "color": np.repeat(color_vec, n_genes),
+                },
+                index=range(n_cells * n_genes),
+            )
 
-        elif mode is 'full':
-            uu, ul, su, sl = adata[:, genes].layers['X_uu'], adata[:, genes].layers['X_ul'], adata[:, genes].layers['X_su'], \
-                             adata[:, genes].layers['X_sl']
-            if 'protein' in adata.obsm.keys():
-                if 'delta' in adata.var.columns:
+        elif mode is "full":
+            uu, ul, su, sl = (
+                adata[:, genes].layers["X_uu"],
+                adata[:, genes].layers["X_ul"],
+                adata[:, genes].layers["X_su"],
+                adata[:, genes].layers["X_sl"],
+            )
+            if "protein" in adata.obsm.keys():
+                if "delta" in adata.var.columns:
                     gamma_P = adata.var.delta[genes].values
-                    velocity_offset_P = [0] * n_cells if not ("delta_b" in adata.var.columns) else \
-                        adata.var.delta_b[genes].values
+                    velocity_offset_P = (
+                        [0] * n_cells
+                        if not ("delta_b" in adata.var.columns)
+                        else adata.var.delta_b[genes].values
+                    )
                 else:
                     raise Exception(
-                        'adata does not seem to have velocity_gamma column. Velocity estimation is required before '
-                        'running this function.')
+                        "adata does not seem to have velocity_gamma column. Velocity estimation is required before "
+                        "running this function."
+                    )
 
-                P = adata[:, genes].obsm['X_protein'] if ['X_protein'] in adata.obsm.keys() else adata[:, genes].obsm['protein']
-                uu, ul, su, sl, P = (uu.A, ul.A, su.A, sl.A, P.A) if issparse(uu) else (uu, ul, su, sl, P)
+                P = (
+                    adata[:, genes].obsm["X_protein"]
+                    if ["X_protein"] in adata.obsm.keys()
+                    else adata[:, genes].obsm["protein"]
+                )
+                uu, ul, su, sl, P = (
+                    (uu.A, ul.A, su.A, sl.A, P.A)
+                    if issparse(uu)
+                    else (uu, ul, su, sl, P)
+                )
                 if issparse(P_vec):
                     P_vec = P_vec.A
 
                 # df = pd.DataFrame({"uu": uu.flatten(), "ul": ul.flatten(), "su": su.flatten(), "sl": sl.flatten(), "P": P.flatten(),
                 #                    'gene': genes * n_cells, 'prediction': np.tile(gamma, n_cells) * uu.flatten() +
                 #                     np.tile(velocity_offset, n_cells), "velocity": genes * n_cells}, index=range(n_cells * n_genes))
-                df = pd.DataFrame({"new": (ul + sl).flatten(), "total": (uu + ul + sl + su).flatten(), "S": (sl + su).flatten(), "P": P.flatten(),
-                                   'gene': genes * n_cells, 'gamma': np.tile(gamma, n_cells), 'velocity_offset': np.tile(velocity_offset, n_cells),
-                                   'gamma_P': np.tile(gamma_P, n_cells), 'velocity_offset_P': np.tile(velocity_offset_P, n_cells),
-                                   "expression": E_vec.flatten(), "velocity": V_vec.flatten(), "velocity_protein": P_vec.flatten(), 'color': np.repeat(color_vec, n_genes)}, index=range(n_cells * n_genes))
+                df = pd.DataFrame(
+                    {
+                        "new": (ul + sl).flatten(),
+                        "total": (uu + ul + sl + su).flatten(),
+                        "S": (sl + su).flatten(),
+                        "P": P.flatten(),
+                        "gene": genes * n_cells,
+                        "gamma": np.tile(gamma, n_cells),
+                        "velocity_offset": np.tile(velocity_offset, n_cells),
+                        "gamma_P": np.tile(gamma_P, n_cells),
+                        "velocity_offset_P": np.tile(velocity_offset_P, n_cells),
+                        "expression": E_vec.flatten(),
+                        "velocity": V_vec.flatten(),
+                        "velocity_protein": P_vec.flatten(),
+                        "color": np.repeat(color_vec, n_genes),
+                    },
+                    index=range(n_cells * n_genes),
+                )
             else:
-                df = pd.DataFrame({"new": (ul + sl).flatten(), "total": (uu + ul + sl + su).flatten(),
-                                   'gene': genes * n_cells, 'gamma': np.tile(gamma, n_cells), 'velocity_offset': np.tile(velocity_offset, n_cells),
-                                   "expression": E_vec.flatten(), "velocity": V_vec.flatten(), 'color': np.repeat(color_vec, n_genes)}, index=range(n_cells * n_genes))
+                df = pd.DataFrame(
+                    {
+                        "new": (ul + sl).flatten(),
+                        "total": (uu + ul + sl + su).flatten(),
+                        "gene": genes * n_cells,
+                        "gamma": np.tile(gamma, n_cells),
+                        "velocity_offset": np.tile(velocity_offset, n_cells),
+                        "expression": E_vec.flatten(),
+                        "velocity": V_vec.flatten(),
+                        "color": np.repeat(color_vec, n_genes),
+                    },
+                    index=range(n_cells * n_genes),
+                )
         else:
-            raise Exception('Your adata is corrupted. Make sure that your layer has keys new, old for the labelling mode, '
-                            'spliced, ambiguous, unspliced for the splicing model and uu, ul, su, sl for the full mode')
+            raise Exception(
+                "Your adata is corrupted. Make sure that your layer has keys new, old for the labelling mode, "
+                "spliced, ambiguous, unspliced for the splicing model and uu, ul, su, sl for the full mode"
+            )
 
-    if type == 'embedding':
+    if type == "embedding":
         if theme is None:
-            if True: # should also support continous mapping if the color key is not categorical
+            if (
+                True
+            ):  # should also support continous mapping if the color key is not categorical
                 import colorcet
-                theme = 'glasbey_dark'
+
+                theme = "glasbey_dark"
                 # add glasbey_bw_minc_20_maxl_70 theme for cell annotation in dark background
                 glasbey_dark_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
                     "glasbey_dark_cmap", colorcet.glasbey_bw_minc_20_maxl_70
@@ -220,14 +369,15 @@ def _scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_ke
                 plt.register_cmap("glasbey_dark", glasbey_dark_cmap)
 
             else:
-                theme = 'inferno'
+                theme = "inferno"
         cmap = _themes[theme]["cmap"]
         color_key_cmap = _themes[theme]["color_key_cmap"]
         background = _themes[theme]["background"]
     else:
         if type == "phase":
-            if all(df.color.unique() != np.nan): # color corresponds to expression
-                if theme is None: theme = 'inferno'
+            if all(df.color.unique() != np.nan):  # color corresponds to expression
+                if theme is None:
+                    theme = "inferno"
                 cmap = _themes[theme]["cmap"]
                 color_key_cmap = _themes[theme]["color_key_cmap"]
                 background = _themes[theme]["background"]
@@ -242,7 +392,8 @@ def _scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_ke
             else:
                 if theme is None:
                     import colorcet
-                    theme = 'glasbey_dark'
+
+                    theme = "glasbey_dark"
                     # add glasbey_bw_minc_20_maxl_70 theme for cell annotation in dark background
                     glasbey_dark_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
                         "glasbey_dark_cmap", colorcet.glasbey_bw_minc_20_maxl_70
@@ -255,7 +406,8 @@ def _scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_ke
         elif type == "velocity":
             if theme is None:
                 import colorcet
-                theme = 'div_blue_red'
+
+                theme = "div_blue_red"
                 # add RdBu_r theme for velocity
                 div_blue_red_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
                     "div_blue_red", colorcet.diverging_bwr_55_98_c37
@@ -264,29 +416,54 @@ def _scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_ke
             cmap = _themes[theme]["cmap"]
             color_key_cmap = _themes[theme]["color_key_cmap"]
             background = _themes[theme]["background"]
-        elif type == 'expression':
-            if theme is None: theme = 'inferno'
+        elif type == "expression":
+            if theme is None:
+                theme = "inferno"
             cmap = _themes[theme]["cmap"]
             color_key_cmap = _themes[theme]["color_key_cmap"]
             background = _themes[theme]["background"]
 
     font_color = _select_font_color(background)
-    if background == 'black':
+    if background == "black":
         # https://github.com/matplotlib/matplotlib/blob/master/lib/matplotlib/mpl-data/stylelib/dark_background.mplstyle
-        sns.set(rc={'axes.facecolor': background, 'axes.edgecolor': background, 'figure.facecolor': background, 'figure.edgecolor': background,
-                    'axes.grid': False, "ytick.color": "w", "xtick.color": "w", "axes.labelcolor": "w", "axes.edgecolor": "w",
-                    "savefig.facecolor": 'k', "savefig.edgecolor": 'k', "grid.color": 'w', "text.color": 'w',
-                    "lines.color": 'w', "patch.edgecolor": 'w', 'figure.edgecolor': 'w',
-                    })
+        sns.set(
+            rc={
+                "axes.facecolor": background,
+                "axes.edgecolor": background,
+                "figure.facecolor": background,
+                "figure.edgecolor": background,
+                "axes.grid": False,
+                "ytick.color": "w",
+                "xtick.color": "w",
+                "axes.labelcolor": "w",
+                "axes.edgecolor": "w",
+                "savefig.facecolor": "k",
+                "savefig.edgecolor": "k",
+                "grid.color": "w",
+                "text.color": "w",
+                "lines.color": "w",
+                "patch.edgecolor": "w",
+                "figure.edgecolor": "w",
+            }
+        )
     else:
-        sns.set(rc={'axes.facecolor': background, 'figure.facecolor': background, 'axes.grid': False})
+        sns.set(
+            rc={
+                "axes.facecolor": background,
+                "figure.facecolor": background,
+                "axes.grid": False,
+            }
+        )
 
     n_columns = min(n_genes, n_columns)
-    if type == 'embedding':
+    if type == "embedding":
         nrow, ncol = int(np.ceil(len(color) / n_columns)), n_columns
 
-        if figsize is None: figsize = plt.rcParams['figsize']
-        fig = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)
+        if figsize is None:
+            figsize = plt.rcParams["figsize"]
+        fig = plt.figure(
+            None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background
+        )
 
         # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
         gs = plt.GridSpec(nrow, ncol)
@@ -296,163 +473,263 @@ def _scatters(adata, genes, x=0, y=1, theme=None, type='expression', velocity_ke
 
             cur_pd = df.loc[df.group == clr, :]
 
-            scatter_with_legend(fig, ax1, df, font_color, embedding.iloc[:, 0], embedding.iloc[:, 1],
-                                cur_pd.loc[:, 'color'], plt.get_cmap(color_key_cmap), legend, **scatter_kwargs)
+            scatter_with_legend(
+                fig,
+                ax1,
+                df,
+                font_color,
+                embedding.iloc[:, 0],
+                embedding.iloc[:, 1],
+                cur_pd.loc[:, "color"],
+                plt.get_cmap(color_key_cmap),
+                legend,
+                **scatter_kwargs
+            )
 
             set_spine_linewidth(ax1, 1)
             ax1.set_title(clr)
-            ax1.set_xlabel(basis + '_1')
-            ax1.set_ylabel(basis + '_2')
+            ax1.set_xlabel(basis + "_1")
+            ax1.set_ylabel(basis + "_2")
     else:
-        n_columns = 2 * n_columns if ('protein' in adata.obsm.keys() and mode is 'full') else n_columns
-        plot_per_gene = 2 if ('protein' in adata.obsm.keys() and mode is 'full') else 1
+        n_columns = (
+            2 * n_columns
+            if ("protein" in adata.obsm.keys() and mode is "full")
+            else n_columns
+        )
+        plot_per_gene = 2 if ("protein" in adata.obsm.keys() and mode is "full") else 1
         nrow, ncol = int(np.ceil(plot_per_gene * n_genes / n_columns)), n_columns
-        fig = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)
+        fig = plt.figure(
+            None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background
+        )
 
         # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
         gs = plt.GridSpec(nrow, ncol)
 
         for i, gn in enumerate(genes):
             if plot_per_gene is 2:
-                ax1, ax2 = plt.subplot(gs[i*2]), plt.subplot(gs[i*2+1])
+                ax1, ax2 = plt.subplot(gs[i * 2]), plt.subplot(gs[i * 2 + 1])
             elif plot_per_gene is 1:
                 ax1 = plt.subplot(gs[i])
             try:
-                ix=np.where(adata.var.index == gn)[0][0]
+                ix = np.where(adata.var.index == gn)[0][0]
             except:
                 continue
             cur_pd = df.loc[df.gene == gn, :]
-            if type is 'phase': # viridis, set2
+            if type is "phase":  # viridis, set2
                 if all(cur_pd.color.unique() == np.nan):
-                    fig, ax1 = scatter_with_colorbar(fig, ax1, cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], cur_pd.color,
-                                                     cmap, **scatter_kwargs)
+                    fig, ax1 = scatter_with_colorbar(
+                        fig,
+                        ax1,
+                        cur_pd.iloc[:, 1],
+                        cur_pd.iloc[:, 0],
+                        cur_pd.color,
+                        cmap,
+                        **scatter_kwargs
+                    )
 
                 else:
-                    fig, ax1 = scatter_with_colorbar(fig, ax1, cur_pd.iloc[:, 1], cur_pd.iloc[:, 0], cur_pd.color,
-                                                     cmap, **scatter_kwargs)
+                    fig, ax1 = scatter_with_colorbar(
+                        fig,
+                        ax1,
+                        cur_pd.iloc[:, 1],
+                        cur_pd.iloc[:, 0],
+                        cur_pd.color,
+                        cmap,
+                        **scatter_kwargs
+                    )
 
                 set_spine_linewidth(ax1, 1)
                 ax1.set_title(gn)
                 xnew = np.linspace(0, cur_pd.iloc[:, 1].max())
-                ax1.plot(xnew, xnew * cur_pd.loc[:, 'gamma'].unique() + cur_pd.loc[:, 'velocity_offset'].unique(), linewidth=2)
-                ax1.set_xlim(0, np.max(cur_pd.iloc[:, 1])*1.02)
-                ax1.set_ylim(0, np.max(cur_pd.iloc[:, 0])*1.02)
+                ax1.plot(
+                    xnew,
+                    xnew * cur_pd.loc[:, "gamma"].unique()
+                    + cur_pd.loc[:, "velocity_offset"].unique(),
+                    linewidth=2,
+                )
+                ax1.set_xlim(0, np.max(cur_pd.iloc[:, 1]) * 1.02)
+                ax1.set_ylim(0, np.max(cur_pd.iloc[:, 0]) * 1.02)
 
-                despline(ax1) # sns.despline()
+                despline(ax1)  # sns.despline()
                 set_spine_linewidth(ax1, 1)
-                ax1.set_xlabel('spliced')
-                ax1.set_ylabel('unspliced')
+                ax1.set_xlabel("spliced")
+                ax1.set_ylabel("unspliced")
 
-                if plot_per_gene == 2 and ('protein' in adata.obsm.keys() and mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']])):
-                    fig, ax2 = scatter_with_colorbar(fig, ax2, cur_pd.iloc[:, 3], cur_pd.iloc[:, 2], cur_pd.color,
-                                                     cmap, **scatter_kwargs)
+                if plot_per_gene == 2 and (
+                    "protein" in adata.obsm.keys()
+                    and mode is "full"
+                    and all(
+                        [i in adata.layers.keys() for i in ["uu", "ul", "su", "sl"]]
+                    )
+                ):
+                    fig, ax2 = scatter_with_colorbar(
+                        fig,
+                        ax2,
+                        cur_pd.iloc[:, 3],
+                        cur_pd.iloc[:, 2],
+                        cur_pd.color,
+                        cmap,
+                        **scatter_kwargs
+                    )
 
                     set_spine_linewidth(ax2, 1)
                     ax2.set_title(gn)
                     xnew = np.linspace(0, cur_pd.iloc[:, 3].max())
-                    ax2.plot(xnew, xnew * cur_pd.loc[:, 'gamma_P'].unique() + cur_pd.loc[:, 'velocity_offset_P'].unique(), linewidth=2)
+                    ax2.plot(
+                        xnew,
+                        xnew * cur_pd.loc[:, "gamma_P"].unique()
+                        + cur_pd.loc[:, "velocity_offset_P"].unique(),
+                        linewidth=2,
+                    )
 
                     ax2.set_ylim(0, np.max(cur_pd.iloc[:, 3]) * 1.02)
                     ax2.set_xlim(0, np.max(cur_pd.iloc[:, 2]) * 1.02)
 
                     despline(ax2)  # sns.despline()
-                    ax1.set_xlabel('spliced')
-                    ax1.set_ylabel('unspliced')
+                    ax1.set_xlabel("spliced")
+                    ax1.set_ylabel("unspliced")
 
-            elif type == 'velocity':
-                V_vec = cur_pd.loc[:, 'velocity']
+            elif type == "velocity":
+                V_vec = cur_pd.loc[:, "velocity"]
                 if normalize:
-                    limit = np.nanmax(np.abs(np.nanpercentile(V_vec, [1, 99])))  # upper and lowe limit / saturation
+                    limit = np.nanmax(
+                        np.abs(np.nanpercentile(V_vec, [1, 99]))
+                    )  # upper and lowe limit / saturation
 
                     # transform the data so that 0.5 corresponds to 0 in the original data space.
                     V_vec = V_vec + limit  # that is: tmp_colorandum - (-limit)
-                    V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
+                    V_vec = V_vec / (
+                        2 * limit
+                    )  # that is: tmp_colorandum / (limit - (-limit))
                     V_vec = np.clip(V_vec, 0, 1)
 
-                #cmap = plt.cm.RdBu_r # sns.cubehelix_palette(dark=.3, light=.8, as_cmap=True)
-                fig, ax1 = scatter_with_colorbar(fig, ax1, embedding.iloc[:, 0], embedding.iloc[:, 1], V_vec,
-                                                 cmap, **scatter_kwargs)
+                # cmap = plt.cm.RdBu_r # sns.cubehelix_palette(dark=.3, light=.8, as_cmap=True)
+                fig, ax1 = scatter_with_colorbar(
+                    fig,
+                    ax1,
+                    embedding.iloc[:, 0],
+                    embedding.iloc[:, 1],
+                    V_vec,
+                    cmap,
+                    **scatter_kwargs
+                )
 
                 set_spine_linewidth(ax1, 1)
-                ax1.set_title(gn + ' (' + vkey + ')')
-                ax1.set_xlabel(basis + '_1')
-                ax1.set_ylabel(basis + '_2')
+                ax1.set_title(gn + " (" + vkey + ")")
+                ax1.set_xlabel(basis + "_1")
+                ax1.set_ylabel(basis + "_2")
 
                 if plot_per_gene == 2:
-                    V_vec = cur_pd.loc[:, 'velocity_offset_P']
+                    V_vec = cur_pd.loc[:, "velocity_offset_P"]
 
                     if normalize:
-                        limit = np.nanmax(np.abs(np.nanpercentile(V_vec, [1, 99])))  # upper and lowe limit / saturation
+                        limit = np.nanmax(
+                            np.abs(np.nanpercentile(V_vec, [1, 99]))
+                        )  # upper and lowe limit / saturation
 
                         V_vec = V_vec + limit  # that is: tmp_colorandum - (-limit)
-                        V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
+                        V_vec = V_vec / (
+                            2 * limit
+                        )  # that is: tmp_colorandum / (limit - (-limit))
                         V_vec = np.clip(V_vec, 0, 1)
 
                     # cmap = plt.cm.RdBu_r  # sns.cubehelix_palette(dark=.3, light=.8, as_cmap=True)
-                    fig, ax2 = scatter_with_colorbar(fig, ax2, embedding.iloc[:, 0], embedding.iloc[:, 1], V_vec,
-                                                     cmap, **scatter_kwargs)
+                    fig, ax2 = scatter_with_colorbar(
+                        fig,
+                        ax2,
+                        embedding.iloc[:, 0],
+                        embedding.iloc[:, 1],
+                        V_vec,
+                        cmap,
+                        **scatter_kwargs
+                    )
 
                     set_spine_linewidth(ax2, 1)
-                    ax2.set_title(gn + ' (' + vkey + ')')
-                    ax2.set_xlabel(basis + '_1')
-                    ax2.set_ylabel(basis + '_2')
+                    ax2.set_title(gn + " (" + vkey + ")")
+                    ax2.set_xlabel(basis + "_1")
+                    ax2.set_ylabel(basis + "_2")
 
-            elif type == 'expression':
+            elif type == "expression":
                 # cmap = plt.cm.Greens # sns.diverging_palette(10, 220, sep=80, as_cmap=True)
-                expression = cur_pd.loc[:, 'expression']
+                expression = cur_pd.loc[:, "expression"]
                 if normalize:
-                    expression = np.clip(expression / np.percentile(expression, 99), 0, 1)
+                    expression = np.clip(
+                        expression / np.percentile(expression, 99), 0, 1
+                    )
 
-                fig, ax1 = scatter_with_colorbar(fig, ax1, embedding.iloc[:, 0], embedding.iloc[:, 1], expression,
-                                                   cmap, **scatter_kwargs)
+                fig, ax1 = scatter_with_colorbar(
+                    fig,
+                    ax1,
+                    embedding.iloc[:, 0],
+                    embedding.iloc[:, 1],
+                    expression,
+                    cmap,
+                    **scatter_kwargs
+                )
 
                 set_spine_linewidth(ax1, 1)
-                ax1.set_title(gn + ' (' + ekey + ')')
-                ax1.set_xlabel(basis + '_1')
-                ax1.set_ylabel(basis + '_2')
+                ax1.set_title(gn + " (" + ekey + ")")
+                ax1.set_xlabel(basis + "_1")
+                ax1.set_ylabel(basis + "_2")
 
-                if 'protein' in adata.obsm.keys() and mode is 'full' and all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]):
-                    expression = cur_pd.loc[:, 'P']
+                if (
+                    "protein" in adata.obsm.keys()
+                    and mode is "full"
+                    and all(
+                        [i in adata.layers.keys() for i in ["uu", "ul", "su", "sl"]]
+                    )
+                ):
+                    expression = cur_pd.loc[:, "P"]
                     if normalize:
-                        expression = np.clip(expression / np.percentile(expression, 99), 0, 1)
+                        expression = np.clip(
+                            expression / np.percentile(expression, 99), 0, 1
+                        )
 
-                    fig, ax2 = scatter_with_colorbar(fig, ax2, embedding.iloc[:, 0], embedding.iloc[:, 1], expression,
-                                                       cmap, **scatter_kwargs)
+                    fig, ax2 = scatter_with_colorbar(
+                        fig,
+                        ax2,
+                        embedding.iloc[:, 0],
+                        embedding.iloc[:, 1],
+                        expression,
+                        cmap,
+                        **scatter_kwargs
+                    )
 
                     set_spine_linewidth(ax2, 1)
-                    ax2.set_title(gn + ' (protein expression)')
-                    ax2.set_xlabel(basis + '_1')
-                    ax2.set_ylabel(basis + '_2')
-
+                    ax2.set_title(gn + " (protein expression)")
+                    ax2.set_xlabel(basis + "_1")
+                    ax2.set_ylabel(basis + "_2")
 
     plt.tight_layout()
     plt.show()
 
 
-@docstrings.get_sectionsf('scatters')
+@docstrings.get_sectionsf("scatters")
 def scatters(
-        adata,
-        basis='umap',
-        x=0,
-        y=1,
-        color=None,
-        layer='X',
-        highlights=None,
-        labels=None,
-        values=None,
-        theme=None,
-        cmap=None,
-        color_key=None,
-        color_key_cmap=None,
-        background=None,
-        ncols=1,
-        pointsize=None,
-        figsize=(7,5),
-        show_legend=True,
-        use_smoothed=True,
-        ax=None,
-        save_or_show='show',
-        **kwargs):
+    adata,
+    basis="umap",
+    x=0,
+    y=1,
+    color=None,
+    layer="X",
+    highlights=None,
+    labels=None,
+    values=None,
+    theme=None,
+    cmap=None,
+    color_key=None,
+    color_key_cmap=None,
+    background=None,
+    ncols=1,
+    pointsize=None,
+    figsize=(7, 5),
+    show_legend=True,
+    use_smoothed=True,
+    ax=None,
+    save_or_show="show",
+    aggregate=None,
+    **kwargs
+):
     """Plot an embedding as points. Currently this only works
     for 2D embeddings. While there are many optional parameters
     to further control and tailor the plotting, you need only
@@ -540,6 +817,8 @@ def scatters(
             The desired height of the plot in pixels
         show_legend: bool (optional, default True)
             Whether to display a legend of the labels
+        aggregate: `str` or `None` (default: `None`)
+            The column in adata.obs that will be used to aggregate data points.
         kwargs:
             Additional arguments passed to plt.scatters.
 
@@ -558,21 +837,35 @@ def scatters(
     if background is not None:
         set_figure_params(background=background)
     else:
-        _background = rcParams.get('figure.facecolor')
+        _background = rcParams.get("figure.facecolor")
         background = to_hex(_background) if type(_background) is tuple else _background
 
     x, y = x[0] if type(x) != int else x, y[0] if type(y) != int else y
 
-    if use_smoothed: mapper = get_mapper()
+    if use_smoothed:
+        mapper = get_mapper()
 
     # check layer, basis -> convert to list
-    if type(color) is str: color = [color]
-    if type(layer) is str: layer = [layer]
-    if type(basis) is str: basis = [basis]
-    n_c, n_l, n_b = 0 if color is None else len(color), 0 if layer is None else len(layer), 0 if basis is None else len(basis)
+    if type(color) is str:
+        color = [color]
+    if type(layer) is str:
+        layer = [layer]
+    if type(basis) is str:
+        basis = [basis]
+    n_c, n_l, n_b = (
+        0 if color is None else len(color),
+        0 if layer is None else len(layer),
+        0 if basis is None else len(basis),
+    )
 
-    point_size = 500.0 / np.sqrt(adata.shape[0]) if pointsize is None else 500.0 / np.sqrt(adata.shape[0]) * pointsize
-    scatter_kwargs = dict(alpha=0.2, s=point_size, edgecolor=None, linewidth=0) # (0, 0, 0, 1)
+    point_size = (
+        500.0 / np.sqrt(adata.shape[0])
+        if pointsize is None
+        else 500.0 / np.sqrt(adata.shape[0]) * pointsize
+    )
+    scatter_kwargs = dict(
+        alpha=0.2, s=point_size, edgecolor=None, linewidth=0
+    )  # (0, 0, 0, 1)
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
 
@@ -580,7 +873,8 @@ def scatters(
 
     total_panels, ncols = n_c * n_l * n_b, min(n_c, ncols)
     nrow, ncol = int(np.ceil(total_panels / ncols)), ncols
-    if figsize is None: figsize = plt.rcParams['figsize']
+    if figsize is None:
+        figsize = plt.rcParams["figsize"]
 
     if total_panels > 1:
         plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)
@@ -590,58 +884,128 @@ def scatters(
     axes_list, color_list = [], []
     for cur_b in basis:
         for cur_l in layer:
-            if use_smoothed: cur_l_smoothed = mapper[cur_l]
-            prefix = cur_l + '_'
+            if use_smoothed:
+                cur_l_smoothed = mapper[cur_l]
+            prefix = cur_l + "_"
 
             if prefix + cur_b in adata.obsm.keys():
-                x_, y_ = adata.obsm[prefix + cur_b][:, int(x)], adata.obsm[prefix + cur_b][:, int(y)]
+                x_, y_ = (
+                    adata.obsm[prefix + cur_b][:, int(x)],
+                    adata.obsm[prefix + cur_b][:, int(y)],
+                )
             else:
                 continue
             for cur_c in color:
-                if cur_l in ['protein', 'X_protein']:
+                if cur_l in ["protein", "X_protein"]:
                     _color = adata.obsm[cur_l].loc[cur_c, :]
                 else:
                     _color = adata.obs_vector(cur_c, layer=cur_l)
 
                 if type(x) is int and type(y) is int:
-                    points = pd.DataFrame({cur_b + '_0': adata.obsm[prefix + cur_b][:, x], \
-                                              cur_b + '_1': adata.obsm[prefix + cur_b][:, y]})
-                    points.columns = [cur_b + '_1', cur_b + '_2']
+                    points = pd.DataFrame(
+                        {
+                            cur_b + "_0": adata.obsm[prefix + cur_b][:, x],
+                            cur_b + "_1": adata.obsm[prefix + cur_b][:, y],
+                        }
+                    )
+                    points.columns = [cur_b + "_1", cur_b + "_2"]
                 elif is_gene_name(x) and is_gene_name(y):
-                    points = pd.DataFrame({x: adata.obs_vector(x, cur_l_smoothed), \
-                                              y: adata.obs_vector(y, cur_l_smoothed)})
-                    points.columns = [x + ' (' + cur_l_smoothed + ')', y + ' (' + cur_l_smoothed + ')']
+                    points = pd.DataFrame(
+                        {
+                            x: adata.obs_vector(x, cur_l_smoothed),
+                            y: adata.obs_vector(y, cur_l_smoothed),
+                        }
+                    )
+                    points.columns = [
+                        x + " (" + cur_l_smoothed + ")",
+                        y + " (" + cur_l_smoothed + ")",
+                    ]
                 elif is_cell_anno_column(x) and is_gene_name(y):
-                    points = pd.DataFrame({x: adata.obs_vector(x), \
-                                              y: adata.obs_vector(y, cur_l_smoothed)})
-                    points.columns = [x, y + ' (' + cur_l_smoothed + ')']
+                    points = pd.DataFrame(
+                        {x: adata.obs_vector(x), y: adata.obs_vector(y, cur_l_smoothed)}
+                    )
+                    points.columns = [x, y + " (" + cur_l_smoothed + ")"]
 
+                if aggregate is not None:
+                    groups, uniq_grp = (
+                        adata.obs[aggregate],
+                        adata.obs[aggregate].unique().to_list(),
+                    )
+                    group_color, group_median = (
+                        np.zeros((1, len(uniq_grp))).flatten()
+                        if isinstance(_color[0], Number)
+                        else np.zeros((1, len(uniq_grp))).astype("str").flatten(),
+                        np.zeros((len(uniq_grp), 2)),
+                    )
+
+                    grp_size = adata.obs[aggregate].value_counts().values
+                    scatter_kwargs = (
+                        {"s": grp_size}
+                        if scatter_kwargs is None
+                        else update_dict(scatter_kwargs, {"s": grp_size})
+                    )
+
+                    for ind, cur_grp in enumerate(uniq_grp):
+                        group_median[ind, :] = np.nanmedian(
+                            points.iloc[np.where(groups == cur_grp)[0], :2], 0
+                        )
+                        if isinstance(_color[0], Number):
+                            group_color[ind] = np.nanmedian(
+                                np.array(_color)[np.where(groups == cur_grp)[0]]
+                            )
+                        else:
+                            group_color[ind] = (
+                                pd.Series(_color)[np.where(groups == cur_grp)[0]]
+                                .value_counts()
+                                .index[0]
+                            )
+
+                    points, _color = (
+                        pd.DataFrame(
+                            group_median, index=uniq_grp, columns=points.columns
+                        ),
+                        group_color,
+                    )
                 # https://stackoverflow.com/questions/4187185/how-can-i-check-if-my-python-object-is-a-number
                 # answer from Boris.
-                is_not_continous = (not isinstance(_color[0], Number) or type(_color) == pd.Series)
+                is_not_continous = (
+                    not isinstance(_color[0], Number) or type(_color) == pd.Series
+                )
 
                 if is_not_continous:
                     labels = _color.to_dense() if is_categorical(_color) else _color
                     if theme is None:
-                        if background == 'black':
-                            _theme_ = 'glasbey_dark'
+                        if background == "black":
+                            _theme_ = "glasbey_dark"
                         else:
-                            _theme_ = 'glasbey_white'
+                            _theme_ = "glasbey_white"
                     else:
                         _theme_ = theme
                 else:
                     values = _color
                     if theme is None:
-                        if background == 'black':
-                            _theme_ = 'inferno' if cur_l is not 'velocity' else 'div_blue_black_red'
+                        if background == "black":
+                            _theme_ = (
+                                "inferno"
+                                if cur_l is not "velocity"
+                                else "div_blue_black_red"
+                            )
                         else:
-                            _theme_ = 'viridis' if cur_l is not 'velocity' else 'div_blue_red'
+                            _theme_ = (
+                                "viridis" if cur_l is not "velocity" else "div_blue_red"
+                            )
                     else:
                         _theme_ = theme
 
                 _cmap = _themes[_theme_]["cmap"] if cmap is None else cmap
-                _color_key_cmap = _themes[_theme_]["color_key_cmap"] if color_key_cmap is None else color_key_cmap
-                _background = _themes[_theme_]["background"] if background is None else background
+                _color_key_cmap = (
+                    _themes[_theme_]["color_key_cmap"]
+                    if color_key_cmap is None
+                    else color_key_cmap
+                )
+                _background = (
+                    _themes[_theme_]["background"] if background is None else background
+                )
 
                 if labels is not None and values is not None:
                     raise ValueError(
@@ -656,9 +1020,17 @@ def scatters(
                 if highlights is not None:
                     if is_list_of_lists(highlights):
                         _highlights = highlights[color.index(cur_c)]
-                        _highlights = _highlights if all([i in _color for i in _highlights]) else None
+                        _highlights = (
+                            _highlights
+                            if all([i in _color for i in _highlights])
+                            else None
+                        )
                     else:
-                        _highlights = highlights if all([i in _color for i in highlights]) else None
+                        _highlights = (
+                            highlights
+                            if all([i in _color for i in highlights])
+                            else None
+                        )
 
                 if points.shape[0] <= figsize[0] * figsize[1] * 100000:
                     ax, color = _matplotlib_points(
@@ -700,11 +1072,12 @@ def scatters(
                 axes_list.append(ax)
                 color_list.append(color)
 
-                labels, values = None, None # reset labels and values
+                labels, values = None, None  # reset labels and values
     # dyn.configuration.reset_rcParams()
-    if save_or_show == 'show':
-        if show_legend: plt.subplots_adjust(right=0.85)
+    if save_or_show == "show":
+        if show_legend:
+            plt.subplots_adjust(right=0.85)
         plt.tight_layout()
         plt.show()
-    elif save_or_show == 'return':
+    elif save_or_show == "return":
         return axes_list, color_list, font_color

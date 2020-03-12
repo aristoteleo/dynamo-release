@@ -9,22 +9,26 @@ import matplotlib.patheffects as PathEffects
 from warnings import warn
 
 from ..configuration import _themes
-from ..tools.utils import integrate_vf # integrate_vf_ivp
+from ..tools.utils import integrate_vf  # integrate_vf_ivp
 
 # ---------------------------------------------------------------------------------------------------
 # variable checking utilities
 def is_gene_name(adata, var):
     return var in adata.var.index
 
+
 def is_cell_anno_column(adata, var):
     return var in adata.obs.columns
+
 
 def is_list_of_lists(list_of_lists):
     all(isinstance(elem, list) for elem in list_of_lists)
 
+
 # ---------------------------------------------------------------------------------------------------
 # plotting utilities that borrowed from umap
 # link: https://github.com/lmcinnes/umap/blob/7e051d8f3c4adca90ca81eb45f6a9d1372c076cf/umap/plot.py
+
 
 def _to_hex(arr):
     return [matplotlib.colors.to_hex(c) for c in arr]
@@ -33,6 +37,7 @@ def _to_hex(arr):
 # https://stackoverflow.com/questions/8468855/convert-a-rgb-colour-value-to-decimal
 """Convert RGB color to decimal RGB integers are typically treated as three distinct bytes where the left-most (highest-order) 
 byte is red, the middle byte is green and the right-most (lowest-order) byte is blue. """
+
 
 @numba.vectorize(["uint8(uint32)", "uint8(uint32)"])
 def _red(x):
@@ -74,15 +79,18 @@ def _get_extent(points):
 
 
 def _select_font_color(background):
-    if background in ['k', "black"]:
+    if background in ["k", "black"]:
         font_color = "white"
-    elif background in ['w', 'white']:
-        font_color = 'black'
+    elif background in ["w", "white"]:
+        font_color = "black"
     elif background.startswith("#"):
         mean_val = np.mean(
             # specify 0 as the base in order to invoke this prefix-guessing behavior;
             # omitting it means to assume base-10
-            [int("0x" + c, 0) for c in (background[1:3], background[3:5], background[5:7])]
+            [
+                int("0x" + c, 0)
+                for c in (background[1:3], background[3:5], background[5:7])
+            ]
         )
         if mean_val > 126:
             font_color = "black"
@@ -93,6 +101,7 @@ def _select_font_color(background):
         font_color = "black"
 
     return font_color
+
 
 def _matplotlib_points(
     points,
@@ -109,7 +118,7 @@ def _matplotlib_points(
     show_legend=True,
     vmin=2,
     vmax=98,
-    **kwargs
+    **kwargs,
 ):
     import matplotlib.pyplot as plt
 
@@ -145,22 +154,29 @@ def _matplotlib_points(
                 num_labels = unique_labels.shape[0]
                 color_key = plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
             else:
-                highlights.append('other')
+                highlights.append("other")
                 unique_labels = np.array(highlights)
                 num_labels = unique_labels.shape[0]
                 color_key = _to_hex(
                     plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
                 )
-                color_key[-1] = '#bdbdbd' # lightgray hex code https://www.color-hex.com/color/d3d3d3
+                color_key[
+                    -1
+                ] = "#bdbdbd"  # lightgray hex code https://www.color-hex.com/color/d3d3d3
 
-                labels[[i not in highlights for i in labels]] = 'other'
+                labels[[i not in highlights for i in labels]] = "other"
                 points["label"] = pd.Categorical(labels)
 
                 # reorder data so that highlighting points will be on top of background points
-                highlight_ids, background_ids = points["label"] != 'other', points["label"] == 'other'
+                highlight_ids, background_ids = (
+                    points["label"] != "other",
+                    points["label"] == "other",
+                )
                 reorder_data = points.copy(deep=True)
-                reorder_data.iloc[:sum(background_ids), :], reorder_data.iloc[sum(background_ids):, :] = \
-                    points.iloc[background_ids, :], points.iloc[highlight_ids, :]
+                (
+                    reorder_data.iloc[: sum(background_ids), :],
+                    reorder_data.iloc[sum(background_ids) :, :],
+                ) = (points.iloc[background_ids, :], points.iloc[highlight_ids, :])
 
                 points = reorder_data
 
@@ -169,7 +185,10 @@ def _matplotlib_points(
             unique_labels = np.unique(labels)
             legend_elements = [
                 # Patch(facecolor=color_key[k], label=k) for k in unique_labels
-                Line2D([0], [0], marker='o', color=color_key[k], label=k, linestyle='None') for k in unique_labels
+                Line2D(
+                    [0], [0], marker="o", color=color_key[k], label=k, linestyle="None"
+                )
+                for k in unique_labels
             ]
         else:
             unique_labels = np.unique(labels)
@@ -181,7 +200,9 @@ def _matplotlib_points(
             new_color_key = {k: color_key[i] for i, k in enumerate(unique_labels)}
             legend_elements = [
                 # Patch(facecolor=color_key[i], label=k)
-                Line2D([0], [0], marker='o', color=color_key[i], label=k, linestyle='None')
+                Line2D(
+                    [0], [0], marker="o", color=color_key[i], label=k, linestyle="None"
+                )
                 for i, k in enumerate(unique_labels)
             ]
             colors = pd.Series(labels).map(new_color_key)
@@ -204,7 +225,16 @@ def _matplotlib_points(
         _vmin = np.min(values) if vmin is None else np.percentile(values, vmin)
         _vmax = np.min(values) if vmin is None else np.percentile(values, vmax)
 
-        ax.scatter(points[:, 0], points[:, 1], c=values, cmap=cmap, vmin=_vmin, vmax=_vmax, rasterized=True, **kwargs)
+        ax.scatter(
+            points[:, 0],
+            points[:, 1],
+            c=values,
+            cmap=cmap,
+            vmin=_vmin,
+            vmax=_vmax,
+            rasterized=True,
+            **kwargs,
+        )
 
         norm = matplotlib.colors.Normalize(vmin=_vmin, vmax=_vmax)
         mappable = matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
@@ -220,18 +250,33 @@ def _matplotlib_points(
         ax.scatter(points[:, 0], points[:, 1], c=colors, rasterized=True, **kwargs)
 
     if show_legend and legend_elements is not None:
-        if len(unique_labels) > 1 and show_legend == 'on data':
-            font_color = 'white' if background is 'black' else 'black'
+        if len(unique_labels) > 1 and show_legend == "on data":
+            font_color = "white" if background is "black" else "black"
             for i in unique_labels:
                 color_cnt = np.nanmedian(points[np.where(labels == i)[0], :2], 0)
-                txt = plt.text(color_cnt[0], color_cnt[1], str(i), color=font_color, zorder=1000,
-                               verticalalignment='center', horizontalalignment='center', weight='bold')  #
-                txt.set_path_effects([
-                    PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.6),
-                    PathEffects.Normal()])
+                txt = plt.text(
+                    color_cnt[0],
+                    color_cnt[1],
+                    str(i),
+                    color=font_color,
+                    zorder=1000,
+                    verticalalignment="center",
+                    horizontalalignment="center",
+                    weight="bold",
+                )  #
+                txt.set_path_effects(
+                    [
+                        PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.6),
+                        PathEffects.Normal(),
+                    ]
+                )
         else:
-            ax.legend(handles=legend_elements, bbox_to_anchor=(1.04, 1), loc="upper left",
-                      ncol=len(unique_labels) // 15 + 1)
+            ax.legend(
+                handles=legend_elements,
+                bbox_to_anchor=(1.04, 1),
+                loc="upper left",
+                ncol=len(unique_labels) // 15 + 1,
+            )
     return ax, colors
 
 
@@ -250,7 +295,7 @@ def _datashade_points(
     show_legend=True,
     vmin=2,
     vmax=98,
-    **kwargs
+    **kwargs,
 ):
     import matplotlib.pyplot as plt
 
@@ -282,7 +327,7 @@ def _datashade_points(
                 )
             )
 
-        labels = np.array(labels, dtype='str')
+        labels = np.array(labels, dtype="str")
         data["label"] = pd.Categorical(labels)
         if color_key is None and color_key_cmap is None:
             aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
@@ -296,23 +341,32 @@ def _datashade_points(
                     plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
                 )
             else:
-                highlights.append('other')
+                highlights.append("other")
                 unique_labels = np.array(highlights)
                 num_labels = unique_labels.shape[0]
                 color_key = _to_hex(
                     plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
                 )
-                color_key[-1] = '#bdbdbd' # lightgray hex code https://www.color-hex.com/color/d3d3d3
+                color_key[
+                    -1
+                ] = "#bdbdbd"  # lightgray hex code https://www.color-hex.com/color/d3d3d3
 
-                labels[[i not in highlights for i in labels]] = 'other'
+                labels[[i not in highlights for i in labels]] = "other"
                 data["label"] = pd.Categorical(labels)
 
                 # reorder data so that highlighting points will be on top of background points
-                highlight_ids, background_ids = data["label"] != 'other', data["label"] == 'other'
+                highlight_ids, background_ids = (
+                    data["label"] != "other",
+                    data["label"] == "other",
+                )
                 reorder_data = data.copy(deep=True)
-                reorder_data.iloc[:sum(background_ids), :], reorder_data.iloc[sum(background_ids):, :] = \
-                    data.iloc[background_ids, :], data.iloc[highlight_ids, :]
-                aggregation = canvas.points(reorder_data, "x", "y", agg=ds.count_cat("label"))
+                (
+                    reorder_data.iloc[: sum(background_ids), :],
+                    reorder_data.iloc[sum(background_ids) :, :],
+                ) = (data.iloc[background_ids, :], data.iloc[highlight_ids, :])
+                aggregation = canvas.points(
+                    reorder_data, "x", "y", agg=ds.count_cat("label")
+                )
 
             legend_elements = [
                 Patch(facecolor=color_key[i], label=k)
@@ -376,21 +430,41 @@ def _datashade_points(
     if ax is not None:
         _embed_datashader_in_an_axis(result, ax)
         if show_legend and legend_elements is not None:
-            if len(unique_labels) > 1 and show_legend == 'on data':
-                font_color = 'white' if background is 'black' else 'black'
+            if len(unique_labels) > 1 and show_legend == "on data":
+                font_color = "white" if background is "black" else "black"
                 for i in unique_labels:
-                    color_cnt = np.nanmedian(points.iloc[np.where(labels == i)[0], :2], 0)
-                    txt = plt.text(color_cnt[0], color_cnt[1], str(i),
-                                   color=font_color, zorder=1000,
-                                   verticalalignment='center', horizontalalignment='center', weight='bold')  #
-                    txt.set_path_effects([
-                        PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.6),
-                        PathEffects.Normal()])
+                    color_cnt = np.nanmedian(
+                        points.iloc[np.where(labels == i)[0], :2], 0
+                    )
+                    txt = plt.text(
+                        color_cnt[0],
+                        color_cnt[1],
+                        str(i),
+                        color=font_color,
+                        zorder=1000,
+                        verticalalignment="center",
+                        horizontalalignment="center",
+                        weight="bold",
+                    )  #
+                    txt.set_path_effects(
+                        [
+                            PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.6),
+                            PathEffects.Normal(),
+                        ]
+                    )
             else:
-                if type(show_legend) == 'str':
-                    ax.legend(handles=legend_elements, loc=show_legend, ncol=len(unique_labels) // 15 + 1)
+                if type(show_legend) == "str":
+                    ax.legend(
+                        handles=legend_elements,
+                        loc=show_legend,
+                        ncol=len(unique_labels) // 15 + 1,
+                    )
                 else:
-                    ax.legend(handles=legend_elements, loc='best', ncol=len(unique_labels) // 15 + 1)
+                    ax.legend(
+                        handles=legend_elements,
+                        loc="best",
+                        ncol=len(unique_labels) // 15 + 1,
+                    )
         return ax
     else:
         return result
@@ -639,23 +713,25 @@ def interactive(
 # plotting utilities borrow from velocyto
 # link - https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
 
+
 def despline(ax1=None):
     import matplotlib.pyplot as plt
 
     ax1 = plt.gca() if ax1 is None else ax1
     # Hide the right and top spines
-    ax1.spines['right'].set_visible(False)
-    ax1.spines['top'].set_visible(False)
+    ax1.spines["right"].set_visible(False)
+    ax1.spines["top"].set_visible(False)
     # Only show ticks on the left and bottom spines
-    ax1.yaxis.set_ticks_position('left')
-    ax1.xaxis.set_ticks_position('bottom')
+    ax1.yaxis.set_ticks_position("left")
+    ax1.xaxis.set_ticks_position("bottom")
+
 
 def minimal_xticks(start, end):
     import matplotlib.pyplot as plt
 
-    end_ = np.around(end, -int(np.log10(end))+1)
+    end_ = np.around(end, -int(np.log10(end)) + 1)
     xlims = np.linspace(start, end_, 5)
-    xlims_tx = [""]*len(xlims)
+    xlims_tx = [""] * len(xlims)
     xlims_tx[0], xlims_tx[-1] = f"{xlims[0]:.0f}", f"{xlims[-1]:.02f}"
     plt.xticks(xlims, xlims_tx)
 
@@ -663,56 +739,73 @@ def minimal_xticks(start, end):
 def minimal_yticks(start, end):
     import matplotlib.pyplot as plt
 
-    end_ = np.around(end, -int(np.log10(end))+1)
+    end_ = np.around(end, -int(np.log10(end)) + 1)
     ylims = np.linspace(start, end_, 5)
-    ylims_tx = [""]*len(ylims)
+    ylims_tx = [""] * len(ylims)
     ylims_tx[0], ylims_tx[-1] = f"{ylims[0]:.0f}", f"{ylims[-1]:.02f}"
     plt.yticks(ylims, ylims_tx)
 
 
 def set_spine_linewidth(ax, lw):
-    for axis in ['top','bottom','left','right']:
-      ax.spines[axis].set_linewidth(lw)
+    for axis in ["top", "bottom", "left", "right"]:
+        ax.spines[axis].set_linewidth(lw)
 
     return ax
 
+
 # ---------------------------------------------------------------------------------------------------
 # scatter plot utilities
+
 
 def scatter_with_colorbar(fig, ax, x, y, c, cmap, **scatter_kwargs):
     # https://stackoverflow.com/questions/32462881/add-colorbar-to-existing-axis
     from mpl_toolkits.axes_grid1 import make_axes_locatable
 
     divider = make_axes_locatable(ax)
-    cax = divider.append_axes('right', size='5%', pad=0.05)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
     g = ax.scatter(x, y, c=c, cmap=cmap, **scatter_kwargs)
-    fig.colorbar(g, cax=cax, orientation='vertical')
+    fig.colorbar(g, cax=cax, orientation="vertical")
 
     return fig, ax
 
 
-def scatter_with_legend(fig, ax, df, font_color, x, y, c, cmap, legend, **scatter_kwargs):
+def scatter_with_legend(
+    fig, ax, df, font_color, x, y, c, cmap, legend, **scatter_kwargs
+):
     import seaborn as sns
     import matplotlib.patheffects as PathEffects
 
     unique_labels = np.unique(c)
 
-    if legend == 'on data':
-        g = sns.scatterplot(x, y, hue=c,
-                            palette=cmap, ax=ax, \
-                            legend=False, **scatter_kwargs)
+    if legend == "on data":
+        g = sns.scatterplot(
+            x, y, hue=c, palette=cmap, ax=ax, legend=False, **scatter_kwargs
+        )
 
         for i in unique_labels:
             color_cnt = np.nanmedian(df.iloc[np.where(c == i)[0], :2], 0)
-            txt = ax.text(color_cnt[0], color_cnt[1], str(i), color=font_color, zorder=1000,
-                          verticalalignment='center', horizontalalignment='center', weight='bold')  # c
-            txt.set_path_effects([
-                PathEffects.Stroke(linewidth=5, foreground=font_color, alpha=0.6),  # 'w'
-                PathEffects.Normal()])
+            txt = ax.text(
+                color_cnt[0],
+                color_cnt[1],
+                str(i),
+                color=font_color,
+                zorder=1000,
+                verticalalignment="center",
+                horizontalalignment="center",
+                weight="bold",
+            )  # c
+            txt.set_path_effects(
+                [
+                    PathEffects.Stroke(
+                        linewidth=5, foreground=font_color, alpha=0.6
+                    ),  # 'w'
+                    PathEffects.Normal(),
+                ]
+            )
     else:
-        g = sns.scatterplot(x, y, hue=c,
-                            palette=cmap, ax=ax, \
-                            legend='full', **scatter_kwargs)
+        g = sns.scatterplot(
+            x, y, hue=c, palette=cmap, ax=ax, legend="full", **scatter_kwargs
+        )
         ax.legend(loc=legend, ncol=unique_labels // 15)
 
     return fig, ax
@@ -720,6 +813,7 @@ def scatter_with_legend(fig, ax, df, font_color, x, y, c, cmap, legend, **scatte
 
 # ---------------------------------------------------------------------------------------------------
 # vector field plot related utilities
+
 
 def quiver_autoscaler(X_emb, V_emb):
     """Function to automatically calculate the value for the scale parameter of quiver plot, adapted from scVelo
@@ -737,20 +831,36 @@ def quiver_autoscaler(X_emb, V_emb):
     """
 
     import matplotlib.pyplot as plt
+
     scale_factor = np.ptp(X_emb, 0).mean()
     X_emb = X_emb - X_emb.min(0)
 
     if len(V_emb.shape) == 3:
-        Q = plt.quiver(X_emb[0] / scale_factor, X_emb[1] / scale_factor,
-                   V_emb[0], V_emb[1], angles='xy', scale_units='xy', scale=None)
+        Q = plt.quiver(
+            X_emb[0] / scale_factor,
+            X_emb[1] / scale_factor,
+            V_emb[0],
+            V_emb[1],
+            angles="xy",
+            scale_units="xy",
+            scale=None,
+        )
     else:
-        Q = plt.quiver(X_emb[:, 0] / scale_factor, X_emb[:, 1] / scale_factor,
-                      V_emb[:, 0], V_emb[:, 1], angles='xy', scale_units='xy', scale=None)
+        Q = plt.quiver(
+            X_emb[:, 0] / scale_factor,
+            X_emb[:, 1] / scale_factor,
+            V_emb[:, 0],
+            V_emb[:, 1],
+            angles="xy",
+            scale_units="xy",
+            scale=None,
+        )
 
     Q._init()
     plt.clf()
 
     return Q.scale / scale_factor * 2
+
 
 def default_quiver_args(arrow_size, arrow_len=None):
     if isinstance(arrow_size, (list, tuple)) and len(arrow_size) == 3:
@@ -764,19 +874,22 @@ def default_quiver_args(arrow_size, arrow_len=None):
 
     return head_w, head_l, ax_l, scale
 
+
 # ---------------------------------------------------------------------------------------------------
 def _plot_traj(y0, t, args, integration_direction, ax, color, lw, f):
-    _, y = integrate_vf(y0, t, args, integration_direction, f) # integrate_vf_ivp
+    _, y = integrate_vf(y0, t, args, integration_direction, f)  # integrate_vf_ivp
 
-    ax.plot(*y.transpose(), color=color, lw=lw, linestyle='dashed', alpha=0.5)
+    ax.plot(*y.transpose(), color=color, lw=lw, linestyle="dashed", alpha=0.5)
 
     ax.scatter(*y0.transpose(), color=color, marker="*")
 
     return ax
 
+
 # ---------------------------------------------------------------------------------------------------
 # the following Loess class is taken from:
 # link: https://github.com/joaofig/pyloess/blob/master/pyloess/Loess.py
+
 
 def tricubic(x):
     y = np.zeros_like(x)
@@ -786,7 +899,6 @@ def tricubic(x):
 
 
 class Loess(object):
-
     @staticmethod
     def normalize_array(array):
         min_val = np.min(array)
@@ -804,7 +916,7 @@ class Loess(object):
         n = len(distances)
         if min_idx == 0:
             return np.arange(0, window)
-        if min_idx == n-1:
+        if min_idx == n - 1:
             return np.arange(n - window, n)
 
         min_range = [min_idx]
@@ -813,9 +925,9 @@ class Loess(object):
             i1 = min_range[-1]
             if i0 == 0:
                 min_range.append(i1 + 1)
-            elif i1 == n-1:
+            elif i1 == n - 1:
                 min_range.insert(0, i0 - 1)
-            elif distances[i0-1] < distances[i1+1]:
+            elif distances[i0 - 1] < distances[i1 + 1]:
                 min_range.insert(0, i0 - 1)
             else:
                 min_range.append(i1 + 1)
@@ -863,9 +975,9 @@ class Loess(object):
             mean_x = sum_weight_x / sum_weight
             mean_y = sum_weight_y / sum_weight
 
-            b = (sum_weight_xy - mean_x * mean_y * sum_weight) / \
-                (sum_weight_x2 - mean_x * mean_x * sum_weight)
+            b = (sum_weight_xy - mean_x * mean_y * sum_weight) / (
+                sum_weight_x2 - mean_x * mean_x * sum_weight
+            )
             a = mean_y - b * mean_x
             y = a + b * n_x
         return self.denormalize_y(y)
-

@@ -14,39 +14,39 @@
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
-master_doc = 'index'
+master_doc = "index"
 
 
 # -- Project information -----------------------------------------------------
 
-project = 'dynamo'
-copyright = '2019, Xiaojie Qiu, Yan Zhang'
-author = 'Xiaojie Qiu, Yan Zhang'
+project = "dynamo"
+copyright = "2019, Xiaojie Qiu, Yan Zhang"
+author = "Xiaojie Qiu, Yan Zhang"
 
 # The full version, including alpha/beta/rc tags
-release = '0.0.1'
+release = "0.0.1"
 
 # -- General configuration ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-needs_sphinx = '1.7'
+needs_sphinx = "1.7"
 
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.doctest',
-    'sphinx.ext.coverage',
-    'sphinx.ext.mathjax',
-    'sphinx.ext.autosummary',
-    'sphinx.ext.napoleon',
-    'sphinx.ext.intersphinx',
-    'sphinx.ext.githubpages',
-    'sphinx_autodoc_typehints',
+    "sphinx.ext.autodoc",
+    "sphinx.ext.doctest",
+    "sphinx.ext.coverage",
+    "sphinx.ext.mathjax",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.githubpages",
+    "sphinx_autodoc_typehints",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -59,22 +59,23 @@ exclude_patterns = []
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
+html_theme = "sphinx_rtd_theme"
 html_theme_options = dict(navigation_depth=2)
 html_context = dict(
-    display_github=True,      # Integrate GitHub
-    github_user='aristoteleo',   # organization
-    github_repo='dynamo',     # Repo name
-    github_version='master',  # Version
-    conf_py_path='/docs/source/',
+    display_github=True,  # Integrate GitHub
+    github_user="aristoteleo",  # organization
+    github_repo="dynamo",  # Repo name
+    github_version="master",  # Version
+    conf_py_path="/docs/source/",
 )
-html_static_path = ['_static']
+html_static_path = ["_static"]
 
 
 def setup(app):
-    app.add_stylesheet('custom.css')
+    app.add_stylesheet("custom.css")
+
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = ["_static"]

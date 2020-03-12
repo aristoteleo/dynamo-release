@@ -3,14 +3,25 @@ import pandas as pd
 import scipy
 import matplotlib.pyplot as plt
 
-from ..tools.topography import topography as _topology # , compute_separatrices
+from ..tools.topography import topography as _topology  # , compute_separatrices
 from ..configuration import set_figure_params
 from .scatters import scatters
 from .scatters import docstrings
 from .utils import _plot_traj, quiver_autoscaler
 
-def plot_flow_field(vecfld, x_range, y_range, n_grid=100, lw_min=0.5, lw_max=3,
-                    start_points=None, integration_direction='both', background=None, ax=None):
+
+def plot_flow_field(
+    vecfld,
+    x_range,
+    y_range,
+    n_grid=100,
+    lw_min=0.5,
+    lw_max=3,
+    start_points=None,
+    integration_direction="both",
+    background=None,
+    ax=None,
+):
     """Plots the flow field with line thickness proportional to speed.
     code adapted from: http://be150.caltech.edu/2017/handouts/dynamical_systems_approaches.html
 
@@ -43,15 +54,16 @@ def plot_flow_field(vecfld, x_range, y_range, n_grid=100, lw_min=0.5, lw_max=3,
     """
 
     from matplotlib import rcParams
+
     if background is not None:
         set_figure_params(background=background)
     else:
-        background = rcParams.get('figure.facecolor')
+        background = rcParams.get("figure.facecolor")
 
-    if background == 'black':
-        color, color_start_points = 'white', 'red'
+    if background == "black":
+        color, color_start_points = "white", "red"
     else:
-        color, color_start_points = 'thistle', 'tomato'
+        color, color_start_points = "thistle", "tomato"
 
     # Set up u,v space
     u = np.linspace(x_range[0], x_range[1], n_grid)
@@ -63,10 +75,10 @@ def plot_flow_field(vecfld, x_range, y_range, n_grid=100, lw_min=0.5, lw_max=3,
     v_vel = np.empty_like(vv)
     for i in range(uu.shape[0]):
         for j in range(uu.shape[1]):
-            u_vel[i,j], v_vel[i,j] = vecfld.func(np.array([uu[i,j], vv[i,j]]))
+            u_vel[i, j], v_vel[i, j] = vecfld.func(np.array([uu[i, j], vv[i, j]]))
 
     # Compute speed
-    speed = np.sqrt(u_vel**2 + v_vel**2)
+    speed = np.sqrt(u_vel ** 2 + v_vel ** 2)
 
     # Make linewidths proportional to speed,
     # with minimal line width of 0.5 and max of 3
@@ -76,16 +88,29 @@ def plot_flow_field(vecfld, x_range, y_range, n_grid=100, lw_min=0.5, lw_max=3,
     if ax is None:
         ax = plt.gca()
     if start_points is None:
-        ax.streamplot(uu, vv, u_vel, v_vel, linewidth=lw, arrowsize=1.2,
-                      density=1, color=color)
+        ax.streamplot(
+            uu, vv, u_vel, v_vel, linewidth=lw, arrowsize=1.2, density=1, color=color
+        )
     else:
-        if len(start_points.shape) == 1: start_points.reshape((1, 2))
+        if len(start_points.shape) == 1:
+            start_points.reshape((1, 2))
         ax.scatter(*start_points, marker="*", zorder=100)
 
-        ax.streamplot(uu, vv, u_vel, v_vel, linewidth=lw_max, arrowsize=1.2, start_points=start_points,
-                      integration_direction=integration_direction, density=10, color=color_start_points)
+        ax.streamplot(
+            uu,
+            vv,
+            u_vel,
+            v_vel,
+            linewidth=lw_max,
+            arrowsize=1.2,
+            start_points=start_points,
+            integration_direction=integration_direction,
+            density=10,
+            color=color_start_points,
+        )
 
     return ax
+
 
 def plot_nullclines(vecfld, lw=3, background=None, ax=None):
     """Plot nullclines stored in the VectorField2D class.
@@ -102,15 +127,16 @@ def plot_nullclines(vecfld, lw=3, background=None, ax=None):
             The matplotlib axes used for plotting. Default is to use the current axis.
     """
     from matplotlib import rcParams
+
     if background is not None:
         set_figure_params(background=background)
     else:
-        background = rcParams.get('figure.facecolor')
+        background = rcParams.get("figure.facecolor")
 
-    if background == 'black':
-        colors = ['#189e1a', '#1f77b4']
+    if background == "black":
+        colors = ["#189e1a", "#1f77b4"]
     else:
-        colors = ['#189e1a', '#1f77b4']
+        colors = ["#189e1a", "#1f77b4"]
 
     if ax is None:
         ax = plt.gca()
@@ -121,7 +147,15 @@ def plot_nullclines(vecfld, lw=3, background=None, ax=None):
 
     return ax
 
-def plot_fixed_points(vecfld, marker='o', markersize=10, filltype=['full', 'top', 'none'], background=None, ax=None):
+
+def plot_fixed_points(
+    vecfld,
+    marker="o",
+    markersize=10,
+    filltype=["full", "top", "none"],
+    background=None,
+    ax=None,
+):
     """Plot fixed points stored in the VectorField2D class.
     
     Arguments
@@ -141,25 +175,36 @@ def plot_fixed_points(vecfld, marker='o', markersize=10, filltype=['full', 'top'
             The matplotlib axes used for plotting. Default is to use the current axis.
     """
     from matplotlib import rcParams
+
     if background is not None:
         set_figure_params(background=background)
     else:
-        background = rcParams.get('figure.facecolor')
+        background = rcParams.get("figure.facecolor")
 
-    if background == 'black':
-        markercolor = '#ffffff'
+    if background == "black":
+        markercolor = "#ffffff"
     else:
-        markercolor = 'k'
+        markercolor = "k"
 
     Xss, ftype = vecfld.get_fixed_points(get_types=True)
     if ax is None:
         ax = plt.gca()
     for i in range(len(Xss)):
-        ax.plot(*Xss[i], marker=marker, markersize=markersize, c=markercolor, fillstyle=filltype[int(ftype[i] + 1)], linestyle='none')
+        ax.plot(
+            *Xss[i],
+            marker=marker,
+            markersize=markersize,
+            c=markercolor,
+            fillstyle=filltype[int(ftype[i] + 1)],
+            linestyle="none"
+        )
 
     return ax
 
-def plot_traj(f, y0, t, args=(), lw=2, background=None, integration_direction='both', ax=None):
+
+def plot_traj(
+    f, y0, t, args=(), lw=2, background=None, integration_direction="both", ax=None
+):
     """Plots a trajectory on a phase portrait.
     code adapted from: http://be150.caltech.edu/2017/handouts/dynamical_systems_approaches.html
 
@@ -189,27 +234,30 @@ def plot_traj(f, y0, t, args=(), lw=2, background=None, integration_direction='b
         Axis with streamplot included.
     """
     from matplotlib import rcParams
+
     if background is not None:
         set_figure_params(background=background)
     else:
-        background = rcParams.get('figure.facecolor')
+        background = rcParams.get("figure.facecolor")
 
-    if background == 'black':
-        color = ['#ffffff']
+    if background == "black":
+        color = ["#ffffff"]
     else:
-        color = 'black'
+        color = "black"
 
     if len(y0.shape) == 1:
         ax = _plot_traj(y0, t, args, integration_direction, ax, color, lw, f)
     else:
         for i in range(y0.shape[0]):
-            cur_y0 = y0[i, None] # don't drop dimension
+            cur_y0 = y0[i, None]  # don't drop dimension
             ax = _plot_traj(cur_y0, t, args, integration_direction, ax, color, lw, f)
 
     return ax
 
 
-def plot_separatrix(vecfld, x_range, y_range, t, noise=1e-6, lw=3, background=None, ax=None):
+def plot_separatrix(
+    vecfld, x_range, y_range, t, noise=1e-6, lw=3, background=None, ax=None
+):
     """Plot separatrix on phase portrait.
 
     Parameters
@@ -234,15 +282,16 @@ def plot_separatrix(vecfld, x_range, y_range, t, noise=1e-6, lw=3, background=No
 
     """
     from matplotlib import rcParams
+
     if background is not None:
         set_figure_params(background=background)
     else:
-        background = rcParams.get('figure.facecolor')
+        background = rcParams.get("figure.facecolor")
 
-    if background == 'black':
-        color = ['#ffffff']
+    if background == "black":
+        color = ["#ffffff"]
     else:
-        color = 'tomato'
+        color = "tomato"
 
     # No saddle point, no separatrix.
     fps, ftypes = vecfld.get_fixed_points(get_types=True)
@@ -281,50 +330,56 @@ def plot_separatrix(vecfld, x_range, y_range, t, noise=1e-6, lw=3, background=No
             sep_b = np.concatenate((ab_lower[::-1, 1], ab_upper[:, 1]))
 
             # Plot
-            ax.plot(sep_a, sep_b, '-', color=color, lw=lw)
+            ax.plot(sep_a, sep_b, "-", color=color, lw=lw)
 
-            all_sep_a = sep_a if all_sep_a is None else np.concatenate((all_sep_a, sep_a))
-            all_sep_b = sep_b if all_sep_b is None else np.concatenate((all_sep_b, sep_b))
+            all_sep_a = (
+                sep_a if all_sep_a is None else np.concatenate((all_sep_a, sep_a))
+            )
+            all_sep_b = (
+                sep_b if all_sep_b is None else np.concatenate((all_sep_b, sep_b))
+            )
 
     return ax
 
 
 @docstrings.with_indent(4)
 def topography(
-        adata,
-        basis='umap',
-        x=0,
-        y=1,
-        color=None,
-        layer='X',
-        highlights=None,
-        labels=None,
-        values=None,
-        theme=None,
-        cmap=None,
-        color_key=None,
-        color_key_cmap=None,
-        background=None,
-        ncols=1,
-        pointsize=None,
-        figsize=(7,5),
-        show_legend=True,
-        use_smoothed=True,
-        xlim=None,
-        ylim=None,
-        t=None,
-        terms=('streamline', 'fixed_points'),
-        init_cells=None,
-        init_states=None,
-        quiver_source='raw',
-        fate='both',
-        approx=False,
-        quiver_size=None,
-        quiver_length=None,
-        ax=None,
-        s_kwargs_dict={},
-        q_kwargs_dict={},
-        **topography_kwargs):
+    adata,
+    basis="umap",
+    x=0,
+    y=1,
+    color=None,
+    layer="X",
+    highlights=None,
+    labels=None,
+    values=None,
+    theme=None,
+    cmap=None,
+    color_key=None,
+    color_key_cmap=None,
+    background=None,
+    ncols=1,
+    pointsize=None,
+    figsize=(7, 5),
+    show_legend=True,
+    use_smoothed=True,
+    xlim=None,
+    ylim=None,
+    t=None,
+    terms=("streamline", "fixed_points"),
+    init_cells=None,
+    init_states=None,
+    quiver_source="raw",
+    fate="both",
+    approx=False,
+    quiver_size=None,
+    quiver_length=None,
+    ax=None,
+    aggregate=None,
+    s_kwargs_dict={},
+    q_kwargs_dict={},
+    **topography_kwargs
+):
     """Plot the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system
     for single cells. The plot is created on two dimensional space.
 
@@ -381,39 +436,57 @@ def topography(
         for single cells or return the corresponding axis, depending on the plot argument.
     """
     from matplotlib import rcParams
+
     if background is not None:
         set_figure_params(background=background)
     else:
-        background = rcParams.get('figure.facecolor')
+        background = rcParams.get("figure.facecolor")
 
     if approx:
-        if 'streamline' not in terms: terms.append('streamline')
-        if 'trajectory' in terms: terms = list(set(terms).difference('trajectory'))
+        if "streamline" not in terms:
+            terms.append("streamline")
+        if "trajectory" in terms:
+            terms = list(set(terms).difference("trajectory"))
 
-    uns_key = 'VecFld' if basis == 'X' else 'VecFld_' + basis
+    uns_key = "VecFld" if basis == "X" else "VecFld_" + basis
 
     if uns_key not in adata.uns.keys():
         _topology(adata, basis, VecFld=None)
-    elif 'VecFld2D' not in adata.uns[uns_key].keys():
+    elif "VecFld2D" not in adata.uns[uns_key].keys():
         _topology(adata, basis, VecFld=None)
-    elif 'VecFld2D' in adata.uns[uns_key].keys() and type(adata.uns[uns_key]['VecFld2D']) == str:
+    elif (
+        "VecFld2D" in adata.uns[uns_key].keys()
+        and type(adata.uns[uns_key]["VecFld2D"]) == str
+    ):
         _topology(adata, basis, VecFld=None)
 
     VF, vecfld = adata.uns[uns_key]["VecFld"], adata.uns[uns_key]["VecFld2D"]
-    xlim, ylim = adata.uns[uns_key]["xlim"] if xlim is None else xlim, \
-                 adata.uns[uns_key]["ylim"] if ylim is None else ylim
+    xlim, ylim = (
+        adata.uns[uns_key]["xlim"] if xlim is None else xlim,
+        adata.uns[uns_key]["ylim"] if ylim is None else ylim,
+    )
 
     if init_cells is not None:
         intersect_cell_names = list(set(init_cells).intersection(adata.obs_names))
-        _init_states = adata.obsm['X_' + basis][init_cells, :] if len(intersect_cell_names) == 0 else \
-            adata[intersect_cell_names].obsm['X_' + basis].copy()
-        V = adata.obsm['velocity_' + basis][init_cells, :] if len(intersect_cell_names) == 0 else \
-            adata[intersect_cell_names].obsm['velocity_' + basis].copy()
+        _init_states = (
+            adata.obsm["X_" + basis][init_cells, :]
+            if len(intersect_cell_names) == 0
+            else adata[intersect_cell_names].obsm["X_" + basis].copy()
+        )
+        V = (
+            adata.obsm["velocity_" + basis][init_cells, :]
+            if len(intersect_cell_names) == 0
+            else adata[intersect_cell_names].obsm["velocity_" + basis].copy()
+        )
 
-        if init_states is None: init_states = _init_states
+        if init_states is None:
+            init_states = _init_states
 
-    if quiver_source == 'reconstructed' or (init_states is not None and init_cells is None):
+    if quiver_source == "reconstructed" or (
+        init_states is not None and init_cells is None
+    ):
         from ..tools.utils import vector_field_function
+
         V = vector_field_function(init_states, None, VF, [0, 1])
 
     axes_list, color_list, font_color = scatters(
@@ -437,72 +510,126 @@ def topography(
         show_legend,
         use_smoothed,
         ax,
-        'return',
-        **s_kwargs_dict)
+        "return",
+        aggregate,
+        **s_kwargs_dict
+    )
 
     for i in range(len(axes_list)):
         # ax = axes_list[i]
 
-        axes_list[i].set_xlabel(basis + '_1')
-        axes_list[i].set_ylabel(basis + '_2')
-        axes_list[i].set_aspect('equal')
+        axes_list[i].set_xlabel(basis + "_1")
+        axes_list[i].set_ylabel(basis + "_2")
+        axes_list[i].set_aspect("equal")
 
         # Build the plot
         axes_list[i].set_xlim(xlim)
         axes_list[i].set_ylim(ylim)
 
         if t is None:
-            max_t = np.max((np.diff(xlim), np.diff(ylim))) / np.min(np.abs(VF['grid_V']))
+            max_t = np.max((np.diff(xlim), np.diff(ylim))) / np.min(
+                np.abs(VF["grid_V"])
+            )
 
-            t = np.linspace(0, max_t, 10**(np.min((int(np.log10(max_t)), 8))))
+            t = np.linspace(0, max_t, 10 ** (np.min((int(np.log10(max_t)), 8))))
 
-        integration_direction = 'both' if fate == 'both' else 'forward' if fate == 'future' else 'backward' if fate == 'history' else "both"
+        integration_direction = (
+            "both"
+            if fate == "both"
+            else "forward"
+            if fate == "future"
+            else "backward"
+            if fate == "history"
+            else "both"
+        )
 
-        if 'streamline' in terms:
+        if "streamline" in terms:
             if approx:
-                axes_list[i] = plot_flow_field(vecfld, xlim, ylim, background=background, start_points=init_states, integration_direction=integration_direction, ax=axes_list[i])
+                axes_list[i] = plot_flow_field(
+                    vecfld,
+                    xlim,
+                    ylim,
+                    background=background,
+                    start_points=init_states,
+                    integration_direction=integration_direction,
+                    ax=axes_list[i],
+                )
             else:
-                axes_list[i] = plot_flow_field(vecfld, xlim, ylim, background=background, ax=axes_list[i])
+                axes_list[i] = plot_flow_field(
+                    vecfld, xlim, ylim, background=background, ax=axes_list[i]
+                )
 
-        if 'nullcline' in terms:
-            axes_list[i] = plot_nullclines(vecfld, background=background, ax=axes_list[i])
+        if "nullcline" in terms:
+            axes_list[i] = plot_nullclines(
+                vecfld, background=background, ax=axes_list[i]
+            )
 
-        if 'fixed_points' in terms:
-            axes_list[i] = plot_fixed_points(vecfld, background=background, ax=axes_list[i])
+        if "fixed_points" in terms:
+            axes_list[i] = plot_fixed_points(
+                vecfld, background=background, ax=axes_list[i]
+            )
 
-        if 'separatrices' in terms:
-            axes_list[i] = plot_separatrix(vecfld, xlim, ylim, t=t, background=background, ax=axes_list[i])
+        if "separatrices" in terms:
+            axes_list[i] = plot_separatrix(
+                vecfld, xlim, ylim, t=t, background=background, ax=axes_list[i]
+            )
 
-        if init_states is not None and 'trajectory' in terms:
+        if init_states is not None and "trajectory" in terms:
             if not approx:
-                axes_list[i] = plot_traj(vecfld.func, init_states, t, background=background, integration_direction=integration_direction, ax=axes_list[i])
+                axes_list[i] = plot_traj(
+                    vecfld.func,
+                    init_states,
+                    t,
+                    background=background,
+                    integration_direction=integration_direction,
+                    ax=axes_list[i],
+                )
 
         # show quivers for the init_states cells
-        if init_states is not None and 'quiver' in terms:
+        if init_states is not None and "quiver" in terms:
             from .utils import default_quiver_args
             from ..tools.utils import update_dict
 
             X = init_states
-            V /= (3 * quiver_autoscaler(X, V))
+            V /= 3 * quiver_autoscaler(X, V)
 
             df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "u": V[:, 0], "v": V[:, 1]})
 
             if quiver_size is None:
                 quiver_size = 1
-            if background == 'black':
-                edgecolors = 'white'
+            if background == "black":
+                edgecolors = "white"
             else:
-                edgecolors = 'black'
+                edgecolors = "black"
 
-            head_w, head_l, ax_l, scale = default_quiver_args(quiver_size, quiver_length)  #
-            quiver_kwargs = {"angles": 'xy', 'scale': scale, "scale_units": 'xy', "width": 0.0005,
-                             "headwidth": head_w, "headlength": head_l, "headaxislength": ax_l, "minshaft": 1,
-                             "minlength": 1,
-                             "pivot": "tail", "linewidth": .1, "edgecolors": edgecolors, "alpha": 1, "zorder": 10}
+            head_w, head_l, ax_l, scale = default_quiver_args(
+                quiver_size, quiver_length
+            )  #
+            quiver_kwargs = {
+                "angles": "xy",
+                "scale": scale,
+                "scale_units": "xy",
+                "width": 0.0005,
+                "headwidth": head_w,
+                "headlength": head_l,
+                "headaxislength": ax_l,
+                "minshaft": 1,
+                "minlength": 1,
+                "pivot": "tail",
+                "linewidth": 0.1,
+                "edgecolors": edgecolors,
+                "alpha": 1,
+                "zorder": 10,
+            }
             quiver_kwargs = update_dict(quiver_kwargs, q_kwargs_dict)
             # axes_list[i].quiver(X_grid[:, 0], X_grid[:, 1], V_grid[:, 0], V_grid[:, 1], **quiver_kwargs)
-            axes_list[i].quiver(df.iloc[:, 0], df.iloc[:, 1],
-                                df.iloc[:, 2], df.iloc[:, 3], **quiver_kwargs) # color='red',  facecolors='gray'
+            axes_list[i].quiver(
+                df.iloc[:, 0],
+                df.iloc[:, 1],
+                df.iloc[:, 2],
+                df.iloc[:, 3],
+                **quiver_kwargs
+            )  # color='red',  facecolors='gray'
 
     plt.tight_layout()
     plt.show()

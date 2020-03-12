@@ -1,4 +1,4 @@
-def show_landscape(adata, Xgrid, Ygrid, Zgrid, basis='umap'):
+def show_landscape(adata, Xgrid, Ygrid, Zgrid, basis="umap"):
     """Plot the quasi-potential landscape.
 
     Parameters
@@ -20,8 +20,12 @@ def show_landscape(adata, Xgrid, Ygrid, Zgrid, basis='umap'):
 
     """
 
-    if 'grid_Pot_' + basis in adata.uns.keys():
-        Xgrid_, Ygrid_, Zgrid_ = adata.uns['grid_Pot_' + basis]['Xgrid'], adata.uns['grid_Pot_' + basis]['Ygrid'], adata.uns['grid_Pot_' + basis]['Zgrid']
+    if "grid_Pot_" + basis in adata.uns.keys():
+        Xgrid_, Ygrid_, Zgrid_ = (
+            adata.uns["grid_Pot_" + basis]["Xgrid"],
+            adata.uns["grid_Pot_" + basis]["Ygrid"],
+            adata.uns["grid_Pot_" + basis]["Zgrid"],
+        )
 
     Xgrid = Xgrid_ if Xgrid is None else Xgrid
     Ygrid = Ygrid_ if Ygrid is None else Ygrid
@@ -34,26 +38,35 @@ def show_landscape(adata, Xgrid, Ygrid, Zgrid, basis='umap'):
     from matplotlib.colors import LightSource
 
     fig = plt.figure()
-    ax = fig.gca(projection='3d')
+    ax = fig.gca(projection="3d")
 
     # Plot the surface.
     ls = LightSource(azdeg=0, altdeg=65)
     # Shade data, creating an rgb array.
     rgb = ls.shade(Zgrid, plt.cm.RdYlBu)
-    surf = ax.plot_surface(Xgrid, Ygrid, Zgrid, cmap=cm.coolwarm,
-                           rstride=1, cstride=1, facecolors=rgb,
-                           linewidth=0, antialiased=False)
+    surf = ax.plot_surface(
+        Xgrid,
+        Ygrid,
+        Zgrid,
+        cmap=cm.coolwarm,
+        rstride=1,
+        cstride=1,
+        facecolors=rgb,
+        linewidth=0,
+        antialiased=False,
+    )
     # Customize the z axis.
     ax.zaxis.set_major_locator(LinearLocator(10))
-    ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
+    ax.zaxis.set_major_formatter(FormatStrFormatter("%.02f"))
 
     # Add a color bar which maps values to colors.
     # fig.colorbar(surf, shrink=0.5, aspect=5)
-    ax.set_xlabel(basis + '_1')
-    ax.set_ylabel(basis + '_2')
-    ax.set_zlabel('U')
+    ax.set_xlabel(basis + "_1")
+    ax.set_ylabel(basis + "_2")
+    ax.set_zlabel("U")
 
     plt.show()
+
 
 # show_pseudopot(Xgrid, Ygrid, Zgrid)
 

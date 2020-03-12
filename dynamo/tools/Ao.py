@@ -3,6 +3,7 @@ from scipy.optimize import least_squares
 
 # from scPotential import show_landscape
 
+
 def constructQ(q):
     """Construct the Q matrix from the vector q, estimated by the least square optimizer
 
@@ -18,7 +19,7 @@ def constructQ(q):
     """
 
     m = len(q)
-    n = int((1 + np.sqrt(1 + 8*m))/2)
+    n = int((1 + np.sqrt(1 + 8 * m)) / 2)
 
     Q = np.zeros((n, n), dtype=float)
     c = 0
@@ -50,11 +51,11 @@ def solveQ(D, F, debug=False):
     """
 
     n = D.shape[0]
-    m = int(n*(n-1)/2)
+    m = int(n * (n - 1) / 2)
     C = F.dot(D) - D.dot(F.T)
     f_left = lambda X, F: X.dot(F.T) + F.dot(X)
-    #f_obj = @(q)(sum(sum((constructQ(q) * F' + F * constructQ(q) - C).^2)));
-    f_obj = lambda q: np.sum((f_left(constructQ(q), F) - C)**2)
+    # f_obj = @(q)(sum(sum((constructQ(q) * F' + F * constructQ(q) - C).^2)));
+    f_obj = lambda q: np.sum((f_left(constructQ(q), F) - C) ** 2)
 
     sol = least_squares(f_obj, np.ones(m, dtype=float))
     Q = constructQ(sol.x)
@@ -109,13 +110,15 @@ def Ao_pot_map(vecFunc, X, D=None):
         F = nda.Jacobian(vecFunc)(X_s)
         Q, _ = solveQ(D, F)
         H = np.linalg.inv(D + Q).dot(F)
-        U[i] = - 0.5 * X_s.dot(H).dot(X_s)
+        U[i] = -0.5 * X_s.dot(H).dot(X_s)
 
         vecMat[i] = vecFunc(X_s)
-        S[i], A[i] = (np.linalg.inv(D + Q) + np.linalg.inv((D + Q).T)) / 2, (np.linalg.inv(D + Q) - np.linalg.inv((D + Q).T)) / 2
+        S[i], A[i] = (
+            (np.linalg.inv(D + Q) + np.linalg.inv((D + Q).T)) / 2,
+            (np.linalg.inv(D + Q) - np.linalg.inv((D + Q).T)) / 2,
+        )
 
     P = np.exp(-U)
     P = P / np.sum(P)
 
     return X, U, P, vecMat, S, A
-

@@ -1,9 +1,12 @@
 import numpy as np
+
 # from scipy.integrate import odeint
 from scipy.interpolate import griddata
 
 
-def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTimeSteps=1400):
+def path_integral(
+    VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTimeSteps=1400
+):
     """A deterministic map of Waddington’s epigenetic landscape for cell fate specification
     Sudin Bhattacharya, Qiang Zhang and Melvin E. Andersen
 
@@ -67,7 +70,9 @@ def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTim
     y_path = np.zeros((numPaths, numTimeSteps))  # y-coord. along path
     pot_path = np.zeros((numPaths, numTimeSteps))  # pot. along path
 
-    path_tag = np.ones((numPaths, 1), dtype='int')  # tag for given path (to denote basin of attraction)
+    path_tag = np.ones(
+        (numPaths, 1), dtype="int"
+    )  # tag for given path (to denote basin of attraction)
     # ** initialized to 1 for all paths **
 
     # Initialize "Path counter" to 1
@@ -135,7 +140,9 @@ def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTim
                 y_path[path_counter, n_steps] = y_p
 
                 # update "potential"
-                dPot = - (dxdt) * dx - (dydt) * dy  # signs ensure that "potential" decreases as "velocity" increases
+                dPot = (
+                    -(dxdt) * dx - (dydt) * dy
+                )  # signs ensure that "potential" decreases as "velocity" increases
                 Pot = Pot_old + dPot
                 pot_path[path_counter, n_steps] = Pot
 
@@ -145,23 +152,32 @@ def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTim
             # y_path=odeint(Pot_func, x_p, y_p, t=0)
             # ################################################################################################################
             # check for convergence
-            if (abs(Pot - Pot_old) > tol):
-                print(1, 'Warning: not converged!\n')
+            if abs(Pot - Pot_old) > tol:
+                print(1, "Warning: not converged!\n")
 
             # --- assign path tag (to track multiple basins of attraction) ---
-            if (path_counter == 0):
+            if path_counter == 0:
                 # record attractor of first path and its coords
                 num_attractors = num_attractors + 1
-                current_att_num_X_Y = np.array([num_attractors, x_p, y_p])  # create array
-                attractors_num_X_Y = np.vstack((attractors_num_X_Y, current_att_num_X_Y)) if attractors_num_X_Y is not \
-                                                                                             None else np.array(
-                    [current_att_num_X_Y])  # append array (vertically)
-                attractors_pot = np.vstack((attractors_pot, Pot)) if attractors_pot is not \
-                                                                     None else np.array(
-                    [Pot])  # append attractor potentials to array (vertically)
+                current_att_num_X_Y = np.array(
+                    [num_attractors, x_p, y_p]
+                )  # create array
+                attractors_num_X_Y = (
+                    np.vstack((attractors_num_X_Y, current_att_num_X_Y))
+                    if attractors_num_X_Y is not None
+                    else np.array([current_att_num_X_Y])
+                )  # append array (vertically)
+                attractors_pot = (
+                    np.vstack((attractors_pot, Pot))
+                    if attractors_pot is not None
+                    else np.array([Pot])
+                )  # append attractor potentials to array (vertically)
                 path_tag[path_counter] = num_attractors - 1  # initialize path tag
-                numPaths_att = np.vstack((numPaths_att, 1)) if numPaths_att is not \
-                                                               None else np.array([1])  # append to array (vertically)
+                numPaths_att = (
+                    np.vstack((numPaths_att, 1))
+                    if numPaths_att is not None
+                    else np.array([1])
+                )  # append to array (vertically)
 
             else:
                 # i.e. if path counter > 1
@@ -178,14 +194,14 @@ def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTim
                 pot_p_lastPath = pot_path[(path_counter - 1), numTimeSteps - 1]
 
                 # calculate distance between "start points" of current and previous paths
-                startPt_dist_sqr = ((x0 - x0_lastPath) ** 2 + (y0 - y0_lastPath) ** 2)
+                startPt_dist_sqr = (x0 - x0_lastPath) ** 2 + (y0 - y0_lastPath) ** 2
 
                 # calculate distance between "end points" of current and previous paths
-                endPt_dist_sqr = ((x_p - xp_lastPath) ** 2 + (y_p - yp_lastPath) ** 2)
+                endPt_dist_sqr = (x_p - xp_lastPath) ** 2 + (y_p - yp_lastPath) ** 2
 
                 # check if the current path *ended* in a different point compared to previous path (x-y grid spacing used
                 # as a "tolerance" for distance)
-                if (endPt_dist_sqr > (2 * (xyGridSpacing ** 2))):
+                if endPt_dist_sqr > (2 * (xyGridSpacing ** 2)):
 
                     # --- check if this "different" attractor has been identified before
                     new_attr_found = 1
@@ -193,7 +209,9 @@ def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTim
                     for k in range(num_attractors):
                         x_att = attractors_num_X_Y[k, 1]
                         y_att = attractors_num_X_Y[k, 2]
-                        if ((abs(x_p - x_att) < xyGridSpacing) and (abs(y_p - y_att) < xyGridSpacing)):
+                        if (abs(x_p - x_att) < xyGridSpacing) and (
+                            abs(y_p - y_att) < xyGridSpacing
+                        ):
                             # this attractor has been identified before
                             new_attr_found = 0
                             path_tag[path_counter] = k  # DOUBLE CHECK ***
@@ -204,20 +222,28 @@ def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTim
                         num_attractors = num_attractors + 1
                         current_att_num_X_Y = [num_attractors, x_p, y_p]  # create array
                         attractors_num_X_Y = np.vstack(
-                            (attractors_num_X_Y, current_att_num_X_Y))  # append array (vertically)
+                            (attractors_num_X_Y, current_att_num_X_Y)
+                        )  # append array (vertically)
                         path_tag[path_counter] = num_attractors - 1  # DOUBLE CHECK **
-                        numPaths_att = np.vstack((numPaths_att, 1))  # append to array (vertically)
+                        numPaths_att = np.vstack(
+                            (numPaths_att, 1)
+                        )  # append to array (vertically)
                         attractors_pot = np.vstack(
-                            (attractors_pot, Pot))  # append attractor potentials to array (vertically)
+                            (attractors_pot, Pot)
+                        )  # append attractor potentials to array (vertically)
 
                         # check if start points of current and previous paths are "adjacent" - if so, assign separatrix
-                        if (startPt_dist_sqr < (2 * (xyGridSpacing ** 2))):
-                            curr_sepx = [path_tag[path_counter - 1], path_tag[path_counter],
-                                         (path_counter - 1)]  # create array
-                            sepx_old_new_pathNum = np.vstack(
-                                (sepx_old_new_pathNum, curr_sepx)) if sepx_old_new_pathNum is not \
-                                                                      None else np.array(
-                                [curr_sepx])  # append array (vertically)
+                        if startPt_dist_sqr < (2 * (xyGridSpacing ** 2)):
+                            curr_sepx = [
+                                path_tag[path_counter - 1],
+                                path_tag[path_counter],
+                                (path_counter - 1),
+                            ]  # create array
+                            sepx_old_new_pathNum = (
+                                np.vstack((sepx_old_new_pathNum, curr_sepx))
+                                if sepx_old_new_pathNum is not None
+                                else np.array([curr_sepx])
+                            )  # append array (vertically)
                             # attractors_pot = np.vstack((attractors_pot, Pot)) # append attractor potentials to array (vertically) #????????????????????????????????????????????????????????????????????????????????????
                             num_sepx = num_sepx + 1  # increment no. of separatrices
                     else:
@@ -232,20 +258,26 @@ def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTim
                             attr1 = sepx_old_new_pathNum[k, 0]
                             attr2 = sepx_old_new_pathNum[k, 1]
 
-                            if ((path_tag[path_counter - 1] == attr1) or (path_tag[path_counter - 1] == attr2)):
+                            if (path_tag[path_counter - 1] == attr1) or (
+                                path_tag[path_counter - 1] == attr2
+                            ):
                                 # this attractor has been identified before
                                 prev_attr_new = 0
                                 break  # exit for-loop
 
                         if prev_attr_new == 1:
                             # check if start points of current and previous paths are "adjacent"  - if so, assign separatrix
-                            if (startPt_dist_sqr < (2 * (xyGridSpacing ** 2))):
-                                curr_sepx = [path_tag[path_counter - 1], path_tag[path_counter],
-                                             (path_counter - 1)]  # create array
-                                sepx_old_new_pathNum = np.vstack(
-                                    (sepx_old_new_pathNum, curr_sepx)) if sepx_old_new_pathNum is not \
-                                                                          None else np.array(
-                                    [curr_sepx])  # append array (vertically)
+                            if startPt_dist_sqr < (2 * (xyGridSpacing ** 2)):
+                                curr_sepx = [
+                                    path_tag[path_counter - 1],
+                                    path_tag[path_counter],
+                                    (path_counter - 1),
+                                ]  # create array
+                                sepx_old_new_pathNum = (
+                                    np.vstack((sepx_old_new_pathNum, curr_sepx))
+                                    if sepx_old_new_pathNum is not None
+                                    else np.array([curr_sepx])
+                                )  # append array (vertically)
                                 # attractors_pot = np.vstack((attractors_pot, pot_p_lastPath)) # append attractor potentials to array vertically) #????????????????????????????????????????????????????????????????????????????????????
                                 num_sepx = num_sepx + 1  # increment no. of separatrices
 
@@ -263,11 +295,32 @@ def path_integral(VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTim
             # increment "path counter"
             path_counter = path_counter + 1
 
-    return attractors_num_X_Y, sepx_old_new_pathNum, numPaths_att, num_attractors, numPaths, numTimeSteps, pot_path, path_tag, attractors_pot, x_path, y_path
+    return (
+        attractors_num_X_Y,
+        sepx_old_new_pathNum,
+        numPaths_att,
+        num_attractors,
+        numPaths,
+        numTimeSteps,
+        pot_path,
+        path_tag,
+        attractors_pot,
+        x_path,
+        y_path,
+    )
 
 
-def alignment(numPaths, numTimeSteps, pot_path, path_tag, attractors_pot, x_path, y_path, grid=100,
-              interpolation_method='linear'):
+def alignment(
+    numPaths,
+    numTimeSteps,
+    pot_path,
+    path_tag,
+    attractors_pot,
+    x_path,
+    y_path,
+    grid=100,
+    interpolation_method="linear",
+):
     """ Align potential values so all path-potentials end up at same global min and then generate potential surface with
     interpolation on a grid.
 
@@ -360,8 +413,12 @@ def alignment(numPaths, numTimeSteps, pot_path, path_tag, attractors_pot, x_path
     ylin = np.linspace(min(y_p_list), max(y_p_list), grid)
     Xgrid, Ygrid = np.meshgrid(xlin, ylin)
 
-    Zgrid = griddata(np.hstack((x_p_list, y_p_list)), pot_p_list, np.vstack((Xgrid.flatten(), Ygrid.flatten())).T,
-                     method=interpolation_method)
+    Zgrid = griddata(
+        np.hstack((x_p_list, y_p_list)),
+        pot_p_list,
+        np.vstack((Xgrid.flatten(), Ygrid.flatten())).T,
+        method=interpolation_method,
+    )
     Zgrid = Zgrid.reshape(Xgrid.shape)
 
     # print('Ran surface grid-interpolation okay!\n')

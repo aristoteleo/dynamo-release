@@ -2,7 +2,7 @@ import numpy as np
 from sklearn.metrics import mean_squared_error
 
 
-def evaluate(reference, prediction, metric='cosine'):
+def evaluate(reference, prediction, metric="cosine"):
     """Function to evaluate the vector field related reference quantities vs. that from vector field prediction.
 
     Parameters
@@ -22,13 +22,15 @@ def evaluate(reference, prediction, metric='cosine'):
             The score between the reference vs. reconstructed quantities based on the metric.
     """
 
-    if metric is 'cosine':
+    if metric is "cosine":
         true_normalized = reference / np.linalg.norm(reference, axis=1).reshape(-1, 1)
-        predict_normalized = prediction / np.linalg.norm(prediction, axis=1).reshape(-1, 1)
+        predict_normalized = prediction / np.linalg.norm(prediction, axis=1).reshape(
+            -1, 1
+        )
 
         res = np.mean(true_normalized * predict_normalized) * prediction.shape[1]
 
-    elif metric is 'rmse':
+    elif metric is "rmse":
         res = mean_squared_error(y_true=reference, y_pred=prediction)
 
     return res
