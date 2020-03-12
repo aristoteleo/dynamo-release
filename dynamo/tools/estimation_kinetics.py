@@ -80,9 +80,9 @@ class Estimation:
             self.simulator.set_params(0, *params[:self.n_params - self.simulator.n_species])
         x0 = self.simulator.x0 if self.fix_x0 else params[-self.simulator.n_species:]
         if method == 'numerical':
-            self.simulator.integrate(t, x0)
+            self.simulator.integrate_numerical(t, x0)
         elif method == 'matrix':
-            self.simulator.solve(t, x0)
+            self.simulator.integrate_matrix(t, x0)
         ret = self.extract_data_from_simulator()
         ret = self.normalize_data(ret) if normalize else ret
         ret[np.isnan(ret)] = 0
@@ -112,7 +112,7 @@ class Estimation:
         self.cost = costs[i_min]
         return self.popt, self.cost
 
-class EstimationKin(Estimation):
+class Estimation_MomentKin(Estimation):
     '''An estimation class for kinetics experiments.
         Order of species: <unspliced>, <spliced>, <uu>, <ss>, <us>
     '''
@@ -143,7 +143,7 @@ class EstimationKin(Estimation):
     def calc_deg_half_life(self):
         return np.log(2)/self.get_gamma()
 
-class EstimationKinNosp(Estimation):
+class Estimation_MomentKinNosp(Estimation):
     '''An estimation class for kinetics experiments (without splicing).
         Order of species: <r>, <rr>
     '''
@@ -173,7 +173,7 @@ class EstimationKinNosp(Estimation):
     def calc_deg_half_life(self):
         return np.log(2)/self.get_gamma()
 
-class EstimationDeg(Estimation):
+class Estimation_MomentDeg(Estimation):
     '''An estimation class for degradation (with splicing) experiments.
         Order of species: <unspliced>, <spliced>, <uu>, <ss>, <us>
     '''
@@ -192,7 +192,7 @@ class EstimationDeg(Estimation):
     def calc_deg_half_life(self):
         return np.log(2)/self.get_gamma()
 
-class EstimationDegNosp(Estimation):
+class Estimation_MomentDegNosp(Estimation):
     '''An estimation class for degradation (no splicing) experiments.
         Order of species: <r>, <rr>
     '''
@@ -204,3 +204,22 @@ class EstimationDegNosp(Estimation):
 
     def calc_half_life(self):
         return np.log(2)/self.get_gamma()
+
+class Estimation_DeterministicDeg(Estimation):
+    '''An estimation class for degradation (with splicing) experiments.
+        Order of species: <unspliced>, <spliced>
+    '''
+    def __init__(self, ranges, x0=None):
+        super().__init__(ranges, Deterministic(), x0)
+
+    def get_beta(self):
+        return self.popt[0]
+
+    def get_gamma(self):
+        return self.popt[1]
+
+    def calc_spl_half_life(self):
+        return np.log(2)/self.get_beta()
+
+    def calc_deg_half_life(self):
+        return np.log(2)/self.get_gamma()    
