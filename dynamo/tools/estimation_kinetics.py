@@ -8,7 +8,7 @@ def estimate_p0_deg_nosp(x_data, time):
     '''Roughly estimate p0 with the assumption that time starts at 0 for degradation data without splicing.'''
     u0 = x_data[0][0]
     uu0 = x_data[1][0]
-    ga0 = np.log(x_data[0][0]/(x_data[0][-1]+1e-6)) / time[-1]
+    ga0 = max(0, np.log(x_data[0][0]/(x_data[0][-1]+1e-6)) / time[-1])
     return np.array([ga0, u0, uu0])
 
 class Estimation:
