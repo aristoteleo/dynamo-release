@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.integrate import odeint
+from .utils_velocity import sol_u, sol_s
 
 class LinearODE:
     def __init__(self, n_species, x0=None):
@@ -19,7 +20,7 @@ class LinearODE:
         dx = np.zeros(len(x))
         return dx
     
-    def integrate(self, t, x0=None):
+    def integrate_numerical(self, t, x0=None):
         if x0 is None:
             x0 = self.x0
         else:
@@ -42,7 +43,7 @@ class LinearODE:
         p = np.zeros(self.n_species)
         return K, p
     
-    def solve(self, t, x0=None):
+    def integrate_matrix(self, t, x0=None):
         t0 = t[0]
         if x0 is None:
             x0 = self.x0
@@ -409,3 +410,68 @@ class Moments(LinearODE):
         p[self.ui] = ai 
 
         return K, p
+
+class Deterministic(LinearODE):
+    def __init__(self, alpha=None, beta=None, gamma=None, x0=None):
+        """This class simulates the deterministic dynamics of
+        a transcription-splicing system."""
+        # species
+        self.u = 0
+        self.s = 1
+
+        n_species = 2
+
+        # solution
+        super().__init__(n_species, x0)
+
+        self.methods = ['numerical', 'analytical']
+
+        # parameters
+        if not (alpha is None or beta is None or gamma is None):
+            self.set_params(alpha, beta, gamma)
+
+    def ode_func(self, x, t):
+        dx = np.zeros(len(x))
+        # parameters
+        al = self.al
+        be = self.be
+        ga = self.ga
+
+        # kinetics
+        dx[self.u] = al - be*x[self.u]
+        dx[self.s] = be*x[self.u] - ga*x[self.s]
+
+        return dx
+
+    def set_params(self, alpha, beta, gamma):
+        self.al = alpha
+        self.be = beta
+        self.ga = gamma
+
+        # reset solutions
+        super().reset()
+
+    def computeKnp(self):
+        # parameters
+        al = self.al
+        be = self.be
+        ga = self.ga
+
+        K = np.zeros((self.n_species, self.n_species))
+        # E1
+        K[self.u, self.u] = -be
+        K[self.s, self.s] = -ga
+
+        # F21
+        K[self.s, self.u] = be
+
+        p = np.zeros(self.n_species)
+        p[self.u] = al
+
+        return K, p
+
+    def integrate_analytical(self, t, x0=None):
+        x0 = self.x0 if x0 is None else x0
+        u = sol_u(t, x0[self.u], self.al, self.be)
+        s = sol_s(t, x0[self.s], x0[self.u], self.al, self.be, self.ga)
+        return np.array([u, s]).T
