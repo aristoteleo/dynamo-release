@@ -86,6 +86,23 @@ class Estimation:
         return (ret - x_data).flatten()
 
     def fit_lsq(self, t, x_data, p0=None, n_p0=1, bounds=None, sample_method='lhs', method='matrix', normalize=True):
+        '''Fit time-seris data using least squares
+        Arguments
+        ---------
+            t: `numpy.ndarray`
+                a numpy array of n time points.
+            x_data: `numpy.ndarray`
+                a m-by-n numpy a array of m species, each having n values for the n time points.
+            p0: `numpy.ndarray`
+                Initial guess of parameters.
+
+        Returns
+        ---------
+            popt: `numpy.ndarray`
+                optimal parameters.
+            cost: 'float'
+                The cost function evaluated at the optimum.
+        '''
         if p0 is None:
             p0 = self.sample_p0(n_p0, sample_method)
         else:
