@@ -19,7 +19,13 @@ class LinearODE:
         '''Implement your own ODE functions here such that dx=f(x, t)'''
         dx = np.zeros(len(x))
         return dx
-    
+
+    def integrate(self, t, x0=None, method='matrix'):
+        if method == 'matrix':
+            return self.integrate_matrix(t, x0)
+        elif method == 'numerical':
+            return self.integrate_numerical(t, x0)
+            
     def integrate_numerical(self, t, x0=None):
         if x0 is None:
             x0 = self.x0

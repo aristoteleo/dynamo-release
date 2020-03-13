@@ -8,7 +8,7 @@ def estimate_p0_deg_nosp(x_data, time):
     '''Roughly estimate p0 with the assumption that time starts at 0 for degradation data without splicing.'''
     u0 = x_data[0][0]
     uu0 = x_data[1][0]
-    ga0 = max(0, np.log(x_data[0][0]/(x_data[0][-1]+1e-6)) / time[-1])
+    ga0 = np.clip(np.log(x_data[0][0]/(x_data[0][-1]+1e-6)) / time[-1], 0, 1000)
     return np.array([ga0, u0, uu0])
 
 class Estimation:
@@ -79,10 +79,7 @@ class Estimation:
         else:
             self.simulator.set_params(0, *params[:self.n_params - self.simulator.n_species])
         x0 = self.simulator.x0 if self.fix_x0 else params[-self.simulator.n_species:]
-        if method == 'numerical':
-            self.simulator.integrate_numerical(t, x0)
-        elif method == 'matrix':
-            self.simulator.integrate_matrix(t, x0)
+        self.simulator.integrate(t, x0, method)
         ret = self.extract_data_from_simulator()
         ret = self.normalize_data(ret) if normalize else ret
         ret[np.isnan(ret)] = 0
@@ -194,7 +191,7 @@ class Estimation_MomentDeg(Estimation):
 
 class Estimation_MomentDegNosp(Estimation):
     '''An estimation class for degradation (no splicing) experiments.
-        Order of species: <r>, <rr>
+        Order of species: <labeled>, <ll>
     '''
     def __init__(self, ranges, x0=None):
         super().__init__(ranges, Moments_NoSwitchingNoSplicing(), x0)
