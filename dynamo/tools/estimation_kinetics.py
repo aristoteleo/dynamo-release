@@ -13,7 +13,8 @@ def estimate_p0_deg_nosp(x_data, time):
 
 class Estimation:
     def __init__(self, ranges, simulator, x0=None):
-        '''A general parameter estimation framework for all types of time-seris data
+        '''A general parameter estimation framework for all types of time-series data
+        
         Arguments
         ---------
             ranges: `numpy.ndarray`
