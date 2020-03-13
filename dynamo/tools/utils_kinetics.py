@@ -19,15 +19,22 @@ class LinearODE:
         '''Implement your own ODE functions here such that dx=f(x, t)'''
         dx = np.zeros(len(x))
         return dx
-    
+
+    def integrate(self, t, x0=None, method='matrix'):
+        if method == 'matrix':
+            sol = self.integrate_matrix(t, x0)
+        elif method == 'numerical':
+            sol = self.integrate_numerical(t, x0)
+        self.x = sol
+        self.t = t
+        return sol
+            
     def integrate_numerical(self, t, x0=None):
         if x0 is None:
             x0 = self.x0
         else:
             self.x0 = x0
         sol = odeint(self.ode_func, x0, t)
-        self.x = sol
-        self.t = t
         return sol
     
     def reset(self):
@@ -69,8 +76,6 @@ class LinearODE:
         x[0] = x0
         for i in range(1, len(t)):
             x[i] = U.dot(np.diag(expD**(t[i]-t0))).dot(V).dot(y0) - x_ss
-        self.x = x
-        self.t = t
         return x
 
 class Moments_NoSwitchingNoSplicing(LinearODE):
@@ -451,6 +456,17 @@ class Deterministic(LinearODE):
         # reset solutions
         super().reset()
 
+    def integrate(self, t, x0=None, method='analytical'):
+        if method == 'matrix':
+            sol = self.integrate_matrix(t, x0)
+        elif method == 'numerical':
+            sol = self.integrate_numerical(t, x0)
+        elif method == 'analytical':
+            sol = self.integrate_analytical(t, x0)
+        self.x = sol
+        self.t = t
+        return sol
+
     def computeKnp(self):
         # parameters
         al = self.al
@@ -475,3 +491,69 @@ class Deterministic(LinearODE):
         u = sol_u(t, x0[self.u], self.al, self.be)
         s = sol_s(t, x0[self.s], x0[self.u], self.al, self.be, self.ga)
         return np.array([u, s]).T
+
+class Deterministic_NoSplicing(LinearODE):
+    def __init__(self, alpha=None, gamma=None, x0=None):
+        """This class simulates the deterministic dynamics of
+        a transcription-splicing system."""
+        # species
+        self.u = 0
+
+        n_species = 1
+
+        # solution
+        super().__init__(n_species, x0)
+
+        self.methods = ['numerical', 'matrix', 'analytical']
+
+        # parameters
+        if not (alpha is None or gamma is None):
+            self.set_params(alpha, gamma)
+
+    def ode_func(self, x, t):
+        dx = np.zeros(len(x))
+        # parameters
+        al = self.al
+        ga = self.ga
+
+        # kinetics
+        dx[self.u] = al - ga*x[self.u]
+
+        return dx
+
+    def set_params(self, alpha, gamma):
+        self.al = alpha
+        self.ga = gamma
+
+        # reset solutions
+        super().reset()
+
+    def integrate(self, t, x0=None, method='analytical'):
+        if method == 'matrix':
+            sol = self.integrate_matrix(t, x0)
+        elif method == 'numerical':
+            sol = self.integrate_numerical(t, x0)
+        elif method == 'analytical':
+            sol = self.integrate_analytical(t, x0)
+        self.x = sol
+        self.t = t
+        return sol
+
+    def computeKnp(self):
+        # parameters
+        al = self.al
+        ga = self.ga
+
+        K = np.zeros((self.n_species, self.n_species))
+        # E1
+        K[self.u, self.u] = -ga
+
+        p = np.zeros(self.n_species)
+        p[self.u] = al
+
+        return K, p
+
+    def integrate_analytical(self, t, x0=None):
+        x0 = self.x0 if x0 is None else x0
+        u = sol_u(t, x0[self.u], self.al, self.ga)
+        return np.array([u]).T
