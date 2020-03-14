@@ -8,7 +8,7 @@ def estimate_p0_deg_nosp(x_data, time):
     '''Roughly estimate p0 with the assumption that time starts at 0 for degradation data without splicing.'''
     u0 = x_data[0][0]
     uu0 = x_data[1][0]
-    ga0 = max(0, np.log(x_data[0][0]/(x_data[0][-1]+1e-6)) / time[-1])
+    ga0 = np.clip(np.log(x_data[0][0]/(x_data[0][-1]+1e-6)) / time[-1], 0, 1000)
     return np.array([ga0, u0, uu0])
 
 class Estimation:
@@ -80,16 +80,30 @@ class Estimation:
         else:
             self.simulator.set_params(0, *params[:self.n_params - self.simulator.n_species])
         x0 = self.simulator.x0 if self.fix_x0 else params[-self.simulator.n_species:]
-        if method == 'numerical':
-            self.simulator.integrate_numerical(t, x0)
-        elif method == 'matrix':
-            self.simulator.integrate_matrix(t, x0)
+        self.simulator.integrate(t, x0, method)
         ret = self.extract_data_from_simulator()
         ret = self.normalize_data(ret) if normalize else ret
         ret[np.isnan(ret)] = 0
         return (ret - x_data).flatten()
 
     def fit_lsq(self, t, x_data, p0=None, n_p0=1, bounds=None, sample_method='lhs', method='matrix', normalize=True):
+        '''Fit time-seris data using least squares
+        Arguments
+        ---------
+            t: `numpy.ndarray`
+                a numpy array of n time points.
+            x_data: `numpy.ndarray`
+                a m-by-n numpy a array of m species, each having n values for the n time points.
+            p0: `numpy.ndarray`
+                Initial guess of parameters.
+
+        Returns
+        ---------
+            popt: `numpy.ndarray`
+                optimal parameters.
+            cost: 'float'
+                The cost function evaluated at the optimum.
+        '''
         if p0 is None:
             p0 = self.sample_p0(n_p0, sample_method)
         else:
@@ -195,7 +209,7 @@ class Estimation_MomentDeg(Estimation):
 
 class Estimation_MomentDegNosp(Estimation):
     '''An estimation class for degradation (no splicing) experiments.
-        Order of species: <r>, <rr>
+        Order of species: <labeled>, <ll>
     '''
     def __init__(self, ranges, x0=None):
         super().__init__(ranges, Moments_NoSwitchingNoSplicing(), x0)
@@ -223,4 +237,14 @@ class Estimation_DeterministicDeg(Estimation):
         return np.log(2)/self.get_beta()
 
     def calc_deg_half_life(self):
-        return np.log(2)/self.get_gamma()    
+        return np.log(2)/self.get_gamma()
+        
+class Estimation_DeterministicDegNosp(Estimation):
+    def __init__(self, ranges, x0=None):
+        super().__init__(ranges, Deterministic_NoSplicing(), x0)
+
+    def get_gamma(self):
+        return self.popt[0]
+
+    def calc_half_life(self):
+        return np.log(2)/self.get_gamma()
