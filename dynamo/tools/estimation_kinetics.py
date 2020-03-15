@@ -67,6 +67,15 @@ class Estimation:
     def normalize_data(self, X):
         return np.log(X + 1)
     
+    def set_params(self, params):
+        self.simulator.set_params(*self.get_kinetic_parameters(params))
+
+    def get_kinetic_parameters(self, params):
+        if self.fix_x0:
+            return params
+        else:
+            return params[:self.n_params - self.simulator.n_species]
+
     def extract_data_from_simulator(self):
         return self.simulator.x.T
     
@@ -74,10 +83,7 @@ class Estimation:
         if method not in self.simulator.methods: 
             warnings.warn('The simulator does not support method \'{}\'. Using method \'{}\' instead.'.format(method, self.simulator.methods[0]))
             method = self.simulator.methods[0]
-        if self.fix_x0:
-            self.simulator.set_params(0, *params)
-        else:
-            self.simulator.set_params(0, *params[:self.n_params - self.simulator.n_species])
+        self.set_params(params)
         x0 = self.simulator.x0 if self.fix_x0 else params[-self.simulator.n_species:]
         self.simulator.integrate(t, x0, method)
         ret = self.extract_data_from_simulator()
@@ -130,8 +136,10 @@ class Estimation_MomentKin(Estimation):
     '''An estimation class for kinetics experiments.
         Order of species: <unspliced>, <spliced>, <uu>, <ss>, <us>
     '''
-    def __init__(self, ranges, x0=None):
+    def __init__(self, ranges, x0=None, beta=None, gamma=None):
         super().__init__(ranges, Moments(), x0)
+        self.gamma = gamma
+        self.beta = beta
 
     def extract_data_from_simulator(self):
         ret = np.zeros((5, len(self.simulator.t)))
@@ -141,6 +149,12 @@ class Estimation_MomentKin(Estimation):
         ret[3] = self.simulator.x[:, self.simulator.xx]
         ret[4] = self.simulator.x[:, self.simulator.ux]
         return ret
+
+    def set_params(self, params):
+        if self.gamma is not None and self.beta is not None:
+            self.simulator.set_params(*self.get_kinetic_parameters(params), self.beta, self.gamma)
+        else:
+            self.simulator.set_params(*self.get_kinetic_parameters(params))
 
     def get_alpha(self):
         return self.popt[0]
@@ -161,8 +175,9 @@ class Estimation_MomentKinNosp(Estimation):
     '''An estimation class for kinetics experiments (without splicing).
         Order of species: <r>, <rr>
     '''
-    def __init__(self, ranges, x0=None):
+    def __init__(self, ranges, x0=None, gamma=None):
         super().__init__(ranges, Moments(), x0)
+        self.gamma = gamma
 
     def extract_data_from_simulator(self):
         ret = np.zeros((2, len(self.simulator.t)))
@@ -171,6 +186,12 @@ class Estimation_MomentKinNosp(Estimation):
             + self.simulator.x[:, self.simulator.xx]    \
             + 2*self.simulator.x[:, self.simulator.ux]
         return ret
+
+    def set_params(self, params):
+        if self.gamma is None:
+            self.simulator.set_params(*self.get_kinetic_parameters(params))
+        else:
+            self.simulator.set_params(*self.get_kinetic_parameters(params), self.gamma)
 
     def get_alpha(self):
         return self.popt[0]
@@ -194,6 +215,9 @@ class Estimation_MomentDeg(Estimation):
     def __init__(self, ranges, x0=None):
         super().__init__(ranges, Moments_NoSwitching(), x0)
 
+    def set_params(self, params):
+        self.simulator.set_params(0, *self.get_kinetic_parameters(params))
+
     def get_beta(self):
         return self.popt[0]
 
@@ -213,6 +237,9 @@ class Estimation_MomentDegNosp(Estimation):
     def __init__(self, ranges, x0=None):
         super().__init__(ranges, Moments_NoSwitchingNoSplicing(), x0)
 
+    def set_params(self, params):
+        self.simulator.set_params(0, *self.get_kinetic_parameters(params))
+
     def get_gamma(self):
         return self.popt[0]
 
@@ -226,6 +253,9 @@ class Estimation_DeterministicDeg(Estimation):
     def __init__(self, ranges, x0=None):
         super().__init__(ranges, Deterministic(), x0)
 
+    def set_params(self, params):
+        self.simulator.set_params(0, *self.get_kinetic_parameters(params))
+
     def get_beta(self):
         return self.popt[0]
 
@@ -238,9 +268,16 @@ class Estimation_DeterministicDeg(Estimation):
     def calc_deg_half_life(self):
         return np.log(2)/self.get_gamma()
         
-class Estimation_DeterministicDegNosp(Estimation):
-    def __init__(self, ranges, x0=None):
+class Estimation_DeterministicKinNosp(Estimation):
+    def __init__(self, ranges, x0=None, gamma=None):
         super().__init__(ranges, Deterministic_NoSplicing(), x0)
+        self.gamma = gamma
+
+    def set_params(self, params):
+        if self.gamma is None:
+            self.simulator.set_params(*self.get_kinetic_parameters(params))
+        else:
+            self.simulator.set_params(*self.get_kinetic_parameters(params), self.gamma)
 
     def get_gamma(self):
         return self.popt[0]
