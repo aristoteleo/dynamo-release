@@ -1,6 +1,8 @@
 # include pseudotime and predict cell trajectory
+import statsmodels.api as sm
 import numpy as np
 from scipy.sparse import issparse
+from scipy.interpolate import interp1d
 from ..tools.utils import fetch_exprs
 
 from ..docrep import DocstringProcessor
@@ -150,11 +152,11 @@ def kinetic_heatmap(
     time="pseudotime",
     dist_threshold=1e-10,
     color_map="BrBG",
-    half_max_ordering=True,
+    gene_order_method='half_max_ordering',
     show_col_color=False,
     cluster_row_col=[False, False],
     figsize=(11.5, 6),
-    standard_scale=0,
+    standard_scale=1,
     **kwargs
 ):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) in a heatmap.
@@ -165,8 +167,8 @@ def kinetic_heatmap(
         color_map: `str` (default: `BrBG`)
             Color map that will be used to color the gene expression. If `half_max_ordering` is True, the
             color map need to be divergent, good examples, include `BrBG`, `RdBu_r` or `coolwarm`, etc.
-        half_max_ordering: `bool` (default: `True`)
-            Whether to order genes into up, down and transit groups by the half max ordering algorithm. 
+        gene_order_method: `str` (default: `half_max_ordering`)
+            Supports two different methods for Whether to order genes into up, down and transit groups by the half max ordering algorithm.
         show_col_color: `bool` (default: `False`)
             Whether to show the color bar.
         cluster_row_col: `[bool, bool]` (default: `[False, False]`)
@@ -174,7 +176,7 @@ def kinetic_heatmap(
         figsize: `str` (default: `(11.5, 6)`
             Size of figure
         standard_scale: `int` (default: 1)
-            Either 0 (rows) or 1 (columns). Whether or not to standardize that dimension, meaning for each row or column,
+            Either 0 (rows, cells) or 1 (columns, genes). Whether or not to standardize that dimension, meaning for each row or column,
             subtract the minimum and divide each by its maximum.
         kwargs:
             All other keyword arguments are passed to heatmap(). Currently `xticklabels=False, yticklabels='auto'` is passed
@@ -203,19 +205,25 @@ def kinetic_heatmap(
         valid_ind.insert(0, 0)
         exprs = exprs[valid_ind, :]
 
-    if standard_scale is not None:
-        exprs = (exprs - np.min(exprs, axis=standard_scale)) / np.ptp(
-            exprs, axis=standard_scale
-        )
-
-    if half_max_ordering:
+    if gene_order_method == "half_max_ordering":
         time, all, valid_ind, gene_idx = _half_max_ordering(
             exprs.T, time, mode=mode, interpolate=True, spaced_num=100
         )
-        df = pd.DataFrame(all, index=np.array(valid_genes)[gene_idx])
+        all, genes = all[np.isfinite(all.sum(1)), :], np.array(valid_genes)[gene_idx][np.isfinite(all.sum(1))]
+
+        df = pd.DataFrame(all, index=genes)
+    elif gene_order_method == 'maximum':
+        exprs = lowess_smoother(time, exprs.T, spaced_num=100)
+        exprs = exprs[np.isfinite(exprs.sum(1)), :]
+
+        if standard_scale is not None:
+            exprs = (exprs - np.min(exprs, axis=standard_scale)[:, None]) / np.ptp(
+                exprs, axis=standard_scale
+            )[:, None]
+        max_sort = np.argsort(np.argmax(exprs, axis=1))
+        df = pd.DataFrame(exprs[max_sort, :], index=np.array(valid_genes)[max_sort])
     else:
-        cluster_row_col[1] = True
-        df = pd.DataFrame(exprs.T, index=valid_genes)
+        raise Exception('gene order_method can only be either half_max_ordering or maximum')
 
     heatmap_kwargs = dict(xticklabels=False, yticklabels="auto")
     if kwargs is not None:
@@ -227,7 +235,7 @@ def kinetic_heatmap(
         row_cluster=cluster_row_col[1],
         cmap=color_map,
         figsize=figsize,
-        standard_scale=standard_scale,
+        # standard_scale=standard_scale,
         **heatmap_kwargs
     )
     # if not show_col_color: sns_heatmap.set_visible(False)
@@ -266,8 +274,6 @@ def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):
 
     if mode == "vector_field":
         interpolate = False
-    else:
-        from .utils import Loess
 
     gene_num = exprs.shape[0]
     cell_num = spaced_num if interpolate else exprs.shape[1]
@@ -284,21 +290,13 @@ def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):
         np.zeros(gene_num),
         np.zeros(gene_num),
     )
+
+    tmp = lowess_smoother(time, exprs, spaced_num) if interpolate else exprs
+
     for i in range(gene_num):
-        x = exprs[i]
-        tmp = np.zeros(cell_num)
-
-        if interpolate:
-            loess = Loess(time, x)
-
-            time = np.linspace(np.min(time), np.max(time), spaced_num)
-            for j in range(spaced_num):
-                tmp[j] = loess.estimate(time[j], window=7, use_matrix=False, degree=1)
-        else:
-            tmp = x
-
-        hm_mat_scaled[i] = tmp
-        scale_tmp = (tmp - np.mean(tmp)) / np.std(tmp)
+        hm_mat_scaled[i] = tmp[i] - np.min(tmp[i])
+        hm_mat_scaled[i] = hm_mat_scaled[i] / np.max(hm_mat_scaled[i])
+        scale_tmp = (tmp[i] - np.mean(tmp[i])) / np.std(tmp[i]) # scale in R
         hm_mat_scaled_z[i] = scale_tmp
 
         count, current = 0, hm_mat_scaled_z[i, 0] < 0  # check this
@@ -350,3 +348,21 @@ def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):
     )
 
     return time, all, np.isfinite(nt[:, 0]) & np.isfinite(nt[:, -1]), gene_idx
+
+
+def lowess_smoother(time, exprs, spaced_num):
+    gene_num = exprs.shape[0]
+    res = np.zeros((gene_num, spaced_num))
+
+    for i in range(gene_num):
+        x = exprs[i]
+
+        lowess = sm.nonparametric.lowess
+        tmp = lowess(x, time, frac=.3)
+        # run scipy's interpolation.
+        f = interp1d(tmp[:, 0], tmp[:, 1], bounds_error=False)
+
+        time_linspace = np.linspace(np.min(time), np.max(time), spaced_num)
+        res[i, :] = f(time_linspace)
+
+    return res
