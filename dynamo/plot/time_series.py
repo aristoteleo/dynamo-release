@@ -3,7 +3,8 @@ import statsmodels.api as sm
 import numpy as np
 from scipy.sparse import issparse
 from scipy.interpolate import interp1d
-from ..tools.utils import fetch_exprs
+from ..tools.utils import fetch_exprs, update_dict
+from .utils import save
 
 from ..docrep import DocstringProcessor
 
@@ -153,10 +154,12 @@ def kinetic_heatmap(
     dist_threshold=1e-10,
     color_map="BrBG",
     gene_order_method='half_max_ordering',
-    show_col_color=False,
+    show_colorbar=False,
     cluster_row_col=[False, False],
     figsize=(11.5, 6),
     standard_scale=1,
+    save_fig=False,
+    save_kwargs={},
     **kwargs
 ):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) in a heatmap.
@@ -167,9 +170,11 @@ def kinetic_heatmap(
         color_map: `str` (default: `BrBG`)
             Color map that will be used to color the gene expression. If `half_max_ordering` is True, the
             color map need to be divergent, good examples, include `BrBG`, `RdBu_r` or `coolwarm`, etc.
-        gene_order_method: `str` (default: `half_max_ordering`)
-            Supports two different methods for Whether to order genes into up, down and transit groups by the half max ordering algorithm.
-        show_col_color: `bool` (default: `False`)
+        gene_order_method: `str` (default: `half_max_ordering`) [`half_max_ordering`, `maximum`]
+            Supports two different methods for ordering genes when plotting the heatmap: either `half_max_ordering`,
+            or `maximum`. For `half_max_ordering`, it will order genes into up, down and transit groups by the half
+            max ordering algorithm. While for `maximum`, it will order by the position of the highest gene expression.
+        show_colorbar: `bool` (default: `False`)
             Whether to show the color bar.
         cluster_row_col: `[bool, bool]` (default: `[False, False]`)
             Whether to cluster the row or columns.
@@ -178,6 +183,13 @@ def kinetic_heatmap(
         standard_scale: `int` (default: 1)
             Either 0 (rows, cells) or 1 (columns, genes). Whether or not to standardize that dimension, meaning for each row or column,
             subtract the minimum and divide each by its maximum.
+        save_fig: `bool` (default: `False`)
+            Whether to save the figure into a file.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            will use the {"path": None, "prefix": 'kinetic_heatmap', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
         kwargs:
             All other keyword arguments are passed to heatmap(). Currently `xticklabels=False, yticklabels='auto'` is passed
             to heatmap() by default.
@@ -235,12 +247,19 @@ def kinetic_heatmap(
         row_cluster=cluster_row_col[1],
         cmap=color_map,
         figsize=figsize,
-        # standard_scale=standard_scale,
         **heatmap_kwargs
     )
-    # if not show_col_color: sns_heatmap.set_visible(False)
+    if not show_colorbar: sns_heatmap.cax.set_visible(False)
 
-    plt.show()
+    if save_fig:
+        s_kwargs = {"path": None, "prefix": 'kinetic_heatmap', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save(**s_kwargs)
+    else:
+        plt.show()
+
 
 
 def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):

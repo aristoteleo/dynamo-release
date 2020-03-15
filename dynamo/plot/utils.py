@@ -4,6 +4,7 @@ import pandas as pd
 import math
 import numba
 import matplotlib
+import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 import matplotlib.patheffects as PathEffects
@@ -11,6 +12,7 @@ from warnings import warn
 
 from ..configuration import _themes
 from ..tools.utils import integrate_vf  # integrate_vf_ivp
+
 
 # ---------------------------------------------------------------------------------------------------
 # variable checking utilities
@@ -105,21 +107,21 @@ def _select_font_color(background):
 
 
 def _matplotlib_points(
-    points,
-    ax=None,
-    labels=None,
-    values=None,
-    highlights=None,
-    cmap="Blues",
-    color_key=None,
-    color_key_cmap="Spectral",
-    background="white",
-    width=7,
-    height=5,
-    show_legend=True,
-    vmin=2,
-    vmax=98,
-    **kwargs,
+        points,
+        ax=None,
+        labels=None,
+        values=None,
+        highlights=None,
+        cmap="Blues",
+        color_key=None,
+        color_key_cmap="Spectral",
+        background="white",
+        width=7,
+        height=5,
+        show_legend=True,
+        vmin=2,
+        vmax=98,
+        **kwargs,
 ):
     import matplotlib.pyplot as plt
 
@@ -176,7 +178,7 @@ def _matplotlib_points(
                 reorder_data = points.copy(deep=True)
                 (
                     reorder_data.iloc[: sum(background_ids), :],
-                    reorder_data.iloc[sum(background_ids) :, :],
+                    reorder_data.iloc[sum(background_ids):, :],
                 ) = (points.iloc[background_ids, :], points.iloc[highlight_ids, :])
 
                 points = reorder_data
@@ -282,21 +284,21 @@ def _matplotlib_points(
 
 
 def _datashade_points(
-    points,
-    ax=None,
-    labels=None,
-    values=None,
-    highlights=None,
-    cmap="blue",
-    color_key=None,
-    color_key_cmap="Spectral",
-    background="black",
-    width=7,
-    height=5,
-    show_legend=True,
-    vmin=2,
-    vmax=98,
-    **kwargs,
+        points,
+        ax=None,
+        labels=None,
+        values=None,
+        highlights=None,
+        cmap="blue",
+        color_key=None,
+        color_key_cmap="Spectral",
+        background="black",
+        width=7,
+        height=5,
+        show_legend=True,
+        vmin=2,
+        vmax=98,
+        **kwargs,
 ):
     import matplotlib.pyplot as plt
 
@@ -363,7 +365,7 @@ def _datashade_points(
                 reorder_data = data.copy(deep=True)
                 (
                     reorder_data.iloc[: sum(background_ids), :],
-                    reorder_data.iloc[sum(background_ids) :, :],
+                    reorder_data.iloc[sum(background_ids):, :],
                 ) = (data.iloc[background_ids, :], data.iloc[highlight_ids, :])
                 aggregation = canvas.points(
                     reorder_data, "x", "y", agg=ds.count_cat("label")
@@ -472,18 +474,18 @@ def _datashade_points(
 
 
 def interactive(
-    umap_object,
-    labels=None,
-    values=None,
-    hover_data=None,
-    theme=None,
-    cmap="Blues",
-    color_key=None,
-    color_key_cmap="Spectral",
-    background="white",
-    width=7,
-    height=5,
-    point_size=None,
+        umap_object,
+        labels=None,
+        values=None,
+        hover_data=None,
+        theme=None,
+        cmap="Blues",
+        color_key=None,
+        color_key_cmap="Spectral",
+        background="white",
+        width=7,
+        height=5,
+        point_size=None,
 ):
     """Create an interactive bokeh plot of a UMAP embedding.
     While static plots are useful, sometimes a plot that
@@ -771,7 +773,7 @@ def scatter_with_colorbar(fig, ax, x, y, c, cmap, **scatter_kwargs):
 
 
 def scatter_with_legend(
-    fig, ax, df, font_color, x, y, c, cmap, legend, **scatter_kwargs
+        fig, ax, df, font_color, x, y, c, cmap, legend, **scatter_kwargs
 ):
     import seaborn as sns
     import matplotlib.patheffects as PathEffects
@@ -886,35 +888,48 @@ def _plot_traj(y0, t, args, integration_direction, ax, color, lw, f):
 
     return ax
 
+
 # ---------------------------------------------------------------------------------------------------
 # save figure related
 # ---------------------------------------------------------------------------------------------------
 
-def save(path, ext='pdf', transparent=True, close=True, verbose=True):
+def save(path=None, prefix=None, dpi=None, ext='pdf', transparent=True, close=True, verbose=True):
     """Save a figure from pyplot.
+    code adapated from http://www.jesshamrick.com/2012/09/03/saving-figures-from-pyplot/
+
     Parameters
     ----------
-    path : string
-        The path (and filename, without the extension) to save the
-        figure to.
-    ext : string (default='png')
-        The file extension. This must be supported by the active
-        matplotlib backend (see matplotlib.backends module).  Most
-        backends support 'png', 'pdf', 'ps', 'eps', and 'svg'.
-    close : boolean (default=True)
-        Whether to close the figure after saving.  If you want to save
-        the figure multiple times (e.g., to multiple formats), you
-        should NOT close it in between saves or you will have to
-        re-plot it.
-    verbose : boolean (default=True)
-        Whether to print information about when and where the image
-        has been saved.
+        plt: `module`
+            The matplotlib.pyplot that will be used for saving results.
+        path: `string`
+            The path (and filename, without the extension) to save the
+            figure to.
+        prefix: `str` or `None`
+            The prefix added to the figure name. This will be automatically set
+            accordingly to the plotting function used.
+        dpi: [ None | scalar > 0 | 'figure' ]
+            The resolution in dots per inch. If None, defaults to rcParams["savefig.dpi"].
+            If 'figure', uses the figure's dpi value.
+        ext: `string` (default='pdf')
+            The file extension. This must be supported by the active
+            matplotlib backend (see matplotlib.backends module).  Most
+            backends support 'png', 'pdf', 'ps', 'eps', and 'svg'.
+        close: `boolean` (default=True)
+            Whether to close the figure after saving.  If you want to save
+            the figure multiple times (e.g., to multiple formats), you
+            should NOT close it in between saves or you will have to
+            re-plot it.
+        verbose: boolean (default=True)
+            Whether to print information about when and where the image
+            has been saved.
     """
     import matplotlib.pyplot as plt
 
+    if path is None: path = os.getcwd()
+
     # Extract the directory and filename from the given path
     directory = os.path.split(path)[0]
-    filename = "%s.%s" % (os.path.split(path)[1], ext)
+    filename = os.path.split(path)[1]
     if directory == '':
         directory = '.'
 
@@ -923,13 +938,14 @@ def save(path, ext='pdf', transparent=True, close=True, verbose=True):
         os.makedirs(directory)
 
     # The final path to save to
-    savepath = os.path.join(directory, filename)
+    savepath = os.path.join(directory, filename) if prefix is None \
+        else os.path.join(directory, prefix + filename)
 
     if verbose:
-        print("Saving figure to '%s'..." % savepath),
+        print(f"Saving figure to {savepath}.{ext}...")
 
     # Actually save the figure
-    plt.savefig(savepath, transparent=transparent)
+    plt.savefig(savepath, dpi=dpi, transparent=transparent, format=ext)
 
     # Close it
     if close:
@@ -937,6 +953,7 @@ def save(path, ext='pdf', transparent=True, close=True, verbose=True):
 
     if verbose:
         print("Done")
+
 
 # ---------------------------------------------------------------------------------------------------
 # the following Loess class is taken from:
@@ -1028,9 +1045,8 @@ class Loess(object):
             mean_y = sum_weight_y / sum_weight
 
             b = (sum_weight_xy - mean_x * mean_y * sum_weight) / (
-                sum_weight_x2 - mean_x * mean_x * sum_weight
+                    sum_weight_x2 - mean_x * mean_x * sum_weight
             )
             a = mean_y - b * mean_x
             y = a + b * n_x
         return self.denormalize_y(y)
-
