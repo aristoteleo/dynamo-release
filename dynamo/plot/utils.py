@@ -899,9 +899,7 @@ def save(path=None, prefix=None, dpi=None, ext='pdf', transparent=True, close=Tr
 
     Parameters
     ----------
-        plt: `module`
-            The matplotlib.pyplot that will be used for saving results.
-        path: `string`
+         path: `string`
             The path (and filename, without the extension) to save the
             figure to.
         prefix: `str` or `None`
@@ -938,8 +936,8 @@ def save(path=None, prefix=None, dpi=None, ext='pdf', transparent=True, close=Tr
         os.makedirs(directory)
 
     # The final path to save to
-    savepath = os.path.join(directory, filename) if prefix is None \
-        else os.path.join(directory, prefix + filename)
+    savepath = os.path.join(directory, filename + '.' + ext) if prefix is None \
+        else os.path.join(directory, prefix + filename + '.' + ext)
 
     if verbose:
         print(f"Saving figure to {savepath}.{ext}...")

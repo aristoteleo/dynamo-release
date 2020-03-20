@@ -298,6 +298,7 @@ def dynamics(
 
             adata = set_param_moment(
                 adata,
+                alpha,
                 a,
                 b,
                 alpha_a,

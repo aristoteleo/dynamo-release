@@ -173,7 +173,8 @@ def kinetic_heatmap(
         gene_order_method: `str` (default: `half_max_ordering`) [`half_max_ordering`, `maximum`]
             Supports two different methods for ordering genes when plotting the heatmap: either `half_max_ordering`,
             or `maximum`. For `half_max_ordering`, it will order genes into up, down and transit groups by the half
-            max ordering algorithm. While for `maximum`, it will order by the position of the highest gene expression.
+            max ordering algorithm (HA Pliner, et. al, Molecular cell 71 (5), 858-871. e8). While for `maximum`,
+            it will order by the position of the highest gene expression.
         show_colorbar: `bool` (default: `False`)
             Whether to show the color bar.
         cluster_row_col: `[bool, bool]` (default: `[False, False]`)
@@ -239,7 +240,7 @@ def kinetic_heatmap(
 
     heatmap_kwargs = dict(xticklabels=False, yticklabels="auto")
     if kwargs is not None:
-        heatmap_kwargs.update(kwargs)
+        heatmap_kwargs = update_dict(heatmap_kwargs, kwargs)
 
     sns_heatmap = sns.clustermap(
         df,

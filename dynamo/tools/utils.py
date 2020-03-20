@@ -628,6 +628,7 @@ def set_param_deterministic(
 
 def set_param_moment(
     adata,
+    alpha,
     a,
     b,
     alpha_a,
@@ -641,6 +642,7 @@ def set_param_moment(
 ):
     if cur_grp == _group[0]:
         (
+            adata.var[kin_param_pre + "alpha"],
             adata.var[kin_param_pre + "a"],
             adata.var[kin_param_pre + "b"],
             adata.var[kin_param_pre + "alpha_a"],
@@ -649,8 +651,9 @@ def set_param_moment(
             adata.var[kin_param_pre + "p_half_life"],
             adata.var[kin_param_pre + "gamma"],
             adata.var[kin_param_pre + "half_life"],
-        ) = (None, None, None, None, None, None, None, None)
+        ) = (None, None, None, None, None, None, None, None, None)
 
+    adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha
     adata.var.loc[valid_ind, kin_param_pre + "a"] = a
     adata.var.loc[valid_ind, kin_param_pre + "b"] = b
     adata.var.loc[valid_ind, kin_param_pre + "alpha_a"] = alpha_a
