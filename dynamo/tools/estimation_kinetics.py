@@ -1,15 +1,34 @@
-from .utils import lhsclassic
+from .utils import *
 import numpy as np
 from scipy.optimize import least_squares
+from scipy.stats import chi2
 from .utils_kinetics import *
 import warnings
 
-def estimate_p0_deg_nosp(x_data, time):
+def estimate_p0_deg_nosp(x_data, time, report_abnormal=False):
     '''Roughly estimate p0 with the assumption that time starts at 0 for degradation data without splicing.'''
+    abnormal = False
     u0 = x_data[0][0]
+    if u0 <= 1e-4:
+        warnings.warn('The initial mRNA count is too small! Set to 0.0001 instead.')
+        u0 = max(u0, 1e-4)
+        abnormal = True
     uu0 = x_data[1][0]
-    ga0 = np.clip(np.log(x_data[0][0]/(x_data[0][-1]+1e-6)) / time[-1], 0, 1000)
-    return np.array([ga0, u0, uu0])
+    if uu0 <= 1e-4:
+        warnings.warn('The initial second moment of mRNA count is too small! Set to 0.0001 instead.')
+        uu0 = max(uu0, 1e-4)
+        abnormal = True
+    ga0 = np.clip(np.log(x_data[0][0]/(x_data[0][-1]+1e-6)) / time[-1], 1e-3, 1e3)
+    if not report_abnormal:
+        return np.array([ga0, u0, uu0])
+    else:
+        return np.array([ga0, u0, uu0]), abnormal
+
+def estimate_alpha0_kin_nosp(x_data, time):
+    '''Roughly estimate p0 for kinetics data.'''
+    imax = np.argmax(x_data)
+    alpha = x_data[imax] / time[imax]
+    return alpha
 
 class Estimation:
     def __init__(self, ranges, simulator, x0=None):
@@ -26,14 +45,26 @@ class Estimation:
             x0: `numpy.ndarray`
                 Initial conditions for the integrators if they are fixed.
         '''
-        self.ranges = ranges
-        self.n_params = len(ranges)
         self.simulator = simulator
         if x0 is not None:
             self.simulator.x0 = x0
             self.fix_x0 = True
         else:
             self.fix_x0 = False
+
+        self.ranges = np.array(ranges)
+        # calc the total number of kinetic parameters
+        self.n_kin_params = len(self.ranges)      
+        if not self.fix_x0:
+            self.n_kin_params -= self.simulator.n_species
+
+        self.fixed_parameters = np.ones(self.n_kin_params) * np.nan
+        for i in range(self.n_kin_params):
+            if self.ranges[i][0] == self.ranges[i][1]:
+                self.fixed_parameters[i] = self.ranges[i][0]
+        self.ranges = np.delete(self.ranges, np.where(~np.isnan(self.fixed_parameters))[0], 0)
+        self.n_params = len(self.ranges)     # the number of unfixed parameters (including initial conditions)
+
         self.popt = None
         self.cost = None
 
@@ -67,8 +98,24 @@ class Estimation:
     def normalize_data(self, X):
         return np.log(X + 1)
     
+    def extract_data_from_simulator(self):
+        return self.simulator.x.T
+    
     def set_params(self, params):
-        self.simulator.set_params(*self.get_kinetic_parameters(params))
+        p = np.array(self.fixed_parameters, copy=True)
+        p[np.isnan(p)] = self.get_kinetic_parameters(params)
+        self.simulator.set_params(*p)
+
+    def get_params(self):
+        if self.popt is not None:
+            p = np.array(self.fixed_parameters, copy=True)
+            if self.fix_x0:
+                p[np.isnan(p)] = self.popt
+            else:
+                p[np.isnan(p)] = self.popt[:self.n_params - self.simulator.n_species]
+            return p
+        else:
+            return None
 
     def get_kinetic_parameters(self, params):
         if self.fix_x0:
@@ -76,13 +123,11 @@ class Estimation:
         else:
             return params[:self.n_params - self.simulator.n_species]
 
-    def extract_data_from_simulator(self):
-        return self.simulator.x.T
-    
-    def f_lsq(self, params, t, x_data, method='matrix', normalize=True):
+    def f_lsq(self, params, t, x_data, method=None, normalize=True):
+        method = self.simulator.default_method if method is None else method
         if method not in self.simulator.methods: 
             warnings.warn('The simulator does not support method \'{}\'. Using method \'{}\' instead.'.format(method, self.simulator.methods[0]))
-            method = self.simulator.methods[0]
+            method = self.simulator.default_method
         self.set_params(params)
         x0 = self.simulator.x0 if self.fix_x0 else params[-self.simulator.n_species:]
         self.simulator.integrate(t, x0, method)
@@ -91,7 +136,7 @@ class Estimation:
         ret[np.isnan(ret)] = 0
         return (ret - x_data).flatten()
 
-    def fit_lsq(self, t, x_data, p0=None, n_p0=1, bounds=None, sample_method='lhs', method='matrix', normalize=True):
+    def fit_lsq(self, t, x_data, p0=None, n_p0=1, bounds=None, sample_method='lhs', method=None, normalize=True):
         '''Fit time-seris data using least squares
         Arguments
         ---------
@@ -132,81 +177,48 @@ class Estimation:
         self.cost = costs[i_min]
         return self.popt, self.cost
 
-class Estimation_MomentKin(Estimation):
-    '''An estimation class for kinetics experiments.
-        Order of species: <unspliced>, <spliced>, <uu>, <ss>, <us>
-    '''
-    def __init__(self, ranges, x0=None, beta=None, gamma=None):
-        super().__init__(ranges, Moments(), x0)
-        self.gamma = gamma
-        self.beta = beta
+    def get_SSE(self):
+        return self.cost
 
-    def extract_data_from_simulator(self):
-        ret = np.zeros((5, len(self.simulator.t)))
-        ret[0] = self.simulator.get_nu()
-        ret[1] = self.simulator.get_nx()
-        ret[2] = self.simulator.x[:, self.simulator.uu]
-        ret[3] = self.simulator.x[:, self.simulator.xx]
-        ret[4] = self.simulator.x[:, self.simulator.ux]
-        return ret
+    def test_chi2(self, t, x_data, species=None, method='matrix', normalize=True):
+        '''perform a Pearson's chi-square test. The statistics is computed as: sum_i (O_i - E_i)^2 / E_i, where O_i is the data and E_i is the model predication.
 
-    def set_params(self, params):
-        if self.gamma is not None and self.beta is not None:
-            self.simulator.set_params(*self.get_kinetic_parameters(params), self.beta, self.gamma)
+            The data can be either 1. stratified moments: 't' is an array of k distinct time points, 'x_data' is a m-by-k matrix of data, where m is the number of species.
+            or 2. raw data: 't' is an array of k time points for k cells, 'x_data' is a m-by-k matrix of data, where m is the number of species. 
+            Note that if the method is 'numerical', t has to monotonically increasing.
+
+            If not all species are included in the data, use 'species' to specify the species of interest.
+
+            Returns
+            -------
+            p: float
+            The p-value of a one-tailed chi-square test.
+
+            c2: float
+            The chi-square statistics.
+
+            df: integer
+            Degree of freedom.
+        '''
+        if x_data.ndim == 1:
+            x_data = x_data[None]
+
+        self.simulator.integrate(t, method=method)
+        x_model = self.simulator.x.T
+        if species is not None:
+            x_model = x_model[species]
+
+        if normalize:
+            scale = np.max(x_data, 1)
+            x_data_norm = (x_data.T/scale).T
+            x_model_norm = (x_model.T/scale).T
         else:
-            self.simulator.set_params(*self.get_kinetic_parameters(params))
-
-    def get_alpha(self):
-        return self.popt[0]
-
-    def get_beta(self):
-        return self.popt[1]
-
-    def get_gamma(self):
-        return self.popt[2]
-
-    def calc_spl_half_life(self):
-        return np.log(2)/self.get_beta()
-
-    def calc_deg_half_life(self):
-        return np.log(2)/self.get_gamma()
-
-class Estimation_MomentKinNosp(Estimation):
-    '''An estimation class for kinetics experiments (without splicing).
-        Order of species: <r>, <rr>
-    '''
-    def __init__(self, ranges, x0=None, gamma=None):
-        super().__init__(ranges, Moments(), x0)
-        self.gamma = gamma
-
-    def extract_data_from_simulator(self):
-        ret = np.zeros((2, len(self.simulator.t)))
-        ret[0] = self.simulator.get_n_labeled()
-        ret[1] = self.simulator.x[:, self.simulator.uu] \
-            + self.simulator.x[:, self.simulator.xx]    \
-            + 2*self.simulator.x[:, self.simulator.ux]
-        return ret
-
-    def set_params(self, params):
-        if self.gamma is None:
-            self.simulator.set_params(*self.get_kinetic_parameters(params))
-        else:
-            self.simulator.set_params(*self.get_kinetic_parameters(params), self.gamma)
-
-    def get_alpha(self):
-        return self.popt[0]
-
-    def get_beta(self):
-        return self.popt[1]
-
-    def get_gamma(self):
-        return self.popt[2]
-
-    def calc_spl_half_life(self):
-        return np.log(2)/self.get_beta()
-
-    def calc_deg_half_life(self):
-        return np.log(2)/self.get_gamma()
+            x_data_norm = x_data
+            x_model_norm = x_model
+        c2 = np.sum((x_data_norm - x_model_norm)**2 / x_model_norm)
+        df = len(x_data.flatten()) - self.n_params - 1
+        p = 1 - chi2.cdf(c2, df)
+        return p, c2, df
 
 class Estimation_MomentDeg(Estimation):
     '''An estimation class for degradation (with splicing) experiments.
@@ -231,10 +243,10 @@ class Estimation_MomentDeg(Estimation):
         return np.log(2)/self.get_gamma()
 
 class Estimation_MomentDegNosp(Estimation):
-    '''An estimation class for degradation (no splicing) experiments.
-        Order of species: <labeled>, <ll>
-    '''
     def __init__(self, ranges, x0=None):
+        '''An estimation class for degradation (without splicing) experiments.
+            Order of species: <r>, <rr>
+        '''
         super().__init__(ranges, Moments_NoSwitchingNoSplicing(), x0)
 
     def set_params(self, params):
@@ -244,6 +256,55 @@ class Estimation_MomentDegNosp(Estimation):
         return self.popt[0]
 
     def calc_half_life(self):
+        return np.log(2)/self.get_gamma()
+
+class Estimation_MomentKin(Estimation):
+    def __init__(self, a, b, alpha_a, alpha_i, beta, gamma, include_cov=False):
+        '''An estimation class for kinetics experiments.
+            Order of species: <unspliced>, <spliced>, <uu>, <ss>, <us>
+        '''
+        ranges = np.zeros((6, 2))
+        ranges[0] = a * np.ones(2) if np.isscalar(a) else a
+        ranges[1] = b * np.ones(2) if np.isscalar(b) else b
+        ranges[2] = alpha_a * np.ones(2) if np.isscalar(alpha_a) else alpha_a
+        ranges[3] = alpha_i * np.ones(2) if np.isscalar(alpha_i) else alpha_i
+        ranges[4] = beta * np.ones(2) if np.isscalar(beta) else beta
+        ranges[5] = gamma * np.ones(2) if np.isscalar(gamma) else gamma
+        super().__init__(ranges, Moments(), np.zeros(7))
+        self.include_cov = include_cov
+
+    def extract_data_from_simulator(self):
+        if self.include_cov:
+            ret = np.zeros((5, len(self.simulator.t)))
+            ret[0] = self.simulator.get_nu()
+            ret[1] = self.simulator.get_nx()
+            ret[2] = self.simulator.x[:, self.simulator.uu]
+            ret[3] = self.simulator.x[:, self.simulator.xx]
+            ret[4] = self.simulator.x[:, self.simulator.ux]
+        else:
+            ret = np.zeros((4, len(self.simulator.t)))
+            ret[0] = self.simulator.get_nu()
+            ret[1] = self.simulator.get_nx()
+            ret[2] = self.simulator.x[:, self.simulator.uu]
+            ret[3] = self.simulator.x[:, self.simulator.xx]
+        return ret
+
+    def get_alpha_a(self):
+        return self.popt[2]
+
+    def get_alpha_i(self):
+        return self.popt[3]
+
+    def get_beta(self):
+        return self.popt[4]
+
+    def get_gamma(self):
+        return self.popt[5]
+
+    def calc_spl_half_life(self):
+        return np.log(2)/self.get_beta()
+
+    def calc_deg_half_life(self):
         return np.log(2)/self.get_gamma()
 
 class Estimation_DeterministicDeg(Estimation):
@@ -267,20 +328,68 @@ class Estimation_DeterministicDeg(Estimation):
 
     def calc_deg_half_life(self):
         return np.log(2)/self.get_gamma()
-        
-class Estimation_DeterministicKinNosp(Estimation):
-    def __init__(self, ranges, x0=None, gamma=None):
+
+class Estimation_DeterministicDegNosp(Estimation):
+    def __init__(self, ranges, x0=None):
+        '''An estimation class for degradation (without splicing) experiments.
+        '''
         super().__init__(ranges, Deterministic_NoSplicing(), x0)
-        self.gamma = gamma
 
     def set_params(self, params):
-        if self.gamma is None:
-            self.simulator.set_params(*self.get_kinetic_parameters(params))
-        else:
-            self.simulator.set_params(*self.get_kinetic_parameters(params), self.gamma)
+        self.simulator.set_params(0, *self.get_kinetic_parameters(params))
 
     def get_gamma(self):
         return self.popt[0]
 
     def calc_half_life(self):
+        return np.log(2)/self.get_gamma()
+
+class Estimation_DeterministicKinNosp(Estimation):
+    def __init__(self, alpha, gamma, x0=np.zeros(1)):
+        '''An estimation class for kinetics (without splicing) experiments with the deterministic model.
+            Order of species: <unspliced>, <spliced>
+        '''
+        ranges = np.zeros((2, 2))
+        ranges[0] = alpha * np.ones(2) if np.isscalar(alpha) else alpha
+        ranges[1] = gamma * np.ones(2) if np.isscalar(gamma) else gamma
+        super().__init__(ranges, Deterministic_NoSplicing(), x0)
+
+    def get_alpha(self):
+        return self.get_params()[0]
+
+    def get_gamma(self):
+        return self.get_params()[1]
+
+    def calc_half_life(self):
+        return np.log(2)/self.get_gamma()
+
+class Estimation_DeterministicKin(Estimation):
+    def __init__(self, alpha, beta, gamma, x0=np.zeros(2)):
+        '''An estimation class for kinetics experiments with the deterministic model.
+            Order of species: <unspliced>, <spliced>
+        '''
+        ranges = np.zeros((3, 2))
+        ranges[0] = alpha * np.ones(2) if np.isscalar(alpha) else alpha
+        ranges[1] = beta * np.ones(2) if np.isscalar(beta) else beta
+        ranges[2] = gamma * np.ones(2) if np.isscalar(gamma) else gamma
+
+        x0 = np.array(x0, copy=True)
+        if x0.ndim > 1:
+            ranges = np.vstack((ranges, x0))
+            x0 = None
+        super().__init__(ranges, Deterministic(), x0)
+
+    def get_alpha(self):
+        return self.get_params()[0]
+
+    def get_beta(self):
+        return self.get_params()[1]
+
+    def get_gamma(self):
+        return self.get_params()[2]
+
+    def calc_spl_half_life(self):
+        return np.log(2)/self.get_beta()
+
+    def calc_deg_half_life(self):
         return np.log(2)/self.get_gamma()

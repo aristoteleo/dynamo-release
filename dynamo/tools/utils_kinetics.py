@@ -14,12 +14,13 @@ class LinearODE:
         self.p = None
         # methods
         self.methods = ['numerical', 'matrix']
+        self.default_method = 'matrix'
         
     def ode_func(self, x, t):
         '''Implement your own ODE functions here such that dx=f(x, t)'''
         dx = np.zeros(len(x))
         return dx
-
+    
     def integrate(self, t, x0=None, method='matrix'):
         if method == 'matrix':
             sol = self.integrate_matrix(t, x0)
@@ -28,7 +29,7 @@ class LinearODE:
         self.x = sol
         self.t = t
         return sol
-            
+
     def integrate_numerical(self, t, x0=None):
         if x0 is None:
             x0 = self.x0
@@ -77,193 +78,6 @@ class LinearODE:
         for i in range(1, len(t)):
             x[i] = U.dot(np.diag(expD**(t[i]-t0))).dot(V).dot(y0) - x_ss
         return x
-
-class Moments_NoSwitchingNoSplicing(LinearODE):
-    def __init__(self, alpha=None, gamma=None, x0=None):
-        """This class simulates the dynamics of first and second moments of 
-        a transcription system without promoter switching."""
-        # species
-        self.u = 0
-        self.uu = 1
-
-        n_species = 2
-
-        # solution
-        super().__init__(n_species, x0)
-
-        # parameters
-        if not (alpha is None or gamma is None):
-            self.set_params(alpha, gamma)
-        
-    def ode_func(self, x, t):
-        dx = np.zeros(len(x))
-        # parameters
-        al = self.al
-        ga = self.ga
-
-        # first moments
-        dx[self.u] = al - ga*x[self.u]
-
-        # second moments
-        dx[self.uu] = al + (2*al + ga)*x[self.u] - 2*ga*x[self.uu]
-
-        return dx
-
-    def set_params(self, alpha, gamma):
-        self.al = alpha
-        self.ga = gamma
-
-        # reset solutions
-        super().reset()
-
-    def get_all_central_moments(self):
-        ret = np.zeros((2, len(self.t)))
-        ret[0] = self.get_mean_u()
-        ret[1] = self.get_var_u()
-        return ret
-
-    def get_mean_u(self):
-        return self.x[:, self.u]
-
-    def get_var_u(self):
-        c = self.get_mean_u()
-        return self.x[:, self.uu] - c**2
-    
-    def computeKnp(self):
-        # parameters
-        al = self.al
-        ga = self.ga
-
-        K = np.zeros((self.n_species, self.n_species))
-        # E1
-        K[self.u, self.u] = -ga
-
-        # E3
-        K[self.uu, self.uu] = -2*ga
-
-        # F31
-        K[self.uu, self.u] = 2*al + ga
-
-        p = np.zeros(self.n_species)
-        p[self.u] = al
-        p[self.uu] = al
-
-        return K, p
-
-class Moments_NoSwitching(LinearODE):
-    def __init__(self, alpha=None, beta=None, gamma=None, x0=None):
-        """This class simulates the dynamics of first and second moments of 
-        a transcription-splicing system without promoter switching."""
-        # species
-        self.u = 0
-        self.s = 1
-        self.uu = 2
-        self.ss = 3
-        self.us = 4
-
-        n_species = 5
-
-        # solution
-        super().__init__(n_species, x0)
-
-        # parameters
-        if not (alpha is None or beta is None or gamma is None):
-            self.set_params(alpha, beta, gamma)
-        
-    def ode_func(self, x, t):
-        dx = np.zeros(len(x))
-        # parameters
-        al = self.al
-        be = self.be
-        ga = self.ga
-
-        # first moments
-        dx[self.u] = al - be*x[self.u]
-        dx[self.s] = be*x[self.u] - ga*x[self.s]
-
-        # second moments
-        dx[self.uu] = al + 2*al*x[self.u] + be*x[self.u] - 2*be*x[self.uu]
-        dx[self.us] = al*x[self.s] + be*x[self.uu] - be*x[self.us] - ga*x[self.us]
-        dx[self.ss] = be*x[self.u] + 2*be*x[self.us] + ga*x[self.s] - 2*ga*x[self.ss]
-
-        return dx
-
-    def set_params(self, alpha, beta, gamma):
-        self.al = alpha
-        self.be = beta
-        self.ga = gamma
-
-        # reset solutions
-        super().reset()
-
-    def get_all_central_moments(self):
-        ret = np.zeros((5, len(self.t)))
-        ret[0] = self.get_mean_u()
-        ret[1] = self.get_mean_s()
-        ret[2] = self.get_var_u()
-        ret[3] = self.get_cov_us()
-        ret[4] = self.get_var_s()
-        return ret
-
-    def get_nosplice_central_moments(self):
-        ret = np.zeros((2, len(self.t)))
-        ret[0] = self.get_mean_u() + self.get_mean_s()
-        ret[1] = self.x[:, self.uu] + self.x[:, self.ss] + 2*self.x[:, self.us]
-        return ret
-
-    def get_mean_u(self):
-        return self.x[:, self.u]
-
-    def get_mean_s(self):
-        return self.x[:, self.s]
-
-    def get_var_u(self):
-        c = self.get_mean_u()
-        return self.x[:, self.uu] - c**2
-
-    def get_var_s(self):
-        c = self.get_mean_s()
-        return self.x[:, self.ss] - c**2
-
-    def get_cov_us(self):
-        cu = self.get_mean_u()
-        cs = self.get_mean_s()
-        return self.x[:, self.us] - cu * cs
-
-    def computeKnp(self):
-        # parameters
-        al = self.al
-        be = self.be
-        ga = self.ga
-
-        K = np.zeros((self.n_species, self.n_species))
-        # E1
-        K[self.u, self.u] = -be
-        K[self.s, self.s] = -ga
-
-        # E3
-        K[self.uu, self.uu] = -2*be
-        K[self.us, self.us] = -be - ga
-        K[self.ss, self.ss] = -2*ga
-
-        # F21
-        K[self.s, self.u] = be
-
-        # F31
-        K[self.uu, self.u] = 2*al + be
-        
-        K[self.us, self.s] = al
-        K[self.us, self.uu] = be
-        
-        K[self.ss, self.u] = be
-        K[self.ss, self.us] = 2*be
-        K[self.ss, self.s] = ga
-
-        p = np.zeros(self.n_species)
-        p[self.u] = al
-        p[self.uu] = al
-
-        return K, p
 
 class Moments(LinearODE):
     def __init__(self, a=None, b=None, alpha_a=None, alpha_i=None, beta=None, gamma=None, x0=None):
@@ -416,6 +230,193 @@ class Moments(LinearODE):
 
         return K, p
 
+class Moments_NoSwitching(LinearODE):
+    def __init__(self, alpha=None, beta=None, gamma=None, x0=None):
+        """This class simulates the dynamics of first and second moments of 
+        a transcription-splicing system without promoter switching."""
+        # species
+        self.u = 0
+        self.s = 1
+        self.uu = 2
+        self.ss = 3
+        self.us = 4
+
+        n_species = 5
+
+        # solution
+        super().__init__(n_species, x0)
+
+        # parameters
+        if not (alpha is None or beta is None or gamma is None):
+            self.set_params(alpha, beta, gamma)
+        
+    def ode_func(self, x, t):
+        dx = np.zeros(len(x))
+        # parameters
+        al = self.al
+        be = self.be
+        ga = self.ga
+
+        # first moments
+        dx[self.u] = al - be*x[self.u]
+        dx[self.s] = be*x[self.u] - ga*x[self.s]
+
+        # second moments
+        dx[self.uu] = al + 2*al*x[self.u] + be*x[self.u] - 2*be*x[self.uu]
+        dx[self.us] = al*x[self.s] + be*x[self.uu] - be*x[self.us] - ga*x[self.us]
+        dx[self.ss] = be*x[self.u] + 2*be*x[self.us] + ga*x[self.s] - 2*ga*x[self.ss]
+
+        return dx
+
+    def set_params(self, alpha, beta, gamma):
+        self.al = alpha
+        self.be = beta
+        self.ga = gamma
+
+        # reset solutions
+        super().reset()
+
+    def get_all_central_moments(self):
+        ret = np.zeros((5, len(self.t)))
+        ret[0] = self.get_mean_u()
+        ret[1] = self.get_mean_s()
+        ret[2] = self.get_var_u()
+        ret[3] = self.get_cov_us()
+        ret[4] = self.get_var_s()
+        return ret
+
+    def get_nosplice_central_moments(self):
+        ret = np.zeros((2, len(self.t)))
+        ret[0] = self.get_mean_u() + self.get_mean_s()
+        ret[1] = self.x[:, self.uu] + self.x[:, self.ss] + 2*self.x[:, self.us]
+        return ret
+
+    def get_mean_u(self):
+        return self.x[:, self.u]
+
+    def get_mean_s(self):
+        return self.x[:, self.s]
+
+    def get_var_u(self):
+        c = self.get_mean_u()
+        return self.x[:, self.uu] - c**2
+
+    def get_var_s(self):
+        c = self.get_mean_s()
+        return self.x[:, self.ss] - c**2
+
+    def get_cov_us(self):
+        cu = self.get_mean_u()
+        cs = self.get_mean_s()
+        return self.x[:, self.us] - cu * cs
+
+    def computeKnp(self):
+        # parameters
+        al = self.al
+        be = self.be
+        ga = self.ga
+
+        K = np.zeros((self.n_species, self.n_species))
+        # E1
+        K[self.u, self.u] = -be
+        K[self.s, self.s] = -ga
+
+        # E3
+        K[self.uu, self.uu] = -2*be
+        K[self.us, self.us] = -be - ga
+        K[self.ss, self.ss] = -2*ga
+
+        # F21
+        K[self.s, self.u] = be
+
+        # F31
+        K[self.uu, self.u] = 2*al + be
+        
+        K[self.us, self.s] = al
+        K[self.us, self.uu] = be
+        
+        K[self.ss, self.u] = be
+        K[self.ss, self.us] = 2*be
+        K[self.ss, self.s] = ga
+
+        p = np.zeros(self.n_species)
+        p[self.u] = al
+        p[self.uu] = al
+
+        return K, p
+
+class Moments_NoSwitchingNoSplicing(LinearODE):
+    def __init__(self, alpha=None, gamma=None, x0=None):
+        """This class simulates the dynamics of first and second moments of 
+        a transcription system without promoter switching."""
+        # species
+        self.u = 0
+        self.uu = 1
+
+        n_species = 2
+
+        # solution
+        super().__init__(n_species, x0)
+
+        # parameters
+        if not (alpha is None or gamma is None):
+            self.set_params(alpha, gamma)
+        
+    def ode_func(self, x, t):
+        dx = np.zeros(len(x))
+        # parameters
+        al = self.al
+        ga = self.ga
+
+        # first moments
+        dx[self.u] = al - ga*x[self.u]
+
+        # second moments
+        dx[self.uu] = al + (2*al + ga)*x[self.u] - 2*ga*x[self.uu]
+
+        return dx
+
+    def set_params(self, alpha, gamma):
+        self.al = alpha
+        self.ga = gamma
+
+        # reset solutions
+        super().reset()
+
+    def get_all_central_moments(self):
+        ret = np.zeros((2, len(self.t)))
+        ret[0] = self.get_mean_u()
+        ret[1] = self.get_var_u()
+        return ret
+
+    def get_mean_u(self):
+        return self.x[:, self.u]
+
+    def get_var_u(self):
+        c = self.get_mean_u()
+        return self.x[:, self.uu] - c**2
+    
+    def computeKnp(self):
+        # parameters
+        al = self.al
+        ga = self.ga
+
+        K = np.zeros((self.n_species, self.n_species))
+        # E1
+        K[self.u, self.u] = -ga
+
+        # E3
+        K[self.uu, self.uu] = -2*ga
+
+        # F31
+        K[self.uu, self.u] = 2*al + ga
+
+        p = np.zeros(self.n_species)
+        p[self.u] = al
+        p[self.uu] = al
+
+        return K, p
+
 class Deterministic(LinearODE):
     def __init__(self, alpha=None, beta=None, gamma=None, x0=None):
         """This class simulates the deterministic dynamics of
@@ -429,7 +430,8 @@ class Deterministic(LinearODE):
         # solution
         super().__init__(n_species, x0)
 
-        self.methods = ['numerical', 'analytical']
+        self.methods = ['numerical', 'matrix', 'analytical']
+        self.default_method = 'analytical'
 
         # parameters
         if not (alpha is None or beta is None or gamma is None):
@@ -465,7 +467,6 @@ class Deterministic(LinearODE):
             sol = self.integrate_analytical(t, x0)
         self.x = sol
         self.t = t
-        return sol
 
     def computeKnp(self):
         # parameters
@@ -505,6 +506,7 @@ class Deterministic_NoSplicing(LinearODE):
         super().__init__(n_species, x0)
 
         self.methods = ['numerical', 'matrix', 'analytical']
+        self.default_method = 'analytical'
 
         # parameters
         if not (alpha is None or gamma is None):
