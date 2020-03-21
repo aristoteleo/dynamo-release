@@ -395,12 +395,3 @@ class Estimation_DeterministicKin(Estimation):
     def calc_deg_half_life(self):
         return np.log(2)/self.get_gamma()
         
-class Estimation_DeterministicDegNosp(Estimation):
-    def __init__(self, ranges, x0=None):
-        super().__init__(ranges, Deterministic_NoSplicing(), x0)
-
-    def get_gamma(self):
-        return self.popt[0]
-
-    def calc_half_life(self):
-        return np.log(2)/self.get_gamma()
