@@ -628,6 +628,7 @@ def set_param_deterministic(
 
 def set_param_moment(
     adata,
+    alpha,
     a,
     b,
     alpha_a,
@@ -641,6 +642,7 @@ def set_param_moment(
 ):
     if cur_grp == _group[0]:
         (
+            adata.var[kin_param_pre + "alpha"],
             adata.var[kin_param_pre + "a"],
             adata.var[kin_param_pre + "b"],
             adata.var[kin_param_pre + "alpha_a"],
@@ -649,8 +651,9 @@ def set_param_moment(
             adata.var[kin_param_pre + "p_half_life"],
             adata.var[kin_param_pre + "gamma"],
             adata.var[kin_param_pre + "half_life"],
-        ) = (None, None, None, None, None, None, None, None)
+        ) = (None, None, None, None, None, None, None, None, None)
 
+    adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha
     adata.var.loc[valid_ind, kin_param_pre + "a"] = a
     adata.var.loc[valid_ind, kin_param_pre + "b"] = b
     adata.var.loc[valid_ind, kin_param_pre + "alpha_a"] = alpha_a
@@ -1401,11 +1404,11 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
         valid_genes = list(set(genes).intersection(adata.var.index))
 
         if layer is "X":
-            exprs = adata[np.isfinite(time), valid_genes].X
+            exprs = adata[np.isfinite(time), :][:, valid_genes].X
         elif layer in adata.layers.keys():
-            exprs = adata[np.isfinite(time), valid_genes].layers[layer]
+            exprs = adata[np.isfinite(time), :][:, valid_genes].layers[layer]
         elif layer is "protein":  # update subset here
-            exprs = adata[np.isfinite(time), valid_genes].obsm[layer]
+            exprs = adata[np.isfinite(time), :][:, valid_genes].obsm[layer]
         else:
             raise Exception(
                 f"The {layer} you passed in is not existed in the adata object."
@@ -1417,16 +1420,12 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
         if basis is not None:
             if project_back_to_high_dim:
                 exprs = adata.uns[fate_key]["high_prediction"]
-                exprs = exprs[np.isfinite(time), :][
-                    :, pd.Series(fate_genes).isin(valid_genes)
-                ]
+                exprs = exprs[np.isfinite(time), pd.Series(fate_genes).isin(valid_genes)]
             else:
                 exprs = adata.uns[fate_key]["prediction"][np.isfinite(time), :]
                 valid_genes = [basis + "_" + str(i) for i in np.arange(exprs.shape[1])]
         else:
-            exprs = adata.uns[fate_key]["prediction"][np.isfinite(time), :][
-                :, pd.Series(fate_genes).isin(valid_genes)
-            ]
+            exprs = adata.uns[fate_key]["prediction"][np.isfinite(time), pd.Series(fate_genes).isin(valid_genes)]
 
     time = time[np.isfinite(time)]
 
