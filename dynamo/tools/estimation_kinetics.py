@@ -308,6 +308,34 @@ class Estimation_MomentKin(Estimation):
     def calc_deg_half_life(self):
         return np.log(2)/self.get_gamma()
 
+class Estimation_MomentKinNosp(Estimation):
+    def __init__(self, a, b, alpha_a, alpha_i, gamma):
+        '''An estimation class for kinetics experiments.
+            Order of species: <r>, <rr>
+        '''
+        ranges = np.zeros((5, 2))
+        ranges[0] = a * np.ones(2) if np.isscalar(a) else a
+        ranges[1] = b * np.ones(2) if np.isscalar(b) else b
+        ranges[2] = alpha_a * np.ones(2) if np.isscalar(alpha_a) else alpha_a
+        ranges[3] = alpha_i * np.ones(2) if np.isscalar(alpha_i) else alpha_i
+        ranges[4] = gamma * np.ones(2) if np.isscalar(gamma) else gamma
+        super().__init__(ranges, Moments_Nosplicing(), np.zeros(5))
+
+    def get_alpha_a(self):
+        return self.popt[2]
+
+    def get_alpha_i(self):
+        return self.popt[3]
+
+    def get_gamma(self):
+        return self.popt[4]
+
+    def calc_spl_half_life(self):
+        return np.log(2)/self.get_beta()
+
+    def calc_deg_half_life(self):
+        return np.log(2)/self.get_gamma()
+
 class Estimation_DeterministicDeg(Estimation):
     '''An estimation class for degradation (with splicing) experiments.
         Order of species: <unspliced>, <spliced>
