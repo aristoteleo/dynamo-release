@@ -32,8 +32,7 @@ def estimate_alpha0_kin_nosp(x_data, time):
 
 class Estimation:
     def __init__(self, ranges, simulator, x0=None):
-        '''A general parameter estimation framework for all types of time-series data
-        
+        '''A general parameter estimation framework for all types of time-seris data
         Arguments
         ---------
             ranges: `numpy.ndarray`
@@ -178,6 +177,12 @@ class Estimation:
         self.cost = costs[i_min]
         return self.popt, self.cost
 
+    def export_parameters(self):
+        if self.popt is not None:
+            p = np.array(self.fixed_parameters, copy=True)
+            p[np.isnan(p)] = self.get_kinetic_parameters(np.array(self.popt, copy=True))
+            return p
+
     def get_SSE(self):
         return self.cost
 
@@ -217,7 +222,8 @@ class Estimation:
             x_data_norm = x_data
             x_model_norm = x_model
         c2 = np.sum((x_data_norm - x_model_norm)**2 / x_model_norm)
-        df = len(x_data.flatten()) - self.n_params - 1
+        #df = len(x_data.flatten()) - self.n_params - 1
+        df = len(np.unique(t)) - self.n_params - 1
         p = 1 - chi2.cdf(c2, df)
         return p, c2, df
 
@@ -330,9 +336,6 @@ class Estimation_MomentKinNosp(Estimation):
     def get_gamma(self):
         return self.popt[4]
 
-    def calc_spl_half_life(self):
-        return np.log(2)/self.get_beta()
-
     def calc_deg_half_life(self):
         return np.log(2)/self.get_gamma()
 
@@ -422,4 +425,62 @@ class Estimation_DeterministicKin(Estimation):
 
     def calc_deg_half_life(self):
         return np.log(2)/self.get_gamma()
-        
+
+class GoodnessOfFit:
+    def __init__(self, simulator, params=None, x0=None):
+        self.simulator = simulator
+        if params is not None:
+            self.simulator.set_params(*params)
+        if x0 is not None:
+            self.simulator.x0 = x0
+        self.mean = None
+        self.sigm = None
+        self.pred = None
+
+    def extract_data_from_simulator(self, species=None):
+        ret = self.simulator.x.T
+        if species is not None: ret = ret[species]
+        return ret
+
+    def prepare_data(self, t, x_data, species=None, method=None, normalize=True, reintegrate=True):
+        if reintegrate:
+            self.simulator.integrate(t, method=method)
+        x_model = self.extract_data_from_simulator(species=species)
+        if x_model.ndim == 1:
+            x_model = x_model[None]
+
+        if normalize:
+            mean = strat_mom(x_data.T, t, np.mean)
+            scale = np.max(mean, 0)
+            x_data_norm, x_model_norm = self.normalize(x_data, x_model, scale)
+        else:
+            x_data_norm, x_model_norm = x_data, x_model
+        self.mean = strat_mom(x_data_norm.T, t, np.mean)
+        self.sigm = strat_mom(x_data_norm.T, t, np.std)
+        self.pred = strat_mom(x_model_norm.T, t, np.mean)
+
+    def normalize(self, x_data, x_model, scale=None):
+        scale = np.max(x_data, 1) if scale is None else scale
+        x_data_norm = (x_data.T/scale).T
+        x_model_norm = (x_model.T/scale).T
+        return x_data_norm, x_model_norm
+
+    def calc_gaussian_likelihood(self):
+        sig = np.array(self.sigm, copy=True)
+        if np.any(sig==0):
+            warnings.warn('Some standard deviations are 0; Set to 1 instead.')
+            sig[sig==0] = 1
+        err = ((self.pred - self.mean) / sig).flatten()
+        ret = 1/(np.sqrt((2*np.pi)**len(err))*np.prod(sig)) * np.exp(-0.5*(err).dot(err))
+        return ret
+
+    def calc_gaussian_loglikelihood(self):
+        sig = np.array(self.sigm, copy=True)
+        if np.any(sig==0):
+            warnings.warn('Some standard deviations are 0; Set to 1 instead.')
+            sig[sig==0] = 1
+        err = ((self.pred - self.mean) / sig).flatten()
+        ret = -len(err)/2*np.log(2*np.pi) - np.sum(np.log(sig)) - 0.5*err.dot(err)
+        return ret
+
+
