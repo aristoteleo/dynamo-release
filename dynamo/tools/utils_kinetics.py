@@ -22,6 +22,7 @@ class LinearODE:
         return dx
     
     def integrate(self, t, x0=None, method='matrix'):
+        method = self.default_method if method is None else method
         if method == 'matrix':
             sol = self.integrate_matrix(t, x0)
         elif method == 'numerical':
@@ -551,12 +552,11 @@ class Deterministic(LinearODE):
         super().reset()
 
     def integrate(self, t, x0=None, method='analytical'):
-        if method == 'matrix':
-            sol = self.integrate_matrix(t, x0)
-        elif method == 'numerical':
-            sol = self.integrate_numerical(t, x0)
-        elif method == 'analytical':
+        method = self.default_method if method is None else method
+        if method == 'analytical':
             sol = self.integrate_analytical(t, x0)
+        else:
+            super().integrate(t, x0, method)
         self.x = sol
         self.t = t
 
@@ -623,15 +623,13 @@ class Deterministic_NoSplicing(LinearODE):
         super().reset()
 
     def integrate(self, t, x0=None, method='analytical'):
-        if method == 'matrix':
-            sol = self.integrate_matrix(t, x0)
-        elif method == 'numerical':
-            sol = self.integrate_numerical(t, x0)
-        elif method == 'analytical':
+        method = self.default_method if method is None else method
+        if method == 'analytical':
             sol = self.integrate_analytical(t, x0)
+        else:
+            super().integrate(t, x0, method)
         self.x = sol
         self.t = t
-        return sol
 
     def computeKnp(self):
         # parameters
