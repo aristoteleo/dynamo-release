@@ -192,7 +192,7 @@ def solve_alpha_2p(t0, t1, alpha0, beta, u1):
     return alpha1
 
 
-def fit_linreg(x, y, mask, intercept=False):
+def fit_linreg(x, y, mask=None, intercept=False):
     """Simple linear regression: y = kx + b.
 
     Arguments
@@ -221,8 +221,10 @@ def fit_linreg(x, y, mask, intercept=False):
     y = y.A if issparse(y) else y
 
     _mask = np.logical_and(~np.isnan(x), ~np.isnan(y))
-    xx = x[mask & _mask]
-    yy = y[mask & _mask]
+    if mask is not None:
+        _mask &= mask
+    xx = x[_mask]
+    yy = y[_mask]
 
     if intercept:
         ym = np.mean(yy)
