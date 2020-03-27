@@ -125,6 +125,26 @@ def calc_2nd_moment(X, Y, W, normalize_W=True, center=False, mX=None, mY=None):
     return XY
 
 
+def prepare_data_deterministic(adata, gene, time, layer, log=False):
+    u = adata.layers[layer][:, adata.var.index==gene].A.flatten()
+    u = np.log(u+1) if log else u
+    ut = strat_mom(u, time, np.mean)
+    return ut
+
+
+def prepare_data_moment(adata, gene, time, layer_u, layer_s, log=False):
+    u = adata.layers[layer_u][:, adata.var.index==gene].A.flatten()
+    s = adata.layers[layer_s][:, adata.var.index==gene].A.flatten()
+    u = np.log(u+1) if log else u
+    s = np.log(s+1) if log else s
+    ut = strat_mom(u, time, np.mean)
+    st = strat_mom(s, time, np.mean)
+    uut = strat_mom(elem_prod(u, u), time, np.mean)
+    sst = strat_mom(elem_prod(s, s), time, np.mean)
+    #ust = strat_mom(elem_prod(u, s), time, np.mean)
+    #return np.array([ut, st, uut, sst, ust])
+    return np.array([ut, st, uut, sst])
+
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
 def one_shot_gamma_alpha(k, t, l):
@@ -157,7 +177,7 @@ def get_valid_inds(adata, filter_gene_mode):
 
 def get_data_for_velocity_estimation(
     subset_adata,
-    mode,
+    model,
     use_smoothed,
     tkey,
     protein_names,
@@ -366,7 +386,7 @@ def get_data_for_velocity_estimation(
             subset_adata.var["is_protein_velocity_genes"] = False
             subset_adata.var.loc[ind_for_proteins, "is_protein_velocity_genes"] = True
 
-    if experiment_type is not None or mode is "moment":
+    if experiment_type is not None or model is "stochastic":
         assumption_mRNA = None
 
     experiment_type = "conventional"
@@ -399,7 +419,7 @@ def get_data_for_velocity_estimation(
             raise Exception(
                 "the tkey ", tkey, " provided is not a valid column name in .obs."
             )
-        if mode == "moment" and all(
+        if model == "stochastic" and all(
             [x in subset_adata.layers.keys() for x in ["M_tn", "M_tt"]]
         ):
             US, S2 = (
@@ -409,7 +429,7 @@ def get_data_for_velocity_estimation(
             )
     else:
         t = None
-        if mode == "moment":
+        if model == "stochastic":
             US, S2 = subset_adata.layers["M_us"].T, subset_adata.layers["M_ss"].T
 
     return (

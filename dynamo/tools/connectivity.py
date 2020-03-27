@@ -365,7 +365,7 @@ def mnn(
     return adata
 
 
-def smoother(adata, use_gaussian_kernel=True, use_mnn=False, layers="all"):
+def moments(adata, use_gaussian_kernel=True, use_mnn=False, layers="all"):
     mapper = get_mapper()
 
     if use_mnn:

@@ -1,6 +1,6 @@
 import warnings
 import numpy as np
-from .connectivity import smoother
+from .connectivity import moments
 from .velocity import velocity, estimation
 from .utils import (
     get_mapper,
@@ -113,7 +113,7 @@ def dynamics(
         if experiment_type == "kin":
             use_smoothed = False
         else:
-            smoother(adata)
+            moments(adata)
 
     valid_adata = adata[:, valid_ind].copy()
     if group is not None and group in adata.obs[group]:

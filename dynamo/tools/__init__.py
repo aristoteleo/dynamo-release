@@ -90,7 +90,7 @@ from .state_graph import state_graph
 from .dimension_reduction import reduceDimension  # , run_umap
 
 # mnn related
-from .connectivity import mnn, smoother
+from .connectivity import mnn, moments
 
 # Pseudotime related
 from .DDRTree import DDRTree_py as DDRTree
