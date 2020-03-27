@@ -34,7 +34,7 @@ class velocity:
             A vector of protein degradation rate constant for each gene.
         t: :class:`~numpy.ndarray` or None (default: None)
             A vector of the measured time points for cells
-        estimation: :class:`~estimation`
+        estimation: :class:`~ss_estimation`
             An instance of the estimation class. If this not None, the parameters will be taken from this class instead of the input arguments.
         """
         if estimation is not None:
@@ -311,7 +311,7 @@ class velocity:
         return n_genes
 
 
-class estimation:
+class ss_estimation:
     def __init__(
         self,
         U=None,
@@ -346,7 +346,7 @@ class estimation:
             A matrix of second moment of unspliced/spliced gene expression count for conventional or NTR velocity.
         S2: :class:`~numpy.ndarray` or sparse `csr_matrix`
             A matrix of second moment of spliced gene expression count for conventional or NTR velocity.
-        t: :class:`~estimation`
+        t: :class:`~ss_estimation`
             A vector of time points.
         ind_for_proteins: :class:`~numpy.ndarray`
             A 1-D vector of the indices in the U, Ul, S, Sl layers that corresponds to the row name in the `protein` or
@@ -369,7 +369,7 @@ class estimation:
 
         Attributes
         ----------
-        t: :class:`~estimation`
+        t: :class:`~ss_estimation`
             A vector of time points.
         data: `dict`
             A dictionary with uu, ul, su, sl, p as its keys.

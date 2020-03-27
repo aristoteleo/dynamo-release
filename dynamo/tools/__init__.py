@@ -17,7 +17,7 @@ from .velocity import (
     fit_alpha_synthesis,
     fit_alpha_degradation,
     velocity,
-    estimation,
+    ss_estimation,
 )
 from .cell_velocities import (
     cell_velocities,

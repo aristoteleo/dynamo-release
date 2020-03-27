@@ -1,7 +1,7 @@
 import warnings
 import numpy as np
 from .connectivity import moments
-from .velocity import velocity, estimation
+from .velocity import velocity, ss_estimation
 from .utils import (
     get_mapper,
     get_valid_inds,
@@ -181,7 +181,7 @@ def dynamics(
         if mode is "deterministic" or (
             experiment_type is not "kin" and mode is "moment"
         ):
-            est = estimation(
+            est = ss_estimation(
                 U=U,
                 Ul=Ul,
                 S=S,
