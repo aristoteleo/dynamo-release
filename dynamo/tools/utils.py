@@ -213,90 +213,6 @@ def get_data_for_velocity_estimation(
 
     mapper = get_mapper()
 
-    # splicing data
-    if (
-        ("X_unspliced" in subset_adata.layers.keys() and not use_moments)
-        or (mapper["X_unspliced"] in subset_adata.layers.keys() and use_moments)
-    ):
-        has_splicing, normalized, assumption_mRNA = True, True, "kinetic" \
-            if tkey in subset_adata.obs.columns else 'ss'
-        U = (
-            subset_adata.layers[mapper["X_unspliced"]].T
-            if use_moments
-            else subset_adata.layers["X_unspliced"].T
-        )
-    elif "unspliced" in subset_adata.layers.keys():
-        has_splicing, assumption_mRNA = True, "kinetic" \
-            if tkey in subset_adata.obs.columns else 'ss'
-        raw, raw_unspliced = (
-            subset_adata.layers["unspliced"].T,
-            subset_adata.layers["unspliced"].T,
-        )
-        if issparse(raw):
-            raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
-        else:
-            raw = np.log(raw + 1) if log_unnormalized else raw
-        U = raw
-    if (
-        ("X_spliced" in subset_adata.layers.keys() and not use_moments)
-        or (mapper["X_spliced"] in subset_adata.layers.keys() and use_moments)
-    ):
-        S = (
-            subset_adata.layers[mapper["X_spliced"]].T
-            if use_moments
-            else subset_adata.layers["X_spliced"].T
-        )
-    elif "spliced" in subset_adata.layers.keys():
-        raw, raw_spliced = (
-            subset_adata.layers["spliced"].T,
-            subset_adata.layers["spliced"].T,
-        )
-        if issparse(raw):
-            raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
-        else:
-            raw = np.log(raw + 1) if log_unnormalized else raw
-        S = raw
-
-    # labeling without splicing
-    if (
-        ("X_new" in subset_adata.layers.keys() and not use_moments)
-        or (mapper["X_new"] in subset_adata.layers.keys() and use_moments)
-    ):  # run new / total ratio (NTR)
-        has_labeling, normalized, assumption_mRNA = (
-            True,
-            True,
-            "ss" if NTR_vel else 'kinetic',
-        )
-        U = (
-            subset_adata.layers[mapper["X_total"]].T
-            - subset_adata.layers[mapper["X_new"]].T
-            if use_moments
-            else subset_adata.layers["X_total"].T - subset_adata.layers["X_new"].T
-        )
-        Ul = (
-            subset_adata.layers[mapper["X_new"]].T
-            if use_moments
-            else subset_adata.layers["X_new"].T
-        )
-    elif "new" in subset_adata.layers.keys():
-        has_labeling, assumption_mRNA = (
-            True,
-            "ss" if NTR_vel else 'kinetic',
-        )
-        raw, raw_new, old = (
-            subset_adata.layers["new"].T,
-            subset_adata.layers["new"].T,
-            subset_adata.layers["total"].T - subset_adata.layers["new"].T,
-        )
-        if issparse(raw):
-            raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
-            old.data = np.log(old.data + 1) if log_unnormalized else old.data
-        else:
-            raw = np.log(raw + 1) if log_unnormalized else raw
-            old = np.log(old + 1) if log_unnormalized else old
-        U = old
-        Ul = raw
-
     # labeling plus splicing
     if (
         np.all(
@@ -343,6 +259,90 @@ def get_data_for_velocity_estimation(
 
         raw, raw_su = subset_adata.layers["su"].T, subset_adata.layers["su"].T
         S = log_unnormalized_data(raw, log_unnormalized)
+
+    # labeling without splicing
+    if (
+        ("X_new" in subset_adata.layers.keys() and not use_moments)
+        or (mapper["X_new"] in subset_adata.layers.keys() and use_moments)
+    ):  # run new / total ratio (NTR)
+        has_labeling, normalized, assumption_mRNA = (
+            True,
+            True,
+            "ss" if NTR_vel else 'kinetic',
+        )
+        U = (
+            subset_adata.layers[mapper["X_total"]].T
+            - subset_adata.layers[mapper["X_new"]].T
+            if use_moments
+            else subset_adata.layers["X_total"].T - subset_adata.layers["X_new"].T
+        )
+        Ul = (
+            subset_adata.layers[mapper["X_new"]].T
+            if use_moments
+            else subset_adata.layers["X_new"].T
+        )
+    elif "new" in subset_adata.layers.keys():
+        has_labeling, assumption_mRNA = (
+            True,
+            "ss" if NTR_vel else 'kinetic',
+        )
+        raw, raw_new, old = (
+            subset_adata.layers["new"].T,
+            subset_adata.layers["new"].T,
+            subset_adata.layers["total"].T - subset_adata.layers["new"].T,
+        )
+        if issparse(raw):
+            raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+            old.data = np.log(old.data + 1) if log_unnormalized else old.data
+        else:
+            raw = np.log(raw + 1) if log_unnormalized else raw
+            old = np.log(old + 1) if log_unnormalized else old
+        U = old
+        Ul = raw
+
+    # splicing data
+    if (
+        ("X_unspliced" in subset_adata.layers.keys() and not use_moments)
+        or (mapper["X_unspliced"] in subset_adata.layers.keys() and use_moments)
+    ):
+        has_splicing, normalized, assumption_mRNA = True, True, "kinetic" \
+            if tkey in subset_adata.obs.columns else 'ss'
+        U = (
+            subset_adata.layers[mapper["X_unspliced"]].T
+            if use_moments
+            else subset_adata.layers["X_unspliced"].T
+        )
+    elif "unspliced" in subset_adata.layers.keys():
+        has_splicing, assumption_mRNA = True, "kinetic" \
+            if tkey in subset_adata.obs.columns else 'ss'
+        raw, raw_unspliced = (
+            subset_adata.layers["unspliced"].T,
+            subset_adata.layers["unspliced"].T,
+        )
+        if issparse(raw):
+            raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        else:
+            raw = np.log(raw + 1) if log_unnormalized else raw
+        U = raw
+    if (
+        ("X_spliced" in subset_adata.layers.keys() and not use_moments)
+        or (mapper["X_spliced"] in subset_adata.layers.keys() and use_moments)
+    ):
+        S = (
+            subset_adata.layers[mapper["X_spliced"]].T
+            if use_moments
+            else subset_adata.layers["X_spliced"].T
+        )
+    elif "spliced" in subset_adata.layers.keys():
+        raw, raw_spliced = (
+            subset_adata.layers["spliced"].T,
+            subset_adata.layers["spliced"].T,
+        )
+        if issparse(raw):
+            raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+        else:
+            raw = np.log(raw + 1) if log_unnormalized else raw
+        S = raw
 
     ind_for_proteins = None
     if (
@@ -474,7 +474,7 @@ def set_velocity(
     return adata
 
 
-def set_param_deterministic(
+def set_param_ss(
     adata,
     est,
     alpha,
@@ -630,7 +630,7 @@ def set_param_deterministic(
     return adata
 
 
-def set_param_moment(
+def set_param_kinetic(
     adata,
     alpha,
     a,

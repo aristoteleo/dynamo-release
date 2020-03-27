@@ -8,7 +8,7 @@ from .utils import (
     get_data_for_velocity_estimation,
     get_U_S_for_velocity_estimation,
 )
-from .utils import set_velocity, set_param_deterministic, set_param_moment
+from .utils import set_velocity, set_param_ss, set_param_kinetic
 from .utils import moment_model
 
 # incorporate the model selection code soon
@@ -232,7 +232,7 @@ def dynamics(
                 ind_for_proteins,
             )
 
-            adata = set_param_deterministic(
+            adata = set_param_ss(
                 adata,
                 est,
                 alpha,
@@ -296,7 +296,7 @@ def dynamics(
                 ind_for_proteins,
             )
 
-            adata = set_param_moment(
+            adata = set_param_kinetic(
                 adata,
                 alpha,
                 a,

@@ -1,8 +1,115 @@
-from tqdm import tqdm
-from anndata import AnnData
 import numpy as np
+import warnings
+from anndata import AnnData
 from scipy.sparse import issparse
+from tqdm import tqdm
 from .utils_moments import estimation
+from .utils import get_mapper, gaussian_kernel, calc_1nd_moment, calc_2nd_moment
+from .connectivity import mnn, normalize_knn_graph, umap_conn_indices_dist_embedding
+from ..preprocessing.utils import get_layer_keys, allowed_X_layer_names
+
+
+def moments(adata, use_gaussian_kernel=True, use_mnn=False, layers="all"):
+    # if we have uu, ul, su, sl, let us set total and new
+
+    mapper = get_mapper()
+    only_splicing, only_labeling, splicing_and_labeling = allowed_X_layer_names()
+
+    if use_mnn:
+        if "mnn" not in adata.uns.keys():
+            adata = mnn(
+                adata,
+                n_pca_components=30,
+                layers="all",
+                use_pca_fit=True,
+                save_all_to_adata=False,
+            )
+        kNN = adata.uns["mnn"]
+    else:
+        X = adata.obsm["X_pca"]
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            kNN, knn_indices, knn_dists, _ = umap_conn_indices_dist_embedding(
+                X, n_neighbors=30, return_mapper=False
+            )
+
+    if use_gaussian_kernel and not use_mnn:
+        conn = gaussian_kernel(X, knn_indices, sigma=10, k=None, dists=knn_dists)
+    else:
+        conn = normalize_knn_graph(kNN > 0)
+
+    layers = get_layer_keys(adata, layers, False, False)
+    layers = [
+        layer
+        for layer in layers
+        if layer.startswith("X_")
+           and (not layer.endswith("matrix") and not layer.endswith("ambiguous"))
+    ]
+    layers.sort(
+        reverse=True
+    )  # ensure we get M_us, M_tn, etc (instead of M_su or M_nt).
+    for i, layer in enumerate(layers):
+        layer_x = adata.layers[layer].copy()
+        layer_x_group = np.where([layer_x in x for x in
+                                  [only_splicing, only_labeling, splicing_and_labeling]])[0][0]
+
+        if issparse(layer_x):
+            layer_x.data = (
+                2 ** layer_x.data - 1
+                if adata.uns["pp_log"] == "log2"
+                else np.exp(layer_x.data) - 1
+            )
+        else:
+            layer_x = (
+                2 ** layer_x - 1
+                if adata.uns["pp_log"] == "log2"
+                else np.exp(layer_x) - 1
+            )
+
+        if mapper[layer] not in adata.layers.keys():
+            if use_gaussian_kernel:
+                adata.layers[mapper[layer]], conn = calc_1nd_moment(layer_x, conn, True)
+            else:
+                conn.dot(layer_x)
+
+        for layer2 in layers[i:]:
+            layer_y = adata.layers[layer2].copy()
+
+            layer_y_group = np.where([layer_y in x for x in
+                                      [only_splicing, only_labeling, splicing_and_labeling]])[0][0]
+            if layer_x_group != layer_y_group:
+                continue
+
+            if issparse(layer_y):
+                layer_y.data = (
+                    2 ** layer_y.data - 1
+                    if adata.uns["pp_log"] == "log2"
+                    else np.exp(layer_y.data) - 1
+                )
+            else:
+                layer_y = (
+                    2 ** layer_y - 1
+                    if adata.uns["pp_log"] == "log2"
+                    else np.exp(layer_y) - 1
+                )
+
+            if mapper[layer2] not in adata.layers.keys():
+                adata.layers[mapper[layer2]] = (
+                    calc_1nd_moment(layer_y, conn, False)
+                    if use_gaussian_kernel
+                    else conn.dot(layer_y)
+                )
+
+            adata.layers["M_" + layer[2] + layer2[2]] = calc_2nd_moment(
+                layer_x, layer_y, conn, mX=layer_x, mY=layer_y
+            )
+
+    if (
+            "X_protein" in adata.obsm.keys()
+    ):  # may need to update with mnn or just use knn from protein layer itself.
+        adata.obsm[mapper["X_protein"]] = conn.dot(adata.obsm["X_protein"])
+
+    return adata
 
 
 def stratify(arr, strata):
