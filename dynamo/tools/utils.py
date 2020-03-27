@@ -918,12 +918,30 @@ def lhsclassic(n_samples, n_dim):
 
     return H
 
+def calc_R2(X, Y, k, f=lambda X, k: np.einsum('ij,i -> ij', X, k)):
+    if X.ndim == 1:
+        X = X[None]
+    if Y.ndim == 1:
+        Y = Y[None]
+    if np.isscalar(k):
+        k = np.array([k])
+    
+    Y_bar = np.mean(Y, 1)
+    d = Y.T - Y_bar
+    SS_tot = np.sum(np.einsum('ij,ij -> i', d, d))
+
+    F = f(X, k)
+    d = F - Y
+    SS_res = np.sum(np.einsum('ij,ij -> j', d, d))
+
+    return 1 - SS_res/SS_tot
+
 
 def norm_loglikelihood(x, mu, sig):
     """Calculate log-likelihood for the data.
     """
-    ll = -0.5 * np.log(2 * np.pi) - 0.5 * (x - mu) ** 2 / sig ** 2
-
+    err = (x - mu) / sig
+    ll = -len(err)/2*np.log(2*np.pi) - np.sum(np.log(sig)) - 0.5*err.dot(err)
     return np.sum(ll)
 
 

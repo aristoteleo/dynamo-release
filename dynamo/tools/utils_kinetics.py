@@ -22,6 +22,7 @@ class LinearODE:
         return dx
     
     def integrate(self, t, x0=None, method='matrix'):
+        method = self.default_method if method is None else method
         if method == 'matrix':
             sol = self.integrate_matrix(t, x0)
         elif method == 'numerical':
@@ -223,6 +224,98 @@ class Moments(LinearODE):
 
         # F43
         K[self.ux, self.uu] = be
+
+        p = np.zeros(self.n_species)
+        p[self.ua] = aa
+        p[self.ui] = ai 
+
+        return K, p
+
+class Moments_Nosplicing(LinearODE):
+    def __init__(self, a=None, b=None, alpha_a=None, alpha_i=None, gamma=None, x0=None):
+        """This class simulates the dynamics of first and second moments of 
+        a transcription-splicing system with promoter switching."""
+        # species
+        self.ua = 0
+        self.ui = 1
+        self.xa = 2
+        self.xi = 3
+        self.uu = 4
+
+        n_species = 5
+
+        # solution
+        super().__init__(n_species, x0=x0)
+
+        # parameters
+        if not (a is None or b is None or alpha_a is None or alpha_i is None or gamma is None):
+            self.set_params(a, b, alpha_a, alpha_i, gamma)
+        
+    def ode_func(self, x, t):
+        dx = np.zeros(len(x))
+        # parameters
+        a = self.a
+        b = self.b
+        aa = self.aa
+        ai = self.ai
+        ga = self.ga
+
+        # first moments
+        dx[self.ua] = aa - ga*x[self.ua] + a*(x[self.ui]-x[self.ua])
+        dx[self.ui] = ai - ga*x[self.ui] - b*(x[self.ui]-x[self.ua])
+
+        # second moments
+        dx[self.uu] = 2*self.fbar(aa*x[self.ua], ai*x[self.ui]) - 2*ga*x[self.uu]
+
+        return dx
+
+    def fbar(self, x_a, x_i):
+        return self.b/(self.a + self.b) * x_a + self.a/(self.a + self.b) * x_i
+
+    def set_params(self, a, b, alpha_a, alpha_i, gamma):
+        self.a = a
+        self.b = b
+        self.aa = alpha_a
+        self.ai = alpha_i
+        self.ga = gamma
+
+        # reset solutions
+        super().reset()
+
+    def get_all_central_moments(self):
+        ret = np.zeros((4, len(self.t)))
+        ret[0] = self.get_nu()
+        ret[2] = self.get_var_nu()
+        return ret
+
+    def get_nu(self):
+        return self.fbar(self.x[:, self.ua], self.x[:, self.ui])
+
+    def get_var_nu(self):
+        c = self.get_nu()
+        return self.x[:, self.uu] + c - c**2
+
+    def computeKnp(self):
+        # parameters
+        a = self.a
+        b = self.b
+        aa = self.aa
+        ai = self.ai
+        ga = self.ga
+
+        K = np.zeros((self.n_species, self.n_species))
+        # E1
+        K[self.ua, self.ua] = -ga - a
+        K[self.ua, self.ui] = a
+        K[self.ui, self.ua] = b
+        K[self.ui, self.ui] = -ga - b
+
+        # E3
+        K[self.uu, self.uu] = -2*ga
+
+        # F31
+        K[self.uu, self.ua] = 2 * aa * b / (a + b)
+        K[self.uu, self.ui] = 2 * ai * a / (a + b)
 
         p = np.zeros(self.n_species)
         p[self.ua] = aa
@@ -459,12 +552,11 @@ class Deterministic(LinearODE):
         super().reset()
 
     def integrate(self, t, x0=None, method='analytical'):
-        if method == 'matrix':
-            sol = self.integrate_matrix(t, x0)
-        elif method == 'numerical':
-            sol = self.integrate_numerical(t, x0)
-        elif method == 'analytical':
+        method = self.default_method if method is None else method
+        if method == 'analytical':
             sol = self.integrate_analytical(t, x0)
+        else:
+            super().integrate(t, x0, method)
         self.x = sol
         self.t = t
 
@@ -531,15 +623,13 @@ class Deterministic_NoSplicing(LinearODE):
         super().reset()
 
     def integrate(self, t, x0=None, method='analytical'):
-        if method == 'matrix':
-            sol = self.integrate_matrix(t, x0)
-        elif method == 'numerical':
-            sol = self.integrate_numerical(t, x0)
-        elif method == 'analytical':
+        method = self.default_method if method is None else method
+        if method == 'analytical':
             sol = self.integrate_analytical(t, x0)
+        else:
+            super().integrate(t, x0, method)
         self.x = sol
         self.t = t
-        return sol
 
     def computeKnp(self):
         # parameters
