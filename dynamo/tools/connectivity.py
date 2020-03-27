@@ -366,6 +366,8 @@ def mnn(
 
 
 def moments(adata, use_gaussian_kernel=True, use_mnn=False, layers="all"):
+    # if we have uu, ul, su, sl, let us set total and new
+
     mapper = get_mapper()
 
     if use_mnn:
