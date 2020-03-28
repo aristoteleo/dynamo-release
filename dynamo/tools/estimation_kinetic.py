@@ -123,6 +123,12 @@ class kinetic_estimation:
         else:
             return params[:self.n_params - self.simulator.n_species]
 
+    def fbar(self, x_a, x_i, a, b):
+
+        alpha = b / (a + b) * x_a + a / (a + b) * x_i
+
+        return alpha
+
     def f_lsq(self, params, t, x_data, method=None, normalize=True):
         method = self.simulator.default_method if method is None else method
         if method not in self.simulator.methods: 
@@ -302,6 +308,10 @@ class Estimation_MomentKin(kinetic_estimation):
     def get_alpha_i(self):
         return self.popt[3]
 
+    def get_alpha(self):
+        alpha = self.fbar(self.pot[2]. self.pot[3], self.popt[0], self.popt[1])
+        return alpha
+
     def get_beta(self):
         return self.popt[4]
 
@@ -332,6 +342,10 @@ class Estimation_MomentKinNosp(kinetic_estimation):
 
     def get_alpha_i(self):
         return self.popt[3]
+
+    def get_alpha(self):
+        alpha = self.fbar(self.pot[2]. self.pot[3], self.popt[0], self.popt[1])
+        return alpha
 
     def get_gamma(self):
         return self.popt[4]

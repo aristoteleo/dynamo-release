@@ -435,6 +435,38 @@ def get_data_for_velocity_estimation(
     )
 
 
+def prepare_data_has_splicing(adata, genes, time, layer_u, layer_s):
+    """Prepare data when assumption is kinetic and data has splicing"""
+    res = [0] * len(genes)
+
+    for i, g in enumerate(genes):
+        u = adata.layers[layer_u][:, adata.var.index == g].A.flatten()
+        s = adata.layers[layer_s][:, adata.var.index == g].A.flatten()
+        ut = strat_mom(u, time, np.mean)
+        st = strat_mom(s, time, np.mean)
+        uut = strat_mom(elem_prod(u, u), time, np.mean)
+        ust = strat_mom(elem_prod(u, s), time, np.mean)
+        sst = strat_mom(elem_prod(s, s), time, np.mean)
+        x = np.array([ut, st, uut, sst, ust])
+
+        res[i] = x
+
+    return res
+
+
+def prepare_data_no_splicing(adata, genes, time, layer):
+    """Prepare data when assumption is kinetic and data has no splicing"""
+    res = [0] * len(genes)
+
+    for i, g in enumerate(genes):
+        u = adata.layers[layer][:, adata.var.index == g].A.flatten()
+        ut = strat_mom(u, time, np.mean)
+        uut = strat_mom(elem_prod(u, u), time, np.mean)
+        res[i] = np.array([ut, uut])
+
+    return res
+
+
 def set_velocity(
     adata,
     vel_U,
@@ -639,6 +671,8 @@ def set_param_kinetic(
     alpha_i,
     beta,
     gamma,
+    cost,
+    logLL,
     kin_param_pre,
     _group,
     cur_grp,
@@ -655,7 +689,9 @@ def set_param_kinetic(
             adata.var[kin_param_pre + "p_half_life"],
             adata.var[kin_param_pre + "gamma"],
             adata.var[kin_param_pre + "half_life"],
-        ) = (None, None, None, None, None, None, None, None, None)
+            adata.var[kin_param_pre + "cost"],
+            adata.var[kin_param_pre + "logLL"],
+        ) = (None, None, None, None, None, None, None, None, None, None, None)
 
     adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha
     adata.var.loc[valid_ind, kin_param_pre + "a"] = a
@@ -665,6 +701,8 @@ def set_param_kinetic(
     adata.var.loc[valid_ind, kin_param_pre + "beta"] = beta
     adata.var.loc[valid_ind, kin_param_pre + "gamma"] = gamma
     adata.var.loc[valid_ind, kin_param_pre + "half_life"] = np.log(2) / gamma
+    adata.var.loc[valid_ind, kin_param_pre + "cost"] = cost
+    adata.var.loc[valid_ind, kin_param_pre + "logLL"] = logLL
 
     return adata
 
