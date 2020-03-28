@@ -52,7 +52,7 @@ def moments(adata, use_gaussian_kernel=True, use_mnn=False, layers="all"):
     )  # ensure we get M_us, M_tn, etc (instead of M_su or M_nt).
     for i, layer in enumerate(layers):
         layer_x = adata.layers[layer].copy()
-        layer_x_group = np.where([layer_x in x for x in
+        layer_x_group = np.where([layer in x for x in
                                   [only_splicing, only_labeling, splicing_and_labeling]])[0][0]
 
         if issparse(layer_x):
@@ -77,7 +77,7 @@ def moments(adata, use_gaussian_kernel=True, use_mnn=False, layers="all"):
         for layer2 in layers[i:]:
             layer_y = adata.layers[layer2].copy()
 
-            layer_y_group = np.where([layer_y in x for x in
+            layer_y_group = np.where([layer2 in x for x in
                                       [only_splicing, only_labeling, splicing_and_labeling]])[0][0]
             if layer_x_group != layer_y_group:
                 continue

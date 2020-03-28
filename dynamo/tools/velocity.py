@@ -324,6 +324,7 @@ class ss_estimation:
         S2=None,
         t=None,
         ind_for_proteins=None,
+        model='stochastic',
         experiment_type="deg",
         assumption_mRNA=None,
         assumption_protein="ss",
@@ -394,6 +395,7 @@ class ss_estimation:
             self.concatenate_data()
 
         self.extyp = experiment_type
+        self.model = model
         self.asspt_mRNA = assumption_mRNA
         self.asspt_prot = assumption_protein
         self.parameters = {
@@ -446,7 +448,7 @@ class ss_estimation:
         n = self.get_n_genes()
         # fit mRNA
         if self.extyp == "conventional":
-            if self.asspt_mRNA == "ss":
+            if self.model == "deterministic":
                 if np.all(self._exist_data("uu", "su")):
                     self.parameters["beta"] = np.ones(n)
                     gamma, gamma_intercept, gamma_r2 = (

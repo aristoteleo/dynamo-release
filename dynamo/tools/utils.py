@@ -454,7 +454,7 @@ def set_param_ss(
             ) = (None, None, None)
         adata.var.loc[valid_ind, kin_param_pre + "beta"] = beta
         adata.var.loc[valid_ind, kin_param_pre + "gamma"] = gamma
-        adata.var.loc[valid_ind, kin_param_pre + "half_life"] = np.log(2) / gamma
+        adata.var.loc[valid_ind, kin_param_pre + "half_life"] = None if gamma is None else np.log(2) / gamma
 
         (
             alpha_intercept,

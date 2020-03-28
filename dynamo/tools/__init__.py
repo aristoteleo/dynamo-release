@@ -53,7 +53,7 @@ from .cell_velocities import (
     expected_return_time,
 )
 
-from .dynamics_update import dynamics
+from .dynamics import dynamics
 
 # run other velocity tools:
 from .velocyto_scvelo import (

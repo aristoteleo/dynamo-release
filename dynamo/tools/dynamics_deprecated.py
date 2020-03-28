@@ -1,36 +1,32 @@
-import pandas as pd
-from .moments import moments
-from .velocity import velocity
-from .velocity import ss_estimation
-from .estimation_kinetic import *
-from .utils_kinetic import *
+import warnings
+import numpy as np
+from .utils_moments import moments
+from .velocity import velocity, ss_estimation
 from .utils import (
-    update_dict,
+    get_mapper,
     get_valid_inds,
     get_data_for_velocity_estimation,
     get_U_S_for_velocity_estimation,
 )
 from .utils import set_velocity, set_param_ss, set_param_kinetic
-from .moments import prepare_data_no_splicing, prepare_data_has_splicing
+from .moments import moment_model
 
 # incorporate the model selection code soon
-def dynamics(
+def _dynamics(
     adata,
     tkey=None,
     filter_gene_mode="final",
-    use_moments=True,
+    mode="moment",
+    use_smoothed=True,
     group=None,
     protein_names=None,
-    experiment_type='auto',
-    assumption_mRNA='auto',
+    experiment_type=None,
+    assumption_mRNA=None,
     assumption_protein="ss",
-    model="stochastic",
-    est_method="auto",
-    NTR_vel=False,
+    NTR_vel=True,
     concat_data=False,
     log_unnormalized=True,
     one_shot_method="combined",
-    **est_kwargs
 ):
     """Inclusive model of expression dynamics considers splicing, metabolic labeling and protein translation. It supports
     learning high-dimensional velocity vector samples for droplet based (10x, inDrop, drop-seq, etc), scSLAM-seq, NASC-seq
@@ -45,13 +41,13 @@ def dynamics(
             mode  with labeled data.
         filter_gene_mode: `str` (default: `final`)
             The string for indicating which mode (one of, {'final', 'basic', 'no'}) of gene filter will be used.
-        model: `str` (default: `deterministic`)
-            String indicates which estimation model will be used. This parameter should be used in conjunction with assumption_mRNA.
+        mode: `str` (default: `deterministic`)
+            String indicates which estimation mode will be used. This parameter should be used in conjunction with assumption_mRNA.
             * Available options when the `assumption_mRNA` is 'ss' include:
             (1) 'linear_regression': The canonical method from the seminar RNA velocity paper based on deterministic ordinary
             differential equations;
             (2) 'gmm': The new generalized methods of moments from us that is based on master equations, similar to the
-            "moment" model in the excellent scvelo package;
+            "moment" mode in the excellent scvelo package;
             (3) 'negbin': The new method from us that models steady state RNA expression as a negative binomial distribution,
             also built upons on master equations.
             Note that all those methods require using extreme data points (except negbin) for the estimation. Extreme data points
@@ -64,10 +60,10 @@ def dynamics(
             (2) 'stochastic' or `moment`: The new method from us that is based on master equations;
             Note that `kinetic` model implicitly assumes the `experiment_type` is not `conventional`. Thus `deterministic`,
             `stochastic` (equivalent to `moment`) models are only possible for the labeling experiments.
-            A "model_selection" model will be supported soon in which alpha, beta and gamma will be modeled as a function of time.
-        use_moments: `bool` (default: `True`)
+            A "model_selection" mode will be supported soon in which alpha, beta and gamma will be modeled as a function of time.
+        use_smoothed: `bool` (default: `True`)
             Whether to use the smoothed data when calculating velocity for each gene. `use_smoothed` is only relevant when
-            model is `linear_regression` (and experiment_type and assumption_mRNA correspond to `conventional` and `ss` implicitly).
+            mode is `linear_regression` (and experiment_type and assumption_mRNA correspond to `conventional` and `ss` implicitly).
         group: `str` or None (default: `None`)
             The column key/name that identifies the grouping information (for example, clusters that correspond to different cell types)
             of cells. This will be used to estimate group-specific (i.e cell-type specific) kinetic parameters.
@@ -103,21 +99,24 @@ def dynamics(
             A updated AnnData object with estimated kinetic parameters and inferred velocity included.
     """
 
-    filter_list, filter_gene_mode_lit = ['use_for_dynamo', 'pass_basic_filter', 'no'], ['final', 'basic', 'no']
-    filter_checker = [i in adata.var.columns for i in filter_list[:2]]
-    filter_checker.append(True)
-    which_filter = np.where(filter_checker[filter_gene_mode_lit.index(filter_gene_mode):])[0][0]
-
-    filter_gene_mode = filter_gene_mode_lit[which_filter]
+    if (
+        "use_for_dynamo" not in adata.var.columns
+        and "pass_basic_filter" not in adata.var.columns
+    ):
+        filter_gene_mode = "no"
 
     valid_ind = get_valid_inds(adata, filter_gene_mode)
 
-    if model == "stochastic" or use_moments:
-        if len([i for i in adata.layers.keys() if i.startswith("M_")]) < 2:
+    if mode == "moment" or (
+        use_smoothed and len([i for i in adata.layers.keys() if i.startswith("M_")]) < 2
+    ):
+        if experiment_type == "kin":
+            use_smoothed = False
+        else:
             moments(adata)
 
     valid_adata = adata[:, valid_ind].copy()
-    if group is not None and group in adata.obs.columns:
+    if group is not None and group in adata.obs[group]:
         _group = adata.obs[group].unique()
     else:
         _group = ["_all_cells"]
@@ -139,7 +138,6 @@ def dynamics(
             Sl,
             P,
             US,
-            U2,
             S2,
             t,
             normalized,
@@ -147,41 +145,42 @@ def dynamics(
             has_labeling,
             has_protein,
             ind_for_proteins,
-            assump_mRNA,
+            assumption_mRNA,
             exp_type,
         ) = get_data_for_velocity_estimation(
             subset_adata,
-            model,
-            use_moments,
+            mode,
+            use_smoothed,
             tkey,
             protein_names,
+            experiment_type,
             log_unnormalized,
             NTR_vel,
         )
 
-        if experiment_type == 'auto':
-            experiment_type = exp_type
-        else:
+        if exp_type is not None:
             if experiment_type != exp_type:
                 warnings.warn(
-                "dynamo detects the experiment type of your data as {}, but your input experiment_type "
-                "is {}".format(exp_type, experiment_type)
+                    "dynamo detects the experiment type of your data as {}, but your input experiment_type "
+                    "is {}".format(exp_type, experiment_type)
                 )
 
-        if assumption_mRNA is 'auto': assumption_mRNA = assump_mRNA
-        #         (
-        #     "ss" if exp_type == "conventional" else 'kinetic'
-        # )
-        # NTR_vel = False
+            experiment_type = exp_type
+            assumption_mRNA = (
+                "ss" if exp_type == "conventional" and mode == "deterministic" else None
+            )
+            NTR_vel = False
 
-        if model == "stochastic" and experiment_type not in ["conventional", "kinetics", "degradation", "kin", "deg"]:
+        if mode == "moment" and experiment_type not in ["conventional", "kin"]:
             """
-            # temporially convert to deterministic model as moment model for one-shot, mix_std_stm
-             and other types of labeling experiment is ongoing."""
+            # temporially convert to deterministic mode as moment mode for one-shot, 
+            degradation and other types of labeling experiment is ongoing."""
 
-            model = "deterministic"
+            mode = "deterministic"
 
-        if assumption_mRNA == 'ss' or (experiment_type in ['one-shot', 'mix_std_stm']):
+        if mode is "deterministic" or (
+            experiment_type is not "kin" and mode is "moment"
+        ):
             est = ss_estimation(
                 U=U,
                 Ul=Ul,
@@ -192,7 +191,6 @@ def dynamics(
                 S2=S2,
                 t=t,
                 ind_for_proteins=ind_for_proteins,
-                model=model,
                 experiment_type=experiment_type,
                 assumption_mRNA=assumption_mRNA,
                 assumption_protein=assumption_protein,
@@ -211,7 +209,7 @@ def dynamics(
 
             U, S = get_U_S_for_velocity_estimation(
                 subset_adata,
-                use_moments,
+                use_smoothed,
                 has_splicing,
                 has_labeling,
                 log_unnormalized,
@@ -250,28 +248,33 @@ def dynamics(
                 ind_for_proteins,
             )
 
-        elif assumption_mRNA == 'kinetic':
-            params, half_life, cost, logLL = kinetic_model(subset_adata, tkey, est_method, experiment_type, has_splicing,
-                          has_switch=True, param_rngs={}, **est_kwargs)
-            a, b, alpha_a, alpha_i, alpha, beta, gamma = (
-                params.loc[:, 'a'] if 'a' in params.columns else None,
-                params.loc[:, 'b'] if 'b' in params.columns else None,
-                params.loc[:, 'alpha_a'] if 'alpha_a' in params.columns else None,
-                params.loc[:, 'alpha_i'] if 'alpha_i' in params.columns else None,
-                params.loc[:, 'alpha'] if 'alpha' in params.columns else None,
-                params.loc[:, 'beta'] if 'beta' in params.columns else None,
-                params.loc[:, 'gamma'] if 'gamma' in params.columns else None,
+        elif mode is "moment":
+            adata, Est, t_ind = moment_model(
+                adata, subset_adata, _group, cur_grp, log_unnormalized, tkey
             )
-            all_kinetic_params = ['a', 'b', 'alpha_a', 'alpha_i', 'alpha', 'beta', 'gamma']
+            t_ind += 1
 
-            extra_params = params.loc[:, params.columns.difference(all_kinetic_params)]
+            params, costs = Est.fit()
+            a, b, alpha_a, alpha_i, beta, gamma = (
+                params[:, 0],
+                params[:, 1],
+                params[:, 2],
+                params[:, 3],
+                params[:, 4],
+                params[:, 5],
+            )
+
+            def fbar(x_a, x_i, a, b):
+                return b / (a + b) * x_a + a / (a + b) * x_i
+
+            alpha = fbar(alpha_a, alpha_i, a, b)[:, None]
 
             params = {"alpha": alpha, "beta": beta, "gamma": gamma, "t": t}
             vel = velocity(**params)
 
             U, S = get_U_S_for_velocity_estimation(
                 subset_adata,
-                use_moments,
+                use_smoothed,
                 has_splicing,
                 has_labeling,
                 log_unnormalized,
@@ -302,16 +305,13 @@ def dynamics(
                 alpha_i,
                 beta,
                 gamma,
-                cost,
-                logLL,
                 kin_param_pre,
-                extra_params,
                 _group,
                 cur_grp,
                 valid_ind,
             )
             # add protein related parameters in the moment model below:
-        elif model is "model_selection":
+        elif mode is "model_selection":
             warnings.warn("Not implemented yet.")
 
     if group is not None and group in adata.obs[group]:
@@ -319,128 +319,22 @@ def dynamics(
     else:
         uns_key = "dynamics"
 
+    if has_splicing and has_labeling:
+        adata.layers['X_U'], adata.layers['X_S'] = adata.layers['X_uu'] + adata.layers['X_ul'], adata.layers['X_su'] + adata.layers['X_sl']
+
     adata.uns[uns_key] = {
         "t": t,
         "group": group,
         "asspt_mRNA": assumption_mRNA,
         "experiment_type": experiment_type,
         "normalized": normalized,
-        "model": model,
+        "mode": mode,
         "has_splicing": has_splicing,
         "has_labeling": has_labeling,
         "has_protein": has_protein,
-        "use_smoothed": use_moments,
+        "use_smoothed": use_smoothed,
         "NTR_vel": NTR_vel,
         "log_unnormalized": log_unnormalized,
     }
 
     return adata
-
-
-def kinetic_model(subset_adata, tkey, est_method, experiment_type, has_splicing, has_switch, param_rngs, **est_kwargs):
-    time = subset_adata.obs[tkey].astype('float')
-
-    if experiment_type == 'kin':
-        if has_splicing:
-            X = prepare_data_has_splicing(subset_adata, subset_adata.var.index, time, layer_u='X_ul', layer_s='X_sl')
-
-            if est_method == 'deterministic':
-                param_ranges = {'alpha': [0, 100], 'beta': [0, 100], 'gamma': [0, 100],
-                                'u0': [0, 100], 's0': [0, 100],
-                                }
-                X = X[:, [0, 1]]
-                param_inds = [0, 1, 2]
-                Est = Estimation_DeterministicKin
-            else:
-                if has_switch:
-                    param_ranges = {'a': [0, 100], 'b': [0, 100],
-                                    'alpha_a': [0, 100], 'alpha_i': 0,
-                                    'beta': [0, 100], 'gamma': [0, 100],
-                                    'u0': [0, 100], 's0': [0, 100],
-                                    'uu0': [0, 100], 'ss0': [0, 100],
-                                    'us0': [0, 100], }
-                    Est = Estimation_MomentKin
-                else:
-                    param_ranges = {'alpha': [0, 100], 'beta': [0, 100], 'gamma': [0, 100],
-                                    'u0': [0, 100], 's0': [0, 100],
-                                    'uu0': [0, 100], 'ss0': [0, 100],
-                                    'us0': [0, 100], }
-                    Est = Estimation_MomentKinNoSwitch
-        else:
-            X = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time, layer='X_new')
-
-            if est_method == 'deterministic':
-                param_ranges = {'alpha': [0, 100], 'gamma': [0, 100],
-                                'u0': [0, 100]}
-                X = X[:, 0]
-                Est = Estimation_DeterministicKinNosp
-            else:
-                if has_switch:
-                    param_ranges = {'a': [0, 100], 'b': [0, 100],
-                                    'alpha_a': [0, 100], 'alpha_i': 0,
-                                    'gamma': [0, 100],
-                                    'u0': [0, 100], 'uu0': [0, 100], }
-                    Est = Estimation_MomentKinNosp
-
-                else:
-                    param_ranges = {'alpha': [0, 100], 'gamma': [0, 100],
-                                    'u0': [0, 100], 'uu0': [0, 100]}
-                    Est = Estimation_MomentKinNoSwitchNoSplicing
-
-    elif experiment_type == 'deg':
-        if has_splicing:
-            X = prepare_data_has_splicing(subset_adata, subset_adata.var.index, time, layer_u='X_ul', layer_s='X_sl')
-
-            if est_method == 'deterministic':
-                param_ranges = {'beta': [0, 100], 'gamma': [0, 100],
-                                'u0': [0, 100], 's0': [0, 100],
-                                }
-                X = X[:, [0, 1]]
-                Est = Estimation_DeterministicDeg
-            else:
-                param_ranges = {'beta': [0, 100], 'gamma': [0, 100],
-                                'u0': [0, 100], 's0': [0, 100],
-                                'uu0': [0, 100], 'ss0': [0, 100],
-                                'us0': [0, 100], }
-                Est = Estimation_MomentDeg
-        else:
-            X = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time, layer='X_new')
-
-            if est_method == 'deterministic':
-                param_ranges = {'gamma': [0, 10], 'u0': [0, 100]}
-                X = X[:, 0]
-                Est = Estimation_DeterministicDegNosp
-            else:
-                param_ranges = {'gamma': [0, 10], 'u0': [0, 100], 'uu0': [0, 100]}
-                Est = Estimation_MomentDegNosp
-
-    elif experiment_type == 'mix_std_stm':
-        raise Exception(f'experiment {experiment_type} with kinetic assumption is not implemented')
-    elif experiment_type == 'mix_pulse_chase':
-        raise Exception(f'experiment {experiment_type} with kinetic assumption is not implemented')
-    elif experiment_type == 'pulse_time_series':
-        raise Exception(f'experiment {experiment_type} with kinetic assumption is not implemented')
-    elif experiment_type == 'dual_labeling':
-        raise Exception(f'experiment {experiment_type} with kinetic assumption is not implemented')
-    else:
-        raise Exception(f'experiment {experiment_type} is not recognized')
-
-    param_ranges = update_dict(param_ranges, param_rngs)
-    param_ranges = [ran for ran in param_ranges.values()]
-
-    cost, logLL = np.zeros(X.shape[0]), np.zeros(X.shape[0])
-    half_life, Estm = np.zeros(X.shape[0]), np.zeros((X.shape[0], len(param_ranges)))
-
-    for i in range(len(X)):
-        estm = Est(param_ranges)
-        Estm[i], cost[i] = estm.fit_lsq(np.unique(time), X[i], **est_kwargs)
-        half_life[i] = estm.calc_half_life()
-        gof = GoodnessOfFit(Moments_NoSwitching(), params=estm.export_parameters())
-        gof.prepare_data(time, X[i], normalize=True)
-        logLL[i] = gof.calc_gaussian_loglikelihood()
-
-    Estm_df = pd.DataFrame(Estm, columns=[*param_ranges])
-
-    return Estm_df, half_life, cost, logLL
-
-
