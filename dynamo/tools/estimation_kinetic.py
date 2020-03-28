@@ -2,7 +2,7 @@ from .utils import *
 import numpy as np
 from scipy.optimize import least_squares
 from scipy.stats import chi2
-from .utils_kinetics import *
+from .utils_kinetic import *
 import warnings
 
 def estimate_p0_deg_nosp(x_data, time, report_abnormal=False):
