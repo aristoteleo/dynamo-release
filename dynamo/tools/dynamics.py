@@ -1,6 +1,6 @@
 import warnings
 import numpy as np
-from .connectivity import moments
+from .utils_moments import moments
 from .velocity import velocity, ss_estimation
 from .utils import (
     get_mapper,
@@ -9,10 +9,10 @@ from .utils import (
     get_U_S_for_velocity_estimation,
 )
 from .utils import set_velocity, set_param_ss, set_param_kinetic
-from .utils import moment_model
+from .moments import moment_model
 
 # incorporate the model selection code soon
-def dynamics(
+def _dynamics(
     adata,
     tkey=None,
     filter_gene_mode="final",

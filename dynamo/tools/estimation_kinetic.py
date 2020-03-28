@@ -1,5 +1,5 @@
-from .utils import *
-import numpy as np
+from .utils import lhsclassic
+from .moments import strat_mom
 from scipy.optimize import least_squares
 from scipy.stats import chi2
 from .utils_kinetic import *

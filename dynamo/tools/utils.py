@@ -3,9 +3,8 @@ import numpy as np
 import pandas as pd
 import scipy
 from scipy import interpolate
-from scipy.sparse import issparse, csr_matrix, lil_matrix, diags
+from scipy.sparse import issparse, csr_matrix
 from scipy.integrate import odeint, solve_ivp
-from .moments import strat_mom, MomData, Estimation
 import warnings
 
 
@@ -61,90 +60,6 @@ def elem_prod(X, Y):
     else:
         return np.multiply(X, Y)
 
-
-# ---------------------------------------------------------------------------------------------------
-# moment related:
-def calc_12_mom_labeling(data, t):
-    t_uniq = np.unique(t)
-    m, v = (
-        np.zeros((data.shape[0], len(t_uniq))),
-        np.zeros((data.shape[0], len(t_uniq))),
-    )
-    for i in range(data.shape[0]):
-        data_ = (
-            np.array(data[i].A.flatten(), dtype=float)
-            if issparse(data)
-            else np.array(data[i], dtype=float)
-        )  # consider using the `adata.obs_vector`, `adata.var_vector` methods or accessing the array directly.
-        m[i], v[i] = strat_mom(data_, t, np.nanmean), strat_mom(data_, t, np.nanvar)
-
-    return m, v, t_uniq
-
-
-def gaussian_kernel(X, nbr_idx, sigma, k=None, dists=None):
-    n = X.shape[0]
-    if dists is None:
-        dists = []
-        for i in range(n):
-            d = X[nbr_idx[i][:k]] - X[i]
-            dists.append(np.sum(elem_prod(d, d), 1).flatten())
-    W = lil_matrix((n, n))
-    s2_inv = 1 / (2 * sigma ** 2)
-    for i in range(n):
-        W[i, nbr_idx[i][:k]] = np.exp(-s2_inv * dists[i][:k] ** 2)
-
-    return csr_matrix(W)
-
-
-def calc_1nd_moment(X, W, normalize_W=True):
-    if normalize_W:
-        if type(W) == np.ndarray:
-            d = np.sum(W, 1).flatten()
-        else:
-            d = np.sum(W, 1).A.flatten()
-        W = diags(1 / d) @ W if issparse(W) else np.diag(1 / d) @ W
-        return W @ X, W
-    else:
-        return W @ X
-
-
-def calc_2nd_moment(X, Y, W, normalize_W=True, center=False, mX=None, mY=None):
-    if normalize_W:
-        if type(W) == np.ndarray:
-            d = np.sum(W, 1).flatten()
-        else:
-            d = W.sum(1).A.flatten()
-        W = diags(1 / d) @ W if issparse(W) else np.diag(1 / d) @ W
-
-    XY = W @ elem_prod(Y, X)
-
-    if center:
-        mX = calc_1nd_moment(X, W, False) if mX is None else mX
-        mY = calc_1nd_moment(Y, W, False) if mY is None else mY
-        XY = XY - elem_prod(mX, mY)
-
-    return XY
-
-
-def prepare_data_deterministic(adata, gene, time, layer, log=False):
-    u = adata.layers[layer][:, adata.var.index==gene].A.flatten()
-    u = np.log(u+1) if log else u
-    ut = strat_mom(u, time, np.mean)
-    return ut
-
-
-def prepare_data_moment(adata, gene, time, layer_u, layer_s, log=False):
-    u = adata.layers[layer_u][:, adata.var.index==gene].A.flatten()
-    s = adata.layers[layer_s][:, adata.var.index==gene].A.flatten()
-    u = np.log(u+1) if log else u
-    s = np.log(s+1) if log else s
-    ut = strat_mom(u, time, np.mean)
-    st = strat_mom(s, time, np.mean)
-    uut = strat_mom(elem_prod(u, u), time, np.mean)
-    sst = strat_mom(elem_prod(s, s), time, np.mean)
-    #ust = strat_mom(elem_prod(u, s), time, np.mean)
-    #return np.array([ut, st, uut, sst, ust])
-    return np.array([ut, st, uut, sst])
 
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
@@ -235,7 +150,7 @@ def get_data_for_velocity_estimation(
             else subset_adata.layers["X_ul"].T
 
         Sl = subset_adata.layers[mapper["X_sl"]].T if use_moments \
-            else Sl = subset_adata.layers["X_sl"].T
+            else subset_adata.layers["X_sl"].T
 
         S = subset_adata.layers[mapper["X_su"]].T if use_moments \
             else subset_adata.layers["X_su"].T # unlabel spliced: S
@@ -434,39 +349,6 @@ def get_data_for_velocity_estimation(
         assumption_mRNA,
         experiment_type,
     )
-
-
-def prepare_data_has_splicing(adata, genes, time, layer_u, layer_s):
-    """Prepare data when assumption is kinetic and data has splicing"""
-    res = [0] * len(genes)
-
-    for i, g in enumerate(genes):
-        u = adata.layers[layer_u][:, adata.var.index == g].A.flatten()
-        s = adata.layers[layer_s][:, adata.var.index == g].A.flatten()
-        ut = strat_mom(u, time, np.mean)
-        st = strat_mom(s, time, np.mean)
-        uut = strat_mom(elem_prod(u, u), time, np.mean)
-        ust = strat_mom(elem_prod(u, s), time, np.mean)
-        sst = strat_mom(elem_prod(s, s), time, np.mean)
-        x = np.array([ut, st, uut, sst, ust])
-
-        res[i] = x
-
-    return res
-
-
-def prepare_data_no_splicing(adata, genes, time, layer):
-    """Prepare data when assumption is kinetic and data has no splicing"""
-    res = [0] * len(genes)
-
-    for i, g in enumerate(genes):
-        u = adata.layers[layer][:, adata.var.index == g].A.flatten()
-        ut = strat_mom(u, time, np.mean)
-        uut = strat_mom(elem_prod(u, u), time, np.mean)
-        res[i] = np.array([ut, uut])
-
-    return res
-
 
 def set_velocity(
     adata,
@@ -814,114 +696,6 @@ def get_U_S_for_velocity_estimation(
                 S = np.log(S + 1) if log_unnormalized else S
 
     return U, S
-
-
-def moment_model(adata, subset_adata, _group, cur_grp, log_unnormalized, tkey):
-    # a few hard code to set up data for moment mode:
-    if "uu" in subset_adata.layers.keys() or "X_uu" in subset_adata.layers.keys():
-        if log_unnormalized and "X_uu" not in subset_adata.layers.keys():
-            if issparse(subset_adata.layers["uu"]):
-                (
-                    subset_adata.layers["uu"].data,
-                    subset_adata.layers["ul"].data,
-                    subset_adata.layers["su"].data,
-                    subset_adata.layers["sl"].data,
-                ) = (
-                    np.log(subset_adata.layers["uu"].data + 1),
-                    np.log(subset_adata.layers["ul"].data + 1),
-                    np.log(subset_adata.layers["su"].data + 1),
-                    np.log(subset_adata.layers["sl"].data + 1),
-                )
-            else:
-                (
-                    subset_adata.layers["uu"],
-                    subset_adata.layers["ul"],
-                    subset_adata.layers["su"],
-                    subset_adata.layers["sl"],
-                ) = (
-                    np.log(subset_adata.layers["uu"] + 1),
-                    np.log(subset_adata.layers["ul"] + 1),
-                    np.log(subset_adata.layers["su"] + 1),
-                    np.log(subset_adata.layers["sl"] + 1),
-                )
-
-        subset_adata_u, subset_adata_s = subset_adata.copy(), subset_adata.copy()
-        del (
-            subset_adata_u.layers["su"],
-            subset_adata_u.layers["sl"],
-            subset_adata_s.layers["uu"],
-            subset_adata_s.layers["ul"],
-        )
-        (
-            subset_adata_u.layers["new"],
-            subset_adata_u.layers["old"],
-            subset_adata_s.layers["new"],
-            subset_adata_s.layers["old"],
-        ) = (
-            subset_adata_u.layers.pop("ul"),
-            subset_adata_u.layers.pop("uu"),
-            subset_adata_s.layers.pop("sl"),
-            subset_adata_s.layers.pop("su"),
-        )
-        Moment, Moment_ = MomData(subset_adata_s, tkey), MomData(subset_adata_u, tkey)
-        if cur_grp == _group[0]:
-            t_ind = 0
-            g_len, t_len = len(_group), len(np.unique(adata.obs[tkey]))
-            (
-                adata.uns["M_sl"],
-                adata.uns["V_sl"],
-                adata.uns["M_ul"],
-                adata.uns["V_ul"],
-            ) = (
-                np.zeros((Moment.M.shape[0], g_len * t_len)),
-                np.zeros((Moment.M.shape[0], g_len * t_len)),
-                np.zeros((Moment.M.shape[0], g_len * t_len)),
-                np.zeros((Moment.M.shape[0], g_len * t_len)),
-            )
-
-        (
-            adata.uns["M_sl"][:, (t_len * t_ind) : (t_len * (t_ind + 1))],
-            adata.uns["V_sl"][:, (t_len * t_ind) : (t_len * (t_ind + 1))],
-            adata.uns["M_ul"][:, (t_len * t_ind) : (t_len * (t_ind + 1))],
-            adata.uns["V_ul"][:, (t_len * t_ind) : (t_len * (t_ind + 1))],
-        ) = (Moment.M, Moment.V, Moment_.M, Moment_.V)
-
-        del Moment_
-        Est = Estimation(
-            Moment, adata_u=subset_adata_u, time_key=tkey, normalize=True
-        )  # # data is already normalized
-    else:
-        if log_unnormalized and "X_total" not in subset_adata.layers.keys():
-            if issparse(subset_adata.layers["total"]):
-                subset_adata.layers["new"].data, subset_adata.layers["total"].data = (
-                    np.log(subset_adata.layers["new"].data + 1),
-                    np.log(subset_adata.layers["total"].data + 1),
-                )
-            else:
-                subset_adata.layers["total"], subset_adata.layers["total"] = (
-                    np.log(subset_adata.layers["new"] + 1),
-                    np.log(subset_adata.layers["total"] + 1),
-                )
-
-        Moment = MomData(subset_adata, tkey)
-        if cur_grp == _group[0]:
-            t_ind = 0
-            g_len, t_len = len(_group), len(np.unique(adata.obs[tkey]))
-            adata.uns["M"], adata.uns["V"] = (
-                np.zeros((adata.shape[1], g_len * t_len)),
-                np.zeros((adata.shape[1], g_len * t_len)),
-            )
-
-        (
-            adata.uns["M"][:, (t_len * t_ind) : (t_len * (t_ind + 1))],
-            adata.uns["V"][:, (t_len * t_ind) : (t_len * (t_ind + 1))],
-        ) = (Moment.M, Moment.V)
-        Est = Estimation(
-            Moment, time_key=tkey, normalize=True
-        )  # # data is already normalized
-
-    return adata, Est, t_ind
-
 
 # ---------------------------------------------------------------------------------------------------
 # estimation related
