@@ -1,7 +1,8 @@
 from tqdm import tqdm
 from scipy.sparse import csr_matrix
 from warnings import warn
-from .utils import calc_12_mom_labeling, one_shot_gamma_alpha
+from .utils import one_shot_gamma_alpha
+from .moments import calc_12_mom_labeling
 from .utils_velocity import *
 # from sklearn.cluster import KMeans
 # from sklearn.neighbors import NearestNeighbors
@@ -34,7 +35,7 @@ class velocity:
             A vector of protein degradation rate constant for each gene.
         t: :class:`~numpy.ndarray` or None (default: None)
             A vector of the measured time points for cells
-        estimation: :class:`~estimation`
+        estimation: :class:`~ss_estimation`
             An instance of the estimation class. If this not None, the parameters will be taken from this class instead of the input arguments.
         """
         if estimation is not None:
@@ -311,7 +312,7 @@ class velocity:
         return n_genes
 
 
-class estimation:
+class ss_estimation:
     def __init__(
         self,
         U=None,
@@ -323,6 +324,7 @@ class estimation:
         S2=None,
         t=None,
         ind_for_proteins=None,
+        model='stochastic',
         experiment_type="deg",
         assumption_mRNA=None,
         assumption_protein="ss",
@@ -346,7 +348,7 @@ class estimation:
             A matrix of second moment of unspliced/spliced gene expression count for conventional or NTR velocity.
         S2: :class:`~numpy.ndarray` or sparse `csr_matrix`
             A matrix of second moment of spliced gene expression count for conventional or NTR velocity.
-        t: :class:`~estimation`
+        t: :class:`~ss_estimation`
             A vector of time points.
         ind_for_proteins: :class:`~numpy.ndarray`
             A 1-D vector of the indices in the U, Ul, S, Sl layers that corresponds to the row name in the `protein` or
@@ -369,7 +371,7 @@ class estimation:
 
         Attributes
         ----------
-        t: :class:`~estimation`
+        t: :class:`~ss_estimation`
             A vector of time points.
         data: `dict`
             A dictionary with uu, ul, su, sl, p as its keys.
@@ -393,6 +395,7 @@ class estimation:
             self.concatenate_data()
 
         self.extyp = experiment_type
+        self.model = model
         self.asspt_mRNA = assumption_mRNA
         self.asspt_prot = assumption_protein
         self.parameters = {
@@ -445,7 +448,7 @@ class estimation:
         n = self.get_n_genes()
         # fit mRNA
         if self.extyp == "conventional":
-            if self.asspt_mRNA == "ss":
+            if self.model == "deterministic":
                 if np.all(self._exist_data("uu", "su")):
                     self.parameters["beta"] = np.ones(n)
                     gamma, gamma_intercept, gamma_r2 = (

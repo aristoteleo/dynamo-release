@@ -1,8 +1,8 @@
-from .utils import *
-import numpy as np
+from .utils import lhsclassic
+from .moments import strat_mom
 from scipy.optimize import least_squares
 from scipy.stats import chi2
-from .utils_kinetics import *
+from .utils_kinetic import *
 import warnings
 
 def estimate_p0_deg_nosp(x_data, time, report_abnormal=False):
@@ -30,7 +30,7 @@ def estimate_alpha0_kin_nosp(x_data, time):
     alpha = x_data[imax] / time[imax]
     return alpha
 
-class Estimation:
+class kinetic_estimation:
     def __init__(self, ranges, simulator, x0=None):
         '''A general parameter estimation framework for all types of time-seris data
         Arguments
@@ -122,6 +122,12 @@ class Estimation:
             return params
         else:
             return params[:self.n_params - self.simulator.n_species]
+
+    def fbar(self, x_a, x_i, a, b):
+
+        alpha = b / (a + b) * x_a + a / (a + b) * x_i
+
+        return alpha
 
     def f_lsq(self, params, t, x_data, method=None, normalize=True):
         method = self.simulator.default_method if method is None else method
@@ -227,7 +233,7 @@ class Estimation:
         p = 1 - chi2.cdf(c2, df)
         return p, c2, df
 
-class Estimation_MomentDeg(Estimation):
+class Estimation_MomentDeg(kinetic_estimation):
     '''An estimation class for degradation (with splicing) experiments.
         Order of species: <unspliced>, <spliced>, <uu>, <ss>, <us>
     '''
@@ -249,7 +255,7 @@ class Estimation_MomentDeg(Estimation):
     def calc_deg_half_life(self):
         return np.log(2)/self.get_gamma()
 
-class Estimation_MomentDegNosp(Estimation):
+class Estimation_MomentDegNosp(kinetic_estimation):
     def __init__(self, ranges, x0=None):
         '''An estimation class for degradation (without splicing) experiments.
             Order of species: <r>, <rr>
@@ -265,7 +271,7 @@ class Estimation_MomentDegNosp(Estimation):
     def calc_half_life(self):
         return np.log(2)/self.get_gamma()
 
-class Estimation_MomentKin(Estimation):
+class Estimation_MomentKin(kinetic_estimation):
     def __init__(self, a, b, alpha_a, alpha_i, beta, gamma, include_cov=False):
         '''An estimation class for kinetics experiments.
             Order of species: <unspliced>, <spliced>, <uu>, <ss>, <us>
@@ -302,6 +308,10 @@ class Estimation_MomentKin(Estimation):
     def get_alpha_i(self):
         return self.popt[3]
 
+    def get_alpha(self):
+        alpha = self.fbar(self.pot[2]. self.pot[3], self.popt[0], self.popt[1])
+        return alpha
+
     def get_beta(self):
         return self.popt[4]
 
@@ -314,7 +324,7 @@ class Estimation_MomentKin(Estimation):
     def calc_deg_half_life(self):
         return np.log(2)/self.get_gamma()
 
-class Estimation_MomentKinNosp(Estimation):
+class Estimation_MomentKinNosp(kinetic_estimation):
     def __init__(self, a, b, alpha_a, alpha_i, gamma):
         '''An estimation class for kinetics experiments.
             Order of species: <r>, <rr>
@@ -333,13 +343,17 @@ class Estimation_MomentKinNosp(Estimation):
     def get_alpha_i(self):
         return self.popt[3]
 
+    def get_alpha(self):
+        alpha = self.fbar(self.pot[2]. self.pot[3], self.popt[0], self.popt[1])
+        return alpha
+
     def get_gamma(self):
         return self.popt[4]
 
     def calc_deg_half_life(self):
         return np.log(2)/self.get_gamma()
 
-class Estimation_DeterministicDeg(Estimation):
+class Estimation_DeterministicDeg(kinetic_estimation):
     '''An estimation class for degradation (with splicing) experiments.
         Order of species: <unspliced>, <spliced>
     '''
@@ -361,7 +375,7 @@ class Estimation_DeterministicDeg(Estimation):
     def calc_deg_half_life(self):
         return np.log(2)/self.get_gamma()
 
-class Estimation_DeterministicDegNosp(Estimation):
+class Estimation_DeterministicDegNosp(kinetic_estimation):
     def __init__(self, ranges, x0=None):
         '''An estimation class for degradation (without splicing) experiments.
         '''
@@ -376,7 +390,7 @@ class Estimation_DeterministicDegNosp(Estimation):
     def calc_half_life(self):
         return np.log(2)/self.get_gamma()
 
-class Estimation_DeterministicKinNosp(Estimation):
+class Estimation_DeterministicKinNosp(kinetic_estimation):
     def __init__(self, alpha, gamma, x0=np.zeros(1)):
         '''An estimation class for kinetics (without splicing) experiments with the deterministic model.
             Order of species: <unspliced>, <spliced>
@@ -395,7 +409,7 @@ class Estimation_DeterministicKinNosp(Estimation):
     def calc_half_life(self):
         return np.log(2)/self.get_gamma()
 
-class Estimation_DeterministicKin(Estimation):
+class Estimation_DeterministicKin(kinetic_estimation):
     def __init__(self, alpha, beta, gamma, x0=np.zeros(2)):
         '''An estimation class for kinetics experiments with the deterministic model.
             Order of species: <unspliced>, <spliced>

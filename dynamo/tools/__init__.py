@@ -4,7 +4,33 @@
 # inclusive expression dynamics model related
 # from .dynamo import sol_u, sol_s, fit_gamma_labelling, fit_alpha_labelling, fit_gamma_splicing, fit_gamma
 # from .dynamo_fitting import sol_u, sol_s, sol_p, sol_ode, sol_num, fit_gamma_labelling, fit_beta_lsq, fit_alpha_labelling, fit_alpha_synthesis, fit_gamma_splicing, fit_gamma
-from .moments import Estimation
+
+from .estimation_kinetic import (
+    estimate_p0_deg_nosp,
+    estimate_alpha0_kin_nosp,
+    kinetic_estimation,
+    Estimation_MomentDeg,
+    Estimation_MomentDegNosp,
+    Estimation_MomentKin,
+    Estimation_MomentKinNosp,
+    Estimation_DeterministicDeg,
+    Estimation_DeterministicDegNosp,
+    Estimation_DeterministicKinNosp,
+    Estimation_DeterministicKin,
+    GoodnessOfFit,
+)
+
+from .utils_kinetic import (
+    LinearODE,
+    Moments,
+    Moments_Nosplicing,
+    Moments_NoSwitching,
+    Moments_NoSwitchingNoSplicing,
+    Deterministic,
+    Deterministic_NoSplicing,
+)
+
+from .moments import Estimation, moments
 
 from .velocity import (
     sol_u,
@@ -17,7 +43,7 @@ from .velocity import (
     fit_alpha_synthesis,
     fit_alpha_degradation,
     velocity,
-    estimation,
+    ss_estimation,
 )
 from .cell_velocities import (
     cell_velocities,
@@ -90,7 +116,7 @@ from .state_graph import state_graph
 from .dimension_reduction import reduceDimension  # , run_umap
 
 # mnn related
-from .connectivity import mnn, smoother
+from .connectivity import mnn
 
 # Pseudotime related
 from .DDRTree import DDRTree_py as DDRTree

@@ -110,6 +110,21 @@ def cook_dist(model, X, good):
 # ---------------------------------------------------------------------------------------------------
 # preprocess utilities
 
+def allowed_layer_raw_names():
+    only_splicing = ['spliced', 'unspliced']
+    only_labeling = ['new', 'total']
+    splicing_and_labeling = ['uu', 'ul', 'su', 'sl']
+
+    return only_splicing, only_labeling, splicing_and_labeling
+
+
+def allowed_X_layer_names():
+    only_splicing = ['X_spliced', 'X_unspliced']
+    only_labeling = ['X_new', 'X_total']
+    splicing_and_labeling = ['X_uu', 'X_ul', 'X_su', 'X_sl']
+
+    return only_splicing, only_labeling, splicing_and_labeling
+
 
 def get_layer_keys(adata, layers="all", remove_normalized=True, include_protein=True):
     """Get the list of available layers' keys.

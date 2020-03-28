@@ -9,6 +9,7 @@ from .utils import pca
 from .utils import clusters_stats
 from .utils import cook_dist, get_layer_keys, get_shared_counts
 from .utils import get_svr_filter
+from .utils import allowed_layer_raw_names
 from ..tools.utils import update_dict
 
 
@@ -1154,6 +1155,19 @@ def filter_genes(
     return adata
 
 
+def collapse_adata(adata):
+    """Function to collapse the four species data, will be generalized to handle dual-datasets"""
+    only_splicing, only_labeling, splicing_and_labeling = allowed_layer_raw_names()
+
+    if np.all([i in adata.layers.keys() for i in splicing_and_labeling]):
+        adata.layers[only_splicing[0]] = adata.layers['su'] + adata.layers['sl']
+        adata.layers[only_splicing[1]] = adata.layers['uu'] + adata.layers['ul']
+        adata.layers[only_labeling[0]] = adata.layers['ul'] + adata.layers['sl']
+        adata.layers[only_labeling[1]] = adata.layers['uu'] + adata.layers['su']
+
+    return adata
+
+
 def recipe_monocle(
     adata,
     normalized=None,
@@ -1216,6 +1230,8 @@ def recipe_monocle(
         adata: :class:`~anndata.AnnData`
             A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions, etc.
     """
+
+    adata = collapse_adata(adata)
 
     _szFactor, _logged = False, False
     if normalized is None:
