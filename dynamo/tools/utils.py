@@ -1,5 +1,6 @@
 from tqdm import tqdm
 import numpy as np
+import pandas as pd
 import scipy
 from scipy import interpolate
 from scipy.sparse import issparse, csr_matrix, lil_matrix, diags
@@ -674,6 +675,7 @@ def set_param_kinetic(
     cost,
     logLL,
     kin_param_pre,
+    extra_params,
     _group,
     cur_grp,
     valid_ind,
@@ -703,6 +705,10 @@ def set_param_kinetic(
     adata.var.loc[valid_ind, kin_param_pre + "half_life"] = np.log(2) / gamma
     adata.var.loc[valid_ind, kin_param_pre + "cost"] = cost
     adata.var.loc[valid_ind, kin_param_pre + "logLL"] = logLL
+    # add extra parameters (u0, uu0, etc.)
+    extra_params.columns = [kin_param_pre + i for i in extra_params.columns]
+    var = pd.concat((adata.var, extra_params), axis=1)
+    adata.var = var.set_index(adata.var.index)
 
     return adata
 
