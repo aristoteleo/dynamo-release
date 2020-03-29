@@ -169,10 +169,6 @@ def dynamics(
                 )
 
         if assumption_mRNA is 'auto': assumption_mRNA = assump_mRNA
-        #         (
-        #     "ss" if exp_type == "conventional" else 'kinetic'
-        # )
-        # NTR_vel = False
 
         if model == "stochastic" and experiment_type not in ["conventional", "kinetics", "degradation", "kin", "deg"]:
             """
