@@ -19,14 +19,14 @@ def dynamics(
     tkey=None,
     filter_gene_mode="final",
     use_moments=True,
-    group=None,
-    protein_names=None,
     experiment_type='auto',
     assumption_mRNA='auto',
     assumption_protein="ss",
     model="stochastic",
     est_method="auto",
     NTR_vel=False,
+    group=None,
+    protein_names=None,
     concat_data=False,
     log_unnormalized=True,
     one_shot_method="combined",
@@ -45,58 +45,77 @@ def dynamics(
             mode  with labeled data.
         filter_gene_mode: `str` (default: `final`)
             The string for indicating which mode (one of, {'final', 'basic', 'no'}) of gene filter will be used.
-        model: `str` (default: `deterministic`)
-            String indicates which estimation model will be used. This parameter should be used in conjunction with assumption_mRNA.
-            * Available options when the `assumption_mRNA` is 'ss' include:
-            (1) 'linear_regression': The canonical method from the seminar RNA velocity paper based on deterministic ordinary
-            differential equations;
-            (2) 'gmm': The new generalized methods of moments from us that is based on master equations, similar to the
-            "moment" model in the excellent scvelo package;
-            (3) 'negbin': The new method from us that models steady state RNA expression as a negative binomial distribution,
-            also built upons on master equations.
-            Note that all those methods require using extreme data points (except negbin) for the estimation. Extreme data points
-            are defined as the data from cells where the expression of unspliced / spliced or new / total RNA, etc. are in the
-            top or bottom, 5%, for example. `linear_regression` only considers the mean of RNA species (based on the deterministic
-            ordinary different equations) while moment based methods (`gmm`, `negbin`) considers both first moment (mean) and
-            second moment (uncentered variance) of RNA species (based on the stochastic master equations).
-            * Available options when the `assumption_mRNA` is 'kinetic' include:
-            (1) 'deterministic': The method based on deterministic ordinary differential equations;
-            (2) 'stochastic' or `moment`: The new method from us that is based on master equations;
-            Note that `kinetic` model implicitly assumes the `experiment_type` is not `conventional`. Thus `deterministic`,
-            `stochastic` (equivalent to `moment`) models are only possible for the labeling experiments.
-            A "model_selection" model will be supported soon in which alpha, beta and gamma will be modeled as a function of time.
         use_moments: `bool` (default: `True`)
             Whether to use the smoothed data when calculating velocity for each gene. `use_smoothed` is only relevant when
             model is `linear_regression` (and experiment_type and assumption_mRNA correspond to `conventional` and `ss` implicitly).
+        experiment_type: `str` {`conventional`, `deg`, `kin`, `one-shot`, `auto`}, (default: `auto`)
+            single cell RNA-seq experiment type. Available options are:
+            (1) 'conventional': conventional single-cell RNA-seq experiment;
+            (2) 'deg': chase/degradation experiment;
+            (3) 'kin': pulse/synthesis/kinetics experiment;
+            (4) 'one-shot': one-shot kinetic experiment;
+            (5) 'auto': dynamo will detect the experimental type automatically.
+        assumption_mRNA: `str` `str` {`ss`, `kinetic`, `auto`}, (default: `auto`)
+            Parameter estimation assumption for mRNA. Available options are:
+            (1) 'ss': pseudo steady state;
+            (2) 'kinetic' or None: degradation and kinetic data without steady state assumption.
+            If no labelling data exists, assumption_mRNA will automatically set to be 'ss'. For one-shot experiment, assumption_mRNA
+            is set to be None. However we will use steady state assumption to estimate parameters alpha and gamma either by a deterministic
+            linear regression or the first order decay approach in line of the sci-fate paper;
+            (3) 'auto': dynamo will choose a reasonable assumption of the system under study automatically.
+        assumption_protein: `str`, (default: `ss`)
+            Parameter estimation assumption for protein. Available options are:
+            (1) 'ss': pseudo steady state;
+        model: `str` {`auto`, `deterministic`, `stochastic`} (default: `stochastic`)
+            String indicates which estimation model will be used.
+            (1) 'deterministic': The method based on `deterministic` ordinary differential equations;
+            (2) 'stochastic' or `moment`: The new method from us that is based on `stochastic` master equations;
+            Note that `kinetic` model doesn't need to assumes the `experiment_type` is not `conventional`. As other labeling
+            experiments, if you specify the `tkey`, dynamo can also apply `kinetic` model on `conventional` scRNA-seq datasets.
+            A "model_selection" model will be supported soon in which alpha, beta and gamma will be modeled as a function of time.
+        est_method: `str` {`linear_regression`, `gmm`, `negbin`, `auto`} This parameter should be used in conjunction with `model` parameter.
+            * Available options when the `model` is 'ss' include:
+            (1) 'linear_regression': The canonical method from the seminar RNA velocity paper based on deterministic ordinary
+            differential equations;
+            (2) 'gmm': The new generalized methods of moments from us that is based on master equations, similar to the
+            "moment" model in the excellent scVelo package;
+            (3) 'negbin': The new method from us that models steady state RNA expression as a negative binomial distribution,
+            also built upon on master equations.
+            Note that all those methods require using extreme data points (except negbin, which use all data points) for
+            estimation. Extreme data points are defined as the data from cells whose expression of unspliced / spliced
+            or new / total RNA, etc. are in the top or bottom, 5%, for example. `linear_regression` only considers the mean of
+            RNA species (based on the `deterministic` ordinary different equations) while moment based methods (`gmm`, `negbin`)
+            considers both first moment (mean) and second moment (uncentered variance) of RNA species (based on the `stochastic`
+            master equations).
+            (4) 'auto': dynamo will choose the suitable estimation method based on the `assumption_mRNA`, `experiment_type`
+            and `model` parameter.
+            The above method are all (generalized) linear regression based method. In order to return estimated parameters
+            (including RNA half-life), it additionally returns R-squared (either just for extreme data points or all data points)
+            as well as the log-likelihood of the fitting, which will be used for transition matrix and velocity embedding.
+            * Available options when the `assumption_mRNA` is 'kinetic' include:
+            (1) 'auto': dynamo will choose the suitable estimation method based on the `assumption_mRNA`, `experiment_type`
+            and `model` parameter.
+            Under `kinetic` model, choosing estimation is `experiment_type` dependent. For `kinetics` experiments, dynamo
+            supposes methods including RNA bursting or without RNA bursting. Dynamo also adaptively estimates parameters, based
+            on whether the data has splicing or without splicing.
+            Under `kinetic` assumption, the above method uses non-linear least square fitting. In order to return estimated parameters
+            (including RNA half-life), it additionally returns the log-likelihood of the fittingwhich, which will be used for transition
+            matrix and velocity embedding.
+            All `est_method` uses least square to estimate optimal parameters with latin cubic sampler for initial sampling.
+        NTR_vel: `bool` (default: `True`)
+            Whether to use NTR (new/total ratio) velocity for labeling datasets.
         group: `str` or None (default: `None`)
             The column key/name that identifies the grouping information (for example, clusters that correspond to different cell types)
             of cells. This will be used to estimate group-specific (i.e cell-type specific) kinetic parameters.
         protein_names: `List`
             A list of gene names corresponds to the rows of the measured proteins in the `X_protein` of the `obsm` attribute.
             The names have to be included in the adata.var.index.
-        experiment_type: `str`
-            single cell RNA-seq experiment type. Available options are:
-            (1) 'conventional': conventional single-cell RNA-seq experiment;
-            (2) 'deg': chase/degradation experiment;
-            (3) 'kin': pulse/synthesis/kinetics experiment;
-            (4) 'one-shot': one-shot kinetic experiment.
-        assumption_mRNA: `str`
-            Parameter estimation assumption for mRNA. Available options are:
-            (1) 'ss': pseudo steady state;
-            (2) 'kinetic' or None: degradation and kinetic data without steady state assumption.
-            If no labelling data exists, assumption_mRNA will automatically set to be 'ss'. For one-shot experiment, assumption_mRNA
-            is set to be None. However we will use steady state assumption to estimate parameters alpha and gamma either by a deterministic
-            linear regression or the first order decay approach in line of the sci-fate paper.
-        assumption_protein: `str`
-            Parameter estimation assumption for protein. Available options are:
-            (1) 'ss': pseudo steady state;
-        NTR_vel: `bool` (default: `True`)
-            Whether to use NTR (new/total ratio) velocity for labeling datasets.
         concat_data: `bool` (default: `False`)
             Whether to concatenate data before estimation. If your data is a list of matrices for each time point, this need to be set as True.
         log_unnormalized: `bool` (default: `True`)
             Whether to log transform the unnormalized data.
-
+        **est_kwargs
+            Other arguments passed to the estimation methods. Not used for now.
     Returns
     -------
         adata: :class:`~anndata.AnnData`
