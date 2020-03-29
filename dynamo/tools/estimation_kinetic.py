@@ -129,6 +129,9 @@ class kinetic_estimation:
 
         return alpha
 
+    def set_param_range_partial(self, x_data, t):
+        pass
+
     def f_lsq(self, params, t, x_data, method=None, normalize=True):
         method = self.simulator.default_method if method is None else method
         if method not in self.simulator.methods: 
@@ -240,6 +243,13 @@ class Estimation_MomentDeg(kinetic_estimation):
     def __init__(self, ranges, x0=None):
         super().__init__(ranges, Moments_NoSwitching(), x0)
 
+    def set_param_range_partial(self, x_data, t):
+        pass
+        # ga0, u0, uu0 = estimate_p0_deg_nosp(x_data, t)
+        # self.ranges[0, :] = [0, ga0 * 10]
+        # self.ranges[1, :] = [0, u0 * 10]
+        # self.ranges[2, :] = [0, uu0 * 10]
+
     def set_params(self, params):
         self.simulator.set_params(0, *self.get_kinetic_parameters(params))
 
@@ -261,6 +271,12 @@ class Estimation_MomentDegNosp(kinetic_estimation):
             Order of species: <r>, <rr>
         '''
         super().__init__(ranges, Moments_NoSwitchingNoSplicing(), x0)
+
+    def set_param_range_partial(self, x_data, t):
+        ga0, u0, uu0 = estimate_p0_deg_nosp(x_data, t)
+        self.ranges[0, :] = [0, ga0 * 10]
+        self.ranges[1, :] = [0, u0 * 10]
+        self.ranges[2, :] = [0, uu0 * 10]
 
     def set_params(self, params):
         self.simulator.set_params(0, *self.get_kinetic_parameters(params))
@@ -360,6 +376,12 @@ class Estimation_DeterministicDeg(kinetic_estimation):
     def __init__(self, ranges, x0=None):
         super().__init__(ranges, Deterministic(), x0)
 
+    def set_param_range_partial(self, x_data, t):
+        # ga0, u0, _ = estimate_p0_deg_nosp(np.sum(x_data, 0), t)
+        # self.ranges[0, :] = [0, ga0 * 10]
+        # self.ranges[1, :] = [0, u0 * 10]
+        pass
+
     def set_params(self, params):
         self.simulator.set_params(0, *self.get_kinetic_parameters(params))
 
@@ -381,6 +403,11 @@ class Estimation_DeterministicDegNosp(kinetic_estimation):
         '''
         super().__init__(ranges, Deterministic_NoSplicing(), x0)
 
+    def set_param_range_partial(self, x_data, t):
+        ga0, u0, _ = estimate_p0_deg_nosp(x_data, t)
+        self.ranges[0, :] = [0, ga0 * 10]
+        self.ranges[1, :] = [0, u0 * 10]
+
     def set_params(self, params):
         self.simulator.set_params(0, *self.get_kinetic_parameters(params))
 
@@ -399,6 +426,10 @@ class Estimation_DeterministicKinNosp(kinetic_estimation):
         ranges[0] = alpha * np.ones(2) if np.isscalar(alpha) else alpha
         ranges[1] = gamma * np.ones(2) if np.isscalar(gamma) else gamma
         super().__init__(ranges, Deterministic_NoSplicing(), x0)
+
+    def set_param_range_partial(self, x_data, t):
+        alpha0 = estimate_alpha0_kin_nosp(x_data, t)
+        self.ranges[0, :] = [0, alpha0 * 10]
 
     def get_alpha(self):
         return self.get_params()[0]
@@ -424,6 +455,10 @@ class Estimation_DeterministicKin(kinetic_estimation):
             ranges = np.vstack((ranges, x0))
             x0 = None
         super().__init__(ranges, Deterministic(), x0)
+
+    def set_param_range_partial(self, x_data, t):
+        alpha0 = estimate_alpha0_kin_nosp(np.sum(x_data, 0), t)
+        self.ranges[0, :] = [0, alpha0 * 10]
 
     def get_alpha(self):
         return self.get_params()[0]

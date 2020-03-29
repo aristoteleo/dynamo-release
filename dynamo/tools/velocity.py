@@ -948,12 +948,14 @@ class ss_estimation:
             s, u, normalize=normalize, perc_left=perc_left, perc_right=perc_right
         )
 
-        return fit_linreg(s, u, mask, intercept)
+        k, b, r2, all_r2 = fit_linreg(s, u, mask, intercept)
+
+        return k, b, r2, all_r2
 
     def fit_gamma_stochastic(
         self, u, s, us, ss, perc_left=None, perc_right=5, normalize=True
     ):
-        """Estimate gamma using linear regression based on the steady state assumption.
+        """Estimate gamma using GMM (generalized method of moments) based on the steady state assumption.
 
         Arguments
         ---------
@@ -995,6 +997,57 @@ class ss_estimation:
         )
 
         k = fit_stochastic_linreg(u[mask], s[mask], us[mask], ss[mask])
+
+        SS_tot_n, all_SS_tot_n = np.var(u[mask]), np.var(u)
+        SS_res_n, all_SS_res_n = (
+            np.mean((u[mask] - k * s[mask]) ** 2),
+            np.mean((u - k * s) ** 2),
+        )
+        r2, all_r2 = 1 - SS_res_n / SS_tot_n, 1 - all_SS_res_n / all_SS_tot_n
+
+        return k, 0, r2, all_r2
+
+    def fit_gamma_negbinomial(
+            self, u, s, ss, perc_left=None, perc_right=5, normalize=True
+    ):
+        """Estimate gamma using negbin distrubtion based on the steady state assumption.
+
+        Arguments
+        ---------
+        u: :class:`~numpy.ndarray` or sparse `csr_matrix`
+            A matrix of unspliced mRNA counts. Dimension: genes x cells.
+        s: :class:`~numpy.ndarray` or sparse `csr_matrix`
+            A matrix of spliced mRNA counts. Dimension: genes x cells.
+        perc_left: float
+            The percentage of samples included in the linear regression in the left tail. If set to None, then all the left samples are excluded.
+        perc_right: float
+            The percentage of samples included in the linear regression in the right tail. If set to None, then all the samples are included.
+        normalize: bool
+            Whether to first normalize the
+
+        Returns
+        -------
+        k: float
+            The slope of the linear regression model, which is gamma under the steady state assumption.
+        b: float
+            The intercept of the linear regression model.
+        r2: float
+            Coefficient of determination or r square for the extreme data points.
+        r2: float
+            Coefficient of determination or r square for the extreme data points.
+        all_r2: float
+            Coefficient of determination or r square for all data points.
+        """
+        u = u.A.flatten() if issparse(u) else u.flatten()
+        s = s.A.flatten() if issparse(s) else s.flatten()
+        ss = ss.A.flatten() if issparse(ss) else ss.flatten()
+
+        mask = find_extreme(
+            s, u, normalize=normalize, perc_left=perc_left, perc_right=perc_right
+        )
+
+        phi = compute_dispersion(s, ss)
+        k = fit_k_negative_binomial(u[mask], s[mask],  ss[mask], phi)
 
         SS_tot_n, all_SS_tot_n = np.var(u[mask]), np.var(u)
         SS_res_n, all_SS_res_n = (
