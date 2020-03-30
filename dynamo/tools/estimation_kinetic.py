@@ -319,7 +319,7 @@ class Estimation_MomentKin(kinetic_estimation):
         return self.popt[3]
 
     def get_alpha(self):
-        alpha = self.fbar(self.pot[2]. self.pot[3], self.popt[0], self.popt[1])
+        alpha = self.simulator.fbar(self.pot[2]. self.pot[3], self.popt[0], self.popt[1])
         return alpha
 
     def get_beta(self):
@@ -354,7 +354,7 @@ class Estimation_MomentKinNosp(kinetic_estimation):
         return self.popt[3]
 
     def get_alpha(self):
-        alpha = self.fbar(self.pot[2]. self.pot[3], self.popt[0], self.popt[1])
+        alpha = self.simulator.fbar(self.pot[2]. self.pot[3], self.popt[0], self.popt[1])
         return alpha
 
     def get_gamma(self):
