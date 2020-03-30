@@ -1,7 +1,7 @@
 from tqdm import tqdm
 from scipy.sparse import csr_matrix
 from warnings import warn
-from .utils import one_shot_gamma_alpha
+from .utils import one_shot_gamma_alpha, calc_R2, calc_norm_loglikelihood
 from .moments import calc_12_mom_labeling
 from .utils_velocity import *
 # from sklearn.cluster import KMeans
@@ -1004,6 +1004,7 @@ class ss_estimation:
             np.mean((u - k * s) ** 2),
         )
         r2, all_r2 = 1 - SS_res_n / SS_tot_n, 1 - all_SS_res_n / all_SS_tot_n
+        r2, all_r2 = calc_R2(s[mask], u[mask], k), calc_R2(s, u, k)
 
         return k, 0, r2, all_r2
 
@@ -1049,14 +1050,10 @@ class ss_estimation:
         phi = compute_dispersion(s, ss)
         k = fit_k_negative_binomial(u[mask], s[mask],  ss[mask], phi)
 
-        SS_tot_n, all_SS_tot_n = np.var(u[mask]), np.var(u)
-        SS_res_n, all_SS_res_n = (
-            np.mean((u[mask] - k * s[mask]) ** 2),
-            np.mean((u - k * s) ** 2),
-        )
-        r2, all_r2 = 1 - SS_res_n / SS_tot_n, 1 - all_SS_res_n / all_SS_tot_n
+        r2, all_r2 = calc_R2(s[mask], u[mask], k), calc_R2(s, u, k)
+        logLL, all_logLL = calc_norm_loglikelihood(s[mask], u[mask], k), calc_norm_loglikelihood(s, u, k)
 
-        return k, 0, r2, all_r2
+        return k, 0, r2, all_r2, logLL, all_logLL
 
     def fit_beta_gamma_lsq(self, t, U, S):
         """Estimate beta and gamma with the degradation data using the least squares method.

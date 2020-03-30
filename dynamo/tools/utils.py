@@ -747,6 +747,21 @@ def norm_loglikelihood(x, mu, sig):
     return np.sum(ll)
 
 
+def calc_norm_loglikelihood(X, Y, k, f=lambda X, k: np.einsum('ij,i -> ij', X, k)):
+    if X.ndim == 1:
+        X = X[None]
+    if Y.ndim == 1:
+        Y = Y[None]
+    if np.isscalar(k):
+        k = np.array([k])
+
+    n = X.shape[0]
+    F = f(X, k)
+    mu, sig = np.sum(np.einsum('i ->', F)), np.sum(np.einsum('ij,ij -> i', F, F))
+
+    LogLL = norm_loglikelihood(Y, mu / n, sig / n)
+
+    return LogLL
 # ---------------------------------------------------------------------------------------------------
 # velocity related
 
