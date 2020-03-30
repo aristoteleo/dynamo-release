@@ -998,12 +998,6 @@ class ss_estimation:
 
         k = fit_stochastic_linreg(u[mask], s[mask], us[mask], ss[mask])
 
-        SS_tot_n, all_SS_tot_n = np.var(u[mask]), np.var(u)
-        SS_res_n, all_SS_res_n = (
-            np.mean((u[mask] - k * s[mask]) ** 2),
-            np.mean((u - k * s) ** 2),
-        )
-        r2, all_r2 = 1 - SS_res_n / SS_tot_n, 1 - all_SS_res_n / all_SS_tot_n
         r2, all_r2 = calc_R2(s[mask], u[mask], k), calc_R2(s, u, k)
 
         return k, 0, r2, all_r2

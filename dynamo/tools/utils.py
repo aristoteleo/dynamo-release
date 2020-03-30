@@ -721,6 +721,7 @@ def lhsclassic(n_samples, n_dim):
     return H
 
 def calc_R2(X, Y, k, f=lambda X, k: np.einsum('ij,i -> ij', X, k)):
+    """calculate R-square. X: n_feature x n_obs"""
     if X.ndim == 1:
         X = X[None]
     if Y.ndim == 1:
@@ -743,11 +744,12 @@ def norm_loglikelihood(x, mu, sig):
     """Calculate log-likelihood for the data.
     """
     err = (x - mu) / sig
-    ll = -len(err)/2*np.log(2*np.pi) - np.sum(np.log(sig)) - 0.5*err.dot(err)
-    return np.sum(ll)
+    ll = -len(err)/2*np.log(2*np.pi) - np.sum(np.log(sig)) - 0.5*err.dot(err.T)
+    return np.sum(ll, 0)
 
 
 def calc_norm_loglikelihood(X, Y, k, f=lambda X, k: np.einsum('ij,i -> ij', X, k)):
+    """calculate log likelihood based on normal distribution. X: n_feature x n_obs"""
     if X.ndim == 1:
         X = X[None]
     if Y.ndim == 1:
@@ -757,7 +759,7 @@ def calc_norm_loglikelihood(X, Y, k, f=lambda X, k: np.einsum('ij,i -> ij', X, k
 
     n = X.shape[0]
     F = f(X, k)
-    mu, sig = np.sum(np.einsum('i ->', F)), np.sum(np.einsum('ij,ij -> i', F, F))
+    mu, sig = np.sum(np.einsum('ij -> i', F)), np.sum(np.einsum('ij,ij -> i', F, F))
 
     LogLL = norm_loglikelihood(Y, mu / n, sig / n)
 
