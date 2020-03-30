@@ -682,8 +682,8 @@ def fit_K_negbin(N, R, varR, perc_left=None, perc_right=None):
 def compute_velocity_labeling(N, R, K, tau):
     Kc = np.clip(K, 0, 1-1e-3)
     if np.isscalar(tau):
-        B = -np.log(1-Kc)/tau
+        Beta_or_gamma = -np.log(1-Kc)/tau
     else:
-        B = -(np.log(1-Kc)[None, :].T/tau).T
-    return elem_prod(B, N)/K - elem_prod(B, R)
+        Beta_or_gamma = -(np.log(1-Kc)[None, :].T/tau).T
+    return elem_prod(Beta_or_gamma, N)/K - elem_prod(Beta_or_gamma, R)
 

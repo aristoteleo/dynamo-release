@@ -721,7 +721,7 @@ def lhsclassic(n_samples, n_dim):
     return H
 
 def calc_R2(X, Y, k, f=lambda X, k: np.einsum('ij,i -> ij', X, k)):
-    """calculate R-square. X: n_feature x n_obs"""
+    """calculate R-square. X, Y: n_species (mu, sigma) x n_obs"""
     if X.ndim == 1:
         X = X[None]
     if Y.ndim == 1:
@@ -749,7 +749,7 @@ def norm_loglikelihood(x, mu, sig):
 
 
 def calc_norm_loglikelihood(X, Y, k, f=lambda X, k: np.einsum('ij,i -> ij', X, k)):
-    """calculate log likelihood based on normal distribution. X: n_feature x n_obs"""
+    """calculate log likelihood based on normal distribution. X, Y: n_species (mu, sigma) x n_obs"""
     if X.ndim == 1:
         X = X[None]
     if Y.ndim == 1:
@@ -759,9 +759,13 @@ def calc_norm_loglikelihood(X, Y, k, f=lambda X, k: np.einsum('ij,i -> ij', X, k
 
     n = X.shape[0]
     F = f(X, k)
-    mu, sig = np.sum(np.einsum('ij -> i', F)), np.sum(np.einsum('ij,ij -> i', F, F))
 
-    LogLL = norm_loglikelihood(Y, mu / n, sig / n)
+    d = F - Y
+    sig = np.einsum('ij,ij -> i', d, d)
+
+    LogLL = 0
+    for i in range(Y.shape[0]):
+        LogLL += norm_loglikelihood(Y[i], F[i], np.sqrt(sig[i] / n))
 
     return LogLL
 # ---------------------------------------------------------------------------------------------------

@@ -455,7 +455,7 @@ def kinetic_model(subset_adata, tkey, est_method, experiment_type, has_splicing,
         logLL[i] = gof.calc_gaussian_loglikelihood()
 
     Estm_df = pd.DataFrame(Estm, columns=[*param_ranges])
-
+    
     return Estm_df, half_life, cost, logLL, param_ranges
 
 

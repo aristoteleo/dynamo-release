@@ -123,12 +123,6 @@ class kinetic_estimation:
         else:
             return params[:self.n_params - self.simulator.n_species]
 
-    def fbar(self, x_a, x_i, a, b):
-
-        alpha = b / (a + b) * x_a + a / (a + b) * x_i
-
-        return alpha
-
     def set_param_range_partial(self, x_data, t):
         pass
 
