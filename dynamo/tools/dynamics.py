@@ -187,7 +187,7 @@ def dynamics(
                 "is {}".format(exp_type, experiment_type)
                 )
 
-        if assumption_mRNA.lower() is 'auto': assumption_mRNA = assump_mRNA
+        if assumption_mRNA.lower() == 'auto': assumption_mRNA = assump_mRNA
 
         if model.lower() == "stochastic" and experiment_type.lower() not in ["conventional", "kinetics", "degradation", "kin", "deg"]:
             """
@@ -197,6 +197,8 @@ def dynamics(
             model = "deterministic"
 
         if assumption_mRNA.lower() == 'ss' or (experiment_type.lower() in ['one-shot', 'mix_std_stm']):
+            if est_method.lower() == 'auto': est_method = 'gmm'
+
             est = ss_estimation(
                 U=U,
                 Ul=Ul,

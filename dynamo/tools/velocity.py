@@ -412,7 +412,7 @@ class ss_estimation:
             "alpha_r2": None,
             "gamma_intercept": None,
             "gamma_r2": None,
-            "gamma_LogLL": None,
+            "gamma_logLL": None,
             "delta_intercept": None,
             "delta_r2": None,
             "uu0": None,
