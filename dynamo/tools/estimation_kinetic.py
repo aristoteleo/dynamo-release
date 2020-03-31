@@ -5,26 +5,7 @@ from scipy.stats import chi2
 from .utils_kinetic import *
 import warnings
 
-def estimate_p0_deg_nosp(x_data, time, report_abnormal=False):
-    '''Roughly estimate p0 with the assumption that time starts at 0 for degradation data without splicing.'''
-    abnormal = False
-    u0 = x_data[0][0]
-    if u0 <= 1e-4:
-        warnings.warn('The initial mRNA count is too small! Set to 0.0001 instead.')
-        u0 = max(u0, 1e-4)
-        abnormal = True
-    uu0 = x_data[1][0]
-    if uu0 <= 1e-4:
-        warnings.warn('The initial second moment of mRNA count is too small! Set to 0.0001 instead.')
-        uu0 = max(uu0, 1e-4)
-        abnormal = True
-    ga0 = np.clip(np.log(x_data[0][0]/(x_data[0][-1]+1e-6)) / time[-1], 1e-3, 1e3)
-    if not report_abnormal:
-        return np.array([ga0, u0, uu0])
-    else:
-        return np.array([ga0, u0, uu0]), abnormal
-
-def estimate_alpha0_kin_nosp(x_data, time):
+def estimate_alpha0_kin(x_data, time):
     '''Roughly estimate p0 for kinetics data.'''
     imax = np.argmax(x_data)
     alpha = x_data[imax] / time[imax]
@@ -122,9 +103,6 @@ class kinetic_estimation:
             return params
         else:
             return params[:self.n_params - self.simulator.n_species]
-
-    def set_param_range_partial(self, x_data, t):
-        pass
 
     def f_lsq(self, params, t, x_data, method=None, normalize=True):
         method = self.simulator.default_method if method is None else method
@@ -230,56 +208,144 @@ class kinetic_estimation:
         p = 1 - chi2.cdf(c2, df)
         return p, c2, df
 
-class Estimation_MomentDeg(kinetic_estimation):
-    '''An estimation class for degradation (with splicing) experiments.
-        Order of species: <unspliced>, <spliced>, <uu>, <ss>, <us>
-    '''
-    def __init__(self, ranges, x0=None):
-        super().__init__(ranges, Moments_NoSwitching(), x0)
-
-    def set_param_range_partial(self, x_data, t):
-        pass
-        # ga0, u0, uu0 = estimate_p0_deg_nosp(x_data, t)
-        # self.ranges[0, :] = [0, ga0 * 10]
-        # self.ranges[1, :] = [0, u0 * 10]
-        # self.ranges[2, :] = [0, uu0 * 10]
+class Estimation_Degradation(kinetic_estimation):
+    def __init__(self, ranges, simulator, x0):
+        if x0.ndim > 1:
+            ranges = np.vstack((ranges, x0))
+            x0_ = None
+        else:
+            x0_ = x0
+        self.kin_param_keys = np.array(['gamma'])
+        super().__init__(ranges, simulator, x0_)
 
     def set_params(self, params):
         self.simulator.set_params(0, *self.get_kinetic_parameters(params))
 
-    def get_beta(self):
-        return self.popt[0]
+    def guestimate_init_cond(self, x_data):
+        '''Roughly estimate x0 for degradation data.'''
+        x0 = np.clip(np.max(x_data, 1), 1e-4, np.inf)
+        return x0
 
-    def get_gamma(self):
-        return self.popt[1]
+    def guestimate_gamma(self, x_data, time):
+        '''Roughly estimate gamma0 with the assumption that time starts at 0 for degradation data.'''
+        ga0 = np.clip(np.log(x_data[0]/(x_data[-1]+1e-6)) / time[-1], 1e-3, 1e3)
+        return ga0
 
-    def calc_spl_half_life(self):
-        return np.log(2)/self.get_beta()
+    def get_param(self, key):
+        return self.popt[np.where(self.kin_param_keys==key)[0][0]]
 
-    def calc_deg_half_life(self):
-        return np.log(2)/self.get_gamma()
+    def calc_half_life(self, key):
+        return np.log(2)/self.get_param(key)
 
-class Estimation_MomentDegNosp(kinetic_estimation):
-    def __init__(self, ranges, x0=None):
+class Estimation_DeterministicDeg(Estimation_Degradation):
+    '''An estimation class for degradation (with splicing) experiments.
+        Order of species: <unspliced>, <spliced>
+    '''
+    def __init__(self, beta=None, gamma=None, x0=None):
+        self.kin_param_keys = np.array(['beta', 'gamma'])
+        if beta is not None and gamma is not None and x0 is not None:
+            self._initialize(beta, gamma, x0)
+
+    def _initialize(self, beta, gamma, x0):
+        ranges = np.zeros((2, 2))
+        ranges[0] = beta * np.ones(2) if np.isscalar(beta) else beta
+        ranges[1] = gamma * np.ones(2) if np.isscalar(gamma) else gamma
+        super().__init__(ranges, Deterministic_NoSplicing(), x0)
+
+    def auto_fit(self, time, x_data, sample_method='lhs', method=None, normalize=False):
+        be0 = self.guestimate_gamma(x_data[0, :], time)
+        ga0 = self.guestimate_gamma(x_data[0, :] + x_data[1, :], time)
+        x0 = self.guestimate_init_cond(x_data)
+        beta_bound = np.array([0, 1e2*be0])
+        gamma_bound = np.array([0, 1e2*ga0])
+        x0_bound = np.hstack((np.zeros((len(x0), 1)), 1e2*x0[None].T))
+        self._initialize(beta_bound, gamma_bound, x0_bound)
+
+        popt, cost = self.fit_lsq(time, x_data, p0=np.hstack((be0, ga0, x0)), 
+            sample_method=sample_method, method=method, normalize=normalize)
+        return popt, cost
+
+class Estimation_DeterministicDegNosp(Estimation_Degradation):
+    def __init__(self, gamma=None, x0=None):
+        '''An estimation class for degradation (without splicing) experiments.
+        '''
+        if gamma is not None and x0 is not None:
+            self._initialize(gamma, x0)
+
+    def _initialize(self, gamma, x0):
+        ranges = gamma * np.ones(2) if np.isscalar(gamma) else gamma
+        if np.isscalar(x0) or x0.ndim > 1:
+            x0_ = x0
+        else:
+            x0_ = np.array([x0])
+        super().__init__(ranges, Deterministic_NoSplicing(), x0_)
+
+    def auto_fit(self, time, x_data, sample_method='lhs', method=None, normalize=False):
+        ga0 = self.guestimate_gamma(x_data, time)
+        x0 = self.guestimate_init_cond(x_data[None])
+        gamma_bound = np.array([0, 1e2*ga0])
+        x0_bound = np.array([0, 1e2*x0])
+        self._initialize(gamma_bound, x0_bound)
+
+        popt, cost = self.fit_lsq(time, x_data, p0=np.hstack((ga0, x0)), 
+            sample_method=sample_method, method=method, normalize=normalize)
+        return popt, cost
+
+class Estimation_MomentDeg(Estimation_DeterministicDeg):
+    '''An estimation class for degradation (with splicing) experiments.
+        Order of species: <unspliced>, <spliced>, <uu>, <ss>, <us>
+        Order of parameters: beta, gamma
+    '''
+    def __init__(self, beta=None, gamma=None, x0=None, include_cov=False):
+        self.kin_param_keys = np.array(['beta', 'gamma'])
+        self.include_cov = include_cov
+        if beta is not None and gamma is not None and x0 is not None:
+            self._initialize(beta, gamma, x0)
+
+    def _initialize(self, beta, gamma, x0):
+        ranges = np.zeros((2, 2))
+        ranges[0] = beta * np.ones(2) if np.isscalar(beta) else beta
+        ranges[1] = gamma * np.ones(2) if np.isscalar(gamma) else gamma
+        super().__init__(ranges, Moments_NoSwitching(), x0)
+
+    def extract_data_from_simulator(self):
+        if self.include_cov:
+            ret = np.zeros((5, len(self.simulator.t)))
+            ret[0] = self.simulator.get_nu()
+            ret[1] = self.simulator.get_nx()
+            ret[2] = self.simulator.x[:, self.simulator.uu]
+            ret[3] = self.simulator.x[:, self.simulator.xx]
+            ret[4] = self.simulator.x[:, self.simulator.ux]
+        else:
+            ret = np.zeros((4, len(self.simulator.t)))
+            ret[0] = self.simulator.get_nu()
+            ret[1] = self.simulator.get_nx()
+            ret[2] = self.simulator.x[:, self.simulator.uu]
+            ret[3] = self.simulator.x[:, self.simulator.xx]
+        return ret
+
+class Estimation_MomentDegNosp(Estimation_Degradation):
+    def __init__(self, gamma=None, x0=None):
         '''An estimation class for degradation (without splicing) experiments.
             Order of species: <r>, <rr>
         '''
+        if gamma is not None and x0 is not None:
+            self._initialize(gamma, x0)
+
+    def _initialize(self, gamma, x0):
+        ranges = gamma * np.ones(2) if np.isscalar(gamma) else gamma
         super().__init__(ranges, Moments_NoSwitchingNoSplicing(), x0)
 
-    def set_param_range_partial(self, x_data, t):
-        ga0, u0, uu0 = estimate_p0_deg_nosp(x_data, t)
-        self.ranges[0, :] = [0, ga0 * 10]
-        self.ranges[1, :] = [0, u0 * 10]
-        self.ranges[2, :] = [0, uu0 * 10]
+    def auto_fit(self, time, x_data, sample_method='lhs', method=None, normalize=False):
+        ga0 = self.guestimate_gamma(x_data[0, :], time)
+        x0 = self.guestimate_init_cond(x_data)
+        gamma_bound = np.array([0, 1e2*ga0])
+        x0_bound = np.hstack((np.zeros((len(x0), 1)), 1e2*x0[None].T))
+        self._initialize(gamma_bound, x0_bound)
 
-    def set_params(self, params):
-        self.simulator.set_params(0, *self.get_kinetic_parameters(params))
-
-    def get_gamma(self):
-        return self.popt[0]
-
-    def calc_half_life(self):
-        return np.log(2)/self.get_gamma()
+        popt, cost = self.fit_lsq(time, x_data, p0=np.hstack((ga0, x0)), 
+            sample_method=sample_method, method=method, normalize=normalize)
+        return popt, cost
 
 class Estimation_MomentKin(kinetic_estimation):
     def __init__(self, a, b, alpha_a, alpha_i, beta, gamma, include_cov=False):
@@ -319,7 +385,7 @@ class Estimation_MomentKin(kinetic_estimation):
         return self.popt[3]
 
     def get_alpha(self):
-        alpha = self.simulator.fbar(self.pot[2]. self.pot[3], self.popt[0], self.popt[1])
+        alpha = self.simulator.fbar(self.get_alpha_a(), self.get_alpha_i())
         return alpha
 
     def get_beta(self):
@@ -354,61 +420,13 @@ class Estimation_MomentKinNosp(kinetic_estimation):
         return self.popt[3]
 
     def get_alpha(self):
-        alpha = self.simulator.fbar(self.pot[2]. self.pot[3], self.popt[0], self.popt[1])
+        alpha = self.simulator.fbar(self.get_alpha_a(). self.get_alpha_i())
         return alpha
 
     def get_gamma(self):
         return self.popt[4]
 
     def calc_deg_half_life(self):
-        return np.log(2)/self.get_gamma()
-
-class Estimation_DeterministicDeg(kinetic_estimation):
-    '''An estimation class for degradation (with splicing) experiments.
-        Order of species: <unspliced>, <spliced>
-    '''
-    def __init__(self, ranges, x0=None):
-        super().__init__(ranges, Deterministic(), x0)
-
-    def set_param_range_partial(self, x_data, t):
-        # ga0, u0, _ = estimate_p0_deg_nosp(np.sum(x_data, 0), t)
-        # self.ranges[0, :] = [0, ga0 * 10]
-        # self.ranges[1, :] = [0, u0 * 10]
-        pass
-
-    def set_params(self, params):
-        self.simulator.set_params(0, *self.get_kinetic_parameters(params))
-
-    def get_beta(self):
-        return self.popt[0]
-
-    def get_gamma(self):
-        return self.popt[1]
-
-    def calc_spl_half_life(self):
-        return np.log(2)/self.get_beta()
-
-    def calc_deg_half_life(self):
-        return np.log(2)/self.get_gamma()
-
-class Estimation_DeterministicDegNosp(kinetic_estimation):
-    def __init__(self, ranges, x0=None):
-        '''An estimation class for degradation (without splicing) experiments.
-        '''
-        super().__init__(ranges, Deterministic_NoSplicing(), x0)
-
-    def set_param_range_partial(self, x_data, t):
-        ga0, u0, _ = estimate_p0_deg_nosp(x_data, t)
-        self.ranges[0, :] = [0, ga0 * 10]
-        self.ranges[1, :] = [0, u0 * 10]
-
-    def set_params(self, params):
-        self.simulator.set_params(0, *self.get_kinetic_parameters(params))
-
-    def get_gamma(self):
-        return self.popt[0]
-
-    def calc_half_life(self):
         return np.log(2)/self.get_gamma()
 
 class Estimation_DeterministicKinNosp(kinetic_estimation):
@@ -420,10 +438,6 @@ class Estimation_DeterministicKinNosp(kinetic_estimation):
         ranges[0] = alpha * np.ones(2) if np.isscalar(alpha) else alpha
         ranges[1] = gamma * np.ones(2) if np.isscalar(gamma) else gamma
         super().__init__(ranges, Deterministic_NoSplicing(), x0)
-
-    def set_param_range_partial(self, x_data, t):
-        alpha0 = estimate_alpha0_kin_nosp(x_data, t)
-        self.ranges[0, :] = [0, alpha0 * 10]
 
     def get_alpha(self):
         return self.get_params()[0]
@@ -449,10 +463,6 @@ class Estimation_DeterministicKin(kinetic_estimation):
             ranges = np.vstack((ranges, x0))
             x0 = None
         super().__init__(ranges, Deterministic(), x0)
-
-    def set_param_range_partial(self, x_data, t):
-        alpha0 = estimate_alpha0_kin_nosp(np.sum(x_data, 0), t)
-        self.ranges[0, :] = [0, alpha0 * 10]
 
     def get_alpha(self):
         return self.get_params()[0]
@@ -525,5 +535,3 @@ class GoodnessOfFit:
         err = ((self.pred - self.mean) / sig).flatten()
         ret = -len(err)/2*np.log(2*np.pi) - np.sum(np.log(sig)) - 0.5*err.dot(err)
         return ret
-
-
