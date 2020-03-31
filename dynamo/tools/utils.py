@@ -100,7 +100,7 @@ def log_unnormalized_data(raw, log_unnormalized):
     return raw
 
 
-def get_data_for_velocity_estimation(
+def get_data_for_kin_params_estimation(
     subset_adata,
     model,
     use_moments,

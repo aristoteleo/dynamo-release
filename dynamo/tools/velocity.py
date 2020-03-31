@@ -708,7 +708,7 @@ class ss_estimation:
                     )
                 # calculate when having splicing or no splicing
                 if self.model.lower() == "deterministic":
-                    if np.all(self._exist_data("ul", "uu", "sl", "su")):
+                    if np.all(self._exist_data("ul", "uu", "su")):
                         if (
                             self._exist_data("ul")
                             and self._exist_parameter("beta", "gamma").all()
@@ -869,7 +869,7 @@ class ss_estimation:
                         self.parameters["beta"] = beta
 
                         U = self.data["uu"] + self.data["ul"]
-                        S = self.data["su"] + self.data["sl"]
+                        S = U + self.data["su"] + self.data["sl"]
                         US, S2 = self.data["us"], self.data["s2"]
                         for i in tqdm(range(n), desc="estimating gamma and alpha for one-shot experiment"):
                             (
@@ -898,7 +898,7 @@ class ss_estimation:
                             self.aux_param["gamma_r2"],
                             self.aux_param["gamma_logLL"],
                         ) = ((alpha + alpha0) / 2, gamma, k_intercept, k_r2, k_logLL)
-                    else:
+                    elif np.all(self._exist_data("uu", "ul")):
                         self.parameters["beta"] = np.ones(n)
                         k, k_intercept, k_r2, k_logLL = (
                             np.zeros(n),
@@ -906,8 +906,8 @@ class ss_estimation:
                             np.zeros(n),
                             np.zeros(n),
                         )
-                        U = self.data["ul"] if self.data["uu"] is None else self.data["ul"] + self.data["uu"]
-                        S = self.data["sl"] if self.data["su"] is None else self.data["sl"] + self.data["su"]
+                        U = self.data["ul"]
+                        S = self.data["ul"] + self.data["uu"]
                         US, S2 = self.data["us"], self.data["s2"]
                         for i in tqdm(range(n), desc="estimating gamma"):
                             (
