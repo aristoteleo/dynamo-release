@@ -12,8 +12,6 @@ from ..preprocessing.utils import get_layer_keys, allowed_X_layer_names
 # ---------------------------------------------------------------------------------------------------
 # use for calculating moments for stochastic model:
 def moments(adata, use_gaussian_kernel=True, use_mnn=False, layers="all"):
-    # if we have uu, ul, su, sl, let us set total and new
-
     mapper = get_mapper()
     only_splicing, only_labeling, splicing_and_labeling = allowed_X_layer_names()
 
@@ -110,6 +108,7 @@ def moments(adata, use_gaussian_kernel=True, use_mnn=False, layers="all"):
             "X_protein" in adata.obsm.keys()
     ):  # may need to update with mnn or just use knn from protein layer itself.
         adata.obsm[mapper["X_protein"]] = conn.dot(adata.obsm["X_protein"])
+    adata.uns['moments_con'] = conn
 
     return adata
 

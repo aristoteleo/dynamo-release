@@ -1163,7 +1163,7 @@ def collapse_adata(adata):
         adata.layers[only_splicing[0]] = adata.layers['su'] + adata.layers['sl']
         adata.layers[only_splicing[1]] = adata.layers['uu'] + adata.layers['ul']
         adata.layers[only_labeling[0]] = adata.layers['ul'] + adata.layers['sl']
-        adata.layers[only_labeling[1]] = adata.layers['uu'] + adata.layers['su']
+        adata.layers[only_labeling[1]] = adata.layers[only_labeling[0]] + adata.layers['uu'] + adata.layers['su']
 
     return adata
 

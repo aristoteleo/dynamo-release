@@ -4,6 +4,7 @@ from warnings import warn
 from .utils import one_shot_gamma_alpha, calc_R2, calc_norm_loglikelihood
 from .moments import calc_12_mom_labeling
 from .utils_velocity import *
+from .moments import calc_2nd_moment
 # from sklearn.cluster import KMeans
 # from sklearn.neighbors import NearestNeighbors
 
@@ -322,6 +323,7 @@ class ss_estimation:
         P=None,
         US=None,
         S2=None,
+        conn=None,
         t=None,
         ind_for_proteins=None,
         model='stochastic',
@@ -349,6 +351,8 @@ class ss_estimation:
             A matrix of second moment of unspliced/spliced gene expression count for conventional or NTR velocity.
         S2: :class:`~numpy.ndarray` or sparse `csr_matrix`
             A matrix of second moment of spliced gene expression count for conventional or NTR velocity.
+        conn: :class:`~numpy.ndarray` or sparse `csr_matrix`
+            The connectivity matrix that can be used to calculate first /second moment of the data.
         t: :class:`~ss_estimation`
             A vector of time points.
         ind_for_proteins: :class:`~numpy.ndarray`
@@ -395,6 +399,7 @@ class ss_estimation:
         if concat_data:
             self.concatenate_data()
 
+        self.conn = conn
         self.extyp = experiment_type
         self.model = model
         self.est_method = est_method
@@ -514,7 +519,7 @@ class ss_estimation:
                         self.aux_param["gamma_r2"],
                         self.aux_param["gamma_logLL"],
                     ) = (gamma, gamma_intercept, gamma_r2, gamma_logLL)
-            else:
+            elif self.model.lower() == 'stochastic':
                 if np.all(self._exist_data("uu", "su")):
                     self.parameters["beta"] = np.ones(n)
                     gamma, gamma_intercept, gamma_r2, gamma_logLL = (
@@ -702,128 +707,235 @@ class ss_estimation:
                         "By definition, one-shot experiment should involve only one time point measurement!"
                     )
                 # calculate when having splicing or no splicing
-                if np.all(self._exist_data("ul", "uu", "sl", "su")):
-                    if (
-                        self._exist_data("ul")
-                        and self._exist_parameter("beta", "gamma").all()
-                    ):
-                        self.parameters["alpha"] = self.fit_alpha_oneshot(
-                            self.t, self.data["ul"], self.parameters["beta"], clusters
-                        )
-                    else:
-                        beta, gamma, U0, S0 = (
-                            np.zeros(n),
-                            np.zeros(n),
-                            np.zeros(n),
-                            np.zeros(n),
-                        )
-                        for i in range(
-                            n
-                        ):  # can also use the two extreme time points and apply sci-fate like approach.
-                            S, U = (
-                                self.data["su"][i] + self.data["sl"][i],
-                                self.data["uu"][i] + self.data["ul"][i],
+                if self.model.lower() == "deterministic":
+                    if np.all(self._exist_data("ul", "uu", "sl", "su")):
+                        if (
+                            self._exist_data("ul")
+                            and self._exist_parameter("beta", "gamma").all()
+                        ):
+                            self.parameters["alpha"] = self.fit_alpha_oneshot(
+                                self.t, self.data["ul"], self.parameters["beta"], clusters
                             )
-
-                            S0[i], gamma[i] = (
-                                np.mean(S),
-                                solve_gamma(np.max(self.t), self.data["su"][i], S),
+                        else:
+                            beta, gamma, U0, S0 = (
+                                np.zeros(n),
+                                np.zeros(n),
+                                np.zeros(n),
+                                np.zeros(n),
                             )
-                            U0[i], beta[i] = (
-                                np.mean(U),
-                                solve_gamma(np.max(self.t), self.data["uu"][i], U),
-                            )
-                        (
-                            self.aux_param["U0"],
-                            self.aux_param["S0"],
-                            self.parameters["beta"],
-                            self.parameters["gamma"],
-                        ) = (U0, S0, beta, gamma)
-
-                        ul_m, ul_v, t_uniq = calc_12_mom_labeling(
-                            self.data["ul"], self.t
-                        )
-                        alpha = np.zeros(n)
-                        # let us only assume one alpha for each gene in all cells
-                        for i in tqdm(range(n), desc="estimating alpha"):
-                            # for j in range(len(self.data['ul'][i])):
-                            alpha[i] = fit_alpha_synthesis(
-                                t_uniq, ul_m[i], self.parameters["beta"][i]
-                            )
-
-                        self.parameters["alpha"] = alpha
-                        # self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
-                else:
-                    if self._exist_data("ul") and self._exist_parameter("gamma"):
-                        self.parameters["alpha"] = self.fit_alpha_oneshot(
-                            self.t, self.data["ul"], self.parameters["gamma"], clusters
-                        )
-                    elif self._exist_data("ul") and self._exist_data("uu"):
-                        if one_shot_method in ["sci-fate", "sci_fate"]:
-                            gamma, total0 = np.zeros(n), np.zeros(n)
-                            for i in tqdm(range(n), desc="estimating gamma"):
-                                total = self.data["uu"][i] + self.data["ul"][i]
-                                total0[i], gamma[i] = (
-                                    np.mean(total),
-                                    solve_gamma(
-                                        np.max(self.t), self.data["uu"][i], total
-                                    ),
+                            for i in range(
+                                n
+                            ):  # can also use the two extreme time points and apply sci-fate like approach.
+                                S, U = (
+                                    self.data["su"][i] + self.data["sl"][i],
+                                    self.data["uu"][i] + self.data["ul"][i],
                                 )
-                            self.aux_param["total0"], self.parameters["gamma"] = (
-                                total0,
-                                gamma,
-                            )
+
+                                S0[i], gamma[i] = (
+                                    np.mean(S),
+                                    solve_gamma(np.max(self.t), self.data["su"][i], S),
+                                )
+                                U0[i], beta[i] = (
+                                    np.mean(U),
+                                    solve_gamma(np.max(self.t), self.data["uu"][i], U),
+                                )
+                            (
+                                self.aux_param["U0"],
+                                self.aux_param["S0"],
+                                self.parameters["beta"],
+                                self.parameters["gamma"],
+                            ) = (U0, S0, beta, gamma)
 
                             ul_m, ul_v, t_uniq = calc_12_mom_labeling(
                                 self.data["ul"], self.t
                             )
-                            # let us only assume one alpha for each gene in all cells
                             alpha = np.zeros(n)
+                            # let us only assume one alpha for each gene in all cells
                             for i in tqdm(range(n), desc="estimating alpha"):
                                 # for j in range(len(self.data['ul'][i])):
                                 alpha[i] = fit_alpha_synthesis(
-                                    t_uniq, ul_m[i], self.parameters["gamma"][i]
-                                )  # ul_m[i] / t_uniq
+                                    t_uniq, ul_m[i], self.parameters["beta"][i]
+                                )
 
                             self.parameters["alpha"] = alpha
-                            # self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['gamma'], clusters)
-                        elif one_shot_method == "combined":
-                            self.parameters["alpha"] = (
-                                csr_matrix(self.data["ul"].shape)
-                                if issparse(self.data["ul"])
-                                else np.zeros_like(self.data["ul"].shape)
+                            # self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
+                    else:
+                        if self._exist_data("ul") and self._exist_parameter("gamma"):
+                            self.parameters["alpha"] = self.fit_alpha_oneshot(
+                                self.t, self.data["ul"], self.parameters["gamma"], clusters
                             )
-                            t_uniq, gamma, gamma_intercept, gamma_r2, gamma_logLL = (
-                                np.unique(self.t),
-                                np.zeros(n),
-                                np.zeros(n),
-                                np.zeros(n),
-                                np.zeros(n),
-                            )
-                            U, S = self.data["ul"], self.data["uu"] + self.data["ul"]
-
-                            for i in tqdm(range(n), desc="estimating gamma"):
-                                (
-                                    k,
-                                    gamma_intercept[i],
-                                    _,
-                                    gamma_r2[i],
-                                    _,
-                                    gamma_logLL[i],
-                                ) = self.fit_gamma_steady_state(
-                                    U[i], S[i], False, None, perc_right
+                        elif self._exist_data("ul") and self._exist_data("uu"):
+                            if one_shot_method in ["sci-fate", "sci_fate"]:
+                                gamma, total0 = np.zeros(n), np.zeros(n)
+                                for i in tqdm(range(n), desc="estimating gamma"):
+                                    total = self.data["uu"][i] + self.data["ul"][i]
+                                    total0[i], gamma[i] = (
+                                        np.mean(total),
+                                        solve_gamma(
+                                            np.max(self.t), self.data["uu"][i], total
+                                        ),
+                                    )
+                                self.aux_param["total0"], self.parameters["gamma"] = (
+                                    total0,
+                                    gamma,
                                 )
-                                (
-                                    gamma[i],
-                                    self.parameters["alpha"][i],
-                                ) = one_shot_gamma_alpha(k, t_uniq, U[i])
-                            (
-                                self.parameters["gamma"],
-                                self.aux_param["gamma_r2"],
-                                self.aux_param["gamma_logLL"],
-                                self.aux_param["alpha_r2"],
-                            ) = (gamma, gamma_r2, gamma_logLL, gamma_r2)
 
+                                ul_m, ul_v, t_uniq = calc_12_mom_labeling(
+                                    self.data["ul"], self.t
+                                )
+                                # let us only assume one alpha for each gene in all cells
+                                alpha = np.zeros(n)
+                                for i in tqdm(range(n), desc="estimating alpha"):
+                                    # for j in range(len(self.data['ul'][i])):
+                                    alpha[i] = fit_alpha_synthesis(
+                                        t_uniq, ul_m[i], self.parameters["gamma"][i]
+                                    )  # ul_m[i] / t_uniq
+
+                                self.parameters["alpha"] = alpha
+                                # self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['gamma'], clusters)
+                            elif one_shot_method == "combined":
+                                self.parameters["alpha"] = (
+                                    csr_matrix(self.data["ul"].shape)
+                                    if issparse(self.data["ul"])
+                                    else np.zeros_like(self.data["ul"].shape)
+                                )
+                                t_uniq, gamma, gamma_intercept, gamma_r2, gamma_logLL = (
+                                    np.unique(self.t),
+                                    np.zeros(n),
+                                    np.zeros(n),
+                                    np.zeros(n),
+                                    np.zeros(n),
+                                )
+                                U, S = self.data["ul"], self.data["uu"] + self.data["ul"]
+
+                                for i in tqdm(range(n), desc="estimating gamma"):
+                                    (
+                                        k,
+                                        gamma_intercept[i],
+                                        _,
+                                        gamma_r2[i],
+                                        _,
+                                        gamma_logLL[i],
+                                    ) = self.fit_gamma_steady_state(
+                                        U[i], S[i], False, None, perc_right
+                                    )
+                                    (
+                                        gamma[i],
+                                        self.parameters["alpha"][i],
+                                    ) = one_shot_gamma_alpha(k, t_uniq, U[i])
+                                (
+                                    self.parameters["gamma"],
+                                    self.aux_param["gamma_r2"],
+                                    self.aux_param["gamma_logLL"],
+                                    self.aux_param["alpha_r2"],
+                                ) = (gamma, gamma_r2, gamma_logLL, gamma_r2)
+                elif self.model.lower() == "stochastic":
+                    if np.all(self._exist_data("uu", "ul", "su", "sl")):
+                        self.parameters["beta"] = np.ones(n)
+                        k, k_intercept, k_r2, k_logLL = (
+                            np.zeros(n),
+                            np.zeros(n),
+                            np.zeros(n),
+                            np.zeros(n),
+                        )
+                        U = self.data["uu"]
+                        S = self.data["uu"] + self.data["ul"]
+                        US = calc_2nd_moment(
+                            U, S, self.conn, mX=U, mY=S
+                        )
+                        S2 = calc_2nd_moment(
+                            S, S, self.conn, mX=S, mY=S
+                        )
+                        for i in tqdm(range(n), desc="estimating beta and alpha for one-shot experiment"):
+                            (
+                                k[i],
+                                k_intercept[i],
+                                _,
+                                k_r2[i],
+                                _,
+                                k_logLL[i],
+                            ) = self.fit_gamma_stochastic(
+                                self.est_method,
+                                U[i],
+                                S[i],
+                                US[i],
+                                S2[i],
+                                perc_left=None,
+                                perc_right=5,
+                                normalize=True,
+                            )
+                        beta = np.log(1 - k) / t_uniq
+                        alpha0 = beta * U / k
+                        self.parameters["beta"] = beta
+
+                        U = self.data["uu"] + self.data["ul"]
+                        S = self.data["su"] + self.data["sl"]
+                        US, S2 = self.data["us"], self.data["s2"]
+                        for i in tqdm(range(n), desc="estimating gamma and alpha for one-shot experiment"):
+                            (
+                                k[i],
+                                k_intercept[i],
+                                _,
+                                k_r2[i],
+                                _,
+                                k_logLL[i],
+                            ) = self.fit_gamma_stochastic(
+                                self.est_method,
+                                U[i],
+                                S[i],
+                                US[i],
+                                S2[i],
+                                perc_left=None,
+                                perc_right=5,
+                                normalize=True,
+                            )
+                        gamma = np.log(1 - k) / t_uniq
+                        alpha = gamma * U / k
+                        (
+                            self.parameters["alpha"],
+                            self.parameters["gamma"],
+                            self.aux_param["gamma_intercept"],
+                            self.aux_param["gamma_r2"],
+                            self.aux_param["gamma_logLL"],
+                        ) = ((alpha + alpha0) / 2, gamma, k_intercept, k_r2, k_logLL)
+                    else:
+                        self.parameters["beta"] = np.ones(n)
+                        k, k_intercept, k_r2, k_logLL = (
+                            np.zeros(n),
+                            np.zeros(n),
+                            np.zeros(n),
+                            np.zeros(n),
+                        )
+                        U = self.data["ul"] if self.data["uu"] is None else self.data["ul"] + self.data["uu"]
+                        S = self.data["sl"] if self.data["su"] is None else self.data["sl"] + self.data["su"]
+                        US, S2 = self.data["us"], self.data["s2"]
+                        for i in tqdm(range(n), desc="estimating gamma"):
+                            (
+                                k[i],
+                                k_intercept[i],
+                                _,
+                                k_r2[i],
+                                _,
+                                k_logLL[i],
+                            ) = self.fit_gamma_stochastic(
+                                self.est_method,
+                                U[i],
+                                S[i],
+                                US[i],
+                                S2[i],
+                                perc_left=None,
+                                perc_right=5,
+                                normalize=True,
+                            )
+                        gamma = np.log(1 - k) / t_uniq
+                        alpha = gamma * U / k
+                        (
+                            self.parameters["alpha"],
+                            self.parameters["gamma"],
+                            self.aux_param["gamma_intercept"],
+                            self.aux_param["gamma_r2"],
+                            self.aux_param["gamma_logLL"],
+                        ) = (alpha, gamma, k_intercept, k_r2, k_logLL)
             elif self.extyp.lower() == "mix_std_stm":
                 t_min, t_max = np.min(self.t), np.max(self.t)
                 if np.all(self._exist_data("ul", "uu", "su")):

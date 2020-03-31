@@ -17,6 +17,7 @@ from .moments import prepare_data_no_splicing, prepare_data_has_splicing
 def dynamics(
     adata,
     tkey=None,
+    t_label_keys=None,
     filter_gene_mode="final",
     use_moments=True,
     experiment_type='auto',
@@ -41,8 +42,12 @@ def dynamics(
         adata: :class:`~anndata.AnnData`
             AnnData object.
         tkey: `str` or None (default: None)
-            The column key for the time label of cells in .obs. Used for either "steady_state" or non-"steady_state" mode or `moment`
+            The column key for the time label of cells in .obs. Used for either "ss" or "kinetic" model.
             mode  with labeled data.
+        t_label_keys: `str`, `list` or None (default: None)
+            The column key(s) for the labeling time label of cells in .obs. Used for either "ss" or "kinetic" model.
+            Not used for now and `tkey` is implicitly assumed as `t_label_key` (however, `tkey` should just be the time
+            of the experiment).
         filter_gene_mode: `str` (default: `final`)
             The string for indicating which mode (one of, {'final', 'basic', 'no'}) of gene filter will be used.
         use_moments: `bool` (default: `True`)
@@ -151,6 +156,8 @@ def dynamics(
             cur_cells_bools = (valid_adata.obs[group] == cur_grp).values
             subset_adata = valid_adata[cur_cells_bools]
 
+            if model.lower() == "stochastic" or use_moments:
+                moments(subset_adata)
         (
             U,
             Ul,
@@ -207,6 +214,7 @@ def dynamics(
                 P=P,
                 US=US,
                 S2=S2,
+                conn=subset_adata.uns['moments_con'],
                 t=t,
                 ind_for_proteins=ind_for_proteins,
                 model=model,
