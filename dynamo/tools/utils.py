@@ -461,6 +461,7 @@ def set_param_ss(
             alpha_r2,
             gamma_intercept,
             gamma_r2,
+            gamma_logLL,
             delta_intercept,
             delta_r2,
             uu0,
@@ -479,6 +480,7 @@ def set_param_ss(
                 adata.var[kin_param_pre + "alpha_r2"],
                 adata.var[kin_param_pre + "gamma_b"],
                 adata.var[kin_param_pre + "gamma_r2"],
+                adata.var[kin_param_pre + "gamma_logLL"],
                 adata.var[kin_param_pre + "delta_b"],
                 adata.var[kin_param_pre + "delta_r2"],
                 adata.var[kin_param_pre + "uu0"],
@@ -502,6 +504,7 @@ def set_param_ss(
                 None,
                 None,
                 None,
+                None,
             )
 
         adata.var.loc[valid_ind, kin_param_pre + "alpha_b"] = alpha_intercept
@@ -511,6 +514,7 @@ def set_param_ss(
             gamma_r2[~np.isfinite(gamma_r2)] = 0
         adata.var.loc[valid_ind, kin_param_pre + "gamma_b"] = gamma_intercept
         adata.var.loc[valid_ind, kin_param_pre + "gamma_r2"] = gamma_r2
+        adata.var.loc[valid_ind, kin_param_pre + "gamma_logLL"] = gamma_logLL
 
         adata.var.loc[valid_ind, kin_param_pre + "uu0"] = uu0
         adata.var.loc[valid_ind, kin_param_pre + "ul0"] = ul0
@@ -721,6 +725,7 @@ def lhsclassic(n_samples, n_dim):
     return H
 
 def calc_R2(X, Y, k, f=lambda X, k: np.einsum('ij,i -> ij', X, k)):
+    """calculate R-square. X, Y: n_species (mu, sigma) x n_obs"""
     if X.ndim == 1:
         X = X[None]
     if Y.ndim == 1:
@@ -743,10 +748,30 @@ def norm_loglikelihood(x, mu, sig):
     """Calculate log-likelihood for the data.
     """
     err = (x - mu) / sig
-    ll = -len(err)/2*np.log(2*np.pi) - np.sum(np.log(sig)) - 0.5*err.dot(err)
-    return np.sum(ll)
+    ll = -len(err)/2*np.log(2*np.pi) - np.sum(np.log(sig)) - 0.5*err.dot(err.T)
+    return np.sum(ll, 0)
 
 
+def calc_norm_loglikelihood(X, Y, k, f=lambda X, k: np.einsum('ij,i -> ij', X, k)):
+    """calculate log likelihood based on normal distribution. X, Y: n_species (mu, sigma) x n_obs"""
+    if X.ndim == 1:
+        X = X[None]
+    if Y.ndim == 1:
+        Y = Y[None]
+    if np.isscalar(k):
+        k = np.array([k])
+
+    n = X.shape[0]
+    F = f(X, k)
+
+    d = F - Y
+    sig = np.einsum('ij,ij -> i', d, d)
+
+    LogLL = 0
+    for i in range(Y.shape[0]):
+        LogLL += norm_loglikelihood(Y[i], F[i], np.sqrt(sig[i] / n))
+
+    return LogLL
 # ---------------------------------------------------------------------------------------------------
 # velocity related
 

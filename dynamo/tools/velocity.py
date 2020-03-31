@@ -1,7 +1,7 @@
 from tqdm import tqdm
 from scipy.sparse import csr_matrix
 from warnings import warn
-from .utils import one_shot_gamma_alpha
+from .utils import one_shot_gamma_alpha, calc_R2, calc_norm_loglikelihood
 from .moments import calc_12_mom_labeling
 from .utils_velocity import *
 # from sklearn.cluster import KMeans
@@ -325,6 +325,7 @@ class ss_estimation:
         t=None,
         ind_for_proteins=None,
         model='stochastic',
+        est_method='gmm',
         experiment_type="deg",
         assumption_mRNA=None,
         assumption_protein="ss",
@@ -396,6 +397,7 @@ class ss_estimation:
 
         self.extyp = experiment_type
         self.model = model
+        self.est_method = est_method
         self.asspt_mRNA = assumption_mRNA
         self.asspt_prot = assumption_protein
         self.parameters = {
@@ -410,6 +412,7 @@ class ss_estimation:
             "alpha_r2": None,
             "gamma_intercept": None,
             "gamma_r2": None,
+            "gamma_logLL": None,
             "delta_intercept": None,
             "delta_r2": None,
             "uu0": None,
@@ -447,11 +450,12 @@ class ss_estimation:
         """
         n = self.get_n_genes()
         # fit mRNA
-        if self.extyp == "conventional":
-            if self.model == "deterministic":
+        if self.extyp.lower() == "conventional":
+            if self.model.lower() == "deterministic":
                 if np.all(self._exist_data("uu", "su")):
                     self.parameters["beta"] = np.ones(n)
-                    gamma, gamma_intercept, gamma_r2 = (
+                    gamma, gamma_intercept, gamma_r2, gamma_logLL = (
+                        np.zeros(n),
                         np.zeros(n),
                         np.zeros(n),
                         np.zeros(n),
@@ -472,6 +476,8 @@ class ss_estimation:
                             gamma_intercept[i],
                             _,
                             gamma_r2[i],
+                            _,
+                            gamma_logLL[i],
                         ) = self.fit_gamma_steady_state(
                             U[i], S[i], intercept, perc_left, perc_right
                         )
@@ -479,10 +485,12 @@ class ss_estimation:
                         self.parameters["gamma"],
                         self.aux_param["gamma_intercept"],
                         self.aux_param["gamma_r2"],
-                    ) = (gamma, gamma_intercept, gamma_r2)
+                        self.aux_param["gamma_logLL"],
+                    ) = (gamma, gamma_intercept, gamma_r2, gamma_logLL)
                 elif np.all(self._exist_data("uu", "ul")):
                     self.parameters["beta"] = np.ones(n)
-                    gamma, gamma_intercept, gamma_r2 = (
+                    gamma, gamma_intercept, gamma_r2, gamma_logLL = (
+                        np.zeros(n),
                         np.zeros(n),
                         np.zeros(n),
                         np.zeros(n),
@@ -495,6 +503,8 @@ class ss_estimation:
                             gamma_intercept[i],
                             _,
                             gamma_r2[i],
+                            _,
+                            gamma_logLL[i],
                         ) = self.fit_gamma_steady_state(
                             U[i], S[i], intercept, perc_left, perc_right
                         )
@@ -502,11 +512,13 @@ class ss_estimation:
                         self.parameters["gamma"],
                         self.aux_param["gamma_intercept"],
                         self.aux_param["gamma_r2"],
-                    ) = (gamma, gamma_intercept, gamma_r2)
+                        self.aux_param["gamma_logLL"],
+                    ) = (gamma, gamma_intercept, gamma_r2, gamma_logLL)
             else:
                 if np.all(self._exist_data("uu", "su")):
                     self.parameters["beta"] = np.ones(n)
-                    gamma, gamma_intercept, gamma_r2 = (
+                    gamma, gamma_intercept, gamma_r2, gamma_logLL = (
+                        np.zeros(n),
                         np.zeros(n),
                         np.zeros(n),
                         np.zeros(n),
@@ -528,7 +540,10 @@ class ss_estimation:
                             gamma_intercept[i],
                             _,
                             gamma_r2[i],
+                            _,
+                            gamma_logLL[i],
                         ) = self.fit_gamma_stochastic(
+                            self.est_method,
                             U[i],
                             S[i],
                             US[i],
@@ -537,14 +552,17 @@ class ss_estimation:
                             perc_right=5,
                             normalize=True,
                         )
+
                     (
                         self.parameters["gamma"],
                         self.aux_param["gamma_intercept"],
                         self.aux_param["gamma_r2"],
-                    ) = (gamma, gamma_intercept, gamma_r2)
+                        self.aux_param["gamma_logLL"],
+                    ) = (gamma, gamma_intercept, gamma_r2, gamma_logLL)
                 elif np.all(self._exist_data("uu", "ul")):
                     self.parameters["beta"] = np.ones(n)
-                    gamma, gamma_intercept, gamma_r2 = (
+                    gamma, gamma_intercept, gamma_r2, gamma_logLL = (
+                        np.zeros(n),
                         np.zeros(n),
                         np.zeros(n),
                         np.zeros(n),
@@ -558,7 +576,10 @@ class ss_estimation:
                             gamma_intercept[i],
                             _,
                             gamma_r2[i],
+                            _,
+                            gamma_logLL[i],
                         ) = self.fit_gamma_stochastic(
+                            self.est_method,
                             U[i],
                             S[i],
                             US[i],
@@ -571,9 +592,10 @@ class ss_estimation:
                         self.parameters["gamma"],
                         self.aux_param["gamma_intercept"],
                         self.aux_param["gamma_r2"],
-                    ) = (gamma, gamma_intercept, gamma_r2)
+                        self.aux_param["gamma_logLL"],
+                    ) = (gamma, gamma_intercept, gamma_r2, gamma_logLL)
         else:
-            if self.extyp == "deg":
+            if self.extyp.lower() == "deg":
                 if np.all(self._exist_data("ul", "sl")):
                     # beta & gamma estimation
                     ul_m, ul_v, t_uniq = calc_12_mom_labeling(self.data["ul"], self.t)
@@ -623,7 +645,7 @@ class ss_estimation:
                             self.aux_param["uu0"],
                             self.aux_param["alpha_r2"],
                         ) = (alpha, alpha_b, alpha_b, alpha_r2)
-            elif (self.extyp == "kin" or self.extyp == "one_shot") and len(
+            elif (self.extyp.lower() == "kin" or self.extyp.lower() == "one-shot") and len(
                 np.unique(self.t)
             ) > 1:
                 if np.all(self._exist_data("ul", "uu", "su")):
@@ -673,7 +695,7 @@ class ss_estimation:
                     self.parameters["alpha"] = alpha
                     # alpha: one-shot
             # 'one_shot'
-            elif self.extyp == "one_shot" or self.extyp == "one-shot":
+            elif self.extyp.lower() == "one-shot":
                 t_uniq = np.unique(self.t)
                 if len(t_uniq) > 1:
                     raise Exception(
@@ -771,8 +793,9 @@ class ss_estimation:
                                 if issparse(self.data["ul"])
                                 else np.zeros_like(self.data["ul"].shape)
                             )
-                            t_uniq, gamma, gamma_intercept, gamma_r2 = (
+                            t_uniq, gamma, gamma_intercept, gamma_r2, gamma_logLL = (
                                 np.unique(self.t),
+                                np.zeros(n),
                                 np.zeros(n),
                                 np.zeros(n),
                                 np.zeros(n),
@@ -785,6 +808,8 @@ class ss_estimation:
                                     gamma_intercept[i],
                                     _,
                                     gamma_r2[i],
+                                    _,
+                                    gamma_logLL[i],
                                 ) = self.fit_gamma_steady_state(
                                     U[i], S[i], False, None, perc_right
                                 )
@@ -795,10 +820,11 @@ class ss_estimation:
                             (
                                 self.parameters["gamma"],
                                 self.aux_param["gamma_r2"],
+                                self.aux_param["gamma_logLL"],
                                 self.aux_param["alpha_r2"],
-                            ) = (gamma, gamma_r2, gamma_r2)
+                            ) = (gamma, gamma_r2, gamma_logLL, gamma_r2)
 
-            elif self.extyp == "mix_std_stm":
+            elif self.extyp.lower() == "mix_std_stm":
                 t_min, t_max = np.min(self.t), np.max(self.t)
                 if np.all(self._exist_data("ul", "uu", "su")):
                     gamma, beta, total, U = (
@@ -878,9 +904,19 @@ class ss_estimation:
             ind_for_proteins = self.ind_for_proteins
             n = len(ind_for_proteins) if ind_for_proteins is not None else 0
 
-            if self.asspt_prot == "ss" and n > 0:
+            if self.asspt_prot.lower() == "ss" and n > 0:
                 self.parameters["eta"] = np.ones(n)
-                delta, delta_intercept, delta_r2 = np.zeros(n), np.zeros(n), np.zeros(n)
+                (
+                    delta,
+                    delta_intercept,
+                    delta_r2,
+                    delta_logLL,
+                ) = (
+                    np.zeros(n),
+                    np.zeros(n),
+                    np.zeros(n),
+                    np.zeros(n),
+                )
 
                 s = (
                     self.data["su"][ind_for_proteins]
@@ -895,6 +931,8 @@ class ss_estimation:
                         delta_intercept[i],
                         _,
                         delta_r2[i],
+                        _,
+                        delta_logLL[i],
                     ) = self.fit_gamma_steady_state(
                         s[i], self.data["p"][i], intercept, perc_left, perc_right
                     )
@@ -902,7 +940,8 @@ class ss_estimation:
                     self.parameters["delta"],
                     self.aux_param["delta_intercept"],
                     self.aux_param["delta_r2"],
-                ) = (delta, delta_intercept, delta_r2)
+                    _, # self.aux_param["delta_logLL"],
+                ) = (delta, delta_intercept, delta_r2, delta_logLL)
 
     def fit_gamma_steady_state(
         self, u, s, intercept=True, perc_left=None, perc_right=5, normalize=True
@@ -948,15 +987,34 @@ class ss_estimation:
             s, u, normalize=normalize, perc_left=perc_left, perc_right=perc_right
         )
 
-        return fit_linreg(s, u, mask, intercept)
+        k, b, r2, all_r2 = fit_linreg(s, u, mask, intercept)
+        logLL, all_logLL = calc_norm_loglikelihood(s[mask], u[mask], k), calc_norm_loglikelihood(s, u, k)
+
+        return k, 0, r2, all_r2, logLL, all_logLL
 
     def fit_gamma_stochastic(
-        self, u, s, us, ss, perc_left=None, perc_right=5, normalize=True
+        self, est_method, u, s, us, ss, perc_left=None, perc_right=5, normalize=True
     ):
-        """Estimate gamma using linear regression based on the steady state assumption.
+        """Estimate gamma using GMM (generalized method of moments) or negbin distrubtion based on the steady state assumption.
 
         Arguments
         ---------
+        est_method: `str` {`gmm`, `negbin`} The estimation method to be used when using the `stochastic` model.
+            * Available options when the `model` is 'ss' include:
+            (2) 'gmm': The new generalized methods of moments from us that is based on master equations, similar to the
+            "moment" model in the excellent scVelo package;
+            (3) 'negbin': The new method from us that models steady state RNA expression as a negative binomial distribution,
+            also built upon on master equations.
+            Note that all those methods require using extreme data points (except negbin, which use all data points) for
+            estimation. Extreme data points are defined as the data from cells whose expression of unspliced / spliced
+            or new / total RNA, etc. are in the top or bottom, 5%, for example. `linear_regression` only considers the mean of
+            RNA species (based on the `deterministic` ordinary different equations) while moment based methods (`gmm`, `negbin`)
+            considers both first moment (mean) and second moment (uncentered variance) of RNA species (based on the `stochastic`
+            master equations).
+            The above method are all (generalized) linear regression based method. In order to return estimated parameters
+            (including RNA half-life), it additionally returns R-squared (either just for extreme data points or all data points)
+            as well as the log-likelihood of the fitting, which will be used for transition matrix and velocity embedding.
+            All `est_method` uses least square to estimate optimal parameters with latin cubic sampler for initial sampling.
         u: :class:`~numpy.ndarray` or sparse `csr_matrix`
             A matrix of unspliced mRNA counts. Dimension: genes x cells.
         s: :class:`~numpy.ndarray` or sparse `csr_matrix`
@@ -994,16 +1052,16 @@ class ss_estimation:
             s, u, normalize=normalize, perc_left=perc_left, perc_right=perc_right
         )
 
-        k = fit_stochastic_linreg(u[mask], s[mask], us[mask], ss[mask])
+        if est_method.lower() == 'gmm':
+            k = fit_stochastic_linreg(u[mask], s[mask], us[mask], ss[mask])
+        elif est_method.lower() == 'negbin':
+            phi = compute_dispersion(s, ss)
+            k = fit_k_negative_binomial(u[mask], s[mask],  ss[mask], phi)
 
-        SS_tot_n, all_SS_tot_n = np.var(u[mask]), np.var(u)
-        SS_res_n, all_SS_res_n = (
-            np.mean((u[mask] - k * s[mask]) ** 2),
-            np.mean((u - k * s) ** 2),
-        )
-        r2, all_r2 = 1 - SS_res_n / SS_tot_n, 1 - all_SS_res_n / all_SS_tot_n
+        r2, all_r2 = calc_R2(s[mask], u[mask], k), calc_R2(s, u, k)
+        logLL, all_logLL = calc_norm_loglikelihood(s[mask], u[mask], k), calc_norm_loglikelihood(s, u, k)
 
-        return k, 0, r2, all_r2
+        return k, 0, r2, all_r2, logLL, all_logLL
 
     def fit_beta_gamma_lsq(self, t, U, S):
         """Estimate beta and gamma with the degradation data using the least squares method.

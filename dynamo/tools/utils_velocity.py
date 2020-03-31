@@ -642,6 +642,8 @@ def concat_time_series_matrices(mats, t=None):
         return ret_mat
 
 
+# ---------------------------------------------------------------------------------------------------
+# negbin method related
 def compute_dispersion(mX, varX):
     phi = fit_linreg(mX ** 2, varX - mX, intercept=False)[0]
     return phi
@@ -675,3 +677,13 @@ def fit_K_negbin(N, R, varR, perc_left=None, perc_right=None):
             eind = find_extreme(n, r, perc_left=perc_left, perc_right=perc_right)
             K[i] = fit_k_negative_binomial(n[eind], r[eind], var[eind], phi)
     return K
+
+
+def compute_velocity_labeling(N, R, K, tau):
+    Kc = np.clip(K, 0, 1-1e-3)
+    if np.isscalar(tau):
+        Beta_or_gamma = -np.log(1-Kc)/tau
+    else:
+        Beta_or_gamma = -(np.log(1-Kc)[None, :].T/tau).T
+    return elem_prod(Beta_or_gamma, N)/K - elem_prod(Beta_or_gamma, R)
+
