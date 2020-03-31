@@ -450,8 +450,8 @@ class ss_estimation:
         """
         n = self.get_n_genes()
         # fit mRNA
-        if self.extyp == "conventional":
-            if self.model == "deterministic":
+        if self.extyp.lower() == "conventional":
+            if self.model.lower() == "deterministic":
                 if np.all(self._exist_data("uu", "su")):
                     self.parameters["beta"] = np.ones(n)
                     gamma, gamma_intercept, gamma_r2, gamma_logLL = (
@@ -576,6 +576,7 @@ class ss_estimation:
                             gamma_intercept[i],
                             _,
                             gamma_r2[i],
+                            _,
                             gamma_logLL[i],
                         ) = self.fit_gamma_stochastic(
                             self.est_method,
@@ -594,7 +595,7 @@ class ss_estimation:
                         self.aux_param["gamma_logLL"],
                     ) = (gamma, gamma_intercept, gamma_r2, gamma_logLL)
         else:
-            if self.extyp == "deg":
+            if self.extyp.lower() == "deg":
                 if np.all(self._exist_data("ul", "sl")):
                     # beta & gamma estimation
                     ul_m, ul_v, t_uniq = calc_12_mom_labeling(self.data["ul"], self.t)
@@ -644,7 +645,7 @@ class ss_estimation:
                             self.aux_param["uu0"],
                             self.aux_param["alpha_r2"],
                         ) = (alpha, alpha_b, alpha_b, alpha_r2)
-            elif (self.extyp == "kin" or self.extyp == "one_shot") and len(
+            elif (self.extyp.lower() == "kin" or self.extyp.lower() == "one-shot") and len(
                 np.unique(self.t)
             ) > 1:
                 if np.all(self._exist_data("ul", "uu", "su")):
@@ -694,7 +695,7 @@ class ss_estimation:
                     self.parameters["alpha"] = alpha
                     # alpha: one-shot
             # 'one_shot'
-            elif self.extyp == "one_shot" or self.extyp == "one-shot":
+            elif self.extyp.lower() == "one-shot":
                 t_uniq = np.unique(self.t)
                 if len(t_uniq) > 1:
                     raise Exception(
@@ -823,7 +824,7 @@ class ss_estimation:
                                 self.aux_param["alpha_r2"],
                             ) = (gamma, gamma_r2, gamma_logLL, gamma_r2)
 
-            elif self.extyp == "mix_std_stm":
+            elif self.extyp.lower() == "mix_std_stm":
                 t_min, t_max = np.min(self.t), np.max(self.t)
                 if np.all(self._exist_data("ul", "uu", "su")):
                     gamma, beta, total, U = (
@@ -903,7 +904,7 @@ class ss_estimation:
             ind_for_proteins = self.ind_for_proteins
             n = len(ind_for_proteins) if ind_for_proteins is not None else 0
 
-            if self.asspt_prot == "ss" and n > 0:
+            if self.asspt_prot.lower() == "ss" and n > 0:
                 self.parameters["eta"] = np.ones(n)
                 (
                     delta,
@@ -1051,9 +1052,9 @@ class ss_estimation:
             s, u, normalize=normalize, perc_left=perc_left, perc_right=perc_right
         )
 
-        if est_method == 'GMM':
+        if est_method.lower() == 'gmm':
             k = fit_stochastic_linreg(u[mask], s[mask], us[mask], ss[mask])
-        elif est_method == 'negbin':
+        elif est_method.lower() == 'negbin':
             phi = compute_dispersion(s, ss)
             k = fit_k_negative_binomial(u[mask], s[mask],  ss[mask], phi)
 

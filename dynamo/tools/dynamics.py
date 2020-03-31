@@ -131,7 +131,7 @@ def dynamics(
 
     valid_ind = get_valid_inds(adata, filter_gene_mode)
 
-    if model == "stochastic" or use_moments:
+    if model.lower() == "stochastic" or use_moments:
         if len([i for i in adata.layers.keys() if i.startswith("M_")]) < 2:
             moments(adata)
 
@@ -178,7 +178,7 @@ def dynamics(
             NTR_vel,
         )
 
-        if experiment_type == 'auto':
+        if experiment_type.lower() == 'auto':
             experiment_type = exp_type
         else:
             if experiment_type != exp_type:
@@ -187,16 +187,16 @@ def dynamics(
                 "is {}".format(exp_type, experiment_type)
                 )
 
-        if assumption_mRNA is 'auto': assumption_mRNA = assump_mRNA
+        if assumption_mRNA.lower() is 'auto': assumption_mRNA = assump_mRNA
 
-        if model == "stochastic" and experiment_type not in ["conventional", "kinetics", "degradation", "kin", "deg"]:
+        if model.lower() == "stochastic" and experiment_type.lower() not in ["conventional", "kinetics", "degradation", "kin", "deg"]:
             """
             # temporially convert to deterministic model as moment model for one-shot, mix_std_stm
              and other types of labeling experiment is ongoing."""
 
             model = "deterministic"
 
-        if assumption_mRNA == 'ss' or (experiment_type in ['one-shot', 'mix_std_stm']):
+        if assumption_mRNA.lower() == 'ss' or (experiment_type.lower() in ['one-shot', 'mix_std_stm']):
             est = ss_estimation(
                 U=U,
                 Ul=Ul,
@@ -266,7 +266,7 @@ def dynamics(
                 ind_for_proteins,
             )
 
-        elif assumption_mRNA == 'kinetic':
+        elif assumption_mRNA.lower() == 'kinetic':
             params, half_life, cost, logLL, param_ranges = kinetic_model(subset_adata, tkey, est_method, experiment_type, has_splicing,
                           has_switch=True, param_rngs={}, **est_kwargs)
             a, b, alpha_a, alpha_i, alpha, beta, gamma = (
@@ -327,7 +327,7 @@ def dynamics(
                 valid_ind,
             )
             # add protein related parameters in the moment model below:
-        elif model is "model_selection":
+        elif model.lower() is "model_selection":
             warnings.warn("Not implemented yet.")
 
     if group is not None and group in adata.obs[group]:
@@ -356,7 +356,7 @@ def dynamics(
 def kinetic_model(subset_adata, tkey, est_method, experiment_type, has_splicing, has_switch, param_rngs, **est_kwargs):
     time = subset_adata.obs[tkey].astype('float')
 
-    if experiment_type == 'kin':
+    if experiment_type.lower() == 'kin':
         if has_splicing:
             X = prepare_data_has_splicing(subset_adata, subset_adata.var.index, time, layer_u='X_ul', layer_s='X_sl')
 
@@ -402,7 +402,7 @@ def kinetic_model(subset_adata, tkey, est_method, experiment_type, has_splicing,
                                     'u0': [0, 1000], 'uu0': [0, 1000]}
                     Est = Estimation_MomentKinNoSwitchNoSplicing
 
-    elif experiment_type == 'deg':
+    elif experiment_type.lower() == 'deg':
         if has_splicing:
             X = prepare_data_has_splicing(subset_adata, subset_adata.var.index, time, layer_u='X_ul', layer_s='X_sl')
 
@@ -429,13 +429,13 @@ def kinetic_model(subset_adata, tkey, est_method, experiment_type, has_splicing,
                 param_ranges = {'gamma': [0, 10], 'u0': [0, 1000], 'uu0': [0, 1000]}
                 Est = Estimation_MomentDegNosp
 
-    elif experiment_type == 'mix_std_stm':
+    elif experiment_type.lower() == 'mix_std_stm':
         raise Exception(f'experiment {experiment_type} with kinetic assumption is not implemented')
-    elif experiment_type == 'mix_pulse_chase':
+    elif experiment_type.lower() == 'mix_pulse_chase':
         raise Exception(f'experiment {experiment_type} with kinetic assumption is not implemented')
-    elif experiment_type == 'pulse_time_series':
+    elif experiment_type.lower() == 'pulse_time_series':
         raise Exception(f'experiment {experiment_type} with kinetic assumption is not implemented')
-    elif experiment_type == 'dual_labeling':
+    elif experiment_type.lower() == 'dual_labeling':
         raise Exception(f'experiment {experiment_type} with kinetic assumption is not implemented')
     else:
         raise Exception(f'experiment {experiment_type} is not recognized')
