@@ -304,12 +304,11 @@ def get_data_for_kin_params_estimation(
                 experiment_type = "one-shot"
             else:
                 labeled_sum = U.sum(0) if Ul is None else Ul.sum(0)
-                cov = (
-                    np.mean(labeled_sum.A1 * t)
-                    if issparse(U)
-                    else np.mean(labeled_sum * t)
-                )
-                var_x = np.mean(t * t)
+                xx, yy = labeled_sum.A1 if issparse(U) else labeled_sum, t
+                xm, ym = np.mean(xx), np.mean(yy)
+                cov = np.mean(xx * yy) - xm * ym
+                var_x = np.mean(xx * xx) - xm * xm
+
                 k = cov / var_x
 
                 # total labeled RNA amount will increase (decrease) in kinetic (degradation) experiments over time.
