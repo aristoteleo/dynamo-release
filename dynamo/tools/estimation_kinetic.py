@@ -237,6 +237,13 @@ class Estimation_Degradation(kinetic_estimation):
     def calc_half_life(self, key):
         return np.log(2)/self.get_param(key)
 
+    def export_parameters(self, export_alpha=True):
+        params = super().export_parameters()
+        if export_alpha:
+            return np.hstack((0, params))
+        else:
+            return params
+
 class Estimation_DeterministicDeg(Estimation_Degradation):
     '''An estimation class for degradation (with splicing) experiments.
         Order of species: <unspliced>, <spliced>
