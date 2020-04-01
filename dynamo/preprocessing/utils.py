@@ -245,7 +245,7 @@ def get_svr_filter(adata, layer="spliced", n_top_genes=3000):
 # pca
 
 
-def pca(adata, CM, n_pca_components, pca_key):
+def pca(adata, CM, n_pca_components=30, pca_key='X_pca'):
 
     if adata.n_obs < 100000:
         pca = PCA(n_components=n_pca_components, svd_solver="arpack", random_state=0)

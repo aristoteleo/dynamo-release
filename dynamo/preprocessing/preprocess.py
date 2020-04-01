@@ -1333,6 +1333,7 @@ def recipe_monocle(
         np.where(adata.var.use_for_dynamo)[0][~valid_ind],
         adata.var.columns.tolist().index("use_for_dynamo"),
     ] = False
+    CM = CM[:, valid_ind]
     if method is "pca":
         adata, fit, _ = pca(adata, CM, num_dim, "X_" + method.lower())
 

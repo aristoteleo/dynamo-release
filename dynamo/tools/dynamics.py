@@ -127,12 +127,13 @@ def dynamics(
             A updated AnnData object with estimated kinetic parameters and inferred velocity included.
     """
 
-    filter_list, filter_gene_mode_lit = ['use_for_dynamo', 'pass_basic_filter', 'no'], ['final', 'basic', 'no']
+    filter_list, filter_gene_mode_list = ['use_for_dynamo', 'pass_basic_filter', 'no'], ['final', 'basic', 'no']
     filter_checker = [i in adata.var.columns for i in filter_list[:2]]
     filter_checker.append(True)
-    which_filter = np.where(filter_checker[filter_gene_mode_lit.index(filter_gene_mode):])[0][0]
+    filter_id = filter_gene_mode_list.index(filter_gene_mode)
+    which_filter = np.where(filter_checker[filter_id:])[0][0] + filter_id
 
-    filter_gene_mode = filter_gene_mode_lit[which_filter]
+    filter_gene_mode = filter_gene_mode_list[which_filter]
 
     valid_ind = get_valid_inds(adata, filter_gene_mode)
 
@@ -458,8 +459,10 @@ def kinetic_model(subset_adata, tkey, est_method, experiment_type, has_splicing,
 
     for i in range(len(X)):
         estm = Est(param_ranges)
-        if len(param_rngs) == 0: estm.set_param_range_partial()
-        Estm[i], cost[i] = estm.fit_lsq(np.unique(time), X[i], **est_kwargs)
+        if len(param_rngs) == 0:
+            estm.auto_fit()
+        else:
+            Estm[i], cost[i] = estm.fit_lsq(np.unique(time), X[i], **est_kwargs)
         half_life[i] = estm.calc_half_life()
         gof = GoodnessOfFit(Moments_NoSwitching(), params=estm.export_parameters())
         gof.prepare_data(time, X[i], normalize=True)

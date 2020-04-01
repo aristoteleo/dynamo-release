@@ -6,7 +6,7 @@ from tqdm import tqdm
 from .utils_moments import estimation
 from .utils import get_mapper, elem_prod
 from .connectivity import mnn, normalize_knn_graph, umap_conn_indices_dist_embedding
-from ..preprocessing.utils import get_layer_keys, allowed_X_layer_names
+from ..preprocessing.utils import get_layer_keys, allowed_X_layer_names, pca
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -26,6 +26,15 @@ def moments(adata, use_gaussian_kernel=True, use_mnn=False, layers="all"):
             )
         kNN = adata.uns["mnn"]
     else:
+        if 'X_pca' not in adata.obsm.keys():
+            CM = adata.X
+            cm_genesums = CM.sum(axis=0)
+            valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
+            valid_ind = np.array(valid_ind).flatten()
+            CM = CM[:, valid_ind]
+            adata, fit, _ = pca(adata, CM)
+
+            adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
         X = adata.obsm["X_pca"]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
