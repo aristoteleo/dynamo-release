@@ -250,7 +250,7 @@ class Estimation_DeterministicDeg(Estimation_Degradation):
         ranges = np.zeros((2, 2))
         ranges[0] = beta * np.ones(2) if np.isscalar(beta) else beta
         ranges[1] = gamma * np.ones(2) if np.isscalar(gamma) else gamma
-        super().__init__(ranges, Deterministic_NoSplicing(), x0)
+        super().__init__(ranges, Deterministic(), x0)
 
     def auto_fit(self, time, x_data, sample_method='lhs', method=None, normalize=False):
         be0 = self.guestimate_gamma(x_data[0, :], time)

@@ -1,3 +1,4 @@
+from tqdm import tqdm
 import pandas as pd
 from .moments import moments
 from .velocity import velocity
@@ -378,7 +379,7 @@ def kinetic_model(subset_adata, tkey, est_method, experiment_type, has_splicing,
                                 'u0': [0, 1000], 's0': [0, 1000],
                                 }
                 X = X[:, [0, 1]]
-                Est = Estimation_DeterministicKin
+                Est, simulator = Estimation_DeterministicKin, Deterministic
             else:
                 if has_switch:
                     param_ranges = {'a': [0, 1000], 'b': [0, 1000],
@@ -387,13 +388,13 @@ def kinetic_model(subset_adata, tkey, est_method, experiment_type, has_splicing,
                                     'u0': [0, 1000], 's0': [0, 1000],
                                     'uu0': [0, 1000], 'ss0': [0, 1000],
                                     'us0': [0, 1000], }
-                    Est = Estimation_MomentKin
+                    Est, simulator = Estimation_MomentKin, Moments
                 else:
                     param_ranges = {'alpha': [0, 1000], 'beta': [0, 1000], 'gamma': [0, 1000],
                                     'u0': [0, 1000], 's0': [0, 1000],
                                     'uu0': [0, 1000], 'ss0': [0, 1000],
                                     'us0': [0, 1000], }
-                    Est = Estimation_MomentKinNoSwitch
+                    Est, simulator = Estimation_MomentKinNoSwitch, Moments_NoSwitching
         else:
             layer = 'X_new' if 'X_new' in subset_adata.layers.keys() else 'new'
             X = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time, layer=layer)
@@ -402,19 +403,19 @@ def kinetic_model(subset_adata, tkey, est_method, experiment_type, has_splicing,
                 param_ranges = {'alpha': [0, 1000], 'gamma': [0, 1000],
                                 'u0': [0, 1000]}
                 X = X[:, 0]
-                Est = Estimation_DeterministicKinNosp
+                Est, simulator = Estimation_DeterministicKinNosp, Deterministic_NoSplicing
             else:
                 if has_switch:
                     param_ranges = {'a': [0, 1000], 'b': [0, 1000],
                                     'alpha_a': [0, 1000], 'alpha_i': 0,
                                     'gamma': [0, 1000],
                                     'u0': [0, 1000], 'uu0': [0, 1000], }
-                    Est = Estimation_MomentKinNosp
+                    Est, simulator = Estimation_MomentKinNosp, Moments_Nosplicing
 
                 else:
                     param_ranges = {'alpha': [0, 1000], 'gamma': [0, 1000],
                                     'u0': [0, 1000], 'uu0': [0, 1000]}
-                    Est = Estimation_MomentKinNoSwitchNoSplicing
+                    Est, simulator = Estimation_MomentKinNoSwitchNoSplicing, Moments_NoSwitchingNoSplicing
 
     elif experiment_type.lower() == 'deg':
         if has_splicing:
@@ -427,13 +428,13 @@ def kinetic_model(subset_adata, tkey, est_method, experiment_type, has_splicing,
                                 'u0': [0, 1000], 's0': [0, 1000],
                                 }
                 X = X[:, [0, 1]]
-                Est = Estimation_DeterministicDeg
+                Est, simulator = Estimation_DeterministicDeg, Deterministic
             else:
                 param_ranges = {'beta': [0, 1000], 'gamma': [0, 1000],
                                 'u0': [0, 1000], 's0': [0, 1000],
                                 'uu0': [0, 1000], 'ss0': [0, 1000],
                                 'us0': [0, 1000], }
-                Est = Estimation_MomentDeg
+                Est, simulator = Estimation_MomentDeg, Moments_NoSwitching
         else:
             layer = 'X_new' if 'X_new' in subset_adata.layers.keys() else 'new'
             X = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time, layer=layer)
@@ -441,10 +442,10 @@ def kinetic_model(subset_adata, tkey, est_method, experiment_type, has_splicing,
             if est_method == 'deterministic':
                 param_ranges = {'gamma': [0, 10], 'u0': [0, 1000]}
                 X = X[:, 0]
-                Est = Estimation_DeterministicDegNosp
+                Est, simulator = Estimation_DeterministicDegNosp, Deterministic_NoSplicing
             else:
                 param_ranges = {'gamma': [0, 10], 'u0': [0, 1000], 'uu0': [0, 1000]}
-                Est = Estimation_MomentDegNosp
+                Est, simulator = Estimation_MomentDegNosp, Moments_NoSwitchingNoSplicing
 
     elif experiment_type.lower() == 'mix_std_stm':
         raise Exception(f'experiment {experiment_type} with kinetic assumption is not implemented')
@@ -460,17 +461,17 @@ def kinetic_model(subset_adata, tkey, est_method, experiment_type, has_splicing,
     param_ranges = update_dict(param_ranges, param_rngs)
     param_ranges = [ran for ran in param_ranges.values()]
 
-    cost, logLL = np.zeros(X.shape[0]), np.zeros(X.shape[0])
-    half_life, Estm = np.zeros(X.shape[0]), np.zeros((X.shape[0], len(param_ranges)))
+    cost, logLL = np.zeros(len(X)), np.zeros(len(X))
+    half_life, Estm = np.zeros(len(X)), np.zeros((len(X), len(param_ranges)))
 
-    for i in range(len(X)):
+    for i in tqdm(range(len(X)), desc="estimating kinetic-parameters using kinetic model"):
         estm = Est(param_ranges)
         if len(param_rngs) == 0:
-            estm.auto_fit()
+            estm.auto_fit(np.unique(time), X[i])
         else:
             Estm[i], cost[i] = estm.fit_lsq(np.unique(time), X[i], **est_kwargs)
-        half_life[i] = estm.calc_half_life()
-        gof = GoodnessOfFit(Moments_NoSwitching(), params=estm.export_parameters())
+        half_life[i] = estm.calc_half_life('gamma')
+        gof = GoodnessOfFit(simulator(), params=estm.export_parameters())
         gof.prepare_data(time, X[i], normalize=True)
         logLL[i] = gof.calc_gaussian_loglikelihood()
 
