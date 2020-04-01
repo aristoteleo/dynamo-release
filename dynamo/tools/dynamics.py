@@ -369,7 +369,9 @@ def kinetic_model(subset_adata, tkey, est_method, experiment_type, has_splicing,
 
     if experiment_type.lower() == 'kin':
         if has_splicing:
-            X = prepare_data_has_splicing(subset_adata, subset_adata.var.index, time, layer_u='X_ul', layer_s='X_sl')
+            layer_u = 'X_ul' if 'X_ul' in subset_adata.layers.keys() else 'ul'
+            layer_s = 'X_sl' if 'X_sl' in subset_adata.layers.keys() else 'sl'
+            X = prepare_data_has_splicing(subset_adata, subset_adata.var.index, time, layer_u=layer_u, layer_s=layer_s)
 
             if est_method == 'deterministic': # 0 - to 10 initial value
                 param_ranges = {'alpha': [0, 1000], 'beta': [0, 1000], 'gamma': [0, 1000],
@@ -393,7 +395,8 @@ def kinetic_model(subset_adata, tkey, est_method, experiment_type, has_splicing,
                                     'us0': [0, 1000], }
                     Est = Estimation_MomentKinNoSwitch
         else:
-            X = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time, layer='X_new')
+            layer = 'X_new' if 'X_new' in subset_adata.layers.keys() else 'new'
+            X = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time, layer=layer)
 
             if est_method == 'deterministic':
                 param_ranges = {'alpha': [0, 1000], 'gamma': [0, 1000],
@@ -415,7 +418,9 @@ def kinetic_model(subset_adata, tkey, est_method, experiment_type, has_splicing,
 
     elif experiment_type.lower() == 'deg':
         if has_splicing:
-            X = prepare_data_has_splicing(subset_adata, subset_adata.var.index, time, layer_u='X_ul', layer_s='X_sl')
+            layer_u = 'X_ul' if 'X_ul' in subset_adata.layers.keys() else 'ul'
+            layer_s = 'X_sl' if 'X_sl' in subset_adata.layers.keys() else 'sl'
+            X = prepare_data_has_splicing(subset_adata, subset_adata.var.index, time, layer_u=layer_u, layer_s=layer_s)
 
             if est_method == 'deterministic':
                 param_ranges = {'beta': [0, 1000], 'gamma': [0, 1000],
@@ -430,7 +435,8 @@ def kinetic_model(subset_adata, tkey, est_method, experiment_type, has_splicing,
                                 'us0': [0, 1000], }
                 Est = Estimation_MomentDeg
         else:
-            X = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time, layer='X_new')
+            layer = 'X_new' if 'X_new' in subset_adata.layers.keys() else 'new'
+            X = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time, layer=layer)
 
             if est_method == 'deterministic':
                 param_ranges = {'gamma': [0, 10], 'u0': [0, 1000]}
