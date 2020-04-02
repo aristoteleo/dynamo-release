@@ -100,7 +100,7 @@ def log_unnormalized_data(raw, log_unnormalized):
     return raw
 
 
-def get_data_for_velocity_estimation(
+def get_data_for_kin_params_estimation(
     subset_adata,
     model,
     use_moments,
@@ -304,12 +304,11 @@ def get_data_for_velocity_estimation(
                 experiment_type = "one-shot"
             else:
                 labeled_sum = U.sum(0) if Ul is None else Ul.sum(0)
-                cov = (
-                    np.mean(labeled_sum.A1 * t)
-                    if issparse(U)
-                    else np.mean(labeled_sum * t)
-                )
-                var_x = np.mean(t * t)
+                xx, yy = labeled_sum.A1 if issparse(U) else labeled_sum, t
+                xm, ym = np.mean(xx), np.mean(yy)
+                cov = np.mean(xx * yy) - xm * ym
+                var_x = np.mean(xx * xx) - xm * xm
+
                 k = cov / var_x
 
                 # total labeled RNA amount will increase (decrease) in kinetic (degradation) experiments over time.
@@ -600,14 +599,14 @@ def set_param_kinetic(
 
 
 def get_U_S_for_velocity_estimation(
-    subset_adata, use_smoothed, has_splicing, has_labeling, log_unnormalized, NTR
+    subset_adata, use_moments, has_splicing, has_labeling, log_unnormalized, NTR
 ):
     mapper = get_mapper()
 
     if has_splicing:
         if has_labeling:
             if "X_uu" in subset_adata.layers.keys():  # unlabel spliced: S
-                if use_smoothed:
+                if use_moments:
                     uu, ul, su, sl = (
                         subset_adata.layers[mapper["X_uu"]].T,
                         subset_adata.layers[mapper["X_ul"]].T,
@@ -638,38 +637,38 @@ def get_U_S_for_velocity_estimation(
                     ul = np.log(ul + 1) if log_unnormalized else ul
                     su = np.log(su + 1) if log_unnormalized else su
                     sl = np.log(sl + 1) if log_unnormalized else sl
-            ul, sl = (ul + sl, uu + ul + su + sl) if NTR else (ul, sl)
+            U, S = (ul + sl, uu + ul + su + sl) if NTR else (uu + ul, su + sl)
+            # U, S = (ul + sl, uu + ul + su + sl) if NTR else (ul, sl)
         else:
             if ("X_unspliced" in subset_adata.layers.keys()) or (
                 mapper["X_unspliced"] in subset_adata.layers.keys()
             ):  # unlabel spliced: S
-                if use_smoothed:
-                    ul, sl = (
+                if use_moments:
+                    U, S = (
                         subset_adata.layers[mapper["X_unspliced"]].T,
                         subset_adata.layers[mapper["X_spliced"]].T,
                     )
                 else:
-                    ul, sl = (
+                    U, S = (
                         subset_adata.layers["X_unspliced"].T,
                         subset_adata.layers["X_spliced"].T,
                     )
             else:
-                ul, sl = (
+                U, S = (
                     subset_adata.layers["unspliced"].T,
                     subset_adata.layers["spliced"].T,
                 )
-                if issparse(ul):
-                    ul.data = np.log(ul.data + 1) if log_unnormalized else ul.data
-                    sl.data = np.log(sl.data + 1) if log_unnormalized else sl.data
+                if issparse(U):
+                    U.data = np.log(U.data + 1) if log_unnormalized else U.data
+                    S.data = np.log(S.data + 1) if log_unnormalized else S.data
                 else:
-                    ul = np.log(ul + 1) if log_unnormalized else ul
-                    sl = np.log(sl + 1) if log_unnormalized else sl
-        U, S = ul, sl
+                    U = np.log(U + 1) if log_unnormalized else U
+                    S = np.log(S + 1) if log_unnormalized else S
     else:
         if ("X_new" in subset_adata.layers.keys()) or (
             mapper["X_new"] in subset_adata.layers.keys
         ):  # run new / total ratio (NTR)
-            if use_smoothed:
+            if use_moments:
                 U = subset_adata.layers[mapper["X_new"]].T
                 S = (
                     subset_adata.layers[mapper["X_total"]].T

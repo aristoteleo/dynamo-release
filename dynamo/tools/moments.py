@@ -6,14 +6,12 @@ from tqdm import tqdm
 from .utils_moments import estimation
 from .utils import get_mapper, elem_prod
 from .connectivity import mnn, normalize_knn_graph, umap_conn_indices_dist_embedding
-from ..preprocessing.utils import get_layer_keys, allowed_X_layer_names
+from ..preprocessing.utils import get_layer_keys, allowed_X_layer_names, pca
 
 
 # ---------------------------------------------------------------------------------------------------
 # use for calculating moments for stochastic model:
 def moments(adata, use_gaussian_kernel=True, use_mnn=False, layers="all"):
-    # if we have uu, ul, su, sl, let us set total and new
-
     mapper = get_mapper()
     only_splicing, only_labeling, splicing_and_labeling = allowed_X_layer_names()
 
@@ -28,6 +26,15 @@ def moments(adata, use_gaussian_kernel=True, use_mnn=False, layers="all"):
             )
         kNN = adata.uns["mnn"]
     else:
+        if 'X_pca' not in adata.obsm.keys():
+            CM = adata.X
+            cm_genesums = CM.sum(axis=0)
+            valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
+            valid_ind = np.array(valid_ind).flatten()
+            CM = CM[:, valid_ind]
+            adata, fit, _ = pca(adata, CM)
+
+            adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
         X = adata.obsm["X_pca"]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -110,6 +117,7 @@ def moments(adata, use_gaussian_kernel=True, use_mnn=False, layers="all"):
             "X_protein" in adata.obsm.keys()
     ):  # may need to update with mnn or just use knn from protein layer itself.
         adata.obsm[mapper["X_protein"]] = conn.dot(adata.obsm["X_protein"])
+    adata.uns['moments_con'] = conn
 
     return adata
 

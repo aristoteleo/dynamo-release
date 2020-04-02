@@ -6,8 +6,6 @@
 # from .dynamo_fitting import sol_u, sol_s, sol_p, sol_ode, sol_num, fit_gamma_labelling, fit_beta_lsq, fit_alpha_labelling, fit_alpha_synthesis, fit_gamma_splicing, fit_gamma
 
 from .estimation_kinetic import (
-    estimate_p0_deg_nosp,
-    estimate_alpha0_kin_nosp,
     kinetic_estimation,
     Estimation_MomentDeg,
     Estimation_MomentDegNosp,

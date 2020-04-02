@@ -1163,7 +1163,7 @@ def collapse_adata(adata):
         adata.layers[only_splicing[0]] = adata.layers['su'] + adata.layers['sl']
         adata.layers[only_splicing[1]] = adata.layers['uu'] + adata.layers['ul']
         adata.layers[only_labeling[0]] = adata.layers['ul'] + adata.layers['sl']
-        adata.layers[only_labeling[1]] = adata.layers['uu'] + adata.layers['su']
+        adata.layers[only_labeling[1]] = adata.layers[only_labeling[0]] + adata.layers['uu'] + adata.layers['su']
 
     return adata
 
@@ -1333,6 +1333,7 @@ def recipe_monocle(
         np.where(adata.var.use_for_dynamo)[0][~valid_ind],
         adata.var.columns.tolist().index("use_for_dynamo"),
     ] = False
+    CM = CM[:, valid_ind]
     if method is "pca":
         adata, fit, _ = pca(adata, CM, num_dim, "X_" + method.lower())
 

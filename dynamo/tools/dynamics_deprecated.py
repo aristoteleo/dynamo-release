@@ -5,7 +5,7 @@ from .velocity import velocity, ss_estimation
 from .utils import (
     get_mapper,
     get_valid_inds,
-    get_data_for_velocity_estimation,
+    get_data_for_kin_params_estimation,
     get_U_S_for_velocity_estimation,
 )
 from .utils import set_velocity, set_param_ss, set_param_kinetic
@@ -147,7 +147,7 @@ def _dynamics(
             ind_for_proteins,
             assumption_mRNA,
             exp_type,
-        ) = get_data_for_velocity_estimation(
+        ) = get_data_for_kin_params_estimation(
             subset_adata,
             mode,
             use_smoothed,
