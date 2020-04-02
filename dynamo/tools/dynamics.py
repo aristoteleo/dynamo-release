@@ -10,6 +10,7 @@ from .utils import (
     get_valid_inds,
     get_data_for_kin_params_estimation,
     get_U_S_for_velocity_estimation,
+    compute_velocity_labeling_B,
 )
 from .utils import set_velocity, set_param_ss, set_param_kinetic
 from .moments import prepare_data_no_splicing, prepare_data_has_splicing
@@ -198,9 +199,9 @@ def dynamics(
 
         if assumption_mRNA.lower() == 'auto': assumption_mRNA = assump_mRNA
 
-        if model.lower() == "stochastic" and experiment_type.lower() not in ["conventional", "kinetics", "degradation", "kin", "deg"]:
+        if model.lower() == "stochastic" and experiment_type.lower() not in ["conventional", "kinetics", "degradation", "kin", "deg", "one-shot"]:
             """
-            # temporially convert to deterministic model as moment model for one-shot, mix_std_stm
+            # temporially convert to deterministic model as moment model for mix_std_stm
              and other types of labeling experiment is ongoing."""
 
             model = "deterministic"
@@ -247,7 +248,10 @@ def dynamics(
             )
             vel = velocity(estimation=est)
             vel_U = vel.vel_u(U)
-            vel_S = vel.vel_u(S) if exp_type == 'one-shot' else vel.vel_s(U, S)
+            if exp_type == 'one-shot':
+                vel_S = vel.vel_s(U, U + S)
+            else:
+                vel_S = vel.vel_s(U, S)
             vel_P = vel.vel_p(S, P)
 
             adata = set_velocity(
@@ -472,7 +476,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
             estm = Est(param_ranges)
             Estm[i], cost[i] = estm.fit_lsq(np.unique(time), X[i], **est_kwargs)
         half_life[i] = estm.calc_half_life('gamma')
-        gof = GoodnessOfFit(simulator(), params=np.hstack((0, estm.export_parameters())),
+        gof = GoodnessOfFit(simulator(), params=estm.export_parameters(),
                             x0=estm.simulator.x0)
         # gof.prepare_data(time, X[i], normalize=True)
         # gof.prepare_data(time, X[i][0], species=0, normalize=True)

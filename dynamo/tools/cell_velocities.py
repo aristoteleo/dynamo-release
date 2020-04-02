@@ -607,3 +607,38 @@ def permute_rows_nsign(A):
     for i in range(A.shape[0]):
         np.random.shuffle(A[i, :])
         A[i, :] = A[i, :] * np.random.choice(plmi, size=A.shape[1])
+
+
+
+def embed_velocity(adata, x_basis, v_basis='velocity', emb_basis='X_pca', velocity_gene_tag='velocity_genes',
+                   num_pca=100, n_recurse_neighbors=2, M_diff=0.25, adaptive_local_kernel=True, normalize_velocity=True,
+                   return_kmc=False, **kmc_kwargs):
+    if velocity_gene_tag is not None:
+        X = adata.layers[x_basis][:, adata.var[velocity_gene_tag]]
+        V = adata.layers[v_basis][:, adata.var[velocity_gene_tag]]
+    else:
+        X = adata.layers[x_basis]
+        V = adata.layers[v_basis]
+    X_emb = adata.obsm[emb_basis]
+    Idx = adata.uns['neighbors']['indices']
+
+    if num_pca is not None:
+        pca = PCA()
+        pca.fit(X)
+        X_pca = pca.transform(X)
+        Y_pca = pca.transform(X + V)
+        V_pca = Y_pca - X_pca
+    else:
+        X_pca = X
+        V_pca = V
+
+    kmc = KernelMarkovChain()
+    kmc.fit(X_pca[:, :num_pca], V_pca[:, :num_pca], neighbor_idx=Idx,
+            n_recurse_neighbors=n_recurse_neighbors, M_diff=M_diff, adaptive_local_kernel=adaptive_local_kernel,
+            **kmc_kwargs)
+
+    Uc = kmc.compute_density_corrected_drift(X_emb, normalize_vector=normalize_velocity)
+    if return_kmc:
+        return Uc, kmc
+    else:
+        return Uc

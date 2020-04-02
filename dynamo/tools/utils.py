@@ -60,7 +60,6 @@ def elem_prod(X, Y):
     else:
         return np.multiply(X, Y)
 
-
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
 def one_shot_gamma_alpha(k, t, l):
@@ -74,7 +73,29 @@ def one_shot_k(gamma, t):
     k = 1 - np.exp(-gamma * t)
     return k
 
+def one_shot_gamma_alpha_matrix(k, t, U):
+    """Assume U is a sparse matrix and only tested on one-shot experiment"""
+    Kc = np.clip(k, 0, 1 - 1e-3)
+    gamma = -(np.log(1 - Kc) / t)
+    alpha = U.multiply((gamma / k)[:, None])
 
+    return gamma, alpha
+
+def _one_shot_gamma_alpha_matrix(K, tau, N, R):
+    """original code from Yan"""
+    N, R = N.A.T, R.A.T
+    K = np.array(K)
+    tau = tau[0]
+    Kc = np.clip(K, 0, 1-1e-3)
+    if np.isscalar(tau):
+        B = -np.log(1-Kc)/tau
+    else:
+        B = -(np.log(1-Kc)[None, :].T/tau).T
+    return B, (elem_prod(B, N)/K).T - elem_prod(B, R).T
+
+
+def compute_velocity_labeling_B(B, alpha, R):
+    return (alpha - elem_prod(B, R.T).T)
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
 def get_valid_inds(adata, filter_gene_mode):
@@ -666,7 +687,7 @@ def get_U_S_for_velocity_estimation(
                     S = np.log(S + 1) if log_unnormalized else S
     else:
         if ("X_new" in subset_adata.layers.keys()) or (
-            mapper["X_new"] in subset_adata.layers.keys
+            mapper["X_new"] in subset_adata.layers.keys()
         ):  # run new / total ratio (NTR)
             if use_moments:
                 U = subset_adata.layers[mapper["X_new"]].T
@@ -942,9 +963,9 @@ def get_ekey_vkey_from_adata(adata):
                 )
             elif experiment_type == "one-shot" or experiment_type == "one_shot":
                 ekey, vkey, layer = (
-                    (mapper["X_new"], "velocity_U", "X_new")
+                    (mapper["X_total"], "velocity_S", "X_total")
                     if use_smoothed
-                    else ("X_new", "velocity_U", "X_new")
+                    else ("X_total", "velocity_S", "X_total")
                 )
             elif experiment_type == "mix_std_stm":
                 ekey, vkey, layer = (

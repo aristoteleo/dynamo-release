@@ -1,7 +1,7 @@
 from tqdm import tqdm
 from scipy.sparse import csr_matrix
 from warnings import warn
-from .utils import one_shot_gamma_alpha, calc_R2, calc_norm_loglikelihood
+from .utils import one_shot_gamma_alpha, calc_R2, calc_norm_loglikelihood, one_shot_gamma_alpha_matrix
 from .moments import calc_12_mom_labeling
 from .utils_velocity import *
 from .moments import calc_2nd_moment
@@ -81,7 +81,7 @@ class velocity:
                 no_beta = False
 
             if type(self.parameters["alpha"]) is not tuple:
-                if len(self.parameters["alpha"].shape) == 1:
+                if self.parameters["alpha"].ndim == 1:
                     alpha = np.repeat(
                         self.parameters["alpha"].reshape((-1, 1)), U.shape[1], axis=1
                     )
@@ -116,7 +116,7 @@ class velocity:
                 else:
                     alpha = np.repeat(self.parameters["alpha"][1], U.shape[1], axis=1)
 
-            if len(self.parameters["beta"].shape) == 1:
+            if self.parameters["beta"].ndim == 1:
                 beta = np.repeat(
                     self.parameters["beta"].reshape((-1, 1)), U.shape[1], axis=1
                 )
@@ -168,7 +168,7 @@ class velocity:
             else:
                 no_beta = False
 
-            if len(self.parameters["beta"].shape) == 1:
+            if self.parameters["beta"].ndim == 1:
                 beta = np.repeat(
                     self.parameters["beta"].reshape((-1, 1)), U.shape[1], axis=1
                 )
@@ -864,8 +864,8 @@ class ss_estimation:
                                 perc_right=5,
                                 normalize=True,
                             )
-                        beta = np.log(1 - k) / t_uniq
-                        alpha0 = beta * U / k
+                        beta, alpha0 = one_shot_gamma_alpha_matrix(k, t_uniq, U)
+
                         self.parameters["beta"] = beta
 
                         U = self.data["uu"] + self.data["ul"]
@@ -889,8 +889,7 @@ class ss_estimation:
                                 perc_right=5,
                                 normalize=True,
                             )
-                        gamma = np.log(1 - k) / t_uniq
-                        alpha = gamma * U / k
+                        gamma, alpha = one_shot_gamma_alpha_matrix(k, t_uniq, U)
                         (
                             self.parameters["alpha"],
                             self.parameters["gamma"],
@@ -899,7 +898,6 @@ class ss_estimation:
                             self.aux_param["gamma_logLL"],
                         ) = ((alpha + alpha0) / 2, gamma, k_intercept, k_r2, k_logLL)
                     elif np.all(self._exist_data("uu", "ul")):
-                        self.parameters["beta"] = np.ones(n)
                         k, k_intercept, k_r2, k_logLL = (
                             np.zeros(n),
                             np.zeros(n),
@@ -927,8 +925,7 @@ class ss_estimation:
                                 perc_right=5,
                                 normalize=True,
                             )
-                        gamma = np.log(1 - k) / t_uniq
-                        alpha = gamma * U / k
+                        gamma, alpha = one_shot_gamma_alpha_matrix(k, t_uniq, U)
                         (
                             self.parameters["alpha"],
                             self.parameters["gamma"],
