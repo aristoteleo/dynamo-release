@@ -231,7 +231,7 @@ def clusters_stats(U, S, clusters_uid, cluster_ix, size_limit=40):
     return U_avgs, S_avgs
 
 
-def get_svr_filter(adata, layer="spliced", n_top_genes=3000):
+def get_svr_filter(adata, layer="spliced", n_top_genes=3000, return_adata=False):
     score_name = "score" if layer in ["X", "all"] else layer + "_score"
     valid_idx = np.where(np.isfinite(adata.var.loc[:, score_name]))[0]
 
@@ -245,13 +245,16 @@ def get_svr_filter(adata, layer="spliced", n_top_genes=3000):
     ]
     feature_gene_idx = valid_idx[feature_gene_idx]
 
-    adata.var.loc[:, "use_for_dynamo"] = False
-    adata.var.loc[adata.var.index[feature_gene_idx], "use_for_dynamo"] = True
+    if return_adata:
+        adata.var.loc[:, "use_for_dynamo"] = False
+        adata.var.loc[adata.var.index[feature_gene_idx], "use_for_dynamo"] = True
+        res = adata
+    else:
+        filter_bool = np.zeros(adata.n_vars, dtype=bool)
+        filter_bool[feature_gene_idx] = True
+        res = filter_bool
 
-    filter_bool = np.zeros(adata.n_vars, dtype=bool)
-    filter_bool[valid_idx[feature_gene_idx]] = True
-
-    return filter_bool
+    return res
 
 
 # ---------------------------------------------------------------------------------------------------

@@ -1172,7 +1172,7 @@ def select_genes(
                 **SVRs_args
             )
 
-            filter_bool = get_svr_filter(adata, layer=layer, n_top_genes=n_top_genes)
+            filter_bool = get_svr_filter(adata, layer=layer, n_top_genes=n_top_genes, return_adata=False)
 
     if keep_filtered:
         adata.var["use_for_dynamo"] = filter_bool
