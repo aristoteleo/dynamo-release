@@ -661,7 +661,7 @@ def SVRs(
     adata_ori,
     filter_bool=None,
     layers="X",
-    relative_expr=False,
+    relative_expr=True,
     total_szfactor=None,
     min_expr_cells=0,
     min_expr_avg=0,
@@ -682,7 +682,7 @@ def SVRs(
             A boolean array from the user to select genes for downstream analysis.
         layers: `str` (default: 'X')
             The layer(s) to be used for calculating dispersion score via support vector regression (SVR). Default is X if there is no spliced layers.
-        relative_expr: `bool` (default: `False`)
+        relative_expr: `bool` (default: `True`)
             A logic flag to determine whether we need to divide gene expression values first by size factor before run SVR.
         total_szfactor: `str` (default: `None`)
             The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
@@ -714,7 +714,7 @@ def SVRs(
     layers = get_layer_keys(adata_ori, layers)
 
     if use_all_genes_cells:
-        adata = adata_ori
+        adata = adata_ori[:, filter_bool] if filter_bool is not None else adata_ori
     else:
         cell_inds = adata_ori.obs.use_for_dynamo if 'use_for_dynamo' in adata_ori.obs.columns else adata_ori.obs.index
         filter_list = ['use_for_dynamo', 'pass_basic_filter']
@@ -775,9 +775,6 @@ def SVRs(
             & (CM.mean(0) <= max_expr_avg)
             & (CM.mean(0) >= min_expr_avg)
         ).flatten()
-
-        if filter_bool is not None:
-            detected_bool = filter_bool & detected_bool
 
         valid_CM = CM[:, detected_bool]
         if winsorize:
@@ -1102,7 +1099,7 @@ def filter_genes(
 
 def select_genes(
     adata,
-    layer="all",
+    layer="X",
     total_szfactor=None,
     keep_filtered=True,
     sort_by="SVR",
