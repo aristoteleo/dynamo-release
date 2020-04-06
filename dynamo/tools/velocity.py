@@ -235,7 +235,7 @@ class velocity:
         t = self.parameters["t"]
         t_uniq, t_uniq_cnt = np.unique(self.parameters["t"], return_counts=True)
         if self.parameters["eta"] is not None and self.parameters["delta"] is not None:
-            if len(self.parameters["eta"].shape) == 1:
+            if self.parameters["eta"].ndim == 1:
                 eta = np.repeat(
                     self.parameters["eta"].reshape((-1, 1)), S.shape[1], axis=1
                 )
