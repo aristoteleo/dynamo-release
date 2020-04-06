@@ -110,6 +110,18 @@ def cook_dist(model, X, good):
 # ---------------------------------------------------------------------------------------------------
 # preprocess utilities
 
+def merge_adata_attrs(adata_ori, adata, attr):
+    if attr == 'var':
+        _columns = set(adata.var.columns).difference(adata_ori.var.columns)
+        adata_ori.var = adata_ori.var.merge(adata.var[_columns], how='left',
+                                            left_index=True, right_index=True)
+    elif attr == 'obs':
+        _columns = set(adata.obs.columns).difference(adata_ori.obs.columns)
+        adata_ori.obs = adata_ori.obs.merge(adata.obs[_columns], how='left',
+                                            left_index=True, right_index=True)
+    return adata_ori
+
+
 def allowed_layer_raw_names():
     only_splicing = ['spliced', 'unspliced']
     only_labeling = ['new', 'total']
