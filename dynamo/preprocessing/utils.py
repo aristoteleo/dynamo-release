@@ -243,6 +243,7 @@ def get_svr_filter(adata, layer="spliced", n_top_genes=3000):
     feature_gene_idx = np.where(valid_table.loc[:, score_name] >= nth_score)[0][
         :n_top_genes
     ]
+    feature_gene_idx = valid_idx[feature_gene_idx]
 
     adata.var.loc[:, "use_for_dynamo"] = False
     adata.var.loc[adata.var.index[feature_gene_idx], "use_for_dynamo"] = True

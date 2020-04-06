@@ -796,8 +796,8 @@ def SVRs(
                 np.array(
                     np.sqrt(
                         (valid_CM.multiply(valid_CM).mean(0).A1 - (mu) ** 2)
-                        * (adata.n_obs)
-                        / (adata.n_obs - 1)
+                        # * (adata.n_obs)
+                        # / (adata.n_obs - 1)
                     )
                 )
                 if issparse(valid_CM)
