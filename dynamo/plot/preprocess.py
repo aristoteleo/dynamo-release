@@ -266,8 +266,9 @@ def feature_genes(adata, layer="X", mode=None):
                 "Looks like you have not run support vector machine regression yet, try run SVRs first."
             )
         else:
-            table = adata.var.loc[:
-                , [prefix + "log_m", prefix + "log_cv", prefix + "score"]
+            detected_bool = adata.uns[key]["detected_bool"]
+            table = adata.var.loc[
+                detected_bool, [prefix + "log_m", prefix + "log_cv", prefix + "score"]
             ]
             table = table.loc[
                 np.isfinite(table[prefix + "log_m"])
