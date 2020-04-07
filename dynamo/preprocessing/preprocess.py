@@ -10,23 +10,25 @@ from .utils import clusters_stats
 from .utils import cook_dist, get_layer_keys, get_shared_counts
 from .utils import get_svr_filter
 from .utils import allowed_layer_raw_names
+from .utils import merge_adata_attrs
 from ..tools.utils import update_dict
 
 
 def szFactor(
-    adata,
+    adata_ori,
     layers="all",
     total_layers=None,
     locfunc=np.nanmean,
-    round_exprs=True,
+    round_exprs=False,
     method="median",
+    use_all_genes_cells=True,
 ):
     """Calculate the size factor of the each cell using geometric mean of total UMI across cells for a AnnData object.
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
     ----------
-        adata: :class:`~anndata.AnnData`.
+        adata_ori: :class:`~anndata.AnnData`.
             AnnData object.
         layers: str or list (default: `all`)
             The layer(s) to be normalized. Default is `all`, including RNA (X, raw) or spliced, unspliced, protein, etc.
@@ -34,18 +36,31 @@ def szFactor(
             The layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"], ["uu", "ul", "su", "sl"] or ["new", "old"], etc.
         locfunc: `function` (default: `np.nanmean`)
             The function to normalize the data.
-        round_exprs: `bool` (default: `True`)
+        round_exprs: `bool` (default: `False`)
             A logic flag to determine whether the gene expression should be rounded into integers.
         method: `str` (default: `mean-geometric-mean-total`)
             The method used to calculate the expected total reads / UMI used in size factor calculation.
             Only `mean-geometric-mean-total` and `median` are supported. When `median` is used, `locfunc` will be replaced with
             `np.nanmedian`.
+        use_all_genes_cells: `bool` (default: `True`)
+            A logic flag to determine whether all cells and genes should be used for the size factor calculation.
 
     Returns
     -------
         adata: :AnnData
             A updated anndata object that are updated with the `Size_Factor` (`layer_` + `Size_Factor`) column(s) in the obs attribute.
     """
+    if use_all_genes_cells:
+        adata = adata_ori
+    else:
+        cell_inds = adata_ori.obs.use_for_dynamo if 'use_for_dynamo' in adata_ori.obs.columns else adata_ori.obs.index
+        filter_list = ['use_for_dynamo', 'pass_basic_filter']
+        filter_checker = [i in adata_ori.var.columns for i in filter_list]
+        which_filter = np.where(filter_checker)[0]
+
+        gene_inds = adata_ori.var[filter_list[which_filter[0]]] if len(which_filter) > 0 is not None else adata_ori.var.index
+
+        adata = adata_ori[cell_inds, :][:, gene_inds]
 
     if (
         total_layers is not None
@@ -109,7 +124,9 @@ def szFactor(
             adata.obs[layer + "_Size_Factor"] = sfs
             adata.obs["initial_" + layer + "_cell_size"] = cell_total
 
-    return adata
+    adata_ori = merge_adata_attrs(adata_ori, adata, attr='obs')
+
+    return adata_ori
 
 
 def normalize_expr_data(
@@ -120,6 +137,7 @@ def normalize_expr_data(
     pseudo_expr=1,
     relative_expr=True,
     keep_filtered=True,
+    recalc_sz=False,
 ):
     """Normalize the gene expression value for the AnnData object
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
@@ -141,6 +159,8 @@ def normalize_expr_data(
         keep_filtered: `bool` (default: `True`)
             A logic flag to determine whether we will only store feature genes in the adata object. If it is False, size factor
             will be recalculated only for the selected feature genes.
+        recalc_sz: `bool` (default: `False`)
+            A logic flag to determine whether we need to recalculate size factor based on selected genes before normalization.
 
     Returns
     -------
@@ -148,8 +168,10 @@ def normalize_expr_data(
             A updated anndata object that are updated with normalized expression values for different layers.
     """
 
-    if "use_for_dynamo" in adata.var.columns and keep_filtered is False:
-        adata = adata[:, adata.var[:, "use_for_dynamo"]]
+    if recalc_sz:
+        if "use_for_dynamo" in adata.var.columns and keep_filtered is False:
+            adata = adata[:, adata.var.loc[:, "use_for_dynamo"]]
+
         adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.contains("Size_Factor")]
 
     layers = get_layer_keys(adata, layers)
@@ -641,10 +663,10 @@ def Dispersion(
 
 
 def SVRs(
-    adata,
+    adata_ori,
     filter_bool=None,
     layers="X",
-    relative_expr=False,
+    relative_expr=True,
     total_szfactor=None,
     min_expr_cells=0,
     min_expr_avg=0,
@@ -653,6 +675,7 @@ def SVRs(
     winsorize=False,
     winsor_perc=(1, 99.5),
     sort_inverse=False,
+    use_all_genes_cells=False,
 ):
     """This function is modified from https://github.com/velocyto-team/velocyto.py/blob/master/velocyto/analysis.py
 
@@ -661,10 +684,10 @@ def SVRs(
         adata: :class:`~anndata.AnnData`
             AnnData object.
         filter_bool: :class:`~numpy.ndarray` (default: None)
-            A boolean array from the user to select cells for downstream analysis.
+            A boolean array from the user to select genes for downstream analysis.
         layers: `str` (default: 'X')
             The layer(s) to be used for calculating dispersion score via support vector regression (SVR). Default is X if there is no spliced layers.
-        relative_expr: `bool` (default: `False`)
+        relative_expr: `bool` (default: `True`)
             A logic flag to determine whether we need to divide gene expression values first by size factor before run SVR.
         total_szfactor: `str` (default: `None`)
             The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
@@ -682,6 +705,8 @@ def SVRs(
             the up and lower bound of the winsorization.
         sort_inverse: `bool` (default: `False`)
             if True it sorts genes from less noisy to more noisy (to use for size estimation not for feature selection).
+        use_all_genes_cells: `bool` (default: `False`)
+            A logic flag to determine whether all cells and genes should be used for the size factor calculation.
 
     Returns
     -------
@@ -691,7 +716,20 @@ def SVRs(
     """
     from sklearn.svm import SVR
 
-    layers = get_layer_keys(adata, layers)
+    layers = get_layer_keys(adata_ori, layers)
+
+    if use_all_genes_cells:
+        adata = adata_ori[:, filter_bool] if filter_bool is not None else adata_ori
+    else:
+        cell_inds = adata_ori.obs.use_for_dynamo if 'use_for_dynamo' in adata_ori.obs.columns else adata_ori.obs.index
+        filter_list = ['use_for_dynamo', 'pass_basic_filter']
+        filter_checker = [i in adata_ori.var.columns for i in filter_list]
+        which_filter = np.where(filter_checker)[0]
+
+        gene_inds = adata_ori.var[filter_list[which_filter[0]]] if len(which_filter) > 0 is not None else adata_ori.var.index
+
+        adata = adata_ori[cell_inds, :][:, gene_inds]
+        filter_bool = filter_bool[gene_inds]
 
     for layer in layers:
         if layer is "raw":
@@ -743,9 +781,6 @@ def SVRs(
             & (CM.mean(0) >= min_expr_avg)
         ).flatten()
 
-        if filter_bool is not None:
-            detected_bool = filter_bool & detected_bool
-
         valid_CM = CM[:, detected_bool]
         if winsorize:
             down, up = (
@@ -766,8 +801,8 @@ def SVRs(
                 np.array(
                     np.sqrt(
                         (valid_CM.multiply(valid_CM).mean(0).A1 - (mu) ** 2)
-                        * (adata.n_obs)
-                        / (adata.n_obs - 1)
+                        # * (adata.n_obs)
+                        # / (adata.n_obs - 1)
                     )
                 )
                 if issparse(valid_CM)
@@ -810,9 +845,11 @@ def SVRs(
             if layer is "raw" or layer is "X"
             else layer + "_velocyto_SVR"
         )
-        adata.uns[key] = {"SVR": fitted_fun, "detected_bool": detected_bool}
+        adata_ori.uns[key] = {"SVR": fitted_fun, "detected_bool": detected_bool}
 
-    return adata
+    adata_ori = merge_adata_attrs(adata_ori, adata, attr='var')
+
+    return adata_ori
 
 
 def filter_cells(
@@ -904,10 +941,11 @@ def filter_cells(
         filter_bool & detected_bool if filter_bool is not None else detected_bool
     )
 
+    filter_bool = np.array(filter_bool).flatten()
     if keep_filtered:
-        adata.obs["use_for_dynamo"] = np.array(filter_bool).flatten()
+        adata.obs["use_for_dynamo"] = filter_bool
     else:
-        adata = adata[np.array(filter_bool).flatten(), :]
+        adata._inplace_subset_obs(filter_bool)
         adata.obs["use_for_dynamo"] = True
 
     return adata
@@ -953,7 +991,7 @@ def filter_genes_by_clusters_(
     return clu_avg_selected
 
 
-def filter_genes_(
+def filter_genes(
     adata,
     filter_bool=None,
     layer="all",
@@ -969,6 +1007,44 @@ def filter_genes_(
     min_count_p=0,
     shared_count=30,
 ):
+    """Basic filter of genes based a collection of expression filters.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object.
+        filter_bool: :class:`~numpy.ndarray` (default: None)
+            A boolean array from the user to select genes for downstream analysis.
+        layer: `str` (default: `X`)
+            The data from a particular layer (include X) used for feature selection.
+        min_cell_s: `int` (default: `5`)
+            Minimal number of cells with expression for the data in the spliced layer (also used for X).
+        min_cell_u: `int` (default: `5`)
+            Minimal number of cells with expression for the data in the unspliced layer.
+        min_cell_p: `int` (default: `5`)
+            Minimal number of cells with expression for the data in the protein layer.
+        min_avg_exp_s: `float` (default: `1e-2`)
+            Minimal average expression across cells for the data in the spliced layer (also used for X).
+        min_avg_exp_u: `float` (default: `1e-4`)
+            Minimal average expression across cells for the data in the unspliced layer.
+        min_avg_exp_p: `float` (default: `1e-4`)
+            Minimal average expression across cells for the data in the protein layer.
+        max_avg_exp: `float` (default: `100`.)
+            Maximal average expression across cells for the data in all layers (also used for X).
+        min_cell_s: `int` (default: `5`)
+            Minimal number of counts (UMI/expression) for the data in the spliced layer (also used for X).
+        min_cell_u: `int` (default: `5`)
+            Minimal number of counts (UMI/expression) for the data in the unspliced layer.
+        min_cell_p: `int` (default: `5`)
+            Minimal number of counts (UMI/expression) for the data in the protein layer.
+        shared_count: `float` (default: `30`)
+            The minimal shared number of counts for each genes across cell between layers.
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            An updated AnnData object with use_for_dynamo as a new column in .var attributes to indicate the selection of genes for
+            downstream analysis. adata will be subsetted with only the genes pass filter if keep_unflitered is set to be False.
+    """
 
     detected_bool = np.ones(adata.shape[1], dtype=bool)
     detected_bool = (detected_bool) & np.array(
@@ -1021,26 +1097,16 @@ def filter_genes_(
         filter_bool & detected_bool if filter_bool is not None else detected_bool
     )
 
-    return filter_bool
+    adata.var["pass_basic_filter"] = np.array(filter_bool).flatten()
+
+    return adata
 
 
-def filter_genes(
+def select_genes(
     adata,
-    filter_bool=None,
-    layer="all",
+    layer="X",
     total_szfactor=None,
     keep_filtered=True,
-    min_cell_s=0,
-    min_cell_u=0,
-    min_cell_p=0,
-    min_avg_exp_s=0,
-    min_avg_exp_u=0,
-    min_avg_exp_p=0,
-    max_avg_exp=0.0,
-    min_count_s=0,
-    min_count_u=0,
-    min_count_p=0,
-    shared_count=30,
     sort_by="SVR",
     n_top_genes=2000,
     SVRs_kwargs={},
@@ -1051,30 +1117,12 @@ def filter_genes(
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object.
-        filter_bool: :class:`~numpy.ndarray` (default: None)
-            A boolean array from the user to select genes for downstream analysis.
         layer: `str` (default: `X`)
             The data from a particular layer (include X) used for feature selection.
         total_szfactor: `str` (default: `None`)
             The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
         keep_filtered: `bool` (default: `True`)
             Whether to keep genes that don't pass the filtering in the adata object.
-        min_cell_s: `int` (default: `5`)
-            Minimal number of cells with expression for the data in the spliced layer (also used for X).
-        min_cell_u: `int` (default: `5`)
-            Minimal number of cells with expression for the data in the unspliced layer.
-        min_cell_p: `int` (default: `5`)
-            Minimal number of cells with expression for the data in the protein layer.
-        min_avg_exp_s: `float` (default: `1e-2`)
-            Minimal average expression across cells for the data in the spliced layer (also used for X).
-        min_avg_exp_u: `float` (default: `1e-4`)
-            Minimal average expression across cells for the data in the unspliced layer.
-        min_avg_exp_p: `float` (default: `1e-4`)
-            Minimal average expression across cells for the data in the protein layer.
-        max_avg_exp: `float` (default: `100`.)
-            Maximal average expression across cells for the data in all layers (also used for X).
-        shared_count: `float` (default: `30`)
-            The minimal shared number of counts for each genes across cell between layers.
         sort_by: `str` (default: `SVR`)
             Which soring method, either SVR, dispersion or Gini index, to be used to select genes.
         n_top_genes: `int` (default: `int`)
@@ -1087,23 +1135,8 @@ def filter_genes(
             downstream analysis. adata will be subsetted with only the genes pass filter if keep_unflitered is set to be False.
     """
 
-    filter_bool = filter_genes_(
-        adata,
-        filter_bool=filter_bool,
-        layer=layer,
-        min_cell_s=min_cell_s,
-        min_cell_u=min_cell_u,
-        min_cell_p=min_cell_p,
-        min_avg_exp_s=min_avg_exp_s,
-        min_avg_exp_u=min_avg_exp_u,
-        min_avg_exp_p=min_avg_exp_p,
-        max_avg_exp=max_avg_exp,
-        min_count_s=min_count_s,
-        min_count_u=min_count_u,
-        min_count_p=min_count_p,
-        shared_count=shared_count,
-    )
-    adata.var["pass_basic_filter"] = np.array(filter_bool).flatten()
+    filter_bool = adata.var["pass_basic_filter"] if "pass_basic_filter" in adata.var.columns \
+        else np.ones(adata.shape[1], dtype=bool)
 
     if adata.shape[1] <= n_top_genes:
         filter_bool = np.ones(adata.shape[1], dtype=bool)
@@ -1136,7 +1169,7 @@ def filter_genes(
                 "sort_inverse": False,
             }
             SVRs_args = update_dict(SVRs_args, SVRs_kwargs)
-            SVRs(
+            adata = SVRs(
                 adata,
                 layers=layer,
                 total_szfactor=total_szfactor,
@@ -1144,13 +1177,19 @@ def filter_genes(
                 **SVRs_args
             )
 
-            filter_bool = get_svr_filter(adata, layer=layer, n_top_genes=n_top_genes)
+            filter_bool = get_svr_filter(adata, layer=layer, n_top_genes=n_top_genes, return_adata=False)
 
     if keep_filtered:
         adata.var["use_for_dynamo"] = filter_bool
     else:
         adata._inplace_subset_var(filter_bool)
         adata.var["use_for_dynamo"] = True
+        key = (
+            "velocyto_SVR"
+            if layer is "raw" or layer is "X"
+            else layer + "_velocyto_SVR"
+        )
+        adata.uns[key]["detected_bool"] = True
 
     return adata
 
@@ -1185,6 +1224,7 @@ def recipe_monocle(
     keep_filtered_genes=True,
     fc_kwargs=None,
     fg_kwargs=None,
+    sg_kwargs=None,
 ):
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
@@ -1224,6 +1264,8 @@ def recipe_monocle(
             Other Parameters passed into the filter_genes function.
         fg_kwargs: `dict` or None (default: `None`)
             Other Parameters passed into the filter_cells function.
+        sg_kwargs: `dict` or None (default: `None`)
+            Other Parameters passed into the select_cells function.
 
     Returns
     -------
@@ -1252,11 +1294,7 @@ def recipe_monocle(
                 atol=1e-1,
             )
 
-    if not _szFactor or "Size_Factor" not in adata.obs_keys():
-        adata = szFactor(adata, total_layers=total_layers)
-        if feature_selection == "Dispersion":
-            adata = Dispersion(adata)
-
+    # filter bad cells
     filter_cells_kwargs = {
         "filter_bool": None,
         "layer": "all",
@@ -1285,25 +1323,53 @@ def recipe_monocle(
         "min_avg_exp_u": 0,
         "min_avg_exp_p": 0,
         "max_avg_exp": np.inf,
+        "min_count_s": 0,
+        "min_count_u": 0,
+        "min_count_p": 0,
         "shared_count": 30,
     }
     if fg_kwargs is not None:
         filter_genes_kwargs.update(fg_kwargs)
 
-    # set use_for_dynamo
+    # set pass_basic_filter for genes
+    adata = filter_genes(
+        adata,
+        **filter_genes_kwargs,
+    )
+
+    # calculate sz factor
+    if not _szFactor or "Size_Factor" not in adata.obs_keys():
+        adata = szFactor(adata, total_layers=total_layers)
+        if feature_selection == "Dispersion":
+            adata = Dispersion(adata)
+
+    # set use_for_dynamo (use basic_filtered data)
+    select_genes_dict = {
+                "min_expr_cells": 0,
+                "min_expr_avg": 0,
+                "max_expr_avg": np.inf,
+                "svr_gamma": None,
+                "winsorize": False,
+                "winsor_perc": (1, 99.5),
+                "sort_inverse": False,
+            }
+    if sg_kwargs is not None:
+        select_genes_dict.update(sg_kwargs)
+
     if genes_to_use is None:
-        adata = filter_genes(
+        adata = select_genes(
             adata,
             sort_by=feature_selection,
             n_top_genes=n_top_genes,
             keep_filtered=keep_filtered_genes,
-            **filter_genes_kwargs
+            SVRs_kwargs=select_genes_dict,
         )
     else:
         adata.var["use_for_dynamo"] = adata.var.index.isin(genes_to_use)
         if not keep_filtered_genes:
             adata = adata[:, adata.var["use_for_dynamo"]]
 
+    # normalized data based on sz factor
     if not _logged:
         total_szfactor = "total_Size_Factor" if total_layers is not None else None
         adata = normalize_expr_data(
@@ -1404,7 +1470,7 @@ def recipe_velocyto(
 
     adata = filter_cells(adata, filter_bool=np.array(filter_bool).flatten())
 
-    filter_bool = filter_genes_(adata, min_cell_s=30, min_count_s=40, shared_count=None)
+    filter_bool = filter_genes(adata, min_cell_s=30, min_count_s=40, shared_count=None)
 
     adata = adata[:, filter_bool]
 
@@ -1415,7 +1481,7 @@ def recipe_velocyto(
     filter_bool = get_svr_filter(adata, layer="spliced", n_top_genes=n_top_genes)
 
     adata = adata[:, filter_bool]
-    filter_bool_gene = filter_genes_(
+    filter_bool_gene = filter_genes(
         adata,
         min_cell_s=0,
         min_count_s=0,

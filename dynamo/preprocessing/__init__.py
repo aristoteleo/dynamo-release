@@ -10,7 +10,7 @@ from .preprocess import (
     topTable,
     Dispersion,
     filter_cells,
-    filter_genes,
+    select_genes,
 )
-from .preprocess import filter_genes_, filter_genes_by_clusters_, SVRs, get_svr_filter
+from .preprocess import filter_genes, filter_genes_by_clusters_, SVRs, get_svr_filter
 from .utils import cook_dist, pca

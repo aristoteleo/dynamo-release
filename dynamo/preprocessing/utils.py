@@ -110,6 +110,18 @@ def cook_dist(model, X, good):
 # ---------------------------------------------------------------------------------------------------
 # preprocess utilities
 
+def merge_adata_attrs(adata_ori, adata, attr):
+    if attr == 'var':
+        _columns = set(adata.var.columns).difference(adata_ori.var.columns)
+        adata_ori.var = adata_ori.var.merge(adata.var[_columns], how='left',
+                                            left_index=True, right_index=True)
+    elif attr == 'obs':
+        _columns = set(adata.obs.columns).difference(adata_ori.obs.columns)
+        adata_ori.obs = adata_ori.obs.merge(adata.obs[_columns], how='left',
+                                            left_index=True, right_index=True)
+    return adata_ori
+
+
 def allowed_layer_raw_names():
     only_splicing = ['spliced', 'unspliced']
     only_labeling = ['new', 'total']
@@ -219,26 +231,30 @@ def clusters_stats(U, S, clusters_uid, cluster_ix, size_limit=40):
     return U_avgs, S_avgs
 
 
-def get_svr_filter(adata, layer="spliced", n_top_genes=3000):
+def get_svr_filter(adata, layer="spliced", n_top_genes=3000, return_adata=False):
     score_name = "score" if layer in ["X", "all"] else layer + "_score"
     valid_idx = np.where(np.isfinite(adata.var.loc[:, score_name]))[0]
 
     valid_table = adata.var.iloc[valid_idx, :]
     nth_score = np.sort(valid_table.loc[:, score_name])[::-1][
-        np.min((n_top_genes, valid_table.shape[0] - 1))
+        np.min((n_top_genes - 1, valid_table.shape[0] - 1))
     ]
 
     feature_gene_idx = np.where(valid_table.loc[:, score_name] >= nth_score)[0][
         :n_top_genes
     ]
+    feature_gene_idx = valid_idx[feature_gene_idx]
 
-    adata.var.loc[:, "use_for_dynamo"] = False
-    adata.var.loc[adata.var.index[feature_gene_idx], "use_for_dynamo"] = True
+    if return_adata:
+        adata.var.loc[:, "use_for_dynamo"] = False
+        adata.var.loc[adata.var.index[feature_gene_idx], "use_for_dynamo"] = True
+        res = adata
+    else:
+        filter_bool = np.zeros(adata.n_vars, dtype=bool)
+        filter_bool[feature_gene_idx] = True
+        res = filter_bool
 
-    filter_bool = np.zeros(adata.n_vars, dtype=bool)
-    filter_bool[valid_idx[feature_gene_idx]] = True
-
-    return filter_bool
+    return res
 
 
 # ---------------------------------------------------------------------------------------------------
