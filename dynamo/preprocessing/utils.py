@@ -237,7 +237,7 @@ def get_svr_filter(adata, layer="spliced", n_top_genes=3000, return_adata=False)
 
     valid_table = adata.var.iloc[valid_idx, :]
     nth_score = np.sort(valid_table.loc[:, score_name])[::-1][
-        np.min((n_top_genes, valid_table.shape[0] - 1))
+        np.min((n_top_genes - 1, valid_table.shape[0] - 1))
     ]
 
     feature_gene_idx = np.where(valid_table.loc[:, score_name] >= nth_score)[0][

@@ -137,6 +137,7 @@ def normalize_expr_data(
     pseudo_expr=1,
     relative_expr=True,
     keep_filtered=True,
+    recalc_sz=False,
 ):
     """Normalize the gene expression value for the AnnData object
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
@@ -158,6 +159,8 @@ def normalize_expr_data(
         keep_filtered: `bool` (default: `True`)
             A logic flag to determine whether we will only store feature genes in the adata object. If it is False, size factor
             will be recalculated only for the selected feature genes.
+        recalc_sz: `bool` (default: `False`)
+            A logic flag to determine whether we need to recalculate size factor based on selected genes before normalization.
 
     Returns
     -------
@@ -165,8 +168,10 @@ def normalize_expr_data(
             A updated anndata object that are updated with normalized expression values for different layers.
     """
 
-    if "use_for_dynamo" in adata.var.columns and keep_filtered is False:
-        adata = adata[:, adata.var.loc[:, "use_for_dynamo"]]
+    if recalc_sz:
+        if "use_for_dynamo" in adata.var.columns and keep_filtered is False:
+            adata = adata[:, adata.var.loc[:, "use_for_dynamo"]]
+
         adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.contains("Size_Factor")]
 
     layers = get_layer_keys(adata, layers)
@@ -1179,6 +1184,12 @@ def select_genes(
     else:
         adata._inplace_subset_var(filter_bool)
         adata.var["use_for_dynamo"] = True
+        key = (
+            "velocyto_SVR"
+            if layer is "raw" or layer is "X"
+            else layer + "_velocyto_SVR"
+        )
+        adata.uns[key]["detected_bool"] = True
 
     return adata
 
