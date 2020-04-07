@@ -21,7 +21,7 @@ class LinearODE:
         dx = np.zeros(len(x))
         return dx
     
-    def integrate(self, t, x0=None, method='matrix'):
+    def integrate(self, t, x0=None, method=None):
         method = self.default_method if method is None else method
         if method == 'matrix':
             sol = self.integrate_matrix(t, x0)
@@ -79,6 +79,50 @@ class LinearODE:
         for i in range(1, len(t)):
             x[i] = U.dot(np.diag(expD**(t[i]-t0))).dot(V).dot(y0) - x_ss
         return x
+
+class MixtureModels:
+    def __init__(self, models, param_distributor):
+        '''A general class for linear odes'''
+        self.n_models = len(models)
+        self.models = models
+        self.n_species = np.array([mdl.n_species for mdl in self.models])
+        self.distributor = param_distributor
+        # solution
+        self.t = None
+        self.x = None
+        # methods
+        self.methods = ['numerical', 'matrix']
+        self.default_method = 'matrix'
+
+    def integrate(self, t, x0=None, method=None):
+        self.x = np.zeros((len(t), np.sum(self.n_species)))
+        for i, mdl in enumerate(self.models):
+            x0_ = None if x0 is None else x0[self.get_model_species(i)]
+            method_ = method if method is None or type(method) is str else method[i]
+            mdl.integrate(t, x0_, method_)
+            self.x[:, self.get_model_species(i)] = mdl.x
+        self.t = np.array(self.models[0].t, copy=True)
+
+    def get_model_species(self, model_index):
+        id = np.hstack((0, np.cumsum(self.n_species)))
+        idx = np.arange(id[-1]+1)
+        return idx[id[model_index] : id[model_index+1]]
+
+    def reset(self):
+        # reset solutions
+        self.t = None
+        self.x = None
+        for mdl in self.models:
+            mdl.reset()
+
+    def set_params(self, *params):
+        for i, mdl in enumerate(self.models):
+            idx = self.distributor[i]
+            p = np.zeros(len(idx))
+            for j in range(len(idx)):
+                p[j] = params[idx[j]]
+            mdl.set_params(*p)
+        self.reset()
 
 class Moments(LinearODE):
     def __init__(self, a=None, b=None, alpha_a=None, alpha_i=None, beta=None, gamma=None, x0=None):
@@ -556,7 +600,7 @@ class Deterministic(LinearODE):
         if method == 'analytical':
             sol = self.integrate_analytical(t, x0)
         else:
-            super().integrate(t, x0, method)
+            sol = super().integrate(t, x0, method)
         self.x = sol
         self.t = t
 
@@ -627,7 +671,7 @@ class Deterministic_NoSplicing(LinearODE):
         if method == 'analytical':
             sol = self.integrate_analytical(t, x0)
         else:
-            super().integrate(t, x0, method)
+            sol = super().integrate(t, x0, method)
         self.x = sol
         self.t = t
 
