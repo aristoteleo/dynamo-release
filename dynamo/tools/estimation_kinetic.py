@@ -178,6 +178,12 @@ class kinetic_estimation:
     def export_parameters(self):
         return self.get_opt_kin_params()
 
+    def export_model(self, reinstantiate=True):
+        if reinstantiate:
+            return self.simulator.__class__()
+        else:
+            return self.simulator
+
     def get_SSE(self):
         return self.cost
 
@@ -492,8 +498,8 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
             self._initialize(alpha, gamma, x0, beta)
     
     def _initialize(self, alpha, gamma, x0, beta=None):
-        dstr = [[0, 2], [1, 2]] if type(self.model1) in nosplicing_models else [[0, 2, 3], [1, 2, 3]]
-        model = MixtureModels([self.model1, self.model2], dstr)
+        self.param_distributor = [[0, 2], [1, 2]] if type(self.model1) in nosplicing_models else [[0, 2, 3], [1, 2, 3]]
+        model = MixtureModels([self.model1, self.model2], self.param_distributor)
 
         ranges = np.zeros((3, 2)) if beta is None else np.zeros((4, 2))
         ranges[0] = alpha
@@ -531,6 +537,12 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
 
         popt, cost = self.fit_lsq(time, x_data, p0=p0, **kwargs)
         return popt, cost
+
+    def export_model(self, reinstantiate=True):
+        if reinstantiate:
+            return MixtureModels([self.model1, self.model2], self.param_distributor)
+        else:
+            return self.simulator
 
 class GoodnessOfFit:
     def __init__(self, simulator, params=None, x0=None):
