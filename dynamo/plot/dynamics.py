@@ -197,7 +197,7 @@ def phase_portraits(
 
     color_vec = np.repeat(np.nan, n_cells)
     if color is not None:
-        color_vec = adata.obs[color].values
+        color_vec = adata.obs[color].to_list()
 
     if "velocity_" not in vkey:
         vkey = "velocity_" + vkey
