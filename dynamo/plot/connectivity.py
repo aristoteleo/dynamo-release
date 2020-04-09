@@ -15,7 +15,7 @@ from .utils import (
     _get_extent,
     _embed_datashader_in_an_axis,
     _datashade_points,
-    save
+    save,
 )
 
 from .utils import is_list_of_lists  # is_gene_name

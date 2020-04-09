@@ -4,7 +4,7 @@ import scipy
 import matplotlib.pyplot as plt
 
 from ..tools.topography import topography as _topology  # , compute_separatrices
-from ..tools.utils import fetch_exprs, update_dict
+from ..tools.utils import update_dict
 from ..configuration import set_figure_params
 from .scatters import scatters
 from .scatters import docstrings

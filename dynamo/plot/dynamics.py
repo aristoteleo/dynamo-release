@@ -19,7 +19,7 @@ def phase_portraits(
     genes,
     x=0,
     y=1,
-    pointsize=50,
+    pointsize=None,
     vkey="S",
     ekey="X",
     basis="umap",
@@ -48,7 +48,7 @@ def phase_portraits(
                 The column index of the low dimensional embedding for the x-axis
         y: `int` (default: `1`)
                 The column index of the low dimensional embedding for the y-axis
-        pointsize: `None` or `float` (default: 50)
+        pointsize: `None` or `float` (default: None)
                 The scale of the point size. Actual point cell size is calculated as `500.0 / np.sqrt(adata.shape[0]) * pointsize`
         vkey: `string` (default: velocity)
             Which velocity key used for visualizing the magnitude of velocity. Can be either velocity in the layers slot or the
@@ -458,7 +458,7 @@ def phase_portraits(
         except:
             continue
         cur_pd = df.loc[df.gene == gn, :]
-        if not (cur_pd.color.unique() != np.nan).any():
+        if cur_pd.color.isna().all():
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
                 ax1, color = _matplotlib_points(
                     cur_pd.iloc[:, [1, 0]].values,

@@ -886,7 +886,7 @@ def line_integral_conv(
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
-            will use the {"path": None, "prefix": 'kinetic_heatmap', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            will use the {"path": None, "prefix": 'line_integral_conv', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
 

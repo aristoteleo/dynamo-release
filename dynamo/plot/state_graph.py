@@ -149,8 +149,8 @@ def state_graph(
         show_legend,
         use_smoothed,
         ax,
-        save_show_or_return,
-        aggregate,
+        save_show_or_return='return',
+        aggregate = aggregate,
         **s_kwargs_dict
     )
 
