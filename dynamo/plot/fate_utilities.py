@@ -140,7 +140,7 @@ class Animation(object):
         """
 
         if not hasattr(self, "_ani"):
-            raise RuntimeError("Run `animate` method before calling `save`!")
+            raise RuntimeError("Run `animate` method before calling `save_fig`!")
             return
         if self._warn_num_frames:
             msg = "%s `num_frames` attribute. Animation may be truncated."

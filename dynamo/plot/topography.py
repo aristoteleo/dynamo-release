@@ -8,7 +8,7 @@ from ..tools.utils import update_dict
 from ..configuration import set_figure_params
 from .scatters import scatters
 from .scatters import docstrings
-from .utils import _plot_traj, quiver_autoscaler, save
+from .utils import _plot_traj, quiver_autoscaler, save_fig
 
 def plot_flow_field(
     vecfld,
@@ -49,7 +49,7 @@ def plot_flow_field(
     save_show_or_return: {'show', 'save', 'return'} (default: `return`)
         Whether to save, show or return the figure.
     save_kwargs: `dict` (default: `{}`)
-        A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+        A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
         will use the {"path": None, "prefix": 'plot_flow_field', "dpi": None, "ext": 'pdf', "transparent": True, "close":
         True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
         according to your needs.
@@ -123,7 +123,7 @@ def plot_flow_field(
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
-        save(**s_kwargs)
+        save_fig(**s_kwargs)
     elif save_show_or_return == "show":
         plt.tight_layout()
         plt.show()
@@ -150,7 +150,7 @@ def plot_nullclines(vecfld,
         save_show_or_return: {'show', 'save', 'return'} (default: `return`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'plot_nullclines', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
@@ -181,7 +181,7 @@ def plot_nullclines(vecfld,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
-        save(**s_kwargs)
+        save_fig(**s_kwargs)
     elif save_show_or_return == "show":
         plt.tight_layout()
         plt.show()
@@ -217,7 +217,7 @@ def plot_fixed_points(
         save_show_or_return: {'show', 'save', 'return'} (default: `return`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'plot_fixed_points', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
@@ -254,7 +254,7 @@ def plot_fixed_points(
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
-        save(**s_kwargs)
+        save_fig(**s_kwargs)
     elif save_show_or_return == "show":
         plt.tight_layout()
         plt.show()
@@ -296,7 +296,7 @@ def plot_traj(f,
     save_show_or_return: {'show', 'save', 'return'} (default: `return`)
         Whether to save, show or return the figure.
     save_kwargs: `dict` (default: `{}`)
-        A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+        A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
         will use the {"path": None, "prefix": 'plot_traj', "dpi": None, "ext": 'pdf', "transparent": True, "close":
         True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
         according to your needs.
@@ -332,7 +332,7 @@ def plot_traj(f,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
-        save(**s_kwargs)
+        save_fig(**s_kwargs)
     elif save_show_or_return == "show":
         plt.tight_layout()
         plt.show()
@@ -371,7 +371,7 @@ def plot_separatrix(vecfld,
         save_show_or_return: {'show', 'save', 'return'} (default: `return`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'plot_separatrix', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
@@ -444,7 +444,7 @@ def plot_separatrix(vecfld,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
-        save(**s_kwargs)
+        save_fig(**s_kwargs)
     elif save_show_or_return == "show":
         plt.tight_layout()
         plt.show()
@@ -536,7 +536,7 @@ def topography(
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'topography', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
@@ -757,7 +757,7 @@ def topography(
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
-        save(**s_kwargs)
+        save_fig(**s_kwargs)
     elif save_show_or_return == "show":
         plt.tight_layout()
         plt.show()

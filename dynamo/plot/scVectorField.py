@@ -3,7 +3,7 @@ import pandas as pd
 from scipy.sparse import issparse
 
 from .scatters import scatters
-from .utils import quiver_autoscaler, default_quiver_args, save
+from .utils import quiver_autoscaler, default_quiver_args, save_fig
 from ..tools.dimension_reduction import reduceDimension
 from ..tools.cell_velocities import cell_velocities
 from ..tools.Markov import velocity_on_grid, grid_velocity_filter
@@ -885,7 +885,7 @@ def line_integral_conv(
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'line_integral_conv', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
@@ -1023,7 +1023,7 @@ def line_integral_conv(
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
-        save(**s_kwargs)
+        save_fig(**s_kwargs)
     elif save_show_or_return == "show":
         plt.tight_layout()
         plt.show()
@@ -1077,7 +1077,7 @@ def cell_wise_velocity(
             `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale of quiver indicates
             the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller scale parameter makes the arrow longer.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'cell_wise_velocity', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
@@ -1200,7 +1200,7 @@ def cell_wise_velocity(
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
-        save(**s_kwargs)
+        save_fig(**s_kwargs)
     elif save_show_or_return == "show":
         plt.tight_layout()
         plt.show()
@@ -1260,7 +1260,7 @@ def grid_velocity(
             `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale of quiver indicates
             the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller scale parameter makes the arrow longer.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'grid_velocity', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
@@ -1411,7 +1411,7 @@ def grid_velocity(
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
-        save(**s_kwargs)
+        save_fig(**s_kwargs)
     elif save_show_or_return == "show":
         plt.tight_layout()
         plt.show()
@@ -1463,7 +1463,7 @@ def streamline_plot(
         density: `float` or None (default: 1)
             density of the plt.streamplot function.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'streamline_plot', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
@@ -1608,7 +1608,7 @@ def streamline_plot(
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
-        save(**s_kwargs)
+        save_fig(**s_kwargs)
     elif save_show_or_return == "show":
         plt.tight_layout()
         plt.show()

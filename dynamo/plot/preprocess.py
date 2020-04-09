@@ -4,7 +4,7 @@ from scipy.sparse import issparse, csr_matrix
 
 from ..preprocessing.preprocess import topTable
 from ..preprocessing.utils import get_layer_keys
-from .utils import save
+from .utils import save_fig
 from ..tools.utils import update_dict
 
 
@@ -23,7 +23,7 @@ def show_fraction(adata,
     save_show_or_return: {'show', 'save', 'return'} (default: `show`)
         Whether to save, show or return the figure.
     save_kwargs: `dict` (default: `{}`)
-        A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+        A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
         will use the {"path": None, "prefix": 'show_fraction', "dpi": None, "ext": 'pdf', "transparent": True, "close":
         True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
         according to your needs.
@@ -200,7 +200,7 @@ def show_fraction(adata,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
-        save(**s_kwargs)
+        save_fig(**s_kwargs)
     elif save_show_or_return == "show":
         plt.tight_layout()
         plt.show()
@@ -228,7 +228,7 @@ def variance_explained(adata,
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'variance_explained', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
@@ -256,7 +256,7 @@ def variance_explained(adata,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
-        save(**s_kwargs)
+        save_fig(**s_kwargs)
     elif save_show_or_return == "show":
         plt.tight_layout()
         plt.show()
@@ -283,7 +283,7 @@ def feature_genes(adata,
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'feature_genes', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
@@ -402,7 +402,7 @@ def feature_genes(adata,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
-        save(**s_kwargs)
+        save_fig(**s_kwargs)
     elif save_show_or_return == "show":
         plt.tight_layout()
         plt.show()

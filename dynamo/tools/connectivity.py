@@ -303,7 +303,7 @@ def mnn(
             Whether to use the precomputed pca model to transform different data layers or calculate pca for each data layer
             separately.
         save_all_to_adata: `bool` (default: `False`)
-            Whether to save all calculated data to adata object.
+            Whether to save_fig all calculated data to adata object.
 
     Returns
     -------

@@ -5,7 +5,7 @@ import warnings
 from scipy.sparse import issparse
 from .utils import despline, _matplotlib_points, _datashade_points, _select_font_color
 from .utils import quiver_autoscaler, default_quiver_args
-from .utils import save
+from .utils import save_fig
 from .scatters import scatters
 from ..tools.velocity import sol_u, sol_s, solve_first_order_deg
 from ..tools.utils_moments import moments
@@ -86,7 +86,7 @@ def phase_portraits(
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'phase_portraits', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
@@ -902,7 +902,7 @@ def phase_portraits(
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
-        save(**s_kwargs)
+        save_fig(**s_kwargs)
     elif save_show_or_return == "show":
         plt.tight_layout()
         plt.show()
@@ -955,7 +955,7 @@ def dynamics(
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'dynamics', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
@@ -2085,7 +2085,7 @@ def dynamics(
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
-        save(**s_kwargs)
+        save_fig(**s_kwargs)
     elif save_show_or_return == "show":
         plt.tight_layout()
         plt.show()

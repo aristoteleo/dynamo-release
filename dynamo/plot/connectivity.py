@@ -15,7 +15,7 @@ from .utils import (
     _get_extent,
     _embed_datashader_in_an_axis,
     _datashade_points,
-    save,
+    save_fig,
 )
 
 from .utils import is_list_of_lists  # is_gene_name
@@ -210,7 +210,7 @@ def connectivity_base(
         save_show_or_return: {'show', 'save', 'return'} (default: `return`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'connectivity_base', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
@@ -307,7 +307,7 @@ def connectivity_base(
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
-        save(**s_kwargs)
+        save_fig(**s_kwargs)
     elif save_show_or_return == "show":
         plt.tight_layout()
         plt.show()
@@ -364,7 +364,7 @@ def nneighbors(
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'nneighbors', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
@@ -507,7 +507,7 @@ def nneighbors(
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
-        save(**s_kwargs)
+        save_fig(**s_kwargs)
     elif save_show_or_return == "show":
         plt.tight_layout()
         plt.show()

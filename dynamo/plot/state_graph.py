@@ -2,7 +2,7 @@ import numpy as np
 
 from ..tools.utils import update_dict
 from .scatters import scatters, docstrings
-from .utils import save
+from .utils import save_fig
 
 docstrings.delete_params("scatters.parameters", "aggregate", "kwargs", "save_kwargs")
 
@@ -99,7 +99,7 @@ def state_graph(
             transition model.
         %(scatters.parameters.no_aggregate|kwargs|save_kwargs)s
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'state_graph', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
@@ -170,7 +170,7 @@ def state_graph(
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
-        save(**s_kwargs)
+        save_fig(**s_kwargs)
     elif save_show_or_return == "show":
         if show_legend:
             plt.subplots_adjust(right=0.85)

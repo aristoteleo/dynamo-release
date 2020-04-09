@@ -1,6 +1,6 @@
 import numpy as np
 from ..tools.utils import update_dict
-from .utils import save
+from .utils import save_fig
 
 
 def plot_direct_graph(adata,
@@ -61,7 +61,7 @@ def plot_direct_graph(adata,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
-        save(**s_kwargs)
+        save_fig(**s_kwargs)
     elif save_show_or_return == "show":
         plt.tight_layout()
         plt.show()

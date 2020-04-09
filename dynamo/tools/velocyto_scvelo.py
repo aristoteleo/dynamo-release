@@ -151,7 +151,7 @@ def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None)
 def converter(data_in, from_type="adata", to_type="vlm", dir="."):
     """
 	convert adata to loom object
-	- we may save to a temp directory automatically 
+	- we may save_fig to a temp directory automatically
 	- we may write a on-the-fly converter which doesn't involve saving and reading files  
 	"""
     if from_type == "adata":
