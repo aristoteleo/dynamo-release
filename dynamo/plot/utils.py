@@ -269,7 +269,7 @@ def _matplotlib_points(
                 )  #
                 txt.set_path_effects(
                     [
-                        PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.6),
+                        PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.3),
                         PathEffects.Normal(),
                     ]
                 )
@@ -277,7 +277,7 @@ def _matplotlib_points(
             ax.legend(
                 handles=legend_elements,
                 bbox_to_anchor=(1.04, 1),
-                loc="upper left",
+                loc=show_legend,
                 ncol=len(unique_labels) // 15 + 1,
             )
     return ax, colors

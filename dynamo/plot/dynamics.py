@@ -18,14 +18,14 @@ def phase_portraits(
     genes,
     x=0,
     y=1,
-    pointsize=None,
+    pointsize=50,
     vkey="S",
     ekey="X",
     basis="umap",
     color=None,
     figsize=(7, 5),
     ncols=None,
-    legend="on data",
+    legend="upper left",
     background=None,
     show_quiver=False,
     quiver_size=None,
@@ -45,7 +45,7 @@ def phase_portraits(
                 The column index of the low dimensional embedding for the x-axis
         y: `int` (default: `1`)
                 The column index of the low dimensional embedding for the y-axis
-        pointsize: `None` or `float` (default: None)
+        pointsize: `None` or `float` (default: 50)
                 The scale of the point size. Actual point cell size is calculated as `500.0 / np.sqrt(adata.shape[0]) * pointsize`
         vkey: `string` (default: velocity)
             Which velocity key used for visualizing the magnitude of velocity. Can be either velocity in the layers slot or the
@@ -448,7 +448,7 @@ def phase_portraits(
         except:
             continue
         cur_pd = df.loc[df.gene == gn, :]
-        if cur_pd.color.unique() != np.nan:
+        if not (cur_pd.color.unique() != np.nan).any():
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
                 ax1, color = _matplotlib_points(
                     cur_pd.iloc[:, [1, 0]].values,
@@ -486,7 +486,7 @@ def phase_portraits(
                 ax1, color = _matplotlib_points(
                     cur_pd.iloc[:, [1, 0]].values,
                     ax=ax1,
-                    labels=color,
+                    labels=cur_pd.loc[:, "color"],
                     values=None,
                     highlights=None,
                     cmap=discrete_cmap,
@@ -502,7 +502,7 @@ def phase_portraits(
                 ax1, color = _datashade_points(
                     cur_pd.iloc[:, [1, 0]].values,
                     ax=ax1,
-                    labels=color,
+                    labels=cur_pd.loc[:, "color"],
                     values=None,
                     highlights=None,
                     cmap=discrete_cmap,
@@ -518,7 +518,7 @@ def phase_portraits(
         ax1.set_title(gn)
         ax1.set_xlabel("spliced")
         ax1.set_ylabel("unspliced")
-        xnew = np.linspace(0, cur_pd.iloc[:, 1].max())
+        xnew = np.linspace(0, cur_pd.iloc[:, 1].max() * 0.80)
         ax1.plot(
             xnew,
             xnew * cur_pd.loc[:, "gamma"].unique()
