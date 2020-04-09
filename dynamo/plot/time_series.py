@@ -25,6 +25,8 @@ def kinetic_curves(
     color=None,
     c_palette="Set2",
     standard_scale=0,
+    save_show_or_return='show',
+    save_kwargs={},
 ):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) as kinetic curves.
 
@@ -58,6 +60,14 @@ def kinetic_curves(
         standard_scale: `int` (default: 1)
             Either 0 (rows) or 1 (columns). Whether or not to standardize that dimension, meaning for each row or column,
             subtract the minimum and divide each by its maximum.
+        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            will use the {"path": None, "prefix": 'kinetic_curves', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
+
     Returns
     -------
         Nothing but plots the kinetic curves that shows the gene expression dynamics over time.
@@ -136,7 +146,17 @@ def kinetic_curves(
             facet_kws={"sharex": True, "sharey": False},
         )
 
-    plt.show()
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'kinetic_curves', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return g
 
 
 docstrings.delete_params("kin_curves.parameters", "ncol", "color", "c_palette")
@@ -158,7 +178,7 @@ def kinetic_heatmap(
     cluster_row_col=[False, False],
     figsize=(11.5, 6),
     standard_scale=1,
-    save_fig=False,
+    save_show_or_return='show',
     save_kwargs={},
     **kwargs
 ):
@@ -184,8 +204,8 @@ def kinetic_heatmap(
         standard_scale: `int` (default: 1)
             Either 0 (rows, cells) or 1 (columns, genes). Whether or not to standardize that dimension, meaning for each row or column,
             subtract the minimum and divide each by its maximum.
-        save_fig: `bool` (default: `False`)
-            Whether to save the figure into a file.
+        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+            Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
             will use the {"path": None, "prefix": 'kinetic_heatmap', "dpi": None, "ext": 'pdf', "transparent": True, "close":
@@ -252,15 +272,19 @@ def kinetic_heatmap(
     )
     if not show_colorbar: sns_heatmap.cax.set_visible(False)
 
-    if save_fig:
+    if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'kinetic_heatmap', "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save(**s_kwargs)
-    else:
+    elif save_show_or_return == "show":
+        if show_colorbar:
+            plt.subplots_adjust(right=0.85)
+        plt.tight_layout()
         plt.show()
-
+    elif save_show_or_return == "return":
+        return sns_heatmap
 
 
 def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):

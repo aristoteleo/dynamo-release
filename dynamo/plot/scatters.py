@@ -19,6 +19,7 @@ from .utils import (
 )
 from .utils import is_gene_name, is_cell_anno_column, is_list_of_lists
 from .utils import _matplotlib_points, _datashade_points
+from .utils import save
 
 from ..tools.utils import update_dict
 
@@ -726,7 +727,8 @@ def scatters(
     show_legend=True,
     use_smoothed=True,
     ax=None,
-    save_or_show="show",
+    save_show_or_return="show",
+    save_kwargs={},
     aggregate=None,
     **kwargs
 ):
@@ -817,6 +819,13 @@ def scatters(
             The desired height of the plot in pixels
         show_legend: bool (optional, default True)
             Whether to display a legend of the labels
+        save_show_or_return: `str` (default: `show`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
         aggregate: `str` or `None` (default: `None`)
             The column in adata.obs that will be used to aggregate data points.
         kwargs:
@@ -1074,10 +1083,17 @@ def scatters(
 
                 labels, values = None, None  # reset labels and values
     # dyn.configuration.reset_rcParams()
-    if save_or_show == "show":
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'scatters', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save(**s_kwargs)
+    elif save_show_or_return == "show":
         if show_legend:
             plt.subplots_adjust(right=0.85)
         plt.tight_layout()
         plt.show()
-    elif save_or_show == "return":
+    elif save_show_or_return == "return":
         return axes_list, color_list, font_color
+

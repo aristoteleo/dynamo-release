@@ -4,9 +4,14 @@ from scipy.sparse import issparse, csr_matrix
 
 from ..preprocessing.preprocess import topTable
 from ..preprocessing.utils import get_layer_keys
+from .utils import save
+from ..tools.utils import update_dict
 
 
-def show_fraction(adata, group=None):
+def show_fraction(adata,
+                  group=None,
+                  save_show_or_return='show',
+                  save_kwargs={},):
     """Plot the fraction of each category of data used in the velocity estimation.
 
     Parameters
@@ -15,6 +20,13 @@ def show_fraction(adata, group=None):
         an Annodata object
     group: `string` (default: None)
         Which group to facets the data into subplots. Default is None, or no faceting will be used.
+    save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+        Whether to save, show or return the figure.
+    save_kwargs: `dict` (default: `{}`)
+        A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+        will use the {"path": None, "prefix": 'show_fraction', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+        True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+        according to your needs.
 
     Returns
     -------
@@ -183,10 +195,25 @@ def show_fraction(adata, group=None):
         g.set_xlabels("Category")
         g.set_ylabels("Fraction")
 
-    plt.show()
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'show_fraction', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return g
 
 
-def variance_explained(adata, threshold=0.002, n_pcs=None):
+def variance_explained(adata,
+                       threshold=0.002,
+                       n_pcs=None,
+                       save_show_or_return='show',
+                       save_kwargs={},
+                       ):
     """Plot the accumulative variance explained by the principal components.
 
     Parameters
@@ -198,6 +225,13 @@ def variance_explained(adata, threshold=0.002, n_pcs=None):
             reduction.
         n_pcs: `int` (default: `None`)
             Number of principal components.
+        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            will use the {"path": None, "prefix": 'variance_explained', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
 
     Returns
     -------
@@ -217,10 +251,25 @@ def variance_explained(adata, threshold=0.002, n_pcs=None):
     ax.set_xticks(list(ax.get_xticks()) + [n_comps])
     ax.set_xlim(0, len(var_))
 
-    plt.show()
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'variance_explained', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return ax
 
 
-def feature_genes(adata, layer="X", mode=None):
+def feature_genes(adata,
+                  layer="X",
+                  mode=None,
+                  save_show_or_return='show',
+                  save_kwargs={},
+):
     """Plot selected feature genes on top of the mean vs. dispersion scatterplot.
 
     Parameters
@@ -231,6 +280,13 @@ def feature_genes(adata, layer="X", mode=None):
             The data from a particular layer (include X) used for making the feature gene plot.
         mode: None or `str` (default: `None`)
             The method to select the feature genes (can be either `dispersion`, `gini` or `SVR`).
+        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            will use the {"path": None, "prefix": 'feature_genes', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
 
     Returns
     -------
@@ -299,7 +355,7 @@ def feature_genes(adata, layer="X", mode=None):
 
     valid_disp_table = table.iloc[valid_ind, :]
     if mode is "dispersion":
-        plt.scatter(
+        ax = plt.scatter(
             valid_disp_table["mean_expression"],
             valid_disp_table["dispersion_empirical"],
             s=3,
@@ -307,7 +363,7 @@ def feature_genes(adata, layer="X", mode=None):
             color="xkcd:red",
         )
     elif mode is "SVR":
-        plt.scatter(
+        ax = plt.scatter(
             valid_disp_table[prefix + "log_m"],
             valid_disp_table[prefix + "log_cv"],
             s=3,
@@ -318,7 +374,7 @@ def feature_genes(adata, layer="X", mode=None):
     neg_disp_table = table.iloc[~valid_ind, :]
 
     if mode is "dispersion":
-        plt.scatter(
+        ax = plt.scatter(
             neg_disp_table["mean_expression"],
             neg_disp_table["dispersion_empirical"],
             s=3,
@@ -326,7 +382,7 @@ def feature_genes(adata, layer="X", mode=None):
             color="xkcd:grey",
         )
     elif mode is "SVR":
-        plt.scatter(
+        ax = plt.scatter(
             neg_disp_table[prefix + "log_m"],
             neg_disp_table[prefix + "log_cv"],
             s=3,
@@ -340,4 +396,15 @@ def feature_genes(adata, layer="X", mode=None):
     plt.yscale("log")
     plt.xlabel("Mean (log)")
     plt.ylabel("Dispersion (log)") if mode is "dispersion" else plt.ylabel("CV (log)")
-    plt.show()
+
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'feature_genes', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return ax

@@ -4,11 +4,11 @@ import scipy
 import matplotlib.pyplot as plt
 
 from ..tools.topography import topography as _topology  # , compute_separatrices
+from ..tools.utils import fetch_exprs, update_dict
 from ..configuration import set_figure_params
 from .scatters import scatters
 from .scatters import docstrings
-from .utils import _plot_traj, quiver_autoscaler
-
+from .utils import _plot_traj, quiver_autoscaler, save
 
 def plot_flow_field(
     vecfld,
@@ -20,6 +20,8 @@ def plot_flow_field(
     start_points=None,
     integration_direction="both",
     background=None,
+    save_show_or_return='return',
+    save_kwargs={},
     ax=None,
 ):
     """Plots the flow field with line thickness proportional to speed.
@@ -44,6 +46,13 @@ def plot_flow_field(
         Integrate the streamline in forward, backward or both directions. default is 'both'.
     background: `str` or None (default: None)
         The background color of the plot.
+    save_show_or_return: {'show', 'save', 'return'} (default: `return`)
+        Whether to save, show or return the figure.
+    save_kwargs: `dict` (default: `{}`)
+        A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+        will use the {"path": None, "prefix": 'plot_flow_field', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+        True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+        according to your needs.
     ax : Matplotlib Axis instance
         Axis on which to make the plot
 
@@ -109,10 +118,25 @@ def plot_flow_field(
             color=color_start_points,
         )
 
-    return ax
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'plot_flow_field', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return ax
 
 
-def plot_nullclines(vecfld, lw=3, background=None, ax=None):
+def plot_nullclines(vecfld,
+                    lw=3,
+                    background=None,
+                    save_show_or_return='return',
+                    save_kwargs={},
+                    ax=None):
     """Plot nullclines stored in the VectorField2D class.
 
     Arguments
@@ -123,6 +147,13 @@ def plot_nullclines(vecfld, lw=3, background=None, ax=None):
             The linewidth of the nullcline.
         background: `str` or None (default: None)
             The background color of the plot.
+        save_show_or_return: {'show', 'save', 'return'} (default: `return`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            will use the {"path": None, "prefix": 'plot_nullclines', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
         ax: :class:`~matplotlib.axes.Axes`
             The matplotlib axes used for plotting. Default is to use the current axis.
     """
@@ -145,7 +176,17 @@ def plot_nullclines(vecfld, lw=3, background=None, ax=None):
     for ncy in vecfld.NCy:
         ax.plot(*ncy.T, c=colors[1], lw=lw)
 
-    return ax
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'plot_nullclines', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return ax
 
 
 def plot_fixed_points(
@@ -154,6 +195,8 @@ def plot_fixed_points(
     markersize=10,
     filltype=["full", "top", "none"],
     background=None,
+    save_show_or_return='return',
+    save_kwargs={},
     ax=None,
 ):
     """Plot fixed points stored in the VectorField2D class.
@@ -171,6 +214,13 @@ def plot_fixed_points(
             respectively.
         background: `str` or None (default: None)
             The background color of the plot.
+        save_show_or_return: {'show', 'save', 'return'} (default: `return`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            will use the {"path": None, "prefix": 'plot_fixed_points', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
         ax: :class:`~matplotlib.axes.Axes`
             The matplotlib axes used for plotting. Default is to use the current axis.
     """
@@ -199,11 +249,29 @@ def plot_fixed_points(
             linestyle="none"
         )
 
-    return ax
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'plot_fixed_points', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return ax
 
 
-def plot_traj(
-    f, y0, t, args=(), lw=2, background=None, integration_direction="both", ax=None
+def plot_traj(f,
+              y0,
+              t,
+              args=(),
+              lw=2,
+              background=None,
+              integration_direction="both",
+              save_show_or_return='return',
+              save_kwargs={},
+              ax=None
 ):
     """Plots a trajectory on a phase portrait.
     code adapted from: http://be150.caltech.edu/2017/handouts/dynamical_systems_approaches.html
@@ -225,6 +293,13 @@ def plot_traj(
         The background color of the plot.
     integration_direction: `str` (default: `forward`)
         Integrate the trajectory in forward, backward or both directions. default is 'both'.
+    save_show_or_return: {'show', 'save', 'return'} (default: `return`)
+        Whether to save, show or return the figure.
+    save_kwargs: `dict` (default: `{}`)
+        A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+        will use the {"path": None, "prefix": 'plot_traj', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+        True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+        according to your needs.
     ax : Matplotlib Axis instance
         Axis on which to make the plot
 
@@ -252,11 +327,29 @@ def plot_traj(
             cur_y0 = y0[i, None]  # don't drop dimension
             ax = _plot_traj(cur_y0, t, args, integration_direction, ax, color, lw, f)
 
-    return ax
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'plot_traj', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return ax
 
 
-def plot_separatrix(
-    vecfld, x_range, y_range, t, noise=1e-6, lw=3, background=None, ax=None
+def plot_separatrix(vecfld,
+                    x_range,
+                    y_range,
+                    t,
+                    noise=1e-6,
+                    lw=3,
+                    background=None,
+                    save_show_or_return='return',
+                    save_kwargs={},
+                    ax=None
 ):
     """Plot separatrix on phase portrait.
 
@@ -275,6 +368,13 @@ def plot_separatrix(
             The line width of the trajectory.
         background: `str` or None (default: None)
             The background color of the plot.
+        save_show_or_return: {'show', 'save', 'return'} (default: `return`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            will use the {"path": None, "prefix": 'plot_separatrix', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
         ax : Matplotlib Axis instance
             Axis on which to make the plot
 
@@ -339,7 +439,17 @@ def plot_separatrix(
                 sep_b if all_sep_b is None else np.concatenate((all_sep_b, sep_b))
             )
 
-    return ax
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'plot_separatrix', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return ax
 
 
 @docstrings.with_indent(4)
@@ -374,8 +484,10 @@ def topography(
     approx=False,
     quiver_size=None,
     quiver_length=None,
-    ax=None,
+    save_show_or_return='show',
+    save_kwargs={},
     aggregate=None,
+    ax=None,
     s_kwargs_dict={},
     q_kwargs_dict={},
     **topography_kwargs
@@ -421,6 +533,15 @@ def topography(
             The length of quiver. The quiver length which will be used to calculate scale of quiver. Note that befoe applying
             `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale of quiver indicates
             the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller scale parameter makes the arrow longer.
+        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            will use the {"path": None, "prefix": 'topography', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
+        aggregate: `str` or `None` (default: `None`)
+            The column in adata.obs that will be used to aggregate data points.
         ax: Matplotlib Axis instance
             Axis on which to make the plot
         s_kwargs_dict: `dict` (default: {})
@@ -631,5 +752,14 @@ def topography(
                 **quiver_kwargs
             )  # color='red',  facecolors='gray'
 
-    plt.tight_layout()
-    plt.show()
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'topography', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return axes_list

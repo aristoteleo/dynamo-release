@@ -1,8 +1,10 @@
 import numpy as np
 
+from ..tools.utils import update_dict
 from .scatters import scatters, docstrings
+from .utils import save
 
-docstrings.delete_params("scatters.parameters", "aggregate", "kwargs")
+docstrings.delete_params("scatters.parameters", "aggregate", "kwargs", "save_kwargs")
 
 
 def create_edge_patch(
@@ -82,7 +84,8 @@ def state_graph(
     show_legend=True,
     use_smoothed=True,
     ax=None,
-    save_or_show="return",
+    save_show_or_return="show",
+    save_kwargs={},
     s_kwargs_dict={},
     **kwargs
 ):
@@ -94,7 +97,12 @@ def state_graph(
         group: `str` or `None` (default: `None`)
             The column in adata.obs that will be used to aggregate data points for the purpose of creating a cell type
             transition model.
-        %(scatters.parameters.no_aggregate|kwargs)s
+        %(scatters.parameters.no_aggregate|kwargs|save_kwargs)s
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            will use the {"path": None, "prefix": 'state_graph', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
         s_kwargs_dict: `dict` (default: {})
             The dictionary of the scatter arguments.
     Returns
@@ -141,7 +149,7 @@ def state_graph(
         show_legend,
         use_smoothed,
         ax,
-        save_or_show,
+        save_show_or_return,
         aggregate,
         **s_kwargs_dict
     )
@@ -156,3 +164,17 @@ def state_graph(
     plt.axis("off")
 
     plt.show()
+
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'state_graph', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save(**s_kwargs)
+    elif save_show_or_return == "show":
+        if show_legend:
+            plt.subplots_adjust(right=0.85)
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return axes_list, color_list, font_color

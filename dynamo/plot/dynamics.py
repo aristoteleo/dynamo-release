@@ -5,6 +5,7 @@ import warnings
 from scipy.sparse import issparse
 from .utils import despline, _matplotlib_points, _datashade_points, _select_font_color
 from .utils import quiver_autoscaler, default_quiver_args
+from .utils import save
 from .scatters import scatters
 from ..tools.velocity import sol_u, sol_s, solve_first_order_deg
 from ..tools.utils_moments import moments
@@ -31,7 +32,9 @@ def phase_portraits(
     quiver_size=None,
     quiver_length=None,
     q_kwargs_dict={},
-    **kwargs
+    save_show_or_return='show',
+    save_kwargs={},
+    **kwargs,
 ):
     """Draw the phase portrait, velocity, expression values on the low dimensional embedding.
 
@@ -80,6 +83,13 @@ def phase_portraits(
         q_kwargs_dict: `dict` (default: {})
             The dictionary of the quiver arguments. The default setting of quiver argument is identical to that used in the
             cell_wise_velocity and grid_velocity.
+        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            will use the {"path": None, "prefix": 'phase_portraits', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
         **kwargs:
             Additional parameters that will be passed to plt.scatter function
 
@@ -390,9 +400,9 @@ def phase_portraits(
     ncols = min([num_per_gene, ncols]) if ncols is not None else num_per_gene
     nrow, ncol = int(np.ceil(num_per_gene * n_genes / ncols)), ncols
     if figsize is None:
-        plt.figure(None, (3 * ncol, 3 * nrow))  # , dpi=160
+        g = plt.figure(None, (3 * ncol, 3 * nrow))  # , dpi=160
     else:
-        plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow))  # , dpi=160
+        g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow))  # , dpi=160
 
     if rcParams.get("figure.facecolor") == "black":
         discrete_theme, continous_theme, divergent_theme = (
@@ -887,6 +897,17 @@ def phase_portraits(
 
     plt.tight_layout()
     plt.show()
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'phase_portraits', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return g
 
 
 def dynamics(
@@ -902,7 +923,8 @@ def dynamics(
     boxwidth=None,
     barwidth=None,
     true_param_prefix=None,
-    show=True,
+    save_show_or_return='show',
+    save_kwargs={},
 ):
     """Plot the data and fitting of different metabolic labeling experiments.
 
@@ -930,8 +952,13 @@ def dynamics(
             The width of the bar of the barplot.
         true_param_prefix: `str`
             The prefix for the column names of true parameters in the .var attributes. Useful for the simulation data.
-        show: `bool` (default: `True`)
-            Whether to plot the figure.
+        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            will use the {"path": None, "prefix": 'dynamics', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
 
     Returns
     -------
@@ -1001,10 +1028,11 @@ def dynamics(
     )
     nrows = int(np.ceil(len(gene_idx) * sub_plot_n * grp_len / ncols))
     figsize = [7, 5] if figsize is None else figsize
+    g = plt.figure(None, (figsize[0] * ncols, figsize[1] * nrows), dpi=dpi)
     gs = plt.GridSpec(
         nrows,
         ncols,
-        plt.figure(None, (figsize[0] * ncols, figsize[1] * nrows), dpi=dpi),
+        g,
     )
 
     # we need to visualize gene in row-wise mode
@@ -2052,8 +2080,17 @@ def dynamics(
             elif experiment_type is "coassay":
                 pass  # show protein velocity (steady state and the Gamma distribution model)
 
-    if show:
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'dynamics', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
         plt.show()
+    elif save_show_or_return == "return":
+        return g
 
 
 def dynamics_(

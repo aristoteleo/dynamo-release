@@ -9,12 +9,15 @@ The code base will be extended extensively to consider the following cases:
     6. others
 """
 
+from ..tools.utils import update_dict
 from .utils import (
     _select_font_color,
     _get_extent,
     _embed_datashader_in_an_axis,
     _datashade_points,
+    save
 )
+
 from .utils import is_list_of_lists  # is_gene_name
 from ..configuration import _themes
 from ..docrep import DocstringProcessor
@@ -100,6 +103,8 @@ def connectivity_base(
     background="black",
     figsize=(7, 5),
     ax=None,
+    save_show_or_return='return',
+    save_kwargs={},
 ):
     """Plot connectivity relationships of the underlying UMAP
     simplicial set data structure. Internally UMAP will make
@@ -202,6 +207,13 @@ def connectivity_base(
             The desired width of the plot in pixels.
         height: int (optional, default 800)
             The desired height of the plot in pixels
+        save_show_or_return: {'show', 'save', 'return'} (default: `return`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            will use the {"path": None, "prefix": 'connectivity_base', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
 
     Returns
     -------
@@ -290,10 +302,20 @@ def connectivity_base(
 
     ax.set(xticks=[], yticks=[])
 
-    return ax
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'connectivity_base', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return ax
 
 
-docstrings.delete_params("con_base.parameters", "edge_df")
+docstrings.delete_params("con_base.parameters", "edge_df", "save_show_or_return", "save_kwargs")
 
 
 @docstrings.with_indent(4)
@@ -318,6 +340,8 @@ def nneighbors(
     background="black",
     figsize=(7, 5),
     ax=None,
+    save_show_or_return='show',
+    save_kwargs={},
 ):
     """Plot nearest neighbor graph of cells used to embed data into low dimension space.
 
@@ -337,7 +361,14 @@ def nneighbors(
             The layers of data to represent the gene expression level.
         highlights: `list`, `list of list` or None (default: `None`)
             The list that cells will be restricted to.
-        %(con_base.parameters.no_edge_df)s
+        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save function. By default it is an empty dictionary and the save function
+            will use the {"path": None, "prefix": 'nneighbors', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
+        %(con_base.parameters.no_edge_df|save_show_or_return|save_kwargs)s
 
     Returns
     -------
@@ -407,7 +438,7 @@ def nneighbors(
         )
 
     if total_panels > 1:
-        plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)
+        g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)
         gs = plt.GridSpec(nrow, ncol)
 
     i = 0
@@ -471,8 +502,17 @@ def nneighbors(
                 ax.set_ylabel(cur_b + "_2")
                 ax.set_title(cur_c)
 
-    plt.tight_layout()
-    plt.show()
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'nneighbors', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return g
 
 
 def pgraph():
