@@ -604,10 +604,9 @@ def permute_rows_nsign(A):
     """
 
     plmi = np.array([+1, -1])
-    for i in range(A.shape[0]):
-        np.random.shuffle(A[i, :])
-        A[i, :] = A[i, :] * np.random.choice(plmi, size=A.shape[1])
-
+    for i in range(A.shape[1]):
+        np.random.shuffle(A[:, i])
+        A[:, i] = A[:, i] * np.random.choice(plmi, size=A.shape[0])
 
 
 def embed_velocity(adata, x_basis, v_basis='velocity', emb_basis='X_pca', velocity_gene_tag='velocity_genes',

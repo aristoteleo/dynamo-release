@@ -895,8 +895,6 @@ def phase_portraits(
             ax6.set_xlabel(basis + "_1")
             ax6.set_ylabel(basis + "_2")
 
-    plt.tight_layout()
-    plt.show()
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'phase_portraits', "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
