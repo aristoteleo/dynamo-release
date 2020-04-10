@@ -126,8 +126,10 @@ def phase_portraits(
     _genes = list(set(adata.var.index).intersection(genes))
 
     # avoid object for dtype in the gamma column https://stackoverflow.com/questions/40809503/python-numpy-typeerror-ufunc-isfinite-not-supported-for-the-input-types
+    k_name = 'gamma_k' if adata.uns['dynamics']['experiment_type'] == 'one-shot' else 'gamma'
+
     valid_id = np.isfinite(
-        np.array(adata.var.loc[_genes, "gamma"], dtype="float")
+        np.array(adata.var.loc[_genes, k_name], dtype="float")
     ).flatten()
     genes = np.array(_genes)[valid_id].tolist()
     # idx = [adata.var.index.to_list().index(i) for i in genes]
@@ -222,14 +224,14 @@ def phase_portraits(
         V_vec.A if issparse(V_vec) else V_vec,
     )
 
-    if "gamma" in adata.var.columns:
+    if k_name in adata.var.columns:
         if (
             not ("gamma_b" in adata.var.columns)
             or adata.var.gamma_b.unique()[0] is None
         ):
             adata.var.loc[:, "gamma_b"] = 0
         gamma, velocity_offset = (
-            adata[:, genes].var.gamma.values,
+            adata[:, genes].var.loc[:, k_name].values,
             adata[:, genes].var.gamma_b.values,
         )
         (
@@ -323,7 +325,7 @@ def phase_portraits(
                     [0] * n_cells
                     if (
                         not ("delta_b" in adata.var.columns)
-                        or adata.var.gamma_b.unique() is None
+                        or adata.var.delta_b.unique() is None
                     )
                     else adata.var.delta_b[genes].values
                 )

@@ -415,6 +415,8 @@ class ss_estimation:
         self.aux_param = {
             "alpha_intercept": None,
             "alpha_r2": None,
+            "beta_k": None,
+            "gamma_k": None,
             "gamma_intercept": None,
             "gamma_r2": None,
             "gamma_logLL": None,
@@ -866,7 +868,7 @@ class ss_estimation:
                             )
                         beta, alpha0 = one_shot_gamma_alpha_matrix(k, t_uniq, U)
 
-                        self.parameters["beta"] = beta
+                        self.parameters["beta"], self.aux_param["beta_k"] = beta, k
 
                         U = self.data["uu"] + self.data["ul"]
                         S = U + self.data["su"] + self.data["sl"]
@@ -893,10 +895,11 @@ class ss_estimation:
                         (
                             self.parameters["alpha"],
                             self.parameters["gamma"],
+                            self.aux_param["gamma_k"],
                             self.aux_param["gamma_intercept"],
                             self.aux_param["gamma_r2"],
                             self.aux_param["gamma_logLL"],
-                        ) = ((alpha + alpha0) / 2, gamma, k_intercept, k_r2, k_logLL)
+                        ) = ((alpha + alpha0) / 2, gamma, k, k_intercept, k_r2, k_logLL)
                     elif np.all(self._exist_data("uu", "ul")):
                         k, k_intercept, k_r2, k_logLL = (
                             np.zeros(n),
@@ -929,10 +932,11 @@ class ss_estimation:
                         (
                             self.parameters["alpha"],
                             self.parameters["gamma"],
+                            self.aux_param["gamma_k"],
                             self.aux_param["gamma_intercept"],
                             self.aux_param["gamma_r2"],
                             self.aux_param["gamma_logLL"],
-                        ) = (alpha, gamma, k_intercept, k_r2, k_logLL)
+                        ) = (alpha, gamma, k, k_intercept, k_r2, k_logLL)
             elif self.extyp.lower() == "mix_std_stm":
                 t_min, t_max = np.min(self.t), np.max(self.t)
                 if np.all(self._exist_data("ul", "uu", "su")):
