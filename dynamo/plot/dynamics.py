@@ -101,6 +101,7 @@ def phase_portraits(
 
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
+    from matplotlib.colors import DivergingNorm
 
     if background is not None:
         set_figure_params(background=background)
@@ -117,6 +118,8 @@ def phase_portraits(
     )  # (0, 0, 0, 1)
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
+    div_scatter_kwargs = scatter_kwargs.copy()
+    div_scatter_kwargs.update({"norm": DivergingNorm(0)})
 
     if type(genes) == str:
         genes = [genes]
@@ -592,13 +595,13 @@ def phase_portraits(
         df_embedding = pd.concat([cur_pd, embedding], axis=1)
         V_vec = cur_pd.loc[:, "velocity"]
 
-        limit = np.nanmax(
-            np.abs(np.nanpercentile(V_vec, [1, 99]))
-        )  # upper and lowe limit / saturation
-
-        V_vec = V_vec + limit  # that is: tmp_colorandum - (-limit)
-        V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
-        V_vec = np.clip(V_vec, 0, 1)
+        # limit = np.nanmax(
+        #     np.abs(np.nanpercentile(V_vec, [1, 99]))
+        # )  # upper and lowe limit / saturation
+        #
+        # V_vec = V_vec + limit  # that is: tmp_colorandum - (-limit)
+        # V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
+        # V_vec = np.clip(V_vec, 0, 1)
 
         if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
             ax2, _ = _matplotlib_points(
@@ -651,7 +654,7 @@ def phase_portraits(
                 width=figsize[0],
                 height=figsize[1],
                 show_legend=legend,
-                **scatter_kwargs
+                **div_scatter_kwargs
             )
         else:
             ax3, _ = _datashade_points(
@@ -667,7 +670,7 @@ def phase_portraits(
                 width=figsize[0],
                 height=figsize[1],
                 show_legend=legend,
-                **scatter_kwargs
+                **div_scatter_kwargs
             )
 
         ax3.set_title(gn + " (" + vkey + ")")
@@ -872,7 +875,7 @@ def phase_portraits(
                     width=figsize[0],
                     height=figsize[1],
                     show_legend=legend,
-                    **scatter_kwargs
+                    **div_scatter_kwargs
                 )
             else:
                 ax6, _ = _datashade_points(
@@ -888,7 +891,7 @@ def phase_portraits(
                     width=figsize[0],
                     height=figsize[1],
                     show_legend=legend,
-                    **scatter_kwargs
+                    **div_scatter_kwargs
                 )
 
             ax6.set_title(gn + " (protein velocity)")
