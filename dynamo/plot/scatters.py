@@ -978,7 +978,7 @@ def scatters(
                 # https://stackoverflow.com/questions/4187185/how-can-i-check-if-my-python-object-is-a-number
                 # answer from Boris.
                 is_not_continous = (
-                    not isinstance(_color[0], Number) or type(_color) == pd.Series
+                    not isinstance(_color[0], Number) or _color.dtype.name == 'category'
                 )
 
                 if is_not_continous:
