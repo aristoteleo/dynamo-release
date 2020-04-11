@@ -24,6 +24,11 @@ def phase_portraits(
     ekey="X",
     basis="umap",
     color=None,
+    highlights=None,
+    discrete_continous_div_themes=None,
+    discrete_continous_div_cmap=None,
+    discrete_continous_div_color_key=[None, None, None],
+    discrete_continous_div_color_key_cmap=None,
     figsize=(7, 5),
     ncols=None,
     legend="upper left",
@@ -36,7 +41,12 @@ def phase_portraits(
     save_kwargs={},
     **kwargs,
 ):
-    """Draw the phase portrait, velocity, expression values on the low dimensional embedding.
+    """Draw the phase portrait, expression values , velocity on the low dimensional embedding.
+    Note that this function allows to manually set the theme, cmap, color_key and color_key_cmap
+    for the phase portrait, expression and velocity subplots. When the background is 'black',
+    the default themes for each of those subplots are  ["glasbey_dark", "inferno", "div_blue_black_red"],
+    respectively. When the background is 'black', the default themes are  "glasbey_white", "viridis",
+    "div_blue_red".
 
     Parameters
     ----------
@@ -60,6 +70,48 @@ def phase_portraits(
         color: `string` (default: None)
             Which group will be used to color cells, only used for the phase portrait because the other two plots are colored
             by the velocity magnitude or the gene expression value, respectively.
+        highlights: `list` (default: None)
+            Which color group will be highlighted. if highligts is a list of lists - each list is relate to each color element.
+        discrete_continous_div_themes: `list[str, str, str]` (optional, default None)
+            The discrete, continous and divergent color themes to use for plotting. The description for each element in the list is as following.
+            A small set of predefined themes are provided which have relatively good aesthetics. Available themes are:
+               * 'blue'
+               * 'red'
+               * 'green'
+               * 'inferno'
+               * 'fire'
+               * 'viridis'
+               * 'darkblue'
+               * 'darkred'
+               * 'darkgreen'
+        discrete_continous_div_cmap: `list[str, str, str]`  (optional, default 'Blues')
+            The names of  discrete, continous and divergent matplotlib colormap to use for coloring
+            or shading points. The description for each element in the list is as following. If no labels or values are passed
+            this will be used for shading points according to
+            density (largely only of relevance for very large
+            datasets). If values are passed this will be used for
+            shading according the value. Note that if theme
+            is passed then this value will be overridden by the
+            corresponding option of the theme.
+        discrete_continous_div_color_key: `list[dict or array,, dict or array,, dict or array,]` (default [None, None, None])
+         The description for each element in the list is as following. The shape (n_categories) (optional, default None)
+            A list to assign discrete, continous and divergent colors to categoricals. This can either be
+            an explicit dict mapping labels to colors (as strings of form
+            '#RRGGBB'), or an array like object providing one color for
+            each distinct category being provided in ``labels``. Either
+            way this mapping will be used to color points according to
+            the label. Note that if theme
+            is passed then this value will be overridden by the
+            corresponding option of the theme.
+        discrete_continous_div_color_key_cmap: `list[str, str, str]`, (optional, default 'Spectral')
+            The names of discrete, continous and divergent matplotlib colormap to use for categorical coloring.
+            The description for each element in the list is as following.
+            If an explicit ``color_key`` is not given a color mapping for
+            categories can be generated from the label list and selecting
+            a matching list of colors from the given colormap. Note
+            that if theme
+            is passed then this value will be overridden by the
+            corresponding option of the theme.
         figsize: `None` or `[float, float]` (default: None)
                 The width and height of a figure.
         ncols: `None` or `int` (default: None)
@@ -143,7 +195,9 @@ def phase_portraits(
         )
 
     if not "X_" + basis in adata.obsm.keys():
-        raise Exception("{} is not applied to adata.".format(basis))
+        warnings.warn("{} is not applied to adata.".format(basis))
+        from ..tools.dimension_reduction import reduceDimension
+        reduceDimension(adata, reduction_method=basis)
     else:
         embedding = pd.DataFrame(
             {
@@ -409,32 +463,35 @@ def phase_portraits(
     else:
         g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow))  # , dpi=160
 
-    if rcParams.get("figure.facecolor") == "black":
-        discrete_theme, continous_theme, divergent_theme = (
-            "glasbey_dark",
-            "inferno",
-            "div_blue_black_red",
-        )
+    if discrete_continous_div_themes is None:
+        if rcParams.get("figure.facecolor") == "black":
+            discrete_theme, continous_theme, divergent_theme = (
+                "glasbey_dark",
+                "inferno",
+                "div_blue_black_red",
+            )
+        else:
+            discrete_theme, continous_theme, divergent_theme = (
+                "glasbey_white",
+                "viridis",
+                "div_blue_red",
+            )
     else:
-        discrete_theme, continous_theme, divergent_theme = (
-            "glasbey_white",
-            "viridis",
-            "div_blue_red",
-        )
+        discrete_theme, continous_theme, divergent_theme = discrete_continous_div_themes
 
     discrete_cmap, discrete_color_key_cmap, discrete_background = (
-        _themes[discrete_theme]["cmap"],
-        _themes[discrete_theme]["color_key_cmap"],
+        _themes[discrete_theme]["cmap"] if discrete_continous_div_cmap is None else discrete_continous_div_cmap[0],
+        _themes[discrete_theme]["color_key_cmap"] if discrete_continous_div_color_key_cmap is None else discrete_continous_div_color_key_cmap[0],
         _themes[discrete_theme]["background"],
     )
     continous_cmap, continous_color_key_cmap, continous_background = (
-        _themes[continous_theme]["cmap"],
-        _themes[continous_theme]["color_key_cmap"],
+        _themes[continous_theme]["cmap"] if discrete_continous_div_cmap is None else discrete_continous_div_cmap[1],
+        _themes[continous_theme]["color_key_cmap"] if discrete_continous_div_color_key_cmap is None else discrete_continous_div_color_key_cmap[1],
         _themes[continous_theme]["background"],
     )
     divergent_cmap, divergent_color_key_cmap, divergent_background = (
-        _themes[divergent_theme]["cmap"],
-        _themes[divergent_theme]["color_key_cmap"],
+        _themes[divergent_theme]["cmap"] if discrete_continous_div_cmap is None else discrete_continous_div_cmap[2],
+        _themes[divergent_theme]["color_key_cmap"] if discrete_continous_div_color_key_cmap is None else discrete_continous_div_color_key_cmap[2],
         _themes[divergent_theme]["background"],
     )
 
@@ -470,9 +527,9 @@ def phase_portraits(
                     ax=ax1,
                     labels=None,
                     values=cur_pd.loc[:, "expression"].values,
-                    highlights=None,
+                    highlights=highlights,
                     cmap=continous_cmap,
-                    color_key=None,
+                    color_key=discrete_continous_div_color_key[1],
                     color_key_cmap=continous_color_key_cmap,
                     background=continous_background,
                     width=figsize[0],
@@ -486,9 +543,9 @@ def phase_portraits(
                     ax=ax1,
                     labels=None,
                     values=cur_pd.loc[:, "expression"].values,
-                    highlights=None,
+                    highlights=highlights,
                     cmap=continous_cmap,
-                    color_key=None,
+                    color_key=discrete_continous_div_color_key[1],
                     color_key_cmap=continous_color_key_cmap,
                     background=continous_background,
                     width=figsize[0],
@@ -503,9 +560,9 @@ def phase_portraits(
                     ax=ax1,
                     labels=cur_pd.loc[:, "color"],
                     values=None,
-                    highlights=None,
+                    highlights=highlights,
                     cmap=discrete_cmap,
-                    color_key=None,
+                    color_key=discrete_continous_div_color_key[0],
                     color_key_cmap=discrete_color_key_cmap,
                     background=discrete_background,
                     width=figsize[0],
@@ -519,9 +576,9 @@ def phase_portraits(
                     ax=ax1,
                     labels=cur_pd.loc[:, "color"],
                     values=None,
-                    highlights=None,
+                    highlights=highlights,
                     cmap=discrete_cmap,
-                    color_key=None,
+                    color_key=discrete_continous_div_color_key[0],
                     color_key_cmap=discrete_color_key_cmap,
                     background=discrete_background,
                     width=figsize[0],
@@ -611,9 +668,9 @@ def phase_portraits(
                 ax=ax2,
                 labels=None,
                 values=cur_pd.loc[:, "expression"].values,
-                highlights=None,
+                highlights=highlights,
                 cmap=continous_cmap,
-                color_key=None,
+                color_key=discrete_continous_div_color_key[1],
                 color_key_cmap=continous_color_key_cmap,
                 background=continous_background,
                 width=figsize[0],
@@ -627,9 +684,9 @@ def phase_portraits(
                 ax=ax2,
                 labels=None,
                 values=cur_pd.loc[:, "expression"].values,
-                highlights=None,
+                highlights=highlights,
                 cmap=continous_cmap,
-                color_key=None,
+                color_key=discrete_continous_div_color_key[1],
                 color_key_cmap=continous_color_key_cmap,
                 background=continous_background,
                 width=figsize[0],
@@ -648,9 +705,9 @@ def phase_portraits(
                 ax=ax3,
                 labels=None,
                 values=V_vec.values,
-                highlights=None,
+                highlights=highlights,
                 cmap=divergent_cmap,
-                color_key=None,
+                color_key=discrete_continous_div_color_key[2],
                 color_key_cmap=divergent_color_key_cmap,
                 background=divergent_background,
                 width=figsize[0],
@@ -664,9 +721,9 @@ def phase_portraits(
                 ax=ax3,
                 labels=None,
                 values=V_vec.values,
-                highlights=None,
+                highlights=highlights,
                 cmap=divergent_cmap,
-                color_key=None,
+                color_key=discrete_continous_div_color_key[2],
                 color_key_cmap=divergent_color_key_cmap,
                 background=divergent_background,
                 width=figsize[0],
@@ -691,9 +748,9 @@ def phase_portraits(
                         ax=ax4,
                         labels=None,
                         values=cur_pd.loc[:, "expression"].values,
-                        highlights=None,
+                        highlights=highlights,
                         cmap=continous_cmap,
-                        color_key=None,
+                        color_key=discrete_continous_div_color_key[1],
                         color_key_cmap=continous_color_key_cmap,
                         background=continous_background,
                         width=figsize[0],
@@ -707,9 +764,9 @@ def phase_portraits(
                         ax=ax4,
                         labels=None,
                         values=cur_pd.loc[:, "expression"].values,
-                        highlights=None,
+                        highlights=highlights,
                         cmap=continous_cmap,
-                        color_key=None,
+                        color_key=discrete_continous_div_color_key[1],
                         color_key_cmap=continous_color_key_cmap,
                         background=continous_background,
                         width=figsize[0],
@@ -724,9 +781,9 @@ def phase_portraits(
                         ax=ax4,
                         labels=color,
                         values=None,
-                        highlights=None,
+                        highlights=highlights,
                         cmap=discrete_cmap,
-                        color_key=None,
+                        color_key=discrete_continous_div_color_key[0],
                         color_key_cmap=discrete_color_key_cmap,
                         background=discrete_background,
                         width=figsize[0],
@@ -740,9 +797,9 @@ def phase_portraits(
                         ax=ax4,
                         labels=color,
                         values=None,
-                        highlights=None,
+                        highlights=highlights,
                         cmap=discrete_cmap,
-                        color_key=None,
+                        color_key=discrete_continous_div_color_key[0],
                         color_key_cmap=discrete_color_key_cmap,
                         background=discrete_background,
                         width=figsize[0],
@@ -832,9 +889,9 @@ def phase_portraits(
                     ax=ax5,
                     labels=None,
                     values=embedding.loc[:, "P"].values,
-                    highlights=None,
+                    highlights=highlights,
                     cmap=continous_cmap,
-                    color_key=None,
+                    color_key=discrete_continous_div_color_key[1],
                     color_key_cmap=continous_color_key_cmap,
                     background=continous_background,
                     width=figsize[0],
@@ -848,9 +905,9 @@ def phase_portraits(
                     ax=ax5,
                     labels=None,
                     values=embedding.loc[:, "P"].values,
-                    highlights=None,
+                    highlights=highlights,
                     cmap=continous_cmap,
-                    color_key=None,
+                    color_key=discrete_continous_div_color_key[1],
                     color_key_cmap=continous_color_key_cmap,
                     background=continous_background,
                     width=figsize[0],
@@ -869,9 +926,9 @@ def phase_portraits(
                     ax=ax6,
                     labels=None,
                     values=V_vec.values,
-                    highlights=None,
+                    highlights=highlights,
                     cmap=divergent_cmap,
-                    color_key=None,
+                    color_key=discrete_continous_div_color_key[2],
                     color_key_cmap=divergent_color_key_cmap,
                     background=divergent_background,
                     width=figsize[0],
@@ -885,9 +942,9 @@ def phase_portraits(
                     ax=ax6,
                     labels=None,
                     values=V_vec.values,
-                    highlights=None,
+                    highlights=highlights,
                     cmap=divergent_cmap,
-                    color_key=None,
+                    color_key=discrete_continous_div_color_key[2],
                     color_key_cmap=divergent_color_key_cmap,
                     background=divergent_background,
                     width=figsize[0],
