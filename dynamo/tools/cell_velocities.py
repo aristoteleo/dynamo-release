@@ -281,7 +281,7 @@ def cell_velocities(
 
     if calc_rnd_vel:
         adata.uns["transition_matrix_rnd"] = T_rnd
-        adata.obsm["X_" + basis + "_rnd"] = delta_X_rnd
+        adata.obsm["X_" + basis + "_rnd"] = X_embedding
         adata.obsm["velocity_" + basis + "_rnd"] = delta_X_rnd
         adata.uns["grid_velocity_" + basis + "_rnd"] = {
             "X_grid": X_grid_rnd,
