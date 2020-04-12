@@ -198,14 +198,14 @@ def phase_portraits(
         warnings.warn("{} is not applied to adata.".format(basis))
         from ..tools.dimension_reduction import reduceDimension
         reduceDimension(adata, reduction_method=basis)
-    else:
-        embedding = pd.DataFrame(
-            {
-                basis + "_0": adata.obsm["X_" + basis][:, x],
-                basis + "_1": adata.obsm["X_" + basis][:, y],
-            }
-        )
-        embedding.columns = ["dim_1", "dim_2"]
+
+    embedding = pd.DataFrame(
+        {
+            basis + "_0": adata.obsm["X_" + basis][:, x],
+            basis + "_1": adata.obsm["X_" + basis][:, y],
+        }
+    )
+    embedding.columns = ["dim_1", "dim_2"]
 
     if all([i in adata.layers.keys() for i in ["X_new", "X_total"]]) or all(
         [i in adata.layers.keys() for i in [mapper["X_new"], mapper["X_total"]]]
