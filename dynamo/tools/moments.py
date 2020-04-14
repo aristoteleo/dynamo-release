@@ -123,6 +123,27 @@ def moments(adata, use_gaussian_kernel=True, use_mnn=False, layers="all"):
 
 # ---------------------------------------------------------------------------------------------------
 # use for kinetic assumption
+def get_layer_pair(layer):
+    pair = {'new': "old", 'old': "new",
+            'X_new': "X_total", "X_total": 'X_new'}
+    return pair[layer]
+
+def prepare_data_deterministic(adata, genes, time, layers, log=False):
+    m = [None] * len(layers)
+    v = [None] * len(layers)
+    for i, layer in enumerate(layers):
+        if layer in ['X_total', 'total']:
+            x_layer = adata[:, genes].layers[layer]
+            x_layer = adata[:, genes].layers[get_layer_pair(layer)] - x_layer
+            x_layer = np.log(x_layer+1) if log else x_layer
+        else:
+            x_layer = adata[:, genes].layers[layer].A
+            x_layer = np.log(x_layer+1) if log else x_layer
+
+        m[i], v[i], _ = calc_12_mom_labeling(x_layer, time)
+
+    return m, v # each list element corresponds to a layer
+
 def prepare_data_has_splicing(adata, genes, time, layer_u, layer_s):
     """Prepare data when assumption is kinetic and data has splicing"""
     res = [0] * len(genes)
@@ -221,21 +242,22 @@ def gaussian_kernel(X, nbr_idx, sigma, k=None, dists=None):
     return csr_matrix(W)
 
 
-def calc_12_mom_labeling(data, t):
+def calc_12_mom_labeling(data, t, calculate_2_mom=True):
     t_uniq = np.unique(t)
-    m, v = (
-        np.zeros((data.shape[0], len(t_uniq))),
-        np.zeros((data.shape[0], len(t_uniq))),
-    )
+
+    m = np.zeros((data.shape[0], len(t_uniq)))
+    if calculate_2_mom: v =np.zeros((data.shape[0], len(t_uniq)))
+
     for i in range(data.shape[0]):
         data_ = (
             np.array(data[i].A.flatten(), dtype=float)
             if issparse(data)
             else np.array(data[i], dtype=float)
         )  # consider using the `adata.obs_vector`, `adata.var_vector` methods or accessing the array directly.
-        m[i], v[i] = strat_mom(data_, t, np.nanmean), strat_mom(data_, t, np.nanvar)
+        m[i] = strat_mom(data_, t, np.nanmean)
+        if calculate_2_mom: v[i] = strat_mom(data_, t, np.nanvar)
 
-    return m, v, t_uniq
+    return (m, v, t_uniq) if calculate_2_mom else (m, t_uniq)
 
 
 def calc_1nd_moment(X, W, normalize_W=True):

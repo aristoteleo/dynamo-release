@@ -1200,6 +1200,14 @@ def collapse_adata(adata):
     return adata
 
 
+def unique_var_obs_adata(adata):
+    """Function to collapse the four species data, will be generalized to handle dual-datasets"""
+    adata.obs_names_make_unique()
+    adata.var_names_make_unique()
+
+    return adata
+
+
 def recipe_monocle(
     adata,
     normalized=None,
@@ -1266,6 +1274,7 @@ def recipe_monocle(
             A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions, etc.
     """
 
+    adata = unique_var_obs_adata(adata)
     adata = collapse_adata(adata)
 
     _szFactor, _logged = False, False
