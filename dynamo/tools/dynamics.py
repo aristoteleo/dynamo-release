@@ -433,13 +433,14 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
             if model in ['deterministic', 'stochastic']:
                 layer = 'X_new' if 'X_new' in subset_adata.layers.keys() else 'new'
                 X = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time, layer=layer)
-                X, X_sigma = X[:, 0], X[:, 1]
+                X_sigma = [X[i][1] for i in range(len(X))]
             elif model.startswith('mixture'):
                 layers = ['X_new', 'X_total'] if 'X_new' in subset_adata.layers.keys() else ['new', 'total']
 
                 X, X_sigma = prepare_data_deterministic(subset_adata, subset_adata.var.index, time, layers=layers)
 
             if model == 'deterministic':
+                X = [X[i][0] for i in range(len(X))]
                 _param_ranges = {'alpha': [0, 1000], 'gamma': [0, 1000], }
                 x0 = {'u0': [0, 1000]}
                 Est, simulator = Estimation_DeterministicKinNosp, Deterministic_NoSplicing
@@ -468,31 +469,38 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 Est = Mixture_KinDeg_NoSwitching(Moments_NoSwitchingNoSplicing(), Moments_NoSwitchingNoSplicing())
     elif experiment_type.lower() == 'deg':
         if has_splicing:
-            layer_u = 'X_ul' if 'X_ul' in subset_adata.layers.keys() else 'ul'
-            layer_s = 'X_sl' if 'X_sl' in subset_adata.layers.keys() else 'sl'
-            X = prepare_data_has_splicing(subset_adata, subset_adata.var.index, time, layer_u=layer_u, layer_s=layer_s)
-            X, X_sigma = X[:, [0, 1]], X[:, [2, 3]]
+            if model in ['deterministic', 'stochastic']:
+                layer_u = 'X_ul' if 'X_ul' in subset_adata.layers.keys() else 'ul'
+                layer_s = 'X_sl' if 'X_sl' in subset_adata.layers.keys() else 'sl'
+
+                X = prepare_data_has_splicing(subset_adata, subset_adata.var.index, time, layer_u=layer_u, layer_s=layer_s)
+                X_sigma = [X[i][2, 3] for i in range(len(X))]
+            elif model.startswith('mixture'):
+                layers = ['X_ul', 'X_sl', 'X_uu', 'X_su'] if 'X_ul' in subset_adata.layers.keys() else ['ul', 'sl', 'uu', 'su']
+
+                X, X_sigma = prepare_data_deterministic(subset_adata, subset_adata.var.index, time, layers=layers)
 
             if model == 'deterministic':
+                X = [X[i][0, 1] for i in range(len(X))]
                 _param_ranges = {'beta': [0, 1000], 'gamma': [0, 1000], }
                 x0 = {'u0': [0, 1000], 's0': [0, 1000], }
-                X = X[:, [0, 1]]
                 Est, simulator = Estimation_DeterministicDeg, Deterministic
             elif model == 'stochastic':
-                _param_ranges = {'beta': [0, 1000], 'gamma': [0, 1000],
-                                'u0': [0, 1000], 's0': [0, 1000],
-                                'uu0': [0, 1000], 'ss0': [0, 1000],
-                                'us0': [0, 1000], }
+                X = [X[i] for i in range(len(X))]
+                _param_ranges = {'beta': [0, 1000], 'gamma': [0, 1000], }
+                x0 = {'u0': [0, 1000], 's0': [0, 1000],
+                      'uu0': [0, 1000], 'ss0': [0, 1000],
+                      'us0': [0, 1000], }
                 Est, simulator = Estimation_MomentDeg, Moments_NoSwitching
         else:
             layer = 'X_new' if 'X_new' in subset_adata.layers.keys() else 'new'
             X = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time, layer=layer)
-            X, X_sigma = X[:, 0], X[:, 1]
+            X_sigma = [X[i][1] for i in range(len(X))]
 
             if model == 'deterministic':
+                X = [X[i][0] for i in range(len(X))]
                 _param_ranges = {'gamma': [0, 10], }
                 x0 = {'u0': [0, 1000]}
-                X = X[:, 0]
                 Est, simulator = Estimation_DeterministicDegNosp, Deterministic_NoSplicing
             elif model == 'stochastic':
                 _param_ranges = {'gamma': [0, 10], }
