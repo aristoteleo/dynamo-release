@@ -144,7 +144,7 @@ def prepare_data_deterministic(adata, genes, time, layers, log=False):
 
     return m, v # each list element corresponds to a layer
 
-def prepare_data_has_splicing(adata, genes, time, layer_u, layer_s):
+def prepare_data_has_splicing(adata, genes, time, layer_u, layer_s, return_cov=False):
     """Prepare data when assumption is kinetic and data has splicing"""
     res = [0] * len(genes)
 
@@ -156,7 +156,7 @@ def prepare_data_has_splicing(adata, genes, time, layer_u, layer_s):
         uut = strat_mom(elem_prod(u, u), time, np.mean)
         ust = strat_mom(elem_prod(u, s), time, np.mean)
         sst = strat_mom(elem_prod(s, s), time, np.mean)
-        x = np.array([ut, st, uut, sst, ust])
+        x = np.array([ut, st, uut, sst, ust]) if return_cov else np.array([ut, st, uut, sst])
 
         res[i] = x
 
