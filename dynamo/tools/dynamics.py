@@ -293,14 +293,16 @@ def dynamics(
             params, half_life, cost, logLL, param_ranges = kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_splicing,
                           has_switch=True, param_rngs={}, **est_kwargs)
             a, b, alpha_a, alpha_i, alpha, beta, gamma = (
-                params.loc[:, 'a'] if 'a' in params.columns else None,
-                params.loc[:, 'b'] if 'b' in params.columns else None,
-                params.loc[:, 'alpha_a'] if 'alpha_a' in params.columns else None,
-                params.loc[:, 'alpha_i'] if 'alpha_i' in params.columns else None,
-                params.loc[:, 'alpha'] if 'alpha' in params.columns else None,
-                params.loc[:, 'beta'] if 'beta' in params.columns else None,
-                params.loc[:, 'gamma'] if 'gamma' in params.columns else None,
+                params.loc[:, 'a'].values if 'a' in params.columns else None,
+                params.loc[:, 'b'].values if 'b' in params.columns else None,
+                params.loc[:, 'alpha_a'].values if 'alpha_a' in params.columns else None,
+                params.loc[:, 'alpha_i'].values if 'alpha_i' in params.columns else None,
+                params.loc[:, 'alpha'].values if 'alpha' in params.columns else None,
+                params.loc[:, 'beta'].values if 'beta' in params.columns else None,
+                params.loc[:, 'gamma'].values if 'gamma' in params.columns else None,
             )
+            if alpha is None:
+                alpha = fbar(a, b, alpha_a, 0) if alpha_i is None else fbar(a, b, alpha_a, alpha_i)
             all_kinetic_params = ['a', 'b', 'alpha_a', 'alpha_i', 'alpha', 'beta', 'gamma']
 
             extra_params = params.loc[:, params.columns.difference(all_kinetic_params)]
@@ -524,6 +526,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
     n_genes = subset_adata.n_vars
     cost, logLL = np.zeros(n_genes), np.zeros(n_genes)
     all_keys = list(_param_ranges.keys()) + list(x0.keys())
+    all_keys = [cur_key for cur_key in all_keys if cur_key != 'alpha_i']
     half_life, Estm = np.zeros(n_genes), [None] * n_genes #np.zeros((len(X), len(all_keys)))
 
     for i_gene in tqdm(range(n_genes), desc="estimating kinetic-parameters using kinetic model"):
@@ -553,3 +556,9 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
 
     return Estm_df, half_life, cost, logLL, _param_ranges
 
+
+def fbar(a, b, alpha_a, alpha_i):
+    if any([i is None for i in [a, b, alpha_a, alpha_i]]):
+        return None
+    else:
+        return b / (a + b) * alpha_a + a / (a + b) * alpha_i
