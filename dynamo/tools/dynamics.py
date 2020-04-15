@@ -523,7 +523,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
 
     cost, logLL = np.zeros(len(X)), np.zeros(len(X))
     all_keys = list(_param_ranges.keys()) + list(x0.keys())
-    half_life, Estm = np.zeros(len(X)), np.zeros((len(X), len(all_keys)))
+    half_life, Estm = np.zeros(len(X)), [None] * len(X) #np.zeros((len(X), len(all_keys)))
 
     for i_gene in tqdm(range(len(X)), desc="estimating kinetic-parameters using kinetic model"):
         if model.startswith('mixture'):
@@ -548,7 +548,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
         # gof.prepare_data(time, cur_X_data, cur_sigma, normalize=False)
         # logLL[i_gene] = gof.calc_gaussian_loglikelihood()
 
-    Estm_df = pd.DataFrame(Estm, columns=[*all_keys])
+    Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[:len(Estm[0])]])
 
     return Estm_df, half_life, cost, logLL, _param_ranges
 
