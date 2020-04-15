@@ -521,11 +521,12 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
     param_ranges = [ran for ran in _param_ranges.values()]
     x0_ = np.vstack([ran for ran in x0.values()]).T
 
-    cost, logLL = np.zeros(len(X)), np.zeros(len(X))
+    n_genes = subset_adata.n_vars
+    cost, logLL = np.zeros(n_genes), np.zeros(n_genes)
     all_keys = list(_param_ranges.keys()) + list(x0.keys())
-    half_life, Estm = np.zeros(len(X)), [None] * len(X) #np.zeros((len(X), len(all_keys)))
+    half_life, Estm = np.zeros(n_genes), [None] * n_genes #np.zeros((len(X), len(all_keys)))
 
-    for i_gene in tqdm(range(len(X)), desc="estimating kinetic-parameters using kinetic model"):
+    for i_gene in tqdm(range(n_genes), desc="estimating kinetic-parameters using kinetic model"):
         if model.startswith('mixture'):
             estm = Est
             cur_X_data = np.vstack([X[i_layer][i_gene] for i_layer in range(len(X))])
