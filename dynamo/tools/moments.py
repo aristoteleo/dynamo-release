@@ -144,17 +144,31 @@ def prepare_data_deterministic(adata, genes, time, layers, log=False):
 
     return m, v # each list element corresponds to a layer
 
-def prepare_data_has_splicing(adata, genes, time, layer_u, layer_s, return_cov=False):
+def prepare_data_has_splicing(adata, genes, time, layer_u, layer_s,
+                              use_total_layers=True,
+                              return_cov=False):
     """Prepare data when assumption is kinetic and data has splicing"""
-    from ..preprocessing.utils import normalize_util
+    from ..preprocessing.utils import sz_util, normalize_util
     res = [0] * len(genes)
 
-    U = normalize_util(adata.layers[layer_u][:, genes], szfactors, relative_expr=True, pseudo_expr=0, norm_method=None)
-    S = normalize_util(adata.layers[layer_s][:, genes], szfactors, relative_expr=True, pseudo_expr=0, norm_method=None)
+    if use_total_layers:
+        if 'total_Size_Factor' not in adata.obs.keys():
+            total_layers = ["uu", "ul", "su", "sl"]
+            sfs, _ = sz_util(adata, '_total_', False, "median", np.nanmean, total_layers=total_layers)
+            sfs_u, sfs_s = sfs, sfs
+        else:
+            sfs = adata.obs.total_Size_Factor
+            sfs_u, sfs_s = sfs, sfs
+    else:
+        sfs_u, _ = sz_util(adata, layer_u, False, "median", np.nanmean, total_layers=None)
+        sfs_s, _ = sz_util(adata, layer_s, False, "median", np.nanmean, total_layers=None)
+
+    U = normalize_util(adata.layers[layer_u][:, genes], sfs_u, relative_expr=True, pseudo_expr=0, norm_method=None)
+    S = normalize_util(adata.layers[layer_s][:, genes], sfs_s, relative_expr=True, pseudo_expr=0, norm_method=None)
 
     for i, g in enumerate(genes):
-        u = U[:, i].A.flatten()
-        s = S[:, i].A.flatten()
+        u = U[:, i].A.flatten() if issparse(U) else U[:, i]
+        s = S[:, i].A.flatten() if issparse(S) else S[:, i]
         ut = strat_mom(u, time, np.mean)
         st = strat_mom(s, time, np.mean)
         uut = strat_mom(elem_prod(u, u), time, np.mean)
@@ -167,12 +181,23 @@ def prepare_data_has_splicing(adata, genes, time, layer_u, layer_s, return_cov=F
     return res
 
 
-def prepare_data_no_splicing(adata, genes, time, layer):
+def prepare_data_no_splicing(adata, genes, time, layer, use_total_layers=True):
     """Prepare data when assumption is kinetic and data has no splicing"""
+    from ..preprocessing.utils import get_sz_exprs, sz_util, normalize_util
     res = [0] * len(genes)
 
+    if use_total_layers:
+        if 'total_Size_Factor' not in adata.obs.keys():
+            sfs, _ = sz_util(adata, 'total', False, "median", np.nanmean, total_layers=None)
+        else:
+            sfs = adata.obs.total_Size_Factor
+    else:
+        sfs, _ = sz_util(adata, layer, False, "median", np.nanmean, total_layers=None)
+
+    U = normalize_util(adata.layers[layer][:, genes], sfs, relative_expr=True, pseudo_expr=0, norm_method=None)
+
     for i, g in enumerate(genes):
-        u = adata.layers[layer][:, adata.var.index == g].A.flatten()
+        u = U[:, i].A.flatten() if issparse(U) else U[:, i]
         ut = strat_mom(u, time, np.mean)
         uut = strat_mom(elem_prod(u, u), time, np.mean)
         res[i] = np.array([ut, uut])

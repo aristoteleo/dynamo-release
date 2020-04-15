@@ -122,8 +122,8 @@ def normalize_expr_data(
             The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
         total_szfactor: `str` (default: `total_Size_Factor`)
             The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
-        norm_method: `function` (default: `np.log`)
-            The method used to normalize data. Can be either `log` or `log2`.
+        norm_method: `function` or `str` (default: `np.log`)
+            The method used to normalize data. Can be either function `np.log`, function `np.log2` or string `clr`.
         pseudo_expr: `int` (default: `1`)
             A pseudocount added to the gene expression value before log/log2 normalization.
         relative_expr: `bool` (default: `True`)

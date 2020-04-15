@@ -378,20 +378,21 @@ def dynamics(
     return adata
 
 
-def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_splicing, has_switch, param_rngs, **est_kwargs):
+def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_splicing, has_switch, param_rngs, only_sfs=True, **est_kwargs):
     import inspect
     time = subset_adata.obs[tkey].astype('float')
 
     if experiment_type.lower() == 'kin':
         if has_splicing:
             if model in ['deterministic', 'stochastic']:
-                layer_u = 'X_ul' if 'X_ul' in subset_adata.layers.keys() else 'ul'
-                layer_s = 'X_sl' if 'X_sl' in subset_adata.layers.keys() else 'sl'
+                layer_u = 'X_ul' if ('X_ul' in subset_adata.layers.keys() and not only_sfs) else 'ul'
+                layer_s = 'X_sl' if ('X_sl' in subset_adata.layers.keys() and not only_sfs) else 'sl'
 
                 X = prepare_data_has_splicing(subset_adata, subset_adata.var.index, time, layer_u=layer_u, layer_s=layer_s)
                 X_sigma = [X[i][[2, 3], :] for i in range(len(X))]
             elif model.startswith('mixture'):
-                layers = ['X_ul', 'X_sl', 'X_uu', 'X_su'] if 'X_ul' in subset_adata.layers.keys() else ['ul', 'sl', 'uu', 'su']
+                layers = ['X_ul', 'X_sl', 'X_uu', 'X_su'] if ('X_ul' in subset_adata.layers.keys() and not only_sfs) \
+                    else ['ul', 'sl', 'uu', 'su']
 
                 X, X_sigma = prepare_data_deterministic(subset_adata, subset_adata.var.index, time, layers=layers)
 
@@ -433,11 +434,11 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 Est = Mixture_KinDeg_NoSwitching(Moments_NoSwitching(), Moments_NoSwitching())
         else:
             if model in ['deterministic', 'stochastic']:
-                layer = 'X_new' if 'X_new' in subset_adata.layers.keys() else 'new'
+                layer = 'X_new' if 'X_new' in (subset_adata.layers.keys() and not only_sfs) else 'new'
                 X = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time, layer=layer)
                 X_sigma = [X[i][1, :] for i in range(len(X))]
             elif model.startswith('mixture'):
-                layers = ['X_new', 'X_total'] if 'X_new' in subset_adata.layers.keys() else ['new', 'total']
+                layers = ['X_new', 'X_total'] if ('X_new' in subset_adata.layers.keys() and not only_sfs) else ['new', 'total']
 
                 X, X_sigma = prepare_data_deterministic(subset_adata, subset_adata.var.index, time, layers=layers)
 
@@ -472,13 +473,14 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
     elif experiment_type.lower() == 'deg':
         if has_splicing:
             if model in ['deterministic', 'stochastic']:
-                layer_u = 'X_ul' if 'X_ul' in subset_adata.layers.keys() else 'ul'
-                layer_s = 'X_sl' if 'X_sl' in subset_adata.layers.keys() else 'sl'
+                layer_u = 'X_ul' if ('X_ul' in subset_adata.layers.keys() and not only_sfs) else 'ul'
+                layer_s = 'X_sl' if ('X_sl' in subset_adata.layers.keys() and not only_sfs) else 'sl'
 
                 X = prepare_data_has_splicing(subset_adata, subset_adata.var.index, time, layer_u=layer_u, layer_s=layer_s)
                 X_sigma = [X[i][[2, 3], :] for i in range(len(X))]
             elif model.startswith('mixture'):
-                layers = ['X_ul', 'X_sl', 'X_uu', 'X_su'] if 'X_ul' in subset_adata.layers.keys() else ['ul', 'sl', 'uu', 'su']
+                layers = ['X_ul', 'X_sl', 'X_uu', 'X_su'] if 'X_ul' in (subset_adata.layers.keys() and not only_sfs) \
+                    else ['ul', 'sl', 'uu', 'su']
 
                 X, X_sigma = prepare_data_deterministic(subset_adata, subset_adata.var.index, time, layers=layers)
 
@@ -494,7 +496,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                       'us0': [0, 1000], }
                 Est, simulator = Estimation_MomentDeg, Moments_NoSwitching
         else:
-            layer = 'X_new' if 'X_new' in subset_adata.layers.keys() else 'new'
+            layer = 'X_new' if ('X_new' in subset_adata.layers.keys() and not only_sfs) else 'new'
             X = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time, layer=layer)
             X_sigma = [X[i][1, :] for i in range(len(X))]
 

@@ -262,7 +262,7 @@ def get_svr_filter(adata, layer="spliced", n_top_genes=3000, return_adata=False)
 def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None):
     adata = adata.copy()
 
-    if layer == '_total__' and '_total_' not in adata.layers.keys():
+    if layer == '_total_' and '_total_' not in adata.layers.keys():
         if total_layers is not None:
             if not isinstance(total_layers, list): total_layers = [total_layers]
             if len(set(total_layers).difference(adata.layers.keys())) == 0:
