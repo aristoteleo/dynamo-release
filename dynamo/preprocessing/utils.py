@@ -327,7 +327,7 @@ def get_sz_exprs(adata, layer, total_szfactor=None):
 
     return szfactors, CM
 
-def normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method):
+def normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method=np.log):
     if relative_expr:
         CM = (
             CM.multiply(csr_matrix(1 / szfactors))
@@ -339,15 +339,15 @@ def normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method):
         pseudo_expr = 1
     if issparse(CM):
         CM.data = (
-            np.log2(CM.data + pseudo_expr)
-            if norm_method == "log2"
-            else np.log(CM.data + pseudo_expr)
+            norm_method(CM.data + pseudo_expr)
+            if norm_method is not None
+            else CM.data
         )
     else:
         CM = (
-            np.log2(CM + pseudo_expr)
-            if norm_method == "log2"
-            else np.log(CM + pseudo_expr)
+            norm_method(CM + pseudo_expr)
+            if norm_method is not None
+            else CM
         )
 
     return CM

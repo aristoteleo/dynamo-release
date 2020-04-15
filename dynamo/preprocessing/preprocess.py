@@ -105,7 +105,7 @@ def normalize_expr_data(
     adata,
     layers="all",
     total_szfactor='total_Size_Factor',
-    norm_method="log",
+    norm_method=np.log,
     pseudo_expr=1,
     relative_expr=True,
     keep_filtered=True,
@@ -122,7 +122,7 @@ def normalize_expr_data(
             The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
         total_szfactor: `str` (default: `total_Size_Factor`)
             The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
-        norm_method: `str` (default: `log`)
+        norm_method: `function` (default: `np.log`)
             The method used to normalize data. Can be either `log` or `log2`.
         pseudo_expr: `int` (default: `1`)
             A pseudocount added to the gene expression value before log/log2 normalization.
@@ -172,7 +172,7 @@ def normalize_expr_data(
     for layer in layers:
         szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=total_szfactor)
 
-        if norm_method in ["log", "log2"] and layer is not "protein":
+        if norm_method in [np.log, np.log2] and layer is not "protein":
             CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method)
 
         elif layer is "protein":  # norm_method == 'clr':
@@ -206,7 +206,7 @@ def normalize_expr_data(
         else:
             adata.layers["X_" + layer] = CM
 
-    adata.uns["pp_log"] = norm_method
+    adata.uns["pp_log"] = norm_method.__name__ if callable(norm_method) else norm_method
     return adata
 
 

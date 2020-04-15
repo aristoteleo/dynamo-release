@@ -149,11 +149,12 @@ def prepare_data_has_splicing(adata, genes, time, layer_u, layer_s, return_cov=F
     from ..preprocessing.utils import normalize_util
     res = [0] * len(genes)
 
-    normalize_util(U, szfactors, relative_expr, pseudo_expr, norm_method)
+    U = normalize_util(adata.layers[layer_u][:, genes], szfactors, relative_expr=True, pseudo_expr=0, norm_method=None)
+    S = normalize_util(adata.layers[layer_s][:, genes], szfactors, relative_expr=True, pseudo_expr=0, norm_method=None)
 
     for i, g in enumerate(genes):
-        u = adata.layers[layer_u][:, adata.var.index == g].A.flatten()
-        s = adata.layers[layer_s][:, adata.var.index == g].A.flatten()
+        u = U[:, i].A.flatten()
+        s = S[:, i].A.flatten()
         ut = strat_mom(u, time, np.mean)
         st = strat_mom(s, time, np.mean)
         uut = strat_mom(elem_prod(u, u), time, np.mean)
