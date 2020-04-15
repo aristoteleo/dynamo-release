@@ -479,6 +479,8 @@ def set_param_ss(
         (
             alpha_intercept,
             alpha_r2,
+            beta_k,
+            gamma_k,
             gamma_intercept,
             gamma_r2,
             gamma_logLL,
@@ -543,6 +545,12 @@ def set_param_ss(
         adata.var.loc[valid_ind, kin_param_pre + "U0"] = U0
         adata.var.loc[valid_ind, kin_param_pre + "S0"] = S0
         adata.var.loc[valid_ind, kin_param_pre + "total0"] = total0
+
+        if experiment_type == 'one-shot':
+            adata.var[kin_param_pre + "beta_k"] = None
+            adata.var[kin_param_pre + "gamma_k"] = None
+            adata.var.loc[valid_ind, kin_param_pre + "beta_k"] = beta_k
+            adata.var.loc[valid_ind, kin_param_pre + "gamma_k"] = gamma_k
 
         if ind_for_proteins is not None:
             delta_r2[~np.isfinite(delta_r2)] = 0

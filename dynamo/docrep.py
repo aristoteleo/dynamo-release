@@ -794,7 +794,7 @@ class DocstringProcessor(object):
 
     def save_docstring(self, key):
         """
-        Descriptor method to save a docstring from a function
+        Descriptor method to save_fig a docstring from a function
         Like the :meth:`get_sectionsf` method this method serves as a
         descriptor for functions but saves the entire docstring"""
 

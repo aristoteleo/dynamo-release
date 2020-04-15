@@ -113,12 +113,15 @@ def cook_dist(model, X, good):
 def merge_adata_attrs(adata_ori, adata, attr):
     if attr == 'var':
         _columns = set(adata.var.columns).difference(adata_ori.var.columns)
-        adata_ori.var = adata_ori.var.merge(adata.var[_columns], how='left',
+        var_df = adata_ori.var.merge(adata.var[_columns], how='left',
                                             left_index=True, right_index=True)
+        adata_ori.var = var_df.loc[adata_ori.var.index, :]
     elif attr == 'obs':
         _columns = set(adata.obs.columns).difference(adata_ori.obs.columns)
-        adata_ori.obs = adata_ori.obs.merge(adata.obs[_columns], how='left',
+        obs_df = adata_ori.obs.merge(adata.obs[_columns], how='left',
                                             left_index=True, right_index=True)
+        adata_ori.obs = obs_df.loc[adata_ori.obs.index, :]
+
     return adata_ori
 
 

@@ -62,16 +62,15 @@ def szFactor(
 
         adata = adata_ori[cell_inds, :][:, gene_inds]
 
-    if (
-        total_layers is not None
-        and len(set(total_layers).difference(adata.layers.keys())) == 0
-    ):
-        total = None
-        for t_key in total_layers:
-            total = (
-                adata.layers[t_key] if total is None else total + adata.layers[t_key]
-            )
-        adata.layers["_total_"] = total
+    if total_layers is not None:
+        if not isinstance(total_layers, list): total_layers = [total_layers]
+        if len(set(total_layers).difference(adata.layers.keys())) == 0:
+            total = None
+            for t_key in total_layers:
+                total = (
+                    adata.layers[t_key] if total is None else total + adata.layers[t_key]
+                )
+            adata.layers["_total_"] = total
 
     layers = get_layer_keys(adata, layers)
     if "raw" in layers and adata.raw is None:
@@ -116,9 +115,9 @@ def szFactor(
         elif layer is "X":
             adata.obs["Size_Factor"] = sfs
             adata.obs["initial_cell_size"] = cell_total
-        elif layer is "total_":
+        elif layer is "_total_":
             adata.obs["total_Size_Factor"] = sfs
-            adata.obs["initial_" + layer + "cell_size"] = cell_total
+            adata.obs["initial" + layer + "cell_size"] = cell_total
             del adata.layers["_total_"]
         else:
             adata.obs[layer + "_Size_Factor"] = sfs
@@ -132,7 +131,7 @@ def szFactor(
 def normalize_expr_data(
     adata,
     layers="all",
-    total_szfactor=None,
+    total_szfactor='total_Size_Factor',
     norm_method="log",
     pseudo_expr=1,
     relative_expr=True,
@@ -148,7 +147,7 @@ def normalize_expr_data(
             AnnData object.
         layers: `str` (default: `all`)
             The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
-        total_szfactor: `str` (default: `None`)
+        total_szfactor: `str` (default: `total_Size_Factor`)
             The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
         norm_method: `str` (default: `log`)
             The method used to normalize data. Can be either `log` or `log2`.
@@ -194,7 +193,7 @@ def normalize_expr_data(
             layers=layers,
             locfunc=np.nanmean,
             round_exprs=True,
-            method="mean-geometric-mean-total",
+            method="median",
         )
 
     for layer in layers:
@@ -667,7 +666,7 @@ def SVRs(
     filter_bool=None,
     layers="X",
     relative_expr=True,
-    total_szfactor=None,
+    total_szfactor='total_Size_Factor',
     min_expr_cells=0,
     min_expr_avg=0,
     max_expr_avg=0,
@@ -689,7 +688,7 @@ def SVRs(
             The layer(s) to be used for calculating dispersion score via support vector regression (SVR). Default is X if there is no spliced layers.
         relative_expr: `bool` (default: `True`)
             A logic flag to determine whether we need to divide gene expression values first by size factor before run SVR.
-        total_szfactor: `str` (default: `None`)
+        total_szfactor: `str` (default: `total_Size_Factor`)
             The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
         min_expr_cells: `int` (default: `2`)
             minimum number of cells that express that gene for it to be considered in the fit.
@@ -845,7 +844,7 @@ def SVRs(
             if layer is "raw" or layer is "X"
             else layer + "_velocyto_SVR"
         )
-        adata_ori.uns[key] = {"SVR": fitted_fun, "detected_bool": detected_bool}
+        adata_ori.uns[key] = {"SVR": fitted_fun}
 
     adata_ori = merge_adata_attrs(adata_ori, adata, attr='var')
 
@@ -1105,7 +1104,7 @@ def filter_genes(
 def select_genes(
     adata,
     layer="X",
-    total_szfactor=None,
+    total_szfactor='total_Size_Factor',
     keep_filtered=True,
     sort_by="SVR",
     n_top_genes=2000,
@@ -1119,7 +1118,7 @@ def select_genes(
             AnnData object.
         layer: `str` (default: `X`)
             The data from a particular layer (include X) used for feature selection.
-        total_szfactor: `str` (default: `None`)
+        total_szfactor: `str` (default: `total_Size_Factor`)
             The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
         keep_filtered: `bool` (default: `True`)
             Whether to keep genes that don't pass the filtering in the adata object.
@@ -1184,12 +1183,6 @@ def select_genes(
     else:
         adata._inplace_subset_var(filter_bool)
         adata.var["use_for_dynamo"] = True
-        key = (
-            "velocyto_SVR"
-            if layer is "raw" or layer is "X"
-            else layer + "_velocyto_SVR"
-        )
-        adata.uns[key]["detected_bool"] = True
 
     return adata
 
@@ -1203,6 +1196,14 @@ def collapse_adata(adata):
         adata.layers[only_splicing[1]] = adata.layers['uu'] + adata.layers['ul']
         adata.layers[only_labeling[0]] = adata.layers['ul'] + adata.layers['sl']
         adata.layers[only_labeling[1]] = adata.layers[only_labeling[0]] + adata.layers['uu'] + adata.layers['su']
+
+    return adata
+
+
+def unique_var_obs_adata(adata):
+    """Function to collapse the four species data, will be generalized to handle dual-datasets"""
+    adata.obs_names_make_unique()
+    adata.var_names_make_unique()
 
     return adata
 
@@ -1273,6 +1274,7 @@ def recipe_monocle(
             A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions, etc.
     """
 
+    adata = unique_var_obs_adata(adata)
     adata = collapse_adata(adata)
 
     _szFactor, _logged = False, False

@@ -19,6 +19,7 @@ from .utils import (
 )
 from .utils import is_gene_name, is_cell_anno_column, is_list_of_lists
 from .utils import _matplotlib_points, _datashade_points
+from .utils import save_fig
 
 from ..tools.utils import update_dict
 
@@ -726,7 +727,8 @@ def scatters(
     show_legend=True,
     use_smoothed=True,
     ax=None,
-    save_or_show="show",
+    save_show_or_return="show",
+    save_kwargs={},
     aggregate=None,
     **kwargs
 ):
@@ -749,6 +751,13 @@ def scatters(
             The column index of the low dimensional embedding for the x-axis.
         y: `int` (default: `1`)
             The column index of the low dimensional embedding for the y-axis.
+        color: `string` (default: None)
+            Which group will be used to color cells, only used for the phase portrait because the other two plots are colored
+            by the velocity magnitude or the gene expression value, respectively.
+        layer: `str` (default: `X`)
+            The layer of data to use for the scatter plot.
+        highlights: `list` (default: None)
+            Which color group will be highlighted. if highligts is a list of lists - each list is relate to each color element.
         labels: array, shape (n_samples,) (optional, default None)
             An array of labels (assumed integer or categorical),
             one for each data sample.
@@ -817,6 +826,13 @@ def scatters(
             The desired height of the plot in pixels
         show_legend: bool (optional, default True)
             Whether to display a legend of the labels
+        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
         aggregate: `str` or `None` (default: `None`)
             The column in adata.obs that will be used to aggregate data points.
         kwargs:
@@ -969,7 +985,7 @@ def scatters(
                 # https://stackoverflow.com/questions/4187185/how-can-i-check-if-my-python-object-is-a-number
                 # answer from Boris.
                 is_not_continous = (
-                    not isinstance(_color[0], Number) or type(_color) == pd.Series
+                    not isinstance(_color[0], Number) or _color.dtype.name == 'category'
                 )
 
                 if is_not_continous:
@@ -1074,10 +1090,17 @@ def scatters(
 
                 labels, values = None, None  # reset labels and values
     # dyn.configuration.reset_rcParams()
-    if save_or_show == "show":
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'scatters', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save_fig(**s_kwargs)
+    elif save_show_or_return == "show":
         if show_legend:
             plt.subplots_adjust(right=0.85)
         plt.tight_layout()
         plt.show()
-    elif save_or_show == "return":
+    elif save_show_or_return == "return":
         return axes_list, color_list, font_color
+

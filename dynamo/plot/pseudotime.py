@@ -1,7 +1,14 @@
 import numpy as np
+from ..tools.utils import update_dict
+from .utils import save_fig
 
 
-def plot_direct_graph(adata, layout=None, figsize=[8, 8]):
+def plot_direct_graph(adata,
+                      layout=None,
+                      figsize=[8, 8],
+                      save_show_or_return='show',
+                      save_kwargs={},
+                      ):
     df_mat = adata.uns["df_mat"]
 
     import matplotlib.pyplot as plt
@@ -36,7 +43,7 @@ def plot_direct_graph(adata, layout=None, figsize=[8, 8]):
         #        See :py:mod:`networkx.drawing.layout` for functions that
         #        compute node positions.
 
-        nx.draw(
+        g = nx.draw(
             G,
             with_labels=True,
             node_color="skyblue",
@@ -48,4 +55,15 @@ def plot_direct_graph(adata, layout=None, figsize=[8, 8]):
         )
     else:
         raise Exception("layout", layout, " is not supported.")
-    plt.show()
+
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'plot_direct_graph', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save_fig(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return g

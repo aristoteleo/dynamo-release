@@ -28,18 +28,19 @@ def guestimate_init_cond(x_data):
 
 class kinetic_estimation:
     def __init__(self, param_ranges, x0_ranges, simulator):
-        '''A general parameter estimation framework for all types of time-seris data
+        '''A general parameter estimation framework for all types of time-seris data under kinetic assumption.
         Arguments
         ---------
-            ranges: `numpy.ndarray`
+            param_ranges: `numpy.ndarray`
                 a n-by-2 numpy array containing the lower and upper ranges of n parameters 
                 (and initial conditions if not fixed).
+            x0_ranges: `numpy.ndarray`
+                Initial conditions for the integrators if they are fixed.
             simulator: class
                 an instance of python class which solves ODEs. It should have properties 't' (k time points, 1d numpy array),
                 'x0' (initial conditions for m species, 1d numpy array), and 'x' (solution, k-by-m array), 
                 as well as two functions: integrate (numerical integration), solve (analytical method).
-            x0: `numpy.ndarray`
-                Initial conditions for the integrators if they are fixed.
+
         '''
         self.simulator = simulator
 
@@ -60,6 +61,7 @@ class kinetic_estimation:
                 self.ranges.append(x0_ranges[i]) 
         self.n_params = len(self.ranges)    # the number of unfixed parameters (including initial conditions) 
 
+        self.data = None
         self.popt = None
         self.cost = None
 
@@ -121,7 +123,7 @@ class kinetic_estimation:
         else:
             return None
 
-    def f_lsq(self, params, t, x_data, method=None, normalize=True):
+    def f_lsq(self, params, t, x_data, method=None, normalize=False):
         method = self.simulator.default_method if method is None else method
         if method not in self.simulator.methods: 
             warnings.warn('The simulator does not support method \'{}\'. Using method \'{}\' instead.'.format(method, self.simulator.methods[0]))
@@ -134,14 +136,14 @@ class kinetic_estimation:
         ret[np.isnan(ret)] = 0
         return (ret - x_data).flatten()
 
-    def fit_lsq(self, t, x_data, p0=None, n_p0=1, bounds=None, sample_method='lhs', method=None, normalize=True):
+    def fit_lsq(self, t, x_data, p0=None, n_p0=1, bounds=None, sample_method='lhs', method=None, normalize=False):
         '''Fit time-seris data using least squares
         Arguments
         ---------
             t: `numpy.ndarray`
                 a numpy array of n time points.
             x_data: `numpy.ndarray`
-                a m-by-n numpy a array of m species, each having n values for the n time points.
+                a m-by-n numpy. a array of m species, each having n values for the n time points.
             p0: `numpy.ndarray`
                 Initial guess of parameters.
 
@@ -194,7 +196,7 @@ class kinetic_estimation:
             or 2. raw data: 't' is an array of k time points for k cells, 'x_data' is a m-by-k matrix of data, where m is the number of species. 
             Note that if the method is 'numerical', t has to monotonically increasing.
 
-            If not all species are included in the data, use 'species' to specify the species of interest.
+            If not all species are included in the calculation, use 'species' to specify the species of interest.
 
             Returns
             -------
@@ -560,9 +562,9 @@ class GoodnessOfFit:
         if species is not None: ret = ret[species]
         return ret
 
-    def prepare_data(self, t, x_data, species=None, method=None, normalize=True, reintegrate=True):
+    def prepare_data(self, t, x_data, x_sigma=None, species=None, method=None, normalize=False, reintegrate=True):
         if reintegrate:
-            self.simulator.integrate(t, method=method)
+            self.simulator.integrate(np.unique(t), method=method)
         x_model = self.extract_data_from_simulator(species=species)
         if x_model.ndim == 1:
             x_model = x_model[None]
@@ -573,9 +575,9 @@ class GoodnessOfFit:
             x_data_norm, x_model_norm = self.normalize(x_data, x_model, scale)
         else:
             x_data_norm, x_model_norm = x_data, x_model
-        self.mean = strat_mom(x_data_norm.T, t, np.mean)
-        self.sigm = strat_mom(x_data_norm.T, t, np.std)
-        self.pred = strat_mom(x_model_norm.T, t, np.mean)
+        self.mean = strat_mom(x_data_norm.T, t, np.mean) if x_sigma is None else x_data_norm
+        self.sigm = strat_mom(x_data_norm.T, t, np.std) if x_sigma is None else x_sigma
+        self.pred = x_model_norm # strat_mom(x_model_norm.T, t, np.mean)
 
     def normalize(self, x_data, x_model, scale=None):
         scale = np.max(x_data, 1) if scale is None else scale

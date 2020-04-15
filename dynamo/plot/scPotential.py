@@ -1,4 +1,14 @@
-def show_landscape(adata, Xgrid, Ygrid, Zgrid, basis="umap"):
+from ..tools.utils import update_dict
+from .utils import save_fig
+
+def show_landscape(adata,
+                   Xgrid,
+                   Ygrid,
+                   Zgrid,
+                   basis="umap",
+                   save_show_or_return='show',
+                   save_kwargs={},
+                   ):
     """Plot the quasi-potential landscape.
 
     Parameters
@@ -13,6 +23,13 @@ def show_landscape(adata, Xgrid, Ygrid, Zgrid, basis="umap"):
                 z-coordinates or potential at each of the x/y coordinate.
         basis: `str` (default: umap)
             The method of dimension reduction. By default it is trimap. Currently it is not checked with Xgrid and Ygrid.
+        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            will use the {"path": None, "prefix": 'show_landscape', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
 
     Returns
     -------
@@ -65,7 +82,17 @@ def show_landscape(adata, Xgrid, Ygrid, Zgrid, basis="umap"):
     ax.set_ylabel(basis + "_2")
     ax.set_zlabel("U")
 
-    plt.show()
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'show_landscape', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save_fig(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return ax
 
 
 # show_pseudopot(Xgrid, Ygrid, Zgrid)

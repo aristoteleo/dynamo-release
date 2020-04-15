@@ -17,7 +17,7 @@ setup(
         "cvxopt>=1.2.3",
         "anndata>=0.6.18",
         "loompy>=2.0.12",
-        "matplotlib>=2.2",
+        "matplotlib>=3.1.0",
         "trimap>=1.0.11",
         "setuptools",
         "numdifftools>=0.9.39",

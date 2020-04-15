@@ -3,7 +3,7 @@ import pandas as pd
 from scipy.sparse import issparse
 
 from .scatters import scatters
-from .utils import quiver_autoscaler, default_quiver_args
+from .utils import quiver_autoscaler, default_quiver_args, save_fig
 from ..tools.dimension_reduction import reduceDimension
 from ..tools.cell_velocities import cell_velocities
 from ..tools.Markov import velocity_on_grid, grid_velocity_filter
@@ -12,7 +12,7 @@ from ..tools.utils import update_dict
 
 from .scatters import docstrings
 
-docstrings.delete_params("scatters.parameters", "show_legend", "kwargs")
+docstrings.delete_params("scatters.parameters", "show_legend", "kwargs", "save_kwargs")
 
 import scipy as sc
 
@@ -845,6 +845,8 @@ def line_integral_conv(
     kernellen=100,
     V_threshold=None,
     file=None,
+    save_show_or_return='show',
+    save_kwargs={},
     g_kwargs_dict={},
 ):
     """Visualize vector field with quiver, streamline and line integral convolution (LIC), using velocity estimates on a grid from the associated data.
@@ -880,6 +882,13 @@ def line_integral_conv(
             Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's variation space is a.
         V_threshold: `float` or `None` (default: None)
             The threshold of velocity value for visualization
+        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            will use the {"path": None, "prefix": 'line_integral_conv', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
 
     Returns
     -------
@@ -1009,6 +1018,17 @@ def line_integral_conv(
         velocyto_tex = runlic(V_grid, V_grid, 100)
         plot_LIC_gray(velocyto_tex)
 
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'line_integral_conv', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save_fig(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return g
 
 @docstrings.with_indent(4)
 def cell_wise_velocity(
@@ -1036,6 +1056,8 @@ def cell_wise_velocity(
     cell_ind="all",
     quiver_size=None,
     quiver_length=None,
+    save_show_or_return='show',
+    save_kwargs={},
     s_kwargs_dict={},
     **cell_wise_kwargs,
 ):
@@ -1043,7 +1065,7 @@ def cell_wise_velocity(
 
     Parameters
     ----------
-        %(scatters.parameters.no_show_legend|kwargs)s
+        %(scatters.parameters.no_show_legend|kwargs|save_kwargs)s
         cell_ind: `str` or `list` (default: all)
             the cell index that will be chosen to draw velocity vectors.
         quiver_size: `float` or None (default: None)
@@ -1054,6 +1076,11 @@ def cell_wise_velocity(
             The length of quiver. The quiver length which will be used to calculate scale of quiver. Note that befoe applying
             `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale of quiver indicates
             the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller scale parameter makes the arrow longer.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            will use the {"path": None, "prefix": 'cell_wise_velocity', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
         s_kwargs_dict: `dict` (default: {})
             The dictionary of the scatter arguments.
         cell_wise_kwargs:
@@ -1168,8 +1195,17 @@ def cell_wise_velocity(
             **quiver_kwargs,
         )
 
-    plt.tight_layout()
-    plt.show()
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'cell_wise_velocity', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save_fig(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return axes_list
 
 
 @docstrings.with_indent(4)
@@ -1199,6 +1235,8 @@ def grid_velocity(
     xy_grid_nums=[50, 50],
     quiver_size=None,
     quiver_length=None,
+    save_show_or_return='show',
+    save_kwargs={},
     s_kwargs_dict={},
     q_kwargs_dict={},
     **grid_kwargs,
@@ -1207,7 +1245,7 @@ def grid_velocity(
 
     Parameters
     ----------
-        %(scatters.parameters.no_show_legend|kwargs)s
+        %(scatters.parameters.no_show_legend|kwargs|save_kwargs)s
         method: `str` (default: `SparseVFC`)
             Method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the empirical method
             Gaussian kernel method from RNA velocity (Gaussian).
@@ -1221,6 +1259,11 @@ def grid_velocity(
             The length of quiver. The quiver length which will be used to calculate scale of quiver. Note that befoe applying
             `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale of quiver indicates
             the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller scale parameter makes the arrow longer.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            will use the {"path": None, "prefix": 'grid_velocity', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
         s_kwargs_dict: `dict` (default: {})
             The dictionary of the scatter arguments.
         q_kwargs_dict: `dict` (default: {})
@@ -1363,8 +1406,17 @@ def grid_velocity(
             X_grid[:, 0], X_grid[:, 1], V_grid[:, 0], V_grid[:, 1], **quiver_kwargs
         )
 
-    plt.tight_layout()
-    plt.show()
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'grid_velocity', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save_fig(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return axes_list
 
 
 @docstrings.with_indent(4)
@@ -1393,6 +1445,8 @@ def streamline_plot(
     method="gaussian",
     xy_grid_nums=[50, 50],
     density=1,
+    save_show_or_return='show',
+    save_kwargs={},
     s_kwargs_dict={},
     **streamline_kwargs,
 ):
@@ -1400,7 +1454,7 @@ def streamline_plot(
 
     Parameters
     ----------
-        %(scatters.parameters.no_show_legend|kwargs)s
+        %(scatters.parameters.no_show_legend|kwargs|save_kwargs)s
         method: `str` (default: `SparseVFC`)
             Method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the empirical method
             Gaussian kernel method from RNA velocity (Gaussian).
@@ -1408,6 +1462,11 @@ def streamline_plot(
             the number of grids in either x or y axis.
         density: `float` or None (default: 1)
             density of the plt.streamplot function.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            will use the {"path": None, "prefix": 'streamline_plot', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
         s_kwargs_dict: `dict` (default: {})
             The dictionary of the scatter arguments.
         streamline_kwargs:
@@ -1544,8 +1603,17 @@ def streamline_plot(
             **streamplot_kwargs,
         )
 
-    plt.tight_layout()
-    plt.show()
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'streamline_plot', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save_fig(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return axes_list
 
 
 # refactor line_conv_integration

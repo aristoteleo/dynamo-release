@@ -5,6 +5,7 @@ import warnings
 from scipy.sparse import issparse
 from .utils import despline, _matplotlib_points, _datashade_points, _select_font_color
 from .utils import quiver_autoscaler, default_quiver_args
+from .utils import save_fig
 from .scatters import scatters
 from ..tools.velocity import sol_u, sol_s, solve_first_order_deg
 from ..tools.utils_moments import moments
@@ -23,17 +24,29 @@ def phase_portraits(
     ekey="X",
     basis="umap",
     color=None,
+    highlights=None,
+    discrete_continous_div_themes=None,
+    discrete_continous_div_cmap=None,
+    discrete_continous_div_color_key=[None, None, None],
+    discrete_continous_div_color_key_cmap=None,
     figsize=(7, 5),
     ncols=None,
-    legend="on data",
+    legend="upper left",
     background=None,
     show_quiver=False,
     quiver_size=None,
     quiver_length=None,
     q_kwargs_dict={},
-    **kwargs
+    save_show_or_return='show',
+    save_kwargs={},
+    **kwargs,
 ):
-    """Draw the phase portrait, velocity, expression values on the low dimensional embedding.
+    """Draw the phase portrait, expression values , velocity on the low dimensional embedding.
+    Note that this function allows to manually set the theme, cmap, color_key and color_key_cmap
+    for the phase portrait, expression and velocity subplots. When the background is 'black',
+    the default themes for each of those subplots are  ["glasbey_dark", "inferno", "div_blue_black_red"],
+    respectively. When the background is 'black', the default themes are  "glasbey_white", "viridis",
+    "div_blue_red".
 
     Parameters
     ----------
@@ -57,6 +70,48 @@ def phase_portraits(
         color: `string` (default: None)
             Which group will be used to color cells, only used for the phase portrait because the other two plots are colored
             by the velocity magnitude or the gene expression value, respectively.
+        highlights: `list` (default: None)
+            Which color group will be highlighted. if highligts is a list of lists - each list is relate to each color element.
+        discrete_continous_div_themes: `list[str, str, str]` (optional, default None)
+            The discrete, continous and divergent color themes to use for plotting. The description for each element in the list is as following.
+            A small set of predefined themes are provided which have relatively good aesthetics. Available themes are:
+               * 'blue'
+               * 'red'
+               * 'green'
+               * 'inferno'
+               * 'fire'
+               * 'viridis'
+               * 'darkblue'
+               * 'darkred'
+               * 'darkgreen'
+        discrete_continous_div_cmap: `list[str, str, str]`  (optional, default 'Blues')
+            The names of  discrete, continous and divergent matplotlib colormap to use for coloring
+            or shading points. The description for each element in the list is as following. If no labels or values are passed
+            this will be used for shading points according to
+            density (largely only of relevance for very large
+            datasets). If values are passed this will be used for
+            shading according the value. Note that if theme
+            is passed then this value will be overridden by the
+            corresponding option of the theme.
+        discrete_continous_div_color_key: `list[dict or array,, dict or array,, dict or array,]` (default [None, None, None])
+         The description for each element in the list is as following. The shape (n_categories) (optional, default None)
+            A list to assign discrete, continous and divergent colors to categoricals. This can either be
+            an explicit dict mapping labels to colors (as strings of form
+            '#RRGGBB'), or an array like object providing one color for
+            each distinct category being provided in ``labels``. Either
+            way this mapping will be used to color points according to
+            the label. Note that if theme
+            is passed then this value will be overridden by the
+            corresponding option of the theme.
+        discrete_continous_div_color_key_cmap: `list[str, str, str]`, (optional, default 'Spectral')
+            The names of discrete, continous and divergent matplotlib colormap to use for categorical coloring.
+            The description for each element in the list is as following.
+            If an explicit ``color_key`` is not given a color mapping for
+            categories can be generated from the label list and selecting
+            a matching list of colors from the given colormap. Note
+            that if theme
+            is passed then this value will be overridden by the
+            corresponding option of the theme.
         figsize: `None` or `[float, float]` (default: None)
                 The width and height of a figure.
         ncols: `None` or `int` (default: None)
@@ -80,6 +135,13 @@ def phase_portraits(
         q_kwargs_dict: `dict` (default: {})
             The dictionary of the quiver arguments. The default setting of quiver argument is identical to that used in the
             cell_wise_velocity and grid_velocity.
+        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            will use the {"path": None, "prefix": 'phase_portraits', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
         **kwargs:
             Additional parameters that will be passed to plt.scatter function
 
@@ -91,6 +153,7 @@ def phase_portraits(
 
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
+    from matplotlib.colors import DivergingNorm # TwoSlopeNorm
 
     if background is not None:
         set_figure_params(background=background)
@@ -107,14 +170,18 @@ def phase_portraits(
     )  # (0, 0, 0, 1)
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
+    div_scatter_kwargs = scatter_kwargs.copy()
+    div_scatter_kwargs.update({"norm": DivergingNorm(0)})
 
     if type(genes) == str:
         genes = [genes]
     _genes = list(set(adata.var.index).intersection(genes))
 
     # avoid object for dtype in the gamma column https://stackoverflow.com/questions/40809503/python-numpy-typeerror-ufunc-isfinite-not-supported-for-the-input-types
+    k_name = 'gamma_k' if adata.uns['dynamics']['experiment_type'] == 'one-shot' else 'gamma'
+
     valid_id = np.isfinite(
-        np.array(adata.var.loc[_genes, "gamma"], dtype="float")
+        np.array(adata.var.loc[_genes, k_name], dtype="float")
     ).flatten()
     genes = np.array(_genes)[valid_id].tolist()
     # idx = [adata.var.index.to_list().index(i) for i in genes]
@@ -128,15 +195,17 @@ def phase_portraits(
         )
 
     if not "X_" + basis in adata.obsm.keys():
-        raise Exception("{} is not applied to adata.".format(basis))
-    else:
-        embedding = pd.DataFrame(
-            {
-                basis + "_0": adata.obsm["X_" + basis][:, x],
-                basis + "_1": adata.obsm["X_" + basis][:, y],
-            }
-        )
-        embedding.columns = ["dim_1", "dim_2"]
+        warnings.warn("{} is not applied to adata.".format(basis))
+        from ..tools.dimension_reduction import reduceDimension
+        reduceDimension(adata, reduction_method=basis)
+
+    embedding = pd.DataFrame(
+        {
+            basis + "_0": adata.obsm["X_" + basis][:, x],
+            basis + "_1": adata.obsm["X_" + basis][:, y],
+        }
+    )
+    embedding.columns = ["dim_1", "dim_2"]
 
     if all([i in adata.layers.keys() for i in ["X_new", "X_total"]]) or all(
         [i in adata.layers.keys() for i in [mapper["X_new"], mapper["X_total"]]]
@@ -187,7 +256,7 @@ def phase_portraits(
 
     color_vec = np.repeat(np.nan, n_cells)
     if color is not None:
-        color_vec = adata.obs[color].values
+        color_vec = adata.obs[color].to_list()
 
     if "velocity_" not in vkey:
         vkey = "velocity_" + vkey
@@ -209,14 +278,14 @@ def phase_portraits(
         V_vec.A if issparse(V_vec) else V_vec,
     )
 
-    if "gamma" in adata.var.columns:
+    if k_name in adata.var.columns:
         if (
             not ("gamma_b" in adata.var.columns)
             or adata.var.gamma_b.unique()[0] is None
         ):
             adata.var.loc[:, "gamma_b"] = 0
         gamma, velocity_offset = (
-            adata[:, genes].var.gamma.values,
+            adata[:, genes].var.loc[:, k_name].values,
             adata[:, genes].var.gamma_b.values,
         )
         (
@@ -310,7 +379,7 @@ def phase_portraits(
                     [0] * n_cells
                     if (
                         not ("delta_b" in adata.var.columns)
-                        or adata.var.gamma_b.unique() is None
+                        or adata.var.delta_b.unique() is None
                     )
                     else adata.var.delta_b[genes].values
                 )
@@ -390,36 +459,39 @@ def phase_portraits(
     ncols = min([num_per_gene, ncols]) if ncols is not None else num_per_gene
     nrow, ncol = int(np.ceil(num_per_gene * n_genes / ncols)), ncols
     if figsize is None:
-        plt.figure(None, (3 * ncol, 3 * nrow))  # , dpi=160
+        g = plt.figure(None, (3 * ncol, 3 * nrow))  # , dpi=160
     else:
-        plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow))  # , dpi=160
+        g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow))  # , dpi=160
 
-    if rcParams.get("figure.facecolor") == "black":
-        discrete_theme, continous_theme, divergent_theme = (
-            "glasbey_dark",
-            "inferno",
-            "div_blue_black_red",
-        )
+    if discrete_continous_div_themes is None:
+        if rcParams.get("figure.facecolor") == "black":
+            discrete_theme, continous_theme, divergent_theme = (
+                "glasbey_dark",
+                "inferno",
+                "div_blue_black_red",
+            )
+        else:
+            discrete_theme, continous_theme, divergent_theme = (
+                "glasbey_white",
+                "viridis",
+                "div_blue_red",
+            )
     else:
-        discrete_theme, continous_theme, divergent_theme = (
-            "glasbey_white",
-            "viridis",
-            "div_blue_red",
-        )
+        discrete_theme, continous_theme, divergent_theme = discrete_continous_div_themes
 
     discrete_cmap, discrete_color_key_cmap, discrete_background = (
-        _themes[discrete_theme]["cmap"],
-        _themes[discrete_theme]["color_key_cmap"],
+        _themes[discrete_theme]["cmap"] if discrete_continous_div_cmap is None else discrete_continous_div_cmap[0],
+        _themes[discrete_theme]["color_key_cmap"] if discrete_continous_div_color_key_cmap is None else discrete_continous_div_color_key_cmap[0],
         _themes[discrete_theme]["background"],
     )
     continous_cmap, continous_color_key_cmap, continous_background = (
-        _themes[continous_theme]["cmap"],
-        _themes[continous_theme]["color_key_cmap"],
+        _themes[continous_theme]["cmap"] if discrete_continous_div_cmap is None else discrete_continous_div_cmap[1],
+        _themes[continous_theme]["color_key_cmap"] if discrete_continous_div_color_key_cmap is None else discrete_continous_div_color_key_cmap[1],
         _themes[continous_theme]["background"],
     )
     divergent_cmap, divergent_color_key_cmap, divergent_background = (
-        _themes[divergent_theme]["cmap"],
-        _themes[divergent_theme]["color_key_cmap"],
+        _themes[divergent_theme]["cmap"] if discrete_continous_div_cmap is None else discrete_continous_div_cmap[2],
+        _themes[divergent_theme]["color_key_cmap"] if discrete_continous_div_color_key_cmap is None else discrete_continous_div_color_key_cmap[2],
         _themes[divergent_theme]["background"],
     )
 
@@ -448,16 +520,16 @@ def phase_portraits(
         except:
             continue
         cur_pd = df.loc[df.gene == gn, :]
-        if cur_pd.color.unique() != np.nan:
+        if cur_pd.color.isna().all():
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
                 ax1, color = _matplotlib_points(
                     cur_pd.iloc[:, [1, 0]].values,
                     ax=ax1,
                     labels=None,
                     values=cur_pd.loc[:, "expression"].values,
-                    highlights=None,
+                    highlights=highlights,
                     cmap=continous_cmap,
-                    color_key=None,
+                    color_key=discrete_continous_div_color_key[1],
                     color_key_cmap=continous_color_key_cmap,
                     background=continous_background,
                     width=figsize[0],
@@ -471,9 +543,9 @@ def phase_portraits(
                     ax=ax1,
                     labels=None,
                     values=cur_pd.loc[:, "expression"].values,
-                    highlights=None,
+                    highlights=highlights,
                     cmap=continous_cmap,
-                    color_key=None,
+                    color_key=discrete_continous_div_color_key[1],
                     color_key_cmap=continous_color_key_cmap,
                     background=continous_background,
                     width=figsize[0],
@@ -486,11 +558,11 @@ def phase_portraits(
                 ax1, color = _matplotlib_points(
                     cur_pd.iloc[:, [1, 0]].values,
                     ax=ax1,
-                    labels=color,
+                    labels=cur_pd.loc[:, "color"],
                     values=None,
-                    highlights=None,
+                    highlights=highlights,
                     cmap=discrete_cmap,
-                    color_key=None,
+                    color_key=discrete_continous_div_color_key[0],
                     color_key_cmap=discrete_color_key_cmap,
                     background=discrete_background,
                     width=figsize[0],
@@ -502,11 +574,11 @@ def phase_portraits(
                 ax1, color = _datashade_points(
                     cur_pd.iloc[:, [1, 0]].values,
                     ax=ax1,
-                    labels=color,
+                    labels=cur_pd.loc[:, "color"],
                     values=None,
-                    highlights=None,
+                    highlights=highlights,
                     cmap=discrete_cmap,
-                    color_key=None,
+                    color_key=discrete_continous_div_color_key[0],
                     color_key_cmap=discrete_color_key_cmap,
                     background=discrete_background,
                     width=figsize[0],
@@ -518,7 +590,7 @@ def phase_portraits(
         ax1.set_title(gn)
         ax1.set_xlabel("spliced")
         ax1.set_ylabel("unspliced")
-        xnew = np.linspace(0, cur_pd.iloc[:, 1].max())
+        xnew = np.linspace(0, cur_pd.iloc[:, 1].max() * 0.80)
         ax1.plot(
             xnew,
             xnew * cur_pd.loc[:, "gamma"].unique()
@@ -582,13 +654,13 @@ def phase_portraits(
         df_embedding = pd.concat([cur_pd, embedding], axis=1)
         V_vec = cur_pd.loc[:, "velocity"]
 
-        limit = np.nanmax(
-            np.abs(np.nanpercentile(V_vec, [1, 99]))
-        )  # upper and lowe limit / saturation
-
-        V_vec = V_vec + limit  # that is: tmp_colorandum - (-limit)
-        V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
-        V_vec = np.clip(V_vec, 0, 1)
+        # limit = np.nanmax(
+        #     np.abs(np.nanpercentile(V_vec, [1, 99]))
+        # )  # upper and lowe limit / saturation
+        #
+        # V_vec = V_vec + limit  # that is: tmp_colorandum - (-limit)
+        # V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
+        # V_vec = np.clip(V_vec, 0, 1)
 
         if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
             ax2, _ = _matplotlib_points(
@@ -596,9 +668,9 @@ def phase_portraits(
                 ax=ax2,
                 labels=None,
                 values=cur_pd.loc[:, "expression"].values,
-                highlights=None,
+                highlights=highlights,
                 cmap=continous_cmap,
-                color_key=None,
+                color_key=discrete_continous_div_color_key[1],
                 color_key_cmap=continous_color_key_cmap,
                 background=continous_background,
                 width=figsize[0],
@@ -612,9 +684,9 @@ def phase_portraits(
                 ax=ax2,
                 labels=None,
                 values=cur_pd.loc[:, "expression"].values,
-                highlights=None,
+                highlights=highlights,
                 cmap=continous_cmap,
-                color_key=None,
+                color_key=discrete_continous_div_color_key[1],
                 color_key_cmap=continous_color_key_cmap,
                 background=continous_background,
                 width=figsize[0],
@@ -633,15 +705,15 @@ def phase_portraits(
                 ax=ax3,
                 labels=None,
                 values=V_vec.values,
-                highlights=None,
+                highlights=highlights,
                 cmap=divergent_cmap,
-                color_key=None,
+                color_key=discrete_continous_div_color_key[2],
                 color_key_cmap=divergent_color_key_cmap,
                 background=divergent_background,
                 width=figsize[0],
                 height=figsize[1],
                 show_legend=legend,
-                **scatter_kwargs
+                **div_scatter_kwargs
             )
         else:
             ax3, _ = _datashade_points(
@@ -649,15 +721,15 @@ def phase_portraits(
                 ax=ax3,
                 labels=None,
                 values=V_vec.values,
-                highlights=None,
+                highlights=highlights,
                 cmap=divergent_cmap,
-                color_key=None,
+                color_key=discrete_continous_div_color_key[2],
                 color_key_cmap=divergent_color_key_cmap,
                 background=divergent_background,
                 width=figsize[0],
                 height=figsize[1],
                 show_legend=legend,
-                **scatter_kwargs
+                **div_scatter_kwargs
             )
 
         ax3.set_title(gn + " (" + vkey + ")")
@@ -676,9 +748,9 @@ def phase_portraits(
                         ax=ax4,
                         labels=None,
                         values=cur_pd.loc[:, "expression"].values,
-                        highlights=None,
+                        highlights=highlights,
                         cmap=continous_cmap,
-                        color_key=None,
+                        color_key=discrete_continous_div_color_key[1],
                         color_key_cmap=continous_color_key_cmap,
                         background=continous_background,
                         width=figsize[0],
@@ -692,9 +764,9 @@ def phase_portraits(
                         ax=ax4,
                         labels=None,
                         values=cur_pd.loc[:, "expression"].values,
-                        highlights=None,
+                        highlights=highlights,
                         cmap=continous_cmap,
-                        color_key=None,
+                        color_key=discrete_continous_div_color_key[1],
                         color_key_cmap=continous_color_key_cmap,
                         background=continous_background,
                         width=figsize[0],
@@ -709,9 +781,9 @@ def phase_portraits(
                         ax=ax4,
                         labels=color,
                         values=None,
-                        highlights=None,
+                        highlights=highlights,
                         cmap=discrete_cmap,
-                        color_key=None,
+                        color_key=discrete_continous_div_color_key[0],
                         color_key_cmap=discrete_color_key_cmap,
                         background=discrete_background,
                         width=figsize[0],
@@ -725,9 +797,9 @@ def phase_portraits(
                         ax=ax4,
                         labels=color,
                         values=None,
-                        highlights=None,
+                        highlights=highlights,
                         cmap=discrete_cmap,
-                        color_key=None,
+                        color_key=discrete_continous_div_color_key[0],
                         color_key_cmap=discrete_color_key_cmap,
                         background=discrete_background,
                         width=figsize[0],
@@ -817,9 +889,9 @@ def phase_portraits(
                     ax=ax5,
                     labels=None,
                     values=embedding.loc[:, "P"].values,
-                    highlights=None,
+                    highlights=highlights,
                     cmap=continous_cmap,
-                    color_key=None,
+                    color_key=discrete_continous_div_color_key[1],
                     color_key_cmap=continous_color_key_cmap,
                     background=continous_background,
                     width=figsize[0],
@@ -833,9 +905,9 @@ def phase_portraits(
                     ax=ax5,
                     labels=None,
                     values=embedding.loc[:, "P"].values,
-                    highlights=None,
+                    highlights=highlights,
                     cmap=continous_cmap,
-                    color_key=None,
+                    color_key=discrete_continous_div_color_key[1],
                     color_key_cmap=continous_color_key_cmap,
                     background=continous_background,
                     width=figsize[0],
@@ -854,15 +926,15 @@ def phase_portraits(
                     ax=ax6,
                     labels=None,
                     values=V_vec.values,
-                    highlights=None,
+                    highlights=highlights,
                     cmap=divergent_cmap,
-                    color_key=None,
+                    color_key=discrete_continous_div_color_key[2],
                     color_key_cmap=divergent_color_key_cmap,
                     background=divergent_background,
                     width=figsize[0],
                     height=figsize[1],
                     show_legend=legend,
-                    **scatter_kwargs
+                    **div_scatter_kwargs
                 )
             else:
                 ax6, _ = _datashade_points(
@@ -870,23 +942,32 @@ def phase_portraits(
                     ax=ax6,
                     labels=None,
                     values=V_vec.values,
-                    highlights=None,
+                    highlights=highlights,
                     cmap=divergent_cmap,
-                    color_key=None,
+                    color_key=discrete_continous_div_color_key[2],
                     color_key_cmap=divergent_color_key_cmap,
                     background=divergent_background,
                     width=figsize[0],
                     height=figsize[1],
                     show_legend=legend,
-                    **scatter_kwargs
+                    **div_scatter_kwargs
                 )
 
             ax6.set_title(gn + " (protein velocity)")
             ax6.set_xlabel(basis + "_1")
             ax6.set_ylabel(basis + "_2")
 
-    plt.tight_layout()
-    plt.show()
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'phase_portraits', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save_fig(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return g
 
 
 def dynamics(
@@ -902,7 +983,8 @@ def dynamics(
     boxwidth=None,
     barwidth=None,
     true_param_prefix=None,
-    show=True,
+    save_show_or_return='show',
+    save_kwargs={},
 ):
     """Plot the data and fitting of different metabolic labeling experiments.
 
@@ -930,8 +1012,13 @@ def dynamics(
             The width of the bar of the barplot.
         true_param_prefix: `str`
             The prefix for the column names of true parameters in the .var attributes. Useful for the simulation data.
-        show: `bool` (default: `True`)
-            Whether to plot the figure.
+        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            will use the {"path": None, "prefix": 'dynamics', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
 
     Returns
     -------
@@ -1001,10 +1088,11 @@ def dynamics(
     )
     nrows = int(np.ceil(len(gene_idx) * sub_plot_n * grp_len / ncols))
     figsize = [7, 5] if figsize is None else figsize
+    g = plt.figure(None, (figsize[0] * ncols, figsize[1] * nrows), dpi=dpi)
     gs = plt.GridSpec(
         nrows,
         ncols,
-        plt.figure(None, (figsize[0] * ncols, figsize[1] * nrows), dpi=dpi),
+        g,
     )
 
     # we need to visualize gene in row-wise mode
@@ -2052,8 +2140,17 @@ def dynamics(
             elif experiment_type is "coassay":
                 pass  # show protein velocity (steady state and the Gamma distribution model)
 
-    if show:
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'dynamics', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save_fig(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
         plt.show()
+    elif save_show_or_return == "return":
+        return g
 
 
 def dynamics_(

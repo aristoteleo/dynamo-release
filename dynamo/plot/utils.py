@@ -124,6 +124,7 @@ def _matplotlib_points(
         **kwargs,
 ):
     import matplotlib.pyplot as plt
+    from matplotlib.ticker import MaxNLocator
 
     dpi = plt.rcParams["figure.dpi"]
     width, height = width * dpi, height * dpi
@@ -239,10 +240,18 @@ def _matplotlib_points(
             **kwargs,
         )
 
-        norm = matplotlib.colors.Normalize(vmin=_vmin, vmax=_vmax)
+        if 'norm' in kwargs:
+            norm = kwargs['norm']
+        else:
+            norm = matplotlib.colors.Normalize(vmin=_vmin, vmax=_vmax)
+
         mappable = matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
         mappable.set_array(values)
-        plt.colorbar(mappable, ax=ax)
+        cb = plt.colorbar(mappable, cax=set_colorbar(ax), ax=ax)
+        cb.set_alpha(1)
+        cb.draw_all()
+        cb.locator = MaxNLocator(nbins=3, integer=True)
+        cb.update_ticks()
 
         cmap = matplotlib.cm.get_cmap(cmap)
         colors = cmap(values)
@@ -269,7 +278,7 @@ def _matplotlib_points(
                 )  #
                 txt.set_path_effects(
                     [
-                        PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.6),
+                        PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.3),
                         PathEffects.Normal(),
                     ]
                 )
@@ -277,7 +286,7 @@ def _matplotlib_points(
             ax.legend(
                 handles=legend_elements,
                 bbox_to_anchor=(1.04, 1),
-                loc="upper left",
+                loc=show_legend,
                 ncol=len(unique_labels) // 15 + 1,
             )
     return ax, colors
@@ -813,6 +822,19 @@ def scatter_with_legend(
 
     return fig, ax
 
+def set_colorbar(ax):
+    """https://matplotlib.org/3.1.0/gallery/axes_grid1/demo_colorbar_with_inset_locator.html"""
+    from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+
+    axins = inset_axes(ax,
+                       width="3%",  # width = 5% of parent_bbox width
+                       height="30%",  # height : 50%
+                       # loc='lower left',
+                       # bbox_to_anchor=(1.05, 0., 1, 1),
+                       # bbox_transform=ax.transAxes,
+                       # borderpad=0,
+                       )
+    return axins
 
 # ---------------------------------------------------------------------------------------------------
 # vector field plot related utilities
@@ -890,17 +912,17 @@ def _plot_traj(y0, t, args, integration_direction, ax, color, lw, f):
 
 
 # ---------------------------------------------------------------------------------------------------
-# save figure related
+# save_fig figure related
 # ---------------------------------------------------------------------------------------------------
 
-def save(path=None, prefix=None, dpi=None, ext='pdf', transparent=True, close=True, verbose=True):
+def save_fig(path=None, prefix=None, dpi=None, ext='pdf', transparent=True, close=True, verbose=True):
     """Save a figure from pyplot.
     code adapated from http://www.jesshamrick.com/2012/09/03/saving-figures-from-pyplot/
 
     Parameters
     ----------
          path: `string`
-            The path (and filename, without the extension) to save the
+            The path (and filename, without the extension) to save_fig the
             figure to.
         prefix: `str` or `None`
             The prefix added to the figure name. This will be automatically set
@@ -913,7 +935,7 @@ def save(path=None, prefix=None, dpi=None, ext='pdf', transparent=True, close=Tr
             matplotlib backend (see matplotlib.backends module).  Most
             backends support 'png', 'pdf', 'ps', 'eps', and 'svg'.
         close: `boolean` (default=True)
-            Whether to close the figure after saving.  If you want to save
+            Whether to close the figure after saving.  If you want to save_fig
             the figure multiple times (e.g., to multiple formats), you
             should NOT close it in between saves or you will have to
             re-plot it.
@@ -923,24 +945,26 @@ def save(path=None, prefix=None, dpi=None, ext='pdf', transparent=True, close=Tr
     """
     import matplotlib.pyplot as plt
 
-    if path is None: path = os.getcwd()
+    if path is None: path = os.getcwd() + '/'
 
     # Extract the directory and filename from the given path
     directory = os.path.split(path)[0]
     filename = os.path.split(path)[1]
     if directory == '':
         directory = '.'
+    if filename == '':
+        filename = 'dyn_savefig'
 
     # If the directory does not exist, create it
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-    # The final path to save to
+    # The final path to save_fig to
     savepath = os.path.join(directory, filename + '.' + ext) if prefix is None \
-        else os.path.join(directory, prefix + filename + '.' + ext)
+        else os.path.join(directory, prefix + '_' + filename + '.' + ext)
 
     if verbose:
-        print(f"Saving figure to {savepath}.{ext}...")
+        print(f"Saving figure to {savepath}...")
 
     # Actually save the figure
     plt.savefig(savepath, dpi=dpi, transparent=transparent, format=ext)
