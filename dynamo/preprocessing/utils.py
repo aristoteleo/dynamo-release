@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from scipy.sparse import issparse
+from scipy.sparse import issparse, csr_matrix
 from functools import reduce
 from sklearn.decomposition import PCA, TruncatedSVD
 
@@ -259,6 +259,52 @@ def get_svr_filter(adata, layer="spliced", n_top_genes=3000, return_adata=False)
 
     return res
 
+def get_sz_exprs(adata, layer, total_szfactor=None):
+    if layer is "raw":
+        CM = adata.raw
+        szfactors = adata.obs[layer + "Size_Factor"][:, None]
+    elif layer is "X":
+        CM = adata.X
+        szfactors = adata.obs["Size_Factor"][:, None]
+    elif layer is "protein":
+        if "protein" in adata.obsm_keys():
+            CM = adata.obsm[layer]
+            szfactors = adata.obs["protein_Size_Factor"][:, None]
+        else:
+            CM, szfactors = None, None
+    else:
+        CM = adata.layers[layer]
+        szfactors = adata.obs[layer + "_Size_Factor"][:, None]
+
+    if total_szfactor is not None and total_szfactor in adata.obs.keys():
+        szfactors = adata.obs[total_szfactor][:, None]
+
+    return szfactors, CM
+
+def normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method):
+    if relative_expr:
+        CM = (
+            CM.multiply(csr_matrix(1 / szfactors))
+            if issparse(CM)
+            else CM / szfactors
+        )
+
+    if pseudo_expr is None:
+        pseudo_expr = 1
+    if issparse(CM):
+        CM.data = (
+            np.log2(CM.data + pseudo_expr)
+            if norm_method == "log2"
+            else np.log(CM.data + pseudo_expr)
+        )
+    else:
+        CM = (
+            np.log2(CM + pseudo_expr)
+            if norm_method == "log2"
+            else np.log(CM + pseudo_expr)
+        )
+
+    return CM
 
 # ---------------------------------------------------------------------------------------------------
 # pca

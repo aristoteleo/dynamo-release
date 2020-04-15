@@ -146,7 +146,10 @@ def prepare_data_deterministic(adata, genes, time, layers, log=False):
 
 def prepare_data_has_splicing(adata, genes, time, layer_u, layer_s, return_cov=False):
     """Prepare data when assumption is kinetic and data has splicing"""
+    from ..preprocessing.utils import normalize_util
     res = [0] * len(genes)
+
+    normalize_util(U, szfactors, relative_expr, pseudo_expr, norm_method)
 
     for i, g in enumerate(genes):
         u = adata.layers[layer_u][:, adata.var.index == g].A.flatten()

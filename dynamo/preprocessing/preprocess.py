@@ -11,6 +11,7 @@ from .utils import cook_dist, get_layer_keys, get_shared_counts
 from .utils import get_svr_filter
 from .utils import allowed_layer_raw_names
 from .utils import merge_adata_attrs
+from .utils import normalize_util, get_sz_exprs
 from ..tools.utils import update_dict
 
 
@@ -197,47 +198,10 @@ def normalize_expr_data(
         )
 
     for layer in layers:
-        if layer is "raw":
-            CM = adata.raw
-            szfactors = adata.obs[layer + "Size_Factor"][:, None]
-        elif layer is "X":
-            CM = adata.X
-            szfactors = adata.obs["Size_Factor"][:, None]
-        elif layer is "protein":
-            if "protein" in adata.obsm_keys():
-                CM = adata.obsm[layer]
-                szfactors = adata.obs["protein_Size_Factor"][:, None]
-            else:
-                continue
-        else:
-            CM = adata.layers[layer]
-            szfactors = adata.obs[layer + "_Size_Factor"][:, None]
+        szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=total_szfactor)
 
         if norm_method in ["log", "log2"] and layer is not "protein":
-            if relative_expr:
-                if total_szfactor is not None and total_szfactor in adata.obs.keys():
-                    szfactors = adata.obs[total_szfactor][:, None]
-
-                CM = (
-                    CM.multiply(csr_matrix(1 / szfactors))
-                    if issparse(CM)
-                    else CM / szfactors
-                )
-
-            if pseudo_expr is None:
-                pseudo_expr = 1
-            if issparse(CM):
-                CM.data = (
-                    np.log2(CM.data + pseudo_expr)
-                    if norm_method == "log2"
-                    else np.log(CM.data + pseudo_expr)
-                )
-            else:
-                CM = (
-                    np.log2(CM + pseudo_expr)
-                    if norm_method == "log2"
-                    else np.log(CM + pseudo_expr)
-                )
+            CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method)
 
         elif layer is "protein":  # norm_method == 'clr':
             if norm_method is not "clr":
