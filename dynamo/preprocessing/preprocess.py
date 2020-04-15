@@ -11,7 +11,7 @@ from .utils import cook_dist, get_layer_keys, get_shared_counts
 from .utils import get_svr_filter
 from .utils import allowed_layer_raw_names
 from .utils import merge_adata_attrs
-from .utils import normalize_util, get_sz_exprs
+from .utils import sz_util, normalize_util, get_sz_exprs
 from ..tools.utils import update_dict
 
 
@@ -78,35 +78,7 @@ def szFactor(
         adata.raw = adata.X.copy()
 
     for layer in layers:
-        if layer is "raw":
-            CM = adata.raw
-        elif layer is "X":
-            CM = adata.X
-        elif layer is "protein":
-            if "protein" in adata.obsm_keys():
-                CM = adata.obsm["protein"]
-            else:
-                continue
-        else:
-            CM = adata.layers[layer]
-
-        if round_exprs:
-            if issparse(CM):
-                CM.data = np.round(CM.data, 0)
-            else:
-                CM = CM.round().astype("int")
-
-        cell_total = CM.sum(axis=1).A1 if issparse(CM) else CM.sum(axis=1)
-        cell_total += cell_total == 0  # avoid infinity value after log (0)
-
-        if method == "mean-geometric-mean-total":
-            sfs = cell_total / np.exp(locfunc(np.log(cell_total)))
-        elif method == "median":
-            sfs = cell_total / np.nanmedian(cell_total)
-        elif method == "mean":
-            sfs = cell_total / np.nanmean(cell_total)
-        else:
-            print("This method is not supported!")
+        sfs, cell_total = sz_util(adata, layer, round_exprs, method, locfunc, total_layers=total_layers)
 
         sfs[~np.isfinite(sfs)] = 1
         if layer is "raw":

@@ -259,6 +259,52 @@ def get_svr_filter(adata, layer="spliced", n_top_genes=3000, return_adata=False)
 
     return res
 
+def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None):
+    adata = adata.copy()
+
+    if layer == '_total__' and '_total_' not in adata.layers.keys():
+        if total_layers is not None:
+            if not isinstance(total_layers, list): total_layers = [total_layers]
+            if len(set(total_layers).difference(adata.layers.keys())) == 0:
+                total = None
+                for t_key in total_layers:
+                    total = (
+                        adata.layers[t_key] if total is None else total + adata.layers[t_key]
+                    )
+                adata.layers["_total_"] = total
+
+    if layer is "raw":
+        CM = adata.raw
+    elif layer is "X":
+        CM = adata.X
+    elif layer is "protein":
+        if "protein" in adata.obsm_keys():
+            CM = adata.obsm["protein"]
+        else:
+            return None, None
+    else:
+        CM = adata.layers[layer]
+
+    if round_exprs:
+        if issparse(CM):
+            CM.data = np.round(CM.data, 0)
+        else:
+            CM = CM.round().astype("int")
+
+    cell_total = CM.sum(axis=1).A1 if issparse(CM) else CM.sum(axis=1)
+    cell_total += cell_total == 0  # avoid infinity value after log (0)
+
+    if method == "mean-geometric-mean-total":
+        sfs = cell_total / np.exp(locfunc(np.log(cell_total)))
+    elif method == "median":
+        sfs = cell_total / np.nanmedian(cell_total)
+    elif method == "mean":
+        sfs = cell_total / np.nanmean(cell_total)
+    else:
+        print("This method is not supported!")
+
+    return sfs, cell_total
+
 def get_sz_exprs(adata, layer, total_szfactor=None):
     if layer is "raw":
         CM = adata.raw
