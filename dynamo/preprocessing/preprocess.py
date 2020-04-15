@@ -1152,7 +1152,7 @@ def recipe_monocle(
     genes_to_use=None,
     method="pca",
     num_dim=30,
-    norm_method="log",
+    norm_method=np.log,
     pseudo_expr=1,
     feature_selection="SVR",
     n_top_genes=2000,
@@ -1183,7 +1183,7 @@ def recipe_monocle(
             The linear dimension reduction methods to be used.
         num_dim: `int` (default: `50`)
             The number of linear dimensions reduced to.
-        norm_method: `str` (default: `log`)
+        norm_method: `function` or `str` (default: function `np.log`)
             The method to normalize the data.
         pseudo_expr: `int` (default: `1`)
             A pseudocount added to the gene expression value before log/log2 normalization.
@@ -1360,7 +1360,7 @@ def recipe_velocyto(
     total_layers=None,
     method="pca",
     num_dim=30,
-    norm_method="log",
+    norm_method=np.log,
     pseudo_expr=1,
     feature_selection="SVR",
     n_top_genes=2000,
@@ -1381,7 +1381,7 @@ def recipe_velocyto(
             The linear dimension reduction methods to be used.
         num_dim: `int` (default: `50`)
             The number of linear dimensions reduced to.
-        norm_method: `str` (default: `log`)
+        norm_method: `function` or `str` (default: function `np.log`)
             The method to normalize the data.
         pseudo_expr: `int` (default: `1`)
             A pseudocount added to the gene expression value before log/log2 normalization.
