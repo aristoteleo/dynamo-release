@@ -140,7 +140,7 @@ def prepare_data_deterministic(adata, genes, time, layers, log=False):
             x_layer = adata[:, genes].layers[layer].A
             x_layer = np.log(x_layer+1) if log else x_layer
 
-        m[i], v[i], _ = calc_12_mom_labeling(x_layer, time)
+        m[i], v[i], _ = calc_12_mom_labeling(x_layer.T, time)
 
     return m, v # each list element corresponds to a layer
 

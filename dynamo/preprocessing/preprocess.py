@@ -435,7 +435,7 @@ def disp_calc_helper_NB(adata, layers="X", min_cells_detected=1):
         nzGenes = nzGenes > min_cells_detected
 
         nzGenes = nzGenes.A1 if issparse(rounded) else nzGenes
-        if layer is layer.__contains__("X_"):
+        if layer.startswith("X_"):
             x = rounded[:, nzGenes]
         else:
             x = (
@@ -1201,7 +1201,7 @@ def collapse_adata(adata):
 
 
 def unique_var_obs_adata(adata):
-    """Function to collapse the four species data, will be generalized to handle dual-datasets"""
+    """Function to make the obs and var attribute's index unique"""
     adata.obs_names_make_unique()
     adata.var_names_make_unique()
 
