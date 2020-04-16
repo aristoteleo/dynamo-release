@@ -455,7 +455,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 if has_switch:
                     _param_ranges = {'a': [0, 1000], 'b': [0, 1000],
                                     'alpha_a': [0, 1000], 'alpha_i': 0,
-                                    'gamma': [0, 1000], }
+                                    'beta': [0, 1000], 'gamma': [0, 1000], }
                     x0 = {'u0': [0, 1000], 'uu0': [0, 1000], }
                     Est, simulator = Estimation_MomentKinNosp, Moments_Nosplicing
                 else:
@@ -534,7 +534,6 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
         raise Exception(f'experiment {experiment_type} is not recognized')
 
     _param_ranges = update_dict(_param_ranges, param_rngs)
-    param_ranges = [ran for ran in _param_ranges.values()]
     x0_ = np.vstack([ran for ran in x0.values()]).T
 
     n_genes = subset_adata.n_vars
@@ -551,9 +550,15 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
             Estm[i_gene], cost[i_gene] = estm.auto_fit(np.unique(time), cur_X_data)
         else:
             if experiment_type.lower() == 'kin':
+                cur_X_data, cur_sigma = X[i_gene], X_sigma[i_gene]
+                alpha0 = guestimate_alpha(np.sum(cur_X_data, 0), np.unique(time))
+                if model =='stochastic':
+                    _param_ranges.update({'alpha_a': [0, alpha0*10]})
+                elif model == 'deterministic':
+                    _param_ranges.update({'alpha': [0, alpha0 * 10]})
+                param_ranges = [ran for ran in _param_ranges.values()]
                 estm = Est(*param_ranges, x0=x0_) if 'x0' in inspect.getfullargspec(Est) \
                     else Est(*param_ranges)
-                cur_X_data, cur_sigma = X[i_gene], X_sigma[i_gene]
                 Estm[i_gene], cost[i_gene] = estm.fit_lsq(np.unique(time), cur_X_data, **est_kwargs)
             elif experiment_type.lower() == 'deg':
                 estm = Est()

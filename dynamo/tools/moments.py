@@ -142,8 +142,8 @@ def prepare_data_deterministic(adata, genes, time, layers,
     m = [None] * len(layers)
     v = [None] * len(layers)
     for i, layer in enumerate(layers):
-        if layer in ['X_new', 'new']:
-            if layer == 'X_new':
+        if layer in ['X_total', 'total']:
+            if layer == 'X_total':
                 x_layer = adata[:, genes].layers[layer]
                 x_layer = adata[:, genes].layers[get_layer_pair(layer)] - x_layer
             else:
