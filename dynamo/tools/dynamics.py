@@ -479,7 +479,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 X = prepare_data_has_splicing(subset_adata, subset_adata.var.index, time, layer_u=layer_u, layer_s=layer_s)
                 X_sigma = [X[i][[2, 3], :] for i in range(len(X))]
             elif model.startswith('mixture'):
-                layers = ['X_ul', 'X_sl', 'X_uu', 'X_su'] if 'X_ul' in (subset_adata.layers.keys() and not only_sfs) \
+                layers = ['X_ul', 'X_sl', 'X_uu', 'X_su'] if ('X_ul' in subset_adata.layers.keys() and not only_sfs) \
                     else ['ul', 'sl', 'uu', 'su']
 
                 X, X_sigma = prepare_data_deterministic(subset_adata, subset_adata.var.index, time, layers=layers)

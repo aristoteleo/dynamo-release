@@ -128,18 +128,43 @@ def get_layer_pair(layer):
             'X_new': "X_total", "X_total": 'X_new'}
     return pair[layer]
 
-def prepare_data_deterministic(adata, genes, time, layers, log=False):
+def prepare_data_deterministic(adata, genes, time, layers,
+                               use_total_layers=True, log=False):
+    from ..preprocessing.utils import sz_util, normalize_util
+    if use_total_layers:
+        if 'total_Size_Factor' not in adata.obs.keys():
+            total_layers = ["uu", "ul", "su", "sl"] if 'uu' in adata.layers.keys() else ['total']
+            sfs, _ = sz_util(adata, '_total_', False, "median", np.nanmean, total_layers=total_layers)
+        else:
+            sfs = adata.obs.total_Size_Factor
+        sfs_x, sfs_y = sfs, sfs
+
     m = [None] * len(layers)
     v = [None] * len(layers)
     for i, layer in enumerate(layers):
-        if layer in ['X_total', 'total']:
-            x_layer = adata[:, genes].layers[layer]
-            x_layer = adata[:, genes].layers[get_layer_pair(layer)] - x_layer
-            x_layer = np.log(x_layer+1) if log else x_layer
-        else:
-            x_layer = adata[:, genes].layers[layer].A
-            x_layer = np.log(x_layer+1) if log else x_layer
+        if layer in ['X_new', 'new']:
+            if layer == 'X_new':
+                x_layer = adata[:, genes].layers[layer]
+                x_layer = adata[:, genes].layers[get_layer_pair(layer)] - x_layer
+            else:
+                if not use_total_layers:
+                    sfs_x, _ = sz_util(adata, layer, False, "median", np.nanmean, total_layers=None)
+                    sfs_y, _ = sz_util(adata, get_layer_pair(layer), False, "median", np.nanmean, total_layers=None)
 
+                x_layer = normalize_util(adata.layers[layer][:, genes], sfs_x, relative_expr=True, pseudo_expr=0,
+                                   norm_method=None)
+                y_layer = normalize_util(adata.layers[layer][:, genes], sfs_y, relative_expr=True, pseudo_expr=0,
+                                   norm_method=None)
+
+                x_layer = y_layer - x_layer
+        else:
+            if layer == 'X_new':
+                x_layer = adata[:, genes].layers[layer].A
+            else:
+                x_layer = normalize_util(adata.layers[layer][:, genes], sfs, relative_expr=True, pseudo_expr=0,
+                                   norm_method=None)
+
+        x_layer = np.log(x_layer + 1) if log else x_layer
         m[i], v[i], _ = calc_12_mom_labeling(x_layer.T, time)
 
     return m, v # each list element corresponds to a layer
