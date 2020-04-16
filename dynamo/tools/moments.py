@@ -137,7 +137,7 @@ def prepare_data_deterministic(adata, genes, time, layers,
             sfs, _ = sz_util(adata, '_total_', False, "median", np.nanmean, total_layers=total_layers)
         else:
             sfs = adata.obs.total_Size_Factor
-        sfs_x, sfs_y = sfs, sfs
+        sfs_x, sfs_y = sfs[:, None], sfs[:, None]
 
     m = [None] * len(layers)
     v = [None] * len(layers)
@@ -150,10 +150,11 @@ def prepare_data_deterministic(adata, genes, time, layers,
                 if not use_total_layers:
                     sfs_x, _ = sz_util(adata, layer, False, "median", np.nanmean, total_layers=None)
                     sfs_y, _ = sz_util(adata, get_layer_pair(layer), False, "median", np.nanmean, total_layers=None)
+                    sfs_x, sfs_y = sfs_x[:, None], sfs_y[:, None]
 
-                x_layer = normalize_util(adata.layers[layer][:, genes], sfs_x, relative_expr=True, pseudo_expr=0,
+                x_layer = normalize_util(adata[:, genes].layers[layer], sfs_x, relative_expr=True, pseudo_expr=0,
                                    norm_method=None)
-                y_layer = normalize_util(adata.layers[layer][:, genes], sfs_y, relative_expr=True, pseudo_expr=0,
+                y_layer = normalize_util(adata[:, genes].layers[layer], sfs_y, relative_expr=True, pseudo_expr=0,
                                    norm_method=None)
 
                 x_layer = y_layer - x_layer
@@ -161,7 +162,7 @@ def prepare_data_deterministic(adata, genes, time, layers,
             if layer == 'X_new':
                 x_layer = adata[:, genes].layers[layer].A
             else:
-                x_layer = normalize_util(adata.layers[layer][:, genes], sfs, relative_expr=True, pseudo_expr=0,
+                x_layer = normalize_util(adata[:, genes].layers[layer], sfs[:, None], relative_expr=True, pseudo_expr=0,
                                    norm_method=None)
 
         x_layer = np.log(x_layer + 1) if log else x_layer
@@ -180,16 +181,17 @@ def prepare_data_has_splicing(adata, genes, time, layer_u, layer_s,
         if 'total_Size_Factor' not in adata.obs.keys():
             total_layers = ["uu", "ul", "su", "sl"]
             sfs, _ = sz_util(adata, '_total_', False, "median", np.nanmean, total_layers=total_layers)
-            sfs_u, sfs_s = sfs, sfs
+            sfs_u, sfs_s = sfs[:, None], sfs[:, None]
         else:
             sfs = adata.obs.total_Size_Factor
-            sfs_u, sfs_s = sfs, sfs
+            sfs_u, sfs_s = sfs[:, None], sfs[:, None]
     else:
         sfs_u, _ = sz_util(adata, layer_u, False, "median", np.nanmean, total_layers=None)
         sfs_s, _ = sz_util(adata, layer_s, False, "median", np.nanmean, total_layers=None)
+        sfs_u, sfs_s = sfs_u[:, None], sfs_s[:, None]
 
-    U = normalize_util(adata.layers[layer_u][:, genes], sfs_u, relative_expr=True, pseudo_expr=0, norm_method=None)
-    S = normalize_util(adata.layers[layer_s][:, genes], sfs_s, relative_expr=True, pseudo_expr=0, norm_method=None)
+    U = normalize_util(adata[:, genes].layers[layer_u], sfs_u, relative_expr=True, pseudo_expr=0, norm_method=None)
+    S = normalize_util(adata[:, genes].layers[layer_s], sfs_s, relative_expr=True, pseudo_expr=0, norm_method=None)
 
     for i, g in enumerate(genes):
         u = U[:, i].A.flatten() if issparse(U) else U[:, i]
@@ -219,7 +221,7 @@ def prepare_data_no_splicing(adata, genes, time, layer, use_total_layers=True):
     else:
         sfs, _ = sz_util(adata, layer, False, "median", np.nanmean, total_layers=None)
 
-    U = normalize_util(adata.layers[layer][:, genes], sfs, relative_expr=True, pseudo_expr=0, norm_method=None)
+    U = normalize_util(adata[:, genes].layers[layer], sfs, relative_expr=True, pseudo_expr=0, norm_method=None)
 
     for i, g in enumerate(genes):
         u = U[:, i].A.flatten() if issparse(U) else U[:, i]

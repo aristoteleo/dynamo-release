@@ -389,7 +389,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 layer_s = 'X_sl' if ('X_sl' in subset_adata.layers.keys() and not only_sfs) else 'sl'
 
                 X = prepare_data_has_splicing(subset_adata, subset_adata.var.index, time, layer_u=layer_u, layer_s=layer_s)
-                X_sigma = [X[i][[2, 3], :] for i in range(len(X))]
+                X_sigma = [X[i][[2, 3], :] for i in range(len(X))] # adjust the centers
             elif model.startswith('mixture'):
                 layers = ['X_ul', 'X_sl', 'X_uu', 'X_su'] if ('X_ul' in subset_adata.layers.keys() and not only_sfs) \
                     else ['ul', 'sl', 'uu', 'su']
@@ -432,6 +432,10 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                       'uu0': [0, 1000], 'ss0': [0, 1000],
                       'us0': [0, 1000], }
                 Est = Mixture_KinDeg_NoSwitching(Moments_NoSwitching(), Moments_NoSwitching())
+            else:
+                raise Exception(f'model {model} with kinetic assumption is not implemented. '
+                                f'current supported models for kinetics experiments include: stochastic, deterministic, mixture,'
+                                f'mixture_deterministic_stochastic or mixture_stochastic_stochastic')
         else:
             if model in ['deterministic', 'stochastic']:
                 layer = 'X_new' if 'X_new' in (subset_adata.layers.keys() and not only_sfs) else 'new'
@@ -470,6 +474,9 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 _param_ranges = {'alpha': [0, 1000], 'gamma': [0, 1000], }
                 x0 = {'u0': [0, 1000], 'uu0': [0, 1000]}
                 Est = Mixture_KinDeg_NoSwitching(Moments_NoSwitchingNoSplicing(), Moments_NoSwitchingNoSplicing())
+            raise Exception(f'model {model} with kinetic assumption is not implemented. '
+                            f'current supported models for kinetics experiments include: stochastic, deterministic, mixture,'
+                            f'mixture_deterministic_stochastic or mixture_stochastic_stochastic')
     elif experiment_type.lower() == 'deg':
         if has_splicing:
             if model in ['deterministic', 'stochastic']:
@@ -495,6 +502,9 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                       'uu0': [0, 1000], 'ss0': [0, 1000],
                       'us0': [0, 1000], }
                 Est, simulator = Estimation_MomentDeg, Moments_NoSwitching
+            raise Exception(f'model {model} with kinetic assumption is not implemented. '
+                            f'current supported models for degradation experiment include: '
+                            f'stochastic, deterministic.')
         else:
             layer = 'X_new' if ('X_new' in subset_adata.layers.keys() and not only_sfs) else 'new'
             X = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time, layer=layer)
@@ -509,7 +519,9 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 _param_ranges = {'gamma': [0, 10], }
                 x0 = {'u0': [0, 1000], 'uu0': [0, 1000]}
                 Est, simulator = Estimation_MomentDegNosp, Moments_NoSwitchingNoSplicing
-
+            raise Exception(f'model {model} with kinetic assumption is not implemented. '
+                            f'current supported models for degradation experiment include: '
+                            f'stochastic, deterministic.')
     elif experiment_type.lower() == 'mix_std_stm':
         raise Exception(f'experiment {experiment_type} with kinetic assumption is not implemented')
     elif experiment_type.lower() == 'mix_pulse_chase':
