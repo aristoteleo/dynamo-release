@@ -13,22 +13,32 @@ from ..preprocessing.utils import get_layer_keys, allowed_X_layer_names, pca
 # use for calculating moments for stochastic model:
 def moments(adata,
             group=None,
-            use_gaussian_kernel=False,
+            use_gaussian_kernel=True,
             use_mnn=False,
             layers="all"):
-    """
+    """Calculate kNN based first and second moments (including uncentered covariance) for
+     different layers of data.
 
     Parameters
     ----------
-    adata
-    group
-    use_gaussian_kernel
-    use_mnn
-    layers
+        adata: :class:`~anndata.AnnData`
+            AnnData object.
+        group: `str` or None (default: `None`)
+            The column key/name that identifies the grouping information (for example, clusters that correspond to
+            different cell types or different time points) of cells. This will be used to compute kNN graph for each
+            group (i.e cell-type/time-point). This is important, for example, we don't want cells from different labeling
+            time points to be mixed when performing the kNN graph for calculating the moments.
+        use_gaussian_kernel: `bool` (default: `True`)
+            Whether to normalize the kNN graph via a Guasian kernel.
+        use_mnn: `bool` (default: `False`)
+            Whether to use mutual kNN across different layers as for the moment calculation.
+        layers: `str` or a list of str (default: `str`)
+            The layers that will be used for calculating the moments.
 
     Returns
     -------
-
+        adata: :class:`~anndata.AnnData`
+            A updated AnnData object with calculated first/second moments (including uncentered covariance) included.
     """
     mapper = get_mapper()
     only_splicing, only_labeling, splicing_and_labeling = allowed_X_layer_names()
@@ -118,13 +128,8 @@ def moments(adata,
             )
 
         if mapper[layer] not in adata.layers.keys():
-            # adata.layers[mapper[layer]], conn = (
-            #     calc_1nd_moment(layer_x, conn, True)
-            #     if use_gaussian_kernel
-            #     else conn.dot(layer_x)
-            # )
-            adata.layers[mapper[layer]] = (
-                calc_1nd_moment(layer_x, conn, False)
+            adata.layers[mapper[layer]], conn = (
+                calc_1nd_moment(layer_x, conn, True)
                 if use_gaussian_kernel
                 else conn.dot(layer_x)
             )
@@ -157,14 +162,8 @@ def moments(adata,
                 )
 
             if mapper[layer2] not in adata.layers.keys():
-                # adata.layers[mapper[layer2]], conn = (
-                #     calc_1nd_moment(layer_y, conn, True)
-                #     if use_gaussian_kernel
-                #     else conn.dot(layer_y)
-                # )
-
-                adata.layers[mapper[layer2]] = (
-                    calc_1nd_moment(layer_y, conn, False)
+                adata.layers[mapper[layer2]], conn = (
+                    calc_1nd_moment(layer_y, conn, True)
                     if use_gaussian_kernel
                     else conn.dot(layer_y)
                 )
@@ -187,6 +186,32 @@ def time_moment(adata,
     has_labeling=True,
     t_label_keys=None,
 ):
+    """Calculate time based first and second moments (including uncentered covariance) for
+     different layers of data.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object.
+        tkey: `str` or None (default: None)
+            The column key for the time label of cells in .obs. Used for either "ss" or "kinetic" model.
+            mode  with labeled data.
+        has_splicing: `bool`
+            Whether the data has splicing information.
+        has_labeling: `bool` (default: True)
+            Whether the data has labeling information.
+        t_label_keys: `str`, `list` or None (default: None)
+            The column key(s) for the labeling time label of cells in .obs. Used for either "ss" or "kinetic" model.
+            Not used for now and `tkey` is implicitly assumed as `t_label_key` (however, `tkey` should just be the time
+            of the experiment).
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            A updated AnnData object with calculated first/second moments (including uncentered covariance) for
+             each time point for each layer included.
+    """
+
     if has_labeling:
         if has_splicing:
             layers = ['uu', 'ul', 'su', 'sl']
