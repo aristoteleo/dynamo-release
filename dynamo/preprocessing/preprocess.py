@@ -171,7 +171,7 @@ def normalize_expr_data(
 
     for layer in layers:
         szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=total_szfactor)
-
+        if norm_method is None and layer == 'X': norm_method = np.log
         if norm_method in [np.log, np.log2] and layer is not "protein":
             CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method)
 

@@ -67,12 +67,16 @@ def moments(adata, use_gaussian_kernel=True, use_mnn=False, layers="all"):
                 2 ** layer_x.data - 1
                 if adata.uns["pp_log"] == "log2"
                 else np.exp(layer_x.data) - 1
+                if adata.uns["pp_log"] == "log"
+                else layer_x.data
             )
         else:
             layer_x = (
                 2 ** layer_x - 1
                 if adata.uns["pp_log"] == "log2"
                 else np.exp(layer_x) - 1
+                if adata.uns["pp_log"] == "log"
+                else layer_x
             )
 
         if mapper[layer] not in adata.layers.keys():
@@ -94,12 +98,16 @@ def moments(adata, use_gaussian_kernel=True, use_mnn=False, layers="all"):
                     2 ** layer_y.data - 1
                     if adata.uns["pp_log"] == "log2"
                     else np.exp(layer_y.data) - 1
+                    if adata.uns["pp_log"] == "log"
+                    else layer_y.data
                 )
             else:
                 layer_y = (
                     2 ** layer_y - 1
                     if adata.uns["pp_log"] == "log2"
                     else np.exp(layer_y) - 1
+                    if adata.uns["pp_log"] == "log"
+                    else layer_y
                 )
 
             if mapper[layer2] not in adata.layers.keys():
@@ -231,6 +239,58 @@ def prepare_data_no_splicing(adata, genes, time, layer, use_total_layers=True):
 
     return res
 
+def prepare_data_mix_has_splicing(adata, genes, time, layer_u='uu', layer_s='su',
+                                  layer_ul='ul', layer_sl='sl', use_total_layers=True,
+                                  mix_model_indices=None):
+    """Prepare data for mixture modeling when assumption is kinetic and data has splicing.
+    Note that the mix_model_indices is indexed on 10 total species, which can be used to specify
+    the data required for different mixture models.
+    """
+    from ..preprocessing.utils import sz_util, normalize_util
+    res = [0] * len(genes)
+
+    if use_total_layers:
+        if 'total_Size_Factor' not in adata.obs.keys():
+            total_layers = ["uu", "ul", "su", "sl"]
+            sfs, _ = sz_util(adata, '_total_', False, "median", np.nanmean, total_layers=total_layers)
+            sfs_u, sfs_s = sfs[:, None], sfs[:, None]
+        else:
+            sfs = adata.obs.total_Size_Factor
+            sfs_u, sfs_s = sfs[:, None], sfs[:, None]
+    else:
+        sfs_u, _ = sz_util(adata, layer_u, False, "median", np.nanmean, total_layers=None)
+        sfs_s, _ = sz_util(adata, layer_s, False, "median", np.nanmean, total_layers=None)
+        sfs_u, sfs_s = sfs_u[:, None], sfs_s[:, None]
+
+    U = normalize_util(adata[:, genes].layers[layer_u], sfs_u, relative_expr=True, pseudo_expr=0, norm_method=None)
+    S = normalize_util(adata[:, genes].layers[layer_s], sfs_s, relative_expr=True, pseudo_expr=0, norm_method=None)
+    Ul = normalize_util(adata[:, genes].layers[layer_ul], sfs_u, relative_expr=True, pseudo_expr=0, norm_method=None)
+    Sl = normalize_util(adata[:, genes].layers[layer_sl], sfs_s, relative_expr=True, pseudo_expr=0, norm_method=None)
+
+    for i, g in enumerate(genes):
+        ul = Ul[:, i].A.flatten() if issparse(Ul) else Ul[:, i]
+        sl = Sl[:, i].A.flatten() if issparse(Sl) else Sl[:, i]
+        ult = strat_mom(ul, time, np.mean)
+        slt = strat_mom(sl, time, np.mean)
+        ul_ult = strat_mom(elem_prod(ul, ul), time, np.mean)
+        ul_slt = strat_mom(elem_prod(ul, sl), time, np.mean)
+        sl_slt = strat_mom(elem_prod(sl, sl), time, np.mean)
+
+        u = U[:, i].A.flatten() if issparse(U) else U[:, i]
+        s = S[:, i].A.flatten() if issparse(S) else S[:, i]
+        ut = strat_mom(u, time, np.mean)
+        st = strat_mom(s, time, np.mean)
+        uut = strat_mom(elem_prod(u, u), time, np.mean)
+        ust = strat_mom(elem_prod(u, s), time, np.mean)
+        sst = strat_mom(elem_prod(s, s), time, np.mean)
+
+        x = np.array([ult, slt, ul_ult, sl_slt, ul_slt, ut, st, uut, sst, ust])
+        if mix_model_indices is not None:
+            x = x[mix_model_indices]
+
+        res[i] = x
+
+    return res
 # ---------------------------------------------------------------------------------------------------
 # moment related:
 

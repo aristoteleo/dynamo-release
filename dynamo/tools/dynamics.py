@@ -12,7 +12,12 @@ from .utils import (
     get_U_S_for_velocity_estimation,
 )
 from .utils import set_velocity, set_param_ss, set_param_kinetic
-from .moments import prepare_data_no_splicing, prepare_data_has_splicing, prepare_data_deterministic
+from .moments import (
+    prepare_data_no_splicing,
+    prepare_data_has_splicing,
+    prepare_data_deterministic,
+    prepare_data_mix_has_splicing,
+)
 
 # incorporate the model selection code soon
 def dynamics(
@@ -421,14 +426,25 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
 
                 Est = Mixture_KinDeg_NoSwitching(Deterministic(), Deterministic())
             elif model == 'mixture_deterministic_stochastic':
+                X = prepare_data_mix_has_splicing(subset_adata, subset_adata.var.index, time, layer_u=layers[2], layer_s=layers[3],
+                                                  layer_ul=layers[0], layer_sl=layers[1], use_total_layers=True,
+                                                  mix_model_indices=[0, 1, 6, 7, 8, 9, 10])
+
                 _param_ranges = {'alpha': [0, 1000], 'beta': [0, 1000], 'gamma': [0, 1000], }
-                x0 = {'u0': [0, 1000], 's0': [0, 1000],
+                x0 = {'ul0': [0, 1000], 'sl0': [0, 1000],
+                      'u0': [0, 1000], 's0': [0, 1000],
                       'uu0': [0, 1000], 'ss0': [0, 1000],
                       'us0': [0, 1000], }
                 Est = Mixture_KinDeg_NoSwitching(Deterministic(), Moments_NoSwitching())
             elif model == 'mixture_stochastic_stochastic':
                 _param_ranges = {'alpha': [0, 1000], 'beta': [0, 1000], 'gamma': [0, 1000], }
-                x0 = {'u0': [0, 1000], 's0': [0, 1000],
+                X = prepare_data_mix_has_splicing(subset_adata, subset_adata.var.index, time, layer_u=layers[2], layer_s=layers[3],
+                                                  layer_ul=layers[0], layer_sl=layers[1], use_total_layers=True,
+                                                  mix_model_indices=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+                x0 = {'ul0': [0, 1000], 'sl0': [0, 1000],
+                      'ul_ul0': [0, 1000], 'sl_sl0': [0, 1000],
+                      'ul_sl0': [0, 1000],
+                      'u0': [0, 1000], 's0': [0, 1000],
                       'uu0': [0, 1000], 'ss0': [0, 1000],
                       'us0': [0, 1000], }
                 Est = Mixture_KinDeg_NoSwitching(Moments_NoSwitching(), Moments_NoSwitching())
@@ -455,7 +471,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 if has_switch:
                     _param_ranges = {'a': [0, 1000], 'b': [0, 1000],
                                     'alpha_a': [0, 1000], 'alpha_i': 0,
-                                    'beta': [0, 1000], 'gamma': [0, 1000], }
+                                    'gamma': [0, 1000], }
                     x0 = {'u0': [0, 1000], 'uu0': [0, 1000], }
                     Est, simulator = Estimation_MomentKinNosp, Moments_Nosplicing
                 else:
