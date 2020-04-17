@@ -11,7 +11,25 @@ from ..preprocessing.utils import get_layer_keys, allowed_X_layer_names, pca
 
 # ---------------------------------------------------------------------------------------------------
 # use for calculating moments for stochastic model:
-def moments(adata, use_gaussian_kernel=True, use_mnn=False, layers="all"):
+def moments(adata,
+            group=None,
+            use_gaussian_kernel=False,
+            use_mnn=False,
+            layers="all"):
+    """
+
+    Parameters
+    ----------
+    adata
+    group
+    use_gaussian_kernel
+    use_mnn
+    layers
+
+    Returns
+    -------
+
+    """
     mapper = get_mapper()
     only_splicing, only_labeling, splicing_and_labeling = allowed_X_layer_names()
 
@@ -24,7 +42,7 @@ def moments(adata, use_gaussian_kernel=True, use_mnn=False, layers="all"):
                 use_pca_fit=True,
                 save_all_to_adata=False,
             )
-        kNN = adata.uns["mnn"]
+        conn = adata.uns["mnn"]
     else:
         if 'X_pca' not in adata.obsm.keys():
             CM = adata.X
@@ -38,14 +56,34 @@ def moments(adata, use_gaussian_kernel=True, use_mnn=False, layers="all"):
         X = adata.obsm["X_pca"]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            kNN, knn_indices, knn_dists, _ = umap_conn_indices_dist_embedding(
-                X, n_neighbors=30, return_mapper=False
-            )
+            if group is None:
+                kNN, knn_indices, knn_dists, _ = umap_conn_indices_dist_embedding(
+                    X, n_neighbors=np.min((30, adata.n_obs - 1)), return_mapper=False
+                )
 
-    if use_gaussian_kernel and not use_mnn:
-        conn = gaussian_kernel(X, knn_indices, sigma=10, k=None, dists=knn_dists)
-    else:
-        conn = normalize_knn_graph(kNN > 0)
+                if use_gaussian_kernel and not use_mnn:
+                    conn = gaussian_kernel(X, knn_indices, sigma=10, k=None, dists=knn_dists)
+                else:
+                    conn = normalize_knn_graph(kNN > 0)
+            else:
+                if group not in adata.obs.keys():
+                    raise Exception(f'the group {group} provided is not a column name in .obs attribute.')
+                conn = csr_matrix(shape=(adata.n_obs, adata.n_obs))
+                cells_group = adata.obs[group]
+                uniq_grp = np.unique(cells_group)
+                for cur_grp in uniq_grp:
+                    cur_cells = cells_group == cur_grp
+                    cur_X = X[cur_cells, :]
+                    cur_kNN, cur_knn_indices, cur_knn_dists, _ = umap_conn_indices_dist_embedding(
+                        cur_X, n_neighbors=np.min((30, sum(cur_cells) - 1)), return_mapper=False
+                    )
+
+                    if use_gaussian_kernel and not use_mnn:
+                        cur_conn = gaussian_kernel(cur_X, cur_knn_indices, sigma=10, k=None, dists=cur_knn_dists)
+                    else:
+                        cur_conn = normalize_knn_graph(cur_kNN > 0)
+
+                    conn[cur_cells, cur_cells] = cur_conn
 
     layers = get_layer_keys(adata, layers, False, False)
     layers = [
@@ -80,17 +118,25 @@ def moments(adata, use_gaussian_kernel=True, use_mnn=False, layers="all"):
             )
 
         if mapper[layer] not in adata.layers.keys():
-            if use_gaussian_kernel:
-                adata.layers[mapper[layer]], conn = calc_1nd_moment(layer_x, conn, True)
-            else:
-                conn.dot(layer_x)
-
+            # adata.layers[mapper[layer]], conn = (
+            #     calc_1nd_moment(layer_x, conn, True)
+            #     if use_gaussian_kernel
+            #     else conn.dot(layer_x)
+            # )
+            adata.layers[mapper[layer]] = (
+                calc_1nd_moment(layer_x, conn, False)
+                if use_gaussian_kernel
+                else conn.dot(layer_x)
+            )
         for layer2 in layers[i:]:
             layer_y = adata.layers[layer2].copy()
 
             layer_y_group = np.where([layer2 in x for x in
                                       [only_splicing, only_labeling, splicing_and_labeling]])[0][0]
-            if layer_x_group != layer_y_group:
+            # don't calculate 2 moments among uu, ul, su, sl -
+            # they should be time-dependent moments and
+            # those calculations are model specific
+            if (layer_x_group != layer_y_group) or layer_x_group == 2:
                 continue
 
             if issparse(layer_y):
@@ -111,6 +157,12 @@ def moments(adata, use_gaussian_kernel=True, use_mnn=False, layers="all"):
                 )
 
             if mapper[layer2] not in adata.layers.keys():
+                # adata.layers[mapper[layer2]], conn = (
+                #     calc_1nd_moment(layer_y, conn, True)
+                #     if use_gaussian_kernel
+                #     else conn.dot(layer_y)
+                # )
+
                 adata.layers[mapper[layer2]] = (
                     calc_1nd_moment(layer_y, conn, False)
                     if use_gaussian_kernel
@@ -126,6 +178,27 @@ def moments(adata, use_gaussian_kernel=True, use_mnn=False, layers="all"):
     ):  # may need to update with mnn or just use knn from protein layer itself.
         adata.obsm[mapper["X_protein"]] = conn.dot(adata.obsm["X_protein"])
     adata.uns['moments_con'] = conn
+
+    return adata
+
+def time_moment(adata,
+    tkey,
+    has_splicing,
+    has_labeling=True,
+    t_label_keys=None,
+):
+    if has_labeling:
+        if has_splicing:
+            layers = ['uu', 'ul', 'su', 'sl']
+        else:
+            layers = ['new', 'total']
+    else:
+        layers = ['unspliced', 'spliced']
+
+    time = adata.obs[tkey]
+    m, v = prepare_data_deterministic(adata, adata.var.index, time, layers,
+                                          use_total_layers=True, log=False)
+    adata.uns['time_moments'] = {'m_t': m, 'v_t': v}
 
     return adata
 
