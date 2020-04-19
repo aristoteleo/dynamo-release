@@ -28,19 +28,18 @@ def guestimate_init_cond(x_data):
 
 class kinetic_estimation:
     def __init__(self, param_ranges, x0_ranges, simulator):
-        '''A general parameter estimation framework for all types of time-seris data under kinetic assumption.
+        '''A general parameter estimation framework for all types of time-seris data
         Arguments
         ---------
-            param_ranges: `numpy.ndarray`
+            ranges: `numpy.ndarray`
                 a n-by-2 numpy array containing the lower and upper ranges of n parameters 
                 (and initial conditions if not fixed).
-            x0_ranges: `numpy.ndarray`
-                Initial conditions for the integrators if they are fixed.
             simulator: class
                 an instance of python class which solves ODEs. It should have properties 't' (k time points, 1d numpy array),
                 'x0' (initial conditions for m species, 1d numpy array), and 'x' (solution, k-by-m array), 
                 as well as two functions: integrate (numerical integration), solve (analytical method).
-
+            x0: `numpy.ndarray`
+                Initial conditions for the integrators if they are fixed.
         '''
         self.simulator = simulator
 
@@ -61,7 +60,6 @@ class kinetic_estimation:
                 self.ranges.append(x0_ranges[i]) 
         self.n_params = len(self.ranges)    # the number of unfixed parameters (including initial conditions) 
 
-        self.data = None
         self.popt = None
         self.cost = None
 
@@ -123,11 +121,7 @@ class kinetic_estimation:
         else:
             return None
 
-    def f_lsq(self, params, t, x_data, method=None, normalize=False):
-        method = self.simulator.default_method if method is None else method
-        if method not in self.simulator.methods: 
-            warnings.warn('The simulator does not support method \'{}\'. Using method \'{}\' instead.'.format(method, self.simulator.methods[0]))
-            method = self.simulator.default_method
+    def f_lsq(self, params, t, x_data, method=None, normalize=True):
         self.set_params(params)
         x0 = self.assemble_x0(params)
         self.simulator.integrate(t, x0, method)
@@ -136,14 +130,14 @@ class kinetic_estimation:
         ret[np.isnan(ret)] = 0
         return (ret - x_data).flatten()
 
-    def fit_lsq(self, t, x_data, p0=None, n_p0=1, bounds=None, sample_method='lhs', method=None, normalize=False):
+    def fit_lsq(self, t, x_data, p0=None, n_p0=1, bounds=None, sample_method='lhs', method=None, normalize=True):
         '''Fit time-seris data using least squares
         Arguments
         ---------
             t: `numpy.ndarray`
                 a numpy array of n time points.
             x_data: `numpy.ndarray`
-                a m-by-n numpy. a array of m species, each having n values for the n time points.
+                a m-by-n numpy a array of m species, each having n values for the n time points.
             p0: `numpy.ndarray`
                 Initial guess of parameters.
 
@@ -196,7 +190,7 @@ class kinetic_estimation:
             or 2. raw data: 't' is an array of k time points for k cells, 'x_data' is a m-by-k matrix of data, where m is the number of species. 
             Note that if the method is 'numerical', t has to monotonically increasing.
 
-            If not all species are included in the calculation, use 'species' to specify the species of interest.
+            If not all species are included in the data, use 'species' to specify the species of interest.
 
             Returns
             -------
@@ -496,6 +490,7 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
         '''
         self.model1 = model1
         self.model2 = model2
+        self.scale = 1
         if alpha is not None and gamma is not None:
             self._initialize(alpha, gamma, x0, beta)
     
@@ -513,31 +508,47 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
         x0_ = np.vstack((np.zeros((self.model1.n_species, 2)), x0))
         super().__init__(ranges, x0_, model)
 
-    def auto_fit(self, time, x_data, **kwargs):
-        x0 = guestimate_init_cond(x_data[-self.model2.n_species:, :])
+    def normalize_deg_data(self, x_data, weight):
+        x_data_norm = np.array(x_data, copy=True)
+
+        x_data_kin = x_data_norm[:self.model1.n_species, :]
+        data_max = np.max(np.sum(x_data_kin, 0))
+
+        x_deg_data = x_data_norm[self.model1.n_species:, :]
+        scale = weight*np.max(x_deg_data) / data_max
+        x_data_norm[self.model1.n_species:, :] /= scale
+
+        return x_data_norm, scale
+
+    def auto_fit(self, time, x_data, beta_min=50, gamma_min=10, kin_weight=2, **kwargs):
+        if kin_weight is not None:
+            x_data_norm, self.scale = self.normalize_deg_data(x_data, kin_weight)
+        else:
+            x_data_norm = x_data
+        
+        x0 = guestimate_init_cond(x_data_norm[-self.model2.n_species:, :])
         x0_bound = np.hstack((np.zeros((len(x0), 1)), 1e2*x0[None].T))
 
         if type(self.model1) in nosplicing_models:
-            al0 = guestimate_alpha(x_data[0, :], time)
+            al0 = guestimate_alpha(x_data_norm[0, :], time)
         else:
-            al0 = guestimate_alpha(x_data[0, :] + x_data[1, :], time)
+            al0 = guestimate_alpha(x_data_norm[0, :] + x_data_norm[1, :], time)
         alpha_bound = np.array([0, 1e2*al0])
 
         if type(self.model2) in nosplicing_models:
-            ga0 = guestimate_gamma(x_data[self.model1.n_species, :], time)
+            ga0 = guestimate_gamma(x_data_norm[self.model1.n_species, :], time)
             p0 = np.hstack((al0, ga0, x0))
             beta_bound = None
         else:
-            be0 = guestimate_gamma(x_data[self.model1.n_species, :], time)
-            ga0 = guestimate_gamma(x_data[self.model1.n_species, :] + x_data[self.model1.n_species+1, :], time)
+            be0 = guestimate_gamma(x_data_norm[self.model1.n_species, :], time)
+            ga0 = guestimate_gamma(x_data_norm[self.model1.n_species, :] + x_data_norm[self.model1.n_species+1, :], time)
             p0 = np.hstack((al0, be0, ga0, x0))
-            beta_bound = np.array([0, 1e2*be0])
-        gamma_bound = np.array([0, 1e2*ga0])
-        print(gamma_bound)
+            beta_bound = np.array([0, max(1e2*be0, beta_min)])
+        gamma_bound = np.array([0, max(1e2*ga0, gamma_min)])
 
         self._initialize(alpha_bound, gamma_bound, x0_bound, beta_bound)
 
-        popt, cost = self.fit_lsq(time, x_data, p0=p0, **kwargs)
+        popt, cost = self.fit_lsq(time, x_data_norm, p0=p0, **kwargs)
         return popt, cost
 
     def export_model(self, reinstantiate=True):
@@ -545,6 +556,20 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
             return MixtureModels([self.model1, self.model2], self.param_distributor)
         else:
             return self.simulator
+
+    def export_x0(self):
+        x = self.get_opt_x0_params()
+        x[self.model1.n_species:] *= self.scale
+        return x
+
+    def export_dictionary(self):
+        mdl1_name = type(self.model1).__name__
+        mdl2_name = type(self.model2).__name__
+        params = self.export_parameters()
+        x0 = self.export_x0()
+        dictionary = {'model_1': mdl1_name, 'model_2': mdl2_name, 
+            'kinetic_parameters': params, 'x0': x0}
+        return dictionary
 
 class GoodnessOfFit:
     def __init__(self, simulator, params=None, x0=None):
@@ -562,9 +587,9 @@ class GoodnessOfFit:
         if species is not None: ret = ret[species]
         return ret
 
-    def prepare_data(self, t, x_data, x_sigma=None, species=None, method=None, normalize=False, reintegrate=True):
+    def prepare_data(self, t, x_data, species=None, method=None, normalize=True, reintegrate=True):
         if reintegrate:
-            self.simulator.integrate(np.unique(t), method=method)
+            self.simulator.integrate(t, method=method)
         x_model = self.extract_data_from_simulator(species=species)
         if x_model.ndim == 1:
             x_model = x_model[None]
@@ -575,9 +600,9 @@ class GoodnessOfFit:
             x_data_norm, x_model_norm = self.normalize(x_data, x_model, scale)
         else:
             x_data_norm, x_model_norm = x_data, x_model
-        self.mean = strat_mom(x_data_norm.T, t, np.mean) if x_sigma is None else x_data_norm
-        self.sigm = strat_mom(x_data_norm.T, t, np.std) if x_sigma is None else x_sigma
-        self.pred = x_model_norm # strat_mom(x_model_norm.T, t, np.mean)
+        self.mean = strat_mom(x_data_norm.T, t, np.mean)
+        self.sigm = strat_mom(x_data_norm.T, t, np.std)
+        self.pred = strat_mom(x_model_norm.T, t, np.mean)
 
     def normalize(self, x_data, x_model, scale=None):
         scale = np.max(x_data, 1) if scale is None else scale
