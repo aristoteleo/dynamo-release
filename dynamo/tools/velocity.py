@@ -4,6 +4,7 @@ from warnings import warn
 from .utils import one_shot_gamma_alpha, calc_R2, calc_norm_loglikelihood, one_shot_gamma_alpha_matrix
 from .moments import calc_12_mom_labeling
 from .utils_velocity import *
+from ..tools.utils import update_dict
 from .moments import calc_2nd_moment
 # from sklearn.cluster import KMeans
 # from sklearn.neighbors import NearestNeighbors
@@ -332,6 +333,7 @@ class ss_estimation:
         assumption_mRNA=None,
         assumption_protein="ss",
         concat_data=True,
+        **kwargs
     ):
         """The class that estimates parameters with input data.
 
@@ -412,6 +414,7 @@ class ss_estimation:
             "eta": None,
             "delta": None,
         }
+        self.parameters = update_dict(self.parameters, kwargs)
         self.aux_param = {
             "alpha_intercept": None,
             "alpha_r2": None,
@@ -540,7 +543,12 @@ class ss_estimation:
                         if self.data["sl"] is None
                         else self.data["su"] + self.data["sl"]
                     )
-                    US, S2 = self.data["us"], self.data["s2"]
+                    US = calc_2nd_moment(
+                        U.T, S.T, self.conn, mX=U.T, mY=S.T
+                    ).T
+                    S2 = calc_2nd_moment(
+                        S.T, S.T, self.conn, mX=S.T, mY=S.T
+                    ).T
                     for i in tqdm(range(n), desc="estimating gamma"):
                         (
                             gamma[i],
