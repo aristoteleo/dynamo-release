@@ -840,13 +840,13 @@ class ss_estimation:
                             np.zeros(n),
                             np.zeros(n),
                         )
-                        U = self.data["uu"].T
-                        S = self.data["uu"].T + self.data["ul"].T
+                        U = self.data["uu"]
+                        S = self.data["uu"] + self.data["ul"]
                         US = calc_2nd_moment(
-                            U, S, self.conn, mX=U, mY=S
+                            U.T, S.T, self.conn, mX=U.T, mY=S.T
                         ).T
                         S2 = calc_2nd_moment(
-                            S, S, self.conn, mX=S, mY=S
+                            S.T, S.T, self.conn, mX=S.T, mY=S.T
                         ).T
                         for i in tqdm(range(n), desc="estimating beta and alpha for one-shot experiment"):
                             (
@@ -872,7 +872,7 @@ class ss_estimation:
 
                         U = self.data["uu"] + self.data["ul"]
                         S = U + self.data["su"] + self.data["sl"]
-                        US, S2 = self.data["us"], self.data["s2"]
+                        # US, S2 = self.data["us"], self.data["s2"]
                         for i in tqdm(range(n), desc="estimating gamma and alpha for one-shot experiment"):
                             (
                                 k[i],
