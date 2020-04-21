@@ -595,6 +595,7 @@ def phase_portraits(
             xnew,
             xnew * cur_pd.loc[:, "gamma"].unique()
             + cur_pd.loc[:, "velocity_offset"].unique(),
+            dashes=[6, 2],
             c=font_color,
         )
         X_array, V_array = (
@@ -817,6 +818,7 @@ def phase_portraits(
                 xnew,
                 xnew * cur_pd.loc[:, "gamma_P"].unique()
                 + cur_pd.loc[:, "velocity_offset_P"].unique(),
+                dashes=[6, 2],
                 c=font_color,
             )
             X_array, V_array = (
