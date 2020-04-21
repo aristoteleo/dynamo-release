@@ -183,7 +183,7 @@ def dyn_theme(background="black"):
                 "patch.edgecolor": "k",
                 "text.color": "k",
                 "axes.facecolor": background,
-                "axes.edgecolor": "white",
+                "axes.edgecolor": "black",
                 "axes.labelcolor": "k",
                 "xtick.color": "k",
                 "ytick.color": "k",
