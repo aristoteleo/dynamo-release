@@ -22,7 +22,7 @@ def get_mapper():
         "X_su": "M_su",
         "X_sl": "M_sl",
         "X_protein": "M_p",
-        "X": "M_s",
+        "X": "X",
     }
     return mapper
 
@@ -621,8 +621,9 @@ def set_param_kinetic(
     adata.var.loc[valid_ind, kin_param_pre + "logLL"] = logLL
     # add extra parameters (u0, uu0, etc.)
     extra_params.columns = [kin_param_pre + i for i in extra_params.columns]
-    var = pd.concat((adata.var, extra_params), axis=1)
-    adata.var = var.set_index(adata.var.index)
+    extra_params = extra_params.set_index(adata.var.index[valid_ind])
+    var = pd.concat((adata.var, extra_params), axis=1, sort=False)
+    adata.var = var
 
     return adata
 

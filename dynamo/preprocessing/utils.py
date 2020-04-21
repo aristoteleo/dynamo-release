@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from scipy.sparse import issparse
+from scipy.sparse import issparse, csr_matrix
 from functools import reduce
 from sklearn.decomposition import PCA, TruncatedSVD
 
@@ -259,6 +259,98 @@ def get_svr_filter(adata, layer="spliced", n_top_genes=3000, return_adata=False)
 
     return res
 
+def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None):
+    adata = adata.copy()
+
+    if layer == '_total_' and '_total_' not in adata.layers.keys():
+        if total_layers is not None:
+            if not isinstance(total_layers, list): total_layers = [total_layers]
+            if len(set(total_layers).difference(adata.layers.keys())) == 0:
+                total = None
+                for t_key in total_layers:
+                    total = (
+                        adata.layers[t_key] if total is None else total + adata.layers[t_key]
+                    )
+                adata.layers["_total_"] = total
+
+    if layer is "raw":
+        CM = adata.raw
+    elif layer is "X":
+        CM = adata.X
+    elif layer is "protein":
+        if "protein" in adata.obsm_keys():
+            CM = adata.obsm["protein"]
+        else:
+            return None, None
+    else:
+        CM = adata.layers[layer]
+
+    if round_exprs:
+        if issparse(CM):
+            CM.data = np.round(CM.data, 0)
+        else:
+            CM = CM.round().astype("int")
+
+    cell_total = CM.sum(axis=1).A1 if issparse(CM) else CM.sum(axis=1)
+    cell_total += cell_total == 0  # avoid infinity value after log (0)
+
+    if method == "mean-geometric-mean-total":
+        sfs = cell_total / np.exp(locfunc(np.log(cell_total)))
+    elif method == "median":
+        sfs = cell_total / np.nanmedian(cell_total)
+    elif method == "mean":
+        sfs = cell_total / np.nanmean(cell_total)
+    else:
+        print("This method is not supported!")
+
+    return sfs, cell_total
+
+def get_sz_exprs(adata, layer, total_szfactor=None):
+    if layer is "raw":
+        CM = adata.raw
+        szfactors = adata.obs[layer + "Size_Factor"][:, None]
+    elif layer is "X":
+        CM = adata.X
+        szfactors = adata.obs["Size_Factor"][:, None]
+    elif layer is "protein":
+        if "protein" in adata.obsm_keys():
+            CM = adata.obsm[layer]
+            szfactors = adata.obs["protein_Size_Factor"][:, None]
+        else:
+            CM, szfactors = None, None
+    else:
+        CM = adata.layers[layer]
+        szfactors = adata.obs[layer + "_Size_Factor"][:, None]
+
+    if total_szfactor is not None and total_szfactor in adata.obs.keys():
+        szfactors = adata.obs[total_szfactor][:, None]
+
+    return szfactors, CM
+
+def normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method=np.log):
+    if relative_expr:
+        CM = (
+            CM.multiply(csr_matrix(1 / szfactors))
+            if issparse(CM)
+            else CM / szfactors
+        )
+
+    if pseudo_expr is None:
+        pseudo_expr = 1
+    if issparse(CM):
+        CM.data = (
+            norm_method(CM.data + pseudo_expr)
+            if norm_method is not None
+            else CM.data
+        )
+    else:
+        CM = (
+            norm_method(CM + pseudo_expr)
+            if norm_method is not None
+            else CM
+        )
+
+    return CM
 
 # ---------------------------------------------------------------------------------------------------
 # pca

@@ -11,6 +11,7 @@ from .utils import cook_dist, get_layer_keys, get_shared_counts
 from .utils import get_svr_filter
 from .utils import allowed_layer_raw_names
 from .utils import merge_adata_attrs
+from .utils import sz_util, normalize_util, get_sz_exprs
 from ..tools.utils import update_dict
 
 
@@ -77,35 +78,7 @@ def szFactor(
         adata.raw = adata.X.copy()
 
     for layer in layers:
-        if layer is "raw":
-            CM = adata.raw
-        elif layer is "X":
-            CM = adata.X
-        elif layer is "protein":
-            if "protein" in adata.obsm_keys():
-                CM = adata.obsm["protein"]
-            else:
-                continue
-        else:
-            CM = adata.layers[layer]
-
-        if round_exprs:
-            if issparse(CM):
-                CM.data = np.round(CM.data, 0)
-            else:
-                CM = CM.round().astype("int")
-
-        cell_total = CM.sum(axis=1).A1 if issparse(CM) else CM.sum(axis=1)
-        cell_total += cell_total == 0  # avoid infinity value after log (0)
-
-        if method == "mean-geometric-mean-total":
-            sfs = cell_total / np.exp(locfunc(np.log(cell_total)))
-        elif method == "median":
-            sfs = cell_total / np.nanmedian(cell_total)
-        elif method == "mean":
-            sfs = cell_total / np.nanmean(cell_total)
-        else:
-            print("This method is not supported!")
+        sfs, cell_total = sz_util(adata, layer, round_exprs, method, locfunc, total_layers=total_layers)
 
         sfs[~np.isfinite(sfs)] = 1
         if layer is "raw":
@@ -132,7 +105,7 @@ def normalize_expr_data(
     adata,
     layers="all",
     total_szfactor='total_Size_Factor',
-    norm_method="log",
+    norm_method=np.log,
     pseudo_expr=1,
     relative_expr=True,
     keep_filtered=True,
@@ -149,8 +122,8 @@ def normalize_expr_data(
             The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
         total_szfactor: `str` (default: `total_Size_Factor`)
             The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
-        norm_method: `str` (default: `log`)
-            The method used to normalize data. Can be either `log` or `log2`.
+        norm_method: `function` or `str` (default: `np.log`)
+            The method used to normalize data. Can be either function `np.log`, function `np.log2` or string `clr`.
         pseudo_expr: `int` (default: `1`)
             A pseudocount added to the gene expression value before log/log2 normalization.
         relative_expr: `bool` (default: `True`)
@@ -197,47 +170,10 @@ def normalize_expr_data(
         )
 
     for layer in layers:
-        if layer is "raw":
-            CM = adata.raw
-            szfactors = adata.obs[layer + "Size_Factor"][:, None]
-        elif layer is "X":
-            CM = adata.X
-            szfactors = adata.obs["Size_Factor"][:, None]
-        elif layer is "protein":
-            if "protein" in adata.obsm_keys():
-                CM = adata.obsm[layer]
-                szfactors = adata.obs["protein_Size_Factor"][:, None]
-            else:
-                continue
-        else:
-            CM = adata.layers[layer]
-            szfactors = adata.obs[layer + "_Size_Factor"][:, None]
-
-        if norm_method in ["log", "log2"] and layer is not "protein":
-            if relative_expr:
-                if total_szfactor is not None and total_szfactor in adata.obs.keys():
-                    szfactors = adata.obs[total_szfactor][:, None]
-
-                CM = (
-                    CM.multiply(csr_matrix(1 / szfactors))
-                    if issparse(CM)
-                    else CM / szfactors
-                )
-
-            if pseudo_expr is None:
-                pseudo_expr = 1
-            if issparse(CM):
-                CM.data = (
-                    np.log2(CM.data + pseudo_expr)
-                    if norm_method == "log2"
-                    else np.log(CM.data + pseudo_expr)
-                )
-            else:
-                CM = (
-                    np.log2(CM + pseudo_expr)
-                    if norm_method == "log2"
-                    else np.log(CM + pseudo_expr)
-                )
+        szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=total_szfactor)
+        if norm_method is None and layer == 'X': norm_method = np.log
+        if norm_method in [np.log, np.log2] and layer is not "protein":
+            CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method)
 
         elif layer is "protein":  # norm_method == 'clr':
             if norm_method is not "clr":
@@ -270,7 +206,7 @@ def normalize_expr_data(
         else:
             adata.layers["X_" + layer] = CM
 
-    adata.uns["pp_log"] = norm_method
+    adata.uns["pp_log"] = norm_method.__name__ if callable(norm_method) else norm_method
     return adata
 
 
@@ -435,7 +371,7 @@ def disp_calc_helper_NB(adata, layers="X", min_cells_detected=1):
         nzGenes = nzGenes > min_cells_detected
 
         nzGenes = nzGenes.A1 if issparse(rounded) else nzGenes
-        if layer is layer.__contains__("X_"):
+        if layer.startswith("X_"):
             x = rounded[:, nzGenes]
         else:
             x = (
@@ -1201,7 +1137,7 @@ def collapse_adata(adata):
 
 
 def unique_var_obs_adata(adata):
-    """Function to collapse the four species data, will be generalized to handle dual-datasets"""
+    """Function to make the obs and var attribute's index unique"""
     adata.obs_names_make_unique()
     adata.var_names_make_unique()
 
@@ -1216,7 +1152,7 @@ def recipe_monocle(
     genes_to_use=None,
     method="pca",
     num_dim=30,
-    norm_method="log",
+    norm_method=np.log,
     pseudo_expr=1,
     feature_selection="SVR",
     n_top_genes=2000,
@@ -1247,7 +1183,7 @@ def recipe_monocle(
             The linear dimension reduction methods to be used.
         num_dim: `int` (default: `50`)
             The number of linear dimensions reduced to.
-        norm_method: `str` (default: `log`)
+        norm_method: `function` or `str` (default: function `np.log`)
             The method to normalize the data.
         pseudo_expr: `int` (default: `1`)
             A pseudocount added to the gene expression value before log/log2 normalization.
@@ -1424,7 +1360,7 @@ def recipe_velocyto(
     total_layers=None,
     method="pca",
     num_dim=30,
-    norm_method="log",
+    norm_method=np.log,
     pseudo_expr=1,
     feature_selection="SVR",
     n_top_genes=2000,
@@ -1445,7 +1381,7 @@ def recipe_velocyto(
             The linear dimension reduction methods to be used.
         num_dim: `int` (default: `50`)
             The number of linear dimensions reduced to.
-        norm_method: `str` (default: `log`)
+        norm_method: `function` or `str` (default: function `np.log`)
             The method to normalize the data.
         pseudo_expr: `int` (default: `1`)
             A pseudocount added to the gene expression value before log/log2 normalization.
