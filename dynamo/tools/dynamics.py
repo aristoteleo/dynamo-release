@@ -216,8 +216,15 @@ def dynamics(
 
             model = "deterministic"
 
-        if assumption_mRNA.lower() == 'ss' or (experiment_type.lower() in ['one-shot', 'mix_std_stm']):
-            if est_method.lower() == 'auto': est_method = 'gmm'
+        if assumption_mRNA.lower() == "ss" or (experiment_type.lower() in ["one-shot", "mix_std_stm"]):
+            if est_method.lower() == "auto": est_method = "gmm"
+            if experiment_type.lower() == "one_shot":
+                beta = subset_adata.var.beta if "beta" in subset_adata.var.keys() else None
+                gamma = subset_adata.var.gamma if "gamma" in subset_adata.var.keys() else None
+                ss_estimation_kwargs = {"beta": beta, "gamma": gamma}
+
+            else:
+                ss_estimation_kwargs = {}
 
             est = ss_estimation(
                 U=U,
@@ -236,6 +243,7 @@ def dynamics(
                 assumption_mRNA=assumption_mRNA,
                 assumption_protein=assumption_protein,
                 concat_data=concat_data,
+                **ss_estimation_kwargs
             )
 
             with warnings.catch_warnings():
