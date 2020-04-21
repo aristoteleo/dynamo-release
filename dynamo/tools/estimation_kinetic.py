@@ -496,6 +496,12 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
             self._initialize(alpha, gamma, x0, beta)
     
     def _initialize(self, alpha, gamma, x0, beta=None):
+        if type(self.model1) in nosplicing_models:
+            self.param_distributor = [[0, 2], [1, 2]]
+            self.param_keys = ['alpha', 'alpha_2', 'gamma']
+        else:
+            self.param_distributor = [[0, 2, 3], [1, 2, 3]]
+            self.param_keys = ['alpha', 'alpha_2', 'beta', 'gamma']
         self.param_distributor = [[0, 2], [1, 2]] if type(self.model1) in nosplicing_models else [[0, 2, 3], [1, 2, 3]]
         model = MixtureModels([self.model1, self.model2], self.param_distributor)
 
@@ -567,9 +573,10 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
         mdl1_name = type(self.model1).__name__
         mdl2_name = type(self.model2).__name__
         params = self.export_parameters()
+        param_dict = {self.param_keys[i]: params[i] for i in range(len(params))}
         x0 = self.export_x0()
         dictionary = {'model_1': mdl1_name, 'model_2': mdl2_name, 
-            'kinetic_parameters': params, 'x0': x0}
+            'kinetic_parameters': param_dict, 'x0': x0}
         return dictionary
 
 class GoodnessOfFit:
