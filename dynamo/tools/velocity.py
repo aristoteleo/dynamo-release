@@ -584,7 +584,12 @@ class ss_estimation:
                     )
                     U = self.data["ul"]
                     S = self.data["uu"] + self.data["ul"]
-                    US, S2 = self.data["us"], self.data["s2"]
+                    US = calc_2nd_moment(
+                        U.T, S.T, self.conn, mX=U.T, mY=S.T
+                    ).T
+                    S2 = calc_2nd_moment(
+                        S.T, S.T, self.conn, mX=S.T, mY=S.T
+                    ).T
                     for i in tqdm(range(n), desc="estimating gamma"):
                         (
                             gamma[i],
@@ -719,10 +724,7 @@ class ss_estimation:
                 # calculate when having splicing or no splicing
                 if self.model.lower() == "deterministic":
                     if np.all(self._exist_data("ul", "uu", "su")):
-                        if (
-                            self._exist_data("ul")
-                            and self._exist_parameter("beta", "gamma").all()
-                        ):
+                        if self._exist_parameter("beta", "gamma").all():
                             self.parameters["alpha"] = self.fit_alpha_oneshot(
                                 self.t, self.data["ul"], self.parameters["beta"], clusters
                             )
@@ -880,7 +882,12 @@ class ss_estimation:
 
                         U = self.data["uu"] + self.data["ul"]
                         S = U + self.data["su"] + self.data["sl"]
-                        # US, S2 = self.data["us"], self.data["s2"]
+                        US = calc_2nd_moment(
+                            U.T, S.T, self.conn, mX=U.T, mY=S.T
+                        ).T
+                        S2 = calc_2nd_moment(
+                            S.T, S.T, self.conn, mX=S.T, mY=S.T
+                        ).T
                         for i in tqdm(range(n), desc="estimating gamma and alpha for one-shot experiment"):
                             (
                                 k[i],
