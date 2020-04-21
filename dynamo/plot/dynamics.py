@@ -588,8 +588,8 @@ def phase_portraits(
                 )
 
         ax1.set_title(gn)
-        ax1.set_xlabel("spliced")
-        ax1.set_ylabel("unspliced")
+        ax1.set_xlabel("spliced (1st moment)")
+        ax1.set_ylabel("unspliced (1st moment)")
         xnew = np.linspace(0, cur_pd.iloc[:, 1].max() * 0.80)
         ax1.plot(
             xnew,
@@ -809,8 +809,8 @@ def phase_portraits(
                     )
 
             ax4.set_title(gn)
-            ax1.set_xlabel("spliced")
-            ax1.set_ylabel("protein")
+            ax1.set_xlabel("spliced (1st moment)")
+            ax1.set_ylabel("protein (1st moment)")
 
             xnew = np.linspace(0, cur_pd.iloc[:, 3].max())
             ax4.plot(

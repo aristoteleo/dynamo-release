@@ -22,7 +22,7 @@ def get_mapper():
         "X_su": "M_su",
         "X_sl": "M_sl",
         "X_protein": "M_p",
-        "X": "M_s",
+        "X": "X",
     }
     return mapper
 
