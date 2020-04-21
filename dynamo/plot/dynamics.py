@@ -698,9 +698,6 @@ def phase_portraits(
             )
 
         ax2.set_title(gn + " (" + ekey + ")")
-        # ax2.set_xlabel(basis + "_1")
-        # ax2.set_ylabel(basis + "_2")
-        # fig = plt.gcf()
         ax2 = arrowed_spines(ax2, basis)
 
         if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
@@ -737,9 +734,6 @@ def phase_portraits(
             )
 
         ax3.set_title(gn + " (" + vkey + ")")
-        # ax3.set_xlabel(basis + "_1")
-        # ax3.set_ylabel(basis + "_2")
-        # fig = plt.gcf()
         ax3 = arrowed_spines(ax3, basis)
         if (
             "protein" in adata.obsm.keys()
@@ -923,9 +917,6 @@ def phase_portraits(
                 )
 
             ax5.set_title(gn + " (protein expression)")
-            # ax5.set_xlabel(basis + "_1")
-            # ax5.set_ylabel(basis + "_2")
-            # fig = plt.gcf()
             ax5 = arrowed_spines(ax5, basis)
 
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
@@ -962,9 +953,6 @@ def phase_portraits(
                 )
 
             ax6.set_title(gn + " (protein velocity)")
-            # ax6.set_xlabel(basis + "_1")
-            # ax6.set_ylabel(basis + "_2")
-            # fig = plt.gcf()
             ax6 = arrowed_spines(ax6, basis)
 
     if save_show_or_return == "save":

@@ -16,7 +16,9 @@ from .utils import (
     scatter_with_colorbar,
     scatter_with_legend,
     _select_font_color,
+    arrowed_spines,
 )
+
 from .utils import is_gene_name, is_cell_anno_column, is_list_of_lists
 from .utils import _matplotlib_points, _datashade_points
 from .utils import save_fig
@@ -1081,8 +1083,9 @@ def scatters(
                         **scatter_kwargs
                     )
 
-                ax.set_xlabel(points.columns[0])
-                ax.set_ylabel(points.columns[1])
+                arrowed_spines(ax, points.columns[0].strip('_1'))
+                # ax.set_xlabel(points.columns[0])
+                # ax.set_ylabel(points.columns[1])
                 ax.set_title(cur_c)
 
                 axes_list.append(ax)

@@ -872,20 +872,23 @@ def arrowed_spines(ax, basis="umap"):
     yhl = hl/(xmax-xmin)*(ymax-ymin)* width/height
 
     # draw x and y axis
-    ax.arrow(xmin, ymin, 2, 0, fc='k', ec='k', lw=lw,
+    ax.arrow(xmin, ymin, hl * 5, 0, #fc='k', ec='k',
+             lw=lw,
              head_width=hw, head_length=hl,
              overhang=ohg,
              length_includes_head=True, clip_on=False)
-    scale = (ymax-ymin)/(xmax-xmin)
-    ax.arrow(xmin, ymin, 0, 2 * scale, fc='k', ec='k', lw=lw,
+    ax.arrow(xmin, ymin, 0, hw * 5, # fc='k', ec='k',
+             lw=lw,
              head_width=yhw, head_length=yhl,
              overhang=ohg,
              length_includes_head=True, clip_on=False)
 
-    ax.text(xmin+1, ymin-0.15 * scale, basis.upper() +"1", ha="center", va="center", rotation=0,
-            size=15,)
-    ax.text(xmin-0.15, ymin + scale, basis.upper() +"2", ha="center", va="center", rotation=90,
-            size=15,)
+    ax.text(xmin+hl * 2.5, ymin-1.1 * hw, basis.upper() +"1", ha="center", va="center", rotation=0,
+            size=(lw + hw) * 10,
+            )
+    ax.text(xmin-1.1 * yhw, ymin+hw * 2.5, basis.upper() +"2", ha="center", va="center", rotation=90,
+            size=(lw + hw) * 10,
+            )
 
     return ax
 
