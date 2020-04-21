@@ -699,6 +699,8 @@ def phase_portraits(
         ax2.set_title(gn + " (" + ekey + ")")
         ax2.set_xlabel(basis + "_1")
         ax2.set_ylabel(basis + "_2")
+        fig = plt.gcf()
+        ax2 = arrowed_spines(fig, ax2)
 
         if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
             ax3, _ = _matplotlib_points(
@@ -736,7 +738,8 @@ def phase_portraits(
         ax3.set_title(gn + " (" + vkey + ")")
         ax3.set_xlabel(basis + "_1")
         ax3.set_ylabel(basis + "_2")
-
+        fig = plt.gcf()
+        ax3 = arrowed_spines(fig, ax3)
         if (
             "protein" in adata.obsm.keys()
             and mode is "full"
@@ -921,6 +924,8 @@ def phase_portraits(
             ax5.set_title(gn + " (protein expression)")
             ax5.set_xlabel(basis + "_1")
             ax5.set_ylabel(basis + "_2")
+            fig = plt.gcf()
+            ax5 = arrowed_spines(fig, ax5)
 
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
                 ax6, _ = _matplotlib_points(
@@ -958,6 +963,8 @@ def phase_portraits(
             ax6.set_title(gn + " (protein velocity)")
             ax6.set_xlabel(basis + "_1")
             ax6.set_ylabel(basis + "_2")
+            fig = plt.gcf()
+            ax6 = arrowed_spines(fig, ax6)
 
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'phase_portraits', "dpi": None,
@@ -2243,3 +2250,56 @@ def dynamics_(
         )
 
     plt.tight_layout()
+
+
+def arrowed_spines(fig, ax):
+    import matplotlib.pyplot as plt
+
+    xmin, xmax = ax.get_xlim()
+    ymin, ymax = ax.get_ylim()
+
+    # removing the default axis on all sides:
+    for side in ['bottom','right','top','left']:
+        ax.spines[side].set_visible(False)
+
+    # removing the axis ticks
+    plt.xticks([]) # labels
+    plt.yticks([])
+    ax.xaxis.set_ticks_position('none') # tick markers
+    ax.yaxis.set_ticks_position('none')
+
+    # get width and height of axes object to compute
+    # matching arrowhead length and width
+    dps = fig.dpi_scale_trans.inverted()
+    bbox = ax.get_window_extent().transformed(dps)
+    width, height = bbox.width, bbox.height
+
+    # manual arrowhead width and length
+    hw = 1./20.*(ymax-ymin)
+    hl = 1./20.*(xmax-xmin)
+    lw = 1. # axis line width
+    ohg = 0.3 # arrow overhang
+
+    # compute matching arrowhead length and width
+    yhw = hw/(ymax-ymin)*(xmax-xmin)* height/width
+    yhl = hl/(xmax-xmin)*(ymax-ymin)* width/height
+
+    # draw x and y axis
+    ax.arrow(xmin, ymin, xmin + 2, ymin, fc='k', ec='k', lw = lw,
+             head_width=hw, head_length=hl, overhang = ohg,
+             length_includes_head= True, clip_on = False)
+    scale = (ymax-ymin)/(xmax -xmin)
+    ax.arrow(xmin, ymin, xmin, ymin + 2 * scale, fc='k', ec='k', lw = lw,
+             head_width=yhw, head_length=yhl, overhang = ohg,
+             length_includes_head= True, clip_on = False)
+
+    ax.set_xlabel([])
+    ax.set_ylabel([])
+    ax.get_xaxis().set_ticks([])
+    ax.get_yaxis().set_ticks([])
+    ax.text(xmin+1, ymin-0.2, "UMAP1", ha="center", va="center", rotation=0,
+            size=15,)
+    ax.text(xmin-0.2, ymin + scale, "UMAP2", ha="center", va="center", rotation=90,
+            size=15,)
+
+    return ax
