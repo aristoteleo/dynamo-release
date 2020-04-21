@@ -53,7 +53,8 @@ class LinearODE:
         return K, p
     
     def integrate_matrix(self, t, x0=None):
-        t0 = t[0]
+        #t0 = t[0]
+        t0 = 0
         if x0 is None:
             x0 = self.x0
         else:
@@ -75,8 +76,8 @@ class LinearODE:
         D, U, V = map(np.real, (D, U, V))
         expD = np.exp(D)
         x = np.zeros((len(t), self.n_species))
-        x[0] = x0
-        for i in range(1, len(t)):
+        #x[0] = x0
+        for i in range(len(t)):
             x[i] = U.dot(np.diag(expD**(t[i]-t0))).dot(V).dot(y0) - x_ss
         return x
 
