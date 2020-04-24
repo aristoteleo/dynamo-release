@@ -1084,8 +1084,6 @@ def scatters(
                     )
 
                 arrowed_spines(ax, points.columns[0].strip('_1'))
-                # ax.set_xlabel(points.columns[0])
-                # ax.set_ylabel(points.columns[1])
                 ax.set_title(cur_c)
 
                 axes_list.append(ax)

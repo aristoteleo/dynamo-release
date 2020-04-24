@@ -1,5 +1,7 @@
 from tqdm import tqdm
 import pandas as pd
+from scipy.sparse import SparseEfficiencyWarning
+
 from .moments import moments
 from .velocity import velocity
 from .velocity import ss_estimation
@@ -18,6 +20,9 @@ from .moments import (
     prepare_data_deterministic,
     prepare_data_mix_has_splicing,
 )
+
+import warnings
+warnings.simplefilter('ignore', SparseEfficiencyWarning)
 
 # incorporate the model selection code soon
 def dynamics(

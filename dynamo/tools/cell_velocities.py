@@ -1,3 +1,4 @@
+from tqdm import tqdm
 import scipy as scp
 from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import PCA
@@ -12,7 +13,6 @@ from .utils import (
 )
 
 from .dimension_reduction import reduceDimension
-
 
 def cell_velocities(
     adata,
@@ -144,6 +144,40 @@ def cell_velocities(
     finite_inds = get_finite_inds(V_mat)
     X, V_mat = X[:, finite_inds], V_mat[:, finite_inds]
 
+    if n_pca_components is not None:
+        if (
+                "velocity_pca_fit" not in adata.uns_keys()
+                or type(adata.uns["velocity_pca_fit"]) == str
+        ):
+            pca = PCA(
+                n_components=min(n_pca_components, X.shape[1] - 1),
+                svd_solver="arpack",
+                random_state=0,
+            )
+            pca_fit = pca.fit(X)
+            X_pca = pca_fit.transform(X)
+
+            adata.uns["velocity_pca_fit"] = pca_fit
+            adata.uns["velocity_PCs"] = pca_fit.components_.T
+            adata.obsm["X_velocity_pca"] = X_pca
+
+        X_pca, PCs, pca_fit = (
+            adata.obsm["X_velocity_pca"],
+            adata.uns["velocity_PCs"],
+            adata.uns["velocity_pca_fit"],
+        )
+
+        Y_pca = pca_fit.transform(X + V_mat)
+        V_pca = Y_pca - X_pca
+        # V_pca = (V_mat - V_mat.mean(0)).dot(PCs)
+
+        adata.obsm["velocity_pca_raw"] = V_pca
+        X, V_mat = X_pca[:, :n_pca_components], V_pca[:, :n_pca_components]
+
+    if neighbors_from_basis:
+            nbrs = NearestNeighbors(n_neighbors=30, algorithm="ball_tree").fit(X)
+            _, indices = nbrs.kneighbors(X)
+
     # add both source and sink distribution
     if method == "analytical":
         kmc = KernelMarkovChain()
@@ -156,49 +190,13 @@ def cell_velocities(
         }
         kmc_args = update_dict(kmc_args, kmc_kwargs)
 
-        # number of kNN in neighbor_idx may be too small
-        if n_pca_components is not None:
-            if (
-                "velocity_pca_fit" not in adata.uns_keys()
-                or type(adata.uns["velocity_pca_fit"]) == str
-            ):
-                pca = PCA(
-                    n_components=min(n_pca_components, X.shape[1] - 1),
-                    svd_solver="arpack",
-                    random_state=0,
-                )
-                pca_fit = pca.fit(X)
-                X_pca = pca_fit.transform(X)
-
-                adata.uns["velocity_pca_fit"] = pca_fit
-                adata.uns["velocity_PCs"] = pca_fit.components_.T
-                adata.obsm["X_velocity_pca"] = X_pca
-
-            X_pca, PCs, pca_fit = (
-                adata.obsm["X_velocity_pca"],
-                adata.uns["velocity_PCs"],
-                adata.uns["velocity_pca_fit"],
-            )
-
-            Y_pca = pca_fit.transform(X + V_mat)
-            V_pca = Y_pca - X_pca
-            # V_pca = (V_mat - V_mat.mean(0)).dot(PCs)
-
-            adata.obsm["velocity_pca_raw"] = V_pca
-            X, V_mat = X_pca[:, :n_pca_components], V_pca[:, :n_pca_components]
-
-        if neighbors_from_basis:
-            kmc.fit(
-                X, V_mat, neighbor_idx=None, sample_fraction=sample_fraction, **kmc_args
-            )  #
-        else:
-            kmc.fit(
-                X,
-                V_mat,
-                neighbor_idx=indices,
-                sample_fraction=sample_fraction,
-                **kmc_args
-            )  #
+        kmc.fit(
+            X,
+            V_mat,
+            neighbor_idx=indices,
+            sample_fraction=sample_fraction,
+            **kmc_args
+        )  #
 
         T = kmc.P
         if correct_density:
@@ -234,14 +232,14 @@ def cell_velocities(
             )
 
         adata.uns["kmc"] = kmc
-    elif method == "empirical":  # add random velocity vectors calculation below
-        T, delta_X, X_grid, V_grid, D = _empirical_vec(
+    elif method == "empirical":
+        T, delta_X, X_grid, V_grid, D = empirical_vec(
             X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors
         )
 
         if calc_rnd_vel:
             permute_rows_nsign(V_mat)
-            T_rnd, delta_X_rnd, X_grid_rnd, V_grid_rnd, D_rnd = _empirical_vec(
+            T_rnd, delta_X_rnd, X_grid_rnd, V_grid_rnd, D_rnd = empirical_vec(
                 X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors
             )
     elif method == "transform":
@@ -485,7 +483,7 @@ def expected_return_time(M, backward=False):
     return T
 
 
-def _empirical_vec(
+def empirical_vec(
     X_pca, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors
 ):
     """utility function for calculating the transition matrix or low dimensional velocity embedding via the original correlation kernel."""
@@ -498,7 +496,7 @@ def _empirical_vec(
 
     delta_X = np.zeros((n, X_embedding.shape[1]))
     idx = 0
-    for i in range(n):
+    for i in tqdm(range(n), desc="calculating velocity embedding via correlation kernel."):
         i_vals = np.zeros((knn, 1))
         velocity = V_mat[i, :]  # project V_mat to pca space
         diff_velocity = np.sign(velocity) * np.sqrt(np.abs(velocity))

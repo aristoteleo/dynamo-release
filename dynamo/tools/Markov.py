@@ -360,11 +360,12 @@ def smoothen_drift_on_grid(X, V, n_grid, nbrs=None, k=None, smoothness=1):
 def get_iterative_indices(indices, index, n_recurse_neighbors=2, max_neighs=None):
     # These codes are borrowed from scvelo. Need to be rewritten later.
     def iterate_indices(indices, index, n_recurse_neighbors):
-        return (
-            indices[iterate_indices(indices, index, n_recurse_neighbors - 1)]
-            if n_recurse_neighbors > 1
-            else indices[index]
-        )
+        if n_recurse_neighbors > 1:
+            index = iterate_indices(indices, index, n_recurse_neighbors - 1)
+        ix = np.append(index, indices[index])
+        if np.isnan(ix).any():
+            ix = ix[~np.isnan(ix)]
+        return ix.astype(int)
 
     indices = np.unique(iterate_indices(indices, index, n_recurse_neighbors))
     if max_neighs is not None and len(indices) > max_neighs:
