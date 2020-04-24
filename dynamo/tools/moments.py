@@ -54,7 +54,7 @@ def moments(adata,
             )
         conn = adata.uns["mnn"]
     else:
-        if 'X_pca' not in adata.obsm.keys():
+        if 'X' not in adata.obsm.keys():
             CM = adata.X
             cm_genesums = CM.sum(axis=0)
             valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
@@ -63,7 +63,7 @@ def moments(adata,
             adata, fit, _ = pca(adata, CM)
 
             adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
-        X = adata.obsm["X_pca"]
+        X = adata.obsm["X"]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             if group is None:

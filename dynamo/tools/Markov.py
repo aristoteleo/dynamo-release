@@ -6,7 +6,7 @@ from sklearn.neighbors import NearestNeighbors
 from scipy.stats import norm
 from scipy.linalg import eig, null_space
 from numba import jit
-
+from .utils import append_iterative_neighbor_indices
 
 def markov_combination(x, v, X):
     from cvxopt import matrix, solvers
@@ -355,30 +355,6 @@ def smoothen_drift_on_grid(X, V, n_grid, nbrs=None, k=None, smoothness=1):
         / np.maximum(1, total_p_mass)[:, None]
     )  # weighed average
     return U, gridpoints_coordinates
-
-
-def get_iterative_indices(indices, index, n_recurse_neighbors=2, max_neighs=None):
-    # These codes are borrowed from scvelo. Need to be rewritten later.
-    def iterate_indices(indices, index, n_recurse_neighbors):
-        if n_recurse_neighbors > 1:
-            index = iterate_indices(indices, index, n_recurse_neighbors - 1)
-        ix = np.append(index, indices[index])
-        if np.isnan(ix).any():
-            ix = ix[~np.isnan(ix)]
-        return ix.astype(int)
-
-    indices = np.unique(iterate_indices(indices, index, n_recurse_neighbors))
-    if max_neighs is not None and len(indices) > max_neighs:
-        indices = np.random.choice(indices, max_neighs, replace=False)
-    return indices
-
-
-def append_iterative_neighbor_indices(indices, n_recurse_neighbors=2, max_neighs=None):
-    indices_rec = []
-    for i in range(indices.shape[0]):
-        neig = get_iterative_indices(indices, i, n_recurse_neighbors, max_neighs)
-        indices_rec.append(neig)
-    return indices_rec
 
 
 class MarkovChain:

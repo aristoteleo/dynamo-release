@@ -356,7 +356,7 @@ def normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method=np.log
 # pca
 
 
-def pca(adata, CM, n_pca_components=30, pca_key='X_pca'):
+def pca(adata, CM, n_pca_components=30, pca_key='X'):
 
     if adata.n_obs < 100000:
         pca = PCA(n_components=n_pca_components, svd_solver="arpack", random_state=0)

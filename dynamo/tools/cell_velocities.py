@@ -1,7 +1,9 @@
 from tqdm import tqdm
 import scipy as scp
 from scipy.sparse import csr_matrix, issparse
+from scipy.spatial.distance import cosine
 from sklearn.decomposition import PCA
+from sklearn.utils import sparsefuncs
 from .Markov import *
 from .connectivity import extract_indices_dist_from_graph
 from .utils import (
@@ -10,6 +12,8 @@ from .utils import (
     get_ekey_vkey_from_adata,
     get_mapper_inverse,
     update_dict,
+    get_iterative_indices,
+    split_velocity_graph,
 )
 
 from .dimension_reduction import reduceDimension
@@ -233,13 +237,13 @@ def cell_velocities(
 
         adata.uns["kmc"] = kmc
     elif method == "empirical":
-        T, delta_X, X_grid, V_grid, D = empirical_vec(
+        T, delta_X, X_grid, V_grid, D = kernels_from_others(
             X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors
         )
 
         if calc_rnd_vel:
             permute_rows_nsign(V_mat)
-            T_rnd, delta_X_rnd, X_grid_rnd, V_grid_rnd, D_rnd = empirical_vec(
+            T_rnd, delta_X_rnd, X_grid_rnd, V_grid_rnd, D_rnd = kernels_from_others(
                 X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors
             )
     elif method == "transform":
@@ -252,10 +256,10 @@ def cell_velocities(
             CM = adata.X[:, adata.var.use_for_dynamo.values]
             from ..preprocessing.utils import pca
 
-            adata, pca_fit, X_pca = pca(adata, CM, n_pca_components, "X_pca")
+            adata, pca_fit, X_pca = pca(adata, CM, n_pca_components, "X")
             adata.uns["pca_fit"] = pca_fit
 
-        X_pca, pca_fit = adata.obsm["X_pca"], adata.uns["pca_fit"]
+        X_pca, pca_fit = adata.obsm["X"], adata.uns["pca_fit"]
         V = (
             adata[:, adata.var.use_for_dynamo.values].layers[vkey]
             if vkey in adata.layers.keys()
@@ -483,86 +487,78 @@ def expected_return_time(M, backward=False):
     return T
 
 
-def empirical_vec(
-    X_pca, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors
+def kernels_from_others(
+    X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors,
+    n_recurse_neighbors=2, max_neighs=None, kernel='correlation', transform='sqrt',
+    use_neg_vals=True,
 ):
-    """utility function for calculating the transition matrix or low dimensional velocity embedding via the original correlation kernel."""
-    n = X_pca.shape[0]
+    """utility function for calculating the transition matrix and low dimensional velocity embedding via the original
+    correlation kernel (La Manno et al., 2018) or the cosine kernel from scVelo (Bergen et al., 2019)."""
+    n = X.shape[0]
     if indices is not None:
-        knn = indices.shape[1] - 1  # remove the first one in kNN
-        rows = np.zeros((n * knn, 1))
-        cols = np.zeros((n * knn, 1))
-        vals = np.zeros((n * knn, 1))
+        rows = []
+        cols = []
+        vals = []
 
     delta_X = np.zeros((n, X_embedding.shape[1]))
-    idx = 0
-    for i in tqdm(range(n), desc="calculating velocity embedding via correlation kernel."):
-        i_vals = np.zeros((knn, 1))
+    for i in tqdm(range(n), desc=f"calculating transition matrix via {kernel} kernel."):
+        i_vals = get_iterative_indices(indices, i, n_recurse_neighbors, max_neighs) #np.zeros((knn, 1))
         velocity = V_mat[i, :]  # project V_mat to pca space
         diff_velocity = np.sign(velocity) * np.sqrt(np.abs(velocity))
 
-        for j in np.arange(1, knn + 1):
-            neighbor_ind_j = indices[i, j]
-            diff = X_pca[neighbor_ind_j, :] - X_pca[i, :]
-            diff_rho = np.sign(diff) * np.sqrt(np.abs(diff))
-            pearson_corr = np.corrcoef(diff_rho, diff_velocity)[0, 1]
+        for j in np.arange(0, len(i_vals)):
+            neighbor_ind_j = i_vals[j]
+            diff = X[neighbor_ind_j, :] - X[i, :]
 
-            rows[idx] = i
-            cols[idx] = neighbor_ind_j
-            i_vals[j - 1] = pearson_corr
-            idx = idx + 1
+            if transform == 'sqrt':
+                diff_rho = np.sign(diff) * np.sqrt(np.abs(diff))
+            elif transform == 'linear':
+                diff_rho = diff
 
-        if neg_cells_trick:
-            val_ind_vec = np.array(range(i * knn, (i + 1) * knn))
-            for sig in [-1, 1]:
-                cur_ind = np.where(np.sign(i_vals) == sig)[0]
-                if len(cur_ind) == 0:
-                    continue
+            if kernel == 'correlation':
+                cur_val = np.corrcoef(diff_rho, diff_velocity)[0, 1]
+            elif kernel == 'cosine':
+                cur_val = cosine(diff_rho, diff_velocity)
 
-                cur_i_vals = i_vals[cur_ind]
-                sigma = max(abs(cur_i_vals))
-                exp_i_vals = np.exp(np.abs(cur_i_vals) / sigma)
-                denominator = sum(exp_i_vals)
-                i_prob = exp_i_vals / denominator
-                vals[val_ind_vec[cur_ind]] = sig * i_prob
+            rows.extend(i)
+            cols.extend(neighbor_ind_j)
+            vals.extend(cur_val)
 
-                j_vec = indices[i, 1:][cur_ind]
-                numerator = sig * np.array(
-                    [X_embedding[j, :] - X_embedding[i, :] for j in j_vec]
-                )
-                denominator = np.array(
-                    [[scp.linalg.norm(numerator[j]) for j in range(len(j_vec))]]
-                ).T
-
-                delta_X[i, :] += (
-                    0.5
-                    * (i_prob - 1 / len(cur_ind))
-                    .T.dot(numerator / np.hstack((denominator, denominator)))
-                    .flatten()
-                )
-        else:
-            sigma = max(abs(i_vals))
-            exp_i_vals = np.exp(i_vals / sigma)
-            denominator = sum(exp_i_vals)
-            i_prob = exp_i_vals / denominator
-            vals[i * knn : (i + 1) * knn] = i_prob
-
-            j_vec = indices[i, 1:]
-            numerator = np.array([X_embedding[j, :] - X_embedding[i, :] for j in j_vec])
-            denominator = np.array(
-                [[scp.linalg.norm(numerator[j]) for j in range(knn)]]
-            ).T
-
-            delta_X[i, :] = (i_prob - 1 / knn).T.dot(
-                numerator / np.hstack((denominator, denominator))
-            )
-
-        X_grid, V_grid, D = velocity_on_grid(
-            X_embedding, X_embedding + delta_X, xy_grid_nums=xy_grid_nums
-        )
-
-    T = csr_matrix(
+    G = csr_matrix(
         (vals.flatten(), (rows.flatten(), cols.flatten())), shape=neighbors.shape
+    )
+    G, G_ = split_velocity_graph(G)
+
+    confidence, ub_confidence = G.max(1).A.flatten(), np.percentile(G.max(1).A.flatten(), 98)
+    dig_p = np.clip(ub_confidence - confidence, 0, 1)
+    G = G.setdiag(dig_p)
+
+    T = np.expm1(G / 0.1)
+
+    if neg_cells_trick:
+        if use_neg_vals:
+            T -= np.expm1(-G_ / 0.1)
+        else:
+            T += np.expm1(G_ / 0.1)
+            T.data = T.data + 1
+
+    # T = w * (~ direct_neighs).multiply(T) + (1 - w) * direct_neighs.multiply(T)
+
+    sparsefuncs.inplace_row_scale(T, 1 / T.sum(axis=1).A1)
+
+    T.setdiag(0)
+    T.eliminate_zeros()
+
+    for i in tqdm(range(n), desc=f"projecting velocity to low dimensional embedding..."):
+        indices = T[i].indices
+        diff_emb = X_embedding[indices] - X_embedding[i, None]
+        diff_emb /= scp.linalg.norm(diff_emb, axis=1)[:, None]
+        diff_emb[np.isnan(diff_emb)] = 0
+        T_i = T[i].data
+        delta_X[i] = T_i.dot(diff_emb) - T_i.mean() * diff_emb.sum(0)
+
+    X_grid, V_grid, D = velocity_on_grid(
+        X_embedding, X_embedding + delta_X, xy_grid_nums=xy_grid_nums
     )
 
     return T, delta_X, X_grid, V_grid, D
@@ -608,7 +604,7 @@ def permute_rows_nsign(A):
         A[:, i] = A[:, i] * np.random.choice(plmi, size=A.shape[0])
 
 
-def embed_velocity(adata, x_basis, v_basis='velocity', emb_basis='X_pca', velocity_gene_tag='velocity_genes',
+def embed_velocity(adata, x_basis, v_basis='velocity', emb_basis='X', velocity_gene_tag='velocity_genes',
                    num_pca=100, n_recurse_neighbors=2, M_diff=0.25, adaptive_local_kernel=True, normalize_velocity=True,
                    return_kmc=False, **kmc_kwargs):
     if velocity_gene_tag is not None:
