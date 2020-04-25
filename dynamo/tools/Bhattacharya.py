@@ -7,7 +7,7 @@ from scipy.interpolate import griddata
 def path_integral(
     VecFnc, x_lim, y_lim, xyGridSpacing, dt=1e-2, tol=1e-2, numTimeSteps=1400
 ):
-    """X deterministic map of Waddington’s epigenetic landscape for cell fate specification
+    """A deterministic map of Waddington’s epigenetic landscape for cell fate specification
     Sudin Bhattacharya, Qiang Zhang and Melvin E. Andersen
 
     Parameters
@@ -24,7 +24,7 @@ def path_integral(
     tol: `float` (default: 1.0e-2)
         Tolerance to test for convergence.
     numTimeSteps: `int`
-        X high-enough number for convergence with given dt.
+        A high-enough number for convergence with given dt.
 
     Returns
     -------
@@ -39,7 +39,7 @@ def path_integral(
     numPaths: `int`
         Total Number of paths for defined grid spacing.
     numTimeSteps: `int`
-        X high-enough number for convergence with given dt.
+        A high-enough number for convergence with given dt.
     pot_path: `numpy.ndarray` (dimension: numPaths x numTimeSteps)
         Potential along the path.
     path_tag: `numpy.ndarray` (dimension: numPaths x 1)
@@ -329,7 +329,7 @@ def alignment(
     numPaths: `int`
         Total Number of paths for defined grid spacing.
     numTimeSteps: `int`
-        X high-enough number for convergence with given dt.
+        A high-enough number for convergence with given dt.
     pot_path: `numpy.ndarray` (dimension: numPaths x numTimeSteps)
         Potential along the path.
     path_tag: `numpy.ndarray` (dimension: numPaths x 1)
@@ -408,7 +408,7 @@ def alignment(
     x_p_list = x_p_list + 0.1
     y_p_list = y_p_list + 0.1
 
-    # --- Create X,Y_i grid to interpolate "potential surface" ---
+    # --- Create X,Y grid to interpolate "potential surface" ---
     xlin = np.linspace(min(x_p_list), max(x_p_list), grid)
     ylin = np.linspace(min(y_p_list), max(y_p_list), grid)
     Xgrid, Ygrid = np.meshgrid(xlin, ylin)

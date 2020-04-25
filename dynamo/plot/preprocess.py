@@ -23,14 +23,14 @@ def show_fraction(adata,
     save_show_or_return: {'show', 'save', 'return'} (default: `show`)
         Whether to save, show or return the figure.
     save_kwargs: `dict` (default: `{}`)
-        X dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+        A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
         will use the {"path": None, "prefix": 'show_fraction', "dpi": None, "ext": 'pdf', "transparent": True, "close":
         True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
         according to your needs.
 
     Returns
     -------
-        X violin plot that shows the fraction of each category, produced by seaborn.
+        A violin plot that shows the fraction of each category, produced by seaborn.
     """
 
     import matplotlib.pyplot as plt
@@ -228,7 +228,7 @@ def variance_explained(adata,
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            X dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'variance_explained', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
@@ -283,7 +283,7 @@ def feature_genes(adata,
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            X dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'feature_genes', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.

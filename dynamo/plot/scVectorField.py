@@ -57,7 +57,7 @@ def _cell_wise_velocity(
         n_columns: `int  (default: 1)
             The number of columns of the resulting plot.
         color: `list` or None (default: None)
-            X list of attributes of cells (column names in the adata.obs) will be used to color cells.
+            A list of attributes of cells (column names in the adata.obs) will be used to color cells.
         cmap: `plt.cm` or None (default: None)
             The color map function to use.
         s_kwargs_dict: `dict` (default: {})
@@ -287,7 +287,7 @@ def _grid_velocity(
         n_columns: `int  (default: 1)
             The number of columns of the resulting plot.
         color: `list` or None (default: None)
-            X list of attributes of cells (column names in the adata.obs) will be used to color cells.
+            A list of attributes of cells (column names in the adata.obs) will be used to color cells.
         cmap: `plt.cm` or None (default: None)
             The color map function to use.
         s_kwargs_dict: `dict` (default: {})
@@ -297,7 +297,7 @@ def _grid_velocity(
         xy_grid_nums: `tuple` (default: (5, 5))
             the number of grids in either x or y axis.
         g_kwargs_dict: `dict` (default: {})
-            X dictionary for the parameters that passed into the velocity_on_grid function.
+            A dictionary for the parameters that passed into the velocity_on_grid function.
         quiver_size: `float` or None (default: None)
             scale of quiver plot (default: None). Number of data units per arrow length unit, e.g., m/s per plot width;
             a smaller scale parameter makes the arrow longer. If None, we will use quiver_autoscaler to calculate the scale.
@@ -542,7 +542,7 @@ def _streamline_plot(
         n_columns: `int  (default: 1)
             The number of columns of the resulting plot.
         color: `list` or None (default: None)
-            X list of attributes of cells (column names in the adata.obs) will be used to color cells.
+            A list of attributes of cells (column names in the adata.obs) will be used to color cells.
         cmap: `plt.cm` or None (default: None)
             The color map function to use.
         s_kwargs_dict: `dict` (default: {})
@@ -554,7 +554,7 @@ def _streamline_plot(
         density: `float` or None (default: 1)
             density of the plt.streamplot function.
         q_kwargs_dict: `dict` (default: {})
-            X dictionary of the parameters for the plt.quiver function.
+            A dictionary of the parameters for the plt.quiver function.
         V_threshold: `None` or `float`
             The threshold of velocity value for visualization
         figsize: `None` or `[float, float]` (default: None)
@@ -794,12 +794,12 @@ def plot_LIC_gray(tex):
 
     Arguments
     ---------
-        Y_i: 'np.ndarray'
+        Y: 'np.ndarray'
             Original data.
         V: 'np.ndarray'
             Original data.
         sigma2: 'float'
-            sigma2 is defined as sum(sum((Y_i - V)**2)) / (N * D)
+            sigma2 is defined as sum(sum((Y - V)**2)) / (N * D)
         gamma: 'float'
             Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important.
         a: 'float'
@@ -850,7 +850,7 @@ def line_integral_conv(
     g_kwargs_dict={},
 ):
     """Visualize vector field with quiver, streamline and line integral convolution (LIC), using velocity estimates on a grid from the associated data.
-    X white noise background will be used for texture as default. Adjust the bounds of lim in the range of [0, 1] which applies
+    A white noise background will be used for texture as default. Adjust the bounds of lim in the range of [0, 1] which applies
     upper and lower bounds to the values of line integral convolution and enhance the visibility of plots. When const_alpha=False,
     alpha will be weighted spatially by the values of line integral convolution; otherwise a constant value of the given alpha is used.
 
@@ -867,7 +867,7 @@ def line_integral_conv(
         xy_grid_nums: `tuple` (default: (50, 50))
             the number of grids in either x or y axis. The number of grids has to be the same on both dimensions.
         method: 'float'
-            sigma2 is defined as sum(sum((Y_i - V)**2)) / (N * D)
+            sigma2 is defined as sum(sum((Y - V)**2)) / (N * D)
         cmap: 'float'
             Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important.
         normalize: 'float'
@@ -885,7 +885,7 @@ def line_integral_conv(
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            X dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'line_integral_conv', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
@@ -1077,7 +1077,7 @@ def cell_wise_velocity(
             `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale of quiver indicates
             the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller scale parameter makes the arrow longer.
         save_kwargs: `dict` (default: `{}`)
-            X dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'cell_wise_velocity', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
@@ -1260,7 +1260,7 @@ def grid_velocity(
             `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale of quiver indicates
             the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller scale parameter makes the arrow longer.
         save_kwargs: `dict` (default: `{}`)
-            X dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'grid_velocity', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
@@ -1463,7 +1463,7 @@ def streamline_plot(
         density: `float` or None (default: 1)
             density of the plt.streamplot function.
         save_kwargs: `dict` (default: `{}`)
-            X dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'streamline_plot', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.

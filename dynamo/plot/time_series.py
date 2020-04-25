@@ -47,7 +47,7 @@ def kinetic_curves(
             Whether to map the coordinates in low dimension back to high dimension to visualize the gene expression curves,
             only used when mode is `vector_field` and basis is not `X`. Currently only works when basis is 'pca' and 'umap'.
         color: `list` or None (default: None)
-            X list of attributes of cells (column names in the adata.obs) will be used to color cells.
+            A list of attributes of cells (column names in the adata.obs) will be used to color cells.
         time: `str` (default: `pseudotime`)
             The .obs column that will be used for timing each cell, only used when mode is `vector_field`.
         dist_threshold: `float` or None (default: 1e-10)
@@ -63,7 +63,7 @@ def kinetic_curves(
         save_show_or_return: {'show', 'save_fig', 'return'} (default: `show`)
             Whether to save_fig, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            X dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'kinetic_curves', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
@@ -207,7 +207,7 @@ def kinetic_heatmap(
         save_show_or_return: {'show', 'save_fig', 'return'} (default: `show`)
             Whether to save_fig, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            X dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'kinetic_heatmap', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.

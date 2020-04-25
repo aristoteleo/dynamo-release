@@ -201,7 +201,7 @@ def psl_py(
         invR = scipy.sparse.linalg.inv(csr_matrix(R))  # R:solve(R)
         # invR = np.matrix(invR)
         # invQ = invR*invR.T
-        # left = invR.T*np.matrix(Y_i)
+        # left = invR.T*np.matrix(Y)
         invQ = invR.dot(invR.T)
         left = invR.T.dot(Y)
 

@@ -902,9 +902,9 @@ def quiver_autoscaler(X_emb, V_emb):
     Parameters
     ----------
         X_emb: `np.ndarray`
-            X, Y_i-axis coordinates
+            X, Y-axis coordinates
         V_emb:  `np.ndarray`
-            Velocity (U, V) values on the X, Y_i-axis
+            Velocity (U, V) values on the X, Y-axis
 
     Returns
     -------

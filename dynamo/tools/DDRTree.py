@@ -152,7 +152,7 @@ def DDRTree_py(
     if keep_history:
         history = pd.DataFrame(
             index=[i for i in range(maxIter)],
-            columns=["W", "Z", "Y_i", "stree", "R", "objs"],
+            columns=["W", "Z", "Y", "stree", "R", "objs"],
         )
     for iter in range(maxIter):
 
@@ -189,7 +189,7 @@ def DDRTree_py(
         if keep_history:
             history.iloc[iter]["W"] = W
             history.iloc[iter]["Z"] = Z
-            history.iloc[iter]["Y_i"] = Y
+            history.iloc[iter]["Y"] = Y
             history.iloc[iter]["stree"] = stree
             history.iloc[iter]["R"] = R
 

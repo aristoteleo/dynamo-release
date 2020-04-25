@@ -54,7 +54,7 @@ def phase_portraits(
         adata: :class:`~anndata.AnnData`
             an Annodata object
         genes: `list`
-            X list of gene names that are going to be visualized.
+            A list of gene names that are going to be visualized.
         x: `int` (default: `0`)
                 The column index of the low dimensional embedding for the x-axis
         y: `int` (default: `1`)
@@ -75,7 +75,7 @@ def phase_portraits(
             Which color group will be highlighted. if highligts is a list of lists - each list is relate to each color element.
         discrete_continous_div_themes: `list[str, str, str]` (optional, default None)
             The discrete, continous and divergent color themes to use for plotting. The description for each element in the list is as following.
-            X small set of predefined themes are provided which have relatively good aesthetics. Available themes are:
+            A small set of predefined themes are provided which have relatively good aesthetics. Available themes are:
                * 'blue'
                * 'red'
                * 'green'
@@ -96,7 +96,7 @@ def phase_portraits(
             corresponding option of the theme.
         discrete_continous_div_color_key: `list[dict or array,, dict or array,, dict or array,]` (default [None, None, None])
          The description for each element in the list is as following. The shape (n_categories) (optional, default None)
-            X list to assign discrete, continous and divergent colors to categoricals. This can either be
+            A list to assign discrete, continous and divergent colors to categoricals. This can either be
             an explicit dict mapping labels to colors (as strings of form
             '#RRGGBB'), or an array like object providing one color for
             each distinct category being provided in ``labels``. Either
@@ -139,7 +139,7 @@ def phase_portraits(
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            X dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'phase_portraits', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
@@ -148,7 +148,7 @@ def phase_portraits(
 
     Returns
     -------
-        X matplotlib plot that shows 1) the phase portrait of each category used in velocity embedding, cells' low dimensional
+        A matplotlib plot that shows 1) the phase portrait of each category used in velocity embedding, cells' low dimensional
         embedding, colored either by 2) the gene expression level or 3) the velocity magnitude values.
     """
 
@@ -1013,7 +1013,7 @@ def dynamics(
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            X dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'dynamics', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.

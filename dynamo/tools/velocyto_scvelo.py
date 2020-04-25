@@ -24,7 +24,7 @@ def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None)
 			The embedding that will be used to store the vlm.ts attribute. Note that velocyto doesn't usually use
 			umap as embedding although `umap` as set as default for the convenience of dynamo itself.
 		trans_mats: None or dict
-			X dict of all relevant transition matrices
+			A dict of all relevant transition matrices
 		cell_ixs: list of int
 			These are the indices of the subsampled cells
 

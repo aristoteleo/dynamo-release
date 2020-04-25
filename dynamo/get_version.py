@@ -1,5 +1,5 @@
 """
-X minimalistic version helper in the spirit of versioneer, that is able to run without build step using pkg_resources.
+A minimalistic version helper in the spirit of versioneer, that is able to run without build step using pkg_resources.
 Developed by P Angerer, see https://github.com/flying-sheep/get_version.
 """
 import re

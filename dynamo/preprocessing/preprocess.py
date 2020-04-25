@@ -384,7 +384,7 @@ def disp_calc_helper_NB(adata, layers="X", min_cells_detected=1):
 
         f_expression_mean = x.mean(axis=0)
 
-        # For NB: Var(Y_i) = mu * (1 + mu / k)
+        # For NB: Var(Y) = mu * (1 + mu / k)
         # x.A.var(axis=0, ddof=1)
         f_expression_var = (
             (x.multiply(x).mean(0).A1 - f_expression_mean.A1 ** 2)

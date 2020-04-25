@@ -43,7 +43,7 @@ def solveQ(D, F, debug=False):
     F: `numpy.ndarray`
         Jacobian of the vector field function at specific location.
     debug: `bool`
-        X flag to determine whether the debug mode should be used.
+        A flag to determine whether the debug mode should be used.
 
     Returns
     -------
@@ -68,7 +68,7 @@ def solveQ(D, F, debug=False):
 
 def Ao_pot_map(vecFunc, X, D=None):
     """Mapping potential landscape with the algorithm developed by Ao method.
-    References: Potential in stochastic differential equations: novel construction. Journal of physics X: mathematical and
+    References: Potential in stochastic differential equations: novel construction. Journal of physics A: mathematical and
         general, Ao Ping, 2004
 
     Parameters
@@ -76,16 +76,16 @@ def Ao_pot_map(vecFunc, X, D=None):
         vecFunc: `function`
             The vector field function
         X: `numpy.ndarray`
-            X matrix of coordinates to calculate potential values for. Rows are observations (cells), columns are features (genes)
+            A matrix of coordinates to calculate potential values for. Rows are observations (cells), columns are features (genes)
         D: None or `numpy.ndarray`
             Diffusion matrix. It must be a square matrix with size corresponds to the number of columns (features) in the X matrix.
 
     Returns
     -------
         X: `numpy.ndarray`
-            X matrix storing the x-coordinates on the two-dimesional grid.
+            A matrix storing the x-coordinates on the two-dimesional grid.
         U: `numpy.ndarray`
-            X matrix storing the potential value at each position.
+            A matrix storing the potential value at each position.
         P: `numpy.ndarray`
             Steady state distribution or the Boltzmann-Gibbs distribution for the state variable.
         vecMat: `list`
@@ -93,7 +93,7 @@ def Ao_pot_map(vecFunc, X, D=None):
         S: `list`
             List of constant symmetric and semi-positive matrix or friction matrix, corresponding to the divergence part,
             at each position from X.
-        X: `list`
+        A: `list`
             List of constant antisymmetric matrix or transverse matrix, corresponding to the curl part, at each position
             from X.
     """

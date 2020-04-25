@@ -11,7 +11,7 @@ def sol_u(t, u0, alpha, beta):
     Arguments
     ---------
     t: :class:`~numpy.ndarray`
-        X vector of time points.
+        A vector of time points.
     u0: float
         Initial value of u.
     alpha: float
@@ -33,7 +33,7 @@ def sol_u_2p(t, u0, t1, alpha0, alpha1, beta):
     Arguments
     ---------
     t: :class:`~numpy.ndarray`
-        X vector of time points for both steady state and stimulation labeling.
+        A vector of time points for both steady state and stimulation labeling.
     u0: float
         Initial value of u.
     t1: :class:`~numpy.ndarray`
@@ -63,7 +63,7 @@ def sol_s(t, s0, u0, alpha, beta, gamma):
     Arguments
     ---------
     t: :class:`~numpy.ndarray`
-        X vector of time points.
+        A vector of time points.
     s0: float
         Initial value of s.
     u0: float
@@ -102,7 +102,7 @@ def sol_p(t, p0, s0, u0, alpha, beta, gamma, eta, delta):
     Arguments
     ---------
     t: :class:`~numpy.ndarray`
-        X vector of time points.
+        A vector of time points.
     p0: float
         Initial value of p.
     s0: float
@@ -148,9 +148,9 @@ def solve_gamma(t, old, total):
     t: `float`
         Metabolic labeling time period.
     old: :class:`~numpy.ndarray` or sparse `csr_matrix`
-        X vector of old RNA amount in each cell
+        A vector of old RNA amount in each cell
     total: :class:`~numpy.ndarray` or sparse `csr_matrix`
-        X vector of total RNA amount in each cell
+        A vector of total RNA amount in each cell
 
     Returns
     -------
@@ -177,7 +177,7 @@ def solve_alpha_2p(t0, t1, alpha0, beta, u1):
     beta: `float`
         steady state (and simulation) splicing rate calculated from one-shot experiment mode.
     u1: :class:`~numpy.ndarray` or sparse `csr_matrix`
-        X vector of labeled RNA amount in each cell observed at time t0 + t1.
+        A vector of labeled RNA amount in each cell observed at time t0 + t1.
 
     Returns
     -------
@@ -198,9 +198,9 @@ def fit_linreg(x, y, mask=None, intercept=False):
     Arguments
     ---------
     x: :class:`~numpy.ndarray` or sparse `csr_matrix`
-        X vector of independent variables.
+        A vector of independent variables.
     y: :class:`~numpy.ndarray` or sparse `csr_matrix`
-        X vector of dependent variables.
+        A vector of dependent variables.
     intercept: bool
         If using steady state assumption for fitting, then:
         True -- the linear regression is performed with an unfixed intercept;
@@ -260,13 +260,13 @@ def fit_stochastic_linreg(u, s, us, ss):
     Arguments
     ---------
     u: :class:`~numpy.ndarray` or sparse `csr_matrix`
-        X vector of first moments (mean) of unspliced (or new) RNA expression.
+        A vector of first moments (mean) of unspliced (or new) RNA expression.
     s: :class:`~numpy.ndarray` or sparse `csr_matrix`
-        X vector of first moments (mean) of spliced (or total) RNA expression.
+        A vector of first moments (mean) of spliced (or total) RNA expression.
     us: :class:`~numpy.ndarray` or sparse `csr_matrix`
-        X vector of second moments (uncentered co-variance) of unspliced/spliced (or new/total) RNA expression.
+        A vector of second moments (uncentered co-variance) of unspliced/spliced (or new/total) RNA expression.
     ss: :class:`~numpy.ndarray` or sparse `csr_matrix`
-        X vector of second moments (uncentered variance) of spliced (or total) RNA expression.
+        A vector of second moments (uncentered variance) of spliced (or total) RNA expression.
 
     Returns
     -------
@@ -304,9 +304,9 @@ def fit_first_order_deg_lsq(t, l, bounds=(0, np.inf), fix_l0=False, beta_0=1):
     Arguments
     ---------
     t: :class:`~numpy.ndarray`
-        X vector of time points.
+        A vector of time points.
     l: :class:`~numpy.ndarray` or sparse `csr_matrix`
-        X vector of unspliced, labeled mRNA counts for each time point.
+        A vector of unspliced, labeled mRNA counts for each time point.
     bounds: tuple
         The bound for beta. The default is beta > 0.
     fixed_l0: bool
@@ -346,9 +346,9 @@ def solve_first_order_deg(t, l):
     Parameters
     ----------
     t: :class:`~numpy.ndarray`
-        X vector of time points.
+        A vector of time points.
     l: :class:`~numpy.ndarray` or sparse `csr_matrix`
-        X vector of labeled mRNA counts for each time point.
+        A vector of labeled mRNA counts for each time point.
 
     Returns
     -------
@@ -378,9 +378,9 @@ def fit_gamma_lsq(t, s, beta, u0, bounds=(0, np.inf), fix_s0=False):
     Arguments
     ---------
     t: :class:`~numpy.ndarray`
-        X vector of time points.
+        A vector of time points.
     s: :class:`~numpy.ndarray` or sparse `csr_matrix`
-        X vector of spliced, labeled mRNA counts for each time point.
+        A vector of spliced, labeled mRNA counts for each time point.
     beta: float
         The value of beta.
     u0: float
@@ -426,9 +426,9 @@ def fit_alpha_synthesis(t, u, beta):
     Arguments
     ---------
     t: :class:`~numpy.ndarray`
-        X vector of time points.
+        A vector of time points.
     u: :class:`~numpy.ndarray` or sparse `csr_matrix`
-        X matrix of unspliced mRNA counts. Dimension: cells x time points.
+        A matrix of unspliced mRNA counts. Dimension: cells x time points.
     beta: float
         The value of beta.
 
@@ -455,9 +455,9 @@ def fit_alpha_degradation(t, u, beta, intercept=False):
     Arguments
     ---------
     t: :class:`~numpy.ndarray`
-        X vector of time points.
+        A vector of time points.
     u: :class:`~numpy.ndarray` or sparse `csr_matrix`
-        X matrix of unspliced mRNA counts. Dimension: cells x time points.
+        A matrix of unspliced mRNA counts. Dimension: cells x time points.
     beta: float
         The value of beta.
     intercept: bool
@@ -496,9 +496,9 @@ def solve_alpha_degradation(t, u, beta, intercept=False):
     Arguments
     ---------
     t: :class:`~numpy.ndarray`
-        X vector of time points.
+        A vector of time points.
     u: :class:`~numpy.ndarray` or sparse `csr_matrix`
-        X matrix of unspliced mRNA counts. Dimension: cells x time points.
+        A matrix of unspliced mRNA counts. Dimension: cells x time points.
     beta: float
         The value of beta.
     intercept: bool
@@ -552,9 +552,9 @@ def fit_alpha_beta_synthesis(t, l, bounds=(0, np.inf), alpha_0=1, beta_0=1):
     Arguments
     ---------
     t: :class:`~numpy.ndarray`
-        X vector of time points.
+        A vector of time points.
     l: :class:`~numpy.ndarray` or sparse `csr_matrix`
-        X matrix of labeled mRNA counts. Dimension: cells x time points.
+        A matrix of labeled mRNA counts. Dimension: cells x time points.
     bounds: tuple
         The bound for alpha and beta. The default is alpha / beta > 0.
     alpha_0: float
@@ -586,9 +586,9 @@ def fit_all_synthesis(t, l, bounds=(0, np.inf), alpha_0=1, beta_0=1, gamma_0=1):
     Arguments
     ---------
     t: :class:`~numpy.ndarray`
-        X vector of time points.
+        A vector of time points.
     l: :class:`~numpy.ndarray` or sparse `csr_matrix`
-        X matrix of labeled mRNA counts. Dimension: cells x time points.
+        A matrix of labeled mRNA counts. Dimension: cells x time points.
     bounds: tuple
         The bound for alpha and beta. The default is alpha / beta > 0.
     alpha_0: float
@@ -623,16 +623,16 @@ def concat_time_series_matrices(mats, t=None):
     Arguments
     ---------
     mats: :class:`~numpy.ndarray`
-        X list of gene x cell matrices. The length of the list equals the number of time points
+        A list of gene x cell matrices. The length of the list equals the number of time points
     t: :class:`~numpy.ndarray` or list
-        X vector or list of time points
+        A vector or list of time points
 
     Returns
     -------
     ret_mat: :class:`~numpy.ndarray`
         Concatenated gene x cell matrix.
     ret_t: :class:`~numpy.ndarray`
-        X vector of time point for each cell.
+        A vector of time point for each cell.
     """
     ret_mat = np.concatenate(mats, axis=1)
     if t is not None:

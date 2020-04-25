@@ -24,7 +24,7 @@ def AddAssay(adata, data, key, slot="obsm"):
     Returns
     -------
         adata: :AnnData
-            X updated anndata object that are updated with a new data as a key to the specified slot.
+            A updated anndata object that are updated with a new data as a key to the specified slot.
     """
 
     if slot is "uns":

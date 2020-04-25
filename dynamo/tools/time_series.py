@@ -87,7 +87,7 @@ def directed_pg(
         X.T if raw_embedding else DDRTree_res.loc[maxIter - 1, "Z"]
     )
     adata.uns["X_DDRTree_pg"] = (
-        cell_membership.dot(X.T) if raw_embedding else DDRTree_res.loc[maxIter - 1, "Y_i"]
+        cell_membership.dot(X.T) if raw_embedding else DDRTree_res.loc[maxIter - 1, "Y"]
     )
 
     return adata
