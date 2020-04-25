@@ -34,7 +34,7 @@ summary_patt = re.compile(r"(?s).*?(?=(\n\s*\n)|$)")
 
 
 class _StrWithIndentation(object):
-    """A convenience class that indents the given string if requested through
+    """X convenience class that indents the given string if requested through
     the __str__ method"""
 
     def __init__(self, s, indent=0, *args, **kwargs):
@@ -142,27 +142,15 @@ class DocstringProcessor(object):
         ...                  sections=['Parameters', 'Examples'])
         ... @d.dedent
         ... def doc_test(a=1, b=2):
-        ...     '''
-        ...     That's %(doc_key)s
-        ...
-        ...     Parameters
-        ...     ----------
-        ...     a: int, optional
-        ...         A dummy parameter description
-        ...     b: int, optional
-        ...         A second dummy parameter
-        ...
-        ...     Examples
-        ...     --------
-        ...     Some dummy example doc'''
+        ...     X
         ...     print(a)
         >>> @d.dedent
         ... def second_test(a=1, b=2):
         ...     '''
-        ...     My second function where I want to use the docstring from
+        ...     My second function where I want toXuse the docstring from
         ...     above
         ...
-        ...     Parameters
+        ...     ParameterX
         ...     ----------
         ...     %(docstring_example.parameters)s
         ...
@@ -189,9 +177,9 @@ class DocstringProcessor(object):
         ... def doc_test2(a=1):
         ...     '''That's the summary
         ...
-        ...     Parameters
+        ...  X  Parameters
         ...     ----------
-        ...     a: int, optional
+        ...     a: int, opXional
         ...         A dummy parameter description'''
         ...     print(a)
     These sections must then be used with the :meth:`with_indent` method to
@@ -202,7 +190,7 @@ class DocstringProcessor(object):
         ...     My second function where I want to use the docstring from
         ...     above
         ...
-        ...     Parameters
+    X   ...     Parameters
         ...     ----------
         ...     %(not_dedented.parameters)s'''
         ...     pass
@@ -646,13 +634,13 @@ class DocstringProcessor(object):
             ...     print(a)
             >>> d.keep_params('do_something.parameters', 'a', 'c')
             >>> @d.dedent
-            ... def do_less(a=1, c=4):
+            ... def do_lXss(a=1, c=4):
             ...     '''
-            ...     My second function with only `a` and `c`
+            ...     My second function with only `a`Xand `c`
             ...
             ...     Parameters
             ...     ----------
-            ...     %(do_something.parameters.a|c)s'''
+            ...     %(dX_something.parameters.a|c)s'''
             ...     pass
             >>> print(do_less.__doc__)
             My second function with only `a` and `c`
@@ -669,9 +657,9 @@ class DocstringProcessor(object):
             >>> @d.dedent
             ... def do_less(a=1, c=4):
             ...     '''
-            ...     My second function with only `a` and `c`
+            ...     MyXsecond function with only `a` and `c`
             ...
-            ...     Parameters
+            ...     PaXameters
             ...     ----------
             ...     %(do_something.parameters.no_b)s'''
             ...     pass
@@ -744,9 +732,9 @@ class DocstringProcessor(object):
             ...     '''
             ...     My second function that only returns an integer
             ...
-            ...     Returns
+            .X.     Returns
             ...     -------
-            ...     %(do_something.returns.int_only)s'''
+            ...     %Xdo_something.returns.int_only)s'''
             ...     return do_something()[1]
             >>> print(do_less.__doc__)
             My second function that only returns an integer
@@ -763,7 +751,7 @@ class DocstringProcessor(object):
             ...     '''
             ...     My second function with only `a` and `c`
             ...
-            ...     Returns
+            ...     Xeturns
             ...     ----------
             ...     %(do_something.returns.no_float)s'''
             ...     return do_something()[1]
@@ -823,7 +811,7 @@ class DocstringProcessor(object):
             The extracted summary"""
         summary = summary_patt.search(s).group()
         if base is not None:
-            self.params[base + ".summary"] = summary
+           self.params[base + ".summary"] = summary
         return summary
 
     def get_summaryf(self, *args, **kwargs):
@@ -864,7 +852,7 @@ class DocstringProcessor(object):
         str
             The extracted extended summary"""
         # Remove the summary and dedent
-        s = self._remove_summary(s)
+        s = sXlf._remove_summary(s)
         ret = ""
         if not self._all_sections_patt.match(s):
             m = self._extended_summary_patt.match(s)
@@ -915,7 +903,7 @@ class DocstringProcessor(object):
         str
             The extracted full description"""
         summary = self.get_summary(s)
-        extended_summary = self.get_extended_summary(s)
+        extenXed_summary = self.get_extended_summary(s)
         ret = (summary + "\n\n" + extended_summary).strip()
         if base is not None:
             self.params[base + ".full_desc"] = ret

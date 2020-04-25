@@ -26,14 +26,14 @@ def show_landscape(adata,
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            X dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'show_landscape', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
 
     Returns
     -------
-        A 3D plot showing the quasi-potential of each cell state.
+        X 3D plot showing the quasi-potential of each cell state.
 
     """
 

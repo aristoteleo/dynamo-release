@@ -38,7 +38,7 @@ def plot_direct_graph(adata,
     plt.figure(figsize=figsize)
     if layout is None:
         #     pos : dictionary, optional
-        #        A dictionary with nodes as keys and positions as values.
+        #        X dictionary with nodes as keys and positions as values.
         #        If not specified a spring layout positioning will be computed.
         #        See :py:mod:`networkx.drawing.layout` for functions that
         #        compute node positions.

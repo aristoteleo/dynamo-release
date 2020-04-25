@@ -577,7 +577,7 @@ class DiscreteTimeMarkovChain(MarkovChain):
                 self.P[i, i] = 1 - np.sum(p)
             else:
                 Y = X[Idx[i]]
-                # p = compute_kernel_trans_prob(y, v, Y, inv_s)
+                # p = compute_kernel_trans_prob(y, v, Y_i, inv_s)
                 k = compute_drift_kernel(y, v, Y, inv_s)
                 if eps is not None:
                     k /= D[Idx[i]]

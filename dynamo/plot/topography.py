@@ -49,7 +49,7 @@ def plot_flow_field(
     save_show_or_return: {'show', 'save', 'return'} (default: `return`)
         Whether to save, show or return the figure.
     save_kwargs: `dict` (default: `{}`)
-        A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+        X dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
         will use the {"path": None, "prefix": 'plot_flow_field', "dpi": None, "ext": 'pdf', "transparent": True, "close":
         True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
         according to your needs.
@@ -150,7 +150,7 @@ def plot_nullclines(vecfld,
         save_show_or_return: {'show', 'save', 'return'} (default: `return`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            X dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'plot_nullclines', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
@@ -217,7 +217,7 @@ def plot_fixed_points(
         save_show_or_return: {'show', 'save', 'return'} (default: `return`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            X dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'plot_fixed_points', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
@@ -296,7 +296,7 @@ def plot_traj(f,
     save_show_or_return: {'show', 'save', 'return'} (default: `return`)
         Whether to save, show or return the figure.
     save_kwargs: `dict` (default: `{}`)
-        A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+        X dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
         will use the {"path": None, "prefix": 'plot_traj', "dpi": None, "ext": 'pdf', "transparent": True, "close":
         True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
         according to your needs.
@@ -363,7 +363,7 @@ def plot_separatrix(vecfld,
         t : array_like
             Time points for trajectory.
         noise : tuple, default ()
-            A small noise added to steady states for drawing the separatrix.
+            X small noise added to steady states for drawing the separatrix.
         lw : `float`, (default: 2)
             The line width of the trajectory.
         background: `str` or None (default: None)
@@ -371,7 +371,7 @@ def plot_separatrix(vecfld,
         save_show_or_return: {'show', 'save', 'return'} (default: `return`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            X dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'plot_separatrix', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
@@ -497,7 +497,7 @@ def topography(
 
     Parameters
     ----------
-        %(scatters.parameters.no_show_legend|kwargs)s
+        %(scatters.parameters.no_show_legend|kwargs|save_kwargs)s
         xlim: `numpy.ndarray`
             The range of x-coordinate
         ylim: `numpy.ndarray`
@@ -506,7 +506,7 @@ def topography(
             The length of the time period from which to predict cell state forward or backward over time. This is used
             by the odeint function.
         terms: `tuple` (default: ('streamline', 'fixed_points'))
-            A tuple of plotting items to include in the final topography figure.  ('streamline', 'nullcline', 'fixed_points',
+            X tuple of plotting items to include in the final topography figure.  ('streamline', 'nullcline', 'fixed_points',
              'separatrix', 'trajectory', 'quiver') are all the items that we can support.
         init_cells: `list` (default: None)
             Cell name or indices of the initial cell states for the historical or future cell state prediction with numerical integration.
@@ -536,7 +536,7 @@ def topography(
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            X dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'topography', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.

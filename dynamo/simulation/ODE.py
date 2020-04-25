@@ -193,7 +193,7 @@ def Simulator(motif="neurogenesis", clip=True):
     if motif is "toggle":
         cell_num = 5000
         X, Y = state_space_sampler(ode=toggle, dim=2, min_val=0, max_val=6, N=cell_num)
-        gene_name = np.array(["X", "Y"])
+        gene_name = np.array(["X", "Y_i"])
     elif motif is "neurogenesis":
         cell_num = 50000
         X, Y = state_space_sampler(
@@ -228,7 +228,7 @@ def Simulator(motif="neurogenesis", clip=True):
         X, Y = state_space_sampler(
             ode=Ying_model, dim=2, clip=clip, min_val=-3, max_val=3, N=cell_num
         )
-        gene_name = np.array(["X", "Y"])
+        gene_name = np.array(["X", "Y_i"])
 
     var = pd.DataFrame(
         {"gene_short_name": gene_name}

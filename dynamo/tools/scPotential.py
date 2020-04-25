@@ -422,7 +422,7 @@ class Pot:
         """ It implements the least action method to calculate the potential values of fixed points for a given SDE (stochastic
         differential equation) model. The function requires the vector field function and a diffusion matrix. This code is based
         on the MATLAB code from Ruoshi Yuan and Ying Tang. Potential landscape of high dimensional nonlinear stochastic dynamics with
-        large noise. Y Tang, R Yuan, G Wang, X Zhu, P Ao - Scientific reports, 2017
+        large noise. Y_i Tang, R Yuan, G Wang, X Zhu, P Ao - Scientific reports, 2017
 
         Arguments
         ---------
@@ -509,9 +509,9 @@ class Pot:
             Xgrid: 'np.ndarray'
                 The X grid to visualize "potential surface"
             Ygrid: 'np.ndarray'
-                The Y grid to visualize "potential surface"
+                The Y_i grid to visualize "potential surface"
             Zgrid: 'np.ndarray'
-                The interpolate potential corresponding to the X,Y grids.
+                The interpolate potential corresponding to the X,Y_i grids.
 
         if Tang method is used:
         retmat: 'np.ndarray'

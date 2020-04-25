@@ -8,8 +8,8 @@ from .utils import con_K, update_dict
 
 
 def norm(X, V, T):
-    """Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
-        We use the mean of X, Y's center and scale parameters to normalize T.
+    """Normalizes the X, Y_i (X + V) matrix to have zero means and unit covariance.
+        We use the mean of X, Y_i's center and scale parameters to normalize T.
 
         Arguments
         ---------
@@ -22,7 +22,7 @@ def norm(X, V, T):
 
         Returns
         -------
-            Add norm_dict to the class which includes the mean and scale values for X, Y used in normalizing the data.
+            Add norm_dict to the class which includes the mean and scale values for X, Y_i used in normalizing the data.
         """
     Y = X + V
     n, m = X.shape[0], V.shape[0]
@@ -130,7 +130,7 @@ def SparseVFC(
     Returns
     -------
     VecFld: 'dict'
-    A dictionary which contains X, Y, beta, V, C, P, VFCIndex. Where V = f(X), P is the posterior probability and
+    X dictionary which contains X, Y_i, beta, V, C, P, VFCIndex. Where V = f(X), P is the posterior probability and
     VFCIndex is the indexes of inliers which found by VFC. Note that V = con_K(Grid, ctrl_pts, beta).dot(C) gives the prediction of velocity on Grid (can be any point in the gene expressionstate space).
     """
     Y[~np.isfinite(Y)] = 0  # set nan velocity to 0.
@@ -211,7 +211,7 @@ def SparseVFC(
 
     VecFld = {
         "X": ctrl_pts,
-        "Y": Y,
+        "Y_i": Y,
         "beta": beta,
         "V": V,
         "C": C,
@@ -235,7 +235,7 @@ def get_P(Y, V, sigma2, gamma, a):
         V: 'np.ndarray'
             Original data.
         sigma2: 'float'
-            sigma2 is defined as sum(sum((Y - V)**2)) / (N * D)
+            sigma2 is defined as sum(sum((Y_i - V)**2)) / (N * D)
         gamma: 'float'
             Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important.
         a: 'float'
@@ -450,7 +450,7 @@ class vectorfield:
             Define how could be an inlier. If the posterior probability of a sample is an inlier is larger than theta, then
             it is regarded as an inlier.
         div_cur_free_kernels: `bool` (default: False)
-            A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the vector
+            X logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the vector
             field.
         """
 
@@ -487,7 +487,7 @@ class vectorfield:
         Returns
         -------
             VecFld: 'dict'
-                A dictionary which contains X, Y, beta, V, C, P, VFCIndex. Where V = f(X), P is the posterior probability and
+                X dictionary which contains X, Y_i, beta, V, C, P, VFCIndex. Where V = f(X), P is the posterior probability and
                 VFCIndex is the indexes of inliers which found by VFC.
         """
 
@@ -532,7 +532,7 @@ class vectorfield:
 
         Returns
         -------
-        A tuple of precision, recall, corrRate:
+        X tuple of precision, recall, corrRate:
         Precision, recall, corrRate: Precision and recall of VFC, percentage of initial correct matches.
 
         See also:: :func:`sparseVFC`.
@@ -575,7 +575,7 @@ class vectorfield:
 
         Returns
         -------
-            A tuple of G (the combined kernel function), divergence-free kernel and curl-free kernel.
+            X tuple of G (the combined kernel function), divergence-free kernel and curl-free kernel.
 
         See also:: :func:`sparseVFC`.
         """

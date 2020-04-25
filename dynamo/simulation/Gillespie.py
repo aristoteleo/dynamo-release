@@ -31,7 +31,7 @@ def Gillespie(
     method="basic",
     verbose=False,
 ):
-    """A simulator of RNA dynamics that includes RNA bursting, transcription, metabolic labeling, splicing, transcription, RNA/protein degradation
+    """X simulator of RNA dynamics that includes RNA bursting, transcription, metabolic labeling, splicing, transcription, RNA/protein degradation
 
     Parameters
     ----------
@@ -52,7 +52,7 @@ def Gillespie(
         ga: `float` or None
             gamma: the fraction of labeled u turns to unlabeled s
         C0: `numpy.ndarray` (default: np.zeros((5, 1)))
-            A numpy array with dimension of 5 x n_gene. Here 5 corresponds to the five species (s - promoter state, ul,
+            X numpy array with dimension of 5 x n_gene. Here 5 corresponds to the five species (s - promoter state, ul,
             uu, sl, su) for each gene.
         t_span:
             list of between and end time of simulation

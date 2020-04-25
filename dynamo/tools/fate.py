@@ -184,7 +184,7 @@ def _fate(
         interpolation_num: `int` (default: 250)
             The number of uniformly interpolated time points.
         average: `bool` (default: True)
-            A boolean flag to determine whether to smooth the trajectory by calculating the average cell state at each time
+            X boolean flag to determine whether to smooth the trajectory by calculating the average cell state at each time
             step.
 
     Returns
