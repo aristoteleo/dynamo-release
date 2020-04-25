@@ -1,7 +1,6 @@
 from tqdm import tqdm
 import scipy as scp
 from scipy.sparse import csr_matrix, issparse
-from scipy.spatial.distance import cosine
 from sklearn.decomposition import PCA
 from sklearn.utils import sparsefuncs
 from .Markov import *
@@ -14,6 +13,7 @@ from .utils import (
     update_dict,
     get_iterative_indices,
     split_velocity_graph,
+    einsum_correlation,
 )
 
 from .dimension_reduction import reduceDimension
@@ -28,7 +28,7 @@ def cell_velocities(
     min_r2=0.01,
     basis="umap",
     method="kmc",
-    neg_cells_trick=False,
+    neg_cells_trick=True,
     calc_rnd_vel=False,
     xy_grid_nums=(50, 50),
     correct_density=True,
@@ -68,17 +68,17 @@ def cell_velocities(
             The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
         method: `string` (optimal, default `kmc`)
             The method to calculate the transition matrix and project high dimensional vector to low dimension, either `kmc`,
-            `cosine`, `correlation`, or `transform`. "kmc" is our new approach to learn the transition matrix via diffusion
-            approximation or an Itô kernel. "cosine" or "correlation" are the methods used in the original RNA velocity paper
+            `cosine`, `pearson`, or `transform`. "kmc" is our new approach to learn the transition matrix via diffusion
+            approximation or an Itô kernel. "cosine" or "pearson" are the methods used in the original RNA velocity paper
             or the scvelo paper (Note that scVelo implemention actually centers both dX and V, so its cosine kernel is equivalent
-            to correlation kernel but we provide the raw cosine kernel). "kmc" option is arguable better than "correlation"
+            to pearson correlation kernel but we provide the raw cosine kernel). "kmc" option is arguable better than "correlation"
             or "cosine" as it not only considers the correlation but also the distance of the nearest neighbors to the high
             dimensional velocity vector. Finally, the "transform" method uses umap's transform method to transform new data
             points to the UMAP space. "transform" method is NOT recommended.
         neg_cells_trick: 'bool' (optional, default `True`)
             Whether we should handle cells having negative correlations in gene expression difference with high dimensional
             velocity vector separately. This option is borrow from scVelo package (https://github.com/theislab/scvelo) and
-            use in conjuction with "correlation" and "cosine" kernel. Not required if method is set to be "kmc".
+            use in conjuction with "pearson" and "cosine" kernel. Not required if method is set to be "kmc".
         calc_rnd_vel: `bool` (default: `False`)
             A logic flag to determine whether we will calculate the random velocity vectors which can be plotted downstream
             as a negative control and used to adjust the quiver scale of the velocity field.
@@ -117,12 +117,14 @@ def cell_velocities(
             indices, dist = extract_indices_dist_from_graph(
                 neighbors, adata.uns["neighbors"]["indices"].shape[1]
             )
+            indices, dist = indices[:, 1:], dist[:, 1:]
         else:
             neighbors, dist, indices = (
                 adata.uns["neighbors"]["connectivities"],
                 adata.uns["neighbors"]["distances"],
                 adata.uns["neighbors"]["indices"],
             )
+            indices, dist = indices[:, 1:], dist[:, 1:]
 
     if "use_for_dynamo" in adata.var.keys():
         adata = set_velocity_genes(
@@ -240,23 +242,24 @@ def cell_velocities(
             )
 
         adata.uns["kmc"] = kmc
-    elif method in ["correlation", "cosine"]:
+    elif method in ["pearson", "cosine"]:
         vs_kwargs = {"n_recurse_neighbors": 2,
-                              "max_neighs": None,
-                              "transform": 'linear',
-                              "use_neg_vals": True}
+                      "max_neighs": None,
+                      "transform": 'linear',
+                      "use_neg_vals": True,
+                     }
         vs_kwargs = update_dict(vs_kwargs, other_kernels_dict)
 
         T, delta_X, X_grid, V_grid, D = kernels_from_velocyto_scvelo(
             X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors,
-            method, *vs_kwargs
+            method, **vs_kwargs
         )
 
         if calc_rnd_vel:
             permute_rows_nsign(V_mat)
             T_rnd, delta_X_rnd, X_grid_rnd, V_grid_rnd, D_rnd = kernels_from_velocyto_scvelo(
                 X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors,
-                method, *vs_kwargs
+                method, **vs_kwargs
             )
     elif method == "transform":
         umap_trans, n_pca_components = (
@@ -501,11 +504,11 @@ def expected_return_time(M, backward=False):
 
 def kernels_from_velocyto_scvelo(
     X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors,
-    kernel='correlation', n_recurse_neighbors=2, max_neighs=None, transform='linear',
+    kernel='pearson', n_recurse_neighbors=2, max_neighs=None, transform='linear',
     use_neg_vals=True,
 ):
     """utility function for calculating the transition matrix and low dimensional velocity embedding via the original
-    correlation kernel (La Manno et al., 2018) or the cosine kernel from scVelo (Bergen et al., 2019)."""
+    pearson correlation kernel (La Manno et al., 2018) or the cosine kernel from scVelo (Bergen et al., 2019)."""
     n = X.shape[0]
     if indices is not None:
         rows = []
@@ -518,35 +521,33 @@ def kernels_from_velocyto_scvelo(
 
         if velocity.sum() != 0:
             i_vals = get_iterative_indices(indices, i, n_recurse_neighbors, max_neighs)  # np.zeros((knn, 1))
+            diff = X[i_vals, :] - X[i, :]
 
-            for j in np.arange(0, len(i_vals)):
-                neighbor_ind_j = i_vals[j]
-                diff = X[neighbor_ind_j, :] - X[i, :]
+            if transform == 'log':
+                diff_velocity = np.sign(velocity) * np.log(np.abs(velocity) + 1)
+                diff_rho = np.sign(diff) * np.log(np.abs(diff) + 1)
+            elif transform == 'logratio':
+                hi_dim, hi_dim_t = X[i, :], X[i, :] + velocity
+                log2hidim = np.log(np.abs(hi_dim) + 1)
+                diff_velocity = np.log(np.abs(hi_dim_t) + 1) - log2hidim
+                diff_rho = np.log(np.abs(X[i_vals, :]) + 1) - np.log(np.abs(hi_dim) + 1)
+            elif transform == 'linear':
+                diff_velocity = velocity
+                diff_rho = diff
+            elif transform == 'sqrt':
+                diff_velocity = np.sign(velocity) * np.sqrt(np.abs(velocity))
+                diff_rho = np.sign(diff) * np.sqrt(np.abs(diff))
 
-                if transform == 'log':
-                    diff_velocity = np.sign(velocity) * np.log(np.abs(velocity) + 1)
-                    diff_rho = np.sign(diff) * np.log(np.abs(diff) + 1)
-                elif transform == 'logratio':
-                    hi_dim, hi_dim_t = X[i, :], X[i, :] + velocity
-                    log2hidim = np.log(np.abs(hi_dim) + 1)
-                    diff_velocity = np.log(np.abs(hi_dim_t) + 1) - log2hidim
-                    diff_rho = np.log(np.abs(X[neighbor_ind_j, :]) + 1) - np.log(np.abs(hi_dim) + 1)
-                elif transform == 'linear':
-                    diff_velocity = velocity
-                    diff_rho = diff
-                elif transform == 'sqrt':
-                    diff_velocity = np.sign(velocity) * np.sqrt(np.abs(velocity))
-                    diff_rho = np.sign(diff) * np.sqrt(np.abs(diff))
+            if kernel == 'pearson':
+                vals_ = einsum_correlation(diff_rho, diff_velocity, type="pearson")
+            elif kernel == 'cosine':
+                vals_ = einsum_correlation(diff_rho, diff_velocity, type="cosine")
 
-                if kernel == 'correlation':
-                    cur_val = np.corrcoef(diff_rho, diff_velocity)[0, 1]
-                elif kernel == 'cosine':
-                    cur_val = cosine(diff_rho, diff_velocity)
+            rows.extend([i] * len(i_vals))
+            cols.extend(i_vals)
+            vals.extend(vals_)
 
-            rows.extend(i)
-            cols.extend(neighbor_ind_j)
-            vals.extend(cur_val)
-
+    vals = np.hstack(vals)
     vals[np.isnan(vals)] = 0
     G = csr_matrix(
         (vals, (rows, cols)), shape=neighbors.shape
@@ -558,7 +559,7 @@ def kernels_from_velocyto_scvelo(
 
     confidence, ub_confidence = G.max(1).A.flatten(), np.percentile(G.max(1).A.flatten(), 98)
     dig_p = np.clip(ub_confidence - confidence, 0, 1)
-    G = G.setdiag(dig_p)
+    G.setdiag(dig_p)
 
     T = np.expm1(G / 0.1)
 

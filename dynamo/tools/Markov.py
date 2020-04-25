@@ -652,9 +652,9 @@ class ContinuousTimeMarkovChain(MarkovChain):
         self.__reset__()
         # knn clustering
         if self.nbrs_idx is None:
-            nbrs = NearestNeighbors(n_neighbors=k, algorithm="ball_tree").fit(X)
+            nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm="ball_tree").fit(X)
             _, Idx = nbrs.kneighbors(X)
-            self.nbrs_idx = Idx
+            self.nbrs_idx = Idx[:, 1:]
         else:
             Idx = self.nbrs_idx
         # compute transition prob.

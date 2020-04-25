@@ -60,6 +60,39 @@ def elem_prod(X, Y):
     else:
         return np.multiply(X, Y)
 
+
+def norm_vector(x):
+    """calculate euclidean norm for a row vector"""
+
+    return np.sqrt(np.einsum('i, i -> ', x, x))
+
+
+def norm_row(X):
+    """calculate euclidean norm for a row vector"""
+
+    return np.sqrt(X.multiply(X).sum(1).A1 if issparse(X) else np.einsum('ij, ij -> i', X, X) if X.ndim > 1 else np.einsum('i, i -> ', X, X))
+
+
+def einsum_correlation(X, Y_i, type="pearson"):
+    """calculate pearson or cosine correlation between X (genes/pcs/embeddings x cells) and the velocity vectors Y_i for cell i"""
+
+    if type == "pearson":
+        X -= X.mean(axis=1)[:, None]
+        Y_i -= np.nanmean(Y_i)
+    elif type == "cosine":
+        X, Y_i = X, Y_i
+
+    X_norm, Y_norm = norm_row(X),  norm_row(Y_i)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        if Y_norm == 0:
+            corr = np.zeros(X_norm.shape[0])
+        else:
+            corr = np.einsum('ij, j', X, Y_i) / (X_norm * Y_norm)[None, :]
+
+    return corr
+
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
 def one_shot_gamma_alpha(k, t, l):
