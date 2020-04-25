@@ -27,7 +27,7 @@ def cell_velocities(
     n_pca_components=30,
     min_r2=0.01,
     basis="umap",
-    method="analytical",
+    method="kmc",
     neg_cells_trick=False,
     calc_rnd_vel=False,
     xy_grid_nums=(50, 50),
@@ -35,6 +35,7 @@ def cell_velocities(
     scale=True,
     sample_fraction=None,
     random_seed=19491001,
+    other_kernels_dict={},
     **kmc_kwargs
 ):
     """Compute transition probability and project high dimension velocity vector to existing low dimension embedding.
@@ -65,16 +66,19 @@ def cell_velocities(
             The minimal value of r-squared of the gamma fit for selecting velocity genes.
         basis: 'int' (optional, default `umap`)
             The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
-        method: `string` (optimal, default `analytical`)
-            The method to calculate the transition matrix and project high dimensional vector to low dimension, either `analytical`
-            or `empirical`. "analytical" is our new approach to learn the transition matrix via diffusion approximation or an Itô
-            kernel. "empirical" is the method used in the original RNA velocity paper via correlation. "analytical" option is
-            better than "empirical" as it not only considers the correlation but also the distance of the nearest neighbors to
-            the high dimensional velocity vector.
-        neg_cells_trick: 'bool' (optional, default `False`)
+        method: `string` (optimal, default `kmc`)
+            The method to calculate the transition matrix and project high dimensional vector to low dimension, either `kmc`,
+            `cosine`, `correlation`, or `transform`. "kmc" is our new approach to learn the transition matrix via diffusion
+            approximation or an Itô kernel. "cosine" or "correlation" are the methods used in the original RNA velocity paper
+            or the scvelo paper (Note that scVelo implemention actually centers both dX and V, so its cosine kernel is equivalent
+            to correlation kernel but we provide the raw cosine kernel). "kmc" option is arguable better than "correlation"
+            or "cosine" as it not only considers the correlation but also the distance of the nearest neighbors to the high
+            dimensional velocity vector. Finally, the "transform" method uses umap's transform method to transform new data
+            points to the UMAP space. "transform" method is NOT recommended.
+        neg_cells_trick: 'bool' (optional, default `True`)
             Whether we should handle cells having negative correlations in gene expression difference with high dimensional
-            velocity vector separately. This option is inspired from scVelo package (https://github.com/theislab/scvelo). Not
-            required if method is set to be "analytical".
+            velocity vector separately. This option is borrow from scVelo package (https://github.com/theislab/scvelo) and
+            use in conjuction with "correlation" and "cosine" kernel. Not required if method is set to be "kmc".
         calc_rnd_vel: `bool` (default: `False`)
             A logic flag to determine whether we will calculate the random velocity vectors which can be plotted downstream
             as a negative control and used to adjust the quiver scale of the velocity field.
@@ -183,7 +187,7 @@ def cell_velocities(
             _, indices = nbrs.kneighbors(X)
 
     # add both source and sink distribution
-    if method == "analytical":
+    if method == "kmc":
         kmc = KernelMarkovChain()
         kmc_args = {
             "n_recurse_neighbors": 2,
@@ -236,15 +240,23 @@ def cell_velocities(
             )
 
         adata.uns["kmc"] = kmc
-    elif method == "empirical":
-        T, delta_X, X_grid, V_grid, D = kernels_from_others(
-            X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors
+    elif method in ["correlation", "cosine"]:
+        vs_kwargs = {"n_recurse_neighbors": 2,
+                              "max_neighs": None,
+                              "transform": 'linear',
+                              "use_neg_vals": True}
+        vs_kwargs = update_dict(vs_kwargs, other_kernels_dict)
+
+        T, delta_X, X_grid, V_grid, D = kernels_from_velocyto_scvelo(
+            X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors,
+            method, *vs_kwargs
         )
 
         if calc_rnd_vel:
             permute_rows_nsign(V_mat)
-            T_rnd, delta_X_rnd, X_grid_rnd, V_grid_rnd, D_rnd = kernels_from_others(
-                X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors
+            T_rnd, delta_X_rnd, X_grid_rnd, V_grid_rnd, D_rnd = kernels_from_velocyto_scvelo(
+                X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors,
+                method, *vs_kwargs
             )
     elif method == "transform":
         umap_trans, n_pca_components = (
@@ -487,9 +499,9 @@ def expected_return_time(M, backward=False):
     return T
 
 
-def kernels_from_others(
+def kernels_from_velocyto_scvelo(
     X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors,
-    n_recurse_neighbors=2, max_neighs=None, kernel='correlation', transform='sqrt',
+    kernel='correlation', n_recurse_neighbors=2, max_neighs=None, transform='linear',
     use_neg_vals=True,
 ):
     """utility function for calculating the transition matrix and low dimensional velocity embedding via the original
@@ -501,33 +513,48 @@ def kernels_from_others(
         vals = []
 
     delta_X = np.zeros((n, X_embedding.shape[1]))
-    for i in tqdm(range(n), desc=f"calculating transition matrix via {kernel} kernel."):
-        i_vals = get_iterative_indices(indices, i, n_recurse_neighbors, max_neighs) #np.zeros((knn, 1))
+    for i in tqdm(range(n), desc=f"calculating transition matrix via {kernel} kernel with {transform} transform."):
         velocity = V_mat[i, :]  # project V_mat to pca space
-        diff_velocity = np.sign(velocity) * np.sqrt(np.abs(velocity))
 
-        for j in np.arange(0, len(i_vals)):
-            neighbor_ind_j = i_vals[j]
-            diff = X[neighbor_ind_j, :] - X[i, :]
+        if velocity.sum() != 0:
+            i_vals = get_iterative_indices(indices, i, n_recurse_neighbors, max_neighs)  # np.zeros((knn, 1))
 
-            if transform == 'sqrt':
-                diff_rho = np.sign(diff) * np.sqrt(np.abs(diff))
-            elif transform == 'linear':
-                diff_rho = diff
+            for j in np.arange(0, len(i_vals)):
+                neighbor_ind_j = i_vals[j]
+                diff = X[neighbor_ind_j, :] - X[i, :]
 
-            if kernel == 'correlation':
-                cur_val = np.corrcoef(diff_rho, diff_velocity)[0, 1]
-            elif kernel == 'cosine':
-                cur_val = cosine(diff_rho, diff_velocity)
+                if transform == 'log':
+                    diff_velocity = np.sign(velocity) * np.log(np.abs(velocity) + 1)
+                    diff_rho = np.sign(diff) * np.log(np.abs(diff) + 1)
+                elif transform == 'logratio':
+                    hi_dim, hi_dim_t = X[i, :], X[i, :] + velocity
+                    log2hidim = np.log(np.abs(hi_dim) + 1)
+                    diff_velocity = np.log(np.abs(hi_dim_t) + 1) - log2hidim
+                    diff_rho = np.log(np.abs(X[neighbor_ind_j, :]) + 1) - np.log(np.abs(hi_dim) + 1)
+                elif transform == 'linear':
+                    diff_velocity = velocity
+                    diff_rho = diff
+                elif transform == 'sqrt':
+                    diff_velocity = np.sign(velocity) * np.sqrt(np.abs(velocity))
+                    diff_rho = np.sign(diff) * np.sqrt(np.abs(diff))
+
+                if kernel == 'correlation':
+                    cur_val = np.corrcoef(diff_rho, diff_velocity)[0, 1]
+                elif kernel == 'cosine':
+                    cur_val = cosine(diff_rho, diff_velocity)
 
             rows.extend(i)
             cols.extend(neighbor_ind_j)
             vals.extend(cur_val)
 
+    vals[np.isnan(vals)] = 0
     G = csr_matrix(
-        (vals.flatten(), (rows.flatten(), cols.flatten())), shape=neighbors.shape
+        (vals, (rows, cols)), shape=neighbors.shape
     )
-    G, G_ = split_velocity_graph(G)
+    G = split_velocity_graph(G, neg_cells_trick)
+
+    if neg_cells_trick:
+        G, G_ = G
 
     confidence, ub_confidence = G.max(1).A.flatten(), np.percentile(G.max(1).A.flatten(), 98)
     dig_p = np.clip(ub_confidence - confidence, 0, 1)
@@ -544,14 +571,15 @@ def kernels_from_others(
 
     # T = w * (~ direct_neighs).multiply(T) + (1 - w) * direct_neighs.multiply(T)
 
+    # normalize so that each row sum up to 1
     sparsefuncs.inplace_row_scale(T, 1 / T.sum(axis=1).A1)
 
     T.setdiag(0)
     T.eliminate_zeros()
 
-    for i in tqdm(range(n), desc=f"projecting velocity to low dimensional embedding..."):
-        indices = T[i].indices
-        diff_emb = X_embedding[indices] - X_embedding[i, None]
+    for i in tqdm(range(n), desc=f"projecting velocity vector to low dimensional embedding..."):
+        idx = T[i].indices
+        diff_emb = X_embedding[idx] - X_embedding[i, None]
         diff_emb /= scp.linalg.norm(diff_emb, axis=1)[:, None]
         diff_emb[np.isnan(diff_emb)] = 0
         T_i = T[i].data

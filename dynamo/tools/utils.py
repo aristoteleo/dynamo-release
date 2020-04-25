@@ -1015,17 +1015,21 @@ def append_iterative_neighbor_indices(indices, n_recurse_neighbors=2, max_neighs
         indices_rec.append(neig)
     return indices_rec
 
-def split_velocity_graph(G):
+def split_velocity_graph(G, neg_cells_trick=True):
     """split velocity graph (built either with correlation or with cosine kernel
      into one positive graph and one negative graph"""
 
     if not issparse(G): G = csr_matrix(G)
-    G_ = G.copy()
-    G.data[G.data < 0], G_.data[G.data > 0] = 0, 0
-    G.eliminate_zeros()
-    G_.eliminate_zeros()
+    if neg_cells_trick: G_ = G.copy()
+    G.data[G.data < 0] = 0
 
-    return G, G_
+    if neg_cells_trick:
+        G_.data[G.data > 0] = 0
+        G_.eliminate_zeros()
+
+        return (G, G_)
+    else:
+        return G
 # ---------------------------------------------------------------------------------------------------
 # vector field related
 def con_K(x, y, beta):
