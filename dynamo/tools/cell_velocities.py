@@ -25,7 +25,7 @@ def cell_velocities(
     vkey=None,
     use_mnn=False,
     neighbors_from_basis=False,
-    n_pca_components=30,
+    n_pca_components=None,
     min_r2=0.01,
     basis="umap",
     method="kmc",
@@ -61,8 +61,10 @@ def cell_velocities(
             nearest neighbors.
         neighbors_from_basis: `bool` (optional, default `False`)
             Whether to construct nearest neighbors from low dimensional space as defined by the `basis`.
-        n_pca_components: `int` (optional, default `25`)
+        n_pca_components: `int` (optional, default `None`)
             The number of pca components to project the high dimensional X, V before calculating transition matrix for velocity visualization.
+            By default it is None and if method is `kmc`, n_pca_components will reset to be 30; otherwise use all high dimensional data for
+            velocity projection.
         min_r2: `float` (optional, default `0.5`)
             The minimal value of r-squared of the gamma fit for selecting velocity genes.
         basis: 'int' (optional, default `umap`)
@@ -159,6 +161,7 @@ def cell_velocities(
     finite_inds = get_finite_inds(V_mat)
     X, V_mat = X[:, finite_inds], V_mat[:, finite_inds]
 
+    if method == 'kmc' and n_pca_components is None: n_pca_components = 30
     if n_pca_components is not None:
         if (
                 "velocity_pca_fit" not in adata.uns_keys()
@@ -250,7 +253,7 @@ def cell_velocities(
     elif method in ["pearson", "cosine"]:
         vs_kwargs = {"n_recurse_neighbors": 2,
                       "max_neighs": None,
-                      "transform": 'linear',
+                      "transform": 'sqrt',
                       "use_neg_vals": True,
                      }
         vs_kwargs = update_dict(vs_kwargs, other_kernels_dict)
