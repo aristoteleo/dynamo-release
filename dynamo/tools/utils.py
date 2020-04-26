@@ -82,7 +82,7 @@ def einsum_correlation(X, Y_i, type="pearson"):
     elif type == "cosine":
         X, Y_i = X, Y_i
 
-    X_norm, Y_norm = norm_row(X),  norm_row(Y_i)
+    X_norm, Y_norm = norm_row(X),  norm_vector(Y_i)
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -1055,14 +1055,16 @@ def split_velocity_graph(G, neg_cells_trick=True):
     if not issparse(G): G = csr_matrix(G)
     if neg_cells_trick: G_ = G.copy()
     G.data[G.data < 0] = 0
+    G.eliminate_zeros()
 
     if neg_cells_trick:
-        G_.data[G.data > 0] = 0
+        G_.data[G_.data > 0] = 0
         G_.eliminate_zeros()
 
         return (G, G_)
     else:
         return G
+
 # ---------------------------------------------------------------------------------------------------
 # vector field related
 def con_K(x, y, beta):

@@ -13,6 +13,7 @@ from .utils import (
     update_dict,
     get_iterative_indices,
     split_velocity_graph,
+    norm_row,
     einsum_correlation,
 )
 
@@ -119,6 +120,10 @@ def cell_velocities(
             )
             indices, dist = indices[:, 1:], dist[:, 1:]
         else:
+            if adata.uns["neighbors"]["distances"].shape[0] == adata.uns["neighbors"]["distances"].shape[1]:
+                adata.uns["neighbors"]["indices"], adata.uns["neighbors"]["distances"] = extract_indices_dist_from_graph(
+                    adata.uns["neighbors"]["distances"], 30 # np.min((adata.uns["neighbors"]["connectivities"] > 0).sum(1).A)
+                )
             neighbors, dist, indices = (
                 adata.uns["neighbors"]["connectivities"],
                 adata.uns["neighbors"]["distances"],
@@ -573,7 +578,7 @@ def kernels_from_velocyto_scvelo(
     # T = w * (~ direct_neighs).multiply(T) + (1 - w) * direct_neighs.multiply(T)
 
     # normalize so that each row sum up to 1
-    sparsefuncs.inplace_row_scale(T, 1 / T.sum(axis=1).A1)
+    sparsefuncs.inplace_row_scale(T, 1 / np.abs(T).sum(axis=1).A1)
 
     T.setdiag(0)
     T.eliminate_zeros()
@@ -581,7 +586,7 @@ def kernels_from_velocyto_scvelo(
     for i in tqdm(range(n), desc=f"projecting velocity vector to low dimensional embedding..."):
         idx = T[i].indices
         diff_emb = X_embedding[idx] - X_embedding[i, None]
-        diff_emb /= scp.linalg.norm(diff_emb, axis=1)[:, None]
+        diff_emb /= norm_row(diff_emb)[:, None]
         diff_emb[np.isnan(diff_emb)] = 0
         T_i = T[i].data
         delta_X[i] = T_i.dot(diff_emb) - T_i.mean() * diff_emb.sum(0)
