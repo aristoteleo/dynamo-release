@@ -127,7 +127,7 @@ def reduceDimension(
         _umap_kwargs = {
             "n_components": 2,
             "metric": "euclidean",
-            "min_dist": 0.1,
+            "min_dist": 0.5,
             "spread": 1.0,
             "n_epochs": 0,
             "alpha": 1.0,

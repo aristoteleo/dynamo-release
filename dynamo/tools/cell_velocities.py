@@ -63,7 +63,7 @@ def cell_velocities(
             Whether to construct nearest neighbors from low dimensional space as defined by the `basis`.
         n_pca_components: `int` (optional, default `None`)
             The number of pca components to project the high dimensional X, V before calculating transition matrix for velocity visualization.
-            By default it is None and if method is `kmc`, n_pca_components will reset to be 30; otherwise use all high dimensional data for
+            By default it is None and if method is `kmc`, n_pca_components will be reset to 30; otherwise use all high dimensional data for
             velocity projection.
         min_r2: `float` (optional, default `0.5`)
             The minimal value of r-squared of the gamma fit for selecting velocity genes.
@@ -512,7 +512,7 @@ def expected_return_time(M, backward=False):
 
 def kernels_from_velocyto_scvelo(
     X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors,
-    kernel='pearson', n_recurse_neighbors=2, max_neighs=None, transform='linear',
+    kernel='pearson', n_recurse_neighbors=2, max_neighs=None, transform='sqrt',
     use_neg_vals=True,
 ):
     """utility function for calculating the transition matrix and low dimensional velocity embedding via the original
