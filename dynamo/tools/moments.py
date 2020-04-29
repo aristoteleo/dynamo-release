@@ -78,7 +78,7 @@ def moments(adata,
             else:
                 if group not in adata.obs.keys():
                     raise Exception(f'the group {group} provided is not a column name in .obs attribute.')
-                conn = csr_matrix(shape=(adata.n_obs, adata.n_obs))
+                conn = csr_matrix((adata.n_obs, adata.n_obs))
                 cells_group = adata.obs[group]
                 uniq_grp = np.unique(cells_group)
                 for cur_grp in uniq_grp:
@@ -93,7 +93,8 @@ def moments(adata,
                     else:
                         cur_conn = normalize_knn_graph(cur_kNN > 0)
 
-                    conn[cur_cells, cur_cells] = cur_conn
+                    cur_cells_ = np.where(cur_cells)[0]
+                    conn[cur_cells_[:, None], cur_cells_] = cur_conn
 
     layers = get_layer_keys(adata, layers, False, False)
     layers = [
