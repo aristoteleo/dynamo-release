@@ -497,7 +497,7 @@ def topography(
 
     Parameters
     ----------
-        %(scatters.parameters.no_show_legend|kwargs)s
+        %(scatters.parameters.no_show_legend|kwargs|save_kwargs)s
         xlim: `numpy.ndarray`
             The range of x-coordinate
         ylim: `numpy.ndarray`

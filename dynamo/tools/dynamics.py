@@ -610,3 +610,12 @@ def fbar(a, b, alpha_a, alpha_i):
         return None
     else:
         return b / (a + b) * alpha_a + a / (a + b) * alpha_i
+
+def get_dispatcher():
+    dispatcher = {'Deterministic': Deterministic,
+                  'Deterministic_NoSplicing': Deterministic_NoSplicing,
+                  'Moments_NoSwitching': Moments_NoSwitching,
+                  'Moments_NoSwitchingNoSplicing': Moments_NoSwitchingNoSplicing,
+                  }
+
+    return dispatcher
