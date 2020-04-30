@@ -75,7 +75,7 @@ def szFactor(
 
     layers = get_layer_keys(adata, layers)
     if "raw" in layers and adata.raw is None:
-        adata.raw = adata.X.copy()
+        adata.raw = adata.copy()
 
     for layer in layers:
         sfs, cell_total = sz_util(adata, layer, round_exprs, method, locfunc, total_layers=total_layers)
@@ -235,7 +235,7 @@ def Gini(adata, layers="all"):
 
     for layer in layers:
         if layer is "raw":
-            CM = adata.raw
+            CM = adata.raw.X
         elif layer is "X":
             CM = adata.X
         elif layer is "protein":
@@ -347,7 +347,7 @@ def disp_calc_helper_NB(adata, layers="X", min_cells_detected=1):
     res_list = []
     for layer in layers:
         if layer is "raw":
-            CM = adata.raw
+            CM = adata.raw.X
             szfactors = adata.obs[layer + "Size_Factor"][:, None]
         elif layer is "X":
             CM = adata.X
@@ -671,7 +671,7 @@ def SVRs(
             CM = adata.X.copy() if adata.raw is None else adata.raw
             szfactors = (
                 adata.obs[layer + "_Size_Factor"][:, None]
-                if adata.raw is not None
+                if adata.raw.X is not None
                 else adata.obs["Size_Factor"][:, None]
             )
         elif layer is "X":

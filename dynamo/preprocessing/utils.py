@@ -274,7 +274,7 @@ def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None):
                 adata.layers["_total_"] = total
 
     if layer is "raw":
-        CM = adata.raw
+        CM = adata.raw.X
     elif layer is "X":
         CM = adata.X
     elif layer is "protein":
@@ -301,13 +301,13 @@ def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None):
     elif method == "mean":
         sfs = cell_total / np.nanmean(cell_total)
     else:
-        print("This method is not supported!")
+        raise NotImplementedError(f"This method {method} is not supported!")
 
     return sfs, cell_total
 
 def get_sz_exprs(adata, layer, total_szfactor=None):
     if layer is "raw":
-        CM = adata.raw
+        CM = adata.raw.X
         szfactors = adata.obs[layer + "Size_Factor"][:, None]
     elif layer is "X":
         CM = adata.X
