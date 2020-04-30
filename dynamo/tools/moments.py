@@ -224,7 +224,9 @@ def time_moment(adata,
     time = adata.obs[tkey]
     m, v = prepare_data_deterministic(adata, adata.var.index, time, layers,
                                           use_total_layers=True, log=False)
-    adata.uns['time_moments'] = {'m_t': m, 'v_t': v}
+    adata.uns['time_moments'] = {'time': time}
+    adata.varm['m_t'] = m
+    adata.varm['v_t'] = v
 
     return adata
 

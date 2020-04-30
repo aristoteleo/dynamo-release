@@ -1,4 +1,5 @@
 from tqdm import tqdm
+import inspect
 import pandas as pd
 from scipy.sparse import SparseEfficiencyWarning
 
@@ -397,8 +398,8 @@ def dynamics(
 
 
 def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_splicing, has_switch, param_rngs, only_sfs=True, **est_kwargs):
-    import inspect
     time = subset_adata.obs[tkey].astype('float')
+    dispatcher = get_dispatcher()
 
     if experiment_type.lower() == 'kin':
         if has_splicing:
@@ -462,12 +463,12 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                       'us0': [0, 1000], }
                 Est = Mixture_KinDeg_NoSwitching(Moments_NoSwitching(), Moments_NoSwitching())
             else:
-                raise Exception(f'model {model} with kinetic assumption is not implemented. '
+                raise NotImplementedError(f'model {model} with kinetic assumption is not implemented. '
                                 f'current supported models for kinetics experiments include: stochastic, deterministic, mixture,'
                                 f'mixture_deterministic_stochastic or mixture_stochastic_stochastic')
         else:
             if model in ['deterministic', 'stochastic']:
-                layer = 'X_new' if 'X_new' in (subset_adata.layers.keys() and not only_sfs) else 'new'
+                layer = 'X_new' if  ('X_new' in subset_adata.layers.keys() and not only_sfs) else 'new'
                 X = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time, layer=layer)
                 X_sigma = [X[i][1, :] for i in range(len(X))]
             elif model.startswith('mixture'):
@@ -595,10 +596,12 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 Estm[i_gene], cost[i_gene] = estm.auto_fit(np.unique(time), cur_X_data)
 
         half_life[i_gene] = np.log(2)/Estm[i_gene][-1] if experiment_type.lower() == 'kin' else estm.calc_half_life('gamma')
-        # gof = GoodnessOfFit(estm.export_model(), params=estm.export_parameters(), x0=estm.simulator.x0) \
-        #     if 'x0' in inspect.getfullargspec(Est) else Est(*param_ranges)
+        gof = GoodnessOfFit(estm.export_model(), params=estm.export_parameters(), x0=estm.simulator.x0) \
+            if 'x0' in inspect.getfullargspec(Est) else Est(*param_ranges)
         # gof.prepare_data(time, cur_X_data, cur_sigma, normalize=False)
-        # logLL[i_gene] = gof.calc_gaussian_loglikelihood()
+        gof.prepare_data(time, cur_X_data, normalize=True)
+
+        logLL[i_gene] = gof.calc_gaussian_loglikelihood()
 
     Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[:len(Estm[0])]])
 
@@ -610,6 +613,7 @@ def fbar(a, b, alpha_a, alpha_i):
         return None
     else:
         return b / (a + b) * alpha_a + a / (a + b) * alpha_i
+
 
 def get_dispatcher():
     dispatcher = {'Deterministic': Deterministic,
