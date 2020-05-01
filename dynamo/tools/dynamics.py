@@ -400,7 +400,7 @@ def dynamics(
 def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_splicing, has_switch, param_rngs, only_sfs=True, **est_kwargs):
     time = subset_adata.obs[tkey].astype('float')
     dispatcher = get_dispatcher()
-    x0 = None
+    x0 = {}
 
     if experiment_type.lower() == 'kin':
         if has_splicing:
@@ -562,7 +562,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
         raise Exception(f'experiment {experiment_type} is not recognized')
 
     _param_ranges = update_dict(_param_ranges, param_rngs)
-    x0_ = np.vstack([ran for ran in x0.values()]).T if x0 is not None else None
+    x0_ = np.vstack([ran for ran in x0.values()]).T if x0 != {} else {}
 
     n_genes = subset_adata.n_vars
     cost, logLL = np.zeros(n_genes), np.zeros(n_genes)
@@ -584,8 +584,9 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 cur_X_raw = np.hstack((cur_X_raw[0, 0].A, cur_X_raw[1, 0].A))
 
             Estm[i_gene], cost[i_gene] = estm.auto_fit(np.unique(time), cur_X_data)
-            model_1, model_2, kinetic_parameters, x0 = estm.export_dictionary()
-            simulator = MixtureModels([dispatcher[model_1], dispatcher[model_2]], estm.param_distributor)
+            model_1, model_2, kinetic_parameters, x0 = estm.export_dictionary().values()
+            _MixtureModels = dispatcher[type(Est).__name__]
+            simulator = _MixtureModels([dispatcher[model_1], dispatcher[model_2]], estm.param_distributor)
         else:
             if experiment_type.lower() == 'kin':
                 cur_X_data, cur_X_raw = X[i_gene], X_raw[i_gene]
@@ -631,6 +632,7 @@ def get_dispatcher():
                   'Deterministic_NoSplicing': Deterministic_NoSplicing,
                   'Moments_NoSwitching': Moments_NoSwitching,
                   'Moments_NoSwitchingNoSplicing': Moments_NoSwitchingNoSplicing,
+                  'Mixture_KinDeg_NoSwitching': Mixture_KinDeg_NoSwitching,
                   }
 
     return dispatcher
