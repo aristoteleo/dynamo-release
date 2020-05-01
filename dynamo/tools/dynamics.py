@@ -494,19 +494,20 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                     Est, _ = Estimation_MomentKinNoSwitchNoSplicing, Moments_NoSwitchingNoSplicing
             elif model == 'mixture':
                 _param_ranges = {'alpha': [0, 1000], 'gamma': [0, 1000], }
-                # x0 = {'u0': [0, 1000]}
+                x0 = {'u0': [0, 1000]}
                 Est = Mixture_KinDeg_NoSwitching(Deterministic_NoSplicing(), Deterministic_NoSplicing())
             elif model == 'mixture_deterministic_stochastic':
                 _param_ranges = {'alpha': [0, 1000], 'gamma': [0, 1000], }
-                # x0 = {'u0': [0, 1000], 'uu0': [0, 1000]}
+                x0 = {'u0': [0, 1000], 'uu0': [0, 1000]}
                 Est = Mixture_KinDeg_NoSwitching(Deterministic_NoSplicing(), Moments_NoSwitchingNoSplicing())
             elif model == 'mixture_stochastic_stochastic':
                 _param_ranges = {'alpha': [0, 1000], 'gamma': [0, 1000], }
-                # x0 = {'u0': [0, 1000], 'uu0': [0, 1000]}
+                x0 = {'u0': [0, 1000], 'uu0': [0, 1000]}
                 Est = Mixture_KinDeg_NoSwitching(Moments_NoSwitchingNoSplicing(), Moments_NoSwitchingNoSplicing())
-            raise Exception(f'model {model} with kinetic assumption is not implemented. '
-                            f'current supported models for kinetics experiments include: stochastic, deterministic, mixture,'
-                            f'mixture_deterministic_stochastic or mixture_stochastic_stochastic')
+            else:
+                raise Exception(f'model {model} with kinetic assumption is not implemented. '
+                                f'current supported models for kinetics experiments include: stochastic, deterministic, mixture,'
+                                f'mixture_deterministic_stochastic or mixture_stochastic_stochastic')
     elif experiment_type.lower() == 'deg':
         if has_splicing:
             if model in ['deterministic', 'stochastic']:
@@ -514,7 +515,6 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 layer_s = 'X_sl' if ('X_sl' in subset_adata.layers.keys() and not only_sfs) else 'sl'
 
                 X, X_raw = prepare_data_has_splicing(subset_adata, subset_adata.var.index, time, layer_u=layer_u, layer_s=layer_s)
-                # X_sigma = [X[i][[2, 3], :] for i in range(len(X))]
             elif model.startswith('mixture'):
                 layers = ['X_ul', 'X_sl', 'X_uu', 'X_su'] if ('X_ul' in subset_adata.layers.keys() and not only_sfs) \
                     else ['ul', 'sl', 'uu', 'su']
