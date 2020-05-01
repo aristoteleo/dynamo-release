@@ -532,7 +532,8 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                       'uu0': [0, 1000], 'ss0': [0, 1000],
                       'us0': [0, 1000], }
                 Est, _ = Estimation_MomentDeg, Moments_NoSwitching
-            raise Exception(f'model {model} with kinetic assumption is not implemented. '
+            else:
+                raise NotImplementedError(f'model {model} with kinetic assumption is not implemented. '
                             f'current supported models for degradation experiment include: '
                             f'stochastic, deterministic.')
         else:
@@ -548,9 +549,10 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 _param_ranges = {'gamma': [0, 10], }
                 x0 = {'u0': [0, 1000], 'uu0': [0, 1000]}
                 Est, _ = Estimation_MomentDegNosp, Moments_NoSwitchingNoSplicing
-            raise Exception(f'model {model} with kinetic assumption is not implemented. '
-                            f'current supported models for degradation experiment include: '
-                            f'stochastic, deterministic.')
+            else:
+                raise NotImplementedError(f'model {model} with kinetic assumption is not implemented. '
+                                f'current supported models for degradation experiment include: '
+                                f'stochastic, deterministic.')
     elif experiment_type.lower() == 'mix_std_stm':
         raise Exception(f'experiment {experiment_type} with kinetic assumption is not implemented')
     elif experiment_type.lower() == 'mix_pulse_chase':
