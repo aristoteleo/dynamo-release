@@ -346,7 +346,7 @@ def prepare_data_no_splicing(adata, genes, time, layer, use_total_layers=True):
     else:
         sfs, _ = sz_util(adata, layer, False, "median", np.nanmean, total_layers=None)
 
-    U = normalize_util(adata[:, genes].layers[layer], sfs, relative_expr=True, pseudo_expr=0, norm_method=None)
+    U = normalize_util(adata[:, genes].layers[layer], sfs[:, None], relative_expr=True, pseudo_expr=0, norm_method=None)
 
     for i, g in enumerate(genes):
         u = U[:, i]
