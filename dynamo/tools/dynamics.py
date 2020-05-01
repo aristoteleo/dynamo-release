@@ -499,16 +499,18 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 x0 = {'u0': [0, 0], 'o0': [0, 1000]}
                 Est = Mixture_KinDeg_NoSwitching(Deterministic_NoSplicing(), Deterministic_NoSplicing())
             elif model == 'mixture_deterministic_stochastic':
-                X, X_raw = prepare_data_mix_has_no_splicing(subset_adata, subset_adata.var.index, time, layer_u=layers[2], layer_s=layers[3],
-                                                  layer_ul=layers[0], layer_sl=layers[1], use_total_layers=True,
-                                                  mix_model_indices=[0, 2, 3])
+                X, X_raw = prepare_data_mix_has_no_splicing(subset_adata, subset_adata.var.index, time, layer_n=layers[0],
+                                                            layer_t=layers[1], use_total_layers=True, mix_model_indices=[0, 2, 3])
 
                 _param_ranges = {'alpha': [0, 1000], 'alpha_2': [0, 0], 'gamma': [0, 1000], }
-                x0 = {'u0': [0, 1000], 'uu0': [0, 1000]}
+                x0 = {'u0': [0, 1000], 'o0': [0, 1000], 'oo0': [0, 1000]}
                 Est = Mixture_KinDeg_NoSwitching(Deterministic_NoSplicing(), Moments_NoSwitchingNoSplicing())
             elif model == 'mixture_stochastic_stochastic':
-                _param_ranges = {'alpha': [0, 1000], 'gamma': [0, 1000], }
-                x0 = {'u0': [0, 1000], 'uu0': [0, 1000]}
+                X, X_raw = prepare_data_mix_has_no_splicing(subset_adata, subset_adata.var.index, time, layer_n=layers[0],
+                                                            layer_t=layers[1], use_total_layers=True, mix_model_indices=[0, 1, 2, 3])
+
+                _param_ranges = {'alpha': [0, 1000], 'alpha_2': [0, 0], 'gamma': [0, 1000], }
+                x0 = {'u0': [0, 1000], 'uu0': [0, 1000], 'o0': [0, 1000], 'oo0': [0, 1000]}
                 Est = Mixture_KinDeg_NoSwitching(Moments_NoSwitchingNoSplicing(), Moments_NoSwitchingNoSplicing())
             else:
                 raise Exception(f'model {model} with kinetic assumption is not implemented. '
