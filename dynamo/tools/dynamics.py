@@ -400,6 +400,7 @@ def dynamics(
 def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_splicing, has_switch, param_rngs, only_sfs=True, **est_kwargs):
     time = subset_adata.obs[tkey].astype('float')
     dispatcher = get_dispatcher()
+    x0 = None
 
     if experiment_type.lower() == 'kin':
         if has_splicing:
@@ -561,7 +562,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
         raise Exception(f'experiment {experiment_type} is not recognized')
 
     _param_ranges = update_dict(_param_ranges, param_rngs)
-    x0_ = np.vstack([ran for ran in x0.values()]).T
+    x0_ = np.vstack([ran for ran in x0.values()]).T if x0 is not None else None
 
     n_genes = subset_adata.n_vars
     cost, logLL = np.zeros(n_genes), np.zeros(n_genes)
