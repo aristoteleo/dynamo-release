@@ -233,7 +233,7 @@ def time_moment(adata,
 # ---------------------------------------------------------------------------------------------------
 # use for kinetic assumption
 def get_layer_pair(layer):
-    pair = {'new': "old", 'old': "new",
+    pair = {'new': "total", 'total': "new",
             'X_new': "X_total", "X_total": 'X_new'}
     return pair[layer]
 
@@ -267,10 +267,10 @@ def prepare_data_deterministic(adata, genes, time, layers,
 
                 x_layer = normalize_util(adata[:, genes].layers[layer], sfs_x, relative_expr=True, pseudo_expr=0,
                                    norm_method=None)
-                y_layer = normalize_util(adata[:, genes].layers[layer], sfs_y, relative_expr=True, pseudo_expr=0,
+                y_layer = normalize_util(adata[:, genes].layers[get_layer_pair(layer)], sfs_y, relative_expr=True, pseudo_expr=0,
                                    norm_method=None)
 
-                x_layer = y_layer - x_layer
+                x_layer = x_layer - y_layer
         else:
             if layer == 'X_new':
                 x_layer = adata[:, genes].layers[layer]
@@ -409,6 +409,48 @@ def prepare_data_mix_has_splicing(adata, genes, time, layer_u='uu', layer_s='su'
 
         res[i] = x
         raw[i] = np.vstack((ul, sl, u, s))
+
+    return res, raw
+
+def prepare_data_mix_has_no_splicing(adata, genes, time, layer_n, layer_t, use_total_layers=True,
+                                  mix_model_indices=None):
+    """Prepare data for mixture modeling when assumption is kinetic and data has NO splicing.
+    Note that the mix_model_indices is indexed on 4 total species, which can be used to specify
+    the data required for different mixture models.
+    """
+    from ..preprocessing.utils import sz_util, normalize_util
+    res = [0] * len(genes)
+    raw = [0] * len(genes)
+
+    if use_total_layers:
+        if 'total_Size_Factor' not in adata.obs.keys():
+            sfs, _ = sz_util(adata, 'total', False, "median", np.nanmean, total_layers='total')
+            sfs_n, sfs_t = sfs[:, None], sfs[:, None]
+        else:
+            sfs = adata.obs.total_Size_Factor
+            sfs_n, sfs_t = sfs[:, None], sfs[:, None]
+    else:
+        sfs_n, _ = sz_util(adata, layer_n, False, "median", np.nanmean, total_layers=None)
+        sfs_t, _ = sz_util(adata, layer_t, False, "median", np.nanmean, total_layers=None)
+        sfs_n, sfs_t = sfs_n[:, None], sfs_t[:, None]
+
+    N = normalize_util(adata[:, genes].layers[layer_n], sfs_n, relative_expr=True, pseudo_expr=0, norm_method=None)
+    T = normalize_util(adata[:, genes].layers[layer_t], sfs_t, relative_expr=True, pseudo_expr=0, norm_method=None)
+
+    for i, g in enumerate(genes):
+        n = N[:, i]
+        nt = strat_mom(n, time, np.mean)
+        nnt = strat_mom(elem_prod(n, n), time, np.mean)
+        o = T[:, i] - n
+        ot = strat_mom(o, time, np.mean)
+        oot = strat_mom(elem_prod(o, o), time, np.mean)
+
+        x = np.vstack([nt, nnt, ot, oot])
+        if mix_model_indices is not None:
+            x = x[mix_model_indices]
+
+        res[i] = x
+        raw[i] = np.vstack((n, o))
 
     return res, raw
 # ---------------------------------------------------------------------------------------------------

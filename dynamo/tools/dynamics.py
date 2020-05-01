@@ -20,6 +20,7 @@ from .moments import (
     prepare_data_has_splicing,
     prepare_data_deterministic,
     prepare_data_mix_has_splicing,
+    prepare_data_mix_has_no_splicing,
 )
 
 import warnings
@@ -494,11 +495,15 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                     _param_ranges = {'alpha': [0, 1000], 'gamma': [0, 1000], }
                     Est, _ = Estimation_MomentKinNoSwitchNoSplicing, Moments_NoSwitchingNoSplicing
             elif model == 'mixture':
-                _param_ranges = {'alpha': [0, 1000], 'gamma': [0, 1000], }
-                x0 = {'u0': [0, 1000]}
+                _param_ranges = {'alpha': [0, 1000], 'alpha_2': [0, 0], 'gamma': [0, 1000], }
+                x0 = {'u0': [0, 0], 'o0': [0, 1000]}
                 Est = Mixture_KinDeg_NoSwitching(Deterministic_NoSplicing(), Deterministic_NoSplicing())
             elif model == 'mixture_deterministic_stochastic':
-                _param_ranges = {'alpha': [0, 1000], 'gamma': [0, 1000], }
+                X, X_raw = prepare_data_mix_has_no_splicing(subset_adata, subset_adata.var.index, time, layer_u=layers[2], layer_s=layers[3],
+                                                  layer_ul=layers[0], layer_sl=layers[1], use_total_layers=True,
+                                                  mix_model_indices=[0, 2, 3])
+
+                _param_ranges = {'alpha': [0, 1000], 'alpha_2': [0, 0], 'gamma': [0, 1000], }
                 x0 = {'u0': [0, 1000], 'uu0': [0, 1000]}
                 Est = Mixture_KinDeg_NoSwitching(Deterministic_NoSplicing(), Moments_NoSwitchingNoSplicing())
             elif model == 'mixture_stochastic_stochastic':
@@ -575,6 +580,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
     half_life, Estm = np.zeros(n_genes), [None] * n_genes #np.zeros((len(X), len(all_keys)))
 
     for i_gene in tqdm(range(n_genes), desc="estimating kinetic-parameters using kinetic model"):
+        print('i_gene is ', i_gene)
         if model.startswith('mixture'):
             estm = Est
             if model == 'mixture':
@@ -590,6 +596,8 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
             if issparse(cur_X_raw[0, 0]):
                 cur_X_raw = np.hstack((cur_X_raw[0, 0].A, cur_X_raw[1, 0].A))
 
+            print('i_gene is ', cur_X_data)
+
             _, cost[i_gene] = estm.auto_fit(np.unique(time), cur_X_data)
             model_1, model_2, kinetic_parameters, mix_x0 = estm.export_dictionary().values()
             tmp = list(kinetic_parameters.values())
@@ -602,7 +610,9 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 if has_splicing:
                     alpha0 = guestimate_alpha(np.sum(cur_X_data, 0), np.unique(time))
                 else:
-                    alpha0 = guestimate_alpha(cur_X_data, np.unique(time))
+                    alpha0 = guestimate_alpha(cur_X_data, np.unique(time)) if cur_X_data.ndim == 1 \
+                        else guestimate_alpha(cur_X_data[0], np.unique(time))
+
                 if model =='stochastic':
                     _param_ranges.update({'alpha_a': [0, alpha0*10]})
                 elif model == 'deterministic':
@@ -610,12 +620,14 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 param_ranges = [ran for ran in _param_ranges.values()]
                 estm = Est(*param_ranges, x0=x0_) if 'x0' in inspect.getfullargspec(Est) \
                     else Est(*param_ranges)
-                Estm[i_gene], cost[i_gene] = estm.fit_lsq(np.unique(time), cur_X_data, **est_kwargs)
+                _, cost[i_gene] = estm.fit_lsq(np.unique(time), cur_X_data, **est_kwargs)
+                Estm[i_gene] = estm.export_parameters()
             elif experiment_type.lower() == 'deg':
                 estm = Est()
                 cur_X_data, cur_X_raw = X[i_gene], X_raw[i_gene]
                 
-                Estm[i_gene], cost[i_gene] = estm.auto_fit(np.unique(time), cur_X_data)
+                _, cost[i_gene] = estm.auto_fit(np.unique(time), cur_X_data)
+                Estm[i_gene] = estm.export_parameters()
 
             if issparse(cur_X_raw[0, 0]):
                 cur_X_raw = np.hstack((cur_X_raw[0, 0].A, cur_X_raw[1, 0].A))
