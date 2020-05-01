@@ -214,6 +214,7 @@ def dynamics(
                 )
 
         if assumption_mRNA.lower() == 'auto': assumption_mRNA = assump_mRNA
+        if experiment_type == 'conventional': assumption_mRNA = 'ss'
 
         if model.lower() == "stochastic" and experiment_type.lower() not in ["conventional", "kinetics", "degradation", "kin", "deg", "one-shot"]:
             """
@@ -522,7 +523,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 X, _, X_raw = prepare_data_deterministic(subset_adata, subset_adata.var.index, time, layers=layers)
 
             if model == 'deterministic':
-                X = [X[i][[0, 1] , :]for i in range(len(X))]
+                X = [X[i][[0, 1] , :] for i in range(len(X))]
                 _param_ranges = {'beta': [0, 1000], 'gamma': [0, 1000], }
                 x0 = {'u0': [0, 1000], 's0': [0, 1000], }
                 Est, _ = Estimation_DeterministicDeg, Deterministic
@@ -598,7 +599,10 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
             if experiment_type.lower() == 'kin':
                 cur_X_data, cur_X_raw = X[i_gene], X_raw[i_gene]
 
-                alpha0 = guestimate_alpha(np.sum(cur_X_data, 0), np.unique(time))
+                if has_splicing:
+                    alpha0 = guestimate_alpha(np.sum(cur_X_data, 0), np.unique(time))
+                else:
+                    alpha0 = guestimate_alpha(cur_X_data, np.unique(time))
                 if model =='stochastic':
                     _param_ranges.update({'alpha_a': [0, alpha0*10]})
                 elif model == 'deterministic':
