@@ -836,6 +836,62 @@ def set_colorbar(ax):
                        )
     return axins
 
+
+def arrowed_spines(ax, basis="umap"):
+    """https://stackoverflow.com/questions/33737736/matplotlib-axis-arrow-tip
+        modified based on Answer 6
+    """
+    import matplotlib.pyplot as plt
+    fig = plt.gcf()
+
+    xmin, xmax = ax.get_xlim()
+    ymin, ymax = ax.get_ylim()
+
+    # removing the default axis on all sides:
+    for side in ['bottom','right','top','left']:
+        ax.spines[side].set_visible(False)
+
+    # removing the axis ticks
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+
+    # get width and height of axes object to compute
+    # matching arrowhead length and width
+    dps = fig.dpi_scale_trans.inverted()
+    bbox = ax.get_window_extent().transformed(dps)
+    width, height = bbox.width, bbox.height
+
+    # manual arrowhead width and length
+    hw = 1./20.*(ymax-ymin)
+    hl = 1./20.*(xmax-xmin)
+    lw = 1. # axis line width
+    ohg = 0.3 # arrow overhang
+
+    # compute matching arrowhead length and width
+    yhw = hw/(ymax-ymin)*(xmax-xmin)* height/width
+    yhl = hl/(xmax-xmin)*(ymax-ymin)* width/height
+
+    # draw x and y axis
+    ax.arrow(xmin, ymin, hl * 5, 0, #fc='k', ec='k',
+             lw=lw,
+             head_width=hw, head_length=hl,
+             overhang=ohg,
+             length_includes_head=True, clip_on=False)
+    ax.arrow(xmin, ymin, 0, hw * 5, # fc='k', ec='k',
+             lw=lw,
+             head_width=yhw, head_length=yhl,
+             overhang=ohg,
+             length_includes_head=True, clip_on=False)
+
+    ax.text(xmin+hl * 2.5, ymin-1.1 * hw, basis.upper() +"1", ha="center", va="center", rotation=0,
+            size=(lw + hw) * 10,
+            )
+    ax.text(xmin-1.1 * yhw, ymin+hw * 2.5, basis.upper() +"2", ha="center", va="center", rotation=90,
+            size=(lw + hw) * 10,
+            )
+
+    return ax
+
 # ---------------------------------------------------------------------------------------------------
 # vector field plot related utilities
 

@@ -6,7 +6,7 @@ from sklearn.neighbors import NearestNeighbors
 from scipy.stats import norm
 from scipy.linalg import eig, null_space
 from numba import jit
-
+from .utils import append_iterative_neighbor_indices
 
 def markov_combination(x, v, X):
     from cvxopt import matrix, solvers
@@ -357,29 +357,6 @@ def smoothen_drift_on_grid(X, V, n_grid, nbrs=None, k=None, smoothness=1):
     return U, gridpoints_coordinates
 
 
-def get_iterative_indices(indices, index, n_recurse_neighbors=2, max_neighs=None):
-    # These codes are borrowed from scvelo. Need to be rewritten later.
-    def iterate_indices(indices, index, n_recurse_neighbors):
-        return (
-            indices[iterate_indices(indices, index, n_recurse_neighbors - 1)]
-            if n_recurse_neighbors > 1
-            else indices[index]
-        )
-
-    indices = np.unique(iterate_indices(indices, index, n_recurse_neighbors))
-    if max_neighs is not None and len(indices) > max_neighs:
-        indices = np.random.choice(indices, max_neighs, replace=False)
-    return indices
-
-
-def append_iterative_neighbor_indices(indices, n_recurse_neighbors=2, max_neighs=None):
-    indices_rec = []
-    for i in range(indices.shape[0]):
-        neig = get_iterative_indices(indices, i, n_recurse_neighbors, max_neighs)
-        indices_rec.append(neig)
-    return indices_rec
-
-
 class MarkovChain:
     def __init__(self, P=None):
         self.P = P
@@ -675,9 +652,9 @@ class ContinuousTimeMarkovChain(MarkovChain):
         self.__reset__()
         # knn clustering
         if self.nbrs_idx is None:
-            nbrs = NearestNeighbors(n_neighbors=k, algorithm="ball_tree").fit(X)
+            nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm="ball_tree").fit(X)
             _, Idx = nbrs.kneighbors(X)
-            self.nbrs_idx = Idx
+            self.nbrs_idx = Idx[:, 1:]
         else:
             Idx = self.nbrs_idx
         # compute transition prob.

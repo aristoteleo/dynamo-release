@@ -60,6 +60,39 @@ def elem_prod(X, Y):
     else:
         return np.multiply(X, Y)
 
+
+def norm_vector(x):
+    """calculate euclidean norm for a row vector"""
+
+    return np.sqrt(np.einsum('i, i -> ', x, x))
+
+
+def norm_row(X):
+    """calculate euclidean norm for a row vector"""
+
+    return np.sqrt(X.multiply(X).sum(1).A1 if issparse(X) else np.einsum('ij, ij -> i', X, X) if X.ndim > 1 else np.einsum('i, i -> ', X, X))
+
+
+def einsum_correlation(X, Y_i, type="pearson"):
+    """calculate pearson or cosine correlation between X (genes/pcs/embeddings x cells) and the velocity vectors Y_i for cell i"""
+
+    if type == "pearson":
+        X -= X.mean(axis=1)[:, None]
+        Y_i -= np.nanmean(Y_i)
+    elif type == "cosine":
+        X, Y_i = X, Y_i
+
+    X_norm, Y_norm = norm_row(X),  norm_vector(Y_i)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        if Y_norm == 0:
+            corr = np.zeros(X_norm.shape[0])
+        else:
+            corr = np.einsum('ij, j', X, Y_i) / (X_norm * Y_norm)[None, :]
+
+    return corr
+
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
 def one_shot_gamma_alpha(k, t, l):
@@ -990,6 +1023,47 @@ def get_ekey_vkey_from_adata(adata):
 
     return ekey, vkey, layer
 
+# ---------------------------------------------------------------------------------------------------
+# cell velocities related
+def get_iterative_indices(indices, index, n_recurse_neighbors=2, max_neighs=None):
+    # These codes are borrowed from scvelo. Need to be rewritten later.
+    def iterate_indices(indices, index, n_recurse_neighbors):
+        if n_recurse_neighbors > 1:
+            index = iterate_indices(indices, index, n_recurse_neighbors - 1)
+        ix = np.append(index, indices[index])
+        if np.isnan(ix).any():
+            ix = ix[~np.isnan(ix)]
+        return ix.astype(int)
+
+    indices = np.unique(iterate_indices(indices, index, n_recurse_neighbors))
+    if max_neighs is not None and len(indices) > max_neighs:
+        indices = np.random.choice(indices, max_neighs, replace=False)
+    return indices
+
+
+def append_iterative_neighbor_indices(indices, n_recurse_neighbors=2, max_neighs=None):
+    indices_rec = []
+    for i in range(indices.shape[0]):
+        neig = get_iterative_indices(indices, i, n_recurse_neighbors, max_neighs)
+        indices_rec.append(neig)
+    return indices_rec
+
+def split_velocity_graph(G, neg_cells_trick=True):
+    """split velocity graph (built either with correlation or with cosine kernel
+     into one positive graph and one negative graph"""
+
+    if not issparse(G): G = csr_matrix(G)
+    if neg_cells_trick: G_ = G.copy()
+    G.data[G.data < 0] = 0
+    G.eliminate_zeros()
+
+    if neg_cells_trick:
+        G_.data[G_.data > 0] = 0
+        G_.eliminate_zeros()
+
+        return (G, G_)
+    else:
+        return G
 
 # ---------------------------------------------------------------------------------------------------
 # vector field related

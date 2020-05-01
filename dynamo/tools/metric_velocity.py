@@ -44,7 +44,7 @@ def cell_wise_confidence(adata, ekey="M_s", vkey="velocity_S", method="jaccard")
         adata.uns["neighbors"]["params"]["n_neighbors"],
         adata.uns["neighbors"]["connectivities"],
     )
-    n_pca_components = adata.obsm["X_pca"].shape[1]
+    n_pca_components = adata.obsm["X"].shape[1]
 
     finite_inds = get_finite_inds(V, 0)
     X, V = X[:, finite_inds], V[:, finite_inds]

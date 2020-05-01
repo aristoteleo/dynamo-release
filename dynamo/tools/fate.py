@@ -93,8 +93,8 @@ def fate(
         high_prediction = adata.uns["umap_fit"].inverse_transform(prediction)
         ndim = adata.uns["umap_fit"]._raw_data.shape[1]
 
-        if "X_pca" in adata.obsm_keys():
-            if ndim == adata.obsm["X_pca"].shape[1]:  # lift the dimension up again
+        if "X" in adata.obsm_keys():
+            if ndim == adata.obsm["X"].shape[1]:  # lift the dimension up again
                 high_prediction = adata.uns["pca_fit"].inverse_transform(prediction)
 
         if adata.var.use_for_dynamo.sum() == high_prediction.shape[1]:

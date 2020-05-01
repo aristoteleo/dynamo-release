@@ -274,7 +274,7 @@ def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None):
                 adata.layers["_total_"] = total
 
     if layer is "raw":
-        CM = adata.raw
+        CM = adata.raw.X
     elif layer is "X":
         CM = adata.X
     elif layer is "protein":
@@ -301,13 +301,13 @@ def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None):
     elif method == "mean":
         sfs = cell_total / np.nanmean(cell_total)
     else:
-        print("This method is not supported!")
+        raise NotImplementedError(f"This method {method} is not supported!")
 
     return sfs, cell_total
 
 def get_sz_exprs(adata, layer, total_szfactor=None):
     if layer is "raw":
-        CM = adata.raw
+        CM = adata.raw.X
         szfactors = adata.obs[layer + "Size_Factor"][:, None]
     elif layer is "X":
         CM = adata.X
@@ -356,7 +356,7 @@ def normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method=np.log
 # pca
 
 
-def pca(adata, CM, n_pca_components=30, pca_key='X_pca'):
+def pca(adata, CM, n_pca_components=30, pca_key='X'):
 
     if adata.n_obs < 100000:
         pca = PCA(n_components=n_pca_components, svd_solver="arpack", random_state=0)

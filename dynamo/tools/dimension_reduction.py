@@ -50,7 +50,7 @@ def reduceDimension(
         raise Exception(
             "The layer {} you provided is not existed in adata.".format(layer)
         )
-    pca_key = "X_pca" if layer == "X" else layer + "_pca"
+    pca_key = "X" if layer == "X" else layer + "_pca"
     embedding_key = (
         "X_" + reduction_method if layer == "X" else layer + "_" + reduction_method
     )
@@ -115,7 +115,7 @@ def reduceDimension(
         X_dim = FItSNE(X_pca, nthreads=cores)  # use FitSNE
 
         # bh_tsne = TSNE(n_components = n_components)
-        # X_dim = bh_tsne.fit_transform(X_pca)
+        # X_dim = bh_tsne.fit_transform(X)
         adata.obsm[embedding_key] = X_dim
         adata.uns[neighbor_key] = {
             "params": {"n_neighbors": n_neighbors, "method": reduction_method},
@@ -127,7 +127,7 @@ def reduceDimension(
         _umap_kwargs = {
             "n_components": 2,
             "metric": "euclidean",
-            "min_dist": 0.1,
+            "min_dist": 0.5,
             "spread": 1.0,
             "n_epochs": 0,
             "alpha": 1.0,
@@ -149,7 +149,7 @@ def reduceDimension(
                 X_dim,
             ) = umap_conn_indices_dist_embedding(
                 X_pca, n_neighbors, **umap_kwargs
-            )  # X_pca
+            )  # X
 
         adata.obsm[embedding_key] = X_dim
         adata.uns[neighbor_key] = {

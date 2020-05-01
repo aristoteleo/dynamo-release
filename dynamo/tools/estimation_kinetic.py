@@ -28,18 +28,19 @@ def guestimate_init_cond(x_data):
 
 class kinetic_estimation:
     def __init__(self, param_ranges, x0_ranges, simulator):
-        '''A general parameter estimation framework for all types of time-seris data
+        '''A general parameter estimation framework for all types of time-seris data under kinetic assumption.
         Arguments
         ---------
-            ranges: `numpy.ndarray`
+            param_ranges: `numpy.ndarray`
                 a n-by-2 numpy array containing the lower and upper ranges of n parameters 
                 (and initial conditions if not fixed).
+            x0_ranges: `numpy.ndarray`
+                Initial conditions for the integrators if they are fixed.
             simulator: class
                 an instance of python class which solves ODEs. It should have properties 't' (k time points, 1d numpy array),
                 'x0' (initial conditions for m species, 1d numpy array), and 'x' (solution, k-by-m array), 
                 as well as two functions: integrate (numerical integration), solve (analytical method).
-            x0: `numpy.ndarray`
-                Initial conditions for the integrators if they are fixed.
+
         '''
         self.simulator = simulator
 

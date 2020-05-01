@@ -89,7 +89,7 @@ def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None)
 
     # set obsm
     obsm = {}
-    obsm["X_pca"] = vlm.pcs[:, : min(n_comps, vlm.pcs.shape[1])]
+    obsm["X"] = vlm.pcs[:, : min(n_comps, vlm.pcs.shape[1])]
     # set basis and velocity on the basis
     if basis is not None:
         obsm["X_" + basis] = vlm.ts

@@ -4,6 +4,7 @@ import sys
 import warnings
 from scipy.sparse import issparse
 from .utils import despline, _matplotlib_points, _datashade_points, _select_font_color
+from .utils import arrowed_spines
 from .utils import quiver_autoscaler, default_quiver_args
 from .utils import save_fig
 from .scatters import scatters
@@ -595,6 +596,7 @@ def phase_portraits(
             xnew,
             xnew * cur_pd.loc[:, "gamma"].unique()
             + cur_pd.loc[:, "velocity_offset"].unique(),
+            dashes=[6, 2],
             c=font_color,
         )
         X_array, V_array = (
@@ -696,8 +698,7 @@ def phase_portraits(
             )
 
         ax2.set_title(gn + " (" + ekey + ")")
-        ax2.set_xlabel(basis + "_1")
-        ax2.set_ylabel(basis + "_2")
+        ax2 = arrowed_spines(ax2, basis)
 
         if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
             ax3, _ = _matplotlib_points(
@@ -733,9 +734,7 @@ def phase_portraits(
             )
 
         ax3.set_title(gn + " (" + vkey + ")")
-        ax3.set_xlabel(basis + "_1")
-        ax3.set_ylabel(basis + "_2")
-
+        ax3 = arrowed_spines(ax3, basis)
         if (
             "protein" in adata.obsm.keys()
             and mode is "full"
@@ -817,6 +816,7 @@ def phase_portraits(
                 xnew,
                 xnew * cur_pd.loc[:, "gamma_P"].unique()
                 + cur_pd.loc[:, "velocity_offset_P"].unique(),
+                dashes=[6, 2],
                 c=font_color,
             )
             X_array, V_array = (
@@ -917,8 +917,7 @@ def phase_portraits(
                 )
 
             ax5.set_title(gn + " (protein expression)")
-            ax5.set_xlabel(basis + "_1")
-            ax5.set_ylabel(basis + "_2")
+            ax5 = arrowed_spines(ax5, basis)
 
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
                 ax6, _ = _matplotlib_points(
@@ -954,8 +953,7 @@ def phase_portraits(
                 )
 
             ax6.set_title(gn + " (protein velocity)")
-            ax6.set_xlabel(basis + "_1")
-            ax6.set_ylabel(basis + "_2")
+            ax6 = arrowed_spines(ax6, basis)
 
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'phase_portraits', "dpi": None,
@@ -2241,3 +2239,4 @@ def dynamics_(
         )
 
     plt.tight_layout()
+
