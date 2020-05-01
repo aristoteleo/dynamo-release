@@ -1,7 +1,7 @@
 from tqdm import tqdm
 import inspect
 import pandas as pd
-from scipy.sparse import SparseEfficiencyWarning
+from scipy.sparse import issparse, SparseEfficiencyWarning
 
 from .moments import moments
 from .velocity import velocity
@@ -579,6 +579,9 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 cur_X_data = X[i_gene]
                 cur_X_raw = X_raw[i_gene]
 
+            if issparse(cur_X_raw[0, 0]):
+                cur_X_raw = np.hstack((cur_X_raw[0, 0].A, cur_X_raw[1, 0].A))
+
             Estm[i_gene], cost[i_gene] = estm.auto_fit(np.unique(time), cur_X_data)
             model_1, model_2, kinetic_parameters, x0 = estm.export_dictionary()
             simulator = MixtureModels([dispatcher[model_1], dispatcher[model_2]], estm.param_distributor)
@@ -601,10 +604,13 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
 
                 Estm[i_gene], cost[i_gene] = estm.auto_fit(np.unique(time), cur_X_data)
 
-        half_life[i_gene] = np.log(2)/Estm[i_gene][-1] if experiment_type.lower() == 'kin' else estm.calc_half_life('gamma')
-        gof = GoodnessOfFit(simulator, params=estm.export_parameters(), x0=estm.simulator.x0)
+            if issparse(cur_X_raw[0, 0]):
+                cur_X_raw = np.hstack((cur_X_raw[0, 0].A, cur_X_raw[1, 0].A))
 
-        gof.prepare_data(time, cur_X_raw, normalize=True)
+        half_life[i_gene] = np.log(2)/Estm[i_gene][-1] if experiment_type.lower() == 'kin' else estm.calc_half_life('gamma')
+        gof = GoodnessOfFit(estm.export_model(), params=estm.export_parameters(), x0=estm.simulator.x0)
+
+        gof.prepare_data(time, cur_X_raw.T, normalize=True)
         logLL[i_gene] = gof.calc_gaussian_loglikelihood()
 
     Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[:len(Estm[0])]])
