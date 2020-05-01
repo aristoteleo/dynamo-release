@@ -610,7 +610,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
             elif experiment_type.lower() == 'deg':
                 estm = Est()
                 cur_X_data, cur_X_raw = X[i_gene], X_raw[i_gene]
-
+                
                 Estm[i_gene], cost[i_gene] = estm.auto_fit(np.unique(time), cur_X_data)
 
             if issparse(cur_X_raw[0, 0]):
