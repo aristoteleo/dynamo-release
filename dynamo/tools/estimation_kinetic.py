@@ -527,7 +527,7 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
 
         return x_data_norm, scale
 
-    def auto_fit(self, time, x_data, beta_min=50, gamma_min=10, kin_weight=2, **kwargs):
+    def auto_fit(self, time, x_data, alpha_min=0.1, beta_min=50, gamma_min=10, kin_weight=2, **kwargs):
         if kin_weight is not None:
             x_data_norm, self.scale = self.normalize_deg_data(x_data, kin_weight)
         else:
@@ -540,7 +540,7 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
             al0 = guestimate_alpha(x_data_norm[0, :], time)
         else:
             al0 = guestimate_alpha(x_data_norm[0, :] + x_data_norm[1, :], time)
-        alpha_bound = np.array([0, 1e2*al0])
+        alpha_bound = np.array([0, max(1e2*al0, alpha_min)])
 
         if type(self.model2) in nosplicing_models:
             ga0 = guestimate_gamma(x_data_norm[self.model1.n_species, :], time)
