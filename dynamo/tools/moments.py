@@ -234,15 +234,18 @@ def time_moment(adata,
 # use for kinetic assumption
 def get_layer_pair(layer):
     pair = {'new': "total", 'total': "new",
-            'X_new': "X_total", "X_total": 'X_new'}
+            'X_new': "X_total", "X_total": 'X_new',
+            'M_t': 'M_n', "M_n": 'M_t'}
     return pair[layer]
 
 def prepare_data_deterministic(adata, genes, time, layers,
-                               use_total_layers=True, log=False):
+                               use_total_layers=True,
+                               total_layers = ["uu", "ul", "su", "sl"],
+                               log=False):
     from ..preprocessing.utils import sz_util, normalize_util
     if use_total_layers:
         if 'total_Size_Factor' not in adata.obs.keys():
-            total_layers = ["uu", "ul", "su", "sl"] if 'uu' in adata.layers.keys() else ['total']
+            # total_layers = ["uu", "ul", "su", "sl"] if 'uu' in adata.layers.keys() else ['total']
             sfs, _ = sz_util(adata, '_total_', round_exprs=False, method="median",
                                        locfunc=np.nanmean, total_layers=total_layers)
         else:
@@ -253,7 +256,7 @@ def prepare_data_deterministic(adata, genes, time, layers,
     v = [None] * len(layers)
     raw = [None] * len(layers)
     for i, layer in enumerate(layers):
-        if layer in ['X_total', 'total']:
+        if layer in ['X_total', 'total', 'M_t']:
             if layer == 'X_total':
                 x_layer = adata[:, genes].layers[layer]
                 x_layer = x_layer - adata[:, genes].layers[get_layer_pair(layer)]
@@ -291,6 +294,7 @@ def prepare_data_deterministic(adata, genes, time, layers,
 
 def prepare_data_has_splicing(adata, genes, time, layer_u, layer_s,
                               use_total_layers=True,
+                              total_layers = ["uu", "ul", "su", "sl"],
                               return_cov=False):
     """Prepare data when assumption is kinetic and data has splicing"""
     from ..preprocessing.utils import sz_util, normalize_util
@@ -299,7 +303,6 @@ def prepare_data_has_splicing(adata, genes, time, layer_u, layer_s,
 
     if use_total_layers:
         if 'total_Size_Factor' not in adata.obs.keys():
-            total_layers = ["uu", "ul", "su", "sl"]
             sfs, _ = sz_util(adata, '_total_', round_exprs=False, method="median",
                                        locfunc=np.nanmean, total_layers=total_layers)
             sfs_u, sfs_s = sfs[:, None], sfs[:, None]
@@ -332,7 +335,7 @@ def prepare_data_has_splicing(adata, genes, time, layer_u, layer_s,
     return res, raw
 
 
-def prepare_data_no_splicing(adata, genes, time, layer, use_total_layers=True):
+def prepare_data_no_splicing(adata, genes, time, layer, use_total_layers=True, total_layer='total'):
     """Prepare data when assumption is kinetic and data has no splicing"""
     from ..preprocessing.utils import sz_util, normalize_util
     res = [0] * len(genes)
@@ -340,7 +343,7 @@ def prepare_data_no_splicing(adata, genes, time, layer, use_total_layers=True):
 
     if use_total_layers:
         if 'total_Size_Factor' not in adata.obs.keys():
-            sfs, _ = sz_util(adata, 'total', False, "median", np.nanmean, total_layers='total')
+            sfs, _ = sz_util(adata, total_layer, False, "median", np.nanmean, total_layers='total')
         else:
             sfs = adata.obs.total_Size_Factor
     else:
@@ -359,7 +362,7 @@ def prepare_data_no_splicing(adata, genes, time, layer, use_total_layers=True):
 
 def prepare_data_mix_has_splicing(adata, genes, time, layer_u='uu', layer_s='su',
                                   layer_ul='ul', layer_sl='sl', use_total_layers=True,
-                                  mix_model_indices=None):
+                                  total_layers=["uu", "ul", "su", "sl"], mix_model_indices=None):
     """Prepare data for mixture modeling when assumption is kinetic and data has splicing.
     Note that the mix_model_indices is indexed on 10 total species, which can be used to specify
     the data required for different mixture models.
@@ -370,7 +373,6 @@ def prepare_data_mix_has_splicing(adata, genes, time, layer_u='uu', layer_s='su'
 
     if use_total_layers:
         if 'total_Size_Factor' not in adata.obs.keys():
-            total_layers = ["uu", "ul", "su", "sl"]
             sfs, _ = sz_util(adata, '_total_', False, "median", np.nanmean, total_layers=total_layers)
             sfs_u, sfs_s = sfs[:, None], sfs[:, None]
         else:
@@ -412,8 +414,8 @@ def prepare_data_mix_has_splicing(adata, genes, time, layer_u='uu', layer_s='su'
 
     return res, raw
 
-def prepare_data_mix_has_no_splicing(adata, genes, time, layer_n, layer_t, use_total_layers=True,
-                                  mix_model_indices=None):
+def prepare_data_mix_no_splicing(adata, genes, time, layer_n, layer_t, use_total_layers=True,
+                                 total_layer='total', mix_model_indices=None):
     """Prepare data for mixture modeling when assumption is kinetic and data has NO splicing.
     Note that the mix_model_indices is indexed on 4 total species, which can be used to specify
     the data required for different mixture models.
@@ -424,7 +426,7 @@ def prepare_data_mix_has_no_splicing(adata, genes, time, layer_n, layer_t, use_t
 
     if use_total_layers:
         if 'total_Size_Factor' not in adata.obs.keys():
-            sfs, _ = sz_util(adata, 'total', False, "median", np.nanmean, total_layers='total')
+            sfs, _ = sz_util(adata, total_layer, False, "median", np.nanmean, total_layers='total')
             sfs_n, sfs_t = sfs[:, None], sfs[:, None]
         else:
             sfs = adata.obs.total_Size_Factor

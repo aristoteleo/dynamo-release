@@ -359,7 +359,7 @@ def normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method=np.log
 def pca(adata, CM, n_pca_components=30, pca_key='X'):
 
     if adata.n_obs < 100000:
-        pca = PCA(n_components=n_pca_components, svd_solver="arpack", random_state=0)
+        pca = PCA(n_components=min(n_pca_components, CM.shape[1] - 1), svd_solver="arpack", random_state=0)
         fit = pca.fit(CM.toarray()) if issparse(CM) else pca.fit(CM)
         X_pca = fit.transform(CM.toarray()) if issparse(CM) else fit.transform(CM)
         adata.obsm[pca_key] = X_pca
@@ -368,7 +368,7 @@ def pca(adata, CM, n_pca_components=30, pca_key='X'):
         adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_
     else:
         fit = TruncatedSVD(
-            n_components=n_pca_components + 1, random_state=0
+            n_components=min(n_pca_components + 1, CM.shape[1] - 1), random_state=0
         )  # unscaled PCA
         X_pca = fit.fit_transform(CM)[
             :, 1:
