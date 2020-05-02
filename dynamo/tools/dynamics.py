@@ -140,6 +140,7 @@ def dynamics(
             A updated AnnData object with estimated kinetic parameters and inferred velocity included.
     """
 
+    X_data, X_fit_data = None, None
     filter_list, filter_gene_mode_list = ['use_for_dynamo', 'pass_basic_filter', 'no'], ['final', 'basic', 'no']
     filter_checker = [i in adata.var.columns for i in filter_list[:2]]
     filter_checker.append(True)
@@ -169,7 +170,7 @@ def dynamics(
     else:
         _group = ["_all_cells"]
 
-    for cur_grp in _group:
+    for cur_grp_i, cur_grp in enumerate(_group):
         if cur_grp == "_all_cells":
             kin_param_pre = ""
             cur_cells_bools = np.ones(valid_adata.shape[0], dtype=bool)
@@ -315,8 +316,21 @@ def dynamics(
             if model_was_auto and experiment_type.lower() == "kin": model = "mixture"
             data_type = 'smoothed' if use_smoothed else 'sfs'
 
-            params, half_life, cost, logLL, param_ranges = kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_splicing,
+            params, half_life, cost, logLL, param_ranges, cur_X_data, cur_X_fit_data = kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_splicing,
                           has_switch=True, param_rngs={}, data_type=data_type, **est_kwargs)
+
+            len_t, len_g = len(np.unique(t)), len(_group)
+            if cur_grp == _group[0]:
+                if len_g == 1:
+                    X_data, X_fit_data = np.array((adata.n_vars, len_t)), np.array((adata.n_vars, len_t))
+                else:
+                    X_data, X_fit_data = np.array((len_g, adata.n_vars, len_t)), np.array((len_g, adata.n_vars, len_t))
+
+            if len(_group) == 1:
+                X_data, X_fit_data = cur_X_data, cur_X_fit_data
+            else:
+                X_data[cur_grp_i, :, :], X_fit_data[cur_grp_i, :, :] = cur_X_data, cur_X_fit_data
+
             a, b, alpha_a, alpha_i, alpha, beta, gamma = (
                 params.loc[:, 'a'].values if 'a' in params.columns else None,
                 params.loc[:, 'b'].values if 'b' in params.columns else None,
@@ -388,6 +402,8 @@ def dynamics(
     adata.uns[uns_key] = {
         "t": t,
         "group": group,
+        "X_data": X_data,
+        "X_fit_data": X_fit_data,
         "asspt_mRNA": assumption_mRNA,
         "experiment_type": experiment_type,
         "normalized": normalized,
@@ -483,7 +499,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 X, X_raw = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time, layer=layer,
                                                     total_layer=total_layer)
             elif model.startswith('mixture'):
-                layers = ['M_n', 'M_t'] if ('X_new' in subset_adata.layers.keys() and data_type == 'smoothed') \
+                layers = ['M_n', 'M_t'] if ('M_n' in subset_adata.layers.keys() and data_type == 'smoothed') \
                     else ['new', 'total']
 
                 X, _, X_raw = prepare_data_deterministic(subset_adata, subset_adata.var.index, time, layers=layers,
@@ -598,6 +614,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
     all_keys = list(_param_ranges.keys()) + list(x0.keys())
     all_keys = [cur_key for cur_key in all_keys if cur_key != 'alpha_i']
     half_life, Estm = np.zeros(n_genes), [None] * n_genes
+    X_data, X_fit_data = [None] * n_genes, [None] * n_genes
 
     for i_gene in tqdm(range(n_genes), desc="estimating kinetic-parameters using kinetic model"):
         if model.startswith('mixture'):
@@ -650,6 +667,8 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
             if issparse(cur_X_raw[0, 0]):
                 cur_X_raw = np.hstack((cur_X_raw[0, 0].A, cur_X_raw[1, 0].A))
 
+        # estm.extract_data_from_simulator()
+        X_data[i_gene], X_fit_data[i_gene] = cur_X_data, estm.simulator.x
         half_life[i_gene] = np.log(2)/Estm[i_gene][-1] if experiment_type.lower() == 'kin' else estm.calc_half_life('gamma')
 
         if model.startswith('mixture'):
@@ -662,7 +681,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
 
     Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[:len(Estm[0])]])
 
-    return Estm_df, half_life, cost, logLL, _param_ranges
+    return Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data
 
 
 def fbar(a, b, alpha_a, alpha_i):
