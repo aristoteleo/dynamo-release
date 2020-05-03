@@ -10,6 +10,12 @@ nosplicing_models = [
     Moments_Nosplicing, 
     Moments_NoSwitchingNoSplicing]
 
+moment_models = [
+    Moments,
+    Moments_Nosplicing, 
+    Moments_NoSwitchingNoSplicing,
+    Moments_NoSwitching]
+
 def guestimate_alpha(x_data, time):
     '''Roughly estimate p0 for kinetics data.'''
     imax = np.argmax(x_data)
