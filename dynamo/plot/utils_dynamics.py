@@ -1,6 +1,12 @@
 import numpy as np
 from scipy.sparse import issparse
-from ..tools.moments import prepare_data_has_splicing
+from ..tools.moments import (
+    prepare_data_no_splicing,
+    prepare_data_has_splicing,
+    prepare_data_deterministic,
+    prepare_data_mix_has_splicing,
+    prepare_data_mix_no_splicing,
+)
 
 def plot_kin_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                  t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
@@ -11,23 +17,31 @@ def plot_kin_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
     true_alpha, true_beta, true_gamma = true_params
     alpha, beta, gamma = est_params
 
-    layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
-            'M_ul' in adata.layers.keys() and use_smoothed) \
-        else ['ul', 'sl', 'uu', 'su']
+    if has_splicing:
+        title_ = ["ul", "sl"]
 
-    layer_u = 'M_ul' if ('M_ul' in adata.layers.keys() and use_smoothed) else 'ul'
-    layer_s = 'M_sl' if ('M_ul' in adata.layers.keys() and use_smoothed) else 'sl'
+        layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
+                'M_ul' in adata.layers.keys() and use_smoothed) \
+            else ['ul', 'sl', 'uu', 'su']
 
-    _, X_raw = prepare_data_has_splicing(adata, genes, T,
-                                         layer_u=layer_u, layer_s=layer_s, total_layers=layers)
+        layer_u = 'M_ul' if ('M_ul' in adata.layers.keys() and use_smoothed) else 'ul'
+        layer_s = 'M_sl' if ('M_ul' in adata.layers.keys() and use_smoothed) else 'sl'
+
+        _, X_raw = prepare_data_has_splicing(adata, genes, T,
+                                             layer_u=layer_u, layer_s=layer_s, total_layers=layers)
+    else:
+        title_ = ["new"]
+
+        total_layer = 'M_t' if ('M_t' in adata.layers.keys() and use_smoothed) else 'total'
+
+        layer = 'M_n' if ('M_n' in adata.layers.keys() and use_smoothed) else 'new'
+        _, X_raw = prepare_data_no_splicing(adata, adata.var.index, T, layer=layer,
+                                            total_layer=total_layer)
 
     for i, gene_name in enumerate(genes):
         cur_X_data, cur_X_fit_data, cur_logLL = X_data[i], X_fit_data[i], logLL[i]
 
-        title_ = ["ul", "sl"]
-
         for j in range(sub_plot_n):
-            Obs = X_raw[i][j][0].A.flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
 
             row_ind = int(
                 np.floor(i / ncols)
@@ -84,6 +98,10 @@ def plot_kin_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                                 transform=ax.transAxes,
                             )
             if show_variance:
+                if has_splicing:
+                    Obs = X_raw[i][j][0].A.flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
+                else:
+                    Obs = X_raw[i].A.flatten() if issparse(X_raw[i][0]) else X_raw[i].flatten()
                 ax.boxplot(
                     x=[Obs[T == std] for std in T_uniq],
                     positions=T_uniq,
@@ -91,8 +109,13 @@ def plot_kin_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                     showfliers=False,
                     showmeans=True,
                 )
-                ax.plot(T_uniq, cur_X_fit_data[j], "b")
-                ax.plot(T_uniq, cur_X_data[j], "k--")
+                if has_splicing:
+                    ax.plot(T_uniq, cur_X_fit_data[j], "b")
+                    ax.plot(T_uniq, cur_X_data[j], "k--")
+                else:
+                    ax.plot(T_uniq, cur_X_fit_data.flatten(), "b")
+                    ax.plot(T_uniq, cur_X_data.flatten(), "k--")
+
                 ax.set_title(gene_name + " (" + title_[j] + ")")
             else:
                 ax.plot(T_uniq, cur_X_fit_data.T)
@@ -101,7 +124,10 @@ def plot_kin_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                 ax.set_title(gene_name)
 
             if true_param_prefix is not None:
-                ax.plot(t, true_p[j], "r")
+                if has_splicing:
+                    ax.plot(t, true_p[j], "r")
+                else:
+                    ax.plot(t, true_p[j], "r")
             ax.set_xlabel("time (" + unit + ")")
             if y_log_scale:
                 ax.set_yscale("log")
@@ -121,20 +147,29 @@ def plot_kin_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
     true_alpha, true_beta, true_gamma = true_params
     alpha, beta, gamma = est_params
 
-    layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
-            'M_ul' in adata.layers.keys() and use_smoothed) \
-        else ['ul', 'sl', 'uu', 'su']
+    if has_splicing:
+        title_ = ["ul", "sl", "ul2", "sl2", "ul_sl"] if show_moms_fit else ["ul", "sl"]
 
-    layer_u = 'M_ul' if ('M_ul' in adata.layers.keys() and use_smoothed) else 'ul'
-    layer_s = 'M_sl' if ('M_ul' in adata.layers.keys() and use_smoothed) else 'sl'
+        layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
+                'M_ul' in adata.layers.keys() and use_smoothed) \
+            else ['ul', 'sl', 'uu', 'su']
 
-    _, X_raw = prepare_data_has_splicing(adata, genes, T,
-                                         layer_u=layer_u, layer_s=layer_s, total_layers=layers)
+        layer_u = 'M_ul' if ('M_ul' in adata.layers.keys() and use_smoothed) else 'ul'
+        layer_s = 'M_sl' if ('M_ul' in adata.layers.keys() and use_smoothed) else 'sl'
+
+        _, X_raw = prepare_data_has_splicing(adata, genes, T,
+                                             layer_u=layer_u, layer_s=layer_s, total_layers=layers)
+    else:
+        title_ = ["new", "M_nn"] if show_moms_fit else ["new"]
+
+        total_layer = 'M_t' if ('M_t' in adata.layers.keys() and use_smoothed) else 'total'
+
+        layer = 'M_n' if ('M_n' in adata.layers.keys() and use_smoothed) else 'new'
+        _, X_raw = prepare_data_no_splicing(adata, adata.var.index, T, layer=layer,
+                                            total_layer=total_layer)
 
     for i, gene_name in enumerate(genes):
         cur_X_data, cur_X_fit_data, cur_logLL = X_data[i], X_fit_data[i], logLL[i]
-
-        title_ = ["ul", "sl", "ul2", "sl2", "ul_sl"] if show_moms_fit else ["ul", "sl"]
 
         for j in range(sub_plot_n):
             row_ind = int(
