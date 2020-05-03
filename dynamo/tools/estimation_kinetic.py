@@ -10,6 +10,12 @@ nosplicing_models = [
     Moments_Nosplicing, 
     Moments_NoSwitchingNoSplicing]
 
+moment_models = [
+    Moments,
+    Moments_Nosplicing, 
+    Moments_NoSwitchingNoSplicing,
+    Moments_NoSwitching]
+
 def guestimate_alpha(x_data, time):
     '''Roughly estimate p0 for kinetics data.'''
     imax = np.argmax(x_data)
@@ -415,7 +421,7 @@ class Estimation_MomentKinNosp(kinetic_estimation):
         ranges[2] = alpha_a * np.ones(2) if np.isscalar(alpha_a) else alpha_a
         ranges[3] = alpha_i * np.ones(2) if np.isscalar(alpha_i) else alpha_i
         ranges[4] = gamma * np.ones(2) if np.isscalar(gamma) else gamma
-        super().__init__(ranges, np.zeros((5, 2)), Moments_Nosplicing())
+        super().__init__(ranges, np.zeros((3, 2)), Moments_Nosplicing())
 
     def extract_data_from_simulator(self):
         ret = np.zeros((2, len(self.simulator.t)))
