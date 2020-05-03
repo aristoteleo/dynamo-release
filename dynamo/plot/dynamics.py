@@ -986,7 +986,7 @@ def dynamics(
         barwidth=None,
         true_param_prefix=None,
         show_moms_fit=False, # only works for non-deterministic models
-        show_variance=True,
+        show_variance=False,
         show_kin_parameters=True,
         gene_order='column',
         save_show_or_return='show',
