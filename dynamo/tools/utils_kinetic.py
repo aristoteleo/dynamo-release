@@ -326,9 +326,9 @@ class Moments_Nosplicing(LinearODE):
         super().reset()
 
     def get_all_central_moments(self):
-        ret = np.zeros((4, len(self.t)))
+        ret = np.zeros((2, len(self.t)))
         ret[0] = self.get_nu()
-        ret[2] = self.get_var_nu()
+        ret[1] = self.get_var_nu()
         return ret
 
     def get_nu(self):

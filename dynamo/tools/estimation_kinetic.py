@@ -417,6 +417,12 @@ class Estimation_MomentKinNosp(kinetic_estimation):
         ranges[4] = gamma * np.ones(2) if np.isscalar(gamma) else gamma
         super().__init__(ranges, np.zeros((5, 2)), Moments_Nosplicing())
 
+    def extract_data_from_simulator(self):
+        ret = np.zeros((2, len(self.simulator.t)))
+        ret[0] = self.simulator.get_nu()
+        ret[1] = self.simulator.x[:, self.simulator.uu]
+        return ret
+
     def get_alpha_a(self):
         return self.popt[2]
 
