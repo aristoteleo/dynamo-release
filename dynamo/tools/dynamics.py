@@ -668,8 +668,12 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
             if issparse(cur_X_raw[0, 0]):
                 cur_X_raw = np.hstack((cur_X_raw[0, 0].A, cur_X_raw[1, 0].A))
 
-        # estm.extract_data_from_simulator()
-        X_data[i_gene], X_fit_data[i_gene] = cur_X_data, estm.simulator.x
+        X_data[i_gene] = cur_X_data
+        if hasattr(estm, "extract_data_from_simulator"):
+            X_fit_data[i_gene] = estm.extract_data_from_simulator()
+        else:
+            X_fit_data[i_gene] = estm.simulator.x.T
+
         half_life[i_gene] = np.log(2)/Estm[i_gene][-1] if experiment_type.lower() == 'kin' else estm.calc_half_life('gamma')
 
         if model.startswith('mixture'):
