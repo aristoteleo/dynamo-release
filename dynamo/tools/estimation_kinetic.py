@@ -315,17 +315,17 @@ class Estimation_MomentDeg(Estimation_DeterministicDeg):
     def extract_data_from_simulator(self):
         if self.include_cov:
             ret = np.zeros((5, len(self.simulator.t)))
-            ret[0] = self.simulator.get_nu()
-            ret[1] = self.simulator.get_nx()
+            ret[0] = self.simulator.x[:, self.simulator.u]
+            ret[1] = self.simulator.x[:, self.simulator.s]
             ret[2] = self.simulator.x[:, self.simulator.uu]
-            ret[3] = self.simulator.x[:, self.simulator.xx]
-            ret[4] = self.simulator.x[:, self.simulator.ux]
+            ret[3] = self.simulator.x[:, self.simulator.ss]
+            ret[4] = self.simulator.x[:, self.simulator.us]
         else:
             ret = np.zeros((4, len(self.simulator.t)))
-            ret[0] = self.simulator.get_nu()
-            ret[1] = self.simulator.get_nx()
+            ret[0] = self.simulator.x[:, self.simulator.u]
+            ret[1] = self.simulator.x[:, self.simulator.s]
             ret[2] = self.simulator.x[:, self.simulator.uu]
-            ret[3] = self.simulator.x[:, self.simulator.xx]
+            ret[3] = self.simulator.x[:, self.simulator.ss]
         return ret
 
 class Estimation_MomentDegNosp(Estimation_Degradation):
