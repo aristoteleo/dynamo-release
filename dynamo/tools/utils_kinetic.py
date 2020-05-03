@@ -283,11 +283,9 @@ class Moments_Nosplicing(LinearODE):
         # species
         self.ua = 0
         self.ui = 1
-        self.xa = 2
-        self.xi = 3
-        self.uu = 4
+        self.uu = 2
 
-        n_species = 5
+        n_species = 3
 
         # solution
         super().__init__(n_species, x0=x0)
