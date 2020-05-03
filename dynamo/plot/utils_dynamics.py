@@ -93,7 +93,6 @@ def plot_kin_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                 )
                 ax.plot(T_uniq, cur_X_fit_data.T[j], "b")
                 ax.plot(T_uniq, cur_X_data[j], "k--")
-                ax.legend(title_[j])
                 ax.set_title(gene_name + " (" + title_[j] + ")")
             else:
                 ax.plot(T_uniq, cur_X_fit_data)
