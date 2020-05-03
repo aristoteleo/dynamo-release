@@ -310,7 +310,7 @@ class Estimation_MomentDeg(Estimation_DeterministicDeg):
         ranges = np.zeros((2, 2))
         ranges[0] = beta * np.ones(2) if np.isscalar(beta) else beta
         ranges[1] = gamma * np.ones(2) if np.isscalar(gamma) else gamma
-        super().__init__(ranges, x0, Moments_NoSwitching())
+        super(Estimation_DeterministicDeg, self).__init__(ranges, x0, Moments_NoSwitching())
 
     def extract_data_from_simulator(self):
         if self.include_cov:
