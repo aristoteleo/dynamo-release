@@ -1169,7 +1169,7 @@ def dynamics(
 
         if experiment_type is "kin":
             logLL = adata.var.loc[valid_gene_names, prefix + 'logLL']
-            alpha, beta, gamma, half_life = adata.var.loc[
+            est_params_df = adata.var.loc[
                 valid_gene_names,
                 [
                     prefix + "alpha",
@@ -1178,7 +1178,7 @@ def dynamics(
                     "half_life",
                 ],
             ]
-            est_params = [alpha, beta, gamma]
+            est_params = [est_params_df.loc[:, 'alpha'].values, est_params_df.loc[:, 'beta'].values, est_params_df.loc[:, 'gamma'].values]
             true_p = None;
             true_params = [None, None, None]
 

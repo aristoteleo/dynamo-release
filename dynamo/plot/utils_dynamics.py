@@ -59,24 +59,24 @@ def plot_kin_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
             if j == 0:
                 ax.text(0.95, 0.05, r'$logLL=%.2f$' % (cur_logLL), ha='right',
                         va='center', transform=ax.transAxes)
-                if true_param_prefix is not None:
-                    if show_kin_parameters:
+                if show_kin_parameters:
+                    if true_param_prefix is not None:
                         if has_splicing:
                             ax.text(
                                 0.75,
                                 0.90,
                                 r"$\alpha$"
-                                + ": {0:.2f}; ".format(true_alpha)
+                                + ": {0:.2f}; ".format(true_alpha[i])
                                 + r"$\hat \alpha$"
-                                + ": {0:.2f} \n".format(alpha)
+                                + ": {0:.2f} \n".format(alpha[i])
                                 + r"$\beta$"
-                                + ": {0:.2f}; ".format(true_beta)
+                                + ": {0:.2f}; ".format(true_beta[i])
                                 + r"$\hat \beta$"
-                                + ": {0:.2f} \n".format(beta)
+                                + ": {0:.2f} \n".format(beta[i])
                                 + r"$\gamma$"
-                                + ": {0:.2f}; ".format(true_gamma)
+                                + ": {0:.2f}; ".format(true_gamma[i])
                                 + r"$\hat \gamma$"
-                                + ": {0:.2f} \n".format(gamma),
+                                + ": {0:.2f} \n".format(gamma[i]),
                                 ha="right",
                                 va="top",
                                 transform=ax.transAxes,
@@ -86,13 +86,40 @@ def plot_kin_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                                 0.75,
                                 0.90,
                                 r"$\alpha$"
-                                + ": {0:.2f}; ".format(true_alpha)
+                                + ": {0:.2f}; ".format(true_alpha[i])
                                 + r"$\hat \alpha$"
-                                + ": {0:.2f} \n".format(alpha)
+                                + ": {0:.2f} \n".format(alpha[i])
                                 + r"$\gamma$"
-                                + ": {0:.2f}; ".format(true_gamma)
+                                + ": {0:.2f}; ".format(true_gamma[i])
                                 + r"$\hat \gamma$"
-                                + ": {0:.2f} \n".format(gamma),
+                                + ": {0:.2f} \n".format(gamma[i]),
+                                ha="right",
+                                va="top",
+                                transform=ax.transAxes,
+                            )
+                    else:
+                        if has_splicing:
+                            ax.text(
+                                0.75,
+                                0.90,
+                                r"$\hat \alpha$"
+                                + ": {0:.2f} \n".format(alpha[i])
+                                + r"$\hat \beta$"
+                                + ": {0:.2f} \n".format(beta[i])
+                                + r"$\hat \gamma$"
+                                + ": {0:.2f} \n".format(gamma[i]),
+                                ha="right",
+                                va="top",
+                                transform=ax.transAxes,
+                            )
+                        else:
+                            ax.text(
+                                0.75,
+                                0.90,
+                                r"$\hat \alpha$"
+                                + ": {0:.2f} \n".format(alpha[i])
+                                + r"$\hat \gamma$"
+                                + ": {0:.2f} \n".format(gamma[i]),
                                 ha="right",
                                 va="top",
                                 transform=ax.transAxes,
@@ -137,6 +164,7 @@ def plot_kin_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                 ax.set_ylabel("Expression")
 
     return gs
+
 
 def plot_kin_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                  t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
@@ -188,24 +216,24 @@ def plot_kin_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
             if j == 0:
                 ax.text(0.95, 0.05, r'$logLL=%.2f$' % (cur_logLL), ha='right',
                         va='center', transform=ax.transAxes)
-                if true_param_prefix is not None:
-                    if show_kin_parameters:
+                if show_kin_parameters:
+                    if true_param_prefix is not None:
                         if has_splicing:
                             ax.text(
                                 0.75,
                                 0.90,
                                 r"$\alpha$"
-                                + ": {0:.2f}; ".format(true_alpha)
+                                + ": {0:.2f}; ".format(true_alpha[i])
                                 + r"$\hat \alpha$"
-                                + ": {0:.2f} \n".format(alpha)
+                                + ": {0:.2f} \n".format(alpha[i])
                                 + r"$\beta$"
-                                + ": {0:.2f}; ".format(true_beta)
+                                + ": {0:.2f}; ".format(true_beta[i])
                                 + r"$\hat \beta$"
-                                + ": {0:.2f} \n".format(beta)
+                                + ": {0:.2f} \n".format(beta[i])
                                 + r"$\gamma$"
-                                + ": {0:.2f}; ".format(true_gamma)
+                                + ": {0:.2f}; ".format(true_gamma[i])
                                 + r"$\hat \gamma$"
-                                + ": {0:.2f} \n".format(gamma),
+                                + ": {0:.2f} \n".format(gamma[i]),
                                 ha="right",
                                 va="top",
                                 transform=ax.transAxes,
@@ -215,19 +243,49 @@ def plot_kin_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                                 0.75,
                                 0.90,
                                 r"$\alpha$"
-                                + ": {0:.2f}; ".format(true_alpha)
+                                + ": {0:.2f}; ".format(true_alpha[i])
                                 + r"$\hat \alpha$"
-                                + ": {0:.2f} \n".format(alpha)
+                                + ": {0:.2f} \n".format(alpha[i])
                                 + r"$\gamma$"
-                                + ": {0:.2f}; ".format(true_gamma)
+                                + ": {0:.2f}; ".format(true_gamma[i])
                                 + r"$\hat \gamma$"
-                                + ": {0:.2f} \n".format(gamma),
+                                + ": {0:.2f} \n".format(gamma[i]),
+                                ha="right",
+                                va="top",
+                                transform=ax.transAxes,
+                            )
+                    else:
+                        if has_splicing:
+                            ax.text(
+                                0.75,
+                                0.90,
+                                r"$\hat \alpha$"
+                                + ": {0:.2f} \n".format(alpha[i])
+                                + r"$\hat \beta$"
+                                + ": {0:.2f} \n".format(beta[i])
+                                + r"$\hat \gamma$"
+                                + ": {0:.2f} \n".format(gamma[i]),
+                                ha="right",
+                                va="top",
+                                transform=ax.transAxes,
+                            )
+                        else:
+                            ax.text(
+                                0.75,
+                                0.90,
+                                r"$\hat \alpha$"
+                                + ": {0:.2f} \n".format(alpha[i])
+                                + r"$\hat \gamma$"
+                                + ": {0:.2f} \n".format(gamma[i]),
                                 ha="right",
                                 va="top",
                                 transform=ax.transAxes,
                             )
             if show_variance and j < 2:
-                Obs = X_raw[i][j][0].A.flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
+                if has_splicing:
+                    Obs = X_raw[i][j][0].A.flatten() if issparse(X_raw[i][j][0]) else X_raw[i][j][0].flatten()
+                else:
+                    Obs = X_raw[i].A.flatten() if issparse(X_raw[i][0]) else X_raw[i].flatten()
 
                 ax.boxplot(
                     x=[Obs[T == std] for std in T_uniq],
@@ -275,15 +333,26 @@ def plot_kin_mix(adata, genes, has_splicing, use_smoothed, log_unnormalized,
     true_alpha, true_beta, true_gamma = true_params
     alpha, beta, gamma = est_params
 
-    layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
-            'M_ul' in adata.layers.keys() and use_smoothed) \
-        else ['ul', 'sl', 'uu', 'su']
+    if has_splicing:
+        title_ = ["ul", "sl"]
 
-    layer_u = 'M_ul' if ('M_ul' in adata.layers.keys() and use_smoothed) else 'ul'
-    layer_s = 'M_sl' if ('M_ul' in adata.layers.keys() and use_smoothed) else 'sl'
+        layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
+                'M_ul' in adata.layers.keys() and use_smoothed) \
+            else ['ul', 'sl', 'uu', 'su']
 
-    _, X_raw = prepare_data_has_splicing(adata, genes, T,
-                                         layer_u=layer_u, layer_s=layer_s, total_layers=layers)
+        layer_u = 'M_ul' if ('M_ul' in adata.layers.keys() and use_smoothed) else 'ul'
+        layer_s = 'M_sl' if ('M_ul' in adata.layers.keys() and use_smoothed) else 'sl'
+
+        _, X_raw = prepare_data_has_splicing(adata, genes, T,
+                                             layer_u=layer_u, layer_s=layer_s, total_layers=layers)
+    else:
+        title_ = ["new"]
+
+        total_layer = 'M_t' if ('M_t' in adata.layers.keys() and use_smoothed) else 'total'
+
+        layer = 'M_n' if ('M_n' in adata.layers.keys() and use_smoothed) else 'new'
+        _, X_raw = prepare_data_no_splicing(adata, adata.var.index, T, layer=layer,
+                                            total_layer=total_layer)
 
     for i, gene_name in enumerate(genes):
         cur_X_data, cur_X_fit_data, cur_logLL = X_data[i], X_fit_data[i], logLL[i]
