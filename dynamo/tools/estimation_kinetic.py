@@ -315,15 +315,15 @@ class Estimation_MomentDeg(Estimation_DeterministicDeg):
     def extract_data_from_simulator(self):
         if self.include_cov:
             ret = np.zeros((5, len(self.simulator.t)))
-            ret[0] = self.simulator.get_mean_u()
-            ret[1] = self.simulator.get_mean_s()
+            ret[0] = self.simulator.x[:, self.simulator.u]
+            ret[1] = self.simulator.x[:, self.simulator.s]
             ret[2] = self.simulator.x[:, self.simulator.uu]
             ret[3] = self.simulator.x[:, self.simulator.ss]
             ret[4] = self.simulator.x[:, self.simulator.us]
         else:
             ret = np.zeros((4, len(self.simulator.t)))
-            ret[0] = self.simulator.get_mean_u()
-            ret[1] = self.simulator.get_mean_s()
+            ret[0] = self.simulator.x[:, self.simulator.u]
+            ret[1] = self.simulator.x[:, self.simulator.s]
             ret[2] = self.simulator.x[:, self.simulator.uu]
             ret[3] = self.simulator.x[:, self.simulator.ss]
         return ret
@@ -352,7 +352,7 @@ class Estimation_MomentDegNosp(Estimation_Degradation):
         return popt, cost
 
 class Estimation_MomentKin(kinetic_estimation):
-    def __init__(self, a, b, alpha_a, alpha_i, beta, gamma, include_cov=False):
+    def __init__(self, a, b, alpha_a, alpha_i, beta, gamma, include_cov=True):
         '''An estimation class for kinetics experiments.
             Order of species: <unspliced>, <spliced>, <uu>, <ss>, <us>
         '''
