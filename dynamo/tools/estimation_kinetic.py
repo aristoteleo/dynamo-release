@@ -300,7 +300,7 @@ class Estimation_MomentDeg(Estimation_DeterministicDeg):
         Order of species: <unspliced>, <spliced>, <uu>, <ss>, <us>
         Order of parameters: beta, gamma
     '''
-    def __init__(self, beta=None, gamma=None, x0=None, include_cov=False):
+    def __init__(self, beta=None, gamma=None, x0=None, include_cov=True):
         self.kin_param_keys = np.array(['alpha', 'beta', 'gamma'])
         self.include_cov = include_cov
         if beta is not None and gamma is not None and x0 is not None:
