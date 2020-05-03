@@ -93,6 +93,18 @@ def einsum_correlation(X, Y_i, type="pearson"):
 
     return corr
 
+
+def moms2var(m1, m2):
+    var = m2 - elem_prod(m1, m1)
+
+    return var
+
+
+def var2m2(var, m1):
+    m2 = var + elem_prod(m1, m1)
+
+    return m2
+
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
 def one_shot_gamma_alpha(k, t, l):
@@ -134,9 +146,6 @@ def compute_velocity_labeling_B(B, alpha, R):
 def get_valid_inds(adata, filter_gene_mode):
     if filter_gene_mode == "final":
         valid_ind = adata.var.use_for_dynamo.values
-        # import warnings
-        # from scipy.sparse import SparseEfficiencyWarning
-        # warnings.simplefilter('ignore', SparseEfficiencyWarning)
     elif filter_gene_mode == "basic":
         valid_ind = adata.var.pass_basic_filter.values
     elif filter_gene_mode == "no":

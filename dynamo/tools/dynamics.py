@@ -400,6 +400,7 @@ def dynamics(
         uns_key = "dynamics"
 
     adata.uns[uns_key] = {
+        "filter_gene_mode": filter_gene_mode,
         "t": t,
         "group": group,
         "X_data": X_data,
