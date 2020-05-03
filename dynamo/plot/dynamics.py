@@ -1167,21 +1167,23 @@ def dynamics(
         else:
             prefix = group + "_" + cur_grp + "_"
 
-        if experiment_type is "kin":
-            logLL = adata.var.loc[valid_gene_names, prefix + 'logLL']
-            est_params_df = adata.var.loc[
-                valid_gene_names,
-                [
-                    prefix + "alpha",
-                    prefix + "beta",
-                    prefix + "gamma",
-                    "half_life",
-                ],
-            ]
-            est_params = [est_params_df.loc[:, 'alpha'].values, est_params_df.loc[:, 'beta'].values, est_params_df.loc[:, 'gamma'].values]
-            true_p = None;
-            true_params = [None, None, None]
+        true_p = None;
+        true_params = [None, None, None]
+        logLL = adata.var.loc[valid_gene_names, prefix + 'logLL']
+        est_params_df = adata.var.loc[
+            valid_gene_names,
+            [
+                prefix + "alpha",
+                prefix + "beta",
+                prefix + "gamma",
+                "half_life",
+            ],
+        ]
 
+        est_params = [est_params_df.loc[:, 'alpha'].values, est_params_df.loc[:, 'beta'].values,
+                      est_params_df.loc[:, 'gamma'].values]
+
+        if experiment_type is "kin":
             if model == 'deterministic':
                 gs = plot_kin_det(adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
                                   t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
@@ -1200,6 +1202,19 @@ def dynamics(
                 pass
             elif model == 'mixture_stochastic_stochastic':
                 pass
+        elif experiment_type is "deg":
+            if model == 'deterministic':
+                gs = plot_deg_det(adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
+                                  t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
+                                  grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
+                                  true_param_prefix, true_params, est_params,
+                                  show_variance, show_kin_parameters, )
+            elif model == 'stochastic':
+                gs = plot_deg_sto(adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
+                                  t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
+                                  grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
+                                  true_param_prefix, true_params, est_params,
+                                  show_moms_fit, show_variance, show_kin_parameters, )
 
             plt.tight_layout()
             plt.show()
@@ -1657,7 +1672,7 @@ def dynamics(
                         ],
                     ]
                     est_params = [alpha, beta, gamma]
-                    ax = plot_kin_det(adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
+                    gs = plot_kin_det(adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
                                  t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
                                  grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
                                  true_param_prefix, true_params, est_params,
