@@ -300,7 +300,7 @@ class Estimation_MomentDeg(Estimation_DeterministicDeg):
         Order of species: <unspliced>, <spliced>, <uu>, <ss>, <us>
         Order of parameters: beta, gamma
     '''
-    def __init__(self, beta=None, gamma=None, x0=None, include_cov=False):
+    def __init__(self, beta=None, gamma=None, x0=None, include_cov=True):
         self.kin_param_keys = np.array(['alpha', 'beta', 'gamma'])
         self.include_cov = include_cov
         if beta is not None and gamma is not None and x0 is not None:
@@ -315,17 +315,17 @@ class Estimation_MomentDeg(Estimation_DeterministicDeg):
     def extract_data_from_simulator(self):
         if self.include_cov:
             ret = np.zeros((5, len(self.simulator.t)))
-            ret[0] = self.simulator.get_nu()
-            ret[1] = self.simulator.get_nx()
+            ret[0] = self.simulator.get_mean_u()
+            ret[1] = self.simulator.get_mean_s()
             ret[2] = self.simulator.x[:, self.simulator.uu]
-            ret[3] = self.simulator.x[:, self.simulator.xx]
-            ret[4] = self.simulator.x[:, self.simulator.ux]
+            ret[3] = self.simulator.x[:, self.simulator.ss]
+            ret[4] = self.simulator.x[:, self.simulator.us]
         else:
             ret = np.zeros((4, len(self.simulator.t)))
-            ret[0] = self.simulator.get_nu()
-            ret[1] = self.simulator.get_nx()
+            ret[0] = self.simulator.get_mean_u()
+            ret[1] = self.simulator.get_mean_s()
             ret[2] = self.simulator.x[:, self.simulator.uu]
-            ret[3] = self.simulator.x[:, self.simulator.xx]
+            ret[3] = self.simulator.x[:, self.simulator.ss]
         return ret
 
 class Estimation_MomentDegNosp(Estimation_Degradation):

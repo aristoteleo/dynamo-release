@@ -295,7 +295,7 @@ def prepare_data_deterministic(adata, genes, time, layers,
 def prepare_data_has_splicing(adata, genes, time, layer_u, layer_s,
                               use_total_layers=True,
                               total_layers = ["uu", "ul", "su", "sl"],
-                              return_cov=False):
+                              return_cov=True):
     """Prepare data when assumption is kinetic and data has splicing"""
     from ..preprocessing.utils import sz_util, normalize_util
     res = [0] * len(genes)
