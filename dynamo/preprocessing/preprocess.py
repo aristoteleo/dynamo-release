@@ -12,6 +12,7 @@ from .utils import get_svr_filter
 from .utils import allowed_layer_raw_names
 from .utils import merge_adata_attrs
 from .utils import sz_util, normalize_util, get_sz_exprs
+from .utils import NTR
 from ..tools.utils import update_dict
 
 
@@ -1352,6 +1353,10 @@ def recipe_monocle(
 
     adata.uns[method + "_fit"], adata.uns["feature_selection"] = fit, feature_selection
 
+    # calculate NTR for every cell:
+    ntr = NTR(adata)
+    if ntr is not None: adata.obs['ntr'] = ntr
+
     return adata
 
 
@@ -1467,5 +1472,9 @@ def recipe_velocyto(
         adata.obsm["X_" + method.lower()] = reduce_dim
 
     adata.uns[method + "_fit"], adata.uns["feature_selection"] = fit, feature_selection
+
+    # calculate NTR for every cell:
+    ntr = NTR(adata)
+    if ntr is not None: adata.obs['ntr'] = ntr
 
     return adata

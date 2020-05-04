@@ -501,7 +501,7 @@ def plot_kin_mix_det_sto(adata, genes, has_splicing, use_smoothed, log_unnormali
     alpha, beta, gamma = est_params
 
     if has_splicing:
-        title_ = ["ul", "sl", "uu", "su", "uu2", "su2", "uu_su"]
+        title_ = ["ul", "sl", "uu", "su", "uu2", "su2", "uu_su"] if show_moms_fit else ["ul", "sl", "uu", "su"]
 
         layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
                 'M_ul' in adata.layers.keys() and use_smoothed) \
@@ -511,13 +511,14 @@ def plot_kin_mix_det_sto(adata, genes, has_splicing, use_smoothed, log_unnormali
                                                  layer_s=layers[3], layer_ul=layers[0], layer_sl=layers[1],
                                                  total_layers=layers, mix_model_indices=[0, 1, 5, 6, 7, 8, 9])
     else:
-        title_ = ["new", "old", "o2"]
-
+        title_ = ["new", "old", "o2"] if show_moms_fit else ["new", "old"]
+        layers = ['M_n', 'M_t'] if ('M_n' in adata.layers.keys() and use_smoothed) \
+            else ['new', 'total']
         total_layer = 'M_t' if ('M_t' in adata.layers.keys() and use_smoothed) else 'total'
 
-        layer = 'M_n' if ('M_n' in adata.layers.keys() and use_smoothed) else 'new'
-        _, X_raw = prepare_data_no_splicing(adata, adata.var.index, T, layer=layer,
-                                            total_layer=total_layer)
+        _, X_raw = prepare_data_mix_no_splicing(adata, adata.var.index, T,
+                                                        layer_n=layers[0], layer_t=layers[1], total_layer=total_layer,
+                                                        mix_model_indices=[0, 2, 3])
 
     padding = 0.17 if has_splicing and not show_variance else 0
     for i, gene_name in enumerate(genes):
@@ -663,7 +664,8 @@ def plot_kin_mix_sto_sto(adata, genes, has_splicing, use_smoothed, log_unnormali
     alpha, beta, gamma = est_params
 
     if has_splicing:
-        title_ = ["ul", "sl", "uu", "su",  "ul2", "sl2", "ul_sl", "uu2", "su2", "uu_su"]
+        title_ = ["ul", "sl", "uu", "su",  "ul2", "sl2", "ul_sl", "uu2", "su2", "uu_su"] \
+            if show_moms_fit else ["ul", "sl", "uu", "su"]
 
         layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
                 'M_ul' in adata.layers.keys() and use_smoothed) \
@@ -674,7 +676,7 @@ def plot_kin_mix_sto_sto(adata, genes, has_splicing, use_smoothed, log_unnormali
                                                  layer_s=layers[3], layer_ul=layers[0], layer_sl=layers[1],
                                                  total_layers=layers, mix_model_indices=reorder_inds)
     else:
-        title_ = ["new", "old", "n2", "o2"]
+        title_ = ["new", "old", "n2", "o2"] if show_moms_fit else ["new", "old"]
 
         total_layer = 'M_t' if ('M_t' in adata.layers.keys() and use_smoothed) else 'total'
 
@@ -684,16 +686,14 @@ def plot_kin_mix_sto_sto(adata, genes, has_splicing, use_smoothed, log_unnormali
         reorder_inds = [0, 2, 1, 3]
         _, X_raw = prepare_data_mix_no_splicing(adata, adata.var.index, T,
                                                 layer_n=layers[0], layer_t=layers[1], total_layer=total_layer,
-                                                mix_model_indices=[0, 2, 1, 3])
+                                                mix_model_indices=reorder_inds)
 
     padding = 0.17 if has_splicing and not show_variance else 0
     for i, gene_name in enumerate(genes):
         cur_X_data, cur_X_fit_data, cur_logLL = X_data[i], X_fit_data[i], logLL[i]
 
-        if has_splicing:
-            cur_X_fit_data = cur_X_fit_data[reorder_inds]
-        else:
-            cur_X_fit_data = cur_X_fit_data[reorder_inds]
+        cur_X_fit_data = cur_X_fit_data[reorder_inds]
+        cur_X_data = cur_X_data[reorder_inds]
 
         for j in range(sub_plot_n):
             row_ind = int(
@@ -799,7 +799,7 @@ def plot_kin_mix_sto_sto(adata, genes, has_splicing, use_smoothed, log_unnormali
                 ax.legend(['ul', 'sl'])
                 ax.set_title(gene_name)
             elif not show_variance and j == 1:
-                ax.plot(T_uniq, cur_X_fit_data[[0, 1]].T)
+                ax.plot(T_uniq, cur_X_fit_data[[2, 3]].T)
                 ax.plot(T_uniq, cur_X_data[[2, 3]].T, "k--")
                 ax.legend(['uu', 'su'])
                 ax.set_title(gene_name)

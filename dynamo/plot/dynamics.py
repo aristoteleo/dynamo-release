@@ -1094,7 +1094,7 @@ def dynamics(
             if model == 'deterministic':
                 sub_plot_n = 2 if show_variance else 1
             elif model == 'stochastic':
-                mom_n = 2 if show_moms_fit else 0
+                mom_n = 3 if show_moms_fit else 0
                 sub_plot_n = 2 + mom_n if show_variance else 1 + mom_n
             elif model == 'mixture':
                 sub_plot_n = 4 if show_variance else 2
@@ -1108,7 +1108,7 @@ def dynamics(
             if model == 'deterministic':
                 sub_plot_n = 2 if show_variance else 1
             elif model == 'stochastic':
-                mom_n = 2 if show_moms_fit else 0
+                mom_n = 3 if show_moms_fit else 0
                 sub_plot_n = 2 + mom_n if show_variance else 1 + mom_n
         elif experiment_type is "one_shot":  # just the labeled RNA
             sub_plot_n = 1
@@ -1132,7 +1132,6 @@ def dynamics(
                 mom_n = 2 if show_moms_fit else 0
                 sub_plot_n = 2 + mom_n if show_variance else 1 + mom_n
         elif experiment_type is "deg":
-            sub_plot_n = 2
             if model == 'deterministic':
                 sub_plot_n = 1
             elif model == 'stochastic':

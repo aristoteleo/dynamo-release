@@ -379,3 +379,25 @@ def pca(adata, CM, n_pca_components=30, pca_key='X'):
         adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
     return adata, fit, X_pca
+
+# ---------------------------------------------------------------------------------------------------
+# labeling related
+def NTR(adata):
+    """calculate the new to total ratio across cells. Note that
+    NTR for the first time point in degradation approximates gamma/beta."""
+
+    if len(set(['new', 'total']).intersection(adata.layers.keys())) == 2:
+        ntr = adata.layers['new'].sum(1) / adata.layers['total'].sum(1)
+        ntr = ntr.A1 if issparse(adata.layers['new']) else ntr
+    elif len(set(['uu', 'ul', 'su', 'sl']).intersection(adata.layers.keys())) == 4:
+        new = adata.layers['ul'].sum(1) + \
+              adata.layers['sl'].sum(1)
+        total = new + adata.layers['uu'].sum(1) + \
+                adata.layers['su'].sum(1)
+        ntr = new / total
+
+        ntr = ntr.A1 if issparse(adata.layers['uu']) else ntr
+    else:
+        ntr = None
+
+    return ntr
