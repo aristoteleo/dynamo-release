@@ -1197,11 +1197,23 @@ def dynamics(
                                   true_param_prefix, true_params, est_params,
                                   show_moms_fit, show_variance, show_kin_parameters, )
             elif model == 'mixture':
-                pass
+                gs = plot_kin_mix(adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
+                                  t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
+                                  grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
+                                  true_param_prefix, true_params, est_params,
+                                  show_variance, show_kin_parameters, )
             elif model == 'mixture_deterministic_stochastic':
-                pass
+                gs = plot_kin_mix_det_sto(adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
+                                  t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
+                                  grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
+                                  true_param_prefix, true_params, est_params,
+                                  show_moms_fit, show_variance, show_kin_parameters, )
             elif model == 'mixture_stochastic_stochastic':
-                pass
+                gs = plot_kin_mix_sto_sto(adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
+                                  t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
+                                  grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
+                                  true_param_prefix, true_params, est_params,
+                                  show_moms_fit, show_variance, show_kin_parameters, )
         elif experiment_type is "deg":
             if model == 'deterministic':
                 gs = plot_deg_det(adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
@@ -1216,8 +1228,8 @@ def dynamics(
                                   true_param_prefix, true_params, est_params,
                                   show_moms_fit, show_variance, show_kin_parameters, )
 
-            plt.tight_layout()
-            plt.show()
+        plt.tight_layout()
+        plt.show()
 
         for i, idx in enumerate(gene_idx):
             gene_name = adata.var_names[idx]

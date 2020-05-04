@@ -240,7 +240,7 @@ def get_layer_pair(layer):
 
 def prepare_data_deterministic(adata, genes, time, layers,
                                use_total_layers=True,
-                               total_layers = ["uu", "ul", "su", "sl"],
+                               total_layers=["uu", "ul", "su", "sl"],
                                log=False):
     from ..preprocessing.utils import sz_util, normalize_util
     if use_total_layers:
@@ -335,7 +335,10 @@ def prepare_data_has_splicing(adata, genes, time, layer_u, layer_s,
     return res, raw
 
 
-def prepare_data_no_splicing(adata, genes, time, layer, use_total_layers=True, total_layer='total'):
+def prepare_data_no_splicing(adata, genes, time, layer,
+                             use_total_layers=True,
+                             total_layer='total',
+                             return_old=False):
     """Prepare data when assumption is kinetic and data has no splicing"""
     from ..preprocessing.utils import sz_util, normalize_util
     res = [0] * len(genes)
@@ -343,20 +346,25 @@ def prepare_data_no_splicing(adata, genes, time, layer, use_total_layers=True, t
 
     if use_total_layers:
         if 'total_Size_Factor' not in adata.obs.keys():
-            sfs, _ = sz_util(adata, total_layer, False, "median", np.nanmean, total_layers='total')
+            sfs, _ = sz_util(adata, '_total_', round_exprs=False, method="median",
+                                       locfunc=np.nanmean, total_layers=total_layer)
         else:
             sfs = adata.obs.total_Size_Factor
     else:
-        sfs, _ = sz_util(adata, layer, False, "median", np.nanmean, total_layers=None)
+        sfs, _ = sz_util(adata, layer, round_exprs=False, method="median",
+                                       locfunc=np.nanmean, total_layers=None)
 
-    U = normalize_util(adata[:, genes].layers[layer], sfs[:, None], relative_expr=True, pseudo_expr=0, norm_method=None)
+    U = normalize_util(adata[:, genes].layers[layer], sfs[:, None], relative_expr=True, pseudo_expr=0,
+                       norm_method=None)
+    T = normalize_util(adata[:, genes].layers[total_layer], sfs[:, None], relative_expr=True, pseudo_expr=0,
+                       norm_method=None)
 
     for i, g in enumerate(genes):
-        u = U[:, i]
+        u, t = U[:, i], T[:, i]
         ut = strat_mom(u, time, np.mean)
         uut = strat_mom(elem_prod(u, u), time, np.mean)
         res[i] = np.vstack([ut, uut])
-        raw[i] = u
+        raw[i] = np.vstack([u, t - u]) if return_old else u
 
     return res, raw
 
