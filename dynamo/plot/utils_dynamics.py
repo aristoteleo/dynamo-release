@@ -3,7 +3,6 @@ from scipy.sparse import issparse
 from ..tools.moments import (
     prepare_data_no_splicing,
     prepare_data_has_splicing,
-    prepare_data_deterministic,
     prepare_data_mix_has_splicing,
     prepare_data_mix_no_splicing,
 )
@@ -38,7 +37,7 @@ def plot_kin_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
         _, X_raw = prepare_data_no_splicing(adata, adata.var.index, T, layer=layer,
                                             total_layer=total_layer)
 
-    padding = 0.17 if has_splicing and not show_variance else 0
+    padding = 0.17 if not show_variance else 0
     for i, gene_name in enumerate(genes):
         cur_X_data, cur_X_fit_data, cur_logLL = X_data[i], X_fit_data[i], logLL[i]
 
