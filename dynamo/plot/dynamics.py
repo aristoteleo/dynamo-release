@@ -1122,7 +1122,7 @@ def dynamics(
                 sub_plot_n = 1
             elif model == 'stochastic':
                 mom_n = 1 if show_moms_fit else 0
-                sub_plot_n = 1 + mom_n if show_moms_fit else 1
+                sub_plot_n = 1 + mom_n if show_variance else 1 + mom_n
             elif model == 'mixture':
                 sub_plot_n = 2 if show_variance else 1
             elif model == 'mixture_deterministic_stochastic':

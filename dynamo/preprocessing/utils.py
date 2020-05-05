@@ -382,6 +382,8 @@ def pca(adata, CM, n_pca_components=30, pca_key='X'):
 
 # ---------------------------------------------------------------------------------------------------
 # labeling related
+
+
 def NTR(adata):
     """calculate the new to total ratio across cells. Note that
     NTR for the first time point in degradation approximates gamma/beta."""
