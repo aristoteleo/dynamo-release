@@ -426,7 +426,7 @@ def default_layer(adata):
 
     if has_splicing:
         if has_labeling:
-            if len(set(adata.layers.keys()).intersection(['new', 'total', 'spliced', 'unspliced'])) == 0:
+            if len(set(adata.layers.keys()).intersection(['new', 'total', 'spliced', 'unspliced'])) == 4:
                 adata = collapse_adata(adata)
             default_layer = "M_t" if "M_t" in adata.layers.keys() else "X_total" if \
                 "X_total" in adata.layers.keys() else "total"

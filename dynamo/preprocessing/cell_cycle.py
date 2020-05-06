@@ -31,7 +31,7 @@ def group_corr(adata, layer, gene_list):
     return gene_list, cor.flatten()
 
 
-def refine_gene_list(adata, gene_list, threshold, return_corrs=False):
+def refine_gene_list(adata, layer, gene_list, threshold, return_corrs=False):
     """Refines a list of genes by removing those that don't correlate well with the average expression of
     those genes
 
@@ -48,7 +48,7 @@ def refine_gene_list(adata, gene_list, threshold, return_corrs=False):
     -------
         Refined list of genes that are well correlated with the average expression trend
     """
-    layer = default_layer(adata)
+    if layer is None: layer = default_layer(adata)
 
     gene_list, corrs = group_corr(adata, layer, gene_list)
     if (return_corrs):
@@ -57,7 +57,7 @@ def refine_gene_list(adata, gene_list, threshold, return_corrs=False):
         return gene_list[corrs >= threshold]
 
 
-def group_score(adata, gene_list):
+def group_score(adata, layer, gene_list):
     """Scores cells within population for expression of a set of genes. Raw expression data are first
     log transformed, then the values are summed, and then scores are Z-normalized across all cells.
 
@@ -71,7 +71,7 @@ def group_score(adata, gene_list):
         Z-scored expression data
     """
 
-    layer = default_layer(adata)
+    if layer is None: layer = default_layer(adata)
     expression_matrix = adata[:, adata.var_names.intersection(gene_list)].layers[layer]
     if layer.startswith('X_'):
         scores = expression_matrix.sum(1).A1 if issparse(expression_matrix) else expression_matrix.sum(1)
@@ -87,7 +87,7 @@ def group_score(adata, gene_list):
     return scores
 
 
-def batch_group_score(adata, gene_lists):
+def batch_group_score(adata, layer, gene_lists):
     """Scores cells within population for expression of sets of genes. Raw expression data are first
     log transformed, then the values are summed, and then scores are Z-normalized across all cells.
     Returns an OrderedDict of each score.
@@ -99,7 +99,7 @@ def batch_group_score(adata, gene_lists):
     """
     batch_scores = OrderedDict()
     for gene_list in gene_lists:
-        batch_scores[gene_list] = group_score(adata, gene_lists[gene_list])
+        batch_scores[gene_list] = group_score(adata, layer, gene_lists[gene_list])
     return batch_scores
 
 
@@ -160,7 +160,7 @@ def get_cell_phase_genes(adata, refine=True, threshold=0.3):
     return cell_phase_genes
 
 
-def get_cell_phase(pop, gene_list=None, refine=True, threshold=0.3):
+def get_cell_phase(pop, layer=None, gene_list=None, refine=True, threshold=0.3):
     """Compute cell cycle phase scores for cells in the population
 
     Arguments
@@ -183,7 +183,7 @@ def get_cell_phase(pop, gene_list=None, refine=True, threshold=0.3):
         cell_phase_genes = gene_list
 
     # score each cell cycle phase and Z-normalize
-    phase_scores = pd.DataFrame(batch_group_score(pop, cell_phase_genes))
+    phase_scores = pd.DataFrame(batch_group_score(pop, layer, cell_phase_genes))
     normalized_phase_scores = phase_scores.sub(phase_scores.mean(axis=1), axis=0).div(phase_scores.std(axis=1), axis=0)
 
     normalized_phase_scores_corr = normalized_phase_scores.transpose()
@@ -222,7 +222,7 @@ def get_cell_phase(pop, gene_list=None, refine=True, threshold=0.3):
     return cell_cycle_scores
 
 
-def cell_cycle_scores(adata, gene_list=None, refine=True, threshold=0.3):
+def cell_cycle_scores(adata, layer=None, gene_list=None, refine=True, threshold=0.3):
     """Call cell cycle positions for cells within the population. If more direct control is desired,
     use get_cell_phase.
 
@@ -233,7 +233,7 @@ def cell_cycle_scores(adata, gene_list=None, refine=True, threshold=0.3):
     """
     phase_list = ['G1-S', 'S', 'G2-M', 'M', 'M-G1']
 
-    cell_cycle_scores = get_cell_phase(adata, refine=refine, gene_list=gene_list, threshold=threshold)
+    cell_cycle_scores = get_cell_phase(adata, layer=layer, refine=refine, gene_list=gene_list, threshold=threshold)
     cell_cycle_scores.index = adata.obs_names[cell_cycle_scores.index.values.astype('int')]
     adata.obs['cell_cycle_phase'] = cell_cycle_scores['cell_cycle_phase'].astype('category')
 
