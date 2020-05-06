@@ -6,7 +6,7 @@ from .utils import quiver_autoscaler
 from .scatters import scatters
 
 from .preprocess import show_fraction, feature_genes, variance_explained
-from .cell_cycle import cell_cycle
+from .cell_cycle import cell_cycle_scores
 
 from .dynamics import phase_portraits, dynamics
 from .time_series import kinetic_heatmap, kinetic_curves

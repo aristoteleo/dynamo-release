@@ -2,13 +2,12 @@ from ..tools.utils import update_dict
 from .utils import save_fig
 
 
-def cell_cycle(adata, cells=None,
-                                save_show_or_return='show',
-                                save_kwargs={},):
+def cell_cycle_scores(adata, cells=None, save_show_or_return='show', save_kwargs={},):
     """Plot a heatmap of cells ordered by cell cycle position
 
-    Args:
-        pop: CellPopulation instance
+    Parameters
+    ----------
+        adata: CellPopulation instance
         cells: query string for cell properties (i.e. executes pop.cells.query(cells=cells))
         **kwargs: all other keyword arguments are passed to pop.where
     """
@@ -23,7 +22,7 @@ def cell_cycle(adata, cells=None,
     cell_cycle_scores.sort_values(['cell_cycle_phase', 'cell_cycle_progress'],
                                   ascending=[True, False],
                                   inplace=True)
-    sns.heatmap(cell_cycle_scores[cell_cycle_scores.columns[:-2]].transpose(), annot=False, xticklabels=False,
+    sns.heatmap(cell_cycle_scores[['G1-S', 'S', 'G2-M', 'M', 'M-G1']].transpose(), annot=False, xticklabels=False,
                      linewidths=0)
 
     if save_show_or_return == "save":

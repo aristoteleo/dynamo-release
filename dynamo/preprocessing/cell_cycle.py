@@ -235,6 +235,5 @@ def cell_cycle_scores(adata, gene_list=None, refine=True, threshold=0.3):
 
     cell_cycle_scores = get_cell_phase(adata, refine=refine, gene_list=gene_list, threshold=threshold)
     adata.obs['cell_cycle_phase'] = cell_cycle_scores['cell_cycle_phase'].astype('category')
-    adata.obs['cell_cycle_phase'].cat.set_categories(phase_list, inplace=True)
 
-    adata.obsm['cell_cycle_phase'] = cell_cycle_scores
+    adata.obsm['cell_cycle_phase'] = cell_cycle_scores.set_index(adata.obs_names)
