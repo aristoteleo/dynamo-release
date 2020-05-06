@@ -22,13 +22,13 @@ def group_corr(adata, layer, gene_list):
         Correlation coefficient of each gene with the mean expression of all
     """
     # returns list of correlations of each gene within a list of genes with the total expression of the group
-
-    expression_matrix = adata[:, adata.var_names.intersection(gene_list)].layers[layer]
+    gene_list = adata.var_names.intersection(gene_list)
+    expression_matrix = adata[:, gene_list].layers[layer]
     avg_exp = expression_matrix.mean(axis=1)
-    cor = einsum_correlation(expression_matrix.A, avg_exp.A1) if issparse(expression_matrix) \
-        else einsum_correlation(expression_matrix, avg_exp)
+    cor = einsum_correlation(expression_matrix.A.T, avg_exp.A1) if issparse(expression_matrix) \
+        else einsum_correlation(expression_matrix.T, avg_exp)
 
-    return cor
+    return gene_list, cor.flatten()
 
 
 def refine_gene_list(adata, gene_list, threshold, return_corrs=False):
@@ -50,7 +50,7 @@ def refine_gene_list(adata, gene_list, threshold, return_corrs=False):
     """
     layer = default_layer(adata)
 
-    corrs = group_corr(adata, layer, gene_list)
+    gene_list, corrs = group_corr(adata, layer, gene_list)
     if (return_corrs):
         return corrs[corrs >= threshold]
     else:
@@ -152,8 +152,8 @@ def get_cell_phase_genes(adata, refine=True, threshold=0.3):
 
     if (refine):
         for phase in cell_phase_genes:
-            cur_cell_phase_genes = cell_phase_genes['M-G1'] if adata.var_names[0].isupper() \
-                else [i.capitalize() for i in cell_phase_genes['M-G1']]
+            cur_cell_phase_genes = cell_phase_genes[phase] if adata.var_names[0].isupper() \
+                else [i.capitalize() for i in cell_phase_genes[phase]]
 
             cell_phase_genes[phase] = refine_gene_list(adata, cur_cell_phase_genes, threshold)
 
