@@ -103,7 +103,7 @@ def batch_group_score(adata, layer, gene_lists):
     return batch_scores
 
 
-def get_cell_phase_genes(adata, refine=True, threshold=0.3):
+def get_cell_phase_genes(adata, layer, refine=True, threshold=0.3):
     """Returns a list of cell-cycle-regulated marker genes, filtered for coherence
 
     Arguments
@@ -155,7 +155,7 @@ def get_cell_phase_genes(adata, refine=True, threshold=0.3):
             cur_cell_phase_genes = cell_phase_genes[phase] if adata.var_names[0].isupper() \
                 else [i.capitalize() for i in cell_phase_genes[phase]]
 
-            cell_phase_genes[phase] = refine_gene_list(adata, cur_cell_phase_genes, threshold)
+            cell_phase_genes[phase] = refine_gene_list(adata, layer, cur_cell_phase_genes, threshold)
 
     return cell_phase_genes
 
@@ -178,7 +178,7 @@ def get_cell_phase(pop, layer=None, gene_list=None, refine=True, threshold=0.3):
     """
     # get list of genes if one is not provided
     if gene_list is None:
-        cell_phase_genes = get_cell_phase_genes(pop, refine=refine, threshold=threshold)
+        cell_phase_genes = get_cell_phase_genes(pop, layer, refine=refine, threshold=threshold)
     else:
         cell_phase_genes = gene_list
 
