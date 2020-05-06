@@ -17,9 +17,9 @@ def cell_cycle_scores(adata, cells=None, save_show_or_return='show', save_kwargs
     from mpl_toolkits.axes_grid1.colorbar import colorbar
 
     if cells is None:
-        cell_cycle_scores = adata.obsm['cell_cycle_phase'].dropna()
+        cell_cycle_scores = adata.obsm['cell_cycle_scores'].dropna()
     else:
-        cell_cycle_scores = adata[cells, :].obsm['cell_cycle_phase'].dropna().dropna()
+        cell_cycle_scores = adata[cells, :].obsm['cell_cycle_scores'].dropna().dropna()
 
     cell_cycle_scores.sort_values(['cell_cycle_phase', 'cell_cycle_progress'],
                                   ascending=[True, False],
