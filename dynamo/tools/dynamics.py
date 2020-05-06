@@ -134,6 +134,7 @@ def dynamics(
             Whether to log transform the unnormalized data.
         **est_kwargs
             Other arguments passed to the estimation methods. Not used for now.
+
     Returns
     -------
         adata: :class:`~anndata.AnnData`

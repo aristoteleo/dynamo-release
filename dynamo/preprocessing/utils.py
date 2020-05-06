@@ -110,6 +110,14 @@ def cook_dist(model, X, good):
 # ---------------------------------------------------------------------------------------------------
 # preprocess utilities
 
+def unique_var_obs_adata(adata):
+    """Function to make the obs and var attribute's index unique"""
+    adata.obs_names_make_unique()
+    adata.var_names_make_unique()
+
+    return adata
+
+
 def merge_adata_attrs(adata_ori, adata, attr):
     if attr == 'var':
         _columns = set(adata.var.columns).difference(adata_ori.var.columns)
@@ -383,6 +391,53 @@ def pca(adata, CM, n_pca_components=30, pca_key='X'):
 # ---------------------------------------------------------------------------------------------------
 # labeling related
 
+
+def collapse_adata(adata):
+    """Function to collapse the four species data, will be generalized to handle dual-datasets"""
+    only_splicing, only_labeling, splicing_and_labeling = allowed_layer_raw_names()
+
+    if np.all([i in adata.layers.keys() for i in splicing_and_labeling]):
+        adata.layers[only_splicing[0]] = adata.layers['su'] + adata.layers['sl']
+        adata.layers[only_splicing[1]] = adata.layers['uu'] + adata.layers['ul']
+        adata.layers[only_labeling[0]] = adata.layers['ul'] + adata.layers['sl']
+        adata.layers[only_labeling[1]] = adata.layers[only_labeling[0]] + adata.layers['uu'] + adata.layers['su']
+
+    return adata
+
+def detect_datatype(adata):
+    has_splicing, has_labeling, has_protein = False, False, False
+
+    layers_set = set(adata.layers.keys())
+    if len(layers_set.difference(['ul', 'sl', 'uu', 'su'])) == 0:
+        has_splicing, has_labeling = True, True
+    elif len(layers_set.difference(['unspliced', 'spliced'])) == 0:
+        has_splicing = True
+    elif len(layers_set.difference(['new', 'total'])) == 0:
+        has_labeling = True
+
+    if "protein" in adata.obsm.keys():
+        has_protein = True
+
+    return has_splicing, has_labeling, has_protein
+
+
+def default_layer(adata):
+    has_splicing, has_labeling, _ = detect_datatype(adata)
+
+    if has_splicing:
+        if has_labeling:
+            if len(set(adata.layers.keys()).intersection(['new', 'total', 'spliced', 'unspliced'])) == 0:
+                adata = collapse_adata(adata)
+            default_layer = "M_t" if "M_t" in adata.layers.keys() else "X_total" if \
+                "X_total" in adata.layers.keys() else "total"
+        else:
+            default_layer = "M_s" if "M_s" in adata.layers.keys() else "X_spliced" if \
+                "X_spliced" in adata.layers.keys() else "spliced"
+    else:
+        default_layer = "M_t" if "M_t" in adata.layers.keys() else "X_total" if \
+            "X_total" in adata.layers.keys() else "total"
+
+    return default_layer
 
 def NTR(adata):
     """calculate the new to total ratio across cells. Note that

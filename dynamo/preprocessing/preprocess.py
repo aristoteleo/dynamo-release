@@ -12,7 +12,7 @@ from .utils import get_svr_filter
 from .utils import allowed_layer_raw_names
 from .utils import merge_adata_attrs
 from .utils import sz_util, normalize_util, get_sz_exprs
-from .utils import NTR
+from .utils import unique_var_obs_adata, collapse_adata, NTR
 from ..tools.utils import update_dict
 
 
@@ -1120,27 +1120,6 @@ def select_genes(
     else:
         adata._inplace_subset_var(filter_bool)
         adata.var["use_for_dynamo"] = True
-
-    return adata
-
-
-def collapse_adata(adata):
-    """Function to collapse the four species data, will be generalized to handle dual-datasets"""
-    only_splicing, only_labeling, splicing_and_labeling = allowed_layer_raw_names()
-
-    if np.all([i in adata.layers.keys() for i in splicing_and_labeling]):
-        adata.layers[only_splicing[0]] = adata.layers['su'] + adata.layers['sl']
-        adata.layers[only_splicing[1]] = adata.layers['uu'] + adata.layers['ul']
-        adata.layers[only_labeling[0]] = adata.layers['ul'] + adata.layers['sl']
-        adata.layers[only_labeling[1]] = adata.layers[only_labeling[0]] + adata.layers['uu'] + adata.layers['su']
-
-    return adata
-
-
-def unique_var_obs_adata(adata):
-    """Function to make the obs and var attribute's index unique"""
-    adata.obs_names_make_unique()
-    adata.var_names_make_unique()
 
     return adata
 
