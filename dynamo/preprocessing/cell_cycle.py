@@ -33,8 +33,8 @@ def group_corr(adata, layer, gene_list):
     expression_matrix = adata[:, intersect_genes].X if layer is None \
         else adata[:, intersect_genes].layers[layer]
     avg_exp = expression_matrix.mean(axis=1)
-    cor = einsum_correlation(expression_matrix.A.T, avg_exp.A1) if issparse(expression_matrix) \
-        else einsum_correlation(expression_matrix.T, avg_exp)
+    cor = einsum_correlation(np.array(expression_matrix.A.T, dtype='float'), np.array(avg_exp.A1, dtype='float')) if issparse(expression_matrix) \
+        else einsum_correlation(np.array(expression_matrix.T, dtype='float'), np.array(avg_exp, dtype='float'))
 
     return np.array(intersect_genes), cor.flatten()
 
@@ -282,7 +282,7 @@ def cell_cycle_scores(adata, layer=None, gene_list=None, refine=True, threshold=
     -------
         Returns an updated adata object with cell_cycle_phase as new column in .obs and a new data
         frame with `cell_cycle_scores` key to .obsm where the cell cycle scores indicating the likelihood a
-        given cell is in a given cell cycle phase. 
+        given cell is in a given cell cycle phase.
   """
 
     cell_cycle_scores = get_cell_phase(adata, layer=layer, refine=refine, gene_list=gene_list, threshold=threshold)
