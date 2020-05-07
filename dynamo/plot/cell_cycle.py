@@ -2,14 +2,24 @@ from ..tools.utils import update_dict
 from .utils import save_fig
 
 
-def cell_cycle_scores(adata, cells=None, save_show_or_return='show', save_kwargs={},):
+def cell_cycle_scores(adata,
+                      cells=None,
+                      save_show_or_return='show',
+                      save_kwargs={},
+                      ):
     """Plot a heatmap of cells ordered by cell cycle position
 
     Parameters
     ----------
-        adata: CellPopulation instance
-        cells: query string for cell properties (i.e. executes pop.cells.query(cells=cells))
-        **kwargs: all other keyword arguments are passed to pop.where
+        adata: an anndata object.
+        cells: a list of cell ids used to subset the adata object.
+        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
     """
     import seaborn as sns
     import matplotlib.pyplot as plt

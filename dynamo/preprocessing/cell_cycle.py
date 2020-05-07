@@ -5,8 +5,8 @@ import pandas as pd
 import numpy as np
 from collections import OrderedDict
 from scipy.sparse import issparse
-from .utils import default_layer
-from ..tools.utils import einsum_correlation #(X, Y_i, type="pearson")
+from ..tools.utils import einsum_correlation
+
 
 def group_corr(adata, layer, gene_list):
     """Measures the correlation of all genes within a list to the average expression of all genes within that
@@ -14,24 +14,29 @@ def group_corr(adata, layer, gene_list):
 
     Arguments
     ---------
-        population: CellPopulation to pull expression from
+        adata: an anndata object.
+        layer: `str` or None (default: `None`)
+            The layer of data to use for calculating correlation. If None, use adata.X.
         gene_list: list of gene names
 
     Returns
     ---------
-        Correlation coefficient of each gene with the mean expression of all
+        (valid_gene_list, corr): A tuple of valid gene names and the correlation coefficient of each gene with
+        the mean expression of all.
     """
+
     # returns list of correlations of each gene within a list of genes with the total expression of the group
-    itersect_genes = adata.var_names.intersection(gene_list)
-    if len(itersect_genes) == 0:
+    intersect_genes = adata.var_names.intersection(gene_list)
+    if len(intersect_genes) == 0:
         raise Exception(f"your adata doesn't have any gene from the gene_list {gene_list}.")
 
-    expression_matrix = adata[:, itersect_genes].layers[layer]
+    expression_matrix = adata[:, intersect_genes].X if layer is None \
+        else adata[:, intersect_genes].layers[layer]
     avg_exp = expression_matrix.mean(axis=1)
     cor = einsum_correlation(expression_matrix.A.T, avg_exp.A1) if issparse(expression_matrix) \
         else einsum_correlation(expression_matrix.T, avg_exp)
 
-    return gene_list, cor.flatten()
+    return np.array(intersect_genes), cor.flatten()
 
 
 def refine_gene_list(adata, layer, gene_list, threshold, return_corrs=False):
@@ -40,7 +45,9 @@ def refine_gene_list(adata, layer, gene_list, threshold, return_corrs=False):
 
     Parameters
     ----------
-        adata: CellPopulation to pull expression from
+        adata: an anndata object.
+        layer: `str` or None (default: `None`)
+            The layer of data to use for calculating correlation. If None, use adata.X.
         gene_list: list of gene names
         threshold: threshold on correlation coefficient used to discard genes (expression of each gene is
             compared to the bulk expression of the group and any gene with a correlation coefficient less
@@ -51,7 +58,6 @@ def refine_gene_list(adata, layer, gene_list, threshold, return_corrs=False):
     -------
         Refined list of genes that are well correlated with the average expression trend
     """
-    if layer is None: layer = default_layer(adata)
 
     gene_list, corrs = group_corr(adata, layer, gene_list)
     if (return_corrs):
@@ -66,7 +72,9 @@ def group_score(adata, layer, gene_list):
 
     Arguments
     ---------
-        adata: CellPopulation to pull expression from
+        adata: an anndata object.
+        layer: `str` or None (default: `None`)
+            The layer of data to use for calculating correlation. If None, use adata.X.
         gene_list: list of gene names
 
     Returns
@@ -74,14 +82,15 @@ def group_score(adata, layer, gene_list):
         Z-scored expression data
     """
 
-    if layer is None: layer = default_layer(adata)
     itersect_genes = adata.var_names.intersection(gene_list)
     if len(itersect_genes) == 0:
         raise Exception(f"your adata doesn't have any gene from the gene_list {gene_list}.")
 
-    expression_matrix = adata[:, itersect_genes].layers[layer]
-    if layer.startswith('X_'):
-        scores = expression_matrix.sum(1).A1 if issparse(expression_matrix) else expression_matrix.sum(1)
+    expression_matrix = adata[:, itersect_genes].X if layer is None \
+        else adata[:, itersect_genes].layers[layer]
+    if layer is None or layer.startswith('X_'):
+        scores = expression_matrix.sum(1).A1 if issparse(expression_matrix) \
+            else expression_matrix.sum(1)
     else:
         if issparse(expression_matrix):
             expression_matrix.data = np.log(expression_matrix.data + 1)
@@ -101,9 +110,16 @@ def batch_group_score(adata, layer, gene_lists):
 
     Arguments
     ---------
-        population: CellPopulation to pull expression from
+        adata: an anndata object.
+        layer: `str` or None (default: `None`)
+            The layer of data to use for calculating correlation. If None, use adata.X.
         gene_lists: list of lists of gene names
+
+    Returns
+    -------
+        an OrderedDict of each score.
     """
+
     batch_scores = OrderedDict()
     for gene_list in gene_lists:
         batch_scores[gene_list] = group_score(adata, layer, gene_lists[gene_list])
@@ -115,9 +131,14 @@ def get_cell_phase_genes(adata, layer, refine=True, threshold=0.3):
 
     Arguments
     ---------
-        refine: whether to refine the gene lists based on how consistent the expression is among
+        adata: an anndata object.
+        layer: `str` or None (default: `None`)
+            The layer of data to use for calculating correlation. If None, use adata.X.
+        refine: `bool` (default: `True`)
+            whether to refine the gene lists based on how consistent the expression is among
             the groups
-        threshold: threshold on correlation coefficient used to discard genes (expression of each
+        threshold: `float` or None (default: `0.3`)
+            threshold on correlation coefficient used to discard genes (expression of each
             gene is compared to the bulk expression of the group and any gene with a correlation
             coefficient less than this is discarded)
 
@@ -125,6 +146,7 @@ def get_cell_phase_genes(adata, layer, refine=True, threshold=0.3):
     -------
         a list of cell-cycle-regulated marker genes that show strong co-expression
     """
+
     cell_phase_genes = OrderedDict()
     cell_phase_genes['G1-S'] = pd.Series(['ARGLU1', 'BRD7', 'CDC6', 'CLSPN', 'ESD', 'GINS2',
                                           'GMNN', 'LUC7L3', 'MCM5', 'MCM6', 'NASP', 'PCNA',
@@ -167,30 +189,38 @@ def get_cell_phase_genes(adata, layer, refine=True, threshold=0.3):
     return cell_phase_genes
 
 
-def get_cell_phase(pop, layer=None, gene_list=None, refine=True, threshold=0.3):
+def get_cell_phase(adata, layer=None, gene_list=None, refine=True, threshold=0.3):
     """Compute cell cycle phase scores for cells in the population
 
     Arguments
     ---------
-        gene_list: OrderedDict of marker genes to use for cell cycle phases. If None, the default
+        adata: an anndata object.
+        layer: `str` or None (default: `None`)
+            The layer of data to use for calculating correlation. If None, use adata.X.
+        gene_list: `OrderedDict` or None (default: `None`)
+            OrderedDict of marker genes to use for cell cycle phases. If None, the default
             list will be used.
-        refine: whether to refine the gene lists based on how consistent the expression is among
+        refine: `bool` (default: `True`)
+            whether to refine the gene lists based on how consistent the expression is among
             the groups
-        threshold: threshold on correlation coefficient used to discard genes (expression of each
+        threshold: `float` or None (default: `0.3`)
+            threshold on correlation coefficient used to discard genes (expression of each
             gene is compared to the bulk expression of the group and any gene with a correlation
             coefficient less than this is discarded)
+
     Returns
     -------
         Cell cycle scores indicating the likelihood a given cell is in a given cell cycle phase
     """
+
     # get list of genes if one is not provided
     if gene_list is None:
-        cell_phase_genes = get_cell_phase_genes(pop, layer, refine=refine, threshold=threshold)
+        cell_phase_genes = get_cell_phase_genes(adata, layer, refine=refine, threshold=threshold)
     else:
         cell_phase_genes = gene_list
 
     # score each cell cycle phase and Z-normalize
-    phase_scores = pd.DataFrame(batch_group_score(pop, layer, cell_phase_genes))
+    phase_scores = pd.DataFrame(batch_group_score(adata, layer, cell_phase_genes))
     normalized_phase_scores = phase_scores.sub(phase_scores.mean(axis=1), axis=0).div(phase_scores.std(axis=1), axis=0)
 
     normalized_phase_scores_corr = normalized_phase_scores.transpose()
@@ -235,10 +265,25 @@ def cell_cycle_scores(adata, layer=None, gene_list=None, refine=True, threshold=
 
     Arguments
     ---------
+        adata: an anndata object.
+        layer: `str` or None (default: `None`)
+            The layer of data to use for calculating correlation. If None, use adata.X.
         gene_list: OrderedDict of marker genes to use for cell cycle phases. If None, the default
             list will be used.
-    """
-    phase_list = ['G1-S', 'S', 'G2-M', 'M', 'M-G1']
+        refine: `bool` (default: `True`)
+            whether to refine the gene lists based on how consistent the expression is among
+            the groups
+        threshold: `float` or None (default: `0.3`)
+            threshold on correlation coefficient used to discard genes (expression of each
+            gene is compared to the bulk expression of the group and any gene with a correlation
+            coefficient less than this is discarded)
+
+    Returns
+    -------
+        Returns an updated adata object with cell_cycle_phase as new column in .obs and a new data
+        frame with `cell_cycle_scores` key to .obsm where the cell cycle scores indicating the likelihood a
+        given cell is in a given cell cycle phase. 
+  """
 
     cell_cycle_scores = get_cell_phase(adata, layer=layer, refine=refine, gene_list=gene_list, threshold=threshold)
     cell_cycle_scores.index = adata.obs_names[cell_cycle_scores.index.values.astype('int')]
