@@ -407,12 +407,12 @@ def collapse_adata(adata):
 def detect_datatype(adata):
     has_splicing, has_labeling, has_protein = False, False, False
 
-    layers_set = set(adata.layers.keys())
-    if len(layers_set.difference(['ul', 'sl', 'uu', 'su'])) == 0:
+    layers = adata.layers.keys()
+    if len({'ul', 'sl', 'uu', 'su'}.difference(layers)) == 0:
         has_splicing, has_labeling = True, True
-    elif len(layers_set.difference(['unspliced', 'spliced'])) == 0:
+    elif len({'unspliced', 'spliced'}.difference(layers)) == 0:
         has_splicing = True
-    elif len(layers_set.difference(['new', 'total'])) == 0:
+    elif len({'new', 'total'}.difference(layers)) == 0:
         has_labeling = True
 
     if "protein" in adata.obsm.keys():
@@ -443,10 +443,10 @@ def NTR(adata):
     """calculate the new to total ratio across cells. Note that
     NTR for the first time point in degradation approximates gamma/beta."""
 
-    if len(set(['new', 'total']).intersection(adata.layers.keys())) == 2:
+    if len({'new', 'total'}.intersection(adata.layers.keys())) == 2:
         ntr = adata.layers['new'].sum(1) / adata.layers['total'].sum(1)
         ntr = ntr.A1 if issparse(adata.layers['new']) else ntr
-    elif len(set(['uu', 'ul', 'su', 'sl']).intersection(adata.layers.keys())) == 4:
+    elif len({'uu', 'ul', 'su', 'sl'}.intersection(adata.layers.keys())) == 4:
         new = adata.layers['ul'].sum(1) + \
               adata.layers['sl'].sum(1)
         total = new + adata.layers['uu'].sum(1) + \

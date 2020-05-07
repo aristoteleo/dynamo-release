@@ -22,8 +22,11 @@ def group_corr(adata, layer, gene_list):
         Correlation coefficient of each gene with the mean expression of all
     """
     # returns list of correlations of each gene within a list of genes with the total expression of the group
-    gene_list = adata.var_names.intersection(gene_list)
-    expression_matrix = adata[:, gene_list].layers[layer]
+    itersect_genes = adata.var_names.intersection(gene_list)
+    if len(itersect_genes) == 0:
+        raise Exception(f"your adata doesn't have any gene from the gene_list {gene_list}.")
+
+    expression_matrix = adata[:, itersect_genes].layers[layer]
     avg_exp = expression_matrix.mean(axis=1)
     cor = einsum_correlation(expression_matrix.A.T, avg_exp.A1) if issparse(expression_matrix) \
         else einsum_correlation(expression_matrix.T, avg_exp)
@@ -72,7 +75,11 @@ def group_score(adata, layer, gene_list):
     """
 
     if layer is None: layer = default_layer(adata)
-    expression_matrix = adata[:, adata.var_names.intersection(gene_list)].layers[layer]
+    itersect_genes = adata.var_names.intersection(gene_list)
+    if len(itersect_genes) == 0:
+        raise Exception(f"your adata doesn't have any gene from the gene_list {gene_list}.")
+
+    expression_matrix = adata[:, itersect_genes].layers[layer]
     if layer.startswith('X_'):
         scores = expression_matrix.sum(1).A1 if issparse(expression_matrix) else expression_matrix.sum(1)
     else:
