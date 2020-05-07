@@ -10,12 +10,6 @@ nosplicing_models = [
     Moments_Nosplicing, 
     Moments_NoSwitchingNoSplicing]
 
-moment_models = [
-    Moments,
-    Moments_Nosplicing, 
-    Moments_NoSwitchingNoSplicing,
-    Moments_NoSwitching]
-
 def guestimate_alpha(x_data, time):
     '''Roughly estimate p0 for kinetics data.'''
     imax = np.argmax(x_data)
@@ -28,25 +22,24 @@ def guestimate_gamma(x_data, time):
     return ga0
 
 def guestimate_init_cond(x_data):
-        '''Roughly estimate x0 for degradation data.'''
-        x0 = np.clip(np.max(x_data, 1), 1e-4, np.inf)
-        return x0
+    '''Roughly estimate x0 for degradation data.'''
+    x0 = np.clip(np.max(x_data, 1), 1e-4, np.inf)
+    return x0
 
 class kinetic_estimation:
     def __init__(self, param_ranges, x0_ranges, simulator):
-        '''A general parameter estimation framework for all types of time-seris data under kinetic assumption.
+        '''A general parameter estimation framework for all types of time-seris data
         Arguments
         ---------
-            param_ranges: `numpy.ndarray`
+            ranges: `numpy.ndarray`
                 a n-by-2 numpy array containing the lower and upper ranges of n parameters 
                 (and initial conditions if not fixed).
-            x0_ranges: `numpy.ndarray`
-                Initial conditions for the integrators if they are fixed.
             simulator: class
                 an instance of python class which solves ODEs. It should have properties 't' (k time points, 1d numpy array),
                 'x0' (initial conditions for m species, 1d numpy array), and 'x' (solution, k-by-m array), 
                 as well as two functions: integrate (numerical integration), solve (analytical method).
-
+            x0: `numpy.ndarray`
+                Initial conditions for the integrators if they are fixed.
         '''
         self.simulator = simulator
 
@@ -248,6 +241,15 @@ class Estimation_Degradation(kinetic_estimation):
     def calc_half_life(self, key):
         return np.log(2)/self.get_param(key)
 
+    def export_dictionary(self):
+        mdl_name = type(self.simulator).__name__
+        params = self.export_parameters()
+        param_dict = {self.kin_param_keys[i]: params[i] for i in range(len(params))}
+        x0 = self.get_opt_x0_params()
+        dictionary = {'model': mdl_name, 
+            'kinetic_parameters': param_dict, 'x0': x0}
+        return dictionary
+
 class Estimation_DeterministicDeg(Estimation_Degradation):
     '''An estimation class for degradation (with splicing) experiments.
         Order of species: <unspliced>, <spliced>
@@ -362,6 +364,7 @@ class Estimation_MomentKin(kinetic_estimation):
         '''An estimation class for kinetics experiments.
             Order of species: <unspliced>, <spliced>, <uu>, <ss>, <us>
         '''
+        self.param_keys = np.array(['a', 'b', 'alpha_a', 'alpha_i', 'beta', 'gamma'])
         ranges = np.zeros((6, 2))
         ranges[0] = a * np.ones(2) if np.isscalar(a) else a
         ranges[1] = b * np.ones(2) if np.isscalar(b) else b
@@ -410,11 +413,21 @@ class Estimation_MomentKin(kinetic_estimation):
     def calc_deg_half_life(self):
         return np.log(2)/self.get_gamma()
 
+    def export_dictionary(self):
+        mdl_name = type(self.simulator).__name__
+        params = self.export_parameters()
+        param_dict = {self.param_keys[i]: params[i] for i in range(len(params))}
+        x0 = np.zeros(self.simulator.n_species)
+        dictionary = {'model': mdl_name, 
+            'kinetic_parameters': param_dict, 'x0': x0}
+        return dictionary
+
 class Estimation_MomentKinNosp(kinetic_estimation):
     def __init__(self, a, b, alpha_a, alpha_i, gamma):
         '''An estimation class for kinetics experiments.
             Order of species: <r>, <rr>
         '''
+        self.param_keys = np.array(['a', 'b', 'alpha_a', 'alpha_i', 'gamma'])
         ranges = np.zeros((5, 2))
         ranges[0] = a * np.ones(2) if np.isscalar(a) else a
         ranges[1] = b * np.ones(2) if np.isscalar(b) else b
@@ -445,11 +458,21 @@ class Estimation_MomentKinNosp(kinetic_estimation):
     def calc_deg_half_life(self):
         return np.log(2)/self.get_gamma()
 
+    def export_dictionary(self):
+        mdl_name = type(self.simulator).__name__
+        params = self.export_parameters()
+        param_dict = {self.param_keys[i]: params[i] for i in range(len(params))}
+        x0 = np.zeros(self.simulator.n_species)
+        dictionary = {'model': mdl_name, 
+            'kinetic_parameters': param_dict, 'x0': x0}
+        return dictionary
+
 class Estimation_DeterministicKinNosp(kinetic_estimation):
     def __init__(self, alpha, gamma, x0=0):
         '''An estimation class for kinetics (without splicing) experiments with the deterministic model.
             Order of species: <unspliced>, <spliced>
         '''
+        self.param_keys = np.array(['alpha', 'gamma'])
         ranges = np.zeros((2, 2))
         ranges[0] = alpha * np.ones(2) if np.isscalar(alpha) else alpha
         ranges[1] = gamma * np.ones(2) if np.isscalar(gamma) else gamma
@@ -466,11 +489,21 @@ class Estimation_DeterministicKinNosp(kinetic_estimation):
     def calc_half_life(self):
         return np.log(2)/self.get_gamma()
 
+    def export_dictionary(self):
+        mdl_name = type(self.simulator).__name__
+        params = self.export_parameters()
+        param_dict = {self.param_keys[i]: params[i] for i in range(len(params))}
+        x0 = np.zeros(self.simulator.n_species)
+        dictionary = {'model': mdl_name, 
+            'kinetic_parameters': param_dict, 'x0': x0}
+        return dictionary
+
 class Estimation_DeterministicKin(kinetic_estimation):
     def __init__(self, alpha, beta, gamma, x0=np.zeros(2)):
         '''An estimation class for kinetics experiments with the deterministic model.
             Order of species: <unspliced>, <spliced>
         '''
+        self.param_keys = np.array(['alpha', 'beta', 'gamma'])
         ranges = np.zeros((3, 2))
         ranges[0] = alpha * np.ones(2) if np.isscalar(alpha) else alpha
         ranges[1] = beta * np.ones(2) if np.isscalar(beta) else beta
@@ -495,6 +528,15 @@ class Estimation_DeterministicKin(kinetic_estimation):
 
     def calc_deg_half_life(self):
         return np.log(2)/self.get_gamma()
+
+    def export_dictionary(self):
+        mdl_name = type(self.simulator).__name__
+        params = self.export_parameters()
+        param_dict = {self.param_keys[i]: params[i] for i in range(len(params))}
+        x0 = np.zeros(self.simulator.n_species)
+        dictionary = {'model': mdl_name, 
+            'kinetic_parameters': param_dict, 'x0': x0}
+        return dictionary
 
 class Mixture_KinDeg_NoSwitching(kinetic_estimation):
     def __init__(self, model1, model2, alpha=None, gamma=None, x0=None, beta=None):
