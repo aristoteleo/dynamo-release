@@ -17,23 +17,27 @@ def plot_kin_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
     alpha, beta, gamma = est_params
 
     if has_splicing:
-        title_ = ["ul", "sl"]
-
-        layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
-                'M_ul' in adata.layers.keys() and use_smoothed) \
-            else ['ul', 'sl', 'uu', 'su']
-
-        layer_u = 'M_ul' if ('M_ul' in adata.layers.keys() and use_smoothed) else 'ul'
-        layer_s = 'M_sl' if ('M_ul' in adata.layers.keys() and use_smoothed) else 'sl'
+        if ('M_ul' in adata.layers.keys() and use_smoothed):
+                title_ = ["M_ul", "M_sl"]
+                layers = ['M_ul', 'M_sl', 'M_uu', 'M_su']
+                layer_u, layer_s = 'ul', 'sl'
+        else:
+            title_ = ["ul", "sl"]
+            layers = ['ul', 'sl', 'uu', 'su']
+            layer_u, layer_s = 'ul', 'sl'
 
         _, X_raw = prepare_data_has_splicing(adata, genes, T,
                                              layer_u=layer_u, layer_s=layer_s, total_layers=layers)
     else:
-        title_ = ["new"]
+        if ('M_t' in adata.layers.keys() and use_smoothed):
+                title_ = ["M_n"]
+                total_layer = 'M_t'
+                layer = 'M_n'
+        else:
+            title_ = ["new"]
+            total_layer = 'total'
+            layer = 'new'
 
-        total_layer = 'M_t' if ('M_t' in adata.layers.keys() and use_smoothed) else 'total'
-
-        layer = 'M_n' if ('M_n' in adata.layers.keys() and use_smoothed) else 'new'
         _, X_raw = prepare_data_no_splicing(adata, adata.var.index, T, layer=layer,
                                             total_layer=total_layer)
 
@@ -178,23 +182,27 @@ def plot_kin_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
     alpha, beta, gamma = est_params
 
     if has_splicing:
-        title_ = ["ul", "sl", "ul2", "sl2", "ul_sl"] if show_moms_fit else ["ul", "sl"]
-
-        layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
-                'M_ul' in adata.layers.keys() and use_smoothed) \
-            else ['ul', 'sl', 'uu', 'su']
-
-        layer_u = 'M_ul' if ('M_ul' in adata.layers.keys() and use_smoothed) else 'ul'
-        layer_s = 'M_sl' if ('M_ul' in adata.layers.keys() and use_smoothed) else 'sl'
+        if ('M_ul' in adata.layers.keys() and use_smoothed):
+                title_ = ["M_ul", "M_sl", "M_ul2", "M_sl2", "M_ul_sl"] if show_moms_fit else ["M_ul", "M_sl"]
+                layers = ['M_ul', 'M_sl', 'M_uu', 'M_su']
+                layer_u, layer_s = 'M_ul', 'M_sl'
+        else:
+            title_ = ["ul", "sl", "ul2", "sl2", "ul_sl"] if show_moms_fit else ["ul", "sl"]
+            layers = ['ul', 'sl', 'uu', 'su']
+            layer_u, layer_s = 'ul', 'sl'
 
         _, X_raw = prepare_data_has_splicing(adata, genes, T,
                                              layer_u=layer_u, layer_s=layer_s, total_layers=layers)
     else:
-        title_ = ["new", "n2"] if show_moms_fit else ["new"]
+        if ('M_t' in adata.layers.keys() and use_smoothed):
+                title_ = ["M_n", "M_n2"] if show_moms_fit else ["M_n"]
+                total_layer = 'M_t'
+                layer = 'M_n'
+        else:
+            title_ = ["new", "n2"] if show_moms_fit else ["new"]
+            total_layer = 'total'
+            layer = 'new'
 
-        total_layer = 'M_t' if ('M_t' in adata.layers.keys() and use_smoothed) else 'total'
-
-        layer = 'M_n' if ('M_n' in adata.layers.keys() and use_smoothed) else 'new'
         _, X_raw = prepare_data_no_splicing(adata, adata.var.index, T, layer=layer,
                                             total_layer=total_layer)
 
@@ -355,23 +363,27 @@ def plot_kin_mix(adata, genes, has_splicing, use_smoothed, log_unnormalized,
     alpha, beta, gamma = est_params
 
     if has_splicing:
-        title_ = ["ul", "sl", "uu", "su"]
-
-        layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
-                'M_ul' in adata.layers.keys() and use_smoothed) \
-            else ['ul', 'sl', 'uu', 'su']
-
-        layer_u = 'M_ul' if ('M_ul' in adata.layers.keys() and use_smoothed) else 'ul'
-        layer_s = 'M_sl' if ('M_ul' in adata.layers.keys() and use_smoothed) else 'sl'
+        if ('M_ul' in adata.layers.keys() and use_smoothed):
+                layers = ['M_ul', 'M_sl', 'M_uu', 'M_su']
+                title_ = ["M_ul", "M_sl", "M_uu", "M_su"]
+                layer_u, layer_s = 'M_ul', 'M_sl'
+        else:
+            layers = ['ul', 'sl', 'uu', 'su']
+            title_ = ["ul", "sl", "uu", "su"]
+            layer_u, layer_s = 'ul', 'sl'
 
         _, X_raw = prepare_data_has_splicing(adata, genes, T,
                                              layer_u=layer_u, layer_s=layer_s, total_layers=layers)
     else:
-        title_ = ["new", "old"]
+        if ('M_t' in adata.layers.keys() and use_smoothed):
+            total_layer = 'M_t'
+            title_ = ["M_n", "M_o"]
+            layer = 'M_n'
+        else:
+            total_layer = 'total'
+            title_ = ["new", "old"]
+            layer = 'new'
 
-        total_layer = 'M_t' if ('M_t' in adata.layers.keys() and use_smoothed) else 'total'
-
-        layer = 'M_n' if ('M_n' in adata.layers.keys() and use_smoothed) else 'new'
         _, X_raw = prepare_data_no_splicing(adata, adata.var.index, T, layer=layer,
                                             total_layer=total_layer, return_old=True)
 
@@ -537,20 +549,26 @@ def plot_kin_mix_det_sto(adata, genes, has_splicing, use_smoothed, log_unnormali
     alpha, beta, gamma = est_params
 
     if has_splicing:
-        title_ = ["ul", "sl", "uu", "su", "uu2", "su2", "uu_su"] if show_moms_fit else ["ul", "sl", "uu", "su"]
-
-        layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
-                'M_ul' in adata.layers.keys() and use_smoothed) \
-            else ['ul', 'sl', 'uu', 'su']
+        if ('M_ul' in adata.layers.keys() and use_smoothed):
+                layers = ['M_ul', 'M_sl', 'M_uu', 'M_su']
+                title_ = ["M_ul", "M_sl", "M_uu", "M_su", "M_uu2", "M_su2", "M_uu_su"] \
+                    if show_moms_fit else ["M_ul", "M_sl", "M_uu", "M_su"]
+        else:
+            layers = ['ul', 'sl', 'uu', 'su']
+            title_ = ["ul", "sl", "uu", "su", "uu2", "su2", "uu_su"] if show_moms_fit else ["ul", "sl", "uu", "su"]
 
         _, X_raw = prepare_data_mix_has_splicing(adata, adata.var.index, T, layer_u=layers[2],
                                                  layer_s=layers[3], layer_ul=layers[0], layer_sl=layers[1],
                                                  total_layers=layers, mix_model_indices=[0, 1, 5, 6, 7, 8, 9])
     else:
-        title_ = ["new", "old", "o2"] if show_moms_fit else ["new", "old"]
-        layers = ['M_n', 'M_t'] if ('M_n' in adata.layers.keys() and use_smoothed) \
-            else ['new', 'total']
-        total_layer = 'M_t' if ('M_t' in adata.layers.keys() and use_smoothed) else 'total'
+        if ('M_t' in adata.layers.keys() and use_smoothed):
+                title_ = ["M_n", "M_o", "M_o2"] if show_moms_fit else ["M_n", "M_o"]
+                layers = ['M_n', 'M_t']
+                total_layer = 'M_t'
+        else:
+            title_ = ["new", "old", "o2"] if show_moms_fit else ["new", "old"]
+            layers = ['new', 'total']
+            total_layer = 'total'
 
         _, X_raw = prepare_data_mix_no_splicing(adata, adata.var.index, T,
                                                         layer_n=layers[0], layer_t=layers[1], total_layer=total_layer,
@@ -719,24 +737,28 @@ def plot_kin_mix_sto_sto(adata, genes, has_splicing, use_smoothed, log_unnormali
     alpha, beta, gamma = est_params
 
     if has_splicing:
-        title_ = ["ul", "sl", "uu", "su",  "ul2", "sl2", "ul_sl", "uu2", "su2", "uu_su"] \
-            if show_moms_fit else ["ul", "sl", "uu", "su"]
-
-        layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
-                'M_ul' in adata.layers.keys() and use_smoothed) \
-            else ['ul', 'sl', 'uu', 'su']
+        if ('M_ul' in adata.layers.keys() and use_smoothed):
+                layers = ['M_ul', 'M_sl', 'M_uu', 'M_su']
+                title_ = ["M_ul", "M_sl", "M_uu", "M_su", "M_ul2", "M_sl2", "M_ul_sl", "M_uu2", "M_su2", "M_uu_su"] \
+                    if show_moms_fit else ["M_ul", "M_sl", "M_uu", "M_su"]
+        else:
+            layers = ['ul', 'sl', 'uu', 'su']
+            title_ = ["ul", "sl", "uu", "su", "ul2", "sl2", "ul_sl", "uu2", "su2", "uu_su"] \
+                if show_moms_fit else ["ul", "sl", "uu", "su"]
 
         reorder_inds = [0, 1, 5, 6, 2, 3, 4, 7, 8, 9]
         _, X_raw = prepare_data_mix_has_splicing(adata, adata.var.index, T, layer_u=layers[2],
                                                  layer_s=layers[3], layer_ul=layers[0], layer_sl=layers[1],
                                                  total_layers=layers, mix_model_indices=reorder_inds)
     else:
-        title_ = ["new", "old", "n2", "o2"] if show_moms_fit else ["new", "old"]
-
-        total_layer = 'M_t' if ('M_t' in adata.layers.keys() and use_smoothed) else 'total'
-
-        layers = ['M_n', 'M_t'] if ('M_n' in adata.layers.keys() and use_smoothed) \
-            else ['new', 'total']
+        if ('M_t' in adata.layers.keys() and use_smoothed):
+            total_layer = 'M_t'
+            title_ = ["M_n", "M_o", "M_n2", "M_o2"] if show_moms_fit else ["M_n", "M_o"]
+            layers = ['M_n', 'M_t']
+        else:
+            total_layer = 'total'
+            title_ = ["new", "old", "n2", "o2"] if show_moms_fit else ["new", "old"]
+            layers = ['new', 'total']
 
         reorder_inds = [0, 2, 1, 3]
         _, X_raw = prepare_data_mix_no_splicing(adata, adata.var.index, T,
@@ -908,11 +930,12 @@ def plot_deg_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
     alpha, beta, gamma = est_params
 
     if has_splicing:
-        title_ = ["ul", "sl"]
-
-        layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
-                'M_ul' in adata.layers.keys() and use_smoothed) \
-            else ['ul', 'sl', 'uu', 'su']
+        if ('M_ul' in adata.layers.keys() and use_smoothed):
+                title_ = ["M_ul", "M_sl"]
+                layers = ['M_ul', 'M_sl', 'M_uu', 'M_su']
+        else:
+            title_ = ["ul", "sl"]
+            layers = ['ul', 'sl', 'uu', 'su']
 
         layer_u = 'M_ul' if ('M_ul' in adata.layers.keys() and use_smoothed) else 'ul'
         layer_s = 'M_sl' if ('M_ul' in adata.layers.keys() and use_smoothed) else 'sl'
@@ -920,11 +943,15 @@ def plot_deg_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
         _, X_raw = prepare_data_has_splicing(adata, genes, T,
                                              layer_u=layer_u, layer_s=layer_s, total_layers=layers)
     else:
-        title_ = ["new"]
+        if ('M_t' in adata.layers.keys() and use_smoothed):
+                title_ = ["M_n"]
+                total_layer = 'M_t'
+                layer = 'M_n'
+        else:
+            title_ = ["new"]
+            total_layer = 'total'
+            layer = 'new'
 
-        total_layer = 'M_t' if ('M_t' in adata.layers.keys() and use_smoothed) else 'total'
-
-        layer = 'M_n' if ('M_n' in adata.layers.keys() and use_smoothed) else 'new'
         _, X_raw = prepare_data_no_splicing(adata, adata.var.index, T, layer=layer,
                                             total_layer=total_layer)
 
@@ -1065,23 +1092,27 @@ def plot_deg_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
     alpha, beta, gamma = est_params
 
     if has_splicing:
-        title_ = ["ul", "sl", "ul2", "sl2", "ul_sl"] if show_moms_fit else ["ul", "sl"]
-
-        layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
-                'M_ul' in adata.layers.keys() and use_smoothed) \
-            else ['ul', 'sl', 'uu', 'su']
-
-        layer_u = 'M_ul' if ('M_ul' in adata.layers.keys() and use_smoothed) else 'ul'
-        layer_s = 'M_sl' if ('M_ul' in adata.layers.keys() and use_smoothed) else 'sl'
+        if ('M_ul' in adata.layers.keys() and use_smoothed):
+                title_ = ["M_ul", "M_sl", "M_ul2", "M_sl2", "M_ul_sl"] if show_moms_fit else ["M_ul", "M_sl"]
+                layers = ['M_ul', 'M_sl', 'M_uu', 'M_su']
+                layer_u, layer_s = 'M_ul', 'M_sl'
+        else:
+            title_ = ["ul", "sl", "ul2", "sl2", "ul_sl"] if show_moms_fit else ["ul", "sl"]
+            layers = ['ul', 'sl', 'uu', 'su']
+            layer_u, layer_s = 'ul', 'sl'
 
         _, X_raw = prepare_data_has_splicing(adata, genes, T,
                                              layer_u=layer_u, layer_s=layer_s, total_layers=layers)
     else:
-        title_ = ["new", "n2"] if show_moms_fit else ["new"]
+        if ('M_t' in adata.layers.keys() and use_smoothed):
+                title_ = ["M_n", "M_n2"] if show_moms_fit else ["M_n"]
+                total_layer = 'M_t'
+                layer = 'M_n'
+        else:
+            title_ = ["new", "n2"] if show_moms_fit else ["new"]
+            total_layer = 'total'
+            layer = 'new'
 
-        total_layer = 'M_t' if ('M_t' in adata.layers.keys() and use_smoothed) else 'total'
-
-        layer = 'M_n' if ('M_n' in adata.layers.keys() and use_smoothed) else 'new'
         _, X_raw = prepare_data_no_splicing(adata, adata.var.index, T, layer=layer,
                                             total_layer=total_layer)
 
