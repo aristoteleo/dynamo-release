@@ -947,7 +947,7 @@ def plot_deg_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                     gs[fig_mat[col_i, row_i][0]]
                 )
             if j == 0:
-                ax.text(0.75, 0.80, r'$logLL={0:.2f}$'.format(cur_logLL) + ' \n'
+                ax.text(0.65, 0.80, r'$logLL={0:.2f}$'.format(cur_logLL) + ' \n'
                         + r"$t_{1/2} = $" + "{0:.2f}".format(np.log(2) / gamma[i]) + unit[0] \
                         , ha='left', va='top', transform=ax.transAxes)
                 if show_kin_parameters:

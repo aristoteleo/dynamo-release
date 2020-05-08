@@ -658,7 +658,13 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 estm = Est(*param_ranges, x0=x0_) if 'x0' in inspect.getfullargspec(Est) \
                     else Est(*param_ranges)
                 _, cost[i_gene] = estm.fit_lsq(np.unique(time), cur_X_data, **est_kwargs)
-                Estm[i_gene] = estm.export_parameters()
+                if model == 'deterministic':
+                    Estm[i_gene] = estm.export_parameters()
+                else:
+                    tmp = np.ma.array(estm.export_parameters(), mask=False)
+                    tmp.mask[3] = True
+                    Estm[i_gene] = tmp.compressed()
+
             elif experiment_type.lower() == 'deg':
                 estm = Est()
                 cur_X_data, cur_X_raw = X[i_gene], X_raw[i_gene]
