@@ -664,10 +664,14 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 cur_X_data, cur_X_raw = X[i_gene], X_raw[i_gene]
                 
                 _, cost[i_gene] = estm.auto_fit(np.unique(time), cur_X_data)
-                Estm[i_gene] = estm.export_parameters()
+                Estm[i_gene] = estm.export_parameters()[1:]
 
             if issparse(cur_X_raw[0, 0]):
                 cur_X_raw = np.hstack((cur_X_raw[0, 0].A, cur_X_raw[1, 0].A))
+            # model_1, kinetic_parameters, mix_x0 = estm.export_dictionary().values()
+            # tmp = list(kinetic_parameters.values())
+            # tmp.extend(mix_x0)
+            # Estm[i_gene] = tmp
 
         X_data[i_gene] = cur_X_data
         if model.startswith('mixture'):

@@ -954,7 +954,7 @@ def plot_deg_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                     if true_param_prefix is not None:
                         if has_splicing:
                             ax.text(
-                                0.75,
+                                0.65,
                                 0.99,
                                 # r"$\alpha$"
                                 # + ": {0:.2f}; ".format(true_alpha[i])
@@ -974,7 +974,7 @@ def plot_deg_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                             )
                         else:
                             ax.text(
-                                0.75,
+                                0.65,
                                 0.99,
                                 # r"$\alpha$"
                                 # + ": {0:.2f}; ".format(true_alpha[i])
@@ -991,7 +991,7 @@ def plot_deg_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                     else:
                         if has_splicing:
                             ax.text(
-                                0.75,
+                                0.65,
                                 0.99,
                                 # r"$\hat \alpha$"
                                 # + ": {0:.2f} \n".format(alpha[i])
@@ -1005,7 +1005,7 @@ def plot_deg_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                             )
                         else:
                             ax.text(
-                                0.75,
+                                0.65,
                                 0.99,
                                 # r"$\hat \alpha$"
                                 # + ": {0:.2f} \n".format(alpha[i])
@@ -1103,7 +1103,7 @@ def plot_deg_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                     gs[fig_mat[col_i, row_i][0]]
                 )
             if j == 0:
-                ax.text(0.75, 0.80,  r'$logLL={0:.2f}$'.format(cur_logLL) + ' \n'
+                ax.text(0.65, 0.80,  r'$logLL={0:.2f}$'.format(cur_logLL) + ' \n'
                         + r"$t_{1/2} = $" + "{0:.2f}".format(np.log(2) / gamma[i]) + unit[0] \
                         , ha='left', va='top', transform=ax.transAxes)
 
@@ -1111,7 +1111,7 @@ def plot_deg_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                     if true_param_prefix is not None:
                         if has_splicing:
                             ax.text(
-                                0.75,
+                                0.65,
                                 0.99,
                                 # r"$\alpha$"
                                 # + ": {0:.2f}; ".format(true_alpha[i])
@@ -1131,7 +1131,7 @@ def plot_deg_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                             )
                         else:
                             ax.text(
-                                0.75,
+                                0.65,
                                 0.99,
                                 # r"$\alpha$"
                                 # + ": {0:.2f}; ".format(true_alpha[i])
@@ -1148,7 +1148,7 @@ def plot_deg_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                     else:
                         if has_splicing:
                             ax.text(
-                                0.75,
+                                0.65,
                                 0.99,
                                 # r"$\hat \alpha$"
                                 # + ": {0:.2f} \n".format(alpha[i])
@@ -1162,7 +1162,7 @@ def plot_deg_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                             )
                         else:
                             ax.text(
-                                0.75,
+                                0.65,
                                 0.99,
                                 # r"$\hat \alpha$"
                                 # + ": {0:.2f} \n".format(alpha[i])
