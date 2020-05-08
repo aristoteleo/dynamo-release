@@ -20,7 +20,7 @@ def plot_kin_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
         if ('M_ul' in adata.layers.keys() and use_smoothed):
                 title_ = ["M_ul", "M_sl"]
                 layers = ['M_ul', 'M_sl', 'M_uu', 'M_su']
-                layer_u, layer_s = 'ul', 'sl'
+                layer_u, layer_s = 'M_ul', 'M_sl'
         else:
             title_ = ["ul", "sl"]
             layers = ['ul', 'sl', 'uu', 'su']
@@ -364,24 +364,24 @@ def plot_kin_mix(adata, genes, has_splicing, use_smoothed, log_unnormalized,
 
     if has_splicing:
         if ('M_ul' in adata.layers.keys() and use_smoothed):
-                layers = ['M_ul', 'M_sl', 'M_uu', 'M_su']
                 title_ = ["M_ul", "M_sl", "M_uu", "M_su"]
+                layers = ['M_ul', 'M_sl', 'M_uu', 'M_su']
                 layer_u, layer_s = 'M_ul', 'M_sl'
         else:
-            layers = ['ul', 'sl', 'uu', 'su']
             title_ = ["ul", "sl", "uu", "su"]
+            layers = ['ul', 'sl', 'uu', 'su']
             layer_u, layer_s = 'ul', 'sl'
 
         _, X_raw = prepare_data_has_splicing(adata, genes, T,
                                              layer_u=layer_u, layer_s=layer_s, total_layers=layers)
     else:
         if ('M_t' in adata.layers.keys() and use_smoothed):
-            total_layer = 'M_t'
             title_ = ["M_n", "M_o"]
+            total_layer = 'M_t'
             layer = 'M_n'
         else:
-            total_layer = 'total'
             title_ = ["new", "old"]
+            total_layer = 'total'
             layer = 'new'
 
         _, X_raw = prepare_data_no_splicing(adata, adata.var.index, T, layer=layer,
@@ -550,12 +550,13 @@ def plot_kin_mix_det_sto(adata, genes, has_splicing, use_smoothed, log_unnormali
 
     if has_splicing:
         if ('M_ul' in adata.layers.keys() and use_smoothed):
-                layers = ['M_ul', 'M_sl', 'M_uu', 'M_su']
                 title_ = ["M_ul", "M_sl", "M_uu", "M_su", "M_uu2", "M_su2", "M_uu_su"] \
                     if show_moms_fit else ["M_ul", "M_sl", "M_uu", "M_su"]
+                layers = ['M_ul', 'M_sl', 'M_uu', 'M_su']
         else:
+            title_ = ["ul", "sl", "uu", "su", "uu2", "su2", "uu_su"] \
+                if show_moms_fit else ["ul", "sl", "uu", "su"]
             layers = ['ul', 'sl', 'uu', 'su']
-            title_ = ["ul", "sl", "uu", "su", "uu2", "su2", "uu_su"] if show_moms_fit else ["ul", "sl", "uu", "su"]
 
         _, X_raw = prepare_data_mix_has_splicing(adata, adata.var.index, T, layer_u=layers[2],
                                                  layer_s=layers[3], layer_ul=layers[0], layer_sl=layers[1],
@@ -738,13 +739,13 @@ def plot_kin_mix_sto_sto(adata, genes, has_splicing, use_smoothed, log_unnormali
 
     if has_splicing:
         if ('M_ul' in adata.layers.keys() and use_smoothed):
-                layers = ['M_ul', 'M_sl', 'M_uu', 'M_su']
                 title_ = ["M_ul", "M_sl", "M_uu", "M_su", "M_ul2", "M_sl2", "M_ul_sl", "M_uu2", "M_su2", "M_uu_su"] \
                     if show_moms_fit else ["M_ul", "M_sl", "M_uu", "M_su"]
+                layers = ['M_ul', 'M_sl', 'M_uu', 'M_su']
         else:
-            layers = ['ul', 'sl', 'uu', 'su']
             title_ = ["ul", "sl", "uu", "su", "ul2", "sl2", "ul_sl", "uu2", "su2", "uu_su"] \
                 if show_moms_fit else ["ul", "sl", "uu", "su"]
+            layers = ['ul', 'sl', 'uu', 'su']
 
         reorder_inds = [0, 1, 5, 6, 2, 3, 4, 7, 8, 9]
         _, X_raw = prepare_data_mix_has_splicing(adata, adata.var.index, T, layer_u=layers[2],
@@ -752,12 +753,12 @@ def plot_kin_mix_sto_sto(adata, genes, has_splicing, use_smoothed, log_unnormali
                                                  total_layers=layers, mix_model_indices=reorder_inds)
     else:
         if ('M_t' in adata.layers.keys() and use_smoothed):
-            total_layer = 'M_t'
             title_ = ["M_n", "M_o", "M_n2", "M_o2"] if show_moms_fit else ["M_n", "M_o"]
+            total_layer = 'M_t'
             layers = ['M_n', 'M_t']
         else:
-            total_layer = 'total'
             title_ = ["new", "old", "n2", "o2"] if show_moms_fit else ["new", "old"]
+            total_layer = 'total'
             layers = ['new', 'total']
 
         reorder_inds = [0, 2, 1, 3]
