@@ -190,7 +190,7 @@ def plot_kin_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
         _, X_raw = prepare_data_has_splicing(adata, genes, T,
                                              layer_u=layer_u, layer_s=layer_s, total_layers=layers)
     else:
-        title_ = ["new", "M_nn"] if show_moms_fit else ["new"]
+        title_ = ["new", "n2"] if show_moms_fit else ["new"]
 
         total_layer = 'M_t' if ('M_t' in adata.layers.keys() and use_smoothed) else 'total'
 
@@ -1077,7 +1077,7 @@ def plot_deg_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
         _, X_raw = prepare_data_has_splicing(adata, genes, T,
                                              layer_u=layer_u, layer_s=layer_s, total_layers=layers)
     else:
-        title_ = ["new", "M_nn"] if show_moms_fit else ["new"]
+        title_ = ["new", "n2"] if show_moms_fit else ["new"]
 
         total_layer = 'M_t' if ('M_t' in adata.layers.keys() and use_smoothed) else 'total'
 
