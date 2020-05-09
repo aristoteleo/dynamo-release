@@ -74,7 +74,7 @@ def moments(adata,
 
                 adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
-            X = adata.obsm["X"]
+        X = adata.obsm["X"]
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
