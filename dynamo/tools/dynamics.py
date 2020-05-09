@@ -44,6 +44,7 @@ def dynamics(
     concat_data=False,
     log_unnormalized=True,
     one_shot_method="combined",
+    re_smooth = False,
     **est_kwargs
 ):
     """Inclusive model of expression dynamics considers splicing, metabolic labeling and protein translation. It supports
@@ -56,7 +57,7 @@ def dynamics(
             AnnData object.
         tkey: `str` or None (default: None)
             The column key for the time label of cells in .obs. Used for either "ss" or "kinetic" model.
-            mode  with labeled data.
+            mode  with labeled data. When `group` is None, `tkey` will also be used for calculating  1st/2st moment or covariance.
         t_label_keys: `str`, `list` or None (default: None)
             The column key(s) for the labeling time label of cells in .obs. Used for either "ss" or "kinetic" model.
             Not used for now and `tkey` is implicitly assumed as `t_label_key` (however, `tkey` should just be the time
@@ -124,7 +125,8 @@ def dynamics(
             Whether to use NTR (new/total ratio) velocity for labeling datasets.
         group: `str` or None (default: `None`)
             The column key/name that identifies the grouping information (for example, clusters that correspond to different cell types)
-            of cells. This will be used to estimate group-specific (i.e cell-type specific) kinetic parameters.
+            of cells. This will be used to calculate 1/2 st moments and covariance for each cells in each group. It will also enable
+            estimating group-specific (i.e cell-type specific) kinetic parameters.
         protein_names: `List`
             A list of gene names corresponds to the rows of the measured proteins in the `X_protein` of the `obsm` attribute.
             The names have to be included in the adata.var.index.
@@ -132,6 +134,8 @@ def dynamics(
             Whether to concatenate data before estimation. If your data is a list of matrices for each time point, this need to be set as True.
         log_unnormalized: `bool` (default: `True`)
             Whether to log transform the unnormalized data.
+        re_smooth: `bool` (default: `False`)
+            Whether to re-smooth the adata and also recalculate 1/2 moments or covariance.
         **est_kwargs
             Other arguments passed to the estimation methods. Not used for now.
 
@@ -158,12 +162,21 @@ def dynamics(
     else:
         model_was_auto = False
 
-    if model.lower() == "stochastic" or use_smoothed:
-        if len([i for i in adata.layers.keys() if i.startswith("M_")]) < 2:
+    if model.lower() == "stochastic" or use_smoothed or re_smooth:
+        M_layers = [i for i in adata.layers.keys() if i.startswith("M_")]
+        if re_smooth or len(M_layers) < 2:
+            for i in M_layers:
+                del adata.layers[i]
+
+        if len(M_layers) < 2 or re_smooth:
             if group is not None and group in adata.obs.columns:
                 moments(adata, group=group)
             else:
                 moments(adata, group=tkey)
+        elif tkey is not None:
+            warnings.warn(f"You used tkey {tkey} (or group {group}), but you have calculated local smoothing (1st moment) "
+                          f"for your data before. Please ensure you used the desired tkey or group when the smoothing was "
+                          f"performed. Try setting re_smooth = True if not sure.")
 
     valid_adata = adata[:, valid_ind].copy()
     if group is not None and group in adata.obs.columns:
