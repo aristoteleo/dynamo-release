@@ -64,9 +64,9 @@ def dynamics(
             of the experiment).
         filter_gene_mode: `str` (default: `final`)
             The string for indicating which mode (one of, {'final', 'basic', 'no'}) of gene filter will be used.
-        use_smoothed: `bool` (default: `True`)
-            Whether to use the smoothed data when calculating velocity for each gene. `use_smoothed` is only relevant when
-            model is `linear_regression` (and experiment_type/assumption_mRNA correspond to `conventional`/`ss` implicitly).
+        use_smoothed: `bool` (default: 'True')
+            Whether to use the smoothed data when estimate kinetic parameters and calculating velocity for each gene.
+            When you have time-series data (`tkey` is not None), we recommend to smooth data among cells from each time point.
         experiment_type: `str` {`conventional`, `deg`, `kin`, `one-shot`, `auto`}, (default: `auto`)
             single cell RNA-seq experiment type. Available options are:
             (1) 'conventional': conventional single-cell RNA-seq experiment;
