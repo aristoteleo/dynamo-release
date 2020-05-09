@@ -65,7 +65,7 @@ def dynamics(
         filter_gene_mode: `str` (default: `final`)
             The string for indicating which mode (one of, {'final', 'basic', 'no'}) of gene filter will be used.
         use_smoothed: `bool` (default: 'True')
-            Whether to use the smoothed data when estimate kinetic parameters and calculating velocity for each gene.
+            Whether to use the smoothed data when estimating kinetic parameters and calculating velocity for each gene.
             When you have time-series data (`tkey` is not None), we recommend to smooth data among cells from each time point.
         experiment_type: `str` {`conventional`, `deg`, `kin`, `one-shot`, `auto`}, (default: `auto`)
             single cell RNA-seq experiment type. Available options are:
@@ -169,10 +169,13 @@ def dynamics(
                 del adata.layers[i]
 
         if len(M_layers) < 2 or re_smooth:
+            if filter_gene_mode == 'final' and 'X_pca' in adata.obsm.keys():
+                adata.obsm['X'] = adata.obsm['X_pca']
+
             if group is not None and group in adata.obs.columns:
-                moments(adata, group=group)
+                moments(adata, genes=valid_ind, group=group)
             else:
-                moments(adata, group=tkey)
+                moments(adata, genes=valid_ind, group=tkey)
         elif tkey is not None:
             warnings.warn(f"You used tkey {tkey} (or group {group}), but you have calculated local smoothing (1st moment) "
                           f"for your data before. Please ensure you used the desired tkey or group when the smoothing was "

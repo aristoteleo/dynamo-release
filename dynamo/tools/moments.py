@@ -12,6 +12,7 @@ from ..preprocessing.utils import get_layer_keys, allowed_X_layer_names, pca
 # ---------------------------------------------------------------------------------------------------
 # use for calculating moments for stochastic model:
 def moments(adata,
+            genes=None,
             group=None,
             use_gaussian_kernel=True,
             use_mnn=False,
@@ -54,11 +55,17 @@ def moments(adata,
             )
         conn = adata.uns["mnn"]
     else:
-        if 'X_pca' not in adata.obsm.keys():
-            from ..preprocessing.preprocess import recipe_monocle
-            adata = recipe_monocle(adata)
+        if 'X' not in adata.obsm.keys():
+            CM = adata.X if genes is None else adata[:, genes].X
+            cm_genesums = CM.sum(axis=0)
+            valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
+            valid_ind = np.array(valid_ind).flatten()
+            CM = CM[:, valid_ind]
+            adata, fit, _ = pca(adata, CM)
 
-        X = adata.obsm["X_pca"]
+            adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
+        X = adata.obsm["X"]
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             if group is None:
