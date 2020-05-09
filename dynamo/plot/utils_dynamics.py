@@ -152,8 +152,8 @@ def plot_kin_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                 ax.set_title(gene_name + " (" + title_[j] + ")")
             else:
                 ax.plot(T_uniq, cur_X_fit_data.T)
-                ax.plot(T_uniq, cur_X_data.T, "k--")
                 ax.legend(title_)
+                ax.plot(T_uniq, cur_X_data.T, "k--")
                 ax.set_title(gene_name)
 
             if true_param_prefix is not None:
@@ -317,12 +317,12 @@ def plot_kin_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                 if j == 0:
                     if has_splicing:
                         ax.plot(T_uniq, cur_X_fit_data[[0, 1]].T)
-                        ax.plot(T_uniq, cur_X_data[[0, 1]].T, "k--")
                         ax.legend(title_[:2])
+                        ax.plot(T_uniq, cur_X_data[[0, 1]].T, "k--")
                     else:
                         ax.plot(T_uniq, cur_X_fit_data[j].T)
+                        ax.legend([title_[0]])
                         ax.plot(T_uniq, cur_X_data[j].T, "k--")
-                        ax.legend(title_[0])
                     ax.set_title(gene_name)
 
             # other subplots
@@ -934,12 +934,11 @@ def plot_deg_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
         if ('M_ul' in adata.layers.keys() and use_smoothed):
                 title_ = ["M_ul", "M_sl"]
                 layers = ['M_ul', 'M_sl', 'M_uu', 'M_su']
+                layer_u, layer_s = 'M_ul', 'M_sl'
         else:
             title_ = ["ul", "sl"]
             layers = ['ul', 'sl', 'uu', 'su']
-
-        layer_u = 'M_ul' if ('M_ul' in adata.layers.keys() and use_smoothed) else 'ul'
-        layer_s = 'M_sl' if ('M_ul' in adata.layers.keys() and use_smoothed) else 'sl'
+            layer_u, layer_s = 'ul', 'sl'
 
         _, X_raw = prepare_data_has_splicing(adata, genes, T,
                                              layer_u=layer_u, layer_s=layer_s, total_layers=layers)
@@ -1065,8 +1064,8 @@ def plot_deg_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                 ax.set_title(gene_name + " (" + title_[j] + ")")
             else:
                 ax.plot(T_uniq, cur_X_fit_data.T)
-                ax.plot(T_uniq, cur_X_data.T, "k--")
                 ax.legend(title_)
+                ax.plot(T_uniq, cur_X_data.T, "k--")
                 ax.set_title(gene_name)
 
             if true_param_prefix is not None:
@@ -1228,12 +1227,12 @@ def plot_deg_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                 if j == 0:
                     if has_splicing:
                         ax.plot(T_uniq, cur_X_fit_data[[0, 1]].T)
-                        ax.plot(T_uniq, cur_X_data[[0, 1]].T, "k--")
                         ax.legend(title_[:2])
+                        ax.plot(T_uniq, cur_X_data[[0, 1]].T, "k--")
                     else:
                         ax.plot(T_uniq, cur_X_fit_data[j].T)
+                        ax.legend(labels=[title_[j]])
                         ax.plot(T_uniq, cur_X_data[j].T, "k--")
-                        ax.legend(title_[0])
                     ax.set_title(gene_name)
             # other subplots
             if not ((show_variance and j < max_box_plots) or

@@ -708,11 +708,13 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
         half_life[i_gene] = np.log(2)/Estm[i_gene][-1] if experiment_type.lower() == 'kin' else estm.calc_half_life('gamma')
 
         if model.startswith('mixture'):
+            species = [0, 1, 2, 3] if has_splicing else [0, 1]
             gof = GoodnessOfFit(estm.export_model(), params=estm.export_parameters())
+            gof.prepare_data(time, cur_X_raw.T, species=species, normalize=True)
         else:
             gof = GoodnessOfFit(estm.export_model(), params=estm.export_parameters(), x0=estm.simulator.x0)
+            gof.prepare_data(time, cur_X_raw.T, normalize=True)
 
-        gof.prepare_data(time, cur_X_raw.T, normalize=True)
         logLL[i_gene] = gof.calc_gaussian_loglikelihood()
 
     Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[:len(Estm[0])]])

@@ -24,8 +24,8 @@ def moments(adata,
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object.
-        genes: `list` (default: `None`)
-            The gene list that you want to perform pca analysis (if adata.obsm['X'] is not available). `X` keyname
+        genes: `np.array` (default: `None`)
+            The one-dimensional numpy array of the genes that you want to perform pca analysis (if adata.obsm['X'] is not available). `X` keyname
              was used to enable you use a different set of genes for flexible connectivity graph construction.
         group: `str` or None (default: `None`)
             The column key/name that identifies the grouping information (for example, clusters that correspond to
@@ -59,15 +59,22 @@ def moments(adata,
         conn = adata.uns["mnn"]
     else:
         if 'X' not in adata.obsm.keys():
-            CM = adata.X if genes is None else adata[:, genes].X
-            cm_genesums = CM.sum(axis=0)
-            valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
-            valid_ind = np.array(valid_ind).flatten()
-            CM = CM[:, valid_ind]
-            adata, fit, _ = pca(adata, CM)
+            if not any([i.startswith('X_') for i in adata.layers.keys()]):
+                from ..preprocessing.preprocess import recipe_monocle
+                genes_to_use = adata.var_names[genes] if genes.dtype == 'bool' else genes
+                adata = recipe_monocle(adata, genes_to_use=genes_to_use)
+                adata.obsm["X"] = adata.obsm["X_pca"]
+            else:
+                CM = adata.X if genes is None else adata[:, genes].X
+                cm_genesums = CM.sum(axis=0)
+                valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
+                valid_ind = np.array(valid_ind).flatten()
+                CM = CM[:, valid_ind]
+                adata, fit, _ = pca(adata, CM)
 
-            adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
-        X = adata.obsm["X"]
+                adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
+
+            X = adata.obsm["X"]
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
