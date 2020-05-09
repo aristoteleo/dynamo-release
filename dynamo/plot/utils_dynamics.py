@@ -153,7 +153,7 @@ def plot_kin_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
             else:
                 ax.plot(T_uniq, cur_X_fit_data.T)
                 ax.plot(T_uniq, cur_X_data.T, "k--")
-                ax.legend(['ul', 'sl'])
+                ax.legend(title_)
                 ax.set_title(gene_name)
 
             if true_param_prefix is not None:
@@ -318,11 +318,11 @@ def plot_kin_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                     if has_splicing:
                         ax.plot(T_uniq, cur_X_fit_data[[0, 1]].T)
                         ax.plot(T_uniq, cur_X_data[[0, 1]].T, "k--")
-                        ax.legend(['ul', 'sl'])
+                        ax.legend(title_[:2])
                     else:
                         ax.plot(T_uniq, cur_X_fit_data[j].T)
                         ax.plot(T_uniq, cur_X_data[j].T, "k--")
-                        ax.legend(['new'])
+                        ax.legend(title_[0])
                     ax.set_title(gene_name)
 
             # other subplots
@@ -500,17 +500,17 @@ def plot_kin_mix(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                     if j == 0:
                         ax.plot(T_uniq, cur_X_fit_data[[0, 1]].T)
                         ax.plot(T_uniq, cur_X_data[[0, 1]].T, "k--")
-                        ax.legend(['ul', 'sl'])
+                        ax.legend(title_[:2])
                     elif j == 1:
                         ax.plot(T_uniq, cur_X_fit_data[[2, 3]].T)
                         ax.plot(T_uniq, cur_X_data[[2, 3]].T, "k--")
-                        ax.legend(['uu', 'su'])
+                        ax.legend(title_[2:4])
                     ax.set_title(gene_name)
                 else:
                     if j == 0:
                         ax.plot(T_uniq, cur_X_fit_data[[0, 1]].T)
                         ax.plot(T_uniq, cur_X_data[[0, 1]].T, "k--")
-                        ax.legend(['new', "old"])
+                        ax.legend(title_[:2])
                     ax.set_title(gene_name)
             # other subplots
             if not ((show_variance and j < max_box_plots) or
@@ -689,17 +689,17 @@ def plot_kin_mix_det_sto(adata, genes, has_splicing, use_smoothed, log_unnormali
                     if j == 0:
                         ax.plot(T_uniq, cur_X_fit_data[[0, 1]].T)
                         ax.plot(T_uniq, cur_X_data[[0, 1]].T, "k--")
-                        ax.legend(['ul', 'sl'])
+                        ax.legend(title_[:2])
                     elif j == 1:
                         ax.plot(T_uniq, cur_X_fit_data[[2, 3]].T)
                         ax.plot(T_uniq, cur_X_data[[2, 3]].T, "k--")
-                        ax.legend(['uu', 'su'])
+                        ax.legend(title_[2:4])
                     ax.set_title(gene_name)
                 else:
                     if j == 0:
                         ax.plot(T_uniq, cur_X_fit_data[[0, 1]].T)
                         ax.plot(T_uniq, cur_X_data[[0, 1]].T, "k--")
-                        ax.legend(['new', "old"])
+                        ax.legend(title_[:2])
                     ax.set_title(gene_name)
             # other subplots
             if not ((show_variance and j < max_box_plots) or
@@ -882,17 +882,17 @@ def plot_kin_mix_sto_sto(adata, genes, has_splicing, use_smoothed, log_unnormali
                     if j == 0:
                         ax.plot(T_uniq, cur_X_fit_data[[0, 1]].T)
                         ax.plot(T_uniq, cur_X_data[[0, 1]].T, "k--")
-                        ax.legend(['ul', 'sl'])
+                        ax.legend(title_[:2])
                     elif j == 1:
                         ax.plot(T_uniq, cur_X_fit_data[[2, 3]].T)
                         ax.plot(T_uniq, cur_X_data[[2, 3]].T, "k--")
-                        ax.legend(['uu', 'su'])
+                        ax.legend(title_[2:4])
                     ax.set_title(gene_name)
                 else:
                     if j == 0:
                         ax.plot(T_uniq, cur_X_fit_data[[0, 1]].T)
                         ax.plot(T_uniq, cur_X_data[[0, 1]].T, "k--")
-                        ax.legend(['new', "old"])
+                        ax.legend(title_[:2])
                     ax.set_title(gene_name)
             # other subplots
             if not ((show_variance and j < max_box_plots) or
@@ -1066,7 +1066,7 @@ def plot_deg_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
             else:
                 ax.plot(T_uniq, cur_X_fit_data.T)
                 ax.plot(T_uniq, cur_X_data.T, "k--")
-                ax.legend(['ul', 'sl'])
+                ax.legend(title_)
                 ax.set_title(gene_name)
 
             if true_param_prefix is not None:
@@ -1229,11 +1229,11 @@ def plot_deg_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                     if has_splicing:
                         ax.plot(T_uniq, cur_X_fit_data[[0, 1]].T)
                         ax.plot(T_uniq, cur_X_data[[0, 1]].T, "k--")
-                        ax.legend(['ul', 'sl'])
+                        ax.legend(title_[:2])
                     else:
                         ax.plot(T_uniq, cur_X_fit_data[j].T)
                         ax.plot(T_uniq, cur_X_data[j].T, "k--")
-                        ax.legend(['new'])
+                        ax.legend(title_[0])
                     ax.set_title(gene_name)
             # other subplots
             if not ((show_variance and j < max_box_plots) or

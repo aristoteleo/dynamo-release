@@ -24,6 +24,9 @@ def moments(adata,
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object.
+        genes: `list` (default: `None`)
+            The gene list that you want to perform pca analysis (if adata.obsm['X'] is not available). `X` keyname
+             was used to enable you use a different set of genes for flexible connectivity graph construction.
         group: `str` or None (default: `None`)
             The column key/name that identifies the grouping information (for example, clusters that correspond to
             different cell types or different time points) of cells. This will be used to compute kNN graph for each
