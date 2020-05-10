@@ -1036,6 +1036,20 @@ def dynamics(
     """
 
     import matplotlib.pyplot as plt
+    import matplotlib
+    params = {'font.size': 4,
+              'legend.fontsize': 4,
+              'legend.handlelength': 0.5,
+              'axes.labelsize': 6,
+              'axes.titlesize': 6,
+              'xtick.labelsize': 6,
+              'ytick.labelsize': 6,
+              'axes.titlepad': 1,
+              'axes.labelpad': 1,
+              'axes.spines.right': False,
+              'axes.spines.top': False
+              }
+    matplotlib.rcParams.update(params)
 
     show_kin_parameters = True if true_param_prefix else show_kin_parameters
 
@@ -2322,11 +2336,12 @@ def dynamics(
                     pass  # group by different groups
                 elif experiment_type is "coassay":
                     pass  # show protein velocity (steady state and the Gamma distribution model)
-
+    g.autofmt_xdate(rotation=-30, ha='right')
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'dynamics', "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
+        plt.tight_layout()
 
         save_fig(**s_kwargs)
     elif save_show_or_return == "show":

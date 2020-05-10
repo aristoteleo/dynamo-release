@@ -283,11 +283,11 @@ def config_dynamo_rcParams(
 
     # font
     rcParams["font.sans-serif"] = [
-        "Helvetica",
         "Arial",
+        "sans-serif",
+        "Helvetica",
         "DejaVu Sans",
         "Bitstream Vera Sans",
-        "sans-serif",
     ]
     fontsize = fontsize
     labelsize = 0.90 * fontsize

@@ -155,6 +155,8 @@ def dynamics(
     filter_gene_mode = filter_gene_mode_list[which_filter]
 
     valid_ind = get_valid_inds(adata, filter_gene_mode)
+    if sum(valid_ind) == 0:
+        raise Exception(f"no genes pass filter. Try resetting `filter_gene_mode = 'no'` to use all genes.")
 
     if model.lower() == "auto":
         model = "stochastic"
