@@ -1,5 +1,5 @@
 """Mapping Vector Field of Single Cells
 """
 
-from .scifate import *
+from .scifate import scifate_glmnet
 from .scribe import *

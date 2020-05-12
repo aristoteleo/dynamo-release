@@ -1,5 +1,6 @@
-# integrate with Scribe next
-# the following code is based on Cao, et. al, Nature Biotechnology, 2020
+# integrate with Scribe (Qiu, et. al, Cell Systems, 2020) next
+# the following code is based on Cao, et. al, Nature Biotechnology, 2020 and
+# https://github.com/JunyueC/sci-fate_analysis
 
 import pandas as pd
 import numpy as np
@@ -10,37 +11,74 @@ from glmnet_python import cvglmnet, cvglmnetCoef
 from ..tools.utils import einsum_correlation
 
 
-def scifate_glmnet(adata, TF_list, gene_filter_rate, cell_filter_UMI, output_folder,
-                   core_n_lasso, core_n_filtering, motif_ref, df_gene_TF_link_ENCODE):
-    """
-    ln /usr/local/opt/gcc/lib/gcc/5/libgfortran.3.dylib /Library/Frameworks/R.framework/Versions/3.6/Resources/lib/libgfortran.3.dylib
+def scifate_glmnet(adata,
+                   gene_filter_rate=0.1,
+                   cell_filter_UMI=10000,
+                   core_n_lasso=1,
+                   core_n_filtering=1,
+                   TF_link_ENCODE_ref='https://www.dropbox.com/s/s8em539ojl55kgf/motifAnnotations_hgnc.csv?dl=1',
+                   motif_ref='https://www.dropbox.com/s/bjuope41pte7mf4/df_gene_TF_link_ENCODE.csv?dl=1', df_gene_TF_link_ENCODE=None,
+                   nt_layers=['new', 'total']):
+    """Reconstruction of regulatory network (Cao, et. al, Nature Biotechnology, 2020) from TFs to other target
+     genes via LASSO regression between the total expression of known transcription factors and the newly synthesized
+     RNA of potential targets. The inferred regulatory relationships between TF and targets are further filtered based
+     on evidence of promoter motif (not implemented currently) and the ENCODE chip-seq peaks. The python wrapper for the
+     glm FORTRON code, glm-python (https://github.com/bbalasub1/glmnet_python) was used. More details on lasso regression
+     with glm-python can be found here (https://github.com/bbalasub1/glmnet_python/blob/master/test/glmnet_examples.ipynb).
+     Note that this function can be applied to both of the metabolic labeling single-cell assays with newly synthesized
+     and total RNA as well as the regular single cell assays with both the unspliced and spliced transcripts. Furthermore,
+     you can also replace the either the new or unspliced RNA with dynamo estimated cell-wise velocity, transcription,
+     splicing and degradation rates for each gene (similarly the expression values of transcription factors with RNA binding,
+     ribosome, epigenetics or epitranscriptomic factors, etc.) to infer the tottal regulatory effects, transcription, splicing
+     and post-transcriptional regulation of different factors. In addition, this approach will be fully integrated with
+     Scribe (Qiu, et. al, 2020) which employs restricted directed information to determine causality by estimating the
+     strength of information transferred from a potential regulator to its downstream target. In contrast of lasso regression,
+     Scribe can learn both linear and non-linear causality in deterministic and stochastic systems. It also incorporates
+     rigorous procedures to alleviate sampling bias and builds upon novel estimators and regularization techniques to
+     facilitate inference of large-scale causal networks.
+
     Parameters
     ----------
-    cds_new:
-        monocle2 cds object for newly synthesized gene expression of cells
-    TF_list:
-        gene names of TFs for linkage analysis
-    output_links_new_RNA:
-        output folder
-    gene_filter_rate:
-        minimum percentage of expressed cells for gene filtering
-    cell_filter_UMI:
-        minimum number of UMIs for cell filtering
-    core_n_lasso:
-        number of cores for lasso regression in linkage analysis
-    core_n_filtering:
-        number of cores for filtering TF-gene links
-    motif_ref:
-        TF binding motif data as described above
-    df_gene_TF_link_ENCODE:
-        TF chip-seq data as described above process the cds files to generate the TF expression and gene expression matrix for linkage analysis
+        adata: :class:`~anndata.AnnData`.
+            adata object that includes both newly synthesized and total gene expression of cells. Alternatively,
+            the object should include both unspliced and spliced gene expression of cells.
+        gene_filter_rate: `float` (default: 0.1)
+            minimum percentage of expressed cells for gene filtering.
+        cell_filter_UMI: `int` (default: 10000)
+            minimum number of UMIs for cell filtering.
+        core_n_lasso: `int` (default: 1)
+            number of cores for lasso regression in linkage analysis. By default, it is 1 and parallel is turned off.
+            Parallel computing can significantly speed up the computation process, especially for large-scale problems.
+            But for smaller problems, it could result in a reduction in speed due to the additional overhead. User
+            discretion is advised.
+        core_n_filtering: `int` (default: 1)
+            number of cores for filtering TF-gene links. Not used currently.
+        motif_ref: `str` (default: 'https://www.dropbox.com/s/bjuope41pte7mf4/df_gene_TF_link_ENCODE.csv?dl=1')
+            The path to the TF binding motif data as described above. Currently not used. By default it is a
+            dropbox link that store the file from us. This file also provides the list of gene names of TFs for
+            glmnet based TF-target synthesis rate linkage analysis. The motif reference can bed downloaded from
+            RcisTarget: https://resources.aertslab.org/cistarget/. For human motif matrix, it can be downloaded
+            from: https://shendure-web.gs.washington.edu/content/members/cao1025/public/nobackup/sci_fate/data/hg19-tss-centered-10kb-7species.mc9nr.feather
+        TF_link_ENCODE_ref: `str` (default: 'https://www.dropbox.com/s/s8em539ojl55kgf/motifAnnotations_hgnc.csv?dl=1')
+            The path to the TF chip-seq data as described above process the cds files to generate the TF expression and
+            gene expression matrix for linkage analysis. By default it is a dropbox link that store the file from us.
+            The data can be downloaded from https://amp.pharm.mssm.edu/Harmonizome/dataset/ENCODE+Transcription+Factor+Targets.
+        nt_layers: `list` (default: `['new', 'total']`)
+            The layers that will be used for the network inference. Note that the layers can be changed flexibly. See
+            the description of this function above.
 
     Returns
     -------
-
+        An updated adata object with a new key `scifate` in .uns attribute, which stores the raw lasso regression result
+        and the filter results after applying the Fisher exact test of the ChIP-seq peaks.
     """
 
-    input_data = cds_processing_TF_link(adata, TF_list, gene_filter_rate, cell_filter_UMI)
+    df_gene_TF_link_ENCODE = pd.read_csv(TF_link_ENCODE_ref, sep='\t')
+    motifAnnotations_hgnc = pd.read_csv(motif_ref, sep='\t')
+    TF_list = motifAnnotations_hgnc.loc[:, 'TF']
+
+    input_data = adata_processing_TF_link(adata, nt_layers, TF_list, gene_filter_rate, cell_filter_UMI)
+
     # Apply LASSO for TF-gene linkage analysis
     mm_1 = input_data[0]
     mm_2 = input_data[1]
@@ -57,7 +95,7 @@ def scifate_glmnet(adata, TF_list, gene_filter_rate, cell_filter_UMI, output_fol
     labeling_rate = df_cell.loc[:, 'labeling_rate']
     if (np.std(labeling_rate) != 0):
         labeling_ratio = (labeling_rate - np.mean(labeling_rate)) / np.std(labeling_rate)
-        tmp.loc[:, 'labeling_ratio']= labeling_ratio
+        tmp.loc[:, 'labeling_ratio'] = labeling_ratio
 
     tmp = tmp.T
 
@@ -67,26 +105,30 @@ def scifate_glmnet(adata, TF_list, gene_filter_rate, cell_filter_UMI, output_fol
 
     # filtering the links using TF-gene binding data and store the result in the target folder
     # note that currently the motif filtering is not implement
-    df_gene_TF_link_chip = TF_gene_filter_links(link_result, df_gene, output_folder, core_n_filtering, motif_ref, df_gene_TF_link_ENCODE)
+    df_gene_TF_link_chip = TF_gene_filter_links(link_result, df_gene, core_n_filtering, motif_ref, df_gene_TF_link_ENCODE)
 
-    return df_gene_TF_link_chip
+    adata.uns['scifate'] = {'glmnet_res': link_result, "glmnet_chip_filter": df_gene_TF_link_chip}
 
-def cds_processing_TF_link(adata, TF_list, gene_filter_rate=0.1, cell_filter_UMI=10000):
+    return adata
+
+def adata_processing_TF_link(adata, nt_layers, TF_list, gene_filter_rate=0.1, cell_filter_UMI=10000):
+    """preprocess adata and get ready for TF-target gene analysis"""
+
     n_obs, n_var = adata.n_obs, adata.n_vars
-    gene_filter_1 = (adata.layers['total'] > 0).sum(0) > (gene_filter_rate * n_obs)
-    gene_filter_2 = (adata.layers['new'] > 0).sum(0) > (gene_filter_rate * n_obs)
-    if issparse(adata.layers['total']): gene_filter_1 = gene_filter_1.A1
-    if issparse(adata.layers['new']): gene_filter_2 = gene_filter_2.A1
+    gene_filter_1 = (adata.layers[nt_layers[1]] > 0).sum(0) > (gene_filter_rate * n_obs)
+    gene_filter_2 = (adata.layers[nt_layers[0]] > 0).sum(0) > (gene_filter_rate * n_obs)
+    if issparse(adata.layers[nt_layers[1]]): gene_filter_1 = gene_filter_1.A1
+    if issparse(adata.layers[nt_layers[0]]): gene_filter_2 = gene_filter_2.A1
     print(f"Original gene number: {n_var}")
     print(f"Gene number after filtering: {sum(gene_filter_1 * gene_filter_2)}")
 
     print(f"Original cell number: {n_obs}")
     adata = adata[:, gene_filter_2 * gene_filter_1]
-    cell_filter = (adata.layers['total'].sum(1) > cell_filter_UMI)
-    if issparse(adata.layers['total']): cell_filter = cell_filter.A1
+    cell_filter = (adata.layers[nt_layers[1]].sum(1) > cell_filter_UMI)
+    if issparse(adata.layers[nt_layers[1]]): cell_filter = cell_filter.A1
     adata = adata[cell_filter, :]
-    cds_all = adata.layers['total']
-    cds_new = adata.layers['new']
+    cds_all = adata.layers[nt_layers[1]]
+    cds_new = adata.layers[nt_layers[0]]
     print(f"Cell number after filtering: {cds_all.shape[0]}")
 
     # generate the expression matrix for downstream analysis
@@ -118,6 +160,8 @@ def cds_processing_TF_link(adata, TF_list, gene_filter_rate=0.1, cell_filter_UMI
 
 
 def link_TF_gene_analysis(TF_matrix, gene_matrix, df_gene_TF, core_num = 10, cor_thresh = 0.03, seed = 123456):
+    """Perform lasso regression for each gene."""
+
     gene_list = gene_matrix.index
     link_result = [None] * len(gene_list)
 
@@ -134,6 +178,8 @@ def link_TF_gene_analysis(TF_matrix, gene_matrix, df_gene_TF, core_num = 10, cor
 
 
 def TF_gene_link(TF_matrix, linked_gene, gene_expr_vector, cor_thresh = 0.03, seed = 123456):
+    """Estimate the regulatory weight of each TF to its potential targets via lasso regression for each gene."""
+
     TF_MM = TF_matrix
     expr_cor = einsum_correlation(TF_MM.values, gene_expr_vector.values)[0]
     select_sites = abs(expr_cor) > cor_thresh
@@ -156,6 +202,8 @@ def TF_gene_link(TF_matrix, linked_gene, gene_expr_vector, cor_thresh = 0.03, se
 
 
 def lasso_regression_expression(x1, linked_gene, y, seed, parallel=1):
+    """Lasso linear model with iterative fitting along a regularization path. Select best model is by cross-validation."""
+
     # cat("dimension for ml_matrix: ", dim(ml_matrix))
     # there are duplicated points
     x1 = x1.loc[:, ~x1.columns.duplicated(keep='first')]
@@ -177,6 +225,9 @@ def lasso_regression_expression(x1, linked_gene, y, seed, parallel=1):
 
 
 def r2_glmnet(cv_out, y):
+    """calculate r2 using the lambda_1se. This value is for the most regularized model whose mean squared error is
+    within one standard error of the minimal."""
+
     # https://stackoverflow.com/questions/50610895/how-to-calculate-r-squared-value-for-lasso-regression-using-glmnet-in-r
     bestlam = cv_out['lambda_1se']
     i = np.where(cv_out['lambdau'] == bestlam)[0]
@@ -188,9 +239,13 @@ def r2_glmnet(cv_out, y):
     return r2[0]
 
 
-def TF_gene_filter_links(df_link_file, df_gene, output_folder, core_n = 1,
-                                 motif_ref = "~/Projects/processed_data/181103_sciMM/data/Main_A549/Gene_prediction/hg19-tss-centered-10kb-7species.mc9nr.feather",
-                                 df_gene_TF_link_ENCODE = "~/Projects/processed_data/181103_sciMM/data/Main_A549/Gene_prediction/df_TF_gene_ENCODE.RData"):
+def TF_gene_filter_links(df_link_file,
+                         df_gene,
+                         core_n,
+                         motif_ref,
+                         df_gene_TF_link_ENCODE):
+    """prepare data for TF-target gene link filtering"""
+
     cds = df_gene
     # df_gene_TF_link_ENCODE  = pd.read_csv(df_gene_TF_link_ENCODE)
     link_new_2 = df_link_file
@@ -212,23 +267,9 @@ def TF_gene_filter_links(df_link_file, df_gene, output_folder, core_n = 1,
     return df_gene_TF_link_chip
 
 
-def link_TF_gene_summary(link_result):
-    gene_name = link_result[0]
-    tmp_linked = [None] * len(gene_name)
-    for x, cur_gene_name in enumerate(gene_name):
-        print('x, cur_gene_name is ', x, cur_gene_name)
-        if len((link_result[1])[x]) == 1:
-            tmp_linked[x] = None
-        else:
-            df_tmp = (link_result[1])[x][1].copy()
-            df_tmp['r_squre'] = (link_result[1])[x][0]
-            df_tmp['linked_gene'] = gene_name[x]
-            tmp_linked[x] = df_tmp
+def TF_link_gene_chip(df_link, df_gene_TF_link_ENCODE, df_gene, cor_thresh=0.02):
+    """Filter the raw lasso regression links via chip-seq data based on a Fisher exact test"""
 
-    return tmp_linked
-
-
-def TF_link_gene_chip(df_link, df_gene_TF_link_ENCODE, df_gene, cor_thresh = 0.04):
     df_link_new = df_link.query("abs(corcoef) > @cor_thresh")
     print(f"\n Number of possible links: df_link_new.shape[0]")
     # df_gene_TF_link_ENCODE['id_gene'] = df_gene_TF_link_ENCODE[['id', 'linked_gene_name']].agg('_'.join, axis=1)
@@ -255,7 +296,7 @@ def TF_link_gene_chip(df_link, df_gene_TF_link_ENCODE, df_gene, cor_thresh = 0.0
             unique_TF_pvalue[i] = 1
 
     df_unique_TF_new = pd.DataFrame({"id": unique_TF_new, "pvalue": unique_TF_pvalue})
-    df_unique_TF_new['qval'] =  fdr(df_unique_TF_new['pvalue'])
+    df_unique_TF_new['qval'] = fdr(df_unique_TF_new['pvalue'])
     df_unique_TF_new = df_unique_TF_new.query("qval < 0.05")
 
     print(f"Number of positive TFs: {df_unique_TF_new.shape[0]}")
@@ -278,7 +319,7 @@ def TF_link_gene_chip(df_link, df_gene_TF_link_ENCODE, df_gene, cor_thresh = 0.0
 
 
 def fdr(p_vals):
-
+    """calculate FDR"""
     from scipy.stats import rankdata
     ranked_p_values = rankdata(p_vals)
     fdr = p_vals * len(p_vals) / ranked_p_values
@@ -287,6 +328,8 @@ def fdr(p_vals):
     return fdr
 
 def normalize_data(mm, szfactors, pseudo_expr=0.1):
+    """normalize data via size factor and scaling."""
+
     mm = mm / szfactors
     mm = np.log(mm + pseudo_expr)
 
