@@ -68,13 +68,13 @@ def norm_vector(x):
 
 
 def norm_row(X):
-    """calculate euclidean norm for a row vector"""
+    """calculate euclidean norm for each row of a matrix"""
 
     return np.sqrt(X.multiply(X).sum(1).A1 if issparse(X) else np.einsum('ij, ij -> i', X, X) if X.ndim > 1 else np.einsum('i, i -> ', X, X))
 
 
 def einsum_correlation(X, Y_i, type="pearson"):
-    """calculate pearson or cosine correlation between X (genes/pcs/embeddings x cells) and the velocity vectors Y_i for cell i"""
+    """calculate pearson or cosine correlation between X (genes/pcs/embeddings x cells) and the velocity vectors Y_i for gene i"""
 
     if type == "pearson":
         X -= X.mean(axis=1)[:, None]
