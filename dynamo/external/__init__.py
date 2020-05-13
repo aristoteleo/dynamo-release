@@ -2,4 +2,4 @@
 """
 
 from .scifate import scifate_glmnet
-from .scribe import *
+from .scribe import scribe

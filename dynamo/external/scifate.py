@@ -2,15 +2,25 @@
 # the following code is based on Cao, et. al, Nature Biotechnology, 2020 and
 # https://github.com/JunyueC/sci-fate_analysis
 
+try:
+    import glmnet_python
+except ImportError:
+    raise ImportError("You need to install the package `glmnet_python`."
+                      "The original version https://github.com/bbalasub1/glmnet_python is not updated."
+                      "Plelease install johnlees's fork https://github.com/johnlees/glmnet_python."
+                      "Also check this pull request for more details: "
+                      "https://github.com/bbalasub1/glmnet_python/pull/47")
+
+from glmnet_python import cvglmnet, cvglmnetCoef
+
 from tqdm import tqdm
 import pandas as pd
 import numpy as np
 from anndata.utils import make_index_unique
 import scipy.stats as stats
 from scipy.sparse import issparse
-from glmnet_python import cvglmnet, cvglmnetCoef
+from .utils import normalize_data
 from ..tools.utils import einsum_correlation
-
 
 def scifate_glmnet(adata,
                    gene_filter_rate=0.1,
@@ -95,7 +105,7 @@ def scifate_glmnet(adata,
 
     # link TF and genes based on covariance
     link_result = link_TF_gene_analysis(TF_matrix, new_mat, var_TF, core_num=core_n_lasso)
-    link_result = pd.concat(link_result, axis=0)
+    link_result = pd.concat([i if i is not 'unknown' else None for i in link_result], axis=0)
 
     # filtering the links using TF-gene binding data and store the result in the target folder
     # note that currently the motif filtering is not implement
@@ -275,8 +285,13 @@ def TF_link_gene_chip(raw_glmnet_res_var, df_gene_TF_link_ENCODE, var, cor_thres
     df_gene_TF_link_ENCODE['glmnet_chip_links'] = df_gene_TF_link_ENCODE['id_gene'].isin(glmnet_res_var_filtered['id_gene'])
     unique_TFs = glmnet_res_var_filtered.id[glmnet_res_var_filtered.id.isin(df_gene_TF_link_ENCODE['id'])].unique()
 
-    # the glmnet identified source - target gene pairs should have significantly higher number of chip-seq peaks comparing
-    # to those not via Fisher exact test
+    df_tb = pd.crosstab(df_gene_TF_link_ENCODE['glmnet_chip_links'], df_gene_TF_link_ENCODE['peak'])
+    oddsratio, pvalue = stats.fisher_exact(df_tb)
+    print(f'odd ratio and pvalue of Fisher exact test for regression identified regulations were validated by target '
+          f'TF-binding sites near gene promoters from ENCODETFs, among TFs from lasso regression and also characterized '
+          f'in ENCODE are: {oddsratio}, {pvalue}')
+
+    # Only gene sets with significant enrichment of the correct TF ChIP–seq binding sites were retained
     unique_TF_pvalue = [None] * len(unique_TFs)
     for i, tf in enumerate(unique_TFs):
         df_tmp = df_gene_TF_link_ENCODE.query("id == @tf")
@@ -321,13 +336,3 @@ def fdr(p_vals):
 
     return fdr
 
-
-def normalize_data(mm, szfactors, pseudo_expr=0.1):
-    """normalize data via size factor and scaling."""
-
-    mm = mm / szfactors
-    mm = np.log(mm + pseudo_expr)
-
-    mm = (mm - np.mean(mm, 0)) / np.std(mm, 0, ddof=1)
-
-    return mm
