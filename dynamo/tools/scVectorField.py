@@ -3,8 +3,8 @@ import scipy
 import numpy.matlib
 from scipy.sparse import issparse
 
-from .topography import topography
-from .utils import con_K, update_dict
+#from .topography import topography
+#from .utils import update_dict
 
 
 def norm(X, V, T):
@@ -49,26 +49,26 @@ def norm(X, V, T):
     return X, V, T, norm_dict
 
 
-def auto_con_K(self, x, y, beta):
-    """Con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
+def con_K(x, y, beta):
+    """con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
 
     Arguments
     ---------
         x: 'np.ndarray'
             Original training data points.
         y: 'np.ndarray'
-            control points used to build kernel basis functions
-        beta: 'np.ndarray'
-            The function that returns diffusion matrix which can be dependent on the variables (for example, genes)
+            Control points used to build kernel basis functions.
+        beta: 'float' (default: 0.1)
+            Paramerter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2),
 
     Returns
     -------
-        K: 'np.ndarray'
-            the kernel to represent the vector field function.
+    K: 'np.ndarray'
+    the kernel to represent the vector field function.
     """
 
-    n, d = x.shape
-    m, d = y.shape
+    n = x.shape[0]
+    m = y.shape[0]
 
     # https://stackoverflow.com/questions/1721802/what-is-the-equivalent-of-matlabs-repmat-in-numpy
     # https://stackoverflow.com/questions/12787475/matlabs-permute-in-python
@@ -80,6 +80,79 @@ def auto_con_K(self, x, y, beta):
     K = np.exp(K)  #
 
     return K
+
+
+def vector_field_function(x, VecFld, dim=None):
+    """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
+    Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
+    """
+    # x=np.array(x).reshape((1, -1))
+    x = np.array(x)
+    if x.ndim == 1:
+        x = x[None, :]
+    K = con_K(x, VecFld["X"], VecFld["beta"])
+
+    if dim is None:
+        K = K.dot(VecFld["C"])
+    else:
+        K = K.dot(VecFld["C"][:, dim])
+    return K
+
+
+def con_K_div_cur_free(x, y, sigma=0.8, gamma=0.5):
+    """Learn a convex combination of the divergence-free kernel T_df and curl-free kernel T_cf with a bandwidth sigma and a combination coefficient gamma.
+
+    Arguments
+    ---------
+        x: 'np.ndarray'
+            Original training data points.
+        y: 'np.ndarray'
+            Control points used to build kernel basis functions
+        sigma: 'int'
+            Bandwidth parameter.
+        gamma: 'int'
+            Combination coefficient for the divergence-free or the curl-free kernels.
+
+    Returns
+    -------
+        A tuple of G (the combined kernel function), divergence-free kernel and curl-free kernel.
+
+    See also:: :func:`sparseVFC`.
+    """
+    m, d = x.shape
+    n, d = y.shape
+    sigma2 = sigma ** 2
+    G_tmp = np.matlib.tile(x[:, :, None], [1, 1, n]) - np.transpose(
+        np.matlib.tile(y[:, :, None], [1, 1, m]), [2, 1, 0]
+    )
+    G_tmp = np.squeeze(np.sum(K ** 2, 1))
+    G_tmp3 = -G_tmp / sigma2
+    G_tmp = -G_tmp / (2 * sigma2)
+    G_tmp = np.exp(G_tmp) / sigma2
+    G_tmp = np.kron(G_tmp, np.ones(d))
+
+    x_tmp = np.matlib.tile(x, [n, 1])
+    y_tmp = np.matlib.tile(y, [1, m]).T
+    y_tmp = y_tmp.reshape((d, m * n)).T
+    xminusy = x_tmp - y_tmp
+    G_tmp2 = np.zeros(d * m, d * n)
+
+    for i in range(d):
+        for j in range(d):
+            tmp1 = xminusy[:, i].reshape((m, n))
+            tmp2 = xminusy[:, j].reshape((m, n))
+            tmp3 = tmp1 * tmp2
+            tmp4 = np.zeros(d)
+            tmp4[i, j] = 1
+            tmp4[j, i] = 1
+            G_tmp2 = G_tmp2 + np.kron(tmp3, tmp4)
+
+    G_tmp2 = G_tmp2 / sigma2
+    G_tmp3 = np.kron((G_tmp3 + d - 1), np.eye(d))
+    G_tmp4 = np.kron(np.ones(m, n), np.eye(d)) - G_tmp2
+    G = (1 - gamma) * G_tmp * (G_tmp2 + G_tmp3) + gamma * G_tmp * G_tmp4
+
+    return G, (1 - gamma) * G_tmp * (G_tmp2 + G_tmp3), gamma * G_tmp * G_tmp4
 
 
 def SparseVFC(
@@ -168,16 +241,16 @@ def SparseVFC(
     # Initialization
     V = np.zeros((N, D))
     C = np.zeros((M, D))
-    iter, tecr, E = 1, 1, 1
+    i, tecr, E = 1, 1, 1
     sigma2 = sum(sum((Y - V) ** 2)) / (N * D)  ## test this
     # sigma2 = 1e-7 if sigma2 > 1e-8 else sigma2
 
-    while iter < MaxIter and tecr > ecr and sigma2 > 1e-8:
+    while i < MaxIter and tecr > ecr and sigma2 > 1e-8:
         # E_step
         E_old = E
         P, E = get_P(Y, V, sigma2, gamma, a)
 
-        E = E + lambda_ / 2 * scipy.trace(C.T.dot(K).dot(C))
+        E = E + lambda_ / 2 * np.trace(C.T.dot(K).dot(C))
         tecr = abs((E - E_old) / E)
 
         # print('iterate: {}, gamma: {}, the energy change rate: {}, sigma2={}\n'.format(*[iter, gamma, tecr, sigma2]))
@@ -203,7 +276,7 @@ def SparseVFC(
         elif gamma < 0.05:
             gamma = 0.05
 
-        iter += 1
+        i += 1
 
     grid_V = None
     if Grid is not None:
@@ -260,145 +333,6 @@ def get_P(Y, V, sigma2, gamma, a):
     )
 
     return P, E
-
-
-def VectorField(
-    adata,
-    basis=None,
-    layer="X",
-    dims=None,
-    genes=None,
-    grid_velocity=False,
-    grid_num=50,
-    velocity_key="velocity_S",
-    method="SparseVFC",
-    **kwargs,
-):
-    """Learn a function of high dimensional vector field from sparse single cell samples in the entire space robustly.
-
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that contains embedding and velocity data
-        basis: `str` or None (default: `None`)
-            The embedding data to use. The vector field function will be learned on the low dimensional embedding and can be then
-            projected back to the high dimensional space.
-        layer: `str` or None (default: `X`)
-            Which layer of the data will be used for vector field function reconstruction. The layer once provided, will override
-            the `basis` argument and then learn the vector field function in high dimensional space.
-        dims: `list` or None (default: None)
-            The dimensions that will be used for reconstructing vector field functions.
-        genes: `list` or None (default: None)
-            The gene names whose gene expression will be used for vector field reconstruction. By default (when genes is
-            set to None), the genes used for velocity embedding (var.use_for_velocity) will be used for vector field reconstruction.
-            Note that the genes to be used need to have velocity calculated.
-        grid_velocity: `bool` (default: False)
-            Whether to generate grid velocity. Note that by default it is set to be False, but for datasets with embedding
-            dimension less than 4, the grid velocity will still be generated. Please note that number of total grids in
-            the space increases exponentially as the number of dimensions increases. So it may quickly lead to lack of
-            memory, for example, it cannot allocate the array with grid_num set to be 50 and dimension is 6 (50^6 total
-            grids) on 32 G memory computer. Although grid velocity may not be generated, the vector field function can still
-            be learned for thousands of dimensions and we can still predict the transcriptomic cell states over long time period.
-        grid_num: `int` (default: 50)
-            The number of grids in each dimension for generating the grid velocity.
-        velocity_key: `str` (default: `velocity_S`)
-            The key from the adata layer that corresponds to the velocity matrix.
-        method: `str` (default: `sparseVFC`)
-            Method that is used to reconstruct the vector field functionally. Currently only SparseVFC supported but other
-            improved approaches are under development.
-        kwargs:
-            Other additional parameters passed to the vectorfield class.
-
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            `AnnData` object that is updated with the `VecFld` dictionary in the `uns` attribute.
-    """
-
-    if basis is not None:
-        X = adata.obsm["X_" + basis].copy()
-        V = adata.obsm["velocity_" + basis].copy()
-
-        if dims is not None:
-            X, V = X[:, dims], V[:, dims]
-    else:
-        valid_genes = (
-            list(set(genes).intersection(adata.var.index))
-            if genes is not None
-            else adata.var_names[adata.var.use_for_velocity]
-        )
-        X = (
-            adata[:, valid_genes].X.copy()
-            if layer == "X"
-            else adata[:, valid_genes].layers[layer].copy()
-        )
-        V = adata[:, valid_genes].layers[velocity_key].copy()
-
-        if issparse(X):
-            X, V = X.A, V.A
-
-    Grid = None
-    if X.shape[1] < 4 or grid_velocity:
-        # smart way for generating high dimensional grids and convert into a row matrix
-        min_vec, max_vec = (
-            X.min(0) - 0.01 * abs(X.min(0)),
-            X.max(0) + 0.01 * abs(X.max(0)),
-        )
-
-        Grid_list = np.meshgrid(
-            *[np.linspace(i, j, grid_num) for i, j in zip(min_vec, max_vec)]
-        )
-        Grid = np.array([i.flatten() for i in Grid_list]).T
-
-    if X is None:
-        raise Exception(
-            f"X is None. Make sure you passed the correct X or {basis} dimension reduction method."
-        )
-    elif V is None:
-        raise Exception("V is None. Make sure you passed the correct V.")
-
-    vf_kwargs = {
-        "M": 100,
-        "a": 5,
-        "beta": 0.1,
-        "ecr": 1e-5,
-        "gamma": 0.9,
-        "lambda_": 3,
-        "minP": 1e-5,
-        "MaxIter": 500,
-        "theta": 0.75,
-        "div_cur_free_kernels": False,
-    }
-    vf_kwargs = update_dict(vf_kwargs, kwargs)
-
-    VecFld = vectorfield(X, V, Grid, **vf_kwargs)
-    func = VecFld.fit(normalize=False, method=method)
-
-    if basis is not None:
-        adata.uns["VecFld_" + basis] = {
-            "VecFld": func,
-            "vf_kwargs": vf_kwargs,
-            "dims": dims,
-        }
-    else:
-        vf_key = "VecFld" if layer == "X" else "VecFld_" + layer
-        adata.uns[vf_key] = {
-            "VecFld": func,
-            "vf_kwargs": vf_kwargs,
-            "layer": layer,
-            "genes": genes,
-            "velocity_key": velocity_key,
-        }
-
-    if X.shape[1] == 2:
-        tp_kwargs = {"n": 25}
-        tp_kwargs = update_dict(tp_kwargs, kwargs)
-
-        adata = topography(
-            adata, basis=basis, X=X, layer=layer, dims=[0, 1], VecFld=func, **tp_kwargs
-        )
-
-    return adata
 
 
 class vectorfield:
@@ -559,67 +493,12 @@ class vectorfield:
 
         return corrRate, precision, recall
 
-    def con_K_div_cur_free(self, x, y, sigma=0.8, gamma=0.5):
-        """Learn a convex combination of the divergence-free kernel T_df and curl-free kernel T_cf with a bandwidth sigma and a combination coefficient gamma.
-
-        Arguments
-        ---------
-            x: 'np.ndarray'
-                Original training data points.
-            y: 'np.ndarray'
-                Control points used to build kernel basis functions
-            sigma: 'int'
-                Bandwidth parameter.
-            sigma: 'int'
-                Combination coefficient for the divergence-free or the curl-free kernels.
-
-        Returns
-        -------
-            A tuple of G (the combined kernel function), divergence-free kernel and curl-free kernel.
-
-        See also:: :func:`sparseVFC`.
-        """
-        m, d = x.shape
-        n, d = y.shape
-        sigma2 = sigma ** 2
-        G_tmp = np.matlib.tile(x[:, :, None], [1, 1, n]) - np.transpose(
-            np.matlib.tile(y[:, :, None], [1, 1, m]), [2, 1, 0]
-        )
-        G_tmp = np.squeeze(np.sum(K ** 2, 1))
-        G_tmp3 = -G_tmp / sigma2
-        G_tmp = -G_tmp / (2 * sigma2)
-        G_tmp = np.exp(G_tmp) / sigma2
-        G_tmp = np.kron(G_tmp, np.ones(d))
-
-        x_tmp = np.matlib.tile(x, [n, 1])
-        y_tmp = np.matlib.tile(y, [1, m]).T
-        y_tmp = y_tmp.reshape((d, m * n)).T
-        xminusy = x_tmp - y_tmp
-        G_tmp2 = np.zeros(d * m, d * n)
-
-        for i in range(d):
-            for j in range(d):
-                tmp1 = xminusy[:, i].reshape((m, n))
-                tmp2 = xminusy[:, j].reshape((m, n))
-                tmp3 = tmp1 * tmp2
-                tmp4 = np.zeros(d)
-                tmp4[i, j] = 1
-                tmp4[j, i] = 1
-                G_tmp2 = G_tmp2 + np.kron(tmp3, tmp4)
-
-        G_tmp2 = G_tmp2 / sigma2
-        G_tmp3 = np.kron((G_tmp3 + d - 1), np.eye(d))
-        G_tmp4 = np.kron(np.ones(m, n), np.eye(d)) - G_tmp2
-        G = (1 - gamma) * G_tmp * (G_tmp2 + G_tmp3) + gamma * G_tmp * G_tmp4
-
-        return G, (1 - gamma) * G_tmp * (G_tmp2 + G_tmp3), gamma * G_tmp * G_tmp4
-
     # def vector_field_function(self, x, VecFld, autograd = False):
     #     """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
     #     Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
     #     """
     #
-    #     K= con_K(x, VecFld['X'], VecFld['beta']) if autograd is False else auto_con_K(x, VecFld['X'], VecFld['beta'])
+    #     K= con_K(x, VecFld['X'], VecFld['beta']) if autograd is False else con_K(x, VecFld['X'], VecFld['beta'])
     #
     #     K = K.dot(VecFld['C']).T
     #
@@ -634,7 +513,7 @@ class vectorfield:
         K = (
             con_K(x, VecFld["X"], VecFld["beta"])
             if autograd is False
-            else auto_con_K(x, VecFld["X"], VecFld["beta"])
+            else con_K(x, VecFld["X"], VecFld["beta"])
         )
 
         K = K.dot(VecFld["C"]).T

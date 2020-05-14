@@ -1067,56 +1067,6 @@ def split_velocity_graph(G, neg_cells_trick=True):
 
 # ---------------------------------------------------------------------------------------------------
 # vector field related
-def con_K(x, y, beta):
-    """Con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
-
-    Arguments
-    ---------
-        x: 'np.ndarray'
-            Original training data points.
-        y: 'np.ndarray'
-            Control points used to build kernel basis functions.
-        beta: 'float' (default: 0.1)
-            Paramerter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2),
-
-    Returns
-    -------
-    K: 'np.ndarray'
-    the kernel to represent the vector field function.
-    """
-
-    n, d = x.shape
-    m, d = y.shape
-
-    # https://stackoverflow.com/questions/1721802/what-is-the-equivalent-of-matlabs-repmat-in-numpy
-    # https://stackoverflow.com/questions/12787475/matlabs-permute-in-python
-    K = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(
-        np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0]
-    )
-    K = np.squeeze(np.sum(K ** 2, 1))
-    K = -beta * K
-    K = np.exp(K)  #
-
-    return K
-
-
-def vector_field_function(x, t, VecFld, dim=None):
-    """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
-    Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
-    """
-    # x=np.array(x).reshape((1, -1))
-    x = np.array(x)
-    if x.ndim == 1:
-        x = x[None, :]
-    K = con_K(x, VecFld["X"], VecFld["beta"])
-
-    if dim is None:
-        K = K.dot(VecFld["C"])
-    else:
-        K = K.dot(VecFld["C"][:, dim])
-    return K
-
-
 def integrate_vf(
     init_states, t, args, integration_direction, f, interpolation_num=None, average=True
 ):

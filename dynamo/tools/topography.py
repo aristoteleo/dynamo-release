@@ -1,12 +1,14 @@
 # create by Yan Zhang, minor adjusted by Xiaojie Qiu
 
 import numpy as np
+import scipy.sparse as sp
 from scipy.optimize import fsolve
 from scipy.spatial.distance import pdist
 from scipy.linalg import eig
 from scipy.integrate import odeint
 
-from .utils import vector_field_function
+from .scVectorField import vector_field_function, vectorfield
+from .utils import update_dict
 
 
 def index_condensed_matrix(n, i, j):
@@ -446,7 +448,7 @@ def topography(adata, basis="umap", layer=None, X=None, dims=None, n=25, VecFld=
     xlim = [min_[0] - (max_[0] - min_[0]) * 0.1, max_[0] + (max_[0] - min_[0]) * 0.1]
     ylim = [min_[1] - (max_[1] - min_[1]) * 0.1, max_[1] + (max_[1] - min_[1]) * 0.1]
 
-    vecfld = VectorField2D(lambda x: vector_field_function(x, None, VecFld, dims))
+    vecfld = VectorField2D(lambda x: vector_field_function(x, VecFld, dims))
     vecfld.find_fixed_points_by_sampling(n, xlim, ylim)
     vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
     # sep = compute_separatrices(vecfld.Xss.get_X(), vecfld.Xss.get_J(), vecfld.func, xlim, ylim)
@@ -477,5 +479,144 @@ def topography(adata, basis="umap", layer=None, X=None, dims=None, n=25, VecFld=
                 "xlim": xlim,
                 "ylim": ylim,
             }
+
+    return adata
+
+
+def VectorField(
+    adata,
+    basis=None,
+    layer="X",
+    dims=None,
+    genes=None,
+    grid_velocity=False,
+    grid_num=50,
+    velocity_key="velocity_S",
+    method="SparseVFC",
+    **kwargs,
+):
+    """Learn a function of high dimensional vector field from sparse single cell samples in the entire space robustly.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains embedding and velocity data
+        basis: `str` or None (default: `None`)
+            The embedding data to use. The vector field function will be learned on the low dimensional embedding and can be then
+            projected back to the high dimensional space.
+        layer: `str` or None (default: `X`)
+            Which layer of the data will be used for vector field function reconstruction. The layer once provided, will override
+            the `basis` argument and then learn the vector field function in high dimensional space.
+        dims: `list` or None (default: None)
+            The dimensions that will be used for reconstructing vector field functions.
+        genes: `list` or None (default: None)
+            The gene names whose gene expression will be used for vector field reconstruction. By default (when genes is
+            set to None), the genes used for velocity embedding (var.use_for_velocity) will be used for vector field reconstruction.
+            Note that the genes to be used need to have velocity calculated.
+        grid_velocity: `bool` (default: False)
+            Whether to generate grid velocity. Note that by default it is set to be False, but for datasets with embedding
+            dimension less than 4, the grid velocity will still be generated. Please note that number of total grids in
+            the space increases exponentially as the number of dimensions increases. So it may quickly lead to lack of
+            memory, for example, it cannot allocate the array with grid_num set to be 50 and dimension is 6 (50^6 total
+            grids) on 32 G memory computer. Although grid velocity may not be generated, the vector field function can still
+            be learned for thousands of dimensions and we can still predict the transcriptomic cell states over long time period.
+        grid_num: `int` (default: 50)
+            The number of grids in each dimension for generating the grid velocity.
+        velocity_key: `str` (default: `velocity_S`)
+            The key from the adata layer that corresponds to the velocity matrix.
+        method: `str` (default: `sparseVFC`)
+            Method that is used to reconstruct the vector field functionally. Currently only SparseVFC supported but other
+            improved approaches are under development.
+        kwargs:
+            Other additional parameters passed to the vectorfield class.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            `AnnData` object that is updated with the `VecFld` dictionary in the `uns` attribute.
+    """
+
+    if basis is not None:
+        X = adata.obsm["X_" + basis].copy()
+        V = adata.obsm["velocity_" + basis].copy()
+
+        if dims is not None:
+            X, V = X[:, dims], V[:, dims]
+    else:
+        valid_genes = (
+            list(set(genes).intersection(adata.var.index))
+            if genes is not None
+            else adata.var_names[adata.var.use_for_velocity]
+        )
+        X = (
+            adata[:, valid_genes].X.copy()
+            if layer == "X"
+            else adata[:, valid_genes].layers[layer].copy()
+        )
+        V = adata[:, valid_genes].layers[velocity_key].copy()
+
+        if sp.issparse(X):
+            X, V = X.A, V.A
+
+    Grid = None
+    if X.shape[1] < 4 or grid_velocity:
+        # smart way for generating high dimensional grids and convert into a row matrix
+        min_vec, max_vec = (
+            X.min(0) - 0.01 * abs(X.min(0)),
+            X.max(0) + 0.01 * abs(X.max(0)),
+        )
+
+        Grid_list = np.meshgrid(
+            *[np.linspace(i, j, grid_num) for i, j in zip(min_vec, max_vec)]
+        )
+        Grid = np.array([i.flatten() for i in Grid_list]).T
+
+    if X is None:
+        raise Exception(
+            f"X is None. Make sure you passed the correct X or {basis} dimension reduction method."
+        )
+    elif V is None:
+        raise Exception("V is None. Make sure you passed the correct V.")
+
+    vf_kwargs = {
+        "M": 100,
+        "a": 5,
+        "beta": 0.1,
+        "ecr": 1e-5,
+        "gamma": 0.9,
+        "lambda_": 3,
+        "minP": 1e-5,
+        "MaxIter": 500,
+        "theta": 0.75,
+        "div_cur_free_kernels": False,
+    }
+    vf_kwargs = update_dict(vf_kwargs, kwargs)
+
+    VecFld = vectorfield(X, V, Grid, **vf_kwargs)
+    func = VecFld.fit(normalize=False, method=method)
+
+    if basis is not None:
+        adata.uns["VecFld_" + basis] = {
+            "VecFld": func,
+            "vf_kwargs": vf_kwargs,
+            "dims": dims,
+        }
+    else:
+        vf_key = "VecFld" if layer == "X" else "VecFld_" + layer
+        adata.uns[vf_key] = {
+            "VecFld": func,
+            "vf_kwargs": vf_kwargs,
+            "layer": layer,
+            "genes": genes,
+            "velocity_key": velocity_key,
+        }
+
+    if X.shape[1] == 2:
+        tp_kwargs = {"n": 25}
+        tp_kwargs = update_dict(tp_kwargs, kwargs)
+
+        adata = topography(
+            adata, basis=basis, X=X, layer=layer, dims=[0, 1], VecFld=func, **tp_kwargs
+        )
 
     return adata

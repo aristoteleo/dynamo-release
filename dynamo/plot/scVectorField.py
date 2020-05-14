@@ -7,7 +7,7 @@ from .utils import quiver_autoscaler, default_quiver_args, save_fig
 from ..tools.dimension_reduction import reduceDimension
 from ..tools.cell_velocities import cell_velocities
 from ..tools.Markov import velocity_on_grid, grid_velocity_filter
-from ..tools.scVectorField import VectorField
+from ..tools.topography import VectorField
 from ..tools.utils import update_dict
 
 from .scatters import docstrings

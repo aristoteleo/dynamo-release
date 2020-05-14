@@ -1,5 +1,6 @@
 import numpy as np
-from .utils import vector_field_function, integrate_vf_ivp
+from .utils import integrate_vf_ivp
+from .scVectorField import vector_field_function
 from .utils import fetch_states
 
 
@@ -200,7 +201,7 @@ def _fate(
     """
 
     V_func = (
-        lambda x: vector_field_function(x=x, t=None, VecFld=VecFld)
+        lambda x: vector_field_function(x=x, VecFld=VecFld)
         if VecFld_true is None
         else VecFld_true
     )
