@@ -1,13 +1,16 @@
 from scipy.sparse import issparse
 import pandas as pd
-from .utils import normalize_data
+from .utils import normalize_data, TF_link_gene_chip
 
 def scribe(adata,
            genes=None,
            gene_filter_rate=0.1,
            cell_filter_UMI=10000,
            motif_ref='https://www.dropbox.com/s/s8em539ojl55kgf/motifAnnotations_hgnc.csv?dl=1',
-           nt_layers=['new', 'total']):
+           nt_layers=['new', 'total'],
+           do_CLR=True,
+           TF_link_ENCODE_ref='https://www.dropbox.com/s/bjuope41pte7mf4/df_gene_TF_link_ENCODE.csv?dl=1',
+           ):
     """Apply Scribe to calculate causal network from spliced/unspliced, metabolic labeling based and other "real" time
     series datasets. Note that this function can be applied to both of the metabolic labeling based single-cell assays with
     newly synthesized and total RNA as well as the regular single cell assays with both the unspliced and spliced
@@ -35,13 +38,18 @@ def scribe(adata,
             By default it is a dropbox link that store the data from us. Other motif reference can bed downloaded from RcisTarget:
             https://resources.aertslab.org/cistarget/. For human motif matrix, it can be downloaded from June's shared folder:
             https://shendure-web.gs.washington.edu/content/members/cao1025/public/nobackup/sci_fate/data/hg19-tss-centered-10kb-7species.mc9nr.feather
-       nt_layers:
+       nt_layers: `List` (Default: ['new', 'total'])
             The two keys for layers that will be used for the network inference. Note that the layers can be changed
             flexibly. See the description of this function above. The first key corresponds to the transcriptome of the
             next time point, for example unspliced RNAs (or estimated velocitym, see Fig 6 of the Scribe preprint:
             https://www.biorxiv.org/content/10.1101/426981v1) from RNA velocity, old RNA from scSLAM-seq data, etc.
             The second key corresponds to the transcriptome of the initial time point, for example spliced RNAs from RNA
             velocity, old RNA from scSLAM-seq data.
+        do_CLR: `bool` (Default: True)
+            Whether to perform context likelihood relateness analysis on the reconstructed causal network
+        TF_link_ENCODE_ref: `str` (default: 'https://www.dropbox.com/s/s8em539ojl55kgf/motifAnnotations_hgnc.csv?dl=1')
+            The path to the TF chip-seq data. By default it is a dropbox link from us that stores the data. Other data can
+            be downloaded from: https://amp.pharm.mssm.edu/Harmonizome/dataset/ENCODE+Transcription+Factor+Targets.
 
     Returns
     -------
@@ -56,7 +64,7 @@ def scribe(adata,
                           "Also check our pape: "
                           "https://www.sciencedirect.com/science/article/abs/pii/S2405471220300363")
 
-    from Scribe.Scribe import causal_net_dynamics_coupling
+    from Scribe.Scribe import causal_net_dynamics_coupling, CLR
 
     motifAnnotations_hgnc = pd.read_csv(motif_ref, sep='\t')
     TF_list = motifAnnotations_hgnc.loc[:, 'TF']
@@ -110,6 +118,26 @@ def scribe(adata,
         Targets = list(set(genes).intersection(Targets))
 
     causal_net_dynamics_coupling(adata, TFs, Targets, t0_key=nt_layers[1], t1_key=nt_layers[0], normalize=False)
-    adata_.uns['causal_net'] = adata.uns['causal_net']
+    res_dict = {"RDI": adata.uns['causal_net']}
+    if do_CLR: res_dict.update({"CLR": CLR(res_dict['RDI'])})
+
+    if TF_link_ENCODE_ref is not None:
+        df_gene_TF_link_ENCODE = pd.read_csv(TF_link_ENCODE_ref, sep='\t')
+        df_gene_TF_link_ENCODE['id_gene'] = df_gene_TF_link_ENCODE['id'].astype('str') + '_' + \
+                                            df_gene_TF_link_ENCODE['linked_gene_name'].astype('str')
+
+        df_gene = adata.var.loc[:, ['gene_id', 'gene_short_name', 'gene_type']]
+        df_gene.columns = ['linked_gene', 'linked_gene_name', 'gene_type']
+
+        net = res_dict[list(res_dict.keys())[-1]]
+        net = net.reset_index().melt(id_vars='index', id_names='id', var_name='linked_gene', value_name='corcoef')
+        net_var = net.merge(df_gene)
+        net_var['id_gene'] = net_var['id'].astype('str') + '_' + \
+                             net_var['linked_gene_name'].astype('str')
+
+        filtered = TF_link_gene_chip(net_var, df_gene_TF_link_ENCODE, adata.var, cor_thresh=0.02)
+        res_dict.update({"filtered": filtered})
+
+    adata_.uns['causal_net'] = res_dict
 
     return adata_
