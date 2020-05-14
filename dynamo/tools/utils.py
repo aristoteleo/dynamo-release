@@ -93,6 +93,23 @@ def einsum_correlation(X, Y_i, type="pearson"):
 
     return corr
 
+def form_triu_matrix(arr):
+    '''
+        Construct upper triangle matrix from an 1d array.
+    '''
+    n = int(np.ceil((np.sqrt(1 + 8 * len(arr)) - 1) * 0.5))
+    M = np.zeros((n, n))
+    c = 0
+    for i in range(n):
+        for j in range(n):
+            if j >= i:
+                if c < len(arr):
+                    M[i, j] = arr[c]
+                    c += 1
+                else:
+                    break
+    return M
+
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
 def one_shot_gamma_alpha(k, t, l):

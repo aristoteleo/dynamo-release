@@ -8,7 +8,7 @@ from scipy.linalg import eig
 from scipy.integrate import odeint
 
 from .scVectorField import vector_field_function, vectorfield
-from .utils import update_dict
+from .utils import update_dict, form_triu_matrix
 
 
 def index_condensed_matrix(n, i, j):
@@ -241,21 +241,6 @@ def find_fixed_points_nullcline(
     else:
         P = find_fixed_points(int_P, func, tol_redundant)
         return P
-
-
-def form_triu_matrix(arr):
-    n = int(np.ceil((np.sqrt(1 + 8 * len(arr)) - 1) * 0.5))
-    M = np.zeros((n, n))
-    c = 0
-    for i in range(n):
-        for j in range(n):
-            if j >= i:
-                if c < len(arr):
-                    M[i, j] = arr[c]
-                    c += 1
-                else:
-                    break
-    return M
 
 
 def is_outside(X, domain):

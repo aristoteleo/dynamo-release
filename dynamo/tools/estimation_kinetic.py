@@ -5,11 +5,6 @@ from scipy.stats import chi2
 from .utils_kinetic import *
 import warnings
 
-nosplicing_models = [
-    Deterministic_NoSplicing, 
-    Moments_Nosplicing, 
-    Moments_NoSwitchingNoSplicing]
-
 def guestimate_alpha(x_data, time):
     '''Roughly estimate p0 for kinetics data.'''
     imax = np.argmax(x_data)
@@ -581,7 +576,7 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
 
         return x_data_norm, scale
 
-    def auto_fit(self, time, x_data, alpha_min=0.1, beta_min=50, gamma_min=10, kin_weight=2, **kwargs):
+    def auto_fit(self, time, x_data, alpha_min=0.1, beta_min=50, gamma_min=10, kin_weight=2, use_p0=True, **kwargs):
         if kin_weight is not None:
             x_data_norm, self.scale = self.normalize_deg_data(x_data, kin_weight)
         else:
@@ -609,7 +604,10 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
 
         self._initialize(alpha_bound, gamma_bound, x0_bound, beta_bound)
 
-        popt, cost = self.fit_lsq(time, x_data_norm, p0=p0, **kwargs)
+        if use_p0:
+            popt, cost = self.fit_lsq(time, x_data_norm, p0=p0, **kwargs)
+        else:
+            popt, cost = self.fit_lsq(time, x_data_norm, **kwargs)
         return popt, cost
 
     def export_model(self, reinstantiate=True):
@@ -632,6 +630,47 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
         dictionary = {'model_1': mdl1_name, 'model_2': mdl2_name, 
             'kinetic_parameters': param_dict, 'x0': x0}
         return dictionary
+
+class Lambda_NoSwitching(Mixture_KinDeg_NoSwitching):
+    def __init__(self, model1, model2, alpha=None, lambd=None, gamma=None, x0=None, beta=None):
+        '''An estimation class with the mixture model.
+            If beta is None, it is assumed that the data does not have the splicing process.
+        '''
+        self.model1 = model1
+        self.model2 = model2
+        self.scale = 1
+        if alpha is not None and gamma is not None:
+            self._initialize(alpha, gamma, x0, beta)
+    
+    def _initialize(self, alpha, gamma, x0, beta=None):
+        '''
+            parameter order: alpha, lambda, (beta), gamma
+        '''
+        if type(self.model1) in nosplicing_models and type(self.model2) in nosplicing_models:
+            self.param_keys = ['alpha', 'lambda', 'gamma']
+        else:
+            self.param_keys = ['alpha', 'lambda', 'beta', 'gamma']
+        model = LambdaModels_NoSwitching(self.model1, self.model2)
+
+        ranges = np.zeros((3, 2)) if beta is None else np.zeros((4, 2))
+        ranges[0] = alpha
+        ranges[1] = np.array([0, 1])
+        if beta is None:
+            ranges[2] = gamma
+        else:
+            ranges[2] = beta
+            ranges[3] = gamma
+        x0_ = np.vstack((np.zeros((self.model1.n_species, 2)), x0))
+        super(Mixture_KinDeg_NoSwitching, self).__init__(ranges, x0_, model)
+
+    def auto_fit(self, time, x_data, **kwargs):
+        return super().auto_fit(time, x_data, kin_weight=None, use_p0=False, **kwargs)
+
+    def export_model(self, reinstantiate=True):
+        if reinstantiate:
+            return LambdaModels_NoSwitching(self.model1, self.model2)
+        else:
+            return self.simulator
 
 class GoodnessOfFit:
     def __init__(self, simulator, params=None, x0=None):

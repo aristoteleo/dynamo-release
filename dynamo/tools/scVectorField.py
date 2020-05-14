@@ -1,10 +1,6 @@
 import numpy as np
-import scipy
+from scipy.linalg import lstsq
 import numpy.matlib
-from scipy.sparse import issparse
-
-#from .topography import topography
-#from .utils import update_dict
 
 
 def norm(X, V, T):
@@ -73,8 +69,7 @@ def con_K(x, y, beta):
     # https://stackoverflow.com/questions/1721802/what-is-the-equivalent-of-matlabs-repmat-in-numpy
     # https://stackoverflow.com/questions/12787475/matlabs-permute-in-python
     K = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(
-        np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0]
-    )
+        np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0])
     K = np.squeeze(np.sum(K ** 2, 1))
     K = -beta * K
     K = np.exp(K)  #
@@ -256,8 +251,8 @@ def SparseVFC(
         # print('iterate: {}, gamma: {}, the energy change rate: {}, sigma2={}\n'.format(*[iter, gamma, tecr, sigma2]))
 
         # M-step. Solve linear system for C.
-        P = scipy.maximum(P, minP)
-        C = scipy.linalg.lstsq(
+        P = np.maximum(P, minP)
+        C = lstsq(
             ((U.T * numpy.matlib.repmat(P.T, M, 1)).dot(U) + lambda_ * sigma2 * K),
             (U.T * numpy.matlib.repmat(P.T, M, 1)).dot(Y),
         )[0]
@@ -493,16 +488,6 @@ class vectorfield:
 
         return corrRate, precision, recall
 
-    # def vector_field_function(self, x, VecFld, autograd = False):
-    #     """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
-    #     Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
-    #     """
-    #
-    #     K= con_K(x, VecFld['X'], VecFld['beta']) if autograd is False else con_K(x, VecFld['X'], VecFld['beta'])
-    #
-    #     K = K.dot(VecFld['C']).T
-    #
-    #     return K
 
     def vector_field_function_auto(self, x, VecFld, autograd=False):
         """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
@@ -520,17 +505,3 @@ class vectorfield:
 
         return K
 
-
-# def vector_field_function(x, t, VecFld):
-#     """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
-#
-#     Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
-#     """
-#     x=np.array(x).reshape((1, -1))
-#     if(len(x.shape) == 1):
-#         x = x[None, :]
-#     K= con_K(x, VecFld['X'], VecFld['beta'])
-#
-#     K = K.dot(VecFld['C'])
-#
-#     return K.T
