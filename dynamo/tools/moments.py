@@ -7,7 +7,7 @@ from .utils_moments import estimation
 from .utils import get_mapper, elem_prod
 from .connectivity import mnn, normalize_knn_graph, umap_conn_indices_dist_embedding
 from ..preprocessing.utils import get_layer_keys, allowed_X_layer_names, pca
-
+from ..preprocessing.utils import Freeman_Tukey
 
 # ---------------------------------------------------------------------------------------------------
 # use for calculating moments for stochastic model:
@@ -126,17 +126,21 @@ def moments(adata,
         if issparse(layer_x):
             layer_x.data = (
                 2 ** layer_x.data - 1
-                if adata.uns["pp_log"] == "log2"
+                if adata.uns["pp_norm_method"] == "log2"
                 else np.exp(layer_x.data) - 1
-                if adata.uns["pp_log"] == "log"
+                if adata.uns["pp_norm_method"] == "log"
+                else Freeman_Tukey(layer_x.data, inverse=True)
+                if adata.uns["pp_norm_method"] == "Freeman_Tukey"
                 else layer_x.data
             )
         else:
             layer_x = (
                 2 ** layer_x - 1
-                if adata.uns["pp_log"] == "log2"
+                if adata.uns["pp_norm_method"] == "log2"
                 else np.exp(layer_x) - 1
-                if adata.uns["pp_log"] == "log"
+                if adata.uns["pp_norm_method"] == "log"
+                else Freeman_Tukey(layer_x, inverse=True)
+                if adata.uns["pp_norm_method"] == "Freeman_Tukey"
                 else layer_x
             )
 
@@ -160,17 +164,21 @@ def moments(adata,
             if issparse(layer_y):
                 layer_y.data = (
                     2 ** layer_y.data - 1
-                    if adata.uns["pp_log"] == "log2"
+                    if adata.uns["pp_norm_method"] == "log2"
                     else np.exp(layer_y.data) - 1
-                    if adata.uns["pp_log"] == "log"
+                    if adata.uns["pp_norm_method"] == "log"
+                    else Freeman_Tukey(layer_y.data, inverse=True)
+                    if adata.uns["pp_norm_method"] == "Freeman_Tukey"
                     else layer_y.data
                 )
             else:
                 layer_y = (
                     2 ** layer_y - 1
-                    if adata.uns["pp_log"] == "log2"
+                    if adata.uns["pp_norm_method"] == "log2"
                     else np.exp(layer_y) - 1
-                    if adata.uns["pp_log"] == "log"
+                    if adata.uns["pp_norm_method"] == "log"
+                    else Freeman_Tukey(layer_y, inverse=True)
+                    if adata.uns["pp_norm_method"] == "Freeman_Tukey"
                     else layer_y
                 )
 

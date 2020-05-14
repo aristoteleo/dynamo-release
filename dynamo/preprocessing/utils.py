@@ -360,6 +360,15 @@ def normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method=np.log
 
     return CM
 
+
+def Freeman_Tukey(X, inverse=False):
+    if inverse:
+        res = np.sqrt(X) + np.sqrt((X + 1))
+    else:
+        res = (X**2 - 1)**2 / (4 * X**2)
+
+    return res
+
 # ---------------------------------------------------------------------------------------------------
 # pca
 

@@ -288,8 +288,8 @@ def TF_link_gene_chip(raw_glmnet_res_var, df_gene_TF_link_ENCODE, var, cor_thres
     df_tb = pd.crosstab(df_gene_TF_link_ENCODE['glmnet_chip_links'], df_gene_TF_link_ENCODE['peak'])
     oddsratio, pvalue = stats.fisher_exact(df_tb)
     print(f'odd ratio and pvalue of Fisher exact test for regression identified regulations were validated by target '
-          f'TF-binding sites near gene promoters from ENCODETFs, among TFs from lasso regression and also characterized '
-          f'in ENCODE are: {oddsratio}, {pvalue}')
+          f'TF-binding sites near gene promoters from ENCODE, limiting to TFs from lasso regression and also '
+          f'characterized in ENCODE are: {oddsratio}, {pvalue}')
 
     # Only gene sets with significant enrichment of the correct TF ChIP–seq binding sites were retained
     unique_TF_pvalue = [None] * len(unique_TFs)

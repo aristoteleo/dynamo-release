@@ -9,7 +9,7 @@ from .utils import pca
 from .utils import clusters_stats
 from .utils import cook_dist, get_layer_keys, get_shared_counts
 from .utils import get_svr_filter
-from .utils import allowed_layer_raw_names
+from .utils import Freeman_Tukey
 from .utils import merge_adata_attrs
 from .utils import sz_util, normalize_util, get_sz_exprs
 from .utils import unique_var_obs_adata, collapse_adata, NTR
@@ -173,7 +173,7 @@ def normalize_expr_data(
     for layer in layers:
         szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=total_szfactor)
         if norm_method is None and layer == 'X': norm_method = np.log
-        if norm_method in [np.log, np.log2] and layer is not "protein":
+        if norm_method in [np.log, np.log2, Freeman_Tukey] and layer is not "protein":
             CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method)
 
         elif layer is "protein":  # norm_method == 'clr':
@@ -207,7 +207,7 @@ def normalize_expr_data(
         else:
             adata.layers["X_" + layer] = CM
 
-    adata.uns["pp_log"] = norm_method.__name__ if callable(norm_method) else norm_method
+    adata.uns["pp_norm_method"] = norm_method.__name__ if callable(norm_method) else norm_method
     return adata
 
 
@@ -1164,7 +1164,7 @@ def recipe_monocle(
         num_dim: `int` (default: `50`)
             The number of linear dimensions reduced to.
         norm_method: `function` or `str` (default: function `np.log`)
-            The method to normalize the data.
+            The method to normalize the data. Can be any numpy function or `Freeman_Tukey`.
         pseudo_expr: `int` (default: `1`)
             A pseudocount added to the gene expression value before log/log2 normalization.
         feature_selection: `str` (default: `SVR`)
@@ -1190,6 +1190,7 @@ def recipe_monocle(
             A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions, etc.
     """
 
+    if norm_method == 'Freeman_Tukey': norm_method = Freeman_Tukey
     adata = unique_var_obs_adata(adata)
     adata = collapse_adata(adata)
 

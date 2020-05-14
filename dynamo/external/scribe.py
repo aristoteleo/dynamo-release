@@ -31,7 +31,7 @@ def scribe(adata,
              minimum number of UMIs for cell filtering.
         motif_ref: `str` (default: 'https://www.dropbox.com/s/bjuope41pte7mf4/df_gene_TF_link_ENCODE.csv?dl=1')
             It provides the list of TFs gene names and is used to parse the data to get the list of TFs and Targets
-            for the causal network inference from those TFs to Targets. But currently it is not used for motif based filtering.
+            for the causal network inference from those TFs to Targets. But currently the motif based filtering is not implemented.
             By default it is a dropbox link that store the data from us. Other motif reference can bed downloaded from RcisTarget:
             https://resources.aertslab.org/cistarget/. For human motif matrix, it can be downloaded from June's shared folder:
             https://shendure-web.gs.washington.edu/content/members/cao1025/public/nobackup/sci_fate/data/hg19-tss-centered-10kb-7species.mc9nr.feather
@@ -109,7 +109,7 @@ def scribe(adata,
         TFs = list(set(genes).intersection(TFs))
         Targets = list(set(genes).intersection(Targets))
 
-    causal_net_dynamics_coupling(adata, TFs, Targets, t0_key=nt_layers[1], t1_key=nt_layers[0])
+    causal_net_dynamics_coupling(adata, TFs, Targets, t0_key=nt_layers[1], t1_key=nt_layers[0], normalize=False)
     adata_.uns['causal_net'] = adata.uns['causal_net']
 
     return adata_
