@@ -4,10 +4,10 @@ from .utils import update_dict
 
 def hdbscan(adata,
             X_data=None,
-            dims=None,
             genes=None,
             layer=None,
             basis='pca',
+            dims=None,
             n_pca_components=30,
             n_components=2,
             **hdbscan_kwargs):
@@ -32,17 +32,17 @@ def hdbscan(adata,
     adata: :class:`~anndata.AnnData`
         AnnData object.
     X_data: `np.ndarray` (default: `None`)
-        The user supllised data that will be used for clustering directly.
-    dims: `list` or None (default: `None`)
-        The list of dimensions that will be selected for clustering. If `None`, all dimensions will be used.
+        The user supplied data that will be used for clustering directly.
     genes: `list` or None (default: `None`)
-        The list of genes that will be used to subset the data for dimension reduction and clustering. If `None`, all genes
-        will be used.
+        The list of genes that will be used to subset the data for dimension reduction and clustering. If `None`, all
+        genes will be used.
     layer: `str` or None (default: `None`)
         The layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is used.
     basis: `str` or None (default: `None`)
-        The space that will be used for clustering. Valid names includes, for example, `pca`, `umap`, `velocity_pca` (that
-        is, you can use velocity for clustering), etc.
+        The space that will be used for clustering. Valid names includes, for example, `pca`, `umap`, `velocity_pca`
+        (that is, you can use velocity for clustering), etc.
+    dims: `list` or None (default: `None`)
+        The list of dimensions that will be selected for clustering. If `None`, all dimensions will be used.
     n_pca_components: `int` (default: `30`)
         The number of pca components that will be used.
     n_components: `int` (default: `2`)
@@ -53,9 +53,9 @@ def hdbscan(adata,
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            A updated AnnData object with the clustering updated. `Cluster` and `C_prob` are two newly included columns
+            A updated AnnData object with the clustering updated. `Cluster` and `C_prob` are two newly added columns
             from .obs, corresponding to either the Cluster results or the probability of each cell belong to a cluster.
-            `hdbscan` key in .uns corresponds to a dictionary that include additional results returned from hdbscan run. 
+            `hdbscan` key in .uns corresponds to a dictionary that includes additional results returned from hdbscan run.
     """
 
     if X_data is None:
@@ -107,7 +107,7 @@ def hdbscan(adata,
     cluster = HDBSCAN(**h_kwargs)
     cluster.fit(X_data)
     adata.obs['Cluster'] = cluster.labels_.astype('str')
-    adata.obsw['C_prob'] = cluster.probabilities_
+    adata.obs['C_prob'] = cluster.probabilities_
     adata.uns['hdbscan'] = {'Cluster': cluster.labels_.astype('str'),
                             "probabilities_": cluster.probabilities_,
                             "cluster_persistence_": cluster.cluster_persistence_,

@@ -25,8 +25,18 @@ def reduceDimension(
     ---------
     adata: :class:`~anndata.AnnData`
         an Annodata object
-    layer: str (default: X)
-            The layer where the dimension reduction will be performed.
+    X_data: `np.ndarray` (default: `None`)
+        The user supplied data that will be used for clustering directly.
+    genes: `list` or None (default: `None`)
+        The list of genes that will be used to subset the data for dimension reduction and clustering. If `None`, all
+        genes will be used.
+    layer: `str` or None (default: `None`)
+        The layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is used.
+    basis: `str` or None (default: `None`)
+        The space that will be used for clustering. Valid names includes, for example, `pca`, `umap`, `velocity_pca`
+        (that is, you can use velocity for clustering), etc.
+    dims: `list` or None (default: `None`)
+        The list of dimensions that will be selected for clustering. If `None`, all dimensions will be used.
     n_pca_components: 'int' (optional, default 30)
         Number of PCA components.  
     n_components: 'int' (optional, default 2)
@@ -55,45 +65,15 @@ def reduceDimension(
                               n_pca_components=n_pca_components,
                               n_components=n_components, )
 
-    if has_basis:
+    if has_basis and not enforce:
         warnings.warn(f'adata already have basis {basis}. dimension reduction {reduction_method} will be skipped!'
                       f'set enforce=True to re-performing dimension reduction.')
-    # layer = layer if layer.startswith("X") else "X_" + layer
-    # if layer is not "X" and layer not in adata.layers.keys():
-    #     raise Exception(
-    #         "The layer {} you provided is not existed in adata.".format(layer)
-    #     )
-    # pca_key = "X" if layer == "X" else layer + "_pca"
+
     embedding_key = (
         "X_" + reduction_method if layer is None else layer + "_" + reduction_method
     )
     neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
 
-    # if "use_for_dynamo" in adata.var.keys():
-    #     if layer == "X":
-    #         X = adata.X[:, adata.var.use_for_dynamo.values]
-    #     else:
-    #         X = adata[:, adata.var.use_for_dynamo.values].layers[layer]
-    # else:
-    #     if layer == "X":
-    #         X = adata.X
-    #     else:
-    #         X = adata.layers[layer]
-    #
-    # if layer == "X":
-    #     if (
-    #         (pca_key not in adata.obsm.keys()) or "pca_fit" not in adata.uns.keys()
-    #     ) or reduction_method is "pca":
-    #         adata, _, X_pca = pca(adata, X, n_pca_components, pca_key)
-    #     else:
-    #         X_pca = adata.obsm[pca_key][:, :n_pca_components]
-    #         adata.obsm[pca_key] = X_pca
-    # else:
-    #     if (pca_key not in adata.obsm.keys()) or reduction_method is "pca":
-    #         adata, _, X_pca = pca(adata, X, n_pca_components, pca_key)
-    #     else:
-    #         X_pca = adata.obsm[pca_key][:, :n_pca_components]
-    #         adata.obsm[pca_key] = X_pca
     if enforce or not has_basis:
        adata = run_reduce_dim(adata, X_data, n_components, n_pca_components, reduction_method, embedding_key,
                               n_neighbors, neighbor_key, cores, kwargs)
