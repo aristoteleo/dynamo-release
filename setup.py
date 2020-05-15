@@ -22,6 +22,7 @@ setup(
         "setuptools",
         "numdifftools>=0.9.39",
         "umap-learn>=0.3.9,<0.4",
+        "hdbscan>=0.8.26",
         "statsmodels>=0.9.0",
         "numba>=0.46.0",
         "seaborn>=0.9.0",

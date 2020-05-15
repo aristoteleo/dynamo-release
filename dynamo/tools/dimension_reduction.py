@@ -1,26 +1,25 @@
 import warnings
-from .psl import *
-
-from .utils import update_dict
-from .connectivity import (
-    umap_conn_indices_dist_embedding,
-    extract_indices_dist_from_graph,
-)
-from ..preprocessing.utils import pca
+from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 
 
 def reduceDimension(
     adata,
-    layer="X",
+    X_data=None,
+    genes=None,
+    layer=None,
+    basis='pca',
+    dims=None,
     n_pca_components=30,
     n_components=2,
     n_neighbors=30,
     reduction_method="umap",
+    enforce=False,
     cores=1,
     **kwargs
 ):
 
-    """Compute a low dimension reduction projection of an annodata object first with PCA, followed by non-linear dimension reduction methods
+    """Compute a low dimension reduction projection of an annodata object first with PCA, followed by non-linear
+    dimension reduction methods
 
     Arguments
     ---------
@@ -35,141 +34,69 @@ def reduceDimension(
     n_neighbors: 'int' (optional, default 30)
         Number of nearest neighbors when constructing adjacency matrix. 
     reduction_method: 'str' (optional, default umap)
-        Non-linear dimension reduction method to further reduce dimension based on the top n_pca_components PCA components. Currently, PSL 
-        (probablistic structure learning, a new dimension reduction by us), tSNE (fitsne instead of traditional tSNE used) or umap are supported.
+        Non-linear dimension reduction method to further reduce dimension based on the top n_pca_components PCA
+        components. Currently, PSL
+        (probablistic structure learning, a new dimension reduction by us), tSNE (fitsne instead of traditional tSNE
+        used) or umap are supported.
     cores: `int` (optional, default `1`)
         Number of cores. Used only when the tSNE reduction_method is used.
 
     Returns
     -------
-    Returns an updated `adata` with reduced dimension data for spliced counts, projected future transcript counts 'Y_dim'.
+        Returns an updated `adata` with reduced dimension data for data from different layers.
     """
 
-    layer = layer if layer.startswith("X") else "X_" + layer
-    if layer is not "X" and layer not in adata.layers.keys():
-        raise Exception(
-            "The layer {} you provided is not existed in adata.".format(layer)
-        )
-    pca_key = "X" if layer == "X" else layer + "_pca"
+    if X_data is None:
+        X_data, n_components, has_basis, _ = prepare_dim_reduction(adata,
+                              genes=genes,
+                              layer=layer,
+                              basis=basis,
+                              dims=dims,
+                              n_pca_components=n_pca_components,
+                              n_components=n_components, )
+
+    if has_basis:
+        warnings.warn(f'adata already have basis {basis}. dimension reduction {reduction_method} will be skipped!'
+                      f'set enforce=True to re-performing dimension reduction.')
+    # layer = layer if layer.startswith("X") else "X_" + layer
+    # if layer is not "X" and layer not in adata.layers.keys():
+    #     raise Exception(
+    #         "The layer {} you provided is not existed in adata.".format(layer)
+    #     )
+    # pca_key = "X" if layer == "X" else layer + "_pca"
     embedding_key = (
-        "X_" + reduction_method if layer == "X" else layer + "_" + reduction_method
+        "X_" + reduction_method if layer is None else layer + "_" + reduction_method
     )
-    neighbor_key = "neighbors" if layer == "X" else layer + "_neighbors"
+    neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
 
-    if "use_for_dynamo" in adata.var.keys():
-        if layer == "X":
-            X = adata.X[:, adata.var.use_for_dynamo.values]
-        else:
-            X = adata[:, adata.var.use_for_dynamo.values].layers[layer]
-    else:
-        if layer == "X":
-            X = adata.X
-        else:
-            X = adata.layers[layer]
-
-    if layer == "X":
-        if (
-            (pca_key not in adata.obsm.keys()) or "pca_fit" not in adata.uns.keys()
-        ) or reduction_method is "pca":
-            adata, _, X_pca = pca(adata, X, n_pca_components, pca_key)
-        else:
-            X_pca = adata.obsm[pca_key][:, :n_pca_components]
-            adata.obsm[pca_key] = X_pca
-    else:
-        if (pca_key not in adata.obsm.keys()) or reduction_method is "pca":
-            adata, _, X_pca = pca(adata, X, n_pca_components, pca_key)
-        else:
-            X_pca = adata.obsm[pca_key][:, :n_pca_components]
-            adata.obsm[pca_key] = X_pca
-
-    if reduction_method == "trimap":
-        import trimap
-
-        triplemap = trimap.TRIMAP(
-            n_inliers=20,
-            n_outliers=10,
-            n_random=10,
-            distance="euclidean",  # cosine
-            weight_adj=1000.0,
-            apply_pca=False,
-        )
-        X_dim = triplemap.fit_transform(X_pca)
-
-        adata.obsm[embedding_key] = X_dim
-        adata.uns[neighbor_key] = {
-            "params": {"n_neighbors": n_neighbors, "method": reduction_method},
-            "connectivities": None,
-            "distances": None,
-            "indices": None,
-        }
-    elif reduction_method == "diffusion_map":
-        pass
-    elif reduction_method == "tSNE":
-        try:
-            from fitsne import FItSNE
-        except ImportError:
-            print(
-                "Please first install fitsne to perform accelerated tSNE method. Install instruction is provided here: https://pypi.org/project/fitsne/"
-            )
-
-        X_dim = FItSNE(X_pca, nthreads=cores)  # use FitSNE
-
-        # bh_tsne = TSNE(n_components = n_components)
-        # X_dim = bh_tsne.fit_transform(X)
-        adata.obsm[embedding_key] = X_dim
-        adata.uns[neighbor_key] = {
-            "params": {"n_neighbors": n_neighbors, "method": reduction_method},
-            "connectivities": None,
-            "distances": None,
-            "indices": None,
-        }
-    elif reduction_method == "umap":
-        _umap_kwargs = {
-            "n_components": 2,
-            "metric": "euclidean",
-            "min_dist": 0.5,
-            "spread": 1.0,
-            "n_epochs": 0,
-            "alpha": 1.0,
-            "gamma": 1.0,
-            "negative_sample_rate": 5,
-            "init_pos": "spectral",
-            "random_state": 0,
-            "verbose": False,
-        }
-        umap_kwargs = update_dict(_umap_kwargs, kwargs)
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            (
-                mapper,
-                graph,
-                knn_indices,
-                knn_dists,
-                X_dim,
-            ) = umap_conn_indices_dist_embedding(
-                X_pca, n_neighbors, **umap_kwargs
-            )  # X
-
-        adata.obsm[embedding_key] = X_dim
-        adata.uns[neighbor_key] = {
-            "params": {"n_neighbors": n_neighbors, "method": reduction_method},
-            "connectivities": graph,
-            "distances": knn_dists,
-            "indices": knn_indices,
-        }
-        adata.uns["umap_fit"] = {"fit": mapper, "n_pca_components": n_pca_components}
-    elif reduction_method is "psl":
-        adj_mat, X_dim = psl_py(
-            X_pca, d=n_components, K=n_neighbors
-        )  # this need to be updated
-        adata.obsm[embedding_key] = X_dim
-        adata.uns[neighbor_key] = adj_mat
-
-    else:
-        raise Exception(
-            "reduction_method {} is not supported.".format(reduction_method)
-        )
+    # if "use_for_dynamo" in adata.var.keys():
+    #     if layer == "X":
+    #         X = adata.X[:, adata.var.use_for_dynamo.values]
+    #     else:
+    #         X = adata[:, adata.var.use_for_dynamo.values].layers[layer]
+    # else:
+    #     if layer == "X":
+    #         X = adata.X
+    #     else:
+    #         X = adata.layers[layer]
+    #
+    # if layer == "X":
+    #     if (
+    #         (pca_key not in adata.obsm.keys()) or "pca_fit" not in adata.uns.keys()
+    #     ) or reduction_method is "pca":
+    #         adata, _, X_pca = pca(adata, X, n_pca_components, pca_key)
+    #     else:
+    #         X_pca = adata.obsm[pca_key][:, :n_pca_components]
+    #         adata.obsm[pca_key] = X_pca
+    # else:
+    #     if (pca_key not in adata.obsm.keys()) or reduction_method is "pca":
+    #         adata, _, X_pca = pca(adata, X, n_pca_components, pca_key)
+    #     else:
+    #         X_pca = adata.obsm[pca_key][:, :n_pca_components]
+    #         adata.obsm[pca_key] = X_pca
+    if enforce or not has_basis:
+       adata = run_reduce_dim(adata, X_data, n_components, n_pca_components, reduction_method, embedding_key,
+                              n_neighbors, neighbor_key, cores, kwargs)
 
     return adata
 
