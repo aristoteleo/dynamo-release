@@ -525,7 +525,9 @@ def VectorField(
         X = adata.obsm["X_" + basis].copy()
         V = adata.obsm["velocity_" + basis].copy()
 
-        if dims is not None:
+        if np.isscalar(dims):
+            X, V = X[:, :dims], V[:, :dims]
+        elif dims is not None:
             X, V = X[:, dims], V[:, dims]
     else:
         valid_genes = (

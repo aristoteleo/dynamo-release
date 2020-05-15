@@ -1368,7 +1368,9 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
 
 
 def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
-    if init_states is None and init_cells is not None:
+    if init_states is None and init_cells is None:
+        raise Exception("Either init_state or init_cells should be provided.")
+    elif init_states is None and init_cells is not None:
         if type(init_cells) == str:
             init_cells = [init_cells]
         intersect_cell_names = sorted(
@@ -1412,9 +1414,6 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
             else:
                 VecFld = adata.uns["VecFld_" + layer]["VecFld"]
                 X = adata[:, valid_genes].layers[layer]
-
-    if init_states is None:
-        raise Exception("Either init_state or init_cells should be provided.")
 
     if init_states.shape[0] > 1 and average in ["origin", True]:
         init_states = init_states.mean(0).reshape((1, -1))

@@ -77,23 +77,6 @@ def con_K(x, y, beta):
     return K
 
 
-def vector_field_function(x, VecFld, dim=None):
-    """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
-    Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
-    """
-    # x=np.array(x).reshape((1, -1))
-    x = np.array(x)
-    if x.ndim == 1:
-        x = x[None, :]
-    K = con_K(x, VecFld["X"], VecFld["beta"])
-
-    if dim is None:
-        K = K.dot(VecFld["C"])
-    else:
-        K = K.dot(VecFld["C"][:, dim])
-    return K
-
-
 def con_K_div_cur_free(x, y, sigma=0.8, gamma=0.5):
     """Learn a convex combination of the divergence-free kernel T_df and curl-free kernel T_cf with a bandwidth sigma and a combination coefficient gamma.
 
@@ -120,7 +103,7 @@ def con_K_div_cur_free(x, y, sigma=0.8, gamma=0.5):
     G_tmp = np.matlib.tile(x[:, :, None], [1, 1, n]) - np.transpose(
         np.matlib.tile(y[:, :, None], [1, 1, m]), [2, 1, 0]
     )
-    G_tmp = np.squeeze(np.sum(K ** 2, 1))
+    G_tmp = np.squeeze(np.sum(G_tmp ** 2, 1))
     G_tmp3 = -G_tmp / sigma2
     G_tmp = -G_tmp / (2 * sigma2)
     G_tmp = np.exp(G_tmp) / sigma2
@@ -148,6 +131,23 @@ def con_K_div_cur_free(x, y, sigma=0.8, gamma=0.5):
     G = (1 - gamma) * G_tmp * (G_tmp2 + G_tmp3) + gamma * G_tmp * G_tmp4
 
     return G, (1 - gamma) * G_tmp * (G_tmp2 + G_tmp3), gamma * G_tmp * G_tmp4
+
+
+def vector_field_function(x, VecFld, dim=None):
+    """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
+    Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
+    """
+    # x=np.array(x).reshape((1, -1))
+    x = np.array(x)
+    if x.ndim == 1:
+        x = x[None, :]
+    K = con_K(x, VecFld["X_ctrl"], VecFld["beta"])
+
+    if dim is None:
+        K = K.dot(VecFld["C"])
+    else:
+        K = K.dot(VecFld["C"][:, dim])
+    return K
 
 
 def SparseVFC(
@@ -206,7 +206,7 @@ def SparseVFC(
     grid_U = None
 
     # Construct kernel matrix K
-    M = 500 if M is None else M
+    #M = 500 if M is None else M
     tmp_X = np.unique(X, axis=0)  # return unique rows
     idx = np.random.RandomState(seed=0).permutation(
         tmp_X.shape[0]
@@ -271,6 +271,7 @@ def SparseVFC(
         elif gamma < 0.05:
             gamma = 0.05
 
+        print(i)
         i += 1
 
     grid_V = None
@@ -278,7 +279,8 @@ def SparseVFC(
         grid_V = np.dot(grid_U, C)
 
     VecFld = {
-        "X": ctrl_pts,
+        "X": X,
+        "X_ctrl": ctrl_pts,
         "Y": Y,
         "beta": beta,
         "V": V,
@@ -287,7 +289,7 @@ def SparseVFC(
         "VFCIndex": np.where(P > theta)[0],
         "sigma2": sigma2,
         "grid": Grid,
-        "grid_V": grid_V,
+        "grid_V": grid_V
     }
 
     return VecFld
@@ -487,21 +489,4 @@ class vectorfield:
         print("recall rate: %d/%d = %f" % (NumVFCCorrect, NumCorrectIndex, recall))
 
         return corrRate, precision, recall
-
-
-    def vector_field_function_auto(self, x, VecFld, autograd=False):
-        """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
-
-        Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
-        """
-
-        K = (
-            con_K(x, VecFld["X"], VecFld["beta"])
-            if autograd is False
-            else con_K(x, VecFld["X"], VecFld["beta"])
-        )
-
-        K = K.dot(VecFld["C"]).T
-
-        return K
 
