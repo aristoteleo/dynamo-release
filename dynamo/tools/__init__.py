@@ -72,10 +72,10 @@ from .metric_velocity import cell_wise_confidence
 from .scVectorField import (
     SparseVFC,
     con_K,
+    vector_field_function,
     get_P,
-    VectorField,
 )  # , evaluate, con_K_div_cur_free, vector_field_function, vector_field_function_auto, auto_con_K
-from .topography import FixedPoints, VectorField2D, topography
+from .topography import FixedPoints, VectorField2D, topography, VectorField
 
 # Markov chain related:
 from .Markov import (
@@ -120,6 +120,3 @@ from .connectivity import mnn
 # Pseudotime related
 from .DDRTree import DDRTree_py as DDRTree
 from .DDRTree import cal_ncenter
-
-# Utils
-from .utils import vector_field_function
