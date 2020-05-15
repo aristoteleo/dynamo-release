@@ -116,7 +116,11 @@ class MixtureModels:
         for mdl in self.models:
             mdl.reset()
 
+    def param_mixer(self, *params):
+        return params
+
     def set_params(self, *params):
+        params = self.param_mixer(*params)
         for i, mdl in enumerate(self.models):
             idx = self.distributor[i]
             p = np.zeros(len(idx))
@@ -124,6 +128,28 @@ class MixtureModels:
                 p[j] = params[idx[j]]
             mdl.set_params(*p)
         self.reset()
+
+class LambdaModels_NoSwitching(MixtureModels):
+    def __init__(self, model1, model2):
+        '''
+            parameter order: alpha, lambda, (beta), gamma
+            distributor order: alpha_1, alpha_2, (beta), gamma
+        '''
+        models = [model1, model2]
+        if type(model1) in nosplicing_models and type(model2) in nosplicing_models:
+            param_distributor = [[0, 2], [1, 2]]
+        else:
+            dist1 = [0, 3] if model1 in nosplicing_models else [0, 2, 3]
+            dist2 = [1, 3] if model2 in nosplicing_models else [1, 2, 3]
+            param_distributor = [dist1, dist2]
+        super().__init__(models, param_distributor)
+
+    def param_mixer(self, *params):
+        lam = params[1]
+        alp_1 = params[0] * lam
+        alp_2 = params[0] * (1 - lam)
+        p = np.hstack((alp_1, alp_2, params[2:]))
+        return p
 
 class Moments(LinearODE):
     def __init__(self, a=None, b=None, alpha_a=None, alpha_i=None, beta=None, gamma=None, x0=None):
@@ -692,3 +718,8 @@ class Deterministic_NoSplicing(LinearODE):
         x0 = self.x0 if x0 is None else x0
         u = sol_u(t, x0[self.u], self.al, self.ga)
         return np.array([u]).T
+
+nosplicing_models = [
+    Deterministic_NoSplicing, 
+    Moments_Nosplicing, 
+    Moments_NoSwitchingNoSplicing]

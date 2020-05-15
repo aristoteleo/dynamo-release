@@ -93,7 +93,25 @@ def einsum_correlation(X, Y_i, type="pearson"):
 
     return corr
 
+  
+def form_triu_matrix(arr):
+    '''
+        Construct upper triangle matrix from an 1d array.
+    '''
+    n = int(np.ceil((np.sqrt(1 + 8 * len(arr)) - 1) * 0.5))
+    M = np.zeros((n, n))
+    c = 0
+    for i in range(n):
+        for j in range(n):
+            if j >= i:
+                if c < len(arr):
+                    M[i, j] = arr[c]
+                    c += 1
+                else:
+                    break
+    return M
 
+  
 def moms2var(m1, m2):
     var = m2 - elem_prod(m1, m1)
 
@@ -1077,56 +1095,6 @@ def split_velocity_graph(G, neg_cells_trick=True):
 
 # ---------------------------------------------------------------------------------------------------
 # vector field related
-def con_K(x, y, beta):
-    """Con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
-
-    Arguments
-    ---------
-        x: 'np.ndarray'
-            Original training data points.
-        y: 'np.ndarray'
-            Control points used to build kernel basis functions.
-        beta: 'float' (default: 0.1)
-            Paramerter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2),
-
-    Returns
-    -------
-    K: 'np.ndarray'
-    the kernel to represent the vector field function.
-    """
-
-    n, d = x.shape
-    m, d = y.shape
-
-    # https://stackoverflow.com/questions/1721802/what-is-the-equivalent-of-matlabs-repmat-in-numpy
-    # https://stackoverflow.com/questions/12787475/matlabs-permute-in-python
-    K = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(
-        np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0]
-    )
-    K = np.squeeze(np.sum(K ** 2, 1))
-    K = -beta * K
-    K = np.exp(K)  #
-
-    return K
-
-
-def vector_field_function(x, t, VecFld, dim=None):
-    """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
-    Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
-    """
-    # x=np.array(x).reshape((1, -1))
-    x = np.array(x)
-    if x.ndim == 1:
-        x = x[None, :]
-    K = con_K(x, VecFld["X"], VecFld["beta"])
-
-    if dim is None:
-        K = K.dot(VecFld["C"])
-    else:
-        K = K.dot(VecFld["C"][:, dim])
-    return K
-
-
 def integrate_vf(
     init_states, t, args, integration_direction, f, interpolation_num=None, average=True
 ):
@@ -1411,7 +1379,9 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
 
 
 def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
-    if init_states is None and init_cells is not None:
+    if init_states is None and init_cells is None:
+        raise Exception("Either init_state or init_cells should be provided.")
+    elif init_states is None and init_cells is not None:
         if type(init_cells) == str:
             init_cells = [init_cells]
         intersect_cell_names = sorted(
@@ -1455,9 +1425,6 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
             else:
                 VecFld = adata.uns["VecFld_" + layer]["VecFld"]
                 X = adata[:, valid_genes].layers[layer]
-
-    if init_states is None:
-        raise Exception("Either init_state or init_cells should be provided.")
 
     if init_states.shape[0] > 1 and average in ["origin", True]:
         init_states = init_states.mean(0).reshape((1, -1))
