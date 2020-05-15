@@ -68,13 +68,13 @@ def norm_vector(x):
 
 
 def norm_row(X):
-    """calculate euclidean norm for a row vector"""
+    """calculate euclidean norm for each row of a matrix"""
 
     return np.sqrt(X.multiply(X).sum(1).A1 if issparse(X) else np.einsum('ij, ij -> i', X, X) if X.ndim > 1 else np.einsum('i, i -> ', X, X))
 
 
 def einsum_correlation(X, Y_i, type="pearson"):
-    """calculate pearson or cosine correlation between X (genes/pcs/embeddings x cells) and the velocity vectors Y_i for cell i"""
+    """calculate pearson or cosine correlation between X (genes/pcs/embeddings x cells) and the velocity vectors Y_i for gene i"""
 
     if type == "pearson":
         X -= X.mean(axis=1)[:, None]
@@ -93,6 +93,7 @@ def einsum_correlation(X, Y_i, type="pearson"):
 
     return corr
 
+  
 def form_triu_matrix(arr):
     '''
         Construct upper triangle matrix from an 1d array.
@@ -109,6 +110,18 @@ def form_triu_matrix(arr):
                 else:
                     break
     return M
+
+  
+def moms2var(m1, m2):
+    var = m2 - elem_prod(m1, m1)
+
+    return var
+
+
+def var2m2(var, m1):
+    m2 = var + elem_prod(m1, m1)
+
+    return m2
 
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
@@ -151,9 +164,6 @@ def compute_velocity_labeling_B(B, alpha, R):
 def get_valid_inds(adata, filter_gene_mode):
     if filter_gene_mode == "final":
         valid_ind = adata.var.use_for_dynamo.values
-        # import warnings
-        # from scipy.sparse import SparseEfficiencyWarning
-        # warnings.simplefilter('ignore', SparseEfficiencyWarning)
     elif filter_gene_mode == "basic":
         valid_ind = adata.var.pass_basic_filter.values
     elif filter_gene_mode == "no":

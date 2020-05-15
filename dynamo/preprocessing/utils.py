@@ -110,6 +110,14 @@ def cook_dist(model, X, good):
 # ---------------------------------------------------------------------------------------------------
 # preprocess utilities
 
+def unique_var_obs_adata(adata):
+    """Function to make the obs and var attribute's index unique"""
+    adata.obs_names_make_unique()
+    adata.var_names_make_unique()
+
+    return adata
+
+
 def merge_adata_attrs(adata_ori, adata, attr):
     if attr == 'var':
         _columns = set(adata.var.columns).difference(adata_ori.var.columns)
@@ -352,6 +360,15 @@ def normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method=np.log
 
     return CM
 
+
+def Freeman_Tukey(X, inverse=False):
+    if inverse:
+        res = np.sqrt(X) + np.sqrt((X + 1))
+    else:
+        res = (X**2 - 1)**2 / (4 * X**2)
+
+    return res
+
 # ---------------------------------------------------------------------------------------------------
 # pca
 
@@ -359,7 +376,7 @@ def normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method=np.log
 def pca(adata, CM, n_pca_components=30, pca_key='X'):
 
     if adata.n_obs < 100000:
-        pca = PCA(n_components=n_pca_components, svd_solver="arpack", random_state=0)
+        pca = PCA(n_components=min(n_pca_components, CM.shape[1] - 1), svd_solver="arpack", random_state=0)
         fit = pca.fit(CM.toarray()) if issparse(CM) else pca.fit(CM)
         X_pca = fit.transform(CM.toarray()) if issparse(CM) else fit.transform(CM)
         adata.obsm[pca_key] = X_pca
@@ -368,7 +385,7 @@ def pca(adata, CM, n_pca_components=30, pca_key='X'):
         adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_
     else:
         fit = TruncatedSVD(
-            n_components=n_pca_components + 1, random_state=0
+            n_components=min(n_pca_components + 1, CM.shape[1] - 1), random_state=0
         )  # unscaled PCA
         X_pca = fit.fit_transform(CM)[
             :, 1:
@@ -379,3 +396,74 @@ def pca(adata, CM, n_pca_components=30, pca_key='X'):
         adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
     return adata, fit, X_pca
+
+# ---------------------------------------------------------------------------------------------------
+# labeling related
+
+
+def collapse_adata(adata):
+    """Function to collapse the four species data, will be generalized to handle dual-datasets"""
+    only_splicing, only_labeling, splicing_and_labeling = allowed_layer_raw_names()
+
+    if np.all([i in adata.layers.keys() for i in splicing_and_labeling]):
+        adata.layers[only_splicing[0]] = adata.layers['su'] + adata.layers['sl']
+        adata.layers[only_splicing[1]] = adata.layers['uu'] + adata.layers['ul']
+        adata.layers[only_labeling[0]] = adata.layers['ul'] + adata.layers['sl']
+        adata.layers[only_labeling[1]] = adata.layers[only_labeling[0]] + adata.layers['uu'] + adata.layers['su']
+
+    return adata
+
+def detect_datatype(adata):
+    has_splicing, has_labeling, has_protein = False, False, False
+
+    layers = adata.layers.keys()
+    if len({'ul', 'sl', 'uu', 'su'}.difference(layers)) == 0:
+        has_splicing, has_labeling = True, True
+    elif len({'unspliced', 'spliced'}.difference(layers)) == 0:
+        has_splicing = True
+    elif len({'new', 'total'}.difference(layers)) == 0:
+        has_labeling = True
+
+    if "protein" in adata.obsm.keys():
+        has_protein = True
+
+    return has_splicing, has_labeling, has_protein
+
+
+def default_layer(adata):
+    has_splicing, has_labeling, _ = detect_datatype(adata)
+
+    if has_splicing:
+        if has_labeling:
+            if len(set(adata.layers.keys()).intersection(['new', 'total', 'spliced', 'unspliced'])) == 4:
+                adata = collapse_adata(adata)
+            default_layer = "M_t" if "M_t" in adata.layers.keys() else "X_total" if \
+                "X_total" in adata.layers.keys() else "total"
+        else:
+            default_layer = "M_s" if "M_s" in adata.layers.keys() else "X_spliced" if \
+                "X_spliced" in adata.layers.keys() else "spliced"
+    else:
+        default_layer = "M_t" if "M_t" in adata.layers.keys() else "X_total" if \
+            "X_total" in adata.layers.keys() else "total"
+
+    return default_layer
+
+def NTR(adata):
+    """calculate the new to total ratio across cells. Note that
+    NTR for the first time point in degradation approximates gamma/beta."""
+
+    if len({'new', 'total'}.intersection(adata.layers.keys())) == 2:
+        ntr = adata.layers['new'].sum(1) / adata.layers['total'].sum(1)
+        ntr = ntr.A1 if issparse(adata.layers['new']) else ntr
+    elif len({'uu', 'ul', 'su', 'sl'}.intersection(adata.layers.keys())) == 4:
+        new = adata.layers['ul'].sum(1) + \
+              adata.layers['sl'].sum(1)
+        total = new + adata.layers['uu'].sum(1) + \
+                adata.layers['su'].sum(1)
+        ntr = new / total
+
+        ntr = ntr.A1 if issparse(adata.layers['uu']) else ntr
+    else:
+        ntr = None
+
+    return ntr

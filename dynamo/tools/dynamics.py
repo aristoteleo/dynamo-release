@@ -20,6 +20,7 @@ from .moments import (
     prepare_data_has_splicing,
     prepare_data_deterministic,
     prepare_data_mix_has_splicing,
+    prepare_data_mix_no_splicing,
 )
 
 import warnings
@@ -31,7 +32,7 @@ def dynamics(
     tkey=None,
     t_label_keys=None,
     filter_gene_mode="final",
-    use_moments=True,
+    use_smoothed=True,
     experiment_type='auto',
     assumption_mRNA='auto',
     assumption_protein="ss",
@@ -43,6 +44,7 @@ def dynamics(
     concat_data=False,
     log_unnormalized=True,
     one_shot_method="combined",
+    re_smooth = False,
     **est_kwargs
 ):
     """Inclusive model of expression dynamics considers splicing, metabolic labeling and protein translation. It supports
@@ -55,16 +57,16 @@ def dynamics(
             AnnData object.
         tkey: `str` or None (default: None)
             The column key for the time label of cells in .obs. Used for either "ss" or "kinetic" model.
-            mode  with labeled data.
+            mode  with labeled data. When `group` is None, `tkey` will also be used for calculating  1st/2st moment or covariance.
         t_label_keys: `str`, `list` or None (default: None)
             The column key(s) for the labeling time label of cells in .obs. Used for either "ss" or "kinetic" model.
             Not used for now and `tkey` is implicitly assumed as `t_label_key` (however, `tkey` should just be the time
             of the experiment).
         filter_gene_mode: `str` (default: `final`)
             The string for indicating which mode (one of, {'final', 'basic', 'no'}) of gene filter will be used.
-        use_moments: `bool` (default: `True`)
-            Whether to use the smoothed data when calculating velocity for each gene. `use_smoothed` is only relevant when
-            model is `linear_regression` (and experiment_type and assumption_mRNA correspond to `conventional` and `ss` implicitly).
+        use_smoothed: `bool` (default: 'True')
+            Whether to use the smoothed data when estimating kinetic parameters and calculating velocity for each gene.
+            When you have time-series data (`tkey` is not None), we recommend to smooth data among cells from each time point.
         experiment_type: `str` {`conventional`, `deg`, `kin`, `one-shot`, `auto`}, (default: `auto`)
             single cell RNA-seq experiment type. Available options are:
             (1) 'conventional': conventional single-cell RNA-seq experiment;
@@ -123,7 +125,8 @@ def dynamics(
             Whether to use NTR (new/total ratio) velocity for labeling datasets.
         group: `str` or None (default: `None`)
             The column key/name that identifies the grouping information (for example, clusters that correspond to different cell types)
-            of cells. This will be used to estimate group-specific (i.e cell-type specific) kinetic parameters.
+            of cells. This will be used to calculate 1/2 st moments and covariance for each cells in each group. It will also enable
+            estimating group-specific (i.e cell-type specific) kinetic parameters.
         protein_names: `List`
             A list of gene names corresponds to the rows of the measured proteins in the `X_protein` of the `obsm` attribute.
             The names have to be included in the adata.var.index.
@@ -131,14 +134,18 @@ def dynamics(
             Whether to concatenate data before estimation. If your data is a list of matrices for each time point, this need to be set as True.
         log_unnormalized: `bool` (default: `True`)
             Whether to log transform the unnormalized data.
+        re_smooth: `bool` (default: `False`)
+            Whether to re-smooth the adata and also recalculate 1/2 moments or covariance.
         **est_kwargs
             Other arguments passed to the estimation methods. Not used for now.
+
     Returns
     -------
         adata: :class:`~anndata.AnnData`
             A updated AnnData object with estimated kinetic parameters and inferred velocity included.
     """
 
+    X_data, X_fit_data = None, None
     filter_list, filter_gene_mode_list = ['use_for_dynamo', 'pass_basic_filter', 'no'], ['final', 'basic', 'no']
     filter_checker = [i in adata.var.columns for i in filter_list[:2]]
     filter_checker.append(True)
@@ -148,6 +155,8 @@ def dynamics(
     filter_gene_mode = filter_gene_mode_list[which_filter]
 
     valid_ind = get_valid_inds(adata, filter_gene_mode)
+    if sum(valid_ind) == 0:
+        raise Exception(f"no genes pass filter. Try resetting `filter_gene_mode = 'no'` to use all genes.")
 
     if model.lower() == "auto":
         model = "stochastic"
@@ -155,9 +164,24 @@ def dynamics(
     else:
         model_was_auto = False
 
-    if model.lower() == "stochastic" or use_moments:
-        if len([i for i in adata.layers.keys() if i.startswith("M_")]) < 2:
-            moments(adata)
+    if model.lower() == "stochastic" or use_smoothed or re_smooth:
+        M_layers = [i for i in adata.layers.keys() if i.startswith("M_")]
+        if re_smooth or len(M_layers) < 2:
+            for i in M_layers:
+                del adata.layers[i]
+
+        if len(M_layers) < 2 or re_smooth:
+            if filter_gene_mode == 'final' and 'X_pca' in adata.obsm.keys():
+                adata.obsm['X'] = adata.obsm['X_pca']
+
+            if group is not None and group in adata.obs.columns:
+                moments(adata, genes=valid_ind, group=group)
+            else:
+                moments(adata, genes=valid_ind, group=tkey)
+        elif tkey is not None:
+            warnings.warn(f"You used tkey {tkey} (or group {group}), but you have calculated local smoothing (1st moment) "
+                          f"for your data before. Please ensure you used the desired tkey or group when the smoothing was "
+                          f"performed. Try setting re_smooth = True if not sure.")
 
     valid_adata = adata[:, valid_ind].copy()
     if group is not None and group in adata.obs.columns:
@@ -165,7 +189,7 @@ def dynamics(
     else:
         _group = ["_all_cells"]
 
-    for cur_grp in _group:
+    for cur_grp_i, cur_grp in enumerate(_group):
         if cur_grp == "_all_cells":
             kin_param_pre = ""
             cur_cells_bools = np.ones(valid_adata.shape[0], dtype=bool)
@@ -175,7 +199,7 @@ def dynamics(
             cur_cells_bools = (valid_adata.obs[group] == cur_grp).values
             subset_adata = valid_adata[cur_cells_bools]
 
-            if model.lower() == "stochastic" or use_moments:
+            if model.lower() == "stochastic" or use_smoothed:
                 moments(subset_adata)
         (
             U,
@@ -197,7 +221,7 @@ def dynamics(
         ) = get_data_for_kin_params_estimation(
             subset_adata,
             model,
-            use_moments,
+            use_smoothed,
             tkey,
             protein_names,
             log_unnormalized,
@@ -214,6 +238,7 @@ def dynamics(
                 )
 
         if assumption_mRNA.lower() == 'auto': assumption_mRNA = assump_mRNA
+        if experiment_type == 'conventional': assumption_mRNA = 'ss'
 
         if model.lower() == "stochastic" and experiment_type.lower() not in ["conventional", "kinetics", "degradation", "kin", "deg", "one-shot"]:
             """
@@ -264,7 +289,7 @@ def dynamics(
 
             U, S = get_U_S_for_velocity_estimation(
                 subset_adata,
-                use_moments,
+                use_smoothed,
                 has_splicing,
                 has_labeling,
                 log_unnormalized,
@@ -308,9 +333,23 @@ def dynamics(
 
         elif assumption_mRNA.lower() == "kinetic":
             if model_was_auto and experiment_type.lower() == "kin": model = "mixture"
+            data_type = 'smoothed' if use_smoothed else 'sfs'
 
-            params, half_life, cost, logLL, param_ranges = kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_splicing,
-                          has_switch=True, param_rngs={}, **est_kwargs)
+            params, half_life, cost, logLL, param_ranges, cur_X_data, cur_X_fit_data = kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_splicing,
+                          has_switch=True, param_rngs={}, data_type=data_type, **est_kwargs)
+
+            len_t, len_g = len(np.unique(t)), len(_group)
+            if cur_grp == _group[0]:
+                if len_g == 1:
+                    X_data, X_fit_data = np.array((adata.n_vars, len_t)), np.array((adata.n_vars, len_t))
+                else:
+                    X_data, X_fit_data = np.array((len_g, adata.n_vars, len_t)), np.array((len_g, adata.n_vars, len_t))
+
+            if len(_group) == 1:
+                X_data, X_fit_data = cur_X_data, cur_X_fit_data
+            else:
+                X_data[cur_grp_i, :, :], X_fit_data[cur_grp_i, :, :] = cur_X_data, cur_X_fit_data
+
             a, b, alpha_a, alpha_i, alpha, beta, gamma = (
                 params.loc[:, 'a'].values if 'a' in params.columns else None,
                 params.loc[:, 'b'].values if 'b' in params.columns else None,
@@ -331,7 +370,7 @@ def dynamics(
 
             U, S = get_U_S_for_velocity_estimation(
                 subset_adata,
-                use_moments,
+                use_smoothed,
                 has_splicing,
                 has_labeling,
                 log_unnormalized,
@@ -380,8 +419,11 @@ def dynamics(
         uns_key = "dynamics"
 
     adata.uns[uns_key] = {
+        "filter_gene_mode": filter_gene_mode,
         "t": t,
         "group": group,
+        "X_data": X_data,
+        "X_fit_data": X_fit_data,
         "asspt_mRNA": assumption_mRNA,
         "experiment_type": experiment_type,
         "normalized": normalized,
@@ -389,7 +431,7 @@ def dynamics(
         "has_splicing": has_splicing,
         "has_labeling": has_labeling,
         "has_protein": has_protein,
-        "use_smoothed": use_moments,
+        "use_smoothed": use_smoothed,
         "NTR_vel": NTR_vel,
         "log_unnormalized": log_unnormalized,
     }
@@ -397,23 +439,28 @@ def dynamics(
     return adata
 
 
-def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_splicing, has_switch, param_rngs, only_sfs=True, **est_kwargs):
+def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_splicing, has_switch, param_rngs,
+                  data_type='sfs', **est_kwargs):
+    """est_method is not used. data_type can either 'sfs' or 'smoothed'."""
     time = subset_adata.obs[tkey].astype('float')
 
     if experiment_type.lower() == 'kin':
         if has_splicing:
+            layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
+                        'M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') \
+                else ['ul', 'sl', 'uu', 'su']
+
             if model in ['deterministic', 'stochastic']:
-                layer_u = 'X_ul' if ('X_ul' in subset_adata.layers.keys() and not only_sfs) else 'ul'
-                layer_s = 'X_sl' if ('X_sl' in subset_adata.layers.keys() and not only_sfs) else 'sl'
+                layer_u = 'M_ul' if ('M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') else 'ul'
+                layer_s = 'M_sl' if ('M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') else 'sl'
 
-                X, X_raw = prepare_data_has_splicing(subset_adata, subset_adata.var.index, time, layer_u=layer_u, layer_s=layer_s)
+                X, X_raw = prepare_data_has_splicing(subset_adata, subset_adata.var.index, time,
+                                                     layer_u=layer_u, layer_s=layer_s, total_layers=layers)
             elif model.startswith('mixture'):
-                layers = ['X_ul', 'X_sl', 'X_uu', 'X_su'] if ('X_ul' in subset_adata.layers.keys() and not only_sfs) \
-                    else ['ul', 'sl', 'uu', 'su']
+                X, _, X_raw = prepare_data_deterministic(subset_adata, subset_adata.var.index, time,
+                                                         layers=layers, total_layers=layers)
 
-                X, _, X_raw = prepare_data_deterministic(subset_adata, subset_adata.var.index, time, layers=layers)
-
-            if model == 'deterministic': # 0 - to 10 initial value
+            if model == 'deterministic':
                 X = [X[i][[0, 1], :] for i in range(len(X))]
                 _param_ranges = {'alpha': [0, 1000], 'beta': [0, 1000], 'gamma': [0, 1000]}
                 x0 = {'u0': [0, 1000], 's0': [0, 1000]}
@@ -438,9 +485,9 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
 
                 Est = Mixture_KinDeg_NoSwitching(Deterministic(), Deterministic())
             elif model == 'mixture_deterministic_stochastic':
-                X, X_raw = prepare_data_mix_has_splicing(subset_adata, subset_adata.var.index, time, layer_u=layers[2], layer_s=layers[3],
-                                                  layer_ul=layers[0], layer_sl=layers[1], use_total_layers=True,
-                                                  mix_model_indices=[0, 1, 5, 6, 7, 8, 9])
+                X, X_raw = prepare_data_mix_has_splicing(subset_adata, subset_adata.var.index, time, layer_u=layers[2],
+                                                         layer_s=layers[3], layer_ul=layers[0], layer_sl=layers[1],
+                                                         total_layers=layers, mix_model_indices=[0, 1, 5, 6, 7, 8, 9])
 
                 _param_ranges = {'alpha': [0, 1000], 'alpha_2': [0, 0], 'beta': [0, 1000], 'gamma': [0, 1000], }
                 x0 = {'ul0': [0, 0], 'sl0': [0, 0],
@@ -449,14 +496,10 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                       'us0': [0, 1000], }
                 Est = Mixture_KinDeg_NoSwitching(Deterministic(), Moments_NoSwitching())
             elif model == 'mixture_stochastic_stochastic':
-                raise NotImplementedError(f'model {model} with kinetic assumption is not implemented. '
-                                f'current supported models for kinetics experiments include: stochastic, deterministic, mixture,'
-                                f'mixture_deterministic_stochastic or mixture_stochastic_stochastic')
-
                 _param_ranges = {'alpha': [0, 1000], 'alpha_2': [0, 0], 'beta': [0, 1000], 'gamma': [0, 1000], }
-                X = prepare_data_mix_has_splicing(subset_adata, subset_adata.var.index, time, layer_u=layers[2], layer_s=layers[3],
-                                                  layer_ul=layers[0], layer_sl=layers[1], use_total_layers=True,
-                                                  mix_model_indices=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+                X, X_raw  = prepare_data_mix_has_splicing(subset_adata, subset_adata.var.index, time, layer_u=layers[2],
+                                                          layer_s=layers[3], layer_ul=layers[0], layer_sl=layers[1],
+                                                          total_layers=layers, mix_model_indices=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
                 x0 = {'ul0': [0, 1000], 'sl0': [0, 1000],
                       'ul_ul0': [0, 1000], 'sl_sl0': [0, 1000],
                       'ul_sl0': [0, 1000],
@@ -469,13 +512,18 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                                 f'current supported models for kinetics experiments include: stochastic, deterministic, mixture,'
                                 f'mixture_deterministic_stochastic or mixture_stochastic_stochastic')
         else:
-            if model in ['deterministic', 'stochastic']:
-                layer = 'X_new' if  ('X_new' in subset_adata.layers.keys() and not only_sfs) else 'new'
-                X, X_raw = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time, layer=layer)
-            elif model.startswith('mixture'):
-                layers = ['X_new', 'X_total'] if ('X_new' in subset_adata.layers.keys() and not only_sfs) else ['new', 'total']
+            total_layer = 'M_t' if ('M_t' in subset_adata.layers.keys() and data_type == 'smoothed') else 'total'
 
-                X, _, X_raw = prepare_data_deterministic(subset_adata, subset_adata.var.index, time, layers=layers)
+            if model in ['deterministic', 'stochastic']:
+                layer = 'M_n' if ('M_n' in subset_adata.layers.keys() and data_type == 'smoothed') else 'new'
+                X, X_raw = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time, layer=layer,
+                                                    total_layer=total_layer)
+            elif model.startswith('mixture'):
+                layers = ['M_n', 'M_t'] if ('M_n' in subset_adata.layers.keys() and data_type == 'smoothed') \
+                    else ['new', 'total']
+
+                X, _, X_raw = prepare_data_deterministic(subset_adata, subset_adata.var.index, time, layers=layers,
+                                                         total_layers=total_layer)
 
             if model == 'deterministic':
                 X = [X[i][0, :] for i in range(len(X))]
@@ -493,16 +541,24 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                     _param_ranges = {'alpha': [0, 1000], 'gamma': [0, 1000], }
                     Est, _ = Estimation_MomentKinNoSwitchNoSplicing, Moments_NoSwitchingNoSplicing
             elif model == 'mixture':
-                _param_ranges = {'alpha': [0, 1000], 'gamma': [0, 1000], }
-                x0 = {'u0': [0, 1000]}
+                _param_ranges = {'alpha': [0, 1000], 'alpha_2': [0, 0], 'gamma': [0, 1000], }
+                x0 = {'u0': [0, 0], 'o0': [0, 1000]}
                 Est = Mixture_KinDeg_NoSwitching(Deterministic_NoSplicing(), Deterministic_NoSplicing())
             elif model == 'mixture_deterministic_stochastic':
-                _param_ranges = {'alpha': [0, 1000], 'gamma': [0, 1000], }
-                x0 = {'u0': [0, 1000], 'uu0': [0, 1000]}
+                X, X_raw = prepare_data_mix_no_splicing(subset_adata, subset_adata.var.index, time,
+                                                        layer_n=layers[0], layer_t=layers[1], total_layer=total_layer,
+                                                        mix_model_indices=[0, 2, 3])
+
+                _param_ranges = {'alpha': [0, 1000], 'alpha_2': [0, 0], 'gamma': [0, 1000], }
+                x0 = {'u0': [0, 1000], 'o0': [0, 1000], 'oo0': [0, 1000]}
                 Est = Mixture_KinDeg_NoSwitching(Deterministic_NoSplicing(), Moments_NoSwitchingNoSplicing())
             elif model == 'mixture_stochastic_stochastic':
-                _param_ranges = {'alpha': [0, 1000], 'gamma': [0, 1000], }
-                x0 = {'u0': [0, 1000], 'uu0': [0, 1000]}
+                X, X_raw = prepare_data_mix_no_splicing(subset_adata, subset_adata.var.index, time,
+                                                        layer_n=layers[0], layer_t=layers[1], total_layer=total_layer,
+                                                        mix_model_indices=[0, 1, 2, 3])
+
+                _param_ranges = {'alpha': [0, 1000], 'alpha_2': [0, 0], 'gamma': [0, 1000], }
+                x0 = {'u0': [0, 1000], 'uu0': [0, 1000], 'o0': [0, 1000], 'oo0': [0, 1000]}
                 Est = Mixture_KinDeg_NoSwitching(Moments_NoSwitchingNoSplicing(), Moments_NoSwitchingNoSplicing())
             else:
                 raise Exception(f'model {model} with kinetic assumption is not implemented. '
@@ -510,19 +566,22 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                                 f'mixture_deterministic_stochastic or mixture_stochastic_stochastic')
     elif experiment_type.lower() == 'deg':
         if has_splicing:
+            layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
+                        'M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') \
+                else ['ul', 'sl', 'uu', 'su']
+
             if model in ['deterministic', 'stochastic']:
-                layer_u = 'X_ul' if ('X_ul' in subset_adata.layers.keys() and not only_sfs) else 'ul'
-                layer_s = 'X_sl' if ('X_sl' in subset_adata.layers.keys() and not only_sfs) else 'sl'
+                layer_u = 'M_ul' if ('M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') else 'ul'
+                layer_s = 'M_sl' if ('M_sl' in subset_adata.layers.keys() and data_type == 'smoothed') else 'sl'
 
-                X, X_raw = prepare_data_has_splicing(subset_adata, subset_adata.var.index, time, layer_u=layer_u, layer_s=layer_s)
+                X, X_raw = prepare_data_has_splicing(subset_adata, subset_adata.var.index, time,
+                                                     layer_u=layer_u, layer_s=layer_s, total_layers=layers)
             elif model.startswith('mixture'):
-                layers = ['X_ul', 'X_sl', 'X_uu', 'X_su'] if ('X_ul' in subset_adata.layers.keys() and not only_sfs) \
-                    else ['ul', 'sl', 'uu', 'su']
-
-                X, _, X_raw = prepare_data_deterministic(subset_adata, subset_adata.var.index, time, layers=layers)
+                X, _, X_raw = prepare_data_deterministic(subset_adata, subset_adata.var.index, time,
+                                                         layers=layers, total_layers=layers)
 
             if model == 'deterministic':
-                X = [X[i][[0, 1] , :]for i in range(len(X))]
+                X = [X[i][[0, 1], :] for i in range(len(X))]
                 _param_ranges = {'beta': [0, 1000], 'gamma': [0, 1000], }
                 x0 = {'u0': [0, 1000], 's0': [0, 1000], }
                 Est, _ = Estimation_DeterministicDeg, Deterministic
@@ -537,8 +596,11 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                             f'current supported models for degradation experiment include: '
                             f'stochastic, deterministic.')
         else:
-            layer = 'X_new' if ('X_new' in subset_adata.layers.keys() and not only_sfs) else 'new'
-            X, X_raw = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time, layer=layer)
+            total_layer = 'M_t' if ('M_t' in subset_adata.layers.keys() and data_type == 'smoothed') else 'total'
+
+            layer = 'M_n' if ('M_n' in subset_adata.layers.keys() and data_type == 'smoothed') else 'new'
+            X, X_raw = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time,
+                                                layer=layer, total_layer=total_layer)
 
             if model == 'deterministic':
                 X = [X[i][0, :] for i in range(len(X))]
@@ -571,7 +633,8 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
     cost, logLL = np.zeros(n_genes), np.zeros(n_genes)
     all_keys = list(_param_ranges.keys()) + list(x0.keys())
     all_keys = [cur_key for cur_key in all_keys if cur_key != 'alpha_i']
-    half_life, Estm = np.zeros(n_genes), [None] * n_genes #np.zeros((len(X), len(all_keys)))
+    half_life, Estm = np.zeros(n_genes), [None] * n_genes
+    X_data, X_fit_data = [None] * n_genes, [None] * n_genes
 
     for i_gene in tqdm(range(n_genes), desc="estimating kinetic-parameters using kinetic model"):
         if model.startswith('mixture'):
@@ -586,8 +649,8 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 cur_X_data = X[i_gene]
                 cur_X_raw = X_raw[i_gene]
 
-            if issparse(cur_X_raw[0, 0]):
-                cur_X_raw = np.hstack((cur_X_raw[0, 0].A, cur_X_raw[1, 0].A))
+                if issparse(cur_X_raw[0, 0]):
+                    cur_X_raw = np.hstack((cur_X_raw[0, 0].A, cur_X_raw[1, 0].A))
 
             _, cost[i_gene] = estm.auto_fit(np.unique(time), cur_X_data)
             model_1, model_2, kinetic_parameters, mix_x0 = estm.export_dictionary().values()
@@ -598,36 +661,67 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
             if experiment_type.lower() == 'kin':
                 cur_X_data, cur_X_raw = X[i_gene], X_raw[i_gene]
 
-                alpha0 = guestimate_alpha(np.sum(cur_X_data, 0), np.unique(time))
+                if has_splicing:
+                    alpha0 = guestimate_alpha(np.sum(cur_X_data, 0), np.unique(time))
+                else:
+                    alpha0 = guestimate_alpha(cur_X_data, np.unique(time)) if cur_X_data.ndim == 1 \
+                        else guestimate_alpha(cur_X_data[0], np.unique(time))
+
                 if model =='stochastic':
                     _param_ranges.update({'alpha_a': [0, alpha0*10]})
                 elif model == 'deterministic':
                     _param_ranges.update({'alpha': [0, alpha0 * 10]})
                 param_ranges = [ran for ran in _param_ranges.values()]
+
                 estm = Est(*param_ranges, x0=x0_) if 'x0' in inspect.getfullargspec(Est) \
                     else Est(*param_ranges)
-                Estm[i_gene], cost[i_gene] = estm.fit_lsq(np.unique(time), cur_X_data, **est_kwargs)
+                _, cost[i_gene] = estm.fit_lsq(np.unique(time), cur_X_data, **est_kwargs)
+                if model == 'deterministic':
+                    Estm[i_gene] = estm.export_parameters()
+                else:
+                    tmp = np.ma.array(estm.export_parameters(), mask=False)
+                    tmp.mask[3] = True
+                    Estm[i_gene] = tmp.compressed()
+
             elif experiment_type.lower() == 'deg':
                 estm = Est()
                 cur_X_data, cur_X_raw = X[i_gene], X_raw[i_gene]
                 
-                Estm[i_gene], cost[i_gene] = estm.auto_fit(np.unique(time), cur_X_data)
+                _, cost[i_gene] = estm.auto_fit(np.unique(time), cur_X_data)
+                Estm[i_gene] = estm.export_parameters()[1:]
 
             if issparse(cur_X_raw[0, 0]):
                 cur_X_raw = np.hstack((cur_X_raw[0, 0].A, cur_X_raw[1, 0].A))
+            # model_1, kinetic_parameters, mix_x0 = estm.export_dictionary().values()
+            # tmp = list(kinetic_parameters.values())
+            # tmp.extend(mix_x0)
+            # Estm[i_gene] = tmp
+
+        X_data[i_gene] = cur_X_data
+        if model.startswith('mixture'):
+            X_fit_data[i_gene] = estm.simulator.x.T
+            X_fit_data[i_gene][estm.model1.n_species:] *= estm.scale
+        else:
+            if hasattr(estm, "extract_data_from_simulator"):
+                X_fit_data[i_gene] = estm.extract_data_from_simulator()
+            else:
+                X_fit_data[i_gene] = estm.simulator.x.T
 
         half_life[i_gene] = np.log(2)/Estm[i_gene][-1] if experiment_type.lower() == 'kin' else estm.calc_half_life('gamma')
+
         if model.startswith('mixture'):
+            species = [0, 1, 2, 3] if has_splicing else [0, 1]
             gof = GoodnessOfFit(estm.export_model(), params=estm.export_parameters())
+            gof.prepare_data(time, cur_X_raw.T, species=species, normalize=True)
         else:
             gof = GoodnessOfFit(estm.export_model(), params=estm.export_parameters(), x0=estm.simulator.x0)
+            gof.prepare_data(time, cur_X_raw.T, normalize=True)
 
-        gof.prepare_data(time, cur_X_raw.T, normalize=True)
         logLL[i_gene] = gof.calc_gaussian_loglikelihood()
 
     Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[:len(Estm[0])]])
 
-    return Estm_df, half_life, cost, logLL, _param_ranges
+    return Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data
 
 
 def fbar(a, b, alpha_a, alpha_i):

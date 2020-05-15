@@ -355,7 +355,7 @@ class Estimation_MomentDegNosp(Estimation_Degradation):
         return popt, cost
 
 class Estimation_MomentKin(kinetic_estimation):
-    def __init__(self, a, b, alpha_a, alpha_i, beta, gamma, include_cov=False):
+    def __init__(self, a, b, alpha_a, alpha_i, beta, gamma, include_cov=True):
         '''An estimation class for kinetics experiments.
             Order of species: <unspliced>, <spliced>, <uu>, <ss>, <us>
         '''
