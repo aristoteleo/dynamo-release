@@ -1050,6 +1050,7 @@ def get_ekey_vkey_from_adata(adata):
 
     return ekey, vkey, layer
 
+
 # ---------------------------------------------------------------------------------------------------
 # cell velocities related
 def get_iterative_indices(indices, index, n_recurse_neighbors=2, max_neighs=None):

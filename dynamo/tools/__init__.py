@@ -114,6 +114,9 @@ from .state_graph import state_graph
 # dimension reduction related
 from .dimension_reduction import reduceDimension  # , run_umap
 
+# clustering related
+from .hdbscan import hdbscan
+
 # mnn related
 from .connectivity import mnn
 

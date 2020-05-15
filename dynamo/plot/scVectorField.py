@@ -1554,10 +1554,10 @@ def streamline_plot(
         "integration_direction": "both",
         "zorder": 10,
     }
-    streamplot_kwargs = update_dict(streamplot_kwargs, streamline_kwargs)
-
     mass = np.sqrt((V_grid ** 2).sum(0))
-    streamplot_kwargs.update({"linewidth": 4 * mass / mass[~np.isnan(mass)].max()})
+    streamplot_kwargs.update({"linewidth": 6 * mass / mass[~np.isnan(mass)].max()})
+
+    streamplot_kwargs = update_dict(streamplot_kwargs, streamline_kwargs)
 
     axes_list, _, font_color = scatters(
         adata,

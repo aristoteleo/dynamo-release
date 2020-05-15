@@ -129,7 +129,7 @@ def moments(adata,
                 if adata.uns["pp_norm_method"] == "log2"
                 else np.exp(layer_x.data) - 1
                 if adata.uns["pp_norm_method"] == "log"
-                else Freeman_Tukey(layer_x.data, inverse=True)
+                else Freeman_Tukey(layer_x.data + 1, inverse=True)
                 if adata.uns["pp_norm_method"] == "Freeman_Tukey"
                 else layer_x.data
             )
@@ -167,7 +167,7 @@ def moments(adata,
                     if adata.uns["pp_norm_method"] == "log2"
                     else np.exp(layer_y.data) - 1
                     if adata.uns["pp_norm_method"] == "log"
-                    else Freeman_Tukey(layer_y.data, inverse=True)
+                    else Freeman_Tukey(layer_y.data + 1, inverse=True)
                     if adata.uns["pp_norm_method"] == "Freeman_Tukey"
                     else layer_y.data
                 )

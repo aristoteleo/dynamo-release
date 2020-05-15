@@ -351,6 +351,7 @@ def normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method=np.log
             if norm_method is not None
             else CM.data
         )
+        if norm_method.__name__ == 'Freeman_Tukey': CM.data -= 1
     else:
         CM = (
             norm_method(CM + pseudo_expr)

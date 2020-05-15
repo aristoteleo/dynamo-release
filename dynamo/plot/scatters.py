@@ -746,7 +746,8 @@ def scatters(
 
     Parameters
     ----------
-        adata: an anndata object.
+        adata: :class:`~anndata.AnnData`
+            an Annodata object
         basis: `str`
             The reduced dimension.
         x: `int` (default: `0`)

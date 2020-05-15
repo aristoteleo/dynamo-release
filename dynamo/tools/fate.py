@@ -16,7 +16,7 @@ def fate(
     direction="both",
     average="origin",
     VecFld_true=None,
-    map_emb_to_gene=True,
+    inverse_transform=True,
     **kwargs
 ):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales.
@@ -89,14 +89,14 @@ def fate(
     )
 
     high_prediction = None
-    if basis == "pca" and map_emb_to_gene:
+    if basis == "pca" and inverse_transform:
         high_prediction = adata.uns["pca_fit"].inverse_transform(prediction)
         if adata.var.use_for_dynamo.sum() == high_prediction.shape[1]:
             valid_genes = adata.var_names[adata.var.use_for_dynamo]
         else:
             valid_genes = adata.var_names[adata.var.use_for_velocity]
 
-    elif basis == "umap" and map_emb_to_gene:
+    elif basis == "umap" and inverse_transform:
         # this requires umap 0.4
         high_prediction = adata.uns["umap_fit"].inverse_transform(prediction)
         ndim = adata.uns["umap_fit"]._raw_data.shape[1]
@@ -120,11 +120,12 @@ def fate(
             "average": average,
             "t": t,
             "prediction": prediction,
+            "VecFld": VecFld,
             "VecFld_true": VecFld_true,
             "genes": valid_genes,
         }
     if high_prediction is not None:
-        adata.uns[fate_key]["high_prediction"] = high_prediction
+        adata.uns[fate_key]["inverse_transform"] = high_prediction
 
     return adata
 

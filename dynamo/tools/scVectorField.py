@@ -206,11 +206,10 @@ def SparseVFC(
     grid_U = None
 
     # Construct kernel matrix K
-    #M = 500 if M is None else M
     tmp_X = np.unique(X, axis=0)  # return unique rows
     idx = np.random.RandomState(seed=0).permutation(
         tmp_X.shape[0]
-    )  # rand select some intial points
+    )  # rand select some initial points
     idx = idx[range(min(M, tmp_X.shape[0]))]
     ctrl_pts = tmp_X[idx, :]
     # ctrl_pts = X[range(500), :]
@@ -271,7 +270,6 @@ def SparseVFC(
         elif gamma < 0.05:
             gamma = 0.05
 
-        print(i)
         i += 1
 
     grid_V = None
