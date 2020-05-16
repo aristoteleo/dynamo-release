@@ -5,8 +5,9 @@ import scipy
 from scipy import interpolate
 from scipy.sparse import issparse, csr_matrix
 from scipy.integrate import odeint, solve_ivp
+from scipy.linalg.blas import dgemm
 import warnings
-
+import time
 
 # ---------------------------------------------------------------------------------------------------
 # others
@@ -114,21 +115,32 @@ def form_triu_matrix(arr):
   
 def moms2var(m1, m2):
     var = m2 - elem_prod(m1, m1)
-
     return var
 
 
 def var2m2(var, m1):
     m2 = var + elem_prod(m1, m1)
-
     return m2
+
+
+def timeit(method):
+    def timed(*args, **kw):
+        ti = kw.pop('timeit', False)
+        if ti:
+            ts = time.time()
+            result = method(*args, **kw)
+            te = time.time()
+            print ('Time elapsed for %r: %.4f s' %(method.__name__, (te - ts)))
+        else:
+            result = method(*args, **kw)
+        return result
+    return timed
 
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
 def one_shot_gamma_alpha(k, t, l):
     gamma = -np.log(1 - k) / t
     alpha = l * (gamma / k)[0]
-
     return gamma, alpha
 
 
@@ -1096,6 +1108,71 @@ def split_velocity_graph(G, neg_cells_trick=True):
 
 # ---------------------------------------------------------------------------------------------------
 # vector field related
+
+#  Copyright (c) 2013 Alexandre Drouin. All rights reserved.
+#
+#  Permission is hereby granted, free of charge, to any person obtaining a copy of
+#  this software and associated documentation files (the "Software"), to deal in
+#  the Software without restriction, including without limitation the rights to
+#  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+#  of the Software, and to permit persons to whom the Software is furnished to do
+#  so, subject to the following conditions:
+#
+#  The above copyright notice and this permission notice shall be included in all
+#  copies or substantial portions of the Software.
+#
+#  If you happen to meet one of the copyright holders in a bar you are obligated
+#  to buy them one pint of beer.
+#
+#  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+#  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+#  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+#  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+#  SOFTWARE.
+#  https://gist.github.com/aldro61/5889795
+
+def linear_least_squares(a, b, residuals=False):
+    """
+    Return the least-squares solution to a linear matrix equation.
+    Solves the equation `a x = b` by computing a vector `x` that
+    minimizes the Euclidean 2-norm `|| b - a x ||^2`.  The equation may
+    be under-, well-, or over- determined (i.e., the number of
+    linearly independent rows of `a` can be less than, equal to, or
+    greater than its number of linearly independent columns).  If `a`
+    is square and of full rank, then `x` (but for round-off error) is
+    the "exact" solution of the equation.
+    Parameters
+    ----------
+    a : (M, N) array_like
+        "Coefficient" matrix.
+    b : (M,) array_like
+        Ordinate or "dependent variable" values.
+    residuals : bool
+        Compute the residuals associated with the least-squares solution
+    Returns
+    -------
+    x : (M,) ndarray
+        Least-squares solution. The shape of `x` depends on the shape of
+        `b`.
+    residuals : int (Optional)
+        Sums of residuals; squared Euclidean 2-norm for each column in
+        ``b - a*x``.
+    """
+    if type(a) != np.ndarray or not a.flags['C_CONTIGUOUS']:
+        warnings.warn('Matrix a is not a C-contiguous numpy array. The solver will create a copy, which will result' + \
+             ' in increased memory usage.')
+
+    a = np.asarray(a, order='c')
+    i = dgemm(alpha=1.0, a=a.T, b=a.T, trans_b=True)
+    x = np.linalg.solve(i, dgemm(alpha=1.0, a=a.T, b=b))
+
+    if residuals:
+        return x, np.linalg.norm(np.dot(a, x) - b)
+    else:
+        return x
+
 def integrate_vf(
     init_states, t, args, integration_direction, f, interpolation_num=None, average=True
 ):
@@ -1380,6 +1457,14 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
 
 
 def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
+    if basis is not None:
+        vf_key = "VecFld_" + basis
+    else:
+        vf_key = "VecFld"
+    VecFld = adata.uns[vf_key]['VecFld']
+    X = VecFld['X']
+    valid_genes = None
+
     if init_states is None and init_cells is None:
         raise Exception("Either init_state or init_cells should be provided.")
     elif init_states is None and init_cells is not None:
