@@ -7,7 +7,7 @@ from scipy.sparse import issparse, csr_matrix
 from scipy.integrate import odeint, solve_ivp
 from scipy.linalg.blas import dgemm
 import warnings
-
+import time
 
 # ---------------------------------------------------------------------------------------------------
 # others
@@ -115,21 +115,32 @@ def form_triu_matrix(arr):
   
 def moms2var(m1, m2):
     var = m2 - elem_prod(m1, m1)
-
     return var
 
 
 def var2m2(var, m1):
     m2 = var + elem_prod(m1, m1)
-
     return m2
+
+
+def timeit(method):
+    def timed(*args, **kw):
+        ti = kw.pop('timeit', False)
+        if ti:
+            ts = time.time()
+            result = method(*args, **kw)
+            te = time.time()
+            print ('Time elapsed for %r: %.4f s' %(method.__name__, (te - ts)))
+        else:
+            result = method(*args, **kw)
+        return result
+    return timed
 
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
 def one_shot_gamma_alpha(k, t, l):
     gamma = -np.log(1 - k) / t
     alpha = l * (gamma / k)[0]
-
     return gamma, alpha
 
 

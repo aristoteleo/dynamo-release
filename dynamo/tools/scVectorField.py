@@ -1,9 +1,10 @@
 import numpy as np
 from scipy.linalg import lstsq
 import numpy.matlib
-from .utils import linear_least_squares
+from .utils import linear_least_squares, timeit
 import warnings
-
+import time
+from numpy import format_float_scientific as scinot
 
 def norm(X, V, T):
     """Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
@@ -46,7 +47,18 @@ def norm(X, V, T):
 
     return X, V, T, norm_dict
 
+@timeit
+def lstsq_solver(lhs, rhs, method='drouin'):
+    if lstsq_solver == 'scipy':
+        C = lstsq(lhs, rhs)[0]
+    elif lstsq_solver == 'drouin':
+        C = linear_least_squares(lhs, rhs)
+    else:
+        warnings.warn('Invalid linear least squares solver. Use Drouin\'s method instead.')
+        C = linear_least_squares(lhs, rhs)
+    return C
 
+@timeit
 def con_K(x, y, beta):
     """con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
 
@@ -135,6 +147,7 @@ def con_K_div_cur_free(x, y, sigma=0.8, gamma=0.5):
     return G, (1 - gamma) * G_tmp * (G_tmp2 + G_tmp3), gamma * G_tmp * G_tmp4
 
 
+@timeit
 def vector_field_function(x, VecFld, dim=None):
     """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
     Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
@@ -166,7 +179,7 @@ def SparseVFC(
     MaxIter=500,
     theta=0.75,
     div_cur_free_kernels=False,
-    lstsq_solver='drouin',
+    lstsq_method='drouin',
     verbose=1
 ):
     """Apply sparseVFC (vector field consensus) algorithm to learn a functional form of the vector field on the entire space robustly and efficiently.
@@ -205,6 +218,8 @@ def SparseVFC(
     A dictionary which contains X, Y, beta, V, C, P, VFCIndex. Where V = f(X), P is the posterior probability and
     VFCIndex is the indexes of inliers which found by VFC. Note that V = con_K(Grid, ctrl_pts, beta).dot(C) gives the prediction of velocity on Grid (can be any point in the gene expressionstate space).
     """
+    timeit_ = True if verbose > 1 else False
+
     Y[~np.isfinite(Y)] = 0  # set nan velocity to 0.
     N, D = Y.shape
     grid_U = None
@@ -217,26 +232,24 @@ def SparseVFC(
     idx = idx[range(min(M, tmp_X.shape[0]))]
     ctrl_pts = tmp_X[idx, :]
     # ctrl_pts = X[range(500), :]
-    import time
-    st = time.time()
+
     K = (
-        con_K(ctrl_pts, ctrl_pts, beta)
+        con_K(ctrl_pts, ctrl_pts, beta, timeit=timeit_)
         if div_cur_free_kernels is False
         else con_K_div_cur_free(ctrl_pts, ctrl_pts)[0]
     )
     U = (
-        con_K(X, ctrl_pts, beta)
+        con_K(X, ctrl_pts, beta, timeit=timeit_)
         if div_cur_free_kernels is False
         else con_K_div_cur_free(X, ctrl_pts)[0]
     )
     if Grid is not None:
         grid_U = (
-            con_K(Grid, ctrl_pts, beta)
+            con_K(Grid, ctrl_pts, beta, timeit=timeit_)
             if div_cur_free_kernels is False
             else con_K_div_cur_free(Grid, ctrl_pts)[0]
         )
     M = ctrl_pts.shape[0]
-    print ('Time elapsed for compute K: %f s'%(time.time() - st))
 
     # Initialization
     V = np.zeros((N, D))
@@ -248,44 +261,33 @@ def SparseVFC(
     while i < MaxIter and tecr > ecr and sigma2 > 1e-8:
         # E_step
         E_old = E
-        st = time.time()
         P, E = get_P(Y, V, sigma2, gamma, a)
-        print ('Time elapsed for get_P: %f s'%(time.time() - st))
 
-        st = time.time()
         E = E + lambda_ / 2 * np.trace(C.T.dot(K).dot(C))
         tecr = abs((E - E_old) / E)
-        print ('Time elapsed for calc E: %f s'%(time.time() - st))
 
-        if verbose > 0:
-            print('iteration %d\n'%i)
-        elif verbose > 1:
-            print('iterate: {}, gamma: {}, energy change rate: {}, sigma2={}\n'.format(*[iter, gamma, tecr, sigma2]))
+        if verbose > 1:
+            print('\niterate: %d, gamma: %.3f, energy change rate: %s, sigma2=%s'
+                %(i, gamma, scinot(tecr, 3), scinot(sigma2, 3)))
+        elif verbose > 0:
+            print('\niteration %d'%i)
 
         # M-step. Solve linear system for C.
+        if timeit_:
+            st = time.time()
         P = np.maximum(P, minP)
-        st = time.time()
         UP = U.T * numpy.matlib.repmat(P.T, M, 1)
         lhs = (UP).dot(U) + lambda_ * sigma2 * K
         rhs = (UP).dot(Y)
-        print ('Time elapsed for compute lhs and rhs: %f s'%(time.time() - st))
-        st = time.time()
-        if lstsq_solver == 'scipy':
-            C = lstsq(lhs, rhs)[0]
-        elif lstsq_solver == 'drouin':
-            C = linear_least_squares(lhs, rhs)
-        else:
-            warnings.warn('Invalid linear least squares solver. Use Drouin\'s method instead.')
-            C = linear_least_squares(lhs, rhs)
-
-        print ('Time elapsed for solve C: %f s'%(time.time() - st))
-
+        if timeit_:
+            print('Time elapsed for computing lhs and rhs: %f s'%(time.time()-st))
+        
+        C = lstsq_solver(lhs, rhs, lstsq_method, timeit=timeit_)
+            
         # Update V and sigma**2
-        st = time.time()
         V = U.dot(C)
         Sp = sum(P)
         sigma2 = sum(P.T * np.sum((Y - V) ** 2, 1)) / np.dot(Sp, D)
-        print ('Time elapsed for update params: %f s'%(time.time() - st))
 
         # Update gamma
         numcorr = len(np.where(P > theta)[0])
@@ -371,7 +373,7 @@ class vectorfield:
         minP=1e-5,
         MaxIter=500,
         theta=0.75,
-        div_cur_free_kernels=False,
+        div_cur_free_kernels=False
     ):
         """Initialize the VectorField class.
 
@@ -425,7 +427,7 @@ class vectorfield:
         }
         self.norm_dict = {}
 
-    def fit(self, normalize=False, method="SparseVFC"):
+    def fit(self, normalize=False, method="SparseVFC", verbose=1):
         """Learn an function of vector field from sparse single cell samples in the entire space robustly.
         Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
 
@@ -469,6 +471,7 @@ class vectorfield:
                 minP=self.parameters["minP"],
                 MaxIter=self.parameters["MaxIter"],
                 theta=self.parameters["theta"],
+                verbose=verbose
             )
 
         return VecFld
