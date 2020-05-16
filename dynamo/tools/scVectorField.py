@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.linalg import lstsq
 import numpy.matlib
+from .utils import linear_least_squares
+import warnings
 
 
 def norm(X, V, T):
@@ -164,6 +166,8 @@ def SparseVFC(
     MaxIter=500,
     theta=0.75,
     div_cur_free_kernels=False,
+    lstsq_solver='drouin',
+    verbose=1
 ):
     """Apply sparseVFC (vector field consensus) algorithm to learn a functional form of the vector field on the entire space robustly and efficiently.
     Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
@@ -242,7 +246,6 @@ def SparseVFC(
     # sigma2 = 1e-7 if sigma2 > 1e-8 else sigma2
 
     while i < MaxIter and tecr > ecr and sigma2 > 1e-8:
-        print(i)
         # E_step
         E_old = E
         st = time.time()
@@ -254,16 +257,27 @@ def SparseVFC(
         tecr = abs((E - E_old) / E)
         print ('Time elapsed for calc E: %f s'%(time.time() - st))
 
-        # print('iterate: {}, gamma: {}, the energy change rate: {}, sigma2={}\n'.format(*[iter, gamma, tecr, sigma2]))
+        if verbose > 0:
+            print('iteration %d\n'%i)
+        elif verbose > 1:
+            print('iterate: {}, gamma: {}, energy change rate: {}, sigma2={}\n'.format(*[iter, gamma, tecr, sigma2]))
 
         # M-step. Solve linear system for C.
         P = np.maximum(P, minP)
         st = time.time()
-        lhs = (U.T * numpy.matlib.repmat(P.T, M, 1)).dot(U) + lambda_ * sigma2 * K
-        rhs = (U.T * numpy.matlib.repmat(P.T, M, 1)).dot(Y)
+        UP = U.T * numpy.matlib.repmat(P.T, M, 1)
+        lhs = (UP).dot(U) + lambda_ * sigma2 * K
+        rhs = (UP).dot(Y)
         print ('Time elapsed for compute lhs and rhs: %f s'%(time.time() - st))
         st = time.time()
-        C = lstsq(lhs, rhs)[0]
+        if lstsq_solver == 'scipy':
+            C = lstsq(lhs, rhs)[0]
+        elif lstsq_solver == 'drouin':
+            C = linear_least_squares(lhs, rhs)
+        else:
+            warnings.warn('Invalid linear least squares solver. Use Drouin\'s method instead.')
+            C = linear_least_squares(lhs, rhs)
+
         print ('Time elapsed for solve C: %f s'%(time.time() - st))
 
         # Update V and sigma**2
