@@ -213,7 +213,8 @@ def SparseVFC(
     idx = idx[range(min(M, tmp_X.shape[0]))]
     ctrl_pts = tmp_X[idx, :]
     # ctrl_pts = X[range(500), :]
-
+    import time
+    st = time.time()
     K = (
         con_K(ctrl_pts, ctrl_pts, beta)
         if div_cur_free_kernels is False
@@ -231,6 +232,7 @@ def SparseVFC(
             else con_K_div_cur_free(Grid, ctrl_pts)[0]
         )
     M = ctrl_pts.shape[0]
+    print ('Time elapsed for compute K: %f s'%(time.time() - st))
 
     # Initialization
     V = np.zeros((N, D))
@@ -240,26 +242,36 @@ def SparseVFC(
     # sigma2 = 1e-7 if sigma2 > 1e-8 else sigma2
 
     while i < MaxIter and tecr > ecr and sigma2 > 1e-8:
+        print(i)
         # E_step
         E_old = E
+        st = time.time()
         P, E = get_P(Y, V, sigma2, gamma, a)
+        print ('Time elapsed for get_P: %f s'%(time.time() - st))
 
+        st = time.time()
         E = E + lambda_ / 2 * np.trace(C.T.dot(K).dot(C))
         tecr = abs((E - E_old) / E)
+        print ('Time elapsed for calc E: %f s'%(time.time() - st))
 
         # print('iterate: {}, gamma: {}, the energy change rate: {}, sigma2={}\n'.format(*[iter, gamma, tecr, sigma2]))
 
         # M-step. Solve linear system for C.
         P = np.maximum(P, minP)
-        C = lstsq(
-            ((U.T * numpy.matlib.repmat(P.T, M, 1)).dot(U) + lambda_ * sigma2 * K),
-            (U.T * numpy.matlib.repmat(P.T, M, 1)).dot(Y),
-        )[0]
+        st = time.time()
+        lhs = (U.T * numpy.matlib.repmat(P.T, M, 1)).dot(U) + lambda_ * sigma2 * K
+        rhs = (U.T * numpy.matlib.repmat(P.T, M, 1)).dot(Y)
+        print ('Time elapsed for compute lhs and rhs: %f s'%(time.time() - st))
+        st = time.time()
+        C = lstsq(lhs, rhs)[0]
+        print ('Time elapsed for solve C: %f s'%(time.time() - st))
 
         # Update V and sigma**2
+        st = time.time()
         V = U.dot(C)
         Sp = sum(P)
         sigma2 = sum(P.T * np.sum((Y - V) ** 2, 1)) / np.dot(Sp, D)
+        print ('Time elapsed for update params: %f s'%(time.time() - st))
 
         # Update gamma
         numcorr = len(np.where(P > theta)[0])
