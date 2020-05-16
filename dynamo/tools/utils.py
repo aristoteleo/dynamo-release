@@ -1379,6 +1379,14 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
 
 
 def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
+    if basis is not None:
+        vf_key = "VecFld_" + basis
+    else:
+        vf_key = "VecFld"
+    VecFld = adata.uns[vf_key]['VecFld']
+    X = VecFld['X']
+    valid_genes = None
+
     if init_states is None and init_cells is None:
         raise Exception("Either init_state or init_cells should be provided.")
     elif init_states is None and init_cells is not None:
