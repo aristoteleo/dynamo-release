@@ -115,7 +115,7 @@ from .state_graph import state_graph
 from .dimension_reduction import reduceDimension  # , run_umap
 
 # clustering related
-from .hdbscan import hdbscan
+from .clustering import hdbscan
 
 # mnn related
 from .connectivity import mnn
@@ -123,3 +123,6 @@ from .connectivity import mnn
 # Pseudotime related
 from .DDRTree import DDRTree_py as DDRTree
 from .DDRTree import cal_ncenter
+
+# DEG test related
+from .spatial import Moran_I

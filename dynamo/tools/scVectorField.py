@@ -202,22 +202,25 @@ def SparseVFC(
         ecr: 'float' (default: 1e-5)
             The minimum limitation of energy change rate in the iteration process.
         gamma: 'float' (default: 0.9)
-            Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important.
+            Percentage of inliers in the samples. This is an initial value for EM iteration, and it is not important.
         lambda_: 'float' (default: 0.3)
             Represents the trade-off between the goodness of data fit and regularization.
         minP: 'float' (default: 1e-5)
             The posterior probability Matrix P may be singular for matrix inversion. We set the minimum value of P as minP.
         MaxIter: 'int' (default: 500)
-            Maximum iterition times.
+            Maximum iteration times.
         theta: 'float' (default: 0.75)
             Define how could be an inlier. If the posterior probability of a sample is an inlier is larger than theta, then it is regarded as an inlier.
 
     Returns
     -------
     VecFld: 'dict'
-    A dictionary which contains X, Y, beta, V, C, P, VFCIndex. Where V = f(X), P is the posterior probability and
-    VFCIndex is the indexes of inliers which found by VFC. Note that V = con_K(Grid, ctrl_pts, beta).dot(C) gives the prediction of velocity on Grid (can be any point in the gene expressionstate space).
+        A dictionary which contains X, X_ctrl, Y, beta, V, C, P, VFCIndex, sigma2, grid, grid_V, iteration, tecr_vec.
+        Where V = f(X), P is the posterior probability and VFCIndex is the indexes of inliers which found by VFC.
+        Note that V = con_K(Grid, ctrl_pts, beta).dot(C) gives the prediction of velocity on Grid (can be any point in
+        the gene expression state space).
     """
+
     timeit_ = True if verbose > 1 else False
 
     Y[~np.isfinite(Y)] = 0  # set nan velocity to 0.
@@ -257,6 +260,7 @@ def SparseVFC(
     i, tecr, E = 1, 1, 1
     sigma2 = sum(sum((Y - V) ** 2)) / (N * D)  ## test this
     # sigma2 = 1e-7 if sigma2 > 1e-8 else sigma2
+    tecr_vec = [None] * MaxIter
 
     while i < MaxIter and tecr > ecr and sigma2 > 1e-8:
         # E_step
@@ -265,6 +269,7 @@ def SparseVFC(
 
         E = E + lambda_ / 2 * np.trace(C.T.dot(K).dot(C))
         tecr = abs((E - E_old) / E)
+        tecr_vec[i] = tecr
 
         if verbose > 1:
             print('\niterate: %d, gamma: %.3f, energy change rate: %s, sigma2=%s'
@@ -315,7 +320,9 @@ def SparseVFC(
         "VFCIndex": np.where(P > theta)[0],
         "sigma2": sigma2,
         "grid": Grid,
-        "grid_V": grid_V
+        "grid_V": grid_V,
+        "iteration": i - 1,
+        "tecr_vec": tecr_vec[:i],
     }
 
     return VecFld

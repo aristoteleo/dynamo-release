@@ -23,33 +23,33 @@ def reduceDimension(
 
     Arguments
     ---------
-    adata: :class:`~anndata.AnnData`
-        an Annodata object
-    X_data: `np.ndarray` (default: `None`)
-        The user supplied data that will be used for clustering directly.
-    genes: `list` or None (default: `None`)
-        The list of genes that will be used to subset the data for dimension reduction and clustering. If `None`, all
-        genes will be used.
-    layer: `str` or None (default: `None`)
-        The layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is used.
-    basis: `str` or None (default: `None`)
-        The space that will be used for clustering. Valid names includes, for example, `pca`, `umap`, `velocity_pca`
-        (that is, you can use velocity for clustering), etc.
-    dims: `list` or None (default: `None`)
-        The list of dimensions that will be selected for clustering. If `None`, all dimensions will be used.
-    n_pca_components: 'int' (optional, default 30)
-        Number of PCA components.  
-    n_components: 'int' (optional, default 2)
-        The dimension of the space to embed into.
-    n_neighbors: 'int' (optional, default 30)
-        Number of nearest neighbors when constructing adjacency matrix. 
-    reduction_method: 'str' (optional, default umap)
-        Non-linear dimension reduction method to further reduce dimension based on the top n_pca_components PCA
-        components. Currently, PSL
-        (probablistic structure learning, a new dimension reduction by us), tSNE (fitsne instead of traditional tSNE
-        used) or umap are supported.
-    cores: `int` (optional, default `1`)
-        Number of cores. Used only when the tSNE reduction_method is used.
+        adata: :class:`~anndata.AnnData`
+            an Annodata object
+        X_data: `np.ndarray` (default: `None`)
+            The user supplied data that will be used for clustering directly.
+        genes: `list` or None (default: `None`)
+            The list of genes that will be used to subset the data for dimension reduction and clustering. If `None`, all
+            genes will be used.
+        layer: `str` or None (default: `None`)
+            The layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is used.
+        basis: `str` or None (default: `None`)
+            The space that will be used for clustering. Valid names includes, for example, `pca`, `umap`, `velocity_pca`
+            (that is, you can use velocity for clustering), etc.
+        dims: `list` or None (default: `None`)
+            The list of dimensions that will be selected for clustering. If `None`, all dimensions will be used.
+        n_pca_components: 'int' (optional, default 30)
+            Number of PCA components.
+        n_components: 'int' (optional, default 2)
+            The dimension of the space to embed into.
+        n_neighbors: 'int' (optional, default 30)
+            Number of nearest neighbors when constructing adjacency matrix.
+        reduction_method: 'str' (optional, default umap)
+            Non-linear dimension reduction method to further reduce dimension based on the top n_pca_components PCA
+            components. Currently, PSL
+            (probablistic structure learning, a new dimension reduction by us), tSNE (fitsne instead of traditional tSNE
+            used) or umap are supported.
+        cores: `int` (optional, default `1`)
+            Number of cores. Used only when the tSNE reduction_method is used.
 
     Returns
     -------
@@ -64,6 +64,8 @@ def reduceDimension(
                               dims=dims,
                               n_pca_components=n_pca_components,
                               n_components=n_components, )
+    else:
+        has_basis = False
 
     if has_basis and not enforce:
         warnings.warn(f'adata already have basis {basis}. dimension reduction {reduction_method} will be skipped!'

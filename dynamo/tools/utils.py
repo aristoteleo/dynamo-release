@@ -171,6 +171,7 @@ def _one_shot_gamma_alpha_matrix(K, tau, N, R):
 
 def compute_velocity_labeling_B(B, alpha, R):
     return (alpha - elem_prod(B, R.T).T)
+
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
 def get_valid_inds(adata, filter_gene_mode):
@@ -1589,3 +1590,16 @@ def arclength_sampling(X, step_length, t=None):
         return np.array(Y), arclength, T
     else:
         return np.array(Y), arclength
+
+
+# ---------------------------------------------------------------------------------------------------
+# differential gene expression test related
+
+def fdr(p_vals):
+    """calculate FDR"""
+    from scipy.stats import rankdata
+    ranked_p_values = rankdata(p_vals)
+    fdr = p_vals * len(p_vals) / ranked_p_values
+    fdr[fdr > 1] = 1
+
+    return fdr

@@ -173,3 +173,5 @@ def run_reduce_dim(adata, X_data, n_components, n_pca_components, reduction_meth
         raise Exception(
             "reduction_method {} is not supported.".format(reduction_method)
         )
+
+    return adata

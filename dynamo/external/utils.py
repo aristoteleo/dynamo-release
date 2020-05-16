@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.sparse import issparse
 import scipy.stats as stats
+from ..tools.utils import fdr
 
 def normalize_data(mm, szfactors, pseudo_expr=0.1):
     """normalize data via size factor and scaling."""
@@ -78,14 +79,5 @@ def TF_link_gene_chip(raw_glmnet_res_var, df_gene_TF_link_ENCODE, var, cor_thres
 
     return df_gene_TF_link_chip
 
-
-def fdr(p_vals):
-    """calculate FDR"""
-    from scipy.stats import rankdata
-    ranked_p_values = rankdata(p_vals)
-    fdr = p_vals * len(p_vals) / ranked_p_values
-    fdr[fdr > 1] = 1
-
-    return fdr
 
 
