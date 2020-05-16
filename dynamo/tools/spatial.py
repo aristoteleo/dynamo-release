@@ -132,5 +132,10 @@ def Moran_I(adata,
     return adata
 
 
-def find_group_markers(adata):
-    
+def find_group_markers(adata, group, genes, layer):
+    # mean expression
+    # specifity
+    # percentage of expression in a group
+    # number of cells in each group
+    # logFC
+    pass
