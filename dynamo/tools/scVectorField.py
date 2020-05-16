@@ -287,7 +287,8 @@ def SparseVFC(
         "VFCIndex": np.where(P > theta)[0],
         "sigma2": sigma2,
         "grid": Grid,
-        "grid_V": grid_V
+        "grid_V": grid_V,
+        "iteration": i - 1,
     }
 
     return VecFld
