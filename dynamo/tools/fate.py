@@ -17,6 +17,7 @@ def fate(
     average="origin",
     VecFld_true=None,
     inverse_transform=True,
+    scale=1,
     **kwargs
 ):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales.
@@ -66,8 +67,16 @@ def fate(
 
     if basis is not None:
         fate_key = "fate_" + basis
+        #vf_key = "VecFld_" + basis
     else:
         fate_key = "fate" if layer == "X" else "fate_" + layer
+        #vf_key = "VecFld"
+
+    #VecFld = adata.uns[vf_key]["VecFld"]
+    #X = VecFld["X"]
+    #xmin, xmax = X.min(0), X.max(0)
+    #t_end = np.max(xmax - xmin) / np.min(np.abs(VecFld["V"]))
+    #valid_genes = None
 
     init_states, VecFld, t_end, valid_genes = fetch_states(
         adata, init_states, init_cells, basis, layer, average, t_end
@@ -78,10 +87,10 @@ def fate(
     elif dims is not None:
         init_states = init_states[:, dims]
 
+    vf = lambda x: scale*vector_field_function(x=x, VecFld=VecFld) if VecFld_true is None else VecFld_true
     t, prediction = _fate(
-        VecFld,
+        vf,
         init_states,
-        VecFld_true=VecFld_true,
         direction=direction,
         t_end=t_end,
         average=True,
@@ -133,7 +142,6 @@ def fate(
 def _fate(
     VecFld,
     init_states,
-    VecFld_true=None,
     t_end=None,
     step_size=None,
     direction="both",
@@ -150,8 +158,6 @@ def _fate(
             transcriptomic space.
         init_states: `numpy.ndarray`
             Initial cell states for the historical or future cell state prediction with numerical integration.
-        VecFld_true: `function` or `None`
-            The true ODE function, useful when the data is generated through simulation. Replace VecFld arugment when this has been set.
         t_end: `float` (default None)
             The length of the time period from which to predict cell state forward or backward over time. This is used
             by the odeint function.
@@ -178,12 +184,6 @@ def _fate(
         at each time point is calculated for all cells.
     """
 
-    V_func = (
-        lambda x: vector_field_function(x=x, VecFld=VecFld)
-        if VecFld_true is None
-        else VecFld_true
-    )
-
     if step_size is None:
         max_steps = (
             int(max(7 / (init_states.shape[1] / 300), 4))
@@ -201,7 +201,7 @@ def _fate(
         t_linspace,
         (),
         direction,
-        V_func,
+        VecFld,
         interpolation_num=interpolation_num,
         average=average,
     )

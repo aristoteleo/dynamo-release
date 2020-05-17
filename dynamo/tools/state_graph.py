@@ -4,6 +4,7 @@ from scipy.spatial import cKDTree
 from tqdm import tqdm
 
 from .fate import _fate
+from .scVectorField import vector_field_function
 from .utils import (
     fetch_states,
     remove_redundant_points_trajectory,
@@ -69,7 +70,7 @@ def state_graph(
     grp_graph = np.zeros((len(uniq_grp), len(uniq_grp)))
     grp_avg_time = np.zeros((len(uniq_grp), len(uniq_grp)))
 
-    all_X, VecFld, t_end, valid_genes = fetch_states(
+    all_X, VecFld, t_end, _ = fetch_states(
         adata,
         init_states=None,
         init_cells=adata.obs_names,
@@ -120,9 +121,8 @@ def state_graph(
 
         else:
             t, X = _fate(
-                VecFld,
+                lambda x: vector_field_function(x=x, VecFld=VecFld),
                 init_states,
-                VecFld_true=None,
                 t_end=t_end,
                 step_size=None,
                 direction="forward",
