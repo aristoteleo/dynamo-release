@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.sparse import issparse
 import scipy.stats as stats
-from ..tools.utils import fdr
+from ..tools.utils_markers import fdr
 
 def normalize_data(mm, szfactors, pseudo_expr=0.1):
     """normalize data via size factor and scaling."""

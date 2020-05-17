@@ -7,10 +7,9 @@ from scipy.stats import mannwhitneyu
 from statsmodels.sandbox.stats.multicomp import multipletests
 from collections import Counter
 import warnings
-from .utils import fdr
-from .utils_markers import fetch_X_data, specificity
+from .utils_markers import fetch_X_data, specificity, fdr
 
-def Moran_I(adata,
+def moran_i(adata,
             X_data = None,
             genes=None,
             layer=None,
@@ -54,7 +53,12 @@ def Moran_I(adata,
         Returns an updated `~anndata.AnnData` with a new property `'Moran_' + type` in the .uns attribute.
     """
 
-    genes, X_data = fetch_X_data(adata, genes, layer)
+    if X_data is None:
+        genes, X_data = fetch_X_data(adata, genes, layer)
+    else:
+        if genes is None or len(genes) != X_data.shape[1]:
+            raise ValueError(f"When providing X_data, a list of genes name that corresponds to the columns of X_data "
+                             f"must be provided")
 
     cell_num, gene_num = X_data.shape
 
@@ -103,7 +107,7 @@ def Moran_I(adata,
             l_moran[:, cur_g] = pysal.explore.esda.moran.Moran_Local(cur_X, W).Is
 
     Moran_res = pd.DataFrame(
-        {"Moran_I": Moran_I,
+        {"moran_i": Moran_I,
          "Moran_p_val": p_value,
          "Moran_q_val": fdr(np.array(p_value)),
          "Moran_z": statistics,
@@ -126,6 +130,48 @@ def find_group_markers(adata,
                        qval_thresh=0.05,
                        de_frequency=1,
                        ):
+    """Find marker genes for each group of cells.
+
+    Tests each gene for differential expression between cells in one group to cells from all other groups via Mann-Whitney U
+    test. It also calculates the fraction of cells with non-zero expression, log 2 fold changes as well as the specificity
+    (calculate via the Jessen-Shannon distance between the distribution of percentage of cells with expression across all
+    groups to the hypothetical perfect distribution in which only the current group of cells have expression). In addition,
+    Rank-biserial correlation (rbc) and qval are calculated. The rank biserial correlation is used to assess the relationship
+    between a dichotomous categorical variable and an ordinal variable. The rank biserial test is very similar to the
+    non-parametric Mann-Whitney U test that is used to compare two independent groups on an ordinal variable. Mann-Whitney
+    U tests are preferable to rank biserial correlations when comparing independent groups. Rank biserial correlations can
+    only be used with dichotomous (two levels) categorical variables. qval is calculated using Benjamini-Hochberg adjustment.
+
+    This function is adapted from https://github.com/KarlssonG/nabo/blob/master/nabo/_marker.py and Monocle 3alpha.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object
+        group: `str` or None (default: `None`)
+            The column key/name that identifies the grouping information (for example, clusters that correspond to
+            different cell types or different time points) of cells. This will be used for calculating group-specific genes.
+        genes: `list` or None (default: `None`)
+            The list of genes that will be used to subset the data for dimension reduction and clustering. If `None`, all
+            genes will be used.
+        layer: `str` or None (default: `None`)
+            The layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is used.
+        exp_frac_thresh: `float` (default: 0.1)
+            The minimum percentage of cells with expression for a gene to proceed differential expression test.
+        log2_fc_thresh: `float` (default: 0.1)
+            The minimal threshold of log2 fold change for a gene to proceed differential expression test.
+        qval_thresh: `float` (default: 0.05)
+            The minimial threshold of qval to be considered as significant genes.
+        de_frequency:
+            Minimum number of clusters against a gene should be significantly differentially expressed for it to qualify
+            as a marker.
+
+    Returns
+    ------- ['cluster_markers'] = {'deg_table': de_table, 'de_genes': de_genes}
+        Returns an updated `~anndata.AnnData` with a new property `cluster_markers` in the .uns attribute, which include
+        a pandas DataFrame of the differential expression analysis result for all groups and a dictionary where keys are
+        cluster numbers and values are lists of marker genes for the corresponding clusters.
+    """
 
     genes, X_data = fetch_X_data(adata, genes, layer)
     if len(genes) == 0:
@@ -167,6 +213,43 @@ def top_markers(adata,
                 log2_fc_thresh=1,
                 qval_thresh=0.05,
                 ):
+    """Find marker genes for each group of cells between any two groups of cells.
+
+    Tests each gene for differential expression between cells in one group to cells from another groups via Mann-Whitney U
+    test. It also calculates the fraction of cells with non-zero expression, log 2 fold changes as well as the specificity
+    (calculate via the Jessen-Shannon distance between the distribution of percentage of cells with expression across all
+    groups to the hypothetical perfect distribution in which only the current group of cells have expression). In addition,
+    Rank-biserial correlation (rbc) and qval are calculated. The rank biserial correlation is used to assess the relationship
+    between a dichotomous categorical variable and an ordinal variable. The rank biserial test is very similar to the
+    non-parametric Mann-Whitney U test that is used to compare two independent groups on an ordinal variable. Mann-Whitney
+    U tests are preferable to rank biserial correlations when comparing independent groups. Rank biserial correlations can
+    only be used with dichotomous (two levels) categorical variables. qval is calculated using Benjamini-Hochberg adjustment.
+
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object
+        group: `str` or None (default: `None`)
+            The column key/name that identifies the grouping information (for example, clusters that correspond to
+            different cell types or different time points) of cells. This will be used for calculating group-specific genes.
+        genes: `list` or None (default: `None`)
+            The list of genes that will be used to subset the data for dimension reduction and clustering. If `None`, all
+            genes will be used.
+        layer: `str` or None (default: `None`)
+            The layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is used.
+        exp_frac_thresh: `float` (default: 0.1)
+            The minimum percentage of cells with expression for a gene to proceed differential expression test.
+        log2_fc_thresh: `float` (default: 0.1)
+            The minimal threshold of log2 fold change for a gene to proceed differential expression test.
+        qval_thresh: `float` (default: 0.05)
+            The minimial threshold of qval to be considered as significant genes.
+
+
+    Returns
+    -------
+        A pandas DataFrame of the differential expression analysis result between the two groups.
+    """
 
     if X_data is None:
         genes, X_data = fetch_X_data(adata, genes, layer)
