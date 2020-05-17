@@ -58,6 +58,43 @@ def lstsq_solver(lhs, rhs, method='drouin'):
         C = linear_least_squares(lhs, rhs)
     return C
 
+
+def get_P(Y, V, sigma2, gamma, a):
+    """GET_P estimates the posterior probability and part of the energy.
+
+    Arguments
+    ---------
+        Y: 'np.ndarray'
+            Velocities from the data.
+        V: 'np.ndarray'
+            The estimated velocity: V=f(X), f being the vector field function.
+        sigma2: 'float'
+            sigma2 is defined as sum(sum((Y - V)**2)) / (N * D)
+        gamma: 'float'
+            Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important.
+        a: 'float'
+            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's variation space is a.
+
+    Returns
+    -------
+    P: 'np.ndarray'
+        Posterior probability, related to equation 27.
+    E: `np.ndarray'
+        Energy, related to equation 26.
+
+    """
+    D = Y.shape[1]
+    temp1 = np.exp(-np.sum((Y - V) ** 2, 1) / (2 * sigma2))
+    temp2 = (2 * np.pi * sigma2) ** (D / 2) * (1 - gamma) / (gamma * a)
+    temp1[temp1 == 0] = np.min(temp1[temp1 != 0])
+    P = temp1 / (temp1 + temp2)
+    E = (
+        P.T.dot(np.sum((Y - V) ** 2, 1)) / (2 * sigma2)
+        + np.sum(P) * np.log(sigma2) * D / 2
+    )
+
+    return P, E
+
 @timeit
 def con_K(x, y, beta):
     """con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
@@ -90,7 +127,7 @@ def con_K(x, y, beta):
 
     return K
 
-
+@timeit
 def con_K_div_cur_free(x, y, sigma=0.8, gamma=0.5):
     """Learn a convex combination of the divergence-free kernel T_df and curl-free kernel T_cf with a bandwidth sigma and a combination coefficient gamma.
 
@@ -239,18 +276,18 @@ def SparseVFC(
     K = (
         con_K(ctrl_pts, ctrl_pts, beta, timeit=timeit_)
         if div_cur_free_kernels is False
-        else con_K_div_cur_free(ctrl_pts, ctrl_pts)[0]
+        else con_K_div_cur_free(ctrl_pts, ctrl_pts, timeit=timeit_)[0]
     )
     U = (
         con_K(X, ctrl_pts, beta, timeit=timeit_)
         if div_cur_free_kernels is False
-        else con_K_div_cur_free(X, ctrl_pts)[0]
+        else con_K_div_cur_free(X, ctrl_pts, timeit=timeit_)[0]
     )
     if Grid is not None:
         grid_U = (
             con_K(Grid, ctrl_pts, beta, timeit=timeit_)
             if div_cur_free_kernels is False
-            else con_K_div_cur_free(Grid, ctrl_pts)[0]
+            else con_K_div_cur_free(Grid, ctrl_pts, timeit=timeit_)[0]
         )
     M = ctrl_pts.shape[0]
 
@@ -326,43 +363,6 @@ def SparseVFC(
     }
 
     return VecFld
-
-
-def get_P(Y, V, sigma2, gamma, a):
-    """GET_P estimates the posterior probability and part of the energy.
-
-    Arguments
-    ---------
-        Y: 'np.ndarray'
-            Original data.
-        V: 'np.ndarray'
-            Original data.
-        sigma2: 'float'
-            sigma2 is defined as sum(sum((Y - V)**2)) / (N * D)
-        gamma: 'float'
-            Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important.
-        a: 'float'
-            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's variation space is a.
-
-    Returns
-    -------
-    P: 'np.ndarray'
-        Posterior probability, related to equation 27.
-    E: `np.ndarray'
-        Energy, related to equation 26.
-
-    """
-    D = Y.shape[1]
-    temp1 = np.exp(-np.sum((Y - V) ** 2, 1) / (2 * sigma2))
-    temp2 = (2 * np.pi * sigma2) ** (D / 2) * (1 - gamma) / (gamma * a)
-    temp1[temp1 == 0] = np.min(temp1[temp1 != 0])
-    P = temp1 / (temp1 + temp2)
-    E = (
-        P.T.dot(np.sum((Y - V) ** 2, 1)) / (2 * sigma2)
-        + np.sum(P) * np.log(sigma2) * D / 2
-    )
-
-    return P, E
 
 
 class vectorfield:
