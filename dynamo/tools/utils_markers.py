@@ -13,16 +13,22 @@ def fetch_X_data(adata, genes, layer):
         if genes is not None:
             X_data = adata[:, genes].X
         else:
-            X_data = adata.X if 'use_for_dynamo' not in adata.var.keys() \
-                else adata[:, adata.var.use_for_dynamo].X
-            genes = adata.var_names[adata.var.use_for_dynamo]
+            if 'use_for_dynamo' not in adata.var.keys():
+                X_data = adata.X
+                genes = adata.var_names
+            else:
+                X_data = adata[:, adata.var.use_for_dynamo].X
+                genes = adata.var_names[adata.var.use_for_dynamo]
     else:
         if genes is not None:
             X_data = adata[:, genes].layers[layer]
         else:
-            X_data = adata.layers[layer] if 'use_for_dynamo' not in adata.var.keys() \
-                else adata[:, adata.var.use_for_dynamo].layers[layer]
-            genes = adata.var_names[adata.var.use_for_dynamo]
+            if 'use_for_dynamo' not in adata.var.keys():
+                X_data = adata.layers[layer]
+                genes = adata.var_names
+            else:
+                adata[:, adata.var.use_for_dynamo].layers[layer]
+                genes = adata.var_names[adata.var.use_for_dynamo]
 
     return genes, X_data
 

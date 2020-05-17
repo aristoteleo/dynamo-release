@@ -9,6 +9,7 @@ from collections import Counter
 import warnings
 from .utils_markers import fetch_X_data, specificity, fdr
 
+
 def moran_i(adata,
             X_data = None,
             genes=None,
@@ -142,8 +143,8 @@ def find_group_markers(adata,
     U tests are preferable to rank biserial correlations when comparing independent groups. Rank biserial correlations can
     only be used with dichotomous (two levels) categorical variables. qval is calculated using Benjamini-Hochberg adjustment.
 
-    Note that this function is designed in a general way so that you can either use the total, new, unspliced or velocity to
-    identify differentially expressed genes.
+    Note that this function is designed in a general way so that you can either use the total, new, unspliced or velocity,
+    etc. to identify differentially expressed genes.
 
     This function is adapted from https://github.com/KarlssonG/nabo/blob/master/nabo/_marker.py and Monocle 3alpha.
 
@@ -192,8 +193,8 @@ def find_group_markers(adata,
     for i, test_group in enumerate(cluster_set):
         control_groups = sorted(set(cluster_set).difference([test_group]))
 
-        de = top_markers(adata, genes, layer, group, test_group, control_groups, X_data, exp_frac_thresh,
-                         log2_fc_thresh, qval_thresh, )
+        de = two_groups_deg(adata, genes, layer, group, test_group, control_groups, X_data, exp_frac_thresh,
+                            log2_fc_thresh, qval_thresh, )
 
         de_tables[i] = de.copy()
         de_genes[i] = [k for k, v in Counter(de['gene']).items()
@@ -205,17 +206,17 @@ def find_group_markers(adata,
     return adata
 
 
-def top_markers(adata,
-                genes,
-                layer,
-                group,
-                test_group,
-                control_groups,
-                X_data,
-                exp_frac_thresh=0.1,
-                log2_fc_thresh=1,
-                qval_thresh=0.05,
-                ):
+def two_groups_deg(adata,
+                   genes,
+                   layer,
+                   group,
+                   test_group,
+                   control_groups,
+                   X_data,
+                   exp_frac_thresh=0.1,
+                   log2_fc_thresh=1,
+                   qval_thresh=0.05,
+                   ):
     """Find marker genes between two groups of cells based on gene expression or velocity values as specified by the layer.
 
     Tests each gene for differential expression between cells in one group to cells from another groups via Mann-Whitney U
@@ -280,7 +281,7 @@ def top_markers(adata,
 
     de = []
     for i_gene, gene in tqdm(enumerate(genes), desc="identifying top markers for each group"):
-        rbc, specifity_, mw_p, log_fc, ncells = 0, 0, 1, 0, 0
+        rbc, specificity_, mw_p, log_fc, ncells = 0, 0, 1, 0, 0
 
         all_vals = X_data[:, i_gene].A if sparse else X_data[:, i_gene]
         test_vals = all_vals[test_cells]
@@ -313,8 +314,8 @@ def top_markers(adata,
             perfect_specificity = np.repeat(0.0, num_groups + 1)
             perfect_specificity[i + 1] = 1.0
 
-            specifity_ = specificity(perc, perfect_specificity)
-            de.append((gene, control_groups[i], ef, rbc, log_fc, mw_p, specifity_))
+            specificity_ = specificity(perc, perfect_specificity)
+            de.append((gene, control_groups[i], ef, rbc, log_fc, mw_p, specificity_))
 
     de = pd.DataFrame(de,
                       columns=['gene', 'versus_group', 'exp_frac', 'rbc', 'log2_fc', 'pval', 'specificity'])
@@ -331,3 +332,94 @@ def top_markers(adata,
     res = de[(de.qval < qval_thresh)].reset_index().drop(columns=['index'])
 
     return res
+
+
+def top_n_markers(adata,
+                  with_moran_i=False,
+                  group_by='test_group',
+                  sort_by='specificity',
+                  sort_order='decreasing',
+                  top_n_genes=5,
+                  exp_frac_thresh=0.1,
+                  log2_fc_thresh=1,
+                  qval_thresh=0.05,
+                  specificity_thresh=0.5,
+                  only_gene_list=False,
+                  display=True):
+    """Filter cluster deg results and retrieve top markers for each cluster.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object
+        with_moran_i: `bool` (default: `False`)
+            Whether or not to include Moran's I test results for selecting top marker genes.
+        group_by: `str` or `list` (default: `test_group`)
+            Column name or names to group by.
+        sort_by: `str` or `list`
+            Column name or names to sort by.
+        sort_order: `str` (default: `decreasing`)
+            Whether to sort the data frame with `increasing` or `decreasing` order.
+        top_n_genes: `int`
+            The number of top sorted markers.
+        exp_frac_thresh: `float` (default: 0.1)
+            The minimum percentage of cells with expression for a gene to proceed differential expression test.
+        log2_fc_thresh: `float` (default: 0.1)
+            The minimal threshold of log2 fold change for a gene to proceed differential expression test.
+        qval_thresh: `float` (default: 0.05)
+            The minimial threshold of qval to be considered as significant genes.
+        only_gene_list: `bool`
+            Whether to only return the gene list for each cluster.
+        display: `bool`
+            Whether to print the data frame for the top marker genes after the filtering.
+
+    Returns
+    -------
+        A data frame that stores the top marker for each group or just a list for those markers, depending on
+        whether `only_gene_list` is set to be True. In addition, it will display the data frame depending on whether
+        `display` is set to be True.
+    """
+
+    if "cluster_markers" not in adata.uns.keys():
+        warnings.warn(f'No info of cluster markers stored in your adata. '
+                      f'Running `find_group_markers` with default parameters.')
+        adata = find_group_markers(adata, group='clusters')
+
+    deg_table = adata.uns['cluster_markers']['deg_table']
+    deg_table = deg_table.query("exp_frac > @exp_frac_thresh and "
+                                "log2_fc > @log2_fc_thresh and "
+                                "qval < @qval_thresh and "
+                                "specificity > @specificity_thresh")
+    if deg_table.shape[0] == 0:
+        raise ValueError(f'Looks like your filter threshold is too extreme. No gene detected. '
+                         f'Please try to relax the thresholds you specified: '
+                         f'exp_frac_thresh: {exp_frac_thresh}'
+                         f'log2_fc_thresh: {log2_fc_thresh}'
+                         f'qval_thresh: {qval_thresh}'
+                         f'specificity_thresh: {specificity_thresh}')
+    if with_moran_i:
+        moran_i_columns = ['moran_i', 'moran_p_val', 'moran_q_val', 'moran_z']
+        if len(adata.var.columns.intersection(moran_i_columns)) != 4:
+            warnings.warn(f'No info of cluster markers stored in your adata. '
+                          f'Running `find_group_markers` with default parameters.')
+            adata = moran_i(adata)
+
+        moran_i_df = adata.var[moran_i_columns]
+        deg_table = deg_table.merge(moran_i_df, left_on='gene', right_index=True, how='left')
+
+    top_n_df = deg_table.groupby(group_by).apply(lambda grp: grp.nlargest(top_n_genes, sort_by)) if sort_order == 'decreasing'\
+        else deg_table.groupby(group_by).apply(lambda grp: grp.nsmallest(top_n_genes, sort_by))
+
+    if display:
+        with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.width', 1000):
+            print(top_n_df)
+
+    top_n_groups = top_n_df.loc[:, group_by].unique()
+    de_genes = [None] * len(top_n_groups)
+
+    if only_gene_list:
+        for i in top_n_groups:
+            de_genes[i] = top_n_df[top_n_df[group_by] == i].loc[:, 'gene'].to_list()
+        return de_genes
+    else:
+        return top_n_df
