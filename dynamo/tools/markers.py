@@ -108,9 +108,9 @@ def moran_i(adata,
 
     Moran_res = pd.DataFrame(
         {"moran_i": Moran_I,
-         "Moran_p_val": p_value,
-         "Moran_q_val": fdr(np.array(p_value)),
-         "Moran_z": statistics,
+         "moran_p_val": p_value,
+         "moran_q_val": fdr(np.array(p_value)),
+         "moran_z": statistics,
          }, index=genes
     )
 
@@ -130,17 +130,20 @@ def find_group_markers(adata,
                        qval_thresh=0.05,
                        de_frequency=1,
                        ):
-    """Find marker genes for each group of cells.
+    """Find marker genes for each group of cells based on gene expression or velocity values as specified by the layer.
 
     Tests each gene for differential expression between cells in one group to cells from all other groups via Mann-Whitney U
     test. It also calculates the fraction of cells with non-zero expression, log 2 fold changes as well as the specificity
-    (calculate via the Jessen-Shannon distance between the distribution of percentage of cells with expression across all
-    groups to the hypothetical perfect distribution in which only the current group of cells have expression). In addition,
+    (calculated as 1 - Jessen-Shannon distance between the distribution of percentage of cells with expression across all
+    groups to the hypothetical perfect distribution in which only the test group of cells has expression). In addition,
     Rank-biserial correlation (rbc) and qval are calculated. The rank biserial correlation is used to assess the relationship
     between a dichotomous categorical variable and an ordinal variable. The rank biserial test is very similar to the
     non-parametric Mann-Whitney U test that is used to compare two independent groups on an ordinal variable. Mann-Whitney
     U tests are preferable to rank biserial correlations when comparing independent groups. Rank biserial correlations can
     only be used with dichotomous (two levels) categorical variables. qval is calculated using Benjamini-Hochberg adjustment.
+
+    Note that this function is designed in a general way so that you can either use the total, new, unspliced or velocity to
+    identify differentially expressed genes.
 
     This function is adapted from https://github.com/KarlssonG/nabo/blob/master/nabo/_marker.py and Monocle 3alpha.
 
@@ -167,9 +170,9 @@ def find_group_markers(adata,
             as a marker.
 
     Returns
-    ------- ['cluster_markers'] = {'deg_table': de_table, 'de_genes': de_genes}
-        Returns an updated `~anndata.AnnData` with a new property `cluster_markers` in the .uns attribute, which include
-        a pandas DataFrame of the differential expression analysis result for all groups and a dictionary where keys are
+    -------
+        Returns an updated `~anndata.AnnData` with a new property `cluster_markers` in the .uns attribute, which includes
+        a concated pandas DataFrame of the differential expression analysis result for all groups and a dictionary where keys are
         cluster numbers and values are lists of marker genes for the corresponding clusters.
     """
 
@@ -213,11 +216,11 @@ def top_markers(adata,
                 log2_fc_thresh=1,
                 qval_thresh=0.05,
                 ):
-    """Find marker genes for each group of cells between any two groups of cells.
+    """Find marker genes between two groups of cells based on gene expression or velocity values as specified by the layer.
 
     Tests each gene for differential expression between cells in one group to cells from another groups via Mann-Whitney U
     test. It also calculates the fraction of cells with non-zero expression, log 2 fold changes as well as the specificity
-    (calculate via the Jessen-Shannon distance between the distribution of percentage of cells with expression across all
+    (calculated as 1 - Jessen-Shannon distance between the distribution of percentage of cells with expression across all
     groups to the hypothetical perfect distribution in which only the current group of cells have expression). In addition,
     Rank-biserial correlation (rbc) and qval are calculated. The rank biserial correlation is used to assess the relationship
     between a dichotomous categorical variable and an ordinal variable. The rank biserial test is very similar to the
@@ -230,14 +233,20 @@ def top_markers(adata,
     ----------
         adata: :class:`~anndata.AnnData`
             an Annodata object
-        group: `str` or None (default: `None`)
-            The column key/name that identifies the grouping information (for example, clusters that correspond to
-            different cell types or different time points) of cells. This will be used for calculating group-specific genes.
         genes: `list` or None (default: `None`)
             The list of genes that will be used to subset the data for dimension reduction and clustering. If `None`, all
             genes will be used.
         layer: `str` or None (default: `None`)
             The layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is used.
+        group: `str` or None (default: `None`)
+            The column key/name that identifies the grouping information (for example, clusters that correspond to
+            different cell types or different time points) of cells. This will be used for calculating group-specific genes.
+        test_group: `str` or None (default: `None`)
+            The group name from `group` for which markers has to be found.
+        control_groups: `list`
+            The list of group name(s) from `group` for which markers has to be tested against.
+        X_data: `np.ndarray` (default: `None`)
+            The user supplied data that will be used for marker gene detection directly.
         exp_frac_thresh: `float` (default: 0.1)
             The minimum percentage of cells with expression for a gene to proceed differential expression test.
         log2_fc_thresh: `float` (default: 0.1)
