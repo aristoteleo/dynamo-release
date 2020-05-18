@@ -4,6 +4,7 @@ import pandas as pd
 import pysal
 from scipy.sparse import issparse
 from scipy.stats import mannwhitneyu
+from scipy import stats
 from statsmodels.sandbox.stats.multicomp import multipletests
 import patsy
 from patsy import dmatrix, bs, cr
@@ -12,6 +13,7 @@ import statsmodels.formula.api as smf
 from collections import Counter
 import warnings
 from .utils_markers import fetch_X_data, specificity, fdr
+from ..preprocessing.utils import Freeman_Tukey
 
 
 def moran_i(adata,
@@ -23,7 +25,9 @@ def moran_i(adata,
             local_moran=False):
     """Identify genes with strong spatial autocorrelation with Moran's I test. This can be used to identify genes that are
     potentially related to critical dynamic process. Moran's I test is first introduced in single cell genomics analysis
-    in (Cao, et al, 2019).
+    in (Cao, et al, 2019). Note that moran_i supports performing spatial autocorrelation analysis for any layer or
+    normalized data in your adata object. That is you can either use the total, new, unspliced or velocity, etc. for the
+    Moran's I analysis.
 
     Global Moran's I test is based on pysal. More details can be found at:
     http://geodacenter.github.io/workbook/5a_global_auto/lab5a.html#morans-i
@@ -55,7 +59,8 @@ def moran_i(adata,
 
     Returns
     -------
-        Returns an updated `~anndata.AnnData` with a new property `'Moran_' + type` in the .uns attribute.
+        Returns an updated `~anndata.AnnData` with a new key `'Moran_' + type` in the .uns attribute, storing the Moran' I
+        test results.
     """
 
     if X_data is None:
@@ -429,13 +434,51 @@ def top_n_markers(adata,
         return top_n_df
 
 
-def differentialGeneTest(adata,
-                         X_data=None,
-                         genes=None,
-                         layer=None,
-                         fullModelFormulaStr="~ns(time, df=3)",
-                         reducedModelFormulaStr="~1",
-                         ):
+def glm_degs(adata,
+             X_data=None,
+             genes=None,
+             layer=None,
+             fullModelFormulaStr="~cr(integral_time, df=3)",
+             reducedModelFormulaStr="~1",
+             family='NB2',
+             ):
+    """Differential genes expression tests using generalized linear regressions.
+
+    Tests each gene for differential expression as a function of integral time (the time estimated via the reconstructed
+    vector field function) or pseudotime using generalized additive models with nature spline basis. This function can also
+    use other covariates as specified in the full and reduced model formula to identify differentially expression genes
+    across different categories, group, etc.
+
+    glm_degs relies on statsmodels package and is adapted from the `differentialGeneTest` in Monocle. Note that glm_degs
+    supports performing deg analysis for any layer or normalized data in your adata object. That is you can either use
+    the total, new, unspliced or velocity, etc. for the differential expression analysis.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object
+        X_data: `np.ndarray` (default: `None`)
+            The user supplied data that will be used for clustering directly.
+        genes: `list` or None (default: `None`)
+            The list of genes that will be used to subset the data for dimension reduction and clustering. If `None`, all
+            genes will be used.
+        layer: `str` or None (default: `None`)
+            The layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is used.
+        fullModelFormulaStr: `str` (default: `~cr(time, df=3)`)
+            fullModelFormulaStr a formula string specifying the full model in differential expression tests (i.e.
+            likelihood ratio tests) for each gene/feature.
+        reducedModelFormulaStr: `str` (default: `~1`)
+            reducedModelFormulaStr a formula string specifying the reduced model in differential expression tests (i.e.
+            likelihood ratio tests) for each gene/feature.
+        family: `str` (default: `NB2`)
+            The distribution family used for the expression responses in statsmodels. Currently always uses `NB2` and this
+            is ignored.
+
+    Returns
+    -------
+        Returns an updated `~anndata.AnnData` with a new key `glm_degs` in the .uns attribute, storing the differential
+        expression test results after the GLM test.
+    """
 
     if X_data is None:
         genes, X_data = fetch_X_data(adata, genes, layer)
@@ -443,10 +486,31 @@ def differentialGeneTest(adata,
         if genes is None or len(genes) != X_data.shape[1]:
             raise ValueError(f"When providing X_data, a list of genes name that corresponds to the columns of X_data "
                              f"must be provided")
+    if layer is None:
+        if issparse(X_data):
+            X_data.data = (
+                2 ** X_data.data - 1
+                if adata.uns["pp_norm_method"] == "log2"
+                else np.exp(X_data.data) - 1
+                if adata.uns["pp_norm_method"] == "log"
+                else Freeman_Tukey(X_data.data + 1, inverse=True)
+                if adata.uns["pp_norm_method"] == "Freeman_Tukey"
+                else X_data.data
+            )
+        else:
+            X_data = (
+                2 ** X_data - 1
+                if adata.uns["pp_norm_method"] == "log2"
+                else np.exp(X_data) - 1
+                if adata.uns["pp_norm_method"] == "log"
+                else Freeman_Tukey(X_data, inverse=True)
+                if adata.uns["pp_norm_method"] == "Freeman_Tukey"
+                else X_data
+            )
 
     factors = get_all_variables(fullModelFormulaStr)
-    factors = ['time' if i == 'cr(Pseudotime, df=3)' else i for i in factors]
-    if set(factors).difference(adata.obs.columns) == 0:
+    factors = ['Pseudotime' if i == 'cr(Pseudotime, df=3)' else i for i in factors]
+    if len(set(factors).difference(adata.obs.columns)) == 0:
         df_factors = adata.obs[factors]
     else:
         raise Exception(f"adata object doesn't include the factors from the model formula "
@@ -455,17 +519,17 @@ def differentialGeneTest(adata,
     sparse = issparse(X_data)
     deg_df = pd.DataFrame(index=genes, columns=['status', 'family', 'pval'])
     for i, gene in tqdm(enumerate(genes), "Detecting time dependent genes via Generalized Additive Models (GAMs)"):
-        expression = X_data[:, i].A1 if sparse else X_data[:, i]
-        data = pd.concat((df_factors, pd.Series({'Expression': expression})))
-        deg_df[i, :] = diff_test_helper(data, fullModelFormulaStr, reducedModelFormulaStr)
+        expression = X_data[:, i].A if sparse else X_data[:, i]
+        df_factors['expression'] = expression
+        deg_df.iloc[i, :] = diff_test_helper(df_factors, fullModelFormulaStr, reducedModelFormulaStr)
 
     deg_df['qval'] = multipletests(deg_df['pval'], method='fdr_bh')[1]
 
-    adata.uns['gam_deg'] = deg_df
+    adata.uns['glm_degs'] = deg_df
 
 
 def diff_test_helper(data,
-                     fullModelFormulaStr="~ns(time, df=3)",
+                     fullModelFormulaStr="~cr(time, df=3)",
                      reducedModelFormulaStr="~1",
                      ):
     # Dividing data into train and validation datasets
@@ -505,8 +569,6 @@ def get_all_variables(formula):
 
 
 def lrt(full, restr):
-    from scipy import stats
-
     llf_full = full.llf
     llf_restr = restr.llf
     df_full = full.df_resid
