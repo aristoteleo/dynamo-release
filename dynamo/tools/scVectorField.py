@@ -49,14 +49,51 @@ def norm(X, V, T):
 
 @timeit
 def lstsq_solver(lhs, rhs, method='drouin'):
-    if lstsq_solver == 'scipy':
+    if method == 'scipy':
         C = lstsq(lhs, rhs)[0]
-    elif lstsq_solver == 'drouin':
+    elif method == 'drouin':
         C = linear_least_squares(lhs, rhs)
     else:
         warnings.warn('Invalid linear least squares solver. Use Drouin\'s method instead.')
         C = linear_least_squares(lhs, rhs)
     return C
+
+
+def get_P(Y, V, sigma2, gamma, a):
+    """GET_P estimates the posterior probability and part of the energy.
+
+    Arguments
+    ---------
+        Y: 'np.ndarray'
+            Velocities from the data.
+        V: 'np.ndarray'
+            The estimated velocity: V=f(X), f being the vector field function.
+        sigma2: 'float'
+            sigma2 is defined as sum(sum((Y - V)**2)) / (N * D)
+        gamma: 'float'
+            Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important.
+        a: 'float'
+            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's variation space is a.
+
+    Returns
+    -------
+    P: 'np.ndarray'
+        Posterior probability, related to equation 27.
+    E: `np.ndarray'
+        Energy, related to equation 26.
+
+    """
+    D = Y.shape[1]
+    temp1 = np.exp(-np.sum((Y - V) ** 2, 1) / (2 * sigma2))
+    temp2 = (2 * np.pi * sigma2) ** (D / 2) * (1 - gamma) / (gamma * a)
+    temp1[temp1 == 0] = np.min(temp1[temp1 != 0])
+    P = temp1 / (temp1 + temp2)
+    E = (
+        P.T.dot(np.sum((Y - V) ** 2, 1)) / (2 * sigma2)
+        + np.sum(P) * np.log(sigma2) * D / 2
+    )
+
+    return P, E
 
 @timeit
 def con_K(x, y, beta):
@@ -90,7 +127,7 @@ def con_K(x, y, beta):
 
     return K
 
-
+@timeit
 def con_K_div_cur_free(x, y, sigma=0.8, gamma=0.5):
     """Learn a convex combination of the divergence-free kernel T_df and curl-free kernel T_cf with a bandwidth sigma and a combination coefficient gamma.
 
@@ -220,7 +257,6 @@ def SparseVFC(
         Note that V = `con_K(Grid, ctrl_pts, beta).dot(C)` gives the prediction of velocity on Grid (can be any point in
         the gene expression state space).
     """
-
     timeit_ = True if verbose > 1 else False
 
     Y[~np.isfinite(Y)] = 0  # set nan velocity to 0.
@@ -239,28 +275,29 @@ def SparseVFC(
     K = (
         con_K(ctrl_pts, ctrl_pts, beta, timeit=timeit_)
         if div_cur_free_kernels is False
-        else con_K_div_cur_free(ctrl_pts, ctrl_pts)[0]
+        else con_K_div_cur_free(ctrl_pts, ctrl_pts, timeit=timeit_)[0]
     )
     U = (
         con_K(X, ctrl_pts, beta, timeit=timeit_)
         if div_cur_free_kernels is False
-        else con_K_div_cur_free(X, ctrl_pts)[0]
+        else con_K_div_cur_free(X, ctrl_pts, timeit=timeit_)[0]
     )
     if Grid is not None:
         grid_U = (
             con_K(Grid, ctrl_pts, beta, timeit=timeit_)
             if div_cur_free_kernels is False
-            else con_K_div_cur_free(Grid, ctrl_pts)[0]
+            else con_K_div_cur_free(Grid, ctrl_pts, timeit=timeit_)[0]
         )
     M = ctrl_pts.shape[0]
 
     # Initialization
     V = np.zeros((N, D))
     C = np.zeros((M, D))
-    i, tecr, E = 1, 1, 1
+    i, tecr, E = 0, 1, 1
     sigma2 = sum(sum((Y - V) ** 2)) / (N * D)  ## test this
     # sigma2 = 1e-7 if sigma2 > 1e-8 else sigma2
-    tecr_vec = [None] * MaxIter
+    tecr_vec = np.ones(MaxIter) * np.nan
+    E_vec = np.ones(MaxIter) * np.nan
 
     while i < MaxIter and tecr > ecr and sigma2 > 1e-8:
         # E_step
@@ -268,6 +305,7 @@ def SparseVFC(
         P, E = get_P(Y, V, sigma2, gamma, a)
 
         E = E + lambda_ / 2 * np.trace(C.T.dot(K).dot(C))
+        E_vec[i] = E
         tecr = abs((E - E_old) / E)
         tecr_vec[i] = tecr
 
@@ -287,7 +325,7 @@ def SparseVFC(
         if timeit_:
             print('Time elapsed for computing lhs and rhs: %f s'%(time.time()-st))
         
-        C = lstsq_solver(lhs, rhs, lstsq_method, timeit=timeit_)
+        C = lstsq_solver(lhs, rhs, method=lstsq_method, timeit=timeit_)
             
         # Update V and sigma**2
         V = U.dot(C)
@@ -322,47 +360,11 @@ def SparseVFC(
         "grid": Grid,
         "grid_V": grid_V,
         "iteration": i - 1,
-        "tecr_vec": tecr_vec[:i],
+        "tecr_traj": tecr_vec[:i],
+        "E_traj": E_vec[:i]
     }
 
     return VecFld
-
-
-def get_P(Y, V, sigma2, gamma, a):
-    """GET_P estimates the posterior probability and part of the energy.
-
-    Arguments
-    ---------
-        Y: 'np.ndarray'
-            Original data.
-        V: 'np.ndarray'
-            Original data.
-        sigma2: 'float'
-            sigma2 is defined as sum(sum((Y - V)**2)) / (N * D)
-        gamma: 'float'
-            Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important.
-        a: 'float'
-            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's variation space is a.
-
-    Returns
-    -------
-    P: 'np.ndarray'
-        Posterior probability, related to equation 27.
-    E: `np.ndarray'
-        Energy, related to equation 26.
-
-    """
-    D = Y.shape[1]
-    temp1 = np.exp(-np.sum((Y - V) ** 2, 1) / (2 * sigma2))
-    temp2 = (2 * np.pi * sigma2) ** (D / 2) * (1 - gamma) / (gamma * a)
-    temp1[temp1 == 0] = np.min(temp1[temp1 != 0])
-    P = temp1 / (temp1 + temp2)
-    E = (
-        P.T.dot(np.sum((Y - V) ** 2, 1)) / (2 * sigma2)
-        + np.sum(P) * np.log(sigma2) * D / 2
-    )
-
-    return P, E
 
 
 class vectorfield:
@@ -434,7 +436,7 @@ class vectorfield:
         }
         self.norm_dict = {}
 
-    def fit(self, normalize=False, method="SparseVFC", verbose=1):
+    def fit(self, normalize=False, method="SparseVFC", **kwargs):
         """Learn an function of vector field from sparse single cell samples in the entire space robustly.
         Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
 
@@ -464,6 +466,8 @@ class vectorfield:
                 norm_dict,
             )
 
+        verbose = kwargs.pop('verbose', 1)
+        lstsq_method = kwargs.pop('lstsq_method', 'drouin')
         if method == "SparseVFC":
             VecFld = SparseVFC(
                 self.data["X"],
@@ -478,7 +482,8 @@ class vectorfield:
                 minP=self.parameters["minP"],
                 MaxIter=self.parameters["MaxIter"],
                 theta=self.parameters["theta"],
-                verbose=verbose
+                verbose=verbose,
+                lstsq_method=lstsq_method
             )
 
         return VecFld
