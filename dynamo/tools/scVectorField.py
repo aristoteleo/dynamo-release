@@ -49,9 +49,9 @@ def norm(X, V, T):
 
 @timeit
 def lstsq_solver(lhs, rhs, method='drouin'):
-    if lstsq_solver == 'scipy':
+    if method == 'scipy':
         C = lstsq(lhs, rhs)[0]
-    elif lstsq_solver == 'drouin':
+    elif method == 'drouin':
         C = linear_least_squares(lhs, rhs)
     else:
         warnings.warn('Invalid linear least squares solver. Use Drouin\'s method instead.')
@@ -257,7 +257,6 @@ def SparseVFC(
         Note that V = con_K(Grid, ctrl_pts, beta).dot(C) gives the prediction of velocity on Grid (can be any point in
         the gene expression state space).
     """
-
     timeit_ = True if verbose > 1 else False
 
     Y[~np.isfinite(Y)] = 0  # set nan velocity to 0.
@@ -294,10 +293,11 @@ def SparseVFC(
     # Initialization
     V = np.zeros((N, D))
     C = np.zeros((M, D))
-    i, tecr, E = 1, 1, 1
+    i, tecr, E = 0, 1, 1
     sigma2 = sum(sum((Y - V) ** 2)) / (N * D)  ## test this
     # sigma2 = 1e-7 if sigma2 > 1e-8 else sigma2
-    tecr_vec = [None] * MaxIter
+    tecr_vec = np.ones(MaxIter) * np.nan
+    E_vec = np.ones(MaxIter) * np.nan
 
     while i < MaxIter and tecr > ecr and sigma2 > 1e-8:
         # E_step
@@ -305,6 +305,7 @@ def SparseVFC(
         P, E = get_P(Y, V, sigma2, gamma, a)
 
         E = E + lambda_ / 2 * np.trace(C.T.dot(K).dot(C))
+        E_vec[i] = E
         tecr = abs((E - E_old) / E)
         tecr_vec[i] = tecr
 
@@ -324,7 +325,7 @@ def SparseVFC(
         if timeit_:
             print('Time elapsed for computing lhs and rhs: %f s'%(time.time()-st))
         
-        C = lstsq_solver(lhs, rhs, lstsq_method, timeit=timeit_)
+        C = lstsq_solver(lhs, rhs, method=lstsq_method, timeit=timeit_)
             
         # Update V and sigma**2
         V = U.dot(C)
@@ -359,7 +360,8 @@ def SparseVFC(
         "grid": Grid,
         "grid_V": grid_V,
         "iteration": i - 1,
-        "tecr_vec": tecr_vec[:i],
+        "tecr_traj": tecr_vec[:i],
+        "E_traj": E_vec[:i]
     }
 
     return VecFld
@@ -434,7 +436,7 @@ class vectorfield:
         }
         self.norm_dict = {}
 
-    def fit(self, normalize=False, method="SparseVFC", verbose=1):
+    def fit(self, normalize=False, method="SparseVFC", **kwargs):
         """Learn an function of vector field from sparse single cell samples in the entire space robustly.
         Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
 
@@ -464,6 +466,8 @@ class vectorfield:
                 norm_dict,
             )
 
+        verbose = kwargs.pop('verbose', 1)
+        lstsq_method = kwargs.pop('lstsq_method', 'drouin')
         if method == "SparseVFC":
             VecFld = SparseVFC(
                 self.data["X"],
@@ -478,7 +482,8 @@ class vectorfield:
                 minP=self.parameters["minP"],
                 MaxIter=self.parameters["MaxIter"],
                 theta=self.parameters["theta"],
-                verbose=verbose
+                verbose=verbose,
+                lstsq_method=lstsq_method
             )
 
         return VecFld

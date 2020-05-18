@@ -478,7 +478,6 @@ def VectorField(
     grid_num=50,
     velocity_key="velocity_S",
     method="SparseVFC",
-    verbose=1,
     **kwargs,
 ):
     """Learn a function of high dimensional vector field from sparse single cell samples in the entire space robustly.
@@ -581,7 +580,7 @@ def VectorField(
     vf_kwargs = update_dict(vf_kwargs, kwargs)
 
     VecFld = vectorfield(X, V, Grid, **vf_kwargs)
-    func = VecFld.fit(normalize=False, method=method, verbose=verbose)
+    func = VecFld.fit(normalize=False, method=method, **kwargs)
 
     if basis is not None:
         adata.uns["VecFld_" + basis] = {
