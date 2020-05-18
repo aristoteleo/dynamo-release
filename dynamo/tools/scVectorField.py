@@ -217,7 +217,7 @@ def SparseVFC(
     VecFld: 'dict'
         A dictionary which contains X, X_ctrl, Y, beta, V, C, P, VFCIndex, sigma2, grid, grid_V, iteration, tecr_vec.
         Where V = f(X), P is the posterior probability and VFCIndex is the indexes of inliers which found by VFC.
-        Note that V = con_K(Grid, ctrl_pts, beta).dot(C) gives the prediction of velocity on Grid (can be any point in
+        Note that V = `con_K(Grid, ctrl_pts, beta).dot(C)` gives the prediction of velocity on Grid (can be any point in
         the gene expression state space).
     """
 

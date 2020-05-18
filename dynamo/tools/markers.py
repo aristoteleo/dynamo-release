@@ -5,6 +5,10 @@ import pysal
 from scipy.sparse import issparse
 from scipy.stats import mannwhitneyu
 from statsmodels.sandbox.stats.multicomp import multipletests
+import patsy
+from patsy import dmatrix, bs, cr
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
 from collections import Counter
 import warnings
 from .utils_markers import fetch_X_data, specificity, fdr
@@ -193,8 +197,8 @@ def find_group_markers(adata,
     for i, test_group in enumerate(cluster_set):
         control_groups = sorted(set(cluster_set).difference([test_group]))
 
-        de = two_groups_deg(adata, genes, layer, group, test_group, control_groups, X_data, exp_frac_thresh,
-                            log2_fc_thresh, qval_thresh, )
+        de = two_groups_degs(adata, genes, layer, group, test_group, control_groups, X_data, exp_frac_thresh,
+                             log2_fc_thresh, qval_thresh, )
 
         de_tables[i] = de.copy()
         de_genes[i] = [k for k, v in Counter(de['gene']).items()
@@ -206,17 +210,17 @@ def find_group_markers(adata,
     return adata
 
 
-def two_groups_deg(adata,
-                   genes,
-                   layer,
-                   group,
-                   test_group,
-                   control_groups,
-                   X_data,
-                   exp_frac_thresh=0.1,
-                   log2_fc_thresh=1,
-                   qval_thresh=0.05,
-                   ):
+def two_groups_degs(adata,
+                    genes,
+                    layer,
+                    group,
+                    test_group,
+                    control_groups,
+                    X_data,
+                    exp_frac_thresh=0.1,
+                    log2_fc_thresh=1,
+                    qval_thresh=0.05,
+                    ):
     """Find marker genes between two groups of cells based on gene expression or velocity values as specified by the layer.
 
     Tests each gene for differential expression between cells in one group to cells from another groups via Mann-Whitney U
@@ -253,7 +257,7 @@ def two_groups_deg(adata,
         log2_fc_thresh: `float` (default: 0.1)
             The minimal threshold of log2 fold change for a gene to proceed differential expression test.
         qval_thresh: `float` (default: 0.05)
-            The minimial threshold of qval to be considered as significant genes.
+            The maximal threshold of qval to be considered as significant genes.
 
 
     Returns
@@ -343,10 +347,10 @@ def top_n_markers(adata,
                   exp_frac_thresh=0.1,
                   log2_fc_thresh=1,
                   qval_thresh=0.05,
-                  specificity_thresh=0.5,
+                  specificity_thresh=0.3,
                   only_gene_list=False,
                   display=True):
-    """Filter cluster deg results and retrieve top markers for each cluster.
+    """Filter cluster deg (Moran's I test) results and retrieve top markers for each cluster.
 
     Parameters
     ----------
@@ -363,11 +367,11 @@ def top_n_markers(adata,
         top_n_genes: `int`
             The number of top sorted markers.
         exp_frac_thresh: `float` (default: 0.1)
-            The minimum percentage of cells with expression for a gene to proceed differential expression test.
+            The minimum percentage of cells with expression for a gene to proceed selection of top markers.
         log2_fc_thresh: `float` (default: 0.1)
-            The minimal threshold of log2 fold change for a gene to proceed differential expression test.
+            The minimal threshold of log2 fold change for a gene to proceed selection of top markers.
         qval_thresh: `float` (default: 0.05)
-            The minimial threshold of qval to be considered as significant genes.
+            The maximal threshold of qval to be considered as top markers.
         only_gene_list: `bool`
             Whether to only return the gene list for each cluster.
         display: `bool`
@@ -392,7 +396,7 @@ def top_n_markers(adata,
                                 "specificity > @specificity_thresh")
     if deg_table.shape[0] == 0:
         raise ValueError(f'Looks like your filter threshold is too extreme. No gene detected. '
-                         f'Please try to relax the thresholds you specified: '
+                         f'Please try relaxing the thresholds you specified: '
                          f'exp_frac_thresh: {exp_frac_thresh}'
                          f'log2_fc_thresh: {log2_fc_thresh}'
                          f'qval_thresh: {qval_thresh}'
@@ -423,3 +427,92 @@ def top_n_markers(adata,
         return de_genes
     else:
         return top_n_df
+
+
+def differentialGeneTest(adata,
+                         X_data=None,
+                         genes=None,
+                         layer=None,
+                         fullModelFormulaStr="~ns(time, df=3)",
+                         reducedModelFormulaStr="~1",
+                         ):
+
+    if X_data is None:
+        genes, X_data = fetch_X_data(adata, genes, layer)
+    else:
+        if genes is None or len(genes) != X_data.shape[1]:
+            raise ValueError(f"When providing X_data, a list of genes name that corresponds to the columns of X_data "
+                             f"must be provided")
+
+    factors = get_all_variables(fullModelFormulaStr)
+    factors = ['time' if i == 'cr(Pseudotime, df=3)' else i for i in factors]
+    if set(factors).difference(adata.obs.columns) == 0:
+        df_factors = adata.obs[factors]
+    else:
+        raise Exception(f"adata object doesn't include the factors from the model formula "
+                        f"{fullModelFormulaStr} you provided.")
+
+    sparse = issparse(X_data)
+    deg_df = pd.DataFrame(index=genes, columns=['status', 'family', 'pval'])
+    for i, gene in tqdm(enumerate(genes), "Detecting time dependent genes via Generalized Additive Models (GAMs)"):
+        expression = X_data[:, i].A1 if sparse else X_data[:, i]
+        data = pd.concat((df_factors, pd.Series({'Expression': expression})))
+        deg_df[i, :] = diff_test_helper(data, fullModelFormulaStr, reducedModelFormulaStr)
+
+    deg_df['qval'] = multipletests(deg_df['pval'], method='fdr_bh')[1]
+
+    adata.uns['gam_deg'] = deg_df
+
+
+def diff_test_helper(data,
+                     fullModelFormulaStr="~ns(time, df=3)",
+                     reducedModelFormulaStr="~1",
+                     ):
+    # Dividing data into train and validation datasets
+    transformed_x = dmatrix(fullModelFormulaStr, data, return_type='dataframe')
+    transformed_x_null = dmatrix(reducedModelFormulaStr, data, return_type='dataframe')
+
+    expression = data['expression']
+    poisson_training_results = sm.GLM(expression, transformed_x, family=sm.families.Poisson()).fit()
+    poisson_df = pd.DataFrame({'mu': poisson_training_results.mu, 'expression': expression})
+    poisson_df['AUX_OLS_DEP'] = poisson_df.apply(lambda x: ((x['expression'] - x['mu']) ** 2
+                                                            - x['expression']) / x['mu'], axis=1)
+    ols_expr = """AUX_OLS_DEP ~ mu - 1"""
+    aux_olsr_results = smf.ols(ols_expr, poisson_df).fit()
+
+    nb2_family = sm.families.NegativeBinomial(alpha=aux_olsr_results.params[0])
+
+    try:
+        nb2_full = sm.GLM(expression, transformed_x, family=nb2_family).fit()
+        nb2_null = sm.GLM(expression, transformed_x_null, family=nb2_family).fit()
+    except:
+        return ('fail', 'NB2', 1)
+
+    pval = lrt(nb2_full, nb2_null)
+    return ('ok', 'NB2', pval)
+
+
+def get_all_variables(formula):
+    md = patsy.ModelDesc.from_formula(formula)
+    termlist = md.rhs_termlist + md.lhs_termlist
+
+    factors = []
+    for term in termlist:
+        for factor in term.factors:
+            factors.append(factor.name())
+
+    return factors
+
+
+def lrt(full, restr):
+    from scipy import stats
+
+    llf_full = full.llf
+    llf_restr = restr.llf
+    df_full = full.df_resid
+    df_restr = restr.df_resid
+    lrdf = (df_restr - df_full)
+    lrstat = -2 * (llf_restr - llf_full)
+    lr_pvalue = stats.chi2.sf(lrstat, df=lrdf)
+
+    return  lr_pvalue

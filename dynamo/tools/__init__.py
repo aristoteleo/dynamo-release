@@ -125,4 +125,4 @@ from .DDRTree import DDRTree_py as DDRTree
 from .DDRTree import cal_ncenter
 
 # DEG test related
-from .markers import moran_i, find_group_markers, two_groups_deg, top_n_markers
+from .markers import moran_i, find_group_markers, two_groups_degs, top_n_markers
