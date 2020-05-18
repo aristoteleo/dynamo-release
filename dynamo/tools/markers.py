@@ -445,34 +445,38 @@ def glm_degs(adata,
     """Differential genes expression tests using generalized linear regressions.
 
     Tests each gene for differential expression as a function of integral time (the time estimated via the reconstructed
-    vector field function) or pseudotime using generalized additive models with nature spline basis. This function can also
-    use other covariates as specified in the full and reduced model formula to identify differentially expression genes
-    across different categories, group, etc.
+    vector field function) or pseudotime using generalized additive models with natural spline basis. This function can
+    also use other covariates as specified in the full (i.e `~clusters`) and reduced model formula to identify differentially
+    expression genes across different categories, group, etc.
 
-    glm_degs relies on statsmodels package and is adapted from the `differentialGeneTest` in Monocle. Note that glm_degs
-    supports performing deg analysis for any layer or normalized data in your adata object. That is you can either use
-    the total, new, unspliced or velocity, etc. for the differential expression analysis.
+    glm_degs relies on statsmodels package and is adapted from the `differentialGeneTest` function in Monocle. Note that
+    glm_degs supports performing deg analysis for any layer or normalized data in your adata object. That is you can either
+    use the total, new, unspliced or velocity, etc. for the differential expression analysis.
 
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
             an Annodata object
         X_data: `np.ndarray` (default: `None`)
-            The user supplied data that will be used for clustering directly.
+            The user supplied data that will be used for differential expression analysis directly.
         genes: `list` or None (default: `None`)
-            The list of genes that will be used to subset the data for dimension reduction and clustering. If `None`, all
+            The list of genes that will be used to subset the data for differential expression analysis. If `None`, all
             genes will be used.
         layer: `str` or None (default: `None`)
             The layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is used.
         fullModelFormulaStr: `str` (default: `~cr(time, df=3)`)
-            fullModelFormulaStr a formula string specifying the full model in differential expression tests (i.e.
-            likelihood ratio tests) for each gene/feature.
+            A formula string specifying the full model in differential expression tests (i.e. likelihood ratio tests) for
+            each gene/feature.
         reducedModelFormulaStr: `str` (default: `~1`)
-            reducedModelFormulaStr a formula string specifying the reduced model in differential expression tests (i.e.
-            likelihood ratio tests) for each gene/feature.
+            A formula string specifying the reduced model in differential expression tests (i.e. likelihood ratio tests)
+            for each gene/feature.
         family: `str` (default: `NB2`)
             The distribution family used for the expression responses in statsmodels. Currently always uses `NB2` and this
-            is ignored.
+            is ignored. NB model requires us to define a parameter $\alpha$ which it uses to express the variance in terms
+            of the mean as follows: variance = mean + $\alpha$ mean^p. When $p=2$, it corresponds to the NB2 model. In order 
+            to obtain the correct parameter $\alpha$ (sm.genmod.families.family.NegativeBinomial(link=None, alpha=1.0), by
+            default it is 1), we use the auxiliary OLS regression without a constant from Messrs Cameron and Trivedi. More 
+            details can be used here: https://towardsdatascience.com/negative-binomial-regression-f99031bb25b4.
 
     Returns
     -------
