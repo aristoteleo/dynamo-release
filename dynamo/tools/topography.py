@@ -474,6 +474,7 @@ def VectorField(
     layer="X",
     dims=None,
     genes=None,
+    normalize=False,
     grid_velocity=False,
     grid_num=50,
     velocity_key="velocity_S",
@@ -498,6 +499,10 @@ def VectorField(
             The gene names whose gene expression will be used for vector field reconstruction. By default (when genes is
             set to None), the genes used for velocity embedding (var.use_for_velocity) will be used for vector field reconstruction.
             Note that the genes to be used need to have velocity calculated.
+        normalize: 'bool' (default: False)
+            Logic flag to determine whether to normalize the data to have zero means and unit covariance. This is often
+            required for raw dataset (for example, raw UMI counts and RNA velocity values in high dimension). But it is
+            normally not required for low dimensional embeddings by PCA or other non-linear dimension reduction methods.
         grid_velocity: `bool` (default: False)
             Whether to generate grid velocity. Note that by default it is set to be False, but for datasets with embedding
             dimension less than 4, the grid velocity will still be generated. Please note that number of total grids in
@@ -580,7 +585,7 @@ def VectorField(
     vf_kwargs = update_dict(vf_kwargs, kwargs)
 
     VecFld = vectorfield(X, V, Grid, **vf_kwargs)
-    func = VecFld.fit(normalize=False, method=method, **kwargs)
+    func = VecFld.fit(normalize=normalize, method=method, **kwargs)
 
     if basis is not None:
         adata.uns["VecFld_" + basis] = {
