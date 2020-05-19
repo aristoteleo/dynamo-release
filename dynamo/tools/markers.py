@@ -476,7 +476,7 @@ def glm_degs(adata,
             of the mean as follows: variance = mean + $\alpha$ mean^p. When $p=2$, it corresponds to the NB2 model. In order 
             to obtain the correct parameter $\alpha$ (sm.genmod.families.family.NegativeBinomial(link=None, alpha=1.0), by
             default it is 1), we use the auxiliary OLS regression without a constant from Messrs Cameron and Trivedi. More 
-            details can be used here: https://towardsdatascience.com/negative-binomial-regression-f99031bb25b4.
+            details can be found here: https://towardsdatascience.com/negative-binomial-regression-f99031bb25b4.
 
     Returns
     -------
@@ -581,4 +581,4 @@ def lrt(full, restr):
     lrstat = -2 * (llf_restr - llf_full)
     lr_pvalue = stats.chi2.sf(lrstat, df=lrdf)
 
-    return  lr_pvalue
+    return lr_pvalue

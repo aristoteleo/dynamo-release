@@ -219,21 +219,24 @@ def SparseVFC(
     lstsq_method='drouin',
     verbose=1
 ):
-    """Apply sparseVFC (vector field consensus) algorithm to learn a functional form of the vector field on the entire space robustly and efficiently.
-    Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
+    """Apply sparseVFC (vector field consensus) algorithm to learn a functional form of the vector field from random
+    samples with outlier on the entire space robustly and efficiently. (Ma, Jiayi, etc. al, Pattern Recognition, 2013)
 
     Arguments
     ---------
         X: 'np.ndarray'
             Current state. This corresponds to, for example, the spliced transcriptomic state.
         Y: 'np.ndarray'
-            Velocity estimates in delta t. This corresponds to, for example, the inferred spliced transcriptomic velocity estimated calculated by velocyto, scvelo or dynamo.
+            Velocity estimates in delta t. This corresponds to, for example, the inferred spliced transcriptomic velocity
+            or total RNA velocity based on metabolic labeling data estimated calculated by dynamo.
         Grid: 'np.ndarray'
-            Current state on a grid which is often used to visualize the vector field. This corresponds to, for example, the spliced transcriptomic state.
+            Current state on a grid which is often used to visualize the vector field. This corresponds to, for example,
+            the spliced transcriptomic state or total RNA state.
         M: 'int' (default: 100)
             The number of basis functions to approximate the vector field.
         a: 'float' (default: 10)
-            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's variation space is a.
+            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
+            outlier's variation space is `a`.
         beta: 'float' (default: 0.1)
             Paramerter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2),
         ecr: 'float' (default: 1e-5)
@@ -243,20 +246,38 @@ def SparseVFC(
         lambda_: 'float' (default: 0.3)
             Represents the trade-off between the goodness of data fit and regularization.
         minP: 'float' (default: 1e-5)
-            The posterior probability Matrix P may be singular for matrix inversion. We set the minimum value of P as minP.
+            The posterior probability Matrix P may be singular for matrix inversion. We set the minimum value of P as
+            minP.
         MaxIter: 'int' (default: 500)
             Maximum iteration times.
         theta: 'float' (default: 0.75)
-            Define how could be an inlier. If the posterior probability of a sample is an inlier is larger than theta, then it is regarded as an inlier.
+            Define how could be an inlier. If the posterior probability of a sample is an inlier is larger than theta,
+            then it is regarded as an inlier.
 
     Returns
     -------
     VecFld: 'dict'
-        A dictionary which contains X, X_ctrl, Y, beta, V, C, P, VFCIndex, sigma2, grid, grid_V, iteration, tecr_vec.
-        Where V = f(X), P is the posterior probability and VFCIndex is the indexes of inliers which found by VFC.
-        Note that V = `con_K(Grid, ctrl_pts, beta).dot(C)` gives the prediction of velocity on Grid (can be any point in
-        the gene expression state space).
+        A dictionary which contains:
+            X: Current state.
+            X_ctrl: Sample control points of current state.
+            Y: Velocity estimates in delta t.
+            beta: Parameter of the Gaussian Kernel for the kernel matrix (Gram matrix).
+            V: Prediction of velocity of X.
+            C: Finite set of the coefficients for the
+            P: Posterior probability Matrix of inliers.
+            VFCIndex: Indexes of inliers found by sparseVFC.
+            sigma2: Energy change rate.
+            grid: Grid of current state.
+            grid_V: Prediction of velocity of the grid.
+            iteration: Number of the last iteration.
+            tecr_vec: Vector of relative energy changes comparing to previous step.
+            E_traj: Vector of energy at each iteration,
+        where V = f(X), P is the posterior probability and VFCIndex is the indexes of inliers found by sparseVFC.
+        Note that V = `con_K(Grid, X_ctrl, beta).dot(C)` gives the prediction of velocity on Grid (but can also be any
+        point in the gene expression state space).
+
     """
+
     timeit_ = True if verbose > 1 else False
 
     Y[~np.isfinite(Y)] = 0  # set nan velocity to 0.
