@@ -8,10 +8,10 @@ from numpy import format_float_scientific as scinot
 
 def norm(X, V, T):
     """Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
-        We use the mean of X, Y's center and scale parameters to normalize T.
+        We use the mean of X, Y's center (mean) and scale parameters (standard deviation) to normalize T.
 
-        Arguments
-        ---------
+    Arguments
+    ---------
         X: 'np.ndarray'
             Current state. This corresponds to, for example, the spliced transcriptomic state.
         V: 'np.ndarray'
@@ -19,10 +19,12 @@ def norm(X, V, T):
         T: 'np.ndarray'
             Current state on a grid which is often used to visualize the vector field. This corresponds to, for example, the spliced transcriptomic state.
 
-        Returns
-        -------
-            Add norm_dict to the class which includes the mean and scale values for X, Y used in normalizing the data.
-        """
+    Returns
+    -------
+        A tuple of updated X, V, T and norm_dict which includes the mean and scale values for original X, V data used
+        in normalization.
+    """
+
     Y = X + V
     n, m = X.shape[0], V.shape[0]
 
@@ -46,6 +48,43 @@ def norm(X, V, T):
     norm_dict = {"xm": xm, "ym": ym, "xscale": xscale, "yscale": yscale}
 
     return X, V, T, norm_dict
+
+
+def denorm(VecFld, X_old, V_old, norm_dict):
+    """Denormalize data back to the original scale.
+
+    Parameters
+    ----------
+        VecFld:  `dict`
+            The dictionary that stores the information for the reconstructed vector field function.
+        X_old: `np.ndarray`
+            The original data for current state.
+        V_old: `np.ndarray`
+            The original velocity data.
+        norm_dict: `dict`
+            norm_dict to the class which includes the mean and scale values for X, Y used in normalizing the data.
+
+    Returns
+    -------
+        An updated VecFld function that includes denormalized X, Y, X_ctrl, grid, grid_V, V and the norm_dict key.
+    """
+
+    Y_old = X_old + V_old
+    X, Y, V, xm, ym, x_scale, y_scale = VecFld['X'], VecFld['Y'], VecFld['V'], norm_dict['xm'], norm_dict['ym'], \
+                                        norm_dict['xscale'], norm_dict['yscale']
+    grid, grid_V = VecFld['grid'], VecFld['grid_V']
+    xy_m, xy_scale = (xm + ym) / 2, (x_scale + y_scale) / 2
+
+    VecFld['X'] = X_old
+    VecFld['Y'] = Y_old
+    VecFld['X_ctrl'] = X * x_scale + np.matlib.tile(xm, [X.shape[0], 1])
+    VecFld['grid'] = grid * xy_scale + np.matlib.tile(xy_m, [X.shape[0], 1])
+    VecFld['grid_V'] = (grid + grid_V) * xy_scale + np.matlib.tile(xy_m, [Y.shape[0], 1]) - grid
+    VecFld['V'] = (V + X) * y_scale + np.matlib.tile(ym, [Y.shape[0], 1]) - X_old
+    VecFld['norm_dict'] = norm_dict
+
+    return VecFld
+
 
 @timeit
 def lstsq_solver(lhs, rhs, method='drouin'):
@@ -129,7 +168,8 @@ def con_K(x, y, beta):
 
 @timeit
 def con_K_div_cur_free(x, y, sigma=0.8, gamma=0.5):
-    """Learn a convex combination of the divergence-free kernel T_df and curl-free kernel T_cf with a bandwidth sigma and a combination coefficient gamma.
+    """Learn a convex combination of the divergence-free kernel T_df and curl-free kernel T_cf with a bandwidth sigma
+    and a combination coefficient gamma.
 
     Arguments
     ---------
@@ -167,7 +207,7 @@ def con_K_div_cur_free(x, y, sigma=0.8, gamma=0.5):
     G_tmp2 = np.zeros(d * m, d * n)
 
     for i in range(d):
-        for j in range(d):
+        for j in np.arange(i, d):
             tmp1 = xminusy[:, i].reshape((m, n))
             tmp2 = xminusy[:, j].reshape((m, n))
             tmp3 = tmp1 * tmp2
@@ -179,9 +219,10 @@ def con_K_div_cur_free(x, y, sigma=0.8, gamma=0.5):
     G_tmp2 = G_tmp2 / sigma2
     G_tmp3 = np.kron((G_tmp3 + d - 1), np.eye(d))
     G_tmp4 = np.kron(np.ones(m, n), np.eye(d)) - G_tmp2
-    G = (1 - gamma) * G_tmp * (G_tmp2 + G_tmp3) + gamma * G_tmp * G_tmp4
+    df_kernel, cf_kernel = (1 - gamma) * G_tmp * (G_tmp2 + G_tmp3), gamma * G_tmp * G_tmp4
+    G = df_kernel + cf_kernel
 
-    return G, (1 - gamma) * G_tmp * (G_tmp2 + G_tmp3), gamma * G_tmp * G_tmp4
+    return G, df_kernel, cf_kernel
 
 
 @timeit
@@ -270,7 +311,7 @@ def SparseVFC(
             grid: Grid of current state.
             grid_V: Prediction of velocity of the grid.
             iteration: Number of the last iteration.
-            tecr_vec: Vector of relative energy changes comparing to previous step.
+            tecr_vec: Vector of relative energy changes rate comparing to previous step.
             E_traj: Vector of energy at each iteration,
         where V = f(X), P is the posterior probability and VFCIndex is the indexes of inliers found by sparseVFC.
         Note that V = `con_K(Grid, X_ctrl, beta).dot(C)` gives the prediction of velocity on Grid (but can also be any
@@ -473,17 +514,17 @@ class vectorfield:
 
         Returns
         -------
-            VecFld: 'dict'
+            VecFld: `dict'
                 A dictionary which contains X, Y, beta, V, C, P, VFCIndex. Where V = f(X), P is the posterior probability and
                 VFCIndex is the indexes of inliers which found by VFC.
         """
 
         if normalize:
-            X, V, T, norm_dict = norm(self.data["X"], self.data["V"], self.data["Grid"])
+            X_old, V_old, T_old, norm_dict = norm(self.data["X"], self.data["V"], self.data["Grid"])
             self.data["X"], self.data["V"], self.data["Grid"], self.norm_dict = (
-                X,
-                V,
-                T,
+                X_old,
+                V_old,
+                T_old,
                 norm_dict,
             )
 
@@ -504,8 +545,10 @@ class vectorfield:
                 MaxIter=self.parameters["MaxIter"],
                 theta=self.parameters["theta"],
                 verbose=verbose,
-                lstsq_method=lstsq_method
+                lstsq_method=lstsq_method,
             )
+            if normalize:
+                VecFld = denorm(VecFld, X_old, V_old, self.norm_dict)
 
         return VecFld
 
