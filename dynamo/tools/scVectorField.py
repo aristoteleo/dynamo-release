@@ -216,6 +216,7 @@ def SparseVFC(
     MaxIter=500,
     theta=0.75,
     div_cur_free_kernels=False,
+    velocity_based_sampling=True,
     lstsq_method='drouin',
     verbose=1
 ):
@@ -264,13 +265,20 @@ def SparseVFC(
     grid_U = None
 
     # Construct kernel matrix K
-    tmp_X = np.unique(X, axis=0)  # return unique rows
-    idx = np.random.RandomState(seed=0).permutation(
-        tmp_X.shape[0]
-    )  # rand select some initial points
-    idx = idx[range(min(M, tmp_X.shape[0]))]
+    tmp_X, uid = np.unique(X, axis=0, return_index=True)  # return unique rows
+    M = min(M, tmp_X.shape[0])
+    if velocity_based_sampling:
+        if verbose > 1:
+            print('Sampling control points based on data velocity magnitude...')
+        tmp_V = np.linalg.norm(Y[uid], axis=1)
+        p = tmp_V / np.sum(tmp_V)
+        idx = np.random.choice(np.arange(N), size=M, p=p, replace=False)
+    else:
+        idx = np.random.RandomState(seed=0).permutation(
+            tmp_X.shape[0]
+        )  # rand select some initial points
+        idx = idx[range(M)]
     ctrl_pts = tmp_X[idx, :]
-    # ctrl_pts = X[range(500), :]
 
     K = (
         con_K(ctrl_pts, ctrl_pts, beta, timeit=timeit_)
@@ -382,7 +390,8 @@ class vectorfield:
         minP=1e-5,
         MaxIter=500,
         theta=0.75,
-        div_cur_free_kernels=False
+        div_cur_free_kernels=False,
+        velocity_based_sampling=True
     ):
         """Initialize the VectorField class.
 
@@ -433,6 +442,7 @@ class vectorfield:
             "MaxIter": MaxIter,
             "theta": theta,
             "div_cur_free_kernels": div_cur_free_kernels,
+            "velocity_based_sampling": velocity_based_sampling
         }
         self.norm_dict = {}
 
@@ -473,15 +483,7 @@ class vectorfield:
                 self.data["X"],
                 self.data["V"],
                 self.data["Grid"],
-                M=self.parameters["M"],
-                a=self.parameters["a"],
-                beta=self.parameters["beta"],
-                ecr=self.parameters["ecr"],
-                gamma=self.parameters["gamma"],
-                lambda_=self.parameters["lambda_"],
-                minP=self.parameters["minP"],
-                MaxIter=self.parameters["MaxIter"],
-                theta=self.parameters["theta"],
+                **self.parameters,
                 verbose=verbose,
                 lstsq_method=lstsq_method
             )
