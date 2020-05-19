@@ -167,7 +167,7 @@ def con_K(x, y, beta):
     return K
 
 @timeit
-def con_K_div_cur_free(x, y, sigma=0.8, gamma=0.5):
+def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
     """Learn a convex combination of the divergence-free kernel T_df and curl-free kernel T_cf with a bandwidth sigma
     and a combination coefficient gamma.
 
@@ -179,7 +179,7 @@ def con_K_div_cur_free(x, y, sigma=0.8, gamma=0.5):
             Control points used to build kernel basis functions
         sigma: 'int'
             Bandwidth parameter.
-        gamma: 'int'
+        eta: 'int'
             Combination coefficient for the divergence-free or the curl-free kernels.
 
     Returns
@@ -198,43 +198,62 @@ def con_K_div_cur_free(x, y, sigma=0.8, gamma=0.5):
     G_tmp3 = -G_tmp / sigma2
     G_tmp = -G_tmp / (2 * sigma2)
     G_tmp = np.exp(G_tmp) / sigma2
-    G_tmp = np.kron(G_tmp, np.ones(d))
+    G_tmp = np.kron(G_tmp, np.ones((d, d)))
 
     x_tmp = np.matlib.tile(x, [n, 1])
     y_tmp = np.matlib.tile(y, [1, m]).T
-    y_tmp = y_tmp.reshape((d, m * n)).T
+    y_tmp = y_tmp.reshape((d, m * n), order='F').T
     xminusy = x_tmp - y_tmp
-    G_tmp2 = np.zeros(d * m, d * n)
+    G_tmp2 = np.zeros((d * m, d * n))
 
+    tmp4_ = np.zeros((d, d))
     for i in range(d):
         for j in np.arange(i, d):
-            tmp1 = xminusy[:, i].reshape((m, n))
-            tmp2 = xminusy[:, j].reshape((m, n))
+            tmp1 = xminusy[:, i].reshape((m, n), order='F')
+            tmp2 = xminusy[:, j].reshape((m, n), order='F')
             tmp3 = tmp1 * tmp2
-            tmp4 = np.zeros(d)
+            tmp4 = tmp4_.copy()
             tmp4[i, j] = 1
             tmp4[j, i] = 1
             G_tmp2 = G_tmp2 + np.kron(tmp3, tmp4)
 
     G_tmp2 = G_tmp2 / sigma2
     G_tmp3 = np.kron((G_tmp3 + d - 1), np.eye(d))
-    G_tmp4 = np.kron(np.ones(m, n), np.eye(d)) - G_tmp2
-    df_kernel, cf_kernel = (1 - gamma) * G_tmp * (G_tmp2 + G_tmp3), gamma * G_tmp * G_tmp4
+    G_tmp4 = np.kron(np.ones((m, n)), np.eye(d)) - G_tmp2
+    df_kernel, cf_kernel = (1 - eta) * G_tmp * (G_tmp2 + G_tmp3), eta * G_tmp * G_tmp4
     G = df_kernel + cf_kernel
 
     return G, df_kernel, cf_kernel
 
 
 @timeit
-def vector_field_function(x, VecFld, dim=None):
+def vector_field_function(x, VecFld, dim=None, kernel='full'):
     """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
     Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
     """
     # x=np.array(x).reshape((1, -1))
+    if "div_cur_free_kernels" in VecFld.keys():
+        has_div_cur_free_kernels = True
+    else:
+        has_div_cur_free_kernels = False
+
     x = np.array(x)
     if x.ndim == 1:
         x = x[None, :]
-    K = con_K(x, VecFld["X_ctrl"], VecFld["beta"])
+
+    if has_div_cur_free_kernels:
+        if kernel == 'full':
+            kernel_ind = 0
+        elif kernel == 'df_kernel':
+            kernel_ind = 1
+        elif kernel == 'cf_kernel':
+            kernel_ind = 2
+        else:
+            raise ValueError(f"the kernel can only be one of {'full', 'df_kernel', 'cf_kernel'}!")
+
+        K = con_K_div_cur_free(x, VecFld["X_ctrl"], VecFld["sigma"], VecFld["eta"])[kernel_ind]
+    else:
+        K = con_K(x, VecFld["X_ctrl"], VecFld["beta"])
 
     if dim is None:
         K = K.dot(VecFld["C"])
@@ -257,6 +276,8 @@ def SparseVFC(
     MaxIter=500,
     theta=0.75,
     div_cur_free_kernels=False,
+    sigma=0.8,
+    eta=0.5,
     lstsq_method='drouin',
     verbose=1
 ):
@@ -294,6 +315,17 @@ def SparseVFC(
         theta: 'float' (default: 0.75)
             Define how could be an inlier. If the posterior probability of a sample is an inlier is larger than theta,
             then it is regarded as an inlier.
+        div_cur_free_kernels: `bool` (default: False)
+            A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the vector
+            field.
+        sigma: 'int'
+            Bandwidth parameter.
+        eta: 'int'
+            Combination coefficient for the divergence-free or the curl-free kernels.
+        lstsq_method: 'str' (default: `drouin`)
+           The name of the linear least square solver, can be either 'scipy` or `douin`.
+        verbose: `int` (default: `1`)
+            The level of printing running information.
 
     Returns
     -------
@@ -337,18 +369,18 @@ def SparseVFC(
     K = (
         con_K(ctrl_pts, ctrl_pts, beta, timeit=timeit_)
         if div_cur_free_kernels is False
-        else con_K_div_cur_free(ctrl_pts, ctrl_pts, timeit=timeit_)[0]
+        else con_K_div_cur_free(ctrl_pts, ctrl_pts, sigma, eta, timeit=timeit_)[0]
     )
     U = (
         con_K(X, ctrl_pts, beta, timeit=timeit_)
         if div_cur_free_kernels is False
-        else con_K_div_cur_free(X, ctrl_pts, timeit=timeit_)[0]
+        else con_K_div_cur_free(X, ctrl_pts, sigma, eta, timeit=timeit_)[0]
     )
     if Grid is not None:
         grid_U = (
             con_K(Grid, ctrl_pts, beta, timeit=timeit_)
             if div_cur_free_kernels is False
-            else con_K_div_cur_free(Grid, ctrl_pts, timeit=timeit_)[0]
+            else con_K_div_cur_free(Grid, ctrl_pts, sigma, eta, timeit=timeit_)[0]
         )
     M = ctrl_pts.shape[0]
 
@@ -425,6 +457,9 @@ def SparseVFC(
         "tecr_traj": tecr_vec[:i],
         "E_traj": E_vec[:i]
     }
+    if div_cur_free_kernels:
+        VecFld['div_cur_free_kernels'] = True
+        _, VecFld['df_kernel'], VecFld['cf_kernel'], = con_K_div_cur_free(Grid, ctrl_pts, sigma, eta, timeit=timeit_)
 
     return VecFld
 
@@ -444,7 +479,9 @@ class vectorfield:
         minP=1e-5,
         MaxIter=500,
         theta=0.75,
-        div_cur_free_kernels=False
+        div_cur_free_kernels=False,
+        sigma=0.8,
+        eta=0.5,
     ):
         """Initialize the VectorField class.
 
@@ -480,6 +517,10 @@ class vectorfield:
         div_cur_free_kernels: `bool` (default: False)
             A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the vector
             field.
+        sigma: 'int'
+            Bandwidth parameter.
+        eta: 'int'
+            Combination coefficient for the divergence-free or the curl-free kernels.
         """
 
         self.data = {"X": X, "V": V, "Grid": Grid}
@@ -495,6 +536,8 @@ class vectorfield:
             "MaxIter": MaxIter,
             "theta": theta,
             "div_cur_free_kernels": div_cur_free_kernels,
+            "sigma": sigma,
+            "eta": eta,
         }
         self.norm_dict = {}
 
@@ -528,7 +571,7 @@ class vectorfield:
                 norm_dict,
             )
 
-        verbose = kwargs.pop('verbose', 1)
+        verbose = kwargs.pop('verbose', 0)
         lstsq_method = kwargs.pop('lstsq_method', 'drouin')
         if method == "SparseVFC":
             VecFld = SparseVFC(
@@ -544,6 +587,9 @@ class vectorfield:
                 minP=self.parameters["minP"],
                 MaxIter=self.parameters["MaxIter"],
                 theta=self.parameters["theta"],
+                div_cur_free_kernels=self.parameters["div_cur_free_kernels"],
+                sigma=self.parameters["sigma"],
+                eta=self.parameters["eta"],
                 verbose=verbose,
                 lstsq_method=lstsq_method,
             )

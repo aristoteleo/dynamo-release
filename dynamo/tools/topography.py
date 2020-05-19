@@ -581,6 +581,8 @@ def VectorField(
         "MaxIter": 500,
         "theta": 0.75,
         "div_cur_free_kernels": False,
+        "sigma": 0.8,
+        "eta": 0.5,
     }
     vf_kwargs = update_dict(vf_kwargs, kwargs)
 
