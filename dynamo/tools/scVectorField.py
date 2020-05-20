@@ -590,6 +590,7 @@ class vectorfield:
         })
 
         self.norm_dict = {}
+        self.vf_dict = {}
 
     def fit(self, normalize=False, method="SparseVFC", **kwargs):
         """Learn an function of vector field from sparse single cell samples in the entire space robustly.
@@ -637,11 +638,33 @@ class vectorfield:
 
         self.parameters = update_dict(self.parameters, VecFld)
 
-        vf_dict = {
+        self.vf_dict = {
             "VecFld": VecFld,
             "parameters": self.parameters
         }
-        return vf_dict
+        return self.vf_dict
+
+
+    def plot_energy(self, figsize=None, fig=None):
+        import matplotlib.pyplot as plt
+        E = self.vf_dict['VecFld']['E_traj'] if 'E_traj' in self.vf_dict['VecFld'] else None
+        tecr = self.vf_dict['VecFld']['tecr_traj'] if 'tecr_traj' in self.vf_dict['VecFld'] else None
+        if E is not None and tecr is not None:
+            fig = fig or plt.figure(figsize=figsize)
+
+            ax = fig.add_subplot(1, 2, 1)
+            ax.plot(E-np.min(E)+100)
+            #ax.plot(E)
+            ax.set_yscale("log")
+            plt.xlabel('iteration')
+            plt.ylabel('energy')
+
+            ax = fig.add_subplot(1, 2, 2)
+            ax.plot(tecr)
+            ax.set_yscale("log")
+            plt.xlabel('iteration')
+            plt.ylabel('energy transfer rate')
+
 
     def evaluate(self, CorrectIndex, VFCIndex, siz):
         """Evaluate the precision, recall, corrRate of the sparseVFC algorithm.

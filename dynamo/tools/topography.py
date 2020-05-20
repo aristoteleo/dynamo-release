@@ -483,6 +483,7 @@ def VectorField(
     grid_num=50,
     velocity_key="velocity_S",
     method="SparseVFC",
+    return_vf_object=False,
     **kwargs,
 ):
     """Learn a function of high dimensional vector field from sparse single cell samples in the entire space robustly.
@@ -609,7 +610,8 @@ def VectorField(
         tp_kwargs = update_dict(tp_kwargs, kwargs)
 
         adata = topography(
-            adata, basis=basis, X=X, layer=layer, dims=[0, 1], VecFld=func, **tp_kwargs
+            adata, basis=basis, X=X, layer=layer, dims=[0, 1], VecFld=vf_dict, **tp_kwargs
         )
 
-    return adata
+    if return_vf_object:
+        return VecFld
