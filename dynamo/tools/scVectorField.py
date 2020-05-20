@@ -646,29 +646,8 @@ class vectorfield:
 
 
     def plot_energy(self, figsize=None, fig=None):
-        import matplotlib.pyplot as plt
-        E = self.vf_dict['VecFld']['E_traj'] if 'E_traj' in self.vf_dict['VecFld'] else None
-        tecr = self.vf_dict['VecFld']['tecr_traj'] if 'tecr_traj' in self.vf_dict['VecFld'] else None
-        if E is not None and tecr is not None:
-            fig = fig or plt.figure(figsize=figsize)
-
-            ax = fig.add_subplot(1, 2, 1)
-            E_ = E-np.min(E)+100
-            ax.plot(E_)
-            ax.plot(E_, 'r.')
-            ax.set_xticks(np.arange(0, len(E_), 1))
-            ax.set_yscale("log")
-            plt.xlabel('iteration')
-            plt.ylabel('energy')
-
-            ax = fig.add_subplot(1, 2, 2)
-            ax.plot(tecr)
-            ax.plot(tecr, 'r.')
-            ax.set_xticks(np.arange(0, len(tecr), 1))
-            ax.set_yscale("log")
-            plt.xlabel('iteration')
-            plt.ylabel('energy transfer rate')
-
+        from ..plot.scVectorField import plot_energy
+        plot_energy(self.vf_dict)
 
     def evaluate(self, CorrectIndex, VFCIndex, siz):
         """Evaluate the precision, recall, corrRate of the sparseVFC algorithm.

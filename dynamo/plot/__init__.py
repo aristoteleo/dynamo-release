@@ -19,6 +19,7 @@ from .scVectorField import (
     grid_velocity,
     streamline_plot,
     line_integral_conv,
+    plot_energy
 )  # , plot_LIC_gray
 from .topography import (
     plot_flow_field,
