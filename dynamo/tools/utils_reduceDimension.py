@@ -1,7 +1,6 @@
-import numpy as np
 import warnings
 from ..preprocessing.utils import pca
-from .utils import update_dict
+from .utils import update_dict, build_distance_graph
 from .connectivity import (
     umap_conn_indices_dist_embedding,
 )
@@ -155,6 +154,7 @@ def run_reduce_dim(adata, X_data, n_components, n_pca_components, reduction_meth
             )  # X
 
         adata.obsm[embedding_key] = X_dim
+        knn_dists = build_distance_graph(knn_indices, knn_dists)
         adata.uns[neighbor_key] = {
             "params": {"n_neighbors": n_neighbors, "method": reduction_method},
             "connectivities": graph,
