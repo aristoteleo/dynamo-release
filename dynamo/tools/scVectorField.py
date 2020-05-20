@@ -176,7 +176,7 @@ def con_K(x, y, beta):
     return K
 
 @timeit
-def con_K_div_cur_free(x, y, sigma=0.01, eta=0.5):
+def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
     """Learn a convex combination of the divergence-free kernel T_df and curl-free kernel T_cf with a bandwidth sigma
     and a combination coefficient gamma.
 
@@ -186,7 +186,7 @@ def con_K_div_cur_free(x, y, sigma=0.01, eta=0.5):
             Original training data points.
         y: 'np.ndarray'
             Control points used to build kernel basis functions
-        sigma: 'int' (default: `0.01`)
+        sigma: 'int' (default: `0.8`)
             Bandwidth parameter.
         eta: 'int' (default: `0.5`)
             Combination coefficient for the divergence-free or the curl-free kernels.
