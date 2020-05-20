@@ -1,12 +1,14 @@
+from tqdm import tqdm
+import numpy.matlib
+from numpy import format_float_scientific as scinot
 import numpy as np
 from scipy.linalg import lstsq
-import numpy.matlib
-from .utils import linear_least_squares, timeit
 import warnings
 import time
 from numpy import format_float_scientific as scinot
 from sklearn.neighbors import NearestNeighbors
 from .utils import update_dict, update_n_merge_dict
+from .utils import linear_least_squares, timeit
 
 def norm(X, V, T):
     """Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
@@ -121,7 +123,7 @@ def lstsq_solver(lhs, rhs, method='drouin'):
     return C
 
 
-def get_P(Y, V, sigma2, gamma, a):
+def get_P(Y, V, sigma2, gamma, a, div_cur_free_kernels=False):
     """GET_P estimates the posterior probability and part of the energy.
 
     Arguments
@@ -136,6 +138,9 @@ def get_P(Y, V, sigma2, gamma, a):
             Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important.
         a: 'float'
             Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's variation space is a.
+        div_cur_free_kernels: `bool` (default: False)
+            A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the vector
+            field.
 
     Returns
     -------
@@ -145,6 +150,11 @@ def get_P(Y, V, sigma2, gamma, a):
         Energy, related to equation 26.
 
     """
+
+    if div_cur_free_kernels:
+        Y = Y.reshape((2, int(Y.shape[0] / 2)), order='F').T
+        V = V.reshape((2, int(V.shape[0] / 2)), order='F').T
+
     D = Y.shape[1]
     temp1 = np.exp(-np.sum((Y - V) ** 2, 1) / (2 * sigma2))
     temp2 = (2 * np.pi * sigma2) ** (D / 2) * (1 - gamma) / (gamma * a)
@@ -155,7 +165,7 @@ def get_P(Y, V, sigma2, gamma, a):
         + np.sum(P) * np.log(sigma2) * D / 2
     )
 
-    return P, E
+    return (P[:, None], E) if P.ndim == 1 else (P, E)
 
 @timeit
 def con_K(x, y, beta):
@@ -190,7 +200,7 @@ def con_K(x, y, beta):
     return K
 
 @timeit
-def con_K_div_cur_free(x, y, sigma=0.8, gamma=0.5):
+def con_K_div_cur_free(x, y, sigma=0.01, eta=0.5):
     """Learn a convex combination of the divergence-free kernel T_df and curl-free kernel T_cf with a bandwidth sigma
     and a combination coefficient gamma.
 
@@ -200,9 +210,9 @@ def con_K_div_cur_free(x, y, sigma=0.8, gamma=0.5):
             Original training data points.
         y: 'np.ndarray'
             Control points used to build kernel basis functions
-        sigma: 'int'
+        sigma: 'int' (default: `0.01`)
             Bandwidth parameter.
-        gamma: 'int'
+        eta: 'int' (default: `0.5`)
             Combination coefficient for the divergence-free or the curl-free kernels.
 
     Returns
@@ -221,48 +231,67 @@ def con_K_div_cur_free(x, y, sigma=0.8, gamma=0.5):
     G_tmp3 = -G_tmp / sigma2
     G_tmp = -G_tmp / (2 * sigma2)
     G_tmp = np.exp(G_tmp) / sigma2
-    G_tmp = np.kron(G_tmp, np.ones(d))
+    G_tmp = np.kron(G_tmp, np.ones((d, d)))
 
     x_tmp = np.matlib.tile(x, [n, 1])
     y_tmp = np.matlib.tile(y, [1, m]).T
-    y_tmp = y_tmp.reshape((d, m * n)).T
+    y_tmp = y_tmp.reshape((d, m * n), order='F').T
     xminusy = x_tmp - y_tmp
-    G_tmp2 = np.zeros(d * m, d * n)
+    G_tmp2 = np.zeros((d * m, d * n))
 
-    for i in range(d):
+    tmp4_ = np.zeros((d, d))
+    for i in tqdm(range(d), desc="Iterating each dimension in con_K_div_cur_free:"):
         for j in np.arange(i, d):
-            tmp1 = xminusy[:, i].reshape((m, n))
-            tmp2 = xminusy[:, j].reshape((m, n))
+            tmp1 = xminusy[:, i].reshape((m, n), order='F')
+            tmp2 = xminusy[:, j].reshape((m, n), order='F')
             tmp3 = tmp1 * tmp2
-            tmp4 = np.zeros(d)
+            tmp4 = tmp4_.copy()
             tmp4[i, j] = 1
             tmp4[j, i] = 1
             G_tmp2 = G_tmp2 + np.kron(tmp3, tmp4)
 
     G_tmp2 = G_tmp2 / sigma2
     G_tmp3 = np.kron((G_tmp3 + d - 1), np.eye(d))
-    G_tmp4 = np.kron(np.ones(m, n), np.eye(d)) - G_tmp2
-    df_kernel, cf_kernel = (1 - gamma) * G_tmp * (G_tmp2 + G_tmp3), gamma * G_tmp * G_tmp4
+    G_tmp4 = np.kron(np.ones((m, n)), np.eye(d)) - G_tmp2
+    df_kernel, cf_kernel = (1 - eta) * G_tmp * (G_tmp2 + G_tmp3), eta * G_tmp * G_tmp4
     G = df_kernel + cf_kernel
 
     return G, df_kernel, cf_kernel
 
 
 @timeit
-def vector_field_function(x, VecFld, dim=None):
+def vector_field_function(x, VecFld, dim=None, kernel='full'):
     """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
     Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
     """
     # x=np.array(x).reshape((1, -1))
+    if "div_cur_free_kernels" in VecFld.keys():
+        has_div_cur_free_kernels = True
+    else:
+        has_div_cur_free_kernels = False
+
     x = np.array(x)
     if x.ndim == 1:
         x = x[None, :]
-    K = con_K(x, VecFld["X_ctrl"], VecFld["beta"])
+
+    if has_div_cur_free_kernels:
+        if kernel == 'full':
+            kernel_ind = 0
+        elif kernel == 'df_kernel':
+            kernel_ind = 1
+        elif kernel == 'cf_kernel':
+            kernel_ind = 2
+        else:
+            raise ValueError(f"the kernel can only be one of {'full', 'df_kernel', 'cf_kernel'}!")
+
+        K = con_K_div_cur_free(x, VecFld["X_ctrl"], VecFld["sigma"], VecFld["eta"])[kernel_ind]
+    else:
+        K = con_K(x, VecFld["X_ctrl"], VecFld["beta"])
 
     if dim is None:
         K = K.dot(VecFld["C"])
     else:
-        K = K.dot(VecFld["C"][:, dim])
+        K = K.dot(VecFld["C"]) if con_K_div_cur_free else K.dot(VecFld["C"][:, dim])
     return K
 
 
@@ -281,6 +310,8 @@ def SparseVFC(
     theta=0.75,
     div_cur_free_kernels=False,
     velocity_based_sampling=True,
+    sigma=0.01,
+    eta=0.5,
     lstsq_method='drouin',
     verbose=1
 ):
@@ -319,6 +350,17 @@ def SparseVFC(
         theta: 'float' (default: 0.75)
             Define how could be an inlier. If the posterior probability of a sample is an inlier is larger than theta,
             then it is regarded as an inlier.
+        div_cur_free_kernels: `bool` (default: False)
+            A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the vector
+            field.
+        sigma: 'int' (default: `0.01`)
+            Bandwidth parameter.
+        eta: 'int' (default: `0.5`)
+            Combination coefficient for the divergence-free or the curl-free kernels.
+        lstsq_method: 'str' (default: `drouin`)
+           The name of the linear least square solver, can be either 'scipy` or `douin`.
+        verbose: `int` (default: `1`)
+            The level of printing running information.
 
     Returns
     -------
@@ -373,26 +415,30 @@ def SparseVFC(
     K = (
         con_K(ctrl_pts, ctrl_pts, beta, timeit=timeit_)
         if div_cur_free_kernels is False
-        else con_K_div_cur_free(ctrl_pts, ctrl_pts, timeit=timeit_)[0]
+        else con_K_div_cur_free(ctrl_pts, ctrl_pts, sigma, eta, timeit=timeit_)[0]
     )
     U = (
         con_K(X, ctrl_pts, beta, timeit=timeit_)
         if div_cur_free_kernels is False
-        else con_K_div_cur_free(X, ctrl_pts, timeit=timeit_)[0]
+        else con_K_div_cur_free(X, ctrl_pts, sigma, eta, timeit=timeit_)[0]
     )
     if Grid is not None:
         grid_U = (
             con_K(Grid, ctrl_pts, beta, timeit=timeit_)
             if div_cur_free_kernels is False
-            else con_K_div_cur_free(Grid, ctrl_pts, timeit=timeit_)[0]
+            else con_K_div_cur_free(Grid, ctrl_pts, sigma, eta, timeit=timeit_)[0]
         )
-    M = ctrl_pts.shape[0]
+    M = ctrl_pts.shape[0]*D if div_cur_free_kernels else ctrl_pts.shape[0]
+
+    if div_cur_free_kernels:
+        X = X.flatten()[:, None]
+        Y = Y.flatten()[:, None]
 
     # Initialization
-    V = np.zeros((N, D))
-    C = np.zeros((M, D))
+    V = X.copy() if div_cur_free_kernels else np.zeros((N, D))
+    C = np.zeros((M, 1)) if div_cur_free_kernels else np.zeros((M, D))
     i, tecr, E = 0, 1, 1
-    sigma2 = sum(sum((Y - V) ** 2)) / (N * D)  ## test this
+    sigma2 = sum(sum((Y - X) ** 2)) / (N * D) if div_cur_free_kernels else sum(sum((Y - V) ** 2)) / (N * D)  ## test this
     # sigma2 = 1e-7 if sigma2 > 1e-8 else sigma2
     tecr_vec = np.ones(MaxIter) * np.nan
     E_vec = np.ones(MaxIter) * np.nan
@@ -400,7 +446,7 @@ def SparseVFC(
     while i < MaxIter and tecr > ecr and sigma2 > 1e-8:
         # E_step
         E_old = E
-        P, E = get_P(Y, V, sigma2, gamma, a)
+        P, E = get_P(Y, V, sigma2, gamma, a, div_cur_free_kernels)
 
         E = E + lambda_ / 2 * np.trace(C.T.dot(K).dot(C))
         E_vec[i] = E
@@ -416,10 +462,17 @@ def SparseVFC(
         # M-step. Solve linear system for C.
         if timeit_:
             st = time.time()
+
         P = np.maximum(P, minP)
-        UP = U.T * numpy.matlib.repmat(P.T, M, 1)
-        lhs = (UP).dot(U) + lambda_ * sigma2 * K
-        rhs = (UP).dot(Y)
+        if div_cur_free_kernels:
+            P = np.kron(P, np.ones((int(U.shape[0] / P.shape[0]), 1))) # np.kron(P, np.ones((D, 1)))
+            lhs = (U.T * np.matlib.tile(P.T, [M, 1])).dot(U) + lambda_ * sigma2 * K
+            rhs = (U.T * np.matlib.tile(P.T, [M, 1])).dot(Y)
+        else:
+            UP = U.T * numpy.matlib.repmat(P.T, M, 1)
+            lhs = UP.dot(U) + lambda_ * sigma2 * K
+            rhs = UP.dot(Y)
+
         if timeit_:
             print('Time elapsed for computing lhs and rhs: %f s'%(time.time()-st))
         
@@ -427,8 +480,8 @@ def SparseVFC(
             
         # Update V and sigma**2
         V = U.dot(C)
-        Sp = sum(P)
-        sigma2 = sum(P.T * np.sum((Y - V) ** 2, 1)) / np.dot(Sp, D)
+        Sp = sum(P) / 2 if div_cur_free_kernels else sum(P)
+        sigma2 = (sum(P.T.dot(np.sum((Y - V) ** 2, 1))) / np.dot(Sp, D))[0]
 
         # Update gamma
         numcorr = len(np.where(P > theta)[0])
@@ -446,11 +499,11 @@ def SparseVFC(
         grid_V = np.dot(grid_U, C)
 
     VecFld = {
-        "X": X,
+        "X": X.reshape((N, D)) if div_cur_free_kernels else X,
         "X_ctrl": ctrl_pts,
-        "Y": Y,
+        "Y": Y.reshape((N, D)) if div_cur_free_kernels else Y,
         "beta": beta,
-        "V": V,
+        "V": V.reshape((N, D)) if div_cur_free_kernels else V,
         "C": C,
         "P": P,
         "VFCIndex": np.where(P > theta)[0],
@@ -461,6 +514,9 @@ def SparseVFC(
         "tecr_traj": tecr_vec[:i],
         "E_traj": E_vec[:i]
     }
+    if div_cur_free_kernels:
+        VecFld['div_cur_free_kernels'], VecFld['sigma'], VecFld['eta'] = True, sigma, eta
+        _, VecFld['df_kernel'], VecFld['cf_kernel'], = con_K_div_cur_free(X, ctrl_pts, sigma, eta, timeit=timeit_)
 
     return VecFld
 
@@ -508,6 +564,10 @@ class vectorfield:
         div_cur_free_kernels: `bool` (default: False)
             A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the vector
             field.
+        sigma: 'int'
+            Bandwidth parameter.
+        eta: 'int'
+            Combination coefficient for the divergence-free or the curl-free kernels.
         """
 
         self.data = {"X": X, "V": V, "Grid": Grid}
@@ -524,7 +584,9 @@ class vectorfield:
             "MaxIter": kwargs.pop('MaxIter', 500),
             "theta": kwargs.pop('theta', 0.75),
             "div_cur_free_kernels": kwargs.pop('div_cur_free_kernels', False),
-            "velocity_based_sampling": kwargs.pop('velocity_based_sampling', True)
+            "velocity_based_sampling": kwargs.pop('velocity_based_sampling', True),
+            "sigma": kwargs.pop('sigma', 0.8),
+            "eta": kwargs.pop('eta', 0.5),
         })
 
         self.norm_dict = {}
@@ -559,7 +621,7 @@ class vectorfield:
                 norm_dict,
             )
 
-        verbose = kwargs.pop('verbose', 1)
+        verbose = kwargs.pop('verbose', 0)
         lstsq_method = kwargs.pop('lstsq_method', 'drouin')
         if method == "SparseVFC":
             VecFld = SparseVFC(
