@@ -372,7 +372,7 @@ def SparseVFC(
         tmp_X.shape[0]
     )  # rand select some initial points
     idx = idx[range(min(M, tmp_X.shape[0]))]
-    ctrl_pts = X.copy() #tmp_X[idx, :]
+    ctrl_pts = tmp_X[idx, :]
     # ctrl_pts = X[range(500), :]
 
     K = (
@@ -409,7 +409,7 @@ def SparseVFC(
     while i < MaxIter and tecr > ecr and sigma2 > 1e-8:
         # E_step
         E_old = E
-        P, E = get_P(Y, V, sigma2, gamma, a, True) if div_cur_free_kernels else get_P(Y, V, sigma2, gamma, a)
+        P, E = get_P(Y, V, sigma2, gamma, a, div_cur_free_kernels)
 
         E = E + lambda_ / 2 * np.trace(C.T.dot(K).dot(C))
         E_vec[i] = E
