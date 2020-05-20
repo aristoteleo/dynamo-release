@@ -5,6 +5,9 @@ import numpy as np
 from scipy.linalg import lstsq
 import warnings
 import time
+from numpy import format_float_scientific as scinot
+from sklearn.neighbors import NearestNeighbors
+from .utils import update_dict, update_n_merge_dict
 from .utils import linear_least_squares, timeit
 
 def norm(X, V, T):
@@ -50,6 +53,27 @@ def norm(X, V, T):
 
     return X, V, T, norm_dict
 
+def bandwidth_rule_of_thumb(X, return_sigma=False):
+    '''
+        This function computes a rule-of-thumb bandwidth for a Gaussian kernel based on:
+        https://en.wikipedia.org/wiki/Kernel_density_estimation#A_rule-of-thumb_bandwidth_estimator
+    '''
+    sig = sig = np.sqrt(np.mean(np.diag(np.cov(X.T))))
+    h = 1.06 * sig/(len(X)**(-1/5))
+    if return_sigma:
+        return h, sig
+    else:
+        return h
+
+def bandwidth_selector(X):
+    '''
+        This function computes a empirical bandwidth for a Gaussian kernel.
+    '''
+    n = len(X)
+    nbrs = NearestNeighbors(n_neighbors=int(0.2*n), algorithm='ball_tree').fit(X)
+    distances, _ = nbrs.kneighbors(X)
+    d = np.mean(distances[:, 1:]) / 1.5
+    return np.sqrt(2) * d
 
 def denorm(VecFld, X_old, V_old, norm_dict):
     """Denormalize data back to the original scale.
@@ -277,7 +301,7 @@ def SparseVFC(
     Grid,
     M=100,
     a=5,
-    beta=0.1,
+    beta=None,
     ecr=1e-5,
     gamma=0.9,
     lambda_=3,
@@ -285,6 +309,7 @@ def SparseVFC(
     MaxIter=500,
     theta=0.75,
     div_cur_free_kernels=False,
+    velocity_based_sampling=True,
     sigma=0.01,
     eta=0.5,
     lstsq_method='drouin',
@@ -309,7 +334,8 @@ def SparseVFC(
             Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
             outlier's variation space is `a`.
         beta: 'float' (default: 0.1)
-            Paramerter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2),
+            Paramerter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2).
+            If None, a rule-of-thumb bandwidth will be computed automatically.
         ecr: 'float' (default: 1e-5)
             The minimum limitation of energy change rate in the iteration process.
         gamma: 'float' (default: 0.9)
@@ -367,13 +393,24 @@ def SparseVFC(
     grid_U = None
 
     # Construct kernel matrix K
-    tmp_X = np.unique(X, axis=0)  # return unique rows
-    idx = np.random.RandomState(seed=0).permutation(
-        tmp_X.shape[0]
-    )  # rand select some initial points
-    idx = idx[range(min(M, tmp_X.shape[0]))]
+    tmp_X, uid = np.unique(X, axis=0, return_index=True)  # return unique rows
+    M = min(M, tmp_X.shape[0])
+    if velocity_based_sampling:
+        if verbose > 1:
+            print('Sampling control points based on data velocity magnitude...')
+        tmp_V = np.linalg.norm(Y[uid], axis=1)
+        p = tmp_V / np.sum(tmp_V)
+        idx = np.random.choice(np.arange(N), size=M, p=p, replace=False)
+    else:
+        idx = np.random.RandomState(seed=0).permutation(
+            tmp_X.shape[0]
+        )  # rand select some initial points
+        idx = idx[range(M)]
     ctrl_pts = tmp_X[idx, :]
-    # ctrl_pts = X[range(500), :]
+
+    if beta is None:
+        h = bandwidth_selector(ctrl_pts)
+        beta = 1/h**2
 
     K = (
         con_K(ctrl_pts, ctrl_pts, beta, timeit=timeit_)
@@ -490,18 +527,7 @@ class vectorfield:
         X=None,
         V=None,
         Grid=None,
-        M=100,
-        a=5,
-        beta=0.1,
-        ecr=1e-5,
-        gamma=0.9,
-        lambda_=3,
-        minP=1e-5,
-        MaxIter=500,
-        theta=0.75,
-        div_cur_free_kernels=False,
-        sigma=0.8,
-        eta=0.5,
+        **kwargs
     ):
         """Initialize the VectorField class.
 
@@ -518,8 +544,9 @@ class vectorfield:
         a: `float` (default 5)
             Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's
             variation space is a.
-        beta: `float` (default: 0.1)
+        beta: `float` (default: None)
              Paramerter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2).
+             If None, a rule-of-thumb bandwidth will be computed automatically.
         ecr: `float` (default: 1e-5)
             The minimum limitation of energy change rate in the iteration process.
         gamma: `float` (default:  0.9)
@@ -544,21 +571,24 @@ class vectorfield:
         """
 
         self.data = {"X": X, "V": V, "Grid": Grid}
+        self.parameters = kwargs
 
-        self.parameters = {
-            "M": M,
-            "a": a,
-            "beta": beta,
-            "ecr": ecr,
-            "gamma": gamma,
-            "lambda_": lambda_,
-            "minP": minP,
-            "MaxIter": MaxIter,
-            "theta": theta,
-            "div_cur_free_kernels": div_cur_free_kernels,
-            "sigma": sigma,
-            "eta": eta,
-        }
+        self.parameters = update_n_merge_dict(self.parameters, {
+            "M": kwargs.pop('M', None) or int(0.05 * len(X)) + 1,
+            "a": kwargs.pop('a', 5),
+            "beta": kwargs.pop('beta', None),
+            "ecr": kwargs.pop('ecr', 1e-5),
+            "gamma": kwargs.pop('gamma', 0.9),
+            "lambda_": kwargs.pop('lambda_', 3),
+            "minP": kwargs.pop('minP', 1e-5),
+            "MaxIter": kwargs.pop('MaxIter', 500),
+            "theta": kwargs.pop('theta', 0.75),
+            "div_cur_free_kernels": kwargs.pop('div_cur_free_kernels', False),
+            "velocity_based_sampling": kwargs.pop('velocity_based_sampling', True),
+            "sigma": kwargs.pop('sigma', 0.8),
+            "eta": kwargs.pop('eta', 0.5),
+        })
+
         self.norm_dict = {}
 
     def fit(self, normalize=False, method="SparseVFC", **kwargs):
@@ -598,25 +628,20 @@ class vectorfield:
                 self.data["X"],
                 self.data["V"],
                 self.data["Grid"],
-                M=self.parameters["M"],
-                a=self.parameters["a"],
-                beta=self.parameters["beta"],
-                ecr=self.parameters["ecr"],
-                gamma=self.parameters["gamma"],
-                lambda_=self.parameters["lambda_"],
-                minP=self.parameters["minP"],
-                MaxIter=self.parameters["MaxIter"],
-                theta=self.parameters["theta"],
-                div_cur_free_kernels=self.parameters["div_cur_free_kernels"],
-                sigma=self.parameters["sigma"],
-                eta=self.parameters["eta"],
+                **self.parameters,
                 verbose=verbose,
                 lstsq_method=lstsq_method,
             )
             if normalize:
                 VecFld = denorm(VecFld, X_old, V_old, self.norm_dict)
 
-        return VecFld
+        self.parameters = update_dict(self.parameters, VecFld)
+
+        vf_dict = {
+            "VecFld": VecFld,
+            "parameters": self.parameters
+        }
+        return vf_dict
 
     def evaluate(self, CorrectIndex, VFCIndex, siz):
         """Evaluate the precision, recall, corrRate of the sparseVFC algorithm.
