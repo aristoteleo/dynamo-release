@@ -585,14 +585,14 @@ def VectorField(
         "MaxIter": 500,
         "theta": 0.75,
         "div_cur_free_kernels": False,
-        "velocity_based_sampling": True
+        "velocity_based_sampling": True,
         "sigma": 0.01,
         "eta": 0.5,
     }
     vf_kwargs = update_dict(vf_kwargs, kwargs)
 
     VecFld = vectorfield(X, V, Grid, **vf_kwargs)
-    vf_dict = VecFld.fit(normalize=False, method=method, **kwargs)
+    vf_dict = VecFld.fit(normalize=normalize, method=method, **kwargs)
 
     if basis is not None:
         vf_dict['dims'] = dims
