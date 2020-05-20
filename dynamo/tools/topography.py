@@ -323,6 +323,9 @@ class VectorField2D:
         self.NCx = None
         self.NCy = None
 
+    def get_num_fixed_points(self):
+        return len(self.Xss.get_X())
+
     def get_fixed_points(self, get_types=True):
         X = self.Xss.get_X()
         if not get_types:
@@ -435,7 +438,8 @@ def topography(adata, basis="umap", layer=None, X=None, dims=None, n=25, VecFld=
 
     vecfld = VectorField2D(lambda x: vector_field_function(x, VecFld, dims))
     vecfld.find_fixed_points_by_sampling(n, xlim, ylim)
-    vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
+    if vecfld.get_num_fixed_points() > 0:
+        vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
     # sep = compute_separatrices(vecfld.Xss.get_X(), vecfld.Xss.get_J(), vecfld.func, xlim, ylim)
     #
 
@@ -571,9 +575,9 @@ def VectorField(
         raise Exception("V is None. Make sure you passed the correct V.")
 
     vf_kwargs = {
-        "M": 100,
+        "M": None,
         "a": 5,
-        "beta": 0.1,
+        "beta": None,
         "ecr": 1e-5,
         "gamma": 0.9,
         "lambda_": 3,
@@ -581,29 +585,24 @@ def VectorField(
         "MaxIter": 500,
         "theta": 0.75,
         "div_cur_free_kernels": False,
+        "velocity_based_sampling": True
         "sigma": 0.01,
         "eta": 0.5,
     }
     vf_kwargs = update_dict(vf_kwargs, kwargs)
 
     VecFld = vectorfield(X, V, Grid, **vf_kwargs)
-    func = VecFld.fit(normalize=normalize, method=method, **kwargs)
+    vf_dict = VecFld.fit(normalize=False, method=method, **kwargs)
 
     if basis is not None:
-        adata.uns["VecFld_" + basis] = {
-            "VecFld": func,
-            "vf_kwargs": vf_kwargs,
-            "dims": dims,
-        }
+        vf_dict['dims'] = dims
+        adata.uns["VecFld_" + basis] = vf_dict
     else:
+        vf_dict['layer'] = layer
+        vf_dict['genes'] = genes
+        vf_dict['velocity_key'] = velocity_key
         vf_key = "VecFld" if layer == "X" else "VecFld_" + layer
-        adata.uns[vf_key] = {
-            "VecFld": func,
-            "vf_kwargs": vf_kwargs,
-            "layer": layer,
-            "genes": genes,
-            "velocity_key": velocity_key,
-        }
+        adata.uns[vf_key] = vf_dict
 
     if X.shape[1] == 2:
         tp_kwargs = {"n": 25}
