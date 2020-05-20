@@ -45,6 +45,11 @@ def update_dict(dict1, dict2):
 
     return dict1
 
+def update_n_merge_dict(dict1, dict2):
+    dict1.update((k, dict2[k]) for k in dict1.keys() | dict2.keys())
+    
+    return dict1
+
 
 def closest_cell(coord, cells):
     cells = np.asarray(cells)
