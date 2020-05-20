@@ -1,10 +1,11 @@
+from tqdm import tqdm
+import numpy.matlib
+from numpy import format_float_scientific as scinot
 import numpy as np
 from scipy.linalg import lstsq
-import numpy.matlib
-from .utils import linear_least_squares, timeit
 import warnings
 import time
-from numpy import format_float_scientific as scinot
+from .utils import linear_least_squares, timeit
 
 def norm(X, V, T):
     """Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
@@ -98,7 +99,7 @@ def lstsq_solver(lhs, rhs, method='drouin'):
     return C
 
 
-def get_P(Y, V, sigma2, gamma, a):
+def get_P(Y, V, sigma2, gamma, a, div_cur_free_kernels=False):
     """GET_P estimates the posterior probability and part of the energy.
 
     Arguments
@@ -113,6 +114,9 @@ def get_P(Y, V, sigma2, gamma, a):
             Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important.
         a: 'float'
             Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's variation space is a.
+        div_cur_free_kernels: `bool` (default: False)
+            A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the vector
+            field.
 
     Returns
     -------
@@ -122,6 +126,11 @@ def get_P(Y, V, sigma2, gamma, a):
         Energy, related to equation 26.
 
     """
+
+    if div_cur_free_kernels:
+        Y = Y.reshape((2, int(Y.shape[0] / 2)), order='F').T
+        V = V.reshape((2, int(V.shape[0] / 2)), order='F').T
+
     D = Y.shape[1]
     temp1 = np.exp(-np.sum((Y - V) ** 2, 1) / (2 * sigma2))
     temp2 = (2 * np.pi * sigma2) ** (D / 2) * (1 - gamma) / (gamma * a)
@@ -132,7 +141,7 @@ def get_P(Y, V, sigma2, gamma, a):
         + np.sum(P) * np.log(sigma2) * D / 2
     )
 
-    return P, E
+    return (P[:, None], E) if P.ndim == 1 else (P, E)
 
 @timeit
 def con_K(x, y, beta):
@@ -167,7 +176,7 @@ def con_K(x, y, beta):
     return K
 
 @timeit
-def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
+def con_K_div_cur_free(x, y, sigma=0.01, eta=0.5):
     """Learn a convex combination of the divergence-free kernel T_df and curl-free kernel T_cf with a bandwidth sigma
     and a combination coefficient gamma.
 
@@ -177,9 +186,9 @@ def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
             Original training data points.
         y: 'np.ndarray'
             Control points used to build kernel basis functions
-        sigma: 'int'
+        sigma: 'int' (default: `0.01`)
             Bandwidth parameter.
-        eta: 'int'
+        eta: 'int' (default: `0.5`)
             Combination coefficient for the divergence-free or the curl-free kernels.
 
     Returns
@@ -207,7 +216,7 @@ def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
     G_tmp2 = np.zeros((d * m, d * n))
 
     tmp4_ = np.zeros((d, d))
-    for i in range(d):
+    for i in tqdm(range(d), desc="Iterating each dimension in con_K_div_cur_free:"):
         for j in np.arange(i, d):
             tmp1 = xminusy[:, i].reshape((m, n), order='F')
             tmp2 = xminusy[:, j].reshape((m, n), order='F')
@@ -258,7 +267,7 @@ def vector_field_function(x, VecFld, dim=None, kernel='full'):
     if dim is None:
         K = K.dot(VecFld["C"])
     else:
-        K = K.dot(VecFld["C"][:, dim])
+        K = K.dot(VecFld["C"]) if con_K_div_cur_free else K.dot(VecFld["C"][:, dim])
     return K
 
 
@@ -276,7 +285,7 @@ def SparseVFC(
     MaxIter=500,
     theta=0.75,
     div_cur_free_kernels=False,
-    sigma=0.8,
+    sigma=0.01,
     eta=0.5,
     lstsq_method='drouin',
     verbose=1
@@ -318,9 +327,9 @@ def SparseVFC(
         div_cur_free_kernels: `bool` (default: False)
             A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the vector
             field.
-        sigma: 'int'
+        sigma: 'int' (default: `0.01`)
             Bandwidth parameter.
-        eta: 'int'
+        eta: 'int' (default: `0.5`)
             Combination coefficient for the divergence-free or the curl-free kernels.
         lstsq_method: 'str' (default: `drouin`)
            The name of the linear least square solver, can be either 'scipy` or `douin`.
@@ -363,7 +372,7 @@ def SparseVFC(
         tmp_X.shape[0]
     )  # rand select some initial points
     idx = idx[range(min(M, tmp_X.shape[0]))]
-    ctrl_pts = tmp_X[idx, :]
+    ctrl_pts = X.copy() #tmp_X[idx, :]
     # ctrl_pts = X[range(500), :]
 
     K = (
@@ -382,13 +391,17 @@ def SparseVFC(
             if div_cur_free_kernels is False
             else con_K_div_cur_free(Grid, ctrl_pts, sigma, eta, timeit=timeit_)[0]
         )
-    M = ctrl_pts.shape[0]
+    M = ctrl_pts.shape[0]*D if div_cur_free_kernels else ctrl_pts.shape[0]
+
+    if div_cur_free_kernels:
+        X = X.flatten()[:, None]
+        Y = Y.flatten()[:, None]
 
     # Initialization
-    V = np.zeros((N, D))
-    C = np.zeros((M, D))
+    V = X.copy() if div_cur_free_kernels else np.zeros((N, D))
+    C = np.zeros((M, 1)) if div_cur_free_kernels else np.zeros((M, D))
     i, tecr, E = 0, 1, 1
-    sigma2 = sum(sum((Y - V) ** 2)) / (N * D)  ## test this
+    sigma2 = sum(sum((Y - X) ** 2)) / (N * D) if div_cur_free_kernels else sum(sum((Y - V) ** 2)) / (N * D)  ## test this
     # sigma2 = 1e-7 if sigma2 > 1e-8 else sigma2
     tecr_vec = np.ones(MaxIter) * np.nan
     E_vec = np.ones(MaxIter) * np.nan
@@ -396,7 +409,7 @@ def SparseVFC(
     while i < MaxIter and tecr > ecr and sigma2 > 1e-8:
         # E_step
         E_old = E
-        P, E = get_P(Y, V, sigma2, gamma, a)
+        P, E = get_P(Y, V, sigma2, gamma, a, True) if div_cur_free_kernels else get_P(Y, V, sigma2, gamma, a)
 
         E = E + lambda_ / 2 * np.trace(C.T.dot(K).dot(C))
         E_vec[i] = E
@@ -412,10 +425,17 @@ def SparseVFC(
         # M-step. Solve linear system for C.
         if timeit_:
             st = time.time()
+
         P = np.maximum(P, minP)
-        UP = U.T * numpy.matlib.repmat(P.T, M, 1)
-        lhs = (UP).dot(U) + lambda_ * sigma2 * K
-        rhs = (UP).dot(Y)
+        if div_cur_free_kernels:
+            P = np.kron(P, np.ones((int(U.shape[0] / P.shape[0]), 1))) # np.kron(P, np.ones((D, 1)))
+            lhs = (U.T * np.matlib.tile(P.T, [M, 1])).dot(U) + lambda_ * sigma2 * K
+            rhs = (U.T * np.matlib.tile(P.T, [M, 1])).dot(Y)
+        else:
+            UP = U.T * numpy.matlib.repmat(P.T, M, 1)
+            lhs = UP.dot(U) + lambda_ * sigma2 * K
+            rhs = UP.dot(Y)
+
         if timeit_:
             print('Time elapsed for computing lhs and rhs: %f s'%(time.time()-st))
         
@@ -423,8 +443,8 @@ def SparseVFC(
             
         # Update V and sigma**2
         V = U.dot(C)
-        Sp = sum(P)
-        sigma2 = sum(P.T * np.sum((Y - V) ** 2, 1)) / np.dot(Sp, D)
+        Sp = sum(P) / 2 if div_cur_free_kernels else sum(P)
+        sigma2 = (sum(P.T.dot(np.sum((Y - V) ** 2, 1))) / np.dot(Sp, D))[0]
 
         # Update gamma
         numcorr = len(np.where(P > theta)[0])
@@ -442,11 +462,11 @@ def SparseVFC(
         grid_V = np.dot(grid_U, C)
 
     VecFld = {
-        "X": X,
+        "X": X.reshape((N, D)) if div_cur_free_kernels else X,
         "X_ctrl": ctrl_pts,
-        "Y": Y,
+        "Y": Y.reshape((N, D)) if div_cur_free_kernels else Y,
         "beta": beta,
-        "V": V,
+        "V": V.reshape((N, D)) if div_cur_free_kernels else V,
         "C": C,
         "P": P,
         "VFCIndex": np.where(P > theta)[0],
@@ -458,8 +478,8 @@ def SparseVFC(
         "E_traj": E_vec[:i]
     }
     if div_cur_free_kernels:
-        VecFld['div_cur_free_kernels'] = True
-        _, VecFld['df_kernel'], VecFld['cf_kernel'], = con_K_div_cur_free(Grid, ctrl_pts, sigma, eta, timeit=timeit_)
+        VecFld['div_cur_free_kernels'], VecFld['sigma'], VecFld['eta'] = True, sigma, eta
+        _, VecFld['df_kernel'], VecFld['cf_kernel'], = con_K_div_cur_free(X, ctrl_pts, sigma, eta, timeit=timeit_)
 
     return VecFld
 
