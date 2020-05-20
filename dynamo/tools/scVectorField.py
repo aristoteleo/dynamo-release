@@ -653,14 +653,18 @@ class vectorfield:
             fig = fig or plt.figure(figsize=figsize)
 
             ax = fig.add_subplot(1, 2, 1)
-            ax.plot(E-np.min(E)+100)
-            #ax.plot(E)
+            E_ = E-np.min(E)+100
+            ax.plot(E_)
+            ax.plot(E_, 'r.')
+            ax.set_xticks(np.arange(0, len(E_), 1))
             ax.set_yscale("log")
             plt.xlabel('iteration')
             plt.ylabel('energy')
 
             ax = fig.add_subplot(1, 2, 2)
             ax.plot(tecr)
+            ax.plot(tecr, 'r.')
+            ax.set_xticks(np.arange(0, len(tecr), 1))
             ax.set_yscale("log")
             plt.xlabel('iteration')
             plt.ylabel('energy transfer rate')
