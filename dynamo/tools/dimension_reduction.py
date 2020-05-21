@@ -60,7 +60,7 @@ def reduceDimension(
         X_data, n_components, has_basis, _ = prepare_dim_reduction(adata,
                               genes=genes,
                               layer=layer,
-                              basis=basis,
+                              basis=reduction_method,
                               dims=dims,
                               n_pca_components=n_pca_components,
                               n_components=n_components, )

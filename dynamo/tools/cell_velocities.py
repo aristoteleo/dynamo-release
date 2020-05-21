@@ -15,6 +15,7 @@ from .utils import (
     split_velocity_graph,
     norm_row,
     einsum_correlation,
+    build_distance_graph,
 )
 
 from .dimension_reduction import reduceDimension
@@ -123,9 +124,13 @@ def cell_velocities(
             indices, dist = indices[:, 1:], dist[:, 1:]
         else:
             if adata.uns["neighbors"]["distances"].shape[0] == adata.uns["neighbors"]["distances"].shape[1]:
-                adata.uns["neighbors"]["indices"], adata.uns["neighbors"]["distances"] = extract_indices_dist_from_graph(
-                    adata.uns["neighbors"]["distances"], 30 # np.min((adata.uns["neighbors"]["connectivities"] > 0).sum(1).A)
+                knn_indices, knn_dists = extract_indices_dist_from_graph(
+                    adata.uns["neighbors"]["distances"], 30
+                    # np.min((adata.uns["neighbors"]["connectivities"] > 0).sum(1).A)
                 )
+                knn_dists = build_distance_graph(knn_indices, knn_dists)
+
+                adata.uns["neighbors"]["indices"], adata.uns["neighbors"]["distances"] = knn_indices, knn_dists
             neighbors, dist, indices = (
                 adata.uns["neighbors"]["connectivities"],
                 adata.uns["neighbors"]["distances"],
