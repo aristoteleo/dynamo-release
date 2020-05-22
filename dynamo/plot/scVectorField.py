@@ -1626,7 +1626,7 @@ def plot_energy(adata,
                 save_show_or_return='show',
                 save_kwargs={},
                 ):
-    """Plot the energy and energy transfer rate over each iteration.
+    """Plot the energy and energy change rate over each optimization iteration.
 
     Parameters
     ----------
@@ -1638,11 +1638,11 @@ def plot_energy(adata,
             space is used.
         vecfld_dict: `str` or None (default: `None`)
             The dictionary storing the information for the reconstructed velocity vector field function. If None, the
-            dictionary stored in the adata object will be used.
-        figsize: `[float, float]` or `None` or `[float, float]` (default: None)
-            The width and height of a figure.
+            corresponding dictionary stored in the adata object will be used.
+        figsize: `[float, float]` or `None` (default: None)
+            The width and height of the resulting figure when fig is set to be None.
         fig: `matplotlib.figure.Figure` or None
-            The figure object where the energy or energy change rate over iteration will be plotted.
+            The figure object where panels of the energy or energy change rate over iteration plots will be appended to.
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -1653,7 +1653,7 @@ def plot_energy(adata,
 
     Returns
     -------
-        Nothing, but plot the  energy or energy change rate over iteration.
+        Nothing, but plot the  energy or energy change rate each optimization iteration.
     """
 
     import matplotlib.pyplot as plt
