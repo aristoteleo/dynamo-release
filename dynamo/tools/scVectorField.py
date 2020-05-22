@@ -647,7 +647,7 @@ class vectorfield:
 
     def plot_energy(self, figsize=None, fig=None):
         from ..plot.scVectorField import plot_energy
-        plot_energy(self.vf_dict)
+        plot_energy(self.vf_dict, figsize, fig)
 
     def evaluate(self, CorrectIndex, VFCIndex, siz):
         """Evaluate the precision, recall, corrRate of the sparseVFC algorithm.

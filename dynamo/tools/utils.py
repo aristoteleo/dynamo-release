@@ -117,7 +117,31 @@ def form_triu_matrix(arr):
                     break
     return M
 
-  
+def index_condensed_matrix(n, i, j):
+    """Return the index of a condensed n-by-n square matrix by the row index i and column index j of the square form.
+
+    Arguments
+    ---------
+        n: int
+            Size of the squareform.
+        i: int
+            Row index of the element in the squareform.
+        j: int
+            Column index of the element in the the squareform.
+
+    Returns
+    -------
+        k: int
+            The index of the element in the condensed matrix.
+    """
+    return int(i * (n - (i + 3) * 0.5) + j - 1)
+
+
+def is_outside_domain(x, domain):
+    x = x[None, :] if x.ndim == 1 else x
+    return np.any(np.logical_or(x < domain[0], x > domain[1]), axis=1)
+
+
 def moms2var(m1, m2):
     var = m2 - elem_prod(m1, m1)
     return var
