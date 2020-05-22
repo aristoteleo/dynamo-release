@@ -8,27 +8,7 @@ from scipy.linalg import eig
 from scipy.integrate import odeint
 
 from .scVectorField import vector_field_function, vectorfield
-from .utils import update_dict, form_triu_matrix
-
-
-def index_condensed_matrix(n, i, j):
-    """Return the index of a condensed n-by-n square matrix by the row index i and column index j of the square form.
-
-    Arguments
-    ---------
-        n: int
-            Size of the squareform.
-        i: int
-            Row index of the element in the squareform.
-        j: int
-            Column index of the element in the the squareform.
-
-    Returns
-    -------
-        k: int
-            The index of the element in the condensed matrix.
-    """
-    return int(i * (n - (i + 3) * 0.5) + j - 1)
+from .utils import update_dict, form_triu_matrix, index_condensed_matrix
 
 
 def remove_redundant_points(X, tol=1e-4, output_discard=False):
@@ -253,8 +233,8 @@ def is_outside(X, domain):
 
 class FixedPoints:
     def __init__(self, X=None, J=None):
-        self.X = X if X is not None else []
-        self.J = J if J is not None else []
+        self.X = X or []
+        self.J = J or []
         self.eigvals = []
 
     def get_X(self):
@@ -483,6 +463,7 @@ def VectorField(
     grid_num=50,
     velocity_key="velocity_S",
     method="SparseVFC",
+    return_vf_object=False,
     **kwargs,
 ):
     """Learn a function of high dimensional vector field from sparse single cell samples in the entire space robustly.
@@ -609,7 +590,8 @@ def VectorField(
         tp_kwargs = update_dict(tp_kwargs, kwargs)
 
         adata = topography(
-            adata, basis=basis, X=X, layer=layer, dims=[0, 1], VecFld=func, **tp_kwargs
+            adata, basis=basis, X=X, layer=layer, dims=[0, 1], VecFld=vf_dict['VecFld'], **tp_kwargs
         )
 
-    return adata
+    if return_vf_object:
+        return VecFld

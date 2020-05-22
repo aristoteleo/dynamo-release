@@ -96,6 +96,7 @@ from .Markov import (
 
 # potential related
 from .scPotential import (
+    search_fixed_points,
     gen_fixed_points,
     gen_gradient,
     IntGrad,

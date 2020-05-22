@@ -1,5 +1,5 @@
 import numpy as np
-import scipy as sc
+import scipy as sp
 import scipy.optimize
 
 from .Bhattacharya import path_integral, alignment
@@ -9,9 +9,70 @@ from .Ao import Ao_pot_map
 # from autograd import grad, jacobian # calculate gradient and jacobian
 
 from .Wang import Wang_action, Wang_LAP
-
 # the LAP method should be rewritten in TensorFlow/PyTorch using optimization with SGD
 
+from .topography import FixedPoints
+from .utils import lhsclassic, is_outside_domain
+from warnings import warn
+
+def search_fixed_points(func, domain, x0, x0_method='lhs', 
+    reverse=False, return_x0=False, fval_tol=1e-8, 
+    remove_outliers=True, ignore_fsolve_err=False, **fsolve_kwargs):
+    import numdifftools as nda
+
+    func_ = (lambda x: -func(x)) if reverse else func
+    k = domain.shape[1]
+
+    if np.isscalar(x0):
+        n = x0
+
+        if k > 2 and x0_method == 'grid':
+            warn('The dimensionality is too high (%dD). Using lhs instead...'%k)
+            x0_method = 'lhs'
+        
+        if x0_method == 'lhs':
+            print('Sampling initial points using latin hypercube sampling...')
+            x0 = lhsclassic(n, k) 
+        elif x0_method == 'grid':
+            print('Sampling initial points on a grid...')
+            pass
+        else:
+            print('Sampling initial points randomly (uniform distribution)...')
+            x0 = np.random.rand(n, k)
+
+        x0 = x0 * (domain[1] - domain[0]) + domain[0]
+
+    fp = FixedPoints()
+    succeed = 0
+    for i in range(len(x0)):
+        x, fval_dict, ier, mesg = sp.optimize.fsolve(
+                func_, x0[i], full_output=True, **fsolve_kwargs)
+
+        if ignore_fsolve_err:
+            ier = 1
+        if fval_dict["fvec"].dot(fval_dict["fvec"]) > fval_tol and ier == 1:
+            ier = -1
+            mesg = 'Function evaluated at the output is larger than the tolerance.'
+        elif remove_outliers and is_outside_domain(x, domain) and ier==1:
+            ier = -2
+            mesg = 'The output is outside the domain.'
+
+        if ier == 1:
+            jacobian_mat = nda.Jacobian(func_)(np.array(x))
+            fp.add_fixed_points([x], [jacobian_mat])
+            succeed += 1
+        else:
+            #jacobian_mat = nda.Jacobian(func_)(np.array(x))
+            #fp.add_fixed_points([x], [jacobian_mat])
+            print('Solution not found: ' + mesg)
+
+    print('%d/%d solutions found.'%(succeed, len(x0)))
+        
+    if return_x0:
+        return fp, x0
+    else:
+        return fp
+    
 
 def gen_fixed_points(
     func, auto_func, dim_range, RandNum, EqNum, reverse=False, grid_num=50, x_ini=None
@@ -83,7 +144,7 @@ def gen_fixed_points(
                 np.random.uniform(0, 1, EqNum) * (dim_range[1] - dim_range[0])
                 + dim_range[0]
             )
-            x, fval_dict, _, _ = sc.optimize.fsolve(
+            x, fval_dict, _, _ = sp.optimize.fsolve(
                 func_, x0, maxfev=450000, xtol=FixedPointConst, full_output=True
             )
             # fjac: the orthogonal matrix, q, produced by the QR factorization of the final approximate Jacobian matrix,
@@ -100,7 +161,7 @@ def gen_fixed_points(
             jacobian_mat[np.isinf(jacobian_mat)] = 0
             if fval.dot(fval) < FixedPointConst:
                 FixedPoint[time, :] = x
-                ve, _ = sc.linalg.eig(jacobian_mat)
+                ve, _ = sp.linalg.eig(jacobian_mat)
                 for j in range(EqNum):
                     if np.real(ve[j]) > 0:
                         Type[time] = -1
@@ -110,7 +171,7 @@ def gen_fixed_points(
     else:
         for time in range(x_ini.shape[0]):
             x0 = x_ini[time, :]
-            x, fval_dict, _, _ = sc.optimize.fsolve(
+            x, fval_dict, _, _ = sp.optimize.fsolve(
                 func_, x0, maxfev=450000, xtol=FixedPointConst, full_output=True
             )
             # fjac: the orthogonal matrix, q, produced by the QR factorization of the final approximate Jacobian matrix,
@@ -127,7 +188,7 @@ def gen_fixed_points(
             jacobian_mat[np.isinf(jacobian_mat)] = 0
             if fval.dot(fval) < FixedPointConst:
                 FixedPoint[time, :] = x
-                ve, _ = sc.linalg.eig(jacobian_mat)
+                ve, _ = sp.linalg.eig(jacobian_mat)
                 for j in range(EqNum):
                     if np.real(ve[j]) > 0:
                         Type[time] = -1
@@ -356,8 +417,8 @@ def action(n_points, tmax, point_start, point_end, boundary, Function, Diffusion
         keep_feasible=True,
     )
 
-    # sc.optimize.least_squares(lambda_f, initpath[:, 1:n_points].flatten())
-    res = sc.optimize.minimize(
+    # sp.optimize.least_squares(lambda_f, initpath[:, 1:n_points].flatten())
+    res = sp.optimize.minimize(
         lambda_f, initpath[:, 1:n_points], tol=1e-12
     )  # , bounds=Bounds , options={"maxiter": 250}
     fval, output_path = (

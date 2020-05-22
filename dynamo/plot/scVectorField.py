@@ -1617,3 +1617,27 @@ def streamline_plot(
 
 
 # refactor line_conv_integration
+
+def plot_energy(vecfld_dict, figsize=None, fig=None):
+    import matplotlib.pyplot as plt
+    E = vecfld_dict['VecFld']['E_traj'] if 'E_traj' in vecfld_dict['VecFld'] else None
+    tecr = vecfld_dict['VecFld']['tecr_traj'] if 'tecr_traj' in vecfld_dict['VecFld'] else None
+    if E is not None and tecr is not None:
+        fig = fig or plt.figure(figsize=figsize)
+
+        ax = fig.add_subplot(1, 2, 1)
+        E_ = E-np.min(E)+100
+        ax.plot(E_)
+        ax.plot(E_, 'r.')
+        ax.set_xticks(np.arange(0, len(E_), 1))
+        ax.set_yscale("log")
+        plt.xlabel('iteration')
+        plt.ylabel('energy')
+
+        ax = fig.add_subplot(1, 2, 2)
+        ax.plot(tecr)
+        ax.plot(tecr, 'r.')
+        ax.set_xticks(np.arange(0, len(tecr), 1))
+        ax.set_yscale("log")
+        plt.xlabel('iteration')
+        plt.ylabel('energy transfer rate')

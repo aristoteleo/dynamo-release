@@ -590,6 +590,7 @@ class vectorfield:
         })
 
         self.norm_dict = {}
+        self.vf_dict = {}
 
     def fit(self, normalize=False, method="SparseVFC", **kwargs):
         """Learn an function of vector field from sparse single cell samples in the entire space robustly.
@@ -637,11 +638,16 @@ class vectorfield:
 
         self.parameters = update_dict(self.parameters, VecFld)
 
-        vf_dict = {
+        self.vf_dict = {
             "VecFld": VecFld,
             "parameters": self.parameters
         }
-        return vf_dict
+        return self.vf_dict
+
+
+    def plot_energy(self, figsize=None, fig=None):
+        from ..plot.scVectorField import plot_energy
+        plot_energy(self.vf_dict, figsize, fig)
 
     def evaluate(self, CorrectIndex, VFCIndex, siz):
         """Evaluate the precision, recall, corrRate of the sparseVFC algorithm.
