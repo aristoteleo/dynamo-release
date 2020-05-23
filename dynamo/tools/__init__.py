@@ -76,6 +76,7 @@ from .scVectorField import (
     get_P,
 )  # , evaluate, con_K_div_cur_free, vector_field_function, vector_field_function_auto, auto_con_K
 from .topography import FixedPoints, VectorField2D, topography, VectorField
+from .vector_calculus import Curl, Divergence
 
 # Markov chain related:
 from .Markov import (
