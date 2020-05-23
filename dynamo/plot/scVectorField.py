@@ -1658,10 +1658,10 @@ def plot_energy(adata,
 
     import matplotlib.pyplot as plt
     if vecfld_dict is None:
-        vf_key = 'VecFld' if basis == None else 'VecFld_' + basis
+        vf_key = 'VecFld' if basis is None else 'VecFld_' + basis
         if vf_key not in adata.uns.keys():
             raise ValueError(f"Your adata doesn't have the key for Vector Field with {basis} basis."
-                             "Try firstly running dyn.tl.VectorField(adata, basis={basis}).")
+                             f"Try firstly running dyn.tl.VectorField(adata, basis={basis}).")
 
         vecfld_dict = adata.uns[vf_key]
 
