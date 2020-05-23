@@ -310,7 +310,7 @@ def SparseVFC(
     theta=0.75,
     div_cur_free_kernels=False,
     velocity_based_sampling=True,
-    sigma=0.01,
+    sigma=0.8,
     eta=0.5,
     lstsq_method='drouin',
     verbose=1
@@ -341,7 +341,8 @@ def SparseVFC(
         gamma: 'float' (default: 0.9)
             Percentage of inliers in the samples. This is an initial value for EM iteration, and it is not important.
         lambda_: 'float' (default: 0.3)
-            Represents the trade-off between the goodness of data fit and regularization.
+            Represents the trade-off between the goodness of data fit and regularization. Larger Lambda_ put more weights
+            on regularization.
         minP: 'float' (default: 1e-5)
             The posterior probability Matrix P may be singular for matrix inversion. We set the minimum value of P as
             minP.
@@ -353,7 +354,7 @@ def SparseVFC(
         div_cur_free_kernels: `bool` (default: False)
             A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the vector
             field.
-        sigma: 'int' (default: `0.01`)
+        sigma: 'int' (default: `0.8`)
             Bandwidth parameter.
         eta: 'int' (default: `0.5`)
             Combination coefficient for the divergence-free or the curl-free kernels.
