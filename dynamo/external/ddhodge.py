@@ -103,6 +103,6 @@ def _triangles(g):
 def build_graph(adj_mat):
     sources, targets = adj_mat.nonzero()
     edgelist = list(zip(sources.tolist(), targets.tolist()))
-    g = Graph(edgelist, edge_attrs={'weight': adj_mat.data.tolist()})
+    g = Graph(edgelist, edge_attrs={'weight': adj_mat.data.tolist()}, directed=True)
 
     return g
