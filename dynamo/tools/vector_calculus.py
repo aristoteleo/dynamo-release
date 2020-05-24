@@ -22,12 +22,13 @@ def divergence(f, x):
 
 
 def curl(f, x):
-    """Curl of the reconstructed vector field f evaluated at x"""
+    """Curl of the reconstructed vector field f evaluated at x in 3D"""
     jac = nd.Jacobian(f)(x)
     return np.array([jac[2, 1] - jac[1, 2], jac[0, 2] - jac[2, 0], jac[1, 0] - jac[0, 1]])
 
 
 def curl2d(f, x):
+    """Curl of the reconstructed vector field f evaluated at x in 2D"""
     jac = nd.Jacobian(f)(x)
     curl = jac[0, 0] - jac[1, 1] + jac[0, 1] - jac[1, 1]
 
