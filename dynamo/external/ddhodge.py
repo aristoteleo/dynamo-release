@@ -56,6 +56,9 @@ def laplacian1(g):
 
 
 def potential(g):
+    """potential is related to instrinsic time. Note that the returned value from this function here is the negative of
+    potential. Thus small potential can related to smaller intrinsic time and vice versa."""
+
     div_neg = -div(g)
     g.to_undirected()
     L = np.array(g.laplacian())
@@ -71,11 +74,16 @@ def grad(g, tol=1e-7):
 
 
 def div(g):
+    """calculate divergence for each cell. negative values correspond to potential sink while positive corresponds to
+    potential source. https://en.wikipedia.org/wiki/Divergence"""
     weight = np.array(g.es.get_attribute_values('weight'))
     return divop(g).dot(weight)
 
 
 def curl(g):
+    """calculate curl for each cell. On 2d, negative values correspond to clockwise rotation while positive corresponds to
+    anticlockwise rotation. https://www.khanacademy.org/math/multivariable-calculus/greens-theorem-and-stokes-theorem/formal-definitions-of-divergence-and-curl/a/defining-curl"""
+
     weight = np.array(g.es.get_attribute_values('weight'))
     return curlop(g).dot(weight)
 
