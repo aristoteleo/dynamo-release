@@ -106,3 +106,21 @@ def build_graph(adj_mat):
     g = Graph(edgelist, edge_attrs={'weight': adj_mat.data.tolist()}, directed=True)
 
     return g
+
+
+def ddhoge(adata):
+    """Modeling Latent Flow Structure using Hodge Decomposition. Code adapted from https://github.com/kazumits/ddhodge.
+
+    Integration with curl-free/divergence-free vector field reconstruction.
+    """
+
+    if "transition_matrix" not in adata.uns.keys():
+        raise Exception(f"Your adata doesn't have transition matrix created. You need to first "
+                        f"run dyn.tl.cell_velocity(adata) to get the transition before running"
+                        f" this function.")
+
+    adj_mat = adata.uns["transition_matrix"]
+
+    g = build_graph(adj_mat)
+
+    adata.obs['potential'], adata.obs['divergence'] = potential(g), div(g)
