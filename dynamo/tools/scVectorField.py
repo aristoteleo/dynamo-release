@@ -189,6 +189,8 @@ def con_K(x, y, beta, method='cdist'):
     """
     if method == 'cdist':
         K = cdist(x, y, 'sqeuclidean')
+        if len(K) == 1:
+            K = K.flatten()
     else:
         n = x.shape[0]
         m = y.shape[0]
@@ -671,8 +673,8 @@ class vectorfield:
 
 
     def get_Jacobian(self):
-        return nda.Jacobian(func)
-        
+        return nda.Jacobian(self.func)
+
 
     def evaluate(self, CorrectIndex, VFCIndex, siz):
         """Evaluate the precision, recall, corrRate of the sparseVFC algorithm.
