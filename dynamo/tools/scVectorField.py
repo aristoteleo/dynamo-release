@@ -3,15 +3,14 @@ import numpy.matlib
 from numpy import format_float_scientific as scinot
 import numpy as np
 from scipy.linalg import lstsq
-import scipy.sparse as sp
+from scipy.spatial.distance import cdist
+from sklearn.neighbors import NearestNeighbors
 import numdifftools as nda
 import warnings
 import time
-from numpy import format_float_scientific as scinot
-from sklearn.neighbors import NearestNeighbors
 from .utils import update_dict, update_n_merge_dict, linear_least_squares, timeit
-from scipy.spatial.distance import cdist
 from .sampling import sample_by_velocity
+
 
 def norm(X, V, T):
     """Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
@@ -353,7 +352,7 @@ def SparseVFC(
     theta=0.75,
     div_cur_free_kernels=False,
     velocity_based_sampling=True,
-    sigma=0.01,
+    sigma=0.8,
     eta=0.5,
     lstsq_method='drouin',
     verbose=1
@@ -384,7 +383,8 @@ def SparseVFC(
         gamma: 'float' (default: 0.9)
             Percentage of inliers in the samples. This is an initial value for EM iteration, and it is not important.
         lambda_: 'float' (default: 0.3)
-            Represents the trade-off between the goodness of data fit and regularization.
+            Represents the trade-off between the goodness of data fit and regularization. Larger Lambda_ put more weights
+            on regularization.
         minP: 'float' (default: 1e-5)
             The posterior probability Matrix P may be singular for matrix inversion. We set the minimum value of P as
             minP.
@@ -396,7 +396,7 @@ def SparseVFC(
         div_cur_free_kernels: `bool` (default: False)
             A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the vector
             field.
-        sigma: 'int' (default: `0.01`)
+        sigma: 'int' (default: `0.8`)
             Bandwidth parameter.
         eta: 'int' (default: `0.5`)
             Combination coefficient for the divergence-free or the curl-free kernels.
@@ -691,7 +691,7 @@ class vectorfield:
 
     def plot_energy(self, figsize=None, fig=None):
         from ..plot.scVectorField import plot_energy
-        plot_energy(self.vf_dict, figsize, fig)
+        plot_energy(None, vecfld_dict=self.vf_dict, figsize=figsize, fig=fig)
 
 
     def compute_divergence(self, X, timeit=False):

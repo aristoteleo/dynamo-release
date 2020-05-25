@@ -78,6 +78,7 @@ from .scVectorField import (
     graphize_vecfld
 )  # , evaluate, con_K_div_cur_free
 from .topography import FixedPoints, VectorField2D, topography, VectorField
+from .vector_calculus import Curl, Divergence
 
 # Markov chain related:
 from .Markov import (

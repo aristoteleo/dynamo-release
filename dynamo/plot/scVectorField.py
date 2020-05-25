@@ -1618,26 +1618,83 @@ def streamline_plot(
 
 # refactor line_conv_integration
 
-def plot_energy(vecfld_dict, figsize=None, fig=None):
+def plot_energy(adata,
+                basis=None,
+                vecfld_dict=None,
+                figsize=None,
+                fig=None,
+                save_show_or_return='show',
+                save_kwargs={},
+                ):
+    """Plot the energy and energy change rate over each optimization iteration.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object with vector field function reconstructed.
+        basis: `str` or None (default: `None`)
+            The reduced dimension embedding (pca or umap, for example) of cells from which vector field function was
+            reconstructed. When basis is None, the velocity vector field function building from the full gene expression
+            space is used.
+        vecfld_dict: `str` or None (default: `None`)
+            The dictionary storing the information for the reconstructed velocity vector field function. If None, the
+            corresponding dictionary stored in the adata object will be used.
+        figsize: `[float, float]` or `None` (default: None)
+            The width and height of the resulting figure when fig is set to be None.
+        fig: `matplotlib.figure.Figure` or None
+            The figure object where panels of the energy or energy change rate over iteration plots will be appended to.
+        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig
+            function will use the {"path": None, "prefix": 'energy', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those
+            keys according to your needs.
+
+    Returns
+    -------
+        Nothing, but plot the  energy or energy change rate each optimization iteration.
+    """
+
     import matplotlib.pyplot as plt
+    if vecfld_dict is None:
+        vf_key = 'VecFld' if basis is None else 'VecFld_' + basis
+        if vf_key not in adata.uns.keys():
+            raise ValueError(f"Your adata doesn't have the key for Vector Field with {basis} basis."
+                             f"Try firstly running dyn.tl.VectorField(adata, basis={basis}).")
+
+        vecfld_dict = adata.uns[vf_key]
+
     E = vecfld_dict['VecFld']['E_traj'] if 'E_traj' in vecfld_dict['VecFld'] else None
     tecr = vecfld_dict['VecFld']['tecr_traj'] if 'tecr_traj' in vecfld_dict['VecFld'] else None
+
     if E is not None and tecr is not None:
         fig = fig or plt.figure(figsize=figsize)
 
+        Iterations = np.arange(0, len(E))
         ax = fig.add_subplot(1, 2, 1)
-        E_ = E-np.min(E)+100
-        ax.plot(E_)
+        E_ = E - np.min(E) + 1
+        ax.plot(Iterations, E_, 'k')
         ax.plot(E_, 'r.')
-        ax.set_xticks(np.arange(0, len(E_), 1))
         ax.set_yscale("log")
-        plt.xlabel('iteration')
-        plt.ylabel('energy')
+        plt.xlabel('Iteration')
+        plt.ylabel('Energy')
 
         ax = fig.add_subplot(1, 2, 2)
-        ax.plot(tecr)
+        ax.plot(Iterations, tecr, 'k')
         ax.plot(tecr, 'r.')
-        ax.set_xticks(np.arange(0, len(tecr), 1))
         ax.set_yscale("log")
-        plt.xlabel('iteration')
-        plt.ylabel('energy transfer rate')
+        plt.xlabel('Iteration')
+        plt.ylabel('Energy change rate')
+
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'energy', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save_fig(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return fig

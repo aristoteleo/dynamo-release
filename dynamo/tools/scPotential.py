@@ -53,7 +53,7 @@ def search_fixed_points(func, domain, x0, x0_method='lhs',
         if fval_dict["fvec"].dot(fval_dict["fvec"]) > fval_tol and ier == 1:
             ier = -1
             mesg = 'Function evaluated at the output is larger than the tolerance.'
-        elif remove_outliers and is_outside_domain(x, domain) and ier==1:
+        elif remove_outliers and is_outside_domain(x, domain) and ier == 1:
             ier = -2
             mesg = 'The output is outside the domain.'
 
