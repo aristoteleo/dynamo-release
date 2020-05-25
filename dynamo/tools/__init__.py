@@ -74,7 +74,8 @@ from .scVectorField import (
     con_K,
     vector_field_function,
     get_P,
-    sample_by_velocity
+    sample_by_velocity,
+    graphize_vecfld
 )  # , evaluate, con_K_div_cur_free
 from .topography import FixedPoints, VectorField2D, topography, VectorField
 
