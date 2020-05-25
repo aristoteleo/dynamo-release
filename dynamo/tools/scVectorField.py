@@ -3,12 +3,14 @@ import numpy.matlib
 from numpy import format_float_scientific as scinot
 import numpy as np
 from scipy.linalg import lstsq
+import numdifftools as nda
 import warnings
 import time
 from numpy import format_float_scientific as scinot
 from sklearn.neighbors import NearestNeighbors
-from .utils import update_dict, update_n_merge_dict
-from .utils import linear_least_squares, timeit
+from .utils import update_dict, update_n_merge_dict, linear_least_squares, timeit
+from scipy.spatial.distance import cdist
+from .sampling import sample_by_velocity
 
 def norm(X, V, T):
     """Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
@@ -168,7 +170,7 @@ def get_P(Y, V, sigma2, gamma, a, div_cur_free_kernels=False):
     return (P[:, None], E) if P.ndim == 1 else (P, E)
 
 @timeit
-def con_K(x, y, beta):
+def con_K(x, y, beta, method='cdist'):
     """con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
 
     Arguments
@@ -185,23 +187,27 @@ def con_K(x, y, beta):
     K: 'np.ndarray'
     the kernel to represent the vector field function.
     """
+    if method == 'cdist':
+        K = cdist(x, y, 'sqeuclidean')
+        if len(K) == 1:
+            K = K.flatten()
+    else:
+        n = x.shape[0]
+        m = y.shape[0]
 
-    n = x.shape[0]
-    m = y.shape[0]
-
-    # https://stackoverflow.com/questions/1721802/what-is-the-equivalent-of-matlabs-repmat-in-numpy
-    # https://stackoverflow.com/questions/12787475/matlabs-permute-in-python
-    K = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(
-        np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0])
-    K = np.squeeze(np.sum(K ** 2, 1))
+        # https://stackoverflow.com/questions/1721802/what-is-the-equivalent-of-matlabs-repmat-in-numpy
+        # https://stackoverflow.com/questions/12787475/matlabs-permute-in-python
+        K = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(
+            np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0])
+        K = np.squeeze(np.sum(K ** 2, 1))
     K = -beta * K
-    K = np.exp(K)  #
+    K = np.exp(K)
 
     return K
 
 @timeit
 def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
-    """Learn a convex combination of the divergence-free kernel T_df and curl-free kernel T_cf with a bandwidth sigma
+    """Construct a convex combination of the divergence-free kernel T_df and curl-free kernel T_cf with a bandwidth sigma
     and a combination coefficient gamma.
 
     Arguments
@@ -260,7 +266,7 @@ def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
 
 
 @timeit
-def vector_field_function(x, VecFld, dim=None, kernel='full'):
+def vector_field_function(x, VecFld, dim=None, kernel='full', **kernel_kwargs):
     """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
     Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
     """
@@ -270,7 +276,7 @@ def vector_field_function(x, VecFld, dim=None, kernel='full'):
     else:
         has_div_cur_free_kernels = False
 
-    x = np.array(x)
+    #x = np.array(x)
     if x.ndim == 1:
         x = x[None, :]
 
@@ -284,15 +290,26 @@ def vector_field_function(x, VecFld, dim=None, kernel='full'):
         else:
             raise ValueError(f"the kernel can only be one of {'full', 'df_kernel', 'cf_kernel'}!")
 
-        K = con_K_div_cur_free(x, VecFld["X_ctrl"], VecFld["sigma"], VecFld["eta"])[kernel_ind]
+        K = con_K_div_cur_free(x, VecFld["X_ctrl"], VecFld["sigma"], VecFld["eta"], **kernel_kwargs)[kernel_ind]
     else:
-        K = con_K(x, VecFld["X_ctrl"], VecFld["beta"])
+        K = con_K(x, VecFld["X_ctrl"], VecFld["beta"], **kernel_kwargs)
 
     if dim is None:
         K = K.dot(VecFld["C"])
     else:
         K = K.dot(VecFld["C"]) if con_K_div_cur_free else K.dot(VecFld["C"][:, dim])
     return K
+
+
+@timeit
+def compute_divergence(func, X):
+    f_jac = nda.Jacobian(func)
+    div = np.zeros(len(X))
+    for i in tqdm(range(len(X)), desc="Calculating divergence"):
+        J = f_jac(X[i])
+        div[i] = np.trace(J)
+
+    return div
 
 
 def SparseVFC(
@@ -399,9 +416,7 @@ def SparseVFC(
     if velocity_based_sampling:
         if verbose > 1:
             print('Sampling control points based on data velocity magnitude...')
-        tmp_V = np.linalg.norm(Y[uid], axis=1)
-        p = tmp_V / np.sum(tmp_V)
-        idx = np.random.choice(np.arange(N), size=M, p=p, replace=False)
+        idx = sample_by_velocity(Y[uid], M)
     else:
         idx = np.random.RandomState(seed=0).permutation(
             tmp_X.shape[0]
@@ -592,6 +607,7 @@ class vectorfield:
 
         self.norm_dict = {}
         self.vf_dict = {}
+        self.func = None
 
     def fit(self, normalize=False, method="SparseVFC", **kwargs):
         """Learn an function of vector field from sparse single cell samples in the entire space robustly.
@@ -643,12 +659,23 @@ class vectorfield:
             "VecFld": VecFld,
             "parameters": self.parameters
         }
+
+        self.func = lambda x: vector_field_function(x, VecFld)
         return self.vf_dict
 
 
     def plot_energy(self, figsize=None, fig=None):
         from ..plot.scVectorField import plot_energy
         plot_energy(self.vf_dict, figsize, fig)
+
+
+    def compute_divergence(self, X, timeit=False):
+        return compute_divergence(self.func, X, timeit=timeit)
+
+
+    def get_Jacobian(self):
+        return nda.Jacobian(self.func)
+
 
     def evaluate(self, CorrectIndex, VFCIndex, siz):
         """Evaluate the precision, recall, corrRate of the sparseVFC algorithm.

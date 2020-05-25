@@ -74,7 +74,8 @@ from .scVectorField import (
     con_K,
     vector_field_function,
     get_P,
-)  # , evaluate, con_K_div_cur_free, vector_field_function, vector_field_function_auto, auto_con_K
+    sample_by_velocity
+)  # , evaluate, con_K_div_cur_free
 from .topography import FixedPoints, VectorField2D, topography, VectorField
 from .vector_calculus import Curl, Divergence
 
@@ -133,4 +134,10 @@ from .markers import (
     two_groups_degs,
     top_n_markers,
     glm_degs,
+)
+
+# Sampling methods
+from .sampling import (
+    TRNET,
+    trn
 )
