@@ -56,7 +56,7 @@ def laplacian1(g):
 
 
 def potential(g):
-    """potential is related to instrinsic time. Note that the returned value from this function here is the negative of
+    """potential is related to the instrinsic time. Note that the returned value from this function is the negative of
     potential. Thus small potential can related to smaller intrinsic time and vice versa."""
 
     div_neg = -div(g)
