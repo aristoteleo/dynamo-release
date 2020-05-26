@@ -29,10 +29,10 @@ def diffusionMatrix(adata,
             Which layer of the data will be used for diffusion matrix calculation.
         basis: `str` (default: `umap`)
             Which basis of the data will be used for diffusion matrix calculation.
-        n: `int` (default: `10`)
-            Number of nearest neighbors when the nearest neighbor graph is not included.
         dims: `list` or None (default: `None`)
             The list of dimensions that will be selected for diffusion matrix calculation. If `None`, all dimensions will be used.
+        n: `int` (default: `10`)
+            Number of nearest neighbors when the nearest neighbor graph is not included.
         VecFld: `dictionary` or None (default: None)
             The reconstructed vector field function.
         residual: `str` or None (default: `vector_field`)
@@ -69,6 +69,7 @@ def diffusionMatrix(adata,
                 raise ValueError(
                     f'Vector field function {VecFld_key} is not included in the adata object!'
                     f'Try firstly running dyn.tl.VectorField(adata, basis={basis})')
+            VecFld = adata.uns[VecFld_key]['VecFld']
             func = lambda x: vector_field_function(x, VecFld)
 
         prefix = 'X_' if layer is None else layer + '_'
@@ -79,10 +80,11 @@ def diffusionMatrix(adata,
                                  f"['pca', 'umap', 'trimap', 'tsne', 'diffmap'].")
             if basis.startswith(prefix):
                 basis = basis
+                vkey = "velocity_" + basis.split(prefix)[-1]
             else:
+                vkey = "velocity_" + basis
                 basis = prefix + basis
 
-            vkey = "velocity_" + prefix[:-1]
             if vkey not in adata.obsm_keys():
                 raise ValueError(
                     f'the data corresponds to the velocity key {vkey} is not included in the adata object!')
@@ -132,7 +134,6 @@ def diffusionMatrix(adata,
 
     if residual == 'average':
         V_ave = np.zeros_like(V_data)
-        val = np.zeros((V_data.shape[0], 1))
         for i in range(X_data.shape[0]):
             vv = V_data[Idx[i]]
             V_ave[i] = vv.mean(0)
@@ -143,12 +144,13 @@ def diffusionMatrix(adata,
                          f'Currently only {"average", "vector_field"} supported.')
 
     V_diff = V_data - V_ave
+    val = np.zeros((V_data.shape[0], 1))
     dmatrix = [None] * V_data.shape[0]
 
-    for i in range(X_data.shape[0]):
+    for i in tqdm(range(X_data.shape[0]), "calculating diffusion matrix for each cell."):
         vv = V_diff[Idx[i]]
         d = np.cov(vv.T)
-        val[i] = np.sqrt(sum(d))
+        val[i] = np.sqrt(sum(sum(d)))
         dmatrix[i] = d
 
     adata.obs['diffusion'] = val

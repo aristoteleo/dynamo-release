@@ -1,11 +1,14 @@
 # YEAR: 2019
 # COPYRIGHT HOLDER: ddhodge
+
+# Code adapted from https://github.com/kazumits/ddhodge.
+
 import numpy as np
 from scipy.sparse import csr_matrix
 from scipy.linalg import inv, qr
 from itertools import combinations
 from igraph import Graph
-
+from ..tools.scVectorField import vector_field_function, graphize_vecfld
 
 def gradop(g):
     e = np.array(g.get_edgelist())
@@ -109,6 +112,7 @@ def _triangles(g):
 
 
 def build_graph(adj_mat):
+    """build sparse diffusion graph. The adjacency matrix need to preserves divergence."""
     sources, targets = adj_mat.nonzero()
     edgelist = list(zip(sources.tolist(), targets.tolist()))
     g = Graph(edgelist, edge_attrs={'weight': adj_mat.data.tolist()}, directed=True)
@@ -116,19 +120,73 @@ def build_graph(adj_mat):
     return g
 
 
-def ddhoge(adata):
-    """Modeling Latent Flow Structure using Hodge Decomposition. Code adapted from https://github.com/kazumits/ddhodge.
+def ddhoge(adata,
+           X_data=None,
+           layer=None,
+           basis="umap",
+           dims=None,
+           n=30,
+           VecFld=None,
+           build_graph_method='graphize_vecfld'):
+    """Modeling Latent Flow Structure using Hodge Decomposition.
 
     Integration with curl-free/divergence-free vector field reconstruction.
-    """
 
-    if "transition_matrix" not in adata.uns.keys():
-        raise Exception(f"Your adata doesn't have transition matrix created. You need to first "
-                        f"run dyn.tl.cell_velocity(adata) to get the transition before running"
-                        f" this function.")
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object.
+        X_data: `np.ndarray` (default: `None`)
+            The user supplied expression (embedding) data that will be used for calculating diffusion matrix directly.
+        layer: `str` or None (default: None)
+            Which layer of the data will be used for diffusion matrix calculation.
+        basis: `str` (default: `umap`)
+            Which basis of the data will be used for diffusion matrix calculation.
+        dims: `list` or None (default: `None`)
+            The list of dimensions that will be selected for diffusion matrix calculation. If `None`, all dimensions will be used.
+        n: `int` (default: `10`)
+            Number of nearest neighbors when the nearest neighbor graph is not included.
+        VecFld: `dictionary` or None (default: None)
+            The reconstructed vector field function.
 
-    adj_mat = adata.uns["transition_matrix"]
+        Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            `AnnData` object that is updated with the `ddhodge` key in the `obsp` attribute which to adjacency matrix that
+             corresponds to the sparse diffusion graph. Two columns `potential` and `divergence` corresponds to the potential
+             and divergence for each cell will also be added.
+"""
+
+    X_data = adata.obsm['X_' + basis] if X_data is None else X_data
+    if VecFld is None:
+        VecFld_key = 'VecFld' if basis is None else "VecFld_" + basis
+        if VecFld_key not in adata.uns.keys():
+            raise ValueError(
+                f'Vector field function {VecFld_key} is not included in the adata object!'
+                f'Try firstly running dyn.tl.VectorField(adata, basis={basis})')
+        VecFld = adata.uns[VecFld_key]['VecFld']
+
+    func = lambda x: vector_field_function(x, VecFld, dim=dims)
+
+    if build_graph_method:
+        neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
+        if neighbor_key not in adata.uns_keys():
+            Idx = None
+        else:
+            neighbors = adata.uns[neighbor_key]["connectivities"]
+            Idx = neighbors.tolil().rows
+
+        adj_mat = graphize_vecfld(func, X_data, nbrs_idx=Idx, k=n, distance_free=True, n_int_steps=20)
+
+    else:
+        if "transition_matrix" not in adata.uns.keys():
+            raise Exception(f"Your adata doesn't have transition matrix created. You need to first "
+                            f"run dyn.tl.cell_velocity(adata) to get the transition before running"
+                            f" this function.")
+
+        adj_mat = adata.uns["transition_matrix"]
 
     g = build_graph(adj_mat)
 
+    adata.obsp['ddhodge'] = adj_mat
     adata.obs['potential'], adata.obs['divergence'] = potential(g), div(g)
