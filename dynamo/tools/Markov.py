@@ -7,6 +7,7 @@ from scipy.stats import norm
 from scipy.linalg import eig, null_space
 from numba import jit
 from .utils import append_iterative_neighbor_indices
+from .stochastic_process import diffusionMatrix2D
 
 def markov_combination(x, v, X):
     from cvxopt import matrix, solvers
@@ -175,42 +176,6 @@ def compute_tau(X, V, k=100, nbr_idx=None):
     v = np.linalg.norm(V, axis=1)
     tau = d / v
     return tau, v
-
-
-def diffusionMatrix2D(V_mat):
-    """Function to calculate cell-specific diffusion matrix for based on velocity vectors of neighbors.
-
-    This function works for two dimension --  check `diffusion_matrix` from stochastic_process.py for generalization to
-    arbitrary dimensions.
-
-    Parameters
-    ----------
-        V_mat: `np.ndarray`
-            velocity vectors of neighbors
-
-    Returns
-    -------
-        Return the cell-specific diffusion matrix
-    """
-
-    D = np.zeros(
-        (V_mat.shape[0], 2, 2)
-    )
-
-    D[:, 0, 0] = np.mean(
-        (V_mat[:, :, 0] - np.mean(V_mat[:, :, 0], axis=1)[:, None]) ** 2, axis=1
-    )
-    D[:, 1, 1] = np.mean(
-        (V_mat[:, :, 1] - np.mean(V_mat[:, :, 1], axis=1)[:, None]) ** 2, axis=1
-    )
-    D[:, 0, 1] = np.mean(
-        (V_mat[:, :, 0] - np.mean(V_mat[:, :, 0], axis=1)[:, None])
-        * (V_mat[:, :, 1] - np.mean(V_mat[:, :, 1], axis=1)[:, None]),
-        axis=1,
-    )
-    D[:, 1, 0] = D[:, 0, 1]
-
-    return D / 2
 
 
 def grid_velocity_filter(

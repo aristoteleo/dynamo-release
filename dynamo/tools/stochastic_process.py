@@ -154,3 +154,39 @@ def diffusionMatrix(adata,
     adata.obs['diffusion'] = val
     adata.uns['diffusion_matrix'] = dmatrix
 
+
+def diffusionMatrix2D(V_mat):
+    """Function to calculate cell-specific diffusion matrix for based on velocity vectors of neighbors.
+
+    This function works for two dimension. See :func:`diffusionMatrix` for generalization to arbitrary dimensions.
+
+    Parameters
+    ----------
+        V_mat: `np.ndarray`
+            velocity vectors of neighbors
+
+    Returns
+    -------
+        Return the cell-specific diffusion matrix
+
+    See also:: :func:`diffusionMatrix`
+    """
+
+    D = np.zeros(
+        (V_mat.shape[0], 2, 2)
+    )
+
+    D[:, 0, 0] = np.mean(
+        (V_mat[:, :, 0] - np.mean(V_mat[:, :, 0], axis=1)[:, None]) ** 2, axis=1
+    )
+    D[:, 1, 1] = np.mean(
+        (V_mat[:, :, 1] - np.mean(V_mat[:, :, 1], axis=1)[:, None]) ** 2, axis=1
+    )
+    D[:, 0, 1] = np.mean(
+        (V_mat[:, :, 0] - np.mean(V_mat[:, :, 0], axis=1)[:, None])
+        * (V_mat[:, :, 1] - np.mean(V_mat[:, :, 1], axis=1)[:, None]),
+        axis=1,
+    )
+    D[:, 1, 0] = D[:, 0, 1]
+
+    return D / 2
