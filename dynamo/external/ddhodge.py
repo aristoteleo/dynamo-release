@@ -63,8 +63,9 @@ def potential(g):
     potential. Thus small potential can related to smaller intrinsic time and vice versa."""
 
     div_neg = -div(g)
-    g.to_undirected()
-    L = np.array(g.laplacian())
+    g_undirected = g.copy()
+    g_undirected.to_undirected()
+    L = np.array(g_undirected.laplacian())
     Q, R = qr(L)
     p = inv(R).dot(Q.T).dot(div_neg)
 
@@ -127,29 +128,34 @@ def ddhoge(adata,
            dims=None,
            n=30,
            VecFld=None,
-           build_graph_method='graphize_vecfld'):
-    """Modeling Latent Flow Structure using Hodge Decomposition.
-
-    Integration with curl-free/divergence-free vector field reconstruction.
+           adjmethod='graphize_vecfld'):
+    """Modeling Latent Flow Structure using Hodge Decomposition based on the creation of sparse diffusion graph from the
+    reconstructed vector field function. This method is relevant to the curl-free/divergence-free vector field
+    reconstruction.
 
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
             an Annodata object.
         X_data: `np.ndarray` (default: `None`)
-            The user supplied expression (embedding) data that will be used for calculating diffusion matrix directly.
+            The user supplied expression (embedding) data that will be used for graph hodege decomposition directly.
         layer: `str` or None (default: None)
-            Which layer of the data will be used for diffusion matrix calculation.
+            Which layer of the data will be used for graph hodege decomposition.
         basis: `str` (default: `umap`)
-            Which basis of the data will be used for diffusion matrix calculation.
+            Which basis of the data will be used for  graph hodege decomposition.
         dims: `list` or None (default: `None`)
-            The list of dimensions that will be selected for diffusion matrix calculation. If `None`, all dimensions will be used.
+            The list of dimensions that will be selected for graph hodege decomposition. If `None`, all dimensions will
+            be used.
         n: `int` (default: `10`)
             Number of nearest neighbors when the nearest neighbor graph is not included.
         VecFld: `dictionary` or None (default: None)
             The reconstructed vector field function.
+        adjmethod: `str` (default: `graphize_vecfld`)
+            The method to build the ajacency matrix that will be used to create the sparse diffusion graph, can be either
+            "naive" or "graphize_vecfld". If "naive" used, the transition_matrix that created during vector field projection
+            will be used; if "graphize_vecfld" used, a method that guarantees the preservance of divergence will be used.
 
-        Returns
+    Returns
     -------
         adata: :class:`~anndata.AnnData`
             `AnnData` object that is updated with the `ddhodge` key in the `obsp` attribute which to adjacency matrix that
@@ -168,7 +174,7 @@ def ddhoge(adata,
 
     func = lambda x: vector_field_function(x, VecFld, dim=dims)
 
-    if build_graph_method:
+    if adjmethod == 'graphize_vecfld':
         neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
         if neighbor_key not in adata.uns_keys():
             Idx = None
@@ -177,16 +183,17 @@ def ddhoge(adata,
             Idx = neighbors.tolil().rows
 
         adj_mat = graphize_vecfld(func, X_data, nbrs_idx=Idx, k=n, distance_free=True, n_int_steps=20)
-
-    else:
+    elif adjmethod == 'naive':
         if "transition_matrix" not in adata.uns.keys():
             raise Exception(f"Your adata doesn't have transition matrix created. You need to first "
                             f"run dyn.tl.cell_velocity(adata) to get the transition before running"
                             f" this function.")
 
         adj_mat = adata.uns["transition_matrix"]
+    else:
+        raise ValueError(f"adjmethod can be only one of {'naive', 'graphize_vecfld'}")
 
     g = build_graph(adj_mat)
 
     adata.obsp['ddhodge'] = adj_mat
-    adata.obs['potential'], adata.obs['divergence'] = potential(g), div(g)
+    adata.obs['divergence'], adata.obs['potential'] = div(g), potential(g)
