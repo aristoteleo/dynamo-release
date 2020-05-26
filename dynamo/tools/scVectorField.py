@@ -312,6 +312,31 @@ def compute_divergence(func, X):
     return div
 
 
+@timeit
+def graphize_vecfld(func, X, nbrs_idx=None, k=30, distance_free=True, n_int_steps=20):
+    n, d = X.shape
+    if nbrs_idx is None:
+        alg = 'ball_tree' if d > 10 else 'kd_tree'
+        nbrs = NearestNeighbors(n_neighbors=k+1, algorithm=alg).fit(X)
+        dist, nbrs_idx = nbrs.kneighbors(X)
+    
+    V = sp.csr_matrix((n, n))
+    for i, idx in tqdm(enumerate(nbrs_idx), desc='Constructing discrete vector field function on graph'):
+        x = X[i]
+        Y = X[idx[1:]]
+        for j, y in enumerate(Y):
+            pts = np.linspace(x, y, n_int_steps)
+            v = func(pts)
+
+            u = (y - x) / np.linalg.norm(y - x)
+            v = np.mean(v.dot(u))
+            if not distance_free:
+                v *= dist[i][j+1]
+            V[i, idx[j+1]] = v
+            V[idx[j+1], i] = -v
+    return V
+
+
 def SparseVFC(
     X,
     Y,
@@ -675,6 +700,10 @@ class vectorfield:
 
     def get_Jacobian(self):
         return nda.Jacobian(self.func)
+    
+
+    def construct_graph(self, X, **kwargs):
+        return graphize_vecfld(self.func, X, **kwargs)
 
 
     def evaluate(self, CorrectIndex, VFCIndex, siz):
