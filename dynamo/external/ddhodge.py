@@ -58,11 +58,11 @@ def laplacian1(g):
     return cur_mat.T.dot(cur_mat) - grad_mat.dot(grad_mat.T)
 
 
-def potential(g):
+def potential(g, div_neg=None):
     """potential is related to the instrinsic time. Note that the returned value from this function is the negative of
     potential. Thus small potential can related to smaller intrinsic time and vice versa."""
 
-    div_neg = -div(g)
+    div_neg = -div(g) if div_neg is None else div_neg
     g_undirected = g.copy()
     g_undirected.to_undirected()
     L = np.array(g_undirected.laplacian())
@@ -140,11 +140,11 @@ def ddhoge(adata,
         X_data: `np.ndarray` (default: `None`)
             The user supplied expression (embedding) data that will be used for graph hodege decomposition directly.
         layer: `str` or None (default: None)
-            Which layer of the data will be used for graph hodege decomposition.
+            Which layer of the data will be used for graph Hodge decomposition.
         basis: `str` (default: `umap`)
-            Which basis of the data will be used for  graph hodege decomposition.
+            Which basis of the data will be used for graph Hodge decomposition.
         dims: `list` or None (default: `None`)
-            The list of dimensions that will be selected for graph hodege decomposition. If `None`, all dimensions will
+            The list of dimensions that will be selected for graph Hodge decomposition. If `None`, all dimensions will
             be used.
         n: `int` (default: `10`)
             Number of nearest neighbors when the nearest neighbor graph is not included.
@@ -196,4 +196,5 @@ def ddhoge(adata,
     g = build_graph(adj_mat)
 
     adata.obsp['ddhodge'] = adj_mat
-    adata.obs['divergence'], adata.obs['potential'] = div(g), potential(g)
+    adata.obs['divergence'] = div(g)
+    adata.obs['potential'] = potential(g, - adata.obs['divergence'])
