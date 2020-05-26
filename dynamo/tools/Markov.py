@@ -177,8 +177,11 @@ def compute_tau(X, V, k=100, nbr_idx=None):
     return tau, v
 
 
-def diffusionMatrix(V_mat):
+def diffusionMatrix2D(V_mat):
     """Function to calculate cell-specific diffusion matrix for based on velocity vectors of neighbors.
+
+    This function works for two dimension --  check `diffusion_matrix` from stochastic_process.py for generalization to
+    arbitrary dimensions.
 
     Parameters
     ----------
@@ -192,7 +195,8 @@ def diffusionMatrix(V_mat):
 
     D = np.zeros(
         (V_mat.shape[0], 2, 2)
-    )  # this one works for two dimension -- generalize it to high dimensions
+    )
+
     D[:, 0, 0] = np.mean(
         (V_mat[:, :, 0] - np.mean(V_mat[:, :, 0], axis=1)[:, None]) ** 2, axis=1
     )
@@ -201,7 +205,7 @@ def diffusionMatrix(V_mat):
     )
     D[:, 0, 1] = np.mean(
         (V_mat[:, :, 0] - np.mean(V_mat[:, :, 0], axis=1)[:, None])
-        * (V_mat[:, :, 0] - np.mean(V_mat[:, :, 0], axis=1)[:, None]),
+        * (V_mat[:, :, 1] - np.mean(V_mat[:, :, 1], axis=1)[:, None]),
         axis=1,
     )
     D[:, 1, 0] = D[:, 0, 1]
@@ -307,7 +311,7 @@ def velocity_on_grid(
         :, None
     ]
     # calculate diffusion matrix D
-    D = diffusionMatrix(V_emb[neighs])
+    D = diffusionMatrix2D(V_emb[neighs])
 
     X_grid, V_grid = grid_velocity_filter(
         V_emb,

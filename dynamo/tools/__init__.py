@@ -142,3 +142,6 @@ from .sampling import (
     TRNET,
     trn
 )
+
+# stochastic process related
+from .stochastic_process import diffusionMatrix
