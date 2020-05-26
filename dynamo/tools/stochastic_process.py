@@ -1,0 +1,145 @@
+import numpy as np
+from tqdm import tqdm
+from sklearn.neighbors import NearestNeighbors
+from .scVectorField import vector_field_function
+
+def diffusion_matrix(adata,
+              X_data=None,
+              V_data=None,
+              genes=None,
+              layer=None,
+              basis="umap",
+              dims=None,
+              n=30,
+              VecFld=None,
+              residual='vector_field'):
+    """"Calculate the diffusion matrix from the estimated velocity vector and reconstructed vector field.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object.
+        X_data: `np.ndarray` (default: `None`)
+            The user supplied data that will be used for clustering directly.
+        genes: `list` or None (default: `None`)
+            The list of genes that will be used to subset the data for dimension reduction and clustering. If `None`, all
+            genes will be used.
+        layer: `str` or None (default: None)
+            Which layer of the data will be used for vector field function reconstruction. This will be used in conjunction
+            with X.
+        basis: `str` (default: `trimap`)
+            The reduced dimension embedding of cells to visualize.
+        n: `int` (default: `10`)
+            Number of samples for calculating the fixed points.
+        dims: `list` or None (default: `None`)
+            The list of dimensions that will be selected for clustering. If `None`, all dimensions will be used.
+        VecFld: `dictionary` or None (default: None)
+            The reconstructed vector field function.
+        residual: `str` or None (default: `vector_field`)
+            Method to calculate residual velocity vectors for diffusion matrix calculation. If `average`, all velocity
+            of the nearest neighbor cells will be minus by its average velocity; if `vector_field`, all velocity will be
+            minus by the predicted velocity from the reconstructed deterministic velocity vector field.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            `AnnData` object that is updated with the `diffusion_matrix` key in the `uns` attribute which is a list of
+            the diffusion matrix for each cell. A columns `diffusion` corresponds to the square root of the same of all
+            elements for each cell's diffusion matrix will also be added.
+    """
+
+    if X_data is None or V_data is not None:
+        if genes is not None:
+            genes = adata.var_name.intersection(genes).to_list()
+            if len(genes) == 0:
+                raise ValueError(f'no genes from your genes list appear in your adata object.')
+        if layer is not None:
+            if layer not in adata.layers.keys():
+                raise ValueError(f'the layer {layer} you provided is not included in the adata object!')
+
+            if basis is None:
+                vkey = 'velocity_' + layer[0].upper()
+                if vkey not in adata.obsm.keys():
+                    raise ValueError(
+                        f'the data corresponds to the velocity key {vkey} is not included in the adata object!')
+
+        if VecFld is None:
+            VecFld_key = 'VecFld' if basis is None else "VecFld_" + basis
+            if VecFld_key not in adata.uns.keys():
+                raise ValueError(
+                    f'Vector field function {VecFld_key} is not included in the adata object!'
+                    f'Try firstly running dyn.tl.VectorField(adata, basis={basis})')
+            func = lambda x: vector_field_function(x, VecFld)
+
+        prefix = 'X_' if layer is None else layer + '_'
+
+        if basis is not None:
+            if basis.split(prefix)[-1] not in ['pca', 'umap', 'trimap', 'tsne', 'diffmap']:
+                raise ValueError(f"basis (or the suffix of basis) can only be one of "
+                                 f"['pca', 'umap', 'trimap', 'tsne', 'diffmap'].")
+            if basis.startswith(prefix):
+                basis = basis
+            else:
+                basis = prefix + basis
+
+            vkey = "velocity_" + prefix[:-1]
+            if vkey not in adata.obsm.keys():
+                raise ValueError(f'the data corresponds to the velocity key {vkey} is not included in the adata object!')
+
+        if basis == None:
+            if layer == None:
+                if genes is not None:
+                    X_data, V_data = adata[:, genes].X, adata[:, genes].uns['velocity_S']
+                else:
+                    if 'use_for_dynamo' not in adata.var.keys():
+                        X_data, V_data = adata.X, adata.uns['velocity_S']
+                    else:
+                        X_data, V_data = adata[:, adata.var.use_for_dynamo].X, \
+                                         adata[:, adata.var.use_for_dynamo].uns['velocity_S']
+            else:
+                if genes is not None:
+                    X_data, V_data = adata[:, genes].layers[layer], adata[:, genes].uns[vkey]
+                else:
+                    if 'use_for_dynamo' not in adata.var.keys():
+                        X_data, V_data = adata.layers[layer], adata.uns['velocity_'+layer[0].upper()]
+                    else:
+                        X_data, V_data = adata[:, adata.var.use_for_dynamo].layers[layer], \
+                                         adata[:, adata.var.use_for_dynamo].uns[vkey]
+        else:
+            X_data, V_data = adata.obsm[basis], adata.obsm[vkey]
+
+    if dims is not None:
+        X_data, V_data = X_data[:, dims], V_data[:, dims]
+
+    neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
+    if neighbor_key not in adata.uns_keys():
+        nbrs = NearestNeighbors(n_neighbors=n, algorithm='ball_tree').fit(X_data)
+        _, Idx = nbrs.kneighbors(X_data)
+    else:
+        neighbors = adata.uns[neighbor_key]["connectivities"]
+        Idx = neighbors.tolil().rows
+
+    if residual == 'average':
+        V_ave = np.zeros_like(V_data)
+        val = np.zeros((V_data.shape[0], 1))
+        for i in range(X_data.shape[0]):
+            vv = V_data[Idx[i]]
+            V_ave[i] = vv.mean(0)
+    elif residual == 'vector_field':
+        V_ave = func(X_data)
+    else:
+        raise ValueError(f'The method for calculate residual {residual} is not supported. '
+                         f'Currently only {"average", "vector_field"} supported.')
+
+    V_diff = V_data - V_ave
+    dmatrix = [None] * V_data.shape[0]
+
+    for i in range(X_data.shape[0]):
+        vv = V_diff[Idx[i]]
+        d = np.cov(vv.T)
+        val[i] = np.sqrt(sum(d))
+        dmatrix[i] = d
+
+    adata.obs['diffusion'] = val
+    adata.uns['diffusion_matrix'] = dmatrix
+
