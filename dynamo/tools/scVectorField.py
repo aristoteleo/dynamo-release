@@ -6,12 +6,11 @@ import scipy.sparse as sp
 from scipy.linalg import lstsq
 from scipy.spatial.distance import cdist
 from sklearn.neighbors import NearestNeighbors
-import numdifftools as nda
 import warnings
 import time
 from .utils import update_dict, update_n_merge_dict, linear_least_squares, timeit
 from .sampling import sample_by_velocity
-
+from .vector_calculus import get_fjac, compute_divergence
 
 def norm(X, V, T):
     """Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
@@ -298,22 +297,8 @@ def vector_field_function(x, VecFld, dim=None, kernel='full', **kernel_kwargs):
     if dim is None:
         K = K.dot(VecFld["C"])
     else:
-        K = K.dot(VecFld["C"]) if con_K_div_cur_free else K.dot(VecFld["C"][:, dim])
+        K = K.dot(VecFld["C"]) if has_div_cur_free_kernels else K.dot(VecFld["C"][:, dim])
     return K
-
-
-@timeit
-def compute_divergence(f_jac, X, vectorize=True):
-    if vectorize:
-        J = f_jac(X)
-        div = np.trace(J)
-    else:
-        div = np.zeros(len(X))
-        for i in tqdm(range(len(X)), desc="Calculating divergence"):
-            J = f_jac(X[i])
-            div[i] = np.trace(J)
-
-    return div
 
 
 @timeit
@@ -703,15 +688,8 @@ class vectorfield:
 
 
     def get_Jacobian(self, input_vector_convention='row'):
-        fjac = nda.Jacobian(lambda x: self.func(x.T).T)
-        if input_vector_convention == 'row' or input_vector_convention == 0:
-            def f_aux(x):
-                x = x.T
-                return fjac(x)
-            return f_aux
-        else:
-            return fjac
-    
+        return get_fjac(self.func, input_vector_convention)
+
 
     def construct_graph(self, X, **kwargs):
         return graphize_vecfld(self.func, X, **kwargs)

@@ -145,3 +145,6 @@ from .sampling import (
 
 # stochastic process related
 from .stochastic_process import diffusionMatrix
+
+# vfGraph operation related:
+from .vfGraph import vfGraph
