@@ -2,6 +2,7 @@ from tqdm import tqdm
 import numpy.matlib
 from numpy import format_float_scientific as scinot
 import numpy as np
+import scipy.sparse as sp
 from scipy.linalg import lstsq
 from scipy.spatial.distance import cdist
 from sklearn.neighbors import NearestNeighbors

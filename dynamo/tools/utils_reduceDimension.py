@@ -34,8 +34,8 @@ def prepare_dim_reduction(adata,
         else:
             basis = prefix + basis
 
-    if basis == None:
-        if layer == None:
+    if basis is None:
+        if layer is None:
             if genes is not None:
                 X_data = adata[:, genes].X
             else:
@@ -54,7 +54,7 @@ def prepare_dim_reduction(adata,
         if basis not in adata.obsm.keys():
             if genes is not None or pca_key not in adata.obsm.keys() or \
                     adata.obsm[pca_key].shape[1] < n_pca_components:
-                if layer == None:
+                if layer is None:
                     if genes is not None:
                         CM = adata[:, genes].X
                     else:
