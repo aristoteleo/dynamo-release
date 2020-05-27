@@ -303,12 +303,15 @@ def vector_field_function(x, VecFld, dim=None, kernel='full', **kernel_kwargs):
 
 
 @timeit
-def compute_divergence(func, X):
-    f_jac = nda.Jacobian(func)
-    div = np.zeros(len(X))
-    for i in tqdm(range(len(X)), desc="Calculating divergence"):
-        J = f_jac(X[i])
-        div[i] = np.trace(J)
+def compute_divergence(f_jac, X, vectorize=True):
+    if vectorize:
+        J = f_jac(X)
+        div = np.trace(J)
+    else:
+        div = np.zeros(len(X))
+        for i in tqdm(range(len(X)), desc="Calculating divergence"):
+            J = f_jac(X[i])
+            div[i] = np.trace(J)
 
     return div
 
@@ -695,12 +698,19 @@ class vectorfield:
         plot_energy(None, vecfld_dict=self.vf_dict, figsize=figsize, fig=fig)
 
 
-    def compute_divergence(self, X, timeit=False):
-        return compute_divergence(self.func, X, timeit=timeit)
+    def compute_divergence(self, X, vectorize=True, timeit=False):
+        return compute_divergence(self.get_Jacobian(), X, vectorize=vectorize, timeit=timeit)
 
 
-    def get_Jacobian(self):
-        return nda.Jacobian(self.func)
+    def get_Jacobian(self, input_vector_convention='row'):
+        fjac = nda.Jacobian(lambda x: self.func(x.T).T)
+        if input_vector_convention == 'row' or input_vector_convention == 0:
+            def f_aux(x):
+                x = x.T
+                return fjac(x)
+            return f_aux
+        else:
+            return fjac
     
 
     def construct_graph(self, X, **kwargs):
