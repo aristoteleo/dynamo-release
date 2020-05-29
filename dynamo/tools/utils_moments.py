@@ -11,6 +11,7 @@ from scipy.integrate import odeint
 from scipy.optimize import least_squares
 from numba import jitclass  # import the decorator
 from numba import float32  # import the types
+from .sampling import lhsclassic
 
 spec = [
     ("a", float32),
@@ -263,8 +264,6 @@ class estimation:
     def _lhsclassic(self, samples):
         # From PyDOE
         # Generate the intervals
-        from .utils import lhsclassic
-
         H = lhsclassic(samples, self.n_params)
 
         return H

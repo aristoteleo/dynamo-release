@@ -80,3 +80,24 @@ def sample_by_velocity(V, n):
     p = tmp_V / np.sum(tmp_V)
     idx = np.random.choice(np.arange(len(V)), size=n, p=p, replace=False)
     return idx
+
+def lhsclassic(n_samples, n_dim):
+    # From PyDOE
+    # Generate the intervals
+    cut = np.linspace(0, 1, n_samples + 1)
+
+    # Fill points uniformly in each interval
+    u = np.random.rand(n_samples, n_dim)
+    a = cut[:n_samples]
+    b = cut[1 : n_samples + 1]
+    rdpoints = np.zeros(u.shape)
+    for j in range(n_dim):
+        rdpoints[:, j] = u[:, j] * (b - a) + a
+
+    # Make the random pairings
+    H = np.zeros(rdpoints.shape)
+    for j in range(n_dim):
+        order = np.random.permutation(range(n_samples))
+        H[:, j] = rdpoints[order, j]
+
+    return H

@@ -4,11 +4,11 @@ from numpy import format_float_scientific as scinot
 import numpy as np
 import scipy.sparse as sp
 from scipy.linalg import lstsq
-from scipy.spatial.distance import cdist
+from scipy.spatial.distance import cdist, pdist
 from sklearn.neighbors import NearestNeighbors
 import warnings
 import time
-from .utils import update_dict, update_n_merge_dict, linear_least_squares, timeit
+from .utils import update_dict, update_n_merge_dict, linear_least_squares, timeit, index_condensed_matrix
 from .sampling import sample_by_velocity
 from .vector_calculus import get_fjac, compute_divergence
 
@@ -301,14 +301,30 @@ def vector_field_function(x, VecFld, dim=None, kernel='full', **kernel_kwargs):
     return K
 
 
+def compute_divergence(f_jac, X, vectorize=True):
+    if vectorize:
+        J = f_jac(X)
+        div = np.trace(J)
+    else:
+        div = np.zeros(len(X))
+        for i in tqdm(range(len(X)), desc="Calculating divergence"):
+            J = f_jac(X[i])
+            div[i] = np.trace(J)
+
+    return div
+
+
 @timeit
-def graphize_vecfld(func, X, nbrs_idx=None, k=30, distance_free=True, n_int_steps=20):
+def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True, n_int_steps=20):
     n, d = X.shape
     if nbrs_idx is None:
         alg = 'ball_tree' if d > 10 else 'kd_tree'
         nbrs = NearestNeighbors(n_neighbors=k+1, algorithm=alg).fit(X)
         dist, nbrs_idx = nbrs.kneighbors(X)
     
+    if dist is None and not distance_free:
+        D = pdist(X)
+
     V = sp.csr_matrix((n, n))
     for i, idx in tqdm(enumerate(nbrs_idx), desc='Constructing discrete vector field function on graph'):
         x = X[i]
@@ -320,7 +336,11 @@ def graphize_vecfld(func, X, nbrs_idx=None, k=30, distance_free=True, n_int_step
             u = (y - x) / np.linalg.norm(y - x)
             v = np.mean(v.dot(u))
             if not distance_free:
-                v *= dist[i][j+1]
+                if dist is None:
+                    d = D[index_condensed_matrix(n, i, idx[j+1])]
+                else:
+                    d = dist[i][j+1]
+                v *= d
             V[i, idx[j+1]] = v
             V[idx[j+1], i] = -v
     return V
@@ -684,11 +704,35 @@ class vectorfield:
 
 
     def compute_divergence(self, X, vectorize=True, timeit=False):
-        return compute_divergence(self.get_Jacobian(), X, vectorize=vectorize, timeit=timeit)
+        X_ = X.T if vectorize else X
+        return compute_divergence(self.get_Jacobian(1), X_, vectorize=vectorize, timeit=timeit)
 
 
     def get_Jacobian(self, input_vector_convention='row'):
-        return get_fjac(self.func, input_vector_convention)
+        '''
+            Get the numericall Jacobian of the vector field function.
+            If the input_vector_convention is 'row', it means that fjac takes row vectors
+            as input, otherwise the input should be an array of column vectors. Note that
+            the returned Jacobian would behave exactly the same if the input is an 1d array.
+
+            The column vector convention is slighly faster than the row vector convention.
+
+            No matter the input vector convention, the returned Jacobian is of the folloing
+            format:
+                    df_1/dx_1   df_1/dx_2   df_1/dx_3   ...
+                    df_2/dx_1   df_2/dx_2   df_2/dx_3   ...
+                    df_3/dx_1   df_3/dx_2   df_3/dx_3   ...
+                    ...         ...         ...         ...
+        '''
+        fjac = nda.Jacobian(lambda x: self.func(x.T).T)
+        if input_vector_convention == 'row' or input_vector_convention == 0:
+            def faux(x):
+                x = x.T
+                return fjac(x)
+            return faux
+        else:
+            return fjac
+        #return get_fjac(self.func, input_vector_convention)
 
 
     def construct_graph(self, X, **kwargs):

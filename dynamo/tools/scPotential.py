@@ -12,7 +12,8 @@ from .Wang import Wang_action, Wang_LAP
 # the LAP method should be rewritten in TensorFlow/PyTorch using optimization with SGD
 
 from .topography import FixedPoints
-from .utils import lhsclassic, is_outside_domain
+from .utils import is_outside_domain
+from .sampling import lhsclassic
 from warnings import warn
 
 def search_fixed_points(func, domain, x0, x0_method='lhs', 
