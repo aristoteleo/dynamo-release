@@ -1,8 +1,7 @@
 from tqdm import tqdm
 import numpy as np
 import numdifftools as nd
-from .scVectorField import vector_field_function
-
+from .utils import timeit
 
 def grad(f, x):
     """Gradient of scalar-valued function f evaluated at x"""
@@ -15,10 +14,38 @@ def laplacian(f, x):
     return sum(hes)
 
 
+def get_fjac(f, input_vector_convention='row'):
+    """return a function that calculates Jacobian matrix"""
+    fjac = nd.Jacobian(lambda x: f(x.T).T)
+    if input_vector_convention == 'row' or input_vector_convention == 0:
+        def f_aux(x):
+            x = x.T
+            return fjac(x)
+
+        return f_aux
+    else:
+        return fjac
+
+
 def divergence(f, x):
     """Divergence of the reconstructed vector field function f evaluated at x"""
     jac = nd.Jacobian(f)(x)
     return np.trace(jac)
+
+
+@timeit
+def compute_divergence(f_jac, X, vectorize=True):
+    """calculate divergence for many samples by taking the trace of a Jacobian matrix"""
+    if vectorize:
+        J = f_jac(X)
+        div = np.trace(J)
+    else:
+        div = np.zeros(len(X))
+        for i in tqdm(range(len(X)), desc="Calculating divergence"):
+            J = f_jac(X[i])
+            div[i] = np.trace(J)
+
+    return div
 
 
 def curl(f, x):
@@ -67,7 +94,7 @@ def Curl(adata,
     X_data = adata.obsm["X_" + basis]
 
     curl = np.zeros((adata.n_obs, 1))
-    func = lambda x: vector_field_function(x, vecfld_dict['VecFld'])
+    func = vecfld_dict['func']
 
     for i, x in tqdm(enumerate(X_data), f"Calculating curl with the reconstructed vector field on the {basis} basis. "):
         curl[i] = curl2d(func, x.flatten())
@@ -106,10 +133,8 @@ def Divergence(adata,
 
     X_data = adata.obsm["X_" + basis]
 
-    div = np.zeros((adata.n_obs, 1))
-    func = lambda x: vector_field_function(x, vecfld_dict['VecFld'])
+    func = vecfld_dict['func']
 
-    for i, x in tqdm(enumerate(X_data), f"Calculating divergence with the reconstructed vector field on the {basis} basis. "):
-        div[i] = divergence(func, x.flatten())
+    div = compute_divergence(get_fjac(func), X_data, vectorize=True)
 
     adata.obs['divergence'] = div

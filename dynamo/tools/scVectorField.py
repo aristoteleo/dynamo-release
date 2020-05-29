@@ -6,12 +6,11 @@ import scipy.sparse as sp
 from scipy.linalg import lstsq
 from scipy.spatial.distance import cdist, pdist
 from sklearn.neighbors import NearestNeighbors
-import numdifftools as nda
 import warnings
 import time
 from .utils import update_dict, update_n_merge_dict, linear_least_squares, timeit, index_condensed_matrix
 from .sampling import sample_by_velocity
-
+from .vector_calculus import get_fjac, compute_divergence
 
 def norm(X, V, T):
     """Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
@@ -298,11 +297,10 @@ def vector_field_function(x, VecFld, dim=None, kernel='full', **kernel_kwargs):
     if dim is None:
         K = K.dot(VecFld["C"])
     else:
-        K = K.dot(VecFld["C"]) if con_K_div_cur_free else K.dot(VecFld["C"][:, dim])
+        K = K.dot(VecFld["C"]) if has_div_cur_free_kernels else K.dot(VecFld["C"][:, dim])
     return K
 
 
-@timeit
 def compute_divergence(f_jac, X, vectorize=True):
     if vectorize:
         J = f_jac(X)
@@ -734,7 +732,8 @@ class vectorfield:
             return faux
         else:
             return fjac
-    
+        #return get_fjac(self.func, input_vector_convention)
+
 
     def construct_graph(self, X, **kwargs):
         return graphize_vecfld(self.func, X, **kwargs)
