@@ -1,4 +1,4 @@
-from .utils import lhsclassic
+from .sampling import lhsclassic
 from .moments import strat_mom
 from scipy.optimize import least_squares
 from scipy.stats import chi2

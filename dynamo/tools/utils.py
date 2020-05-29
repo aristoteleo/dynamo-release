@@ -118,7 +118,9 @@ def form_triu_matrix(arr):
     return M
 
 def index_condensed_matrix(n, i, j):
-    """Return the index of a condensed n-by-n square matrix by the row index i and column index j of the square form.
+    """
+    Return the index of an element in a condensed n-by-n square matrix 
+    by the row index i and column index j of the square form.
 
     Arguments
     ---------
@@ -134,6 +136,11 @@ def index_condensed_matrix(n, i, j):
         k: int
             The index of the element in the condensed matrix.
     """
+    if i == j:
+        warnings.warn('Diagonal elements (i=j) are not stored in condensed matrices.')
+        return None
+    elif i > j:
+        i, j = j, i
     return int(i * (n - (i + 3) * 0.5) + j - 1)
 
 
@@ -834,26 +841,6 @@ def get_U_S_for_velocity_estimation(
 
 # ---------------------------------------------------------------------------------------------------
 # estimation related
-def lhsclassic(n_samples, n_dim):
-    # From PyDOE
-    # Generate the intervals
-    cut = np.linspace(0, 1, n_samples + 1)
-
-    # Fill points uniformly in each interval
-    u = np.random.rand(n_samples, n_dim)
-    a = cut[:n_samples]
-    b = cut[1 : n_samples + 1]
-    rdpoints = np.zeros(u.shape)
-    for j in range(n_dim):
-        rdpoints[:, j] = u[:, j] * (b - a) + a
-
-    # Make the random pairings
-    H = np.zeros(rdpoints.shape)
-    for j in range(n_dim):
-        order = np.random.permutation(range(n_samples))
-        H[:, j] = rdpoints[order, j]
-
-    return H
 
 def calc_R2(X, Y, k, f=lambda X, k: np.einsum('ij,i -> ij', X, k)):
     """calculate R-square. X, Y: n_species (mu, sigma) x n_obs"""
@@ -903,9 +890,9 @@ def calc_norm_loglikelihood(X, Y, k, f=lambda X, k: np.einsum('ij,i -> ij', X, k
         LogLL += norm_loglikelihood(Y[i], F[i], np.sqrt(sig[i] / n))
 
     return LogLL
+
 # ---------------------------------------------------------------------------------------------------
 # velocity related
-
 
 def find_extreme(s, u, normalize=True, perc_left=None, perc_right=None):
     if normalize:
