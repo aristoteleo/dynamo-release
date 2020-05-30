@@ -502,6 +502,9 @@ def VectorField(
         method: `str` (default: `sparseVFC`)
             Method that is used to reconstruct the vector field functionally. Currently only SparseVFC supported but other
             improved approaches are under development.
+        return_vf_object: `bool` (default: `False`)
+            Whether or not to include an instance of a vectorfield class in the the `VecFld` dictionary in the `uns`
+            attribute.
         kwargs:
             Other additional parameters passed to the vectorfield class.
 
@@ -594,5 +597,6 @@ def VectorField(
         )
 
     if return_vf_object:
-        return VecFld
+        adata.uns[vf_key].update({"vf_object": VecFld})
+
 

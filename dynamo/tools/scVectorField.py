@@ -2,6 +2,7 @@ from tqdm import tqdm
 import numpy.matlib
 from numpy import format_float_scientific as scinot
 import numpy as np
+import numdifftools as nda
 import scipy.sparse as sp
 from scipy.linalg import lstsq
 from scipy.spatial.distance import cdist, pdist
@@ -55,6 +56,7 @@ def norm(X, V, T):
 
     return X, V, T, norm_dict
 
+
 def bandwidth_rule_of_thumb(X, return_sigma=False):
     '''
         This function computes a rule-of-thumb bandwidth for a Gaussian kernel based on:
@@ -67,6 +69,7 @@ def bandwidth_rule_of_thumb(X, return_sigma=False):
     else:
         return h
 
+
 def bandwidth_selector(X):
     '''
         This function computes a empirical bandwidth for a Gaussian kernel.
@@ -76,6 +79,7 @@ def bandwidth_selector(X):
     distances, _ = nbrs.kneighbors(X)
     d = np.mean(distances[:, 1:]) / 1.5
     return np.sqrt(2) * d
+
 
 def denorm(VecFld, X_old, V_old, norm_dict):
     """Denormalize data back to the original scale.
@@ -420,6 +424,7 @@ def SparseVFC(
         A dictionary which contains:
             X: Current state.
             X_ctrl: Sample control points of current state.
+            ctrl_idx: Indices for the sampled control points.
             Y: Velocity estimates in delta t.
             beta: Parameter of the Gaussian Kernel for the kernel matrix (Gram matrix).
             V: Prediction of velocity of X.
@@ -551,6 +556,7 @@ def SparseVFC(
     VecFld = {
         "X": X.reshape((N, D)) if div_cur_free_kernels else X,
         "X_ctrl": ctrl_pts,
+        "ctrl_idx": idx,
         "Y": Y.reshape((N, D)) if div_cur_free_kernels else Y,
         "beta": beta,
         "V": V.reshape((N, D)) if div_cur_free_kernels else V,
@@ -710,14 +716,16 @@ class vectorfield:
 
     def get_Jacobian(self, input_vector_convention='row'):
         '''
-            Get the numericall Jacobian of the vector field function.
+            Get the numerical Jacobian of the vector field function.
             If the input_vector_convention is 'row', it means that fjac takes row vectors
             as input, otherwise the input should be an array of column vectors. Note that
             the returned Jacobian would behave exactly the same if the input is an 1d array.
 
-            The column vector convention is slighly faster than the row vector convention.
+            The column vector convention is slightly faster than the row vector convention.
+            So the matrix of row vector convention is converted into column vector convention
+            in the hood.
 
-            No matter the input vector convention, the returned Jacobian is of the folloing
+            No matter the input vector convention, the returned Jacobian is of the following
             format:
                     df_1/dx_1   df_1/dx_2   df_1/dx_3   ...
                     df_2/dx_1   df_2/dx_2   df_2/dx_3   ...
