@@ -132,9 +132,9 @@ def scribe(adata,
         adata.layers[nt_layers[0]] = normalize_data(new, szfactors, pseudo_expr=0.1)
         adata.layers[nt_layers[1]] = normalize_data(total, szfactors, pseudo_expr=0.1)
 
-    TFs = adata.var_names[adata.var.index.isin(TF_list)].to_list() if TFs is not None else np.unique(TFs)
+    TFs = adata.var_names[adata.var.index.isin(TF_list)].to_list() if TFs is None else np.unique(TFs)
 
-    Targets = adata.var_names.difference(TFs).to_list() if Targets is not None else np.unique(Targets)
+    Targets = adata.var_names.difference(TFs).to_list() if Targets is None else np.unique(Targets)
 
     if genes is not None:
         TFs = list(set(genes).intersection(TFs))
@@ -143,8 +143,11 @@ def scribe(adata,
     if len(TFs) == 0 or len(Targets) == 0:
         raise Exception('The TFs or Targets are empty! Something (input TFs/Targets list, gene_filter_rate, etc.) is wrong.')
 
+    print(f"Potential TFs are: {len(TFs)}")
+    print(f"Potential Targets are: {len(Targets)}")
+
     causal_net_dynamics_coupling(adata, TFs, Targets, t0_key=nt_layers[1], t1_key=nt_layers[0], normalize=False)
-    res_dict = {"RDI": adata.uns['causal_net']}
+    res_dict = {"RDI": adata.uns['causal_net']["RDI"]}
     if do_CLR: res_dict.update({"CLR": CLR(res_dict['RDI'])})
 
     if TF_link_ENCODE_ref is not None:
@@ -152,8 +155,8 @@ def scribe(adata,
         df_gene_TF_link_ENCODE['id_gene'] = df_gene_TF_link_ENCODE['id'].astype('str') + '_' + \
                                             df_gene_TF_link_ENCODE['linked_gene_name'].astype('str')
 
-        df_gene = adata.var.loc[:, ['gene_id', 'gene_short_name', 'gene_type']]
-        df_gene.columns = ['linked_gene', 'linked_gene_name', 'gene_type']
+        df_gene = pd.DataFrame(adata.var.index, index=adata.var.index)
+        df_gene.columns = ['linked_gene']
 
         net = res_dict[list(res_dict.keys())[-1]]
         net = net.reset_index().melt(id_vars='index', id_names='id', var_name='linked_gene', value_name='corcoef')
