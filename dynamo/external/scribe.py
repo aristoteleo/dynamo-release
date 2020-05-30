@@ -13,6 +13,7 @@ def scribe(adata,
            nt_layers=['new', 'total'],
            normalize=True,
            do_CLR=True,
+           drop_zero_cells=True,
            TF_link_ENCODE_ref='https://www.dropbox.com/s/bjuope41pte7mf4/df_gene_TF_link_ENCODE.csv?dl=1',
            ):
     """Apply Scribe to calculate causal network from spliced/unspliced, metabolic labeling based and other "real" time
@@ -48,13 +49,17 @@ def scribe(adata,
             By default it is a dropbox link that store the data from us. Other motif reference can bed downloaded from RcisTarget:
             https://resources.aertslab.org/cistarget/. For human motif matrix, it can be downloaded from June's shared folder:
             https://shendure-web.gs.washington.edu/content/members/cao1025/public/nobackup/sci_fate/data/hg19-tss-centered-10kb-7species.mc9nr.feather
-       nt_layers: `List` (Default: ['new', 'total'])
+        nt_layers: `List` (Default: ['new', 'total'])
             The two keys for layers that will be used for the network inference. Note that the layers can be changed
             flexibly. See the description of this function above. The first key corresponds to the transcriptome of the
             next time point, for example unspliced RNAs (or estimated velocitym, see Fig 6 of the Scribe preprint:
             https://www.biorxiv.org/content/10.1101/426981v1) from RNA velocity, old RNA from scSLAM-seq data, etc.
             The second key corresponds to the transcriptome of the initial time point, for example spliced RNAs from RNA
             velocity, old RNA from scSLAM-seq data.
+        drop_zero_cells: `bool` (Default: False)
+            Whether to drop cells that with zero expression for either the potential regulator or potential target. This
+            can signify the relationship between potential regulators and targets, speed up the calculation, but at the risk
+            of ignoring strong inhibition effects from certain regulators to targets.
         do_CLR: `bool` (Default: True)
             Whether to perform context likelihood relatedness analysis on the reconstructed causal network
         TF_link_ENCODE_ref: `str` (default: 'https://www.dropbox.com/s/s8em539ojl55kgf/motifAnnotations_hgnc.csv?dl=1')
@@ -146,7 +151,8 @@ def scribe(adata,
     print(f"Potential TFs are: {len(TFs)}")
     print(f"Potential Targets are: {len(Targets)}")
 
-    causal_net_dynamics_coupling(adata, TFs, Targets, t0_key=nt_layers[1], t1_key=nt_layers[0], normalize=False)
+    causal_net_dynamics_coupling(adata, TFs, Targets, t0_key=nt_layers[1], t1_key=nt_layers[0], normalize=False,
+                                 drop_zero_cells=drop_zero_cells)
     res_dict = {"RDI": adata.uns['causal_net']["RDI"]}
     if do_CLR: res_dict.update({"CLR": CLR(res_dict['RDI'])})
 
