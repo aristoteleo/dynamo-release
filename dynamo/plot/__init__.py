@@ -2,7 +2,7 @@
 """
 
 # from .theme import points
-from .utils import quiver_autoscaler
+from .utils import quiver_autoscaler, save_fig
 from .scatters import scatters
 
 from .preprocess import show_fraction, feature_genes, variance_explained

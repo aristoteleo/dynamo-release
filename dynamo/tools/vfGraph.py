@@ -9,7 +9,7 @@ class ConverterMixin(object):
 
 
 class vfGraph(ConverterMixin, ig.Graph):
-    """A class for manipulating the graph creating from the transition matrix, building from the (reconstructed) vector
+    """A class for manipulating the graph creating from the transition matrix, built from the (reconstructed) vector
     field. This is a derived class from igraph's Graph.
     """
 
@@ -18,7 +18,7 @@ class vfGraph(ConverterMixin, ig.Graph):
 
 
     def build_graph(self, adj_mat):
-        """build sparse diffusion graph. The adjacency matrix need to preserves divergence.
+        """build sparse diffusion graph. The adjacency matrix needs to preserves divergence.
         """
 
         sources, targets = adj_mat.nonzero()
