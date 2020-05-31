@@ -15,7 +15,23 @@ def laplacian(f, x):
 
 
 def get_fjac(f, input_vector_convention='row'):
-    """return a function that calculates Jacobian matrix"""
+    '''
+        Get the numerical Jacobian of the vector field function.
+        If the input_vector_convention is 'row', it means that fjac takes row vectors
+        as input, otherwise the input should be an array of column vectors. Note that
+        the returned Jacobian would behave exactly the same if the input is an 1d array.
+
+        The column vector convention is slightly faster than the row vector convention.
+        So the matrix of row vector convention is converted into column vector convention
+        in the hood.
+
+        No matter the input vector convention, the returned Jacobian is of the following
+        format:
+                df_1/dx_1   df_1/dx_2   df_1/dx_3   ...
+                df_2/dx_1   df_2/dx_2   df_2/dx_3   ...
+                df_3/dx_1   df_3/dx_2   df_3/dx_3   ...
+                ...         ...         ...         ...
+    '''
     fjac = nd.Jacobian(lambda x: f(x.T).T)
     if input_vector_convention == 'row' or input_vector_convention == 0:
         def f_aux(x):

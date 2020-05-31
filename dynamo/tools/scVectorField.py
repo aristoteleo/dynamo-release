@@ -305,19 +305,6 @@ def vector_field_function(x, VecFld, dim=None, kernel='full', **kernel_kwargs):
     return K
 
 
-def compute_divergence(f_jac, X, vectorize=True):
-    if vectorize:
-        J = f_jac(X)
-        div = np.trace(J)
-    else:
-        div = np.zeros(len(X))
-        for i in tqdm(range(len(X)), desc="Calculating divergence"):
-            J = f_jac(X[i])
-            div[i] = np.trace(J)
-
-    return div
-
-
 @timeit
 def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True, n_int_steps=20):
     n, d = X.shape
@@ -732,15 +719,8 @@ class vectorfield:
                     df_3/dx_1   df_3/dx_2   df_3/dx_3   ...
                     ...         ...         ...         ...
         '''
-        fjac = nda.Jacobian(lambda x: self.func(x.T).T)
-        if input_vector_convention == 'row' or input_vector_convention == 0:
-            def faux(x):
-                x = x.T
-                return fjac(x)
-            return faux
-        else:
-            return fjac
-        #return get_fjac(self.func, input_vector_convention)
+
+        return get_fjac(self.func, input_vector_convention)
 
 
     def construct_graph(self, X, **kwargs):

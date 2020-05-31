@@ -606,9 +606,9 @@ def topography(
     if quiver_source == "reconstructed" or (
         init_states is not None and init_cells is None
     ):
-        from ..tools.utils import vector_field_function
+        from ..tools.scVectorField import vector_field_function
 
-        V = vector_field_function(init_states, None, VF, [0, 1])
+        V = vector_field_function(init_states, VF, [0, 1])
 
     axes_list, color_list, font_color = scatters(
         adata,

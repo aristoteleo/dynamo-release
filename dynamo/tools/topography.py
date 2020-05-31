@@ -325,7 +325,7 @@ class VectorField2D:
         self, n, x_range, y_range, lhs=True, tol_redundant=1e-4
     ):
         if lhs:
-            from .utils import lhsclassic
+            from .sampling import lhsclassic
 
             X0 = lhsclassic(n, 2)
         else:
@@ -578,14 +578,14 @@ def VectorField(
     VecFld = vectorfield(X, V, Grid, **vf_kwargs)
     vf_dict = VecFld.fit(normalize=normalize, method=method, **kwargs)
 
+    vf_key = "VecFld" if basis is None else "VecFld_" + basis
     if basis is not None:
         vf_dict['dims'] = dims
-        adata.uns["VecFld_" + basis] = vf_dict
+        adata.uns[vf_key] = vf_dict
     else:
         vf_dict['layer'] = layer
         vf_dict['genes'] = genes
         vf_dict['velocity_key'] = velocity_key
-        vf_key = "VecFld" if layer == "X" else "VecFld_" + layer
         adata.uns[vf_key] = vf_dict
 
     if X.shape[1] == 2:
