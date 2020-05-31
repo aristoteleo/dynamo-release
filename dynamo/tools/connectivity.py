@@ -197,7 +197,7 @@ def umap_conn_indices_dist_embedding(
         print("Construct embedding")
 
     a, b = find_ab_params(spread, min_dist)
-
+    if type(graph) == tuple: graph = graph[0]
     embedding_ = simplicial_set_embedding(
         data=_raw_data,
         graph=graph,

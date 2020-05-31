@@ -21,7 +21,7 @@ setup(
         "trimap>=1.0.11",
         "setuptools",
         "numdifftools>=0.9.39",
-        "umap-learn>=0.3.9,<0.4",
+        "umap-learn>=0.4.3",
         "hdbscan>=0.8.26",
         "PATSY>=0.5.1",
         "statsmodels>=0.9.0",
