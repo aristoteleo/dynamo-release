@@ -9,6 +9,7 @@ figures/
 scripts/
 benchmarking/
 debug/
+integral_seq/
 
 dynamo.egg-info/
 

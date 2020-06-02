@@ -23,7 +23,7 @@ def get_fjac(f, input_vector_convention='row'):
 
         The column vector convention is slightly faster than the row vector convention.
         So the matrix of row vector convention is converted into column vector convention
-        in the hood.
+        under the hood.
 
         No matter the input vector convention, the returned Jacobian is of the following
         format:
@@ -41,6 +41,81 @@ def get_fjac(f, input_vector_convention='row'):
         return f_aux
     else:
         return fjac
+
+
+@timeit
+def elementwise_jacobian_transformation(fjac, X, qi, qj):
+    """Inverse transform low dimension Jacobian matrix (:math:`\partial F_i / \partial x_j`) back to original space.
+    The formula used to inverse transform Jacobian matrix calculated from low dimension (PCs) is:
+                                            :math:`Jac = Q J Q^T`,
+    where `Q, J, Jac` are the PCA loading matrix, low dimensional Jacobian matrix and the inverse transformed high
+    dimensional Jacobian matrix. This function only take one element from Q to form qi or qj.
+
+    Parameters
+    ----------
+        fjac: `function`:
+            The function for calculating numerical Jacobian matrix.
+        X: `np.ndarray`:
+            The samples coordinates with dimension n_obs x n_PCs, from which Jacobian will be calculated.
+        Qi: `np.ndarray`:
+            One sampled gene's PCs loading matrix with dimension n' x n_PCs, from which local dimension Jacobian matrix
+            (k x k) will be inverse transformed back to high dimension.
+        Qj: `np.ndarray`
+            Another gene's (can be the same as those in Qi or different) PCs loading matrix with dimension  n' x n_PCs,
+            from which local dimension Jacobian matrix (k x k) will be inverse transformed back to high dimension.
+
+    Returns
+    -------
+        ret `np.ndarray`
+            The calculated vector of Jacobian matrix (:math:`\partial F_i / \partial x_j`) for each cell.
+    """
+
+    Js = fjac(X)
+    ret = np.zeros(len(X))
+    for i in range(len(X)):
+        J = Js[:, :, i]
+        ret[i] = qi @ J @ qj
+    return ret
+
+
+@timeit
+def subset_jacobian_transformation(fjac, X, Qi, Qj):
+    """Inverse transform low dimension Jacobian matrix (:math:`\partial F_i / \partial x_j`) back to original space.
+    The formula used to inverse transform Jacobian matrix calculated from low dimension (PCs) is:
+                                            :math:`Jac = Q J Q^T`,
+    where `Q, J, Jac` are the PCA loading matrix, low dimensional Jacobian matrix and the inverse transformed high
+    dimensional Jacobian matrix. This function only take multiple elements from Q to form Qi or Qj.
+
+    Parameters
+    ----------
+        fjac: `function`:
+            The function for calculating numerical Jacobian matrix.
+        X: `np.ndarray`:
+            The samples coordinates with dimension n_obs x n_PCs, from which Jacobian will be calculated.
+        Qi: `np.ndarray`:
+            Sampled genes' PCs loading matrix with dimension n' x n_PCs, from which local dimension Jacobian matrix (k x k)
+            will be inverse transformed back to high dimension.
+        Qj: `np.ndarray`
+            Sampled genes' (sample genes can be the same as those in Qi or different) PCs loading matrix with dimension
+            n' x n_PCs, from which local dimension Jacobian matrix (k x k) will be inverse transformed back to high dimension.
+
+    Returns
+    -------
+        ret `np.ndarray`
+            The calculated Jacobian matrix (n_gene x n_gene x n_obs) for each cell.
+
+    """
+    X = np.atleast_2d(X)
+    Qi = np.atleast_2d(Qi)
+    Qj = np.atleast_2d(Qj)
+    d1, d2, n = Qi.shape[0], Qj.shape[0], X.shape[0]
+
+    Js = fjac(X)
+    ret = np.zeros((d1, d2, n))
+    for i in tqdm(range(n), desc='Transforming subset Jacobian'):
+        J = Js[:, :, i]
+        ret[:, :, i] = Qi @ J @ Qj.T
+    return ret
 
 
 def divergence(f, x):

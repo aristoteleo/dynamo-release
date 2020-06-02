@@ -710,7 +710,7 @@ class vectorfield:
 
             The column vector convention is slightly faster than the row vector convention.
             So the matrix of row vector convention is converted into column vector convention
-            in the hood.
+            under the hood.
 
             No matter the input vector convention, the returned Jacobian is of the following
             format:
