@@ -41,8 +41,8 @@ def get_finite_inds(X, ax=0):
 
 
 def get_pd_row_column_idx(df, queries, type='column'):
-    """Find multiple index/column numeric indices (matches) with a vectorized solution using searchsorted method.
-    Thus, with df as the dataframe and query_cols as the column names to be searched for, an implementation would be -
+    """Find the numeric indices of multiple index/column matches with a vectorized solution using np.searchsorted method.
+    adapted from: https://stackoverflow.com/questions/13021654/get-column-index-from-column-name-in-python-pandas
 
     Parameters
     ----------
@@ -52,14 +52,15 @@ def get_pd_row_column_idx(df, queries, type='column'):
             List of strings, corresponding to either column names or index of the `df` that will be used for finding
             indices.
         type: `{"column", "row:}` (default: "row")
-            The type of the queries, search, either `column` (list of queries are from column names) or "row" (list of
-            queries are from row names).
+            The type of the queries / search, either `column` (list of queries are from column names) or "row" (list of
+            queries are from index names).
 
     Returns
     -------
         Indices: `np.ndarray`
             One dimensional array for the numeric indices that corresponds to the matches of the queries.
     """
+
     names = df.columns.values if type == 'column' else df.index.values if type == 'row' else None
     sidx = np.argsort(names)
     Indices = sidx[np.searchsorted(names, queries, sorter=sidx)]

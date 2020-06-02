@@ -463,7 +463,7 @@ def VectorField(
     grid_num=50,
     velocity_key="velocity_S",
     method="SparseVFC",
-    return_vf_object=True,
+    return_vf_object=False,
     **kwargs,
 ):
     """Learn a function of high dimensional vector field from sparse single cell samples in the entire space robustly.
@@ -502,7 +502,7 @@ def VectorField(
         method: `str` (default: `sparseVFC`)
             Method that is used to reconstruct the vector field functionally. Currently only SparseVFC supported but other
             improved approaches are under development.
-        return_vf_object: `bool` (default: `True`)
+        return_vf_object: `bool` (default: `False`)
             Whether or not to include an instance of a vectorfield class in the the `VecFld` dictionary in the `uns`
             attribute.
         kwargs:

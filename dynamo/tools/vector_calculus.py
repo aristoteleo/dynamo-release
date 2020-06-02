@@ -236,12 +236,14 @@ def Jacobian(adata,
              target_genes,
              cell_idx=None,
              basis='pca',
-             nPCs=30,
              vecfld_dict=None,
              input_vector_convention='row',
              ):
-    """Calculate Jacobian for each cell with the reconstructed vector field function on PCA space and then inverse
-    transform back to high dimension.
+    """Calculate Jacobian for each cell with the reconstructed vector field function.
+
+    If the vector field was reconstructed from the reduced PCA space, the Jacobian matrix will then be inverse
+    transformed back to high dimension. Note that this should also be possible for reduced UMAP space and will be
+    supported shortly.
 
     Parameters
     ----------
@@ -251,35 +253,27 @@ def Jacobian(adata,
             The list of genes that will be used as regulators when calculating the cell-wise Jacobian matrix. Each of
             those genes' partial derivative will be placed in the denominator of each element of the Jacobian matrix.
             It can be used to access how much effect the increase of those genes will affect the change of the velocity
-            of the targets genes (see below).
+            of the target genes (see below).
         target_genes: `List` or `None` (default: None)
             The list of genes that will be used as targets when calculating the cell-wise Jacobian matrix. Each of
             those genes' velocities' partial derivative will be placed in the numerator of each element of the Jacobian
-            matrix. It can be used to access how much effect the velocity of the targets genes receives when increasing
+            matrix. It can be used to access how much effect the velocity of the target genes will receive when increasing
             the expression of the source genes (see above).
         basis: `str` or None (default: `pca`)
             The embedding data in which the vector field was reconstructed. If `None`, use the vector field function that
             was reconstructed directly from the original unreduced gene expression space.
         vecfld_dict: `dict`
-            The true ODE function, useful when the data is generated through simulation.
+            The true ODE (ordinary differential equations) function, useful when the data is generated through simulation
+            with known ODE functions.
 
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `Der` key in the .uns. This is a 3-dimensional tensor with dimensions
+            AnnData object that is updated with the `Jacobian` key in the .uns. This is a 3-dimensional tensor with dimensions
             n_obs x n_source_genes x n_target_genes.
     """
 
-    cell_idx = np.range(adata.n_obs) if cell_idx is None else cell_idx
-
-    var_df = adata[:, adata.var.use_for_velocity]
-    source_genes = var_df.var_names.intersection(source_genes)
-    target_genes = var_df.var_names.intersection(target_genes)
-
-    source_idx, target_idx = get_pd_row_column_idx(var_df, source_genes, "row"), \
-                             get_pd_row_column_idx(var_df, target_genes, "row")
-    if len(source_genes) == 0 or len(target_genes) == 0:
-        raise ValueError(f"the source and target gene list you provided are not in the velocity gene list!")
+    cell_idx = np.arange(adata.n_obs) if cell_idx is None else cell_idx
 
     if vecfld_dict is None:
         vf_key = 'VecFld' if basis is None else 'VecFld_' + basis
@@ -288,20 +282,34 @@ def Jacobian(adata,
                              f"Try firstly running dyn.tl.VectorField(adata, basis={basis}).")
 
         vecfld_dict = adata.uns[vf_key]
-    Q, func = adata.varm["PCs"][:, :nPCs], vecfld_dict['func']
 
-    X_data = adata.obsm["X_" + basis]
+    var_df = adata[:, adata.var.use_for_velocity].var
+    source_genes = var_df.var_names.intersection(source_genes)
+    target_genes = var_df.var_names.intersection(target_genes)
+
+    source_idx, target_idx = get_pd_row_column_idx(var_df, source_genes, "row"), \
+                             get_pd_row_column_idx(var_df, target_genes, "row")
+    if len(source_genes) == 0 or len(target_genes) == 0:
+        raise ValueError(f"the source and target gene list you provided are not in the velocity gene list!")
+
+    basis_ = basis if basis is None else "X_" + basis
+    PCs_ = "PCs" if basis is None else "PCs_" + basis
+    Jacobian_ = "Jacobian" if basis is None else "Jacobian_" + basis
+
+    Q, func = adata.varm[PCs_], vecfld_dict['func']
+
+    X_data = adata.obsm[basis_]
     Jac_fun = get_fjac(func, input_vector_convention)
 
     if basis is None:
-        Der = Jac_fun(X_data)
+        Jacobian = Jac_fun(X_data)
     else:
         if len(source_genes) == 1 and len(target_genes) == 1:
-            Der = elementwise_jacobian_transformation(Jac_fun, X_data[cell_idx], Q[source_idx, :],
+            Jacobian = elementwise_jacobian_transformation(Jac_fun, X_data[cell_idx], Q[source_idx, :],
                                                       Q[target_idx, :], timeit=True)
         else:
-            Der = subset_jacobian_transformation(Jac_fun, X_data[cell_idx], Q[source_idx, :],
+            Jacobian = subset_jacobian_transformation(Jac_fun, X_data[cell_idx], Q[source_idx, :],
                                                  Q[target_idx, :], timeit=True)
 
-    adata.uns['Der'] = Der
+    adata.uns[Jacobian_] = Jacobian
 
