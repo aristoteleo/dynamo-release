@@ -688,6 +688,8 @@ class vectorfield:
         }
 
         self.func = lambda x: vector_field_function(x, VecFld)
+        self.vf_dict.update({"func": self.func})
+
         return self.vf_dict
 
 

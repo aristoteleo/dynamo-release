@@ -2,6 +2,7 @@ from tqdm import tqdm
 import numpy as np
 import numdifftools as nd
 from .utils import timeit, get_pd_row_column_idx
+from .sampling import sample_by_velocity, trn
 
 def grad(f, x):
     """Gradient of scalar-valued function f evaluated at x"""
@@ -118,7 +119,7 @@ def subset_jacobian_transformation(fjac, X, Qi, Qj):
     return ret
 
 
-def divergence(f, x):
+def _divergence(f, x):
     """Divergence of the reconstructed vector field function f evaluated at x"""
     jac = nd.Jacobian(f)(x)
     return np.trace(jac)
@@ -139,7 +140,7 @@ def compute_divergence(f_jac, X, vectorize=True):
     return div
 
 
-def curl(f, x):
+def _curl(f, x):
     """Curl of the reconstructed vector field f evaluated at x in 3D"""
     jac = nd.Jacobian(f)(x)
     return np.array([jac[2, 1] - jac[1, 2], jac[0, 2] - jac[2, 0], jac[1, 0] - jac[0, 1]])
@@ -153,7 +154,7 @@ def curl2d(f, x):
     return curl
 
 
-def Curl(adata,
+def curl(adata,
          basis='umap',
          vecfld_dict=None,
          ):
@@ -171,7 +172,7 @@ def Curl(adata,
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `curl` key in the .obs.
+            AnnData object that is updated with the `_curl` key in the .obs.
     """
 
     if vecfld_dict is None:
@@ -187,16 +188,16 @@ def Curl(adata,
     curl = np.zeros((adata.n_obs, 1))
     func = vecfld_dict['func']
 
-    for i, x in tqdm(enumerate(X_data), f"Calculating curl with the reconstructed vector field on the {basis} basis. "):
+    for i, x in tqdm(enumerate(X_data), f"Calculating _curl with the reconstructed vector field on the {basis} basis. "):
         curl[i] = curl2d(func, x.flatten())
 
-    adata.obs['curl'] = curl
+    adata.obs['_curl'] = curl
 
 
-def Divergence(adata,
-         basis='umap',
-         vecfld_dict=None,
-         ):
+def divergence(adata,
+               basis='umap',
+               vecfld_dict=None,
+               ):
     """Calculate divergence for each cell with the reconstructed vector field function.
 
     Parameters
@@ -231,10 +232,12 @@ def Divergence(adata,
     adata.obs['divergence'] = div
 
 
-def Jacobian(adata,
+def jacobian(adata,
              source_genes,
              target_genes,
              cell_idx=None,
+             sampling='velocity',
+             sample_ncells=1000,
              basis='pca',
              vecfld_dict=None,
              input_vector_convention='row',
@@ -243,22 +246,35 @@ def Jacobian(adata,
 
     If the vector field was reconstructed from the reduced PCA space, the Jacobian matrix will then be inverse
     transformed back to high dimension. Note that this should also be possible for reduced UMAP space and will be
-    supported shortly.
+    supported shortly. Note that calculation of Jacobian matrix is computationally expensive, thus by default, only
+    1000 cells sampled (using velocity magnitude based sampling) for calculation.
 
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        source_genes: `List`
+        source_genes: `list`
             The list of genes that will be used as regulators when calculating the cell-wise Jacobian matrix. Each of
             those genes' partial derivative will be placed in the denominator of each element of the Jacobian matrix.
             It can be used to access how much effect the increase of those genes will affect the change of the velocity
             of the target genes (see below).
-        target_genes: `List` or `None` (default: None)
+        target_genes: `List` or `None` (default: `None`)
             The list of genes that will be used as targets when calculating the cell-wise Jacobian matrix. Each of
             those genes' velocities' partial derivative will be placed in the numerator of each element of the Jacobian
             matrix. It can be used to access how much effect the velocity of the target genes will receive when increasing
             the expression of the source genes (see above).
+        cell_idx: `np.ndarray` or None (default: `None`)
+            One-dimension numpy array or list that represents the indices of the samples that will be used for calculating
+            Jacobian matrix.
+        sampling: `str` or None (default: `velocity`)
+           Which sampling method for cell sampling. When it is `velocity`, it will use the magnitude of velocity for
+           sampling cells; when it is `trn`, the topology representing network based method will be used to sample cells
+           with the low dimensional embeddings. The `velocity` based sampling ensures sampling evenly for cells with both
+           low (corresponds to densely populated stable cell states) and high velocity (corresponds to less populated
+           transient cell states) cells. The `trn` based sampling ensures the global topology of cell states will be well
+           maintained after the sampling.
+        sample_ncells: `int` (default: `100`)
+            Total number of cells to be sampled.
         basis: `str` or None (default: `pca`)
             The embedding data in which the vector field was reconstructed. If `None`, use the vector field function that
             was reconstructed directly from the original unreduced gene expression space.
@@ -273,42 +289,53 @@ def Jacobian(adata,
             n_obs x n_source_genes x n_target_genes.
     """
 
-    cell_idx = np.arange(adata.n_obs) if cell_idx is None else cell_idx
+    vf_key = 'VecFld' if basis is None else 'VecFld_' + basis
+    X, V = adata.uns[vf_key]['VecFld']['X'], adata.uns[vf_key]['VecFld']['V']
 
     if vecfld_dict is None:
-        vf_key = 'VecFld' if basis is None else 'VecFld_' + basis
         if vf_key not in adata.uns.keys():
             raise ValueError(f"Your adata doesn't have the key for Vector Field with {basis} basis."
                              f"Try firstly running dyn.tl.VectorField(adata, basis={basis}).")
 
         vecfld_dict = adata.uns[vf_key]
 
+    if cell_idx is None:
+        if sampling == 'velocity':
+            cell_idx = sample_by_velocity(V, sample_ncells)
+        elif sampling == 'trn':
+            cell_idx = trn(X, sample_ncells)
+        else:
+            raise NotImplementedError(f"the sampling method {sampling} is not implemented. Currently only support velocity "
+                                      f"based (velocity) or topology representing network (trn) based sampling.")
+
+    cell_idx = np.arange(adata.n_obs) if cell_idx is None else cell_idx
+
+    if type(source_genes) == str: source_genes = [source_genes]
+    if type(target_genes) == str: target_genes = [target_genes]
     var_df = adata[:, adata.var.use_for_velocity].var
-    source_genes = var_df.var_names.intersection(source_genes)
-    target_genes = var_df.var_names.intersection(target_genes)
+    source_genes = var_df.index.intersection(source_genes)
+    target_genes = var_df.index.intersection(target_genes)
 
     source_idx, target_idx = get_pd_row_column_idx(var_df, source_genes, "row"), \
                              get_pd_row_column_idx(var_df, target_genes, "row")
     if len(source_genes) == 0 or len(target_genes) == 0:
         raise ValueError(f"the source and target gene list you provided are not in the velocity gene list!")
 
-    basis_ = basis if basis is None else "X_" + basis
-    PCs_ = "PCs" if basis is None else "PCs_" + basis
-    Jacobian_ = "Jacobian" if basis is None else "Jacobian_" + basis
+    PCs_ = "PCs" if basis == 'pca' else "PCs_" + basis
+    Jacobian_ = "jacobian" if basis is None else "jacobian_" + basis
 
     Q, func = adata.varm[PCs_], vecfld_dict['func']
 
-    X_data = adata.obsm[basis_]
     Jac_fun = get_fjac(func, input_vector_convention)
 
     if basis is None:
-        Jacobian = Jac_fun(X_data)
+        Jacobian = Jac_fun(X)
     else:
         if len(source_genes) == 1 and len(target_genes) == 1:
-            Jacobian = elementwise_jacobian_transformation(Jac_fun, X_data[cell_idx], Q[source_idx, :],
+            Jacobian = elementwise_jacobian_transformation(Jac_fun, X[cell_idx], Q[source_idx, :],
                                                       Q[target_idx, :], timeit=True)
         else:
-            Jacobian = subset_jacobian_transformation(Jac_fun, X_data[cell_idx], Q[source_idx, :],
+            Jacobian = subset_jacobian_transformation(Jac_fun, X[cell_idx], Q[source_idx, :],
                                                  Q[target_idx, :], timeit=True)
 
     adata.uns[Jacobian_] = Jacobian

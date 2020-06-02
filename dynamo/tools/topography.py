@@ -478,8 +478,9 @@ def VectorField(
         layer: `str` or None (default: `X`)
             Which layer of the data will be used for vector field function reconstruction. The layer once provided, will override
             the `basis` argument and then learn the vector field function in high dimensional space.
-        dims: `list` or None (default: None)
-            The dimensions that will be used for reconstructing vector field functions.
+        dims: `int`, `list` or None (default: None)
+            The dimensions that will be used for reconstructing vector field functions. If it is an `int` all dimension from
+            the first dimension to `dims` will be used; if it is a list, the dimensions in the list will be used.
         genes: `list` or None (default: None)
             The gene names whose gene expression will be used for vector field reconstruction. By default (when genes is
             set to None), the genes used for velocity embedding (var.use_for_velocity) will be used for vector field reconstruction.
@@ -520,7 +521,7 @@ def VectorField(
 
         if np.isscalar(dims):
             X, V = X[:, :dims], V[:, :dims]
-        elif dims is not None:
+        elif type(dims) is list:
             X, V = X[:, dims], V[:, dims]
     else:
         valid_genes = (
