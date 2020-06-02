@@ -172,7 +172,7 @@ def curl(adata,
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `_curl` key in the .obs.
+            AnnData object that is updated with the `curl` key in the .obs.
     """
 
     if vecfld_dict is None:
@@ -188,14 +188,17 @@ def curl(adata,
     curl = np.zeros((adata.n_obs, 1))
     func = vecfld_dict['func']
 
-    for i, x in tqdm(enumerate(X_data), f"Calculating _curl with the reconstructed vector field on the {basis} basis. "):
+    for i, x in tqdm(enumerate(X_data), f"Calculating curl with the reconstructed vector field on the {basis} basis. "):
         curl[i] = curl2d(func, x.flatten())
 
-    adata.obs['_curl'] = curl
+    adata.obs['curl'] = curl
 
 
 def divergence(adata,
-               basis='umap',
+               cell_idx=None,
+               sampling='velocity',
+               sample_ncells=1000,
+               basis='pca',
                vecfld_dict=None,
                ):
     """Calculate divergence for each cell with the reconstructed vector field function.
@@ -215,21 +218,36 @@ def divergence(adata,
             AnnData object that is updated with the `divergence` key in the .obs.
     """
 
+    vf_key = 'VecFld' if basis is None else 'VecFld_' + basis
+
     if vecfld_dict is None:
-        vf_key = 'VecFld' if basis is None else 'VecFld_' + basis
         if vf_key not in adata.uns.keys():
             raise ValueError(f"Your adata doesn't have the key for Vector Field with {basis} basis."
                              f"Try firstly running dyn.tl.VectorField(adata, basis={basis}).")
 
         vecfld_dict = adata.uns[vf_key]
 
-    X_data = adata.obsm["X_" + basis]
+    X, V = adata.uns[vf_key]['VecFld']['X'], adata.uns[vf_key]['VecFld']['V']
+
+    if basis == 'umap': cell_idx = np.arange(adata.n_obs)
+
+    if cell_idx is None:
+        if sampling == 'velocity':
+            cell_idx = sample_by_velocity(V, sample_ncells)
+        elif sampling == 'trn':
+            cell_idx = trn(X, sample_ncells)
+        else:
+            raise NotImplementedError(f"the sampling method {sampling} is not implemented. Currently only support velocity "
+                                      f"based (velocity) or topology representing network (trn) based sampling.")
+
+    cell_idx = np.arange(adata.n_obs) if cell_idx is None else cell_idx
 
     func = vecfld_dict['func']
 
-    div = compute_divergence(get_fjac(func), X_data, vectorize=True)
+    div = compute_divergence(get_fjac(func), X[cell_idx], vectorize=True)
 
-    adata.obs['divergence'] = div
+    adata.obs['divergence'] = None
+    adata.obs.loc[cell_idx, 'divergence'] = div
 
 
 def jacobian(adata,
@@ -290,7 +308,6 @@ def jacobian(adata,
     """
 
     vf_key = 'VecFld' if basis is None else 'VecFld_' + basis
-    X, V = adata.uns[vf_key]['VecFld']['X'], adata.uns[vf_key]['VecFld']['V']
 
     if vecfld_dict is None:
         if vf_key not in adata.uns.keys():
@@ -298,6 +315,10 @@ def jacobian(adata,
                              f"Try firstly running dyn.tl.VectorField(adata, basis={basis}).")
 
         vecfld_dict = adata.uns[vf_key]
+
+    X, V = adata.uns[vf_key]['VecFld']['X'], adata.uns[vf_key]['VecFld']['V']
+
+    if basis == 'umap': cell_idx = np.arange(adata.n_obs)
 
     if cell_idx is None:
         if sampling == 'velocity':
@@ -338,5 +359,8 @@ def jacobian(adata,
             Jacobian = subset_jacobian_transformation(Jac_fun, X[cell_idx], Q[source_idx, :],
                                                  Q[target_idx, :], timeit=True)
 
-    adata.uns[Jacobian_] = Jacobian
+    adata.uns[Jacobian_] = {"Jacobian": Jacobian,
+                            "cell_idx": cell_idx,
+                            "sampling": sampling}
+
 
