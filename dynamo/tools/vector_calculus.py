@@ -1,7 +1,7 @@
 from tqdm import tqdm
 import numpy as np
 import numdifftools as nd
-from .utils import timeit
+from .utils import timeit, get_pd_row_column_idx
 
 def grad(f, x):
     """Gradient of scalar-valued function f evaluated at x"""
@@ -229,3 +229,79 @@ def Divergence(adata,
     div = compute_divergence(get_fjac(func), X_data, vectorize=True)
 
     adata.obs['divergence'] = div
+
+
+def Jacobian(adata,
+             source_genes,
+             target_genes,
+             cell_idx=None,
+             basis='pca',
+             nPCs=30,
+             vecfld_dict=None,
+             input_vector_convention='row',
+             ):
+    """Calculate Jacobian for each cell with the reconstructed vector field function on PCA space and then inverse
+    transform back to high dimension.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        source_genes: `List`
+            The list of genes that will be used as regulators when calculating the cell-wise Jacobian matrix. Each of
+            those genes' partial derivative will be placed in the denominator of each element of the Jacobian matrix.
+            It can be used to access how much effect the increase of those genes will affect the change of the velocity
+            of the targets genes (see below).
+        target_genes: `List` or `None` (default: None)
+            The list of genes that will be used as targets when calculating the cell-wise Jacobian matrix. Each of
+            those genes' velocities' partial derivative will be placed in the numerator of each element of the Jacobian
+            matrix. It can be used to access how much effect the velocity of the targets genes receives when increasing
+            the expression of the source genes (see above).
+        basis: `str` or None (default: `pca`)
+            The embedding data in which the vector field was reconstructed. If `None`, use the vector field function that
+            was reconstructed directly from the original unreduced gene expression space.
+        vecfld_dict: `dict`
+            The true ODE function, useful when the data is generated through simulation.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that is updated with the `Der` key in the .uns. This is a 3-dimensional tensor with dimensions
+            n_obs x n_source_genes x n_target_genes.
+    """
+
+    cell_idx = np.range(adata.n_obs) if cell_idx is None else cell_idx
+
+    var_df = adata[:, adata.var.use_for_velocity]
+    source_genes = var_df.var_names.intersection(source_genes)
+    target_genes = var_df.var_names.intersection(target_genes)
+
+    source_idx, target_idx = get_pd_row_column_idx(var_df, source_genes, "row"), \
+                             get_pd_row_column_idx(var_df, target_genes, "row")
+    if len(source_genes) == 0 or len(target_genes) == 0:
+        raise ValueError(f"the source and target gene list you provided are not in the velocity gene list!")
+
+    if vecfld_dict is None:
+        vf_key = 'VecFld' if basis is None else 'VecFld_' + basis
+        if vf_key not in adata.uns.keys():
+            raise ValueError(f"Your adata doesn't have the key for Vector Field with {basis} basis."
+                             f"Try firstly running dyn.tl.VectorField(adata, basis={basis}).")
+
+        vecfld_dict = adata.uns[vf_key]
+    Q, func = adata.varm["PCs"][:, :nPCs], vecfld_dict['func']
+
+    X_data = adata.obsm["X_" + basis]
+    Jac_fun = get_fjac(func, input_vector_convention)
+
+    if basis is None:
+        Der = Jac_fun(X_data)
+    else:
+        if len(source_genes) == 1 and len(target_genes) == 1:
+            Der = elementwise_jacobian_transformation(Jac_fun, X_data[cell_idx], Q[source_idx, :],
+                                                      Q[target_idx, :], timeit=True)
+        else:
+            Der = subset_jacobian_transformation(Jac_fun, X_data[cell_idx], Q[source_idx, :],
+                                                 Q[target_idx, :], timeit=True)
+
+    adata.uns['Der'] = Der
+

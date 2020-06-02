@@ -40,6 +40,33 @@ def get_finite_inds(X, ax=0):
     return finite_inds
 
 
+def get_pd_row_column_idx(df, queries, type='column'):
+    """Find multiple index/column numeric indices (matches) with a vectorized solution using searchsorted method.
+    Thus, with df as the dataframe and query_cols as the column names to be searched for, an implementation would be -
+
+    Parameters
+    ----------
+        df: `pd.DataFrame`
+            Pandas dataframe that will be used for finding indices.
+        queries: `list`
+            List of strings, corresponding to either column names or index of the `df` that will be used for finding
+            indices.
+        type: `{"column", "row:}` (default: "row")
+            The type of the queries, search, either `column` (list of queries are from column names) or "row" (list of
+            queries are from row names).
+
+    Returns
+    -------
+        Indices: `np.ndarray`
+            One dimensional array for the numeric indices that corresponds to the matches of the queries.
+    """
+    names = df.columns.values if type == 'column' else df.index.values if type == 'row' else None
+    sidx = np.argsort(names)
+    Indices = sidx[np.searchsorted(names, queries, sorter=sidx)]
+
+    return Indices
+
+
 def update_dict(dict1, dict2):
     dict1.update((k, dict2[k]) for k in dict1.keys() & dict2.keys())
 
