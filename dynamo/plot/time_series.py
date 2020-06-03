@@ -7,6 +7,7 @@ from ..tools.utils import fetch_exprs, update_dict
 from .utils import save_fig
 
 from ..docrep import DocstringProcessor
+from ..external.ddhodge import ddhoge
 
 docstrings = DocstringProcessor()
 
@@ -19,7 +20,7 @@ def kinetic_curves(
     basis=None,
     layer="X",
     project_back_to_high_dim=True,
-    time="pseudotime",
+    tkey="potential",
     dist_threshold=1e-10,
     ncol=4,
     color=None,
@@ -30,6 +31,9 @@ def kinetic_curves(
 ):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) as kinetic curves.
 
+    Note that by default `potential` estimated with the diffusion graph built reconstructed vector field will be used as
+    the measure of pseudotime.
+
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
@@ -39,6 +43,8 @@ def kinetic_curves(
         mode: `str` (default: `vector_field`)
             Which data mode will be used, either vector_field or pseudotime. if mode is vector_field, the trajectory predicted by
             vector field function will be used, otherwise pseudotime trajectory (defined by time argument) will be used.
+            By default `potential` estimated with the diffusion graph built reconstructed vector field will be used as
+            pseudotime.
         basis: `str` or None (default: `None`)
             The embedding data used for drawing the kinetic gene expression curves, only used when mode is `vector_field`.
         layer: `str` (default: X)
@@ -48,8 +54,8 @@ def kinetic_curves(
             only used when mode is `vector_field` and basis is not `X`. Currently only works when basis is 'pca' and 'umap'.
         color: `list` or None (default: None)
             A list of attributes of cells (column names in the adata.obs) will be used to color cells.
-        time: `str` (default: `pseudotime`)
-            The .obs column that will be used for timing each cell, only used when mode is `vector_field`.
+        tkey: `str` (default: `potential`)
+            The .obs column that will be used for timing each cell, only used when mode is not `vector_field`.
         dist_threshold: `float` or None (default: 1e-10)
             The threshold for the distance between two points in the gene expression state, i.e, x(t), x(t+1). If below this threshold,
             we assume steady state is achieved and those data points will not be considered.
@@ -77,8 +83,11 @@ def kinetic_curves(
     import seaborn as sns
     import matplotlib.pyplot as plt
 
+    if tkey == "potential" and "potential" not in adata.obs_keys():
+        ddhoge(adata)
+
     exprs, valid_genes, time = fetch_exprs(
-        adata, basis, layer, genes, time, mode, project_back_to_high_dim
+        adata, basis, layer, genes, tkey, mode, project_back_to_high_dim
     )
 
     Color = np.empty((0, 1))
@@ -170,7 +179,7 @@ def kinetic_heatmap(
     basis=None,
     layer="X",
     project_back_to_high_dim=True,
-    time="pseudotime",
+    tkey="potential",
     dist_threshold=1e-10,
     color_map="BrBG",
     gene_order_method='half_max_ordering',
@@ -224,8 +233,11 @@ def kinetic_heatmap(
     import seaborn as sns
     import matplotlib.pyplot as plt
 
+    if tkey == "potential" and "potential" not in adata.obs_keys():
+        ddhoge(adata)
+
     exprs, valid_genes, time = fetch_exprs(
-        adata, basis, layer, genes, time, mode, project_back_to_high_dim
+        adata, basis, layer, genes, tkey, mode, project_back_to_high_dim
     )
 
     exprs = exprs.A if issparse(exprs) else exprs
@@ -410,3 +422,142 @@ def lowess_smoother(time, exprs, spaced_num):
         res[i, :] = f(time_linspace)
 
     return res
+
+
+@docstrings.with_indent(4)
+def jacobian_heatmap(
+    adata,
+    mode="vector_field",
+    tkey="potential",
+    dist_threshold=1e-10,
+    color_map="BrBG",
+    gene_order_method='half_max_ordering',
+    show_colorbar=False,
+    cluster_row_col=[False, True],
+    figsize=(11.5, 6),
+    standard_scale=1,
+    save_show_or_return='show',
+    save_kwargs={},
+    **kwargs
+):
+    """Plot the gene expression dynamics over time (pseudotime or inferred real time) in a heatmap.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object.
+        mode: `str` (default: `vector_field`)
+            Which data mode will be used, either vector_field or pseudotime. if mode is vector_field, the trajectory predicted by
+            vector field function will be used, otherwise pseudotime trajectory (defined by time argument) will be used.
+            By default `potential` estimated with the diffusion graph built reconstructed vector field will be used as
+            pseudotime.
+        tkey: `str` (default: `potential`)
+            The .obs column that will be used for timing each cell, only used when mode is not `vector_field`.
+        dist_threshold: `float` or None (default: 1e-10)
+            The threshold for the distance between two points in the gene expression state, i.e, x(t), x(t+1). If below this threshold,
+            we assume steady state is achieved and those data points will not be considered.
+        color_map: `str` (default: `BrBG`)
+            Color map that will be used to color the gene expression. If `half_max_ordering` is True, the
+            color map need to be divergent, good examples, include `BrBG`, `RdBu_r` or `coolwarm`, etc.
+        gene_order_method: `str` (default: `half_max_ordering`) [`half_max_ordering`, `maximum`]
+            Supports two different methods for ordering genes when plotting the heatmap: either `half_max_ordering`,
+            or `maximum`. For `half_max_ordering`, it will order genes into up, down and transit groups by the half
+            max ordering algorithm (HA Pliner, et. al, Molecular cell 71 (5), 858-871. e8). While for `maximum`,
+            it will order by the position of the highest gene expression.
+        show_colorbar: `bool` (default: `False`)
+            Whether to show the color bar.
+        cluster_row_col: `[bool, bool]` (default: `[False, False]`)
+            Whether to cluster the row or columns.
+        figsize: `str` (default: `(11.5, 6)`
+            Size of figure
+        standard_scale: `int` (default: 1)
+            Either 0 (rows, cells) or 1 (columns, genes). Whether or not to standardize that dimension, meaning for each row or column,
+            subtract the minimum and divide each by its maximum.
+        save_show_or_return: {'show', 'save_fig', 'return'} (default: `show`)
+            Whether to save_fig, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            will use the {"path": None, "prefix": 'kinetic_curves', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
+        kwargs:
+            All other keyword arguments are passed to heatmap(). Currently `xticklabels=False, yticklabels='auto'` is passed
+            to heatmap() by default.
+    Returns
+    -------
+        Nothing but plots a heatmap that shows the element of Jacobian matrix dynamics over time (potential decreasing).
+    """
+
+    import pandas as pd
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+
+    Jacobian_ = "jacobian" #f basis is None else "jacobian_" + basis
+    Der, source_gene, target_gene, cell_indx, _  =  adata.uns[Jacobian_].values()
+    if tkey == "potential" and "potential" not in adata.obs_keys():
+        ddhoge(adata)
+
+    adata_ = adata[cell_indx, :]
+    time = adata_.obs[tkey]
+    jacobian_mat = Der.reshape((-1, Der.shape[2]))
+    n_source_targets = Der.shape[0] * Der.shape[1]
+    targets, sources = np.repeat(target_gene, Der.shape[1]), np.tile(source_gene, Der.shape[0])
+    source_targets = [targets[i] + '_' + sources[i] for i in range(n_source_targets)]
+
+    jacobian_mat = jacobian_mat[:, np.argsort(time)]
+
+    if dist_threshold is not None:
+        valid_ind = list(
+            np.where(np.sum(np.diff(jacobian_mat, axis=0) ** 2, axis=1) > dist_threshold)[0]
+            + 1
+        )
+        valid_ind.insert(0, 0)
+        jacobian_mat = jacobian_mat[valid_ind, :]
+
+    if gene_order_method == "half_max_ordering":
+        time, all, valid_ind, gene_idx = _half_max_ordering(
+            jacobian_mat.T, time, mode=mode, interpolate=True, spaced_num=100
+        )
+        all, source_targets = all[np.isfinite(all.sum(1)), :], np.array(source_targets)[gene_idx][np.isfinite(all.sum(1))]
+
+        df = pd.DataFrame(all, index=source_targets)
+    elif gene_order_method == 'maximum':
+        jacobian_mat = lowess_smoother(time, jacobian_mat, spaced_num=100)
+        jacobian_mat = jacobian_mat[np.isfinite(jacobian_mat.sum(1)), :]
+
+        if standard_scale is not None:
+            exprs = (jacobian_mat - np.min(jacobian_mat, axis=standard_scale)[:, None]) / np.ptp(
+                jacobian_mat, axis=standard_scale
+            )[:, None]
+        max_sort = np.argsort(np.argmax(exprs, axis=1))
+        df = pd.DataFrame(exprs[max_sort, :], index=np.array(source_targets)[max_sort])
+    else:
+        raise Exception('gene order_method can only be either half_max_ordering or maximum')
+
+    heatmap_kwargs = dict(xticklabels=False, yticklabels="auto")
+    if kwargs is not None:
+        heatmap_kwargs = update_dict(heatmap_kwargs, kwargs)
+
+    sns_heatmap = sns.clustermap(
+        df,
+        col_cluster=cluster_row_col[0],
+        row_cluster=cluster_row_col[1],
+        cmap=color_map,
+        figsize=figsize,
+        **heatmap_kwargs
+    )
+    if not show_colorbar: sns_heatmap.cax.set_visible(False)
+
+    if save_show_or_return == "save_fig":
+        s_kwargs = {"path": None, "prefix": 'kinetic_heatmap', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save_fig(**s_kwargs)
+    elif save_show_or_return == "show":
+        if show_colorbar:
+            plt.subplots_adjust(right=0.85)
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return sns_heatmap
