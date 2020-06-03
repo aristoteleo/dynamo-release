@@ -5,7 +5,13 @@ from ..configuration import set_figure_params
 
 from .scatters import scatters
 from .scatters import docstrings
-from .utils import _matplotlib_points, save_fig, arrowed_spines
+from .utils import (
+    _matplotlib_points,
+    save_fig,
+    arrowed_spines,
+    deaxis_all,
+    despline_all,
+)
 
 from ..tools.utils import update_dict
 
@@ -208,6 +214,8 @@ def jacobian(adata,
         if pointsize is None
         else 500.0 / np.sqrt(adata_.shape[0]) * pointsize
     )
+    point_size = 8 * point_size
+
     scatter_kwargs = dict(
         alpha=0.2, s=point_size, edgecolor=None, linewidth=0
     )  # (0, 0, 0, 1)
@@ -215,16 +223,16 @@ def jacobian(adata,
         scatter_kwargs.update(kwargs)
 
     nrow, ncol = len(source_gene), len(target_gene)
-    # if figsize is None:
-    #     g = plt.figure(None, (3 * ncol, 3 * nrow))  # , dpi=160
-    # else:
-    #     g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow))  # , dpi=160
+    if figsize is None:
+        g = plt.figure(None, (3 * ncol, 3 * nrow))  # , dpi=160
+    else:
+        g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow))  # , dpi=160
 
     gs = plt.GridSpec(nrow, ncol)
 
     for i, source in enumerate(source_gene):
         for j, target in enumerate(target_gene):
-            ax = plt.subplot(gs[i * j + j])
+            ax = plt.subplot(gs[i * ncol + j])
             J = Der if nrow == 1 and ncol == 1 else Der[i, j, :]
             cur_pd["jacobian"] = J
 
@@ -243,9 +251,12 @@ def jacobian(adata,
                 show_legend=show_legend,
                 **scatter_kwargs
             )
-            ax.set_title(f'Jacobian for {source} wrt. {target}')
+            ax.set_title(r'$\frac{{\partial f_{{{}}} }}{{\partial {}}}$'.format(target, source))
             if i + j == 0:
                 arrowed_spines(ax, basis, background)
+            else:
+                despline_all(ax)
+                deaxis_all(ax)
 
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'phase_portraits', "dpi": None,

@@ -883,6 +883,8 @@ def scatters(
         if pointsize is None
         else 500.0 / np.sqrt(adata.shape[0]) * pointsize
     )
+    point_size *= 8
+
     scatter_kwargs = dict(
         alpha=0.2, s=point_size, edgecolor=None, linewidth=0
     )  # (0, 0, 0, 1)
