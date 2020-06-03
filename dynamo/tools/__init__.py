@@ -110,8 +110,7 @@ from .Bhattacharya import path_integral, alignment
 from .Wang import Wang_action, Wang_LAP, transition_rate, MFPT
 from .Ao import Ao_pot_map
 
-# cell fate related
-from .fate import fate, _fate
+# state graph related
 from .state_graph import state_graph
 
 # dimension reduction related

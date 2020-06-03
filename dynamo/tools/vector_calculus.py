@@ -333,7 +333,7 @@ def jacobian(adata,
 
     if type(source_genes) == str: source_genes = [source_genes]
     if type(target_genes) == str: target_genes = [target_genes]
-    var_df = adata[:, adata.var.use_for_velocity].var
+    var_df = adata[:, adata.var.use_for_dynamo].var
     source_genes = var_df.index.intersection(source_genes)
     target_genes = var_df.index.intersection(target_genes)
 
@@ -353,11 +353,11 @@ def jacobian(adata,
         Jacobian = Jac_fun(X)
     else:
         if len(source_genes) == 1 and len(target_genes) == 1:
-            Jacobian = elementwise_jacobian_transformation(Jac_fun, X[cell_idx], Q[source_idx, :].flatten(),
-                                                      Q[target_idx, :].flatten(), timeit=True)
+            Jacobian = elementwise_jacobian_transformation(Jac_fun, X[cell_idx], Q[target_idx, :].flatten(),
+                                                      Q[source_idx, :].flatten(), timeit=True)
         else:
-            Jacobian = subset_jacobian_transformation(Jac_fun, X[cell_idx], Q[source_idx, :],
-                                                 Q[target_idx, :], timeit=True)
+            Jacobian = subset_jacobian_transformation(Jac_fun, X[cell_idx], Q[target_idx, :],
+                                                 Q[source_idx, :], timeit=True)
 
     adata.uns[Jacobian_] = {"Jacobian": Jacobian,
                             "source_gene": source_genes,

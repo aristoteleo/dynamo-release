@@ -3,7 +3,7 @@ import numpy as np
 from scipy.spatial import cKDTree
 from tqdm import tqdm
 
-from .fate import _fate
+from dynamo.prediction.fate import _fate
 from .scVectorField import vector_field_function
 from .utils import (
     fetch_states,

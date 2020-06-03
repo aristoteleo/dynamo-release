@@ -1,6 +1,7 @@
 """plotting utilities that are used to visualize the curl, divergence."""
 
 import numpy as np, pandas as pd
+from numpy import format_float_scientific as scinot
 from ..configuration import set_figure_params
 
 from .scatters import scatters
@@ -214,7 +215,7 @@ def jacobian(adata,
         if pointsize is None
         else 500.0 / np.sqrt(adata_.shape[0]) * pointsize
     )
-    point_size = 8 * point_size
+    point_size = 4 * point_size
 
     scatter_kwargs = dict(
         alpha=0.2, s=point_size, edgecolor=None, linewidth=0
@@ -233,9 +234,10 @@ def jacobian(adata,
     for i, source in enumerate(source_gene):
         for j, target in enumerate(target_gene):
             ax = plt.subplot(gs[i * ncol + j])
-            J = Der if nrow == 1 and ncol == 1 else Der[i, j, :]
+            J = Der if nrow == 1 and ncol == 1 else Der[j, i, :]
             cur_pd["jacobian"] = J
 
+            # cur_pd.loc[:, "jacobian"] = np.array([scinot(i) for i in cur_pd.loc[:, "jacobian"].values])
             ax, color = _matplotlib_points(
                 cur_pd.iloc[:, [0, 1]].values,
                 ax=ax,
@@ -265,6 +267,8 @@ def jacobian(adata,
 
         save_fig(**s_kwargs)
     elif save_show_or_return == "show":
+        if show_legend:
+            plt.subplots_adjust(wspace=0.75)
         plt.tight_layout()
         plt.show()
     elif save_show_or_return == "return":

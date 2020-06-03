@@ -1,0 +1,1 @@
+from .fate import fate

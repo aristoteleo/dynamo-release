@@ -250,7 +250,7 @@ def _matplotlib_points(
         cb = plt.colorbar(mappable, cax=set_colorbar(ax), ax=ax)
         cb.set_alpha(1)
         cb.draw_all()
-        cb.locator = MaxNLocator(nbins=3, integer=True)
+        cb.locator = MaxNLocator(nbins=3, integer=False)
         cb.update_ticks()
 
         cmap = matplotlib.cm.get_cmap(cmap)

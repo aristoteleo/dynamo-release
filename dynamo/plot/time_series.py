@@ -31,8 +31,8 @@ def kinetic_curves(
 ):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) as kinetic curves.
 
-    Note that by default `potential` estimated with the diffusion graph built reconstructed vector field will be used as
-    the measure of pseudotime.
+    Note that by default `potential` estimated with the diffusion graph built from reconstructed vector field will be
+    used as the measure of pseudotime.
 
     Parameters
     ----------
@@ -43,8 +43,8 @@ def kinetic_curves(
         mode: `str` (default: `vector_field`)
             Which data mode will be used, either vector_field or pseudotime. if mode is vector_field, the trajectory predicted by
             vector field function will be used, otherwise pseudotime trajectory (defined by time argument) will be used.
-            By default `potential` estimated with the diffusion graph built reconstructed vector field will be used as
-            pseudotime.
+            By default `potential` estimated with the diffusion graph built from reconstructed vector field will be used
+            as pseudotime.
         basis: `str` or None (default: `None`)
             The embedding data used for drawing the kinetic gene expression curves, only used when mode is `vector_field`.
         layer: `str` (default: X)
@@ -192,6 +192,9 @@ def kinetic_heatmap(
     **kwargs
 ):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) in a heatmap.
+
+    Note that by default `potential` estimated with the diffusion graph built from reconstructed vector field will be
+    used as the measure of pseudotime.
 
     Parameters
     ----------
@@ -430,8 +433,8 @@ def jacobian_heatmap(
     mode="vector_field",
     tkey="potential",
     dist_threshold=1e-10,
-    color_map="BrBG",
-    gene_order_method='half_max_ordering',
+    color_map="bwr",
+    gene_order_method='raw',
     show_colorbar=False,
     cluster_row_col=[False, True],
     figsize=(11.5, 6),
@@ -441,6 +444,9 @@ def jacobian_heatmap(
     **kwargs
 ):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) in a heatmap.
+
+    Note that by default `potential` estimated with the diffusion graph built from reconstructed vector field will be
+    used as the measure of pseudotime.
 
     Parameters
     ----------
@@ -502,7 +508,7 @@ def jacobian_heatmap(
     jacobian_mat = Der.reshape((-1, Der.shape[2]))
     n_source_targets = Der.shape[0] * Der.shape[1]
     targets, sources = np.repeat(target_gene, Der.shape[1]), np.tile(source_gene, Der.shape[0])
-    source_targets = [targets[i] + '_' + sources[i] for i in range(n_source_targets)]
+    source_targets = [sources[i] + '->' + targets[i] for i in range(n_source_targets)]
 
     jacobian_mat = jacobian_mat[:, np.argsort(time)]
 
@@ -531,6 +537,9 @@ def jacobian_heatmap(
             )[:, None]
         max_sort = np.argsort(np.argmax(exprs, axis=1))
         df = pd.DataFrame(exprs[max_sort, :], index=np.array(source_targets)[max_sort])
+    elif gene_order_method == "raw":
+        jacobian_mat /= np.abs(jacobian_mat).max(1)[:, None]
+        df = pd.DataFrame(jacobian_mat, index=np.array(source_targets))
     else:
         raise Exception('gene order_method can only be either half_max_ordering or maximum')
 

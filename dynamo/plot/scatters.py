@@ -883,7 +883,7 @@ def scatters(
         if pointsize is None
         else 500.0 / np.sqrt(adata.shape[0]) * pointsize
     )
-    point_size *= 8
+    point_size *= 4
 
     scatter_kwargs = dict(
         alpha=0.2, s=point_size, edgecolor=None, linewidth=0
@@ -1088,7 +1088,7 @@ def scatters(
                     )
 
                 if i == 1:
-                    arrowed_spines(ax, points.columns[0].strip('_1'), background)
+                    arrowed_spines(ax, points.columns[0].strip('_1'), _background)
                 else:
                     despline_all(ax)
                     deaxis_all(ax)
