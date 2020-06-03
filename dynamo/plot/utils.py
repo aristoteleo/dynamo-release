@@ -749,6 +749,10 @@ def despline_all(ax=None):
 
 def deaxis_all(ax=None):
     # removing the axis ticks
+    import matplotlib.pyplot as plt
+
+    ax = plt.gca() if ax is None else ax
+
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)
 
@@ -866,8 +870,7 @@ def arrowed_spines(ax, basis="umap", background='white'):
     despline_all(ax)
 
     # removing the axis ticks
-    ax.get_xaxis().set_visible(False)
-    ax.get_yaxis().set_visible(False)
+    deaxis_all(ax)
 
     # get width and height of axes object to compute
     # matching arrowhead length and width

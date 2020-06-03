@@ -1541,7 +1541,7 @@ def streamline_plot(
         )
 
     streamplot_kwargs = {
-        "density": density,
+        "density": density * 2,
         "linewidth": None,
         "cmap": None,
         "norm": None,
@@ -1555,7 +1555,7 @@ def streamline_plot(
         "zorder": 10,
     }
     mass = np.sqrt((V_grid ** 2).sum(0))
-    streamplot_kwargs.update({"linewidth": 6 * mass / mass[~np.isnan(mass)].max()})
+    streamplot_kwargs.update({"linewidth": 2 * mass / mass[~np.isnan(mass)].max()})
 
     streamplot_kwargs = update_dict(streamplot_kwargs, streamline_kwargs)
 
