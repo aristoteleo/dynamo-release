@@ -15,19 +15,23 @@ docstrings.delete_params("scatters.parameters", "adata", "color", "cmap")
 @docstrings.with_indent(4)
 def curl(adata, color=None, cmap='bwr', *args, **kwargs):
     """\
-    Scatter plot with cells colored by the estimated curl (and possible other information).
+    Scatter plot with cells colored by the estimated curl (and other information if provided).
+
+    Cells with negative or positive curl correspond to cells with clock-wise rotation vectors or counter-clock-wise
+    ration vectors. Currently only support for 2D vector field. But in principal could be generated to high dimension
+    space.
 
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
             an Annodata object with curl estimated.
         color: `str`, `list` or None:
-            Any column names or gene expression, etc. in addition to the `curl` to be used for coloring cells.
+            Any column names or gene names, etc. in addition to the `curl` to be used for coloring cells.
         %(scatters.parameters.no_adata|color|cmap)s
 
     Returns
     -------
-    Nothing but plots the pca embedding of the adata object.
+    Nothing but plots scatterplots with cells colored by the estimated curl (and other information if provided).
 
     Examples
     --------
@@ -39,6 +43,9 @@ def curl(adata, color=None, cmap='bwr', *args, **kwargs):
     >>> dyn.tl.VectorField(adata, basis='umap')
     >>> dyn.tl.curl(adata)
     >>> dyn.pl.curl(adata)
+
+    See also:: :func:`../external.ddhodge.curl` for calculating curl with a diffusion graph built from reconstructed vector
+    field.
     """
 
     color_ = ['curl']
@@ -55,7 +62,10 @@ def curl(adata, color=None, cmap='bwr', *args, **kwargs):
 @docstrings.with_indent(4)
 def divergence(adata, color=None, cmap='bwr', *args, **kwargs):
     """\
-    Scatter plot with pca basis.
+    Scatter plot with cells colored by the estimated divergence (and other information if provided).
+
+    Cells with negative or positive divergence correspond to possible sink (stable cell types) or possible source
+    (unstable metastable states or progenitors)
 
     Parameters
     ----------
@@ -65,7 +75,7 @@ def divergence(adata, color=None, cmap='bwr', *args, **kwargs):
 
     Returns
     -------
-    Nothing but plots the pca embedding of the adata object.
+    Nothing but plots scatterplots with cells colored by the estimated divergence (and other information if provided).
 
     Examples
     --------
@@ -76,6 +86,9 @@ def divergence(adata, color=None, cmap='bwr', *args, **kwargs):
     >>> dyn.tl.VectorField(adata, basis='pca')
     >>> dyn.tl.divergence(adata)
     >>> dyn.pl.divergence(adata)
+
+    See also:: :func:`../external.ddhodge.divergence` for calculating divergence with a diffusion graph built from reconstructed
+    vector field.
     """
 
     color_ = ['divergence']

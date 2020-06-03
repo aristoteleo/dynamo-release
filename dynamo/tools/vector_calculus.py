@@ -247,7 +247,7 @@ def divergence(adata,
     div = compute_divergence(get_fjac(func), X[cell_idx], vectorize=True)
 
     adata.obs['divergence'] = None
-    adata.obs.iloc[cell_idx, :].loc[:, 'divergence'] = div
+    adata.obs.loc[adata.obs_names[cell_idx], 'divergence'] = div
 
 
 def jacobian(adata,
