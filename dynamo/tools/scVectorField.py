@@ -317,7 +317,7 @@ def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True,
         D = pdist(X)
 
     V = sp.csr_matrix((n, n))
-    for i, idx in tqdm(enumerate(nbrs_idx), desc='Constructing discrete vector field function on graph'):
+    for i, idx in tqdm(enumerate(nbrs_idx), desc='Constructing diffusion graph from reconstructed vector field'):
         x = X[i]
         Y = X[idx[1:]]
         for j, y in enumerate(Y):

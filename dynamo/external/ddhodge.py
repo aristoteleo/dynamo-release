@@ -124,8 +124,7 @@ def build_graph(adj_mat):
 def ddhoge(adata,
            X_data=None,
            layer=None,
-           basis="umap",
-           dims=None,
+           basis="pca",
            n=30,
            VecFld=None,
            adjmethod='graphize_vecfld',
@@ -142,11 +141,8 @@ def ddhoge(adata,
             The user supplied expression (embedding) data that will be used for graph hodege decomposition directly.
         layer: `str` or None (default: None)
             Which layer of the data will be used for graph Hodge decomposition.
-        basis: `str` (default: `umap`)
+        basis: `str` (default: `pca`)
             Which basis of the data will be used for graph Hodge decomposition.
-        dims: `list` or None (default: `None`)
-            The list of dimensions that will be selected for graph Hodge decomposition. If `None`, all dimensions will
-            be used.
         n: `int` (default: `10`)
             Number of nearest neighbors when the nearest neighbor graph is not included.
         VecFld: `dictionary` or None (default: None)
@@ -164,7 +160,7 @@ def ddhoge(adata,
              and divergence for each cell will also be added.
 """
 
-    X_data = adata.obsm['X_' + basis] if X_data is None else X_data
+    func = None
     if VecFld is None:
         VecFld_key = 'VecFld' if basis is None else "VecFld_" + basis
         if VecFld_key not in adata.uns.keys():
@@ -172,8 +168,10 @@ def ddhoge(adata,
                 f'Vector field function {VecFld_key} is not included in the adata object!'
                 f'Try firstly running dyn.tl.VectorField(adata, basis={basis})')
         VecFld = adata.uns[VecFld_key]['VecFld']
+        func = adata.uns[VecFld_key]['func']
 
-    func = lambda x: vector_field_function(x, VecFld, dim=dims)
+    X_data = VecFld['V'] if X_data is None else X_data
+    if func is None: func = lambda x: vector_field_function(x, VecFld)
 
     if adjmethod == 'graphize_vecfld':
         neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
@@ -197,5 +195,5 @@ def ddhoge(adata,
     g = build_graph(adj_mat)
 
     adata.obsp['ddhodge'] = adj_mat
-    adata.obs['divergence'] = div(g)
-    adata.obs['potential'] = potential(g, - adata.obs['divergence'])
+    adata.obs['ddhodge_div'] = div(g)
+    adata.obs['potential'] = potential(g, - adata.obs['ddhodge_div'])
