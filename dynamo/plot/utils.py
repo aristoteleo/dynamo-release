@@ -889,7 +889,7 @@ def arrowed_spines(ax, basis="umap", background='white'):
     yhl = hl/(xmax-xmin)*(ymax-ymin)* width/height
 
     # draw x and y axis
-    fc, ec = 'k', 'k' if background == 'white' else "w"
+    fc, ec = ('k', 'k') if background == 'white' else ("w", "w")
     ax.arrow(xmin, ymin, hl * 5, 0, fc=fc, ec=ec,
              lw=lw,
              head_width=hw, head_length=hl,
