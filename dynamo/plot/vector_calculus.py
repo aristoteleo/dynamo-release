@@ -176,7 +176,7 @@ def jacobian(adata,
     >>> adata = dyn.pp.recipe_monocle(adata)
     >>> dyn.tl.dynamics(adata)
     >>> dyn.tl.VectorField(adata, basis='pca')
-    >>> valid_gene_list = adata[:, adata.var.use_for_velocity].var.index.intersection(gene_list)
+    >>> valid_gene_list = adata[:, adata.var.use_for_velocity].var.index[:2]
     >>> dyn.tl.jacobian(adata, source_genes=valid_gene_list[0], target_genes=valid_gene_list[1])
     >>> dyn.pl.jacobian(adata)
     """
@@ -197,15 +197,15 @@ def jacobian(adata,
 
     cur_pd = pd.DataFrame(
         {
-            basis + "_0": adata.obsm["X_" + basis][:, x],
-            basis + "_1": adata.obsm["X_" + basis][:, y],
+            basis + "_0": adata_.obsm["X_" + basis][:, x],
+            basis + "_1": adata_.obsm["X_" + basis][:, y],
         }
     )
 
     point_size = (
-        500.0 / np.sqrt(adata.shape[0])
+        500.0 / np.sqrt(adata_.shape[0])
         if pointsize is None
-        else 500.0 / np.sqrt(adata.shape[0]) * pointsize
+        else 500.0 / np.sqrt(adata_.shape[0]) * pointsize
     )
     scatter_kwargs = dict(
         alpha=0.2, s=point_size, edgecolor=None, linewidth=0
@@ -225,11 +225,10 @@ def jacobian(adata,
         for j, target in range(target_gene):
             ax = plt.subplot(gs[i * j + j])
             J = Der[i, j, :]
-            adata_.obs['jacobian'] = J
             cur_pd["jacobian"] = J
 
             ax, color = _matplotlib_points(
-                cur_pd.iloc[:, [1, 0]].values,
+                cur_pd.iloc[:, [0, 1]].values,
                 ax=ax,
                 labels=None,
                 values=cur_pd.loc[:, "jacobian"].values,
