@@ -726,16 +726,26 @@ def interactive(
 # link - https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
 
 
-def despline(ax1=None):
+def despline(ax=None):
     import matplotlib.pyplot as plt
 
-    ax1 = plt.gca() if ax1 is None else ax1
+    ax = plt.gca() if ax is None else ax
     # Hide the right and top spines
-    ax1.spines["right"].set_visible(False)
-    ax1.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["top"].set_visible(False)
     # Only show ticks on the left and bottom spines
-    ax1.yaxis.set_ticks_position("left")
-    ax1.xaxis.set_ticks_position("bottom")
+    ax.yaxis.set_ticks_position("left")
+    ax.xaxis.set_ticks_position("bottom")
+
+
+def despline_all(ax=None):
+    # removing the default axis on all sides:
+    import matplotlib.pyplot as plt
+
+    ax = plt.gca() if ax is None else ax
+
+    for side in ['bottom','right','top','left']:
+        ax.spines[side].set_visible(False)
 
 
 def minimal_xticks(start, end):
@@ -837,7 +847,7 @@ def set_colorbar(ax):
     return axins
 
 
-def arrowed_spines(ax, basis="umap"):
+def arrowed_spines(ax, basis="umap", background='white'):
     """https://stackoverflow.com/questions/33737736/matplotlib-axis-arrow-tip
         modified based on Answer 6
     """
@@ -848,8 +858,7 @@ def arrowed_spines(ax, basis="umap"):
     ymin, ymax = ax.get_ylim()
 
     # removing the default axis on all sides:
-    for side in ['bottom','right','top','left']:
-        ax.spines[side].set_visible(False)
+    despline_all(ax)
 
     # removing the axis ticks
     ax.get_xaxis().set_visible(False)
@@ -872,12 +881,13 @@ def arrowed_spines(ax, basis="umap"):
     yhl = hl/(xmax-xmin)*(ymax-ymin)* width/height
 
     # draw x and y axis
-    ax.arrow(xmin, ymin, hl * 5, 0, #fc='k', ec='k',
+    fc, ec = 'k', 'k' if background == 'white' else "w"
+    ax.arrow(xmin, ymin, hl * 5, 0, fc=fc, ec=ec,
              lw=lw,
              head_width=hw, head_length=hl,
              overhang=ohg,
              length_includes_head=True, clip_on=False)
-    ax.arrow(xmin, ymin, 0, hw * 5, # fc='k', ec='k',
+    ax.arrow(xmin, ymin, 0, hw * 5, fc=fc, ec=ec,
              lw=lw,
              head_width=yhw, head_length=yhl,
              overhang=ohg,

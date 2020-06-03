@@ -1083,7 +1083,7 @@ def scatters(
                         **scatter_kwargs
                     )
 
-                arrowed_spines(ax, points.columns[0].strip('_1'))
+                if i == 1: arrowed_spines(ax, points.columns[0].strip('_1'), background)
                 ax.set_title(cur_c)
 
                 axes_list.append(ax)

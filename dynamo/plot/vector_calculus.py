@@ -5,7 +5,7 @@ from ..configuration import set_figure_params
 
 from .scatters import scatters
 from .scatters import docstrings
-from .utils import _matplotlib_points, save_fig
+from .utils import _matplotlib_points, save_fig, arrowed_spines
 
 from ..tools.utils import update_dict
 
@@ -225,7 +225,7 @@ def jacobian(adata,
     for i, source in enumerate(source_gene):
         for j, target in enumerate(target_gene):
             ax = plt.subplot(gs[i * j + j])
-            J = Der[i, j, :]
+            J = Der if nrow == 1 and ncol == 1 else Der[i, j, :]
             cur_pd["jacobian"] = J
 
             ax, color = _matplotlib_points(
@@ -243,7 +243,9 @@ def jacobian(adata,
                 show_legend=show_legend,
                 **scatter_kwargs
             )
-            ax.title('Jacobian for %s wrt. %s' % (source, target))
+            ax.set_title(f'Jacobian for {source} wrt. {target}')
+            if i + j == 0:
+                arrowed_spines(ax, basis, background)
 
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'phase_portraits', "dpi": None,
