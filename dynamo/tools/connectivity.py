@@ -153,6 +153,8 @@ def umap_conn_indices_dist_embedding(
             metric="precomputed",
             verbose=verbose,
         )
+        if type(graph) == tuple: graph = graph[0]
+
         # extract knn_indices, knn_dist
         g_tmp = deepcopy(graph)
         g_tmp[graph.nonzero()] = dmat[graph.nonzero()]
