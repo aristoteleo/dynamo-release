@@ -12,6 +12,8 @@ import matplotlib.cm
 from ..configuration import _themes, set_figure_params
 from .utils import (
     despline,
+    despline_all,
+    deaxis_all,
     set_spine_linewidth,
     scatter_with_colorbar,
     scatter_with_legend,
@@ -1083,7 +1085,12 @@ def scatters(
                         **scatter_kwargs
                     )
 
-                if i == 1: arrowed_spines(ax, points.columns[0].strip('_1'), background)
+                if i == 1:
+                    arrowed_spines(ax, points.columns[0].strip('_1'), background)
+                else:
+                    despline_all(ax)
+                    deaxis_all(ax)
+
                 ax.set_title(cur_c)
 
                 axes_list.append(ax)

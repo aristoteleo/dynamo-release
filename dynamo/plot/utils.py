@@ -747,6 +747,11 @@ def despline_all(ax=None):
     for side in ['bottom','right','top','left']:
         ax.spines[side].set_visible(False)
 
+def deaxis_all(ax=None):
+    # removing the axis ticks
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+
 
 def minimal_xticks(start, end):
     import matplotlib.pyplot as plt
