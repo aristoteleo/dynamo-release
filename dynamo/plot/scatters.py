@@ -755,8 +755,7 @@ def scatters(
         y: `int` (default: `1`)
             The column index of the low dimensional embedding for the y-axis.
         color: `string` (default: None)
-            Which group will be used to color cells, only used for the phase portrait because the other two plots are colored
-            by the velocity magnitude or the gene expression value, respectively.
+            Any column names or gene expression, etc. that will be used for coloring cells.
         layer: `str` (default: `X`)
             The layer of data to use for the scatter plot.
         highlights: `list` (default: None)

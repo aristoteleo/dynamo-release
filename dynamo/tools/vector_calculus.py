@@ -247,7 +247,7 @@ def divergence(adata,
     div = compute_divergence(get_fjac(func), X[cell_idx], vectorize=True)
 
     adata.obs['divergence'] = None
-    adata.obs.loc[cell_idx, 'divergence'] = div
+    adata.obs.iloc[cell_idx, :].loc[:, 'divergence'] = div
 
 
 def jacobian(adata,
@@ -343,7 +343,7 @@ def jacobian(adata,
         raise ValueError(f"the source and target gene list you provided are not in the velocity gene list!")
 
     PCs_ = "PCs" if basis == 'pca' else "PCs_" + basis
-    Jacobian_ = "jacobian" if basis is None else "jacobian_" + basis
+    Jacobian_ = "jacobian" #if basis is None else "jacobian_" + basis
 
     Q, func = adata.varm[PCs_], vecfld_dict['func']
 
@@ -360,6 +360,8 @@ def jacobian(adata,
                                                  Q[target_idx, :], timeit=True)
 
     adata.uns[Jacobian_] = {"Jacobian": Jacobian,
+                            "source_gene": source_genes,
+                            "target_genes": target_genes,
                             "cell_idx": cell_idx,
                             "sampling": sampling}
 

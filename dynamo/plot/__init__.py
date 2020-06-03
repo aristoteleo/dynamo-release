@@ -29,6 +29,7 @@ from .topography import (
     plot_traj,
     topography,
 )
+from .vector_calculus import curl, divergence, jacobian
 from .state_graph import state_graph
 
 from .scPotential import show_landscape

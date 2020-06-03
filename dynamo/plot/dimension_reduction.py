@@ -1,4 +1,5 @@
-# """ plotting utilities that are built based on scSLAM-seq paper
+"""plotting utilities that are built based on scSLAM-seq paper"""
+
 from .scatters import scatters
 from .scatters import docstrings
 
@@ -12,7 +13,8 @@ def pca(adata, *args, **kwargs):
 
     Parameters
     ----------
-        adata: an anndata object.
+        adata: :class:`~anndata.AnnData`
+            an Annodata object.
         %(scatters.parameters.no_adata|basis)s
 
     Returns
@@ -41,7 +43,8 @@ def umap(adata, *args, **kwargs):
 
     Parameters
     ----------
-        adata: an anndata object.
+        adata: :class:`~anndata.AnnData`
+            an Annodata object.
         %(scatters.parameters.no_adata|basis)s
 
     Returns
@@ -70,7 +73,8 @@ def trimap(adata, *args, **kwargs):
 
     Parameters
     ----------
-        adata: an anndata object.
+        adata: :class:`~anndata.AnnData`
+            an Annodata object.
         %(scatters.parameters.no_adata|basis)s
 
     Returns
@@ -98,7 +102,8 @@ def tsne(adata, *args, **kwargs):
 
     Parameters
     ----------
-        adata: an anndata object.
+        adata: :class:`~anndata.AnnData`
+            an Annodata object.
         %(scatters.parameters.no_adata|basis)s
 
     Returns
