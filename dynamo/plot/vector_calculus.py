@@ -44,7 +44,7 @@ def curl(adata, color=None, cmap='bwr', *args, **kwargs):
     >>> dyn.tl.curl(adata)
     >>> dyn.pl.curl(adata)
 
-    See also:: :func:`../external.ddhodge.curl` for calculating curl with a diffusion graph built from reconstructed vector
+    See also:: :func:`..external.ddhodge.curl` for calculating curl with a diffusion graph built from reconstructed vector
     field.
     """
 
@@ -87,7 +87,7 @@ def divergence(adata, color=None, cmap='bwr', *args, **kwargs):
     >>> dyn.tl.divergence(adata)
     >>> dyn.pl.divergence(adata)
 
-    See also:: :func:`../external.ddhodge.divergence` for calculating divergence with a diffusion graph built from reconstructed
+    See also:: :func:`..external.ddhodge.divergence` for calculating divergence with a diffusion graph built from reconstructed
     vector field.
     """
 
@@ -95,6 +95,7 @@ def divergence(adata, color=None, cmap='bwr', *args, **kwargs):
     if not np.any(adata.obs.columns.isin(color_)):
         raise Exception(f"divergence is not existed in .obs, try run dyn.tl.divergence(adata) first.")
 
+    adata.obs.divergence = adata.obs.divergence.astype('float')
     adata_ = adata[~ adata.obs.divergence.isna(), :]
 
     if color is not None:
@@ -222,7 +223,7 @@ def jacobian(adata,
     gs = plt.GridSpec(nrow, ncol)
 
     for i, source in enumerate(source_gene):
-        for j, target in range(target_gene):
+        for j, target in enumerate(target_gene):
             ax = plt.subplot(gs[i * j + j])
             J = Der[i, j, :]
             cur_pd["jacobian"] = J

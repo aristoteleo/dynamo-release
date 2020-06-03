@@ -73,7 +73,7 @@ def elementwise_jacobian_transformation(fjac, X, qi, qj):
 
     Js = fjac(X)
     ret = np.zeros(len(X))
-    for i in range(len(X)):
+    for i in tqdm(range(len(X)), "calculating Jacobian for each cell"):
         J = Js[:, :, i]
         ret[i] = qi @ J @ qj
     return ret
@@ -149,7 +149,7 @@ def _curl(f, x):
 def curl2d(f, x):
     """Curl of the reconstructed vector field f evaluated at x in 2D"""
     jac = nd.Jacobian(f)(x)
-    curl = jac[0, 0] - jac[1, 1] + jac[0, 1] - jac[1, 1]
+    curl = jac[1, 0] - jac[0, 1]
 
     return curl
 
@@ -353,8 +353,8 @@ def jacobian(adata,
         Jacobian = Jac_fun(X)
     else:
         if len(source_genes) == 1 and len(target_genes) == 1:
-            Jacobian = elementwise_jacobian_transformation(Jac_fun, X[cell_idx], Q[source_idx, :],
-                                                      Q[target_idx, :], timeit=True)
+            Jacobian = elementwise_jacobian_transformation(Jac_fun, X[cell_idx], Q[source_idx, :].flatten(),
+                                                      Q[target_idx, :].flatten(), timeit=True)
         else:
             Jacobian = subset_jacobian_transformation(Jac_fun, X[cell_idx], Q[source_idx, :],
                                                  Q[target_idx, :], timeit=True)
