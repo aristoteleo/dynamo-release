@@ -71,7 +71,7 @@ def plot_flow_field(
     else:
         _backgrond = background
 
-    if _background == "black":
+    if _background in ["#ffffff", "black"]:
         color, color_start_points = "white", "red"
     else:
         color, color_start_points = "thistle", "tomato"
@@ -169,7 +169,7 @@ def plot_nullclines(vecfld,
     else:
         _backgrond = background
 
-    if _background == "black":
+    if _background in ["#ffffff", "black"]:
         colors = ["#189e1a", "#1f77b4"]
     else:
         colors = ["#189e1a", "#1f77b4"]
@@ -238,7 +238,7 @@ def plot_fixed_points(
     else:
         _backgrond = background
 
-    if _background == "black":
+    if _background in ["#ffffff", "black"]:
         markercolor = "#ffffff"
     else:
         markercolor = "k"
@@ -324,7 +324,7 @@ def plot_traj(f,
     else:
         _backgrond = background
 
-    if background == "black":
+    if background in ["#ffffff", "black"]:
         color = ["#ffffff"]
     else:
         color = "black"
@@ -399,7 +399,7 @@ def plot_separatrix(vecfld,
     else:
         _backgrond = background
 
-    if _background == "black":
+    if _background in ["#ffffff", "black"]:
         color = ["#ffffff"]
     else:
         color = "tomato"
@@ -731,7 +731,7 @@ def topography(
 
             if quiver_size is None:
                 quiver_size = 1
-            if _background == "black":
+            if _background in ["#ffffff", "black"]:
                 edgecolors = "white"
             else:
                 edgecolors = "black"

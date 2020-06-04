@@ -1003,7 +1003,7 @@ def scatters(
                 if is_not_continous:
                     labels = _color.to_dense() if is_categorical(_color) else _color
                     if theme is None:
-                        if _background == "black":
+                        if _background in ["#ffffff", "black"]:
                             _theme_ = "glasbey_dark"
                         else:
                             _theme_ = "glasbey_white"
@@ -1012,7 +1012,7 @@ def scatters(
                 else:
                     values = _color
                     if theme is None:
-                        if _background == "black":
+                        if _background in ["#ffffff", "black"]:
                             _theme_ = (
                                 "inferno"
                                 if cur_l is not "velocity"
