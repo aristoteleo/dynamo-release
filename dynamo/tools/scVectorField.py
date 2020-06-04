@@ -72,7 +72,7 @@ def bandwidth_rule_of_thumb(X, return_sigma=False):
 
 def bandwidth_selector(X):
     '''
-        This function computes a empirical bandwidth for a Gaussian kernel.
+        This function computes an empirical bandwidth for a Gaussian kernel.
     '''
     n = len(X)
     nbrs = NearestNeighbors(n_neighbors=int(0.2*n), algorithm='ball_tree').fit(X)
