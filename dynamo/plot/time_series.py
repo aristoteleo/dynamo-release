@@ -490,6 +490,17 @@ def jacobian_kinetics(
     Returns
     -------
         Nothing but plots a heatmap that shows the element of Jacobian matrix dynamics over time (potential decreasing).
+
+    Examples
+    --------
+    >>> import dynamo as dyn
+    >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
+    >>> adata = dyn.pp.recipe_monocle(adata)
+    >>> dyn.tl.dynamics(adata)
+    >>> dyn.tl.VectorField(adata, basis='pca')
+    >>> valid_gene_list = adata[:, adata.var.use_for_velocity].var.index[:2]
+    >>> dyn.tl.jacobian(adata, source_genes=valid_gene_list[0], target_genes=valid_gene_list[1])
+    >>> dyn.pl.jacobian_kinetics(adata)
     """
 
     import pandas as pd
@@ -549,7 +560,7 @@ def jacobian_kinetics(
     if not show_colorbar: sns_heatmap.cax.set_visible(False)
 
     if save_show_or_return == "save_fig":
-        s_kwargs = {"path": None, "prefix": 'kinetic_heatmap', "dpi": None,
+        s_kwargs = {"path": None, "prefix": 'jacobian_kinetics', "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 

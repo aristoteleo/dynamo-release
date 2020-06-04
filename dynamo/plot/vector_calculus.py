@@ -233,7 +233,7 @@ def jacobian(adata,
     for i, source in enumerate(source_gene):
         for j, target in enumerate(target_gene):
             ax = plt.subplot(gs[i * ncol + j])
-            J = Der if nrow == 1 and ncol == 1 else Der[j, i, :]
+            J = Der if nrow == 1 and ncol == 1 else Der[j, i, :] # dim 0: target; dim 1: source
             cur_pd["jacobian"] = J
 
             # cur_pd.loc[:, "jacobian"] = np.array([scinot(i) for i in cur_pd.loc[:, "jacobian"].values])
@@ -260,7 +260,7 @@ def jacobian(adata,
                 deaxis_all(ax)
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'phase_portraits', "dpi": None,
+        s_kwargs = {"path": None, "prefix": 'jacobian', "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
@@ -336,7 +336,7 @@ def jacobian_heatmap(adata,
     valid_cell_idx = list(set(cell_idx).intersection(cell_indx))
     if len(valid_cell_idx) == 0:
         raise ValueError(f"Jacobian matrix was not calculated for the cells you provided {cell_indx}."
-                         f"Check adata.uns[{Jacobian_}].values() for available cells that has Jacobian matrix calculated."
+                         f"Check adata.uns[{Jacobian_}].values() for available cells that have Jacobian matrix calculated."
                          f"Note that limiting calculation of Jacobian matrix only for a subset of cells are required for "
                          f"speeding up calculations.")
     else:
@@ -351,18 +351,18 @@ def jacobian_heatmap(adata,
         g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow))  # , dpi=160
 
     gs = plt.GridSpec(nrow, ncol)
-    heatmap_kwargs = dict(xticklabels=False, yticklabels="auto")
+    heatmap_kwargs = dict(xticklabels=True, yticklabels=True)
     heatmap_kwargs = update_dict(heatmap_kwargs, kwargs)
     for i, name in enumerate(cell_names):
         ind = np.where(adata_.obs_names == name)[0]
-        J = Der[:, :, ind][:, :, 0]
+        J = Der[:, :, ind][:, :, 0].T # dim 0: target; dim 1: source
         J = pd.DataFrame(J, index=source_gene, columns=target_gene)
         ax = plt.subplot(gs[i])
         sns.heatmap(J, annot=True, ax=ax, cmap=cmap, cbar=False, center=0, **heatmap_kwargs)
         plt.title(name)
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'phase_portraits', "dpi": None,
+        s_kwargs = {"path": None, "prefix": 'jacobian_heatmap', "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
