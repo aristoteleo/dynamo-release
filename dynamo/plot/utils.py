@@ -236,7 +236,6 @@ def _matplotlib_points(
             cmap=cmap,
             vmin=_vmin,
             vmax=_vmax,
-            rasterized=True,
             **kwargs,
         )
 
@@ -263,7 +262,7 @@ def _matplotlib_points(
 
     if show_legend and legend_elements is not None:
         if len(unique_labels) > 1 and show_legend == "on data":
-            font_color = "white" if background is "black" else "black"
+            font_color = "white" if background in ["black", "#ffffff"] else "black"
             for i in unique_labels:
                 color_cnt = np.nanmedian(points[np.where(labels == i)[0], :2], 0)
                 txt = plt.text(
@@ -289,6 +288,7 @@ def _matplotlib_points(
                 loc=show_legend,
                 ncol=len(unique_labels) // 15 + 1,
             )
+
     return ax, colors
 
 
@@ -890,7 +890,7 @@ def arrowed_spines(ax, basis="umap", background='white'):
     yhl = hl/(xmax-xmin)*(ymax-ymin)* width/height
 
     # draw x and y axis
-    fc, ec = ('k', 'k') if background == 'white' else ("w", "w")
+    fc, ec = ("w", "w") if background in ['black', "#ffffff"] else ('k', 'k')
     ax.arrow(xmin, ymin, hl * 5, 0, fc=fc, ec=ec,
              lw=lw,
              head_width=hw, head_length=hl,

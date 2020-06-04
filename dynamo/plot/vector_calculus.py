@@ -1,7 +1,6 @@
 """plotting utilities that are used to visualize the curl, divergence."""
 
 import numpy as np, pandas as pd
-from ..configuration import set_figure_params
 
 from .scatters import scatters
 from .scatters import docstrings
@@ -197,14 +196,14 @@ def jacobian(adata,
     """
 
     import matplotlib.pyplot as plt
-    from matplotlib import rcParams, colors
+    from matplotlib import rcParams
     from matplotlib.colors import to_hex
 
-    if background is not None:
-        set_figure_params(background=background)
-    else:
+    if background is None:
         _background = rcParams.get("figure.facecolor")
-        background = to_hex(_background) if type(_background) is tuple else _background
+        _background = to_hex(_background) if type(_background) is tuple else _background
+    else:
+        _backgrond = background
 
     Jacobian_ = "jacobian" #f basis is None else "jacobian_" + basis
     Der, source_genes_, target_genes_, cell_indx, _  =  adata.uns[Jacobian_].values()
@@ -238,9 +237,9 @@ def jacobian(adata,
 
     nrow, ncol = len(source_genes), len(target_genes)
     if figsize is None:
-        g = plt.figure(None, (3 * ncol, 3 * nrow))  # , dpi=160
+        g = plt.figure(None, (3 * ncol, 3 * nrow), facecolor=_backgrond)  # , dpi=160
     else:
-        g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow))  # , dpi=160
+        g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=_backgrond)  # , dpi=160
 
     gs = plt.GridSpec(nrow, ncol, wspace=0.1)
 
@@ -262,7 +261,7 @@ def jacobian(adata,
                 cmap=cmap,
                 color_key=None,
                 color_key_cmap=None,
-                background=background,
+                background=_background,
                 width=figsize[0],
                 height=figsize[1],
                 show_legend=show_legend,

@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 
 from ..tools.topography import topography as _topology  # , compute_separatrices
 from ..tools.utils import update_dict
-from ..configuration import set_figure_params
 from .scatters import scatters
 from .scatters import docstrings
 from .utils import _plot_traj, quiver_autoscaler, save_fig
@@ -64,12 +63,15 @@ def plot_flow_field(
 
     from matplotlib import rcParams
 
-    if background is not None:
-        set_figure_params(background=background)
-    else:
-        background = rcParams.get("figure.facecolor")
+    from matplotlib.colors import to_hex
 
-    if background == "black":
+    if background is None:
+        _background = rcParams.get("figure.facecolor")
+        _background = to_hex(_background) if type(_background) is tuple else _background
+    else:
+        _backgrond = background
+
+    if _background == "black":
         color, color_start_points = "white", "red"
     else:
         color, color_start_points = "thistle", "tomato"
@@ -159,12 +161,15 @@ def plot_nullclines(vecfld,
     """
     from matplotlib import rcParams
 
-    if background is not None:
-        set_figure_params(background=background)
-    else:
-        background = rcParams.get("figure.facecolor")
+    from matplotlib.colors import to_hex
 
-    if background == "black":
+    if background is None:
+        _background = rcParams.get("figure.facecolor")
+        _background = to_hex(_background) if type(_background) is tuple else _background
+    else:
+        _backgrond = background
+
+    if _background == "black":
         colors = ["#189e1a", "#1f77b4"]
     else:
         colors = ["#189e1a", "#1f77b4"]
@@ -225,13 +230,15 @@ def plot_fixed_points(
             The matplotlib axes used for plotting. Default is to use the current axis.
     """
     from matplotlib import rcParams
+    from matplotlib.colors import to_hex
 
-    if background is not None:
-        set_figure_params(background=background)
+    if background is None:
+        _background = rcParams.get("figure.facecolor")
+        _background = to_hex(_background) if type(_background) is tuple else _background
     else:
-        background = rcParams.get("figure.facecolor")
+        _backgrond = background
 
-    if background == "black":
+    if _background == "black":
         markercolor = "#ffffff"
     else:
         markercolor = "k"
@@ -309,11 +316,13 @@ def plot_traj(f,
         Axis with streamplot included.
     """
     from matplotlib import rcParams
+    from matplotlib.colors import to_hex
 
-    if background is not None:
-        set_figure_params(background=background)
+    if background is None:
+        _background = rcParams.get("figure.facecolor")
+        _background = to_hex(_background) if type(_background) is tuple else _background
     else:
-        background = rcParams.get("figure.facecolor")
+        _backgrond = background
 
     if background == "black":
         color = ["#ffffff"]
@@ -382,13 +391,15 @@ def plot_separatrix(vecfld,
 
     """
     from matplotlib import rcParams
+    from matplotlib.colors import to_hex
 
-    if background is not None:
-        set_figure_params(background=background)
+    if background is None:
+        _background = rcParams.get("figure.facecolor")
+        _background = to_hex(_background) if type(_background) is tuple else _background
     else:
-        background = rcParams.get("figure.facecolor")
+        _backgrond = background
 
-    if background == "black":
+    if _background == "black":
         color = ["#ffffff"]
     else:
         color = "tomato"
@@ -557,11 +568,13 @@ def topography(
         for single cells or return the corresponding axis, depending on the plot argument.
     """
     from matplotlib import rcParams
+    from matplotlib.colors import to_hex
 
-    if background is not None:
-        set_figure_params(background=background)
+    if background is None:
+        _background = rcParams.get("figure.facecolor")
+        _background = to_hex(_background) if type(_background) is tuple else _background
     else:
-        background = rcParams.get("figure.facecolor")
+        _backgrond = background
 
     if approx:
         if "streamline" not in terms:
@@ -624,7 +637,7 @@ def topography(
         cmap,
         color_key,
         color_key_cmap,
-        background,
+        _background,
         ncols,
         pointsize,
         figsize,
@@ -670,29 +683,29 @@ def topography(
                     vecfld,
                     xlim,
                     ylim,
-                    background=background,
+                    background=_background,
                     start_points=init_states,
                     integration_direction=integration_direction,
                     ax=axes_list[i],
                 )
             else:
                 axes_list[i] = plot_flow_field(
-                    vecfld, xlim, ylim, background=background, ax=axes_list[i]
+                    vecfld, xlim, ylim, background=_background, ax=axes_list[i]
                 )
 
         if "nullcline" in terms:
             axes_list[i] = plot_nullclines(
-                vecfld, background=background, ax=axes_list[i]
+                vecfld, background=_background, ax=axes_list[i]
             )
 
         if "fixed_points" in terms:
             axes_list[i] = plot_fixed_points(
-                vecfld, background=background, ax=axes_list[i]
+                vecfld, background=_background, ax=axes_list[i]
             )
 
         if "separatrices" in terms:
             axes_list[i] = plot_separatrix(
-                vecfld, xlim, ylim, t=t, background=background, ax=axes_list[i]
+                vecfld, xlim, ylim, t=t, background=_background, ax=axes_list[i]
             )
 
         if init_states is not None and "trajectory" in terms:
@@ -701,7 +714,7 @@ def topography(
                     vecfld.func,
                     init_states,
                     t,
-                    background=background,
+                    background=_background,
                     integration_direction=integration_direction,
                     ax=axes_list[i],
                 )
@@ -718,7 +731,7 @@ def topography(
 
             if quiver_size is None:
                 quiver_size = 1
-            if background == "black":
+            if _background == "black":
                 edgecolors = "white"
             else:
                 edgecolors = "black"

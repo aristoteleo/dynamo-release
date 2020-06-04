@@ -9,7 +9,7 @@ from numbers import Number
 import matplotlib.colors
 import matplotlib.cm
 
-from ..configuration import _themes, set_figure_params
+from ..configuration import _themes
 from .utils import (
     despline,
     despline_all,
@@ -859,11 +859,11 @@ def scatters(
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
 
-    if background is not None:
-        set_figure_params(background=background)
-    else:
+    if background is None:
         _background = rcParams.get("figure.facecolor")
-        background = to_hex(_background) if type(_background) is tuple else _background
+        _background = to_hex(_background) if type(_background) is tuple else _background
+    else:
+        _backgrond = background
 
     x, y = x[0] if type(x) != int else x, y[0] if type(y) != int else y
 
@@ -892,20 +892,20 @@ def scatters(
     point_size *= 4
 
     scatter_kwargs = dict(
-        alpha=0.2, s=point_size, edgecolor=None, linewidth=0
+        alpha=0.2, s=point_size, edgecolor=None, linewidth=0, rasterized=True
     )  # (0, 0, 0, 1)
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
 
-    font_color = _select_font_color(background)
+    font_color = _select_font_color(_background)
 
     total_panels, ncols = n_c * n_l * n_b, min(n_c, ncols)
     nrow, ncol = int(np.ceil(total_panels / ncols)), ncols
     if figsize is None:
         figsize = plt.rcParams["figsize"]
 
-    if total_panels > 1:
-        plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)
+    if total_panels >= 1:
+        plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=_background)
         gs = plt.GridSpec(nrow, ncol)
 
     i = 0
@@ -1003,7 +1003,7 @@ def scatters(
                 if is_not_continous:
                     labels = _color.to_dense() if is_categorical(_color) else _color
                     if theme is None:
-                        if background == "black":
+                        if _background == "black":
                             _theme_ = "glasbey_dark"
                         else:
                             _theme_ = "glasbey_white"
@@ -1012,7 +1012,7 @@ def scatters(
                 else:
                     values = _color
                     if theme is None:
-                        if background == "black":
+                        if _background == "black":
                             _theme_ = (
                                 "inferno"
                                 if cur_l is not "velocity"
