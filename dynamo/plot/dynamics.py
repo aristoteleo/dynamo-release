@@ -174,7 +174,7 @@ def phase_portraits(
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
     div_scatter_kwargs = scatter_kwargs.copy()
-    div_scatter_kwargs.update({"norm": DivergingNorm(vcenter=0)})
+    # div_scatter_kwargs.update({"norm": DivergingNorm(vcenter=0)})
 
     if type(genes) == str:
         genes = [genes]
@@ -705,6 +705,9 @@ def phase_portraits(
         ax2.set_title(gn + " (" + ekey + ")")
         ax2 = arrowed_spines(ax2, basis)
 
+        v_max = np.max(np.abs(V_vec.values))
+        div_scatter_kwargs.update({"vmin": -v_max, "vmax": v_max})
+
         if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
             ax3, _ = _matplotlib_points(
                 embedding.iloc[:, :2].values,
@@ -923,6 +926,9 @@ def phase_portraits(
 
             ax5.set_title(gn + " (protein expression)")
             ax5 = arrowed_spines(ax5, basis)
+
+            v_max = np.max(np.abs(V_vec.values))
+            div_scatter_kwargs.update({"vmin": -v_max, "vmax": v_max})
 
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
                 ax6, _ = _matplotlib_points(
