@@ -69,7 +69,7 @@ def plot_flow_field(
         _background = rcParams.get("figure.facecolor")
         _background = to_hex(_background) if type(_background) is tuple else _background
     else:
-        _backgrond = background
+        _background = background
 
     if _background in ["#ffffff", "black"]:
         color, color_start_points = "white", "red"
@@ -167,7 +167,7 @@ def plot_nullclines(vecfld,
         _background = rcParams.get("figure.facecolor")
         _background = to_hex(_background) if type(_background) is tuple else _background
     else:
-        _backgrond = background
+        _background = background
 
     if _background in ["#ffffff", "black"]:
         colors = ["#189e1a", "#1f77b4"]
@@ -236,7 +236,7 @@ def plot_fixed_points(
         _background = rcParams.get("figure.facecolor")
         _background = to_hex(_background) if type(_background) is tuple else _background
     else:
-        _backgrond = background
+        _background = background
 
     if _background in ["#ffffff", "black"]:
         markercolor = "#ffffff"
@@ -322,7 +322,7 @@ def plot_traj(f,
         _background = rcParams.get("figure.facecolor")
         _background = to_hex(_background) if type(_background) is tuple else _background
     else:
-        _backgrond = background
+        _background = background
 
     if background in ["#ffffff", "black"]:
         color = ["#ffffff"]
@@ -397,7 +397,7 @@ def plot_separatrix(vecfld,
         _background = rcParams.get("figure.facecolor")
         _background = to_hex(_background) if type(_background) is tuple else _background
     else:
-        _backgrond = background
+        _background = background
 
     if _background in ["#ffffff", "black"]:
         color = ["#ffffff"]
@@ -498,6 +498,7 @@ def topography(
     save_show_or_return='show',
     save_kwargs={},
     aggregate=None,
+    show_arrowed_spines=True,
     ax=None,
     s_kwargs_dict={},
     q_kwargs_dict={},
@@ -553,6 +554,8 @@ def topography(
             according to your needs.
         aggregate: `str` or `None` (default: `None`)
             The column in adata.obs that will be used to aggregate data points.
+        show_arrowed_spines: bool (optional, default True)
+            Whether to show a pair of arrowed spines represeenting the basis of the scatter is currently using.
         ax: Matplotlib Axis instance
             Axis on which to make the plot
         s_kwargs_dict: `dict` (default: {})
@@ -574,7 +577,7 @@ def topography(
         _background = rcParams.get("figure.facecolor")
         _background = to_hex(_background) if type(_background) is tuple else _background
     else:
-        _backgrond = background
+        _background = background
 
     if approx:
         if "streamline" not in terms:
@@ -643,6 +646,8 @@ def topography(
         figsize,
         show_legend,
         use_smoothed,
+        aggregate,
+        show_arrowed_spines,
         ax,
         "return",
         aggregate,

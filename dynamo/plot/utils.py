@@ -211,7 +211,7 @@ def _matplotlib_points(
             ]
             colors = pd.Series(labels).map(new_color_key)
 
-        ax.scatter(points[:, 0], points[:, 1], c=colors, rasterized=True, **kwargs)
+        ax.scatter(points[:, 0], points[:, 1], c=colors, **kwargs)
 
     # Color by values
     elif values is not None:
@@ -258,7 +258,7 @@ def _matplotlib_points(
     # No color (just pick the midpoint of the cmap)
     else:
         colors = plt.get_cmap(cmap)(0.5)
-        ax.scatter(points[:, 0], points[:, 1], c=colors, rasterized=True, **kwargs)
+        ax.scatter(points[:, 0], points[:, 1], c=colors, **kwargs)
 
     if show_legend and legend_elements is not None:
         if len(unique_labels) > 1 and show_legend == "on data":

@@ -894,6 +894,8 @@ def line_integral_conv(
     -------
         Nothing, but plot the vector field with quiver, streamline and line integral convolution (LIC).
     """
+
+    import matplotlib.pyplot as plt
     X = adata.obsm["X_" + basis][:, :2] if "X_" + basis in adata.obsm.keys() else None
     V = (
         adata.obsm["velocity_" + basis][:, :2]
@@ -1028,7 +1030,8 @@ def line_integral_conv(
         plt.tight_layout()
         plt.show()
     elif save_show_or_return == "return":
-        return g
+        return slc
+
 
 @docstrings.with_indent(4)
 def cell_wise_velocity(
@@ -1053,6 +1056,7 @@ def cell_wise_velocity(
     use_smoothed=True,
     ax=None,
     aggregate=None,
+    show_arrowed_spines=True,
     cell_ind="all",
     quiver_size=None,
     quiver_length=None,
@@ -1167,6 +1171,8 @@ def cell_wise_velocity(
         figsize,
         show_legend,
         use_smoothed,
+        aggregate,
+        show_arrowed_spines,
         ax,
         "return",
         aggregate,
@@ -1231,6 +1237,7 @@ def grid_velocity(
     use_smoothed=True,
     ax=None,
     aggregate=None,
+    show_arrowed_spines=True,
     method="gaussian",
     xy_grid_nums=[50, 50],
     quiver_size=None,
@@ -1395,6 +1402,8 @@ def grid_velocity(
         figsize,
         show_legend,
         use_smoothed,
+        aggregate,
+        show_arrowed_spines,
         ax,
         "return",
         aggregate,
@@ -1442,6 +1451,7 @@ def streamline_plot(
     use_smoothed=True,
     ax=None,
     aggregate=None,
+    show_arrowed_spines=True,
     method="gaussian",
     xy_grid_nums=[50, 50],
     density=1,
@@ -1579,9 +1589,10 @@ def streamline_plot(
         figsize,
         show_legend,
         use_smoothed,
+        aggregate,
+        show_arrowed_spines,
         ax,
         "return",
-        aggregate,
         **s_kwargs_dict,
     )
 

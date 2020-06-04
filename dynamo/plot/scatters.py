@@ -863,7 +863,7 @@ def scatters(
         _background = rcParams.get("figure.facecolor")
         _background = to_hex(_background) if type(_background) is tuple else _background
     else:
-        _backgrond = background
+        _background = background
 
     x, y = x[0] if type(x) != int else x, y[0] if type(y) != int else y
 
@@ -1032,7 +1032,7 @@ def scatters(
                     else color_key_cmap
                 )
                 _background = (
-                    _themes[_theme_]["background"] if background is None else background
+                    _themes[_theme_]["background"] if background is None else _background
                 )
 
                 if labels is not None and values is not None:

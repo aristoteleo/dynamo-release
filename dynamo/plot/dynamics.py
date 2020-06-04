@@ -160,7 +160,7 @@ def phase_portraits(
         _background = rcParams.get("figure.facecolor")
         _background = to_hex(_background) if type(_background) is tuple else _background
     else:
-        _backgrond = background
+        _background = background
 
     mapper = get_mapper()
 
@@ -464,12 +464,12 @@ def phase_portraits(
     ncols = min([num_per_gene, ncols]) if ncols is not None else num_per_gene
     nrow, ncol = int(np.ceil(num_per_gene * n_genes / ncols)), ncols
     if figsize is None:
-        g = plt.figure(None, (3 * ncol, 3 * nrow), facecolor=_backgrond)  # , dpi=160
+        g = plt.figure(None, (3 * ncol, 3 * nrow), facecolor=_background)  # , dpi=160
     else:
-        g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=_backgrond)  # , dpi=160
+        g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=_background)  # , dpi=160
 
     if discrete_continous_div_themes is None:
-        if _backgrond in ["#ffffff", "black"]:
+        if _background in ["#ffffff", "black"]:
             discrete_theme, continous_theme, divergent_theme = (
                 "glasbey_dark",
                 "inferno",

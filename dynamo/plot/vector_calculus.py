@@ -203,7 +203,7 @@ def jacobian(adata,
         _background = rcParams.get("figure.facecolor")
         _background = to_hex(_background) if type(_background) is tuple else _background
     else:
-        _backgrond = background
+        _background = background
 
     Jacobian_ = "jacobian" #f basis is None else "jacobian_" + basis
     Der, source_genes_, target_genes_, cell_indx, _  =  adata.uns[Jacobian_].values()
@@ -237,9 +237,9 @@ def jacobian(adata,
 
     nrow, ncol = len(source_genes), len(target_genes)
     if figsize is None:
-        g = plt.figure(None, (3 * ncol, 3 * nrow), facecolor=_backgrond)  # , dpi=160
+        g = plt.figure(None, (3 * ncol, 3 * nrow), facecolor=_background)  # , dpi=160
     else:
-        g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=_backgrond)  # , dpi=160
+        g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=_background)  # , dpi=160
 
     gs = plt.GridSpec(nrow, ncol, wspace=0.1)
 
