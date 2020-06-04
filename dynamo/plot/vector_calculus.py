@@ -228,7 +228,7 @@ def jacobian(adata,
     else:
         g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow))  # , dpi=160
 
-    gs = plt.GridSpec(nrow, ncol)
+    gs = plt.GridSpec(nrow, ncol, wspace=0.1)
 
     for i, source in enumerate(source_gene):
         for j, target in enumerate(target_gene):
@@ -266,8 +266,6 @@ def jacobian(adata,
 
         save_fig(**s_kwargs)
     elif save_show_or_return == "show":
-        if show_legend:
-            plt.subplots_adjust(wspace=0.75)
         plt.tight_layout()
         plt.show()
     elif save_show_or_return == "return":

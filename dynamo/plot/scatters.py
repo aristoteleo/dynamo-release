@@ -900,7 +900,7 @@ def scatters(
 
     if total_panels > 1:
         plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)
-        gs = plt.GridSpec(nrow, ncol)
+        gs = plt.GridSpec(nrow, ncol, wspace=0.1)
 
     i = 0
     axes_list, color_list = [], []
