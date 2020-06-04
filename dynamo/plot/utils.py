@@ -226,8 +226,8 @@ def _matplotlib_points(
         sorted_id = np.argsort(values)
         values, points = values[sorted_id], points[sorted_id, :]
 
-        _vmin = np.min(values) if vmin is None else np.percentile(values, vmin)
-        _vmax = np.max(values) if vmax is None else np.percentile(values, vmax)
+        _vmin = np.min(values) if vmin is None else np.percentile(values, vmin) if (vmax > 80 and vmin < 20) else vmin
+        _vmax = np.max(values) if vmax is None else np.percentile(values, vmax) if (vmax > 80 and vmin < 20) else vmax
 
         ax.scatter(
             points[:, 0],
@@ -746,6 +746,7 @@ def despline_all(ax=None):
 
     for side in ['bottom','right','top','left']:
         ax.spines[side].set_visible(False)
+
 
 def deaxis_all(ax=None):
     # removing the axis ticks

@@ -231,7 +231,7 @@ def jacobian(adata,
     point_size = 4 * point_size
 
     scatter_kwargs = dict(
-        alpha=0.2, s=point_size, edgecolor=None, linewidth=0, norm=colors.DivergingNorm(vcenter=0)
+        alpha=0.2, s=point_size, edgecolor=None, linewidth=0,
     )  # (0, 0, 0, 1)
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
@@ -251,11 +251,13 @@ def jacobian(adata,
             cur_pd["jacobian"] = J
 
             # cur_pd.loc[:, "jacobian"] = np.array([scinot(i) for i in cur_pd.loc[:, "jacobian"].values])
+            v_max = np.max(np.abs(J))
+            scatter_kwargs.update({"vmin": -v_max, "vmax": v_max})
             ax, color = _matplotlib_points(
                 cur_pd.iloc[:, [0, 1]].values,
                 ax=ax,
                 labels=None,
-                values=cur_pd.loc[:, "jacobian"].values,
+                values=J,
                 highlights=highlights,
                 cmap=cmap,
                 color_key=None,
