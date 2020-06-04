@@ -668,7 +668,7 @@ def phase_portraits(
         # V_vec = V_vec + limit  # that is: tmp_colorandum - (-limit)
         # V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
         # V_vec = np.clip(V_vec, 0, 1)
-
+        show_arrowed_spines = True if i == 0 else False
         if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
             ax2, _ = _matplotlib_points(
                 embedding.iloc[:, :2].values,
@@ -703,7 +703,7 @@ def phase_portraits(
             )
 
         ax2.set_title(gn + " (" + ekey + ")")
-        ax2 = arrowed_spines(ax2, basis)
+        if show_arrowed_spines: ax2 = arrowed_spines(ax2, basis)
 
         v_max = np.max(np.abs(V_vec.values))
         div_scatter_kwargs.update({"vmin": -v_max, "vmax": v_max})

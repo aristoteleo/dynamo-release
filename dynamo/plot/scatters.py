@@ -730,10 +730,11 @@ def scatters(
     figsize=(7, 5),
     show_legend=True,
     use_smoothed=True,
+    aggregate=None,
+    show_arrowed_spines=True,
     ax=None,
     save_show_or_return="show",
     save_kwargs={},
-    aggregate=None,
     **kwargs
 ):
     """Plot an embedding as points. Currently this only works
@@ -830,6 +831,12 @@ def scatters(
             The desired height of the plot in pixels
         show_legend: bool (optional, default True)
             Whether to display a legend of the labels
+        use_smoothed: bool (optional, default True)
+            Whether to use smoothed values (i.e. M_s / M_u instead of spliced / unspliced, etc.).
+        aggregate: `str` or `None` (default: `None`)
+            The column in adata.obs that will be used to aggregate data points.
+        show_arrowed_spines: bool (optional, default True)
+            Whether to show a pair of arrowed spines represeenting the basis of the scatter is currently using.
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -837,8 +844,6 @@ def scatters(
             will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
-        aggregate: `str` or `None` (default: `None`)
-            The column in adata.obs that will be used to aggregate data points.
         kwargs:
             Additional arguments passed to plt.scatters.
 
@@ -866,6 +871,7 @@ def scatters(
         mapper = get_mapper()
 
     # check layer, basis -> convert to list
+
     if type(color) is str:
         color = [color]
     if type(layer) is str:
@@ -1087,7 +1093,7 @@ def scatters(
                         **scatter_kwargs
                     )
 
-                if i == 1:
+                if i == 1 and show_arrowed_spines:
                     arrowed_spines(ax, points.columns[0].strip('_1'), _background)
                 else:
                     despline_all(ax)

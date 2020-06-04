@@ -29,7 +29,7 @@ def cell_velocities(
     n_pca_components=None,
     min_r2=0.01,
     basis="umap",
-    method="kmc",
+    method="pearson",
     neg_cells_trick=True,
     calc_rnd_vel=False,
     xy_grid_nums=(50, 50),
@@ -70,7 +70,7 @@ def cell_velocities(
             The minimal value of r-squared of the gamma fit for selecting velocity genes.
         basis: 'int' (optional, default `umap`)
             The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
-        method: `string` (optimal, default `kmc`)
+        method: `string` (optional, default `pearson`)
             The method to calculate the transition matrix and project high dimensional vector to low dimension, either `kmc`,
             `cosine`, `pearson`, or `transform`. "kmc" is our new approach to learn the transition matrix via diffusion
             approximation or an Itô kernel. "cosine" or "pearson" are the methods used in the original RNA velocity paper
