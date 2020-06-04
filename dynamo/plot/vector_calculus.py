@@ -189,7 +189,7 @@ def jacobian(adata,
     """
 
     import matplotlib.pyplot as plt
-    from matplotlib import rcParams
+    from matplotlib import rcParams, colors
     from matplotlib.colors import to_hex
 
     if background is not None:
@@ -217,7 +217,7 @@ def jacobian(adata,
     point_size = 4 * point_size
 
     scatter_kwargs = dict(
-        alpha=0.2, s=point_size, edgecolor=None, linewidth=0
+        alpha=0.2, s=point_size, edgecolor=None, linewidth=0, norm=colors.DivergingNorm(vcenter=0)
     )  # (0, 0, 0, 1)
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
@@ -349,7 +349,7 @@ def jacobian_heatmap(adata,
         g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow))  # , dpi=160
 
     gs = plt.GridSpec(nrow, ncol)
-    heatmap_kwargs = dict(xticklabels=True, yticklabels=True)
+    heatmap_kwargs = dict(xticklabels=1, yticklabels=1)
     heatmap_kwargs = update_dict(heatmap_kwargs, kwargs)
     for i, name in enumerate(cell_names):
         ind = np.where(adata_.obs_names == name)[0]

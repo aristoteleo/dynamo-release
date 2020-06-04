@@ -227,7 +227,7 @@ def _matplotlib_points(
         values, points = values[sorted_id], points[sorted_id, :]
 
         _vmin = np.min(values) if vmin is None else np.percentile(values, vmin)
-        _vmax = np.min(values) if vmin is None else np.percentile(values, vmax)
+        _vmax = np.max(values) if vmax is None else np.percentile(values, vmax)
 
         ax.scatter(
             points[:, 0],

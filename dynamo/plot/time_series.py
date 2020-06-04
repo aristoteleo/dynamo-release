@@ -275,7 +275,7 @@ def kinetic_heatmap(
     else:
         raise Exception('gene order_method can only be either half_max_ordering or maximum')
 
-    heatmap_kwargs = dict(xticklabels=False, yticklabels="auto")
+    heatmap_kwargs = dict(xticklabels=False, yticklabels=1)
     if kwargs is not None:
         heatmap_kwargs = update_dict(heatmap_kwargs, kwargs)
 
@@ -432,6 +432,8 @@ def lowess_smoother(time, exprs, spaced_num):
 @docstrings.with_indent(4)
 def jacobian_kinetics(
     adata,
+    source_genes=None,
+    target_genes=None,
     mode="pseudotime",
     tkey="potential",
     color_map="bwr",
@@ -453,6 +455,12 @@ def jacobian_kinetics(
     ----------
         adata: :class:`~anndata.AnnData`
             an Annodata object.
+        source_genes: `list` or `None` (default: `None`)
+            The list of genes that will be used as regulators for plotting the Jacobian heatmap, only limited to genes
+            that have already performed Jacobian analysis.
+        target_genes: `List` or `None` (default: `None`)
+            The list of genes that will be used as targets for plotting the Jacobian heatmap, only limited to genes
+            that have already performed Jacobian analysis.
         mode: `str` (default: `vector_field`)
             Which data mode will be used, either vector_field or pseudotime. if mode is vector_field, the trajectory predicted by
             vector field function will be used, otherwise pseudotime trajectory (defined by time argument) will be used.
@@ -508,15 +516,29 @@ def jacobian_kinetics(
     import matplotlib.pyplot as plt
 
     Jacobian_ = "jacobian" #f basis is None else "jacobian_" + basis
-    Der, source_gene, target_gene, cell_indx, _  =  adata.uns[Jacobian_].values()
+    Der, source_genes_, target_genes_, cell_indx, _  =  adata.uns[Jacobian_].values()
     if tkey == "potential" and "potential" not in adata.obs_keys():
         ddhoge(adata)
 
     adata_ = adata[cell_indx, :]
     time = adata_.obs[tkey]
     jacobian_mat = Der.reshape((-1, Der.shape[2]))
-    n_source_targets = Der.shape[0] * Der.shape[1]
-    targets, sources = np.repeat(target_gene, Der.shape[1]), np.tile(source_gene, Der.shape[0])
+    n_source_targets_ = Der.shape[0] * Der.shape[1]
+    targets_, sources_ = np.repeat(target_genes_, Der.shape[1]), np.tile(source_genes_, Der.shape[0])
+    source_targets_ = [sources_[i] + '->' + targets_[i] for i in range(n_source_targets_)]
+
+    source_genes = source_genes_ if source_genes is None else source_genes
+    target_genes = target_genes_ if target_genes is None else target_genes
+    if type(source_genes) == str: source_genes = [source_genes]
+    if type(target_genes) == str: target_genes = [target_genes]
+    source_genes = list(set(source_genes_).intersection(source_genes))
+    target_genes = list(set(target_genes_).intersection(target_genes))
+    if len(source_genes) == 0 or len(target_genes) == 0:
+        raise ValueError(f"Jacobian related to source genes {source_genes} and target genes {target_genes}"
+                         f"you provided are existed. Available source genes includes {source_genes_} while "
+                         f"available target genes includes {target_genes_}")
+    n_source_targets = len(source_genes) * len(target_genes)
+    targets, sources = np.repeat(target_genes, len(source_genes)), np.tile(source_genes, len(target_genes))
     source_targets = [sources[i] + '->' + targets[i] for i in range(n_source_targets)]
 
     jacobian_mat = jacobian_mat[:, np.argsort(time)]
@@ -527,7 +549,7 @@ def jacobian_kinetics(
         )
         all, source_targets = all[np.isfinite(all.sum(1)), :], np.array(source_targets)[gene_idx][np.isfinite(all.sum(1))]
 
-        df = pd.DataFrame(all, index=source_targets)
+        df = pd.DataFrame(all, index=source_targets_)
     elif gene_order_method == 'maximum':
         jacobian_mat = lowess_smoother(time, jacobian_mat, spaced_num=100)
         jacobian_mat = jacobian_mat[np.isfinite(jacobian_mat.sum(1)), :]
@@ -537,19 +559,19 @@ def jacobian_kinetics(
                 jacobian_mat, axis=standard_scale
             )[:, None]
         max_sort = np.argsort(np.argmax(exprs, axis=1))
-        df = pd.DataFrame(exprs[max_sort, :], index=np.array(source_targets)[max_sort])
+        df = pd.DataFrame(exprs[max_sort, :], index=np.array(source_targets_)[max_sort])
     elif gene_order_method == "raw":
         jacobian_mat /= np.abs(jacobian_mat).max(1)[:, None]
-        df = pd.DataFrame(jacobian_mat, index=np.array(source_targets))
+        df = pd.DataFrame(jacobian_mat, index=np.array(source_targets_))
     else:
         raise Exception('gene order_method can only be either half_max_ordering or maximum')
 
-    heatmap_kwargs = dict(xticklabels=False, yticklabels="auto")
+    heatmap_kwargs = dict(xticklabels=False, yticklabels=1)
     if kwargs is not None:
         heatmap_kwargs = update_dict(heatmap_kwargs, kwargs)
 
     sns_heatmap = sns.clustermap(
-        df,
+        df.loc[source_targets, :],
         col_cluster=cluster_row_col[0],
         row_cluster=cluster_row_col[1],
         cmap=color_map,
