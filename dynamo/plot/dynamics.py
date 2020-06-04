@@ -170,10 +170,11 @@ def phase_portraits(
     scatter_kwargs = dict(
         alpha=0.2, s=point_size, edgecolor=None, linewidth=0
     )  # (0, 0, 0, 1)
+
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
     div_scatter_kwargs = scatter_kwargs.copy()
-    div_scatter_kwargs.update({"norm": DivergingNorm(0)})
+    div_scatter_kwargs.update({"norm": DivergingNorm(vcenter=0)})
 
     if type(genes) == str:
         genes = [genes]
@@ -563,7 +564,7 @@ def phase_portraits(
                 ax1, color = _matplotlib_points(
                     cur_pd.iloc[:, [1, 0]].values,
                     ax=ax1,
-                    labels=cur_pd.loc[:, "color"],
+                    labels=cur_pd.loc[:, "expression"],
                     values=None,
                     highlights=highlights,
                     cmap=discrete_cmap,
@@ -579,7 +580,7 @@ def phase_portraits(
                 ax1, color = _datashade_points(
                     cur_pd.iloc[:, [1, 0]].values,
                     ax=ax1,
-                    labels=cur_pd.loc[:, "color"],
+                    labels=cur_pd.loc[:, "expression"],
                     values=None,
                     highlights=highlights,
                     cmap=discrete_cmap,

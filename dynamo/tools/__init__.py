@@ -77,7 +77,7 @@ from .scVectorField import (
     graphize_vecfld
 )  # , evaluate, con_K_div_cur_free
 from .topography import FixedPoints, VectorField2D, topography, VectorField
-from .vector_calculus import Curl, Divergence
+from .vector_calculus import curl, divergence, jacobian
 
 # Markov chain related:
 from .Markov import (
@@ -110,9 +110,7 @@ from .Bhattacharya import path_integral, alignment
 from .Wang import Wang_action, Wang_LAP, transition_rate, MFPT
 from .Ao import Ao_pot_map
 
-# cell fate related
-from .fate import fate, _fate
-from .state_graph import state_graph
+# state graph related
 
 # dimension reduction related
 from .dimension_reduction import reduceDimension  # , run_umap

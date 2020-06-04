@@ -2,6 +2,7 @@ from tqdm import tqdm
 import numpy.matlib
 from numpy import format_float_scientific as scinot
 import numpy as np
+import numdifftools as nda
 import scipy.sparse as sp
 from scipy.linalg import lstsq
 from scipy.spatial.distance import cdist, pdist
@@ -55,6 +56,7 @@ def norm(X, V, T):
 
     return X, V, T, norm_dict
 
+
 def bandwidth_rule_of_thumb(X, return_sigma=False):
     '''
         This function computes a rule-of-thumb bandwidth for a Gaussian kernel based on:
@@ -67,6 +69,7 @@ def bandwidth_rule_of_thumb(X, return_sigma=False):
     else:
         return h
 
+
 def bandwidth_selector(X):
     '''
         This function computes a empirical bandwidth for a Gaussian kernel.
@@ -76,6 +79,7 @@ def bandwidth_selector(X):
     distances, _ = nbrs.kneighbors(X)
     d = np.mean(distances[:, 1:]) / 1.5
     return np.sqrt(2) * d
+
 
 def denorm(VecFld, X_old, V_old, norm_dict):
     """Denormalize data back to the original scale.
@@ -301,19 +305,6 @@ def vector_field_function(x, VecFld, dim=None, kernel='full', **kernel_kwargs):
     return K
 
 
-def compute_divergence(f_jac, X, vectorize=True):
-    if vectorize:
-        J = f_jac(X)
-        div = np.trace(J)
-    else:
-        div = np.zeros(len(X))
-        for i in tqdm(range(len(X)), desc="Calculating divergence"):
-            J = f_jac(X[i])
-            div[i] = np.trace(J)
-
-    return div
-
-
 @timeit
 def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True, n_int_steps=20):
     n, d = X.shape
@@ -326,7 +317,7 @@ def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True,
         D = pdist(X)
 
     V = sp.csr_matrix((n, n))
-    for i, idx in tqdm(enumerate(nbrs_idx), desc='Constructing discrete vector field function on graph'):
+    for i, idx in tqdm(enumerate(nbrs_idx), desc='Constructing diffusion graph from reconstructed vector field'):
         x = X[i]
         Y = X[idx[1:]]
         for j, y in enumerate(Y):
@@ -420,6 +411,7 @@ def SparseVFC(
         A dictionary which contains:
             X: Current state.
             X_ctrl: Sample control points of current state.
+            ctrl_idx: Indices for the sampled control points.
             Y: Velocity estimates in delta t.
             beta: Parameter of the Gaussian Kernel for the kernel matrix (Gram matrix).
             V: Prediction of velocity of X.
@@ -551,6 +543,7 @@ def SparseVFC(
     VecFld = {
         "X": X.reshape((N, D)) if div_cur_free_kernels else X,
         "X_ctrl": ctrl_pts,
+        "ctrl_idx": idx,
         "Y": Y.reshape((N, D)) if div_cur_free_kernels else Y,
         "beta": beta,
         "V": V.reshape((N, D)) if div_cur_free_kernels else V,
@@ -695,6 +688,8 @@ class vectorfield:
         }
 
         self.func = lambda x: vector_field_function(x, VecFld)
+        self.vf_dict.update({"func": self.func})
+
         return self.vf_dict
 
 
@@ -710,29 +705,24 @@ class vectorfield:
 
     def get_Jacobian(self, input_vector_convention='row'):
         '''
-            Get the numericall Jacobian of the vector field function.
+            Get the numerical Jacobian of the vector field function.
             If the input_vector_convention is 'row', it means that fjac takes row vectors
             as input, otherwise the input should be an array of column vectors. Note that
             the returned Jacobian would behave exactly the same if the input is an 1d array.
 
-            The column vector convention is slighly faster than the row vector convention.
+            The column vector convention is slightly faster than the row vector convention.
+            So the matrix of row vector convention is converted into column vector convention
+            under the hood.
 
-            No matter the input vector convention, the returned Jacobian is of the folloing
+            No matter the input vector convention, the returned Jacobian is of the following
             format:
                     df_1/dx_1   df_1/dx_2   df_1/dx_3   ...
                     df_2/dx_1   df_2/dx_2   df_2/dx_3   ...
                     df_3/dx_1   df_3/dx_2   df_3/dx_3   ...
                     ...         ...         ...         ...
         '''
-        fjac = nda.Jacobian(lambda x: self.func(x.T).T)
-        if input_vector_convention == 'row' or input_vector_convention == 0:
-            def faux(x):
-                x = x.T
-                return fjac(x)
-            return faux
-        else:
-            return fjac
-        #return get_fjac(self.func, input_vector_convention)
+
+        return get_fjac(self.func, input_vector_convention)
 
 
     def construct_graph(self, X, **kwargs):

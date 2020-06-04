@@ -12,6 +12,8 @@ import matplotlib.cm
 from ..configuration import _themes, set_figure_params
 from .utils import (
     despline,
+    despline_all,
+    deaxis_all,
     set_spine_linewidth,
     scatter_with_colorbar,
     scatter_with_legend,
@@ -755,8 +757,7 @@ def scatters(
         y: `int` (default: `1`)
             The column index of the low dimensional embedding for the y-axis.
         color: `string` (default: None)
-            Which group will be used to color cells, only used for the phase portrait because the other two plots are colored
-            by the velocity magnitude or the gene expression value, respectively.
+            Any column names or gene expression, etc. that will be used for coloring cells.
         layer: `str` (default: `X`)
             The layer of data to use for the scatter plot.
         highlights: `list` (default: None)
@@ -882,6 +883,8 @@ def scatters(
         if pointsize is None
         else 500.0 / np.sqrt(adata.shape[0]) * pointsize
     )
+    point_size *= 4
+
     scatter_kwargs = dict(
         alpha=0.2, s=point_size, edgecolor=None, linewidth=0
     )  # (0, 0, 0, 1)
@@ -1084,7 +1087,12 @@ def scatters(
                         **scatter_kwargs
                     )
 
-                arrowed_spines(ax, points.columns[0].strip('_1'))
+                if i == 1:
+                    arrowed_spines(ax, points.columns[0].strip('_1'), _background)
+                else:
+                    despline_all(ax)
+                    deaxis_all(ax)
+
                 ax.set_title(cur_c)
 
                 axes_list.append(ax)

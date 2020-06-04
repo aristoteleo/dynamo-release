@@ -325,7 +325,7 @@ class VectorField2D:
         self, n, x_range, y_range, lhs=True, tol_redundant=1e-4
     ):
         if lhs:
-            from .utils import lhsclassic
+            from .sampling import lhsclassic
 
             X0 = lhsclassic(n, 2)
         else:
@@ -478,8 +478,9 @@ def VectorField(
         layer: `str` or None (default: `X`)
             Which layer of the data will be used for vector field function reconstruction. The layer once provided, will override
             the `basis` argument and then learn the vector field function in high dimensional space.
-        dims: `list` or None (default: None)
-            The dimensions that will be used for reconstructing vector field functions.
+        dims: `int`, `list` or None (default: None)
+            The dimensions that will be used for reconstructing vector field functions. If it is an `int` all dimension from
+            the first dimension to `dims` will be used; if it is a list, the dimensions in the list will be used.
         genes: `list` or None (default: None)
             The gene names whose gene expression will be used for vector field reconstruction. By default (when genes is
             set to None), the genes used for velocity embedding (var.use_for_velocity) will be used for vector field reconstruction.
@@ -502,6 +503,9 @@ def VectorField(
         method: `str` (default: `sparseVFC`)
             Method that is used to reconstruct the vector field functionally. Currently only SparseVFC supported but other
             improved approaches are under development.
+        return_vf_object: `bool` (default: `False`)
+            Whether or not to include an instance of a vectorfield class in the the `VecFld` dictionary in the `uns`
+            attribute.
         kwargs:
             Other additional parameters passed to the vectorfield class.
 
@@ -517,7 +521,7 @@ def VectorField(
 
         if np.isscalar(dims):
             X, V = X[:, :dims], V[:, :dims]
-        elif dims is not None:
+        elif type(dims) is list:
             X, V = X[:, dims], V[:, dims]
     else:
         valid_genes = (
@@ -575,14 +579,14 @@ def VectorField(
     VecFld = vectorfield(X, V, Grid, **vf_kwargs)
     vf_dict = VecFld.fit(normalize=normalize, method=method, **kwargs)
 
+    vf_key = "VecFld" if basis is None else "VecFld_" + basis
     if basis is not None:
         vf_dict['dims'] = dims
-        adata.uns["VecFld_" + basis] = vf_dict
+        adata.uns[vf_key] = vf_dict
     else:
         vf_dict['layer'] = layer
         vf_dict['genes'] = genes
         vf_dict['velocity_key'] = velocity_key
-        vf_key = "VecFld" if layer == "X" else "VecFld_" + layer
         adata.uns[vf_key] = vf_dict
 
     if X.shape[1] == 2:
@@ -594,5 +598,6 @@ def VectorField(
         )
 
     if return_vf_object:
-        return VecFld
+        adata.uns[vf_key].update({"vf_object": VecFld})
+
 

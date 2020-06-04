@@ -69,3 +69,19 @@ def load_NASC_seq(dir, delimiter="_", colnames=None):
     )
 
     return adata
+
+
+def cleanup(adata):
+    """clean up  adata before saving adata to a file"""
+
+    adata.uns['pca_fit'] = None
+    adata.uns['velocyto_SVR']['SVR'] = None
+    adata.uns['umap_fit']['fit'] = None
+    adata.uns['velocity_pca_fit'] = None
+    adata.uns['kmc'] = None
+    VF_keys = [i if i.startswith('VecFld') else None for i in adata.uns_keys()]
+    for i in VF_keys:
+        if i is not None:
+            del adata.uns[i]
+
+    return adata
