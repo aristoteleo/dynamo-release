@@ -170,7 +170,7 @@ def ddhoge(adata,
         VecFld = adata.uns[VecFld_key]['VecFld']
         func = adata.uns[VecFld_key]['func']
 
-    X_data = VecFld['V'] if X_data is None else X_data
+    X_data = VecFld['X'] if X_data is None else X_data
     if func is None: func = lambda x: vector_field_function(x, VecFld)
 
     if adjmethod == 'graphize_vecfld':

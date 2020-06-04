@@ -57,8 +57,9 @@ def kinetic_curves(
         tkey: `str` (default: `potential`)
             The .obs column that will be used for timing each cell, only used when mode is not `vector_field`.
         dist_threshold: `float` or None (default: 1e-10)
-            The threshold for the distance between two points in the gene expression state, i.e, x(t), x(t+1). If below this threshold,
-            we assume steady state is achieved and those data points will not be considered.
+            The threshold for the distance between two points in the gene expression state, i.e, x(t), x(t+1). If below
+            this threshold, we assume steady state is achieved and those data points will not be considered. This argument
+            is ignored when mode is `pseudotime`.
         ncol: `int` (default: 4)
             Number of columns in each facet grid.
         c_palette: Name of color_palette supported in seaborn color_palette function (default: None)
@@ -106,7 +107,7 @@ def kinetic_curves(
     time = np.sort(time)
     exprs = exprs[np.argsort(time), :]
 
-    if dist_threshold is not None:
+    if dist_threshold is not None and mode == 'vector_field':
         valid_ind = list(
             np.where(np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold)[0]
             + 1
@@ -245,13 +246,14 @@ def kinetic_heatmap(
 
     exprs = exprs.A if issparse(exprs) else exprs
 
-    if dist_threshold is not None:
+    if dist_threshold is not None and mode == 'vector_field':
         valid_ind = list(
             np.where(np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold)[0]
             + 1
         )
         valid_ind.insert(0, 0)
         exprs = exprs[valid_ind, :]
+        time = time[valid_ind]
 
     if gene_order_method == "half_max_ordering":
         time, all, valid_ind, gene_idx = _half_max_ordering(
@@ -428,11 +430,10 @@ def lowess_smoother(time, exprs, spaced_num):
 
 
 @docstrings.with_indent(4)
-def jacobian_heatmap(
+def jacobian_kinetics(
     adata,
-    mode="vector_field",
+    mode="pseudotime",
     tkey="potential",
-    dist_threshold=1e-10,
     color_map="bwr",
     gene_order_method='raw',
     show_colorbar=False,
@@ -459,9 +460,6 @@ def jacobian_heatmap(
             pseudotime.
         tkey: `str` (default: `potential`)
             The .obs column that will be used for timing each cell, only used when mode is not `vector_field`.
-        dist_threshold: `float` or None (default: 1e-10)
-            The threshold for the distance between two points in the gene expression state, i.e, x(t), x(t+1). If below this threshold,
-            we assume steady state is achieved and those data points will not be considered.
         color_map: `str` (default: `BrBG`)
             Color map that will be used to color the gene expression. If `half_max_ordering` is True, the
             color map need to be divergent, good examples, include `BrBG`, `RdBu_r` or `coolwarm`, etc.
@@ -512,17 +510,9 @@ def jacobian_heatmap(
 
     jacobian_mat = jacobian_mat[:, np.argsort(time)]
 
-    if dist_threshold is not None:
-        valid_ind = list(
-            np.where(np.sum(np.diff(jacobian_mat, axis=0) ** 2, axis=1) > dist_threshold)[0]
-            + 1
-        )
-        valid_ind.insert(0, 0)
-        jacobian_mat = jacobian_mat[valid_ind, :]
-
     if gene_order_method == "half_max_ordering":
         time, all, valid_ind, gene_idx = _half_max_ordering(
-            jacobian_mat.T, time, mode=mode, interpolate=True, spaced_num=100
+            jacobian_mat, time, mode=mode, interpolate=True, spaced_num=100
         )
         all, source_targets = all[np.isfinite(all.sum(1)), :], np.array(source_targets)[gene_idx][np.isfinite(all.sum(1))]
 
@@ -553,6 +543,7 @@ def jacobian_heatmap(
         row_cluster=cluster_row_col[1],
         cmap=color_map,
         figsize=figsize,
+        center=0,
         **heatmap_kwargs
     )
     if not show_colorbar: sns_heatmap.cax.set_visible(False)

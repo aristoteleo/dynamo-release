@@ -1,7 +1,6 @@
 """plotting utilities that are used to visualize the curl, divergence."""
 
 import numpy as np, pandas as pd
-from numpy import format_float_scientific as scinot
 from ..configuration import set_figure_params
 
 from .scatters import scatters
@@ -274,3 +273,102 @@ def jacobian(adata,
     elif save_show_or_return == "return":
         return gs
 
+
+def jacobian_heatmap(adata,
+                     cell_idx,
+                     figsize=(7, 5),
+                     ncols=1,
+                     cmap='bwr',
+                     save_show_or_return="show",
+                     save_kwargs={},
+                     **kwargs):
+    """\
+    Plot the Jacobian matrix for each cell as a heatmap.
+
+    Note that Jacobian matrix can be understood as a regulatory activity matrix between genes directly computed from the
+    reconstructed vector fields.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object with Jacobian matrix estimated.
+        cell_idx: `int` or `list`
+            The numeric indices of the cells that you want to draw the jacobian matrix to reveal the regulatory activity.
+        figsize: `None` or `[float, float]` (default: None)
+                The width and height of each panel in the figure.
+        ncols: `int` (default: `1`)
+            The number of columns for drawing the heatmaps.
+        cmap: `str` (default: `bwr`)
+            The mapping from data values to color space. If not provided, the default will depend on whether center is set.
+        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
+        kwargs:
+            Additional arguments passed to plt.scatters.
+
+    Returns
+    -------
+        Nothing but plots the n_cell_idx heatmaps of the corresponding Jacobian matrix for each selected cell.
+
+    Examples
+    --------
+    >>> import dynamo as dyn
+    >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
+    >>> adata = dyn.pp.recipe_monocle(adata)
+    >>> dyn.tl.dynamics(adata)
+    >>> dyn.tl.VectorField(adata, basis='pca')
+    >>> valid_gene_list = adata[:, adata.var.use_for_velocity].var.index[:2]
+    >>> dyn.tl.jacobian(adata, source_genes=valid_gene_list[0], target_genes=valid_gene_list[1])
+    >>> dyn.pl.jacobian_heatmap(adata)
+    """
+
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+
+    Jacobian_ = "jacobian" #f basis is None else "jacobian_" + basis
+    if type(cell_idx) == int: cell_idx = [cell_idx]
+    Der, source_gene, target_gene, cell_indx, _  =  adata.uns[Jacobian_].values()
+    adata_ = adata[cell_indx, :]
+    valid_cell_idx = list(set(cell_idx).intersection(cell_indx))
+    if len(valid_cell_idx) == 0:
+        raise ValueError(f"Jacobian matrix was not calculated for the cells you provided {cell_indx}."
+                         f"Check adata.uns[{Jacobian_}].values() for available cells that has Jacobian matrix calculated."
+                         f"Note that limiting calculation of Jacobian matrix only for a subset of cells are required for "
+                         f"speeding up calculations.")
+    else:
+        cell_names = adata.obs_names[valid_cell_idx]
+
+    total_panels, ncols = len(valid_cell_idx), ncols
+    nrow, ncol = int(np.ceil(total_panels / ncols)), ncols
+
+    if figsize is None:
+        g = plt.figure(None, (3 * ncol, 3 * nrow))  # , dpi=160
+    else:
+        g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow))  # , dpi=160
+
+    gs = plt.GridSpec(nrow, ncol)
+    heatmap_kwargs = dict(xticklabels=False, yticklabels="auto")
+    heatmap_kwargs = update_dict(heatmap_kwargs, kwargs)
+    for i, name in enumerate(cell_names):
+        ind = np.where(adata_.obs_names == name)[0]
+        J = Der[:, :, ind][:, :, 0]
+        J = pd.DataFrame(J, index=source_gene, columns=target_gene)
+        ax = plt.subplot(gs[i])
+        sns.heatmap(J, annot=True, ax=ax, cmap=cmap, cbar=False, center=0, **heatmap_kwargs)
+        plt.title(name)
+
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'phase_portraits', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save_fig(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return gs
