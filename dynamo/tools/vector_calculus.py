@@ -50,7 +50,7 @@ def elementwise_jacobian_transformation(fjac, X, qi, qj):
     The formula used to inverse transform Jacobian matrix calculated from low dimension (PCs) is:
                                             :math:`Jac = Q J Q^T`,
     where `Q, J, Jac` are the PCA loading matrix, low dimensional Jacobian matrix and the inverse transformed high
-    dimensional Jacobian matrix. This function only take one element from Q to form qi or qj.
+    dimensional Jacobian matrix. This function takes only one row from Q to form qi or qj.
 
     Parameters
     ----------
@@ -85,7 +85,7 @@ def subset_jacobian_transformation(fjac, X, Qi, Qj):
     The formula used to inverse transform Jacobian matrix calculated from low dimension (PCs) is:
                                             :math:`Jac = Q J Q^T`,
     where `Q, J, Jac` are the PCA loading matrix, low dimensional Jacobian matrix and the inverse transformed high
-    dimensional Jacobian matrix. This function only take multiple elements from Q to form Qi or Qj.
+    dimensional Jacobian matrix. This function takes multiple rows from Q to form Qi or Qj.
 
     Parameters
     ----------
