@@ -113,6 +113,8 @@ def divergence(adata, color=None, cmap='bwr', *args, **kwargs):
 
 @docstrings.with_indent(4)
 def jacobian(adata,
+             source_genes=None,
+             target_genes=None,
              basis="umap",
              x=0,
              y=1,
@@ -132,6 +134,12 @@ def jacobian(adata,
     ----------
         adata: :class:`~anndata.AnnData`
             an Annodata object with Jacobian matrix estimated.
+        source_genes: `list` or `None` (default: `None`)
+            The list of genes that will be used as regulators for plotting the Jacobian heatmap, only limited to genes
+            that have already performed Jacobian analysis.
+        target_genes: `List` or `None` (default: `None`)
+            The list of genes that will be used as targets for plotting the Jacobian heatmap, only limited to genes
+            that have already performed Jacobian analysis.
         basis: `str`
             The reduced dimension.
         x: `int` (default: `0`)
@@ -199,8 +207,14 @@ def jacobian(adata,
         background = to_hex(_background) if type(_background) is tuple else _background
 
     Jacobian_ = "jacobian" #f basis is None else "jacobian_" + basis
-    Der, source_gene, target_gene, cell_indx, _  =  adata.uns[Jacobian_].values()
+    Der, source_genes_, target_genes_, cell_indx, _  =  adata.uns[Jacobian_].values()
     adata_ = adata[cell_indx, :]
+
+    Der, source_genes, target_genes = intersect_sources_targets(source_genes,
+                              source_genes_,
+                              target_genes,
+                              target_genes_,
+                              Der)
 
     cur_pd = pd.DataFrame(
         {
@@ -222,7 +236,7 @@ def jacobian(adata,
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
 
-    nrow, ncol = len(source_gene), len(target_gene)
+    nrow, ncol = len(source_genes), len(target_genes)
     if figsize is None:
         g = plt.figure(None, (3 * ncol, 3 * nrow))  # , dpi=160
     else:
@@ -230,8 +244,8 @@ def jacobian(adata,
 
     gs = plt.GridSpec(nrow, ncol, wspace=0.1)
 
-    for i, source in enumerate(source_gene):
-        for j, target in enumerate(target_gene):
+    for i, source in enumerate(source_genes):
+        for j, target in enumerate(target_genes):
             ax = plt.subplot(gs[i * ncol + j])
             J = Der if nrow == 1 and ncol == 1 else Der[j, i, :] # dim 0: target; dim 1: source
             cur_pd["jacobian"] = J
@@ -274,6 +288,8 @@ def jacobian(adata,
 
 def jacobian_heatmap(adata,
                      cell_idx,
+                     source_genes=None,
+                     target_genes=None,
                      figsize=(7, 5),
                      ncols=1,
                      cmap='bwr',
@@ -290,6 +306,12 @@ def jacobian_heatmap(adata,
     ----------
         adata: :class:`~anndata.AnnData`
             an Annodata object with Jacobian matrix estimated.
+        source_genes: `list` or `None` (default: `None`)
+            The list of genes that will be used as regulators for plotting the Jacobian heatmap, only limited to genes
+            that have already performed Jacobian analysis.
+        target_genes: `List` or `None` (default: `None`)
+            The list of genes that will be used as targets for plotting the Jacobian heatmap, only limited to genes
+            that have already performed Jacobian analysis.
         cell_idx: `int` or `list`
             The numeric indices of the cells that you want to draw the jacobian matrix to reveal the regulatory activity.
         figsize: `None` or `[float, float]` (default: None)
@@ -329,7 +351,13 @@ def jacobian_heatmap(adata,
 
     Jacobian_ = "jacobian" #f basis is None else "jacobian_" + basis
     if type(cell_idx) == int: cell_idx = [cell_idx]
-    Der, source_gene, target_gene, cell_indx, _  =  adata.uns[Jacobian_].values()
+    Der, source_genes_, target_genes_, cell_indx, _  =  adata.uns[Jacobian_].values()
+    Der, source_genes, target_genes = intersect_sources_targets(source_genes,
+                              source_genes_,
+                              target_genes,
+                              target_genes_,
+                              Der)
+
     adata_ = adata[cell_indx, :]
     valid_cell_idx = list(set(cell_idx).intersection(cell_indx))
     if len(valid_cell_idx) == 0:
@@ -354,7 +382,7 @@ def jacobian_heatmap(adata,
     for i, name in enumerate(cell_names):
         ind = np.where(adata_.obs_names == name)[0]
         J = Der[:, :, ind][:, :, 0].T # dim 0: target; dim 1: source
-        J = pd.DataFrame(J, index=source_gene, columns=target_gene)
+        J = pd.DataFrame(J, index=source_genes, columns=target_genes)
         ax = plt.subplot(gs[i])
         sns.heatmap(J, annot=True, ax=ax, cmap=cmap, cbar=False, center=0, **heatmap_kwargs)
         plt.title(name)
@@ -370,3 +398,27 @@ def jacobian_heatmap(adata,
         plt.show()
     elif save_show_or_return == "return":
         return gs
+
+
+def intersect_sources_targets(source_genes,
+                              source_genes_,
+                              target_genes,
+                              target_genes_,
+                              Der):
+    source_genes = source_genes_ if source_genes is None else source_genes
+    target_genes = target_genes_ if target_genes is None else target_genes
+    if type(source_genes) == str: source_genes = [source_genes]
+    if type(target_genes) == str: target_genes = [target_genes]
+    source_genes = list(set(source_genes_).intersection(source_genes))
+    target_genes = list(set(target_genes_).intersection(target_genes))
+    if len(source_genes) == 0 or len(target_genes) == 0:
+        raise ValueError(f"Jacobian related to source genes {source_genes} and target genes {target_genes}"
+                         f"you provided are existed. Available source genes includes {source_genes_} while "
+                         f"available target genes includes {target_genes_}")
+    # subset Der with correct index of selected source / target genes
+    valid_source_idx = [i for i, e in enumerate(source_genes_) if e in source_genes]
+    valid_target_idx = [i for i, e in enumerate(target_genes_) if e in target_genes]
+    Der = Der[valid_target_idx,  :, :][:, valid_source_idx, :]
+    source_genes, target_genes = source_genes_[valid_source_idx], target_genes_[valid_target_idx]
+
+    return Der, source_genes, target_genes

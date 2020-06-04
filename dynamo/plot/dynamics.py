@@ -154,7 +154,7 @@ def phase_portraits(
     """
 
     import matplotlib.pyplot as plt
-    from matplotlib import rcParams, colors
+    from matplotlib import rcParams
     from matplotlib.colors import DivergingNorm  # TwoSlopeNorm
 
     if background is not None:
