@@ -744,7 +744,7 @@ def phase_portraits(
             )
 
         ax3.set_title(gn + " (" + vkey + ")")
-        ax3 = arrowed_spines(ax3, basis)
+        if show_arrowed_spines: ax3 = arrowed_spines(ax3, basis)
         if (
                 "protein" in adata.obsm.keys()
                 and mode is "full"
@@ -927,7 +927,7 @@ def phase_portraits(
                 )
 
             ax5.set_title(gn + " (protein expression)")
-            ax5 = arrowed_spines(ax5, basis)
+            if show_arrowed_spines: ax5 = arrowed_spines(ax5, basis)
 
             v_max = np.max(np.abs(V_vec.values))
             div_scatter_kwargs.update({"vmin": -v_max, "vmax": v_max})
@@ -966,7 +966,7 @@ def phase_portraits(
                 )
 
             ax6.set_title(gn + " (protein velocity)")
-            ax6 = arrowed_spines(ax6, basis)
+            if show_arrowed_spines: ax6 = arrowed_spines(ax6, basis)
 
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'phase_portraits', "dpi": None,

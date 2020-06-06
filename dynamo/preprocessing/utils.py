@@ -335,7 +335,8 @@ def get_sz_exprs(adata, layer, total_szfactor=None):
 
     return szfactors, CM
 
-def normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method=np.log):
+def normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method=np.log1p):
+    if norm_method == np.log1p: pseudo_expr = 0
     if relative_expr:
         CM = (
             CM.multiply(csr_matrix(1 / szfactors))
@@ -385,12 +386,12 @@ def pca(adata, CM, n_pca_components=30, pca_key='X'):
 
         adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_
     else:
+        # unscaled PCA
         fit = TruncatedSVD(
             n_components=min(n_pca_components + 1, CM.shape[1] - 1), random_state=0
-        )  # unscaled PCA
-        X_pca = fit.fit_transform(CM)[
-            :, 1:
-        ]  # first columns is related to the total UMI (or library size)
+        )
+        # first columns is related to the total UMI (or library size)
+        X_pca = fit.fit_transform(CM)[:, 1:]
         adata.obsm[pca_key] = X_pca
         adata.uns["PCs"] = fit.components_.T
 

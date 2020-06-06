@@ -44,7 +44,7 @@ def dynamics(
     concat_data=False,
     log_unnormalized=True,
     one_shot_method="combined",
-    re_smooth = False,
+    re_smooth=False,
     **est_kwargs
 ):
     """Inclusive model of expression dynamics considers splicing, metabolic labeling and protein translation. It supports

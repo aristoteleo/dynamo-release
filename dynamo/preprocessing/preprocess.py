@@ -1,9 +1,9 @@
 import numpy as np
 import pandas as pd
-from sklearn.utils import sparsefuncs
 import warnings
 from scipy.sparse import issparse, csr_matrix
 from sklearn.decomposition import FastICA
+from sklearn.utils import sparsefuncs
 
 from .utils import pca
 from .utils import clusters_stats
@@ -106,7 +106,7 @@ def normalize_expr_data(
     adata,
     layers="all",
     total_szfactor='total_Size_Factor',
-    norm_method=np.log,
+    norm_method=np.log1p,
     pseudo_expr=1,
     relative_expr=True,
     keep_filtered=True,
@@ -173,7 +173,7 @@ def normalize_expr_data(
     for layer in layers:
         szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=total_szfactor)
         if norm_method is None and layer == 'X': norm_method = np.log
-        if norm_method in [np.log, np.log2, Freeman_Tukey] and layer is not "protein":
+        if norm_method in [np.log1p, np.log, np.log2, Freeman_Tukey] and layer is not "protein":
             CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method)
 
         elif layer is "protein":  # norm_method == 'clr':
@@ -1131,8 +1131,8 @@ def recipe_monocle(
     total_layers=None,
     genes_to_use=None,
     method="pca",
-    num_dim=30,
-    norm_method=np.log,
+    num_dim=50,
+    norm_method=np.log1p,
     pseudo_expr=1,
     feature_selection="SVR",
     n_top_genes=2000,

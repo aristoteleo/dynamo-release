@@ -14,7 +14,7 @@ from ..preprocessing.utils import Freeman_Tukey
 def moments(adata,
             genes=None,
             group=None,
-            use_gaussian_kernel=True,
+            use_gaussian_kernel=False,
             use_mnn=False,
             layers="all"):
     """Calculate kNN based first and second moments (including uncentered covariance) for
@@ -25,8 +25,9 @@ def moments(adata,
         adata: :class:`~anndata.AnnData`
             AnnData object.
         genes: `np.array` (default: `None`)
-            The one-dimensional numpy array of the genes that you want to perform pca analysis (if adata.obsm['X'] is not available). `X` keyname
-             was used to enable you use a different set of genes for flexible connectivity graph construction.
+            The one-dimensional numpy array of the genes that you want to perform pca analysis (if adata.obsm['X'] is not
+            available). `X` keyname (instead of `X_pca`) was used to enable you use a different set of genes for flexible
+            connectivity graph construction.
         group: `str` or None (default: `None`)
             The column key/name that identifies the grouping information (for example, clusters that correspond to
             different cell types or different time points) of cells. This will be used to compute kNN graph for each
@@ -125,7 +126,9 @@ def moments(adata,
 
         if issparse(layer_x):
             layer_x.data = (
-                2 ** layer_x.data - 1
+                np.expm1(layer_x.data)
+                if adata.uns["pp_norm_method"] == "log1p"
+                else 2 ** layer_x.data - 1
                 if adata.uns["pp_norm_method"] == "log2"
                 else np.exp(layer_x.data) - 1
                 if adata.uns["pp_norm_method"] == "log"
@@ -135,7 +138,9 @@ def moments(adata,
             )
         else:
             layer_x = (
-                2 ** layer_x - 1
+                np.expm1(layer_x)
+                if adata.uns["pp_norm_method"] == "log1p"
+                else 2 ** layer_x - 1
                 if adata.uns["pp_norm_method"] == "log2"
                 else np.exp(layer_x) - 1
                 if adata.uns["pp_norm_method"] == "log"
@@ -148,7 +153,7 @@ def moments(adata,
             adata.layers[mapper[layer]], conn = (
                 calc_1nd_moment(layer_x, conn, True)
                 if use_gaussian_kernel
-                else conn.dot(layer_x)
+                else (conn.dot(layer_x), conn)
             )
         for layer2 in layers[i:]:
             layer_y = adata.layers[layer2].copy()
@@ -163,7 +168,9 @@ def moments(adata,
 
             if issparse(layer_y):
                 layer_y.data = (
-                    2 ** layer_y.data - 1
+                    np.expm1(layer_y.data)
+                    if adata.uns["pp_norm_method"] == "log1p"
+                    else 2 ** layer_y.data - 1
                     if adata.uns["pp_norm_method"] == "log2"
                     else np.exp(layer_y.data) - 1
                     if adata.uns["pp_norm_method"] == "log"
@@ -173,7 +180,9 @@ def moments(adata,
                 )
             else:
                 layer_y = (
-                    2 ** layer_y - 1
+                    np.expm1(layer_y)
+                    if adata.uns["pp_norm_method"] == "log1p"
+                    else 2 ** layer_y - 1
                     if adata.uns["pp_norm_method"] == "log2"
                     else np.exp(layer_y) - 1
                     if adata.uns["pp_norm_method"] == "log"
@@ -186,11 +195,11 @@ def moments(adata,
                 adata.layers[mapper[layer2]], conn = (
                     calc_1nd_moment(layer_y, conn, True)
                     if use_gaussian_kernel
-                    else conn.dot(layer_y)
+                    else (conn.dot(layer_y), conn)
                 )
 
             adata.layers["M_" + layer[2] + layer2[2]] = calc_2nd_moment(
-                layer_x, layer_y, conn, mX=layer_x, mY=layer_y
+                layer_x, layer_y, conn, mX=None, mY=None
             )
 
     if (
