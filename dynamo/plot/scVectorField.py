@@ -1336,10 +1336,7 @@ def grid_velocity(
             adata.uns["VecFld_" + basis]["VecFld"]["grid_V"],
         )
         N = int(np.sqrt(V_grid.shape[0]))
-        X_grid, V_grid = (
-            np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]),
-            np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))]),
-        )
+
         if cut_off_velocity:
             X_grid, p_mass, neighs, weight = prepare_velocity_grid_data(X,
                                                                 xy_grid_nums,
@@ -1349,6 +1346,8 @@ def grid_velocity(
             for i in ['density', 'smooth', 'n_neighbors']:
                 grid_kwargs_dict.pop(i)
 
+            V_emb = adata.uns["VecFld_" + basis]["func"](X)
+            V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[:, None]
             X_grid, V_grid = grid_velocity_filter(
                 V_emb=V[:, [x, y]],
                 neighs=neighs,
@@ -1357,7 +1356,12 @@ def grid_velocity(
                 V_grid=V_grid,
                 **grid_kwargs_dict
             )
-    elif method == "gaussian":
+        else:
+            X_grid, V_grid = (
+                np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]),
+                np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))]),
+            )
+    elif method.lower() == "gaussian":
         X_grid, V_grid, D = velocity_on_grid(
             X[:, [x, y]], V[:, [x, y]], xy_grid_nums, cut_off_velocity=cut_off_velocity, **grid_kwargs_dict
         )
@@ -1438,7 +1442,7 @@ def grid_velocity(
 
     for i in range(len(axes_list)):
         axes_list[i].quiver(
-            X_grid[:, 0], X_grid[:, 1], V_grid[:, 0], V_grid[:, 1], **quiver_kwargs
+            X_grid[0], X_grid[1], V_grid[0], V_grid[1], **quiver_kwargs
         )
 
     if save_show_or_return == "save":
@@ -1565,11 +1569,6 @@ def streamline_plot(
         )
         N = int(np.sqrt(V_grid.shape[0]))
 
-        X_grid, V_grid = (
-            np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]),
-            np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))]),
-        )
-
         if cut_off_velocity:
             X_grid, p_mass, neighs, weight = prepare_velocity_grid_data(X,
                                                                 xy_grid_nums,
@@ -1579,6 +1578,8 @@ def streamline_plot(
             for i in ['density', 'smooth', 'n_neighbors']:
                 grid_kwargs_dict.pop(i)
 
+            V_emb = adata.uns["VecFld_" + basis]["func"](X)
+            V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[:, None]
             X_grid, V_grid = grid_velocity_filter(
                 V_emb=V[:, [x, y]],
                 neighs=neighs,
@@ -1587,7 +1588,13 @@ def streamline_plot(
                 V_grid=V_grid,
                 **grid_kwargs_dict
             )
-    elif method == "gaussian":
+        else:
+            X_grid, V_grid = (
+                np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]),
+                np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))]),
+            )
+
+    elif method.lower() == "gaussian":
         X_grid, V_grid, D = velocity_on_grid(
             X[:, [x, y]], V[:, [x, y]], xy_grid_nums, cut_off_velocity=cut_off_velocity, **grid_kwargs_dict
         )
@@ -1610,7 +1617,7 @@ def streamline_plot(
         "cmap": None,
         "norm": None,
         "arrowsize": 1,
-        "arrowstyle": "-|>",
+        "arrowstyle": "fancy",
         "minlength": 0.1,
         "transform": None,
         "start_points": None,

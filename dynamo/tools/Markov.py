@@ -178,6 +178,43 @@ def compute_tau(X, V, k=100, nbr_idx=None):
     return tau, v
 
 
+def prepare_velocity_grid_data(X_emb,
+           xy_grid_nums,
+           density=None,
+           smooth=None,
+           n_neighbors=None,):
+
+    n_obs, n_dim = X_emb.shape
+    density = 1 if density is None else density
+    smooth = 0.5 if smooth is None else smooth
+
+    grs, scale = [], 0
+    for dim_i in range(n_dim):
+        m, M = np.min(X_emb[:, dim_i]), np.max(X_emb[:, dim_i])
+        m = m - 0.01 * np.abs(M - m)
+        M = M + 0.01 * np.abs(M - m)
+        gr = np.linspace(m, M, xy_grid_nums[dim_i] * density)
+        scale += gr[1] - gr[0]
+        grs.append(gr)
+
+    scale = scale / n_dim * smooth
+
+    meshes_tuple = np.meshgrid(*grs)
+    X_grid = np.vstack([i.flat for i in meshes_tuple]).T
+
+    # estimate grid velocities
+    if n_neighbors is None:
+        n_neighbors = np.max([10, int(n_obs / 50)])
+    nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=-1)
+    nn.fit(X_emb)
+    dists, neighs = nn.kneighbors(X_grid)
+
+    weight = norm.pdf(x=dists, scale=scale)
+    p_mass = weight.sum(1)
+
+    return X_grid, p_mass, neighs, weight
+
+
 def grid_velocity_filter(
     V_emb,
     neighs,
@@ -226,43 +263,6 @@ def grid_velocity_filter(
             V_grid /= 3 * quiver_autoscaler(X_grid, V_grid)
 
     return X_grid, V_grid
-
-
-def prepare_velocity_grid_data(X_emb,
-           xy_grid_nums,
-           density=None,
-           smooth=None,
-           n_neighbors=None,):
-
-    n_obs, n_dim = X_emb.shape
-    density = 1 if density is None else density
-    smooth = 0.5 if smooth is None else smooth
-
-    grs, scale = [], 0
-    for dim_i in range(n_dim):
-        m, M = np.min(X_emb[:, dim_i]), np.max(X_emb[:, dim_i])
-        m = m - 0.01 * np.abs(M - m)
-        M = M + 0.01 * np.abs(M - m)
-        gr = np.linspace(m, M, xy_grid_nums[dim_i] * density)
-        scale += gr[1] - gr[0]
-        grs.append(gr)
-
-    scale = scale / n_dim * smooth
-
-    meshes_tuple = np.meshgrid(*grs)
-    X_grid = np.vstack([i.flat for i in meshes_tuple]).T
-
-    # estimate grid velocities
-    if n_neighbors is None:
-        n_neighbors = np.max([10, int(n_obs / 50)])
-    nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=-1)
-    nn.fit(X_emb)
-    dists, neighs = nn.kneighbors(X_grid)
-
-    weight = norm.pdf(x=dists, scale=scale)
-    p_mass = weight.sum(1)
-
-    return X_grid, p_mass, neighs, weight
 
 
 def velocity_on_grid(

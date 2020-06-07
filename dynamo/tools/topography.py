@@ -544,9 +544,11 @@ def VectorField(
     if X.shape[1] < 4 or grid_velocity:
         # smart way for generating high dimensional grids and convert into a row matrix
         min_vec, max_vec = (
-            X.min(0) - 0.01 * abs(X.min(0)),
-            X.max(0) + 0.01 * abs(X.max(0)),
+            X.min(0),
+            X.max(0),
         )
+        min_vec = min_vec - 0.01 * np.abs(max_vec - min_vec)
+        max_vec = max_vec + 0.01 * np.abs(max_vec - min_vec)
 
         Grid_list = np.meshgrid(
             *[np.linspace(i, j, grid_num) for i, j in zip(min_vec, max_vec)]
