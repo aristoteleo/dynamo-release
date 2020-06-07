@@ -228,23 +228,11 @@ def grid_velocity_filter(
     return X_grid, V_grid
 
 
-def velocity_on_grid(
-    X_emb,
-    V_emb,
-    xy_grid_nums,
-    density=None,
-    smooth=None,
-    n_neighbors=None,
-    min_mass=None,
-    autoscale=False,
-    adjust_for_stream=True,
-    V_threshold=None,
-):
-    """Function to calculate the velocity vectors on a grid for grid vector field  quiver plot and streamplot, adapted from scVelo
-    """
-
-    valid_idx = np.isfinite(X_emb.sum(1) + V_emb.sum(1))
-    X_emb, V_emb = X_emb[valid_idx], V_emb[valid_idx]
+def prepare_velocity_grid_data(X_emb,
+           xy_grid_nums,
+           density=None,
+           smooth=None,
+           n_neighbors=None,):
 
     n_obs, n_dim = X_emb.shape
     density = 1 if density is None else density
@@ -273,6 +261,33 @@ def velocity_on_grid(
 
     weight = norm.pdf(x=dists, scale=scale)
     p_mass = weight.sum(1)
+
+    return X_grid, p_mass, neighs, weight
+
+
+def velocity_on_grid(
+    X_emb,
+    V_emb,
+    xy_grid_nums,
+    density=None,
+    smooth=None,
+    n_neighbors=None,
+    min_mass=None,
+    autoscale=False,
+    adjust_for_stream=True,
+    V_threshold=None,
+):
+    """Function to calculate the velocity vectors on a grid for grid vector field  quiver plot and streamplot, adapted from scVelo
+    """
+
+    valid_idx = np.isfinite(X_emb.sum(1) + V_emb.sum(1))
+    X_emb, V_emb = X_emb[valid_idx], V_emb[valid_idx]
+
+    X_grid, p_mass, neighs, weight = prepare_velocity_grid_data(X_emb,
+                                    xy_grid_nums,
+                                    density=density,
+                                    smooth=smooth,
+                                    n_neighbors=n_neighbors,)
 
     # V_grid = (V_emb[neighs] * (weight / p_mass[:, None])[:, :, None]).sum(1) # / np.maximum(1, p_mass)[:, None]
     V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[
