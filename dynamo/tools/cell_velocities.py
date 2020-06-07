@@ -16,6 +16,7 @@ from .utils import (
     norm_row,
     einsum_correlation,
     build_distance_graph,
+    log1p,
 )
 
 from .dimension_reduction import reduceDimension
@@ -148,6 +149,7 @@ def cell_velocities(
         )
 
     X = adata[:, adata.var.use_for_velocity.values].layers[ekey]
+    X = log1p(adata, X)
     V_mat = (
         adata[:, adata.var.use_for_velocity.values].layers[vkey]
         if vkey in adata.layers.keys()
@@ -655,6 +657,9 @@ def embed_velocity(adata, x_basis, v_basis='velocity', emb_basis='X', velocity_g
     else:
         X = adata.layers[x_basis]
         V = adata.layers[v_basis]
+
+    X = log1p(adata, X)
+
     X_emb = adata.obsm[emb_basis]
     Idx = adata.uns['neighbors']['indices']
 

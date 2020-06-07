@@ -1,5 +1,6 @@
-from .DDRTree import DDRTree_py as DDRTree
 import numpy as np
+from .DDRTree import DDRTree_py as DDRTree
+from .util import log1p
 
 
 def Pseudotime(adata, layer="X", method="DDRTree", **kwargs):
@@ -18,6 +19,7 @@ def Pseudotime(adata, layer="X", method="DDRTree", **kwargs):
     """
 
     X = adata.layers["X_" + layer].T if layer is not "X" else adata.X.T
+    X = log1p(adata, X)
 
     DDRTree_kwargs = {
         "maxIter": 10,

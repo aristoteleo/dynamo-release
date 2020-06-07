@@ -1,4 +1,5 @@
 import numpy as np
+from .util import log1p
 
 # ---------------------------------------------------------------------------------------------------
 # retrieving data related
@@ -27,8 +28,10 @@ def fetch_X_data(adata, genes, layer):
                 X_data = adata.layers[layer]
                 genes = adata.var_names
             else:
-                adata[:, adata.var.use_for_dynamo].layers[layer]
+                X_data = adata[:, adata.var.use_for_dynamo].layers[layer]
                 genes = adata.var_names[adata.var.use_for_dynamo]
+
+            X_data = log1p(X_data)
 
     return genes, X_data
 

@@ -1087,9 +1087,11 @@ class ss_estimation:
             True -- the linear regression is performed with an unfixed intercept;
             False -- the linear regresssion is performed with a fixed zero intercept.
         perc_left: float
-            The percentage of samples included in the linear regression in the left tail. If set to None, then all the left samples are excluded.
+            The percentage of samples included in the linear regression in the left tail. If set to None, then all the
+            left samples are excluded.
         perc_right: float
-            The percentage of samples included in the linear regression in the right tail. If set to None, then all the samples are included.
+            The percentage of samples included in the linear regression in the right tail. If set to None, then all the
+            samples are included.
         normalize: bool
             Whether to first normalize the
 
@@ -1106,7 +1108,7 @@ class ss_estimation:
         all_r2: float
             Coefficient of determination or r square for all data points.
         """
-        if not intercept and perc_left is None:
+        if intercept and perc_left is None:
             perc_left = perc_right
         u = u.A.flatten() if issparse(u) else u.flatten()
         s = s.A.flatten() if issparse(s) else s.flatten()

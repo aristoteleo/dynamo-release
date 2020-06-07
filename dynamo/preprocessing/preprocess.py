@@ -106,7 +106,7 @@ def normalize_expr_data(
     adata,
     layers="all",
     total_szfactor='total_Size_Factor',
-    norm_method=np.log1p,
+    norm_method=None,
     pseudo_expr=1,
     relative_expr=True,
     keep_filtered=True,
@@ -123,8 +123,10 @@ def normalize_expr_data(
             The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
         total_szfactor: `str` (default: `total_Size_Factor`)
             The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
-        norm_method: `function` or `str` (default: `np.log`)
-            The method used to normalize data. Can be either function `np.log`, function `np.log2` or string `clr`.
+        norm_method: `function` or None (default: `None`)
+            The method used to normalize data. Can be either function `np.log1p, np.log2 or any other functions or string
+            `clr`. By default, only .X will be size normalized and log1p transformed while data in other layers will only
+            be size normalized.
         pseudo_expr: `int` (default: `1`)
             A pseudocount added to the gene expression value before log/log2 normalization.
         relative_expr: `bool` (default: `True`)
@@ -172,8 +174,9 @@ def normalize_expr_data(
 
     for layer in layers:
         szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=total_szfactor)
-        if norm_method is None and layer == 'X': norm_method = np.log
-        if norm_method in [np.log1p, np.log, np.log2, Freeman_Tukey] and layer is not "protein":
+        if norm_method is None and layer == 'X':
+            CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, np.log1p)
+        elif norm_method in [np.log1p, np.log, np.log2, Freeman_Tukey, None] and layer is not "protein":
             CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method)
 
         elif layer is "protein":  # norm_method == 'clr':
@@ -207,7 +210,8 @@ def normalize_expr_data(
         else:
             adata.layers["X_" + layer] = CM
 
-    adata.uns["pp_norm_method"] = norm_method.__name__ if callable(norm_method) else norm_method
+        adata.uns["pp_norm_method"] = norm_method.__name__ if callable(norm_method) else norm_method
+
     return adata
 
 
@@ -1132,7 +1136,7 @@ def recipe_monocle(
     genes_to_use=None,
     method="pca",
     num_dim=50,
-    norm_method=np.log1p,
+    norm_method=None,
     pseudo_expr=1,
     feature_selection="SVR",
     n_top_genes=2000,
@@ -1163,8 +1167,9 @@ def recipe_monocle(
             The linear dimension reduction methods to be used.
         num_dim: `int` (default: `50`)
             The number of linear dimensions reduced to.
-        norm_method: `function` or `str` (default: function `np.log`)
-            The method to normalize the data. Can be any numpy function or `Freeman_Tukey`.
+        norm_method: `function` or None (default: function `None`)
+            The method to normalize the data. Can be any numpy function or `Freeman_Tukey`. By default, only .X will be
+            size normalized and log1p transformed while data in other layers will only be size factor normalized.
         pseudo_expr: `int` (default: `1`)
             A pseudocount added to the gene expression value before log/log2 normalization.
         feature_selection: `str` (default: `SVR`)
@@ -1345,7 +1350,7 @@ def recipe_velocyto(
     total_layers=None,
     method="pca",
     num_dim=30,
-    norm_method=np.log,
+    norm_method=None,
     pseudo_expr=1,
     feature_selection="SVR",
     n_top_genes=2000,
@@ -1366,7 +1371,7 @@ def recipe_velocyto(
             The linear dimension reduction methods to be used.
         num_dim: `int` (default: `50`)
             The number of linear dimensions reduced to.
-        norm_method: `function` or `str` (default: function `np.log`)
+        norm_method: `function`, `str` or `None` (default: function `None`)
             The method to normalize the data.
         pseudo_expr: `int` (default: `1`)
             A pseudocount added to the gene expression value before log/log2 normalization.

@@ -9,7 +9,7 @@ from .utils import save_fig
 from .scatters import scatters
 from ..tools.velocity import sol_u, sol_s, solve_first_order_deg
 from ..tools.utils_moments import moments
-from ..tools.utils import get_mapper, one_shot_k
+from ..tools.utils import get_mapper, one_shot_k, log1p
 from ..tools.utils import update_dict, get_valid_inds
 from ..configuration import _themes
 
@@ -23,6 +23,7 @@ def phase_portraits(
         vkey="S",
         ekey="X",
         basis="umap",
+        log1p=True, 
         color=None,
         highlights=None,
         discrete_continous_div_themes=None,
@@ -67,6 +68,8 @@ def phase_portraits(
             The layer of data to represent the gene expression level.
         basis: `string` (default: umap)
             Which low dimensional embedding will be used to visualize the cell.
+        log1p: `bool` (default: `True`)
+            Whether to log1p transform the expression so that visualization can be robust to extreme values.
         color: `string` (default: None)
             Which group will be used to color cells, only used for the phase portrait because the other two plots are colored
             by the velocity magnitude or the gene expression value, respectively.
@@ -256,6 +259,8 @@ def phase_portraits(
                 if (ekey in mapper.keys()) and (mapper[ekey] in adata.layers.keys())
                 else adata[:, genes].layers[ekey]
             )
+        
+        if log1p: E_vec = log1p(adata, E_vec)
 
     n_cells, n_genes = adata.shape[0], len(genes)
 
@@ -308,6 +313,7 @@ def phase_portraits(
             adata[:, genes].layers[mapper["X_new"]],
             adata[:, genes].layers[mapper["X_total"]],
         )
+
         new_mat, tot_mat = (
             (new_mat.A, tot_mat.A) if issparse(new_mat) else (new_mat, tot_mat)
         )
@@ -338,6 +344,7 @@ def phase_portraits(
             adata[:, genes].layers[mapper["X_unspliced"]],
             adata[:, genes].layers[mapper["X_spliced"]],
         )
+                
         unspliced_mat, spliced_mat = (
             (unspliced_mat.A, spliced_mat.A)
             if issparse(unspliced_mat)

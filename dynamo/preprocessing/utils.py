@@ -352,7 +352,7 @@ def normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method=np.log
             if norm_method is not None
             else CM.data
         )
-        if norm_method.__name__ == 'Freeman_Tukey': CM.data -= 1
+        if norm_method is not None and norm_method.__name__ == 'Freeman_Tukey': CM.data -= 1
     else:
         CM = (
             norm_method(CM + pseudo_expr)
@@ -375,14 +375,14 @@ def Freeman_Tukey(X, inverse=False):
 # pca
 
 
-def pca(adata, CM, n_pca_components=30, pca_key='X'):
+def pca(adata, CM, n_pca_components=30, pca_key='X', pcs_key='PCs'):
 
     if adata.n_obs < 100000:
         pca = PCA(n_components=min(n_pca_components, CM.shape[1] - 1), svd_solver="arpack", random_state=0)
         fit = pca.fit(CM.toarray()) if issparse(CM) else pca.fit(CM)
         X_pca = fit.transform(CM.toarray()) if issparse(CM) else fit.transform(CM)
         adata.obsm[pca_key] = X_pca
-        adata.uns["PCs"] = fit.components_.T
+        adata.uns[pcs_key] = fit.components_.T
 
         adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_
     else:
@@ -393,7 +393,7 @@ def pca(adata, CM, n_pca_components=30, pca_key='X'):
         # first columns is related to the total UMI (or library size)
         X_pca = fit.fit_transform(CM)[:, 1:]
         adata.obsm[pca_key] = X_pca
-        adata.uns["PCs"] = fit.components_.T
+        adata.uns[pcs_key] = fit.components_.T
 
         adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
@@ -465,6 +465,8 @@ def NTR(adata):
         ntr = new / total
 
         ntr = ntr.A1 if issparse(adata.layers['uu']) else ntr
+    elif len({'unspliced', 'spliced'}.intersection(adata.layers.keys())) == 2:
+        ntr = adata.layers['unspliced'].sum(1) / (adata.layers['unspliced'] + adata.layers['spliced']).sum(1)
     else:
         ntr = None
 

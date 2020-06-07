@@ -27,7 +27,7 @@ from .utils import save_fig
 
 from ..tools.utils import update_dict
 
-from ..tools.utils import get_mapper
+from ..tools.utils import get_mapper, log1p
 from ..docrep import DocstringProcessor
 
 docstrings = DocstringProcessor()
@@ -50,6 +50,7 @@ def _scatters(
     legend="on data",
     ax=None,
     normalize=False,
+    log1p=True,
     **kwargs
 ):
     """Scatter plot of cells for phase portrait or for low embedding embedding, colored by gene expression, velocity or cell groups.
@@ -103,6 +104,8 @@ def _scatters(
             represented with a sample of evenly spaced values. By default legend is drawn on top of cells.
         normalize: `bool` (default: `True`)
             Whether to normalize the expression / velocity or other continous data so that the value will be scaled between 0 and 1.
+        log1p: `bool` (default: `True`)
+            Whether to log1p transform the expression so that visualization can be robust to extreme values.
         **kwargs:
             Additional parameters that will be passed to plt.scatter function
 
@@ -179,6 +182,8 @@ def _scatters(
                 if (ekey in mapper.keys()) and (mapper[ekey] in adata.layers.keys())
                 else adata[:, genes].layers[ekey]
             )
+        
+        if log1p: E_vec = log1p(adata, E_vec)
 
     n_cells, n_genes = adata.shape[0], len(genes)
 
@@ -241,6 +246,9 @@ def _scatters(
                 adata[:, genes].layers["X_new"],
                 adata[:, genes].layers["X_total"],
             )
+            
+            if log1p: new_mat, tot_mat = (log1p(adata, new_mat), log1p(adata, tot_mat))
+            
             new_mat, tot_mat = (
                 (new_mat.A, tot_mat.A) if issparse(new_mat) else (new_mat, tot_mat)
             )
@@ -264,6 +272,9 @@ def _scatters(
                 adata[:, genes].layers["X_unspliced"],
                 adata[:, genes].layers["X_spliced"],
             )
+
+            if log1p: unspliced_mat, spliced_mat = (log1p(adata, unspliced_mat), log1p(adata, spliced_mat))
+            
             unspliced_mat, spliced_mat = (
                 (unspliced_mat.A, spliced_mat.A)
                 if issparse(unspliced_mat)
@@ -291,6 +302,9 @@ def _scatters(
                 adata[:, genes].layers["X_su"],
                 adata[:, genes].layers["X_sl"],
             )
+
+            if log1p: uu, ul, su, sl = (log1p(adata, uu), log1p(adata, ul), log1p(adata, su), log1p(adata, sl))
+            
             if "protein" in adata.obsm.keys():
                 if "delta" in adata.var.columns:
                     gamma_P = adata.var.delta[genes].values
@@ -661,7 +675,6 @@ def _scatters(
                     expression = np.clip(
                         expression / np.percentile(expression, 99), 0, 1
                     )
-
                 fig, ax1 = scatter_with_colorbar(
                     fig,
                     ax1,

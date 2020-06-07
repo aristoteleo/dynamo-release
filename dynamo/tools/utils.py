@@ -201,6 +201,17 @@ def timeit(method):
     return timed
 
 # ---------------------------------------------------------------------------------------------------
+# data transformation related:
+def log1p(adata, X_data):
+    if adata.uns['pp_norm_method'] is None:
+        if issparse(X_data):
+            X_data.data = np.log1p(X_data.data)
+        else:
+            X_data = np.log1p(X_data)
+
+    return X_data
+
+# ---------------------------------------------------------------------------------------------------
 # dynamics related:
 def one_shot_gamma_alpha(k, t, l):
     gamma = -np.log(1 - k) / t
@@ -923,6 +934,8 @@ def calc_norm_loglikelihood(X, Y, k, f=lambda X, k: np.einsum('ij,i -> ij', X, k
 # velocity related
 
 def find_extreme(s, u, normalize=True, perc_left=None, perc_right=None):
+    s, u = (s.A if issparse(s) else s, u.A if issparse(u) else u)
+
     if normalize:
         su = s / np.clip(np.max(s), 1e-3, None)
         su += u / np.clip(np.max(u), 1e-3, None)
@@ -944,9 +957,9 @@ def set_velocity_genes(
     adata,
     vkey="velocity_S",
     min_r2=0.01,
-    min_alpha=0,
-    min_gamma=0,
-    min_delta=0,
+    min_alpha=0.01,
+    min_gamma=0.01,
+    min_delta=0.01,
     use_for_dynamo=True,
 ):
     layer = vkey.split("_")[1]
@@ -1115,7 +1128,7 @@ def get_iterative_indices(indices, index, n_recurse_neighbors=2, max_neighs=None
     def iterate_indices(indices, index, n_recurse_neighbors):
         if n_recurse_neighbors > 1:
             index = iterate_indices(indices, index, n_recurse_neighbors - 1)
-        ix = np.append(index, indices[index])
+        ix = np.append(index, indices[index])  # append to also include direct neighbors, otherwise ix = indices[index]
         if np.isnan(ix).any():
             ix = ix[~np.isnan(ix)]
         return ix.astype(int)
@@ -1486,6 +1499,7 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
             exprs = adata[np.isfinite(time), :][:, valid_genes].X
         elif layer in adata.layers.keys():
             exprs = adata[np.isfinite(time), :][:, valid_genes].layers[layer]
+            exprs = log1p(adata, exprs)
         elif layer is "protein":  # update subset here
             exprs = adata[np.isfinite(time), :][:, valid_genes].obsm[layer]
         else:
@@ -1553,7 +1567,7 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
             init_states = (
                 adata[_cell_names, :][:, valid_genes].X
                 if layer == "X"
-                else adata[_cell_names, :][:, valid_genes].layers[layer]
+                else log1p(adata, adata[_cell_names, :][:, valid_genes].layers[layer])
             )
             if issparse(init_states):
                 init_states = init_states.A
@@ -1565,7 +1579,7 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
                 X = adata[:, valid_genes].X
             else:
                 VecFld = adata.uns["VecFld_" + layer]["VecFld"]
-                X = adata[:, valid_genes].layers[layer]
+                X = log1p(adata, adata[:, valid_genes].layers[layer])
 
     if init_states.shape[0] > 1 and average in ["origin", True]:
         init_states = init_states.mean(0).reshape((1, -1))

@@ -15,6 +15,7 @@ def moments(adata,
             genes=None,
             group=None,
             use_gaussian_kernel=False,
+            normalize=True,
             use_mnn=False,
             layers="all"):
     """Calculate kNN based first and second moments (including uncentered covariance) for
@@ -35,6 +36,10 @@ def moments(adata,
             time points to be mixed when performing the kNN graph for calculating the moments.
         use_gaussian_kernel: `bool` (default: `True`)
             Whether to normalize the kNN graph via a Guasian kernel.
+        normalize: `bool` (default: `True`)
+            Whether to normalize the connectivity matrix so that each row sums up to 1. When `use_gaussian_kernel` is False,
+            this will be reset to be False because we will already normalize the connectivity matrix matrix by dividing
+            each row the total number of connections.
         use_mnn: `bool` (default: `False`)
             Whether to use mutual kNN across different layers as for the moment calculation.
         layers: `str` or a list of str (default: `str`)
@@ -88,6 +93,7 @@ def moments(adata,
                     conn = gaussian_kernel(X, knn_indices, sigma=10, k=None, dists=knn_dists)
                 else:
                     conn = normalize_knn_graph(kNN > 0)
+                    normalize = False
             else:
                 if group not in adata.obs.keys():
                     raise Exception(f'the group {group} provided is not a column name in .obs attribute.')
@@ -151,7 +157,7 @@ def moments(adata,
 
         if mapper[layer] not in adata.layers.keys():
             adata.layers[mapper[layer]], conn = (
-                calc_1nd_moment(layer_x, conn, True)
+                calc_1nd_moment(layer_x, conn, normalize_W=normalize)
                 if use_gaussian_kernel
                 else (conn.dot(layer_x), conn)
             )
@@ -193,13 +199,13 @@ def moments(adata,
 
             if mapper[layer2] not in adata.layers.keys():
                 adata.layers[mapper[layer2]], conn = (
-                    calc_1nd_moment(layer_y, conn, True)
+                    calc_1nd_moment(layer_y, conn, normalize_W=normalize)
                     if use_gaussian_kernel
                     else (conn.dot(layer_y), conn)
                 )
 
             adata.layers["M_" + layer[2] + layer2[2]] = calc_2nd_moment(
-                layer_x, layer_y, conn, mX=None, mY=None
+                layer_x, layer_y, conn, normalize_W=normalize, mX=None, mY=None
             )
 
     if (
@@ -267,9 +273,10 @@ def get_layer_pair(layer):
             'M_t': 'M_n', "M_n": 'M_t'}
     return pair[layer]
 
+
 def prepare_data_deterministic(adata, genes, time, layers,
                                use_total_layers=True,
-                               total_layers=["uu", "ul", "su", "sl"],
+                               total_layers=["X_uu", "X_ul", "X_su", "X_sl"],
                                log=False):
     from ..preprocessing.utils import sz_util, normalize_util
     if use_total_layers:
@@ -321,9 +328,10 @@ def prepare_data_deterministic(adata, genes, time, layers,
 
     return m, v, raw # each list element corresponds to a layer
 
+
 def prepare_data_has_splicing(adata, genes, time, layer_u, layer_s,
                               use_total_layers=True,
-                              total_layers=["uu", "ul", "su", "sl"],
+                              total_layers=["X_uu", "X_ul", "X_su", "X_sl"],
                               return_cov=True):
     """Prepare data when assumption is kinetic and data has splicing"""
     from ..preprocessing.utils import sz_util, normalize_util
@@ -366,7 +374,7 @@ def prepare_data_has_splicing(adata, genes, time, layer_u, layer_s,
 
 def prepare_data_no_splicing(adata, genes, time, layer,
                              use_total_layers=True,
-                             total_layer='total',
+                             total_layer='X_total',
                              return_old=False):
     """Prepare data when assumption is kinetic and data has no splicing"""
     from ..preprocessing.utils import sz_util, normalize_util
@@ -397,9 +405,10 @@ def prepare_data_no_splicing(adata, genes, time, layer,
 
     return res, raw
 
-def prepare_data_mix_has_splicing(adata, genes, time, layer_u='uu', layer_s='su',
-                                  layer_ul='ul', layer_sl='sl', use_total_layers=True,
-                                  total_layers=["uu", "ul", "su", "sl"], mix_model_indices=None):
+
+def prepare_data_mix_has_splicing(adata, genes, time, layer_u='X_uu', layer_s='X_su',
+                                  layer_ul='X_ul', layer_sl='X_sl', use_total_layers=True,
+                                  total_layers=["X_uu", "X_ul", "X_su", "X_sl"], mix_model_indices=None):
     """Prepare data for mixture modeling when assumption is kinetic and data has splicing.
     Note that the mix_model_indices is indexed on 10 total species, which can be used to specify
     the data required for different mixture models.
@@ -451,8 +460,9 @@ def prepare_data_mix_has_splicing(adata, genes, time, layer_u='uu', layer_s='su'
 
     return res, raw
 
+
 def prepare_data_mix_no_splicing(adata, genes, time, layer_n, layer_t, use_total_layers=True,
-                                 total_layer='total', mix_model_indices=None):
+                                 total_layer='X_total', mix_model_indices=None):
     """Prepare data for mixture modeling when assumption is kinetic and data has NO splicing.
     Note that the mix_model_indices is indexed on 4 total species, which can be used to specify
     the data required for different mixture models.
@@ -492,6 +502,7 @@ def prepare_data_mix_no_splicing(adata, genes, time, layer_n, layer_t, use_total
         raw[i] = np.vstack((n, o))
 
     return res, raw
+
 # ---------------------------------------------------------------------------------------------------
 # moment related:
 
@@ -514,8 +525,8 @@ def calc_mom_all_genes(T, adata, fcn_mom):
     Mt = np.zeros((ng, nT))
     Mr = np.zeros((ng, nT))
     for g in tqdm(range(ng), desc="calculating 1/2 moments"):
-        L = np.array(adata[:, g].layers["new"], dtype=float)
-        U = np.array(adata[:, g].layers["total"], dtype=float) - L
+        L = np.array(adata[:, g].layers["X_new"], dtype=float)
+        U = np.array(adata[:, g].layers["X_total"], dtype=float) - L
         rho = L / (L + U + 0.01)
         Mn[g] = strat_mom(L, T, fcn_mom)
         Mo[g] = strat_mom(U, T, fcn_mom)
@@ -579,6 +590,7 @@ def calc_12_mom_labeling(data, t, calculate_2_mom=True):
 
 
 def calc_1nd_moment(X, W, normalize_W=True):
+
     if normalize_W:
         if type(W) == np.ndarray:
             d = np.sum(W, 1).flatten()

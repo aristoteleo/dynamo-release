@@ -10,7 +10,7 @@ def scribe(adata,
            gene_filter_rate=0.1,
            cell_filter_UMI=10000,
            motif_ref='https://www.dropbox.com/s/s8em539ojl55kgf/motifAnnotations_hgnc.csv?dl=1',
-           nt_layers=['new', 'total'],
+           nt_layers=['X_new', 'X_total'],
            normalize=True,
            do_CLR=True,
            drop_zero_cells=True,
@@ -49,7 +49,7 @@ def scribe(adata,
             By default it is a dropbox link that store the data from us. Other motif reference can bed downloaded from RcisTarget:
             https://resources.aertslab.org/cistarget/. For human motif matrix, it can be downloaded from June's shared folder:
             https://shendure-web.gs.washington.edu/content/members/cao1025/public/nobackup/sci_fate/data/hg19-tss-centered-10kb-7species.mc9nr.feather
-        nt_layers: `List` (Default: ['new', 'total'])
+        nt_layers: `List` (Default: ['X_new', 'X_total'])
             The two keys for layers that will be used for the network inference. Note that the layers can be changed
             flexibly. See the description of this function above. The first key corresponds to the transcriptome of the
             next time point, for example unspliced RNAs (or estimated velocitym, see Fig 6 of the Scribe preprint:

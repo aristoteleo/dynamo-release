@@ -8,7 +8,7 @@ from scipy.linalg import eig
 from scipy.integrate import odeint
 
 from .scVectorField import vector_field_function, vectorfield
-from .utils import update_dict, form_triu_matrix, index_condensed_matrix
+from .utils import update_dict, form_triu_matrix, index_condensed_matrix, log1p
 
 
 def remove_redundant_points(X, tol=1e-4, output_discard=False):
@@ -529,11 +529,12 @@ def VectorField(
             if genes is not None
             else adata.var_names[adata.var.use_for_velocity]
         )
-        X = (
-            adata[:, valid_genes].X.copy()
-            if layer == "X"
-            else adata[:, valid_genes].layers[layer].copy()
-        )
+        if layer == "X":
+            X = adata[:, valid_genes].X.copy()
+        else:
+            X = adata[:, valid_genes].layers[layer].copy()
+            X = log1p(adata, X)
+
         V = adata[:, valid_genes].layers[velocity_key].copy()
 
         if sp.issparse(X):

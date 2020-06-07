@@ -244,10 +244,10 @@ def fit_linreg(x, y, mask=None, intercept=False):
         k = cov / var_x
         b = 0
 
-    SS_tot_n, all_SS_tot_n = np.var(yy), np.var(y[_mask])
+    SS_tot_n, all_SS_tot_n = np.var(yy), np.var(y)
     SS_res_n, all_SS_res_n = (
         np.mean((yy - k * xx - b) ** 2),
-        np.mean((y[_mask] - k * x[_mask] - b) ** 2),
+        np.mean((y - k * x - b) ** 2),
     )
     r2, all_r2 = 1 - SS_res_n / SS_tot_n, 1 - all_SS_res_n / all_SS_tot_n
 

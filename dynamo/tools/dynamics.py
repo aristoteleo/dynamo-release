@@ -448,11 +448,11 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
         if has_splicing:
             layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
                         'M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') \
-                else ['ul', 'sl', 'uu', 'su']
+                else ['X_ul', 'X_sl', 'X_uu', 'X_su']
 
             if model in ['deterministic', 'stochastic']:
-                layer_u = 'M_ul' if ('M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') else 'ul'
-                layer_s = 'M_sl' if ('M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') else 'sl'
+                layer_u = 'M_ul' if ('M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_ul'
+                layer_s = 'M_sl' if ('M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_sl'
 
                 X, X_raw = prepare_data_has_splicing(subset_adata, subset_adata.var.index, time,
                                                      layer_u=layer_u, layer_s=layer_s, total_layers=layers)
@@ -512,15 +512,15 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                                 f'current supported models for kinetics experiments include: stochastic, deterministic, mixture,'
                                 f'mixture_deterministic_stochastic or mixture_stochastic_stochastic')
         else:
-            total_layer = 'M_t' if ('M_t' in subset_adata.layers.keys() and data_type == 'smoothed') else 'total'
+            total_layer = 'M_t' if ('M_t' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_total'
 
             if model in ['deterministic', 'stochastic']:
-                layer = 'M_n' if ('M_n' in subset_adata.layers.keys() and data_type == 'smoothed') else 'new'
+                layer = 'M_n' if ('M_n' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_new'
                 X, X_raw = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time, layer=layer,
                                                     total_layer=total_layer)
             elif model.startswith('mixture'):
                 layers = ['M_n', 'M_t'] if ('M_n' in subset_adata.layers.keys() and data_type == 'smoothed') \
-                    else ['new', 'total']
+                    else ['X_new', 'X_total']
 
                 X, _, X_raw = prepare_data_deterministic(subset_adata, subset_adata.var.index, time, layers=layers,
                                                          total_layers=total_layer)
@@ -568,11 +568,11 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
         if has_splicing:
             layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
                         'M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') \
-                else ['ul', 'sl', 'uu', 'su']
+                else ['X_ul', 'X_sl', 'X_uu', 'X_su']
 
             if model in ['deterministic', 'stochastic']:
-                layer_u = 'M_ul' if ('M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') else 'ul'
-                layer_s = 'M_sl' if ('M_sl' in subset_adata.layers.keys() and data_type == 'smoothed') else 'sl'
+                layer_u = 'M_ul' if ('M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_ul'
+                layer_s = 'M_sl' if ('M_sl' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_sl'
 
                 X, X_raw = prepare_data_has_splicing(subset_adata, subset_adata.var.index, time,
                                                      layer_u=layer_u, layer_s=layer_s, total_layers=layers)
@@ -596,9 +596,9 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                             f'current supported models for degradation experiment include: '
                             f'stochastic, deterministic.')
         else:
-            total_layer = 'M_t' if ('M_t' in subset_adata.layers.keys() and data_type == 'smoothed') else 'total'
+            total_layer = 'M_t' if ('M_t' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_total'
 
-            layer = 'M_n' if ('M_n' in subset_adata.layers.keys() and data_type == 'smoothed') else 'new'
+            layer = 'M_n' if ('M_n' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_new'
             X, X_raw = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time,
                                                 layer=layer, total_layer=total_layer)
 
