@@ -1,5 +1,5 @@
 import numpy as np
-from .util import log1p
+from .utils import log1p
 
 # ---------------------------------------------------------------------------------------------------
 # retrieving data related

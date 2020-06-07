@@ -2,7 +2,7 @@ from tqdm import tqdm
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
 from .scVectorField import vector_field_function
-from .util import log1p
+from .utils import log1p
 
 def diffusionMatrix(adata,
               X_data=None,
