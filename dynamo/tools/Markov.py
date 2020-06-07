@@ -243,6 +243,9 @@ def velocity_on_grid(
     """Function to calculate the velocity vectors on a grid for grid vector field  quiver plot and streamplot, adapted from scVelo
     """
 
+    valid_idx = np.isfinite(X_emb.sum(1) + V_emb.sum(1))
+    X_emb, V_emb = X_emb[valid_idx], V_emb[valid_idx]
+
     n_obs, n_dim = X_emb.shape
     density = 1 if density is None else density
     smooth = 0.5 if smooth is None else smooth

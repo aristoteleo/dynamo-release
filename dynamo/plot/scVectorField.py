@@ -1562,7 +1562,7 @@ def streamline_plot(
         "start_points": None,
         "maxlength": 4.0,
         "integration_direction": "both",
-        "zorder": 10,
+        "zorder": 3,
     }
     mass = np.sqrt((V_grid ** 2).sum(0))
     streamplot_kwargs.update({"linewidth": 2 * mass / mass[~np.isnan(mass)].max()})

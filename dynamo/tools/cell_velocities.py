@@ -91,6 +91,8 @@ def cell_velocities(
             A tuple of number of grids on each dimension.
         correct_density: `bool` (default: `False`)
             Whether to correct density when calculating the markov transition matrix.
+        correct_density: `bool` (default: `False`)
+            Whether to scale velocity when calculating the markov transition matrix.
         sample_fraction: `None` or `float` (default: None)
             The downsampled fraction of kNN for the purpose of acceleration.
         random_seed: `int` (default: 19491001)
@@ -139,17 +141,12 @@ def cell_velocities(
             )
             indices, dist = indices[:, 1:], dist[:, 1:]
 
-    if "use_for_dynamo" in adata.var.keys():
-        adata = set_velocity_genes(
-            adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamo=True
-        )
-    else:
-        adata = set_velocity_genes(
-            adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamo=False
-        )
+    use_for_dynamo = True if "use_for_dynamo" in adata.var.keys() else False
+    adata = set_velocity_genes(
+        adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamo=use_for_dynamo
+    )
 
     X = adata[:, adata.var.use_for_velocity.values].layers[ekey]
-    X = log1p(adata, X)
     V_mat = (
         adata[:, adata.var.use_for_velocity.values].layers[vkey]
         if vkey in adata.layers.keys()
@@ -170,6 +167,8 @@ def cell_velocities(
 
     if method == 'kmc' and n_pca_components is None: n_pca_components = 30
     if n_pca_components is not None:
+        X = log1p(adata, X)
+        X_plus_V = log1p(adata, X + V_mat)
         if (
                 "velocity_pca_fit" not in adata.uns_keys()
                 or type(adata.uns["velocity_pca_fit"]) == str
@@ -192,7 +191,7 @@ def cell_velocities(
             adata.uns["velocity_pca_fit"],
         )
 
-        Y_pca = pca_fit.transform(X + V_mat)
+        Y_pca = pca_fit.transform(X_plus_V)
         V_pca = Y_pca - X_pca
         # V_pca = (V_mat - V_mat.mean(0)).dot(PCs)
 
