@@ -86,8 +86,8 @@ def group_score(adata, layer, gene_list):
         Z-scored expression data
     """
 
-    itersect_genes = adata.var_names.intersection(gene_list)
-    if len(itersect_genes) == 0:
+    intersect_genes = adata.var_names.intersection(gene_list)
+    if len(intersect_genes) == 0:
         raise Exception(f"your adata doesn't have any gene from the gene_list {gene_list}.")
 
     if layer is None:

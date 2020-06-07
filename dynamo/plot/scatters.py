@@ -183,7 +183,7 @@ def _scatters(
                 else adata[:, genes].layers[ekey]
             )
         
-        if log1p: E_vec = log1p(adata, E_vec)
+        if log1p: E_vec = log1p_(adata, E_vec)
 
     n_cells, n_genes = adata.shape[0], len(genes)
 
@@ -247,7 +247,7 @@ def _scatters(
                 adata[:, genes].layers["X_total"],
             )
             
-            if log1p: new_mat, tot_mat = (log1p(adata, new_mat), log1p(adata, tot_mat))
+            if log1p: new_mat, tot_mat = (log1p_(adata, new_mat), log1p_(adata, tot_mat))
             
             new_mat, tot_mat = (
                 (new_mat.A, tot_mat.A) if issparse(new_mat) else (new_mat, tot_mat)
@@ -273,7 +273,7 @@ def _scatters(
                 adata[:, genes].layers["X_spliced"],
             )
 
-            if log1p: unspliced_mat, spliced_mat = (log1p(adata, unspliced_mat), log1p(adata, spliced_mat))
+            if log1p: unspliced_mat, spliced_mat = (log1p_(adata, unspliced_mat), log1p_(adata, spliced_mat))
             
             unspliced_mat, spliced_mat = (
                 (unspliced_mat.A, spliced_mat.A)
@@ -303,7 +303,7 @@ def _scatters(
                 adata[:, genes].layers["X_sl"],
             )
 
-            if log1p: uu, ul, su, sl = (log1p(adata, uu), log1p(adata, ul), log1p(adata, su), log1p(adata, sl))
+            if log1p: uu, ul, su, sl = (log1p_(adata, uu), log1p_(adata, ul), log1p_(adata, su), log1p_(adata, sl))
             
             if "protein" in adata.obsm.keys():
                 if "delta" in adata.var.columns:
