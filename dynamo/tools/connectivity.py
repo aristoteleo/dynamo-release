@@ -7,7 +7,7 @@ from copy import deepcopy
 from inspect import signature
 from sklearn.utils import sparsefuncs
 from ..preprocessing.utils import get_layer_keys
-from .utils import log1p
+from .utils import log1p_
 
 from ..docrep import DocstringProcessor
 
@@ -332,7 +332,7 @@ def mnn(
     knn_graph_list = []
     for layer in layers:
         layer_X = adata.layers[layer]
-        layer_X = log1p(layer_X)
+        layer_X = log1p_(layer_X)
         if use_pca_fit:
             layer_pca = fiter.fit_transform(layer_X)[:, 1:]
         else:

@@ -202,7 +202,7 @@ def timeit(method):
 
 # ---------------------------------------------------------------------------------------------------
 # data transformation related:
-def log1p(adata, X_data):
+def log1p_(adata, X_data):
     if adata.uns['pp_norm_method'] is None:
         if issparse(X_data):
             X_data.data = np.log1p(X_data.data)
@@ -1499,7 +1499,7 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
             exprs = adata[np.isfinite(time), :][:, valid_genes].X
         elif layer in adata.layers.keys():
             exprs = adata[np.isfinite(time), :][:, valid_genes].layers[layer]
-            exprs = log1p(adata, exprs)
+            exprs = log1p_(adata, exprs)
         elif layer is "protein":  # update subset here
             exprs = adata[np.isfinite(time), :][:, valid_genes].obsm[layer]
         else:
@@ -1567,7 +1567,7 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
             init_states = (
                 adata[_cell_names, :][:, valid_genes].X
                 if layer == "X"
-                else log1p(adata, adata[_cell_names, :][:, valid_genes].layers[layer])
+                else log1p_(adata, adata[_cell_names, :][:, valid_genes].layers[layer])
             )
             if issparse(init_states):
                 init_states = init_states.A
@@ -1579,7 +1579,7 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
                 X = adata[:, valid_genes].X
             else:
                 VecFld = adata.uns["VecFld_" + layer]["VecFld"]
-                X = log1p(adata, adata[:, valid_genes].layers[layer])
+                X = log1p_(adata, adata[:, valid_genes].layers[layer])
 
     if init_states.shape[0] > 1 and average in ["origin", True]:
         init_states = init_states.mean(0).reshape((1, -1))

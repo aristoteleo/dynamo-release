@@ -2,7 +2,7 @@ from tqdm import tqdm
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
 from .scVectorField import vector_field_function
-from .utils import log1p
+from .utils import log1p_
 
 def diffusionMatrix(adata,
               X_data=None,
@@ -119,7 +119,7 @@ def diffusionMatrix(adata,
                     else:
                         X_data, V_data = adata[:, adata.var.use_for_dynamo].layers[layer], \
                                          adata[:, adata.var.use_for_dynamo].uns[vkey]
-                X_data = log1p(adata, X_data)
+                X_data = log1p_(adata, X_data)
         else:
             X_data, V_data = adata.obsm[basis], adata.obsm[vkey]
 

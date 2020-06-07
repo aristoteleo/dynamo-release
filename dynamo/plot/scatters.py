@@ -27,7 +27,7 @@ from .utils import save_fig
 
 from ..tools.utils import update_dict
 
-from ..tools.utils import get_mapper, log1p
+from ..tools.utils import get_mapper, log1p_
 from ..docrep import DocstringProcessor
 
 docstrings = DocstringProcessor()

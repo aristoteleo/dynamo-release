@@ -9,7 +9,7 @@ from .utils import save_fig
 from .scatters import scatters
 from ..tools.velocity import sol_u, sol_s, solve_first_order_deg
 from ..tools.utils_moments import moments
-from ..tools.utils import get_mapper, one_shot_k, log1p
+from ..tools.utils import get_mapper, one_shot_k, log1p_
 from ..tools.utils import update_dict, get_valid_inds
 from ..configuration import _themes
 

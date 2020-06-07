@@ -1,7 +1,7 @@
 from scipy.sparse import issparse
 import warnings
 from ..preprocessing.utils import pca
-from .utils import update_dict, build_distance_graph, log1p
+from .utils import update_dict, build_distance_graph, log1p_
 from .connectivity import (
     umap_conn_indices_dist_embedding,
 )
@@ -49,7 +49,7 @@ def prepare_dim_reduction(adata,
                 X_data = adata.layers[layer] if 'use_for_dynamo' not in adata.var.keys() \
                         else adata[:, adata.var.use_for_dynamo].layers[layer]
 
-            X_data = log1p(adata, X_data)
+            X_data = log1p_(adata, X_data)
     else:
         pca_key = "X_pca" if layer is None else layer + "_pca"
         n_pca_components = max(max(dims), n_pca_components) if dims is not None else n_pca_components
@@ -70,7 +70,7 @@ def prepare_dim_reduction(adata,
                         CM = adata.layers[layer] if 'use_for_dynamo' not in adata.var.keys() \
                             else adata[:, adata.var.use_for_dynamo].layers[layer]
 
-                    CM = log1p(adata, CM)
+                    CM = log1p_(adata, CM)
 
                 cm_genesums = CM.sum(axis=0)
                 valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)

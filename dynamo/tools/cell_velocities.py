@@ -16,7 +16,7 @@ from .utils import (
     norm_row,
     einsum_correlation,
     build_distance_graph,
-    log1p,
+    log1p_,
 )
 
 from .dimension_reduction import reduceDimension
@@ -167,8 +167,8 @@ def cell_velocities(
 
     if method == 'kmc' and n_pca_components is None: n_pca_components = 30
     if n_pca_components is not None:
-        X = log1p(adata, X)
-        X_plus_V = log1p(adata, X + V_mat)
+        X = log1p_(adata, X)
+        X_plus_V = log1p_(adata, X + V_mat)
         if (
                 "velocity_pca_fit" not in adata.uns_keys()
                 or type(adata.uns["velocity_pca_fit"]) == str
@@ -657,7 +657,7 @@ def embed_velocity(adata, x_basis, v_basis='velocity', emb_basis='X', velocity_g
         X = adata.layers[x_basis]
         V = adata.layers[v_basis]
 
-    X = log1p(adata, X)
+    X = log1p_(adata, X)
 
     X_emb = adata.obsm[emb_basis]
     Idx = adata.uns['neighbors']['indices']
