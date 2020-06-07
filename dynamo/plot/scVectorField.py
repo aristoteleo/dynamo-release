@@ -1328,7 +1328,7 @@ def grid_velocity(
     }
     grid_kwargs_dict = update_dict(grid_kwargs_dict, grid_kwargs)
 
-    if method == "SparseVFC":
+    if method.lower() == "sparsevfc":
         if "VecFld_" + basis not in adata.uns.keys():
             VectorField(adata, basis=basis, dims=[x, y])
         X_grid, V_grid = (
@@ -1359,7 +1359,7 @@ def grid_velocity(
             )
     elif method == "gaussian":
         X_grid, V_grid, D = velocity_on_grid(
-            X[:, [x, y]], V[:, [x, y]], xy_grid_nums, **grid_kwargs_dict
+            X[:, [x, y]], V[:, [x, y]], xy_grid_nums, cut_off_velocity=cut_off_velocity, **grid_kwargs_dict
         )
     elif "grid_velocity_" + basis in adata.uns.keys():
         X_grid, V_grid, _ = (
@@ -1399,7 +1399,6 @@ def grid_velocity(
         "minshaft": 1,
         "minlength": 1,
         "pivot": "tail",
-        "linewidth": 0.2,
         "edgecolors": edgecolors,
         "linewidth": 0.2,
         "facecolors": edgecolors,
@@ -1557,7 +1556,7 @@ def streamline_plot(
     }
     grid_kwargs_dict = update_dict(grid_kwargs_dict, streamline_kwargs)
 
-    if method == "SparseVFC":
+    if method.lower() == "sparsevfc":
         if "VecFld_" + basis not in adata.uns.keys():
             VectorField(adata, basis=basis, dims=[x, y])
         X_grid, V_grid = (
@@ -1590,7 +1589,7 @@ def streamline_plot(
             )
     elif method == "gaussian":
         X_grid, V_grid, D = velocity_on_grid(
-            X[:, [x, y]], V[:, [x, y]], xy_grid_nums, **grid_kwargs_dict
+            X[:, [x, y]], V[:, [x, y]], xy_grid_nums, cut_off_velocity=cut_off_velocity, **grid_kwargs_dict
         )
     elif "grid_velocity_" + basis in adata.uns.keys():
         X_grid, V_grid, _ = (

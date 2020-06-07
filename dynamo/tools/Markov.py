@@ -276,6 +276,7 @@ def velocity_on_grid(
     autoscale=False,
     adjust_for_stream=True,
     V_threshold=None,
+    cut_off_velocity=True,
 ):
     """Function to calculate the velocity vectors on a grid for grid vector field  quiver plot and streamplot, adapted from scVelo
     """
@@ -296,17 +297,23 @@ def velocity_on_grid(
     # calculate diffusion matrix D
     D = diffusionMatrix2D(V_emb[neighs])
 
-    X_grid, V_grid = grid_velocity_filter(
-        V_emb,
-        neighs,
-        p_mass,
-        X_grid,
-        V_grid,
-        min_mass=min_mass,
-        autoscale=autoscale,
-        adjust_for_stream=adjust_for_stream,
-        V_threshold=V_threshold,
-    )
+    if cut_off_velocity:
+        X_grid, V_grid = grid_velocity_filter(
+            V_emb,
+            neighs,
+            p_mass,
+            X_grid,
+            V_grid,
+            min_mass=min_mass,
+            autoscale=autoscale,
+            adjust_for_stream=adjust_for_stream,
+            V_threshold=V_threshold,
+        )
+    else:
+        X_grid, V_grid = (
+            np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]),
+            np.array([V_grid[:, 0].reshape(xy_grid_nums), V_grid[:, 1].reshape(xy_grid_nums)]),
+        )
 
     return X_grid, V_grid, D
 
