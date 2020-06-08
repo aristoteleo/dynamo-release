@@ -154,7 +154,7 @@ cyc_20 = list(map(colors.to_hex, cm.tab20c.colors))
 # }
 
 
-def dyn_theme(background="black"):
+def dyn_theme(background="white"):
     # https://github.com/matplotlib/matplotlib/blob/master/lib/matplotlib/mpl-data/stylelib/dark_background.mplstyle
 
     if background == "black":
