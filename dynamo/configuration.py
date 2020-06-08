@@ -335,7 +335,7 @@ def config_dynamo_rcParams(
 
 def set_figure_params(
     dynamo=True,
-    background="black",
+    background="white",
     fontsize=8,
     figsize=(6.5, 5),
     dpi=None,
