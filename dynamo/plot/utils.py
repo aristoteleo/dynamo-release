@@ -185,7 +185,7 @@ def _matplotlib_points(
                 points = reorder_data
 
         if isinstance(color_key, dict):
-            colors = pd.Series(labels).map(color_key)
+            colors = pd.Series(labels).map(color_key).values
             unique_labels = np.unique(labels)
             legend_elements = [
                 # Patch(facecolor=color_key[k], label=k) for k in unique_labels

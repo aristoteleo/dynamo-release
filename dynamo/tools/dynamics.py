@@ -258,13 +258,13 @@ def dynamics(
                 ss_estimation_kwargs = {}
 
             est = ss_estimation(
-                U=U,
-                Ul=Ul,
-                S=S,
-                Sl=Sl,
-                P=P,
-                US=US,
-                S2=S2,
+                U=U.copy() if U is not None else None,
+                Ul=Ul.copy() if Ul is not None else None,
+                S=S.copy() if S is not None else None,
+                Sl=Sl.copy() if Sl is not None else None,
+                P=P.copy() if P is not None else None,
+                US=US.copy() if US is not None else None,
+                S2=S2.copy() if S2 is not None else None,
                 conn=subset_adata.uns['moments_con'],
                 t=t,
                 ind_for_proteins=ind_for_proteins,

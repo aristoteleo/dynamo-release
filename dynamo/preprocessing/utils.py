@@ -118,6 +118,14 @@ def unique_var_obs_adata(adata):
     return adata
 
 
+def layers2csr(adata):
+    """Function to make the obs and var attribute's index unique"""
+    for i in adata.layers.keys():
+        adata.layers[i] = csr_matrix(adata.layers[i]) if not issparse(adata.layers[i]) else adata.layers[i]
+
+    return adata
+
+
 def merge_adata_attrs(adata_ori, adata, attr):
     if attr == 'var':
         _columns = set(adata.var.columns).difference(adata_ori.var.columns)

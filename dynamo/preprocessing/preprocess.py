@@ -12,7 +12,7 @@ from .utils import get_svr_filter
 from .utils import Freeman_Tukey
 from .utils import merge_adata_attrs
 from .utils import sz_util, normalize_util, get_sz_exprs
-from .utils import unique_var_obs_adata, collapse_adata, NTR
+from .utils import unique_var_obs_adata, layers2csr, collapse_adata, NTR
 from ..tools.utils import update_dict
 
 
@@ -1197,6 +1197,7 @@ def recipe_monocle(
 
     if norm_method == 'Freeman_Tukey': norm_method = Freeman_Tukey
     adata = unique_var_obs_adata(adata)
+    adata = layers2csr(adata)
     adata = collapse_adata(adata)
 
     _szFactor, _logged = False, False
