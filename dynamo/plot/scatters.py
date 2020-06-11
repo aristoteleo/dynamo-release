@@ -9,7 +9,7 @@ from numbers import Number
 import matplotlib.colors
 import matplotlib.cm
 
-from ..configuration import _themes
+from ..configuration import _themes, set_figure_params, reset_rcParams
 from .utils import (
     despline,
     despline_all,
@@ -875,9 +875,10 @@ def scatters(
     if background is None:
         _background = rcParams.get("figure.facecolor")
         _background = to_hex(_background) if type(_background) is tuple else _background
+        set_figure_params('dynamo', background=_background)
     else:
         _background = background
-
+        set_figure_params('dynamo', background=_background)
     x, y = x[0] if type(x) != int else x, y[0] if type(y) != int else y
 
     if use_smoothed:
@@ -1045,7 +1046,7 @@ def scatters(
                     else color_key_cmap
                 )
                 _background = (
-                    _themes[_theme_]["background"] if background is None else _background
+                    _themes[_theme_]["background"] if _background is None else _background
                 )
 
                 if labels is not None and values is not None:
@@ -1118,18 +1119,20 @@ def scatters(
                 color_list.append(color)
 
                 labels, values = None, None  # reset labels and values
-    # dyn.configuration.reset_rcParams()
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'scatters', "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
+        if background is not None: reset_rcParams()
     elif save_show_or_return == "show":
         if show_legend:
             plt.subplots_adjust(right=0.85)
         plt.tight_layout()
         plt.show()
+        if background is not None: reset_rcParams()
     elif save_show_or_return == "return":
+        if background is not None: reset_rcParams()
         return axes_list, color_list, font_color
 
