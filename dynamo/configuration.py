@@ -5,6 +5,10 @@ from cycler import cycler
 import matplotlib.pyplot as plt
 
 # create cmap
+zebrafish_colors = ['#4876ff', '#85C7F2', '#cd00cd', '#911eb4', '#000080', '#808080', '#008080', '#ffc125', '#262626',
+                    '#3cb44b', '#ff4241', '#b77df9']
+zebrafish_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("zebrafish", zebrafish_colors)
+
 fire_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("fire", colorcet.fire)
 darkblue_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
     "darkblue", colorcet.kbc
@@ -36,6 +40,7 @@ glasbey_dark_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
 )
 
 # register cmap
+plt.register_cmap("zebrafish", zebrafish_cmap)
 plt.register_cmap("fire", fire_cmap)
 plt.register_cmap("darkblue", darkblue_cmap)
 plt.register_cmap("darkgreen", darkgreen_cmap)
@@ -120,6 +125,12 @@ _themes = {
         "background": "black",
         "edge_cmap": "gray",
     },
+    "glasbey_white_zebrafish": {
+        "cmap": "zebrafish",
+        "color_key_cmap": "zebrafish",
+        "background": "white",
+        "edge_cmap": "gray_r",
+    },
     "glasbey_white": {
         "cmap": "glasbey_white",
         "color_key_cmap": "glasbey_white",
@@ -131,6 +142,7 @@ _themes = {
 # https://github.com/vega/vega/wiki/Scales#scale-range-literals
 cyc_10 = list(map(colors.to_hex, cm.tab10.colors))
 cyc_20 = list(map(colors.to_hex, cm.tab20c.colors))
+zebrafish_256 = list(map(colors.to_hex, zebrafish_colors))
 
 # ideally let us convert the following ggplot theme for Nature publisher group into matplotlib.rcParams
 # nm_theme <- function() {
@@ -198,7 +210,7 @@ def dyn_theme(background="white"):
 
 
 def config_dynamo_rcParams(
-    background="black", prop_cycle=cyc_20, fontsize=8, color_map=None, frameon=None
+    background="white", prop_cycle=zebrafish_256, fontsize=8, color_map=None, frameon=None
 ):
     """Configure matplotlib.rcParams to dynamo defaults (based on ggplot style and scanpy).
 
@@ -208,7 +220,7 @@ def config_dynamo_rcParams(
             The background color of the plot. By default we use the black ground
             which is great for presentation. Setting it to `white` background will
             be suitable for producing figures for publication.
-        prop_cycle: `list` (default: cyc_20)
+        prop_cycle: `list` (default: zebrafish_256)
             A list with hex color codes
         fontsize: float (default: 6)
             Size of font
@@ -267,10 +279,10 @@ def config_dynamo_rcParams(
 
     # dpi options (mpl default: 100, 100)
     rcParams["figure.dpi"] = 100
-    rcParams["savefig.dpi"] = 160
+    rcParams["savefig.dpi"] = 150
 
     # figure (default: 0.125, 0.96, 0.15, 0.91)
-    rcParams["figure.figsize"] = (6.5, 5)
+    rcParams["figure.figsize"] = (6, 4)
     rcParams["figure.subplot.left"] = 0.18
     rcParams["figure.subplot.right"] = 0.96
     rcParams["figure.subplot.bottom"] = 0.15
@@ -337,7 +349,7 @@ def set_figure_params(
     dynamo=True,
     background="white",
     fontsize=8,
-    figsize=(6.5, 5),
+    figsize=(6, 4),
     dpi=None,
     dpi_save=None,
     frameon=None,

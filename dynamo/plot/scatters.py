@@ -739,7 +739,7 @@ def scatters(
     color_key_cmap=None,
     background=None,
     ncols=1,
-    pointsize=None,
+    pointsize=8,
     figsize=(7, 5),
     show_legend=True,
     use_smoothed=True,
@@ -905,7 +905,7 @@ def scatters(
     point_size *= 4
 
     scatter_kwargs = dict(
-        alpha=0.2, s=point_size, edgecolor=None, linewidth=0, rasterized=True
+        alpha=0.1, s=point_size, edgecolor=None, linewidth=0, rasterized=True
     )  # (0, 0, 0, 1)
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
