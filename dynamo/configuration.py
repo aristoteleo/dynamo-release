@@ -216,10 +216,10 @@ def config_dynamo_rcParams(
 
     Parameters
     ----------
-        background: `str` (default: black)
-            The background color of the plot. By default we use the black ground
-            which is great for presentation. Setting it to `white` background will
-            be suitable for producing figures for publication.
+        background: `str` (default: `white`)
+            The background color of the plot. By default we use the white ground
+            which is suitable for producing figures for publication. Setting it to `black` background will
+            be great for presentation.
         prop_cycle: `list` (default: zebrafish_256)
             A list with hex color codes
         fontsize: float (default: 6)
@@ -365,10 +365,10 @@ def set_figure_params(
     ---------
         dynamo: `bool` (default: `True`)
             Init default values for :obj:`matplotlib.rcParams` suited for dynamo.
-        background: `str` (default: black)
-            The background color of the plot. By default we use the black ground
-            which is great for presentation. Setting it to `white` background will
-            be suitable for producing figures for publication.
+        background: `str` (default: `white`)
+            The background color of the plot. By default we use the white ground
+            which is suitable for producing figures for publication. Setting it to `black` background will
+            be great for presentation.
         fontsize: `[float, float]` or None (default: `6`)
         figsize: `(float, float)` (default: `(6.5, 5)`)
             Width and height for default figure size.

@@ -1155,6 +1155,7 @@ def cell_wise_velocity(
     }
     quiver_kwargs = update_dict(quiver_kwargs, cell_wise_kwargs)
 
+    plt.figure(facecolor=background)
     axes_list, color_list, font_color = scatters(
         adata,
         basis,
@@ -1204,6 +1205,7 @@ def cell_wise_velocity(
             facecolors=color_list[i],
             **quiver_kwargs,
         )
+        axes_list[i].set_facecolor(background)
 
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'cell_wise_velocity', "dpi": None,
@@ -1349,7 +1351,7 @@ def grid_velocity(
             V_emb = adata.uns["VecFld_" + basis]["func"](X)
             V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[:, None]
             X_grid, V_grid = grid_velocity_filter(
-                V_emb=V[:, [x, y]],
+                V_emb=V,
                 neighs=neighs,
                 p_mass=p_mass,
                 X_grid=X_grid,
@@ -1363,7 +1365,7 @@ def grid_velocity(
             )
     elif method.lower() == "gaussian":
         X_grid, V_grid, D = velocity_on_grid(
-            X[:, [x, y]], V[:, [x, y]], xy_grid_nums, cut_off_velocity=cut_off_velocity, **grid_kwargs_dict
+            X, V, xy_grid_nums, cut_off_velocity=cut_off_velocity, **grid_kwargs_dict
         )
     elif "grid_velocity_" + basis in adata.uns.keys():
         X_grid, V_grid, _ = (
@@ -1412,6 +1414,7 @@ def grid_velocity(
     }
     quiver_kwargs = update_dict(quiver_kwargs, q_kwargs_dict)
 
+    plt.figure(facecolor=background)
     axes_list, _, font_color = scatters(
         adata,
         basis,
@@ -1444,6 +1447,7 @@ def grid_velocity(
         axes_list[i].quiver(
             X_grid[0], X_grid[1], V_grid[0], V_grid[1], **quiver_kwargs
         )
+        axes_list[i].set_facecolor(background)
 
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'grid_velocity', "dpi": None,
@@ -1581,7 +1585,7 @@ def streamline_plot(
             V_emb = adata.uns["VecFld_" + basis]["func"](X)
             V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[:, None]
             X_grid, V_grid = grid_velocity_filter(
-                V_emb=V[:, [x, y]],
+                V_emb=V,
                 neighs=neighs,
                 p_mass=p_mass,
                 X_grid=X_grid,
@@ -1596,7 +1600,7 @@ def streamline_plot(
 
     elif method.lower() == "gaussian":
         X_grid, V_grid, D = velocity_on_grid(
-            X[:, [x, y]], V[:, [x, y]], xy_grid_nums, cut_off_velocity=cut_off_velocity, **grid_kwargs_dict
+            X, V, xy_grid_nums, cut_off_velocity=cut_off_velocity, **grid_kwargs_dict
         )
     elif "grid_velocity_" + basis in adata.uns.keys():
         X_grid, V_grid, _ = (
@@ -1631,6 +1635,16 @@ def streamline_plot(
 
     streamplot_kwargs = update_dict(streamplot_kwargs, streamline_kwargs)
 
+    if background is None:
+        _background = rcParams.get("figure.facecolor")
+        background = to_hex(_background) if type(_background) is tuple else _background
+
+    if background in ["black", "#ffffff"]:
+        streamline_color = "red"
+    else:
+        streamline_color = "black"
+
+    plt.figure(facecolor=background)
     axes_list, _, font_color = scatters(
         adata,
         basis,
@@ -1658,15 +1672,8 @@ def streamline_plot(
         **s_kwargs_dict,
     )
 
-    if background is None:
-        _background = rcParams.get("figure.facecolor")
-        background = to_hex(_background) if type(_background) is tuple else _background
-
-    if background == "black":
-        streamline_color = "red"
-    else:
-        streamline_color = "black"
     for i in range(len(axes_list)):
+        axes_list[i].set_facecolor(background)
         axes_list[i].streamplot(
             X_grid[0],
             X_grid[1],

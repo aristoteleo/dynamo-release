@@ -3,7 +3,7 @@ import sys
 import warnings
 from .utils_dynamics import *
 from .utils import despline, _matplotlib_points, _datashade_points, _select_font_color
-from .utils import arrowed_spines, despline_all
+from .utils import arrowed_spines, despline_all, deaxis_all
 from .utils import quiver_autoscaler, default_quiver_args
 from .utils import save_fig
 from .scatters import scatters
@@ -713,9 +713,10 @@ def phase_portraits(
 
         ax2.set_title(gn + " (" + ekey + ")")
         if show_arrowed_spines:
-            x2 = arrowed_spines(ax2, basis)
+            ax2 = arrowed_spines(ax2, basis)
         else:
             despline_all(ax2)
+            deaxis_all(ax2)
 
         v_max = np.max(np.abs(V_vec.values))
         div_scatter_kwargs.update({"vmin": -v_max, "vmax": v_max})
@@ -758,6 +759,7 @@ def phase_portraits(
             ax3 = arrowed_spines(ax3, basis)
         else:
             despline_all(ax3)
+            deaxis_all(ax3)
 
         if (
                 "protein" in adata.obsm.keys()
@@ -945,6 +947,7 @@ def phase_portraits(
                 ax5 = arrowed_spines(ax5, basis)
             else:
                 despline_all(ax5)
+                deaxis_all(ax5)
 
             v_max = np.max(np.abs(V_vec.values))
             div_scatter_kwargs.update({"vmin": -v_max, "vmax": v_max})
@@ -987,6 +990,7 @@ def phase_portraits(
                 ax6 = arrowed_spines(ax6, basis)
             else:
                 despline_all(ax6)
+                deaxis_all(ax6)
 
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'phase_portraits', "dpi": None,

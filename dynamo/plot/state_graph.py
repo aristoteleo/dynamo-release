@@ -113,6 +113,8 @@ def state_graph(
     """
 
     import matplotlib.pyplot as plt
+    from matplotlib import rcParams
+    from matplotlib.colors import to_hex
 
     aggregate = group
 
@@ -129,6 +131,11 @@ def state_graph(
     for i, cur_grp in enumerate(uniq_grp):
         group_median[i, :] = np.nanmedian(points[np.where(groups == cur_grp)[0], :2], 0)
 
+    if background is None:
+        _background = rcParams.get("figure.facecolor")
+        background = to_hex(_background) if type(_background) is tuple else _background
+
+    plt.figure(facecolor=_background)
     axes_list, color_list, font_color = scatters(
         adata,
         basis,
@@ -163,6 +170,7 @@ def state_graph(
         )
         for arrow in arrows:
             axes_list[i].add_patch(arrow)
+        axes_list[i].set_facecolor(background)
 
     plt.axis("off")
 

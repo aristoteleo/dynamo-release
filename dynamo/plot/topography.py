@@ -626,6 +626,7 @@ def topography(
 
         V = vector_field_function(init_states, VF, [0, 1])
 
+    plt.figure(facecolor=_background)
     axes_list, color_list, font_color = scatters(
         adata,
         basis,
@@ -664,6 +665,8 @@ def topography(
         # Build the plot
         axes_list[i].set_xlim(xlim)
         axes_list[i].set_ylim(ylim)
+
+        axes_list[i].set_facecolor(background)
 
         if t is None:
             max_t = np.max((np.diff(xlim), np.diff(ylim))) / np.min(
