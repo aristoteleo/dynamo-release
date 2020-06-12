@@ -738,10 +738,10 @@ def scatters(
     color_key=None,
     color_key_cmap=None,
     background=None,
-    ncols=1,
+    ncols=4,
     pointsize=8,
     figsize=(7, 5),
-    show_legend=True,
+    show_legend="on data",
     use_smoothed=True,
     aggregate=None,
     show_arrowed_spines=True,
@@ -838,6 +838,8 @@ def scatters(
             handle for you. Note that if theme
             is passed then this value will be overridden by the
             corresponding option of the theme.
+        ncols: int (optional, default `4`)
+            Number of columns for the figure.
         width: int (optional, default 800)
             The desired width of the plot in pixels.
         height: int (optional, default 800)

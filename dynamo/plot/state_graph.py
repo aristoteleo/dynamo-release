@@ -170,7 +170,7 @@ def state_graph(
         )
         for arrow in arrows:
             axes_list[i].add_patch(arrow)
-        axes_list[i].set_facecolor(background)
+            axes_list[i].set_facecolor(background)
 
     plt.axis("off")
 

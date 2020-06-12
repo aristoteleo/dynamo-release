@@ -573,7 +573,7 @@ def phase_portraits(
                 ax1, color = _matplotlib_points(
                     cur_pd.iloc[:, [1, 0]].values,
                     ax=ax1,
-                    labels=cur_pd.loc[:, "expression"],
+                    labels=cur_pd.loc[:, "color"],
                     values=None,
                     highlights=highlights,
                     cmap=discrete_cmap,
@@ -589,7 +589,7 @@ def phase_portraits(
                 ax1, color = _datashade_points(
                     cur_pd.iloc[:, [1, 0]].values,
                     ax=ax1,
-                    labels=cur_pd.loc[:, "expression"],
+                    labels=cur_pd.loc[:, "color"],
                     values=None,
                     highlights=highlights,
                     cmap=discrete_cmap,
@@ -646,7 +646,6 @@ def phase_portraits(
                 "minshaft": 1,
                 "minlength": 1,
                 "pivot": "tail",
-                "linewidth": 0.2,
                 "edgecolors": edgecolors,
                 "linewidth": 0.2,
                 "color": color,
@@ -804,7 +803,7 @@ def phase_portraits(
                     ax4, color = _matplotlib_points(
                         cur_pd.iloc[:, [1, 0]].values,
                         ax=ax4,
-                        labels=color,
+                        labels=cur_pd.loc[:, "color"].values,
                         values=None,
                         highlights=highlights,
                         cmap=discrete_cmap,
@@ -820,7 +819,7 @@ def phase_portraits(
                     ax4, color = _datashade_points(
                         cur_pd.iloc[:, [1, 0]].values,
                         ax=ax4,
-                        labels=color,
+                        labels=cur_pd.loc[:, "color"].values,
                         values=None,
                         highlights=highlights,
                         cmap=discrete_cmap,
@@ -878,7 +877,6 @@ def phase_portraits(
                     "minshaft": 1,
                     "minlength": 1,
                     "pivot": "tail",
-                    "linewidth": 0.2,
                     "edgecolors": edgecolors,
                     "linewidth": 0.2,
                     "color": color,
