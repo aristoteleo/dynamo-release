@@ -68,7 +68,7 @@ def _plt_connectivity(coord, connectivity):
         "arrowsize": 10,
     }
     edge_color = "gray"
-    plt.figure(figsize=[10, 10])
+    plt.figure(figsize=[6, 4])
 
     nx.draw(
         G,
@@ -338,7 +338,7 @@ def nneighbors(
     color_key=None,
     color_key_cmap=None,
     background="black",
-    figsize=(7, 5),
+    figsize=(6, 4),
     ax=None,
     save_show_or_return='show',
     save_kwargs={},
@@ -439,7 +439,7 @@ def nneighbors(
 
     if total_panels > 1:
         g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)
-        gs = plt.GridSpec(nrow, ncol)
+        gs = plt.GridSpec(nrow, ncol, wspace=0.12)
 
     i = 0
     for cur_b in basis:

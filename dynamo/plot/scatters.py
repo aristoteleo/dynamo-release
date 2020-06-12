@@ -740,7 +740,7 @@ def scatters(
     background=None,
     ncols=4,
     pointsize=8,
-    figsize=(7, 5),
+    figsize=(6, 4),
     show_legend="on data",
     use_smoothed=True,
     aggregate=None,
@@ -922,7 +922,7 @@ def scatters(
 
     if total_panels >= 1:
         plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=_background)
-        gs = plt.GridSpec(nrow, ncol)
+        gs = plt.GridSpec(nrow, ncol, wspace=0.12)
 
     i = 0
     axes_list, color_list = [], []

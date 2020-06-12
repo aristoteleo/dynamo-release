@@ -121,7 +121,7 @@ def jacobian(adata,
              cmap='bwr',
              background=None,
              pointsize=None,
-             figsize=(7, 5),
+             figsize=(6, 4),
              show_legend=True,
              save_show_or_return="show",
              save_kwargs={},
@@ -241,7 +241,7 @@ def jacobian(adata,
     else:
         g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=_background)  # , dpi=160
 
-    gs = plt.GridSpec(nrow, ncol, wspace=0.1)
+    gs = plt.GridSpec(nrow, ncol, wspace=0.12)
 
     for i, source in enumerate(source_genes):
         for j, target in enumerate(target_genes):

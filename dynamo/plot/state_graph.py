@@ -80,7 +80,7 @@ def state_graph(
     background=None,
     ncols=1,
     pointsize=None,
-    figsize=(7, 5),
+    figsize=(6, 4),
     show_legend=True,
     use_smoothed=True,
     show_arrowed_spines=True,

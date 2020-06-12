@@ -30,7 +30,7 @@ def phase_portraits(
         discrete_continous_div_cmap=None,
         discrete_continous_div_color_key=[None, None, None],
         discrete_continous_div_color_key_cmap=None,
-        figsize=(7, 5),
+        figsize=(6, 4),
         ncols=None,
         legend="upper left",
         background=None,
@@ -517,7 +517,7 @@ def phase_portraits(
     font_color = _select_font_color(discrete_background)
 
     # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
-    gs = plt.GridSpec(nrow, ncol)
+    gs = plt.GridSpec(nrow, ncol, wspace=0.12)
     for i, gn in enumerate(genes):
         if num_per_gene is 3:
             ax1, ax2, ax3 = (
@@ -1207,6 +1207,7 @@ def dynamics(
         nrows,
         ncols,
         g,
+        wspace=0.12,
     )
 
     # there are bugs when fig is not a symmetric matrix

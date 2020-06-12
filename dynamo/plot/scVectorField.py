@@ -179,7 +179,7 @@ def _cell_wise_velocity(
     )
 
     # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
-    gs = plt.GridSpec(nrow, ncol)
+    gs = plt.GridSpec(nrow, ncol, wspace=0.12)
     for i, gn in enumerate(genes):
         ax = plt.subplot(gs[i * plot_per_gene])
         try:
@@ -434,7 +434,7 @@ def _grid_velocity(
     )
 
     # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
-    gs = plt.GridSpec(nrow, ncol)
+    gs = plt.GridSpec(nrow, ncol, wspace=0.12)
     for i, gn in enumerate(genes):
         ax = plt.subplot(gs[i * plot_per_gene])
         try:
@@ -701,7 +701,7 @@ def _streamline_plot(
     )
 
     # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
-    gs = plt.GridSpec(nrow, ncol)
+    gs = plt.GridSpec(nrow, ncol, wspace=0.12)
     for i, gn in enumerate(genes):
         ax = plt.subplot(gs[i * plot_per_gene])
         try:
@@ -1051,7 +1051,7 @@ def cell_wise_velocity(
     background=None,
     ncols=1,
     pointsize=None,
-    figsize=(7, 5),
+    figsize=(6, 4),
     show_legend=True,
     use_smoothed=True,
     ax=None,
@@ -1238,7 +1238,7 @@ def grid_velocity(
     background=None,
     ncols=1,
     pointsize=4,
-    figsize=(7, 5),
+    figsize=(6, 4),
     show_legend=True,
     use_smoothed=True,
     ax=None,
@@ -1480,7 +1480,7 @@ def streamline_plot(
     background=None,
     ncols=1,
     pointsize=8,
-    figsize=(7, 5),
+    figsize=(6, 4),
     show_legend=True,
     use_smoothed=True,
     ax=None,
