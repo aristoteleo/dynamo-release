@@ -38,6 +38,7 @@ def phase_portraits(
         quiver_size=None,
         quiver_length=None,
         q_kwargs_dict={},
+        show_arrowed_spines=None,
         save_show_or_return='show',
         save_kwargs={},
         **kwargs,
@@ -138,6 +139,9 @@ def phase_portraits(
         q_kwargs_dict: `dict` (default: {})
             The dictionary of the quiver arguments. The default setting of quiver argument is identical to that used in the
             cell_wise_velocity and grid_velocity.
+        show_arrowed_spines: bool or None (optional, default None)
+            Whether to show a pair of arrowed spines represeenting the basis of the scatter is currently using. If None,
+            only the first panel in the expression / velocity plot will have the arrowed spine.
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -676,7 +680,7 @@ def phase_portraits(
         # V_vec = V_vec + limit  # that is: tmp_colorandum - (-limit)
         # V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
         # V_vec = np.clip(V_vec, 0, 1)
-        show_arrowed_spines = True if i == 0 else False
+        if show_arrowed_spines is None: show_arrowed_spines = True if i == 0 else False
         if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
             ax2, _ = _matplotlib_points(
                 embedding.iloc[:, :2].values,
