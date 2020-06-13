@@ -20,6 +20,8 @@ def plot_flow_field(
     background=None,
     density=1,
     linewidth=1,
+    streamline_color=None,
+    color_start_points=None,
     save_show_or_return='return',
     save_kwargs={},
     ax=None,
@@ -49,6 +51,10 @@ def plot_flow_field(
         density of the plt.streamplot function.
     linewidth: `float` or None (default: 1)
         multiplier of automatically calculated linewidth passed to the plt.streamplot function.
+    streamline_color: `str` or None (default: None)
+        The color of the stream lines.
+    color_start_points: `float` or None (default: 1)
+        The color of the starting point that will be used to predict cell fates.
     save_show_or_return: {'show', 'save', 'return'} (default: `return`)
         Whether to save, show or return the figure.
     save_kwargs: `dict` (default: `{}`)
@@ -76,9 +82,9 @@ def plot_flow_field(
         _background = background
 
     if _background in ["#ffffff", "black"]:
-        color, color_start_points = "white", "red"
+        color, color_start_points = "white" if streamline_color is None else streamline_color, "red" if color_start_points is None else color_start_points
     else:
-        color, color_start_points = "thistle", "tomato"
+        color, color_start_points = "thistle" if streamline_color is None else streamline_color, "tomato" if color_start_points is None else color_start_points
 
     # Set up u,v space
     u = np.linspace(x_range[0], x_range[1], n_grid)
@@ -232,7 +238,7 @@ def plot_fixed_points(
             An instance of the VectorField2D class which presumably has fixed points computed and stored.
         marker: `str` (default: `o`)
             The marker type. Any string supported by matplotlib.markers.
-        markersize: `float` (default: 20)
+        markersize: `float` (default: 10)
             The size of the marker.
         filltype: list
             The fill type used for stable, saddle, and unstable fixed points. Default is 'full', 'top' and 'none',
@@ -517,6 +523,9 @@ def topography(
     quiver_length=None,
     density=1,
     linewidth=1,
+    streamline_color=None,
+    color_start_points=None,
+    markersize=10,
     save_show_or_return='show',
     save_kwargs={},
     aggregate=None,
@@ -524,7 +533,7 @@ def topography(
     ax=None,
     s_kwargs_dict={},
     q_kwargs_dict={},
-    **stream_kwargs_dict
+    **streamline_kwargs_dict
 ):
     """Plot the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system
     for single cells. The plot is created on two dimensional space.
@@ -571,6 +580,12 @@ def topography(
             density of the plt.streamplot function.
         linewidth: `float` or None (default: 1)
             multiplier of automatically calculated linewidth passed to the plt.streamplot function.
+        streamline_color: `str` or None (default: None)
+            The color of the stream lines.
+        color_start_points: `float` or None (default: 1)
+            The color of the starting point that will be used to predict cell fates.
+        markersize: `float` (default: 10)
+            The size of the marker.
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -588,7 +603,7 @@ def topography(
             The dictionary of the scatter arguments.
         q_kwargs_dict:
             Additional parameters that will be passed to plt.quiver function
-        stream_kwargs_dict:
+        streamline_kwargs_dict:
             Additional parameters that will be passed to plt.streamline function
 
     Returns
@@ -722,8 +737,10 @@ def topography(
                     integration_direction=integration_direction,
                     density=density,
                     linewidth=linewidth,
+                    streamline_color=streamline_color,
+                    color_start_points=color_start_points,
                     ax=axes_list[i],
-                    **stream_kwargs_dict,
+                    **streamline_kwargs_dict,
                 )
             else:
                 axes_list[i] = plot_flow_field(
@@ -733,8 +750,10 @@ def topography(
                     background=_background,
                     density=density,
                     linewidth=linewidth,
+                    streamline_color=streamline_color,
+                    color_start_points=color_start_points,
                     ax=axes_list[i],
-                    **stream_kwargs_dict,
+                    **streamline_kwargs_dict,
                 )
 
         if "nullcline" in terms:
@@ -744,7 +763,7 @@ def topography(
 
         if "fixed_points" in terms:
             axes_list[i] = plot_fixed_points(
-                vecfld, background=_background, ax=axes_list[i]
+                vecfld, background=_background, ax=axes_list[i], markersize=markersize,
             )
 
         if "separatrices" in terms:
