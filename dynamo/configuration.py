@@ -431,3 +431,21 @@ def reset_rcParams():
     from matplotlib import rcParamsDefault
 
     rcParams.update(rcParamsDefault)
+
+
+def set_pub_style():
+    """helper formats function that can be used to save publishable figures"""
+    set_figure_params('dynamo', background='white')
+    matplotlib.use('cairo')
+    matplotlib.rcParams.update({'font.size': 4})
+    params = {'legend.fontsize': 4,
+              'legend.handlelength': 0.5}
+    matplotlib.rcParams.update(params)
+    params = {'axes.labelsize': 6,
+             'axes.titlesize':6,
+             'xtick.labelsize':6,
+             'ytick.labelsize':6,
+             'axes.titlepad': 1,
+             'axes.labelpad': 1
+    }
+    matplotlib.rcParams.update(params)

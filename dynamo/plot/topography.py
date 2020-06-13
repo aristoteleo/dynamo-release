@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 
 from ..tools.topography import topography as _topology  # , compute_separatrices
 from ..tools.utils import update_dict
+from .utils import default_quiver_args
 from .scatters import scatters
 from .scatters import docstrings
 from .utils import _plot_traj, quiver_autoscaler, save_fig
@@ -729,9 +730,6 @@ def topography(
 
         # show quivers for the init_states cells
         if init_states is not None and "quiver" in terms:
-            from .utils import default_quiver_args
-            from ..tools.utils import update_dict
-
             X = init_states
             V /= 3 * quiver_autoscaler(X, V)
 
