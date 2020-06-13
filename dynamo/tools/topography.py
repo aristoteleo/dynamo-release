@@ -576,6 +576,7 @@ def VectorField(
         "velocity_based_sampling": True,
         "sigma": 0.8,
         "eta": 0.5,
+        "seed": 0,
     }
     vf_kwargs = update_dict(vf_kwargs, kwargs)
 

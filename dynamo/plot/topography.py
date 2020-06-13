@@ -478,7 +478,7 @@ def topography(
     cmap=None,
     color_key=None,
     color_key_cmap=None,
-    background=None,
+    background='white',
     ncols=1,
     pointsize=None,
     figsize=(6, 4),
