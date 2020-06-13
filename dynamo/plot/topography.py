@@ -15,14 +15,15 @@ def plot_flow_field(
     x_range,
     y_range,
     n_grid=100,
-    lw_min=0.5,
-    lw_max=3,
     start_points=None,
     integration_direction="both",
     background=None,
+    density=1,
+    linewidth=1,
     save_show_or_return='return',
     save_kwargs={},
     ax=None,
+    **streamline_kwargs,
 ):
     """Plots the flow field with line thickness proportional to speed.
     code adapted from: http://be150.caltech.edu/2017/handouts/dynamical_systems_approaches.html
@@ -38,14 +39,16 @@ def plot_flow_field(
     n_grid : int, default 100
         Number of grid points to use in computing
         derivatives on phase portrait.
-    lw_min, lw_max: `float` (defaults: 0.5, 3)
-        The smallest and largest linewidth allowed for the stream lines.
     start_points: np.ndarray (default: None)
         The initial points from which the streamline will be draw.
     integration_direction:  {'forward', 'backward', 'both'} (default: `both`)
         Integrate the streamline in forward, backward or both directions. default is 'both'.
     background: `str` or None (default: None)
         The background color of the plot.
+    density: `float` or None (default: 1)
+        density of the plt.streamplot function.
+    linewidth: `float` or None (default: 1)
+        multiplier of automatically calculated linewidth passed to the plt.streamplot function.
     save_show_or_return: {'show', 'save', 'return'} (default: `return`)
         Whether to save, show or return the figure.
     save_kwargs: `dict` (default: `{}`)
@@ -94,14 +97,32 @@ def plot_flow_field(
 
     # Make linewidths proportional to speed,
     # with minimal line width of 0.5 and max of 3
-    lw = lw_min + (lw_max - lw_min) * speed / speed.max()
+    # lw = lw_min + (lw_max - lw_min) * speed / speed.max()
+
+    streamplot_kwargs = {
+        "density": density * 2,
+        "linewidth": None,
+        "cmap": None,
+        "norm": None,
+        "arrowsize": 1,
+        "arrowstyle": "fancy",
+        "minlength": 0.1,
+        "transform": None,
+        "maxlength": 4.0,
+        "zorder": 3,
+    }
+    linewidth *= 2 * speed / speed[~np.isnan(speed)].max()
+    streamplot_kwargs.update({"linewidth": linewidth})
+
+    streamplot_kwargs = update_dict(streamplot_kwargs, streamline_kwargs)
 
     # Make stream plot
     if ax is None:
         ax = plt.gca()
     if start_points is None:
         ax.streamplot(
-            uu, vv, u_vel, v_vel, linewidth=lw, arrowsize=1.2, density=1, color=color
+            uu, vv, u_vel, v_vel, color=color, **streamplot_kwargs,
+
         )
     else:
         if len(start_points.shape) == 1:
@@ -113,12 +134,10 @@ def plot_flow_field(
             vv,
             u_vel,
             v_vel,
-            linewidth=lw_max,
-            arrowsize=1.2,
             start_points=start_points,
             integration_direction=integration_direction,
-            density=10,
             color=color_start_points,
+            **streamplot_kwargs,
         )
 
     if save_show_or_return == "save":
@@ -496,14 +515,16 @@ def topography(
     approx=False,
     quiver_size=None,
     quiver_length=None,
+    density=1,
+    linewidth=1,
     save_show_or_return='show',
     save_kwargs={},
     aggregate=None,
-    show_arrowed_spines=True,
+    show_arrowed_spines=False,
     ax=None,
     s_kwargs_dict={},
     q_kwargs_dict={},
-    **topography_kwargs
+    **stream_kwargs_dict
 ):
     """Plot the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system
     for single cells. The plot is created on two dimensional space.
@@ -546,6 +567,10 @@ def topography(
             The length of quiver. The quiver length which will be used to calculate scale of quiver. Note that befoe applying
             `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale of quiver indicates
             the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller scale parameter makes the arrow longer.
+        density: `float` or None (default: 1)
+            density of the plt.streamplot function.
+        linewidth: `float` or None (default: 1)
+            multiplier of automatically calculated linewidth passed to the plt.streamplot function.
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -555,16 +580,16 @@ def topography(
             according to your needs.
         aggregate: `str` or `None` (default: `None`)
             The column in adata.obs that will be used to aggregate data points.
-        show_arrowed_spines: bool (optional, default True)
-            Whether to show a pair of arrowed spines represeenting the basis of the scatter is currently using.
+        show_arrowed_spines: bool (optional, default False)
+            Whether to show a pair of arrowed spines representing the basis of the scatter is currently using.
         ax: Matplotlib Axis instance
             Axis on which to make the plot
         s_kwargs_dict: `dict` (default: {})
             The dictionary of the scatter arguments.
         q_kwargs_dict:
             Additional parameters that will be passed to plt.quiver function
-        topography_kwargs:
-            Additional parameters that will be passed to plt.quiver function
+        stream_kwargs_dict:
+            Additional parameters that will be passed to plt.streamline function
 
     Returns
     -------
@@ -695,11 +720,21 @@ def topography(
                     background=_background,
                     start_points=init_states,
                     integration_direction=integration_direction,
+                    density=density,
+                    linewidth=linewidth,
                     ax=axes_list[i],
+                    **stream_kwargs_dict,
                 )
             else:
                 axes_list[i] = plot_flow_field(
-                    vecfld, xlim, ylim, background=_background, ax=axes_list[i]
+                    vecfld,
+                    xlim,
+                    ylim,
+                    background=_background,
+                    density=density,
+                    linewidth=linewidth,
+                    ax=axes_list[i],
+                    **stream_kwargs_dict,
                 )
 
         if "nullcline" in terms:
