@@ -9,6 +9,8 @@ from scipy.linalg.blas import dgemm
 import warnings
 import time
 
+from ..preprocessing.utils import Freeman_Tukey
+
 # ---------------------------------------------------------------------------------------------------
 # others
 def get_mapper():
@@ -210,6 +212,35 @@ def log1p_(adata, X_data):
             X_data = np.log1p(X_data)
 
     return X_data
+
+
+def inverse_norm(adata, layer_x):
+    if issparse(layer_x):
+        layer_x.data = (
+            np.expm1(layer_x.data)
+            if adata.uns["pp_norm_method"] == "log1p"
+            else 2 ** layer_x.data - 1
+            if adata.uns["pp_norm_method"] == "log2"
+            else np.exp(layer_x.data) - 1
+            if adata.uns["pp_norm_method"] == "log"
+            else Freeman_Tukey(layer_x.data + 1, inverse=True)
+            if adata.uns["pp_norm_method"] == "Freeman_Tukey"
+            else layer_x.data
+        )
+    else:
+        layer_x = (
+            np.expm1(layer_x)
+            if adata.uns["pp_norm_method"] == "log1p"
+            else 2 ** layer_x - 1
+            if adata.uns["pp_norm_method"] == "log2"
+            else np.exp(layer_x) - 1
+            if adata.uns["pp_norm_method"] == "log"
+            else Freeman_Tukey(layer_x, inverse=True)
+            if adata.uns["pp_norm_method"] == "Freeman_Tukey"
+            else layer_x
+        )
+
+    return layer_x
 
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:

@@ -4,10 +4,9 @@ from anndata import AnnData
 from scipy.sparse import issparse, csr_matrix, lil_matrix, diags
 from tqdm import tqdm
 from .utils_moments import estimation
-from .utils import get_mapper, elem_prod
+from .utils import get_mapper, elem_prod, inverse_norm
 from .connectivity import mnn, normalize_knn_graph, umap_conn_indices_dist_embedding
 from ..preprocessing.utils import get_layer_keys, allowed_X_layer_names, pca
-from ..preprocessing.utils import Freeman_Tukey
 
 # ---------------------------------------------------------------------------------------------------
 # use for calculating moments for stochastic model:
@@ -129,31 +128,7 @@ def moments(adata,
         layer_x = adata.layers[layer].copy()
         layer_x_group = np.where([layer in x for x in
                                   [only_splicing, only_labeling, splicing_and_labeling]])[0][0]
-
-        if issparse(layer_x):
-            layer_x.data = (
-                np.expm1(layer_x.data)
-                if adata.uns["pp_norm_method"] == "log1p"
-                else 2 ** layer_x.data - 1
-                if adata.uns["pp_norm_method"] == "log2"
-                else np.exp(layer_x.data) - 1
-                if adata.uns["pp_norm_method"] == "log"
-                else Freeman_Tukey(layer_x.data + 1, inverse=True)
-                if adata.uns["pp_norm_method"] == "Freeman_Tukey"
-                else layer_x.data
-            )
-        else:
-            layer_x = (
-                np.expm1(layer_x)
-                if adata.uns["pp_norm_method"] == "log1p"
-                else 2 ** layer_x - 1
-                if adata.uns["pp_norm_method"] == "log2"
-                else np.exp(layer_x) - 1
-                if adata.uns["pp_norm_method"] == "log"
-                else Freeman_Tukey(layer_x, inverse=True)
-                if adata.uns["pp_norm_method"] == "Freeman_Tukey"
-                else layer_x
-            )
+        layer_x = inverse_norm(adata, layer_x)
 
         if mapper[layer] not in adata.layers.keys():
             adata.layers[mapper[layer]], conn = (
@@ -171,31 +146,7 @@ def moments(adata,
             # those calculations are model specific
             if (layer_x_group != layer_y_group) or layer_x_group == 2:
                 continue
-
-            if issparse(layer_y):
-                layer_y.data = (
-                    np.expm1(layer_y.data)
-                    if adata.uns["pp_norm_method"] == "log1p"
-                    else 2 ** layer_y.data - 1
-                    if adata.uns["pp_norm_method"] == "log2"
-                    else np.exp(layer_y.data) - 1
-                    if adata.uns["pp_norm_method"] == "log"
-                    else Freeman_Tukey(layer_y.data + 1, inverse=True)
-                    if adata.uns["pp_norm_method"] == "Freeman_Tukey"
-                    else layer_y.data
-                )
-            else:
-                layer_y = (
-                    np.expm1(layer_y)
-                    if adata.uns["pp_norm_method"] == "log1p"
-                    else 2 ** layer_y - 1
-                    if adata.uns["pp_norm_method"] == "log2"
-                    else np.exp(layer_y) - 1
-                    if adata.uns["pp_norm_method"] == "log"
-                    else Freeman_Tukey(layer_y, inverse=True)
-                    if adata.uns["pp_norm_method"] == "Freeman_Tukey"
-                    else layer_y
-                )
+            layer_y = inverse_norm(adata, layer_y)
 
             if mapper[layer2] not in adata.layers.keys():
                 adata.layers[mapper[layer2]], conn = (

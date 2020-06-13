@@ -332,7 +332,7 @@ def mnn(
     knn_graph_list = []
     for layer in layers:
         layer_X = adata.layers[layer]
-        layer_X = log1p_(layer_X)
+        layer_X = log1p_(adata, layer_X)
         if use_pca_fit:
             layer_pca = fiter.fit_transform(layer_X)[:, 1:]
         else:
