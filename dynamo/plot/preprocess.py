@@ -65,7 +65,7 @@ def show_fraction(adata,
             index=adata.obs.index,
         )
 
-        if group is not None and group in adata.obs.key():
+        if group is not None and group in adata.obs.keys():
             df["group"] = adata.obs[group]
             res = df.melt(
                 value_vars=["new_frac_cell", "old_frac_cell"], id_vars=["group"]
@@ -175,7 +175,7 @@ def show_fraction(adata,
             index=adata.obs.index,
         )
 
-        if group is not None and group in adata.obs.key():
+        if group is not None and group in adata.obs.keys():
             df["group"] = adata.obs[group]
             res = df.melt(
                 value_vars=["uu_frac", "ul_frac", "su_frac", "sl_frac"],
