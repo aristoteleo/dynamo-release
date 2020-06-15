@@ -222,12 +222,21 @@ def get_layer_pair(layer):
     pair = {'new': "total", 'total': "new",
             'X_new': "X_total", "X_total": 'X_new',
             'M_t': 'M_n', "M_n": 'M_t'}
-    return pair[layer]
+    return pair[layer] if layer in pair.keys() else None
+
+
+def get_layer_group(layer):
+    group = {'uu': "ul", 'ul': "uu", 'su': "sl", "sl": 'su',
+            'X_uu': "X_ul", 'X_ul': "X_uu", 'X_su': "X_sl", "X_sl": 'X_su',
+            'M_uu': "M_ul", 'M_ul': "M_uu", 'M_su': "M_sl", "M_sl": 'M_su',
+            }
+    return group[layer] if layer in group.keys() else None
+
 
 
 def prepare_data_deterministic(adata, genes, time, layers,
                                use_total_layers=True,
-                               total_layers=["X_uu", "X_ul", "X_su", "X_sl"],
+                               total_layers=['X_ul', 'X_sl', 'X_uu', 'X_su'],
                                log=False):
     from ..preprocessing.utils import sz_util, normalize_util
     if use_total_layers:
@@ -244,35 +253,56 @@ def prepare_data_deterministic(adata, genes, time, layers,
     raw = [None] * len(layers)
     for i, layer in enumerate(layers):
         if layer in ['X_total', 'total', 'M_t']:
-            if layer == 'X_total':
+            if (layer == 'X_total' and adata.uns['pp_norm_method'] is None) or layer == 'M_t':
                 x_layer = adata[:, genes].layers[layer]
                 x_layer = x_layer - adata[:, genes].layers[get_layer_pair(layer)]
             else:
+                x_layer = adata.layers[layer]
+                group_pair_x_layer_ = get_layer_group(get_layer_pair(layer))
+                pair_x_layer, group_x_layer, group_pair_x_layer = adata.layers[get_layer_pair(layer)], \
+                                                                  adata.layers[get_layer_group(layer)], \
+                                                                  None if group_pair_x_layer_ is None else \
+                                                                      adata.layers[group_pair_x_layer_]
+                if layer.startswith('X_'):
+                    x_layer, pair_x_layer, group_x_layer, group_pair_x_layer = inverse_norm(adata, x_layer), \
+                                                                               inverse_norm(adata, pair_x_layer), \
+                                                                               inverse_norm(adata, group_x_layer), \
+                                                                               0 if group_pair_x_layer_ is None else \
+                                                                                   inverse_norm(adata, group_pair_x_layer)
+
                 if not use_total_layers:
                     sfs_x, _ = sz_util(adata, layer, round_exprs=False, method="median",
-                                       locfunc=np.nanmean, total_layers=None)
+                                       locfunc=np.nanmean, total_layers=None, CM=x_layer+group_x_layer)
                     sfs_y, _ = sz_util(adata, get_layer_pair(layer), round_exprs=False,
-                                       method="median", locfunc=np.nanmean, total_layers=None)
+                                       method="median", locfunc=np.nanmean, total_layers=None,
+                                       CM=pair_x_layer + group_pair_x_layer)
                     sfs_x, sfs_y = sfs_x[:, None], sfs_y[:, None]
 
-                x_layer = normalize_util(adata[:, genes].layers[layer], sfs_x, relative_expr=True, pseudo_expr=0,
-                                   norm_method=None)
-                y_layer = normalize_util(adata[:, genes].layers[get_layer_pair(layer)], sfs_y, relative_expr=True, pseudo_expr=0,
-                                   norm_method=None)
+                x_layer = normalize_util(x_layer[:, adata.var_names.isin(genes)], sfs_x, relative_expr=True,
+                                         pseudo_expr=0, norm_method=None)
+                y_layer = normalize_util(pair_x_layer[:, adata.var_names.isin(genes)], sfs_y, relative_expr=True,
+                                         pseudo_expr=0, norm_method=None)
 
                 x_layer = x_layer - y_layer
         else:
-            if layer == 'X_new':
+            if (layer == ['X_new'] and adata.uns['pp_norm_method'] is None) or layer == 'M_n':
                 x_layer = adata[:, genes].layers[layer]
             else:
-                x_layer = normalize_util(adata[:, genes].layers[layer], szfactors=sfs[:, None],
+                x_layer = adata.layers[layer]
+                if layer.startswith('X_'):
+                    x_layer = inverse_norm(adata, x_layer)
+
+                if not use_total_layers:
+                    sfs, _ = sz_util(adata, layer, round_exprs=False, method="median",
+                                       locfunc=np.nanmean, total_layers=None, CM=x_layer)
+                x_layer = normalize_util(x_layer[:, adata.var_names.isin(genes)], szfactors=sfs[:, None],
                                          relative_expr=True, pseudo_expr=0, norm_method=None)
 
         if log:
             if issparse(x_layer):
-                x_layer.data = np.log(x_layer.data + 1)
+                x_layer.data = np.log1p(x_layer.data)
             else:
-                x_layer = np.log(x_layer + 1)
+                x_layer = np.log1p(x_layer)
 
         m[i], v[i], _ = calc_12_mom_labeling(x_layer.T, time)
         raw[i] = x_layer
@@ -282,30 +312,42 @@ def prepare_data_deterministic(adata, genes, time, layers,
 
 def prepare_data_has_splicing(adata, genes, time, layer_u, layer_s,
                               use_total_layers=True,
-                              total_layers=["X_uu", "X_ul", "X_su", "X_sl"],
+                              total_layers=['X_ul', 'X_sl', 'X_uu', 'X_su'],
                               return_cov=True):
     """Prepare data when assumption is kinetic and data has splicing"""
     from ..preprocessing.utils import sz_util, normalize_util
     res = [0] * len(genes)
     raw = [0] * len(genes)
 
+    U, S = adata[:, genes].layers[layer_u] if layer_u == 'M_ul' else None, \
+           adata[:, genes].layers[layer_s] if layer_u == 'M_sl' else None
+
+    layer_ul_data, layer_sl_data = adata.layers[layer_u], adata.layers[layer_s]
+    layer_uu_data, layer_su_data = adata.layers[total_layers[2]], adata.layers[total_layers[3]]
+    layer_ul_data, layer_sl_data = layer_ul_data if layer_u == 'M_ul' else inverse_norm(adata, layer_ul_data), \
+                                   layer_sl_data if layer_s == 'M_sl' else inverse_norm(adata, layer_sl_data)
+    layer_uu_data, layer_su_data = layer_uu_data if total_layers[2] == 'M_uu' else inverse_norm(adata, layer_uu_data), \
+                                   layer_su_data if total_layers[3] == 'M_su' else inverse_norm(adata, layer_su_data)
+
     if use_total_layers:
         if 'total_Size_Factor' not in adata.obs.keys():
-            sfs, _ = sz_util(adata, '_total_', round_exprs=False, method="median",
-                                       locfunc=np.nanmean, total_layers=total_layers)
+            sfs, _ = sz_util(adata, '_total_', round_exprs=False, method="median", locfunc=np.nanmean,
+                             total_layers=total_layers, CM=layer_ul_data + layer_sl_data + layer_uu_data + layer_su_data)
             sfs_u, sfs_s = sfs[:, None], sfs[:, None]
         else:
             sfs = adata.obs.total_Size_Factor
             sfs_u, sfs_s = sfs[:, None], sfs[:, None]
     else:
         sfs_u, _ = sz_util(adata, layer_u, round_exprs=False, method="median",
-                                       locfunc=np.nanmean, total_layers=None)
+                                       locfunc=np.nanmean, total_layers=None, CM=layer_ul_data + layer_uu_data)
         sfs_s, _ = sz_util(adata, layer_s, round_exprs=False, method="median",
-                                       locfunc=np.nanmean, total_layers=None)
+                                       locfunc=np.nanmean, total_layers=None, CM=layer_sl_data + layer_su_data)
         sfs_u, sfs_s = sfs_u[:, None], sfs_s[:, None]
 
-    U = normalize_util(adata[:, genes].layers[layer_u], sfs_u, relative_expr=True, pseudo_expr=0, norm_method=None)
-    S = normalize_util(adata[:, genes].layers[layer_s], sfs_s, relative_expr=True, pseudo_expr=0, norm_method=None)
+    if U is None: U = normalize_util(layer_ul_data[:, adata.var_names.isin(genes)], sfs_u, relative_expr=True,
+                                     pseudo_expr=0, norm_method=None)
+    if S is None: S = normalize_util(layer_sl_data[:, adata.var_names.isin(genes)], sfs_s, relative_expr=True,
+                                     pseudo_expr=0, norm_method=None)
 
     for i, g in enumerate(genes):
         u = U[:, i]
@@ -332,20 +374,33 @@ def prepare_data_no_splicing(adata, genes, time, layer,
     res = [0] * len(genes)
     raw = [0] * len(genes)
 
+    U, T = adata[:, genes].layers[layer] if layer == 'M_u' else None, \
+           adata[:, genes].layers[total_layer] if total_layer == 'M_t' else None
+
+    layer_data = adata.layers[layer]
+    total_layer_data = adata.layers[total_layer]
+
+    layer_data, total_layer_data = layer_data if layer == 'M_uu' else inverse_norm(adata, layer_data), \
+                                   total_layer_data if total_layer == 'M_su' else inverse_norm(adata, total_layer_data)
+
     if use_total_layers:
         if 'total_Size_Factor' not in adata.obs.keys():
             sfs, _ = sz_util(adata, '_total_', round_exprs=False, method="median",
-                                       locfunc=np.nanmean, total_layers=total_layer)
+                                       locfunc=np.nanmean, total_layers=total_layer, CM=total_layer_data)
         else:
             sfs = adata.obs.total_Size_Factor
+        sfs, tot_sfs = sfs[:, None], sfs[:, None]
     else:
         sfs, _ = sz_util(adata, layer, round_exprs=False, method="median",
-                                       locfunc=np.nanmean, total_layers=None)
+                                       locfunc=np.nanmean, total_layers=None, CM=layer_data)
+        tot_sfs, _ = sz_util(adata, layer, round_exprs=False, method="median",
+                                       locfunc=np.nanmean, total_layers=None, CM=total_layer_data)
+        sfs, tot_sfs = sfs[:, None], tot_sfs[:, None]
 
-    U = normalize_util(adata[:, genes].layers[layer], sfs[:, None], relative_expr=True, pseudo_expr=0,
+    if U is None: U = normalize_util(layer_data[:, adata.var_names.isin(genes)], sfs, relative_expr=True, pseudo_expr=0,
                        norm_method=None)
-    T = normalize_util(adata[:, genes].layers[total_layer], sfs[:, None], relative_expr=True, pseudo_expr=0,
-                       norm_method=None)
+    if T is None: T = normalize_util(total_layer_data[:, adata.var_names.isin(genes)], tot_sfs, relative_expr=True,
+                                     pseudo_expr=0, norm_method=None)
 
     for i, g in enumerate(genes):
         u, t = U[:, i], T[:, i]
@@ -359,7 +414,7 @@ def prepare_data_no_splicing(adata, genes, time, layer,
 
 def prepare_data_mix_has_splicing(adata, genes, time, layer_u='X_uu', layer_s='X_su',
                                   layer_ul='X_ul', layer_sl='X_sl', use_total_layers=True,
-                                  total_layers=["X_uu", "X_ul", "X_su", "X_sl"], mix_model_indices=None):
+                                  total_layers=['X_ul', 'X_sl', 'X_uu', 'X_su'], mix_model_indices=None):
     """Prepare data for mixture modeling when assumption is kinetic and data has splicing.
     Note that the mix_model_indices is indexed on 10 total species, which can be used to specify
     the data required for different mixture models.
@@ -368,22 +423,41 @@ def prepare_data_mix_has_splicing(adata, genes, time, layer_u='X_uu', layer_s='X
     res = [0] * len(genes)
     raw = [0] * len(genes)
 
+    U, S = adata[:, genes].layers[layer_u] if layer_u == 'M_uu' else None, \
+           adata[:, genes].layers[layer_s] if layer_u == 'M_su' else None
+    Ul, Sl = adata[:, genes].layers[layer_ul] if layer_u == 'M_ul' else None, \
+           adata[:, genes].layers[layer_sl] if layer_u == 'M_sl' else None
+
+    layer_u_data, layer_s_data = adata.layers[layer_u], adata.layers[layer_s]
+    layer_ul_data, layer_sl_data = adata.layers[layer_ul], adata.layers[layer_sl]
+    layer_u_data, layer_s_data = layer_u_data if layer_u is 'M_uu' else inverse_norm(adata, layer_u_data), \
+                                 layer_s_data if layer_s is 'M_su' else inverse_norm(adata, layer_s_data)
+    layer_ul_data, layer_sl_data = layer_ul_data if layer_ul is 'M_ul' else inverse_norm(adata, layer_ul_data), \
+                                   layer_sl_data if layer_sl is 'M_sl' else inverse_norm(adata, layer_sl_data)
+
     if use_total_layers:
         if 'total_Size_Factor' not in adata.obs.keys():
-            sfs, _ = sz_util(adata, '_total_', False, "median", np.nanmean, total_layers=total_layers)
+            sfs, _ = sz_util(adata, '_total_', False, "median", np.nanmean,
+                             total_layers=total_layers, CM=layer_u_data + layer_s_data + layer_ul_data + layer_sl_data)
             sfs_u, sfs_s = sfs[:, None], sfs[:, None]
         else:
             sfs = adata.obs.total_Size_Factor
             sfs_u, sfs_s = sfs[:, None], sfs[:, None]
     else:
-        sfs_u, _ = sz_util(adata, layer_u, False, "median", np.nanmean, total_layers=None)
-        sfs_s, _ = sz_util(adata, layer_s, False, "median", np.nanmean, total_layers=None)
+        sfs_u, _ = sz_util(adata, layer_u, False, "median", np.nanmean, total_layers=None,
+                           CM=layer_u_data + layer_ul_data)
+        sfs_s, _ = sz_util(adata, layer_s, False, "median", np.nanmean, total_layers=None,
+                           CM=layer_s_data + layer_sl_data)
         sfs_u, sfs_s = sfs_u[:, None], sfs_s[:, None]
 
-    U = normalize_util(adata[:, genes].layers[layer_u], sfs_u, relative_expr=True, pseudo_expr=0, norm_method=None)
-    S = normalize_util(adata[:, genes].layers[layer_s], sfs_s, relative_expr=True, pseudo_expr=0, norm_method=None)
-    Ul = normalize_util(adata[:, genes].layers[layer_ul], sfs_u, relative_expr=True, pseudo_expr=0, norm_method=None)
-    Sl = normalize_util(adata[:, genes].layers[layer_sl], sfs_s, relative_expr=True, pseudo_expr=0, norm_method=None)
+    if U is None: U = normalize_util(layer_u_data[:, adata.var_names.isin(genes)], sfs_u, relative_expr=True,
+                                     pseudo_expr=0, norm_method=None)
+    if S is None: S = normalize_util(layer_s_data[:, adata.var_names.isin(genes)], sfs_s, relative_expr=True,
+                                     pseudo_expr=0, norm_method=None)
+    if Ul is None: Ul = normalize_util(layer_ul_data[:, adata.var_names.isin(genes)], sfs_u, relative_expr=True,
+                                       pseudo_expr=0, norm_method=None)
+    if Sl is None: Sl = normalize_util(layer_sl_data[:, adata.var_names.isin(genes)], sfs_s, relative_expr=True,
+                                       pseudo_expr=0, norm_method=None)
 
     for i, g in enumerate(genes):
         ul = Ul[:, i]
@@ -422,20 +496,30 @@ def prepare_data_mix_no_splicing(adata, genes, time, layer_n, layer_t, use_total
     res = [0] * len(genes)
     raw = [0] * len(genes)
 
+    N, T = adata[:, genes].layers[layer_n] if layer_n == 'M_n' else None, \
+           adata[:, genes].layers[layer_t] if layer_t == 'M_t' else None
+
+    layer_n_data = adata.layers[layer_n]
+    layer_t_data = adata.layers[layer_t]
+    layer_n_data, layer_t_data = layer_n_data if layer_n == 'M_n' else inverse_norm(adata, layer_n_data), \
+                                 layer_t_data if layer_t == 'M_t' else inverse_norm(adata, layer_t_data)
+
     if use_total_layers:
         if 'total_Size_Factor' not in adata.obs.keys():
-            sfs, _ = sz_util(adata, total_layer, False, "median", np.nanmean, total_layers='total')
+            sfs, _ = sz_util(adata, total_layer, False, "median", np.nanmean, total_layers='total', CM=layer_t_data)
             sfs_n, sfs_t = sfs[:, None], sfs[:, None]
         else:
             sfs = adata.obs.total_Size_Factor
             sfs_n, sfs_t = sfs[:, None], sfs[:, None]
     else:
-        sfs_n, _ = sz_util(adata, layer_n, False, "median", np.nanmean, total_layers=None)
-        sfs_t, _ = sz_util(adata, layer_t, False, "median", np.nanmean, total_layers=None)
+        sfs_n, _ = sz_util(adata, layer_n, False, "median", np.nanmean, total_layers=None, CM=layer_n_data)
+        sfs_t, _ = sz_util(adata, layer_t, False, "median", np.nanmean, total_layers=None, CM=layer_t_data)
         sfs_n, sfs_t = sfs_n[:, None], sfs_t[:, None]
 
-    N = normalize_util(adata[:, genes].layers[layer_n], sfs_n, relative_expr=True, pseudo_expr=0, norm_method=None)
-    T = normalize_util(adata[:, genes].layers[layer_t], sfs_t, relative_expr=True, pseudo_expr=0, norm_method=None)
+    if N is None: N = normalize_util(layer_n_data[:, adata.var_names.isin(genes)], sfs_n, relative_expr=True,
+                                     pseudo_expr=0, norm_method=None)
+    if T is None: T = normalize_util(layer_t_data[:, adata.var_names.isin(genes)], sfs_t, relative_expr=True,
+                                     pseudo_expr=0, norm_method=None)
 
     for i, g in enumerate(genes):
         n = N[:, i]

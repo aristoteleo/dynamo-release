@@ -13,6 +13,7 @@ from .utils import Freeman_Tukey
 from .utils import merge_adata_attrs
 from .utils import sz_util, normalize_util, get_sz_exprs
 from .utils import unique_var_obs_adata, layers2csr, collapse_adata, NTR
+from .utils import detect_datatype
 from ..tools.utils import update_dict
 
 
@@ -1196,6 +1197,13 @@ def recipe_monocle(
     """
 
     if norm_method == 'Freeman_Tukey': norm_method = Freeman_Tukey
+
+    has_splicing, has_labeling, _ = detect_datatype(adata)
+    if has_splicing and has_labeling:
+        total_layers = ['uu', 'ul', 'su', 'sl']
+    elif has_labeling and not has_splicing:
+        total_layers = ['total']
+
     adata = unique_var_obs_adata(adata)
     adata = layers2csr(adata)
     adata = collapse_adata(adata)

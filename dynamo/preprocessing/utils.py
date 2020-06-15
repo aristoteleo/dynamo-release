@@ -275,7 +275,7 @@ def get_svr_filter(adata, layer="spliced", n_top_genes=3000, return_adata=False)
 
     return res
 
-def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None):
+def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None, CM=None):
     adata = adata.copy()
 
     if layer == '_total_' and '_total_' not in adata.layers.keys():
@@ -290,16 +290,16 @@ def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None):
                 adata.layers["_total_"] = total
 
     if layer is "raw":
-        CM = adata.raw.X
+        CM = adata.raw.X if CM is None else CM
     elif layer is "X":
-        CM = adata.X
+        CM = adata.X if CM is None else CM
     elif layer is "protein":
         if "protein" in adata.obsm_keys():
-            CM = adata.obsm["protein"]
+            CM = adata.obsm["protein"] if CM is None else CM
         else:
             return None, None
     else:
-        CM = adata.layers[layer]
+        CM = adata.layers[layer] if CM is None else CM
 
     if round_exprs:
         if issparse(CM):
@@ -479,3 +479,4 @@ def NTR(adata):
         ntr = None
 
     return ntr
+

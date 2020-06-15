@@ -571,7 +571,7 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
         data_max = np.max(np.sum(x_data_kin, 0))
 
         x_deg_data = x_data_norm[self.model1.n_species:, :]
-        scale = weight*np.max(x_deg_data) / data_max
+        scale = np.clip(weight*np.max(x_deg_data) / data_max, 1e-6, None)
         x_data_norm[self.model1.n_species:, :] /= scale
 
         return x_data_norm, scale
@@ -605,6 +605,7 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
         self._initialize(alpha_bound, gamma_bound, x0_bound, beta_bound)
 
         if use_p0:
+            print('x_data_norm: ', x_data_norm, ', p0: ', p0)
             popt, cost = self.fit_lsq(time, x_data_norm, p0=p0, **kwargs)
         else:
             popt, cost = self.fit_lsq(time, x_data_norm, **kwargs)

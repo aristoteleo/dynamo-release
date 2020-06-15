@@ -434,7 +434,7 @@ def reset_rcParams():
 
 
 def set_pub_style():
-    """helper formats function that can be used to save publishable figures"""
+    """formatting helper function that can be used to save publishable figures"""
     set_figure_params('dynamo', background='white')
     matplotlib.use('cairo')
     matplotlib.rcParams.update({'font.size': 4})
