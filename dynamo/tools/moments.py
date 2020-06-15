@@ -320,7 +320,7 @@ def prepare_data_has_splicing(adata, genes, time, layer_u, layer_s,
     raw = [0] * len(genes)
 
     U, S = adata[:, genes].layers[layer_u] if layer_u == 'M_ul' else None, \
-           adata[:, genes].layers[layer_s] if layer_u == 'M_sl' else None
+           adata[:, genes].layers[layer_s] if layer_s == 'M_sl' else None
 
     layer_ul_data, layer_sl_data = adata.layers[layer_u], adata.layers[layer_s]
     layer_uu_data, layer_su_data = adata.layers[total_layers[2]], adata.layers[total_layers[3]]
@@ -380,8 +380,8 @@ def prepare_data_no_splicing(adata, genes, time, layer,
     layer_data = adata.layers[layer]
     total_layer_data = adata.layers[total_layer]
 
-    layer_data, total_layer_data = layer_data if layer == 'M_uu' else inverse_norm(adata, layer_data), \
-                                   total_layer_data if total_layer == 'M_su' else inverse_norm(adata, total_layer_data)
+    layer_data, total_layer_data = layer_data if layer == 'M_u' else inverse_norm(adata, layer_data), \
+                                   total_layer_data if total_layer == 'M_t' else inverse_norm(adata, total_layer_data)
 
     if use_total_layers:
         if 'total_Size_Factor' not in adata.obs.keys():

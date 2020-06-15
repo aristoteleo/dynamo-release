@@ -605,7 +605,6 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
         self._initialize(alpha_bound, gamma_bound, x0_bound, beta_bound)
 
         if use_p0:
-            print('x_data_norm: ', x_data_norm, ', p0: ', p0)
             popt, cost = self.fit_lsq(time, x_data_norm, p0=p0, **kwargs)
         else:
             popt, cost = self.fit_lsq(time, x_data_norm, **kwargs)
