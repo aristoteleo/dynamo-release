@@ -374,13 +374,13 @@ def prepare_data_no_splicing(adata, genes, time, layer,
     res = [0] * len(genes)
     raw = [0] * len(genes)
 
-    U, T = adata[:, genes].layers[layer] if layer == 'M_u' else None, \
+    U, T = adata[:, genes].layers[layer] if layer == 'M_n' else None, \
            adata[:, genes].layers[total_layer] if total_layer == 'M_t' else None
 
     layer_data = adata.layers[layer]
     total_layer_data = adata.layers[total_layer]
 
-    layer_data, total_layer_data = layer_data if layer == 'M_u' else inverse_norm(adata, layer_data), \
+    layer_data, total_layer_data = layer_data if layer == 'M_n' else inverse_norm(adata, layer_data), \
                                    total_layer_data if total_layer == 'M_t' else inverse_norm(adata, total_layer_data)
 
     if use_total_layers:
