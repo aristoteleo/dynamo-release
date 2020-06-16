@@ -1067,6 +1067,8 @@ def dynamics(
             Whether to add a boxplot to show the variance at each time point.
         show_kin_parameters: `bool` (default: `True`)
             Whether to include the estimated kinetic parameter values on the plot.
+        gene_order: `str` (default: `column`)
+            The order of genes to present on the figure, either row-major or column major.
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -1143,8 +1145,8 @@ def dynamics(
         raise ValueError(f"no kinetic parameter fitting has performed for the gene {vkey} you provided. Try "
                          f"using dyn.tl.dynamics(adata, filter_gene_mode='final', ...) or use only fitted genes.")
 
-    valid_adata = adata[:, valid_genes]
-    gene_idx = np.array([np.where(valid_genes == gene)[0][0] for gene in vkey])
+    valid_adata = adata[:, valid_gene_names]
+    gene_idx = np.array([np.where(valid_gene_names == gene)[0][0] for gene in vkey])
     if boxwidth is None and len(T_uniq) > 1:
         boxwidth = 0.8 * (np.diff(T_uniq).min() / 2)
 
