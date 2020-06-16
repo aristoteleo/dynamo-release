@@ -321,7 +321,7 @@ def plot_fixed_points(
         )
         text.set_path_effects(
             [
-                PathEffects.Stroke(linewidth=2, foreground=_background, alpha=0.8),
+                PathEffects.Stroke(linewidth=1.5, foreground=_background, alpha=0.8),
                 PathEffects.Normal(),
             ]
         )

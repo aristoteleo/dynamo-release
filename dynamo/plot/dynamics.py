@@ -1132,12 +1132,13 @@ def dynamics(
     t = np.linspace(0, T_uniq[-1], 1000)
     valid_genes = adata.var_names[get_valid_inds(adata, filter_gene_mode)]
     valid_gene_names = valid_genes.intersection(vkey)
-    gene_idx = np.array([np.where(valid_genes == gene)[0][0] for gene in vkey])
 
-    if len(gene_idx) == 0:
+    if len(valid_gene_names) == 0:
         raise ValueError(f"no kinetic parameter fitting has performed for the gene {vkey} you provided. Try "
                          f"using dyn.tl.dynamics(adata, filter_gene_mode='final', ...) or use only fitted genes.")
 
+    valid_adata = adata[:, valid_genes]
+    gene_idx = np.array([np.where(valid_genes == gene)[0][0] for gene in vkey])
     if boxwidth is None and len(T_uniq) > 1:
         boxwidth = 0.8 * (np.diff(T_uniq).min() / 2)
 
@@ -1226,8 +1227,8 @@ def dynamics(
 
         true_p = None;
         true_params = [None, None, None]
-        logLL = adata.var.loc[valid_gene_names, prefix + 'logLL']
-        est_params_df = adata.var.loc[
+        logLL = valid_adata.var.loc[valid_gene_names, prefix + 'logLL']
+        est_params_df = valid_adata.var.loc[
             valid_gene_names,
             [
                 prefix + "alpha",
@@ -1242,54 +1243,52 @@ def dynamics(
 
         if experiment_type is "kin":
             if model == 'deterministic':
-                gs = plot_kin_det(adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
+                gs = plot_kin_det(valid_adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
                                   t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
                                   grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
                                   true_param_prefix, true_params, est_params,
                                   show_variance, show_kin_parameters, )
             elif model == 'stochastic':
-                gs = plot_kin_sto(adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
+                gs = plot_kin_sto(valid_adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
                                   t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
                                   grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
                                   true_param_prefix, true_params, est_params,
                                   show_moms_fit, show_variance, show_kin_parameters, )
             elif model == 'mixture':
-                gs = plot_kin_mix(adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
+                gs = plot_kin_mix(valid_adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
                                   t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
                                   grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
                                   true_param_prefix, true_params, est_params,
                                   show_variance, show_kin_parameters, )
             elif model == 'mixture_deterministic_stochastic':
-                gs = plot_kin_mix_det_sto(adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
+                gs = plot_kin_mix_det_sto(valid_adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
                                   t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
                                   grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
                                   true_param_prefix, true_params, est_params,
                                   show_moms_fit, show_variance, show_kin_parameters, )
             elif model == 'mixture_stochastic_stochastic':
-                gs = plot_kin_mix_sto_sto(adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
+                gs = plot_kin_mix_sto_sto(valid_adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
                                   t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
                                   grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
                                   true_param_prefix, true_params, est_params,
                                   show_moms_fit, show_variance, show_kin_parameters, )
         elif experiment_type is "deg":
             if model == 'deterministic':
-                gs = plot_deg_det(adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
+                gs = plot_deg_det(valid_adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
                                   t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
                                   grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
                                   true_param_prefix, true_params, est_params,
                                   show_variance, show_kin_parameters, )
             elif model == 'stochastic':
-                gs = plot_deg_sto(adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
+                gs = plot_deg_sto(valid_adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
                                   t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
                                   grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
                                   true_param_prefix, true_params, est_params,
                                   show_moms_fit, show_variance, show_kin_parameters, )
         else:
-            for i, idx in enumerate(gene_idx):
-                gene_name = adata.var_names[idx]
-
+            for i, gene_name in enumerate(valid_genes):
                 if model is "moment":
-                    a, b, alpha_a, alpha_i, beta, gamma = adata.var.loc[
+                    a, b, alpha_a, alpha_i, beta, gamma = valid_adata.var.loc[
                         gene_name,
                         [
                             prefix + "a",
@@ -1324,23 +1323,23 @@ def dynamics(
                             true_beta,
                             true_gamma,
                         ) = (
-                            adata.var.loc[gene_name, true_param_prefix + "a"]
-                            if true_param_prefix + "a" in adata.var_keys()
+                            valid_adata.var.loc[gene_name, true_param_prefix + "a"]
+                            if true_param_prefix + "a" in valid_adata.var_keys()
                             else -np.inf,
-                            adata.var.loc[gene_name, true_param_prefix + "b"]
-                            if true_param_prefix + "b" in adata.var_keys()
+                            valid_adata.var.loc[gene_name, true_param_prefix + "b"]
+                            if true_param_prefix + "b" in valid_adata.var_keys()
                             else -np.inf,
-                            adata.var.loc[gene_name, true_param_prefix + "alpha_a"]
-                            if true_param_prefix + "alpha_a" in adata.var_keys()
+                            valid_adata.var.loc[gene_name, true_param_prefix + "alpha_a"]
+                            if true_param_prefix + "alpha_a" in valid_adata.var_keys()
                             else -np.inf,
-                            adata.var.loc[gene_name, true_param_prefix + "alpha_i"]
-                            if true_param_prefix + "alpha_i" in adata.var_keys()
+                            valid_adata.var.loc[gene_name, true_param_prefix + "alpha_i"]
+                            if true_param_prefix + "alpha_i" in valid_adata.var_keys()
                             else -np.inf,
-                            adata.var.loc[gene_name, true_param_prefix + "beta"]
-                            if true_param_prefix + "beta" in adata.var_keys()
+                            valid_adata.var.loc[gene_name, true_param_prefix + "beta"]
+                            if true_param_prefix + "beta" in valid_adata.var_keys()
                             else -np.inf,
-                            adata.var.loc[gene_name, true_param_prefix + "gamma"]
-                            if true_param_prefix + "gamma" in adata.var_keys()
+                            valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
+                            if true_param_prefix + "gamma" in valid_adata.var_keys()
                             else -np.inf,
                         )
 
@@ -1364,17 +1363,17 @@ def dynamics(
                     if has_splicing:
                         tmp = (
                             [
-                                adata[:, gene_idx].layers["M_ul"].A.T,
-                                adata.layers["M_sl"].A.T,
+                                valid_adata[:, gene_name].layers["M_ul"].A.T,
+                                valid_adata.layers["M_sl"].A.T,
                             ]
-                            if "M_ul" in adata.layers.keys()
+                            if "M_ul" in valid_adata.layers.keys()
                             else [
-                                adata[:, gene_idx].layers["ul"].A.T,
-                                adata.layers["sl"].A.T,
+                                valid_adata[:, gene_name].layers["ul"].A.T,
+                                valid_adata.layers["sl"].A.T,
                             ]
                         )
                         x_data = [tmp[0].A, tmp[1].A] if issparse(tmp[0]) else tmp
-                        if log_unnormalized and "X_ul" not in adata.layers.keys():
+                        if log_unnormalized and "X_ul" not in valid_adata.layers.keys():
                             x_data = [np.log(tmp[0] + 1), np.log(tmp[1] + 1)]
 
                         title_ = [
@@ -1383,22 +1382,22 @@ def dynamics(
                             "(unspliced labeled)",
                             "(spliced labeled)",
                         ]
-                        Obs_m = [adata.uns["M_ul"], adata.uns["M_sl"]]
-                        Obs_v = [adata.uns["V_ul"], adata.uns["V_sl"]]
+                        Obs_m = [valid_adata.uns["M_ul"], valid_adata.uns["M_sl"]]
+                        Obs_v = [valid_adata.uns["V_ul"], valid_adata.uns["V_sl"]]
                         j_species = 2  # number of species
                     else:
                         tmp = (
-                            adata[:, gene_idx].layers["X_new"].T
-                            if "X_new" in adata.layers.keys()
-                            else adata[:, gene_idx].layers["new"].T
+                            valid_adata[:, gene_name].layers["X_new"].T
+                            if "X_new" in valid_adata.layers.keys()
+                            else valid_adata[:, gene_name].layers["new"].T
                         )
                         x_data = [tmp.A] if issparse(tmp) else [tmp]
 
-                        if log_unnormalized and "X_new" not in adata.layers.keys():
+                        if log_unnormalized and "X_new" not in valid_adata.layers.keys():
                             x_data = [np.log(x_data[0] + 1)]
                         # only use new key for calculation, so we only have M, V
                         title_ = [" (labeled)", " (labeled)"]
-                        Obs_m, Obs_v = [adata.uns["M"]], [adata.uns["V"]]
+                        Obs_m, Obs_v = [valid_adata.uns["M"]], [valid_adata.uns["V"]]
                         j_species = 1
 
                     for j in range(sub_plot_n):
@@ -1513,14 +1512,14 @@ def dynamics(
                     if has_splicing:
                         layers = (
                             ["X_uu", "X_ul", "X_su", "X_sl"]
-                            if "X_ul" in adata.layers.keys()
+                            if "X_ul" in valid_adata.layers.keys()
                             else ["uu", "ul", "su", "sl"]
                         )
                         uu, ul, su, sl = (
-                            adata[:, gene_name].layers[layers[0]],
-                            adata[:, gene_name].layers[layers[1]],
-                            adata[:, gene_name].layers[layers[2]],
-                            adata[:, gene_name].layers[layers[3]],
+                            valid_adata[:, gene_name].layers[layers[0]],
+                            valid_adata[:, gene_name].layers[layers[1]],
+                            valid_adata[:, gene_name].layers[layers[2]],
+                            valid_adata[:, gene_name].layers[layers[3]],
                         )
                         uu, ul, su, sl = (
                             (
@@ -1541,7 +1540,7 @@ def dynamics(
                                 np.log(sl + 1),
                             )
 
-                        alpha, beta, gamma, ul0, sl0, uu0, half_life = adata.var.loc[
+                        alpha, beta, gamma, ul0, sl0, uu0, half_life = valid_adata.var.loc[
                             gene_name,
                             [
                                 prefix + "alpha",
@@ -1567,14 +1566,14 @@ def dynamics(
                         l = sol_s(t, sl0, ul0, 0, beta, gamma)
                         if true_param_prefix is not None:
                             true_alpha, true_beta, true_gamma = (
-                                adata.var.loc[gene_name, true_param_prefix + "alpha"]
-                                if true_param_prefix + "alpha" in adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "alpha"]
+                                if true_param_prefix + "alpha" in valid_adata.var_keys()
                                 else -np.inf,
-                                adata.var.loc[gene_name, true_param_prefix + "beta"]
-                                if true_param_prefix + "beta" in adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "beta"]
+                                if true_param_prefix + "beta" in valid_adata.var_keys()
                                 else -np.inf,
-                                adata.var.loc[gene_name, true_param_prefix + "gamma"]
-                                if true_param_prefix + "gamma" in adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
+                                if true_param_prefix + "gamma" in valid_adata.var_keys()
                                 else -np.inf,
                             )
 
@@ -1596,13 +1595,13 @@ def dynamics(
                     else:
                         layers = (
                             ["X_new", "X_total"]
-                            if "X_new" in adata.layers.keys()
+                            if "X_new" in valid_adata.layers.keys()
                             else ["new", "total"]
                         )
                         uu, ul = (
-                            adata[:, gene_name].layers[layers[1]]
-                            - adata[:, gene_name].layers[layers[0]],
-                            adata[:, gene_name].layers[layers[0]],
+                            valid_adata[:, gene_name].layers[layers[1]]
+                            - valid_adata[:, gene_name].layers[layers[0]],
+                            valid_adata[:, gene_name].layers[layers[0]],
                         )
                         uu, ul = (
                             (uu.toarray().squeeze(), ul.toarray().squeeze())
@@ -1613,7 +1612,7 @@ def dynamics(
                         if log_unnormalized and layers == ["new", "total"]:
                             uu, ul = np.log(uu + 1), np.log(ul + 1)
 
-                        alpha, gamma, uu0, ul0, half_life = adata.var.loc[
+                        alpha, gamma, uu0, ul0, half_life = valid_adata.var.loc[
                             gene_name,
                             [
                                 prefix + "alpha",
@@ -1632,11 +1631,11 @@ def dynamics(
                         title_ = ["(unlabeled)", "(labeled)"]
                         if true_param_prefix is not None:
                             true_alpha, true_gamma = (
-                                adata.var.loc[gene_name, true_param_prefix + "alpha"]
-                                if true_param_prefix + "alpha" in adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "alpha"]
+                                if true_param_prefix + "alpha" in valid_adata.var_keys()
                                 else -np.inf,
-                                adata.var.loc[gene_name, true_param_prefix + "gamma"]
-                                if true_param_prefix + "gamma" in adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
+                                if true_param_prefix + "gamma" in valid_adata.var_keys()
                                 else -np.inf,
                             )
                             true_u = sol_u(t, uu0, true_alpha, true_gamma)
@@ -1727,8 +1726,8 @@ def dynamics(
                         ax.set_title(gene_name + " " + title_[j])
                 elif experiment_type is "kin":
                     if model == 'deterministic':
-                        logLL = adata.var.loc[valid_gene_names, prefix + 'logLL']
-                        alpha, beta, gamma, half_life = adata.var.loc[
+                        logLL = valid_adata.var.loc[valid_gene_names, prefix + 'logLL']
+                        alpha, beta, gamma, half_life = valid_adata.var.loc[
                             gene_name,
                             [
                                 prefix + "alpha",
@@ -1738,7 +1737,7 @@ def dynamics(
                             ],
                         ]
                         est_params = [alpha, beta, gamma]
-                        gs = plot_kin_det(adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
+                        gs = plot_kin_det(valid_adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
                                      t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
                                      grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
                                      true_param_prefix, true_params, est_params,
@@ -1768,14 +1767,14 @@ def dynamics(
                         if has_splicing:
                             layers = (
                                 ["X_uu", "X_ul", "X_su", "X_sl"]
-                                if "X_ul" in adata.layers.keys()
+                                if "X_ul" in valid_adata.layers.keys()
                                 else ["uu", "ul", "su", "sl"]
                             )
                             uu, ul, su, sl = (
-                                adata[:, gene_name].layers[layers[0]],
-                                adata[:, gene_name].layers[layers[1]],
-                                adata[:, gene_name].layers[layers[2]],
-                                adata[:, gene_name].layers[layers[3]],
+                                valid_adata[:, gene_name].layers[layers[0]],
+                                valid_adata[:, gene_name].layers[layers[1]],
+                                valid_adata[:, gene_name].layers[layers[2]],
+                                valid_adata[:, gene_name].layers[layers[3]],
                             )
                             uu, ul, su, sl = (
                                 (
@@ -1796,7 +1795,7 @@ def dynamics(
                                     np.log(sl + 1),
                                 )
 
-                            alpha, beta, gamma, uu0, su0 = adata.var.loc[
+                            alpha, beta, gamma, uu0, su0 = valid_adata.var.loc[
                                 gene_name,
                                 [
                                     prefix + "alpha",
@@ -1819,14 +1818,14 @@ def dynamics(
                             l = sol_s(t, 0, 0, alpha, beta, gamma)
                             if true_param_prefix is not None:
                                 true_alpha, true_beta, true_gamma = (
-                                    adata.var.loc[gene_name, true_param_prefix + "alpha"]
-                                    if true_param_prefix + "alpha" in adata.var_keys()
+                                    valid_adata.var.loc[gene_name, true_param_prefix + "alpha"]
+                                    if true_param_prefix + "alpha" in valid_adata.var_keys()
                                     else -np.inf,
-                                    adata.var.loc[gene_name, true_param_prefix + "beta"]
-                                    if true_param_prefix + "beta" in adata.var_keys()
+                                    valid_adata.var.loc[gene_name, true_param_prefix + "beta"]
+                                    if true_param_prefix + "beta" in valid_adata.var_keys()
                                     else -np.inf,
-                                    adata.var.loc[gene_name, true_param_prefix + "gamma"]
-                                    if true_param_prefix + "gamma" in adata.var_keys()
+                                    valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
+                                    if true_param_prefix + "gamma" in valid_adata.var_keys()
                                     else -np.inf,
                                 )
                                 true_u = sol_u(t, uu0, 0, true_beta)
@@ -1847,13 +1846,13 @@ def dynamics(
                         else:
                             layers = (
                                 ["X_new", "X_total"]
-                                if "X_new" in adata.layers.keys()
+                                if "X_new" in valid_adata.layers.keys()
                                 else ["new", "total"]
                             )
                             uu, ul = (
-                                adata[:, gene_name].layers[layers[1]]
-                                - adata[:, gene_name].layers[layers[0]],
-                                adata[:, gene_name].layers[layers[0]],
+                                valid_adata[:, gene_name].layers[layers[1]]
+                                - valid_adata[:, gene_name].layers[layers[0]],
+                                valid_adata[:, gene_name].layers[layers[0]],
                             )
                             uu, ul = (
                                 (uu.toarray().squeeze(), ul.toarray().squeeze())
@@ -1864,7 +1863,7 @@ def dynamics(
                             if log_unnormalized and layers == ["new", "total"]:
                                 uu, ul = np.log(uu + 1), np.log(ul + 1)
 
-                            alpha, gamma, uu0 = adata.var.loc[
+                            alpha, gamma, uu0 = valid_adata.var.loc[
                                 gene_name, [prefix + "alpha", prefix + "gamma", prefix + "uu0"]
                             ]
 
@@ -1875,11 +1874,11 @@ def dynamics(
                             l = None  # sol_s(t, 0, 0, alpha, 1, gamma)
                             if true_param_prefix is not None:
                                 true_alpha, true_gamma = (
-                                    adata.var.loc[gene_name, true_param_prefix + "alpha"]
-                                    if true_param_prefix + "alpha" in adata.var_keys()
+                                    valid_adata.var.loc[gene_name, true_param_prefix + "alpha"]
+                                    if true_param_prefix + "alpha" in valid_adata.var_keys()
                                     else -np.inf,
-                                    adata.var.loc[gene_name, true_param_prefix + "gamma"]
-                                    if true_param_prefix + "gamma" in adata.var_keys()
+                                    valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
+                                    if true_param_prefix + "gamma" in valid_adata.var_keys()
                                     else -np.inf,
                                 )
                                 true_u = sol_u(t, uu0, 0, true_gamma)
@@ -1965,14 +1964,14 @@ def dynamics(
                     if has_splicing:
                         layers = (
                             ["X_uu", "X_ul", "X_su", "X_sl"]
-                            if "X_ul" in adata.layers.keys()
+                            if "X_ul" in valid_adata.layers.keys()
                             else ["uu", "ul", "su", "sl"]
                         )
                         uu, ul, su, sl = (
-                            adata[:, gene_name].layers[layers[0]],
-                            adata[:, gene_name].layers[layers[1]],
-                            adata[:, gene_name].layers[layers[2]],
-                            adata[:, gene_name].layers[layers[3]],
+                            valid_adata[:, gene_name].layers[layers[0]],
+                            valid_adata[:, gene_name].layers[layers[1]],
+                            valid_adata[:, gene_name].layers[layers[2]],
+                            valid_adata[:, gene_name].layers[layers[3]],
                         )
                         uu, ul, su, sl = (
                             (
@@ -1993,7 +1992,7 @@ def dynamics(
                                 np.log(sl + 1),
                             )
 
-                        alpha, beta, gamma, U0, S0 = adata.var.loc[
+                        alpha, beta, gamma, U0, S0 = valid_adata.var.loc[
                             gene_name,
                             [
                                 prefix + "alpha",
@@ -2016,14 +2015,14 @@ def dynamics(
                         L = sl + ul
                         if true_param_prefix is not None:
                             true_alpha, true_beta, true_gamma = (
-                                adata.var.loc[gene_name, true_param_prefix + "alpha"]
-                                if true_param_prefix + "alpha" in adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "alpha"]
+                                if true_param_prefix + "alpha" in valid_adata.var_keys()
                                 else -np.inf,
-                                adata.var.loc[gene_name, true_param_prefix + "beta"]
-                                if true_param_prefix + "beta" in adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "beta"]
+                                if true_param_prefix + "beta" in valid_adata.var_keys()
                                 else -np.inf,
-                                adata.var.loc[gene_name, true_param_prefix + "gamma"]
-                                if true_param_prefix + "gamma" in adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
+                                if true_param_prefix + "gamma" in valid_adata.var_keys()
                                 else -np.inf,
                             )
                             true_l = sol_u(t, 0, true_alpha, true_beta) + sol_s(
@@ -2034,13 +2033,13 @@ def dynamics(
                     else:
                         layers = (
                             ["X_new", "X_total"]
-                            if "X_new" in adata.layers.keys()
+                            if "X_new" in valid_adata.layers.keys()
                             else ["new", "total"]
                         )
                         uu, ul = (
-                            adata[:, gene_name].layers[layers[1]]
-                            - adata[:, gene_name].layers[layers[0]],
-                            adata[:, gene_name].layers[layers[0]],
+                            valid_adata[:, gene_name].layers[layers[1]]
+                            - valid_adata[:, gene_name].layers[layers[0]],
+                            valid_adata[:, gene_name].layers[layers[0]],
                         )
                         uu, ul = (
                             (uu.toarray().squeeze(), ul.toarray().squeeze())
@@ -2051,7 +2050,7 @@ def dynamics(
                         if log_unnormalized and layers == ["new", "total"]:
                             uu, ul = np.log(uu + 1), np.log(ul + 1)
 
-                        alpha, gamma, total0 = adata.var.loc[
+                        alpha, gamma, total0 = valid_adata.var.loc[
                             gene_name,
                             [prefix + "alpha", prefix + "gamma", prefix + "total0"],
                         ]
@@ -2064,11 +2063,11 @@ def dynamics(
                         L = ul
                         if true_param_prefix is not None:
                             true_alpha, true_gamma = (
-                                adata.var.loc[gene_name, true_param_prefix + "alpha"]
-                                if true_param_prefix + "alpha" in adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "alpha"]
+                                if true_param_prefix + "alpha" in valid_adata.var_keys()
                                 else -np.inf,
-                                adata.var.loc[gene_name, true_param_prefix + "gamma"]
-                                if true_param_prefix + "gamma" in adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
+                                if true_param_prefix + "gamma" in valid_adata.var_keys()
                                 else -np.inf,
                             )
                             true_l = sol_u(
@@ -2156,14 +2155,14 @@ def dynamics(
                     if has_splicing:
                         layers = (
                             ["X_uu", "X_ul", "X_su", "X_sl"]
-                            if "X_ul" in adata.layers.keys()
+                            if "X_ul" in valid_adata.layers.keys()
                             else ["uu", "ul", "su", "sl"]
                         )
                         uu, ul, su, sl = (
-                            adata[:, gene_name].layers[layers[0]],
-                            adata[:, gene_name].layers[layers[1]],
-                            adata[:, gene_name].layers[layers[2]],
-                            adata[:, gene_name].layers[layers[3]],
+                            valid_adata[:, gene_name].layers[layers[0]],
+                            valid_adata[:, gene_name].layers[layers[1]],
+                            valid_adata[:, gene_name].layers[layers[2]],
+                            valid_adata[:, gene_name].layers[layers[3]],
                         )
                         uu, ul, su, sl = (
                             (
@@ -2184,11 +2183,11 @@ def dynamics(
                                 np.log(sl + 1),
                             )
 
-                        beta, gamma, alpha_std = adata.var.loc[
+                        beta, gamma, alpha_std = valid_adata.var.loc[
                             gene_name,
                             [prefix + "beta", prefix + "gamma", prefix + "alpha_std"],
                         ]
-                        alpha_stm = adata[:, gene_name].varm[prefix + "alpha"].flatten()[1:]
+                        alpha_stm = valid_adata[:, gene_name].varm[prefix + "alpha"].flatten()[1:]
                         alpha_stm0, k, _ = solve_first_order_deg(T_uniq[1:], alpha_stm)
 
                         # $u$ - unlabeled, unspliced
@@ -2238,13 +2237,13 @@ def dynamics(
                     else:
                         layers = (
                             ["X_new", "X_total"]
-                            if "X_new" in adata.layers.keys()
+                            if "X_new" in valid_adata.layers.keys()
                             else ["new", "total"]
                         )
                         uu, ul = (
-                            adata[:, gene_name].layers[layers[1]]
-                            - adata[:, gene_name].layers[layers[0]],
-                            adata[:, gene_name].layers[layers[0]],
+                            valid_adata[:, gene_name].layers[layers[1]]
+                            - valid_adata[:, gene_name].layers[layers[0]],
+                            valid_adata[:, gene_name].layers[layers[0]],
                         )
                         uu, ul = (
                             (uu.toarray().squeeze(), ul.toarray().squeeze())
@@ -2255,10 +2254,10 @@ def dynamics(
                         if log_unnormalized and layers == ["new", "total"]:
                             uu, ul = np.log(uu + 1), np.log(ul + 1)
 
-                        gamma, alpha_std = adata.var.loc[
+                        gamma, alpha_std = valid_adata.var.loc[
                             gene_name, [prefix + "gamma", prefix + "alpha_std"]
                         ]
-                        alpha_stm = adata[:, gene_name].varm[prefix + "alpha"].flatten()[1:]
+                        alpha_stm = valid_adata[:, gene_name].varm[prefix + "alpha"].flatten()[1:]
 
                         alpha_stm0, k, _ = solve_first_order_deg(T_uniq[1:], alpha_stm)
                         # require no beta functions
