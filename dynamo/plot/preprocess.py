@@ -24,7 +24,7 @@ def basic_stats(adata,
         Whether to save, show or return the figure.
     save_kwargs: `dict` (default: `{}`)
         A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-        will use the {"path": None, "prefix": 'show_fraction', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+        will use the {"path": None, "prefix": 'basic_stats', "dpi": None, "ext": 'pdf', "transparent": True, "close":
         True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
         according to your needs.
 
@@ -57,18 +57,22 @@ def basic_stats(adata,
             df.melt(value_vars=["nGenes", "nCounts", "pMito"])
         )
 
+    g = sns.FacetGrid(res, col="variable", sharex=False, sharey=False, margin_titles=True, hue="variable")
     if group is None:
-        g = sns.FacetGrid(res, col="variable", sharex=False, sharey=False)
         g.map_dataframe(sns.violinplot, x="variable", y="value")
+        g.set_xticklabels([])
+        g.set(xticks=[])
     else:
-        g = sns.catplot(
-            x="group", y="value", hue="group", data=res, kind="violin", col="variable", col_wrap=4,
-            sharex=False, sharey=False,
-        )
+        g.map_dataframe(sns.violinplot, x="group", y="value")
+        g.set_xticklabels(res['group'].unique(), rotation=30)
+
+    [plt.setp(ax.texts, text="") for ax in g.axes.flat]  # remove the original texts
+    # important to add this before setting titles
+    g.set_titles(row_template='{row_name}', col_template='{col_name}')
 
     g.set_xlabels("")
     g.set_ylabels("")
-    g.set_xticklabels(rotation=45)
+    g.set(ylim=(0, None))
 
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'basic_stats', "dpi": None,
@@ -259,16 +263,32 @@ def show_fraction(adata,
         else:
             res = df.melt(value_vars=["uu_frac", "ul_frac", "su_frac", "sl_frac"])
 
+    # if group is None:
+    #     g = sns.violinplot(x="variable", y="value", data=res)
+    #     g.set_xlabel("")
+    #     g.set_ylabel("Fraction")
+    # else:
+    #     g = sns.catplot(
+    #         x="variable", y="value", data=res, kind="violin", col="group", col_wrap=4
+    #     )
+    #
+
+    g = sns.FacetGrid(res, col="variable", sharex=False, sharey=False, margin_titles=True, hue="variable")
     if group is None:
-        g = sns.violinplot(x="variable", y="value", data=res)
-        g.set_xlabel("")
-        g.set_ylabel("Fraction")
+        g.map_dataframe(sns.violinplot, x="variable", y="value")
+        g.set_xticklabels([])
+        g.set(xticks=[])
     else:
-        g = sns.catplot(
-            x="variable", y="value", data=res, kind="violin", col="group", col_wrap=4
-        )
-        g.set_xlabels("")
-        g.set_ylabels("Fraction")
+        g.map_dataframe(sns.violinplot, x="group", y="value")
+        g.set_xticklabels(res['group'].unique(), rotation=30)
+
+    [plt.setp(ax.texts, text="") for ax in g.axes.flat]  # remove the original texts
+    # important to add this before setting titles
+    g.set_titles(row_template='{row_name}', col_template='{col_name}')
+
+    g.set_xlabels("")
+    g.set_ylabels("Fraction")
+    g.set(ylim=(0, None))
 
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'show_fraction', "dpi": None,
