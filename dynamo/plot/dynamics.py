@@ -475,9 +475,9 @@ def phase_portraits(
     ncols = min([num_per_gene, ncols]) if ncols is not None else num_per_gene
     nrow, ncol = int(np.ceil(num_per_gene * n_genes / ncols)), ncols
     if figsize is None:
-        g = plt.figure(None, (3 * ncol, 3 * nrow), facecolor=_background)  # , dpi=160
+        g = plt.figure(None, (3 * ncol, 3 * nrow), facecolor=_background, wspace=0.12, hspace=0.12)  # , dpi=160
     else:
-        g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=_background)  # , dpi=160
+        g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=_background, wspace=0.12, hspace=0.12)  # , dpi=160
 
     if discrete_continous_div_themes is None:
         if _background in ["#ffffff", "black"]:

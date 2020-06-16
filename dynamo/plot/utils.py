@@ -269,7 +269,7 @@ def _matplotlib_points(
                     color_cnt[0],
                     color_cnt[1],
                     str(i),
-                    color=font_color,
+                    color=_select_font_color(font_color),
                     zorder=1000,
                     verticalalignment="center",
                     horizontalalignment="center",
@@ -277,7 +277,7 @@ def _matplotlib_points(
                 )  #
                 txt.set_path_effects(
                     [
-                        PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.3),
+                        PathEffects.Stroke(linewidth=1.5, foreground=font_color, alpha=0.3),
                         PathEffects.Normal(),
                     ]
                 )
@@ -452,7 +452,7 @@ def _datashade_points(
                         color_cnt[0],
                         color_cnt[1],
                         str(i),
-                        color=font_color,
+                        color=_select_font_color(font_color),
                         zorder=1000,
                         verticalalignment="center",
                         horizontalalignment="center",
@@ -460,7 +460,7 @@ def _datashade_points(
                     )  #
                     txt.set_path_effects(
                         [
-                            PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.6),
+                            PathEffects.Stroke(linewidth=1.5, foreground=font_color, alpha=0.6),
                             PathEffects.Normal(),
                         ]
                     )
@@ -847,8 +847,8 @@ def set_colorbar(ax):
     from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
     axins = inset_axes(ax,
-                       width="3%",  # width = 5% of parent_bbox width
-                       height="30%",  # height : 50%
+                       width="1.5%",  # width = 5% of parent_bbox width
+                       height="20%",  # height : 50%
                        # loc='lower left',
                        # bbox_to_anchor=(1.05, 0., 1, 1),
                        # bbox_transform=ax.transAxes,

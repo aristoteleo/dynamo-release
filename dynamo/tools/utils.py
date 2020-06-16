@@ -983,6 +983,9 @@ def find_extreme(s, u, normalize=True, perc_left=None, perc_right=None):
 
     return mask
 
+def get_group_params_indices(adata, param_name):
+    return adata.var.columns.str.endswith(param_name)
+
 
 def set_velocity_genes(
     adata,
@@ -995,7 +998,16 @@ def set_velocity_genes(
 ):
     layer = vkey.split("_")[1]
 
-    if layer is "U":
+    # the following parameters aggreation for different groups can be improved later 
+    if 'alpha' not in adata.var.columns:
+        is_group_alpha, is_group_alpha_r2 = get_group_params_indices(adata, 'alpha'), \
+                                            get_group_params_indices(adata, 'alpha_r2')
+        if is_group_alpha.sum() > 0:
+            adata.var['alpha'] = adata.var.loc[:, is_group_alpha].mean(1, skipna=True)
+            adata.var['alpha_r2'] = adata.var.loc[:, is_group_alpha_r2].mean(1, skipna=True)
+        else:
+            raise Exception("there is no alpha/alpha_r2 parameter estimated for your adata object")
+
         if 'alpha_r2' not in adata.var.columns: adata.var['alpha_r2'] = None
         if np.all(adata.var.alpha_r2.values == None):
             adata.var.alpha_r2 = 1
@@ -1007,6 +1019,15 @@ def set_velocity_genes(
             else (adata.var.alpha > min_alpha) & (adata.var.alpha_r2 > min_r2)
         )
     elif layer is "S":
+        if 'gamma' not in adata.var.columns:
+            is_group_gamma, is_group_gamma_r2 = get_group_params_indices(adata, 'gamma'), \
+                                                get_group_params_indices(adata, 'gamma_r2')
+            if is_group_gamma.sum() > 0:
+                adata.var['gamma'] = adata.var.loc[:, is_group_gamma].mean(1, skipna=True)
+                adata.var['gamma_r2'] = adata.var.loc[:, is_group_gamma_r2].mean(1, skipna=True)
+            else:
+                raise Exception("there is no gamma/gamma_r2 parameter estimated for your adata object")
+
         if 'gamma_r2' not in adata.var.columns: adata.var['gamma_r2'] = None
         if np.all(adata.var.gamma_r2.values == None): adata.var.gamma_r2 = 1
         adata.var["use_for_velocity"] = (
@@ -1017,6 +1038,15 @@ def set_velocity_genes(
             else (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2)
         )
     elif layer is "P":
+        if 'delta' not in adata.var.columns:
+            is_group_delta, is_group_delta_r2 = get_group_params_indices(adata, 'delta'), \
+                                                get_group_params_indices(adata, 'delta_r2')
+            if is_group_delta.sum() > 0:
+                adata.var['delta'] = adata.var.loc[:, is_group_delta].mean(1, skipna=True)
+                adata.var['delta_r2'] = adata.var.loc[:, is_group_delta_r2].mean(1, skipna=True)
+            else:
+                raise Exception("there is no delta/delta_r2 parameter estimated for your adata object")
+
         if 'delta_r2' not in adata.var.columns: adata.var['delta_r2'] = None
         if np.all(adata.var.delta_r2.values == None):
             adata.var.delta_r2 = 1
