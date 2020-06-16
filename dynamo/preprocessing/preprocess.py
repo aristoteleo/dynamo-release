@@ -5,16 +5,26 @@ from scipy.sparse import issparse, csr_matrix
 from sklearn.decomposition import FastICA
 from sklearn.utils import sparsefuncs
 
-from .utils import pca
-from .utils import clusters_stats
-from .utils import cook_dist, get_layer_keys, get_shared_counts
-from .utils import get_svr_filter
-from .utils import Freeman_Tukey
-from .utils import merge_adata_attrs
-from .utils import sz_util, normalize_util, get_sz_exprs
-from .utils import unique_var_obs_adata, layers2csr, collapse_adata, NTR
-from .utils import detect_datatype
 from ..tools.utils import update_dict
+from .utils import (
+    pca,
+    clusters_stats,
+    cook_dist,
+    get_layer_keys,
+    get_shared_counts,
+    get_svr_filter,
+    Freeman_Tukey,
+    merge_adata_attrs,
+    sz_util,
+    normalize_util,
+    get_sz_exprs,
+    unique_var_obs_adata,
+    layers2csr,
+    collapse_adata,
+    NTR,
+    detect_datatype,
+    basic_stats,
+)
 
 
 def szFactor(
@@ -1198,6 +1208,7 @@ def recipe_monocle(
 
     if norm_method == 'Freeman_Tukey': norm_method = Freeman_Tukey
 
+    basic_stats(adata)
     has_splicing, has_labeling, _ = detect_datatype(adata)
     if has_splicing and has_labeling:
         total_layers = ['uu', 'ul', 'su', 'sl']

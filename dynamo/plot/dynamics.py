@@ -475,9 +475,9 @@ def phase_portraits(
     ncols = min([num_per_gene, ncols]) if ncols is not None else num_per_gene
     nrow, ncol = int(np.ceil(num_per_gene * n_genes / ncols)), ncols
     if figsize is None:
-        g = plt.figure(None, (3 * ncol, 3 * nrow), facecolor=_background, wspace=0.12, hspace=0.12)  # , dpi=160
+        g = plt.figure(None, (3 * ncol, 3 * nrow), facecolor=_background)  # , dpi=160
     else:
-        g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=_background, wspace=0.12, hspace=0.12)  # , dpi=160
+        g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=_background)  # , dpi=160
 
     if discrete_continous_div_themes is None:
         if _background in ["#ffffff", "black"]:
@@ -517,7 +517,7 @@ def phase_portraits(
     font_color = _select_font_color(discrete_background)
 
     # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
-    gs = plt.GridSpec(nrow, ncol, wspace=0.12)
+    gs = plt.GridSpec(nrow, ncol, wspace=0.12, hspace=0.3)
     for i, gn in enumerate(genes):
         if num_per_gene is 3:
             ax1, ax2, ax3 = (
@@ -680,7 +680,8 @@ def phase_portraits(
         # V_vec = V_vec + limit  # that is: tmp_colorandum - (-limit)
         # V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
         # V_vec = np.clip(V_vec, 0, 1)
-        if show_arrowed_spines is None: show_arrowed_spines = True if i == 0 else False
+        if show_arrowed_spines is None:
+            show_arrowed_spines_ = True if i == 0 else False
         if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
             ax2, _ = _matplotlib_points(
                 embedding.iloc[:, :2].values,
@@ -715,7 +716,7 @@ def phase_portraits(
             )
 
         ax2.set_title(gn + " (" + ekey + ")")
-        if show_arrowed_spines:
+        if show_arrowed_spines_:
             ax2 = arrowed_spines(ax2, basis)
         else:
             despline_all(ax2)
@@ -758,7 +759,7 @@ def phase_portraits(
             )
 
         ax3.set_title(gn + " (" + vkey + ")")
-        if show_arrowed_spines:
+        if show_arrowed_spines_:
             ax3 = arrowed_spines(ax3, basis)
         else:
             despline_all(ax3)
@@ -945,7 +946,7 @@ def phase_portraits(
                 )
 
             ax5.set_title(gn + " (protein expression)")
-            if show_arrowed_spines:
+            if show_arrowed_spines_:
                 ax5 = arrowed_spines(ax5, basis)
             else:
                 despline_all(ax5)
@@ -988,7 +989,7 @@ def phase_portraits(
                 )
 
             ax6.set_title(gn + " (protein velocity)")
-            if show_arrowed_spines:
+            if show_arrowed_spines_:
                 ax6 = arrowed_spines(ax6, basis)
             else:
                 despline_all(ax6)

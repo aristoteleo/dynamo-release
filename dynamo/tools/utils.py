@@ -998,15 +998,16 @@ def set_velocity_genes(
 ):
     layer = vkey.split("_")[1]
 
-    # the following parameters aggreation for different groups can be improved later 
-    if 'alpha' not in adata.var.columns:
-        is_group_alpha, is_group_alpha_r2 = get_group_params_indices(adata, 'alpha'), \
-                                            get_group_params_indices(adata, 'alpha_r2')
-        if is_group_alpha.sum() > 0:
-            adata.var['alpha'] = adata.var.loc[:, is_group_alpha].mean(1, skipna=True)
-            adata.var['alpha_r2'] = adata.var.loc[:, is_group_alpha_r2].mean(1, skipna=True)
-        else:
-            raise Exception("there is no alpha/alpha_r2 parameter estimated for your adata object")
+    # the following parameters aggreation for different groups can be improved later
+    if layer is "U":
+        if 'alpha' not in adata.var.columns:
+            is_group_alpha, is_group_alpha_r2 = get_group_params_indices(adata, 'alpha'), \
+                                                get_group_params_indices(adata, 'alpha_r2')
+            if is_group_alpha.sum() > 0:
+                adata.var['alpha'] = adata.var.loc[:, is_group_alpha].mean(1, skipna=True)
+                adata.var['alpha_r2'] = adata.var.loc[:, is_group_alpha_r2].mean(1, skipna=True)
+            else:
+                raise Exception("there is no alpha/alpha_r2 parameter estimated for your adata object")
 
         if 'alpha_r2' not in adata.var.columns: adata.var['alpha_r2'] = None
         if np.all(adata.var.alpha_r2.values == None):
