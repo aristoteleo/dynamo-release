@@ -8,6 +8,81 @@ from .utils import save_fig
 from ..tools.utils import update_dict
 
 
+def basic_stats(adata,
+                  group=None,
+                  save_show_or_return='show',
+                  save_kwargs={},):
+    """Plot the basic statics (nGenes, nCounts and pMito) of each category of adata.
+
+    Parameters
+    ----------
+    adata: :class:`~anndata.AnnData`
+        an Annodata object
+    group: `string` (default: None)
+        Which group to facets the data into subplots. Default is None, or no faceting will be used.
+    save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+        Whether to save, show or return the figure.
+    save_kwargs: `dict` (default: `{}`)
+        A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+        will use the {"path": None, "prefix": 'show_fraction', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+        True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+        according to your needs.
+
+    Returns
+    -------
+        A violin plot that shows the fraction of each category, produced by seaborn.
+    """
+
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+
+    if len(adata.obs.columns.intersection(['nGenes', 'nCounts', 'pMito'])) != 3:
+        from ..preprocessing.utils import basic_stats
+        basic_stats(adata)
+
+    df = pd.DataFrame(
+            {"nGenes": adata.obs['nGenes'], "nCounts": adata.obs['nCounts'],
+             "pMito": adata.obs['pMito']}, index=adata.obs.index,
+    )
+
+    if group is not None and group in adata.obs.columns:
+        df["group"] = adata.obs.loc[:, group]
+        res = (
+            df.melt(
+                value_vars=["nGenes", "nCounts", "pMito"], id_vars=["group"]
+            )
+        )
+    else:
+        res = (
+            df.melt(value_vars=["nGenes", "nCounts", "pMito"])
+        )
+
+    if group is None:
+        g = sns.FacetGrid(res, col="variable", sharex=False, sharey=False)
+        g.map_dataframe(sns.violinplot, x="variable", y="value")
+    else:
+        g = sns.catplot(
+            x="group", y="value", hue="group", data=res, kind="violin", col="variable", col_wrap=4,
+            sharex=False, sharey=False,
+        )
+
+    g.set_xlabels("")
+    g.set_ylabels("")
+    g.set_xticklabels(rotation=45)
+
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'basic_stats', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save_fig(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return g
+
+
 def show_fraction(adata,
                   group=None,
                   save_show_or_return='show',
@@ -186,13 +261,13 @@ def show_fraction(adata,
 
     if group is None:
         g = sns.violinplot(x="variable", y="value", data=res)
-        g.set_xlabel("Category")
+        g.set_xlabel("")
         g.set_ylabel("Fraction")
     else:
         g = sns.catplot(
             x="variable", y="value", data=res, kind="violin", col="group", col_wrap=4
         )
-        g.set_xlabels("Category")
+        g.set_xlabels("")
         g.set_ylabels("Fraction")
 
     if save_show_or_return == "save":

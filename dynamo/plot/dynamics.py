@@ -682,6 +682,9 @@ def phase_portraits(
         # V_vec = np.clip(V_vec, 0, 1)
         if show_arrowed_spines is None:
             show_arrowed_spines_ = True if i == 0 else False
+        else:
+            show_arrowed_spines_ = show_arrowed_spines
+
         if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
             ax2, _ = _matplotlib_points(
                 embedding.iloc[:, :2].values,

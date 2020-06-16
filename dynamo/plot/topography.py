@@ -279,7 +279,8 @@ def plot_fixed_points(
             markersize=markersize,
             c=markercolor,
             fillstyle=filltype[int(ftype[i] + 1)],
-            linestyle="none"
+            linestyle="none",
+            zorder=1000
         )
 
     if save_show_or_return == "save":
@@ -508,7 +509,7 @@ def topography(
     ncols=1,
     pointsize=None,
     figsize=(6, 4),
-    show_legend=True,
+    show_legend='on data',
     use_smoothed=True,
     xlim=None,
     ylim=None,
