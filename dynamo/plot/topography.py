@@ -304,7 +304,7 @@ def plot_fixed_points(
     for i in range(len(Xss)):
         cur_ftype = ftype[i]
         marker_ = markers.MarkerStyle(marker=marker, fillstyle=filltype[int(cur_ftype + 1)])
-        ax.scatter(
+        ax=plt.scatter(
             *Xss[i],
             marker=marker_,
             s=markersize,
@@ -316,12 +316,12 @@ def plot_fixed_points(
             vmax=1,
             zorder=1000
         )
-        ax.text(*Xss[i], repr(i), c=('black' if cur_ftype == -1 else 'blue' if cur_ftype == 0 else 'red'),
+        text = plt.text(*Xss[i], repr(i), c=('black' if cur_ftype == -1 else 'blue' if cur_ftype == 0 else 'red'),
                 horizontalalignment='center', verticalalignment='center', zorder=1001, weight='bold',
         )
-        ax.set_path_effects(
+        text.set_path_effects(
             [
-                PathEffects.Stroke(linewidth=1.5, foreground=_background, alpha=0.8),
+                PathEffects.Stroke(linewidth=2, foreground=_background, alpha=0.8),
                 PathEffects.Normal(),
             ]
         )

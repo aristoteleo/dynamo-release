@@ -324,12 +324,12 @@ class VectorField2D:
                     ftype[i] = -1
             return X, ftype
 
-    def get_Xss_confidence(self, k=50):
+    def get_Xss_confidence(self):
         X = self.X_data
         X = X.A if sp.issparse(X) else X
         Xss = self.Xss.get_X()
         alg = 'ball_tree' if Xss.shape[1] > 10 else 'kd_tree'
-        nbrs = NearestNeighbors(n_neighbors=min(k + 1, X.shape[0] - 1), algorithm=alg).fit(X)
+        nbrs = NearestNeighbors(n_neighbors=min(self.k, X.shape[0] - 1), algorithm=alg).fit(X)
         dist, _ = nbrs.kneighbors(Xss)
         dist_m = dist.mean(1)
         confidence = 1 - dist_m / dist_m.max()
@@ -389,7 +389,7 @@ class VectorField2D:
         return dict_vf
 
 
-def topography(adata, basis="umap", layer=None, X=None, dims=None, n=25, VecFld=None, calculate_fixed_points=True):
+def topography(adata, basis="umap", layer=None, X=None, dims=None, n=25, VecFld=None):
     """Map the topography of the single cell vector field in (first) two dimensions.
 
     Parameters
@@ -432,13 +432,12 @@ def topography(adata, basis="umap", layer=None, X=None, dims=None, n=25, VecFld=
     xlim = [min_[0] - (max_[0] - min_[0]) * 0.1, max_[0] + (max_[0] - min_[0]) * 0.1]
     ylim = [min_[1] - (max_[1] - min_[1]) * 0.1, max_[1] + (max_[1] - min_[1]) * 0.1]
 
-    if calculate_fixed_points:
-        vecfld = VectorField2D(lambda x: vector_field_function(x, VecFld, dims), X_data=X_basis)
-        vecfld.find_fixed_points_by_sampling(n, xlim, ylim)
-        if vecfld.get_num_fixed_points() > 0:
-            vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
-        # sep = compute_separatrices(vecfld.Xss.get_X(), vecfld.Xss.get_J(), vecfld.func, xlim, ylim)
-        #
+    vecfld = VectorField2D(lambda x: vector_field_function(x, VecFld, dims), X_data=X_basis)
+    vecfld.find_fixed_points_by_sampling(n, xlim, ylim)
+    if vecfld.get_num_fixed_points() > 0:
+        vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
+    # sep = compute_separatrices(vecfld.Xss.get_X(), vecfld.Xss.get_J(), vecfld.func, xlim, ylim)
+    #
 
     if layer is None:
         if "VecFld_" + basis in adata.uns_keys():
@@ -481,6 +480,7 @@ def VectorField(
     velocity_key="velocity_S",
     method="SparseVFC",
     return_vf_object=False,
+    map_topography=True,
     **kwargs,
 ):
     """Learn a function of high dimensional vector field from sparse single cell samples in the entire space robustly.
@@ -523,6 +523,8 @@ def VectorField(
         return_vf_object: `bool` (default: `False`)
             Whether or not to include an instance of a vectorfield class in the the `VecFld` dictionary in the `uns`
             attribute.
+        map_topography: `bool` (default: `True`)
+            Whether to quantify the topography of the 2D vector field.
         kwargs:
             Other additional parameters passed to the vectorfield class.
 
@@ -610,7 +612,7 @@ def VectorField(
         vf_dict['velocity_key'] = velocity_key
         adata.uns[vf_key] = vf_dict
 
-    if X.shape[1] == 2:
+    if X.shape[1] == 2 and map_topography:
         tp_kwargs = {"n": 25}
         tp_kwargs = update_dict(tp_kwargs, kwargs)
 
