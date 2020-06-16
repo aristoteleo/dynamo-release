@@ -1024,8 +1024,8 @@ def dynamics(
         boxwidth=None,
         barwidth=None,
         true_param_prefix=None,
-        show_moms_fit=False, # only works for non-deterministic models
-        show_variance=False,
+        show_moms_fit=False,
+        show_variance=True,
         show_kin_parameters=True,
         gene_order='column',
         save_show_or_return='show',
@@ -1061,6 +1061,12 @@ def dynamics(
             The width of the bar of the barplot.
         true_param_prefix: `str`
             The prefix for the column names of true parameters in the .var attributes. Useful for the simulation data.
+        show_moms_fit: `bool` (default: `True`)
+            Whether to show fitting curves associated with the stochastic models, only works for non-deterministic models.
+        show_variance: `bool` (default: `True`)
+            Whether to add a boxplot to show the variance at each time point.
+        show_kin_parameters: `bool` (default: `True`)
+            Whether to include the estimated kinetic parameter values on the plot.
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
