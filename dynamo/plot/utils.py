@@ -277,7 +277,7 @@ def _matplotlib_points(
                 )  #
                 txt.set_path_effects(
                     [
-                        PathEffects.Stroke(linewidth=1.5, foreground=font_color, alpha=0.3),
+                        PathEffects.Stroke(linewidth=1.5, foreground=font_color, alpha=0.8),
                         PathEffects.Normal(),
                     ]
                 )
@@ -460,7 +460,7 @@ def _datashade_points(
                     )  #
                     txt.set_path_effects(
                         [
-                            PathEffects.Stroke(linewidth=1.5, foreground=font_color, alpha=0.6),
+                            PathEffects.Stroke(linewidth=1.5, foreground=font_color, alpha=0.8),
                             PathEffects.Normal(),
                         ]
                     )
@@ -829,7 +829,7 @@ def scatter_with_legend(
             txt.set_path_effects(
                 [
                     PathEffects.Stroke(
-                        linewidth=5, foreground=font_color, alpha=0.6
+                        linewidth=1.5, foreground=font_color, alpha=0.8
                     ),  # 'w'
                     PathEffects.Normal(),
                 ]
@@ -985,6 +985,25 @@ def _plot_traj(y0, t, args, integration_direction, ax, color, lw, f):
 
     return ax
 
+
+# ---------------------------------------------------------------------------------------------------
+# streamline related aesthetics
+# ---------------------------------------------------------------------------------------------------
+
+def set_arrow_alpha(ax=None, alpha=1):
+    from matplotlib import patches
+    ax = plt.gca() if ax is None else ax
+
+    # iterate through the children of ax
+    for art in ax.get_children():
+        # we are only interested in FancyArrowPatches
+        if not isinstance(art, patches.FancyArrowPatch):
+            continue
+        art.set_alpha(alpha)
+
+def set_stream_line_alpha(s=None, alpha=1):
+    """s has to be a StreamplotSet"""
+    s.lines.set_alpha(alpha)
 
 # ---------------------------------------------------------------------------------------------------
 # save_fig figure related

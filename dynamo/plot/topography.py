@@ -8,7 +8,16 @@ from ..tools.utils import update_dict
 from .utils import default_quiver_args
 from .scatters import scatters
 from .scatters import docstrings
-from .utils import _plot_traj, quiver_autoscaler, save_fig
+from .utils import (
+    set_arrow_alpha,
+    set_stream_line_alpha,
+    _plot_traj,
+    quiver_autoscaler,
+    save_fig,
+    _select_font_color,
+)
+from ..configuration import _themes
+
 
 def plot_flow_field(
     vecfld,
@@ -21,6 +30,7 @@ def plot_flow_field(
     density=1,
     linewidth=1,
     streamline_color=None,
+    streamline_alpha=0.4,
     color_start_points=None,
     save_show_or_return='return',
     save_kwargs={},
@@ -52,7 +62,9 @@ def plot_flow_field(
     linewidth: `float` or None (default: 1)
         multiplier of automatically calculated linewidth passed to the plt.streamplot function.
     streamline_color: `str` or None (default: None)
-        The color of the stream lines.
+        The color of the vector field stream lines.
+    streamline_alpha: `float` or None (default: 0.4)
+        The alpha value applied to the vector field stream lines.
     color_start_points: `float` or None (default: 1)
         The color of the starting point that will be used to predict cell fates.
     save_show_or_return: {'show', 'save', 'return'} (default: `return`)
@@ -71,7 +83,7 @@ def plot_flow_field(
         Axis with streamplot included.
     """
 
-    from matplotlib import rcParams
+    from matplotlib import rcParams, patches
 
     from matplotlib.colors import to_hex
 
@@ -84,7 +96,7 @@ def plot_flow_field(
     if _background in ["#ffffff", "black"]:
         color, color_start_points = "white" if streamline_color is None else streamline_color, "red" if color_start_points is None else color_start_points
     else:
-        color, color_start_points = "thistle" if streamline_color is None else streamline_color, "tomato" if color_start_points is None else color_start_points
+        color, color_start_points = "black" if streamline_color is None else streamline_color, "red" if color_start_points is None else color_start_points
 
     # Set up u,v space
     u = np.linspace(x_range[0], x_range[1], n_grid)
@@ -106,7 +118,7 @@ def plot_flow_field(
     # lw = lw_min + (lw_max - lw_min) * speed / speed.max()
 
     streamplot_kwargs = {
-        "density": density * 2,
+        "density": density * 1,
         "linewidth": None,
         "cmap": None,
         "norm": None,
@@ -126,16 +138,18 @@ def plot_flow_field(
     if ax is None:
         ax = plt.gca()
     if start_points is None:
-        ax.streamplot(
+        s = ax.streamplot(
             uu, vv, u_vel, v_vel, color=color, **streamplot_kwargs,
 
         )
+        set_arrow_alpha(ax, streamline_alpha)
+        set_stream_line_alpha(s, streamline_alpha)
     else:
         if len(start_points.shape) == 1:
             start_points.reshape((1, 2))
         ax.scatter(*start_points, marker="*", zorder=100)
 
-        ax.streamplot(
+        s = ax.streamplot(
             uu,
             vv,
             u_vel,
@@ -145,6 +159,8 @@ def plot_flow_field(
             color=color_start_points,
             **streamplot_kwargs,
         )
+        set_arrow_alpha(ax, streamline_alpha)
+        set_stream_line_alpha(s, streamline_alpha)
 
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'plot_flow_field', "dpi": None,
@@ -223,7 +239,8 @@ def plot_nullclines(vecfld,
 def plot_fixed_points(
     vecfld,
     marker="o",
-    markersize=10,
+    markersize=200,
+    cmap=None,
     filltype=["full", "top", "none"],
     background=None,
     save_show_or_return='return',
@@ -238,8 +255,11 @@ def plot_fixed_points(
             An instance of the VectorField2D class which presumably has fixed points computed and stored.
         marker: `str` (default: `o`)
             The marker type. Any string supported by matplotlib.markers.
-        markersize: `float` (default: 10)
+        markersize: `float` (default: 200)
             The size of the marker.
+        cmap: string (optional, default 'Blues')
+            The name of a matplotlib colormap to use for coloring or shading the confidence of fixed points. If None, the
+            default color map will set to be viridis (inferno) when the background is white (black).
         filltype: list
             The fill type used for stable, saddle, and unstable fixed points. Default is 'full', 'top' and 'none',
             respectively.
@@ -255,7 +275,9 @@ def plot_fixed_points(
         ax: :class:`~matplotlib.axes.Axes`
             The matplotlib axes used for plotting. Default is to use the current axis.
     """
-    from matplotlib import rcParams
+
+    from matplotlib import rcParams, markers
+    import matplotlib.patheffects as PathEffects
     from matplotlib.colors import to_hex
 
     if background is None:
@@ -265,22 +287,43 @@ def plot_fixed_points(
         _background = background
 
     if _background in ["#ffffff", "black"]:
-        markercolor = "#ffffff"
+        _theme_ = (
+            "inferno"
+        )
     else:
-        markercolor = "k"
+        _theme_ = (
+            "viridis"
+        )
+    _cmap = _themes[_theme_]["cmap"] if cmap is None else cmap
 
     Xss, ftype = vecfld.get_fixed_points(get_types=True)
+    confidence = vecfld.get_Xss_confidence()
     if ax is None:
         ax = plt.gca()
+
     for i in range(len(Xss)):
-        ax.plot(
+        cur_ftype = ftype[i]
+        marker_ = markers.MarkerStyle(marker=marker, fillstyle=filltype[int(cur_ftype + 1)])
+        ax.scatter(
             *Xss[i],
-            marker=marker,
-            markersize=markersize,
-            c=markercolor,
-            fillstyle=filltype[int(ftype[i] + 1)],
-            linestyle="none",
+            marker=marker_,
+            s=markersize,
+            c=confidence[i],
+            edgecolor=_select_font_color(_background),
+            linewidths=1,
+            cmap=_cmap,
+            vmin=0,
+            vmax=1,
             zorder=1000
+        )
+        ax.text(*Xss[i], repr(i), c=('black' if cur_ftype == -1 else 'blue' if cur_ftype == 0 else 'red'),
+                horizontalalignment='center', verticalalignment='center', zorder=1001, weight='bold',
+        )
+        ax.set_path_effects(
+            [
+                PathEffects.Stroke(linewidth=1.5, foreground=_background, alpha=0.8),
+                PathEffects.Normal(),
+            ]
         )
 
     if save_show_or_return == "save":
@@ -525,8 +568,10 @@ def topography(
     density=1,
     linewidth=1,
     streamline_color=None,
+    streamline_alpha=0.4,
     color_start_points=None,
-    markersize=10,
+    markersize=200,
+    marker_cmap=None,
     save_show_or_return='show',
     save_kwargs={},
     aggregate=None,
@@ -582,11 +627,16 @@ def topography(
         linewidth: `float` or None (default: 1)
             multiplier of automatically calculated linewidth passed to the plt.streamplot function.
         streamline_color: `str` or None (default: None)
-            The color of the stream lines.
+            The color of the vector field stream lines.
+        streamline_alpha: `float` or None (default: 0.4)
+            The alpha value applied to the vector field stream lines.
         color_start_points: `float` or None (default: 1)
             The color of the starting point that will be used to predict cell fates.
-        markersize: `float` (default: 10)
+        markersize: `float` (default: 200)
             The size of the marker.
+        marker_cmap: string (optional, default 'Blues')
+            The name of a matplotlib colormap to use for coloring or shading the confidence of fixed points. If None, the
+            default color map will set to be viridis (inferno) when the background is white (black).
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -739,6 +789,7 @@ def topography(
                     density=density,
                     linewidth=linewidth,
                     streamline_color=streamline_color,
+                    streamline_alpha=streamline_alpha,
                     color_start_points=color_start_points,
                     ax=axes_list[i],
                     **streamline_kwargs_dict,
@@ -764,7 +815,7 @@ def topography(
 
         if "fixed_points" in terms:
             axes_list[i] = plot_fixed_points(
-                vecfld, background=_background, ax=axes_list[i], markersize=markersize,
+                vecfld, background=_background, ax=axes_list[i], markersize=markersize, cmap=marker_cmap,
             )
 
         if "separatrices" in terms:

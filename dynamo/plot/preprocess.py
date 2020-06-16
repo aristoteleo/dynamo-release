@@ -57,6 +57,7 @@ def basic_stats(adata,
             df.melt(value_vars=["nGenes", "nCounts", "pMito"])
         )
 
+    # https://wckdouglas.github.io/2016/12/seaborn_annoying_title
     g = sns.FacetGrid(res, col="variable", sharex=False, sharey=False, margin_titles=True, hue="variable")
     if group is None:
         g.map_dataframe(sns.violinplot, x="variable", y="value")
@@ -262,16 +263,6 @@ def show_fraction(adata,
             )
         else:
             res = df.melt(value_vars=["uu_frac", "ul_frac", "su_frac", "sl_frac"])
-
-    # if group is None:
-    #     g = sns.violinplot(x="variable", y="value", data=res)
-    #     g.set_xlabel("")
-    #     g.set_ylabel("Fraction")
-    # else:
-    #     g = sns.catplot(
-    #         x="variable", y="value", data=res, kind="violin", col="group", col_wrap=4
-    #     )
-    #
 
     g = sns.FacetGrid(res, col="variable", sharex=False, sharey=False, margin_titles=True, hue="variable")
     if group is None:

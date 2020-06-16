@@ -6,6 +6,7 @@ from scipy.optimize import fsolve
 from scipy.spatial.distance import pdist
 from scipy.linalg import eig
 from scipy.integrate import odeint
+from sklearn.neighbors import NearestNeighbors
 
 from .scVectorField import vector_field_function, vectorfield
 from .utils import update_dict, form_triu_matrix, index_condensed_matrix, log1p_
@@ -280,7 +281,7 @@ class FixedPoints:
 
 
 class VectorField2D:
-    def __init__(self, func, func_vx=None, func_vy=None):
+    def __init__(self, func, func_vx=None, func_vy=None, X_data=None, k=50):
         self.func = func
 
         def func_dim(x, func, dim):
@@ -300,6 +301,8 @@ class VectorField2D:
         else:
             self.fy = func_vy
         self.Xss = FixedPoints()
+        self.X_data = X_data
+        self.k = k
         self.NCx = None
         self.NCy = None
 
@@ -320,6 +323,18 @@ class VectorField2D:
                 elif is_stable[i]:
                     ftype[i] = -1
             return X, ftype
+
+    def get_Xss_confidence(self, k=50):
+        X = self.X_data
+        X = X.A if sp.issparse(X) else X
+        Xss = self.Xss.get_X()
+        alg = 'ball_tree' if Xss.shape[1] > 10 else 'kd_tree'
+        nbrs = NearestNeighbors(n_neighbors=min(k + 1, X.shape[0] - 1), algorithm=alg).fit(X)
+        dist, _ = nbrs.kneighbors(Xss)
+        dist_m = dist.mean(1)
+        confidence = 1 - dist_m / dist_m.max()
+
+        return confidence
 
     def find_fixed_points_by_sampling(
         self, n, x_range, y_range, lhs=True, tol_redundant=1e-4
@@ -369,11 +384,12 @@ class VectorField2D:
         dict_vf["NCx"] = self.NCx
         dict_vf["NCy"] = self.NCy
         dict_vf["Xss"] = self.Xss.get_X()
+        dict_vf["confidence"] = self.get_Xss_confidence()
         dict_vf["J"] = self.Xss.get_J()
         return dict_vf
 
 
-def topography(adata, basis="umap", layer=None, X=None, dims=None, n=25, VecFld=None):
+def topography(adata, basis="umap", layer=None, X=None, dims=None, n=25, VecFld=None, calculate_fixed_points=True):
     """Map the topography of the single cell vector field in (first) two dimensions.
 
     Parameters
@@ -416,12 +432,13 @@ def topography(adata, basis="umap", layer=None, X=None, dims=None, n=25, VecFld=
     xlim = [min_[0] - (max_[0] - min_[0]) * 0.1, max_[0] + (max_[0] - min_[0]) * 0.1]
     ylim = [min_[1] - (max_[1] - min_[1]) * 0.1, max_[1] + (max_[1] - min_[1]) * 0.1]
 
-    vecfld = VectorField2D(lambda x: vector_field_function(x, VecFld, dims))
-    vecfld.find_fixed_points_by_sampling(n, xlim, ylim)
-    if vecfld.get_num_fixed_points() > 0:
-        vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
-    # sep = compute_separatrices(vecfld.Xss.get_X(), vecfld.Xss.get_J(), vecfld.func, xlim, ylim)
-    #
+    if calculate_fixed_points:
+        vecfld = VectorField2D(lambda x: vector_field_function(x, VecFld, dims), X_data=X_basis)
+        vecfld.find_fixed_points_by_sampling(n, xlim, ylim)
+        if vecfld.get_num_fixed_points() > 0:
+            vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
+        # sep = compute_separatrices(vecfld.Xss.get_X(), vecfld.Xss.get_J(), vecfld.func, xlim, ylim)
+        #
 
     if layer is None:
         if "VecFld_" + basis in adata.uns_keys():
