@@ -10,7 +10,7 @@ from .preprocess import (
     show_fraction,
     feature_genes,
     variance_explained,
-    exp_over_groups,
+    exp_by_groups,
 )
 from .cell_cycle import cell_cycle_scores
 

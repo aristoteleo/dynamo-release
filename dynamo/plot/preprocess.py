@@ -496,18 +496,18 @@ def feature_genes(adata,
         return ax
 
 
-def exp_over_groups(adata,
-                 genes,
-                 layer=None,
-                 group=None,
-                 use_smoothed=True,
-                 log=True,
-                 angle=0,
-                 save_show_or_return='show',
-                 save_kwargs={}, ):
-    """Plot the (labeled) expression of genes across different groups (time points).
+def exp_by_groups(adata,
+                    genes,
+                    layer=None,
+                    group=None,
+                    use_smoothed=True,
+                    log=True,
+                    angle=0,
+                    save_show_or_return='show',
+                    save_kwargs={}, ):
+    """Plot the (labeled) expression values of genes across different groups (time points).
 
-    This function can be used as sanity check about the labeled species to see whether they increase or decrease across
+    This function can be used as a sanity check about the labeled species to see whether they increase or decrease across
     time for a kinetic or degradation experiment, etc.
 
     Parameters
@@ -517,9 +517,9 @@ def exp_over_groups(adata,
         genes: `list`
             The list of genes that you want to plot the gene expression.
         group: `string` (default: None)
-            Which group information to plot aganist (as elements on x-axis). Default is None, or no faceting will be used.
-            Normally you should supply the columns that indicates the time related to the labeling experiment. For example,
-            it can be either the labeling time for a kinetic experiment or a chase time for a degradation experiment.
+            Which group information to plot aganist (as elements on x-axis). Default is None, or no groups will be used.
+            Normally you should supply the column that indicates the time related to the labeling experiment. For example,
+            it can be either the labeling time for a kinetic experiment or the chase time for a degradation experiment.
         use_smoothed: `bool` (default: 'True')
             Whether to use the smoothed data as gene expression.
         log: `bool` (default: `True`)
@@ -528,13 +528,13 @@ def exp_over_groups(adata,
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'basic_stats', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            will use the {"path": None, "prefix": 'exp_by_groups', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
 
     Returns
     -------
-        A violin plot that shows the gene expression for each gene across groups (time), produced by seaborn.
+        A violin plot that shows each gene's expression (row) across different groups (time), produced by seaborn.
     """
 
     import matplotlib.pyplot as plt
@@ -600,7 +600,7 @@ def exp_over_groups(adata,
     g.set(ylim=(0, None))
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'basic_stats', "dpi": None,
+        s_kwargs = {"path": None, "prefix": 'exp_by_groups', "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
