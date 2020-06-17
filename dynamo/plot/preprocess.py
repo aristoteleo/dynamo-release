@@ -6,7 +6,7 @@ from ..preprocessing.preprocess import topTable
 from ..preprocessing.utils import get_layer_keys
 from .utils import save_fig
 from ..tools.utils import update_dict
-
+from ..preprocessing.utils import detect_datatype
 
 def basic_stats(adata,
                   group=None,
@@ -494,3 +494,140 @@ def feature_genes(adata,
         plt.show()
     elif save_show_or_return == "return":
         return ax
+
+
+import pandas as pd
+from scipy.sparse import issparse
+
+
+def get_mapper():
+    mapper = {
+        "X_spliced": "M_s",
+        "X_unspliced": "M_u",
+        "X_new": "M_n",
+        "X_old": "M_o",
+        "X_total": "M_t",
+        "X_uu": "M_uu",
+        "X_ul": "M_ul",
+        "X_su": "M_su",
+        "X_sl": "M_sl",
+        "X_protein": "M_p",
+        "X": "X",
+    }
+    return mapper
+
+
+def exp_over_groups(adata,
+                 genes,
+                 layer=None,
+                 group=None,
+                 use_smoothed=True,
+                 log=True,
+                 angle=0,
+                 save_show_or_return='show',
+                 save_kwargs={}, ):
+    """Plot the (labeled) expression of genes across different groups (time points).
+
+    This function can be used as sanity check about the labeled species to see whether they increase or decrease across
+    time for a kinetic or degradation experiment, etc.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object
+        genes: `list`
+            The list of genes that you want to plot the gene expression.
+        group: `string` (default: None)
+            Which group information to plot aganist (as elements on x-axis). Default is None, or no faceting will be used.
+            Normally you should supply the columns that indicates the time related to the labeling experiment. For example,
+            it can be either the labeling time for a kinetic experiment or a chase time for a degradation experiment.
+        use_smoothed: `bool` (default: 'True')
+            Whether to use the smoothed data as gene expression.
+        log: `bool` (default: `True`)
+            Whether to log1p transform the expression data.
+        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            will use the {"path": None, "prefix": 'basic_stats', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
+
+    Returns
+    -------
+        A violin plot that shows the gene expression for each gene across groups (time), produced by seaborn.
+    """
+
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+
+    valid_genes = adata.var_names.intersection(genes)
+    if len(valid_genes) == 0:
+        raise ValueError(f"The adata object doesn't include any gene from the list you provided!")
+    if group is not None and group not in adata.obs.keys():
+        raise ValueError(f"The group {group} is not existed in your adata object!")
+
+    has_splicing, has_labeling, has_protein = detect_datatype(adata)
+    if (has_splicing + has_labeling) == 0:
+        layer = 'X' if layer is None else layer
+    elif has_splicing and not has_labeling:
+        layer = 'X_spliced' if layer is None else layer
+    elif not has_splicing and has_labeling:
+        layer = 'X_new' if layer is None else layer
+    elif has_splicing and has_labeling:
+        layer = 'X_new' if layer is None else layer
+
+    if use_smoothed:
+        mapper = get_mapper()
+        layer = mapper[layer]
+
+    if layer != 'X' and layer not in adata.layers.keys():
+        raise ValueError(f"The layer {layer} is not existed in your adata object!")
+
+    exprs = adata[:, valid_genes].X if layer == 'X' else adata[:, valid_genes].layers[layer]
+    exprs = exprs.A if issparse(exprs) else exprs
+    df = pd.DataFrame(np.log1p(exprs), index=adata.obs_names, columns=valid_genes) if log else \
+        pd.DataFrame(np.log1p(exprs), index=adata.obs_names, columns=valid_genes)
+
+    if group is not None and group in adata.obs.columns:
+        df["group"] = adata.obs[group]
+        res = (
+            df.melt(id_vars=["group"])
+        )
+    else:
+        df["group"] =1
+        res = df.melt(id_vars=["group"])
+
+    # https://wckdouglas.github.io/2016/12/seaborn_annoying_title
+    g = sns.FacetGrid(res, row="variable", sharex=False, sharey=False, margin_titles=True, hue="variable")
+    g.map_dataframe(sns.violinplot, x="group", y="value")
+    g.map_dataframe(sns.pointplot, x="group", y="value", color='k')
+    if group is None:
+        g.set_xticklabels([])
+        g.set(xticks=[])
+    else:
+        g.set_xticklabels(res['group'].unique(), rotation=angle)
+
+    [plt.setp(ax.texts, text="") for ax in g.axes.flat]  # remove the original texts
+    # important to add this before setting titles
+    g.set_titles(row_template='{row_name}', col_template='{col_name}')
+
+    if log:
+        g.set_ylabels("log(Expression + 1)")
+    else:
+        g.set_ylabels("Expression")
+
+    g.set_xlabels("")
+    g.set(ylim=(0, None))
+
+    if save_show_or_return == "save":
+        s_kwargs = {"path": None, "prefix": 'basic_stats', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save_fig(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return g

@@ -5,7 +5,13 @@
 from .utils import quiver_autoscaler, save_fig
 from .scatters import scatters
 
-from .preprocess import basic_stats, show_fraction, feature_genes, variance_explained
+from .preprocess import (
+    basic_stats,
+    show_fraction,
+    feature_genes,
+    variance_explained,
+    exp_over_groups,
+)
 from .cell_cycle import cell_cycle_scores
 
 from .dynamics import phase_portraits, dynamics
