@@ -10,7 +10,7 @@ from .scatters import scatters
 from ..tools.velocity import sol_u, sol_s, solve_first_order_deg
 from ..tools.utils_moments import moments
 from ..tools.utils import get_mapper, log1p_
-from ..tools.utils import update_dict, get_valid_inds
+from ..tools.utils import update_dict, get_valid_bools
 from ..configuration import _themes
 
 
@@ -1138,7 +1138,7 @@ def dynamics(
 
     T_uniq = np.unique(T)
     t = np.linspace(0, T_uniq[-1], 1000)
-    valid_genes = adata.var_names[get_valid_inds(adata, filter_gene_mode)]
+    valid_genes = adata.var_names[get_valid_bools(adata, filter_gene_mode)]
     valid_gene_names = valid_genes.intersection(vkey)
 
     if len(valid_gene_names) == 0:

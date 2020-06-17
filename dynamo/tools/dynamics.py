@@ -9,7 +9,7 @@ from .estimation_kinetic import *
 from .utils_kinetic import *
 from .utils import (
     update_dict,
-    get_valid_inds,
+    get_valid_bools,
     get_data_for_kin_params_estimation,
     get_U_S_for_velocity_estimation,
 )
@@ -139,7 +139,7 @@ def dynamics(
         sanity_check: `bool` (default: `False`)
             Whether to perform sanity-check before estimating kinetic parameters and velocity vectors, currently only
             applicable to kinetic or degradation metabolic labeling based scRNA-seq data. The basic idea is that for
-            kinetic (degradation) experiment, the total labelled RNA should increase (decrease) over time.
+            kinetic (degradation) experiment, the total labelled RNA for each gene should increase (decrease) over time.
         **est_kwargs
             Other arguments passed to the estimation methods. Not used for now.
 
@@ -158,8 +158,8 @@ def dynamics(
 
     filter_gene_mode = filter_gene_mode_list[which_filter]
 
-    valid_ind = get_valid_inds(adata, filter_gene_mode)
-    gene_num = sum(valid_ind)
+    valid_bools = get_valid_bools(adata, filter_gene_mode)
+    gene_num = sum(valid_bools)
     if gene_num == 0:
         raise Exception(f"no genes pass filter. Try resetting `filter_gene_mode = 'no'` to use all genes.")
 
@@ -180,15 +180,15 @@ def dynamics(
                 adata.obsm['X'] = adata.obsm['X_pca']
 
             if group is not None and group in adata.obs.columns:
-                moments(adata, genes=valid_ind, group=group)
+                moments(adata, genes=valid_bools, group=group)
             else:
-                moments(adata, genes=valid_ind, group=tkey)
+                moments(adata, genes=valid_bools, group=tkey)
         elif tkey is not None:
             warnings.warn(f"You used tkey {tkey} (or group {group}), but you have calculated local smoothing (1st moment) "
                           f"for your data before. Please ensure you used the desired tkey or group when the smoothing was "
                           f"performed. Try setting re_smooth = True if not sure.")
 
-    valid_adata = adata[:, valid_ind].copy()
+    valid_adata = adata[:, valid_bools].copy()
     if group is not None and group in adata.obs.columns:
         _group = adata.obs[group].unique()
     else:
@@ -242,9 +242,9 @@ def dynamics(
                 "is {}".format(exp_type, experiment_type)
                 )
 
-        valid_ind_ = valid_ind.copy()
+        valid_bools_ = valid_bools.copy()
         if sanity_check and experiment_type in ['kin', 'deg']:
-            indices_valid_ind = np.where(valid_ind)[0]
+            indices_valid_bools = np.where(valid_bools)[0]
             t, L = t.flatten(), (0 if Ul is None else Ul) + (0 if Sl is None else Sl)
             t_uniq = np.unique(t)
 
@@ -255,15 +255,17 @@ def dynamics(
                 slope, _ = fit_linreg(t_uniq, y, r2=False)
                 valid_gene_checker[L_iter] = True if (slope > 0 and experiment_type is 'kin') or \
                                                      (slope < 0 and experiment_type is 'deg') else False
-            valid_ind_[indices_valid_ind[~valid_gene_checker]] = False
+            valid_bools_[indices_valid_bools[~valid_gene_checker]] = False
             warnings.warn(f'filtering {gene_num - valid_gene_checker.sum()} genes after sanity check.')
 
-            if len(valid_ind_) < 5:
+            if len(valid_bools_) < 5:
                 raise Exception(f'After sanity check, you have less than 5 valid genes. Something is wrong about your '
                                 f'metabolic labeling experiment!')
 
-            U, Ul, S, Sl = U[valid_gene_checker, :], Ul[valid_gene_checker, :], \
-                           S[valid_gene_checker, :], Sl[valid_gene_checker, :]
+            U, Ul, S, Sl = (None if U is None else U[valid_gene_checker, :]), \
+                           (None if Ul is None else Ul[valid_gene_checker, :]), \
+                           (None if S is None else S[valid_gene_checker, :]), \
+                           (None if Sl is None else Sl[valid_gene_checker, :])
             subset_adata = subset_adata[:, valid_gene_checker]
 
         if assumption_mRNA.lower() == 'auto': assumption_mRNA = assump_mRNA
@@ -340,7 +342,7 @@ def dynamics(
                 _group,
                 cur_grp,
                 cur_cells_bools,
-                valid_ind_,
+                valid_bools_,
                 ind_for_proteins,
             )
 
@@ -356,7 +358,7 @@ def dynamics(
                 _group,
                 cur_grp,
                 kin_param_pre,
-                valid_ind_,
+                valid_bools_,
                 ind_for_proteins,
             )
 
@@ -417,7 +419,7 @@ def dynamics(
                 _group,
                 cur_grp,
                 cur_cells_bools,
-                valid_ind_,
+                valid_bools_,
                 ind_for_proteins,
             )
 
@@ -436,7 +438,7 @@ def dynamics(
                 extra_params,
                 _group,
                 cur_grp,
-                valid_ind_,
+                valid_bools_,
             )
             # add protein related parameters in the moment model below:
         elif model.lower() is "model_selection":

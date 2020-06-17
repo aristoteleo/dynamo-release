@@ -280,7 +280,7 @@ def compute_velocity_labeling_B(B, alpha, R):
 
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
-def get_valid_inds(adata, filter_gene_mode):
+def get_valid_bools(adata, filter_gene_mode):
     if filter_gene_mode == "final":
         valid_ind = adata.var.use_for_dynamo.values
     elif filter_gene_mode == "basic":
