@@ -192,7 +192,7 @@ def solve_alpha_2p(t0, t1, alpha0, beta, u1):
     return alpha1
 
 
-def fit_linreg(x, y, mask=None, intercept=False):
+def fit_linreg(x, y, mask=None, intercept=False, r2=True):
     """Simple linear regression: y = kx + b.
 
     Arguments
@@ -244,14 +244,17 @@ def fit_linreg(x, y, mask=None, intercept=False):
         k = cov / var_x
         b = 0
 
-    SS_tot_n, all_SS_tot_n = np.var(yy), np.var(y)
-    SS_res_n, all_SS_res_n = (
-        np.mean((yy - k * xx - b) ** 2),
-        np.mean((y - k * x - b) ** 2),
-    )
-    r2, all_r2 = 1 - SS_res_n / SS_tot_n, 1 - all_SS_res_n / all_SS_tot_n
+    if r2:
+        SS_tot_n, all_SS_tot_n = np.var(yy), np.var(y)
+        SS_res_n, all_SS_res_n = (
+            np.mean((yy - k * xx - b) ** 2),
+            np.mean((y - k * x - b) ** 2),
+        )
+        r2, all_r2 = 1 - SS_res_n / SS_tot_n, 1 - all_SS_res_n / all_SS_tot_n
 
-    return k, b, r2, all_r2
+        return k, b, r2, all_r2
+    else:
+        return k, b
 
 
 def fit_stochastic_linreg(u, s, us, ss):

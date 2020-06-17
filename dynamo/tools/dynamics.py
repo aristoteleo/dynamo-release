@@ -3,9 +3,8 @@ import inspect
 import pandas as pd
 from scipy.sparse import issparse, SparseEfficiencyWarning
 
-from .moments import moments
-from .velocity import velocity
-from .velocity import ss_estimation
+from .moments import moments, strat_mom
+from .velocity import fit_linreg, velocity, ss_estimation
 from .estimation_kinetic import *
 from .utils_kinetic import *
 from .utils import (
@@ -45,6 +44,7 @@ def dynamics(
     log_unnormalized=True,
     one_shot_method="combined",
     re_smooth=False,
+    sanity_check=False,
     **est_kwargs
 ):
     """Inclusive model of expression dynamics considers splicing, metabolic labeling and protein translation. It supports
@@ -136,6 +136,10 @@ def dynamics(
             Whether to log transform the unnormalized data.
         re_smooth: `bool` (default: `False`)
             Whether to re-smooth the adata and also recalculate 1/2 moments or covariance.
+        sanity_check: `bool` (default: `False`)
+            Whether to perform sanity-check before estimating kinetic parameters and velocity vectors, currently only
+            applicable to kinetic or degradation metabolic labeling based scRNA-seq data. The basic idea is that for
+            kinetic (degradation) experiment, the total labelled RNA should increase (decrease) over time.
         **est_kwargs
             Other arguments passed to the estimation methods. Not used for now.
 
@@ -155,7 +159,8 @@ def dynamics(
     filter_gene_mode = filter_gene_mode_list[which_filter]
 
     valid_ind = get_valid_inds(adata, filter_gene_mode)
-    if sum(valid_ind) == 0:
+    gene_num = sum(valid_ind)
+    if gene_num == 0:
         raise Exception(f"no genes pass filter. Try resetting `filter_gene_mode = 'no'` to use all genes.")
 
     if model.lower() == "auto":
@@ -237,6 +242,30 @@ def dynamics(
                 "is {}".format(exp_type, experiment_type)
                 )
 
+        valid_ind_ = valid_ind.copy()
+        if sanity_check and experiment_type in ['kin', 'deg']:
+            indices_valid_ind = np.where(valid_ind)[0]
+            t, L = t.flatten(), (0 if Ul is None else Ul) + (0 if Sl is None else Sl)
+            t_uniq = np.unique(t)
+
+            valid_gene_checker = np.zeros(gene_num, dtype=bool)
+            for L_iter, cur_L in tqdm(enumerate(L), desc=f'sanity check of {experiment_type} experiment data:'):
+                cur_L = cur_L.A.flatten() if issparse(cur_L) else cur_L.flatten()
+                y = strat_mom(cur_L, t, np.nanmean)
+                slope, _ = fit_linreg(t_uniq, y, r2=False)
+                valid_gene_checker[L_iter] = True if (slope > 0 and experiment_type is 'kin') or \
+                                                     (slope < 0 and experiment_type is 'deg') else False
+            valid_ind_[indices_valid_ind[~valid_gene_checker]] = False
+            warnings.warn(f'filtering {gene_num - valid_gene_checker.sum()} genes after sanity check.')
+
+            if len(valid_ind_) < 5:
+                raise Exception(f'After sanity check, you have less than 5 valid genes. Something is wrong about your '
+                                f'metabolic labeling experiment!')
+
+            U, Ul, S, Sl = U[valid_gene_checker, :], Ul[valid_gene_checker, :], \
+                           S[valid_gene_checker, :], Sl[valid_gene_checker, :]
+            subset_adata = subset_adata[:, valid_gene_checker]
+
         if assumption_mRNA.lower() == 'auto': assumption_mRNA = assump_mRNA
         if experiment_type == 'conventional': assumption_mRNA = 'ss'
 
@@ -311,7 +340,7 @@ def dynamics(
                 _group,
                 cur_grp,
                 cur_cells_bools,
-                valid_ind,
+                valid_ind_,
                 ind_for_proteins,
             )
 
@@ -327,7 +356,7 @@ def dynamics(
                 _group,
                 cur_grp,
                 kin_param_pre,
-                valid_ind,
+                valid_ind_,
                 ind_for_proteins,
             )
 
@@ -388,7 +417,7 @@ def dynamics(
                 _group,
                 cur_grp,
                 cur_cells_bools,
-                valid_ind,
+                valid_ind_,
                 ind_for_proteins,
             )
 
@@ -407,7 +436,7 @@ def dynamics(
                 extra_params,
                 _group,
                 cur_grp,
-                valid_ind,
+                valid_ind_,
             )
             # add protein related parameters in the moment model below:
         elif model.lower() is "model_selection":
