@@ -120,7 +120,7 @@ def plot_flow_field(
     # lw = lw_min + (lw_max - lw_min) * speed / speed.max()
 
     streamplot_kwargs = {
-        "density": density * 1.5,
+        "density": density * 2,
         "linewidth": None,
         "cmap": None,
         "norm": None,
@@ -251,21 +251,6 @@ def plot_fixed_points(
 ):
     """Plot fixed points stored in the VectorField2D class.
 
-    Draw the calculated fixed points by scatter points on vector field. Fixed points are concepts introduced in dynamic
-    systems theory. There are three types of fixed points: 1) repeller: a repelling state that only has outflows, which
-    may correspond to a pluripotent cell state (ESC) that tends to differentiate into other cell states automatically or
-    under small perturbation; 2) unstable fixed points or saddle points. Those states have attraction on some dimension
-    (genes or reduced dimensions) but diverge in at least one other dimension. Saddle may correspond to progenitors, which
-    are differentiated from ESC/pluripotent cells and relatively stable, but can further differentiate into multiple
-    terminal cell types / states; 3) lastly, stable fixed points or cell states or attractors, which only have inflows and
-    attracts all cell states nearby, which may correspond to stable cell types and can only be kicked out of its cell
-    state under extreme perturbation or in very rare situation. Fixed points are numbered with each number color coded.
-    The mapping of the color of the number to the type of fixed point are: red: repellers; blue: saddle points; black:
-    attractors. The scatter point itself also has filled color, which corresponds to confidence of the estimated fixed
-    point. The lighter, the more confident or the fixed points are are closer to the sequenced single cells. Confidence
-    of each fixed points can be used in conjunction with the Jacobian analysis for investigating regulatory network with
-    spatiotemporal resolution.
-
     Arguments
     ---------
         vecfld: :class:`~VectorField2D`
@@ -321,7 +306,7 @@ def plot_fixed_points(
     for i in range(len(Xss)):
         cur_ftype = ftype[i]
         marker_ = markers.MarkerStyle(marker=marker, fillstyle=filltype[int(cur_ftype + 1)])
-        ax=ax.scatter(
+        ax.scatter(
             *Xss[i],
             marker=marker_,
             s=markersize,
@@ -336,7 +321,7 @@ def plot_fixed_points(
         txt = ax.text(*Xss[i], repr(i), c=('black' if cur_ftype == -1 else 'blue' if cur_ftype == 0 else 'red'),
                 horizontalalignment='center', verticalalignment='center', zorder=1001, weight='bold',
         )
-        ax.Axis.set_path_effects(
+        txt.set_path_effects(
             [
                 PathEffects.Stroke(linewidth=1.5, foreground=_background, alpha=0.8),
                 PathEffects.Normal(),
@@ -603,16 +588,17 @@ def topography(
 
     Topography function plots the full vector field topology including streamline, fixed points, characteristic lines. A key
     difference between dynamo and Velocyto or scVelo is that we learn a functional form of a vector field which can be
-    used to predict cell fate over arbitrary time and space. It retrieves the key kinetics dynamics from the data observed
-    and smoothes them; on the other, the accuracy of prediction is of course subject to decay of  when time and state is
-    far from your observed single cell RNA-seq datasets. Vector field can be efficiently reconstructed in high dimension or
+    used to predict cell fate over arbitrary time and space. On states near observed cells, it retrieves the key kinetics
+    dynamics from the data observed and smoothes them. When time and state is far from your observed single cell RNA-seq
+    datasets, the accuracy of prediction will decay. Vector field can be efficiently reconstructed in high dimension or
     lower pca/umap space. Since we learn a vector field function, we can plot the full vector via streamline on the entire
-    domain as well as predicts cell state by providing a set of initial cell state (via `init_cells`, `init_states`). The
+    domain as well as predicts cell fates by providing a set of initial cell states (via `init_cells`, `init_states`). The
     nullcline and separatrix provide topological information about the reconstructed vector field. By definition, the
     x/y-nullcline is a set of points in the phase plane so that dx/dt = 0 or dy/dt=0. Geometrically, these are the points
     where the vectors are either straight up or straight down. Algebraically, we find the x-nullcline by solving
     f(x,y) = 0. The boundary different different attractor basis is the separatrix because it separates the regions into
-    different subregions with a specific behavior. To find them is a very difficult problem.
+    different subregions with a specific behavior. To find them is a very difficult problem and separatrix calculated by
+    dynamo requres manual inspection.
 
     Here is more details on the fixed points drawn on the vector field:  Fixed points are concepts introduced in dynamic
     systems theory. There are three types of fixed points: 1) repeller: a repelling state that only has outflows, which
@@ -620,8 +606,8 @@ def topography(
     under small perturbation; 2) unstable fixed points or saddle points. Those states have attraction on some dimension
     (genes or reduced dimensions) but diverge in at least one other dimension. Saddle may correspond to progenitors, which
     are differentiated from ESC/pluripotent cells and relatively stable, but can further differentiate into multiple
-    terminal cell types / states; 3) lastly, stable fixed points or cell states or attractors, which only have inflows and
-    attracts all cell states nearby, which may correspond to stable cell types and can only be kicked out of its cell
+    terminal cell types / states; 3) lastly, stable fixed points / cell type or attractors, which only have inflows and
+    attract all cell states nearby, which may correspond to stable cell types and can only be kicked out of its cell
     state under extreme perturbation or in very rare situation. Fixed points are numbered with each number color coded.
     The mapping of the color of the number to the type of fixed point are: red: repellers; blue: saddle points; black:
     attractors. The scatter point itself also has filled color, which corresponds to confidence of the estimated fixed
@@ -631,7 +617,7 @@ def topography(
 
     By default, we plot a figure with three subplots , each colors cells either with `potential`, `curl` or `divergence`.
     `potential` is related to the intrinsic time, where a small potential is related to smaller intrinsic time and vice
-    versa. Divergence can be used to indicate the state of each cell is in, negative values correspond to potential sink
+    versa. Divergence can be used to indicate the state of each cell is in. Negative values correspond to potential sink
     while positive corresponds to potential source. https://en.wikipedia.org/wiki/Divergence. Curl may be related to cell
     cycle or other cycling cell dynamics. On 2d, negative values correspond to clockwise rotation while positive corresponds
     to anticlockwise rotation. https://www.khanacademy.org/math/multivariable-calculus/greens-theorem-and-stokes-theorem/formal-definitions-of-divergence-and-curl/a/defining-curl
