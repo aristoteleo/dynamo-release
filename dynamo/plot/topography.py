@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 
 from ..tools.topography import topography as _topology  # , compute_separatrices
 from ..tools.utils import update_dict
+from ..external.ddhodge import ddhoge
+from ..tools.vector_calculus import curl, divergence
 from .utils import default_quiver_args
 from .scatters import scatters
 from .scatters import docstrings
@@ -118,7 +120,7 @@ def plot_flow_field(
     # lw = lw_min + (lw_max - lw_min) * speed / speed.max()
 
     streamplot_kwargs = {
-        "density": density * 1,
+        "density": density * 1.5,
         "linewidth": None,
         "cmap": None,
         "norm": None,
@@ -248,7 +250,22 @@ def plot_fixed_points(
     ax=None,
 ):
     """Plot fixed points stored in the VectorField2D class.
-    
+
+    Draw the calculated fixed points by scatter points on vector field. Fixed points are concepts introduced in dynamic
+    systems theory. There are three types of fixed points: 1) repeller: a repelling state that only has outflows, which
+    may correspond to a pluripotent cell state (ESC) that tends to differentiate into other cell states automatically or
+    under small perturbation; 2) unstable fixed points or saddle points. Those states have attraction on some dimension
+    (genes or reduced dimensions) but diverge in at least one other dimension. Saddle may correspond to progenitors, which
+    are differentiated from ESC/pluripotent cells and relatively stable, but can further differentiate into multiple
+    terminal cell types / states; 3) lastly, stable fixed points or cell states or attractors, which only have inflows and
+    attracts all cell states nearby, which may correspond to stable cell types and can only be kicked out of its cell
+    state under extreme perturbation or in very rare situation. Fixed points are numbered with each number color coded.
+    The mapping of the color of the number to the type of fixed point are: red: repellers; blue: saddle points; black:
+    attractors. The scatter point itself also has filled color, which corresponds to confidence of the estimated fixed
+    point. The lighter, the more confident or the fixed points are are closer to the sequenced single cells. Confidence
+    of each fixed points can be used in conjunction with the Jacobian analysis for investigating regulatory network with
+    spatiotemporal resolution.
+
     Arguments
     ---------
         vecfld: :class:`~VectorField2D`
@@ -304,7 +321,7 @@ def plot_fixed_points(
     for i in range(len(Xss)):
         cur_ftype = ftype[i]
         marker_ = markers.MarkerStyle(marker=marker, fillstyle=filltype[int(cur_ftype + 1)])
-        ax=plt.scatter(
+        ax=ax.scatter(
             *Xss[i],
             marker=marker_,
             s=markersize,
@@ -316,10 +333,10 @@ def plot_fixed_points(
             vmax=1,
             zorder=1000
         )
-        text = plt.text(*Xss[i], repr(i), c=('black' if cur_ftype == -1 else 'blue' if cur_ftype == 0 else 'red'),
+        txt = ax.text(*Xss[i], repr(i), c=('black' if cur_ftype == -1 else 'blue' if cur_ftype == 0 else 'red'),
                 horizontalalignment='center', verticalalignment='center', zorder=1001, weight='bold',
         )
-        text.set_path_effects(
+        ax.Axis.set_path_effects(
             [
                 PathEffects.Stroke(linewidth=1.5, foreground=_background, alpha=0.8),
                 PathEffects.Normal(),
@@ -549,7 +566,7 @@ def topography(
     color_key=None,
     color_key_cmap=None,
     background='white',
-    ncols=1,
+    ncols=4,
     pointsize=None,
     figsize=(6, 4),
     show_legend='on data',
@@ -583,6 +600,43 @@ def topography(
 ):
     """Plot the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system
     for single cells. The plot is created on two dimensional space.
+
+    Topography function plots the full vector field topology including streamline, fixed points, characteristic lines. A key
+    difference between dynamo and Velocyto or scVelo is that we learn a functional form of a vector field which can be
+    used to predict cell fate over arbitrary time and space. It retrieves the key kinetics dynamics from the data observed
+    and smoothes them; on the other, the accuracy of prediction is of course subject to decay of  when time and state is
+    far from your observed single cell RNA-seq datasets. Vector field can be efficiently reconstructed in high dimension or
+    lower pca/umap space. Since we learn a vector field function, we can plot the full vector via streamline on the entire
+    domain as well as predicts cell state by providing a set of initial cell state (via `init_cells`, `init_states`). The
+    nullcline and separatrix provide topological information about the reconstructed vector field. By definition, the
+    x/y-nullcline is a set of points in the phase plane so that dx/dt = 0 or dy/dt=0. Geometrically, these are the points
+    where the vectors are either straight up or straight down. Algebraically, we find the x-nullcline by solving
+    f(x,y) = 0. The boundary different different attractor basis is the separatrix because it separates the regions into
+    different subregions with a specific behavior. To find them is a very difficult problem.
+
+    Here is more details on the fixed points drawn on the vector field:  Fixed points are concepts introduced in dynamic
+    systems theory. There are three types of fixed points: 1) repeller: a repelling state that only has outflows, which
+    may correspond to a pluripotent cell state (ESC) that tends to differentiate into other cell states automatically or
+    under small perturbation; 2) unstable fixed points or saddle points. Those states have attraction on some dimension
+    (genes or reduced dimensions) but diverge in at least one other dimension. Saddle may correspond to progenitors, which
+    are differentiated from ESC/pluripotent cells and relatively stable, but can further differentiate into multiple
+    terminal cell types / states; 3) lastly, stable fixed points or cell states or attractors, which only have inflows and
+    attracts all cell states nearby, which may correspond to stable cell types and can only be kicked out of its cell
+    state under extreme perturbation or in very rare situation. Fixed points are numbered with each number color coded.
+    The mapping of the color of the number to the type of fixed point are: red: repellers; blue: saddle points; black:
+    attractors. The scatter point itself also has filled color, which corresponds to confidence of the estimated fixed
+    point. The lighter, the more confident or the fixed points are are closer to the sequenced single cells. Confidence
+    of each fixed points can be used in conjunction with the Jacobian analysis for investigating regulatory network with
+    spatiotemporal resolution.
+
+    By default, we plot a figure with three subplots , each colors cells either with `potential`, `curl` or `divergence`.
+    `potential` is related to the intrinsic time, where a small potential is related to smaller intrinsic time and vice
+    versa. Divergence can be used to indicate the state of each cell is in, negative values correspond to potential sink
+    while positive corresponds to potential source. https://en.wikipedia.org/wiki/Divergence. Curl may be related to cell
+    cycle or other cycling cell dynamics. On 2d, negative values correspond to clockwise rotation while positive corresponds
+    to anticlockwise rotation. https://www.khanacademy.org/math/multivariable-calculus/greens-theorem-and-stokes-theorem/formal-definitions-of-divergence-and-curl/a/defining-curl
+    In conjunction with cell cycle score (dyn.pp.cell_cycle_scores), curl can be used to identify cells under active cell
+    cycle progression.
 
     Parameters
     ----------
@@ -661,9 +715,22 @@ def topography(
     -------
         Plot the streamline, fixed points (attractors / saddles), nullcline, separatrices of a recovered dynamic system
         for single cells or return the corresponding axis, depending on the plot argument.
+
+    See also:: :func:`pp.cell_cycle_scores`
     """
+
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
+
+    if color is None:
+        color = ['potential', 'curl', 'divergence'] if adata.n_obs < 5000 else ['curl', 'divergence']
+    if len(set(adata.obs.columns).intersection(color)) == 0:
+        if adata.obs.keys().isin(['potential']).sum() == 0:
+            ddhoge(adata, basis=basis)
+        if adata.obs.keys().isin(['curl']).sum() == 0:
+            curl(adata, basis=basis)
+        if adata.obs.keys().isin(['divergence']).sum() == 0:
+            divergence(adata, basis=basis)
 
     if background is None:
         _background = rcParams.get("figure.facecolor")

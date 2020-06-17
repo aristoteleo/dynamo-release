@@ -5,7 +5,7 @@
 
 import numpy as np
 from scipy.sparse import csr_matrix
-from scipy.linalg import inv, qr
+from scipy.linalg import qr
 from itertools import combinations
 from igraph import Graph
 from ..tools.scVectorField import vector_field_function, graphize_vecfld
@@ -59,7 +59,7 @@ def laplacian1(g):
 
 
 def potential(g, div_neg=None):
-    """potential is related to the instrinsic time. Note that the returned value from this function is the negative of
+    """potential is related to the intrinsic time. Note that the returned value from this function is the negative of
     potential. Thus small potential is related to smaller intrinsic time and vice versa."""
 
     div_neg = -div(g) if div_neg is None else div_neg
@@ -67,7 +67,7 @@ def potential(g, div_neg=None):
     g_undirected.to_undirected()
     L = np.array(g_undirected.laplacian())
     Q, R = qr(L)
-    p = inv(R).dot(Q.T).dot(div_neg)
+    p = np.linalg.pinv(R).dot(Q.T).dot(div_neg)
 
     res = p - p.min()
     return res
