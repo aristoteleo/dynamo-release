@@ -517,7 +517,8 @@ def dynamics(
                            (None if S is None else S[valid_gene_checker, :]), \
                            (None if Sl is None else Sl[valid_gene_checker, :])
             subset_adata = subset_adata[:, valid_gene_checker]
-            adata.var['sanity_check'] = valid_bools_
+            adata.var[kin_param_pre + 'sanity_check'] = valid_bools_
+
         if assumption_mRNA.lower() == 'auto': assumption_mRNA = assump_mRNA
         if experiment_type == 'conventional': assumption_mRNA = 'ss'
 
@@ -698,6 +699,10 @@ def dynamics(
         uns_key = group + "_dynamics"
     else:
         uns_key = "dynamics"
+
+    if sanity_check and experiment_type in ['kin', 'deg']:
+        sanity_check_cols = adata.var.columns.str.endswith('sanity_check')
+        adata.var['use_for_dynamo'] = adata.var.loc[:, sanity_check_cols].sum(1).astype(bool)
 
     adata.uns[uns_key] = {
         "filter_gene_mode": filter_gene_mode,
