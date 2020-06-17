@@ -5,7 +5,7 @@ from scipy.sparse import issparse, csr_matrix
 from ..preprocessing.preprocess import topTable
 from ..preprocessing.utils import get_layer_keys
 from .utils import save_fig
-from ..tools.utils import update_dict
+from ..tools.utils import update_dict, get_mapper
 from ..preprocessing.utils import detect_datatype
 
 def basic_stats(adata,
@@ -494,27 +494,6 @@ def feature_genes(adata,
         plt.show()
     elif save_show_or_return == "return":
         return ax
-
-
-import pandas as pd
-from scipy.sparse import issparse
-
-
-def get_mapper():
-    mapper = {
-        "X_spliced": "M_s",
-        "X_unspliced": "M_u",
-        "X_new": "M_n",
-        "X_old": "M_o",
-        "X_total": "M_t",
-        "X_uu": "M_uu",
-        "X_ul": "M_ul",
-        "X_su": "M_su",
-        "X_sl": "M_sl",
-        "X_protein": "M_p",
-        "X": "X",
-    }
-    return mapper
 
 
 def exp_over_groups(adata,
