@@ -1063,6 +1063,8 @@ def set_velocity_genes(
 
 
 def get_ekey_vkey_from_adata(adata):
+    """ekey: expression from which to extrapolate velocity; vkey: velocity key; layer: the states cells will be used in
+    velocity embedding. """
     dynamics_key = [i for i in adata.uns.keys() if i.endswith("dynamics")][0]
     experiment_type, use_smoothed = (
         adata.uns[dynamics_key]["experiment_type"],
@@ -1087,60 +1089,64 @@ def get_ekey_vkey_from_adata(adata):
                         adata.layers[mapper["X_su"]],
                         adata.layers[mapper["X_sl"]],
                     )
-                    ul, sl = (ul + sl, uu + ul + su + sl) if NTR else (ul + uu, sl + su)
-                    adata.layers["M_U"], adata.layers["M_S"] = ul, sl
-                else:
-                    uu, ul, su, sl = (
-                        adata.layers["X_uu"],
-                        adata.layers["X_ul"],
-                        adata.layers["X_su"],
-                        adata.layers["X_sl"],
-                    )
-                    ul, sl = (ul + sl, uu + ul + su + sl) if NTR else (ul + uu, sl + su)
-                    adata.layers["X_U"], adata.layers["X_S"] = ul, sl
+                    if 'M_n' not in adata.layers.keys():
+                        adata.layers["M_n"] = ul + sl
+                    elif NTR and "M_t" not in adata.layers.keys():
+                        adata.layers["M_t"] = uu + ul + su + sl
+                    elif not NTR and "M_s" not in adata.layers.keys():
+                        adata.layers["M_s"] = sl + su
+
+                uu, ul, su, sl = (
+                    adata.layers["X_uu"],
+                    adata.layers["X_ul"],
+                    adata.layers["X_su"],
+                    adata.layers["X_sl"],
+                )
+
+                if 'X_new' not in adata.layers.keys():
+                    adata.layers["X_new"] = ul + sl
+                elif NTR and "X_total" not in adata.layers.keys():
+                    adata.layers["X_total"] = uu + ul + su + sl
+                elif not NTR and "X_spliced" not in adata.layers.keys():
+                    adata.layers["X_spliced"] = sl + su
             else:
                 raise Exception(
-                    "The input data you have is not normalized/log trnasformed or smoothed and normalized/log trnasformed!"
+                    "The input data you have is not normalized or normalized + smoothed!"
                 )
 
             if experiment_type == "kin":
                 ekey, vkey, layer = (
-                    ("M_U", "velocity_U", "X_U")
+                    (mapper["X_total"] if NTR else mapper["X_spliced"], "velocity_S", ("X_total" if NTR else "X_spliced"))
                     if use_smoothed
-                    else ("X_U", "velocity_U", "X_U")
+                    else ("X_total" if NTR else "X_spliced", "velocity_S", "X_total" if NTR else "X_spliced")
                 )
             elif experiment_type == "deg":
                 ekey, vkey, layer = (
-                    ("M_S", "velocity_S", "X_S")
+                    (mapper["X_total"] if NTR else mapper["X_spliced"], "velocity_S", ("X_total" if NTR else "X_spliced"))
                     if use_smoothed
-                    else ("X_S", "velocity_S", "X_S")
+                    else ("X_total" if NTR else "X_spliced", "velocity_S", "X_total" if NTR else "X_spliced")
                 )
             elif experiment_type == "one_shot":
                 ekey, vkey, layer = (
-                    ("M_U", "velocity_U", "X_U")
+                    (mapper["X_total"] if NTR else mapper["X_spliced"], "velocity_S", ("X_total" if NTR else "X_spliced"))
                     if use_smoothed
-                    else ("X_U", "velocity_U", "X_U")
+                    else ("X_total" if NTR else "X_spliced", "velocity_S", "X_total" if NTR else "X_spliced")
                 )
             elif experiment_type == "mix_std_stm":
                 ekey, vkey, layer = (
-                    ("M_U", "velocity_U", "X_U")
+                    (mapper["X_total"] if NTR else mapper["X_spliced"], "velocity_S", ("X_total" if NTR else "X_spliced"))
                     if use_smoothed
-                    else ("X_U", "velocity_U", "X_U")
+                    else ("X_total" if NTR else "X_spliced", "velocity_S", "X_total" if NTR else "X_spliced")
                 )
         else:
-            if ("X_unspliced" in adata.layers.keys()) or (
+            if not (("X_unspliced" in adata.layers.keys()) or (
                 mapper["X_unspliced"] in adata.layers.keys()
-            ):  # unlabel spliced: S
-                if use_smoothed:
-                    ul, sl = mapper["X_unspliced"], mapper["X_spliced"]
-                else:
-                    ul, sl = "X_unspliced", "X_spliced"
-            else:
+            )):
                 raise Exception(
                     "The input data you have is not normalized/log trnasformed or smoothed and normalized/log trnasformed!"
                 )
             ekey, vkey, layer = (
-                ("M_s", "velocity_S", "X_spliced")
+                (mapper["X_spliced"], "velocity_S", "X_spliced")
                 if use_smoothed
                 else ("X_spliced", "velocity_S", "X_spliced")
             )
@@ -1152,9 +1158,9 @@ def get_ekey_vkey_from_adata(adata):
             # we may also create M_U, M_S layers?
             if experiment_type == "kin":
                 ekey, vkey, layer = (
-                    (mapper["X_new"], "velocity_U", "X_new")
+                    (mapper["X_total"], "velocity_S", "X_total")
                     if use_smoothed
-                    else ("X_new", "velocity_U", "X_new")
+                    else ("X_total", "velocity_S", "X_total")
                 )
             elif experiment_type == "deg":
                 ekey, vkey, layer = (
@@ -1170,12 +1176,12 @@ def get_ekey_vkey_from_adata(adata):
                 )
             elif experiment_type == "mix_std_stm":
                 ekey, vkey, layer = (
-                    (mapper["X_new"], "velocity_U", "X_new")
+                    (mapper["X_total"], "velocity_S", "X_total")
                     if use_smoothed
-                    else ("X_new", "velocity_U", "X_new")
+                    else ("X_total", "velocity_S", "X_total")
                 )
 
-        elif "new" in adata.layers.keys():
+        else:
             raise Exception(
                 "The input data you have is not normalized/log trnasformed or smoothed and normalized/log trnasformed!"
             )

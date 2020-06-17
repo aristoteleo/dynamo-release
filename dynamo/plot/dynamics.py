@@ -1028,6 +1028,7 @@ def dynamics(
         show_variance=True,
         show_kin_parameters=True,
         gene_order='column',
+        font_size_scale=1,
         save_show_or_return='show',
         save_kwargs={},
 ):
@@ -1069,6 +1070,8 @@ def dynamics(
             Whether to include the estimated kinetic parameter values on the plot.
         gene_order: `str` (default: `column`)
             The order of genes to present on the figure, either row-major or column major.
+        font_size_scale: `float` (default: `1`)
+            A value that will be used for scaling
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -1084,13 +1087,13 @@ def dynamics(
 
     import matplotlib.pyplot as plt
     import matplotlib
-    params = {'font.size': 4,
-              'legend.fontsize': 4,
+    params = {'font.size': 4 * font_size_scale,
+              'legend.fontsize': 4 * font_size_scale,
               'legend.handlelength': 0.5,
-              'axes.labelsize': 6,
-              'axes.titlesize': 6,
-              'xtick.labelsize': 6,
-              'ytick.labelsize': 6,
+              'axes.labelsize': 6 * font_size_scale,
+              'axes.titlesize': 6 * font_size_scale,
+              'xtick.labelsize': 6 * font_size_scale,
+              'ytick.labelsize': 6 * font_size_scale,
               'axes.titlepad': 1,
               'axes.labelpad': 1,
               'axes.spines.right': False,

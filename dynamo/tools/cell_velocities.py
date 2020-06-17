@@ -28,6 +28,7 @@ def cell_velocities(
     use_mnn=False,
     neighbors_from_basis=False,
     n_pca_components=None,
+    min_param=0.1,
     min_r2=0.01,
     basis="umap",
     method="pearson",
@@ -46,65 +47,72 @@ def cell_velocities(
     It is powered by the Itô kernel that not only considers the correlation between the vector from any cell to its
     nearest neighbors and its velocity vector but also the corresponding distances. We expect this new kernel will enable
     us to visualize more intricate vector flow or steady states in low dimension. We also expect it will improve the
-    calculation of the stationary distribution or source states of sampled cells. The original "correlation" velocity projection
-    method is also supported.
+    calculation of the stationary distribution or source states of sampled cells. The original "correlation/cosine"
+    velocity projection method is also supported. Kernels based on the reconstructed velocity field is also possible.
 
     Arguments
     ---------
         adata: :class:`~anndata.AnnData`
             an Annodata object.
         ekey: `str` or None (optional, default `None`)
-            The dictionary key that corresponds to the gene expression in the layer attribute. By default, ekey and vkey will be automatically
-            detected from the adata object.
+            The dictionary key that corresponds to the gene expression in the layer attribute. By default, ekey and vkey
+            will be automatically detected from the adata object.
         vkey: 'str' or None (optional, default `None`)
             The dictionary key that corresponds to the estimated velocity values in layers attribute.
         use_mnn: `bool` (optional, default `False`)
-            Whether to use mutual nearest neighbors for projecting the high dimensional velocity vectors. By default, we don't use the mutual
-            nearest neighbors.
+            Whether to use mutual nearest neighbors for projecting the high dimensional velocity vectors. By default, we
+            don't use the mutual nearest neighbors. Mutual nearest neighbors are calculated from nearest neighbors across
+            different layers, which which accounts for cases where, for example, the cells from spliced expression may be
+            nearest neighbors but far from nearest neighbors on unspliced data. Using mnn assumes your data from different
+            layers are reliable (otherwise it will destroy real signals).
         neighbors_from_basis: `bool` (optional, default `False`)
-            Whether to construct nearest neighbors from low dimensional space as defined by the `basis`.
+            Whether to construct nearest neighbors from low dimensional space as defined by the `basis`, instead of using
+            that calculated during UMAP process.
         n_pca_components: `int` (optional, default `None`)
-            The number of pca components to project the high dimensional X, V before calculating transition matrix for velocity visualization.
-            By default it is None and if method is `kmc`, n_pca_components will be reset to 30; otherwise use all high dimensional data for
-            velocity projection.
-        min_r2: `float` (optional, default `0.5`)
-            The minimal value of r-squared of the gamma fit for selecting velocity genes.
+            The number of pca components to project the high dimensional X, V before calculating transition matrix for
+            velocity visualization. By default it is None and if method is `kmc`, n_pca_components will be reset to 30;
+            otherwise use all high dimensional data for velocity projection.
+        min_param: `float` (optional, default `0.01`)
+            The minimal value of kinetic parameters for selecting velocity genes.
+        min_r2: `float` (optional, default `0.01`)
+            The minimal value of r-squared of the parameter fits for selecting velocity genes.
         basis: 'int' (optional, default `umap`)
             The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
         method: `string` (optional, default `pearson`)
             The method to calculate the transition matrix and project high dimensional vector to low dimension, either `kmc`,
             `cosine`, `pearson`, or `transform`. "kmc" is our new approach to learn the transition matrix via diffusion
             approximation or an Itô kernel. "cosine" or "pearson" are the methods used in the original RNA velocity paper
-            or the scvelo paper (Note that scVelo implemention actually centers both dX and V, so its cosine kernel is equivalent
-            to pearson correlation kernel but we provide the raw cosine kernel). "kmc" option is arguable better than "correlation"
-            or "cosine" as it not only considers the correlation but also the distance of the nearest neighbors to the high
-            dimensional velocity vector. Finally, the "transform" method uses umap's transform method to transform new data
-            points to the UMAP space. "transform" method is NOT recommended.
+            or the scvelo paper (Note that scVelo implementation actually centers both dX and V, so its cosine kernel is
+            equivalent to pearson correlation kernel but we also provide the raw cosine kernel). "kmc" option is arguable
+            better than "correlation" or "cosine" as it not only considers the correlation but also the distance of the
+            nearest neighbors to the high dimensional velocity vector. Finally, the "transform" method uses umap's transform
+            method to transform new data points to the UMAP space. "transform" method is NOT recommended. Kernels that
+            are based on the reconstructed vector field in high dimension is also possible.
         neg_cells_trick: 'bool' (optional, default `True`)
             Whether we should handle cells having negative correlations in gene expression difference with high dimensional
-            velocity vector separately. This option is borrow from scVelo package (https://github.com/theislab/scvelo) and
-            use in conjuction with "pearson" and "cosine" kernel. Not required if method is set to be "kmc".
+            velocity vector separately. This option was borrowed from scVelo package (https://github.com/theislab/scvelo)
+            and use in conjunction with "pearson" and "cosine" kernel. Not required if method is set to be "kmc".
         calc_rnd_vel: `bool` (default: `False`)
-            A logic flag to determine whether we will calculate the random velocity vectors which can be plotted downstream
-            as a negative control and used to adjust the quiver scale of the velocity field.
+            A logic flag to determine whether we will calculate the random velocity vectors which can be plotted
+            downstream as a negative control and used to adjust the quiver scale of the velocity field.
         xy_grid_nums: `tuple` (default: `(50, 50)`).
             A tuple of number of grids on each dimension.
         correct_density: `bool` (default: `False`)
-            Whether to correct density when calculating the markov transition matrix.
+            Whether to correct density when calculating the markov transition matrix, applicable to the `kmc` kernel.
         correct_density: `bool` (default: `False`)
-            Whether to scale velocity when calculating the markov transition matrix.
+            Whether to scale velocity when calculating the markov transition matrix, applicable to the `kmc` kernel.
         sample_fraction: `None` or `float` (default: None)
-            The downsampled fraction of kNN for the purpose of acceleration.
+            The downsampled fraction of kNN for the purpose of acceleration, applicable to the `kmc` kernel.
         random_seed: `int` (default: 19491001)
-            The random seed for numba to ensure consistency of the random velocity vectors. Default value 19491001 is a special
-            day for those who care.
+            The random seed for numba to ensure consistency of the random velocity vectors. Default value 19491001 is a
+            special day for those who care.
 
     Returns
     -------
         Adata: :class:`~anndata.AnnData`
-            Returns an updated `~anndata.AnnData` with transition_matrix and projected embedding of high dimension velocity vector
-            in the existing embedding of current cell state, calculated using either the Itô kernel method (default) or the diffusion
-            approximation or the method from (La Manno et al. 2018).
+            Returns an updated `~anndata.AnnData` with transition_matrix and projected embedding of high dimension velocity
+            vectors in the existing embeddings of current cell state, calculated using either the Itô kernel method
+            (default) or the diffusion approximation or the method from (La Manno et al. 2018).
     """
 
     mapper_r = get_mapper_inverse()

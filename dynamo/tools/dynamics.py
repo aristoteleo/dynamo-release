@@ -150,7 +150,7 @@ def dynamics(
             A updated AnnData object with estimated kinetic parameters, inferred velocity and estimation related information
             included. The estimated kinetic parameters are currently appended to .obs (should move to .obsm with the key
             `dynamics` later). Depends on the estimation method, experiment type and whether you applied estimation for
-            each groups via `group`, the number of returned parameters can be varible. For conventional scRNA-seq (including
+            each groups via `group`, the number of returned parameters can be variable. For conventional scRNA-seq (including
             cite-seq or other types of protein/RNA coassays) and somethings metabolic labeling data, the parameters will
             at mostly include:
                 alpha: Transcription rate
@@ -172,25 +172,26 @@ def dynamics(
                 beta_loggLL: loglikelihood of beta estimation (only applicable to stochastic model)
                 gamma_logLL: loglikelihood of gamma estimation (only applicable to stochastic model)
                 eta_logLL: loglikelihood of eta estimation (only applicable to stochastic model and RNA/protein coassay)
-                delta_loggLL: loglikelihood of delta estimation (only applicable to stochastic model and RNa/protein coassay)
+                delta_loggLL: loglikelihood of delta estimation (only applicable to stochastic model and RNA/protein coassay)
                 uu0: estimated amount of unspliced unlabeled RNA at time 0 (only applicable to data with both splicing and labeling)
                 ul0: estimated amount of unspliced labeled RNA at time 0 (only applicable to data with both splicing and labeling)
                 su0: estimated amount of spliced unlabeled RNA at time 0 (only applicable to data with both splicing and labeling)
                 sl0: estimated amount of spliced labeled RNA at time 0 (only applicable to data with both splicing and labeling)
-                U0: estimated amount of unspliced RNA (including uu, ul) at time 0
-                S0: estimated amount of spliced (including su, sl) RNA at time 0
-                total0: estimated amount of spliced (including U, S) RNA at time 0
+                U0: estimated amount of unspliced RNA (uu + ul) at time 0
+                S0: estimated amount of spliced (su + sl) RNA at time 0
+                total0: estimated amount of spliced (U + S) RNA at time 0
                 half_life: Spliced mRNA's half-life (log(2) / gamma)
 
             Note that all data points are used when estimating r2 although only extreme data points are used for
-            estimating r2. By default we set the intercept to be 0.
+            estimating r2. This is applicable to all estimation methods, either `linear_regression`, `gmm` or `negbin`.
+            By default we set the intercept to be 0.
 
             For metabolic labeling data, the kinetic parameters will at most include:
-                alpha: Transcription rate (effective)
+                alpha: Transcription rate (effective - when RNA promoter switching considered)
                 beta: Splicing rate
                 gamma: Spliced RNA degradation rate
                 a: Switching rate from active promoter state to inactive promoter state
-                b: Switching rate from active promoter state to inactive promoter state
+                b: Switching rate from inactive promoter state to active promoter state
                 alpha_a: Transcription rate for active promoter
                 alpha_i: Transcription rate for inactive promoter
                 cost: cost of the kinetic parameters estimation
@@ -208,19 +209,188 @@ def dynamics(
                 p_half_life: half-life for unspliced mRNA
                 half_life: half-life for spliced mRNA
 
-            If sanity_check has performed, a column with key sanity_check will also included which indicates which gene has pass filter
-            (`filter_gene_mode`) and sanity check. This is only applicable to kinetic and degradation metabolic labeling
-            experiments.
+            If sanity_check has performed, a column with key `sanity_check` will also included which indicates which gene
+            passes filter (`filter_gene_mode`) and sanity check. This is only applicable to kinetic and degradation metabolic
+            labeling experiments.
 
-            In addition, the `dynamics` key of the .uns attribute include the following information:
-                t: An array like object that indicates the time point of each cell used during parameters estimation (applicable only to kinetic models)
+            In addition, the `dynamics` key of the .uns attribute corresponds to a dictionary that includes the following
+            inforInclusive model of expression dynamics considers splicing, metabolic labeling and protein translation. It supports
+    learning high-dimensional velocity vector samples for droplet based (10x, inDrop, drop-seq, etc), scSLAM-seq, NASC-seq
+    sci-fate, scNT-seq or cite-seq datasets.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object.
+        tkey: `str` or None (default: None)
+            The column key for the time label of cells in .obs. Used for either "ss" or "kinetic" model.
+            mode  with labeled data. When `group` is None, `tkey` will also be used for calculating  1st/2st moment or covariance.
+        t_label_keys: `str`, `list` or None (default: None)
+            The column key(s) for the labeling time label of cells in .obs. Used for either "ss" or "kinetic" model.
+            Not used for now and `tkey` is implicitly assumed as `t_label_key` (however, `tkey` should just be the time
+            of the experiment).
+        filter_gene_mode: `str` (default: `final`)
+            The string for indicating which mode (one of, {'final', 'basic', 'no'}) of gene filter will be used.
+        use_smoothed: `bool` (default: 'True')
+            Whether to use the smoothed data when estimating kinetic parameters and calculating velocity for each gene.
+            When you have time-series data (`tkey` is not None), we recommend to smooth data among cells from each time point.
+        experiment_type: `str` {`conventional`, `deg`, `kin`, `one-shot`, `auto`}, (default: `auto`)
+            single cell RNA-seq experiment type. Available options are:
+            (1) 'conventional': conventional single-cell RNA-seq experiment;
+            (2) 'deg': chase/degradation experiment;
+            (3) 'kin': pulse/synthesis/kinetics experiment;
+            (4) 'one-shot': one-shot kinetic experiment;
+            (5) 'auto': dynamo will detect the experimental type automatically.
+        assumption_mRNA: `str` `str` {`ss`, `kinetic`, `auto`}, (default: `auto`)
+            Parameter estimation assumption for mRNA. Available options are:
+            (1) 'ss': pseudo steady state;
+            (2) 'kinetic' or None: degradation and kinetic data without steady state assumption.
+            If no labelling data exists, assumption_mRNA will automatically set to be 'ss'. For one-shot experiment, assumption_mRNA
+            is set to be None. However we will use steady state assumption to estimate parameters alpha and gamma either by a deterministic
+            linear regression or the first order decay approach in line of the sci-fate paper;
+            (3) 'auto': dynamo will choose a reasonable assumption of the system under study automatically.
+        assumption_protein: `str`, (default: `ss`)
+            Parameter estimation assumption for protein. Available options are:
+            (1) 'ss': pseudo steady state;
+        model: `str` {`auto`, `deterministic`, `stochastic`} (default: `auto`)
+            String indicates which estimation model will be used.
+            (1) 'deterministic': The method based on `deterministic` ordinary differential equations;
+            (2) 'stochastic' or `moment`: The new method from us that is based on `stochastic` master equations;
+            Note that `kinetic` model doesn't need to assumes the `experiment_type` is not `conventional`. As other labeling
+            experiments, if you specify the `tkey`, dynamo can also apply `kinetic` model on `conventional` scRNA-seq datasets.
+            A "model_selection" model will be supported soon in which alpha, beta and gamma will be modeled as a function of time.
+        est_method: `str` {`linear_regression`, `gmm`, `negbin`, `auto`} This parameter should be used in conjunction with `model` parameter.
+            * Available options when the `model` is 'ss' include:
+            (1) 'linear_regression': The canonical method from the seminar RNA velocity paper based on deterministic ordinary
+            differential equations;
+            (2) 'gmm': The new generalized methods of moments from us that is based on master equations, similar to the
+            "moment" model in the excellent scVelo package;
+            (3) 'negbin': The new method from us that models steady state RNA expression as a negative binomial distribution,
+            also built upon on master equations.
+            Note that all those methods require using extreme data points (except negbin, which use all data points) for
+            estimation. Extreme data points are defined as the data from cells whose expression of unspliced / spliced
+            or new / total RNA, etc. are in the top or bottom, 5%, for example. `linear_regression` only considers the mean of
+            RNA species (based on the `deterministic` ordinary different equations) while moment based methods (`gmm`, `negbin`)
+            considers both first moment (mean) and second moment (uncentered variance) of RNA species (based on the `stochastic`
+            master equations).
+            (4) 'auto': dynamo will choose the suitable estimation method based on the `assumption_mRNA`, `experiment_type`
+            and `model` parameter.
+            The above method are all (generalized) linear regression based method. In order to return estimated parameters
+            (including RNA half-life), it additionally returns R-squared (either just for extreme data points or all data points)
+            as well as the log-likelihood of the fitting, which will be used for transition matrix and velocity embedding.
+            * Available options when the `assumption_mRNA` is 'kinetic' include:
+            (1) 'auto': dynamo will choose the suitable estimation method based on the `assumption_mRNA`, `experiment_type`
+            and `model` parameter.
+            Under `kinetic` model, choosing estimation is `experiment_type` dependent. For `kinetics` experiments, dynamo
+            supposes methods including RNA bursting or without RNA bursting. Dynamo also adaptively estimates parameters, based
+            on whether the data has splicing or without splicing.
+            Under `kinetic` assumption, the above method uses non-linear least square fitting. In order to return estimated parameters
+            (including RNA half-life), it additionally returns the log-likelihood of the fittingwhich, which will be used for transition
+            matrix and velocity embedding.
+            All `est_method` uses least square to estimate optimal parameters with latin cubic sampler for initial sampling.
+        NTR_vel: `bool` (default: `True`)
+            Whether to use NTR (new/total ratio) velocity for labeling datasets.
+        group: `str` or None (default: `None`)
+            The column key/name that identifies the grouping information (for example, clusters that correspond to different cell types)
+            of cells. This will be used to calculate 1/2 st moments and covariance for each cells in each group. It will also enable
+            estimating group-specific (i.e cell-type specific) kinetic parameters.
+        protein_names: `List`
+            A list of gene names corresponds to the rows of the measured proteins in the `X_protein` of the `obsm` attribute.
+            The names have to be included in the adata.var.index.
+        concat_data: `bool` (default: `False`)
+            Whether to concatenate data before estimation. If your data is a list of matrices for each time point, this need to be set as True.
+        log_unnormalized: `bool` (default: `True`)
+            Whether to log transform the unnormalized data.
+        re_smooth: `bool` (default: `False`)
+            Whether to re-smooth the adata and also recalculate 1/2 moments or covariance.
+        sanity_check: `bool` (default: `False`)
+            Whether to perform sanity-check before estimating kinetic parameters and velocity vectors, currently only
+            applicable to kinetic or degradation metabolic labeling based scRNA-seq data. The basic idea is that for
+            kinetic (degradation) experiment, the total labelled RNA for each gene should increase (decrease) over time.
+            If they don't satisfy this criteria, those genes will be ignored during the estimation.
+        **est_kwargs
+            Other arguments passed to the estimation methods. Not used for now.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            A updated AnnData object with estimated kinetic parameters, inferred velocity and estimation related information
+            included. The estimated kinetic parameters are currently appended to .obs (should move to .obsm with the key
+            `dynamics` later). Depends on the estimation method, experiment type and whether you applied estimation for
+            each groups via `group`, the number of returned parameters can be variable. For conventional scRNA-seq (including
+            cite-seq or other types of protein/RNA coassays) and somethings metabolic labeling data, the parameters will
+            at mostly include:
+                alpha: Transcription rate
+                beta: Splicing rate
+                gamma: Spliced RNA degradation rate
+                eta: Translation rate (only applicable to RNA/protein coassay)
+                delta: Protein degradation rate (only applicable to RNA/protein coassay)
+                alpha_b: intercept of alpha fit
+                beta_b: intercept of beta fit
+                gamma_b: intercept of gamma fit
+                eta_b: intercept of eta fit (only applicable to RNA/protein coassay)
+                delta_b: intercept of delta fit (only applicable to RNA/protein coassay)
+                alpha_r2: r-squared for goodness of fit of alpha estimation
+                beta_r2: r-squared for goodness of fit of beta estimation
+                gamma_r2: r-squared for goodness of fit of gamma estimation
+                eta_r2: r-squared for goodness of fit of eta estimation (only applicable to RNA/protein coassay)
+                delta_r2: r-squared for goodness of fit of delta estimation (only applicable to RNA/protein coassay)
+                alpha_logLL: loglikelihood of alpha estimation (only applicable to stochastic model)
+                beta_loggLL: loglikelihood of beta estimation (only applicable to stochastic model)
+                gamma_logLL: loglikelihood of gamma estimation (only applicable to stochastic model)
+                eta_logLL: loglikelihood of eta estimation (only applicable to stochastic model and RNA/protein coassay)
+                delta_loggLL: loglikelihood of delta estimation (only applicable to stochastic model and RNA/protein coassay)
+                uu0: estimated amount of unspliced unlabeled RNA at time 0 (only applicable to data with both splicing and labeling)
+                ul0: estimated amount of unspliced labeled RNA at time 0 (only applicable to data with both splicing and labeling)
+                su0: estimated amount of spliced unlabeled RNA at time 0 (only applicable to data with both splicing and labeling)
+                sl0: estimated amount of spliced labeled RNA at time 0 (only applicable to data with both splicing and labeling)
+                U0: estimated amount of unspliced RNA (uu + ul) at time 0
+                S0: estimated amount of spliced (su + sl) RNA at time 0
+                total0: estimated amount of spliced (U + S) RNA at time 0
+                half_life: Spliced mRNA's half-life (log(2) / gamma)
+
+            Note that all data points are used when estimating r2 although only extreme data points are used for
+            estimating r2. This is applicable to all estimation methods, either `linear_regression`, `gmm` or `negbin`.
+            By default we set the intercept to be 0.
+
+            For metabolic labeling data, the kinetic parameters will at most include:
+                alpha: Transcription rate (effective - when RNA promoter switching considered)
+                beta: Splicing rate
+                gamma: Spliced RNA degradation rate
+                a: Switching rate from active promoter state to inactive promoter state
+                b: Switching rate from inactive promoter state to active promoter state
+                alpha_a: Transcription rate for active promoter
+                alpha_i: Transcription rate for inactive promoter
+                cost: cost of the kinetic parameters estimation
+                logLL: loglikelihood of kinetic parameters estimation
+                alpha_r2: r-squared for goodness of fit of alpha estimation
+                beta_r2: r-squared for goodness of fit of beta estimation
+                gamma_r2: r-squared for goodness of fit of gamma estimation
+                uu0: estimated amount of unspliced unlabeled RNA at time 0 (only applicable to data with both splicing and labeling)
+                ul0: estimated amount of unspliced labeled RNA at time 0 (only applicable to data with both splicing and labeling)
+                su0: estimated amount of spliced unlabeled RNA at time 0 (only applicable to data with both splicing and labeling)
+                sl0: estimated amount of spliced labeled RNA at time 0 (only applicable to data with both splicing and labeling)
+                u0: estimated amount of unspliced RNA (including uu, ul) at time 0
+                s0: estimated amount of spliced (including su, sl) RNA at time 0
+                total0: estimated amount of spliced (including U, S) RNA at time 0
+                p_half_life: half-life for unspliced mRNA
+                half_life: half-life for spliced mRNA
+
+            If sanity_check has performed, a column with key `sanity_check` will also included which indicates which gene
+            passes filter (`filter_gene_mode`) and sanity check. This is only applicable to kinetic and degradation metabolic
+            labeling experiments.
+
+            In addition, the `dynamics` key of the .uns attribute corresponds to a dictionary that includes the following
+            keys:
+                t: An array like object that indicates the time point of each cell used during parameters estimation
+                    (applicable only to kinetic models)
                 group: The group that you used to estimate parameters group-wise
                 X_data: The input that was used for estimating parameters (applicable only to kinetic models)
                 X_fit_data: The data that was fitted during parameters estimation (applicable only to kinetic models)
                 asspt_mRNA: Assumption of mRNA dynamics (steady state or kinetic)
                 experiment_type: Experiment type (either conventional or metabolic labeling based)
                 normalized: Whether to normalize data
-                model: Model used for the paramter estimation (either auto, deterministic or stochastic)
+                model: Model used for the parameter estimation (either auto, deterministic or stochastic)
                 has_splicing: Does the adata has splicing? detected automatically
                 has_labeling: Does the adata has labelling? detected automatically
                 has_protein: Does the adata has protein information? detected automatically
@@ -347,7 +517,7 @@ def dynamics(
                            (None if S is None else S[valid_gene_checker, :]), \
                            (None if Sl is None else Sl[valid_gene_checker, :])
             subset_adata = subset_adata[:, valid_gene_checker]
-            adata.obs['sanity_check'] = valid_bools_
+            adata.var['sanity_check'] = valid_bools_
         if assumption_mRNA.lower() == 'auto': assumption_mRNA = assump_mRNA
         if experiment_type == 'conventional': assumption_mRNA = 'ss'
 
