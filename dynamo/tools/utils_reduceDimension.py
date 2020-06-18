@@ -40,14 +40,14 @@ def prepare_dim_reduction(adata,
             if genes is not None:
                 X_data = adata[:, genes].X
             else:
-                X_data = adata.X if 'use_for_dynamo' not in adata.var.keys() \
-                    else adata[:, adata.var.use_for_dynamo].X
+                X_data = adata.X if 'use_for_dynamics' not in adata.var.keys() \
+                    else adata[:, adata.var.use_for_dynamics].X
         else:
             if genes is not None:
                 X_data = adata[:, genes].layers[layer]
             else:
-                X_data = adata.layers[layer] if 'use_for_dynamo' not in adata.var.keys() \
-                        else adata[:, adata.var.use_for_dynamo].layers[layer]
+                X_data = adata.layers[layer] if 'use_for_dynamics' not in adata.var.keys() \
+                        else adata[:, adata.var.use_for_dynamics].layers[layer]
 
             X_data = log1p_(adata, X_data)
     else:
@@ -61,14 +61,14 @@ def prepare_dim_reduction(adata,
                     if genes is not None:
                         CM = adata[:, genes].X
                     else:
-                        CM = adata.X if 'use_for_dynamo' not in adata.var.keys() \
-                            else adata[:, adata.var.use_for_dynamo].X
+                        CM = adata.X if 'use_for_dynamics' not in adata.var.keys() \
+                            else adata[:, adata.var.use_for_dynamics].X
                 else:
                     if genes is not None:
                         CM = adata[:, genes].layers[layer]
                     else:
-                        CM = adata.layers[layer] if 'use_for_dynamo' not in adata.var.keys() \
-                            else adata[:, adata.var.use_for_dynamo].layers[layer]
+                        CM = adata.layers[layer] if 'use_for_dynamics' not in adata.var.keys() \
+                            else adata[:, adata.var.use_for_dynamics].layers[layer]
 
                     CM = log1p_(adata, CM)
 

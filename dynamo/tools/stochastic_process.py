@@ -100,11 +100,11 @@ def diffusionMatrix(adata,
                 if genes is not None:
                     X_data, V_data = adata[:, genes].X, adata[:, genes].uns[vkey]
                 else:
-                    if 'use_for_dynamo' not in adata.var.keys():
+                    if 'use_for_dynamics' not in adata.var.keys():
                         X_data, V_data = adata.X, adata.uns[vkey]
                     else:
-                        X_data, V_data = adata[:, adata.var.use_for_dynamo].X, \
-                                         adata[:, adata.var.use_for_dynamo].uns[vkey]
+                        X_data, V_data = adata[:, adata.var.use_for_dynamics].X, \
+                                         adata[:, adata.var.use_for_dynamics].uns[vkey]
             else:
                 vkey = "velocity_" + layer[0].upper()
                 if vkey not in adata.uns_keys():
@@ -114,11 +114,11 @@ def diffusionMatrix(adata,
                 if genes is not None:
                     X_data, V_data = adata[:, genes].layers[layer], adata[:, genes].uns[vkey]
                 else:
-                    if 'use_for_dynamo' not in adata.var.keys():
+                    if 'use_for_dynamics' not in adata.var.keys():
                         X_data, V_data = adata.layers[layer], adata.uns[vkey]
                     else:
-                        X_data, V_data = adata[:, adata.var.use_for_dynamo].layers[layer], \
-                                         adata[:, adata.var.use_for_dynamo].uns[vkey]
+                        X_data, V_data = adata[:, adata.var.use_for_dynamics].layers[layer], \
+                                         adata[:, adata.var.use_for_dynamics].uns[vkey]
                 X_data = log1p_(adata, X_data)
         else:
             X_data, V_data = adata.obsm[basis], adata.obsm[vkey]

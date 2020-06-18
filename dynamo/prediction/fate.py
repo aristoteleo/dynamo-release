@@ -100,8 +100,8 @@ def fate(
     high_prediction = None
     if basis == "pca" and inverse_transform:
         high_prediction = adata.uns["pca_fit"].inverse_transform(prediction)
-        if adata.var.use_for_dynamo.sum() == high_prediction.shape[1]:
-            valid_genes = adata.var_names[adata.var.use_for_dynamo]
+        if adata.var.use_for_dynamics.sum() == high_prediction.shape[1]:
+            valid_genes = adata.var_names[adata.var.use_for_dynamics]
         else:
             valid_genes = adata.var_names[adata.var.use_for_velocity]
 
@@ -114,8 +114,8 @@ def fate(
             if ndim == adata.obsm["X"].shape[1]:  # lift the dimension up again
                 high_prediction = adata.uns["pca_fit"].inverse_transform(prediction)
 
-        if adata.var.use_for_dynamo.sum() == high_prediction.shape[1]:
-            valid_genes = adata.var_names[adata.var.use_for_dynamo]
+        if adata.var.use_for_dynamics.sum() == high_prediction.shape[1]:
+            valid_genes = adata.var_names[adata.var.use_for_dynamics]
         elif adata.var.use_for_velocity.sum() == high_prediction.shape[1]:
             valid_genes = adata.var_names[adata.var.use_for_velocity]
         else:

@@ -100,7 +100,7 @@ def _dynamics(
     """
 
     if (
-        "use_for_dynamo" not in adata.var.columns
+        "use_for_dynamics" not in adata.var.columns
         and "pass_basic_filter" not in adata.var.columns
     ):
         filter_gene_mode = "no"

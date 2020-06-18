@@ -282,7 +282,7 @@ def compute_velocity_labeling_B(B, alpha, R):
 # dynamics related:
 def get_valid_bools(adata, filter_gene_mode):
     if filter_gene_mode == "final":
-        valid_ind = adata.var.use_for_dynamo.values
+        valid_ind = adata.var.use_for_pca.values
     elif filter_gene_mode == "basic":
         valid_ind = adata.var.pass_basic_filter.values
     elif filter_gene_mode == "no":
@@ -994,7 +994,7 @@ def set_velocity_genes(
     min_alpha=0.01,
     min_gamma=0.01,
     min_delta=0.01,
-    use_for_dynamo=True,
+    use_for_dynamics=True,
 ):
     layer = vkey.split("_")[1]
 
@@ -1015,8 +1015,8 @@ def set_velocity_genes(
         adata.var["use_for_velocity"] = (
             (adata.var.alpha > min_alpha)
             & (adata.var.alpha_r2 > min_r2)
-            & adata.var.use_for_dynamo
-            if use_for_dynamo
+            & adata.var.use_for_dynamics
+            if use_for_dynamics
             else (adata.var.alpha > min_alpha) & (adata.var.alpha_r2 > min_r2)
         )
     elif layer is "S":
@@ -1034,8 +1034,8 @@ def set_velocity_genes(
         adata.var["use_for_velocity"] = (
             (adata.var.gamma > min_gamma)
             & (adata.var.gamma_r2 > min_r2)
-            & adata.var.use_for_dynamo
-            if use_for_dynamo
+            & adata.var.use_for_dynamics
+            if use_for_dynamics
             else (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2)
         )
     elif layer is "P":
@@ -1054,8 +1054,8 @@ def set_velocity_genes(
         adata.var["use_for_velocity"] = (
             (adata.var.delta > min_delta)
             & (adata.var.delta_r2 > min_r2)
-            & adata.var.use_for_dynamo
-            if use_for_dynamo
+            & adata.var.use_for_dynamics
+            if use_for_dynamics
             else (adata.var.delta > min_delta) & (adata.var.delta_r2 > min_r2)
         )
 

@@ -422,7 +422,7 @@ def feature_genes(adata,
             )
 
     ordering_genes = (
-        adata.var["use_for_dynamo"] if "use_for_dynamo" in adata.var.columns else None
+        adata.var["use_for_pca"] if "use_for_pca" in adata.var.columns else None
     )
 
     mu_linspace = np.linspace(x_min, x_max, num=1000)

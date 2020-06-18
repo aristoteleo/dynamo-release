@@ -333,7 +333,7 @@ def jacobian(adata,
 
     if type(source_genes) == str: source_genes = [source_genes]
     if type(target_genes) == str: target_genes = [target_genes]
-    var_df = adata[:, adata.var.use_for_dynamo].var
+    var_df = adata[:, adata.var.use_for_dynamics].var
     source_genes = var_df.index.intersection(source_genes)
     target_genes = var_df.index.intersection(target_genes)
 

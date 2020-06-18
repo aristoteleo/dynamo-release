@@ -271,8 +271,8 @@ def get_svr_filter(adata, layer="spliced", n_top_genes=3000, return_adata=False)
     feature_gene_idx = valid_idx[feature_gene_idx]
 
     if return_adata:
-        adata.var.loc[:, "use_for_dynamo"] = False
-        adata.var.loc[adata.var.index[feature_gene_idx], "use_for_dynamo"] = True
+        adata.var.loc[:, "use_for_dynamics"] = False
+        adata.var.loc[adata.var.index[feature_gene_idx], "use_for_dynamics"] = True
         res = adata
     else:
         filter_bool = np.zeros(adata.n_vars, dtype=bool)

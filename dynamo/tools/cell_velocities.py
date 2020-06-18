@@ -149,9 +149,9 @@ def cell_velocities(
             )
             indices, dist = indices[:, 1:], dist[:, 1:]
 
-    use_for_dynamo = True if "use_for_dynamo" in adata.var.keys() else False
+    use_for_dynamics = True if "use_for_dynamics" in adata.var.keys() else False
     adata = set_velocity_genes(
-        adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamo=use_for_dynamo
+        adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamics=use_for_dynamics
     )
 
     X = adata[:, adata.var.use_for_velocity.values].layers[ekey]
@@ -290,7 +290,7 @@ def cell_velocities(
         )
 
         if "pca_fit" not in adata.uns_keys() or type(adata.uns["pca_fit"]) == str:
-            CM = adata.X[:, adata.var.use_for_dynamo.values]
+            CM = adata.X[:, adata.var.use_for_dynamics.values]
             from ..preprocessing.utils import pca
 
             adata, pca_fit, X_pca = pca(adata, CM, n_pca_components, "X")
@@ -298,7 +298,7 @@ def cell_velocities(
 
         X_pca, pca_fit = adata.obsm["X"], adata.uns["pca_fit"]
         V = (
-            adata[:, adata.var.use_for_dynamo.values].layers[vkey]
+            adata[:, adata.var.use_for_dynamics.values].layers[vkey]
             if vkey in adata.layers.keys()
             else None
         )
