@@ -271,8 +271,8 @@ def get_svr_filter(adata, layer="spliced", n_top_genes=3000, return_adata=False)
     feature_gene_idx = valid_idx[feature_gene_idx]
 
     if return_adata:
-        adata.var.loc[:, "use_for_dynamics"] = False
-        adata.var.loc[adata.var.index[feature_gene_idx], "use_for_dynamics"] = True
+        adata.var.loc[:, "use_for_pca"] = False
+        adata.var.loc[adata.var.index[feature_gene_idx], "use_for_pca"] = True
         res = adata
     else:
         filter_bool = np.zeros(adata.n_vars, dtype=bool)
@@ -422,10 +422,10 @@ def collapse_adata(adata):
     only_splicing, only_labeling, splicing_and_labeling = allowed_layer_raw_names()
 
     if np.all([i in adata.layers.keys() for i in splicing_and_labeling]):
-        adata.layers[only_splicing[0]] = adata.layers['su'] + adata.layers['sl']
-        adata.layers[only_splicing[1]] = adata.layers['uu'] + adata.layers['ul']
-        adata.layers[only_labeling[0]] = adata.layers['ul'] + adata.layers['sl']
-        adata.layers[only_labeling[1]] = adata.layers[only_labeling[0]] + adata.layers['uu'] + adata.layers['su']
+        if only_splicing[0] not in adata.layers.keys(): adata.layers[only_splicing[0]] = adata.layers['su'] + adata.layers['sl']
+        if only_splicing[1] not in adata.layers.keys(): adata.layers[only_splicing[1]] = adata.layers['uu'] + adata.layers['ul']
+        if only_labeling[0] not in adata.layers.keys(): adata.layers[only_labeling[0]] = adata.layers['ul'] + adata.layers['sl']
+        if only_labeling[1] not in adata.layers.keys(): adata.layers[only_labeling[1]] = adata.layers[only_labeling[0]] + adata.layers['uu'] + adata.layers['su']
 
     return adata
 

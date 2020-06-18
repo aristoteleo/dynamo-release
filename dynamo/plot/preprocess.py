@@ -500,11 +500,13 @@ def exp_by_groups(adata,
                     genes,
                     layer=None,
                     group=None,
+                    use_ratio=False,
                     use_smoothed=True,
                     log=True,
                     angle=0,
                     save_show_or_return='show',
-                    save_kwargs={}, ):
+                    save_kwargs={},
+                  ):
     """Plot the (labeled) expression values of genes across different groups (time points).
 
     This function can be used as a sanity check about the labeled species to see whether they increase or decrease across
@@ -520,6 +522,8 @@ def exp_by_groups(adata,
             Which group information to plot aganist (as elements on x-axis). Default is None, or no groups will be used.
             Normally you should supply the column that indicates the time related to the labeling experiment. For example,
             it can be either the labeling time for a kinetic experiment or the chase time for a degradation experiment.
+        use_ratio: `bool` (default: False)
+            Whether to plot the fraction of expression (for example NTR, new to total ratio) over groups.
         use_smoothed: `bool` (default: 'True')
             Whether to use the smoothed data as gene expression.
         log: `bool` (default: `True`)
@@ -565,6 +569,27 @@ def exp_by_groups(adata,
 
     exprs = adata[:, valid_genes].X if layer == 'X' else adata[:, valid_genes].layers[layer]
     exprs = exprs.A if issparse(exprs) else exprs
+    if use_ratio:
+        has_splicing, has_labeling, has_protein = detect_datatype(adata)
+        if has_labeling:
+            if layer.startswith('X_') or layer.startswith('M_'):
+                tot = adata[:, valid_genes].layers[mapper('X_total')] if use_smoothed \
+                    else adata[:, valid_genes].layers['X_total']
+                tot = tot.A if issparse(tot) else tot
+                exprs = exprs / tot
+            else:
+                exprs = exprs
+        else:
+            if layer.startswith('X_') or layer.startswith('M_'):
+                tot = adata[:, valid_genes].layers[mapper('X_unspliced')] + \
+                        adata[:, valid_genes].layers[mapper('X_spliced')] if use_smoothed \
+                    else adata[:, valid_genes].layers['X_unspliced'] + \
+                         adata[:, valid_genes].layers['X_spliced']
+                tot = tot.A if issparse(tot) else tot
+                exprs = exprs / tot
+            else:
+                exprs = exprs
+
     df = pd.DataFrame(np.log1p(exprs), index=adata.obs_names, columns=valid_genes) if log else \
         pd.DataFrame(np.log1p(exprs), index=adata.obs_names, columns=valid_genes)
 
