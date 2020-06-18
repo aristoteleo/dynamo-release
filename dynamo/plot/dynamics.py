@@ -24,7 +24,7 @@ def phase_portraits(
         ekey="X",
         basis="umap",
         log1p=True, 
-        color=None,
+        color='nGenes',
         highlights=None,
         discrete_continous_div_themes=None,
         discrete_continous_div_cmap=None,
@@ -71,7 +71,7 @@ def phase_portraits(
             Which low dimensional embedding will be used to visualize the cell.
         log1p: `bool` (default: `True`)
             Whether to log1p transform the expression so that visualization can be robust to extreme values.
-        color: `string` (default: None)
+        color: `string` (default: 'nGenes')
             Which group will be used to color cells, only used for the phase portrait because the other two plots are colored
             by the velocity magnitude or the gene expression value, respectively.
         highlights: `list` (default: None)

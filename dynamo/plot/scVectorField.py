@@ -3,7 +3,13 @@ import pandas as pd
 from scipy.sparse import issparse
 
 from .scatters import scatters
-from .utils import quiver_autoscaler, default_quiver_args, save_fig
+from .utils import (
+    quiver_autoscaler,
+    default_quiver_args,
+    save_fig,
+    set_arrow_alpha,
+    set_stream_line_alpha,
+)
 from ..tools.dimension_reduction import reduceDimension
 from ..tools.cell_velocities import cell_velocities
 from ..tools.Markov import prepare_velocity_grid_data, velocity_on_grid, grid_velocity_filter
@@ -1039,7 +1045,7 @@ def cell_wise_velocity(
     basis="umap",
     x=0,
     y=1,
-    color=None,
+    color='nGenes',
     layer="X",
     highlights=None,
     labels=None,
@@ -1226,7 +1232,7 @@ def grid_velocity(
     basis="umap",
     x=0,
     y=1,
-    color=None,
+    color='nGenes',
     layer="X",
     highlights=None,
     labels=None,
@@ -1468,7 +1474,7 @@ def streamline_plot(
     basis="umap",
     x=0,
     y=1,
-    color=None,
+    color='nGenes',
     layer="X",
     highlights=None,
     labels=None,
@@ -1492,6 +1498,7 @@ def streamline_plot(
     cut_off_velocity=True,
     density=1,
     linewidth=1,
+    streamline_alpha=1,
     save_show_or_return='show',
     save_kwargs={},
     s_kwargs_dict={},
@@ -1516,6 +1523,8 @@ def streamline_plot(
             density of the plt.streamplot function.
         linewidth: `float` or None (default: 1)
             multiplier of automatically calculated linewidth passed to the plt.streamplot function.
+        streamline_alpha: `float` or None (default: 1)
+            The alpha value applied to the vector field stream lines.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'streamline_plot', "dpi": None, "ext": 'pdf', "transparent": True, "close":
@@ -1674,7 +1683,7 @@ def streamline_plot(
 
     for i in range(len(axes_list)):
         axes_list[i].set_facecolor(background)
-        axes_list[i].streamplot(
+        s = axes_list[i].streamplot(
             X_grid[0],
             X_grid[1],
             V_grid[0],
@@ -1682,6 +1691,8 @@ def streamline_plot(
             color=streamline_color,
             **streamplot_kwargs,
         )
+        set_arrow_alpha(axes_list[i], streamline_alpha)
+        set_stream_line_alpha(s, streamline_alpha)
 
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'streamline_plot', "dpi": None,

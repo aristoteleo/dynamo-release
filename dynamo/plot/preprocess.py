@@ -10,6 +10,7 @@ from ..preprocessing.utils import detect_datatype
 
 def basic_stats(adata,
                   group=None,
+                  figsize=(3, 3),
                   save_show_or_return='show',
                   save_kwargs={},):
     """Plot the basic statics (nGenes, nCounts and pMito) of each category of adata.
@@ -20,6 +21,8 @@ def basic_stats(adata,
         an Annodata object
     group: `string` (default: None)
         Which group to facets the data into subplots. Default is None, or no faceting will be used.
+    figsize: `string` (default: (3, 3))
+        Figure size of each facet.
     save_show_or_return: {'show', 'save', 'return'} (default: `show`)
         Whether to save, show or return the figure.
     save_kwargs: `dict` (default: `{}`)
@@ -58,7 +61,8 @@ def basic_stats(adata,
         )
 
     # https://wckdouglas.github.io/2016/12/seaborn_annoying_title
-    g = sns.FacetGrid(res, col="variable", sharex=False, sharey=False, margin_titles=True, hue="variable")
+    g = sns.FacetGrid(res, col="variable", sharex=False, sharey=False, margin_titles=True, hue="variable",
+                      height=figsize[1], aspect=figsize[0]/figsize[1])
     if group is None:
         g.map_dataframe(sns.violinplot, x="variable", y="value")
         g.set_xticklabels([])
@@ -90,6 +94,7 @@ def basic_stats(adata,
 
 def show_fraction(adata,
                   group=None,
+                  figsize=(3, 3),
                   save_show_or_return='show',
                   save_kwargs={},):
     """Plot the fraction of each category of data used in the velocity estimation.
@@ -100,6 +105,8 @@ def show_fraction(adata,
         an Annodata object
     group: `string` (default: None)
         Which group to facets the data into subplots. Default is None, or no faceting will be used.
+    figsize: `string` (default: (3, 3))
+        Figure size of each facet.
     save_show_or_return: {'show', 'save', 'return'} (default: `show`)
         Whether to save, show or return the figure.
     save_kwargs: `dict` (default: `{}`)
@@ -264,7 +271,8 @@ def show_fraction(adata,
         else:
             res = df.melt(value_vars=["uu_frac", "ul_frac", "su_frac", "sl_frac"])
 
-    g = sns.FacetGrid(res, col="variable", sharex=False, sharey=False, margin_titles=True, hue="variable")
+    g = sns.FacetGrid(res, col="variable", sharex=False, sharey=False, margin_titles=True, hue="variable",
+                      height=figsize[1], aspect=figsize[0]/figsize[1])
     if group is None:
         g.map_dataframe(sns.violinplot, x="variable", y="value")
         g.set_xticklabels([])
@@ -297,6 +305,7 @@ def show_fraction(adata,
 def variance_explained(adata,
                        threshold=0.002,
                        n_pcs=None,
+                       figsize=(3, 3),
                        save_show_or_return='show',
                        save_kwargs={},
                        ):
@@ -311,6 +320,8 @@ def variance_explained(adata,
             reduction.
         n_pcs: `int` (default: `None`)
             Number of principal components.
+        figsize: `string` (default: (3, 3))
+            Figure size of each facet.
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -327,7 +338,8 @@ def variance_explained(adata,
     import matplotlib.pyplot as plt
 
     var_ = adata.uns["explained_variance_ratio_"]
-    _, ax = plt.subplots()
+    plt.figure(figsize=figsize)
+    _, ax = plt.subplots(figsize)
     ax.plot(var_, c="r")
     tmp = np.diff(np.diff(np.cumsum(var_)) > threshold)
     n_comps = n_pcs if n_pcs is not None else np.where(tmp)[0][0] if np.any(tmp) else 20
@@ -353,6 +365,7 @@ def variance_explained(adata,
 def feature_genes(adata,
                   layer="X",
                   mode=None,
+                  figsize=(3,3),
                   save_show_or_return='show',
                   save_kwargs={},
 ):
@@ -366,6 +379,8 @@ def feature_genes(adata,
             The data from a particular layer (include X) used for making the feature gene plot.
         mode: None or `str` (default: `None`)
             The method to select the feature genes (can be either `dispersion`, `gini` or `SVR`).
+        figsize: `string` (default: (3, 3))
+            Figure size of each facet.
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -432,6 +447,7 @@ def feature_genes(adata,
         else adata.uns[key]["SVR"](mu_linspace.reshape(-1, 1))
     )
 
+    plt.figure(figsize=figsize)
     plt.plot(mu_linspace, fit, alpha=0.4, color="r")
     valid_ind = (
         table.index.isin(ordering_genes.index[ordering_genes])
@@ -504,6 +520,7 @@ def exp_by_groups(adata,
                     use_smoothed=True,
                     log=True,
                     angle=0,
+                    figsize=(3, 3),
                     save_show_or_return='show',
                     save_kwargs={},
                   ):
@@ -528,6 +545,8 @@ def exp_by_groups(adata,
             Whether to use the smoothed data as gene expression.
         log: `bool` (default: `True`)
             Whether to log1p transform the expression data.
+        figsize: `string` (default: (3, 3))
+            Figure size of each facet.
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -603,7 +622,8 @@ def exp_by_groups(adata,
         res = df.melt(id_vars=["group"])
 
     # https://wckdouglas.github.io/2016/12/seaborn_annoying_title
-    g = sns.FacetGrid(res, row="variable", sharex=False, sharey=False, margin_titles=True, hue="variable")
+    g = sns.FacetGrid(res, row="variable", sharex=False, sharey=False, margin_titles=True, hue="variable",
+                      height=figsize[1], aspect=figsize[0]/figsize[1])
     g.map_dataframe(sns.violinplot, x="group", y="value")
     g.map_dataframe(sns.pointplot, x="group", y="value", color='k')
     if group is None:

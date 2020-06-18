@@ -847,7 +847,7 @@ def set_colorbar(ax):
     from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
     axins = inset_axes(ax,
-                       width="1.5%",  # width = 5% of parent_bbox width
+                       width="2.5%",  # width = 5% of parent_bbox width
                        height="20%",  # height : 50%
                        # loc='lower left',
                        # bbox_to_anchor=(1.05, 0., 1, 1),

@@ -541,7 +541,7 @@ def topography(
     basis="umap",
     x=0,
     y=1,
-    color=None,
+    color='nGenes',
     layer="X",
     highlights=None,
     labels=None,
