@@ -24,7 +24,7 @@ def phase_portraits(
         ekey="X",
         basis="umap",
         log1p=True, 
-        color='nGenes',
+        color='cell_cycle_phase',
         highlights=None,
         discrete_continous_div_themes=None,
         discrete_continous_div_cmap=None,
@@ -61,7 +61,7 @@ def phase_portraits(
         y: `int` (default: `1`)
                 The column index of the low dimensional embedding for the y-axis
         pointsize: `None` or `float` (default: None)
-                The scale of the point size. Actual point cell size is calculated as `500.0 / np.sqrt(adata.shape[0]) * pointsize`
+                The scale of the point size. Actual point cell size is calculated as `2500.0 / np.sqrt(adata.shape[0]) * pointsize`
         vkey: `string` (default: velocity)
             Which velocity key used for visualizing the magnitude of velocity. Can be either velocity in the layers slot or the
             keys in the obsm slot.
@@ -71,7 +71,7 @@ def phase_portraits(
             Which low dimensional embedding will be used to visualize the cell.
         log1p: `bool` (default: `True`)
             Whether to log1p transform the expression so that visualization can be robust to extreme values.
-        color: `string` (default: 'nGenes')
+        color: `string` (default: 'cell_cycle_phase')
             Which group will be used to color cells, only used for the phase portrait because the other two plots are colored
             by the velocity magnitude or the gene expression value, respectively.
         highlights: `list` (default: None)
@@ -172,9 +172,9 @@ def phase_portraits(
     mapper = get_mapper()
 
     point_size = (
-        500.0 / np.sqrt(adata.shape[0])
+        500.0 / np.sqrt(adata.shape[0]) * 5
         if pointsize is None
-        else 500.0 / np.sqrt(adata.shape[0]) * pointsize
+        else 500.0 / np.sqrt(adata.shape[0]) * 5 * pointsize
     )
     scatter_kwargs = dict(
         alpha=0.2, s=point_size, edgecolor=None, linewidth=0
@@ -517,7 +517,7 @@ def phase_portraits(
     font_color = _select_font_color(discrete_background)
 
     # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
-    gs = plt.GridSpec(nrow, ncol, wspace=0.12, hspace=0.3)
+    gs = plt.GridSpec(nrow, ncol, wspace=0.5, hspace=0.36)
     for i, gn in enumerate(genes):
         if num_per_gene is 3:
             ax1, ax2, ax3 = (

@@ -25,7 +25,7 @@ from .utils import (
     detect_datatype,
     basic_stats,
 )
-
+from .cell_cycle import cell_cycle_scores
 
 def szFactor(
     adata_ori,
@@ -1361,6 +1361,8 @@ def recipe_monocle(
     # calculate NTR for every cell:
     ntr = NTR(adata)
     if ntr is not None: adata.obs['ntr'] = ntr
+
+    cell_cycle_scores(adata)
 
     return adata
 

@@ -68,7 +68,7 @@ def state_graph(
     basis="umap",
     x=0,
     y=1,
-    color='nGenes',
+    color='cell_cycle_phase',
     layer="X",
     highlights=None,
     labels=None,
