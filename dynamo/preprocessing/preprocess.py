@@ -1235,6 +1235,8 @@ def recipe_monocle(
         else:
             adata.var['scopes'] = adata.var.index
 
+        warnings.warn('Your adata object uses non-official gene names as gene index. \n'
+                      'Dynamo is converting those names to official gene names.')
         official_gene_df = convert2gene_symbol(adata.var_names, scopes)
         merge_df = adata.var.merge(official_gene_df, left_on='query', right_on='query', how='left').set_index(
             adata.var.index)
