@@ -67,7 +67,7 @@ def plot_flow_field(
         The color of the vector field stream lines.
     streamline_alpha: `float` or None (default: 0.4)
         The alpha value applied to the vector field stream lines.
-    color_start_points: `float` or None (default: 1)
+    color_start_points: `float` or None (default: `None`)
         The color of the starting point that will be used to predict cell fates.
     save_show_or_return: {'show', 'save', 'return'} (default: `return`)
         Whether to save, show or return the figure.
@@ -661,7 +661,7 @@ def topography(
         quiver_length: `float` or None (default: None)
             The length of quiver. The quiver length which will be used to calculate scale of quiver. Note that befoe applying
             `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale of quiver indicates
-            the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller scale parameter makes the arrow longer.
+            the nuu\mber of data units per arrow length unit, e.g., m/s per plot width; a smaller scale parameter makes the arrow longer.
         density: `float` or None (default: 1)
             density of the plt.streamplot function.
         linewidth: `float` or None (default: 1)
@@ -670,7 +670,7 @@ def topography(
             The color of the vector field stream lines.
         streamline_alpha: `float` or None (default: 0.4)
             The alpha value applied to the vector field stream lines.
-        color_start_points: `float` or None (default: 1)
+        color_start_points: `float` or None (default: `None`)
             The color of the starting point that will be used to predict cell fates.
         markersize: `float` (default: 200)
             The size of the marker.
