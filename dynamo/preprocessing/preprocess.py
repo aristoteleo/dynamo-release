@@ -7,6 +7,7 @@ from sklearn.utils import sparsefuncs
 
 from ..tools.utils import update_dict
 from .utils import (
+    ensemble2gene_symbol,
     pca,
     clusters_stats,
     cook_dist,
@@ -1205,6 +1206,19 @@ def recipe_monocle(
         adata: :class:`~anndata.AnnData`
             A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions, etc.
     """
+
+    if np.all(adata.var_names.str.startswith('ENS')):
+        prefix = adata.var_names[0]
+        if prefix[:4] == 'ENSG':
+            species = 'human'
+        elif prefix[:7] == 'ENSMUSG':
+            species = 'mouse'
+        else:
+            raise Exception('Unknown species. Please first convert the ensemble ID to gene short name')
+
+        offficial_gene_df = ensemble2gene_symbol(adata.var_names, species)
+        valid_ind = np.where(offficial_gene_df['notfound'] != True)[0]
+        adata = adata[valid_ind, :]
 
     if norm_method == 'Freeman_Tukey': norm_method = Freeman_Tukey
 

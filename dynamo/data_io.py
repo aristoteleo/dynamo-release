@@ -72,7 +72,7 @@ def load_NASC_seq(dir, delimiter="_", colnames=None):
 
 
 def cleanup(adata):
-    """clean up  adata before saving adata to a file"""
+    """clean up adata before saving it to a file"""
 
     adata.uns['pca_fit'] = None
     adata.uns['velocyto_SVR']['SVR'] = None

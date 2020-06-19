@@ -6,6 +6,22 @@ from sklearn.decomposition import PCA, TruncatedSVD
 
 
 # ---------------------------------------------------------------------------------------------------
+# symbol conversion related
+def ensemble2gene_symbol(ensemble_names, species):
+    try:
+        import mygene
+    except ImportError:
+        raise ImportError("You need to install the package `mygene` "
+                          "(https://pypi.org/project/mygene/).")
+
+    import mygene
+    mg = mygene.MyGeneInfo()
+    geneSyms = mg.querymany(ensemble_names, scopes='ensembl.gene', fields='symbol', species=species)
+    var_pd = pd.DataFrame(geneSyms)
+
+    return var_pd
+
+# ---------------------------------------------------------------------------------------------------
 # implmentation of Cooks' distance (but this is for Poisson distribution fitting)
 
 # https://stackoverflow.com/questions/47686227/poisson-regression-in-statsmodels-and-r

@@ -661,7 +661,7 @@ def topography(
         quiver_length: `float` or None (default: None)
             The length of quiver. The quiver length which will be used to calculate scale of quiver. Note that befoe applying
             `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale of quiver indicates
-            the nuu\mber of data units per arrow length unit, e.g., m/s per plot width; a smaller scale parameter makes the arrow longer.
+            the number of data units per arrow length unit, e.g., m/s per plot width; a smaller scale parameter makes the arrow longer.
         density: `float` or None (default: 1)
             density of the plt.streamplot function.
         linewidth: `float` or None (default: 1)
