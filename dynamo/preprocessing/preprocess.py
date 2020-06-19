@@ -1195,7 +1195,7 @@ def recipe_monocle(
             Whether to keep genes that don't pass the filtering in the adata object.
         keep_filtered_genes: `bool` (default: `True`)
             Whether to keep genes that don't pass the filtering in the adata object.
-        scopes: `list-like` or `None` (default: `None`)
+        scopes: `str`, list-like` or `None` (default: `None`)
             Scopes are needed when you use non-official gene name as your gene indices (or adata.var_name). This
             arugument corresponds to type of types of identifiers, either a list or a comma-separated fields to specify
             type of input qterms, e.g. “entrezgene”, “entrezgene,symbol”, [“ensemblgene”, “symbol”]. Refer to official
@@ -1230,7 +1230,10 @@ def recipe_monocle(
                                 'See also dyn.pp.convert2gene_symbol')
 
         adata.var['query'] = [i.split('.')[0] for i in adata.var.index]
-        adata.var[scopes] = adata.var.index
+        if scopes is str:
+            adata.var[scopes] = adata.var.index
+        else:
+            adata.var['scopes'] = adata.var.index
 
         official_gene_df = convert2gene_symbol(adata.var_names, scopes)
         merge_df = adata.var.merge(official_gene_df, left_on='query', right_on='query', how='left').set_index(
@@ -1397,7 +1400,12 @@ def recipe_monocle(
     ntr = NTR(adata)
     if ntr is not None: adata.obs['ntr'] = ntr
 
-    cell_cycle_scores(adata)
+    try:
+        cell_cycle_scores(adata)
+    except Exception:
+        warnings.warn('Dynamo is not able to perform cell cycle staging for you automatically. \n'
+                      'Since most plotting figures in dynamo by default color cells by its cell-cycle stage, \n'
+                      'you need to set color argument accordingly if confronting errors related to this.')
 
     return adata
 
