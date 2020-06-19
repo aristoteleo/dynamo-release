@@ -1155,6 +1155,7 @@ def recipe_monocle(
     relative_expr=True,
     keep_filtered_cells=True,
     keep_filtered_genes=True,
+    scopes=None,
     fc_kwargs=None,
     fg_kwargs=None,
     sg_kwargs=None,
@@ -1194,6 +1195,12 @@ def recipe_monocle(
             Whether to keep genes that don't pass the filtering in the adata object.
         keep_filtered_genes: `bool` (default: `True`)
             Whether to keep genes that don't pass the filtering in the adata object.
+        scopes: `list-like` or `None` (default: `None`)
+            Scopes are needed when you use non-official gene name as your gene indices (or adata.var_name). This
+            arugument corresponds to type of types of identifiers, either a list or a comma-separated fields to specify
+            type of input qterms, e.g. “entrezgene”, “entrezgene,symbol”, [“ensemblgene”, “symbol”]. Refer to official
+            MyGene.info docs (https://docs.mygene.info/en/latest/doc/query_service.html#available_fields) for full list
+            of fields.
         fc_kwargs: `dict` or None (default: `None`)
             Other Parameters passed into the filter_genes function.
         fg_kwargs: `dict` or None (default: `None`)
@@ -1209,16 +1216,30 @@ def recipe_monocle(
 
     if np.all(adata.var_names.str.startswith('ENS')):
         prefix = adata.var_names[0]
-        if prefix[:4] == 'ENSG':
-            species = 'human'
-        elif prefix[:7] == 'ENSMUSG':
-            species = 'mouse'
-        else:
-            raise Exception('Unknown species. Please first convert the ensemble ID to gene short name')
+        if scopes is None:
+            if prefix[:4] == 'ENSG' or prefix[:7] == 'ENSMUSG':
+                scopes = 'ensembl.gene'
+            elif prefix[:4] == 'ENST' or prefix[:7] == 'ENSMUST':
+                scopes = 'ensembl.transcript'
+            else:
+                raise Exception('Your adata object uses non-official gene names as gene index. \n'
+                                'Dynamo finds those IDs are neither from ensembl.gene or ensembl.transcript and thus cannot '
+                                'convert them automatically. \n'
+                                'Please pass the correct scopes () first convert the ensemble ID to gene short name '
+                                '(for example, using mygene package). \n'
+                                'See also dyn.pp.ensemble2gene_symbol')
 
-        offficial_gene_df = ensemble2gene_symbol(adata.var_names, species)
-        valid_ind = np.where(offficial_gene_df['notfound'] != True)[0]
-        adata = adata[valid_ind, :]
+        adata.var['ensemble_id_'] = [i.split('.')[0] for i in adata.var.index]
+        adata.var['ensemble_id'] = adata.var.index
+
+        official_gene_df = ensemble2gene_symbol(adata.var_names, scopes)
+        merge_df = adata.var.merge(official_gene_df, left_on='ensemble_id_', right_on='query', how='left').set_index(
+            adata.var.index)
+        adata.var = merge_df
+        valid_ind = np.where(merge_df['notfound'] != True)[0]
+
+        adata = adata[:, valid_ind]
+        adata.var.index = adata.var['symbol'].values
 
     if norm_method == 'Freeman_Tukey': norm_method = Freeman_Tukey
 

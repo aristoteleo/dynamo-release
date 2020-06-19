@@ -7,17 +7,36 @@ from sklearn.decomposition import PCA, TruncatedSVD
 
 # ---------------------------------------------------------------------------------------------------
 # symbol conversion related
-def ensemble2gene_symbol(ensemble_names, species):
+def ensemble2gene_symbol(ensemble_names, scopes='ensembl.gene'):
+    """Convert ensemble gene id to official gene names using mygene package.
+
+    Parameters
+    ----------
+        ensemble_names: list-like
+            The ensemble gene id names that you want to convert to official gene names. All names should come from the same
+            species.
+
+    Returns
+    -------
+        var_pd: `pd.Dataframe`
+            A pandas dataframe that includes the following columns:
+            query: the input ensmble ids
+            _id: identified id from mygene
+            _score: 	symbol
+    """
     try:
         import mygene
     except ImportError:
-        raise ImportError("You need to install the package `mygene` "
-                          "(https://pypi.org/project/mygene/).")
+        raise ImportError("You need to install the package `mygene` (pip install mygene --user) "
+                          "See https://pypi.org/project/mygene/ for more details.")
 
     import mygene
     mg = mygene.MyGeneInfo()
-    geneSyms = mg.querymany(ensemble_names, scopes='ensembl.gene', fields='symbol', species=species)
-    var_pd = pd.DataFrame(geneSyms)
+
+    ensemble_names = [i.split('.')[0] for i in ensemble_names]
+    var_pd = mg.querymany(ensemble_names, scopes=scopes, fields='symbol', as_dataframe=True, df_index=True)
+    #var_pd.drop_duplicates(subset='query', inplace=True) # use when df_index is not True
+    var_pd = var_pd.loc[~var_pd.index.duplicated(keep='first')]
 
     return var_pd
 
