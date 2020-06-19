@@ -7,14 +7,20 @@ from sklearn.decomposition import PCA, TruncatedSVD
 
 # ---------------------------------------------------------------------------------------------------
 # symbol conversion related
-def ensemble2gene_symbol(ensemble_names, scopes='ensembl.gene'):
+def convert2gene_symbol(input_names, scopes='ensembl.gene'):
     """Convert ensemble gene id to official gene names using mygene package.
 
     Parameters
     ----------
-        ensemble_names: list-like
+        input_names: list-like
             The ensemble gene id names that you want to convert to official gene names. All names should come from the same
             species.
+        scopes: `list-like` or `None` (default: `None`)
+            Scopes are needed when you use non-official gene name as your gene indices (or adata.var_name). This
+            arugument corresponds to type of types of identifiers, either a list or a comma-separated fields to specify
+            type of input qterms, e.g. “entrezgene”, “entrezgene,symbol”, [“ensemblgene”, “symbol”]. Refer to official
+            MyGene.info docs (https://docs.mygene.info/en/latest/doc/query_service.html#available_fields) for full list
+            of fields.
 
     Returns
     -------
@@ -22,8 +28,10 @@ def ensemble2gene_symbol(ensemble_names, scopes='ensembl.gene'):
             A pandas dataframe that includes the following columns:
             query: the input ensmble ids
             _id: identified id from mygene
-            _score: 	symbol
+            _score: confidence of the retrieved official gene name.
+            symbol: retrieved official gene name
     """
+
     try:
         import mygene
     except ImportError:
@@ -33,7 +41,7 @@ def ensemble2gene_symbol(ensemble_names, scopes='ensembl.gene'):
     import mygene
     mg = mygene.MyGeneInfo()
 
-    ensemble_names = [i.split('.')[0] for i in ensemble_names]
+    ensemble_names = [i.split('.')[0] for i in input_names]
     var_pd = mg.querymany(ensemble_names, scopes=scopes, fields='symbol', as_dataframe=True, df_index=True)
     #var_pd.drop_duplicates(subset='query', inplace=True) # use when df_index is not True
     var_pd = var_pd.loc[~var_pd.index.duplicated(keep='first')]

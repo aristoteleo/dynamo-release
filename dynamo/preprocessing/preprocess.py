@@ -7,7 +7,7 @@ from sklearn.utils import sparsefuncs
 
 from ..tools.utils import update_dict
 from .utils import (
-    ensemble2gene_symbol,
+    convert2gene_symbol,
     pca,
     clusters_stats,
     cook_dist,
@@ -1214,7 +1214,7 @@ def recipe_monocle(
             A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions, etc.
     """
 
-    if np.all(adata.var_names.str.startswith('ENS')):
+    if np.all(adata.var_names.str.startswith('ENS')) or scopes is not None:
         prefix = adata.var_names[0]
         if scopes is None:
             if prefix[:4] == 'ENSG' or prefix[:7] == 'ENSMUSG':
@@ -1225,15 +1225,15 @@ def recipe_monocle(
                 raise Exception('Your adata object uses non-official gene names as gene index. \n'
                                 'Dynamo finds those IDs are neither from ensembl.gene or ensembl.transcript and thus cannot '
                                 'convert them automatically. \n'
-                                'Please pass the correct scopes () first convert the ensemble ID to gene short name '
+                                'Please pass the correct scopes or first convert the ensemble ID to gene short name '
                                 '(for example, using mygene package). \n'
-                                'See also dyn.pp.ensemble2gene_symbol')
+                                'See also dyn.pp.convert2gene_symbol')
 
-        adata.var['ensemble_id_'] = [i.split('.')[0] for i in adata.var.index]
-        adata.var['ensemble_id'] = adata.var.index
+        adata.var['query'] = [i.split('.')[0] for i in adata.var.index]
+        adata.var[scopes] = adata.var.index
 
-        official_gene_df = ensemble2gene_symbol(adata.var_names, scopes)
-        merge_df = adata.var.merge(official_gene_df, left_on='ensemble_id_', right_on='query', how='left').set_index(
+        official_gene_df = convert2gene_symbol(adata.var_names, scopes)
+        merge_df = adata.var.merge(official_gene_df, left_on='query', right_on='query', how='left').set_index(
             adata.var.index)
         adata.var = merge_df
         valid_ind = np.where(merge_df['notfound'] != True)[0]
