@@ -136,7 +136,7 @@ class velocity:
             if no_beta:
                 self.parameters["beta"] = None
             V = (
-                csr_matrix(alpha) - (csr_matrix(beta).multiply(U))
+                csr_matrix(alpha, dtype=np.float32) - (csr_matrix(beta, dtype=np.float32).multiply(U))
                 if issparse(U)
                 else alpha - beta * U
             )
@@ -209,7 +209,7 @@ class velocity:
                 )
             else:
                 V = (
-                    csr_matrix(beta).multiply(U) - csr_matrix(gamma).multiply(S)
+                    csr_matrix(beta).multiply(U, dtype=np.float32) - csr_matrix(gamma, dtype=np.float32).multiply(S)
                     if issparse(U)
                     else beta * U - gamma * S
                 )
@@ -269,7 +269,7 @@ class velocity:
                 delta = np.repeat(self.parameters["delta"], S.shape[1], axis=1)
 
             V = (
-                csr_matrix(eta).multiply(S) - csr_matrix(delta).multiply(P)
+                csr_matrix(eta).multiply(S, dtype=np.float32) - csr_matrix(delta, dtype=np.float32).multiply(P)
                 if issparse(P)
                 else eta * S - delta * P
             )
