@@ -560,7 +560,7 @@ def set_velocity(
     valid_ind,
     ind_for_proteins,
 ):
-    cur_cells_ind, valid_ind_ = np.where(cur_cells_bools)[0], np.where(valid_ind)[0]
+    cur_cells_ind, valid_ind_ = np.where(cur_cells_bools)[0][:, np.newaxis], np.where(valid_ind)[0]
     if type(vel_U) is not float:
         if cur_grp == _group[0]:
             adata.layers["velocity_U"] = csr_matrix((adata.shape), dtype=np.float32)
