@@ -40,6 +40,7 @@ def cell_velocities(
     sample_fraction=None,
     random_seed=19491001,
     other_kernels_dict={},
+    enforce=False,
     **kmc_kwargs
 ):
     """Compute transition probability and project high dimension velocity vector to existing low dimension embedding.
@@ -101,11 +102,15 @@ def cell_velocities(
             Whether to correct density when calculating the markov transition matrix, applicable to the `kmc` kernel.
         correct_density: `bool` (default: `False`)
             Whether to scale velocity when calculating the markov transition matrix, applicable to the `kmc` kernel.
-        sample_fraction: `None` or `float` (default: None)
+        sample_fraction: `None` or `float` (default: `None`)
             The downsampled fraction of kNN for the purpose of acceleration, applicable to the `kmc` kernel.
-        random_seed: `int` (default: 19491001)
+        random_seed: `int` (default: `19491001`)
             The random seed for numba to ensure consistency of the random velocity vectors. Default value 19491001 is a
             special day for those who care.
+        other_kernels_dict: `dict` (default: `{}`)
+            A dictionary of paramters that will be passed to the cosine/correlation kernel.
+        enforce: `bool` (default: `False`)
+            Whether to enforce recalculation of transition matrix.
 
     Returns
     -------
@@ -212,7 +217,11 @@ def cell_velocities(
 
     # add both source and sink distribution
     if method == "kmc":
-        kmc = KernelMarkovChain()
+        if method + '_transition_matrix' in adata.uns_keys() and not enforce:
+            T = adata.uns[method + '_transition_matrix']
+            kmc = KernelMarkovChain(P=T)
+        else:
+            kmc = KernelMarkovChain()
         kmc_args = {
             "n_recurse_neighbors": 2,
             "M_diff": 2,
@@ -222,13 +231,14 @@ def cell_velocities(
         }
         kmc_args = update_dict(kmc_args, kmc_kwargs)
 
-        kmc.fit(
-            X,
-            V_mat,
-            neighbor_idx=indices,
-            sample_fraction=sample_fraction,
-            **kmc_args
-        )  #
+        if method + '_transition_matrix' not in adata.uns_keys() or not enforce:
+            kmc.fit(
+                X,
+                V_mat,
+                neighbor_idx=indices,
+                sample_fraction=sample_fraction,
+                **kmc_args
+            )  #
 
         T = kmc.P
         if correct_density:
@@ -272,10 +282,17 @@ def cell_velocities(
                      }
         vs_kwargs = update_dict(vs_kwargs, other_kernels_dict)
 
-        T, delta_X, X_grid, V_grid, D = kernels_from_velocyto_scvelo(
-            X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors,
-            method, **vs_kwargs
-        )
+        if method + '_transition_matrix' in adata.uns_keys() and not enforce:
+            T = adata.uns[method + '_transition_matrix']
+            delta_X = projection_with_transition_matrix(X.shape[0], T, X_embedding)
+            X_grid, V_grid, D = velocity_on_grid(
+                X_embedding, X_embedding + delta_X, xy_grid_nums=xy_grid_nums
+            )
+        else:
+            T, delta_X, X_grid, V_grid, D = kernels_from_velocyto_scvelo(
+                X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors,
+                method, **vs_kwargs
+            )
 
         if calc_rnd_vel:
             permute_rows_nsign(V_mat)
@@ -314,12 +331,12 @@ def cell_velocities(
             X_embedding, delta_X, xy_grid_nums=xy_grid_nums
         )
 
-    adata.uns["transition_matrix"] = T
+    adata.uns[method + "_transition_matrix"] = T
     adata.obsm["velocity_" + basis] = delta_X
     adata.uns["grid_velocity_" + basis] = {"X_grid": X_grid, "V_grid": V_grid, "D": D}
 
     if calc_rnd_vel:
-        adata.uns["transition_matrix_rnd"] = T_rnd
+        adata.uns[method + "_transition_matrix_rnd"] = T_rnd
         adata.obsm["X_" + basis + "_rnd"] = X_embedding
         adata.obsm["velocity_" + basis + "_rnd"] = delta_X_rnd
         adata.uns["grid_velocity_" + basis + "_rnd"] = {
@@ -600,6 +617,18 @@ def kernels_from_velocyto_scvelo(
     T.setdiag(0)
     T.eliminate_zeros()
 
+    delta_X = projection_with_transition_matrix(n, T, X_embedding)
+
+    X_grid, V_grid, D = velocity_on_grid(
+        X_embedding, X_embedding + delta_X, xy_grid_nums=xy_grid_nums
+    )
+
+    return T, delta_X, X_grid, V_grid, D
+
+
+def projection_with_transition_matrix(n, T, X_embedding):
+    delta_X = np.zeros((n, X_embedding.shape[1]))
+
     for i in tqdm(range(n), desc=f"projecting velocity vector to low dimensional embedding..."):
         idx = T[i].indices
         diff_emb = X_embedding[idx] - X_embedding[i, None]
@@ -608,11 +637,7 @@ def kernels_from_velocyto_scvelo(
         T_i = T[i].data
         delta_X[i] = T_i.dot(diff_emb) - T_i.mean() * diff_emb.sum(0)
 
-    X_grid, V_grid, D = velocity_on_grid(
-        X_embedding, X_embedding + delta_X, xy_grid_nums=xy_grid_nums
-    )
-
-    return T, delta_X, X_grid, V_grid, D
+    return delta_X
 
 
 # utility functions for calculating the random cell velocities

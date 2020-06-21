@@ -10,7 +10,8 @@ from sklearn.neighbors import NearestNeighbors
 
 from .scVectorField import vector_field_function, vectorfield
 from .utils import update_dict, form_triu_matrix, index_condensed_matrix, log1p_
-
+from ..external.ddhodge import ddhoge
+from ..tools.vector_calculus import curl, divergence
 
 def remove_redundant_points(X, tol=1e-4, output_discard=False):
     X = np.atleast_2d(X)
@@ -481,6 +482,7 @@ def VectorField(
     method="SparseVFC",
     return_vf_object=False,
     map_topography=True,
+    pot_curl_div=True,
     **kwargs,
 ):
     """Learn a function of high dimensional vector field from sparse single cell samples in the entire space robustly.
@@ -525,6 +527,10 @@ def VectorField(
             attribute.
         map_topography: `bool` (default: `True`)
             Whether to quantify the topography of the 2D vector field.
+        pot_curl_div: `bool` (default: `True`)
+            Whether to calculate potential, curl or divergence for each cell. Potential can be calculated for any basis
+            while curl and divergence is by default only applied to 2D basis. However, divergence is applicable for any
+            dimension while curl is generally only defined for 2/3 D systems.
         kwargs:
             Other additional parameters passed to the vectorfield class.
 
@@ -619,6 +625,10 @@ def VectorField(
         adata = topography(
             adata, basis=basis, X=X, layer=layer, dims=[0, 1], VecFld=vf_dict['VecFld'], **tp_kwargs
         )
+    if pot_curl_div:
+        ddhoge(adata, basis=basis)
+        if X.shape[1] == 2: curl(adata, basis=basis)
+        if X.shape[1] == 2: divergence(adata, basis=basis)
 
     if return_vf_object:
         adata.uns[vf_key].update({"vf_object": VecFld})
