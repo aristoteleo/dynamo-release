@@ -601,8 +601,8 @@ class ss_estimation:
                     else:
                         pool = ThreadPool(cores)
                         res = pool.starmap(self.fit_gamma_stochastic,
-                                     zip(itertools.repeat(self.est_method), U, S, US, S2, itertools.repeat(perc_left),
-                                         itertools.repeat(perc_right), itertools.repeat(True)))
+                                           zip(itertools.repeat(self.est_method), U, S, US, S2, itertools.repeat(perc_left),
+                                               itertools.repeat(perc_right), itertools.repeat(True)))
                         pool.close()
                         pool.join()
                         (gamma, gamma_intercept, _, gamma_r2, _, gamma_logLL) = zip(*res)
@@ -937,14 +937,20 @@ class ss_estimation:
                                         ) = one_shot_gamma_alpha(k, t_uniq, U[i])
                                 else:
                                     pool = ThreadPool(cores)
-                                    res = pool.starmap(self.fit_gamma_steady_state, zip(U, S, itertools.repeat(False),
+                                    res1 = pool.starmap(self.fit_gamma_steady_state, zip(U, S, itertools.repeat(False),
                                                     itertools.repeat(None), itertools.repeat(perc_right)))
-                                    pool.close()
-                                    pool.join()
-                                    (k, gamma_intercept, _, gamma_r2, _, gamma_logLL) = zip(*res)
+
+                                    (k, gamma_intercept, _, gamma_r2, _, gamma_logLL) = zip(*res1)
                                     (k, gamma_intercept, gamma_r2, gamma_logLL) = np.array(k), np.array(gamma_intercept), \
                                                                                   np.array(gamma_r2), np.array(gamma_logLL)
 
+                                    res2 = pool.starmap(one_shot_gamma_alpha, zip(k, itertools.repeat(t_uniq), U))
+
+                                    (gamma, alpha) = zip(*res2)
+                                    (gamma, self.parameters["alpha"]) = np.array(gamma), np.array(alpha)
+
+                                    pool.close()
+                                    pool.join()
                                 (
                                     self.parameters["gamma"],
                                     self.aux_param["gamma_r2"],
