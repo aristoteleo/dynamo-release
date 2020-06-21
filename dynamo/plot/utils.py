@@ -881,34 +881,34 @@ def arrowed_spines(ax, basis="umap", background='white'):
     bbox = ax.get_window_extent().transformed(dps)
     width, height = bbox.width, bbox.height
 
-    # manual arrowhead width and length
+    # manual arrowhead width and length (x-axis)
     hw = 1./20.*(ymax-ymin)
     hl = 1./20.*(xmax-xmin)
     lw = 1. # axis line width
-    ohg = 0.3 # arrow overhang
+    ohg = 0.2 # arrow overhang
 
-    # compute matching arrowhead length and width
+    # compute matching arrowhead length and width (y-axis)
     yhw = hw/(ymax-ymin)*(xmax-xmin)* height/width
     yhl = hl/(xmax-xmin)*(ymax-ymin)* width/height
 
     # draw x and y axis
     fc, ec = ("w", "w") if background in ['black', "#ffffff"] else ('k', 'k')
-    ax.arrow(xmin, ymin, hl * 5, 0, fc=fc, ec=ec,
+    ax.arrow(xmin, ymin, hl * 5/2, 0, fc=fc, ec=ec,
              lw=lw,
-             head_width=hw, head_length=hl,
-             overhang=ohg,
+             head_width=hw/2, head_length=hl/2,
+             overhang=ohg/2,
              length_includes_head=True, clip_on=False)
-    ax.arrow(xmin, ymin, 0, hw * 5, fc=fc, ec=ec,
+    ax.arrow(xmin, ymin, 0, hw * 5/2, fc=fc, ec=ec,
              lw=lw,
-             head_width=yhw, head_length=yhl,
-             overhang=ohg,
+             head_width=yhw/2, head_length=yhl/2,
+             overhang=ohg/2,
              length_includes_head=True, clip_on=False)
 
-    ax.text(xmin+hl * 2.5, ymin-1.1 * hw, basis.upper() +"1", ha="center", va="center", rotation=0,
-            size=(lw + hw) * 10,
+    ax.text(xmin + hl * 2.5/2, ymin - 1.1 * hw/2, basis.upper() + "1", ha="center", va="center", rotation=0,
+            size=np.clip((hl + yhw) * 8 / 2, None, 40),
             )
-    ax.text(xmin-1.1 * yhw, ymin+hw * 2.5, basis.upper() +"2", ha="center", va="center", rotation=90,
-            size=(lw + hw) * 10,
+    ax.text(xmin - 1.1 * yhw/2, ymin + hw * 2.5/2, basis.upper() + "2", ha="center", va="center", rotation=90,
+            size=np.clip((hl + yhw) * 8 / 2, None, 40),
             )
 
     return ax
