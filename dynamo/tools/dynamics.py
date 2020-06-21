@@ -45,6 +45,7 @@ def dynamics(
     one_shot_method="combined",
     re_smooth=False,
     sanity_check=False,
+    cores=1,
     **est_kwargs
 ):
     """Inclusive model of expression dynamics considers splicing, metabolic labeling and protein translation. It supports
@@ -141,6 +142,10 @@ def dynamics(
             applicable to kinetic or degradation metabolic labeling based scRNA-seq data. The basic idea is that for
             kinetic (degradation) experiment, the total labelled RNA for each gene should increase (decrease) over time.
             If they don't satisfy this criteria, those genes will be ignored during the estimation.
+        cores: `int` (default: 1):
+            Number of cores to run the estimation. If cores is set to be > 1, multiprocessing will be used to parallel
+            the parameter estimation. Currently only applicable cases when assumption_mRNA is `ss` or cases when 
+            experiment_type is either "one-shot" or "mix_std_stm".
         **est_kwargs
             Other arguments passed to the estimation methods. Not used for now.
 
@@ -389,6 +394,7 @@ def dynamics(
                 assumption_mRNA=assumption_mRNA,
                 assumption_protein=assumption_protein,
                 concat_data=concat_data,
+                cores=cores,
                 **ss_estimation_kwargs
             )
 
