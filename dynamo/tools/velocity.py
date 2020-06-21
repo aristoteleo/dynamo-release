@@ -765,7 +765,7 @@ class ss_estimation:
                             )
                     else:
                         pool = ThreadPool(cores)
-                        alpha = pool.starmap(fit_alpha_degradation, zip(itertools.repeat(t_uniq), ul_m,
+                        alpha = pool.starmap(fit_alpha_synthesis, zip(itertools.repeat(t_uniq), ul_m,
                                                                       self.parameters["beta"]))
                         pool.close()
                         pool.join()
@@ -849,12 +849,11 @@ class ss_estimation:
                             alpha = np.zeros(n)
                             # let us only assume one alpha for each gene in all cells
                             if cores == 1:
-                                if cores == 1:
-                                    for i in tqdm(range(n), desc="estimating alpha"):
-                                        # for j in range(len(self.data['ul'][i])):
-                                        alpha[i] = fit_alpha_synthesis(
-                                            t_uniq, ul_m[i], self.parameters["beta"][i]
-                                        )
+                                for i in tqdm(range(n), desc="estimating alpha"):
+                                    # for j in range(len(self.data['ul'][i])):
+                                    alpha[i] = fit_alpha_synthesis(
+                                        t_uniq, ul_m[i], self.parameters["beta"][i]
+                                    )
                             else:
                                 pool = ThreadPool(cores)
                                 alpha = pool.starmap(fit_alpha_synthesis,
@@ -898,7 +897,7 @@ class ss_estimation:
                                         )  # ul_m[i] / t_uniq
                                 else:
                                     pool = ThreadPool(cores)
-                                    alpha = pool.starmap(fit_alpha_degradation, zip(itertools.repeat(t_uniq), ul_m,
+                                    alpha = pool.starmap(fit_alpha_synthesis, zip(itertools.repeat(t_uniq), ul_m,
                                                                                   self.parameters["gamma"]))
                                     pool.close()
                                     pool.join()
@@ -938,7 +937,7 @@ class ss_estimation:
                                         ) = one_shot_gamma_alpha(k, t_uniq, U[i])
                                 else:
                                     pool = ThreadPool(cores)
-                                    res = pool.starmap(fit_alpha_degradation, zip(U, S, itertools.repeat(False),
+                                    res = pool.starmap(self.fit_gamma_steady_state, zip(U, S, itertools.repeat(False),
                                                     itertools.repeat(None), itertools.repeat(perc_right)))
                                     pool.close()
                                     pool.join()
@@ -1217,7 +1216,7 @@ class ss_estimation:
                 else:
                     pool = ThreadPool(cores)
                     res = pool.starmap(self.fit_gamma_steady_state,
-                                       zip(S, self.data["p"], itertools.repeat(intercept), itertools.repeat(perc_left),
+                                       zip(s, self.data["p"], itertools.repeat(intercept), itertools.repeat(perc_left),
                                            itertools.repeat(perc_right)))
                     pool.close()
                     pool.join()
