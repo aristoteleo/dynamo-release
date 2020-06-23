@@ -764,6 +764,7 @@ def SVRs(
         cv = sigma / mu
         log_m = np.array(np.log2(mu)).flatten()
         log_cv = np.array(np.log2(cv)).flatten()
+        log_m[mu == 0], log_cv[mu == 0] = 0, 0
 
         if svr_gamma is None:
             svr_gamma = 150.0 / len(mu)
@@ -950,7 +951,7 @@ def filter_genes(
     min_cell_s=1,
     min_cell_u=1,
     min_cell_p=1,
-    min_avg_exp_s=0,
+    min_avg_exp_s=1e-10,
     min_avg_exp_u=0,
     min_avg_exp_p=0,
     max_avg_exp=np.infty,
