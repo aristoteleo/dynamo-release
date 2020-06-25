@@ -724,6 +724,7 @@ def topography(
     else:
         _background = background
 
+    terms = list(terms) if type(terms) is tuple else [terms] if type(terms) is str else terms
     if approx:
         if "streamline" not in terms:
             terms.append("streamline")
