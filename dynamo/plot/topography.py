@@ -730,6 +730,9 @@ def topography(
         if "trajectory" in terms:
             terms = list(set(terms).difference("trajectory"))
 
+    if init_cells is not None or init_states is not None:
+        terms.extend('trajectory')
+
     uns_key = "VecFld" if basis == "X" else "VecFld_" + basis
 
     if uns_key not in adata.uns.keys():
