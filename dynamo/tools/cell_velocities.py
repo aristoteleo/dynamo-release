@@ -167,11 +167,11 @@ def cell_velocities(
     )
 
     if vkey == "velocity_S":
-        X_embedding = adata.obsm["X_" + basis][:, :2]
+        X_embedding = adata.obsm["X_" + basis]
     else:
         adata = reduceDimension(adata, layer=layer, reduction_method=basis)
         layer = layer if layer.startswith("X") else "X_" + layer
-        X_embedding = adata.obsm[layer + "_" + basis][:, :2]
+        X_embedding = adata.obsm[layer + "_" + basis]
 
     V_mat = V_mat.A if issparse(V_mat) else V_mat
     X = X.A if issparse(X) else X
@@ -286,7 +286,7 @@ def cell_velocities(
             T = adata.uns[method + '_transition_matrix']
             delta_X = projection_with_transition_matrix(X.shape[0], T, X_embedding)
             X_grid, V_grid, D = velocity_on_grid(
-                X_embedding, X_embedding + delta_X, xy_grid_nums=xy_grid_nums
+                X_embedding[:, :2], (X_embedding + delta_X)[:, :2], xy_grid_nums=xy_grid_nums
             )
         else:
             T, delta_X, X_grid, V_grid, D = kernels_from_velocyto_scvelo(
@@ -620,7 +620,7 @@ def kernels_from_velocyto_scvelo(
     delta_X = projection_with_transition_matrix(n, T, X_embedding)
 
     X_grid, V_grid, D = velocity_on_grid(
-        X_embedding, X_embedding + delta_X, xy_grid_nums=xy_grid_nums
+        X_embedding[:, :2], (X_embedding + delta_X)[:, :2], xy_grid_nums=xy_grid_nums
     )
 
     return T, delta_X, X_grid, V_grid, D
