@@ -63,13 +63,20 @@ def basic_stats(adata,
     # https://wckdouglas.github.io/2016/12/seaborn_annoying_title
     g = sns.FacetGrid(res, col="variable", sharex=False, sharey=False, margin_titles=True, hue="variable",
                       height=figsize[1], aspect=figsize[0]/figsize[1])
+
     if group is None:
         g.map_dataframe(sns.violinplot, x="variable", y="value")
         g.set_xticklabels([])
         g.set(xticks=[])
     else:
-        g.map_dataframe(sns.violinplot, x="group", y="value")
-        g.set_xticklabels(res['group'].unique(), rotation=30)
+        if res['group'].dtype.name == 'category':
+            xticks = res['group'].cat.categories
+        else:
+            xticks = np.sort(res['group'].unique())
+        kws = dict(order=xticks)
+
+        g.map_dataframe(sns.violinplot, x="group", y="value", **kws)
+        g.set_xticklabels(rotation=-30)
 
     [plt.setp(ax.texts, text="") for ax in g.axes.flat]  # remove the original texts
     # important to add this before setting titles
@@ -93,6 +100,7 @@ def basic_stats(adata,
 
 
 def show_fraction(adata,
+                  genes=None,
                   group=None,
                   figsize=(4, 3),
                   save_show_or_return='show',
@@ -103,6 +111,8 @@ def show_fraction(adata,
     ----------
     adata: :class:`~anndata.AnnData`
         an Annodata object
+    genes: `list` like:
+        The list of gene names from which the fraction will be calculated.
     group: `string` (default: None)
         Which group to facets the data into subplots. Default is None, or no faceting will be used.
     figsize: `string` (default: (4, 3))
@@ -123,6 +133,12 @@ def show_fraction(adata,
     import matplotlib.pyplot as plt
     import seaborn as sns
 
+    if genes is not None:
+        genes = list(adata.var_names.intersection(genes))
+
+        if len(genes):
+            raise Exception("The gene list you provided doesn't much any genes from the adata object.")
+
     mode = None
     if pd.Series(["spliced", "unspliced"]).isin(adata.layers.keys()).all():
         mode = "splicing"
@@ -137,7 +153,8 @@ def show_fraction(adata,
         )
 
     if mode is "labelling":
-        new_mat, total_mat = adata.layers["new"], adata.layers["total"]
+        new_mat, total_mat = (adata.layers["new"], adata.layers["total"]) if genes is None else \
+            (adata[:, genes].layers["new"], adata[:, genes].layers["total"])
 
         new_cell_sum, tot_cell_sum = (
             (np.sum(new_mat, 1), np.sum(total_mat, 1))
@@ -162,7 +179,7 @@ def show_fraction(adata,
 
     elif mode is "splicing":
         if "ambiguous" in adata.layers.keys():
-            ambiguous = adata.layers["ambiguous"]
+            ambiguous = adata.layers["ambiguous"] if genes is None else adata[:, genes].layers["ambiguous"]
         else:
             ambiguous = (
                 csr_matrix(np.array([[0]]))
@@ -171,8 +188,8 @@ def show_fraction(adata,
             )
 
         unspliced_mat, spliced_mat, ambiguous_mat = (
-            adata.layers["unspliced"],
-            adata.layers["spliced"],
+            adata.layers["unspliced"] if genes is None else adata[:, genes].layers["unspliced"],
+            adata.layers["spliced"] if genes is None else adata[:, genes].layers["spliced"],
             ambiguous,
         )
         un_cell_sum, sp_cell_sum = (
@@ -230,10 +247,10 @@ def show_fraction(adata,
 
     elif mode is "full":
         uu, ul, su, sl = (
-            adata.layers["uu"],
-            adata.layers["ul"],
-            adata.layers["su"],
-            adata.layers["sl"],
+            adata.layers["uu"] if genes is None else adata[:, genes].layers["uu"],
+            adata.layers["ul"] if genes is None else adata[:, genes].layers["ul"],
+            adata.layers["su"] if genes is None else adata[:, genes].layers["su"],
+            adata.layers["sl"] if genes is None else adata[:, genes].layers["sl"],
         )
         uu_sum, ul_sum, su_sum, sl_sum = (
             np.sum(uu, 1),
@@ -278,8 +295,14 @@ def show_fraction(adata,
         g.set_xticklabels([])
         g.set(xticks=[])
     else:
-        g.map_dataframe(sns.violinplot, x="group", y="value")
-        g.set_xticklabels(res['group'].unique(), rotation=30)
+        if res['group'].dtype.name == 'category':
+            xticks = res['group'].cat.categories
+        else:
+            xticks = np.sort(res['group'].unique())
+        kws = dict(order=xticks)
+
+        g.map_dataframe(sns.violinplot, x="group", y="value", **kws)
+        g.set_xticklabels(rotation=-30)
 
     [plt.setp(ax.texts, text="") for ax in g.axes.flat]  # remove the original texts
     # important to add this before setting titles
@@ -591,7 +614,7 @@ def exp_by_groups(adata,
         has_splicing, has_labeling, has_protein = detect_datatype(adata)
         if has_labeling:
             if layer.startswith('X_') or layer.startswith('M_'):
-                tot = adata[:, valid_genes].layers[mapper('X_total')] if use_smoothed \
+                tot = adata[:, valid_genes].layers[mapper['X_total']] if use_smoothed \
                     else adata[:, valid_genes].layers['X_total']
                 tot = tot.A if issparse(tot) else tot
                 exprs = exprs / tot
@@ -599,8 +622,8 @@ def exp_by_groups(adata,
                 exprs = exprs
         else:
             if layer.startswith('X_') or layer.startswith('M_'):
-                tot = adata[:, valid_genes].layers[mapper('X_unspliced')] + \
-                        adata[:, valid_genes].layers[mapper('X_spliced')] if use_smoothed \
+                tot = adata[:, valid_genes].layers[mapper['X_unspliced']] + \
+                        adata[:, valid_genes].layers[mapper['X_spliced']] if use_smoothed \
                     else adata[:, valid_genes].layers['X_unspliced'] + \
                          adata[:, valid_genes].layers['X_spliced']
                 tot = tot.A if issparse(tot) else tot
@@ -620,16 +643,22 @@ def exp_by_groups(adata,
         df["group"] =1
         res = df.melt(id_vars=["group"])
 
+    if res['group'].dtype.name == 'category':
+        xticks = res['group'].cat.categories
+    else:
+        xticks = np.sort(res['group'].unique())
+    kws = dict(order=xticks)
+
     # https://wckdouglas.github.io/2016/12/seaborn_annoying_title
     g = sns.FacetGrid(res, row="variable", sharex=False, sharey=False, margin_titles=True, hue="variable",
                       height=figsize[1], aspect=figsize[0]/figsize[1])
-    g.map_dataframe(sns.violinplot, x="group", y="value")
-    g.map_dataframe(sns.pointplot, x="group", y="value", color='k')
+    g.map_dataframe(sns.violinplot, x="group", y="value",  **kws)
+    g.map_dataframe(sns.pointplot, x="group", y="value", color='k',  **kws)
     if group is None:
         g.set_xticklabels([])
         g.set(xticks=[])
     else:
-        g.set_xticklabels(res['group'].unique(), rotation=angle)
+        g.set_xticklabels(rotation=angle)
 
     [plt.setp(ax.texts, text="") for ax in g.axes.flat]  # remove the original texts
     # important to add this before setting titles
