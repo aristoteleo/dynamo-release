@@ -514,6 +514,9 @@ def NTR(adata):
     if len({'new', 'total'}.intersection(adata.layers.keys())) == 2:
         ntr = adata.layers['new'].sum(1) / adata.layers['total'].sum(1)
         ntr = ntr.A1 if issparse(adata.layers['new']) else ntr
+
+        var_ntr = adata.layers['new'].sum(0) / adata.layers['total'].sum(0)
+        var_ntr = var_ntr.A1 if issparse(adata.layers['new']) else var_ntr
     elif len({'uu', 'ul', 'su', 'sl'}.intersection(adata.layers.keys())) == 4:
         new = adata.layers['ul'].sum(1) + \
               adata.layers['sl'].sum(1)
@@ -522,10 +525,22 @@ def NTR(adata):
         ntr = new / total
 
         ntr = ntr.A1 if issparse(adata.layers['uu']) else ntr
+
+        new = adata.layers['ul'].sum(0) + \
+              adata.layers['sl'].sum(0)
+        total = new + adata.layers['uu'].sum(0) + \
+                adata.layers['su'].sum(0)
+        var_ntr = new / total
+
+        var_ntr = var_ntr.A1 if issparse(adata.layers['uu']) else var_ntr
     elif len({'unspliced', 'spliced'}.intersection(adata.layers.keys())) == 2:
         ntr = adata.layers['unspliced'].sum(1) / (adata.layers['unspliced'] + adata.layers['spliced']).sum(1)
-    else:
-        ntr = None
+        ntr = ntr.A1 if issparse(adata.layers['unspliced']) else ntr
 
-    return ntr
+        var_ntr = adata.layers['unspliced'].sum(0) / (adata.layers['unspliced'] + adata.layers['spliced']).sum(0)
+        var_ntr = var_ntr.A1 if issparse(adata.layers['unspliced']) else var_ntr
+    else:
+        ntr, var_ntr = None, None
+
+    return ntr, var_ntr
 

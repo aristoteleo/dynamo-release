@@ -136,7 +136,7 @@ def show_fraction(adata,
     if genes is not None:
         genes = list(adata.var_names.intersection(genes))
 
-        if len(genes):
+        if len(genes) == 0:
             raise Exception("The gene list you provided doesn't much any genes from the adata object.")
 
     mode = None

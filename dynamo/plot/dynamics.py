@@ -2391,8 +2391,6 @@ def dynamics(
         s_kwargs = {"path": None, "prefix": 'dynamics', "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
-        plt.tight_layout()
-
         save_fig(**s_kwargs)
     elif save_show_or_return == "show":
         plt.tight_layout()

@@ -1400,8 +1400,10 @@ def recipe_monocle(
     adata.uns[method + "_fit"], adata.uns["feature_selection"] = fit, feature_selection
 
     # calculate NTR for every cell:
-    ntr = NTR(adata)
-    if ntr is not None: adata.obs['ntr'] = ntr
+    ntr, var_ntr = NTR(adata)
+    if ntr is not None:
+        adata.obs['ntr'] = ntr
+        adata.var['ntr'] = var_ntr
 
     try:
         cell_cycle_scores(adata)
