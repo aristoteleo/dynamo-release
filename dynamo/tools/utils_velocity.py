@@ -2,6 +2,7 @@ import numpy as np
 from scipy.optimize import least_squares
 from scipy.sparse import issparse
 from sklearn.linear_model import LinearRegression, RANSACRegressor
+import statsmodels.api as sm
 from .moments import strat_mom
 from .utils import elem_prod, find_extreme
 
@@ -257,7 +258,7 @@ def fit_linreg(x, y, mask=None, intercept=False, r2=True):
     else:
         return k, b
 
-def fit_linreg_robust(x, y, mask=None, intercept=False, r2=True):
+def fit_linreg_robust(x, y, mask=None, intercept=False, r2=True, est_method='rlm'):
     """Apply robust linear regression of y w.r.t x.
 
     Arguments
@@ -270,6 +271,8 @@ def fit_linreg_robust(x, y, mask=None, intercept=False, r2=True):
         If using steady state assumption for fitting, then:
         True -- the linear regression is performed with an unfixed intercept;
         False -- the linear regresssion is performed with a fixed zero intercept.
+    est_method: str (default: `rlm`)
+        The linear regression estimation method that will be used.
 
     Returns
     -------
@@ -293,9 +296,17 @@ def fit_linreg_robust(x, y, mask=None, intercept=False, r2=True):
     yy = y[_mask]
 
     try:
-        reg = RANSACRegressor(LinearRegression(fit_intercept=intercept), random_state=0)
-        reg.fit(xx.reshape(-1, 1), yy.reshape(-1, 1))
-        k, b = reg.estimator_.coef_[0, 0], reg.estimator_.intercept_[0] if intercept else 0
+        if est_method.lower() == 'rlm':
+            xx = sm.add_constant(xx) if intercept else xx
+            res = sm.RLM(yy, xx).fit()
+            k, b = res.params[::-1] if intercept else res.params[0], 0
+        elif est_method.lower() == 'ransac':
+            reg = RANSACRegressor(LinearRegression(fit_intercept=intercept), random_state=0)
+            reg.fit(xx.reshape(-1, 1), yy.reshape(-1, 1))
+            k, b = reg.estimator_.coef_[0, 0], reg.estimator_.intercept_[0] if intercept else 0
+        else:
+            raise ImportError(f"estimation method {est_method} is not implemented. "
+                              f"Currently supported linear regression methods include `rlm` and `ransac`.")
     except:
         if intercept:
             ym = np.mean(yy)

@@ -1282,7 +1282,11 @@ class ss_estimation:
             s, u, normalize=normalize, perc_left=perc_left, perc_right=perc_right
         )
 
-        k, b, r2, all_r2 = fit_linreg(s, u, mask, intercept)
+        if self.est_method.lower() == 'ols':
+            k, b, r2, all_r2 = fit_linreg(s, u, mask, intercept)
+        else:
+            k, b, r2, all_r2 = fit_linreg_robust(s, u, mask, intercept, self.est_method)
+
         logLL, all_logLL = calc_norm_loglikelihood(s[mask], u[mask], k), calc_norm_loglikelihood(s, u, k)
 
         return k, 0, r2, all_r2, logLL, all_logLL

@@ -93,13 +93,20 @@ def dynamics(
             Note that `kinetic` model doesn't need to assumes the `experiment_type` is not `conventional`. As other labeling
             experiments, if you specify the `tkey`, dynamo can also apply `kinetic` model on `conventional` scRNA-seq datasets.
             A "model_selection" model will be supported soon in which alpha, beta and gamma will be modeled as a function of time.
-        est_method: `str` {`linear_regression`, `gmm`, `negbin`, `auto`} This parameter should be used in conjunction with `model` parameter.
+        est_method: `str` {`ols`, `rlm`, `ransac`, `gmm`, `negbin`, `auto`} This parameter should be used in conjunction with `model` parameter.
             * Available options when the `model` is 'ss' include:
-            (1) 'linear_regression': The canonical method from the seminar RNA velocity paper based on deterministic ordinary
-            differential equations;
-            (2) 'gmm': The new generalized methods of moments from us that is based on master equations, similar to the
+            (1) 'ols': The canonical method or Ordinary Least Squares regression from the seminar RNA velocity paper
+            based on deterministic ordinary differential equations;
+            (2) 'rlm': The robust linear models from statsmodels. Robust Regression provides an alternative to OLS
+            regression by lowering the restrictions on assumptions and dampens the effect of outliers in order to fit
+            majority of the data.
+            (3) 'ransac': RANSAC (RANdom SAmple Consensus) algorithm for robust linear regression. RANSAC is an iterative
+            algorithm for the robust estimation of parameters from a subset of inliers from the complete data set. RANSAC
+            implementation is based on RANSACRegressor from sklearn. Note that if `rlm` or `ransac` failed, it will
+            roll back to the `ols` method.
+            (4) 'gmm': The new generalized methods of moments from us that is based on master equations, similar to the
             "moment" model in the excellent scVelo package;
-            (3) 'negbin': The new method from us that models steady state RNA expression as a negative binomial distribution,
+            (5) 'negbin': The new method from us that models steady state RNA expression as a negative binomial distribution,
             also built upon on master equations.
             Note that all those methods require using extreme data points (except negbin, which use all data points) for
             estimation. Extreme data points are defined as the data from cells whose expression of unspliced / spliced
@@ -368,7 +375,7 @@ def dynamics(
             model = "deterministic"
 
         if assumption_mRNA.lower() == "ss" or (experiment_type.lower() in ["one-shot", "mix_std_stm"]):
-            if est_method.lower() == "auto": est_method = "gmm"
+            if est_method.lower() == "auto": est_method = "gmm" if model == 'stochastic' else 'ols'
             if experiment_type.lower() == "one_shot":
                 beta = subset_adata.var.beta if "beta" in subset_adata.var.keys() else None
                 gamma = subset_adata.var.gamma if "gamma" in subset_adata.var.keys() else None
