@@ -292,9 +292,28 @@ def fit_linreg_robust(x, y, mask=None, intercept=False, r2=True):
     xx = x[_mask]
     yy = y[_mask]
 
-    reg = RANSACRegressor(LinearRegression(fit_intercept=intercept), random_state=0)
-    reg.fit(xx, yy)
-    k, b = reg.estimator_.coef_[0, 0], reg.estimator_.intercept_[0]
+    try:
+        reg = RANSACRegressor(LinearRegression(fit_intercept=intercept), random_state=0)
+        reg.fit(xx.reshape(-1, 1), yy.reshape(-1, 1))
+        k, b = reg.estimator_.coef_[0, 0], reg.estimator_.intercept_[0] if intercept else reg.estimator_.intercept_
+    except:
+        if intercept:
+            ym = np.mean(yy)
+            xm = np.mean(xx)
+
+            cov = np.mean(xx * yy) - xm * ym
+            var_x = np.mean(xx * xx) - xm * xm
+            k = cov / var_x
+            b = ym - k * xm
+            # assume b is always positive
+            if b < 0:
+                k, b = np.mean(xx * yy) / np.mean(xx * xx), 0
+        else:
+            # use uncentered cov and var_x
+            cov = np.mean(xx * yy)
+            var_x = np.mean(xx * xx)
+            k = cov / var_x
+            b = 0
 
     if r2:
         SS_tot_n, all_SS_tot_n = np.var(yy), np.var(y)
