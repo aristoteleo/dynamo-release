@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.optimize import least_squares
 from scipy.sparse import issparse
+from sklearn.linear_model import LinearRegression, RANSACRegressor
 from .moments import strat_mom
 from .utils import elem_prod, find_extreme
 
@@ -243,6 +244,57 @@ def fit_linreg(x, y, mask=None, intercept=False, r2=True):
         var_x = np.mean(xx * xx)
         k = cov / var_x
         b = 0
+
+    if r2:
+        SS_tot_n, all_SS_tot_n = np.var(yy), np.var(y)
+        SS_res_n, all_SS_res_n = (
+            np.mean((yy - k * xx - b) ** 2),
+            np.mean((y - k * x - b) ** 2),
+        )
+        r2, all_r2 = 1 - SS_res_n / SS_tot_n, 1 - all_SS_res_n / all_SS_tot_n
+
+        return k, b, r2, all_r2
+    else:
+        return k, b
+
+def fit_linreg_robust(x, y, mask=None, intercept=False, r2=True):
+    """Apply robust linear regression of y w.r.t x.
+
+    Arguments
+    ---------
+    x: :class:`~numpy.ndarray` or sparse `csr_matrix`
+        A vector of independent variables.
+    y: :class:`~numpy.ndarray` or sparse `csr_matrix`
+        A vector of dependent variables.
+    intercept: bool
+        If using steady state assumption for fitting, then:
+        True -- the linear regression is performed with an unfixed intercept;
+        False -- the linear regresssion is performed with a fixed zero intercept.
+
+    Returns
+    -------
+    k: float
+        The estimated slope.
+    b: float
+        The estimated intercept.
+    r2: float
+        Coefficient of determination or r square calculated with the extreme data points.
+    all_r2: float
+        The r2 calculated using all data points.
+    """
+
+    x = x.A if issparse(x) else x
+    y = y.A if issparse(y) else y
+
+    _mask = np.logical_and(~np.isnan(x), ~np.isnan(y))
+    if mask is not None:
+        _mask &= mask
+    xx = x[_mask]
+    yy = y[_mask]
+
+    reg = RANSACRegressor(LinearRegression(fit_intercept=intercept), random_state=0)
+    reg.fit(xx, yy)
+    k, b = reg.estimator_.coef_[0, 0], reg.estimator_.intercept_[0]
 
     if r2:
         SS_tot_n, all_SS_tot_n = np.var(yy), np.var(y)
