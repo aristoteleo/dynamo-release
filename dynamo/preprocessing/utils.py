@@ -544,3 +544,108 @@ def NTR(adata):
 
     return ntr, var_ntr
 
+
+def relative2abs(adata, dilution, volume, from_layer=None, to_layers=None, mixture_type=1, ERCC_controls=None, ERCC_annotation=None):
+    """Converts FPKM/TPM data to transcript counts using ERCC spike-in. This is based on the relative2abs function from
+    monocle 2 (Qiu, et. al, Nature Methods, 2017).
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object
+        dilution: `float`
+            the dilution of the spikein transcript in the lysis reaction mix. Default is 40, 000. The number of spike-in
+            transcripts per single-cell lysis reaction was calculated from.
+        volume: `float`
+            the approximate volume of the lysis chamber (nanoliters). Default is 10
+        from_layer: `str` or `None`
+            The layer in which the ERCC TPM values will be used as the covariate for the ERCC based linear regression.
+        to_layers: `str`, `None` or `list-like`
+            The layers that our ERCC based transformation will be applied to.
+        mixture_type:
+            the type of spikein transcripts from the spikein mixture added in the experiments. By default, it is mixture 1.
+            Note that m/c we inferred are also based on mixture 1.
+        ERCC_controls:
+            the FPKM/TPM matrix for each ERCC spike-in transcript in the cells if user wants to perform the transformation based
+            on their spike-in data. Note that the row and column names should match up with the ERCC_annotation and relative_
+            exprs_matrix respectively.
+        ERCC_annotation:
+            the ERCC_annotation matrix from illumina USE GUIDE which will be ued for calculating the ERCC transcript copy
+            number for performing the transformation.
+
+    Returns
+    -------
+        An adata object with the data specified in the to_layers transformed into absolute counts.
+    """
+
+    if ERCC_annotation is None:
+        ERCC_annotation = pd.read_csv('https://www.dropbox.com/s/cmiuthdw5tt76o5/ERCC_specification.txt?dl=1', sep='\t')
+
+    ERCC_id = ERCC_annotation['ERCC ID']
+
+    ERCC_id = adata.var_names.intersection(ERCC_id)
+    if len(ERCC_id) < 10 and ERCC_controls is None:
+        raise Exception(f'The adata object you provided has less than 10 ERCC genes.')
+
+    if to_layers is not None:
+        to_layers = [to_layers] if to_layers is str else to_layers
+        to_layers = list(adata.layers.keys().intersection(to_layers))
+        if len(to_layers) == 0:
+            raise Exception(f"The layers {to_layers} that will be converted to absolute counts doesn't match any layers"
+                            f"from the adata object.")
+
+    mixture_name = "conc_attomoles_ul_Mix1" if mixture_type == 1 else "conc_attomoles_ul_Mix2"
+    ERCC_controls['numMolecules'] = ERCC_controls.loc[:, mixture_name] * (
+                volume * 10 ^ (-3) * 1 / dilution * 10 ^ (-18) * 6.02214129 * 10 ^ (23))
+
+    ERCC_annotation['rounded_numMolecules'] = ERCC_annotation['numMolecules'].astype(int)
+
+    if from_layer in [None, 'X']:
+        X, X_ercc = (adata.X, adata[:, ERCC_controls['ERCC ID']].X if ERCC_controls is None else ERCC_controls)
+    else:
+        X, X_ercc = (adata.layers[from_layer], adata[:, ERCC_controls['ERCC ID']] \
+            if ERCC_controls is None else ERCC_controls)
+
+    logged = False if X.max() > 100 else True
+
+    if not logged:
+        X, X_ercc = (np.log1p(X.A) if issparse(X_ercc) else np.log1p(X), \
+                     np.log1p(X_ercc.A) if issparse(X_ercc) else np.log1p(X_ercc))
+    else:
+        X, X_ercc = (X.A if issparse(X_ercc) else X, X_ercc.A if issparse(X_ercc) else X_ercc)
+
+    y = np.log1p(ERCC_annotation['numMolecules'])
+
+    for i in range(adata.n_obs):
+        X_i, X_ercc_i = X[:, i], X_ercc[:, i]
+
+        X_i, X_ercc_i = sm.add_constant(X_i),  sm.add_constant(X_ercc_i)
+        res = sm.RLM(y, X_ercc_i).fit()
+        k, b = res.params[::-1]
+
+        if to_layers is None:
+            X = adata.X
+            logged = False if X.max() > 100 else True
+
+            if not logged:
+                X_i = np.log1p(X[:, i].A) if issparse(X) else np.log1p(X[:, i])
+            else:
+                X_i = X[:, i].A if issparse(X) else X[:, i]
+
+            res = k * X_i + b
+            res = res if logged else np.expm1(res)
+            adata.X[i, :] = csr_matrix(res) if issparse(X) else res
+        else:
+            for cur_layer in to_layers:
+                X = adata.layers[from_layer]
+
+                logged = False if X.max() > 100 else True
+                if not logged:
+                    X_i = np.log1p(X[:, i].A) if issparse(X) else np.log1p(X[:, i])
+                else:
+                    X_i = X[:, i].A if issparse(X) else X[:, i]
+
+                X_i = sm.add_constant(X_i)
+
+                res = k * X_i + b if logged else np.expm1(k * X_i + b)
+                adata.layers[cur_layer][i, :] = csr_matrix(res) if issparse(X) else res

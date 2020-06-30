@@ -102,8 +102,9 @@ def dynamics(
             majority of the data.
             (3) 'ransac': RANSAC (RANdom SAmple Consensus) algorithm for robust linear regression. RANSAC is an iterative
             algorithm for the robust estimation of parameters from a subset of inliers from the complete data set. RANSAC
-            implementation is based on RANSACRegressor from sklearn. Note that if `rlm` or `ransac` failed, it will
-            roll back to the `ols` method.
+            implementation is based on RANSACRegressor function from sklearn package. Note that if `rlm` or `ransac`
+            failed, it will roll back to the `ols` method. In addition, `ols`, `rlm` and `ransac` can be only used in
+            conjunction with the `deterministic` model.
             (4) 'gmm': The new generalized methods of moments from us that is based on master equations, similar to the
             "moment" model in the excellent scVelo package;
             (5) 'negbin': The new method from us that models steady state RNA expression as a negative binomial distribution,
