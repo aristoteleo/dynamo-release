@@ -541,7 +541,7 @@ def topography(
     basis="umap",
     x=0,
     y=1,
-    color='cell_cycle_phase',
+    color='ntr',
     layer="X",
     highlights=None,
     labels=None,

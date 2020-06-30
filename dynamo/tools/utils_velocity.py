@@ -295,7 +295,7 @@ def fit_linreg_robust(x, y, mask=None, intercept=False, r2=True):
     try:
         reg = RANSACRegressor(LinearRegression(fit_intercept=intercept), random_state=0)
         reg.fit(xx.reshape(-1, 1), yy.reshape(-1, 1))
-        k, b = reg.estimator_.coef_[0, 0], reg.estimator_.intercept_[0] if intercept else reg.estimator_.intercept_
+        k, b = reg.estimator_.coef_[0, 0], reg.estimator_.intercept_[0] if intercept else 0
     except:
         if intercept:
             ym = np.mean(yy)

@@ -323,7 +323,7 @@ def nneighbors(
     adata,
     x=0,
     y=1,
-    color='cell_cycle_phase',
+    color='ntr',
     basis="umap",
     layer="X",
     highlights=None,
@@ -353,7 +353,7 @@ def nneighbors(
             The first component of the embedding.
         y: `int`
             The second component of the embedding.
-        color: `str` or list of `str` or None (default: 'cell_cycle_phase')
+        color: `str` or list of `str` or None (default: 'ntr')
             Gene name(s) or cell annotation column(s)
         basis: `str` or list of `str` (default: `X`)
             Which low dimensional embedding will be used to visualize the cell.
