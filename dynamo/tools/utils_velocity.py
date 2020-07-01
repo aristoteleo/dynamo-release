@@ -339,8 +339,8 @@ def fit_linreg_robust(x, y, mask=None, intercept=False, r2=True, est_method='rlm
         return k, b
 
 
-def fit_stochastic_linreg(u, s, us, ss):
-    """Simple linear regression: y = kx + b.
+def fit_stochastic_linreg(u, s, us, ss, fit_2_gammas=False, err_cov=False):
+    """generalized method of moments: [u, 2*us + u] = gamma * [s, 2*ss - s].
 
     Arguments
     ---------
@@ -355,31 +355,35 @@ def fit_stochastic_linreg(u, s, us, ss):
 
     Returns
     -------
-    k: float
-        The estimated slope.
-    b: float
-        The estimated intercept.
-    r2: float
-        Coefficient of determination or r square calculated with the extreme data points.
-    all_r2: float
-        The r2 calculated using all data points.
+    gamma: float
+        The estimated gamma.
     """
-    y = np.vstack((u.flatten(), (u + 2 * us).flatten()))
-    x = np.vstack((s.flatten(), (2 * ss - s).flatten()))
-    k = np.mean(np.sum(elem_prod(y, x), 0)) / np.mean(np.sum(elem_prod(x, x), 0))
+    y = np.vstack((u.flatten(), (u + 2*us).flatten()))
+    x = np.vstack((s.flatten(), (2*ss - s).flatten()))
 
     # construct the error covariance matrix
-    E = y - k * x
-    cov_inv = np.linalg.pinv(E @ E.T)
+    if fit_2_gammas:
+        k1 = fit_linreg(x[0], y[0])[0]
+        k2 = fit_linreg(x[1], y[1])[0]
+        k = np.array([k1, k2])
+        E = y - k[:, None]*x
+    else:
+        k = np.mean(np.sum(elem_prod(y, x), 0)) / np.mean(np.sum(elem_prod(x, x), 0))
+        E = y - k*x
+
+    if err_cov:
+        #cov = E @ E.T
+        cov = np.cov(E)
+    else:
+        cov = np.diag(E.var(1))
+    cov_inv = np.linalg.pinv(cov)
 
     # generalized least squares
-    xy = 0
-    xx = 0
+    xy, xx = 0, 0
     for i in range(x.shape[1]):
         xy += y[:, i].T @ cov_inv @ x[:, i]
         xx += x[:, i].T @ cov_inv @ x[:, i]
-    gamma = xy / xx
-
+    gamma = xy/xx
     return gamma
 
 
