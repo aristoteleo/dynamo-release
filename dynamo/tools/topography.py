@@ -632,5 +632,6 @@ def VectorField(
 
     if return_vf_object:
         adata.uns[vf_key].update({"vf_object": VecFld})
+        return VecFld
 
 
