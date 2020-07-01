@@ -9,6 +9,8 @@ from scipy.linalg.blas import dgemm
 import warnings
 import time
 
+from ..preprocessing.utils import Freeman_Tukey
+
 # ---------------------------------------------------------------------------------------------------
 # others
 def get_mapper():
@@ -201,6 +203,46 @@ def timeit(method):
     return timed
 
 # ---------------------------------------------------------------------------------------------------
+# data transformation related:
+def log1p_(adata, X_data):
+    if adata.uns['pp_norm_method'] is None:
+        if issparse(X_data):
+            X_data.data = np.log1p(X_data.data)
+        else:
+            X_data = np.log1p(X_data)
+
+    return X_data
+
+
+def inverse_norm(adata, layer_x):
+    if issparse(layer_x):
+        layer_x.data = (
+            np.expm1(layer_x.data)
+            if adata.uns["pp_norm_method"] == "log1p"
+            else 2 ** layer_x.data - 1
+            if adata.uns["pp_norm_method"] == "log2"
+            else np.exp(layer_x.data) - 1
+            if adata.uns["pp_norm_method"] == "log"
+            else Freeman_Tukey(layer_x.data + 1, inverse=True)
+            if adata.uns["pp_norm_method"] == "Freeman_Tukey"
+            else layer_x.data
+        )
+    else:
+        layer_x = (
+            np.expm1(layer_x)
+            if adata.uns["pp_norm_method"] == "log1p"
+            else 2 ** layer_x - 1
+            if adata.uns["pp_norm_method"] == "log2"
+            else np.exp(layer_x) - 1
+            if adata.uns["pp_norm_method"] == "log"
+            else Freeman_Tukey(layer_x, inverse=True)
+            if adata.uns["pp_norm_method"] == "Freeman_Tukey"
+            else layer_x
+        )
+
+    return layer_x
+
+# ---------------------------------------------------------------------------------------------------
 # dynamics related:
 def one_shot_gamma_alpha(k, t, l):
     gamma = -np.log(1 - k) / t
@@ -238,9 +280,9 @@ def compute_velocity_labeling_B(B, alpha, R):
 
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
-def get_valid_inds(adata, filter_gene_mode):
+def get_valid_bools(adata, filter_gene_mode):
     if filter_gene_mode == "final":
-        valid_ind = adata.var.use_for_dynamo.values
+        valid_ind = adata.var.use_for_pca.values
     elif filter_gene_mode == "basic":
         valid_ind = adata.var.pass_basic_filter.values
     elif filter_gene_mode == "no":
@@ -518,29 +560,24 @@ def set_velocity(
     valid_ind,
     ind_for_proteins,
 ):
+    cur_cells_ind, valid_ind_ = np.where(cur_cells_bools)[0][:, np.newaxis], np.where(valid_ind)[0]
     if type(vel_U) is not float:
         if cur_grp == _group[0]:
-            adata.layers["velocity_U"] = csr_matrix((adata.shape))
-        tmp = csr_matrix((np.sum(cur_cells_bools), adata.shape[1]))
-        tmp[:, valid_ind] = vel_U.T.tocsr() if issparse(vel_U) else csr_matrix(vel_U.T)
-        adata.layers["velocity_U"][
-            cur_cells_bools, :
-        ] = tmp  # np.where(valid_ind)[0] required for sparse matrix
+            adata.layers["velocity_U"] = csr_matrix((adata.shape), dtype=np.float64)
+        vel_U = vel_U.T.tocsr() if issparse(vel_U) else csr_matrix(vel_U, dtype=np.float64).T
+        adata.layers["velocity_U"][cur_cells_ind, valid_ind_] = vel_U
     if type(vel_S) is not float:
         if cur_grp == _group[0]:
-            adata.layers["velocity_S"] = csr_matrix((adata.shape))
-        tmp = csr_matrix((np.sum(cur_cells_bools), adata.shape[1]))
-        tmp[:, valid_ind] = vel_S.T.tocsr() if issparse(vel_S) else csr_matrix(vel_S.T)
-        adata.layers["velocity_S"][
-            cur_cells_bools, :
-        ] = tmp  # np.where(valid_ind)[0] required for sparse matrix
+            adata.layers["velocity_S"] = csr_matrix((adata.shape), dtype=np.float64)
+        vel_S = vel_S.T.tocsr() if issparse(vel_S) else csr_matrix(vel_S, dtype=np.float64).T
+        adata.layers["velocity_S"][cur_cells_ind, valid_ind_] = vel_S
     if type(vel_P) is not float:
         if cur_grp == _group[0]:
             adata.obsm["velocity_P"] = csr_matrix(
-                (adata.obsm["P"].shape[0], len(ind_for_proteins))
+                (adata.obsm["P"].shape[0], len(ind_for_proteins)), dtype=float
             )
         adata.obsm["velocity_P"][cur_cells_bools, :] = (
-            vel_P.T.tocsr() if issparse(vel_P) else csr_matrix(vel_P.T)
+            vel_P.T.tocsr() if issparse(vel_P) else csr_matrix(vel_P, dtype=float).T
         )
 
     return adata
@@ -923,6 +960,8 @@ def calc_norm_loglikelihood(X, Y, k, f=lambda X, k: np.einsum('ij,i -> ij', X, k
 # velocity related
 
 def find_extreme(s, u, normalize=True, perc_left=None, perc_right=None):
+    s, u = (s.A if issparse(s) else s, u.A if issparse(u) else u)
+
     if normalize:
         su = s / np.clip(np.max(s), 1e-3, None)
         su += u / np.clip(np.max(u), 1e-3, None)
@@ -939,48 +978,79 @@ def find_extreme(s, u, normalize=True, perc_left=None, perc_right=None):
 
     return mask
 
+def get_group_params_indices(adata, param_name):
+    return adata.var.columns.str.endswith(param_name)
+
 
 def set_velocity_genes(
     adata,
     vkey="velocity_S",
     min_r2=0.01,
-    min_alpha=0,
-    min_gamma=0,
-    min_delta=0,
-    use_for_dynamo=True,
+    min_alpha=0.01,
+    min_gamma=0.01,
+    min_delta=0.01,
+    use_for_dynamics=True,
 ):
     layer = vkey.split("_")[1]
 
+    # the following parameters aggreation for different groups can be improved later
     if layer is "U":
+        if 'alpha' not in adata.var.columns:
+            is_group_alpha, is_group_alpha_r2 = get_group_params_indices(adata, 'alpha'), \
+                                                get_group_params_indices(adata, 'alpha_r2')
+            if is_group_alpha.sum() > 0:
+                adata.var['alpha'] = adata.var.loc[:, is_group_alpha].mean(1, skipna=True)
+                adata.var['alpha_r2'] = adata.var.loc[:, is_group_alpha_r2].mean(1, skipna=True)
+            else:
+                raise Exception("there is no alpha/alpha_r2 parameter estimated for your adata object")
+
         if 'alpha_r2' not in adata.var.columns: adata.var['alpha_r2'] = None
         if np.all(adata.var.alpha_r2.values == None):
             adata.var.alpha_r2 = 1
         adata.var["use_for_velocity"] = (
             (adata.var.alpha > min_alpha)
             & (adata.var.alpha_r2 > min_r2)
-            & adata.var.use_for_dynamo
-            if use_for_dynamo
+            & adata.var.use_for_dynamics
+            if use_for_dynamics
             else (adata.var.alpha > min_alpha) & (adata.var.alpha_r2 > min_r2)
         )
     elif layer is "S":
+        if 'gamma' not in adata.var.columns:
+            is_group_gamma, is_group_gamma_r2 = get_group_params_indices(adata, 'gamma'), \
+                                                get_group_params_indices(adata, 'gamma_r2')
+            if is_group_gamma.sum() > 0:
+                adata.var['gamma'] = adata.var.loc[:, is_group_gamma].mean(1, skipna=True)
+                adata.var['gamma_r2'] = adata.var.loc[:, is_group_gamma_r2].mean(1, skipna=True)
+            else:
+                raise Exception("there is no gamma/gamma_r2 parameter estimated for your adata object")
+
         if 'gamma_r2' not in adata.var.columns: adata.var['gamma_r2'] = None
         if np.all(adata.var.gamma_r2.values == None): adata.var.gamma_r2 = 1
         adata.var["use_for_velocity"] = (
             (adata.var.gamma > min_gamma)
             & (adata.var.gamma_r2 > min_r2)
-            & adata.var.use_for_dynamo
-            if use_for_dynamo
+            & adata.var.use_for_dynamics
+            if use_for_dynamics
             else (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2)
         )
     elif layer is "P":
+        if 'delta' not in adata.var.columns:
+            is_group_delta, is_group_delta_r2 = get_group_params_indices(adata, 'delta'), \
+                                                get_group_params_indices(adata, 'delta_r2')
+            if is_group_delta.sum() > 0:
+                adata.var['delta'] = adata.var.loc[:, is_group_delta].mean(1, skipna=True)
+                adata.var['delta_r2'] = adata.var.loc[:, is_group_delta_r2].mean(1, skipna=True)
+            else:
+                raise Exception("there is no delta/delta_r2 parameter estimated for your adata object")
+
         if 'delta_r2' not in adata.var.columns: adata.var['delta_r2'] = None
         if np.all(adata.var.delta_r2.values == None):
             adata.var.delta_r2 = 1
         adata.var["use_for_velocity"] = (
             (adata.var.delta > min_delta)
             & (adata.var.delta_r2 > min_r2)
-            & adata.var.use_for_dynamo
-            if use_for_dynamo
+            & adata.var.use_for_dynamics
+            if use_for_dynamics
             else (adata.var.delta > min_delta) & (adata.var.delta_r2 > min_r2)
         )
 
@@ -988,6 +1058,8 @@ def set_velocity_genes(
 
 
 def get_ekey_vkey_from_adata(adata):
+    """ekey: expression from which to extrapolate velocity; vkey: velocity key; layer: the states cells will be used in
+    velocity embedding. """
     dynamics_key = [i for i in adata.uns.keys() if i.endswith("dynamics")][0]
     experiment_type, use_smoothed = (
         adata.uns[dynamics_key]["experiment_type"],
@@ -1012,60 +1084,64 @@ def get_ekey_vkey_from_adata(adata):
                         adata.layers[mapper["X_su"]],
                         adata.layers[mapper["X_sl"]],
                     )
-                    ul, sl = (ul + sl, uu + ul + su + sl) if NTR else (ul + uu, sl + su)
-                    adata.layers["M_U"], adata.layers["M_S"] = ul, sl
-                else:
-                    uu, ul, su, sl = (
-                        adata.layers["X_uu"],
-                        adata.layers["X_ul"],
-                        adata.layers["X_su"],
-                        adata.layers["X_sl"],
-                    )
-                    ul, sl = (ul + sl, uu + ul + su + sl) if NTR else (ul + uu, sl + su)
-                    adata.layers["X_U"], adata.layers["X_S"] = ul, sl
+                    if 'M_n' not in adata.layers.keys():
+                        adata.layers["M_n"] = ul + sl
+                    elif NTR and "M_t" not in adata.layers.keys():
+                        adata.layers["M_t"] = uu + ul + su + sl
+                    elif not NTR and "M_s" not in adata.layers.keys():
+                        adata.layers["M_s"] = sl + su
+
+                uu, ul, su, sl = (
+                    adata.layers["X_uu"],
+                    adata.layers["X_ul"],
+                    adata.layers["X_su"],
+                    adata.layers["X_sl"],
+                )
+
+                if 'X_new' not in adata.layers.keys():
+                    adata.layers["X_new"] = ul + sl
+                elif NTR and "X_total" not in adata.layers.keys():
+                    adata.layers["X_total"] = uu + ul + su + sl
+                elif not NTR and "X_spliced" not in adata.layers.keys():
+                    adata.layers["X_spliced"] = sl + su
             else:
                 raise Exception(
-                    "The input data you have is not normalized/log trnasformed or smoothed and normalized/log trnasformed!"
+                    "The input data you have is not normalized or normalized + smoothed!"
                 )
 
             if experiment_type == "kin":
                 ekey, vkey, layer = (
-                    ("M_U", "velocity_U", "X_U")
+                    (mapper["X_total"] if NTR else mapper["X_spliced"], "velocity_S", ("X_total" if NTR else "X_spliced"))
                     if use_smoothed
-                    else ("X_U", "velocity_U", "X_U")
+                    else ("X_total" if NTR else "X_spliced", "velocity_S", "X_total" if NTR else "X_spliced")
                 )
             elif experiment_type == "deg":
                 ekey, vkey, layer = (
-                    ("M_S", "velocity_S", "X_S")
+                    (mapper["X_total"] if NTR else mapper["X_spliced"], "velocity_S", ("X_total" if NTR else "X_spliced"))
                     if use_smoothed
-                    else ("X_S", "velocity_S", "X_S")
+                    else ("X_total" if NTR else "X_spliced", "velocity_S", "X_total" if NTR else "X_spliced")
                 )
             elif experiment_type == "one_shot":
                 ekey, vkey, layer = (
-                    ("M_U", "velocity_U", "X_U")
+                    (mapper["X_total"] if NTR else mapper["X_spliced"], "velocity_S", ("X_total" if NTR else "X_spliced"))
                     if use_smoothed
-                    else ("X_U", "velocity_U", "X_U")
+                    else ("X_total" if NTR else "X_spliced", "velocity_S", "X_total" if NTR else "X_spliced")
                 )
             elif experiment_type == "mix_std_stm":
                 ekey, vkey, layer = (
-                    ("M_U", "velocity_U", "X_U")
+                    (mapper["X_total"] if NTR else mapper["X_spliced"], "velocity_S", ("X_total" if NTR else "X_spliced"))
                     if use_smoothed
-                    else ("X_U", "velocity_U", "X_U")
+                    else ("X_total" if NTR else "X_spliced", "velocity_S", "X_total" if NTR else "X_spliced")
                 )
         else:
-            if ("X_unspliced" in adata.layers.keys()) or (
+            if not (("X_unspliced" in adata.layers.keys()) or (
                 mapper["X_unspliced"] in adata.layers.keys()
-            ):  # unlabel spliced: S
-                if use_smoothed:
-                    ul, sl = mapper["X_unspliced"], mapper["X_spliced"]
-                else:
-                    ul, sl = "X_unspliced", "X_spliced"
-            else:
+            )):
                 raise Exception(
                     "The input data you have is not normalized/log trnasformed or smoothed and normalized/log trnasformed!"
                 )
             ekey, vkey, layer = (
-                ("M_s", "velocity_S", "X_spliced")
+                (mapper["X_spliced"], "velocity_S", "X_spliced")
                 if use_smoothed
                 else ("X_spliced", "velocity_S", "X_spliced")
             )
@@ -1077,9 +1153,9 @@ def get_ekey_vkey_from_adata(adata):
             # we may also create M_U, M_S layers?
             if experiment_type == "kin":
                 ekey, vkey, layer = (
-                    (mapper["X_new"], "velocity_U", "X_new")
+                    (mapper["X_total"], "velocity_S", "X_total")
                     if use_smoothed
-                    else ("X_new", "velocity_U", "X_new")
+                    else ("X_total", "velocity_S", "X_total")
                 )
             elif experiment_type == "deg":
                 ekey, vkey, layer = (
@@ -1095,12 +1171,12 @@ def get_ekey_vkey_from_adata(adata):
                 )
             elif experiment_type == "mix_std_stm":
                 ekey, vkey, layer = (
-                    (mapper["X_new"], "velocity_U", "X_new")
+                    (mapper["X_total"], "velocity_S", "X_total")
                     if use_smoothed
-                    else ("X_new", "velocity_U", "X_new")
+                    else ("X_total", "velocity_S", "X_total")
                 )
 
-        elif "new" in adata.layers.keys():
+        else:
             raise Exception(
                 "The input data you have is not normalized/log trnasformed or smoothed and normalized/log trnasformed!"
             )
@@ -1115,7 +1191,7 @@ def get_iterative_indices(indices, index, n_recurse_neighbors=2, max_neighs=None
     def iterate_indices(indices, index, n_recurse_neighbors):
         if n_recurse_neighbors > 1:
             index = iterate_indices(indices, index, n_recurse_neighbors - 1)
-        ix = np.append(index, indices[index])
+        ix = np.append(index, indices[index])  # append to also include direct neighbors, otherwise ix = indices[index]
         if np.isnan(ix).any():
             ix = ix[~np.isnan(ix)]
         return ix.astype(int)
@@ -1486,6 +1562,7 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
             exprs = adata[np.isfinite(time), :][:, valid_genes].X
         elif layer in adata.layers.keys():
             exprs = adata[np.isfinite(time), :][:, valid_genes].layers[layer]
+            exprs = log1p_(adata, exprs)
         elif layer is "protein":  # update subset here
             exprs = adata[np.isfinite(time), :][:, valid_genes].obsm[layer]
         else:
@@ -1553,7 +1630,7 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
             init_states = (
                 adata[_cell_names, :][:, valid_genes].X
                 if layer == "X"
-                else adata[_cell_names, :][:, valid_genes].layers[layer]
+                else log1p_(adata, adata[_cell_names, :][:, valid_genes].layers[layer])
             )
             if issparse(init_states):
                 init_states = init_states.A
@@ -1565,7 +1642,7 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
                 X = adata[:, valid_genes].X
             else:
                 VecFld = adata.uns["VecFld_" + layer]["VecFld"]
-                X = adata[:, valid_genes].layers[layer]
+                X = log1p_(adata, adata[:, valid_genes].layers[layer])
 
     if init_states.shape[0] > 1 and average in ["origin", True]:
         init_states = init_states.mean(0).reshape((1, -1))

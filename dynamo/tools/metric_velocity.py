@@ -5,7 +5,7 @@ from scipy.stats import pearsonr
 from scipy.spatial.distance import cosine
 from scipy.sparse import issparse
 from .connectivity import umap_conn_indices_dist_embedding, mnn_from_list
-from .utils import get_finite_inds
+from .utils import get_finite_inds, inverse_norm
 
 
 def cell_wise_confidence(adata, ekey="M_s", vkey="velocity_S", method="jaccard"):
@@ -35,14 +35,19 @@ def cell_wise_confidence(adata, ekey="M_s", vkey="velocity_S", method="jaccard")
             Returns an updated `~anndata.AnnData` with `.obs.confidence` as the cell-wise velocity confidence.
     """
 
-    X, V = (
-        (adata.X, adata.layers[vkey])
-        if ekey is "X"
-        else (adata.layers[ekey], adata.layers[vkey])
-    )
+    if ekey is "X": 
+        X, V = (adata.X, adata.layers[vkey])
+        norm_method = adata.uns["pp_norm_method"].copy()
+        adata.uns["pp_norm_method"] = 'log1p'
+        X = inverse_norm(adata, X)
+        adata.uns["pp_norm_method"] = norm_method
+    else:
+        X, V = (adata.layers[ekey], adata.layers[vkey])
+        X = inverse_norm(adata, X)
+
     n_neigh, X_neighbors = (
         adata.uns["neighbors"]["params"]["n_neighbors"],
-        adata.uns["neighbors"]["connectivities"],
+        adata.obsp["connectivities"],
     )
     n_pca_components = adata.obsm["X"].shape[1]
 

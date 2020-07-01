@@ -1,6 +1,7 @@
+from scipy.sparse import issparse
 import warnings
 from ..preprocessing.utils import pca
-from .utils import update_dict, build_distance_graph
+from .utils import update_dict, build_distance_graph, log1p_
 from .connectivity import (
     umap_conn_indices_dist_embedding,
 )
@@ -39,14 +40,16 @@ def prepare_dim_reduction(adata,
             if genes is not None:
                 X_data = adata[:, genes].X
             else:
-                X_data = adata.X if 'use_for_dynamo' not in adata.var.keys() \
-                    else adata[:, adata.var.use_for_dynamo].X
+                X_data = adata.X if 'use_for_dynamics' not in adata.var.keys() \
+                    else adata[:, adata.var.use_for_dynamics].X
         else:
             if genes is not None:
                 X_data = adata[:, genes].layers[layer]
             else:
-                X_data = adata.layers[layer] if 'use_for_dynamo' not in adata.var.keys() \
-                        else adata[:, adata.var.use_for_dynamo].layers[layer]
+                X_data = adata.layers[layer] if 'use_for_dynamics' not in adata.var.keys() \
+                        else adata[:, adata.var.use_for_dynamics].layers[layer]
+
+            X_data = log1p_(adata, X_data)
     else:
         pca_key = "X_pca" if layer is None else layer + "_pca"
         n_pca_components = max(max(dims), n_pca_components) if dims is not None else n_pca_components
@@ -58,14 +61,17 @@ def prepare_dim_reduction(adata,
                     if genes is not None:
                         CM = adata[:, genes].X
                     else:
-                        CM = adata.X if 'use_for_dynamo' not in adata.var.keys() \
-                            else adata[:, adata.var.use_for_dynamo].X
+                        CM = adata.X if 'use_for_dynamics' not in adata.var.keys() \
+                            else adata[:, adata.var.use_for_dynamics].X
                 else:
                     if genes is not None:
                         CM = adata[:, genes].layers[layer]
                     else:
-                        CM = adata.layers[layer] if 'use_for_dynamo' not in adata.var.keys() \
-                            else adata[:, adata.var.use_for_dynamo].layers[layer]
+                        CM = adata.layers[layer] if 'use_for_dynamics' not in adata.var.keys() \
+                            else adata[:, adata.var.use_for_dynamics].layers[layer]
+
+                    CM = log1p_(adata, CM)
+
                 cm_genesums = CM.sum(axis=0)
                 valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
                 valid_ind = np.array(valid_ind).flatten()

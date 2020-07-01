@@ -68,7 +68,7 @@ def _plt_connectivity(coord, connectivity):
         "arrowsize": 10,
     }
     edge_color = "gray"
-    plt.figure(figsize=[10, 10])
+    plt.figure(figsize=[6, 4])
 
     nx.draw(
         G,
@@ -323,7 +323,7 @@ def nneighbors(
     adata,
     x=0,
     y=1,
-    color=None,
+    color='ntr',
     basis="umap",
     layer="X",
     highlights=None,
@@ -338,7 +338,7 @@ def nneighbors(
     color_key=None,
     color_key_cmap=None,
     background="black",
-    figsize=(7, 5),
+    figsize=(6, 4),
     ax=None,
     save_show_or_return='show',
     save_kwargs={},
@@ -353,7 +353,7 @@ def nneighbors(
             The first component of the embedding.
         y: `int`
             The second component of the embedding.
-        color: `str` or list of `str` or None (default: None)
+        color: `str` or list of `str` or None (default: 'ntr')
             Gene name(s) or cell annotation column(s)
         basis: `str` or list of `str` (default: `X`)
             Which low dimensional embedding will be used to visualize the cell.
@@ -439,7 +439,7 @@ def nneighbors(
 
     if total_panels > 1:
         g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)
-        gs = plt.GridSpec(nrow, ncol)
+        gs = plt.GridSpec(nrow, ncol, wspace=0.12)
 
     i = 0
     for cur_b in basis:

@@ -28,7 +28,7 @@ def scifate_glmnet(adata,
                    core_n_filtering=1,
                    motif_ref='https://www.dropbox.com/s/s8em539ojl55kgf/motifAnnotations_hgnc.csv?dl=1',
                    TF_link_ENCODE_ref='https://www.dropbox.com/s/bjuope41pte7mf4/df_gene_TF_link_ENCODE.csv?dl=1',
-                   nt_layers=['new', 'total']):
+                   nt_layers=['X_new', 'X_total']):
     """Reconstruction of regulatory network (Cao, et. al, Nature Biotechnology, 2020) from TFs to other target
      genes via LASSO regression between the total expression of known transcription factors and the newly synthesized
      RNA of potential targets. The inferred regulatory relationships between TF and targets are further filtered based
@@ -73,7 +73,7 @@ def scifate_glmnet(adata,
         TF_link_ENCODE_ref: `str` (default: 'https://www.dropbox.com/s/s8em539ojl55kgf/motifAnnotations_hgnc.csv?dl=1')
             The path to the TF chip-seq data. By default it is a dropbox link from us that stores the data. Other data can
             be downloaded from: https://amp.pharm.mssm.edu/Harmonizome/dataset/ENCODE+Transcription+Factor+Targets.
-        nt_layers: `list([str, str])` (default: `['new', 'total']`)
+        nt_layers: `list([str, str])` (default: `['X_new', 'X_total']`)
             The layers that will be used for the network inference. Note that the layers can be changed flexibly. See
             the description of this function above.
 

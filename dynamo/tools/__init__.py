@@ -28,7 +28,7 @@ from .utils_kinetic import (
     Deterministic_NoSplicing,
 )
 
-from .moments import Estimation, moments
+from .moments import Estimation, moments, calc_1nd_moment, calc_2nd_moment
 
 from .velocity import (
     sol_u,

@@ -1,19 +1,17 @@
-import numpy as np
 import pandas as pd
 import sys
 import warnings
-from scipy.sparse import issparse
 from .utils_dynamics import *
 from .utils import despline, _matplotlib_points, _datashade_points, _select_font_color
-from .utils import arrowed_spines
+from .utils import arrowed_spines, despline_all, deaxis_all
 from .utils import quiver_autoscaler, default_quiver_args
 from .utils import save_fig
 from .scatters import scatters
 from ..tools.velocity import sol_u, sol_s, solve_first_order_deg
 from ..tools.utils_moments import moments
-from ..tools.utils import get_mapper, one_shot_k
-from ..tools.utils import update_dict, get_valid_inds
-from ..configuration import _themes, set_figure_params
+from ..tools.utils import get_mapper, log1p_
+from ..tools.utils import update_dict, get_valid_bools
+from ..configuration import _themes
 
 
 def phase_portraits(
@@ -25,13 +23,14 @@ def phase_portraits(
         vkey="S",
         ekey="X",
         basis="umap",
-        color=None,
+        log1p=True, 
+        color='cell_cycle_phase',
         highlights=None,
         discrete_continous_div_themes=None,
         discrete_continous_div_cmap=None,
         discrete_continous_div_color_key=[None, None, None],
         discrete_continous_div_color_key_cmap=None,
-        figsize=(7, 5),
+        figsize=(6, 4),
         ncols=None,
         legend="upper left",
         background=None,
@@ -39,6 +38,7 @@ def phase_portraits(
         quiver_size=None,
         quiver_length=None,
         q_kwargs_dict={},
+        show_arrowed_spines=None,
         save_show_or_return='show',
         save_kwargs={},
         **kwargs,
@@ -61,7 +61,7 @@ def phase_portraits(
         y: `int` (default: `1`)
                 The column index of the low dimensional embedding for the y-axis
         pointsize: `None` or `float` (default: None)
-                The scale of the point size. Actual point cell size is calculated as `500.0 / np.sqrt(adata.shape[0]) * pointsize`
+                The scale of the point size. Actual point cell size is calculated as `2500.0 / np.sqrt(adata.shape[0]) * pointsize`
         vkey: `string` (default: velocity)
             Which velocity key used for visualizing the magnitude of velocity. Can be either velocity in the layers slot or the
             keys in the obsm slot.
@@ -69,7 +69,9 @@ def phase_portraits(
             The layer of data to represent the gene expression level.
         basis: `string` (default: umap)
             Which low dimensional embedding will be used to visualize the cell.
-        color: `string` (default: None)
+        log1p: `bool` (default: `True`)
+            Whether to log1p transform the expression so that visualization can be robust to extreme values.
+        color: `string` (default: 'cell_cycle_phase')
             Which group will be used to color cells, only used for the phase portrait because the other two plots are colored
             by the velocity magnitude or the gene expression value, respectively.
         highlights: `list` (default: None)
@@ -137,6 +139,9 @@ def phase_portraits(
         q_kwargs_dict: `dict` (default: {})
             The dictionary of the quiver arguments. The default setting of quiver argument is identical to that used in the
             cell_wise_velocity and grid_velocity.
+        show_arrowed_spines: bool or None (optional, default None)
+            Whether to show a pair of arrowed spines represeenting the basis of the scatter is currently using. If None,
+            only the first panel in the expression / velocity plot will have the arrowed spine.
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -155,17 +160,21 @@ def phase_portraits(
 
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
-    from matplotlib.colors import DivergingNorm  # TwoSlopeNorm
+    from matplotlib.colors import to_hex
+    # from matplotlib.colors import DivergingNorm  # TwoSlopeNorm
 
-    if background is not None:
-        set_figure_params(background=background)
+    if background is None:
+        _background = rcParams.get("figure.facecolor")
+        _background = to_hex(_background) if type(_background) is tuple else _background
+    else:
+        _background = background
 
     mapper = get_mapper()
 
     point_size = (
-        500.0 / np.sqrt(adata.shape[0])
+        500.0 / np.sqrt(adata.shape[0]) * 5
         if pointsize is None
-        else 500.0 / np.sqrt(adata.shape[0]) * pointsize
+        else 500.0 / np.sqrt(adata.shape[0]) * 5 * pointsize
     )
     scatter_kwargs = dict(
         alpha=0.2, s=point_size, edgecolor=None, linewidth=0
@@ -174,7 +183,7 @@ def phase_portraits(
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
     div_scatter_kwargs = scatter_kwargs.copy()
-    div_scatter_kwargs.update({"norm": DivergingNorm(vcenter=0)})
+    # div_scatter_kwargs.update({"norm": DivergingNorm(vcenter=0)})
 
     if type(genes) == str:
         genes = [genes]
@@ -254,6 +263,8 @@ def phase_portraits(
                 if (ekey in mapper.keys()) and (mapper[ekey] in adata.layers.keys())
                 else adata[:, genes].layers[ekey]
             )
+        
+        if log1p: E_vec = log1p_(adata, E_vec)
 
     n_cells, n_genes = adata.shape[0], len(genes)
 
@@ -306,6 +317,7 @@ def phase_portraits(
             adata[:, genes].layers[mapper["X_new"]],
             adata[:, genes].layers[mapper["X_total"]],
         )
+
         new_mat, tot_mat = (
             (new_mat.A, tot_mat.A) if issparse(new_mat) else (new_mat, tot_mat)
         )
@@ -336,6 +348,7 @@ def phase_portraits(
             adata[:, genes].layers[mapper["X_unspliced"]],
             adata[:, genes].layers[mapper["X_spliced"]],
         )
+                
         unspliced_mat, spliced_mat = (
             (unspliced_mat.A, spliced_mat.A)
             if issparse(unspliced_mat)
@@ -462,12 +475,12 @@ def phase_portraits(
     ncols = min([num_per_gene, ncols]) if ncols is not None else num_per_gene
     nrow, ncol = int(np.ceil(num_per_gene * n_genes / ncols)), ncols
     if figsize is None:
-        g = plt.figure(None, (3 * ncol, 3 * nrow))  # , dpi=160
+        g = plt.figure(None, (3 * ncol, 3 * nrow), facecolor=_background)  # , dpi=160
     else:
-        g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow))  # , dpi=160
+        g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=_background)  # , dpi=160
 
     if discrete_continous_div_themes is None:
-        if rcParams.get("figure.facecolor") == "black":
+        if _background in ["#ffffff", "black"]:
             discrete_theme, continous_theme, divergent_theme = (
                 "glasbey_dark",
                 "inferno",
@@ -504,7 +517,7 @@ def phase_portraits(
     font_color = _select_font_color(discrete_background)
 
     # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
-    gs = plt.GridSpec(nrow, ncol)
+    gs = plt.GridSpec(nrow, ncol, wspace=0.5, hspace=0.36)
     for i, gn in enumerate(genes):
         if num_per_gene is 3:
             ax1, ax2, ax3 = (
@@ -564,7 +577,7 @@ def phase_portraits(
                 ax1, color = _matplotlib_points(
                     cur_pd.iloc[:, [1, 0]].values,
                     ax=ax1,
-                    labels=cur_pd.loc[:, "expression"],
+                    labels=cur_pd.loc[:, "color"],
                     values=None,
                     highlights=highlights,
                     cmap=discrete_cmap,
@@ -580,7 +593,7 @@ def phase_portraits(
                 ax1, color = _datashade_points(
                     cur_pd.iloc[:, [1, 0]].values,
                     ax=ax1,
-                    labels=cur_pd.loc[:, "expression"],
+                    labels=cur_pd.loc[:, "color"],
                     values=None,
                     highlights=highlights,
                     cmap=discrete_cmap,
@@ -637,7 +650,6 @@ def phase_portraits(
                 "minshaft": 1,
                 "minlength": 1,
                 "pivot": "tail",
-                "linewidth": 0.2,
                 "edgecolors": edgecolors,
                 "linewidth": 0.2,
                 "color": color,
@@ -668,6 +680,10 @@ def phase_portraits(
         # V_vec = V_vec + limit  # that is: tmp_colorandum - (-limit)
         # V_vec = V_vec / (2 * limit)  # that is: tmp_colorandum / (limit - (-limit))
         # V_vec = np.clip(V_vec, 0, 1)
+        if show_arrowed_spines is None:
+            show_arrowed_spines_ = True if i == 0 else False
+        else:
+            show_arrowed_spines_ = show_arrowed_spines
 
         if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
             ax2, _ = _matplotlib_points(
@@ -703,7 +719,14 @@ def phase_portraits(
             )
 
         ax2.set_title(gn + " (" + ekey + ")")
-        ax2 = arrowed_spines(ax2, basis)
+        if show_arrowed_spines_:
+            ax2 = arrowed_spines(ax2, basis)
+        else:
+            despline_all(ax2)
+            deaxis_all(ax2)
+
+        v_max = np.max(np.abs(V_vec.values))
+        div_scatter_kwargs.update({"vmin": -v_max, "vmax": v_max})
 
         if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
             ax3, _ = _matplotlib_points(
@@ -739,7 +762,12 @@ def phase_portraits(
             )
 
         ax3.set_title(gn + " (" + vkey + ")")
-        ax3 = arrowed_spines(ax3, basis)
+        if show_arrowed_spines_:
+            ax3 = arrowed_spines(ax3, basis)
+        else:
+            despline_all(ax3)
+            deaxis_all(ax3)
+
         if (
                 "protein" in adata.obsm.keys()
                 and mode is "full"
@@ -783,7 +811,7 @@ def phase_portraits(
                     ax4, color = _matplotlib_points(
                         cur_pd.iloc[:, [1, 0]].values,
                         ax=ax4,
-                        labels=color,
+                        labels=cur_pd.loc[:, "color"].values,
                         values=None,
                         highlights=highlights,
                         cmap=discrete_cmap,
@@ -799,7 +827,7 @@ def phase_portraits(
                     ax4, color = _datashade_points(
                         cur_pd.iloc[:, [1, 0]].values,
                         ax=ax4,
-                        labels=color,
+                        labels=cur_pd.loc[:, "color"].values,
                         values=None,
                         highlights=highlights,
                         cmap=discrete_cmap,
@@ -857,7 +885,6 @@ def phase_portraits(
                     "minshaft": 1,
                     "minlength": 1,
                     "pivot": "tail",
-                    "linewidth": 0.2,
                     "edgecolors": edgecolors,
                     "linewidth": 0.2,
                     "color": color,
@@ -922,7 +949,14 @@ def phase_portraits(
                 )
 
             ax5.set_title(gn + " (protein expression)")
-            ax5 = arrowed_spines(ax5, basis)
+            if show_arrowed_spines_:
+                ax5 = arrowed_spines(ax5, basis)
+            else:
+                despline_all(ax5)
+                deaxis_all(ax5)
+
+            v_max = np.max(np.abs(V_vec.values))
+            div_scatter_kwargs.update({"vmin": -v_max, "vmax": v_max})
 
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
                 ax6, _ = _matplotlib_points(
@@ -958,7 +992,11 @@ def phase_portraits(
                 )
 
             ax6.set_title(gn + " (protein velocity)")
-            ax6 = arrowed_spines(ax6, basis)
+            if show_arrowed_spines_:
+                ax6 = arrowed_spines(ax6, basis)
+            else:
+                despline_all(ax6)
+                deaxis_all(ax6)
 
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'phase_portraits', "dpi": None,
@@ -986,10 +1024,11 @@ def dynamics(
         boxwidth=None,
         barwidth=None,
         true_param_prefix=None,
-        show_moms_fit=False, # only works for non-deterministic models
-        show_variance=False,
+        show_moms_fit=False,
+        show_variance=True,
         show_kin_parameters=True,
         gene_order='column',
+        font_size_scale=1,
         save_show_or_return='show',
         save_kwargs={},
 ):
@@ -1023,6 +1062,16 @@ def dynamics(
             The width of the bar of the barplot.
         true_param_prefix: `str`
             The prefix for the column names of true parameters in the .var attributes. Useful for the simulation data.
+        show_moms_fit: `bool` (default: `True`)
+            Whether to show fitting curves associated with the stochastic models, only works for non-deterministic models.
+        show_variance: `bool` (default: `True`)
+            Whether to add a boxplot to show the variance at each time point.
+        show_kin_parameters: `bool` (default: `True`)
+            Whether to include the estimated kinetic parameter values on the plot.
+        gene_order: `str` (default: `column`)
+            The order of genes to present on the figure, either row-major or column major.
+        font_size_scale: `float` (default: `1`)
+            A value that will be used for scaling
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -1038,13 +1087,13 @@ def dynamics(
 
     import matplotlib.pyplot as plt
     import matplotlib
-    params = {'font.size': 4,
-              'legend.fontsize': 4,
+    params = {'font.size': 4 * font_size_scale,
+              'legend.fontsize': 4 * font_size_scale,
               'legend.handlelength': 0.5,
-              'axes.labelsize': 6,
-              'axes.titlesize': 6,
-              'xtick.labelsize': 6,
-              'ytick.labelsize': 6,
+              'axes.labelsize': 6 * font_size_scale,
+              'axes.titlesize': 6 * font_size_scale,
+              'xtick.labelsize': 6 * font_size_scale,
+              'ytick.labelsize': 6 * font_size_scale,
               'axes.titlepad': 1,
               'axes.labelpad': 1,
               'axes.spines.right': False,
@@ -1092,14 +1141,15 @@ def dynamics(
 
     T_uniq = np.unique(T)
     t = np.linspace(0, T_uniq[-1], 1000)
-    valid_genes = adata.var_names[get_valid_inds(adata, filter_gene_mode)]
+    valid_genes = adata.var_names[get_valid_bools(adata, filter_gene_mode)]
     valid_gene_names = valid_genes.intersection(vkey)
-    gene_idx = np.array([np.where(valid_genes == gene)[0][0] for gene in vkey])
 
-    if len(gene_idx) == 0:
+    if len(valid_gene_names) == 0:
         raise ValueError(f"no kinetic parameter fitting has performed for the gene {vkey} you provided. Try "
                          f"using dyn.tl.dynamics(adata, filter_gene_mode='final', ...) or use only fitted genes.")
 
+    valid_adata = adata[:, valid_gene_names]
+    gene_idx = np.array([np.where(valid_gene_names == gene)[0][0] for gene in vkey])
     if boxwidth is None and len(T_uniq) > 1:
         boxwidth = 0.8 * (np.diff(T_uniq).min() / 2)
 
@@ -1173,6 +1223,7 @@ def dynamics(
         nrows,
         ncols,
         g,
+        wspace=0.12,
     )
 
     # there are bugs when fig is not a symmetric matrix
@@ -1187,8 +1238,8 @@ def dynamics(
 
         true_p = None;
         true_params = [None, None, None]
-        logLL = adata.var.loc[valid_gene_names, prefix + 'logLL']
-        est_params_df = adata.var.loc[
+        logLL = valid_adata.var.loc[valid_gene_names, prefix + 'logLL']
+        est_params_df = valid_adata.var.loc[
             valid_gene_names,
             [
                 prefix + "alpha",
@@ -1203,54 +1254,52 @@ def dynamics(
 
         if experiment_type is "kin":
             if model == 'deterministic':
-                gs = plot_kin_det(adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
+                gs = plot_kin_det(valid_adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
                                   t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
                                   grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
                                   true_param_prefix, true_params, est_params,
                                   show_variance, show_kin_parameters, )
             elif model == 'stochastic':
-                gs = plot_kin_sto(adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
+                gs = plot_kin_sto(valid_adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
                                   t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
                                   grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
                                   true_param_prefix, true_params, est_params,
                                   show_moms_fit, show_variance, show_kin_parameters, )
             elif model == 'mixture':
-                gs = plot_kin_mix(adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
+                gs = plot_kin_mix(valid_adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
                                   t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
                                   grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
                                   true_param_prefix, true_params, est_params,
                                   show_variance, show_kin_parameters, )
             elif model == 'mixture_deterministic_stochastic':
-                gs = plot_kin_mix_det_sto(adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
+                gs = plot_kin_mix_det_sto(valid_adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
                                   t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
                                   grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
                                   true_param_prefix, true_params, est_params,
                                   show_moms_fit, show_variance, show_kin_parameters, )
             elif model == 'mixture_stochastic_stochastic':
-                gs = plot_kin_mix_sto_sto(adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
+                gs = plot_kin_mix_sto_sto(valid_adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
                                   t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
                                   grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
                                   true_param_prefix, true_params, est_params,
                                   show_moms_fit, show_variance, show_kin_parameters, )
         elif experiment_type is "deg":
             if model == 'deterministic':
-                gs = plot_deg_det(adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
+                gs = plot_deg_det(valid_adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
                                   t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
                                   grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
                                   true_param_prefix, true_params, est_params,
                                   show_variance, show_kin_parameters, )
             elif model == 'stochastic':
-                gs = plot_deg_sto(adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
+                gs = plot_deg_sto(valid_adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
                                   t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
                                   grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
                                   true_param_prefix, true_params, est_params,
                                   show_moms_fit, show_variance, show_kin_parameters, )
         else:
-            for i, idx in enumerate(gene_idx):
-                gene_name = adata.var_names[idx]
-
+            for i, gene_name in enumerate(valid_genes):
                 if model is "moment":
-                    a, b, alpha_a, alpha_i, beta, gamma = adata.var.loc[
+                    a, b, alpha_a, alpha_i, beta, gamma = valid_adata.var.loc[
                         gene_name,
                         [
                             prefix + "a",
@@ -1285,23 +1334,23 @@ def dynamics(
                             true_beta,
                             true_gamma,
                         ) = (
-                            adata.var.loc[gene_name, true_param_prefix + "a"]
-                            if true_param_prefix + "a" in adata.var_keys()
+                            valid_adata.var.loc[gene_name, true_param_prefix + "a"]
+                            if true_param_prefix + "a" in valid_adata.var_keys()
                             else -np.inf,
-                            adata.var.loc[gene_name, true_param_prefix + "b"]
-                            if true_param_prefix + "b" in adata.var_keys()
+                            valid_adata.var.loc[gene_name, true_param_prefix + "b"]
+                            if true_param_prefix + "b" in valid_adata.var_keys()
                             else -np.inf,
-                            adata.var.loc[gene_name, true_param_prefix + "alpha_a"]
-                            if true_param_prefix + "alpha_a" in adata.var_keys()
+                            valid_adata.var.loc[gene_name, true_param_prefix + "alpha_a"]
+                            if true_param_prefix + "alpha_a" in valid_adata.var_keys()
                             else -np.inf,
-                            adata.var.loc[gene_name, true_param_prefix + "alpha_i"]
-                            if true_param_prefix + "alpha_i" in adata.var_keys()
+                            valid_adata.var.loc[gene_name, true_param_prefix + "alpha_i"]
+                            if true_param_prefix + "alpha_i" in valid_adata.var_keys()
                             else -np.inf,
-                            adata.var.loc[gene_name, true_param_prefix + "beta"]
-                            if true_param_prefix + "beta" in adata.var_keys()
+                            valid_adata.var.loc[gene_name, true_param_prefix + "beta"]
+                            if true_param_prefix + "beta" in valid_adata.var_keys()
                             else -np.inf,
-                            adata.var.loc[gene_name, true_param_prefix + "gamma"]
-                            if true_param_prefix + "gamma" in adata.var_keys()
+                            valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
+                            if true_param_prefix + "gamma" in valid_adata.var_keys()
                             else -np.inf,
                         )
 
@@ -1325,17 +1374,17 @@ def dynamics(
                     if has_splicing:
                         tmp = (
                             [
-                                adata[:, gene_idx].layers["M_ul"].A.T,
-                                adata.layers["M_sl"].A.T,
+                                valid_adata[:, gene_name].layers["M_ul"].A.T,
+                                valid_adata.layers["M_sl"].A.T,
                             ]
-                            if "M_ul" in adata.layers.keys()
+                            if "M_ul" in valid_adata.layers.keys()
                             else [
-                                adata[:, gene_idx].layers["ul"].A.T,
-                                adata.layers["sl"].A.T,
+                                valid_adata[:, gene_name].layers["ul"].A.T,
+                                valid_adata.layers["sl"].A.T,
                             ]
                         )
                         x_data = [tmp[0].A, tmp[1].A] if issparse(tmp[0]) else tmp
-                        if log_unnormalized and "X_ul" not in adata.layers.keys():
+                        if log_unnormalized and "X_ul" not in valid_adata.layers.keys():
                             x_data = [np.log(tmp[0] + 1), np.log(tmp[1] + 1)]
 
                         title_ = [
@@ -1344,22 +1393,22 @@ def dynamics(
                             "(unspliced labeled)",
                             "(spliced labeled)",
                         ]
-                        Obs_m = [adata.uns["M_ul"], adata.uns["M_sl"]]
-                        Obs_v = [adata.uns["V_ul"], adata.uns["V_sl"]]
+                        Obs_m = [valid_adata.uns["M_ul"], valid_adata.uns["M_sl"]]
+                        Obs_v = [valid_adata.uns["V_ul"], valid_adata.uns["V_sl"]]
                         j_species = 2  # number of species
                     else:
                         tmp = (
-                            adata[:, gene_idx].layers["X_new"].T
-                            if "X_new" in adata.layers.keys()
-                            else adata[:, gene_idx].layers["new"].T
+                            valid_adata[:, gene_name].layers["X_new"].T
+                            if "X_new" in valid_adata.layers.keys()
+                            else valid_adata[:, gene_name].layers["new"].T
                         )
                         x_data = [tmp.A] if issparse(tmp) else [tmp]
 
-                        if log_unnormalized and "X_new" not in adata.layers.keys():
+                        if log_unnormalized and "X_new" not in valid_adata.layers.keys():
                             x_data = [np.log(x_data[0] + 1)]
                         # only use new key for calculation, so we only have M, V
                         title_ = [" (labeled)", " (labeled)"]
-                        Obs_m, Obs_v = [adata.uns["M"]], [adata.uns["V"]]
+                        Obs_m, Obs_v = [valid_adata.uns["M"]], [valid_adata.uns["V"]]
                         j_species = 1
 
                     for j in range(sub_plot_n):
@@ -1474,14 +1523,14 @@ def dynamics(
                     if has_splicing:
                         layers = (
                             ["X_uu", "X_ul", "X_su", "X_sl"]
-                            if "X_ul" in adata.layers.keys()
+                            if "X_ul" in valid_adata.layers.keys()
                             else ["uu", "ul", "su", "sl"]
                         )
                         uu, ul, su, sl = (
-                            adata[:, gene_name].layers[layers[0]],
-                            adata[:, gene_name].layers[layers[1]],
-                            adata[:, gene_name].layers[layers[2]],
-                            adata[:, gene_name].layers[layers[3]],
+                            valid_adata[:, gene_name].layers[layers[0]],
+                            valid_adata[:, gene_name].layers[layers[1]],
+                            valid_adata[:, gene_name].layers[layers[2]],
+                            valid_adata[:, gene_name].layers[layers[3]],
                         )
                         uu, ul, su, sl = (
                             (
@@ -1502,7 +1551,7 @@ def dynamics(
                                 np.log(sl + 1),
                             )
 
-                        alpha, beta, gamma, ul0, sl0, uu0, half_life = adata.var.loc[
+                        alpha, beta, gamma, ul0, sl0, uu0, half_life = valid_adata.var.loc[
                             gene_name,
                             [
                                 prefix + "alpha",
@@ -1528,14 +1577,14 @@ def dynamics(
                         l = sol_s(t, sl0, ul0, 0, beta, gamma)
                         if true_param_prefix is not None:
                             true_alpha, true_beta, true_gamma = (
-                                adata.var.loc[gene_name, true_param_prefix + "alpha"]
-                                if true_param_prefix + "alpha" in adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "alpha"]
+                                if true_param_prefix + "alpha" in valid_adata.var_keys()
                                 else -np.inf,
-                                adata.var.loc[gene_name, true_param_prefix + "beta"]
-                                if true_param_prefix + "beta" in adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "beta"]
+                                if true_param_prefix + "beta" in valid_adata.var_keys()
                                 else -np.inf,
-                                adata.var.loc[gene_name, true_param_prefix + "gamma"]
-                                if true_param_prefix + "gamma" in adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
+                                if true_param_prefix + "gamma" in valid_adata.var_keys()
                                 else -np.inf,
                             )
 
@@ -1557,13 +1606,13 @@ def dynamics(
                     else:
                         layers = (
                             ["X_new", "X_total"]
-                            if "X_new" in adata.layers.keys()
+                            if "X_new" in valid_adata.layers.keys()
                             else ["new", "total"]
                         )
                         uu, ul = (
-                            adata[:, gene_name].layers[layers[1]]
-                            - adata[:, gene_name].layers[layers[0]],
-                            adata[:, gene_name].layers[layers[0]],
+                            valid_adata[:, gene_name].layers[layers[1]]
+                            - valid_adata[:, gene_name].layers[layers[0]],
+                            valid_adata[:, gene_name].layers[layers[0]],
                         )
                         uu, ul = (
                             (uu.toarray().squeeze(), ul.toarray().squeeze())
@@ -1574,7 +1623,7 @@ def dynamics(
                         if log_unnormalized and layers == ["new", "total"]:
                             uu, ul = np.log(uu + 1), np.log(ul + 1)
 
-                        alpha, gamma, uu0, ul0, half_life = adata.var.loc[
+                        alpha, gamma, uu0, ul0, half_life = valid_adata.var.loc[
                             gene_name,
                             [
                                 prefix + "alpha",
@@ -1593,11 +1642,11 @@ def dynamics(
                         title_ = ["(unlabeled)", "(labeled)"]
                         if true_param_prefix is not None:
                             true_alpha, true_gamma = (
-                                adata.var.loc[gene_name, true_param_prefix + "alpha"]
-                                if true_param_prefix + "alpha" in adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "alpha"]
+                                if true_param_prefix + "alpha" in valid_adata.var_keys()
                                 else -np.inf,
-                                adata.var.loc[gene_name, true_param_prefix + "gamma"]
-                                if true_param_prefix + "gamma" in adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
+                                if true_param_prefix + "gamma" in valid_adata.var_keys()
                                 else -np.inf,
                             )
                             true_u = sol_u(t, uu0, true_alpha, true_gamma)
@@ -1688,8 +1737,8 @@ def dynamics(
                         ax.set_title(gene_name + " " + title_[j])
                 elif experiment_type is "kin":
                     if model == 'deterministic':
-                        logLL = adata.var.loc[valid_gene_names, prefix + 'logLL']
-                        alpha, beta, gamma, half_life = adata.var.loc[
+                        logLL = valid_adata.var.loc[valid_gene_names, prefix + 'logLL']
+                        alpha, beta, gamma, half_life = valid_adata.var.loc[
                             gene_name,
                             [
                                 prefix + "alpha",
@@ -1699,7 +1748,7 @@ def dynamics(
                             ],
                         ]
                         est_params = [alpha, beta, gamma]
-                        gs = plot_kin_det(adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
+                        gs = plot_kin_det(valid_adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
                                      t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
                                      grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
                                      true_param_prefix, true_params, est_params,
@@ -1729,14 +1778,14 @@ def dynamics(
                         if has_splicing:
                             layers = (
                                 ["X_uu", "X_ul", "X_su", "X_sl"]
-                                if "X_ul" in adata.layers.keys()
+                                if "X_ul" in valid_adata.layers.keys()
                                 else ["uu", "ul", "su", "sl"]
                             )
                             uu, ul, su, sl = (
-                                adata[:, gene_name].layers[layers[0]],
-                                adata[:, gene_name].layers[layers[1]],
-                                adata[:, gene_name].layers[layers[2]],
-                                adata[:, gene_name].layers[layers[3]],
+                                valid_adata[:, gene_name].layers[layers[0]],
+                                valid_adata[:, gene_name].layers[layers[1]],
+                                valid_adata[:, gene_name].layers[layers[2]],
+                                valid_adata[:, gene_name].layers[layers[3]],
                             )
                             uu, ul, su, sl = (
                                 (
@@ -1757,7 +1806,7 @@ def dynamics(
                                     np.log(sl + 1),
                                 )
 
-                            alpha, beta, gamma, uu0, su0 = adata.var.loc[
+                            alpha, beta, gamma, uu0, su0 = valid_adata.var.loc[
                                 gene_name,
                                 [
                                     prefix + "alpha",
@@ -1780,14 +1829,14 @@ def dynamics(
                             l = sol_s(t, 0, 0, alpha, beta, gamma)
                             if true_param_prefix is not None:
                                 true_alpha, true_beta, true_gamma = (
-                                    adata.var.loc[gene_name, true_param_prefix + "alpha"]
-                                    if true_param_prefix + "alpha" in adata.var_keys()
+                                    valid_adata.var.loc[gene_name, true_param_prefix + "alpha"]
+                                    if true_param_prefix + "alpha" in valid_adata.var_keys()
                                     else -np.inf,
-                                    adata.var.loc[gene_name, true_param_prefix + "beta"]
-                                    if true_param_prefix + "beta" in adata.var_keys()
+                                    valid_adata.var.loc[gene_name, true_param_prefix + "beta"]
+                                    if true_param_prefix + "beta" in valid_adata.var_keys()
                                     else -np.inf,
-                                    adata.var.loc[gene_name, true_param_prefix + "gamma"]
-                                    if true_param_prefix + "gamma" in adata.var_keys()
+                                    valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
+                                    if true_param_prefix + "gamma" in valid_adata.var_keys()
                                     else -np.inf,
                                 )
                                 true_u = sol_u(t, uu0, 0, true_beta)
@@ -1808,13 +1857,13 @@ def dynamics(
                         else:
                             layers = (
                                 ["X_new", "X_total"]
-                                if "X_new" in adata.layers.keys()
+                                if "X_new" in valid_adata.layers.keys()
                                 else ["new", "total"]
                             )
                             uu, ul = (
-                                adata[:, gene_name].layers[layers[1]]
-                                - adata[:, gene_name].layers[layers[0]],
-                                adata[:, gene_name].layers[layers[0]],
+                                valid_adata[:, gene_name].layers[layers[1]]
+                                - valid_adata[:, gene_name].layers[layers[0]],
+                                valid_adata[:, gene_name].layers[layers[0]],
                             )
                             uu, ul = (
                                 (uu.toarray().squeeze(), ul.toarray().squeeze())
@@ -1825,7 +1874,7 @@ def dynamics(
                             if log_unnormalized and layers == ["new", "total"]:
                                 uu, ul = np.log(uu + 1), np.log(ul + 1)
 
-                            alpha, gamma, uu0 = adata.var.loc[
+                            alpha, gamma, uu0 = valid_adata.var.loc[
                                 gene_name, [prefix + "alpha", prefix + "gamma", prefix + "uu0"]
                             ]
 
@@ -1836,11 +1885,11 @@ def dynamics(
                             l = None  # sol_s(t, 0, 0, alpha, 1, gamma)
                             if true_param_prefix is not None:
                                 true_alpha, true_gamma = (
-                                    adata.var.loc[gene_name, true_param_prefix + "alpha"]
-                                    if true_param_prefix + "alpha" in adata.var_keys()
+                                    valid_adata.var.loc[gene_name, true_param_prefix + "alpha"]
+                                    if true_param_prefix + "alpha" in valid_adata.var_keys()
                                     else -np.inf,
-                                    adata.var.loc[gene_name, true_param_prefix + "gamma"]
-                                    if true_param_prefix + "gamma" in adata.var_keys()
+                                    valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
+                                    if true_param_prefix + "gamma" in valid_adata.var_keys()
                                     else -np.inf,
                                 )
                                 true_u = sol_u(t, uu0, 0, true_gamma)
@@ -1926,14 +1975,14 @@ def dynamics(
                     if has_splicing:
                         layers = (
                             ["X_uu", "X_ul", "X_su", "X_sl"]
-                            if "X_ul" in adata.layers.keys()
+                            if "X_ul" in valid_adata.layers.keys()
                             else ["uu", "ul", "su", "sl"]
                         )
                         uu, ul, su, sl = (
-                            adata[:, gene_name].layers[layers[0]],
-                            adata[:, gene_name].layers[layers[1]],
-                            adata[:, gene_name].layers[layers[2]],
-                            adata[:, gene_name].layers[layers[3]],
+                            valid_adata[:, gene_name].layers[layers[0]],
+                            valid_adata[:, gene_name].layers[layers[1]],
+                            valid_adata[:, gene_name].layers[layers[2]],
+                            valid_adata[:, gene_name].layers[layers[3]],
                         )
                         uu, ul, su, sl = (
                             (
@@ -1954,7 +2003,7 @@ def dynamics(
                                 np.log(sl + 1),
                             )
 
-                        alpha, beta, gamma, U0, S0 = adata.var.loc[
+                        alpha, beta, gamma, U0, S0 = valid_adata.var.loc[
                             gene_name,
                             [
                                 prefix + "alpha",
@@ -1977,14 +2026,14 @@ def dynamics(
                         L = sl + ul
                         if true_param_prefix is not None:
                             true_alpha, true_beta, true_gamma = (
-                                adata.var.loc[gene_name, true_param_prefix + "alpha"]
-                                if true_param_prefix + "alpha" in adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "alpha"]
+                                if true_param_prefix + "alpha" in valid_adata.var_keys()
                                 else -np.inf,
-                                adata.var.loc[gene_name, true_param_prefix + "beta"]
-                                if true_param_prefix + "beta" in adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "beta"]
+                                if true_param_prefix + "beta" in valid_adata.var_keys()
                                 else -np.inf,
-                                adata.var.loc[gene_name, true_param_prefix + "gamma"]
-                                if true_param_prefix + "gamma" in adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
+                                if true_param_prefix + "gamma" in valid_adata.var_keys()
                                 else -np.inf,
                             )
                             true_l = sol_u(t, 0, true_alpha, true_beta) + sol_s(
@@ -1995,13 +2044,13 @@ def dynamics(
                     else:
                         layers = (
                             ["X_new", "X_total"]
-                            if "X_new" in adata.layers.keys()
+                            if "X_new" in valid_adata.layers.keys()
                             else ["new", "total"]
                         )
                         uu, ul = (
-                            adata[:, gene_name].layers[layers[1]]
-                            - adata[:, gene_name].layers[layers[0]],
-                            adata[:, gene_name].layers[layers[0]],
+                            valid_adata[:, gene_name].layers[layers[1]]
+                            - valid_adata[:, gene_name].layers[layers[0]],
+                            valid_adata[:, gene_name].layers[layers[0]],
                         )
                         uu, ul = (
                             (uu.toarray().squeeze(), ul.toarray().squeeze())
@@ -2012,7 +2061,7 @@ def dynamics(
                         if log_unnormalized and layers == ["new", "total"]:
                             uu, ul = np.log(uu + 1), np.log(ul + 1)
 
-                        alpha, gamma, total0 = adata.var.loc[
+                        alpha, gamma, total0 = valid_adata.var.loc[
                             gene_name,
                             [prefix + "alpha", prefix + "gamma", prefix + "total0"],
                         ]
@@ -2025,11 +2074,11 @@ def dynamics(
                         L = ul
                         if true_param_prefix is not None:
                             true_alpha, true_gamma = (
-                                adata.var.loc[gene_name, true_param_prefix + "alpha"]
-                                if true_param_prefix + "alpha" in adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "alpha"]
+                                if true_param_prefix + "alpha" in valid_adata.var_keys()
                                 else -np.inf,
-                                adata.var.loc[gene_name, true_param_prefix + "gamma"]
-                                if true_param_prefix + "gamma" in adata.var_keys()
+                                valid_adata.var.loc[gene_name, true_param_prefix + "gamma"]
+                                if true_param_prefix + "gamma" in valid_adata.var_keys()
                                 else -np.inf,
                             )
                             true_l = sol_u(
@@ -2117,14 +2166,14 @@ def dynamics(
                     if has_splicing:
                         layers = (
                             ["X_uu", "X_ul", "X_su", "X_sl"]
-                            if "X_ul" in adata.layers.keys()
+                            if "X_ul" in valid_adata.layers.keys()
                             else ["uu", "ul", "su", "sl"]
                         )
                         uu, ul, su, sl = (
-                            adata[:, gene_name].layers[layers[0]],
-                            adata[:, gene_name].layers[layers[1]],
-                            adata[:, gene_name].layers[layers[2]],
-                            adata[:, gene_name].layers[layers[3]],
+                            valid_adata[:, gene_name].layers[layers[0]],
+                            valid_adata[:, gene_name].layers[layers[1]],
+                            valid_adata[:, gene_name].layers[layers[2]],
+                            valid_adata[:, gene_name].layers[layers[3]],
                         )
                         uu, ul, su, sl = (
                             (
@@ -2145,11 +2194,11 @@ def dynamics(
                                 np.log(sl + 1),
                             )
 
-                        beta, gamma, alpha_std = adata.var.loc[
+                        beta, gamma, alpha_std = valid_adata.var.loc[
                             gene_name,
                             [prefix + "beta", prefix + "gamma", prefix + "alpha_std"],
                         ]
-                        alpha_stm = adata[:, gene_name].varm[prefix + "alpha"].flatten()[1:]
+                        alpha_stm = valid_adata[:, gene_name].varm[prefix + "alpha"].flatten()[1:]
                         alpha_stm0, k, _ = solve_first_order_deg(T_uniq[1:], alpha_stm)
 
                         # $u$ - unlabeled, unspliced
@@ -2199,13 +2248,13 @@ def dynamics(
                     else:
                         layers = (
                             ["X_new", "X_total"]
-                            if "X_new" in adata.layers.keys()
+                            if "X_new" in valid_adata.layers.keys()
                             else ["new", "total"]
                         )
                         uu, ul = (
-                            adata[:, gene_name].layers[layers[1]]
-                            - adata[:, gene_name].layers[layers[0]],
-                            adata[:, gene_name].layers[layers[0]],
+                            valid_adata[:, gene_name].layers[layers[1]]
+                            - valid_adata[:, gene_name].layers[layers[0]],
+                            valid_adata[:, gene_name].layers[layers[0]],
                         )
                         uu, ul = (
                             (uu.toarray().squeeze(), ul.toarray().squeeze())
@@ -2216,10 +2265,10 @@ def dynamics(
                         if log_unnormalized and layers == ["new", "total"]:
                             uu, ul = np.log(uu + 1), np.log(ul + 1)
 
-                        gamma, alpha_std = adata.var.loc[
+                        gamma, alpha_std = valid_adata.var.loc[
                             gene_name, [prefix + "gamma", prefix + "alpha_std"]
                         ]
-                        alpha_stm = adata[:, gene_name].varm[prefix + "alpha"].flatten()[1:]
+                        alpha_stm = valid_adata[:, gene_name].varm[prefix + "alpha"].flatten()[1:]
 
                         alpha_stm0, k, _ = solve_first_order_deg(T_uniq[1:], alpha_stm)
                         # require no beta functions
@@ -2342,8 +2391,6 @@ def dynamics(
         s_kwargs = {"path": None, "prefix": 'dynamics', "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
-        plt.tight_layout()
-
         save_fig(**s_kwargs)
     elif save_show_or_return == "show":
         plt.tight_layout()

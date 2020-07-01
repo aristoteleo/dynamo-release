@@ -1,9 +1,53 @@
 import numpy as np
 import pandas as pd
+import statsmodels.api as sm
 from scipy.sparse import issparse, csr_matrix
-from functools import reduce
+# from functools import reduce
 from sklearn.decomposition import PCA, TruncatedSVD
 
+
+# ---------------------------------------------------------------------------------------------------
+# symbol conversion related
+def convert2gene_symbol(input_names, scopes='ensembl.gene'):
+    """Convert ensemble gene id to official gene names using mygene package.
+
+    Parameters
+    ----------
+        input_names: list-like
+            The ensemble gene id names that you want to convert to official gene names. All names should come from the same
+            species.
+        scopes: `list-like` or `None` (default: `None`)
+            Scopes are needed when you use non-official gene name as your gene indices (or adata.var_name). This
+            arugument corresponds to type of types of identifiers, either a list or a comma-separated fields to specify
+            type of input qterms, e.g. “entrezgene”, “entrezgene,symbol”, [“ensemblgene”, “symbol”]. Refer to official
+            MyGene.info docs (https://docs.mygene.info/en/latest/doc/query_service.html#available_fields) for full list
+            of fields.
+
+    Returns
+    -------
+        var_pd: `pd.Dataframe`
+            A pandas dataframe that includes the following columns:
+            query: the input ensmble ids
+            _id: identified id from mygene
+            _score: confidence of the retrieved official gene name.
+            symbol: retrieved official gene name
+    """
+
+    try:
+        import mygene
+    except ImportError:
+        raise ImportError("You need to install the package `mygene` (pip install mygene --user) "
+                          "See https://pypi.org/project/mygene/ for more details.")
+
+    import mygene
+    mg = mygene.MyGeneInfo()
+
+    ensemble_names = [i.split('.')[0] for i in input_names]
+    var_pd = mg.querymany(ensemble_names, scopes=scopes, fields='symbol', as_dataframe=True, df_index=True)
+    #var_pd.drop_duplicates(subset='query', inplace=True) # use when df_index is not True
+    var_pd = var_pd.loc[~var_pd.index.duplicated(keep='first')]
+
+    return var_pd
 
 # ---------------------------------------------------------------------------------------------------
 # implmentation of Cooks' distance (but this is for Poisson distribution fitting)
@@ -109,11 +153,25 @@ def cook_dist(model, X, good):
 
 # ---------------------------------------------------------------------------------------------------
 # preprocess utilities
+def basic_stats(adata):
+    adata.obs['nGenes'], adata.obs['nCounts'] = (adata.X > 0).sum(1), (adata.X).sum(1)
+    mito_genes = adata.var_names.str.upper().str.startswith('MT-')
+    adata.obs['pMito'] = (adata[:, mito_genes].X).sum(1).A1 / adata.obs['nCounts'] if issparse(adata.X) else  \
+        (adata[:, mito_genes].X).sum(1) / adata.obs['nCounts']
+
 
 def unique_var_obs_adata(adata):
     """Function to make the obs and var attribute's index unique"""
     adata.obs_names_make_unique()
     adata.var_names_make_unique()
+
+    return adata
+
+
+def layers2csr(adata):
+    """Function to make the obs and var attribute's index unique"""
+    for i in adata.layers.keys():
+        adata.layers[i] = csr_matrix(adata.layers[i]) if not issparse(adata.layers[i]) else adata.layers[i]
 
     return adata
 
@@ -257,8 +315,8 @@ def get_svr_filter(adata, layer="spliced", n_top_genes=3000, return_adata=False)
     feature_gene_idx = valid_idx[feature_gene_idx]
 
     if return_adata:
-        adata.var.loc[:, "use_for_dynamo"] = False
-        adata.var.loc[adata.var.index[feature_gene_idx], "use_for_dynamo"] = True
+        adata.var.loc[:, "use_for_pca"] = False
+        adata.var.loc[adata.var.index[feature_gene_idx], "use_for_pca"] = True
         res = adata
     else:
         filter_bool = np.zeros(adata.n_vars, dtype=bool)
@@ -267,7 +325,7 @@ def get_svr_filter(adata, layer="spliced", n_top_genes=3000, return_adata=False)
 
     return res
 
-def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None):
+def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None, CM=None):
     adata = adata.copy()
 
     if layer == '_total_' and '_total_' not in adata.layers.keys():
@@ -282,16 +340,16 @@ def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None):
                 adata.layers["_total_"] = total
 
     if layer is "raw":
-        CM = adata.raw.X
+        CM = adata.raw.X if CM is None else CM
     elif layer is "X":
-        CM = adata.X
+        CM = adata.X if CM is None else CM
     elif layer is "protein":
         if "protein" in adata.obsm_keys():
-            CM = adata.obsm["protein"]
+            CM = adata.obsm["protein"] if CM is None else CM
         else:
             return None, None
     else:
-        CM = adata.layers[layer]
+        CM = adata.layers[layer] if CM is None else CM
 
     if round_exprs:
         if issparse(CM):
@@ -335,7 +393,8 @@ def get_sz_exprs(adata, layer, total_szfactor=None):
 
     return szfactors, CM
 
-def normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method=np.log):
+def normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method=np.log1p):
+    if norm_method == np.log1p: pseudo_expr = 0
     if relative_expr:
         CM = (
             CM.multiply(csr_matrix(1 / szfactors))
@@ -351,7 +410,7 @@ def normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method=np.log
             if norm_method is not None
             else CM.data
         )
-        if norm_method.__name__ == 'Freeman_Tukey': CM.data -= 1
+        if norm_method is not None and norm_method.__name__ == 'Freeman_Tukey': CM.data -= 1
     else:
         CM = (
             norm_method(CM + pseudo_expr)
@@ -374,25 +433,25 @@ def Freeman_Tukey(X, inverse=False):
 # pca
 
 
-def pca(adata, CM, n_pca_components=30, pca_key='X'):
+def pca(adata, CM, n_pca_components=30, pca_key='X', pcs_key='PCs'):
 
     if adata.n_obs < 100000:
         pca = PCA(n_components=min(n_pca_components, CM.shape[1] - 1), svd_solver="arpack", random_state=0)
         fit = pca.fit(CM.toarray()) if issparse(CM) else pca.fit(CM)
         X_pca = fit.transform(CM.toarray()) if issparse(CM) else fit.transform(CM)
         adata.obsm[pca_key] = X_pca
-        adata.uns["PCs"] = fit.components_.T
+        adata.uns[pcs_key] = fit.components_.T
 
         adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_
     else:
+        # unscaled PCA
         fit = TruncatedSVD(
             n_components=min(n_pca_components + 1, CM.shape[1] - 1), random_state=0
-        )  # unscaled PCA
-        X_pca = fit.fit_transform(CM)[
-            :, 1:
-        ]  # first columns is related to the total UMI (or library size)
+        )
+        # first columns is related to the total UMI (or library size)
+        X_pca = fit.fit_transform(CM)[:, 1:]
         adata.obsm[pca_key] = X_pca
-        adata.uns["PCs"] = fit.components_.T
+        adata.uns[pcs_key] = fit.components_.T
 
         adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
@@ -407,10 +466,10 @@ def collapse_adata(adata):
     only_splicing, only_labeling, splicing_and_labeling = allowed_layer_raw_names()
 
     if np.all([i in adata.layers.keys() for i in splicing_and_labeling]):
-        adata.layers[only_splicing[0]] = adata.layers['su'] + adata.layers['sl']
-        adata.layers[only_splicing[1]] = adata.layers['uu'] + adata.layers['ul']
-        adata.layers[only_labeling[0]] = adata.layers['ul'] + adata.layers['sl']
-        adata.layers[only_labeling[1]] = adata.layers[only_labeling[0]] + adata.layers['uu'] + adata.layers['su']
+        if only_splicing[0] not in adata.layers.keys(): adata.layers[only_splicing[0]] = adata.layers['su'] + adata.layers['sl']
+        if only_splicing[1] not in adata.layers.keys(): adata.layers[only_splicing[1]] = adata.layers['uu'] + adata.layers['ul']
+        if only_labeling[0] not in adata.layers.keys(): adata.layers[only_labeling[0]] = adata.layers['ul'] + adata.layers['sl']
+        if only_labeling[1] not in adata.layers.keys(): adata.layers[only_labeling[1]] = adata.layers[only_labeling[0]] + adata.layers['uu'] + adata.layers['su']
 
     return adata
 
@@ -456,6 +515,9 @@ def NTR(adata):
     if len({'new', 'total'}.intersection(adata.layers.keys())) == 2:
         ntr = adata.layers['new'].sum(1) / adata.layers['total'].sum(1)
         ntr = ntr.A1 if issparse(adata.layers['new']) else ntr
+
+        var_ntr = adata.layers['new'].sum(0) / adata.layers['total'].sum(0)
+        var_ntr = var_ntr.A1 if issparse(adata.layers['new']) else var_ntr
     elif len({'uu', 'ul', 'su', 'sl'}.intersection(adata.layers.keys())) == 4:
         new = adata.layers['ul'].sum(1) + \
               adata.layers['sl'].sum(1)
@@ -464,7 +526,132 @@ def NTR(adata):
         ntr = new / total
 
         ntr = ntr.A1 if issparse(adata.layers['uu']) else ntr
-    else:
-        ntr = None
 
-    return ntr
+        new = adata.layers['ul'].sum(0) + \
+              adata.layers['sl'].sum(0)
+        total = new + adata.layers['uu'].sum(0) + \
+                adata.layers['su'].sum(0)
+        var_ntr = new / total
+
+        var_ntr = var_ntr.A1 if issparse(adata.layers['uu']) else var_ntr
+    elif len({'unspliced', 'spliced'}.intersection(adata.layers.keys())) == 2:
+        ntr = adata.layers['unspliced'].sum(1) / (adata.layers['unspliced'] + adata.layers['spliced']).sum(1)
+        ntr = ntr.A1 if issparse(adata.layers['unspliced']) else ntr
+
+        var_ntr = adata.layers['unspliced'].sum(0) / (adata.layers['unspliced'] + adata.layers['spliced']).sum(0)
+        var_ntr = var_ntr.A1 if issparse(adata.layers['unspliced']) else var_ntr
+    else:
+        ntr, var_ntr = None, None
+
+    return ntr, var_ntr
+
+
+def relative2abs(adata,
+                 dilution,
+                 volume,
+                 from_layer=None,
+                 to_layers=None,
+                 mixture_type=1,
+                 ERCC_controls=None,
+                 ERCC_annotation=None):
+    """Converts FPKM/TPM data to transcript counts using ERCC spike-in. This is based on the relative2abs function from
+    monocle 2 (Qiu, et. al, Nature Methods, 2017).
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object
+        dilution: `float`
+            the dilution of the spikein transcript in the lysis reaction mix. Default is 40, 000. The number of spike-in
+            transcripts per single-cell lysis reaction was calculated from.
+        volume: `float`
+            the approximate volume of the lysis chamber (nanoliters). Default is 10
+        from_layer: `str` or `None`
+            The layer in which the ERCC TPM values will be used as the covariate for the ERCC based linear regression.
+        to_layers: `str`, `None` or `list-like`
+            The layers that our ERCC based transformation will be applied to.
+        mixture_type:
+            the type of spikein transcripts from the spikein mixture added in the experiments. By default, it is mixture 1.
+            Note that m/c we inferred are also based on mixture 1.
+        ERCC_controls:
+            the FPKM/TPM matrix for each ERCC spike-in transcript in the cells if user wants to perform the transformation based
+            on their spike-in data. Note that the row and column names should match up with the ERCC_annotation and relative_
+            exprs_matrix respectively.
+        ERCC_annotation:
+            the ERCC_annotation matrix from illumina USE GUIDE which will be ued for calculating the ERCC transcript copy
+            number for performing the transformation.
+
+    Returns
+    -------
+        An adata object with the data specified in the to_layers transformed into absolute counts.
+    """
+
+    if ERCC_annotation is None:
+        ERCC_annotation = pd.read_csv('https://www.dropbox.com/s/cmiuthdw5tt76o5/ERCC_specification.txt?dl=1', sep='\t')
+
+    ERCC_id = ERCC_annotation['ERCC ID']
+
+    ERCC_id = adata.var_names.intersection(ERCC_id)
+    if len(ERCC_id) < 10 and ERCC_controls is None:
+        raise Exception(f'The adata object you provided has less than 10 ERCC genes.')
+
+    if to_layers is not None:
+        to_layers = [to_layers] if to_layers is str else to_layers
+        to_layers = list(set(adata.layers.keys()).intersection(to_layers))
+        if len(to_layers) == 0:
+            raise Exception(f"The layers {to_layers} that will be converted to absolute counts doesn't match any layers"
+                            f"from the adata object.")
+
+    mixture_name = "concentration in Mix 1 (attomoles/ul)" if mixture_type == 1 else "concentration in Mix 2 (attomoles/ul)"
+    ERCC_annotation['numMolecules'] = ERCC_annotation.loc[:, mixture_name] * (
+                volume * 10 ** (-3) * 1 / dilution * 10 ** (-18) * 6.02214129 * 10 ** (23))
+
+    ERCC_annotation['rounded_numMolecules'] = ERCC_annotation['numMolecules'].astype(int)
+
+    if from_layer in [None, 'X']:
+        X, X_ercc = (adata.X, adata[:, ERCC_id].X if ERCC_controls is None else ERCC_controls)
+    else:
+        X, X_ercc = (adata.layers[from_layer], adata[:, ERCC_id] \
+            if ERCC_controls is None else ERCC_controls)
+
+    logged = False if X.max() > 100 else True
+
+    if not logged:
+        X, X_ercc = (np.log1p(X.A) if issparse(X_ercc) else np.log1p(X), \
+                     np.log1p(X_ercc.A) if issparse(X_ercc) else np.log1p(X_ercc))
+    else:
+        X, X_ercc = (X.A if issparse(X_ercc) else X, X_ercc.A if issparse(X_ercc) else X_ercc)
+
+    y = np.log1p(ERCC_annotation['numMolecules'])
+
+    for i in range(adata.n_obs):
+        X_i, X_ercc_i = X[i, :], X_ercc[i, :]
+
+        X_i, X_ercc_i = sm.add_constant(X_i),  sm.add_constant(X_ercc_i)
+        res = sm.RLM(y, X_ercc_i).fit()
+        k, b = res.params[::-1]
+
+        if to_layers is None:
+            X = adata.X
+            logged = False if X.max() > 100 else True
+
+            if not logged:
+                X_i = np.log1p(X[i, :].A) if issparse(X) else np.log1p(X[i, :])
+            else:
+                X_i = X[i, :].A if issparse(X) else X[i, :]
+
+            res = k * X_i + b
+            res = res if logged else np.expm1(res)
+            adata.X[i, :] = csr_matrix(res) if issparse(X) else res
+        else:
+            for cur_layer in to_layers:
+                X = adata.layers[cur_layer]
+
+                logged = False if X.max() > 100 else True
+                if not logged:
+                    X_i = np.log1p(X[i, :].A) if issparse(X) else np.log1p(X[i, :])
+                else:
+                    X_i = X[i, :].A if issparse(X) else X[i, :]
+
+                res = k * X_i + b if logged else np.expm1(k * X_i + b)
+                adata.layers[cur_layer][i, :] = csr_matrix(res) if issparse(X) else res

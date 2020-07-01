@@ -4,7 +4,7 @@ from .utils_moments import moments
 from .velocity import velocity, ss_estimation
 from .utils import (
     get_mapper,
-    get_valid_inds,
+    get_valid_bools,
     get_data_for_kin_params_estimation,
     get_U_S_for_velocity_estimation,
 )
@@ -100,12 +100,12 @@ def _dynamics(
     """
 
     if (
-        "use_for_dynamo" not in adata.var.columns
+        "use_for_dynamics" not in adata.var.columns
         and "pass_basic_filter" not in adata.var.columns
     ):
         filter_gene_mode = "no"
 
-    valid_ind = get_valid_inds(adata, filter_gene_mode)
+    valid_ind = get_valid_bools(adata, filter_gene_mode)
 
     if mode == "moment" or (
         use_smoothed and len([i for i in adata.layers.keys() if i.startswith("M_")]) < 2

@@ -333,7 +333,7 @@ def jacobian(adata,
 
     if type(source_genes) == str: source_genes = [source_genes]
     if type(target_genes) == str: target_genes = [target_genes]
-    var_df = adata[:, adata.var.use_for_dynamo].var
+    var_df = adata[:, adata.var.use_for_dynamics].var
     source_genes = var_df.index.intersection(source_genes)
     target_genes = var_df.index.intersection(target_genes)
 
@@ -345,7 +345,7 @@ def jacobian(adata,
     PCs_ = "PCs" if basis == 'pca' else "PCs_" + basis
     Jacobian_ = "jacobian" #if basis is None else "jacobian_" + basis
 
-    Q, func = adata.varm[PCs_][:, :X.shape[1]], vecfld_dict['func']
+    Q, func = adata.uns[PCs_][:, :X.shape[1]], vecfld_dict['func']
 
     Jac_fun = get_fjac(func, input_vector_convention)
 

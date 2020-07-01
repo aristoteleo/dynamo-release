@@ -68,7 +68,7 @@ def state_graph(
     basis="umap",
     x=0,
     y=1,
-    color=None,
+    color='ntr',
     layer="X",
     highlights=None,
     labels=None,
@@ -80,9 +80,10 @@ def state_graph(
     background=None,
     ncols=1,
     pointsize=None,
-    figsize=(7, 5),
+    figsize=(6, 4),
     show_legend=True,
     use_smoothed=True,
+    show_arrowed_spines=True,
     ax=None,
     save_show_or_return="show",
     save_kwargs={},
@@ -112,6 +113,8 @@ def state_graph(
     """
 
     import matplotlib.pyplot as plt
+    from matplotlib import rcParams
+    from matplotlib.colors import to_hex
 
     aggregate = group
 
@@ -128,6 +131,11 @@ def state_graph(
     for i, cur_grp in enumerate(uniq_grp):
         group_median[i, :] = np.nanmedian(points[np.where(groups == cur_grp)[0], :2], 0)
 
+    if background is None:
+        _background = rcParams.get("figure.facecolor")
+        background = to_hex(_background) if type(_background) is tuple else _background
+
+    plt.figure(facecolor=_background)
     axes_list, color_list, font_color = scatters(
         adata,
         basis,
@@ -148,6 +156,8 @@ def state_graph(
         figsize,
         show_legend,
         use_smoothed,
+        aggregate,
+        show_arrowed_spines,
         ax,
         save_show_or_return='return',
         aggregate = aggregate,
@@ -160,6 +170,7 @@ def state_graph(
         )
         for arrow in arrows:
             axes_list[i].add_patch(arrow)
+            axes_list[i].set_facecolor(background)
 
     plt.axis("off")
 

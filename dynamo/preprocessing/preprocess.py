@@ -1,20 +1,32 @@
 import numpy as np
 import pandas as pd
-from sklearn.utils import sparsefuncs
 import warnings
 from scipy.sparse import issparse, csr_matrix
 from sklearn.decomposition import FastICA
+from sklearn.utils import sparsefuncs
 
-from .utils import pca
-from .utils import clusters_stats
-from .utils import cook_dist, get_layer_keys, get_shared_counts
-from .utils import get_svr_filter
-from .utils import Freeman_Tukey
-from .utils import merge_adata_attrs
-from .utils import sz_util, normalize_util, get_sz_exprs
-from .utils import unique_var_obs_adata, collapse_adata, NTR
 from ..tools.utils import update_dict
-
+from .utils import (
+    convert2gene_symbol,
+    pca,
+    clusters_stats,
+    cook_dist,
+    get_layer_keys,
+    get_shared_counts,
+    get_svr_filter,
+    Freeman_Tukey,
+    merge_adata_attrs,
+    sz_util,
+    normalize_util,
+    get_sz_exprs,
+    unique_var_obs_adata,
+    layers2csr,
+    collapse_adata,
+    NTR,
+    detect_datatype,
+    basic_stats,
+)
+from .cell_cycle import cell_cycle_scores
 
 def szFactor(
     adata_ori,
@@ -55,8 +67,8 @@ def szFactor(
     if use_all_genes_cells:
         adata = adata_ori
     else:
-        cell_inds = adata_ori.obs.use_for_dynamo if 'use_for_dynamo' in adata_ori.obs.columns else adata_ori.obs.index
-        filter_list = ['use_for_dynamo', 'pass_basic_filter']
+        cell_inds = adata_ori.obs.use_for_pca if 'use_for_pca' in adata_ori.obs.columns else adata_ori.obs.index
+        filter_list = ['use_for_pca', 'pass_basic_filter']
         filter_checker = [i in adata_ori.var.columns for i in filter_list]
         which_filter = np.where(filter_checker)[0]
 
@@ -106,7 +118,7 @@ def normalize_expr_data(
     adata,
     layers="all",
     total_szfactor='total_Size_Factor',
-    norm_method=np.log,
+    norm_method=None,
     pseudo_expr=1,
     relative_expr=True,
     keep_filtered=True,
@@ -123,8 +135,10 @@ def normalize_expr_data(
             The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
         total_szfactor: `str` (default: `total_Size_Factor`)
             The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
-        norm_method: `function` or `str` (default: `np.log`)
-            The method used to normalize data. Can be either function `np.log`, function `np.log2` or string `clr`.
+        norm_method: `function` or None (default: `None`)
+            The method used to normalize data. Can be either function `np.log1p, np.log2 or any other functions or string
+            `clr`. By default, only .X will be size normalized and log1p transformed while data in other layers will only
+            be size normalized.
         pseudo_expr: `int` (default: `1`)
             A pseudocount added to the gene expression value before log/log2 normalization.
         relative_expr: `bool` (default: `True`)
@@ -142,8 +156,8 @@ def normalize_expr_data(
     """
 
     if recalc_sz:
-        if "use_for_dynamo" in adata.var.columns and keep_filtered is False:
-            adata = adata[:, adata.var.loc[:, "use_for_dynamo"]]
+        if "use_for_pca" in adata.var.columns and keep_filtered is False:
+            adata = adata[:, adata.var.loc[:, "use_for_pca"]]
 
         adata.obs = adata.obs.loc[:, ~adata.obs.columns.str.contains("Size_Factor")]
 
@@ -172,8 +186,9 @@ def normalize_expr_data(
 
     for layer in layers:
         szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=total_szfactor)
-        if norm_method is None and layer == 'X': norm_method = np.log
-        if norm_method in [np.log, np.log2, Freeman_Tukey] and layer is not "protein":
+        if norm_method is None and layer == 'X':
+            CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, np.log1p)
+        elif norm_method in [np.log1p, np.log, np.log2, Freeman_Tukey, None] and layer is not "protein":
             CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method)
 
         elif layer is "protein":  # norm_method == 'clr':
@@ -207,7 +222,8 @@ def normalize_expr_data(
         else:
             adata.layers["X_" + layer] = CM
 
-    adata.uns["pp_norm_method"] = norm_method.__name__ if callable(norm_method) else norm_method
+        adata.uns["pp_norm_method"] = norm_method.__name__ if callable(norm_method) else norm_method
+
     return adata
 
 
@@ -657,8 +673,8 @@ def SVRs(
     if use_all_genes_cells:
         adata = adata_ori[:, filter_bool] if filter_bool is not None else adata_ori
     else:
-        cell_inds = adata_ori.obs.use_for_dynamo if 'use_for_dynamo' in adata_ori.obs.columns else adata_ori.obs.index
-        filter_list = ['use_for_dynamo', 'pass_basic_filter']
+        cell_inds = adata_ori.obs.use_for_pca if 'use_for_pca' in adata_ori.obs.columns else adata_ori.obs.index
+        filter_list = ['use_for_pca', 'pass_basic_filter']
         filter_checker = [i in adata_ori.var.columns for i in filter_list]
         which_filter = np.where(filter_checker)[0]
 
@@ -748,6 +764,7 @@ def SVRs(
         cv = sigma / mu
         log_m = np.array(np.log2(mu)).flatten()
         log_cv = np.array(np.log2(cv)).flatten()
+        log_m[mu == 0], log_cv[mu == 0] = 0, 0
 
         if svr_gamma is None:
             svr_gamma = 150.0 / len(mu)
@@ -831,7 +848,7 @@ def filter_cells(
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            An updated AnnData object with use_for_dynamo as a new column in obs to indicate the selection of cells for
+            An updated AnnData object with use_for_pca as a new column in obs to indicate the selection of cells for
             downstream analysis. adata will be subsetted with only the cells pass filtering if keep_filtered is set to be
             False.
     """
@@ -879,10 +896,10 @@ def filter_cells(
 
     filter_bool = np.array(filter_bool).flatten()
     if keep_filtered:
-        adata.obs["use_for_dynamo"] = filter_bool
+        adata.obs["use_for_pca"] = filter_bool
     else:
         adata._inplace_subset_obs(filter_bool)
-        adata.obs["use_for_dynamo"] = True
+        adata.obs["use_for_pca"] = True
 
     return adata
 
@@ -934,7 +951,7 @@ def filter_genes(
     min_cell_s=1,
     min_cell_u=1,
     min_cell_p=1,
-    min_avg_exp_s=0,
+    min_avg_exp_s=1e-10,
     min_avg_exp_u=0,
     min_avg_exp_p=0,
     max_avg_exp=np.infty,
@@ -978,7 +995,7 @@ def filter_genes(
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            An updated AnnData object with use_for_dynamo as a new column in .var attributes to indicate the selection of genes for
+            An updated AnnData object with use_for_pca as a new column in .var attributes to indicate the selection of genes for
             downstream analysis. adata will be subsetted with only the genes pass filter if keep_unflitered is set to be False.
     """
 
@@ -1067,7 +1084,7 @@ def select_genes(
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            An updated AnnData object with use_for_dynamo as a new column in .var attributes to indicate the selection of genes for
+            An updated AnnData object with use_for_pca as a new column in .var attributes to indicate the selection of genes for
             downstream analysis. adata will be subsetted with only the genes pass filter if keep_unflitered is set to be False.
     """
 
@@ -1116,10 +1133,10 @@ def select_genes(
             filter_bool = get_svr_filter(adata, layer=layer, n_top_genes=n_top_genes, return_adata=False)
 
     if keep_filtered:
-        adata.var["use_for_dynamo"] = filter_bool
+        adata.var["use_for_pca"] = filter_bool
     else:
         adata._inplace_subset_var(filter_bool)
-        adata.var["use_for_dynamo"] = True
+        adata.var["use_for_pca"] = True
 
     return adata
 
@@ -1131,14 +1148,15 @@ def recipe_monocle(
     total_layers=None,
     genes_to_use=None,
     method="pca",
-    num_dim=30,
-    norm_method=np.log,
+    num_dim=50,
+    norm_method=None,
     pseudo_expr=1,
     feature_selection="SVR",
     n_top_genes=2000,
     relative_expr=True,
     keep_filtered_cells=True,
     keep_filtered_genes=True,
+    scopes=None,
     fc_kwargs=None,
     fg_kwargs=None,
     sg_kwargs=None,
@@ -1163,8 +1181,9 @@ def recipe_monocle(
             The linear dimension reduction methods to be used.
         num_dim: `int` (default: `50`)
             The number of linear dimensions reduced to.
-        norm_method: `function` or `str` (default: function `np.log`)
-            The method to normalize the data. Can be any numpy function or `Freeman_Tukey`.
+        norm_method: `function` or None (default: function `None`)
+            The method to normalize the data. Can be any numpy function or `Freeman_Tukey`. By default, only .X will be
+            size normalized and log1p transformed while data in other layers will only be size factor normalized.
         pseudo_expr: `int` (default: `1`)
             A pseudocount added to the gene expression value before log/log2 normalization.
         feature_selection: `str` (default: `SVR`)
@@ -1177,6 +1196,12 @@ def recipe_monocle(
             Whether to keep genes that don't pass the filtering in the adata object.
         keep_filtered_genes: `bool` (default: `True`)
             Whether to keep genes that don't pass the filtering in the adata object.
+        scopes: `str`, list-like` or `None` (default: `None`)
+            Scopes are needed when you use non-official gene name as your gene indices (or adata.var_name). This
+            arugument corresponds to type of types of identifiers, either a list or a comma-separated fields to specify
+            type of input qterms, e.g. “entrezgene”, “entrezgene,symbol”, [“ensemblgene”, “symbol”]. Refer to official
+            MyGene.info docs (https://docs.mygene.info/en/latest/doc/query_service.html#available_fields) for full list
+            of fields.
         fc_kwargs: `dict` or None (default: `None`)
             Other Parameters passed into the filter_genes function.
         fg_kwargs: `dict` or None (default: `None`)
@@ -1190,8 +1215,49 @@ def recipe_monocle(
             A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions, etc.
     """
 
+    if np.all(adata.var_names.str.startswith('ENS')) or scopes is not None:
+        prefix = adata.var_names[0]
+        if scopes is None:
+            if prefix[:4] == 'ENSG' or prefix[:7] == 'ENSMUSG':
+                scopes = 'ensembl.gene'
+            elif prefix[:4] == 'ENST' or prefix[:7] == 'ENSMUST':
+                scopes = 'ensembl.transcript'
+            else:
+                raise Exception('Your adata object uses non-official gene names as gene index. \n'
+                                'Dynamo finds those IDs are neither from ensembl.gene or ensembl.transcript and thus cannot '
+                                'convert them automatically. \n'
+                                'Please pass the correct scopes or first convert the ensemble ID to gene short name '
+                                '(for example, using mygene package). \n'
+                                'See also dyn.pp.convert2gene_symbol')
+
+        adata.var['query'] = [i.split('.')[0] for i in adata.var.index]
+        if scopes is str:
+            adata.var[scopes] = adata.var.index
+        else:
+            adata.var['scopes'] = adata.var.index
+
+        warnings.warn('Your adata object uses non-official gene names as gene index. \n'
+                      'Dynamo is converting those names to official gene names.')
+        official_gene_df = convert2gene_symbol(adata.var_names, scopes)
+        merge_df = adata.var.merge(official_gene_df, left_on='query', right_on='query', how='left').set_index(
+            adata.var.index)
+        adata.var = merge_df
+        valid_ind = np.where(merge_df['notfound'] != True)[0]
+
+        adata = adata[:, valid_ind]
+        adata.var.index = adata.var['symbol'].values
+
     if norm_method == 'Freeman_Tukey': norm_method = Freeman_Tukey
+
+    basic_stats(adata)
+    has_splicing, has_labeling, _ = detect_datatype(adata)
+    if has_splicing and has_labeling:
+        total_layers = ['uu', 'ul', 'su', 'sl']
+    elif has_labeling and not has_splicing:
+        total_layers = ['total']
+
     adata = unique_var_obs_adata(adata)
+    adata = layers2csr(adata)
     adata = collapse_adata(adata)
 
     _szFactor, _logged = False, False
@@ -1262,7 +1328,7 @@ def recipe_monocle(
         if feature_selection == "Dispersion":
             adata = Dispersion(adata)
 
-    # set use_for_dynamo (use basic_filtered data)
+    # set use_for_pca (use basic_filtered data)
     select_genes_dict = {
                 "min_expr_cells": 0,
                 "min_expr_avg": 0,
@@ -1284,9 +1350,9 @@ def recipe_monocle(
             SVRs_kwargs=select_genes_dict,
         )
     else:
-        adata.var["use_for_dynamo"] = adata.var.index.isin(genes_to_use)
+        adata.var["use_for_pca"] = adata.var.index.isin(genes_to_use)
         if not keep_filtered_genes:
-            adata = adata[:, adata.var["use_for_dynamo"]]
+            adata = adata[:, adata.var["use_for_pca"]]
 
     # normalized data based on sz factor
     if not _logged:
@@ -1300,23 +1366,23 @@ def recipe_monocle(
             keep_filtered=keep_filtered_genes,
         )
 
-    # only use genes pass filter (based on use_for_dynamo) to perform dimension reduction.
+    # only use genes pass filter (based on use_for_pca) to perform dimension reduction.
     if layer is None:
-        CM = adata.X[:, adata.var.use_for_dynamo.values]
+        CM = adata.X[:, adata.var.use_for_pca.values]
     else:
         if layer is "X":
-            CM = adata.X[:, adata.var.use_for_dynamo.values]
+            CM = adata.X[:, adata.var.use_for_pca.values]
         elif layer is "protein":
             CM = adata.obsm["X_protein"]
         else:
-            CM = adata.layers["X_" + layer][:, adata.var.use_for_dynamo.values]
+            CM = adata.layers["X_" + layer][:, adata.var.use_for_pca.values]
 
     cm_genesums = CM.sum(axis=0)
     valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
     valid_ind = np.array(valid_ind).flatten()
     adata.var.iloc[
-        np.where(adata.var.use_for_dynamo)[0][~valid_ind],
-        adata.var.columns.tolist().index("use_for_dynamo"),
+        np.where(adata.var.use_for_pca)[0][~valid_ind],
+        adata.var.columns.tolist().index("use_for_pca"),
     ] = False
     CM = CM[:, valid_ind]
     if method is "pca":
@@ -1334,8 +1400,17 @@ def recipe_monocle(
     adata.uns[method + "_fit"], adata.uns["feature_selection"] = fit, feature_selection
 
     # calculate NTR for every cell:
-    ntr = NTR(adata)
-    if ntr is not None: adata.obs['ntr'] = ntr
+    ntr, var_ntr = NTR(adata)
+    if ntr is not None:
+        adata.obs['ntr'] = ntr
+        adata.var['ntr'] = var_ntr
+
+    try:
+        cell_cycle_scores(adata)
+    except Exception:
+        warnings.warn('Dynamo is not able to perform cell cycle staging for you automatically. \n'
+                      'Since dyn.pl.phase_diagram in dynamo by default color cells by its cell-cycle stage, \n'
+                      'you need to set color argument accordingly if confronting errors related to this.')
 
     return adata
 
@@ -1345,7 +1420,7 @@ def recipe_velocyto(
     total_layers=None,
     method="pca",
     num_dim=30,
-    norm_method=np.log,
+    norm_method=None,
     pseudo_expr=1,
     feature_selection="SVR",
     n_top_genes=2000,
@@ -1366,7 +1441,7 @@ def recipe_velocyto(
             The linear dimension reduction methods to be used.
         num_dim: `int` (default: `50`)
             The number of linear dimensions reduced to.
-        norm_method: `function` or `str` (default: function `np.log`)
+        norm_method: `function`, `str` or `None` (default: function `None`)
             The method to normalize the data.
         pseudo_expr: `int` (default: `1`)
             A pseudocount added to the gene expression value before log/log2 normalization.
@@ -1430,7 +1505,7 @@ def recipe_velocyto(
     cm_genesums = CM.sum(axis=0)
     valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
     valid_ind = np.array(valid_ind).flatten()
-    adata.var.use_for_dynamo[np.where(adata.var.use_for_dynamo)[0][~valid_ind]] = False
+    adata.var.use_for_pca[np.where(adata.var.use_for_pca)[0][~valid_ind]] = False
 
     CM = CM[:, valid_ind]
 

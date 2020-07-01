@@ -9,7 +9,7 @@ from numbers import Number
 import matplotlib.colors
 import matplotlib.cm
 
-from ..configuration import _themes, set_figure_params
+from ..configuration import _themes, set_figure_params, reset_rcParams
 from .utils import (
     despline,
     despline_all,
@@ -27,7 +27,7 @@ from .utils import save_fig
 
 from ..tools.utils import update_dict
 
-from ..tools.utils import get_mapper
+from ..tools.utils import get_mapper, log1p_
 from ..docrep import DocstringProcessor
 
 docstrings = DocstringProcessor()
@@ -50,6 +50,7 @@ def _scatters(
     legend="on data",
     ax=None,
     normalize=False,
+    log1p=True,
     **kwargs
 ):
     """Scatter plot of cells for phase portrait or for low embedding embedding, colored by gene expression, velocity or cell groups.
@@ -103,6 +104,8 @@ def _scatters(
             represented with a sample of evenly spaced values. By default legend is drawn on top of cells.
         normalize: `bool` (default: `True`)
             Whether to normalize the expression / velocity or other continous data so that the value will be scaled between 0 and 1.
+        log1p: `bool` (default: `True`)
+            Whether to log1p transform the expression so that visualization can be robust to extreme values.
         **kwargs:
             Additional parameters that will be passed to plt.scatter function
 
@@ -179,6 +182,8 @@ def _scatters(
                 if (ekey in mapper.keys()) and (mapper[ekey] in adata.layers.keys())
                 else adata[:, genes].layers[ekey]
             )
+        
+        if log1p: E_vec = log1p_(adata, E_vec)
 
     n_cells, n_genes = adata.shape[0], len(genes)
 
@@ -241,6 +246,9 @@ def _scatters(
                 adata[:, genes].layers["X_new"],
                 adata[:, genes].layers["X_total"],
             )
+            
+            if log1p: new_mat, tot_mat = (log1p_(adata, new_mat), log1p_(adata, tot_mat))
+            
             new_mat, tot_mat = (
                 (new_mat.A, tot_mat.A) if issparse(new_mat) else (new_mat, tot_mat)
             )
@@ -264,6 +272,9 @@ def _scatters(
                 adata[:, genes].layers["X_unspliced"],
                 adata[:, genes].layers["X_spliced"],
             )
+
+            if log1p: unspliced_mat, spliced_mat = (log1p_(adata, unspliced_mat), log1p_(adata, spliced_mat))
+            
             unspliced_mat, spliced_mat = (
                 (unspliced_mat.A, spliced_mat.A)
                 if issparse(unspliced_mat)
@@ -291,6 +302,9 @@ def _scatters(
                 adata[:, genes].layers["X_su"],
                 adata[:, genes].layers["X_sl"],
             )
+
+            if log1p: uu, ul, su, sl = (log1p_(adata, uu), log1p_(adata, ul), log1p_(adata, su), log1p_(adata, sl))
+            
             if "protein" in adata.obsm.keys():
                 if "delta" in adata.var.columns:
                     gamma_P = adata.var.delta[genes].values
@@ -661,7 +675,6 @@ def _scatters(
                     expression = np.clip(
                         expression / np.percentile(expression, 99), 0, 1
                     )
-
                 fig, ax1 = scatter_with_colorbar(
                     fig,
                     ax1,
@@ -715,7 +728,7 @@ def scatters(
     basis="umap",
     x=0,
     y=1,
-    color=None,
+    color='ntr',
     layer="X",
     highlights=None,
     labels=None,
@@ -725,15 +738,16 @@ def scatters(
     color_key=None,
     color_key_cmap=None,
     background=None,
-    ncols=1,
-    pointsize=None,
-    figsize=(7, 5),
-    show_legend=True,
+    ncols=4,
+    pointsize=8,
+    figsize=(6, 4),
+    show_legend="on data",
     use_smoothed=True,
+    aggregate=None,
+    show_arrowed_spines=True,
     ax=None,
     save_show_or_return="show",
     save_kwargs={},
-    aggregate=None,
     **kwargs
 ):
     """Plot an embedding as points. Currently this only works
@@ -756,7 +770,7 @@ def scatters(
             The column index of the low dimensional embedding for the x-axis.
         y: `int` (default: `1`)
             The column index of the low dimensional embedding for the y-axis.
-        color: `string` (default: None)
+        color: `string` (default: `ntr`)
             Any column names or gene expression, etc. that will be used for coloring cells.
         layer: `str` (default: `X`)
             The layer of data to use for the scatter plot.
@@ -824,12 +838,20 @@ def scatters(
             handle for you. Note that if theme
             is passed then this value will be overridden by the
             corresponding option of the theme.
+        ncols: int (optional, default `4`)
+            Number of columns for the figure.
         width: int (optional, default 800)
             The desired width of the plot in pixels.
         height: int (optional, default 800)
             The desired height of the plot in pixels
         show_legend: bool (optional, default True)
             Whether to display a legend of the labels
+        use_smoothed: bool (optional, default True)
+            Whether to use smoothed values (i.e. M_s / M_u instead of spliced / unspliced, etc.).
+        aggregate: `str` or `None` (default: `None`)
+            The column in adata.obs that will be used to aggregate data points.
+        show_arrowed_spines: bool (optional, default True)
+            Whether to show a pair of arrowed spines represeenting the basis of the scatter is currently using.
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -837,8 +859,6 @@ def scatters(
             will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
-        aggregate: `str` or `None` (default: `None`)
-            The column in adata.obs that will be used to aggregate data points.
         kwargs:
             Additional arguments passed to plt.scatters.
 
@@ -854,18 +874,20 @@ def scatters(
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
 
-    if background is not None:
-        set_figure_params(background=background)
-    else:
+    if background is None:
         _background = rcParams.get("figure.facecolor")
-        background = to_hex(_background) if type(_background) is tuple else _background
-
+        _background = to_hex(_background) if type(_background) is tuple else _background
+        set_figure_params('dynamo', background=_background)
+    else:
+        _background = background
+        set_figure_params('dynamo', background=_background)
     x, y = x[0] if type(x) != int else x, y[0] if type(y) != int else y
 
     if use_smoothed:
         mapper = get_mapper()
 
     # check layer, basis -> convert to list
+
     if type(color) is str:
         color = [color]
     if type(layer) is str:
@@ -886,21 +908,21 @@ def scatters(
     point_size *= 4
 
     scatter_kwargs = dict(
-        alpha=0.2, s=point_size, edgecolor=None, linewidth=0
+        alpha=0.1, s=point_size, edgecolor=None, linewidth=0, rasterized=True
     )  # (0, 0, 0, 1)
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
 
-    font_color = _select_font_color(background)
+    font_color = _select_font_color(_background)
 
     total_panels, ncols = n_c * n_l * n_b, min(n_c, ncols)
     nrow, ncol = int(np.ceil(total_panels / ncols)), ncols
     if figsize is None:
         figsize = plt.rcParams["figsize"]
 
-    if total_panels > 1:
-        plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)
-        gs = plt.GridSpec(nrow, ncol)
+    if total_panels >= 1:
+        plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=_background)
+        gs = plt.GridSpec(nrow, ncol, wspace=0.12)
 
     i = 0
     axes_list, color_list = [], []
@@ -997,7 +1019,7 @@ def scatters(
                 if is_not_continous:
                     labels = _color.to_dense() if is_categorical(_color) else _color
                     if theme is None:
-                        if background == "black":
+                        if _background in ["#ffffff", "black"]:
                             _theme_ = "glasbey_dark"
                         else:
                             _theme_ = "glasbey_white"
@@ -1006,7 +1028,7 @@ def scatters(
                 else:
                     values = _color
                     if theme is None:
-                        if background == "black":
+                        if _background in ["#ffffff", "black"]:
                             _theme_ = (
                                 "inferno"
                                 if cur_l is not "velocity"
@@ -1026,7 +1048,7 @@ def scatters(
                     else color_key_cmap
                 )
                 _background = (
-                    _themes[_theme_]["background"] if background is None else background
+                    _themes[_theme_]["background"] if _background is None else _background
                 )
 
                 if labels is not None and values is not None:
@@ -1087,7 +1109,7 @@ def scatters(
                         **scatter_kwargs
                     )
 
-                if i == 1:
+                if i == 1 and show_arrowed_spines:
                     arrowed_spines(ax, points.columns[0].strip('_1'), _background)
                 else:
                     despline_all(ax)
@@ -1099,18 +1121,20 @@ def scatters(
                 color_list.append(color)
 
                 labels, values = None, None  # reset labels and values
-    # dyn.configuration.reset_rcParams()
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'scatters', "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
+        if background is not None: reset_rcParams()
     elif save_show_or_return == "show":
         if show_legend:
             plt.subplots_adjust(right=0.85)
         plt.tight_layout()
         plt.show()
+        if background is not None: reset_rcParams()
     elif save_show_or_return == "return":
+        if background is not None: reset_rcParams()
         return axes_list, color_list, font_color
 

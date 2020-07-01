@@ -1,4 +1,5 @@
 import numpy as np
+from .utils import log1p_
 
 # ---------------------------------------------------------------------------------------------------
 # retrieving data related
@@ -13,22 +14,24 @@ def fetch_X_data(adata, genes, layer):
         if genes is not None:
             X_data = adata[:, genes].X
         else:
-            if 'use_for_dynamo' not in adata.var.keys():
+            if 'use_for_dynamics' not in adata.var.keys():
                 X_data = adata.X
                 genes = adata.var_names
             else:
-                X_data = adata[:, adata.var.use_for_dynamo].X
-                genes = adata.var_names[adata.var.use_for_dynamo]
+                X_data = adata[:, adata.var.use_for_dynamics].X
+                genes = adata.var_names[adata.var.use_for_dynamics]
     else:
         if genes is not None:
             X_data = adata[:, genes].layers[layer]
         else:
-            if 'use_for_dynamo' not in adata.var.keys():
+            if 'use_for_dynamics' not in adata.var.keys():
                 X_data = adata.layers[layer]
                 genes = adata.var_names
             else:
-                adata[:, adata.var.use_for_dynamo].layers[layer]
-                genes = adata.var_names[adata.var.use_for_dynamo]
+                X_data = adata[:, adata.var.use_for_dynamics].layers[layer]
+                genes = adata.var_names[adata.var.use_for_dynamics]
+
+            X_data = log1p_(X_data)
 
     return genes, X_data
 

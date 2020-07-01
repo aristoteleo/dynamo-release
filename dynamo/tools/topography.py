@@ -6,10 +6,12 @@ from scipy.optimize import fsolve
 from scipy.spatial.distance import pdist
 from scipy.linalg import eig
 from scipy.integrate import odeint
+from sklearn.neighbors import NearestNeighbors
 
 from .scVectorField import vector_field_function, vectorfield
-from .utils import update_dict, form_triu_matrix, index_condensed_matrix
-
+from .utils import update_dict, form_triu_matrix, index_condensed_matrix, log1p_
+from ..external.ddhodge import ddhoge
+from ..tools.vector_calculus import curl, divergence
 
 def remove_redundant_points(X, tol=1e-4, output_discard=False):
     X = np.atleast_2d(X)
@@ -280,7 +282,7 @@ class FixedPoints:
 
 
 class VectorField2D:
-    def __init__(self, func, func_vx=None, func_vy=None):
+    def __init__(self, func, func_vx=None, func_vy=None, X_data=None, k=50):
         self.func = func
 
         def func_dim(x, func, dim):
@@ -300,6 +302,8 @@ class VectorField2D:
         else:
             self.fy = func_vy
         self.Xss = FixedPoints()
+        self.X_data = X_data
+        self.k = k
         self.NCx = None
         self.NCy = None
 
@@ -320,6 +324,18 @@ class VectorField2D:
                 elif is_stable[i]:
                     ftype[i] = -1
             return X, ftype
+
+    def get_Xss_confidence(self):
+        X = self.X_data
+        X = X.A if sp.issparse(X) else X
+        Xss = self.Xss.get_X()
+        alg = 'ball_tree' if Xss.shape[1] > 10 else 'kd_tree'
+        nbrs = NearestNeighbors(n_neighbors=min(self.k, X.shape[0] - 1), algorithm=alg).fit(X)
+        dist, _ = nbrs.kneighbors(Xss)
+        dist_m = dist.mean(1)
+        confidence = 1 - dist_m / dist_m.max()
+
+        return confidence
 
     def find_fixed_points_by_sampling(
         self, n, x_range, y_range, lhs=True, tol_redundant=1e-4
@@ -369,6 +385,7 @@ class VectorField2D:
         dict_vf["NCx"] = self.NCx
         dict_vf["NCy"] = self.NCy
         dict_vf["Xss"] = self.Xss.get_X()
+        dict_vf["confidence"] = self.get_Xss_confidence()
         dict_vf["J"] = self.Xss.get_J()
         return dict_vf
 
@@ -416,7 +433,7 @@ def topography(adata, basis="umap", layer=None, X=None, dims=None, n=25, VecFld=
     xlim = [min_[0] - (max_[0] - min_[0]) * 0.1, max_[0] + (max_[0] - min_[0]) * 0.1]
     ylim = [min_[1] - (max_[1] - min_[1]) * 0.1, max_[1] + (max_[1] - min_[1]) * 0.1]
 
-    vecfld = VectorField2D(lambda x: vector_field_function(x, VecFld, dims))
+    vecfld = VectorField2D(lambda x: vector_field_function(x, VecFld, dims), X_data=X_basis)
     vecfld.find_fixed_points_by_sampling(n, xlim, ylim)
     if vecfld.get_num_fixed_points() > 0:
         vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
@@ -464,6 +481,8 @@ def VectorField(
     velocity_key="velocity_S",
     method="SparseVFC",
     return_vf_object=False,
+    map_topography=True,
+    pot_curl_div=True,
     **kwargs,
 ):
     """Learn a function of high dimensional vector field from sparse single cell samples in the entire space robustly.
@@ -506,6 +525,12 @@ def VectorField(
         return_vf_object: `bool` (default: `False`)
             Whether or not to include an instance of a vectorfield class in the the `VecFld` dictionary in the `uns`
             attribute.
+        map_topography: `bool` (default: `True`)
+            Whether to quantify the topography of the 2D vector field.
+        pot_curl_div: `bool` (default: `True`)
+            Whether to calculate potential, curl or divergence for each cell. Potential can be calculated for any basis
+            while curl and divergence is by default only applied to 2D basis. However, divergence is applicable for any
+            dimension while curl is generally only defined for 2/3 D systems.
         kwargs:
             Other additional parameters passed to the vectorfield class.
 
@@ -529,11 +554,12 @@ def VectorField(
             if genes is not None
             else adata.var_names[adata.var.use_for_velocity]
         )
-        X = (
-            adata[:, valid_genes].X.copy()
-            if layer == "X"
-            else adata[:, valid_genes].layers[layer].copy()
-        )
+        if layer == "X":
+            X = adata[:, valid_genes].X.copy()
+        else:
+            X = adata[:, valid_genes].layers[layer].copy()
+            X = log1p_(adata, X)
+
         V = adata[:, valid_genes].layers[velocity_key].copy()
 
         if sp.issparse(X):
@@ -543,9 +569,11 @@ def VectorField(
     if X.shape[1] < 4 or grid_velocity:
         # smart way for generating high dimensional grids and convert into a row matrix
         min_vec, max_vec = (
-            X.min(0) - 0.01 * abs(X.min(0)),
-            X.max(0) + 0.01 * abs(X.max(0)),
+            X.min(0),
+            X.max(0),
         )
+        min_vec = min_vec - 0.01 * np.abs(max_vec - min_vec)
+        max_vec = max_vec + 0.01 * np.abs(max_vec - min_vec)
 
         Grid_list = np.meshgrid(
             *[np.linspace(i, j, grid_num) for i, j in zip(min_vec, max_vec)]
@@ -573,6 +601,7 @@ def VectorField(
         "velocity_based_sampling": True,
         "sigma": 0.8,
         "eta": 0.5,
+        "seed": 0,
     }
     vf_kwargs = update_dict(vf_kwargs, kwargs)
 
@@ -589,13 +618,17 @@ def VectorField(
         vf_dict['velocity_key'] = velocity_key
         adata.uns[vf_key] = vf_dict
 
-    if X.shape[1] == 2:
+    if X.shape[1] == 2 and map_topography:
         tp_kwargs = {"n": 25}
         tp_kwargs = update_dict(tp_kwargs, kwargs)
 
         adata = topography(
             adata, basis=basis, X=X, layer=layer, dims=[0, 1], VecFld=vf_dict['VecFld'], **tp_kwargs
         )
+    if pot_curl_div:
+        ddhoge(adata, basis=basis)
+        if X.shape[1] == 2: curl(adata, basis=basis)
+        if X.shape[1] == 2: divergence(adata, basis=basis)
 
     if return_vf_object:
         adata.uns[vf_key].update({"vf_object": VecFld})

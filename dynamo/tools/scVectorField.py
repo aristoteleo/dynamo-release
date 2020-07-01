@@ -75,7 +75,7 @@ def bandwidth_selector(X):
         This function computes an empirical bandwidth for a Gaussian kernel.
     '''
     n = len(X)
-    nbrs = NearestNeighbors(n_neighbors=int(0.2*n), algorithm='ball_tree').fit(X)
+    nbrs = NearestNeighbors(n_neighbors=max(2, int(0.2*n)), algorithm='ball_tree').fit(X)
     distances, _ = nbrs.kneighbors(X)
     d = np.mean(distances[:, 1:]) / 1.5
     return np.sqrt(2) * d
@@ -354,6 +354,7 @@ def SparseVFC(
     velocity_based_sampling=True,
     sigma=0.8,
     eta=0.5,
+    seed=0,
     lstsq_method='drouin',
     verbose=1
 ):
@@ -373,10 +374,10 @@ def SparseVFC(
         M: 'int' (default: 100)
             The number of basis functions to approximate the vector field.
         a: 'float' (default: 10)
-            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
+            Parameter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
             outlier's variation space is `a`.
         beta: 'float' (default: 0.1)
-            Paramerter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2).
+            Parameter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2).
             If None, a rule-of-thumb bandwidth will be computed automatically.
         ecr: 'float' (default: 1e-5)
             The minimum limitation of energy change rate in the iteration process.
@@ -400,6 +401,9 @@ def SparseVFC(
             Bandwidth parameter.
         eta: 'int' (default: `0.5`)
             Combination coefficient for the divergence-free or the curl-free kernels.
+        seed : int or 1-d array_like, optional (default: `0`)
+            Seed for RandomState. Must be convertible to 32 bit unsigned integers. Used in sampling control points. Default
+            is to be 0 for ensure consistency between different runs.
         lstsq_method: 'str' (default: `drouin`)
            The name of the linear least square solver, can be either 'scipy` or `douin`.
         verbose: `int` (default: `1`)
@@ -410,6 +414,7 @@ def SparseVFC(
     VecFld: 'dict'
         A dictionary which contains:
             X: Current state.
+            valid_ind: The indices of cells that have finite velocity values.
             X_ctrl: Sample control points of current state.
             ctrl_idx: Indices for the sampled control points.
             Y: Velocity estimates in delta t.
@@ -432,7 +437,9 @@ def SparseVFC(
 
     timeit_ = True if verbose > 1 else False
 
-    Y[~np.isfinite(Y)] = 0  # set nan velocity to 0.
+    X_ori, Y_ori = X.copy(), Y.copy()
+    valid_ind = np.where(np.isfinite(Y.sum(1)))[0]
+    X, Y = X[valid_ind], Y[valid_ind]
     N, D = Y.shape
     grid_U = None
 
@@ -440,11 +447,12 @@ def SparseVFC(
     tmp_X, uid = np.unique(X, axis=0, return_index=True)  # return unique rows
     M = min(M, tmp_X.shape[0])
     if velocity_based_sampling:
+        np.random.seed(seed)
         if verbose > 1:
             print('Sampling control points based on data velocity magnitude...')
         idx = sample_by_velocity(Y[uid], M)
     else:
-        idx = np.random.RandomState(seed=0).permutation(
+        idx = np.random.RandomState(seed=seed).permutation(
             tmp_X.shape[0]
         )  # rand select some initial points
         idx = idx[range(M)]
@@ -541,10 +549,11 @@ def SparseVFC(
         grid_V = np.dot(grid_U, C)
 
     VecFld = {
-        "X": X.reshape((N, D)) if div_cur_free_kernels else X,
+        "X": X_ori,
+        "valid_ind": valid_ind,
         "X_ctrl": ctrl_pts,
         "ctrl_idx": idx,
-        "Y": Y.reshape((N, D)) if div_cur_free_kernels else Y,
+        "Y": Y_ori,
         "beta": beta,
         "V": V.reshape((N, D)) if div_cur_free_kernels else V,
         "C": C,
@@ -585,10 +594,10 @@ class vectorfield:
         M: 'int' (default: 100)
                 The number of basis functions to approximate the vector field.
         a: `float` (default 5)
-            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's
+            Parameter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's
             variation space is a.
         beta: `float` (default: None)
-             Paramerter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2).
+             Parameter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2).
              If None, a rule-of-thumb bandwidth will be computed automatically.
         ecr: `float` (default: 1e-5)
             The minimum limitation of energy change rate in the iteration process.
@@ -600,7 +609,7 @@ class vectorfield:
         minP: `float` (default: 1e-5)
             The posterior probability Matrix P may be singular for matrix inversion. We set the minimum value of P as minP.
         MaxIter: `int` (default: 500)
-            Maximum iterition times.
+            Maximum iteration times.
         theta: `float` (default 0.75)
             Define how could be an inlier. If the posterior probability of a sample is an inlier is larger than theta, then
             it is regarded as an inlier.
@@ -611,13 +620,16 @@ class vectorfield:
             Bandwidth parameter.
         eta: 'int'
             Combination coefficient for the divergence-free or the curl-free kernels.
+        seed : int or 1-d array_like, optional (default: `0`)
+            Seed for RandomState. Must be convertible to 32 bit unsigned integers. Used in sampling control points. Default
+            is to be 0 for ensure consistency between different runs.
         """
 
         self.data = {"X": X, "V": V, "Grid": Grid}
         self.parameters = kwargs
 
         self.parameters = update_n_merge_dict(self.parameters, {
-            "M": kwargs.pop('M', None) or int(0.05 * len(X)) + 1,
+            "M": kwargs.pop('M', None) or max(min([50, len(X)]), int(0.05 * len(X)) + 1),
             "a": kwargs.pop('a', 5),
             "beta": kwargs.pop('beta', None),
             "ecr": kwargs.pop('ecr', 1e-5),
@@ -630,6 +642,7 @@ class vectorfield:
             "velocity_based_sampling": kwargs.pop('velocity_based_sampling', True),
             "sigma": kwargs.pop('sigma', 0.8),
             "eta": kwargs.pop('eta', 0.5),
+            "seed": kwargs.pop('seed', 0),
         })
 
         self.norm_dict = {}
@@ -688,6 +701,7 @@ class vectorfield:
         }
 
         self.func = lambda x: vector_field_function(x, VecFld)
+        self.vf_dict['VecFld']['V'] = self.func(self.data["X"])
         self.vf_dict.update({"func": self.func})
 
         return self.vf_dict

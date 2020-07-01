@@ -178,6 +178,43 @@ def compute_tau(X, V, k=100, nbr_idx=None):
     return tau, v
 
 
+def prepare_velocity_grid_data(X_emb,
+           xy_grid_nums,
+           density=None,
+           smooth=None,
+           n_neighbors=None,):
+
+    n_obs, n_dim = X_emb.shape
+    density = 1 if density is None else density
+    smooth = 0.5 if smooth is None else smooth
+
+    grs, scale = [], 0
+    for dim_i in range(n_dim):
+        m, M = np.min(X_emb[:, dim_i]), np.max(X_emb[:, dim_i])
+        m = m - 0.01 * np.abs(M - m)
+        M = M + 0.01 * np.abs(M - m)
+        gr = np.linspace(m, M, xy_grid_nums[dim_i] * density)
+        scale += gr[1] - gr[0]
+        grs.append(gr)
+
+    scale = scale / n_dim * smooth
+
+    meshes_tuple = np.meshgrid(*grs)
+    X_grid = np.vstack([i.flat for i in meshes_tuple]).T
+
+    # estimate grid velocities
+    if n_neighbors is None:
+        n_neighbors = np.max([10, int(n_obs / 50)])
+    nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=-1)
+    nn.fit(X_emb)
+    dists, neighs = nn.kneighbors(X_grid)
+
+    weight = norm.pdf(x=dists, scale=scale)
+    p_mass = weight.sum(1)
+
+    return X_grid, p_mass, neighs, weight
+
+
 def grid_velocity_filter(
     V_emb,
     neighs,
@@ -239,37 +276,19 @@ def velocity_on_grid(
     autoscale=False,
     adjust_for_stream=True,
     V_threshold=None,
+    cut_off_velocity=True,
 ):
     """Function to calculate the velocity vectors on a grid for grid vector field  quiver plot and streamplot, adapted from scVelo
     """
 
-    n_obs, n_dim = X_emb.shape
-    density = 1 if density is None else density
-    smooth = 0.5 if smooth is None else smooth
+    valid_idx = np.isfinite(X_emb.sum(1) + V_emb.sum(1))
+    X_emb, V_emb = X_emb[valid_idx], V_emb[valid_idx]
 
-    grs, scale = [], 0
-    for dim_i in range(n_dim):
-        m, M = np.min(X_emb[:, dim_i]), np.max(X_emb[:, dim_i])
-        m = m - 0.01 * np.abs(M - m)
-        M = M + 0.01 * np.abs(M - m)
-        gr = np.linspace(m, M, xy_grid_nums[dim_i] * density)
-        scale += gr[1] - gr[0]
-        grs.append(gr)
-
-    scale = scale / n_dim * smooth
-
-    meshes_tuple = np.meshgrid(*grs)
-    X_grid = np.vstack([i.flat for i in meshes_tuple]).T
-
-    # estimate grid velocities
-    if n_neighbors is None:
-        n_neighbors = np.max([10, int(n_obs / 50)])
-    nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=-1)
-    nn.fit(X_emb)
-    dists, neighs = nn.kneighbors(X_grid)
-
-    weight = norm.pdf(x=dists, scale=scale)
-    p_mass = weight.sum(1)
+    X_grid, p_mass, neighs, weight = prepare_velocity_grid_data(X_emb,
+                                    xy_grid_nums,
+                                    density=density,
+                                    smooth=smooth,
+                                    n_neighbors=n_neighbors,)
 
     # V_grid = (V_emb[neighs] * (weight / p_mass[:, None])[:, :, None]).sum(1) # / np.maximum(1, p_mass)[:, None]
     V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[
@@ -278,17 +297,23 @@ def velocity_on_grid(
     # calculate diffusion matrix D
     D = diffusionMatrix2D(V_emb[neighs])
 
-    X_grid, V_grid = grid_velocity_filter(
-        V_emb,
-        neighs,
-        p_mass,
-        X_grid,
-        V_grid,
-        min_mass=min_mass,
-        autoscale=autoscale,
-        adjust_for_stream=adjust_for_stream,
-        V_threshold=V_threshold,
-    )
+    if cut_off_velocity:
+        X_grid, V_grid = grid_velocity_filter(
+            V_emb,
+            neighs,
+            p_mass,
+            X_grid,
+            V_grid,
+            min_mass=min_mass,
+            autoscale=autoscale,
+            adjust_for_stream=adjust_for_stream,
+            V_threshold=V_threshold,
+        )
+    else:
+        X_grid, V_grid = (
+            np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]),
+            np.array([V_grid[:, 0].reshape(xy_grid_nums), V_grid[:, 1].reshape(xy_grid_nums)]),
+        )
 
     return X_grid, V_grid, D
 

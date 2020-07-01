@@ -16,6 +16,7 @@ from .utils import (
     norm_row,
     einsum_correlation,
     build_distance_graph,
+    log1p_,
 )
 
 from .dimension_reduction import reduceDimension
@@ -27,9 +28,10 @@ def cell_velocities(
     use_mnn=False,
     neighbors_from_basis=False,
     n_pca_components=None,
+    min_param=0.1,
     min_r2=0.01,
     basis="umap",
-    method="kmc",
+    method="pearson",
     neg_cells_trick=True,
     calc_rnd_vel=False,
     xy_grid_nums=(50, 50),
@@ -38,6 +40,7 @@ def cell_velocities(
     sample_fraction=None,
     random_seed=19491001,
     other_kernels_dict={},
+    enforce=False,
     **kmc_kwargs
 ):
     """Compute transition probability and project high dimension velocity vector to existing low dimension embedding.
@@ -45,63 +48,76 @@ def cell_velocities(
     It is powered by the Itô kernel that not only considers the correlation between the vector from any cell to its
     nearest neighbors and its velocity vector but also the corresponding distances. We expect this new kernel will enable
     us to visualize more intricate vector flow or steady states in low dimension. We also expect it will improve the
-    calculation of the stationary distribution or source states of sampled cells. The original "correlation" velocity projection
-    method is also supported.
+    calculation of the stationary distribution or source states of sampled cells. The original "correlation/cosine"
+    velocity projection method is also supported. Kernels based on the reconstructed velocity field is also possible.
 
     Arguments
     ---------
         adata: :class:`~anndata.AnnData`
             an Annodata object.
         ekey: `str` or None (optional, default `None`)
-            The dictionary key that corresponds to the gene expression in the layer attribute. By default, ekey and vkey will be automatically
-            detected from the adata object.
+            The dictionary key that corresponds to the gene expression in the layer attribute. By default, ekey and vkey
+            will be automatically detected from the adata object.
         vkey: 'str' or None (optional, default `None`)
             The dictionary key that corresponds to the estimated velocity values in layers attribute.
         use_mnn: `bool` (optional, default `False`)
-            Whether to use mutual nearest neighbors for projecting the high dimensional velocity vectors. By default, we don't use the mutual
-            nearest neighbors.
+            Whether to use mutual nearest neighbors for projecting the high dimensional velocity vectors. By default, we
+            don't use the mutual nearest neighbors. Mutual nearest neighbors are calculated from nearest neighbors across
+            different layers, which which accounts for cases where, for example, the cells from spliced expression may be
+            nearest neighbors but far from nearest neighbors on unspliced data. Using mnn assumes your data from different
+            layers are reliable (otherwise it will destroy real signals).
         neighbors_from_basis: `bool` (optional, default `False`)
-            Whether to construct nearest neighbors from low dimensional space as defined by the `basis`.
+            Whether to construct nearest neighbors from low dimensional space as defined by the `basis`, instead of using
+            that calculated during UMAP process.
         n_pca_components: `int` (optional, default `None`)
-            The number of pca components to project the high dimensional X, V before calculating transition matrix for velocity visualization.
-            By default it is None and if method is `kmc`, n_pca_components will be reset to 30; otherwise use all high dimensional data for
-            velocity projection.
-        min_r2: `float` (optional, default `0.5`)
-            The minimal value of r-squared of the gamma fit for selecting velocity genes.
+            The number of pca components to project the high dimensional X, V before calculating transition matrix for
+            velocity visualization. By default it is None and if method is `kmc`, n_pca_components will be reset to 30;
+            otherwise use all high dimensional data for velocity projection.
+        min_param: `float` (optional, default `0.01`)
+            The minimal value of kinetic parameters for selecting velocity genes.
+        min_r2: `float` (optional, default `0.01`)
+            The minimal value of r-squared of the parameter fits for selecting velocity genes.
         basis: 'int' (optional, default `umap`)
             The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
-        method: `string` (optimal, default `kmc`)
+        method: `string` (optional, default `pearson`)
             The method to calculate the transition matrix and project high dimensional vector to low dimension, either `kmc`,
             `cosine`, `pearson`, or `transform`. "kmc" is our new approach to learn the transition matrix via diffusion
             approximation or an Itô kernel. "cosine" or "pearson" are the methods used in the original RNA velocity paper
-            or the scvelo paper (Note that scVelo implemention actually centers both dX and V, so its cosine kernel is equivalent
-            to pearson correlation kernel but we provide the raw cosine kernel). "kmc" option is arguable better than "correlation"
-            or "cosine" as it not only considers the correlation but also the distance of the nearest neighbors to the high
-            dimensional velocity vector. Finally, the "transform" method uses umap's transform method to transform new data
-            points to the UMAP space. "transform" method is NOT recommended.
+            or the scvelo paper (Note that scVelo implementation actually centers both dX and V, so its cosine kernel is
+            equivalent to pearson correlation kernel but we also provide the raw cosine kernel). "kmc" option is arguable
+            better than "correlation" or "cosine" as it not only considers the correlation but also the distance of the
+            nearest neighbors to the high dimensional velocity vector. Finally, the "transform" method uses umap's transform
+            method to transform new data points to the UMAP space. "transform" method is NOT recommended. Kernels that
+            are based on the reconstructed vector field in high dimension is also possible.
         neg_cells_trick: 'bool' (optional, default `True`)
             Whether we should handle cells having negative correlations in gene expression difference with high dimensional
-            velocity vector separately. This option is borrow from scVelo package (https://github.com/theislab/scvelo) and
-            use in conjuction with "pearson" and "cosine" kernel. Not required if method is set to be "kmc".
+            velocity vector separately. This option was borrowed from scVelo package (https://github.com/theislab/scvelo)
+            and use in conjunction with "pearson" and "cosine" kernel. Not required if method is set to be "kmc".
         calc_rnd_vel: `bool` (default: `False`)
-            A logic flag to determine whether we will calculate the random velocity vectors which can be plotted downstream
-            as a negative control and used to adjust the quiver scale of the velocity field.
+            A logic flag to determine whether we will calculate the random velocity vectors which can be plotted
+            downstream as a negative control and used to adjust the quiver scale of the velocity field.
         xy_grid_nums: `tuple` (default: `(50, 50)`).
             A tuple of number of grids on each dimension.
         correct_density: `bool` (default: `False`)
-            Whether to correct density when calculating the markov transition matrix.
-        sample_fraction: `None` or `float` (default: None)
-            The downsampled fraction of kNN for the purpose of acceleration.
-        random_seed: `int` (default: 19491001)
-            The random seed for numba to ensure consistency of the random velocity vectors. Default value 19491001 is a special
-            day for those who care.
+            Whether to correct density when calculating the markov transition matrix, applicable to the `kmc` kernel.
+        correct_density: `bool` (default: `False`)
+            Whether to scale velocity when calculating the markov transition matrix, applicable to the `kmc` kernel.
+        sample_fraction: `None` or `float` (default: `None`)
+            The downsampled fraction of kNN for the purpose of acceleration, applicable to the `kmc` kernel.
+        random_seed: `int` (default: `19491001`)
+            The random seed for numba to ensure consistency of the random velocity vectors. Default value 19491001 is a
+            special day for those who care.
+        other_kernels_dict: `dict` (default: `{}`)
+            A dictionary of paramters that will be passed to the cosine/correlation kernel.
+        enforce: `bool` (default: `False`)
+            Whether to enforce recalculation of transition matrix.
 
     Returns
     -------
         Adata: :class:`~anndata.AnnData`
-            Returns an updated `~anndata.AnnData` with transition_matrix and projected embedding of high dimension velocity vector
-            in the existing embedding of current cell state, calculated using either the Itô kernel method (default) or the diffusion
-            approximation or the method from (La Manno et al. 2018).
+            Returns an updated `~anndata.AnnData` with transition_matrix and projected embedding of high dimension velocity
+            vectors in the existing embeddings of current cell state, calculated using either the Itô kernel method
+            (default) or the diffusion approximation or the method from (La Manno et al. 2018).
     """
 
     mapper_r = get_mapper_inverse()
@@ -138,14 +154,10 @@ def cell_velocities(
             )
             indices, dist = indices[:, 1:], dist[:, 1:]
 
-    if "use_for_dynamo" in adata.var.keys():
-        adata = set_velocity_genes(
-            adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamo=True
-        )
-    else:
-        adata = set_velocity_genes(
-            adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamo=False
-        )
+    use_for_dynamics = True if "use_for_dynamics" in adata.var.keys() else False
+    adata = set_velocity_genes(
+        adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamics=use_for_dynamics
+    )
 
     X = adata[:, adata.var.use_for_velocity.values].layers[ekey]
     V_mat = (
@@ -155,11 +167,11 @@ def cell_velocities(
     )
 
     if vkey == "velocity_S":
-        X_embedding = adata.obsm["X_" + basis][:, :2]
+        X_embedding = adata.obsm["X_" + basis]
     else:
         adata = reduceDimension(adata, layer=layer, reduction_method=basis)
         layer = layer if layer.startswith("X") else "X_" + layer
-        X_embedding = adata.obsm[layer + "_" + basis][:, :2]
+        X_embedding = adata.obsm[layer + "_" + basis]
 
     V_mat = V_mat.A if issparse(V_mat) else V_mat
     X = X.A if issparse(X) else X
@@ -168,6 +180,8 @@ def cell_velocities(
 
     if method == 'kmc' and n_pca_components is None: n_pca_components = 30
     if n_pca_components is not None:
+        X = log1p_(adata, X)
+        X_plus_V = log1p_(adata, X + V_mat)
         if (
                 "velocity_pca_fit" not in adata.uns_keys()
                 or type(adata.uns["velocity_pca_fit"]) == str
@@ -190,7 +204,7 @@ def cell_velocities(
             adata.uns["velocity_pca_fit"],
         )
 
-        Y_pca = pca_fit.transform(X + V_mat)
+        Y_pca = pca_fit.transform(X_plus_V)
         V_pca = Y_pca - X_pca
         # V_pca = (V_mat - V_mat.mean(0)).dot(PCs)
 
@@ -203,7 +217,11 @@ def cell_velocities(
 
     # add both source and sink distribution
     if method == "kmc":
-        kmc = KernelMarkovChain()
+        if method + '_transition_matrix' in adata.uns_keys() and not enforce:
+            T = adata.uns[method + '_transition_matrix']
+            kmc = KernelMarkovChain(P=T)
+        else:
+            kmc = KernelMarkovChain()
         kmc_args = {
             "n_recurse_neighbors": 2,
             "M_diff": 2,
@@ -213,13 +231,14 @@ def cell_velocities(
         }
         kmc_args = update_dict(kmc_args, kmc_kwargs)
 
-        kmc.fit(
-            X,
-            V_mat,
-            neighbor_idx=indices,
-            sample_fraction=sample_fraction,
-            **kmc_args
-        )  #
+        if method + '_transition_matrix' not in adata.uns_keys() or not enforce:
+            kmc.fit(
+                X,
+                V_mat,
+                neighbor_idx=indices,
+                sample_fraction=sample_fraction,
+                **kmc_args
+            )  #
 
         T = kmc.P
         if correct_density:
@@ -263,10 +282,17 @@ def cell_velocities(
                      }
         vs_kwargs = update_dict(vs_kwargs, other_kernels_dict)
 
-        T, delta_X, X_grid, V_grid, D = kernels_from_velocyto_scvelo(
-            X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors,
-            method, **vs_kwargs
-        )
+        if method + '_transition_matrix' in adata.uns_keys() and not enforce:
+            T = adata.uns[method + '_transition_matrix']
+            delta_X = projection_with_transition_matrix(X.shape[0], T, X_embedding)
+            X_grid, V_grid, D = velocity_on_grid(
+                X_embedding[:, :2], (X_embedding + delta_X)[:, :2], xy_grid_nums=xy_grid_nums
+            )
+        else:
+            T, delta_X, X_grid, V_grid, D = kernels_from_velocyto_scvelo(
+                X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors,
+                method, **vs_kwargs
+            )
 
         if calc_rnd_vel:
             permute_rows_nsign(V_mat)
@@ -281,7 +307,7 @@ def cell_velocities(
         )
 
         if "pca_fit" not in adata.uns_keys() or type(adata.uns["pca_fit"]) == str:
-            CM = adata.X[:, adata.var.use_for_dynamo.values]
+            CM = adata.X[:, adata.var.use_for_dynamics.values]
             from ..preprocessing.utils import pca
 
             adata, pca_fit, X_pca = pca(adata, CM, n_pca_components, "X")
@@ -289,7 +315,7 @@ def cell_velocities(
 
         X_pca, pca_fit = adata.obsm["X"], adata.uns["pca_fit"]
         V = (
-            adata[:, adata.var.use_for_dynamo.values].layers[vkey]
+            adata[:, adata.var.use_for_dynamics.values].layers[vkey]
             if vkey in adata.layers.keys()
             else None
         )
@@ -305,12 +331,12 @@ def cell_velocities(
             X_embedding, delta_X, xy_grid_nums=xy_grid_nums
         )
 
-    adata.uns["transition_matrix"] = T
+    adata.uns[method + "_transition_matrix"] = T
     adata.obsm["velocity_" + basis] = delta_X
     adata.uns["grid_velocity_" + basis] = {"X_grid": X_grid, "V_grid": V_grid, "D": D}
 
     if calc_rnd_vel:
-        adata.uns["transition_matrix_rnd"] = T_rnd
+        adata.uns[method + "_transition_matrix_rnd"] = T_rnd
         adata.obsm["X_" + basis + "_rnd"] = X_embedding
         adata.obsm["velocity_" + basis + "_rnd"] = delta_X_rnd
         adata.uns["grid_velocity_" + basis + "_rnd"] = {
@@ -591,6 +617,18 @@ def kernels_from_velocyto_scvelo(
     T.setdiag(0)
     T.eliminate_zeros()
 
+    delta_X = projection_with_transition_matrix(n, T, X_embedding)
+
+    X_grid, V_grid, D = velocity_on_grid(
+        X_embedding[:, :2], (X_embedding + delta_X)[:, :2], xy_grid_nums=xy_grid_nums
+    )
+
+    return T, delta_X, X_grid, V_grid, D
+
+
+def projection_with_transition_matrix(n, T, X_embedding):
+    delta_X = np.zeros((n, X_embedding.shape[1]))
+
     for i in tqdm(range(n), desc=f"projecting velocity vector to low dimensional embedding..."):
         idx = T[i].indices
         diff_emb = X_embedding[idx] - X_embedding[i, None]
@@ -599,11 +637,7 @@ def kernels_from_velocyto_scvelo(
         T_i = T[i].data
         delta_X[i] = T_i.dot(diff_emb) - T_i.mean() * diff_emb.sum(0)
 
-    X_grid, V_grid, D = velocity_on_grid(
-        X_embedding, X_embedding + delta_X, xy_grid_nums=xy_grid_nums
-    )
-
-    return T, delta_X, X_grid, V_grid, D
+    return delta_X
 
 
 # utility functions for calculating the random cell velocities
@@ -655,6 +689,9 @@ def embed_velocity(adata, x_basis, v_basis='velocity', emb_basis='X', velocity_g
     else:
         X = adata.layers[x_basis]
         V = adata.layers[v_basis]
+
+    X = log1p_(adata, X)
+
     X_emb = adata.obsm[emb_basis]
     Idx = adata.uns['neighbors']['indices']
 

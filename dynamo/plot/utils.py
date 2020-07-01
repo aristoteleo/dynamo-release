@@ -185,7 +185,7 @@ def _matplotlib_points(
                 points = reorder_data
 
         if isinstance(color_key, dict):
-            colors = pd.Series(labels).map(color_key)
+            colors = pd.Series(labels).map(color_key).values
             unique_labels = np.unique(labels)
             legend_elements = [
                 # Patch(facecolor=color_key[k], label=k) for k in unique_labels
@@ -211,7 +211,7 @@ def _matplotlib_points(
             ]
             colors = pd.Series(labels).map(new_color_key)
 
-        ax.scatter(points[:, 0], points[:, 1], c=colors, rasterized=True, **kwargs)
+        ax.scatter(points[:, 0], points[:, 1], c=colors, **kwargs)
 
     # Color by values
     elif values is not None:
@@ -226,8 +226,10 @@ def _matplotlib_points(
         sorted_id = np.argsort(values)
         values, points = values[sorted_id], points[sorted_id, :]
 
-        _vmin = np.min(values) if vmin is None else np.percentile(values, vmin)
-        _vmax = np.max(values) if vmax is None else np.percentile(values, vmax)
+        _vmin = np.min(values) if vmin is None else np.percentile(values, vmin) if \
+            (vmax > 80 and vmax <= 100 and vmin < 20 and vmin > 0) else vmin
+        _vmax = np.max(values) if vmax is None else np.percentile(values, vmax) if \
+            (vmax > 80 and vmax <= 100 and vmin < 20 and vmin > 0) else vmax
 
         ax.scatter(
             points[:, 0],
@@ -236,7 +238,6 @@ def _matplotlib_points(
             cmap=cmap,
             vmin=_vmin,
             vmax=_vmax,
-            rasterized=True,
             **kwargs,
         )
 
@@ -259,18 +260,18 @@ def _matplotlib_points(
     # No color (just pick the midpoint of the cmap)
     else:
         colors = plt.get_cmap(cmap)(0.5)
-        ax.scatter(points[:, 0], points[:, 1], c=colors, rasterized=True, **kwargs)
+        ax.scatter(points[:, 0], points[:, 1], c=colors, **kwargs)
 
     if show_legend and legend_elements is not None:
         if len(unique_labels) > 1 and show_legend == "on data":
-            font_color = "white" if background is "black" else "black"
+            font_color = "white" if background in ["black", "#ffffff"] else "black"
             for i in unique_labels:
                 color_cnt = np.nanmedian(points[np.where(labels == i)[0], :2], 0)
                 txt = plt.text(
                     color_cnt[0],
                     color_cnt[1],
                     str(i),
-                    color=font_color,
+                    color=_select_font_color(font_color),
                     zorder=1000,
                     verticalalignment="center",
                     horizontalalignment="center",
@@ -278,7 +279,7 @@ def _matplotlib_points(
                 )  #
                 txt.set_path_effects(
                     [
-                        PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.3),
+                        PathEffects.Stroke(linewidth=1.5, foreground=font_color, alpha=0.8),
                         PathEffects.Normal(),
                     ]
                 )
@@ -289,6 +290,7 @@ def _matplotlib_points(
                 loc=show_legend,
                 ncol=len(unique_labels) // 15 + 1,
             )
+
     return ax, colors
 
 
@@ -452,7 +454,7 @@ def _datashade_points(
                         color_cnt[0],
                         color_cnt[1],
                         str(i),
-                        color=font_color,
+                        color=_select_font_color(font_color),
                         zorder=1000,
                         verticalalignment="center",
                         horizontalalignment="center",
@@ -460,7 +462,7 @@ def _datashade_points(
                     )  #
                     txt.set_path_effects(
                         [
-                            PathEffects.Stroke(linewidth=5, foreground="w", alpha=0.6),
+                            PathEffects.Stroke(linewidth=1.5, foreground=font_color, alpha=0.8),
                             PathEffects.Normal(),
                         ]
                     )
@@ -747,6 +749,7 @@ def despline_all(ax=None):
     for side in ['bottom','right','top','left']:
         ax.spines[side].set_visible(False)
 
+
 def deaxis_all(ax=None):
     # removing the axis ticks
     import matplotlib.pyplot as plt
@@ -828,7 +831,7 @@ def scatter_with_legend(
             txt.set_path_effects(
                 [
                     PathEffects.Stroke(
-                        linewidth=5, foreground=font_color, alpha=0.6
+                        linewidth=1.5, foreground=font_color, alpha=0.8
                     ),  # 'w'
                     PathEffects.Normal(),
                 ]
@@ -846,8 +849,8 @@ def set_colorbar(ax):
     from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
     axins = inset_axes(ax,
-                       width="3%",  # width = 5% of parent_bbox width
-                       height="30%",  # height : 50%
+                       width="2.5%",  # width = 5% of parent_bbox width
+                       height="20%",  # height : 50%
                        # loc='lower left',
                        # bbox_to_anchor=(1.05, 0., 1, 1),
                        # bbox_transform=ax.transAxes,
@@ -878,34 +881,34 @@ def arrowed_spines(ax, basis="umap", background='white'):
     bbox = ax.get_window_extent().transformed(dps)
     width, height = bbox.width, bbox.height
 
-    # manual arrowhead width and length
+    # manual arrowhead width and length (x-axis)
     hw = 1./20.*(ymax-ymin)
     hl = 1./20.*(xmax-xmin)
     lw = 1. # axis line width
-    ohg = 0.3 # arrow overhang
+    ohg = 0.2 # arrow overhang
 
-    # compute matching arrowhead length and width
+    # compute matching arrowhead length and width (y-axis)
     yhw = hw/(ymax-ymin)*(xmax-xmin)* height/width
     yhl = hl/(xmax-xmin)*(ymax-ymin)* width/height
 
     # draw x and y axis
-    fc, ec = ('k', 'k') if background == 'white' else ("w", "w")
-    ax.arrow(xmin, ymin, hl * 5, 0, fc=fc, ec=ec,
+    fc, ec = ("w", "w") if background in ['black', "#ffffff"] else ('k', 'k')
+    ax.arrow(xmin, ymin, hl * 5/2, 0, fc=fc, ec=ec,
              lw=lw,
-             head_width=hw, head_length=hl,
-             overhang=ohg,
+             head_width=hw/2, head_length=hl/2,
+             overhang=ohg/2,
              length_includes_head=True, clip_on=False)
-    ax.arrow(xmin, ymin, 0, hw * 5, fc=fc, ec=ec,
+    ax.arrow(xmin, ymin, 0, hw * 5/2, fc=fc, ec=ec,
              lw=lw,
-             head_width=yhw, head_length=yhl,
-             overhang=ohg,
+             head_width=yhw/2, head_length=yhl/2,
+             overhang=ohg/2,
              length_includes_head=True, clip_on=False)
 
-    ax.text(xmin+hl * 2.5, ymin-1.1 * hw, basis.upper() +"1", ha="center", va="center", rotation=0,
-            size=(lw + hw) * 10,
+    ax.text(xmin + hl * 2.5/2, ymin - 1.1 * hw/2, basis.upper() + "1", ha="center", va="center", rotation=0,
+            size=np.clip((hl + yhw) * 8 / 2, None, 40),
             )
-    ax.text(xmin-1.1 * yhw, ymin+hw * 2.5, basis.upper() +"2", ha="center", va="center", rotation=90,
-            size=(lw + hw) * 10,
+    ax.text(xmin - 1.1 * yhw/2, ymin + hw * 2.5/2, basis.upper() + "2", ha="center", va="center", rotation=90,
+            size=np.clip((hl + yhw) * 8 / 2, None, 40),
             )
 
     return ax
@@ -984,6 +987,25 @@ def _plot_traj(y0, t, args, integration_direction, ax, color, lw, f):
 
     return ax
 
+
+# ---------------------------------------------------------------------------------------------------
+# streamline related aesthetics
+# ---------------------------------------------------------------------------------------------------
+
+def set_arrow_alpha(ax=None, alpha=1):
+    from matplotlib import patches
+    ax = plt.gca() if ax is None else ax
+
+    # iterate through the children of ax
+    for art in ax.get_children():
+        # we are only interested in FancyArrowPatches
+        if not isinstance(art, patches.FancyArrowPatch):
+            continue
+        art.set_alpha(alpha)
+
+def set_stream_line_alpha(s=None, alpha=1):
+    """s has to be a StreamplotSet"""
+    s.lines.set_alpha(alpha)
 
 # ---------------------------------------------------------------------------------------------------
 # save_fig figure related

@@ -3,10 +3,16 @@ import pandas as pd
 from scipy.sparse import issparse
 
 from .scatters import scatters
-from .utils import quiver_autoscaler, default_quiver_args, save_fig
+from .utils import (
+    quiver_autoscaler,
+    default_quiver_args,
+    save_fig,
+    set_arrow_alpha,
+    set_stream_line_alpha,
+)
 from ..tools.dimension_reduction import reduceDimension
 from ..tools.cell_velocities import cell_velocities
-from ..tools.Markov import velocity_on_grid, grid_velocity_filter
+from ..tools.Markov import prepare_velocity_grid_data, velocity_on_grid, grid_velocity_filter
 from ..tools.topography import VectorField
 from ..tools.utils import update_dict
 
@@ -131,7 +137,7 @@ def _cell_wise_velocity(
         if "X_" + basis not in adata.obsm.keys():
             reduceDimension(adata, vkey="velocity_S", reduction_method=basis)
         if "kmc" not in adata.uns_keys():
-            cell_velocities(adata, vkey="velocity_S", basis=basis, method="analytical")
+            cell_velocities(adata, vkey="velocity_S", basis=basis)
             X = adata.obsm["X_" + basis][:, [x, y]]
             V = adata.obsm["velocity_" + basis][:, [x, y]]
         else:
@@ -179,7 +185,7 @@ def _cell_wise_velocity(
     )
 
     # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
-    gs = plt.GridSpec(nrow, ncol)
+    gs = plt.GridSpec(nrow, ncol, wspace=0.12)
     for i, gn in enumerate(genes):
         ax = plt.subplot(gs[i * plot_per_gene])
         try:
@@ -352,7 +358,7 @@ def _grid_velocity(
         if "X_" + basis not in adata.obsm.keys():
             reduceDimension(adata, vkey="velocity_S", reduction_method=basis)
         if "kmc" not in adata.uns_keys():
-            cell_velocities(adata, vkey="velocity_S", basis=basis, method="analytical")
+            cell_velocities(adata, vkey="velocity_S", basis=basis)
             X = adata.obsm["X_" + basis][:, [x, y]]
             V = adata.obsm["velocity_" + basis][:, [x, y]]
         else:
@@ -434,7 +440,7 @@ def _grid_velocity(
     )
 
     # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
-    gs = plt.GridSpec(nrow, ncol)
+    gs = plt.GridSpec(nrow, ncol, wspace=0.12)
     for i, gn in enumerate(genes):
         ax = plt.subplot(gs[i * plot_per_gene])
         try:
@@ -625,7 +631,7 @@ def _streamline_plot(
         if "X_" + basis not in adata.obsm.keys():
             reduceDimension(adata, vkey="velocity_S", reduction_method=basis)
         if "kmc" not in adata.uns_keys():
-            cell_velocities(adata, vkey="velocity_S", basis=basis, method="analytical")
+            cell_velocities(adata, vkey="velocity_S", basis=basis)
             X = adata.obsm["X_" + basis][:, [x, y]]
             V = adata.obsm["velocity_" + basis][:, [x, y]]
         else:
@@ -701,7 +707,7 @@ def _streamline_plot(
     )
 
     # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
-    gs = plt.GridSpec(nrow, ncol)
+    gs = plt.GridSpec(nrow, ncol, wspace=0.12)
     for i, gn in enumerate(genes):
         ax = plt.subplot(gs[i * plot_per_gene])
         try:
@@ -894,6 +900,8 @@ def line_integral_conv(
     -------
         Nothing, but plot the vector field with quiver, streamline and line integral convolution (LIC).
     """
+
+    import matplotlib.pyplot as plt
     X = adata.obsm["X_" + basis][:, :2] if "X_" + basis in adata.obsm.keys() else None
     V = (
         adata.obsm["velocity_" + basis][:, :2]
@@ -1028,7 +1036,8 @@ def line_integral_conv(
         plt.tight_layout()
         plt.show()
     elif save_show_or_return == "return":
-        return g
+        return slc
+
 
 @docstrings.with_indent(4)
 def cell_wise_velocity(
@@ -1036,7 +1045,7 @@ def cell_wise_velocity(
     basis="umap",
     x=0,
     y=1,
-    color=None,
+    color='ntr',
     layer="X",
     highlights=None,
     labels=None,
@@ -1045,14 +1054,16 @@ def cell_wise_velocity(
     cmap=None,
     color_key=None,
     color_key_cmap=None,
-    background=None,
-    ncols=1,
+    background='white',
+    ncols=4,
     pointsize=None,
-    figsize=(7, 5),
-    show_legend=True,
+    figsize=(6, 4),
+    show_legend='on data',
     use_smoothed=True,
     ax=None,
     aggregate=None,
+    show_arrowed_spines=True,
+    inverse=False,
     cell_ind="all",
     quiver_size=None,
     quiver_length=None,
@@ -1066,6 +1077,8 @@ def cell_wise_velocity(
     Parameters
     ----------
         %(scatters.parameters.no_show_legend|kwargs|save_kwargs)s
+        inverse: `bool` (default: False)
+            Whether to inverse the direction of the velocity vectors.
         cell_ind: `str` or `list` (default: all)
             the cell index that will be chosen to draw velocity vectors.
         quiver_size: `float` or None (default: None)
@@ -1104,7 +1117,7 @@ def cell_wise_velocity(
             layer, basis = basis.split("_")
             reduceDimension(adata, layer=layer, reduction_method=basis)
         if "kmc" not in adata.uns_keys():
-            cell_velocities(adata, vkey="velocity_S", basis=basis, method="analytical")
+            cell_velocities(adata, vkey="velocity_S", basis=basis)
             X = adata.obsm["X_" + basis][:, [x, y]]
             V = adata.obsm["velocity_" + basis][:, [x, y]]
         else:
@@ -1114,6 +1127,7 @@ def cell_wise_velocity(
             adata.obsm["velocity_" + basis] = V
 
     V /= 3 * quiver_autoscaler(X, V)
+    if inverse: V = -V
 
     df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "u": V[:, 0], "v": V[:, 1]})
 
@@ -1147,6 +1161,7 @@ def cell_wise_velocity(
     }
     quiver_kwargs = update_dict(quiver_kwargs, cell_wise_kwargs)
 
+    plt.figure(facecolor=background)
     axes_list, color_list, font_color = scatters(
         adata,
         basis,
@@ -1167,6 +1182,8 @@ def cell_wise_velocity(
         figsize,
         show_legend,
         use_smoothed,
+        aggregate,
+        show_arrowed_spines,
         ax,
         "return",
         aggregate,
@@ -1194,6 +1211,7 @@ def cell_wise_velocity(
             facecolors=color_list[i],
             **quiver_kwargs,
         )
+        axes_list[i].set_facecolor(background)
 
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'cell_wise_velocity', "dpi": None,
@@ -1214,7 +1232,7 @@ def grid_velocity(
     basis="umap",
     x=0,
     y=1,
-    color=None,
+    color='ntr',
     layer="X",
     highlights=None,
     labels=None,
@@ -1223,16 +1241,19 @@ def grid_velocity(
     cmap=None,
     color_key=None,
     color_key_cmap=None,
-    background=None,
-    ncols=1,
+    background='white',
+    ncols=4,
     pointsize=4,
-    figsize=(7, 5),
-    show_legend=True,
+    figsize=(6, 4),
+    show_legend='on data',
     use_smoothed=True,
     ax=None,
     aggregate=None,
+    show_arrowed_spines=True,
+    inverse=False,
     method="gaussian",
     xy_grid_nums=[50, 50],
+    cut_off_velocity=True,
     quiver_size=None,
     quiver_length=None,
     save_show_or_return='show',
@@ -1246,11 +1267,16 @@ def grid_velocity(
     Parameters
     ----------
         %(scatters.parameters.no_show_legend|kwargs|save_kwargs)s
+        inverse: `bool` (default: False)
+            Whether to inverse the direction of the velocity vectors.
         method: `str` (default: `SparseVFC`)
             Method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the empirical method
             Gaussian kernel method from RNA velocity (Gaussian).
         xy_grid_nums: `tuple` (default: (50, 50))
             the number of grids in either x or y axis.
+        cut_off_velocity: `bool` (default: True)
+            Whether to remove small velocity vectors from the recovered the vector field grid, either through the simple
+            Gaussian kernel (applicable to 2D) or the powerful sparseVFC approach.
         quiver_size: `float` or None (default: None)
             The size of quiver. If None, we will use set quiver_size to be 1. Note that quiver quiver_size is used to calculate
             the head_width (10 x quiver_size), head_length (12 x quiver_size) and headaxislength (8 x quiver_size) of the quiver.
@@ -1290,7 +1316,7 @@ def grid_velocity(
             layer, basis = basis.split("_")
             reduceDimension(adata, layer=layer, reduction_method=basis)
         if "kmc" not in adata.uns_keys():
-            cell_velocities(adata, vkey="velocity_S", basis=basis, method="analytical")
+            cell_velocities(adata, vkey="velocity_S", basis=basis)
             X = adata.obsm["X_" + basis][:, [x, y]]
             V = adata.obsm["velocity_" + basis][:, [x, y]]
         else:
@@ -1299,7 +1325,18 @@ def grid_velocity(
             V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
             adata.obsm["velocity_" + basis] = V
 
-    if method == "SparseVFC":
+    grid_kwargs_dict = {
+        "density": None,
+        "smooth": None,
+        "n_neighbors": None,
+        "min_mass": None,
+        "autoscale": False,
+        "adjust_for_stream": True,
+        "V_threshold": None,
+    }
+    grid_kwargs_dict = update_dict(grid_kwargs_dict, grid_kwargs)
+
+    if method.lower() == "sparsevfc":
         if "VecFld_" + basis not in adata.uns.keys():
             VectorField(adata, basis=basis, dims=[x, y])
         X_grid, V_grid = (
@@ -1307,26 +1344,34 @@ def grid_velocity(
             adata.uns["VecFld_" + basis]["VecFld"]["grid_V"],
         )
         N = int(np.sqrt(V_grid.shape[0]))
-        X_grid, V_grid = (
-            np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]),
-            np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))]),
-        )
-        # X_grid, V_grid = grid_velocity_filter(V[:, [x, y]], None, None, X_grid, V_grid, min_mass=None, autoscale=False,
-        #                      adjust_for_stream=False, V_threshold=None)
-    elif method == "gaussian":
-        grid_kwargs_dict = {
-            "density": None,
-            "smooth": None,
-            "n_neighbors": None,
-            "min_mass": None,
-            "autoscale": False,
-            "adjust_for_stream": False,
-            "V_threshold": None,
-        }
-        grid_kwargs_dict = update_dict(grid_kwargs_dict, grid_kwargs)
 
+        if cut_off_velocity:
+            X_grid, p_mass, neighs, weight = prepare_velocity_grid_data(X,
+                                                                xy_grid_nums,
+                                                                density=grid_kwargs_dict['density'],
+                                                                smooth=grid_kwargs_dict['smooth'],
+                                                                n_neighbors=grid_kwargs_dict['n_neighbors'], )
+            for i in ['density', 'smooth', 'n_neighbors']:
+                grid_kwargs_dict.pop(i)
+
+            V_emb = adata.uns["VecFld_" + basis]["func"](X)
+            V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[:, None]
+            X_grid, V_grid = grid_velocity_filter(
+                V_emb=V,
+                neighs=neighs,
+                p_mass=p_mass,
+                X_grid=X_grid,
+                V_grid=V_grid,
+                **grid_kwargs_dict
+            )
+        else:
+            X_grid, V_grid = (
+                np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]),
+                np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))]),
+            )
+    elif method.lower() == "gaussian":
         X_grid, V_grid, D = velocity_on_grid(
-            X[:, [x, y]], V[:, [x, y]], xy_grid_nums, **grid_kwargs_dict
+            X, V, xy_grid_nums, cut_off_velocity=cut_off_velocity, **grid_kwargs_dict
         )
     elif "grid_velocity_" + basis in adata.uns.keys():
         X_grid, V_grid, _ = (
@@ -1341,6 +1386,7 @@ def grid_velocity(
         )
 
     V_grid /= 3 * quiver_autoscaler(X_grid, V_grid)
+    if inverse: V_grid = -V_grid
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
@@ -1365,16 +1411,16 @@ def grid_velocity(
         "minshaft": 1,
         "minlength": 1,
         "pivot": "tail",
-        "linewidth": 0.2,
         "edgecolors": edgecolors,
         "linewidth": 0.2,
         "facecolors": edgecolors,
         "color": edgecolors,
         "alpha": 1,
-        "zorder": 10,
+        "zorder": 3,
     }
     quiver_kwargs = update_dict(quiver_kwargs, q_kwargs_dict)
 
+    plt.figure(facecolor=background)
     axes_list, _, font_color = scatters(
         adata,
         basis,
@@ -1395,6 +1441,8 @@ def grid_velocity(
         figsize,
         show_legend,
         use_smoothed,
+        aggregate,
+        show_arrowed_spines,
         ax,
         "return",
         aggregate,
@@ -1403,8 +1451,9 @@ def grid_velocity(
 
     for i in range(len(axes_list)):
         axes_list[i].quiver(
-            X_grid[:, 0], X_grid[:, 1], V_grid[:, 0], V_grid[:, 1], **quiver_kwargs
+            X_grid[0], X_grid[1], V_grid[0], V_grid[1], **quiver_kwargs
         )
+        axes_list[i].set_facecolor(background)
 
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'grid_velocity', "dpi": None,
@@ -1425,7 +1474,7 @@ def streamline_plot(
     basis="umap",
     x=0,
     y=1,
-    color=None,
+    color='ntr',
     layer="X",
     highlights=None,
     labels=None,
@@ -1434,17 +1483,22 @@ def streamline_plot(
     cmap=None,
     color_key=None,
     color_key_cmap=None,
-    background=None,
-    ncols=1,
+    background='white',
+    ncols=4,
     pointsize=8,
-    figsize=(7, 5),
-    show_legend=True,
+    figsize=(6, 4),
+    show_legend='on data',
     use_smoothed=True,
     ax=None,
     aggregate=None,
+    show_arrowed_spines=True,
+    inverse=False,
     method="gaussian",
     xy_grid_nums=[50, 50],
+    cut_off_velocity=True,
     density=1,
+    linewidth=1,
+    streamline_alpha=1,
     save_show_or_return='show',
     save_kwargs={},
     s_kwargs_dict={},
@@ -1455,13 +1509,22 @@ def streamline_plot(
     Parameters
     ----------
         %(scatters.parameters.no_show_legend|kwargs|save_kwargs)s
+        inverse: `bool` (default: False)
+            Whether to inverse the direction of the velocity vectors.
         method: `str` (default: `SparseVFC`)
             Method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the empirical method
             Gaussian kernel method from RNA velocity (Gaussian).
         xy_grid_nums: `tuple` (default: (50, 50))
             the number of grids in either x or y axis.
+        cut_off_velocity: `bool` (default: True)
+            Whether to remove small velocity vectors from the recovered the vector field grid, either through the simple
+            Gaussian kernel (applicable only to 2D) or the powerful sparseVFC approach.
         density: `float` or None (default: 1)
             density of the plt.streamplot function.
+        linewidth: `float` or None (default: 1)
+            multiplier of automatically calculated linewidth passed to the plt.streamplot function.
+        streamline_alpha: `float` or None (default: 1)
+            The alpha value applied to the vector field stream lines.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'streamline_plot', "dpi": None, "ext": 'pdf', "transparent": True, "close":
@@ -1490,7 +1553,7 @@ def streamline_plot(
             layer, basis = basis.split("_")
             reduceDimension(adata, layer=layer, reduction_method=basis)
         if "kmc" not in adata.uns_keys():
-            cell_velocities(adata, vkey="velocity_S", basis=basis, method="analytical")
+            cell_velocities(adata, vkey="velocity_S", basis=basis)
             X = adata.obsm["X_" + basis][:, [x, y]]
             V = adata.obsm["velocity_" + basis][:, [x, y]]
         else:
@@ -1499,7 +1562,18 @@ def streamline_plot(
             V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
             adata.obsm["velocity_" + basis] = V
 
-    if method == "SparseVFC":
+    grid_kwargs_dict = {
+        "density": None,
+        "smooth": None,
+        "n_neighbors": None,
+        "min_mass": None,
+        "autoscale": False,
+        "adjust_for_stream": True,
+        "V_threshold": None,
+    }
+    grid_kwargs_dict = update_dict(grid_kwargs_dict, streamline_kwargs)
+
+    if method.lower() == "sparsevfc":
         if "VecFld_" + basis not in adata.uns.keys():
             VectorField(adata, basis=basis, dims=[x, y])
         X_grid, V_grid = (
@@ -1507,26 +1581,35 @@ def streamline_plot(
             adata.uns["VecFld_" + basis]["VecFld"]["grid_V"],
         )
         N = int(np.sqrt(V_grid.shape[0]))
-        X_grid, V_grid = (
-            np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]),
-            np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))]),
-        )
-        # X_grid, V_grid = grid_velocity_filter(V[:, [x, y]], None, None, X_grid, V_grid, min_mass=None, autoscale=False,
-        #                      adjust_for_stream=True, V_threshold=None)
-    elif method == "gaussian":
-        grid_kwargs_dict = {
-            "density": None,
-            "smooth": None,
-            "n_neighbors": None,
-            "min_mass": None,
-            "autoscale": False,
-            "adjust_for_stream": True,
-            "V_threshold": None,
-        }
-        grid_kwargs_dict = update_dict(grid_kwargs_dict, streamline_kwargs)
 
+        if cut_off_velocity:
+            X_grid, p_mass, neighs, weight = prepare_velocity_grid_data(X,
+                                                                xy_grid_nums,
+                                                                density=grid_kwargs_dict['density'],
+                                                                smooth=grid_kwargs_dict['smooth'],
+                                                                n_neighbors=grid_kwargs_dict['n_neighbors'], )
+            for i in ['density', 'smooth', 'n_neighbors']:
+                grid_kwargs_dict.pop(i)
+
+            V_emb = adata.uns["VecFld_" + basis]["func"](X)
+            V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[:, None]
+            X_grid, V_grid = grid_velocity_filter(
+                V_emb=V,
+                neighs=neighs,
+                p_mass=p_mass,
+                X_grid=X_grid,
+                V_grid=V_grid,
+                **grid_kwargs_dict
+            )
+        else:
+            X_grid, V_grid = (
+                np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]),
+                np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))]),
+            )
+
+    elif method.lower() == "gaussian":
         X_grid, V_grid, D = velocity_on_grid(
-            X[:, [x, y]], V[:, [x, y]], xy_grid_nums, **grid_kwargs_dict
+            X, V, xy_grid_nums, cut_off_velocity=cut_off_velocity, **grid_kwargs_dict
         )
     elif "grid_velocity_" + basis in adata.uns.keys():
         X_grid, V_grid, _ = (
@@ -1540,25 +1623,37 @@ def streamline_plot(
             "the current adata object.".format(method)
         )
 
+    if inverse: V_grid = -V_grid
     streamplot_kwargs = {
         "density": density * 2,
         "linewidth": None,
         "cmap": None,
         "norm": None,
         "arrowsize": 1,
-        "arrowstyle": "-|>",
+        "arrowstyle": "fancy",
         "minlength": 0.1,
         "transform": None,
         "start_points": None,
         "maxlength": 4.0,
         "integration_direction": "both",
-        "zorder": 10,
+        "zorder": 3,
     }
     mass = np.sqrt((V_grid ** 2).sum(0))
-    streamplot_kwargs.update({"linewidth": 2 * mass / mass[~np.isnan(mass)].max()})
+    linewidth *= 2 * mass / mass[~np.isnan(mass)].max()
+    streamplot_kwargs.update({"linewidth": linewidth})
 
     streamplot_kwargs = update_dict(streamplot_kwargs, streamline_kwargs)
 
+    if background is None:
+        _background = rcParams.get("figure.facecolor")
+        background = to_hex(_background) if type(_background) is tuple else _background
+
+    if background in ["black", "#ffffff"]:
+        streamline_color = "red"
+    else:
+        streamline_color = "black"
+
+    plt.figure(facecolor=background)
     axes_list, _, font_color = scatters(
         adata,
         basis,
@@ -1579,22 +1674,16 @@ def streamline_plot(
         figsize,
         show_legend,
         use_smoothed,
+        aggregate,
+        show_arrowed_spines,
         ax,
         "return",
-        aggregate,
         **s_kwargs_dict,
     )
 
-    if background is None:
-        _background = rcParams.get("figure.facecolor")
-        background = to_hex(_background) if type(_background) is tuple else _background
-
-    if background == "black":
-        streamline_color = "red"
-    else:
-        streamline_color = "black"
     for i in range(len(axes_list)):
-        axes_list[i].streamplot(
+        axes_list[i].set_facecolor(background)
+        s = axes_list[i].streamplot(
             X_grid[0],
             X_grid[1],
             V_grid[0],
@@ -1602,6 +1691,8 @@ def streamline_plot(
             color=streamline_color,
             **streamplot_kwargs,
         )
+        set_arrow_alpha(axes_list[i], streamline_alpha)
+        set_stream_line_alpha(s, streamline_alpha)
 
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'streamline_plot', "dpi": None,

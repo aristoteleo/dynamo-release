@@ -29,7 +29,7 @@ def pca(adata, *args, **kwargs):
     >>> dyn.tl.dynamics(adata)
     >>> dyn.pl.pca(
     ...     adata,
-    ...     color='Clusters'
+    ...     color='ntr'
     ... )
     """
 
@@ -59,7 +59,7 @@ def umap(adata, *args, **kwargs):
     >>> dyn.tl.dynamics(adata)
     >>> dyn.pl.umap(
     ...     adata,
-    ...     color='Clusters'
+    ...     color='ntr'
     ... )
     """
 
@@ -89,7 +89,7 @@ def trimap(adata, *args, **kwargs):
     >>> dyn.tl.dynamics(adata)
     >>> dyn.pl.trimap(
     ...     adata,
-    ...     color='Clusters'
+    ...     color='ntr'
     ... )
     """
     scatters(adata, "trimap", *args, **kwargs)
@@ -118,7 +118,7 @@ def tsne(adata, *args, **kwargs):
     >>> dyn.tl.dynamics(adata)
     >>> dyn.pl.tsne(
     ...     adata,
-    ...     color='Clusters'
+    ...     color='ntr'
     ... )
     """
     scatters(adata, "tsne", *args, **kwargs)

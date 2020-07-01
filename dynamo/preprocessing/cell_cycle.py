@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 from collections import OrderedDict
 from scipy.sparse import issparse
-from ..tools.utils import einsum_correlation
+from ..tools.utils import einsum_correlation, log1p_
 
 
 def group_corr(adata, layer, gene_list):
@@ -30,8 +30,12 @@ def group_corr(adata, layer, gene_list):
     if len(intersect_genes) == 0:
         raise Exception(f"your adata doesn't have any gene from the gene_list {gene_list}.")
 
-    expression_matrix = adata[:, intersect_genes].X if layer is None \
-        else adata[:, intersect_genes].layers[layer]
+    if layer is None:
+        expression_matrix = adata[:, intersect_genes].X  
+    else: 
+        expression_matrix = adata[:, intersect_genes].layers[layer]
+        expression_matrix = log1p_(adata, expression_matrix)
+
     avg_exp = expression_matrix.mean(axis=1)
     cor = einsum_correlation(np.array(expression_matrix.A.T, dtype='float'), np.array(avg_exp.A1, dtype='float')) if issparse(expression_matrix) \
         else einsum_correlation(np.array(expression_matrix.T, dtype='float'), np.array(avg_exp, dtype='float'))
@@ -82,12 +86,16 @@ def group_score(adata, layer, gene_list):
         Z-scored expression data
     """
 
-    itersect_genes = adata.var_names.intersection(gene_list)
-    if len(itersect_genes) == 0:
+    intersect_genes = adata.var_names.intersection(gene_list)
+    if len(intersect_genes) == 0:
         raise Exception(f"your adata doesn't have any gene from the gene_list {gene_list}.")
 
-    expression_matrix = adata[:, itersect_genes].X if layer is None \
-        else adata[:, itersect_genes].layers[layer]
+    if layer is None:
+        expression_matrix = adata[:, intersect_genes].X  
+    else: 
+        expression_matrix = adata[:, intersect_genes].layers[layer]
+        expression_matrix = log1p_(adata, expression_matrix)
+
     if layer is None or layer.startswith('X_'):
         scores = expression_matrix.sum(1).A1 if issparse(expression_matrix) \
             else expression_matrix.sum(1)

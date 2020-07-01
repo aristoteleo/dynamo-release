@@ -5,7 +5,7 @@ from .utils import save_fig
 
 def plot_direct_graph(adata,
                       layout=None,
-                      figsize=[8, 8],
+                      figsize=[6, 4],
                       save_show_or_return='show',
                       save_kwargs={},
                       ):

@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.optimize import least_squares
 from scipy.sparse import issparse
+from sklearn.linear_model import LinearRegression, RANSACRegressor
+import statsmodels.api as sm
 from .moments import strat_mom
 from .utils import elem_prod, find_extreme
 
@@ -192,7 +194,7 @@ def solve_alpha_2p(t0, t1, alpha0, beta, u1):
     return alpha1
 
 
-def fit_linreg(x, y, mask=None, intercept=False):
+def fit_linreg(x, y, mask=None, intercept=False, r2=True):
     """Simple linear regression: y = kx + b.
 
     Arguments
@@ -244,14 +246,97 @@ def fit_linreg(x, y, mask=None, intercept=False):
         k = cov / var_x
         b = 0
 
-    SS_tot_n, all_SS_tot_n = np.var(yy), np.var(y[_mask])
-    SS_res_n, all_SS_res_n = (
-        np.mean((yy - k * xx - b) ** 2),
-        np.mean((y[_mask] - k * x[_mask] - b) ** 2),
-    )
-    r2, all_r2 = 1 - SS_res_n / SS_tot_n, 1 - all_SS_res_n / all_SS_tot_n
+    if r2:
+        SS_tot_n, all_SS_tot_n = np.var(yy), np.var(y)
+        SS_res_n, all_SS_res_n = (
+            np.mean((yy - k * xx - b) ** 2),
+            np.mean((y - k * x - b) ** 2),
+        )
+        r2, all_r2 = 1 - SS_res_n / SS_tot_n, 1 - all_SS_res_n / all_SS_tot_n
 
-    return k, b, r2, all_r2
+        return k, b, r2, all_r2
+    else:
+        return k, b
+
+def fit_linreg_robust(x, y, mask=None, intercept=False, r2=True, est_method='rlm'):
+    """Apply robust linear regression of y w.r.t x.
+
+    Arguments
+    ---------
+    x: :class:`~numpy.ndarray` or sparse `csr_matrix`
+        A vector of independent variables.
+    y: :class:`~numpy.ndarray` or sparse `csr_matrix`
+        A vector of dependent variables.
+    intercept: bool
+        If using steady state assumption for fitting, then:
+        True -- the linear regression is performed with an unfixed intercept;
+        False -- the linear regresssion is performed with a fixed zero intercept.
+    est_method: str (default: `rlm`)
+        The linear regression estimation method that will be used.
+
+    Returns
+    -------
+    k: float
+        The estimated slope.
+    b: float
+        The estimated intercept.
+    r2: float
+        Coefficient of determination or r square calculated with the extreme data points.
+    all_r2: float
+        The r2 calculated using all data points.
+    """
+
+    x = x.A if issparse(x) else x
+    y = y.A if issparse(y) else y
+
+    _mask = np.logical_and(~np.isnan(x), ~np.isnan(y))
+    if mask is not None:
+        _mask &= mask
+    xx = x[_mask]
+    yy = y[_mask]
+
+    try:
+        if est_method.lower() == 'rlm':
+            xx = sm.add_constant(xx) if intercept else xx
+            res = sm.RLM(yy, xx).fit()
+            k, b = res.params[::-1] if intercept else res.params[0], 0
+        elif est_method.lower() == 'ransac':
+            reg = RANSACRegressor(LinearRegression(fit_intercept=intercept), random_state=0)
+            reg.fit(xx.reshape(-1, 1), yy.reshape(-1, 1))
+            k, b = reg.estimator_.coef_[0, 0], reg.estimator_.intercept_[0] if intercept else 0
+        else:
+            raise ImportError(f"estimation method {est_method} is not implemented. "
+                              f"Currently supported linear regression methods include `rlm` and `ransac`.")
+    except:
+        if intercept:
+            ym = np.mean(yy)
+            xm = np.mean(xx)
+
+            cov = np.mean(xx * yy) - xm * ym
+            var_x = np.mean(xx * xx) - xm * xm
+            k = cov / var_x
+            b = ym - k * xm
+            # assume b is always positive
+            if b < 0:
+                k, b = np.mean(xx * yy) / np.mean(xx * xx), 0
+        else:
+            # use uncentered cov and var_x
+            cov = np.mean(xx * yy)
+            var_x = np.mean(xx * xx)
+            k = cov / var_x
+            b = 0
+
+    if r2:
+        SS_tot_n, all_SS_tot_n = np.var(yy), np.var(y)
+        SS_res_n, all_SS_res_n = (
+            np.mean((yy - k * xx - b) ** 2),
+            np.mean((y - k * x - b) ** 2),
+        )
+        r2, all_r2 = 1 - SS_res_n / SS_tot_n, 1 - all_SS_res_n / all_SS_tot_n
+
+        return k, b, r2, all_r2
+    else:
+        return k, b
 
 
 def fit_stochastic_linreg(u, s, us, ss):

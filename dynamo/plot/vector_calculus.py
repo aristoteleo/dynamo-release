@@ -1,7 +1,6 @@
 """plotting utilities that are used to visualize the curl, divergence."""
 
 import numpy as np, pandas as pd
-from ..configuration import set_figure_params
 
 from .scatters import scatters
 from .scatters import docstrings
@@ -122,7 +121,7 @@ def jacobian(adata,
              cmap='bwr',
              background=None,
              pointsize=None,
-             figsize=(7, 5),
+             figsize=(6, 4),
              show_legend=True,
              save_show_or_return="show",
              save_kwargs={},
@@ -197,14 +196,14 @@ def jacobian(adata,
     """
 
     import matplotlib.pyplot as plt
-    from matplotlib import rcParams, colors
+    from matplotlib import rcParams
     from matplotlib.colors import to_hex
 
-    if background is not None:
-        set_figure_params(background=background)
-    else:
+    if background is None:
         _background = rcParams.get("figure.facecolor")
-        background = to_hex(_background) if type(_background) is tuple else _background
+        _background = to_hex(_background) if type(_background) is tuple else _background
+    else:
+        _background = background
 
     Jacobian_ = "jacobian" #f basis is None else "jacobian_" + basis
     Der, source_genes_, target_genes_, cell_indx, _  =  adata.uns[Jacobian_].values()
@@ -231,18 +230,18 @@ def jacobian(adata,
     point_size = 4 * point_size
 
     scatter_kwargs = dict(
-        alpha=0.2, s=point_size, edgecolor=None, linewidth=0, norm=colors.DivergingNorm(vcenter=0)
+        alpha=0.2, s=point_size, edgecolor=None, linewidth=0,
     )  # (0, 0, 0, 1)
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
 
     nrow, ncol = len(source_genes), len(target_genes)
     if figsize is None:
-        g = plt.figure(None, (3 * ncol, 3 * nrow))  # , dpi=160
+        g = plt.figure(None, (3 * ncol, 3 * nrow), facecolor=_background)  # , dpi=160
     else:
-        g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow))  # , dpi=160
+        g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=_background)  # , dpi=160
 
-    gs = plt.GridSpec(nrow, ncol, wspace=0.1)
+    gs = plt.GridSpec(nrow, ncol, wspace=0.12)
 
     for i, source in enumerate(source_genes):
         for j, target in enumerate(target_genes):
@@ -251,16 +250,18 @@ def jacobian(adata,
             cur_pd["jacobian"] = J
 
             # cur_pd.loc[:, "jacobian"] = np.array([scinot(i) for i in cur_pd.loc[:, "jacobian"].values])
+            v_max = np.max(np.abs(J))
+            scatter_kwargs.update({"vmin": -v_max, "vmax": v_max})
             ax, color = _matplotlib_points(
                 cur_pd.iloc[:, [0, 1]].values,
                 ax=ax,
                 labels=None,
-                values=cur_pd.loc[:, "jacobian"].values,
+                values=J,
                 highlights=highlights,
                 cmap=cmap,
                 color_key=None,
                 color_key_cmap=None,
-                background=background,
+                background=_background,
                 width=figsize[0],
                 height=figsize[1],
                 show_legend=show_legend,

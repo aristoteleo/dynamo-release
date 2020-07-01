@@ -5,24 +5,39 @@ import matplotlib.pyplot as plt
 
 from ..tools.topography import topography as _topology  # , compute_separatrices
 from ..tools.utils import update_dict
-from ..configuration import set_figure_params
+from ..external.ddhodge import ddhoge
+from ..tools.vector_calculus import curl, divergence
+from .utils import default_quiver_args
 from .scatters import scatters
 from .scatters import docstrings
-from .utils import _plot_traj, quiver_autoscaler, save_fig
+from .utils import (
+    set_arrow_alpha,
+    set_stream_line_alpha,
+    _plot_traj,
+    quiver_autoscaler,
+    save_fig,
+    _select_font_color,
+)
+from ..configuration import _themes
+
 
 def plot_flow_field(
     vecfld,
     x_range,
     y_range,
     n_grid=100,
-    lw_min=0.5,
-    lw_max=3,
     start_points=None,
     integration_direction="both",
     background=None,
+    density=1,
+    linewidth=1,
+    streamline_color=None,
+    streamline_alpha=0.4,
+    color_start_points=None,
     save_show_or_return='return',
     save_kwargs={},
     ax=None,
+    **streamline_kwargs,
 ):
     """Plots the flow field with line thickness proportional to speed.
     code adapted from: http://be150.caltech.edu/2017/handouts/dynamical_systems_approaches.html
@@ -38,14 +53,22 @@ def plot_flow_field(
     n_grid : int, default 100
         Number of grid points to use in computing
         derivatives on phase portrait.
-    lw_min, lw_max: `float` (defaults: 0.5, 3)
-        The smallest and largest linewidth allowed for the stream lines.
     start_points: np.ndarray (default: None)
         The initial points from which the streamline will be draw.
     integration_direction:  {'forward', 'backward', 'both'} (default: `both`)
         Integrate the streamline in forward, backward or both directions. default is 'both'.
     background: `str` or None (default: None)
         The background color of the plot.
+    density: `float` or None (default: 1)
+        density of the plt.streamplot function.
+    linewidth: `float` or None (default: 1)
+        multiplier of automatically calculated linewidth passed to the plt.streamplot function.
+    streamline_color: `str` or None (default: None)
+        The color of the vector field stream lines.
+    streamline_alpha: `float` or None (default: 0.4)
+        The alpha value applied to the vector field stream lines.
+    color_start_points: `float` or None (default: `None`)
+        The color of the starting point that will be used to predict cell fates.
     save_show_or_return: {'show', 'save', 'return'} (default: `return`)
         Whether to save, show or return the figure.
     save_kwargs: `dict` (default: `{}`)
@@ -62,17 +85,20 @@ def plot_flow_field(
         Axis with streamplot included.
     """
 
-    from matplotlib import rcParams
+    from matplotlib import rcParams, patches
 
-    if background is not None:
-        set_figure_params(background=background)
-    else:
-        background = rcParams.get("figure.facecolor")
+    from matplotlib.colors import to_hex
 
-    if background == "black":
-        color, color_start_points = "white", "red"
+    if background is None:
+        _background = rcParams.get("figure.facecolor")
+        _background = to_hex(_background) if type(_background) is tuple else _background
     else:
-        color, color_start_points = "thistle", "tomato"
+        _background = background
+
+    if _background in ["#ffffff", "black"]:
+        color, color_start_points = "white" if streamline_color is None else streamline_color, "red" if color_start_points is None else color_start_points
+    else:
+        color, color_start_points = "black" if streamline_color is None else streamline_color, "red" if color_start_points is None else color_start_points
 
     # Set up u,v space
     u = np.linspace(x_range[0], x_range[1], n_grid)
@@ -91,32 +117,52 @@ def plot_flow_field(
 
     # Make linewidths proportional to speed,
     # with minimal line width of 0.5 and max of 3
-    lw = lw_min + (lw_max - lw_min) * speed / speed.max()
+    # lw = lw_min + (lw_max - lw_min) * speed / speed.max()
+
+    streamplot_kwargs = {
+        "density": density * 2,
+        "linewidth": None,
+        "cmap": None,
+        "norm": None,
+        "arrowsize": 1,
+        "arrowstyle": "fancy",
+        "minlength": 0.1,
+        "transform": None,
+        "maxlength": 4.0,
+        "zorder": 3,
+    }
+    linewidth *= 2 * speed / speed[~np.isnan(speed)].max()
+    streamplot_kwargs.update({"linewidth": linewidth})
+
+    streamplot_kwargs = update_dict(streamplot_kwargs, streamline_kwargs)
 
     # Make stream plot
     if ax is None:
         ax = plt.gca()
     if start_points is None:
-        ax.streamplot(
-            uu, vv, u_vel, v_vel, linewidth=lw, arrowsize=1.2, density=1, color=color
+        s = ax.streamplot(
+            uu, vv, u_vel, v_vel, color=color, **streamplot_kwargs,
+
         )
+        set_arrow_alpha(ax, streamline_alpha)
+        set_stream_line_alpha(s, streamline_alpha)
     else:
         if len(start_points.shape) == 1:
             start_points.reshape((1, 2))
         ax.scatter(*start_points, marker="*", zorder=100)
 
-        ax.streamplot(
+        s = ax.streamplot(
             uu,
             vv,
             u_vel,
             v_vel,
-            linewidth=lw_max,
-            arrowsize=1.2,
             start_points=start_points,
             integration_direction=integration_direction,
-            density=10,
             color=color_start_points,
+            **streamplot_kwargs,
         )
+        set_arrow_alpha(ax, streamline_alpha)
+        set_stream_line_alpha(s, streamline_alpha)
 
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'plot_flow_field', "dpi": None,
@@ -159,12 +205,15 @@ def plot_nullclines(vecfld,
     """
     from matplotlib import rcParams
 
-    if background is not None:
-        set_figure_params(background=background)
-    else:
-        background = rcParams.get("figure.facecolor")
+    from matplotlib.colors import to_hex
 
-    if background == "black":
+    if background is None:
+        _background = rcParams.get("figure.facecolor")
+        _background = to_hex(_background) if type(_background) is tuple else _background
+    else:
+        _background = background
+
+    if _background in ["#ffffff", "black"]:
         colors = ["#189e1a", "#1f77b4"]
     else:
         colors = ["#189e1a", "#1f77b4"]
@@ -192,7 +241,8 @@ def plot_nullclines(vecfld,
 def plot_fixed_points(
     vecfld,
     marker="o",
-    markersize=10,
+    markersize=200,
+    cmap=None,
     filltype=["full", "top", "none"],
     background=None,
     save_show_or_return='return',
@@ -200,15 +250,18 @@ def plot_fixed_points(
     ax=None,
 ):
     """Plot fixed points stored in the VectorField2D class.
-    
+
     Arguments
     ---------
         vecfld: :class:`~VectorField2D`
             An instance of the VectorField2D class which presumably has fixed points computed and stored.
         marker: `str` (default: `o`)
             The marker type. Any string supported by matplotlib.markers.
-        markersize: `float` (default: 20)
+        markersize: `float` (default: 200)
             The size of the marker.
+        cmap: string (optional, default 'Blues')
+            The name of a matplotlib colormap to use for coloring or shading the confidence of fixed points. If None, the
+            default color map will set to be viridis (inferno) when the background is white (black).
         filltype: list
             The fill type used for stable, saddle, and unstable fixed points. Default is 'full', 'top' and 'none',
             respectively.
@@ -224,29 +277,55 @@ def plot_fixed_points(
         ax: :class:`~matplotlib.axes.Axes`
             The matplotlib axes used for plotting. Default is to use the current axis.
     """
-    from matplotlib import rcParams
 
-    if background is not None:
-        set_figure_params(background=background)
-    else:
-        background = rcParams.get("figure.facecolor")
+    from matplotlib import rcParams, markers
+    import matplotlib.patheffects as PathEffects
+    from matplotlib.colors import to_hex
 
-    if background == "black":
-        markercolor = "#ffffff"
+    if background is None:
+        _background = rcParams.get("figure.facecolor")
+        _background = to_hex(_background) if type(_background) is tuple else _background
     else:
-        markercolor = "k"
+        _background = background
+
+    if _background in ["#ffffff", "black"]:
+        _theme_ = (
+            "inferno"
+        )
+    else:
+        _theme_ = (
+            "viridis"
+        )
+    _cmap = _themes[_theme_]["cmap"] if cmap is None else cmap
 
     Xss, ftype = vecfld.get_fixed_points(get_types=True)
+    confidence = vecfld.get_Xss_confidence()
     if ax is None:
         ax = plt.gca()
+
     for i in range(len(Xss)):
-        ax.plot(
+        cur_ftype = ftype[i]
+        marker_ = markers.MarkerStyle(marker=marker, fillstyle=filltype[int(cur_ftype + 1)])
+        ax.scatter(
             *Xss[i],
-            marker=marker,
-            markersize=markersize,
-            c=markercolor,
-            fillstyle=filltype[int(ftype[i] + 1)],
-            linestyle="none"
+            marker=marker_,
+            s=markersize,
+            c=confidence[i],
+            edgecolor=_select_font_color(_background),
+            linewidths=1,
+            cmap=_cmap,
+            vmin=0,
+            vmax=1,
+            zorder=1000
+        )
+        txt = ax.text(*Xss[i], repr(i), c=('black' if cur_ftype == -1 else 'blue' if cur_ftype == 0 else 'red'),
+                horizontalalignment='center', verticalalignment='center', zorder=1001, weight='bold',
+        )
+        txt.set_path_effects(
+            [
+                PathEffects.Stroke(linewidth=1.5, foreground=_background, alpha=0.8),
+                PathEffects.Normal(),
+            ]
         )
 
     if save_show_or_return == "save":
@@ -309,13 +388,15 @@ def plot_traj(f,
         Axis with streamplot included.
     """
     from matplotlib import rcParams
+    from matplotlib.colors import to_hex
 
-    if background is not None:
-        set_figure_params(background=background)
+    if background is None:
+        _background = rcParams.get("figure.facecolor")
+        _background = to_hex(_background) if type(_background) is tuple else _background
     else:
-        background = rcParams.get("figure.facecolor")
+        _background = background
 
-    if background == "black":
+    if background in ["#ffffff", "black"]:
         color = ["#ffffff"]
     else:
         color = "black"
@@ -382,13 +463,15 @@ def plot_separatrix(vecfld,
 
     """
     from matplotlib import rcParams
+    from matplotlib.colors import to_hex
 
-    if background is not None:
-        set_figure_params(background=background)
+    if background is None:
+        _background = rcParams.get("figure.facecolor")
+        _background = to_hex(_background) if type(_background) is tuple else _background
     else:
-        background = rcParams.get("figure.facecolor")
+        _background = background
 
-    if background == "black":
+    if _background in ["#ffffff", "black"]:
         color = ["#ffffff"]
     else:
         color = "tomato"
@@ -458,7 +541,7 @@ def topography(
     basis="umap",
     x=0,
     y=1,
-    color=None,
+    color='ntr',
     layer="X",
     highlights=None,
     labels=None,
@@ -467,11 +550,11 @@ def topography(
     cmap=None,
     color_key=None,
     color_key_cmap=None,
-    background=None,
-    ncols=1,
+    background='white',
+    ncols=4,
     pointsize=None,
-    figsize=(7, 5),
-    show_legend=True,
+    figsize=(6, 4),
+    show_legend='on data',
     use_smoothed=True,
     xlim=None,
     ylim=None,
@@ -484,16 +567,62 @@ def topography(
     approx=False,
     quiver_size=None,
     quiver_length=None,
+    density=1,
+    linewidth=1,
+    streamline_color=None,
+    streamline_alpha=0.4,
+    color_start_points=None,
+    markersize=200,
+    marker_cmap=None,
     save_show_or_return='show',
     save_kwargs={},
     aggregate=None,
+    show_arrowed_spines=False,
     ax=None,
     s_kwargs_dict={},
     q_kwargs_dict={},
-    **topography_kwargs
+    **streamline_kwargs_dict
 ):
     """Plot the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system
     for single cells. The plot is created on two dimensional space.
+
+    Topography function plots the full vector field topology including streamline, fixed points, characteristic lines. A key
+    difference between dynamo and Velocyto or scVelo is that we learn a functional form of a vector field which can be
+    used to predict cell fate over arbitrary time and space. On states near observed cells, it retrieves the key kinetics
+    dynamics from the data observed and smoothes them. When time and state is far from your observed single cell RNA-seq
+    datasets, the accuracy of prediction will decay. Vector field can be efficiently reconstructed in high dimension or
+    lower pca/umap space. Since we learn a vector field function, we can plot the full vector via streamline on the entire
+    domain as well as predicts cell fates by providing a set of initial cell states (via `init_cells`, `init_states`). The
+    nullcline and separatrix provide topological information about the reconstructed vector field. By definition, the
+    x/y-nullcline is a set of points in the phase plane so that dx/dt = 0 or dy/dt=0. Geometrically, these are the points
+    where the vectors are either straight up or straight down. Algebraically, we find the x-nullcline by solving
+    f(x,y) = 0. The boundary different different attractor basis is the separatrix because it separates the regions into
+    different subregions with a specific behavior. To find them is a very difficult problem and separatrix calculated by
+    dynamo requres manual inspection.
+
+    Here is more details on the fixed points drawn on the vector field:  Fixed points are concepts introduced in dynamic
+    systems theory. There are three types of fixed points: 1) repeller: a repelling state that only has outflows, which
+    may correspond to a pluripotent cell state (ESC) that tends to differentiate into other cell states automatically or
+    under small perturbation; 2) unstable fixed points or saddle points. Those states have attraction on some dimension
+    (genes or reduced dimensions) but diverge in at least one other dimension. Saddle may correspond to progenitors, which
+    are differentiated from ESC/pluripotent cells and relatively stable, but can further differentiate into multiple
+    terminal cell types / states; 3) lastly, stable fixed points / cell type or attractors, which only have inflows and
+    attract all cell states nearby, which may correspond to stable cell types and can only be kicked out of its cell
+    state under extreme perturbation or in very rare situation. Fixed points are numbered with each number color coded.
+    The mapping of the color of the number to the type of fixed point are: red: repellers; blue: saddle points; black:
+    attractors. The scatter point itself also has filled color, which corresponds to confidence of the estimated fixed
+    point. The lighter, the more confident or the fixed points are are closer to the sequenced single cells. Confidence
+    of each fixed points can be used in conjunction with the Jacobian analysis for investigating regulatory network with
+    spatiotemporal resolution.
+
+    By default, we plot a figure with three subplots , each colors cells either with `potential`, `curl` or `divergence`.
+    `potential` is related to the intrinsic time, where a small potential is related to smaller intrinsic time and vice
+    versa. Divergence can be used to indicate the state of each cell is in. Negative values correspond to potential sink
+    while positive corresponds to potential source. https://en.wikipedia.org/wiki/Divergence. Curl may be related to cell
+    cycle or other cycling cell dynamics. On 2d, negative values correspond to clockwise rotation while positive corresponds
+    to anticlockwise rotation. https://www.khanacademy.org/math/multivariable-calculus/greens-theorem-and-stokes-theorem/formal-definitions-of-divergence-and-curl/a/defining-curl
+    In conjunction with cell cycle score (dyn.pp.cell_cycle_scores), curl can be used to identify cells under active cell
+    cycle progression.
 
     Parameters
     ----------
@@ -532,7 +661,22 @@ def topography(
         quiver_length: `float` or None (default: None)
             The length of quiver. The quiver length which will be used to calculate scale of quiver. Note that befoe applying
             `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale of quiver indicates
-            the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller scale parameter makes the arrow longer.
+            the number of data units per arrow length unit, e.g., m/s per plot width; a smaller scale parameter makes the arrow longer.
+        density: `float` or None (default: 1)
+            density of the plt.streamplot function.
+        linewidth: `float` or None (default: 1)
+            multiplier of automatically calculated linewidth passed to the plt.streamplot function.
+        streamline_color: `str` or None (default: None)
+            The color of the vector field stream lines.
+        streamline_alpha: `float` or None (default: 0.4)
+            The alpha value applied to the vector field stream lines.
+        color_start_points: `float` or None (default: `None`)
+            The color of the starting point that will be used to predict cell fates.
+        markersize: `float` (default: 200)
+            The size of the marker.
+        marker_cmap: string (optional, default 'Blues')
+            The name of a matplotlib colormap to use for coloring or shading the confidence of fixed points. If None, the
+            default color map will set to be viridis (inferno) when the background is white (black).
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -542,32 +686,53 @@ def topography(
             according to your needs.
         aggregate: `str` or `None` (default: `None`)
             The column in adata.obs that will be used to aggregate data points.
+        show_arrowed_spines: bool (optional, default False)
+            Whether to show a pair of arrowed spines representing the basis of the scatter is currently using.
         ax: Matplotlib Axis instance
             Axis on which to make the plot
         s_kwargs_dict: `dict` (default: {})
             The dictionary of the scatter arguments.
         q_kwargs_dict:
             Additional parameters that will be passed to plt.quiver function
-        topography_kwargs:
-            Additional parameters that will be passed to plt.quiver function
+        streamline_kwargs_dict:
+            Additional parameters that will be passed to plt.streamline function
 
     Returns
     -------
         Plot the streamline, fixed points (attractors / saddles), nullcline, separatrices of a recovered dynamic system
         for single cells or return the corresponding axis, depending on the plot argument.
+
+    See also:: :func:`pp.cell_cycle_scores`
     """
+
     from matplotlib import rcParams
+    from matplotlib.colors import to_hex
 
-    if background is not None:
-        set_figure_params(background=background)
+    if color is None:
+        color = ['potential', 'curl', 'divergence'] if adata.n_obs < 5000 else ['curl', 'divergence']
+    if len(set(adata.obs.columns).intersection(color)) == 0:
+        if adata.obs.keys().isin(['potential']).sum() == 0:
+            ddhoge(adata, basis=basis)
+        if adata.obs.keys().isin(['curl']).sum() == 0:
+            curl(adata, basis=basis)
+        if adata.obs.keys().isin(['divergence']).sum() == 0:
+            divergence(adata, basis=basis)
+
+    if background is None:
+        _background = rcParams.get("figure.facecolor")
+        _background = to_hex(_background) if type(_background) is tuple else _background
     else:
-        background = rcParams.get("figure.facecolor")
+        _background = background
 
+    terms = list(terms) if type(terms) is tuple else [terms] if type(terms) is str else terms
     if approx:
         if "streamline" not in terms:
             terms.append("streamline")
         if "trajectory" in terms:
             terms = list(set(terms).difference("trajectory"))
+
+    if init_cells is not None or init_states is not None:
+        terms.extend('trajectory')
 
     uns_key = "VecFld" if basis == "X" else "VecFld_" + basis
 
@@ -610,6 +775,7 @@ def topography(
 
         V = vector_field_function(init_states, VF, [0, 1])
 
+    plt.figure(facecolor=_background)
     axes_list, color_list, font_color = scatters(
         adata,
         basis,
@@ -624,12 +790,14 @@ def topography(
         cmap,
         color_key,
         color_key_cmap,
-        background,
+        _background,
         ncols,
         pointsize,
         figsize,
         show_legend,
         use_smoothed,
+        aggregate,
+        show_arrowed_spines,
         ax,
         "return",
         aggregate,
@@ -646,6 +814,8 @@ def topography(
         # Build the plot
         axes_list[i].set_xlim(xlim)
         axes_list[i].set_ylim(ylim)
+
+        axes_list[i].set_facecolor(background)
 
         if t is None:
             max_t = np.max((np.diff(xlim), np.diff(ylim))) / np.min(
@@ -670,29 +840,44 @@ def topography(
                     vecfld,
                     xlim,
                     ylim,
-                    background=background,
+                    background=_background,
                     start_points=init_states,
                     integration_direction=integration_direction,
+                    density=density,
+                    linewidth=linewidth,
+                    streamline_color=streamline_color,
+                    streamline_alpha=streamline_alpha,
+                    color_start_points=color_start_points,
                     ax=axes_list[i],
+                    **streamline_kwargs_dict,
                 )
             else:
                 axes_list[i] = plot_flow_field(
-                    vecfld, xlim, ylim, background=background, ax=axes_list[i]
+                    vecfld,
+                    xlim,
+                    ylim,
+                    background=_background,
+                    density=density,
+                    linewidth=linewidth,
+                    streamline_color=streamline_color,
+                    color_start_points=color_start_points,
+                    ax=axes_list[i],
+                    **streamline_kwargs_dict,
                 )
 
         if "nullcline" in terms:
             axes_list[i] = plot_nullclines(
-                vecfld, background=background, ax=axes_list[i]
+                vecfld, background=_background, ax=axes_list[i]
             )
 
         if "fixed_points" in terms:
             axes_list[i] = plot_fixed_points(
-                vecfld, background=background, ax=axes_list[i]
+                vecfld, background=_background, ax=axes_list[i], markersize=markersize, cmap=marker_cmap,
             )
 
         if "separatrices" in terms:
             axes_list[i] = plot_separatrix(
-                vecfld, xlim, ylim, t=t, background=background, ax=axes_list[i]
+                vecfld, xlim, ylim, t=t, background=_background, ax=axes_list[i]
             )
 
         if init_states is not None and "trajectory" in terms:
@@ -701,16 +886,13 @@ def topography(
                     vecfld.func,
                     init_states,
                     t,
-                    background=background,
+                    background=_background,
                     integration_direction=integration_direction,
                     ax=axes_list[i],
                 )
 
         # show quivers for the init_states cells
         if init_states is not None and "quiver" in terms:
-            from .utils import default_quiver_args
-            from ..tools.utils import update_dict
-
             X = init_states
             V /= 3 * quiver_autoscaler(X, V)
 
@@ -718,7 +900,7 @@ def topography(
 
             if quiver_size is None:
                 quiver_size = 1
-            if background == "black":
+            if _background in ["#ffffff", "black"]:
                 edgecolors = "white"
             else:
                 edgecolors = "black"

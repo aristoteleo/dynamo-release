@@ -5,6 +5,10 @@ from cycler import cycler
 import matplotlib.pyplot as plt
 
 # create cmap
+zebrafish_colors = ['#4876ff', '#85C7F2', '#cd00cd', '#911eb4', '#000080', '#808080', '#008080', '#ffc125', '#262626',
+                    '#3cb44b', '#ff4241', '#b77df9']
+zebrafish_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("zebrafish", zebrafish_colors)
+
 fire_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("fire", colorcet.fire)
 darkblue_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
     "darkblue", colorcet.kbc
@@ -36,6 +40,7 @@ glasbey_dark_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
 )
 
 # register cmap
+plt.register_cmap("zebrafish", zebrafish_cmap)
 plt.register_cmap("fire", fire_cmap)
 plt.register_cmap("darkblue", darkblue_cmap)
 plt.register_cmap("darkgreen", darkgreen_cmap)
@@ -120,6 +125,12 @@ _themes = {
         "background": "black",
         "edge_cmap": "gray",
     },
+    "glasbey_white_zebrafish": {
+        "cmap": "zebrafish",
+        "color_key_cmap": "zebrafish",
+        "background": "white",
+        "edge_cmap": "gray_r",
+    },
     "glasbey_white": {
         "cmap": "glasbey_white",
         "color_key_cmap": "glasbey_white",
@@ -131,6 +142,7 @@ _themes = {
 # https://github.com/vega/vega/wiki/Scales#scale-range-literals
 cyc_10 = list(map(colors.to_hex, cm.tab10.colors))
 cyc_20 = list(map(colors.to_hex, cm.tab20c.colors))
+zebrafish_256 = list(map(colors.to_hex, zebrafish_colors))
 
 # ideally let us convert the following ggplot theme for Nature publisher group into matplotlib.rcParams
 # nm_theme <- function() {
@@ -154,7 +166,7 @@ cyc_20 = list(map(colors.to_hex, cm.tab20c.colors))
 # }
 
 
-def dyn_theme(background="black"):
+def dyn_theme(background="white"):
     # https://github.com/matplotlib/matplotlib/blob/master/lib/matplotlib/mpl-data/stylelib/dark_background.mplstyle
 
     if background == "black":
@@ -198,17 +210,17 @@ def dyn_theme(background="black"):
 
 
 def config_dynamo_rcParams(
-    background="black", prop_cycle=cyc_20, fontsize=8, color_map=None, frameon=None
+    background="white", prop_cycle=zebrafish_256, fontsize=8, color_map=None, frameon=None
 ):
     """Configure matplotlib.rcParams to dynamo defaults (based on ggplot style and scanpy).
 
     Parameters
     ----------
-        background: `str` (default: black)
-            The background color of the plot. By default we use the black ground
-            which is great for presentation. Setting it to `white` background will
-            be suitable for producing figures for publication.
-        prop_cycle: `list` (default: cyc_20)
+        background: `str` (default: `white`)
+            The background color of the plot. By default we use the white ground
+            which is suitable for producing figures for publication. Setting it to `black` background will
+            be great for presentation.
+        prop_cycle: `list` (default: zebrafish_256)
             A list with hex color codes
         fontsize: float (default: 6)
             Size of font
@@ -267,10 +279,10 @@ def config_dynamo_rcParams(
 
     # dpi options (mpl default: 100, 100)
     rcParams["figure.dpi"] = 100
-    rcParams["savefig.dpi"] = 160
+    rcParams["savefig.dpi"] = 150
 
     # figure (default: 0.125, 0.96, 0.15, 0.91)
-    rcParams["figure.figsize"] = (6.5, 5)
+    rcParams["figure.figsize"] = (6, 4)
     rcParams["figure.subplot.left"] = 0.18
     rcParams["figure.subplot.right"] = 0.96
     rcParams["figure.subplot.bottom"] = 0.15
@@ -335,9 +347,9 @@ def config_dynamo_rcParams(
 
 def set_figure_params(
     dynamo=True,
-    background="black",
+    background="white",
     fontsize=8,
-    figsize=(6.5, 5),
+    figsize=(6, 4),
     dpi=None,
     dpi_save=None,
     frameon=None,
@@ -353,10 +365,10 @@ def set_figure_params(
     ---------
         dynamo: `bool` (default: `True`)
             Init default values for :obj:`matplotlib.rcParams` suited for dynamo.
-        background: `str` (default: black)
-            The background color of the plot. By default we use the black ground
-            which is great for presentation. Setting it to `white` background will
-            be suitable for producing figures for publication.
+        background: `str` (default: `white`)
+            The background color of the plot. By default we use the white ground
+            which is suitable for producing figures for publication. Setting it to `black` background will
+            be great for presentation.
         fontsize: `[float, float]` or None (default: `6`)
         figsize: `(float, float)` (default: `(6.5, 5)`)
             Width and height for default figure size.
@@ -419,3 +431,21 @@ def reset_rcParams():
     from matplotlib import rcParamsDefault
 
     rcParams.update(rcParamsDefault)
+
+
+def set_pub_style():
+    """formatting helper function that can be used to save publishable figures"""
+    set_figure_params('dynamo', background='white')
+    matplotlib.use('cairo')
+    matplotlib.rcParams.update({'font.size': 4})
+    params = {'legend.fontsize': 4,
+              'legend.handlelength': 0.5}
+    matplotlib.rcParams.update(params)
+    params = {'axes.labelsize': 6,
+             'axes.titlesize':6,
+             'xtick.labelsize':6,
+             'ytick.labelsize':6,
+             'axes.titlepad': 1,
+             'axes.labelpad': 1
+    }
+    matplotlib.rcParams.update(params)

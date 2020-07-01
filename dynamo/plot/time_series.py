@@ -23,7 +23,7 @@ def kinetic_curves(
     tkey="potential",
     dist_threshold=1e-10,
     ncol=4,
-    color=None,
+    color='ntr',
     c_palette="Set2",
     standard_scale=0,
     save_show_or_return='show',
@@ -52,7 +52,7 @@ def kinetic_curves(
         project_back_to_high_dim: `bool` (default: `False`)
             Whether to map the coordinates in low dimension back to high dimension to visualize the gene expression curves,
             only used when mode is `vector_field` and basis is not `X`. Currently only works when basis is 'pca' and 'umap'.
-        color: `list` or None (default: None)
+        color: `list` or None (default: 'ntr')
             A list of attributes of cells (column names in the adata.obs) will be used to color cells.
         tkey: `str` (default: `potential`)
             The .obs column that will be used for timing each cell, only used when mode is not `vector_field`.

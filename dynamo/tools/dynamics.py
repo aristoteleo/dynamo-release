@@ -3,14 +3,13 @@ import inspect
 import pandas as pd
 from scipy.sparse import issparse, SparseEfficiencyWarning
 
-from .moments import moments
-from .velocity import velocity
-from .velocity import ss_estimation
+from .moments import moments, strat_mom
+from .velocity import fit_linreg, velocity, ss_estimation
 from .estimation_kinetic import *
 from .utils_kinetic import *
 from .utils import (
     update_dict,
-    get_valid_inds,
+    get_valid_bools,
     get_data_for_kin_params_estimation,
     get_U_S_for_velocity_estimation,
 )
@@ -44,7 +43,9 @@ def dynamics(
     concat_data=False,
     log_unnormalized=True,
     one_shot_method="combined",
-    re_smooth = False,
+    re_smooth=False,
+    sanity_check=False,
+    cores=1,
     **est_kwargs
 ):
     """Inclusive model of expression dynamics considers splicing, metabolic labeling and protein translation. It supports
@@ -92,13 +93,21 @@ def dynamics(
             Note that `kinetic` model doesn't need to assumes the `experiment_type` is not `conventional`. As other labeling
             experiments, if you specify the `tkey`, dynamo can also apply `kinetic` model on `conventional` scRNA-seq datasets.
             A "model_selection" model will be supported soon in which alpha, beta and gamma will be modeled as a function of time.
-        est_method: `str` {`linear_regression`, `gmm`, `negbin`, `auto`} This parameter should be used in conjunction with `model` parameter.
+        est_method: `str` {`ols`, `rlm`, `ransac`, `gmm`, `negbin`, `auto`} This parameter should be used in conjunction with `model` parameter.
             * Available options when the `model` is 'ss' include:
-            (1) 'linear_regression': The canonical method from the seminar RNA velocity paper based on deterministic ordinary
-            differential equations;
-            (2) 'gmm': The new generalized methods of moments from us that is based on master equations, similar to the
+            (1) 'ols': The canonical method or Ordinary Least Squares regression from the seminar RNA velocity paper
+            based on deterministic ordinary differential equations;
+            (2) 'rlm': The robust linear models from statsmodels. Robust Regression provides an alternative to OLS
+            regression by lowering the restrictions on assumptions and dampens the effect of outliers in order to fit
+            majority of the data.
+            (3) 'ransac': RANSAC (RANdom SAmple Consensus) algorithm for robust linear regression. RANSAC is an iterative
+            algorithm for the robust estimation of parameters from a subset of inliers from the complete data set. RANSAC
+            implementation is based on RANSACRegressor function from sklearn package. Note that if `rlm` or `ransac`
+            failed, it will roll back to the `ols` method. In addition, `ols`, `rlm` and `ransac` can be only used in
+            conjunction with the `deterministic` model.
+            (4) 'gmm': The new generalized methods of moments from us that is based on master equations, similar to the
             "moment" model in the excellent scVelo package;
-            (3) 'negbin': The new method from us that models steady state RNA expression as a negative binomial distribution,
+            (5) 'negbin': The new method from us that models steady state RNA expression as a negative binomial distribution,
             also built upon on master equations.
             Note that all those methods require using extreme data points (except negbin, which use all data points) for
             estimation. Extreme data points are defined as the data from cells whose expression of unspliced / spliced
@@ -136,17 +145,108 @@ def dynamics(
             Whether to log transform the unnormalized data.
         re_smooth: `bool` (default: `False`)
             Whether to re-smooth the adata and also recalculate 1/2 moments or covariance.
+        sanity_check: `bool` (default: `False`)
+            Whether to perform sanity-check before estimating kinetic parameters and velocity vectors, currently only
+            applicable to kinetic or degradation metabolic labeling based scRNA-seq data. The basic idea is that for
+            kinetic (degradation) experiment, the total labelled RNA for each gene should increase (decrease) over time.
+            If they don't satisfy this criteria, those genes will be ignored during the estimation.
+        cores: `int` (default: 1):
+            Number of cores to run the estimation. If cores is set to be > 1, multiprocessing will be used to parallel
+            the parameter estimation. Currently only applicable cases when assumption_mRNA is `ss` or cases when 
+            experiment_type is either "one-shot" or "mix_std_stm".
         **est_kwargs
             Other arguments passed to the estimation methods. Not used for now.
 
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            A updated AnnData object with estimated kinetic parameters and inferred velocity included.
+            A updated AnnData object with estimated kinetic parameters, inferred velocity and estimation related information
+            included. The estimated kinetic parameters are currently appended to .obs (should move to .obsm with the key
+            `dynamics` later). Depends on the estimation method, experiment type and whether you applied estimation for
+            each groups via `group`, the number of returned parameters can be variable. For conventional scRNA-seq (including
+            cite-seq or other types of protein/RNA coassays) and somethings metabolic labeling data, the parameters will
+            at mostly include:
+                alpha: Transcription rate
+                beta: Splicing rate
+                gamma: Spliced RNA degradation rate
+                eta: Translation rate (only applicable to RNA/protein coassay)
+                delta: Protein degradation rate (only applicable to RNA/protein coassay)
+                alpha_b: intercept of alpha fit
+                beta_b: intercept of beta fit
+                gamma_b: intercept of gamma fit
+                eta_b: intercept of eta fit (only applicable to RNA/protein coassay)
+                delta_b: intercept of delta fit (only applicable to RNA/protein coassay)
+                alpha_r2: r-squared for goodness of fit of alpha estimation
+                beta_r2: r-squared for goodness of fit of beta estimation
+                gamma_r2: r-squared for goodness of fit of gamma estimation
+                eta_r2: r-squared for goodness of fit of eta estimation (only applicable to RNA/protein coassay)
+                delta_r2: r-squared for goodness of fit of delta estimation (only applicable to RNA/protein coassay)
+                alpha_logLL: loglikelihood of alpha estimation (only applicable to stochastic model)
+                beta_loggLL: loglikelihood of beta estimation (only applicable to stochastic model)
+                gamma_logLL: loglikelihood of gamma estimation (only applicable to stochastic model)
+                eta_logLL: loglikelihood of eta estimation (only applicable to stochastic model and RNA/protein coassay)
+                delta_loggLL: loglikelihood of delta estimation (only applicable to stochastic model and RNA/protein coassay)
+                uu0: estimated amount of unspliced unlabeled RNA at time 0 (only applicable to data with both splicing and labeling)
+                ul0: estimated amount of unspliced labeled RNA at time 0 (only applicable to data with both splicing and labeling)
+                su0: estimated amount of spliced unlabeled RNA at time 0 (only applicable to data with both splicing and labeling)
+                sl0: estimated amount of spliced labeled RNA at time 0 (only applicable to data with both splicing and labeling)
+                U0: estimated amount of unspliced RNA (uu + ul) at time 0
+                S0: estimated amount of spliced (su + sl) RNA at time 0
+                total0: estimated amount of spliced (U + S) RNA at time 0
+                half_life: Spliced mRNA's half-life (log(2) / gamma)
+
+            Note that all data points are used when estimating r2 although only extreme data points are used for
+            estimating r2. This is applicable to all estimation methods, either `linear_regression`, `gmm` or `negbin`.
+            By default we set the intercept to be 0.
+
+            For metabolic labeling data, the kinetic parameters will at most include:
+                alpha: Transcription rate (effective - when RNA promoter switching considered)
+                beta: Splicing rate
+                gamma: Spliced RNA degradation rate
+                a: Switching rate from active promoter state to inactive promoter state
+                b: Switching rate from inactive promoter state to active promoter state
+                alpha_a: Transcription rate for active promoter
+                alpha_i: Transcription rate for inactive promoter
+                cost: cost of the kinetic parameters estimation
+                logLL: loglikelihood of kinetic parameters estimation
+                alpha_r2: r-squared for goodness of fit of alpha estimation
+                beta_r2: r-squared for goodness of fit of beta estimation
+                gamma_r2: r-squared for goodness of fit of gamma estimation
+                uu0: estimated amount of unspliced unlabeled RNA at time 0 (only applicable to data with both splicing and labeling)
+                ul0: estimated amount of unspliced labeled RNA at time 0 (only applicable to data with both splicing and labeling)
+                su0: estimated amount of spliced unlabeled RNA at time 0 (only applicable to data with both splicing and labeling)
+                sl0: estimated amount of spliced labeled RNA at time 0 (only applicable to data with both splicing and labeling)
+                u0: estimated amount of unspliced RNA (including uu, ul) at time 0
+                s0: estimated amount of spliced (including su, sl) RNA at time 0
+                total0: estimated amount of spliced (including U, S) RNA at time 0
+                p_half_life: half-life for unspliced mRNA
+                half_life: half-life for spliced mRNA
+
+            If sanity_check has performed, a column with key `sanity_check` will also included which indicates which gene
+            passes filter (`filter_gene_mode`) and sanity check. This is only applicable to kinetic and degradation metabolic
+            labeling experiments.
+
+            In addition, the `dynamics` key of the .uns attribute corresponds to a dictionary that includes the following
+            keys:
+                t: An array like object that indicates the time point of each cell used during parameters estimation
+                    (applicable only to kinetic models)
+                group: The group that you used to estimate parameters group-wise
+                X_data: The input that was used for estimating parameters (applicable only to kinetic models)
+                X_fit_data: The data that was fitted during parameters estimation (applicable only to kinetic models)
+                asspt_mRNA: Assumption of mRNA dynamics (steady state or kinetic)
+                experiment_type: Experiment type (either conventional or metabolic labeling based)
+                normalized: Whether to normalize data
+                model: Model used for the parameter estimation (either auto, deterministic or stochastic)
+                has_splicing: Does the adata has splicing? detected automatically
+                has_labeling: Does the adata has labelling? detected automatically
+                has_protein: Does the adata has protein information? detected automatically
+                use_smoothed: Whether to use smoothed data (or first moment, done via local average of neighbor cells)
+                NTR_vel: Whether to estimate NTR velocity
+                log_unnormalized: Whether to log transform unnormalized data.
     """
 
     X_data, X_fit_data = None, None
-    filter_list, filter_gene_mode_list = ['use_for_dynamo', 'pass_basic_filter', 'no'], ['final', 'basic', 'no']
+    filter_list, filter_gene_mode_list = ['use_for_pca', 'pass_basic_filter', 'no'], ['final', 'basic', 'no']
     filter_checker = [i in adata.var.columns for i in filter_list[:2]]
     filter_checker.append(True)
     filter_id = filter_gene_mode_list.index(filter_gene_mode)
@@ -154,8 +254,9 @@ def dynamics(
 
     filter_gene_mode = filter_gene_mode_list[which_filter]
 
-    valid_ind = get_valid_inds(adata, filter_gene_mode)
-    if sum(valid_ind) == 0:
+    valid_bools = get_valid_bools(adata, filter_gene_mode)
+    gene_num = sum(valid_bools)
+    if gene_num == 0:
         raise Exception(f"no genes pass filter. Try resetting `filter_gene_mode = 'no'` to use all genes.")
 
     if model.lower() == "auto":
@@ -175,15 +276,15 @@ def dynamics(
                 adata.obsm['X'] = adata.obsm['X_pca']
 
             if group is not None and group in adata.obs.columns:
-                moments(adata, genes=valid_ind, group=group)
+                moments(adata, genes=valid_bools, group=group)
             else:
-                moments(adata, genes=valid_ind, group=tkey)
+                moments(adata, genes=valid_bools, group=tkey)
         elif tkey is not None:
             warnings.warn(f"You used tkey {tkey} (or group {group}), but you have calculated local smoothing (1st moment) "
                           f"for your data before. Please ensure you used the desired tkey or group when the smoothing was "
                           f"performed. Try setting re_smooth = True if not sure.")
 
-    valid_adata = adata[:, valid_ind].copy()
+    valid_adata = adata[:, valid_bools].copy()
     if group is not None and group in adata.obs.columns:
         _group = adata.obs[group].unique()
     else:
@@ -237,6 +338,33 @@ def dynamics(
                 "is {}".format(exp_type, experiment_type)
                 )
 
+        valid_bools_ = valid_bools.copy()
+        if sanity_check and experiment_type in ['kin', 'deg']:
+            indices_valid_bools = np.where(valid_bools)[0]
+            t, L = t.flatten(), (0 if Ul is None else Ul) + (0 if Sl is None else Sl)
+            t_uniq = np.unique(t)
+
+            valid_gene_checker = np.zeros(gene_num, dtype=bool)
+            for L_iter, cur_L in tqdm(enumerate(L), desc=f'sanity check of {experiment_type} experiment data:'):
+                cur_L = cur_L.A.flatten() if issparse(cur_L) else cur_L.flatten()
+                y = strat_mom(cur_L, t, np.nanmean)
+                slope, _ = fit_linreg(t_uniq, y, intercept=True, r2=False)
+                valid_gene_checker[L_iter] = True if (slope > 0 and experiment_type is 'kin') or \
+                                                     (slope < 0 and experiment_type is 'deg') else False
+            valid_bools_[indices_valid_bools[~valid_gene_checker]] = False
+            warnings.warn(f'filtering {gene_num - valid_gene_checker.sum()} genes after sanity check.')
+
+            if len(valid_bools_) < 5:
+                raise Exception(f'After sanity check, you have less than 5 valid genes. Something is wrong about your '
+                                f'metabolic labeling experiment!')
+
+            U, Ul, S, Sl = (None if U is None else U[valid_gene_checker, :]), \
+                           (None if Ul is None else Ul[valid_gene_checker, :]), \
+                           (None if S is None else S[valid_gene_checker, :]), \
+                           (None if Sl is None else Sl[valid_gene_checker, :])
+            subset_adata = subset_adata[:, valid_gene_checker]
+            adata.var[kin_param_pre + 'sanity_check'] = valid_bools_
+
         if assumption_mRNA.lower() == 'auto': assumption_mRNA = assump_mRNA
         if experiment_type == 'conventional': assumption_mRNA = 'ss'
 
@@ -248,7 +376,7 @@ def dynamics(
             model = "deterministic"
 
         if assumption_mRNA.lower() == "ss" or (experiment_type.lower() in ["one-shot", "mix_std_stm"]):
-            if est_method.lower() == "auto": est_method = "gmm"
+            if est_method.lower() == "auto": est_method = "gmm" if model == 'stochastic' else 'ols'
             if experiment_type.lower() == "one_shot":
                 beta = subset_adata.var.beta if "beta" in subset_adata.var.keys() else None
                 gamma = subset_adata.var.gamma if "gamma" in subset_adata.var.keys() else None
@@ -258,13 +386,13 @@ def dynamics(
                 ss_estimation_kwargs = {}
 
             est = ss_estimation(
-                U=U,
-                Ul=Ul,
-                S=S,
-                Sl=Sl,
-                P=P,
-                US=US,
-                S2=S2,
+                U=U.copy() if U is not None else None,
+                Ul=Ul.copy() if Ul is not None else None,
+                S=S.copy() if S is not None else None,
+                Sl=Sl.copy() if Sl is not None else None,
+                P=P.copy() if P is not None else None,
+                US=US.copy() if US is not None else None,
+                S2=S2.copy() if S2 is not None else None,
                 conn=subset_adata.uns['moments_con'],
                 t=t,
                 ind_for_proteins=ind_for_proteins,
@@ -274,6 +402,7 @@ def dynamics(
                 assumption_mRNA=assumption_mRNA,
                 assumption_protein=assumption_protein,
                 concat_data=concat_data,
+                cores=cores,
                 **ss_estimation_kwargs
             )
 
@@ -311,7 +440,7 @@ def dynamics(
                 _group,
                 cur_grp,
                 cur_cells_bools,
-                valid_ind,
+                valid_bools_,
                 ind_for_proteins,
             )
 
@@ -327,7 +456,7 @@ def dynamics(
                 _group,
                 cur_grp,
                 kin_param_pre,
-                valid_ind,
+                valid_bools_,
                 ind_for_proteins,
             )
 
@@ -388,7 +517,7 @@ def dynamics(
                 _group,
                 cur_grp,
                 cur_cells_bools,
-                valid_ind,
+                valid_bools_,
                 ind_for_proteins,
             )
 
@@ -407,7 +536,7 @@ def dynamics(
                 extra_params,
                 _group,
                 cur_grp,
-                valid_ind,
+                valid_bools_,
             )
             # add protein related parameters in the moment model below:
         elif model.lower() is "model_selection":
@@ -417,6 +546,12 @@ def dynamics(
         uns_key = group + "_dynamics"
     else:
         uns_key = "dynamics"
+
+    if sanity_check and experiment_type in ['kin', 'deg']:
+        sanity_check_cols = adata.var.columns.str.endswith('sanity_check')
+        adata.var['use_for_dynamics'] = adata.var.loc[:, sanity_check_cols].sum(1).astype(bool)
+    else: 
+        adata.var['use_for_dynamics'] = adata.var['use_for_pca'].copy()
 
     adata.uns[uns_key] = {
         "filter_gene_mode": filter_gene_mode,
@@ -448,11 +583,11 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
         if has_splicing:
             layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
                         'M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') \
-                else ['ul', 'sl', 'uu', 'su']
+                else ['X_ul', 'X_sl', 'X_uu', 'X_su']
 
             if model in ['deterministic', 'stochastic']:
-                layer_u = 'M_ul' if ('M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') else 'ul'
-                layer_s = 'M_sl' if ('M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') else 'sl'
+                layer_u = 'M_ul' if ('M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_ul'
+                layer_s = 'M_sl' if ('M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_sl'
 
                 X, X_raw = prepare_data_has_splicing(subset_adata, subset_adata.var.index, time,
                                                      layer_u=layer_u, layer_s=layer_s, total_layers=layers)
@@ -512,15 +647,15 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                                 f'current supported models for kinetics experiments include: stochastic, deterministic, mixture,'
                                 f'mixture_deterministic_stochastic or mixture_stochastic_stochastic')
         else:
-            total_layer = 'M_t' if ('M_t' in subset_adata.layers.keys() and data_type == 'smoothed') else 'total'
+            total_layer = 'M_t' if ('M_t' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_total'
 
             if model in ['deterministic', 'stochastic']:
-                layer = 'M_n' if ('M_n' in subset_adata.layers.keys() and data_type == 'smoothed') else 'new'
+                layer = 'M_n' if ('M_n' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_new'
                 X, X_raw = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time, layer=layer,
                                                     total_layer=total_layer)
             elif model.startswith('mixture'):
                 layers = ['M_n', 'M_t'] if ('M_n' in subset_adata.layers.keys() and data_type == 'smoothed') \
-                    else ['new', 'total']
+                    else ['X_new', 'X_total']
 
                 X, _, X_raw = prepare_data_deterministic(subset_adata, subset_adata.var.index, time, layers=layers,
                                                          total_layers=total_layer)
@@ -568,11 +703,11 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
         if has_splicing:
             layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
                         'M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') \
-                else ['ul', 'sl', 'uu', 'su']
+                else ['X_ul', 'X_sl', 'X_uu', 'X_su']
 
             if model in ['deterministic', 'stochastic']:
-                layer_u = 'M_ul' if ('M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') else 'ul'
-                layer_s = 'M_sl' if ('M_sl' in subset_adata.layers.keys() and data_type == 'smoothed') else 'sl'
+                layer_u = 'M_ul' if ('M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_ul'
+                layer_s = 'M_sl' if ('M_sl' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_sl'
 
                 X, X_raw = prepare_data_has_splicing(subset_adata, subset_adata.var.index, time,
                                                      layer_u=layer_u, layer_s=layer_s, total_layers=layers)
@@ -596,9 +731,9 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                             f'current supported models for degradation experiment include: '
                             f'stochastic, deterministic.')
         else:
-            total_layer = 'M_t' if ('M_t' in subset_adata.layers.keys() and data_type == 'smoothed') else 'total'
+            total_layer = 'M_t' if ('M_t' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_total'
 
-            layer = 'M_n' if ('M_n' in subset_adata.layers.keys() and data_type == 'smoothed') else 'new'
+            layer = 'M_n' if ('M_n' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_new'
             X, X_raw = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time,
                                                 layer=layer, total_layer=total_layer)
 
