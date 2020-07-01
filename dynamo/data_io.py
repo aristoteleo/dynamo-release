@@ -19,6 +19,8 @@ def load_NASC_seq(dir, type='TPM', delimiter="_", colnames=None, dropna=False):
     ----------
         dir: `str`
             The directory that points to the NASC-seq pipeline analysis folder (something like /Experimentdir).
+        type: `str` (default: `TPM`)
+            The data type that will be used as the gene expression. One of `{'TPM', 'FPKM', 'Reads'}`.
         delimiter: `str` (default: `_`)
             delimiter pattern for splitting the cells names (columns of each count table)
         colnames: `list` or none
@@ -39,13 +41,7 @@ def load_NASC_seq(dir, type='TPM', delimiter="_", colnames=None, dropna=False):
     from scipy.sparse import csr_matrix
     import pandas as pd, numpy as np
 
-    included_extensions = ["newTable.csv", "oldTable.csv", "readCounts.csv"]
-    file_names = [
-        fn
-        for fn in os.listdir(dir + '/outfiles/')
-        if any(fn.endswith(ext) for ext in included_extensions)
-    ]
-    if type == 'TPM':
+    if type in ['TPM', 'FPKM']:
         files = glob.glob(dir + '/rmse/*genes.results')
         tot_RNA = None
         cells = None
@@ -53,10 +49,10 @@ def load_NASC_seq(dir, type='TPM', delimiter="_", colnames=None, dropna=False):
             tmp = pd.read_csv(f, index_col=0, sep='\t')
             cell_name = os.path.basename(f).split(delimiter)[1]
             if tot_RNA is None:
-                tot_RNA = tmp.loc[:, ['TPM']]
+                tot_RNA = tmp.loc[:, [type]]
                 cells = [cell_name]
             else:
-                tot_RNA = pd.merge(tot_RNA, tmp.loc[:, ['TPM']], left_index=True, right_index=True, how='outer')
+                tot_RNA = pd.merge(tot_RNA, tmp.loc[:, [type]], left_index=True, right_index=True, how='outer')
                 cells.append(cell_name)
         tot_RNA.columns, tot_RNA.index = cells, list(tot_RNA.index)
 
@@ -68,7 +64,14 @@ def load_NASC_seq(dir, type='TPM', delimiter="_", colnames=None, dropna=False):
         new_RNA.loc[new_.index, new_.columns], old_RNA.loc[new_.index, new_.columns] = new_.values, old_.values
 
         tot_RNA = tot_RNA.T
-    else:
+    elif type == 'Reads':
+        included_extensions = ["newTable.csv", "oldTable.csv", "readCounts.csv"]
+        file_names = [
+            fn
+            for fn in os.listdir(dir + '/outfiles/')
+            if any(fn.endswith(ext) for ext in included_extensions)
+        ]
+
         if len(file_names) == 3:
             new_RNA = pd.read_csv(dir + '/outfiles/' + file_names[0], index_col=0, delimiter=",")
             old_RNA = pd.read_csv(dir + '/outfiles/' + file_names[1], index_col=0, delimiter=",")
@@ -78,6 +81,9 @@ def load_NASC_seq(dir, type='TPM', delimiter="_", colnames=None, dropna=False):
                 "The directory you provided doesn't contain files end with newTable.csv, oldcounts.csv and \
             readcounts.csv that returned from NASC-seq pipeline."
             )
+    else:
+        raise ValueError(f"The data type {type} requested is not supported. Available data types include:"
+                         f"{'TPM', 'FPKM', 'Reads'}")
 
     if dropna:
         valid_ids = np.isnan((new_RNA + old_RNA + tot_RNA).sum(0, skipna=False))
