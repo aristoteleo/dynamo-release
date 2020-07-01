@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
+import statsmodels.api as sm
 from scipy.sparse import issparse, csr_matrix
-from functools import reduce
+# from functools import reduce
 from sklearn.decomposition import PCA, TruncatedSVD
 
 
@@ -545,7 +546,14 @@ def NTR(adata):
     return ntr, var_ntr
 
 
-def relative2abs(adata, dilution, volume, from_layer=None, to_layers=None, mixture_type=1, ERCC_controls=None, ERCC_annotation=None):
+def relative2abs(adata,
+                 dilution,
+                 volume,
+                 from_layer=None,
+                 to_layers=None,
+                 mixture_type=1,
+                 ERCC_controls=None,
+                 ERCC_annotation=None):
     """Converts FPKM/TPM data to transcript counts using ERCC spike-in. This is based on the relative2abs function from
     monocle 2 (Qiu, et. al, Nature Methods, 2017).
 
@@ -589,21 +597,21 @@ def relative2abs(adata, dilution, volume, from_layer=None, to_layers=None, mixtu
 
     if to_layers is not None:
         to_layers = [to_layers] if to_layers is str else to_layers
-        to_layers = list(adata.layers.keys().intersection(to_layers))
+        to_layers = list(set(adata.layers.keys()).intersection(to_layers))
         if len(to_layers) == 0:
             raise Exception(f"The layers {to_layers} that will be converted to absolute counts doesn't match any layers"
                             f"from the adata object.")
 
-    mixture_name = "conc_attomoles_ul_Mix1" if mixture_type == 1 else "conc_attomoles_ul_Mix2"
-    ERCC_controls['numMolecules'] = ERCC_controls.loc[:, mixture_name] * (
-                volume * 10 ^ (-3) * 1 / dilution * 10 ^ (-18) * 6.02214129 * 10 ^ (23))
+    mixture_name = "concentration in Mix 1 (attomoles/ul)" if mixture_type == 1 else "concentration in Mix 2 (attomoles/ul)"
+    ERCC_annotation['numMolecules'] = ERCC_annotation.loc[:, mixture_name] * (
+                volume * 10 ** (-3) * 1 / dilution * 10 ** (-18) * 6.02214129 * 10 ** (23))
 
     ERCC_annotation['rounded_numMolecules'] = ERCC_annotation['numMolecules'].astype(int)
 
     if from_layer in [None, 'X']:
-        X, X_ercc = (adata.X, adata[:, ERCC_controls['ERCC ID']].X if ERCC_controls is None else ERCC_controls)
+        X, X_ercc = (adata.X, adata[:, ERCC_id].X if ERCC_controls is None else ERCC_controls)
     else:
-        X, X_ercc = (adata.layers[from_layer], adata[:, ERCC_controls['ERCC ID']] \
+        X, X_ercc = (adata.layers[from_layer], adata[:, ERCC_id] \
             if ERCC_controls is None else ERCC_controls)
 
     logged = False if X.max() > 100 else True
@@ -617,7 +625,7 @@ def relative2abs(adata, dilution, volume, from_layer=None, to_layers=None, mixtu
     y = np.log1p(ERCC_annotation['numMolecules'])
 
     for i in range(adata.n_obs):
-        X_i, X_ercc_i = X[:, i], X_ercc[:, i]
+        X_i, X_ercc_i = X[i, :], X_ercc[i, :]
 
         X_i, X_ercc_i = sm.add_constant(X_i),  sm.add_constant(X_ercc_i)
         res = sm.RLM(y, X_ercc_i).fit()
@@ -628,24 +636,22 @@ def relative2abs(adata, dilution, volume, from_layer=None, to_layers=None, mixtu
             logged = False if X.max() > 100 else True
 
             if not logged:
-                X_i = np.log1p(X[:, i].A) if issparse(X) else np.log1p(X[:, i])
+                X_i = np.log1p(X[i, :].A) if issparse(X) else np.log1p(X[i, :])
             else:
-                X_i = X[:, i].A if issparse(X) else X[:, i]
+                X_i = X[i, :].A if issparse(X) else X[i, :]
 
             res = k * X_i + b
             res = res if logged else np.expm1(res)
             adata.X[i, :] = csr_matrix(res) if issparse(X) else res
         else:
             for cur_layer in to_layers:
-                X = adata.layers[from_layer]
+                X = adata.layers[cur_layer]
 
                 logged = False if X.max() > 100 else True
                 if not logged:
-                    X_i = np.log1p(X[:, i].A) if issparse(X) else np.log1p(X[:, i])
+                    X_i = np.log1p(X[i, :].A) if issparse(X) else np.log1p(X[i, :])
                 else:
-                    X_i = X[:, i].A if issparse(X) else X[:, i]
-
-                X_i = sm.add_constant(X_i)
+                    X_i = X[i, :].A if issparse(X) else X[i, :]
 
                 res = k * X_i + b if logged else np.expm1(k * X_i + b)
                 adata.layers[cur_layer][i, :] = csr_matrix(res) if issparse(X) else res
