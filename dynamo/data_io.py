@@ -1,3 +1,4 @@
+from tqdm import tqdm
 from anndata import (
     read,
     read_loom,
@@ -44,23 +45,29 @@ def load_NASC_seq(dir, type='TPM', delimiter="_", colnames=None, dropna=False):
     if type in ['TPM', 'FPKM']:
         files = glob.glob(dir + '/rmse/*genes.results')
         tot_RNA = None
-        cells = None
-        for f in files:
+        cells_raw, cells = None, None
+
+        for f in tqdm(files, desc=f'reading rmse output files:'):
             tmp = pd.read_csv(f, index_col=0, sep='\t')
-            cell_name = os.path.basename(f).split(delimiter)[1]
+
             if tot_RNA is None:
                 tot_RNA = tmp.loc[:, [type]]
-                cells = [cell_name]
+                cells_raw = [os.path.basename(f)]
+                cells = [cells_raw[-1].split(delimiter)[1]]
             else:
                 tot_RNA = pd.merge(tot_RNA, tmp.loc[:, [type]], left_index=True, right_index=True, how='outer')
-                cells.append(cell_name)
+                cells_raw.append(os.path.basename(f))
+
+                cells.append(cells_raw[-1].split(delimiter)[1])
         tot_RNA.columns, tot_RNA.index = cells, list(tot_RNA.index)
 
         pi_g = pd.read_csv(dir + '/outfiles/_mode.csv', index_col=0)
         pi_g.index = pd.Series(pi_g.index).str.split(delimiter, expand=True)[1].values
 
-        new_RNA, old_RNA = pd.DataFrame(0, columns=tot_RNA.index, index=cells), pd.DataFrame(0, columns=tot_RNA.index, index=cells)
-        new_, old_ = tot_RNA.loc[pi_g.columns, pi_g.index].T * pi_g, tot_RNA.loc[pi_g.columns, pi_g.index].T * (1 - pi_g)
+        new_RNA, old_RNA = pd.DataFrame(0, columns=tot_RNA.index, index=cells), \
+                           pd.DataFrame(0, columns=tot_RNA.index, index=cells)
+        new_, old_ = tot_RNA.loc[pi_g.columns, pi_g.index].T * pi_g, \
+                     tot_RNA.loc[pi_g.columns, pi_g.index].T * (1 - pi_g)
         new_RNA.loc[new_.index, new_.columns], old_RNA.loc[new_.index, new_.columns] = new_.values, old_.values
 
         tot_RNA = tot_RNA.T
@@ -81,9 +88,15 @@ def load_NASC_seq(dir, type='TPM', delimiter="_", colnames=None, dropna=False):
                 "The directory you provided doesn't contain files end with newTable.csv, oldcounts.csv and \
             readcounts.csv that returned from NASC-seq pipeline."
             )
+
+        cells_raw = new_RNA.index
     else:
         raise ValueError(f"The data type {type} requested is not supported. Available data types include:"
                          f"{'TPM', 'FPKM', 'Reads'}")
+
+    split_df = pd.Series(cells_raw).str.split(delimiter, expand=True)
+    split_df.index = split_df.iloc[:, 1].values
+    if colnames is not None: split_df.columns = colnames
 
     if dropna:
         valid_ids = np.isnan((new_RNA + old_RNA + tot_RNA).sum(0, skipna=False))
@@ -93,15 +106,13 @@ def load_NASC_seq(dir, type='TPM', delimiter="_", colnames=None, dropna=False):
         old_RNA.fillna(0, inplace=True)
         tot_RNA.fillna(0, inplace=True)
 
-    split_df = pd.Series(new_RNA.index).str.split(delimiter, expand=True)
-    split_df.index = split_df[1].values
-    if colnames is not None: split_df.columns = colnames
-
     adata = AnnData(csr_matrix(tot_RNA.values),
-                    var=pd.DataFrame({"gene_name": tot_RNA.index}, index=tot_RNA.index),
+                    var=pd.DataFrame({"gene_name": tot_RNA.columns}, index=tot_RNA.columns),
                     obs=split_df,
                     layers=dict(new=csr_matrix(new_RNA.values), total=csr_matrix(tot_RNA.values)),
-            )
+                    )
+
+    adata = adata[:, adata.X.sum(0).A > 0]
 
     return adata
 
