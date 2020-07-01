@@ -12,17 +12,20 @@ from anndata import (
 )
 
 
-def load_NASC_seq(dir, delimiter="_", colnames=None):
+def load_NASC_seq(dir, type='TPM', delimiter="_", colnames=None, dropna=False):
     """Function to create an anndata object from NASC-seq pipeline
 
     Parameters
     ----------
         dir: `str`
-            The directory that points to the NASC-seq pipeline result output folder (something like /Experimentdir/outfiles).
+            The directory that points to the NASC-seq pipeline analysis folder (something like /Experimentdir).
         delimiter: `str` (default: `_`)
             delimiter pattern for splitting the cells names (columns of each count table)
         colnames: `list` or none
             The list of column names after splitting the cell names.
+        dropna: `bool`
+            Whether to drop all genes that have any np.nan values across all cells. If not, all na values will be filled
+            as 0.
 
     Returns
     -------
@@ -32,41 +35,67 @@ def load_NASC_seq(dir, delimiter="_", colnames=None):
 
     import os
     from anndata import AnnData
-    import pandas as pd
+    import glob
+    from scipy.sparse import csr_matrix
+    import pandas as pd, numpy as np
 
     included_extensions = ["newTable.csv", "oldTable.csv", "readCounts.csv"]
     file_names = [
         fn
-        for fn in os.listdir(dir)
+        for fn in os.listdir(dir + '/outfiles/')
         if any(fn.endswith(ext) for ext in included_extensions)
     ]
-    if len(file_names) == 3:
-        new_RNA = pd.read_csv(dir + file_names[0], index_col=0, delimiter=",")
-        old_RNA = pd.read_csv(dir + file_names[1], index_col=0, delimiter=",")
-        tot_RNA = pd.read_csv(dir + file_names[2], index_col=0, delimiter=",")
+    if type == 'TPM':
+        files = glob.glob(dir + '/rmse/*genes.results')
+        tot_RNA = None
+        cells = None
+        for f in files:
+            tmp = pd.read_csv(f, index_col=0, sep='\t')
+            cell_name = os.path.basename(f).split(delimiter)[1]
+            if tot_RNA is None:
+                tot_RNA = tmp.loc[:, ['TPM']]
+                cells = [cell_name]
+            else:
+                tot_RNA = pd.merge(tot_RNA, tmp.loc[:, ['TPM']], left_index=True, right_index=True, how='outer')
+                cells.append(cell_name)
+        tot_RNA.columns, tot_RNA.index = cells, list(tot_RNA.index)
+
+        pi_g = pd.read_csv(dir + '/outfiles/_mode.csv', index_col=0)
+        pi_g.index = pd.Series(pi_g.index).str.split(delimiter, expand=True)[1].values
+
+        new_RNA, old_RNA = pd.DataFrame(0, columns=tot_RNA.index, index=cells), pd.DataFrame(0, columns=tot_RNA.index, index=cells)
+        new_, old_ = tot_RNA.loc[pi_g.columns, pi_g.index].T * pi_g, tot_RNA.loc[pi_g.columns, pi_g.index].T * (1 - pi_g)
+        new_RNA.loc[new_.index, new_.columns], old_RNA.loc[new_.index, new_.columns] = new_.values, old_.values
+
+        tot_RNA = tot_RNA.T
     else:
-        raise Exception(
-            "The directory you provided doesn't contain files end with newTable.csv, oldcounts.csv and \
-        readcounts.csv that returned from NASC-seq pipeline."
-        )
+        if len(file_names) == 3:
+            new_RNA = pd.read_csv(dir + '/outfiles/' + file_names[0], index_col=0, delimiter=",")
+            old_RNA = pd.read_csv(dir + '/outfiles/' + file_names[1], index_col=0, delimiter=",")
+            tot_RNA = pd.read_csv(dir + '/outfiles/' + file_names[2], index_col=0, delimiter=",")
+        else:
+            raise Exception(
+                "The directory you provided doesn't contain files end with newTable.csv, oldcounts.csv and \
+            readcounts.csv that returned from NASC-seq pipeline."
+            )
 
-    new_RNA.fillna(0, inplace=True)
-    old_RNA.fillna(0, inplace=True)
-    tot_RNA.fillna(0, inplace=True)
+    if dropna:
+        valid_ids = np.isnan((new_RNA + old_RNA + tot_RNA).sum(0, skipna=False))
+        new_RNA, old_RNA, tot_RNA = new_RNA.iloc[:, valid_ids], old_RNA.iloc[:, valid_ids], tot_RNA.iloc[:, valid_ids]
+    else:
+        new_RNA.fillna(0, inplace=True)
+        old_RNA.fillna(0, inplace=True)
+        tot_RNA.fillna(0, inplace=True)
 
-    col_num = len(colnames) if colnames is not None else 2
-    split_array = [
-        new_RNA.columns.str.split("_", n=col_num)[i]
-        for i in range(len(new_RNA.columns.str.split(delimiter, n=col_num)))
-    ]
-    split_df = pd.DataFrame(split_array, columns=colnames)
+    split_df = pd.Series(new_RNA.index).str.split(delimiter, expand=True)
+    split_df.index = split_df[1].values
+    if colnames is not None: split_df.columns = colnames
 
-    adata = AnnData(
-        tot_RNA.values.T,
-        var=pd.DataFrame(gene_name=tot_RNA.index, index=tot_RNA.index),
-        obs=split_df,
-        layers=dict(new=new_RNA.values.T, total=tot_RNA.values.T),
-    )
+    adata = AnnData(csr_matrix(tot_RNA.values),
+                    var=pd.DataFrame({"gene_name": tot_RNA.index}, index=tot_RNA.index),
+                    obs=split_df,
+                    layers=dict(new=csr_matrix(new_RNA.values), total=csr_matrix(tot_RNA.values)),
+            )
 
     return adata
 
