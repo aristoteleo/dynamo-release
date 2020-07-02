@@ -33,7 +33,7 @@ def load_NASC_seq(dir, type='TPM', delimiter="_", colnames=None, dropna=False):
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object
+            AnnData object with the `new` and `total` layers.
     """
 
     import os
@@ -64,13 +64,14 @@ def load_NASC_seq(dir, type='TPM', delimiter="_", colnames=None, dropna=False):
         pi_g = pd.read_csv(dir + '/outfiles/_mode.csv', index_col=0)
         pi_g.index = pd.Series(pi_g.index).str.split(delimiter, expand=True)[1].values
 
-        new_RNA, old_RNA = pd.DataFrame(0, columns=tot_RNA.index, index=cells), \
-                           pd.DataFrame(0, columns=tot_RNA.index, index=cells)
+        new_RNA, old_RNA = pd.DataFrame(0., columns=tot_RNA.index, index=cells), \
+                           pd.DataFrame(0., columns=tot_RNA.index, index=cells)
         new_, old_ = tot_RNA.loc[pi_g.columns, pi_g.index].T * pi_g, \
                      tot_RNA.loc[pi_g.columns, pi_g.index].T * (1 - pi_g)
         new_RNA.loc[new_.index, new_.columns], old_RNA.loc[new_.index, new_.columns] = new_.values, old_.values
 
         tot_RNA = tot_RNA.T
+        if colnames is not None: colnames = ['plate', 'well', 'sample']
     elif type == 'Reads':
         included_extensions = ["newTable.csv", "oldTable.csv", "readCounts.csv"]
         file_names = [
@@ -113,6 +114,7 @@ def load_NASC_seq(dir, type='TPM', delimiter="_", colnames=None, dropna=False):
                     )
 
     adata = adata[:, adata.X.sum(0).A > 0]
+    adata.uns['raw_data'] = True
 
     return adata
 

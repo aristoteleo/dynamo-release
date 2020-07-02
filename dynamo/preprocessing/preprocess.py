@@ -1262,22 +1262,25 @@ def recipe_monocle(
 
     _szFactor, _logged = False, False
     if normalized is None:
-        # automatically detect whether the data is size-factor normalized -- no integers (only works for readcounts / UMI based data).
-        _szFactor = not np.allclose(
-            (adata.X.data[:20] if issparse(adata.X) else adata.X[:, 0]) % 1,
-            0,
-            atol=1e-3,
-        )
-        # check whether total UMI is the same -- if not the same, logged
-        if _szFactor:
-            _logged = not np.allclose(
-                np.sum(
-                    adata.X.sum(1)[np.random.choice(adata.n_obs, 10)]
-                    - adata.X.sum(1)[0]
-                ),
+        if 'raw_data' in adata.uns_keys():
+            _szFactor, _logged = adata.uns['raw_data'], adata.uns['raw_data']
+        else:
+            # automatically detect whether the data is size-factor normalized -- no integers (only works for readcounts / UMI based data).
+            _szFactor = not np.allclose(
+                (adata.X.data[:20] if issparse(adata.X) else adata.X[:, 0]) % 1,
                 0,
-                atol=1e-1,
+                atol=1e-3,
             )
+            # check whether total UMI is the same -- if not the same, logged
+            if _szFactor:
+                _logged = not np.allclose(
+                    np.sum(
+                        adata.X.sum(1)[np.random.choice(adata.n_obs, 10)]
+                        - adata.X.sum(1)[0]
+                    ),
+                    0,
+                    atol=1e-1,
+                )
 
     # filter bad cells
     filter_cells_kwargs = {
@@ -1411,6 +1414,9 @@ def recipe_monocle(
         warnings.warn('Dynamo is not able to perform cell cycle staging for you automatically. \n'
                       'Since dyn.pl.phase_diagram in dynamo by default color cells by its cell-cycle stage, \n'
                       'you need to set color argument accordingly if confronting errors related to this.')
+
+    if 'raw_data' in adata.uns_keys():
+        adata.uns['raw_data'] = False
 
     return adata
 
