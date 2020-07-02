@@ -1289,7 +1289,7 @@ class ss_estimation:
 
         logLL, all_logLL = calc_norm_loglikelihood(s[mask], u[mask], k), calc_norm_loglikelihood(s, u, k)
 
-        return k, 0, r2, all_r2, logLL, all_logLL
+        return k, b, r2, all_r2, logLL, all_logLL
 
     def fit_gamma_stochastic(
         self, est_method, u, s, us, ss, perc_left=None, perc_right=5, normalize=True

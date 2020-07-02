@@ -1138,7 +1138,7 @@ def get_ekey_vkey_from_adata(adata):
                 mapper["X_unspliced"] in adata.layers.keys()
             )):
                 raise Exception(
-                    "The input data you have is not normalized/log trnasformed or smoothed and normalized/log trnasformed!"
+                    "The input data you have is not normalized/log transformed or smoothed and normalized/log transformed!"
                 )
             ekey, vkey, layer = (
                 (mapper["X_spliced"], "velocity_S", "X_spliced")

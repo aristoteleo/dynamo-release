@@ -1263,7 +1263,7 @@ def recipe_monocle(
     _szFactor, _logged = False, False
     if normalized is None:
         if 'raw_data' in adata.uns_keys():
-            _szFactor, _logged = adata.uns['raw_data'], adata.uns['raw_data']
+            _szFactor, _logged = not adata.uns['raw_data'], not adata.uns['raw_data']
         else:
             # automatically detect whether the data is size-factor normalized -- no integers (only works for readcounts / UMI based data).
             _szFactor = not np.allclose(
