@@ -156,7 +156,7 @@ def cell_velocities(
             indices, dist = indices[:, 1:], dist[:, 1:]
 
 
-    if 'use_for_velocity' not in adata.obs.keys() or enforce:
+    if 'use_for_velocity' not in adata.var.keys() or enforce:
         use_for_dynamics = True if "use_for_dynamics" in adata.var.keys() else False
         adata = set_velocity_genes(
             adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamics=use_for_dynamics
@@ -173,7 +173,6 @@ def cell_velocities(
         X_embedding = adata.obsm["X_" + basis]
     else:
         adata = reduceDimension(adata, layer=layer, reduction_method=basis)
-        layer = layer if layer.startswith("X") else "X_" + layer
         X_embedding = adata.obsm[layer + "_" + basis]
 
     V_mat = V_mat.A if issparse(V_mat) else V_mat
