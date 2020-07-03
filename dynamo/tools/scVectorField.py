@@ -322,9 +322,10 @@ def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True,
     if cores == 1:
         for i, idx in tqdm(enumerate(nbrs_idx), desc='Constructing diffusion graph from reconstructed vector field'):
             V = construct_v(X, i, idx, n_int_steps, func, distance_free, dist, D, n, V)
+
     else:
         pool = ThreadPool(cores)
-        res = pool.starmap(construct_v, zip(X, np.arange(len(nbrs_idx)), nbrs_idx, itertools.repeat(n_int_steps),
+        res = pool.starmap(construct_v, zip(itertools.repeat(X), np.arange(len(nbrs_idx)), nbrs_idx, itertools.repeat(n_int_steps),
                                             itertools.repeat(func), itertools.repeat(distance_free),
                                             itertools.repeat(dist), itertools.repeat(D), itertools.repeat(n),
                                             itertools.repeat(V)))

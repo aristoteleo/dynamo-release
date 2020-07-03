@@ -483,6 +483,7 @@ def VectorField(
     return_vf_object=False,
     map_topography=True,
     pot_curl_div=True,
+    cores=1,
     **kwargs,
 ):
     """Learn a function of high dimensional vector field from sparse single cell samples in the entire space robustly.
@@ -531,6 +532,9 @@ def VectorField(
             Whether to calculate potential, curl or divergence for each cell. Potential can be calculated for any basis
             while curl and divergence is by default only applied to 2D basis. However, divergence is applicable for any
             dimension while curl is generally only defined for 2/3 D systems.
+        cores: `int` (default: 1):
+            Number of cores to run the ddhodge. If cores is set to be > 1, multiprocessing will be used to parallel
+            the ddhodge calculation.
         kwargs:
             Other additional parameters passed to the vectorfield class.
 
@@ -626,7 +630,7 @@ def VectorField(
             adata, basis=basis, X=X, layer=layer, dims=[0, 1], VecFld=vf_dict['VecFld'], **tp_kwargs
         )
     if pot_curl_div:
-        ddhoge(adata, basis=basis)
+        ddhoge(adata, basis=basis, cores=cores)
         if X.shape[1] == 2: curl(adata, basis=basis)
         if X.shape[1] == 2: divergence(adata, basis=basis)
 

@@ -129,6 +129,7 @@ def ddhoge(adata,
            VecFld=None,
            adjmethod='graphize_vecfld',
            distance_free=False,
+           enforce=False,
            cores=1):
     """Modeling Latent Flow Structure using Hodge Decomposition based on the creation of sparse diffusion graph from the
     reconstructed vector field function. This method is relevant to the curl-free/divergence-free vector field
@@ -152,6 +153,12 @@ def ddhoge(adata,
             The method to build the ajacency matrix that will be used to create the sparse diffusion graph, can be either
             "naive" or "graphize_vecfld". If "naive" used, the transition_matrix that created during vector field projection
             will be used; if "graphize_vecfld" used, a method that guarantees the preservance of divergence will be used.
+        enforce: `bool` (default: `False`)
+            Whether to enforce the calculation of adjacency matrix for estimating potential, curl, divergence for each
+            cell.
+        cores: `int` (default: 1):
+            Number of cores to run the graphize_vecfld function. If cores is set to be > 1, multiprocessing will be used
+            to parallel the graphize_vecfld calculation.
 
     Returns
     -------
@@ -174,28 +181,31 @@ def ddhoge(adata,
     X_data = VecFld['X'] if X_data is None else X_data
     if func is None: func = lambda x: vector_field_function(x, VecFld)
 
-    if adjmethod == 'graphize_vecfld':
-        neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
-        if neighbor_key not in adata.uns_keys():
-            Idx = None
-        else:
-            neighbors = adata.uns[neighbor_key]["connectivities"]
-            Idx = neighbors.tolil().rows
-
-        adj_mat = graphize_vecfld(func, X_data, nbrs_idx=Idx, k=n, distance_free=distance_free, n_int_steps=20,
-                                  cores=cores)
-    elif adjmethod == 'naive':
-        if "transition_matrix" not in adata.uns.keys():
-            raise Exception(f"Your adata doesn't have transition matrix created. You need to first "
-                            f"run dyn.tl.cell_velocity(adata) to get the transition before running"
-                            f" this function.")
-
-        adj_mat = adata.uns["transition_matrix"]
+    if 'ddhodge' in adata.obsp.keys() and not enforce:
+        adj_mat = adata.obsp['ddhodge']
     else:
-        raise ValueError(f"adjmethod can be only one of {'naive', 'graphize_vecfld'}")
+        if (adjmethod == 'graphize_vecfld'):
+            neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
+            if neighbor_key not in adata.uns_keys():
+                Idx = None
+            else:
+                neighbors = adata.uns[neighbor_key]["connectivities"]
+                Idx = neighbors.tolil().rows
+
+            adj_mat = graphize_vecfld(func, X_data, nbrs_idx=Idx, k=n, distance_free=distance_free, n_int_steps=20,
+                                      cores=cores)
+        elif adjmethod == 'naive':
+            if "transition_matrix" not in adata.uns.keys():
+                raise Exception(f"Your adata doesn't have transition matrix created. You need to first "
+                                f"run dyn.tl.cell_velocity(adata) to get the transition before running"
+                                f" this function.")
+
+            adj_mat = adata.uns["transition_matrix"]
+        else:
+            raise ValueError(f"adjmethod can be only one of {'naive', 'graphize_vecfld'}")
 
     g = build_graph(adj_mat)
 
-    adata.obsp['ddhodge'] = adj_mat
+    if 'ddhodge' not in adata.obsp.keys() or enforce: adata.obsp['ddhodge'] = adj_mat
     adata.obs['ddhodge_div'] = div(g)
     adata.obs['potential'] = potential(g, - adata.obs['ddhodge_div'])
