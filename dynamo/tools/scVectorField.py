@@ -7,6 +7,8 @@ import scipy.sparse as sp
 from scipy.linalg import lstsq
 from scipy.spatial.distance import cdist, pdist
 from sklearn.neighbors import NearestNeighbors
+from multiprocessing.dummy import Pool as ThreadPool
+import itertools, functools
 import warnings
 import time
 from .utils import update_dict, update_n_merge_dict, linear_least_squares, timeit, index_condensed_matrix
@@ -306,7 +308,7 @@ def vector_field_function(x, VecFld, dim=None, kernel='full', **kernel_kwargs):
 
 
 @timeit
-def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True, n_int_steps=20):
+def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True, n_int_steps=20, cores=1):
     n, d = X.shape
     if nbrs_idx is None:
         alg = 'ball_tree' if d > 10 else 'kd_tree'
@@ -317,23 +319,42 @@ def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True,
         D = pdist(X)
 
     V = sp.csr_matrix((n, n))
-    for i, idx in tqdm(enumerate(nbrs_idx), desc='Constructing diffusion graph from reconstructed vector field'):
-        x = X[i]
-        Y = X[idx[1:]]
-        for j, y in enumerate(Y):
-            pts = np.linspace(x, y, n_int_steps)
-            v = func(pts)
+    if cores == 1:
+        for i, idx in tqdm(enumerate(nbrs_idx), desc='Constructing diffusion graph from reconstructed vector field'):
+            V = construct_v(X, i, idx, n_int_steps, func, distance_free, dist, D, n, V)
+    else:
+        pool = ThreadPool(cores)
+        res = pool.starmap(construct_v, zip(X, np.arange(len(nbrs_idx)), nbrs_idx, itertools.repeat(n_int_steps),
+                                            itertools.repeat(func), itertools.repeat(distance_free),
+                                            itertools.repeat(dist), itertools.repeat(D), itertools.repeat(n),
+                                            itertools.repeat(V)))
+        pool.close()
+        pool.join()
+        V = functools.reduce((lambda a, b: a + b), res)
 
-            u = (y - x) / np.linalg.norm(y - x)
-            v = np.mean(v.dot(u))
-            if not distance_free:
-                if dist is None:
-                    d = D[index_condensed_matrix(n, i, idx[j+1])]
-                else:
-                    d = dist[i][j+1]
-                v *= d
-            V[i, idx[j+1]] = v
-            V[idx[j+1], i] = -v
+    return V
+
+
+def construct_v(X, i, idx, n_int_steps, func, distance_free, dist, D, n, V):
+    """helper function for parallism"""
+    warnings.warn(str(X.shape))
+    x = X[i].A if sp.issparse(X) else X[i]
+    Y = X[idx[1:]].A if sp.issparse(X) else X[idx[1:]]
+    for j, y in enumerate(Y):
+        pts = np.linspace(x, y, n_int_steps)
+        v = func(pts)
+
+        u = (y - x) / np.linalg.norm(y - x)
+        v = np.mean(v.dot(u))
+        if not distance_free:
+            if dist is None:
+                d = D[index_condensed_matrix(n, i, idx[j + 1])]
+            else:
+                d = dist[i][j + 1]
+            v *= d
+        V[i, idx[j + 1]] = v
+        V[idx[j + 1], i] = -v
+
     return V
 
 

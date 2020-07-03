@@ -128,7 +128,8 @@ def ddhoge(adata,
            n=30,
            VecFld=None,
            adjmethod='graphize_vecfld',
-           distance_free=False):
+           distance_free=False,
+           cores=1):
     """Modeling Latent Flow Structure using Hodge Decomposition based on the creation of sparse diffusion graph from the
     reconstructed vector field function. This method is relevant to the curl-free/divergence-free vector field
     reconstruction.
@@ -181,7 +182,8 @@ def ddhoge(adata,
             neighbors = adata.uns[neighbor_key]["connectivities"]
             Idx = neighbors.tolil().rows
 
-        adj_mat = graphize_vecfld(func, X_data, nbrs_idx=Idx, k=n, distance_free=distance_free, n_int_steps=20)
+        adj_mat = graphize_vecfld(func, X_data, nbrs_idx=Idx, k=n, distance_free=distance_free, n_int_steps=20,
+                                  cores=cores)
     elif adjmethod == 'naive':
         if "transition_matrix" not in adata.uns.keys():
             raise Exception(f"Your adata doesn't have transition matrix created. You need to first "

@@ -339,7 +339,7 @@ def fit_linreg_robust(x, y, mask=None, intercept=False, r2=True, est_method='rlm
         return k, b
 
 
-def fit_stochastic_linreg(u, s, us, ss, fit_2_gammas=False, err_cov=False):
+def fit_stochastic_linreg(u, s, us, ss, fit_2_gammas=True, err_cov=False):
     """generalized method of moments: [u, 2*us + u] = gamma * [s, 2*ss - s].
 
     Arguments
