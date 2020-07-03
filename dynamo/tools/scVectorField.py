@@ -321,14 +321,13 @@ def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True,
     V = sp.csr_matrix((n, n))
     if cores == 1:
         for i, idx in tqdm(enumerate(nbrs_idx), desc='Constructing diffusion graph from reconstructed vector field'):
-            V = construct_v(X, i, idx, n_int_steps, func, distance_free, dist, D, n, V)
+            V += construct_v(X, i, idx, n_int_steps, func, distance_free, dist, D, n)
 
     else:
         pool = ThreadPool(cores)
         res = pool.starmap(construct_v, zip(itertools.repeat(X), np.arange(len(nbrs_idx)), nbrs_idx, itertools.repeat(n_int_steps),
                                             itertools.repeat(func), itertools.repeat(distance_free),
-                                            itertools.repeat(dist), itertools.repeat(D), itertools.repeat(n),
-                                            itertools.repeat(V)))
+                                            itertools.repeat(dist), itertools.repeat(D), itertools.repeat(n)))
         pool.close()
         pool.join()
         V = functools.reduce((lambda a, b: a + b), res)
@@ -336,9 +335,10 @@ def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True,
     return V
 
 
-def construct_v(X, i, idx, n_int_steps, func, distance_free, dist, D, n, V):
+def construct_v(X, i, idx, n_int_steps, func, distance_free, dist, D, n):
     """helper function for parallism"""
-    warnings.warn(str(X.shape))
+
+    V = sp.csr_matrix((n, n))
     x = X[i].A if sp.issparse(X) else X[i]
     Y = X[idx[1:]].A if sp.issparse(X) else X[idx[1:]]
     for j, y in enumerate(Y):

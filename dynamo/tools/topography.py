@@ -533,7 +533,7 @@ def VectorField(
             while curl and divergence is by default only applied to 2D basis. However, divergence is applicable for any
             dimension while curl is generally only defined for 2/3 D systems.
         cores: `int` (default: 1):
-            Number of cores to run the ddhodge. If cores is set to be > 1, multiprocessing will be used to parallel
+            Number of cores to run the ddhodge function. If cores is set to be > 1, multiprocessing will be used to parallel
             the ddhodge calculation.
         kwargs:
             Other additional parameters passed to the vectorfield class.
