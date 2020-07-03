@@ -205,13 +205,16 @@ def timeit(method):
 # ---------------------------------------------------------------------------------------------------
 # data transformation related:
 def log1p_(adata, X_data):
-    if adata.uns['pp_norm_method'] is None:
-        if issparse(X_data):
-            X_data.data = np.log1p(X_data.data)
-        else:
-            X_data = np.log1p(X_data)
+    if 'pp_norm_method' not in adata.uns.keys():
+        return X_data
+    else:
+        if adata.uns['pp_norm_method'] is None:
+            if issparse(X_data):
+                X_data.data = np.log1p(X_data.data)
+            else:
+                X_data = np.log1p(X_data)
 
-    return X_data
+        return X_data
 
 
 def inverse_norm(adata, layer_x):

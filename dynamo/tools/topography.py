@@ -562,7 +562,7 @@ def VectorField(
             X = adata[:, valid_genes].X.copy()
             X = np.expm1(X)
         else:
-            X = inverse_norm(adata, layer)
+            X = inverse_norm(adata, adata.layers[layer])
 
         V = adata[:, valid_genes].layers[velocity_key].copy()
 

@@ -110,7 +110,8 @@ def cell_velocities(
         other_kernels_dict: `dict` (default: `{}`)
             A dictionary of paramters that will be passed to the cosine/correlation kernel.
         enforce: `bool` (default: `False`)
-            Whether to enforce recalculation of transition matrix.
+            Whether to enforce 1) redefining use_for_velocity column in obs attribute;
+                               2) recalculation of transition matrix.
 
     Returns
     -------
@@ -154,10 +155,12 @@ def cell_velocities(
             )
             indices, dist = indices[:, 1:], dist[:, 1:]
 
-    use_for_dynamics = True if "use_for_dynamics" in adata.var.keys() else False
-    adata = set_velocity_genes(
-        adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamics=use_for_dynamics
-    )
+
+    if 'use_for_velocity' not in adata.obs.keys() or enforce:
+        use_for_dynamics = True if "use_for_dynamics" in adata.var.keys() else False
+        adata = set_velocity_genes(
+            adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamics=use_for_dynamics
+        )
 
     X = adata[:, adata.var.use_for_velocity.values].layers[ekey]
     V_mat = (
