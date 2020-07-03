@@ -42,7 +42,24 @@ def load_NASC_seq(dir, type='TPM', delimiter="_", colnames=None, dropna=False):
     from scipy.sparse import csr_matrix
     import pandas as pd, numpy as np
 
-    if type in ['TPM', 'FPKM']:
+    if type == 'TMM':
+        delimiter = '_'
+        tot_RNA = pd.read_csv(dir + '/rmse/RSEM.isoform.TMM.EXPR.matrix', sep='\t', index_col=0).T
+        cells_raw = tot_RNA.index
+        cells = [i.split(delimiter)[1] for i in tot_RNA.index]
+        tot_RNA.index = cells
+        pi_g = pd.read_csv(dir + '/outfiles/_mode.csv', index_col=0)
+        pi_g.index = pd.Series(pi_g.index).str.split(delimiter, expand=True)[1].values
+        print(pi_g.head(2))
+
+        new_RNA, old_RNA = pd.DataFrame(0., columns=tot_RNA.columns, index=cells), \
+                           pd.DataFrame(0., columns=tot_RNA.columns, index=cells)
+        valid_index, valid_columns = tot_RNA.index.intersection(pi_g.index), tot_RNA.columns.intersection(pi_g.columns)
+        new_, old_ = tot_RNA.loc[valid_index, valid_columns] * pi_g.loc[valid_index, valid_columns], \
+                     tot_RNA.loc[valid_index, valid_columns] * (1 - pi_g.loc[valid_index, valid_columns])
+        new_RNA.loc[new_.index, new_.columns], old_RNA.loc[new_.index, new_.columns] = new_.values, old_.values
+
+    elif type in ['TPM', 'FPKM']:
         files = glob.glob(dir + '/rmse/*genes.results')
         tot_RNA = None
         cells_raw, cells = None, None
@@ -115,8 +132,6 @@ def load_NASC_seq(dir, type='TPM', delimiter="_", colnames=None, dropna=False):
 
     adata = adata[:, adata.X.sum(0).A > 0]
     adata.uns['raw_data'] = True
-
-    return adata
 
 
 def cleanup(adata):

@@ -573,10 +573,10 @@ class ss_estimation:
                         if self.data["sl"] is None
                         else self.data["su"] + self.data["sl"]
                     )
-                    US = calc_2nd_moment(
+                    US = self.data['us'] if 'us' in self.data.keys() else calc_2nd_moment(
                         U.T, S.T, self.conn, mX=U.T, mY=S.T
                     ).T
-                    S2 = calc_2nd_moment(
+                    S2 = self.data['s2'] if 's2' in self.data.keys() else calc_2nd_moment(
                         S.T, S.T, self.conn, mX=S.T, mY=S.T
                     ).T
                     if cores == 1:
@@ -624,10 +624,10 @@ class ss_estimation:
                     )
                     U = self.data["ul"]
                     S = self.data["uu"] + self.data["ul"]
-                    US = calc_2nd_moment(
+                    US = self.data['us'] if 'us' in self.data.keys() else calc_2nd_moment(
                         U.T, S.T, self.conn, mX=U.T, mY=S.T
                     ).T
-                    S2 = calc_2nd_moment(
+                    S2 = self.data['s2'] if 's2' in self.data.keys() else calc_2nd_moment(
                         S.T, S.T, self.conn, mX=S.T, mY=S.T
                     ).T
                     if cores == 1:
@@ -968,10 +968,10 @@ class ss_estimation:
                         )
                         U = self.data["uu"]
                         S = self.data["uu"] + self.data["ul"]
-                        US = calc_2nd_moment(
+                        US = self.data['us'] if 'us' in self.data.keys() else calc_2nd_moment(
                             U.T, S.T, self.conn, mX=U.T, mY=S.T
                         ).T
-                        S2 = calc_2nd_moment(
+                        S2 = self.data['s2'] if 's2' in self.data.keys() else calc_2nd_moment(
                             S.T, S.T, self.conn, mX=S.T, mY=S.T
                         ).T
                         if cores == 1:
@@ -1011,10 +1011,10 @@ class ss_estimation:
 
                         U = self.data["uu"] + self.data["ul"]
                         S = U + self.data["su"] + self.data["sl"]
-                        US = calc_2nd_moment(
+                        US = self.data['us'] if 'us' in self.data.keys() else calc_2nd_moment(
                             U.T, S.T, self.conn, mX=U.T, mY=S.T
                         ).T
-                        S2 = calc_2nd_moment(
+                        S2 = self.data['s2'] if 's2' in self.data.keys() else calc_2nd_moment(
                             S.T, S.T, self.conn, mX=S.T, mY=S.T
                         ).T
                         if cores == 1:
@@ -1066,7 +1066,12 @@ class ss_estimation:
                         )
                         U = self.data["ul"]
                         S = self.data["ul"] + self.data["uu"]
-                        US, S2 = self.data["us"], self.data["s2"]
+                        US = self.data['us'] if 'us' in self.data.keys() else calc_2nd_moment(
+                            U.T, S.T, self.conn, mX=U.T, mY=S.T
+                        ).T
+                        S2 = self.data['s2'] if 's2' in self.data.keys() else calc_2nd_moment(
+                            S.T, S.T, self.conn, mX=S.T, mY=S.T
+                        ).T
                         if cores == 1:
                             for i in tqdm(range(n), desc="estimating gamma"):
                                 (
