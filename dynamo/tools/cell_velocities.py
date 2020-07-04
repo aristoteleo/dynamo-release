@@ -61,8 +61,10 @@ def cell_velocities(
         ekey: `str` or None (optional, default `None`)
             The dictionary key that corresponds to the gene expression in the layer attribute. By default, ekey and vkey
             will be automatically detected from the adata object.
+        vkey: 'str' or None (optional, default `None`)
+            The dictionary key that corresponds to the estimated velocity values in the layers attribute.
         X: 'np.ndarray' or `sp.csr_matrix` or None (optional, default `None`)
-            The expression state of single cells (or reduced expression dimension, like pca, of single cells)
+            The expression states of single cells (or expression states in reduced dimension, like pca, of single cells)
         V_mat: 'np.ndarray' or `sp.csr_matrix` or None (optional, default `None`)
             The RNA velocity of single cells (or velocity estimates projected to reduced dimension, like pca, of single
             cells). Note that X, V_mat need to have the exact dimensionalities.
@@ -179,8 +181,8 @@ def cell_velocities(
         else None
     ) if V_mat is None else V_mat
 
-    if X.shape != V_mat.shape:
-        raise Exception(f"X and V_mat doesn't have the same dimensionalities!")
+    if X.shape != V_mat.shape and X.shape[0] != adata.n_obs:
+        raise Exception(f"X and V_mat doesn't have the same dimensionalities or X/V_mat doesn't {adata.n_obs} rows!")
     
     if X_embedding is None:
         if vkey == "velocity_S":
@@ -189,8 +191,9 @@ def cell_velocities(
             adata = reduceDimension(adata, layer=layer, reduction_method=basis)
             X_embedding = adata.obsm[layer + "_" + basis]
 
-    if X.shape[0] != X_embedding.shape[0]:
-        raise Exception(f"X and X_embedding doesn't have the same sample dimension!")
+    if X.shape[0] != X_embedding.shape[0] and X.shape[1] > X_embedding.shape[1]:
+        raise Exception(f"X and X_embedding doesn't have the same sample dimension or "
+                        f"X doesn't have the higher feature dimension!")
 
     V_mat = V_mat.A if issparse(V_mat) else V_mat
     X = X.A if issparse(X) else X
