@@ -319,6 +319,8 @@ def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True,
     
     if dist is None and not distance_free:
         D = pdist(X)
+    else:
+        D = None
 
     V = sp.csr_matrix((n, n))
     if cores == 1:

@@ -130,7 +130,7 @@ def ddhoge(adata,
            VecFld=None,
            adjmethod='graphize_vecfld',
            distance_free=False,
-           n_downsamples=2500,
+           n_downsamples=5000,
            up_sampling=True,
            sampling_method='velocity',
            seed=19491001,
@@ -214,7 +214,7 @@ def ddhoge(adata,
             cell_idx = sample_by_velocity(func(X_data_full), n_downsamples)
         elif sampling_method == 'random':
             np.random.seed(seed)
-            cell_idx = np.random.sample(np.arange(adata.n_obs), n_downsamples)
+            cell_idx = np.random.choice(np.arange(adata.n_obs), n_downsamples)
         else:
             raise ImportError(f"sampling method {sampling_method} is not available. Only `random`, `velocity`, `trn` are"
                               f"available.")
@@ -259,17 +259,17 @@ def ddhoge(adata,
         query_idx = list(set(np.arange(adata.n_obs)).difference(cell_idx))
         query_data = X_data_full[query_idx, :]
         dist, nbrs_idx = nbrs.kneighbors(query_data)
-        k = nbrs_idx.shapep[1]
-        row, col = np.repeat(np.arange(len(query_idx), k)), nbrs_idx.flatten()
-        W = csr_matrix(1/k, (row, col))
+        k = nbrs_idx.shape[1]
+        row, col = np.repeat(np.arange(len(query_idx)), k), nbrs_idx.flatten()
+        W = csr_matrix((np.repeat(1/k, len(row)), (row, col)), shape=(len(query_idx), len(cell_idx)))
 
         query_data_div, query_data_potential = W.dot(ddhodge_div), W.dot(potential_)
         adata.obs['ddhodge_sampled'], adata.obs['ddhodge_div'], adata.obs['potential'] = False, 0, 0
-        adata[cell_idx, :].obs['ddhodge_sampled'] = True
-        adata[cell_idx, :].obs['ddhodge_div'] = ddhodge_div
-        adata[cell_idx, :].obs['potential'] = potential_
-        adata[query_idx, :].obs['ddhodge_div'] = query_data_div
-        adata[query_idx, :].obs['potential'] = query_data_potential
+        adata.obs.loc[adata.obs_names[cell_idx], 'ddhodge_sampled'] = True
+        adata.obs.loc[adata.obs_names[cell_idx], 'ddhodge_div'] = ddhodge_div
+        adata.obs.loc[adata.obs_names[cell_idx], 'potential'] = potential_
+        adata.obs.loc[adata.obs_names[query_idx], 'ddhodge_div'] = query_data_div
+        adata.obs.loc[adata.obs_names[query_idx], 'potential'] = query_data_potential
     else:
         adata.obs['ddhodge_div'] = ddhodge_div
         adata.obs['potential'] = potential_
