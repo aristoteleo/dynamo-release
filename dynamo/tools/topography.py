@@ -482,7 +482,7 @@ def VectorField(
     method="SparseVFC",
     return_vf_object=False,
     map_topography=True,
-    pot_curl_div=True,
+    pot_curl_div=False,
     cores=1,
     **kwargs,
 ):

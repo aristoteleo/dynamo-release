@@ -81,10 +81,10 @@ def elementwise_jacobian_transformation(fjac, X, qi, qj):
 
 @timeit
 def subset_jacobian_transformation(fjac, X, Qi, Qj):
-    """Inverse transform low dimension Jacobian matrix (:math:`\partial F_i / \partial x_j`) back to original space.
-    The formula used to inverse transform Jacobian matrix calculated from low dimension (PCs) is:
-                                            :math:`Jac = Q J Q^T`,
-    where `Q, J, Jac` are the PCA loading matrix, low dimensional Jacobian matrix and the inverse transformed high
+    """Transform Jacobian matrix (:math:`\partial F_i / \partial x_j`) from PCA space to the original space.
+    The formula used for transformation:
+                                            :math:`\hat{J} = Q J Q^T`,
+    where `Q, J, \hat{J}` are the PCA loading matrix, low dimensional Jacobian matrix and the inverse transformed high
     dimensional Jacobian matrix. This function takes multiple rows from Q to form Qi or Qj.
 
     Parameters
@@ -94,7 +94,7 @@ def subset_jacobian_transformation(fjac, X, Qi, Qj):
         X: `np.ndarray`:
             The samples coordinates with dimension n_obs x n_PCs, from which Jacobian will be calculated.
         Qi: `np.ndarray`:
-            Sampled genes' PCs loading matrix with dimension n' x n_PCs, from which local dimension Jacobian matrix (k x k)
+            Sampled genes' PCA loading matrix with dimension n' x n_PCs, from which local dimension Jacobian matrix (k x k)
             will be inverse transformed back to high dimension.
         Qj: `np.ndarray`
             Sampled genes' (sample genes can be the same as those in Qi or different) PCs loading matrix with dimension
@@ -118,6 +118,29 @@ def subset_jacobian_transformation(fjac, X, Qi, Qj):
         ret[:, :, i] = Qi @ J @ Qj.T
     return ret
 
+
+def vector_field_function_transformation(vf_func, Q):
+    """Transform vector field function from PCA space to original space.
+    The formula used for transformation:
+                                            :math:`\hat{f} = f Q^T`,
+    where `Q, f, \hat{f}` are the PCA loading matrix, low dimensional vector field function and the
+    transformed high dimensional vector field function.
+
+    Parameters
+    ----------
+        vf_func: `function`:
+            The vector field function.
+        Q: `np.ndarray`:
+            PCA loading matrix with dimension d x k, where d is the dimension of the original space,
+            and k the number of leading PCs.
+
+    Returns
+    -------
+        ret `np.ndarray`
+            The transformed vector field function.
+
+    """
+    return lambda x: vf_func.func(x) @ Q.T
 
 def _divergence(f, x):
     """Divergence of the reconstructed vector field function f evaluated at x"""
