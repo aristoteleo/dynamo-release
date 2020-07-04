@@ -616,7 +616,7 @@ def VectorField(
     if basis is not None:
         key = "velocity_" + basis + '_' + method
         adata.obsm[key] = vf_dict['VecFld']['V']
-        adata.obsm['X_' + basis + '_' + method] = adata.obsm['X_' + basis]
+        adata.obsm['X_' + basis + '_' + method] = vf_dict['VecFld']['V']
 
         vf_dict['dims'] = dims
         adata.uns[vf_key] = vf_dict
