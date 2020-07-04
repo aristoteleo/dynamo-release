@@ -1,4 +1,5 @@
 from tqdm import tqdm
+import numpy as np
 from anndata import (
     read,
     read_loom,
@@ -11,6 +12,22 @@ from anndata import (
     read_zarr,
     read_text,
 )
+
+
+def convert2float(adata, columns):
+    """This helper function can convert the category columns (undesiredly converted) when saving adata object into h5ad
+    file back to float type."""
+
+    columns = list(adata.obs.columns.intersection(columns))
+    if len(columns) == 0:
+        raise ValueError(f"the columns {columns} you provided doesn't match with any columns from the adata object.")
+
+    for i in columns:
+        data = adata.obs[i]
+        np.unique(data)
+        data[data == 'None'] = None
+        data = data.astype(float)
+        adata.obs[i] = data.copy()
 
 
 def load_NASC_seq(dir, type='TPM', delimiter="_", colnames=None, dropna=False):
