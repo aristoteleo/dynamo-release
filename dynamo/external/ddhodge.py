@@ -9,6 +9,7 @@ from scipy.linalg import qr
 from itertools import combinations
 from igraph import Graph
 from ..tools.scVectorField import vector_field_function, graphize_vecfld
+from ..tools.sampling import trn, sample_by_velocity
 
 def gradop(g):
     e = np.array(g.get_edgelist())
@@ -129,6 +130,10 @@ def ddhoge(adata,
            VecFld=None,
            adjmethod='graphize_vecfld',
            distance_free=False,
+           n_downsamples=2500,
+           up_sampling=True,
+           sampling_method='velocity',
+           seed=19491001,
            enforce=False,
            cores=1):
     """Modeling Latent Flow Structure using Hodge Decomposition based on the creation of sparse diffusion graph from the
@@ -153,6 +158,18 @@ def ddhoge(adata,
             The method to build the ajacency matrix that will be used to create the sparse diffusion graph, can be either
             "naive" or "graphize_vecfld". If "naive" used, the transition_matrix that created during vector field projection
             will be used; if "graphize_vecfld" used, a method that guarantees the preservance of divergence will be used.
+        n_downsamples: `int` (default: `5000`)
+            Number of cells to downsample to if the cell number is large than this value. Three downsampling methods are
+            available, see `sampling_method`.
+        up_sampling: `bool` (default: `True`)
+            Whether to assign calculated potential, curl and divergence to cells not sampled based on values from their
+            nearest sampled cells.
+        sampling_method: `str` (default: `random`)
+            Methods to downsample datasets to facilitate calculation. Can be one of {`random`, `velocity`, `trn`}, each
+            corresponds to random sampling, velocity magnitude based and topology representing network based sampling.
+        seed : int or 1-d array_like, optional (default: `0`)
+            Seed for RandomState. Must be convertible to 32 bit unsigned integers. Used in sampling control points. Default
+            is to be 0 for ensure consistency between different runs.
         enforce: `bool` (default: `False`)
             Whether to enforce the calculation of adjacency matrix for estimating potential, curl, divergence for each
             cell.
@@ -168,6 +185,8 @@ def ddhoge(adata,
              and divergence for each cell will also be added.
 """
 
+    to_downsample = adata.n_obs > n_downsamples
+
     func = None
     if VecFld is None:
         VecFld_key = 'VecFld' if basis is None else "VecFld_" + basis
@@ -178,34 +197,79 @@ def ddhoge(adata,
         VecFld = adata.uns[VecFld_key]['VecFld']
         func = adata.uns[VecFld_key]['func']
 
-    X_data = VecFld['X'] if X_data is None else X_data
+    if X_data is None:
+        X_data_full = VecFld['X'].copy()
+    else:
+        if X_data.shape[0] != adata.n_obs:
+            raise ValueError(f"The X_data you provided doesn't correspond to exactly {adata.n_obs} cells")
+        X_data_full = X_data.copy()
+
     if func is None: func = lambda x: vector_field_function(x, VecFld)
 
-    if 'ddhodge' in adata.obsp.keys() and not enforce:
-        adj_mat = adata.obsp['ddhodge']
+    if to_downsample:
+        if sampling_method == 'trn':
+            cell_idx = trn(X_data_full, n_downsamples)
+        elif sampling_method == 'velocity':
+            np.random.seed(seed)
+            cell_idx = sample_by_velocity(func(X_data_full), n_downsamples)
+        elif sampling_method == 'random':
+            np.random.seed(seed)
+            cell_idx = np.random.sample(np.arange(adata.n_obs), n_downsamples)
+        else:
+            raise ImportError(f"sampling method {sampling_method} is not available. Only `random`, `velocity`, `trn` are"
+                              f"available.")
+    else:
+        cell_idx = np.arange(adata.n_obs)
+
+    X_data = X_data_full[cell_idx, :]
+    adata_ = adata[cell_idx].copy()
+
+    if 'ddhodge' in adata_.obsp.keys() and not enforce and not to_downsample:
+        adj_mat = adata_.obsp['ddhodge']
     else:
         if (adjmethod == 'graphize_vecfld'):
             neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
-            if neighbor_key not in adata.uns_keys():
+            if neighbor_key not in adata_.uns_keys() or to_downsample:
                 Idx = None
             else:
-                neighbors = adata.uns[neighbor_key]["connectivities"]
+                neighbors = adata_.uns[neighbor_key]["connectivities"]
                 Idx = neighbors.tolil().rows
 
-            adj_mat = graphize_vecfld(func, X_data, nbrs_idx=Idx, k=n, distance_free=distance_free, n_int_steps=20,
+            adj_mat, nbrs = graphize_vecfld(func, X_data, nbrs_idx=Idx, k=n, distance_free=distance_free, n_int_steps=20,
                                       cores=cores)
         elif adjmethod == 'naive':
-            if "transition_matrix" not in adata.uns.keys():
+            if "transition_matrix" not in adata_.uns.keys():
                 raise Exception(f"Your adata doesn't have transition matrix created. You need to first "
                                 f"run dyn.tl.cell_velocity(adata) to get the transition before running"
                                 f" this function.")
 
-            adj_mat = adata.uns["transition_matrix"]
+            adj_mat = adata_.uns["transition_matrix"][cell_idx, cell_idx]
         else:
             raise ValueError(f"adjmethod can be only one of {'naive', 'graphize_vecfld'}")
 
     g = build_graph(adj_mat)
 
-    if 'ddhodge' not in adata.obsp.keys() or enforce: adata.obsp['ddhodge'] = adj_mat
-    adata.obs['ddhodge_div'] = div(g)
-    adata.obs['potential'] = potential(g, - adata.obs['ddhodge_div'])
+    if ('ddhodge' not in adata.obsp.keys() or enforce) and not to_downsample:
+        adata.obsp['ddhodge'] = adj_mat
+
+    ddhodge_div = div(g)
+    potential_ = potential(g, - ddhodge_div)
+
+    if up_sampling and to_downsample:
+        query_idx = list(set(np.arange(adata.n_obs)).difference(cell_idx))
+        query_data = X_data_full[query_idx, :]
+        dist, nbrs_idx = nbrs.kneighbors(query_data)
+        k = nbrs_idx.shapep[1]
+        row, col = np.repeat(np.arange(len(query_idx), k)), nbrs_idx.flatten()
+        W = csr_matrix(1/k, (row, col))
+
+        query_data_div, query_data_potential = W.dot(ddhodge_div), W.dot(potential_)
+        adata.obs['ddhodge_sampled'], adata.obs['ddhodge_div'], adata.obs['potential'] = False, 0, 0
+        adata[cell_idx, :].obs['ddhodge_sampled'] = True
+        adata[cell_idx, :].obs['ddhodge_div'] = ddhodge_div
+        adata[cell_idx, :].obs['potential'] = potential_
+        adata[query_idx, :].obs['ddhodge_div'] = query_data_div
+        adata[query_idx, :].obs['potential'] = query_data_potential
+    else:
+        adata.obs['ddhodge_div'] = ddhodge_div
+        adata.obs['potential'] = potential_

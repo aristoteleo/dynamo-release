@@ -310,6 +310,8 @@ def vector_field_function(x, VecFld, dim=None, kernel='full', **kernel_kwargs):
 @timeit
 def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True, n_int_steps=20, cores=1):
     n, d = X.shape
+
+    nbrs = None
     if nbrs_idx is None:
         alg = 'ball_tree' if d > 10 else 'kd_tree'
         nbrs = NearestNeighbors(n_neighbors=k+1, algorithm=alg).fit(X)
@@ -332,7 +334,7 @@ def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True,
         pool.join()
         V = functools.reduce((lambda a, b: a + b), res)
 
-    return V
+    return V, nbrs
 
 
 def construct_v(X, i, idx, n_int_steps, func, distance_free, dist, D, n):
