@@ -155,7 +155,7 @@ def dynamics(
             the parameter estimation. Currently only applicable cases when assumption_mRNA is `ss` or cases when 
             experiment_type is either "one-shot" or "mix_std_stm".
         **est_kwargs
-            Other arguments passed to the estimation methods. Not used for now.
+            Other arguments passed to the fit method (steady state models) or estimation methods (kinetic models).
 
     Returns
     -------
@@ -410,9 +410,9 @@ def dynamics(
                 warnings.simplefilter("ignore")
 
                 if experiment_type in ["one-shot", "one_shot"]:
-                    est.fit(one_shot_method=one_shot_method)
+                    est.fit(one_shot_method=one_shot_method, **est_kwargs)
                 else:
-                    est.fit()
+                    est.fit(**est_kwargs)
 
             alpha, beta, gamma, eta, delta = est.parameters.values()
 

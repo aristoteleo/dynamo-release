@@ -25,6 +25,9 @@ def cell_velocities(
     adata,
     ekey=None,
     vkey=None,
+    X=None,
+    V_mat=None,
+    X_embedding=None,
     use_mnn=False,
     neighbors_from_basis=False,
     n_pca_components=None,
@@ -59,7 +62,16 @@ def cell_velocities(
             The dictionary key that corresponds to the gene expression in the layer attribute. By default, ekey and vkey
             will be automatically detected from the adata object.
         vkey: 'str' or None (optional, default `None`)
-            The dictionary key that corresponds to the estimated velocity values in layers attribute.
+            The dictionary key that corresponds to the estimated velocity values in the layers attribute.
+        X: 'np.ndarray' or `sp.csr_matrix` or None (optional, default `None`)
+            The expression states of single cells (or expression states in reduced dimension, like pca, of single cells)
+        V_mat: 'np.ndarray' or `sp.csr_matrix` or None (optional, default `None`)
+            The RNA velocity of single cells (or velocity estimates projected to reduced dimension, like pca, of single
+            cells). Note that X, V_mat need to have the exact dimensionalities.
+        X_embedding: 'str' or None (optional, default `None`)
+            The low expression reduced space (pca, umap, tsne, etc.) of single cells that RNA velocity will be projected
+            onto. Note X_embedding, X and V_mat has to have the same cell/sample dimension and X_embedding should have
+            less feature dimension comparing that of X or V_mat.
         use_mnn: `bool` (optional, default `False`)
             Whether to use mutual nearest neighbors for projecting the high dimensional velocity vectors. By default, we
             don't use the mutual nearest neighbors. Mutual nearest neighbors are calculated from nearest neighbors across
@@ -110,7 +122,8 @@ def cell_velocities(
         other_kernels_dict: `dict` (default: `{}`)
             A dictionary of paramters that will be passed to the cosine/correlation kernel.
         enforce: `bool` (default: `False`)
-            Whether to enforce recalculation of transition matrix.
+            Whether to enforce 1) redefining use_for_velocity column in obs attribute;
+                               2) recalculation of transition matrix.
 
     Returns
     -------
@@ -154,24 +167,33 @@ def cell_velocities(
             )
             indices, dist = indices[:, 1:], dist[:, 1:]
 
-    use_for_dynamics = True if "use_for_dynamics" in adata.var.keys() else False
-    adata = set_velocity_genes(
-        adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamics=use_for_dynamics
-    )
 
-    X = adata[:, adata.var.use_for_velocity.values].layers[ekey]
+    if 'use_for_velocity' not in adata.var.keys() or enforce:
+        use_for_dynamics = True if "use_for_dynamics" in adata.var.keys() else False
+        adata = set_velocity_genes(
+            adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamics=use_for_dynamics
+        )
+
+    X = adata[:, adata.var.use_for_velocity.values].layers[ekey] if X is None else X
     V_mat = (
         adata[:, adata.var.use_for_velocity.values].layers[vkey]
         if vkey in adata.layers.keys()
         else None
-    )
+    ) if V_mat is None else V_mat
 
-    if vkey == "velocity_S":
-        X_embedding = adata.obsm["X_" + basis]
-    else:
-        adata = reduceDimension(adata, layer=layer, reduction_method=basis)
-        layer = layer if layer.startswith("X") else "X_" + layer
-        X_embedding = adata.obsm[layer + "_" + basis]
+    if X.shape != V_mat.shape and X.shape[0] != adata.n_obs:
+        raise Exception(f"X and V_mat doesn't have the same dimensionalities or X/V_mat doesn't {adata.n_obs} rows!")
+    
+    if X_embedding is None:
+        if vkey == "velocity_S":
+            X_embedding = adata.obsm["X_" + basis]
+        else:
+            adata = reduceDimension(adata, layer=layer, reduction_method=basis)
+            X_embedding = adata.obsm[layer + "_" + basis]
+
+    if X.shape[0] != X_embedding.shape[0] and X.shape[1] > X_embedding.shape[1]:
+        raise Exception(f"X and X_embedding doesn't have the same sample dimension or "
+                        f"X doesn't have the higher feature dimension!")
 
     V_mat = V_mat.A if issparse(V_mat) else V_mat
     X = X.A if issparse(X) else X

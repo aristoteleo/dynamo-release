@@ -81,7 +81,23 @@ def prepare_dim_reduction(adata,
         else:
             has_basis = True
 
-        X_data = adata.obsm[pca_key]
+        if pca_key in adata.obsm.keys():
+            X_data = adata.obsm[pca_key]
+        else:
+            if genes is not None:
+                CM = adata[:, genes].layers[layer]
+            else:
+                CM = adata.layers[layer] if 'use_for_dynamics' not in adata.var.keys() \
+                    else adata[:, adata.var.use_for_dynamics].layers[layer]
+
+            CM = log1p_(adata, CM)
+
+        cm_genesums = CM.sum(axis=0)
+        valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
+        valid_ind = np.array(valid_ind).flatten()
+        CM = CM[:, valid_ind]
+        adata, fit, _ = pca(adata, CM, n_pca_components=n_pca_components, pca_key=pca_key)
+        adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
     if dims is not None: X_data = X_data[:, dims]
 

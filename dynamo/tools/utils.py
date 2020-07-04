@@ -205,13 +205,16 @@ def timeit(method):
 # ---------------------------------------------------------------------------------------------------
 # data transformation related:
 def log1p_(adata, X_data):
-    if adata.uns['pp_norm_method'] is None:
-        if issparse(X_data):
-            X_data.data = np.log1p(X_data.data)
-        else:
-            X_data = np.log1p(X_data)
+    if 'pp_norm_method' not in adata.uns.keys():
+        return X_data
+    else:
+        if adata.uns['pp_norm_method'] is None:
+            if issparse(X_data):
+                X_data.data = np.log1p(X_data.data)
+            else:
+                X_data = np.log1p(X_data)
 
-    return X_data
+        return X_data
 
 
 def inverse_norm(adata, layer_x):
@@ -1138,7 +1141,7 @@ def get_ekey_vkey_from_adata(adata):
                 mapper["X_unspliced"] in adata.layers.keys()
             )):
                 raise Exception(
-                    "The input data you have is not normalized/log trnasformed or smoothed and normalized/log trnasformed!"
+                    "The input data you have is not normalized/log transformed or smoothed and normalized/log transformed!"
                 )
             ekey, vkey, layer = (
                 (mapper["X_spliced"], "velocity_S", "X_spliced")

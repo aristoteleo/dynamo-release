@@ -295,7 +295,7 @@ def phase_portraits(
     if k_name in adata.var.columns:
         if (
                 not ("gamma_b" in adata.var.columns)
-                or adata.var.gamma_b.unique()[0] is None
+                or all(adata.var.gamma_b.isna())
         ):
             adata.var.loc[:, "gamma_b"] = 0
         gamma, velocity_offset = (

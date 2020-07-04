@@ -9,7 +9,7 @@ from scipy.integrate import odeint
 from sklearn.neighbors import NearestNeighbors
 
 from .scVectorField import vector_field_function, vectorfield
-from .utils import update_dict, form_triu_matrix, index_condensed_matrix, log1p_
+from .utils import update_dict, form_triu_matrix, index_condensed_matrix, inverse_norm
 from ..external.ddhodge import ddhoge
 from ..tools.vector_calculus import curl, divergence
 
@@ -483,6 +483,7 @@ def VectorField(
     return_vf_object=False,
     map_topography=True,
     pot_curl_div=True,
+    cores=1,
     **kwargs,
 ):
     """Learn a function of high dimensional vector field from sparse single cell samples in the entire space robustly.
@@ -531,6 +532,9 @@ def VectorField(
             Whether to calculate potential, curl or divergence for each cell. Potential can be calculated for any basis
             while curl and divergence is by default only applied to 2D basis. However, divergence is applicable for any
             dimension while curl is generally only defined for 2/3 D systems.
+        cores: `int` (default: 1):
+            Number of cores to run the ddhodge function. If cores is set to be > 1, multiprocessing will be used to parallel
+            the ddhodge calculation.
         kwargs:
             Other additional parameters passed to the vectorfield class.
 
@@ -556,9 +560,9 @@ def VectorField(
         )
         if layer == "X":
             X = adata[:, valid_genes].X.copy()
+            X = np.expm1(X)
         else:
-            X = adata[:, valid_genes].layers[layer].copy()
-            X = log1p_(adata, X)
+            X = inverse_norm(adata, adata.layers[layer])
 
         V = adata[:, valid_genes].layers[velocity_key].copy()
 
@@ -607,12 +611,20 @@ def VectorField(
 
     VecFld = vectorfield(X, V, Grid, **vf_kwargs)
     vf_dict = VecFld.fit(normalize=normalize, method=method, **kwargs)
-
     vf_key = "VecFld" if basis is None else "VecFld_" + basis
+
     if basis is not None:
+        key = "velocity_" + basis + '_' + method
+        adata.obsm[key] = vf_dict['VecFld']['V']
+        adata.obsm['X_' + basis + '_' + method] = vf_dict['VecFld']['X']
+
         vf_dict['dims'] = dims
         adata.uns[vf_key] = vf_dict
     else:
+        key = velocity_key + '_' + method
+        adata.layers[key] = sp.csr_matrix((adata.shape))
+        adata.layers[key][:, np.where(adata.var.use_for_velocity)[0]] = vf_dict['VecFld']['V']
+
         vf_dict['layer'] = layer
         vf_dict['genes'] = genes
         vf_dict['velocity_key'] = velocity_key
@@ -626,7 +638,8 @@ def VectorField(
             adata, basis=basis, X=X, layer=layer, dims=[0, 1], VecFld=vf_dict['VecFld'], **tp_kwargs
         )
     if pot_curl_div:
-        ddhoge(adata, basis=basis)
+        if basis in ['pca', 'umap', 'tsne', 'diffusion_map', 'trimap']:
+            ddhoge(adata, basis=basis, cores=cores)
         if X.shape[1] == 2: curl(adata, basis=basis)
         if X.shape[1] == 2: divergence(adata, basis=basis)
 

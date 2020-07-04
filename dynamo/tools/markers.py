@@ -221,7 +221,7 @@ def two_groups_degs(adata,
                     group,
                     test_group,
                     control_groups,
-                    X_data,
+                    X_data=None,
                     exp_frac_thresh=0.1,
                     log2_fc_thresh=1,
                     qval_thresh=0.05,
@@ -259,7 +259,7 @@ def two_groups_degs(adata,
             The user supplied data that will be used for marker gene detection directly.
         exp_frac_thresh: `float` (default: 0.1)
             The minimum percentage of cells with expression for a gene to proceed differential expression test.
-        log2_fc_thresh: `float` (default: 0.1)
+        log2_fc_thresh: `float` (default: 1)
             The minimal threshold of log2 fold change for a gene to proceed differential expression test.
         qval_thresh: `float` (default: 0.05)
             The maximal threshold of qval to be considered as significant genes.
@@ -311,7 +311,7 @@ def two_groups_degs(adata,
                 log_fc = np.inf
             else:
                 log_fc = log_mean_test_vals - np.log2(mean_control_vals)
-            if log_fc < log2_fc_thresh:
+            if abs(log_fc) < log2_fc_thresh:
                 continue
             try:
                 u, mw_p = mannwhitneyu(test_vals, control_vals)
