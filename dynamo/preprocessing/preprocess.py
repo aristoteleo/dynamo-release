@@ -25,6 +25,7 @@ from .utils import (
     NTR,
     detect_datatype,
     basic_stats,
+    add_noise_to_duplicates,
 )
 from .cell_cycle import cell_cycle_scores
 
@@ -1532,6 +1533,7 @@ def recipe_velocyto(
 
         adata.obsm["X_" + method.lower()] = reduce_dim
 
+    add_noise_to_duplicates(adata, method.lower())
     adata.uns[method + "_fit"], adata.uns["feature_selection"] = fit, feature_selection
 
     # calculate NTR for every cell:
