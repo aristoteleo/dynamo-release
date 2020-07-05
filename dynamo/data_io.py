@@ -24,7 +24,6 @@ def convert2float(adata, columns):
 
     for i in columns:
         data = adata.obs[i]
-        np.unique(data)
         data[data == 'None'] = None
         data = data.astype(float)
         adata.obs[i] = data.copy()

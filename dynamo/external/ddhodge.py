@@ -192,8 +192,8 @@ def ddhoge(adata,
         VecFld_key = 'VecFld' if basis is None else "VecFld_" + basis
         if VecFld_key not in adata.uns.keys():
             raise ValueError(
-                f'Vector field function {VecFld_key} is not included in the adata object!'
-                f'Try firstly running dyn.tl.VectorField(adata, basis={basis})')
+                f'Vector field function {VecFld_key} is not included in the adata object! '
+                f"Try firstly running dyn.tl.VectorField(adata, basis='{basis}')")
         VecFld = adata.uns[VecFld_key]['VecFld']
         func = adata.uns[VecFld_key]['func']
 
