@@ -419,7 +419,7 @@ def intersect_sources_targets(source_genes,
     # subset Der with correct index of selected source / target genes
     valid_source_idx = [i for i, e in enumerate(source_genes_) if e in source_genes]
     valid_target_idx = [i for i, e in enumerate(target_genes_) if e in target_genes]
-    Der = Der[valid_target_idx,  :, :][:, valid_source_idx, :]
+    Der = Der[valid_target_idx,  :, :][:, valid_source_idx, :] if len(source_genes_) + len(target_genes_) > 2 else Der
     source_genes, target_genes = source_genes_[valid_source_idx], target_genes_[valid_target_idx]
 
     return Der, source_genes, target_genes

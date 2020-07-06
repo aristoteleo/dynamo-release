@@ -92,12 +92,14 @@ def prepare_dim_reduction(adata,
 
             CM = log1p_(adata, CM)
 
-        cm_genesums = CM.sum(axis=0)
-        valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
-        valid_ind = np.array(valid_ind).flatten()
-        CM = CM[:, valid_ind]
-        adata, fit, _ = pca(adata, CM, n_pca_components=n_pca_components, pca_key=pca_key)
-        adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
+            cm_genesums = CM.sum(axis=0)
+            valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
+            valid_ind = np.array(valid_ind).flatten()
+            CM = CM[:, valid_ind]
+            adata, fit, _ = pca(adata, CM, n_pca_components=n_pca_components, pca_key=pca_key)
+            adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
+
+            X_data = adata.obsm[pca_key]
 
     if dims is not None: X_data = X_data[:, dims]
 

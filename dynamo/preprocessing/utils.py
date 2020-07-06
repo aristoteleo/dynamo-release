@@ -156,8 +156,11 @@ def cook_dist(model, X, good):
 def basic_stats(adata):
     adata.obs['nGenes'], adata.obs['nCounts'] = (adata.X > 0).sum(1), (adata.X).sum(1)
     mito_genes = adata.var_names.str.upper().str.startswith('MT-')
-    adata.obs['pMito'] = (adata[:, mito_genes].X).sum(1).A1 / adata.obs['nCounts'] if issparse(adata.X) else  \
-        (adata[:, mito_genes].X).sum(1) / adata.obs['nCounts']
+    try:
+        adata.obs['pMito'] = (adata[:, mito_genes].X).sum(1).A1 / adata.obs['nCounts'] if issparse(adata.X) else  \
+            (adata[:, mito_genes].X).sum(1) / adata.obs['nCounts']
+    except:
+        raise Exception(f"looks like your var_names may be corrupted (i.e. include nan values)")
 
 
 def unique_var_obs_adata(adata):
@@ -456,6 +459,23 @@ def pca(adata, CM, n_pca_components=30, pca_key='X', pcs_key='PCs'):
         adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
     return adata, fit, X_pca
+
+
+def add_noise_to_duplicates(adata, basis='pca'):
+    X_data = adata.obsm['X_' + basis]
+    min_val = abs(X_data).min()
+
+    n_obs, n_var = X_data.shape
+    while(True):
+        unique, index = np.unique(X_data, axis=0, return_index=True)
+        duplicated_idx = np.setdiff1d(np.arange(n_obs), index)
+
+        if len(duplicated_idx) == 0:
+            adata.obsm['X_' + basis] = X_data
+            break
+        else:
+            X_data[duplicated_idx, :] += np.random.normal(0, min_val / 1000, (len(duplicated_idx), n_var))
+
 
 # ---------------------------------------------------------------------------------------------------
 # labeling related

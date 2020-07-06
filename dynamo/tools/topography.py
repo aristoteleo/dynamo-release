@@ -528,7 +528,7 @@ def VectorField(
             attribute.
         map_topography: `bool` (default: `True`)
             Whether to quantify the topography of the 2D vector field.
-        pot_curl_div: `bool` (default: `True`)
+        pot_curl_div: `bool` (default: `False`)
             Whether to calculate potential, curl or divergence for each cell. Potential can be calculated for any basis
             while curl and divergence is by default only applied to 2D basis. However, divergence is applicable for any
             dimension while curl is generally only defined for 2/3 D systems.
@@ -638,10 +638,10 @@ def VectorField(
             adata, basis=basis, X=X, layer=layer, dims=[0, 1], VecFld=vf_dict['VecFld'], **tp_kwargs
         )
     if pot_curl_div:
-        if basis in ['pca', 'umap', 'tsne', 'diffusion_map', 'trimap']:
+        if basis in ["pca", 'umap', 'tsne', 'diffusion_map', 'trimap']:
             ddhoge(adata, basis=basis, cores=cores)
-        if X.shape[1] == 2: curl(adata, basis=basis)
-        if X.shape[1] == 2: divergence(adata, basis=basis)
+            curl(adata, basis=basis)
+            divergence(adata, basis=basis)
 
     if return_vf_object:
         adata.uns[vf_key].update({"vf_object": VecFld})
