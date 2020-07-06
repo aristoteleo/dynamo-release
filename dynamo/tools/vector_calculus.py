@@ -1,4 +1,6 @@
 from tqdm import tqdm
+from multiprocessing.dummy import Pool as ThreadPool
+import itertools, functools
 import numpy as np
 import numdifftools as nd
 from .utils import timeit, get_pd_row_column_idx
@@ -80,7 +82,7 @@ def elementwise_jacobian_transformation(fjac, X, qi, qj):
 
 
 @timeit
-def subset_jacobian_transformation(fjac, X, Qi, Qj):
+def subset_jacobian_transformation(fjac, X, Qi, Qj, cores=1):
     """Transform Jacobian matrix (:math:`\partial F_i / \partial x_j`) from PCA space to the original space.
     The formula used for transformation:
                                             :math:`\hat{J} = Q J Q^T`,
@@ -99,13 +101,16 @@ def subset_jacobian_transformation(fjac, X, Qi, Qj):
         Qj: `np.ndarray`
             Sampled genes' (sample genes can be the same as those in Qi or different) PCs loading matrix with dimension
             n' x n_PCs, from which local dimension Jacobian matrix (k x k) will be inverse transformed back to high dimension.
+        cores: `int` (default: 1):
+            Number of cores to run calculate Jacobian. If cores is set to be > 1, multiprocessing will be used to
+            parallel the Jacobian calculation.
 
     Returns
     -------
         ret `np.ndarray`
             The calculated Jacobian matrix (n_gene x n_gene x n_obs) for each cell.
-
     """
+    
     X = np.atleast_2d(X)
     Qi = np.atleast_2d(Qi)
     Qj = np.atleast_2d(Qj)
@@ -113,9 +118,26 @@ def subset_jacobian_transformation(fjac, X, Qi, Qj):
 
     Js = fjac(X)
     ret = np.zeros((d1, d2, n))
-    for i in tqdm(range(n), desc='Transforming subset Jacobian'):
-        J = Js[:, :, i]
-        ret[:, :, i] = Qi @ J @ Qj.T
+
+    if cores == 1:
+        for i in tqdm(range(n), desc='Transforming subset Jacobian'):
+            J = Js[:, :, i]
+            ret[:, :, i] = Qi @ J @ Qj.T
+    else:
+        pool = ThreadPool(cores)
+        res = pool.starmap(cal_J, zip(np.arange(n), itertools.repeat(Js), itertools.repeat(Qi),
+                                      itertools.repeat(Qj), itertools.repeat(ret)))
+        pool.close()
+        pool.join()
+        ret = functools.reduce((lambda a, b: a + b), res)
+
+    return ret
+
+
+def cal_J(i, Js, Qi, Qj, ret):
+    J = Js[:, :, i]
+    ret[:, :, i] = Qi @ J @ Qj.T
+
     return ret
 
 
@@ -141,6 +163,7 @@ def vector_field_function_transformation(vf_func, Q):
 
     """
     return lambda x: vf_func.func(x) @ Q.T
+
 
 def _divergence(f, x):
     """Divergence of the reconstructed vector field function f evaluated at x"""
@@ -282,6 +305,7 @@ def jacobian(adata,
              basis='pca',
              vecfld_dict=None,
              input_vector_convention='row',
+             cores=1,
              ):
     """Calculate Jacobian for each cell with the reconstructed vector field function.
 
@@ -322,6 +346,9 @@ def jacobian(adata,
         vecfld_dict: `dict`
             The true ODE (ordinary differential equations) function, useful when the data is generated through simulation
             with known ODE functions.
+        cores: `int` (default: 1):
+            Number of cores to run calculate Jacobian. If cores is set to be > 1, multiprocessing will be used to
+            parallel the Jacobian calculation.
 
     Returns
     -------
@@ -380,7 +407,7 @@ def jacobian(adata,
                                                       Q[source_idx, :].flatten(), timeit=True)
         else:
             Jacobian = subset_jacobian_transformation(Jac_fun, X[cell_idx], Q[target_idx, :],
-                                                 Q[source_idx, :], timeit=True)
+                                                 Q[source_idx, :], cores=cores, timeit=True)
 
     adata.uns[Jacobian_] = {"Jacobian": Jacobian,
                             "source_gene": source_genes,
