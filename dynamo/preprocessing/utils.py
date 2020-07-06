@@ -465,15 +465,16 @@ def add_noise_to_duplicates(adata, basis='pca'):
     X_data = adata.obsm['X_' + basis]
     min_val = abs(X_data).min()
 
+    n_obs, n_var = X_data.shape
     while(True):
         unique, index = np.unique(X_data, axis=0, return_index=True)
-        duplicated_idx = np.setdiff1d(np.arange(X_data.shape[0]), index)
+        duplicated_idx = np.setdiff1d(np.arange(n_obs), index)
 
         if len(duplicated_idx) == 0:
             adata.obsm['X_' + basis] = X_data
             break
         else:
-            pca[duplicated_idx, :] += np.random.normal(0, min_val / 1000, (len(duplicated_idx), X_data.shape[1]))
+            X_data[duplicated_idx, :] += np.random.normal(0, min_val / 1000, (len(duplicated_idx), n_var))
 
 
 # ---------------------------------------------------------------------------------------------------
