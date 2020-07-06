@@ -1245,8 +1245,8 @@ def recipe_monocle(
         adata.var = merge_df
         valid_ind = np.where(merge_df['notfound'] != True)[0]
 
-        adata = adata[:, valid_ind]
-        adata.var.index = adata.var['symbol'].values
+        adata._inplace_subset_var(valid_ind)
+        adata.var.index = adata.var['symbol'].values.copy()
 
     if norm_method == 'Freeman_Tukey': norm_method = Freeman_Tukey
 
