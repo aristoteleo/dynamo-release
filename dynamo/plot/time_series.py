@@ -522,9 +522,10 @@ def jacobian_kinetics(
 
     adata_ = adata[cell_indx, :]
     time = adata_.obs[tkey]
-    jacobian_mat = Der.reshape((-1, Der.shape[2]))
-    n_source_targets_ = Der.shape[0] * Der.shape[1]
-    targets_, sources_ = np.repeat(target_genes_, Der.shape[1]), np.tile(source_genes_, Der.shape[0])
+    jacobian_mat = Der.reshape((-1, Der.shape[2])) if Der.ndim == 3 else Der[None, :]
+    n_source_targets_ = Der.shape[0] * Der.shape[1] if Der.ndim == 3 else 1
+    targets_, sources_ = (np.repeat(target_genes_, Der.shape[1]), np.tile(source_genes_, Der.shape[0])) if Der.ndim == 3 \
+        else (np.repeat(target_genes_, Der.shape[0]), np.repeat(target_genes_, Der.shape[0]))
     source_targets_ = [sources_[i] + '->' + targets_[i] for i in range(n_source_targets_)]
 
     source_genes = source_genes_ if source_genes is None else source_genes
@@ -573,7 +574,7 @@ def jacobian_kinetics(
     sns_heatmap = sns.clustermap(
         df.loc[source_targets, :],
         col_cluster=cluster_row_col[0],
-        row_cluster=cluster_row_col[1],
+        row_cluster=cluster_row_col[1] if len(source_targets) > 2 else False,
         cmap=color_map,
         figsize=figsize,
         center=0,
