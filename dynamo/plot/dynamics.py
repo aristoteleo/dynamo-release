@@ -170,7 +170,7 @@ def phase_portraits(
     else:
         _background = background
 
-    mapper = get_mapper()
+    mapper = get_mapper(smoothed=use_smoothed)
 
     point_size = (
         500.0 / np.sqrt(adata.shape[0]) * 5

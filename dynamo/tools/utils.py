@@ -13,25 +13,25 @@ from ..preprocessing.utils import Freeman_Tukey
 
 # ---------------------------------------------------------------------------------------------------
 # others
-def get_mapper():
+def get_mapper(smoothed=True):
     mapper = {
-        "X_spliced": "M_s",
-        "X_unspliced": "M_u",
-        "X_new": "M_n",
-        "X_old": "M_o",
-        "X_total": "M_t",
-        "X_uu": "M_uu",
-        "X_ul": "M_ul",
-        "X_su": "M_su",
-        "X_sl": "M_sl",
-        "X_protein": "M_p",
-        "X": "X",
+        "X_spliced": "M_s" if smoothed else "X_spliced",
+        "X_unspliced": "M_u" if smoothed else "X_unspliced",
+        "X_new": "M_n" if smoothed else "X_new",
+        "X_old": "M_o" if smoothed else "X_old",
+        "X_total": "M_t" if smoothed else "X_total",
+        "X_uu": "M_uu" if smoothed else "X_uu",
+        "X_ul": "M_ul" if smoothed else "X_ul",
+        "X_su": "M_su" if smoothed else "X_su",
+        "X_sl": "M_sl" if smoothed else "X_sl",
+        "X_protein": "M_p" if smoothed else "X_protein",
+        "X": "X" if smoothed else "X",
     }
     return mapper
 
 
-def get_mapper_inverse():
-    mapper = get_mapper()
+def get_mapper_inverse(smoothed=True):
+    mapper = get_mapper(smoothed)
 
     return dict([(v, k) for k, v in mapper.items()])
 
