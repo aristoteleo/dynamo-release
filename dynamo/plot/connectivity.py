@@ -103,6 +103,7 @@ def connectivity_base(
     background="black",
     figsize=(7, 5),
     ax=None,
+    sort='raw',
     save_show_or_return='return',
     save_kwargs={},
 ):
@@ -207,6 +208,9 @@ def connectivity_base(
             The desired width of the plot in pixels.
         height: int (optional, default 800)
             The desired height of the plot in pixels
+        sort: `str` (optional, default `raw`)
+            The method to reorder data so that high values points will be on top of background points. Can be one {'raw',
+            'abs'} or sorted by raw data or sort by absolute values.
         save_show_or_return: {'show', 'save', 'return'} (default: `return`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -287,6 +291,7 @@ def connectivity_base(
             figsize[0] * dpi,
             figsize[1] * dpi,
             True,
+            sort=sort,
         )
         if px_size > 1:
             point_img = tf.dynspread(point_img, threshold=0.5, max_px=px_size)

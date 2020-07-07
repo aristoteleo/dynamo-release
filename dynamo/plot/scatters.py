@@ -746,6 +746,7 @@ def scatters(
     aggregate=None,
     show_arrowed_spines=True,
     ax=None,
+    sort='raw',
     save_show_or_return="show",
     save_kwargs={},
     **kwargs
@@ -852,6 +853,11 @@ def scatters(
             The column in adata.obs that will be used to aggregate data points.
         show_arrowed_spines: bool (optional, default True)
             Whether to show a pair of arrowed spines represeenting the basis of the scatter is currently using.
+        ax: `matplotlib.Axis` (optional, default `None`)
+            The matplotlib axes object where new plots will be added to. Only applicable to drawing a single component.
+        sort: `str` (optional, default `raw`)
+            The method to reorder data so that high values points will be on top of background points. Can be one {'raw',
+            'abs'} or sorted by raw data or sort by absolute values.
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -1090,6 +1096,7 @@ def scatters(
                         figsize[0],
                         figsize[1],
                         show_legend,
+                        sort=sort,
                         **scatter_kwargs
                     )
                 else:
@@ -1106,6 +1113,7 @@ def scatters(
                         figsize[0],
                         figsize[1],
                         show_legend,
+                        sort=sort,
                         **scatter_kwargs
                     )
 

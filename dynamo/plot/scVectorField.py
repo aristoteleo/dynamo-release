@@ -1061,6 +1061,7 @@ def cell_wise_velocity(
     show_legend='on data',
     use_smoothed=True,
     ax=None,
+    sort='raw',
     aggregate=None,
     show_arrowed_spines=True,
     inverse=False,
@@ -1185,8 +1186,8 @@ def cell_wise_velocity(
         aggregate,
         show_arrowed_spines,
         ax,
+        sort,
         "return",
-        aggregate,
         **s_kwargs_dict,
     )
 
@@ -1248,6 +1249,7 @@ def grid_velocity(
     show_legend='on data',
     use_smoothed=True,
     ax=None,
+    sort='raw',
     aggregate=None,
     show_arrowed_spines=True,
     inverse=False,
@@ -1444,8 +1446,8 @@ def grid_velocity(
         aggregate,
         show_arrowed_spines,
         ax,
+        sort,
         "return",
-        aggregate,
         **s_kwargs_dict,
     )
 
@@ -1490,6 +1492,7 @@ def streamline_plot(
     show_legend='on data',
     use_smoothed=True,
     ax=None,
+    sort='raw',
     aggregate=None,
     show_arrowed_spines=True,
     inverse=False,
@@ -1677,6 +1680,7 @@ def streamline_plot(
         aggregate,
         show_arrowed_spines,
         ax,
+        sort,
         "return",
         **s_kwargs_dict,
     )

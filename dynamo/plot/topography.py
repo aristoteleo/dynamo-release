@@ -579,6 +579,7 @@ def topography(
     aggregate=None,
     show_arrowed_spines=False,
     ax=None,
+    sort='raw',
     s_kwargs_dict={},
     q_kwargs_dict={},
     **streamline_kwargs_dict
@@ -799,6 +800,7 @@ def topography(
         aggregate,
         show_arrowed_spines,
         ax,
+        sort,
         "return",
         aggregate,
         **s_kwargs_dict
