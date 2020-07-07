@@ -223,7 +223,7 @@ def _matplotlib_points(
                 )
             )
         # reorder data so that high values points will be on top of background points
-        sorted_id = np.argsort(values)
+        sorted_id = np.argsort(abs(values))
         values, points = values[sorted_id], points[sorted_id, :]
 
         _vmin = np.min(values) if vmin is None else np.percentile(values, vmin) if \

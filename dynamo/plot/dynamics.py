@@ -25,6 +25,7 @@ def phase_portraits(
         basis="umap",
         log1p=True, 
         color='cell_cycle_phase',
+        use_smoothed=True,
         highlights=None,
         discrete_continous_div_themes=None,
         discrete_continous_div_cmap=None,
