@@ -728,7 +728,7 @@ class vectorfield:
 
         self.func = lambda x: vector_field_function(x, VecFld)
         self.vf_dict['VecFld']['V'] = self.func(self.data["X"])
-        self.vf_dict.update({"func": self.func})
+        #self.vf_dict.update({"func": self.func})
 
         return self.vf_dict
 
@@ -738,7 +738,8 @@ class vectorfield:
         plot_energy(None, vecfld_dict=self.vf_dict, figsize=figsize, fig=fig)
 
 
-    def compute_divergence(self, X, vectorize=True, timeit=False):
+    def compute_divergence(self, X=None, vectorize=True, timeit=False):
+        X = self.data['X'] if X is None else X
         X_ = X.T if vectorize else X
         return compute_divergence(self.get_Jacobian(1), X_, vectorize=vectorize, timeit=timeit)
 
@@ -765,7 +766,8 @@ class vectorfield:
         return get_fjac(self.func, input_vector_convention)
 
 
-    def construct_graph(self, X, **kwargs):
+    def construct_graph(self, X=None, **kwargs):
+        X = self.data['X'] if X is None else X
         return graphize_vecfld(self.func, X, **kwargs)
 
 
