@@ -856,8 +856,8 @@ def scatters(
         ax: `matplotlib.Axis` (optional, default `None`)
             The matplotlib axes object where new plots will be added to. Only applicable to drawing a single component.
         sort: `str` (optional, default `raw`)
-            The method to reorder data so that high values points will be on top of background points. Can be one {'raw',
-            'abs'} or sorted by raw data or sort by absolute values.
+            The method to reorder data so that high values points will be on top of background points. Can be one of
+            {'raw', 'abs'}, i.e. sorted by raw data or sort by absolute values.
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)

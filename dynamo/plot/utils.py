@@ -406,9 +406,9 @@ def _datashade_points(
                     values.shape[0], points.shape[0]
                 )
             )
-        # reorder data so that high values points will be on top of background points
+        # reorder data so that high values data will be on top of background data
         sorted_id = np.argsort(abs(values)) if sort == 'abs' else np.argsort(values)
-        values, points = values[sorted_id], points[sorted_id, :]
+        values, data = values[sorted_id], data.iloc[sorted_id, :]
 
         values[np.isnan(values)] = 0
         _vmin = np.min(values) if vmin is None else np.percentile(values, vmin)

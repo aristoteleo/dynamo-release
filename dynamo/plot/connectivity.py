@@ -209,8 +209,8 @@ def connectivity_base(
         height: int (optional, default 800)
             The desired height of the plot in pixels
         sort: `str` (optional, default `raw`)
-            The method to reorder data so that high values points will be on top of background points. Can be one {'raw',
-            'abs'} or sorted by raw data or sort by absolute values.
+            The method to reorder data so that high values points will be on top of background points. Can be one of
+            {'raw', 'abs'}, i.e. sorted by raw data or sort by absolute values.
         save_show_or_return: {'show', 'save', 'return'} (default: `return`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)

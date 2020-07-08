@@ -62,10 +62,11 @@ def phase_portraits(
         y: `int` (default: `1`)
                 The column index of the low dimensional embedding for the y-axis
         pointsize: `None` or `float` (default: None)
-                The scale of the point size. Actual point cell size is calculated as `2500.0 / np.sqrt(adata.shape[0]) * pointsize`
+                The scale of the point size. Actual point cell size is calculated as `2500.0 / np.sqrt(adata.shape[0]) *
+                pointsize`
         vkey: `string` (default: velocity)
-            Which velocity key used for visualizing the magnitude of velocity. Can be either velocity in the layers slot or the
-            keys in the obsm slot.
+            Which velocity key used for visualizing the magnitude of velocity. Can be either velocity in the layers slot
+            or the keys in the obsm slot.
         ekey: `str`
             The layer of data to represent the gene expression level.
         basis: `string` (default: umap)
@@ -73,12 +74,22 @@ def phase_portraits(
         log1p: `bool` (default: `True`)
             Whether to log1p transform the expression so that visualization can be robust to extreme values.
         color: `string` (default: 'cell_cycle_phase')
-            Which group will be used to color cells, only used for the phase portrait because the other two plots are colored
-            by the velocity magnitude or the gene expression value, respectively.
+            Which group will be used to color cells, only used for the phase portrait because the other two plots are
+            colored by the velocity magnitude or the gene expression value, respectively.
+        use_smoothed: `bool` (default: `True`)
+            Whether to use smoothed 1/2-nd moments as gene expression for the first and third columns. This is useful
+            for checking the confidence of velocity genes. For example, you may see a very nice linear pattern for some
+            genes with the smoothed expression but this could just be an artifically generated when the number of
+            expressed cells is very low. This raises red flags for the quality of the velocity values we learned for
+            those genes. And we recommend to set the higher values (for example, 10% of all cells) for `min_cell_s`,
+            `min_cell_u` or `shared_count` of the `fg_kwargs` argument of the dyn.pl.receipe_monocle. Note that this is
+            often related to the small single cell datasets (like plate-based scRNA-seq or scSLAM-seq/NASC-seq, etc).
         highlights: `list` (default: None)
-            Which color group will be highlighted. if highligts is a list of lists - each list is relate to each color element.
+            Which color group will be highlighted. if highligts is a list of lists - each list is relate to each color
+            element.
         discrete_continous_div_themes: `list[str, str, str]` (optional, default None)
-            The discrete, continous and divergent color themes to use for plotting. The description for each element in the list is as following.
+            The discrete, continous and divergent color themes to use for plotting. The description for each element in
+            the list is as following.
             A small set of predefined themes are provided which have relatively good aesthetics. Available themes are:
                * 'blue'
                * 'red'
@@ -91,72 +102,67 @@ def phase_portraits(
                * 'darkgreen'
         discrete_continous_div_cmap: `list[str, str, str]`  (optional, default 'Blues')
             The names of  discrete, continous and divergent matplotlib colormap to use for coloring
-            or shading points. The description for each element in the list is as following. If no labels or values are passed
-            this will be used for shading points according to
-            density (largely only of relevance for very large
-            datasets). If values are passed this will be used for
-            shading according the value. Note that if theme
-            is passed then this value will be overridden by the
-            corresponding option of the theme.
-        discrete_continous_div_color_key: `list[dict or array,, dict or array,, dict or array,]` (default [None, None, None])
-         The description for each element in the list is as following. The shape (n_categories) (optional, default None)
-            A list to assign discrete, continous and divergent colors to categoricals. This can either be
-            an explicit dict mapping labels to colors (as strings of form
-            '#RRGGBB'), or an array like object providing one color for
-            each distinct category being provided in ``labels``. Either
-            way this mapping will be used to color points according to
-            the label. Note that if theme
-            is passed then this value will be overridden by the
+            or shading points. The description for each element in the list is as following. If no labels or values are
+            passed this will be used for shading points according to density (largely only of relevance for very large
+            datasets). If values are passed this will be used for shading according the value. Note that if theme is
+            passed then this value will be overridden by the corresponding option of the theme.
+        discrete_continous_div_color_key: `list[dict or array,, dict or array,, dict or array,]` (default [None, None,
+            None]).
+            The description for each element in the list is as following. The shape (n_categories) (optional, default
+            None). A list to assign discrete, continous and divergent colors to categoricals. This can either be an
+            explicit dict mapping labels to colors (as strings of form '#RRGGBB'), or an array like object providing one
+            color for each distinct category being provided in ``labels``. Either way this mapping will be used to color
+            points according to the label. Note that if theme is passed then this value will be overridden by the
             corresponding option of the theme.
         discrete_continous_div_color_key_cmap: `list[str, str, str]`, (optional, default 'Spectral')
             The names of discrete, continous and divergent matplotlib colormap to use for categorical coloring.
-            The description for each element in the list is as following.
-            If an explicit ``color_key`` is not given a color mapping for
-            categories can be generated from the label list and selecting
-            a matching list of colors from the given colormap. Note
-            that if theme
-            is passed then this value will be overridden by the
-            corresponding option of the theme.
+            The description for each element in the list is as following. If an explicit ``color_key`` is not given a
+            color mapping for categories can be generated from the label list and selecting a matching list of colors
+            from the given colormap. Note that if theme is passed then this value will be overridden by the corresponding
+            option of the theme.
         figsize: `None` or `[float, float]` (default: None)
                 The width and height of each panel in the figure.
         ncols: `None` or `int` (default: None)
         ncol: `None` or `int` (default: None)
                 Number of columns in each facet grid.
         legend: `str` (default: `on data`)
-                Where to put the legend.  Legend is drawn by seaborn with “brief” mode, numeric hue and size variables will be
-                represented with a sample of evenly spaced values. By default legend is drawn on top of cells.
+                Where to put the legend.  Legend is drawn by seaborn with “brief” mode, numeric hue and size variables
+                will be represented with a sample of evenly spaced values. By default legend is drawn on top of cells.
         show_quiver: `bool` (default: False)
-            Whether to show the quiver plot. If velocity for x component (corresponds to either spliced, total RNA, protein, etc)
-             or y component (corresponds to either unspliced, new RNA, protein, etc) are both calculated, quiver represents
-             velocity for both components otherwise the uncalculated component (usually y component) will be set to be 0.
+            Whether to show the quiver plot. If velocity for x component (corresponds to either spliced, total RNA,
+            protein, etc) or y component (corresponds to either unspliced, new RNA, protein, etc) are both calculated,
+            quiver represents velocity for both components otherwise the uncalculated component (usually y component)
+            will be set to be 0.
         quiver_size: `float` or None (default: None)
-            The size of quiver. If None, we will use set quiver_size to be 1. Note that quiver quiver_size is used to calculate
-            the head_width (10 x quiver_size), head_length (12 x quiver_size) and headaxislength (8 x quiver_size) of the quiver.
-            This is done via the `default_quiver_args` function which also calculate the scale of the quiver (1 / quiver_length).
+            The size of quiver. If None, we will use set quiver_size to be 1. Note that quiver quiver_size is used to
+            calculate the head_width (10 x quiver_size), head_length (12 x quiver_size) and headaxislength (8 x
+            quiver_size) of the quiver. This is done via the `default_quiver_args` function which also calculate the
+            scale of the quiver (1 / quiver_length).
         quiver_length: `float` or None (default: None)
-            The length of quiver. The quiver length which will be used to calculate scale of quiver. Note that befoe applying
-            `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale of quiver indicates
-            the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller scale parameter makes the arrow longer.
+            The length of quiver. The quiver length which will be used to calculate scale of quiver. Note that befoe
+            applying `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale
+            of quiver indicates the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller
+            scale parameter makes the arrow longer.
         q_kwargs_dict: `dict` (default: {})
-            The dictionary of the quiver arguments. The default setting of quiver argument is identical to that used in the
-            cell_wise_velocity and grid_velocity.
+            The dictionary of the quiver arguments. The default setting of quiver argument is identical to that used in
+            the cell_wise_velocity and grid_velocity.
         show_arrowed_spines: bool or None (optional, default None)
             Whether to show a pair of arrowed spines represeenting the basis of the scatter is currently using. If None,
             only the first panel in the expression / velocity plot will have the arrowed spine.
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'phase_portraits', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-            according to your needs.
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig
+            function will use the {"path": None, "prefix": 'phase_portraits', "dpi": None, "ext": 'pdf', "transparent":
+            True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly
+            modify those keys according to your needs.
         **kwargs:
             Additional parameters that will be passed to plt.scatter function
 
     Returns
     -------
-        A matplotlib plot that shows 1) the phase portrait of each category used in velocity embedding, cells' low dimensional
-        embedding, colored either by 2) the gene expression level or 3) the velocity magnitude values.
+        A matplotlib plot that shows 1) the phase portrait of each category used in velocity embedding, cells' low
+        dimensional embedding, colored either by 2) the gene expression level or 3) the velocity magnitude values.
     """
 
     import matplotlib.pyplot as plt
