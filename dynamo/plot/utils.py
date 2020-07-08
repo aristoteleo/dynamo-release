@@ -121,6 +121,7 @@ def _matplotlib_points(
         show_legend=True,
         vmin=2,
         vmax=98,
+        sort='raw',
         **kwargs,
 ):
     import matplotlib.pyplot as plt
@@ -223,7 +224,7 @@ def _matplotlib_points(
                 )
             )
         # reorder data so that high values points will be on top of background points
-        sorted_id = np.argsort(values)
+        sorted_id = np.argsort(abs(values)) if sort == 'abs' else np.argsort(values)
         values, points = values[sorted_id], points[sorted_id, :]
 
         _vmin = np.min(values) if vmin is None else np.percentile(values, vmin) if \
@@ -309,6 +310,7 @@ def _datashade_points(
         show_legend=True,
         vmin=2,
         vmax=98,
+        sort='raw',
         **kwargs,
 ):
     import matplotlib.pyplot as plt
@@ -404,8 +406,8 @@ def _datashade_points(
                     values.shape[0], points.shape[0]
                 )
             )
-        # reorder data so that high values points will be on top of background points
-        sorted_id = np.argsort(values)
+        # reorder data so that high values data will be on top of background data
+        sorted_id = np.argsort(abs(values)) if sort == 'abs' else np.argsort(values)
         values, data = values[sorted_id], data.iloc[sorted_id, :]
 
         values[np.isnan(values)] = 0

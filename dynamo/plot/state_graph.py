@@ -85,6 +85,7 @@ def state_graph(
     use_smoothed=True,
     show_arrowed_spines=True,
     ax=None,
+    sort='raw',
     save_show_or_return="show",
     save_kwargs={},
     s_kwargs_dict={},
@@ -159,8 +160,8 @@ def state_graph(
         aggregate,
         show_arrowed_spines,
         ax,
+        sort,
         save_show_or_return='return',
-        aggregate = aggregate,
         **s_kwargs_dict
     )
 

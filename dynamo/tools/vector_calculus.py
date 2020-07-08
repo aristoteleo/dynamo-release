@@ -102,7 +102,7 @@ def subset_jacobian_transformation(fjac, X, Qi, Qj, cores=1):
             Sampled genes' (sample genes can be the same as those in Qi or different) PCs loading matrix with dimension
             n' x n_PCs, from which local dimension Jacobian matrix (k x k) will be inverse transformed back to high dimension.
         cores: `int` (default: 1):
-            Number of cores to run calculate Jacobian. If cores is set to be > 1, multiprocessing will be used to
+            Number of cores to calculate Jacobian. If cores is set to be > 1, multiprocessing will be used to
             parallel the Jacobian calculation.
 
     Returns
@@ -110,7 +110,7 @@ def subset_jacobian_transformation(fjac, X, Qi, Qj, cores=1):
         ret `np.ndarray`
             The calculated Jacobian matrix (n_gene x n_gene x n_obs) for each cell.
     """
-    
+
     X = np.atleast_2d(X)
     Qi = np.atleast_2d(Qi)
     Qj = np.atleast_2d(Qj)
@@ -347,7 +347,7 @@ def jacobian(adata,
             The true ODE (ordinary differential equations) function, useful when the data is generated through simulation
             with known ODE functions.
         cores: `int` (default: 1):
-            Number of cores to run calculate Jacobian. If cores is set to be > 1, multiprocessing will be used to
+            Number of cores to calculate Jacobian. If cores is set to be > 1, multiprocessing will be used to
             parallel the Jacobian calculation.
 
     Returns
