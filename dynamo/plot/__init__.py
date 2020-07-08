@@ -39,3 +39,5 @@ from .vector_calculus import curl, divergence, jacobian, jacobian_heatmap
 from .state_graph import state_graph
 
 from .scPotential import show_landscape
+
+from .ezplots import zscatter, zstreamline
