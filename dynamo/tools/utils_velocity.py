@@ -297,8 +297,8 @@ def fit_linreg_robust(x, y, mask=None, intercept=False, r2=True, est_method='rlm
 
     try:
         if est_method.lower() == 'rlm':
-            xx = sm.add_constant(xx) if intercept else xx
-            res = sm.RLM(yy, xx).fit()
+            xx_ = sm.add_constant(xx) if intercept else xx
+            res = sm.RLM(yy, xx_).fit()
             k, b = res.params[::-1] if intercept else (res.params[0], 0)
         elif est_method.lower() == 'ransac':
             reg = RANSACRegressor(LinearRegression(fit_intercept=intercept), random_state=0)

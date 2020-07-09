@@ -16,7 +16,8 @@ def moments(adata,
             use_gaussian_kernel=False,
             normalize=True,
             use_mnn=False,
-            layers="all"):
+            layers="all",
+            ):
     """Calculate kNN based first and second moments (including uncentered covariance) for
      different layers of data.
 

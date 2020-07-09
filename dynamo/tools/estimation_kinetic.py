@@ -13,7 +13,7 @@ def guestimate_alpha(x_data, time):
 
 def guestimate_gamma(x_data, time):
     '''Roughly estimate gamma0 with the assumption that time starts at 0 for degradation data.'''
-    ga0 = np.clip(np.log(x_data[0]/(x_data[-1]+1e-6)) / time[-1], 1e-3, 1e3)
+    ga0 = np.clip(np.log(max(x_data[0], 0)/(x_data[-1]+1e-6)) / time[-1], 1e-3, 1e3)
     return ga0
 
 def guestimate_init_cond(x_data):
