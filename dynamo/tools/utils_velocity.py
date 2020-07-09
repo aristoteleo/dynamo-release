@@ -299,11 +299,11 @@ def fit_linreg_robust(x, y, mask=None, intercept=False, r2=True, est_method='rlm
         if est_method.lower() == 'rlm':
             xx = sm.add_constant(xx) if intercept else xx
             res = sm.RLM(yy, xx).fit()
-            k, b = res.params[::-1] if intercept else res.params[0], 0
+            k, b = res.params[::-1] if intercept else (res.params[0], 0)
         elif est_method.lower() == 'ransac':
             reg = RANSACRegressor(LinearRegression(fit_intercept=intercept), random_state=0)
             reg.fit(xx.reshape(-1, 1), yy.reshape(-1, 1))
-            k, b = reg.estimator_.coef_[0, 0], reg.estimator_.intercept_[0] if intercept else 0
+            k, b = reg.estimator_.coef_[0, 0], (reg.estimator_.intercept_[0] if intercept else 0)
         else:
             raise ImportError(f"estimation method {est_method} is not implemented. "
                               f"Currently supported linear regression methods include `rlm` and `ransac`.")
