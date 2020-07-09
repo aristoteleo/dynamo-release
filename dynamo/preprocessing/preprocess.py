@@ -1174,8 +1174,10 @@ def recipe_monocle(
             determine whether you already normalized your data. This only works for UMI based or read-counts data.
         layer: str (default: `None`)
             The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
-        total_layers: list or None (default `None`)
-            The layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"], ["uu", "ul", "su", "sl"] or ["new", "old"], etc.
+        total_layers: bool, list or None (default `None`)
+            The layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"], ["uu", "ul",
+             "su", "sl"] or ["total"], etc. If total_layers is `True`, total_layers will be set to be `total` or
+             ["uu", "ul", "su", "sl"] depends on whether you have labeling but no splicing or labeling and splicing data.
         genes_to_use: `list` (default: `None`)
             A list genes of gene names that will be used to set as the feature genes for downstream analysis.
         method: `str` (default: `log`)
@@ -1252,10 +1254,10 @@ def recipe_monocle(
 
     basic_stats(adata)
     has_splicing, has_labeling, _ = detect_datatype(adata)
-    if has_splicing and has_labeling:
-        total_layers = ['uu', 'ul', 'su', 'sl']
-    elif has_labeling and not has_splicing:
-        total_layers = ['total']
+    if has_splicing and has_labeling and type(total_layers) != list:
+        total_layers = ['uu', 'ul', 'su', 'sl'] if total_layers else None
+    elif has_labeling and not has_splicing and type(total_layers) != list:
+        total_layers = ['total'] if total_layers else None
 
     adata = unique_var_obs_adata(adata)
     adata = layers2csr(adata)
