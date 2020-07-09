@@ -4,23 +4,24 @@ from ..tools.utils import flatten, isarray
 from ..tools.Markov import smoothen_drift_on_grid
 
 
-def plot_X(X, dim1=0, dim2=1, dim3=None, create_figure=False, figsize=(6, 6), sort_by_c='raw', **kwargs):
+def plot_X(X, dim1=0, dim2=1, dim3=None, create_figure=False, figsize=(6, 6), 
+    sort_by_c='raw', **kwargs):
     if create_figure:
         plt.figure(figsize=figsize)
     
     x, y = X[:, dim1], X[:, dim2]
     c = kwargs.pop('c', None)
-    if c is not None and isarray(c) and sort_by_c is not None:
-        if sort_by_c == 'raw':
-            i_sort = np.argsort(c)
-        else:
-            i_sort = np.argsort(np.abs(c))
-        x = x[i_sort]
-        y = y[i_sort]
-        c = c[i_sort]
-        if dim3 is not None: 
-            z = X[:, dim3][i_sort]
-
+    if c is not None and isarray(c):
+        if sort_by_c is not None:
+            if sort_by_c == 'raw':
+                i_sort = np.argsort(c)
+            else:
+                i_sort = np.argsort(np.abs(c))
+            x = x[i_sort]
+            y = y[i_sort]
+            c = c[i_sort]
+            if dim3 is not None: 
+                z = X[:, dim3][i_sort]
     if dim3 is None:        
         plt.scatter(x, y, c=c, **kwargs)
     else:
@@ -36,7 +37,8 @@ def plot_V(X, V, dim1=0, dim2=1, create_figure=False, figsize=(6, 6), **kwargs):
 
 
 def zscatter(adata, basis='umap', layer='X', dim1=0, dim2=1, dim3=None,
-    color=None, c_layer=None, sort_by_c=1, cbar_shrink=0.4, axis_off=True, **kwargs):
+    color=None, c_layer=None, cbar_shrink=0.4, sym_c=False,
+    axis_off=True, **kwargs):
 
     if layer is None or len(layer) == 0:
         emb = basis
@@ -55,9 +57,13 @@ def zscatter(adata, basis='umap', layer='X', dim1=0, dim2=1, dim3=None,
     else:
         title = None
 
-    plot_X(X, dim1=dim1, dim2=dim2, dim3=dim3, c=color, sort_by_c=sort_by_c, **kwargs)
+    plot_X(X, dim1=dim1, dim2=dim2, dim3=dim3, c=color, **kwargs)
     if isarray(color):
         plt.colorbar(shrink=cbar_shrink)
+        if sym_c:
+            bounds = max(np.abs(color.max()), np.abs(color.min()))
+            bounds = bounds * np.array([-1, 1])
+            plt.clim(bounds[0], bounds[1])
     if title is not None:
         plt.title(title)
 
@@ -121,3 +127,30 @@ def zstreamline(adata, basis="umap", v_basis=None, x_layer='X', v_layer='velocit
     #set_stream_line_alpha(s, streamline_alpha)
     if return_grid:
         return X_grid, V_grid
+
+
+def multiplot(plot_func, arr, n_row=None, n_col=3, fig=None, subplot_size=(6, 4)):
+    if n_col is None and n_row is None: n_col = 3
+    n = len(arr[list(arr.keys())[0]]) if type(arr) is dict else len(arr)
+    if n_row is None:
+        n_row = int(np.ceil(n / n_col))
+    elif n_col is None:
+        n_col = int(np.ceil(n / n_row))
+    else:
+        # only the first n plots will be plotted
+        n = min(n_row * n_col, n)
+
+    if fig is None: 
+        figsize = (subplot_size[0]*n_col, subplot_size[1]*n_row)
+        fig=plt.figure(figsize=figsize)
+    ax_list = []
+    for i in range(n):
+        ax_list.append(fig.add_subplot(n_row*100 + n_col*10 + i+1))
+        if type(arr) is dict:
+            pdict = {key: value[i] for key, value in arr.items()}
+            plot_func(**pdict)
+        elif isarray(arr[i]):
+            plot_func(*arr[i])
+        else:
+            plot_func(arr[i])
+    return ax_list
