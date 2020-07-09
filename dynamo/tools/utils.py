@@ -75,10 +75,23 @@ def update_dict(dict1, dict2):
 
     return dict1
 
+
 def update_n_merge_dict(dict1, dict2):
     dict1.update((k, dict2[k]) for k in dict1.keys() | dict2.keys())
     
     return dict1
+
+
+def flatten(arr):
+    if issparse(arr):
+        ret = arr.A.flatten()
+    else:
+        ret = arr.flatten()
+    return ret
+
+
+def isarray(arr):
+    return hasattr(arr, '__len__') and (not isinstance(arr, str))
 
 
 def closest_cell(coord, cells):
