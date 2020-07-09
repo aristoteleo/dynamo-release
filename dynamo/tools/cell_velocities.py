@@ -31,8 +31,10 @@ def cell_velocities(
     use_mnn=False,
     neighbors_from_basis=False,
     n_pca_components=None,
-    min_param=0.1,
     min_r2=0.01,
+    min_alpha=0.01,
+    min_gamma=0.01,
+    min_delta=0.01,
     basis="umap",
     method="pearson",
     neg_cells_trick=True,
@@ -171,7 +173,8 @@ def cell_velocities(
     if 'use_for_velocity' not in adata.var.keys() or enforce:
         use_for_dynamics = True if "use_for_dynamics" in adata.var.keys() else False
         adata = set_velocity_genes(
-            adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamics=use_for_dynamics
+            adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamics=use_for_dynamics,
+            min_alpha=min_alpha, min_gamma=min_gamma, min_delta=min_delta,
         )
 
     X = adata[:, adata.var.use_for_velocity.values].layers[ekey] if X is None else X
