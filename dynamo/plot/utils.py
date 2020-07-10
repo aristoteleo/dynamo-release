@@ -861,7 +861,7 @@ def set_colorbar(ax):
     return axins
 
 
-def arrowed_spines(ax, basis="umap", background='white'):
+def arrowed_spines(ax, basis="umap", background='white', x='0', y='1'):
     """https://stackoverflow.com/questions/33737736/matplotlib-axis-arrow-tip
         modified based on Answer 6
     """
@@ -906,10 +906,10 @@ def arrowed_spines(ax, basis="umap", background='white'):
              overhang=ohg/2,
              length_includes_head=True, clip_on=False)
 
-    ax.text(xmin + hl * 2.5/2, ymin - 1.1 * hw/2, basis.upper() + "1", ha="center", va="center", rotation=0,
+    ax.text(xmin + hl * 2.5/2, ymin - 1.1 * hw/2, basis.upper() + str(x), ha="center", va="center", rotation=0,
             size=np.clip((hl + yhw) * 8 / 2, None, 40),
             )
-    ax.text(xmin - 1.1 * yhw/2, ymin + hw * 2.5/2, basis.upper() + "2", ha="center", va="center", rotation=90,
+    ax.text(xmin - 1.1 * yhw/2, ymin + hw * 2.5/2, basis.upper() + str(y), ha="center", va="center", rotation=90,
             size=np.clip((hl + yhw) * 8 / 2, None, 40),
             )
 

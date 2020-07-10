@@ -32,7 +32,7 @@ setup(
         "bokeh>=1.4.0",
         "holoviews>=1.9.2",
         "tqdm>=4.31.1",
-        "igraph>=0.7.1",
+        "python-igraph>=0.7.1",
     ],  # ,  'fitsne>=1.0.1''pysal>=2.0.0', 'yt>=3.5.1', 'sympy>=1.4',
     packages=find_packages(),
     classifiers=[
