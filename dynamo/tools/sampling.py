@@ -1,3 +1,6 @@
+import sys
+print(sys.version, sys.platform, sys.executable)
+
 import numpy as np 
 from tqdm import tqdm
 from sklearn.neighbors import NearestNeighbors
