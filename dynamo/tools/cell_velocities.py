@@ -87,10 +87,14 @@ def cell_velocities(
             The number of pca components to project the high dimensional X, V before calculating transition matrix for
             velocity visualization. By default it is None and if method is `kmc`, n_pca_components will be reset to 30;
             otherwise use all high dimensional data for velocity projection.
-        min_param: `float` (optional, default `0.01`)
-            The minimal value of kinetic parameters for selecting velocity genes.
         min_r2: `float` (optional, default `0.01`)
             The minimal value of r-squared of the parameter fits for selecting velocity genes.
+        min_alpha: `float` (optional, default `0.01`)
+            The minimal value of alpha kinetic parameter for selecting velocity genes.
+        min_gamma: `float` (optional, default `0.01`)
+            The minimal value of gamma kinetic parameter for selecting velocity genes.
+        min_delta: `float` (optional, default `0.01`)
+            The minimal value of delta kinetic parameter for selecting velocity genes.
         basis: 'int' (optional, default `umap`)
             The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
         method: `string` (optional, default `pearson`)
