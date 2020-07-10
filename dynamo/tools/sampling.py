@@ -1,5 +1,5 @@
 import numpy as np 
-#from tqdm import tqdm
+from tqdm import tqdm
 from sklearn.neighbors import NearestNeighbors
 from .utils import timeit
 
@@ -40,8 +40,7 @@ class TRNET:
         tmax = int(tmax * self.n_nodes)
         li = li * self.n_nodes
         P = self.draw_sample(tmax)
-        #for t in tqdm(range(1, tmax + 1), desc='Running TRN'):
-        for t in range(1, tmax + 1):
+        for t in tqdm(range(1, tmax + 1), desc='Running TRN'):
             # calc the parameters
             tt = t / tmax
             l = li * np.power(lf / li, tt)
