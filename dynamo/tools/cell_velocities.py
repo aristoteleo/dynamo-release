@@ -31,8 +31,10 @@ def cell_velocities(
     use_mnn=False,
     neighbors_from_basis=False,
     n_pca_components=None,
-    min_param=0.1,
     min_r2=0.01,
+    min_alpha=0.01,
+    min_gamma=0.01,
+    min_delta=0.01,
     basis="umap",
     method="pearson",
     neg_cells_trick=True,
@@ -85,10 +87,14 @@ def cell_velocities(
             The number of pca components to project the high dimensional X, V before calculating transition matrix for
             velocity visualization. By default it is None and if method is `kmc`, n_pca_components will be reset to 30;
             otherwise use all high dimensional data for velocity projection.
-        min_param: `float` (optional, default `0.01`)
-            The minimal value of kinetic parameters for selecting velocity genes.
         min_r2: `float` (optional, default `0.01`)
             The minimal value of r-squared of the parameter fits for selecting velocity genes.
+        min_alpha: `float` (optional, default `0.01`)
+            The minimal value of alpha kinetic parameter for selecting velocity genes.
+        min_gamma: `float` (optional, default `0.01`)
+            The minimal value of gamma kinetic parameter for selecting velocity genes.
+        min_delta: `float` (optional, default `0.01`)
+            The minimal value of delta kinetic parameter for selecting velocity genes.
         basis: 'int' (optional, default `umap`)
             The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
         method: `string` (optional, default `pearson`)
@@ -171,7 +177,8 @@ def cell_velocities(
     if 'use_for_velocity' not in adata.var.keys() or enforce:
         use_for_dynamics = True if "use_for_dynamics" in adata.var.keys() else False
         adata = set_velocity_genes(
-            adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamics=use_for_dynamics
+            adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamics=use_for_dynamics,
+            min_alpha=min_alpha, min_gamma=min_gamma, min_delta=min_delta,
         )
 
     X = adata[:, adata.var.use_for_velocity.values].layers[ekey] if X is None else X

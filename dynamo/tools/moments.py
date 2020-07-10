@@ -16,7 +16,10 @@ def moments(adata,
             use_gaussian_kernel=False,
             normalize=True,
             use_mnn=False,
-            layers="all"):
+            layers="all",
+            n_pca_components=30,
+            n_neighbors=30,
+            ):
     """Calculate kNN based first and second moments (including uncentered covariance) for
      different layers of data.
 
@@ -43,6 +46,10 @@ def moments(adata,
             Whether to use mutual kNN across different layers as for the moment calculation.
         layers: `str` or a list of str (default: `str`)
             The layers that will be used for calculating the moments.
+        n_pca_components: `int` (default: `30`)
+            The number of pca components to use for constructing nearest neighbor graph and calculating 1/2-st moments.
+        n_neighbors: `int` (default: `30`)
+            The number of neighbors for constructing nearest neighbor graph used to calculate 1/2-st moments.
 
     Returns
     -------
@@ -56,7 +63,7 @@ def moments(adata,
         if "mnn" not in adata.uns.keys():
             adata = mnn(
                 adata,
-                n_pca_components=30,
+                n_pca_components=n_pca_components,
                 layers="all",
                 use_pca_fit=True,
                 save_all_to_adata=False,
@@ -67,7 +74,7 @@ def moments(adata,
             if not any([i.startswith('X_') for i in adata.layers.keys()]):
                 from ..preprocessing.preprocess import recipe_monocle
                 genes_to_use = adata.var_names[genes] if genes.dtype == 'bool' else genes
-                adata = recipe_monocle(adata, genes_to_use=genes_to_use)
+                adata = recipe_monocle(adata, genes_to_use=genes_to_use, n_pca_components=n_pca_components)
                 adata.obsm["X"] = adata.obsm["X_pca"]
             else:
                 CM = adata.X if genes is None else adata[:, genes].X
@@ -75,17 +82,17 @@ def moments(adata,
                 valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
                 valid_ind = np.array(valid_ind).flatten()
                 CM = CM[:, valid_ind]
-                adata, fit, _ = pca(adata, CM)
+                adata, fit, _ = pca(adata, CM, n_pca_components=n_pca_components)
 
                 adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
-        X = adata.obsm["X"]
+        X = adata.obsm["X"][:, :n_pca_components]
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             if group is None:
                 kNN, knn_indices, knn_dists, _ = umap_conn_indices_dist_embedding(
-                    X, n_neighbors=np.min((30, adata.n_obs - 1)), return_mapper=False
+                    X, n_neighbors=np.min((n_neighbors, adata.n_obs - 1)), return_mapper=False
                 )
 
                 if use_gaussian_kernel and not use_mnn:
@@ -103,7 +110,7 @@ def moments(adata,
                     cur_cells = cells_group == cur_grp
                     cur_X = X[cur_cells, :]
                     cur_kNN, cur_knn_indices, cur_knn_dists, _ = umap_conn_indices_dist_embedding(
-                        cur_X, n_neighbors=np.min((30, sum(cur_cells) - 1)), return_mapper=False
+                        cur_X, n_neighbors=np.min((n_neighbors, sum(cur_cells) - 1)), return_mapper=False
                     )
 
                     if use_gaussian_kernel and not use_mnn:

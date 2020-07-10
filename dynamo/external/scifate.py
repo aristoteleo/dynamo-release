@@ -2,17 +2,6 @@
 # the following code is based on Cao, et. al, Nature Biotechnology, 2020 and
 # https://github.com/JunyueC/sci-fate_analysis
 
-try:
-    import glmnet_python
-except ImportError:
-    raise ImportError("You need to install the package `glmnet_python`."
-                      "The original version https://github.com/bbalasub1/glmnet_python is not updated."
-                      "Plelease install johnlees's fork https://github.com/johnlees/glmnet_python."
-                      "Also check this pull request for more details: "
-                      "https://github.com/bbalasub1/glmnet_python/pull/47")
-
-from glmnet_python import cvglmnet, cvglmnetCoef
-
 from tqdm import tqdm
 import pandas as pd
 import numpy as np
@@ -85,6 +74,17 @@ def scifate_glmnet(adata,
         An updated adata object with a new key `scifate` in .uns attribute, which stores the raw lasso regression results
         and the filter results after applying the Fisher exact test of the ChIP-seq peaks.
     """
+
+    try:
+        import glmnet_python
+        global cvglmnet, cvglmnetCoef
+        from glmnet_python import cvglmnet, cvglmnetCoef
+    except ImportError:
+        raise ImportError("You need to install the package `glmnet_python`."
+                          "The original version https://github.com/bbalasub1/glmnet_python is not updated."
+                          "Plelease install johnlees's fork https://github.com/johnlees/glmnet_python."
+                          "Also check this pull request for more details: "
+                          "https://github.com/bbalasub1/glmnet_python/pull/47")
 
     df_gene_TF_link_ENCODE = pd.read_csv(TF_link_ENCODE_ref, sep='\t')
     motifAnnotations_hgnc = pd.read_csv(motif_ref, sep='\t')

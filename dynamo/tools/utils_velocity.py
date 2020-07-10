@@ -206,7 +206,7 @@ def fit_linreg(x, y, mask=None, intercept=False, r2=True):
     intercept: bool
         If using steady state assumption for fitting, then:
         True -- the linear regression is performed with an unfixed intercept;
-        False -- the linear regresssion is performed with a fixed zero intercept.
+        False -- the linear regresssion is performed with a fixed zero intercept
 
     Returns
     -------
@@ -236,9 +236,9 @@ def fit_linreg(x, y, mask=None, intercept=False, r2=True):
         var_x = np.mean(xx * xx) - xm * xm
         k = cov / var_x
         b = ym - k * xm
-        # assume b is always positive
-        if b < 0:
-            k, b = np.mean(xx * yy) / np.mean(xx * xx), 0
+        # # assume b is always positive
+        # if b_positive and b < 0:
+        #     k, b = np.mean(xx * yy) / np.mean(xx * xx), 0
     else:
         # use uncentered cov and var_x
         cov = np.mean(xx * yy)
@@ -297,13 +297,13 @@ def fit_linreg_robust(x, y, mask=None, intercept=False, r2=True, est_method='rlm
 
     try:
         if est_method.lower() == 'rlm':
-            xx = sm.add_constant(xx) if intercept else xx
-            res = sm.RLM(yy, xx).fit()
-            k, b = res.params[::-1] if intercept else res.params[0], 0
+            xx_ = sm.add_constant(xx) if intercept else xx
+            res = sm.RLM(yy, xx_).fit()
+            k, b = res.params[::-1] if intercept else (res.params[0], 0)
         elif est_method.lower() == 'ransac':
             reg = RANSACRegressor(LinearRegression(fit_intercept=intercept), random_state=0)
             reg.fit(xx.reshape(-1, 1), yy.reshape(-1, 1))
-            k, b = reg.estimator_.coef_[0, 0], reg.estimator_.intercept_[0] if intercept else 0
+            k, b = reg.estimator_.coef_[0, 0], (reg.estimator_.intercept_[0] if intercept else 0)
         else:
             raise ImportError(f"estimation method {est_method} is not implemented. "
                               f"Currently supported linear regression methods include `rlm` and `ransac`.")
@@ -316,9 +316,9 @@ def fit_linreg_robust(x, y, mask=None, intercept=False, r2=True, est_method='rlm
             var_x = np.mean(xx * xx) - xm * xm
             k = cov / var_x
             b = ym - k * xm
-            # assume b is always positive
-            if b < 0:
-                k, b = np.mean(xx * yy) / np.mean(xx * xx), 0
+            # # assume b is always positive
+            # if b < 0:
+            #     k, b = np.mean(xx * yy) / np.mean(xx * xx), 0
         else:
             # use uncentered cov and var_x
             cov = np.mean(xx * yy)
