@@ -1,4 +1,4 @@
-'''# integrate with Scribe (Qiu, et. al, Cell Systems, 2020) next
+# integrate with Scribe (Qiu, et. al, Cell Systems, 2020) next
 # the following code is based on Cao, et. al, Nature Biotechnology, 2020 and
 # https://github.com/JunyueC/sci-fate_analysis
 
@@ -268,4 +268,3 @@ def TF_gene_filter_links(raw_glmnet_res,
 
     return df_gene_TF_link_chip
 
-'''
