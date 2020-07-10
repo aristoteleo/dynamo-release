@@ -675,6 +675,7 @@ class vectorfield:
         self.vf_dict = {}
         self.func = None
 
+
     def fit(self, normalize=False, method="SparseVFC", **kwargs):
         """Learn an function of vector field from sparse single cell samples in the entire space robustly.
         Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
@@ -728,7 +729,6 @@ class vectorfield:
 
         self.func = lambda x: vector_field_function(x, VecFld)
         self.vf_dict['VecFld']['V'] = self.func(self.data["X"])
-        #self.vf_dict.update({"func": self.func})
 
         return self.vf_dict
 
@@ -812,3 +812,12 @@ class vectorfield:
 
         return corrRate, precision, recall
 
+
+    def from_adata(self, adata, basis='', vf_key='VecFld'):
+        if basis is not None or len(basis) > 0:
+            vf_key = '%s_%s'%(vf_key, basis)
+        
+        self.X = adata.uns[vf_key]['VecFld']['X']
+        self.V = adata.uns[vf_key]['VecFld']['V']
+        Xc = adata.uns[vf_key]['VecFld']['X_ctrl']
+        self.func = vector_field_function(Xc, adata.uns[vf_key]['VecFld'])
