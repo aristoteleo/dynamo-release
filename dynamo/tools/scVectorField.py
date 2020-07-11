@@ -19,6 +19,7 @@ from .utils import (
     linear_least_squares,
     timeit,
     index_condensed_matrix,
+    _from_adata,
 )
 from .sampling import sample_by_velocity
 from .vector_calculus import get_fjac, compute_divergence
@@ -691,10 +692,8 @@ class vectorfield:
 
 
     def from_adata(self, adata, basis='', vf_key='VecFld'):
-        if basis is not None or len(basis) > 0:
-            vf_key = '%s_%s'%(vf_key, basis)
-        
-        self.X = adata.uns[vf_key]['VecFld']['X']
-        self.V = adata.uns[vf_key]['VecFld']['V']
-        Xc = adata.uns[vf_key]['VecFld']['X_ctrl']
-        self.func = vector_field_function(Xc, adata.uns[vf_key]['VecFld'])
+
+        X, V, func = _from_adata(adata, basis=basis, vf_key=vf_key)
+        self.X = X
+        self.V = V
+        self.func = func

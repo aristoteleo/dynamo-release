@@ -404,7 +404,6 @@ def jacobian(adata,
 
     func = vecfld_dict['func'] if 'func' in vecfld_dict.keys() else \
         lambda x: vector_field_function(x, vecfld_dict['VecFld'])
-    Q = adata.uns[PCs_][:, :X.shape[1]]
 
     Jac_fun = get_fjac(func, input_vector_convention)
 

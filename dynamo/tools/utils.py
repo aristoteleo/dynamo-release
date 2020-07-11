@@ -1687,6 +1687,17 @@ def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
 
     return G, df_kernel, cf_kernel
 
+
+def _from_adata(adata, basis='', vf_key='VecFld'):
+    if basis is not None or len(basis) > 0:
+        vf_key = '%s_%s' % (vf_key, basis)
+
+    X = adata.uns[vf_key]['VecFld']['X']
+    V = adata.uns[vf_key]['VecFld']['V']
+    func = lambda x: vector_field_function(x, adata.uns[vf_key]['VecFld'])
+
+    return X, V, func
+
 # ---------------------------------------------------------------------------------------------------
 # fate related
 def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim):
