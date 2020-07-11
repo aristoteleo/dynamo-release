@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.integrate import odeint
-from ..tools.scVectorField import vector_field_function
+from ..tools.utils import vector_field_function
 from .fate_utilities import Animation
 
 

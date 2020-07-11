@@ -2,16 +2,24 @@ from tqdm import tqdm
 import numpy.matlib
 from numpy import format_float_scientific as scinot
 import numpy as np
-import numdifftools as nda
 import scipy.sparse as sp
 from scipy.linalg import lstsq
-from scipy.spatial.distance import cdist, pdist
+from scipy.spatial.distance import pdist
 from sklearn.neighbors import NearestNeighbors
 from multiprocessing.dummy import Pool as ThreadPool
 import itertools, functools
 import warnings
 import time
-from .utils import update_dict, update_n_merge_dict, linear_least_squares, timeit, index_condensed_matrix
+from .utils import (
+    vector_field_function,
+    con_K_div_cur_free,
+    con_K,
+    update_dict,
+    update_n_merge_dict,
+    linear_least_squares,
+    timeit,
+    index_condensed_matrix,
+)
 from .sampling import sample_by_velocity
 from .vector_calculus import get_fjac, compute_divergence
 
@@ -174,137 +182,6 @@ def get_P(Y, V, sigma2, gamma, a, div_cur_free_kernels=False):
     )
 
     return (P[:, None], E) if P.ndim == 1 else (P, E)
-
-@timeit
-def con_K(x, y, beta, method='cdist'):
-    """con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
-
-    Arguments
-    ---------
-        x: 'np.ndarray'
-            Original training data points.
-        y: 'np.ndarray'
-            Control points used to build kernel basis functions.
-        beta: 'float' (default: 0.1)
-            Paramerter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2),
-
-    Returns
-    -------
-    K: 'np.ndarray'
-    the kernel to represent the vector field function.
-    """
-    if method == 'cdist':
-        K = cdist(x, y, 'sqeuclidean')
-        if len(K) == 1:
-            K = K.flatten()
-    else:
-        n = x.shape[0]
-        m = y.shape[0]
-
-        # https://stackoverflow.com/questions/1721802/what-is-the-equivalent-of-matlabs-repmat-in-numpy
-        # https://stackoverflow.com/questions/12787475/matlabs-permute-in-python
-        K = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(
-            np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0])
-        K = np.squeeze(np.sum(K ** 2, 1))
-    K = -beta * K
-    K = np.exp(K)
-
-    return K
-
-@timeit
-def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
-    """Construct a convex combination of the divergence-free kernel T_df and curl-free kernel T_cf with a bandwidth sigma
-    and a combination coefficient gamma.
-
-    Arguments
-    ---------
-        x: 'np.ndarray'
-            Original training data points.
-        y: 'np.ndarray'
-            Control points used to build kernel basis functions
-        sigma: 'int' (default: `0.8`)
-            Bandwidth parameter.
-        eta: 'int' (default: `0.5`)
-            Combination coefficient for the divergence-free or the curl-free kernels.
-
-    Returns
-    -------
-        A tuple of G (the combined kernel function), divergence-free kernel and curl-free kernel.
-
-    See also:: :func:`sparseVFC`.
-    """
-    m, d = x.shape
-    n, d = y.shape
-    sigma2 = sigma ** 2
-    G_tmp = np.matlib.tile(x[:, :, None], [1, 1, n]) - np.transpose(
-        np.matlib.tile(y[:, :, None], [1, 1, m]), [2, 1, 0]
-    )
-    G_tmp = np.squeeze(np.sum(G_tmp ** 2, 1))
-    G_tmp3 = -G_tmp / sigma2
-    G_tmp = -G_tmp / (2 * sigma2)
-    G_tmp = np.exp(G_tmp) / sigma2
-    G_tmp = np.kron(G_tmp, np.ones((d, d)))
-
-    x_tmp = np.matlib.tile(x, [n, 1])
-    y_tmp = np.matlib.tile(y, [1, m]).T
-    y_tmp = y_tmp.reshape((d, m * n), order='F').T
-    xminusy = x_tmp - y_tmp
-    G_tmp2 = np.zeros((d * m, d * n))
-
-    tmp4_ = np.zeros((d, d))
-    for i in tqdm(range(d), desc="Iterating each dimension in con_K_div_cur_free:"):
-        for j in np.arange(i, d):
-            tmp1 = xminusy[:, i].reshape((m, n), order='F')
-            tmp2 = xminusy[:, j].reshape((m, n), order='F')
-            tmp3 = tmp1 * tmp2
-            tmp4 = tmp4_.copy()
-            tmp4[i, j] = 1
-            tmp4[j, i] = 1
-            G_tmp2 = G_tmp2 + np.kron(tmp3, tmp4)
-
-    G_tmp2 = G_tmp2 / sigma2
-    G_tmp3 = np.kron((G_tmp3 + d - 1), np.eye(d))
-    G_tmp4 = np.kron(np.ones((m, n)), np.eye(d)) - G_tmp2
-    df_kernel, cf_kernel = (1 - eta) * G_tmp * (G_tmp2 + G_tmp3), eta * G_tmp * G_tmp4
-    G = df_kernel + cf_kernel
-
-    return G, df_kernel, cf_kernel
-
-
-@timeit
-def vector_field_function(x, VecFld, dim=None, kernel='full', **kernel_kwargs):
-    """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
-    Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
-    """
-    # x=np.array(x).reshape((1, -1))
-    if "div_cur_free_kernels" in VecFld.keys():
-        has_div_cur_free_kernels = True
-    else:
-        has_div_cur_free_kernels = False
-
-    #x = np.array(x)
-    if x.ndim == 1:
-        x = x[None, :]
-
-    if has_div_cur_free_kernels:
-        if kernel == 'full':
-            kernel_ind = 0
-        elif kernel == 'df_kernel':
-            kernel_ind = 1
-        elif kernel == 'cf_kernel':
-            kernel_ind = 2
-        else:
-            raise ValueError(f"the kernel can only be one of {'full', 'df_kernel', 'cf_kernel'}!")
-
-        K = con_K_div_cur_free(x, VecFld["X_ctrl"], VecFld["sigma"], VecFld["eta"], **kernel_kwargs)[kernel_ind]
-    else:
-        K = con_K(x, VecFld["X_ctrl"], VecFld["beta"], **kernel_kwargs)
-
-    if dim is None:
-        K = K.dot(VecFld["C"])
-    else:
-        K = K.dot(VecFld["C"]) if has_div_cur_free_kernels else K.dot(VecFld["C"][:, dim])
-    return K
 
 
 @timeit

@@ -1,6 +1,6 @@
 import numpy as np
 from dynamo.tools.utils import integrate_vf_ivp
-from dynamo.tools.scVectorField import vector_field_function
+from dynamo.tools import vector_field_function
 from dynamo.tools.utils import fetch_states
 
 

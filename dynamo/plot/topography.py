@@ -772,7 +772,7 @@ def topography(
     if quiver_source == "reconstructed" or (
         init_states is not None and init_cells is None
     ):
-        from ..tools.scVectorField import vector_field_function
+        from ..tools.utils import vector_field_function
 
         V = vector_field_function(init_states, VF, [0, 1])
 
