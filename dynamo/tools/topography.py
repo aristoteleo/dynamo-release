@@ -15,6 +15,7 @@ from .utils import (
     index_condensed_matrix,
     inverse_norm,
     vector_field_function,
+    _from_adata,
 )
 
 from ..external.ddhodge import ddhoge
@@ -423,14 +424,11 @@ def topography(adata, basis="umap", layer=None, X=None, dims=None, n=25, VecFld=
             The `VecFld2D` key stores an instance of the VectorField2D class which presumably has fixed points, nullcline,
              separatrix, computed and stored.
     """
-    if VecFld == None:
-        if "VecFld_" + basis in adata.uns.keys():
-            VecFld = adata.uns["VecFld_" + basis]["VecFld"]
-        else:
-            raise Exception(
-                "VecFld is not constructed yet, please first run dyn.tl.VectorField(adata, basis=basis_name)."
-                " basis_name can be any name for the basis."
-            )
+
+    if VecFld is None:
+        VecFld, func = _from_adata(adata, basis)
+    else:
+        func = lambda x: vector_field_function(x, VecFld)
 
     if dims is None:
         dims = [0, 1]
@@ -440,7 +438,7 @@ def topography(adata, basis="umap", layer=None, X=None, dims=None, n=25, VecFld=
     xlim = [min_[0] - (max_[0] - min_[0]) * 0.1, max_[0] + (max_[0] - min_[0]) * 0.1]
     ylim = [min_[1] - (max_[1] - min_[1]) * 0.1, max_[1] + (max_[1] - min_[1]) * 0.1]
 
-    vecfld = VectorField2D(lambda x: vector_field_function(x, VecFld, dims), X_data=X_basis)
+    vecfld = VectorField2D(func, X_data=X_basis)
     vecfld.find_fixed_points_by_sampling(n, xlim, ylim)
     if vecfld.get_num_fixed_points() > 0:
         vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)

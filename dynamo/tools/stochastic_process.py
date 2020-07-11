@@ -1,7 +1,7 @@
 from tqdm import tqdm
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
-from .utils import vector_field_function, log1p_
+from .utils import _from_adata, vector_field_function, log1p_
 
 def diffusionMatrix(adata,
               X_data=None,
@@ -64,12 +64,8 @@ def diffusionMatrix(adata,
                         f'the data corresponds to the velocity key {vkey} is not included in the adata object!')
 
         if VecFld is None:
-            VecFld_key = 'VecFld' if basis is None else "VecFld_" + basis
-            if VecFld_key not in adata.uns.keys():
-                raise ValueError(
-                    f'Vector field function {VecFld_key} is not included in the adata object!'
-                    f'Try firstly running dyn.tl.VectorField(adata, basis={basis})')
-            VecFld = adata.uns[VecFld_key]['VecFld']
+            VecFld, func = _from_adata(adata, basis)
+        else:
             func = lambda x: vector_field_function(x, VecFld)
 
         prefix = 'X_' if layer is None else layer + '_'

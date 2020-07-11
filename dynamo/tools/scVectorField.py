@@ -693,7 +693,7 @@ class vectorfield:
 
     def from_adata(self, adata, basis='', vf_key='VecFld'):
 
-        X, V, func = _from_adata(adata, basis=basis, vf_key=vf_key)
-        self.X = X
-        self.V = V
+        vf_dict, func = _from_adata(adata, basis=basis, vf_key=vf_key)
+        self.X = vf_dict['X']
+        self.V = vf_dict['V']
         self.func = func

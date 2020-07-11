@@ -1692,11 +1692,15 @@ def _from_adata(adata, basis='', vf_key='VecFld'):
     if basis is not None or len(basis) > 0:
         vf_key = '%s_%s' % (vf_key, basis)
 
-    X = adata.uns[vf_key]['VecFld']['X']
-    V = adata.uns[vf_key]['VecFld']['V']
+    if vf_key not in adata.uns.keys():
+        raise ValueError(
+            f'Vector field function {vf_key} is not included in the adata object! '
+            f"Try firstly running dyn.tl.VectorField(adata, basis='{basis}')")
+        
+    vf_dict = adata.uns[vf_key]['VecFld']
     func = lambda x: vector_field_function(x, adata.uns[vf_key]['VecFld'])
 
-    return X, V, func
+    return vf_dict, func
 
 # ---------------------------------------------------------------------------------------------------
 # fate related
