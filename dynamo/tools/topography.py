@@ -8,8 +8,15 @@ from scipy.linalg import eig
 from scipy.integrate import odeint
 from sklearn.neighbors import NearestNeighbors
 
-from .scVectorField import vector_field_function, vectorfield
-from .utils import update_dict, form_triu_matrix, index_condensed_matrix, inverse_norm
+from .scVectorField import vectorfield
+from .utils import (
+    update_dict,
+    form_triu_matrix,
+    index_condensed_matrix,
+    inverse_norm,
+    vector_field_function,
+)
+
 from ..external.ddhodge import ddhoge
 from ..tools.vector_calculus import curl, divergence
 

@@ -3,8 +3,13 @@ from multiprocessing.dummy import Pool as ThreadPool
 import itertools, functools
 import numpy as np
 import numdifftools as nd
-from .utils import timeit, get_pd_row_column_idx
+from .utils import (
+    timeit,
+    get_pd_row_column_idx,
+    vector_field_function,
+)
 from .sampling import sample_by_velocity, trn
+
 
 def grad(f, x):
     """Gradient of scalar-valued function f evaluated at x"""
@@ -232,7 +237,8 @@ def curl(adata,
     X_data = adata.obsm["X_" + basis]
 
     curl = np.zeros((adata.n_obs, 1))
-    func = vecfld_dict['func']
+    func = vecfld_dict['func'] if 'func' in vecfld_dict.keys() else \
+        lambda x: vector_field_function(x, vecfld_dict['VecFld'])
 
     for i, x in tqdm(enumerate(X_data), f"Calculating curl with the reconstructed vector field on the {basis} basis. "):
         curl[i] = curl2d(func, x.flatten())
@@ -288,7 +294,8 @@ def divergence(adata,
 
     cell_idx = np.arange(adata.n_obs) if cell_idx is None else cell_idx
 
-    func = vecfld_dict['func']
+    func = vecfld_dict['func'] if 'func' in vecfld_dict.keys() else \
+        lambda x: vector_field_function(x, vecfld_dict['VecFld'])
 
     div = compute_divergence(get_fjac(func), X[cell_idx], vectorize=True)
 
@@ -395,7 +402,9 @@ def jacobian(adata,
     PCs_ = "PCs" if basis == 'pca' else "PCs_" + basis
     Jacobian_ = "jacobian" #if basis is None else "jacobian_" + basis
 
-    Q, func = adata.uns[PCs_][:, :X.shape[1]], vecfld_dict['func']
+    func = vecfld_dict['func'] if 'func' in vecfld_dict.keys() else \
+        lambda x: vector_field_function(x, vecfld_dict['VecFld'])
+    Q = adata.uns[PCs_][:, :X.shape[1]]
 
     Jac_fun = get_fjac(func, input_vector_convention)
 

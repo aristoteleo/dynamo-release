@@ -1,8 +1,7 @@
 from tqdm import tqdm
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
-from .scVectorField import vector_field_function
-from .utils import log1p_
+from .utils import vector_field_function, log1p_
 
 def diffusionMatrix(adata,
               X_data=None,

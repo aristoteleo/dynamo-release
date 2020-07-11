@@ -72,10 +72,10 @@ from .metric_velocity import cell_wise_confidence
 from .scVectorField import (
     SparseVFC,
     con_K,
-    vector_field_function,
     get_P,
     graphize_vecfld
 )  # , evaluate, con_K_div_cur_free
+from .utils import vector_field_function
 from .topography import FixedPoints, VectorField2D, topography, VectorField
 from .vector_calculus import curl, divergence, jacobian
 

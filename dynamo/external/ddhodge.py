@@ -8,7 +8,8 @@ from scipy.sparse import csr_matrix
 from scipy.linalg import qr
 from itertools import combinations
 from igraph import Graph
-from ..tools.scVectorField import vector_field_function, graphize_vecfld
+from ..tools.scVectorField import graphize_vecfld
+from ..tools.utils import vector_field_function
 from ..tools.sampling import trn, sample_by_velocity
 
 def gradop(g):
@@ -195,7 +196,8 @@ def ddhoge(adata,
                 f'Vector field function {VecFld_key} is not included in the adata object! '
                 f"Try firstly running dyn.tl.VectorField(adata, basis='{basis}')")
         VecFld = adata.uns[VecFld_key]['VecFld']
-        func = adata.uns[VecFld_key]['func']
+        func = adata.uns[VecFld_key]['func'] if 'func' in adata.uns[VecFld_key].keys() else \
+            lambda x: vector_field_function(x, VecFld)
 
     if X_data is None:
         X_data_full = VecFld['X'].copy()

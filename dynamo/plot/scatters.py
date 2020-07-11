@@ -143,8 +143,8 @@ def _scatters(
     else:
         embedding = pd.DataFrame(
             {
-                basis + "_0": adata.obsm["X_" + basis][:, x],
-                basis + "_1": adata.obsm["X_" + basis][:, y],
+                basis + "_" + str(x): adata.obsm["X_" + basis][:, x],
+                basis + "_" + str(y): adata.obsm["X_" + basis][:, y],
             }
         )
         embedding.columns = ["dim_1", "dim_2"]
@@ -1118,7 +1118,7 @@ def scatters(
                     )
 
                 if i == 1 and show_arrowed_spines:
-                    arrowed_spines(ax, points.columns[0].strip('_1'), _background)
+                    arrowed_spines(ax, points.columns[0].strip('_1'), _background, x, y)
                 else:
                     despline_all(ax)
                     deaxis_all(ax)

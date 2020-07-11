@@ -14,7 +14,7 @@ from ..tools.dimension_reduction import reduceDimension
 from ..tools.cell_velocities import cell_velocities
 from ..tools.Markov import prepare_velocity_grid_data, velocity_on_grid, grid_velocity_filter
 from ..tools.topography import VectorField
-from ..tools.utils import update_dict
+from ..tools.utils import vector_field_function, update_dict
 
 from .scatters import docstrings
 
@@ -1356,7 +1356,11 @@ def grid_velocity(
             for i in ['density', 'smooth', 'n_neighbors']:
                 grid_kwargs_dict.pop(i)
 
-            V_emb = adata.uns["VecFld_" + basis]["func"](X)
+            VecFld = adata.uns["VecFld_" + basis]['VecFld']
+            func = adata.uns["VecFld_" + basis]['func'] if 'func' in adata.uns["VecFld_" + basis].keys() else \
+                lambda x: vector_field_function(x, VecFld)
+
+            V_emb = func(X)
             V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[:, None]
             X_grid, V_grid = grid_velocity_filter(
                 V_emb=V,
@@ -1594,7 +1598,11 @@ def streamline_plot(
             for i in ['density', 'smooth', 'n_neighbors']:
                 grid_kwargs_dict.pop(i)
 
-            V_emb = adata.uns["VecFld_" + basis]["func"](X)
+            VecFld = adata.uns["VecFld_" + basis]['VecFld']
+            func = adata.uns["VecFld_" + basis]['func'] if 'func' in adata.uns["VecFld_" + basis].keys() else \
+                lambda x: vector_field_function(x, VecFld)
+
+            V_emb = func(X)
             V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[:, None]
             X_grid, V_grid = grid_velocity_filter(
                 V_emb=V,
