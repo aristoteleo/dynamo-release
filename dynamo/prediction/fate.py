@@ -1,7 +1,7 @@
 import numpy as np
-from dynamo.tools.utils import integrate_vf_ivp
-from dynamo.tools import vector_field_function
-from dynamo.tools.utils import fetch_states
+from ..tools.utils import integrate_vf_ivp
+from ..tools import vector_field_function
+from ..tools.utils import fetch_states
 
 
 def fate(

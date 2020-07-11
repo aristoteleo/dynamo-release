@@ -3,9 +3,9 @@ import numpy as np
 from scipy.spatial import cKDTree
 from tqdm import tqdm
 
-from dynamo.prediction.fate import _fate
-from dynamo.tools import vector_field_function
-from dynamo.tools.utils import (
+from ..prediction.fate import _fate
+from ..tools import vector_field_function
+from ..tools.utils import (
     fetch_states,
     remove_redundant_points_trajectory,
     arclength_sampling,
