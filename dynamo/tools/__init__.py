@@ -89,7 +89,6 @@ from .Markov import (
     compute_density_kernel,
     makeTransitionMatrix,
     compute_tau,
-    smoothen_drift_on_grid,
     MarkovChain,
     KernelMarkovChain,
     DiscreteTimeMarkovChain,

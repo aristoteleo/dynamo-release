@@ -7,6 +7,7 @@ from scipy.sparse import issparse, csr_matrix
 from scipy.integrate import odeint, solve_ivp
 from scipy.linalg.blas import dgemm
 from scipy.spatial.distance import cdist
+from sklearn.neighbors import NearestNeighbors
 import warnings
 import time
 
@@ -203,6 +204,11 @@ def var2m2(var, m1):
     return m2
 
 
+def gaussian_1d(x, mu=0, sigma=1):
+    y = (x-mu)/sigma
+    return np.exp(-y*y/2) / np.sqrt(2*np.pi)/sigma
+
+
 def timeit(method):
     def timed(*args, **kw):
         ti = kw.pop('timeit', False)
@@ -215,6 +221,44 @@ def timeit(method):
             result = method(*args, **kw)
         return result
     return timed
+
+
+def velocity_on_grid(X, V, n_grids, 
+    nbrs=None, k=None, smoothness=1, cutoff_coefficient=1.5):
+    # codes adapted from velocyto
+    _, D = X.shape
+    if np.isscalar(n_grids):
+        n_grids *= np.ones(D, dtype=int)
+    # Prepare the grid
+    grs = []
+    for dim_i in range(D):
+        m, M = np.min(X[:, dim_i]), np.max(X[:, dim_i])
+        m -= 0.025 * np.abs(M - m)
+        M += 0.025 * np.abs(M - m)
+        gr = np.linspace(m, M, n_grids[dim_i])
+        grs.append(gr)
+    meshes_tuple = np.meshgrid(*grs)
+    X_grid = np.vstack([i.flat for i in meshes_tuple]).T
+
+    if nbrs is None:
+        k = 100 if k is None else k
+        nbrs = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(X)
+    dists, neighs = nbrs.kneighbors(X_grid)
+
+    std = np.mean([(g[1] - g[0]) for g in grs])
+    # isotropic gaussian kernel
+    sigma = smoothness * std
+    w = gaussian_1d(dists[:, :k], sigma=sigma)
+    if cutoff_coefficient is not None:
+        w_cut = gaussian_1d(2*sigma, sigma=sigma)
+        w[w<w_cut] = 0
+    w_mass = w.sum(1)
+    w_mass[w_mass == 0] = 1
+    w = (w.T / w_mass).T
+
+    V_grid = np.einsum('ijk, ij -> ik', V[neighs[:, :k]], w)
+    return X_grid, V_grid
+
 
 # ---------------------------------------------------------------------------------------------------
 # data transformation related:
