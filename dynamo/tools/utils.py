@@ -1687,6 +1687,21 @@ def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
 
     return G, df_kernel, cf_kernel
 
+
+def _from_adata(adata, basis='', vf_key='VecFld'):
+    if basis is not None or len(basis) > 0:
+        vf_key = '%s_%s' % (vf_key, basis)
+
+    if vf_key not in adata.uns.keys():
+        raise ValueError(
+            f'Vector field function {vf_key} is not included in the adata object! '
+            f"Try firstly running dyn.tl.VectorField(adata, basis='{basis}')")
+        
+    vf_dict = adata.uns[vf_key]['VecFld']
+    func = lambda x: vector_field_function(x, adata.uns[vf_key]['VecFld'])
+
+    return vf_dict, func
+
 # ---------------------------------------------------------------------------------------------------
 # fate related
 def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim):

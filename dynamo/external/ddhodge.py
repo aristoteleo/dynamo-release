@@ -9,7 +9,7 @@ from scipy.linalg import qr
 from itertools import combinations
 from igraph import Graph
 from ..tools.scVectorField import graphize_vecfld
-from ..tools.utils import vector_field_function
+from ..tools.utils import _from_adata, vector_field_function
 from ..tools.sampling import trn, sample_by_velocity
 
 def gradop(g):
@@ -188,16 +188,10 @@ def ddhoge(adata,
 
     to_downsample = adata.n_obs > n_downsamples
 
-    func = None
     if VecFld is None:
-        VecFld_key = 'VecFld' if basis is None else "VecFld_" + basis
-        if VecFld_key not in adata.uns.keys():
-            raise ValueError(
-                f'Vector field function {VecFld_key} is not included in the adata object! '
-                f"Try firstly running dyn.tl.VectorField(adata, basis='{basis}')")
-        VecFld = adata.uns[VecFld_key]['VecFld']
-        func = adata.uns[VecFld_key]['func'] if 'func' in adata.uns[VecFld_key].keys() else \
-            lambda x: vector_field_function(x, VecFld)
+        VecFld, func = _from_adata(adata, basis)
+    else:
+        func = lambda x: vector_field_function(x, VecFld)
 
     if X_data is None:
         X_data_full = VecFld['X'].copy()
@@ -206,7 +200,6 @@ def ddhoge(adata,
             raise ValueError(f"The X_data you provided doesn't correspond to exactly {adata.n_obs} cells")
         X_data_full = X_data.copy()
 
-    if func is None: func = lambda x: vector_field_function(x, VecFld)
 
     if to_downsample:
         if sampling_method == 'trn':

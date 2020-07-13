@@ -7,6 +7,7 @@ from .utils import (
     timeit,
     get_pd_row_column_idx,
     vector_field_function,
+    _from_adata
 )
 from .sampling import sample_by_velocity, trn
 
@@ -207,7 +208,7 @@ def curl2d(f, x):
 
 def curl(adata,
          basis='umap',
-         vecfld_dict=None,
+         VecFld=None,
          ):
     """Calculate Curl for each cell with the reconstructed vector field function.
 
@@ -217,7 +218,7 @@ def curl(adata,
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
         basis: `str` or None (default: `umap`)
             The embedding data in which the vector field was reconstructed.
-        vecfld_dict: `dict`
+        VecFld: `dict`
             The true ODE function, useful when the data is generated through simulation.
 
     Returns
@@ -226,19 +227,14 @@ def curl(adata,
             AnnData object that is updated with the `curl` key in the .obs.
     """
 
-    if vecfld_dict is None:
-        vf_key = 'VecFld' if basis is None else 'VecFld_' + basis
-        if vf_key not in adata.uns.keys():
-            raise ValueError(f"Your adata doesn't have the key for Vector Field with {basis} basis. "
-                             f"Try firstly running dyn.tl.VectorField(adata, basis={basis}).")
-
-        vecfld_dict = adata.uns[vf_key]
+    if VecFld is None:
+        VecFld, func = _from_adata(adata, basis)
+    else:
+        func = lambda x: vector_field_function(x, VecFld)
 
     X_data = adata.obsm["X_" + basis]
 
     curl = np.zeros((adata.n_obs, 1))
-    func = vecfld_dict['func'] if 'func' in vecfld_dict.keys() else \
-        lambda x: vector_field_function(x, vecfld_dict['VecFld'])
 
     for i, x in tqdm(enumerate(X_data), f"Calculating curl with the reconstructed vector field on the {basis} basis. "):
         curl[i] = curl2d(func, x.flatten())
@@ -251,7 +247,7 @@ def divergence(adata,
                sampling='velocity',
                sample_ncells=1000,
                basis='pca',
-               vecfld_dict=None,
+               VecFld=None,
                ):
     """Calculate divergence for each cell with the reconstructed vector field function.
 
@@ -261,7 +257,7 @@ def divergence(adata,
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
         basis: `str` or None (default: `umap`)
             The embedding data in which the vector field was reconstructed.
-        vecfld_dict: `dict`
+        VecFld: `dict`
             The true ODE function, useful when the data is generated through simulation.
 
     Returns
@@ -270,16 +266,12 @@ def divergence(adata,
             AnnData object that is updated with the `divergence` key in the .obs.
     """
 
-    vf_key = 'VecFld' if basis is None else 'VecFld_' + basis
+    if VecFld is None:
+        VecFld, func = _from_adata(adata, basis)
+    else:
+        func = lambda x: vector_field_function(x, VecFld)
 
-    if vecfld_dict is None:
-        if vf_key not in adata.uns.keys():
-            raise ValueError(f"Your adata doesn't have the key for Vector Field with {basis} basis."
-                             f"Try firstly running dyn.tl.VectorField(adata, basis={basis}).")
-
-        vecfld_dict = adata.uns[vf_key]
-
-    X, V = adata.uns[vf_key]['VecFld']['X'], adata.uns[vf_key]['VecFld']['V']
+    X, V = VecFld['X'], VecFld['V']
 
     if basis == 'umap': cell_idx = np.arange(adata.n_obs)
 
@@ -294,9 +286,6 @@ def divergence(adata,
 
     cell_idx = np.arange(adata.n_obs) if cell_idx is None else cell_idx
 
-    func = vecfld_dict['func'] if 'func' in vecfld_dict.keys() else \
-        lambda x: vector_field_function(x, vecfld_dict['VecFld'])
-
     div = compute_divergence(get_fjac(func), X[cell_idx], vectorize=True)
 
     adata.obs['divergence'] = None
@@ -310,7 +299,7 @@ def jacobian(adata,
              sampling='velocity',
              sample_ncells=1000,
              basis='pca',
-             vecfld_dict=None,
+             VecFld=None,
              input_vector_convention='row',
              cores=1,
              ):
@@ -350,7 +339,7 @@ def jacobian(adata,
         basis: `str` or None (default: `pca`)
             The embedding data in which the vector field was reconstructed. If `None`, use the vector field function that
             was reconstructed directly from the original unreduced gene expression space.
-        vecfld_dict: `dict`
+        VecFld: `dict`
             The true ODE (ordinary differential equations) function, useful when the data is generated through simulation
             with known ODE functions.
         cores: `int` (default: 1):
@@ -364,16 +353,12 @@ def jacobian(adata,
             n_obs x n_source_genes x n_target_genes.
     """
 
-    vf_key = 'VecFld' if basis is None else 'VecFld_' + basis
+    if VecFld is None:
+        VecFld, func = _from_adata(adata, basis)
+    else:
+        func = lambda x: vector_field_function(x, VecFld)
 
-    if vecfld_dict is None:
-        if vf_key not in adata.uns.keys():
-            raise ValueError(f"Your adata doesn't have the key for Vector Field with {basis} basis."
-                             f"Try firstly running dyn.tl.VectorField(adata, basis={basis}).")
-
-        vecfld_dict = adata.uns[vf_key]
-
-    X, V = adata.uns[vf_key]['VecFld']['X'], adata.uns[vf_key]['VecFld']['V']
+    X, V = VecFld['X'], VecFld['V']
 
     if basis == 'umap': cell_idx = np.arange(adata.n_obs)
 
@@ -402,8 +387,6 @@ def jacobian(adata,
     PCs_ = "PCs" if basis == 'pca' else "PCs_" + basis
     Jacobian_ = "jacobian" #if basis is None else "jacobian_" + basis
 
-    func = vecfld_dict['func'] if 'func' in vecfld_dict.keys() else \
-        lambda x: vector_field_function(x, vecfld_dict['VecFld'])
     Q = adata.uns[PCs_][:, :X.shape[1]]
 
     Jac_fun = get_fjac(func, input_vector_convention)
