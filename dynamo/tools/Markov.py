@@ -318,39 +318,6 @@ def velocity_on_grid(
     return X_grid, V_grid, D
 
 
-def smoothen_drift_on_grid(X, V, n_grid, nbrs=None, k=None, smoothness=1):
-    # These codes are borrowed from velocyto. Need to be rewritten later.
-    # Prepare the grid
-    grs = []
-    for dim_i in range(X.shape[1]):
-        m, M = np.min(X[:, dim_i]), np.max(X[:, dim_i])
-        m = m - 0.025 * np.abs(M - m)
-        M = M + 0.025 * np.abs(M - m)
-        gr = np.linspace(m, M, n_grid)
-        grs.append(gr)
-    meshes_tuple = np.meshgrid(*grs)
-    gridpoints_coordinates = np.vstack([i.flat for i in meshes_tuple]).T
-
-    if nbrs is None:
-        if k is None:
-            k = 100
-        nbrs = NearestNeighbors(n_neighbors=k, algorithm="ball_tree").fit(X)
-    dists, neighs = nbrs.kneighbors(gridpoints_coordinates)
-
-    from scipy.stats import norm as normal
-
-    std = np.mean([(g[1] - g[0]) for g in grs])
-    # isotropic gaussian kernel
-    gaussian_w = normal.pdf(loc=0, scale=smoothness * std, x=dists[:, :k])
-    total_p_mass = gaussian_w.sum(1)
-
-    U = (
-        (V[neighs[:, :k]] * gaussian_w[:, :, None]).sum(1)
-        / np.maximum(1, total_p_mass)[:, None]
-    )  # weighed average
-    return U, gridpoints_coordinates
-
-
 class MarkovChain:
     def __init__(self, P=None):
         self.P = P
