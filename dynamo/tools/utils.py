@@ -1698,7 +1698,7 @@ def _from_adata(adata, basis='', vf_key='VecFld'):
             f"Try firstly running dyn.tl.VectorField(adata, basis='{basis}')")
         
     vf_dict = adata.uns[vf_key]['VecFld']
-    func = lambda x: vector_field_function(x, adata.uns[vf_key]['VecFld'])
+    func = lambda x: vector_field_function(x, vf_dict['VecFld'])
 
     return vf_dict, func
 
