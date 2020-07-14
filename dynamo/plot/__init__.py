@@ -40,4 +40,4 @@ from .state_graph import state_graph
 
 from .scPotential import show_landscape
 
-from .ezplots import zscatter, zstreamline, multiplot
+from .ezplots import zscatter, zstreamline, multiplot, plot_V, plot_X
