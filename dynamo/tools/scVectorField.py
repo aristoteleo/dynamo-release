@@ -529,25 +529,26 @@ class vectorfield:
             is to be 0 for ensure consistency between different runs.
         """
 
+        
         self.data = {"X": X, "V": V, "Grid": Grid}
-        self.parameters = kwargs
-
-        self.parameters = update_n_merge_dict(self.parameters, {
-            "M": kwargs.pop('M', None) or max(min([50, len(X)]), int(0.05 * len(X)) + 1),
-            "a": kwargs.pop('a', 5),
-            "beta": kwargs.pop('beta', None),
-            "ecr": kwargs.pop('ecr', 1e-5),
-            "gamma": kwargs.pop('gamma', 0.9),
-            "lambda_": kwargs.pop('lambda_', 3),
-            "minP": kwargs.pop('minP', 1e-5),
-            "MaxIter": kwargs.pop('MaxIter', 500),
-            "theta": kwargs.pop('theta', 0.75),
-            "div_cur_free_kernels": kwargs.pop('div_cur_free_kernels', False),
-            "velocity_based_sampling": kwargs.pop('velocity_based_sampling', True),
-            "sigma": kwargs.pop('sigma', 0.8),
-            "eta": kwargs.pop('eta', 0.5),
-            "seed": kwargs.pop('seed', 0),
-        })
+        if X is not None and V is not None:
+            self.parameters = kwargs
+            self.parameters = update_n_merge_dict(self.parameters, {
+                "M": kwargs.pop('M', None) or max(min([50, len(X)]), int(0.05 * len(X)) + 1),
+                "a": kwargs.pop('a', 5),
+                "beta": kwargs.pop('beta', None),
+                "ecr": kwargs.pop('ecr', 1e-5),
+                "gamma": kwargs.pop('gamma', 0.9),
+                "lambda_": kwargs.pop('lambda_', 3),
+                "minP": kwargs.pop('minP', 1e-5),
+                "MaxIter": kwargs.pop('MaxIter', 500),
+                "theta": kwargs.pop('theta', 0.75),
+                "div_cur_free_kernels": kwargs.pop('div_cur_free_kernels', False),
+                "velocity_based_sampling": kwargs.pop('velocity_based_sampling', True),
+                "sigma": kwargs.pop('sigma', 0.8),
+                "eta": kwargs.pop('eta', 0.5),
+                "seed": kwargs.pop('seed', 0),
+            })
 
         self.norm_dict = {}
         self.vf_dict = {}
@@ -692,8 +693,7 @@ class vectorfield:
 
 
     def from_adata(self, adata, basis='', vf_key='VecFld'):
-
         vf_dict, func = _from_adata(adata, basis=basis, vf_key=vf_key)
-        self.X = vf_dict['X']
-        self.V = vf_dict['V']
+        self.data['X'] = vf_dict['X']
+        self.data['V'] = vf_dict['V']
         self.func = func
