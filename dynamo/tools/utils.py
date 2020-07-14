@@ -223,8 +223,8 @@ def timeit(method):
     return timed
 
 
-def velocity_on_grid(X, V, n_grids, 
-    nbrs=None, k=None, smoothness=1, cutoff_coefficient=1.5):
+def velocity_on_grid(X, V, n_grids, nbrs=None, k=None, 
+    smoothness=1, cutoff_coeff=2, margin_coeff=0.025):
     # codes adapted from velocyto
     _, D = X.shape
     if np.isscalar(n_grids):
@@ -233,8 +233,8 @@ def velocity_on_grid(X, V, n_grids,
     grs = []
     for dim_i in range(D):
         m, M = np.min(X[:, dim_i]), np.max(X[:, dim_i])
-        m -= 0.025 * np.abs(M - m)
-        M += 0.025 * np.abs(M - m)
+        m -= margin_coeff * np.abs(M - m)
+        M += margin_coeff * np.abs(M - m)
         gr = np.linspace(m, M, n_grids[dim_i])
         grs.append(gr)
     meshes_tuple = np.meshgrid(*grs)
@@ -249,13 +249,14 @@ def velocity_on_grid(X, V, n_grids,
     # isotropic gaussian kernel
     sigma = smoothness * std
     w = gaussian_1d(dists[:, :k], sigma=sigma)
-    if cutoff_coefficient is not None:
-        w_cut = gaussian_1d(2*sigma, sigma=sigma)
+    if cutoff_coeff is not None:
+        w_cut = gaussian_1d(cutoff_coeff*sigma, sigma=sigma)
         w[w<w_cut] = 0
     w_mass = w.sum(1)
     w_mass[w_mass == 0] = 1
     w = (w.T / w_mass).T
 
+    V[np.isnan(V)] = 0
     V_grid = np.einsum('ijk, ij -> ik', V[neighs[:, :k]], w)
     return X_grid, V_grid
 
