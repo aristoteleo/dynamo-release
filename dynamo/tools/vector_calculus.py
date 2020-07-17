@@ -214,19 +214,19 @@ def _divergence(f, x):
     return np.trace(jac)
 
 
-@timeit
-def compute_divergence_numeric(f_jac, X, vectorize=True):
-    """calculate divergence for many samples by taking the trace of a Jacobian matrix"""
-    if vectorize:
-        J = f_jac(X)
-        div = np.trace(J)
-    else:
-        div = np.zeros(len(X))
-        for i in tqdm(range(len(X)), desc="Calculating divergence"):
-            J = f_jac(X[i])
-            div[i] = np.trace(J)
-
-    return div
+# @timeit
+# def compute_divergence_numeric(f_jac, X, vectorize=True):
+#     """calculate divergence for many samples by taking the trace of a Jacobian matrix"""
+#     if vectorize:
+#         J = f_jac(X)
+#         div = np.trace(J)
+#     else:
+#         div = np.zeros(len(X))
+#         for i in tqdm(range(len(X)), desc="Calculating divergence"):
+#             J = f_jac(X[i])
+#             div[i] = np.trace(J)
+#
+#     return div
 
  
 @timeit
@@ -380,12 +380,13 @@ def divergence(adata,
     else:
         if method == 'analytical':
             fjac = lambda x: Jacobian_rkhs_gaussian(x, VecFld)
-            div = compute_divergence(fjac, X[cell_idx], vectorize_size=1)
         elif method == 'numeric':
-            div = compute_divergence_numeric(get_fjac(func), X[cell_idx], vectorize=True)
+            fjac = get_fjac(func)
         else:
             raise NotImplementedError(f"the divergence calculation method {method} is not implemented. Currently only "
                                       f"support `analytical` and `numeric` methods.")
+
+        div = compute_divergence(fjac, X[cell_idx], vectorize_size=1)
 
     div_key = "divergence" if basis is None else "divergence_" + basis
     adata.obs[div_key] = None

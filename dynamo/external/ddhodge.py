@@ -186,6 +186,7 @@ def ddhoge(adata,
              and divergence for each cell will also be added.
 """
 
+    prefix = '' if basis is None else basis + '_'
     to_downsample = adata.n_obs > n_downsamples
 
     if VecFld is None:
@@ -219,8 +220,8 @@ def ddhoge(adata,
     X_data = X_data_full[cell_idx, :]
     adata_ = adata[cell_idx].copy()
 
-    if 'ddhodge' in adata_.obsp.keys() and not enforce and not to_downsample:
-        adj_mat = adata_.obsp['ddhodge']
+    if prefix + 'ddhodge' in adata_.obsp.keys() and not enforce and not to_downsample:
+        adj_mat = adata_.obsp[prefix + 'ddhodge']
     else:
         if (adjmethod == 'graphize_vecfld'):
             neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
@@ -244,8 +245,8 @@ def ddhoge(adata,
 
     g = build_graph(adj_mat)
 
-    if ('ddhodge' not in adata.obsp.keys() or enforce) and not to_downsample:
-        adata.obsp['ddhodge'] = adj_mat
+    if (prefix + 'ddhodge' not in adata.obsp.keys() or enforce) and not to_downsample:
+        adata.obsp[prefix + 'ddhodge'] = adj_mat
 
     ddhodge_div = div(g)
     potential_ = potential(g, - ddhodge_div)
@@ -259,12 +260,12 @@ def ddhoge(adata,
         W = csr_matrix((np.repeat(1/k, len(row)), (row, col)), shape=(len(query_idx), len(cell_idx)))
 
         query_data_div, query_data_potential = W.dot(ddhodge_div), W.dot(potential_)
-        adata.obs['ddhodge_sampled'], adata.obs['ddhodge_div'], adata.obs['potential'] = False, 0, 0
-        adata.obs.loc[adata.obs_names[cell_idx], 'ddhodge_sampled'] = True
-        adata.obs.loc[adata.obs_names[cell_idx], 'ddhodge_div'] = ddhodge_div
-        adata.obs.loc[adata.obs_names[cell_idx], 'potential'] = potential_
-        adata.obs.loc[adata.obs_names[query_idx], 'ddhodge_div'] = query_data_div
-        adata.obs.loc[adata.obs_names[query_idx], 'potential'] = query_data_potential
+        adata.obs[prefix + 'ddhodge_sampled'], adata.obs[prefix + 'ddhodge_div'], adata.obs[prefix + 'potential'] = False, 0, 0
+        adata.obs.loc[adata.obs_names[cell_idx], prefix + 'ddhodge_sampled'] = True
+        adata.obs.loc[adata.obs_names[cell_idx], prefix + 'ddhodge_div'] = ddhodge_div
+        adata.obs.loc[adata.obs_names[cell_idx], prefix + 'potential'] = potential_
+        adata.obs.loc[adata.obs_names[query_idx], prefix + 'ddhodge_div'] = query_data_div
+        adata.obs.loc[adata.obs_names[query_idx], prefix + 'potential'] = query_data_potential
     else:
-        adata.obs['ddhodge_div'] = ddhodge_div
-        adata.obs['potential'] = potential_
+        adata.obs[prefix + 'ddhodge_div'] = ddhodge_div
+        adata.obs[prefix + 'ddhodge_potential'] = potential_

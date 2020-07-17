@@ -87,7 +87,7 @@ def fate(
     elif dims is not None:
         init_states = init_states[:, dims]
 
-    vf = lambda x: scale*vector_field_function(x=x, VecFld=VecFld) if VecFld_true is None else VecFld_true
+    vf = lambda x: scale*vector_field_function(x=x, vf_dict=VecFld) if VecFld_true is None else VecFld_true
     t, prediction = _fate(
         vf,
         init_states,
