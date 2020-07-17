@@ -252,7 +252,7 @@ def SparseVFC(
     gamma=0.9,
     lambda_=3,
     minP=1e-5,
-    MaxIter=500,
+    MaxIter=30,
     theta=0.75,
     div_cur_free_kernels=False,
     velocity_based_sampling=True,
@@ -293,7 +293,7 @@ def SparseVFC(
         minP: 'float' (default: 1e-5)
             The posterior probability Matrix P may be singular for matrix inversion. We set the minimum value of P as
             minP.
-        MaxIter: 'int' (default: 500)
+        MaxIter: 'int' (default: 30)
             Maximum iteration times.
         theta: 'float' (default: 0.75)
             Define how could be an inlier. If the posterior probability of a sample is an inlier is larger than theta,
