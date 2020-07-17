@@ -240,6 +240,30 @@ def construct_v(X, i, idx, n_int_steps, func, distance_free, dist, D, n):
 
     return V
 
+@timeit
+def Jacobian_rkhs_gaussian(x, vf_dict):
+    """analytical Jacobian for RKHS vector field functions with Gaussian kernel.
+
+        Arguments
+        ---------
+        x: :class:`~numpy.ndarray`
+            Coordinates where the Jacobian is evaluated.
+        vf_dict: dict
+            A dictionary containing RKHS vector field control points, Gaussian bandwidth,
+            and RKHS coefficients.
+            Essential keys: 'X_ctrl', 'beta', 'C'
+
+        Returns
+        -------
+        J: :class:`~numpy.ndarray`
+            Jacobian matrices stored as d-by-d-by-n numpy arrays evaluated at x.
+            d is the number of dimensions and n the number of coordinates in x.
+    """
+    if x.ndim == 1: x = x[None, :]
+    K, D = con_K(x, vf_dict['X_ctrl'], vf_dict['beta'], return_d=True)
+    if K.ndim == 1: K = K[None, :]
+    J = np.einsum('nm, mi, njm -> ijn', K, vf_dict['C'], D)
+    return -2*vf_dict['beta']*J
 
 def SparseVFC(
     X,
@@ -617,15 +641,20 @@ class vectorfield:
         plot_energy(None, vecfld_dict=self.vf_dict, figsize=figsize, fig=fig)
 
 
-    def compute_divergence(self, X=None, vectorize=True, timeit=False):
+    def compute_divergence(self, X=None, method='analytical', **kwargs):
         X = self.data['X'] if X is None else X
-        X_ = X.T if vectorize else X
-        return compute_divergence(self.get_Jacobian(1), X_, vectorize=vectorize, timeit=timeit)
+        f_jac = self.get_Jacobian(method=method)
+        return compute_divergence(f_jac, X, **kwargs)
 
 
-    def get_Jacobian(self, input_vector_convention='row'):
+    def get_Jacobian(self, method='analytical', input_vector_convention='row'):
         '''
-            Get the numerical Jacobian of the vector field function.
+            Get the Jacobian of the vector field function.
+            If method is 'analytical': 
+            The analytical Jacobian will be returned and it always
+            take row vectors as input no matter what input_vector_convention is.
+
+            If method is 'numerical':
             If the input_vector_convention is 'row', it means that fjac takes row vectors
             as input, otherwise the input should be an array of column vectors. Note that
             the returned Jacobian would behave exactly the same if the input is an 1d array.
@@ -634,15 +663,17 @@ class vectorfield:
             So the matrix of row vector convention is converted into column vector convention
             under the hood.
 
-            No matter the input vector convention, the returned Jacobian is of the following
-            format:
+            No matter the method and input vector convention, the returned Jacobian is of the 
+            following format:
                     df_1/dx_1   df_1/dx_2   df_1/dx_3   ...
                     df_2/dx_1   df_2/dx_2   df_2/dx_3   ...
                     df_3/dx_1   df_3/dx_2   df_3/dx_3   ...
                     ...         ...         ...         ...
         '''
-
-        return get_fjac(self.func, input_vector_convention)
+        if method == 'numerical':
+            return get_fjac(self.func, input_vector_convention)
+        else:
+            return lambda x: Jacobian_rkhs_gaussian(x, self.vf_dict['VecFld'])
 
 
     def construct_graph(self, X=None, **kwargs):
@@ -696,4 +727,5 @@ class vectorfield:
         vf_dict, func = _from_adata(adata, basis=basis, vf_key=vf_key)
         self.data['X'] = vf_dict['X']
         self.data['V'] = vf_dict['V']
+        self.vf_dict['VecFld'] = vf_dict
         self.func = func

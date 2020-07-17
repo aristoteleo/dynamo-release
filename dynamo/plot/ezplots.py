@@ -3,6 +3,17 @@ import matplotlib.pyplot as plt
 from ..tools.utils import flatten, isarray, velocity_on_grid
 #from ..tools.Markov import smoothen_drift_on_grid
 
+SchemeDiverge = {
+    'cmap': 'Spectral_r', 
+    'sym_c': True, 
+    'sort_by_c': 'abs',
+    }
+
+SchemeDivergeBWR = {
+    'cmap': 'bwr', 
+    'sym_c': True, 
+    'sort_by_c': 'abs',
+    }
 
 def plot_X(X, dim1=0, dim2=1, dim3=None, create_figure=False, figsize=(6, 6), 
     sort_by_c='raw', **kwargs):
@@ -13,10 +24,12 @@ def plot_X(X, dim1=0, dim2=1, dim3=None, create_figure=False, figsize=(6, 6),
     c = kwargs.pop('c', None)
     if c is not None and isarray(c):
         if sort_by_c is not None:
-            if sort_by_c == 'raw':
-                i_sort = np.argsort(c)
-            else:
+            if sort_by_c == 'neg':
+                i_sort = np.argsort(-c)
+            elif sort_by_c == 'abs':
                 i_sort = np.argsort(np.abs(c))
+            elif sort_by_c == 'raw':
+                i_sort = np.argsort(c)
             x = x[i_sort]
             y = y[i_sort]
             c = c[i_sort]
@@ -57,11 +70,29 @@ def zscatter(adata, basis='umap', layer='X', dim1=0, dim2=1, dim3=None,
             title = color
             color = flatten(np.array(adata.obs[color])) 
 
+    # categorical data
+    if color is not None and np.any([type(a) is str for a in color]):
+        cat_color = True
+        if title + '_colors' in adata.uns.keys():
+            color_dict = adata.uns[title + '_colors']
+        else:
+            color_dict = {c: i for i, c in enumerate(np.unique(color))}
+        color = np.array([color_dict[c] for c in color])
+    else:
+        cat_color = False
+
     plot_X(X, dim1=dim1, dim2=dim2, dim3=dim3, c=color, **kwargs)
     if isarray(color):
-        if cbar: plt.colorbar(shrink=cbar_shrink)
+        if cbar: 
+            if cat_color:
+                cb = plt.colorbar(ticks=[i for i in color_dict.values()], 
+                    values=[i for i in color_dict.values()], 
+                    shrink=cbar_shrink)
+                cb.ax.set_yticklabels(color_dict.keys())
+            else:
+                plt.colorbar(shrink=cbar_shrink)
         if sym_c:
-            bounds = max(np.abs(color.max()), np.abs(color.min()))
+            bounds = max(np.abs(np.nanmax(color)), np.abs(np.nanmin(color)))
             bounds = bounds * np.array([-1, 1])
             plt.clim(bounds[0], bounds[1])
     if title is not None:
