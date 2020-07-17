@@ -131,7 +131,7 @@ def subset_jacobian_transformation(fjac, X, Qi, Qj, cores=1):
             ret[:, :, i] = Qi @ J @ Qj.T
     else:
         pool = ThreadPool(cores)
-        res = pool.starmap(cal_J, zip(np.arange(n), itertools.repeat(Js), itertools.repeat(Qi),
+        res = pool.starmap(pool_cal_J, zip(np.arange(n), itertools.repeat(Js), itertools.repeat(Qi),
                                       itertools.repeat(Qj), itertools.repeat(ret)))
         pool.close()
         pool.join()
@@ -139,11 +139,9 @@ def subset_jacobian_transformation(fjac, X, Qi, Qj, cores=1):
 
     return ret
 
-
-def cal_J(i, Js, Qi, Qj, ret):
+def pool_cal_J(i, Js, Qi, Qj, ret):
     J = Js[:, :, i]
     ret[:, :, i] = Qi @ J @ Qj.T
-
     return ret
 
 
@@ -177,7 +175,7 @@ def _divergence(f, x):
     return np.trace(jac)
 
 
-@timeit
+'''@timeit
 def compute_divergence(f_jac, X, vectorize=True):
     """calculate divergence for many samples by taking the trace of a Jacobian matrix"""
     if vectorize:
@@ -189,6 +187,24 @@ def compute_divergence(f_jac, X, vectorize=True):
             J = f_jac(X[i])
             div[i] = np.trace(J)
 
+    return div'''
+
+ 
+@timeit
+def compute_divergence(f_jac, X, vectorize_size=1):
+    """
+        Calculate divergence for many samples by taking the trace of a Jacobian matrix.
+        vectorize_size is used to control the number of samples computed in each vectorized batch.
+        If vectorize_size = 1, there's no vectorization whatsoever.
+        If vectorize_size = None, all samples are vectorized.
+    """
+    n = len(X)
+    if vectorize_size is None: vectorize_size = n
+
+    div = np.zeros(n)
+    for i in tqdm(range(0, n, vectorize_size), desc="Calculating divergence"):
+        J = f_jac(X[i:i+vectorize_size])
+        div[i:i+vectorize_size] = np.trace(J)
     return div
 
 

@@ -1602,12 +1602,12 @@ def integrate_streamline(
 
 
 @timeit
-def vector_field_function(x, VecFld, dim=None, kernel='full', **kernel_kwargs):
-    """Learn an analytical function of vector field from sparse single cell samples on the entire space robustly.
+def vector_field_function(x, vf_dict, dim=None, kernel='full', **kernel_kwargs):
+    """vector field function constructed by sparseVFC.
     Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
     """
     # x=np.array(x).reshape((1, -1))
-    if "div_cur_free_kernels" in VecFld.keys():
+    if "div_cur_free_kernels" in vf_dict.keys():
         has_div_cur_free_kernels = True
     else:
         has_div_cur_free_kernels = False
@@ -1626,36 +1626,38 @@ def vector_field_function(x, VecFld, dim=None, kernel='full', **kernel_kwargs):
         else:
             raise ValueError(f"the kernel can only be one of {'full', 'df_kernel', 'cf_kernel'}!")
 
-        K = con_K_div_cur_free(x, VecFld["X_ctrl"], VecFld["sigma"], VecFld["eta"], **kernel_kwargs)[kernel_ind]
+        K = con_K_div_cur_free(x, vf_dict["X_ctrl"], vf_dict["sigma"], vf_dict["eta"], **kernel_kwargs)[kernel_ind]
     else:
-        K = con_K(x, VecFld["X_ctrl"], VecFld["beta"], **kernel_kwargs)
+        K = con_K(x, vf_dict["X_ctrl"], vf_dict["beta"], **kernel_kwargs)
 
-    if dim is None:
-        K = K.dot(VecFld["C"])
+    if dim is None or has_div_cur_free_kernels:
+        K = K.dot(vf_dict["C"])
     else:
-        K = K.dot(VecFld["C"]) if has_div_cur_free_kernels else K.dot(VecFld["C"][:, dim])
+        K = K.dot(vf_dict["C"][:, dim])
     return K
 
 
 @timeit
-def con_K(x, y, beta, method='cdist'):
+def con_K(x, y, beta, method='cdist', return_d=False):
     """con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
 
     Arguments
     ---------
-        x: 'np.ndarray'
+        x: :class:`~numpy.ndarray`
             Original training data points.
-        y: 'np.ndarray'
+        y: :class:`~numpy.ndarray`
             Control points used to build kernel basis functions.
-        beta: 'float' (default: 0.1)
+        beta: float (default: 0.1)
             Paramerter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2),
+        return_d: bool
+            If True the intermediate 3D matrix x - y will be returned for analytical Jacobian.
 
     Returns
     -------
     K: 'np.ndarray'
     the kernel to represent the vector field function.
     """
-    if method == 'cdist':
+    if method == 'cdist' and not return_d:
         K = cdist(x, y, 'sqeuclidean')
         if len(K) == 1:
             K = K.flatten()
@@ -1665,13 +1667,16 @@ def con_K(x, y, beta, method='cdist'):
 
         # https://stackoverflow.com/questions/1721802/what-is-the-equivalent-of-matlabs-repmat-in-numpy
         # https://stackoverflow.com/questions/12787475/matlabs-permute-in-python
-        K = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(
+        D = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(
             np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0])
-        K = np.squeeze(np.sum(K ** 2, 1))
+        K = np.squeeze(np.sum(D ** 2, 1))
     K = -beta * K
     K = np.exp(K)
 
-    return K
+    if return_d:
+        return K, D
+    else:
+        return K
 
 @timeit
 def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
