@@ -14,14 +14,20 @@ def fate_bias(adata,
               save_kwargs={},
               **cluster_maps_kwargs
               ):
-    """Plot the lineage (fate) bias of cells states whose vector field trajectory are predicted.
+    """Plot the lineage (fate) bias of cells states whose vector field trajectories are predicted.
+
+    This function internally calls `dyn.tl.fate_bias` to calculate fate bias dataframe. You can also visualize the data
+    frame via pandas stlying (https://pandas.pydata.org/pandas-docs/stable/user_guide/style.html), for example:
+
+        >>> df = dyn.tl.fate_bias(adata)
+        >>> df.style.background_gradient(cmap='viridis')
 
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
-            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+            AnnData object that contains the predicted fate trajectories in the `uns` attribute.
         group: `str`
-            The column key that corresponds to the cell type or other group information for quantifying the basis of cell
+            The column key that corresponds to the cell type or other group information for quantifying the bias of cell
             state.
         basis: `str` or None (default: `None`)
             The embedding data space that cell fates were predicted and cell fates will be quantified.

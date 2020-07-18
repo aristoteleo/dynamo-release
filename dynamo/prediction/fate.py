@@ -271,14 +271,14 @@ def fate_bias(adata, group, basis='umap'):
     """Calculate the lineage (fate) bias of states whose trajectory are predicted.
 
     Fate bias is currently calculated as the percentage of points along the predicted cell fate trajectory that are
-    closet to any cell from each group specified by `group` key.
+    closest to any cell from each group specified by `group` key.
 
     Arguments
     ---------
         adata: :class:`~anndata.AnnData`
-            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+            AnnData object that contains the predicted fate trajectories in the `uns` attribute.
         group: `str`
-            The column key that corresponds to the cell type or other group information for quantifying the basis of cell
+            The column key that corresponds to the cell type or other group information for quantifying the bias of cell
             state.
         basis: `str` or None (default: `None`)
             The embedding data space that cell fates were predicted and cell fates will be quantified.
@@ -286,7 +286,7 @@ def fate_bias(adata, group, basis='umap'):
     Returns
     -------
         fate_bias: `pandas.DataFrame`
-            The DataFrame that stores the fate bias for each cell state (row) to each cell group (column).
+            A DataFrame that stores the fate bias for each cell state (row) to each cell group (column).
     """
 
     if group not in adata.obs.keys():
@@ -309,7 +309,7 @@ def fate_bias(adata, group, basis='umap'):
 
     pred_dict = {}
     cell_predictions, cell_indx = adata.uns[fate_key]['prediction'], adata.uns[fate_key]['init_cells']
-    for i, prediction in enumerate():
+    for i, prediction in enumerate(cell_predictions):
         distances, knn = nbrs.kneighbors(prediction.T)
 
         pred_dict[i] = clusters[knn.flatten()].value_counts()
