@@ -36,6 +36,7 @@ from .topography import (
     topography,
 )
 from .vector_calculus import curl, divergence, jacobian, jacobian_heatmap
+from .fate import fate_bias
 from .state_graph import state_graph
 
 from .scPotential import show_landscape

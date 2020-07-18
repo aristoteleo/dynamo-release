@@ -1,4 +1,6 @@
 import numpy as np
+import pandas as pd
+from sklearn.neighbors import NearestNeighbors
 from multiprocessing.dummy import Pool as ThreadPool
 import itertools
 import warnings
@@ -156,6 +158,7 @@ def fate(
 
     adata.uns[fate_key] = {
             "init_states": init_states,
+            "init_cells": init_cells,
             "average": average,
             "t": t,
             "prediction": prediction,
@@ -262,6 +265,59 @@ def _fate(
 
     return t, prediction
 
+
+
+def fate_bias(adata, group, basis='umap'):
+    """Calculate the lineage (fate) bias of states whose trajectory are predicted.
+
+    Fate bias is currently calculated as the percentage of points along the predicted cell fate trajectory that are
+    closet to any cell from each group specified by `group` key.
+
+    Arguments
+    ---------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        group: `str`
+            The column key that corresponds to the cell type or other group information for quantifying the basis of cell
+            state.
+        basis: `str` or None (default: `None`)
+            The embedding data space that cell fates were predicted and cell fates will be quantified.
+
+    Returns
+    -------
+        fate_bias: `pandas.DataFrame`
+            The DataFrame that stores the fate bias for each cell state (row) to each cell group (column).
+    """
+
+    if group not in adata.obs.keys():
+        raise ValueError(f'The group {group} you provided is not a key of .obs attribute.')
+    else:
+        clusters = adata.obs[group]
+
+    basis_key = 'X_' + basis if basis is not None else 'X'
+    fate_key = 'fate_' + basis if basis is not None else 'fate'
+
+    if basis_key not in adata.obsm.keys():
+        raise ValueError(f'The basis {basis_key} you provided is not a key of .obsm attribute (or adata.X is not existed '
+                         f'if `basis` is `X`).')
+    if fate_key not in adata.uns.keys():
+        raise ValueError(f"The {fate_key} key is not existed in the .uns attribute of the adata object. You need to run"
+                         f"dyn.pd.fate(adata, basis='{basis}') before calculate fate bias.")
+
+    X = adata.obsm[basis_key] if basis_key is not 'X' else adata.X
+    nbrs = NearestNeighbors(n_neighbors=1, algorithm='ball_tree').fit(X)
+
+    pred_dict = {}
+    cell_predictions, cell_indx = adata.uns[fate_key]['prediction'], adata.uns[fate_key]['init_cells']
+    for i, prediction in enumerate():
+        distances, knn = nbrs.kneighbors(prediction.T)
+
+        pred_dict[i] = clusters[knn.flatten()].value_counts()
+
+    bias = pd.DataFrame(pred_dict).T / prediction.shape[1]
+    if cell_indx is not None: bias.index = cell_indx
+
+    return bias
 
 # def fate_(adata, time, direction = 'forward'):
 #     from .moments import *
