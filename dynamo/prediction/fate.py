@@ -253,7 +253,7 @@ def _fate(
         pool.close()
         pool.join()
         t_, prediction_ = zip(*res)
-        t, prediction = np.vstack(t_), np.hstack(prediction_)
+        t, prediction = [i[0] for i in t_], [i[0] for i in prediction_]
         n_cell, n_feature = init_states.shape
         if init_states.shape[0] > 1 and average:
             t_len = int(len(t) / n_cell)
@@ -264,7 +264,6 @@ def _fate(
             prediction = avg
 
     return t, prediction
-
 
 
 def fate_bias(adata, group, basis='umap'):
