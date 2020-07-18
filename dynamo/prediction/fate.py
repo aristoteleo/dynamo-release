@@ -159,7 +159,7 @@ def fate(
             "average": average,
             "t": t,
             "prediction": prediction,
-            "VecFld": VecFld,
+            # "VecFld": VecFld,
             "VecFld_true": VecFld_true,
             "genes": valid_genes,
         }

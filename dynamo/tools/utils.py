@@ -1359,7 +1359,7 @@ def arclength_sampling(X, step_length, t=None):
                 l += d
         if j == len(X) - 1: i += 1
         arclength += step_length
-        if l < step_length:
+        if l + d < step_length:
             terminate = True
 
     if T is not None:
@@ -1592,7 +1592,7 @@ def integrate_vf_ivp(
             print("\nintegration time: ", len(t_trans))
 
     if arclen_sampling:
-        Y_, t_ = [None] * len(t), [None] * len(t)
+        Y_, t_ = [None] * n_cell, [None] * n_cell
         for i in tqdm(range(n_cell), desc="uniformly sampling points along a trajectory"):
             tau, x = T[i], Y[i].T
             x, arclen, discard = remove_redundant_points_trajectory(x, tol=1e-4, output_discard=True)
