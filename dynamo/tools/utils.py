@@ -1444,8 +1444,9 @@ def integrate_vf_ivp(
 ):
     """integrating along vector field function using the initial value problem solver from scipy.integrate"""
 
+    if init_states.ndim == 1: init_states = init_states[None, :]
     n_cell, n_feature = init_states.shape
-    max_step = np.abs(t[-1] - t[0]) / 2500
+    max_step = np.abs(t[-1] - t[0]) / interpolation_num
 
     T, Y, SOL = [], [], []
 
@@ -1453,7 +1454,7 @@ def integrate_vf_ivp(
         y0 = init_states[i, :]
         ivp_f, ivp_f_event = (
             lambda t, x: f(x),
-            lambda t, x: np.sum(np.linalg.norm(f(x)) < 1e-5) - 1,
+            lambda t, x: np.all(abs(f(x)) < 1e-5) - 1, # if velocity on all dimension is less than 1e-5
         )
         ivp_f_event.terminal = True
 
@@ -1518,7 +1519,9 @@ def integrate_vf_ivp(
 
         print("\nintegration time: ", len(t_trans))
 
-    valid_t_trans = np.unique(T)
+    t_uniq = np.unique(T)
+    valid_t_trans = np.hstack([0, np.sort(np.random.choice(t_uniq[1::int(len(t_uniq) / interpolation_num)],
+                                                           interpolation_num - 1))])
 
     _Y = None
     if integration_direction == "both":
@@ -1857,12 +1860,13 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
                 VecFld = adata.uns["VecFld_" + layer]["VecFld"]
                 X = log1p_(adata, adata[:, valid_genes].layers[layer])
 
-    if init_states.shape[0] > 1 and average in ["origin", True]:
+    if init_states.shape[0] > 1 and average in ["origin", 'trajectory', True]:
         init_states = init_states.mean(0).reshape((1, -1))
 
     if t_end is None:
         xmin, xmax = X.min(0), X.max(0)
-        t_end = np.max(xmax - xmin) / np.min(np.abs(VecFld["V"]))
+        V_abs = np.abs(VecFld["V"])
+        t_end = np.max(xmax - xmin) / np.min(V_abs[V_abs > 0])
 
     if issparse(init_states):
         init_states = init_states.A

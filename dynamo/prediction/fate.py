@@ -1,4 +1,6 @@
 import numpy as np
+from multiprocessing.dummy import Pool as ThreadPool
+import itertools
 from ..tools.utils import integrate_vf_ivp
 from ..tools import vector_field_function
 from ..tools.utils import fetch_states
@@ -18,6 +20,7 @@ def fate(
     VecFld_true=None,
     inverse_transform=True,
     scale=1,
+    cores=1,
     **kwargs
 ):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales.
@@ -31,31 +34,43 @@ def fate(
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
         init_cells: `list` (default: None)
-            Cell name or indices of the initial cell states for the historical or future cell state prediction with numerical integration.
-            If the names in init_cells are not find in the adata.obs_name, it will be treated as cell indices and must be integers.
+            Cell name or indices of the initial cell states for the historical or future cell state prediction with
+            numerical integration. If the names in init_cells are not find in the adata.obs_name, it will be treated as
+            cell indices and must be integers.
         init_states: `numpy.ndarray` or None (default: None)
             Initial cell states for the historical or future cell state prediction with numerical integration.
         basis: `str` or None (default: `None`)
-            The embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the reconstructed trajectory
-            will be projected back to high dimensional space via the `inverse_transform` function.
+            The embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the reconstructed
+            trajectory will be projected back to high dimensional space via the `inverse_transform` function.
         layer: `str` or None (default: 'X')
             Which layer of the data will be used for predicting cell fate with the reconstructed vector field function.
-            The layer once provided, will override the `basis` argument and then predicting cell fate in high dimensional space.
+            The layer once provided, will override the `basis` argument and then predicting cell fate in high dimensional
+            space.
         genes: `list` or None (default: None)
-            The gene names whose gene expression will be used for predicting cell fate. By default (when genes is set to None),
-            the genes used for velocity embedding (var.use_for_velocity) will be used for vector field reconstruction. Note that
-            the genes to be used need to have velocity calculated and corresponds to those used in the `dyn.tl.VectorField` function.
+            The gene names whose gene expression will be used for predicting cell fate. By default (when genes is set to
+            None), the genes used for velocity embedding (var.use_for_velocity) will be used for vector field
+            reconstruction. Note that the genes to be used need to have velocity calculated and corresponds to those used
+            in the `dyn.tl.VectorField` function.
         t_end: `float` (default None)
             The length of the time period from which to predict cell state forward or backward over time. This is used
             by the odeint function.
         direction: `string` (default: both)
             The direction to predict the cell fate. One of the `forward`, `backward` or `both` string.
-        average: `str` (default: `origin`) {'origin', 'trajectory'}
-            The method to calculate the average cell state at each time step, can be one of `origin` or `trajectory`. If `origin` used,
-            the average expression state from the init_cells will be calculated and the fate prediction is based on this state. If `trajectory`
-            used, the average expression states of all cells predicted from the vector field function at each time point will be used.
+        average: `str` or `bool` (default: `origin`) {'origin', 'trajectory'}
+            The method to calculate the average cell state at each time step, can be one of `origin` or `trajectory`. If
+            `origin` used, the average expression state from the init_cells will be calculated and the fate prediction is
+            based on this state. If `trajectory` used, the average expression states of all cells predicted from the
+            vector field function at each time point will be used.
         VecFld_true: `function`
-            The true ODE function, useful when the data is generated through simulation. Replace VecFld arugment when this has been set.
+            The true ODE function, useful when the data is generated through simulation. Replace VecFld arugment when
+            this has been set.
+        inverse_transform: `bool` (default: `True`)
+            Whether to inverse transform the low dimensional vector field prediction back to high dimensional space.
+        scale: `float` (default: `1`)
+            The value that will be used to scale the predicted velocity value from the reconstructed vector field function.
+        scale: `int` (default: 1):
+            Number of cores to calculate path integral for predicting cell fate. If cores is set to be > 1,
+            multiprocessing will be used to parallel the fate prediction.
         kwargs:
             Additional parameters that will be passed into the fate function.
 
@@ -79,7 +94,7 @@ def fate(
     #valid_genes = None
 
     init_states, VecFld, t_end, valid_genes = fetch_states(
-        adata, init_states, init_cells, basis, layer, average, t_end
+        adata, init_states, init_cells, basis, layer, True if average in ['origin', 'trajectory', True] else False, t_end
     )
 
     if np.isscalar(dims):
@@ -93,13 +108,13 @@ def fate(
         init_states,
         direction=direction,
         t_end=t_end,
-        average=True,
+        average=True if average in ['origin', 'trajectory', True] else False,
         **kwargs
     )
 
     high_prediction = None
     if basis == "pca" and inverse_transform:
-        high_prediction = adata.uns["pca_fit"].inverse_transform(prediction)
+        high_prediction = adata.uns["pca_fit"]['fit'].inverse_transform(prediction)
         if adata.var.use_for_dynamics.sum() == high_prediction.shape[1]:
             valid_genes = adata.var_names[adata.var.use_for_dynamics]
         else:
@@ -147,6 +162,7 @@ def _fate(
     direction="both",
     interpolation_num=250,
     average=True,
+    cores=1,
 ):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector field
     functions from one or a set of initial cell state(s).
@@ -154,8 +170,8 @@ def _fate(
     Arguments
     ---------
         VecFld: `function`
-            Functional form of the vector field reconstructed from sparse single cell samples. It is applicable to the entire
-            transcriptomic space.
+            Functional form of the vector field reconstructed from sparse single cell samples. It is applicable to the
+            entire transcriptomic space.
         init_states: `numpy.ndarray`
             Initial cell states for the historical or future cell state prediction with numerical integration.
         t_end: `float` (default None)
@@ -169,8 +185,11 @@ def _fate(
         interpolation_num: `int` (default: 250)
             The number of uniformly interpolated time points.
         average: `bool` (default: True)
-            A boolean flag to determine whether to smooth the trajectory by calculating the average cell state at each time
-            step.
+            A boolean flag to determine whether to smooth the trajectory by calculating the average cell state at each
+            time step.
+        cores: `int` (default: 1):
+            Number of cores to calculate path integral for predicting cell fate. If cores is set to be > 1,
+            multiprocessing will be used to parallel the fate prediction.
 
     Returns
     -------
@@ -196,15 +215,33 @@ def _fate(
     else:
         t_linspace = np.arange(0, t_end + step_size, step_size)
 
-    t, prediction = integrate_vf_ivp(
-        init_states,
-        t_linspace,
-        (),
-        direction,
-        VecFld,
-        interpolation_num=interpolation_num,
-        average=average,
-    )
+    if cores == 1:
+        t, prediction = integrate_vf_ivp(
+            init_states,
+            t_linspace,
+            (),
+            direction,
+            VecFld,
+            interpolation_num=interpolation_num,
+            average=average,
+        )
+    else:
+        pool = ThreadPool(cores)
+        res = pool.starmap(integrate_vf_ivp, zip(init_states, itertools.repeat(t_linspace), itertools.repeat(()),
+                                      itertools.repeat(direction), itertools.repeat(VecFld),
+                                      itertools.repeat(interpolation_num), itertools.repeat(False)))
+        pool.close()
+        pool.join()
+        t_, prediction_ = zip(*res)
+        t, prediction = np.vstack(t_), np.vstack(prediction_)
+        n_cell, n_feature = init_states.shape
+        if init_states.shape[0] > 1 and average:
+            t_len = int(len(t) / n_cell)
+            avg = np.zeros((n_feature, t_len))
+
+            for i in range(t_len):
+                avg[:, i] = np.mean(prediction[:, np.arange(n_cell) * t_len + i], 1)
+            prediction = avg
     return t, prediction
 
 
