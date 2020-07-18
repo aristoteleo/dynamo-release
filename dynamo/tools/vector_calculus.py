@@ -1,4 +1,5 @@
 from tqdm import tqdm
+import multiprocessing as mp
 from multiprocessing.dummy import Pool as ThreadPool
 import itertools, functools
 import numpy as np
@@ -125,6 +126,7 @@ def subset_jacobian_transformation(fjac, X, Qi, Qj, cores=1):
     Js = fjac(X)
     ret = np.zeros((d1, d2, n))
 
+    if cores is None: cores = mp.cpu_count()
     if cores == 1:
         for i in tqdm(range(n), desc='Transforming subset Jacobian'):
             J = Js[:, :, i]
