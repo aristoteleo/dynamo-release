@@ -1,6 +1,7 @@
 import numpy as np
 from multiprocessing.dummy import Pool as ThreadPool
 import itertools
+import warnings
 from ..tools.utils import integrate_vf_ivp
 from ..tools import vector_field_function
 from ..tools.utils import fetch_states
@@ -17,6 +18,7 @@ def fate(
     t_end=None,
     direction="both",
     average="origin",
+    arclen_sampling=False,
     VecFld_true=None,
     inverse_transform=True,
     scale=1,
@@ -61,6 +63,9 @@ def fate(
             `origin` used, the average expression state from the init_cells will be calculated and the fate prediction is
             based on this state. If `trajectory` used, the average expression states of all cells predicted from the
             vector field function at each time point will be used. If `average` is `False`, no averaging will be applied.
+        arclen_sampling: `bool` (default: `False`)
+            Whether to apply uniformly sampling along the integration path. Default is `False`. If set to be `True`,
+            `average` will turn off.
         VecFld_true: `function`
             The true ODE function, useful when the data is generated through simulation. Replace VecFld arugment when
             this has been set.
@@ -79,6 +84,14 @@ def fate(
         adata: :class:`~anndata.AnnData`
             AnnData object that is updated with the dictionary Fate (includes `t` and `prediction` keys) in uns attribute.
     """
+
+    if arclen_sampling == True:
+        if average in ['origin', 'trajectory', True]:
+            warnings.warn(
+                "using arclength_sampling to uniformly sample along an integral path at different integration "
+                "time points. Average trajectory won't be calculated")
+
+        average = False
 
     if basis is not None:
         fate_key = "fate_" + basis
@@ -109,6 +122,7 @@ def fate(
         direction=direction,
         t_end=t_end,
         average=True if average in ['origin', 'trajectory', True] else False,
+        arclen_sampling=arclen_sampling,
         cores=cores,
         **kwargs
     )
@@ -161,8 +175,9 @@ def _fate(
     t_end=None,
     step_size=None,
     direction="both",
-    interpolation_num=250,
+    interpolation_num=100,
     average=True,
+    arclen_sampling=False,
     cores=1,
 ):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector field
@@ -183,7 +198,7 @@ def _fate(
             and the step_size will be automatically calculated to ensure 250 total integration time-steps will be used.
         direction: `string` (default: both)
             The direction to predict the cell fate. One of the `forward`, `backward`or `both` string.
-        interpolation_num: `int` (default: 250)
+        interpolation_num: `int` (default: 100)
             The number of uniformly interpolated time points.
         average: `bool` (default: True)
             A boolean flag to determine whether to smooth the trajectory by calculating the average cell state at each
@@ -225,6 +240,7 @@ def _fate(
             VecFld,
             interpolation_num=interpolation_num,
             average=average,
+            arclen_sampling=arclen_sampling,
         )
     else:
         pool = ThreadPool(cores)
