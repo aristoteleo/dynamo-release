@@ -1520,8 +1520,11 @@ def integrate_vf_ivp(
         print("\nintegration time: ", len(t_trans))
 
     t_uniq = np.unique(T)
-    valid_t_trans = np.hstack([0, np.sort(np.random.choice(t_uniq[1::int(len(t_uniq) / interpolation_num)],
-                                                           interpolation_num - 1))])
+    if len(t_uniq) > interpolation_num:
+        valid_t_trans = np.hstack([0, np.sort(np.random.choice(t_uniq[1::int(len(t_uniq) / interpolation_num)],
+                                                            interpolation_num - 1))])
+    else:
+        valid_t_trans = np.linspace(0, max(t_uniq), interpolation_num)
 
     _Y = None
     if integration_direction == "both":

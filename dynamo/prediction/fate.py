@@ -60,7 +60,7 @@ def fate(
             The method to calculate the average cell state at each time step, can be one of `origin` or `trajectory`. If
             `origin` used, the average expression state from the init_cells will be calculated and the fate prediction is
             based on this state. If `trajectory` used, the average expression states of all cells predicted from the
-            vector field function at each time point will be used.
+            vector field function at each time point will be used. If `average` is `False`, no averaging will be applied.
         VecFld_true: `function`
             The true ODE function, useful when the data is generated through simulation. Replace VecFld arugment when
             this has been set.
@@ -68,7 +68,7 @@ def fate(
             Whether to inverse transform the low dimensional vector field prediction back to high dimensional space.
         scale: `float` (default: `1`)
             The value that will be used to scale the predicted velocity value from the reconstructed vector field function.
-        scale: `int` (default: 1):
+        cores: `int` (default: 1):
             Number of cores to calculate path integral for predicting cell fate. If cores is set to be > 1,
             multiprocessing will be used to parallel the fate prediction.
         kwargs:
@@ -109,12 +109,13 @@ def fate(
         direction=direction,
         t_end=t_end,
         average=True if average in ['origin', 'trajectory', True] else False,
+        cores=cores,
         **kwargs
     )
 
     high_prediction = None
     if basis == "pca" and inverse_transform:
-        high_prediction = adata.uns["pca_fit"]['fit'].inverse_transform(prediction)
+        high_prediction = adata.uns["pca_fit"].inverse_transform(prediction)
         if adata.var.use_for_dynamics.sum() == high_prediction.shape[1]:
             valid_genes = adata.var_names[adata.var.use_for_dynamics]
         else:
@@ -122,8 +123,8 @@ def fate(
 
     elif basis == "umap" and inverse_transform:
         # this requires umap 0.4
-        high_prediction = adata.uns["umap_fit"].inverse_transform(prediction)
-        ndim = adata.uns["umap_fit"]._raw_data.shape[1]
+        high_prediction = adata.uns["umap_fit"]['fit'].inverse_transform(prediction)
+        ndim = adata.uns["umap_fit"]['fit']._raw_data.shape[1]
 
         if "X" in adata.obsm_keys():
             if ndim == adata.obsm["X"].shape[1]:  # lift the dimension up again
@@ -233,7 +234,7 @@ def _fate(
         pool.close()
         pool.join()
         t_, prediction_ = zip(*res)
-        t, prediction = np.vstack(t_), np.vstack(prediction_)
+        t, prediction = np.vstack(t_), np.hstack(prediction_)
         n_cell, n_feature = init_states.shape
         if init_states.shape[0] > 1 and average:
             t_len = int(len(t) / n_cell)
@@ -242,6 +243,7 @@ def _fate(
             for i in range(t_len):
                 avg[:, i] = np.mean(prediction[:, np.arange(n_cell) * t_len + i], 1)
             prediction = avg
+
     return t, prediction
 
 
