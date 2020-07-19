@@ -19,10 +19,10 @@ def fate(
     genes=None,
     t_end=None,
     direction="both",
-    average="origin",
-    arclen_sampling=False,
+    average=False,
+    arclen_sampling=True,
     VecFld_true=None,
-    inverse_transform=True,
+    inverse_transform=False,
     scale=1,
     cores=1,
     **kwargs
@@ -60,18 +60,18 @@ def fate(
             by the odeint function.
         direction: `string` (default: both)
             The direction to predict the cell fate. One of the `forward`, `backward` or `both` string.
-        average: `str` or `bool` (default: `origin`) {'origin', 'trajectory'}
+        average: `str` or `bool` (default: `False`) {'origin', 'trajectory'}
             The method to calculate the average cell state at each time step, can be one of `origin` or `trajectory`. If
             `origin` used, the average expression state from the init_cells will be calculated and the fate prediction is
             based on this state. If `trajectory` used, the average expression states of all cells predicted from the
             vector field function at each time point will be used. If `average` is `False`, no averaging will be applied.
-        arclen_sampling: `bool` (default: `False`)
+        arclen_sampling: `bool` (default: `True`)
             Whether to apply uniformly sampling along the integration path. Default is `False`. If set to be `True`,
             `average` will turn off.
         VecFld_true: `function`
             The true ODE function, useful when the data is generated through simulation. Replace VecFld arugment when
             this has been set.
-        inverse_transform: `bool` (default: `True`)
+        inverse_transform: `bool` (default: `False`)
             Whether to inverse transform the low dimensional vector field prediction back to high dimensional space.
         scale: `float` (default: `1`)
             The value that will be used to scale the predicted velocity value from the reconstructed vector field function.
@@ -138,8 +138,15 @@ def fate(
             valid_genes = adata.var_names[adata.var.use_for_velocity]
 
     elif basis == "umap" and inverse_transform:
-        # this requires umap 0.4
+        # this requires umap 0.4; reverse project to PCA space.
+        if prediction.ndim == 1: prediction = prediction[None, :]
         high_prediction = adata.uns["umap_fit"]['fit'].inverse_transform(prediction)
+
+        # further reverse project back to raw expression space
+        PCs = adata.uns['PCs'].T
+        if PCs.shape[0] == high_prediction.shape[1]:
+            high_prediction = high_prediction @ PCs
+
         ndim = adata.uns["umap_fit"]['fit']._raw_data.shape[1]
 
         if "X" in adata.obsm_keys():
@@ -249,11 +256,13 @@ def _fate(
         pool = ThreadPool(cores)
         res = pool.starmap(integrate_vf_ivp, zip(init_states, itertools.repeat(t_linspace), itertools.repeat(()),
                                       itertools.repeat(direction), itertools.repeat(VecFld),
-                                      itertools.repeat(interpolation_num), itertools.repeat(False)))
+                                      itertools.repeat(interpolation_num), itertools.repeat(False),
+                                      itertools.repeat(True))) # disable tqdm when using multiple cores.
         pool.close()
         pool.join()
         t_, prediction_ = zip(*res)
         t, prediction = [i[0] for i in t_], [i[0] for i in prediction_]
+        t, prediction = np.hstack(t), np.hstack(prediction)
         n_cell, n_feature = init_states.shape
         if init_states.shape[0] > 1 and average:
             t_len = int(len(t) / n_cell)
@@ -261,7 +270,9 @@ def _fate(
 
             for i in range(t_len):
                 avg[:, i] = np.mean(prediction[:, np.arange(n_cell) * t_len + i], 1)
+
             prediction = avg
+            t = np.sort(np.unique(t))
 
     return t, prediction
 

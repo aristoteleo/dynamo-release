@@ -1510,7 +1510,7 @@ def integrate_vf(
 
 def integrate_vf_ivp(
     init_states, t, args, integration_direction, f, interpolation_num=100, average=True, arclen_sampling=True,
-        verbose=False,
+    verbose=False, disable=False,
 ):
     """integrating along vector field function using the initial value problem solver from scipy.integrate"""
 
@@ -1520,7 +1520,7 @@ def integrate_vf_ivp(
 
     T, Y, SOL = [], [], []
 
-    for i in tqdm(range(n_cell), desc="integration with ivp solver"):
+    for i in tqdm(range(n_cell), desc="integration with ivp solver", disable=disable):
         y0 = init_states[i, :]
         ivp_f, ivp_f_event = (
             lambda t, x: f(x),
@@ -1593,14 +1593,14 @@ def integrate_vf_ivp(
 
     if arclen_sampling:
         Y_, t_ = [None] * n_cell, [None] * n_cell
-        for i in tqdm(range(n_cell), desc="uniformly sampling points along a trajectory"):
+        for i in tqdm(range(n_cell), desc="uniformly sampling points along a trajectory", disable=disable):
             tau, x = T[i], Y[i].T
             x, arclen, discard = remove_redundant_points_trajectory(x, tol=1e-4, output_discard=True)
             arc_stepsize = arclen / interpolation_num
             cur_Y, alen, t_[i] = arclength_sampling(x, step_length=arc_stepsize, t=tau[~discard])
 
             if integration_direction == "both":
-                neg_t_len = sum(t_[i] < 0)
+                neg_t_len = sum(np.array(t_[i]) < 0)
 
             odeint_cur_Y = SOL[i](t_[i]) if integration_direction != "both" \
                 else np.hstack(
