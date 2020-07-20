@@ -81,6 +81,8 @@ from .vector_calculus import (
     divergence,
     jacobian,
     Jacobian_rkhs_gaussian,
+    Jacobian_rkhs_gaussian_parallel,
+    Jacobian_numerical,
 )
 
 

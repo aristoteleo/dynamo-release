@@ -23,9 +23,10 @@ from .utils import (
     _from_adata,
 )
 from .vector_calculus import (
-    get_fjac,
+    Jacobian_numerical,
     compute_divergence,
     Jacobian_rkhs_gaussian,
+    Jacobian_rkhs_gaussian_parallel
 )
 
 def norm(X, V, T):
@@ -627,7 +628,7 @@ class vectorfield:
         return compute_divergence(f_jac, X, **kwargs)
 
 
-    def get_Jacobian(self, method='analytical', input_vector_convention='row'):
+    def get_Jacobian(self, method='analytical', input_vector_convention='row', **kwargs):
         '''
             Get the Jacobian of the vector field function.
             If method is 'analytical': 
@@ -651,9 +652,11 @@ class vectorfield:
                     ...         ...         ...         ...
         '''
         if method == 'numerical':
-            return get_fjac(self.func, input_vector_convention)
+            return Jacobian_numerical(self.func, input_vector_convention, **kwargs)
+        elif method == 'parallel':
+            return lambda x: Jacobian_rkhs_gaussian_parallel(x, self.vf_dict['VecFld'], **kwargs)
         else:
-            return lambda x: Jacobian_rkhs_gaussian(x, self.vf_dict['VecFld'])
+            return lambda x: Jacobian_rkhs_gaussian(x, self.vf_dict['VecFld'], **kwargs)
 
 
     def construct_graph(self, X=None, **kwargs):
