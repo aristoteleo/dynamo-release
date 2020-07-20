@@ -1,5 +1,6 @@
 from tqdm import tqdm
-from multiprocessing.dummy import Pool as ThreadPool
+#from multiprocessing.dummy import Pool as ThreadPool
+import multiprocessing as mp
 import itertools, functools
 import numpy as np
 import numdifftools as nd
@@ -24,8 +25,7 @@ def laplacian(f, x):
     return sum(hes)
 
 
-@timeit
-def Jacobian_rkhs_gaussian(x, vf_dict):
+def Jacobian_rkhs_gaussian(x, vf_dict, vectorize=False):
     """analytical Jacobian for RKHS vector field functions with Gaussian kernel.
 
         Arguments
@@ -43,15 +43,36 @@ def Jacobian_rkhs_gaussian(x, vf_dict):
             Jacobian matrices stored as d-by-d-by-n numpy arrays evaluated at x.
             d is the number of dimensions and n the number of coordinates in x.
     """
-    if x.ndim == 1: x = x[None, :]
-    K, D = con_K(x, vf_dict['X_ctrl'], vf_dict['beta'], return_d=True)
-    if K.ndim == 1: K = K[None, :]
-    J = np.einsum('nm, mi, njm -> ijn', K, vf_dict['C'], D)
+    if x.ndim == 1: 
+        K, D = con_K(x[None, :], vf_dict['X_ctrl'], vf_dict['beta'], return_d=True)
+        J = (vf_dict['C'].T * K) @ D[0].T
+    elif not vectorize:
+        n, d = x.shape
+        J = np.zeros((d, d, n))
+        for i, xi in enumerate(x):
+            K, D = con_K(xi[None, :], vf_dict['X_ctrl'], vf_dict['beta'], return_d=True)
+            J[:, :, i] = (vf_dict['C'].T * K) @ D[0].T
+    else:
+        K, D = con_K(x, vf_dict['X_ctrl'], vf_dict['beta'], return_d=True)
+        if K.ndim == 1: K = K[None, :]
+        J = np.einsum('nm, mi, njm -> ijn', K, vf_dict['C'], D)
 
     return -2 * vf_dict['beta'] * J
 
 
-def get_fjac(f, input_vector_convention='row'):
+def Jacobian_rkhs_gaussian_parallel(x, vf_dict, cores=None):
+    n = len(x)
+    if cores is None: cores = mp.cpu_count()
+    n_j_per_core = int(np.ceil(n / cores))
+    xx = []
+    for i in range(0, n, n_j_per_core):
+        xx.append(x[i:i+n_j_per_core])
+    with mp.Pool(cores) as p:
+        res = p.starmap(Jacobian_rkhs_gaussian, zip(xx, itertools.repeat(vf_dict)))
+    return res
+
+
+def Jacobian_numerical(f, input_vector_convention='row'):
     '''
         Get the numerical Jacobian of the vector field function.
         If the input_vector_convention is 'row', it means that fjac takes row vectors
@@ -81,7 +102,7 @@ def get_fjac(f, input_vector_convention='row'):
 
 
 @timeit
-def elementwise_jacobian_transformation(fjac, X, qi, qj, return_raw_J=False):
+def elementwise_jacobian_transformation(fjac, X, qi, qj, return_J=False):
     """Inverse transform low dimension Jacobian matrix (:math:`\partial F_i / \partial x_j`) back to original space.
     The formula used to inverse transform Jacobian matrix calculated from low dimension (PCs) is:
                                             :math:`Jac = Q J Q^T`,
@@ -100,7 +121,7 @@ def elementwise_jacobian_transformation(fjac, X, qi, qj, return_raw_J=False):
         Qj: `np.ndarray`
             Another gene's (can be the same as those in Qi or different) PCs loading matrix with dimension  n' x n_PCs,
             from which local dimension Jacobian matrix (k x k) will be inverse transformed back to high dimension.
-        return_raw_J: `bool` (default: `False`)
+        return_J: `bool` (default: `False`)
             Whether to return the raw tensor of Jacobian matrix of each cell before transformation.
 
     Returns
@@ -115,13 +136,13 @@ def elementwise_jacobian_transformation(fjac, X, qi, qj, return_raw_J=False):
         J = Js[:, :, i]
         ret[i] = qi @ J @ qj
 
-    if return_raw_J:
+    if return_J:
         return ret, Js
     else:
         return ret
 
 @timeit
-def subset_jacobian_transformation(fjac, X, Qi, Qj, cores=1, return_raw_J=False):
+def subset_jacobian_transformation(fjac, X, Qi, Qj, cores=1, return_J=False):
     """Transform Jacobian matrix (:math:`\partial F_i / \partial x_j`) from PCA space to the original space.
     The formula used for transformation:
                                             :math:`\hat{J} = Q J Q^T`,
@@ -143,7 +164,7 @@ def subset_jacobian_transformation(fjac, X, Qi, Qj, cores=1, return_raw_J=False)
         cores: `int` (default: 1):
             Number of cores to calculate Jacobian. If cores is set to be > 1, multiprocessing will be used to
             parallel the Jacobian calculation.
-        return_raw_J: `bool` (default: `False`)
+        return_J: `bool` (default: `False`)
             Whether to return the raw tensor of Jacobian matrix of each cell before transformation.
 
     Returns
@@ -161,26 +182,43 @@ def subset_jacobian_transformation(fjac, X, Qi, Qj, cores=1, return_raw_J=False)
     ret = np.zeros((d1, d2, n))
 
     if cores == 1:
-        for i in tqdm(range(n), desc='Transforming subset Jacobian'):
-            J = Js[:, :, i]
-            ret[:, :, i] = Qi @ J @ Qj.T
+        #for i in tqdm(range(n), desc='Transforming subset Jacobian'):
+        #    J = Js[:, :, i]
+        #    ret[:, :, i] = Qi @ J @ Qj.T
+        ret = transform_jacobian(Js, Qi, Qj, pbar=True)
     else:
-        pool = ThreadPool(cores)
-        res = pool.starmap(pool_cal_J, zip(np.arange(n), itertools.repeat(Js), itertools.repeat(Qi),
-                                      itertools.repeat(Qj), itertools.repeat(ret)))
-        pool.close()
-        pool.join()
-        ret = functools.reduce((lambda a, b: a + b), res)
-
-    if return_raw_J:
+        #pool = ThreadPool(cores)
+        #res = pool.starmap(pool_cal_J, zip(np.arange(n), itertools.repeat(Js), itertools.repeat(Qi),
+        #                              itertools.repeat(Qj), itertools.repeat(ret)))
+        #pool.close()
+        #pool.join()
+        #ret = functools.reduce((lambda a, b: a + b), res)
+        if cores is None: cores = mp.cpu_count()
+        n_j_per_core = int(np.ceil(n / cores))
+        JJ = []
+        for i in range(0, n, n_j_per_core):
+            JJ.append(Js[:, :, i:i+n_j_per_core])
+        with mp.Pool(cores) as p:
+            ret = p.starmap(transform_jacobian, zip(JJ, 
+                        itertools.repeat(Qi), itertools.repeat(Qj)))
+        ret = [np.transpose(r, axes=(2, 0, 1)) for r in ret]
+        ret = np.transpose(np.vstack(ret), axes=(1, 2, 0))
+    if return_J:
         return ret, Js
     else:
         return ret
 
 
-def pool_cal_J(i, Js, Qi, Qj, ret):
-    J = Js[:, :, i]
-    ret[:, :, i] = Qi @ J @ Qj.T
+def transform_jacobian(Js, Qi, Qj, pbar=False):
+    d1, d2, n = Qi.shape[0], Qj.shape[0], Js.shape[2]
+    ret = np.zeros((d1, d2, n))
+    if pbar:
+        iterj = tqdm(range(n), desc='Transforming subset Jacobian')
+    else:
+        iterj = range(n)
+    for i in iterj:
+        J = Js[:, :, i]
+        ret[:, :, i] = Qi @ J @ Qj.T
     return ret
 
 
@@ -212,21 +250,6 @@ def _divergence(f, x):
     """Divergence of the reconstructed vector field function f evaluated at x"""
     jac = nd.Jacobian(f)(x)
     return np.trace(jac)
-
-
-# @timeit
-# def compute_divergence_numeric(f_jac, X, vectorize=True):
-#     """calculate divergence for many samples by taking the trace of a Jacobian matrix"""
-#     if vectorize:
-#         J = f_jac(X)
-#         div = np.trace(J)
-#     else:
-#         div = np.zeros(len(X))
-#         for i in tqdm(range(len(X)), desc="Calculating divergence"):
-#             J = f_jac(X[i])
-#             div[i] = np.trace(J)
-#
-#     return div
 
  
 @timeit
@@ -497,7 +520,7 @@ def jacobian(adata,
     if method == 'analytical':
         Jac_fun = lambda x: Jacobian_rkhs_gaussian(x, VecFld)
     elif method == 'numeric':
-        Jac_fun = get_fjac(func, input_vector_convention='row')
+        Jac_fun = Jacobian_numerical(func, input_vector_convention='row')
     else:
         raise NotImplementedError(f"the Jacobian matrix calculation method {method} is not implemented. Currently only "
                                   f"support `analytical` and `numeric` methods.")
