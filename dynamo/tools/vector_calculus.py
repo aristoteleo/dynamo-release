@@ -1,5 +1,5 @@
 from tqdm import tqdm
-#from multiprocessing.dummy import Pool as ThreadPool
+from multiprocessing.dummy import Pool as ThreadPool
 import multiprocessing as mp
 import itertools, functools
 import numpy as np
@@ -67,7 +67,9 @@ def Jacobian_rkhs_gaussian_parallel(x, vf_dict, cores=None):
     xx = []
     for i in range(0, n, n_j_per_core):
         xx.append(x[i:i+n_j_per_core])
-    with mp.Pool(cores) as p:
+    #with mp.Pool(cores) as p:
+    #    ret = p.starmap(Jacobian_rkhs_gaussian, zip(xx, itertools.repeat(vf_dict)))
+    with ThreadPool(cores) as p:
         ret = p.starmap(Jacobian_rkhs_gaussian, zip(xx, itertools.repeat(vf_dict)))
     ret = [np.transpose(r, axes=(2, 0, 1)) for r in ret]
     ret = np.transpose(np.vstack(ret), axes=(1, 2, 0))
