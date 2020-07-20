@@ -1149,7 +1149,7 @@ def recipe_monocle(
     total_layers=None,
     genes_to_use=None,
     method="pca",
-    num_dim=50,
+    num_dim=30,
     norm_method=None,
     pseudo_expr=1,
     feature_selection="SVR",
@@ -1182,7 +1182,7 @@ def recipe_monocle(
             A list genes of gene names that will be used to set as the feature genes for downstream analysis.
         method: `str` (default: `log`)
             The linear dimension reduction methods to be used.
-        num_dim: `int` (default: `50`)
+        num_dim: `int` (default: `30`)
             The number of linear dimensions reduced to.
         norm_method: `function` or None (default: function `None`)
             The method to normalize the data. Can be any numpy function or `Freeman_Tukey`. By default, only .X will be
@@ -1395,6 +1395,7 @@ def recipe_monocle(
         adata, fit, _ = pca(adata, CM, num_dim, "X_" + method.lower())
 
         adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
+        adata.obsm['X'] = adata.obsm["X_" + method.lower()]
     elif method == "ica":
         fit = FastICA(
             num_dim, algorithm="deflation", tol=5e-6, fun="logcosh", max_iter=1000
@@ -1402,9 +1403,9 @@ def recipe_monocle(
         reduce_dim = fit.fit_transform(CM.toarray())
 
         adata.obsm["X_" + method.lower()] = reduce_dim
+        adata.obsm['X'] = adata.obsm["X_" + method.lower()]
 
     adata.uns[method + "_fit"], adata.uns["feature_selection"] = fit, feature_selection
-
     # calculate NTR for every cell:
     ntr, var_ntr = NTR(adata)
     if ntr is not None:

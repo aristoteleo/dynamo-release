@@ -1299,6 +1299,75 @@ def build_distance_graph(knn_indices, knn_dists):
 
     return knn_dists
 
+
+# ---------------------------------------------------------------------------------------------------
+# arc curve related
+def remove_redundant_points_trajectory(X, tol=1e-4, output_discard=False):
+    """remove consecutive data points that are too close to each other."""
+    X = np.atleast_2d(X)
+    discard = np.zeros(len(X), dtype=bool)
+    if X.shape[0] > 1:
+        for i in range(len(X) - 1):
+            dist = np.linalg.norm(X[i + 1] - X[i])
+            if dist < tol:
+                discard[i + 1] = True
+        X = X[~discard]
+
+    arclength = 0
+
+    x0 = X[0]
+    for i in range(1, len(X)):
+        tangent = X[i] - x0 if i == 1 else X[i] - X[i - 1]
+        d = np.linalg.norm(tangent)
+
+        arclength += d
+
+    if output_discard:
+        return (X, arclength, discard)
+    else:
+        return (X, arclength)
+
+
+def arclength_sampling(X, step_length, t=None):
+    """uniformly sample data points on an arc curve that generated from vector field predictions."""
+    Y = []
+    x0 = X[0]
+    T = [] if t is not None else None
+    t0 = t[0] if t is not None else None
+    i = 1
+    terminate = False
+    arclength = 0
+
+    while i < len(X) - 1 and not terminate:
+        l = 0
+        for j in range(i, len(X)):
+            tangent = X[j] - x0 if j == i else X[j] - X[j - 1]
+            d = np.linalg.norm(tangent)
+            if l + d >= step_length:
+                x = x0 if j == i else X[j - 1]
+                y = x + (step_length - l) * tangent / d
+                if t is not None:
+                    tau = t0 if j == i else t[j - 1]
+                    tau += (step_length - l) / d * (t[j] - tau)
+                    T.append(tau)
+                    t0 = tau
+                Y.append(y)
+                x0 = y
+                i = j
+                break
+            else:
+                l += d
+        if j == len(X) - 1: i += 1
+        arclength += step_length
+        if l + d < step_length:
+            terminate = True
+
+    if T is not None:
+        return np.array(Y), arclength, T
+    else:
+        return np.array(Y), arclength
+
+
 # ---------------------------------------------------------------------------------------------------
 # vector field related
 
@@ -1440,24 +1509,27 @@ def integrate_vf(
 
 
 def integrate_vf_ivp(
-    init_states, t, args, integration_direction, f, interpolation_num=None, average=True
+    init_states, t, args, integration_direction, f, interpolation_num=100, average=True, arclen_sampling=True,
+    verbose=False, disable=False,
 ):
     """integrating along vector field function using the initial value problem solver from scipy.integrate"""
 
+    if init_states.ndim == 1: init_states = init_states[None, :]
     n_cell, n_feature = init_states.shape
-    max_step = np.abs(t[-1] - t[0]) / 2500
+    max_step = np.abs(t[-1] - t[0]) / interpolation_num
 
     T, Y, SOL = [], [], []
 
-    for i in tqdm(range(n_cell), desc="integration with ivp solver"):
+    for i in tqdm(range(n_cell), desc="integration with ivp solver", disable=disable):
         y0 = init_states[i, :]
         ivp_f, ivp_f_event = (
             lambda t, x: f(x),
-            lambda t, x: np.sum(np.linalg.norm(f(x)) < 1e-5) - 1,
+            lambda t, x: np.all(abs(f(x)) < 1e-5) - 1, # np.linalg.norm(np.abs(f(x))) - 1e-5 if velocity on all dimension is less than 1e-5
         )
         ivp_f_event.terminal = True
 
-        print("\nintegrating cell ", i, "; Expression: ", init_states[i, :])
+        if verbose:
+            print("\nintegrating cell ", i, "; Initial state: ", init_states[i, :])
         if integration_direction == "forward":
             y_ivp = solve_ivp(
                 ivp_f,
@@ -1512,45 +1584,75 @@ def integrate_vf_ivp(
                 "both, forward, backward are the only valid direction argument strings"
             )
 
-        T.extend(t_trans)
+        T.append(t_trans)
         Y.append(y)
         SOL.append(sol)
 
-        print("\nintegration time: ", len(t_trans))
+        if verbose:
+            print("\nintegration time: ", len(t_trans))
 
-    valid_t_trans = np.unique(T)
+    if arclen_sampling:
+        Y_, t_ = [None] * n_cell, [None] * n_cell
+        for i in tqdm(range(n_cell), desc="uniformly sampling points along a trajectory", disable=disable):
+            tau, x = T[i], Y[i].T
+            x, arclen, discard = remove_redundant_points_trajectory(x, tol=1e-4, output_discard=True)
+            arc_stepsize = arclen / interpolation_num
+            cur_Y, alen, t_[i] = arclength_sampling(x, step_length=arc_stepsize, t=tau[~discard])
 
-    _Y = None
-    if integration_direction == "both":
-        neg_t_len = sum(valid_t_trans < 0)
-    for i in range(n_cell):
-        cur_Y = (
-            SOL[i](valid_t_trans)
-            if integration_direction != "both"
-            else np.hstack(
+            if integration_direction == "both":
+                neg_t_len = sum(np.array(t_[i]) < 0)
+
+            odeint_cur_Y = SOL[i](t_[i]) if integration_direction != "both" \
+                else np.hstack(
                 (
-                    SOL[i][0](valid_t_trans[:neg_t_len]),
-                    SOL[i][1](valid_t_trans[neg_t_len:]),
+                    SOL[i][0](t_[i][:neg_t_len]),
+                    SOL[i][1](t_[i][neg_t_len:]),
                 )
             )
-        )
-        _Y = cur_Y if _Y is None else np.hstack((_Y, cur_Y))
+            Y_[i] = odeint_cur_Y
 
-    t, Y = valid_t_trans, _Y
+        Y, t = Y_, t_
+    else:
+        t_uniq = np.unique(np.hstack(T))
+        if len(t_uniq) > interpolation_num:
+            valid_t_trans = np.hstack([0, np.sort(np.random.choice(t_uniq[1::int(len(t_uniq) / interpolation_num)],
+                                                                interpolation_num - 1))])
+        else:
+            valid_t_trans = np.linspace(0, max(t_uniq), interpolation_num)
 
-    if n_cell > 1 and average:
-        t_len = int(len(t) / n_cell)
-        avg = np.zeros((n_feature, t_len))
+        _Y = None
+        if integration_direction == "both":
+            neg_t_len = sum(valid_t_trans < 0)
+        for i in tqdm(range(n_cell), desc="calculate solutions on the sampled time points"):
+            cur_Y = (
+                SOL[i](valid_t_trans)
+                if integration_direction != "both"
+                else np.hstack(
+                    (
+                        SOL[i][0](valid_t_trans[:neg_t_len]),
+                        SOL[i][1](valid_t_trans[neg_t_len:]),
+                    )
+                )
+            )
+            _Y = cur_Y if _Y is None else np.hstack((_Y, cur_Y))
 
-        for i in range(t_len):
-            avg[:, i] = np.mean(Y[:, np.arange(n_cell) * t_len + i], 1)
-        Y = avg
+        t, Y = valid_t_trans, _Y
 
-    return t, Y.T
+        if n_cell > 1 and average:
+            t_len = int(len(t) / n_cell)
+            avg = np.zeros((n_feature, t_len))
+
+            for i in range(t_len):
+                avg[:, i] = np.mean(Y[:, np.arange(n_cell) * t_len + i], 1)
+            Y = avg
+
+        Y = Y.T
+
+    return t, Y
 
 
 def integrate_streamline(
-    X, Y, U, V, integration_direction, init_states, interpolation_num=250, average=True
+    X, Y, U, V, integration_direction, init_states, interpolation_num=100, average=True
 ):
     """use streamline's integrator to alleviate stacking of the solve_ivp. Need to update with the correct time."""
     import matplotlib.pyplot as plt
@@ -1748,7 +1850,7 @@ def _from_adata(adata, basis='', vf_key='VecFld'):
             f"Try firstly running dyn.tl.VectorField(adata, basis='{basis}')")
         
     vf_dict = adata.uns[vf_key]['VecFld']
-    func = lambda x: vector_field_function(x, adata.uns[vf_key]['VecFld'])
+    func = lambda x: vector_field_function(x, vf_dict)
 
     return vf_dict, func
 
@@ -1857,83 +1959,17 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
                 VecFld = adata.uns["VecFld_" + layer]["VecFld"]
                 X = log1p_(adata, adata[:, valid_genes].layers[layer])
 
-    if init_states.shape[0] > 1 and average in ["origin", True]:
+    if init_states.shape[0] > 1 and average in ["origin", 'trajectory', True]:
         init_states = init_states.mean(0).reshape((1, -1))
 
     if t_end is None:
         xmin, xmax = X.min(0), X.max(0)
-        t_end = np.max(xmax - xmin) / np.min(np.abs(VecFld["V"]))
+        V_abs = np.abs(VecFld["V"])
+        t_end = np.max(xmax - xmin) / np.percentile(V_abs[V_abs > 0], 1)
 
     if issparse(init_states):
         init_states = init_states.A
 
     return init_states, VecFld, t_end, valid_genes
 
-
-
-# ---------------------------------------------------------------------------------------------------
-# arc curve related
-def remove_redundant_points_trajectory(X, tol=1e-4, output_discard=False):
-    """remove consecutive data points that are too close to each other."""
-    X = np.atleast_2d(X)
-    discard = np.zeros(len(X), dtype=bool)
-    if X.shape[0] > 1:
-        for i in range(len(X) - 1):
-            dist = np.linalg.norm(X[i + 1] - X[i])
-            if dist < tol:
-                discard[i + 1] = True
-        X = X[~discard]
-
-    arclength = 0
-
-    x0 = X[0]
-    for i in range(1, len(X)):
-        tangent = X[i] - x0 if i == 1 else X[i] - X[i - 1]
-        d = np.linalg.norm(tangent)
-
-        arclength += d
-
-    if output_discard:
-        return X, arclength, discard
-    else:
-        return X, arclength
-
-
-def arclength_sampling(X, step_length, t=None):
-    """uniformly sample data points on an arc curve that generated from vector field predictions."""
-    Y = []
-    x0 = X[0]
-    T = [] if t is not None else None
-    t0 = t[0] if t is not None else None
-    i = 1
-    terminate = False
-    arclength = 0
-
-    while i < len(X) - 1 and not terminate:
-        l = 0
-        for j in range(i, len(X) - 1):
-            tangent = X[j] - x0 if j == i else X[j] - X[j - 1]
-            d = np.linalg.norm(tangent)
-            if l + d >= step_length:
-                x = x0 if j == i else X[j - 1]
-                y = x + (step_length - l) * tangent / d
-                if t is not None:
-                    tau = t0 if j == i else t[j - 1]
-                    tau += (step_length - l) / d * (t[j] - tau)
-                    T.append(tau)
-                    t0 = tau
-                Y.append(y)
-                x0 = y
-                i = j
-                break
-            else:
-                l += d
-        arclength += step_length
-        if l + d < step_length:
-            terminate = True
-
-    if T is not None:
-        return np.array(Y), arclength, T
-    else:
-        return np.array(Y), arclength
 

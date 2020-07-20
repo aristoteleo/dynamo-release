@@ -841,10 +841,11 @@ def scatters(
             corresponding option of the theme.
         ncols: int (optional, default `4`)
             Number of columns for the figure.
-        width: int (optional, default 800)
-            The desired width of the plot in pixels.
-        height: int (optional, default 800)
-            The desired height of the plot in pixels
+        pointsize: `None` or `float` (default: None)
+            The scale of the point size. Actual point cell size is calculated as `500.0 / np.sqrt(adata.shape[0]) *
+            pointsize`
+        figsize: `None` or `[float, float]` (default: None)
+            The width and height of a figure.
         show_legend: bool (optional, default True)
             Whether to display a legend of the labels
         use_smoothed: bool (optional, default True)

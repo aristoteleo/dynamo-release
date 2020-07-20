@@ -604,7 +604,7 @@ def VectorField(
         "gamma": 0.9,
         "lambda_": 3,
         "minP": 1e-5,
-        "MaxIter": 500,
+        "MaxIter": 30,
         "theta": 0.75,
         "div_cur_free_kernels": False,
         "velocity_based_sampling": True,

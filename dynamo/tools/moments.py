@@ -30,7 +30,8 @@ def moments(adata,
         genes: `np.array` (default: `None`)
             The one-dimensional numpy array of the genes that you want to perform pca analysis (if adata.obsm['X'] is not
             available). `X` keyname (instead of `X_pca`) was used to enable you use a different set of genes for flexible
-            connectivity graph construction.
+            connectivity graph construction. If `None`, by default it will select genes based `use_for_pca` key in .var
+            attributes if it exists otherwise it will also all genes stored in adata.X
         group: `str` or None (default: `None`)
             The column key/name that identifies the grouping information (for example, clusters that correspond to
             different cell types or different time points) of cells. This will be used to compute kNN graph for each
@@ -59,6 +60,7 @@ def moments(adata,
     mapper = get_mapper()
     only_splicing, only_labeling, splicing_and_labeling = allowed_X_layer_names()
 
+    if genes is None and 'use_for_pca' in adata.var.keys(): genes = adata.var_names[adata.var.use_for_pca]
     if use_mnn:
         if "mnn" not in adata.uns.keys():
             adata = mnn(

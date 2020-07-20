@@ -1,4 +1,9 @@
 import numpy as np
+import pandas as pd
+from sklearn.neighbors import NearestNeighbors
+from multiprocessing.dummy import Pool as ThreadPool
+import itertools
+import warnings
 from ..tools.utils import integrate_vf_ivp
 from ..tools import vector_field_function
 from ..tools.utils import fetch_states
@@ -14,10 +19,12 @@ def fate(
     genes=None,
     t_end=None,
     direction="both",
-    average="origin",
+    average=False,
+    arclen_sampling=True,
     VecFld_true=None,
-    inverse_transform=True,
+    inverse_transform=False,
     scale=1,
+    cores=1,
     **kwargs
 ):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales.
@@ -31,31 +38,46 @@ def fate(
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
         init_cells: `list` (default: None)
-            Cell name or indices of the initial cell states for the historical or future cell state prediction with numerical integration.
-            If the names in init_cells are not find in the adata.obs_name, it will be treated as cell indices and must be integers.
+            Cell name or indices of the initial cell states for the historical or future cell state prediction with
+            numerical integration. If the names in init_cells are not find in the adata.obs_name, it will be treated as
+            cell indices and must be integers.
         init_states: `numpy.ndarray` or None (default: None)
             Initial cell states for the historical or future cell state prediction with numerical integration.
         basis: `str` or None (default: `None`)
-            The embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the reconstructed trajectory
-            will be projected back to high dimensional space via the `inverse_transform` function.
+            The embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the reconstructed
+            trajectory will be projected back to high dimensional space via the `inverse_transform` function.
         layer: `str` or None (default: 'X')
             Which layer of the data will be used for predicting cell fate with the reconstructed vector field function.
-            The layer once provided, will override the `basis` argument and then predicting cell fate in high dimensional space.
+            The layer once provided, will override the `basis` argument and then predicting cell fate in high dimensional
+            space.
         genes: `list` or None (default: None)
-            The gene names whose gene expression will be used for predicting cell fate. By default (when genes is set to None),
-            the genes used for velocity embedding (var.use_for_velocity) will be used for vector field reconstruction. Note that
-            the genes to be used need to have velocity calculated and corresponds to those used in the `dyn.tl.VectorField` function.
+            The gene names whose gene expression will be used for predicting cell fate. By default (when genes is set to
+            None), the genes used for velocity embedding (var.use_for_velocity) will be used for vector field
+            reconstruction. Note that the genes to be used need to have velocity calculated and corresponds to those used
+            in the `dyn.tl.VectorField` function.
         t_end: `float` (default None)
             The length of the time period from which to predict cell state forward or backward over time. This is used
             by the odeint function.
         direction: `string` (default: both)
             The direction to predict the cell fate. One of the `forward`, `backward` or `both` string.
-        average: `str` (default: `origin`) {'origin', 'trajectory'}
-            The method to calculate the average cell state at each time step, can be one of `origin` or `trajectory`. If `origin` used,
-            the average expression state from the init_cells will be calculated and the fate prediction is based on this state. If `trajectory`
-            used, the average expression states of all cells predicted from the vector field function at each time point will be used.
+        average: `str` or `bool` (default: `False`) {'origin', 'trajectory'}
+            The method to calculate the average cell state at each time step, can be one of `origin` or `trajectory`. If
+            `origin` used, the average expression state from the init_cells will be calculated and the fate prediction is
+            based on this state. If `trajectory` used, the average expression states of all cells predicted from the
+            vector field function at each time point will be used. If `average` is `False`, no averaging will be applied.
+        arclen_sampling: `bool` (default: `True`)
+            Whether to apply uniformly sampling along the integration path. Default is `False`. If set to be `True`,
+            `average` will turn off.
         VecFld_true: `function`
-            The true ODE function, useful when the data is generated through simulation. Replace VecFld arugment when this has been set.
+            The true ODE function, useful when the data is generated through simulation. Replace VecFld arugment when
+            this has been set.
+        inverse_transform: `bool` (default: `False`)
+            Whether to inverse transform the low dimensional vector field prediction back to high dimensional space.
+        scale: `float` (default: `1`)
+            The value that will be used to scale the predicted velocity value from the reconstructed vector field function.
+        cores: `int` (default: 1):
+            Number of cores to calculate path integral for predicting cell fate. If cores is set to be > 1,
+            multiprocessing will be used to parallel the fate prediction.
         kwargs:
             Additional parameters that will be passed into the fate function.
 
@@ -64,6 +86,14 @@ def fate(
         adata: :class:`~anndata.AnnData`
             AnnData object that is updated with the dictionary Fate (includes `t` and `prediction` keys) in uns attribute.
     """
+
+    if arclen_sampling == True:
+        if average in ['origin', 'trajectory', True]:
+            warnings.warn(
+                "using arclength_sampling to uniformly sample along an integral path at different integration "
+                "time points. Average trajectory won't be calculated")
+
+        average = False
 
     if basis is not None:
         fate_key = "fate_" + basis
@@ -79,7 +109,7 @@ def fate(
     #valid_genes = None
 
     init_states, VecFld, t_end, valid_genes = fetch_states(
-        adata, init_states, init_cells, basis, layer, average, t_end
+        adata, init_states, init_cells, basis, layer, True if average in ['origin', 'trajectory', True] else False, t_end
     )
 
     if np.isscalar(dims):
@@ -87,13 +117,15 @@ def fate(
     elif dims is not None:
         init_states = init_states[:, dims]
 
-    vf = lambda x: scale*vector_field_function(x=x, VecFld=VecFld) if VecFld_true is None else VecFld_true
+    vf = lambda x: scale*vector_field_function(x=x, vf_dict=VecFld) if VecFld_true is None else VecFld_true
     t, prediction = _fate(
         vf,
         init_states,
         direction=direction,
         t_end=t_end,
-        average=True,
+        average=True if average in ['origin', 'trajectory', True] else False,
+        arclen_sampling=arclen_sampling,
+        cores=cores,
         **kwargs
     )
 
@@ -106,9 +138,16 @@ def fate(
             valid_genes = adata.var_names[adata.var.use_for_velocity]
 
     elif basis == "umap" and inverse_transform:
-        # this requires umap 0.4
-        high_prediction = adata.uns["umap_fit"].inverse_transform(prediction)
-        ndim = adata.uns["umap_fit"]._raw_data.shape[1]
+        # this requires umap 0.4; reverse project to PCA space.
+        if prediction.ndim == 1: prediction = prediction[None, :]
+        high_prediction = adata.uns["umap_fit"]['fit'].inverse_transform(prediction)
+
+        # further reverse project back to raw expression space
+        PCs = adata.uns['PCs'].T
+        if PCs.shape[0] == high_prediction.shape[1]:
+            high_prediction = high_prediction @ PCs
+
+        ndim = adata.uns["umap_fit"]['fit']._raw_data.shape[1]
 
         if "X" in adata.obsm_keys():
             if ndim == adata.obsm["X"].shape[1]:  # lift the dimension up again
@@ -126,10 +165,11 @@ def fate(
 
     adata.uns[fate_key] = {
             "init_states": init_states,
+            "init_cells": init_cells,
             "average": average,
             "t": t,
             "prediction": prediction,
-            "VecFld": VecFld,
+            # "VecFld": VecFld,
             "VecFld_true": VecFld_true,
             "genes": valid_genes,
         }
@@ -145,8 +185,10 @@ def _fate(
     t_end=None,
     step_size=None,
     direction="both",
-    interpolation_num=250,
+    interpolation_num=100,
     average=True,
+    arclen_sampling=False,
+    cores=1,
 ):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector field
     functions from one or a set of initial cell state(s).
@@ -154,8 +196,8 @@ def _fate(
     Arguments
     ---------
         VecFld: `function`
-            Functional form of the vector field reconstructed from sparse single cell samples. It is applicable to the entire
-            transcriptomic space.
+            Functional form of the vector field reconstructed from sparse single cell samples. It is applicable to the
+            entire transcriptomic space.
         init_states: `numpy.ndarray`
             Initial cell states for the historical or future cell state prediction with numerical integration.
         t_end: `float` (default None)
@@ -166,11 +208,14 @@ def _fate(
             and the step_size will be automatically calculated to ensure 250 total integration time-steps will be used.
         direction: `string` (default: both)
             The direction to predict the cell fate. One of the `forward`, `backward`or `both` string.
-        interpolation_num: `int` (default: 250)
+        interpolation_num: `int` (default: 100)
             The number of uniformly interpolated time points.
         average: `bool` (default: True)
-            A boolean flag to determine whether to smooth the trajectory by calculating the average cell state at each time
-            step.
+            A boolean flag to determine whether to smooth the trajectory by calculating the average cell state at each
+            time step.
+        cores: `int` (default: 1):
+            Number of cores to calculate path integral for predicting cell fate. If cores is set to be > 1,
+            multiprocessing will be used to parallel the fate prediction.
 
     Returns
     -------
@@ -196,17 +241,93 @@ def _fate(
     else:
         t_linspace = np.arange(0, t_end + step_size, step_size)
 
-    t, prediction = integrate_vf_ivp(
-        init_states,
-        t_linspace,
-        (),
-        direction,
-        VecFld,
-        interpolation_num=interpolation_num,
-        average=average,
-    )
+    if cores == 1:
+        t, prediction = integrate_vf_ivp(
+            init_states,
+            t_linspace,
+            (),
+            direction,
+            VecFld,
+            interpolation_num=interpolation_num,
+            average=average,
+            arclen_sampling=arclen_sampling,
+        )
+    else:
+        pool = ThreadPool(cores)
+        res = pool.starmap(integrate_vf_ivp, zip(init_states, itertools.repeat(t_linspace), itertools.repeat(()),
+                                      itertools.repeat(direction), itertools.repeat(VecFld),
+                                      itertools.repeat(interpolation_num), itertools.repeat(False),
+                                      itertools.repeat(True))) # disable tqdm when using multiple cores.
+        pool.close()
+        pool.join()
+        t_, prediction_ = zip(*res)
+        t, prediction = [i[0] for i in t_], [i[0] for i in prediction_]
+        t, prediction = np.hstack(t), np.hstack(prediction)
+        n_cell, n_feature = init_states.shape
+        if init_states.shape[0] > 1 and average:
+            t_len = int(len(t) / n_cell)
+            avg = np.zeros((n_feature, t_len))
+
+            for i in range(t_len):
+                avg[:, i] = np.mean(prediction[:, np.arange(n_cell) * t_len + i], 1)
+
+            prediction = avg
+            t = np.sort(np.unique(t))
+
     return t, prediction
 
+
+def fate_bias(adata, group, basis='umap'):
+    """Calculate the lineage (fate) bias of states whose trajectory are predicted.
+
+    Fate bias is currently calculated as the percentage of points along the predicted cell fate trajectory that are
+    closest to any cell from each group specified by `group` key.
+
+    Arguments
+    ---------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the predicted fate trajectories in the `uns` attribute.
+        group: `str`
+            The column key that corresponds to the cell type or other group information for quantifying the bias of cell
+            state.
+        basis: `str` or None (default: `None`)
+            The embedding data space that cell fates were predicted and cell fates will be quantified.
+
+    Returns
+    -------
+        fate_bias: `pandas.DataFrame`
+            A DataFrame that stores the fate bias for each cell state (row) to each cell group (column).
+    """
+
+    if group not in adata.obs.keys():
+        raise ValueError(f'The group {group} you provided is not a key of .obs attribute.')
+    else:
+        clusters = adata.obs[group]
+
+    basis_key = 'X_' + basis if basis is not None else 'X'
+    fate_key = 'fate_' + basis if basis is not None else 'fate'
+
+    if basis_key not in adata.obsm.keys():
+        raise ValueError(f'The basis {basis_key} you provided is not a key of .obsm attribute (or adata.X is not existed '
+                         f'if `basis` is `X`).')
+    if fate_key not in adata.uns.keys():
+        raise ValueError(f"The {fate_key} key is not existed in the .uns attribute of the adata object. You need to run"
+                         f"dyn.pd.fate(adata, basis='{basis}') before calculate fate bias.")
+
+    X = adata.obsm[basis_key] if basis_key is not 'X' else adata.X
+    nbrs = NearestNeighbors(n_neighbors=1, algorithm='ball_tree').fit(X)
+
+    pred_dict = {}
+    cell_predictions, cell_indx = adata.uns[fate_key]['prediction'], adata.uns[fate_key]['init_cells']
+    for i, prediction in enumerate(cell_predictions):
+        distances, knn = nbrs.kneighbors(prediction.T)
+
+        pred_dict[i] = clusters[knn.flatten()].value_counts()
+
+    bias = pd.DataFrame(pred_dict).T / prediction.shape[1]
+    if cell_indx is not None: bias.index = cell_indx
+
+    return bias
 
 # def fate_(adata, time, direction = 'forward'):
 #     from .moments import *

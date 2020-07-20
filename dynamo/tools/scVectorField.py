@@ -10,6 +10,7 @@ from multiprocessing.dummy import Pool as ThreadPool
 import itertools, functools
 import warnings
 import time
+from .sampling import sample_by_velocity
 from .utils import (
     vector_field_function,
     con_K_div_cur_free,
@@ -21,8 +22,11 @@ from .utils import (
     index_condensed_matrix,
     _from_adata,
 )
-from .sampling import sample_by_velocity
-from .vector_calculus import get_fjac, compute_divergence
+from .vector_calculus import (
+    get_fjac,
+    compute_divergence,
+    Jacobian_rkhs_gaussian,
+)
 
 def norm(X, V, T):
     """Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
@@ -240,30 +244,6 @@ def construct_v(X, i, idx, n_int_steps, func, distance_free, dist, D, n):
 
     return V
 
-@timeit
-def Jacobian_rkhs_gaussian(x, vf_dict):
-    """analytical Jacobian for RKHS vector field functions with Gaussian kernel.
-
-        Arguments
-        ---------
-        x: :class:`~numpy.ndarray`
-            Coordinates where the Jacobian is evaluated.
-        vf_dict: dict
-            A dictionary containing RKHS vector field control points, Gaussian bandwidth,
-            and RKHS coefficients.
-            Essential keys: 'X_ctrl', 'beta', 'C'
-
-        Returns
-        -------
-        J: :class:`~numpy.ndarray`
-            Jacobian matrices stored as d-by-d-by-n numpy arrays evaluated at x.
-            d is the number of dimensions and n the number of coordinates in x.
-    """
-    if x.ndim == 1: x = x[None, :]
-    K, D = con_K(x, vf_dict['X_ctrl'], vf_dict['beta'], return_d=True)
-    if K.ndim == 1: K = K[None, :]
-    J = np.einsum('nm, mi, njm -> ijn', K, vf_dict['C'], D)
-    return -2*vf_dict['beta']*J
 
 def SparseVFC(
     X,

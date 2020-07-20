@@ -97,7 +97,7 @@ def connectivity_base(
     labels=None,
     values=None,
     theme=None,
-    cmap="blue",
+    cmap="Blues",
     color_key=None,
     color_key_cmap="Spectral",
     background="black",

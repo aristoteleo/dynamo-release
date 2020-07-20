@@ -73,11 +73,16 @@ from .scVectorField import (
     SparseVFC,
     get_P,
     graphize_vecfld,
-    Jacobian_rkhs_gaussian,
 )  # , evaluate, con_K_div_cur_free
 from .utils import vector_field_function
 from .topography import FixedPoints, VectorField2D, topography, VectorField
-from .vector_calculus import curl, divergence, jacobian
+from .vector_calculus import (
+    curl,
+    divergence,
+    jacobian,
+    Jacobian_rkhs_gaussian,
+)
+
 
 # Markov chain related:
 from .Markov import (

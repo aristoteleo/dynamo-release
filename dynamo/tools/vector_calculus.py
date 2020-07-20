@@ -7,7 +7,8 @@ from .utils import (
     timeit,
     get_pd_row_column_idx,
     vector_field_function,
-    _from_adata
+    _from_adata,
+    con_K,
 )
 from .sampling import sample_by_velocity, trn
 
@@ -21,6 +22,33 @@ def laplacian(f, x):
     """Laplacian of scalar field f evaluated at x"""
     hes = nd.Hessdiag(f)(x)
     return sum(hes)
+
+
+@timeit
+def Jacobian_rkhs_gaussian(x, vf_dict):
+    """analytical Jacobian for RKHS vector field functions with Gaussian kernel.
+
+        Arguments
+        ---------
+        x: :class:`~numpy.ndarray`
+            Coordinates where the Jacobian is evaluated.
+        vf_dict: dict
+            A dictionary containing RKHS vector field control points, Gaussian bandwidth,
+            and RKHS coefficients.
+            Essential keys: 'X_ctrl', 'beta', 'C'
+
+        Returns
+        -------
+        J: :class:`~numpy.ndarray`
+            Jacobian matrices stored as d-by-d-by-n numpy arrays evaluated at x.
+            d is the number of dimensions and n the number of coordinates in x.
+    """
+    if x.ndim == 1: x = x[None, :]
+    K, D = con_K(x, vf_dict['X_ctrl'], vf_dict['beta'], return_d=True)
+    if K.ndim == 1: K = K[None, :]
+    J = np.einsum('nm, mi, njm -> ijn', K, vf_dict['C'], D)
+
+    return -2 * vf_dict['beta'] * J
 
 
 def get_fjac(f, input_vector_convention='row'):
@@ -53,7 +81,7 @@ def get_fjac(f, input_vector_convention='row'):
 
 
 @timeit
-def elementwise_jacobian_transformation(fjac, X, qi, qj):
+def elementwise_jacobian_transformation(fjac, X, qi, qj, return_raw_J=False):
     """Inverse transform low dimension Jacobian matrix (:math:`\partial F_i / \partial x_j`) back to original space.
     The formula used to inverse transform Jacobian matrix calculated from low dimension (PCs) is:
                                             :math:`Jac = Q J Q^T`,
@@ -72,6 +100,8 @@ def elementwise_jacobian_transformation(fjac, X, qi, qj):
         Qj: `np.ndarray`
             Another gene's (can be the same as those in Qi or different) PCs loading matrix with dimension  n' x n_PCs,
             from which local dimension Jacobian matrix (k x k) will be inverse transformed back to high dimension.
+        return_raw_J: `bool` (default: `False`)
+            Whether to return the raw tensor of Jacobian matrix of each cell before transformation.
 
     Returns
     -------
@@ -84,11 +114,14 @@ def elementwise_jacobian_transformation(fjac, X, qi, qj):
     for i in tqdm(range(len(X)), "calculating Jacobian for each cell"):
         J = Js[:, :, i]
         ret[i] = qi @ J @ qj
-    return ret
 
+    if return_raw_J:
+        return ret, Js
+    else:
+        return ret
 
 @timeit
-def subset_jacobian_transformation(fjac, X, Qi, Qj, cores=1):
+def subset_jacobian_transformation(fjac, X, Qi, Qj, cores=1, return_raw_J=False):
     """Transform Jacobian matrix (:math:`\partial F_i / \partial x_j`) from PCA space to the original space.
     The formula used for transformation:
                                             :math:`\hat{J} = Q J Q^T`,
@@ -110,6 +143,8 @@ def subset_jacobian_transformation(fjac, X, Qi, Qj, cores=1):
         cores: `int` (default: 1):
             Number of cores to calculate Jacobian. If cores is set to be > 1, multiprocessing will be used to
             parallel the Jacobian calculation.
+        return_raw_J: `bool` (default: `False`)
+            Whether to return the raw tensor of Jacobian matrix of each cell before transformation.
 
     Returns
     -------
@@ -137,7 +172,11 @@ def subset_jacobian_transformation(fjac, X, Qi, Qj, cores=1):
         pool.join()
         ret = functools.reduce((lambda a, b: a + b), res)
 
-    return ret
+    if return_raw_J:
+        return ret, Js
+    else:
+        return ret
+
 
 def pool_cal_J(i, Js, Qi, Qj, ret):
     J = Js[:, :, i]
@@ -175,26 +214,26 @@ def _divergence(f, x):
     return np.trace(jac)
 
 
-'''@timeit
-def compute_divergence(f_jac, X, vectorize=True):
-    """calculate divergence for many samples by taking the trace of a Jacobian matrix"""
-    if vectorize:
-        J = f_jac(X)
-        div = np.trace(J)
-    else:
-        div = np.zeros(len(X))
-        for i in tqdm(range(len(X)), desc="Calculating divergence"):
-            J = f_jac(X[i])
-            div[i] = np.trace(J)
-
-    return div'''
+# @timeit
+# def compute_divergence_numeric(f_jac, X, vectorize=True):
+#     """calculate divergence for many samples by taking the trace of a Jacobian matrix"""
+#     if vectorize:
+#         J = f_jac(X)
+#         div = np.trace(J)
+#     else:
+#         div = np.zeros(len(X))
+#         for i in tqdm(range(len(X)), desc="Calculating divergence"):
+#             J = f_jac(X[i])
+#             div[i] = np.trace(J)
+#
+#     return div
 
  
 @timeit
 def compute_divergence(f_jac, X, vectorize_size=1):
-    """
-        Calculate divergence for many samples by taking the trace of a Jacobian matrix.
-        vectorize_size is used to control the number of samples computed in each vectorized batch.
+    """Calculate divergence for many samples by taking the trace of a Jacobian matrix.
+
+    vectorize_size is used to control the number of samples computed in each vectorized batch.
         If vectorize_size = 1, there's no vectorization whatsoever.
         If vectorize_size = None, all samples are vectorized.
     """
@@ -208,15 +247,25 @@ def compute_divergence(f_jac, X, vectorize_size=1):
     return div
 
 
-def _curl(f, x):
+def _curl(f, x, method='analytical', VecFld=None, jac=None):
     """Curl of the reconstructed vector field f evaluated at x in 3D"""
-    jac = nd.Jacobian(f)(x)
+    if jac is None:
+        if method == 'analytical' and VecFld is not None:
+            jac = Jacobian_rkhs_gaussian(x, VecFld)
+        else:
+            jac = nd.Jacobian(f)(x)
+
     return np.array([jac[2, 1] - jac[1, 2], jac[0, 2] - jac[2, 0], jac[1, 0] - jac[0, 1]])
 
 
-def curl2d(f, x):
+def curl2d(f, x, method='analytical', VecFld=None, jac=None):
     """Curl of the reconstructed vector field f evaluated at x in 2D"""
-    jac = nd.Jacobian(f)(x)
+    if jac is None:
+        if method == 'analytical' and VecFld is not None:
+            jac = Jacobian_rkhs_gaussian(x, VecFld)
+        else:
+            jac = nd.Jacobian(f)(x)
+
     curl = jac[1, 0] - jac[0, 1]
 
     return curl
@@ -225,6 +274,7 @@ def curl2d(f, x):
 def curl(adata,
          basis='umap',
          VecFld=None,
+         method='analytical',
          ):
     """Calculate Curl for each cell with the reconstructed vector field function.
 
@@ -236,6 +286,10 @@ def curl(adata,
             The embedding data in which the vector field was reconstructed.
         VecFld: `dict`
             The true ODE function, useful when the data is generated through simulation.
+        method: `str` (default: `analytical`)
+            The method that will be used for calculating divergence, either `analytical` or `numeric`. `analytical`
+            method will use the analytical form of the reconstructed vector field for calculating Jacobian while
+            `numeric` method will use numdifftools for calculation. `analytical` method is much more efficient.
 
     Returns
     -------
@@ -248,14 +302,23 @@ def curl(adata,
     else:
         func = lambda x: vector_field_function(x, VecFld)
 
-    X_data = adata.obsm["X_" + basis]
+    X_data = adata.obsm["X_" + basis][:, :2]
 
     curl = np.zeros((adata.n_obs, 1))
 
-    for i, x in tqdm(enumerate(X_data), f"Calculating curl with the reconstructed vector field on the {basis} basis. "):
-        curl[i] = curl2d(func, x.flatten())
+    Jacobian_ = "jacobian" if basis is None else "jacobian_" + basis
 
-    adata.obs['curl'] = curl
+    if Jacobian_ in adata.uns_keys():
+        Js = adata.uns[Jacobian_]['Jacobian_raw']
+        for i in tqdm(range(X_data.shape[0]), f"Calculating curl with the reconstructed vector field on the {basis} basis. "):
+            curl[i] = curl2d(func, None, method=method, VecFld=None, jac=Js[:, :, i])
+    else:
+        for i, x in tqdm(enumerate(X_data), f"Calculating curl with the reconstructed vector field on the {basis} basis. "):
+            curl[i] = curl2d(func, x.flatten(), method=method, VecFld=VecFld)
+
+    curl_key = "curl" if basis is None else "curl_" + basis
+
+    adata.obs[curl_key] = curl
 
 
 def divergence(adata,
@@ -264,6 +327,7 @@ def divergence(adata,
                sample_ncells=1000,
                basis='pca',
                VecFld=None,
+               method='analytical',
                ):
     """Calculate divergence for each cell with the reconstructed vector field function.
 
@@ -275,6 +339,10 @@ def divergence(adata,
             The embedding data in which the vector field was reconstructed.
         VecFld: `dict`
             The true ODE function, useful when the data is generated through simulation.
+        method: `str` (default: `analytical`)
+            The method that will be used for calculating divergence, either `analytical` or `numeric`. `analytical`
+            method will use the analytical form of the reconstructed vector field for calculating Jacobian while
+            `numeric` method will use numdifftools for calculation. `analytical` method is much more efficient.
 
     Returns
     -------
@@ -302,10 +370,27 @@ def divergence(adata,
 
     cell_idx = np.arange(adata.n_obs) if cell_idx is None else cell_idx
 
-    div = compute_divergence(get_fjac(func), X[cell_idx], vectorize=True)
+    Jacobian_ = "jacobian" if basis is None else "jacobian_" + basis
 
-    adata.obs['divergence'] = None
-    adata.obs.loc[adata.obs_names[cell_idx], 'divergence'] = div
+    if Jacobian_ in adata.uns_keys():
+        Js = adata.uns[Jacobian_]['Jacobian_raw']
+        div = np.arange(len(cell_idx))
+        for i, cur_cell_idx in tqdm(enumerate(cell_idx), desc="Calculating divergence"):
+            div[i] = np.trace(Js[:, :, i]) if Js.shape[2] == len(cell_idx) else np.trace(Js[:, :, cur_cell_idx])
+    else:
+        if method == 'analytical':
+            fjac = lambda x: Jacobian_rkhs_gaussian(x, VecFld)
+        elif method == 'numeric':
+            fjac = get_fjac(func)
+        else:
+            raise NotImplementedError(f"the divergence calculation method {method} is not implemented. Currently only "
+                                      f"support `analytical` and `numeric` methods.")
+
+        div = compute_divergence(fjac, X[cell_idx], vectorize_size=1)
+
+    div_key = "divergence" if basis is None else "divergence_" + basis
+    adata.obs[div_key] = None
+    adata.obs.loc[adata.obs_names[cell_idx], div_key] = div
 
 
 def jacobian(adata,
@@ -316,7 +401,7 @@ def jacobian(adata,
              sample_ncells=1000,
              basis='pca',
              VecFld=None,
-             input_vector_convention='row',
+             method='analytical',
              cores=1,
              ):
     """Calculate Jacobian for each cell with the reconstructed vector field function.
@@ -358,6 +443,10 @@ def jacobian(adata,
         VecFld: `dict`
             The true ODE (ordinary differential equations) function, useful when the data is generated through simulation
             with known ODE functions.
+        method: `str` (default: `analytical`)
+            The method that will be used for calculating Jacobian, either `analytical` or `numeric`. `analytical`
+            method will use the analytical form of the reconstructed vector field for calculating Jacobian while
+            `numeric` method will use numdifftools for calculation. `analytical` method is much more efficient.
         cores: `int` (default: 1):
             Number of cores to calculate Jacobian. If cores is set to be > 1, multiprocessing will be used to
             parallel the Jacobian calculation.
@@ -365,8 +454,8 @@ def jacobian(adata,
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `Jacobian` key in the .uns. This is a 3-dimensional tensor with dimensions
-            n_obs x n_source_genes x n_target_genes.
+            AnnData object that is updated with the `Jacobian` key in the .uns. This is a 3-dimensional tensor with
+            dimensions n_obs x n_source_genes x n_target_genes.
     """
 
     if VecFld is None:
@@ -401,23 +490,30 @@ def jacobian(adata,
         raise ValueError(f"the source and target gene list you provided are not in the velocity gene list!")
 
     PCs_ = "PCs" if basis == 'pca' else "PCs_" + basis
-    Jacobian_ = "jacobian" #if basis is None else "jacobian_" + basis
+    Jacobian_ = "jacobian" if basis is None else "jacobian_" + basis
 
     Q = adata.uns[PCs_][:, :X.shape[1]]
 
-    Jac_fun = get_fjac(func, input_vector_convention)
+    if method == 'analytical':
+        Jac_fun = lambda x: Jacobian_rkhs_gaussian(x, VecFld)
+    elif method == 'numeric':
+        Jac_fun = get_fjac(func, input_vector_convention='row')
+    else:
+        raise NotImplementedError(f"the Jacobian matrix calculation method {method} is not implemented. Currently only "
+                                  f"support `analytical` and `numeric` methods.")
 
     if basis is None:
         Jacobian = Jac_fun(X)
     else:
         if len(source_genes) == 1 and len(target_genes) == 1:
-            Jacobian = elementwise_jacobian_transformation(Jac_fun, X[cell_idx], Q[target_idx, :].flatten(),
-                                                      Q[source_idx, :].flatten(), timeit=True)
+            Jacobian, Js = elementwise_jacobian_transformation(Jac_fun, X[cell_idx], Q[target_idx, :].flatten(),
+                                                      Q[source_idx, :].flatten(), True, timeit=True)
         else:
-            Jacobian = subset_jacobian_transformation(Jac_fun, X[cell_idx], Q[target_idx, :],
-                                                 Q[source_idx, :], cores=cores, timeit=True)
+            Jacobian, Js = subset_jacobian_transformation(Jac_fun, X[cell_idx], Q[target_idx, :],
+                                                 Q[source_idx, :], cores=cores, return_raw_J=True, timeit=True)
 
     adata.uns[Jacobian_] = {"Jacobian": Jacobian,
+                            "Jacobian_raw": Js,
                             "source_gene": source_genes,
                             "target_genes": target_genes,
                             "cell_idx": cell_idx,
