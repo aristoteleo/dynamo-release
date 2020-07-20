@@ -68,8 +68,10 @@ def Jacobian_rkhs_gaussian_parallel(x, vf_dict, cores=None):
     for i in range(0, n, n_j_per_core):
         xx.append(x[i:i+n_j_per_core])
     with mp.Pool(cores) as p:
-        res = p.starmap(Jacobian_rkhs_gaussian, zip(xx, itertools.repeat(vf_dict)))
-    return res
+        ret = p.starmap(Jacobian_rkhs_gaussian, zip(xx, itertools.repeat(vf_dict)))
+    ret = [np.transpose(r, axes=(2, 0, 1)) for r in ret]
+    ret = np.transpose(np.vstack(ret), axes=(1, 2, 0))
+    return ret
 
 
 def Jacobian_numerical(f, input_vector_convention='row'):
