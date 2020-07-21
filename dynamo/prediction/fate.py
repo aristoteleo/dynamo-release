@@ -320,7 +320,7 @@ def fate_bias(adata, group, basis='umap'):
     pred_dict = {}
     cell_predictions, cell_indx = adata.uns[fate_key]['prediction'], adata.uns[fate_key]['init_cells']
     for i, prediction in enumerate(cell_predictions):
-        distances, knn = nbrs.kneighbors(prediction.T)
+        distances, knn = nbrs.kneighbors(prediction[None, :])
 
         pred_dict[i] = clusters[knn.flatten()].value_counts()
 

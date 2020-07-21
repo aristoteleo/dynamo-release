@@ -1348,6 +1348,11 @@ def recipe_monocle(
         select_genes_dict.update(sg_kwargs)
 
     if genes_to_use is None:
+        pass_basic_filter_num = adata.var.pass_basic_filter.sum()
+        if pass_basic_filter_num < n_top_genes:
+            warnings.warn(f'only {pass_basic_filter_num} genes passed basic filtering, but you requested {n_top_genes} '
+                          f'genes for feature selection. Try lowering the gene selection stringency: '
+                          f'{select_genes_dict}')
         adata = select_genes(
             adata,
             sort_by=feature_selection,

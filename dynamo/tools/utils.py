@@ -1623,7 +1623,7 @@ def integrate_vf_ivp(
         _Y = None
         if integration_direction == "both":
             neg_t_len = sum(valid_t_trans < 0)
-        for i in tqdm(range(n_cell), desc="calculate solutions on the sampled time points"):
+        for i in tqdm(range(n_cell), desc="calculate solutions on the sampled time points", disable=disable):
             cur_Y = (
                 SOL[i](valid_t_trans)
                 if integration_direction != "both"
