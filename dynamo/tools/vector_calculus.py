@@ -106,17 +106,20 @@ def Jacobian_numerical(f, input_vector_convention='row'):
 
 
 def acceleration(v, J):
-    return J.dot(v)
+    return J.dot(v[:, None]) if v.ndim == 1 else J.dot(v)
 
 
 def curvature(a, v):
-    kappa = np.linalg.norm(v.outer(a)) / np.linalg.norm(v)
+    kappa = np.linalg.norm(np.outer(v[:, None], a)) / np.linalg.norm(v) if v.ndim == 1 else \
+        np.linalg.norm(v.outer(a)) / np.linalg.norm(v)
 
     return kappa
 
 
 def torsion(v, J, a):
-    tau = v.outer(a).dot(J.dot(a)) / np.linalg.norm(v.outer(a))**2
+    """only works in 3D"""
+    tau = np.outer(v[:, None], a).dot(J.dot(a)) / np.linalg.norm(np.outer(v[:, None], a))**2 if v.ndim == 1 else \
+        np.outer(v, a).dot(J.dot(a)) / np.linalg.norm(np.outer(v, a))**2
 
     return tau
 
