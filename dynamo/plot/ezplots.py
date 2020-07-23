@@ -75,6 +75,8 @@ def zscatter(adata, basis='umap', layer='X', dim1=0, dim2=1, dim3=None,
         cat_color = True
         if title + '_colors' in adata.uns.keys():
             color_dict = adata.uns[title + '_colors']
+            if type(color_dict) is not dict:
+                color_dict = {c: color_dict[i] for i, c in enumerate(np.unique(color))}
         else:
             color_dict = {c: i for i, c in enumerate(np.unique(color))}
         color = np.array([color_dict[c] for c in color])
