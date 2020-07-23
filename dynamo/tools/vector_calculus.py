@@ -105,6 +105,22 @@ def Jacobian_numerical(f, input_vector_convention='row'):
         return fjac
 
 
+def acceleration(v, J):
+    return J.dot(v)
+
+
+def curvature(a, v):
+    kappa = np.linalg.norm(v.outer(a)) / np.linalg.norm(v)
+
+    return kappa
+
+
+def torsion(v, J, a):
+    tau = v.outer(a).dot(J.dot(a)) / np.linalg.norm(v.outer(a))**2
+
+    return tau
+
+
 @timeit
 def elementwise_jacobian_transformation(fjac, X, qi, qj, return_J=False):
     """Inverse transform low dimension Jacobian matrix (:math:`\partial F_i / \partial x_j`) back to original space.
