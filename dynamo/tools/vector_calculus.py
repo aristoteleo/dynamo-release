@@ -110,8 +110,8 @@ def acceleration(v, J):
 
 
 def curvature(a, v):
-    kappa = np.linalg.norm(np.outer(v[:, None], a)) / np.linalg.norm(v) if v.ndim == 1 else \
-        np.linalg.norm(v.outer(a)) / np.linalg.norm(v)
+    kappa = np.linalg.norm(np.outer(v[:, None], a)) / np.linalg.norm(v)**3 if v.ndim == 1 else \
+        np.linalg.norm(v.outer(a)) / np.linalg.norm(v)**3
 
     return kappa
 
@@ -295,7 +295,7 @@ def compute_divergence(f_jac, X, vectorize_size=1):
 
 @timeit
 def compute_curl(f_jac, X):
-    """Calculate curl for many samples by taking the trace of a Jacobian matrix.
+    """Calculate curl for many samples for 2/3 D systems.
     """
     n = len(X)
 
@@ -318,7 +318,11 @@ def compute_curl(f_jac, X):
 
 @timeit
 def compute_acceleration(vf, f_jac, X, return_all=False):
-    """Calculate acceleration for many samples by taking the trace of a Jacobian matrix.
+    """Calculate acceleration for many samples via
+
+    .. math::
+    a = J \cdot v.
+
     """
     n = len(X)
     acce = np.zeros(n, X.shape[1], X.shape[1])
@@ -338,7 +342,10 @@ def compute_acceleration(vf, f_jac, X, return_all=False):
 
 @timeit
 def compute_curvature(vf, f_jac, X):
-    """Calculate curvature for many samples by taking the trace of a Jacobian matrix.
+    """Calculate curvature for many samples via
+
+    .. math::
+    \kappa = \frac{||\mathbf{v} \times \mathbf{a}||}{||\mathbf{V}||^3}
     """
     n = len(X)
 
@@ -353,7 +360,10 @@ def compute_curvature(vf, f_jac, X):
 
 @timeit
 def compute_torsion(vf, f_jac, X):
-    """Calculate torsion for many samples by taking the trace of a Jacobian matrix.
+    """Calculate torsion for many samples via
+
+    .. math::
+    \tau = \frac{(\mathbf{v} \times \mathbf{a}) \cdot (\mathbf{J} \cdot \mathbf{a})}{||\mathbf{V} \times \mathbf{a}||^2}
     """
     n = len(X)
 
