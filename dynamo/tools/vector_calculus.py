@@ -297,16 +297,16 @@ def compute_divergence(f_jac, X, vectorize_size=1):
 def compute_curl(f_jac, X):
     """Calculate curl for many samples for 2/3 D systems.
     """
-    n = len(X)
-
     if X.shape[1] > 3:
         raise Exception(f'curl is only defined in 2/3 dimension.')
+
+    n = len(X)
 
     if X.shape[1] == 2:
         curl = np.zeros(n)
         f = curl2d
     else:
-        curl = np.zeros(n, 2, 2)
+        curl = np.zeros((n, 2, 2))
         f = _curl
 
     for i in tqdm(range(n), desc=f"Calculating {X.shape[1]}-D curl"):
@@ -325,7 +325,7 @@ def compute_acceleration(vf, f_jac, X, return_all=False):
 
     """
     n = len(X)
-    acce = np.zeros(n, X.shape[1], X.shape[1])
+    acce = np.zeros((n, X.shape[1], X.shape[1]))
 
     v_ = vf(X)
     J_ = f_jac(X)
@@ -365,9 +365,12 @@ def compute_torsion(vf, f_jac, X):
     .. math::
     \tau = \frac{(\mathbf{v} \times \mathbf{a}) \cdot (\mathbf{J} \cdot \mathbf{a})}{||\mathbf{V} \times \mathbf{a}||^2}
     """
+    if X.shape[1] != 3:
+        raise Exception(f'torsion is only defined in 3 dimension.')
+
     n = len(X)
 
-    tor = np.zeros(n, X.shape[1], X.shape[1])
+    tor = np.zeros((n, X.shape[1], X.shape[1]))
     v, J, a = compute_acceleration(vf, f_jac, X, return_all=True)
 
     for i in tqdm(range(n), desc="Calculating torsion"):
