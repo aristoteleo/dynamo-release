@@ -293,6 +293,79 @@ def compute_divergence(f_jac, X, vectorize_size=1):
     return div
 
 
+@timeit
+def compute_curl(f_jac, X):
+    """Calculate curl for many samples by taking the trace of a Jacobian matrix.
+    """
+    n = len(X)
+
+    if X.shape[1] > 3:
+        raise Exception(f'curl is only defined in 2/3 dimension.')
+
+    if X.shape[1] == 2:
+        curl = np.zeros(n)
+        f = curl2d
+    else:
+        curl = np.zeros(n, 2, 2)
+        f = _curl
+
+    for i in tqdm(range(n), desc=f"Calculating {X.shape[1]}-D curl"):
+        J = f_jac(X[i])
+        curl[i] = f(None, None, method='analytical', VecFld=None, jac=J)
+
+    return curl
+
+
+@timeit
+def compute_acceleration(vf, f_jac, X, return_all=False):
+    """Calculate acceleration for many samples by taking the trace of a Jacobian matrix.
+    """
+    n = len(X)
+    acce = np.zeros(n, X.shape[1], X.shape[1])
+
+    v_ = vf(X)
+    J_ = f_jac(X)
+    for i in tqdm(range(n), desc=f"Calculating acceleration"):
+        v = v_[i]
+        J = J_[:, :, i]
+        acce[i] = acceleration(v, J)
+
+    if return_all:
+        return v_, J_, acce
+    else:
+        return acce
+
+
+@timeit
+def compute_curvature(vf, f_jac, X):
+    """Calculate curvature for many samples by taking the trace of a Jacobian matrix.
+    """
+    n = len(X)
+
+    curv = np.zeros(n)
+    v, _, a = compute_acceleration(vf, f_jac, X, return_all=True)
+
+    for i in tqdm(range(n), desc="Calculating curvature"):
+        curv[i] = curvature(a[i], v[i])
+
+    return curv
+
+
+@timeit
+def compute_torsion(vf, f_jac, X):
+    """Calculate torsion for many samples by taking the trace of a Jacobian matrix.
+    """
+    n = len(X)
+
+    tor = np.zeros(n, X.shape[1], X.shape[1])
+    v, J, a = compute_acceleration(vf, f_jac, X, return_all=True)
+
+    for i in tqdm(range(n), desc="Calculating torsion"):
+        tor[i] = torsion(v[i], J[:, :, i], a[i])
+
+    return tor
+
+
 def _curl(f, x, method='analytical', VecFld=None, jac=None):
     """Curl of the reconstructed vector field f evaluated at x in 3D"""
     if jac is None:

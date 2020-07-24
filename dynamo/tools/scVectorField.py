@@ -25,8 +25,12 @@ from .utils import (
 from .vector_calculus import (
     Jacobian_numerical,
     compute_divergence,
+    compute_curl,
+    compute_acceleration,
+    compute_curvature,
+    compute_torsion,
     Jacobian_rkhs_gaussian,
-    Jacobian_rkhs_gaussian_parallel
+    Jacobian_rkhs_gaussian_parallel,
 )
 
 def norm(X, V, T):
@@ -627,6 +631,25 @@ class vectorfield:
         f_jac = self.get_Jacobian(method=method)
         return compute_divergence(f_jac, X, **kwargs)
 
+    def compute_curl(self, X=None, method='analytical'):
+        X = self.data['X'] if X is None else X
+        f_jac = self.get_Jacobian(method=method)
+        return compute_curl(f_jac, X)
+
+    def compute_acceleration(self, X=None, method='analytical', **kwargs):
+        X = self.data['X'] if X is None else X
+        f_jac = self.get_Jacobian(method=method)
+        return compute_acceleration(self.func, f_jac, X, **kwargs)
+
+    def compute_curvature(self, X=None, method='analytical'):
+        X = self.data['X'] if X is None else X
+        f_jac = self.get_Jacobian(method=method)
+        return compute_curvature(self.func, f_jac, X)
+
+    def compute_torsion(self, X=None, method='analytical'):
+        X = self.data['X'] if X is None else X
+        f_jac = self.get_Jacobian(method=method)
+        return compute_torsion(self.func, f_jac, X)
 
     def get_Jacobian(self, method='analytical', input_vector_convention='row', **kwargs):
         '''
