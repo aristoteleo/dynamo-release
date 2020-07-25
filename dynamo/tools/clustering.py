@@ -215,7 +215,7 @@ def cluster_field(adata,
         row = np.repeat(nbrs_idx[:, 0], 30)
         col = nbrs_idx[:, 1:].flatten()
         g = csr_matrix((np.repeat(1, len(col)), (row, col)), shape=(adata.n_obs, adata.n_obs))
-        adata.uns['feature_knn'] = g
+        adata.obsp['feature_knn'] = g
 
         if method == 'louvain':
             sc.tl.louvain(adata, obsp='feature_knn', **kwargs)

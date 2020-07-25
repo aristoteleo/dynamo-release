@@ -48,6 +48,7 @@ def cell_velocities(
     random_seed=19491001,
     other_kernels_dict={},
     enforce=False,
+    key=None,
     **kmc_kwargs
 ):
     """Compute transition probability and project high dimension velocity vector to existing low dimension embedding.
@@ -57,6 +58,9 @@ def cell_velocities(
     us to visualize more intricate vector flow or steady states in low dimension. We also expect it will improve the
     calculation of the stationary distribution or source states of sampled cells. The original "correlation/cosine"
     velocity projection method is also supported. Kernels based on the reconstructed velocity field is also possible.
+
+    With the `key` argument, `cell_velocities` can be called by `cell_accelerations` to calculate RNA acceleration vector
+    for each cell.
 
     Arguments
     ---------
@@ -127,6 +131,8 @@ def cell_velocities(
         random_seed: `int` (default: `19491001`)
             The random seed for numba to ensure consistency of the random velocity vectors. Default value 19491001 is a
             special day for those who care.
+        key: `str` or None (default: `None`)
+            The prefix key that will be prefixed to the keys for storing calculated transition matrix, projection vectors, etc.
         other_kernels_dict: `dict` (default: `{}`)
             A dictionary of paramters that will be passed to the cosine/correlation kernel.
         enforce: `bool` (default: `False`)
@@ -362,19 +368,34 @@ def cell_velocities(
             X_embedding, delta_X, xy_grid_nums=xy_grid_nums
         )
 
-    adata.uns[method + "_transition_matrix"] = T
-    adata.obsm["velocity_" + basis] = delta_X
-    adata.uns["grid_velocity_" + basis] = {"X_grid": X_grid, "V_grid": V_grid, "D": D}
+    if key is None:
+        adata.uns[method + "_transition_matrix"] = T
+        adata.obsm["velocity_" + basis] = delta_X
+        adata.uns["grid_velocity_" + basis] = {"X_grid": X_grid, "V_grid": V_grid, "D": D}
+    else:
+        adata.uns[key + '_' + method + "_transition_matrix"] = T
+        adata.obsm[key + '_' + basis] = delta_X
+        adata.uns["grid_" + key + '_' + basis] = {"X_grid": X_grid, "V_grid": V_grid, "D": D}
 
     if calc_rnd_vel:
-        adata.uns[method + "_transition_matrix_rnd"] = T_rnd
-        adata.obsm["X_" + basis + "_rnd"] = X_embedding
-        adata.obsm["velocity_" + basis + "_rnd"] = delta_X_rnd
-        adata.uns["grid_velocity_" + basis + "_rnd"] = {
-            "X_grid": X_grid_rnd,
-            "V_grid": V_grid_rnd,
-            "D": D_rnd,
-        }
+        if key is None:
+            adata.uns[method + "_transition_matrix_rnd"] = T_rnd
+            adata.obsm["X_" + basis + "_rnd"] = X_embedding
+            adata.obsm["velocity_" + basis + "_rnd"] = delta_X_rnd
+            adata.uns["grid_velocity_" + basis + "_rnd"] = {
+                "X_grid": X_grid_rnd,
+                "V_grid": V_grid_rnd,
+                "D": D_rnd,
+            }
+        else:
+            adata.uns[key + '_' + method + "_transition_matrix_rnd"] = T_rnd
+            adata.obsm["X_" + key + "_" + basis + "_rnd"] = X_embedding
+            adata.obsm[key + "_" + basis + "_rnd"] = delta_X_rnd
+            adata.uns["grid_" + key + '_' + basis + "_rnd"] = {
+                "X_grid": X_grid_rnd,
+                "V_grid": V_grid_rnd,
+                "D": D_rnd,
+            }
 
     return adata
 
@@ -447,15 +468,18 @@ def cell_accelerations(adata,
     V_mat = adata.obsm['acceleration_' + vf_basis]
     X_embedding = adata.obsm['X_' + basis]
 
-    cell_velocities(
-        adata,
-        X=X,
-        V_mat=V_mat,
-        X_embedding=X_embedding,
-        enforce=enforce,
-        other_kernels_dict=other_kernels_dict,
-        **kwargs
-    )
+    if basis != vf_basis and basis != 'umap':
+        cell_velocities(
+            adata,
+            X=X,
+            V_mat=V_mat,
+            X_embedding=X_embedding,
+            basis=basis,
+            enforce=enforce,
+            key='acceleration',
+            other_kernels_dict=other_kernels_dict,
+            **kwargs
+        )
 
 
 def stationary_distribution(adata, method="kmc", direction="both", calc_rnd=True):
