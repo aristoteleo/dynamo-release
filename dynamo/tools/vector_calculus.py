@@ -332,7 +332,7 @@ def compute_acceleration(vf, f_jac, X, return_all=False):
     for i in tqdm(range(n), desc=f"Calculating acceleration"):
         v = v_[i]
         J = J_[:, :, i]
-        acce[i] = acceleration_(v, J)
+        acce[i] = acceleration_(v, J).flatten()
 
     if return_all:
         return v_, J_, acce
@@ -674,7 +674,7 @@ def acceleration(adata,
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `acceleration` key in the .obs as well as layers.
+            AnnData object that is updated with the `acceleration` key in the .obs as well as .obsm.
     """
 
     if VecFld is None:
@@ -691,7 +691,7 @@ def acceleration(adata,
     acce_key = "acceleration" if basis is None else "acceleration_" + basis
 
     adata.obs[acce_key] = acce
-    adata.layers[acce_key] = acce_mat
+    adata.obsm[acce_key] = acce_mat
 
 
 def curvature(adata,
