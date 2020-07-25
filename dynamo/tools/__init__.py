@@ -77,12 +77,13 @@ from .scVectorField import (
 from .utils import vector_field_function
 from .topography import FixedPoints, VectorField2D, topography, VectorField
 from .vector_calculus import (
+    speed,
+    jacobian,
     curl,
     divergence,
     acceleration,
     curvature,
     torsion,
-    jacobian,
     Jacobian_rkhs_gaussian,
     Jacobian_rkhs_gaussian_parallel,
     Jacobian_numerical,
