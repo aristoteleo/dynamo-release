@@ -8,7 +8,7 @@ from .connectivity import umap_conn_indices_dist_embedding, mnn_from_list
 from .utils import get_finite_inds, inverse_norm
 
 
-def cell_wise_confidence(adata, ekey="M_s", vkey="velocity_S", method="jaccard"):
+def cell_wise_confidence(adata, X_data=None, V_data=None, ekey="M_s", vkey="velocity_S", method="jaccard"):
     """ Calculate the cell-wise velocity confidence metric.
 
     Parameters
@@ -36,14 +36,14 @@ def cell_wise_confidence(adata, ekey="M_s", vkey="velocity_S", method="jaccard")
     """
 
     if ekey is "X": 
-        X, V = (adata.X, adata.layers[vkey])
+        X, V = (adata.X if X_data is None else X_data, adata.layers[vkey] if V_data is None else V_data)
         norm_method = adata.uns["pp_norm_method"].copy()
         adata.uns["pp_norm_method"] = 'log1p'
-        X = inverse_norm(adata, X)
+        X = inverse_norm(adata, X) if X_data is None else X_data
         adata.uns["pp_norm_method"] = norm_method
     else:
-        X, V = (adata.layers[ekey], adata.layers[vkey])
-        X = inverse_norm(adata, X)
+        X, V = (adata.layers[ekey] if X_data is None else X_data, adata.layers[vkey] if V_data is None else V_data)
+        X = inverse_norm(adata, X) if X_data is None else X_data
 
     n_neigh, X_neighbors = (
         adata.uns["neighbors"]["params"]["n_neighbors"],
@@ -58,7 +58,7 @@ def cell_wise_confidence(adata, ekey="M_s", vkey="velocity_S", method="jaccard")
         confidence = jac
 
     elif method == "hybrid":
-        # this is inspired from the localcity preservation paper
+        # this is inspired from the locality preservation paper
         jac, intersect_, _ = jaccard(X, V, n_pca_components, n_neigh, X_neighbors)
 
         confidence = np.zeros(adata.n_obs)

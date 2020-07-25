@@ -79,6 +79,9 @@ from .topography import FixedPoints, VectorField2D, topography, VectorField
 from .vector_calculus import (
     curl,
     divergence,
+    acceleration,
+    curvature,
+    torsion,
     jacobian,
     Jacobian_rkhs_gaussian,
     Jacobian_rkhs_gaussian_parallel,
