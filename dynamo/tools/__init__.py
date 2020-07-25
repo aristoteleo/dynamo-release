@@ -43,7 +43,7 @@ from .velocity import (
     velocity,
     ss_estimation,
 )
-from .cell_velocities import (
+from .cell_vectors import (
     cell_velocities,
     generalized_diffusion_map,
     stationary_distribution,

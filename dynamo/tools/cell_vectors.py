@@ -21,6 +21,13 @@ from .utils import (
 
 from .dimension_reduction import reduceDimension
 
+def cell_accelerations(adata):
+    from .topography import VectorField
+    from .vector_calculus import acceleration
+    VectorField(adata)
+    acceleration(adata)
+
+
 def cell_velocities(
     adata,
     ekey=None,

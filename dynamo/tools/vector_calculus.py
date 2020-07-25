@@ -325,7 +325,7 @@ def compute_acceleration(vf, f_jac, X, return_all=False):
 
     """
     n = len(X)
-    acce = np.zeros((n, X.shape[1], X.shape[1]))
+    acce = np.zeros((n, X.shape[1]))
 
     v_ = vf(X)
     J_ = f_jac(X)
@@ -674,7 +674,7 @@ def acceleration(adata,
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `acceleration` key in the .obs.
+            AnnData object that is updated with the `acceleration` key in the .obs as well as layers.
     """
 
     if VecFld is None:
@@ -691,7 +691,7 @@ def acceleration(adata,
     acce_key = "acceleration" if basis is None else "acceleration_" + basis
 
     adata.obs[acce_key] = acce
-    adata.uns[acce_key] = acce_mat
+    adata.layers[acce_key] = acce_mat
 
 
 def curvature(adata,

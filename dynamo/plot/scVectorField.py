@@ -11,7 +11,7 @@ from .utils import (
     set_stream_line_alpha,
 )
 from ..tools.dimension_reduction import reduceDimension
-from ..tools.cell_velocities import cell_velocities
+from ..tools.cell_vectors import cell_velocities
 from ..tools.Markov import prepare_velocity_grid_data, velocity_on_grid, grid_velocity_filter
 from ..tools.topography import VectorField
 from ..tools.utils import _from_adata, update_dict
