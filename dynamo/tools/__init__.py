@@ -126,7 +126,7 @@ from .Ao import Ao_pot_map
 from .dimension_reduction import reduceDimension  # , run_umap
 
 # clustering related
-from .clustering import hdbscan
+from .clustering import hdbscan, cluster_field
 
 # mnn related
 from .connectivity import mnn

@@ -1228,7 +1228,7 @@ def cell_wise_velocity(
 
 
 @docstrings.with_indent(4)
-def grid_velocity(
+def grid_vectors(
     adata,
     basis="umap",
     x=0,
@@ -1264,7 +1264,7 @@ def grid_velocity(
     q_kwargs_dict={},
     **grid_kwargs,
 ):
-    """Plot the velocity vector of each cell.
+    """Plot the velocity or acceleration vector of each cell.
 
     Parameters
     ----------

@@ -1,6 +1,10 @@
 from hdbscan import HDBSCAN
+from sklearn.neighbors import NearestNeighbors
+from scipy.sparse import csr_matrix
+import numpy as np
 from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 from .utils import update_dict
+
 
 def hdbscan(adata,
             X_data=None,
@@ -53,7 +57,7 @@ def hdbscan(adata,
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            A updated AnnData object with the clustering updated. `Cluster` and `C_prob` are two newly added columns
+            A updated AnnData object with the clustering updated. `hdbscan` and `hdbscan_prob` are two newly added columns
             from .obs, corresponding to either the Cluster results or the probability of each cell belong to a cluster.
             `hdbscan` key in .uns corresponds to a dictionary that includes additional results returned from hdbscan run.
     """
@@ -106,9 +110,9 @@ def hdbscan(adata,
     h_kwargs = update_dict(h_kwargs, hdbscan_kwargs)
     cluster = HDBSCAN(**h_kwargs)
     cluster.fit(X_data)
-    adata.obs['Cluster'] = cluster.labels_.astype('str')
-    adata.obs['C_prob'] = cluster.probabilities_
-    adata.uns['hdbscan'] = {'Cluster': cluster.labels_.astype('str'),
+    adata.obs['hdbscan'] = cluster.labels_.astype('str')
+    adata.obs['hdbscan_prob'] = cluster.probabilities_
+    adata.uns['hdbscan'] = {'hdbscan': cluster.labels_.astype('str'),
                             "probabilities_": cluster.probabilities_,
                             "cluster_persistence_": cluster.cluster_persistence_,
                             "outlier_scores_": cluster.outlier_scores_,
@@ -117,3 +121,103 @@ def hdbscan(adata,
 
     return adata
 
+
+def cluster_field(adata,
+                  basis='pca',
+                  embedding_basis=None,
+                  normalize=True,
+                  method='louvain',
+                  **kwargs):
+    """Cluster cells based on vector field features.
+
+    We would like to see whether the vector field can be used to better define cell state/types. This can be accessed via
+    characterizing critical points (attractor/saddle/repressor, etc.) and characteristic curves (nullcline, separatrix).
+    However, the calculation of those is not easy, for example, a strict definition of an attractor is states where
+    velocity is 0 and the eigenvalue of the jacobian matrix at that point is all negative. Under this strict definition,
+    we may sometimes find the attractors are very far away from our sampled cell states which makes them less meaningful.
+    This is not unexpected as the vector field we learned is defined via a set of basis functions based on gaussian
+    kernels and thus it is hard to satisfy that strict definition.
+
+    Fortunately, we can handle this better with the help of a different set of ideas. Instead of using critical points
+    by the classical dynamic system methods, we can use some machine learning approaches that are based on extracting
+    geometric features of streamline to "cluster vector field space" for define cell states/type. This requires calculating,
+    potential (ordered pseudotime), speed, curliness, divergence, acceleration, curvature, etc. Thanks to the fact that we
+    can analytically calculate Jacobian matrix matrix, those quantities of the vector field function can be conveniently
+    and efficiently calculated.
+
+    Parameters
+    ----------
+    adata: :class:`~anndata.AnnData`.
+        adata object that includes both newly synthesized and total gene expression of cells. Alternatively,
+        the object should include both unspliced and spliced gene expression of cells.
+    basis: `str` or None (default: `None`)
+        The space that will be used for calculating vector field features. Valid names includes, for example, `pca`, `umap`, etc.
+    embedding_basis: `str` or None (default: `None`)
+        The embedding basis that will be combined with the vector field feature space for clustering.
+    normalize: `bool` (default: `True`)
+        Whether to mean center and scale the feature across all cells so that the mean
+    method: `str` (default: `louvain`)
+        The method that will be used for clustering, one of `{'kmeans'', 'hdbscan', 'louvain', 'leiden'}`. If `louvain`
+        or `leiden` used, you need to have `scanpy` installed.
+    kwargs:
+        Any additional arguments that will be passed to either kmeans, hdbscan, louvain or leiden clustering algorithms.
+
+    Returns
+    -------
+
+    """
+
+    if method in ['louvain', 'leiden']:
+        try:
+            import scanpy as sc
+        except ImportError:
+            raise ImportError("You need to install the excellent package `scanpy` if you want to use louvain or leiden "
+                              "for clustering.")
+
+    feature_key = ['speed_' + basis, basis + '_ddhodge_potential', 'divergence_' + basis, 'acceleration_' + basis,
+                   'curvature_' + basis]
+
+    if feature_key[0] not in adata.obs.keys():
+        from .vector_calculus import speed
+        speed(adata, basis=basis)
+    if feature_key[1] not in adata.obs.keys():
+        from ..ext import ddhoge
+        ddhoge(adata, basis=basis)
+    if feature_key[2] not in adata.obs.keys():
+        from .vector_calculus import divergence
+        divergence(adata, basis=basis)
+    if feature_key[3] not in adata.obs.keys():
+        from .vector_calculus import acceleration
+        acceleration(adata, basis=basis)
+    if feature_key[4] not in adata.obs.keys():
+        from .vector_calculus import curvature
+        curvature(adata, basis=basis)
+
+    feature_data = adata.obs.loc[:, feature_key].values
+    if embedding_basis is None: embedding_basis = basis
+    X = np.hstack((feature_data, adata.obsm['X_' + embedding_basis]))
+
+    if normalize:
+        # X = (X - X.min(0)) / X.ptp(0)
+        X = (X - X.mean(0)) / X.std(0)
+
+    if method in ['hdbscan', 'kmeans']:
+        if method == 'hdbscan':
+            hdbscan(adata, X_data=X, **kwargs)
+        elif method == 'kmeans':
+            from sklearn.cluster import KMeans
+            kmeans = KMeans(random_state=0, **kwargs).fit(X)
+            adata.obs['kmeans'] = kmeans.labels_.astype('str')
+
+    elif method in ['louvain', 'leiden']:
+        nbrs = NearestNeighbors(n_neighbors=31).fit(X)
+        dist, nbrs_idx = nbrs.kneighbors(X)
+        row = np.repeat(nbrs_idx[:, 0], 30)
+        col = nbrs_idx[:, 1:].flatten()
+        g = csr_matrix((np.repeat(1, len(col)), (row, col)), shape=(adata.n_obs, adata.n_obs))
+        adata.uns['feature_knn'] = g
+
+        if method == 'louvain':
+            sc.tl.louvain(adata, obsp='feature_knn', **kwargs)
+        elif method == 'leiden':
+            sc.tl.leiden(adata, obsp='feature_knn', **kwargs)

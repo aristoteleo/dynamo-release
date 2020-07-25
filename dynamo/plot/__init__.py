@@ -22,7 +22,7 @@ from .connectivity import nneighbors
 
 from .scVectorField import (
     cell_wise_velocity,
-    grid_velocity,
+    grid_vectors,
     streamline_plot,
     line_integral_conv,
     plot_energy
