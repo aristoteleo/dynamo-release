@@ -888,7 +888,7 @@ def scatters(
     else:
         _background = background
         set_figure_params('dynamo', background=_background)
-    x, y = x[0] if type(x) != int else x, y[0] if type(y) != int else y
+    x, y = x[0] if type(x) != int and type(x) != str else x, y[0] if type(y) != int and type(x) != str else y
 
     if use_smoothed:
         mapper = get_mapper()
@@ -940,10 +940,11 @@ def scatters(
             prefix = cur_l + "_"
 
             if prefix + cur_b in adata.obsm.keys():
-                x_, y_ = (
-                    adata.obsm[prefix + cur_b][:, int(x)],
-                    adata.obsm[prefix + cur_b][:, int(y)],
-                )
+                if type(x) != str and type(y) != str:
+                    x_, y_ = (
+                        adata.obsm[prefix + cur_b][:, int(x)],
+                        adata.obsm[prefix + cur_b][:, int(y)],
+                    )
             else:
                 continue
             for cur_c in color:
@@ -960,18 +961,18 @@ def scatters(
                         }
                     )
                     points.columns = [cur_b + "_1", cur_b + "_2"]
-                elif is_gene_name(x) and is_gene_name(y):
+                elif is_gene_name(adata, x) and is_gene_name(adata, y):
                     points = pd.DataFrame(
                         {
-                            x: adata.obs_vector(x, cur_l_smoothed),
-                            y: adata.obs_vector(y, cur_l_smoothed),
+                            x: adata[:, x].layers['M_s'].A.flatten(), #adata.obs_vector(x, cur_l_smoothed),
+                            y: adata[:, y].layers['M_s'].A.flatten(), #adata.obs_vector(y, cur_l_smoothed),
                         }
                     )
                     points.columns = [
                         x + " (" + cur_l_smoothed + ")",
                         y + " (" + cur_l_smoothed + ")",
                     ]
-                elif is_cell_anno_column(x) and is_gene_name(y):
+                elif is_cell_anno_column(adata, x) and is_gene_name(adata, y):
                     points = pd.DataFrame(
                         {x: adata.obs_vector(x), y: adata.obs_vector(y, cur_l_smoothed)}
                     )

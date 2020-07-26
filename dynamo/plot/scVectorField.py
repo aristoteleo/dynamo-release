@@ -1116,24 +1116,31 @@ def cell_wise_vectors(
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
 
-    if ("X_" + basis in adata.obsm.keys()) and (
-        vector + "_" + basis in adata.obsm.keys()
-    ):
-        X = adata.obsm["X_" + basis][:, [x, y]]
-        V = adata.obsm[vector + "_" + basis][:, [x, y]]
+    if type(x) == str and type(y) == str:
+        if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y])) != 2:
+            raise ValueError(f'If you want to plot the vector flow of two genes, please make sure those two genes '
+                             f'belongs to dynamics genes or .var.use_for_dynamics is True.')
+        X = adata[:, [x, y]].layers['M_s'].A
+        V = adata[:, [x, y]].layers['velocity_S'].A
     else:
-        if "X_" + basis not in adata.obsm.keys():
-            layer, basis = basis.split("_")
-            reduceDimension(adata, layer=layer, reduction_method=basis)
-        if "kmc" not in adata.uns_keys():
-            cell_velocities(adata, vkey="velocity_S", basis=basis)
+        if ("X_" + basis in adata.obsm.keys()) and (
+            vector + "_" + basis in adata.obsm.keys()
+        ):
             X = adata.obsm["X_" + basis][:, [x, y]]
             V = adata.obsm[vector + "_" + basis][:, [x, y]]
         else:
-            kmc = adata.uns["kmc"]
-            X = adata.obsm["X_" + basis][:, [x, y]]
-            V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
-            adata.obsm[vector + "_" + basis] = V
+            if "X_" + basis not in adata.obsm.keys():
+                layer, basis = basis.split("_")
+                reduceDimension(adata, layer=layer, reduction_method=basis)
+            if "kmc" not in adata.uns_keys():
+                cell_velocities(adata, vkey="velocity_S", basis=basis)
+                X = adata.obsm["X_" + basis][:, [x, y]]
+                V = adata.obsm[vector + "_" + basis][:, [x, y]]
+            else:
+                kmc = adata.uns["kmc"]
+                X = adata.obsm["X_" + basis][:, [x, y]]
+                V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
+                adata.obsm[vector + "_" + basis] = V
 
     V /= 3 * quiver_autoscaler(X, V)
     if inverse: V = -V
@@ -1320,24 +1327,31 @@ def grid_vectors(
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
 
-    if ("X_" + basis in adata.obsm.keys()) and (
-        vector + '_' + basis in adata.obsm.keys()
-    ):
-        X = adata.obsm["X_" + basis][:, [x, y]]
-        V = adata.obsm[vector + '_' + basis][:, [x, y]]
+    if type(x) == str and type(y) == str:
+        if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y])) != 2:
+            raise ValueError(f'If you want to plot the vector flow of two genes, please make sure those two genes '
+                             f'belongs to dynamics genes or .var.use_for_dynamics is True.')
+        X = adata[:, [x, y]].layers['M_s'].A
+        V = adata[:, [x, y]].layers['velocity_S'].A
     else:
-        if "X_" + basis not in adata.obsm.keys():
-            layer, basis = basis.split("_")
-            reduceDimension(adata, layer=layer, reduction_method=basis)
-        if "kmc" not in adata.uns_keys():
-            cell_velocities(adata, vkey="velocity_S", basis=basis)
+        if ("X_" + basis in adata.obsm.keys()) and (
+            vector + '_' + basis in adata.obsm.keys()
+        ):
             X = adata.obsm["X_" + basis][:, [x, y]]
             V = adata.obsm[vector + '_' + basis][:, [x, y]]
         else:
-            kmc = adata.uns["kmc"]
-            X = adata.obsm["X_" + basis][:, [x, y]]
-            V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
-            adata.obsm[vector + '_' + basis] = V
+            if "X_" + basis not in adata.obsm.keys():
+                layer, basis = basis.split("_")
+                reduceDimension(adata, layer=layer, reduction_method=basis)
+            if "kmc" not in adata.uns_keys():
+                cell_velocities(adata, vkey="velocity_S", basis=basis)
+                X = adata.obsm["X_" + basis][:, [x, y]]
+                V = adata.obsm[vector + '_' + basis][:, [x, y]]
+            else:
+                kmc = adata.uns["kmc"]
+                X = adata.obsm["X_" + basis][:, [x, y]]
+                V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
+                adata.obsm[vector + '_' + basis] = V
 
     grid_kwargs_dict = {
         "density": None,
@@ -1564,24 +1578,31 @@ def streamline_plot(
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
 
-    if ("X_" + basis in adata.obsm.keys()) and (
-        vector + "_" + basis in adata.obsm.keys()
-    ):
-        X = adata.obsm["X_" + basis][:, [x, y]]
-        V = adata.obsm[vector + '_' + basis][:, [x, y]]
+    if type(x) == str and type(y) == str:
+        if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y])) != 2:
+            raise ValueError(f'If you want to plot the vector flow of two genes, please make sure those two genes '
+                             f'belongs to dynamics genes or .var.use_for_dynamics is True.')
+        X = adata[:, [x, y]].layers['M_s'].A
+        V = adata[:, [x, y]].layers['velocity_S'].A
     else:
-        if "X_" + basis not in adata.obsm.keys():
-            layer, basis = basis.split("_")
-            reduceDimension(adata, layer=layer, reduction_method=basis)
-        if "kmc" not in adata.uns_keys():
-            cell_velocities(adata, vkey="velocity_S", basis=basis)
+        if ("X_" + basis in adata.obsm.keys()) and (
+            vector + "_" + basis in adata.obsm.keys()
+        ):
             X = adata.obsm["X_" + basis][:, [x, y]]
             V = adata.obsm[vector + '_' + basis][:, [x, y]]
         else:
-            kmc = adata.uns["kmc"]
-            X = adata.obsm["X_" + basis][:, [x, y]]
-            V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
-            adata.obsm[vector + '_' + basis] = V
+            if "X_" + basis not in adata.obsm.keys():
+                layer, basis = basis.split("_")
+                reduceDimension(adata, layer=layer, reduction_method=basis)
+            if "kmc" not in adata.uns_keys():
+                cell_velocities(adata, vkey="velocity_S", basis=basis)
+                X = adata.obsm["X_" + basis][:, [x, y]]
+                V = adata.obsm[vector + '_' + basis][:, [x, y]]
+            else:
+                kmc = adata.uns["kmc"]
+                X = adata.obsm["X_" + basis][:, [x, y]]
+                V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
+                adata.obsm[vector + '_' + basis] = V
 
     grid_kwargs_dict = {
         "density": None,
