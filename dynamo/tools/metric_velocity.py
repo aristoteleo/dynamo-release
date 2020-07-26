@@ -60,7 +60,7 @@ def cell_wise_confidence(adata, X_data=None, V_data=None, ekey="M_s", vkey="velo
         jac, intersect_, _ = jaccard(X, V, n_pca_components, n_neigh, X_neighbors)
 
         confidence = np.zeros(adata.n_obs)
-        for i in range(adata.n_obs):
+        for i in tqdm(range(adata.n_obs), desc='calculating hybrid method (jaccard + consensus) based cell wise confidence'):
             neigh_ids = np.where(intersect_[i].A)[0] if issparse(intersect_) else np.where(intersect_[i])[0]
             confidence[i] = jac[i] * np.mean(
                 [consensus(V[i].A.flatten(), V[j].A.flatten()) for j in neigh_ids]
