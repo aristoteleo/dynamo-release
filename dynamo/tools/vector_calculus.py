@@ -674,7 +674,8 @@ def acceleration(adata,
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `acceleration` key in the .obs as well as .obsm.
+            AnnData object that is updated with the `acceleration` key in the .obs as well as .obsm. If basis is `pca`,
+            acceleration matrix will be inverse transformed back to original high dimension space.
     """
 
     if VecFld is None:
@@ -692,6 +693,10 @@ def acceleration(adata,
 
     adata.obs[acce_key] = acce
     adata.obsm[acce_key] = acce_mat
+
+    if basis == 'pca':
+        adata.layers['acceleration'] = adata.layers['velocity_S'].copy()
+        adata.layers['acceleration'][:, np.where(adata.var.use_for_dynamics)[0]] = acce_mat @ adata.uns['PCs'].T
 
 
 def curvature(adata,
