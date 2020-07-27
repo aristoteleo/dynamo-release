@@ -43,8 +43,9 @@ from .velocity import (
     velocity,
     ss_estimation,
 )
-from .cell_velocities import (
+from .cell_vectors import (
     cell_velocities,
+    cell_accelerations,
     generalized_diffusion_map,
     stationary_distribution,
     diffusion,
@@ -77,9 +78,13 @@ from .scVectorField import (
 from .utils import vector_field_function
 from .topography import FixedPoints, VectorField2D, topography, VectorField
 from .vector_calculus import (
+    speed,
+    jacobian,
     curl,
     divergence,
-    jacobian,
+    acceleration,
+    curvature,
+    torsion,
     Jacobian_rkhs_gaussian,
     Jacobian_rkhs_gaussian_parallel,
     Jacobian_numerical,
@@ -122,7 +127,7 @@ from .Ao import Ao_pot_map
 from .dimension_reduction import reduceDimension  # , run_umap
 
 # clustering related
-from .clustering import hdbscan
+from .clustering import hdbscan, cluster_field
 
 # mnn related
 from .connectivity import mnn

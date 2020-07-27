@@ -26,7 +26,7 @@ def reduceDimension(
         adata: :class:`~anndata.AnnData`
             an Annodata object
         X_data: `np.ndarray` (default: `None`)
-            The user supplied data that will be used for clustering directly.
+            The user supplied data that will be used for dimension reduction directly.
         genes: `list` or None (default: `None`)
             The list of genes that will be used to subset the data for dimension reduction and clustering. If `None`, all
             genes will be used.

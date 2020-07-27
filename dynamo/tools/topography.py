@@ -645,7 +645,7 @@ def VectorField(
     if pot_curl_div:
         if basis in ["pca", 'umap', 'tsne', 'diffusion_map', 'trimap']:
             ddhoge(adata, basis=basis, cores=cores)
-            curl(adata, basis=basis)
+            if X.shape[1] == 2: curl(adata, basis=basis)
             divergence(adata, basis=basis)
 
     if return_vf_object:

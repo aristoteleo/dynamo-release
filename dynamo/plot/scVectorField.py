@@ -11,7 +11,7 @@ from .utils import (
     set_stream_line_alpha,
 )
 from ..tools.dimension_reduction import reduceDimension
-from ..tools.cell_velocities import cell_velocities
+from ..tools.cell_vectors import cell_velocities
 from ..tools.Markov import prepare_velocity_grid_data, velocity_on_grid, grid_velocity_filter
 from ..tools.topography import VectorField
 from ..tools.utils import _from_adata, update_dict
@@ -850,6 +850,7 @@ def line_integral_conv(
     const_alpha=False,
     kernellen=100,
     V_threshold=None,
+    vector='velocity',
     file=None,
     save_show_or_return='show',
     save_kwargs={},
@@ -888,6 +889,9 @@ def line_integral_conv(
             Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's variation space is a.
         V_threshold: `float` or `None` (default: None)
             The threshold of velocity value for visualization
+        vector: `str` (default: `velocity`)
+            Which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity field or
+            acceleration field will be plotted.
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -904,8 +908,8 @@ def line_integral_conv(
     import matplotlib.pyplot as plt
     X = adata.obsm["X_" + basis][:, :2] if "X_" + basis in adata.obsm.keys() else None
     V = (
-        adata.obsm["velocity_" + basis][:, :2]
-        if "velocity_" + basis in adata.obsm.keys()
+        adata.obsm[vector + '_' + basis][:, :2]
+        if vector + '_' + basis in adata.obsm.keys()
         else None
     )
 
@@ -1040,7 +1044,7 @@ def line_integral_conv(
 
 
 @docstrings.with_indent(4)
-def cell_wise_velocity(
+def cell_wise_vectors(
     adata,
     basis="umap",
     x=0,
@@ -1068,12 +1072,13 @@ def cell_wise_velocity(
     cell_ind="all",
     quiver_size=None,
     quiver_length=None,
+    vector='velocity',
     save_show_or_return='show',
     save_kwargs={},
     s_kwargs_dict={},
     **cell_wise_kwargs,
 ):
-    """Plot the velocity vector of each cell.
+    """Plot the velocity or acceleration vector of each cell.
 
     Parameters
     ----------
@@ -1090,6 +1095,9 @@ def cell_wise_velocity(
             The length of quiver. The quiver length which will be used to calculate scale of quiver. Note that befoe applying
             `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale of quiver indicates
             the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller scale parameter makes the arrow longer.
+        vector: `str` (default: `velocity`)
+            Which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity field or
+            acceleration field will be plotted.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'cell_wise_velocity', "dpi": None, "ext": 'pdf', "transparent": True, "close":
@@ -1108,24 +1116,31 @@ def cell_wise_velocity(
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
 
-    if ("X_" + basis in adata.obsm.keys()) and (
-        "velocity_" + basis in adata.obsm.keys()
-    ):
-        X = adata.obsm["X_" + basis][:, [x, y]]
-        V = adata.obsm["velocity_" + basis][:, [x, y]]
+    if type(x) == str and type(y) == str:
+        if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y])) != 2:
+            raise ValueError(f'If you want to plot the vector flow of two genes, please make sure those two genes '
+                             f'belongs to dynamics genes or .var.use_for_dynamics is True.')
+        X = adata[:, [x, y]].layers['M_s'].A
+        V = adata[:, [x, y]].layers['velocity_S'].A
     else:
-        if "X_" + basis not in adata.obsm.keys():
-            layer, basis = basis.split("_")
-            reduceDimension(adata, layer=layer, reduction_method=basis)
-        if "kmc" not in adata.uns_keys():
-            cell_velocities(adata, vkey="velocity_S", basis=basis)
+        if ("X_" + basis in adata.obsm.keys()) and (
+            vector + "_" + basis in adata.obsm.keys()
+        ):
             X = adata.obsm["X_" + basis][:, [x, y]]
-            V = adata.obsm["velocity_" + basis][:, [x, y]]
+            V = adata.obsm[vector + "_" + basis][:, [x, y]]
         else:
-            kmc = adata.uns["kmc"]
-            X = adata.obsm["X_" + basis][:, [x, y]]
-            V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
-            adata.obsm["velocity_" + basis] = V
+            if "X_" + basis not in adata.obsm.keys():
+                layer, basis = basis.split("_")
+                reduceDimension(adata, layer=layer, reduction_method=basis)
+            if "kmc" not in adata.uns_keys():
+                cell_velocities(adata, vkey="velocity_S", basis=basis)
+                X = adata.obsm["X_" + basis][:, [x, y]]
+                V = adata.obsm[vector + "_" + basis][:, [x, y]]
+            else:
+                kmc = adata.uns["kmc"]
+                X = adata.obsm["X_" + basis][:, [x, y]]
+                V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
+                adata.obsm[vector + "_" + basis] = V
 
     V /= 3 * quiver_autoscaler(X, V)
     if inverse: V = -V
@@ -1215,7 +1230,7 @@ def cell_wise_velocity(
         axes_list[i].set_facecolor(background)
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'cell_wise_velocity', "dpi": None,
+        s_kwargs = {"path": None, "prefix": 'cell_wise_vector', "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
@@ -1228,7 +1243,7 @@ def cell_wise_velocity(
 
 
 @docstrings.with_indent(4)
-def grid_velocity(
+def grid_vectors(
     adata,
     basis="umap",
     x=0,
@@ -1258,13 +1273,14 @@ def grid_velocity(
     cut_off_velocity=True,
     quiver_size=None,
     quiver_length=None,
+    vector='velocity',
     save_show_or_return='show',
     save_kwargs={},
     s_kwargs_dict={},
     q_kwargs_dict={},
     **grid_kwargs,
 ):
-    """Plot the velocity vector of each cell.
+    """Plot the velocity or acceleration vector of each cell on a grid.
 
     Parameters
     ----------
@@ -1287,6 +1303,9 @@ def grid_velocity(
             The length of quiver. The quiver length which will be used to calculate scale of quiver. Note that befoe applying
             `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale of quiver indicates
             the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller scale parameter makes the arrow longer.
+        vector: `str` (default: `velocity`)
+            Which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity field or
+            acceleration field will be plotted.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'grid_velocity', "dpi": None, "ext": 'pdf', "transparent": True, "close":
@@ -1308,24 +1327,31 @@ def grid_velocity(
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
 
-    if ("X_" + basis in adata.obsm.keys()) and (
-        "velocity_" + basis in adata.obsm.keys()
-    ):
-        X = adata.obsm["X_" + basis][:, [x, y]]
-        V = adata.obsm["velocity_" + basis][:, [x, y]]
+    if type(x) == str and type(y) == str:
+        if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y])) != 2:
+            raise ValueError(f'If you want to plot the vector flow of two genes, please make sure those two genes '
+                             f'belongs to dynamics genes or .var.use_for_dynamics is True.')
+        X = adata[:, [x, y]].layers['M_s'].A
+        V = adata[:, [x, y]].layers['velocity_S'].A
     else:
-        if "X_" + basis not in adata.obsm.keys():
-            layer, basis = basis.split("_")
-            reduceDimension(adata, layer=layer, reduction_method=basis)
-        if "kmc" not in adata.uns_keys():
-            cell_velocities(adata, vkey="velocity_S", basis=basis)
+        if ("X_" + basis in adata.obsm.keys()) and (
+            vector + '_' + basis in adata.obsm.keys()
+        ):
             X = adata.obsm["X_" + basis][:, [x, y]]
-            V = adata.obsm["velocity_" + basis][:, [x, y]]
+            V = adata.obsm[vector + '_' + basis][:, [x, y]]
         else:
-            kmc = adata.uns["kmc"]
-            X = adata.obsm["X_" + basis][:, [x, y]]
-            V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
-            adata.obsm["velocity_" + basis] = V
+            if "X_" + basis not in adata.obsm.keys():
+                layer, basis = basis.split("_")
+                reduceDimension(adata, layer=layer, reduction_method=basis)
+            if "kmc" not in adata.uns_keys():
+                cell_velocities(adata, vkey="velocity_S", basis=basis)
+                X = adata.obsm["X_" + basis][:, [x, y]]
+                V = adata.obsm[vector + '_' + basis][:, [x, y]]
+            else:
+                kmc = adata.uns["kmc"]
+                X = adata.obsm["X_" + basis][:, [x, y]]
+                V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
+                adata.obsm[vector + '_' + basis] = V
 
     grid_kwargs_dict = {
         "density": None,
@@ -1504,6 +1530,7 @@ def streamline_plot(
     density=1,
     linewidth=1,
     streamline_alpha=1,
+    vector='velocity',
     save_show_or_return='show',
     save_kwargs={},
     s_kwargs_dict={},
@@ -1530,6 +1557,9 @@ def streamline_plot(
             multiplier of automatically calculated linewidth passed to the plt.streamplot function.
         streamline_alpha: `float` or None (default: 1)
             The alpha value applied to the vector field stream lines.
+        vector: `str` (default: `velocity`)
+            Which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity field or
+            acceleration field will be plotted.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'streamline_plot', "dpi": None, "ext": 'pdf', "transparent": True, "close":
@@ -1548,24 +1578,31 @@ def streamline_plot(
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
 
-    if ("X_" + basis in adata.obsm.keys()) and (
-        "velocity_" + basis in adata.obsm.keys()
-    ):
-        X = adata.obsm["X_" + basis][:, [x, y]]
-        V = adata.obsm["velocity_" + basis][:, [x, y]]
+    if type(x) == str and type(y) == str:
+        if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y])) != 2:
+            raise ValueError(f'If you want to plot the vector flow of two genes, please make sure those two genes '
+                             f'belongs to dynamics genes or .var.use_for_dynamics is True.')
+        X = adata[:, [x, y]].layers['M_s'].A
+        V = adata[:, [x, y]].layers['velocity_S'].A
     else:
-        if "X_" + basis not in adata.obsm.keys():
-            layer, basis = basis.split("_")
-            reduceDimension(adata, layer=layer, reduction_method=basis)
-        if "kmc" not in adata.uns_keys():
-            cell_velocities(adata, vkey="velocity_S", basis=basis)
+        if ("X_" + basis in adata.obsm.keys()) and (
+            vector + "_" + basis in adata.obsm.keys()
+        ):
             X = adata.obsm["X_" + basis][:, [x, y]]
-            V = adata.obsm["velocity_" + basis][:, [x, y]]
+            V = adata.obsm[vector + '_' + basis][:, [x, y]]
         else:
-            kmc = adata.uns["kmc"]
-            X = adata.obsm["X_" + basis][:, [x, y]]
-            V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
-            adata.obsm["velocity_" + basis] = V
+            if "X_" + basis not in adata.obsm.keys():
+                layer, basis = basis.split("_")
+                reduceDimension(adata, layer=layer, reduction_method=basis)
+            if "kmc" not in adata.uns_keys():
+                cell_velocities(adata, vkey="velocity_S", basis=basis)
+                X = adata.obsm["X_" + basis][:, [x, y]]
+                V = adata.obsm[vector + '_' + basis][:, [x, y]]
+            else:
+                kmc = adata.uns["kmc"]
+                X = adata.obsm["X_" + basis][:, [x, y]]
+                V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
+                adata.obsm[vector + '_' + basis] = V
 
     grid_kwargs_dict = {
         "density": None,

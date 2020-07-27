@@ -9,6 +9,7 @@ from ..tools.utils import vector_field_function, update_dict
 def fate_bias(adata,
               group,
               basis='umap',
+              fate_bias_df=None,
               figsize=(6, 4),
               save_show_or_return='show',
               save_kwargs={},
@@ -31,6 +32,8 @@ def fate_bias(adata,
             state.
         basis: `str` or None (default: `None`)
             The embedding data space that cell fates were predicted and cell fates will be quantified.
+        fate_bias_df: `pandas.DataFrame` or None (default: `None`)
+            The DataFrame that stores the fate bias information, calculated via fate_bias_df = dyn.tl.fate_bias(adata).
         figsize: `None` or `[float, float]` (default: None)
             The width and height of a figure.
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
@@ -50,7 +53,7 @@ def fate_bias(adata,
 
     import matplotlib.pyplot as plt
 
-    fate_bias = fate_bias_pd(adata, group=group, basis=basis)
+    fate_bias = fate_bias_pd(adata, group=group, basis=basis) if fate_bias_df is None else fate_bias_df
 
     ax = sns.clustermap(fate_bias, col_cluster=True, row_cluster=True, figsize=figsize, yticklabels=False,
                         **cluster_maps_kwargs)

@@ -5,6 +5,8 @@ from sklearn.decomposition import PCA
 from sklearn.utils import sparsefuncs
 from .Markov import *
 from .connectivity import extract_indices_dist_from_graph
+from .topography import VectorField
+from .vector_calculus import acceleration
 from .utils import (
     set_velocity_genes,
     get_finite_inds,
@@ -46,6 +48,8 @@ def cell_velocities(
     random_seed=19491001,
     other_kernels_dict={},
     enforce=False,
+    key=None,
+    preserve_len=False,
     **kmc_kwargs
 ):
     """Compute transition probability and project high dimension velocity vector to existing low dimension embedding.
@@ -55,6 +59,9 @@ def cell_velocities(
     us to visualize more intricate vector flow or steady states in low dimension. We also expect it will improve the
     calculation of the stationary distribution or source states of sampled cells. The original "correlation/cosine"
     velocity projection method is also supported. Kernels based on the reconstructed velocity field is also possible.
+
+    With the `key` argument, `cell_velocities` can be called by `cell_accelerations` to calculate RNA acceleration vector
+    for each cell.
 
     Arguments
     ---------
@@ -125,6 +132,11 @@ def cell_velocities(
         random_seed: `int` (default: `19491001`)
             The random seed for numba to ensure consistency of the random velocity vectors. Default value 19491001 is a
             special day for those who care.
+        key: `str` or None (default: `None`)
+            The prefix key that will be prefixed to the keys for storing calculated transition matrix, projection vectors, etc.
+        preserve_len: `bool` (default: `False`)
+            Whether do you want to preserve the length of high dimension vector length. When set to be True, the length
+            of low  dimension projected vector will be proportionally scaled with that of the high dimensional vector.
         other_kernels_dict: `dict` (default: `{}`)
             A dictionary of paramters that will be passed to the cosine/correlation kernel.
         enforce: `bool` (default: `False`)
@@ -358,23 +370,130 @@ def cell_velocities(
 
         X_grid, V_grid, D = velocity_on_grid(
             X_embedding, delta_X, xy_grid_nums=xy_grid_nums
-        )
+        ),
 
-    adata.uns[method + "_transition_matrix"] = T
-    adata.obsm["velocity_" + basis] = delta_X
-    adata.uns["grid_velocity_" + basis] = {"X_grid": X_grid, "V_grid": V_grid, "D": D}
+    if preserve_len:
+        basis_len, high_len = np.linalg.norm(delta_X, axis=1), np.linalg.norm(V_mat, axis=1)
+        scaler = np.nanmedian(basis_len) / np.nanmedian(high_len)
+        for i in tqdm(range(adata.n_obs), desc=f"rescaling velocity norm..."):
+            idx = T[i].indices
+            high_len_ = high_len[idx]
+            T_i = T[i].data
+            delta_X[i] *= T_i.dot(high_len_) / basis_len[i] * scaler
+
+    if key is None:
+        adata.uns[method + "_transition_matrix"] = T
+        adata.obsm["velocity_" + basis] = delta_X
+        adata.uns["grid_velocity_" + basis] = {"X_grid": X_grid, "V_grid": V_grid, "D": D}
+    else:
+        adata.uns[key + '_' + method + "_transition_matrix"] = T
+        adata.obsm[key + '_' + basis] = delta_X
+        adata.uns["grid_" + key + '_' + basis] = {"X_grid": X_grid, "V_grid": V_grid, "D": D}
 
     if calc_rnd_vel:
-        adata.uns[method + "_transition_matrix_rnd"] = T_rnd
-        adata.obsm["X_" + basis + "_rnd"] = X_embedding
-        adata.obsm["velocity_" + basis + "_rnd"] = delta_X_rnd
-        adata.uns["grid_velocity_" + basis + "_rnd"] = {
-            "X_grid": X_grid_rnd,
-            "V_grid": V_grid_rnd,
-            "D": D_rnd,
-        }
+        if key is None:
+            adata.uns[method + "_transition_matrix_rnd"] = T_rnd
+            adata.obsm["X_" + basis + "_rnd"] = X_embedding
+            adata.obsm["velocity_" + basis + "_rnd"] = delta_X_rnd
+            adata.uns["grid_velocity_" + basis + "_rnd"] = {
+                "X_grid": X_grid_rnd,
+                "V_grid": V_grid_rnd,
+                "D": D_rnd,
+            }
+        else:
+            adata.uns[key + '_' + method + "_transition_matrix_rnd"] = T_rnd
+            adata.obsm["X_" + key + "_" + basis + "_rnd"] = X_embedding
+            adata.obsm[key + "_" + basis + "_rnd"] = delta_X_rnd
+            adata.uns["grid_" + key + '_' + basis + "_rnd"] = {
+                "X_grid": X_grid_rnd,
+                "V_grid": V_grid_rnd,
+                "D": D_rnd,
+            }
 
     return adata
+
+
+def cell_accelerations(adata,
+                       vf_basis='pca',
+                       basis='umap',
+                       enforce=True,
+                       other_kernels_dict={},
+                       **kwargs):
+    """Compute transition probability and project high dimension acceleration vector to existing low dimension embedding.
+
+    In classical physics, including fluidics and aerodynamics, velocity and acceleration vector fields are used as
+    fundamental tools to describe motion or external force of objects, respectively. In analogy, RNA velocity or
+    accelerations estimated from single cells can be regarded as samples in the velocity (La Manno et al. 2018) or
+    acceleration vector field (Gorin, Svensson, and Pachter 2019). In general, a vector field can be defined as a
+    vector-valued function f that maps any points (or cells’ expression state) x in a domain Ω with D dimension (or the
+    gene expression system with D transcripts / proteins) to a vector y (for example, the velocity or acceleration for
+    different genes or proteins), that is f(x) = y.
+
+    In two or three dimensions, a velocity vector field is often visualised as a quiver plot where a collection of arrows
+    with a given magnitude and direction is drawn. For example, the velocity estimates of unspliced transcriptome of
+    sampled cells projected into two dimensions is drawn to show the prediction of the future cell states in RNA velocity
+    (La Manno et al. 2018). During the differentiation process, external signal factors perturb cells and thus change
+    the vector field. Since we perform genome-wide profiling of cell states and the experiments performed are often done
+    in a short time scale, we assume a constant vector field without loss of generality (See also Discussion). Assuming
+    an asymptotic deterministic system, the trajectory of the cells travelling in the gene expression space follows the
+    vector field and can be calculated using numerical integration methods, for example Runge-Kutta algorithm. In two or
+    three dimensions, a streamline plot can be used to visualize the paths of cells will follow if released in different
+    regions of the gene expression state space under a steady flow field. Another more intuitive way to visualize the
+    structure of vector field is the so called line integral convolution method or LIC (Cabral and Leedom 1993), which
+    works by adding random black-and-white paint sources on the vector field and letting the flowing particle on the
+    vector field picking up some texture to ensure the same streamline having similar intensity. Although we have not
+    provides such functionalities in dynamo, with vector field that changes over time, similar methods, for example,
+    streakline, pathline, timeline, etc. can be used to visualize the evolution of single cell or cell populations.
+
+    Arguments
+    ---------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object.
+        vf_basis: 'int' (optional, default `pca`)
+            The dictionary key that corresponds to the low dimensional embedding where the vector field function
+            reconstructed.
+        basis: 'int' (optional, default `umap`)
+            The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
+        enforce: `bool` (default: `False`)
+            Whether to enforce 1) redefining use_for_velocity column in obs attribute;
+                               2) recalculation of transition matrix.
+        other_kernels_dict: `dict` (default: `{}`)
+            A dictionary of paramters that will be passed to the cosine/correlation kernel.
+
+    Returns
+    -------
+        Adata: :class:`~anndata.AnnData`
+            Returns an updated `~anndata.AnnData` with transition_matrix and projected embedding of high dimension velocity
+            vectors in the existing embeddings of current cell state, calculated using either the Itô kernel method
+            (default) or the diffusion approximation or the method from (La Manno et al. 2018).
+    """
+
+    if 'velocity_' + vf_basis not in adata.obsm.keys():
+        cell_velocities(adata, basis=vf_basis)
+
+    if 'VecFld_' + vf_basis not in adata.uns_keys():
+        VectorField(adata, basis=vf_basis)
+
+    if 'acceleration_' + vf_basis not in adata.obsm.keys():
+        acceleration(adata, basis=vf_basis)
+
+    X = adata.obsm['X_' + vf_basis]
+    V_mat = adata.obsm['acceleration_' + vf_basis]
+    X_embedding = adata.obsm['X_' + basis]
+
+    if basis != vf_basis and vf_basis.lower() not in ['umap', 'tsne', 'trimap', 'ddtree', 'diffusion_map']:
+        cell_velocities(
+            adata,
+            X=X,
+            V_mat=V_mat,
+            X_embedding=X_embedding,
+            basis=basis,
+            enforce=enforce,
+            key='acceleration',
+            preserve_len=True,
+            other_kernels_dict=other_kernels_dict,
+            **kwargs
+        )
 
 
 def stationary_distribution(adata, method="kmc", direction="both", calc_rnd=True):

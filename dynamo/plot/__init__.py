@@ -21,8 +21,8 @@ from .dimension_reduction import pca, tsne, umap, trimap
 from .connectivity import nneighbors
 
 from .scVectorField import (
-    cell_wise_velocity,
-    grid_velocity,
+    cell_wise_vectors,
+    grid_vectors,
     streamline_plot,
     line_integral_conv,
     plot_energy

@@ -105,6 +105,25 @@ def Jacobian_numerical(f, input_vector_convention='row'):
         return fjac
 
 
+def acceleration_(v, J):
+    return J.dot(v[:, None]) if v.ndim == 1 else J.dot(v)
+
+
+def curvature_(a, v):
+    kappa = np.linalg.norm(np.outer(v[:, None], a)) / np.linalg.norm(v)**3 if v.ndim == 1 else \
+        np.linalg.norm(v.outer(a)) / np.linalg.norm(v)**3
+
+    return kappa
+
+
+def torsion_(v, J, a):
+    """only works in 3D"""
+    tau = np.outer(v[:, None], a).dot(J.dot(a)) / np.linalg.norm(np.outer(v[:, None], a))**2 if v.ndim == 1 else \
+        np.outer(v, a).dot(J.dot(a)) / np.linalg.norm(np.outer(v, a))**2
+
+    return tau
+
+
 @timeit
 def elementwise_jacobian_transformation(fjac, X, qi, qj, return_J=False):
     """Inverse transform low dimension Jacobian matrix (:math:`\partial F_i / \partial x_j`) back to original space.
@@ -274,6 +293,92 @@ def compute_divergence(f_jac, X, vectorize_size=1):
     return div
 
 
+@timeit
+def compute_curl(f_jac, X):
+    """Calculate curl for many samples for 2/3 D systems.
+    """
+    if X.shape[1] > 3:
+        raise Exception(f'curl is only defined in 2/3 dimension.')
+
+    n = len(X)
+
+    if X.shape[1] == 2:
+        curl = np.zeros(n)
+        f = curl2d
+    else:
+        curl = np.zeros((n, 2, 2))
+        f = _curl
+
+    for i in tqdm(range(n), desc=f"Calculating {X.shape[1]}-D curl"):
+        J = f_jac(X[i])
+        curl[i] = f(None, None, method='analytical', VecFld=None, jac=J)
+
+    return curl
+
+
+@timeit
+def compute_acceleration(vf, f_jac, X, return_all=False):
+    """Calculate acceleration for many samples via
+
+    .. math::
+    a = J \cdot v.
+
+    """
+    n = len(X)
+    acce = np.zeros((n, X.shape[1]))
+
+    v_ = vf(X)
+    J_ = f_jac(X)
+    for i in tqdm(range(n), desc=f"Calculating acceleration"):
+        v = v_[i]
+        J = J_[:, :, i]
+        acce[i] = acceleration_(v, J).flatten()
+
+    if return_all:
+        return v_, J_, acce
+    else:
+        return acce
+
+
+@timeit
+def compute_curvature(vf, f_jac, X):
+    """Calculate curvature for many samples via
+
+    .. math::
+    \kappa = \frac{||\mathbf{v} \times \mathbf{a}||}{||\mathbf{V}||^3}
+    """
+    n = len(X)
+
+    curv = np.zeros(n)
+    v, _, a = compute_acceleration(vf, f_jac, X, return_all=True)
+
+    for i in tqdm(range(n), desc="Calculating curvature"):
+        curv[i] = curvature_(a[i], v[i])
+
+    return curv
+
+
+@timeit
+def compute_torsion(vf, f_jac, X):
+    """Calculate torsion for many samples via
+
+    .. math::
+    \tau = \frac{(\mathbf{v} \times \mathbf{a}) \cdot (\mathbf{J} \cdot \mathbf{a})}{||\mathbf{V} \times \mathbf{a}||^2}
+    """
+    if X.shape[1] != 3:
+        raise Exception(f'torsion is only defined in 3 dimension.')
+
+    n = len(X)
+
+    tor = np.zeros((n, X.shape[1], X.shape[1]))
+    v, J, a = compute_acceleration(vf, f_jac, X, return_all=True)
+
+    for i in tqdm(range(n), desc="Calculating torsion"):
+        tor[i] = torsion_(v[i], J[:, :, i], a[i])
+
+    return tor
+
+
 def _curl(f, x, method='analytical', VecFld=None, jac=None):
     """Curl of the reconstructed vector field f evaluated at x in 3D"""
     if jac is None:
@@ -298,12 +403,12 @@ def curl2d(f, x, method='analytical', VecFld=None, jac=None):
     return curl
 
 
-def curl(adata,
-         basis='umap',
-         VecFld=None,
-         method='analytical',
-         ):
-    """Calculate Curl for each cell with the reconstructed vector field function.
+def speed(adata,
+          basis='umap',
+          VecFld=None,
+          method='analytical',
+          ):
+    """Calculate the speed for each cell with the reconstructed vector field function.
 
     Parameters
     ----------
@@ -314,14 +419,14 @@ def curl(adata,
         VecFld: `dict`
             The true ODE function, useful when the data is generated through simulation.
         method: `str` (default: `analytical`)
-            The method that will be used for calculating divergence, either `analytical` or `numeric`. `analytical`
-            method will use the analytical form of the reconstructed vector field for calculating Jacobian while
-            `numeric` method will use numdifftools for calculation. `analytical` method is much more efficient.
+            The method that will be used for calculating speed, either `analytical` or `numeric`. `analytical`
+            method will use the analytical form of the reconstructed vector field for calculating Jacobian. Otherwise,
+            raw velocity vectors are used.
 
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `curl` key in the .obs.
+            AnnData object that is updated with the `speed` key in the .obs.
     """
 
     if VecFld is None:
@@ -329,103 +434,19 @@ def curl(adata,
     else:
         func = lambda x: vector_field_function(x, VecFld)
 
-    X_data = adata.obsm["X_" + basis][:, :2]
+    X_data = adata.obsm["X_" + basis]
 
-    curl = np.zeros((adata.n_obs, 1))
+    vec_mat = func(X_data) if method == 'analytical' else adata.obsm["velocity_" + basis]
+    speed = np.array([np.linalg.norm(i) for i in vec_mat])
 
-    Jacobian_ = "jacobian" if basis is None else "jacobian_" + basis
+    speed_key = "speed" if basis is None else "speed_" + basis
 
-    if Jacobian_ in adata.uns_keys():
-        Js = adata.uns[Jacobian_]['Jacobian_raw']
-        for i in tqdm(range(X_data.shape[0]), f"Calculating curl with the reconstructed vector field on the {basis} basis. "):
-            curl[i] = curl2d(func, None, method=method, VecFld=None, jac=Js[:, :, i])
-    else:
-        for i, x in tqdm(enumerate(X_data), f"Calculating curl with the reconstructed vector field on the {basis} basis. "):
-            curl[i] = curl2d(func, x.flatten(), method=method, VecFld=VecFld)
-
-    curl_key = "curl" if basis is None else "curl_" + basis
-
-    adata.obs[curl_key] = curl
-
-
-def divergence(adata,
-               cell_idx=None,
-               sampling='velocity',
-               sample_ncells=1000,
-               basis='pca',
-               VecFld=None,
-               method='analytical',
-               ):
-    """Calculate divergence for each cell with the reconstructed vector field function.
-
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        basis: `str` or None (default: `umap`)
-            The embedding data in which the vector field was reconstructed.
-        VecFld: `dict`
-            The true ODE function, useful when the data is generated through simulation.
-        method: `str` (default: `analytical`)
-            The method that will be used for calculating divergence, either `analytical` or `numeric`. `analytical`
-            method will use the analytical form of the reconstructed vector field for calculating Jacobian while
-            `numeric` method will use numdifftools for calculation. `analytical` method is much more efficient.
-
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `divergence` key in the .obs.
-    """
-
-    if VecFld is None:
-        VecFld, func = _from_adata(adata, basis)
-    else:
-        func = lambda x: vector_field_function(x, VecFld)
-
-    X, V = VecFld['X'], VecFld['V']
-
-    if basis == 'umap': cell_idx = np.arange(adata.n_obs)
-
-    if cell_idx is None:
-        if sampling == 'velocity':
-            cell_idx = sample_by_velocity(V, sample_ncells)
-        elif sampling == 'trn':
-            cell_idx = trn(X, sample_ncells)
-        else:
-            raise NotImplementedError(f"the sampling method {sampling} is not implemented. Currently only support velocity "
-                                      f"based (velocity) or topology representing network (trn) based sampling.")
-
-    cell_idx = np.arange(adata.n_obs) if cell_idx is None else cell_idx
-
-    Jacobian_ = "jacobian" if basis is None else "jacobian_" + basis
-
-    if Jacobian_ in adata.uns_keys():
-        Js = adata.uns[Jacobian_]['Jacobian_raw']
-        div = np.arange(len(cell_idx))
-        for i, cur_cell_idx in tqdm(enumerate(cell_idx), desc="Calculating divergence"):
-            div[i] = np.trace(Js[:, :, i]) if Js.shape[2] == len(cell_idx) else np.trace(Js[:, :, cur_cell_idx])
-    else:
-        if method == 'analytical':
-            fjac = lambda x: Jacobian_rkhs_gaussian(x, VecFld)
-        elif method == 'numeric':
-            fjac = get_fjac(func)
-        else:
-            raise NotImplementedError(f"the divergence calculation method {method} is not implemented. Currently only "
-                                      f"support `analytical` and `numeric` methods.")
-
-        div = compute_divergence(fjac, X[cell_idx], vectorize_size=1)
-
-    div_key = "divergence" if basis is None else "divergence_" + basis
-    adata.obs[div_key] = None
-    adata.obs.loc[adata.obs_names[cell_idx], div_key] = div
+    adata.obs[speed_key] = speed
 
 
 def jacobian(adata,
              source_genes,
              target_genes,
-             cell_idx=None,
-             sampling='velocity',
-             sample_ncells=1000,
              basis='pca',
              VecFld=None,
              method='analytical',
@@ -435,8 +456,7 @@ def jacobian(adata,
 
     If the vector field was reconstructed from the reduced PCA space, the Jacobian matrix will then be inverse
     transformed back to high dimension. Note that this should also be possible for reduced UMAP space and will be
-    supported shortly. Note that calculation of Jacobian matrix is computationally expensive, thus by default, only
-    1000 cells sampled (using velocity magnitude based sampling) for calculation.
+    supported shortly. Note that we use analytical formula to calculate Jacobian matrix which computationally efficient.
 
     Parameters
     ----------
@@ -452,18 +472,6 @@ def jacobian(adata,
             those genes' velocities' partial derivative will be placed in the numerator of each element of the Jacobian
             matrix. It can be used to access how much effect the velocity of the target genes will receive when increasing
             the expression of the source genes (see above).
-        cell_idx: `np.ndarray` or None (default: `None`)
-            One-dimension numpy array or list that represents the indices of the samples that will be used for calculating
-            Jacobian matrix.
-        sampling: `str` or None (default: `velocity`)
-           Which sampling method for cell sampling. When it is `velocity`, it will use the magnitude of velocity for
-           sampling cells; when it is `trn`, the topology representing network based method will be used to sample cells
-           with the low dimensional embeddings. The `velocity` based sampling ensures sampling evenly for cells with both
-           low (corresponds to densely populated stable cell states) and high velocity (corresponds to less populated
-           transient cell states) cells. The `trn` based sampling ensures the global topology of cell states will be well
-           maintained after the sampling.
-        sample_ncells: `int` (default: `100`)
-            Total number of cells to be sampled.
         basis: `str` or None (default: `pca`)
             The embedding data in which the vector field was reconstructed. If `None`, use the vector field function that
             was reconstructed directly from the original unreduced gene expression space.
@@ -492,18 +500,7 @@ def jacobian(adata,
 
     X, V = VecFld['X'], VecFld['V']
 
-    if basis == 'umap': cell_idx = np.arange(adata.n_obs)
-
-    if cell_idx is None:
-        if sampling == 'velocity':
-            cell_idx = sample_by_velocity(V, sample_ncells)
-        elif sampling == 'trn':
-            cell_idx = trn(X, sample_ncells)
-        else:
-            raise NotImplementedError(f"the sampling method {sampling} is not implemented. Currently only support velocity "
-                                      f"based (velocity) or topology representing network (trn) based sampling.")
-
-    cell_idx = np.arange(adata.n_obs) if cell_idx is None else cell_idx
+    cell_idx = np.arange(adata.n_obs)
 
     if type(source_genes) == str: source_genes = [source_genes]
     if type(target_genes) == str: target_genes = [target_genes]
@@ -543,7 +540,244 @@ def jacobian(adata,
                             "Jacobian_raw": Js,
                             "source_gene": source_genes,
                             "target_genes": target_genes,
-                            "cell_idx": cell_idx,
-                            "sampling": sampling}
+                            "cell_idx": cell_idx}
 
 
+def curl(adata,
+         basis='umap',
+         VecFld=None,
+         method='analytical',
+         ):
+    """Calculate Curl for each cell with the reconstructed vector field function.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        basis: `str` or None (default: `umap`)
+            The embedding data in which the vector field was reconstructed.
+        VecFld: `dict`
+            The true ODE function, useful when the data is generated through simulation.
+        method: `str` (default: `analytical`)
+            The method that will be used for calculating divergence, either `analytical` or `numeric`. `analytical`
+            method will use the analytical form of the reconstructed vector field for calculating curl while
+            `numeric` method will use numdifftools for calculation. `analytical` method is much more efficient.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that is updated with the `curl` key in the .obs.
+    """
+
+    if VecFld is None:
+        VecFld, func = _from_adata(adata, basis)
+    else:
+        func = lambda x: vector_field_function(x, VecFld)
+
+    X_data = adata.obsm["X_" + basis][:, :2]
+
+    curl = np.zeros((adata.n_obs, 1))
+
+    Jacobian_ = "jacobian" if basis is None else "jacobian_" + basis
+
+    if Jacobian_ in adata.uns_keys():
+        Js = adata.uns[Jacobian_]['Jacobian_raw']
+        for i in tqdm(range(X_data.shape[0]), f"Calculating curl with the reconstructed vector field on the {basis} basis. "):
+            curl[i] = curl2d(func, None, method=method, VecFld=None, jac=Js[:, :, i])
+    else:
+        for i, x in tqdm(enumerate(X_data), f"Calculating curl with the reconstructed vector field on the {basis} basis. "):
+            curl[i] = curl2d(func, x.flatten(), method=method, VecFld=VecFld)
+
+    curl_key = "curl" if basis is None else "curl_" + basis
+
+    adata.obs[curl_key] = curl
+
+
+def divergence(adata,
+               basis='pca',
+               VecFld=None,
+               method='analytical',
+               ):
+    """Calculate divergence for each cell with the reconstructed vector field function.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        basis: `str` or None (default: `umap`)
+            The embedding data in which the vector field was reconstructed.
+        VecFld: `dict`
+            The true ODE function, useful when the data is generated through simulation.
+        method: `str` (default: `analytical`)
+            The method that will be used for calculating divergence, either `analytical` or `numeric`. `analytical`
+            method will use the analytical form of the reconstructed vector field for calculating divergence while
+            `numeric` method will use numdifftools for calculation. `analytical` method is much more efficient.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that is updated with the `divergence` key in the .obs.
+    """
+
+    if VecFld is None:
+        VecFld, func = _from_adata(adata, basis)
+    else:
+        func = lambda x: vector_field_function(x, VecFld)
+
+    X, V = VecFld['X'], VecFld['V']
+
+    cell_idx = np.arange(adata.n_obs)
+
+    Jacobian_ = "jacobian" if basis is None else "jacobian_" + basis
+
+    if Jacobian_ in adata.uns_keys():
+        Js = adata.uns[Jacobian_]['Jacobian_raw']
+        div = np.arange(len(cell_idx))
+        for i, cur_cell_idx in tqdm(enumerate(cell_idx), desc="Calculating divergence"):
+            div[i] = np.trace(Js[:, :, i]) if Js.shape[2] == len(cell_idx) else np.trace(Js[:, :, cur_cell_idx])
+    else:
+        if method == 'analytical':
+            fjac = lambda x: Jacobian_rkhs_gaussian(x, VecFld)
+        elif method == 'numeric':
+            fjac = Jacobian_numerical(func)
+        else:
+            raise NotImplementedError(f"the divergence calculation method {method} is not implemented. Currently only "
+                                      f"support `analytical` and `numeric` methods.")
+
+        div = compute_divergence(fjac, X[cell_idx], vectorize_size=1)
+
+    div_key = "divergence" if basis is None else "divergence_" + basis
+    adata.obs[div_key] = None
+    adata.obs.loc[adata.obs_names[cell_idx], div_key] = div
+
+
+def acceleration(adata,
+         basis='umap',
+         VecFld=None,
+         method='analytical',
+         ):
+    """Calculate acceleration for each cell with the reconstructed vector field function.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        basis: `str` or None (default: `umap`)
+            The embedding data in which the vector field was reconstructed.
+        VecFld: `dict`
+            The true ODE function, useful when the data is generated through simulation.
+        method: `str` (default: `analytical`)
+            The method that will be used for calculating divergence, either `analytical` or `numeric`. `analytical`
+            method will use the analytical form of the reconstructed vector field for calculating acceleration while
+            `numeric` method will use numdifftools for calculation. `analytical` method is much more efficient.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that is updated with the `acceleration` key in the .obs as well as .obsm. If basis is `pca`,
+            acceleration matrix will be inverse transformed back to original high dimension space.
+    """
+
+    if VecFld is None:
+        VecFld, func = _from_adata(adata, basis)
+    else:
+        func = lambda x: vector_field_function(x, VecFld)
+    f_jac = lambda x: Jacobian_rkhs_gaussian(x, VecFld) if method == 'analytical' else Jacobian_numerical(func)
+
+    X_data = adata.obsm["X_" + basis]
+
+    acce_mat = compute_acceleration(func, f_jac, X_data, return_all=False)
+    acce = np.array([np.linalg.norm(i) for i in acce_mat])
+
+    acce_key = "acceleration" if basis is None else "acceleration_" + basis
+
+    adata.obs[acce_key] = acce
+    adata.obsm[acce_key] = acce_mat
+
+    if basis == 'pca':
+        adata.layers['acceleration'] = adata.layers['velocity_S'].copy()
+        adata.layers['acceleration'][:, np.where(adata.var.use_for_dynamics)[0]] = acce_mat @ adata.uns['PCs'].T
+
+
+def curvature(adata,
+         basis='umap',
+         VecFld=None,
+         method='analytical',
+         ):
+    """Calculate curvature for each cell with the reconstructed vector field function.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        basis: `str` or None (default: `umap`)
+            The embedding data in which the vector field was reconstructed.
+        VecFld: `dict`
+            The true ODE function, useful when the data is generated through simulation.
+        method: `str` (default: `analytical`)
+            The method that will be used for calculating divergence, either `analytical` or `numeric`. `analytical`
+            method will use the analytical form of the reconstructed vector field for calculating curvature while
+            `numeric` method will use numdifftools for calculation. `analytical` method is much more efficient.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that is updated with the `curvature` key in the .obs.
+    """
+
+    if VecFld is None:
+        VecFld, func = _from_adata(adata, basis)
+    else:
+        func = lambda x: vector_field_function(x, VecFld)
+    f_jac = lambda x: Jacobian_rkhs_gaussian(x, VecFld) if method == 'analytical' else Jacobian_numerical(func)
+
+    X_data = adata.obsm["X_" + basis]
+
+    curv = compute_curvature(func, f_jac, X_data)
+
+    curv_key = "curvature" if basis is None else "curvature_" + basis
+
+    adata.obs[curv_key] = curv
+
+
+def torsion(adata,
+         basis='umap',
+         VecFld=None,
+         method='analytical',
+         ):
+    """Calculate torsion for each cell with the reconstructed vector field function.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        basis: `str` or None (default: `umap`)
+            The embedding data in which the vector field was reconstructed.
+        VecFld: `dict`
+            The true ODE function, useful when the data is generated through simulation.
+        method: `str` (default: `analytical`)
+            The method that will be used for calculating divergence, either `analytical` or `numeric`. `analytical`
+            method will use the analytical form of the reconstructed vector field for calculating torsion while
+            `numeric` method will use numdifftools for calculation. `analytical` method is much more efficient.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that is updated with the `torsion` key in the .obs.
+    """
+
+    if VecFld is None:
+        VecFld, func = _from_adata(adata, basis)
+    else:
+        func = lambda x: vector_field_function(x, VecFld)
+    f_jac = lambda x: Jacobian_rkhs_gaussian(x, VecFld) if method == 'analytical' else Jacobian_numerical(func)
+
+    X_data = adata.obsm["X_" + basis]
+
+    torsion_mat = compute_torsion(func, f_jac, X_data)
+    torsion = np.array([np.linalg.norm(i) for i in torsion_mat])
+
+    torsion_key = "torsion" if basis is None else "torsion_" + basis
+
+    adata.obs[torsion_key] = torsion
+    adata.uns[torsion_key] = torsion_mat

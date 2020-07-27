@@ -711,6 +711,8 @@ def topography(
 
     if color is None:
         color = ['potential', 'curl', 'divergence'] if adata.n_obs < 5000 else ['curl', 'divergence']
+
+    if type(color) == str: color = [color]
     if len(set(adata.obs.columns).intersection(color)) == 0:
         if adata.obs.keys().isin(['potential']).sum() == 0:
             ddhoge(adata, basis=basis)
