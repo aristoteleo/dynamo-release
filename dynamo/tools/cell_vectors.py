@@ -49,6 +49,7 @@ def cell_velocities(
     other_kernels_dict={},
     enforce=False,
     key=None,
+    preserve_len=False,
     **kmc_kwargs
 ):
     """Compute transition probability and project high dimension velocity vector to existing low dimension embedding.
@@ -133,6 +134,9 @@ def cell_velocities(
             special day for those who care.
         key: `str` or None (default: `None`)
             The prefix key that will be prefixed to the keys for storing calculated transition matrix, projection vectors, etc.
+        preserve_len: `bool` (default: `False`)
+            Whether do you want to preserve the length of high dimension vector length. When set to be True, the length
+            of low  dimension projected vector will be proportionally scaled with that of the high dimensional vector.
         other_kernels_dict: `dict` (default: `{}`)
             A dictionary of paramters that will be passed to the cosine/correlation kernel.
         enforce: `bool` (default: `False`)
@@ -366,7 +370,16 @@ def cell_velocities(
 
         X_grid, V_grid, D = velocity_on_grid(
             X_embedding, delta_X, xy_grid_nums=xy_grid_nums
-        )
+        ),
+
+    if preserve_len:
+        basis_len, high_len = np.linalg.norm(delta_X, axis=1), np.linalg.norm(V_mat, axis=1)
+        scaler = np.nanmedian(basis_len) / np.nanmedian(high_len)
+        for i in tqdm(range(adata.n_obs), desc=f"rescaling velocity norm..."):
+            idx = T[i].indices
+            high_len_ = high_len[idx]
+            T_i = T[i].data
+            delta_X[i] *= T_i.dot(high_len_) / basis_len[i] * scaler
 
     if key is None:
         adata.uns[method + "_transition_matrix"] = T
@@ -468,7 +481,7 @@ def cell_accelerations(adata,
     V_mat = adata.obsm['acceleration_' + vf_basis]
     X_embedding = adata.obsm['X_' + basis]
 
-    if basis != vf_basis and basis != 'umap':
+    if basis != vf_basis and vf_basis.lower() not in ['umap', 'tsne', 'trimap', 'ddtree', 'diffusion_map']:
         cell_velocities(
             adata,
             X=X,
@@ -477,6 +490,7 @@ def cell_accelerations(adata,
             basis=basis,
             enforce=enforce,
             key='acceleration',
+            preserve_len=True,
             other_kernels_dict=other_kernels_dict,
             **kwargs
         )
