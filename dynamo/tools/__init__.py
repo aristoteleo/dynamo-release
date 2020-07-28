@@ -75,7 +75,12 @@ from .scVectorField import (
     get_P,
     graphize_vecfld,
 )  # , evaluate, con_K_div_cur_free
-from .utils import vector_field_function
+from .utils_vecCalc import (
+    vector_field_function, 
+    Jacobian_rkhs_gaussian,
+    Jacobian_rkhs_gaussian_parallel,
+    Jacobian_numerical,
+)
 from .topography import FixedPoints, VectorField2D, topography, VectorField
 from .vector_calculus import (
     speed,
@@ -89,7 +94,6 @@ from .vector_calculus import (
     Jacobian_rkhs_gaussian_parallel,
     Jacobian_numerical,
 )
-
 
 # Markov chain related:
 from .Markov import (
