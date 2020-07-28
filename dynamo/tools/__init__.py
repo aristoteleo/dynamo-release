@@ -90,9 +90,6 @@ from .vector_calculus import (
     acceleration,
     curvature,
     torsion,
-    Jacobian_rkhs_gaussian,
-    Jacobian_rkhs_gaussian_parallel,
-    Jacobian_numerical,
 )
 
 # Markov chain related:
