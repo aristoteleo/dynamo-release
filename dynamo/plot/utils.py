@@ -159,6 +159,7 @@ def _matplotlib_points(
                 num_labels = unique_labels.shape[0]
                 color_key = plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
             else:
+                if type(highlights) is str: highlights = [highlights]
                 highlights.append("other")
                 unique_labels = np.array(highlights)
                 num_labels = unique_labels.shape[0]
@@ -170,6 +171,7 @@ def _matplotlib_points(
                 ] = "#bdbdbd"  # lightgray hex code https://www.color-hex.com/color/d3d3d3
 
                 labels[[i not in highlights for i in labels]] = "other"
+                points = pd.DataFrame(points)
                 points["label"] = pd.Categorical(labels)
 
                 # reorder data so that highlighting points will be on top of background points
@@ -179,11 +181,11 @@ def _matplotlib_points(
                 )
                 reorder_data = points.copy(deep=True)
                 (
-                    reorder_data.iloc[: sum(background_ids), :],
-                    reorder_data.iloc[sum(background_ids):, :],
-                ) = (points.iloc[background_ids, :], points.iloc[highlight_ids, :])
+                    reorder_data.loc[:sum(background_ids), :],
+                    reorder_data.loc[sum(background_ids):, :],
+                ) = (points.loc[background_ids, :], points.loc[highlight_ids, :])
 
-                points = reorder_data
+                points = reorder_data.values
 
         if isinstance(color_key, dict):
             colors = pd.Series(labels).map(color_key).values
@@ -224,7 +226,8 @@ def _matplotlib_points(
                 )
             )
         # reorder data so that high values points will be on top of background points
-        sorted_id = np.argsort(abs(values)) if sort == 'abs' else np.argsort(values)
+        sorted_id = np.argsort(abs(values)) if sort == 'abs' else np.argsort(- values) if sort == 'neg' \
+            else np.argsort(values)
         values, points = values[sorted_id], points[sorted_id, :]
 
         _vmin = np.min(values) if vmin is None else np.percentile(values, vmin) if \
@@ -267,7 +270,9 @@ def _matplotlib_points(
         if len(unique_labels) > 1 and show_legend == "on data":
             font_color = "white" if background in ["black", "#ffffff"] else "black"
             for i in unique_labels:
-                color_cnt = np.nanmedian(points[np.where(labels == i)[0], :2], 0)
+                if i == 'other':
+                    continue
+                color_cnt = np.nanmedian(points[np.where(labels == i)[0], :2].astype('float'), 0)
                 txt = plt.text(
                     color_cnt[0],
                     color_cnt[1],

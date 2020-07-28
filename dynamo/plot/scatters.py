@@ -858,7 +858,7 @@ def scatters(
             The matplotlib axes object where new plots will be added to. Only applicable to drawing a single component.
         sort: `str` (optional, default `raw`)
             The method to reorder data so that high values points will be on top of background points. Can be one of
-            {'raw', 'abs'}, i.e. sorted by raw data or sort by absolute values.
+            {'raw', 'abs', 'neg'}, i.e. sorted by raw data, sort by absolute values or sort by negative values.
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -888,7 +888,7 @@ def scatters(
     else:
         _background = background
         set_figure_params('dynamo', background=_background)
-    x, y = x[0] if type(x) != int and type(x) != str else x, y[0] if type(y) != int and type(x) != str else y
+    x, y = x[0] if type(x) not in [int, str] else x, y[0] if type(y) not in [int, str] else y
 
     if use_smoothed:
         mapper = get_mapper()
@@ -908,11 +908,10 @@ def scatters(
     )
 
     point_size = (
-        500.0 / np.sqrt(adata.shape[0])
+        2000.0 / np.sqrt(adata.shape[0])
         if pointsize is None
-        else 500.0 / np.sqrt(adata.shape[0]) * pointsize
+        else 2000.0 / np.sqrt(adata.shape[0]) * pointsize
     )
-    point_size *= 4
 
     scatter_kwargs = dict(
         alpha=0.1, s=point_size, edgecolor=None, linewidth=0, rasterized=True
@@ -964,19 +963,32 @@ def scatters(
                 elif is_gene_name(adata, x) and is_gene_name(adata, y):
                     points = pd.DataFrame(
                         {
-                            x: adata[:, x].layers['M_s'].A.flatten(), #adata.obs_vector(x, cur_l_smoothed),
-                            y: adata[:, y].layers['M_s'].A.flatten(), #adata.obs_vector(y, cur_l_smoothed),
+                            x: adata.obs_vector(k=x, layer=cur_l_smoothed),
+                            y: adata.obs_vector(k=y, layer=cur_l_smoothed),
                         }
                     )
                     points.columns = [
                         x + " (" + cur_l_smoothed + ")",
                         y + " (" + cur_l_smoothed + ")",
                     ]
+                elif is_cell_anno_column(adata, x) and is_cell_anno_column(adata, y):
+                    points = pd.DataFrame(
+                        {
+                            x: adata.obs_vector(x),
+                            y: adata.obs_vector(y),
+                        }
+                    )
+                    points.columns = [x, y]
                 elif is_cell_anno_column(adata, x) and is_gene_name(adata, y):
                     points = pd.DataFrame(
-                        {x: adata.obs_vector(x), y: adata.obs_vector(y, cur_l_smoothed)}
+                        {x: adata.obs_vector(x), y: adata.obs_vector(k=y, layer=cur_l_smoothed)}
                     )
                     points.columns = [x, y + " (" + cur_l_smoothed + ")"]
+                elif is_gene_name(adata, x) and is_cell_anno_column(adata, y):
+                    points = pd.DataFrame(
+                        {x: adata.obs_vector(k=x, layer=cur_l_smoothed), y: adata.obs_vector(y)}
+                    )
+                    points.columns = [x + " (" + cur_l_smoothed + ")", y]
 
                 if aggregate is not None:
                     groups, uniq_grp = (
@@ -1146,5 +1158,5 @@ def scatters(
         if background is not None: reset_rcParams()
     elif save_show_or_return == "return":
         if background is not None: reset_rcParams()
-        return axes_list, color_list, font_color
+        return (axes_list, color_list, font_color) if total_panels > 1 else (ax, color, font_color)
 
