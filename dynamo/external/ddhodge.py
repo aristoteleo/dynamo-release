@@ -9,7 +9,7 @@ from scipy.linalg import qr
 from itertools import combinations
 from igraph import Graph
 from ..tools.scVectorField import graphize_vecfld
-from ..tools.utils import _from_adata, vector_field_function
+from ..tools.utils_vecCalc import vecfld_from_adata, vector_field_function
 from ..tools.sampling import trn, sample_by_velocity
 
 def gradop(g):
@@ -190,7 +190,7 @@ def ddhoge(adata,
     to_downsample = adata.n_obs > n_downsamples
 
     if VecFld is None:
-        VecFld, func = _from_adata(adata, basis)
+        VecFld, func = vecfld_from_adata(adata, basis)
     else:
         func = lambda x: vector_field_function(x, VecFld)
 

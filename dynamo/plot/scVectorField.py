@@ -14,7 +14,8 @@ from ..tools.dimension_reduction import reduceDimension
 from ..tools.cell_vectors import cell_velocities
 from ..tools.Markov import prepare_velocity_grid_data, velocity_on_grid, grid_velocity_filter
 from ..tools.topography import VectorField
-from ..tools.utils import _from_adata, update_dict
+from ..tools.utils import update_dict
+from ..tools.utils_vecCalc import vecfld_from_adata
 
 from .scatters import docstrings
 
@@ -1382,7 +1383,7 @@ def grid_vectors(
             for i in ['density', 'smooth', 'n_neighbors']:
                 grid_kwargs_dict.pop(i)
 
-            VecFld, func = _from_adata(adata, basis)
+            VecFld, func = vecfld_from_adata(adata, basis)
 
             V_emb = func(X)
             V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[:, None]
@@ -1633,7 +1634,7 @@ def streamline_plot(
             for i in ['density', 'smooth', 'n_neighbors']:
                 grid_kwargs_dict.pop(i)
 
-            VecFld, func = _from_adata(adata, basis)
+            VecFld, func = vecfld_from_adata(adata, basis)
 
             V_emb = func(X)
             V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[:, None]

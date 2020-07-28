@@ -12,17 +12,16 @@ import warnings
 import time
 from .sampling import sample_by_velocity
 from .utils import (
-    vector_field_function,
-    con_K_div_cur_free,
-    con_K,
     update_dict,
     update_n_merge_dict,
     linear_least_squares,
     timeit,
     index_condensed_matrix,
-    _from_adata,
 )
-from .vector_calculus import (
+from .utils_vecCalc import (
+    vector_field_function,
+    con_K_div_cur_free,
+    con_K,
     Jacobian_numerical,
     compute_divergence,
     compute_curl,
@@ -31,6 +30,7 @@ from .vector_calculus import (
     compute_torsion,
     Jacobian_rkhs_gaussian,
     Jacobian_rkhs_gaussian_parallel,
+    vecfld_from_adata,
 )
 
 def norm(X, V, T):
@@ -678,8 +678,11 @@ class vectorfield:
             return Jacobian_numerical(self.func, input_vector_convention, **kwargs)
         elif method == 'parallel':
             return lambda x: Jacobian_rkhs_gaussian_parallel(x, self.vf_dict['VecFld'], **kwargs)
-        else:
+        elif method == 'analytical':
             return lambda x: Jacobian_rkhs_gaussian(x, self.vf_dict['VecFld'], **kwargs)
+        else:
+            raise NotImplementedError(f"The method {method} is not implemented. Currently only "
+                                      f"supports 'analytical', 'numerical', and 'parallel'.")
 
 
     def construct_graph(self, X=None, **kwargs):
@@ -730,8 +733,17 @@ class vectorfield:
 
 
     def from_adata(self, adata, basis='', vf_key='VecFld'):
-        vf_dict, func = _from_adata(adata, basis=basis, vf_key=vf_key)
+        vf_dict, func = vecfld_from_adata(adata, basis=basis, vf_key=vf_key)
         self.data['X'] = vf_dict['X']
         self.data['V'] = vf_dict['V']
         self.vf_dict['VecFld'] = vf_dict
         self.func = func
+
+    def get_X(self):
+        return self.data['X']
+
+    def get_V(self):
+        return self.data['V']
+
+    def get_data(self):
+        return self.data['X'], self.data['V']

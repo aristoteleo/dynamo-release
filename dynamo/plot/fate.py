@@ -4,7 +4,8 @@ from scipy.integrate import odeint
 from .fate_utilities import Animation
 from .utils import save_fig
 from ..prediction.fate import fate_bias as fate_bias_pd
-from ..tools.utils import vector_field_function, update_dict
+from ..tools.utils import update_dict
+from ..tools.utils_vecCalc import vector_field_function
 
 def fate_bias(adata,
               group,
