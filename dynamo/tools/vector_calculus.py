@@ -373,29 +373,6 @@ def compute_torsion(vf, f_jac, X):
     return tor
 
 
-def _curl(f, x, method='analytical', VecFld=None, jac=None):
-    """Curl of the reconstructed vector field f evaluated at x in 3D"""
-    if jac is None:
-        if method == 'analytical' and VecFld is not None:
-            jac = Jacobian_rkhs_gaussian(x, VecFld)
-        else:
-            jac = nd.Jacobian(f)(x)
-
-    return np.array([jac[2, 1] - jac[1, 2], jac[0, 2] - jac[2, 0], jac[1, 0] - jac[0, 1]])
-
-
-def curl2d(f, x, method='analytical', VecFld=None, jac=None):
-    """Curl of the reconstructed vector field f evaluated at x in 2D"""
-    if jac is None:
-        if method == 'analytical' and VecFld is not None:
-            jac = Jacobian_rkhs_gaussian(x, VecFld)
-        else:
-            jac = nd.Jacobian(f)(x)
-
-    curl = jac[1, 0] - jac[0, 1]
-
-    return curl
-
 
 def speed(adata,
           basis='umap',
@@ -424,7 +401,7 @@ def speed(adata,
     """
 
     if VecFld is None:
-        VecFld, func = _from_adata(adata, basis)
+        VecFld, func = vecfld_from_adata(adata, basis)
     else:
         func = lambda x: vector_field_function(x, VecFld)
 
@@ -439,8 +416,8 @@ def speed(adata,
 
 
 def jacobian(adata,
-             source_genes,
-             target_genes,
+             regulators,
+             effectors,
              basis='pca',
              VecFld=None,
              method='analytical',
@@ -456,16 +433,14 @@ def jacobian(adata,
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        source_genes: `list`
-            The list of genes that will be used as regulators when calculating the cell-wise Jacobian matrix. Each of
-            those genes' partial derivative will be placed in the denominator of each element of the Jacobian matrix.
-            It can be used to access how much effect the increase of those genes will affect the change of the velocity
-            of the target genes (see below).
-        target_genes: `List` or `None` (default: `None`)
-            The list of genes that will be used as targets when calculating the cell-wise Jacobian matrix. Each of
-            those genes' velocities' partial derivative will be placed in the numerator of each element of the Jacobian
-            matrix. It can be used to access how much effect the velocity of the target genes will receive when increasing
-            the expression of the source genes (see above).
+        regulators: `list`
+            The list of genes that will be used as regulators when calculating the cell-wise Jacobian matrix. The Jacobian
+            is the matrix consisting of partial derivatives of the vector field wrt gene expressions. It can be used to 
+            evaluate the change in velocities of effectors (see below) as the expressions of regulators increase. The 
+            regulators are the denominators of the partial derivatives. 
+        effectors: `List` or `None` (default: `None`)
+            The list of genes that will be used as effectors when calculating the cell-wise Jacobian matrix. The effectors
+            are the numerators of the partial derivatives.
         basis: `str` or None (default: `pca`)
             The embedding data in which the vector field was reconstructed. If `None`, use the vector field function that
             was reconstructed directly from the original unreduced gene expression space.
@@ -484,11 +459,11 @@ def jacobian(adata,
     -------
         adata: :class:`~anndata.AnnData`
             AnnData object that is updated with the `Jacobian` key in the .uns. This is a 3-dimensional tensor with
-            dimensions n_obs x n_source_genes x n_target_genes.
+            dimensions n_obs x n_regulators x n_effectors.
     """
 
     if VecFld is None:
-        VecFld, func = _from_adata(adata, basis)
+        VecFld, func = vecfld_from_adata(adata, basis)
     else:
         func = lambda x: vector_field_function(x, VecFld)
 
@@ -496,15 +471,15 @@ def jacobian(adata,
 
     cell_idx = np.arange(adata.n_obs)
 
-    if type(source_genes) == str: source_genes = [source_genes]
-    if type(target_genes) == str: target_genes = [target_genes]
+    if type(regulators) == str: regulators = [regulators]
+    if type(effectors) == str: effectors = [effectors]
     var_df = adata[:, adata.var.use_for_dynamics].var
-    source_genes = var_df.index.intersection(source_genes)
-    target_genes = var_df.index.intersection(target_genes)
+    regulators = var_df.index.intersection(regulators)
+    effectors = var_df.index.intersection(effectors)
 
-    source_idx, target_idx = get_pd_row_column_idx(var_df, source_genes, "row"), \
-                             get_pd_row_column_idx(var_df, target_genes, "row")
-    if len(source_genes) == 0 or len(target_genes) == 0:
+    reg_idx, eff_idx = get_pd_row_column_idx(var_df, regulators, "row"), \
+                             get_pd_row_column_idx(var_df, effectors, "row")
+    if len(regulators) == 0 or len(effectors) == 0:
         raise ValueError(f"the source and target gene list you provided are not in the velocity gene list!")
 
     PCs_ = "PCs" if basis == 'pca' else "PCs_" + basis
@@ -523,17 +498,17 @@ def jacobian(adata,
     if basis is None:
         Jacobian = Jac_fun(X)
     else:
-        if len(source_genes) == 1 and len(target_genes) == 1:
-            Jacobian, Js = elementwise_jacobian_transformation(Jac_fun, X[cell_idx], Q[target_idx, :].flatten(),
-                                                      Q[source_idx, :].flatten(), True, timeit=True)
+        if len(regulators) == 1 and len(effectors) == 1:
+            Jacobian, Js = elementwise_jacobian_transformation(Jac_fun, X[cell_idx], Q[eff_idx, :].flatten(),
+                                                      Q[reg_idx, :].flatten(), True, timeit=True)
         else:
-            Jacobian, Js = subset_jacobian_transformation(Jac_fun, X[cell_idx], Q[target_idx, :],
-                                                 Q[source_idx, :], cores=cores, return_raw_J=True, timeit=True)
+            Jacobian, Js = subset_jacobian_transformation(Jac_fun, X[cell_idx], Q[eff_idx, :],
+                                                 Q[reg_idx, :], cores=cores, return_raw_J=True, timeit=True)
 
     adata.uns[Jacobian_] = {"Jacobian": Jacobian,
                             "Jacobian_raw": Js,
-                            "source_gene": source_genes,
-                            "target_genes": target_genes,
+                            "source_gene": regulators,
+                            "effectors": effectors,
                             "cell_idx": cell_idx}
 
 
@@ -660,66 +635,34 @@ def divergence(adata,
     return div
 
 
-def jacobian(adata,
-             regulators,
-             effectors,
-             cell_idx=None,
-             sampling='velocity',
-             sample_ncells=1000,
-             basis='pca',
-             VecFld=None,
-             method='analytical',
-             cores=1,
-             ):
-    """Calculate Jacobian for each cell with the reconstructed vector field function.
-
-    If the vector field was reconstructed from the reduced PCA space, the Jacobian matrix will then be inverse
-    transformed back to high dimension. Note that this should also be possible for reduced UMAP space and will be
-    supported shortly. Note that calculation of Jacobian matrix is computationally expensive, thus by default, only
-    1000 cells sampled (using velocity magnitude based sampling) for calculation.
+def acceleration(adata,
+         basis='umap',
+         VecFld=None,
+         method='analytical',
+         ):
+    """Calculate acceleration for each cell with the reconstructed vector field function.
 
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        regulators: `list`
-            The list of genes that will be used as regulators when calculating the cell-wise Jacobian matrix. The Jacobian
-            is the matrix consisting of partial derivatives of the vector field wrt gene expressions. It can be used to 
-            evaluate the change in velocities of effectors (see below) as the expressions of regulators increase. The 
-            regulators are the denominators of the partial derivatives. 
-        effectors: `List` or `None` (default: `None`)
-            The list of genes that will be used as effectors when calculating the cell-wise Jacobian matrix. The effectors
-            are the numerators of the partial derivatives.
-        cell_idx: `np.ndarray` or None (default: `None`)
-            One-dimension numpy array or list that represents the indices of the samples that will be used for calculating
-            Jacobian matrix.
-        sampling: `str` or None (default: `velocity`)
-           Which sampling method for cell sampling. When it is `velocity`, it will use the magnitude of velocity for
-           sampling cells; when it is `trn`, the topology representing network based method will be used to sample cells
-           with the low dimensional embeddings. The `velocity` based sampling ensures sampling evenly for cells with both
-           low (corresponds to densely populated stable cell states) and high velocity (corresponds to less populated
-           transient cell states) cells. The `trn` based sampling ensures the global topology of cell states will be well
-           maintained after the sampling.
-        sample_ncells: `int` (default: `100`)
-            Total number of cells to be sampled.
-        basis: `str` or None (default: `pca`)
-            The embedding data in which the vector field was reconstructed. If `None`, use the vector field function that
-            was reconstructed directly from the original unreduced gene expression space.
+        basis: `str` or None (default: `umap`)
+            The embedding data in which the vector field was reconstructed.
         VecFld: `dict`
             The true ODE function, useful when the data is generated through simulation.
         method: `str` (default: `analytical`)
-            The method that will be used for calculating Jacobian, either `analytical` or `numeric`. `analytical`
-            method will use the analytical form of the reconstructed vector field for calculating Jacobian while
+            The method that will be used for calculating divergence, either `analytical` or `numeric`. `analytical`
+            method will use the analytical form of the reconstructed vector field for calculating acceleration while
             `numeric` method will use numdifftools for calculation. `analytical` method is much more efficient.
 
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `Jacobian` key in the .uns. This is a 3-dimensional tensor with
-            dimensions n_obs x n_regulators x n_effectors.
+            AnnData object that is updated with the `acceleration` key in the .obs as well as .obsm. If basis is `pca`,
+            acceleration matrix will be inverse transformed back to original high dimension space.
     """
 
-    '''if VecFld is None:
+    if VecFld is None:
         VecFld, func = vecfld_from_adata(adata, basis)
     else:
         func = lambda x: vector_field_function(x, VecFld)
@@ -735,13 +678,10 @@ def jacobian(adata,
     adata.obs[acce_key] = acce
     adata.obsm[acce_key] = acce_mat
 
+    if basis == 'pca':
+        adata.layers['acceleration'] = adata.layers['velocity_S'].copy()
+        adata.layers['acceleration'][:, np.where(adata.var.use_for_dynamics)[0]] = acce_mat @ adata.uns['PCs'].T
 
-    X, V = VecFld['X'], VecFld['V']
-
-    if basis == 'umap': cell_idx = np.arange(adata.n_obs)
-
-    if cell_idx is None:
-        if sampling == 'velocity':
 
 def curvature(adata,
          basis='umap',
@@ -770,7 +710,7 @@ def curvature(adata,
     """
 
     if VecFld is None:
-        VecFld, func = _from_adata(adata, basis)
+        VecFld, func = vecfld_from_adata(adata, basis)
     else:
         func = lambda x: vector_field_function(x, VecFld)
     f_jac = lambda x: Jacobian_rkhs_gaussian(x, VecFld) if method == 'analytical' else Jacobian_numerical(func)
@@ -811,7 +751,7 @@ def torsion(adata,
     """
 
     if VecFld is None:
-        VecFld, func = _from_adata(adata, basis)
+        VecFld, func = vecfld_from_adata(adata, basis)
     else:
         func = lambda x: vector_field_function(x, VecFld)
     f_jac = lambda x: Jacobian_rkhs_gaussian(x, VecFld) if method == 'analytical' else Jacobian_numerical(func)
@@ -825,3 +765,4 @@ def torsion(adata,
 
     adata.obs[torsion_key] = torsion
     adata.uns[torsion_key] = torsion_mat
+
