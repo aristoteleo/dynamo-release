@@ -165,13 +165,18 @@ def state_graph(
         **s_kwargs_dict
     )
 
-    for i in range(len(axes_list)):
-        arrows = create_edge_patches_from_markov_chain(
-            Pl, group_median, tol=0.01, node_rad=15
-        )
+    arrows = create_edge_patches_from_markov_chain(
+        Pl, group_median, tol=0.01, node_rad=15
+    )
+    if type(axes_list) == list:
+        for i in range(len(axes_list)):
+            for arrow in arrows:
+                axes_list[i].add_patch(arrow)
+                axes_list[i].set_facecolor(background)
+    else:
         for arrow in arrows:
-            axes_list[i].add_patch(arrow)
-            axes_list[i].set_facecolor(background)
+            axes_list.add_patch(arrow)
+            axes_list.set_facecolor(background)
 
     plt.axis("off")
 

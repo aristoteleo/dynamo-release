@@ -1217,17 +1217,29 @@ def cell_wise_vectors(
     elif type(cell_ind) is list:
         ix_choice = cell_ind
 
-    for i in range(len(axes_list)):
-        axes_list[i].quiver(
+    if type(axes_list) == list:
+        for i in range(len(axes_list)):
+            axes_list[i].quiver(
+                df.iloc[ix_choice, 0],
+                df.iloc[ix_choice, 1],
+                df.iloc[ix_choice, 2],
+                df.iloc[ix_choice, 3],
+                color=color_list[i],
+                facecolors=color_list[i],
+                **quiver_kwargs,
+            )
+            axes_list[i].set_facecolor(background)
+    else:
+        axes_list.quiver(
             df.iloc[ix_choice, 0],
             df.iloc[ix_choice, 1],
             df.iloc[ix_choice, 2],
             df.iloc[ix_choice, 3],
-            color=color_list[i],
-            facecolors=color_list[i],
+            color=color_list,
+            facecolors=color_list,
             **quiver_kwargs,
         )
-        axes_list[i].set_facecolor(background)
+        axes_list.set_facecolor(background)
 
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'cell_wise_vector', "dpi": None,
@@ -1479,11 +1491,17 @@ def grid_vectors(
         **s_kwargs_dict,
     )
 
-    for i in range(len(axes_list)):
-        axes_list[i].quiver(
+    if type(axes_list) == list:
+        for i in range(len(axes_list)):
+            axes_list[i].quiver(
+                X_grid[0], X_grid[1], V_grid[0], V_grid[1], **quiver_kwargs
+            )
+            axes_list[i].set_facecolor(background)
+    else:
+        axes_list.quiver(
             X_grid[0], X_grid[1], V_grid[0], V_grid[1], **quiver_kwargs
         )
-        axes_list[i].set_facecolor(background)
+        axes_list.set_facecolor(background)
 
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'grid_velocity', "dpi": None,
@@ -1726,9 +1744,22 @@ def streamline_plot(
         **s_kwargs_dict,
     )
 
-    for i in range(len(axes_list)):
-        axes_list[i].set_facecolor(background)
-        s = axes_list[i].streamplot(
+    if type(axes_list) == list:
+        for i in range(len(axes_list)):
+            axes_list[i].set_facecolor(background)
+            s = axes_list[i].streamplot(
+                X_grid[0],
+                X_grid[1],
+                V_grid[0],
+                V_grid[1],
+                color=streamline_color,
+                **streamplot_kwargs,
+            )
+            set_arrow_alpha(axes_list[i], streamline_alpha)
+            set_stream_line_alpha(s, streamline_alpha)
+    else:
+        axes_list.set_facecolor(background)
+        s = axes_list.streamplot(
             X_grid[0],
             X_grid[1],
             V_grid[0],
@@ -1736,7 +1767,7 @@ def streamline_plot(
             color=streamline_color,
             **streamplot_kwargs,
         )
-        set_arrow_alpha(axes_list[i], streamline_alpha)
+        set_arrow_alpha(axes_list, streamline_alpha)
         set_stream_line_alpha(s, streamline_alpha)
 
     if save_show_or_return == "save":

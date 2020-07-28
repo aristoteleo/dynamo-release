@@ -808,6 +808,8 @@ def topography(
         **s_kwargs_dict
     )
 
+    if type(axes_list) != list:
+        axes_list, color_list, font_color = [axes_list], [color_list], [font_color]
     for i in range(len(axes_list)):
         # ax = axes_list[i]
 
@@ -948,4 +950,4 @@ def topography(
         plt.tight_layout()
         plt.show()
     elif save_show_or_return == "return":
-        return axes_list
+        return axes_list if len(axes_list) > 1 else axes_list[0]

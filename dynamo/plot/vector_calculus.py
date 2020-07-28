@@ -61,7 +61,7 @@ def curl(adata, color=None, cmap='bwr', *args, **kwargs):
         color = [color] if type(color) == str else color
         color_.extend(color)
 
-    scatters(adata, color=color_, cmap=cmap, *args, **kwargs)
+    return scatters(adata, color=color_, cmap=cmap, *args, **kwargs)
 
 
 @docstrings.with_indent(4)
@@ -107,7 +107,7 @@ def divergence(adata, color=None, cmap='bwr', *args, **kwargs):
         color = [color] if type(color) == str else color
         color_.extend(color)
 
-    scatters(adata_, color=color_, cmap=cmap, *args, **kwargs)
+    return scatters(adata_, color=color_, cmap=cmap, *args, **kwargs)
 
 
 @docstrings.with_indent(4)
@@ -329,7 +329,7 @@ def jacobian_heatmap(adata,
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
         kwargs:
-            Additional arguments passed to plt.scatters.
+            Additional arguments passed to sns.heatmap.
 
     Returns
     -------
