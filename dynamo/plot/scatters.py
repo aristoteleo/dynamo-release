@@ -19,15 +19,21 @@ from .utils import (
     scatter_with_legend,
     _select_font_color,
     arrowed_spines,
+    is_gene_name,
+    is_cell_anno_column,
+    is_list_of_lists,
+    is_layer_keys,
+    _matplotlib_points,
+    _datashade_points,
+    save_fig,
+)
+from ..tools.utils import (
+    update_dict,
+    get_mapper,
+    log1p_,
+    flatten,
 )
 
-from .utils import is_gene_name, is_cell_anno_column, is_list_of_lists
-from .utils import _matplotlib_points, _datashade_points
-from .utils import save_fig
-
-from ..tools.utils import update_dict
-
-from ..tools.utils import get_mapper, log1p_
 from ..docrep import DocstringProcessor
 
 docstrings = DocstringProcessor()
@@ -739,16 +745,17 @@ def scatters(
     color_key_cmap=None,
     background=None,
     ncols=4,
-    pointsize=8,
+    pointsize=None,
     figsize=(6, 4),
     show_legend="on data",
     use_smoothed=True,
     aggregate=None,
-    show_arrowed_spines=True,
+    show_arrowed_spines=False,
     ax=None,
     sort='raw',
     save_show_or_return="show",
     save_kwargs={},
+    return_all=False,
     **kwargs
 ):
     """Plot an embedding as points. Currently this only works
@@ -866,6 +873,8 @@ def scatters(
             will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
+        return_all: `bool` (default: `False`)
+            Whether to return all the scatter related variables. Default is False.
         kwargs:
             Additional arguments passed to plt.scatters.
 
@@ -888,7 +897,16 @@ def scatters(
     else:
         _background = background
         set_figure_params('dynamo', background=_background)
-    x, y = x[0] if type(x) not in [int, str] else x, y[0] if type(y) not in [int, str] else y
+
+    x, y = [x] if type(x) in [int, str] else x, [y] if type(y) in [int, str] else y
+    if all([is_gene_name(adata, i) for i in basis]):
+        if x[0] not in ['M_s', 'X_spliced'] and y[0] not in ['M_u', 'X_unspliced']:
+            if ('M_s' in adata.layers.keys() and 'M_u' in adata.layers.keys()):
+                x, y = ['M_s'], ['M_u']
+            elif ('X_spliced' in adata.layers.keys() and 'X_unspliced' in adata.layers.keys()):
+                x, y = ['X_spliced'], ['X_unspliced']
+            else:
+                x, y = ['spliced'], ['unspliced']
 
     if use_smoothed:
         mapper = get_mapper()
@@ -901,16 +919,18 @@ def scatters(
         layer = [layer]
     if type(basis) is str:
         basis = [basis]
-    n_c, n_l, n_b = (
-        0 if color is None else len(color),
-        0 if layer is None else len(layer),
-        0 if basis is None else len(basis),
+    n_c, n_l, n_b, n_x, n_y = (
+        1 if color is None else len(color),
+        1 if layer is None else len(layer),
+        1 if basis is None else len(basis),
+        1 if x is None else len(x),
+        1 if y is None else len(y),
     )
 
     point_size = (
-        2000.0 / np.sqrt(adata.shape[0])
+        16000.0 / np.sqrt(adata.shape[0])
         if pointsize is None
-        else 2000.0 / np.sqrt(adata.shape[0]) * pointsize
+        else 16000.0 / np.sqrt(adata.shape[0]) * pointsize
     )
 
     scatter_kwargs = dict(
@@ -921,12 +941,12 @@ def scatters(
 
     font_color = _select_font_color(_background)
 
-    total_panels, ncols = n_c * n_l * n_b, min(n_c, ncols)
+    total_panels, ncols = n_c * n_l * n_b * n_x * n_y, min(max([n_c, n_l, n_b, n_x, n_y]), ncols)
     nrow, ncol = int(np.ceil(total_panels / ncols)), ncols
     if figsize is None:
         figsize = plt.rcParams["figsize"]
 
-    if total_panels >= 1:
+    if total_panels >= 1 and ax is None:
         plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=_background)
         gs = plt.GridSpec(nrow, ncol, wspace=0.12)
 
@@ -938,211 +958,228 @@ def scatters(
                 cur_l_smoothed = mapper[cur_l]
             prefix = cur_l + "_"
 
-            if prefix + cur_b in adata.obsm.keys():
-                if type(x) != str and type(y) != str:
-                    x_, y_ = (
-                        adata.obsm[prefix + cur_b][:, int(x)],
-                        adata.obsm[prefix + cur_b][:, int(y)],
-                    )
-            else:
-                continue
+            # if prefix + cur_b in adata.obsm.keys():
+            #     if type(x) != str and type(y) != str:
+            #         x_, y_ = (
+            #             adata.obsm[prefix + cur_b][:, int(x)],
+            #             adata.obsm[prefix + cur_b][:, int(y)],
+            #         )
+            # else:
+            #     continue
             for cur_c in color:
+                cur_title = cur_c
                 if cur_l in ["protein", "X_protein"]:
                     _color = adata.obsm[cur_l].loc[cur_c, :]
                 else:
                     _color = adata.obs_vector(cur_c, layer=cur_l)
-
-                if type(x) is int and type(y) is int:
-                    points = pd.DataFrame(
-                        {
-                            cur_b + "_0": adata.obsm[prefix + cur_b][:, x],
-                            cur_b + "_1": adata.obsm[prefix + cur_b][:, y],
-                        }
-                    )
-                    points.columns = [cur_b + "_1", cur_b + "_2"]
-                elif is_gene_name(adata, x) and is_gene_name(adata, y):
-                    points = pd.DataFrame(
-                        {
-                            x: adata.obs_vector(k=x, layer=cur_l_smoothed),
-                            y: adata.obs_vector(k=y, layer=cur_l_smoothed),
-                        }
-                    )
-                    points.columns = [
-                        x + " (" + cur_l_smoothed + ")",
-                        y + " (" + cur_l_smoothed + ")",
-                    ]
-                elif is_cell_anno_column(adata, x) and is_cell_anno_column(adata, y):
-                    points = pd.DataFrame(
-                        {
-                            x: adata.obs_vector(x),
-                            y: adata.obs_vector(y),
-                        }
-                    )
-                    points.columns = [x, y]
-                elif is_cell_anno_column(adata, x) and is_gene_name(adata, y):
-                    points = pd.DataFrame(
-                        {x: adata.obs_vector(x), y: adata.obs_vector(k=y, layer=cur_l_smoothed)}
-                    )
-                    points.columns = [x, y + " (" + cur_l_smoothed + ")"]
-                elif is_gene_name(adata, x) and is_cell_anno_column(adata, y):
-                    points = pd.DataFrame(
-                        {x: adata.obs_vector(k=x, layer=cur_l_smoothed), y: adata.obs_vector(y)}
-                    )
-                    points.columns = [x + " (" + cur_l_smoothed + ")", y]
-
-                if aggregate is not None:
-                    groups, uniq_grp = (
-                        adata.obs[aggregate],
-                        adata.obs[aggregate].unique().to_list(),
-                    )
-                    group_color, group_median = (
-                        np.zeros((1, len(uniq_grp))).flatten()
-                        if isinstance(_color[0], Number)
-                        else np.zeros((1, len(uniq_grp))).astype("str").flatten(),
-                        np.zeros((len(uniq_grp), 2)),
-                    )
-
-                    grp_size = adata.obs[aggregate].value_counts().values
-                    scatter_kwargs = (
-                        {"s": grp_size}
-                        if scatter_kwargs is None
-                        else update_dict(scatter_kwargs, {"s": grp_size})
-                    )
-
-                    for ind, cur_grp in enumerate(uniq_grp):
-                        group_median[ind, :] = np.nanmedian(
-                            points.iloc[np.where(groups == cur_grp)[0], :2], 0
+                for cur_x, cur_y in zip(x, y):
+                    if type(cur_x) is int and type(cur_y) is int:
+                        points = pd.DataFrame(
+                            {
+                                cur_b + "_0": adata.obsm[prefix + cur_b][:, cur_x],
+                                cur_b + "_1": adata.obsm[prefix + cur_b][:, cur_y],
+                            }
                         )
-                        if isinstance(_color[0], Number):
-                            group_color[ind] = np.nanmedian(
-                                np.array(_color)[np.where(groups == cur_grp)[0]]
-                            )
-                        else:
-                            group_color[ind] = (
-                                pd.Series(_color)[np.where(groups == cur_grp)[0]]
-                                .value_counts()
-                                .index[0]
-                            )
-
-                    points, _color = (
-                        pd.DataFrame(
-                            group_median, index=uniq_grp, columns=points.columns
-                        ),
-                        group_color,
-                    )
-                # https://stackoverflow.com/questions/4187185/how-can-i-check-if-my-python-object-is-a-number
-                # answer from Boris.
-                is_not_continous = (
-                    not isinstance(_color[0], Number) or _color.dtype.name == 'category'
-                )
-
-                if is_not_continous:
-                    labels = _color.to_dense() if is_categorical(_color) else _color
-                    if theme is None:
-                        if _background in ["#ffffff", "black"]:
-                            _theme_ = "glasbey_dark"
-                        else:
-                            _theme_ = "glasbey_white"
-                    else:
-                        _theme_ = theme
-                else:
-                    values = _color
-                    if theme is None:
-                        if _background in ["#ffffff", "black"]:
-                            _theme_ = (
-                                "inferno"
-                                if cur_l is not "velocity"
-                                else "div_blue_black_red"
-                            )
-                        else:
-                            _theme_ = (
-                                "viridis" if cur_l is not "velocity" else "div_blue_red"
-                            )
-                    else:
-                        _theme_ = theme
-
-                _cmap = _themes[_theme_]["cmap"] if cmap is None else cmap
-                _color_key_cmap = (
-                    _themes[_theme_]["color_key_cmap"]
-                    if color_key_cmap is None
-                    else color_key_cmap
-                )
-                _background = (
-                    _themes[_theme_]["background"] if _background is None else _background
-                )
-
-                if labels is not None and values is not None:
-                    raise ValueError(
-                        "Conflicting options; only one of labels or values should be set"
-                    )
-
-                if total_panels > 1:
-                    ax = plt.subplot(gs[i])
-                i += 1
-
-                # if highligts is a list of lists - each list is relate to each color element
-                if highlights is not None:
-                    if is_list_of_lists(highlights):
-                        _highlights = highlights[color.index(cur_c)]
-                        _highlights = (
-                            _highlights
-                            if all([i in _color for i in _highlights])
-                            else None
+                        points.columns = [cur_b + "_0", cur_b + "_1"]
+                    elif is_gene_name(adata, cur_x) and is_gene_name(adata, cur_y):
+                        points = pd.DataFrame(
+                            {
+                                cur_x: adata.obs_vector(k=cur_x, layer=cur_l_smoothed),
+                                cur_y: adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
+                            }
                         )
-                    else:
-                        _highlights = (
-                            highlights
-                            if all([i in _color for i in highlights])
-                            else None
+                        # points = points.loc[(points > 0).sum(1) > 1, :]
+                        points.columns = [
+                            cur_x + " (" + cur_l_smoothed + ")",
+                            cur_y + " (" + cur_l_smoothed + ")",
+                        ]
+                        cur_title = cur_x + ' VS ' + cur_y
+                    elif is_cell_anno_column(adata, cur_x) and is_cell_anno_column(adata, cur_y):
+                        points = pd.DataFrame(
+                            {
+                                cur_x: adata.obs_vector(cur_x),
+                                cur_y: adata.obs_vector(cur_y),
+                            }
+                        )
+                        points.columns = [cur_x, cur_y]
+                        cur_title = cur_x + ' VS ' + cur_y
+                    elif is_cell_anno_column(adata, cur_x) and is_gene_name(adata, cur_y):
+                        points = pd.DataFrame(
+                            {cur_x: adata.obs_vector(cur_x), cur_y: adata.obs_vector(k=cur_y, layer=cur_l_smoothed)}
+                        )
+                        # points = points.loc[points.iloc[:, 1] > 0, :]
+                        points.columns = [cur_x, cur_y + " (" + cur_l_smoothed + ")"]
+                        cur_title = cur_y
+                    elif is_gene_name(adata, cur_x) and is_cell_anno_column(adata, cur_y):
+                        points = pd.DataFrame(
+                            {cur_x: adata.obs_vector(k=cur_x, layer=cur_l_smoothed), cur_y: adata.obs_vector(cur_y)}
+                        )
+                        # points = points.loc[points.iloc[:, 0] > 0, :]
+                        points.columns = [cur_x + " (" + cur_l_smoothed + ")", cur_y]
+                        cur_title = cur_x
+                    elif is_layer_keys(adata, cur_x) and is_layer_keys(adata, cur_y):
+                        cur_x_, cur_y_ = adata[:, cur_b].layers[cur_x], adata[:, cur_b].layers[cur_y]
+                        points = pd.DataFrame(
+                            {cur_x: flatten(cur_x_),
+                             cur_y: flatten(cur_y_)}
+                        )
+                        # points = points.loc[points.iloc[:, 0] > 0, :]
+                        points.columns = [cur_x + " (" + cur_l_smoothed + ")", cur_y]
+                        cur_title = cur_b
+                    if aggregate is not None:
+                        groups, uniq_grp = (
+                            adata.obs[aggregate],
+                            adata.obs[aggregate].unique().to_list(),
+                        )
+                        group_color, group_median = (
+                            np.zeros((1, len(uniq_grp))).flatten()
+                            if isinstance(_color[0], Number)
+                            else np.zeros((1, len(uniq_grp))).astype("str").flatten(),
+                            np.zeros((len(uniq_grp), 2)),
                         )
 
-                if points.shape[0] <= figsize[0] * figsize[1] * 100000:
-                    ax, color = _matplotlib_points(
-                        points.values,
-                        ax,
-                        labels,
-                        values,
-                        highlights,
-                        _cmap,
-                        color_key,
-                        _color_key_cmap,
-                        _background,
-                        figsize[0],
-                        figsize[1],
-                        show_legend,
-                        sort=sort,
-                        **scatter_kwargs
+                        grp_size = adata.obs[aggregate].value_counts().values
+                        scatter_kwargs = (
+                            {"s": grp_size}
+                            if scatter_kwargs is None
+                            else update_dict(scatter_kwargs, {"s": grp_size})
+                        )
+
+                        for ind, cur_grp in enumerate(uniq_grp):
+                            group_median[ind, :] = np.nanmedian(
+                                points.iloc[np.where(groups == cur_grp)[0], :2], 0
+                            )
+                            if isinstance(_color[0], Number):
+                                group_color[ind] = np.nanmedian(
+                                    np.array(_color)[np.where(groups == cur_grp)[0]]
+                                )
+                            else:
+                                group_color[ind] = (
+                                    pd.Series(_color)[np.where(groups == cur_grp)[0]]
+                                    .value_counts()
+                                    .index[0]
+                                )
+
+                        points, _color = (
+                            pd.DataFrame(
+                                group_median, index=uniq_grp, columns=points.columns
+                            ),
+                            group_color,
+                        )
+                    # https://stackoverflow.com/questions/4187185/how-can-i-check-if-my-python-object-is-a-number
+                    # answer from Boris.
+                    is_not_continous = (
+                        not isinstance(_color[0], Number) or _color.dtype.name == 'category'
                     )
-                else:
-                    ax = _datashade_points(
-                        points.values,
-                        ax,
-                        labels,
-                        values,
-                        highlights,
-                        _cmap,
-                        color_key,
-                        _color_key_cmap,
-                        _background,
-                        figsize[0],
-                        figsize[1],
-                        show_legend,
-                        sort=sort,
-                        **scatter_kwargs
+
+                    if is_not_continous:
+                        labels = _color.to_dense() if is_categorical(_color) else _color
+                        if theme is None:
+                            if _background in ["#ffffff", "black"]:
+                                _theme_ = "glasbey_dark"
+                            else:
+                                _theme_ = "glasbey_white"
+                        else:
+                            _theme_ = theme
+                    else:
+                        values = _color
+                        if theme is None:
+                            if _background in ["#ffffff", "black"]:
+                                _theme_ = (
+                                    "inferno"
+                                    if cur_l is not "velocity"
+                                    else "div_blue_black_red"
+                                )
+                            else:
+                                _theme_ = (
+                                    "viridis" if cur_l is not "velocity" else "div_blue_red"
+                                )
+                        else:
+                            _theme_ = theme
+
+                    _cmap = _themes[_theme_]["cmap"] if cmap is None else cmap
+                    _color_key_cmap = (
+                        _themes[_theme_]["color_key_cmap"]
+                        if color_key_cmap is None
+                        else color_key_cmap
+                    )
+                    _background = (
+                        _themes[_theme_]["background"] if _background is None else _background
                     )
 
-                if i == 1 and show_arrowed_spines:
-                    arrowed_spines(ax, points.columns[0].strip('_1'), _background, x, y)
-                else:
-                    despline_all(ax)
-                    deaxis_all(ax)
+                    if labels is not None and values is not None:
+                        raise ValueError(
+                            "Conflicting options; only one of labels or values should be set"
+                        )
 
-                ax.set_title(cur_c)
+                    if total_panels > 1:
+                        ax = plt.subplot(gs[i])
+                    i += 1
 
-                axes_list.append(ax)
-                color_list.append(color)
+                    # if highligts is a list of lists - each list is relate to each color element
+                    if highlights is not None:
+                        if is_list_of_lists(highlights):
+                            _highlights = highlights[color.index(cur_c)]
+                            _highlights = (
+                                _highlights
+                                if all([i in _color for i in _highlights])
+                                else None
+                            )
+                        else:
+                            _highlights = (
+                                highlights
+                                if all([i in _color for i in highlights])
+                                else None
+                            )
 
-                labels, values = None, None  # reset labels and values
+                    color_out = None
+                    if points.shape[0] <= figsize[0] * figsize[1] * 100000:
+                        ax, color_out = _matplotlib_points(
+                            points.values,
+                            ax,
+                            labels,
+                            values,
+                            highlights,
+                            _cmap,
+                            color_key,
+                            _color_key_cmap,
+                            _background,
+                            figsize[0],
+                            figsize[1],
+                            show_legend,
+                            sort=sort,
+                            **scatter_kwargs
+                        )
+                    else:
+                        ax = _datashade_points(
+                            points.values,
+                            ax,
+                            labels,
+                            values,
+                            highlights,
+                            _cmap,
+                            color_key,
+                            _color_key_cmap,
+                            _background,
+                            figsize[0],
+                            figsize[1],
+                            show_legend,
+                            sort=sort,
+                            **scatter_kwargs
+                        )
+
+                    if i == 1 and show_arrowed_spines:
+                        arrowed_spines(ax, points.columns[0].strip('_0'), _background, x[0], y[0])
+                    else:
+                        despline_all(ax)
+                        deaxis_all(ax)
+
+                    ax.set_title(cur_title)
+
+                    axes_list.append(ax)
+                    color_list.append(color_out)
+
+                    labels, values = None, None  # reset labels and values
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'scatters', "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
@@ -1158,5 +1195,8 @@ def scatters(
         if background is not None: reset_rcParams()
     elif save_show_or_return == "return":
         if background is not None: reset_rcParams()
-        return (axes_list, color_list, font_color) if total_panels > 1 else (ax, color, font_color)
 
+        if return_all:
+            return (axes_list, color_list, font_color) if total_panels > 1 else (ax, color_out, font_color)
+        else:
+            return axes_list if total_panels > 1 else ax

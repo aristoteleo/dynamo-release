@@ -1177,7 +1177,8 @@ def cell_wise_vectors(
     }
     quiver_kwargs = update_dict(quiver_kwargs, cell_wise_kwargs)
 
-    plt.figure(facecolor=background)
+    # if ax is None:
+    #     plt.figure(facecolor=background)
     axes_list, color_list, font_color = scatters(
         adata,
         basis,
@@ -1204,6 +1205,7 @@ def cell_wise_vectors(
         sort,
         "return",
         **s_kwargs_dict,
+        return_all=True,
     )
 
     if cell_ind is "all":
@@ -1271,7 +1273,7 @@ def grid_vectors(
     color_key_cmap=None,
     background='white',
     ncols=4,
-    pointsize=4,
+    pointsize=None,
     figsize=(6, 4),
     show_legend='on data',
     use_smoothed=True,
@@ -1462,7 +1464,8 @@ def grid_vectors(
     }
     quiver_kwargs = update_dict(quiver_kwargs, q_kwargs_dict)
 
-    plt.figure(facecolor=background)
+    # if ax is None:
+    #     plt.figure(facecolor=background)
     axes_list, _, font_color = scatters(
         adata,
         basis,
@@ -1489,6 +1492,7 @@ def grid_vectors(
         sort,
         "return",
         **s_kwargs_dict,
+        return_all=True,
     )
 
     if type(axes_list) == list:
@@ -1533,7 +1537,7 @@ def streamline_plot(
     color_key_cmap=None,
     background='white',
     ncols=4,
-    pointsize=8,
+    pointsize=None,
     figsize=(6, 4),
     show_legend='on data',
     use_smoothed=True,
@@ -1715,7 +1719,8 @@ def streamline_plot(
     else:
         streamline_color = "black"
 
-    plt.figure(facecolor=background)
+    # if ax is None:
+    #     plt.figure(facecolor=background)
     axes_list, _, font_color = scatters(
         adata,
         basis,
@@ -1742,6 +1747,7 @@ def streamline_plot(
         sort,
         "return",
         **s_kwargs_dict,
+        return_all=True,
     )
 
     if type(axes_list) == list:

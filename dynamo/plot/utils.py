@@ -24,6 +24,10 @@ def is_cell_anno_column(adata, var):
     return var in adata.obs.columns
 
 
+def is_layer_keys(adata, var):
+    return var in adata.layers.keys()
+
+
 def is_list_of_lists(list_of_lists):
     all(isinstance(elem, list) for elem in list_of_lists)
 
@@ -912,10 +916,10 @@ def arrowed_spines(ax, basis="umap", background='white', x='0', y='1'):
              length_includes_head=True, clip_on=False)
 
     ax.text(xmin + hl * 2.5/2, ymin - 1.1 * hw/2, basis.upper() + ' ' + str(x), ha="center", va="center", rotation=0,
-            size=np.clip((hl + yhw) * 8 / 2, None, 40),
+            size=matplotlib.rcParams['axes.titlesize'], # np.clip((hl + yhw) * 8 / 2, None, 40)
             )
     ax.text(xmin - 1.1 * yhw/2, ymin + hw * 2.5/2, basis.upper() + ' ' + str(y), ha="center", va="center", rotation=90,
-            size=np.clip((hl + yhw) * 8 / 2, None, 40),
+            size=matplotlib.rcParams['axes.titlesize'], # np.clip((hl + yhw) * 8 / 2, None, 40)
             )
 
     return ax

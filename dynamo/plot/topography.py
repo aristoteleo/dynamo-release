@@ -805,7 +805,8 @@ def topography(
         sort,
         "return",
         aggregate,
-        **s_kwargs_dict
+        **s_kwargs_dict,
+        return_all=True,
     )
 
     if type(axes_list) != list:

@@ -161,8 +161,9 @@ def state_graph(
         show_arrowed_spines,
         ax,
         sort,
-        save_show_or_return='return',
-        **s_kwargs_dict
+        'return',
+        **s_kwargs_dict,
+        return_all=True,
     )
 
     arrows = create_edge_patches_from_markov_chain(
