@@ -19,6 +19,8 @@ def laplacian(f, x):
     return sum(hes)
 
 
+# ---------------------------------------------------------------------------------------------------
+# vector field function
 @timeit
 def vector_field_function(x, vf_dict, dim=None, kernel='full', **kernel_kwargs):
     """vector field function constructed by sparseVFC.
@@ -172,6 +174,32 @@ def vecfld_from_adata(adata, basis='', vf_key='VecFld'):
     return vf_dict, func
 
 
+def vector_field_function_transformation(vf_func, Q):
+    """Transform vector field function from PCA space to original space.
+    The formula used for transformation:
+                                            :math:`\hat{f} = f Q^T`,
+    where `Q, f, \hat{f}` are the PCA loading matrix, low dimensional vector field function and the
+    transformed high dimensional vector field function.
+
+    Parameters
+    ----------
+        vf_func: `function`:
+            The vector field function.
+        Q: `np.ndarray`:
+            PCA loading matrix with dimension d x k, where d is the dimension of the original space,
+            and k the number of leading PCs.
+
+    Returns
+    -------
+        ret `np.ndarray`
+            The transformed vector field function.
+
+    """
+    return lambda x: vf_func.func(x) @ Q.T
+
+
+# ---------------------------------------------------------------------------------------------------
+# jacobian
 def Jacobian_rkhs_gaussian(x, vf_dict, vectorize=False):
     """analytical Jacobian for RKHS vector field functions with Gaussian kernel.
 
@@ -252,6 +280,109 @@ def Jacobian_numerical(f, input_vector_convention='row'):
         return fjac
 
 
+@timeit
+def elementwise_jacobian_transformation(Js, qi, qj):
+    """Inverse transform low dimensional k x k Jacobian matrix (:math:`\partial F_i / \partial x_j`) back to the 
+    d-dimensional gene expression space. The formula used to inverse transform Jacobian matrix calculated from 
+    low dimension (PCs) is:
+                                            :math:`Jac = Q J Q^T`,
+    where `Q, J, Jac` are the PCA loading matrix, low dimensional Jacobian matrix and the inverse transformed high
+    dimensional Jacobian matrix. This function takes only one row from Q to form qi or qj.
+
+    Parameters
+    ----------
+        Js: `np.ndarray`:
+            k x k x n matrices of n k-by-k Jacobians.
+        qi: `np.ndarray`:
+            The i-th row of the PC loading matrix Q with dimension d x k, corresponding to the regulator gene i.
+        qj: `np.ndarray`
+            The j-th row of the PC loading matrix Q with dimension d x k, corresponding to the effector gene j.
+
+    Returns
+    -------
+        ret `np.ndarray`
+            The calculated vector of Jacobian matrix (:math:`\partial F_i / \partial x_j`) for each cell.
+    """
+
+    Js = np.atleast_3d(Js)
+    n = Js.shape[2]
+    ret = np.zeros(n)
+    for i in tqdm(range(n), "calculating Jacobian for each cell"):
+        ret[i] = qi @ Js[:, :, i] @ qj
+
+    return ret
+
+@timeit
+def subset_jacobian_transformation(Js, Qi, Qj, cores=1):
+    """Transform Jacobian matrix (:math:`\partial F_i / \partial x_j`) from PCA space to the original space.
+    The formula used for transformation:
+                                            :math:`\hat{J} = Q J Q^T`,
+    where `Q, J, \hat{J}` are the PCA loading matrix, low dimensional Jacobian matrix and the inverse transformed high
+    dimensional Jacobian matrix. This function takes multiple rows from Q to form Qi or Qj.
+
+    Parameters
+    ----------
+        fjac: `function`:
+            The function for calculating numerical Jacobian matrix.
+        X: `np.ndarray`:
+            The samples coordinates with dimension n_obs x n_PCs, from which Jacobian will be calculated.
+        Qi: `np.ndarray`:
+            Sampled genes' PCA loading matrix with dimension n' x n_PCs, from which local dimension Jacobian matrix (k x k)
+            will be inverse transformed back to high dimension.
+        Qj: `np.ndarray`
+            Sampled genes' (sample genes can be the same as those in Qi or different) PCs loading matrix with dimension
+            n' x n_PCs, from which local dimension Jacobian matrix (k x k) will be inverse transformed back to high dimension.
+        cores: `int` (default: 1):
+            Number of cores to calculate Jacobian. If cores is set to be > 1, multiprocessing will be used to
+            parallel the Jacobian calculation.
+        return_J: `bool` (default: `False`)
+            Whether to return the raw tensor of Jacobian matrix of each cell before transformation.
+
+    Returns
+    -------
+        ret `np.ndarray`
+            The calculated Jacobian matrix (n_gene x n_gene x n_obs) for each cell.
+    """
+
+    Js = np.atleast_3d(Js)
+    Qi = np.atleast_2d(Qi)
+    Qj = np.atleast_2d(Qj)
+    d1, d2, n = Qi.shape[0], Qj.shape[0], Js.shape[2]
+
+    ret = np.zeros((d1, d2, n))
+
+    if cores == 1:
+        ret = transform_jacobian(Js, Qi, Qj, pbar=True)
+    else:
+        if cores is None: cores = mp.cpu_count()
+        n_j_per_core = int(np.ceil(n / cores))
+        JJ = []
+        for i in range(0, n, n_j_per_core):
+            JJ.append(Js[:, :, i:i+n_j_per_core])
+        with ThreadPool(cores) as p:
+            ret = p.starmap(transform_jacobian, zip(JJ, 
+                        itertools.repeat(Qi), itertools.repeat(Qj)))
+        ret = [np.transpose(r, axes=(2, 0, 1)) for r in ret]
+        ret = np.transpose(np.vstack(ret), axes=(1, 2, 0))
+        
+    return ret
+
+
+def transform_jacobian(Js, Qi, Qj, pbar=False):
+    d1, d2, n = Qi.shape[0], Qj.shape[0], Js.shape[2]
+    ret = np.zeros((d1, d2, n))
+    if pbar:
+        iterj = tqdm(range(n), desc='Transforming subset Jacobian')
+    else:
+        iterj = range(n)
+    for i in iterj:
+        J = Js[:, :, i]
+        ret[:, :, i] = Qi @ J @ Qj.T
+    return ret
+
+
+# ---------------------------------------------------------------------------------------------------
+# dynamical properties
 def _divergence(f, x):
     """Divergence of the reconstructed vector field function f evaluated at x"""
     jac = nd.Jacobian(f)(x)

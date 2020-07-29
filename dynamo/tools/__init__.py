@@ -72,14 +72,11 @@ from .velocyto_scvelo import (
 from .metric_velocity import cell_wise_confidence
 from .scVectorField import (
     SparseVFC,
-    get_P,
     graphize_vecfld,
+    vectorfield
 )  # , evaluate, con_K_div_cur_free
 from .utils_vecCalc import (
     vector_field_function, 
-    Jacobian_rkhs_gaussian,
-    Jacobian_rkhs_gaussian_parallel,
-    Jacobian_numerical,
 )
 from .topography import FixedPoints, VectorField2D, topography, VectorField
 from .vector_calculus import (
@@ -151,7 +148,8 @@ from .sampling import (
     TRNET,
     trn,
     sample_by_velocity,
-    lhsclassic
+    lhsclassic,
+    sample
 )
 
 # stochastic process related

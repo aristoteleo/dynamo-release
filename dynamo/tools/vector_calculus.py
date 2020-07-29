@@ -3,154 +3,15 @@ import multiprocessing as mp
 import itertools, functools
 import numpy as np
 from .utils import timeit, get_pd_row_column_idx
-from .utils_vecCalc import vector_field_function, vecfld_from_adata, curl2d
+from .utils_vecCalc import (
+    vector_field_function, 
+    vecfld_from_adata, 
+    curl2d, 
+    elementwise_jacobian_transformation, 
+    subset_jacobian_transformation
+    )
 from .scVectorField import vectorfield
-from .sampling import sample_by_velocity, trn
-
-
-@timeit
-def elementwise_jacobian_transformation(fjac, X, qi, qj, return_J=False):
-    """Inverse transform low dimension Jacobian matrix (:math:`\partial F_i / \partial x_j`) back to original space.
-    The formula used to inverse transform Jacobian matrix calculated from low dimension (PCs) is:
-                                            :math:`Jac = Q J Q^T`,
-    where `Q, J, Jac` are the PCA loading matrix, low dimensional Jacobian matrix and the inverse transformed high
-    dimensional Jacobian matrix. This function takes only one row from Q to form qi or qj.
-
-    Parameters
-    ----------
-        fjac: `function`:
-            The function for calculating numerical Jacobian matrix.
-        X: `np.ndarray`:
-            The samples coordinates with dimension n_obs x n_PCs, from which Jacobian will be calculated.
-        Qi: `np.ndarray`:
-            One sampled gene's PCs loading matrix with dimension n' x n_PCs, from which local dimension Jacobian matrix
-            (k x k) will be inverse transformed back to high dimension.
-        Qj: `np.ndarray`
-            Another gene's (can be the same as those in Qi or different) PCs loading matrix with dimension  n' x n_PCs,
-            from which local dimension Jacobian matrix (k x k) will be inverse transformed back to high dimension.
-        return_J: `bool` (default: `False`)
-            Whether to return the raw tensor of Jacobian matrix of each cell before transformation.
-
-    Returns
-    -------
-        ret `np.ndarray`
-            The calculated vector of Jacobian matrix (:math:`\partial F_i / \partial x_j`) for each cell.
-    """
-
-    Js = fjac(X)
-    ret = np.zeros(len(X))
-    for i in tqdm(range(len(X)), "calculating Jacobian for each cell"):
-        J = Js[:, :, i]
-        ret[i] = qi @ J @ qj
-
-    if return_J:
-        return ret, Js
-    else:
-        return ret
-
-@timeit
-def subset_jacobian_transformation(fjac, X, Qi, Qj, cores=1, return_J=False):
-    """Transform Jacobian matrix (:math:`\partial F_i / \partial x_j`) from PCA space to the original space.
-    The formula used for transformation:
-                                            :math:`\hat{J} = Q J Q^T`,
-    where `Q, J, \hat{J}` are the PCA loading matrix, low dimensional Jacobian matrix and the inverse transformed high
-    dimensional Jacobian matrix. This function takes multiple rows from Q to form Qi or Qj.
-
-    Parameters
-    ----------
-        fjac: `function`:
-            The function for calculating numerical Jacobian matrix.
-        X: `np.ndarray`:
-            The samples coordinates with dimension n_obs x n_PCs, from which Jacobian will be calculated.
-        Qi: `np.ndarray`:
-            Sampled genes' PCA loading matrix with dimension n' x n_PCs, from which local dimension Jacobian matrix (k x k)
-            will be inverse transformed back to high dimension.
-        Qj: `np.ndarray`
-            Sampled genes' (sample genes can be the same as those in Qi or different) PCs loading matrix with dimension
-            n' x n_PCs, from which local dimension Jacobian matrix (k x k) will be inverse transformed back to high dimension.
-        cores: `int` (default: 1):
-            Number of cores to calculate Jacobian. If cores is set to be > 1, multiprocessing will be used to
-            parallel the Jacobian calculation.
-        return_J: `bool` (default: `False`)
-            Whether to return the raw tensor of Jacobian matrix of each cell before transformation.
-
-    Returns
-    -------
-        ret `np.ndarray`
-            The calculated Jacobian matrix (n_gene x n_gene x n_obs) for each cell.
-    """
-
-    X = np.atleast_2d(X)
-    Qi = np.atleast_2d(Qi)
-    Qj = np.atleast_2d(Qj)
-    d1, d2, n = Qi.shape[0], Qj.shape[0], X.shape[0]
-
-    Js = fjac(X)
-    ret = np.zeros((d1, d2, n))
-
-    if cores == 1:
-        #for i in tqdm(range(n), desc='Transforming subset Jacobian'):
-        #    J = Js[:, :, i]
-        #    ret[:, :, i] = Qi @ J @ Qj.T
-        ret = transform_jacobian(Js, Qi, Qj, pbar=True)
-    else:
-        #pool = ThreadPool(cores)
-        #res = pool.starmap(pool_cal_J, zip(np.arange(n), itertools.repeat(Js), itertools.repeat(Qi),
-        #                              itertools.repeat(Qj), itertools.repeat(ret)))
-        #pool.close()
-        #pool.join()
-        #ret = functools.reduce((lambda a, b: a + b), res)
-        if cores is None: cores = mp.cpu_count()
-        n_j_per_core = int(np.ceil(n / cores))
-        JJ = []
-        for i in range(0, n, n_j_per_core):
-            JJ.append(Js[:, :, i:i+n_j_per_core])
-        with mp.Pool(cores) as p:
-            ret = p.starmap(transform_jacobian, zip(JJ, 
-                        itertools.repeat(Qi), itertools.repeat(Qj)))
-        ret = [np.transpose(r, axes=(2, 0, 1)) for r in ret]
-        ret = np.transpose(np.vstack(ret), axes=(1, 2, 0))
-    if return_J:
-        return ret, Js
-    else:
-        return ret
-
-
-def transform_jacobian(Js, Qi, Qj, pbar=False):
-    d1, d2, n = Qi.shape[0], Qj.shape[0], Js.shape[2]
-    ret = np.zeros((d1, d2, n))
-    if pbar:
-        iterj = tqdm(range(n), desc='Transforming subset Jacobian')
-    else:
-        iterj = range(n)
-    for i in iterj:
-        J = Js[:, :, i]
-        ret[:, :, i] = Qi @ J @ Qj.T
-    return ret
-
-
-def vector_field_function_transformation(vf_func, Q):
-    """Transform vector field function from PCA space to original space.
-    The formula used for transformation:
-                                            :math:`\hat{f} = f Q^T`,
-    where `Q, f, \hat{f}` are the PCA loading matrix, low dimensional vector field function and the
-    transformed high dimensional vector field function.
-
-    Parameters
-    ----------
-        vf_func: `function`:
-            The vector field function.
-        Q: `np.ndarray`:
-            PCA loading matrix with dimension d x k, where d is the dimension of the original space,
-            and k the number of leading PCs.
-
-    Returns
-    -------
-        ret `np.ndarray`
-            The transformed vector field function.
-
-    """
-    return lambda x: vf_func.func(x) @ Q.T
+from .sampling import sample
 
 
 def speed(adata,
@@ -195,13 +56,15 @@ def speed(adata,
 
 
 def jacobian(adata,
-             regulators,
-             effectors,
+             regulators=None,
+             effectors=None,
              cell_idx=None,
              sampling=None,
              sample_ncells=1000,
              basis='pca',
              vector_field_class=None,
+             method='analytical',
+             store_in_adata=True,
              **kwargs
              ):
     """Calculate Jacobian for each cell with the reconstructed vector field function.
@@ -246,49 +109,46 @@ def jacobian(adata,
         vector_field_class = vectorfield()
         vector_field_class.from_adata(adata, basis=basis)
 
-    X = vector_field_class.get_X()
+    if basis == 'umap': cell_idx = np.arange(adata.n_obs)
 
-    cell_idx = np.arange(adata.n_obs)
-
-    if type(regulators) is str: regulators = [regulators]
-    if type(effectors) is str: effectors = [effectors]
-    var_df = adata[:, adata.var.use_for_dynamics].var
-    regulators = var_df.index.intersection(regulators)
-    effectors = var_df.index.intersection(effectors)
-
-    reg_idx, eff_idx = get_pd_row_column_idx(var_df, regulators, "row"), \
-                             get_pd_row_column_idx(var_df, effectors, "row")
-    if len(regulators) == 0 or len(effectors) == 0:
-        raise ValueError(f"the source and target gene list you provided are not in the velocity gene list!")
-
-    PCs_ = "PCs" if basis == 'pca' else "PCs_" + basis
-    Jacobian_ = "jacobian" if basis is None else "jacobian_" + basis
-
-    Q = adata.uns[PCs_][:, :X.shape[1]]
-
-    if method == 'analytical':
-        Jac_fun = lambda x: Jacobian_rkhs_gaussian(x, VecFld)
-    elif method == 'numeric':
-        Jac_fun = Jacobian_numerical(func, input_vector_convention='row')
-    else:
-        raise NotImplementedError(f"the Jacobian matrix calculation method {method} is not implemented. Currently only "
-                                  f"support `analytical` and `numeric` methods.")
-
-    if basis is None:
-        Jacobian = Jac_fun(X)
-    else:
-        if len(regulators) == 1 and len(effectors) == 1:
-            Jacobian, Js = elementwise_jacobian_transformation(Jac_fun, X[cell_idx], Q[eff_idx, :].flatten(),
-                                                      Q[reg_idx, :].flatten(), True, timeit=True)
+    X, V = vector_field_class.get_data()
+    if cell_idx is None:
+        if sampling is None or sampling == 'all':
+            cell_idx = np.arange(adata.n_obs)
         else:
-            Jacobian, Js = subset_jacobian_transformation(Jac_fun, X[cell_idx], Q[eff_idx, :],
-                                                 Q[reg_idx, :], cores=cores, return_raw_J=True, timeit=True)
+            cell_idx = sample(np.arange(adata.n_obs), sample_ncells, sampling, X, V)
 
-    adata.uns[Jacobian_] = {"Jacobian": Jacobian,
-                            "Jacobian_raw": Js,
-                            "source_gene": regulators,
-                            "effectors": effectors,
-                            "cell_idx": cell_idx}
+    Jac_func = vector_field_class.get_Jacobian(method=method)
+    Js = Jac_func(X[cell_idx])
+    if regulators is not None and effectors is not None:
+        if type(regulators) is str: regulators = [regulators]
+        if type(effectors) is str: effectors = [effectors]
+        var_df = adata[:, adata.var.use_for_dynamics].var
+        regulators = var_df.index.intersection(regulators)
+        effectors = var_df.index.intersection(effectors)
+
+        reg_idx, eff_idx = get_pd_row_column_idx(var_df, regulators, "row"), \
+                                get_pd_row_column_idx(var_df, effectors, "row")
+        if len(regulators) == 0 or len(effectors) == 0:
+            raise ValueError(f"Either the regulator or the effector gene list provided is not in the velocity gene list!")
+
+        PCs_ = "PCs" if basis == 'pca' else "PCs_" + basis
+        Q = adata.uns[PCs_][:, :X.shape[1]]
+        if len(regulators) == 1 and len(effectors) == 1:
+            Jacobian = elementwise_jacobian_transformation(Js, 
+                    Q[eff_idx, :].flatten(), Q[reg_idx, :].flatten(), **kwargs)
+        else:
+            Jacobian = subset_jacobian_transformation(Js, Q[eff_idx, :], Q[reg_idx, :], **kwargs)
+
+    ret_dict = {"Jacobian_gene": Jacobian,
+                "Jacobian": Js,
+                "regulators": regulators,
+                "effectors": effectors,
+                "cell_idx": cell_idx}
+    if store_in_adata:
+        jkey = "jacobian" if basis is None else "jacobian_" + basis
+        adata.uns[jkey] = ret_dict
+    return ret_dict
 
 
 def curl(adata,
@@ -378,26 +238,19 @@ def divergence(adata,
 
     if basis == 'umap': cell_idx = np.arange(adata.n_obs)
 
-    X = vector_field_class.get_X()
+    X, V = vector_field_class.get_data()
     if cell_idx is None:
         if sampling is None or sampling == 'all':
             cell_idx = np.arange(adata.n_obs)
-        elif sampling == 'random':
-            cell_idx = np.random.choice(np.arange(adata.n_obs), size=sample_ncells, replace=False)
-        elif sampling == 'velocity':
-            cell_idx = sample_by_velocity(vector_field_class.get_V(), sample_ncells)
-        elif sampling == 'trn':
-            cell_idx = trn(X, sample_ncells)
         else:
-            raise NotImplementedError(f"The sampling method {sampling} is not implemented. Currently only support velocity "
-                                      f"based (velocity) or topology representing network (trn) based sampling.")
+            cell_idx = sample(np.arange(adata.n_obs), sample_ncells, sampling, X, V)
 
     jkey = "jacobian" if basis is None else "jacobian_" + basis
 
     div = np.zeros(len(cell_idx))
     calculated = np.zeros(len(cell_idx), dtype=bool)
     if jkey in adata.uns_keys():
-        Js = adata.uns[jkey]['Jacobian_raw']
+        Js = adata.uns[jkey]['Jacobian']
         cidx = adata.uns[jkey]['cell_idx']
         for i, c in tqdm(enumerate(cell_idx), desc="Calculating divergence with precomputed Jacobians"):
             if c in cidx:
