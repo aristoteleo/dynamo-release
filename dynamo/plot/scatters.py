@@ -756,6 +756,7 @@ def scatters(
     save_show_or_return="show",
     save_kwargs={},
     return_all=False,
+    add_gamma_fit=False,
     **kwargs
 ):
     """Plot an embedding as points. Currently this only works
@@ -859,8 +860,8 @@ def scatters(
             Whether to use smoothed values (i.e. M_s / M_u instead of spliced / unspliced, etc.).
         aggregate: `str` or `None` (default: `None`)
             The column in adata.obs that will be used to aggregate data points.
-        show_arrowed_spines: bool (optional, default True)
-            Whether to show a pair of arrowed spines represeenting the basis of the scatter is currently using.
+        show_arrowed_spines: bool (optional, default False)
+            Whether to show a pair of arrowed spines representing the basis of the scatter is currently using.
         ax: `matplotlib.Axis` (optional, default `None`)
             The matplotlib axes object where new plots will be added to. Only applicable to drawing a single component.
         sort: `str` (optional, default `raw`)
@@ -875,6 +876,9 @@ def scatters(
             according to your needs.
         return_all: `bool` (default: `False`)
             Whether to return all the scatter related variables. Default is False.
+        add_gamma_fit: `bool` (default: `False`)
+            Whether to add the line of the gamma fitting. This will automatically turn on if `basis` points to gene names
+            and those genes have went through gamma fitting.
         kwargs:
             Additional arguments passed to plt.scatters.
 
@@ -1018,6 +1022,7 @@ def scatters(
                         points.columns = [cur_x + " (" + cur_l_smoothed + ")", cur_y]
                         cur_title = cur_x
                     elif is_layer_keys(adata, cur_x) and is_layer_keys(adata, cur_y):
+                        add_gamma_fit = True
                         cur_x_, cur_y_ = adata[:, cur_b].layers[cur_x], adata[:, cur_b].layers[cur_y]
                         points = pd.DataFrame(
                             {cur_x: flatten(cur_x_),
@@ -1169,7 +1174,7 @@ def scatters(
                         )
 
                     if i == 1 and show_arrowed_spines:
-                        arrowed_spines(ax, points.columns[0].strip('_0'), _background, x[0], y[0])
+                        arrowed_spines(ax, points.columns[:2], _background)
                     else:
                         despline_all(ax)
                         deaxis_all(ax)
@@ -1180,6 +1185,28 @@ def scatters(
                     color_list.append(color_out)
 
                     labels, values = None, None  # reset labels and values
+
+                    if add_gamma_fit and cur_b in adata.var_names[adata.var.use_for_dynamics]:
+                        xnew = np.linspace(0, points.iloc[:, 0].max() * 0.80)
+                        k_name = 'gamma_k' if adata.uns['dynamics']['experiment_type'] == 'one-shot' else 'gamma'
+                        if k_name in adata.var.columns:
+                            if (
+                                    not ("gamma_b" in adata.var.columns)
+                                    or all(adata.var.gamma_b.isna())
+                            ):
+                                adata.var.loc[:, "gamma_b"] = 0
+                            ax.plot(
+                                xnew,
+                                xnew * adata[:, cur_b].var.loc[:, k_name].unique()
+                                + adata[:, cur_b].var.loc[:, "gamma_b"].unique(),
+                                dashes=[6, 2],
+                                c=font_color,
+                            )
+                        else:
+                            raise Exception(
+                                "adata does not seem to have velocity_gamma column. Velocity estimation is required before "
+                                "running this function."
+                            )
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'scatters', "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
