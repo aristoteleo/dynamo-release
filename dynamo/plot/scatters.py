@@ -1029,7 +1029,7 @@ def scatters(
                              cur_y: flatten(cur_y_)}
                         )
                         # points = points.loc[points.iloc[:, 0] > 0, :]
-                        points.columns = [cur_x + " (" + cur_l_smoothed + ")", cur_y]
+                        points.columns = [cur_x, cur_y]
                         cur_title = cur_b
                     if aggregate is not None:
                         groups, uniq_grp = (
