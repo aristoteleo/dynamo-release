@@ -1073,6 +1073,7 @@ def cell_wise_vectors(
     quiver_size=None,
     quiver_length=None,
     vector='velocity',
+    frontier=False,
     save_show_or_return='show',
     save_kwargs={},
     s_kwargs_dict={},
@@ -1098,6 +1099,11 @@ def cell_wise_vectors(
         vector: `str` (default: `velocity`)
             Which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity field or
             acceleration field will be plotted.
+        frontier: `bool` (default: `False`)
+            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show area
+            of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
+            cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
+            https://science.sciencemag.org/content/367/6482/1151.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'cell_wise_velocity', "dpi": None, "ext": 'pdf', "transparent": True, "close":
@@ -1180,30 +1186,31 @@ def cell_wise_vectors(
     # if ax is None:
     #     plt.figure(facecolor=background)
     axes_list, color_list, font_color = scatters(
-        adata,
-        basis,
-        x,
-        y,
-        color,
-        layer,
-        highlights,
-        labels,
-        values,
-        theme,
-        cmap,
-        color_key,
-        color_key_cmap,
-        background,
-        ncols,
-        pointsize,
-        figsize,
-        show_legend,
-        use_smoothed,
-        aggregate,
-        show_arrowed_spines,
-        ax,
-        sort,
-        "return",
+        adata=adata,
+        basis=basis,
+        x=x,
+        y=y,
+        color=color,
+        layer=layer,
+        highlights=highlights,
+        labels=labels,
+        values=values,
+        theme=theme,
+        cmap=cmap,
+        color_key=color_key,
+        color_key_cmap=color_key_cmap,
+        background=background,
+        ncols=ncols,
+        pointsize=pointsize,
+        figsize=figsize,
+        show_legend=show_legend,
+        use_smoothed=use_smoothed,
+        aggregate=aggregate,
+        show_arrowed_spines=show_arrowed_spines,
+        ax=ax,
+        sort=sort,
+        save_show_or_return="return",
+        frontier=frontier,
         **s_kwargs_dict,
         return_all=True,
     )
@@ -1288,6 +1295,7 @@ def grid_vectors(
     quiver_size=None,
     quiver_length=None,
     vector='velocity',
+    frontier=False,
     save_show_or_return='show',
     save_kwargs={},
     s_kwargs_dict={},
@@ -1320,6 +1328,11 @@ def grid_vectors(
         vector: `str` (default: `velocity`)
             Which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity field or
             acceleration field will be plotted.
+        frontier: `bool` (default: `False`)
+            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show area
+            of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
+            cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
+            https://science.sciencemag.org/content/367/6482/1151.
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'grid_velocity', "dpi": None, "ext": 'pdf', "transparent": True, "close":
@@ -1467,30 +1480,31 @@ def grid_vectors(
     # if ax is None:
     #     plt.figure(facecolor=background)
     axes_list, _, font_color = scatters(
-        adata,
-        basis,
-        x,
-        y,
-        color,
-        layer,
-        highlights,
-        labels,
-        values,
-        theme,
-        cmap,
-        color_key,
-        color_key_cmap,
-        background,
-        ncols,
-        pointsize,
-        figsize,
-        show_legend,
-        use_smoothed,
-        aggregate,
-        show_arrowed_spines,
-        ax,
-        sort,
-        "return",
+        adata=adata,
+        basis=basis,
+        x=x,
+        y=y,
+        color=color,
+        layer=layer,
+        highlights=highlights,
+        labels=labels,
+        values=values,
+        theme=theme,
+        cmap=cmap,
+        color_key=color_key,
+        color_key_cmap=color_key_cmap,
+        background=background,
+        ncols=ncols,
+        pointsize=pointsize,
+        figsize=figsize,
+        show_legend=show_legend,
+        use_smoothed=use_smoothed,
+        aggregate=aggregate,
+        show_arrowed_spines=show_arrowed_spines,
+        ax=ax,
+        sort=sort,
+        save_show_or_return="return",
+        frontier=frontier,
         **s_kwargs_dict,
         return_all=True,
     )
@@ -1553,6 +1567,7 @@ def streamline_plot(
     linewidth=1,
     streamline_alpha=1,
     vector='velocity',
+    frontier=False,
     save_show_or_return='show',
     save_kwargs={},
     s_kwargs_dict={},
@@ -1582,7 +1597,12 @@ def streamline_plot(
         vector: `str` (default: `velocity`)
             Which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity field or
             acceleration field will be plotted.
-        save_kwargs: `dict` (default: `{}`)
+        frontier: `bool` (default: `False`)
+            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show area
+            of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
+            cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
+            https://science.sciencemag.org/content/367/6482/1151.
+       save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
             will use the {"path": None, "prefix": 'streamline_plot', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
@@ -1722,30 +1742,31 @@ def streamline_plot(
     # if ax is None:
     #     plt.figure(facecolor=background)
     axes_list, _, font_color = scatters(
-        adata,
-        basis,
-        x,
-        y,
-        color,
-        layer,
-        highlights,
-        labels,
-        values,
-        theme,
-        cmap,
-        color_key,
-        color_key_cmap,
-        background,
-        ncols,
-        pointsize,
-        figsize,
-        show_legend,
-        use_smoothed,
-        aggregate,
-        show_arrowed_spines,
-        ax,
-        sort,
-        "return",
+        adata=adata,
+        basis=basis,
+        x=x,
+        y=y,
+        color=color,
+        layer=layer,
+        highlights=highlights,
+        labels=labels,
+        values=values,
+        theme=theme,
+        cmap=cmap,
+        color_key=color_key,
+        color_key_cmap=color_key_cmap,
+        background=background,
+        ncols=ncols,
+        pointsize=pointsize,
+        figsize=figsize,
+        show_legend=show_legend,
+        use_smoothed=use_smoothed,
+        aggregate=aggregate,
+        show_arrowed_spines=show_arrowed_spines,
+        ax=ax,
+        sort=sort,
+        save_show_or_return="return",
+        frontier=frontier,
         **s_kwargs_dict,
         return_all=True,
     )

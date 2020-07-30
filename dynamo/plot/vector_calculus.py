@@ -18,7 +18,58 @@ from ..tools.utils import update_dict
 docstrings.delete_params("scatters.parameters", "adata", "color", "cmap")
 
 @docstrings.with_indent(4)
-def curl(adata, color=None, cmap='bwr', *args, **kwargs):
+def speed(adata, basis='pca', color=None, frontier=True, *args, **kwargs):
+    """\
+    Scatter plot with cells colored by the estimated velocity speed (and other information if provided).
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object with speed estimated.
+        basis: `str` or None (default: `pca`)
+            The embedding data in which the vector field was reconstructed and RNA speed was estimated.
+        color: `str`, `list` or None:
+            Any column names or gene names, etc. in addition to the `curl` to be used for coloring cells.
+        frontier: `bool` (default: `False`)
+            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show area
+            of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
+            cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
+            https://science.sciencemag.org/content/367/6482/1151.
+        %(scatters.parameters.no_adata|color|cmap|frontier)s
+
+    Returns
+    -------
+    Nothing but plots scatterplots with cells colored by the estimated speed (and other information if provided).
+
+    Examples
+    --------
+    >>> import dynamo as dyn
+    >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
+    >>> adata = dyn.pp.recipe_monocle(adata)
+    >>> dyn.tl.dynamics(adata)
+    >>> dyn.tl.reduceDimension(adata)
+    >>> dyn.tl.VectorField(adata, basis='pca')
+    >>> dyn.tl.speed(adata)
+    >>> dyn.pl.speed(adata)
+
+    See also:: :func:`..external.ddhodge.curl` for calculating curl with a diffusion graph built from reconstructed vector
+    field.
+    """
+
+    speed_key = "speed" if basis is None else "speed_" + basis
+    color_ = [speed_key]
+    if not np.any(adata.obs.columns.isin(color_)):
+        raise Exception(f"{speed_key} is not existed in .obs, try run dyn.tl.speed(adata, basis='{basis}') first.")
+
+    if color is not None:
+        color = [color] if type(color) == str else color
+        color_.extend(color)
+
+    return scatters(adata, color=color_, frontier=frontier, *args, **kwargs)
+
+
+@docstrings.with_indent(4)
+def curl(adata, basis='umap', color=None, cmap='bwr', frontier=True, *args, **kwargs):
     """\
     Scatter plot with cells colored by the estimated curl (and other information if provided).
 
@@ -30,9 +81,16 @@ def curl(adata, color=None, cmap='bwr', *args, **kwargs):
     ----------
         adata: :class:`~anndata.AnnData`
             an Annodata object with curl estimated.
+        basis: `str` or None (default: `umap`)
+            The embedding data in which the vector field was reconstructed and RNA curl was estimated.
         color: `str`, `list` or None:
             Any column names or gene names, etc. in addition to the `curl` to be used for coloring cells.
-        %(scatters.parameters.no_adata|color|cmap)s
+        frontier: `bool` (default: `False`)
+            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show area
+            of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
+            cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
+            https://science.sciencemag.org/content/367/6482/1151.
+        %(scatters.parameters.no_adata|color|cmap|frontier)s
 
     Returns
     -------
@@ -46,26 +104,30 @@ def curl(adata, color=None, cmap='bwr', *args, **kwargs):
     >>> dyn.tl.dynamics(adata)
     >>> dyn.tl.reduceDimension(adata)
     >>> dyn.tl.VectorField(adata, basis='umap')
-    >>> dyn.tl.curl(adata)
-    >>> dyn.pl.curl(adata)
+    >>> dyn.tl.curl(adata, basis='umap')
+    >>> dyn.pl.curl(adata, basis='umap')
 
     See also:: :func:`..external.ddhodge.curl` for calculating curl with a diffusion graph built from reconstructed vector
     field.
     """
 
-    color_ = ['curl']
+    curl_key = "curl" if basis is None else "curl_" + basis
+    color_ = [curl_key]
     if not np.any(adata.obs.columns.isin(color_)):
-        raise Exception(f"curl is not existed in .obs, try run dyn.tl.curl(adata) first.")
+        raise Exception(f"{curl_key} is not existed in .obs, try run dyn.tl.curl(adata, basis='{basis}') first.")
 
     if color is not None:
         color = [color] if type(color) == str else color
         color_.extend(color)
 
-    return scatters(adata, color=color_, cmap=cmap, *args, **kwargs)
+    # adata.obs[curl_key] = adata.obs[curl_key].astype('float')
+    # adata_ = adata[~ adata.obs[curl_key].isna(), :]
+
+    return scatters(adata, color=color_, cmap=cmap, frontier=frontier, *args, **kwargs)
 
 
 @docstrings.with_indent(4)
-def divergence(adata, color=None, cmap='bwr', *args, **kwargs):
+def divergence(adata, basis='pca', color=None, cmap='bwr', frontier=True, *args, **kwargs):
     """\
     Scatter plot with cells colored by the estimated divergence (and other information if provided).
 
@@ -76,7 +138,16 @@ def divergence(adata, color=None, cmap='bwr', *args, **kwargs):
     ----------
         adata: :class:`~anndata.AnnData`
             an Annodata object with divergence estimated.
-        %(scatters.parameters.no_adata|color|cmap)s
+        basis: `str` or None (default: `pca`)
+            The embedding data in which the vector field was reconstructed and RNA divergence was estimated.
+        color: `str`, `list` or None:
+            Any column names or gene names, etc. in addition to the `divergence` to be used for coloring cells.
+        frontier: `bool` (default: `False`)
+            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show area
+            of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
+            cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
+            https://science.sciencemag.org/content/367/6482/1151.
+        %(scatters.parameters.no_adata|color|cmap|frontier)s
 
     Returns
     -------
@@ -96,19 +167,69 @@ def divergence(adata, color=None, cmap='bwr', *args, **kwargs):
     vector field.
     """
 
-    color_ = ['divergence']
+    div_key = "divergence" if basis is None else "divergence_" + basis
+    color_ = [div_key]
     if not np.any(adata.obs.columns.isin(color_)):
-        raise Exception(f"divergence is not existed in .obs, try run dyn.tl.divergence(adata) first.")
+        raise Exception(f"{div_key} is not existed in .obs, try run dyn.tl.divergence(adata, basis='{basis}') first.")
 
-    adata.obs.divergence = adata.obs.divergence.astype('float')
-    adata_ = adata[~ adata.obs.divergence.isna(), :]
+    # adata.obs[div_key] = adata.obs[div_key].astype('float')
+    # adata_ = adata[~ adata.obs[div_key].isna(), :]
 
     if color is not None:
         color = [color] if type(color) == str else color
         color_.extend(color)
 
-    return scatters(adata_, color=color_, cmap=cmap, *args, **kwargs)
+    return scatters(adata, color=color_, cmap=cmap, frontier=frontier, *args, **kwargs)
 
+
+@docstrings.with_indent(4)
+def curvature(adata, basis='pca', color=None, cmap='bwr', frontier=True, *args, **kwargs):
+    """\
+    Scatter plot with cells colored by the estimated curvature (and other information if provided).
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object with curvature estimated.
+        basis: `str` or None (default: `pca`)
+            The embedding data in which the vector field was reconstructed and RNA curvature was estimated.
+        color: `str`, `list` or None:
+            Any column names or gene names, etc. in addition to the `curvature` to be used for coloring cells.
+        frontier: `bool` (default: `False`)
+            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show area
+            of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
+            cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
+            https://science.sciencemag.org/content/367/6482/1151.
+        %(scatters.parameters.no_adata|color|cmap|frontier)s
+
+    Returns
+    -------
+    Nothing but plots scatterplots with cells colored by the estimated curvature (and other information if provided).
+
+    Examples
+    --------
+    >>> import dynamo as dyn
+    >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
+    >>> adata = dyn.pp.recipe_monocle(adata)
+    >>> dyn.tl.dynamics(adata)
+    >>> dyn.tl.VectorField(adata, basis='pca')
+    >>> dyn.tl.curvature(adata)
+    >>> dyn.pl.curvature(adata)
+    """
+
+    curv_key = "curvature" if basis is None else "curvature_" + basis
+    color_ = [curv_key]
+    if not np.any(adata.obs.columns.isin(color_)):
+        raise Exception(f"{curv_key} is not existed in .obs, try run dyn.tl.curvature(adata, basis='{curv_key}') first.")
+
+    adata.obs[curv_key] = adata.obs[curv_key].astype('float')
+    adata_ = adata[~ adata.obs[curv_key].isna(), :]
+
+    if color is not None:
+        color = [color] if type(color) == str else color
+        color_.extend(color)
+
+    return scatters(adata_, color=color_, cmap=cmap, frontier=frontier, *args, **kwargs)
 
 @docstrings.with_indent(4)
 def jacobian(adata,
@@ -123,6 +244,7 @@ def jacobian(adata,
              pointsize=None,
              figsize=(6, 4),
              show_legend=True,
+             frontier=True,
              save_show_or_return="show",
              save_kwargs={},
              **kwargs):
@@ -168,6 +290,11 @@ def jacobian(adata,
                 The width and height of each panel in the figure.
         show_legend: bool (optional, default True)
             Whether to display a legend of the labels
+        frontier: `bool` (default: `False`)
+            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show area
+            of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
+            cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
+            https://science.sciencemag.org/content/367/6482/1151.
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -205,7 +332,7 @@ def jacobian(adata,
     else:
         _background = background
 
-    Jacobian_ = "jacobian" #f basis is None else "jacobian_" + basis
+    Jacobian_ = "jacobian" if basis is None else "jacobian_" + basis
     Der, source_genes_, target_genes_, cell_indx, _  =  adata.uns[Jacobian_].values()
     adata_ = adata[cell_indx, :]
 
@@ -265,6 +392,7 @@ def jacobian(adata,
                 width=figsize[0],
                 height=figsize[1],
                 show_legend=show_legend,
+                frontier=frontier,
                 **scatter_kwargs
             )
             ax.set_title(r'$\frac{{\partial f_{{{}}} }}{{\partial {}}}$'.format(target, source))

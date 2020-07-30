@@ -126,6 +126,7 @@ def _matplotlib_points(
         vmin=2,
         vmax=98,
         sort='raw',
+        frontier=False,
         **kwargs,
 ):
     import matplotlib.pyplot as plt
@@ -218,8 +219,20 @@ def _matplotlib_points(
             ]
             colors = pd.Series(labels).map(new_color_key)
 
-        ax.scatter(points[:, 0], points[:, 1], c=colors, **kwargs)
-
+        if frontier:
+            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "0.0", lw=2)
+            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "1.0", lw=0)
+            ax.scatter(points[:, 0], points[:, 1], c=colors, **kwargs)
+        else:
+            ax.scatter(points[:, 0], points[:, 1], c=colors, **kwargs)
+        # fig, ax = plt.subplots()
+        # X = np.random.normal(-1, 1, 3500)
+        # Y = np.random.normal(-1, 1, 3500)
+        # ax.scatter(X, Y, 80, "0.0", lw=2)  # optional
+        # ax.scatter(X, Y, 80, "1.0", lw=0)  # optional
+        # ax.scatter(X, Y, 40, "C1", lw=0, alpha=0.1)
+        # plt.show()
+        #
     # Color by values
     elif values is not None:
         if values.shape[0] != points.shape[0]:
@@ -239,15 +252,28 @@ def _matplotlib_points(
         _vmax = np.max(values) if vmax is None else np.percentile(values, vmax) if \
             (vmax > 80 and vmax <= 100 and vmin < 20 and vmin > 0) else vmax
 
-        ax.scatter(
-            points[:, 0],
-            points[:, 1],
-            c=values,
-            cmap=cmap,
-            vmin=_vmin,
-            vmax=_vmax,
-            **kwargs,
-        )
+        if frontier:
+            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "0.0", lw=2)
+            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "1.0", lw=0)
+            ax.scatter(
+                points[:, 0],
+                points[:, 1],
+                c=values,
+                cmap=cmap,
+                vmin=_vmin,
+                vmax=_vmax,
+                **kwargs,
+            )
+        else:
+            ax.scatter(
+                points[:, 0],
+                points[:, 1],
+                c=values,
+                cmap=cmap,
+                vmin=_vmin,
+                vmax=_vmax,
+                **kwargs,
+            )
 
         if 'norm' in kwargs:
             norm = kwargs['norm']

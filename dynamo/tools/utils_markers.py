@@ -31,7 +31,7 @@ def fetch_X_data(adata, genes, layer):
                 X_data = adata[:, adata.var.use_for_dynamics].layers[layer]
                 genes = adata.var_names[adata.var.use_for_dynamics]
 
-            X_data = log1p_(X_data)
+            X_data = log1p_(adata, X_data)
 
     return genes, X_data
 

@@ -757,6 +757,7 @@ def scatters(
     save_kwargs={},
     return_all=False,
     add_gamma_fit=False,
+    frontier=False,
     **kwargs
 ):
     """Plot an embedding as points. Currently this only works
@@ -879,6 +880,11 @@ def scatters(
         add_gamma_fit: `bool` (default: `False`)
             Whether to add the line of the gamma fitting. This will automatically turn on if `basis` points to gene names
             and those genes have went through gamma fitting.
+        frontier: `bool` (default: `False`)
+            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show area
+            of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
+            cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
+            https://science.sciencemag.org/content/367/6482/1151.
         kwargs:
             Additional arguments passed to plt.scatters.
 
@@ -1153,6 +1159,7 @@ def scatters(
                             figsize[1],
                             show_legend,
                             sort=sort,
+                            frontier=frontier,
                             **scatter_kwargs
                         )
                     else:
@@ -1170,6 +1177,7 @@ def scatters(
                             figsize[1],
                             show_legend,
                             sort=sort,
+                            frontier=frontier,
                             **scatter_kwargs
                         )
 
