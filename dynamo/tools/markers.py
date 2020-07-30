@@ -171,10 +171,10 @@ def find_group_markers(adata,
             The layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is used.
         exp_frac_thresh: `float` (default: None)
             The minimum percentage of cells with expression for a gene to proceed differential expression test. If `layer`
-            is not `velocity` related (i.e. `velocity_S`), exp_frac_thresh by default is set to be 0.1, otherwise 0.
+            is not `velocity` related (i.e. `velocity_S`), `exp_frac_thresh` by default is set to be 0.1, otherwise 0.
         log2_fc_thresh: `float` (default: None)
             The minimal threshold of log2 fold change for a gene to proceed differential expression test. If `layer` is
-            not `velocity` related (i.e. `velocity_S`), log2_fc_thresh by default is set to be 1, otherwise 0.
+            not `velocity` related (i.e. `velocity_S`), `log2_fc_thresh` by default is set to be 1, otherwise 0.
         qval_thresh: `float` (default: 0.05)
             The minimial threshold of qval to be considered as significant genes.
         de_frequency:
@@ -268,10 +268,10 @@ def two_groups_degs(adata,
             The user supplied data that will be used for marker gene detection directly.
         exp_frac_thresh: `float` (default: None)
             The minimum percentage of cells with expression for a gene to proceed differential expression test. If `layer`
-            is not `velocity` related (i.e. `velocity_S`), exp_frac_thresh by default is set to be 0.1, otherwise 0.
+            is not `velocity` related (i.e. `velocity_S`), `exp_frac_thresh` by default is set to be 0.1, otherwise 0.
         log2_fc_thresh: `float` (default: None)
             The minimal threshold of log2 fold change for a gene to proceed differential expression test. If `layer` is
-            not `velocity` related (i.e. `velocity_S`), log2_fc_thresh by default is set to be 1, otherwise 0.
+            not `velocity` related (i.e. `velocity_S`), `log2_fc_thresh` by default is set to be 1, otherwise 0.
         qval_thresh: `float` (default: 0.05)
             The maximal threshold of qval to be considered as significant genes.
 

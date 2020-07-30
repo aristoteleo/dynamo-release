@@ -675,3 +675,4 @@ def relative2abs(adata,
 
                 res = k * X_i + b if logged else np.expm1(k * X_i + b)
                 adata.layers[cur_layer][i, :] = csr_matrix(res) if issparse(X) else res
+
