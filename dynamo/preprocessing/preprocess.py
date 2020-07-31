@@ -1218,6 +1218,7 @@ def recipe_monocle(
             A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions, etc.
     """
 
+    n_cells, n_genes = adata.n_obs, adata.n_vars
     if np.all(adata.var_names.str.startswith('ENS')) or scopes is not None:
         prefix = adata.var_names[0]
         if scopes is None:
@@ -1289,9 +1290,9 @@ def recipe_monocle(
     filter_cells_kwargs = {
         "filter_bool": None,
         "layer": "all",
-        "min_expr_genes_s": 50,
-        "min_expr_genes_u": 25,
-        "min_expr_genes_p": 1,
+        "min_expr_genes_s": min(50, 0.01 * n_genes),
+        "min_expr_genes_u": min(25, 0.01 * n_genes),
+        "min_expr_genes_p": min(2, 0.01 * n_genes),
         "max_expr_genes_s": np.inf,
         "max_expr_genes_u": np.inf,
         "max_expr_genes_p": np.inf,
@@ -1306,10 +1307,10 @@ def recipe_monocle(
 
     filter_genes_kwargs = {
         "filter_bool": None,
-        "layer": "X",
-        "min_cell_s": 0,
-        "min_cell_u": 0,
-        "min_cell_p": 0,
+        "layer": "all",
+        "min_cell_s": max(5, 0.01 * n_cells),
+        "min_cell_u": max(5, 0.005 * n_cells),
+        "min_cell_p": max(5, 0.005 * n_cells),
         "min_avg_exp_s": 0,
         "min_avg_exp_u": 0,
         "min_avg_exp_p": 0,
