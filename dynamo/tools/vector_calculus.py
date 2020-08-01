@@ -139,12 +139,14 @@ def jacobian(adata,
                     Q[eff_idx, :].flatten(), Q[reg_idx, :].flatten(), **kwargs)
         else:
             Jacobian = subset_jacobian_transformation(Js, Q[eff_idx, :], Q[reg_idx, :], **kwargs)
+    else:
+        Jacobian = None
 
-    ret_dict = {"Jacobian_gene": Jacobian,
-                "Jacobian": Js,
-                "regulators": regulators,
-                "effectors": effectors,
-                "cell_idx": cell_idx}
+    ret_dict = {"Jacobian": Js, "cell_idx": cell_idx}
+    if Jacobian is not None: ret_dict['Jacobian_gene'] = Jacobian
+    if regulators is not None: ret_dict['regulators'] = regulators
+    if effectors is not None: ret_dict['effectors'] = effectors
+
     if store_in_adata:
         jkey = "jacobian" if basis is None else "jacobian_" + basis
         adata.uns[jkey] = ret_dict
@@ -261,7 +263,7 @@ def divergence(adata,
 
     if store_in_adata:
         div_key = "divergence" if basis is None else "divergence_" + basis
-        Div = adata.obs[div_key] if div_key in adata.obs.keys() else np.ones(adata.n_obs) * np.nan
+        Div = np.array(adata.obs[div_key]) if div_key in adata.obs.keys() else np.ones(adata.n_obs) * np.nan
         Div[cell_idx] = div
         adata.obs[div_key] = Div
     return div
