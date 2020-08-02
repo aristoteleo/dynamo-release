@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib import cm
+from matplotlib.colors import ListedColormap
 from ..tools.utils import flatten, isarray, velocity_on_grid
 #from ..tools.Markov import smoothen_drift_on_grid
 
@@ -68,27 +70,42 @@ def zscatter(adata, basis='umap', layer='X', dim1=0, dim2=1, dim3=None,
                 color = flatten(adata[:, color].layers[c_layer])
         elif color in adata.obs.keys():
             title = color
-            color = flatten(np.array(adata.obs[color])) 
+            #color = flatten(np.array(adata.obs[color])) 
+            color = adata.obs[color]
 
     # categorical data
-    if color is not None and np.any([type(a) is str for a in color]):
+    if color is not None and type(color) is not str and np.any([type(a) is str for a in color]):
         cat_color = True
+        try:
+            cat = color.cat.categories
+        except:
+            cat = np.unique(color)
+        value_dict = {c: i for i, c in enumerate(cat)}
         if title + '_colors' in adata.uns.keys():
             color_dict = adata.uns[title + '_colors']
+            if type(color_dict) is dict:
+                color_map = ListedColormap([color_dict[c] for c in cat])
+            else:
+                color_map = ListedColormap(color_dict)
         else:
-            color_dict = {c: i for i, c in enumerate(np.unique(color))}
-        color = np.array([color_dict[c] for c in color])
+            color_map = cm.get_cmap('tab20')
+        color = np.array([value_dict[i] for i in color])
+        
     else:
         cat_color = False
+        color_map = None
 
-    plot_X(X, dim1=dim1, dim2=dim2, dim3=dim3, c=color, **kwargs)
+    if color_map is None:
+        plot_X(X, dim1=dim1, dim2=dim2, dim3=dim3, c=color, **kwargs)
+    else:
+        plot_X(X, dim1=dim1, dim2=dim2, dim3=dim3, c=color, cmap=color_map, **kwargs)
     if isarray(color):
         if cbar: 
             if cat_color:
-                cb = plt.colorbar(ticks=[i for i in color_dict.values()], 
-                    values=[i for i in color_dict.values()], 
+                cb = plt.colorbar(ticks=[i for i in value_dict.values()], 
+                    values=[i for i in value_dict.values()], 
                     shrink=cbar_shrink)
-                cb.ax.set_yticklabels(color_dict.keys())
+                cb.ax.set_yticklabels(value_dict.keys())
             else:
                 plt.colorbar(shrink=cbar_shrink)
         if sym_c:
@@ -183,7 +200,7 @@ def multiplot(plot_func, arr, n_row=None, n_col=3, fig=None, subplot_size=(6, 4)
         fig=plt.figure(figsize=figsize)
     ax_list = []
     for i in range(n):
-        ax_list.append(fig.add_subplot(n_row*100 + n_col*10 + i+1))
+        ax_list.append(fig.add_subplot(n_row, n_col, i+1))
         if type(arr) is dict:
             pdict = {key: value[i] for key, value in arr.items()}
             plot_func(**pdict)

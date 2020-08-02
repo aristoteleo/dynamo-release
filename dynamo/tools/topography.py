@@ -14,9 +14,9 @@ from .utils import (
     form_triu_matrix,
     index_condensed_matrix,
     inverse_norm,
-    vector_field_function,
-    _from_adata,
 )
+
+from .utils_vecCalc import vector_field_function, vecfld_from_adata
 
 from ..external.ddhodge import ddhoge
 from ..tools.vector_calculus import curl, divergence
@@ -428,7 +428,7 @@ def topography(adata, basis="umap", layer=None, X=None, dims=None, n=25, VecFld=
     """
 
     if VecFld is None:
-        VecFld, func = _from_adata(adata, basis)
+        VecFld, func = vecfld_from_adata(adata, basis)
     else:
         func = lambda x: vector_field_function(x, VecFld)
 

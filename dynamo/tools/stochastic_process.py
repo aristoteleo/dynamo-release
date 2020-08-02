@@ -1,7 +1,8 @@
 from tqdm import tqdm
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
-from .utils import _from_adata, vector_field_function, log1p_
+from .utils import log1p_
+from .utils_vecCalc import vecfld_from_adata, vector_field_function
 
 def diffusionMatrix(adata,
               X_data=None,
@@ -64,7 +65,7 @@ def diffusionMatrix(adata,
                         f'the data corresponds to the velocity key {vkey} is not included in the adata object!')
 
         if VecFld is None:
-            VecFld, func = _from_adata(adata, basis)
+            VecFld, func = vecfld_from_adata(adata, basis)
         else:
             func = lambda x: vector_field_function(x, VecFld)
 
