@@ -93,7 +93,10 @@ class StreamFuncAnim():
         vector field. Thus it provides intuitive visual understanding of the RNA velocity, speed, acceleration, and cell
         fate commitment in action.
 
-        This function is originally inspired by https://tonysyu.github.io/animating-particles-in-a-flow.html.
+        This function is originally inspired by https://tonysyu.github.io/animating-particles-in-a-flow.html and relies on
+        animation module from matplotlib. Note that you may need to install `imagemagick` in order to properly show or save
+        the animation. See for example, http://louistiao.me/posts/notebooks/save-matplotlib-animations-as-gifs/ for more
+        details.
 
         Parameters
         ----------
@@ -280,7 +283,8 @@ def animate_fates(adata,
                    ln=None,
                    interval=100,
                    blit=True,
-                   save_show_or_return='save',
+                   save_show_or_return='show',
+                   save_kwargs={},
                    **kwargs):
     """Animating cell fate commitment prediction via reconstructed vector field function.
 
@@ -289,7 +293,10 @@ def animate_fates(adata,
     vector field. Thus it provides intuitive visual understanding of the RNA velocity, speed, acceleration, and cell
     fate commitment in action.
 
-    This function is originally inspired by https://tonysyu.github.io/animating-particles-in-a-flow.html.
+    This function is originally inspired by https://tonysyu.github.io/animating-particles-in-a-flow.html and relies on
+    animation module from matplotlib. Note that you may need to install `imagemagick` in order to properly show or save
+    the animation. See for example, http://louistiao.me/posts/notebooks/save-matplotlib-animations-as-gifs/ for more
+    details.
 
     Parameters
     ----------
@@ -317,6 +324,15 @@ def animate_fates(adata,
             Whether blitting is used to optimize drawing. Note: when using blitting, any animated artists will be drawn
             according to their zorder; however, they will be drawn on top of any previous artists, regardless of their
             zorder.
+        save_show_or_return: `str` {'save', 'show', 'return'} (default: `save`)
+            Whether to save, show or return the figure. By default a gif will be used.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the anim.save. By default it is an empty dictionary and the save_fig function
+            will use the {"filename": 'fate_ani.gif', "writer": "imagemagick"} as its parameters. Otherwise you can
+            provide a dictionary that properly modify those keys according to your needs. see
+            https://matplotlib.org/api/_as_gen/matplotlib.animation.Animation.save.html for more details.
+        kwargs:
+            Additional arguments passed to animation.FuncAnimation.
 
         Returns
         -------
@@ -348,7 +364,9 @@ def animate_fates(adata,
     anim = animation.FuncAnimation(instance.fig, instance.update, init_func=instance.init_background,
                                    frames=np.arange(n_steps), interval=interval, blit=blit, **kwargs)
     if save_show_or_return == 'save':
-        anim.save('fate_ani.gif', writer="imagemagick")  # save as gif file.
+        save_kwargs_ = {"filename": 'fate_ani.gif', "writer": "imagemagick"}
+        save_kwargs_.update(save_kwargs)
+        anim.save(**save_kwargs_)  # save as gif file.
     elif save_show_or_return == 'show':
         from IPython.core.display import HTML
         HTML(anim.to_jshtml())  # embedding to jupyter notebook.
