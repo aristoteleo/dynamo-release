@@ -277,7 +277,12 @@ def _fate(
     return t, prediction
 
 
-def fate_bias(adata, group, basis='umap'):
+def fate_bias(adata,
+              group,
+              basis='umap',
+              inds=None,
+              sink_speed_percentile=5,
+              outside_dist_threshold=25):
     """Calculate the lineage (fate) bias of states whose trajectory are predicted.
 
     Fate bias is currently calculated as the percentage of points along the predicted cell fate trajectory that are
@@ -291,7 +296,12 @@ def fate_bias(adata, group, basis='umap'):
             The column key that corresponds to the cell type or other group information for quantifying the bias of cell
             state.
         basis: `str` or None (default: `None`)
-            The embedding data space that cell fates were predicted and cell fates will be quantified.
+            The embedding data space where cell fates were predicted and cell fates bias will be quantified.
+        inds `list` or `float` or None (default: `None`):
+            The indices of the time steps that will be used for calculating fate bias. If inds is None, the last a few
+            steps of the fate prediction based on the `sink_speed_percentile` will be use. If inds is the float (between
+            0 and 1), it will be regarded as a percentage, and the last percentage of steps will be used for fate bias
+            calculation. Otherwise inds need to be a list of integers of the time steps.
 
     Returns
     -------
@@ -307,24 +317,42 @@ def fate_bias(adata, group, basis='umap'):
     basis_key = 'X_' + basis if basis is not None else 'X'
     fate_key = 'fate_' + basis if basis is not None else 'fate'
 
-    if basis_key not in adata.obsm.keys():
-        raise ValueError(f'The basis {basis_key} you provided is not a key of .obsm attribute (or adata.X is not existed '
-                         f'if `basis` is `X`).')
+    if (basis_key not in adata.obsm.keys()):
+        raise ValueError(f'The basis {basis_key} you provided is not a key of .obsm attribute.')
     if fate_key not in adata.uns.keys():
         raise ValueError(f"The {fate_key} key is not existed in the .uns attribute of the adata object. You need to run"
                          f"dyn.pd.fate(adata, basis='{basis}') before calculate fate bias.")
 
     X = adata.obsm[basis_key] if basis_key is not 'X' else adata.X
-    nbrs = NearestNeighbors(n_neighbors=1, algorithm='ball_tree').fit(X)
+    alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+    nbrs = NearestNeighbors(n_neighbors=2, algorithm=alg).fit(X)
+    distances, knn = nbrs.kneighbors(X)
+    median_dist = np.median(distances[:, 1])
 
     pred_dict = {}
     cell_predictions, cell_indx = adata.uns[fate_key]['prediction'], adata.uns[fate_key]['init_cells']
+    t = adata.uns[fate_key]['t']
     for i, prediction in enumerate(cell_predictions):
-        distances, knn = nbrs.kneighbors(prediction[None, :])
+        cur_t, n_steps = t[i], len(t[i])
 
-        pred_dict[i] = clusters[knn.flatten()].value_counts()
+        # ensure to identify sink where the speed is very slow if inds is not provided.
+        # if inds is the percentage, use the last percentage of steps to check for cell fate bias.
+        # otherwise inds need to be a list.
+        if inds is None:
+            avg_speed = np.array([np.linalg.norm(i) for i in np.diff(prediction, 1).T]) / np.diff(cur_t)
+            sink_checker = np.where(avg_speed[::-1] > np.percentile(avg_speed, sink_speed_percentile))[0]
+            inds = np.arange(n_steps - min(sink_checker), n_steps)
+        elif inds is float:
+            inds = np.arange(n_steps - inds * n_steps, n_steps)
 
-    bias = pd.DataFrame(pred_dict).T / prediction.shape[1]
+        distances, knn = nbrs.kneighbors(prediction[None, inds])
+        distances, knn = distances[:, 1], knn[:, 1]
+
+        # if final steps too far away from observed cells, ignore them
+        pred_dict[i] = clusters[knn.flatten()].value_counts() / len(inds) \
+            if distances.mean() < outside_dist_threshold * median_dist else np.nan
+
+    bias = pd.DataFrame(pred_dict).T
     if cell_indx is not None: bias.index = cell_indx
 
     return bias

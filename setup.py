@@ -19,7 +19,7 @@ setup(
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
     ],
-    # include_dirs=[np.get_include()],
+    include_dirs=[np.get_include()],
     author="Xiaojie Qiu, Yan Zhang",
     author_email="xqiu.sc@gmail.com",
     description="Mapping Vector Field of Single Cells",

@@ -15,7 +15,7 @@ from .utils import (
 from ..tools.utils import update_dict
 
 
-docstrings.delete_params("scatters.parameters", "adata", "color", "cmap")
+docstrings.delete_params("scatters.parameters", "adata", "color", "cmap", "frontier")
 
 @docstrings.with_indent(4)
 def speed(adata, basis='pca', color=None, frontier=True, *args, **kwargs):
