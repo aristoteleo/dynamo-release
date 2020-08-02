@@ -24,3 +24,14 @@ jobs:
         - pytest
 #         - rst2html.py --halt=2 README.rst >/dev/null
 #- rst2html.py --strict README.rst >/dev/null
+
+after_success:
+  - codecov
+  - pip list
+
+branches:
+  only:
+  - master
+
+notifications:
+  email: false
