@@ -1185,7 +1185,7 @@ def cell_wise_vectors(
 
     # if ax is None:
     #     plt.figure(facecolor=background)
-    axes_list, color_list, font_color = scatters(
+    axes_list, color_list, _ = scatters(
         adata=adata,
         basis=basis,
         x=x,
@@ -1741,7 +1741,7 @@ def streamline_plot(
 
     # if ax is None:
     #     plt.figure(facecolor=background)
-    axes_list, _, font_color = scatters(
+    axes_list, _, _ = scatters(
         adata=adata,
         basis=basis,
         x=x,

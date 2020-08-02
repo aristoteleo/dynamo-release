@@ -407,11 +407,13 @@ def topography(adata, basis="umap", layer=None, X=None, dims=None, n=25, VecFld=
             an Annodata object.
         basis: `str` (default: `trimap`)
             The reduced dimension embedding of cells to visualize.
-        X: 'np.ndarray' (dimension: n_obs x n_features)
-                Original data.
         layer: `str` or None (default: None)
             Which layer of the data will be used for vector field function reconstruction. This will be used in conjunction
             with X.
+        X: 'np.ndarray' (dimension: n_obs x n_features)
+                Original data.
+        dims: `list` or `None` (default: `None`)
+            The dimensions that will be used for vector field reconstruction.
         n: `int` (default: `10`)
             Number of samples for calculating the fixed points.
         VecFld: `dictionary` or None (default: None)

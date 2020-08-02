@@ -167,6 +167,7 @@ def gene_wise_confidence(adata,
                          vlayer='velocity_S',
                          X_data=None,
                          V_data=None,
+                         V_threshold=1,
                          ):
     """Diagnostic measure to identify genes contributed to "wrong" directionality of the vector flow.
 
@@ -187,10 +188,11 @@ def gene_wise_confidence(adata,
     The same rationale can be applied to the mature cell states.
 
     Thus, we design an algorithm to access the confidence of each gene in obeying the above two scenario:
-    We first check for whether a gene should be in the induction or repression pahse from each progenitor to each
+    We first check for whether a gene should be in the induction or repression phase from each progenitor to each
     terminal cell states (based on the shift of the median gene expression between these two states). If it is in
-    induction phase, cells should show mostly positive or zero velocity; otherwise negative or zero velocity. 1 - ratio
-    of negative  or positive velocity of the cells in each state is then defined as a velocity confidence measure.
+    induction phase, cells should show mostly at >= small negative velocity; otherwise <= small negative velocity.
+    1 - ratio of cells with velocity pass those threshold (defined by `V_threshold`) in each state is then defined as a
+    velocity confidence measure.
 
     Parameters
     ----------
@@ -218,6 +220,8 @@ def gene_wise_confidence(adata,
             each cell state directly
         V_data: `np.ndarray` (default: `None`)
             The user supplied data that will be used for calculating gene-wise confidence directly.
+        V_threshold: `float` (default: `1`)
+            The threshold of velocity to calculate the gene wise confidence.
 
     Returns
     -------
@@ -253,6 +257,7 @@ def gene_wise_confidence(adata,
         for i, progenitor in enumerate(progenitors_groups):
             prog_vals = all_vals[adata.obs[group] == progenitor]
             prog_vals_v = all_vals_v[adata.obs[group] == progenitor]
+            threshold_val = np.percentile(abs(all_vals_v), V_threshold)
 
             for j, mature in enumerate(mature_cells_groups):
                 mature_vals = all_vals[adata.obs[group] == mature]
@@ -260,12 +265,12 @@ def gene_wise_confidence(adata,
 
                 if np.nanmedian(prog_vals) - np.nanmedian(mature_vals) > 0:
                     # repression phase (bottom curve -- phase curve below the linear line indicates steady states)
-                    prog_confidence = 1 - sum(prog_vals_v > 0)[0] / len(prog_vals_v) # most cells should downregulate / ss
-                    mature_confidence = 1 - sum(mature_vals_v > 0)[0] / len(mature_vals_v) # most cell should downregulate / ss
+                    prog_confidence = 1 - sum(prog_vals_v > - threshold_val)[0] / len(prog_vals_v) # most cells should downregulate / ss
+                    mature_confidence = 1 - sum(mature_vals_v > - threshold_val)[0] / len(mature_vals_v) # most cell should downregulate / ss
                 else:
                     # induction phase (upper curve -- phase curve above the linear line indicates steady states)
-                    prog_confidence = 1 - sum(prog_vals_v < 0)[0] / len(prog_vals_v) # most cells should upregulate / ss
-                    mature_confidence = 1 - sum(mature_vals_v < 0)[0] / len(mature_vals_v) # most cell should upregulate / ss
+                    prog_confidence = 1 - sum(prog_vals_v < threshold_val)[0] / len(prog_vals_v) # most cells should upregulate / ss
+                    mature_confidence = 1 - sum(mature_vals_v < threshold_val)[0] / len(mature_vals_v) # most cell should upregulate / ss
 
                 confidence.append((gene, progenitor, mature, prog_confidence, mature_confidence))
     confidence = pd.DataFrame(confidence,
