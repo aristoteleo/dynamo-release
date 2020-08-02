@@ -281,7 +281,7 @@ def get_shared_counts(adata, layers, min_shared_count, type="gene"):
 def clusters_stats(U, S, clusters_uid, cluster_ix, size_limit=40):
     """Calculate the averages per cluster
 
-    If the cluster is too small (size<size_limit) the average of the toal is reported instead
+    If the cluster is too small (size<size_limit) the average of the total is reported instead
     This function is modified from velocyto in order to reproduce velocyto's DentateGyrus notebook.
     """
     U_avgs = np.zeros((S.shape[1], len(clusters_uid)))
@@ -675,3 +675,4 @@ def relative2abs(adata,
 
                 res = k * X_i + b if logged else np.expm1(k * X_i + b)
                 adata.layers[cur_layer][i, :] = csr_matrix(res) if issparse(X) else res
+

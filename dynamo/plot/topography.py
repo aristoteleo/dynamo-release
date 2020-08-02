@@ -580,6 +580,7 @@ def topography(
     show_arrowed_spines=False,
     ax=None,
     sort='raw',
+    frontier=False,
     s_kwargs_dict={},
     q_kwargs_dict={},
     **streamline_kwargs_dict
@@ -691,6 +692,11 @@ def topography(
             Whether to show a pair of arrowed spines representing the basis of the scatter is currently using.
         ax: Matplotlib Axis instance
             Axis on which to make the plot
+        frontier: `bool` (default: `False`)
+            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show area
+            of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
+            cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
+            https://science.sciencemag.org/content/367/6482/1151.
         s_kwargs_dict: `dict` (default: {})
             The dictionary of the scatter arguments.
         q_kwargs_dict:
@@ -780,34 +786,37 @@ def topography(
 
     plt.figure(facecolor=_background)
     axes_list, color_list, font_color = scatters(
-        adata,
-        basis,
-        x,
-        y,
-        color,
-        layer,
-        highlights,
-        labels,
-        values,
-        theme,
-        cmap,
-        color_key,
-        color_key_cmap,
-        _background,
-        ncols,
-        pointsize,
-        figsize,
-        show_legend,
-        use_smoothed,
-        aggregate,
-        show_arrowed_spines,
-        ax,
-        sort,
-        "return",
-        aggregate,
-        **s_kwargs_dict
+        adata=adata,
+        basis=basis,
+        x=x,
+        y=y,
+        color=color,
+        layer=layer,
+        highlights=highlights,
+        labels=labels,
+        values=values,
+        theme=theme,
+        cmap=cmap,
+        color_key=color_key,
+        color_key_cmap=color_key_cmap,
+        background=_background,
+        ncols=ncols,
+        pointsize=pointsize,
+        figsize=figsize,
+        show_legend=show_legend,
+        use_smoothed=use_smoothed,
+        aggregate=aggregate,
+        show_arrowed_spines=show_arrowed_spines,
+        ax=ax,
+        sort=sort,
+        save_show_or_return="return",
+        frontier=frontier,
+        **s_kwargs_dict,
+        return_all=True,
     )
 
+    if type(axes_list) != list:
+        axes_list, color_list, font_color = [axes_list], [color_list], [font_color]
     for i in range(len(axes_list)):
         # ax = axes_list[i]
 
@@ -948,4 +957,4 @@ def topography(
         plt.tight_layout()
         plt.show()
     elif save_show_or_return == "return":
-        return axes_list
+        return axes_list if len(axes_list) > 1 else axes_list[0]

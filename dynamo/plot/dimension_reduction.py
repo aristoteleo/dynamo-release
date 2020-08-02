@@ -63,8 +63,7 @@ def umap(adata, *args, **kwargs):
     ... )
     """
 
-    scatters(adata, "umap", *args, **kwargs)
-
+    return scatters(adata, "umap", *args, **kwargs)
 
 @docstrings.with_indent(4)
 def trimap(adata, *args, **kwargs):
@@ -92,7 +91,7 @@ def trimap(adata, *args, **kwargs):
     ...     color='ntr'
     ... )
     """
-    scatters(adata, "trimap", *args, **kwargs)
+    return scatters(adata, "trimap", *args, **kwargs)
 
 
 @docstrings.with_indent(4)
@@ -121,7 +120,7 @@ def tsne(adata, *args, **kwargs):
     ...     color='ntr'
     ... )
     """
-    scatters(adata, "tsne", *args, **kwargs)
+    return scatters(adata, "tsne", *args, **kwargs)
 
 
 # add leidan, louvain, etc.

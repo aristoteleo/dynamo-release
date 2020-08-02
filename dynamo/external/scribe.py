@@ -1,7 +1,11 @@
 from scipy.sparse import issparse
 import numpy as np
 import pandas as pd
+from multiprocessing.dummy import Pool as ThreadPool
+import itertools
+from tqdm import tqdm
 from .utils import normalize_data, TF_link_gene_chip
+from ..tools.utils import flatten, einsum_correlation
 
 def scribe(adata,
            genes=None,
@@ -176,3 +180,76 @@ def scribe(adata,
     adata_.uns['causal_net'] = res_dict
 
     return adata_
+
+
+def mutual_inform(adata, genes, layer_x, layer_y, cores=1):
+    """Calculate mutual information (as well as pearson correlation) of genes between two different layers.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`.
+            adata object that will be used for mutual information calculation.
+        genes: `List` (default: None)
+            Gene names from the adata object that will be used for mutual information calculation.
+        layer_x
+            The first key of the layer from the adata object that will be used for mutual information calculation.
+        layer_y
+            The second key of the layer from the adata object that will be used for mutual information calculation.
+        cores: `int` (default: 1)
+            Number of cores to run the MI calculation. If cores is set to be > 1, multiprocessing will be used to
+            parallel the calculation.
+
+    Returns
+    -------
+        An updated adata object that updated with a new columns (`mi`, `pearson`) in .var contains the mutual information
+        of input genes.
+    """
+
+    try:
+        import Scribe
+    except ImportError:
+        raise ImportError("You need to install the package `Scribe`."
+                          "Plelease install from https://github.com/aristoteleo/Scribe-py."
+                          "Also check our paper: "
+                          "https://www.sciencedirect.com/science/article/abs/pii/S2405471220300363")
+
+    from Scribe.information_estimators import mi
+
+    adata.var['mi'], adata.var['pearson'] = np.nan, np.nan
+
+    mi_vec, pearson = np.zeros(len(genes)), np.zeros(len(genes))
+    X, Y = adata[:, genes].layers[layer_x], adata[:, genes].layers[layer_y]
+    X, Y = X.A if issparse(X) else X, Y.A if issparse(Y) else Y
+
+    k = min(5, int(adata.n_obs / 5 + 1))
+    if cores == 1:
+        for i in tqdm(range(len(genes)), desc=f'calculating mutual information between {layer_x} and {layer_y} data'):
+            x, y = X[i], Y[i]
+            mask = np.logical_and(np.isfinite(x), np.isfinite(y))
+            pearson[i] = einsum_correlation(x[None, mask], y[mask], type="pearson")
+            x, y = [[i] for i in x[mask]], [[i] for i in y[mask]]
+
+            mi_vec[i] = mi(x, y, k=k)
+    else:
+        for i in tqdm(range(len(genes)), desc=f'calculating mutual information between {layer_x} and {layer_y} data'):
+            x, y = X[i], Y[i]
+            mask = np.logical_and(np.isfinite(x), np.isfinite(y))
+            pearson[i] = einsum_correlation(x[None, mask], y[mask], type="pearson")
+
+        def pool_mi(x, y, k):
+            mask = np.logical_and(np.isfinite(x), np.isfinite(y))
+            x, y = [[i] for i in x[mask]], [[i] for i in y[mask]]
+
+            return mi(x, y, k)
+
+        pool = ThreadPool(cores)
+        res = pool.starmap(pool_mi, zip(X, Y, itertools.repeat(k)))
+        pool.close()
+        pool.join()
+        mi_vec = np.array(res)
+
+    adata.var.loc[genes, 'mi'] = mi_vec
+    adata.var.loc[genes, 'pearson'] = pearson
+
+
+

@@ -35,8 +35,19 @@ from .topography import (
     plot_traj,
     topography,
 )
-from .vector_calculus import curl, divergence, jacobian, jacobian_heatmap
-from .fate import fate_bias
+from .vector_calculus import (
+    speed,
+    curl,
+    divergence,
+    curvature,
+    jacobian,
+    jacobian_heatmap,
+)
+from .fate import (
+    fate_bias,
+    StreamFuncAnim,
+    animate_fates,
+)
 from .state_graph import state_graph
 
 from .scPotential import show_landscape

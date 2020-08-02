@@ -135,8 +135,8 @@ def find_group_markers(adata,
                        group,
                        genes=None,
                        layer=None,
-                       exp_frac_thresh=0.1,
-                       log2_fc_thresh=1,
+                       exp_frac_thresh=None,
+                       log2_fc_thresh=None,
                        qval_thresh=0.05,
                        de_frequency=1,
                        ):
@@ -169,10 +169,12 @@ def find_group_markers(adata,
             genes will be used.
         layer: `str` or None (default: `None`)
             The layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is used.
-        exp_frac_thresh: `float` (default: 0.1)
-            The minimum percentage of cells with expression for a gene to proceed differential expression test.
-        log2_fc_thresh: `float` (default: 0.1)
-            The minimal threshold of log2 fold change for a gene to proceed differential expression test.
+        exp_frac_thresh: `float` (default: None)
+            The minimum percentage of cells with expression for a gene to proceed differential expression test. If `layer`
+            is not `velocity` related (i.e. `velocity_S`), `exp_frac_thresh` by default is set to be 0.1, otherwise 0.
+        log2_fc_thresh: `float` (default: None)
+            The minimal threshold of log2 fold change for a gene to proceed differential expression test. If `layer` is
+            not `velocity` related (i.e. `velocity_S`), `log2_fc_thresh` by default is set to be 1, otherwise 0.
         qval_thresh: `float` (default: 0.05)
             The minimial threshold of qval to be considered as significant genes.
         de_frequency:
@@ -185,6 +187,13 @@ def find_group_markers(adata,
         a concated pandas DataFrame of the differential expression analysis result for all groups and a dictionary where keys are
         cluster numbers and values are lists of marker genes for the corresponding clusters.
     """
+
+    if layer.startswith('velocity'):
+        exp_frac_thresh = 0 if exp_frac_thresh is None else exp_frac_thresh
+        log2_fc_thresh = 0 if log2_fc_thresh is None else log2_fc_thresh
+    else:
+        exp_frac_thresh = 0.1 if exp_frac_thresh is None else exp_frac_thresh
+        log2_fc_thresh = 1 if log2_fc_thresh is None else log2_fc_thresh
 
     genes, X_data = fetch_X_data(adata, genes, layer)
     if len(genes) == 0:
@@ -222,8 +231,8 @@ def two_groups_degs(adata,
                     test_group,
                     control_groups,
                     X_data=None,
-                    exp_frac_thresh=0.1,
-                    log2_fc_thresh=1,
+                    exp_frac_thresh=None,
+                    log2_fc_thresh=None,
                     qval_thresh=0.05,
                     ):
     """Find marker genes between two groups of cells based on gene expression or velocity values as specified by the layer.
@@ -257,10 +266,12 @@ def two_groups_degs(adata,
             The list of group name(s) from `group` for which markers has to be tested against.
         X_data: `np.ndarray` (default: `None`)
             The user supplied data that will be used for marker gene detection directly.
-        exp_frac_thresh: `float` (default: 0.1)
-            The minimum percentage of cells with expression for a gene to proceed differential expression test.
-        log2_fc_thresh: `float` (default: 1)
-            The minimal threshold of log2 fold change for a gene to proceed differential expression test.
+        exp_frac_thresh: `float` (default: None)
+            The minimum percentage of cells with expression for a gene to proceed differential expression test. If `layer`
+            is not `velocity` related (i.e. `velocity_S`), `exp_frac_thresh` by default is set to be 0.1, otherwise 0.
+        log2_fc_thresh: `float` (default: None)
+            The minimal threshold of log2 fold change for a gene to proceed differential expression test. If `layer` is
+            not `velocity` related (i.e. `velocity_S`), `log2_fc_thresh` by default is set to be 1, otherwise 0.
         qval_thresh: `float` (default: 0.05)
             The maximal threshold of qval to be considered as significant genes.
 
@@ -269,6 +280,13 @@ def two_groups_degs(adata,
     -------
         A pandas DataFrame of the differential expression analysis result between the two groups.
     """
+
+    if layer.startswith('velocity'):
+        exp_frac_thresh = 0 if exp_frac_thresh is None else exp_frac_thresh
+        log2_fc_thresh = 0 if log2_fc_thresh is None else log2_fc_thresh
+    else:
+        exp_frac_thresh = 0.1 if exp_frac_thresh is None else exp_frac_thresh
+        log2_fc_thresh = 1 if log2_fc_thresh is None else log2_fc_thresh
 
     if X_data is None:
         genes, X_data = fetch_X_data(adata, genes, layer)
@@ -324,10 +342,13 @@ def two_groups_degs(adata,
             perfect_specificity[i + 1] = 1.0
 
             specificity_ = specificity(perc, perfect_specificity)
-            de.append((gene, control_groups[i], ef, rbc, log_fc, mw_p, specificity_))
+            diff_ratio_pos = sum(np.sign(test_vals) > 0)[0] / len(test_vals) - \
+                             sum(np.sign(control_vals) > 0)[0] / len(control_vals)
+
+            de.append((gene, control_groups[i], ef, rbc, log_fc, mw_p, specificity_, diff_ratio_pos))
 
     de = pd.DataFrame(de,
-                      columns=['gene', 'versus_group', 'exp_frac', 'rbc', 'log2_fc', 'pval', 'specificity'])
+                      columns=['gene', 'versus_group', 'exp_frac', 'rbc', 'log2_fc', 'pval', 'specificity', 'diff_ratio_pos'])
     de = de[de.iloc[:, 2:].sum(1) > 0]
 
     if de.shape[0] > 1:
@@ -335,7 +356,7 @@ def two_groups_degs(adata,
     else:
         de['qval'] = [np.nan for _ in range(de.shape[0])]
     de['test_group'] = [test_group for _ in range(de.shape[0])]
-    out_order = ['gene', 'test_group', 'versus_group', 'specificity', 'exp_frac',
+    out_order = ['gene', 'test_group', 'versus_group', 'specificity', 'exp_frac', 'diff_ratio_pos',
                  'rbc', 'log2_fc', 'pval', 'qval']
     de = de[out_order].sort_values(by='qval')
     res = de[(de.qval < qval_thresh)].reset_index().drop(columns=['index'])

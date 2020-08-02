@@ -38,6 +38,7 @@ def phase_portraits(
         show_quiver=False,
         quiver_size=None,
         quiver_length=None,
+        frontier=True,
         q_kwargs_dict={},
         show_arrowed_spines=None,
         save_show_or_return='show',
@@ -749,6 +750,7 @@ def phase_portraits(
                 width=figsize[0],
                 height=figsize[1],
                 show_legend=legend,
+                frontier=True,
                 **div_scatter_kwargs
             )
         else:
@@ -765,6 +767,7 @@ def phase_portraits(
                 width=figsize[0],
                 height=figsize[1],
                 show_legend=legend,
+                frontier=True,
                 **div_scatter_kwargs
             )
 
@@ -979,6 +982,7 @@ def phase_portraits(
                     width=figsize[0],
                     height=figsize[1],
                     show_legend=legend,
+                    frontier=True,
                     **div_scatter_kwargs
                 )
             else:

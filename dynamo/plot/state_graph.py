@@ -86,6 +86,7 @@ def state_graph(
     show_arrowed_spines=True,
     ax=None,
     sort='raw',
+    frontier=False,
     save_show_or_return="show",
     save_kwargs={},
     s_kwargs_dict={},
@@ -138,40 +139,47 @@ def state_graph(
 
     plt.figure(facecolor=_background)
     axes_list, color_list, font_color = scatters(
-        adata,
-        basis,
-        x,
-        y,
-        color,
-        layer,
-        highlights,
-        labels,
-        values,
-        theme,
-        cmap,
-        color_key,
-        color_key_cmap,
-        background,
-        ncols,
-        pointsize,
-        figsize,
-        show_legend,
-        use_smoothed,
-        aggregate,
-        show_arrowed_spines,
-        ax,
-        sort,
+        adata=adata,
+        basis=basis,
+        x=x,
+        y=y,
+        color=color,
+        layer=layer,
+        highlights=highlights,
+        labels=labels,
+        values=values,
+        theme=theme,
+        cmap=cmap,
+        color_key=color_key,
+        color_key_cmap=color_key_cmap,
+        background=background,
+        ncols=ncols,
+        pointsize=pointsize,
+        figsize=figsize,
+        show_legend=show_legend,
+        use_smoothed=use_smoothed,
+        aggregate=aggregate,
+        show_arrowed_spines=show_arrowed_spines,
+        ax=ax,
+        sort=sort,
         save_show_or_return='return',
-        **s_kwargs_dict
+        frontier=frontier,
+        **s_kwargs_dict,
+        return_all=True,
     )
 
-    for i in range(len(axes_list)):
-        arrows = create_edge_patches_from_markov_chain(
-            Pl, group_median, tol=0.01, node_rad=15
-        )
+    arrows = create_edge_patches_from_markov_chain(
+        Pl, group_median, tol=0.01, node_rad=15
+    )
+    if type(axes_list) == list:
+        for i in range(len(axes_list)):
+            for arrow in arrows:
+                axes_list[i].add_patch(arrow)
+                axes_list[i].set_facecolor(background)
+    else:
         for arrow in arrows:
-            axes_list[i].add_patch(arrow)
-            axes_list[i].set_facecolor(background)
+            axes_list.add_patch(arrow)
+            axes_list.set_facecolor(background)
 
     plt.axis("off")
 

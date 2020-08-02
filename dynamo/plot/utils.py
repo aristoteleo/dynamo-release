@@ -24,6 +24,10 @@ def is_cell_anno_column(adata, var):
     return var in adata.obs.columns
 
 
+def is_layer_keys(adata, var):
+    return var in adata.layers.keys()
+
+
 def is_list_of_lists(list_of_lists):
     all(isinstance(elem, list) for elem in list_of_lists)
 
@@ -122,6 +126,7 @@ def _matplotlib_points(
         vmin=2,
         vmax=98,
         sort='raw',
+        frontier=False,
         **kwargs,
 ):
     import matplotlib.pyplot as plt
@@ -159,6 +164,7 @@ def _matplotlib_points(
                 num_labels = unique_labels.shape[0]
                 color_key = plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
             else:
+                if type(highlights) is str: highlights = [highlights]
                 highlights.append("other")
                 unique_labels = np.array(highlights)
                 num_labels = unique_labels.shape[0]
@@ -170,6 +176,7 @@ def _matplotlib_points(
                 ] = "#bdbdbd"  # lightgray hex code https://www.color-hex.com/color/d3d3d3
 
                 labels[[i not in highlights for i in labels]] = "other"
+                points = pd.DataFrame(points)
                 points["label"] = pd.Categorical(labels)
 
                 # reorder data so that highlighting points will be on top of background points
@@ -179,11 +186,11 @@ def _matplotlib_points(
                 )
                 reorder_data = points.copy(deep=True)
                 (
-                    reorder_data.iloc[: sum(background_ids), :],
-                    reorder_data.iloc[sum(background_ids):, :],
-                ) = (points.iloc[background_ids, :], points.iloc[highlight_ids, :])
+                    reorder_data.loc[:sum(background_ids), :],
+                    reorder_data.loc[sum(background_ids):, :],
+                ) = (points.loc[background_ids, :], points.loc[highlight_ids, :])
 
-                points = reorder_data
+                points = reorder_data.values
 
         if isinstance(color_key, dict):
             colors = pd.Series(labels).map(color_key).values
@@ -212,8 +219,20 @@ def _matplotlib_points(
             ]
             colors = pd.Series(labels).map(new_color_key)
 
-        ax.scatter(points[:, 0], points[:, 1], c=colors, **kwargs)
-
+        if frontier:
+            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "0.0", lw=2)
+            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "1.0", lw=0)
+            ax.scatter(points[:, 0], points[:, 1], c=colors, **kwargs)
+        else:
+            ax.scatter(points[:, 0], points[:, 1], c=colors, **kwargs)
+        # fig, ax = plt.subplots()
+        # X = np.random.normal(-1, 1, 3500)
+        # Y = np.random.normal(-1, 1, 3500)
+        # ax.scatter(X, Y, 80, "0.0", lw=2)  # optional
+        # ax.scatter(X, Y, 80, "1.0", lw=0)  # optional
+        # ax.scatter(X, Y, 40, "C1", lw=0, alpha=0.1)
+        # plt.show()
+        #
     # Color by values
     elif values is not None:
         if values.shape[0] != points.shape[0]:
@@ -224,7 +243,8 @@ def _matplotlib_points(
                 )
             )
         # reorder data so that high values points will be on top of background points
-        sorted_id = np.argsort(abs(values)) if sort == 'abs' else np.argsort(values)
+        sorted_id = np.argsort(abs(values)) if sort == 'abs' else np.argsort(- values) if sort == 'neg' \
+            else np.argsort(values)
         values, points = values[sorted_id], points[sorted_id, :]
 
         _vmin = np.min(values) if vmin is None else np.percentile(values, vmin) if \
@@ -232,15 +252,28 @@ def _matplotlib_points(
         _vmax = np.max(values) if vmax is None else np.percentile(values, vmax) if \
             (vmax > 80 and vmax <= 100 and vmin < 20 and vmin > 0) else vmax
 
-        ax.scatter(
-            points[:, 0],
-            points[:, 1],
-            c=values,
-            cmap=cmap,
-            vmin=_vmin,
-            vmax=_vmax,
-            **kwargs,
-        )
+        if frontier:
+            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "0.0", lw=2)
+            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "1.0", lw=0)
+            ax.scatter(
+                points[:, 0],
+                points[:, 1],
+                c=values,
+                cmap=cmap,
+                vmin=_vmin,
+                vmax=_vmax,
+                **kwargs,
+            )
+        else:
+            ax.scatter(
+                points[:, 0],
+                points[:, 1],
+                c=values,
+                cmap=cmap,
+                vmin=_vmin,
+                vmax=_vmax,
+                **kwargs,
+            )
 
         if 'norm' in kwargs:
             norm = kwargs['norm']
@@ -267,7 +300,9 @@ def _matplotlib_points(
         if len(unique_labels) > 1 and show_legend == "on data":
             font_color = "white" if background in ["black", "#ffffff"] else "black"
             for i in unique_labels:
-                color_cnt = np.nanmedian(points[np.where(labels == i)[0], :2], 0)
+                if i == 'other':
+                    continue
+                color_cnt = np.nanmedian(points[np.where(labels == i)[0], :2].astype('float'), 0)
                 txt = plt.text(
                     color_cnt[0],
                     color_cnt[1],
@@ -861,10 +896,11 @@ def set_colorbar(ax):
     return axins
 
 
-def arrowed_spines(ax, basis="umap", background='white', x='0', y='1'):
+def arrowed_spines(ax, columns, background='white'):
     """https://stackoverflow.com/questions/33737736/matplotlib-axis-arrow-tip
         modified based on Answer 6
     """
+    if type(columns) == str: columns = [columns.upper() + ' 0', columns.upper() + ' 1']
     import matplotlib.pyplot as plt
     fig = plt.gcf()
 
@@ -906,11 +942,11 @@ def arrowed_spines(ax, basis="umap", background='white', x='0', y='1'):
              overhang=ohg/2,
              length_includes_head=True, clip_on=False)
 
-    ax.text(xmin + hl * 2.5/2, ymin - 1.1 * hw/2, basis.upper() + ' ' + str(x), ha="center", va="center", rotation=0,
-            size=np.clip((hl + yhw) * 8 / 2, None, 40),
+    ax.text(xmin + hl * 2.5/2, ymin - 1.1 * hw/2, columns[0], ha="center", va="center", rotation=0,
+            size=matplotlib.rcParams['axes.titlesize'], # np.clip((hl + yhw) * 8 / 2, None, 40)
             )
-    ax.text(xmin - 1.1 * yhw/2, ymin + hw * 2.5/2, basis.upper() + ' ' + str(y), ha="center", va="center", rotation=90,
-            size=np.clip((hl + yhw) * 8 / 2, None, 40),
+    ax.text(xmin - 1.1 * yhw/2, ymin + hw * 2.5/2, columns[1], ha="center", va="center", rotation=90,
+            size=matplotlib.rcParams['axes.titlesize'], # np.clip((hl + yhw) * 8 / 2, None, 40)
             )
 
     return ax

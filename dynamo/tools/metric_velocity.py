@@ -1,8 +1,10 @@
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 from scipy.sparse import issparse
 from .connectivity import umap_conn_indices_dist_embedding, mnn_from_list
 from .utils import get_finite_inds, inverse_norm, einsum_correlation
+from .utils_markers import fetch_X_data
 
 
 def cell_wise_confidence(adata, X_data=None, V_data=None, ekey="M_s", vkey="velocity_S", method="jaccard"):
@@ -154,3 +156,132 @@ def consensus(x, y):
                 np.min([x_norm, y_norm]) / np.max([x_norm, y_norm])
 
     return consensus
+
+
+def gene_wise_confidence(adata,
+                         group,
+                         progenitors_groups,
+                         mature_cells_groups,
+                         genes=None,
+                         layer='M_s',
+                         vlayer='velocity_S',
+                         X_data=None,
+                         V_data=None,
+                         V_threshold=1,
+                         ):
+    """Diagnostic measure to identify genes contributed to "wrong" directionality of the vector flow.
+
+    In some scenarios, you may find unexpected "wrong vector backflow" from your dynamo analysis, in order to diagnose
+    those cases, we can identify those genes showing up in the wrong phase portrait position. Then we nay remove those
+    identified genes to "correct" velocity vectors. This requires us to give some priors about what are progenitor and
+    what terminal cell types. The rationale behind this basically boils down to understanding the following two
+    scenarios:
+
+    1). if the progenitor’s expression is low, starting from time point 0, cells should start to increase expression.
+    There must be progenitors that are above the diagonal line. However, if most of the progenitors are laying below the
+    line (indicated by the red cells), we will have negative velocity and this will lead to reversed vector flow.
+
+    2). if progenitors start from high expression, starting from time point 0, cells should start to decrease expression.
+    There must be progenitors that are below the diagonal line. However, if most of the progenitors are laying above the
+    steady state line , we will have positive velocity and this will lead to reversed vector flow.
+
+    The same rationale can be applied to the mature cell states.
+
+    Thus, we design an algorithm to access the confidence of each gene in obeying the above two scenario:
+    We first check for whether a gene should be in the induction or repression phase from each progenitor to each
+    terminal cell states (based on the shift of the median gene expression between these two states). If it is in
+    induction phase, cells should show mostly at >= small negative velocity; otherwise <= small negative velocity.
+    1 - ratio of cells with velocity pass those threshold (defined by `V_threshold`) in each state is then defined as a
+    velocity confidence measure.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object
+        group: `str`
+            The column key/name that identifies the cell state grouping information of cells. This will be used for
+            calculating gene-wise confidence score in each cell state.
+        progenitors_groups: `list`
+            The group names from `group` that corresponding to the states of progenitors.
+        mature_cells_groups: `list`
+            The group names from `group` that corresponding to the states of terminal cell states. The best practice for
+            determining terminal cell states are those fully functional cells instead of intermediate cell states.
+        genes: `list` or None (default: `None`)
+            The list of genes that will be used to gene-wise confidence score calculation. If `None`, all genes that go
+            through velocity estimation will be used.
+        layer: `str` or None (default: `M_s`)
+            The layer that will be used to retrieve data for identifying the gene is in induction or repression phase at
+            each cell state. If `None`, .X is used.
+        vlayer: `str` or None (default: `velocity_S`)
+            The layer that will be used to retrieve velocity data for calculating gene-wise confidence. If `None`,
+            `velocity_S` is used.
+        X_data: `np.ndarray` (default: `None`)
+            The user supplied data that will be used for identifying the gene is in induction or repression phase at
+            each cell state directly
+        V_data: `np.ndarray` (default: `None`)
+            The user supplied data that will be used for calculating gene-wise confidence directly.
+        V_threshold: `float` (default: `1`)
+            The threshold of velocity to calculate the gene wise confidence.
+
+    Returns
+    -------
+        A updated adata object with a new `gene_wise_confidence` key in .uns, which contains gene-wise confidence score
+        in each cell state. .var will also be updated with `avg_prog_confidence` and `avg_mature_confidence` key which
+        correspond to the average gene wise confidence in the progenitor state or the mature cell state.
+    """
+
+    if X_data is None:
+        genes, X_data = fetch_X_data(adata, genes, layer)
+    else:
+        if genes is None or len(genes) != X_data.shape[1]:
+            raise ValueError(f"When providing X_data, a list of genes name that corresponds to the columns of X_data "
+                             f"must be provided")
+    if V_data is None:
+        genes, V_data = fetch_X_data(adata, genes, vlayer)
+    else:
+        if genes is None or len(genes) != X_data.shape[1]:
+            raise ValueError(f"When providing V_data, a list of genes name that corresponds to the columns of X_data "
+                             f"must be provided")
+
+    sparse, sparse_v = issparse(X_data), issparse(V_data)
+
+    progenitors_groups = [progenitors_groups] if type(progenitors_groups) == str else progenitors_groups
+    mature_cells_groups = [mature_cells_groups] if type(mature_cells_groups) == str else mature_cells_groups
+
+    confidence = []
+    for i_gene, gene in tqdm(enumerate(genes), desc="calculating gene velocity vectors confidence based on phase "
+                                                    "portrait location with priors of progenitor/mature cell types"):
+        all_vals = X_data[:, i_gene].A if sparse else X_data[:, i_gene]
+        all_vals_v = V_data[:, i_gene].A if sparse_v else V_data[:, i_gene]
+
+        for i, progenitor in enumerate(progenitors_groups):
+            prog_vals = all_vals[adata.obs[group] == progenitor]
+            prog_vals_v = all_vals_v[adata.obs[group] == progenitor]
+            threshold_val = np.percentile(abs(all_vals_v), V_threshold)
+
+            for j, mature in enumerate(mature_cells_groups):
+                mature_vals = all_vals[adata.obs[group] == mature]
+                mature_vals_v = all_vals_v[adata.obs[group] == mature]
+
+                if np.nanmedian(prog_vals) - np.nanmedian(mature_vals) > 0:
+                    # repression phase (bottom curve -- phase curve below the linear line indicates steady states)
+                    prog_confidence = 1 - sum(prog_vals_v > - threshold_val)[0] / len(prog_vals_v) # most cells should downregulate / ss
+                    mature_confidence = 1 - sum(mature_vals_v > - threshold_val)[0] / len(mature_vals_v) # most cell should downregulate / ss
+                else:
+                    # induction phase (upper curve -- phase curve above the linear line indicates steady states)
+                    prog_confidence = 1 - sum(prog_vals_v < threshold_val)[0] / len(prog_vals_v) # most cells should upregulate / ss
+                    mature_confidence = 1 - sum(mature_vals_v < threshold_val)[0] / len(mature_vals_v) # most cell should upregulate / ss
+
+                confidence.append((gene, progenitor, mature, prog_confidence, mature_confidence))
+    confidence = pd.DataFrame(confidence,
+                      columns=['gene', 'progenitor', 'mature', 'prog_confidence', 'mature_confidence'])
+    confidence.astype(dtype={"prog_confidence": "float64",
+                             "prog_confidence": "float64"})
+    adata.var['avg_prog_confidence'], adata.var['avg_mature_confidence'] = np.nan, np.nan
+    avg = confidence.groupby('gene')['prog_confidence', 'mature_confidence'].mean()
+    avg = avg.reset_index().set_index('gene')
+    adata.var.loc[genes, 'avg_prog_confidence'] = avg.loc[genes, 'prog_confidence']
+    adata.var.loc[genes, 'avg_mature_confidence'] = avg.loc[genes, 'mature_confidence']
+
+    adata.uns['gene_wise_confidence'] = confidence
+

@@ -135,8 +135,8 @@ def cell_velocities(
         key: `str` or None (default: `None`)
             The prefix key that will be prefixed to the keys for storing calculated transition matrix, projection vectors, etc.
         preserve_len: `bool` (default: `False`)
-            Whether do you want to preserve the length of high dimension vector length. When set to be True, the length
-            of low  dimension projected vector will be proportionally scaled with that of the high dimensional vector.
+            Whether to preserve the length of high dimension vector length. When set to be True, the length  of low
+            dimension projected vector will be proportionally scaled to that of the high dimensional vector.
         other_kernels_dict: `dict` (default: `{}`)
             A dictionary of paramters that will be passed to the cosine/correlation kernel.
         enforce: `bool` (default: `False`)
@@ -417,6 +417,7 @@ def cell_accelerations(adata,
                        vf_basis='pca',
                        basis='umap',
                        enforce=True,
+                       preserve_len=True,
                        other_kernels_dict={},
                        **kwargs):
     """Compute transition probability and project high dimension acceleration vector to existing low dimension embedding.
@@ -457,6 +458,15 @@ def cell_accelerations(adata,
         enforce: `bool` (default: `False`)
             Whether to enforce 1) redefining use_for_velocity column in obs attribute;
                                2) recalculation of transition matrix.
+        preserve_len: `bool` (default: `True`)
+            Whether to preserve the length of high dimension vector length. When set to be True, the length  of low
+            dimension projected vector will be proportionally scaled to that of the high dimensional vector. Note that
+            when preserve_len is set to be True, the acceleration field may seem to be messy (although the magnitude will
+            be reflected) while the trend of acceleration when `preserve_len` is `True` is more clearer but will lose
+            information of acceleration magnitude. This is because the acceleration is not directly related to the
+            distance of cells in the low embedding space; thus the acceleration direction can be better preserved than
+            the magnitude. On the other hand, velocity is more relevant to the distance in low embedding space, so
+            preserving magnitude and direction of velocity vector in low dimension can be more easily achieved.
         other_kernels_dict: `dict` (default: `{}`)
             A dictionary of paramters that will be passed to the cosine/correlation kernel.
 
@@ -490,7 +500,7 @@ def cell_accelerations(adata,
             basis=basis,
             enforce=enforce,
             key='acceleration',
-            preserve_len=True,
+            preserve_len=preserve_len,
             other_kernels_dict=other_kernels_dict,
             **kwargs
         )

@@ -69,7 +69,10 @@ from .velocyto_scvelo import (
 )
 
 # vector field related
-from .metric_velocity import cell_wise_confidence
+from .metric_velocity import (
+    cell_wise_confidence,
+    gene_wise_confidence,
+)
 from .scVectorField import (
     SparseVFC,
     graphize_vecfld,
