@@ -173,3 +173,12 @@ class _GenAnimation(_animation.FuncAnimation):
         _animation.TimedAnimation.__init__(self, fig, **kwargs)
         # Clear saved seq since TimedAnimation.__init__ adds a single frame.
         self._save_seq = []
+
+
+def remove_particles(pts, xlim, ylim):
+    if len(pts) == 0:
+        return []
+    outside_xlim = (pts[:, 0] < xlim[0]) | (pts[:, 0] > xlim[1])
+    outside_ylim = (pts[:, 1] < ylim[0]) | (pts[:, 1] > ylim[1])
+    keep = ~(outside_xlim | outside_ylim)
+    return pts[keep]

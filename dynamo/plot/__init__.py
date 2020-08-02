@@ -43,7 +43,11 @@ from .vector_calculus import (
     jacobian,
     jacobian_heatmap,
 )
-from .fate import fate_bias, StreamFuncAnim
+from .fate import (
+    fate_bias,
+    StreamFuncAnim,
+    animate_fates,
+)
 from .state_graph import state_graph
 
 from .scPotential import show_landscape

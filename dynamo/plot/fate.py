@@ -8,6 +8,7 @@ from ..prediction.fate import fate_bias as fate_bias_pd
 from ..tools.utils import update_dict
 from ..tools.scVectorField import vectorfield
 from ..plot.topography import topography
+from .fate_utilities import remove_particles
 
 def fate_bias(adata,
               group,
@@ -163,6 +164,8 @@ class StreamFuncAnim():
         >>> dyn.pd.fate(adata, basis='umap', init_cells=fate_progenitor, interpolation_num=100,  direction='forward',
         ...    inverse_transform=False, average=False, arclen_sampling=True)
         >>> dyn.pl.fate_animation(adata)
+
+                    See also:: :func:`animate_fates`
         """
 
         import matplotlib.pyplot as plt
@@ -267,16 +270,7 @@ class StreamFuncAnim():
         return self.ln,  # return line so that blit works properly
 
 
-def remove_particles(pts, xlim, ylim):
-    if len(pts) == 0:
-        return []
-    outside_xlim = (pts[:, 0] < xlim[0]) | (pts[:, 0] > xlim[1])
-    outside_ylim = (pts[:, 1] < ylim[0]) | (pts[:, 1] > ylim[1])
-    keep = ~(outside_xlim | outside_ylim)
-    return pts[keep]
-
-
-def fate_animation(adata,
+def animate_fates(adata,
                    basis='umap',
                    dims=None,
                    n_steps=100,
@@ -286,7 +280,8 @@ def fate_animation(adata,
                    ln=None,
                    interval=100,
                    blit=True,
-                   save_show_or_return='save'):
+                   save_show_or_return='save',
+                   **kwargs):
     """Animating cell fate commitment prediction via reconstructed vector field function.
 
     This class creates necessary components to produce an animation that describes the exact speed of a set of cells
@@ -316,6 +311,12 @@ def fate_animation(adata,
             The matplotlib axes object that will be used as background plot of the vector field animation.
         ln: `tuple` or None (default: `None`)
             An iterable of artists (for example, `matplotlib.lines.Line2D`) used to draw a clear frame.
+        interval: `float` (default: `200`)
+            Delay between frames in milliseconds.
+        blit: `bool` (default: `False`)
+            Whether blitting is used to optimize drawing. Note: when using blitting, any animated artists will be drawn
+            according to their zorder; however, they will be drawn on top of any previous artists, regardless of their
+            zorder.
 
         Returns
         -------
@@ -330,6 +331,8 @@ def fate_animation(adata,
         >>> dyn.pd.fate(adata, basis='umap', init_cells=fate_progenitor, interpolation_num=100,  direction='forward',
         ...    inverse_transform=False, average=False, arclen_sampling=True)
         >>> dyn.pl.fate_animation(adata)
+
+            See also:: :func:`StreamFuncAnim`
         """
 
     instance = StreamFuncAnim(adata=adata,
@@ -343,7 +346,7 @@ def fate_animation(adata,
                               )
 
     anim = animation.FuncAnimation(instance.fig, instance.update, init_func=instance.init_background,
-                                   frames=np.arange(n_steps), interval=interval, blit=blit)
+                                   frames=np.arange(n_steps), interval=interval, blit=blit, **kwargs)
     if save_show_or_return == 'save':
         anim.save('fate_ani.gif', writer="imagemagick")  # save as gif file.
     elif save_show_or_return == 'show':
