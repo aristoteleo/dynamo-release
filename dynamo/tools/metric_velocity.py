@@ -1,24 +1,39 @@
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from scipy.sparse import issparse
+from scipy.sparse import issparse, csr_matrix
+from sklearn.neighbors import NearestNeighbors
 from .connectivity import umap_conn_indices_dist_embedding, mnn_from_list
 from .utils import get_finite_inds, inverse_norm, einsum_correlation
 from .utils_markers import fetch_X_data
 
 
-def cell_wise_confidence(adata, X_data=None, V_data=None, ekey="M_s", vkey="velocity_S", method="jaccard"):
+def cell_wise_confidence(adata,
+                         X_data=None,
+                         V_data=None,
+                         ekey="M_s",
+                         vkey="velocity_S",
+                         neighbors_from_basis=False,
+                         method="jaccard"):
     """ Calculate the cell-wise velocity confidence metric.
 
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
             an Annodata object.
+        X_data: 'np.ndarray' or `sp.csr_matrix` or None (optional, default `None`)
+            The expression states of single cells (or expression states in reduced dimension, like pca, of single cells)
+        V_data: 'np.ndarray' or `sp.csr_matrix` or None (optional, default `None`)
+            The RNA velocity of single cells (or velocity estimates projected to reduced dimension, like pca, of single
+            cells). Note that X, V_mat need to have the exact dimensionalities.
         ekey: `str` (optional, default `M_s`)
             The dictionary key that corresponds to the gene expression in the layer attribute. By default, it is the
             smoothed expression `M_s`.
         vkey: 'str' (optional, default `velocity_S`)
             The dictionary key that corresponds to the estimated velocity values in layers attribute.
+        neighbors_from_basis: `bool` (optional, default `False`)
+            Whether to construct nearest neighbors from low dimensional space as defined by the `basis`, instead of using
+            that calculated during UMAP process.
         method: `str` (optional, default `jaccard`)
             Which method will be used for calculating the cell wise velocity confidence metric.
             By default it uses
@@ -44,10 +59,20 @@ def cell_wise_confidence(adata, X_data=None, V_data=None, ekey="M_s", vkey="velo
         X, V = (adata.layers[ekey] if X_data is None else X_data, adata.layers[vkey] if V_data is None else V_data)
         X = inverse_norm(adata, X) if X_data is None else X_data
 
-    n_neigh, X_neighbors = (
-        adata.uns["neighbors"]["params"]["n_neighbors"],
-        adata.obsp["connectivities"],
-    )
+    if not neighbors_from_basis:
+        n_neigh, X_neighbors = (
+            adata.uns["neighbors"]["params"]["n_neighbors"],
+            adata.obsp["connectivities"],
+        )
+    else:
+        n_neigh = 30
+        alg = 'ball_tree' if X_data.shape[1] > 10 else 'kd_tree'
+        nbrs = NearestNeighbors(n_neighbors=n_neigh + 1, algorithm=alg).fit(X)
+        dist, nbrs_idx = nbrs.kneighbors(X)
+        row = np.repeat(nbrs_idx[:, 0], n_neigh)
+        col = nbrs_idx[:, 1:].flatten()
+        X_neighbors = csr_matrix((np.repeat(1, len(col)), (row, col)), shape=(adata.n_obs, adata.n_obs))
+
     n_neigh = n_neigh[0] if type(n_neigh) == np.ndarray else n_neigh
     n_pca_components = adata.obsm["X"].shape[1]
 
