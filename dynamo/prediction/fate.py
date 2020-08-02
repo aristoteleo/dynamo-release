@@ -281,8 +281,8 @@ def fate_bias(adata,
               group,
               basis='umap',
               inds=None,
-              sink_speed_percentile=5,
-              outside_dist_threshold=25):
+              speed_percentile=5,
+              dist_threshold=25):
     """Calculate the lineage (fate) bias of states whose trajectory are predicted.
 
     Fate bias is currently calculated as the percentage of points along the predicted cell fate trajectory that are
@@ -302,6 +302,12 @@ def fate_bias(adata,
             steps of the fate prediction based on the `sink_speed_percentile` will be use. If inds is the float (between
             0 and 1), it will be regarded as a percentage, and the last percentage of steps will be used for fate bias
             calculation. Otherwise inds need to be a list of integers of the time steps.
+        speed_percentile: `float` (default: `5`)
+            The percentile of speed that will be used to determine the sink (or region on the prediction path where speed
+            is small).
+        dist_threshold: `float` (default: `25`)
+            A multiplier of the median nearest cell distance on the embedding to determine cells that are outside the
+            sampled domain of cells.
 
     Returns
     -------
@@ -340,17 +346,17 @@ def fate_bias(adata,
         # otherwise inds need to be a list.
         if inds is None:
             avg_speed = np.array([np.linalg.norm(i) for i in np.diff(prediction, 1).T]) / np.diff(cur_t)
-            sink_checker = np.where(avg_speed[::-1] > np.percentile(avg_speed, sink_speed_percentile))[0]
+            sink_checker = np.where(avg_speed[::-1] > np.percentile(avg_speed, speed_percentile))[0]
             inds = np.arange(n_steps - min(sink_checker), n_steps)
         elif inds is float:
-            inds = np.arange(n_steps - inds * n_steps, n_steps)
+            inds = np.arange(int(n_steps - inds * n_steps), n_steps)
 
         distances, knn = nbrs.kneighbors(prediction[None, inds])
         distances, knn = distances[:, 1], knn[:, 1]
 
         # if final steps too far away from observed cells, ignore them
         pred_dict[i] = clusters[knn.flatten()].value_counts() / len(inds) \
-            if distances.mean() < outside_dist_threshold * median_dist else np.nan
+            if distances.mean() < dist_threshold * median_dist else np.nan
 
     bias = pd.DataFrame(pred_dict).T
     if cell_indx is not None: bias.index = cell_indx
