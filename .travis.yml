@@ -5,6 +5,7 @@ python:
   - 3.7
 
 install:
+  - pip install tqdm
   - pip install docutils
   - pip install -e .
 #   - pip install black>=19.10b0
