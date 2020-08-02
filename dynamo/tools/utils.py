@@ -1,12 +1,10 @@
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
-import scipy
 from scipy import interpolate
 from scipy.sparse import issparse, csr_matrix
 from scipy.integrate import odeint, solve_ivp
 from scipy.linalg.blas import dgemm
-from scipy.spatial.distance import cdist
 from sklearn.neighbors import NearestNeighbors
 import warnings
 import time
@@ -1460,14 +1458,14 @@ def integrate_vf(
     for i in tqdm(range(n_cell), desc="integrating vector field"):
         y0 = init_states[i, :]
         if integration_direction == "forward":
-            y = scipy.integrate.odeint(lambda x, t: f(x), y0, t, args=args)
+            y = odeint(lambda x, t: f(x), y0, t, args=args)
             t_trans = t
         elif integration_direction == "backward":
-            y = scipy.integrate.odeint(lambda x, t: f(x), y0, -t, args=args)
+            y = odeint(lambda x, t: f(x), y0, -t, args=args)
             t_trans = -t
         elif integration_direction == "both":
-            y_f = scipy.integrate.odeint(lambda x, t: f(x), y0, t, args=args)
-            y_b = scipy.integrate.odeint(lambda x, t: f(x), y0, -t, args=args)
+            y_f = odeint(lambda x, t: f(x), y0, t, args=args)
+            y_b = odeint(lambda x, t: f(x), y0, -t, args=args)
             y = np.hstack((y_b[::-1, :], y_f))
             t_trans = np.hstack((-t[::-1], t))
 
@@ -1702,157 +1700,6 @@ def integrate_streamline(
 
     return t_linspace, res
 
-
-@timeit
-def vector_field_function(x, vf_dict, dim=None, kernel='full', **kernel_kwargs):
-    """vector field function constructed by sparseVFC.
-    Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
-    """
-    # x=np.array(x).reshape((1, -1))
-    if "div_cur_free_kernels" in vf_dict.keys():
-        has_div_cur_free_kernels = True
-    else:
-        has_div_cur_free_kernels = False
-
-    #x = np.array(x)
-    if x.ndim == 1:
-        x = x[None, :]
-
-    if has_div_cur_free_kernels:
-        if kernel == 'full':
-            kernel_ind = 0
-        elif kernel == 'df_kernel':
-            kernel_ind = 1
-        elif kernel == 'cf_kernel':
-            kernel_ind = 2
-        else:
-            raise ValueError(f"the kernel can only be one of {'full', 'df_kernel', 'cf_kernel'}!")
-
-        K = con_K_div_cur_free(x, vf_dict["X_ctrl"], vf_dict["sigma"], vf_dict["eta"], **kernel_kwargs)[kernel_ind]
-    else:
-        K = con_K(x, vf_dict["X_ctrl"], vf_dict["beta"], **kernel_kwargs)
-
-    if dim is None or has_div_cur_free_kernels:
-        K = K.dot(vf_dict["C"])
-    else:
-        K = K.dot(vf_dict["C"][:, dim])
-    return K
-
-
-@timeit
-def con_K(x, y, beta, method='cdist', return_d=False):
-    """con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
-
-    Arguments
-    ---------
-        x: :class:`~numpy.ndarray`
-            Original training data points.
-        y: :class:`~numpy.ndarray`
-            Control points used to build kernel basis functions.
-        beta: float (default: 0.1)
-            Paramerter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2),
-        return_d: bool
-            If True the intermediate 3D matrix x - y will be returned for analytical Jacobian.
-
-    Returns
-    -------
-    K: 'np.ndarray'
-    the kernel to represent the vector field function.
-    """
-    if method == 'cdist' and not return_d:
-        K = cdist(x, y, 'sqeuclidean')
-        if len(K) == 1:
-            K = K.flatten()
-    else:
-        n = x.shape[0]
-        m = y.shape[0]
-
-        # https://stackoverflow.com/questions/1721802/what-is-the-equivalent-of-matlabs-repmat-in-numpy
-        # https://stackoverflow.com/questions/12787475/matlabs-permute-in-python
-        D = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(
-            np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0])
-        K = np.squeeze(np.sum(D ** 2, 1))
-    K = -beta * K
-    K = np.exp(K)
-
-    if return_d:
-        return K, D
-    else:
-        return K
-
-@timeit
-def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
-    """Construct a convex combination of the divergence-free kernel T_df and curl-free kernel T_cf with a bandwidth sigma
-    and a combination coefficient gamma.
-
-    Arguments
-    ---------
-        x: 'np.ndarray'
-            Original training data points.
-        y: 'np.ndarray'
-            Control points used to build kernel basis functions
-        sigma: 'int' (default: `0.8`)
-            Bandwidth parameter.
-        eta: 'int' (default: `0.5`)
-            Combination coefficient for the divergence-free or the curl-free kernels.
-
-    Returns
-    -------
-        A tuple of G (the combined kernel function), divergence-free kernel and curl-free kernel.
-
-    See also:: :func:`sparseVFC`.
-    """
-    m, d = x.shape
-    n, d = y.shape
-    sigma2 = sigma ** 2
-    G_tmp = np.matlib.tile(x[:, :, None], [1, 1, n]) - np.transpose(
-        np.matlib.tile(y[:, :, None], [1, 1, m]), [2, 1, 0]
-    )
-    G_tmp = np.squeeze(np.sum(G_tmp ** 2, 1))
-    G_tmp3 = -G_tmp / sigma2
-    G_tmp = -G_tmp / (2 * sigma2)
-    G_tmp = np.exp(G_tmp) / sigma2
-    G_tmp = np.kron(G_tmp, np.ones((d, d)))
-
-    x_tmp = np.matlib.tile(x, [n, 1])
-    y_tmp = np.matlib.tile(y, [1, m]).T
-    y_tmp = y_tmp.reshape((d, m * n), order='F').T
-    xminusy = x_tmp - y_tmp
-    G_tmp2 = np.zeros((d * m, d * n))
-
-    tmp4_ = np.zeros((d, d))
-    for i in tqdm(range(d), desc="Iterating each dimension in con_K_div_cur_free:"):
-        for j in np.arange(i, d):
-            tmp1 = xminusy[:, i].reshape((m, n), order='F')
-            tmp2 = xminusy[:, j].reshape((m, n), order='F')
-            tmp3 = tmp1 * tmp2
-            tmp4 = tmp4_.copy()
-            tmp4[i, j] = 1
-            tmp4[j, i] = 1
-            G_tmp2 = G_tmp2 + np.kron(tmp3, tmp4)
-
-    G_tmp2 = G_tmp2 / sigma2
-    G_tmp3 = np.kron((G_tmp3 + d - 1), np.eye(d))
-    G_tmp4 = np.kron(np.ones((m, n)), np.eye(d)) - G_tmp2
-    df_kernel, cf_kernel = (1 - eta) * G_tmp * (G_tmp2 + G_tmp3), eta * G_tmp * G_tmp4
-    G = df_kernel + cf_kernel
-
-    return G, df_kernel, cf_kernel
-
-
-def _from_adata(adata, basis='', vf_key='VecFld'):
-    if basis is not None or len(basis) > 0:
-        vf_key = '%s_%s' % (vf_key, basis)
-
-    if vf_key not in adata.uns.keys():
-        raise ValueError(
-            f'Vector field function {vf_key} is not included in the adata object! '
-            f"Try firstly running dyn.tl.VectorField(adata, basis='{basis}')")
-        
-    vf_dict = adata.uns[vf_key]['VecFld']
-    func = lambda x: vector_field_function(x, vf_dict)
-
-    return vf_dict, func
 
 # ---------------------------------------------------------------------------------------------------
 # fate related

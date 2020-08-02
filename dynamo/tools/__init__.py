@@ -75,10 +75,12 @@ from .metric_velocity import (
 )
 from .scVectorField import (
     SparseVFC,
-    get_P,
     graphize_vecfld,
+    vectorfield
 )  # , evaluate, con_K_div_cur_free
-from .utils import vector_field_function
+from .utils_vecCalc import (
+    vector_field_function, 
+)
 from .topography import FixedPoints, VectorField2D, topography, VectorField
 from .vector_calculus import (
     speed,
@@ -88,11 +90,7 @@ from .vector_calculus import (
     acceleration,
     curvature,
     torsion,
-    Jacobian_rkhs_gaussian,
-    Jacobian_rkhs_gaussian_parallel,
-    Jacobian_numerical,
 )
-
 
 # Markov chain related:
 from .Markov import (
@@ -153,7 +151,8 @@ from .sampling import (
     TRNET,
     trn,
     sample_by_velocity,
-    lhsclassic
+    lhsclassic,
+    sample
 )
 
 # stochastic process related

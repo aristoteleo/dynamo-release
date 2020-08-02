@@ -101,3 +101,14 @@ def lhsclassic(n_samples, n_dim):
         H[:, j] = rdpoints[order, j]
 
     return H
+
+def sample(arr, n, method, X=None, V=None, **kwargs):
+    if method == 'random':
+        cell_idx = np.random.choice(arr, size=n, replace=False)
+    elif method == 'velocity' and V is not None:
+        cell_idx = sample_by_velocity(V, n, **kwargs)
+    elif method == 'trn' and X is not None:
+        cell_idx = trn(X, n, **kwargs)
+    else:
+        raise NotImplementedError(f"The sampling method {method} is not implemented or relevant data are not provided.")
+    return cell_idx
