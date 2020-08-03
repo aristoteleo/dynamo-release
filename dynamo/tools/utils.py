@@ -1507,7 +1507,7 @@ def integrate_vf(
 
 
 def integrate_vf_ivp(
-    init_states, t, args, integration_direction, f, interpolation_num=100, average=True, arclen_sampling=True,
+    init_states, t, args, integration_direction, f, interpolation_num=100, average=True, sampling='logspace',
     verbose=False, disable=False,
 ):
     """integrating along vector field function using the initial value problem solver from scipy.integrate"""
@@ -1589,7 +1589,7 @@ def integrate_vf_ivp(
         if verbose:
             print("\nintegration time: ", len(t_trans))
 
-    if arclen_sampling:
+    if sampling == 'arc_length':
         Y_, t_ = [None] * n_cell, [None] * n_cell
         for i in tqdm(range(n_cell), desc="uniformly sampling points along a trajectory", disable=disable):
             tau, x = T[i], Y[i].T
@@ -1610,13 +1610,40 @@ def integrate_vf_ivp(
             Y_[i] = odeint_cur_Y
 
         Y, t = Y_, t_
-    else:
+    elif sampling == 'logspace':
+        Y_, t_ = [None] * n_cell, [None] * n_cell
+        for i in tqdm(range(n_cell), desc="uniformly sampling points along a trajectory", disable=disable):
+            tau, x = T[i], Y[i].T
+            t_[i] = np.logspace(0, np.log10(max(tau) + 1), interpolation_num) - 1
+
+            if integration_direction == "both":
+                neg_t_len = sum(np.array(t_[i]) < 0)
+
+            odeint_cur_Y = SOL[i](t_[i]) if integration_direction != "both" \
+                else np.hstack(
+                (
+                    SOL[i][0](t_[i][:neg_t_len]),
+                    SOL[i][1](t_[i][neg_t_len:]),
+                )
+            )
+            Y_[i] = odeint_cur_Y
+
+        Y, t = Y_, t_
+    elif sampling == 'uniform_indices':
         t_uniq = np.unique(np.hstack(T))
         if len(t_uniq) > interpolation_num:
-            valid_t_trans = np.hstack([0, np.sort(np.random.choice(t_uniq[1::int(len(t_uniq) / interpolation_num)],
-                                                                interpolation_num - 1))])
+            valid_t_trans = np.hstack([0, np.sort(t_uniq)])[(np.linspace(0, len(t_uniq), interpolation_num)).astype(int)]
+
+            if len(valid_t_trans) != interpolation_num:
+                n_missed = interpolation_num - len(valid_t_trans)
+                tmp = np.zeros(n_missed)
+
+                for i in range(n_missed):
+                    tmp[i] = (valid_t_trans[i] + valid_t_trans[i + 1]) / 2
+
+                valid_t_trans = np.sort(np.hstack([tmp, valid_t_trans]))
         else:
-            valid_t_trans = np.logspace(0, np.log(max(t_uniq) + 1), interpolation_num) - 1
+            valid_t_trans = np.logspace(0, np.log10(max(t_uniq) + 1), interpolation_num) - 1
 
         _Y = None
         if integration_direction == "both":

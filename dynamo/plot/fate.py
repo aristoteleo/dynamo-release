@@ -192,9 +192,12 @@ class StreamFuncAnim():
         flat_list = np.unique([item for sublist in self.t for item in sublist])
         flat_list = np.hstack((0, flat_list))
         flat_list = np.sort(flat_list)
-        self.time_vec = flat_list[(np.linspace(0, len(flat_list) - 1, n_steps)).astype(int)]
-        self.logspace_vec = np.logspace(0, np.log(max(flat_list) + 1), n_steps) - 1
+
         self.logspace = logspace
+        if self.logspace:
+            self.time_vec = np.logspace(0, np.log10(max(flat_list) + 1), n_steps) - 1
+        else:
+            self.time_vec = flat_list[(np.linspace(0, len(flat_list) - 1, n_steps)).astype(int)]
 
         # init_states, VecFld, t_end, _valid_genes = fetch_states(
         #     adata, init_states, init_cells, basis, layer, False,
@@ -247,7 +250,7 @@ class StreamFuncAnim():
         """Update locations of "particles" in flow on each frame frame."""
         print(frame)
         init_states = self.init_states
-        time_vec = self.logspace_vec if self.logspace else self.time_vec
+        time_vec = self.time_vec
 
         pts = [i.tolist() for i in init_states]
 

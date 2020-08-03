@@ -19,8 +19,9 @@ def fate(
     genes=None,
     t_end=None,
     direction="both",
+    interpolation_num=250,
     average=False,
-    arclen_sampling=True,
+    sampling='logspace',
     VecFld_true=None,
     inverse_transform=False,
     scale=1,
@@ -60,14 +61,18 @@ def fate(
             by the odeint function.
         direction: `string` (default: both)
             The direction to predict the cell fate. One of the `forward`, `backward` or `both` string.
+        interpolation_num: `int` (default: 100)
+            The number of uniformly interpolated time points.
         average: `str` or `bool` (default: `False`) {'origin', 'trajectory'}
             The method to calculate the average cell state at each time step, can be one of `origin` or `trajectory`. If
             `origin` used, the average expression state from the init_cells will be calculated and the fate prediction is
             based on this state. If `trajectory` used, the average expression states of all cells predicted from the
             vector field function at each time point will be used. If `average` is `False`, no averaging will be applied.
-        arclen_sampling: `bool` (default: `True`)
-            Whether to apply uniformly sampling along the integration path. Default is `False`. If set to be `True`,
-            `average` will turn off.
+        sampling: `str` (default: `logspace`)
+            Methods to sample points along the integration path, one of `{'arc_length', 'logspace', 'uniform_indices'}`.
+            If `logspace`, we will sample time points linearly on log space. If `uniform_indices`, the sorted unique set
+            of all time points from all cell states' fate prediction will be used and then evenly sampled up to
+            `interpolation_num` time points. If `arc_length`, we will sample the integration path with uniform arc length.
         VecFld_true: `function`
             The true ODE function, useful when the data is generated through simulation. Replace VecFld arugment when
             this has been set.
@@ -87,10 +92,10 @@ def fate(
             AnnData object that is updated with the dictionary Fate (includes `t` and `prediction` keys) in uns attribute.
     """
 
-    if arclen_sampling == True:
+    if sampling in ['arc_length', 'logspace', 'uniform_indices']:
         if average in ['origin', 'trajectory', True]:
             warnings.warn(
-                "using arclength_sampling to uniformly sample along an integral path at different integration "
+               f"using {sampling} to sample data points along an integral path at different integration "
                 "time points. Average trajectory won't be calculated")
 
         average = False
@@ -121,10 +126,11 @@ def fate(
     t, prediction = _fate(
         vf,
         init_states,
-        direction=direction,
         t_end=t_end,
+        direction=direction,
+        interpolation_num=interpolation_num,
         average=True if average in ['origin', 'trajectory', True] else False,
-        arclen_sampling=arclen_sampling,
+        sampling=sampling,
         cores=cores,
         **kwargs
     )
@@ -185,9 +191,9 @@ def _fate(
     t_end=None,
     step_size=None,
     direction="both",
-    interpolation_num=100,
+    interpolation_num=250,
     average=True,
-    arclen_sampling=False,
+    sampling='arc_length',
     cores=1,
 ):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector field
@@ -213,6 +219,11 @@ def _fate(
         average: `bool` (default: True)
             A boolean flag to determine whether to smooth the trajectory by calculating the average cell state at each
             time step.
+        sampling: `str` (default: `logspace`)
+            Methods to sample points along the integration path, one of `{'arc_length', 'logspace', 'uniform_indices'}`.
+            If `logspace`, we will sample time points linearly on log space. If `uniform_indices`, the sorted unique set
+            of all time points from all cell states' fate prediction will be used and then evenly sampled up to
+            `interpolation_num` time points. If `arc_length`, we will sample the integration path with uniform arc length.
         cores: `int` (default: 1):
             Number of cores to calculate path integral for predicting cell fate. If cores is set to be > 1,
             multiprocessing will be used to parallel the fate prediction.
@@ -250,7 +261,7 @@ def _fate(
             VecFld,
             interpolation_num=interpolation_num,
             average=average,
-            arclen_sampling=arclen_sampling,
+            sampling=sampling,
         )
     else:
         pool = ThreadPool(cores)
