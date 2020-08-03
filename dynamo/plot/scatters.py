@@ -758,6 +758,7 @@ def scatters(
     return_all=False,
     add_gamma_fit=False,
     frontier=False,
+    sym_c=False,
     **kwargs
 ):
     """Plot an embedding as points. Currently this only works
@@ -885,6 +886,9 @@ def scatters(
             of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
             cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
             https://science.sciencemag.org/content/367/6482/1151.
+        sym_c: `bool` (default: `False`)
+            Whether do you want to make the limits of continuous color to be symmetric, normally this should be used for
+            plotting velocity, jacobian, curl, divergence or other types of data with both positive or negative values.
         kwargs:
             Additional arguments passed to plt.scatters.
 
@@ -1160,6 +1164,7 @@ def scatters(
                             show_legend,
                             sort=sort,
                             frontier=frontier,
+                            sym_c=sym_c,
                             **scatter_kwargs
                         )
                     else:
@@ -1178,6 +1183,7 @@ def scatters(
                             show_legend,
                             sort=sort,
                             frontier=frontier,
+                            sym_c=sym_c,
                             **scatter_kwargs
                         )
 

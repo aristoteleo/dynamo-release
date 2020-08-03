@@ -127,6 +127,7 @@ def _matplotlib_points(
         vmax=98,
         sort='raw',
         frontier=False,
+        sym_c=False,
         **kwargs,
 ):
     import matplotlib.pyplot as plt
@@ -247,10 +248,15 @@ def _matplotlib_points(
             else np.argsort(values)
         values, points = values[sorted_id], points[sorted_id, :]
 
-        _vmin = np.min(values) if vmin is None else np.percentile(values, vmin) if \
-            (vmax > 80 and vmax <= 100 and vmin < 20 and vmin > 0) else vmin
-        _vmax = np.max(values) if vmax is None else np.percentile(values, vmax) if \
-            (vmax > 80 and vmax <= 100 and vmin < 20 and vmin > 0) else vmax
+        if sym_c:
+            bounds = max(np.abs(np.nanmax(values)), np.abs(np.nanmin(values)))
+            bounds = bounds * np.array([-1, 1])
+            _vmin, _vmax = bounds
+        else:
+            _vmin = np.min(values) if vmin is None else np.percentile(values, vmin) if \
+                (vmax > 80 and vmax <= 100 and vmin < 20 and vmin > 0) else vmin
+            _vmax = np.max(values) if vmax is None else np.percentile(values, vmax) if \
+                (vmax > 80 and vmax <= 100 and vmin < 20 and vmin > 0) else vmax
 
         if frontier:
             ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "0.0", lw=2)
