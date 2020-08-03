@@ -284,10 +284,8 @@ def fate_bias(adata,
               speed_percentile=5,
               dist_threshold=25):
     """Calculate the lineage (fate) bias of states whose trajectory are predicted.
-
     Fate bias is currently calculated as the percentage of points along the predicted cell fate trajectory that are
     closest to any cell from each group specified by `group` key.
-
     Arguments
     ---------
         adata: :class:`~anndata.AnnData`
@@ -308,7 +306,6 @@ def fate_bias(adata,
         dist_threshold: `float` (default: `25`)
             A multiplier of the median nearest cell distance on the embedding to determine cells that are outside the
             sampled domain of cells.
-
     Returns
     -------
         fate_bias: `pandas.DataFrame`
@@ -350,13 +347,14 @@ def fate_bias(adata,
             inds = np.arange(n_steps - min(sink_checker), n_steps)
         elif inds is float:
             inds = np.arange(int(n_steps - inds * n_steps), n_steps)
-
-        distances, knn = nbrs.kneighbors(prediction[None, inds])
+        if i == 0: print(prediction.shape)
+        distances, knn = nbrs.kneighbors(prediction[:, inds].T)
         distances, knn = distances[:, 1], knn[:, 1]
 
+        if i == 0: print(distances, knn)
         # if final steps too far away from observed cells, ignore them
         pred_dict[i] = clusters[knn.flatten()].value_counts() / len(inds) \
-            if distances.mean() < dist_threshold * median_dist else np.nan
+            if distances.mean() < dist_threshold * median_dist else 0
 
     bias = pd.DataFrame(pred_dict).T
     if cell_indx is not None: bias.index = cell_indx

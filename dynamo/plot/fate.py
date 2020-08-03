@@ -85,6 +85,7 @@ class StreamFuncAnim():
                  color='ntr',
                  ax=None,
                  ln=None,
+                 logspace=False,
                  ):
         """Animating cell fate commitment prediction via reconstructed vector field function.
 
@@ -118,6 +119,9 @@ class StreamFuncAnim():
                 The matplotlib axes object that will be used as background plot of the vector field animation.
             ln: `tuple` or None (default: `None`)
                 An iterable of artists (for example, `matplotlib.lines.Line2D`) used to draw a clear frame.
+            logspace: `bool` (default: `False`)
+                Whether or to sample time points linearly on log space. If not, the sorted unique set of all time points
+                from all cell states' fate prediction will be used and then evenly sampled up to `n_steps` time points.
 
         Returns
         -------
@@ -189,6 +193,8 @@ class StreamFuncAnim():
         flat_list = np.hstack((0, flat_list))
         flat_list = np.sort(flat_list)
         self.time_vec = flat_list[(np.linspace(0, len(flat_list) - 1, n_steps)).astype(int)]
+        self.logspace_vec = np.logspace(0, np.log(max(flat_list) + 1), n_steps) - 1
+        self.logspace = logspace
 
         # init_states, VecFld, t_end, _valid_genes = fetch_states(
         #     adata, init_states, init_cells, basis, layer, False,
@@ -241,7 +247,7 @@ class StreamFuncAnim():
         """Update locations of "particles" in flow on each frame frame."""
         print(frame)
         init_states = self.init_states
-        time_vec = self.time_vec
+        time_vec = self.logspace_vec if self.logspace else self.time_vec
 
         pts = [i.tolist() for i in init_states]
 
@@ -281,6 +287,7 @@ def animate_fates(adata,
                    color='ntr',
                    ax=None,
                    ln=None,
+                   logspace=False,
                    interval=100,
                    blit=True,
                    save_show_or_return='show',
@@ -318,6 +325,9 @@ def animate_fates(adata,
             The matplotlib axes object that will be used as background plot of the vector field animation.
         ln: `tuple` or None (default: `None`)
             An iterable of artists (for example, `matplotlib.lines.Line2D`) used to draw a clear frame.
+        logspace: `bool` (default: `False`)
+            Whether or to sample time points linearly on log space. If not, the sorted unique set of all time points
+            from all cell states' fate prediction will be used and then evenly sampled up to `n_steps` time points.
         interval: `float` (default: `200`)
             Delay between frames in milliseconds.
         blit: `bool` (default: `False`)
@@ -359,6 +369,7 @@ def animate_fates(adata,
                               color=color,
                               ax=ax,
                               ln=ln,
+                              logspace=logspace,
                               )
 
     anim = animation.FuncAnimation(instance.fig, instance.update, init_func=instance.init_background,
