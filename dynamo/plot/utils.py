@@ -1285,7 +1285,7 @@ def plot_polygon(polygon,
     x_min, y_min, x_max, y_max = polygon.bounds
     ax.set_xlim([x_min - margin, x_max + margin])
     ax.set_ylim([y_min - margin, y_max + margin])
-    patch = PolygonPatch(polygon, fc=fc, ec=ec, fill=fill, zorder=-1, lw=3, alpha=0.1, **kwargs)
+    patch = PolygonPatch(polygon, fc=fc, ec=ec, fill=fill, zorder=-1, lw=3, alpha=0.4, **kwargs)
     ax.add_patch(patch)
 
     return ax

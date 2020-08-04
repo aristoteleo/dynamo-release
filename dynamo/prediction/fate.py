@@ -293,10 +293,12 @@ def fate_bias(adata,
               basis='umap',
               inds=None,
               speed_percentile=5,
-              dist_threshold=25):
+              dist_threshold=25,
+              source_groups=None):
     """Calculate the lineage (fate) bias of states whose trajectory are predicted.
     Fate bias is currently calculated as the percentage of points along the predicted cell fate trajectory that are
     closest to any cell from each group specified by `group` key.
+
     Arguments
     ---------
         adata: :class:`~anndata.AnnData`
@@ -312,11 +314,18 @@ def fate_bias(adata,
             0 and 1), it will be regarded as a percentage, and the last percentage of steps will be used for fate bias
             calculation. Otherwise inds need to be a list of integers of the time steps.
         speed_percentile: `float` (default: `5`)
-            The percentile of speed that will be used to determine the sink (or region on the prediction path where speed
-            is small).
+            The percentile of speed that will be used to determine the terminal cells (or sink region on the prediction
+            path where speed is smaller than this speed percentile).
         dist_threshold: `float` (default: `25`)
             A multiplier of the median nearest cell distance on the embedding to determine cells that are outside the
-            sampled domain of cells.
+            sampled domain of cells. If the mean distance of identified "terminal cells" is above this number, we will
+            look backward along the trajectory (by minimize all indices by 1) until it finds cells satisfy this threshold.
+        source_groups: `list` or `None` (default: `None`)
+            The groups that corresponds to progenitor groups. They has to have at least one intersection with the groups
+            from the `group` column. If group is not `None`, any identified "terminal cells" that happen to be in those
+            groups will be ignored and the probability of cell fate of those cells will be reassigned to groups that has
+            the highest fate probability among other group of non source_groups cells.
+
     Returns
     -------
         fate_bias: `pandas.DataFrame`
@@ -337,6 +346,12 @@ def fate_bias(adata,
         raise ValueError(f"The {fate_key} key is not existed in the .uns attribute of the adata object. You need to run"
                          f"dyn.pd.fate(adata, basis='{basis}') before calculate fate bias.")
 
+    if source_groups is not None:
+        if type(source_groups) is str: source_groups = [source_groups]
+        source_groups = list(set(source_groups).intersection(clusters))
+        if len(source_groups) == 0:
+            raise ValueError(f"the {source_groups} you provided doesn't intersect with any groups in the {group} column.")
+
     X = adata.obsm[basis_key] if basis_key is not 'X' else adata.X
     alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
     nbrs = NearestNeighbors(n_neighbors=2, algorithm=alg).fit(X)
@@ -348,25 +363,44 @@ def fate_bias(adata,
     t = adata.uns[fate_key]['t']
     for i, prediction in enumerate(cell_predictions):
         cur_t, n_steps = t[i], len(t[i])
-
+        indices = None
         # ensure to identify sink where the speed is very slow if inds is not provided.
         # if inds is the percentage, use the last percentage of steps to check for cell fate bias.
         # otherwise inds need to be a list.
         if inds is None:
             avg_speed = np.array([np.linalg.norm(i) for i in np.diff(prediction, 1).T]) / np.diff(cur_t)
             sink_checker = np.where(avg_speed[::-1] > np.percentile(avg_speed, speed_percentile))[0]
-            inds = np.arange(n_steps - min(sink_checker), n_steps)
+            indices = np.arange(n_steps - max(min(sink_checker), 10), n_steps)
         elif inds is float:
-            inds = np.arange(int(n_steps - inds * n_steps), n_steps)
+            indices = np.arange(int(n_steps - inds * n_steps), n_steps)
+        else:
+            indices = inds
 
-        distances, knn = nbrs.kneighbors(prediction[:, inds].T)
-        distances, knn = distances[:, 1], knn[:, 1]
+        distances, knn = nbrs.kneighbors(prediction[:, indices].T)
+        distances, knn = distances[:, 0], knn[:, 0]
 
         # if final steps too far away from observed cells, ignore them
-        if distances.mean() < dist_threshold * median_dist:
-            pred_dict[i] = clusters[knn.flatten()].value_counts() / len(inds)
-        else:
-            pred_dict[i] = clusters[knn.flatten()].value_counts() / len(inds)
+        while True:
+            if all(distances < dist_threshold * median_dist):
+                fate_prob = clusters[knn.flatten()].value_counts() / len(indices)
+                if source_groups is not None:
+                    source_p = fate_prob[source_groups].sum()
+                    if source_p != 1 and source_p > 0:
+                        fate_prob[source_groups] = 0
+                        fate_prob[fate_prob.idxmax()] += source_p
+                    elif source_p == 1:
+                        tmp = 0
+                        print('i', i, indices)
+                pred_dict[i] = fate_prob
+                break
+            else:
+                if any(indices - 1 < 0):
+                    pred_dict[i] = clusters[knn.flatten()].value_counts() * np.nan
+                    break
+
+                distances, knn = nbrs.kneighbors(prediction[:, indices - 1].T)
+                distances, knn = distances[:, 0], knn[:, 0]
+                indices = indices - 1
 
     bias = pd.DataFrame(pred_dict).T
     if cell_indx is not None: bias.index = cell_indx
