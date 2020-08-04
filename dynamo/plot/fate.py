@@ -59,6 +59,9 @@ def fate_bias(adata,
 
     fate_bias = fate_bias_pd(adata, group=group, basis=basis) if fate_bias_df is None else fate_bias_df
 
+    if 'confidence' in fate_bias.keys():
+        fate_bias.set_index([fate_bias.index, fate_bias.confidence], inplace=True)
+
     ax = sns.clustermap(fate_bias, col_cluster=True, row_cluster=True, figsize=figsize, yticklabels=False,
                         **cluster_maps_kwargs)
 

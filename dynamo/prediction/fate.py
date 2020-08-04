@@ -296,8 +296,30 @@ def fate_bias(adata,
               dist_threshold=25,
               source_groups=None):
     """Calculate the lineage (fate) bias of states whose trajectory are predicted.
-    Fate bias is currently calculated as the percentage of points along the predicted cell fate trajectory that are
-    closest to any cell from each group specified by `group` key.
+
+    Fate bias is currently calculated as the percentage of points along the predicted cell fate trajectory whose distance
+    to their 0-th nearest neighbors on the data are close enough (determined by median 1-st nearest neighbors of all
+    observed cells and the dist_threshold) to any cell from each group specified by `group` key. The details is described
+    as following:
+
+    Cell fate predicted by our vector field method sometimes end up in regions that are not sampled with cells. We thus
+    developed a heuristic method to iteratively walk backward the integration path to assign cell fate. We first identify
+    the regions with small velocity in the tail of the integration path (determined by `spped_percentile`), then I check
+    whether the distance of 0-th nearest points on the observed data to all those points are far away from the observed
+    data (determined by `dist_threshold`). If they are not all close to data, we then walk backwards along the trajectory
+    by one time step until the distance of all currently visited integration path’s data points’ 0-th nearest points to
+    the observed cells are close enough. Then I use group information of those observed cells to define the cell fate
+    probability.
+
+    `fate_bias` calculate a confidence score for the calculated fate probability with a simple metric, defined as
+        :math:`1 - (sum(distances > dist_threshold * median_dist) + walk_back_steps) / (len(indices) + walk_back_steps)`
+
+    The `distance` is currently visited integration path’s data points’ 0-th nearest points to the observed cells.
+    `median_dist` is median distance of their 1-st nearest cell distance of all observed cells. `walk_back_steps` is the
+    steps walked backward along the integration path until all currently visited integration points's 0-th nearest points
+    to the observed cells satisfy the distance threshold. `indices` are the time indices of integration points that is
+    regarded as the regions with `small velocity` (note when walking backward, those corresponding points are not
+    necessarily have small velocity anymore).
 
     Arguments
     ---------
@@ -361,6 +383,8 @@ def fate_bias(adata,
     pred_dict = {}
     cell_predictions, cell_indx = adata.uns[fate_key]['prediction'], adata.uns[fate_key]['init_cells']
     t = adata.uns[fate_key]['t']
+    confidence = np.zeros(len(t))
+
     for i, prediction in enumerate(cell_predictions):
         cur_t, n_steps = t[i], len(t[i])
         indices = None
@@ -380,20 +404,25 @@ def fate_bias(adata,
         distances, knn = distances[:, 0], knn[:, 0]
 
         # if final steps too far away from observed cells, ignore them
+        walk_back_steps = 0
         while True:
             if all(distances < dist_threshold * median_dist):
                 fate_prob = clusters[knn.flatten()].value_counts() / len(indices)
                 if source_groups is not None:
                     source_p = fate_prob[source_groups].sum()
-                    if source_p != 1 and source_p > 0:
+                    if 1 > source_p > 0:
                         fate_prob[source_groups] = 0
                         fate_prob[fate_prob.idxmax()] += source_p
-                    elif source_p == 1:
-                        tmp = 0
-                        print('i', i, indices)
+
                 pred_dict[i] = fate_prob
+
+                confidence[i] = 1 - (sum(distances > dist_threshold * median_dist) + walk_back_steps) / (
+                        len(indices) + walk_back_steps)
+
                 break
             else:
+                walk_back_steps += 1
+
                 if any(indices - 1 < 0):
                     pred_dict[i] = clusters[knn.flatten()].value_counts() * np.nan
                     break
@@ -403,6 +432,9 @@ def fate_bias(adata,
                 indices = indices - 1
 
     bias = pd.DataFrame(pred_dict).T
+    conf = pd.DataFrame({"confidence": confidence}, index=bias.index)
+    bias = pd.merge(conf, bias, left_index=True, right_index=True)
+
     if cell_indx is not None: bias.index = cell_indx
 
     return bias
