@@ -358,14 +358,15 @@ def fate_bias(adata,
             inds = np.arange(n_steps - min(sink_checker), n_steps)
         elif inds is float:
             inds = np.arange(int(n_steps - inds * n_steps), n_steps)
-        if i == 0: print(prediction.shape)
+
         distances, knn = nbrs.kneighbors(prediction[:, inds].T)
         distances, knn = distances[:, 1], knn[:, 1]
 
-        if i == 0: print(distances, knn)
         # if final steps too far away from observed cells, ignore them
-        pred_dict[i] = clusters[knn.flatten()].value_counts() / len(inds) \
-            if distances.mean() < dist_threshold * median_dist else 0
+        if distances.mean() < dist_threshold * median_dist:
+            pred_dict[i] = clusters[knn.flatten()].value_counts() / len(inds)
+        else:
+            pred_dict[i] = clusters[knn.flatten()].value_counts() / len(inds)
 
     bias = pd.DataFrame(pred_dict).T
     if cell_indx is not None: bias.index = cell_indx

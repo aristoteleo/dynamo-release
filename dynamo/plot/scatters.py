@@ -758,6 +758,9 @@ def scatters(
     return_all=False,
     add_gamma_fit=False,
     frontier=False,
+    contour=False,
+    ccmap=None,
+    calpha=2.3,
     sym_c=False,
     **kwargs
 ):
@@ -885,7 +888,21 @@ def scatters(
             Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show area
             of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
             cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
-            https://science.sciencemag.org/content/367/6482/1151.
+            https://science.sciencemag.org/content/367/6482/1151. If `contour` is set  to be True, `frontier` will be
+            ignored as `contour` also add an outlier for data points.
+        contour: `bool` (default: `False`)
+            Whether to add an countor on top of scatter plots. We use `tricontourf` to plot contour for non-gridded data.
+            The shapely package was used to create a polygon of the concave hull of the scatters. With the polygon we
+            then check if the mean of the triangulated points are within the polygon and use this as our condition to
+            form the mask to create the contour. We also add the polygon shape as a frontier of the data point (similar
+            to when setting `frontier = True`). When the color of the data points is continuous, we will use the same cmap
+            as for the scatter points by default, when color is categorical, no contour will be drawn but just the
+            polygon. cmap can be set with `ccmap` argument. See below.
+        ccmap: `str` or `None` (default: `None`)
+            The name of a matplotlib colormap to use for coloring or shading points the contour. See above.
+        calpha: `float` (default: `2.3`)
+            alpha value for identifying the alpha hull to influence the gooeyness of the border. Smaller numbers don't
+            fall inward as much as larger numbers. Too large, and you lose everything!
         sym_c: `bool` (default: `False`)
             Whether do you want to make the limits of continuous color to be symmetric, normally this should be used for
             plotting velocity, jacobian, curl, divergence or other types of data with both positive or negative values.
@@ -903,6 +920,8 @@ def scatters(
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
+
+    if contour: frontier = False
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
@@ -1164,6 +1183,9 @@ def scatters(
                             show_legend,
                             sort=sort,
                             frontier=frontier,
+                            contour=contour,
+                            ccmap=ccmap,
+                            calpha=calpha,
                             sym_c=sym_c,
                             **scatter_kwargs
                         )
@@ -1183,6 +1205,9 @@ def scatters(
                             show_legend,
                             sort=sort,
                             frontier=frontier,
+                            contour=contour,
+                            ccmap=ccmap,
+                            calpha=calpha,
                             sym_c=sym_c,
                             **scatter_kwargs
                         )
