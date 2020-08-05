@@ -7,7 +7,7 @@ from ..tools.topography import dup_osc_idx_iter
 from ..tools.utils import log1p_
 
 def integrate_vf_ivp(
-    init_states, t, args, integration_direction, f, interpolation_num=100, average=True, sampling='arc_length',
+    init_states, t, args, integration_direction, f, interpolation_num=250, average=True, sampling='arc_length',
     verbose=False, disable=False,
 ):
     """integrating along vector field function using the initial value problem solver from scipy.integrate"""
