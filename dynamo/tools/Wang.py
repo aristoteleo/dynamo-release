@@ -27,7 +27,7 @@ def Wang_action(X_input, F, D, dim, N, lamada_=1):
         The action function calculated by the Hamilton-Jacobian method.
     """
 
-    X_input = X_input.reshape((dim, -1)) if len(X_input.shape) == 1 else X_input
+    X_input = X_input.reshape((int(dim), -1)) if len(X_input.shape) == 1 else X_input
 
     delta, delta_l = delta_delta_l(X_input)
 
