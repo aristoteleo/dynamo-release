@@ -1593,6 +1593,9 @@ def integrate_vf_ivp(
         Y_, t_ = [None] * n_cell, [None] * n_cell
         for i in tqdm(range(n_cell), desc="uniformly sampling points along a trajectory", disable=disable):
             tau, x = T[i], Y[i].T
+            # idx = dup_osc_idx_iter(x, max_iter=100, tol=5)
+            # idx = dup_osc_idx_iter(x)
+            # x = x[:idx]
             x, arclen, discard = remove_redundant_points_trajectory(x, tol=1e-4, output_discard=True)
             arc_stepsize = arclen / interpolation_num
             cur_Y, alen, t_[i] = arclength_sampling(x, step_length=arc_stepsize, t=tau[~discard])

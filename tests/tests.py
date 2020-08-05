@@ -162,7 +162,7 @@ def test_Wang_LAP():
     )
     X_input = np.vstack((x1_input, x2_input))
 
-    dyn.tl.Wang_action(X_input, F=F, D=0.1, N=20, lamada_=1)
+    dyn.tl.Wang_action(X_input, F=F, D=0.1, N=20, dim=2, lamada_=1)
     res = optimize.basinhopping(
         dyn.tl.Wang_action, x0=X_input, minimizer_kwargs={"args": (2, F, 0.1, 20, 1)}
     )
