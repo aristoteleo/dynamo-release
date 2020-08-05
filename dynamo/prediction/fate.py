@@ -307,8 +307,8 @@ def fate_bias(adata,
     the regions with small velocity in the tail of the integration path (determined by `spped_percentile`), then I check
     whether the distance of 0-th nearest points on the observed data to all those points are far away from the observed
     data (determined by `dist_threshold`). If they are not all close to data, we then walk backwards along the trajectory
-    by one time step until the distance of all currently visited integration path’s data points’ 0-th nearest points to
-    the observed cells are close enough. Then I use group information of those observed cells to define the cell fate
+    by one time step until the distance of any currently visited integration path’s data points’ 0-th nearest points to
+    the observed cells is close enough. Then I use group information of those observed cells to define the cell fate
     probability.
 
     `fate_bias` calculate a confidence score for the calculated fate probability with a simple metric, defined as
@@ -406,7 +406,7 @@ def fate_bias(adata,
         # if final steps too far away from observed cells, ignore them
         walk_back_steps = 0
         while True:
-            if all(distances < dist_threshold * median_dist):
+            if any(distances < dist_threshold * median_dist):
                 fate_prob = clusters[knn.flatten()].value_counts() / len(indices)
                 if source_groups is not None:
                     source_p = fate_prob[source_groups].sum()

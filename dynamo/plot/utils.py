@@ -38,6 +38,21 @@ def is_list_of_lists(list_of_lists):
 # plotting utilities that borrowed from umap
 # link: https://github.com/lmcinnes/umap/blob/7e051d8f3c4adca90ca81eb45f6a9d1372c076cf/umap/plot.py
 
+def map2color(val, min=None, max=None, cmap='viridis'):
+    import matplotlib
+    import matplotlib.pyplot as plt
+    import matplotlib.cm as cm
+
+    minima = np.min(val) if min is None else min
+    maxima = np.max(val) if max is None else max
+
+    norm = matplotlib.colors.Normalize(vmin=minima, vmax=maxima, clip=True)
+    mapper = cm.ScalarMappable(norm=norm, cmap=plt.get_cmap(cmap))
+
+    cols = [mapper.to_rgba(v) for v in val]
+
+    return cols
+
 
 def _to_hex(arr):
     return [matplotlib.colors.to_hex(c) for c in arr]

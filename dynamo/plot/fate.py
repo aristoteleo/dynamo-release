@@ -2,7 +2,6 @@ import numpy as np
 import seaborn as sns
 import warnings
 from scipy.integrate import odeint
-from matplotlib import animation
 from .utils import save_fig
 from ..prediction.fate import fate_bias as fate_bias_pd
 from ..tools.utils import update_dict
@@ -366,6 +365,7 @@ def animate_fates(adata,
 
             See also:: :func:`StreamFuncAnim`
         """
+    from matplotlib import animation
 
     instance = StreamFuncAnim(adata=adata,
                               basis=basis,
