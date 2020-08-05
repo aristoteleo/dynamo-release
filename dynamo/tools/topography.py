@@ -240,6 +240,52 @@ def is_outside(X, domain):
         is_outside = np.logical_or(is_outside, o)
     return is_outside
 
+def calc_fft(x):
+    out = np.fft.rfft(x)
+    n = len(x)
+    xFFT = abs(out)/n*2
+    freq = np.arange(int(n/2))/n
+    return xFFT[:int(n/2)], freq
+
+def dup_osc_idx(x, n_dom=3, tol=0.05):
+    l = int(np.floor(len(x) / n_dom))
+    y1 = x[(n_dom-2)*l : (n_dom-1)*l]
+    y2 = x[(n_dom-1)*l : n_dom*l]
+    
+    def calc_fft_k(x):
+        ret = []
+        for k in range(x.shape[1]):
+            xFFT, _ = calc_fft(x[:, k])
+            ret.append(xFFT[1:])
+        return np.hstack(ret)
+    
+    xFFt1 = calc_fft_k(y1)
+    xFFt2 = calc_fft_k(y2)
+    
+    diff = np.linalg.norm(xFFt1 - xFFt2)/len(xFFt1)
+    if diff <= tol:
+        idx = (n_dom-1)*l
+    else:
+        idx = None
+    return idx, diff
+
+def dup_osc_idx_iter(x, max_iter=5, **kwargs):
+    stop = False
+    idx = len(x)
+    j = 0
+    D = []
+    while (not stop):
+        i, d = dup_osc_idx(x[:idx], **kwargs)
+        D.append(d)
+        if i is None:
+            stop = True
+        else:
+            idx = i
+        j += 1
+        if j >= max_iter:
+            stop = True
+    D = np.array(D)
+    return idx, D
 
 class FixedPoints:
     def __init__(self, X=None, J=None):
