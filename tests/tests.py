@@ -36,7 +36,7 @@ def VecFnc(
     return [dxdt, dydt]
 
 
-def test_Bhattacharya():
+def test_Bhattacharya(adata):
     """ Test the test_Bhattacharya method for mapping quasi-potential landscape.
 	The original system (VecFnc) from the Bhattacharya paper and the reconstructed vector field function in the neuron
 	datasets are used for testing.
@@ -75,7 +75,7 @@ def test_Bhattacharya():
         numPaths, numTimeSteps, pot_path, path_tag, attractors_pot, x_path, y_path
     )
 
-    dyn.pl.show_landscape(_, Xgrid, Ygrid, Zgrid) ### update
+    dyn.pl.show_landscape(adata, Xgrid, Ygrid, Zgrid) ### update
 
     # neuron model
     VecFld = scipy.io.loadmat(
