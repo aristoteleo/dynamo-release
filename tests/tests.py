@@ -75,7 +75,7 @@ def test_Bhattacharya():
         numPaths, numTimeSteps, pot_path, path_tag, attractors_pot, x_path, y_path
     )
 
-    dyn.pl.show_landscape(Xgrid, Ygrid, Zgrid)
+    dyn.pl.show_landscape(_, Xgrid, Ygrid, Zgrid) ### update
 
     # neuron model
     VecFld = scipy.io.loadmat(
@@ -162,9 +162,9 @@ def test_Wang_LAP():
     )
     X_input = np.vstack((x1_input, x2_input))
 
-    dyn.tl.least_action(X_input, F=F, D=0.1, N=20, lamada_=1)
+    dyn.tl.Wang_action(X_input, F=F, D=0.1, N=20, lamada_=1)
     res = optimize.basinhopping(
-        dyn.tl.least_action, x0=X_input, minimizer_kwargs={"args": (2, F, 0.1, 20, 1)}
+        dyn.tl.Wang_action, x0=X_input, minimizer_kwargs={"args": (2, F, 0.1, 20, 1)}
     )
     res
 

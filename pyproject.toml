@@ -35,7 +35,7 @@ requires = ['numpy>=1.18.1',
             'python-igraph>=0.7.1',
             'joblib',
             'setuptools']
-requires-extra = { doc = ['docutils'], test = ['pytest'], spatial = ['pysal>2.0.0'], dimension_reduction = ['fitsne>=1.0.1'] }
+requires-extra = { doc = ['docutils'], test = ['pytest', 'sympy>=1.4'], spatial = ['pysal>2.0.0'], dimension_reduction = ['fitsne>=1.0.1'] }
 keywords = 'dynamo scslam-seq scrna-seq velocity rna protein vector-field potential-landscape'
 classifiers = [
 	'License :: OSI Approved :: BSD License',
