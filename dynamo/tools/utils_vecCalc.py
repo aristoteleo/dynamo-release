@@ -48,7 +48,8 @@ def vector_field_function(x, vf_dict, dim=None, kernel='full', **kernel_kwargs):
 
         K = con_K_div_cur_free(x, vf_dict["X_ctrl"], vf_dict["sigma"], vf_dict["eta"], **kernel_kwargs)[kernel_ind]
     else:
-        K = con_K(x, vf_dict["X_ctrl"], vf_dict["beta"], **kernel_kwargs)
+        Xc = vf_dict["X_ctrl"] if dim is None else vf_dict["X_ctrl"][:, dim]
+        K = con_K(x, Xc, vf_dict["beta"], **kernel_kwargs)
 
     if dim is None or has_div_cur_free_kernels:
         K = K.dot(vf_dict["C"])
@@ -364,7 +365,7 @@ def subset_jacobian_transformation(Js, Qi, Qj, cores=1):
                         itertools.repeat(Qi), itertools.repeat(Qj)))
         ret = [np.transpose(r, axes=(2, 0, 1)) for r in ret]
         ret = np.transpose(np.vstack(ret), axes=(1, 2, 0))
-        
+
     return ret
 
 
