@@ -19,5 +19,6 @@ colorcet>=2.0.1
 datashader>=0.9.0
 bokeh>=1.4.0
 holoviews>=1.9.2
-tqdm>=4.31.1
+tqdm
 python-igraph>=0.7.1
+pysal>=2.3.0

@@ -698,7 +698,7 @@ def _scatters(
 
                 if (
                     "protein" in adata.obsm.keys()
-                    and mode is "full"
+                    and mode == "full"
                     and all(
                         [i in adata.layers.keys() for i in ["uu", "ul", "su", "sl"]]
                     )
@@ -1121,7 +1121,7 @@ def scatters(
                             if _background in ["#ffffff", "black"]:
                                 _theme_ = (
                                     "inferno"
-                                    if cur_l is not "velocity"
+                                    if cur_l != "velocity"
                                     else "div_blue_black_red"
                                 )
                             else:

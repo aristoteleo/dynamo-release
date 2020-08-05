@@ -178,7 +178,7 @@ def _dynamics(
 
             mode = "deterministic"
 
-        if mode is "deterministic" or (
+        if mode == "deterministic" or (
             experiment_type != "kin" and mode == "moment"
         ):
             est = ss_estimation(

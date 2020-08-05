@@ -152,7 +152,7 @@ def show_fraction(adata,
             "your data doesn't seem to have either splicing or labeling or both information"
         )
 
-    if mode is "labelling":
+    if mode == "labelling":
         new_mat, total_mat = (adata.layers["new"], adata.layers["total"]) if genes is None else \
             (adata[:, genes].layers["new"], adata[:, genes].layers["total"])
 

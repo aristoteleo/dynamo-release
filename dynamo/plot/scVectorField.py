@@ -468,9 +468,9 @@ def cell_wise_vectors(
         return_all=True,
     )
 
-    if cell_ind is "all":
+    if cell_ind == "all":
         ix_choice = np.arange(adata.shape[0])
-    elif cell_ind is "random":
+    elif cell_ind == "random":
         ix_choice = np.random.choice(np.range(adata.shape[0]), size=1000, replace=False)
     elif type(cell_ind) is int:
         ix_choice = np.random.choice(
