@@ -15,7 +15,8 @@ from .utils import (
 from ..tools.utils import update_dict
 
 
-docstrings.delete_params("scatters.parameters", "adata", "color", "cmap")
+docstrings.delete_params("scatters.parameters", "adata", "color", "cmap", "frontier", "sym_c")
+docstrings.delete_params("scatters.parameters", "adata", "color", "cmap", "frontier")
 
 @docstrings.with_indent(4)
 def speed(adata, basis='pca', color=None, frontier=True, *args, **kwargs):
@@ -69,7 +70,7 @@ def speed(adata, basis='pca', color=None, frontier=True, *args, **kwargs):
 
 
 @docstrings.with_indent(4)
-def curl(adata, basis='umap', color=None, cmap='bwr', frontier=True, *args, **kwargs):
+def curl(adata, basis='umap', color=None, cmap='bwr', frontier=True, sym_c=True, *args, **kwargs):
     """\
     Scatter plot with cells colored by the estimated curl (and other information if provided).
 
@@ -90,7 +91,10 @@ def curl(adata, basis='umap', color=None, cmap='bwr', frontier=True, *args, **kw
             of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
             cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
             https://science.sciencemag.org/content/367/6482/1151.
-        %(scatters.parameters.no_adata|color|cmap|frontier)s
+        sym_c: `bool` (default: `False`)
+            Whether do you want to make the limits of continuous color to be symmetric, normally this should be used for
+            plotting velocity, curl, divergence or other types of data with both positive or negative values.
+        %(scatters.parameters.no_adata|color|cmap|frontier|sym_c)s
 
     Returns
     -------
@@ -123,11 +127,11 @@ def curl(adata, basis='umap', color=None, cmap='bwr', frontier=True, *args, **kw
     # adata.obs[curl_key] = adata.obs[curl_key].astype('float')
     # adata_ = adata[~ adata.obs[curl_key].isna(), :]
 
-    return scatters(adata, color=color_, cmap=cmap, frontier=frontier, *args, **kwargs)
+    return scatters(adata, color=color_, cmap=cmap, frontier=frontier, sym_c=sym_c, *args, **kwargs)
 
 
 @docstrings.with_indent(4)
-def divergence(adata, basis='pca', color=None, cmap='bwr', frontier=True, *args, **kwargs):
+def divergence(adata, basis='pca', color=None, cmap='bwr', frontier=True, sym_c=True, *args, **kwargs):
     """\
     Scatter plot with cells colored by the estimated divergence (and other information if provided).
 
@@ -147,7 +151,10 @@ def divergence(adata, basis='pca', color=None, cmap='bwr', frontier=True, *args,
             of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
             cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
             https://science.sciencemag.org/content/367/6482/1151.
-        %(scatters.parameters.no_adata|color|cmap|frontier)s
+        sym_c: `bool` (default: `False`)
+            Whether do you want to make the limits of continuous color to be symmetric, normally this should be used for
+            plotting velocity, divergence or other types of data with both positive or negative values.
+        %(scatters.parameters.no_adata|color|cmap|frontier|sym_c)s
 
     Returns
     -------
@@ -179,11 +186,11 @@ def divergence(adata, basis='pca', color=None, cmap='bwr', frontier=True, *args,
         color = [color] if type(color) == str else color
         color_.extend(color)
 
-    return scatters(adata, color=color_, cmap=cmap, frontier=frontier, *args, **kwargs)
+    return scatters(adata, color=color_, cmap=cmap, frontier=frontier, sym_c=sym_c, *args, **kwargs)
 
 
 @docstrings.with_indent(4)
-def curvature(adata, basis='pca', color=None, cmap='bwr', frontier=True, *args, **kwargs):
+def curvature(adata, basis='pca', color=None, frontier=True, *args, **kwargs):
     """\
     Scatter plot with cells colored by the estimated curvature (and other information if provided).
 
@@ -229,7 +236,8 @@ def curvature(adata, basis='pca', color=None, cmap='bwr', frontier=True, *args, 
         color = [color] if type(color) == str else color
         color_.extend(color)
 
-    return scatters(adata_, color=color_, cmap=cmap, frontier=frontier, *args, **kwargs)
+    return scatters(adata_, color=color_, frontier=frontier, *args, **kwargs)
+
 
 @docstrings.with_indent(4)
 def jacobian(adata,
@@ -245,6 +253,7 @@ def jacobian(adata,
              figsize=(6, 4),
              show_legend=True,
              frontier=True,
+             sym_c=True,
              save_show_or_return="show",
              save_kwargs={},
              **kwargs):
@@ -295,6 +304,9 @@ def jacobian(adata,
             of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
             cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
             https://science.sciencemag.org/content/367/6482/1151.
+        sym_c: `bool` (default: `False`)
+            Whether do you want to make the limits of continuous color to be symmetric, normally this should be used for
+            plotting velocity, jacobian, curl, divergence or other types of data with both positive or negative values.
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -393,6 +405,7 @@ def jacobian(adata,
                 height=figsize[1],
                 show_legend=show_legend,
                 frontier=frontier,
+                sym_c=sym_c,
                 **scatter_kwargs
             )
             ax.set_title(r'$\frac{{\partial f_{{{}}} }}{{\partial {}}}$'.format(target, source))

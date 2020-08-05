@@ -300,7 +300,7 @@ def gen_gradient(dim, N, Function, DiffusionMatrix):
             """ % str(
         str_V_processed
     )
-    ret = StringFunction(f_str, independent_variable=x, dt=dt, x=x)
+    # ret = StringFunction(f_str, independent_variable=x, dt=dt, x=x)
 
     return ret, V
 
@@ -582,7 +582,7 @@ class Pot:
             The least action path learned
         """
 
-        if method is "Ao":
+        if method == "Ao":
             X = adata.obsm["X_" + basis]
             X, U, P, vecMat, S, A = Ao_pot_map(
                 self.VecFld["Function"], X, D=self.VecFld["DiffusionMatrix"]
@@ -595,7 +595,7 @@ class Pot:
                 "S": S,
                 "A": A,
             }
-        elif method is "Bhattacharya":
+        elif method == "Bhattacharya":
             (
                 numPaths,
                 numTimeSteps,
@@ -632,7 +632,7 @@ class Pot:
 
             return adata
         # make sure to also obtain Xgrid, Ygrid, Zgrid, etc.
-        elif method is "Tang":
+        elif method == "Tang":
             Function, DiffusionMatrix = (
                 self.VecFld["Function"],
                 self.VecFld["DiffusionMatrix"],

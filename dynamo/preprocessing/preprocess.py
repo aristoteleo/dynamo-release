@@ -73,7 +73,7 @@ def szFactor(
         filter_checker = [i in adata_ori.var.columns for i in filter_list]
         which_filter = np.where(filter_checker)[0]
 
-        gene_inds = adata_ori.var[filter_list[which_filter[0]]] if len(which_filter) > 0 is not None else adata_ori.var.index
+        gene_inds = adata_ori.var[filter_list[which_filter[0]]] if len(which_filter) > 0 else adata_ori.var.index
 
         adata = adata_ori[cell_inds, :][:, gene_inds]
 
@@ -95,14 +95,14 @@ def szFactor(
         sfs, cell_total = sz_util(adata, layer, round_exprs, method, locfunc, total_layers=total_layers)
 
         sfs[~np.isfinite(sfs)] = 1
-        if layer is "raw":
+        if layer == "raw":
             adata.obs[layer + "_Size_Factor"] = sfs
             adata.obs["Size_Factor"] = sfs
             adata.obs["initial_cell_size"] = cell_total
-        elif layer is "X":
+        elif layer == "X":
             adata.obs["Size_Factor"] = sfs
             adata.obs["initial_cell_size"] = cell_total
-        elif layer is "_total_":
+        elif layer == "_total_":
             adata.obs["total_Size_Factor"] = sfs
             adata.obs["initial" + layer + "cell_size"] = cell_total
             del adata.layers["_total_"]
@@ -189,11 +189,11 @@ def normalize_expr_data(
         szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=total_szfactor)
         if norm_method is None and layer == 'X':
             CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, np.log1p)
-        elif norm_method in [np.log1p, np.log, np.log2, Freeman_Tukey, None] and layer is not "protein":
+        elif norm_method in [np.log1p, np.log, np.log2, Freeman_Tukey, None] and layer != "protein":
             CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method)
 
-        elif layer is "protein":  # norm_method == 'clr':
-            if norm_method is not "clr":
+        elif layer == "protein":  # norm_method == 'clr':
+            if norm_method != "clr":
                 warnings.warn(
                     "For protein data, log transformation is not recommended. Using clr normalization by default."
                 )
@@ -218,7 +218,7 @@ def normalize_expr_data(
 
         if layer in ["raw", "X"]:
             adata.X = CM
-        elif layer is "protein" and "protein" in adata.obsm_keys():
+        elif layer == "protein" and "protein" in adata.obsm_keys():
             adata.obsm["X_protein"] = CM
         else:
             adata.layers["X_" + layer] = CM
@@ -252,11 +252,11 @@ def Gini(adata, layers="all"):
     layers = get_layer_keys(adata, layers)
 
     for layer in layers:
-        if layer is "raw":
+        if layer == "raw":
             CM = adata.raw.X
-        elif layer is "X":
+        elif layer == "X":
             CM = adata.X
-        elif layer is "protein":
+        elif layer == "protein":
             if "protein" in adata.obsm_keys():
                 CM = adata.obsm[layer]
             else:
@@ -364,10 +364,10 @@ def disp_calc_helper_NB(adata, layers="X", min_cells_detected=1):
 
     res_list = []
     for layer in layers:
-        if layer is "raw":
+        if layer == "raw":
             CM = adata.raw.X
             szfactors = adata.obs[layer + "Size_Factor"][:, None]
-        elif layer is "X":
+        elif layer == "X":
             CM = adata.X
             szfactors = adata.obs["Size_Factor"][:, None]
         else:
@@ -457,7 +457,7 @@ def topTable(adata, layer="X", mode="dispersion"):
     else:
         key = layer + "_dispFitInfo"
 
-    if mode is "dispersion":
+    if mode == "dispersion":
         if adata.uns[key] is None:
             raise KeyError(
                 "Error: no dispersion model found. Please call estimateDispersions() before calling this function"
@@ -475,7 +475,7 @@ def topTable(adata, layer="X", mode="dispersion"):
         )
         top_df = top_df.set_index("gene_id")
 
-    elif mode is "gini":
+    elif mode == "gini":
         top_df = adata.var[layer + "_gini"]
 
     return top_df
@@ -599,7 +599,7 @@ def Dispersion(
         def ans(q):
             return coefs[0] + coefs[1] / q
 
-        if layer is "X":
+        if layer == "X":
             adata.uns["dispFitInfo"] = {
                 "disp_table": good,
                 "disp_func": ans,
@@ -679,23 +679,23 @@ def SVRs(
         filter_checker = [i in adata_ori.var.columns for i in filter_list]
         which_filter = np.where(filter_checker)[0]
 
-        gene_inds = adata_ori.var[filter_list[which_filter[0]]] if len(which_filter) > 0 is not None else adata_ori.var.index
+        gene_inds = adata_ori.var[filter_list[which_filter[0]]] if len(which_filter) > 0 else adata_ori.var.index
 
         adata = adata_ori[cell_inds, :][:, gene_inds]
         filter_bool = filter_bool[gene_inds]
 
     for layer in layers:
-        if layer is "raw":
+        if layer == "raw":
             CM = adata.X.copy() if adata.raw is None else adata.raw
             szfactors = (
                 adata.obs[layer + "_Size_Factor"][:, None]
                 if adata.raw.X is not None
                 else adata.obs["Size_Factor"][:, None]
             )
-        elif layer is "X":
+        elif layer == "X":
             CM = adata.X.copy()
             szfactors = adata.obs["Size_Factor"][:, None]
-        elif layer is "protein":
+        elif layer == "protein":
             if "protein" in adata.obsm_keys():
                 CM = adata.obsm["protein"].copy()
                 szfactors = adata.obs[layer + "_Size_Factor"][:, None]
@@ -796,7 +796,7 @@ def SVRs(
 
         key = (
             "velocyto_SVR"
-            if layer is "raw" or layer is "X"
+            if layer == "raw" or layer == "X"
             else layer + "_velocyto_SVR"
         )
         adata_ori.uns[key] = {"SVR": fitted_fun}
@@ -860,7 +860,7 @@ def filter_cells(
         & ((adata.X > 0).sum(1) <= max_expr_genes_s)
     ).flatten()
 
-    if ("spliced" in adata.layers.keys()) & (layer is "spliced" or layer is "all"):
+    if ("spliced" in adata.layers.keys()) & (layer == "spliced" or layer == "all"):
         detected_bool = (
             detected_bool
             & (
@@ -868,7 +868,7 @@ def filter_cells(
                 & ((adata.layers["spliced"] > 0).sum(1) <= max_expr_genes_s)
             ).flatten()
         )
-    if ("unspliced" in adata.layers.keys()) & (layer is "unspliced" or layer is "all"):
+    if ("unspliced" in adata.layers.keys()) & (layer == "unspliced" or layer == "all"):
         detected_bool = (
             detected_bool
             & (
@@ -876,7 +876,7 @@ def filter_cells(
                 & ((adata.layers["unspliced"] > 0).sum(1) <= max_expr_genes_u)
             ).flatten()
         )
-    if ("protein" in adata.obsm.keys()) & (layer is "protein" or layer is "all"):
+    if ("protein" in adata.obsm.keys()) & (layer == "protein" or layer == "all"):
         detected_bool = (
             detected_bool
             & (
@@ -1008,7 +1008,7 @@ def filter_genes(
         & (adata.X.sum(0) >= min_count_s)
     ).flatten()
 
-    if "spliced" in adata.layers.keys() and (layer is "spliced" or layer is "all"):
+    if "spliced" in adata.layers.keys() and (layer == "spliced" or layer == "all"):
         detected_bool = (
             detected_bool
             & np.array(
@@ -1018,7 +1018,7 @@ def filter_genes(
                 & (adata.layers["spliced"].sum(0) >= min_count_s)
             ).flatten()
         )
-    if "unspliced" in adata.layers.keys() and (layer is "unspliced" or layer is "all"):
+    if "unspliced" in adata.layers.keys() and (layer == "unspliced" or layer == "all"):
         detected_bool = (
             detected_bool
             & np.array(
@@ -1036,7 +1036,7 @@ def filter_genes(
 
     ############################## The following code need to be updated ##############################
     # just remove genes that are not following the protein criteria
-    if "protein" in adata.obsm.keys() and layer is "protein":
+    if "protein" in adata.obsm.keys() and layer == "protein":
         detected_bool = (
             detected_bool
             & np.array(
@@ -1095,7 +1095,7 @@ def select_genes(
     if adata.shape[1] <= n_top_genes:
         filter_bool = np.ones(adata.shape[1], dtype=bool)
     else:
-        if sort_by is "dispersion":
+        if sort_by == "dispersion":
             table = topTable(adata, layer, mode="dispersion")
             valid_table = table.query("dispersion_empirical > dispersion_fit")
             valid_table = valid_table.loc[
@@ -1106,13 +1106,13 @@ def select_genes(
             ]
             gene_id = valid_table.iloc[gene_id, :].index
             filter_bool = adata.var.index.isin(gene_id)
-        elif sort_by is "gini":
+        elif sort_by == "gini":
             table = topTable(adata, layer, mode="gini")
             valid_table = table.loc[filter_bool, :]
             gene_id = np.argsort(-valid_table.loc[:, "gini"])[:n_top_genes]
             gene_id = valid_table.index[gene_id]
             filter_bool = gene_id.isin(adata.var.index)
-        elif sort_by is "SVR":
+        elif sort_by == "SVR":
             SVRs_args = {
                 "min_expr_cells": 0,
                 "min_expr_avg": 0,
@@ -1382,9 +1382,9 @@ def recipe_monocle(
     if layer is None:
         CM = adata.X[:, adata.var.use_for_pca.values]
     else:
-        if layer is "X":
+        if layer == "X":
             CM = adata.X[:, adata.var.use_for_pca.values]
-        elif layer is "protein":
+        elif layer == "protein":
             CM = adata.obsm["X_protein"]
         else:
             CM = adata.layers["X_" + layer][:, adata.var.use_for_pca.values]
@@ -1397,7 +1397,7 @@ def recipe_monocle(
         adata.var.columns.tolist().index("use_for_pca"),
     ] = False
     CM = CM[:, valid_ind]
-    if method is "pca":
+    if method == "pca":
         adata, fit, _ = pca(adata, CM, num_dim, "X_" + method.lower())
 
         adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
@@ -1525,7 +1525,7 @@ def recipe_velocyto(
 
     CM = CM[:, valid_ind]
 
-    if method is "pca":
+    if method == "pca":
         adata, fit, _ = pca(adata, CM, num_dim, "X_" + method.lower())
         # adata.obsm['X_' + method.lower()] = reduce_dim
 

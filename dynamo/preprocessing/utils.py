@@ -223,7 +223,7 @@ def get_layer_keys(adata, layers="all", remove_normalized=True, include_protein=
         layer_keys.extend(["X"])
     layers = (
         layer_keys
-        if layers is "all"
+        if layers == "all"
         else list(set(layer_keys).intersection(list(layers)))
     )
 
@@ -342,11 +342,11 @@ def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None, CM=No
                     )
                 adata.layers["_total_"] = total
 
-    if layer is "raw":
+    if layer == "raw":
         CM = adata.raw.X if CM is None else CM
-    elif layer is "X":
+    elif layer == "X":
         CM = adata.X if CM is None else CM
-    elif layer is "protein":
+    elif layer == "protein":
         if "protein" in adata.obsm_keys():
             CM = adata.obsm["protein"] if CM is None else CM
         else:
@@ -375,13 +375,13 @@ def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None, CM=No
     return sfs, cell_total
 
 def get_sz_exprs(adata, layer, total_szfactor=None):
-    if layer is "raw":
+    if layer == "raw":
         CM = adata.raw.X
         szfactors = adata.obs[layer + "Size_Factor"][:, None]
-    elif layer is "X":
+    elif layer == "X":
         CM = adata.X
         szfactors = adata.obs["Size_Factor"][:, None]
-    elif layer is "protein":
+    elif layer == "protein":
         if "protein" in adata.obsm_keys():
             CM = adata.obsm[layer]
             szfactors = adata.obs["protein_Size_Factor"][:, None]

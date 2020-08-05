@@ -152,7 +152,7 @@ def show_fraction(adata,
             "your data doesn't seem to have either splicing or labeling or both information"
         )
 
-    if mode is "labelling":
+    if mode == "labelling":
         new_mat, total_mat = (adata.layers["new"], adata.layers["total"]) if genes is None else \
             (adata[:, genes].layers["new"], adata[:, genes].layers["total"])
 
@@ -177,7 +177,7 @@ def show_fraction(adata,
         else:
             res = df.melt(value_vars=["new_frac_cell", "old_frac_cell"])
 
-    elif mode is "splicing":
+    elif mode == "splicing":
         if "ambiguous" in adata.layers.keys():
             ambiguous = adata.layers["ambiguous"] if genes is None else adata[:, genes].layers["ambiguous"]
         else:
@@ -245,7 +245,7 @@ def show_fraction(adata,
                 else df.melt(value_vars=["unspliced", "spliced"])
             )
 
-    elif mode is "full":
+    elif mode == "full":
         uu, ul, su, sl = (
             adata.layers["uu"] if genes is None else adata[:, genes].layers["uu"],
             adata.layers["ul"] if genes is None else adata[:, genes].layers["ul"],
@@ -422,7 +422,7 @@ def feature_genes(adata,
 
     layer = get_layer_keys(adata, layer, include_protein=False)[0]
 
-    if mode is "dispersion":
+    if mode == "dispersion":
         key = "dispFitInfo" if layer in ["raw", "X"] else layer + "_dispFitInfo"
 
         table = topTable(adata, layer)
@@ -430,11 +430,11 @@ def feature_genes(adata,
             np.nanmin(table["mean_expression"]),
             np.nanmax(table["mean_expression"]),
         )
-    elif mode is "SVR":
+    elif mode == "SVR":
         prefix = "" if layer == "X" else layer + "_"
         key = (
             "velocyto_SVR"
-            if layer is "raw" or layer is "X"
+            if layer == "raw" or layer == "X"
             else layer + "_velocyto_SVR"
         )
 
@@ -465,7 +465,7 @@ def feature_genes(adata,
     mu_linspace = np.linspace(x_min, x_max, num=1000)
     fit = (
         adata.uns[key]["disp_func"](mu_linspace)
-        if mode is "dispersion"
+        if mode == "dispersion"
         else adata.uns[key]["SVR"](mu_linspace.reshape(-1, 1))
     )
 
@@ -478,7 +478,7 @@ def feature_genes(adata,
     )
 
     valid_disp_table = table.iloc[valid_ind, :]
-    if mode is "dispersion":
+    if mode == "dispersion":
         ax = plt.scatter(
             valid_disp_table["mean_expression"],
             valid_disp_table["dispersion_empirical"],
@@ -486,7 +486,7 @@ def feature_genes(adata,
             alpha=1,
             color="xkcd:red",
         )
-    elif mode is "SVR":
+    elif mode == "SVR":
         ax = plt.scatter(
             valid_disp_table[prefix + "log_m"],
             valid_disp_table[prefix + "log_cv"],
@@ -497,7 +497,7 @@ def feature_genes(adata,
 
     neg_disp_table = table.iloc[~valid_ind, :]
 
-    if mode is "dispersion":
+    if mode == "dispersion":
         ax = plt.scatter(
             neg_disp_table["mean_expression"],
             neg_disp_table["dispersion_empirical"],
@@ -505,7 +505,7 @@ def feature_genes(adata,
             alpha=0.5,
             color="xkcd:grey",
         )
-    elif mode is "SVR":
+    elif mode == "SVR":
         ax = plt.scatter(
             neg_disp_table[prefix + "log_m"],
             neg_disp_table[prefix + "log_cv"],
@@ -515,11 +515,11 @@ def feature_genes(adata,
         )
 
     # plt.xlim((0, 100))
-    if mode is "dispersion":
+    if mode == "dispersion":
         plt.xscale("log")
     plt.yscale("log")
     plt.xlabel("Mean (log)")
-    plt.ylabel("Dispersion (log)") if mode is "dispersion" else plt.ylabel("CV (log)")
+    plt.ylabel("Dispersion (log)") if mode == "dispersion" else plt.ylabel("CV (log)")
 
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'feature_genes', "dpi": None,

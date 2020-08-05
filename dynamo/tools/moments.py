@@ -439,10 +439,10 @@ def prepare_data_mix_has_splicing(adata, genes, time, layer_u='X_uu', layer_s='X
 
     layer_u_data, layer_s_data = adata.layers[layer_u], adata.layers[layer_s]
     layer_ul_data, layer_sl_data = adata.layers[layer_ul], adata.layers[layer_sl]
-    layer_u_data, layer_s_data = layer_u_data if layer_u is 'M_uu' else inverse_norm(adata, layer_u_data), \
-                                 layer_s_data if layer_s is 'M_su' else inverse_norm(adata, layer_s_data)
-    layer_ul_data, layer_sl_data = layer_ul_data if layer_ul is 'M_ul' else inverse_norm(adata, layer_ul_data), \
-                                   layer_sl_data if layer_sl is 'M_sl' else inverse_norm(adata, layer_sl_data)
+    layer_u_data, layer_s_data = layer_u_data if layer_u == 'M_uu' else inverse_norm(adata, layer_u_data), \
+                                 layer_s_data if layer_s == 'M_su' else inverse_norm(adata, layer_s_data)
+    layer_ul_data, layer_sl_data = layer_ul_data if layer_ul == 'M_ul' else inverse_norm(adata, layer_ul_data), \
+                                   layer_sl_data if layer_sl == 'M_sl' else inverse_norm(adata, layer_sl_data)
 
     if use_total_layers:
         if 'total_Size_Factor' not in adata.obs.keys():

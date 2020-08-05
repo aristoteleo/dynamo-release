@@ -104,7 +104,7 @@ def scifate_glmnet(adata,
 
     # link TF and genes based on covariance
     link_result = link_TF_gene_analysis(TF_matrix, new_mat, var_TF, core_num=core_n_lasso)
-    link_result = pd.concat([i if i is not 'unknown' else None for i in link_result], axis=0)
+    link_result = pd.concat([i if i != 'unknown' else None for i in link_result], axis=0)
 
     # filtering the links using TF-gene binding data and store the result in the target folder
     # note that currently the motif filtering is not implement

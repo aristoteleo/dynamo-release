@@ -106,10 +106,10 @@ if __name__ == '__main__':
     # --- Main body of streamQuiver
     # Extracting lines
     import matplotlib.pyplot as plt
-    fig, ax = plt.subplots()
-    sp = ax.streamplot(Grid[:, 0].reshape((50, 50)),
-                       Grid[:, 1].reshape((50, 50)),
-                       VF[:, 0].reshape((50, 50)),
-                       VF[:, 1].reshape((50, 50)), arrowstyle='-', density=10)
-
-    streamQuiver(ax, sp, n=3)
+    # fig, ax = plt.subplots()
+    # sp = ax.streamplot(Grid[:, 0].reshape((50, 50)),
+    #                    Grid[:, 1].reshape((50, 50)),
+    #                    VF[:, 0].reshape((50, 50)),
+    #                    VF[:, 1].reshape((50, 50)), arrowstyle='-', density=10)
+    #
+    # streamQuiver(ax, sp, n=3)

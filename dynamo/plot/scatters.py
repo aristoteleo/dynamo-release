@@ -170,7 +170,7 @@ def _scatters(
     layers = list(adata.layers.keys())
     layers.extend(["X", "protein", "X_protein"])
     if ekey in layers:
-        if ekey is "X":
+        if ekey == "X":
             E_vec = (
                 adata[:, genes].layers[mapper["X"]]
                 if mapper["X"] in adata.layers.keys()
@@ -196,7 +196,7 @@ def _scatters(
     color_vec = np.repeat(np.nan, n_cells)
     if color is not None:
         color = list(set(color).intersection(adata.obs.keys()))
-        if len(color) > 0 and type is not "embedding":
+        if len(color) > 0 and type != "embedding":
             color_vec = adata.obs[color[0]].values
         else:
             n_genes = len(color)  # set n_genes as the number of obs keys
@@ -206,7 +206,7 @@ def _scatters(
     if "velocity_" not in velocity_key:
         vkey = "velocity_" + velocity_key
 
-    if type is "embedding":
+    if type == "embedding":
         df = pd.DataFrame(
             {
                 basis + "_0": np.repeat(embedding.iloc[:, 0], n_genes),
@@ -247,7 +247,7 @@ def _scatters(
                 "running this function."
             )
 
-        if mode is "labelling":
+        if mode == "labelling":
             new_mat, tot_mat = (
                 adata[:, genes].layers["X_new"],
                 adata[:, genes].layers["X_total"],
@@ -273,7 +273,7 @@ def _scatters(
                 index=range(n_cells * n_genes),
             )
 
-        elif mode is "splicing":
+        elif mode == "splicing":
             unspliced_mat, spliced_mat = (
                 adata[:, genes].layers["X_unspliced"],
                 adata[:, genes].layers["X_spliced"],
@@ -301,7 +301,7 @@ def _scatters(
                 index=range(n_cells * n_genes),
             )
 
-        elif mode is "full":
+        elif mode == "full":
             uu, ul, su, sl = (
                 adata[:, genes].layers["X_uu"],
                 adata[:, genes].layers["X_ul"],
@@ -518,10 +518,10 @@ def _scatters(
     else:
         n_columns = (
             2 * n_columns
-            if ("protein" in adata.obsm.keys() and mode is "full")
+            if ("protein" in adata.obsm.keys() and mode == "full")
             else n_columns
         )
-        plot_per_gene = 2 if ("protein" in adata.obsm.keys() and mode is "full") else 1
+        plot_per_gene = 2 if ("protein" in adata.obsm.keys() and mode == "full") else 1
         nrow, ncol = int(np.ceil(plot_per_gene * n_genes / n_columns)), n_columns
         fig = plt.figure(
             None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background
@@ -531,16 +531,16 @@ def _scatters(
         gs = plt.GridSpec(nrow, ncol)
 
         for i, gn in enumerate(genes):
-            if plot_per_gene is 2:
+            if plot_per_gene == 2:
                 ax1, ax2 = plt.subplot(gs[i * 2]), plt.subplot(gs[i * 2 + 1])
-            elif plot_per_gene is 1:
+            elif plot_per_gene == 1:
                 ax1 = plt.subplot(gs[i])
             try:
                 ix = np.where(adata.var.index == gn)[0][0]
             except:
                 continue
             cur_pd = df.loc[df.gene == gn, :]
-            if type is "phase":  # viridis, set2
+            if type == "phase":  # viridis, set2
                 if all(cur_pd.color.unique() == np.nan):
                     fig, ax1 = scatter_with_colorbar(
                         fig,
@@ -582,7 +582,7 @@ def _scatters(
 
                 if plot_per_gene == 2 and (
                     "protein" in adata.obsm.keys()
-                    and mode is "full"
+                    and mode == "full"
                     and all(
                         [i in adata.layers.keys() for i in ["uu", "ul", "su", "sl"]]
                     )
@@ -698,7 +698,7 @@ def _scatters(
 
                 if (
                     "protein" in adata.obsm.keys()
-                    and mode is "full"
+                    and mode == "full"
                     and all(
                         [i in adata.layers.keys() for i in ["uu", "ul", "su", "sl"]]
                     )
@@ -758,6 +758,10 @@ def scatters(
     return_all=False,
     add_gamma_fit=False,
     frontier=False,
+    contour=False,
+    ccmap=None,
+    calpha=2.3,
+    sym_c=False,
     **kwargs
 ):
     """Plot an embedding as points. Currently this only works
@@ -884,7 +888,24 @@ def scatters(
             Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show area
             of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
             cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
-            https://science.sciencemag.org/content/367/6482/1151.
+            https://science.sciencemag.org/content/367/6482/1151. If `contour` is set  to be True, `frontier` will be
+            ignored as `contour` also add an outlier for data points.
+        contour: `bool` (default: `False`)
+            Whether to add an countor on top of scatter plots. We use `tricontourf` to plot contour for non-gridded data.
+            The shapely package was used to create a polygon of the concave hull of the scatters. With the polygon we
+            then check if the mean of the triangulated points are within the polygon and use this as our condition to
+            form the mask to create the contour. We also add the polygon shape as a frontier of the data point (similar
+            to when setting `frontier = True`). When the color of the data points is continuous, we will use the same cmap
+            as for the scatter points by default, when color is categorical, no contour will be drawn but just the
+            polygon. cmap can be set with `ccmap` argument. See below.
+        ccmap: `str` or `None` (default: `None`)
+            The name of a matplotlib colormap to use for coloring or shading points the contour. See above.
+        calpha: `float` (default: `2.3`)
+            alpha value for identifying the alpha hull to influence the gooeyness of the border. Smaller numbers don't
+            fall inward as much as larger numbers. Too large, and you lose everything!
+        sym_c: `bool` (default: `False`)
+            Whether do you want to make the limits of continuous color to be symmetric, normally this should be used for
+            plotting velocity, jacobian, curl, divergence or other types of data with both positive or negative values.
         kwargs:
             Additional arguments passed to plt.scatters.
 
@@ -899,6 +920,8 @@ def scatters(
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
+
+    if contour: frontier = False
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
@@ -1098,12 +1121,12 @@ def scatters(
                             if _background in ["#ffffff", "black"]:
                                 _theme_ = (
                                     "inferno"
-                                    if cur_l is not "velocity"
+                                    if cur_l != "velocity"
                                     else "div_blue_black_red"
                                 )
                             else:
                                 _theme_ = (
-                                    "viridis" if cur_l is not "velocity" else "div_blue_red"
+                                    "viridis" if not cur_l.startswith("velocity") else "div_blue_red"
                                 )
                         else:
                             _theme_ = theme
@@ -1160,6 +1183,10 @@ def scatters(
                             show_legend,
                             sort=sort,
                             frontier=frontier,
+                            contour=contour,
+                            ccmap=ccmap,
+                            calpha=calpha,
+                            sym_c=sym_c,
                             **scatter_kwargs
                         )
                     else:
@@ -1178,6 +1205,10 @@ def scatters(
                             show_legend,
                             sort=sort,
                             frontier=frontier,
+                            contour=contour,
+                            ccmap=ccmap,
+                            calpha=calpha,
+                            sym_c=sym_c,
                             **scatter_kwargs
                         )
 

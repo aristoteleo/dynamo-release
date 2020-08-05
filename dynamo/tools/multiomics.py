@@ -27,11 +27,11 @@ def AddAssay(adata, data, key, slot="obsm"):
             A updated anndata object that are updated with a new data as a key to the specified slot.
     """
 
-    if slot is "uns":
+    if slot == "uns":
         adata.uns[key] = data.loc[
             adata.obs.index, set(adata.var.index).intersection(data.columns)
         ]
-    elif slot is "obsm":
+    elif slot == "obsm":
         adata.obsm[key] = data.loc[
             adata.obs.index, set(adata.var.index).intersection(data.columns)
         ]
@@ -57,9 +57,9 @@ def getAssay(adata, key, slot="obsm"):
             The data (in pandas DataFrame format) that will be retrieved from adata.
     """
 
-    if slot is "uns":
+    if slot == "uns":
         data = adata.uns[key]
-    elif slot is "obsm":
+    elif slot == "obsm":
         data = adata.obsm[key]
 
     return data

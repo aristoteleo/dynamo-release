@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 import matplotlib.patheffects as PathEffects
+import matplotlib.tri as tri
+from scipy.spatial import Delaunay
 from warnings import warn
 
 from ..configuration import _themes
@@ -35,6 +37,21 @@ def is_list_of_lists(list_of_lists):
 # ---------------------------------------------------------------------------------------------------
 # plotting utilities that borrowed from umap
 # link: https://github.com/lmcinnes/umap/blob/7e051d8f3c4adca90ca81eb45f6a9d1372c076cf/umap/plot.py
+
+def map2color(val, min=None, max=None, cmap='viridis'):
+    import matplotlib
+    import matplotlib.pyplot as plt
+    import matplotlib.cm as cm
+
+    minima = np.min(val) if min is None else min
+    maxima = np.max(val) if max is None else max
+
+    norm = matplotlib.colors.Normalize(vmin=minima, vmax=maxima, clip=True)
+    mapper = cm.ScalarMappable(norm=norm, cmap=plt.get_cmap(cmap))
+
+    cols = [mapper.to_rgba(v) for v in val]
+
+    return cols
 
 
 def _to_hex(arr):
@@ -127,6 +144,10 @@ def _matplotlib_points(
         vmax=98,
         sort='raw',
         frontier=False,
+        contour=False,
+        ccmap=None,
+        calpha=2.3,
+        sym_c=False,
         **kwargs,
 ):
     import matplotlib.pyplot as plt
@@ -223,16 +244,45 @@ def _matplotlib_points(
             ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "0.0", lw=2)
             ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "1.0", lw=0)
             ax.scatter(points[:, 0], points[:, 1], c=colors, **kwargs)
+        elif contour:
+            try:
+                from shapely.geometry import Polygon, MultiPoint, Point
+            except ImportError:
+                raise ImportError(
+                    "If you want to use the tricontourf in plotting function, you need to install `shapely` "
+                    "package via `pip install shapely` see more details at https://pypi.org/project/Shapely/,"
+                )
+
+            x, y = points[:, :2].T
+            triang = tri.Triangulation(x, y)
+            concave_hull, edge_points = alpha_shape(x, y, alpha=calpha)
+            ax = plot_polygon(concave_hull, ax=ax)
+
+            # Use the mean distance between the triangulated x & y poitns
+            x2 = x[triang.triangles].mean(axis=1)
+            y2 = y[triang.triangles].mean(axis=1)
+            ##note the very obscure mean command, which, if not present causes an error.
+            ##now we need some masking condition.
+
+            # Create an empty set to fill with zeros and ones
+            cond = np.empty(len(x2))
+            # iterate through points checking if the point lies within the polygon
+            for i in range(len(x2)):
+                cond[i] = concave_hull.contains(Point(x2[i], y2[i]))
+
+            mask = np.where(cond, 0, 1)
+            # apply masking
+            triang.set_mask(mask)
+
+            ccmap = 'viridis' if ccmap is None else ccmap
+            # ax.tricontourf(triang, values, cmap=ccmap)
+            ax.scatter(x, y,
+                       c=values,
+                       cmap=cmap,
+                       **kwargs, )
         else:
             ax.scatter(points[:, 0], points[:, 1], c=colors, **kwargs)
-        # fig, ax = plt.subplots()
-        # X = np.random.normal(-1, 1, 3500)
-        # Y = np.random.normal(-1, 1, 3500)
-        # ax.scatter(X, Y, 80, "0.0", lw=2)  # optional
-        # ax.scatter(X, Y, 80, "1.0", lw=0)  # optional
-        # ax.scatter(X, Y, 40, "C1", lw=0, alpha=0.1)
-        # plt.show()
-        #
+
     # Color by values
     elif values is not None:
         if values.shape[0] != points.shape[0]:
@@ -247,12 +297,17 @@ def _matplotlib_points(
             else np.argsort(values)
         values, points = values[sorted_id], points[sorted_id, :]
 
-        _vmin = np.min(values) if vmin is None else np.percentile(values, vmin) if \
-            (vmax > 80 and vmax <= 100 and vmin < 20 and vmin > 0) else vmin
-        _vmax = np.max(values) if vmax is None else np.percentile(values, vmax) if \
-            (vmax > 80 and vmax <= 100 and vmin < 20 and vmin > 0) else vmax
+        if sym_c:
+            bounds = max(np.abs(np.nanmax(values)), np.abs(np.nanmin(values)))
+            bounds = bounds * np.array([-1, 1])
+            _vmin, _vmax = bounds
+        else:
+            _vmin = np.min(values) if vmin is None else np.percentile(values, vmin) if \
+                (vmax > 80 and vmax <= 100 and vmin < 20 and vmin > 0) else vmin
+            _vmax = np.max(values) if vmax is None else np.percentile(values, vmax) if \
+                (vmax > 80 and vmax <= 100 and vmin < 20 and vmin > 0) else vmax
 
-        if frontier:
+        if frontier == True:
             ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "0.0", lw=2)
             ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "1.0", lw=0)
             ax.scatter(
@@ -264,6 +319,45 @@ def _matplotlib_points(
                 vmax=_vmax,
                 **kwargs,
             )
+        elif contour:
+            try:
+                from shapely.geometry import Polygon, MultiPoint, Point
+            except ImportError:
+                raise ImportError(
+                    "If you want to use the tricontourf in plotting function, you need to install `shapely` "
+                    "package via `pip install shapely` see more details at https://pypi.org/project/Shapely/,"
+                    )
+
+            x, y = points[:, :2].T
+            triang = tri.Triangulation(x, y)
+            concave_hull, edge_points = alpha_shape(x, y, alpha=calpha)
+            ax = plot_polygon(concave_hull, ax=ax)
+
+            # Use the mean distance between the triangulated x & y poitns
+            x2 = x[triang.triangles].mean(axis=1)
+            y2 = y[triang.triangles].mean(axis=1)
+            ##note the very obscure mean command, which, if not present causes an error.
+            ##now we need some masking condition.
+
+            # Create an empty set to fill with zeros and ones
+            cond = np.empty(len(x2))
+            # iterate through points checking if the point lies within the polygon
+            for i in range(len(x2)):
+                cond[i] = concave_hull.contains(Point(x2[i], y2[i]))
+
+            mask = np.where(cond, 0, 1)
+            # apply masking
+            triang.set_mask(mask)
+
+            ccmap = cmap if ccmap is None else ccmap
+
+            ax.tricontourf(triang, values, cmap=ccmap)
+            ax.scatter(x, y,
+                       c=values,
+                       cmap=cmap,
+                       vmin=_vmin,
+                       vmax=_vmax,
+                       **kwargs,)
         else:
             ax.scatter(
                 points[:, 0],
@@ -482,7 +576,7 @@ def _datashade_points(
         _embed_datashader_in_an_axis(result, ax)
         if show_legend and legend_elements is not None:
             if len(unique_labels) > 1 and show_legend == "on data":
-                font_color = "white" if background is "black" else "black"
+                font_color = "white" if background == "black" else "black"
                 for i in unique_labels:
                     color_cnt = np.nanmedian(
                         points.iloc[np.where(labels == i)[0], :2], 0
@@ -1110,6 +1204,106 @@ def save_fig(path=None, prefix=None, dpi=None, ext='pdf', transparent=True, clos
     if verbose:
         print("Done")
 
+
+# ---------------------------------------------------------------------------------------------------
+def alpha_shape(x, y, alpha):
+    # Start Using SHAPELY
+    try:
+        import shapely.geometry as geometry
+        from shapely.geometry import Polygon, MultiPoint, Point
+        from shapely.ops import triangulate
+        from shapely.ops import cascaded_union, polygonize
+    except ImportError:
+        raise ImportError("If you want to use the tricontourf in plotting function, you need to install `shapely` "
+                          "package via `pip install shapely` see more details at https://pypi.org/project/Shapely/,"
+                          )
+
+    crds = np.array([x.flatten(), y.flatten()]).transpose()
+    points = MultiPoint(crds)
+
+    if len(points) < 4:
+        # When you have a triangle, there is no sense
+        # in computing an alpha shape.
+        return geometry.MultiPoint(list(points)).convex_hull
+
+    def add_edge(edges, edge_points, coords, i, j):
+        """
+        Add a line between the i-th and j-th points,
+        if not in the list already
+        """
+        if (i, j) in edges or (j, i) in edges:
+            # already added
+            return
+        edges.add((i, j))
+        edge_points.append(coords[[i, j]])
+
+    coords = np.array([point.coords[0]
+                       for point in points])
+
+    tri = Delaunay(coords)
+    edges = set()
+    edge_points = []
+
+    # loop over triangles:
+    # ia, ib, ic = indices of corner points of the triangle
+    for ia, ib, ic in tri.vertices:
+        pa = coords[ia]
+        pb = coords[ib]
+        pc = coords[ic]
+
+        # Lengths of sides of triangle
+        a = math.sqrt((pa[0] - pb[0]) ** 2 + (pa[1] - pb[1]) ** 2)
+        b = math.sqrt((pb[0] - pc[0]) ** 2 + (pb[1] - pc[1]) ** 2)
+        c = math.sqrt((pc[0] - pa[0]) ** 2 + (pc[1] - pa[1]) ** 2)
+
+        # Semiperimeter of triangle
+        s = (a + b + c) / 2.0
+
+        # Area of triangle by Heron's formula
+        area = math.sqrt(s * (s - a) * (s - b) * (s - c))
+        circum_r = a * b * c / (4.0 * area)
+
+        # Here's the radius filter.
+        if circum_r < 1.0 / alpha:
+            add_edge(edges, edge_points, coords, ia, ib)
+            add_edge(edges, edge_points, coords, ib, ic)
+            add_edge(edges, edge_points, coords, ic, ia)
+
+    m = geometry.MultiLineString(edge_points)
+    triangles = list(polygonize(m))
+
+    return cascaded_union(triangles), edge_points
+
+
+# View the polygon and adjust alpha if needed
+def plot_polygon(polygon,
+                 margin=1,
+                 fc='#999999',
+                 ec='#000000',
+                 fill=True,
+                 ax=None,
+                 **kwargs):
+    try:
+        from descartes.patch import PolygonPatch
+    except ImportError:
+        raise ImportError("If you want to use the tricontourf in plotting function, you need to install `descartes` "
+                          "package via `pip install descartes` see more details at https://pypi.org/project/descartes/,"
+                          )
+
+
+    from descartes.patch import PolygonPatch
+    if ax is None:
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+
+    margin = margin
+    x_min, y_min, x_max, y_max = polygon.bounds
+    ax.set_xlim([x_min - margin, x_max + margin])
+    ax.set_ylim([y_min - margin, y_max + margin])
+    patch = PolygonPatch(polygon, fc=fc, ec=ec, fill=fill, zorder=-1, lw=3, alpha=0.4, **kwargs)
+    ax.add_patch(patch)
+
+    return ax
 
 # ---------------------------------------------------------------------------------------------------
 # the following Loess class is taken from:

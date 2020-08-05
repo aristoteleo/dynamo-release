@@ -150,7 +150,7 @@ def load_NASC_seq(dir, type='TPM', delimiter="_", colnames=None, dropna=False):
     adata.uns['raw_data'] = True
 
 
-def cleanup(adata):
+def cleanup(adata, del_prediction=False):
     """clean up adata before saving it to a file"""
 
     if 'pca_fit' in adata.uns_keys(): adata.uns['pca_fit'] = None
@@ -161,7 +161,17 @@ def cleanup(adata):
 
     VF_keys = [i if i.startswith('VecFld') else None for i in adata.uns_keys()]
     for i in VF_keys:
+        if i is not None and 'VecFld2D' in adata.uns[i].keys():
+            del adata.uns[i]['VecFld2D']
+
+    fate_keys = [i if i.startswith('fate') else None for i in adata.uns_keys()]
+    for i in fate_keys:
         if i is not None:
-            del adata.uns[i]
+            if adata.uns[i]['init_cells'] is not None:
+                adata.uns[i]['init_cells'] = list(adata.uns[i]['init_cells'])
+            if 'prediction' in adata.uns[i].keys():
+                if del_prediction: del adata.uns[i]['prediction']
+            if 'VecFld_true' in adata.uns[i].keys():
+                if adata.uns[i]['VecFld_true'] is not None: del adata.uns[i]['VecFld_true']
 
     return adata

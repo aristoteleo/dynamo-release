@@ -120,7 +120,7 @@ from .scPotential import (
 )  # , vector_field_function
 from .Bhattacharya import path_integral, alignment
 from .Wang import Wang_action, Wang_LAP, transition_rate, MFPT
-from .Ao import Ao_pot_map
+from .Ao import Ao_pot_map, solveQ
 
 # state graph related
 

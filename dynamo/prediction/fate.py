@@ -4,9 +4,8 @@ from sklearn.neighbors import NearestNeighbors
 from multiprocessing.dummy import Pool as ThreadPool
 import itertools
 import warnings
-from ..tools.utils import integrate_vf_ivp
+from .utils import integrate_vf_ivp, fetch_states
 from ..tools import vector_field_function
-from ..tools.utils import fetch_states
 
 
 def fate(
@@ -19,8 +18,9 @@ def fate(
     genes=None,
     t_end=None,
     direction="both",
+    interpolation_num=250,
     average=False,
-    arclen_sampling=True,
+    sampling='arc_length',
     VecFld_true=None,
     inverse_transform=False,
     scale=1,
@@ -60,14 +60,18 @@ def fate(
             by the odeint function.
         direction: `string` (default: both)
             The direction to predict the cell fate. One of the `forward`, `backward` or `both` string.
+        interpolation_num: `int` (default: 100)
+            The number of uniformly interpolated time points.
         average: `str` or `bool` (default: `False`) {'origin', 'trajectory'}
             The method to calculate the average cell state at each time step, can be one of `origin` or `trajectory`. If
             `origin` used, the average expression state from the init_cells will be calculated and the fate prediction is
             based on this state. If `trajectory` used, the average expression states of all cells predicted from the
             vector field function at each time point will be used. If `average` is `False`, no averaging will be applied.
-        arclen_sampling: `bool` (default: `True`)
-            Whether to apply uniformly sampling along the integration path. Default is `False`. If set to be `True`,
-            `average` will turn off.
+        sampling: `str` (default: `arc_length`)
+            Methods to sample points along the integration path, one of `{'arc_length', 'logspace', 'uniform_indices'}`.
+            If `logspace`, we will sample time points linearly on log space. If `uniform_indices`, the sorted unique set
+            of all time points from all cell states' fate prediction will be used and then evenly sampled up to
+            `interpolation_num` time points. If `arc_length`, we will sample the integration path with uniform arc length.
         VecFld_true: `function`
             The true ODE function, useful when the data is generated through simulation. Replace VecFld arugment when
             this has been set.
@@ -87,10 +91,10 @@ def fate(
             AnnData object that is updated with the dictionary Fate (includes `t` and `prediction` keys) in uns attribute.
     """
 
-    if arclen_sampling == True:
+    if sampling in ['arc_length', 'logspace', 'uniform_indices']:
         if average in ['origin', 'trajectory', True]:
             warnings.warn(
-                "using arclength_sampling to uniformly sample along an integral path at different integration "
+               f"using {sampling} to sample data points along an integral path at different integration "
                 "time points. Average trajectory won't be calculated")
 
         average = False
@@ -121,10 +125,11 @@ def fate(
     t, prediction = _fate(
         vf,
         init_states,
-        direction=direction,
         t_end=t_end,
+        direction=direction,
+        interpolation_num=interpolation_num,
         average=True if average in ['origin', 'trajectory', True] else False,
-        arclen_sampling=arclen_sampling,
+        sampling=sampling,
         cores=cores,
         **kwargs
     )
@@ -185,9 +190,9 @@ def _fate(
     t_end=None,
     step_size=None,
     direction="both",
-    interpolation_num=100,
+    interpolation_num=250,
     average=True,
-    arclen_sampling=False,
+    sampling='arc_length',
     cores=1,
 ):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector field
@@ -213,6 +218,11 @@ def _fate(
         average: `bool` (default: True)
             A boolean flag to determine whether to smooth the trajectory by calculating the average cell state at each
             time step.
+        sampling: `str` (default: `logspace`)
+            Methods to sample points along the integration path, one of `{'arc_length', 'logspace', 'uniform_indices'}`.
+            If `logspace`, we will sample time points linearly on log space. If `uniform_indices`, the sorted unique set
+            of all time points from all cell states' fate prediction will be used and then evenly sampled up to
+            `interpolation_num` time points. If `arc_length`, we will sample the integration path with uniform arc length.
         cores: `int` (default: 1):
             Number of cores to calculate path integral for predicting cell fate. If cores is set to be > 1,
             multiprocessing will be used to parallel the fate prediction.
@@ -250,7 +260,7 @@ def _fate(
             VecFld,
             interpolation_num=interpolation_num,
             average=average,
-            arclen_sampling=arclen_sampling,
+            sampling=sampling,
         )
     else:
         pool = ThreadPool(cores)
@@ -277,11 +287,38 @@ def _fate(
     return t, prediction
 
 
-def fate_bias(adata, group, basis='umap'):
+def fate_bias(adata,
+              group,
+              basis='umap',
+              inds=None,
+              speed_percentile=5,
+              dist_threshold=25,
+              source_groups=None):
     """Calculate the lineage (fate) bias of states whose trajectory are predicted.
 
-    Fate bias is currently calculated as the percentage of points along the predicted cell fate trajectory that are
-    closest to any cell from each group specified by `group` key.
+    Fate bias is currently calculated as the percentage of points along the predicted cell fate trajectory whose distance
+    to their 0-th nearest neighbors on the data are close enough (determined by median 1-st nearest neighbors of all
+    observed cells and the dist_threshold) to any cell from each group specified by `group` key. The details is described
+    as following:
+
+    Cell fate predicted by our vector field method sometimes end up in regions that are not sampled with cells. We thus
+    developed a heuristic method to iteratively walk backward the integration path to assign cell fate. We first identify
+    the regions with small velocity in the tail of the integration path (determined by `spped_percentile`), then I check
+    whether the distance of 0-th nearest points on the observed data to all those points are far away from the observed
+    data (determined by `dist_threshold`). If they are not all close to data, we then walk backwards along the trajectory
+    by one time step until the distance of any currently visited integration path’s data points’ 0-th nearest points to
+    the observed cells is close enough. Then I use group information of those observed cells to define the cell fate
+    probability.
+
+    `fate_bias` calculate a confidence score for the calculated fate probability with a simple metric, defined as
+        :math:`1 - (sum(distances > dist_threshold * median_dist) + walk_back_steps) / (len(indices) + walk_back_steps)`
+
+    The `distance` is currently visited integration path’s data points’ 0-th nearest points to the observed cells.
+    `median_dist` is median distance of their 1-st nearest cell distance of all observed cells. `walk_back_steps` is the
+    steps walked backward along the integration path until all currently visited integration points's 0-th nearest points
+    to the observed cells satisfy the distance threshold. `indices` are the time indices of integration points that is
+    regarded as the regions with `small velocity` (note when walking backward, those corresponding points are not
+    necessarily have small velocity anymore).
 
     Arguments
     ---------
@@ -291,7 +328,24 @@ def fate_bias(adata, group, basis='umap'):
             The column key that corresponds to the cell type or other group information for quantifying the bias of cell
             state.
         basis: `str` or None (default: `None`)
-            The embedding data space that cell fates were predicted and cell fates will be quantified.
+            The embedding data space where cell fates were predicted and cell fates bias will be quantified.
+        inds `list` or `float` or None (default: `None`):
+            The indices of the time steps that will be used for calculating fate bias. If inds is None, the last a few
+            steps of the fate prediction based on the `sink_speed_percentile` will be use. If inds is the float (between
+            0 and 1), it will be regarded as a percentage, and the last percentage of steps will be used for fate bias
+            calculation. Otherwise inds need to be a list of integers of the time steps.
+        speed_percentile: `float` (default: `5`)
+            The percentile of speed that will be used to determine the terminal cells (or sink region on the prediction
+            path where speed is smaller than this speed percentile).
+        dist_threshold: `float` (default: `25`)
+            A multiplier of the median nearest cell distance on the embedding to determine cells that are outside the
+            sampled domain of cells. If the mean distance of identified "terminal cells" is above this number, we will
+            look backward along the trajectory (by minimize all indices by 1) until it finds cells satisfy this threshold.
+        source_groups: `list` or `None` (default: `None`)
+            The groups that corresponds to progenitor groups. They has to have at least one intersection with the groups
+            from the `group` column. If group is not `None`, any identified "terminal cells" that happen to be in those
+            groups will be ignored and the probability of cell fate of those cells will be reassigned to groups that has
+            the highest fate probability among other group of non source_groups cells.
 
     Returns
     -------
@@ -308,23 +362,78 @@ def fate_bias(adata, group, basis='umap'):
     fate_key = 'fate_' + basis if basis is not None else 'fate'
 
     if basis_key not in adata.obsm.keys():
-        raise ValueError(f'The basis {basis_key} you provided is not a key of .obsm attribute (or adata.X is not existed '
-                         f'if `basis` is `X`).')
+        raise ValueError(f'The basis {basis_key} you provided is not a key of .obsm attribute.')
     if fate_key not in adata.uns.keys():
         raise ValueError(f"The {fate_key} key is not existed in the .uns attribute of the adata object. You need to run"
                          f"dyn.pd.fate(adata, basis='{basis}') before calculate fate bias.")
 
-    X = adata.obsm[basis_key] if basis_key is not 'X' else adata.X
-    nbrs = NearestNeighbors(n_neighbors=1, algorithm='ball_tree').fit(X)
+    if source_groups is not None:
+        if type(source_groups) is str: source_groups = [source_groups]
+        source_groups = list(set(source_groups).intersection(clusters))
+        if len(source_groups) == 0:
+            raise ValueError(f"the {source_groups} you provided doesn't intersect with any groups in the {group} column.")
+
+    X = adata.obsm[basis_key] if basis_key != 'X' else adata.X
+    alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+    nbrs = NearestNeighbors(n_neighbors=2, algorithm=alg).fit(X)
+    distances, knn = nbrs.kneighbors(X)
+    median_dist = np.median(distances[:, 1])
 
     pred_dict = {}
     cell_predictions, cell_indx = adata.uns[fate_key]['prediction'], adata.uns[fate_key]['init_cells']
+    t = adata.uns[fate_key]['t']
+    confidence = np.zeros(len(t))
+
     for i, prediction in enumerate(cell_predictions):
-        distances, knn = nbrs.kneighbors(prediction[None, :])
+        cur_t, n_steps = t[i], len(t[i])
+        indices = None
+        # ensure to identify sink where the speed is very slow if inds is not provided.
+        # if inds is the percentage, use the last percentage of steps to check for cell fate bias.
+        # otherwise inds need to be a list.
+        if inds is None:
+            avg_speed = np.array([np.linalg.norm(i) for i in np.diff(prediction, 1).T]) / np.diff(cur_t)
+            sink_checker = np.where(avg_speed[::-1] > np.percentile(avg_speed, speed_percentile))[0]
+            indices = np.arange(n_steps - max(min(sink_checker), 10), n_steps)
+        elif inds is float:
+            indices = np.arange(int(n_steps - inds * n_steps), n_steps)
+        else:
+            indices = inds
 
-        pred_dict[i] = clusters[knn.flatten()].value_counts()
+        distances, knn = nbrs.kneighbors(prediction[:, indices].T)
+        distances, knn = distances[:, 0], knn[:, 0]
 
-    bias = pd.DataFrame(pred_dict).T / prediction.shape[1]
+        # if final steps too far away from observed cells, ignore them
+        walk_back_steps = 0
+        while True:
+            if any(distances < dist_threshold * median_dist):
+                fate_prob = clusters[knn.flatten()].value_counts() / len(indices)
+                if source_groups is not None:
+                    source_p = fate_prob[source_groups].sum()
+                    if 1 > source_p > 0:
+                        fate_prob[source_groups] = 0
+                        fate_prob[fate_prob.idxmax()] += source_p
+
+                pred_dict[i] = fate_prob
+
+                confidence[i] = 1 - (sum(distances > dist_threshold * median_dist) + walk_back_steps) / (
+                        len(indices) + walk_back_steps)
+
+                break
+            else:
+                walk_back_steps += 1
+
+                if any(indices - 1 < 0):
+                    pred_dict[i] = clusters[knn.flatten()].value_counts() * np.nan
+                    break
+
+                distances, knn = nbrs.kneighbors(prediction[:, indices - 1].T)
+                distances, knn = distances[:, 0], knn[:, 0]
+                indices = indices - 1
+
+    bias = pd.DataFrame(pred_dict).T
+    conf = pd.DataFrame({"confidence": confidence}, index=bias.index)
+    bias = pd.merge(conf, bias, left_index=True, right_index=True)
+
     if cell_indx is not None: bias.index = cell_indx
 
     return bias

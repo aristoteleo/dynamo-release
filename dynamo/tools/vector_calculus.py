@@ -348,7 +348,7 @@ def curvature(adata,
 
 def torsion(adata,
          basis='umap',
-         VecFld=None,
+         vector_field_class=None,
          **kwargs
          ):
     """Calculate torsion for each cell with the reconstructed vector field function.
@@ -359,12 +359,8 @@ def torsion(adata,
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
         basis: `str` or None (default: `umap`)
             The embedding data in which the vector field was reconstructed.
-        VecFld: `dict`
+        vector_field_class: `dict`
             The true ODE function, useful when the data is generated through simulation.
-        method: `str` (default: `analytical`)
-            The method that will be used for calculating divergence, either `analytical` or `numeric`. `analytical`
-            method will use the analytical form of the reconstructed vector field for calculating torsion while
-            `numeric` method will use numdifftools for calculation. `analytical` method is much more efficient.
 
     Returns
     -------

@@ -3,7 +3,8 @@ import statsmodels.api as sm
 import numpy as np
 from scipy.sparse import issparse
 from scipy.interpolate import interp1d
-from ..tools.utils import fetch_exprs, update_dict
+from ..tools.utils import update_dict
+from ..prediction.utils import fetch_exprs
 from .utils import save_fig
 
 from ..docrep import DocstringProcessor
@@ -92,7 +93,7 @@ def kinetic_curves(
     )
 
     Color = np.empty((0, 1))
-    if color is not None and mode is not "vector_field":
+    if color is not None and mode != "vector_field":
         color = list(set(color).intersection(adata.obs.keys()))
         Color = (
             adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))

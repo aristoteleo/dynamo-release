@@ -528,10 +528,10 @@ def stationary_distribution(adata, method="kmc", direction="both", calc_rnd=True
 
     T = adata.uns["transition_matrix"]  # row is the source and columns are targets
 
-    if method is "kmc":
+    if method == "kmc":
         kmc = KernelMarkovChain()
         kmc.P = T
-        if direction is "both":
+        if direction == "both":
             adata.obs[
                 "sink_steady_state_distribution"
             ] = kmc.compute_stationary_distribution()
@@ -551,7 +551,7 @@ def stationary_distribution(adata, method="kmc", direction="both", calc_rnd=True
                     "source_steady_state_distribution_rnd"
                 ] = kmc.compute_stationary_distribution()
 
-        elif direction is "forward":
+        elif direction == "forward":
             adata.obs[
                 "sink_steady_state_distribution"
             ] = kmc.compute_stationary_distribution()
@@ -562,7 +562,7 @@ def stationary_distribution(adata, method="kmc", direction="both", calc_rnd=True
                 adata.obs[
                     "sink_steady_state_distribution_rnd"
                 ] = kmc.compute_stationary_distribution()
-        elif direction is "backward":
+        elif direction == "backward":
             kmc.P = T.T / T.T.sum(0)
             adata.obs[
                 "source_steady_state_distribution"
@@ -577,7 +577,7 @@ def stationary_distribution(adata, method="kmc", direction="both", calc_rnd=True
 
     else:
         T = T.T
-        if direction is "both":
+        if direction == "both":
             adata.obs["source_steady_state_distribution"] = diffusion(T, backward=True)
             adata.obs["sink_steady_state_distribution"] = diffusion(T)
             if calc_rnd:
@@ -586,12 +586,12 @@ def stationary_distribution(adata, method="kmc", direction="both", calc_rnd=True
                     T_rnd, backward=True
                 )
                 adata.obs["sink_steady_state_distribution_rnd"] = diffusion(T_rnd)
-        elif direction is "forward":
+        elif direction == "forward":
             adata.obs["sink_steady_state_distribution"] = diffusion(T)
             if calc_rnd:
                 T_rnd = adata.uns["transition_matrix_rnd"]
                 adata.obs["sink_steady_state_distribution_rnd"] = diffusion(T_rnd)
-        elif direction is "backward":
+        elif direction == "backward":
             adata.obs["source_steady_state_distribution"] = diffusion(T, backward=True)
             if calc_rnd:
                 T_rnd = adata.uns["transition_matrix_rnd"]

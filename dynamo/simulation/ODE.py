@@ -190,11 +190,11 @@ def Simulator(motif="neurogenesis", clip=True):
             an Annodata object containing the simulated data.
     """
 
-    if motif is "toggle":
+    if motif == "toggle":
         cell_num = 5000
         X, Y = state_space_sampler(ode=toggle, dim=2, min_val=0, max_val=6, N=cell_num)
         gene_name = np.array(["X", "Y"])
-    elif motif is "neurogenesis":
+    elif motif == "neurogenesis":
         cell_num = 50000
         X, Y = state_space_sampler(
             ode=neurogenesis, dim=13, min_val=0, max_val=6, N=cell_num
@@ -217,13 +217,13 @@ def Simulator(motif="neurogenesis", clip=True):
                 "Maturation",
             ]
         )
-    elif motif is "twogenes":
+    elif motif == "twogenes":
         cell_num = 5000
         X, Y = state_space_sampler(
             ode=two_genes_motif, dim=2, min_val=0, max_val=4, N=cell_num
         )
         gene_name = np.array(["Pu.1", "Gata.1"])
-    elif motif is "Ying":
+    elif motif == "Ying":
         cell_num = 5000
         X, Y = state_space_sampler(
             ode=Ying_model, dim=2, clip=clip, min_val=-3, max_val=3, N=cell_num
