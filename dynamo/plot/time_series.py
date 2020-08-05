@@ -92,7 +92,7 @@ def kinetic_curves(
     )
 
     Color = np.empty((0, 1))
-    if color is not None and mode is not "vector_field":
+    if color is not None and mode != "vector_field":
         color = list(set(color).intersection(adata.obs.keys()))
         Color = (
             adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))

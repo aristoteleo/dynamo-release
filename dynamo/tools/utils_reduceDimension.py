@@ -186,7 +186,7 @@ def run_reduce_dim(adata, X_data, n_components, n_pca_components, reduction_meth
             "indices": knn_indices,
         }
         adata.uns["umap_fit"] = {"fit": mapper, "n_pca_components": n_pca_components}
-    elif reduction_method is "psl":
+    elif reduction_method == "psl":
         adj_mat, X_dim = psl_py(
             X_data, d=n_components, K=n_neighbors
         )  # this need to be updated

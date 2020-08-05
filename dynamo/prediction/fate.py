@@ -362,7 +362,7 @@ def fate_bias(adata,
     basis_key = 'X_' + basis if basis is not None else 'X'
     fate_key = 'fate_' + basis if basis is not None else 'fate'
 
-    if (basis_key not in adata.obsm.keys()):
+    if basis_key not in adata.obsm.keys():
         raise ValueError(f'The basis {basis_key} you provided is not a key of .obsm attribute.')
     if fate_key not in adata.uns.keys():
         raise ValueError(f"The {fate_key} key is not existed in the .uns attribute of the adata object. You need to run"
@@ -374,7 +374,7 @@ def fate_bias(adata,
         if len(source_groups) == 0:
             raise ValueError(f"the {source_groups} you provided doesn't intersect with any groups in the {group} column.")
 
-    X = adata.obsm[basis_key] if basis_key is not 'X' else adata.X
+    X = adata.obsm[basis_key] if basis_key != 'X' else adata.X
     alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
     nbrs = NearestNeighbors(n_neighbors=2, algorithm=alg).fit(X)
     distances, knn = nbrs.kneighbors(X)

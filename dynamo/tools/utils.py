@@ -658,7 +658,7 @@ def set_param_ss(
     valid_ind,
     ind_for_proteins,
 ):
-    if experiment_type is "mix_std_stm":
+    if experiment_type == "mix_std_stm":
         if alpha is not None:
             if cur_grp == _group[0]:
                 adata.varm[kin_param_pre + "alpha"] = np.zeros(
@@ -695,7 +695,7 @@ def set_param_ss(
                     )  #
                 adata.varm[kin_param_pre + "alpha"][valid_ind, :] = alpha  #
                 adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha.mean(1)
-            elif len(alpha.shape) is 1:
+            elif len(alpha.shape) == 1:
                 if cur_grp == _group[0]:
                     adata.var[kin_param_pre + "alpha"] = None
                 adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha
@@ -1054,7 +1054,7 @@ def set_velocity_genes(
     layer = vkey.split("_")[1]
 
     # the following parameters aggreation for different groups can be improved later
-    if layer is "U":
+    if layer == "U":
         if 'alpha' not in adata.var.columns:
             is_group_alpha, is_group_alpha_r2 = get_group_params_indices(adata, 'alpha'), \
                                                 get_group_params_indices(adata, 'alpha_r2')
@@ -1074,7 +1074,7 @@ def set_velocity_genes(
             if use_for_dynamics
             else (adata.var.alpha > min_alpha) & (adata.var.alpha_r2 > min_r2)
         )
-    elif layer is "S":
+    elif layer == "S":
         if 'gamma' not in adata.var.columns:
             is_group_gamma, is_group_gamma_r2 = get_group_params_indices(adata, 'gamma'), \
                                                 get_group_params_indices(adata, 'gamma_r2')
@@ -1093,7 +1093,7 @@ def set_velocity_genes(
             if use_for_dynamics
             else (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2)
         )
-    elif layer is "P":
+    elif layer == "P":
         if 'delta' not in adata.var.columns:
             is_group_delta, is_group_delta_r2 = get_group_params_indices(adata, 'delta'), \
                                                 get_group_params_indices(adata, 'delta_r2')
@@ -1740,19 +1740,19 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
 
     time = (
         adata.obs[time].values
-        if mode is not "vector_field"
+        if mode != "vector_field"
         else adata.uns[fate_key]["t"]
     )
 
-    if mode is not "vector_field":
+    if mode != "vector_field":
         valid_genes = list(set(genes).intersection(adata.var.index))
 
-        if layer is "X":
+        if layer == "X":
             exprs = adata[np.isfinite(time), :][:, valid_genes].X
         elif layer in adata.layers.keys():
             exprs = adata[np.isfinite(time), :][:, valid_genes].layers[layer]
             exprs = log1p_(adata, exprs)
-        elif layer is "protein":  # update subset here
+        elif layer == "protein":  # update subset here
             exprs = adata[np.isfinite(time), :][:, valid_genes].obsm[layer]
         else:
             raise Exception(

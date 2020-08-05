@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(
-    name="dynamo",
+    name="dynamo-release",
     version=__version__,
     python_requires=">=3.6",
     install_requires=[

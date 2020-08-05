@@ -179,7 +179,7 @@ def _dynamics(
             mode = "deterministic"
 
         if mode is "deterministic" or (
-            experiment_type is not "kin" and mode is "moment"
+            experiment_type != "kin" and mode == "moment"
         ):
             est = ss_estimation(
                 U=U,
@@ -248,7 +248,7 @@ def _dynamics(
                 ind_for_proteins,
             )
 
-        elif mode is "moment":
+        elif mode == "moment":
             adata, Est, t_ind = moment_model(
                 adata, subset_adata, _group, cur_grp, log_unnormalized, tkey
             )
@@ -311,7 +311,7 @@ def _dynamics(
                 valid_ind,
             )
             # add protein related parameters in the moment model below:
-        elif mode is "model_selection":
+        elif mode == "model_selection":
             warnings.warn("Not implemented yet.")
 
     if group is not None and group in adata.obs[group]:

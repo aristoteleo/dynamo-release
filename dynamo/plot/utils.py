@@ -576,7 +576,7 @@ def _datashade_points(
         _embed_datashader_in_an_axis(result, ax)
         if show_legend and legend_elements is not None:
             if len(unique_labels) > 1 and show_legend == "on data":
-                font_color = "white" if background is "black" else "black"
+                font_color = "white" if background == "black" else "black"
                 for i in unique_labels:
                     color_cnt = np.nanmedian(
                         points.iloc[np.where(labels == i)[0], :2], 0

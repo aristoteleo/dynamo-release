@@ -170,7 +170,7 @@ def _scatters(
     layers = list(adata.layers.keys())
     layers.extend(["X", "protein", "X_protein"])
     if ekey in layers:
-        if ekey is "X":
+        if ekey == "X":
             E_vec = (
                 adata[:, genes].layers[mapper["X"]]
                 if mapper["X"] in adata.layers.keys()
@@ -196,7 +196,7 @@ def _scatters(
     color_vec = np.repeat(np.nan, n_cells)
     if color is not None:
         color = list(set(color).intersection(adata.obs.keys()))
-        if len(color) > 0 and type is not "embedding":
+        if len(color) > 0 and type != "embedding":
             color_vec = adata.obs[color[0]].values
         else:
             n_genes = len(color)  # set n_genes as the number of obs keys
@@ -206,7 +206,7 @@ def _scatters(
     if "velocity_" not in velocity_key:
         vkey = "velocity_" + velocity_key
 
-    if type is "embedding":
+    if type == "embedding":
         df = pd.DataFrame(
             {
                 basis + "_0": np.repeat(embedding.iloc[:, 0], n_genes),
@@ -247,7 +247,7 @@ def _scatters(
                 "running this function."
             )
 
-        if mode is "labelling":
+        if mode == "labelling":
             new_mat, tot_mat = (
                 adata[:, genes].layers["X_new"],
                 adata[:, genes].layers["X_total"],
@@ -273,7 +273,7 @@ def _scatters(
                 index=range(n_cells * n_genes),
             )
 
-        elif mode is "splicing":
+        elif mode == "splicing":
             unspliced_mat, spliced_mat = (
                 adata[:, genes].layers["X_unspliced"],
                 adata[:, genes].layers["X_spliced"],
@@ -301,7 +301,7 @@ def _scatters(
                 index=range(n_cells * n_genes),
             )
 
-        elif mode is "full":
+        elif mode == "full":
             uu, ul, su, sl = (
                 adata[:, genes].layers["X_uu"],
                 adata[:, genes].layers["X_ul"],
@@ -518,10 +518,10 @@ def _scatters(
     else:
         n_columns = (
             2 * n_columns
-            if ("protein" in adata.obsm.keys() and mode is "full")
+            if ("protein" in adata.obsm.keys() and mode == "full")
             else n_columns
         )
-        plot_per_gene = 2 if ("protein" in adata.obsm.keys() and mode is "full") else 1
+        plot_per_gene = 2 if ("protein" in adata.obsm.keys() and mode == "full") else 1
         nrow, ncol = int(np.ceil(plot_per_gene * n_genes / n_columns)), n_columns
         fig = plt.figure(
             None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background
@@ -531,16 +531,16 @@ def _scatters(
         gs = plt.GridSpec(nrow, ncol)
 
         for i, gn in enumerate(genes):
-            if plot_per_gene is 2:
+            if plot_per_gene == 2:
                 ax1, ax2 = plt.subplot(gs[i * 2]), plt.subplot(gs[i * 2 + 1])
-            elif plot_per_gene is 1:
+            elif plot_per_gene == 1:
                 ax1 = plt.subplot(gs[i])
             try:
                 ix = np.where(adata.var.index == gn)[0][0]
             except:
                 continue
             cur_pd = df.loc[df.gene == gn, :]
-            if type is "phase":  # viridis, set2
+            if type == "phase":  # viridis, set2
                 if all(cur_pd.color.unique() == np.nan):
                     fig, ax1 = scatter_with_colorbar(
                         fig,
@@ -582,7 +582,7 @@ def _scatters(
 
                 if plot_per_gene == 2 and (
                     "protein" in adata.obsm.keys()
-                    and mode is "full"
+                    and mode == "full"
                     and all(
                         [i in adata.layers.keys() for i in ["uu", "ul", "su", "sl"]]
                     )
@@ -1126,7 +1126,7 @@ def scatters(
                                 )
                             else:
                                 _theme_ = (
-                                    "viridis" if cur_l is not "velocity" else "div_blue_red"
+                                    "viridis" if not cur_l.startswith("velocity") else "div_blue_red"
                                 )
                         else:
                             _theme_ = theme

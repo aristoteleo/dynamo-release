@@ -349,8 +349,8 @@ def dynamics(
                 cur_L = cur_L.A.flatten() if issparse(cur_L) else cur_L.flatten()
                 y = strat_mom(cur_L, t, np.nanmean)
                 slope, _ = fit_linreg(t_uniq, y, intercept=True, r2=False)
-                valid_gene_checker[L_iter] = True if (slope > 0 and experiment_type is 'kin') or \
-                                                     (slope < 0 and experiment_type is 'deg') else False
+                valid_gene_checker[L_iter] = True if (slope > 0 and experiment_type == 'kin') or \
+                                                     (slope < 0 and experiment_type == 'deg') else False
             valid_bools_[indices_valid_bools[~valid_gene_checker]] = False
             warnings.warn(f'filtering {gene_num - valid_gene_checker.sum()} genes after sanity check.')
 
@@ -539,7 +539,7 @@ def dynamics(
                 valid_bools_,
             )
             # add protein related parameters in the moment model below:
-        elif model.lower() is "model_selection":
+        elif model.lower() == "model_selection":
             warnings.warn("Not implemented yet.")
 
     if group is not None and group in adata.obs[group]:

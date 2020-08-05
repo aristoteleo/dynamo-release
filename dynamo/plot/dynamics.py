@@ -253,7 +253,7 @@ def phase_portraits(
     layers = list(adata.layers.keys())
     layers.extend(["X", "protein", "X_protein"])
     if ekey in layers:
-        if ekey is "X":
+        if ekey == "X":
             E_vec = (
                 adata[:, genes].layers[mapper["X"]]
                 if mapper["X"] in adata.layers.keys()
@@ -320,7 +320,7 @@ def phase_portraits(
             "running this function."
         )
 
-    if mode is "labeling":
+    if mode == "labeling":
         new_mat, tot_mat = (
             adata[:, genes].layers[mapper["X_new"]],
             adata[:, genes].layers[mapper["X_total"]],
@@ -351,7 +351,7 @@ def phase_portraits(
             index=range(n_cells * n_genes),
         )
 
-    elif mode is "splicing":
+    elif mode == "splicing":
         unspliced_mat, spliced_mat = (
             adata[:, genes].layers[mapper["X_unspliced"]],
             adata[:, genes].layers[mapper["X_spliced"]],
@@ -384,7 +384,7 @@ def phase_portraits(
             index=range(n_cells * n_genes),
         )
 
-    elif mode is "full":
+    elif mode == "full":
         uu, ul, su, sl = (
             adata[:, genes].layers[mapper["X_uu"]],
             adata[:, genes].layers[mapper["X_ul"]],
@@ -479,7 +479,7 @@ def phase_portraits(
             "spliced, ambiguous, unspliced for the splicing model and uu, ul, su, sl for the full mode"
         )
 
-    num_per_gene = 6 if ("protein" in adata.obsm.keys() and mode is "full") else 3
+    num_per_gene = 6 if ("protein" in adata.obsm.keys() and mode == "full") else 3
     ncols = min([num_per_gene, ncols]) if ncols is not None else num_per_gene
     nrow, ncol = int(np.ceil(num_per_gene * n_genes / ncols)), ncols
     if figsize is None:
@@ -527,13 +527,13 @@ def phase_portraits(
     # the following code is inspired by https://github.com/velocyto-team/velocyto-notebooks/blob/master/python/DentateGyrus.ipynb
     gs = plt.GridSpec(nrow, ncol, wspace=0.5, hspace=0.36)
     for i, gn in enumerate(genes):
-        if num_per_gene is 3:
+        if num_per_gene == 3:
             ax1, ax2, ax3 = (
                 plt.subplot(gs[i * 3]),
                 plt.subplot(gs[i * 3 + 1]),
                 plt.subplot(gs[i * 3 + 2]),
             )
-        elif num_per_gene is 6:
+        elif num_per_gene == 6:
             ax1, ax2, ax3, ax4, ax5, ax6 = (
                 plt.subplot(gs[i * 3]),
                 plt.subplot(gs[i * 3 + 1]),
@@ -780,7 +780,7 @@ def phase_portraits(
 
         if (
                 "protein" in adata.obsm.keys()
-                and mode is "full"
+                and mode == "full"
                 and all([i in adata.layers.keys() for i in ["uu", "ul", "su", "sl"]])
         ):
             if cur_pd.color.unique() != np.nan:
@@ -1143,7 +1143,7 @@ def dynamics(
         NTR_vel,
         log_unnormalized
     ) = adata.uns[uns_key].values()
-    if experiment_type is "conventional":
+    if experiment_type == "conventional":
         # run the phase_portraits plot
         warnings.warn(
             "dynamics plot doesn't support conventional experiment type, using phase_portraits function instead."
@@ -1168,9 +1168,9 @@ def dynamics(
         barwidth = 0.8 * (np.diff(T_uniq).min() / 2)
 
     if has_splicing:
-        if model is "moment":
+        if model == "moment":
             sub_plot_n = 4  # number of subplots for each gene
-        elif experiment_type is "kin":
+        elif experiment_type == "kin":
             if model == 'deterministic':
                 sub_plot_n = 2 if show_variance else 1
             elif model == 'stochastic':
@@ -1184,20 +1184,20 @@ def dynamics(
             elif model == 'mixture_stochastic_stochastic':
                 mom_n = 6 if show_moms_fit else 0
                 sub_plot_n = 4 + mom_n if show_variance else 2 + mom_n
-        elif experiment_type is "deg":
+        elif experiment_type == "deg":
             if model == 'deterministic':
                 sub_plot_n = 2 if show_variance else 1
             elif model == 'stochastic':
                 mom_n = 3 if show_moms_fit else 0
                 sub_plot_n = 2 + mom_n if show_variance else 1 + mom_n
-        elif experiment_type is "one_shot":  # just the labeled RNA
+        elif experiment_type == "one_shot":  # just the labeled RNA
             sub_plot_n = 1
-        elif experiment_type is "mix_std_stm":
+        elif experiment_type == "mix_std_stm":
             sub_plot_n = 5
     else:
-        if model is "moment":
+        if model == "moment":
             sub_plot_n = 2  # number of subplots for each gene
-        elif experiment_type is "kin":
+        elif experiment_type == "kin":
             if model == 'deterministic':
                 sub_plot_n = 1
             elif model == 'stochastic':
@@ -1211,15 +1211,15 @@ def dynamics(
             elif model == 'mixture_stochastic_stochastic':
                 mom_n = 2 if show_moms_fit else 0
                 sub_plot_n = 2 + mom_n if show_variance else 1 + mom_n
-        elif experiment_type is "deg":
+        elif experiment_type == "deg":
             if model == 'deterministic':
                 sub_plot_n = 1
             elif model == 'stochastic':
                 mom_n = 1 if show_moms_fit else 0
                 sub_plot_n = 1 + mom_n
-        elif experiment_type is "one_shot":  # just the labeled RNA
+        elif experiment_type == "one_shot":  # just the labeled RNA
             sub_plot_n = 1
-        elif experiment_type is "mix_std_stm":
+        elif experiment_type == "mix_std_stm":
             sub_plot_n = 3
 
     ncols = ( # each column correspond to one gene
@@ -1263,7 +1263,7 @@ def dynamics(
         est_params = [est_params_df.loc[:, 'alpha'].values, est_params_df.loc[:, 'beta'].values,
                       est_params_df.loc[:, 'gamma'].values]
 
-        if experiment_type is "kin":
+        if experiment_type == "kin":
             if model == 'deterministic':
                 gs = plot_kin_det(valid_adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
                                   t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
@@ -1294,7 +1294,7 @@ def dynamics(
                                   grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
                                   true_param_prefix, true_params, est_params,
                                   show_moms_fit, show_variance, show_kin_parameters, )
-        elif experiment_type is "deg":
+        elif experiment_type == "deg":
             if model == 'deterministic':
                 gs = plot_deg_det(valid_adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
                                   t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
@@ -1309,7 +1309,7 @@ def dynamics(
                                   show_moms_fit, show_variance, show_kin_parameters, )
         else:
             for i, gene_name in enumerate(valid_genes):
-                if model is "moment":
+                if model == "moment":
                     a, b, alpha_a, alpha_i, beta, gamma = valid_adata.var.loc[
                         gene_name,
                         [
@@ -1530,7 +1530,7 @@ def dynamics(
                         ax.set_xlabel("time (" + unit + ")")
                         ax.set_title(gene_name + " " + title_[j])
 
-                elif experiment_type is "deg":
+                elif experiment_type == "deg":
                     if has_splicing:
                         layers = (
                             ["X_uu", "X_ul", "X_su", "X_sl"]
@@ -1746,7 +1746,7 @@ def dynamics(
                         else:
                             ax.set_ylabel("Expression")
                         ax.set_title(gene_name + " " + title_[j])
-                elif experiment_type is "kin":
+                elif experiment_type == "kin":
                     if model == 'deterministic':
                         logLL = valid_adata.var.loc[valid_gene_names, prefix + 'logLL']
                         alpha, beta, gamma, half_life = valid_adata.var.loc[
@@ -1982,7 +1982,7 @@ def dynamics(
                         else:
                             ax.set_ylabel("Expression")
                         ax.set_title(gene_name + " " + title_[j])
-                elif experiment_type is "one_shot":
+                elif experiment_type == "one_shot":
                     if has_splicing:
                         layers = (
                             ["X_uu", "X_ul", "X_su", "X_sl"]
@@ -2173,7 +2173,7 @@ def dynamics(
                     else:
                         ax.set_ylabel("Expression")
                     ax.set_title(gene_name + " " + title_[0])
-                elif experiment_type is "mix_std_stm":
+                elif experiment_type == "mix_std_stm":
                     if has_splicing:
                         layers = (
                             ["X_uu", "X_ul", "X_su", "X_sl"]
@@ -2393,9 +2393,9 @@ def dynamics(
 
                         ax.set_xlabel("time (" + unit + ")")
                         ax.set_title(gene_name + ": " + title_[j])
-                elif experiment_type is "multi_time_series":
+                elif experiment_type == "multi_time_series":
                     pass  # group by different groups
-                elif experiment_type is "coassay":
+                elif experiment_type == "coassay":
                     pass  # show protein velocity (steady state and the Gamma distribution model)
     g.autofmt_xdate(rotation=-30, ha='right')
     if save_show_or_return == "save":

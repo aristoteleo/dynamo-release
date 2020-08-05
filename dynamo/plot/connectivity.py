@@ -467,7 +467,7 @@ def nneighbors(
                 else:
                     values = _color
                     if theme is None:
-                        theme = "inferno" if cur_l is not "velocity" else "div_blue_red"
+                        theme = "inferno" if cur_l != "velocity" else "div_blue_red"
 
                 if total_panels > 1:
                     ax = plt.subplot(gs[i])

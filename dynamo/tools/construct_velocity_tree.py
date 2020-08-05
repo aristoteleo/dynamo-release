@@ -5,8 +5,9 @@ import matplotlib.pyplot as plt
 import networkx as nx
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import shortest_path
+import re
 
-from .DDRtree import DDRTree_py
+from .DDRTree import DDRTree_py
 
 
 def remove_velocity_points(G, n):
@@ -95,7 +96,7 @@ def construct_velocity_tree_py(X1, X2):
     fid = open(branch_fname, "r")
     tline = next(fid)
     while isinstance(tline, str):
-        path = regexp(tline, "\d*", "Match")  ############
+        path = re.regexp(tline, "\d*", "Match")  ############
         branch_cell = branch_cell + [path]  #################
         tline = next(fid)
     fid.close()
@@ -195,11 +196,11 @@ def construct_velocity_tree_py(X1, X2):
         p1 = Y[:, row[tn]]
         p2 = Y[:, col[tn]]
         dp = p2 - p1
-        h = quiver(
+        h = plt.quiver(
             p1(1), p1(2), dp(1), dp(2), "LineWidth", 5
         )  ###############need to plot it
         set(h, "MaxHeadSize", 1e3, "AutoScaleFactor", 1)  #############
 
     for i in range(n):
-        text(Y(1, i), Y(2, i), str(i))  ##############
-    savefig("./results/t01_figure3.fig")  ##################
+        plt.text(Y(1, i), Y(2, i), str(i))  ##############
+    plt.savefig("./results/t01_figure3.fig")  ##################

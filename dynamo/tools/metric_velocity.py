@@ -49,7 +49,7 @@ def cell_wise_confidence(adata,
             Returns an updated `~anndata.AnnData` with `.obs.confidence` as the cell-wise velocity confidence.
     """
 
-    if ekey is "X": 
+    if ekey == "X":
         X, V = (adata.X if X_data is None else X_data, adata.layers[vkey] if V_data is None else V_data)
         norm_method = adata.uns["pp_norm_method"].copy()
         adata.uns["pp_norm_method"] = 'log1p'
