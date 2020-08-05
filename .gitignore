@@ -12,6 +12,7 @@ debug/
 integral_seq/
 
 dynamo.egg-info/
+dynamo_release.egg-info/
 
 # Python / Byte-compiled / optimized / DLL
 __pycache__/

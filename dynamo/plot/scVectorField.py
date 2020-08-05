@@ -282,7 +282,7 @@ def line_integral_conv(
         # velocyto_tex = runlic(V_grid, V_grid, 100)
         # plot_LIC_gray(velocyto_tex)
         pass
-    
+
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'line_integral_conv', "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
