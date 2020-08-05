@@ -33,7 +33,7 @@ requires = ['numpy>=1.18.1',
             'holoviews>=1.9.2',
             'tqdm',
             'python-igraph>=0.7.1',
-            'pysal>=2.3.0',
+            'pysal>2.0.0',
             'joblib',
             'setuptools']
 requires-extra = { doc = ['docutils'], test = ['pytest'] }
