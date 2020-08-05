@@ -10,6 +10,8 @@ install:
   - pip install -e .
 #   - pip install black>=19.10b0
 
+if pull_request = false
+
 env: MPLBACKEND=Agg
 
 jobs:
