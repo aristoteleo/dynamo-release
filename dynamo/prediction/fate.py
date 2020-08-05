@@ -20,7 +20,7 @@ def fate(
     direction="both",
     interpolation_num=250,
     average=False,
-    sampling='logspace',
+    sampling='arc_length',
     VecFld_true=None,
     inverse_transform=False,
     scale=1,
@@ -67,7 +67,7 @@ def fate(
             `origin` used, the average expression state from the init_cells will be calculated and the fate prediction is
             based on this state. If `trajectory` used, the average expression states of all cells predicted from the
             vector field function at each time point will be used. If `average` is `False`, no averaging will be applied.
-        sampling: `str` (default: `logspace`)
+        sampling: `str` (default: `arc_length`)
             Methods to sample points along the integration path, one of `{'arc_length', 'logspace', 'uniform_indices'}`.
             If `logspace`, we will sample time points linearly on log space. If `uniform_indices`, the sorted unique set
             of all time points from all cell states' fate prediction will be used and then evenly sampled up to

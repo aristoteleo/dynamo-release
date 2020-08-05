@@ -7,7 +7,7 @@ from ..tools.topography import dup_osc_idx_iter
 from ..tools.utils import log1p_
 
 def integrate_vf_ivp(
-    init_states, t, args, integration_direction, f, interpolation_num=100, average=True, sampling='logspace',
+    init_states, t, args, integration_direction, f, interpolation_num=100, average=True, sampling='arc_length',
     verbose=False, disable=False,
 ):
     """integrating along vector field function using the initial value problem solver from scipy.integrate"""
@@ -93,7 +93,7 @@ def integrate_vf_ivp(
         Y_, t_ = [None] * n_cell, [None] * n_cell
         for i in tqdm(range(n_cell), desc="uniformly sampling points along a trajectory", disable=disable):
             tau, x = T[i], Y[i].T
-            idx = dup_osc_idx_iter(x, max_iter=100, tol=5)[0]
+            idx = dup_osc_idx_iter(x, max_iter=100, tol=0.05)[0]
             # idx = dup_osc_idx_iter(x)
             x = x[:idx]
             _, arclen, _ = remove_redundant_points_trajectory(x, tol=1e-4, output_discard=True)
