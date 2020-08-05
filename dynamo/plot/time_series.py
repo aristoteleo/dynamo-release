@@ -3,7 +3,8 @@ import statsmodels.api as sm
 import numpy as np
 from scipy.sparse import issparse
 from scipy.interpolate import interp1d
-from ..tools.utils import fetch_exprs, update_dict
+from ..tools.utils import update_dict
+from ..prediction.utils import fetch_exprs
 from .utils import save_fig
 
 from ..docrep import DocstringProcessor

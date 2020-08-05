@@ -5,11 +5,11 @@ from tqdm import tqdm
 
 from ..prediction.fate import _fate
 from ..tools import vector_field_function
-from ..tools.utils import (
-    fetch_states,
+from .utils import (
     remove_redundant_points_trajectory,
     arclength_sampling,
     integrate_streamline,
+    fetch_states
 )
 
 

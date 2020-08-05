@@ -4,9 +4,8 @@ from sklearn.neighbors import NearestNeighbors
 from multiprocessing.dummy import Pool as ThreadPool
 import itertools
 import warnings
-from ..tools.utils import integrate_vf_ivp
+from .utils import integrate_vf_ivp, fetch_states
 from ..tools import vector_field_function
-from ..tools.utils import fetch_states
 
 
 def fate(
