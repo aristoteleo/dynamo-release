@@ -12,7 +12,10 @@ setup(
     python_requires=">=3.6",
     install_requires=[
         l.strip() for l in Path('requirements.txt').read_text('utf-8').splitlines()
-    ], # ,  'fitsne>=1.0.1''pysal>=2.0.0', 'yt>=3.5.1', 'sympy>=1.4',
+    ], # 'yt>=3.5.1', 'sympy>=1.4',
+    extra_requires={"spatial": ["pysal>2.0.0"],
+                    "dimension_reduction": ["fitsne>=1.0.1"]
+                   },
     packages=find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",

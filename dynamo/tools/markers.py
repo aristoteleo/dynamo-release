@@ -1,7 +1,6 @@
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
-import pysal
 from scipy.sparse import issparse
 from scipy.stats import mannwhitneyu
 from scipy import stats
@@ -62,6 +61,12 @@ def moran_i(adata,
         Returns an updated `~anndata.AnnData` with a new key `'Moran_' + type` in the .uns attribute, storing the Moran' I
         test results.
     """
+
+    try:
+        import pysal
+    except ImportError:
+        raise ImportError("You need to install the package `pysal`."
+                          "Please install via pip install pysal. See more details at https://pypi.org/project/pysal/")
 
     if X_data is None:
         genes, X_data = fetch_X_data(adata, genes, layer)
