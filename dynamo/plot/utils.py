@@ -297,7 +297,7 @@ def _matplotlib_points(
             else np.argsort(values)
         values, points = values[sorted_id], points[sorted_id, :]
 
-        # if there are very few cells have expression, set the
+        # if there are very few cells have expression, set the vmin/vmax based on only positive values
         if np.nanmin(values) == 0:
             if sum(values > 0) / len(values) < 0.02:
                 vmin = 0 if sum(values > 0) == 1 else np.percentile(values[values > 0], 2)

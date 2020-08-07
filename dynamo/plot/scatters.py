@@ -33,6 +33,7 @@ from ..tools.utils import (
     log1p_,
     flatten,
 )
+from ..tools.moments import calc_1nd_moment
 
 from ..docrep import DocstringProcessor
 
@@ -762,6 +763,7 @@ def scatters(
     ccmap=None,
     calpha=2.3,
     sym_c=False,
+    smooth=False,
     **kwargs
 ):
     """Plot an embedding as points. Currently this only works
@@ -906,6 +908,10 @@ def scatters(
         sym_c: `bool` (default: `False`)
             Whether do you want to make the limits of continuous color to be symmetric, normally this should be used for
             plotting velocity, jacobian, curl, divergence or other types of data with both positive or negative values.
+        smooth: `bool` or `int` (default: `False`)
+            Whether do we want to further smooth data and what much smoothing do we want. If it is `False`, no smoothing
+            will be applied. If `True`, smoothing based on one step diffusion of connectivity matrix (`.uns['moment_cnn']
+            will be applied. If a number larger than 1, smoothing will based on `smooth` steps of diffusion.
         kwargs:
             Additional arguments passed to plt.scatters.
 
@@ -1167,6 +1173,12 @@ def scatters(
                             )
 
                     color_out = None
+
+                    if smooth and not is_not_continous:
+                        knn = adata.uns['moments_con']
+                        values = calc_1nd_moment(values, knn)[0] if smooth in [1, True] else \
+                            calc_1nd_moment(values, knn**smooth)[0]
+
                     if points.shape[0] <= figsize[0] * figsize[1] * 100000:
                         ax, color_out = _matplotlib_points(
                             points.values,
