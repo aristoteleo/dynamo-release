@@ -909,7 +909,7 @@ def scatters(
             Whether do you want to make the limits of continuous color to be symmetric, normally this should be used for
             plotting velocity, jacobian, curl, divergence or other types of data with both positive or negative values.
         smooth: `bool` or `int` (default: `False`)
-            Whether do we want to further smooth data and what much smoothing do we want. If it is `False`, no smoothing
+            Whether do you want to further smooth data and how much smoothing do you want. If it is `False`, no smoothing
             will be applied. If `True`, smoothing based on one step diffusion of connectivity matrix (`.uns['moment_cnn']
             will be applied. If a number larger than 1, smoothing will based on `smooth` steps of diffusion.
         kwargs:
