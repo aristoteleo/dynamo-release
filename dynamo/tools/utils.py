@@ -1,7 +1,7 @@
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
-from scipy import interpolate
+from scipy import interpolate, stats
 from scipy.sparse import issparse, csr_matrix
 from scipy.integrate import odeint
 from scipy.linalg.blas import dgemm
@@ -130,6 +130,12 @@ def einsum_correlation(X, Y_i, type="pearson"):
         Y_i -= np.nanmean(Y_i)
     elif type == "cosine":
         X, Y_i = X, Y_i
+    elif type == 'spearman':
+        X = stats.rankdata(X, axis=1)
+        Y_i = stats.rankdata(Y_i)
+    elif type == 'kendalltau':
+        corr = np.array([stats.kendalltau(x, Y_i)[0] for x in X])
+        return corr[None, :]
 
     X_norm, Y_norm = norm_row(X),  norm_vector(Y_i)
 

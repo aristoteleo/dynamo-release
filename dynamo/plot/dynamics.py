@@ -750,7 +750,8 @@ def phase_portraits(
                 width=figsize[0],
                 height=figsize[1],
                 show_legend=legend,
-                frontier=True,
+                sort='abs',
+                frontier=frontier,
                 **div_scatter_kwargs
             )
         else:
@@ -767,7 +768,8 @@ def phase_portraits(
                 width=figsize[0],
                 height=figsize[1],
                 show_legend=legend,
-                frontier=True,
+                sort='abs',
+                frontier=frontier,
                 **div_scatter_kwargs
             )
 
@@ -982,7 +984,8 @@ def phase_portraits(
                     width=figsize[0],
                     height=figsize[1],
                     show_legend=legend,
-                    frontier=True,
+                    sort='abs',
+                    frontier=frontier,
                     **div_scatter_kwargs
                 )
             else:
@@ -999,6 +1002,8 @@ def phase_portraits(
                     width=figsize[0],
                     height=figsize[1],
                     show_legend=legend,
+                    sort='abs',
+                    frontier=frontier,
                     **div_scatter_kwargs
                 )
 
