@@ -1,3 +1,4 @@
+from tqdm import tqdm
 import numpy as np
 import pandas as pd
 from sklearn.neighbors import NearestNeighbors
@@ -375,7 +376,7 @@ def fate_bias(adata,
 
     X = adata.obsm[basis_key] if basis_key != 'X' else adata.X
     alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
-    nbrs = NearestNeighbors(n_neighbors=2, algorithm=alg).fit(X)
+    nbrs = NearestNeighbors(n_neighbors=30, algorithm=alg).fit(X)
     distances, knn = nbrs.kneighbors(X)
     median_dist = np.median(distances[:, 1])
 
@@ -384,7 +385,7 @@ def fate_bias(adata,
     t = adata.uns[fate_key]['t']
     confidence = np.zeros(len(t))
 
-    for i, prediction in enumerate(cell_predictions):
+    for i, prediction in tqdm(enumerate(cell_predictions), desc='calculating fate distributions'):
         cur_t, n_steps = t[i], len(t[i])
         indices = None
         # ensure to identify sink where the speed is very slow if inds is not provided.
@@ -400,13 +401,14 @@ def fate_bias(adata,
             indices = inds
 
         distances, knn = nbrs.kneighbors(prediction[:, indices].T)
-        distances, knn = distances[:, 0], knn[:, 0]
+        distances, knn = distances[:, 0], nbrs.kneighbors(X[knn.flatten(), :])[1]
+
 
         # if final steps too far away from observed cells, ignore them
         walk_back_steps = 0
         while True:
             if any(distances < dist_threshold * median_dist):
-                fate_prob = clusters[knn.flatten()].value_counts() / len(indices)
+                fate_prob = clusters[knn.flatten()].value_counts() / len(knn.flatten())
                 if source_groups is not None:
                     source_p = fate_prob[source_groups].sum()
                     if 1 > source_p > 0:
