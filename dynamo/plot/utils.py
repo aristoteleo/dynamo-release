@@ -299,9 +299,10 @@ def _matplotlib_points(
 
         # if there are very few cells have expression, set the vmin/vmax only based on positive values
         if np.nanmin(values) == 0:
-            if sum(values > 0) / len(values) < 0.02:
-                vmin = 0 if sum(values > 0) == 1 else np.percentile(values[values > 0], 2)
-                vmax = np.nanmax(values) if sum(values > 0) == 1 else np.percentile(values[values > 0], 98)
+            n_pos_cells = sum(values > 0)
+            if 0 < n_pos_cells / len(values) < 0.02:
+                vmin = 0 if n_pos_cells == 1 else np.percentile(values[values > 0], 2)
+                vmax = np.nanmax(values) if n_pos_cells == 1 else np.percentile(values[values > 0], 98)
                 if vmin + vmax in [1, 100]:
                     vmin += 1e-12
                     vmax += 1e-12
