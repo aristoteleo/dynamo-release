@@ -504,8 +504,11 @@ class vectorfield:
                 Velocities of cells in the same order and dimension of X.
         Grid: 'np.ndarray'
                 The function that returns diffusion matrix which can be dependent on the variables (for example, genes)
-        M: 'int' (default: 100)
-                The number of basis functions to approximate the vector field.
+        M: 'int' (default: None)
+            The number of basis functions to approximate the vector field. By default it is calculated as
+            `min(len(X), int(1500 * np.log(len(X)) / (np.log(len(X)) + np.log(100))))`. So that any datasets with less
+            than  about 900 data points (cells) will use full data for vector field reconstruction while any dataset
+            larger than that will at most use 1500 data points.
         a: `float` (default 5)
             Parameter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's
             variation space is a.
@@ -543,7 +546,7 @@ class vectorfield:
         if X is not None and V is not None:
             self.parameters = kwargs
             self.parameters = update_n_merge_dict(self.parameters, {
-                "M": kwargs.pop('M', None) or max(min([50, len(X)]), int(0.05 * len(X)) + 1),
+                "M": kwargs.pop('M', None) or min(len(X), int(1500 * np.log(len(X)) / (np.log(len(X)) + np.log(100)))),
                 "a": kwargs.pop('a', 5),
                 "beta": kwargs.pop('beta', None),
                 "ecr": kwargs.pop('ecr', 1e-5),

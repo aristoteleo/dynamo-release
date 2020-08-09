@@ -304,12 +304,14 @@ def fate_bias(adata,
 
     Cell fate predicted by our vector field method sometimes end up in regions that are not sampled with cells. We thus
     developed a heuristic method to iteratively walk backward the integration path to assign cell fate. We first identify
-    the regions with small velocity in the tail of the integration path (determined by `spped_percentile`), then I check
+    the regions with small velocity in the tail of the integration path (determined by `speed_percentile`), then we check
     whether the distance of 0-th nearest points on the observed data to all those points are far away from the observed
     data (determined by `dist_threshold`). If they are not all close to data, we then walk backwards along the trajectory
     by one time step until the distance of any currently visited integration path’s data points’ 0-th nearest points to
-    the observed cells is close enough. Then I use group information of those observed cells to define the cell fate
-    probability.
+    the observed cells is close enough. In order to calculate the cell fate probability, we diffuse one step further of
+    the identified nearest neighbors from the integration to identify more nearest observed cells, especially those from
+    terminal cell types in case nearby cells first identified are all close to some random progenitor cells. Then we use
+    group information of those observed cells to define the fate probability.
 
     `fate_bias` calculate a confidence score for the calculated fate probability with a simple metric, defined as
         :math:`1 - (sum(distances > dist_threshold * median_dist) + walk_back_steps) / (len(indices) + walk_back_steps)`
@@ -344,9 +346,9 @@ def fate_bias(adata,
             look backward along the trajectory (by minimize all indices by 1) until it finds cells satisfy this threshold.
         source_groups: `list` or `None` (default: `None`)
             The groups that corresponds to progenitor groups. They has to have at least one intersection with the groups
-            from the `group` column. If group is not `None`, any identified "terminal cells" that happen to be in those
-            groups will be ignored and the probability of cell fate of those cells will be reassigned to groups that has
-            the highest fate probability among other group of non source_groups cells.
+            from the `group` column. If group is not `None`, any identified "source_groups" cells that happen to be in
+            those groups will be ignored and the probability of cell fate of those cells will be reassigned to the group
+            that has the highest fate probability among other non source_groups group cells.
 
     Returns
     -------
@@ -401,8 +403,9 @@ def fate_bias(adata,
             indices = inds
 
         distances, knn = nbrs.kneighbors(prediction[:, indices].T)
+        # let us diffuse one step further to identify cells from terminal cell types in case
+        # cells with indices are all close to some random progenitor cells.
         distances, knn = distances[:, 0], nbrs.kneighbors(X[knn.flatten(), :])[1]
-
 
         # if final steps too far away from observed cells, ignore them
         walk_back_steps = 0
