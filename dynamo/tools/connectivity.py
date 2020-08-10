@@ -355,8 +355,8 @@ def mnn(
 
             adata.uns[layer + "_neighbors"] = {
                 "params": {"n_neighbors": eval(n_neighbors), "method": "umap"},
-                "connectivities": None,
-                "distances": None,
+                # "connectivities": None,
+                # "distances": None,
                 "indices": knn_indices,
             }
             adata.obsp[layer + "_connectivities"], adata.obsp[layer + "_distances"] = graph, knn_dists

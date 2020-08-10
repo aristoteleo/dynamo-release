@@ -134,11 +134,7 @@ def diffusionMatrix(adata,
             nbrs = NearestNeighbors(n_neighbors=n, algorithm=alg, n_jobs=-1).fit(X_data)
             _, Idx = nbrs.kneighbors(X_data)
     else:
-        
-        layer = neighbor_key.split('_')[0] if neighbor_key.__contains__('_') else None 
         conn_key = "connectivities" if layer is None else layer + "_connectivities"
-        dist_key = "connectivities" if layer is None else layer + "_connectivities"
-
         neighbors = adata.obsp[conn_key]
         Idx = neighbors.tolil().rows
 
