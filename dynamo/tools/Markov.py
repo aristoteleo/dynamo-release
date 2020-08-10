@@ -214,14 +214,14 @@ def prepare_velocity_grid_data(X_emb,
     if n_neighbors is None:
         n_neighbors = np.max([10, int(n_obs / 50)])
 
-    if X_emb.shape[0] > 200000 and X.shape[1] > 2: 
+    if X_emb.shape[0] > 200000 and X_emb.shape[1] > 2: 
         from pynndescent import NNDescent
 
         nn = NNDescent(X_emb, metric='euclidean', n_neighbors=n_neighbors, n_jobs=-1,
                           random_state=19491001)
         neighs, dists = nn.query(X_grid, k=n_neighbors)
     else: 
-        alg = "ball_tree" if X.shape[1] > 10 else 'kd_tree'
+        alg = "ball_tree" if X_emb.shape[1] > 10 else 'kd_tree'
         nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=-1, alg=alg)
         nn.fit(X_emb)
         dists, neighs = nn.kneighbors(X_grid)

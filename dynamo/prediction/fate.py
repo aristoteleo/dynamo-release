@@ -435,7 +435,7 @@ def fate_bias(adata,
         # cells with indices are all close to some random progenitor cells.
         if hasattr(nbrs, 'query'):
             knn, distances = nbrs.query(prediction[:, indices].T, k=30) 
-            knn, distances = knn[:, 0], index.query(X[knn.flatten(), :], k=30)[1]
+            knn, distances = knn[:, 0], nbrs.query(X[knn.flatten(), :], k=30)[1]
         else:
             distances, knn = nbrs.kneighbors(prediction[:, indices].T) 
             knn, distances = knn[:, 0], nbrs.kneighbors(X[knn.flatten(), :])[0]
