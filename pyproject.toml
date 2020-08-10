@@ -3,7 +3,7 @@ requires = ['flit']
 build-backend = 'flit.buildapi'
 
 [tool.flit.metadata]
-module = 'dynamo-release'
+module = 'dynamo'
 author = 'Xiaojie Qiu, Yan Zhang'
 author-email = 'xqiu.sc@gmail.com'
 home-page = 'https://github.com/aristoteleo/dynamo-release'
