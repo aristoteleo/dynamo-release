@@ -253,7 +253,15 @@ def cell_velocities(
         X, V_mat = X_pca[:, :n_pca_components], V_pca[:, :n_pca_components]
 
     if neighbors_from_basis:
-            nbrs = NearestNeighbors(n_neighbors=30, algorithm="ball_tree").fit(X)
+        if X.shape[0] > 200000 and X.shape[1] > 2: 
+            from pynndescent import NNDescent
+
+            nbrs = NNDescent(X, metric='eulcidean', n_neighbors=30, n_jobs=-1,
+                              random_state=19490110, **kwargs)
+            indices, _ = nbrs.query(X, k=30)
+        else:
+            alg = "ball_tree" if X.shape[1] > 10 else 'kd_tree'
+            nbrs = NearestNeighbors(n_neighbors=30, algorithm=alg, n_jobs=-1).fit(X)
             _, indices = nbrs.kneighbors(X)
 
     # add both source and sink distribution

@@ -376,7 +376,7 @@ def neighbors(
     layer=None,
     n_pca_components=30,
     n_neighbors=30,
-    alg='umap',
+    alg=None,
     metric="euclidean",
     metric_kwads=None,
     cores=1,
@@ -404,7 +404,7 @@ def neighbors(
             Number of PCA components. Applicable only if you will use pca `basis` for nearest neighbor search.
         n_neighbors: `int` (optional, default `30`)
             Number of nearest neighbors.
-        alg: `str` (default: `umap`)
+        alg: `str` or `None` (default: `None`)
             The algorithm that will be used for nearest neighbor search. If `umap`, it relies on `pynndescent` package's
             NNDescent for fast nearest neighbor search.
         metric: `str` or callable, default='euclidean'
@@ -443,6 +443,9 @@ def neighbors(
         else:
             genes, X_data = fetch_X_data(adata, genes, layer, basis)
 
+    alg = 'umap' if X.shape[0] > 200000 and X.shape[1] > 2 else 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+
+    # may distinguish between umap and pynndescent
     if alg == 'umap':
         from pynndescent import NNDescent
         index = NNDescent(X_data, metric=metric, metric_kwads=metric_kwads, n_neighbors=n_neighbors, n_jobs=cores,

@@ -124,8 +124,15 @@ def diffusionMatrix(adata,
 
     neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
     if neighbor_key not in adata.uns_keys() or (X_data is not None and V_data is not None):
-        nbrs = NearestNeighbors(n_neighbors=n, algorithm='ball_tree').fit(X_data)
-        _, Idx = nbrs.kneighbors(X_data)
+        if X_data.shape[0] > 200000 and X_data.shape[1] > 2: 
+            from pynndescent import NNDescent
+
+            nbrs = NNDescent(X_data, metric='euclidean', n_neighbors=n, n_jobs=-1, random_state=19491001)
+            Idx, _ = nbrs.query(X_data, k=n)
+        else:
+            alg = 'ball_tree' if X_data.shape[1] > 10 else 'kd_tree'
+            nbrs = NearestNeighbors(n_neighbors=n, algorithm=alg, n_jobs=-1).fit(X_data)
+            _, Idx = nbrs.kneighbors(X_data)
     else:
         neighbors = adata.uns[neighbor_key]["connectivities"]
         Idx = neighbors.tolil().rows

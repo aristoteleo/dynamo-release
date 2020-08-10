@@ -163,8 +163,16 @@ def makeTransitionMatrix(Qnn, I, tol=0.0):
 @jit(nopython=True)
 def compute_tau(X, V, k=100, nbr_idx=None):
     if nbr_idx is None:
-        nbrs = NearestNeighbors(n_neighbors=k, algorithm="ball_tree").fit(X)
-        dists, _ = nbrs.kneighbors(X)
+        if X.shape[0] > 200000 and X.shape[1] > 2: 
+            from pynndescent import NNDescent
+
+            nbrs = NNDescent(X, metric='euclidean', n_neighbors=k, n_jobs=-1, random_state=19491001)
+            _, dist = nbrs.query(X, k=k)
+        else:
+            alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+            nbrs = NearestNeighbors(n_neighbors=k, algorithm=alg, n_jobs=-1).fit(X)
+            dists, _ = nbrs.kneighbors(X)
+
     else:
         dists = np.zeros(nbr_idx.shape)
         for i in range(nbr_idx.shape[0]):
@@ -205,9 +213,18 @@ def prepare_velocity_grid_data(X_emb,
     # estimate grid velocities
     if n_neighbors is None:
         n_neighbors = np.max([10, int(n_obs / 50)])
-    nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=-1)
-    nn.fit(X_emb)
-    dists, neighs = nn.kneighbors(X_grid)
+
+    if X_emb.shape[0] > 200000 and X.shape[1] > 2: 
+        from pynndescent import NNDescent
+
+        nn = NNDescent(X_emb, metric='euclidean', n_neighbors=n_neighbors, n_jobs=-1,
+                          random_state=19491001)
+        neighs, dists = nn.query(X_grid, k=n_neighbors)
+    else: 
+        alg = "ball_tree" if X.shape[1] > 10 else 'kd_tree'
+        nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=-1, alg=alg)
+        nn.fit(X_emb)
+        dists, neighs = nn.kneighbors(X_grid)
 
     weight = norm.pdf(x=dists, scale=scale)
     p_mass = weight.sum(1)
@@ -366,8 +383,16 @@ class KernelMarkovChain(MarkovChain):
     ):
         # compute connectivity
         if neighbor_idx is None:
-            nbrs = NearestNeighbors(n_neighbors=k, algorithm="ball_tree").fit(X)
-            _, neighbor_idx = nbrs.kneighbors(X)
+            if X.shape[0] > 200000 and X.shape[1] > 2: 
+                from pynndescent import NNDescent
+
+                nbrs = NNDescent(X, metric='euclidean', n_neighbors=k, n_jobs=-1,
+                                  random_state=19491001)
+                neighbor_idx, _ = nbrs.query(X, k=k)
+            else:
+                alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+                nbrs = NearestNeighbors(n_neighbors=k, algorithm=alg, n_jobs=-1).fit(X)
+                _, neighbor_idx = nbrs.kneighbors(X)
 
         if n_recurse_neighbors is not None:
             self.Idx = append_iterative_neighbor_indices(
@@ -511,8 +536,15 @@ class DiscreteTimeMarkovChain(MarkovChain):
         # the parameter k will be replaced by a connectivity matrix in the future.
         self.__reset__()
         # knn clustering
-        nbrs = NearestNeighbors(n_neighbors=k, algorithm="ball_tree").fit(X)
-        _, Idx = nbrs.kneighbors(X)
+        if X.shape[0] > 200000 and X.shape[1] > 2: 
+            from pynndescent import NNDescent
+
+            nbrs = NNDescent(X, metric='euclidean', n_neighbors=k, n_jobs=-1, random_state=19491001)
+            Idx, _ = nbrs.query(X, k=k)
+        else:
+            alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+            nbrs = NearestNeighbors(n_neighbors=k, algorithm=alg, n_jobs=-1).fit(X)
+            _, Idx = nbrs.kneighbors(X)
         # compute transition prob.
         n = X.shape[0]
         self.P = np.zeros((n, n))
@@ -613,8 +645,17 @@ class ContinuousTimeMarkovChain(MarkovChain):
         self.__reset__()
         # knn clustering
         if self.nbrs_idx is None:
-            nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm="ball_tree").fit(X)
-            _, Idx = nbrs.kneighbors(X)
+            if X.shape[0] > 200000 and X.shape[1] > 2: 
+                from pynndescent import NNDescent
+
+                nbrs = NNDescent(X, metric='euclidean', n_neighbors=k + 1, n_jobs=-1,
+                                  random_state=19491001)
+                Idx, _ = nbrs.query(X, k=k+1)
+            else:
+                alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+                nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm=alg, n_jobs=-1).fit(X)
+                _, Idx = nbrs.kneighbors(X)
+
             self.nbrs_idx = Idx[:, 1:]
         else:
             Idx = self.nbrs_idx

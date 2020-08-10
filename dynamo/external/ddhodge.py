@@ -186,6 +186,8 @@ def ddhoge(adata,
              and divergence for each cell will also be added.
 """
 
+    from pynndescent import NNDescent
+
     prefix = '' if basis is None else basis + '_'
     to_downsample = adata.n_obs > n_downsamples
 
@@ -254,7 +256,12 @@ def ddhoge(adata,
     if up_sampling and to_downsample:
         query_idx = list(set(np.arange(adata.n_obs)).difference(cell_idx))
         query_data = X_data_full[query_idx, :]
-        dist, nbrs_idx = nbrs.kneighbors(query_data)
+        
+        if hasattr(nbrs, 'kneighbors'): 
+            dist, nbrs_idx = nbrs.kneighbors(query_data)
+        elif hasattr(nbrs, 'query'): 
+            nbrs_idx, dist = nbrs.query(query_data, k=nbrs.n_neighbors)
+
         k = nbrs_idx.shape[1]
         row, col = np.repeat(np.arange(len(query_idx)), k), nbrs_idx.flatten()
         W = csr_matrix((np.repeat(1/k, len(row)), (row, col)), shape=(len(query_idx), len(cell_idx)))

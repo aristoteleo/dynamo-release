@@ -4,8 +4,12 @@ from tqdm import tqdm
 from scipy.sparse import issparse, csr_matrix
 from sklearn.neighbors import NearestNeighbors
 from .connectivity import umap_conn_indices_dist_embedding, mnn_from_list
-from .utils import get_finite_inds, inverse_norm, einsum_correlation
-from .utils_markers import fetch_X_data
+from .utils import (
+    get_finite_inds,
+    inverse_norm,
+    einsum_correlation,
+    fetch_X_data,
+)
 
 
 def cell_wise_confidence(adata,
@@ -66,9 +70,17 @@ def cell_wise_confidence(adata,
         )
     else:
         n_neigh = 30
-        alg = 'ball_tree' if X_data.shape[1] > 10 else 'kd_tree'
-        nbrs = NearestNeighbors(n_neighbors=n_neigh + 1, algorithm=alg).fit(X)
-        dist, nbrs_idx = nbrs.kneighbors(X)
+
+        if X.shape[0] > 200000 and X.shape[1] > 2: 
+            from pynndescent import NNDescent
+
+            nbrs = NNDescent(X, metric='euclidean', n_neighbors=n_neigh + 1, n_jobs=-1, random_state=19491001)
+            nbrs_idx, dist = nbrs.query(X, k=n_neigh + 1)
+        else:
+            alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+            nbrs = NearestNeighbors(n_neighbors=n_neigh + 1, algorithm=alg, n_jobs=-1).fit(X)
+            dist, nbrs_idx = nbrs.kneighbors(X)
+
         row = np.repeat(nbrs_idx[:, 0], n_neigh)
         col = nbrs_idx[:, 1:].flatten()
         X_neighbors = csr_matrix((np.repeat(1, len(col)), (row, col)), shape=(adata.n_obs, adata.n_obs))

@@ -384,8 +384,17 @@ class VectorField2D:
         X = X.A if sp.issparse(X) else X
         Xss = self.Xss.get_X()
         alg = 'ball_tree' if Xss.shape[1] > 10 else 'kd_tree'
-        nbrs = NearestNeighbors(n_neighbors=min(self.k, X.shape[0] - 1), algorithm=alg).fit(X)
-        dist, _ = nbrs.kneighbors(Xss)
+
+        if X.shape[0] > 200000 and X.shape[1] > 2: 
+            from pynndescent import NNDescent
+
+            nbrs = NNDescent(X, metric='euclidean', n_neighbors=min(self.k, X.shape[0] - 1), n_jobs=-1, random_state=19491001)
+            _, dist = nbrs.query(Xss, k=min(self.k, X.shape[0] - 1))
+        else:
+            alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+            nbrs = NearestNeighbors(n_neighbors=min(self.k, X.shape[0] - 1), algorithm=alg, n_jobs=-1).fit(X)
+            dist, _ = nbrs.kneighbors(Xss)
+
         dist_m = dist.mean(1)
         confidence = 1 - dist_m / dist_m.max()
 

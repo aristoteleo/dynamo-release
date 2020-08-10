@@ -246,8 +246,18 @@ def velocity_on_grid(X, V, n_grids, nbrs=None, k=None,
 
     if nbrs is None:
         k = 100 if k is None else k
-        nbrs = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(X)
-    dists, neighs = nbrs.kneighbors(X_grid)
+        if X.shape[0] > 200000 and X.shape[1] > 2: 
+            from pynndescent import NNDescent
+
+            nbrs = NNDescent(X, metric='euclidean', n_neighbors=k+1, n_jobs=-1, random_state=19491001)
+        else:
+            alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+            nbrs = NearestNeighbors(n_neighbors=k+1, algorithm=alg, n_jobs=-1).fit(X)
+
+    if hasattr(nbrs, 'kneighbors'): 
+        dists, neighs = nbrs.kneighbors(X_grid)
+    elif hasattr(nbrs, 'query'): 
+        neighs, dists = nbrs.query(X_grid, k=k+1)
 
     std = np.mean([(g[1] - g[0]) for g in grs])
     # isotropic gaussian kernel

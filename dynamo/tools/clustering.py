@@ -127,6 +127,7 @@ def cluster_field(adata,
                   embedding_basis=None,
                   normalize=True,
                   method='louvain',
+                  cores=1,
                   **kwargs):
     """Cluster cells based on vector field features.
 
@@ -159,6 +160,9 @@ def cluster_field(adata,
     method: `str` (default: `louvain`)
         The method that will be used for clustering, one of `{'kmeans'', 'hdbscan', 'louvain', 'leiden'}`. If `louvain`
         or `leiden` used, you need to have `scanpy` installed.
+    cores: `int` (default: 1)
+        The number of parallel jobs to run for neighbors search. ``None`` means 1 unless in a :obj:`joblib.parallel_backend` context.
+        ``-1`` means using all processors.
     kwargs:
         Any additional arguments that will be passed to either kmeans, hdbscan, louvain or leiden clustering algorithms.
 
@@ -210,8 +214,16 @@ def cluster_field(adata,
             adata.obs['kmeans'] = kmeans.labels_.astype('str')
 
     elif method in ['louvain', 'leiden']:
-        nbrs = NearestNeighbors(n_neighbors=31).fit(X)
-        dist, nbrs_idx = nbrs.kneighbors(X)
+        if X.shape[0] > 200000 and X.shape[1] > 2: 
+            from pynndescent import NNDescent
+
+            nbrs = NNDescent(X, metric='euclidean', n_neighbors=31, n_jobs=cores,
+                              random_state=19491001)
+            nbrs_idx, dist = nbrs.query(X, k=31)
+        else:
+            nbrs = NearestNeighbors(n_neighbors=31, n_jobs=cores).fit(X)
+            dist, nbrs_idx = nbrs.kneighbors(X)
+
         row = np.repeat(nbrs_idx[:, 0], 30)
         col = nbrs_idx[:, 1:].flatten()
         g = csr_matrix((np.repeat(1, len(col)), (row, col)), shape=(adata.n_obs, adata.n_obs))

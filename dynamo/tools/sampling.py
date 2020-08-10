@@ -71,8 +71,16 @@ def trn(X, n, return_index=True, **kwargs):
     if not return_index:
         return trnet.W
     else:
-        nbrs = NearestNeighbors(n_neighbors=1, algorithm='ball_tree').fit(X)
-        _, idx = nbrs.kneighbors(trnet.W)
+        if X.shape[0] > 200000 and X.shape[1] > 2: 
+            from pynndescent import NNDescent
+
+            nbrs = NNDescent(X, metric='euclidean', n_neighbors=1, n_jobs=-1, random_state=19491001)
+            idx, _ = nbrs.query(trnet.W, k=1)
+        else:
+            alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+            nbrs = NearestNeighbors(n_neighbors=1, algorithm=alg, n_jobs=-1).fit(X)
+            _, idx = nbrs.kneighbors(trnet.W)
+
         return idx[:, 0]
 
 def sample_by_velocity(V, n):

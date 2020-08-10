@@ -94,9 +94,17 @@ def bandwidth_selector(X):
     '''
         This function computes an empirical bandwidth for a Gaussian kernel.
     '''
-    n = len(X)
-    nbrs = NearestNeighbors(n_neighbors=max(2, int(0.2*n)), algorithm='ball_tree').fit(X)
-    distances, _ = nbrs.kneighbors(X)
+    n, m = X.shape
+    if n > 200000 and m > 2: 
+        from pynndescent import NNDescent
+
+        nbrs = NNDescent(X, metric='euclidean', n_neighbors=max(2, int(0.2*n)), n_jobs=-1, random_state=19491001)
+        _, distances = nbrs.query(X, k=max(2, int(0.2*n)))
+    else:
+        alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+        nbrs = NearestNeighbors(n_neighbors=max(2, int(0.2*n)), algorithm=alg, n_jobs=-1).fit(X)
+        distances, _ = nbrs.kneighbors(X)
+
     d = np.mean(distances[:, 1:]) / 1.5
     return np.sqrt(2) * d
 
@@ -200,10 +208,16 @@ def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True,
 
     nbrs = None
     if nbrs_idx is None:
-        alg = 'ball_tree' if d > 10 else 'kd_tree'
-        nbrs = NearestNeighbors(n_neighbors=k+1, algorithm=alg).fit(X)
-        dist, nbrs_idx = nbrs.kneighbors(X)
-    
+        if X.shape[0] > 200000 and X.shape[1] > 2: 
+            from pynndescent import NNDescent
+
+            nbrs = NNDescent(X, metric='euclidean', n_neighbors=k+1, n_jobs=-1, random_state=19491001)
+            nbrs_idx, dist = nbrs.query(X, k=k+1)
+        else:
+            alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+            nbrs = NearestNeighbors(n_neighbors=k+1, algorithm=alg, n_jobs=-1).fit(X)
+            dist, nbrs_idx = nbrs.kneighbors(X)
+
     if dist is None and not distance_free:
         D = pdist(X)
     else:

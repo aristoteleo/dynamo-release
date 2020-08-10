@@ -294,7 +294,13 @@ def fate_bias(adata,
               inds=None,
               speed_percentile=5,
               dist_threshold=25,
-              source_groups=None):
+              source_groups=None,
+              metric="euclidean",
+              metric_kwads=None,
+              cores=1,
+              seed=19491001,
+              **kwargs,
+            ):
     """Calculate the lineage (fate) bias of states whose trajectory are predicted.
 
     Fate bias is currently calculated as the percentage of points along the predicted cell fate trajectory whose distance
@@ -349,14 +355,26 @@ def fate_bias(adata,
             from the `group` column. If group is not `None`, any identified "source_groups" cells that happen to be in
             those groups will be ignored and the probability of cell fate of those cells will be reassigned to the group
             that has the highest fate probability among other non source_groups group cells.
+        metric: `str` or callable, default='euclidean'
+            The distance metric to use for the tree.  The default metric is , and with p=2 is equivalent to the standard
+            Euclidean metric. See the documentation of :class:`DistanceMetric` for a list of available metrics. If metric
+            is "precomputed", X is assumed to be a distance matrix and must be square during fit. X may be a
+            :term:`sparse graph`, in which case only "nonzero" elements may be considered neighbors.
+        metric_params : dict, default=None
+            Additional keyword arguments for the metric function.
+        cores: `int` (default: 1)
+            The number of parallel jobs to run for neighbors search. ``None`` means 1 unless in a :obj:`joblib.parallel_backend` context.
+            ``-1`` means using all processors.
+        seed: `int` (default `19491001`)
+            Random seed to ensure the reproducibility of each run.
+        kwargs:
+            Additional arguments that will be passed to each nearest neighbor search algorithm.
 
     Returns
     -------
         fate_bias: `pandas.DataFrame`
             A DataFrame that stores the fate bias for each cell state (row) to each cell group (column).
     """
-
-    from pynndescent import NNDescent
 
     if group not in adata.obs.keys():
         raise ValueError(f'The group {group} you provided is not a key of .obs attribute.')
@@ -380,12 +398,17 @@ def fate_bias(adata,
 
     X = adata.obsm[basis_key] if basis_key != 'X' else adata.X
 
-    index = NNDescent(X)
-    knn, distances = index.query(X, k=30)
+    if X.shape[0] > 200000 and X.shape[1] > 2: 
+        from pynndescent import NNDescent
 
-    # alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
-    # nbrs = NearestNeighbors(n_neighbors=30, algorithm=alg).fit(X)
-    # distances, knn = nbrs.kneighbors(X)
+        nbrs = NNDescent(X, metric=metric, metric_kwads=metric_kwads, n_neighbors=30, n_jobs=cores,
+                              random_state=seed, **kwargs)
+        knn, distances = nbrs.query(X, k=30)
+    else:
+        alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+        nbrs = NearestNeighbors(n_neighbors=30, algorithm=alg, n_jobs=cores).fit(X)
+        distances, knn = nbrs.kneighbors(X)
+
     median_dist = np.median(distances[:, 1])
 
     pred_dict = {}
@@ -408,10 +431,14 @@ def fate_bias(adata,
         else:
             indices = inds
 
-        knn, distances = index.query(prediction[:, indices].T)
         # let us diffuse one step further to identify cells from terminal cell types in case
         # cells with indices are all close to some random progenitor cells.
-        knn, distances = distances[:, 0], index.query(X[knn.flatten(), :])[1]
+        if hasattr(nbrs, 'query'):
+            knn, distances = nbrs.query(prediction[:, indices].T, k=30) 
+            knn, distances = knn[:, 0], index.query(X[knn.flatten(), :], k=30)[1]
+        else:
+            distances, knn = nbrs.kneighbors(prediction[:, indices].T) 
+            knn, distances = knn[:, 0], nbrs.kneighbors(X[knn.flatten(), :])[0]
 
         # if final steps too far away from observed cells, ignore them
         walk_back_steps = 0
@@ -437,8 +464,12 @@ def fate_bias(adata,
                     pred_dict[i] = clusters[knn.flatten()].value_counts() * np.nan
                     break
 
-                distances, knn = index.query(prediction[:, indices - 1].T)
-                distances, knn = distances[:, 0], knn[:, 0]
+                if hasattr(nbrs, 'query'):
+                    knn, distances = nbrs.query(prediction[:, indices - 1].T, k=30)
+                else:
+                    distances, knn = nbrs.kneighbors(prediction[:, indices - 1].T) 
+
+                knn, distances = knn[:, 0], distances[:, 0]
                 indices = indices - 1
 
     bias = pd.DataFrame(pred_dict).T
