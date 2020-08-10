@@ -1011,7 +1011,7 @@ def scatters(
                 if cur_l in ["protein", "X_protein"]:
                     _color = adata.obsm[cur_l].loc[cur_c, :]
                 else:
-                    _color = adata.obs_vector(cur_c, layer=None) if cur_l is 'X' else adata.obs_vector(cur_c, layer=cur_l)
+                    _color = adata.obs_vector(cur_c, layer=None) if cur_l == 'X' else adata.obs_vector(cur_c, layer=cur_l)
                 for cur_x, cur_y in zip(x, y):
                     if type(cur_x) is int and type(cur_y) is int:
                         points = pd.DataFrame(
@@ -1024,8 +1024,8 @@ def scatters(
                     elif is_gene_name(adata, cur_x) and is_gene_name(adata, cur_y):
                         points = pd.DataFrame(
                             {
-                                cur_x: adata.obs_vector(k=cur_x, layer=None) if cur_l_smoothed is 'X' else adata.obs_vector(k=cur_x, layer=cur_l_smoothed),
-                                cur_y: adata.obs_vector(k=cur_y, layer=None) if cur_l_smoothed is 'X' else adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
+                                cur_x: adata.obs_vector(k=cur_x, layer=None) if cur_l_smoothed == 'X' else adata.obs_vector(k=cur_x, layer=cur_l_smoothed),
+                                cur_y: adata.obs_vector(k=cur_y, layer=None) if cur_l_smoothed == 'X' else adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
                             }
                         )
                         # points = points.loc[(points > 0).sum(1) > 1, :]
@@ -1047,7 +1047,7 @@ def scatters(
                         points = pd.DataFrame(
                             {
                                 cur_x: adata.obs_vector(cur_x), 
-                                cur_y: adata.obs_vector(k=cur_y, layer=None) if cur_l_smoothed is 'X' else adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
+                                cur_y: adata.obs_vector(k=cur_y, layer=None) if cur_l_smoothed == 'X' else adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
                             }
                         )
                         # points = points.loc[points.iloc[:, 1] > 0, :]
@@ -1056,7 +1056,7 @@ def scatters(
                     elif is_gene_name(adata, cur_x) and is_cell_anno_column(adata, cur_y):
                         points = pd.DataFrame(
                             {
-                                cur_x: adata.obs_vector(k=cur_x, layer=None) if cur_l_smoothed is 'X' else adata.obs_vector(k=cur_x, layer=cur_l_smoothed), 
+                                cur_x: adata.obs_vector(k=cur_x, layer=None) if cur_l_smoothed == 'X' else adata.obs_vector(k=cur_x, layer=cur_l_smoothed), 
                                 cur_y: adata.obs_vector(cur_y)
                             }
                         )
