@@ -166,6 +166,10 @@ def get_version(package: Union[Path, str]) -> str:
 
 
 def get_all_dependencies_version():
+    """
+    Adapted from answer 2 in
+    https://stackoverflow.com/questions/40428931/package-for-listing-version-of-packages-used-in-a-jupyter-notebook
+    """
     import pkg_resources
     from IPython.display import display
     import pandas as pd
