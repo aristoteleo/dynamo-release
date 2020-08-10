@@ -115,11 +115,8 @@ def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None)
         ind_mat, dist_mat = extract_indices_dist_from_graph(
             vlm.emedding_knn, n_neighbors
         )
-        uns["neighbors"] = {
-            "connectivities": vlm.emedding_knn,
-            "distances": dist_mat,
-            "indices": ind_mat,
-        }
+        uns["neighbors"] = {"indices": ind_mat}
+        obsp = {'distances': dist_mat, "connectivities": vlm.emedding_knn}
 
     uns["dynamics"] = {
         "filter_gene_mode": None,
@@ -146,7 +143,7 @@ def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None)
         X = csr_matrix(vlm.S_sz.T) if hasattr(vlm, "S_sz") else csr_matrix(vlm.S.T)
 
     # create an anndata object with Dynamo characteristics.
-    dyn_adata = AnnData(X=X, obs=obs, obsm=obsm, var=var, layers=layers, uns=uns)
+    dyn_adata = AnnData(X=X, obs=obs, obsp=obsp, obsm=obsm, var=var, layers=layers, uns=uns)
 
     return dyn_adata
 

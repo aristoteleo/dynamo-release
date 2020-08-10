@@ -228,7 +228,8 @@ def ddhoge(adata,
             if neighbor_key not in adata_.uns_keys() or to_downsample:
                 Idx = None
             else:
-                neighbors = adata_.uns[neighbor_key]["connectivities"]
+                conn_key = "connectivities" if layer is None else layer + "_connectivities"
+                neighbors = adata_.obsp[conn_key]
                 Idx = neighbors.tolil().rows
 
             adj_mat, nbrs = graphize_vecfld(func, X_data, nbrs_idx=Idx, k=n, distance_free=distance_free, n_int_steps=20,

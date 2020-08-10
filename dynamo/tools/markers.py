@@ -89,7 +89,7 @@ def moran_i(adata,
         from .dimension_reduction import reduceDimension
         adata = reduceDimension(adata, X_data=X_data, layer=layer)
 
-    neighbor_graph = adata.uns["neighbors"]["connectivities"]
+    neighbor_graph = adata.obsp["connectivities"]
 
     # convert a sparse adjacency matrix to a dictionary
     adj_dict = {
