@@ -179,7 +179,6 @@ def get_all_dependencies_version():
 
     all_dependencies_list = []
 
-    print(all_dependencies)
     for m in pkg_resources.working_set:
         if m.project_name.lower() in all_dependencies:
             all_dependencies_list.append([m.project_name, m.version])
