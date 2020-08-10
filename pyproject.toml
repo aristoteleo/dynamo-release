@@ -33,6 +33,7 @@ requires = ['numpy>=1.18.1',
             'holoviews>=1.9.2',
             'tqdm',
             'python-igraph>=0.7.1',
+            'pynndescent>0.4.8',
             'joblib',
             'setuptools']
 requires-extra = { doc = ['docutils'], test = ['pytest', 'sympy>=1.4'], spatial = ['pysal>2.0.0'], dimension_reduction = ['fitsne>=1.0.1'] }

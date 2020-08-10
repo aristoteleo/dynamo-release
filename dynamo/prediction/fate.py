@@ -356,13 +356,6 @@ def fate_bias(adata,
             A DataFrame that stores the fate bias for each cell state (row) to each cell group (column).
     """
 
-    try:
-        import pynndescent
-    except ImportError:
-        raise ImportError("You need to install the package `pynndescent`."
-                          "Plelease install via `pip install pynndescent`."
-                          "See more details at: "
-                          "https://github.com/lmcinnes/pynndescent")
     from pynndescent import NNDescent
 
     if group not in adata.obs.keys():

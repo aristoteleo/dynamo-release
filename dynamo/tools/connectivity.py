@@ -429,15 +429,6 @@ def neighbors(
             as a new `neighbors` key in .uns.
     """
 
-    try:
-        import pynndescent
-    except ImportError:
-        raise ImportError("You need to install the package `pynndescent`."
-                          "Plelease install via `pip install pynndescent`."
-                          "See more details at: "
-                          "https://github.com/lmcinnes/pynndescent")
-    from pynndescent import NNDescent
-
     if X_data is None:
         if basis == 'pca' and 'X_pca' not in adata.obsm_keys():
             from ..preprocessing.utils import pca
@@ -453,6 +444,7 @@ def neighbors(
             genes, X_data = fetch_X_data(adata, genes, layer, basis)
 
     if alg == 'umap':
+        from pynndescent import NNDescent
         index = NNDescent(X_data, metric=metric, metric_kwads=metric_kwads, n_neighbors=n_neighbors, n_jobs=cores,
                           random_state=seed, **kwargs)
         knn, distances = index.query(X_data, k=n_neighbors)
