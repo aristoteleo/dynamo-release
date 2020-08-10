@@ -970,6 +970,44 @@ def get_U_S_for_velocity_estimation(
 
     return U, S
 
+
+# ---------------------------------------------------------------------------------------------------
+# retrieving data related
+
+def fetch_X_data(adata, genes, layer, basis=None):
+    if basis is not None:
+        return None, adata.obsm['X_' + basis]
+
+    if genes is not None:
+        genes = adata.var_names.intersection(genes).to_list()
+        if len(genes) == 0:
+            raise ValueError(f'No genes from your genes list appear in your adata object.')
+
+    if layer == None:
+        if genes is not None:
+            X_data = adata[:, genes].X
+        else:
+            if 'use_for_dynamics' not in adata.var.keys():
+                X_data = adata.X
+                genes = adata.var_names
+            else:
+                X_data = adata[:, adata.var.use_for_dynamics].X
+                genes = adata.var_names[adata.var.use_for_dynamics]
+    else:
+        if genes is not None:
+            X_data = adata[:, genes].layers[layer]
+        else:
+            if 'use_for_dynamics' not in adata.var.keys():
+                X_data = adata.layers[layer]
+                genes = adata.var_names
+            else:
+                X_data = adata[:, adata.var.use_for_dynamics].layers[layer]
+                genes = adata.var_names[adata.var.use_for_dynamics]
+
+            X_data = log1p_(adata, X_data)
+
+    return genes, X_data
+
 # ---------------------------------------------------------------------------------------------------
 # estimation related
 

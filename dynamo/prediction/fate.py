@@ -356,6 +356,15 @@ def fate_bias(adata,
             A DataFrame that stores the fate bias for each cell state (row) to each cell group (column).
     """
 
+    try:
+        import pynndescent
+    except ImportError:
+        raise ImportError("You need to install the package `pynndescent`."
+                          "Plelease install via `pip install pynndescent`."
+                          "See more details at: "
+                          "https://github.com/lmcinnes/pynndescent")
+    from pynndescent import NNDescent
+
     if group not in adata.obs.keys():
         raise ValueError(f'The group {group} you provided is not a key of .obs attribute.')
     else:
@@ -377,9 +386,13 @@ def fate_bias(adata,
             raise ValueError(f"the {source_groups} you provided doesn't intersect with any groups in the {group} column.")
 
     X = adata.obsm[basis_key] if basis_key != 'X' else adata.X
-    alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
-    nbrs = NearestNeighbors(n_neighbors=30, algorithm=alg).fit(X)
-    distances, knn = nbrs.kneighbors(X)
+
+    index = NNDescent(X)
+    knn, distances = index.query(X, k=30)
+
+    # alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+    # nbrs = NearestNeighbors(n_neighbors=30, algorithm=alg).fit(X)
+    # distances, knn = nbrs.kneighbors(X)
     median_dist = np.median(distances[:, 1])
 
     pred_dict = {}
@@ -402,10 +415,10 @@ def fate_bias(adata,
         else:
             indices = inds
 
-        distances, knn = nbrs.kneighbors(prediction[:, indices].T)
+        knn, distances = index.query(prediction[:, indices].T)
         # let us diffuse one step further to identify cells from terminal cell types in case
         # cells with indices are all close to some random progenitor cells.
-        distances, knn = distances[:, 0], nbrs.kneighbors(X[knn.flatten(), :])[1]
+        knn, distances = distances[:, 0], index.query(X[knn.flatten(), :])[1]
 
         # if final steps too far away from observed cells, ignore them
         walk_back_steps = 0
@@ -431,7 +444,7 @@ def fate_bias(adata,
                     pred_dict[i] = clusters[knn.flatten()].value_counts() * np.nan
                     break
 
-                distances, knn = nbrs.kneighbors(prediction[:, indices - 1].T)
+                distances, knn = index.query(prediction[:, indices - 1].T)
                 distances, knn = distances[:, 0], knn[:, 0]
                 indices = indices - 1
 

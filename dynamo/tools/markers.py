@@ -11,7 +11,8 @@ import statsmodels.api as sm
 import statsmodels.formula.api as smf
 from collections import Counter
 import warnings
-from .utils_markers import fetch_X_data, specificity, fdr
+from .utils import fetch_X_data
+from .utils_markers import specificity, fdr
 from ..preprocessing.utils import Freeman_Tukey
 
 
@@ -36,7 +37,7 @@ def moran_i(adata,
         adata: :class:`~anndata.AnnData`
             an Annodata object
         X_data: `np.ndarray` (default: `None`)
-            The user supplied data that will be used for clustering directly.
+            The user supplied data that will be used for Moran's I calculation directly.
         genes: `list` or None (default: `None`)
             The list of genes that will be used to subset the data for dimension reduction and clustering. If `None`, all
             genes will be used.
