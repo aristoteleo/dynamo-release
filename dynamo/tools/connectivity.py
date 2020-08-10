@@ -443,7 +443,7 @@ def neighbors(
         else:
             genes, X_data = fetch_X_data(adata, genes, layer, basis)
 
-    alg = 'umap' if X.shape[0] > 200000 and X.shape[1] > 2 else 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+    alg = 'umap' if X_data.shape[0] > 200000 and X_data.shape[1] > 2 else 'ball_tree' if X_data.shape[1] > 10 else 'kd_tree'
 
     # may distinguish between umap and pynndescent
     if alg == 'umap':

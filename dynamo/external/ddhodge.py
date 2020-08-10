@@ -186,8 +186,6 @@ def ddhoge(adata,
              and divergence for each cell will also be added.
 """
 
-    from pynndescent import NNDescent
-
     prefix = '' if basis is None else basis + '_'
     to_downsample = adata.n_obs > n_downsamples
 

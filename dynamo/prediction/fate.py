@@ -296,7 +296,7 @@ def fate_bias(adata,
               dist_threshold=25,
               source_groups=None,
               metric="euclidean",
-              metric_kwads=None,
+              metric_kwds=None,
               cores=1,
               seed=19491001,
               **kwargs,
@@ -360,7 +360,7 @@ def fate_bias(adata,
             Euclidean metric. See the documentation of :class:`DistanceMetric` for a list of available metrics. If metric
             is "precomputed", X is assumed to be a distance matrix and must be square during fit. X may be a
             :term:`sparse graph`, in which case only "nonzero" elements may be considered neighbors.
-        metric_params : dict, default=None
+        metric_kwds : dict, default=None
             Additional keyword arguments for the metric function.
         cores: `int` (default: 1)
             The number of parallel jobs to run for neighbors search. ``None`` means 1 unless in a :obj:`joblib.parallel_backend` context.
@@ -401,7 +401,7 @@ def fate_bias(adata,
     if X.shape[0] > 200000 and X.shape[1] > 2: 
         from pynndescent import NNDescent
 
-        nbrs = NNDescent(X, metric=metric, metric_kwads=metric_kwads, n_neighbors=30, n_jobs=cores,
+        nbrs = NNDescent(X, metric=metric, metric_kwads=metric_kwds, n_neighbors=30, n_jobs=cores,
                               random_state=seed, **kwargs)
         knn, distances = nbrs.query(X, k=30)
     else:
