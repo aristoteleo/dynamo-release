@@ -1,4 +1,5 @@
 # code adapted from https://github.com/lmcinnes/umap/blob/7e051d8f3c4adca90ca81eb45f6a9d1372c076cf/umap/plot.py
+import warnings
 import numpy as np
 import pandas as pd
 from pandas.api.types import is_categorical
@@ -1010,7 +1011,7 @@ def scatters(
                 if cur_l in ["protein", "X_protein"]:
                     _color = adata.obsm[cur_l].loc[cur_c, :]
                 else:
-                    _color = adata.obs_vector(cur_c, layer=cur_l)
+                    _color = adata.obs_vector(cur_c, layer=None) if cur_l is 'X' else adata.obs_vector(cur_c, layer=cur_l)
                 for cur_x, cur_y in zip(x, y):
                     if type(cur_x) is int and type(cur_y) is int:
                         points = pd.DataFrame(
@@ -1023,8 +1024,8 @@ def scatters(
                     elif is_gene_name(adata, cur_x) and is_gene_name(adata, cur_y):
                         points = pd.DataFrame(
                             {
-                                cur_x: adata.obs_vector(k=cur_x, layer=cur_l_smoothed),
-                                cur_y: adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
+                                cur_x: adata.obs_vector(k=cur_x, layer=None) if cur_l_smoothed is 'X' else adata.obs_vector(k=cur_x, layer=cur_l_smoothed),
+                                cur_y: adata.obs_vector(k=cur_y, layer=None) if cur_l_smoothed is 'X' else adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
                             }
                         )
                         # points = points.loc[(points > 0).sum(1) > 1, :]
@@ -1044,14 +1045,20 @@ def scatters(
                         cur_title = cur_x + ' VS ' + cur_y
                     elif is_cell_anno_column(adata, cur_x) and is_gene_name(adata, cur_y):
                         points = pd.DataFrame(
-                            {cur_x: adata.obs_vector(cur_x), cur_y: adata.obs_vector(k=cur_y, layer=cur_l_smoothed)}
+                            {
+                                cur_x: adata.obs_vector(cur_x), 
+                                cur_y: adata.obs_vector(k=cur_y, layer=None) if cur_l_smoothed is 'X' else adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
+                            }
                         )
                         # points = points.loc[points.iloc[:, 1] > 0, :]
                         points.columns = [cur_x, cur_y + " (" + cur_l_smoothed + ")"]
                         cur_title = cur_y
                     elif is_gene_name(adata, cur_x) and is_cell_anno_column(adata, cur_y):
                         points = pd.DataFrame(
-                            {cur_x: adata.obs_vector(k=cur_x, layer=cur_l_smoothed), cur_y: adata.obs_vector(cur_y)}
+                            {
+                                cur_x: adata.obs_vector(k=cur_x, layer=None) if cur_l_smoothed is 'X' else adata.obs_vector(k=cur_x, layer=cur_l_smoothed), 
+                                cur_y: adata.obs_vector(cur_y)
+                            }
                         )
                         # points = points.loc[points.iloc[:, 0] > 0, :]
                         points.columns = [cur_x + " (" + cur_l_smoothed + ")", cur_y]
@@ -1175,7 +1182,7 @@ def scatters(
                     color_out = None
 
                     if smooth and not is_not_continous:
-                        knn = adata.uns['moments_con']
+                        knn = adata.obsp['moments_con']
                         values = calc_1nd_moment(values, knn)[0] if smooth in [1, True] else \
                             calc_1nd_moment(values, knn**smooth)[0]
 
@@ -1268,7 +1275,11 @@ def scatters(
     elif save_show_or_return == "show":
         if show_legend:
             plt.subplots_adjust(right=0.85)
-        plt.tight_layout()
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            plt.tight_layout()
+        
         plt.show()
         if background is not None: reset_rcParams()
     elif save_show_or_return == "return":

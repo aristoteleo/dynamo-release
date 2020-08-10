@@ -1021,7 +1021,11 @@ def phase_portraits(
 
         save_fig(**s_kwargs)
     elif save_show_or_return == "show":
-        plt.tight_layout()
+        
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            plt.tight_layout()
+        
         plt.show()
     elif save_show_or_return == "return":
         return g

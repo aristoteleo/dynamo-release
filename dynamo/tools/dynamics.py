@@ -393,7 +393,7 @@ def dynamics(
                 P=P.copy() if P is not None else None,
                 US=US.copy() if US is not None else None,
                 S2=S2.copy() if S2 is not None else None,
-                conn=subset_adata.uns['moments_con'],
+                conn=subset_adata.obsp['moments_con'],
                 t=t,
                 ind_for_proteins=ind_for_proteins,
                 model=model,

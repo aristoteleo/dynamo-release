@@ -172,7 +172,7 @@ def moments(adata,
             "X_protein" in adata.obsm.keys()
     ):  # may need to update with mnn or just use knn from protein layer itself.
         adata.obsm[mapper["X_protein"]] = conn.dot(adata.obsm["X_protein"])
-    adata.uns['moments_con'] = conn
+    adata.obsp['moments_con'] = conn
 
     return adata
 

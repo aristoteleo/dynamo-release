@@ -1,5 +1,5 @@
 # create by Yan Zhang, minor adjusted by Xiaojie Qiu
-
+import warnings
 import numpy as np
 import scipy.sparse as sp
 from scipy.optimize import fsolve
@@ -673,6 +673,7 @@ def VectorField(
 
     VecFld = vectorfield(X, V, Grid, **vf_kwargs)
     vf_dict = VecFld.fit(normalize=normalize, method=method, **kwargs)
+
     vf_key = "VecFld" if basis is None else "VecFld_" + basis
 
     if basis is not None:
@@ -696,9 +697,12 @@ def VectorField(
         tp_kwargs = {"n": 25}
         tp_kwargs = update_dict(tp_kwargs, kwargs)
 
-        adata = topography(
-            adata, basis=basis, X=X, layer=layer, dims=[0, 1], VecFld=vf_dict['VecFld'], **tp_kwargs
-        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+
+            adata = topography(
+                adata, basis=basis, X=X, layer=layer, dims=[0, 1], VecFld=vf_dict['VecFld'], **tp_kwargs
+            )
     if pot_curl_div:
         if basis in ["pca", 'umap', 'tsne', 'diffusion_map', 'trimap']:
             ddhoge(adata, basis=basis, cores=cores)

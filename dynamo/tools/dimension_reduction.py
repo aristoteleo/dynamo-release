@@ -68,8 +68,8 @@ def reduceDimension(
         has_basis = False
 
     if has_basis and not enforce:
-        warnings.warn(f'adata already have basis {basis}. dimension reduction {reduction_method} will be skipped!'
-                      f'set enforce=True to re-performing dimension reduction.')
+        warnings.warn(f"adata already have basis {reduction_method}. dimension reduction {reduction_method} will be skipped! \n"
+                      f"set enforce=True to re-performing dimension reduction.")
 
     embedding_key = (
         "X_" + reduction_method if layer is None else layer + "_" + reduction_method

@@ -1081,12 +1081,13 @@ def quiver_autoscaler(X_emb, V_emb):
     """
 
     import matplotlib.pyplot as plt
+    fig, ax = plt.subplots()
 
     scale_factor = np.ptp(X_emb, 0).mean()
     X_emb = X_emb - X_emb.min(0)
 
     if len(V_emb.shape) == 3:
-        Q = plt.quiver(
+        Q = ax.quiver(
             X_emb[0] / scale_factor,
             X_emb[1] / scale_factor,
             V_emb[0],
@@ -1096,7 +1097,7 @@ def quiver_autoscaler(X_emb, V_emb):
             scale=None,
         )
     else:
-        Q = plt.quiver(
+        Q = ax.quiver(
             X_emb[:, 0] / scale_factor,
             X_emb[:, 1] / scale_factor,
             V_emb[:, 0],
@@ -1107,7 +1108,8 @@ def quiver_autoscaler(X_emb, V_emb):
         )
 
     Q._init()
-    plt.clf()
+    fig.clf()
+    plt.close(fig)
 
     return Q.scale / scale_factor * 2
 

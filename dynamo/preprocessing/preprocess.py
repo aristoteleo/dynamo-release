@@ -672,7 +672,7 @@ def SVRs(
     layers = get_layer_keys(adata_ori, layers)
 
     if use_all_genes_cells:
-        adata = adata_ori[:, filter_bool] if filter_bool is not None else adata_ori
+        adata = adata_ori[:, filter_bool].copy() if filter_bool is not None else adata_ori
     else:
         cell_inds = adata_ori.obs.use_for_pca if 'use_for_pca' in adata_ori.obs.columns else adata_ori.obs.index
         filter_list = ['use_for_pca', 'pass_basic_filter']
@@ -681,7 +681,7 @@ def SVRs(
 
         gene_inds = adata_ori.var[filter_list[which_filter[0]]] if len(which_filter) > 0 else adata_ori.var.index
 
-        adata = adata_ori[cell_inds, :][:, gene_inds]
+        adata = adata_ori[cell_inds, gene_inds].copy()
         filter_bool = filter_bool[gene_inds]
 
     for layer in layers:

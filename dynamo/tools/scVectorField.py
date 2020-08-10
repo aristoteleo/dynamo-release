@@ -614,14 +614,17 @@ class vectorfield:
         verbose = kwargs.pop('verbose', 0)
         lstsq_method = kwargs.pop('lstsq_method', 'drouin')
         if method == "SparseVFC":
-            VecFld = SparseVFC(
-                self.data["X"],
-                self.data["V"],
-                self.data["Grid"],
-                **self.parameters,
-                verbose=verbose,
-                lstsq_method=lstsq_method,
-            )
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                
+                VecFld = SparseVFC(
+                        self.data["X"],
+                        self.data["V"],
+                        self.data["Grid"],
+                        **self.parameters,
+                        verbose=verbose,
+                        lstsq_method=lstsq_method,
+                    )
             if normalize:
                 VecFld = denorm(VecFld, X_old, V_old, self.norm_dict)
 
