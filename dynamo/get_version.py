@@ -170,22 +170,23 @@ def get_all_dependencies_version():
     from IPython.display import display
     import pandas as pd
 
-    _package_name = 'dynamo'
+    _package_name = 'dynamo-release'
     _package = pkg_resources.working_set.by_key[_package_name]
 
     all_dependencies = ([str(r).split('>')[0] for r in _package.requires()])  # retrieve deps from setup.py
-    all_dependencies.append('dynamo')
-
     all_dependencies.sort(reverse=True)
+    all_dependencies.insert(0, 'dynamo-release')
+
     all_dependencies_list = []
 
+    print(all_dependencies)
     for m in pkg_resources.working_set:
         if m.project_name.lower() in all_dependencies:
             all_dependencies_list.append([m.project_name, m.version])
 
     pd.options.display.max_columns=None
     display(pd.DataFrame(
-                all_dependencies_list,
+                all_dependencies_list[::-1],
                 columns=["package", "version"]
             ).set_index("package").T)
 
