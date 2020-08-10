@@ -222,7 +222,7 @@ def prepare_velocity_grid_data(X_emb,
         neighs, dists = nn.query(X_grid, k=n_neighbors)
     else: 
         alg = "ball_tree" if X_emb.shape[1] > 10 else 'kd_tree'
-        nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=-1, alg=alg)
+        nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=-1, algorithm=alg)
         nn.fit(X_emb)
         dists, neighs = nn.kneighbors(X_grid)
 

@@ -2,6 +2,8 @@
 A minimalistic version helper in the spirit of versioneer, that is able to run without build step using pkg_resources.
 Developed by P Angerer, see https://github.com/flying-sheep/get_version.
 """
+# __version__ is defined at the very end of this file.
+
 import re
 import os
 from pathlib import Path

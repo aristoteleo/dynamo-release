@@ -560,7 +560,7 @@ class vectorfield:
         if X is not None and V is not None:
             self.parameters = kwargs
             self.parameters = update_n_merge_dict(self.parameters, {
-                "M": kwargs.pop('M', None) or min(len(X), int(1500 * np.log(len(X)) / (np.log(len(X)) + np.log(100)))),
+                "M": kwargs.pop('M', None) or max(min([50, len(X)]), int(0.05 * len(X)) + 1), # min(len(X), int(1500 * np.log(len(X)) / (np.log(len(X)) + np.log(100)))),
                 "a": kwargs.pop('a', 5),
                 "beta": kwargs.pop('beta', None),
                 "ecr": kwargs.pop('ecr', 1e-5),
