@@ -1,5 +1,5 @@
 from setuptools import setup, find_packages
-import numpy as np
+# import numpy as np
 from version import __version__
 from pathlib import Path
 
@@ -23,7 +23,7 @@ setup(
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
     ],
-    include_dirs=[np.get_include()],
+#     include_dirs=[np.get_include()],
     author="Xiaojie Qiu, Yan Zhang",
     author_email="xqiu.sc@gmail.com",
     description="Mapping Vector Field of Single Cells",
