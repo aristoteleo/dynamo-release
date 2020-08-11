@@ -1,6 +1,6 @@
-## **Dynamo**: Mapping Vector Field of Single Cells
-
 [![package](https://github.com/aristoteleo/dynamo-release/workflows/Python%20package/badge.svg)](https://github.com/aristoteleo/dynamo-release/runs/950435412) ![package](https://github.com/aristoteleo/dynamo-release/workflows/Upload%20Python%20Package/badge.svg)
+
+## **Dynamo**: Mapping Vector Field of Single Cells
 
 Inclusive model of expression dynamics with metabolic labeling based scRNA-seq and multiomics, vector field reconstruction and potential landscape mapping.
 
