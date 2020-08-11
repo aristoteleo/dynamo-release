@@ -1,8 +1,8 @@
 ## **Dynamo**: Mapping Vector Field of Single Cells
 
-Inclusive model of expression dynamics with metabolic labeling based scRNA-seq and multiomics, vector field reconstruction and potential landscape mapping
-
 [![package](https://github.com/aristoteleo/dynamo-release/workflows/Python%20package/badge.svg)](https://github.com/aristoteleo/dynamo-release/runs/950435412) ![package](https://github.com/aristoteleo/dynamo-release/workflows/Upload%20Python%20Package/badge.svg)
+
+Inclusive model of expression dynamics with metabolic labeling based scRNA-seq and multiomics, vector field reconstruction and potential landscape mapping.
 
 [Workflow](https://github.com/aristoteleo/dynamo-release/wiki/Dynamo-workflow) - [Tutorials](https://github.com/aristoteleo/dynamo-tutorials) - [Docs](https://dynamo-release.readthedocs.io/en/latest/) - [Installation](https://github.com/aristoteleo/dynamo-release/wiki/Dynamo-workflow#installation) - [Citation](https://github.com/aristoteleo/dynamo-release/wiki/Dynamo-workflow#citation) - [Theory](https://github.com/aristoteleo/dynamo-release/wiki/Dynamo-workflow#theory-behind-dynamo)
 
