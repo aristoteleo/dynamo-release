@@ -44,7 +44,6 @@ extensions = [
     "sphinx.ext.githubpages",
     'sphinx.ext.autosectionlabel',
     "sphinx_autodoc_typehints",
-    "nbsphinx",
 ]
 
 
