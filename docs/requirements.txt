@@ -1,3 +1,4 @@
 setuptools
 sphinx_autodoc_typehints
 sphinx_rtd_theme
+numpy
