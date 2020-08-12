@@ -30,6 +30,7 @@ Note that this is our first alpha version of **Dynamo documentation** (as of Jul
    Tutorial
    Other_notebooks
    API
+   FAQ
    Release_notes
    Reference
    Acknowledgement
