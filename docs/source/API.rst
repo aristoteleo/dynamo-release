@@ -11,7 +11,8 @@ Preprocessing (pp)
 ~~~~~~~~~~~~~~~~~~
 
 .. autosummary::
-   :toctree: .
+      :maxdepth: 2
+      :toctree: .
 
    pp.recipe_monocle
 
@@ -19,12 +20,13 @@ Tools (tl)
 ~~~~~~~~~~
 
 .. autosummary::
-   :toctree: .
+    :maxdepth: 2
+    :toctree: .
 
-   tl.moment
+   tl.moments
    tl.dynamics
 
-   tl.cell_velocites
+   tl.cell_velocities
    tl.reduceDimension
 
    tl.gene_wise_confidence
@@ -67,7 +69,7 @@ Prediction (pd)
 
    pd.fate
 
-   df.fate_bias
+   pd.fate_bias
 
 
 Simulation (sim)
@@ -78,13 +80,13 @@ Simulation (sim)
 
 
 External (ext)
-~~~~~~~~~~~~~
+~~~~~~~~~~~~~~
 
 .. autosummary::
    :toctree: .
     ext.ddhodge
     ext.scribe
-    ext.sci_fate
+    ext.scifate
 
 Plotting (pl)
 ~~~~~~~~~~~~~
@@ -93,14 +95,14 @@ Plotting (pl)
    :toctree: .
 
    pl.scatters
-   pl.phase_diagram
+   pl.phase_portraits
    pl.dynamics
    pl.umap
    pl.tsne
    pl.cell_wise_vectors
    pl.grid_vectors
    pl.streamline_plot
-   pl.line_int_conv
+   pl.line_integral_conv
    pl.divergence
    pl.curl
    pl.topography

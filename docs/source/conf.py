@@ -1,3 +1,23 @@
+import sys
+import os
+from pathlib import Path
+
+# remove PyCharm’s old six module
+if "six" in sys.modules:
+    print(*sys.path, sep="\n")
+    for pypath in list(sys.path):
+        if any(p in pypath for p in ["PyCharm", "pycharm"]) and "helpers" in pypath:
+            sys.path.remove(pypath)
+    del sys.modules["six"]
+
+import matplotlib  # noqa
+
+matplotlib.use("agg")
+
+HERE = Path(__file__).parent
+sys.path.insert(0, f"{HERE.parent.parent}")
+sys.path.insert(0, os.path.abspath("_ext"))
+
 # Configuration file for the Sphinx documentation builder.
 #
 # This file only contains a selection of the most common options. For a full
@@ -35,19 +55,29 @@ needs_sphinx = "1.7"
 
 extensions = [
     "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
     "sphinx.ext.doctest",
     "sphinx.ext.coverage",
     "sphinx.ext.mathjax",
-    "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
     "sphinx.ext.githubpages",
-    "sphinx_autodoc_typehints",
     'sphinx.ext.autosectionlabel',
+    "sphinx_autodoc_typehints",
+    "nbsphinx",
 ]
+
+autosummary_generate = True
+autodoc_default_options = ['members']
+napoleon_google_docstring = False
+napoleon_numpy_docstring = True
+napoleon_include_init_with_doc = False
+napoleon_use_rtype = False
+napoleon_custom_sections = [("Params", "Parameters")]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
+source_suffix = [".rst", ".ipynb"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -69,11 +99,10 @@ html_context = dict(
     github_version="master",  # Version
     conf_py_path="/docs/source/",
 )
-html_static_path = ["_static"]
 
 
 def setup(app):
-    app.add_stylesheet("custom.css")
+    app.add_css_file("custom.css")
 
 
 # Add any paths that contain custom static files (such as style sheets) here,

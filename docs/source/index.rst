@@ -20,15 +20,15 @@ Understanding how gene expression in single cells progress over time is vital fo
 
 Discussion
 ==========
-Please use github issue tracker to report coding related `[issues]`_ of dynamo. For community discussion of novel usage cases, analysis tips and biological interpretations of dynamo, please join our public slack workspace: `[dynamo-discussion]`_ (Only a working email address is required from the slack side).
+Please use github issue tracker to report coding related `issues`_ of dynamo. For community discussion of novel usage cases, analysis tips and biological interpretations of dynamo, please join our public slack workspace: `dynamo-discussion`_ (Only a working email address is required from the slack side).
 
 Contribution
 ============
-If you want to contribute to the development of dynamo, please check out CONTRIBUTION instruction: `[Contribution]`_
+If you want to contribute to the development of dynamo, please check out CONTRIBUTION instruction: `Contribution`_
 
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents:
 
    ten_minutes_to_dynamo

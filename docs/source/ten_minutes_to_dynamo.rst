@@ -194,7 +194,7 @@ In dynamo, we have three standard visual representations of vector fields, inclu
     dyn.pl.stremline_plot(adata, color=colors, ncols=3)
     dyn.pl.line_integral_conv(adata)
 
-Note that ``colors`  here is a list or str that can be either the column name in ``.obs`` or ``gene names``.
+Note that ``colors``  here is a list or str that can be either the column name in ``.obs`` or ``gene names``.
 
 To visualize the topography of the learnt vector field, we provide the ``dyn.pl.topography`` function to visualize the structure of the 2D vector fields. ::
 
@@ -212,7 +212,7 @@ Plotting functions in dynamo are designed to be extremely flexible. For example,
     f1_axes[1, 1] = dyn.pl.topography(adata, color='acceleration_umap', ax=f1_axes[1, 1], save_show_or_return='return')
     plt.show()
 
-The above creates a 2x2 plot that puts `cell_wise_vectors`, `grid_vectors`, `streamline_plot` or `topography` plots together. 
+The above creates a 2x2 plot that puts `cell_wise_vectors`, `grid_vectors`, `streamline_plot` and `topography` plots together.
 
 Comparability
 ^^^^^^^^^^^^^
