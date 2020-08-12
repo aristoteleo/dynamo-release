@@ -57,6 +57,9 @@ source_suffix = [".rst", ".ipynb"]
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
 
+# Generate the API documentation when building
+autosummary_generate = True
+autodoc_member_order = 'bysource'
 
 # -- Options for HTML output -------------------------------------------------
 
