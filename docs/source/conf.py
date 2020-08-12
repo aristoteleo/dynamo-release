@@ -1,23 +1,3 @@
-import sys
-import os
-from pathlib import Path
-
-# remove PyCharm’s old six module
-if "six" in sys.modules:
-    print(*sys.path, sep="\n")
-    for pypath in list(sys.path):
-        if any(p in pypath for p in ["PyCharm", "pycharm"]) and "helpers" in pypath:
-            sys.path.remove(pypath)
-    del sys.modules["six"]
-
-import matplotlib  # noqa
-
-matplotlib.use("agg")
-
-HERE = Path(__file__).parent
-sys.path.insert(0, f"{HERE.parent.parent}")
-sys.path.insert(0, os.path.abspath("_ext"))
-
 # Configuration file for the Sphinx documentation builder.
 #
 # This file only contains a selection of the most common options. For a full
@@ -67,13 +47,6 @@ extensions = [
     "nbsphinx",
 ]
 
-autosummary_generate = True
-autodoc_default_options = ['members']
-napoleon_google_docstring = False
-napoleon_numpy_docstring = True
-napoleon_include_init_with_doc = False
-napoleon_use_rtype = False
-napoleon_custom_sections = [("Params", "Parameters")]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
