@@ -1,4 +1,4 @@
-|Docs| |travis|
+|Docs| |package| |PyPI|
 
 **Dynamo**: Mapping Vector Field of Single Cells
 ===================================================
@@ -11,8 +11,11 @@ Understanding how gene expression in single cells progress over time is vital fo
 .. |Docs| image:: https://readthedocs.org/projects/dynamo-release/badge/?version=latest
    :target: https://dynamo-release.readthedocs.io
 
-.. |travis| image:: https://travis-ci.org/aristoteleo/dynamo-release.svg?branch=master
-   :target: https://travis-ci.org/aristoteleo/dynamo-release
+.. |package| image:: https://github.com/aristoteleo/dynamo-release/workflows/Python%20package/badge.svg
+   :target: https://github.com/aristoteleo/dynamo-release/runs/950435412
+
+.. |PyPI| image:: https://github.com/aristoteleo/dynamo-release/workflows/Upload%20Python%20Package/badge.svg
+   :target: https://pypi.org/project/dynamo-release/
 
 Suggestions
 ===========
@@ -23,15 +26,13 @@ Note that this is our first alpha version of **Dynamo documentation** (as of Jul
    :maxdepth: 2
    :caption: Contents:
 
-   Get_Started
-   Install_Dynamo
-   API
+   ten_minutes_to_dynamo
    Tutorial
-   Notebooks
-   Citation
-   Acknowledgement
+   Other_notebooks
+   API
+   Release_notes
    Reference
-
+   Acknowledgement
 
 Indices and tables
 ==================
