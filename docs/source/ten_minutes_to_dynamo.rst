@@ -7,7 +7,7 @@ Dynamo is a computational framework that includes an inclusive model of expressi
 
 Why dynamo
 ^^^^^^^^^^
-Dynamo currently provides a complete solution (see below) to analyze expression dynamics of conventional scRNA-seq or time-resolved metabolic labeling based scRNA-seq. It aspires to become the leading tools in continuously integrating the most exciting developments in machine learning, systems biology, information theory, stochastic physics, etc. to model, understand and interpret datasets generated from various cutting-edge single cell genomics techniques (developments of dynamo 2/3 is under way). We hope those models, understandings and interpretations not only facilitate your research but may also eventually lead to new biological discovery. Dynamo has a strong community so you will feel supported no matter you are new-comer of python or veteran user who wants to contribute to dynamo's development.
+Dynamo currently provides a complete solution (see below) to analyze expression dynamics of conventional scRNA-seq or time-resolved metabolic labeling based scRNA-seq. It aspires to become the leading tools in continuously integrating the most exciting developments in machine learning, systems biology, information theory, stochastic physics, etc. to model, understand and interpret datasets generated from various cutting-edge single cell genomics techniques (developments of dynamo 2/3 is under way). We hope those models, understandings and interpretations not only facilitate your research but may also eventually lead to new biological discovery. Dynamo has a strong community so you will feel supported no matter you are a new-comer of python or a veteran user who wants to contribute to dynamo's development.
 
 How to install
 ^^^^^^^^^^^^^^
@@ -34,7 +34,7 @@ from source, using the following script::
 
     pip install git+https://github.com:aristoteleo/dynamo-release
 
-In order to ensure dynamo run properly, your python environment satisfies dynamo's `dependencies`_. We provide a helper function for you to check the version of dynamo's all dependencies. ::
+In order to ensure dynamo run properly, your python environment need to satisfy dynamo's `dependencies`_. We provide a helper function for you to check the version of dynamo's all dependencies. ::
 
     import dynamo as dyn
     dyn.get_all_dependencies_version()

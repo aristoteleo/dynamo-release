@@ -398,10 +398,10 @@ def fate_bias(adata,
 
     X = adata.obsm[basis_key] if basis_key != 'X' else adata.X
 
-    if X.shape[0] > 200000 and X.shape[1] > 2: 
+    if X.shape[0] > 5000 and X.shape[1] > 2:
         from pynndescent import NNDescent
 
-        nbrs = NNDescent(X, metric=metric, metric_kwads=metric_kwds, n_neighbors=30, n_jobs=cores,
+        nbrs = NNDescent(X, metric=metric, metric_kwds=metric_kwds, n_neighbors=30, n_jobs=cores,
                               random_state=seed, **kwargs)
         knn, distances = nbrs.query(X, k=30)
     else:
@@ -418,7 +418,7 @@ def fate_bias(adata,
 
     for i, prediction in tqdm(enumerate(cell_predictions), desc='calculating fate distributions'):
         cur_t, n_steps = t[i], len(t[i])
-        indices = None
+
         # ensure to identify sink where the speed is very slow if inds is not provided.
         # if inds is the percentage, use the last percentage of steps to check for cell fate bias.
         # otherwise inds need to be a list.
@@ -431,19 +431,24 @@ def fate_bias(adata,
         else:
             indices = inds
 
-        # let us diffuse one step further to identify cells from terminal cell types in case
-        # cells with indices are all close to some random progenitor cells.
         if hasattr(nbrs, 'query'):
             knn, distances = nbrs.query(prediction[:, indices].T, k=30) 
-            knn, distances = knn[:, 0], nbrs.query(X[knn.flatten(), :], k=30)[1]
         else:
             distances, knn = nbrs.kneighbors(prediction[:, indices].T) 
-            knn, distances = knn[:, 0], nbrs.kneighbors(X[knn.flatten(), :])[0]
 
         # if final steps too far away from observed cells, ignore them
         walk_back_steps = 0
         while True:
-            if any(distances < dist_threshold * median_dist):
+            is_dist_larger_than_threshold = distances.flatten() < dist_threshold * median_dist
+            if any(is_dist_larger_than_threshold):
+
+                # let us diffuse one step further to identify cells from terminal cell types in case
+                # cells with indices are all close to some random progenitor cells.
+                if hasattr(nbrs, 'query'):
+                    knn, _ = nbrs.query(X[knn.flatten(), :], k=30)
+                else:
+                    _, knn = knn, nbrs.kneighbors(X[knn.flatten(), :])
+
                 fate_prob = clusters[knn.flatten()].value_counts() / len(knn.flatten())
                 if source_groups is not None:
                     source_p = fate_prob[source_groups].sum()
@@ -453,7 +458,7 @@ def fate_bias(adata,
 
                 pred_dict[i] = fate_prob
 
-                confidence[i] = 1 - (sum(distances > dist_threshold * median_dist) + walk_back_steps) / (
+                confidence[i] = 1 - (sum(~ is_dist_larger_than_threshold) + walk_back_steps) / (
                         len(indices) + walk_back_steps)
 
                 break

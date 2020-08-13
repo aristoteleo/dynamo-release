@@ -72,22 +72,6 @@ Prediction (pd)
    pd.fate_bias
 
 
-Simulation (sim)
-~~~~~~~~~~~~~~~~
-
-.. autosummary::
-   :toctree: .
-
-
-External (ext)
-~~~~~~~~~~~~~~
-
-.. autosummary::
-   :toctree: .
-    ext.ddhodge
-    ext.scribe
-    ext.scifate
-
 Plotting (pl)
 ~~~~~~~~~~~~~
 
@@ -119,3 +103,20 @@ Moive (mv)
    :toctree: .
 
    mv.fates
+
+
+Simulation (sim)
+~~~~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: .
+
+
+External (ext)
+~~~~~~~~~~~~~~
+
+.. autosummary::
+   :toctree: .
+    ext.ddhodge
+    ext.scribe
+    ext.scifate
