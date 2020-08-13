@@ -5,7 +5,11 @@ from sklearn.neighbors import NearestNeighbors
 from multiprocessing.dummy import Pool as ThreadPool
 import itertools
 import warnings
-from .utils import integrate_vf_ivp, fetch_states
+from .utils import (
+    integrate_vf_ivp,
+    fetch_states,
+    getTseq,
+)
 from ..tools import vector_field_function
 
 
@@ -240,17 +244,7 @@ def _fate(
         at each time point is calculated for all cells.
     """
 
-    if step_size is None:
-        max_steps = (
-            int(max(7 / (init_states.shape[1] / 300), 4))
-            if init_states.shape[1] > 300
-            else 7
-        )
-        t_linspace = np.linspace(
-            0, t_end, 10 ** (np.min([int(np.log10(t_end)), max_steps]))
-        )
-    else:
-        t_linspace = np.arange(0, t_end + step_size, step_size)
+    t_linspace = getTseq(init_states, t_end, step_size)
 
     if cores == 1:
         t, prediction = integrate_vf_ivp(
