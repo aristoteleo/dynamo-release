@@ -2,6 +2,8 @@
 A minimalistic version helper in the spirit of versioneer, that is able to run without build step using pkg_resources.
 Developed by P Angerer, see https://github.com/flying-sheep/get_version.
 """
+# __version__ is defined at the very end of this file.
+
 import re
 import os
 from pathlib import Path
@@ -161,6 +163,35 @@ def get_version(package: Union[Path, str]) -> str:
         or get_version_from_metadata(name, parent)
         or "0.0.0"
     )
+
+
+def get_all_dependencies_version():
+    """
+    Adapted from answer 2 in
+    https://stackoverflow.com/questions/40428931/package-for-listing-version-of-packages-used-in-a-jupyter-notebook
+    """
+    import pkg_resources
+    from IPython.display import display
+    import pandas as pd
+
+    _package_name = 'dynamo-release'
+    _package = pkg_resources.working_set.by_key[_package_name]
+
+    all_dependencies = ([str(r).split('>')[0] for r in _package.requires()])  # retrieve deps from setup.py
+    all_dependencies.sort(reverse=True)
+    all_dependencies.insert(0, 'dynamo-release')
+
+    all_dependencies_list = []
+
+    for m in pkg_resources.working_set:
+        if m.project_name.lower() in all_dependencies:
+            all_dependencies_list.append([m.project_name, m.version])
+
+    pd.options.display.max_columns=None
+    display(pd.DataFrame(
+                all_dependencies_list[::-1],
+                columns=["package", "version"]
+            ).set_index("package").T)
 
 
 __version__ = get_version(__file__)

@@ -1,4 +1,5 @@
 # code adapted from https://github.com/lmcinnes/umap/blob/7e051d8f3c4adca90ca81eb45f6a9d1372c076cf/umap/plot.py
+import warnings
 import numpy as np
 import pandas as pd
 from pandas.api.types import is_categorical
@@ -33,6 +34,7 @@ from ..tools.utils import (
     log1p_,
     flatten,
 )
+from ..tools.moments import calc_1nd_moment
 
 from ..docrep import DocstringProcessor
 
@@ -762,6 +764,7 @@ def scatters(
     ccmap=None,
     calpha=2.3,
     sym_c=False,
+    smooth=False,
     **kwargs
 ):
     """Plot an embedding as points. Currently this only works
@@ -906,6 +909,10 @@ def scatters(
         sym_c: `bool` (default: `False`)
             Whether do you want to make the limits of continuous color to be symmetric, normally this should be used for
             plotting velocity, jacobian, curl, divergence or other types of data with both positive or negative values.
+        smooth: `bool` or `int` (default: `False`)
+            Whether do you want to further smooth data and how much smoothing do you want. If it is `False`, no smoothing
+            will be applied. If `True`, smoothing based on one step diffusion of connectivity matrix (`.uns['moment_cnn']
+            will be applied. If a number larger than 1, smoothing will based on `smooth` steps of diffusion.
         kwargs:
             Additional arguments passed to plt.scatters.
 
@@ -1004,7 +1011,7 @@ def scatters(
                 if cur_l in ["protein", "X_protein"]:
                     _color = adata.obsm[cur_l].loc[cur_c, :]
                 else:
-                    _color = adata.obs_vector(cur_c, layer=cur_l)
+                    _color = adata.obs_vector(cur_c, layer=None) if cur_l == 'X' else adata.obs_vector(cur_c, layer=cur_l)
                 for cur_x, cur_y in zip(x, y):
                     if type(cur_x) is int and type(cur_y) is int:
                         points = pd.DataFrame(
@@ -1017,8 +1024,8 @@ def scatters(
                     elif is_gene_name(adata, cur_x) and is_gene_name(adata, cur_y):
                         points = pd.DataFrame(
                             {
-                                cur_x: adata.obs_vector(k=cur_x, layer=cur_l_smoothed),
-                                cur_y: adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
+                                cur_x: adata.obs_vector(k=cur_x, layer=None) if cur_l_smoothed == 'X' else adata.obs_vector(k=cur_x, layer=cur_l_smoothed),
+                                cur_y: adata.obs_vector(k=cur_y, layer=None) if cur_l_smoothed == 'X' else adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
                             }
                         )
                         # points = points.loc[(points > 0).sum(1) > 1, :]
@@ -1038,14 +1045,20 @@ def scatters(
                         cur_title = cur_x + ' VS ' + cur_y
                     elif is_cell_anno_column(adata, cur_x) and is_gene_name(adata, cur_y):
                         points = pd.DataFrame(
-                            {cur_x: adata.obs_vector(cur_x), cur_y: adata.obs_vector(k=cur_y, layer=cur_l_smoothed)}
+                            {
+                                cur_x: adata.obs_vector(cur_x), 
+                                cur_y: adata.obs_vector(k=cur_y, layer=None) if cur_l_smoothed == 'X' else adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
+                            }
                         )
                         # points = points.loc[points.iloc[:, 1] > 0, :]
                         points.columns = [cur_x, cur_y + " (" + cur_l_smoothed + ")"]
                         cur_title = cur_y
                     elif is_gene_name(adata, cur_x) and is_cell_anno_column(adata, cur_y):
                         points = pd.DataFrame(
-                            {cur_x: adata.obs_vector(k=cur_x, layer=cur_l_smoothed), cur_y: adata.obs_vector(cur_y)}
+                            {
+                                cur_x: adata.obs_vector(k=cur_x, layer=None) if cur_l_smoothed == 'X' else adata.obs_vector(k=cur_x, layer=cur_l_smoothed), 
+                                cur_y: adata.obs_vector(cur_y)
+                            }
                         )
                         # points = points.loc[points.iloc[:, 0] > 0, :]
                         points.columns = [cur_x + " (" + cur_l_smoothed + ")", cur_y]
@@ -1167,6 +1180,12 @@ def scatters(
                             )
 
                     color_out = None
+
+                    if smooth and not is_not_continous:
+                        knn = adata.obsp['moments_con']
+                        values = calc_1nd_moment(values, knn)[0] if smooth in [1, True] else \
+                            calc_1nd_moment(values, knn**smooth)[0]
+
                     if points.shape[0] <= figsize[0] * figsize[1] * 100000:
                         ax, color_out = _matplotlib_points(
                             points.values,
@@ -1256,7 +1275,11 @@ def scatters(
     elif save_show_or_return == "show":
         if show_legend:
             plt.subplots_adjust(right=0.85)
-        plt.tight_layout()
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            plt.tight_layout()
+        
         plt.show()
         if background is not None: reset_rcParams()
     elif save_show_or_return == "return":

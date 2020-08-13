@@ -4,8 +4,12 @@ from tqdm import tqdm
 from scipy.sparse import issparse, csr_matrix
 from sklearn.neighbors import NearestNeighbors
 from .connectivity import umap_conn_indices_dist_embedding, mnn_from_list
-from .utils import get_finite_inds, inverse_norm, einsum_correlation
-from .utils_markers import fetch_X_data
+from .utils import (
+    get_finite_inds,
+    inverse_norm,
+    einsum_correlation,
+    fetch_X_data,
+)
 
 
 def cell_wise_confidence(adata,
@@ -66,9 +70,17 @@ def cell_wise_confidence(adata,
         )
     else:
         n_neigh = 30
-        alg = 'ball_tree' if X_data.shape[1] > 10 else 'kd_tree'
-        nbrs = NearestNeighbors(n_neighbors=n_neigh + 1, algorithm=alg).fit(X)
-        dist, nbrs_idx = nbrs.kneighbors(X)
+
+        if X.shape[0] > 200000 and X.shape[1] > 2: 
+            from pynndescent import NNDescent
+
+            nbrs = NNDescent(X, metric='euclidean', n_neighbors=n_neigh + 1, n_jobs=-1, random_state=19491001)
+            nbrs_idx, dist = nbrs.query(X, k=n_neigh + 1)
+        else:
+            alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+            nbrs = NearestNeighbors(n_neighbors=n_neigh + 1, algorithm=alg, n_jobs=-1).fit(X)
+            dist, nbrs_idx = nbrs.kneighbors(X)
+
         row = np.repeat(nbrs_idx[:, 0], n_neigh)
         col = nbrs_idx[:, 1:].flatten()
         X_neighbors = csr_matrix((np.repeat(1, len(col)), (row, col)), shape=(adata.n_obs, adata.n_obs))
@@ -198,26 +210,31 @@ def gene_wise_confidence(adata,
 
     In some scenarios, you may find unexpected "wrong vector backflow" from your dynamo analysis, in order to diagnose
     those cases, we can identify those genes showing up in the wrong phase portrait position. Then we nay remove those
-    identified genes to "correct" velocity vectors. This requires us to give some priors about what are progenitor and
-    what terminal cell types. The rationale behind this basically boils down to understanding the following two
+    identified genes to "correct" velocity vectors. This requires us to give some priors about what progenitor and
+    terminal cell types are. The rationale behind this basically boils down to understanding the following two
     scenarios:
 
     1). if the progenitor’s expression is low, starting from time point 0, cells should start to increase expression.
-    There must be progenitors that are above the diagonal line. However, if most of the progenitors are laying below the
-    line (indicated by the red cells), we will have negative velocity and this will lead to reversed vector flow.
+    There must be progenitors that are above the steady-state line. However, if most of the progenitors are laying below
+    the line (indicated by the red cells), we will have negative velocity and this will lead to reversed vector flow.
 
     2). if progenitors start from high expression, starting from time point 0, cells should start to decrease expression.
-    There must be progenitors that are below the diagonal line. However, if most of the progenitors are laying above the
-    steady state line , we will have positive velocity and this will lead to reversed vector flow.
+    There must be progenitors that are below the steady-state line. However, if most of the progenitors are laying above
+    the steady state line, we will have positive velocity and this will lead to reversed vector flow.
 
     The same rationale can be applied to the mature cell states.
 
-    Thus, we design an algorithm to access the confidence of each gene in obeying the above two scenario:
+    Thus, we design an algorithm to access the confidence of each gene obeying the above two constraints:
     We first check for whether a gene should be in the induction or repression phase from each progenitor to each
     terminal cell states (based on the shift of the median gene expression between these two states). If it is in
     induction phase, cells should show mostly at >= small negative velocity; otherwise <= small negative velocity.
     1 - ratio of cells with velocity pass those threshold (defined by `V_threshold`) in each state is then defined as a
     velocity confidence measure.
+
+    Note that, this heuristic method requires you provide meaningful `progenitors_groups` and `mature_cells_groups`. In
+    particular, the progentitor groups should in principle have cell going out (transcriptomically) while mature groups
+    should end up in a different expression state and there are intermediate cells going to the dead end cells in the
+    each terminal group (or most terminal groups).
 
     Parameters
     ----------

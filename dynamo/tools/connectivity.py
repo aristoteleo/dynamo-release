@@ -7,7 +7,7 @@ from copy import deepcopy
 from inspect import signature
 from sklearn.utils import sparsefuncs
 from ..preprocessing.utils import get_layer_keys
-from .utils import log1p_
+from .utils import log1p_, fetch_X_data
 
 from ..docrep import DocstringProcessor
 
@@ -286,7 +286,7 @@ def normalize_knn_graph(knn):
 
 def mnn(
     adata,
-    n_pca_components=25,
+    n_pca_components=30,
     n_neighbors=250,
     layers="all",
     use_pca_fit=True,
@@ -298,7 +298,7 @@ def mnn(
     ----------
         adata: :class:`~anndata.AnnData`
             an Annodata object
-        n_pca_components: 'int' (optional, default `25`)
+        n_pca_components: 'int' (optional, default `30`)
             Number of PCA components.
         layers: str or list (default: `all`)
             The layer(s) to be normalized. Default is `all`, including RNA (X, raw) or spliced, unspliced, protein, etc.
@@ -355,10 +355,11 @@ def mnn(
 
             adata.uns[layer + "_neighbors"] = {
                 "params": {"n_neighbors": eval(n_neighbors), "method": "umap"},
-                "connectivities": graph,
-                "distances": knn_dists,
+                # "connectivities": None,
+                # "distances": None,
                 "indices": knn_indices,
             }
+            adata.obsp[layer + "_connectivities"], adata.obsp[layer + "_distances"] = graph, knn_dists
 
         knn_graph_list.append(graph > 0)
 
@@ -367,5 +368,106 @@ def mnn(
 
     return adata
 
+
+def neighbors(
+    adata,
+    X_data=None,
+    genes=None,
+    basis='pca',
+    layer=None,
+    n_pca_components=30,
+    n_neighbors=30,
+    alg=None,
+    metric="euclidean",
+    metric_kwads=None,
+    cores=1,
+    seed=19491001,
+    **kwargs
+
+):
+    """Function to search nearest neighbors of the adata object.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object
+        X_data: `np.ndarray` (default: `None`)
+            The user supplied data that will be used for nearest neighbor search directly.
+        genes: `list` or None (default: `None`)
+            The list of genes that will be used to subset the data for nearest neighbor search. If `None`, all genes
+            will be used.
+        basis: `str` (default: `pca`)
+            The space that will be used for nearest neighbor search. Valid names includes, for example, `pca`, `umap`,
+            `velocity_pca` or `X` (that is, you can use velocity for clustering), etc.
+        layers: str or list (default: `all`)
+            The layer to be used for nearest neighbor search.
+        n_pca_components: 'int' (optional, default `30`)
+            Number of PCA components. Applicable only if you will use pca `basis` for nearest neighbor search.
+        n_neighbors: `int` (optional, default `30`)
+            Number of nearest neighbors.
+        alg: `str` or `None` (default: `None`)
+            The algorithm that will be used for nearest neighbor search. If `umap`, it relies on `pynndescent` package's
+            NNDescent for fast nearest neighbor search.
+        metric: `str` or callable, default='euclidean'
+            The distance metric to use for the tree.  The default metric is , and with p=2 is equivalent to the standard
+            Euclidean metric. See the documentation of :class:`DistanceMetric` for a list of available metrics. If metric
+            is "precomputed", X is assumed to be a distance matrix and must be square during fit. X may be a
+            :term:`sparse graph`, in which case only "nonzero" elements may be considered neighbors.
+        metric_params : dict, default=None
+            Additional keyword arguments for the metric function.
+        cores: `int` (default: 1)
+            The number of parallel jobs to run for neighbors search. ``None`` means 1 unless in a :obj:`joblib.parallel_backend` context.
+            ``-1`` means using all processors.
+        seed: `int` (default `19491001`)
+            Random seed to ensure the reproducibility of each run.
+        kwargs:
+            Additional arguments that will be passed to each nearest neighbor search algorithm.
+
+    Returns
+    -------
+        adata: :AnnData
+            A updated anndata object that are updated with the `indices`, `connectivity`, `distance` to the .obsp, as well
+            as a new `neighbors` key in .uns.
+    """
+
+    if X_data is None:
+        if basis == 'pca' and 'X_pca' not in adata.obsm_keys():
+            from ..preprocessing.utils import pca
+            CM = adata.X if genes is None else adata[:, genes].X
+            cm_genesums = CM.sum(axis=0)
+            valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
+            valid_ind = np.array(valid_ind).flatten()
+            CM = CM[:, valid_ind]
+            adata, fit, _ = pca(adata, CM, n_pca_components=n_pca_components)
+
+            X_data = adata.obsm['X_pca']
+        else:
+            genes, X_data = fetch_X_data(adata, genes, layer, basis)
+
+    alg = 'umap' if X_data.shape[0] > 200000 and X_data.shape[1] > 2 else 'ball_tree' if X_data.shape[1] > 10 else 'kd_tree'
+
+    # may distinguish between umap and pynndescent
+    if alg == 'umap':
+        from pynndescent import NNDescent
+        index = NNDescent(X_data, metric=metric, metric_kwads=metric_kwads, n_neighbors=n_neighbors, n_jobs=cores,
+                          random_state=seed, **kwargs)
+        knn, distances = index.query(X_data, k=n_neighbors)
+    elif alg in ['ball_tree', 'kd_tree']:
+        from sklearn.neighbors import NearestNeighbors
+        nbrs = NearestNeighbors(n_neighbors=n_neighbors, metric=metric, metric_params=metric_kwads, algorithm=alg,
+                                n_jobs=cores, **kwargs).fit(X_data)
+        distances, knn = nbrs.kneighbors(X_data)
+    else:
+        raise ImportError(f'nearest neighbor search method {alg} is not supported')
+
+    adata.obsp["indices"], adata.obsp["distances"] = knn, distances
+    adata.uns["neighbors"]["params"] = {
+        "n_neighbors": n_neighbors,
+        "method": alg,
+        "metric": metric,
+        "n_pcs": n_pca_components,
+    }
+
+    return adata
 
 

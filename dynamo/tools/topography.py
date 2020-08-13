@@ -1,5 +1,5 @@
 # create by Yan Zhang, minor adjusted by Xiaojie Qiu
-
+import warnings
 import numpy as np
 import scipy.sparse as sp
 from scipy.optimize import fsolve
@@ -384,8 +384,17 @@ class VectorField2D:
         X = X.A if sp.issparse(X) else X
         Xss = self.Xss.get_X()
         alg = 'ball_tree' if Xss.shape[1] > 10 else 'kd_tree'
-        nbrs = NearestNeighbors(n_neighbors=min(self.k, X.shape[0] - 1), algorithm=alg).fit(X)
-        dist, _ = nbrs.kneighbors(Xss)
+
+        if X.shape[0] > 200000 and X.shape[1] > 2: 
+            from pynndescent import NNDescent
+
+            nbrs = NNDescent(X, metric='euclidean', n_neighbors=min(self.k, X.shape[0] - 1), n_jobs=-1, random_state=19491001)
+            _, dist = nbrs.query(Xss, k=min(self.k, X.shape[0] - 1))
+        else:
+            alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+            nbrs = NearestNeighbors(n_neighbors=min(self.k, X.shape[0] - 1), algorithm=alg, n_jobs=-1).fit(X)
+            dist, _ = nbrs.kneighbors(Xss)
+
         dist_m = dist.mean(1)
         confidence = 1 - dist_m / dist_m.max()
 
@@ -664,6 +673,7 @@ def VectorField(
 
     VecFld = vectorfield(X, V, Grid, **vf_kwargs)
     vf_dict = VecFld.fit(normalize=normalize, method=method, **kwargs)
+
     vf_key = "VecFld" if basis is None else "VecFld_" + basis
 
     if basis is not None:
@@ -687,9 +697,12 @@ def VectorField(
         tp_kwargs = {"n": 25}
         tp_kwargs = update_dict(tp_kwargs, kwargs)
 
-        adata = topography(
-            adata, basis=basis, X=X, layer=layer, dims=[0, 1], VecFld=vf_dict['VecFld'], **tp_kwargs
-        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+
+            adata = topography(
+                adata, basis=basis, X=X, layer=layer, dims=[0, 1], VecFld=vf_dict['VecFld'], **tp_kwargs
+            )
     if pot_curl_div:
         if basis in ["pca", 'umap', 'tsne', 'diffusion_map', 'trimap']:
             ddhoge(adata, basis=basis, cores=cores)

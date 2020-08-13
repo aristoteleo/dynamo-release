@@ -297,15 +297,31 @@ def _matplotlib_points(
             else np.argsort(values)
         values, points = values[sorted_id], points[sorted_id, :]
 
-        if sym_c:
-            bounds = max(np.abs(np.nanmax(values)), np.abs(np.nanmin(values)))
+        # if there are very few cells have expression, set the vmin/vmax only based on positive values
+        if np.nanmin(values) == 0:
+            n_pos_cells = sum(values > 0)
+            if 0 < n_pos_cells / len(values) < 0.02:
+                vmin = 0 if n_pos_cells == 1 else np.percentile(values[values > 0], 2)
+                vmax = np.nanmax(values) if n_pos_cells == 1 else np.percentile(values[values > 0], 98)
+                if vmin + vmax in [1, 100]:
+                    vmin += 1e-12
+                    vmax += 1e-12
+
+        # if None: min/max from data
+        # if positive and sum up to 1, take fraction
+        # if positive and sum up to 100, take percentage
+        # otherwise take the data
+        _vmin = np.nanmin(values) if vmin is None else np.nanpercentile(values, vmin * 100) if \
+            (vmin + vmax == 1 and 0 <= vmin < vmax) else np.nanpercentile(values, vmin) \
+            if (vmin + vmax == 100 and 0 <= vmin < vmax) else vmin
+        _vmax = np.nanmax(values) if vmax is None else np.nanpercentile(values, vmax * 100) if \
+            (vmin + vmax == 1 and 0 <= vmin < vmax) else np.nanpercentile(values, vmax) \
+            if (vmin + vmax == 100 and 0 <= vmin < vmax) else vmax
+
+        if sym_c and _vmin < 0 and _vmax > 0:
+            bounds = np.nanmax([np.abs(_vmin), _vmax])
             bounds = bounds * np.array([-1, 1])
             _vmin, _vmax = bounds
-        else:
-            _vmin = np.min(values) if vmin is None else np.percentile(values, vmin) if \
-                (vmax > 80 and vmax <= 100 and vmin < 20 and vmin > 0) else vmin
-            _vmax = np.max(values) if vmax is None else np.percentile(values, vmax) if \
-                (vmax > 80 and vmax <= 100 and vmin < 20 and vmin > 0) else vmax
 
         if frontier == True:
             ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "0.0", lw=2)
@@ -1065,12 +1081,13 @@ def quiver_autoscaler(X_emb, V_emb):
     """
 
     import matplotlib.pyplot as plt
+    fig, ax = plt.subplots()
 
     scale_factor = np.ptp(X_emb, 0).mean()
     X_emb = X_emb - X_emb.min(0)
 
     if len(V_emb.shape) == 3:
-        Q = plt.quiver(
+        Q = ax.quiver(
             X_emb[0] / scale_factor,
             X_emb[1] / scale_factor,
             V_emb[0],
@@ -1080,7 +1097,7 @@ def quiver_autoscaler(X_emb, V_emb):
             scale=None,
         )
     else:
-        Q = plt.quiver(
+        Q = ax.quiver(
             X_emb[:, 0] / scale_factor,
             X_emb[:, 1] / scale_factor,
             V_emb[:, 0],
@@ -1091,7 +1108,8 @@ def quiver_autoscaler(X_emb, V_emb):
         )
 
     Q._init()
-    plt.clf()
+    fig.clf()
+    plt.close(fig)
 
     return Q.scale / scale_factor * 2
 

@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
-import numpy as np
-from version import __version__
+# import numpy as np
+# from version import __version__
 from pathlib import Path
 
 with open("README.md", "r") as fh:
@@ -8,7 +8,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="dynamo-release",
-    version=__version__,
+    version="0.93.2",
     python_requires=">=3.6",
     install_requires=[
         l.strip() for l in Path('requirements.txt').read_text('utf-8').splitlines()
@@ -23,7 +23,7 @@ setup(
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
     ],
-    include_dirs=[np.get_include()],
+#     include_dirs=[np.get_include()],
     author="Xiaojie Qiu, Yan Zhang",
     author_email="xqiu.sc@gmail.com",
     description="Mapping Vector Field of Single Cells",

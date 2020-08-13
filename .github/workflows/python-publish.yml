@@ -4,20 +4,40 @@
 name: Upload Python Package
 
 on:
-  release:
-    types: [created]
-
+  push:
+    # Sequence of patterns matched against refs/tags
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+  workflow_dispatch:
+  
 jobs:
-  deploy:
-
+  release:
+    name: Create Release
     runs-on: ubuntu-latest
-
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@master
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1.1.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: |
+            Changes in this Release
+          draft: true
+          prerelease: true
+  deploy:
+    needs: release
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
-        python-version: [3.6, 3.7, 3.8]
+        python-version: '3.6'
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip

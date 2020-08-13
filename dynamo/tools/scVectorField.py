@@ -94,9 +94,17 @@ def bandwidth_selector(X):
     '''
         This function computes an empirical bandwidth for a Gaussian kernel.
     '''
-    n = len(X)
-    nbrs = NearestNeighbors(n_neighbors=max(2, int(0.2*n)), algorithm='ball_tree').fit(X)
-    distances, _ = nbrs.kneighbors(X)
+    n, m = X.shape
+    if n > 200000 and m > 2: 
+        from pynndescent import NNDescent
+
+        nbrs = NNDescent(X, metric='euclidean', n_neighbors=max(2, int(0.2*n)), n_jobs=-1, random_state=19491001)
+        _, distances = nbrs.query(X, k=max(2, int(0.2*n)))
+    else:
+        alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+        nbrs = NearestNeighbors(n_neighbors=max(2, int(0.2*n)), algorithm=alg, n_jobs=-1).fit(X)
+        distances, _ = nbrs.kneighbors(X)
+
     d = np.mean(distances[:, 1:]) / 1.5
     return np.sqrt(2) * d
 
@@ -200,10 +208,16 @@ def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True,
 
     nbrs = None
     if nbrs_idx is None:
-        alg = 'ball_tree' if d > 10 else 'kd_tree'
-        nbrs = NearestNeighbors(n_neighbors=k+1, algorithm=alg).fit(X)
-        dist, nbrs_idx = nbrs.kneighbors(X)
-    
+        if X.shape[0] > 200000 and X.shape[1] > 2: 
+            from pynndescent import NNDescent
+
+            nbrs = NNDescent(X, metric='euclidean', n_neighbors=k+1, n_jobs=-1, random_state=19491001)
+            nbrs_idx, dist = nbrs.query(X, k=k+1)
+        else:
+            alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+            nbrs = NearestNeighbors(n_neighbors=k+1, algorithm=alg, n_jobs=-1).fit(X)
+            dist, nbrs_idx = nbrs.kneighbors(X)
+
     if dist is None and not distance_free:
         D = pdist(X)
     else:
@@ -504,8 +518,11 @@ class vectorfield:
                 Velocities of cells in the same order and dimension of X.
         Grid: 'np.ndarray'
                 The function that returns diffusion matrix which can be dependent on the variables (for example, genes)
-        M: 'int' (default: 100)
-                The number of basis functions to approximate the vector field.
+        M: 'int' (default: None)
+            The number of basis functions to approximate the vector field. By default it is calculated as
+            `min(len(X), int(1500 * np.log(len(X)) / (np.log(len(X)) + np.log(100))))`. So that any datasets with less
+            than  about 900 data points (cells) will use full data for vector field reconstruction while any dataset
+            larger than that will at most use 1500 data points.
         a: `float` (default 5)
             Parameter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's
             variation space is a.
@@ -543,7 +560,7 @@ class vectorfield:
         if X is not None and V is not None:
             self.parameters = kwargs
             self.parameters = update_n_merge_dict(self.parameters, {
-                "M": kwargs.pop('M', None) or max(min([50, len(X)]), int(0.05 * len(X)) + 1),
+                "M": kwargs.pop('M', None) or max(min([50, len(X)]), int(0.05 * len(X)) + 1), # min(len(X), int(1500 * np.log(len(X)) / (np.log(len(X)) + np.log(100)))),
                 "a": kwargs.pop('a', 5),
                 "beta": kwargs.pop('beta', None),
                 "ecr": kwargs.pop('ecr', 1e-5),
@@ -597,14 +614,17 @@ class vectorfield:
         verbose = kwargs.pop('verbose', 0)
         lstsq_method = kwargs.pop('lstsq_method', 'drouin')
         if method == "SparseVFC":
-            VecFld = SparseVFC(
-                self.data["X"],
-                self.data["V"],
-                self.data["Grid"],
-                **self.parameters,
-                verbose=verbose,
-                lstsq_method=lstsq_method,
-            )
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                
+                VecFld = SparseVFC(
+                        self.data["X"],
+                        self.data["V"],
+                        self.data["Grid"],
+                        **self.parameters,
+                        verbose=verbose,
+                        lstsq_method=lstsq_method,
+                    )
             if normalize:
                 VecFld = denorm(VecFld, X_old, V_old, self.norm_dict)
 

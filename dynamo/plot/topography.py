@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 import pandas as pd
 import scipy
@@ -746,14 +747,23 @@ def topography(
     uns_key = "VecFld" if basis == "X" else "VecFld_" + basis
 
     if uns_key not in adata.uns.keys():
-        _topology(adata, basis, VecFld=None)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+
+            _topology(adata, basis, VecFld=None)
     elif "VecFld2D" not in adata.uns[uns_key].keys():
-        _topology(adata, basis, VecFld=None)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+
+            _topology(adata, basis, VecFld=None)        
     elif (
         "VecFld2D" in adata.uns[uns_key].keys()
         and type(adata.uns[uns_key]["VecFld2D"]) == str
     ):
-        _topology(adata, basis, VecFld=None)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+
+            _topology(adata, basis, VecFld=None)
 
     VF, vecfld = adata.uns[uns_key]["VecFld"], adata.uns[uns_key]["VecFld2D"]
     xlim, ylim = (
@@ -784,7 +794,7 @@ def topography(
 
         V = vector_field_function(init_states, VF, [0, 1])
 
-    plt.figure(facecolor=_background)
+    # plt.figure(facecolor=_background)
     axes_list, color_list, font_color = scatters(
         adata=adata,
         basis=basis,
@@ -954,7 +964,11 @@ def topography(
 
         save_fig(**s_kwargs)
     elif save_show_or_return == "show":
-        plt.tight_layout()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+        
+            plt.tight_layout()
+        
         plt.show()
     elif save_show_or_return == "return":
         return axes_list if len(axes_list) > 1 else axes_list[0]

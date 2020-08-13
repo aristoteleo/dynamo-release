@@ -750,7 +750,8 @@ def phase_portraits(
                 width=figsize[0],
                 height=figsize[1],
                 show_legend=legend,
-                frontier=True,
+                sort='abs',
+                frontier=frontier,
                 **div_scatter_kwargs
             )
         else:
@@ -767,7 +768,8 @@ def phase_portraits(
                 width=figsize[0],
                 height=figsize[1],
                 show_legend=legend,
-                frontier=True,
+                sort='abs',
+                frontier=frontier,
                 **div_scatter_kwargs
             )
 
@@ -982,7 +984,8 @@ def phase_portraits(
                     width=figsize[0],
                     height=figsize[1],
                     show_legend=legend,
-                    frontier=True,
+                    sort='abs',
+                    frontier=frontier,
                     **div_scatter_kwargs
                 )
             else:
@@ -999,6 +1002,8 @@ def phase_portraits(
                     width=figsize[0],
                     height=figsize[1],
                     show_legend=legend,
+                    sort='abs',
+                    frontier=frontier,
                     **div_scatter_kwargs
                 )
 
@@ -1016,7 +1021,11 @@ def phase_portraits(
 
         save_fig(**s_kwargs)
     elif save_show_or_return == "show":
-        plt.tight_layout()
+        
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            plt.tight_layout()
+        
         plt.show()
     elif save_show_or_return == "return":
         return g

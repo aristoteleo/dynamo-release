@@ -1,4 +1,5 @@
 from tqdm import tqdm
+import warnings
 import scipy as scp
 from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import PCA
@@ -170,17 +171,17 @@ def cell_velocities(
             )
             indices, dist = indices[:, 1:], dist[:, 1:]
         else:
-            if adata.uns["neighbors"]["distances"].shape[0] == adata.uns["neighbors"]["distances"].shape[1]:
+            if adata.obsp["distances"].shape[0] == adata.obsp["distances"].shape[1]:
                 knn_indices, knn_dists = extract_indices_dist_from_graph(
-                    adata.uns["neighbors"]["distances"], 30
+                    adata.obsp["distances"], 30
                     # np.min((adata.uns["neighbors"]["connectivities"] > 0).sum(1).A)
                 )
                 knn_dists = build_distance_graph(knn_indices, knn_dists)
 
-                adata.uns["neighbors"]["indices"], adata.uns["neighbors"]["distances"] = knn_indices, knn_dists
+                adata.uns["neighbors"]["indices"], adata.obsp["distances"] = knn_indices, knn_dists
             neighbors, dist, indices = (
-                adata.uns["neighbors"]["connectivities"],
-                adata.uns["neighbors"]["distances"],
+                adata.obsp["connectivities"],
+                adata.obsp["distances"],
                 adata.uns["neighbors"]["indices"],
             )
             indices, dist = indices[:, 1:], dist[:, 1:]
@@ -253,7 +254,15 @@ def cell_velocities(
         X, V_mat = X_pca[:, :n_pca_components], V_pca[:, :n_pca_components]
 
     if neighbors_from_basis:
-            nbrs = NearestNeighbors(n_neighbors=30, algorithm="ball_tree").fit(X)
+        if X.shape[0] > 200000 and X.shape[1] > 2: 
+            from pynndescent import NNDescent
+
+            nbrs = NNDescent(X, metric='eulcidean', n_neighbors=30, n_jobs=-1,
+                              random_state=19490110, **kwargs)
+            indices, _ = nbrs.query(X, k=30)
+        else:
+            alg = "ball_tree" if X.shape[1] > 10 else 'kd_tree'
+            nbrs = NearestNeighbors(n_neighbors=30, algorithm=alg, n_jobs=-1).fit(X)
             _, indices = nbrs.kneighbors(X)
 
     # add both source and sink distribution
@@ -787,13 +796,16 @@ def kernels_from_velocyto_scvelo(
 def projection_with_transition_matrix(n, T, X_embedding):
     delta_X = np.zeros((n, X_embedding.shape[1]))
 
-    for i in tqdm(range(n), desc=f"projecting velocity vector to low dimensional embedding..."):
-        idx = T[i].indices
-        diff_emb = X_embedding[idx] - X_embedding[i, None]
-        diff_emb /= norm_row(diff_emb)[:, None]
-        diff_emb[np.isnan(diff_emb)] = 0
-        T_i = T[i].data
-        delta_X[i] = T_i.dot(diff_emb) - T_i.mean() * diff_emb.sum(0)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+
+        for i in tqdm(range(n), desc=f"projecting velocity vector to low dimensional embedding..."):
+            idx = T[i].indices
+            diff_emb = X_embedding[idx] - X_embedding[i, None]
+            diff_emb /= norm_row(diff_emb)[:, None]
+            diff_emb[np.isnan(diff_emb)] = 0
+            T_i = T[i].data
+            delta_X[i] = T_i.dot(diff_emb) - T_i.mean() * diff_emb.sum(0)
 
     return delta_X
 

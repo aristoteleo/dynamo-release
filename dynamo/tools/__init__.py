@@ -131,7 +131,7 @@ from .dimension_reduction import reduceDimension  # , run_umap
 from .clustering import hdbscan, cluster_field
 
 # mnn related
-from .connectivity import mnn
+from .connectivity import mnn, neighbors
 
 # Pseudotime related
 from .DDRTree import DDRTree_py as DDRTree

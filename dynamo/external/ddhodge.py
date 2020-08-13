@@ -228,7 +228,8 @@ def ddhoge(adata,
             if neighbor_key not in adata_.uns_keys() or to_downsample:
                 Idx = None
             else:
-                neighbors = adata_.uns[neighbor_key]["connectivities"]
+                conn_key = "connectivities" if layer is None else layer + "_connectivities"
+                neighbors = adata_.obsp[conn_key]
                 Idx = neighbors.tolil().rows
 
             adj_mat, nbrs = graphize_vecfld(func, X_data, nbrs_idx=Idx, k=n, distance_free=distance_free, n_int_steps=20,
@@ -254,7 +255,12 @@ def ddhoge(adata,
     if up_sampling and to_downsample:
         query_idx = list(set(np.arange(adata.n_obs)).difference(cell_idx))
         query_data = X_data_full[query_idx, :]
-        dist, nbrs_idx = nbrs.kneighbors(query_data)
+        
+        if hasattr(nbrs, 'kneighbors'): 
+            dist, nbrs_idx = nbrs.kneighbors(query_data)
+        elif hasattr(nbrs, 'query'): 
+            nbrs_idx, dist = nbrs.query(query_data, k=nbrs.n_neighbors)
+
         k = nbrs_idx.shape[1]
         row, col = np.repeat(np.arange(len(query_idx)), k), nbrs_idx.flatten()
         W = csr_matrix((np.repeat(1/k, len(row)), (row, col)), shape=(len(query_idx), len(cell_idx)))

@@ -123,9 +123,9 @@ def run_reduce_dim(adata, X_data, n_components, n_pca_components, reduction_meth
         adata.obsm[embedding_key] = X_dim
         adata.uns[neighbor_key] = {
             "params": {"n_neighbors": n_neighbors, "method": reduction_method},
-            "connectivities": None,
-            "distances": None,
-            "indices": None,
+            # "connectivities": "connectivities",
+            # "distances": "distances",
+            # "indices": "indices",
         }
     elif reduction_method == "diffusion_map":
         pass
@@ -145,9 +145,9 @@ def run_reduce_dim(adata, X_data, n_components, n_pca_components, reduction_meth
         adata.obsm[embedding_key] = X_dim
         adata.uns[neighbor_key] = {
             "params": {"n_neighbors": n_neighbors, "method": reduction_method},
-            "connectivities": None,
-            "distances": None,
-            "indices": None,
+            # "connectivities": "connectivities",
+            # "distances": "distances",
+            # "indices": "indices",
         }
     elif reduction_method == "umap":
         _umap_kwargs = {
@@ -181,10 +181,17 @@ def run_reduce_dim(adata, X_data, n_components, n_pca_components, reduction_meth
         knn_dists = build_distance_graph(knn_indices, knn_dists)
         adata.uns[neighbor_key] = {
             "params": {"n_neighbors": n_neighbors, "method": reduction_method},
-            "connectivities": graph,
-            "distances": knn_dists,
+            # "connectivities": "connectivities",
+            # "distances": "distances",
             "indices": knn_indices,
         }
+        
+        layer = neighbor_key.split('_')[0] if neighbor_key.__contains__('_') else None 
+        conn_key = "connectivities" if layer is None else layer + "_connectivities"
+        dist_key = "distances" if layer is None else layer + "_distances"
+
+        adata.obsp[conn_key], adata.obsp[dist_key] = graph, knn_dists
+
         adata.uns["umap_fit"] = {"fit": mapper, "n_pca_components": n_pca_components}
     elif reduction_method == "psl":
         adj_mat, X_dim = psl_py(

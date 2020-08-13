@@ -14,19 +14,22 @@ from anndata import (
 )
 
 
-def convert2float(adata, columns):
+def convert2float(adata, columns, var=False):
     """This helper function can convert the category columns (undesiredly converted) when saving adata object into h5ad
     file back to float type."""
 
-    columns = list(adata.obs.columns.intersection(columns))
+    columns = list(adata.var.columns.intersection(columns)) if var else list(adata.obs.columns.intersection(columns))
     if len(columns) == 0:
         raise ValueError(f"the columns {columns} you provided doesn't match with any columns from the adata object.")
 
     for i in columns:
-        data = adata.obs[i]
+        data = adata.var[i] if var else adata.obs[i]
         data[data == 'None'] = None
         data = data.astype(float)
-        adata.obs[i] = data.copy()
+        if var:
+            adata.var[i] = data.copy()
+        else:
+            adata.obs[i] = data.copy()
 
 
 def load_NASC_seq(dir, type='TPM', delimiter="_", colnames=None, dropna=False):

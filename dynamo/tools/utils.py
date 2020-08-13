@@ -1,7 +1,7 @@
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
-from scipy import interpolate
+from scipy import interpolate, stats
 from scipy.sparse import issparse, csr_matrix
 from scipy.integrate import odeint
 from scipy.linalg.blas import dgemm
@@ -130,6 +130,12 @@ def einsum_correlation(X, Y_i, type="pearson"):
         Y_i -= np.nanmean(Y_i)
     elif type == "cosine":
         X, Y_i = X, Y_i
+    elif type == 'spearman':
+        X = stats.rankdata(X, axis=1)
+        Y_i = stats.rankdata(Y_i)
+    elif type == 'kendalltau':
+        corr = np.array([stats.kendalltau(x, Y_i)[0] for x in X])
+        return corr[None, :]
 
     X_norm, Y_norm = norm_row(X),  norm_vector(Y_i)
 
@@ -240,8 +246,18 @@ def velocity_on_grid(X, V, n_grids, nbrs=None, k=None,
 
     if nbrs is None:
         k = 100 if k is None else k
-        nbrs = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(X)
-    dists, neighs = nbrs.kneighbors(X_grid)
+        if X.shape[0] > 200000 and X.shape[1] > 2: 
+            from pynndescent import NNDescent
+
+            nbrs = NNDescent(X, metric='euclidean', n_neighbors=k+1, n_jobs=-1, random_state=19491001)
+        else:
+            alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+            nbrs = NearestNeighbors(n_neighbors=k+1, algorithm=alg, n_jobs=-1).fit(X)
+
+    if hasattr(nbrs, 'kneighbors'): 
+        dists, neighs = nbrs.kneighbors(X_grid)
+    elif hasattr(nbrs, 'query'): 
+        neighs, dists = nbrs.query(X_grid, k=k+1)
 
     std = np.mean([(g[1] - g[0]) for g in grs])
     # isotropic gaussian kernel
@@ -963,6 +979,44 @@ def get_U_S_for_velocity_estimation(
                 S = np.log(S + 1) if log_unnormalized else S
 
     return U, S
+
+
+# ---------------------------------------------------------------------------------------------------
+# retrieving data related
+
+def fetch_X_data(adata, genes, layer, basis=None):
+    if basis is not None:
+        return None, adata.obsm['X_' + basis]
+
+    if genes is not None:
+        genes = adata.var_names.intersection(genes).to_list()
+        if len(genes) == 0:
+            raise ValueError(f'No genes from your genes list appear in your adata object.')
+
+    if layer == None:
+        if genes is not None:
+            X_data = adata[:, genes].X
+        else:
+            if 'use_for_dynamics' not in adata.var.keys():
+                X_data = adata.X
+                genes = adata.var_names
+            else:
+                X_data = adata[:, adata.var.use_for_dynamics].X
+                genes = adata.var_names[adata.var.use_for_dynamics]
+    else:
+        if genes is not None:
+            X_data = adata[:, genes].layers[layer]
+        else:
+            if 'use_for_dynamics' not in adata.var.keys():
+                X_data = adata.layers[layer]
+                genes = adata.var_names
+            else:
+                X_data = adata[:, adata.var.use_for_dynamics].layers[layer]
+                genes = adata.var_names[adata.var.use_for_dynamics]
+
+            X_data = log1p_(adata, X_data)
+
+    return genes, X_data
 
 # ---------------------------------------------------------------------------------------------------
 # estimation related

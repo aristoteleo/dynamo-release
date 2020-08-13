@@ -15,3 +15,4 @@ from .data_io import *
 from . import sample_data
 from . import configuration
 from . import ext
+from .get_version import get_all_dependencies_version

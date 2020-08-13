@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 from scipy.sparse import issparse, csr_matrix
+import warnings
 # from functools import reduce
 from sklearn.decomposition import PCA, TruncatedSVD
 
@@ -564,10 +565,13 @@ def NTR(adata):
 
         var_ntr = var_ntr.A1 if issparse(adata.layers['uu']) else var_ntr
     elif len({'unspliced', 'spliced'}.intersection(adata.layers.keys())) == 2:
-        ntr = adata.layers['unspliced'].sum(1) / (adata.layers['unspliced'] + adata.layers['spliced']).sum(1)
-        ntr = ntr.A1 if issparse(adata.layers['unspliced']) else ntr
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            
+            ntr = adata.layers['unspliced'].sum(1) / (adata.layers['unspliced'] + adata.layers['spliced']).sum(1)
+            var_ntr = adata.layers['unspliced'].sum(0) / (adata.layers['unspliced'] + adata.layers['spliced']).sum(0)
 
-        var_ntr = adata.layers['unspliced'].sum(0) / (adata.layers['unspliced'] + adata.layers['spliced']).sum(0)
+        ntr = ntr.A1 if issparse(adata.layers['unspliced']) else ntr
         var_ntr = var_ntr.A1 if issparse(adata.layers['unspliced']) else var_ntr
     else:
         ntr, var_ntr = None, None

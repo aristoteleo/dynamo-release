@@ -6,7 +6,7 @@ Contributing to dynamo
 Before filing an issue
 ----------------------
 * We suggest the users to read the [preprint](https://www.biorxiv.org/content/10.1101/426981v1) to get a general sense of the computational/mathematical foundation and application related to dynamo. 
-* First check the GitHub issues, [Google group](https://groups.google.com/forum/#!forum/dynamo-user/) or Google to see if the same or a similar issues has been reported and resolved. This relieves the developers from addressing the same issues and helps them focus on adding new features!
+* First check the GitHub issues, [Google group](https://groups.google.com/forum/#!forum/dynamo-user/), [Slack channel](https://dynamo-discussionhq.slack.com/join/shared_invite/zt-ghve9pzp-r9oJ9hSQznWrDcx1fCog6g#/) or Google to see if the same or a similar issues has been reported and resolved. This relieves the developers from addressing the same issues and helps them focus on adding new features!
 * Minimal, reproducible example are required when filing a GitHub issue. please check out Matthew Rocklin' [blogpost](http://matthewrocklin.com/blog/work/2018/02/28/minimal-bug-reports) or [stackoverflow's suggestion](https://stackoverflow.com/help/mcve).
 * Provide session information, including the python or packages' version. This can be obtained by running `dynamo.__version__`.
 * Users are encouraged to discuss issues and bugs using the [dynamo issue tracker](https://github.com/aristoteleo/dynamo-release/issues) instead of email exchanges. 

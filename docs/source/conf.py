@@ -10,9 +10,11 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+import os
+import sys
+
+module_path = os.path.join(os.path.dirname(__file__), '../..')
+sys.path.insert(0, os.path.abspath(module_path))
 
 master_doc = "index"
 
@@ -24,7 +26,7 @@ copyright = "2019, Xiaojie Qiu, Yan Zhang"
 author = "Xiaojie Qiu, Yan Zhang"
 
 # The full version, including alpha/beta/rc tags
-release = "0.0.1"
+release = "0.99.3"
 
 # -- General configuration ---------------------------------------------------
 
@@ -35,24 +37,30 @@ needs_sphinx = "1.7"
 
 extensions = [
     "sphinx.ext.autodoc",
+    "sphinx.ext.autosummary",
     "sphinx.ext.doctest",
     "sphinx.ext.coverage",
     "sphinx.ext.mathjax",
-    "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
     "sphinx.ext.githubpages",
+    'sphinx.ext.autosectionlabel',
     "sphinx_autodoc_typehints",
 ]
 
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
+source_suffix = [".rst", ".ipynb"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
 
+# Generate the API documentation when building
+autosummary_generate = True
+autodoc_member_order = 'bysource'
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -68,11 +76,10 @@ html_context = dict(
     github_version="master",  # Version
     conf_py_path="/docs/source/",
 )
-html_static_path = ["_static"]
 
 
 def setup(app):
-    app.add_stylesheet("custom.css")
+    app.add_css_file("custom.css")
 
 
 # Add any paths that contain custom static files (such as style sheets) here,
