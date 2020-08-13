@@ -34,7 +34,7 @@ from source, using the following script::
 
     pip install git+https://github.com:aristoteleo/dynamo-release
 
-In order to ensure dynamo run properly, your python environment need to satisfy dynamo's `dependencies`_. We provide a helper function for you to check the version of dynamo's all dependencies. ::
+In order to ensure dynamo run properly, your python environment needs to satisfy dynamo's `dependencies`_. We provide a helper function for you to check the version of dynamo's all dependencies. ::
 
     import dynamo as dyn
     dyn.get_all_dependencies_version()
