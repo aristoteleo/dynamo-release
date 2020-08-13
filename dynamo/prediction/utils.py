@@ -93,7 +93,7 @@ def integrate_vf_ivp(
         Y_, t_ = [None] * n_cell, [None] * n_cell
         for i in tqdm(range(n_cell), desc="uniformly sampling points along a trajectory", disable=disable):
             tau, x = T[i], Y[i].T
-            idx = dup_osc_idx_iter(x, max_iter=100, tol=5)[0]
+            idx = dup_osc_idx_iter(x, max_iter=100, tol=x.ptp(0).mean() / 1000)[0]
             # idx = dup_osc_idx_iter(x)
             x = x[:idx]
             _, arclen, _ = remove_redundant_points_trajectory(x, tol=1e-4, output_discard=True)

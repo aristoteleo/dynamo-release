@@ -293,7 +293,7 @@ def fate_bias(adata,
               basis='umap',
               inds=None,
               speed_percentile=5,
-              dist_threshold=25,
+              dist_threshold=None,
               source_groups=None,
               metric="euclidean",
               metric_kwds=None,
@@ -346,10 +346,11 @@ def fate_bias(adata,
         speed_percentile: `float` (default: `5`)
             The percentile of speed that will be used to determine the terminal cells (or sink region on the prediction
             path where speed is smaller than this speed percentile).
-        dist_threshold: `float` (default: `25`)
+        dist_threshold: `float` or `None` (default: `None`)
             A multiplier of the median nearest cell distance on the embedding to determine cells that are outside the
             sampled domain of cells. If the mean distance of identified "terminal cells" is above this number, we will
             look backward along the trajectory (by minimize all indices by 1) until it finds cells satisfy this threshold.
+            By default it is set to be 1 to ensure only consider points that are very close to observed data points.
         source_groups: `list` or `None` (default: `None`)
             The groups that corresponds to progenitor groups. They has to have at least one intersection with the groups
             from the `group` column. If group is not `None`, any identified "source_groups" cells that happen to be in
@@ -375,6 +376,9 @@ def fate_bias(adata,
         fate_bias: `pandas.DataFrame`
             A DataFrame that stores the fate bias for each cell state (row) to each cell group (column).
     """
+
+    if dist_threshold is None:
+        dist_threshold = 25 if basis == 'pca' else 1
 
     if group not in adata.obs.keys():
         raise ValueError(f'The group {group} you provided is not a key of .obs attribute.')
