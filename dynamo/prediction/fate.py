@@ -344,7 +344,7 @@ def fate_bias(adata,
             A multiplier of the median nearest cell distance on the embedding to determine cells that are outside the
             sampled domain of cells. If the mean distance of identified "terminal cells" is above this number, we will
             look backward along the trajectory (by minimize all indices by 1) until it finds cells satisfy this threshold.
-            By default it is set to be 1 to ensure only consider points that are very close to observed data points.
+            By default it is set to be 1 to ensure only considering points that are very close to observed data points.
         source_groups: `list` or `None` (default: `None`)
             The groups that corresponds to progenitor groups. They has to have at least one intersection with the groups
             from the `group` column. If group is not `None`, any identified "source_groups" cells that happen to be in
@@ -372,7 +372,7 @@ def fate_bias(adata,
     """
 
     if dist_threshold is None:
-        dist_threshold = 25 if basis == 'pca' else 1
+        dist_threshold = 1
 
     if group not in adata.obs.keys():
         raise ValueError(f'The group {group} you provided is not a key of .obs attribute.')

@@ -22,7 +22,7 @@ To install the newest version of dynamo, you can git clone our repo and then pip
     git clone https://github.com/aristoteleo/dynamo-release.git
     pip install dynamo-release/ --user
 
-Note that ``--user`` flag is used to install the package to your home directory instead, in cases you don't have the root privilege.
+Note that ``--user`` flag is used to install the package to your home directory, in case you don't have the root privilege.
 
 Alternatively, you can install dynamo when you are in the dynamo-release folder by directly using python's setup install::
 
@@ -51,10 +51,10 @@ Dynamo has a few standard modules like most other single cell analysis toolkits 
 - time-resolved metabolic labeling based single cell RNA-seq (scRNA-seq) modeling (``dyn.tsc.*``);
 - vector field analysis (``dyn.vf.*``);
 - cell fate prediction (``dyn.pd.*``);
-- creating movie of cell fate commitment (``dyn.mv.*``);
-- simulation (``dyn.sim.*``);
+- creating movie of cell fate predictions (``dyn.mv.*``);
+- stochastic simulation of various metabolic labeling experiments (``dyn.sim.*``);
 - integration with external tools built by us or others (``dyn.ext.*``);
-- and others.
+- and more.
 
 Typical workflow
 ^^^^^^^^^^^^^^^^
@@ -90,7 +90,7 @@ can either use the `velocyto command line interface`_ or the `bustool from Pacht
 
 Preprocess data
 '''''''''''''''
-After loading data, you are ready to performs some preprocessing. You can run the ``recipe_monocle`` function that uses similar strategy from `Monocle 3`_ but generalized to normalize all datasets in different layers (the spliced and unspliced or new (metabolic labelled) and total mRNAs or others), followed by feature selection and PCA dimension reduction. ::
+After loading data, you are ready to performs some preprocessing. You can run the ``recipe_monocle`` function that uses similar but generalized strategy from `Monocle 3`_ to normalize all datasets in different layers (the spliced and unspliced or new, i.e. metabolic labelled, and total mRNAs or others), followed by feature selection and PCA dimension reduction. ::
 
     dyn.pp.recipe_monocle(adata)
 
@@ -106,10 +106,10 @@ which implicitly calls ``dyn.tl.moments`` first ::
 
 and then performs the following steps:
 
-    - checks the data you have and determine the experimental type automatically, either the conventional scRNA-seq, kinetics, degradation or one-shot single-cell metabolic labelling experiment or the CITE-seq or REAP-seq co-assay, etc.
+    - checks the data you have and determine the experimental type automatically, either the conventional scRNA-seq, ``kinetics``, ``degradation`` or ``one-shot`` single-cell metabolic labelling experiment or the ``CITE-seq`` or ``REAP-seq`` co-assay, etc.
     - learns the velocity for each feature gene using either the original deterministic model based on a steady-state assumption from the seminal RNA velocity work or a few new methods, including the ``stochastic`` (default) or ``negative binomial method`` for conventional scRNA-seq or ``kinetic``, ``degradation`` or ``one-shot`` models for metabolic labeling based scRNA-seq.
 
-Those later methods are based on moment equations which basically considers both mean and uncentered variance of gene expression. The moment based models require calculation of the first and second moment of the expression data that is based on a nearest neighbours graph, constructed in the reduced PCA space from the spliced or total mRNA expression.
+Those later methods are based on moment equations which basically considers both mean and uncentered variance of gene expression. The moment based models require calculation of the first and second moments of the expression data that is based on a nearest neighbours graph, constructed in the reduced PCA space from the spliced or total mRNA expression.
 
 
 Kinetic estimation of the conventional scRNA-seq and metabolic labeling based scRNA-seq is often tricky and has a lot pitfalls. Sometimes you may even observed undesired backward vector flow. You can evaluate the confidence of gene-wise velocity via::
@@ -120,7 +120,7 @@ and filter those low confidence genes for downstream :ref:`Velocity vectors` ana
 
 Dimension reduction
 '''''''''''''''''''
-By default, we use ``umap`` algorithm for dimension reduction.::
+By default, we use ``umap`` algorithm for dimension reduction. ::
 
     dyn.tl.reduceDimension(adata)
 
@@ -135,7 +135,7 @@ We need to project the velocity vector onto low dimensional embedding for later 
 
     dyn.tl.cell_velocities(adata)
 
-The above functions project and evaluate velocity vectors on ``umap`` space but you can also operate them on other basis, for example ``pca`` space::
+The above function projects and evaluates velocity vectors on ``umap`` space but you can also operate them on other basis, for example ``pca`` space::
 
     dyn.tl.cell_velocities(adata, basis='pca')
     dyn.tl.cell_wise_confidence(adata, basis='pca')
@@ -152,7 +152,7 @@ In classical physics, including fluidics and aerodynamics, velocity and accelera
 
 In general, a vector field can be defined as a vector-valued function f that maps any points (or cells’ expression state) x in a domain Ω with D dimension (or the gene expression system with D transcripts / proteins) to a vector y (for example, the velocity or acceleration for different genes or proteins), that is f(x) = y.
 
-To formally define the problem of velocity vector field learning, we consider a set of measured cells with pairs of current and estimated future expression states. The difference between the predicted future state and current state for each cell corresponds to the velocity. We suppose that the measured single-cell velocity is sampled from a smooth, differentiable vector field f that maps from xi to yi on the entire domain. Normally, single cell velocity measurements are results of biased, noisy and sparse sampling of the entire state space, thus the goal of velocity vector field reconstruction is to robustly learn a mapping function f that outputs yj given any point xj on the domain based on the observed data with certain smoothness constraints (Jiayi Ma et al. 2013). Under ideal scenario, the mapping function f should recover the true velocity vector field on the entire domain and predict the true dynamics in regions of expression space that are not sampled. To reconstruct vector field function in dynamo, you can simply use the following function to do all the heavy-lifting for you::
+To formally define the problem of velocity vector field learning, we consider a set of measured cells with pairs of current and estimated future expression states. The difference between the predicted future state and current state for each cell corresponds to the velocity. We suppose that the measured single-cell velocity is sampled from a smooth, differentiable vector field f that maps from xi to yi on the entire domain. Normally, single cell velocity measurements are results of biased, noisy and sparse sampling of the entire state space, thus the goal of velocity vector field reconstruction is to robustly learn a mapping function f that outputs yj given any point xj on the domain based on the observed data with certain smoothness constraints (Jiayi Ma et al. 2013). Under ideal scenario, the mapping function f should recover the true velocity vector field on the entire domain and predict the true dynamics in regions of expression space that are not sampled. To reconstruct vector field function in dynamo, you can simply use the following function to do all the heavy-lifting::
 
 	dyn.tl.VectorField(adata)
 
@@ -165,7 +165,7 @@ Since we learn the vector field function of the data, we can then characterize t
     - the fixed points (attractor/saddles, etc.) which may corresponds to terminal cell types or progenitors;
     - nullcline, separatrices of a recovered dynamic system, which may formally define the dynamical behaviour or the boundary of cell types in gene expression space.
 
-Again, you only need to simply the following function to get all those information ::
+Again, you only need to simply the following function to get all those information. ::
 
     dyn.tl.topography(adata, basis='umap')
 
@@ -173,11 +173,11 @@ Map potential landscape
 '''''''''''''''''''''''
 The concept of potential landscape is widely appreciated across various biological disciplines, for example the adaptive landscape in population genetics, protein-folding funnel landscape in biochemistry, epigenetic landscape in developmental biology. In the context of cell fate transition, for example, differentiation, carcinogenesis, etc, a potential landscape will not only offers an intuitive description of the global dynamics of the biological process but also provides key insights to understand the multi-stability and transition rate between different cell types as well as to quantify the optimal path of cell fate transition.
 
-Because the classical definition of potential function in physics is not applicable to open biological system which is often not a gradient system, in dynamo we provided several ways to quantify the potential of single cells by decomposing the vector field into gradient,  curl parts, etc. The recommended method is built on the Hodge decomposition on simplicial complexes (a sparse directional graph) constructed based on the learned vector field function that provides fruitful analogy of gradient, curl and harmonic (cyclic) flows on manifold::
+Because the classical definition of potential function in physics requires gradient systems (no ``curl``), which is often not applicable to open biological system. In dynamo we provided several ways to quantify the potential of single cells by decomposing the vector field into gradient,  curl parts, etc. The recommended method is built on the Hodge decomposition on simplicial complexes (a sparse directional graph) constructed based on the learned vector field function that provides fruitful analogy of gradient, curl and harmonic (cyclic) flows on manifold::
 
 	dyn.ext.ddhoge(adata)
 
-In addition, we and others proposed different strategies to decompose the stochastic differential equations into either the gradient or the curl component from first principles. We then can use the gradient part to define the potential.
+In addition, we and others proposed different strategies to decompose the ``stochastic differential equations`` into either the gradient or the curl component from first principles. We then can use the gradient part to define the potential.
 
 Although an analytical decomposition on the reconstructed vector field is challenging, we are able to use a numerical algorithm we recently developed for our purpose. This approach uses a least action method under the A-type stochastic integration (Shi et al. 2012) to globally map the potential landscape Ψ(x) (Tang et al. 2017) by taking the vector field function f(x) as input. ::
 
@@ -187,7 +187,7 @@ Visualization
 '''''''''''''
 In two or three dimensions, a streamline plot can be used to visualize the paths of cells will follow if released in different regions of the gene expression state space under a steady flow field. Although we currently do not support this, for vector field that changes over time, similar methods, for example, streakline, pathline, timeline, etc. can also be used to visualize the evolution of single cell or cell populations.
 
-In dynamo, we have three standard visual representations of vector fields, including the ``cell wise``, ``grid`` or ``streamline plot``.  Another intuitive way to visualize the structure of vector field is the so called line integral convolution method or LIC (Cabral and Leedom 1993), which works by adding random black-and-white paint sources on the vector field and letting the flowing particle on the vector field picking up some texture to ensure the same streamline having similar intensity. We relies on the yt_'s ``annotate_line_integral_convolution`` function visualize the vector field reconstructed from dynamo::
+In dynamo, we have three standard visual representations of vector fields, including the ``cell wise``, ``grid`` quiver plots and the ``streamline plot``.  Another intuitive way to visualize the structure of vector field is the so called line integral convolution method or LIC (Cabral and Leedom 1993), which works by adding random black-and-white paint sources on the vector field and letting the flowing particles on the vector field picking up some texture to ensure points on the same streamline having similar intensity. We relies on the yt_'s ``annotate_line_integral_convolution`` function to visualize the LIC vector field reconstructed from dynamo. ::
 
     dyn.pl.cell_wise_vectors(adata, color=colors, ncols=3)
     dyn.pl.grid_vectors(adata, color=colors, ncols=3)
@@ -196,7 +196,7 @@ In dynamo, we have three standard visual representations of vector fields, inclu
 
 Note that ``colors``  here is a list or str that can be either the column name in ``.obs`` or ``gene names``.
 
-To visualize the topography of the learnt vector field, we provide the ``dyn.pl.topography`` function to visualize the structure of the 2D vector fields. ::
+To visualize the topological structure of the reconstructed 2D vector fields, we provide the ``dyn.pl.topography`` function in dynamo. ::
 
     dyn.tl.VectorField(adata, basis='umap')
     dyn.pl.topography(adata)
