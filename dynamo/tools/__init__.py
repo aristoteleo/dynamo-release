@@ -45,6 +45,7 @@ from .velocity import (
 )
 from .cell_vectors import (
     cell_velocities,
+    confident_cell_velocities,
     cell_accelerations,
     generalized_diffusion_map,
     stationary_distribution,

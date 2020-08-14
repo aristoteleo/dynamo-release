@@ -200,8 +200,8 @@ def gene_wise_confidence(adata,
                          progenitors_groups,
                          mature_cells_groups,
                          genes=None,
-                         layer='M_s',
-                         vlayer='velocity_S',
+                         ekey='M_s',
+                         vkey='velocity_S',
                          X_data=None,
                          V_data=None,
                          V_threshold=1,
@@ -251,10 +251,10 @@ def gene_wise_confidence(adata,
         genes: `list` or None (default: `None`)
             The list of genes that will be used to gene-wise confidence score calculation. If `None`, all genes that go
             through velocity estimation will be used.
-        layer: `str` or None (default: `M_s`)
+        ekey: `str` or None (default: `M_s`)
             The layer that will be used to retrieve data for identifying the gene is in induction or repression phase at
             each cell state. If `None`, .X is used.
-        vlayer: `str` or None (default: `velocity_S`)
+        vkey: `str` or None (default: `velocity_S`)
             The layer that will be used to retrieve velocity data for calculating gene-wise confidence. If `None`,
             `velocity_S` is used.
         X_data: `np.ndarray` (default: `None`)
@@ -273,13 +273,13 @@ def gene_wise_confidence(adata,
     """
 
     if X_data is None:
-        genes, X_data = fetch_X_data(adata, genes, layer)
+        genes, X_data = fetch_X_data(adata, genes, ekey)
     else:
         if genes is None or len(genes) != X_data.shape[1]:
             raise ValueError(f"When providing X_data, a list of genes name that corresponds to the columns of X_data "
                              f"must be provided")
     if V_data is None:
-        genes, V_data = fetch_X_data(adata, genes, vlayer)
+        genes, V_data = fetch_X_data(adata, genes, vkey)
     else:
         if genes is None or len(genes) != X_data.shape[1]:
             raise ValueError(f"When providing V_data, a list of genes name that corresponds to the columns of X_data "

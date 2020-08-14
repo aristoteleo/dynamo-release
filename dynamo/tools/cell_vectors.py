@@ -8,6 +8,7 @@ from .Markov import *
 from .connectivity import extract_indices_dist_from_graph
 from .topography import VectorField
 from .vector_calculus import acceleration
+from .metric_velocity import gene_wise_confidence
 from .utils import (
     set_velocity_genes,
     get_finite_inds,
@@ -429,7 +430,7 @@ def cell_accelerations(adata,
                        preserve_len=True,
                        other_kernels_dict={},
                        **kwargs):
-    """Compute transition probability and project high dimension acceleration vector to existing low dimension embedding.
+    """Compute RNA acceleration field via reconstructed vector field and project to low dimensional embeddings.
 
     In classical physics, including fluidics and aerodynamics, velocity and acceleration vector fields are used as
     fundamental tools to describe motion or external force of objects, respectively. In analogy, RNA velocity or
@@ -514,6 +515,86 @@ def cell_accelerations(adata,
             **kwargs
         )
 
+
+def confident_cell_velocities(adata,
+                            group,
+                            progenitors_groups,
+                            mature_cells_groups,
+                            ekey='M_s',
+                            vkey='velocity_S',
+                            basis='umap',
+                            confidence_threshold=0.85,
+                            only_velocity_genes=False,
+                            ):
+    """Compute transition probability and project high dimension acceleration vector to existing low dimension embedding
+    with only confident genes based on progeintors and mature cell group priors.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object
+        group: `str`
+            The column key/name that identifies the cell state grouping information of cells. This will be used for
+            calculating gene-wise confidence score in each cell state.
+        progenitors_groups: `list`
+            The group names from `group` that corresponding to the states of progenitors.
+        mature_cells_groups: `list`
+            The group names from `group` that corresponding to the states of terminal cell states. The best practice for
+            determining terminal cell states are those fully functional cells instead of intermediate cell states.
+        ekey: `str` or None (default: `M_s`)
+            The layer that will be used to retrieve data for identifying the gene is in induction or repression phase at
+            each cell state. If `None`, .X is used.
+        vkey: `str` or None (default: `velocity_S`)
+            The layer that will be used to retrieve velocity data for calculating gene-wise confidence. If `None`,
+            `velocity_S` is used.
+        basis: 'int' (optional, default `umap`)
+            The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
+        confidence_threshold: 'float' (optional, default `0.85`)
+            The minimal threshold of the mean of the average progenitors and the average mature cells prior based
+            gene-wise score. Only genes with score larger than this will be considered as confident velocity genes for
+            velocity projection.
+        only_velocity_genes: 'bool' (optional, default `False`)
+            Whether only use previous identified velocity genes for confident gene selection, followed by velocity
+            projection.
+
+    Returns
+    -------
+        Adata: :class:`~anndata.AnnData`
+            Returns an updated `~anndata.AnnData` with only confident genes based transition_matrix and projected
+            embedding of high dimension velocity vectors in the existing embeddings of current cell state, calculated
+            using either the Itô kernel method (default) or the diffusion approximation or the method from
+            (La Manno et al. 2018).
+    """
+
+    if any([i.startswith('velocity') for i in adata.layers.keys()]):
+        raise Exception(f"You need to first run `dyn.tl.dynamics(adata)` to estimate kinetic parameters and obtain "
+                        f"raw RNA velocity before running this function.")
+
+    if only_velocity_genes:
+        if 'use_for_velocity' not in adata.var.keys():
+            warnings.warn('`dyn.tl.cell_velocities(adata)` is not performed yet. Rolling back to use all feature genes '
+                          'as input for supervised RNA velocity analysis.')
+            genes = adata.var_names[adata.var.use_for_dynamics]
+        else:
+            genes = adata.var_names[adata.var.use_for_velocity]
+    else:
+        genes = adata.var_names[adata.var.use_for_dynamics]
+
+    gene_wise_confidence(adata, group, progenitors_groups, mature_cells_groups, genes=genes, layer=ekey, vlayer=vkey,)
+
+    adata.var.loc[:, 'avg_confidence'] = (adata.var.loc[:, 'avg_prog_confidence'] +
+                                          adata.var.loc[:, 'avg_mature_confidence']) / 2
+    confident_genes = genes[adata[:, genes].var['avg_confidence'] > confidence_threshold]
+    adata.var['confident_genes'] = False
+    adata.var.loc[genes, 'confident_genes'] = True
+
+    X = adata[:, confident_genes].layers[ekey]
+    V_mat = adata[:, confident_genes].layers[vkey]
+    X_embedding = adata.obsm['X_' + basis]
+
+    cell_velocities(adata, enforce=True, X=X, V_mat=V_mat, X_embedding=X_embedding, basis=basis)
+
+    return adata
 
 def stationary_distribution(adata, method="kmc", direction="both", calc_rnd=True):
     """Compute stationary distribution of cells using the transition matrix.
