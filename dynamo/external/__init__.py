@@ -3,4 +3,4 @@
 
 from .scifate import scifate_glmnet
 from .scribe import scribe, mutual_inform
-from .ddhodge import ddhoge
+from .hodge import ddhodge

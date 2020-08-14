@@ -18,7 +18,7 @@ from .utils import (
 
 from .utils_vecCalc import vector_field_function, vecfld_from_adata
 
-from ..external.ddhodge import ddhoge
+from ..external.hodge import ddhodge
 from ..tools.vector_calculus import curl, divergence
 
 def remove_redundant_points(X, tol=1e-4, output_discard=False):
@@ -705,7 +705,7 @@ def VectorField(
             )
     if pot_curl_div:
         if basis in ["pca", 'umap', 'tsne', 'diffusion_map', 'trimap']:
-            ddhoge(adata, basis=basis, cores=cores)
+            ddhodge(adata, basis=basis, cores=cores)
             if X.shape[1] == 2: curl(adata, basis=basis)
             divergence(adata, basis=basis)
 

@@ -430,7 +430,7 @@ def cell_accelerations(adata,
                        preserve_len=True,
                        other_kernels_dict={},
                        **kwargs):
-    """Compute RNA acceleration field via reconstructed vector field and project to low dimensional embeddings.
+    """Compute RNA acceleration field via reconstructed vector field and project it to low dimensional embeddings.
 
     In classical physics, including fluidics and aerodynamics, velocity and acceleration vector fields are used as
     fundamental tools to describe motion or external force of objects, respectively. In analogy, RNA velocity or
@@ -526,8 +526,8 @@ def confident_cell_velocities(adata,
                             confidence_threshold=0.85,
                             only_velocity_genes=False,
                             ):
-    """Compute transition probability and project high dimension acceleration vector to existing low dimension embedding
-    with only confident genes based on progeintors and mature cell group priors.
+    """Confidently compute transition probability and project high dimension velocity vector to existing low dimension
+    embeddings using progeintors and mature cell groups priors.
 
     Parameters
     ----------
@@ -566,7 +566,7 @@ def confident_cell_velocities(adata,
             (La Manno et al. 2018).
     """
 
-    if any([i.startswith('velocity') for i in adata.layers.keys()]):
+    if not any([i.startswith('velocity') for i in adata.layers.keys()]):
         raise Exception(f"You need to first run `dyn.tl.dynamics(adata)` to estimate kinetic parameters and obtain "
                         f"raw RNA velocity before running this function.")
 
@@ -586,7 +586,7 @@ def confident_cell_velocities(adata,
                                           adata.var.loc[:, 'avg_mature_confidence']) / 2
     confident_genes = genes[adata[:, genes].var['avg_confidence'] > confidence_threshold]
     adata.var['confident_genes'] = False
-    adata.var.loc[genes, 'confident_genes'] = True
+    adata.var.loc[confident_genes, 'confident_genes'] = True
 
     X = adata[:, confident_genes].layers[ekey]
     V_mat = adata[:, confident_genes].layers[vkey]

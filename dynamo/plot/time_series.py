@@ -8,7 +8,7 @@ from ..prediction.utils import fetch_exprs
 from .utils import save_fig
 
 from ..docrep import DocstringProcessor
-from ..external.ddhodge import ddhoge
+from ..external.hodge import ddhodge
 
 docstrings = DocstringProcessor()
 
@@ -86,7 +86,7 @@ def kinetic_curves(
     import matplotlib.pyplot as plt
 
     if tkey == "potential" and "potential" not in adata.obs_keys():
-        ddhoge(adata)
+        ddhodge(adata)
 
     exprs, valid_genes, time = fetch_exprs(
         adata, basis, layer, genes, tkey, mode, project_back_to_high_dim
@@ -239,7 +239,7 @@ def kinetic_heatmap(
     import matplotlib.pyplot as plt
 
     if tkey == "potential" and "potential" not in adata.obs_keys():
-        ddhoge(adata)
+        ddhodge(adata)
 
     exprs, valid_genes, time = fetch_exprs(
         adata, basis, layer, genes, tkey, mode, project_back_to_high_dim
@@ -519,7 +519,7 @@ def jacobian_kinetics(
     Jacobian_ = "jacobian" #f basis is None else "jacobian_" + basis
     Der, source_genes_, target_genes_, cell_indx, _  =  adata.uns[Jacobian_].values()
     if tkey == "potential" and "potential" not in adata.obs_keys():
-        ddhoge(adata)
+        ddhodge(adata)
 
     adata_ = adata[cell_indx, :]
     time = adata_.obs[tkey]

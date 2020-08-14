@@ -175,7 +175,7 @@ The concept of potential landscape is widely appreciated across various biologic
 
 Because the classical definition of potential function in physics requires gradient systems (no ``curl``), which is often not applicable to open biological system. In dynamo we provided several ways to quantify the potential of single cells by decomposing the vector field into gradient,  curl parts, etc. The recommended method is built on the Hodge decomposition on simplicial complexes (a sparse directional graph) constructed based on the learned vector field function that provides fruitful analogy of gradient, curl and harmonic (cyclic) flows on manifold::
 
-	dyn.ext.ddhoge(adata)
+	dyn.ext.ddhodge(adata)
 
 In addition, we and others proposed different strategies to decompose the ``stochastic differential equations`` into either the gradient or the curl component from first principles. We then can use the gradient part to define the potential.
 
