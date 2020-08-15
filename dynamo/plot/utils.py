@@ -241,8 +241,9 @@ def _matplotlib_points(
             colors = pd.Series(labels).map(new_color_key)
 
         if frontier:
-            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "0.0", lw=2)
-            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "1.0", lw=0)
+            rasterized = kwargs['rasterized'] if 'rasterized' in kwargs.keys() else None
+            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "0.0", lw=2, rasterized=rasterized)
+            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "1.0", lw=0, rasterized=rasterized)
             ax.scatter(points[:, 0], points[:, 1], c=colors, **kwargs)
         elif contour:
             try:
@@ -324,8 +325,9 @@ def _matplotlib_points(
             _vmin, _vmax = bounds
 
         if frontier == True:
-            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "0.0", lw=2)
-            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "1.0", lw=0)
+            rasterized = kwargs['rasterized'] if 'rasterized' in kwargs.keys() else None
+            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "0.0", lw=2, rasterized=rasterized)
+            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "1.0", lw=0, rasterized=rasterized)
             ax.scatter(
                 points[:, 0],
                 points[:, 1],

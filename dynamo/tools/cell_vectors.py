@@ -187,20 +187,27 @@ def cell_velocities(
             )
             indices, dist = indices[:, 1:], dist[:, 1:]
 
+    if 'confident_gene' in adata.var.keys() and not enforce:
+        X = adata[:, adata.var.confident_gene.values].layers[ekey] if X is None else X
+        V_mat = (
+            adata[:, adata.var.confident_gene.values].layers[vkey]
+            if vkey in adata.layers.keys()
+            else None
+        ) if V_mat is None else V_mat
+    else:
+        if 'use_for_velocity' not in adata.var.keys() or enforce:
+            use_for_dynamics = True if "use_for_dynamics" in adata.var.keys() else False
+            adata = set_velocity_genes(
+                adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamics=use_for_dynamics,
+                min_alpha=min_alpha, min_gamma=min_gamma, min_delta=min_delta,
+            )
 
-    if 'use_for_velocity' not in adata.var.keys() or enforce:
-        use_for_dynamics = True if "use_for_dynamics" in adata.var.keys() else False
-        adata = set_velocity_genes(
-            adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamics=use_for_dynamics,
-            min_alpha=min_alpha, min_gamma=min_gamma, min_delta=min_delta,
-        )
-
-    X = adata[:, adata.var.use_for_velocity.values].layers[ekey] if X is None else X
-    V_mat = (
-        adata[:, adata.var.use_for_velocity.values].layers[vkey]
-        if vkey in adata.layers.keys()
-        else None
-    ) if V_mat is None else V_mat
+        X = adata[:, adata.var.use_for_velocity.values].layers[ekey] if X is None else X
+        V_mat = (
+            adata[:, adata.var.use_for_velocity.values].layers[vkey]
+            if vkey in adata.layers.keys()
+            else None
+        ) if V_mat is None else V_mat
 
     if X.shape != V_mat.shape and X.shape[0] != adata.n_obs:
         raise Exception(f"X and V_mat doesn't have the same dimensionalities or X/V_mat doesn't {adata.n_obs} rows!")

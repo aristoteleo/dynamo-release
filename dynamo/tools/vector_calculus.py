@@ -2,7 +2,13 @@ from tqdm import tqdm
 import multiprocessing as mp
 import itertools, functools
 import numpy as np
-from .utils import timeit, get_pd_row_column_idx
+import pandas as pd
+from scipy.sparse import issparse
+from .utils import (
+    timeit,
+    get_pd_row_column_idx,
+    elem_prod,
+)
 from .utils_vecCalc import (
     vector_field_function, 
     vecfld_from_adata, 
@@ -379,4 +385,400 @@ def torsion(adata,
 
     adata.obs[torsion_key] = torsion
     adata.uns[torsion_key] = torsion_mat
+
+
+def rank_speed(adata,
+              group=None,
+              genes=None,
+              vkey='velocity_S',
+              ):
+    """Rank gene's absolute, positive, negative speed by different cell groups.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        group: `str` or None (default: `None`)
+            The cell group that speed ranking will be grouped-by.
+        genes: `None` or `list`
+            The gene list that speed will be ranked. If provided, they must overlap the dynamics genes.
+        vkey: `str` (default: `velocity_S`)
+            The velocity key.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that is updated with the `rank_speed` related information in the .uns.
+    """
+
+    if vkey not in adata.layers.keys():
+        raise Exception('You need to run `dyn.tl.dynamics` before ranking speed of genes!')
+
+    if group is not None and group not in adata.obs.keys():
+        raise Exception(f'The group information {group} you provided is not in your adata object.')
+
+    genes = adata.var_names[adata.var.use_for_dynamics] if genes is None else \
+        adata.var_names[adata.var.use_for_dynamics].intersection(genes).to_list()
+
+    if len(genes):
+        raise ValueError(f"The genes list you provided doesn't overlap with any dynamics genes.")
+
+    V = adata[:, genes].layers[vkey]
+
+    if issparse(V):
+        mask = V.data > 0
+        pos_V, neg_V = V.copy(), V.copy()
+        pos_V.data[~ mask], neg_V.data[mask] = 0, 0
+        pos_V.eliminate_zeros()
+        neg_V.eliminate_zeros()
+    else:
+        mask = V.data > 0
+        pos_V, neg_V = V.copy(), V.copy()
+        pos_V[~ mask], neg_V[mask] = 0, 0
+
+    if group is None:
+        speed_in_rank = V.mean(0)
+        rank = speed_in_rank.argsort()[::-1]
+        speed_in_rank, genes_in_rank = speed_in_rank[rank], genes[rank]
+
+        pos_speed_in_rank = pos_V.mean(0)
+        rank = pos_speed_in_rank.argsort()[::-1]
+        pos_speed_in_rank, pos_genes_in_rank = pos_speed_in_rank[rank], genes[rank]
+
+        neg_speed_in_rank = neg_V.mean(0)
+        rank = neg_speed_in_rank.argsort()[::-1]
+        neg_speed_in_rank, neg_genes_in_rank = neg_speed_in_rank[rank], genes[rank]
+    else:
+        groups, uniq_group = adata.obs[group], adata.obs[group].unique()
+
+        speeds, genes, pos_speeds, pos_genes, neg_speeds, neg_genes = {}, {}, {}, {}, {}, {}
+        for i, grp in enumerate(uniq_group):
+            mask = groups == grp
+            speeds[grp] = V[mask, :].mean(0)
+            rank = speeds[grp].argsort()[::-1]
+            speeds[grp], genes[grp] = speeds[grp][rank], genes[rank]
+
+            pos_speeds[grp] = pos_V[mask, :].mean(0)
+            rank = pos_speeds[grp].argsort()[::-1]
+            pos_speeds[grp], pos_speeds[grp] = pos_speeds[grp][rank], genes[rank]
+
+            neg_speeds[grp] = neg_V[mask, :].mean(0)
+            rank = neg_speeds[grp].argsort()[::-1]
+            neg_speeds[grp], neg_genes[grp] = neg_speeds[grp][rank], genes[rank]
+
+        speed_in_rank, genes_in_rank = pd.DataFrame(speed), pd.DataFrame(genes)
+        pos_speed_in_rank, pos_genes_in_rank = pd.DataFrame(pos_speeds), pd.DataFrame(pos_genes)
+        neg_speed_in_rank, neg_genes_in_rank = pd.DataFrame(neg_speeds), pd.DataFrame(neg_genes)
+
+    rank_key = 'rank_speed' if group is None else 'rank_speed_' + group
+
+    adata.uns[rank_key] = {"speed_in_rank": speed_in_rank, "genes_in_rank": genes_in_rank,
+                           "pos_speed_in_rank": pos_speed_in_rank, "pos_genes_in_rank": pos_genes_in_rank,
+                           "neg_speed_in_rank": neg_speed_in_rank, "neg_genes_in_rank": neg_genes_in_rank}
+
+
+def rank_divergence(adata,
+                    group=None,
+                    genes=None,
+                    cell_idx=None,
+                    sampling=None,
+                    sample_ncells=1000,
+                    basis='pca',
+                    vector_field_class=None,
+                    method='analytical',
+                    **kwargs
+                    ):
+    """Rank gene's absolute, positive, negative divergence by different cell groups.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        group: `str` or None (default: `None`)
+            The cell group that speed ranking will be grouped-by.
+        genes: `None` or `list` (default: `None`)
+            The gene list that speed will be ranked. If provided, they must overlap the dynamics genes.
+        cell_idx: `None` or `list` (default: `None`)
+            The numeric indices of the cells that you want to draw the jacobian matrix to reveal the regulatory activity.
+        sampling: `None` or `list` (default: `None`)
+            The method to downsample cells for the purpose of efficiency.
+        basis: `str` or None (default: `umap`)
+            The embedding data in which the vector field was reconstructed.
+        vector_field_class: :class:`~scVectorField.vectorfield`
+            If not None, the divergene will be computed using this class instead of the vector field stored in adata.
+        method: `str` (default: `analytical`)
+            The method that will be used for calculating Jacobian, either `analytical` or `numeric`. `analytical`
+            method will use the analytical form of the reconstructed vector field for calculating Jacobian while
+            `numeric` method will use numdifftools for calculation. `analytical` method is much more efficient.
+        kwargs:
+            Additional parameters pass to jacobian.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that is updated with the `speed` key in the .obs.
+    """
+
+    jkey = "jacobian" if basis is None else "jacobian_" + basis
+    if jkey not in adata.uns_keys():
+        jacobian(adata,
+                 regulators=genes,
+                 effectors=genes,
+                 cell_idx=cell_idx,
+                 sampling=sampling,
+                 sample_ncells=sample_ncells,
+                 basis=basis,
+                 vector_field_class=vector_field_class,
+                 method=method,
+                 store_in_adata=True,
+                 **kwargs
+                 )
+
+    if group is not None and group not in adata.obs.keys():
+        raise Exception(f'The group information {group} you provided is not in your adata object.')
+
+    J, genes, cell_idx = adata.uns[jkey]['Jacobian_gene'], adata.uns[jkey]['regulators'],  adata.uns[jkey]['cell_idx']
+    J = J.A if issparse(J) else J
+
+    # https://stackoverflow.com/questions/48633288/how-to-assign-elements-into-the-diagonal-of-a-3d-matrix-efficiently
+    Div = np.einsum('ijj->ij', J)[...]
+
+    mask = Div > 0
+    pos_Div, neg_Div = Div.copy(), Div.copy()
+    pos_Div[~ mask], neg_Div[mask] = 0, 0
+
+    if group is None:
+        divergence_in_rank = Div.sum(0)
+        rank = divergence_in_rank.argsort()[::-1]
+        divergence_in_rank, genes_in_rank = divergence_in_rank[rank], genes[rank]
+
+        pos_divergence_in_rank = pos_Div.sum(0)
+        rank = pos_divergence_in_rank.argsort()[::-1]
+        pos_divergence_in_rank, pos_genes_in_rank = pos_divergence_in_rank[rank], genes[rank]
+
+        neg_divergence_in_rank = neg_Div.sum(0)
+        rank = neg_divergence_in_rank.argsort()[::-1]
+        neg_divergence_in_rank, neg_genes_in_rank = neg_divergence_in_rank[rank], genes[rank]
+    else:
+        if cell_idx is None:
+            groups, uniq_group = adata.obs[group], adata.obs[group].unique()
+        else:
+            groups, uniq_group = adata[cell_idx].obs[group], adata[cell_idx].obs[group].unique()
+
+        divergences, genes, pos_divergences, pos_genes, neg_divergences, neg_genes = {}, {}, {}, {}, {}, {}
+        for i, grp in enumerate(uniq_group):
+            mask = groups == grp
+            divergences[grp] = Div[mask, :].mean(0)
+            rank = divergences[grp].argsort()[::-1]
+            divergences[grp], genes[grp] = divergences[grp][rank], genes[rank]
+
+            pos_divergences[grp] = pos_Div[mask, :].mean(0)
+            rank = pos_divergences[grp].argsort()[::-1]
+            pos_divergences[grp], pos_genes[grp] = pos_divergences[grp][rank], genes[rank]
+
+            neg_divergences[grp] = neg_Div[mask, :].mean(0)
+            rank = divergences[grp].argsort()[::-1]
+            neg_divergences[grp], neg_genes[grp] = neg_divergences[grp][rank], genes[rank]
+
+        divergences_in_rank, genes_in_rank = pd.DataFrame(divergences), pd.DataFrame(genes)
+        pos_divergences_in_rank, pos_genes_in_rank = pd.DataFrame(pos_divergences), pd.DataFrame(pos_genes)
+        neg_divergences_in_rank, neg_genes_in_rank = pd.DataFrame(neg_divergences), pd.DataFrame(neg_genes)
+
+    rank_key = 'rank_divergence' if group is None else 'rank_divergence_' + group
+
+    adata.uns[rank_key] = {"divergences_in_rank": divergences_in_rank, "genes_in_rank": genes_in_rank,
+                           "pos_divergence_in_rank": pos_divergence_in_rank, "pos_genes_in_rank": pos_genes_in_rank,
+                           "neg_divergence_in_rank": neg_divergence_in_rank, "neg_genes_in_rank": neg_genes_in_rank}
+
+
+def rank_acceleration(adata,
+              group=None,
+              genes=None,
+              akey='acceleration',
+              ):
+    """Rank gene's absolute, positive, negative acceleration by different cell groups.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        group: `str` or None (default: `None`)
+            The cell group that speed ranking will be grouped-by.
+        genes: `None` or `list`
+            The gene list that speed will be ranked. If provided, they must overlap the dynamics genes.
+        akey: `str` (default: `acceleration`)
+            The acceleration key.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that is updated with the `rank_acceleration` information in the .uns.
+    """
+
+    if akey not in adata.layers.keys():
+        raise Exception('You need to run `dyn.tl.acceleration` before ranking speed of genes!')
+
+    if group is not None and group not in adata.obs.keys():
+        raise Exception(f'The group information {group} you provided is not in your adata object.')
+
+    genes = adata.var_names[adata.var.use_for_dynamics] if genes is None else \
+        adata.var_names[adata.var.use_for_dynamics].intersection(genes).to_list()
+
+    if len(genes):
+        raise ValueError(f"The genes list you provided doesn't overlap with any dynamics genes.")
+
+    A = adata[:, genes].layers[akey]
+
+    if issparse(A):
+        mask = A.data > 0
+        pos_A, neg_A = A.copy(), A.copy()
+        pos_A.data[~ mask], neg_A.data[mask] = 0, 0
+        pos_A.eliminate_zeros()
+        neg_A.eliminate_zeros()
+    else:
+        mask = A.data > 0
+        pos_A, neg_A = A.copy(), A.copy()
+        pos_A[~ mask], neg_A[mask] = 0, 0
+
+    if group is None:
+        acceleration_in_rank = A.mean(0)
+        rank = acceleration_in_rank.argsort()[::-1]
+        acceleration_in_rank, genes_in_rank = acceleration_in_rank[rank], genes[rank]
+
+        pos_acceleration_in_rank = pos_A.mean(0)
+        rank = pos_acceleration_in_rank.argsort()[::-1]
+        pos_acceleration_in_rank, pos_genes_in_rank = pos_acceleration_in_rank[rank], genes[rank]
+
+        neg_acceleration_in_rank = neg_A.mean(0)
+        rank = neg_acceleration_in_rank.argsort()[::-1]
+        acceleration_in_rank, neg_genes_in_rank = neg_acceleration_in_rank[rank], genes[rank]
+    else:
+        groups, uniq_group = adata.obs[group], adata.obs[group].unique()
+
+        accelerations, genes, pos_accelerations, pos_genes, neg_accelerations, neg_genes = {}, {}, {}, {}, {}, {}
+        for i, grp in enumerate(uniq_group):
+            mask = groups == grp
+            accelerations[grp] = A[mask, :].mean(0)
+            rank = accelerations[grp].argsort()[::-1]
+            accelerations[grp], genes[grp] = accelerations[grp][rank], genes[rank]
+
+            pos_accelerations[grp] = pos_A[mask, :].mean(0)
+            rank = pos_accelerations[grp].argsort()[::-1]
+            pos_accelerations[grp], pos_genes[grp] = pos_accelerations[grp][rank], pos_genes[rank]
+
+            neg_accelerations[grp] = neg_A[mask, :].mean(0)
+            rank = neg_accelerations[grp].argsort()[::-1]
+            neg_accelerations[grp], neg_genes[grp] = neg_accelerations[grp][rank], genes[rank]
+
+        acceleration_in_rank, genes_in_rank = pd.DataFrame(accelerations), pd.DataFrame(genes)
+        pos_acceleration_in_rank, pos_genes_in_rank = pd.DataFrame(pos_accelerations), pd.DataFrame(pos_genes)
+        neg_acceleration_in_rank, neg_genes_in_rank = pd.DataFrame(neg_accelerations), pd.DataFrame(neg_genes)
+
+    rank_key = 'rank_accelerations' if group is None else 'rank_accelerations_' + group
+
+    adata.uns[rank_key] = {"acceleration_in_rank": acceleration_in_rank, "genes_in_rank": genes_in_rank,
+                           "pos_acceleration_in_rank": pos_acceleration_in_rank, "pos_genes_in_rank": pos_genes_in_rank,
+                           "neg_acceleration_in_rank": neg_acceleration_in_rank, "neg_genes_in_rank": neg_genes_in_rank}
+
+
+def rank_curvature(adata,
+              group=None,
+              genes=None,
+              vkey='velocity_S',
+              akey='acceleration',
+              ):
+    """Rank gene's absolute, positive, negative curvature by different cell groups.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        group: `str` or None (default: `None`)
+            The cell group that speed ranking will be grouped-by.
+        genes: `None` or `list`
+            The gene list that speed will be ranked. If provided, they must overlap the dynamics genes.
+        vkey: `str` (default: `velocity_S`)
+            The velocity key.
+        akey: `str` (default: `acceleration`)
+            The acceleration key.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that is updated with the `rank_curvature` related information in the .uns.
+    """
+
+    if vkey not in adata.layers.keys():
+        raise Exception('You need to run `dyn.tl.dynamics` before ranking speed of genes!')
+    if akey not in adata.layers.keys():
+        raise Exception('You need to run `dyn.tl.acceleration` before ranking speed of genes!')
+
+    if group is not None and group not in adata.obs.keys():
+        raise Exception(f'The group information {group} you provided is not in your adata object.')
+
+    genes = adata.var_names[adata.var.use_for_dynamics] if genes is None else \
+        adata.var_names[adata.var.use_for_dynamics].intersection(genes).to_list()
+
+    if len(genes):
+        raise ValueError(f"The genes list you provided doesn't overlap with any dynamics genes.")
+
+    V, A = adata[:, genes].layers[vkey], adata[:, genes].layers[vkey]
+
+    if issparse(V):
+        V.data = V.data ** 3
+        C = elem_prod(elem_prod(V, A), V)
+    else:
+        C = elem_prod(elem_prod(V, A), V**3)
+
+    if issparse(C):
+        mask = C.data > 0
+        pos_C, neg_C = C.copy(), C.copy()
+        pos_C.data[~ mask], neg_C.data[mask] = 0, 0
+        pos_C.eliminate_zeros()
+        neg_C.eliminate_zeros()
+    else:
+        mask = C.data > 0
+        pos_C, neg_C = C.copy(), C.copy()
+        pos_C[~ mask], neg_C[mask] = 0, 0
+
+    if group is None:
+        curvature_in_rank = C.mean(0)
+        rank = curvature_in_rank.argsort()[::-1]
+        curvature_in_rank, genes_in_rank = curvature_in_rank[rank], genes[rank]
+
+        pos_curvature_in_rank = pos_C.mean(0)
+        rank = pos_curvature_in_rank.argsort()[::-1]
+        pos_curvature_in_rank, pos_genes_in_rank = pos_curvature_in_rank[rank], genes[rank]
+
+        neg_curvature_in_rank = neg_C.mean(0)
+        rank = neg_curvature_in_rank.argsort()[::-1]
+        neg_curvature_in_rank, neg_genes_in_rank = neg_curvature_in_rank[rank], genes[rank]
+    else:
+        groups, uniq_group = adata.obs[group], adata.obs[group].unique()
+
+        curvatures, genes, pos_curvatures, pos_genes, neg_curvatures, neg_genes = {}, {}, {}, {}, {}, {}
+        for i, grp in enumerate(uniq_group):
+            mask = groups == grp
+            curvatures[grp] = C[mask, :].mean(0)
+            rank = curvatures[grp].argsort()[::-1]
+            curvatures[grp], genes[grp] = curvatures[grp][rank], genes[rank]
+
+            pos_curvatures[grp] = pos_C[mask, :].mean(0)
+            rank = pos_curvatures[grp].argsort()[::-1]
+            pos_curvatures[grp], pos_genes[grp] = pos_curvatures[grp][rank], genes[rank]
+
+            neg_curvatures[grp] = neg_C[mask, :].mean(0)
+            rank = curvatures[grp].argsort()[::-1]
+            neg_curvatures[grp], neg_genes[grp] = neg_curvatures[grp][rank], genes[rank]
+
+        curvature_in_rank, genes_in_rank = pd.DataFrame(curvatures), pd.DataFrame(genes)
+        pos_curvature_in_rank, pos_genes_in_rank = pd.DataFrame(pos_curvatures), pd.DataFrame(pos_genes)
+        neg_curvature_in_rank, neg_genes_in_rank = pd.DataFrame(curvatures), pd.DataFrame(genes)
+
+    rank_key = 'rank_curvature' if group is None else 'rank_curvature_' + group
+
+    adata.uns[rank_key] = {"curvature_in_rank": curvature_in_rank, "genes_in_rank": genes_in_rank,
+                           "pos_curvature_in_rank": pos_curvature_in_rank, "pos_genes_in_rank": pos_genes_in_rank,
+                           "neg_curvature_in_rank": neg_curvature_in_rank, "neg_genes_in_rank": neg_genes_in_rank}
+
 
