@@ -551,7 +551,7 @@ def get_metric_gene_in_rank(mat, genes, neg=False):
 def get_metric_gene_in_rank_by_group(mat, genes, groups, grp, neg=False):
     mask = groups == grp
     gene_wise_metrics, group_wise_metrics = mat[mask, :].mean(0).A1 if issparse(mat) else mat[mask, :].mean(0), \
-                                            mat[mask, :].mean(1).A1 if issparse(mat) else mat[mask, :].mean(1)
+                                            mat[mask, :].mean(0).A1 if issparse(mat) else mat[mask, :].mean(0)
     rank = gene_wise_metrics.argsort() if neg else gene_wise_metrics.argsort()[::-1]
     gene_wise_metrics, genes_in_rank = gene_wise_metrics[rank], genes[rank]
 
@@ -603,18 +603,18 @@ def rank_vector_calculus_metrics(mat, genes, group, groups, uniq_group):
                 get_metric_gene_in_rank_by_group(neg_mat, genes, groups, grp, neg=True)
 
         metric_in_group_rank_by_gene, genes_in_group_rank_by_gene = \
-            get_sorted_metric_genes_df(group_wise_metrics, genes)
+            get_sorted_metric_genes_df(pd.DataFrame(group_wise_metrics), genes)
         pos_metric_gene_rank_by_group, pos_genes_group_rank_by_gene = \
-            get_sorted_metric_genes_df(group_wise_pos_metrics, genes)
+            get_sorted_metric_genes_df(pd.DataFrame(group_wise_pos_metrics), genes)
         neg_metric_in_group_rank_by_gene, neg_genes_in_group_rank_by_gene = \
-            get_sorted_metric_genes_df(group_wise_neg_metrics, genes, neg=True)
+            get_sorted_metric_genes_df(pd.DataFrame(group_wise_neg_metrics), genes, neg=True)
 
         metric_in_gene_rank_by_group, genes_in_gene_rank_by_group = \
             pd.DataFrame(gene_wise_metrics), pd.DataFrame(gene_wise_genes)
         pos_metric_in_gene_rank_by_group, pos_genes_in_gene_rank_by_group = \
             pd.DataFrame(gene_wise_pos_metrics), pd.DataFrame(gene_wise_pos_genes)
         neg_metric_in_gene_rank_by_group, neg_genes_in_gene_rank_by_group = \
-            pd.DataFrame(gene_wise_neg_metrics), pd.DataFrame(gene_wise_neg_genes, neg=True)
+            pd.DataFrame(gene_wise_neg_metrics), pd.DataFrame(gene_wise_neg_genes)
 
         return (metric_in_gene_rank_by_group, genes_in_gene_rank_by_group, pos_metric_in_gene_rank_by_group,
                 pos_genes_in_gene_rank_by_group, neg_metric_in_gene_rank_by_group, neg_genes_in_gene_rank_by_group,
