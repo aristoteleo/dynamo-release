@@ -1,9 +1,9 @@
 from tqdm import tqdm
 import multiprocessing as mp
 import itertools, functools
+from scipy.sparse import issparse
 import numpy as np
 import pandas as pd
-from scipy.sparse import issparse
 from .utils import (
     timeit,
     get_pd_row_column_idx,
@@ -14,7 +14,11 @@ from .utils_vecCalc import (
     vecfld_from_adata, 
     curl2d, 
     elementwise_jacobian_transformation, 
-    subset_jacobian_transformation
+    subset_jacobian_transformation,
+    get_metric_gene_in_rank,
+    get_metric_gene_in_rank_by_group,
+    get_sorted_metric_genes_df,
+    rank_vector_calculus_metrics
     )
 from .scVectorField import vectorfield
 from .sampling import sample
@@ -425,56 +429,36 @@ def rank_speed(adata,
 
     V = adata[:, genes].layers[vkey]
 
-    if issparse(V):
-        mask = V.data > 0
-        pos_V, neg_V = V.copy(), V.copy()
-        pos_V.data[~ mask], neg_V.data[mask] = 0, 0
-        pos_V.eliminate_zeros()
-        neg_V.eliminate_zeros()
-    else:
-        mask = V.data > 0
-        pos_V, neg_V = V.copy(), V.copy()
-        pos_V[~ mask], neg_V[mask] = 0, 0
+    rank_key = 'rank_speed' if group is None else 'rank_speed_' + group
 
     if group is None:
-        speed_in_rank = V.mean(0)
-        rank = speed_in_rank.argsort()[::-1]
-        speed_in_rank, genes_in_rank = speed_in_rank[rank], genes[rank]
+        metric_in_rank, genes_in_rank, pos_metric_in_rank, pos_genes_in_rank, neg_metric_in_rank, neg_genes_in_rank = \
+            rank_vector_calculus_metrics(V, genes, group=None, groups=None, uniq_group=None)
+        adata.uns[rank_key] = {"speed_in_rank": metric_in_rank, "genes_in_rank": genes_in_rank,
+                               "pos_speed_in_rank": pos_metric_in_rank, "pos_genes_in_rank": pos_genes_in_rank,
+                               "neg_speed_in_rank": neg_metric_in_rank, "neg_genes_in_rank": neg_genes_in_rank}
 
-        pos_speed_in_rank = pos_V.mean(0)
-        rank = pos_speed_in_rank.argsort()[::-1]
-        pos_speed_in_rank, pos_genes_in_rank = pos_speed_in_rank[rank], genes[rank]
-
-        neg_speed_in_rank = neg_V.mean(0)
-        rank = neg_speed_in_rank.argsort()[::-1]
-        neg_speed_in_rank, neg_genes_in_rank = neg_speed_in_rank[rank], genes[rank]
     else:
         groups, uniq_group = adata.obs[group], adata.obs[group].unique()
 
-        speeds, genes, pos_speeds, pos_genes, neg_speeds, neg_genes = {}, {}, {}, {}, {}, {}
-        for i, grp in enumerate(uniq_group):
-            mask = groups == grp
-            speeds[grp] = V[mask, :].mean(0)
-            rank = speeds[grp].argsort()[::-1]
-            speeds[grp], genes[grp] = speeds[grp][rank], genes[rank]
+        metric_in_gene_rank_by_group, genes_in_gene_rank_by_group, pos_metric_in_gene_rank_by_group, \
+        pos_genes_in_gene_rank_by_group, neg_metric_in_gene_rank_by_group, neg_genes_in_gene_rank_by_group, \
+        metric_in_group_rank_by_gene, genes_in_group_rank_by_gene, pos_metric_gene_rank_by_group, \
+        pos_genes_group_rank_by_gene, neg_metric_in_group_rank_by_gene, neg_genes_in_group_rank_by_gene = \
+            rank_vector_calculus_metrics(V, genes, group, groups, uniq_group)
 
-            pos_speeds[grp] = pos_V[mask, :].mean(0)
-            rank = pos_speeds[grp].argsort()[::-1]
-            pos_speeds[grp], pos_speeds[grp] = pos_speeds[grp][rank], genes[rank]
-
-            neg_speeds[grp] = neg_V[mask, :].mean(0)
-            rank = neg_speeds[grp].argsort()[::-1]
-            neg_speeds[grp], neg_genes[grp] = neg_speeds[grp][rank], genes[rank]
-
-        speed_in_rank, genes_in_rank = pd.DataFrame(speed), pd.DataFrame(genes)
-        pos_speed_in_rank, pos_genes_in_rank = pd.DataFrame(pos_speeds), pd.DataFrame(pos_genes)
-        neg_speed_in_rank, neg_genes_in_rank = pd.DataFrame(neg_speeds), pd.DataFrame(neg_genes)
-
-    rank_key = 'rank_speed' if group is None else 'rank_speed_' + group
-
-    adata.uns[rank_key] = {"speed_in_rank": speed_in_rank, "genes_in_rank": genes_in_rank,
-                           "pos_speed_in_rank": pos_speed_in_rank, "pos_genes_in_rank": pos_genes_in_rank,
-                           "neg_speed_in_rank": neg_speed_in_rank, "neg_genes_in_rank": neg_genes_in_rank}
+        adata.uns[rank_key] = {"speed_in_gene_rank_by_group": metric_in_gene_rank_by_group,
+                               "genes_in_gene_rank_by_group": genes_in_gene_rank_by_group,
+                               "pos_speed_in_gene_rank_by_group": pos_metric_in_gene_rank_by_group,
+                               "pos_genes_in_gene_rank_by_group": pos_genes_in_gene_rank_by_group,
+                               "neg_speed_in_gene_rank_by_group": neg_metric_in_gene_rank_by_group,
+                               "neg_genes_in_gene_rank_by_group": neg_genes_in_gene_rank_by_group,
+                               "speed_in_group_rank_by_gene": metric_in_group_rank_by_gene,
+                               "genes_in_group_rank_by_gene": genes_in_group_rank_by_gene,
+                               "pos_speed_gene_rank_by_group": pos_metric_gene_rank_by_group,
+                               "pos_genes_group_rank_by_gene": pos_genes_group_rank_by_gene,
+                               "neg_speed_in_group_rank_by_gene": neg_metric_in_group_rank_by_gene,
+                               "neg_genes_in_group_rank_by_gene": neg_genes_in_group_rank_by_gene}
 
 
 def rank_divergence(adata,
@@ -543,52 +527,36 @@ def rank_divergence(adata,
     # https://stackoverflow.com/questions/48633288/how-to-assign-elements-into-the-diagonal-of-a-3d-matrix-efficiently
     Div = np.einsum('ijj->ij', J)[...]
 
-    mask = Div > 0
-    pos_Div, neg_Div = Div.copy(), Div.copy()
-    pos_Div[~ mask], neg_Div[mask] = 0, 0
-
-    if group is None:
-        divergence_in_rank = Div.sum(0)
-        rank = divergence_in_rank.argsort()[::-1]
-        divergence_in_rank, genes_in_rank = divergence_in_rank[rank], genes[rank]
-
-        pos_divergence_in_rank = pos_Div.sum(0)
-        rank = pos_divergence_in_rank.argsort()[::-1]
-        pos_divergence_in_rank, pos_genes_in_rank = pos_divergence_in_rank[rank], genes[rank]
-
-        neg_divergence_in_rank = neg_Div.sum(0)
-        rank = neg_divergence_in_rank.argsort()[::-1]
-        neg_divergence_in_rank, neg_genes_in_rank = neg_divergence_in_rank[rank], genes[rank]
-    else:
-        if cell_idx is None:
-            groups, uniq_group = adata.obs[group], adata.obs[group].unique()
-        else:
-            groups, uniq_group = adata[cell_idx].obs[group], adata[cell_idx].obs[group].unique()
-
-        divergences, genes, pos_divergences, pos_genes, neg_divergences, neg_genes = {}, {}, {}, {}, {}, {}
-        for i, grp in enumerate(uniq_group):
-            mask = groups == grp
-            divergences[grp] = Div[mask, :].mean(0)
-            rank = divergences[grp].argsort()[::-1]
-            divergences[grp], genes[grp] = divergences[grp][rank], genes[rank]
-
-            pos_divergences[grp] = pos_Div[mask, :].mean(0)
-            rank = pos_divergences[grp].argsort()[::-1]
-            pos_divergences[grp], pos_genes[grp] = pos_divergences[grp][rank], genes[rank]
-
-            neg_divergences[grp] = neg_Div[mask, :].mean(0)
-            rank = divergences[grp].argsort()[::-1]
-            neg_divergences[grp], neg_genes[grp] = neg_divergences[grp][rank], genes[rank]
-
-        divergences_in_rank, genes_in_rank = pd.DataFrame(divergences), pd.DataFrame(genes)
-        pos_divergences_in_rank, pos_genes_in_rank = pd.DataFrame(pos_divergences), pd.DataFrame(pos_genes)
-        neg_divergences_in_rank, neg_genes_in_rank = pd.DataFrame(neg_divergences), pd.DataFrame(neg_genes)
-
     rank_key = 'rank_divergence' if group is None else 'rank_divergence_' + group
 
-    adata.uns[rank_key] = {"divergences_in_rank": divergences_in_rank, "genes_in_rank": genes_in_rank,
-                           "pos_divergence_in_rank": pos_divergence_in_rank, "pos_genes_in_rank": pos_genes_in_rank,
-                           "neg_divergence_in_rank": neg_divergence_in_rank, "neg_genes_in_rank": neg_genes_in_rank}
+    if group is None:
+        metric_in_rank, genes_in_rank, pos_metric_in_rank, pos_genes_in_rank, neg_metric_in_rank, neg_genes_in_rank = \
+            rank_vector_calculus_metrics(Div, genes, group=None, groups=None, uniq_group=None)
+        adata.uns[rank_key] = {"divergence_in_rank": metric_in_rank, "genes_in_rank": genes_in_rank,
+                               "pos_divergencein_rank": pos_metric_in_rank, "pos_genes_in_rank": pos_genes_in_rank,
+                               "neg_divergence_in_rank": neg_metric_in_rank, "neg_genes_in_rank": neg_genes_in_rank}
+
+    else:
+        groups, uniq_group = adata.obs[group], adata.obs[group].unique()
+
+        metric_in_gene_rank_by_group, genes_in_gene_rank_by_group, pos_metric_in_gene_rank_by_group, \
+        pos_genes_in_gene_rank_by_group, neg_metric_in_gene_rank_by_group, neg_genes_in_gene_rank_by_group, \
+        metric_in_group_rank_by_gene, genes_in_group_rank_by_gene, pos_metric_gene_rank_by_group, \
+        pos_genes_group_rank_by_gene, neg_metric_in_group_rank_by_gene, neg_genes_in_group_rank_by_gene = \
+            rank_vector_calculus_metrics(Div, genes, group, groups, uniq_group)
+
+        adata.uns[rank_key] = {"divergence_in_gene_rank_by_group": metric_in_gene_rank_by_group,
+                               "genes_in_gene_rank_by_group": genes_in_gene_rank_by_group,
+                               "pos_divergence_in_gene_rank_by_group": pos_metric_in_gene_rank_by_group,
+                               "pos_genes_in_gene_rank_by_group": pos_genes_in_gene_rank_by_group,
+                               "neg_divergence_in_gene_rank_by_group": neg_metric_in_gene_rank_by_group,
+                               "neg_genes_in_gene_rank_by_group": neg_genes_in_gene_rank_by_group,
+                               "divergence_in_group_rank_by_gene": metric_in_group_rank_by_gene,
+                               "genes_in_group_rank_by_gene": genes_in_group_rank_by_gene,
+                               "pos_divergence_gene_rank_by_group": pos_metric_gene_rank_by_group,
+                               "pos_genes_group_rank_by_gene": pos_genes_group_rank_by_gene,
+                               "neg_divergence_in_group_rank_by_gene": neg_metric_in_group_rank_by_gene,
+                               "neg_genes_in_group_rank_by_gene": neg_genes_in_group_rank_by_gene}
 
 
 def rank_acceleration(adata,
@@ -629,56 +597,36 @@ def rank_acceleration(adata,
 
     A = adata[:, genes].layers[akey]
 
-    if issparse(A):
-        mask = A.data > 0
-        pos_A, neg_A = A.copy(), A.copy()
-        pos_A.data[~ mask], neg_A.data[mask] = 0, 0
-        pos_A.eliminate_zeros()
-        neg_A.eliminate_zeros()
-    else:
-        mask = A.data > 0
-        pos_A, neg_A = A.copy(), A.copy()
-        pos_A[~ mask], neg_A[mask] = 0, 0
+    rank_key = 'rank_acceleration' if group is None else 'rank_acceleration_' + group
 
     if group is None:
-        acceleration_in_rank = A.mean(0)
-        rank = acceleration_in_rank.argsort()[::-1]
-        acceleration_in_rank, genes_in_rank = acceleration_in_rank[rank], genes[rank]
+        metric_in_rank, genes_in_rank, pos_metric_in_rank, pos_genes_in_rank, neg_metric_in_rank, neg_genes_in_rank = \
+            rank_vector_calculus_metrics(A, genes, group=None, groups=None, uniq_group=None)
+        adata.uns[rank_key] = {"acceleration_in_rank": metric_in_rank, "genes_in_rank": genes_in_rank,
+                               "pos_acceleration_in_rank": pos_metric_in_rank, "pos_genes_in_rank": pos_genes_in_rank,
+                               "neg_acceleration_in_rank": neg_metric_in_rank, "neg_genes_in_rank": neg_genes_in_rank}
 
-        pos_acceleration_in_rank = pos_A.mean(0)
-        rank = pos_acceleration_in_rank.argsort()[::-1]
-        pos_acceleration_in_rank, pos_genes_in_rank = pos_acceleration_in_rank[rank], genes[rank]
-
-        neg_acceleration_in_rank = neg_A.mean(0)
-        rank = neg_acceleration_in_rank.argsort()[::-1]
-        acceleration_in_rank, neg_genes_in_rank = neg_acceleration_in_rank[rank], genes[rank]
     else:
         groups, uniq_group = adata.obs[group], adata.obs[group].unique()
 
-        accelerations, genes, pos_accelerations, pos_genes, neg_accelerations, neg_genes = {}, {}, {}, {}, {}, {}
-        for i, grp in enumerate(uniq_group):
-            mask = groups == grp
-            accelerations[grp] = A[mask, :].mean(0)
-            rank = accelerations[grp].argsort()[::-1]
-            accelerations[grp], genes[grp] = accelerations[grp][rank], genes[rank]
+        metric_in_gene_rank_by_group, genes_in_gene_rank_by_group, pos_metric_in_gene_rank_by_group, \
+        pos_genes_in_gene_rank_by_group, neg_metric_in_gene_rank_by_group, neg_genes_in_gene_rank_by_group, \
+        metric_in_group_rank_by_gene, genes_in_group_rank_by_gene, pos_metric_gene_rank_by_group, \
+        pos_genes_group_rank_by_gene, neg_metric_in_group_rank_by_gene, neg_genes_in_group_rank_by_gene = \
+            rank_vector_calculus_metrics(A, genes, group, groups, uniq_group)
 
-            pos_accelerations[grp] = pos_A[mask, :].mean(0)
-            rank = pos_accelerations[grp].argsort()[::-1]
-            pos_accelerations[grp], pos_genes[grp] = pos_accelerations[grp][rank], pos_genes[rank]
-
-            neg_accelerations[grp] = neg_A[mask, :].mean(0)
-            rank = neg_accelerations[grp].argsort()[::-1]
-            neg_accelerations[grp], neg_genes[grp] = neg_accelerations[grp][rank], genes[rank]
-
-        acceleration_in_rank, genes_in_rank = pd.DataFrame(accelerations), pd.DataFrame(genes)
-        pos_acceleration_in_rank, pos_genes_in_rank = pd.DataFrame(pos_accelerations), pd.DataFrame(pos_genes)
-        neg_acceleration_in_rank, neg_genes_in_rank = pd.DataFrame(neg_accelerations), pd.DataFrame(neg_genes)
-
-    rank_key = 'rank_accelerations' if group is None else 'rank_accelerations_' + group
-
-    adata.uns[rank_key] = {"acceleration_in_rank": acceleration_in_rank, "genes_in_rank": genes_in_rank,
-                           "pos_acceleration_in_rank": pos_acceleration_in_rank, "pos_genes_in_rank": pos_genes_in_rank,
-                           "neg_acceleration_in_rank": neg_acceleration_in_rank, "neg_genes_in_rank": neg_genes_in_rank}
+        adata.uns[rank_key] = {"acceleration_in_gene_rank_by_group": metric_in_gene_rank_by_group,
+                               "genes_in_gene_rank_by_group": genes_in_gene_rank_by_group,
+                               "pos_acceleration_in_gene_rank_by_group": pos_metric_in_gene_rank_by_group,
+                               "pos_genes_in_gene_rank_by_group": pos_genes_in_gene_rank_by_group,
+                               "neg_acceleration_in_gene_rank_by_group": neg_metric_in_gene_rank_by_group,
+                               "neg_genes_in_gene_rank_by_group": neg_genes_in_gene_rank_by_group,
+                               "acceleration_in_group_rank_by_gene": metric_in_group_rank_by_gene,
+                               "genes_in_group_rank_by_gene": genes_in_group_rank_by_gene,
+                               "pos_acceleration_gene_rank_by_group": pos_metric_gene_rank_by_group,
+                               "pos_genes_group_rank_by_gene": pos_genes_group_rank_by_gene,
+                               "neg_acceleration_in_group_rank_by_gene": neg_metric_in_group_rank_by_gene,
+                               "neg_genes_in_group_rank_by_gene": neg_genes_in_group_rank_by_gene}
 
 
 def rank_curvature(adata,
@@ -730,55 +678,33 @@ def rank_curvature(adata,
     else:
         C = elem_prod(elem_prod(V, A), V**3)
 
-    if issparse(C):
-        mask = C.data > 0
-        pos_C, neg_C = C.copy(), C.copy()
-        pos_C.data[~ mask], neg_C.data[mask] = 0, 0
-        pos_C.eliminate_zeros()
-        neg_C.eliminate_zeros()
-    else:
-        mask = C.data > 0
-        pos_C, neg_C = C.copy(), C.copy()
-        pos_C[~ mask], neg_C[mask] = 0, 0
+    rank_key = 'rank_curvature' if group is None else 'rank_curvature_' + group
 
     if group is None:
-        curvature_in_rank = C.mean(0)
-        rank = curvature_in_rank.argsort()[::-1]
-        curvature_in_rank, genes_in_rank = curvature_in_rank[rank], genes[rank]
+        metric_in_rank, genes_in_rank, pos_metric_in_rank, pos_genes_in_rank, neg_metric_in_rank, neg_genes_in_rank = \
+            rank_vector_calculus_metrics(C, genes, group=None, groups=None, uniq_group=None)
+        adata.uns[rank_key] = {"curvature_in_rank": metric_in_rank, "genes_in_rank": genes_in_rank,
+                               "pos_curvature_in_rank": pos_metric_in_rank, "pos_genes_in_rank": pos_genes_in_rank,
+                               "neg_curvature_in_rank": neg_metric_in_rank, "neg_genes_in_rank": neg_genes_in_rank}
 
-        pos_curvature_in_rank = pos_C.mean(0)
-        rank = pos_curvature_in_rank.argsort()[::-1]
-        pos_curvature_in_rank, pos_genes_in_rank = pos_curvature_in_rank[rank], genes[rank]
-
-        neg_curvature_in_rank = neg_C.mean(0)
-        rank = neg_curvature_in_rank.argsort()[::-1]
-        neg_curvature_in_rank, neg_genes_in_rank = neg_curvature_in_rank[rank], genes[rank]
     else:
         groups, uniq_group = adata.obs[group], adata.obs[group].unique()
 
-        curvatures, genes, pos_curvatures, pos_genes, neg_curvatures, neg_genes = {}, {}, {}, {}, {}, {}
-        for i, grp in enumerate(uniq_group):
-            mask = groups == grp
-            curvatures[grp] = C[mask, :].mean(0)
-            rank = curvatures[grp].argsort()[::-1]
-            curvatures[grp], genes[grp] = curvatures[grp][rank], genes[rank]
+        metric_in_gene_rank_by_group, genes_in_gene_rank_by_group, pos_metric_in_gene_rank_by_group, \
+        pos_genes_in_gene_rank_by_group, neg_metric_in_gene_rank_by_group, neg_genes_in_gene_rank_by_group, \
+        metric_in_group_rank_by_gene, genes_in_group_rank_by_gene, pos_metric_gene_rank_by_group, \
+        pos_genes_group_rank_by_gene, neg_metric_in_group_rank_by_gene, neg_genes_in_group_rank_by_gene = \
+            rank_vector_calculus_metrics(C, genes, group, groups, uniq_group)
 
-            pos_curvatures[grp] = pos_C[mask, :].mean(0)
-            rank = pos_curvatures[grp].argsort()[::-1]
-            pos_curvatures[grp], pos_genes[grp] = pos_curvatures[grp][rank], genes[rank]
-
-            neg_curvatures[grp] = neg_C[mask, :].mean(0)
-            rank = curvatures[grp].argsort()[::-1]
-            neg_curvatures[grp], neg_genes[grp] = neg_curvatures[grp][rank], genes[rank]
-
-        curvature_in_rank, genes_in_rank = pd.DataFrame(curvatures), pd.DataFrame(genes)
-        pos_curvature_in_rank, pos_genes_in_rank = pd.DataFrame(pos_curvatures), pd.DataFrame(pos_genes)
-        neg_curvature_in_rank, neg_genes_in_rank = pd.DataFrame(curvatures), pd.DataFrame(genes)
-
-    rank_key = 'rank_curvature' if group is None else 'rank_curvature_' + group
-
-    adata.uns[rank_key] = {"curvature_in_rank": curvature_in_rank, "genes_in_rank": genes_in_rank,
-                           "pos_curvature_in_rank": pos_curvature_in_rank, "pos_genes_in_rank": pos_genes_in_rank,
-                           "neg_curvature_in_rank": neg_curvature_in_rank, "neg_genes_in_rank": neg_genes_in_rank}
-
-
+        adata.uns[rank_key] = {"curvature_in_gene_rank_by_group": metric_in_gene_rank_by_group,
+                               "genes_in_gene_rank_by_group": genes_in_gene_rank_by_group,
+                               "pos_curvature_in_gene_rank_by_group": pos_metric_in_gene_rank_by_group,
+                               "pos_genes_in_gene_rank_by_group": pos_genes_in_gene_rank_by_group,
+                               "neg_curvature_in_gene_rank_by_group": neg_metric_in_gene_rank_by_group,
+                               "neg_genes_in_gene_rank_by_group": neg_genes_in_gene_rank_by_group,
+                               "curvature_in_group_rank_by_gene": metric_in_group_rank_by_gene,
+                               "genes_in_group_rank_by_gene": genes_in_group_rank_by_gene,
+                               "pos_curvature_gene_rank_by_group": pos_metric_gene_rank_by_group,
+                               "pos_genes_group_rank_by_gene": pos_genes_group_rank_by_gene,
+                               "neg_curvature_in_group_rank_by_gene": neg_metric_in_group_rank_by_gene,
+                               "neg_genes_in_group_rank_by_gene": neg_genes_in_group_rank_by_gene}

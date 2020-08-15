@@ -91,6 +91,10 @@ from .vector_calculus import (
     acceleration,
     curvature,
     torsion,
+    rank_speed,
+    rank_divergence,
+    rank_acceleration,
+    rank_curvature,
 )
 
 # Markov chain related:
