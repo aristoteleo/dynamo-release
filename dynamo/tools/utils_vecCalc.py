@@ -550,6 +550,8 @@ def get_metric_gene_in_rank(mat, genes, neg=False):
 
 def get_metric_gene_in_rank_by_group(mat, genes, groups, grp, neg=False):
     mask = groups == grp
+    if type(mask) == pd.Series: mask = mask.values
+
     gene_wise_metrics, group_wise_metrics = mat[mask, :].mean(0).A1 if issparse(mat) else mat[mask, :].mean(0), \
                                             mat[mask, :].mean(0).A1 if issparse(mat) else mat[mask, :].mean(0)
     rank = gene_wise_metrics.argsort() if neg else gene_wise_metrics.argsort()[::-1]
