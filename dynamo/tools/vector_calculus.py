@@ -391,7 +391,7 @@ def torsion(adata,
     adata.uns[torsion_key] = torsion_mat
 
 
-def rank_speed(adata,
+def rank_speed_genes(adata,
               group=None,
               genes=None,
               vkey='velocity_S',
@@ -424,7 +424,7 @@ def rank_speed(adata,
     genes = adata.var_names[adata.var.use_for_dynamics] if genes is None else \
         adata.var_names[adata.var.use_for_dynamics].intersection(genes).to_list()
 
-    if len(genes):
+    if len(genes) == 0:
         raise ValueError(f"The genes list you provided doesn't overlap with any dynamics genes.")
 
     V = adata[:, genes].layers[vkey]
@@ -461,7 +461,7 @@ def rank_speed(adata,
                                "neg_genes_in_group_rank_by_gene": neg_genes_in_group_rank_by_gene}
 
 
-def rank_divergence(adata,
+def rank_divergence_genes(adata,
                     group=None,
                     genes=None,
                     cell_idx=None,
@@ -505,6 +505,7 @@ def rank_divergence(adata,
 
     jkey = "jacobian" if basis is None else "jacobian_" + basis
     if jkey not in adata.uns_keys():
+        if genes is None: genes = adata.var_names[adata.var.use_for_velocity]
         jacobian(adata,
                  regulators=genes,
                  effectors=genes,
@@ -525,7 +526,7 @@ def rank_divergence(adata,
     J = J.A if issparse(J) else J
 
     # https://stackoverflow.com/questions/48633288/how-to-assign-elements-into-the-diagonal-of-a-3d-matrix-efficiently
-    Div = np.einsum('ijj->ij', J)[...]
+    Div = np.einsum('iij->ij', J)[...].T
 
     rank_key = 'rank_divergence' if group is None else 'rank_divergence_' + group
 
@@ -559,7 +560,7 @@ def rank_divergence(adata,
                                "neg_genes_in_group_rank_by_gene": neg_genes_in_group_rank_by_gene}
 
 
-def rank_acceleration(adata,
+def rank_acceleration_genes(adata,
               group=None,
               genes=None,
               akey='acceleration',
@@ -592,7 +593,7 @@ def rank_acceleration(adata,
     genes = adata.var_names[adata.var.use_for_dynamics] if genes is None else \
         adata.var_names[adata.var.use_for_dynamics].intersection(genes).to_list()
 
-    if len(genes):
+    if len(genes) == 0:
         raise ValueError(f"The genes list you provided doesn't overlap with any dynamics genes.")
 
     A = adata[:, genes].layers[akey]
@@ -629,7 +630,7 @@ def rank_acceleration(adata,
                                "neg_genes_in_group_rank_by_gene": neg_genes_in_group_rank_by_gene}
 
 
-def rank_curvature(adata,
+def rank_curvature_genes(adata,
               group=None,
               genes=None,
               vkey='velocity_S',
@@ -667,7 +668,7 @@ def rank_curvature(adata,
     genes = adata.var_names[adata.var.use_for_dynamics] if genes is None else \
         adata.var_names[adata.var.use_for_dynamics].intersection(genes).to_list()
 
-    if len(genes):
+    if len(genes) == 0:
         raise ValueError(f"The genes list you provided doesn't overlap with any dynamics genes.")
 
     V, A = adata[:, genes].layers[vkey], adata[:, genes].layers[vkey]

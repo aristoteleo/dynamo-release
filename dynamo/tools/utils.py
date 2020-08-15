@@ -318,6 +318,21 @@ def inverse_norm(adata, layer_x):
 
     return layer_x
 
+
+# ---------------------------------------------------------------------------------------------------
+# neighbors related:
+def get_conn_dist_graph(knn, distances):
+    n_obs, n_neighbors = knn.shape
+    distances = csr_matrix((distances.flatten(), (np.repeat(np.arange(n_obs), n_neighbors), knn.flatten())),
+                           shape=(n_obs, n_obs))
+    connectivities = distances.copy()
+    connectivities.data[connectivities.data > 0] = 1
+
+    distances.eliminate_zeros()
+    connectivities.eliminate_zeros()
+
+    return distances, connectivities
+
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
 def one_shot_gamma_alpha(k, t, l):

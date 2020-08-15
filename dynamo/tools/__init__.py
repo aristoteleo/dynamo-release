@@ -91,10 +91,10 @@ from .vector_calculus import (
     acceleration,
     curvature,
     torsion,
-    rank_speed,
-    rank_divergence,
-    rank_acceleration,
-    rank_curvature,
+    rank_speed_genes,
+    rank_divergence_genes,
+    rank_acceleration_genes,
+    rank_curvature_genes,
 )
 
 # Markov chain related:

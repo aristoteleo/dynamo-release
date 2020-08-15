@@ -186,6 +186,9 @@ def cell_velocities(
                 adata.uns["neighbors"]["indices"],
             )
             indices, dist = indices[:, 1:], dist[:, 1:]
+    else:
+        raise Exception(f"Seems like your adata object doesn't have neighbor information. "
+                        "Try running `dyn.tl.reduceDimension` or `dyn.tl.neighbors` first.")
 
     if 'confident_gene' in adata.var.keys() and not enforce:
         X = adata[:, adata.var.confident_gene.values].layers[ekey] if X is None else X
