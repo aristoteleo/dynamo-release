@@ -766,6 +766,7 @@ def scatters(
     sym_c=False,
     smooth=False,
     dpi=100,
+    inset_dict={},
     **kwargs
 ):
     """Plot an embedding as points. Currently this only works
@@ -926,6 +927,11 @@ def scatters(
             pixel strong. At 144 dpi, this line is 2 pixels strong. A larger dpi will therefore act like a magnifying
             glass. All elements are scaled by the magnifying power of the lens. see more details at answer 2 by
             @ImportanceOfBeingErnest: https://stackoverflow.com/questions/47633546/relationship-between-dpi-and-figure-size
+        inset_dict: `dict` (default: {})
+            A dictionary of parameters in inset_ax. Example, something like {"width": "5%", "height": "50%", "loc":
+            'lower left', "bbox_to_anchor": (0.85, 0.90, 0.145, 0.145), "bbox_transform": ax.transAxes, "borderpad": 0}
+            See more details at https://matplotlib.org/api/_as_gen/mpl_toolkits.axes_grid1.inset_locator.inset_axes.html
+            or https://stackoverflow.com/questions/39803385/what-does-a-4-element-tuple-argument-for-bbox-to-anchor-mean-in-matplotlib
         kwargs:
             Additional arguments passed to plt.scatters.
 
@@ -1219,6 +1225,7 @@ def scatters(
                             ccmap=ccmap,
                             calpha=calpha,
                             sym_c=sym_c,
+                            inset_dict=inset_dict,
                             **scatter_kwargs
                         )
                     else:
