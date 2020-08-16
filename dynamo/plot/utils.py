@@ -398,7 +398,7 @@ def _matplotlib_points(
         cb = plt.colorbar(mappable, cax=set_colorbar(ax, inset_dict), ax=ax)
         cb.set_alpha(1)
         cb.draw_all()
-        cb.locator = MaxNLocator(nbins=3, integer=False)
+        cb.locator = MaxNLocator(nbins=3, integer=True)
         cb.update_ticks()
 
         cmap = matplotlib.cm.get_cmap(cmap)
@@ -1004,7 +1004,7 @@ def set_colorbar(ax, inset_dict={}):
                            width="12%",  # width = 5% of parent_bbox width
                            height="100%",  # height : 50%
                            loc='upper right',
-                           bbox_to_anchor=(0.85, 0.98, 0.145, 0.145),
+                           bbox_to_anchor=(0.85, 0.97, 0.145, 0.17),
                            bbox_transform=ax.transAxes,
                            borderpad=1.85,
                            )
@@ -1060,15 +1060,15 @@ def arrowed_spines(ax, columns, background='white'):
              overhang=ohg/2,
              length_includes_head=True, clip_on=False)
 
-    ax.text(xmin + hl * 2.5/2, ymin - 1.1 * hw/2, columns[0], ha="center", va="center", rotation=0,
+    ax.text(xmin + hl * 2.5/2, ymin - 1.5 * hw/2, columns[0], ha="center", va="center", rotation=0,
             # size=hl * 5 / (2 * len(str(columns[0]))) * 20,
             # size=matplotlib.rcParams['axes.titlesize'],
-            size=np.clip((hl + yhw) * 8 / 2, 6, matplotlib.rcParams['axes.titlesize'] * 1.5)
+            size=np.clip((hl + yhw) * 8 / 2, 6, 18)
             )
-    ax.text(xmin - 1.1 * yhw/2, ymin + hw * 2.5/2, columns[1], ha="center", va="center", rotation=90,
+    ax.text(xmin - 1.5 * yhw/2, ymin + hw * 2.5/2, columns[1], ha="center", va="center", rotation=90,
             # size=hw * 5 / (2 * len(str(columns[1]))) * 20,
             # size=matplotlib.rcParams['axes.titlesize'],
-            size=np.clip((hl + yhw) * 8 / 2, 6, matplotlib.rcParams['axes.titlesize'] * 1.5)
+            size=np.clip((hl + yhw) * 8 / 2, 6, 18)
             )
 
     return ax
