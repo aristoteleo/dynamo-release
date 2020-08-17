@@ -10,6 +10,7 @@ scripts/
 benchmarking/
 debug/
 integral_seq/
+env/
 
 dynamo.egg-info/
 dynamo_release.egg-info/
@@ -41,3 +42,8 @@ docs/source/dynamo*
 
 .coverage
 test.py
+
+# Docker related:
+node_modules/
+package-lock.json
+public/*.js

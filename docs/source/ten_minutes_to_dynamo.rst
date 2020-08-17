@@ -47,8 +47,9 @@ Architecture of dynamo
 
 Dynamo has a few standard modules like most other single cell analysis toolkits (Scanpy, Monocle or Seurat), for example, data loading (``dyn.read*``), preprocessing (``dyn.pp.*``), tool analysis (``dyn.tl.*``) and plotting (``dyn.pl.*``). Modules specific to dynamo include:
 
-- conventional single cell RNA-seq (scRNA-seq) modeling (``dyn.csc.*``);
-- time-resolved metabolic labeling based single cell RNA-seq (scRNA-seq) modeling (``dyn.tsc.*``);
+- a comprehensive estimation framework of expression dynamics that includes:
+    - conventional single cell RNA-seq (scRNA-seq) modeling (``dyn.csc.*``) for **standard RNA velocity estimation** and more;
+    - time-resolved metabolic labeling based single cell RNA-seq (scRNA-seq) modeling (``dyn.tsc.*``) for **labeling based RNA velocity estimation** and more;
 - vector field analysis (``dyn.vf.*``);
 - cell fate prediction (``dyn.pd.*``);
 - creating movie of cell fate predictions (``dyn.mv.*``);

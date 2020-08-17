@@ -10,7 +10,7 @@ from .utils import (
     fetch_states,
     getTseq,
 )
-from ..tools import vector_field_function
+from ..vectorfield import vector_field_function
 
 
 def fate(

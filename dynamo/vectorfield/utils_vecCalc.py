@@ -7,7 +7,7 @@ import numdifftools as nd
 from multiprocessing.dummy import Pool as ThreadPool
 import multiprocessing as mp
 import itertools, functools
-from .utils import timeit
+from ..tools.utils import timeit
 
 
 def grad(f, x):

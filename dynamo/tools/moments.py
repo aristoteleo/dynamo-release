@@ -3,7 +3,6 @@ import warnings
 from anndata import AnnData
 from scipy.sparse import issparse, csr_matrix, lil_matrix, diags
 from tqdm import tqdm
-from .utils_moments import estimation
 from .utils import get_mapper, elem_prod, inverse_norm
 from .connectivity import mnn, normalize_knn_graph, umap_conn_indices_dist_embedding
 from ..preprocessing.utils import get_layer_keys, allowed_X_layer_names, pca
@@ -703,6 +702,7 @@ class MomData(AnnData):
 
 class Estimation:
     """deprecated"""
+    from ..estimation.tsc.utils_moments import estimation
     def __init__(
         self,
         adata,

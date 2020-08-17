@@ -165,7 +165,7 @@ def get_version(package: Union[Path, str]) -> str:
     )
 
 
-def get_all_dependencies_version():
+def get_all_dependencies_version(display=True):
     """
     Adapted from answer 2 in
     https://stackoverflow.com/questions/40428931/package-for-listing-version-of-packages-used-in-a-jupyter-notebook
@@ -187,12 +187,16 @@ def get_all_dependencies_version():
         if m.project_name.lower() in all_dependencies:
             all_dependencies_list.append([m.project_name, m.version])
 
-    pd.options.display.max_columns=None
-    display(pd.DataFrame(
-                all_dependencies_list[::-1],
-                columns=["package", "version"]
-            ).set_index("package").T)
+    df = pd.DataFrame(
+                    all_dependencies_list[::-1],
+                    columns=["package", "version"]
+                ).set_index("package").T
 
+    if display:
+        pd.options.display.max_columns=None
+        display(df)
+    else:
+        return df
 
 __version__ = get_version(__file__)
 

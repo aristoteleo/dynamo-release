@@ -4,7 +4,7 @@ import itertools, functools
 from scipy.sparse import issparse
 import numpy as np
 import pandas as pd
-from .utils import (
+from ..tools.utils import (
     timeit,
     get_pd_row_column_idx,
     elem_prod,
@@ -21,7 +21,8 @@ from .utils_vecCalc import (
     rank_vector_calculus_metrics
     )
 from .scVectorField import vectorfield
-from .sampling import sample
+from ..tools.sampling import sample
+
 
 
 def speed(adata,
@@ -709,3 +710,7 @@ def rank_curvature_genes(adata,
                                "pos_genes_group_rank_by_gene": pos_genes_group_rank_by_gene,
                                "neg_curvature_in_group_rank_by_gene": neg_metric_in_group_rank_by_gene,
                                "neg_genes_in_group_rank_by_gene": neg_genes_in_group_rank_by_gene}
+
+
+
+

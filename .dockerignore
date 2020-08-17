@@ -1,0 +1,11 @@
+__test__
+node_modules
+.dockerignore
+.gitignore
+.github
+babel.config.js
+Dockerfile
+LICENSE
+package-lock.json
+package.json
+README.md

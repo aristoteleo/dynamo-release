@@ -4,7 +4,7 @@ from scipy.spatial import cKDTree
 from tqdm import tqdm
 
 from ..prediction.fate import _fate
-from ..tools import vector_field_function
+from ..vectorfield import vector_field_function
 from .utils import (
     remove_redundant_points_trajectory,
     arclength_sampling,

@@ -7,7 +7,7 @@ from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import shortest_path
 import re
 
-from .DDRTree import DDRTree_py
+from .DDRTree_py import DDRTree_py
 
 
 def remove_velocity_points(G, n):

@@ -195,11 +195,6 @@ def index_condensed_matrix(n, i, j):
     return int(i * (n - (i + 3) * 0.5) + j - 1)
 
 
-def is_outside_domain(x, domain):
-    x = x[None, :] if x.ndim == 1 else x
-    return np.any(np.logical_or(x < domain[0], x > domain[1]), axis=1)
-
-
 def moms2var(m1, m2):
     var = m2 - elem_prod(m1, m1)
     return var

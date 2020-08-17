@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.integrate import odeint
-from .utils_velocity import sol_u, sol_s
+from ..csc.utils_velocity import sol_u, sol_s
 
 class LinearODE:
     def __init__(self, n_species, x0=None):

@@ -5,48 +5,12 @@
 # from .dynamo import sol_u, sol_s, fit_gamma_labelling, fit_alpha_labelling, fit_gamma_splicing, fit_gamma
 # from .dynamo_fitting import sol_u, sol_s, sol_p, sol_ode, sol_num, fit_gamma_labelling, fit_beta_lsq, fit_alpha_labelling, fit_alpha_synthesis, fit_gamma_splicing, fit_gamma
 
-from .estimation_kinetic import (
-    kinetic_estimation,
-    Estimation_MomentDeg,
-    Estimation_MomentDegNosp,
-    Estimation_MomentKin,
-    Estimation_MomentKinNosp,
-    Estimation_DeterministicDeg,
-    Estimation_DeterministicDegNosp,
-    Estimation_DeterministicKinNosp,
-    Estimation_DeterministicKin,
-    GoodnessOfFit,
-)
 
-from .utils_kinetic import (
-    LinearODE,
-    Moments,
-    Moments_Nosplicing,
-    Moments_NoSwitching,
-    Moments_NoSwitchingNoSplicing,
-    Deterministic,
-    Deterministic_NoSplicing,
-)
+from .moments import moments, calc_1nd_moment, calc_2nd_moment
 
-from .moments import Estimation, moments, calc_1nd_moment, calc_2nd_moment
-
-from .velocity import (
-    sol_u,
-    sol_s,
-    sol_p,
-    fit_linreg,
-    fit_first_order_deg_lsq,
-    solve_first_order_deg,
-    fit_gamma_lsq,
-    fit_alpha_synthesis,
-    fit_alpha_degradation,
-    velocity,
-    ss_estimation,
-)
 from .cell_vectors import (
     cell_velocities,
     confident_cell_velocities,
-    cell_accelerations,
     generalized_diffusion_map,
     stationary_distribution,
     diffusion,
@@ -74,28 +38,6 @@ from .metric_velocity import (
     cell_wise_confidence,
     gene_wise_confidence,
 )
-from .scVectorField import (
-    SparseVFC,
-    graphize_vecfld,
-    vectorfield
-)  # , evaluate, con_K_div_cur_free
-from .utils_vecCalc import (
-    vector_field_function, 
-)
-from .topography import FixedPoints, VectorField2D, topography, VectorField
-from .vector_calculus import (
-    speed,
-    jacobian,
-    curl,
-    divergence,
-    acceleration,
-    curvature,
-    torsion,
-    rank_speed_genes,
-    rank_divergence_genes,
-    rank_acceleration_genes,
-    rank_curvature_genes,
-)
 
 # Markov chain related:
 from .Markov import (
@@ -113,20 +55,6 @@ from .Markov import (
     ContinuousTimeMarkovChain,
 )
 
-# potential related
-from .scPotential import (
-    search_fixed_points,
-    gen_fixed_points,
-    gen_gradient,
-    IntGrad,
-    DiffusionMatrix,
-    action,
-    Potential,
-)  # , vector_field_function
-from .Bhattacharya import path_integral, alignment
-from .Wang import Wang_action, Wang_LAP, transition_rate, MFPT
-from .Ao import Ao_pot_map, solveQ
-
 # state graph related
 
 # dimension reduction related
@@ -139,8 +67,9 @@ from .clustering import hdbscan, cluster_field
 from .connectivity import mnn, neighbors
 
 # Pseudotime related
-from .DDRTree import DDRTree_py as DDRTree
-from .DDRTree import cal_ncenter
+from .DDRTree_py import DDRTree
+from .DDRTree_py import cal_ncenter
+from .psl_py import psl
 
 # DEG test related
 from .markers import (
@@ -160,8 +89,3 @@ from .sampling import (
     sample
 )
 
-# stochastic process related
-from .stochastic_process import diffusionMatrix
-
-# vfGraph operation related:
-from .vfGraph import vfGraph

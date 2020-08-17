@@ -10,8 +10,8 @@ from multiprocessing.dummy import Pool as ThreadPool
 import itertools, functools
 import warnings
 import time
-from .sampling import sample_by_velocity
-from .utils import (
+from ..tools.sampling import sample_by_velocity
+from ..tools.utils import (
     update_dict,
     update_n_merge_dict,
     linear_least_squares,

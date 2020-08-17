@@ -13,7 +13,7 @@ from .Wang import Wang_action, Wang_LAP
 
 from .topography import FixedPoints
 from .utils import is_outside_domain
-from .sampling import lhsclassic
+from ..tools.sampling import lhsclassic
 from warnings import warn
 
 def search_fixed_points(func, domain, x0, x0_method='lhs', 
