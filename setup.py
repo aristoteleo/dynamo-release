@@ -8,7 +8,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="dynamo-release",
-    version="0.93.6",
+    version="0.93.7",
     python_requires=">=3.6",
     install_requires=[
         l.strip() for l in Path('requirements.txt').read_text('utf-8').splitlines()
