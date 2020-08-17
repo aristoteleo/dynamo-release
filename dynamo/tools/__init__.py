@@ -45,6 +45,7 @@ from .velocity import (
 )
 from .cell_vectors import (
     cell_velocities,
+    confident_cell_velocities,
     cell_accelerations,
     generalized_diffusion_map,
     stationary_distribution,
@@ -90,6 +91,10 @@ from .vector_calculus import (
     acceleration,
     curvature,
     torsion,
+    rank_speed_genes,
+    rank_divergence_genes,
+    rank_acceleration_genes,
+    rank_curvature_genes,
 )
 
 # Markov chain related:

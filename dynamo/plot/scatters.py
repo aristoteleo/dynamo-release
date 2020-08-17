@@ -765,6 +765,8 @@ def scatters(
     calpha=2.3,
     sym_c=False,
     smooth=False,
+    dpi=100,
+    inset_dict={},
     **kwargs
 ):
     """Plot an embedding as points. Currently this only works
@@ -913,6 +915,23 @@ def scatters(
             Whether do you want to further smooth data and how much smoothing do you want. If it is `False`, no smoothing
             will be applied. If `True`, smoothing based on one step diffusion of connectivity matrix (`.uns['moment_cnn']
             will be applied. If a number larger than 1, smoothing will based on `smooth` steps of diffusion.
+        dpi: `float`, (default: 100.0)
+            The resolution of the figure in dots-per-inch. Dots per inches (dpi) determines how many pixels the figure
+            comprises. dpi is different from ppi or points per inches. Note that most elements like lines, markers,
+            texts have a size given in points so you can convert the points to inches. Matplotlib figures use Points per
+            inch (ppi) of 72. A line with thickness 1 point will be 1./72. inch wide. A text with fontsize 12 points will
+            be 12./72. inch heigh. Of course if you change the figure size in inches, points will not change, so a larger
+            figure in inches still has the same size of the elements.Changing the figure size is thus like taking a piece
+            of paper of a different size. Doing so, would of course not change the width of the line drawn with the same
+            pen. On the other hand, changing the dpi scales those elements. At 72 dpi, a line of 1 point size is one
+            pixel strong. At 144 dpi, this line is 2 pixels strong. A larger dpi will therefore act like a magnifying
+            glass. All elements are scaled by the magnifying power of the lens. see more details at answer 2 by
+            @ImportanceOfBeingErnest: https://stackoverflow.com/questions/47633546/relationship-between-dpi-and-figure-size
+        inset_dict: `dict` (default: {})
+            A dictionary of parameters in inset_ax. Example, something like {"width": "5%", "height": "50%", "loc":
+            'lower left', "bbox_to_anchor": (0.85, 0.90, 0.145, 0.145), "bbox_transform": ax.transAxes, "borderpad": 0}
+            See more details at https://matplotlib.org/api/_as_gen/mpl_toolkits.axes_grid1.inset_locator.inset_axes.html
+            or https://stackoverflow.com/questions/39803385/what-does-a-4-element-tuple-argument-for-bbox-to-anchor-mean-in-matplotlib
         kwargs:
             Additional arguments passed to plt.scatters.
 
@@ -987,7 +1006,7 @@ def scatters(
         figsize = plt.rcParams["figsize"]
 
     if total_panels >= 1 and ax is None:
-        plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=_background)
+        plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=_background, dpi=dpi)
         gs = plt.GridSpec(nrow, ncol, wspace=0.12)
 
     i = 0
@@ -1206,6 +1225,7 @@ def scatters(
                             ccmap=ccmap,
                             calpha=calpha,
                             sym_c=sym_c,
+                            inset_dict=inset_dict,
                             **scatter_kwargs
                         )
                     else:

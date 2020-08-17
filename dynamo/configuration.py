@@ -433,19 +433,19 @@ def reset_rcParams():
     rcParams.update(rcParamsDefault)
 
 
-def set_pub_style():
+def set_pub_style(scaler=1):
     """formatting helper function that can be used to save publishable figures"""
     set_figure_params('dynamo', background='white')
     matplotlib.use('cairo')
-    matplotlib.rcParams.update({'font.size': 4})
-    params = {'font.size': 4,
-              'legend.fontsize': 4,
-              'legend.handlelength': 0.5,
-              'axes.labelsize': 6,
-              'axes.titlesize':6,
-              'xtick.labelsize':6,
-              'ytick.labelsize':6,
-              'axes.titlepad': 1,
-              'axes.labelpad': 1
+    matplotlib.rcParams.update({'font.size': 4 * scaler})
+    params = {'font.size': 4 * scaler,
+              'legend.fontsize': 4 * scaler,
+              'legend.handlelength': 0.5 * scaler,
+              'axes.labelsize': 6 * scaler,
+              'axes.titlesize': 6 * scaler,
+              'xtick.labelsize': 6 * scaler,
+              'ytick.labelsize': 6 * scaler,
+              'axes.titlepad': 1 * scaler,
+              'axes.labelpad': 1 * scaler
     }
     matplotlib.rcParams.update(params)

@@ -5,7 +5,11 @@ from sklearn.neighbors import NearestNeighbors
 from multiprocessing.dummy import Pool as ThreadPool
 import itertools
 import warnings
-from .utils import integrate_vf_ivp, fetch_states
+from .utils import (
+    integrate_vf_ivp,
+    fetch_states,
+    getTseq,
+)
 from ..tools import vector_field_function
 
 
@@ -122,7 +126,7 @@ def fate(
     elif dims is not None:
         init_states = init_states[:, dims]
 
-    vf = lambda x: scale*vector_field_function(x=x, vf_dict=VecFld) if VecFld_true is None else VecFld_true
+    vf = lambda x: scale*vector_field_function(x=x, vf_dict=VecFld, dim=dims) if VecFld_true is None else VecFld_true
     t, prediction = _fate(
         vf,
         init_states,
@@ -240,17 +244,7 @@ def _fate(
         at each time point is calculated for all cells.
     """
 
-    if step_size is None:
-        max_steps = (
-            int(max(7 / (init_states.shape[1] / 300), 4))
-            if init_states.shape[1] > 300
-            else 7
-        )
-        t_linspace = np.linspace(
-            0, t_end, 10 ** (np.min([int(np.log10(t_end)), max_steps]))
-        )
-    else:
-        t_linspace = np.arange(0, t_end + step_size, step_size)
+    t_linspace = getTseq(init_states, t_end, step_size)
 
     if cores == 1:
         t, prediction = integrate_vf_ivp(
@@ -293,7 +287,7 @@ def fate_bias(adata,
               basis='umap',
               inds=None,
               speed_percentile=5,
-              dist_threshold=25,
+              dist_threshold=None,
               source_groups=None,
               metric="euclidean",
               metric_kwds=None,
@@ -346,10 +340,11 @@ def fate_bias(adata,
         speed_percentile: `float` (default: `5`)
             The percentile of speed that will be used to determine the terminal cells (or sink region on the prediction
             path where speed is smaller than this speed percentile).
-        dist_threshold: `float` (default: `25`)
+        dist_threshold: `float` or `None` (default: `None`)
             A multiplier of the median nearest cell distance on the embedding to determine cells that are outside the
             sampled domain of cells. If the mean distance of identified "terminal cells" is above this number, we will
             look backward along the trajectory (by minimize all indices by 1) until it finds cells satisfy this threshold.
+            By default it is set to be 1 to ensure only considering points that are very close to observed data points.
         source_groups: `list` or `None` (default: `None`)
             The groups that corresponds to progenitor groups. They has to have at least one intersection with the groups
             from the `group` column. If group is not `None`, any identified "source_groups" cells that happen to be in
@@ -375,6 +370,9 @@ def fate_bias(adata,
         fate_bias: `pandas.DataFrame`
             A DataFrame that stores the fate bias for each cell state (row) to each cell group (column).
     """
+
+    if dist_threshold is None:
+        dist_threshold = 1
 
     if group not in adata.obs.keys():
         raise ValueError(f'The group {group} you provided is not a key of .obs attribute.')

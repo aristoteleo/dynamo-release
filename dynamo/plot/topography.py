@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 from ..tools.topography import topography as _topology  # , compute_separatrices
 from ..tools.utils import update_dict
-from ..external.ddhodge import ddhoge
+from ..external.hodge import ddhodge
 from ..tools.vector_calculus import curl, divergence
 from .utils import default_quiver_args
 from .scatters import scatters
@@ -722,7 +722,7 @@ def topography(
     if type(color) == str: color = [color]
     if len(set(adata.obs.columns).intersection(color)) == 0:
         if adata.obs.keys().isin(['potential']).sum() == 0:
-            ddhoge(adata, basis=basis)
+            ddhodge(adata, basis=basis)
         if adata.obs.keys().isin(['curl']).sum() == 0:
             curl(adata, basis=basis)
         if adata.obs.keys().isin(['divergence']).sum() == 0:

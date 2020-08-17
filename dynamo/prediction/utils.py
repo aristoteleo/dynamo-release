@@ -93,7 +93,7 @@ def integrate_vf_ivp(
         Y_, t_ = [None] * n_cell, [None] * n_cell
         for i in tqdm(range(n_cell), desc="uniformly sampling points along a trajectory", disable=disable):
             tau, x = T[i], Y[i].T
-            idx = dup_osc_idx_iter(x, max_iter=100, tol=5)[0]
+            idx = dup_osc_idx_iter(x, max_iter=100, tol=x.ptp(0).mean() / 1000)[0]
             # idx = dup_osc_idx_iter(x)
             x = x[:idx]
             _, arclen, _ = remove_redundant_points_trajectory(x, tol=1e-4, output_discard=True)
@@ -407,9 +407,7 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
         init_states = init_states.mean(0).reshape((1, -1))
 
     if t_end is None:
-        xmin, xmax = X.min(0), X.max(0)
-        V_abs = np.abs(VecFld["V"])
-        t_end = np.max(xmax - xmin) / np.percentile(V_abs[V_abs > 0], 1)
+        t_end = getTend(X, VecFld["V"])
 
     if issparse(init_states):
         init_states = init_states.A
@@ -417,3 +415,25 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
     return init_states, VecFld, t_end, valid_genes
 
 
+def getTend(X, V):
+    xmin, xmax = X.min(0), X.max(0)
+    V_abs = np.abs(V)
+    t_end = np.max(xmax - xmin) / np.percentile(V_abs[V_abs > 0], 1)
+
+    return t_end
+
+
+def getTseq(init_states, t_end, step_size=None):
+    if step_size is None:
+        max_steps = (
+            int(max(7 / (init_states.shape[1] / 300), 4))
+            if init_states.shape[1] > 300
+            else 7
+        )
+        t_linspace = np.linspace(
+            0, t_end, 10 ** (np.min([int(np.log10(t_end)), max_steps]))
+        )
+    else:
+        t_linspace = np.arange(0, t_end + step_size, step_size)
+
+    return t_linspace

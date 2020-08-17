@@ -148,6 +148,7 @@ def _matplotlib_points(
         ccmap=None,
         calpha=2.3,
         sym_c=False,
+        inset_dict={},
         **kwargs,
 ):
     import matplotlib.pyplot as plt
@@ -241,8 +242,9 @@ def _matplotlib_points(
             colors = pd.Series(labels).map(new_color_key)
 
         if frontier:
-            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "0.0", lw=2)
-            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "1.0", lw=0)
+            rasterized = kwargs['rasterized'] if 'rasterized' in kwargs.keys() else None
+            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "0.0", lw=2, rasterized=rasterized)
+            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "1.0", lw=0, rasterized=rasterized)
             ax.scatter(points[:, 0], points[:, 1], c=colors, **kwargs)
         elif contour:
             try:
@@ -324,8 +326,9 @@ def _matplotlib_points(
             _vmin, _vmax = bounds
 
         if frontier == True:
-            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "0.0", lw=2)
-            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "1.0", lw=0)
+            rasterized = kwargs['rasterized'] if 'rasterized' in kwargs.keys() else None
+            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "0.0", lw=2, rasterized=rasterized)
+            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "1.0", lw=0, rasterized=rasterized)
             ax.scatter(
                 points[:, 0],
                 points[:, 1],
@@ -392,10 +395,10 @@ def _matplotlib_points(
 
         mappable = matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
         mappable.set_array(values)
-        cb = plt.colorbar(mappable, cax=set_colorbar(ax), ax=ax)
+        cb = plt.colorbar(mappable, cax=set_colorbar(ax, inset_dict), ax=ax)
         cb.set_alpha(1)
         cb.draw_all()
-        cb.locator = MaxNLocator(nbins=3, integer=False)
+        cb.locator = MaxNLocator(nbins=3, integer=True)
         cb.update_ticks()
 
         cmap = matplotlib.cm.get_cmap(cmap)
@@ -991,18 +994,23 @@ def scatter_with_legend(
 
     return fig, ax
 
-def set_colorbar(ax):
+def set_colorbar(ax, inset_dict={}):
     """https://matplotlib.org/3.1.0/gallery/axes_grid1/demo_colorbar_with_inset_locator.html"""
     from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
-    axins = inset_axes(ax,
-                       width="2.5%",  # width = 5% of parent_bbox width
-                       height="20%",  # height : 50%
-                       # loc='lower left',
-                       # bbox_to_anchor=(1.05, 0., 1, 1),
-                       # bbox_transform=ax.transAxes,
-                       # borderpad=0,
-                       )
+    if len(inset_dict) == 0:
+        # see more at https://matplotlib.org/gallery/axes_grid1/inset_locator_demo.html
+        axins = inset_axes(ax,
+                           width="12%",  # width = 5% of parent_bbox width
+                           height="100%",  # height : 50%
+                           loc='upper right',
+                           bbox_to_anchor=(0.85, 0.97, 0.145, 0.17),
+                           bbox_transform=ax.transAxes,
+                           borderpad=1.85,
+                           )
+    else:
+        axins = inset_axes(ax, bbox_transform=ax.transAxes, **inset_dict)
+
     return axins
 
 
@@ -1052,11 +1060,15 @@ def arrowed_spines(ax, columns, background='white'):
              overhang=ohg/2,
              length_includes_head=True, clip_on=False)
 
-    ax.text(xmin + hl * 2.5/2, ymin - 1.1 * hw/2, columns[0], ha="center", va="center", rotation=0,
-            size=matplotlib.rcParams['axes.titlesize'], # np.clip((hl + yhw) * 8 / 2, None, 40)
+    ax.text(xmin + hl * 2.5/2, ymin - 1.5 * hw/2, columns[0], ha="center", va="center", rotation=0,
+            # size=hl * 5 / (2 * len(str(columns[0]))) * 20,
+            # size=matplotlib.rcParams['axes.titlesize'],
+            size=np.clip((hl + yhw) * 8 / 2, 6, 18)
             )
-    ax.text(xmin - 1.1 * yhw/2, ymin + hw * 2.5/2, columns[1], ha="center", va="center", rotation=90,
-            size=matplotlib.rcParams['axes.titlesize'], # np.clip((hl + yhw) * 8 / 2, None, 40)
+    ax.text(xmin - 1.5 * yhw/2, ymin + hw * 2.5/2, columns[1], ha="center", va="center", rotation=90,
+            # size=hw * 5 / (2 * len(str(columns[1]))) * 20,
+            # size=matplotlib.rcParams['axes.titlesize'],
+            size=np.clip((hl + yhw) * 8 / 2, 6, 18)
             )
 
     return ax

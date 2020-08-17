@@ -1,6 +1,8 @@
-import numpy as np
-from scipy.spatial.distance import cdist
 from tqdm import tqdm
+import numpy as np
+import pandas as pd
+from scipy.spatial.distance import cdist
+from scipy.sparse import issparse
 import numdifftools as nd
 from multiprocessing.dummy import Pool as ThreadPool
 import multiprocessing as mp
@@ -556,4 +558,91 @@ def compute_curl(f_jac, X):
         curl[i] = f(None, None, method='analytical', VecFld=None, jac=J)
 
     return curl
+
+
+# ---------------------------------------------------------------------------------------------------
+# ranking related utilies
+def get_metric_gene_in_rank(mat, genes, neg=False):
+    metric_in_rank = mat.mean(0).A1 if issparse(mat) else mat.mean(0)
+    rank = metric_in_rank.argsort() if neg else metric_in_rank.argsort()[::-1]
+    metric_in_rank, genes_in_rank = metric_in_rank[rank], genes[rank]
+
+    return metric_in_rank, genes_in_rank
+
+
+def get_metric_gene_in_rank_by_group(mat, genes, groups, grp, neg=False):
+    mask = groups == grp
+    if type(mask) == pd.Series: mask = mask.values
+
+    gene_wise_metrics, group_wise_metrics = mat[mask, :].mean(0).A1 if issparse(mat) else mat[mask, :].mean(0), \
+                                            mat[mask, :].mean(0).A1 if issparse(mat) else mat[mask, :].mean(0)
+    rank = gene_wise_metrics.argsort() if neg else gene_wise_metrics.argsort()[::-1]
+    gene_wise_metrics, genes_in_rank = gene_wise_metrics[rank], genes[rank]
+
+    return gene_wise_metrics, group_wise_metrics, genes_in_rank
+
+
+def get_sorted_metric_genes_df(df, genes, neg=False):
+    sorted_metric = pd.DataFrame({key: (sorted(values, reverse=False) if neg else sorted(values, reverse=True))
+                                  for key, values in df.transpose().iterrows()})
+    sorted_genes = pd.DataFrame({key: (genes[values.argsort()] if neg else genes[values.argsort()[::-1]])
+                                 for key, values in df.transpose().iterrows()})
+    return sorted_metric, sorted_genes
+
+
+def rank_vector_calculus_metrics(mat, genes, group, groups, uniq_group):
+    if issparse(mat):
+        mask = mat.data > 0
+        pos_mat, neg_mat = mat.copy(), mat.copy()
+        pos_mat.data[~ mask], neg_mat.data[mask] = 0, 0
+        pos_mat.eliminate_zeros()
+        neg_mat.eliminate_zeros()
+    else:
+        mask = mat > 0
+        pos_mat, neg_mat = mat.copy(), mat.copy()
+        pos_mat[~ mask], neg_mat[mask] = 0, 0
+
+    if group is None:
+        metric_in_rank, genes_in_rank = get_metric_gene_in_rank(abs(mat), genes)
+
+        pos_metric_in_rank, pos_genes_in_rank = get_metric_gene_in_rank(pos_mat, genes)
+
+        neg_metric_in_rank, neg_genes_in_rank = get_metric_gene_in_rank(neg_mat, genes, neg=True)
+
+        return metric_in_rank, genes_in_rank, pos_metric_in_rank, pos_genes_in_rank, neg_metric_in_rank, neg_genes_in_rank
+    else:
+        gene_wise_metrics, gene_wise_genes, gene_wise_pos_metrics, gene_wise_pos_genes, gene_wise_neg_metrics, gene_wise_neg_genes = {}, {}, {}, {}, {}, {}
+        group_wise_metrics, group_wise_genes, group_wise_pos_metrics, group_wise_pos_genes, group_wise_neg_metrics, group_wise_neg_genes = {}, {}, {}, {}, {}, {}
+        for i, grp in tqdm(enumerate(uniq_group), desc='ranking genes across gropus'):
+            gene_wise_metrics[grp], group_wise_metrics[grp], gene_wise_genes[grp] = None, None, None
+            gene_wise_metrics[grp], group_wise_metrics[grp], gene_wise_genes[grp] = \
+                get_metric_gene_in_rank_by_group(abs(mat), genes, groups, grp)
+
+            gene_wise_pos_metrics[grp], group_wise_pos_metrics[grp], gene_wise_pos_genes[grp] = None, None, None
+            gene_wise_pos_metrics[grp], group_wise_pos_metrics[grp], gene_wise_pos_genes[grp] = \
+                get_metric_gene_in_rank_by_group(pos_mat, genes, groups, grp)
+
+            gene_wise_neg_metrics[grp], group_wise_neg_metrics[grp], gene_wise_neg_genes[grp] = None, None, None
+            gene_wise_neg_metrics[grp], group_wise_neg_metrics[grp], gene_wise_neg_genes[grp] = \
+                get_metric_gene_in_rank_by_group(neg_mat, genes, groups, grp, neg=True)
+
+        metric_in_group_rank_by_gene, genes_in_group_rank_by_gene = \
+            get_sorted_metric_genes_df(pd.DataFrame(group_wise_metrics), genes)
+        pos_metric_gene_rank_by_group, pos_genes_group_rank_by_gene = \
+            get_sorted_metric_genes_df(pd.DataFrame(group_wise_pos_metrics), genes)
+        neg_metric_in_group_rank_by_gene, neg_genes_in_group_rank_by_gene = \
+            get_sorted_metric_genes_df(pd.DataFrame(group_wise_neg_metrics), genes, neg=True)
+
+        metric_in_gene_rank_by_group, genes_in_gene_rank_by_group = \
+            pd.DataFrame(gene_wise_metrics), pd.DataFrame(gene_wise_genes)
+        pos_metric_in_gene_rank_by_group, pos_genes_in_gene_rank_by_group = \
+            pd.DataFrame(gene_wise_pos_metrics), pd.DataFrame(gene_wise_pos_genes)
+        neg_metric_in_gene_rank_by_group, neg_genes_in_gene_rank_by_group = \
+            pd.DataFrame(gene_wise_neg_metrics), pd.DataFrame(gene_wise_neg_genes)
+
+        return (metric_in_gene_rank_by_group, genes_in_gene_rank_by_group, pos_metric_in_gene_rank_by_group,
+                pos_genes_in_gene_rank_by_group, neg_metric_in_gene_rank_by_group, neg_genes_in_gene_rank_by_group,
+
+                metric_in_group_rank_by_gene, genes_in_group_rank_by_gene, pos_metric_gene_rank_by_group,
+                pos_genes_group_rank_by_gene, neg_metric_in_group_rank_by_gene, neg_genes_in_group_rank_by_gene,)
 

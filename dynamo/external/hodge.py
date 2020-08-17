@@ -123,20 +123,20 @@ def build_graph(adj_mat):
     return g
 
 
-def ddhoge(adata,
-           X_data=None,
-           layer=None,
-           basis="pca",
-           n=30,
-           VecFld=None,
-           adjmethod='graphize_vecfld',
-           distance_free=False,
-           n_downsamples=5000,
-           up_sampling=True,
-           sampling_method='velocity',
-           seed=19491001,
-           enforce=False,
-           cores=1):
+def ddhodge(adata,
+            X_data=None,
+            layer=None,
+            basis="pca",
+            n=30,
+            VecFld=None,
+            adjmethod='graphize_vecfld',
+            distance_free=False,
+            n_downsamples=5000,
+            up_sampling=True,
+            sampling_method='velocity',
+            seed=19491001,
+            enforce=False,
+            cores=1):
     """Modeling Latent Flow Structure using Hodge Decomposition based on the creation of sparse diffusion graph from the
     reconstructed vector field function. This method is relevant to the curl-free/divergence-free vector field
     reconstruction.

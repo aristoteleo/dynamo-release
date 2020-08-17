@@ -185,8 +185,8 @@ def cluster_field(adata,
         from .vector_calculus import speed
         speed(adata, basis=basis)
     if feature_key[1] not in adata.obs.keys():
-        from ..ext import ddhoge
-        ddhoge(adata, basis=basis)
+        from ..ext import ddhodge
+        ddhodge(adata, basis=basis)
     if feature_key[2] not in adata.obs.keys():
         from .vector_calculus import divergence
         divergence(adata, basis=basis)

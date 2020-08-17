@@ -979,7 +979,7 @@ def streamline_plot(
     }
     mass = np.sqrt((V_grid ** 2).sum(0))
     linewidth *= 2 * mass / mass[~np.isnan(mass)].max()
-    streamplot_kwargs.update({"linewidth": linewidth})
+    streamplot_kwargs.update({"linewidth": linewidth * streamline_kwargs.pop('linewidth', 1)})
 
     streamplot_kwargs = update_dict(streamplot_kwargs, streamline_kwargs)
 

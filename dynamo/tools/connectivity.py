@@ -7,7 +7,11 @@ from copy import deepcopy
 from inspect import signature
 from sklearn.utils import sparsefuncs
 from ..preprocessing.utils import get_layer_keys
-from .utils import log1p_, fetch_X_data
+from .utils import (
+    log1p_,
+    fetch_X_data,
+    get_conn_dist_graph,
+)
 
 from ..docrep import DocstringProcessor
 
@@ -460,7 +464,11 @@ def neighbors(
     else:
         raise ImportError(f'nearest neighbor search method {alg} is not supported')
 
-    adata.obsp["indices"], adata.obsp["distances"] = knn, distances
+
+    adata.obsp["connectivities"], adata.obsp["distances"] = get_conn_dist_graph(knn, distances)
+
+    adata.uns['neighbors'] = {}
+    adata.uns['neighbors']["indices"] =  knn
     adata.uns["neighbors"]["params"] = {
         "n_neighbors": n_neighbors,
         "method": alg,
@@ -469,5 +477,3 @@ def neighbors(
     }
 
     return adata
-
-
