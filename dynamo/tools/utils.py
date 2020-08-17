@@ -248,7 +248,6 @@ def velocity_on_grid(X, V, n_grids, nbrs=None, k=None,
         k = 100 if k is None else k
         if X.shape[0] > 200000 and X.shape[1] > 2: 
             from pynndescent import NNDescent
-
             nbrs = NNDescent(X, metric='euclidean', n_neighbors=k+1, n_jobs=-1, random_state=19491001)
         else:
             alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
@@ -273,6 +272,21 @@ def velocity_on_grid(X, V, n_grids, nbrs=None, k=None,
     V[np.isnan(V)] = 0
     V_grid = np.einsum('ijk, ij -> ik', V[neighs[:, :k]], w)
     return X_grid, V_grid
+
+
+def list_top_genes(arr, gene_names, n_top_genes=30, order=-1):
+    imax = np.argsort(arr)[::order]
+    return gene_names[imax][:n_top_genes]
+
+
+def table_top_genes(arrs, item_names, gene_names, return_df=True, **kwargs):
+    table = {}
+    for i, item in enumerate(item_names):
+        table[item] = list_top_genes(arrs[i], gene_names, **kwargs)
+    if return_df:
+        return pd.DataFrame(data=table)
+    else:
+        return table
 
 
 # ---------------------------------------------------------------------------------------------------

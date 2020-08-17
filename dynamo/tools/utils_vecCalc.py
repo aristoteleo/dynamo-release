@@ -48,7 +48,7 @@ def vector_field_function(x, vf_dict, dim=None, kernel='full', **kernel_kwargs):
 
         K = con_K_div_cur_free(x, vf_dict["X_ctrl"], vf_dict["sigma"], vf_dict["eta"], **kernel_kwargs)[kernel_ind]
     else:
-        Xc = vf_dict["X_ctrl"] if dim is None else vf_dict["X_ctrl"][:, dim]
+        Xc = vf_dict["X_ctrl"]
         K = con_K(x, Xc, vf_dict["beta"], **kernel_kwargs)
 
     if dim is None or has_div_cur_free_kernels:
@@ -382,6 +382,28 @@ def transform_jacobian(Js, Qi, Qj, pbar=False):
     return ret
 
 
+def average_jacobian_by_group(Js, group_labels):
+    '''
+        Returns a dictionary of averaged jacobians with group names as the keys.
+        No vectorized indexing was used due to its high memory cost.
+    '''
+    d1, d2, _ = Js.shape
+    groups = np.unique(group_labels)
+    
+    J_mean = {}
+    N = {}
+    for i, g in enumerate(group_labels):
+        if g in J_mean.keys():
+            J_mean[g] += Js[:, :, i]
+            N[g] += 1
+        else:
+            J_mean[g] = np.zeros((d1, d2))
+            N[g] = 0
+    for g in groups:
+        J_mean[g] /= N[g]
+    return J_mean
+
+
 # ---------------------------------------------------------------------------------------------------
 # dynamical properties
 def _divergence(f, x):
@@ -534,3 +556,4 @@ def compute_curl(f_jac, X):
         curl[i] = f(None, None, method='analytical', VecFld=None, jac=J)
 
     return curl
+
