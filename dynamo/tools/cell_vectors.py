@@ -17,7 +17,7 @@ from .utils import (
     update_dict,
     get_iterative_indices,
     split_velocity_graph,
-    norm_row,
+    norm,
     einsum_correlation,
     build_distance_graph,
     log1p_,
@@ -893,7 +893,7 @@ def projection_with_transition_matrix(n, T, X_embedding):
         for i in tqdm(range(n), desc=f"projecting velocity vector to low dimensional embedding..."):
             idx = T[i].indices
             diff_emb = X_embedding[idx] - X_embedding[i, None]
-            diff_emb /= norm_row(diff_emb)[:, None]
+            diff_emb /= norm(diff_emb, axis=1)[:, None]
             diff_emb[np.isnan(diff_emb)] = 0
             T_i = T[i].data
             delta_X[i] = T_i.dot(diff_emb) - T_i.mean() * diff_emb.sum(0)
