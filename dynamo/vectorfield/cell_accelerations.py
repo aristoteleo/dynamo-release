@@ -1,5 +1,6 @@
 from ..tools.cell_vectors import cell_velocities
 from .topography import VectorField
+from .vector_calculus import acceleration
 
 def cell_accelerations(adata,
                        vf_basis='pca',

@@ -702,7 +702,6 @@ class MomData(AnnData):
 
 class Estimation:
     """deprecated"""
-    from ..estimation.tsc.utils_moments import estimation
     def __init__(
         self,
         adata,
@@ -751,6 +750,7 @@ class Estimation:
             }
 
     def fit_gene(self, gene_no, n_p0=10):
+        from ..estimation.tsc.utils_moments import estimation
         estm = estimation(list(self.param_ranges.values()))
         if self.data_u is None:
             m = self.data.M[gene_no, :].T
