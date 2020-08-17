@@ -152,8 +152,8 @@ def jacobian(adata,
     else:
         Jacobian = None
 
-    ret_dict = {"Jacobian": Js, "cell_idx": cell_idx}
-    if Jacobian is not None: ret_dict['Jacobian_gene'] = Jacobian
+    ret_dict = {"jacobian": Js, "cell_idx": cell_idx}
+    if Jacobian is not None: ret_dict['jacobian_gene'] = Jacobian
     if regulators is not None: ret_dict['regulators'] = regulators
     if effectors is not None: ret_dict['effectors'] = effectors
 

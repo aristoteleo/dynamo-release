@@ -209,3 +209,19 @@ def multiplot(plot_func, arr, n_row=None, n_col=3, fig=None, subplot_size=(6, 4)
         else:
             plot_func(arr[i])
     return ax_list
+
+
+def plot_jacobian_gene(adata, jkey='jacobian', basis='pca', regulators=None, effectors=None, **kwargs):
+    jkey = f'{jkey}_{basis}' if basis is not None else jkey
+    J_dict = adata.uns[jkey]
+    c_arr = []
+    ti_arr = []
+    for i, reg in enumerate(J_dict['regulators']):
+        if regulators is None or reg in regulators:
+            for j, eff in enumerate(J_dict['effectors']):
+                if effectors is None or eff in effectors:
+                    c_arr.append(J_dict['jacobian_gene'][j, i, :])
+                    ti_arr.append(f"{eff} wrt. {reg}")
+    multiplot(lambda c, ti: [zscatter(adata, color=c, **kwargs),
+                               plt.title(ti)],
+                {'c': c_arr, 'ti': ti_arr}, n_col=2, subplot_size=(8, 4))

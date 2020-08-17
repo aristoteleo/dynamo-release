@@ -462,13 +462,22 @@ def pca(adata, CM, n_pca_components=30, pca_key='X', pcs_key='PCs'):
     return adata, fit, X_pca
 
 
+def pca_genes(PCs, n_top_genes=100):
+    ret = np.zeros(PCs.shape[0], dtype=bool)
+    for q in PCs.T:
+        qq = np.sort(np.abs(q))[::-1]
+        idx = np.abs(q) > qq[n_top_genes]
+        ret = np.logical_or(idx, ret)
+    return ret
+
+
 def add_noise_to_duplicates(adata, basis='pca'):
     X_data = adata.obsm['X_' + basis]
     min_val = abs(X_data).min()
 
     n_obs, n_var = X_data.shape
     while(True):
-        unique, index = np.unique(X_data, axis=0, return_index=True)
+        _, index = np.unique(X_data, axis=0, return_index=True)
         duplicated_idx = np.setdiff1d(np.arange(n_obs), index)
 
         if len(duplicated_idx) == 0:
