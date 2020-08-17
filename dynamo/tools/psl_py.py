@@ -97,7 +97,7 @@ def diag_mat(values):
     return mat
 
 
-def psl_py(
+def psl(
     Y, sG=None, dist=None, K=10, C=1e3, param_gamma=1e-3, d=2, maxIter=10, verbose=False
 ):
     """This function is a pure Python implementation of the PSL algorithm.	

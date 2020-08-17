@@ -98,7 +98,7 @@ def eye(m, n):
     return mat
 
 
-def DDRTree_py(
+def DDRTree(
     X, maxIter, sigma, gamma, eps=0, dim=2, Lambda=1.0, ncenter=None, keep_history=False
 ):
     """	
