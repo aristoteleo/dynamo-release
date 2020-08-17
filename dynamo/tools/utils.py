@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from scipy import interpolate, stats
 from scipy.sparse import issparse, csr_matrix
+import scipy.sparse.linalg as splinalg
 from scipy.integrate import odeint
 from scipy.linalg.blas import dgemm
 from sklearn.neighbors import NearestNeighbors
@@ -91,6 +92,10 @@ def flatten(arr):
 
 
 def isarray(arr):
+    """
+        Check if a variable is an array. Essentially the variable has the attribute 'len'
+        and it is not a string.
+    """
     return hasattr(arr, '__len__') and (not isinstance(arr, str))
 
 
@@ -110,16 +115,12 @@ def elem_prod(X, Y):
         return np.multiply(X, Y)
 
 
-def norm_vector(x):
-    """calculate euclidean norm for a row vector"""
-
-    return np.sqrt(np.einsum('i, i -> ', x, x))
-
-
-def norm_row(X):
-    """calculate euclidean norm for each row of a matrix"""
-
-    return np.sqrt(X.multiply(X).sum(1).A1 if issparse(X) else np.einsum('ij, ij -> i', X, X) if X.ndim > 1 else np.einsum('i, i -> ', X, X))
+def norm(x, **kwargs):
+    """calculate the norm of an array or matrix"""
+    if issparse(x):
+        return splinalg.norm(x, **kwargs)
+    else:
+        return np.linalg.norm(x, **kwargs)
 
 
 def einsum_correlation(X, Y_i, type="pearson"):
@@ -137,7 +138,7 @@ def einsum_correlation(X, Y_i, type="pearson"):
         corr = np.array([stats.kendalltau(x, Y_i)[0] for x in X])
         return corr[None, :]
 
-    X_norm, Y_norm = norm_row(X),  norm_vector(Y_i)
+    X_norm, Y_norm = norm(X, axis=1), norm(Y_i)
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
@@ -165,6 +166,7 @@ def form_triu_matrix(arr):
                 else:
                     break
     return M
+
 
 def index_condensed_matrix(n, i, j):
     """
