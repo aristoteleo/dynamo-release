@@ -16,7 +16,7 @@ Preprocessing (pp)
 
    pp.recipe_monocle
    pp.cell_cycle_scores
-   pp.pca
+   .. pp.pca
 
 Tools (tl)
 ~~~~~~~~~~
@@ -28,38 +28,39 @@ Tools (tl)
    tl.neighbors
    tl.mnn
    tl.moments
-   tl.calc_1nd_moment
-   tl.calc_2nd_moment
    tl.dynamics
+
+   .. tl.calc_1nd_moment
+   .. tl.calc_2nd_moment
 
    tl.reduceDimension
 
    tl.hdbscan
    tl.cluster_field
 
-   tl.cell_velocities,
-   tl.confident_cell_velocities,
+   tl.cell_velocities
+   tl.confident_cell_velocities
 
    tl.cell_wise_confidence
    tl.gene_wise_confidence
 
-   tl.generalized_diffusion_map,
-   tl.stationary_distribution,
-   tl.diffusion,
-   tl.expected_return_time,
+   tl.generalized_diffusion_map
+   tl.stationary_distribution
+   tl.diffusion
+   tl.expected_return_time
 
-   tl.markov_combination
-   tl.compute_markov_trans_prob
-   tl.compute_kernel_trans_prob
-   tl.compute_drift_kernel
-   tl.compute_drift_local_kernel
-   tl.compute_density_kernel
-   tl.makeTransitionMatrix
-   tl.compute_tau
-   tl.MarkovChain
-   tl.KernelMarkovChain
-   tl.DiscreteTimeMarkovChain
-   tl.ContinuousTimeMarkovChain
+   .. tl.markov_combination
+   .. tl.compute_markov_trans_prob
+   .. tl.compute_kernel_trans_prob
+   .. tl.compute_drift_kernel
+   .. tl.compute_drift_local_kernel
+   .. tl.compute_density_kernel
+   .. tl.makeTransitionMatrix
+   .. tl.compute_tau
+   .. tl.MarkovChain
+   .. tl.KernelMarkovChain
+   .. tl.DiscreteTimeMarkovChain
+   .. tl.ContinuousTimeMarkovChain
 
    tl.moran_i
    tl.find_group_markers
@@ -67,23 +68,22 @@ Tools (tl)
    tl.top_n_markers
    tl.glm_degs
 
-   tl.TRNET
-   tl.trn
-   tl.sample_by_velocity
-   tl.lhsclassic
-   tl.sample
+   .. tl.TRNET
+   .. tl.trn
+   .. tl.sample_by_velocity
+   .. tl.lhsclassic
+   .. tl.sample
 
    tl.converter
 
-   tl.cal_ncenter
    tl.DDRTree
    tl.psl
+   .. tl.cal_ncenter
 
 Estimation (est)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Conventional scRNA-seq (csc)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+**Conventional scRNA-seq (est.csc)**
 
 .. autosummary::
    :toctree: .
@@ -97,33 +97,41 @@ Conventional scRNA-seq (csc)
     est.csc.fit_gamma_lsq
     est.csc.fit_alpha_synthesis
     est.csc.fit_alpha_degradation
-    est.csc.velocity
-    est.csc.ss_estimation
+    .. est.csc.velocity
+    .. est.csc.ss_estimation
 
-Time-resolved metabolic labeling based scRNA-seq (tsc)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+**Time-resolved metabolic labeling based scRNA-seq (est.tsc)**
 
 .. autosummary::
    :toctree: .
 
-    est.tsc.kinetic_estimation,
-    est.tsc.Estimation_MomentDeg,
-    est.tsc.Estimation_MomentDegNosp,
-    est.tsc.Estimation_MomentKin,
-    est.tsc.Estimation_MomentKinNosp,
-    est.tsc.Estimation_DeterministicDeg,
-    est.tsc.Estimation_DeterministicDegNosp,
-    est.tsc.Estimation_DeterministicKinNosp,
-    est.tsc.Estimation_DeterministicKin,
-    est.tsc.GoodnessOfFit,
+    est.tsc.kinetic_estimation
+    est.tsc.Estimation_MomentDegNosp
+    est.tsc.Estimation_MomentKin
+    est.tsc.Mixture_KinDeg_NoSwitching
+    est.tst.Lambda_NoSwitching
+    est.tsc.Estimation_MomentKinNosp
+    est.tsc.Estimation_DeterministicKinNosp
+    est.tsc.Estimation_DeterministicKin
+    est.tsc.Mixture_KinDeg_NoSwitching
 
-    est.tsc.LinearODE,
-    est.tsc.Moments,
-    est.tsc.Moments_Nosplicing,
-    est.tsc.Moments_NoSwitching,
-    est.tsc.Moments_NoSwitchingNoSplicing,
-    est.tsc.Deterministic,
-    est.tsc.Deterministic_NoSplicing,
+    .. est.tsc.Estimation_MomentDeg
+    .. est.tsc.Estimation_MomentDegNosp
+    .. est.tsc.Estimation_MomentKin
+    .. est.tsc.Estimation_DeterministicDeg
+
+    .. est.tsc.Estimation_DeterministicDegNosp
+    ..
+    .. est.tsc.Estimation_DeterministicKin
+    .. est.tsc.GoodnessOfFit
+
+    .. est.tsc.LinearODE
+    .. est.tsc.Moments
+    .. est.tsc.Moments_Nosplicing
+    .. est.tsc.Moments_NoSwitching
+    .. est.tsc.Moments_NoSwitchingNoSplicing
+    .. est.tsc.Deterministic
+    .. est.tsc.Deterministic_NoSplicing
 
 Vector field (vf)
 ~~~~~~~~~~~~~~~~~
@@ -132,13 +140,13 @@ Vector field (vf)
    :toctree: .
 
    vf.SparseVFC
-   vf.graphize_vecfld
-   vf.vector_field_function
    vf.VectorField
+   .. vf.graphize_vecfld
+   .. vf.vector_field_function
 
-   vf.FixedPoints
-   vf.VectorField2D
    vf.topography
+   .. vf.FixedPoints
+   .. vf.VectorField2D
 
    vf.cell_accelerations
 
@@ -155,13 +163,13 @@ Vector field (vf)
    vf.rank_acceleration_genes
    vf.rank_curvature_genes
 
-   vf.search_fixed_points
    vf.gen_fixed_points
    vf.gen_gradient
    vf.IntGrad
    vf.DiffusionMatrix
    vf.action
    vf.Potential
+   .. vf.search_fixed_points
 
    vf.path_integral
    vf.alignment
@@ -195,7 +203,7 @@ Plotting (pl)
    pl.basic_stats
    pl.show_fraction
    pl.feature_genes
-   pl.ariance_explained
+   pl.variance_explained
    pl.exp_by_groups
 
    pl.cell_cycle_scores
@@ -222,12 +230,12 @@ Plotting (pl)
    pl.line_integral_conv
    pl.plot_energy
 
-   pl.plot_flow_field,
-   pl.plot_fixed_points,
-   pl.plot_nullclines,
-   pl.plot_separatrix,
-   pl.plot_traj,
-   pl.topography,
+   pl.plot_flow_field
+   pl.plot_fixed_points
+   pl.plot_nullclines
+   pl.plot_separatrix
+   pl.plot_traj
+   pl.topography
 
    pl.speed
    pl.divergence
@@ -248,7 +256,7 @@ Moive (mv)
 .. autosummary::
    :toctree: .
 
-   mv.StreamFuncAnim,
+   mv.StreamFuncAnim
    mv.animate_fates
 
 Simulation (sim)

@@ -100,7 +100,8 @@ def diag_mat(values):
 def psl(
     Y, sG=None, dist=None, K=10, C=1e3, param_gamma=1e-3, d=2, maxIter=10, verbose=False
 ):
-    """This function is a pure Python implementation of the PSL algorithm.	
+    """This function is a pure Python implementation of the PSL algorithm.
+
     Reference: Li Wang and Qi Mao, Probabilistic Dimensionality Reduction via Structure Learning. T-PAMI, VOL. 41, NO. 1, JANUARY 2019	
     Arguments	
     ---------	

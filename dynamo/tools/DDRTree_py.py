@@ -101,7 +101,8 @@ def eye(m, n):
 def DDRTree(
     X, maxIter, sigma, gamma, eps=0, dim=2, Lambda=1.0, ncenter=None, keep_history=False
 ):
-    """	
+    """	This function is a pure Python implementation of the DDRTree algorithm.
+
     Arguments	
     ---------	
         X : DxN:'np.ndarray'	

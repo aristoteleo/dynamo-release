@@ -2,6 +2,7 @@
 """
 
 from .estimation_kinetic import (
+    Mixture_KinDeg_NoSwitching,
     kinetic_estimation,
     Estimation_MomentDeg,
     Estimation_MomentDegNosp,
@@ -12,6 +13,7 @@ from .estimation_kinetic import (
     Estimation_DeterministicKinNosp,
     Estimation_DeterministicKin,
     GoodnessOfFit,
+    Lambda_NoSwitching,
 )
 
 from .utils_kinetic import (

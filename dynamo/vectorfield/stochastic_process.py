@@ -4,6 +4,7 @@ from sklearn.neighbors import NearestNeighbors
 from ..tools.utils import log1p_
 from .utils_vecCalc import vecfld_from_adata, vector_field_function
 
+
 def diffusionMatrix(adata,
               X_data=None,
               V_data=None,

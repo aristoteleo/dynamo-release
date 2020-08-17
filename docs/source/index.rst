@@ -48,7 +48,7 @@ Indices and tables
 * :ref:`search`
 
 .. _`dynamo`: https://github.com/aristoteleo/dynamo-release
-.. _`[issues]`: (https://github.com/aristoteleo/dynamo-release/issues)
-.. _`[dynamo-discussion]`: https://join.slack.com/t/dynamo-discussionhq/shared_invite/zt-ghve9pzp-r9oJ9hSQznWrDcx1fCog6g
-.. _`[Contribution]`: https://github.com/aristoteleo/dynamo-release/blob/master/CONTRIBUTING.md
+.. _`issues`: (https://github.com/aristoteleo/dynamo-release/issues)
+.. _`dynamo-discussion`: https://join.slack.com/t/dynamo-discussionhq/shared_invite/zt-ghve9pzp-r9oJ9hSQznWrDcx1fCog6g
+.. _`Contribution`: https://github.com/aristoteleo/dynamo-release/blob/master/CONTRIBUTING.md
 
