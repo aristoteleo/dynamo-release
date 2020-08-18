@@ -277,7 +277,7 @@ def cell_velocities(
     # add both source and sink distribution
     if method == "kmc":
         if method + '_transition_matrix' in adata.uns_keys() and not enforce:
-            T = adata.uns[method + '_transition_matrix']
+            T = adata.obsp[method + '_transition_matrix']
             kmc = KernelMarkovChain(P=T)
         else:
             kmc = KernelMarkovChain()
@@ -290,7 +290,7 @@ def cell_velocities(
         }
         kmc_args = update_dict(kmc_args, kmc_kwargs)
 
-        if method + '_transition_matrix' not in adata.uns_keys() or not enforce:
+        if method + '_transition_matrix' not in adata.obsp.keys() or not enforce:
             kmc.fit(
                 X,
                 V_mat,
@@ -342,7 +342,7 @@ def cell_velocities(
         vs_kwargs = update_dict(vs_kwargs, other_kernels_dict)
 
         if method + '_transition_matrix' in adata.uns_keys() and not enforce:
-            T = adata.uns[method + '_transition_matrix']
+            T = adata.obsp[method + '_transition_matrix']
             delta_X = projection_with_transition_matrix(X.shape[0], T, X_embedding)
             X_grid, V_grid, D = velocity_on_grid(
                 X_embedding[:, :2], (X_embedding + delta_X)[:, :2], xy_grid_nums=xy_grid_nums
@@ -400,17 +400,17 @@ def cell_velocities(
             delta_X[i] *= T_i.dot(high_len_) / basis_len[i] * scaler
 
     if key is None:
-        adata.uns[method + "_transition_matrix"] = T
+        adata.obsp[method + "_transition_matrix"] = T
         adata.obsm["velocity_" + basis] = delta_X
         adata.uns["grid_velocity_" + basis] = {"X_grid": X_grid, "V_grid": V_grid, "D": D}
     else:
-        adata.uns[key + '_' + method + "_transition_matrix"] = T
+        adata.obsp[key + '_' + method + "_transition_matrix"] = T
         adata.obsm[key + '_' + basis] = delta_X
         adata.uns["grid_" + key + '_' + basis] = {"X_grid": X_grid, "V_grid": V_grid, "D": D}
 
     if calc_rnd_vel:
         if key is None:
-            adata.uns[method + "_transition_matrix_rnd"] = T_rnd
+            adata.obsp[method + "_transition_matrix_rnd"] = T_rnd
             adata.obsm["X_" + basis + "_rnd"] = X_embedding
             adata.obsm["velocity_" + basis + "_rnd"] = delta_X_rnd
             adata.uns["grid_velocity_" + basis + "_rnd"] = {
@@ -419,7 +419,7 @@ def cell_velocities(
                 "D": D_rnd,
             }
         else:
-            adata.uns[key + '_' + method + "_transition_matrix_rnd"] = T_rnd
+            adata.obsp[key + '_' + method + "_transition_matrix_rnd"] = T_rnd
             adata.obsm["X_" + key + "_" + basis + "_rnd"] = X_embedding
             adata.obsm[key + "_" + basis + "_rnd"] = delta_X_rnd
             adata.uns["grid_" + key + '_' + basis + "_rnd"] = {
@@ -531,7 +531,7 @@ def stationary_distribution(adata, method="kmc", direction="both", calc_rnd=True
             depending on the direction and calc_rnd arguments.
     """
 
-    T = adata.uns["transition_matrix"]  # row is the source and columns are targets
+    T = adata.obsp["transition_matrix"]  # row is the source and columns are targets
 
     if method == "kmc":
         kmc = KernelMarkovChain()
@@ -546,7 +546,7 @@ def stationary_distribution(adata, method="kmc", direction="both", calc_rnd=True
             ] = kmc.compute_stationary_distribution()
 
             if calc_rnd:
-                T_rnd = adata.uns["transition_matrix_rnd"]
+                T_rnd = adata.obsp["transition_matrix_rnd"]
                 kmc.P = T_rnd
                 adata.obs[
                     "sink_steady_state_distribution_rnd"
@@ -562,7 +562,7 @@ def stationary_distribution(adata, method="kmc", direction="both", calc_rnd=True
             ] = kmc.compute_stationary_distribution()
 
             if calc_rnd:
-                T_rnd = adata.uns["transition_matrix_rnd"]
+                T_rnd = adata.obsp["transition_matrix_rnd"]
                 kmc.P = T_rnd
                 adata.obs[
                     "sink_steady_state_distribution_rnd"
@@ -574,7 +574,7 @@ def stationary_distribution(adata, method="kmc", direction="both", calc_rnd=True
             ] = kmc.compute_stationary_distribution()
 
             if calc_rnd:
-                T_rnd = adata.uns["transition_matrix_rnd"]
+                T_rnd = adata.obsp["transition_matrix_rnd"]
                 kmc.P = T_rnd.T / T_rnd.T.sum(0)
                 adata.obs[
                     "sink_steady_state_distribution_rnd"
@@ -586,7 +586,7 @@ def stationary_distribution(adata, method="kmc", direction="both", calc_rnd=True
             adata.obs["source_steady_state_distribution"] = diffusion(T, backward=True)
             adata.obs["sink_steady_state_distribution"] = diffusion(T)
             if calc_rnd:
-                T_rnd = adata.uns["transition_matrix_rnd"]
+                T_rnd = adata.obsp["transition_matrix_rnd"]
                 adata.obs["source_steady_state_distribution_rnd"] = diffusion(
                     T_rnd, backward=True
                 )
@@ -599,7 +599,7 @@ def stationary_distribution(adata, method="kmc", direction="both", calc_rnd=True
         elif direction == "backward":
             adata.obs["source_steady_state_distribution"] = diffusion(T, backward=True)
             if calc_rnd:
-                T_rnd = adata.uns["transition_matrix_rnd"]
+                T_rnd = adata.obsp["transition_matrix_rnd"]
                 adata.obs["source_steady_state_distribution_rnd"] = diffusion(
                     T_rnd, backward=True
                 )
@@ -622,7 +622,7 @@ def generalized_diffusion_map(adata, **kwargs):
     """
 
     kmc = KernelMarkovChain()
-    kmc.P = adata.uns["transition_matrix"]
+    kmc.P = adata.obsp["transition_matrix"]
     dm_args = {"n_dims": 2, "t": 1}
     dm_args.update(kwargs)
     dm = kmc.diffusion_map_embedding(*dm_args)

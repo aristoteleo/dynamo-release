@@ -378,19 +378,19 @@ def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None, CM=No
 def get_sz_exprs(adata, layer, total_szfactor=None):
     if layer == "raw":
         CM = adata.raw.X
-        szfactors = adata.obs[layer + "Size_Factor"][:, None]
+        szfactors = adata.obs[layer + "Size_Factor"].values[:, None]
     elif layer == "X":
         CM = adata.X
-        szfactors = adata.obs["Size_Factor"][:, None]
+        szfactors = adata.obs["Size_Factor"].values[:, None]
     elif layer == "protein":
         if "protein" in adata.obsm_keys():
             CM = adata.obsm[layer]
-            szfactors = adata.obs["protein_Size_Factor"][:, None]
+            szfactors = adata.obs["protein_Size_Factor"].values[:, None]
         else:
             CM, szfactors = None, None
     else:
         CM = adata.layers[layer]
-        szfactors = adata.obs[layer + "_Size_Factor"][:, None]
+        szfactors = adata.obs[layer + "_Size_Factor"].values[:, None]
 
     if total_szfactor is not None and total_szfactor in adata.obs.keys():
         szfactors = adata.obs[total_szfactor][:, None]

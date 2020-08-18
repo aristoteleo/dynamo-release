@@ -2,7 +2,7 @@
 import warnings
 import numpy as np
 import pandas as pd
-from pandas.api.types import is_categorical
+from pandas.api.types import is_categorical_dtype
 
 from scipy.sparse import issparse
 from numbers import Number
@@ -449,7 +449,7 @@ def scatters(
                     )
 
                     if is_not_continous:
-                        labels = _color.to_dense() if is_categorical(_color) else _color
+                        labels = _color.to_dense() if is_categorical_dtype(_color) else _color
                         if theme is None:
                             if _background in ["#ffffff", "black"]:
                                 _theme_ = "glasbey_dark"
