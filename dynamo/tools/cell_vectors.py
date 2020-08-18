@@ -162,9 +162,11 @@ def cell_velocities(
     if calc_rnd_vel:
         numba_random_seed(random_seed)
 
-    if (not neighbors_from_basis) and ("neighbors" in adata.uns.keys()):
+    if (not neighbors_from_basis) and ("neighbors" in adata.uns.keys() and "distances" in adata.obsp.keys()
+                                       and "connectivities" in adata.obsp.keys()):
+
         if use_mnn:
-            neighbors = adata.uns["mnn"]
+            # neighbors = adata.uns["mnn"]
             indices, dist = extract_indices_dist_from_graph(
                 neighbors, adata.uns["neighbors"]["indices"].shape[1]
             )
@@ -175,11 +177,10 @@ def cell_velocities(
                     adata.obsp["distances"], 30
                     # np.min((adata.uns["neighbors"]["connectivities"] > 0).sum(1).A)
                 )
-                knn_dists = build_distance_graph(knn_indices, knn_dists)
+                knn_dists_graph = build_distance_graph(knn_indices, knn_dists)
 
-                adata.uns["neighbors"]["indices"], adata.obsp["distances"] = knn_indices, knn_dists
-            neighbors, dist, indices = (
-                adata.obsp["connectivities"],
+                adata.uns["neighbors"]["indices"], adata.obsp["distances"] = knn_indices, knn_dists_graph
+            dist, indices = (
                 adata.obsp["distances"],
                 adata.uns["neighbors"]["indices"],
             )
@@ -349,14 +350,14 @@ def cell_velocities(
             )
         else:
             T, delta_X, X_grid, V_grid, D = kernels_from_velocyto_scvelo(
-                X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors,
+                X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums,
                 method, **vs_kwargs
             )
 
         if calc_rnd_vel:
             permute_rows_nsign(V_mat)
             T_rnd, delta_X_rnd, X_grid_rnd, V_grid_rnd, D_rnd = kernels_from_velocyto_scvelo(
-                X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors,
+                X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums,
                 method, **vs_kwargs
             )
     elif method == "transform":
@@ -433,8 +434,7 @@ def cell_velocities(
 
 def confident_cell_velocities(adata,
                             group,
-                            progenitors_groups,
-                            mature_cells_groups,
+                            lineage_dict,
                             ekey='M_s',
                             vkey='velocity_S',
                             basis='umap',
@@ -451,11 +451,14 @@ def confident_cell_velocities(adata,
         group: `str`
             The column key/name that identifies the cell state grouping information of cells. This will be used for
             calculating gene-wise confidence score in each cell state.
-        progenitors_groups: `list`
-            The group names from `group` that corresponding to the states of progenitors.
-        mature_cells_groups: `list`
-            The group names from `group` that corresponding to the states of terminal cell states. The best practice for
-            determining terminal cell states are those fully functional cells instead of intermediate cell states.
+        lineage_dict: `dict`
+            A dictionary describes lineage priors. Keys corresponds to the group name from `group` that corresponding
+            to the state of one progenitor type while values correspond to the group names from `group` that
+            corresponding to the states of one or multiple terminal cell states. The best practice for determining
+            terminal cell states are those fully functional cells instead of intermediate cell states. Note that in
+            python a dictionary key cannot be a list, so if you have two progenitor types converge into one terminal
+            cell state, you need to create two records each with the same terminal cell as value but different progenitor
+            as the key. Value can be either a string for one cell group or a list of string for multiple cell groups.
         ekey: `str` or None (default: `M_s`)
             The layer that will be used to retrieve data for identifying the gene is in induction or repression phase at
             each cell state. If `None`, .X is used.
@@ -495,7 +498,7 @@ def confident_cell_velocities(adata,
     else:
         genes = adata.var_names[adata.var.use_for_dynamics]
 
-    gene_wise_confidence(adata, group, progenitors_groups, mature_cells_groups, genes=genes, layer=ekey, vlayer=vkey,)
+    gene_wise_confidence(adata, group, lineage_dict, genes=genes, ekey=ekey, vkey=vkey,)
 
     adata.var.loc[:, 'avg_confidence'] = (adata.var.loc[:, 'avg_prog_confidence'] +
                                           adata.var.loc[:, 'avg_mature_confidence']) / 2
@@ -705,7 +708,7 @@ def expected_return_time(M, backward=False):
 
 
 def kernels_from_velocyto_scvelo(
-    X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors,
+    X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums,
     kernel='pearson', n_recurse_neighbors=2, max_neighs=None, transform='sqrt',
     use_neg_vals=True,
 ):
@@ -752,7 +755,7 @@ def kernels_from_velocyto_scvelo(
     vals = np.hstack(vals)
     vals[np.isnan(vals)] = 0
     G = csr_matrix(
-        (vals, (rows, cols)), shape=neighbors.shape
+        (vals, (rows, cols)), shape=(X_embedding.shape[0], X_embedding.shape[0])
     )
     G = split_velocity_graph(G, neg_cells_trick)
 

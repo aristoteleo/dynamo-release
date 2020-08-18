@@ -197,8 +197,7 @@ def consensus(x, y):
 
 def gene_wise_confidence(adata,
                          group,
-                         progenitors_groups,
-                         mature_cells_groups,
+                         lineage_dict=None,
                          genes=None,
                          ekey='M_s',
                          vkey='velocity_S',
@@ -243,11 +242,14 @@ def gene_wise_confidence(adata,
         group: `str`
             The column key/name that identifies the cell state grouping information of cells. This will be used for
             calculating gene-wise confidence score in each cell state.
-        progenitors_groups: `list`
-            The group names from `group` that corresponding to the states of progenitors.
-        mature_cells_groups: `list`
-            The group names from `group` that corresponding to the states of terminal cell states. The best practice for
-            determining terminal cell states are those fully functional cells instead of intermediate cell states.
+        lineage_dict: `dict`
+            A dictionary describes lineage priors. Keys corresponds to the group name from `group` that corresponding
+            to the state of one progenitor type while values correspond to the group names from `group` that
+            corresponding to the states of one or multiple terminal cell states. The best practice for determining
+            terminal cell states are those fully functional cells instead of intermediate cell states. Note that in
+            python a dictionary key cannot be a list, so if you have two progenitor types converge into one terminal
+            cell state, you need to create two records each with the same terminal cell as value but different progenitor
+            as the key. Value can be either a string for one cell group or a list of string for multiple cell groups.
         genes: `list` or None (default: `None`)
             The list of genes that will be used to gene-wise confidence score calculation. If `None`, all genes that go
             through velocity estimation will be used.
@@ -287,34 +289,41 @@ def gene_wise_confidence(adata,
 
     sparse, sparse_v = issparse(X_data), issparse(V_data)
 
-    progenitors_groups = [progenitors_groups] if type(progenitors_groups) == str else progenitors_groups
-    mature_cells_groups = [mature_cells_groups] if type(mature_cells_groups) == str else mature_cells_groups
-
     confidence = []
     for i_gene, gene in tqdm(enumerate(genes), desc="calculating gene velocity vectors confidence based on phase "
                                                     "portrait location with priors of progenitor/mature cell types"):
         all_vals = X_data[:, i_gene].A if sparse else X_data[:, i_gene]
         all_vals_v = V_data[:, i_gene].A if sparse_v else V_data[:, i_gene]
 
-        for i, progenitor in enumerate(progenitors_groups):
-            prog_vals = all_vals[adata.obs[group] == progenitor]
-            prog_vals_v = all_vals_v[adata.obs[group] == progenitor]
-            threshold_val = np.percentile(abs(all_vals_v), V_threshold)
+        for progenitors_groups, mature_cells_groups in lineage_dict.items():
+            progenitors_groups = [progenitors_groups]
+            if type(mature_cells_groups) is str:
+                mature_cells_groups = [mature_cells_groups]
 
-            for j, mature in enumerate(mature_cells_groups):
-                mature_vals = all_vals[adata.obs[group] == mature]
-                mature_vals_v = all_vals_v[adata.obs[group] == mature]
+            for i, progenitor in enumerate(progenitors_groups):
+                prog_vals = all_vals[adata.obs[group] == progenitor]
+                prog_vals_v = all_vals_v[adata.obs[group] == progenitor]
+                threshold_val = np.percentile(abs(all_vals_v), V_threshold)
 
-                if np.nanmedian(prog_vals) - np.nanmedian(mature_vals) > 0:
-                    # repression phase (bottom curve -- phase curve below the linear line indicates steady states)
-                    prog_confidence = 1 - sum(prog_vals_v > - threshold_val)[0] / len(prog_vals_v) # most cells should downregulate / ss
-                    mature_confidence = 1 - sum(mature_vals_v > - threshold_val)[0] / len(mature_vals_v) # most cell should downregulate / ss
-                else:
-                    # induction phase (upper curve -- phase curve above the linear line indicates steady states)
-                    prog_confidence = 1 - sum(prog_vals_v < threshold_val)[0] / len(prog_vals_v) # most cells should upregulate / ss
-                    mature_confidence = 1 - sum(mature_vals_v < threshold_val)[0] / len(mature_vals_v) # most cell should upregulate / ss
+                for j, mature in enumerate(mature_cells_groups):
+                    mature_vals = all_vals[adata.obs[group] == mature]
+                    mature_vals_v = all_vals_v[adata.obs[group] == mature]
 
-                confidence.append((gene, progenitor, mature, prog_confidence, mature_confidence))
+                    if np.nanmedian(prog_vals) - np.nanmedian(mature_vals) > 0:
+                        # repression phase (bottom curve -- phase curve below the linear line indicates steady states)
+                        prog_confidence = 1 - sum(prog_vals_v > - threshold_val)[0] / len(
+                            prog_vals_v)  # most cells should downregulate / ss
+                        mature_confidence = 1 - sum(mature_vals_v > - threshold_val)[0] / len(
+                            mature_vals_v)  # most cell should downregulate / ss
+                    else:
+                        # induction phase (upper curve -- phase curve above the linear line indicates steady states)
+                        prog_confidence = 1 - sum(prog_vals_v < threshold_val)[0] / len(
+                            prog_vals_v)  # most cells should upregulate / ss
+                        mature_confidence = 1 - sum(mature_vals_v < threshold_val)[0] / len(
+                            mature_vals_v)  # most cell should upregulate / ss
+
+                    confidence.append((gene, progenitor, mature, prog_confidence, mature_confidence))
+
     confidence = pd.DataFrame(confidence,
                       columns=['gene', 'progenitor', 'mature', 'prog_confidence', 'mature_confidence'])
     confidence.astype(dtype={"prog_confidence": "float64",
