@@ -55,7 +55,7 @@ def szFactor(
             A logic flag to determine whether the gene expression should be rounded into integers.
         method: `str` (default: `mean-geometric-mean-total`)
             The method used to calculate the expected total reads / UMI used in size factor calculation.
-            Only `mean-geometric-mean-total` and `median` are supported. When `median` is used, `locfunc` will be replaced with
+            Only `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will be replaced with
             `np.nanmedian`.
         use_all_genes_cells: `bool` (default: `True`)
             A logic flag to determine whether all cells and genes should be used for the size factor calculation.
@@ -124,6 +124,7 @@ def normalize_expr_data(
     relative_expr=True,
     keep_filtered=True,
     recalc_sz=False,
+    sz_method='median',
 ):
     """Normalize the gene expression value for the AnnData object
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
@@ -149,7 +150,10 @@ def normalize_expr_data(
             will be recalculated only for the selected feature genes.
         recalc_sz: `bool` (default: `False`)
             A logic flag to determine whether we need to recalculate size factor based on selected genes before normalization.
-
+        sz_method: `str` (default: `mean-geometric-mean-total`)
+            The method used to calculate the expected total reads / UMI used in size factor calculation.
+            Only `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will be replaced with
+            `np.nanmedian`.
     Returns
     -------
         adata: :AnnData
@@ -182,7 +186,7 @@ def normalize_expr_data(
             layers=layers,
             locfunc=np.nanmean,
             round_exprs=True,
-            method="median",
+            method=sz_method,
         )
 
     for layer in layers:
@@ -1150,6 +1154,7 @@ def recipe_monocle(
     genes_to_use=None,
     method="pca",
     num_dim=30,
+    sz_method='median',
     norm_method=None,
     pseudo_expr=1,
     feature_selection="SVR",
@@ -1184,6 +1189,10 @@ def recipe_monocle(
             The linear dimension reduction methods to be used.
         num_dim: `int` (default: `30`)
             The number of linear dimensions reduced to.
+        sz_method: `str` (default: `mean-geometric-mean-total`)
+            The method used to calculate the expected total reads / UMI used in size factor calculation.
+            Only `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will be replaced with
+            `np.nanmedian`.
         norm_method: `function` or None (default: function `None`)
             The method to normalize the data. Can be any numpy function or `Freeman_Tukey`. By default, only .X will be
             size normalized and log1p transformed while data in other layers will only be size factor normalized.
@@ -1332,8 +1341,9 @@ def recipe_monocle(
     # calculate sz factor
     if not _szFactor or "Size_Factor" not in adata.obs_keys():
         adata = szFactor(adata, total_layers=total_layers)
-        if feature_selection == "Dispersion":
-            adata = Dispersion(adata)
+
+    if feature_selection.lower() == "dispersion":
+        adata = Dispersion(adata)
 
     # set use_for_pca (use basic_filtered data)
     select_genes_dict = {
@@ -1376,7 +1386,14 @@ def recipe_monocle(
             pseudo_expr=pseudo_expr,
             relative_expr=relative_expr,
             keep_filtered=keep_filtered_genes,
+            sz_method=sz_method,
         )
+    else:
+        layers = get_layer_keys(adata, "all")
+        for layer in layers:
+            adata.layers["X_" + layer] = adata.layers[layer].copy()
+
+        adata.uns["pp_norm_method"] = None
 
     # only use genes pass filter (based on use_for_pca) to perform dimension reduction.
     if layer is None:

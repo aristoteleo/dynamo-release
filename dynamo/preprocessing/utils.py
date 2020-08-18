@@ -364,7 +364,7 @@ def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None, CM=No
     cell_total = CM.sum(axis=1).A1 if issparse(CM) else CM.sum(axis=1)
     cell_total += cell_total == 0  # avoid infinity value after log (0)
 
-    if method == "mean-geometric-mean-total":
+    if method in ["mean-geometric-mean-total", 'geometric']:
         sfs = cell_total / np.exp(locfunc(np.log(cell_total)))
     elif method == "median":
         sfs = cell_total / np.nanmedian(cell_total)
