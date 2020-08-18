@@ -7,6 +7,8 @@ from .utils import remove_particles
 
 
 class StreamFuncAnim():
+    """Animating cell fate commitment prediction via reconstructed vector field function."""
+
     def __init__(self,
                  adata,
                  basis='umap',

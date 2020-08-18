@@ -191,11 +191,8 @@ def umap_conn_indices_dist_embedding(
 
         _raw_data = X
         _transform_available = True
-        _search_graph = scipy.sparse.lil_matrix((X.shape[0], X.shape[0]), dtype=np.int8)
-        _search_graph.rows = knn_indices  # An array (self.rows) of rows, each of which is a sorted list of column indices of non-zero elements.
-        _search_graph.data = (knn_dists != 0).astype(
-            np.int8
-        )  # The corresponding nonzero values are stored in similar fashion in self.data.
+        # The corresponding nonzero values are stored in similar fashion in self.data.
+        _search_graph, _ = get_conn_dist_graph(knn_indices, knn_dists)
         _search_graph = _search_graph.maximum(  # Element-wise maximum between this and another matrix.
             _search_graph.transpose()
         ).tocsr()
