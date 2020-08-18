@@ -16,7 +16,7 @@ setup(
     extras_require={"spatial": ["pysal>2.0.0"],
                     "dimension_reduction": ["fitsne>=1.0.1"],
                     "test": ['sympy>=1.4'],
-                    "performance": ["datashader>=0.9.0", "bokeh>=1.4.0", "holoviews>=1.9.2"]
+                    "bigdata_visualization": ["datashader>=0.9.0", "bokeh>=1.4.0", "holoviews>=1.9.2"]
                    },
     packages=find_packages(),
     classifiers=[

@@ -25,9 +25,6 @@ from ..docrep import DocstringProcessor
 import pandas as pd
 import numpy as np
 from warnings import warn
-import datashader as ds
-import datashader.transfer_functions as tf
-import datashader.bundling as bd
 
 docstrings = DocstringProcessor()
 
@@ -228,6 +225,9 @@ def connectivity_base(
     """
 
     import matplotlib.pyplot as plt
+    import datashader as ds
+    import datashader.transfer_functions as tf
+    import datashader.bundling as bd
 
     dpi = plt.rcParams["figure.dpi"]
 
