@@ -166,7 +166,7 @@ def cell_velocities(
                                        and "connectivities" in adata.obsp.keys()):
 
         if use_mnn:
-            # neighbors = adata.uns["mnn"]
+            neighbors = adata.uns["mnn"]
             indices, dist = extract_indices_dist_from_graph(
                 neighbors, adata.uns["neighbors"]["indices"].shape[1]
             )
