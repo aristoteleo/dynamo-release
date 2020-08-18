@@ -103,7 +103,8 @@ def psl(
     """This function is a pure Python implementation of the PSL algorithm.
 
     Reference: Li Wang and Qi Mao, Probabilistic Dimensionality Reduction via Structure Learning. T-PAMI, VOL. 41, NO. 1, JANUARY 2019	
-    Arguments	
+
+    Arguments
     ---------	
         Y: 'numpy.ndarray'	
             data list	
@@ -127,7 +128,8 @@ def psl(
             Number of maximum iterations	
         verbose: 'bool'	
             Whether to print running information	
-    Returns	
+
+    Returns
     -------	
         (S,Z): 'tuple'	
             a tuple of the adjacency matrix and the reduced low dimension embedding.	

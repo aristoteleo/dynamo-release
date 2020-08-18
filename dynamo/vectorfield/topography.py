@@ -404,7 +404,7 @@ class VectorField2D:
         self, n, x_range, y_range, lhs=True, tol_redundant=1e-4
     ):
         if lhs:
-            from .sampling import lhsclassic
+            from ..tools.sampling import lhsclassic
 
             X0 = lhsclassic(n, 2)
         else:

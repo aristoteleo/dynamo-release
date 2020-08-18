@@ -87,6 +87,8 @@ Estimation (est)
 
 .. autosummary::
    :toctree: .
+      :maxdepth: 2
+      :toctree: .
 
     est.csc.sol_u
     est.csc.sol_s
@@ -104,6 +106,8 @@ Estimation (est)
 
 .. autosummary::
    :toctree: .
+      :maxdepth: 2
+      :toctree: .
 
     est.tsc.kinetic_estimation
     est.tsc.Estimation_MomentDegNosp
