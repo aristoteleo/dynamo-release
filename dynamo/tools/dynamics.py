@@ -1,12 +1,13 @@
 from tqdm import tqdm
 import inspect
+import numpy as np
 import pandas as pd
 from scipy.sparse import issparse, SparseEfficiencyWarning
 
 from .moments import moments, strat_mom
-from .velocity import fit_linreg, velocity, ss_estimation
-from .estimation_kinetic import *
-from .utils_kinetic import *
+from ..estimation.csc.velocity import fit_linreg, velocity, ss_estimation
+from ..estimation.tsc.estimation_kinetic import *
+from ..estimation.tsc.utils_kinetic import *
 from .utils import (
     update_dict,
     get_valid_bools,

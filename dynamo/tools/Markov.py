@@ -7,7 +7,6 @@ from scipy.stats import norm
 from scipy.linalg import eig, null_space
 from numba import jit
 from .utils import append_iterative_neighbor_indices
-from .stochastic_process import diffusionMatrix2D
 
 def markov_combination(x, v, X):
     from cvxopt import matrix, solvers
@@ -297,6 +296,7 @@ def velocity_on_grid(
 ):
     """Function to calculate the velocity vectors on a grid for grid vector field  quiver plot and streamplot, adapted from scVelo
     """
+    from ..vectorfield.stochastic_process import diffusionMatrix2D
 
     valid_idx = np.isfinite(X_emb.sum(1) + V_emb.sum(1))
     X_emb, V_emb = X_emb[valid_idx], V_emb[valid_idx]

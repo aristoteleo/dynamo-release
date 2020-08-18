@@ -3,8 +3,8 @@ from scipy.optimize import least_squares
 from scipy.sparse import issparse
 from sklearn.linear_model import LinearRegression, RANSACRegressor
 import statsmodels.api as sm
-from .moments import strat_mom
-from .utils import elem_prod, find_extreme
+from ...tools.moments import strat_mom
+from ...tools.utils import elem_prod, find_extreme
 
 
 def sol_u(t, u0, alpha, beta):

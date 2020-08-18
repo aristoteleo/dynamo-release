@@ -5,7 +5,7 @@ from .utils import update_dict, build_distance_graph, log1p_
 from .connectivity import (
     umap_conn_indices_dist_embedding,
 )
-from .psl import *
+from .psl_py import *
 
 # ---------------------------------------------------------------------------------------------------
 def prepare_dim_reduction(adata,
@@ -194,7 +194,7 @@ def run_reduce_dim(adata, X_data, n_components, n_pca_components, reduction_meth
 
         adata.uns["umap_fit"] = {"fit": mapper, "n_pca_components": n_pca_components}
     elif reduction_method == "psl":
-        adj_mat, X_dim = psl_py(
+        adj_mat, X_dim = psl(
             X_data, d=n_components, K=n_neighbors
         )  # this need to be updated
         adata.obsm[embedding_key] = X_dim

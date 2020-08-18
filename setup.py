@@ -8,14 +8,15 @@ with open("README.md", "r") as fh:
 
 setup(
     name="dynamo-release",
-    version="0.93.7",
+    version="0.94.0",
     python_requires=">=3.6",
     install_requires=[
         l.strip() for l in Path('requirements.txt').read_text('utf-8').splitlines()
     ], # 'yt>=3.5.1',
     extras_require={"spatial": ["pysal>2.0.0"],
                     "dimension_reduction": ["fitsne>=1.0.1"],
-                    "test": ['sympy>=1.4']
+                    "test": ['sympy>=1.4'],
+                    "bigdata_visualization": ["datashader>=0.9.0", "bokeh>=1.4.0", "holoviews>=1.9.2"]
                    },
     packages=find_packages(),
     classifiers=[

@@ -9,9 +9,9 @@ Created on Wed Sep 4 18:29:24 2019
 from numpy import *
 from scipy.integrate import odeint
 from scipy.optimize import least_squares
-from numba import jitclass  # import the decorator
+# from numba import jitclass  # import the decorator
 from numba import float32  # import the types
-from .sampling import lhsclassic
+from ...tools.sampling import lhsclassic
 
 spec = [
     ("a", float32),

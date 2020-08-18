@@ -11,9 +11,9 @@ import matplotlib.cm
 from matplotlib.patches import Patch
 import matplotlib.pyplot as plt
 
-import bokeh.plotting as bpl
-import bokeh.transform as btr
-from bokeh.plotting import output_notebook, output_file, show
-
-import holoviews as hv
-import holoviews.operation.datashader as hd
+# import bokeh.plotting as bpl
+# import bokeh.transform as btr
+# from bokeh.plotting import output_notebook, output_file, show
+#
+# import holoviews as hv
+# import holoviews.operation.datashader as hd

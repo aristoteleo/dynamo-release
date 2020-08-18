@@ -1,12 +1,10 @@
 from .Gillespie import Gillespie
 from .ODE import (
+    Simulator,
     two_genes_motif,
     neurogenesis,
-    state_space_sampler,
-    Simulator,
     toggle,
     Ying_model,
-    two_genes_motif,
-    neurogenesis,
+    state_space_sampler,
 )
 from .evaluation import evaluate

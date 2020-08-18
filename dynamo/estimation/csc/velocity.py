@@ -3,11 +3,11 @@ from multiprocessing.dummy import Pool as ThreadPool
 import itertools
 from scipy.sparse import csr_matrix
 from warnings import warn
-from .utils import one_shot_gamma_alpha, calc_R2, calc_norm_loglikelihood, one_shot_gamma_alpha_matrix
-from .moments import calc_12_mom_labeling
+from ...tools.utils import one_shot_gamma_alpha, calc_R2, calc_norm_loglikelihood, one_shot_gamma_alpha_matrix
+from ...tools.moments import calc_12_mom_labeling
 from .utils_velocity import *
-from ..tools.utils import update_dict
-from .moments import calc_2nd_moment
+from ...tools.utils import update_dict
+from ...tools.moments import calc_2nd_moment
 # from sklearn.cluster import KMeans
 # from sklearn.neighbors import NearestNeighbors
 

@@ -688,30 +688,30 @@ def SVRs(
         if layer == "raw":
             CM = adata.X.copy() if adata.raw is None else adata.raw
             szfactors = (
-                adata.obs[layer + "_Size_Factor"][:, None]
+                adata.obs[layer + "_Size_Factor"].values[:, None]
                 if adata.raw.X is not None
-                else adata.obs["Size_Factor"][:, None]
+                else adata.obs["Size_Factor"].values[:, None]
             )
         elif layer == "X":
             CM = adata.X.copy()
-            szfactors = adata.obs["Size_Factor"][:, None]
+            szfactors = adata.obs["Size_Factor"].values[:, None]
         elif layer == "protein":
             if "protein" in adata.obsm_keys():
                 CM = adata.obsm["protein"].copy()
-                szfactors = adata.obs[layer + "_Size_Factor"][:, None]
+                szfactors = adata.obs[layer + "_Size_Factor"].values[:, None]
             else:
                 continue
         else:
             CM = adata.layers[layer].copy()
             szfactors = (
-                adata.obs[layer + "_Size_Factor"][:, None]
+                adata.obs[layer + "_Size_Factor"].values[:, None]
                 if layer + "_Size_Factor" in adata.obs.columns
                 else None
             )
 
         if total_szfactor is not None and total_szfactor in adata.obs.keys():
             szfactors = (
-                adata.obs[total_szfactor][:, None]
+                adata.obs[total_szfactor].values[:, None]
                 if total_szfactor in adata.obs.columns
                 else None
             )

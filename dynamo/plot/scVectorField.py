@@ -13,9 +13,9 @@ from .utils import (
 from ..tools.dimension_reduction import reduceDimension
 from ..tools.cell_vectors import cell_velocities
 from ..tools.Markov import prepare_velocity_grid_data, velocity_on_grid, grid_velocity_filter
-from ..tools.topography import VectorField
+from ..vectorfield.topography import VectorField
 from ..tools.utils import update_dict
-from ..tools.utils_vecCalc import vecfld_from_adata
+from ..vectorfield.utils_vecCalc import vecfld_from_adata
 
 from .scatters import docstrings
 

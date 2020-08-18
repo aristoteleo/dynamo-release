@@ -45,8 +45,6 @@ from .vector_calculus import (
 )
 from .fate import (
     fate_bias,
-    StreamFuncAnim,
-    animate_fates,
 )
 from .state_graph import state_graph
 

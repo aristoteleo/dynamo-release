@@ -47,8 +47,9 @@ Architecture of dynamo
 
 Dynamo has a few standard modules like most other single cell analysis toolkits (Scanpy, Monocle or Seurat), for example, data loading (``dyn.read*``), preprocessing (``dyn.pp.*``), tool analysis (``dyn.tl.*``) and plotting (``dyn.pl.*``). Modules specific to dynamo include:
 
-- conventional single cell RNA-seq (scRNA-seq) modeling (``dyn.csc.*``);
-- time-resolved metabolic labeling based single cell RNA-seq (scRNA-seq) modeling (``dyn.tsc.*``);
+- a comprehensive estimation framework of expression dynamics that includes:
+    - conventional single cell RNA-seq (scRNA-seq) modeling (``dyn.csc.*``) for **standard RNA velocity estimation** and more;
+    - time-resolved metabolic labeling based single cell RNA-seq (scRNA-seq) modeling (``dyn.tsc.*``) for **labeling based RNA velocity estimation** and more;
 - vector field analysis (``dyn.vf.*``);
 - cell fate prediction (``dyn.pd.*``);
 - creating movie of cell fate predictions (``dyn.mv.*``);
@@ -133,16 +134,16 @@ Velocity vectors
 ''''''''''''''''
 We need to project the velocity vector onto low dimensional embedding for later visualization. To get there, we can either use the default ``correlation/cosine kernel`` or the novel Itô kernel from us. ::
 
-    dyn.tl.cell_velocities(adata)
+    dyn.vf.cell_velocities(adata)
 
 The above function projects and evaluates velocity vectors on ``umap`` space but you can also operate them on other basis, for example ``pca`` space::
 
-    dyn.tl.cell_velocities(adata, basis='pca')
-    dyn.tl.cell_wise_confidence(adata, basis='pca')
+    dyn.vf.cell_velocities(adata, basis='pca')
+    dyn.vf.cell_wise_confidence(adata, basis='pca')
 
 You can check the confidence of cell-wise velocity to understand how reliable the recovered velocity is across cells via::
 
-    dyn.tl.cell_wise_confidence(adata)
+    dyn.vf.cell_wise_confidence(adata)
 
 Obviously dynamo doesn't stop here. The really exciting part of dynamo lays in the fact that it learns a ``functional form of vector field`` in the full transcriptomic space which can be then used to predict cell fate and map single cell potential landscape.
 
@@ -154,7 +155,7 @@ In general, a vector field can be defined as a vector-valued function f that map
 
 To formally define the problem of velocity vector field learning, we consider a set of measured cells with pairs of current and estimated future expression states. The difference between the predicted future state and current state for each cell corresponds to the velocity. We suppose that the measured single-cell velocity is sampled from a smooth, differentiable vector field f that maps from xi to yi on the entire domain. Normally, single cell velocity measurements are results of biased, noisy and sparse sampling of the entire state space, thus the goal of velocity vector field reconstruction is to robustly learn a mapping function f that outputs yj given any point xj on the domain based on the observed data with certain smoothness constraints (Jiayi Ma et al. 2013). Under ideal scenario, the mapping function f should recover the true velocity vector field on the entire domain and predict the true dynamics in regions of expression space that are not sampled. To reconstruct vector field function in dynamo, you can simply use the following function to do all the heavy-lifting::
 
-	dyn.tl.VectorField(adata)
+	dyn.vf.VectorField(adata)
 
 By default, it learns the vector field in the `pca` space but you can of course learn it in any space or even the original gene expression space.
 
@@ -167,7 +168,7 @@ Since we learn the vector field function of the data, we can then characterize t
 
 Again, you only need to simply the following function to get all those information. ::
 
-    dyn.tl.topography(adata, basis='umap')
+    dyn.vf.topography(adata, basis='umap')
 
 Map potential landscape
 '''''''''''''''''''''''
@@ -181,7 +182,7 @@ In addition, we and others proposed different strategies to decompose the ``stoc
 
 Although an analytical decomposition on the reconstructed vector field is challenging, we are able to use a numerical algorithm we recently developed for our purpose. This approach uses a least action method under the A-type stochastic integration (Shi et al. 2012) to globally map the potential landscape Ψ(x) (Tang et al. 2017) by taking the vector field function f(x) as input. ::
 
-	dyn.tl.potential(adata)
+	dyn.vf.Potential(adata)
 
 Visualization
 '''''''''''''
@@ -198,7 +199,7 @@ Note that ``colors``  here is a list or str that can be either the column name i
 
 To visualize the topological structure of the reconstructed 2D vector fields, we provide the ``dyn.pl.topography`` function in dynamo. ::
 
-    dyn.tl.VectorField(adata, basis='umap')
+    dyn.vf.VectorField(adata, basis='umap')
     dyn.pl.topography(adata)
 
 Plotting functions in dynamo are designed to be extremely flexible. For example, you can combine different types of dynamo plots together (when you visualize only one item for each plot function) ::

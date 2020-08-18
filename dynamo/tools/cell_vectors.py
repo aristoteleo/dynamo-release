@@ -1,4 +1,3 @@
-from tqdm import tqdm
 import warnings
 import scipy as scp
 from scipy.sparse import csr_matrix, issparse
@@ -6,8 +5,7 @@ from sklearn.decomposition import PCA
 from sklearn.utils import sparsefuncs
 from .Markov import *
 from .connectivity import extract_indices_dist_from_graph
-from .topography import VectorField
-from .vector_calculus import acceleration
+
 from .metric_velocity import gene_wise_confidence
 from .utils import (
     set_velocity_genes,
@@ -164,9 +162,11 @@ def cell_velocities(
     if calc_rnd_vel:
         numba_random_seed(random_seed)
 
-    if (not neighbors_from_basis) and ("neighbors" in adata.uns.keys()):
+    if (not neighbors_from_basis) and ("neighbors" in adata.uns.keys() and "distances" in adata.obsp.keys()
+                                       and "connectivities" in adata.obsp.keys()):
+
         if use_mnn:
-            neighbors = adata.uns["mnn"]
+            # neighbors = adata.uns["mnn"]
             indices, dist = extract_indices_dist_from_graph(
                 neighbors, adata.uns["neighbors"]["indices"].shape[1]
             )
@@ -177,11 +177,10 @@ def cell_velocities(
                     adata.obsp["distances"], 30
                     # np.min((adata.uns["neighbors"]["connectivities"] > 0).sum(1).A)
                 )
-                knn_dists = build_distance_graph(knn_indices, knn_dists)
+                knn_dists_graph = build_distance_graph(knn_indices, knn_dists)
 
-                adata.uns["neighbors"]["indices"], adata.obsp["distances"] = knn_indices, knn_dists
-            neighbors, dist, indices = (
-                adata.obsp["connectivities"],
+                adata.uns["neighbors"]["indices"], adata.obsp["distances"] = knn_indices, knn_dists_graph
+            dist, indices = (
                 adata.obsp["distances"],
                 adata.uns["neighbors"]["indices"],
             )
@@ -269,7 +268,7 @@ def cell_velocities(
             from pynndescent import NNDescent
 
             nbrs = NNDescent(X, metric='eulcidean', n_neighbors=30, n_jobs=-1,
-                              random_state=19490110, **kwargs)
+                              random_state=19490110)
             indices, _ = nbrs.query(X, k=30)
         else:
             alg = "ball_tree" if X.shape[1] > 10 else 'kd_tree'
@@ -279,7 +278,7 @@ def cell_velocities(
     # add both source and sink distribution
     if method == "kmc":
         if method + '_transition_matrix' in adata.uns_keys() and not enforce:
-            T = adata.uns[method + '_transition_matrix']
+            T = adata.obsp[method + '_transition_matrix']
             kmc = KernelMarkovChain(P=T)
         else:
             kmc = KernelMarkovChain()
@@ -292,7 +291,7 @@ def cell_velocities(
         }
         kmc_args = update_dict(kmc_args, kmc_kwargs)
 
-        if method + '_transition_matrix' not in adata.uns_keys() or not enforce:
+        if method + '_transition_matrix' not in adata.obsp.keys() or not enforce:
             kmc.fit(
                 X,
                 V_mat,
@@ -344,21 +343,21 @@ def cell_velocities(
         vs_kwargs = update_dict(vs_kwargs, other_kernels_dict)
 
         if method + '_transition_matrix' in adata.uns_keys() and not enforce:
-            T = adata.uns[method + '_transition_matrix']
+            T = adata.obsp[method + '_transition_matrix']
             delta_X = projection_with_transition_matrix(X.shape[0], T, X_embedding)
             X_grid, V_grid, D = velocity_on_grid(
                 X_embedding[:, :2], (X_embedding + delta_X)[:, :2], xy_grid_nums=xy_grid_nums
             )
         else:
             T, delta_X, X_grid, V_grid, D = kernels_from_velocyto_scvelo(
-                X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors,
+                X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums,
                 method, **vs_kwargs
             )
 
         if calc_rnd_vel:
             permute_rows_nsign(V_mat)
             T_rnd, delta_X_rnd, X_grid_rnd, V_grid_rnd, D_rnd = kernels_from_velocyto_scvelo(
-                X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors,
+                X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums,
                 method, **vs_kwargs
             )
     elif method == "transform":
@@ -402,17 +401,17 @@ def cell_velocities(
             delta_X[i] *= T_i.dot(high_len_) / basis_len[i] * scaler
 
     if key is None:
-        adata.uns[method + "_transition_matrix"] = T
+        adata.obsp[method + "_transition_matrix"] = T
         adata.obsm["velocity_" + basis] = delta_X
         adata.uns["grid_velocity_" + basis] = {"X_grid": X_grid, "V_grid": V_grid, "D": D}
     else:
-        adata.uns[key + '_' + method + "_transition_matrix"] = T
+        adata.obsp[key + '_' + method + "_transition_matrix"] = T
         adata.obsm[key + '_' + basis] = delta_X
         adata.uns["grid_" + key + '_' + basis] = {"X_grid": X_grid, "V_grid": V_grid, "D": D}
 
     if calc_rnd_vel:
         if key is None:
-            adata.uns[method + "_transition_matrix_rnd"] = T_rnd
+            adata.obsp[method + "_transition_matrix_rnd"] = T_rnd
             adata.obsm["X_" + basis + "_rnd"] = X_embedding
             adata.obsm["velocity_" + basis + "_rnd"] = delta_X_rnd
             adata.uns["grid_velocity_" + basis + "_rnd"] = {
@@ -421,7 +420,7 @@ def cell_velocities(
                 "D": D_rnd,
             }
         else:
-            adata.uns[key + '_' + method + "_transition_matrix_rnd"] = T_rnd
+            adata.obsp[key + '_' + method + "_transition_matrix_rnd"] = T_rnd
             adata.obsm["X_" + key + "_" + basis + "_rnd"] = X_embedding
             adata.obsm[key + "_" + basis + "_rnd"] = delta_X_rnd
             adata.uns["grid_" + key + '_' + basis + "_rnd"] = {
@@ -433,103 +432,9 @@ def cell_velocities(
     return adata
 
 
-def cell_accelerations(adata,
-                       vf_basis='pca',
-                       basis='umap',
-                       enforce=True,
-                       preserve_len=True,
-                       other_kernels_dict={},
-                       **kwargs):
-    """Compute RNA acceleration field via reconstructed vector field and project it to low dimensional embeddings.
-
-    In classical physics, including fluidics and aerodynamics, velocity and acceleration vector fields are used as
-    fundamental tools to describe motion or external force of objects, respectively. In analogy, RNA velocity or
-    accelerations estimated from single cells can be regarded as samples in the velocity (La Manno et al. 2018) or
-    acceleration vector field (Gorin, Svensson, and Pachter 2019). In general, a vector field can be defined as a
-    vector-valued function f that maps any points (or cells’ expression state) x in a domain Ω with D dimension (or the
-    gene expression system with D transcripts / proteins) to a vector y (for example, the velocity or acceleration for
-    different genes or proteins), that is f(x) = y.
-
-    In two or three dimensions, a velocity vector field is often visualised as a quiver plot where a collection of arrows
-    with a given magnitude and direction is drawn. For example, the velocity estimates of unspliced transcriptome of
-    sampled cells projected into two dimensions is drawn to show the prediction of the future cell states in RNA velocity
-    (La Manno et al. 2018). During the differentiation process, external signal factors perturb cells and thus change
-    the vector field. Since we perform genome-wide profiling of cell states and the experiments performed are often done
-    in a short time scale, we assume a constant vector field without loss of generality (See also Discussion). Assuming
-    an asymptotic deterministic system, the trajectory of the cells travelling in the gene expression space follows the
-    vector field and can be calculated using numerical integration methods, for example Runge-Kutta algorithm. In two or
-    three dimensions, a streamline plot can be used to visualize the paths of cells will follow if released in different
-    regions of the gene expression state space under a steady flow field. Another more intuitive way to visualize the
-    structure of vector field is the so called line integral convolution method or LIC (Cabral and Leedom 1993), which
-    works by adding random black-and-white paint sources on the vector field and letting the flowing particle on the
-    vector field picking up some texture to ensure the same streamline having similar intensity. Although we have not
-    provides such functionalities in dynamo, with vector field that changes over time, similar methods, for example,
-    streakline, pathline, timeline, etc. can be used to visualize the evolution of single cell or cell populations.
-
-    Arguments
-    ---------
-        adata: :class:`~anndata.AnnData`
-            an Annodata object.
-        vf_basis: 'int' (optional, default `pca`)
-            The dictionary key that corresponds to the low dimensional embedding where the vector field function
-            reconstructed.
-        basis: 'int' (optional, default `umap`)
-            The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
-        enforce: `bool` (default: `False`)
-            Whether to enforce 1) redefining use_for_velocity column in obs attribute;
-                               2) recalculation of transition matrix.
-        preserve_len: `bool` (default: `True`)
-            Whether to preserve the length of high dimension vector length. When set to be True, the length  of low
-            dimension projected vector will be proportionally scaled to that of the high dimensional vector. Note that
-            when preserve_len is set to be True, the acceleration field may seem to be messy (although the magnitude will
-            be reflected) while the trend of acceleration when `preserve_len` is `True` is more clearer but will lose
-            information of acceleration magnitude. This is because the acceleration is not directly related to the
-            distance of cells in the low embedding space; thus the acceleration direction can be better preserved than
-            the magnitude. On the other hand, velocity is more relevant to the distance in low embedding space, so
-            preserving magnitude and direction of velocity vector in low dimension can be more easily achieved.
-        other_kernels_dict: `dict` (default: `{}`)
-            A dictionary of paramters that will be passed to the cosine/correlation kernel.
-
-    Returns
-    -------
-        Adata: :class:`~anndata.AnnData`
-            Returns an updated `~anndata.AnnData` with transition_matrix and projected embedding of high dimension velocity
-            vectors in the existing embeddings of current cell state, calculated using either the Itô kernel method
-            (default) or the diffusion approximation or the method from (La Manno et al. 2018).
-    """
-
-    if 'velocity_' + vf_basis not in adata.obsm.keys():
-        cell_velocities(adata, basis=vf_basis)
-
-    if 'VecFld_' + vf_basis not in adata.uns_keys():
-        VectorField(adata, basis=vf_basis)
-
-    if 'acceleration_' + vf_basis not in adata.obsm.keys():
-        acceleration(adata, basis=vf_basis)
-
-    X = adata.obsm['X_' + vf_basis]
-    V_mat = adata.obsm['acceleration_' + vf_basis]
-    X_embedding = adata.obsm['X_' + basis]
-
-    if basis != vf_basis and vf_basis.lower() not in ['umap', 'tsne', 'trimap', 'ddtree', 'diffusion_map']:
-        cell_velocities(
-            adata,
-            X=X,
-            V_mat=V_mat,
-            X_embedding=X_embedding,
-            basis=basis,
-            enforce=enforce,
-            key='acceleration',
-            preserve_len=preserve_len,
-            other_kernels_dict=other_kernels_dict,
-            **kwargs
-        )
-
-
 def confident_cell_velocities(adata,
                             group,
-                            progenitors_groups,
-                            mature_cells_groups,
+                            lineage_dict,
                             ekey='M_s',
                             vkey='velocity_S',
                             basis='umap',
@@ -546,11 +451,14 @@ def confident_cell_velocities(adata,
         group: `str`
             The column key/name that identifies the cell state grouping information of cells. This will be used for
             calculating gene-wise confidence score in each cell state.
-        progenitors_groups: `list`
-            The group names from `group` that corresponding to the states of progenitors.
-        mature_cells_groups: `list`
-            The group names from `group` that corresponding to the states of terminal cell states. The best practice for
-            determining terminal cell states are those fully functional cells instead of intermediate cell states.
+        lineage_dict: `dict`
+            A dictionary describes lineage priors. Keys corresponds to the group name from `group` that corresponding
+            to the state of one progenitor type while values correspond to the group names from `group` that
+            corresponding to the states of one or multiple terminal cell states. The best practice for determining
+            terminal cell states are those fully functional cells instead of intermediate cell states. Note that in
+            python a dictionary key cannot be a list, so if you have two progenitor types converge into one terminal
+            cell state, you need to create two records each with the same terminal cell as value but different progenitor
+            as the key. Value can be either a string for one cell group or a list of string for multiple cell groups.
         ekey: `str` or None (default: `M_s`)
             The layer that will be used to retrieve data for identifying the gene is in induction or repression phase at
             each cell state. If `None`, .X is used.
@@ -590,7 +498,7 @@ def confident_cell_velocities(adata,
     else:
         genes = adata.var_names[adata.var.use_for_dynamics]
 
-    gene_wise_confidence(adata, group, progenitors_groups, mature_cells_groups, genes=genes, layer=ekey, vlayer=vkey,)
+    gene_wise_confidence(adata, group, lineage_dict, genes=genes, ekey=ekey, vkey=vkey,)
 
     adata.var.loc[:, 'avg_confidence'] = (adata.var.loc[:, 'avg_prog_confidence'] +
                                           adata.var.loc[:, 'avg_mature_confidence']) / 2
@@ -626,7 +534,7 @@ def stationary_distribution(adata, method="kmc", direction="both", calc_rnd=True
             depending on the direction and calc_rnd arguments.
     """
 
-    T = adata.uns["transition_matrix"]  # row is the source and columns are targets
+    T = adata.obsp["transition_matrix"]  # row is the source and columns are targets
 
     if method == "kmc":
         kmc = KernelMarkovChain()
@@ -641,7 +549,7 @@ def stationary_distribution(adata, method="kmc", direction="both", calc_rnd=True
             ] = kmc.compute_stationary_distribution()
 
             if calc_rnd:
-                T_rnd = adata.uns["transition_matrix_rnd"]
+                T_rnd = adata.obsp["transition_matrix_rnd"]
                 kmc.P = T_rnd
                 adata.obs[
                     "sink_steady_state_distribution_rnd"
@@ -657,7 +565,7 @@ def stationary_distribution(adata, method="kmc", direction="both", calc_rnd=True
             ] = kmc.compute_stationary_distribution()
 
             if calc_rnd:
-                T_rnd = adata.uns["transition_matrix_rnd"]
+                T_rnd = adata.obsp["transition_matrix_rnd"]
                 kmc.P = T_rnd
                 adata.obs[
                     "sink_steady_state_distribution_rnd"
@@ -669,7 +577,7 @@ def stationary_distribution(adata, method="kmc", direction="both", calc_rnd=True
             ] = kmc.compute_stationary_distribution()
 
             if calc_rnd:
-                T_rnd = adata.uns["transition_matrix_rnd"]
+                T_rnd = adata.obsp["transition_matrix_rnd"]
                 kmc.P = T_rnd.T / T_rnd.T.sum(0)
                 adata.obs[
                     "sink_steady_state_distribution_rnd"
@@ -681,7 +589,7 @@ def stationary_distribution(adata, method="kmc", direction="both", calc_rnd=True
             adata.obs["source_steady_state_distribution"] = diffusion(T, backward=True)
             adata.obs["sink_steady_state_distribution"] = diffusion(T)
             if calc_rnd:
-                T_rnd = adata.uns["transition_matrix_rnd"]
+                T_rnd = adata.obsp["transition_matrix_rnd"]
                 adata.obs["source_steady_state_distribution_rnd"] = diffusion(
                     T_rnd, backward=True
                 )
@@ -694,7 +602,7 @@ def stationary_distribution(adata, method="kmc", direction="both", calc_rnd=True
         elif direction == "backward":
             adata.obs["source_steady_state_distribution"] = diffusion(T, backward=True)
             if calc_rnd:
-                T_rnd = adata.uns["transition_matrix_rnd"]
+                T_rnd = adata.obsp["transition_matrix_rnd"]
                 adata.obs["source_steady_state_distribution_rnd"] = diffusion(
                     T_rnd, backward=True
                 )
@@ -717,7 +625,7 @@ def generalized_diffusion_map(adata, **kwargs):
     """
 
     kmc = KernelMarkovChain()
-    kmc.P = adata.uns["transition_matrix"]
+    kmc.P = adata.obsp["transition_matrix"]
     dm_args = {"n_dims": 2, "t": 1}
     dm_args.update(kwargs)
     dm = kmc.diffusion_map_embedding(*dm_args)
@@ -800,7 +708,7 @@ def expected_return_time(M, backward=False):
 
 
 def kernels_from_velocyto_scvelo(
-    X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums, neighbors,
+    X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums,
     kernel='pearson', n_recurse_neighbors=2, max_neighs=None, transform='sqrt',
     use_neg_vals=True,
 ):
@@ -847,7 +755,7 @@ def kernels_from_velocyto_scvelo(
     vals = np.hstack(vals)
     vals[np.isnan(vals)] = 0
     G = csr_matrix(
-        (vals, (rows, cols)), shape=neighbors.shape
+        (vals, (rows, cols)), shape=(X_embedding.shape[0], X_embedding.shape[0])
     )
     G = split_velocity_graph(G, neg_cells_trick)
 

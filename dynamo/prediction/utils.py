@@ -3,7 +3,7 @@ import numpy as np
 from scipy import interpolate
 from scipy.integrate import solve_ivp
 from scipy.sparse import issparse
-from ..tools.topography import dup_osc_idx_iter
+from ..vectorfield.topography import dup_osc_idx_iter
 from ..tools.utils import log1p_
 
 def integrate_vf_ivp(

@@ -1,5 +1,6 @@
 import warnings
 from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
+from .connectivity import neighbors
 
 
 def reduceDimension(
@@ -76,9 +77,11 @@ def reduceDimension(
     )
     neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
 
-    if enforce or not has_basis or neighbor_key not in adata.uns_keys():
+    if enforce or not has_basis:
        adata = run_reduce_dim(adata, X_data, n_components, n_pca_components, reduction_method, embedding_key,
                               n_neighbors, neighbor_key, cores, kwargs)
+    if neighbor_key not in adata.uns_keys():
+        neighbors(adata)
 
     return adata
 

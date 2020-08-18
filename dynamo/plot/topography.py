@@ -4,10 +4,10 @@ import pandas as pd
 import scipy
 import matplotlib.pyplot as plt
 
-from ..tools.topography import topography as _topology  # , compute_separatrices
+from ..vectorfield.topography import topography as _topology  # , compute_separatrices
 from ..tools.utils import update_dict
 from ..external.hodge import ddhodge
-from ..tools.vector_calculus import curl, divergence
+from ..vectorfield.vector_calculus import curl, divergence
 from .utils import default_quiver_args
 from .scatters import scatters
 from .scatters import docstrings

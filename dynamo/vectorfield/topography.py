@@ -9,7 +9,7 @@ from scipy.integrate import odeint
 from sklearn.neighbors import NearestNeighbors
 
 from .scVectorField import vectorfield
-from .utils import (
+from ..tools.utils import (
     update_dict,
     form_triu_matrix,
     index_condensed_matrix,
@@ -19,7 +19,7 @@ from .utils import (
 from .utils_vecCalc import vector_field_function, vecfld_from_adata
 
 from ..external.hodge import ddhodge
-from ..tools.vector_calculus import curl, divergence
+from .vector_calculus import curl, divergence
 
 def remove_redundant_points(X, tol=1e-4, output_discard=False):
     X = np.atleast_2d(X)
@@ -404,7 +404,7 @@ class VectorField2D:
         self, n, x_range, y_range, lhs=True, tol_redundant=1e-4
     ):
         if lhs:
-            from .sampling import lhsclassic
+            from ..tools.sampling import lhsclassic
 
             X0 = lhsclassic(n, 2)
         else:
