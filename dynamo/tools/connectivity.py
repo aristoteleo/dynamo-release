@@ -1,6 +1,6 @@
 import numpy as np
 import scipy
-from scipy.sparse import issparse
+from scipy.sparse import issparse, csr_matrix
 from sklearn.decomposition import TruncatedSVD
 import warnings
 from copy import deepcopy
@@ -18,54 +18,64 @@ from ..docrep import DocstringProcessor
 docstrings = DocstringProcessor()
 
 
-def extract_indices_dist_from_graph(graph, n_neighbors):
-    """Extract the matrices for index, distance from the associated kNN sparse graph
+def adj_to_knn(adj, n_neighbors):
+    """convert the adjacency matrix of a nearest neighbor graph to the indices
+        and weights for a knn graph.
 
     Arguments
     ---------
-        graph: sparse matrix (`.X`, dtype `float32`)
-            Sparse matrix of the kNN graph (n_cell x n_cell). The element in the matrix corresponds to the distance between cells.
+        adj: matrix (`.X`, dtype `float32`)
+            Adjacency matrix (n x n) of the nearest neighbor graph.
         n_neighbors: 'int' (optional, default 15)
             The number of nearest neighbors of the kNN graph.
 
     Returns
     -------
-        ind_mat: :class:`~numpy.ndarray`
-            The matrix (n_cell x n_neighbors) that stores the indices for the each cell's n_neighbors nearest neighbors.
-        dist_mat: :class:`~numpy.ndarray`
-            The matrix (n_cell x n_neighbors) that stores the distances for the each cell's n_neighbors nearest neighbors.
+        idx: :class:`~numpy.ndarray`
+            The matrix (n x n_neighbors) that stores the indices for each node's 
+            n_neighbors nearest neighbors.
+        wgt: :class:`~numpy.ndarray`
+            The matrix (n x n_neighbors) that stores the weights on the edges 
+            for each node's n_neighbors nearest neighbors.
     """
 
-    n_cells = graph.shape[0]
-    ind_mat = np.zeros((n_cells, n_neighbors), dtype=int)
-    dist_mat = np.zeros((n_cells, n_neighbors), dtype=graph.dtype)
+    n_cells = adj.shape[0]
+    idx = np.zeros((n_cells, n_neighbors), dtype=int)
+    wgt = np.zeros((n_cells, n_neighbors), dtype=adj.dtype)
 
     for cur_cell in range(n_cells):
-        cur_neighbors = graph[
-            cur_cell, :
-        ].nonzero()  # returns the coordinate tuple for non-zero items
+        cur_neighbors = adj[cur_cell, :].nonzero()  # returns the coordinate tuple for non-zero items
 
         # set itself as the nearest neighbor
-        ind_mat[cur_cell, :] = cur_cell
-        dist_mat[cur_cell, :] = 0
+        idx[cur_cell, :] = cur_cell
+        wgt[cur_cell, :] = 0
 
         # there could be more or less than n_neighbors because of an approximate search
         cur_n_neighbors = len(cur_neighbors[1])
         if cur_n_neighbors > n_neighbors - 1:
-            sorted_indices = np.argsort(graph[cur_cell][:, cur_neighbors[1]].A)[0][
+            sorted_indices = np.argsort(adj[cur_cell][:, cur_neighbors[1]].A)[0][
                 : (n_neighbors - 1)
             ]
-            ind_mat[cur_cell, 1:] = cur_neighbors[1][sorted_indices]
-            dist_mat[cur_cell, 1:] = graph[cur_cell][
+            idx[cur_cell, 1:] = cur_neighbors[1][sorted_indices]
+            wgt[cur_cell, 1:] = adj[cur_cell][
                 0, cur_neighbors[1][sorted_indices]
             ].A
         else:
-            ind_mat[cur_cell, 1 : (cur_n_neighbors + 1)] = cur_neighbors[1]
-            dist_mat[cur_cell, 1 : (cur_n_neighbors + 1)] = graph[cur_cell][
+            idx[cur_cell, 1 : (cur_n_neighbors + 1)] = cur_neighbors[1]
+            wgt[cur_cell, 1 : (cur_n_neighbors + 1)] = adj[cur_cell][
                 :, cur_neighbors[1]
             ].A
 
-    return ind_mat, dist_mat
+    return idx, wgt
+
+
+def knn_to_adj(knn_indices, knn_weights):
+    adj = csr_matrix((knn_weights.flatten(),
+                    (np.repeat(knn_indices[:, 0], knn_indices.shape[1]),
+                     knn_indices.flatten())))
+    adj.eliminate_zeros()
+
+    return adj
 
 
 @docstrings.get_sectionsf("umap_ann")
@@ -163,7 +173,7 @@ def umap_conn_indices_dist_embedding(
         # extract knn_indices, knn_dist
         g_tmp = deepcopy(graph)
         g_tmp[graph.nonzero()] = dmat[graph.nonzero()]
-        knn_indices, knn_dists = extract_indices_dist_from_graph(
+        knn_indices, knn_dists = adj_to_knn(
             g_tmp, n_neighbors=n_neighbors
         )
     else:
@@ -378,7 +388,7 @@ def neighbors(
     layer=None,
     n_pca_components=30,
     n_neighbors=30,
-    alg=None,
+    method=None,
     metric="euclidean",
     metric_kwads=None,
     cores=1,
@@ -406,8 +416,8 @@ def neighbors(
             Number of PCA components. Applicable only if you will use pca `basis` for nearest neighbor search.
         n_neighbors: `int` (optional, default `30`)
             Number of nearest neighbors.
-        alg: `str` or `None` (default: `None`)
-            The algorithm that will be used for nearest neighbor search. If `umap`, it relies on `pynndescent` package's
+        method: `str` or `None` (default: `None`)
+            The methoed used for nearest neighbor search. If `umap`, it relies on `pynndescent` package's
             NNDescent for fast nearest neighbor search.
         metric: `str` or callable, default='euclidean'
             The distance metric to use for the tree.  The default metric is , and with p=2 is equivalent to the standard
@@ -439,27 +449,39 @@ def neighbors(
             valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
             valid_ind = np.array(valid_ind).flatten()
             CM = CM[:, valid_ind]
-            adata, fit, _ = pca(adata, CM, n_pca_components=n_pca_components)
+            adata, _, _ = pca(adata, CM, n_pca_components=n_pca_components)
 
             X_data = adata.obsm['X_pca']
         else:
             genes, X_data = fetch_X_data(adata, genes, layer, basis)
 
-    alg = 'umap' if X_data.shape[0] > 200000 and X_data.shape[1] > 2 else 'ball_tree' if X_data.shape[1] > 10 else 'kd_tree'
+    if method is None:
+        if X_data.shape[0] > 200000 and X_data.shape[1] > 2:
+            try:
+                from pynndescent import NNDescent
+                method = 'pynn'
+            except ImportError:
+                print(
+                    "For faster nearest neighbor search please install pynndescent from here: https://github.com/lmcinnes/pynndescent"
+                )
+                method = 'ball_tree' if X_data.shape[1] > 10 else 'kd_tree'
+        elif X_data.shape[1] > 10:
+            method = 'ball_tree' 
+        else:
+            method = 'kd_tree'
 
     # may distinguish between umap and pynndescent
-    if alg == 'umap':
-        from pynndescent import NNDescent
+    if method == 'pynn':
         index = NNDescent(X_data, metric=metric, metric_kwads=metric_kwads, n_neighbors=n_neighbors, n_jobs=cores,
                           random_state=seed, **kwargs)
         knn, distances = index.query(X_data, k=n_neighbors)
-    elif alg in ['ball_tree', 'kd_tree']:
+    elif method in ['ball_tree', 'kd_tree']:
         from sklearn.neighbors import NearestNeighbors
-        nbrs = NearestNeighbors(n_neighbors=n_neighbors, metric=metric, metric_params=metric_kwads, algorithm=alg,
+        nbrs = NearestNeighbors(n_neighbors=n_neighbors, metric=metric, metric_params=metric_kwads, algorithm=method,
                                 n_jobs=cores, **kwargs).fit(X_data)
         distances, knn = nbrs.kneighbors(X_data)
     else:
-        raise ImportError(f'nearest neighbor search method {alg} is not supported')
+        raise ImportError(f'nearest neighbor search method {method} is not supported')
 
 
     adata.obsp["connectivities"], adata.obsp["distances"] = get_conn_dist_graph(knn, distances)
@@ -468,7 +490,7 @@ def neighbors(
     adata.uns['neighbors']["indices"] =  knn
     adata.uns["neighbors"]["params"] = {
         "n_neighbors": n_neighbors,
-        "method": alg,
+        "method": method,
         "metric": metric,
         "n_pcs": n_pca_components,
     }

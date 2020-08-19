@@ -109,10 +109,10 @@ def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None)
     if cells_ixs is not None:
         uns["cell_ixs"] = cells_ixs
     if hasattr(vlm, "embedding_knn"):
-        from .connectivity import extract_indices_dist_from_graph
+        from .connectivity import adj_to_knn
 
         n_neighbors = np.unique((vlm.embedding_knn > 0).sum(1)).min()
-        ind_mat, dist_mat = extract_indices_dist_from_graph(
+        ind_mat, dist_mat = adj_to_knn(
             vlm.emedding_knn, n_neighbors
         )
         uns["neighbors"] = {"indices": ind_mat}
