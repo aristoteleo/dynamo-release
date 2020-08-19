@@ -46,7 +46,7 @@ extensions = [
     'sphinx.ext.viewcode',  # Add a link to the Python source code for classes, functions etc.
     "sphinx.ext.githubpages",
     'sphinx.ext.autosectionlabel',
-    "sphinx_autodoc_typehints",
+    "sphinx_autodoc_typehints",  # Automatically document param types (less noise in class signature)
 ]
 
 # Mappings for sphinx.ext.intersphinx. Projects have to have Sphinx-generated doc! (.inv file)
@@ -67,7 +67,7 @@ exclude_patterns = []
 autosummary_generate = True
 autodoc_member_order = 'bysource'
 autoclass_content = "both"  # Add __init__ doc (ie. params) to class summaries
-html_show_sourcelink = False  # Remove 'view source code' from top of page (for html, not python)
+html_show_sourcelink = True  # Remove 'view source code' from top of page (for html, not python)
 autodoc_inherit_docstrings = True  # If no class summary, inherit base class summary
 
 autodoc_default_flags = [
@@ -92,10 +92,8 @@ html_context = dict(
     conf_py_path="/docs/source/",
 )
 
-
 def setup(app):
     app.add_css_file("custom.css")
-
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
