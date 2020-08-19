@@ -84,35 +84,32 @@ Estimation (est.csc)
 **Conventional scRNA-seq (est.csc)**
 
 .. autosummary::
-      :toctree: _autosummary
-     dynamo.est.csc.velocity
-     dynamo.est.csc.ss_estimation
+   :toctree: _autosummary
+   :template: custom-module-template.rst
+   :recursive:
 
+   est.csc.velocity
+   est.csc.ss_estimation
 
 **Time-resolved metabolic labeling based scRNA-seq (est.tsc)**
 
-.. autoclass:: dynamo.est.tsc.kinetic_estimation
-      :members:
-.. autoclass:: dynamo.est.tsc.Estimation_DeterministicDeg
-      :members:
-.. autoclass:: dynamo.est.tsc.Estimation_DeterministicDegNosp
-      :members:
-.. autoclass:: dynamo.est.tsc.Estimation_MomentDeg
-      :members:
-.. autoclass:: dynamo.est.tsc.Estimation_MomentDegNosp
-      :members:
-.. autoclass:: dynamo.est.tsc.Estimation_MomentKin
-      :members:
-.. autoclass:: dynamo.est.tsc.Estimation_MomentKinNosp
-      :members:
-.. autoclass:: dynamo.est.tsc.Estimation_DeterministicKinNosp
-      :members:
-.. autoclass:: dynamo.est.tsc.Estimation_DeterministicKin
-      :members:
-.. autoclass:: dynamo.est.tsc.Mixture_KinDeg_NoSwitching
-      :members:
-.. autoclass:: dynamo.est.tst.Lambda_NoSwitching
-      :members:
+.. autosummary::
+   :toctree: _autosummary
+   :template: custom-module-template.rst
+   :recursive:
+
+   est.tsc.kinetic_estimation
+   est.tsc.Estimation_DeterministicDeg
+   est.tsc.Estimation_DeterministicDegNosp
+   est.tsc.Estimation_MomentDeg
+   est.tsc.Estimation_MomentDegNosp
+   est.tsc.Estimation_MomentKin
+   est.tsc.Estimation_MomentKinNosp
+   est.tsc.Estimation_DeterministicKinNosp
+   est.tsc.Estimation_DeterministicKin
+   est.tsc.Mixture_KinDeg_NoSwitching
+   est.tsc.Lambda_NoSwitching
+
 
 Vector field (vf)
 ~~~~~~~~~~~~~~~~~
