@@ -11,8 +11,7 @@ Preprocessing (pp)
 ~~~~~~~~~~~~~~~~~~
 
 .. autosummary::
-      :maxdepth: 2
-      :toctree: .
+      :toctree: _autosummary
 
    pp.recipe_monocle
    pp.cell_cycle_scores
@@ -22,8 +21,7 @@ Tools (tl)
 ~~~~~~~~~~
 
 .. autosummary::
-    :maxdepth: 2
-    :toctree: .
+    :toctree: _autosummary
 
    tl.neighbors
    tl.mnn
@@ -80,68 +78,47 @@ Tools (tl)
    tl.psl
    .. tl.cal_ncenter
 
-Estimation (est)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Estimation (est.csc)
+~~~~~~~~~~~~~~~~~~~~
 
 **Conventional scRNA-seq (est.csc)**
 
 .. autosummary::
-   :toctree: .
-      :maxdepth: 2
-      :toctree: .
+      :toctree: _autosummary
+     dynamo.est.csc.velocity
+     dynamo.est.csc.ss_estimation
 
-    est.csc.sol_u
-    est.csc.sol_s
-    est.csc.sol_p
-    est.csc.fit_linreg
-    est.csc.fit_first_order_deg_lsq
-    est.csc.solve_first_order_deg
-    est.csc.fit_gamma_lsq
-    est.csc.fit_alpha_synthesis
-    est.csc.fit_alpha_degradation
-    .. est.csc.velocity
-    .. est.csc.ss_estimation
 
 **Time-resolved metabolic labeling based scRNA-seq (est.tsc)**
 
-.. autosummary::
-   :toctree: .
-      :maxdepth: 2
-      :toctree: .
-
-    est.tsc.kinetic_estimation
-    est.tsc.Estimation_MomentDegNosp
-    est.tsc.Estimation_MomentKin
-    est.tsc.Mixture_KinDeg_NoSwitching
-    est.tst.Lambda_NoSwitching
-    est.tsc.Estimation_MomentKinNosp
-    est.tsc.Estimation_DeterministicKinNosp
-    est.tsc.Estimation_DeterministicKin
-    est.tsc.Mixture_KinDeg_NoSwitching
-
-    .. est.tsc.Estimation_MomentDeg
-    .. est.tsc.Estimation_MomentDegNosp
-    .. est.tsc.Estimation_MomentKin
-    .. est.tsc.Estimation_DeterministicDeg
-
-    .. est.tsc.Estimation_DeterministicDegNosp
-    ..
-    .. est.tsc.Estimation_DeterministicKin
-    .. est.tsc.GoodnessOfFit
-
-    .. est.tsc.LinearODE
-    .. est.tsc.Moments
-    .. est.tsc.Moments_Nosplicing
-    .. est.tsc.Moments_NoSwitching
-    .. est.tsc.Moments_NoSwitchingNoSplicing
-    .. est.tsc.Deterministic
-    .. est.tsc.Deterministic_NoSplicing
+.. autoclass:: dynamo.est.tsc.kinetic_estimation
+      :members:
+.. autoclass:: dynamo.est.tsc.Estimation_DeterministicDeg
+      :members:
+.. autoclass:: dynamo.est.tsc.Estimation_DeterministicDegNosp
+      :members:
+.. autoclass:: dynamo.est.tsc.Estimation_MomentDeg
+      :members:
+.. autoclass:: dynamo.est.tsc.Estimation_MomentDegNosp
+      :members:
+.. autoclass:: dynamo.est.tsc.Estimation_MomentKin
+      :members:
+.. autoclass:: dynamo.est.tsc.Estimation_MomentKinNosp
+      :members:
+.. autoclass:: dynamo.est.tsc.Estimation_DeterministicKinNosp
+      :members:
+.. autoclass:: dynamo.est.tsc.Estimation_DeterministicKin
+      :members:
+.. autoclass:: dynamo.est.tsc.Mixture_KinDeg_NoSwitching
+      :members:
+.. autoclass:: dynamo.est.tst.Lambda_NoSwitching
+      :members:
 
 Vector field (vf)
 ~~~~~~~~~~~~~~~~~
 
 .. autosummary::
-   :toctree: .
+   :toctree: _autosummary
 
    vf.SparseVFC
    vf.VectorField
@@ -192,7 +169,7 @@ Prediction (pd)
 ~~~~~~~~~~~~~~~
 
 .. autosummary::
-   :toctree: .
+   :toctree: _autosummary
 
    pd.fate
    pd.fate_bias
@@ -202,7 +179,7 @@ Plotting (pl)
 ~~~~~~~~~~~~~
 
 .. autosummary::
-   :toctree: .
+   :toctree: _autosummary
 
    pl.basic_stats
    pl.show_fraction
@@ -258,7 +235,7 @@ Moive (mv)
 ~~~~~~~~~~~~~
 
 .. autosummary::
-   :toctree: .
+   :toctree: _autosummary
 
    mv.StreamFuncAnim
    mv.animate_fates
@@ -267,7 +244,7 @@ Simulation (sim)
 ~~~~~~~~~~~~~~~~
 
 .. autosummary::
-   :toctree: .
+   :toctree: _autosummary
 
    sim.two_genes_motif
    sim.neurogenesis
@@ -284,7 +261,7 @@ External (ext)
 ~~~~~~~~~~~~~~
 
 .. autosummary::
-   :toctree: .
+   :toctree: _autosummary
 
     ext.ddhodge
     ext.scribe

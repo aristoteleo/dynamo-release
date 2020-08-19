@@ -104,9 +104,9 @@ def cell_velocities(
             The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
         neigh_key: 'str' (optional, default `neighbors`)
             The dictionary key for the neighbor information (stores nearest neighbor `indices`) in .uns.
-        adj_key: 'int' (optional, default `distances`)
-            The dictionary key for the connectivity graph information (stores nearest neighbor `indices`) in .uns.
-        method: `string` (optional, default `pearson`)
+        adj_key: 'str' (optional, default `distances`)
+            The dictionary key for the adjacency graph information (stores nearest neighbor `indices`) in .uns.
+        method: `str` (optional, default `pearson`)
             The method to calculate the transition matrix and project high dimensional vector to low dimension, either `kmc`,
             `cosine`, `pearson`, or `transform`. "kmc" is our new approach to learn the transition matrix via diffusion
             approximation or an Itô kernel. "cosine" or "pearson" are the methods used in the original RNA velocity paper
