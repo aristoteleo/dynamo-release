@@ -7,7 +7,7 @@ Import dynamo as::
 
    import dynamo as dyn
 
-Data io
+Data IO
 ~~~~~~~
 (See more at `anndata-docs <https://anndata.readthedocs.io/en/latest/anndata.AnnData.html>`_)
 
@@ -92,7 +92,7 @@ Preprocessing (pp)
 Tools (tl)
 ~~~~~~~~~~
 
-*kNN and Moments of expressions*
+*kNN and moments of expressions*
 
 .. autosummary::
     :toctree: _autosummary
@@ -503,5 +503,5 @@ Utilities
 .. autosummary::
    :toctree: _autosummary
 
-   configuration.set_pub_style
    configuration.set_figure_params
+   configuration.set_pub_style

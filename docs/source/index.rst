@@ -29,16 +29,30 @@ If you want to contribute to the development of dynamo, please check out CONTRIB
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Contents
 
    ten_minutes_to_dynamo
-   Tutorial
-   Other_notebooks
    API
    FAQ
    Release_notes
    Reference
    Acknowledgement
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Main tutorials
+   :hidden:
+
+   zebrafish
+
+.. toctree::
+   :caption: Other tutorials
+   :maxdepth: 1
+   :hidden:
+
+   pancreatic_endocrinogenesis
+   dentategyrus_subset_scvelo
+
 
 Indices and tables
 ==================
