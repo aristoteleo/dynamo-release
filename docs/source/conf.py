@@ -42,12 +42,17 @@ extensions = [
     "sphinx.ext.coverage",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
-    "sphinx.ext.intersphinx",
+    "sphinx.ext.intersphinx", # Link to other project's documentation (see mapping below)
+    'sphinx.ext.viewcode',  # Add a link to the Python source code for classes, functions etc.
     "sphinx.ext.githubpages",
     'sphinx.ext.autosectionlabel',
-    "sphinx_autodoc_typehints",
+    "sphinx_autodoc_typehints",  # Automatically document param types (less noise in class signature)
 ]
 
+# Mappings for sphinx.ext.intersphinx. Projects have to have Sphinx-generated doc! (.inv file)
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3/", None),
+}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -61,6 +66,9 @@ exclude_patterns = []
 # Generate the API documentation when building
 autosummary_generate = True
 autodoc_member_order = 'bysource'
+autoclass_content = "both"  # Add __init__ doc (ie. params) to class summaries
+html_show_sourcelink = True  # Remove 'view source code' from top of page (for html, not python)
+autodoc_inherit_docstrings = True  # If no class summary, inherit base class summary
 
 autodoc_default_flags = [
     # Make sure that any autodoc declarations show the right members
@@ -84,10 +92,8 @@ html_context = dict(
     conf_py_path="/docs/source/",
 )
 
-
 def setup(app):
     app.add_css_file("custom.css")
-
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

@@ -23,6 +23,7 @@ def guestimate_init_cond(x_data):
 
 class kinetic_estimation:
     '''A general parameter estimation framework for all types of time-seris data
+
         Arguments
         ---------
             param_ranges: :class:`~numpy.ndarray`
@@ -128,6 +129,7 @@ class kinetic_estimation:
 
     def fit_lsq(self, t, x_data, p0=None, n_p0=1, bounds=None, sample_method='lhs', method=None, normalize=True):
         '''Fit time-seris data using least squares
+
         Arguments
         ---------
             t: :class:`~numpy.ndarray`
@@ -150,6 +152,7 @@ class kinetic_estimation:
             normalize: bool, optional, default: True
                 Whether or not normalize values in x_data across species, so that large values do
                 not dominate the optimizer.
+
         Returns
         ---------
             popt: :class:`~numpy.ndarray`
@@ -203,14 +206,14 @@ class kinetic_estimation:
 
             Returns
             -------
-            p: float
-            The p-value of a one-tailed chi-square test.
+                p: float
+                The p-value of a one-tailed chi-square test.
 
-            c2: float
-            The chi-square statistics.
+                c2: float
+                The chi-square statistics.
 
-            df: int
-            Degree of freedom.
+                df: int
+                Degree of freedom.
         '''
         if x_data.ndim == 1:
             x_data = x_data[None]
