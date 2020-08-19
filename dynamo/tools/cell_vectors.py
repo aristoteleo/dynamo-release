@@ -4,7 +4,7 @@ from scipy.sparse import csr_matrix, issparse
 from sklearn.decomposition import PCA
 from sklearn.utils import sparsefuncs
 from .Markov import *
-from .connectivity import extract_indices_dist_from_graph
+from .connectivity import adj_to_knn, knn_to_adj
 
 from .metric_velocity import gene_wise_confidence
 from .utils import (
@@ -17,7 +17,6 @@ from .utils import (
     split_velocity_graph,
     norm,
     einsum_correlation,
-    build_distance_graph,
     log1p_,
 )
 
@@ -31,13 +30,15 @@ def cell_velocities(
     V_mat=None,
     X_embedding=None,
     use_mnn=False,
-    neighbors_from_basis=False,
     n_pca_components=None,
     min_r2=0.01,
     min_alpha=0.01,
     min_gamma=0.01,
     min_delta=0.01,
     basis="umap",
+    neigh_key='neighbors',
+    conn_key='distances',
+    n_neighbors=30,
     method="pearson",
     neg_cells_trick=True,
     calc_rnd_vel=False,
@@ -87,9 +88,6 @@ def cell_velocities(
             different layers, which which accounts for cases where, for example, the cells from spliced expression may be
             nearest neighbors but far from nearest neighbors on unspliced data. Using mnn assumes your data from different
             layers are reliable (otherwise it will destroy real signals).
-        neighbors_from_basis: `bool` (optional, default `False`)
-            Whether to construct nearest neighbors from low dimensional space as defined by the `basis`, instead of using
-            that calculated during UMAP process.
         n_pca_components: `int` (optional, default `None`)
             The number of pca components to project the high dimensional X, V before calculating transition matrix for
             velocity visualization. By default it is None and if method is `kmc`, n_pca_components will be reset to 30;
@@ -162,32 +160,49 @@ def cell_velocities(
     if calc_rnd_vel:
         numba_random_seed(random_seed)
 
-    if (not neighbors_from_basis) and ("neighbors" in adata.uns.keys() and "distances" in adata.obsp.keys()
-                                       and "connectivities" in adata.obsp.keys()):
+    if neigh_key is not None and neigh_key in adata.uns.keys() and 'indices' in adata.uns[neigh_key]:
+        # use neighbor indices in neigh_key (if available) first for the sake of performance.
+        indices = adata.uns[neigh_key]['indices']
+        if type(indices) is not np.ndarray:
+            indices = np.array(indices)
 
+        # simple case: the input is a knn graph
+        if len(indices.shape) > 1:
+            indices = indices[:, :n_neighbors]
+        # general case
+        else:
+            idx = np.ones((len(indices), n_neighbors)) * np.nan
+            for i, nbr in enumerate(indices):
+                idx[i, :len(nbr)] = nbr
+            indices = idx
+            if np.any(np.isnan(indices)):
+                warnings.warn('Resulting knn index matrix contains NaN. Check if n_neighbors is too large.')
+
+    elif conn_key is not None and conn_key in adata.obsp.keys():
         if use_mnn:
             # neighbors = adata.uns["mnn"]
-            indices, dist = extract_indices_dist_from_graph(
-                neighbors, adata.uns["neighbors"]["indices"].shape[1]
-            )
-            indices, dist = indices[:, 1:], dist[:, 1:]
+            #indices, dist = extract_indices_dist_from_graph(
+            #    neighbors, adata.uns["neighbors"]["indices"].shape[1]
+            #)
+            #indices, dist = indices[:, 1:], dist[:, 1:]
+            pass
         else:
-            if adata.obsp["distances"].shape[0] == adata.obsp["distances"].shape[1]:
-                knn_indices, knn_dists = extract_indices_dist_from_graph(
-                    adata.obsp["distances"], 30
-                    # np.min((adata.uns["neighbors"]["connectivities"] > 0).sum(1).A)
-                )
-                knn_dists_graph = build_distance_graph(knn_indices, knn_dists)
+            knn_indices, _ = adj_to_knn(adata.obsp[conn_key], n_neighbors)
+            #knn_adj = knn_to_adj(knn_indices, knn_dists)
 
-                adata.uns["neighbors"]["indices"], adata.obsp["distances"] = knn_indices, knn_dists_graph
-            dist, indices = (
-                adata.obsp["distances"],
-                adata.uns["neighbors"]["indices"],
-            )
-            indices, dist = indices[:, 1:], dist[:, 1:]
+            ### user wouldn't expect such a function to change the neighborhood info...
+            ### consider writing them into a new item, or do this in connectivity.neighbors.
+
+            #    adata.uns["neighbors"]["indices"], adata.obsp["distances"] = knn_indices, knn_adj
+            #dist, indices = (
+            #    adata.obsp["distances"],
+            #    adata.uns["neighbors"]["indices"],
+            #)
+            #indices, dist = indices[:, 1:], dist[:, 1:]
+            indices = knn_indices[:, 1:]
     else:
-        raise Exception(f"Seems like your adata object doesn't have neighbor information. "
-                        "Try running `dyn.tl.reduceDimension` or `dyn.tl.neighbors` first.")
+        raise Exception(f"Neighborhood info '{conn_key}' is missing in the provided anndata object."
+                        "Run `dyn.tl.reduceDimension` or `dyn.tl.neighbors` first.")
 
     if 'confident_gene' in adata.var.keys() and not enforce:
         X = adata[:, adata.var.confident_gene.values].layers[ekey] if X is None else X
@@ -250,7 +265,7 @@ def cell_velocities(
             adata.uns["velocity_PCs"] = pca_fit.components_.T
             adata.obsm["X_velocity_pca"] = X_pca
 
-        X_pca, PCs, pca_fit = (
+        X_pca, _, pca_fit = (
             adata.obsm["X_velocity_pca"],
             adata.uns["velocity_PCs"],
             adata.uns["velocity_pca_fit"],
@@ -263,17 +278,19 @@ def cell_velocities(
         adata.obsm["velocity_pca_raw"] = V_pca
         X, V_mat = X_pca[:, :n_pca_components], V_pca[:, :n_pca_components]
 
-    if neighbors_from_basis:
-        if X.shape[0] > 200000 and X.shape[1] > 2: 
-            from pynndescent import NNDescent
+    ### there shouldn't be neighborhood calculation functions here. user could use
+    ### neighorhood from dim reduction, connectivity.neighbors, or their own procedures.
+    #if neighbors_from_basis:
+    #    if X.shape[0] > 200000 and X.shape[1] > 2: 
+    #        from pynndescent import NNDescent
 
-            nbrs = NNDescent(X, metric='eulcidean', n_neighbors=30, n_jobs=-1,
-                              random_state=19490110)
-            indices, _ = nbrs.query(X, k=30)
-        else:
-            alg = "ball_tree" if X.shape[1] > 10 else 'kd_tree'
-            nbrs = NearestNeighbors(n_neighbors=30, algorithm=alg, n_jobs=-1).fit(X)
-            _, indices = nbrs.kneighbors(X)
+    #        nbrs = NNDescent(X, metric='eulcidean', n_neighbors=n_neighbors, n_jobs=-1,
+    #                          random_state=19490110)
+    #        indices, _ = nbrs.query(X, k=30)
+    #    else:
+    #        alg = "ball_tree" if X.shape[1] > 10 else 'kd_tree'
+    #        nbrs = NearestNeighbors(n_neighbors=n_neighbors, algorithm=alg, n_jobs=-1).fit(X)
+    #        _, indices = nbrs.kneighbors(X)
 
     # add both source and sink distribution
     if method == "kmc":

@@ -1366,17 +1366,6 @@ def split_velocity_graph(G, neg_cells_trick=True):
     else:
         return G
 
-# ---------------------------------------------------------------------------------------------------
-# dimension reduction related
-
-def build_distance_graph(knn_indices, knn_dists):
-    knn_dists = csr_matrix((knn_dists.flatten(),
-                            (np.repeat(knn_indices[:, 0], knn_indices.shape[1]),
-                             knn_indices.flatten())))
-    knn_dists.eliminate_zeros()
-
-    return knn_dists
-
 
 # ---------------------------------------------------------------------------------------------------
 # vector field related
