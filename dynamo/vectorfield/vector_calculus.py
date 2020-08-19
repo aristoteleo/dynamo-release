@@ -36,11 +36,11 @@ def speed(adata,
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        basis: `str` or None (default: `umap`)
+        basis: str or None (default: `umap`)
             The embedding data in which the vector field was reconstructed.
-        VecFld: `dict`
+        VecFld: dict
             The true ODE function, useful when the data is generated through simulation.
-        method: `str` (default: `analytical`)
+        method: str (default: `analytical`)
             The method that will be used for calculating speed, either `analytical` or `numeric`. `analytical`
             method will use the analytical form of the reconstructed vector field for calculating Jacobian. Otherwise,
             raw velocity vectors are used.
@@ -88,24 +88,25 @@ def jacobian(adata,
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        regulators: `list`
+        regulators: list
             The list of genes that will be used as regulators when calculating the cell-wise Jacobian matrix. The Jacobian
             is the matrix consisting of partial derivatives of the vector field wrt gene expressions. It can be used to 
             evaluate the change in velocities of effectors (see below) as the expressions of regulators increase. The 
             regulators are the denominators of the partial derivatives. 
-        effectors: `List` or `None` (default: `None`)
+        effectors: list or `None` (default: `None`)
             The list of genes that will be used as effectors when calculating the cell-wise Jacobian matrix. The effectors
             are the numerators of the partial derivatives.
-        basis: `str` or None (default: `pca`)
+        basis: str or None (default: `pca`)
             The embedding data in which the vector field was reconstructed. If `None`, use the vector field function that
             was reconstructed directly from the original unreduced gene expression space.
         vector_field_class: :class:`~scVectorField.vectorfield`
             If not None, the divergene will be computed using this class instead of the vector field stored in adata.
-        method: `str` (default: `analytical`)
-            The method that will be used for calculating Jacobian, either `analytical` or `numeric`. `analytical`
-            method will use the analytical form of the reconstructed vector field for calculating Jacobian while
-            `numeric` method will use numdifftools for calculation. `analytical` method is much more efficient.
-        cores: `int` (default: 1):
+        method: str (default: `analytical`)
+            The method that will be used for calculating Jacobian, either `analytical` or `numerical`. `analytical`
+            method uses the analytical expressions for calculating Jacobian while `numerical` method uses numdifftools,
+            a numerical differentiation tool, for computing Jacobian. 
+            `analytical` method is much more efficient.
+        cores: int (default: 1)
             Number of cores to calculate Jacobian. If cores is set to be > 1, multiprocessing will be used to
             parallel the Jacobian calculation.
 
@@ -175,11 +176,11 @@ def curl(adata,
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        basis: `str` or None (default: `umap`)
+        basis: str or None (default: `umap`)
             The embedding data in which the vector field was reconstructed.
-        vector_field_class: :class:`~scVectorField.vectorfield`
+        vector_field_class: :class:`~.scVectorField.vectorfield`
             If not None, the divergene will be computed using this class instead of the vector field stored in adata.
-        method: `str` (default: `analytical`)
+        method: str (default: `analytical`)
             The method that will be used for calculating divergence, either `analytical` or `numeric`. `analytical`
             method will use the analytical form of the reconstructed vector field for calculating curl while
             `numeric` method will use numdifftools for calculation. `analytical` method is much more efficient.
@@ -230,11 +231,11 @@ def divergence(adata,
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        basis: `str` or None (default: `umap`)
+        basis: str or None (default: `umap`)
             The embedding data in which the vector field was reconstructed.
-        vector_field_class: :class:`~scVectorField.vectorfield`
+        vector_field_class: :class:`scVectorField.vectorfield`
             If not None, the divergene will be computed using this class instead of the vector field stored in adata.
-        method: `str` (default: `analytical`)
+        method: str (default: `analytical`)
             The method that will be used for calculating divergence, either `analytical` or `numeric`. `analytical`
             method will use the analytical form of the reconstructed vector field for calculating Jacobian while
             `numeric` method will use numdifftools for calculation. `analytical` method is much more efficient.

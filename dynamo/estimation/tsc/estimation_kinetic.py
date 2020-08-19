@@ -22,21 +22,21 @@ def guestimate_init_cond(x_data):
     return x0
 
 class kinetic_estimation:
-    '''A general parameter estimation framework for all types of time-seris data'''
-    def __init__(self, param_ranges, x0_ranges, simulator):
-        '''A general parameter estimation framework for all types of time-seris data
+    '''A general parameter estimation framework for all types of time-seris data
         Arguments
         ---------
-            ranges: `numpy.ndarray`
-                a n-by-2 numpy array containing the lower and upper ranges of n parameters 
+            param_ranges: :class:`~numpy.ndarray`
+                A n-by-2 numpy array containing the lower and upper ranges of n parameters 
                 (and initial conditions if not fixed).
-            simulator: class
-                an instance of python class which solves ODEs. It should have properties 't' (k time points, 1d numpy array),
+            x0_ranges: :class:`~numpy.ndarray`
+                Lower and upper bounds for initial conditions for the integrators.
+                To fix a parameter, set its lower and upper bounds to the same value.
+            simulator: :class:`utils_kinetic.Linear_ODE`
+                An instance of python class which solves ODEs. It should have properties 't' (k time points, 1d numpy array),
                 'x0' (initial conditions for m species, 1d numpy array), and 'x' (solution, k-by-m array), 
                 as well as two functions: integrate (numerical integration), solve (analytical method).
-            x0: `numpy.ndarray`
-                Initial conditions for the integrators if they are fixed.
-        '''
+    '''
+    def __init__(self, param_ranges, x0_ranges, simulator):
         self.simulator = simulator
 
         self.ranges = []
@@ -130,18 +130,31 @@ class kinetic_estimation:
         '''Fit time-seris data using least squares
         Arguments
         ---------
-            t: `numpy.ndarray`
-                a numpy array of n time points.
-            x_data: `numpy.ndarray`
-                a m-by-n numpy a array of m species, each having n values for the n time points.
-            p0: `numpy.ndarray`
-                Initial guess of parameters.
-
+            t: :class:`~numpy.ndarray`
+                A numpy array of n time points.
+            x_data: :class:`~numpy.ndarray`
+                A m-by-n numpy a array of m species, each having n values for the n time points.
+            p0: :class:`numpy.ndarray`, optional, default: None
+                Initial guesses of parameters. If None, a random number is generated within the bounds.
+            n_p0: int, optional, default: 1
+                Number of initial guesses.
+            bounds: tuple, optional, default: None
+                Lower and upper bounds for parameters.
+            sample_method: str, optional, default: `lhs`
+                Method used for sampling initial guesses of parameters:
+                `lhs`: latin hypercube sampling;
+                `uniform`: uniform random sampling.
+            method: str or None, optional, default: None
+                Method used for solving ODEs. See options in simulator classes.
+                If None, default method is used.
+            normalize: bool, optional, default: True
+                Whether or not normalize values in x_data across species, so that large values do
+                not dominate the optimizer.
         Returns
         ---------
-            popt: `numpy.ndarray`
-                optimal parameters.
-            cost: 'float'
+            popt: :class:`~numpy.ndarray`
+                Optimal parameters.
+            cost: float
                 The cost function evaluated at the optimum.
         '''
         if p0 is None:
@@ -196,7 +209,7 @@ class kinetic_estimation:
             c2: float
             The chi-square statistics.
 
-            df: integer
+            df: int
             Degree of freedom.
         '''
         if x_data.ndim == 1:
@@ -276,8 +289,6 @@ class Estimation_DeterministicDeg(Estimation_Degradation):
 class Estimation_DeterministicDegNosp(Estimation_Degradation):
     '''An estimation class for degradation (without splicing) experiments.'''
     def __init__(self, gamma=None, x0=None):
-        '''An estimation class for degradation (without splicing) experiments.
-        '''
         if gamma is not None and x0 is not None:
             self._initialize(gamma, x0)
 
@@ -358,11 +369,10 @@ class Estimation_MomentDegNosp(Estimation_Degradation):
         return popt, cost
 
 class Estimation_MomentKin(kinetic_estimation):
-    '''An estimation class for kinetics experiments.'''
+    '''An estimation class for kinetics experiments.
+        Order of species: <unspliced>, <spliced>, <uu>, <ss>, <us>
+    '''
     def __init__(self, a, b, alpha_a, alpha_i, beta, gamma, include_cov=True):
-        '''An estimation class for kinetics experiments.
-            Order of species: <unspliced>, <spliced>, <uu>, <ss>, <us>
-        '''
         self.param_keys = np.array(['a', 'b', 'alpha_a', 'alpha_i', 'beta', 'gamma'])
         ranges = np.zeros((6, 2))
         ranges[0] = a * np.ones(2) if np.isscalar(a) else a
@@ -422,11 +432,10 @@ class Estimation_MomentKin(kinetic_estimation):
         return dictionary
 
 class Estimation_MomentKinNosp(kinetic_estimation):
-    '''An estimation class for kinetics experiments.'''
+    '''An estimation class for kinetics experiments.
+        Order of species: <r>, <rr>
+    '''
     def __init__(self, a, b, alpha_a, alpha_i, gamma):
-        '''An estimation class for kinetics experiments.
-            Order of species: <r>, <rr>
-        '''
         self.param_keys = np.array(['a', 'b', 'alpha_a', 'alpha_i', 'gamma'])
         ranges = np.zeros((5, 2))
         ranges[0] = a * np.ones(2) if np.isscalar(a) else a
@@ -468,12 +477,10 @@ class Estimation_MomentKinNosp(kinetic_estimation):
         return dictionary
 
 class Estimation_DeterministicKinNosp(kinetic_estimation):
-    '''An estimation class for kinetics (without splicing) experiments with the deterministic model.'''
-
+    '''An estimation class for kinetics (without splicing) experiments with the deterministic model.
+        Order of species: <unspliced>, <spliced>
+    '''
     def __init__(self, alpha, gamma, x0=0):
-        '''An estimation class for kinetics (without splicing) experiments with the deterministic model.
-            Order of species: <unspliced>, <spliced>
-        '''
         self.param_keys = np.array(['alpha', 'gamma'])
         ranges = np.zeros((2, 2))
         ranges[0] = alpha * np.ones(2) if np.isscalar(alpha) else alpha
@@ -501,12 +508,10 @@ class Estimation_DeterministicKinNosp(kinetic_estimation):
         return dictionary
 
 class Estimation_DeterministicKin(kinetic_estimation):
-    '''An estimation class for kinetics experiments with the deterministic model.'''
-
+    '''An estimation class for kinetics experiments with the deterministic model.
+        Order of species: <unspliced>, <spliced>
+    '''
     def __init__(self, alpha, beta, gamma, x0=np.zeros(2)):
-        '''An estimation class for kinetics experiments with the deterministic model.
-            Order of species: <unspliced>, <spliced>
-        '''
         self.param_keys = np.array(['alpha', 'beta', 'gamma'])
         ranges = np.zeros((3, 2))
         ranges[0] = alpha * np.ones(2) if np.isscalar(alpha) else alpha
@@ -543,11 +548,10 @@ class Estimation_DeterministicKin(kinetic_estimation):
         return dictionary
 
 class Mixture_KinDeg_NoSwitching(kinetic_estimation):
-    '''An estimation class with the mixture model.'''
+    '''An estimation class with the mixture model.
+        If beta is None, it is assumed that the data does not have the splicing process.
+    '''
     def __init__(self, model1, model2, alpha=None, gamma=None, x0=None, beta=None):
-        '''An estimation class with the mixture model.
-            If beta is None, it is assumed that the data does not have the splicing process.
-        '''
         self.model1 = model1
         self.model2 = model2
         self.scale = 1
@@ -642,11 +646,10 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
         return dictionary
 
 class Lambda_NoSwitching(Mixture_KinDeg_NoSwitching):
-    '''An estimation class with the mixture model.'''
+    '''An estimation class with the mixture model.
+        If beta is None, it is assumed that the data does not have the splicing process.
+    '''
     def __init__(self, model1, model2, alpha=None, lambd=None, gamma=None, x0=None, beta=None):
-        '''An estimation class with the mixture model.
-            If beta is None, it is assumed that the data does not have the splicing process.
-        '''
         self.model1 = model1
         self.model2 = model2
         self.scale = 1
