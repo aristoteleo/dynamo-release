@@ -66,6 +66,21 @@ def scNT_seq():
 def cite_seq():
     pass
 
+def zebrafish(
+    url="https://www.dropbox.com/s/5wk3q2xhgqai2xq/zebrafish.h5ad?dl=1",
+    filename="zebrafish.h5ad",
+):
+    """The zebrafish is from Saunders, et al (2019).
+    This data consists of 16, 940 genes across 4, 181 cells.
+
+    Returns
+    -------
+        Returns `adata` object
+    """
+    adata = get_adata(url, filename)
+
+    return adata
+
 
 def DentateGyrus(
     url="http://pklab.med.harvard.edu/velocyto/DentateGyrus/DentateGyrus.loom",
