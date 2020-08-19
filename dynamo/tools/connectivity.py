@@ -10,7 +10,6 @@ from ..preprocessing.utils import get_layer_keys
 from .utils import (
     log1p_,
     fetch_X_data,
-    get_conn_dist_graph,
 )
 
 from ..docrep import DocstringProcessor
@@ -76,6 +75,19 @@ def knn_to_adj(knn_indices, knn_weights):
     adj.eliminate_zeros()
 
     return adj
+
+
+def get_conn_dist_graph(knn, distances):
+    n_obs, n_neighbors = knn.shape
+    distances = csr_matrix((distances.flatten(), (np.repeat(np.arange(n_obs), n_neighbors), knn.flatten())),
+                           shape=(n_obs, n_obs))
+    connectivities = distances.copy()
+    connectivities.data[connectivities.data > 0] = 1
+
+    distances.eliminate_zeros()
+    connectivities.eliminate_zeros()
+
+    return distances, connectivities
 
 
 @docstrings.get_sectionsf("umap_ann")
@@ -417,7 +429,7 @@ def neighbors(
         n_neighbors: `int` (optional, default `30`)
             Number of nearest neighbors.
         method: `str` or `None` (default: `None`)
-            The methoed used for nearest neighbor search. If `umap`, it relies on `pynndescent` package's
+            The methoed used for nearest neighbor search. If `umap` or `pynn`, it relies on `pynndescent` package's
             NNDescent for fast nearest neighbor search.
         metric: `str` or callable, default='euclidean'
             The distance metric to use for the tree.  The default metric is , and with p=2 is equivalent to the standard
@@ -457,21 +469,15 @@ def neighbors(
 
     if method is None:
         if X_data.shape[0] > 200000 and X_data.shape[1] > 2:
-            try:
-                from pynndescent import NNDescent
-                method = 'pynn'
-            except ImportError:
-                print(
-                    "For faster nearest neighbor search please install pynndescent from here: https://github.com/lmcinnes/pynndescent"
-                )
-                method = 'ball_tree' if X_data.shape[1] > 10 else 'kd_tree'
+            from pynndescent import NNDescent
+            method = 'pynn'
         elif X_data.shape[1] > 10:
             method = 'ball_tree' 
         else:
             method = 'kd_tree'
 
-    # may distinguish between umap and pynndescent
-    if method == 'pynn':
+    # may distinguish between umap and pynndescent -- treat them equal for now
+    if method.lower() in ['pynn', 'umap']:
         index = NNDescent(X_data, metric=metric, metric_kwads=metric_kwads, n_neighbors=n_neighbors, n_jobs=cores,
                           random_state=seed, **kwargs)
         knn, distances = index.query(X_data, k=n_neighbors)

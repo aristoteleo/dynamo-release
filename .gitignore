@@ -1,4 +1,9 @@
+# vscode related
+.vscode/
+dynamo/.vscode/
+
 ._.DS_Store
+
 
 venv/
 archive/
@@ -35,6 +40,7 @@ Thumbs.db
 # Docs build
 docs/build
 docs/source/dynamo*
+docs/source/_autosummary
 
 # always-ignore directories
 /build/

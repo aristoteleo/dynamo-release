@@ -22,7 +22,7 @@ master_doc = "index"
 # -- Project information -----------------------------------------------------
 
 project = "dynamo"
-copyright = "2019, Xiaojie Qiu, Yan Zhang"
+copyright = "2020, Xiaojie Qiu, Yan Zhang"
 author = "Xiaojie Qiu, Yan Zhang"
 
 # The full version, including alpha/beta/rc tags
@@ -62,6 +62,13 @@ exclude_patterns = []
 autosummary_generate = True
 autodoc_member_order = 'bysource'
 
+autodoc_default_flags = [
+    # Make sure that any autodoc declarations show the right members
+    "members",
+    "inherited-members",
+    "private-members",
+    "show-inheritance",
+]
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for

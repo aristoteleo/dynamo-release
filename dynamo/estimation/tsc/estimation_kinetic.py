@@ -22,6 +22,7 @@ def guestimate_init_cond(x_data):
     return x0
 
 class kinetic_estimation:
+    '''A general parameter estimation framework for all types of time-seris data'''
     def __init__(self, param_ranges, x0_ranges, simulator):
         '''A general parameter estimation framework for all types of time-seris data
         Arguments
@@ -273,6 +274,7 @@ class Estimation_DeterministicDeg(Estimation_Degradation):
         return popt, cost
 
 class Estimation_DeterministicDegNosp(Estimation_Degradation):
+    '''An estimation class for degradation (without splicing) experiments.'''
     def __init__(self, gamma=None, x0=None):
         '''An estimation class for degradation (without splicing) experiments.
         '''
@@ -332,6 +334,7 @@ class Estimation_MomentDeg(Estimation_DeterministicDeg):
         return ret
 
 class Estimation_MomentDegNosp(Estimation_Degradation):
+    '''An estimation class for degradation (without splicing) experiments.'''
     def __init__(self, gamma=None, x0=None):
         '''An estimation class for degradation (without splicing) experiments.
             Order of species: <r>, <rr>
@@ -355,6 +358,7 @@ class Estimation_MomentDegNosp(Estimation_Degradation):
         return popt, cost
 
 class Estimation_MomentKin(kinetic_estimation):
+    '''An estimation class for kinetics experiments.'''
     def __init__(self, a, b, alpha_a, alpha_i, beta, gamma, include_cov=True):
         '''An estimation class for kinetics experiments.
             Order of species: <unspliced>, <spliced>, <uu>, <ss>, <us>
@@ -418,6 +422,7 @@ class Estimation_MomentKin(kinetic_estimation):
         return dictionary
 
 class Estimation_MomentKinNosp(kinetic_estimation):
+    '''An estimation class for kinetics experiments.'''
     def __init__(self, a, b, alpha_a, alpha_i, gamma):
         '''An estimation class for kinetics experiments.
             Order of species: <r>, <rr>
@@ -463,6 +468,8 @@ class Estimation_MomentKinNosp(kinetic_estimation):
         return dictionary
 
 class Estimation_DeterministicKinNosp(kinetic_estimation):
+    '''An estimation class for kinetics (without splicing) experiments with the deterministic model.'''
+
     def __init__(self, alpha, gamma, x0=0):
         '''An estimation class for kinetics (without splicing) experiments with the deterministic model.
             Order of species: <unspliced>, <spliced>
@@ -494,6 +501,8 @@ class Estimation_DeterministicKinNosp(kinetic_estimation):
         return dictionary
 
 class Estimation_DeterministicKin(kinetic_estimation):
+    '''An estimation class for kinetics experiments with the deterministic model.'''
+
     def __init__(self, alpha, beta, gamma, x0=np.zeros(2)):
         '''An estimation class for kinetics experiments with the deterministic model.
             Order of species: <unspliced>, <spliced>
@@ -534,6 +543,7 @@ class Estimation_DeterministicKin(kinetic_estimation):
         return dictionary
 
 class Mixture_KinDeg_NoSwitching(kinetic_estimation):
+    '''An estimation class with the mixture model.'''
     def __init__(self, model1, model2, alpha=None, gamma=None, x0=None, beta=None):
         '''An estimation class with the mixture model.
             If beta is None, it is assumed that the data does not have the splicing process.
@@ -632,6 +642,7 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
         return dictionary
 
 class Lambda_NoSwitching(Mixture_KinDeg_NoSwitching):
+    '''An estimation class with the mixture model.'''
     def __init__(self, model1, model2, alpha=None, lambd=None, gamma=None, x0=None, beta=None):
         '''An estimation class with the mixture model.
             If beta is None, it is assumed that the data does not have the splicing process.

@@ -13,6 +13,7 @@ from ...tools.moments import calc_2nd_moment
 
 
 class velocity:
+    """The class that computes RNA/protein velocity given unknown parameters."""
     def __init__(
         self,
         alpha=None,
@@ -317,6 +318,7 @@ class velocity:
 
 
 class ss_estimation:
+    """The class that estimates parameters with input data."""
     def __init__(
         self,
         U=None,

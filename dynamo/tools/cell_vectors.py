@@ -37,7 +37,7 @@ def cell_velocities(
     min_delta=0.01,
     basis="umap",
     neigh_key='neighbors',
-    conn_key='distances',
+    adj_key='distances',
     n_neighbors=30,
     method="pearson",
     neg_cells_trick=True,
@@ -102,7 +102,11 @@ def cell_velocities(
             The minimal value of delta kinetic parameter for selecting velocity genes.
         basis: 'int' (optional, default `umap`)
             The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
-        method: `string` (optional, default `pearson`)
+        neigh_key: 'str' (optional, default `neighbors`)
+            The dictionary key for the neighbor information (stores nearest neighbor `indices`) in .uns.
+        adj_key: 'str' (optional, default `distances`)
+            The dictionary key for the adjacency graph information (stores nearest neighbor `indices`) in .uns.
+        method: `str` (optional, default `pearson`)
             The method to calculate the transition matrix and project high dimensional vector to low dimension, either `kmc`,
             `cosine`, `pearson`, or `transform`. "kmc" is our new approach to learn the transition matrix via diffusion
             approximation or an Itô kernel. "cosine" or "pearson" are the methods used in the original RNA velocity paper
@@ -178,7 +182,7 @@ def cell_velocities(
             if np.any(np.isnan(indices)):
                 warnings.warn('Resulting knn index matrix contains NaN. Check if n_neighbors is too large.')
 
-    elif conn_key is not None and conn_key in adata.obsp.keys():
+    elif adj_key is not None and adj_key in adata.obsp.keys():
         if use_mnn:
             neighbors = adata.uns["mnn"]
             indices, _ = adj_to_knn(
@@ -186,7 +190,7 @@ def cell_velocities(
             )
             indices = indices[:, 1:]
         else:
-            knn_indices, _ = adj_to_knn(adata.obsp[conn_key], n_neighbors)
+            knn_indices, _ = adj_to_knn(adata.obsp[adj_key], n_neighbors)
             #knn_adj = knn_to_adj(knn_indices, knn_dists)
 
             ### user wouldn't expect such a function to change the neighborhood info...
@@ -200,7 +204,7 @@ def cell_velocities(
             #indices, dist = indices[:, 1:], dist[:, 1:]
             indices = knn_indices[:, 1:]
     else:
-        raise Exception(f"Neighborhood info '{conn_key}' is missing in the provided anndata object."
+        raise Exception(f"Neighborhood info '{adj_key}' is missing in the provided anndata object."
                         "Run `dyn.tl.reduceDimension` or `dyn.tl.neighbors` first.")
 
     if 'confident_gene' in adata.var.keys() and not enforce:
