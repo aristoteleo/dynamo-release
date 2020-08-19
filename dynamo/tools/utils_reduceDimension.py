@@ -129,7 +129,7 @@ def run_reduce_dim(adata, X_data, n_components, n_pca_components, reduction_meth
         }
     elif reduction_method == "diffusion_map":
         pass
-    elif reduction_method == "tSNE":
+    elif reduction_method.lower() == "tsne":
         try:
             from fitsne import FItSNE
         except ImportError:

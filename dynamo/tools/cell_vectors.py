@@ -180,12 +180,11 @@ def cell_velocities(
 
     elif conn_key is not None and conn_key in adata.obsp.keys():
         if use_mnn:
-            # neighbors = adata.uns["mnn"]
-            #indices, dist = extract_indices_dist_from_graph(
-            #    neighbors, adata.uns["neighbors"]["indices"].shape[1]
-            #)
-            #indices, dist = indices[:, 1:], dist[:, 1:]
-            pass
+            neighbors = adata.uns["mnn"]
+            indices, _ = adj_to_knn(
+                neighbors, adata.uns["neighbors"]["indices"].shape[1]
+            )
+            indices = indices[:, 1:]
         else:
             knn_indices, _ = adj_to_knn(adata.obsp[conn_key], n_neighbors)
             #knn_adj = knn_to_adj(knn_indices, knn_dists)

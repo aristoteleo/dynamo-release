@@ -21,7 +21,7 @@ def phase_portraits(
         y=1,
         pointsize=None,
         vkey="S",
-        ekey="X",
+        ekey="M_s",
         basis="umap",
         log1p=True, 
         color='cell_cycle_phase',
@@ -68,7 +68,7 @@ def phase_portraits(
         vkey: `string` (default: velocity)
             Which velocity key used for visualizing the magnitude of velocity. Can be either velocity in the layers slot
             or the keys in the obsm slot.
-        ekey: `str`
+        ekey: `str` (default: `M_s`)
             The layer of data to represent the gene expression level.
         basis: `string` (default: umap)
             Which low dimensional embedding will be used to visualize the cell.
