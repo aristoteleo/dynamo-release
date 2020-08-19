@@ -17,6 +17,40 @@ Preprocessing (pp)
    pp.cell_cycle_scores
    .. pp.pca
 
+
+Estimation (est.csc)
+~~~~~~~~~~~~~~~~~~~~
+
+**Conventional scRNA-seq (est.csc)**
+
+.. autosummary::
+   :toctree: _autosummary
+   :template: custom-module-template.rst
+   :recursive:
+
+   est.csc.velocity
+   est.csc.ss_estimation
+
+**Time-resolved metabolic labeling based scRNA-seq (est.tsc)**
+
+.. autosummary::
+   :toctree: _autosummary
+   :template: custom-module-template.rst
+   :recursive:
+
+   est.tsc.kinetic_estimation
+   est.tsc.Estimation_DeterministicDeg
+   est.tsc.Estimation_DeterministicDegNosp
+   est.tsc.Estimation_MomentDeg
+   est.tsc.Estimation_MomentDegNosp
+   est.tsc.Estimation_MomentKin
+   est.tsc.Estimation_MomentKinNosp
+   est.tsc.Estimation_DeterministicKinNosp
+   est.tsc.Estimation_DeterministicKin
+   est.tsc.Mixture_KinDeg_NoSwitching
+   est.tsc.Lambda_NoSwitching
+
+
 Tools (tl)
 ~~~~~~~~~~
 
@@ -77,39 +111,6 @@ Tools (tl)
    tl.DDRTree
    tl.psl
    .. tl.cal_ncenter
-
-Estimation (est.csc)
-~~~~~~~~~~~~~~~~~~~~
-
-**Conventional scRNA-seq (est.csc)**
-
-.. autosummary::
-   :toctree: _autosummary
-   :template: custom-module-template.rst
-   :recursive:
-
-   est.csc.velocity
-   est.csc.ss_estimation
-
-**Time-resolved metabolic labeling based scRNA-seq (est.tsc)**
-
-.. autosummary::
-   :toctree: _autosummary
-   :template: custom-module-template.rst
-   :recursive:
-
-   est.tsc.kinetic_estimation
-   est.tsc.Estimation_DeterministicDeg
-   est.tsc.Estimation_DeterministicDegNosp
-   est.tsc.Estimation_MomentDeg
-   est.tsc.Estimation_MomentDegNosp
-   est.tsc.Estimation_MomentKin
-   est.tsc.Estimation_MomentKinNosp
-   est.tsc.Estimation_DeterministicKinNosp
-   est.tsc.Estimation_DeterministicKin
-   est.tsc.Mixture_KinDeg_NoSwitching
-   est.tsc.Lambda_NoSwitching
-
 
 Vector field (vf)
 ~~~~~~~~~~~~~~~~~
