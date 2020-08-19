@@ -1,4 +1,9 @@
+# vscode related
+.vscode/
+dynamo/.vscode/
+
 ._.DS_Store
+
 
 venv/
 archive/
