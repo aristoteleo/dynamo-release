@@ -7,6 +7,18 @@ Import dynamo as::
 
    import dynamo as dyn
 
+Data io
+~~~~~~~
+(See more at `anndata-docs <https://anndata.readthedocs.io/en/latest/anndata.AnnData.html>`_)
+
+.. autosummary::
+   :toctree: _autosummary
+
+   read
+   read_h5ad
+   read_loom
+
+
 Preprocessing (pp)
 ~~~~~~~~~~~~~~~~~~
 
@@ -21,7 +33,7 @@ Preprocessing (pp)
 **Estimation (est)**: internally to <Tools>
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Conventional scRNA-seq (est)**
+**Conventional scRNA-seq (est.csc)**
 
 .. autosummary::
    :toctree: _autosummary
@@ -33,7 +45,7 @@ Preprocessing (pp)
 
 **Time-resolved metabolic labeling based scRNA-seq (est.tsc)**
 
-*Base class*: a general estimation framework
+*Base class: a general estimation framework*
 
 .. autosummary::
    :toctree: _autosummary
@@ -42,7 +54,7 @@ Preprocessing (pp)
 
    est.tsc.kinetic_estimation
 
-*Deterministic models* via analytical solution of ODEs
+*Deterministic models via analytical solution of ODEs*
 
 .. autosummary::
    :toctree: _autosummary
@@ -54,7 +66,7 @@ Preprocessing (pp)
    est.tsc.Estimation_DeterministicKinNosp
    est.tsc.Estimation_DeterministicKin
 
-*Stochastic models* via matrix form of moment equations
+*Stochastic models via matrix form of moment equations*
 
 .. autosummary::
    :toctree: _autosummary
@@ -66,7 +78,7 @@ Preprocessing (pp)
    est.tsc.Estimation_MomentKin
    est.tsc.Estimation_MomentKinNosp
 
-*Mixture models* for kinetic / degradation experiments
+*Mixture models for kinetic / degradation experiments*
 
 .. autosummary::
    :toctree: _autosummary
@@ -232,7 +244,7 @@ Vector field (vf)
    vf.rank_acceleration_genes
    vf.rank_curvature_genes
 
-*Single cell potential:* three approaches
+*Single cell potential: three approaches*
 
 .. autosummary::
     :toctree: _autosummary
@@ -313,12 +325,19 @@ Plotting (pl)
    pl.scatters
 
 
-*Scatter base*
+*Phase diagram: conventional scRNA-seq*
 
 .. autosummary::
     :toctree: _autosummary
 
    pl.phase_portraits
+
+
+*Kinetic models: labeling based scRNA-seq*
+
+.. autosummary::
+    :toctree: _autosummary
+
    pl.dynamics
 
 
@@ -352,7 +371,7 @@ Plotting (pl)
    pl.state_graph
 
 
-*Vector field plots*: velocities and accelerations
+*Vector field plots: velocities and accelerations*
 
 .. autosummary::
     :toctree: _autosummary
@@ -461,3 +480,28 @@ External (ext)
     ext.scribe
     ext.mutual_inform
     ext.scifate_glmnet
+
+Utilities
+~~~~~~~~~
+
+*Package versions*
+
+.. autosummary::
+   :toctree: _autosummary
+
+    get_all_dependencies_version
+
+*Clean up adata*
+
+.. autosummary::
+   :toctree: _autosummary
+
+    cleanup
+
+*Figures configuration*
+
+.. autosummary::
+   :toctree: _autosummary
+
+   configuration.set_pub_style
+   configuration.set_figure_params
