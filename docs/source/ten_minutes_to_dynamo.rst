@@ -7,7 +7,7 @@ Dynamo is a computational framework that includes an inclusive model of expressi
 
 Why dynamo
 ^^^^^^^^^^
-Dynamo currently provides a complete solution (see below) to analyze expression dynamics of conventional scRNA-seq or time-resolved metabolic labeling based scRNA-seq. It aspires to become the leading tools in continuously integrating the most exciting developments in machine learning, systems biology, information theory, stochastic physics, etc. to model, understand and interpret datasets generated from various cutting-edge single cell genomics techniques (developments of dynamo 2/3 is under way). We hope those models, understandings and interpretations not only facilitate your research but may also eventually lead to new biological discovery. Dynamo has a strong community so you will feel supported no matter you are a new-comer of python or a veteran user who wants to contribute to dynamo's development.
+Dynamo currently provides a complete solution (see below) to analyze expression dynamics of conventional scRNA-seq or time-resolved metabolic labeling based scRNA-seq. It aspires to become the leading tools in continuously integrating the most exciting developments in machine learning, systems biology, information theory, stochastic physics, etc. to model, understand and interpret datasets generated from various cutting-edge single cell genomics techniques (developments of dynamo 2/3 is under way). We hope those models, understandings and interpretations not only facilitate your research but may also eventually lead to new biological discovery. Dynamo has a strong community so you will feel supported no matter you are a new-comer of computational biology or a veteran researcher who wants to contribute to dynamo's development.
 
 How to install
 ^^^^^^^^^^^^^^
@@ -134,16 +134,16 @@ Velocity vectors
 ''''''''''''''''
 We need to project the velocity vector onto low dimensional embedding for later visualization. To get there, we can either use the default ``correlation/cosine kernel`` or the novel Itô kernel from us. ::
 
-    dyn.vf.cell_velocities(adata)
+    dyn.tl.cell_velocities(adata)
 
 The above function projects and evaluates velocity vectors on ``umap`` space but you can also operate them on other basis, for example ``pca`` space::
 
-    dyn.vf.cell_velocities(adata, basis='pca')
-    dyn.vf.cell_wise_confidence(adata, basis='pca')
+    dyn.tl.cell_velocities(adata, basis='pca')
+    dyn.tl.cell_wise_confidence(adata, basis='pca')
 
 You can check the confidence of cell-wise velocity to understand how reliable the recovered velocity is across cells via::
 
-    dyn.vf.cell_wise_confidence(adata)
+    dyn.tl.cell_wise_confidence(adata)
 
 Obviously dynamo doesn't stop here. The really exciting part of dynamo lays in the fact that it learns a ``functional form of vector field`` in the full transcriptomic space which can be then used to predict cell fate and map single cell potential landscape.
 
@@ -215,7 +215,7 @@ Plotting functions in dynamo are designed to be extremely flexible. For example,
 
 The above creates a 2x2 plot that puts `cell_wise_vectors`, `grid_vectors`, `streamline_plot` and `topography` plots together.
 
-Comparability
+Compatibility
 ^^^^^^^^^^^^^
 Dynamo is fully compatible with velocyto, scanpy and scvelo. So you can use your loom or annadata object as input for dynamo. The velocity vector samples estimated from either velocyto or scvelo can be also directly used to reconstruct the functional form of vector field
 and to map the potential landscape in the entire expression space.
