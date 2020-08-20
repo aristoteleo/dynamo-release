@@ -42,7 +42,7 @@ In order to ensure dynamo run properly, your python environment needs to satisfy
 
 Architecture of dynamo
 ^^^^^^^^^^^^^^^^^^^^^^
-.. image:: https://raw.githubusercontent.com/Xiaojieqiu/jungle/master/test.png
+.. image:: https://raw.githubusercontent.com/Xiaojieqiu/jungle/master/dynamo_architecture.png
 
 
 Dynamo has a few standard modules like most other single cell analysis toolkits (Scanpy, Monocle or Seurat), for example, data loading (``dyn.read*``), preprocessing (``dyn.pp.*``), tool analysis (``dyn.tl.*``) and plotting (``dyn.pl.*``). Modules specific to dynamo include:
