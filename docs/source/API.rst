@@ -30,10 +30,11 @@ Preprocessing (pp)
    .. pp.pca
 
 
-Estimation (est) classes
-~~~~~~~~~~~~~~~~~~~~~~~~
+Estimation (est)
+~~~~~~~~~~~~~~~~
 
-Classes are internally to **Tools**. See our classes `here`_
+.. note::
+   Classes in **est** are internally to **Tools**. See our estimation classes here: `estimation`_
 
 
 Tools (tl)
@@ -143,6 +144,9 @@ Vector field (vf)
 ~~~~~~~~~~~~~~~~~
 
 *Vector field reconstruction*
+
+.. note::
+   Vector field class is internally to `vf.VectorField`. See our vector field classes here: `vector field`_
 
 .. autosummary::
     :toctree: _autosummary
@@ -453,4 +457,5 @@ Utilities
    configuration.set_figure_params
    configuration.set_pub_style
 
-.. _`here`: ./Class.html
+.. _`estimation`: ./Class.html#estimation
+.. _`vector field`: ./Class.html#vector-field

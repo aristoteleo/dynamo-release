@@ -1,6 +1,9 @@
 Class
 =====
 
+Estimation
+----------
+
 Conventional scRNA-seq (est.csc)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -65,5 +68,15 @@ Time-resolved metabolic labeling based scRNA-seq (est.tsc)
     :inherited-members:
 
 .. autoclass:: dynamo.est.tsc.Mixture_KinDeg_NoSwitching
+    :members:
+    :inherited-members:
+
+Vector field
+------------
+
+Vector field class
+~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: dynamo.vf.vectorfield
     :members:
     :inherited-members:

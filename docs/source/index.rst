@@ -28,7 +28,7 @@ If you want to contribute to the development of dynamo, please check out CONTRIB
 
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents
 
    ten_minutes_to_dynamo
