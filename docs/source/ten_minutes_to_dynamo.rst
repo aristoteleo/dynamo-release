@@ -34,7 +34,7 @@ from source, using the following script::
 
     pip install git+https://github.com:aristoteleo/dynamo-release
 
-In order to ensure dynamo run properly, your python environment needs to satisfy dynamo's `dependencies`_. We provide a helper function for you to check the version of dynamo's all dependencies. ::
+In order to ensure dynamo run properly, your python environment needs to satisfy dynamo's `dependencies`_. We provide a helper function for you to check the versions of dynamo's all dependencies. ::
 
     import dynamo as dyn
     dyn.get_all_dependencies_version()
@@ -45,14 +45,14 @@ Architecture of dynamo
 .. image:: https://raw.githubusercontent.com/Xiaojieqiu/jungle/master/dynamo_architecture.png
 
 
-Dynamo has a few standard modules like most other single cell analysis toolkits (Scanpy, Monocle or Seurat), for example, data loading (``dyn.read*``), preprocessing (``dyn.pp.*``), tool analysis (``dyn.tl.*``) and plotting (``dyn.pl.*``). Modules specific to dynamo include:
+Dynamo has a few standard modules like most other single cell analysis toolkits (Scanpy, Monocle or Seurat), for example, data loading (``dyn.read*``), preprocessing (``dyn.pp.*``), tool analysis (``dyn.tl.*``), and plotting (``dyn.pl.*``). Modules specific to dynamo include:
 
-- a comprehensive estimation framework of expression dynamics that includes:
-    - conventional single cell RNA-seq (scRNA-seq) modeling (``dyn.csc.*``) for **standard RNA velocity estimation** and more;
-    - time-resolved metabolic labeling based single cell RNA-seq (scRNA-seq) modeling (``dyn.tsc.*``) for **labeling based RNA velocity estimation** and more;
-- vector field analysis (``dyn.vf.*``);
+- a comprehensive estimation framework (``dyn.est.*``) of expression dynamics that includes:
+    - conventional single cell RNA-seq (scRNA-seq) modeling (``dyn.est.csc.*``) for **standard RNA velocity estimation** and more;
+    - time-resolved metabolic labeling based single cell RNA-seq (scRNA-seq) modeling (``dyn.est.tsc.*``) for **labeling based RNA velocity estimation** and more;
+- vector field reconstruction and vector calculus (``dyn.vf.*``);
 - cell fate prediction (``dyn.pd.*``);
-- creating movie of cell fate predictions (``dyn.mv.*``);
+- create movie of cell fate predictions (``dyn.mv.*``);
 - stochastic simulation of various metabolic labeling experiments (``dyn.sim.*``);
 - integration with external tools built by us or others (``dyn.ext.*``);
 - and more.
@@ -62,7 +62,7 @@ Typical workflow
 
 .. image:: https://raw.githubusercontent.com/Xiaojieqiu/jungle/master/dynamo_workflow.png
 
-A typical workflow in dynamo is similar to most of other single cell analysis toolkits (Scanpy, Monocle or Seurat), including steps like importing dynamo (``import dynamo as dyn``), loading data (``dyn.read*``), preprocessing (``dyn.pp.*``), tool analysis (``dyn.tl.*``) and plotting (``dyn.pl.*``).
+A typical workflow in dynamo is similar to most of other single cell analysis toolkits (Scanpy, Monocle or Seurat), including steps like importing dynamo (``import dynamo as dyn``), loading data (``dyn.read*``), preprocessing (``dyn.pp.*``), tool analysis (``dyn.tl.*``) and plotting (``dyn.pl.*``). To get the best of dynamo though, you need to use the ``dyn.vf.*``, ``dyn.pd.*`` and ``dyn.mv.*`` modules.
 
 Import dynamo as::
 
@@ -76,7 +76,7 @@ We provide a few nice visualization defaults for different purpose::
 
 Load data
 ''''''''''
-Dynamo relies on anndata for data IO. You can read your own data via ``read``, ``read_loom``, ``read_h5ad``, ``read_h5`` or ``load_NASC_seq``, etc::
+Dynamo relies on `anndata`_ for data IO. You can read your own data via ``read``, ``read_loom``, ``read_h5ad``, ``read_h5`` or ``load_NASC_seq``, etc::
 
     adata = dyn.read(filename)
 
@@ -97,20 +97,22 @@ After loading data, you are ready to performs some preprocessing. You can run th
 
 Learn dynamics
 ''''''''''''''
-Next you will want to estimate the kinetic parameters of expression dynamics and then learn the velocity values for all genes that pass some filters (selected feature genes, by default) across cells. The ``dyn.tl.dynamics`` does all the hard work for you. ::
+Next you will want to estimate the kinetic parameters of expression dynamics and then learn the velocity values for all genes that pass some filters (selected feature genes, by default) across cells. The ``dyn.tl.dynamics`` does all the hard work for you: ::
 
     dyn.tl.dynamics(adata)
 
-which implicitly calls ``dyn.tl.moments`` first ::
+implicitly calls ``dyn.tl.moments`` first ::
 
     dyn.tl.moments(adata)
 
-and then performs the following steps:
+which calculates the first, second moments (and sometimes covariance between different layers) of the expression data. First / second moments are basically mean and uncentered variance of gene expression, which are calculated based on local smoothing via a nearest neighbours graph, constructed in the reduced PCA space from the spliced or total mRNA expression of single cells.
+
+And it then performs the following steps:
 
     - checks the data you have and determine the experimental type automatically, either the conventional scRNA-seq, ``kinetics``, ``degradation`` or ``one-shot`` single-cell metabolic labelling experiment or the ``CITE-seq`` or ``REAP-seq`` co-assay, etc.
     - learns the velocity for each feature gene using either the original deterministic model based on a steady-state assumption from the seminal RNA velocity work or a few new methods, including the ``stochastic`` (default) or ``negative binomial method`` for conventional scRNA-seq or ``kinetic``, ``degradation`` or ``one-shot`` models for metabolic labeling based scRNA-seq.
 
-Those later methods are based on moment equations which basically considers both mean and uncentered variance of gene expression. The moment based models require calculation of the first and second moments of the expression data that is based on a nearest neighbours graph, constructed in the reduced PCA space from the spliced or total mRNA expression.
+Those later methods are based on moment equations. All those methods use all or part of the output from ``dyn.tl.moments(adata)``.
 
 
 Kinetic estimation of the conventional scRNA-seq and metabolic labeling based scRNA-seq is often tricky and has a lot pitfalls. Sometimes you may even observed undesired backward vector flow. You can evaluate the confidence of gene-wise velocity via::
@@ -139,7 +141,6 @@ We need to project the velocity vector onto low dimensional embedding for later 
 The above function projects and evaluates velocity vectors on ``umap`` space but you can also operate them on other basis, for example ``pca`` space::
 
     dyn.tl.cell_velocities(adata, basis='pca')
-    dyn.tl.cell_wise_confidence(adata, basis='pca')
 
 You can check the confidence of cell-wise velocity to understand how reliable the recovered velocity is across cells via::
 
@@ -153,7 +154,7 @@ In classical physics, including fluidics and aerodynamics, velocity and accelera
 
 In general, a vector field can be defined as a vector-valued function f that maps any points (or cells’ expression state) x in a domain Ω with D dimension (or the gene expression system with D transcripts / proteins) to a vector y (for example, the velocity or acceleration for different genes or proteins), that is f(x) = y.
 
-To formally define the problem of velocity vector field learning, we consider a set of measured cells with pairs of current and estimated future expression states. The difference between the predicted future state and current state for each cell corresponds to the velocity. We suppose that the measured single-cell velocity is sampled from a smooth, differentiable vector field f that maps from xi to yi on the entire domain. Normally, single cell velocity measurements are results of biased, noisy and sparse sampling of the entire state space, thus the goal of velocity vector field reconstruction is to robustly learn a mapping function f that outputs yj given any point xj on the domain based on the observed data with certain smoothness constraints (Jiayi Ma et al. 2013). Under ideal scenario, the mapping function f should recover the true velocity vector field on the entire domain and predict the true dynamics in regions of expression space that are not sampled. To reconstruct vector field function in dynamo, you can simply use the following function to do all the heavy-lifting::
+To formally define the problem of velocity vector field learning, we consider a set of measured cells with pairs of current and estimated future expression states. The difference between the predicted future state and current state for each cell corresponds to the velocity vector. We note that the measured single-cell velocity (conventional RNA velocity) is sampled from a smooth, differentiable vector field f that maps from xi to yi on the entire domain. Normally, single cell velocity measurements are results of biased, noisy and sparse sampling of the entire state space, thus the goal of velocity vector field reconstruction is to robustly learn a mapping function f that outputs yj given any point xj on the domain based on the observed data with certain smoothness constraints (Jiayi Ma et al. 2013). Under ideal scenario, the mapping function f should recover the true velocity vector field on the entire domain and predict the true dynamics in regions of expression space that are not sampled. To reconstruct vector field function in dynamo, you can simply use the following function to do all the heavy-lifting::
 
 	dyn.vf.VectorField(adata)
 
@@ -166,7 +167,7 @@ Since we learn the vector field function of the data, we can then characterize t
     - the fixed points (attractor/saddles, etc.) which may corresponds to terminal cell types or progenitors;
     - nullcline, separatrices of a recovered dynamic system, which may formally define the dynamical behaviour or the boundary of cell types in gene expression space.
 
-Again, you only need to simply the following function to get all those information. ::
+Again, you only need to simply run the following function to get all those information. ::
 
     dyn.vf.topography(adata, basis='umap')
 
@@ -174,11 +175,11 @@ Map potential landscape
 '''''''''''''''''''''''
 The concept of potential landscape is widely appreciated across various biological disciplines, for example the adaptive landscape in population genetics, protein-folding funnel landscape in biochemistry, epigenetic landscape in developmental biology. In the context of cell fate transition, for example, differentiation, carcinogenesis, etc, a potential landscape will not only offers an intuitive description of the global dynamics of the biological process but also provides key insights to understand the multi-stability and transition rate between different cell types as well as to quantify the optimal path of cell fate transition.
 
-Because the classical definition of potential function in physics requires gradient systems (no ``curl``), which is often not applicable to open biological system. In dynamo we provided several ways to quantify the potential of single cells by decomposing the vector field into gradient,  curl parts, etc. The recommended method is built on the Hodge decomposition on simplicial complexes (a sparse directional graph) constructed based on the learned vector field function that provides fruitful analogy of gradient, curl and harmonic (cyclic) flows on manifold::
+Because the classical definition of potential function in physics requires gradient systems (no ``curl`` or cycling dynamics), which is often not applicable to open biological system. In dynamo we provided several ways to quantify the potential of single cells by decomposing the vector field into gradient,  curl parts, etc. The recommended method is built on the Hodge decomposition on simplicial complexes (a sparse directional graph) constructed based on the learned vector field function that provides fruitful analogy of gradient, curl and harmonic (cyclic) flows on manifold::
 
 	dyn.ext.ddhodge(adata)
 
-In addition, we and others proposed different strategies to decompose the ``stochastic differential equations`` into either the gradient or the curl component from first principles. We then can use the gradient part to define the potential.
+In addition, we and others proposed various strategies to decompose the ``stochastic differential equations`` into either the gradient or the curl component from first principles. We then can use the gradient part to define the potential.
 
 Although an analytical decomposition on the reconstructed vector field is challenging, we are able to use a numerical algorithm we recently developed for our purpose. This approach uses a least action method under the A-type stochastic integration (Shi et al. 2012) to globally map the potential landscape Ψ(x) (Tang et al. 2017) by taking the vector field function f(x) as input. ::
 
@@ -222,6 +223,7 @@ and to map the potential landscape in the entire expression space.
 
 .. _`Install Dynamo`: https://github.com/aristoteleo/dynamo-release
 .. _`dependencies`: https://github.com/aristoteleo/dynamo-release/blob/master/setup.py
+.. _`anndata`: https://anndata.readthedocs.io/en/latest/index.html
 .. _`NASC-seq analysis pipeline`: https://github.com/sandberg-lab/NASC-seq
 .. _`velocyto command line interface`: http://velocyto.org/velocyto.py/tutorial/cli.html
 .. _`bustool from Pachter lab`:  http://pachterlab.github.io/kallistobus

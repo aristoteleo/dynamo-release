@@ -82,7 +82,7 @@ extensions = [
     "sphinx.ext.intersphinx", # Link to other project's documentation (see mapping below)
     'sphinx.ext.viewcode',  # Add a link to the Python source code for classes, functions etc.
     "sphinx.ext.githubpages",
-    # 'sphinx.ext.autosectionlabel',
+    'sphinx.ext.autosectionlabel',
     "sphinx_autodoc_typehints",  # Automatically document param types (less noise in class signature)
 ]
 
