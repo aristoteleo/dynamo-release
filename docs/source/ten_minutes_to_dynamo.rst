@@ -115,7 +115,7 @@ Those later methods are based on moment equations which basically considers both
 
 Kinetic estimation of the conventional scRNA-seq and metabolic labeling based scRNA-seq is often tricky and has a lot pitfalls. Sometimes you may even observed undesired backward vector flow. You can evaluate the confidence of gene-wise velocity via::
 
-    dyn.tl.gene_wise_confidence(adata)
+    dyn.tl.gene_wise_confidence(adata, group='group', lineage_dict={'Progenitor': ['terminal_cell_state']})
 
 and filter those low confidence genes for downstream :ref:`Velocity vectors` analysis, etc (See more details in FAQ).
 
