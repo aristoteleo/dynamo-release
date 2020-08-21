@@ -30,8 +30,10 @@ Preprocessing (pp)
    .. pp.pca
 
 
-**Estimation (est)**: internally to <Tools>
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Estimation (est) classes
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+See our classes `here`_
 
 **Conventional scRNA-seq (est.csc)**
 
@@ -505,3 +507,5 @@ Utilities
 
    configuration.set_figure_params
    configuration.set_pub_style
+
+.. _`here`: ../html/Class.html

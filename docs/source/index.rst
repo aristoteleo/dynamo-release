@@ -33,6 +33,7 @@ If you want to contribute to the development of dynamo, please check out CONTRIB
 
    ten_minutes_to_dynamo
    API
+   Class
    FAQ
    Release_notes
    Reference
