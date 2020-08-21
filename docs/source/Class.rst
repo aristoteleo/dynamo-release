@@ -1,5 +1,5 @@
-Classes
-=======
+Class
+=====
 
 Conventional scRNA-seq (est.csc)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

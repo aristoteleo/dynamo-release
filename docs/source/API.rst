@@ -33,62 +33,7 @@ Preprocessing (pp)
 Estimation (est) classes
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-See our classes `here`_
-
-**Conventional scRNA-seq (est.csc)**
-
-.. autosummary::
-   :toctree: _autosummary
-   :template: custom-module-template.rst
-   :recursive:
-
-   est.csc.ss_estimation
-   est.csc.velocity
-
-**Time-resolved metabolic labeling based scRNA-seq (est.tsc)**
-
-*Base class: a general estimation framework*
-
-.. autosummary::
-   :toctree: _autosummary
-   :template: custom-module-template.rst
-   :recursive:
-
-   est.tsc.kinetic_estimation
-
-*Deterministic models via analytical solution of ODEs*
-
-.. autosummary::
-   :toctree: _autosummary
-   :template: custom-module-template.rst
-   :recursive:
-
-   est.tsc.Estimation_DeterministicDeg
-   est.tsc.Estimation_DeterministicDegNosp
-   est.tsc.Estimation_DeterministicKinNosp
-   est.tsc.Estimation_DeterministicKin
-
-*Stochastic models via matrix form of moment equations*
-
-.. autosummary::
-   :toctree: _autosummary
-   :template: custom-module-template.rst
-   :recursive:
-
-   est.tsc.Estimation_MomentDeg
-   est.tsc.Estimation_MomentDegNosp
-   est.tsc.Estimation_MomentKin
-   est.tsc.Estimation_MomentKinNosp
-
-*Mixture models for kinetic / degradation experiments*
-
-.. autosummary::
-   :toctree: _autosummary
-   :template: custom-module-template.rst
-   :recursive:
-
-   est.tsc.Lambda_NoSwitching
-   est.tsc.Mixture_KinDeg_NoSwitching
+Classes are internally to **Tools**. See our classes `here`_
 
 
 Tools (tl)
@@ -508,4 +453,4 @@ Utilities
    configuration.set_figure_params
    configuration.set_pub_style
 
-.. _`here`: ../html/Class.html
+.. _`here`: ./Class.html
