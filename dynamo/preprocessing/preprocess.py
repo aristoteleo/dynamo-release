@@ -1012,6 +1012,8 @@ def filter_genes(
         & (adata.X.sum(0) >= min_count_s)
     ).flatten()
 
+    # add our filtering for labeling data below
+
     if "spliced" in adata.layers.keys() and (layer == "spliced" or layer == "all"):
         detected_bool = (
             detected_bool
@@ -1266,8 +1268,12 @@ def recipe_monocle(
     has_splicing, has_labeling, _ = detect_datatype(adata)
     if has_splicing and has_labeling and type(total_layers) != list:
         total_layers = ['uu', 'ul', 'su', 'sl'] if total_layers else None
+        layer = ['X', 'uu', 'ul', 'su', 'sl', 'new', 'total'] if layer is None else layer
     elif has_labeling and not has_splicing and type(total_layers) != list:
         total_layers = ['total'] if total_layers else None
+        layer = ['X', 'total', 'new'] if layer is None else layer
+    elif has_splicing and not has_labeling and type(total_layers) != list:
+        layer = ['X', 'spliced', 'unspliced'] if layer is None else layer
 
     adata = unique_var_obs_adata(adata)
     adata = layers2csr(adata)
@@ -1340,7 +1346,7 @@ def recipe_monocle(
 
     # calculate sz factor
     if not _szFactor or "Size_Factor" not in adata.obs_keys():
-        adata = szFactor(adata, total_layers=total_layers)
+        adata = szFactor(adata, total_layers=total_layers, layers=layer if type(layer) is list else "all")
 
     if feature_selection.lower() == "dispersion":
         adata = Dispersion(adata)
@@ -1381,6 +1387,7 @@ def recipe_monocle(
         total_szfactor = "total_Size_Factor" if total_layers is not None else None
         adata = normalize_expr_data(
             adata,
+            layers=layer if type(layer) is list else "all",
             total_szfactor=total_szfactor,
             norm_method=norm_method,
             pseudo_expr=pseudo_expr,
@@ -1399,12 +1406,19 @@ def recipe_monocle(
     if layer is None:
         CM = adata.X[:, adata.var.use_for_pca.values]
     else:
-        if layer == "X":
+        if "X" in layer:
             CM = adata.X[:, adata.var.use_for_pca.values]
-        elif layer == "protein":
+        elif "spliced" in layer:
+            CM = adata.layers["X_spliced"][:, adata.var.use_for_pca.values]
+        elif "total" in layer:
+            CM = adata.layers["X_total"][:, adata.var.use_for_pca.values]
+        elif "protein" in layer:
             CM = adata.obsm["X_protein"]
-        else:
+        elif type(layer) is str:
             CM = adata.layers["X_" + layer][:, adata.var.use_for_pca.values]
+        else:
+            raise ValueError(f'your input layer argument should be either a `str` or a list that includes one of `X`, '
+                             f'`total`, `protein` element. `Layer` currently is {layer}.')
 
     cm_genesums = CM.sum(axis=0)
     valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
