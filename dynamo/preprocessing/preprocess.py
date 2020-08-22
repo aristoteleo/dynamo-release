@@ -1266,13 +1266,17 @@ def recipe_monocle(
 
     basic_stats(adata)
     has_splicing, has_labeling, _ = detect_datatype(adata)
-    if has_splicing and has_labeling and type(total_layers) != list:
-        total_layers = ['uu', 'ul', 'su', 'sl'] if total_layers else None
-        layer = ['X', 'uu', 'ul', 'su', 'sl', 'new', 'total'] if layer is None else layer
-    elif has_labeling and not has_splicing and type(total_layers) != list:
-        total_layers = ['total'] if total_layers else None
+    if has_splicing and has_labeling:
+        layer = ['X', 'uu', 'ul', 'su', 'sl', 'spliced', 'unspliced', 'new', 'total'] if layer is None else layer
+
+        if type(total_layers) != list:
+            total_layers = ['uu', 'ul', 'su', 'sl'] if total_layers else None
+    elif has_labeling and not has_splicing:
         layer = ['X', 'total', 'new'] if layer is None else layer
-    elif has_splicing and not has_labeling and type(total_layers) != list:
+
+        if type(total_layers) != list:
+            total_layers = ['total'] if total_layers else None
+    elif has_splicing and not has_labeling:
         layer = ['X', 'spliced', 'unspliced'] if layer is None else layer
 
     adata = unique_var_obs_adata(adata)
@@ -1408,10 +1412,10 @@ def recipe_monocle(
     else:
         if "X" in layer:
             CM = adata.X[:, adata.var.use_for_pca.values]
-        elif "spliced" in layer:
-            CM = adata.layers["X_spliced"][:, adata.var.use_for_pca.values]
         elif "total" in layer:
             CM = adata.layers["X_total"][:, adata.var.use_for_pca.values]
+        elif "spliced" in layer:
+            CM = adata.layers["X_spliced"][:, adata.var.use_for_pca.values]
         elif "protein" in layer:
             CM = adata.obsm["X_protein"]
         elif type(layer) is str:
