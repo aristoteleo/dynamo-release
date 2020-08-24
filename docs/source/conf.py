@@ -16,8 +16,44 @@ import sys
 module_path = os.path.join(os.path.dirname(__file__), '../..')
 sys.path.insert(0, os.path.abspath(module_path))
 
+# Add any paths that contain templates here, relative to this directory.
+templates_path = ["_templates"]
+source_suffix = [".rst", ".ipynb"]
+
 master_doc = "index"
 
+
+
+# the following are borrowed from scvelo
+# -- Retrieve notebooks ------------------------------------------------
+
+from urllib.request import urlretrieve
+
+notebooks_url = "https://github.com/aristoteleo/dynamo-tutorials/raw/master/"
+notebooks = [
+    "zebrafish.ipynb",
+    "dentategyrus_subset_scvelo.ipynb",
+    "pancreatic_endocrinogenesis.ipynb",
+]
+for nb in notebooks:
+    try:
+        urlretrieve(notebooks_url + nb, nb)
+    except:
+        pass
+
+
+# Add notebooks prolog to Google Colab and nbviewer
+nbsphinx_prolog = r"""
+{% set docname = 'github/aristoteleo/dynamo-tutorials/blob/master/' + env.doc2path(env.docname, base=None) %}
+.. raw:: html
+
+    <div class="note">
+      <a href="https://colab.research.google.com/{{ docname|e }}" target="_parent">
+      <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
+      <a href="https://nbviewer.jupyter.org/{{ docname|e }}" target="_parent">
+      <img src="https://github.com/aristoteleo/dynamo-release/raw/master/docs/source/_static/nbviewer-badge.svg" alt="Open In nbviewer"/></a>
+    </div>
+"""
 
 # -- Project information -----------------------------------------------------
 
@@ -26,7 +62,7 @@ copyright = "2020, Xiaojie Qiu, Yan Zhang"
 author = "Xiaojie Qiu, Yan Zhang"
 
 # The full version, including alpha/beta/rc tags
-release = "0.99.3"
+release = "0.95.1"
 
 # -- General configuration ---------------------------------------------------
 
@@ -36,6 +72,7 @@ release = "0.99.3"
 needs_sphinx = "1.7"
 
 extensions = [
+    "nbsphinx",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx.ext.doctest",
@@ -54,9 +91,6 @@ intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
 }
 
-# Add any paths that contain templates here, relative to this directory.
-templates_path = ["_templates"]
-source_suffix = [".rst", ".ipynb"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.

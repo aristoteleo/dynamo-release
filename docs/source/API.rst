@@ -7,7 +7,7 @@ Import dynamo as::
 
    import dynamo as dyn
 
-Data io
+Data IO
 ~~~~~~~
 (See more at `anndata-docs <https://anndata.readthedocs.io/en/latest/anndata.AnnData.html>`_)
 
@@ -30,69 +30,17 @@ Preprocessing (pp)
    .. pp.pca
 
 
-**Estimation (est)**: internally to <Tools>
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Estimation (est)
+~~~~~~~~~~~~~~~~
 
-**Conventional scRNA-seq (est.csc)**
-
-.. autosummary::
-   :toctree: _autosummary
-   :template: custom-module-template.rst
-   :recursive:
-
-   est.csc.ss_estimation
-   est.csc.velocity
-
-**Time-resolved metabolic labeling based scRNA-seq (est.tsc)**
-
-*Base class: a general estimation framework*
-
-.. autosummary::
-   :toctree: _autosummary
-   :template: custom-module-template.rst
-   :recursive:
-
-   est.tsc.kinetic_estimation
-
-*Deterministic models via analytical solution of ODEs*
-
-.. autosummary::
-   :toctree: _autosummary
-   :template: custom-module-template.rst
-   :recursive:
-
-   est.tsc.Estimation_DeterministicDeg
-   est.tsc.Estimation_DeterministicDegNosp
-   est.tsc.Estimation_DeterministicKinNosp
-   est.tsc.Estimation_DeterministicKin
-
-*Stochastic models via matrix form of moment equations*
-
-.. autosummary::
-   :toctree: _autosummary
-   :template: custom-module-template.rst
-   :recursive:
-
-   est.tsc.Estimation_MomentDeg
-   est.tsc.Estimation_MomentDegNosp
-   est.tsc.Estimation_MomentKin
-   est.tsc.Estimation_MomentKinNosp
-
-*Mixture models for kinetic / degradation experiments*
-
-.. autosummary::
-   :toctree: _autosummary
-   :template: custom-module-template.rst
-   :recursive:
-
-   est.tsc.Lambda_NoSwitching
-   est.tsc.Mixture_KinDeg_NoSwitching
+.. note::
+   Classes in **est** are internally to **Tools**. See our estimation classes here: `estimation`_
 
 
 Tools (tl)
 ~~~~~~~~~~
 
-*kNN and Moments of expressions*
+*kNN and moments of expressions*
 
 .. autosummary::
     :toctree: _autosummary
@@ -196,6 +144,9 @@ Vector field (vf)
 ~~~~~~~~~~~~~~~~~
 
 *Vector field reconstruction*
+
+.. note::
+   Vector field class is internally to `vf.VectorField`. See our vector field classes here: `vector field`_
 
 .. autosummary::
     :toctree: _autosummary
@@ -435,10 +386,12 @@ Plotting (pl)
 Moive (mv)
 ~~~~~~~~~~~~~
 
+.. note::
+   animation class is internally to `mv.animate_fates`. See our animation classes here: `animation`_
+
 .. autosummary::
    :toctree: _autosummary
 
-   mv.StreamFuncAnim
    mv.animate_fates
 
 Simulation (sim)
@@ -503,5 +456,9 @@ Utilities
 .. autosummary::
    :toctree: _autosummary
 
-   configuration.set_pub_style
    configuration.set_figure_params
+   configuration.set_pub_style
+
+.. _`estimation`: ./Class.html#estimation
+.. _`vector field`: ./Class.html#vector-field
+.. _`animation`: ./Class.html#movie

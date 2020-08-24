@@ -716,17 +716,25 @@ def topography(
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
 
-    if color is None:
-        color = ['potential', 'curl', 'divergence'] if adata.n_obs < 5000 else ['curl', 'divergence']
-
-    if type(color) == str: color = [color]
-    if len(set(adata.obs.columns).intersection(color)) == 0:
-        if adata.obs.keys().isin(['potential']).sum() == 0:
+    if type(color) == str:
+        color = [color]
+    elif color is None:
+        obs_keys = adata.obs.keys()
+        if np.array(["potential" in key for key in obs_keys]).sum() == 0:
             ddhodge(adata, basis=basis)
-        if adata.obs.keys().isin(['curl']).sum() == 0:
+            color = [basis + '_' + "potential"]
+        else:
+            color = np.array(obs_keys)[["potential" in key for key in obs_keys]][0]
+        if np.array(["curl" in key for key in obs_keys]).sum() == 0:
             curl(adata, basis=basis)
-        if adata.obs.keys().isin(['divergence']).sum() == 0:
+            color.extend("curl_" + basis)
+        else:
+            color.extend(np.array(obs_keys)[["curl" in key for key in obs_keys]][0])
+        if np.array(["divergence" in key for key in obs_keys]).sum() == 0:
             divergence(adata, basis=basis)
+            color.extend("divergence_" + basis)
+        else:
+            color.extend(np.array(obs_keys)[["divergence" in key for key in obs_keys]][0])
 
     if background is None:
         _background = rcParams.get("figure.facecolor")

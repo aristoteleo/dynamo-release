@@ -552,7 +552,8 @@ def dynamics(
         sanity_check_cols = adata.var.columns.str.endswith('sanity_check')
         adata.var['use_for_dynamics'] = adata.var.loc[:, sanity_check_cols].sum(1).astype(bool)
     else: 
-        adata.var['use_for_dynamics'] = adata.var['use_for_pca'].copy()
+        adata.var['use_for_dynamics'] = False
+        adata.var.loc[valid_bools, 'use_for_dynamics'] = True
 
     adata.uns[uns_key] = {
         "filter_gene_mode": filter_gene_mode,

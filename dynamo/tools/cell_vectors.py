@@ -31,6 +31,7 @@ def cell_velocities(
     X_embedding=None,
     use_mnn=False,
     n_pca_components=None,
+    velocity_genes=None,
     min_r2=0.01,
     min_alpha=0.01,
     min_gamma=0.01,
@@ -92,6 +93,8 @@ def cell_velocities(
             The number of pca components to project the high dimensional X, V before calculating transition matrix for
             velocity visualization. By default it is None and if method is `kmc`, n_pca_components will be reset to 30;
             otherwise use all high dimensional data for velocity projection.
+        velocity_genes: list or None (optional, default None)
+            The list of genes that has velocity values calculated or `.var.use_for_dynamics` is True.
         min_r2: float (optional, default 0.01)
             The minimal value of r-squared of the parameter fits for selecting velocity genes.
         min_alpha: float (optional, default 0.01)
@@ -153,6 +156,13 @@ def cell_velocities(
             (default) or the diffusion approximation or the method from (La Manno et al. 2018).
     """
 
+    if velocity_genes is not None:
+        velocity_genes = adata.var_names[adata.var.use_for_dynamics].intersection(velocity_genes).to_list()
+
+        if len(velocity_genes) < 1:
+            raise ValueError(f"The velocity genes you provided don't match any genes that have velocity values "
+                             f"calculated (or `.var.use_for_dynamics` is `True`).")
+
     mapper_r = get_mapper_inverse()
     layer = mapper_r[ekey] if (ekey is not None and ekey in mapper_r.keys()) else ekey
     ekey, vkey, layer = (
@@ -207,27 +217,28 @@ def cell_velocities(
         raise Exception(f"Neighborhood info '{adj_key}' is missing in the provided anndata object."
                         "Run `dyn.tl.reduceDimension` or `dyn.tl.neighbors` first.")
 
-    if 'confident_gene' in adata.var.keys() and not enforce:
-        X = adata[:, adata.var.confident_gene.values].layers[ekey] if X is None else X
-        V_mat = (
-            adata[:, adata.var.confident_gene.values].layers[vkey]
-            if vkey in adata.layers.keys()
-            else None
-        ) if V_mat is None else V_mat
-    else:
-        if 'use_for_velocity' not in adata.var.keys() or enforce:
-            use_for_dynamics = True if "use_for_dynamics" in adata.var.keys() else False
-            adata = set_velocity_genes(
-                adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamics=use_for_dynamics,
-                min_alpha=min_alpha, min_gamma=min_gamma, min_delta=min_delta,
-            )
+    if velocity_genes is None:
+        if 'confident_gene' in adata.var.keys() and not enforce:
+            velocity_genes = adata.var_names[adata.var.confident_gene.values]
+        else:
+            if 'use_for_velocity' not in adata.var.keys() or enforce:
+                use_for_dynamics = True if "use_for_dynamics" in adata.var.keys() else False
+                adata = set_velocity_genes(
+                    adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamics=use_for_dynamics,
+                    min_alpha=min_alpha, min_gamma=min_gamma, min_delta=min_delta,
+                )
 
-        X = adata[:, adata.var.use_for_velocity.values].layers[ekey] if X is None else X
-        V_mat = (
-            adata[:, adata.var.use_for_velocity.values].layers[vkey]
-            if vkey in adata.layers.keys()
-            else None
-        ) if V_mat is None else V_mat
+            velocity_genes = adata.var_names[adata.var.use_for_velocity.values]
+    else:
+        adata.var["use_for_velocity"] = False
+        adata.var.loc[velocity_genes, 'use_for_velocity'] = True
+
+    X = adata[:, velocity_genes].layers[ekey] if X is None else X
+    V_mat = (
+        adata[:, velocity_genes].layers[vkey]
+        if vkey in adata.layers.keys()
+        else None
+    ) if V_mat is None else V_mat
 
     if X.shape != V_mat.shape and X.shape[0] != adata.n_obs:
         raise Exception(f"X and V_mat doesn't have the same dimensionalities or X/V_mat doesn't {adata.n_obs} rows!")
