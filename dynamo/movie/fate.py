@@ -280,22 +280,23 @@ def animate_fates(adata,
         kwargs:
             Additional arguments passed to animation.FuncAnimation.
 
-        Returns
-        -------
-            Nothing but produce an animation that will be embedded to jupyter notebook or saved to disk.
+    Returns
+    -------
+        Nothing but produce an animation that will be embedded to jupyter notebook or saved to disk.
 
-        Examples 1
-        ----------
-        >>> from matplotlib import animation
-        >>> progenitor = adata.obs_names[adata.obs.clusters == 'cluster_1']
-        >>> fate_progenitor = progenitor
-        >>> info_genes = adata.var_names[adata.var.use_for_velocity]
-        >>> dyn.pd.fate(adata, basis='umap', init_cells=fate_progenitor, interpolation_num=100,  direction='forward',
-        ...    inverse_transform=False, average=False, arclen_sampling=True)
-        >>> dyn.pl.fate_animation(adata)
+    Examples 1
+    ----------
+    >>> from matplotlib import animation
+    >>> progenitor = adata.obs_names[adata.obs.clusters == 'cluster_1']
+    >>> fate_progenitor = progenitor
+    >>> info_genes = adata.var_names[adata.var.use_for_velocity]
+    >>> dyn.pd.fate(adata, basis='umap', init_cells=fate_progenitor, interpolation_num=100,  direction='forward',
+    ...    inverse_transform=False, average=False, arclen_sampling=True)
+    >>> dyn.pl.fate_animation(adata)
 
-            See also:: :func:`StreamFuncAnim`
-        """
+        See also:: :func:`StreamFuncAnim`
+    """
+
     from matplotlib import animation
 
     instance = StreamFuncAnim(adata=adata,

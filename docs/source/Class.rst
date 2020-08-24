@@ -80,3 +80,18 @@ Vector field class
 .. autoclass:: dynamo.vf.vectorfield
     :members:
     :inherited-members:
+
+.. autoclass:: dynamo.vf.Pot
+    :members:
+    :inherited-members:
+
+
+Movie
+-----
+
+Animation class
+~~~~~~~~~~~~~~~
+
+.. autoclass:: dynamo.mv.StreamFuncAnim
+    :members:
+    :inherited-members:

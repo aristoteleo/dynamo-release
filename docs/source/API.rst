@@ -386,10 +386,12 @@ Plotting (pl)
 Moive (mv)
 ~~~~~~~~~~~~~
 
+.. note::
+   animation class is internally to `mv.animate_fates`. See our animation classes here: `animation`_
+
 .. autosummary::
    :toctree: _autosummary
 
-   mv.StreamFuncAnim
    mv.animate_fates
 
 Simulation (sim)
@@ -459,3 +461,4 @@ Utilities
 
 .. _`estimation`: ./Class.html#estimation
 .. _`vector field`: ./Class.html#vector-field
+.. _`animation`: ./Class.html#movie
