@@ -13,24 +13,23 @@ from .utils import (
 from ..vectorfield import vector_field_function
 
 
-def fate(
-    adata,
-    init_cells,
-    init_states=None,
-    basis=None,
-    layer="X",
-    dims=None,
-    genes=None,
-    t_end=None,
-    direction="both",
-    interpolation_num=250,
-    average=False,
-    sampling='arc_length',
-    VecFld_true=None,
-    inverse_transform=False,
-    scale=1,
-    cores=1,
-    **kwargs
+def fate(adata,
+         init_cells,
+         init_states=None,
+         basis=None,
+         layer="X",
+         dims=None,
+         genes=None,
+         t_end=None,
+         direction="both",
+         interpolation_num=250,
+         average=False,
+         sampling='arc_length',
+         VecFld_true=None,
+         inverse_transform=False,
+         scale=1,
+         cores=1,
+         **kwargs
 ):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales.
 
@@ -259,25 +258,33 @@ def _fate(
         )
     else:
         pool = ThreadPool(cores)
-        res = pool.starmap(integrate_vf_ivp, zip(init_states, itertools.repeat(t_linspace), itertools.repeat(()),
-                                      itertools.repeat(direction), itertools.repeat(VecFld),
-                                      itertools.repeat(interpolation_num), itertools.repeat(False),
-                                      itertools.repeat(True))) # disable tqdm when using multiple cores.
+        res = pool.starmap(integrate_vf_ivp, zip(init_states,
+                                                 itertools.repeat(t_linspace),
+                                                 itertools.repeat(()),
+                                                 itertools.repeat(direction),
+                                                 itertools.repeat(VecFld),
+                                                 itertools.repeat(interpolation_num),
+                                                 itertools.repeat(average),
+                                                 itertools.repeat(sampling),
+                                                 itertools.repeat(False),
+                                                 itertools.repeat(True)
+                                                 )) # disable tqdm when using multiple cores.
         pool.close()
         pool.join()
         t_, prediction_ = zip(*res)
         t, prediction = [i[0] for i in t_], [i[0] for i in prediction_]
-        t, prediction = np.hstack(t), np.hstack(prediction)
+        t_stack, prediction_stack = np.hstack(t), np.hstack(prediction)
         n_cell, n_feature = init_states.shape
+
         if init_states.shape[0] > 1 and average:
-            t_len = int(len(t) / n_cell)
+            t_len = int(len(t_stack) / n_cell)
             avg = np.zeros((n_feature, t_len))
 
             for i in range(t_len):
-                avg[:, i] = np.mean(prediction[:, np.arange(n_cell) * t_len + i], 1)
+                avg[:, i] = np.mean(prediction_stack[:, np.arange(n_cell) * t_len + i], 1)
 
-            prediction = avg
-            t = np.sort(np.unique(t))
+            prediction = [avg]
+            t = [np.sort(np.unique(t))]
 
     return t, prediction
 
@@ -445,7 +452,7 @@ def fate_bias(adata,
                 if hasattr(nbrs, 'query'):
                     knn, _ = nbrs.query(X[knn.flatten(), :], k=30)
                 else:
-                    _, knn = knn, nbrs.kneighbors(X[knn.flatten(), :])
+                   _, knn = nbrs.kneighbors(X[knn.flatten(), :])
 
                 fate_prob = clusters[knn.flatten()].value_counts() / len(knn.flatten())
                 if source_groups is not None:

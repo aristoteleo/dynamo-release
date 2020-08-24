@@ -6,9 +6,16 @@ from scipy.sparse import issparse
 from ..vectorfield.topography import dup_osc_idx_iter
 from ..tools.utils import log1p_
 
-def integrate_vf_ivp(
-    init_states, t, args, integration_direction, f, interpolation_num=250, average=True, sampling='arc_length',
-    verbose=False, disable=False,
+def integrate_vf_ivp(init_states,
+                     t,
+                     args,
+                     integration_direction,
+                     f,
+                     interpolation_num=250,
+                     average=True,
+                     sampling='arc_length',
+                     verbose=False,
+                     disable=False,
 ):
     """integrating along vector field function using the initial value problem solver from scipy.integrate"""
 
@@ -166,6 +173,7 @@ def integrate_vf_ivp(
 
         t, Y = valid_t_trans, _Y
 
+        # this part is buggy, need to fix
         if n_cell > 1 and average:
             t_len = int(len(t) / n_cell)
             avg = np.zeros((n_feature, t_len))
