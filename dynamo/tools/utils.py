@@ -99,6 +99,14 @@ def isarray(arr):
     return hasattr(arr, '__len__') and (not isinstance(arr, str))
 
 
+def areinstance(arr, dtype, logic_func=all):
+    """
+        Check if elements of an array are all (by default) of 'dtype'.
+    """
+    ret = [isinstance(a, dtype) for a in arr]
+    return logic_func(ret)
+
+
 def closest_cell(coord, cells):
     cells = np.asarray(cells)
     dist_2 = np.sum((cells - coord) ** 2, axis=1)
@@ -1107,7 +1115,7 @@ def get_group_params_indices(adata, param_name):
     return adata.var.columns.str.endswith(param_name)
 
 
-def set_velocity_genes(
+def set_transition_genes(
     adata,
     vkey="velocity_S",
     min_r2=0.01,
@@ -1115,6 +1123,7 @@ def set_velocity_genes(
     min_gamma=0.01,
     min_delta=0.01,
     use_for_dynamics=True,
+    store_key='use_for_transition'
 ):
     layer = vkey.split("_")[1]
 
@@ -1132,7 +1141,7 @@ def set_velocity_genes(
         if 'alpha_r2' not in adata.var.columns: adata.var['alpha_r2'] = None
         if np.all(adata.var.alpha_r2.values == None):
             adata.var.alpha_r2 = 1
-        adata.var["use_for_velocity"] = (
+        adata.var[store_key] = (
             (adata.var.alpha > min_alpha)
             & (adata.var.alpha_r2 > min_r2)
             & adata.var.use_for_dynamics
@@ -1151,7 +1160,7 @@ def set_velocity_genes(
 
         if 'gamma_r2' not in adata.var.columns: adata.var['gamma_r2'] = None
         if np.all(adata.var.gamma_r2.values == None): adata.var.gamma_r2 = 1
-        adata.var["use_for_velocity"] = (
+        adata.var[store_key] = (
             (adata.var.gamma > min_gamma)
             & (adata.var.gamma_r2 > min_r2)
             & adata.var.use_for_dynamics
@@ -1171,7 +1180,7 @@ def set_velocity_genes(
         if 'delta_r2' not in adata.var.columns: adata.var['delta_r2'] = None
         if np.all(adata.var.delta_r2.values == None):
             adata.var.delta_r2 = 1
-        adata.var["use_for_velocity"] = (
+        adata.var[store_key] = (
             (adata.var.delta > min_delta)
             & (adata.var.delta_r2 > min_r2)
             & adata.var.use_for_dynamics
