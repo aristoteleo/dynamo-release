@@ -77,14 +77,14 @@ def cell_accelerations(adata,
         acceleration(adata, basis=vf_basis)
 
     X = adata.obsm['X_' + vf_basis]
-    V_mat = adata.obsm['acceleration_' + vf_basis]
+    V = adata.obsm['acceleration_' + vf_basis]
     X_embedding = adata.obsm['X_' + basis]
 
     if basis != vf_basis and vf_basis.lower() not in ['umap', 'tsne', 'trimap', 'ddtree', 'diffusion_map']:
         cell_velocities(
             adata,
             X=X,
-            V_mat=V_mat,
+            V=V,
             X_embedding=X_embedding,
             basis=basis,
             enforce=enforce,
