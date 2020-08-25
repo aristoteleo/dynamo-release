@@ -8,7 +8,8 @@ from .connectivity import adj_to_knn, knn_to_adj
 
 from .metric_velocity import gene_wise_confidence
 from .utils import (
-    set_velocity_genes,
+    areinstance,
+    set_transition_genes,
     get_finite_inds,
     get_ekey_vkey_from_adata,
     get_mapper_inverse,
@@ -27,11 +28,11 @@ def cell_velocities(
     ekey=None,
     vkey=None,
     X=None,
-    V_mat=None,
+    V=None,
     X_embedding=None,
     use_mnn=False,
     n_pca_components=None,
-    velocity_genes=None,
+    transition_genes=None,
     min_r2=0.01,
     min_alpha=0.01,
     min_gamma=0.01,
@@ -54,9 +55,10 @@ def cell_velocities(
     preserve_len=False,
     **kmc_kwargs
 ):
-    """Compute transition probability and project high dimension velocity vector to existing low dimension embedding.
+    """Project high dimensional velocity vectors onto given low dimensional embeddings, 
+    and/or compute cell transition probabilities.
 
-    It is powered by the Itô kernel that not only considers the correlation between the vector from any cell to its
+    When method='kmc, the Itô kernel is used which not only considers the correlation between the vector from any cell to its
     nearest neighbors and its velocity vector but also the corresponding distances. We expect this new kernel will enable
     us to visualize more intricate vector flow or steady states in low dimension. We also expect it will improve the
     calculation of the stationary distribution or source states of sampled cells. The original "correlation/cosine"
@@ -76,13 +78,13 @@ def cell_velocities(
             The dictionary key that corresponds to the estimated velocity values in the layers attribute.
         X: :class:`~numpy.ndarray` or :class:`~scipy.sparse.csr_matrix` or None (optional, default `None`)
             The expression states of single cells (or expression states in reduced dimension, like pca, of single cells)
-        V_mat: :class:`~numpy.ndarray` or :class:`~scipy.sparse.csr_matrix` or None (optional, default `None`)
+        V: :class:`~numpy.ndarray` or :class:`~scipy.sparse.csr_matrix` or None (optional, default `None`)
             The RNA velocity of single cells (or velocity estimates projected to reduced dimension, like pca, of single
-            cells). Note that X, V_mat need to have the exact dimensionalities.
+            cells). Note that X, V need to have the exact dimensionalities.
         X_embedding: str or None (optional, default None)
             The low expression reduced space (pca, umap, tsne, etc.) of single cells that RNA velocity will be projected
-            onto. Note X_embedding, X and V_mat has to have the same cell/sample dimension and X_embedding should have
-            less feature dimension comparing that of X or V_mat.
+            onto. Note X_embedding, X and V has to have the same cell/sample dimension and X_embedding should have
+            less feature dimension comparing that of X or V.
         use_mnn: bool (optional, default False)
             Whether to use mutual nearest neighbors for projecting the high dimensional velocity vectors. By default, we
             don't use the mutual nearest neighbors. Mutual nearest neighbors are calculated from nearest neighbors across
@@ -93,8 +95,11 @@ def cell_velocities(
             The number of pca components to project the high dimensional X, V before calculating transition matrix for
             velocity visualization. By default it is None and if method is `kmc`, n_pca_components will be reset to 30;
             otherwise use all high dimensional data for velocity projection.
-        velocity_genes: list or None (optional, default None)
-            The list of genes that has velocity values calculated or `.var.use_for_dynamics` is True.
+        transition_genes: str, list, or None (optional, default None)
+            The set of genes used for projection of hign dimensional velocity vectors.
+            If None, transition genes are determined based on the R2 of linear regression on phase planes.
+            The argument can be either a dictionary key of .var, a list of gene names, or a list of booleans 
+            of length .n_vars.
         min_r2: float (optional, default 0.01)
             The minimal value of r-squared of the parameter fits for selecting velocity genes.
         min_alpha: float (optional, default 0.01)
@@ -145,24 +150,16 @@ def cell_velocities(
         other_kernels_dict: dict (default: {})
             A dictionary of paramters that will be passed to the cosine/correlation kernel.
         enforce: bool (default: False)
-            Whether to enforce 1) redefining use_for_velocity column in obs attribute;
-                               2) recalculation of transition matrix.
+            Whether to enforce 1) redefining use_for_transition column in obs attribute; However this is NOT executed if 
+                                    the argument 'transition_genes' is not None.
+                               2) recalculation of the transition matrix.
 
     Returns
     -------
-        Adata: :class:`~anndata.AnnData`
-            Returns an updated `~anndata.AnnData` with transition_matrix and projected embedding of high dimension velocity
-            vectors in the existing embeddings of current cell state, calculated using either the Itô kernel method
-            (default) or the diffusion approximation or the method from (La Manno et al. 2018).
+        adata: :class:`~anndata.AnnData`
+            Returns an updated :class:`~anndata.AnnData` with projected velocity vectors, and a cell transition matrix 
+            calculated using either the Itô kernel method or similar methods from (La Manno et al. 2018).
     """
-
-    if velocity_genes is not None:
-        velocity_genes = adata.var_names[adata.var.use_for_dynamics].intersection(velocity_genes).to_list()
-
-        if len(velocity_genes) < 1:
-            raise ValueError(f"The velocity genes you provided don't match any genes that have velocity values "
-                             f"calculated (or `.var.use_for_dynamics` is `True`).")
-
     mapper_r = get_mapper_inverse()
     layer = mapper_r[ekey] if (ekey is not None and ekey in mapper_r.keys()) else ekey
     ekey, vkey, layer = (
@@ -217,31 +214,50 @@ def cell_velocities(
         raise Exception(f"Neighborhood info '{adj_key}' is missing in the provided anndata object."
                         "Run `dyn.tl.reduceDimension` or `dyn.tl.neighbors` first.")
 
-    if velocity_genes is None:
-        if 'confident_gene' in adata.var.keys() and not enforce:
-            velocity_genes = adata.var_names[adata.var.confident_gene.values]
-        else:
-            if 'use_for_velocity' not in adata.var.keys() or enforce:
-                use_for_dynamics = True if "use_for_dynamics" in adata.var.keys() else False
-                adata = set_velocity_genes(
-                    adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamics=use_for_dynamics,
-                    min_alpha=min_alpha, min_gamma=min_gamma, min_delta=min_delta,
-                )
-
-            velocity_genes = adata.var_names[adata.var.use_for_velocity.values]
+    if transition_genes is None:
+        # we don't need the following lines since now you can set transition_genes to any key
+        # to achieve the same result, and it is more explicit.
+        #if 'confident_gene' in adata.var.keys() and not enforce:
+        #    transition_genes = adata.var_names[adata.var.confident_gene.values]
+        #else:
+        if 'use_for_transition' not in adata.var.keys() or enforce:
+            use_for_dynamics = True if "use_for_dynamics" in adata.var.keys() else False
+            adata = set_transition_genes(
+                adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamics=use_for_dynamics,
+                min_alpha=min_alpha, min_gamma=min_gamma, min_delta=min_delta,
+            )
+        transition_genes = adata.var_names[adata.var.use_for_transition.values]
     else:
-        adata.var["use_for_velocity"] = False
-        adata.var.loc[velocity_genes, 'use_for_velocity'] = True
+        if not enforce:
+            warnings.warn(f'A new set of transition genes is used, but because enforce=False, '
+             'the transition matrix might not be recalculated if it is found in .obsp.')
+        dynamics_genes = adata.var.use_for_dynamics \
+            if 'use_for_dynamics' in adata.var.keys() \
+            else np.ones(adata.n_vars, dtype=bool)
+        if type(transition_genes) is str:
+            transition_genes = adata.var[transition_genes].to_list()
+            transition_genes = np.logical_and(transition_genes, dynamics_genes.to_list())
+        elif areinstance(transition_genes, str):
+            transition_genes = adata.var_names[dynamics_genes].intersection(transition_genes).to_list()
+        elif areinstance(transition_genes, bool) or areinstance(transition_genes, np.bool_):
+            transition_genes = np.array(transition_genes)
+            transition_genes = np.logical_and(transition_genes, dynamics_genes.to_list())
+        else:
+            raise TypeError(f"velocity genes should either be a key of adata.var, "
+                             f"an array of gene names, or of booleans.")
+        if len(transition_genes) < 1:
+            raise ValueError(f"None of the velocity genes provided has velocity values. "
+                             f"(or `.var.use_for_dynamics` is `False`).")
 
-    X = adata[:, velocity_genes].layers[ekey] if X is None else X
-    V_mat = (
-        adata[:, velocity_genes].layers[vkey]
+    X = adata[:, transition_genes].layers[ekey] if X is None else X
+    V = (
+        adata[:, transition_genes].layers[vkey]
         if vkey in adata.layers.keys()
         else None
-    ) if V_mat is None else V_mat
+    ) if V is None else V
 
-    if X.shape != V_mat.shape and X.shape[0] != adata.n_obs:
-        raise Exception(f"X and V_mat doesn't have the same dimensionalities or X/V_mat doesn't {adata.n_obs} rows!")
+    if X.shape != V.shape:
+        raise Exception(f"X and V do not have the same number of dimensions.")
     
     if X_embedding is None:
         if vkey == "velocity_S":
@@ -250,19 +266,20 @@ def cell_velocities(
             adata = reduceDimension(adata, layer=layer, reduction_method=basis)
             X_embedding = adata.obsm[layer + "_" + basis]
 
-    if X.shape[0] != X_embedding.shape[0] and X.shape[1] > X_embedding.shape[1]:
-        raise Exception(f"X and X_embedding doesn't have the same sample dimension or "
-                        f"X doesn't have the higher feature dimension!")
+    if X.shape[0] != X_embedding.shape[0]:
+        raise Exception("X and X_embedding do not have the same number of samples.")
+    if X.shape[1] < X_embedding.shape[1]:
+        raise Exception("The number of dimensions of X is smaller than that of the embedding.")
 
-    V_mat = V_mat.A if issparse(V_mat) else V_mat
+    V = V.A if issparse(V) else V
     X = X.A if issparse(X) else X
-    finite_inds = get_finite_inds(V_mat)
-    X, V_mat = X[:, finite_inds], V_mat[:, finite_inds]
+    finite_inds = get_finite_inds(V)
+    X, V = X[:, finite_inds], V[:, finite_inds]
 
     if method == 'kmc' and n_pca_components is None: n_pca_components = 30
     if n_pca_components is not None:
         X = log1p_(adata, X)
-        X_plus_V = log1p_(adata, X + V_mat)
+        X_plus_V = log1p_(adata, X + V)
         if (
                 "velocity_pca_fit" not in adata.uns_keys()
                 or type(adata.uns["velocity_pca_fit"]) == str
@@ -287,28 +304,13 @@ def cell_velocities(
 
         Y_pca = pca_fit.transform(X_plus_V)
         V_pca = Y_pca - X_pca
-        # V_pca = (V_mat - V_mat.mean(0)).dot(PCs)
 
         adata.obsm["velocity_pca_raw"] = V_pca
-        X, V_mat = X_pca[:, :n_pca_components], V_pca[:, :n_pca_components]
-
-    ### there shouldn't be neighborhood calculation functions here. user could use
-    ### neighorhood from dim reduction, connectivity.neighbors, or their own procedures.
-    #if neighbors_from_basis:
-    #    if X.shape[0] > 200000 and X.shape[1] > 2: 
-    #        from pynndescent import NNDescent
-
-    #        nbrs = NNDescent(X, metric='eulcidean', n_neighbors=n_neighbors, n_jobs=-1,
-    #                          random_state=19490110)
-    #        indices, _ = nbrs.query(X, k=30)
-    #    else:
-    #        alg = "ball_tree" if X.shape[1] > 10 else 'kd_tree'
-    #        nbrs = NearestNeighbors(n_neighbors=n_neighbors, algorithm=alg, n_jobs=-1).fit(X)
-    #        _, indices = nbrs.kneighbors(X)
+        X, V = X_pca[:, :n_pca_components], V_pca[:, :n_pca_components]
 
     # add both source and sink distribution
     if method == "kmc":
-        if method + '_transition_matrix' in adata.uns_keys() and not enforce:
+        if method + '_transition_matrix' in adata.obsp.keys() and not enforce:
             T = adata.obsp[method + '_transition_matrix']
             kmc = KernelMarkovChain(P=T)
         else:
@@ -325,7 +327,7 @@ def cell_velocities(
         if method + '_transition_matrix' not in adata.obsp.keys() or not enforce:
             kmc.fit(
                 X,
-                V_mat,
+                V,
                 neighbor_idx=indices,
                 sample_fraction=sample_fraction,
                 **kmc_args
@@ -349,8 +351,8 @@ def cell_velocities(
 
         if calc_rnd_vel:
             kmc = KernelMarkovChain()
-            permute_rows_nsign(V_mat)
-            kmc.fit(X, V_mat, **kmc_args)  # neighbor_idx=indices,
+            permute_rows_nsign(V)
+            kmc.fit(X, V, **kmc_args)  # neighbor_idx=indices,
             T_rnd = kmc.P
             if correct_density:
                 delta_X_rnd = kmc.compute_density_corrected_drift(
@@ -373,7 +375,8 @@ def cell_velocities(
                      }
         vs_kwargs = update_dict(vs_kwargs, other_kernels_dict)
 
-        if method + '_transition_matrix' in adata.uns_keys() and not enforce:
+        if method + '_transition_matrix' in adata.obsp.keys() and not enforce:
+            print('Using existing %s found in .obsp.'%(method + '_transition_matrix'))
             T = adata.obsp[method + '_transition_matrix']
             delta_X = projection_with_transition_matrix(X.shape[0], T, X_embedding)
             X_grid, V_grid, D = velocity_on_grid(
@@ -381,14 +384,14 @@ def cell_velocities(
             )
         else:
             T, delta_X, X_grid, V_grid, D = kernels_from_velocyto_scvelo(
-                X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums,
+                X, X_embedding, V, indices, neg_cells_trick, xy_grid_nums,
                 method, **vs_kwargs
             )
 
         if calc_rnd_vel:
-            permute_rows_nsign(V_mat)
+            permute_rows_nsign(V)
             T_rnd, delta_X_rnd, X_grid_rnd, V_grid_rnd, D_rnd = kernels_from_velocyto_scvelo(
-                X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums,
+                X, X_embedding, V, indices, neg_cells_trick, xy_grid_nums,
                 method, **vs_kwargs
             )
     elif method == "transform":
@@ -423,7 +426,7 @@ def cell_velocities(
         ),
 
     if preserve_len:
-        basis_len, high_len = np.linalg.norm(delta_X, axis=1), np.linalg.norm(V_mat, axis=1)
+        basis_len, high_len = np.linalg.norm(delta_X, axis=1), np.linalg.norm(V, axis=1)
         scaler = np.nanmedian(basis_len) / np.nanmedian(high_len)
         for i in tqdm(range(adata.n_obs), desc=f"rescaling velocity norm..."):
             idx = T[i].indices
@@ -520,12 +523,12 @@ def confident_cell_velocities(adata,
                         f"raw RNA velocity before running this function.")
 
     if only_velocity_genes:
-        if 'use_for_velocity' not in adata.var.keys():
+        if 'use_for_transition' not in adata.var.keys():
             warnings.warn('`dyn.tl.cell_velocities(adata)` is not performed yet. Rolling back to use all feature genes '
                           'as input for supervised RNA velocity analysis.')
             genes = adata.var_names[adata.var.use_for_dynamics]
         else:
-            genes = adata.var_names[adata.var.use_for_velocity]
+            genes = adata.var_names[adata.var.use_for_transition]
     else:
         genes = adata.var_names[adata.var.use_for_dynamics]
 
@@ -538,10 +541,10 @@ def confident_cell_velocities(adata,
     adata.var.loc[confident_genes, 'confident_genes'] = True
 
     X = adata[:, confident_genes].layers[ekey]
-    V_mat = adata[:, confident_genes].layers[vkey]
+    V = adata[:, confident_genes].layers[vkey]
     X_embedding = adata.obsm['X_' + basis]
 
-    cell_velocities(adata, enforce=True, X=X, V_mat=V_mat, X_embedding=X_embedding, basis=basis)
+    cell_velocities(adata, enforce=True, X=X, V=V, X_embedding=X_embedding, basis=basis)
 
     return adata
 
@@ -739,7 +742,7 @@ def expected_return_time(M, backward=False):
 
 
 def kernels_from_velocyto_scvelo(
-    X, X_embedding, V_mat, indices, neg_cells_trick, xy_grid_nums,
+    X, X_embedding, V, indices, neg_cells_trick, xy_grid_nums,
     kernel='pearson', n_recurse_neighbors=2, max_neighs=None, transform='sqrt',
     use_neg_vals=True,
 ):
@@ -753,7 +756,7 @@ def kernels_from_velocyto_scvelo(
 
     delta_X = np.zeros((n, X_embedding.shape[1]))
     for i in tqdm(range(n), desc=f"calculating transition matrix via {kernel} kernel with {transform} transform."):
-        velocity = V_mat[i, :]  # project V_mat to pca space
+        velocity = V[i, :]  # project V to pca space
 
         if velocity.sum() != 0:
             i_vals = get_iterative_indices(indices, i, n_recurse_neighbors, max_neighs)  # np.zeros((knn, 1))
