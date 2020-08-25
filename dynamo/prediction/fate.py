@@ -464,7 +464,7 @@ def fate_bias(adata,
                 pred_dict[i] = fate_prob
 
                 confidence[i] = 1 - (sum(~ is_dist_larger_than_threshold) + walk_back_steps) / (
-                        len(indices) + walk_back_steps)
+                        len(is_dist_larger_than_threshold) + walk_back_steps)
 
                 break
             else:
