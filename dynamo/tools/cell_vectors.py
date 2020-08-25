@@ -235,8 +235,8 @@ def cell_velocities(
             if 'use_for_dynamics' in adata.var.keys() \
             else np.ones(adata.n_vars, dtype=bool)
         if type(transition_genes) is str:
+            transition_genes = adata.var[transition_genes].to_list()
             transition_genes = np.logical_and(transition_genes, dynamics_genes.to_list())
-            transition_genes = adata.var_names[transition_genes].to_list()
         elif areinstance(transition_genes, str):
             transition_genes = adata.var_names[dynamics_genes].intersection(transition_genes).to_list()
         elif areinstance(transition_genes, bool) or areinstance(transition_genes, np.bool_):
