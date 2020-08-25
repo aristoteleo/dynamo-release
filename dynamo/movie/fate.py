@@ -66,7 +66,7 @@ class StreamFuncAnim():
         >>> from matplotlib import animation
         >>> progenitor = adata.obs_names[adata.obs.clusters == 'cluster_1']
         >>> fate_progenitor = progenitor
-        >>> info_genes = adata.var_names[adata.var.use_for_velocity]
+        >>> info_genes = adata.var_names[adata.var.use_for_transition]
         >>> dyn.pd.fate(adata, basis='umap', init_cells=fate_progenitor, interpolation_num=100,  direction='forward',
         ...    inverse_transform=False, average=False)
         >>> instance = dyn.mv.StreamFuncAnim(adata=adata, ax=None, ln=None)

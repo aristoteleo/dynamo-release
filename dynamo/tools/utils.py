@@ -580,8 +580,8 @@ def get_data_for_kin_params_estimation(
             ind_for_proteins = [
                 np.where(subset_adata.var.index == i)[0][0] for i in protein_names
             ]
-            subset_adata.var["is_protein_velocity_genes"] = False
-            subset_adata.var.loc[ind_for_proteins, "is_protein_velocity_genes"] = True
+            subset_adata.var["is_protein_dynamics_genes"] = False
+            subset_adata.var.loc[ind_for_proteins, "is_protein_dynamics_genes"] = True
 
     experiment_type = "conventional"
 

@@ -45,7 +45,7 @@ def cell_accelerations(adata,
         basis: 'int' (optional, default `umap`)
             The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
         enforce: `bool` (default: `False`)
-            Whether to enforce 1) redefining use_for_velocity column in obs attribute;
+            Whether to enforce 1) redefining use_for_transition column in obs attribute;
                                2) recalculation of transition matrix.
         preserve_len: `bool` (default: `True`)
             Whether to preserve the length of high dimension vector length. When set to be True, the length  of low

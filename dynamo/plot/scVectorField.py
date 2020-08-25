@@ -25,7 +25,7 @@ import scipy as sc
 
 # from licpy.lic import runlic
 
-# moran'I on the velocity genes, etc.
+# moran'I on the transition genes, etc.
 
 # cellranger data, velocyto, comparison and phase diagram
 

@@ -56,7 +56,7 @@ def fate(adata,
             space.
         genes: `list` or None (default: None)
             The gene names whose gene expression will be used for predicting cell fate. By default (when genes is set to
-            None), the genes used for velocity embedding (var.use_for_velocity) will be used for vector field
+            None), the genes used for velocity embedding (var.use_for_transition) will be used for vector field
             reconstruction. Note that the genes to be used need to have velocity calculated and corresponds to those used
             in the `dyn.tl.VectorField` function.
         t_end: `float` (default None)
@@ -144,7 +144,7 @@ def fate(adata,
         if adata.var.use_for_dynamics.sum() == high_prediction.shape[1]:
             valid_genes = adata.var_names[adata.var.use_for_dynamics]
         else:
-            valid_genes = adata.var_names[adata.var.use_for_velocity]
+            valid_genes = adata.var_names[adata.var.use_for_transition]
 
     elif basis == "umap" and inverse_transform:
         # this requires umap 0.4; reverse project to PCA space.
@@ -164,8 +164,8 @@ def fate(adata,
 
         if adata.var.use_for_dynamics.sum() == high_prediction.shape[1]:
             valid_genes = adata.var_names[adata.var.use_for_dynamics]
-        elif adata.var.use_for_velocity.sum() == high_prediction.shape[1]:
-            valid_genes = adata.var_names[adata.var.use_for_velocity]
+        elif adata.var.use_for_transition.sum() == high_prediction.shape[1]:
+            valid_genes = adata.var_names[adata.var.use_for_transition]
         else:
             raise Exception(
                 "looks like a customized set of genes is used for pca analysis of the adata. "

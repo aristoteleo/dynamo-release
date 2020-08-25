@@ -388,8 +388,8 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
                 basis + "_" + str(i) for i in np.arange(init_states.shape[1])
             ]
         else:
-            # valid_genes = list(set(genes).intersection(adata.var_names[adata.var.use_for_velocity]) if genes is not None \
-            #     else adata.var_names[adata.var.use_for_velocity]
+            # valid_genes = list(set(genes).intersection(adata.var_names[adata.var.use_for_transition]) if genes is not None \
+            #     else adata.var_names[adata.var.use_for_transition]
             # ----------- enable the function to only only a subset genes -----------
 
             vf_key = "VecFld" if layer == "X" else "VecFld_" + layer
