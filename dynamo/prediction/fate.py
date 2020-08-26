@@ -13,24 +13,23 @@ from .utils import (
 from ..vectorfield import vector_field_function
 
 
-def fate(
-    adata,
-    init_cells,
-    init_states=None,
-    basis=None,
-    layer="X",
-    dims=None,
-    genes=None,
-    t_end=None,
-    direction="both",
-    interpolation_num=250,
-    average=False,
-    sampling='arc_length',
-    VecFld_true=None,
-    inverse_transform=False,
-    scale=1,
-    cores=1,
-    **kwargs
+def fate(adata,
+         init_cells,
+         init_states=None,
+         basis=None,
+         layer="X",
+         dims=None,
+         genes=None,
+         t_end=None,
+         direction="both",
+         interpolation_num=250,
+         average=False,
+         sampling='arc_length',
+         VecFld_true=None,
+         inverse_transform=False,
+         scale=1,
+         cores=1,
+         **kwargs
 ):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales.
 
@@ -57,7 +56,7 @@ def fate(
             space.
         genes: `list` or None (default: None)
             The gene names whose gene expression will be used for predicting cell fate. By default (when genes is set to
-            None), the genes used for velocity embedding (var.use_for_velocity) will be used for vector field
+            None), the genes used for velocity embedding (var.use_for_transition) will be used for vector field
             reconstruction. Note that the genes to be used need to have velocity calculated and corresponds to those used
             in the `dyn.tl.VectorField` function.
         t_end: `float` (default None)
@@ -145,7 +144,7 @@ def fate(
         if adata.var.use_for_dynamics.sum() == high_prediction.shape[1]:
             valid_genes = adata.var_names[adata.var.use_for_dynamics]
         else:
-            valid_genes = adata.var_names[adata.var.use_for_velocity]
+            valid_genes = adata.var_names[adata.var.use_for_transition]
 
     elif basis == "umap" and inverse_transform:
         # this requires umap 0.4; reverse project to PCA space.
@@ -165,8 +164,8 @@ def fate(
 
         if adata.var.use_for_dynamics.sum() == high_prediction.shape[1]:
             valid_genes = adata.var_names[adata.var.use_for_dynamics]
-        elif adata.var.use_for_velocity.sum() == high_prediction.shape[1]:
-            valid_genes = adata.var_names[adata.var.use_for_velocity]
+        elif adata.var.use_for_transition.sum() == high_prediction.shape[1]:
+            valid_genes = adata.var_names[adata.var.use_for_transition]
         else:
             raise Exception(
                 "looks like a customized set of genes is used for pca analysis of the adata. "
@@ -259,25 +258,33 @@ def _fate(
         )
     else:
         pool = ThreadPool(cores)
-        res = pool.starmap(integrate_vf_ivp, zip(init_states, itertools.repeat(t_linspace), itertools.repeat(()),
-                                      itertools.repeat(direction), itertools.repeat(VecFld),
-                                      itertools.repeat(interpolation_num), itertools.repeat(False),
-                                      itertools.repeat(True))) # disable tqdm when using multiple cores.
+        res = pool.starmap(integrate_vf_ivp, zip(init_states,
+                                                 itertools.repeat(t_linspace),
+                                                 itertools.repeat(()),
+                                                 itertools.repeat(direction),
+                                                 itertools.repeat(VecFld),
+                                                 itertools.repeat(interpolation_num),
+                                                 itertools.repeat(average),
+                                                 itertools.repeat(sampling),
+                                                 itertools.repeat(False),
+                                                 itertools.repeat(True)
+                                                 )) # disable tqdm when using multiple cores.
         pool.close()
         pool.join()
         t_, prediction_ = zip(*res)
         t, prediction = [i[0] for i in t_], [i[0] for i in prediction_]
-        t, prediction = np.hstack(t), np.hstack(prediction)
+        t_stack, prediction_stack = np.hstack(t), np.hstack(prediction)
         n_cell, n_feature = init_states.shape
+
         if init_states.shape[0] > 1 and average:
-            t_len = int(len(t) / n_cell)
+            t_len = int(len(t_stack) / n_cell)
             avg = np.zeros((n_feature, t_len))
 
             for i in range(t_len):
-                avg[:, i] = np.mean(prediction[:, np.arange(n_cell) * t_len + i], 1)
+                avg[:, i] = np.mean(prediction_stack[:, np.arange(n_cell) * t_len + i], 1)
 
-            prediction = avg
-            t = np.sort(np.unique(t))
+            prediction = [avg]
+            t = [np.sort(np.unique(t))]
 
     return t, prediction
 
@@ -445,7 +452,7 @@ def fate_bias(adata,
                 if hasattr(nbrs, 'query'):
                     knn, _ = nbrs.query(X[knn.flatten(), :], k=30)
                 else:
-                    _, knn = knn, nbrs.kneighbors(X[knn.flatten(), :])
+                   _, knn = nbrs.kneighbors(X[knn.flatten(), :])
 
                 fate_prob = clusters[knn.flatten()].value_counts() / len(knn.flatten())
                 if source_groups is not None:
@@ -457,7 +464,7 @@ def fate_bias(adata,
                 pred_dict[i] = fate_prob
 
                 confidence[i] = 1 - (sum(~ is_dist_larger_than_threshold) + walk_back_steps) / (
-                        len(indices) + walk_back_steps)
+                        len(is_dist_larger_than_threshold) + walk_back_steps)
 
                 break
             else:

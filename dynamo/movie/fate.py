@@ -66,10 +66,10 @@ class StreamFuncAnim():
         >>> from matplotlib import animation
         >>> progenitor = adata.obs_names[adata.obs.clusters == 'cluster_1']
         >>> fate_progenitor = progenitor
-        >>> info_genes = adata.var_names[adata.var.use_for_velocity]
+        >>> info_genes = adata.var_names[adata.var.use_for_transition]
         >>> dyn.pd.fate(adata, basis='umap', init_cells=fate_progenitor, interpolation_num=100,  direction='forward',
-        ...    inverse_transform=False, average=False, arclen_sampling=True)
-        >>> instance = dyn.pl.StreamFuncAnim(adata=adata, ax=None, ln=None)
+        ...    inverse_transform=False, average=False)
+        >>> instance = dyn.mv.StreamFuncAnim(adata=adata, ax=None, ln=None)
         >>> anim = animation.FuncAnimation(instance.fig, instance.update, init_func=instance.init_background,
         ...                                frames=np.arange(100), interval=100, blit=True)
         >>> from IPython.core.display import display, HTML
@@ -81,14 +81,14 @@ class StreamFuncAnim():
         >>> from matplotlib import animation
         >>> progenitor = adata.obs_names[adata.obs.clusters == 'cluster_1']
         >>> fate_progenitor = progenitor
-        >>> info_genes = adata.var_names[adata.var.use_for_velocity]
+        >>> info_genes = adata.var_names[adata.var.use_for_transition]
         >>> dyn.pd.fate(adata, basis='umap', init_cells=fate_progenitor, interpolation_num=100,  direction='forward',
-        ...    inverse_transform=False, average=False, arclen_sampling=True)
+        ...    inverse_transform=False, average=False)
         >>> fig, ax = plt.subplots()
         >>> ln, = ax.plot([], [], 'ro')
         >>> ax.set_xlim(xlim)
         >>> ax.set_ylim(ylim)
-        >>> instance = dyn.pl.StreamFuncAnim(adata=adata, ax=ax, ln=ln)
+        >>> instance = dyn.mv.StreamFuncAnim(adata=adata, ax=ax, ln=ln)
         >>> anim = animation.FuncAnimation(fig, instance.update, init_func=instance.init_background,
         ...                                frames=np.arange(100), interval=100, blit=True)
         >>> from IPython.core.display import display, HTML
@@ -100,10 +100,10 @@ class StreamFuncAnim():
         >>> from matplotlib import animation
         >>> progenitor = adata.obs_names[adata.obs.clusters == 'cluster_1']
         >>> fate_progenitor = progenitor
-        >>> info_genes = adata.var_names[adata.var.use_for_velocity]
+        >>> info_genes = adata.var_names[adata.var.use_for_transition]
         >>> dyn.pd.fate(adata, basis='umap', init_cells=fate_progenitor, interpolation_num=100,  direction='forward',
-        ...    inverse_transform=False, average=False, arclen_sampling=True)
-        >>> dyn.pl.fate_animation(adata)
+        ...    inverse_transform=False, average=False)
+        >>> dyn.mv.animate_fates(adata)
 
                     See also:: :func:`animate_fates`
         """
@@ -181,7 +181,6 @@ class StreamFuncAnim():
 
     def update(self, frame):
         """Update locations of "particles" in flow on each frame frame."""
-        print(frame)
         init_states = self.init_states
         time_vec = self.time_vec
 
@@ -289,10 +288,10 @@ def animate_fates(adata,
     >>> from matplotlib import animation
     >>> progenitor = adata.obs_names[adata.obs.clusters == 'cluster_1']
     >>> fate_progenitor = progenitor
-    >>> info_genes = adata.var_names[adata.var.use_for_velocity]
+    >>> info_genes = adata.var_names[adata.var.use_for_transition]
     >>> dyn.pd.fate(adata, basis='umap', init_cells=fate_progenitor, interpolation_num=100,  direction='forward',
-    ...    inverse_transform=False, average=False, arclen_sampling=True)
-    >>> dyn.pl.fate_animation(adata)
+    ...    inverse_transform=False, average=False)
+    >>> dyn.mv.animate_fates(adata)
 
         See also:: :func:`StreamFuncAnim`
     """

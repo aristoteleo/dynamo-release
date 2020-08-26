@@ -329,7 +329,7 @@ def jacobian(adata,
     >>> adata = dyn.pp.recipe_monocle(adata)
     >>> dyn.tl.dynamics(adata)
     >>> dyn.tl.VectorField(adata, basis='pca')
-    >>> valid_gene_list = adata[:, adata.var.use_for_velocity].var.index[:2]
+    >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
     >>> dyn.tl.jacobian(adata, source_genes=valid_gene_list[0], target_genes=valid_gene_list[1])
     >>> dyn.pl.jacobian(adata)
     """
@@ -483,7 +483,7 @@ def jacobian_heatmap(adata,
     >>> adata = dyn.pp.recipe_monocle(adata)
     >>> dyn.tl.dynamics(adata)
     >>> dyn.tl.VectorField(adata, basis='pca')
-    >>> valid_gene_list = adata[:, adata.var.use_for_velocity].var.index[:2]
+    >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
     >>> dyn.tl.jacobian(adata, source_genes=valid_gene_list[0], target_genes=valid_gene_list[1])
     >>> dyn.pl.jacobian_heatmap(adata)
     """

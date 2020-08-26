@@ -101,13 +101,13 @@ def cell_velocities(
             The argument can be either a dictionary key of .var, a list of gene names, or a list of booleans 
             of length .n_vars.
         min_r2: float (optional, default 0.01)
-            The minimal value of r-squared of the parameter fits for selecting velocity genes.
+            The minimal value of r-squared of the parameter fits for selecting transition genes.
         min_alpha: float (optional, default 0.01)
-            The minimal value of alpha kinetic parameter for selecting velocity genes.
+            The minimal value of alpha kinetic parameter for selecting transition genes.
         min_gamma: float (optional, default 0.01)
-            The minimal value of gamma kinetic parameter for selecting velocity genes.
+            The minimal value of gamma kinetic parameter for selecting transition genes.
         min_delta: float (optional, default 0.01)
-            The minimal value of delta kinetic parameter for selecting velocity genes.
+            The minimal value of delta kinetic parameter for selecting transition genes.
         basis: int (optional, default `umap`)
             The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
         neigh_key: str (optional, default `neighbors`)
@@ -215,11 +215,6 @@ def cell_velocities(
                         "Run `dyn.tl.reduceDimension` or `dyn.tl.neighbors` first.")
 
     if transition_genes is None:
-        # we don't need the following lines since now you can set transition_genes to any key
-        # to achieve the same result, and it is more explicit.
-        #if 'confident_gene' in adata.var.keys() and not enforce:
-        #    transition_genes = adata.var_names[adata.var.confident_gene.values]
-        #else:
         if 'use_for_transition' not in adata.var.keys() or enforce:
             use_for_dynamics = True if "use_for_dynamics" in adata.var.keys() else False
             adata = set_transition_genes(
@@ -243,10 +238,10 @@ def cell_velocities(
             transition_genes = np.array(transition_genes)
             transition_genes = np.logical_and(transition_genes, dynamics_genes.to_list())
         else:
-            raise TypeError(f"velocity genes should either be a key of adata.var, "
+            raise TypeError(f"transition genes should either be a key of adata.var, "
                              f"an array of gene names, or of booleans.")
         if len(transition_genes) < 1:
-            raise ValueError(f"None of the velocity genes provided has velocity values. "
+            raise ValueError(f"None of the transition genes provided has velocity values. "
                              f"(or `.var.use_for_dynamics` is `False`).")
 
     X = adata[:, transition_genes].layers[ekey] if X is None else X
@@ -473,7 +468,7 @@ def confident_cell_velocities(adata,
                             vkey='velocity_S',
                             basis='umap',
                             confidence_threshold=0.85,
-                            only_velocity_genes=False,
+                            only_transition_genes=False,
                             ):
     """Confidently compute transition probability and project high dimension velocity vector to existing low dimension
     embeddings using progeintors and mature cell groups priors.
@@ -503,10 +498,10 @@ def confident_cell_velocities(adata,
             The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
         confidence_threshold: float (optional, default 0.85)
             The minimal threshold of the mean of the average progenitors and the average mature cells prior based
-            gene-wise score. Only genes with score larger than this will be considered as confident velocity genes for
+            gene-wise score. Only genes with score larger than this will be considered as confident transition genes for
             velocity projection.
-        only_velocity_genes: bool (optional, default False)
-            Whether only use previous identified velocity genes for confident gene selection, followed by velocity
+        only_transition_genes: bool (optional, default False)
+            Whether only use previous identified transition genes for confident gene selection, followed by velocity
             projection.
 
     Returns
@@ -522,7 +517,7 @@ def confident_cell_velocities(adata,
         raise Exception(f"You need to first run `dyn.tl.dynamics(adata)` to estimate kinetic parameters and obtain "
                         f"raw RNA velocity before running this function.")
 
-    if only_velocity_genes:
+    if only_transition_genes:
         if 'use_for_transition' not in adata.var.keys():
             warnings.warn('`dyn.tl.cell_velocities(adata)` is not performed yet. Rolling back to use all feature genes '
                           'as input for supervised RNA velocity analysis.')
@@ -874,7 +869,7 @@ def permute_rows_nsign(A):
         A[:, i] = A[:, i] * np.random.choice(plmi, size=A.shape[0])
 
 
-def embed_velocity(adata, x_basis, v_basis='velocity', emb_basis='X', velocity_gene_tag='velocity_genes',
+def embed_velocity(adata, x_basis, v_basis='velocity', emb_basis='X', velocity_gene_tag='transition_genes',
                    num_pca=100, n_recurse_neighbors=2, M_diff=0.25, adaptive_local_kernel=True, normalize_velocity=True,
                    return_kmc=False, **kmc_kwargs):
     if velocity_gene_tag is not None:

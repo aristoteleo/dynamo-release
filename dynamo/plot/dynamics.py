@@ -79,8 +79,8 @@ def phase_portraits(
             colored by the velocity magnitude or the gene expression value, respectively.
         use_smoothed: `bool` (default: `True`)
             Whether to use smoothed 1/2-nd moments as gene expression for the first and third columns. This is useful
-            for checking the confidence of velocity genes. For example, you may see a very nice linear pattern for some
-            genes with the smoothed expression but this could just be an artifically generated when the number of
+            for checking the confidence of transition genes. For example, you may see a very nice linear pattern for
+            some genes with the smoothed expression but this could just be an artificially generated when the number of
             expressed cells is very low. This raises red flags for the quality of the velocity values we learned for
             those genes. And we recommend to set the higher values (for example, 10% of all cells) for `min_cell_s`,
             `min_cell_u` or `shared_count` of the `fg_kwargs` argument of the dyn.pl.receipe_monocle. Note that this is

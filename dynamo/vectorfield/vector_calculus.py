@@ -142,7 +142,7 @@ def jacobian(adata,
         reg_idx, eff_idx = get_pd_row_column_idx(var_df, regulators, "row"), \
                                 get_pd_row_column_idx(var_df, effectors, "row")
         if len(regulators) == 0 or len(effectors) == 0:
-            raise ValueError(f"Either the regulator or the effector gene list provided is not in the velocity gene list!")
+            raise ValueError(f"Either the regulator or the effector gene list provided is not in the transition gene list!")
 
         PCs_ = "PCs" if basis == 'pca' else "PCs_" + basis
         Q = adata.uns[PCs_][:, :X.shape[1]]
@@ -507,7 +507,7 @@ def rank_divergence_genes(adata,
 
     jkey = "jacobian" if basis is None else "jacobian_" + basis
     if jkey not in adata.uns_keys():
-        if genes is None: genes = adata.var_names[adata.var.use_for_velocity]
+        if genes is None: genes = adata.var_names[adata.var.use_for_transition]
         jacobian(adata,
                  regulators=genes,
                  effectors=genes,

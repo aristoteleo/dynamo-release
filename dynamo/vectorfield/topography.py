@@ -565,7 +565,7 @@ def VectorField(
             the first dimension to `dims` will be used; if it is a list, the dimensions in the list will be used.
         genes: `list` or None (default: None)
             The gene names whose gene expression will be used for vector field reconstruction. By default (when genes is
-            set to None), the genes used for velocity embedding (var.use_for_velocity) will be used for vector field reconstruction.
+            set to None), the genes used for velocity embedding (var.use_for_transition) will be used for vector field reconstruction.
             Note that the genes to be used need to have velocity calculated.
         normalize: 'bool' (default: False)
             Logic flag to determine whether to normalize the data to have zero means and unit covariance. This is often
@@ -618,7 +618,7 @@ def VectorField(
         valid_genes = (
             list(set(genes).intersection(adata.var.index))
             if genes is not None
-            else adata.var_names[adata.var.use_for_velocity]
+            else adata.var_names[adata.var.use_for_transition]
         )
         if layer == "X":
             X = adata[:, valid_genes].X.copy()
@@ -686,7 +686,7 @@ def VectorField(
     else:
         key = velocity_key + '_' + method
         adata.layers[key] = sp.csr_matrix((adata.shape))
-        adata.layers[key][:, np.where(adata.var.use_for_velocity)[0]] = vf_dict['VecFld']['V']
+        adata.layers[key][:, np.where(adata.var.use_for_transition)[0]] = vf_dict['VecFld']['V']
 
         vf_dict['layer'] = layer
         vf_dict['genes'] = genes

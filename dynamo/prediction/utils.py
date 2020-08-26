@@ -6,9 +6,16 @@ from scipy.sparse import issparse
 from ..vectorfield.topography import dup_osc_idx_iter
 from ..tools.utils import log1p_
 
-def integrate_vf_ivp(
-    init_states, t, args, integration_direction, f, interpolation_num=250, average=True, sampling='arc_length',
-    verbose=False, disable=False,
+def integrate_vf_ivp(init_states,
+                     t,
+                     args,
+                     integration_direction,
+                     f,
+                     interpolation_num=250,
+                     average=True,
+                     sampling='arc_length',
+                     verbose=False,
+                     disable=False,
 ):
     """integrating along vector field function using the initial value problem solver from scipy.integrate"""
 
@@ -166,6 +173,7 @@ def integrate_vf_ivp(
 
         t, Y = valid_t_trans, _Y
 
+        # this part is buggy, need to fix
         if n_cell > 1 and average:
             t_len = int(len(t) / n_cell)
             avg = np.zeros((n_feature, t_len))
@@ -380,8 +388,8 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
                 basis + "_" + str(i) for i in np.arange(init_states.shape[1])
             ]
         else:
-            # valid_genes = list(set(genes).intersection(adata.var_names[adata.var.use_for_velocity]) if genes is not None \
-            #     else adata.var_names[adata.var.use_for_velocity]
+            # valid_genes = list(set(genes).intersection(adata.var_names[adata.var.use_for_transition]) if genes is not None \
+            #     else adata.var_names[adata.var.use_for_transition]
             # ----------- enable the function to only only a subset genes -----------
 
             vf_key = "VecFld" if layer == "X" else "VecFld_" + layer
