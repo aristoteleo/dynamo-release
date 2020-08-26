@@ -438,20 +438,30 @@ def compute_divergence(f_jac, X, vectorize_size=1):
 
 
 def acceleration_(v, J):
-    return J.dot(v[:, None]) if v.ndim == 1 else J.dot(v)
+    if v.ndim == 1: v = v[:, None]
+    return J.dot(v)
 
 
-def curvature_(a, v):
-    kappa = np.linalg.norm(np.outer(v[:, None], a)) / np.linalg.norm(v)**3 if v.ndim == 1 else \
-        np.linalg.norm(v.outer(a)) / np.linalg.norm(v)**3
+def curvature_1(a, v):
+    """https://link.springer.com/article/10.1007/s12650-018-0474-6"""
+    if v.ndim == 1: v = v[:, None]
+    kappa = np.linalg.norm(v.outer(a)) / np.linalg.norm(v)**3
+
+    return kappa
+
+
+def curvature_2(a, v):
+    """https://dl.acm.org/doi/10.5555/319351.319441"""
+    if v.ndim == 1: v = v[:, None]
+    kappa = (a.dot(v.dot(v)) - v.dot(v.dot(a))) / np.linalg.norm(v)**4
 
     return kappa
 
 
 def torsion_(v, J, a):
     """only works in 3D"""
-    tau = np.outer(v[:, None], a).dot(J.dot(a)) / np.linalg.norm(np.outer(v[:, None], a))**2 if v.ndim == 1 else \
-        np.outer(v, a).dot(J.dot(a)) / np.linalg.norm(np.outer(v, a))**2
+    if v.ndim == 1: v = v[:, None]
+    tau = np.outer(v, a).dot(J.dot(a)) / np.linalg.norm(np.outer(v, a))**2
 
     return tau
 
@@ -481,11 +491,16 @@ def compute_acceleration(vf, f_jac, X, return_all=False):
 
 
 @timeit
-def compute_curvature(vf, f_jac, X):
+def compute_curvature(vf, f_jac, X, formula):
     """Calculate curvature for many samples via
 
+    Formula 1:
     .. math::
     \kappa = \frac{||\mathbf{v} \times \mathbf{a}||}{||\mathbf{V}||^3}
+
+    Formula 2:
+    .. math::
+    \kappa = \frac{||\mathbf{Jv} (\mathbf{v} \cdot \mathbf{v}) -  ||\mathbf{v} (\mathbf{v} \cdot \mathbf{Jv})}{||\mathbf{V}||^4}
     """
     n = len(X)
 
@@ -493,7 +508,10 @@ def compute_curvature(vf, f_jac, X):
     v, _, a = compute_acceleration(vf, f_jac, X, return_all=True)
 
     for i in tqdm(range(n), desc="Calculating curvature"):
-        curv[i] = curvature_(a[i], v[i])
+        if formula == 1:
+            curv[i] = curvature_1(a[i], v[i])
+        elif formula == 2:
+            curv[i] = curvature_2(a[i], v[i])
 
     return curv
 

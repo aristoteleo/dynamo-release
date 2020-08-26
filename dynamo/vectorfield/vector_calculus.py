@@ -324,6 +324,7 @@ def acceleration(adata,
 def curvature(adata,
          basis='umap',
          vector_field_class=None,
+         formula=1,
          **kwargs
          ):
     """Calculate curvature for each cell with the reconstructed vector field function.
@@ -336,10 +337,8 @@ def curvature(adata,
             The embedding data in which the vector field was reconstructed.
         vector_field_class: :class:`~scVectorField.vectorfield`
             If not None, the divergene will be computed using this class instead of the vector field stored in adata.
-        method: `str` (default: `analytical`)
-            The method that will be used for calculating divergence, either `analytical` or `numeric`. `analytical`
-            method will use the analytical form of the reconstructed vector field for calculating curvature while
-            `numeric` method will use numdifftools for calculation. `analytical` method is much more efficient.
+        formula: `int` (default: `1`)
+            Which formula of curvature will be used, there are two formulas, so formula can be either `{1, 2}`.
 
     Returns
     -------
@@ -351,7 +350,11 @@ def curvature(adata,
         vector_field_class = vectorfield()
         vector_field_class.from_adata(adata, basis=basis)
 
-    curv = vector_field_class.compute_curvature(**kwargs)
+    if formula not in [1, 2]:
+        raise ValueError(f"There are only two available formulas (formula can be either `{1, 2}`) to calculate "
+                         f"curvature, but your formula argument is {formula}.")
+
+    curv = vector_field_class.compute_curvature(formula=formula, **kwargs)
 
     curv_key = "curvature" if basis is None else "curvature_" + basis
 
