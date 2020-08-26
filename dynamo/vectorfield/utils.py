@@ -445,15 +445,15 @@ def acceleration_(v, J):
 def curvature_1(a, v):
     """https://link.springer.com/article/10.1007/s12650-018-0474-6"""
     if v.ndim == 1: v = v[:, None]
-    kappa = np.linalg.norm(v.outer(a)) / np.linalg.norm(v)**3
+    kappa = np.linalg.norm(np.outer(v, a)) / np.linalg.norm(v)**3
 
     return kappa
 
 
 def curvature_2(a, v):
     """https://dl.acm.org/doi/10.5555/319351.319441"""
-    if v.ndim == 1: v = v[:, None]
-    kappa = (a.dot(v.dot(v)) - v.dot(v.dot(a))) / np.linalg.norm(v)**4
+    # if v.ndim == 1: v = v[:, None]
+    kappa = (a.dot(np.multiply(v, v)) - v.dot(np.multiply(v, a))) / np.linalg.norm(v)**4
 
     return kappa
 
