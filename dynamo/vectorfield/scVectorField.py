@@ -18,7 +18,7 @@ from ..tools.utils import (
     timeit,
     index_condensed_matrix,
 )
-from .utils_vecCalc import (
+from .utils import (
     vector_field_function,
     con_K_div_cur_free,
     con_K,

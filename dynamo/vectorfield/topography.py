@@ -16,7 +16,7 @@ from ..tools.utils import (
     inverse_norm,
 )
 
-from .utils_vecCalc import vector_field_function, vecfld_from_adata
+from .utils import vector_field_function, vecfld_from_adata
 
 from ..external.hodge import ddhodge
 from .vector_calculus import curl, divergence
