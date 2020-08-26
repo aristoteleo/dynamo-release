@@ -6,7 +6,7 @@ from .scVectorField import (
     graphize_vecfld,
     vectorfield
 )  # , evaluate, con_K_div_cur_free
-from .utils_vecCalc import (
+from .utils import (
     vector_field_function,
 )
 from .topography import FixedPoints, VectorField2D, topography, VectorField

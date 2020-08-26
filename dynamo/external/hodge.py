@@ -9,7 +9,7 @@ from scipy.linalg import qr
 from itertools import combinations
 from igraph import Graph
 from ..vectorfield.scVectorField import graphize_vecfld
-from ..vectorfield.utils_vecCalc import vecfld_from_adata, vector_field_function
+from ..vectorfield.utils import vecfld_from_adata, vector_field_function
 from ..tools.sampling import trn, sample_by_velocity
 
 def gradop(g):

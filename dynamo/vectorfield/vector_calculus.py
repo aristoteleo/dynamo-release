@@ -9,7 +9,7 @@ from ..tools.utils import (
     get_pd_row_column_idx,
     elem_prod,
 )
-from .utils_vecCalc import (
+from .utils import (
     vector_field_function, 
     vecfld_from_adata, 
     curl2d, 
