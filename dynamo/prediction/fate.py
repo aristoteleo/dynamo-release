@@ -5,10 +5,12 @@ from sklearn.neighbors import NearestNeighbors
 from multiprocessing.dummy import Pool as ThreadPool
 import itertools
 import warnings
-from .utils import (
-    integrate_vf_ivp,
+from ..tools.utils import (
     fetch_states,
     getTseq,
+)
+from .utils import (
+    integrate_vf_ivp,
 )
 from ..vectorfield import vector_field_function
 

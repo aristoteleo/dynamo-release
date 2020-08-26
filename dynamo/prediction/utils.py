@@ -2,7 +2,6 @@ from tqdm import tqdm
 import numpy as np
 from scipy import interpolate
 from scipy.integrate import solve_ivp
-from scipy.sparse import issparse
 from ..vectorfield.topography import dup_osc_idx_iter
 from ..tools.utils import log1p_
 
@@ -354,94 +353,3 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
 
     return exprs, valid_genes, time
 
-
-def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
-    if basis is not None:
-        vf_key = "VecFld_" + basis
-    else:
-        vf_key = "VecFld"
-    VecFld = adata.uns[vf_key]['VecFld']
-    X = VecFld['X']
-    valid_genes = None
-
-    if init_states is None and init_cells is None:
-        raise Exception("Either init_state or init_cells should be provided.")
-    elif init_states is None and init_cells is not None:
-        if type(init_cells) == str:
-            init_cells = [init_cells]
-        intersect_cell_names = sorted(
-            set(init_cells).intersection(adata.obs_names),
-            key=lambda x: list(init_cells).index(x),
-        )
-        _cell_names = (
-            init_cells if len(intersect_cell_names) == 0 else intersect_cell_names
-        )
-
-        if basis is not None:
-            init_states = adata[_cell_names].obsm["X_" + basis].copy()
-            if len(_cell_names) == 1:
-                init_states = init_states.reshape((1, -1))
-            VecFld = adata.uns["VecFld_" + basis]["VecFld"]
-            X = adata.obsm["X_" + basis]
-
-            valid_genes = [
-                basis + "_" + str(i) for i in np.arange(init_states.shape[1])
-            ]
-        else:
-            # valid_genes = list(set(genes).intersection(adata.var_names[adata.var.use_for_transition]) if genes is not None \
-            #     else adata.var_names[adata.var.use_for_transition]
-            # ----------- enable the function to only only a subset genes -----------
-
-            vf_key = "VecFld" if layer == "X" else "VecFld_" + layer
-            valid_genes = adata.uns[vf_key]["genes"]
-            init_states = (
-                adata[_cell_names, :][:, valid_genes].X
-                if layer == "X"
-                else log1p_(adata, adata[_cell_names, :][:, valid_genes].layers[layer])
-            )
-            if issparse(init_states):
-                init_states = init_states.A
-            if len(_cell_names) == 1:
-                init_states = init_states.reshape((1, -1))
-
-            if layer == "X":
-                VecFld = adata.uns["VecFld"]["VecFld"]
-                X = adata[:, valid_genes].X
-            else:
-                VecFld = adata.uns["VecFld_" + layer]["VecFld"]
-                X = log1p_(adata, adata[:, valid_genes].layers[layer])
-
-    if init_states.shape[0] > 1 and average in ["origin", 'trajectory', True]:
-        init_states = init_states.mean(0).reshape((1, -1))
-
-    if t_end is None:
-        t_end = getTend(X, VecFld["V"])
-
-    if issparse(init_states):
-        init_states = init_states.A
-
-    return init_states, VecFld, t_end, valid_genes
-
-
-def getTend(X, V):
-    xmin, xmax = X.min(0), X.max(0)
-    V_abs = np.abs(V)
-    t_end = np.max(xmax - xmin) / np.percentile(V_abs[V_abs > 0], 1)
-
-    return t_end
-
-
-def getTseq(init_states, t_end, step_size=None):
-    if step_size is None:
-        max_steps = (
-            int(max(7 / (init_states.shape[1] / 300), 4))
-            if init_states.shape[1] > 300
-            else 7
-        )
-        t_linspace = np.linspace(
-            0, t_end, 10 ** (np.min([int(np.log10(t_end)), max_steps]))
-        )
-    else:
-        t_linspace = np.arange(0, t_end + step_size, step_size)
-
-    return t_linspace

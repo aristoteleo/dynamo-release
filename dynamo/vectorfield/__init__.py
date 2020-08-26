@@ -10,7 +10,7 @@ from .utils import (
     vector_field_function,
 )
 from .topography import FixedPoints, VectorField2D, topography, VectorField
-from .cell_accelerations import cell_accelerations
+from .cell_vectors import cell_accelerations, cell_curvatures
 from .vector_calculus import (
     speed,
     jacobian,

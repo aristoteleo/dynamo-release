@@ -64,8 +64,8 @@ def cell_velocities(
     calculation of the stationary distribution or source states of sampled cells. The original "correlation/cosine"
     velocity projection method is also supported. Kernels based on the reconstructed velocity field is also possible.
 
-    With the `key` argument, `cell_velocities` can be called by `cell_accelerations` to calculate RNA acceleration vector
-    for each cell.
+    With the `key` argument, `cell_velocities` can be called by `cell_accelerations` or `cell_curvature` to calculate
+    RNA acceleration/curvature vector for each cell.
 
     Arguments
     ---------

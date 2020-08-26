@@ -8,6 +8,7 @@ from ..tools.utils import (
     timeit,
     get_pd_row_column_idx,
     elem_prod,
+    fetch_states
 )
 from .utils import (
     vector_field_function, 
@@ -23,6 +24,54 @@ from .utils import (
 from .scVectorField import vectorfield
 from ..tools.sampling import sample
 
+
+def velocities(adata,
+               init_cells,
+               init_states=None,
+               basis=None,
+               VecFld=None,
+               layer="X",
+               dims=None,
+               ):
+    """Calculate the velocities for any cell state with the reconstructed vector field function.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        basis: str or None (default: `umap`)
+            The embedding data in which the vector field was reconstructed.
+        VecFld: dict
+            The true ODE function, useful when the data is generated through simulation.
+        method: str (default: `analytical`)
+            The method that will be used for calculating speed, either `analytical` or `numeric`. `analytical`
+            method will use the analytical form of the reconstructed vector field for calculating Jacobian. Otherwise,
+            raw velocity vectors are used.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that is updated with the `speed` key in the .obs.
+    """
+
+    if VecFld is None:
+        VecFld, func = vecfld_from_adata(adata, basis)
+    else:
+        func = lambda x: vector_field_function(x, VecFld)
+
+    init_states, _, _, _ = fetch_states(
+        adata, init_states, init_cells, basis, layer, False, None
+    )
+
+    vec_mat = func(init_states)
+    vec_key = "velocities" if basis is None else "velocities_" + basis
+
+    if np.isscalar(dims):
+        vec_mat = vec_mat[:, :dims]
+    elif dims is not None:
+        vec_mat = vec_mat[:, dims]
+
+    adata.uns[vec_key] = vec_mat
 
 
 def speed(adata,
@@ -324,7 +373,7 @@ def acceleration(adata,
 def curvature(adata,
          basis='umap',
          vector_field_class=None,
-         formula=1,
+         formula=2,
          **kwargs
          ):
     """Calculate curvature for each cell with the reconstructed vector field function.
@@ -337,8 +386,10 @@ def curvature(adata,
             The embedding data in which the vector field was reconstructed.
         vector_field_class: :class:`~scVectorField.vectorfield`
             If not None, the divergene will be computed using this class instead of the vector field stored in adata.
-        formula: `int` (default: `1`)
-            Which formula of curvature will be used, there are two formulas, so formula can be either `{1, 2}`.
+        formula: `int` (default: `2`)
+            Which formula of curvature will be used, there are two formulas, so formula can be either `{1, 2}`. By
+            default it is 2 and returns both the curvature vectors and the norm of the curvature. The formula one only
+            gives the norm of the curvature.
 
     Returns
     -------
@@ -354,11 +405,12 @@ def curvature(adata,
         raise ValueError(f"There are only two available formulas (formula can be either `{1, 2}`) to calculate "
                          f"curvature, but your formula argument is {formula}.")
 
-    curv = vector_field_class.compute_curvature(formula=formula, **kwargs)
+    curv, curv_mat = vector_field_class.compute_curvature(formula=formula, **kwargs)
 
     curv_key = "curvature" if basis is None else "curvature_" + basis
 
     adata.obs[curv_key] = curv
+    adata.uns[curv_key] = curv_mat
 
 
 def torsion(adata,

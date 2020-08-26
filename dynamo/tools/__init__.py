@@ -8,7 +8,7 @@
 
 from .moments import moments, calc_1nd_moment, calc_2nd_moment
 
-from .cell_vectors import (
+from .cell_velocities import (
     cell_velocities,
     confident_cell_velocities,
     generalized_diffusion_map,

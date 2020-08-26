@@ -453,7 +453,7 @@ def curvature_1(a, v):
 def curvature_2(a, v):
     """https://dl.acm.org/doi/10.5555/319351.319441"""
     # if v.ndim == 1: v = v[:, None]
-    kappa = (a.dot(np.multiply(v, v)) - v.dot(np.multiply(v, a))) / np.linalg.norm(v)**4
+    kappa = (np.multiply(a, np.dot(v, v)) - np.multiply(v, np.dot(v, a))) / np.linalg.norm(v)**4
 
     return kappa
 
@@ -491,7 +491,7 @@ def compute_acceleration(vf, f_jac, X, return_all=False):
 
 
 @timeit
-def compute_curvature(vf, f_jac, X, formula):
+def compute_curvature(vf, f_jac, X, formula=2):
     """Calculate curvature for many samples via
 
     Formula 1:
@@ -506,14 +506,16 @@ def compute_curvature(vf, f_jac, X, formula):
 
     curv = np.zeros(n)
     v, _, a = compute_acceleration(vf, f_jac, X, return_all=True)
+    cur_mat = np.zeros((n, X.shape[1])) if formula == 2 else None
 
     for i in tqdm(range(n), desc="Calculating curvature"):
         if formula == 1:
             curv[i] = curvature_1(a[i], v[i])
         elif formula == 2:
-            curv[i] = curvature_2(a[i], v[i])
+            cur_mat[i] = curvature_2(a[i], v[i])
+            curv[i] = np.linalg.norm(cur_mat[i])
 
-    return curv
+    return (curv, cur_mat)
 
 
 @timeit
