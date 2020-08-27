@@ -262,7 +262,9 @@ def animate_fates(adata,
         fig: `matplotlib.figure.Figure` or None (default: `None`)
                 The figure that will contain both the background and animated components.
         ax: `matplotlib.Axis` (optional, default `None`)
-            The matplotlib axes object that will be used as background plot of the vector field animation.
+                The matplotlib axes object that will be used as background plot of the vector field animation. If `ax`
+                is None, `topography(adata, basis=basis, color=color, ax=ax, save_show_or_return='return')` will be used
+                to create an axes.
         logspace: `bool` (default: `False`)
             Whether or to sample time points linearly on log space. If not, the sorted unique set of all time points
             from all cell states' fate prediction will be used and then evenly sampled up to `n_steps` time points.
