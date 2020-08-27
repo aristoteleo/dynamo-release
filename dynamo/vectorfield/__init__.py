@@ -12,6 +12,7 @@ from .utils import (
 from .topography import FixedPoints, VectorField2D, topography, VectorField
 from .cell_vectors import cell_accelerations, cell_curvatures
 from .vector_calculus import (
+    velocities,
     speed,
     jacobian,
     curl,

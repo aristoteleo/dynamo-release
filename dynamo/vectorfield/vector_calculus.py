@@ -39,19 +39,29 @@ def velocities(adata,
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        basis: str or None (default: `umap`)
-            The embedding data in which the vector field was reconstructed.
+        init_cells: `list` (default: None)
+            Cell name or indices of the initial cell states for the historical or future cell state prediction with
+            numerical integration. If the names in init_cells are not find in the adata.obs_name, it will be treated as
+            cell indices and must be integers.
+        init_states: `numpy.ndarray` or None (default: None)
+            Initial cell states for the historical or future cell state prediction with numerical integration.
+        basis: `str` or None (default: `None`)
+            The embedding data to use for calculating velocities. If `basis` is either `umap` or `pca`, the reconstructed
+            trajectory will be projected back to high dimensional space via the `inverse_transform` function.
         VecFld: dict
             The true ODE function, useful when the data is generated through simulation.
-        method: str (default: `analytical`)
-            The method that will be used for calculating speed, either `analytical` or `numeric`. `analytical`
-            method will use the analytical form of the reconstructed vector field for calculating Jacobian. Otherwise,
-            raw velocity vectors are used.
+        layer: `str` or None (default: 'X')
+            Which layer of the data will be used for predicting cell fate with the reconstructed vector field function.
+            The layer once provided, will override the `basis` argument and then predicting cell fate in high dimensional
+            space.
+        dims: `scalar`, `list` or None (default: `None')
+            The dimensions that will be selected for velocity calculation.
+
 
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `speed` key in the .obs.
+            AnnData object that is updated with the "velocities" related key in the .uns.
     """
 
     if VecFld is None:

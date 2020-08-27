@@ -171,6 +171,7 @@ Vector field (vf)
 .. autosummary::
     :toctree: _autosummary
 
+   vf.velocities
    vf.speed
    vf.divergence
    vf.curl
@@ -178,12 +179,13 @@ Vector field (vf)
    vf.curvature
    vf.torsion
 
-*Acceleration field*
+*Beyond velocity vector field*
 
 .. autosummary::
     :toctree: _autosummary
 
    vf.cell_accelerations
+   vf.cell_curvatures
 
 *Vector field ranking*
 
