@@ -1,10 +1,11 @@
 import numpy as np
 from scipy.optimize import least_squares
+from ..tools.utils import squareform, timeit
 
 # from scPotential import show_landscape
 
 
-def constructQ(q):
+'''def constructQ(q):
     """Construct the Q matrix from the vector q, estimated by the least square optimizer
 
     Parameters
@@ -14,7 +15,7 @@ def constructQ(q):
 
     Returns
     -------
-        Q: `numpy.ndarray`
+        Q: :class:`~numpy.ndarray`
             The Q matrix constructed
     """
 
@@ -30,17 +31,18 @@ def constructQ(q):
                 c += 1
             elif j < i:
                 Q[i, j] = -Q[j, i]
-    return Q
+    return Q'''
 
 
+@timeit
 def solveQ(D, F, debug=False):
     """Function to calculate Q matrix by a least square method
 
     Parameters
     ----------
-    D:  `numpy.ndarray`
+    D:  :class:`~numpy.ndarray`
         Diffusion matrix.
-    F: `numpy.ndarray`
+    F: :class:`~numpy.ndarray`
         Jacobian of the vector field function at specific location.
     debug: `bool`
         A flag to determine whether the debug mode should be used.
@@ -52,13 +54,19 @@ def solveQ(D, F, debug=False):
 
     n = D.shape[0]
     m = int(n * (n - 1) / 2)
-    C = F.dot(D) - D.dot(F.T)
-    f_left = lambda X, F: X.dot(F.T) + F.dot(X)
+    #C = F.dot(D) - D.dot(F.T)
+    C = F.dot(D)
+    C = C - C.T
+    #f_left = lambda X, F: X.dot(F.T) + F.dot(X)
     # f_obj = @(q)(sum(sum((constructQ(q) * F' + F * constructQ(q) - C).^2)));
-    f_obj = lambda q: np.sum((f_left(constructQ(q), F) - C) ** 2)
+    def f_left(X, F):
+        R = F.dot(X)
+        return R - R.T
+    #f_obj = lambda q: np.sum((f_left(squareform(q, True), F) - C) ** 2)
+    f_obj = lambda q: (f_left(squareform(q, True), F) - C).flatten()
 
     sol = least_squares(f_obj, np.ones(m, dtype=float))
-    Q = constructQ(sol.x)
+    Q = squareform(sol.x, True)
     if debug:
         C_left = f_left(Q, F)
         return Q, C, C_left, sol.cost
@@ -66,7 +74,7 @@ def solveQ(D, F, debug=False):
         return Q, C
 
 
-def Ao_pot_map(vecFunc, X, D=None):
+def Ao_pot_map(vecFunc, X, D=None, **kwargs):
     """Mapping potential landscape with the algorithm developed by Ao method.
     References: Potential in stochastic differential equations: novel construction. Journal of physics A: mathematical and
         general, Ao Ping, 2004
@@ -75,25 +83,25 @@ def Ao_pot_map(vecFunc, X, D=None):
     ----------
         vecFunc: `function`
             The vector field function
-        X: `numpy.ndarray`
-            A matrix of coordinates to calculate potential values for. Rows are observations (cells), columns are features (genes)
-        D: None or `numpy.ndarray`
+        X: :class:`~numpy.ndarray`
+            A n_cell x n_dim matrix of coordinates where the potential function is evaluated.
+        D: None or :class:`~numpy.ndarray`
             Diffusion matrix. It must be a square matrix with size corresponds to the number of columns (features) in the X matrix.
 
     Returns
     -------
-        X: `numpy.ndarray`
+        X: :class:`~numpy.ndarray`
             A matrix storing the x-coordinates on the two-dimesional grid.
-        U: `numpy.ndarray`
+        U: :class:`~numpy.ndarray`
             A matrix storing the potential value at each position.
-        P: `numpy.ndarray`
+        P: :class:`~numpy.ndarray`
             Steady state distribution or the Boltzmann-Gibbs distribution for the state variable.
-        vecMat: `list`
+        vecMat: list
             List velocity vector at each position from X.
-        S: `list`
+        S: list
             List of constant symmetric and semi-positive matrix or friction matrix, corresponding to the divergence part,
             at each position from X.
-        A: `list`
+        A: list
             List of constant antisymmetric matrix or transverse matrix, corresponding to the curl part, at each position
             from X.
     """
@@ -108,7 +116,7 @@ def Ao_pot_map(vecFunc, X, D=None):
     for i in range(nobs):
         X_s = X[i, :]
         F = nda.Jacobian(vecFunc)(X_s)
-        Q, _ = solveQ(D, F)
+        Q, _ = solveQ(D, F, **kwargs)
         H = np.linalg.inv(D + Q).dot(F)
         U[i] = -0.5 * X_s.dot(H).dot(X_s)
 
@@ -122,3 +130,18 @@ def Ao_pot_map(vecFunc, X, D=None):
     P = P / np.sum(P)
 
     return X, U, P, vecMat, S, A
+
+
+def Ao_pot_map_jac(fjac, X, D=None, **kwargs):
+    nobs, ndim = X.shape
+    D = 0.1 * np.eye(ndim) if D is None else D
+    U = np.zeros((nobs, 1))
+
+    for i in range(nobs):
+        X_s = X[i, :]
+        F = fjac(X_s)
+        Q, _ = solveQ(D, F, **kwargs)
+        H = np.linalg.inv(D + Q).dot(F)
+        U[i] = -0.5 * X_s.dot(H).dot(X_s)
+
+    return U

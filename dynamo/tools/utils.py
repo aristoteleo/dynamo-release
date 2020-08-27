@@ -2,6 +2,7 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 from scipy import interpolate, stats
+from scipy.spatial.distance import squareform as spsquare
 from scipy.sparse import issparse, csr_matrix
 import scipy.sparse.linalg as splinalg
 from scipy.integrate import odeint
@@ -201,6 +202,14 @@ def index_condensed_matrix(n, i, j):
     elif i > j:
         i, j = j, i
     return int(i * (n - (i + 3) * 0.5) + j - 1)
+
+
+def squareform(arr, antisym=False, **kwargs):
+    M = spsquare(arr, **kwargs)
+    if antisym:
+        tril_idx = np.tril_indices_from(M, k=-1)
+        M[tril_idx] = -M[tril_idx]
+    return M
 
 
 def moms2var(m1, m2):
