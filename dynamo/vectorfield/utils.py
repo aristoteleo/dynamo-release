@@ -61,10 +61,10 @@ def vector_field_function(x, vf_dict, dim=None, kernel='full', **kernel_kwargs):
     K = K.dot(vf_dict["C"])
 
     if dim is not None and not has_div_cur_free_kernels:
-        if np.isscalar(dims):
-            K = K[:, :dims]
-        elif dims is not None:
-            K = K[:, dims]
+        if np.isscalar(dim):
+            K = K[:, :dim]
+        elif dim is not None:
+            K = K[:, dim]
 
     return K
 
