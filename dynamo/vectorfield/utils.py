@@ -86,7 +86,7 @@ def con_K(x, y, beta, method='cdist', return_d=False):
 
     Returns
     -------
-    K: 'np.ndarray'
+    K: :class:`~numpy.ndarray`
     the kernel to represent the vector field function.
     """
     if method == 'cdist' and not return_d:
@@ -118,20 +118,20 @@ def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
 
     Arguments
     ---------
-        x: 'np.ndarray'
+        x: :class:`~numpy.ndarray`
             Original training data points.
-        y: 'np.ndarray'
+        y: :class:`~numpy.ndarray`
             Control points used to build kernel basis functions
-        sigma: 'int' (default: `0.8`)
+        sigma: int (default: `0.8`)
             Bandwidth parameter.
-        eta: 'int' (default: `0.5`)
+        eta: int (default: `0.5`)
             Combination coefficient for the divergence-free or the curl-free kernels.
 
     Returns
     -------
         A tuple of G (the combined kernel function), divergence-free kernel and curl-free kernel.
 
-    See also:: :func:`sparseVFC`.
+    See also: :func:`sparseVFC`.
     """
     m, d = x.shape
     n, d = y.shape
@@ -195,15 +195,15 @@ def vector_field_function_transformation(vf_func, Q):
 
     Parameters
     ----------
-        vf_func: `function`:
+        vf_func: function
             The vector field function.
-        Q: `np.ndarray`:
+        Q: :class:`~numpy.ndarray`
             PCA loading matrix with dimension d x k, where d is the dimension of the original space,
             and k the number of leading PCs.
 
     Returns
     -------
-        ret `np.ndarray`
+        ret: :class:`~numpy.ndarray`
             The transformed vector field function.
 
     """
