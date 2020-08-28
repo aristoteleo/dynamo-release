@@ -1,41 +1,34 @@
 import numpy as np
 from scipy.optimize import least_squares
-from ..tools.utils import squareform, timeit
+import scipy.sparse as sp
+from ..tools.utils import squareform, condensed_idx_to_squareform_idx, timeit
+from tqdm import tqdm
 
 # from scPotential import show_landscape
 
+def f_left(X, F):
+    '''An auxiliary function for fast computation of F.X - (F.X)^T'''
+    R = F.dot(X)
+    return R - R.T
 
-'''def constructQ(q):
-    """Construct the Q matrix from the vector q, estimated by the least square optimizer
-
-    Parameters
-    ----------
-        q: `list`
-            the list corresponds the elements in the Q matrix, estimated by the least square optimizer
-
-    Returns
-    -------
-        Q: :class:`~numpy.ndarray`
-            The Q matrix constructed
-    """
-
-    m = len(q)
-    n = int((1 + np.sqrt(1 + 8 * m)) / 2)
-
-    Q = np.zeros((n, n), dtype=float)
-    c = 0
-    for i in range(n):
-        for j in range(n):
-            if j > i:
-                Q[i, j] = q[c]
-                c += 1
-            elif j < i:
-                Q[i, j] = -Q[j, i]
-    return Q'''
-
+def f_left_jac(q, F):
+    '''
+        Analytical Jacobian of f(Q) = F.Q - (F.Q)^T, where Q is 
+        an anti-symmetric matrix s.t. Q^T = -Q.
+    '''
+    J = np.zeros((np.prod(F.shape), len(q)))
+    for i in range(len(q)):
+        jac = np.zeros(F.shape)
+        a, b = condensed_idx_to_squareform_idx(len(q), i)
+        jac[:, b] = F[:, a]
+        jac[:, a] = -F[:, b]
+        jac[b, :] -= F[:, a]
+        jac[a, :] -= -F[:, b]
+        J[:, i] = jac.flatten()
+    return J
 
 @timeit
-def solveQ(D, F, debug=False):
+def solveQ(D, F, q0=None, debug=False, **kwargs):
     """Function to calculate Q matrix by a least square method
 
     Parameters
@@ -54,18 +47,12 @@ def solveQ(D, F, debug=False):
 
     n = D.shape[0]
     m = int(n * (n - 1) / 2)
-    #C = F.dot(D) - D.dot(F.T)
-    C = F.dot(D)
-    C = C - C.T
-    #f_left = lambda X, F: X.dot(F.T) + F.dot(X)
-    # f_obj = @(q)(sum(sum((constructQ(q) * F' + F * constructQ(q) - C).^2)));
-    def f_left(X, F):
-        R = F.dot(X)
-        return R - R.T
-    #f_obj = lambda q: np.sum((f_left(squareform(q, True), F) - C) ** 2)
+    C = f_left(D, F)
     f_obj = lambda q: (f_left(squareform(q, True), F) - C).flatten()
-
-    sol = least_squares(f_obj, np.ones(m, dtype=float))
+    q0 = np.ones(m, dtype=float) if q0 is None else q0
+    J = f_left_jac(q0, F)
+    f_jac = lambda q: J
+    sol = least_squares(f_obj, q0, jac=f_jac, **kwargs)
     Q = squareform(sol.x, True)
     if debug:
         C_left = f_left(Q, F)
@@ -134,14 +121,19 @@ def Ao_pot_map(vecFunc, X, D=None, **kwargs):
 
 def Ao_pot_map_jac(fjac, X, D=None, **kwargs):
     nobs, ndim = X.shape
-    D = 0.1 * np.eye(ndim) if D is None else D
+    if D is None:
+        D = 0.1 * np.eye(ndim) 
+    elif np.isscalar(D):
+        D = D * np.eye(ndim)
     U = np.zeros((nobs, 1))
 
-    for i in range(nobs):
+    m = int(ndim * (ndim - 1) / 2)
+    q0 = np.ones(m) * np.mean(np.diag(D)) * 1000
+    for i in tqdm(range(nobs), 'Calc Ao potential'):
         X_s = X[i, :]
         F = fjac(X_s)
-        Q, _ = solveQ(D, F, **kwargs)
+        Q, _ = solveQ(D, F, q0=q0, **kwargs)
         H = np.linalg.inv(D + Q).dot(F)
         U[i] = -0.5 * X_s.dot(H).dot(X_s)
 
-    return U
+    return U.flatten()

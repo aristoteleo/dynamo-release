@@ -204,6 +204,17 @@ def index_condensed_matrix(n, i, j):
     return int(i * (n - (i + 3) * 0.5) + j - 1)
 
 
+def condensed_idx_to_squareform_idx(arr_len, i):
+    n = int((1 + np.sqrt(1 + 8 * arr_len)) / 2)
+    fr = lambda x: int(x*(n-(x+3)*0.5) + n - 1)
+    for x in range(n):
+        d = fr(x) - (i+1)
+        if d>=0:
+            break
+    y = n-d-1
+    return x, y
+
+
 def squareform(arr, antisym=False, **kwargs):
     M = spsquare(arr, **kwargs)
     if antisym:
