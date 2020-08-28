@@ -5,10 +5,12 @@ from sklearn.neighbors import NearestNeighbors
 from multiprocessing.dummy import Pool as ThreadPool
 import itertools
 import warnings
-from .utils import (
-    integrate_vf_ivp,
+from ..tools.utils import (
     fetch_states,
     getTseq,
+)
+from .utils import (
+    integrate_vf_ivp,
 )
 from ..vectorfield import vector_field_function
 
@@ -54,6 +56,8 @@ def fate(adata,
             Which layer of the data will be used for predicting cell fate with the reconstructed vector field function.
             The layer once provided, will override the `basis` argument and then predicting cell fate in high dimensional
             space.
+        dims: `scalar`, `list` or None (default: `None')
+            The dimensions that will be selected for fate prediction.
         genes: `list` or None (default: None)
             The gene names whose gene expression will be used for predicting cell fate. By default (when genes is set to
             None), the genes used for velocity embedding (var.use_for_transition) will be used for vector field

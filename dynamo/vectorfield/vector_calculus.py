@@ -8,6 +8,7 @@ from ..tools.utils import (
     timeit,
     get_pd_row_column_idx,
     elem_prod,
+    fetch_states
 )
 from .utils import (
     vector_field_function, 
@@ -23,6 +24,64 @@ from .utils import (
 from .scVectorField import vectorfield
 from ..tools.sampling import sample
 
+
+def velocities(adata,
+               init_cells,
+               init_states=None,
+               basis=None,
+               VecFld=None,
+               layer="X",
+               dims=None,
+               ):
+    """Calculate the velocities for any cell state with the reconstructed vector field function.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        init_cells: `list` (default: None)
+            Cell name or indices of the initial cell states for the historical or future cell state prediction with
+            numerical integration. If the names in init_cells are not find in the adata.obs_name, it will be treated as
+            cell indices and must be integers.
+        init_states: `numpy.ndarray` or None (default: None)
+            Initial cell states for the historical or future cell state prediction with numerical integration.
+        basis: `str` or None (default: `None`)
+            The embedding data to use for calculating velocities. If `basis` is either `umap` or `pca`, the reconstructed
+            trajectory will be projected back to high dimensional space via the `inverse_transform` function.
+        VecFld: dict
+            The true ODE function, useful when the data is generated through simulation.
+        layer: `str` or None (default: 'X')
+            Which layer of the data will be used for predicting cell fate with the reconstructed vector field function.
+            The layer once provided, will override the `basis` argument and then predicting cell fate in high dimensional
+            space.
+        dims: `scalar`, `list` or None (default: `None')
+            The dimensions that will be selected for velocity calculation.
+
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that is updated with the "velocities" related key in the .uns.
+    """
+
+    if VecFld is None:
+        VecFld, func = vecfld_from_adata(adata, basis)
+    else:
+        func = lambda x: vector_field_function(x, VecFld)
+
+    init_states, _, _, _ = fetch_states(
+        adata, init_states, init_cells, basis, layer, False, None
+    )
+
+    vec_mat = func(init_states)
+    vec_key = "velocities" if basis is None else "velocities_" + basis
+
+    if np.isscalar(dims):
+        vec_mat = vec_mat[:, :dims]
+    elif dims is not None:
+        vec_mat = vec_mat[:, dims]
+
+    adata.uns[vec_key] = vec_mat
 
 
 def speed(adata,
@@ -324,6 +383,7 @@ def acceleration(adata,
 def curvature(adata,
          basis='umap',
          vector_field_class=None,
+         formula=2,
          **kwargs
          ):
     """Calculate curvature for each cell with the reconstructed vector field function.
@@ -336,10 +396,10 @@ def curvature(adata,
             The embedding data in which the vector field was reconstructed.
         vector_field_class: :class:`~scVectorField.vectorfield`
             If not None, the divergene will be computed using this class instead of the vector field stored in adata.
-        method: `str` (default: `analytical`)
-            The method that will be used for calculating divergence, either `analytical` or `numeric`. `analytical`
-            method will use the analytical form of the reconstructed vector field for calculating curvature while
-            `numeric` method will use numdifftools for calculation. `analytical` method is much more efficient.
+        formula: `int` (default: `2`)
+            Which formula of curvature will be used, there are two formulas, so formula can be either `{1, 2}`. By
+            default it is 2 and returns both the curvature vectors and the norm of the curvature. The formula one only
+            gives the norm of the curvature.
 
     Returns
     -------
@@ -351,11 +411,16 @@ def curvature(adata,
         vector_field_class = vectorfield()
         vector_field_class.from_adata(adata, basis=basis)
 
-    curv = vector_field_class.compute_curvature(**kwargs)
+    if formula not in [1, 2]:
+        raise ValueError(f"There are only two available formulas (formula can be either `{1, 2}`) to calculate "
+                         f"curvature, but your formula argument is {formula}.")
+
+    curv, curv_mat = vector_field_class.compute_curvature(formula=formula, **kwargs)
 
     curv_key = "curvature" if basis is None else "curvature_" + basis
 
     adata.obs[curv_key] = curv
+    adata.uns[curv_key] = curv_mat
 
 
 def torsion(adata,

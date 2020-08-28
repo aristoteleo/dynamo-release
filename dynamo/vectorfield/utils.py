@@ -58,10 +58,14 @@ def vector_field_function(x, vf_dict, dim=None, kernel='full', **kernel_kwargs):
         Xc = vf_dict["X_ctrl"]
         K = con_K(x, Xc, vf_dict["beta"], **kernel_kwargs)
 
-    if dim is None or has_div_cur_free_kernels:
-        K = K.dot(vf_dict["C"])
-    else:
-        K = K.dot(vf_dict["C"][:, dim])
+    K = K.dot(vf_dict["C"])
+
+    if dim is not None and not has_div_cur_free_kernels:
+        if np.isscalar(dim):
+            K = K[:, :dim]
+        elif dim is not None:
+            K = K[:, dim]
+
     return K
 
 
@@ -438,20 +442,30 @@ def compute_divergence(f_jac, X, vectorize_size=1):
 
 
 def acceleration_(v, J):
-    return J.dot(v[:, None]) if v.ndim == 1 else J.dot(v)
+    if v.ndim == 1: v = v[:, None]
+    return J.dot(v)
 
 
-def curvature_(a, v):
-    kappa = np.linalg.norm(np.outer(v[:, None], a)) / np.linalg.norm(v)**3 if v.ndim == 1 else \
-        np.linalg.norm(v.outer(a)) / np.linalg.norm(v)**3
+def curvature_1(a, v):
+    """https://link.springer.com/article/10.1007/s12650-018-0474-6"""
+    if v.ndim == 1: v = v[:, None]
+    kappa = np.linalg.norm(np.outer(v, a)) / np.linalg.norm(v)**3
+
+    return kappa
+
+
+def curvature_2(a, v):
+    """https://dl.acm.org/doi/10.5555/319351.319441"""
+    # if v.ndim == 1: v = v[:, None]
+    kappa = (np.multiply(a, np.dot(v, v)) - np.multiply(v, np.dot(v, a))) / np.linalg.norm(v)**4
 
     return kappa
 
 
 def torsion_(v, J, a):
     """only works in 3D"""
-    tau = np.outer(v[:, None], a).dot(J.dot(a)) / np.linalg.norm(np.outer(v[:, None], a))**2 if v.ndim == 1 else \
-        np.outer(v, a).dot(J.dot(a)) / np.linalg.norm(np.outer(v, a))**2
+    if v.ndim == 1: v = v[:, None]
+    tau = np.outer(v, a).dot(J.dot(a)) / np.linalg.norm(np.outer(v, a))**2
 
     return tau
 
@@ -481,21 +495,31 @@ def compute_acceleration(vf, f_jac, X, return_all=False):
 
 
 @timeit
-def compute_curvature(vf, f_jac, X):
+def compute_curvature(vf, f_jac, X, formula=2):
     """Calculate curvature for many samples via
-    
+
+    Formula 1:
     .. math::
     \kappa = \frac{||\mathbf{v} \times \mathbf{a}||}{||\mathbf{V}||^3}
+
+    Formula 2:
+    .. math::
+    \kappa = \frac{||\mathbf{Jv} (\mathbf{v} \cdot \mathbf{v}) -  ||\mathbf{v} (\mathbf{v} \cdot \mathbf{Jv})}{||\mathbf{V}||^4}
     """
     n = len(X)
 
     curv = np.zeros(n)
     v, _, a = compute_acceleration(vf, f_jac, X, return_all=True)
+    cur_mat = np.zeros((n, X.shape[1])) if formula == 2 else None
 
     for i in tqdm(range(n), desc="Calculating curvature"):
-        curv[i] = curvature_(a[i], v[i])
+        if formula == 1:
+            curv[i] = curvature_1(a[i], v[i])
+        elif formula == 2:
+            cur_mat[i] = curvature_2(a[i], v[i])
+            curv[i] = np.linalg.norm(cur_mat[i])
 
-    return curv
+    return (curv, cur_mat)
 
 
 @timeit

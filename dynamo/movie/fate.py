@@ -16,8 +16,8 @@ class StreamFuncAnim():
                  n_steps=100,
                  cell_states=None,
                  color='ntr',
+                 fig=None,
                  ax=None,
-                 ln=None,
                  logspace=False,
                  ):
         """Animating cell fate commitment prediction via reconstructed vector field function.
@@ -48,10 +48,12 @@ class StreamFuncAnim():
             cell_states: `int`, `list` or `None` (default: `None`)
                 The number of cells state that will be randomly selected (if `int`), the indices of the cells states (if
                 `list`) or all cell states which fate prediction executed (if `None`)
+            fig: `matplotlib.figure.Figure` or None (default: `None`)
+                The figure that will contain both the background and animated components.
             ax: `matplotlib.Axis` (optional, default `None`)
-                The matplotlib axes object that will be used as background plot of the vector field animation.
-            ln: `tuple` or None (default: `None`)
-                An iterable of artists (for example, `matplotlib.lines.Line2D`) used to draw a clear frame.
+                The matplotlib axes object that will be used as background plot of the vector field animation. If `ax`
+                is None, `topography(adata, basis=basis, color=color, ax=ax, save_show_or_return='return')` will be used
+                to create an axes.
             logspace: `bool` (default: `False`)
                 Whether or to sample time points linearly on log space. If not, the sorted unique set of all time points
                 from all cell states' fate prediction will be used and then evenly sampled up to `n_steps` time points.
@@ -69,7 +71,7 @@ class StreamFuncAnim():
         >>> info_genes = adata.var_names[adata.var.use_for_transition]
         >>> dyn.pd.fate(adata, basis='umap', init_cells=fate_progenitor, interpolation_num=100,  direction='forward',
         ...    inverse_transform=False, average=False)
-        >>> instance = dyn.mv.StreamFuncAnim(adata=adata, ax=None, ln=None)
+        >>> instance = dyn.mv.StreamFuncAnim(adata=adata, fig=None, ax=None)
         >>> anim = animation.FuncAnimation(instance.fig, instance.update, init_func=instance.init_background,
         ...                                frames=np.arange(100), interval=100, blit=True)
         >>> from IPython.core.display import display, HTML
@@ -85,10 +87,10 @@ class StreamFuncAnim():
         >>> dyn.pd.fate(adata, basis='umap', init_cells=fate_progenitor, interpolation_num=100,  direction='forward',
         ...    inverse_transform=False, average=False)
         >>> fig, ax = plt.subplots()
-        >>> ln, = ax.plot([], [], 'ro')
+        >>> ax = dyn.pl.topography(adata_old, color='time', ax=ax, save_show_or_return='return', color_key_cmap='viridis')
         >>> ax.set_xlim(xlim)
         >>> ax.set_ylim(ylim)
-        >>> instance = dyn.mv.StreamFuncAnim(adata=adata, ax=ax, ln=ln)
+        >>> instance = dyn.mv.StreamFuncAnim(adata=adata, fig=fig, ax=ax)
         >>> anim = animation.FuncAnimation(fig, instance.update, init_func=instance.init_background,
         ...                                frames=np.arange(100), interval=100, blit=True)
         >>> from IPython.core.display import display, HTML
@@ -163,20 +165,21 @@ class StreamFuncAnim():
         self.xlim = [m[0], M[0]]
         self.ylim = [m[1], M[1]]
 
-        # Animation objects must create `fig` and `ax` attributes.
-        if ax is None or ln is None:
-            self.fig, self.ax = plt.subplots()
-            self.ln, = self.ax.plot([], [], 'ro')
-        else:
-            self.ax = ax
-            self.ln = ln
-
-        self.ax.set_aspect("equal")
+        # self.ax.set_aspect("equal")
         self.color = color
 
-    def init_background(self):
-        self.ax = topography(self.adata, basis=self.basis, color=self.color, ax=self.ax, save_show_or_return='return')
+        # Animation objects must create `fig` and `ax` attributes.
+        if ax is None or fig is None:
+            self.fig, self.ax = plt.subplots()
+            self.ax = topography(self.adata, basis=self.basis, color=self.color, ax=self.ax, save_show_or_return='return')
+        else:
+            self.fig = fig
+            self.ax = ax
 
+        self.ln, = self.ax.plot([], [], 'ro')
+
+
+    def init_background(self):
         return self.ln,
 
     def update(self, frame):
@@ -220,8 +223,8 @@ def animate_fates(adata,
                    n_steps=100,
                    cell_states=None,
                    color='ntr',
+                   fig=None,
                    ax=None,
-                   ln=None,
                    logspace=False,
                    interval=100,
                    blit=True,
@@ -256,10 +259,12 @@ def animate_fates(adata,
         cell_states: `int`, `list` or `None` (default: `None`)
             The number of cells state that will be randomly selected (if `int`), the indices of the cells states (if
             `list`) or all cell states which fate prediction executed (if `None`)
+        fig: `matplotlib.figure.Figure` or None (default: `None`)
+                The figure that will contain both the background and animated components.
         ax: `matplotlib.Axis` (optional, default `None`)
-            The matplotlib axes object that will be used as background plot of the vector field animation.
-        ln: `tuple` or None (default: `None`)
-            An iterable of artists (for example, `matplotlib.lines.Line2D`) used to draw a clear frame.
+                The matplotlib axes object that will be used as background plot of the vector field animation. If `ax`
+                is None, `topography(adata, basis=basis, color=color, ax=ax, save_show_or_return='return')` will be used
+                to create an axes.
         logspace: `bool` (default: `False`)
             Whether or to sample time points linearly on log space. If not, the sorted unique set of all time points
             from all cell states' fate prediction will be used and then evenly sampled up to `n_steps` time points.
@@ -304,8 +309,8 @@ def animate_fates(adata,
                               n_steps=n_steps,
                               cell_states=cell_states,
                               color=color,
+                              fig=fig,
                               ax=ax,
-                              ln=ln,
                               logspace=logspace,
                               )
 

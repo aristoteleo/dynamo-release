@@ -714,10 +714,10 @@ class vectorfield:
         return compute_acceleration(self.func, f_jac, X, **kwargs)
 
 
-    def compute_curvature(self, X=None, method='analytical', **kwargs):
+    def compute_curvature(self, X=None, method='analytical', formula=2, **kwargs):
         X = self.data['X'] if X is None else X
         f_jac = self.get_Jacobian(method=method)
-        return compute_curvature(self.func, f_jac, X, **kwargs)
+        return compute_curvature(self.func, f_jac, X, formula=formula, **kwargs)
 
 
     def compute_torsion(self, X=None, method='analytical', **kwargs):
