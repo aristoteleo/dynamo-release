@@ -971,10 +971,10 @@ class ss_estimation:
                         )
                         U = self.data["uu"]
                         S = self.data["uu"] + self.data["ul"]
-                        US = self.data['us'] if 'us' in self.data.keys() else calc_2nd_moment(
+                        US = self.data['us'] if self.data['us'] is not None else calc_2nd_moment(
                             U.T, S.T, self.conn, mX=U.T, mY=S.T
                         ).T
-                        S2 = self.data['s2'] if 's2' in self.data.keys() else calc_2nd_moment(
+                        S2 = self.data['s2'] if self.data['s2'] is not None else calc_2nd_moment(
                             S.T, S.T, self.conn, mX=S.T, mY=S.T
                         ).T
                         if cores == 1:

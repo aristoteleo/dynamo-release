@@ -472,7 +472,7 @@ def get_data_for_kin_params_estimation(
         S = log_unnormalized_data(raw, log_unnormalized)
 
     # labeling without splicing
-    if (
+    if not has_splicing and (
         ("X_new" in subset_adata.layers.keys() and not use_moments)
         or (mapper["X_new"] in subset_adata.layers.keys() and use_moments)
     ):  # run new / total ratio (NTR)
@@ -492,7 +492,8 @@ def get_data_for_kin_params_estimation(
             if use_moments
             else subset_adata.layers["X_new"].T
         )
-    elif "new" in subset_adata.layers.keys():
+
+    elif not has_splicing and "new" in subset_adata.layers.keys():
         has_labeling, assumption_mRNA = (
             True,
             "ss" if NTR_vel else 'kinetic',
@@ -512,7 +513,7 @@ def get_data_for_kin_params_estimation(
         Ul = raw
 
     # splicing data
-    if (
+    if not has_labeling and (
         ("X_unspliced" in subset_adata.layers.keys() and not use_moments)
         or (mapper["X_unspliced"] in subset_adata.layers.keys() and use_moments)
     ):
@@ -523,7 +524,7 @@ def get_data_for_kin_params_estimation(
             if use_moments
             else subset_adata.layers["X_unspliced"].T
         )
-    elif "unspliced" in subset_adata.layers.keys():
+    elif not has_labeling and "unspliced" in subset_adata.layers.keys():
         has_splicing, assumption_mRNA = True, "kinetic" \
             if tkey in subset_adata.obs.columns else 'ss'
         raw, raw_unspliced = (
@@ -535,7 +536,7 @@ def get_data_for_kin_params_estimation(
         else:
             raw = np.log(raw + 1) if log_unnormalized else raw
         U = raw
-    if (
+    elif not has_labeling and (
         ("X_spliced" in subset_adata.layers.keys() and not use_moments)
         or (mapper["X_spliced"] in subset_adata.layers.keys() and use_moments)
     ):
@@ -544,7 +545,7 @@ def get_data_for_kin_params_estimation(
             if use_moments
             else subset_adata.layers["X_spliced"].T
         )
-    elif "spliced" in subset_adata.layers.keys():
+    elif not has_labeling and "spliced" in subset_adata.layers.keys():
         raw, raw_spliced = (
             subset_adata.layers["spliced"].T,
             subset_adata.layers["spliced"].T,
@@ -555,6 +556,7 @@ def get_data_for_kin_params_estimation(
             raw = np.log(raw + 1) if log_unnormalized else raw
         S = raw
 
+    # protein
     ind_for_proteins = None
     if (
         ("X_protein" in subset_adata.obsm.keys() and not use_moments)
