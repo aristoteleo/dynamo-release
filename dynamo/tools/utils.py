@@ -565,7 +565,7 @@ def get_data_for_kin_params_estimation(
             if use_moments
             else subset_adata.layers["X_spliced"].T
         )
-    elif not has_labeling and "spliced" in subset_adata.layers.keys():
+    if not has_labeling and "spliced" in subset_adata.layers.keys():
         raw, raw_spliced = (
             subset_adata.layers["spliced"].T,
             subset_adata.layers["spliced"].T,
