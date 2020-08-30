@@ -1245,25 +1245,25 @@ def get_ekey_vkey_from_adata(adata):
                     "The input data you have is not normalized or normalized + smoothed!"
                 )
 
-            if experiment_type == "kin":
+            if experiment_type.lower() == "kin":
                 ekey, vkey, layer = (
                     (mapper["X_total"] if NTR else mapper["X_spliced"], "velocity_S", ("X_total" if NTR else "X_spliced"))
                     if use_smoothed
                     else ("X_total" if NTR else "X_spliced", "velocity_S", "X_total" if NTR else "X_spliced")
                 )
-            elif experiment_type == "deg":
+            elif experiment_type.lower() == "deg":
                 ekey, vkey, layer = (
                     (mapper["X_total"] if NTR else mapper["X_spliced"], "velocity_S", ("X_total" if NTR else "X_spliced"))
                     if use_smoothed
                     else ("X_total" if NTR else "X_spliced", "velocity_S", "X_total" if NTR else "X_spliced")
                 )
-            elif experiment_type == "one_shot":
+            elif experiment_type.lower() in ["one_shot", "one-shot"]:
                 ekey, vkey, layer = (
                     (mapper["X_total"] if NTR else mapper["X_spliced"], "velocity_S", ("X_total" if NTR else "X_spliced"))
                     if use_smoothed
                     else ("X_total" if NTR else "X_spliced", "velocity_S", "X_total" if NTR else "X_spliced")
                 )
-            elif experiment_type == "mix_std_stm":
+            elif experiment_type.lower() == "mix_std_stm":
                 ekey, vkey, layer = (
                     (mapper["X_total"] if NTR else mapper["X_spliced"], "velocity_S", ("X_total" if NTR else "X_spliced"))
                     if use_smoothed
