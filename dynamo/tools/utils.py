@@ -670,6 +670,8 @@ def set_velocity(
     adata,
     vel_U,
     vel_S,
+    vel_N,
+    vel_T,
     vel_P,
     _group,
     cur_grp,
@@ -688,6 +690,16 @@ def set_velocity(
             adata.layers["velocity_S"] = csr_matrix((adata.shape), dtype=np.float64)
         vel_S = vel_S.T.tocsr() if issparse(vel_S) else csr_matrix(vel_S, dtype=np.float64).T
         adata.layers["velocity_S"][cur_cells_ind, valid_ind_] = vel_S
+    if type(vel_N) is not float:
+        if cur_grp == _group[0]:
+            adata.layers["velocity_N"] = csr_matrix((adata.shape), dtype=np.float64)
+        vel_N = vel_N.T.tocsr() if issparse(vel_N) else csr_matrix(vel_N, dtype=np.float64).T
+        adata.layers["velocity_N"][cur_cells_ind, valid_ind_] = vel_N
+    if type(vel_T) is not float:
+        if cur_grp == _group[0]:
+            adata.layers["velocity_T"] = csr_matrix((adata.shape), dtype=np.float64)
+        vel_T = vel_T.T.tocsr() if issparse(vel_T) else csr_matrix(vel_T, dtype=np.float64).T
+        adata.layers["velocity_T"][cur_cells_ind, valid_ind_] = vel_T
     if type(vel_P) is not float:
         if cur_grp == _group[0]:
             adata.obsm["velocity_P"] = csr_matrix(
@@ -1267,27 +1279,43 @@ def get_ekey_vkey_from_adata(adata):
 
             if experiment_type.lower() == "kin":
                 ekey, vkey, layer = (
-                    (mapper["X_total"] if NTR else mapper["X_spliced"], "velocity_S", ("X_total" if NTR else "X_spliced"))
+                    (mapper["X_total"] if NTR else mapper["X_spliced"],
+                     "velocity_T" if NTR else "velocity_S",
+                     ("X_total" if NTR else "X_spliced"))
                     if use_smoothed
-                    else ("X_total" if NTR else "X_spliced", "velocity_S", "X_total" if NTR else "X_spliced")
+                    else ("X_total" if NTR else "X_spliced",
+                          "velocity_T" if NTR else "velocity_S",
+                          "X_total" if NTR else "X_spliced")
                 )
             elif experiment_type.lower() == "deg":
                 ekey, vkey, layer = (
-                    (mapper["X_total"] if NTR else mapper["X_spliced"], "velocity_S", ("X_total" if NTR else "X_spliced"))
+                    (mapper["X_total"] if NTR else mapper["X_spliced"],
+                     "velocity_T" if NTR else "velocity_S",
+                     ("X_total" if NTR else "X_spliced"))
                     if use_smoothed
-                    else ("X_total" if NTR else "X_spliced", "velocity_S", "X_total" if NTR else "X_spliced")
+                    else ("X_total" if NTR else "X_spliced",
+                          "velocity_T" if NTR else "velocity_S",
+                          "X_total" if NTR else "X_spliced")
                 )
             elif experiment_type.lower() in ["one_shot", "one-shot"]:
                 ekey, vkey, layer = (
-                    (mapper["X_total"] if NTR else mapper["X_spliced"], "velocity_S", ("X_total" if NTR else "X_spliced"))
+                    (mapper["X_total"] if NTR else mapper["X_spliced"],
+                     "velocity_T" if NTR else "velocity_S",
+                     ("X_total" if NTR else "X_spliced"))
                     if use_smoothed
-                    else ("X_total" if NTR else "X_spliced", "velocity_S", "X_total" if NTR else "X_spliced")
+                    else ("X_total" if NTR else "X_spliced",
+                          "velocity_T" if NTR else "velocity_S",
+                          "X_total" if NTR else "X_spliced")
                 )
             elif experiment_type.lower() == "mix_std_stm":
                 ekey, vkey, layer = (
-                    (mapper["X_total"] if NTR else mapper["X_spliced"], "velocity_S", ("X_total" if NTR else "X_spliced"))
+                    (mapper["X_total"] if NTR else mapper["X_spliced"],
+                     "velocity_T" if NTR else "velocity_S",
+                     ("X_total" if NTR else "X_spliced"))
                     if use_smoothed
-                    else ("X_total" if NTR else "X_spliced", "velocity_S", "X_total" if NTR else "X_spliced")
+                    else ("X_total" if NTR else "X_spliced",
+                          "velocity_T" if NTR else "velocity_S",
+                          "X_total" if NTR else "X_spliced")
                 )
         else:
             if not (("X_unspliced" in adata.layers.keys()) or (
@@ -1309,27 +1337,27 @@ def get_ekey_vkey_from_adata(adata):
             # we may also create M_U, M_S layers?
             if experiment_type == "kin":
                 ekey, vkey, layer = (
-                    (mapper["X_total"], "velocity_S", "X_total")
+                    (mapper["X_total"], "velocity_T", "X_total")
                     if use_smoothed
-                    else ("X_total", "velocity_S", "X_total")
+                    else ("X_total", "velocity_T", "X_total")
                 )
             elif experiment_type == "deg":
                 ekey, vkey, layer = (
-                    (mapper["X_total"], "velocity_S", "X_total")
+                    (mapper["X_total"], "velocity_T", "X_total")
                     if use_smoothed
-                    else ("X_total", "velocity_S", "X_total")
+                    else ("X_total", "velocity_T", "X_total")
                 )
             elif experiment_type == "one-shot" or experiment_type == "one_shot":
                 ekey, vkey, layer = (
-                    (mapper["X_total"], "velocity_S", "X_total")
+                    (mapper["X_total"], "velocity_T", "X_total")
                     if use_smoothed
-                    else ("X_total", "velocity_S", "X_total")
+                    else ("X_total", "velocity_T", "X_total")
                 )
             elif experiment_type == "mix_std_stm":
                 ekey, vkey, layer = (
-                    (mapper["X_total"], "velocity_S", "X_total")
+                    (mapper["X_total"], "velocity_T", "X_total")
                     if use_smoothed
-                    else ("X_total", "velocity_S", "X_total")
+                    else ("X_total", "velocity_T", "X_total")
                 )
 
         else:

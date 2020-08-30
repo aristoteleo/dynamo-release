@@ -131,7 +131,7 @@ def dynamics(
             (including RNA half-life), it additionally returns the log-likelihood of the fittingwhich, which will be used for transition
             matrix and velocity embedding.
             All `est_method` uses least square to estimate optimal parameters with latin cubic sampler for initial sampling.
-        NTR_vel: `bool` (default: `True`)
+        NTR_vel: `bool` (default: `False`)
             Whether to use NTR (new/total ratio) velocity for labeling datasets.
         group: `str` or None (default: `None`)
             The column key/name that identifies the grouping information (for example, clusters that correspond to different cell types)
@@ -426,17 +426,41 @@ def dynamics(
                 NTR_vel,
             )
             vel = velocity(estimation=est)
-            vel_U = vel.vel_u(U)
+
             if exp_type == 'one-shot':
-                vel_S = vel.vel_s(U, U + S)
+                U_, S_ = get_U_S_for_velocity_estimation(
+                    subset_adata,
+                    use_smoothed,
+                    has_splicing,
+                    has_labeling,
+                    log_unnormalized,
+                    not NTR_vel,
+                )
+
+                # also get vel_N and vel_T
+                if NTR_vel:
+                    vel_N = vel.vel_u(U)
+                    vel_T = vel.vel_u(S) # S - U?
+                    vel_U = vel.vel_u(U_, S_) if has_splicing else np.nan
+                    vel_S = vel.vel_s(U_, S_) if has_splicing else np.nan
+                else:
+                    vel_S = vel.vel_s(U, S) if has_splicing else np.nan
+                    vel_N = vel.vel_u(U_) if has_splicing else np.nan
+                    vel_U = vel.vel_u(U_)
+                    vel_T = vel.vel_s(U_, S_)
             else:
+                vel_U = vel.vel_u(U)
                 vel_S = vel.vel_s(U, S)
+                vel_N, vel_T = np.nan, np.nan
+
             vel_P = vel.vel_p(S, P)
 
             adata = set_velocity(
                 adata,
                 vel_U,
                 vel_S,
+                vel_N,
+                vel_T,
                 vel_P,
                 _group,
                 cur_grp,
@@ -506,14 +530,36 @@ def dynamics(
                 log_unnormalized,
                 NTR_vel,
             )
-            vel_U = vel.vel_u(U)
-            vel_S = vel.vel_s(U, S)
+
+            U_, S_ = get_U_S_for_velocity_estimation(
+                subset_adata,
+                use_smoothed,
+                has_splicing,
+                has_labeling,
+                log_unnormalized,
+                not NTR_vel,
+            )
+
+            # also get vel_N and vel_T
+            if NTR_vel:
+                vel_N = vel.vel_u(U)
+                vel_T = vel.vel_u(S - U)  # S - U?
+                vel_S = vel.vel_s(U_, S_) if has_splicing else np.nan
+                vel_U = vel.vel_u(U_) if has_splicing else np.nan
+            else:
+                vel_S = vel.vel_s(U, S) if has_splicing else np.nan
+                vel_U = vel.vel_u(U) if has_splicing else np.nan
+                vel_N = vel.vel_u(U_)
+                vel_T = vel.vel_s(U_, S_)
+
             vel_P = vel.vel_p(S, P)
 
             adata = set_velocity(
                 adata,
                 vel_U,
                 vel_S,
+                vel_N,
+                vel_T,
                 vel_P,
                 _group,
                 cur_grp,
