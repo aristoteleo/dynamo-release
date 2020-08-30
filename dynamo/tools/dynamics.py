@@ -507,7 +507,7 @@ def dynamics(
                 NTR_vel,
             )
             vel_U = vel.vel_u(U)
-            vel_S = vel.vel_u(S)
+            vel_S = vel.vel_s(U, S)
             vel_P = vel.vel_p(S, P)
 
             adata = set_velocity(
