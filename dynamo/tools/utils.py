@@ -556,7 +556,7 @@ def get_data_for_kin_params_estimation(
         else:
             raw = np.log(raw + 1) if log_unnormalized else raw
         U = raw
-    elif not has_labeling and (
+    if not has_labeling and (
         ("X_spliced" in subset_adata.layers.keys() and not use_moments)
         or (mapper["X_spliced"] in subset_adata.layers.keys() and use_moments)
     ):
@@ -565,7 +565,7 @@ def get_data_for_kin_params_estimation(
             if use_moments
             else subset_adata.layers["X_spliced"].T
         )
-    if not has_labeling and "spliced" in subset_adata.layers.keys():
+    elif not has_labeling and "spliced" in subset_adata.layers.keys():
         raw, raw_spliced = (
             subset_adata.layers["spliced"].T,
             subset_adata.layers["spliced"].T,
