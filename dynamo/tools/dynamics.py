@@ -439,15 +439,27 @@ def dynamics(
 
                 # also get vel_N and vel_T
                 if NTR_vel:
-                    vel_U = vel.vel_u(U_) if has_splicing else np.nan
-                    vel_S = vel.vel_s(U_, S_) if has_splicing else np.nan
-                    vel_N = vel.vel_u(U)
-                    vel_T = vel.vel_u(S)  # don't consider splicing
+                    if has_splicing:
+                        vel_U = vel.vel_u(U_)
+                        vel_S = vel.vel_s(U_, S_)
+                        vel_N = vel.vel_u(U)
+                        vel_T = vel.vel_s(U, S - U)  # need to consider splicing
+                    else:
+                        vel_U = np.nan
+                        vel_S = np.nan
+                        vel_N = vel.vel_u(U)
+                        vel_T = vel.vel_u(S)  # don't consider splicing
                 else:
-                    vel_U = vel.vel_u(U) if has_splicing else np.nan
-                    vel_S = vel.vel_s(U, S) if has_splicing else np.nan
-                    vel_N = vel.vel_u(U_)
-                    vel_T = vel.vel_u(S_)  # don't consider splicing
+                    if has_splicing:
+                        vel_U = vel.vel_u(U)
+                        vel_S = vel.vel_s(U, S)
+                        vel_N = vel.vel_u(U_)
+                        vel_T = vel.vel_s(U_, S_ - U_)  # need to consider splicing
+                    else:
+                        vel_U = np.nan
+                        vel_S = np.nan
+                        vel_N = vel.vel_u(U_)
+                        vel_T = vel.vel_u(S_)  # don't consider splicing
             else:
                 vel_U = vel.vel_u(U)
                 vel_S = vel.vel_s(U, S)
@@ -542,15 +554,27 @@ def dynamics(
 
             # also get vel_N and vel_T
             if NTR_vel:
-                vel_U = vel.vel_u(U_) if has_splicing else np.nan
-                vel_S = vel.vel_s(U_, S_) if has_splicing else np.nan
-                vel_N = vel.vel_u(U)
-                vel_T = vel.vel_u(S)  # don't consider splicing
+                if has_splicing:
+                    vel_U = vel.vel_u(U_)
+                    vel_S = vel.vel_s(U_, S_)
+                    vel_N = vel.vel_u(U)
+                    vel_T = vel.vel_s(U, S - U)  # need to consider splicing
+                else:
+                    vel_U = np.nan
+                    vel_S = np.nan
+                    vel_N = vel.vel_u(U)
+                    vel_T = vel.vel_u(S)  # don't consider splicing
             else:
-                vel_U = vel.vel_u(U) if has_splicing else np.nan
-                vel_S = vel.vel_s(U, S) if has_splicing else np.nan
-                vel_N = vel.vel_u(U_)
-                vel_T = vel.vel_u(S_)  # don't consider splicing
+                if has_splicing:
+                    vel_U = vel.vel_u(U)
+                    vel_S = vel.vel_s(U, S)
+                    vel_N = vel.vel_u(U_)
+                    vel_T = vel.vel_s(U_, S_ - U_)  # need to consider splicing
+                else:
+                    vel_U = np.nan
+                    vel_S = np.nan
+                    vel_N = vel.vel_u(U_)
+                    vel_T = vel.vel_u(S_)  # need to consider splicing
 
             vel_P = vel.vel_p(S, P)
 
