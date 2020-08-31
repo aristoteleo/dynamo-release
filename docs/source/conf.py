@@ -62,7 +62,7 @@ copyright = "2020, Xiaojie Qiu, Yan Zhang"
 author = "Xiaojie Qiu, Yan Zhang"
 
 # The full version, including alpha/beta/rc tags
-release = "0.95.1"
+release = "0.95.2"
 
 # -- General configuration ---------------------------------------------------
 

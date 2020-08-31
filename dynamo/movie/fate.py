@@ -19,6 +19,8 @@ class StreamFuncAnim():
                  fig=None,
                  ax=None,
                  logspace=False,
+                 max_time=None,
+                 frame_color=None,
                  ):
         """Animating cell fate commitment prediction via reconstructed vector field function.
 
@@ -134,6 +136,8 @@ class StreamFuncAnim():
         else:
             self.time_vec = flat_list[(np.linspace(0, len(flat_list) - 1, n_steps)).astype(int)]
 
+        self.time_scaler = None if max_time is None else max_time / (self.time_vec[-1] - self.time_vec[-2])
+
         # init_states, VecFld, t_end, _valid_genes = fetch_states(
         #     adata, init_states, init_cells, basis, layer, False,
         #     t_end
@@ -167,6 +171,7 @@ class StreamFuncAnim():
 
         # self.ax.set_aspect("equal")
         self.color = color
+        self.frame_color = frame_color
 
         # Animation objects must create `fig` and `ax` attributes.
         if ax is None or fig is None:
@@ -211,26 +216,31 @@ class StreamFuncAnim():
         self.ax.lines = []
         (self.ln,) = self.ax.plot(x, y, "ro", zorder=20)
 
-        self.ax.set_title("current vector field time is: {:12.2f}".format(time_vec[frame] - time_vec[frame - 1]))
+        if self.time_scaler is not None:
+            vf_time = (time_vec[frame] - time_vec[frame - 1]) * self.time_scaler
+            self.ax.set_title("current vector field time is: {:12.2f}".format(vf_time))
+
         # anim.event_source.interval = (time_vec[frame] - time_vec[frame - 1]) / 100
 
         return self.ln,  # return line so that blit works properly
 
 
 def animate_fates(adata,
-                   basis='umap',
-                   dims=None,
-                   n_steps=100,
-                   cell_states=None,
-                   color='ntr',
-                   fig=None,
-                   ax=None,
-                   logspace=False,
-                   interval=100,
-                   blit=True,
-                   save_show_or_return='show',
-                   save_kwargs={},
-                   **kwargs):
+                  basis='umap',
+                  dims=None,
+                  n_steps=100,
+                  cell_states=None,
+                  color='ntr',
+                  fig=None,
+                  ax=None,
+                  logspace=False,
+                  max_time=None,
+                  frame_color=None,
+                  interval=100,
+                  blit=True,
+                  save_show_or_return='show',
+                  save_kwargs={},
+                  **kwargs):
     """Animating cell fate commitment prediction via reconstructed vector field function.
 
     This class creates necessary components to produce an animation that describes the exact speed of a set of cells
@@ -312,6 +322,8 @@ def animate_fates(adata,
                               fig=fig,
                               ax=ax,
                               logspace=logspace,
+                              max_time=max_time,
+                              frame_color=frame_color,
                               )
 
     anim = animation.FuncAnimation(instance.fig, instance.update, init_func=instance.init_background,
