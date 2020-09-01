@@ -575,8 +575,6 @@ def dynamics(
                     vel_S = np.nan
                     vel_N = vel.vel_u(U_)
                     vel_T = vel.vel_u(S_)  # need to consider splicing
-                    # alpha_ = one_shot_alpha_matrix(U_, gamma, adata.obs.time.values)
-                    # vel_T = alpha_ - (csr_matrix(gamma[:, None], dtype=np.float64).multiply(S_))
 
             vel_P = vel.vel_p(S, P)
 

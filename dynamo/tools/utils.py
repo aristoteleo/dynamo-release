@@ -1015,24 +1015,24 @@ def get_U_S_for_velocity_estimation(
                 U = subset_adata.layers[mapper["X_new"]].T
                 S = (
                     subset_adata.layers[mapper["X_total"]].T
-                    if NTR
-                    else subset_adata.layers[mapper["X_total"]].T
-                    - subset_adata.layers[mapper["X_new"]].T
+                    # if NTR
+                    # else subset_adata.layers[mapper["X_total"]].T
+                    # - subset_adata.layers[mapper["X_new"]].T
                 )
             else:
                 U = subset_adata.layers["X_new"].T
                 S = (
                     subset_adata.layers["X_total"].T
-                    if NTR
-                    else subset_adata.layers["X_total"].T
-                    - subset_adata.layers["X_new"].T
+                    # if NTR
+                    # else subset_adata.layers["X_total"].T
+                    # - subset_adata.layers["X_new"].T
                 )
         elif "new" in subset_adata.layers.keys():
             U = subset_adata.layers["new"].T
             S = (
                 subset_adata.layers["total"].T
-                if NTR
-                else subset_adata.layers["total"].T - subset_adata.layers["new"].T
+                # if NTR
+                # else subset_adata.layers["total"].T - subset_adata.layers["new"].T
             )
             if issparse(U):
                 U.data = np.log(U.data + 1) if log_unnormalized else U.data
