@@ -255,7 +255,9 @@ def cell_velocities(
         raise Exception(f"X and V do not have the same number of dimensions.")
     
     if X_embedding is None:
-        if vkey == "velocity_S":
+        # velocity_S/T should use spliced and total (both are equivalent of .X) as the input for low dimensional
+        # projection while others should use layer (and layer + "_" + basis as the low dimensional embedding).
+        if vkey in ["velocity_S", "velocity_T"]:
             X_embedding = adata.obsm["X_" + basis]
         else:
             adata = reduceDimension(adata, layer=layer, reduction_method=basis)

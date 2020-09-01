@@ -290,6 +290,10 @@ def phase_portraits(
         V_vec = adata[:, genes].layers["velocity_S"]
         if "velocity_P" in adata.obsm.keys():
             P_vec = adata[:, genes].layers["velocity_P"]
+    elif vkey == "velocity_T":
+        V_vec = adata[:, genes].layers["velocity_T"]
+        if "velocity_P" in adata.obsm.keys():
+            P_vec = adata[:, genes].layers["velocity_P"]
     else:
         raise Exception(
             "adata has no vkey {} in either the layers or the obsm slot".format(vkey)
@@ -331,8 +335,8 @@ def phase_portraits(
         )
 
         vel_u, vel_s = (
-            adata[:, genes].layers["velocity_U"].A,
-            adata[:, genes].layers["velocity_S"].A,
+            adata[:, genes].layers["velocity_N"].A,
+            adata[:, genes].layers["velocity_T"].A,
         )
 
         df = pd.DataFrame(
@@ -393,8 +397,11 @@ def phase_portraits(
         )
 
         vel_u, vel_s = (
-            np.zeros_like(adata[:, genes].layers["velocity_S"].A),
+            adata[:, genes].layers["velocity_U"].A,
             adata[:, genes].layers["velocity_S"].A,
+        ) if vkey == 'velocity_S' else (
+            adata[:, genes].layers["velocity_N"].A,
+            adata[:, genes].layers["velocity_T"].A,
         )
         if "protein" in adata.obsm.keys():
             if "delta" in adata.var.columns:
@@ -454,10 +461,6 @@ def phase_portraits(
                 index=range(n_cells * n_genes),
             )
         else:
-            vel_u, vel_s = (
-                np.zeros_like(adata[:, genes].layers["velocity_S"].A),
-                adata[:, genes].layers["velocity_S"].A,
-            )
             df = pd.DataFrame(
                 {
                     "new": (ul + sl).flatten(),

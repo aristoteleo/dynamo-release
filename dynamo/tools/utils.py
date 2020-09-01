@@ -359,6 +359,16 @@ def inverse_norm(adata, layer_x):
 
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
+def one_shot_alpha(l, gamma, t):
+    alpha = l * gamma / (1 - np.exp(-gamma * t))
+    return alpha
+
+
+def one_shot_alpha_matrix(l, gamma, t):
+    alpha = elem_prod(gamma[:, None], l) / (1 - np.exp(-elem_prod(gamma[:, None], t[None, :])))
+    return csr_matrix(alpha)
+
+
 def one_shot_gamma_alpha(k, t, l):
     gamma = -np.log(1 - k) / t
     alpha = l * (gamma / k)[0]
@@ -1347,7 +1357,7 @@ def get_ekey_vkey_from_adata(adata):
                     if use_smoothed
                     else ("X_total", "velocity_T", "X_total")
                 )
-            elif experiment_type == "one-shot" or experiment_type == "one_shot":
+            elif experiment_type in ["one-shot", "one_shot"]:
                 ekey, vkey, layer = (
                     (mapper["X_total"], "velocity_T", "X_total")
                     if use_smoothed
