@@ -28,21 +28,28 @@ def f_left_jac(q, F):
     return J
 
 @timeit
-def solveQ(D, F, q0=None, debug=False, **kwargs):
-    """Function to calculate Q matrix by a least square method
+def solveQ(D, F, q0=None, debug=False, precompute_jac=True, **kwargs):
+    """Function to solve for the anti-symmetric Q matrix in the equation:
+        F.Q - (F.Q)^T = F.D - (F.D)^T
+    using least squares.
 
     Parameters
     ----------
-    D:  :class:`~numpy.ndarray`
-        Diffusion matrix.
-    F: :class:`~numpy.ndarray`
-        Jacobian of the vector field function at specific location.
-    debug: `bool`
-        A flag to determine whether the debug mode should be used.
+        D: :class:`~numpy.ndarray`
+            A symmetric diffusion matrix.
+        F: :class:`~numpy.ndarray`
+            Jacobian of the vector field function evaluated at a particular point.
+        debug: bool
+            Whether additional info of the solution is returned.
+        precompute_jac: bool
+            Whether the analytical Jacobian is precomputed for the optimizer.
 
     Returns
     -------
-        Depends on whether
+        Q: :class:`~numpy.ndarray`
+            The solved anti-symmetric Q matrix.
+        C: :class:`~numpy.ndarray`
+            The right-hand side of the equation to be solved.
     """
 
     n = D.shape[0]
@@ -50,8 +57,11 @@ def solveQ(D, F, q0=None, debug=False, **kwargs):
     C = f_left(D, F)
     f_obj = lambda q: (f_left(squareform(q, True), F) - C).flatten()
     q0 = np.ones(m, dtype=float) if q0 is None else q0
-    J = f_left_jac(q0, F)
-    f_jac = lambda q: J
+    if precompute_jac:
+        J = f_left_jac(q0, F)
+        f_jac = lambda q: J
+    else:
+        f_jac = '2-point'
     sol = least_squares(f_obj, q0, jac=f_jac, **kwargs)
     Q = squareform(sol.x, True)
     if debug:
