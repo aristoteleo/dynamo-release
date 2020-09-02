@@ -20,8 +20,8 @@ def phase_portraits(
         x=0,
         y=1,
         pointsize=None,
-        vkey="S",
-        ekey="M_s",
+        vkey=None,
+        ekey=None,
         basis="umap",
         log1p=True, 
         color='cell_cycle_phase',
@@ -65,10 +65,10 @@ def phase_portraits(
         pointsize: `None` or `float` (default: None)
                 The scale of the point size. Actual point cell size is calculated as `2500.0 / np.sqrt(adata.shape[0]) *
                 pointsize`
-        vkey: `string` (default: velocity)
+        vkey: `string` or None (default: None)
             Which velocity key used for visualizing the magnitude of velocity. Can be either velocity in the layers slot
             or the keys in the obsm slot.
-        ekey: `str` (default: `M_s`)
+        ekey: `str` or None (default: `None`)
             The layer of data to represent the gene expression level.
         basis: `string` (default: umap)
             Which low dimensional embedding will be used to visualize the cell.
@@ -171,6 +171,7 @@ def phase_portraits(
     from matplotlib.colors import to_hex
     # from matplotlib.colors import DivergingNorm  # TwoSlopeNorm
 
+    has_labeling, has_splicing = adata.uns['dynamics']['has_labeling'], adata.uns['dynamics']['has_splicing']
     if background is None:
         _background = rcParams.get("figure.facecolor")
         _background = to_hex(_background) if type(_background) is tuple else _background
@@ -227,28 +228,18 @@ def phase_portraits(
     )
     embedding.columns = ["dim_1", "dim_2"]
 
-    if all([i in adata.layers.keys() for i in ["X_new", "X_total"]]) or all(
-            [i in adata.layers.keys() for i in [mapper["X_new"], mapper["X_total"]]]
-    ):
-        mode = "labeling"
-    elif all([i in adata.layers.keys() for i in ["X_spliced", "X_unspliced"]]) or all(
-            [i in adata.layers.keys() for i in [mapper["X_spliced"], mapper["X_unspliced"]]]
-    ):
-        mode = "splicing"
-    elif all(
-            [i in adata.layers.keys() for i in ["X_uu", "X_ul", "X_su", "X_sl"]]
-    ) or all(
-        [
-            i in adata.layers.keys()
-            for i in [mapper["X_uu"], mapper["X_ul"], mapper["X_su"], mapper["X_sl"]]
-        ]
-    ):
-        mode = "full"
-    else:
-        raise Exception(
-            "your data should be in one of the proper mode: labelling (has X_new/X_total layers), splicing "
-            "(has X_spliced/X_unspliced layers) or full (has X_uu/X_ul/X_su/X_sl layers)"
-        )
+    if has_labeling and not has_splicing:
+        mode = 'labeling'
+        vkey = 'T' if vkey is None else vkey
+        ekey = 'M_t' if ekey is None else ekey
+    elif has_splicing and not has_labeling:
+        mode = 'splicing'
+        vkey = 'S' if vkey is None else vkey
+        ekey = 'M_s' if ekey is None else ekey
+    elif has_splicing and has_labeling:
+        mode = 'full'
+        vkey = 'T' if vkey is None else vkey
+        ekey = 'M_t' if ekey is None else ekey
 
     layers = list(adata.layers.keys())
     layers.extend(["X", "protein", "X_protein"])
@@ -288,6 +279,10 @@ def phase_portraits(
             P_vec = adata[:, genes].layer["velocity_P"]
     elif vkey == "velocity_S":
         V_vec = adata[:, genes].layers["velocity_S"]
+        if "velocity_P" in adata.obsm.keys():
+            P_vec = adata[:, genes].layers["velocity_P"]
+    elif vkey == "velocity_T":
+        V_vec = adata[:, genes].layers["velocity_T"]
         if "velocity_P" in adata.obsm.keys():
             P_vec = adata[:, genes].layers["velocity_P"]
     else:
@@ -331,8 +326,8 @@ def phase_portraits(
         )
 
         vel_u, vel_s = (
-            adata[:, genes].layers["velocity_U"].A,
-            adata[:, genes].layers["velocity_S"].A,
+            adata[:, genes].layers["velocity_N"].A,
+            adata[:, genes].layers["velocity_T"].A,
         )
 
         df = pd.DataFrame(
@@ -393,8 +388,11 @@ def phase_portraits(
         )
 
         vel_u, vel_s = (
-            np.zeros_like(adata[:, genes].layers["velocity_S"].A),
+            adata[:, genes].layers["velocity_U"].A,
             adata[:, genes].layers["velocity_S"].A,
+        ) if vkey == 'velocity_S' else (
+            adata[:, genes].layers["velocity_N"].A,
+            adata[:, genes].layers["velocity_T"].A,
         )
         if "protein" in adata.obsm.keys():
             if "delta" in adata.var.columns:
@@ -454,10 +452,6 @@ def phase_portraits(
                 index=range(n_cells * n_genes),
             )
         else:
-            vel_u, vel_s = (
-                np.zeros_like(adata[:, genes].layers["velocity_S"].A),
-                adata[:, genes].layers["velocity_S"].A,
-            )
             df = pd.DataFrame(
                 {
                     "new": (ul + sl).flatten(),

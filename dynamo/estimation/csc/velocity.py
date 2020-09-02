@@ -3,7 +3,14 @@ from multiprocessing.dummy import Pool as ThreadPool
 import itertools
 from scipy.sparse import csr_matrix
 from warnings import warn
-from ...tools.utils import one_shot_gamma_alpha, calc_R2, calc_norm_loglikelihood, one_shot_gamma_alpha_matrix
+from ...tools.utils import (
+    one_shot_alpha,
+    one_shot_alpha_matrix,
+    one_shot_gamma_alpha,
+    one_shot_gamma_alpha_matrix,
+    calc_R2,
+    calc_norm_loglikelihood,
+)
 from ...tools.moments import calc_12_mom_labeling
 from .utils_velocity import *
 from ...tools.utils import update_dict
@@ -61,13 +68,16 @@ class velocity:
                 "t": t,
             }
 
-    def vel_u(self, U):
+    def vel_u(self, U, repeat=None):
         """Calculate the unspliced mRNA velocity.
 
         Arguments
         ---------
             U: :class:`~numpy.ndarray` or sparse `csr_matrix`
                 A matrix of unspliced mRNA count. Dimension: genes x cells.
+            repeat: bool or None
+                Whether to use average alpha or cell-wise alpha with the formula:
+                $a = \frac{n \gamma}{1 - e^{-\gamma t}}$.
 
         Returns
         -------
@@ -85,10 +95,12 @@ class velocity:
                 no_beta = False
 
             if type(self.parameters["alpha"]) is not tuple:
+                if repeat is None: repeat = False
+
                 if self.parameters["alpha"].ndim == 1:
                     alpha = np.repeat(
                         self.parameters["alpha"].reshape((-1, 1)), U.shape[1], axis=1
-                    )
+                    ) if repeat else one_shot_alpha_matrix(U, self.parameters['gamma'], self.parameters['t'])
                 elif self.parameters["alpha"].shape[1] == U.shape[1]:
                     alpha = self.parameters["alpha"]
                 elif (
@@ -103,6 +115,7 @@ class velocity:
                 else:
                     alpha = np.repeat(self.parameters["alpha"], U.shape[1], axis=1)
             else:  # need to correct the velocity vector prediction when you use mix_std_stm experiments
+                # if repeat is None: repeat = True # not used for now
                 if self.parameters["alpha"][1].shape[1] == U.shape[1]:
                     alpha = self.parameters["alpha"][1]
                 elif (
@@ -576,10 +589,10 @@ class ss_estimation:
                         if self.data["sl"] is None
                         else self.data["su"] + self.data["sl"]
                     )
-                    US = self.data['us'] if 'us' in self.data.keys() else calc_2nd_moment(
+                    US = self.data['us'] if self.data['us'] is not None else calc_2nd_moment(
                         U.T, S.T, self.conn, mX=U.T, mY=S.T
                     ).T
-                    S2 = self.data['s2'] if 's2' in self.data.keys() else calc_2nd_moment(
+                    S2 = self.data['s2'] if self.data['s2'] is not None else calc_2nd_moment(
                         S.T, S.T, self.conn, mX=S.T, mY=S.T
                     ).T
                     if cores == 1:
@@ -627,10 +640,10 @@ class ss_estimation:
                     )
                     U = self.data["ul"]
                     S = self.data["uu"] + self.data["ul"]
-                    US = self.data['us'] if 'us' in self.data.keys() else calc_2nd_moment(
+                    US = self.data['us'] if self.data['us'] is not None else calc_2nd_moment(
                         U.T, S.T, self.conn, mX=U.T, mY=S.T
                     ).T
-                    S2 = self.data['s2'] if 's2' in self.data.keys() else calc_2nd_moment(
+                    S2 = self.data['s2'] if self.data['s2'] is not None else calc_2nd_moment(
                         S.T, S.T, self.conn, mX=S.T, mY=S.T
                     ).T
                     if cores == 1:
@@ -971,10 +984,10 @@ class ss_estimation:
                         )
                         U = self.data["uu"]
                         S = self.data["uu"] + self.data["ul"]
-                        US = self.data['us'] if 'us' in self.data.keys() else calc_2nd_moment(
+                        US = self.data['us'] if self.data['us'] is not None else calc_2nd_moment(
                             U.T, S.T, self.conn, mX=U.T, mY=S.T
                         ).T
-                        S2 = self.data['s2'] if 's2' in self.data.keys() else calc_2nd_moment(
+                        S2 = self.data['s2'] if self.data['s2'] is not None else calc_2nd_moment(
                             S.T, S.T, self.conn, mX=S.T, mY=S.T
                         ).T
                         if cores == 1:
@@ -1014,10 +1027,10 @@ class ss_estimation:
 
                         U = self.data["uu"] + self.data["ul"]
                         S = U + self.data["su"] + self.data["sl"]
-                        US = self.data['us'] if 'us' in self.data.keys() else calc_2nd_moment(
+                        US = self.data['us'] if self.data['us'] is not None else calc_2nd_moment(
                             U.T, S.T, self.conn, mX=U.T, mY=S.T
                         ).T
-                        S2 = self.data['s2'] if 's2' in self.data.keys() else calc_2nd_moment(
+                        S2 = self.data['s2'] if self.data['s2'] is not None else calc_2nd_moment(
                             S.T, S.T, self.conn, mX=S.T, mY=S.T
                         ).T
                         if cores == 1:
@@ -1069,10 +1082,10 @@ class ss_estimation:
                         )
                         U = self.data["ul"]
                         S = self.data["ul"] + self.data["uu"]
-                        US = self.data['us'] if 'us' in self.data.keys() else calc_2nd_moment(
+                        US = self.data['us'] if self.data['us'] is not None else calc_2nd_moment(
                             U.T, S.T, self.conn, mX=U.T, mY=S.T
                         ).T
-                        S2 = self.data['s2'] if 's2' in self.data.keys() else calc_2nd_moment(
+                        S2 = self.data['s2'] if self.data['s2'] is not None else calc_2nd_moment(
                             S.T, S.T, self.conn, mX=S.T, mY=S.T
                         ).T
                         if cores == 1:

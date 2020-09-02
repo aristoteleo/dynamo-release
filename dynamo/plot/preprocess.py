@@ -256,18 +256,20 @@ def show_fraction(adata,
             np.sum(uu, 1),
             np.sum(ul, 1),
             np.sum(su, 1),
-            np.sum(sl, 1) if not issparse(uu) else uu.sum(1).A1,
+            np.sum(sl, 1)
+        ) if not issparse(uu) else (
+            uu.sum(1).A1,
             ul.sum(1).A1,
             su.sum(1).A1,
             sl.sum(1).A1,
         )
 
-        tot_cell_sum = uu + ul + su + sl
+        tot_cell_sum = uu_sum + ul_sum + su_sum + sl_sum
         uu_frac, ul_frac, su_frac, sl_frac = (
             uu_sum / tot_cell_sum,
             ul_sum / tot_cell_sum,
-            su / tot_cell_sum,
-            sl / tot_cell_sum,
+            su_sum / tot_cell_sum,
+            sl_sum / tot_cell_sum,
         )
         df = pd.DataFrame(
             {

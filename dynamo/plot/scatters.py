@@ -269,13 +269,25 @@ def scatters(
 
     x, y = [x] if type(x) in [int, str] else x, [y] if type(y) in [int, str] else y
     if all([is_gene_name(adata, i) for i in basis]):
-        if x[0] not in ['M_s', 'X_spliced'] and y[0] not in ['M_u', 'X_unspliced']:
-            if ('M_s' in adata.layers.keys() and 'M_u' in adata.layers.keys()):
+        if x[0] not in ['M_s', 'X_spliced', "M_t", "X_total", 'spliced', 'total'] \
+                and y[0] not in ['M_u', 'X_unspliced', "M_n", "X_new", 'unspliced', 'new']:
+            if ('M_t' in adata.layers.keys() and 'M_n' in adata.layers.keys()):
+                x, y = ['M_t'], ['M_n']
+            elif ('X_total' in adata.layers.keys() and 'X_new' in adata.layers.keys()):
+                x, y = ['X_total'], ['X_new']
+            elif ('M_s' in adata.layers.keys() and 'M_u' in adata.layers.keys()):
                 x, y = ['M_s'], ['M_u']
             elif ('X_spliced' in adata.layers.keys() and 'X_unspliced' in adata.layers.keys()):
                 x, y = ['X_spliced'], ['X_unspliced']
-            else:
+            elif ('spliced' in adata.layers.keys() and 'unspliced' in adata.layers.keys()):
                 x, y = ['spliced'], ['unspliced']
+            elif ('total' in adata.layers.keys() and 'new' in adata.layers.keys()):
+                x, y = ['total'], ['new']
+            else:
+                raise ValueError(f"your adata oject is corrupted. Please make sure it has at least one of the following "
+                                 f"pair of layers:"
+                                 f"'M_s', 'X_spliced', 'M_t', 'X_total', 'spliced', 'total' and "
+                                 f"'M_u', 'X_unspliced', 'M_n', 'X_new', 'unspliced', 'new'. ")
 
     if use_smoothed:
         mapper = get_mapper()

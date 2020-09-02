@@ -359,6 +359,16 @@ def inverse_norm(adata, layer_x):
 
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
+def one_shot_alpha(l, gamma, t):
+    alpha = l * gamma / (1 - np.exp(-gamma * t))
+    return alpha
+
+
+def one_shot_alpha_matrix(l, gamma, t):
+    alpha = elem_prod(gamma[:, None], l) / (1 - np.exp(-elem_prod(gamma[:, None], t[None, :])))
+    return csr_matrix(alpha)
+
+
 def one_shot_gamma_alpha(k, t, l):
     gamma = -np.log(1 - k) / t
     alpha = l * (gamma / k)[0]
@@ -492,7 +502,7 @@ def get_data_for_kin_params_estimation(
         S = log_unnormalized_data(raw, log_unnormalized)
 
     # labeling without splicing
-    if (
+    if not has_splicing and (
         ("X_new" in subset_adata.layers.keys() and not use_moments)
         or (mapper["X_new"] in subset_adata.layers.keys() and use_moments)
     ):  # run new / total ratio (NTR)
@@ -512,7 +522,8 @@ def get_data_for_kin_params_estimation(
             if use_moments
             else subset_adata.layers["X_new"].T
         )
-    elif "new" in subset_adata.layers.keys():
+
+    elif not has_splicing and "new" in subset_adata.layers.keys():
         has_labeling, assumption_mRNA = (
             True,
             "ss" if NTR_vel else 'kinetic',
@@ -532,7 +543,7 @@ def get_data_for_kin_params_estimation(
         Ul = raw
 
     # splicing data
-    if (
+    if not has_labeling and (
         ("X_unspliced" in subset_adata.layers.keys() and not use_moments)
         or (mapper["X_unspliced"] in subset_adata.layers.keys() and use_moments)
     ):
@@ -543,7 +554,7 @@ def get_data_for_kin_params_estimation(
             if use_moments
             else subset_adata.layers["X_unspliced"].T
         )
-    elif "unspliced" in subset_adata.layers.keys():
+    elif not has_labeling and "unspliced" in subset_adata.layers.keys():
         has_splicing, assumption_mRNA = True, "kinetic" \
             if tkey in subset_adata.obs.columns else 'ss'
         raw, raw_unspliced = (
@@ -555,7 +566,7 @@ def get_data_for_kin_params_estimation(
         else:
             raw = np.log(raw + 1) if log_unnormalized else raw
         U = raw
-    if (
+    if not has_labeling and (
         ("X_spliced" in subset_adata.layers.keys() and not use_moments)
         or (mapper["X_spliced"] in subset_adata.layers.keys() and use_moments)
     ):
@@ -564,7 +575,7 @@ def get_data_for_kin_params_estimation(
             if use_moments
             else subset_adata.layers["X_spliced"].T
         )
-    elif "spliced" in subset_adata.layers.keys():
+    elif not has_labeling and "spliced" in subset_adata.layers.keys():
         raw, raw_spliced = (
             subset_adata.layers["spliced"].T,
             subset_adata.layers["spliced"].T,
@@ -575,6 +586,7 @@ def get_data_for_kin_params_estimation(
             raw = np.log(raw + 1) if log_unnormalized else raw
         S = raw
 
+    # protein
     ind_for_proteins = None
     if (
         ("X_protein" in subset_adata.obsm.keys() and not use_moments)
@@ -668,6 +680,8 @@ def set_velocity(
     adata,
     vel_U,
     vel_S,
+    vel_N,
+    vel_T,
     vel_P,
     _group,
     cur_grp,
@@ -686,6 +700,16 @@ def set_velocity(
             adata.layers["velocity_S"] = csr_matrix((adata.shape), dtype=np.float64)
         vel_S = vel_S.T.tocsr() if issparse(vel_S) else csr_matrix(vel_S, dtype=np.float64).T
         adata.layers["velocity_S"][cur_cells_ind, valid_ind_] = vel_S
+    if type(vel_N) is not float:
+        if cur_grp == _group[0]:
+            adata.layers["velocity_N"] = csr_matrix((adata.shape), dtype=np.float64)
+        vel_N = vel_N.T.tocsr() if issparse(vel_N) else csr_matrix(vel_N, dtype=np.float64).T
+        adata.layers["velocity_N"][cur_cells_ind, valid_ind_] = vel_N
+    if type(vel_T) is not float:
+        if cur_grp == _group[0]:
+            adata.layers["velocity_T"] = csr_matrix((adata.shape), dtype=np.float64)
+        vel_T = vel_T.T.tocsr() if issparse(vel_T) else csr_matrix(vel_T, dtype=np.float64).T
+        adata.layers["velocity_T"][cur_cells_ind, valid_ind_] = vel_T
     if type(vel_P) is not float:
         if cur_grp == _group[0]:
             adata.obsm["velocity_P"] = csr_matrix(
@@ -991,24 +1015,24 @@ def get_U_S_for_velocity_estimation(
                 U = subset_adata.layers[mapper["X_new"]].T
                 S = (
                     subset_adata.layers[mapper["X_total"]].T
-                    if NTR
-                    else subset_adata.layers[mapper["X_total"]].T
-                    - subset_adata.layers[mapper["X_new"]].T
+                    # if NTR
+                    # else subset_adata.layers[mapper["X_total"]].T
+                    # - subset_adata.layers[mapper["X_new"]].T
                 )
             else:
                 U = subset_adata.layers["X_new"].T
                 S = (
                     subset_adata.layers["X_total"].T
-                    if NTR
-                    else subset_adata.layers["X_total"].T
-                    - subset_adata.layers["X_new"].T
+                    # if NTR
+                    # else subset_adata.layers["X_total"].T
+                    # - subset_adata.layers["X_new"].T
                 )
         elif "new" in subset_adata.layers.keys():
             U = subset_adata.layers["new"].T
             S = (
                 subset_adata.layers["total"].T
-                if NTR
-                else subset_adata.layers["total"].T - subset_adata.layers["new"].T
+                # if NTR
+                # else subset_adata.layers["total"].T - subset_adata.layers["new"].T
             )
             if issparse(U):
                 U.data = np.log(U.data + 1) if log_unnormalized else U.data
@@ -1263,29 +1287,45 @@ def get_ekey_vkey_from_adata(adata):
                     "The input data you have is not normalized or normalized + smoothed!"
                 )
 
-            if experiment_type == "kin":
+            if experiment_type.lower() == "kin":
                 ekey, vkey, layer = (
-                    (mapper["X_total"] if NTR else mapper["X_spliced"], "velocity_S", ("X_total" if NTR else "X_spliced"))
+                    (mapper["X_total"] if NTR else mapper["X_spliced"],
+                     "velocity_T" if NTR else "velocity_S",
+                     ("X_total" if NTR else "X_spliced"))
                     if use_smoothed
-                    else ("X_total" if NTR else "X_spliced", "velocity_S", "X_total" if NTR else "X_spliced")
+                    else ("X_total" if NTR else "X_spliced",
+                          "velocity_T" if NTR else "velocity_S",
+                          "X_total" if NTR else "X_spliced")
                 )
-            elif experiment_type == "deg":
+            elif experiment_type.lower() == "deg":
                 ekey, vkey, layer = (
-                    (mapper["X_total"] if NTR else mapper["X_spliced"], "velocity_S", ("X_total" if NTR else "X_spliced"))
+                    (mapper["X_total"] if NTR else mapper["X_spliced"],
+                     "velocity_T" if NTR else "velocity_S",
+                     ("X_total" if NTR else "X_spliced"))
                     if use_smoothed
-                    else ("X_total" if NTR else "X_spliced", "velocity_S", "X_total" if NTR else "X_spliced")
+                    else ("X_total" if NTR else "X_spliced",
+                          "velocity_T" if NTR else "velocity_S",
+                          "X_total" if NTR else "X_spliced")
                 )
-            elif experiment_type == "one_shot":
+            elif experiment_type.lower() in ["one_shot", "one-shot"]:
                 ekey, vkey, layer = (
-                    (mapper["X_total"] if NTR else mapper["X_spliced"], "velocity_S", ("X_total" if NTR else "X_spliced"))
+                    (mapper["X_total"] if NTR else mapper["X_spliced"],
+                     "velocity_T" if NTR else "velocity_S",
+                     ("X_total" if NTR else "X_spliced"))
                     if use_smoothed
-                    else ("X_total" if NTR else "X_spliced", "velocity_S", "X_total" if NTR else "X_spliced")
+                    else ("X_total" if NTR else "X_spliced",
+                          "velocity_T" if NTR else "velocity_S",
+                          "X_total" if NTR else "X_spliced")
                 )
-            elif experiment_type == "mix_std_stm":
+            elif experiment_type.lower() == "mix_std_stm":
                 ekey, vkey, layer = (
-                    (mapper["X_total"] if NTR else mapper["X_spliced"], "velocity_S", ("X_total" if NTR else "X_spliced"))
+                    (mapper["X_total"] if NTR else mapper["X_spliced"],
+                     "velocity_T" if NTR else "velocity_S",
+                     ("X_total" if NTR else "X_spliced"))
                     if use_smoothed
-                    else ("X_total" if NTR else "X_spliced", "velocity_S", "X_total" if NTR else "X_spliced")
+                    else ("X_total" if NTR else "X_spliced",
+                          "velocity_T" if NTR else "velocity_S",
+                          "X_total" if NTR else "X_spliced")
                 )
         else:
             if not (("X_unspliced" in adata.layers.keys()) or (
@@ -1307,27 +1347,27 @@ def get_ekey_vkey_from_adata(adata):
             # we may also create M_U, M_S layers?
             if experiment_type == "kin":
                 ekey, vkey, layer = (
-                    (mapper["X_total"], "velocity_S", "X_total")
+                    (mapper["X_total"], "velocity_T", "X_total")
                     if use_smoothed
-                    else ("X_total", "velocity_S", "X_total")
+                    else ("X_total", "velocity_T", "X_total")
                 )
             elif experiment_type == "deg":
                 ekey, vkey, layer = (
-                    (mapper["X_total"], "velocity_S", "X_total")
+                    (mapper["X_total"], "velocity_T", "X_total")
                     if use_smoothed
-                    else ("X_total", "velocity_S", "X_total")
+                    else ("X_total", "velocity_T", "X_total")
                 )
-            elif experiment_type == "one-shot" or experiment_type == "one_shot":
+            elif experiment_type in ["one-shot", "one_shot"]:
                 ekey, vkey, layer = (
-                    (mapper["X_total"], "velocity_S", "X_total")
+                    (mapper["X_total"], "velocity_T", "X_total")
                     if use_smoothed
-                    else ("X_total", "velocity_S", "X_total")
+                    else ("X_total", "velocity_T", "X_total")
                 )
             elif experiment_type == "mix_std_stm":
                 ekey, vkey, layer = (
-                    (mapper["X_total"], "velocity_S", "X_total")
+                    (mapper["X_total"], "velocity_T", "X_total")
                     if use_smoothed
-                    else ("X_total", "velocity_S", "X_total")
+                    else ("X_total", "velocity_T", "X_total")
                 )
 
         else:
