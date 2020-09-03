@@ -1402,7 +1402,7 @@ def recipe_monocle(
     else:
         layers = get_layer_keys(adata, "all")
         for layer in layers:
-            adata.layers["X_" + layer] = adata.layers[layer].copy()
+            if layer != 'X': adata.layers["X_" + layer] = adata.layers[layer].copy()
 
         adata.uns["pp_norm_method"] = None
 
