@@ -1176,9 +1176,10 @@ def recipe_monocle(
         adata: :class:`~anndata.AnnData`
             AnnData object.
         normalized: `None` or `bool` (default: `None`)
-            If you already normalized your data (or run recipe_monocle already), set this to be `True` to avoid renormalizing your data.
-            By default it is set to be `None` and the first 20 values of adata.X (if adata.X is sparse) or its first column will be checked to
-            determine whether you already normalized your data. This only works for UMI based or read-counts data.
+            If you already normalized your data (or run recipe_monocle already), set this to be `True` to avoid
+            renormalizing your data. By default it is set to be `None` and the first 20 values of adata.X (if adata.X is
+            sparse) or its first column will be checked to determine whether you already normalized your data. This only
+            works for UMI based or read-counts data.
         layer: str (default: `None`)
             The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
         total_layers: bool, list or None (default `None`)
@@ -1193,8 +1194,8 @@ def recipe_monocle(
             The number of linear dimensions reduced to.
         sz_method: `str` (default: `mean-geometric-mean-total`)
             The method used to calculate the expected total reads / UMI used in size factor calculation.
-            Only `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will be replaced with
-            `np.nanmedian`.
+            Only `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc`
+            will be replaced with `np.nanmedian`.
         norm_method: `function` or None (default: function `None`)
             The method to normalize the data. Can be any numpy function or `Freeman_Tukey`. By default, only .X will be
             size normalized and log1p transformed while data in other layers will only be size factor normalized.
@@ -1205,7 +1206,8 @@ def recipe_monocle(
         n_top_genes: `int` (default: `2000`)
             How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
         relative_expr: `bool` (default: `True`)
-            A logic flag to determine whether we need to divide gene expression values first by size factor before normalization.
+            A logic flag to determine whether we need to divide gene expression values first by size factor before
+            normalization.
         keep_filtered_cells: `bool` (default: `True`)
             Whether to keep genes that don't pass the filtering in the adata object.
         keep_filtered_genes: `bool` (default: `True`)
@@ -1226,7 +1228,8 @@ def recipe_monocle(
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions, etc.
+            A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced
+            dimensions, etc.
     """
 
     n_cells, n_genes = adata.n_obs, adata.n_vars
@@ -1283,8 +1286,8 @@ def recipe_monocle(
     adata = layers2csr(adata)
     adata = collapse_adata(adata)
 
-    _szFactor, _logged = False, False
-    if normalized is None:
+    _szFactor, _logged = (True, True) if normalized else (False, False)
+    if normalized is None and not has_labeling:
         if 'raw_data' in adata.uns_keys():
             _szFactor, _logged = not adata.uns['raw_data'], not adata.uns['raw_data']
         else:
@@ -1304,6 +1307,10 @@ def recipe_monocle(
                     0,
                     atol=1e-1,
                 )
+
+        if _szFactor or _logged:
+            warnings.warn(f'dynamo detects your data is size factor normalized and/or log transformed. If this is not '
+                          f'right, plese set `normalized = False.')
 
     # filter bad cells
     filter_cells_kwargs = {

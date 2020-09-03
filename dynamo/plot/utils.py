@@ -325,7 +325,7 @@ def _matplotlib_points(
             bounds = bounds * np.array([-1, 1])
             _vmin, _vmax = bounds
 
-        if frontier == True:
+        if frontier:
             rasterized = kwargs['rasterized'] if 'rasterized' in kwargs.keys() else None
             ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "0.0", lw=2, rasterized=rasterized)
             ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "1.0", lw=0, rasterized=rasterized)

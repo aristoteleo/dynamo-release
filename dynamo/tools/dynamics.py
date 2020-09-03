@@ -416,6 +416,7 @@ def dynamics(
                     est.fit(**est_kwargs)
 
             alpha, beta, gamma, eta, delta = est.parameters.values()
+            # if exp_type.lower() in ['one_shot', 'one-shot']: gamma = est.aux_param['gamma_k']
 
             U, S = get_U_S_for_velocity_estimation(
                 subset_adata,

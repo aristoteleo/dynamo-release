@@ -926,8 +926,9 @@ class ss_estimation:
                                     if issparse(self.data["ul"])
                                     else np.zeros_like(self.data["ul"].shape)
                                 )
-                                t_uniq, gamma, gamma_intercept, gamma_r2, gamma_logLL = (
+                                t_uniq, gamma, gamma_k, gamma_intercept, gamma_r2, gamma_logLL = (
                                     np.unique(self.t),
+                                    np.zeros(n),
                                     np.zeros(n),
                                     np.zeros(n),
                                     np.zeros(n),
@@ -938,7 +939,7 @@ class ss_estimation:
                                 if cores == 1:
                                     for i in tqdm(range(n), desc="estimating gamma"):
                                         (
-                                            k,
+                                            gamma_k[i],
                                             gamma_intercept[i],
                                             _,
                                             gamma_r2[i],
@@ -950,17 +951,17 @@ class ss_estimation:
                                         (
                                             gamma[i],
                                             self.parameters["alpha"][i],
-                                        ) = one_shot_gamma_alpha(k, t_uniq, U[i])
+                                        ) = one_shot_gamma_alpha(gamma_k[i], t_uniq, U[i])
                                 else:
                                     pool = ThreadPool(cores)
                                     res1 = pool.starmap(self.fit_gamma_steady_state, zip(U, S, itertools.repeat(False),
                                                     itertools.repeat(None), itertools.repeat(perc_right)))
 
-                                    (k, gamma_intercept, _, gamma_r2, _, gamma_logLL) = zip(*res1)
-                                    (k, gamma_intercept, gamma_r2, gamma_logLL) = np.array(k), np.array(gamma_intercept), \
+                                    (gamma_k, gamma_intercept, _, gamma_r2, _, gamma_logLL) = zip(*res1)
+                                    (gamma_k, gamma_intercept, gamma_r2, gamma_logLL) = np.array(gamma_k), np.array(gamma_intercept), \
                                                                                   np.array(gamma_r2), np.array(gamma_logLL)
 
-                                    res2 = pool.starmap(one_shot_gamma_alpha, zip(k, itertools.repeat(t_uniq), U))
+                                    res2 = pool.starmap(one_shot_gamma_alpha, zip(gamma_k, itertools.repeat(t_uniq), U))
 
                                     (gamma, alpha) = zip(*res2)
                                     (gamma, self.parameters["alpha"]) = np.array(gamma), np.array(alpha)
@@ -969,10 +970,12 @@ class ss_estimation:
                                     pool.join()
                                 (
                                     self.parameters["gamma"],
+                                    self.aux_param["gamma_k"],
+                                    self.aux_param["gamma_intercept"],
                                     self.aux_param["gamma_r2"],
                                     self.aux_param["gamma_logLL"],
                                     self.aux_param["alpha_r2"],
-                                ) = (gamma, gamma_r2, gamma_logLL, gamma_r2)
+                                ) = (gamma, gamma_k, gamma_intercept, gamma_r2, gamma_logLL, gamma_r2)
                 elif self.model.lower() == "stochastic":
                     if np.all(self._exist_data("uu", "ul", "su", "sl")):
                         self.parameters["beta"] = np.ones(n)

@@ -727,7 +727,7 @@ def phase_portraits(
             despline_all(ax2)
             deaxis_all(ax2)
 
-        v_max = np.max(np.abs(V_vec.values))
+        v_max = 0.01 if min(V_vec) + max(V_vec) == 0 else np.max(np.abs(V_vec.values))
         div_scatter_kwargs.update({"vmin": -v_max, "vmax": v_max})
 
         if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
