@@ -1163,7 +1163,9 @@ def dynamics(
                          f"using dyn.tl.dynamics(adata, filter_gene_mode='final', ...) or use only fitted genes.")
 
     valid_adata = adata[:, valid_gene_names]
-    gene_idx = np.array([np.where(valid_gene_names == gene)[0][0] for gene in vkey])
+    gene_idx = np.array([np.where(valid_genes == gene)[0][0] for gene in valid_gene_names])
+    X_data, X_fit_data = [X_data[i] for i in gene_idx], [X_fit_data[i] for i in gene_idx]
+
     if boxwidth is None and len(T_uniq) > 1:
         boxwidth = 0.8 * (np.diff(T_uniq).min() / 2)
 
