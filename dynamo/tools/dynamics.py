@@ -416,7 +416,6 @@ def dynamics(
                     est.fit(**est_kwargs)
 
             alpha, beta, gamma, eta, delta = est.parameters.values()
-            # if exp_type.lower() in ['one_shot', 'one-shot']: gamma = est.aux_param['gamma_k']
 
             U, S = get_U_S_for_velocity_estimation(
                 subset_adata,
@@ -507,15 +506,15 @@ def dynamics(
 
             len_t, len_g = len(np.unique(t)), len(_group)
             if cur_grp == _group[0]:
-                if len_g == 1:
-                    X_data, X_fit_data = np.array((adata.n_vars, len_t)), np.array((adata.n_vars, len_t))
-                else:
-                    X_data, X_fit_data = np.array((len_g, adata.n_vars, len_t)), np.array((len_g, adata.n_vars, len_t))
+                if len_g != 1:
+                    # X_data, X_fit_data = np.zeros((len_g, adata.n_vars, len_t)), np.zeros((len_g, adata.n_vars, len_t))
+                    X_data, X_fit_data = [None] * len_g,  [None] * len_g
 
             if len(_group) == 1:
                 X_data, X_fit_data = cur_X_data, cur_X_fit_data
             else:
-                X_data[cur_grp_i, :, :], X_fit_data[cur_grp_i, :, :] = cur_X_data, cur_X_fit_data
+                # X_data[cur_grp_i, :, :], X_fit_data[cur_grp_i, :, :] = cur_X_data, cur_X_fit_data
+                X_data[cur_grp_i], X_fit_data[cur_grp_i] = cur_X_data, cur_X_fit_data
 
             a, b, alpha_a, alpha_i, alpha, beta, gamma = (
                 params.loc[:, 'a'].values if 'a' in params.columns else None,

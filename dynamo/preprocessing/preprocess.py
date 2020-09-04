@@ -36,6 +36,7 @@ def szFactor(
     locfunc=np.nanmean,
     round_exprs=False,
     method="median",
+    scale_to=None,
     use_all_genes_cells=True,
 ):
     """Calculate the size factor of the each cell using geometric mean of total UMI across cells for a AnnData object.
@@ -57,6 +58,8 @@ def szFactor(
             The method used to calculate the expected total reads / UMI used in size factor calculation.
             Only `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will be replaced with
             `np.nanmedian`.
+        scale_to: `float` or None (default: `None`)
+            The final total expression for each cell that will be scaled to.
         use_all_genes_cells: `bool` (default: `True`)
             A logic flag to determine whether all cells and genes should be used for the size factor calculation.
 
@@ -92,7 +95,8 @@ def szFactor(
         adata.raw = adata.copy()
 
     for layer in layers:
-        sfs, cell_total = sz_util(adata, layer, round_exprs, method, locfunc, total_layers=total_layers)
+        sfs, cell_total = sz_util(adata, layer, round_exprs, method, locfunc, total_layers=total_layers,
+                                  scale_to=scale_to)
 
         sfs[~np.isfinite(sfs)] = 1
         if layer == "raw":
@@ -125,6 +129,7 @@ def normalize_expr_data(
     keep_filtered=True,
     recalc_sz=False,
     sz_method='median',
+    scale_to=None,
 ):
     """Normalize the gene expression value for the AnnData object
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
@@ -154,6 +159,9 @@ def normalize_expr_data(
             The method used to calculate the expected total reads / UMI used in size factor calculation.
             Only `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will be replaced with
             `np.nanmedian`.
+        scale_to: `float` or None (default: `None`)
+            The final total expression for each cell that will be scaled to.
+
     Returns
     -------
         adata: :AnnData
@@ -187,6 +195,7 @@ def normalize_expr_data(
             locfunc=np.nanmean,
             round_exprs=True,
             method=sz_method,
+            scale_to=scale_to,
         )
 
     for layer in layers:
@@ -1157,6 +1166,7 @@ def recipe_monocle(
     method="pca",
     num_dim=30,
     sz_method='median',
+    scale_to=None,
     norm_method=None,
     pseudo_expr=1,
     feature_selection="SVR",
@@ -1164,6 +1174,7 @@ def recipe_monocle(
     relative_expr=True,
     keep_filtered_cells=True,
     keep_filtered_genes=True,
+    keep_raw_layers=True,
     scopes=None,
     fc_kwargs=None,
     fg_kwargs=None,
@@ -1196,6 +1207,8 @@ def recipe_monocle(
             The method used to calculate the expected total reads / UMI used in size factor calculation.
             Only `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc`
             will be replaced with `np.nanmedian`.
+        scale_to: `float` or None (default: `None`)
+            The final total expression for each cell that will be scaled to.
         norm_method: `function` or None (default: function `None`)
             The method to normalize the data. Can be any numpy function or `Freeman_Tukey`. By default, only .X will be
             size normalized and log1p transformed while data in other layers will only be size factor normalized.
@@ -1209,9 +1222,11 @@ def recipe_monocle(
             A logic flag to determine whether we need to divide gene expression values first by size factor before
             normalization.
         keep_filtered_cells: `bool` (default: `True`)
-            Whether to keep genes that don't pass the filtering in the adata object.
+            Whether to keep genes that don't pass the filtering in the returned adata object.
         keep_filtered_genes: `bool` (default: `True`)
-            Whether to keep genes that don't pass the filtering in the adata object.
+            Whether to keep genes that don't pass the filtering in the returned adata object.
+        keep_raw_layers: `bool` (default: `True`)
+            Whether to keep layers with raw measurements in the returned adata object.
         scopes: `str`, list-like` or `None` (default: `None`)
             Scopes are needed when you use non-official gene name as your gene indices (or adata.var_name). This
             arugument corresponds to type of types of identifiers, either a list or a comma-separated fields to specify
@@ -1357,7 +1372,8 @@ def recipe_monocle(
 
     # calculate sz factor
     if not _szFactor or "Size_Factor" not in adata.obs_keys():
-        adata = szFactor(adata, total_layers=total_layers, layers=layer if type(layer) is list else "all")
+        adata = szFactor(adata, total_layers=total_layers, scale_to=scale_to,
+                         layers=layer if type(layer) is list else "all")
 
     if feature_selection.lower() == "dispersion":
         adata = Dispersion(adata)
@@ -1405,6 +1421,7 @@ def recipe_monocle(
             relative_expr=relative_expr,
             keep_filtered=keep_filtered_genes,
             sz_method=sz_method,
+            scale_to=scale_to,
         )
     else:
         layers = get_layer_keys(adata, "all")
@@ -1469,6 +1486,11 @@ def recipe_monocle(
 
     if 'raw_data' in adata.uns_keys():
         adata.uns['raw_data'] = False
+
+    if not keep_raw_layers:
+        for layer in adata.layer.keys():
+            if not layer.startwith('X_'):
+                del adata.layers[layer]
 
     return adata
 

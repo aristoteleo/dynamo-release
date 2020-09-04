@@ -329,7 +329,7 @@ def get_svr_filter(adata, layer="spliced", n_top_genes=3000, return_adata=False)
 
     return res
 
-def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None, CM=None):
+def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None, CM=None, scale_to=None):
     adata = adata.copy()
 
     if layer == '_total_' and '_total_' not in adata.layers.keys():
@@ -365,11 +365,11 @@ def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None, CM=No
     cell_total += cell_total == 0  # avoid infinity value after log (0)
 
     if method in ["mean-geometric-mean-total", 'geometric']:
-        sfs = cell_total / np.exp(locfunc(np.log(cell_total)))
+        sfs = cell_total / (np.exp(locfunc(np.log(cell_total))) if scale_to is None else scale_to)
     elif method == "median":
-        sfs = cell_total / np.nanmedian(cell_total)
+        sfs = cell_total / (np.nanmedian(cell_total) if scale_to is None else scale_to)
     elif method == "mean":
-        sfs = cell_total / np.nanmean(cell_total)
+        sfs = cell_total / (np.nanmean(cell_total) if scale_to is None else scale_to)
     else:
         raise NotImplementedError(f"This method {method} is not supported!")
 
@@ -578,6 +578,28 @@ def NTR(adata):
 
     return ntr, var_ntr
 
+
+def scale(adata, layers=None, scale_to_layer=None, scale_to=1e6):
+    """scale layers to a particular total expression value, similar to `normalize_expr_data` function."""
+    layers = get_layer_keys(adata, layers)
+    has_splicing, has_labeling, _ = detect_datatype(adata)
+
+    if scale_to_layer is None:
+        scale_to_layer = 'total' if has_labeling else None
+        scale = scale_to / adata.layers[scale_to_layer].sum(1)
+    else:
+        scale = None
+
+    for layer in layers:
+        if scale is None:
+            scale = scale_to / adata.layers[layer].sum(1)
+
+        adata.layers[layer] = csr_matrix(adata.layers[layer].multiply(scale))
+
+    return adata
+
+# ---------------------------------------------------------------------------------------------------
+# ERCC related
 
 def relative2abs(adata,
                  dilution,
