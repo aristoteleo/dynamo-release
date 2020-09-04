@@ -376,6 +376,9 @@ def dynamics(
 
             model = "deterministic"
 
+        if model_was_auto and experiment_type.lower() in ["degradation", "deg"]:
+            model = "deterministic"
+
         if assumption_mRNA.lower() == "ss" or (experiment_type.lower() in ["one-shot", "mix_std_stm"]):
             if est_method.lower() == "auto": est_method = "gmm" if model.lower() == 'stochastic' else 'ols'
             if experiment_type.lower() == "one_shot":
