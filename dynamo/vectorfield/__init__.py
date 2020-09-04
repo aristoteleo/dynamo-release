@@ -24,6 +24,7 @@ from .vector_calculus import (
     rank_divergence_genes,
     rank_acceleration_genes,
     rank_curvature_genes,
+    rank_genes
 )
 
 # potential related

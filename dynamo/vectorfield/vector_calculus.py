@@ -23,6 +23,7 @@ from .utils import (
     )
 from .scVectorField import vectorfield
 from ..tools.sampling import sample
+from ..tools.utils import isarray, ismatrix, areinstance, list_top_genes
 
 
 def velocities(adata,
@@ -456,6 +457,97 @@ def torsion(adata,
 
     adata.obs[torsion_key] = torsion
     adata.uns[torsion_key] = torsion_mat
+
+
+def rank_genes(adata,
+              arr_key,
+              groups=None,
+              genes=None,
+              abs=False,
+              fcn_pool=lambda x: np.mean(x, axis=0),
+              ):
+    """Rank gene's absolute, positive, negative speed by different cell groups.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the array to be sorted in .var or .layer.
+        arr_key: str
+            The key of the to-be-ranked array stored in .var or or .layer.
+            If the array is found in .var, the `groups` argument will be ignored.
+        groups: str or None (default: None)
+            The cell group that speed ranking will be grouped by.
+        genes: list or None (default: None)
+            The gene list that speed will be ranked. If provided, they must overlap the dynamics genes.
+        abs: bool (default: False)
+            When pooling the values in the array (see below), whether to take the absolute values.
+        fcn_pool: function (default: numpy.mean(x, axis=0))
+            The function used to pool values in the to-be-ranked array if the array is 2d.
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that is updated with the `rank_speed` related information in the .uns.
+    """
+
+    dynamics_genes = adata.var.use_for_dynamics \
+        if 'use_for_dynamics' in adata.var.keys() \
+        else np.ones(adata.n_vars, dtype=bool)
+    if genes is not None:
+        if type(genes) is str:
+            genes = adata.var[genes].to_list()
+            genes = np.logical_and(genes, dynamics_genes.to_list())
+        elif areinstance(genes, str):
+            genes_ = adata.var_names[dynamics_genes].intersection(genes).to_list()
+            genes = np.zeros(adata.n_vars, dtype=bool)
+            for g in genes_:
+                genes[adata.var_names==g] = True
+        elif areinstance(genes, bool) or areinstance(genes, np.bool_):
+            genes = np.array(genes)
+            genes = np.logical_and(genes, dynamics_genes.to_list())
+        else:
+            raise TypeError(f"The provided genes should either be a key of adata.var, "
+                                f"an array of gene names, or of booleans.")
+        if len(genes) < 1:
+            raise ValueError(f"None of the provided genes has velocity values. "
+                                f"(or `.var.use_for_dynamics` is `False`).")
+    else:
+        genes = dynamics_genes
+
+    if not np.any(genes):
+        raise ValueError(f"The genes list you provided doesn't overlap with any dynamics genes.")
+
+    if arr_key in adata.layers.keys():
+        arr = adata[:, genes].layers[arr_key]
+    elif arr_key in adata.var.keys():
+        arr = np.array(adata[:, genes].var[arr_key])
+    else:
+        raise Exception(f'Key {arr_key} not found in neither .layers nor .var.')
+    
+    if abs:
+        arr = np.abs(arr)
+
+    if arr.ndim > 1:
+        if groups is not None:
+            if type(groups) is str and groups in adata.obs.keys():
+                grps = np.array(adata.obs[groups])
+            elif isarray(groups):
+                grps = np.array(groups)
+            else:
+                raise Exception(f'The group information {groups} you provided is not in your adata object.')
+            arr_dict = {}
+            for g in np.unique(grps):
+                arr_dict[g] = fcn_pool(arr[grps==g])
+        else:
+            arr_dict = {'all': fcn_pool(arr)}
+    else:
+        arr_dict = {'all': arr}
+
+    ret_dict = {}
+    for g, arr in arr_dict.items():
+        if ismatrix(arr):
+            arr = arr.A.flatten()
+        ret_dict[g] = list_top_genes(arr, np.array(adata[:, genes].var_names), None)
+    return ret_dict
 
 
 def rank_speed_genes(adata,

@@ -100,6 +100,14 @@ def isarray(arr):
     return hasattr(arr, '__len__') and (not isinstance(arr, str))
 
 
+def ismatrix(arr):
+    """
+        Check if a variable is an array. Essentially the variable has the attribute 'len'
+        and it is not a string.
+    """
+    return type(arr) is np.matrix or issparse(arr)
+
+
 def areinstance(arr, dtype, logic_func=all):
     """
         Check if elements of an array are all (by default) of 'dtype'.
