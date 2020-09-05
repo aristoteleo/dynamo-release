@@ -84,7 +84,7 @@ def update_n_merge_dict(dict1, dict2):
 
 
 def flatten(arr):
-    if issparse(arr):
+    if sp.issparse(arr):
         ret = arr.A.flatten()
     else:
         ret = arr.flatten()
