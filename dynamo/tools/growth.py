@@ -1,6 +1,7 @@
 """Mapping Vector Field of Single Cells
 """
 
+# module to deal with reaction/diffusion/advection.
 # code was loosely based on PBA, WOT and PRESCIENT.
 
 import numpy as np
@@ -117,25 +118,25 @@ def score_cells(adata,
     smoothed_score = cur_score
 
     if return_score:
+        return smoothed_score
+    else:
         adata.uns['score_cells'] = {"smoothed_score": smoothed_score,
                                     "genes": genes,
                                     "layer": layer,
                                     "basis": basis}
         adata.obs['cell_score'] = smoothed_score
-    else:
-        return smoothed_score
 
 
 def cell_growth_rate(adata,
+                     group,
+                     source,
+                     target,
                      L0=0.3,
                      L=1.2,
                      k=1e-3,
                      birth_genes=None,
                      death_genes=None,
                      clone_column=None,
-                     time_column=None,
-                     source_time=None,
-                     target_time=None,
                      **kwargs):
     """Estimate the growth rate via clone information or logistic equation of population dynamics.
 
@@ -147,6 +148,15 @@ def cell_growth_rate(adata,
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        group: str or None (default: `None`)
+            The column key in .obs points to the collection time of each cell, required for calculating growth rate with
+            clone information.
+        source: str or None (default: `None`)
+            The column key in .obs points to the starting point from collection time of each cell, required for
+            calculating growth rate with clone information.
+        target: str or None (default: `None`)
+            The column key in .obs points to the end point from collection time of each cell, required for
+            calculating growth rate with clone information.
         L0: float (default: `0.3`)
             The base growth/death rate.
         L: float (default: `1.2`)
@@ -159,16 +169,7 @@ def cell_growth_rate(adata,
             The gene list associated with the cell cycle process. If None, GSEA's KEGG_APOPTOSIS will be used.
         clone_column: str or None (default: `None`)
             The column key in .obs points to the clone id if there is any. If a cell doesn't belong to any clone, the
-            clone id of that cell should be assigned as `np.nan`.
-        time_column: str or None (default: `None`)
-            The column key in .obs points to the collection time of each cell, required for calculating growth rate with
-            clone information.
-        source_time: str or None (default: `None`)
-            The column key in .obs points to the starting point from collection time of each cell, required for
-            calculating growth rate with clone information.
-        target_time: str or None (default: `None`)
-            The column key in .obs points to the end point from collection time of each cell, required for
-            calculating growth rate with clone information.
+            clone id of that cell should be assigned as `np.nan`
         kwargs
             Additional arguments that will be passed to score_cells function.
 
@@ -179,29 +180,31 @@ def cell_growth_rate(adata,
     """
 
     # calculate growth rate when there is clone information.
-    all_clone_info = [clone_column, time_column, source_time, target_time]
+    all_clone_info = [clone_column, group, source, target]
+
+    obs = adata.obs
+    source_mask_, target_mask_ = obs[group].values == source, obs[group].values == target
 
     if all(i is not None for i in all_clone_info):
 
         if any(i not in adata.obs.keys() for i in all_clone_info[:2]):
-            raise ValueError(f"At least one of your input clone information {clone_column}, {time_column} "
+            raise ValueError(f"At least one of your input clone information {clone_column}, {group} "
                              f"is not in your adata .obs attribute.")
-        if any(i not in adata.obs[time_column] for i in all_clone_info[2:]):
-            raise ValueError(f"At least one of your input source/target information {source_time}, {target_time} "
-                             f"is not in your adata.obs[{time_column}] column.")
+        if any(i not in adata.obs[group] for i in all_clone_info[2:]):
+            raise ValueError(f"At least one of your input source/target information {source}, {target} "
+                             f"is not in your adata.obs[{group}] column.")
 
-        obs = adata.obs
-        clone_time_count = obs.groupby([clone_column])[time_column].value_counts().unstack().fillna(0).astype(int)
-        source_meta = obs.loc[obs[time_column] == source_time]
+        clone_time_count = obs.groupby([clone_column])[group].value_counts().unstack().fillna(0).astype(int)
+        source_meta = obs.loc[source_mask_]
         source_mask = (source_meta[clone_column] != np.nan).values
 
-        target_meta = obs.loc[obs[time_column] == target_time]
+        target_meta = obs.loc[target_mask_]
         target_mask = (target_meta[clone_column] != np.nan).values
 
-        source_num = clone_time_count.loc[source_meta.loc[source_mask, clone_column], source_time].values + 1
-        target_num = clone_time_count.loc[target_meta.loc[target_mask, clone_column], target_time].values + 1
+        source_num = clone_time_count.loc[source_meta.loc[source_mask, clone_column], source].values + 1
+        target_num = clone_time_count.loc[target_meta.loc[target_mask, clone_column], target].values + 1
 
-        growth_res = target_num / source_num
+        growth_rates = target_num / source_num
     else:
         # calculate growth rate when there is no clone information.
         if birth_genes is None:
@@ -222,14 +225,15 @@ def cell_growth_rate(adata,
         kb = np.log(k) / np.min(birth_score)
         kd = np.log(k) / np.min(death_score)
 
-        b = birth_score
-        d = death_score
+        b = birth_score[source_mask_]
+        d = death_score[source_mask_]
 
         b = L0 + L / (1 + np.exp(-kb * b))
         d = L0 + L / (1 + np.exp(-kd * d))
-        growth_res = b - d
+        growth_rates = b - d
 
-    adata.obs['growth_rate'] = growth_res
+    adata.obs['growth_rate'] = np.nan
+    adata.obs.loc[source_mask_, 'growth_rate'] = growth_rates
 
     return adata
 

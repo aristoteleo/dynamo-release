@@ -181,6 +181,9 @@ def _matplotlib_points(
                 )
             )
         if color_key is None:
+            cmap = matplotlib.cm.get_cmap(color_key_cmap)
+            cmap.set_bad("lightgray")
+
             if highlights is None:
                 unique_labels = np.unique(labels)
                 num_labels = unique_labels.shape[0]
@@ -245,7 +248,7 @@ def _matplotlib_points(
             rasterized = kwargs['rasterized'] if 'rasterized' in kwargs.keys() else None
             ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "0.0", lw=2, rasterized=rasterized)
             ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "1.0", lw=0, rasterized=rasterized)
-            ax.scatter(points[:, 0], points[:, 1], c=colors, **kwargs)
+            ax.scatter(points[:, 0], points[:, 1], c=colors, plotnonfinite=True, **kwargs)
         elif contour:
             try:
                 from shapely.geometry import Polygon, MultiPoint, Point
@@ -281,12 +284,16 @@ def _matplotlib_points(
             ax.scatter(x, y,
                        c=values,
                        cmap=cmap,
+                       plotnonfinite=True,
                        **kwargs, )
         else:
-            ax.scatter(points[:, 0], points[:, 1], c=colors, **kwargs)
+            ax.scatter(points[:, 0], points[:, 1], c=colors, plotnonfinite=True, **kwargs)
 
     # Color by values
     elif values is not None:
+        cmap_ = matplotlib.cm.get_cmap(cmap)
+        cmap_.set_bad("lightgray")
+
         if values.shape[0] != points.shape[0]:
             raise ValueError(
                 "Values must have a value for "
@@ -336,6 +343,7 @@ def _matplotlib_points(
                 cmap=cmap,
                 vmin=_vmin,
                 vmax=_vmax,
+                plotnonfinite=True,
                 **kwargs,
             )
         elif contour:
@@ -376,6 +384,7 @@ def _matplotlib_points(
                        cmap=cmap,
                        vmin=_vmin,
                        vmax=_vmax,
+                       plotnonfinite=True,
                        **kwargs,)
         else:
             ax.scatter(
@@ -385,6 +394,7 @@ def _matplotlib_points(
                 cmap=cmap,
                 vmin=_vmin,
                 vmax=_vmax,
+                plotnonfinite=True,
                 **kwargs,
             )
 
@@ -403,7 +413,6 @@ def _matplotlib_points(
 
         cmap = matplotlib.cm.get_cmap(cmap)
         colors = cmap(values)
-
     # No color (just pick the midpoint of the cmap)
     else:
         colors = plt.get_cmap(cmap)(0.5)
@@ -497,6 +506,10 @@ def _datashade_points(
             aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
             result = tf.shade(aggregation, how="eq_hist")
         elif color_key is None:
+            cmap = matplotlib.cm.get_cmap(color_key_cmap)
+            cmap.set_bad("lightgray")
+            # add plotnonfinite=True to canvas.points
+
             if highlights is None:
                 aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
                 unique_labels = np.unique(labels)
@@ -547,6 +560,9 @@ def _datashade_points(
 
     # Color by values
     elif values is not None:
+        cmap_ = matplotlib.cm.get_cmap(cmap)
+        cmap_.set_bad("lightgray")
+
         if values.shape[0] != points.shape[0]:
             raise ValueError(
                 "Values must have a value for "
