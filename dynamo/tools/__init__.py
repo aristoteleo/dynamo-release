@@ -89,3 +89,10 @@ from .sampling import (
     sample
 )
 
+# cell proliferation and death:
+from .growth import (
+    score_cells,
+    cell_growth_rate,
+    n_descentants,
+    growth_rate
+)
