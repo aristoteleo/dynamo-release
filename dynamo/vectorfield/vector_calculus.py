@@ -1,7 +1,7 @@
 from tqdm import tqdm
 import multiprocessing as mp
 import itertools, functools
-from scipy.sparse import issparse
+import scipy.sparse as sp
 import numpy as np
 import pandas as pd
 from ..tools.utils import (
@@ -485,8 +485,8 @@ def rank_genes(adata,
             The function used to pool values in the to-be-ranked array if the array is 2d.
     Returns
     -------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `rank_speed` related information in the .uns.
+        ret_dict: dict
+            A dictionary of gene names and values based on which the genes are sorted for each cell group.
     """
 
     dynamics_genes = adata.var.use_for_dynamics \
@@ -507,9 +507,6 @@ def rank_genes(adata,
         else:
             raise TypeError(f"The provided genes should either be a key of adata.var, "
                                 f"an array of gene names, or of booleans.")
-        if len(genes) < 1:
-            raise ValueError(f"None of the provided genes has velocity values. "
-                                f"(or `.var.use_for_dynamics` is `False`).")
     else:
         genes = dynamics_genes
 
@@ -546,78 +543,33 @@ def rank_genes(adata,
     for g, arr in arr_dict.items():
         if ismatrix(arr):
             arr = arr.A.flatten()
-        ret_dict[g] = list_top_genes(arr, np.array(adata[:, genes].var_names), None)
+        glst, sarr = list_top_genes(arr, np.array(adata[:, genes].var_names), None, return_sorted_array=True)
+        ret_dict[g] = {glst[i]: sarr[i] for i in range(len(glst))}
     return ret_dict
 
 
-def rank_speed_genes(adata,
-              group=None,
-              genes=None,
-              vkey='velocity_S',
-              ):
-    """Rank gene's absolute, positive, negative speed by different cell groups.
+def rank_velocity_genes(adata, vkey='velocity_S', prefix_store='rank', **kwargs):
+    """Rank genes based on their raw and absolute velocities for each cell group.
 
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        group: `str` or None (default: `None`)
-            The cell group that speed ranking will be grouped-by.
-        genes: `None` or `list`
-            The gene list that speed will be ranked. If provided, they must overlap the dynamics genes.
-        vkey: `str` (default: `velocity_S`)
+        vkey: str (default: 'velocity_S')
             The velocity key.
-
+        prefix_store: str (default: 'rank')
+            The prefix added to the key for storing the returned in adata.
+        kwargs:
+            Keyword arguments passed to vf.rank_genes.
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `rank_speed` related information in the .uns.
+            AnnData object which has the rank dictionary for velocities in .uns.
     """
-
-    if vkey not in adata.layers.keys():
-        raise Exception('You need to run `dyn.tl.dynamics` before ranking speed of genes!')
-
-    if group is not None and group not in adata.obs.keys():
-        raise Exception(f'The group information {group} you provided is not in your adata object.')
-
-    genes = adata.var_names[adata.var.use_for_dynamics] if genes is None else \
-        adata.var_names[adata.var.use_for_dynamics].intersection(genes).to_list()
-
-    if len(genes) == 0:
-        raise ValueError(f"The genes list you provided doesn't overlap with any dynamics genes.")
-
-    V = adata[:, genes].layers[vkey]
-
-    rank_key = 'rank_speed' if group is None else 'rank_speed_' + group
-
-    if group is None:
-        metric_in_rank, genes_in_rank, pos_metric_in_rank, pos_genes_in_rank, neg_metric_in_rank, neg_genes_in_rank = \
-            rank_vector_calculus_metrics(V, genes, group=None, groups=None, uniq_group=None)
-        adata.uns[rank_key] = {"speed_in_rank": metric_in_rank, "genes_in_rank": genes_in_rank,
-                               "pos_speed_in_rank": pos_metric_in_rank, "pos_genes_in_rank": pos_genes_in_rank,
-                               "neg_speed_in_rank": neg_metric_in_rank, "neg_genes_in_rank": neg_genes_in_rank}
-
-    else:
-        groups, uniq_group = adata.obs[group], adata.obs[group].unique()
-
-        metric_in_gene_rank_by_group, genes_in_gene_rank_by_group, pos_metric_in_gene_rank_by_group, \
-        pos_genes_in_gene_rank_by_group, neg_metric_in_gene_rank_by_group, neg_genes_in_gene_rank_by_group, \
-        metric_in_group_rank_by_gene, genes_in_group_rank_by_gene, pos_metric_gene_rank_by_group, \
-        pos_genes_group_rank_by_gene, neg_metric_in_group_rank_by_gene, neg_genes_in_group_rank_by_gene = \
-            rank_vector_calculus_metrics(V, genes, group, groups, uniq_group)
-
-        adata.uns[rank_key] = {"speed_in_gene_rank_by_group": metric_in_gene_rank_by_group,
-                               "genes_in_gene_rank_by_group": genes_in_gene_rank_by_group,
-                               "pos_speed_in_gene_rank_by_group": pos_metric_in_gene_rank_by_group,
-                               "pos_genes_in_gene_rank_by_group": pos_genes_in_gene_rank_by_group,
-                               "neg_speed_in_gene_rank_by_group": neg_metric_in_gene_rank_by_group,
-                               "neg_genes_in_gene_rank_by_group": neg_genes_in_gene_rank_by_group,
-                               "speed_in_group_rank_by_gene": metric_in_group_rank_by_gene,
-                               "genes_in_group_rank_by_gene": genes_in_group_rank_by_gene,
-                               "pos_speed_gene_rank_by_group": pos_metric_gene_rank_by_group,
-                               "pos_genes_group_rank_by_gene": pos_genes_group_rank_by_gene,
-                               "neg_speed_in_group_rank_by_gene": neg_metric_in_group_rank_by_gene,
-                               "neg_genes_in_group_rank_by_gene": neg_genes_in_group_rank_by_gene}
+    rdict = rank_genes(adata, vkey, **kwargs)
+    rdict_abs = rank_genes(adata, vkey, abs=True, **kwargs)
+    adata.uns[prefix_store + '_' + vkey] = rdict
+    adata.uns[prefix_store + '_abs_' + vkey] = rdict_abs
 
 
 def rank_divergence_genes(adata,
@@ -682,7 +634,7 @@ def rank_divergence_genes(adata,
         raise Exception(f'The group information {group} you provided is not in your adata object.')
 
     J, genes, cell_idx = adata.uns[jkey]['Jacobian_gene'], adata.uns[jkey]['regulators'],  adata.uns[jkey]['cell_idx']
-    J = J.A if issparse(J) else J
+    J = J.A if sp.issparse(J) else J
 
     # https://stackoverflow.com/questions/48633288/how-to-assign-elements-into-the-diagonal-of-a-3d-matrix-efficiently
     Div = np.einsum('iij->ij', J)[...].T
@@ -832,7 +784,7 @@ def rank_curvature_genes(adata,
 
     V, A = adata[:, genes].layers[vkey], adata[:, genes].layers[vkey]
 
-    if issparse(V):
+    if sp.issparse(V):
         V.data = V.data ** 3
         C = elem_prod(elem_prod(V, A), V)
     else:

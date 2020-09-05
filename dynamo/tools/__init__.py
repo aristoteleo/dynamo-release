@@ -89,3 +89,5 @@ from .sampling import (
     sample
 )
 
+
+from .utils import cell_norm, table_rank_dict

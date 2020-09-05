@@ -1,10 +1,9 @@
 from tqdm import tqdm
 import numpy as np
+import scipy.sparse as sp
 import pandas as pd
 from scipy import interpolate, stats
 from scipy.spatial.distance import squareform as spsquare
-from scipy.sparse import issparse, csr_matrix
-import scipy.sparse.linalg as splinalg
 from scipy.integrate import odeint
 from scipy.linalg.blas import dgemm
 from sklearn.neighbors import NearestNeighbors
@@ -39,7 +38,7 @@ def get_mapper_inverse(smoothed=True):
 
 
 def get_finite_inds(X, ax=0):
-    finite_inds = np.isfinite(X.sum(ax).A1) if issparse(X) else np.isfinite(X.sum(ax))
+    finite_inds = np.isfinite(X.sum(ax).A1) if sp.issparse(X) else np.isfinite(X.sum(ax))
 
     return finite_inds
 
@@ -105,7 +104,7 @@ def ismatrix(arr):
         Check if a variable is an array. Essentially the variable has the attribute 'len'
         and it is not a string.
     """
-    return type(arr) is np.matrix or issparse(arr)
+    return type(arr) is np.matrix or sp.issparse(arr)
 
 
 def areinstance(arr, dtype, logic_func=all):
@@ -124,9 +123,9 @@ def closest_cell(coord, cells):
 
 
 def elem_prod(X, Y):
-    if issparse(X):
+    if sp.issparse(X):
         return X.multiply(Y)
-    elif issparse(Y):
+    elif sp.issparse(Y):
         return Y.multiply(X)
     else:
         return np.multiply(X, Y)
@@ -134,10 +133,48 @@ def elem_prod(X, Y):
 
 def norm(x, **kwargs):
     """calculate the norm of an array or matrix"""
-    if issparse(x):
-        return splinalg.norm(x, **kwargs)
+    if sp.issparse(x):
+        return sp.linalg.norm(x, **kwargs)
     else:
         return np.linalg.norm(x, **kwargs)
+
+
+def cell_norm(adata,
+          key,
+          prefix_store=None,
+          **norm_kwargs
+          ):
+    """Calculate the norm of vector for each cell.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        key: str
+            The key of the vectors stored in either .obsm or .layers.
+        prefix_store: str or None (default: None)
+            The prefix used in the key for storing the returned in adata.obs.
+            If None, the returned is not stored.
+        norm_kwargs:
+            Keyword arguments passed to norm functions.
+
+    Returns
+    -------
+        norm: :class:`~numpy.ndarray`
+            Norms of vectors.
+    """
+    if key in adata.obsm.keys():
+        X = adata.obsm[key]
+    elif key in adata.layers.keys():
+        X = adata.layers[key]
+    else:
+        raise ValueError(f"The key is not found in adata.obsm and adata.layers!")
+    
+    ret = norm(X, axis=1, **norm_kwargs)
+
+    if prefix_store is not None:
+        adata.obs[prefix_store + '_' + key] = ret
+    return ret
 
 
 def einsum_correlation(X, Y_i, type="pearson"):
@@ -307,9 +344,12 @@ def velocity_on_grid(X, V, n_grids, nbrs=None, k=None,
     return X_grid, V_grid
 
 
-def list_top_genes(arr, gene_names, n_top_genes=30, order=-1):
+def list_top_genes(arr, gene_names, n_top_genes=30, order=-1, return_sorted_array=False):
     imax = np.argsort(arr)[::order]
-    return gene_names[imax][:n_top_genes]
+    if return_sorted_array:
+        return gene_names[imax][:n_top_genes], arr[imax][:n_top_genes]
+    else:
+        return gene_names[imax][:n_top_genes]
 
 
 def table_top_genes(arrs, item_names, gene_names, return_df=True, **kwargs):
@@ -321,6 +361,36 @@ def table_top_genes(arrs, item_names, gene_names, return_df=True, **kwargs):
     else:
         return table
 
+def table_rank_dict(rank_dict, n_top_genes=30, order=1, output_values=False):
+    """
+        Generate a pandas.Dataframe from a rank dictionary. A rank dictionary is a
+        dictionary of gene names and values, based on which the genes are sorted,
+        for each group of cells.
+
+        Arguments
+        ---------
+            rank_dict: dict
+                The rank dictionary.
+            n_top_genes: int (default 30)
+                The number of top genes put into the Dataframe.
+            order: int (default 1)
+                The order of picking the top genes from the rank dictionary.
+                1: ascending, -1: descending.
+            output_values: bool (default False)
+                Whether or not output the values along with gene names.
+        Returns
+        -------
+            :class:'~pandas.DataFrame'
+                The table of top genes of each group.
+    """
+    data = {}
+    for g, r in rank_dict.items():
+        d = [k for k in r.keys()][::order]
+        data[g] = d[:n_top_genes]
+        if output_values:
+            dd = [v for v in r.values()][::order]
+            data[g+'_values'] = dd[:n_top_genes]
+    return pd.DataFrame(data=data)
 
 # ---------------------------------------------------------------------------------------------------
 # data transformation related:
@@ -329,7 +399,7 @@ def log1p_(adata, X_data):
         return X_data
     else:
         if adata.uns['pp_norm_method'] is None:
-            if issparse(X_data):
+            if sp.issparse(X_data):
                 X_data.data = np.log1p(X_data.data)
             else:
                 X_data = np.log1p(X_data)
@@ -338,7 +408,7 @@ def log1p_(adata, X_data):
 
 
 def inverse_norm(adata, layer_x):
-    if issparse(layer_x):
+    if sp.issparse(layer_x):
         layer_x.data = (
             np.expm1(layer_x.data)
             if adata.uns["pp_norm_method"] == "log1p"
@@ -374,7 +444,7 @@ def one_shot_alpha(l, gamma, t):
 
 def one_shot_alpha_matrix(l, gamma, t):
     alpha = elem_prod(gamma[:, None], l) / (1 - np.exp(-elem_prod(gamma[:, None], t[None, :])))
-    return csr_matrix(alpha)
+    return sp.csr_matrix(alpha)
 
 
 def one_shot_gamma_alpha(k, t, l):
@@ -425,7 +495,7 @@ def get_valid_bools(adata, filter_gene_mode):
 
 
 def log_unnormalized_data(raw, log_unnormalized):
-    if issparse(raw):
+    if sp.issparse(raw):
         raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
     else:
         raw = np.log(raw + 1) if log_unnormalized else raw
@@ -541,7 +611,7 @@ def get_data_for_kin_params_estimation(
             subset_adata.layers["new"].T,
             subset_adata.layers["total"].T - subset_adata.layers["new"].T,
         )
-        if issparse(raw):
+        if sp.issparse(raw):
             raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
             old.data = np.log(old.data + 1) if log_unnormalized else old.data
         else:
@@ -569,7 +639,7 @@ def get_data_for_kin_params_estimation(
             subset_adata.layers["unspliced"].T,
             subset_adata.layers["unspliced"].T,
         )
-        if issparse(raw):
+        if sp.issparse(raw):
             raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
         else:
             raw = np.log(raw + 1) if log_unnormalized else raw
@@ -588,7 +658,7 @@ def get_data_for_kin_params_estimation(
             subset_adata.layers["spliced"].T,
             subset_adata.layers["spliced"].T,
         )
-        if issparse(raw):
+        if sp.issparse(raw):
             raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
         else:
             raw = np.log(raw + 1) if log_unnormalized else raw
@@ -639,7 +709,7 @@ def get_data_for_kin_params_estimation(
                 experiment_type = "one-shot"
             else:
                 labeled_sum = U.sum(0) if Ul is None else Ul.sum(0)
-                xx, yy = labeled_sum.A1 if issparse(U) else labeled_sum, t
+                xx, yy = labeled_sum.A1 if sp.issparse(U) else labeled_sum, t
                 xm, ym = np.mean(xx), np.mean(yy)
                 cov = np.mean(xx * yy) - xm * ym
                 var_x = np.mean(xx * xx) - xm * xm
@@ -700,31 +770,31 @@ def set_velocity(
     cur_cells_ind, valid_ind_ = np.where(cur_cells_bools)[0][:, np.newaxis], np.where(valid_ind)[0]
     if type(vel_U) is not float:
         if cur_grp == _group[0]:
-            adata.layers["velocity_U"] = csr_matrix((adata.shape), dtype=np.float64)
-        vel_U = vel_U.T.tocsr() if issparse(vel_U) else csr_matrix(vel_U, dtype=np.float64).T
+            adata.layers["velocity_U"] = sp.csr_matrix((adata.shape), dtype=np.float64)
+        vel_U = vel_U.T.tocsr() if sp.issparse(vel_U) else sp.csr_matrix(vel_U, dtype=np.float64).T
         adata.layers["velocity_U"][cur_cells_ind, valid_ind_] = vel_U
     if type(vel_S) is not float:
         if cur_grp == _group[0]:
-            adata.layers["velocity_S"] = csr_matrix((adata.shape), dtype=np.float64)
-        vel_S = vel_S.T.tocsr() if issparse(vel_S) else csr_matrix(vel_S, dtype=np.float64).T
+            adata.layers["velocity_S"] = sp.csr_matrix((adata.shape), dtype=np.float64)
+        vel_S = vel_S.T.tocsr() if sp.issparse(vel_S) else sp.csr_matrix(vel_S, dtype=np.float64).T
         adata.layers["velocity_S"][cur_cells_ind, valid_ind_] = vel_S
     if type(vel_N) is not float:
         if cur_grp == _group[0]:
-            adata.layers["velocity_N"] = csr_matrix((adata.shape), dtype=np.float64)
-        vel_N = vel_N.T.tocsr() if issparse(vel_N) else csr_matrix(vel_N, dtype=np.float64).T
+            adata.layers["velocity_N"] = sp.csr_matrix((adata.shape), dtype=np.float64)
+        vel_N = vel_N.T.tocsr() if sp.issparse(vel_N) else sp.csr_matrix(vel_N, dtype=np.float64).T
         adata.layers["velocity_N"][cur_cells_ind, valid_ind_] = vel_N
     if type(vel_T) is not float:
         if cur_grp == _group[0]:
-            adata.layers["velocity_T"] = csr_matrix((adata.shape), dtype=np.float64)
-        vel_T = vel_T.T.tocsr() if issparse(vel_T) else csr_matrix(vel_T, dtype=np.float64).T
+            adata.layers["velocity_T"] = sp.csr_matrix((adata.shape), dtype=np.float64)
+        vel_T = vel_T.T.tocsr() if sp.issparse(vel_T) else sp.csr_matrix(vel_T, dtype=np.float64).T
         adata.layers["velocity_T"][cur_cells_ind, valid_ind_] = vel_T
     if type(vel_P) is not float:
         if cur_grp == _group[0]:
-            adata.obsm["velocity_P"] = csr_matrix(
+            adata.obsm["velocity_P"] = sp.csr_matrix(
                 (adata.obsm["P"].shape[0], len(ind_for_proteins)), dtype=float
             )
         adata.obsm["velocity_P"][cur_cells_bools, :] = (
-            vel_P.T.tocsr() if issparse(vel_P) else csr_matrix(vel_P, dtype=float).T
+            vel_P.T.tocsr() if sp.issparse(vel_P) else sp.csr_matrix(vel_P, dtype=float).T
         )
 
     return adata
@@ -776,8 +846,8 @@ def set_param_ss(
             if len(alpha.shape) > 1:  # for each cell
                 if cur_grp == _group[0]:
                     adata.varm[kin_param_pre + "alpha"] = (
-                        csr_matrix(np.zeros(adata.shape[::-1]))
-                        if issparse(alpha)
+                        sp.csr_matrix(np.zeros(adata.shape[::-1]))
+                        if sp.issparse(alpha)
                         else np.zeros(adata.shape[::-1])
                     )  #
                 adata.varm[kin_param_pre + "alpha"][valid_ind, :] = alpha  #
@@ -978,7 +1048,7 @@ def get_U_S_for_velocity_estimation(
                     subset_adata.layers["su"].T,
                     subset_adata.layers["sl"].T,
                 )
-                if issparse(uu):
+                if sp.issparse(uu):
                     uu.data = np.log(uu.data + 1) if log_unnormalized else uu.data
                     ul.data = np.log(ul.data + 1) if log_unnormalized else ul.data
                     su.data = np.log(su.data + 1) if log_unnormalized else su.data
@@ -1009,7 +1079,7 @@ def get_U_S_for_velocity_estimation(
                     subset_adata.layers["unspliced"].T,
                     subset_adata.layers["spliced"].T,
                 )
-                if issparse(U):
+                if sp.issparse(U):
                     U.data = np.log(U.data + 1) if log_unnormalized else U.data
                     S.data = np.log(S.data + 1) if log_unnormalized else S.data
                 else:
@@ -1042,7 +1112,7 @@ def get_U_S_for_velocity_estimation(
                 # if NTR
                 # else subset_adata.layers["total"].T - subset_adata.layers["new"].T
             )
-            if issparse(U):
+            if sp.issparse(U):
                 U.data = np.log(U.data + 1) if log_unnormalized else U.data
                 S.data = np.log(S.data + 1) if log_unnormalized else S.data
             else:
@@ -1145,7 +1215,7 @@ def calc_norm_loglikelihood(X, Y, k, f=lambda X, k: np.einsum('ij,i -> ij', X, k
 # velocity related
 
 def find_extreme(s, u, normalize=True, perc_left=None, perc_right=None):
-    s, u = (s.A if issparse(s) else s, u.A if issparse(u) else u)
+    s, u = (s.A if sp.issparse(s) else s, u.A if sp.issparse(u) else u)
 
     if normalize:
         su = s / np.clip(np.max(s), 1e-3, None)
@@ -1415,7 +1485,7 @@ def split_velocity_graph(G, neg_cells_trick=True):
     """split velocity graph (built either with correlation or with cosine kernel
      into one positive graph and one negative graph"""
 
-    if not issparse(G): G = csr_matrix(G)
+    if not sp.issparse(G): G = sp.csr_matrix(G)
     if neg_cells_trick: G_ = G.copy()
     G.data[G.data < 0] = 0
     G.eliminate_zeros()
@@ -1615,7 +1685,7 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
                 if layer == "X"
                 else log1p_(adata, adata[_cell_names, :][:, valid_genes].layers[layer])
             )
-            if issparse(init_states):
+            if sp.issparse(init_states):
                 init_states = init_states.A
             if len(_cell_names) == 1:
                 init_states = init_states.reshape((1, -1))
@@ -1633,7 +1703,7 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
     if t_end is None:
         t_end = getTend(X, VecFld["V"])
 
-    if issparse(init_states):
+    if sp.issparse(init_states):
         init_states = init_states.A
 
     return init_states, VecFld, t_end, valid_genes

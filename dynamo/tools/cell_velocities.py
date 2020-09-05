@@ -1,6 +1,6 @@
 import warnings
 import scipy as scp
-from scipy.sparse import csr_matrix, issparse
+import scipy.sparse as sp
 from sklearn.decomposition import PCA
 from sklearn.utils import sparsefuncs
 from .Markov import *
@@ -18,7 +18,7 @@ from .utils import (
     split_velocity_graph,
     norm,
     einsum_correlation,
-    log1p_,
+    log1p_
 )
 
 from .dimension_reduction import reduceDimension
@@ -268,8 +268,8 @@ def cell_velocities(
     if X.shape[1] < X_embedding.shape[1]:
         raise Exception("The number of dimensions of X is smaller than that of the embedding.")
 
-    V = V.A if issparse(V) else V
-    X = X.A if issparse(X) else X
+    V = V.A if sp.issparse(V) else V
+    X = X.A if sp.issparse(X) else X
     finite_inds = get_finite_inds(V)
     X, V = X[:, finite_inds], V[:, finite_inds]
 
@@ -410,7 +410,7 @@ def cell_velocities(
             if vkey in adata.layers.keys()
             else None
         )
-        CM, V = CM.A if issparse(CM) else CM, V.A if issparse(V) else V
+        CM, V = CM.A if sp.issparse(CM) else CM, V.A if sp.issparse(V) else V
         V[np.isnan(V)] = 0
         Y_pca = pca_fit.transform(CM + V)
 
@@ -544,6 +544,7 @@ def confident_cell_velocities(adata,
     cell_velocities(adata, enforce=True, X=X, V=V, X_embedding=X_embedding, basis=basis)
 
     return adata
+
 
 def stationary_distribution(adata, method="kmc", direction="both", calc_rnd=True):
     """Compute stationary distribution of cells using the transition matrix.
@@ -694,10 +695,10 @@ def diffusion(M, P0=None, steps=None, backward=False):
 
         eigenvalue, eigenvector = scp.linalg.eig(
             M, left=True, right=False
-        )  # if not issparse(M) else eigs(M) # source is on the row
+        )  # if not sp.issparse(M) else eigs(M) # source is on the row
 
         eigenvector = (
-            np.real(eigenvector) if not issparse(M) else np.real(eigenvector.T)
+            np.real(eigenvector) if not sp.issparse(M) else np.real(eigenvector.T)
         )
         eigenvalue_1_ind = np.isclose(eigenvalue, 1)
         mu = eigenvector[:, eigenvalue_1_ind] / np.sum(eigenvector[:, eigenvalue_1_ind])
@@ -785,7 +786,7 @@ def kernels_from_velocyto_scvelo(
 
     vals = np.hstack(vals)
     vals[np.isnan(vals)] = 0
-    G = csr_matrix(
+    G = sp.csr_matrix(
         (vals, (rows, cols)), shape=(X_embedding.shape[0], X_embedding.shape[0])
     )
     G = split_velocity_graph(G, neg_cells_trick)
