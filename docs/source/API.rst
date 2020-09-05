@@ -133,6 +133,17 @@ Tools (tl)
    .. tl.lhsclassic
    .. tl.sample
 
+*Cell proliferation and apoptosis*
+
+.. autosummary::
+    :toctree: _autosummary
+
+   tl.score_cells
+   tl.cell_growth_rate
+
+   .. tl.n_descendants
+   .. tl.growth_rate
+
 *Converter*
 
 .. autosummary::

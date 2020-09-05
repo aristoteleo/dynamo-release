@@ -103,7 +103,7 @@ def score_cells(adata,
         distances, knn = nbrs.kneighbors(X_basis)
 
 
-    X_data = adata[genes, :].X if layer in [None, 'X'] else adata[genes, :].layers[layer]
+    X_data = adata[:, genes].X if layer in [None, 'X'] else adata[:, genes].layers[layer]
 
     prev_score = X_data.mean(1).A1 if issparse(X_data) else X_data.mean(1)
     cur_score = np.zeros(prev_score.shape)
@@ -174,7 +174,8 @@ def cell_growth_rate(adata,
 
     Returns
     -------
-        A updated adata object that includes `growth_rate` column in its `.obs` attribute.
+        A updated adata object that includes `growth_rate` column or `growth_rate, birth_score, death_score` in its
+        `.obs` attribute when the clone based or purely expression based growth rate was calculated.
     """
 
     # calculate growth rate when there is clone information.
@@ -214,6 +215,8 @@ def cell_growth_rate(adata,
 
         birth_score = score_cells(adata, genes=birth_genes, **kwargs)
         death_score = score_cells(adata, genes=death_genes, **kwargs)
+        adata.obs['birth_score'] = birth_score
+        adata.obs['death_score'] = death_score
 
         kb = np.log(k) / np.min(birth_score)
         kd = np.log(k) / np.min(death_score)
