@@ -212,6 +212,7 @@ def cell_growth_rate(adata,
         if death_genes is None:
             death_genes = pd.read_csv('https://raw.githubusercontent.com/Xiaojieqiu/jungle/master/Apoptosis.txt',
                                       header=None, dtype=str)
+            death_genes = death_genes[0].values
 
         birth_score = score_cells(adata, genes=birth_genes, **kwargs)
         death_score = score_cells(adata, genes=death_genes, **kwargs)
