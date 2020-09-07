@@ -1248,7 +1248,7 @@ def recipe_monocle(
     """
 
     n_cells, n_genes = adata.n_obs, adata.n_vars
-    adata = convert2symbol(adata)
+    adata = convert2symbol(adata, scopes=scopes)
 
     if norm_method == 'Freeman_Tukey': norm_method = Freeman_Tukey
 

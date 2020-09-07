@@ -50,7 +50,7 @@ def convert2gene_symbol(input_names, scopes='ensembl.gene'):
 
     return var_pd
 
-def convert2symbol(adata, scopes=None):
+def convert2symbol(adata, scopes=None, subset=True):
     if np.all(adata.var_names.str.startswith('ENS')) or scopes is not None:
         prefix = adata.var_names[0]
         if scopes is None:
@@ -80,8 +80,13 @@ def convert2symbol(adata, scopes=None):
         adata.var = merge_df
         valid_ind = np.where(merge_df['notfound'] != True)[0]
 
-        adata._inplace_subset_var(valid_ind)
-        adata.var.index = adata.var['symbol'].values.copy()
+        if subset:
+            adata._inplace_subset_var(valid_ind)
+            adata.var.index = adata.var['symbol'].values.copy()
+        else:
+            indices = list(adata.var.index)
+            indices[valid_ind] = adata.var.loc[valid_ind, 'symbol'].values.copy()
+            adata.var.index = indices
 
     return adata
 
