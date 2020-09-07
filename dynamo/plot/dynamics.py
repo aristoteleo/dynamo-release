@@ -1027,7 +1027,7 @@ def phase_portraits(
 
 def dynamics(
         adata,
-        vkey,
+        genes,
         unit="hours",
         log_unnormalized=True,
         y_log_scale=False,
@@ -1056,7 +1056,7 @@ def dynamics(
     ----------
         adata: :class:`~anndata.AnnData`
             an Annodata object.
-        vkey: list of `str`
+        genes: list of `str`
             key for variable or gene names.
         unit: `str` (default: `hour`)
             The unit of the labeling time, for example, `hours` or `minutes`.
@@ -1156,10 +1156,10 @@ def dynamics(
     T_uniq = np.unique(T)
     t = np.linspace(0, T_uniq[-1], 1000)
     valid_genes = adata.var_names[get_valid_bools(adata, filter_gene_mode)]
-    valid_gene_names = valid_genes.intersection(vkey)
+    valid_gene_names = valid_genes.intersection(genes)
 
     if len(valid_gene_names) == 0:
-        raise ValueError(f"no kinetic parameter fitting has performed for the gene {vkey} you provided. Try "
+        raise ValueError(f"no kinetic parameter fitting has performed for the gene {genes} you provided. Try "
                          f"using dyn.tl.dynamics(adata, filter_gene_mode='final', ...) or use only fitted genes.")
 
     valid_adata = adata[:, valid_gene_names]

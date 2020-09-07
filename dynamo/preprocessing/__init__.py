@@ -22,4 +22,5 @@ from .utils import (
     pca,
     relative2abs,
     scale,
+    convert2symbol,
 )

@@ -1282,7 +1282,7 @@ class ss_estimation:
                 The percentage of samples included in the linear regression in the right tail. If set to None, then all the
                 samples are included.
             normalize: bool
-                Whether to first normalize the
+                Whether to first normalize the data.
 
         Returns
         -------

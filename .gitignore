@@ -1,7 +1,6 @@
 # vscode related
 .vscode/
 dynamo/.vscode/
-dynamo/tools/growth.py
 
 ._.DS_Store
 

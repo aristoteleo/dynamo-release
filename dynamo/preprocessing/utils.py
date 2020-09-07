@@ -50,6 +50,41 @@ def convert2gene_symbol(input_names, scopes='ensembl.gene'):
 
     return var_pd
 
+def convert2symbol(adata, scopes=None):
+    if np.all(adata.var_names.str.startswith('ENS')) or scopes is not None:
+        prefix = adata.var_names[0]
+        if scopes is None:
+            if prefix[:4] == 'ENSG' or prefix[:7] == 'ENSMUSG':
+                scopes = 'ensembl.gene'
+            elif prefix[:4] == 'ENST' or prefix[:7] == 'ENSMUST':
+                scopes = 'ensembl.transcript'
+            else:
+                raise Exception('Your adata object uses non-official gene names as gene index. \n'
+                                'Dynamo finds those IDs are neither from ensembl.gene or ensembl.transcript and thus cannot '
+                                'convert them automatically. \n'
+                                'Please pass the correct scopes or first convert the ensemble ID to gene short name '
+                                '(for example, using mygene package). \n'
+                                'See also dyn.pp.convert2gene_symbol')
+
+        adata.var['query'] = [i.split('.')[0] for i in adata.var.index]
+        if scopes is str:
+            adata.var[scopes] = adata.var.index
+        else:
+            adata.var['scopes'] = adata.var.index
+
+        warnings.warn('Your adata object uses non-official gene names as gene index. \n'
+                      'Dynamo is converting those names to official gene names.')
+        official_gene_df = convert2gene_symbol(adata.var_names, scopes)
+        merge_df = adata.var.merge(official_gene_df, left_on='query', right_on='query', how='left').set_index(
+            adata.var.index)
+        adata.var = merge_df
+        valid_ind = np.where(merge_df['notfound'] != True)[0]
+
+        adata._inplace_subset_var(valid_ind)
+        adata.var.index = adata.var['symbol'].values.copy()
+
+    return adata
+
 # ---------------------------------------------------------------------------------------------------
 # implmentation of Cooks' distance (but this is for Poisson distribution fitting)
 
