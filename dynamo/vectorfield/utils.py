@@ -195,7 +195,7 @@ def vector_field_function_transformation(vf_func, Q):
 
     Parameters
     ----------
-        vf_func: function
+        vf_func: callable
             The vector field function.
         Q: :class:`~numpy.ndarray`
             PCA loading matrix with dimension d x k, where d is the dimension of the original space,
@@ -303,16 +303,16 @@ def elementwise_jacobian_transformation(Js, qi, qj):
 
     Parameters
     ----------
-        Js: `np.ndarray`:
+        Js: :class:`~numpy.ndarray`
             k x k x n matrices of n k-by-k Jacobians.
-        qi: `np.ndarray`:
+        qi: :class:`~numpy.ndarray`
             The i-th row of the PC loading matrix Q with dimension d x k, corresponding to the regulator gene i.
-        qj: `np.ndarray`
+        qj: :class:`~numpy.ndarray`
             The j-th row of the PC loading matrix Q with dimension d x k, corresponding to the effector gene j.
 
     Returns
     -------
-        ret `np.ndarray`
+        ret: :class:`~numpy.ndarray`
             The calculated vector of Jacobian matrix (:math:`\partial F_i / \partial x_j`) for each cell.
     """
 
@@ -334,25 +334,25 @@ def subset_jacobian_transformation(Js, Qi, Qj, cores=1):
 
     Parameters
     ----------
-        fjac: `function`:
+        fjac: callable
             The function for calculating numerical Jacobian matrix.
-        X: `np.ndarray`:
+        X: :class:`~numpy.ndarray`
             The samples coordinates with dimension n_obs x n_PCs, from which Jacobian will be calculated.
-        Qi: `np.ndarray`:
+        Qi: :class:`~numpy.ndarray`
             Sampled genes' PCA loading matrix with dimension n' x n_PCs, from which local dimension Jacobian matrix (k x k)
             will be inverse transformed back to high dimension.
-        Qj: `np.ndarray`
+        Qj: :class:`~numpy.ndarray`
             Sampled genes' (sample genes can be the same as those in Qi or different) PCs loading matrix with dimension
             n' x n_PCs, from which local dimension Jacobian matrix (k x k) will be inverse transformed back to high dimension.
-        cores: `int` (default: 1):
+        cores: int (default: 1):
             Number of cores to calculate Jacobian. If cores is set to be > 1, multiprocessing will be used to
             parallel the Jacobian calculation.
-        return_J: `bool` (default: `False`)
+        return_J: bool (default: False)
             Whether to return the raw tensor of Jacobian matrix of each cell before transformation.
 
     Returns
     -------
-        ret `np.ndarray`
+        ret: :class:`~numpy.ndarray`
             The calculated Jacobian matrix (n_gene x n_gene x n_obs) for each cell.
     """
 

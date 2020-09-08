@@ -138,16 +138,17 @@ def jacobian(adata,
              store_in_adata=True,
              **kwargs
              ):
-    """Calculate Jacobian for each cell with the reconstructed vector field function.
+    """Calculate Jacobian for each cell with the reconstructed vector field.
 
     If the vector field was reconstructed from the reduced PCA space, the Jacobian matrix will then be inverse
     transformed back to high dimension. Note that this should also be possible for reduced UMAP space and will be
-    supported shortly. Note that we use analytical formula to calculate Jacobian matrix which computationally efficient.
+    supported shortly. Note that we compute the Jacobian for the RKHS kernel vector field analytically, 
+    which is much more computationally efficient than the numerical method.
 
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
-            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+            AnnData object that contains the reconstructed vector field in `.uns`.
         regulators: list
             The list of genes that will be used as regulators when calculating the cell-wise Jacobian matrix. The Jacobian
             is the matrix consisting of partial derivatives of the vector field wrt gene expressions. It can be used to 
@@ -156,16 +157,24 @@ def jacobian(adata,
         effectors: list or None (default: None)
             The list of genes that will be used as effectors when calculating the cell-wise Jacobian matrix. The effectors
             are the numerators of the partial derivatives.
-        basis: str or None (default: `pca`)
+        cell_idx: list or None (default: None)
+            A list of cell index (or boolean flags) for which the jacobian is calculated. 
+            If `None`, all or a subset of sampled cells are used.
+        sampling: {None, 'random', 'velocity', 'trn'}, (default: None)
+            See specific information on these methods in `.tl.sample`.
+            If `None`, all cells are used.
+        sample_ncells: int (default: 1000)
+            The number of cells to be sampled. If `sampling` is None, this parameter is ignored.
+        basis: str (default: `pca`)
             The embedding data in which the vector field was reconstructed. If `None`, use the vector field function that
             was reconstructed directly from the original unreduced gene expression space.
         vector_field_class: :class:`~scVectorField.vectorfield`
-            If not None, the divergene will be computed using this class instead of the vector field stored in adata.
-        method: str (default: `analytical`)
-            The method that will be used for calculating Jacobian, either `analytical` or `numerical`. `analytical`
-            method uses the analytical expressions for calculating Jacobian while `numerical` method uses numdifftools,
+            If not `None`, the divergene will be computed using this class instead of the vector field stored in adata.
+        method: str (default: 'analytical')
+            The method that will be used for calculating Jacobian, either `'analytical'` or `'numerical'`. `'analytical'`
+            method uses the analytical expressions for calculating Jacobian while `'numerical'` method uses numdifftools,
             a numerical differentiation tool, for computing Jacobian. 
-            `analytical` method is much more efficient.
+            `'analytical'` method is much more efficient.
         cores: int (default: 1)
             Number of cores to calculate Jacobian. If cores is set to be > 1, multiprocessing will be used to
             parallel the Jacobian calculation.
@@ -173,7 +182,7 @@ def jacobian(adata,
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `Jacobian` key in the .uns. This is a 3-dimensional tensor with
+            AnnData object that is updated with the `'jacobian'` key in the `.uns`. This is a 3-dimensional tensor with
             dimensions n_obs x n_regulators x n_effectors.
     """
 
@@ -395,11 +404,11 @@ def curvature(adata,
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        basis: `str` or None (default: `umap`)
+        basis: str or None (default: `umap`)
             The embedding data in which the vector field was reconstructed.
         vector_field_class: :class:`~scVectorField.vectorfield`
             If not None, the divergene will be computed using this class instead of the vector field stored in adata.
-        formula: `int` (default: `2`)
+        formula: int (default: 2)
             Which formula of curvature will be used, there are two formulas, so formula can be either `{1, 2}`. By
             default it is 2 and returns both the curvature vectors and the norm of the curvature. The formula one only
             gives the norm of the curvature.
@@ -437,9 +446,9 @@ def torsion(adata,
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        basis: `str` or None (default: `umap`)
+        basis: str or None (default: `umap`)
             The embedding data in which the vector field was reconstructed.
-        vector_field_class: `dict`
+        vector_field_class: dict
             The true ODE function, useful when the data is generated through simulation.
 
     Returns
@@ -473,17 +482,17 @@ def rank_genes(adata,
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
-            AnnData object that contains the array to be sorted in .var or .layer.
+            AnnData object that contains the array to be sorted in `.var` or `.layer`.
         arr_key: str or :class:`~numpy.ndarray`
-            The key of the to-be-ranked array stored in .var or or .layer.
-            If the array is found in .var, the `groups` argument will be ignored.
+            The key of the to-be-ranked array stored in `.var` or or `.layer`.
+            If the array is found in `.var`, the `groups` argument will be ignored.
         groups: str or None (default: None)
             The cell group that speed ranking will be grouped by.
         genes: list or None (default: None)
             The gene list that speed will be ranked. If provided, they must overlap the dynamics genes.
         abs: bool (default: False)
             When pooling the values in the array (see below), whether to take the absolute values.
-        fcn_pool: function (default: numpy.mean(x, axis=0))
+        fcn_pool: callable (default: numpy.mean(x, axis=0))
             The function used to pool values in the to-be-ranked array if the array is 2d.
     Returns
     -------
@@ -559,17 +568,17 @@ def rank_velocity_genes(adata, vkey='velocity_S', prefix_store='rank', **kwargs)
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
-            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+            AnnData object that contains the gene-wise velocities.
         vkey: str (default: 'velocity_S')
             The velocity key.
         prefix_store: str (default: 'rank')
             The prefix added to the key for storing the returned in adata.
         kwargs:
-            Keyword arguments passed to vf.rank_genes.
+            Keyword arguments passed to `vf.rank_genes`.
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object which has the rank dictionary for velocities in .uns.
+            AnnData object which has the rank dictionary for velocities in `.uns`.
     """
     rdict = rank_genes(adata, vkey, **kwargs)
     rdict_abs = rank_genes(adata, vkey, abs=True, **kwargs)
@@ -584,29 +593,29 @@ def rank_divergence_genes(adata,
                     prefix_store='rank_div_gene',
                     **kwargs
                     ):
-    """Rank gene's absolute, positive, negative divergence by different cell groups.
+    """Rank genes based on their diagonal Jacobian for each cell group. 
+        Be aware that this 'divergence' refers to the diagonal elements of a gene-wise
+        Jacobian, rather than its trace, which is the common definition of the divergence.
+
+        Run .vf.jacobian and set store_in_adata=True before using this function.
 
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
-            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        group: str or None (default: None)
-            The cell group that speed ranking will be grouped-by.
-        basis: str or None (default: `pca`)
+            AnnData object that contains the reconstructed vector field in the `uns` attribute.
+        jkey: str (default: 'jacobian_pca')
             The embedding data in which the vector field was reconstructed.
-        vector_field_class: :class:`~scVectorField.vectorfield`
-            If not None, the divergene will be computed using this class instead of the vector field stored in adata.
-        method: str (default: `analytical`)
-            The method that will be used for calculating Jacobian, either `analytical` or `numeric`. `analytical`
-            method will use the analytical form of the reconstructed vector field for calculating Jacobian while
-            `numerical` method will use numdifftools for calculation. `analytical` method is much more efficient.
+        genes: list or None (default: None)
+            A list of names for genes of interest.
+        prefix_store: str (default: 'rank')
+            The prefix added to the key for storing the returned in adata.
         kwargs:
-            Additional parameters pass to jacobian.
+            Keyword arguments passed to `vf.rank_genes`.
 
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `speed` key in the .obs.
+            AnnData object which has the rank dictionary for diagonal jacobians in .uns.
     """
 
     if jkey not in adata.uns_keys():
@@ -642,17 +651,17 @@ def rank_acceleration_genes(adata,
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        group: `str` or None (default: `None`)
+        group: str or None (default: None)
             The cell group that speed ranking will be grouped-by.
-        genes: `None` or `list`
+        genes: None or list
             The gene list that speed will be ranked. If provided, they must overlap the dynamics genes.
-        akey: `str` (default: `acceleration`)
+        akey: str (default: 'acceleration')
             The acceleration key.
 
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `rank_acceleration` information in the .uns.
+            AnnData object that is updated with the `'rank_acceleration'` information in the `.uns`.
     """
 
     if akey not in adata.layers.keys():
