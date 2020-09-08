@@ -382,7 +382,7 @@ def subset_jacobian_transformation(Js, Qi, Qj, cores=1):
 
 def transform_jacobian(Js, Qi, Qj, pbar=False):
     d1, d2, n = Qi.shape[0], Qj.shape[0], Js.shape[2]
-    ret = np.zeros((d1, d2, n))
+    ret = np.zeros((d1, d2, n), dtype=np.float32)
     if pbar:
         iterj = tqdm(range(n), desc='Transforming subset Jacobian')
     else:

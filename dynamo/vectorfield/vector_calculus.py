@@ -40,13 +40,13 @@ def velocities(adata,
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        init_cells: `list` (default: None)
+        init_cells: list (default: None)
             Cell name or indices of the initial cell states for the historical or future cell state prediction with
             numerical integration. If the names in init_cells are not find in the adata.obs_name, it will be treated as
             cell indices and must be integers.
         init_states: `numpy.ndarray` or None (default: None)
             Initial cell states for the historical or future cell state prediction with numerical integration.
-        basis: `str` or None (default: `None`)
+        basis: str or None (default: `None`)
             The embedding data to use for calculating velocities. If `basis` is either `umap` or `pca`, the reconstructed
             trajectory will be projected back to high dimensional space via the `inverse_transform` function.
         VecFld: dict
@@ -153,7 +153,7 @@ def jacobian(adata,
             is the matrix consisting of partial derivatives of the vector field wrt gene expressions. It can be used to 
             evaluate the change in velocities of effectors (see below) as the expressions of regulators increase. The 
             regulators are the denominators of the partial derivatives. 
-        effectors: list or `None` (default: `None`)
+        effectors: list or None (default: None)
             The list of genes that will be used as effectors when calculating the cell-wise Jacobian matrix. The effectors
             are the numerators of the partial derivatives.
         basis: str or None (default: `pca`)
@@ -222,7 +222,9 @@ def jacobian(adata,
     if store_in_adata:
         jkey = "jacobian" if basis is None else "jacobian_" + basis
         adata.uns[jkey] = ret_dict
-    return ret_dict
+        return adata
+    else:
+        return ret_dict
 
 
 def curl(adata,
@@ -472,7 +474,7 @@ def rank_genes(adata,
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the array to be sorted in .var or .layer.
-        arr_key: str
+        arr_key: str or :class:`~numpy.ndarray`
             The key of the to-be-ranked array stored in .var or or .layer.
             If the array is found in .var, the `groups` argument will be ignored.
         groups: str or None (default: None)
@@ -512,13 +514,16 @@ def rank_genes(adata,
 
     if not np.any(genes):
         raise ValueError(f"The genes list you provided doesn't overlap with any dynamics genes.")
-
-    if arr_key in adata.layers.keys():
-        arr = adata[:, genes].layers[arr_key]
-    elif arr_key in adata.var.keys():
-        arr = np.array(adata[:, genes].var[arr_key])
+    
+    if type(arr_key) is str:
+        if arr_key in adata.layers.keys():
+            arr = adata[:, genes].layers[arr_key]
+        elif arr_key in adata.var.keys():
+            arr = np.array(adata[:, genes].var[arr_key])
+        else:
+            raise Exception(f'Key {arr_key} not found in neither .layers nor .var.')
     else:
-        raise Exception(f'Key {arr_key} not found in neither .layers nor .var.')
+        arr = arr_key
     
     if abs:
         arr = np.abs(arr)
@@ -570,17 +575,13 @@ def rank_velocity_genes(adata, vkey='velocity_S', prefix_store='rank', **kwargs)
     rdict_abs = rank_genes(adata, vkey, abs=True, **kwargs)
     adata.uns[prefix_store + '_' + vkey] = rdict
     adata.uns[prefix_store + '_abs_' + vkey] = rdict_abs
+    return adata
 
 
 def rank_divergence_genes(adata,
-                    group=None,
+                    jkey='jacobian_pca',
                     genes=None,
-                    cell_idx=None,
-                    sampling=None,
-                    sample_ncells=1000,
-                    basis='pca',
-                    vector_field_class=None,
-                    method='analytical',
+                    prefix_store='rank_div_gene',
                     **kwargs
                     ):
     """Rank gene's absolute, positive, negative divergence by different cell groups.
@@ -589,22 +590,16 @@ def rank_divergence_genes(adata,
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        group: `str` or None (default: `None`)
+        group: str or None (default: None)
             The cell group that speed ranking will be grouped-by.
-        genes: `None` or `list` (default: `None`)
-            The gene list that speed will be ranked. If provided, they must overlap the dynamics genes.
-        cell_idx: `None` or `list` (default: `None`)
-            The numeric indices of the cells that you want to draw the jacobian matrix to reveal the regulatory activity.
-        sampling: `None` or `list` (default: `None`)
-            The method to downsample cells for the purpose of efficiency.
-        basis: `str` or None (default: `umap`)
+        basis: str or None (default: `pca`)
             The embedding data in which the vector field was reconstructed.
         vector_field_class: :class:`~scVectorField.vectorfield`
             If not None, the divergene will be computed using this class instead of the vector field stored in adata.
-        method: `str` (default: `analytical`)
+        method: str (default: `analytical`)
             The method that will be used for calculating Jacobian, either `analytical` or `numeric`. `analytical`
             method will use the analytical form of the reconstructed vector field for calculating Jacobian while
-            `numeric` method will use numdifftools for calculation. `analytical` method is much more efficient.
+            `numerical` method will use numdifftools for calculation. `analytical` method is much more efficient.
         kwargs:
             Additional parameters pass to jacobian.
 
@@ -614,61 +609,26 @@ def rank_divergence_genes(adata,
             AnnData object that is updated with the `speed` key in the .obs.
     """
 
-    jkey = "jacobian" if basis is None else "jacobian_" + basis
     if jkey not in adata.uns_keys():
-        if genes is None: genes = adata.var_names[adata.var.use_for_transition]
-        jacobian(adata,
-                 regulators=genes,
-                 effectors=genes,
-                 cell_idx=cell_idx,
-                 sampling=sampling,
-                 sample_ncells=sample_ncells,
-                 basis=basis,
-                 vector_field_class=vector_field_class,
-                 method=method,
-                 store_in_adata=True,
-                 **kwargs
-                 )
-
-    if group is not None and group not in adata.obs.keys():
-        raise Exception(f'The group information {group} you provided is not in your adata object.')
-
-    J, genes, cell_idx = adata.uns[jkey]['Jacobian_gene'], adata.uns[jkey]['regulators'],  adata.uns[jkey]['cell_idx']
-    J = J.A if sp.issparse(J) else J
-
-    # https://stackoverflow.com/questions/48633288/how-to-assign-elements-into-the-diagonal-of-a-3d-matrix-efficiently
-    Div = np.einsum('iij->ij', J)[...].T
-
-    rank_key = 'rank_divergence' if group is None else 'rank_divergence_' + group
-
-    if group is None:
-        metric_in_rank, genes_in_rank, pos_metric_in_rank, pos_genes_in_rank, neg_metric_in_rank, neg_genes_in_rank = \
-            rank_vector_calculus_metrics(Div, genes, group=None, groups=None, uniq_group=None)
-        adata.uns[rank_key] = {"divergence_in_rank": metric_in_rank, "genes_in_rank": genes_in_rank,
-                               "pos_divergencein_rank": pos_metric_in_rank, "pos_genes_in_rank": pos_genes_in_rank,
-                               "neg_divergence_in_rank": neg_metric_in_rank, "neg_genes_in_rank": neg_genes_in_rank}
-
+        raise Exception(f'The provided dictionary key {jkey} is not in .uns.')
+    
+    if adata.uns[jkey]['regulators'].to_list() != adata.uns[jkey]['effectors'].to_list():
+        raise Exception(f'The Jacobian should have the same regulators and effectors.')
     else:
-        groups, uniq_group = adata.obs[group], adata.obs[group].unique()
+        Genes = adata.uns[jkey]['regulators']
+    cell_idx = adata.uns[jkey]['cell_idx']
+    div = np.einsum('iij->ji', adata.uns[jkey]['jacobian_gene'])
+    Div = np.empty((adata.X.shape), dtype=np.float32)
+    Div[:] = np.nan
+    for i, g in enumerate(Genes):
+        ig = np.where(adata.var.index==g)[0]
+        Div[cell_idx, ig] = div[:, i]
 
-        metric_in_gene_rank_by_group, genes_in_gene_rank_by_group, pos_metric_in_gene_rank_by_group, \
-        pos_genes_in_gene_rank_by_group, neg_metric_in_gene_rank_by_group, neg_genes_in_gene_rank_by_group, \
-        metric_in_group_rank_by_gene, genes_in_group_rank_by_gene, pos_metric_gene_rank_by_group, \
-        pos_genes_group_rank_by_gene, neg_metric_in_group_rank_by_gene, neg_genes_in_group_rank_by_gene = \
-            rank_vector_calculus_metrics(Div, genes, group, groups, uniq_group)
-
-        adata.uns[rank_key] = {"divergence_in_gene_rank_by_group": metric_in_gene_rank_by_group,
-                               "genes_in_gene_rank_by_group": genes_in_gene_rank_by_group,
-                               "pos_divergence_in_gene_rank_by_group": pos_metric_in_gene_rank_by_group,
-                               "pos_genes_in_gene_rank_by_group": pos_genes_in_gene_rank_by_group,
-                               "neg_divergence_in_gene_rank_by_group": neg_metric_in_gene_rank_by_group,
-                               "neg_genes_in_gene_rank_by_group": neg_genes_in_gene_rank_by_group,
-                               "divergence_in_group_rank_by_gene": metric_in_group_rank_by_gene,
-                               "genes_in_group_rank_by_gene": genes_in_group_rank_by_gene,
-                               "pos_divergence_gene_rank_by_group": pos_metric_gene_rank_by_group,
-                               "pos_genes_group_rank_by_gene": pos_genes_group_rank_by_gene,
-                               "neg_divergence_in_group_rank_by_gene": neg_metric_in_group_rank_by_gene,
-                               "neg_genes_in_group_rank_by_gene": neg_genes_in_group_rank_by_gene}
+    if genes is not None:
+        Genes = Genes.intersection(genes)
+    rdict = rank_genes(adata, Div, fcn_pool=lambda x: np.nanmean(x, axis=0), genes=Genes, **kwargs)
+    adata.uns[prefix_store + '_' + jkey] = rdict
+    return adata
 
 
 def rank_acceleration_genes(adata,
