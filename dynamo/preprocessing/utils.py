@@ -84,7 +84,7 @@ def convert2symbol(adata, scopes=None, subset=True):
             adata._inplace_subset_var(valid_ind)
             adata.var.index = adata.var['symbol'].values.copy()
         else:
-            indices = list(adata.var.index)
+            indices = np.array(adata.var.index)
             indices[valid_ind] = adata.var.loc[valid_ind, 'symbol'].values.copy()
             adata.var.index = indices
 

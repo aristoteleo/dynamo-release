@@ -13,6 +13,7 @@ from .utils import (
     get_valid_bools,
     get_data_for_kin_params_estimation,
     get_U_S_for_velocity_estimation,
+    one_shot_alpha_matrix,
 )
 from .utils import set_velocity, set_param_ss, set_param_kinetic
 from .moments import (
@@ -47,6 +48,7 @@ def dynamics(
     re_smooth=False,
     sanity_check=False,
     cores=1,
+    correction=None,
     **est_kwargs
 ):
     """Inclusive model of expression dynamics considers splicing, metabolic labeling and protein translation. It supports
@@ -576,6 +578,62 @@ def dynamics(
                 else:
                     vel_U = np.nan
                     vel_S = np.nan
+
+                    # correct gamma
+                    from .utils import find_extreme
+                    from ..estimation.csc.utils_velocity import fit_linreg
+
+                    # calculate cell-wise alpha
+                    alpha_ = one_shot_alpha_matrix(U, gamma, t)
+
+                    # three methods:
+                    U_mat, S_mat = U_.A if issparse(U_) else U_, S_.A if issparse(S_) else S_
+                    # method 1.
+                    if correction == 1:
+                        c1, c1_ = np.ones_like(gamma), np.ones_like(gamma)
+                        for g, i, j, ind in zip(gamma, U_mat, S_mat, np.arange(len(gamma))):
+                            mask = find_extreme(i, j, perc_right=5)
+                            x, y = g * t[mask], - np.log(1 - i[mask] / j[mask])
+                            res = y / x
+                            res[~np.isfinite(res)] = 1
+                            c1[ind] = np.mean(res)
+                            c1_[ind], _ = fit_linreg(x, y, mask=None, intercept=False, r2=False)
+
+                        gamma *= c1_
+                        vel.parameters['gamma'] = gamma
+                        vel.parameters['alpha'] = one_shot_alpha_matrix(U_, gamma, t)
+
+                    # method 2:
+                    # n =c k r
+                    # k = 1- e^{-gamma t}
+                    elif correction == 2:
+                        c2 = np.ones_like(gamma)
+                        for n, r, ind in zip(U_mat, S_mat, np.arange(len(gamma))):
+                            k = 1 - np.exp(- gamma[ind] * t)
+                            tmp = k * r
+                            mask = find_extreme(tmp, n, perc_right=5)
+                            c2[ind], _ = fit_linreg(tmp, n, mask, intercept=False, r2=False)
+
+                        gamma *= c2
+                        vel.parameters['gamma'] = gamma
+                        vel.parameters['alpha'] = alpha_ # one_shot_alpha_matrix(U, gamma, t) #
+
+                    # method 3:
+                    # alpha - c gamma r
+                    elif correction == 3:
+                        c3 = np.ones_like(gamma)
+                        for al, n, r, ind in zip(alpha_, U_mat, S_mat, np.arange(len(gamma))):
+                            al = al.A.flatten() if issparse(al) else al
+                            tmp = gamma[ind] * r
+                            mask = find_extreme(n, r, perc_right=5)
+                            c3[ind], _ = fit_linreg(tmp, al, mask, intercept=False, r2=False)
+
+                        gamma *= c3
+                        vel.parameters['gamma'] = gamma
+                        vel.parameters['alpha'] = alpha_
+                    else:
+                        vel.parameters['alpha'] = alpha_
+
                     vel_N = vel.vel_u(U_)
                     vel_T = vel.vel_u(S_)  # need to consider splicing
 
