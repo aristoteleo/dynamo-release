@@ -68,7 +68,7 @@ class velocity:
                 "t": t,
             }
 
-    def vel_u(self, U, repeat=None):
+    def vel_u(self, U, repeat=None, update_alpha=True):
         """Calculate the unspliced mRNA velocity.
 
         Arguments
@@ -158,6 +158,8 @@ class velocity:
             )
         else:
             V = np.nan
+
+        if update_alpha: self.parameters["alpha"] = alpha
         return V
 
     def vel_s(self, U, S):

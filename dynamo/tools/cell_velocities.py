@@ -232,17 +232,25 @@ def cell_velocities(
         if type(transition_genes) is str:
             transition_genes = adata.var[transition_genes].to_list()
             transition_genes = np.logical_and(transition_genes, dynamics_genes.to_list())
+            adata.var.use_for_transition = transition_genes
         elif areinstance(transition_genes, str):
             transition_genes = adata.var_names[dynamics_genes].intersection(transition_genes).to_list()
         elif areinstance(transition_genes, bool) or areinstance(transition_genes, np.bool_):
             transition_genes = np.array(transition_genes)
             transition_genes = np.logical_and(transition_genes, dynamics_genes.to_list())
+            adata.var.use_for_transition = transition_genes
         else:
             raise TypeError(f"transition genes should either be a key of adata.var, "
                              f"an array of gene names, or of booleans.")
         if len(transition_genes) < 1:
             raise ValueError(f"None of the transition genes provided has velocity values. "
                              f"(or `.var.use_for_dynamics` is `False`).")
+
+        adata.var['use_for_transition'] = False
+        if type(transition_genes[0]) == bool:
+            adata.var.use_for_transition = transition_genes
+        else:
+            adata.var.loc[transition_genes, "use_for_transition"] = True
 
     X = adata[:, transition_genes].layers[ekey] if X is None else X
     V = (
