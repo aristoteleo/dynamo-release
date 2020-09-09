@@ -421,7 +421,7 @@ def dynamics(
                 if experiment_type.lower() in ["one-shot", "one_shot"]:
                     est.fit(one_shot_method=one_shot_method, **est_kwargs)
                 else:
-                    # exp_type can be kin also.
+                    # experiment_type can be `kin` also.
                     est.fit(**est_kwargs)
 
             alpha, beta, gamma, eta, delta = est.parameters.values()
@@ -447,13 +447,14 @@ def dynamics(
                 )
 
                 if experiment_type == "kin":
-                    Kc = np.clip(gamma[:, None], 0, 1 - 1e-3)
-                    gamma_ = -(np.log(1 - Kc) / t[None, :])
+                    Gc = np.clip(gamma[:, None], 0, None)
+                    gamma_k = 1 - np.exp(- Gc * t[None, :]) # -(np.log(1 - Kc) / t[None, :])
+                    gamma_k = np.clip(gamma_k, 0, 1 - 1e-3)
                     vel_U = np.nan
                     vel_S = np.nan
                     vel_N = vel.vel_u(U)
                     # scale back to true velocity
-                    vel_T = (U - csr_matrix(gamma_).multiply(S)).multiply((Kc / (1 - np.exp(- Kc * t[None, :])) ))
+                    vel_T = (U - csr_matrix(gamma_k).multiply(S)).multiply((Gc / gamma_k ))
                 else:
 
                     # also get vel_N and vel_T
