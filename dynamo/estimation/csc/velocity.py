@@ -156,10 +156,10 @@ class velocity:
                 if issparse(U)
                 else alpha - beta * U
             )
+            if update_alpha: self.parameters["alpha"] = alpha
         else:
             V = np.nan
 
-        if update_alpha: self.parameters["alpha"] = alpha
         return V
 
     def vel_s(self, U, S):
@@ -486,7 +486,7 @@ class ss_estimation:
         n = self.get_n_genes()
         cores = max(1, int(self.cores))
         # fit mRNA
-        if self.extyp.lower() == "conventional":
+        if self.extyp.lower() in ["conventional", "kin"]:
             if self.model.lower() == "deterministic":
                 if np.all(self._exist_data("uu", "su")):
                     self.parameters["beta"] = np.ones(n)

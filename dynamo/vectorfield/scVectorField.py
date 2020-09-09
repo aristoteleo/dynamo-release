@@ -661,11 +661,11 @@ class vectorfield:
                   verbose=False,
                   disable=False):
 
-        from ..prediction.utils import (
+        from ..tools.utils import (
             getTend,
             getTseq,
-            integrate_vf_ivp,
         )
+        from ..prediction.utils import integrate_vf_ivp
 
         if np.isscalar(dims):
             init_states = init_states[:, :dims]

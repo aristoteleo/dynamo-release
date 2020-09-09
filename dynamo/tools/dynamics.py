@@ -421,7 +421,8 @@ def dynamics(
                 if experiment_type.lower() in ["one-shot", "one_shot"]:
                     est.fit(one_shot_method=one_shot_method, **est_kwargs)
                 else:
-                    # experiment_type can be `kin` also.
+                    # experiment_type can be `kin` also and by default use
+                    # conventional method to estimate k but correct for time
                     est.fit(**est_kwargs)
 
             alpha, beta, gamma, eta, delta = est.parameters.values()
@@ -446,42 +447,71 @@ def dynamics(
                     not NTR_vel,
                 )
 
-                if experiment_type == "kin":
-                    Gc = np.clip(gamma[:, None], 0, None)
-                    gamma_k = 1 - np.exp(- Gc * t[None, :]) # -(np.log(1 - Kc) / t[None, :])
-                    gamma_k = np.clip(gamma_k, 0, 1 - 1e-3)
-                    vel_U = np.nan
-                    vel_S = np.nan
-                    vel_N = vel.vel_u(U)
-                    # scale back to true velocity
-                    vel_T = (U - csr_matrix(gamma_k).multiply(S)).multiply((Gc / gamma_k ))
-                else:
+                # also get vel_N and vel_T
+                if NTR_vel:
+                    if has_splicing:
+                        if experiment_type == "kin":
+                            vel_U = vel.vel_s(U_)
+                            vel_S = vel.vel_s(U_, S_)
 
-                    # also get vel_N and vel_T
-                    if NTR_vel:
-                        if has_splicing:
+                            Kc = np.clip(gamma[:, None], 0, 1 - 1e-3)  # S - U slope
+                            gamma_ = -(np.log(1 - Kc) / t[None, :])  # actual gamma
+                            vel_N = vel.vel_u(U)
+                            # scale back to true velocity via multiplying "gamma / K".
+                            vel_T = (U - csr_matrix(Kc).multiply(S)).multiply(csr_matrix(gamma_ / Kc))
+                        else:
                             vel_U = vel.vel_u(U_)
                             vel_S = vel.vel_s(U_, S_)
                             vel_N = vel.vel_u(U)
                             vel_T = vel.vel_s(U, S - U)  # need to consider splicing
+                    else:
+                        if experiment_type == "kin":
+                            vel_U = np.nan
+                            vel_S = np.nan
+
+                            Kc = np.clip(gamma[:, None], 0, 1 - 1e-3)  # S - U slope
+                            gamma_ = -(np.log(1 - Kc) / t[None, :])  # actual gamma
+                            vel_N = vel.vel_u(U)
+                            # scale back to true velocity via multiplying "gamma / K".
+                            vel_T = (U - csr_matrix(Kc).multiply(S)).multiply(csr_matrix(gamma_ / Kc))
                         else:
                             vel_U = np.nan
                             vel_S = np.nan
                             vel_N = vel.vel_u(U)
                             vel_T = vel.vel_u(S)  # don't consider splicing
-                    else:
-                        if has_splicing:
+                else:
+                    if has_splicing:
+                        if experiment_type == "kin":
+                            vel_U = vel.vel_u(U)
+                            vel_S = vel.vel_s(U, S)
+
+                            Kc = np.clip(gamma[:, None], 0, 1 - 1e-3)  # S - U slope
+                            gamma_ = -(np.log(1 - Kc) / t[None, :])  # actual gamma
+                            vel_N = vel.vel_u(U_)
+                            # scale back to true velocity via multiplying "gamma / K".
+                            vel_T = (U_ - csr_matrix(Kc).multiply(S_)).multiply(csr_matrix(gamma_ / Kc))
+                        else:
                             vel_U = vel.vel_u(U)
                             vel_S = vel.vel_s(U, S)
                             vel_N = vel.vel_u(U_)
                             vel_T = vel.vel_s(U_, S_ - U_)  # need to consider splicing
+                    else:
+                        if experiment_type == "kin":
+                            vel_U = np.nan
+                            vel_S = np.nan
+
+                            Kc = np.clip(gamma[:, None], 0, 1 - 1e-3)  # S - U slope
+                            gamma_ = -(np.log(1 - Kc) / t[None, :])  # actual gamma
+                            vel_N = vel.vel_u(U_)
+                            # scale back to true velocity via multiplying "gamma / K".
+                            vel_T = (U_ - csr_matrix(Kc).multiply(S_)).multiply(csr_matrix(gamma_ / Kc))
                         else:
                             vel_U = np.nan
                             vel_S = np.nan
                             vel_N = vel.vel_u(U_)
                             vel_T = vel.vel_u(S_)  # don't consider splicing
             else:
-                vel_U = vel.vel_u(U)
+                vel_U = np.nan
                 vel_S = vel.vel_s(U, S)
                 vel_N, vel_T = np.nan, np.nan
 
