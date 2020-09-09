@@ -640,11 +640,7 @@ def rank_divergence_genes(adata,
     return adata
 
 
-def rank_acceleration_genes(adata,
-              group=None,
-              genes=None,
-              akey='acceleration',
-              ):
+def rank_acceleration_genes(adata, akey='acceleration', prefix_store='rank', **kwargs):
     """Rank gene's absolute, positive, negative acceleration by different cell groups.
 
     Parameters
@@ -664,50 +660,11 @@ def rank_acceleration_genes(adata,
             AnnData object that is updated with the `'rank_acceleration'` information in the `.uns`.
     """
 
-    if akey not in adata.layers.keys():
-        raise Exception('You need to run `dyn.tl.acceleration` before ranking speed of genes!')
-
-    if group is not None and group not in adata.obs.keys():
-        raise Exception(f'The group information {group} you provided is not in your adata object.')
-
-    genes = adata.var_names[adata.var.use_for_dynamics] if genes is None else \
-        adata.var_names[adata.var.use_for_dynamics].intersection(genes).to_list()
-
-    if len(genes) == 0:
-        raise ValueError(f"The genes list you provided doesn't overlap with any dynamics genes.")
-
-    A = adata[:, genes].layers[akey]
-
-    rank_key = 'rank_acceleration' if group is None else 'rank_acceleration_' + group
-
-    if group is None:
-        metric_in_rank, genes_in_rank, pos_metric_in_rank, pos_genes_in_rank, neg_metric_in_rank, neg_genes_in_rank = \
-            rank_vector_calculus_metrics(A, genes, group=None, groups=None, uniq_group=None)
-        adata.uns[rank_key] = {"acceleration_in_rank": metric_in_rank, "genes_in_rank": genes_in_rank,
-                               "pos_acceleration_in_rank": pos_metric_in_rank, "pos_genes_in_rank": pos_genes_in_rank,
-                               "neg_acceleration_in_rank": neg_metric_in_rank, "neg_genes_in_rank": neg_genes_in_rank}
-
-    else:
-        groups, uniq_group = adata.obs[group], adata.obs[group].unique()
-
-        metric_in_gene_rank_by_group, genes_in_gene_rank_by_group, pos_metric_in_gene_rank_by_group, \
-        pos_genes_in_gene_rank_by_group, neg_metric_in_gene_rank_by_group, neg_genes_in_gene_rank_by_group, \
-        metric_in_group_rank_by_gene, genes_in_group_rank_by_gene, pos_metric_gene_rank_by_group, \
-        pos_genes_group_rank_by_gene, neg_metric_in_group_rank_by_gene, neg_genes_in_group_rank_by_gene = \
-            rank_vector_calculus_metrics(A, genes, group, groups, uniq_group)
-
-        adata.uns[rank_key] = {"acceleration_in_gene_rank_by_group": metric_in_gene_rank_by_group,
-                               "genes_in_gene_rank_by_group": genes_in_gene_rank_by_group,
-                               "pos_acceleration_in_gene_rank_by_group": pos_metric_in_gene_rank_by_group,
-                               "pos_genes_in_gene_rank_by_group": pos_genes_in_gene_rank_by_group,
-                               "neg_acceleration_in_gene_rank_by_group": neg_metric_in_gene_rank_by_group,
-                               "neg_genes_in_gene_rank_by_group": neg_genes_in_gene_rank_by_group,
-                               "acceleration_in_group_rank_by_gene": metric_in_group_rank_by_gene,
-                               "genes_in_group_rank_by_gene": genes_in_group_rank_by_gene,
-                               "pos_acceleration_gene_rank_by_group": pos_metric_gene_rank_by_group,
-                               "pos_genes_group_rank_by_gene": pos_genes_group_rank_by_gene,
-                               "neg_acceleration_in_group_rank_by_gene": neg_metric_in_group_rank_by_gene,
-                               "neg_genes_in_group_rank_by_gene": neg_genes_in_group_rank_by_gene}
+    rdict = rank_genes(adata, akey, **kwargs)
+    rdict_abs = rank_genes(adata, akey, abs=True, **kwargs)
+    adata.uns[prefix_store + '_' + akey] = rdict
+    adata.uns[prefix_store + '_abs_' + akey] = rdict_abs
+    return adata
 
 
 def rank_curvature_genes(adata,
