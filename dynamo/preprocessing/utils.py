@@ -434,6 +434,8 @@ def get_sz_exprs(adata, layer, total_szfactor=None):
 
     if total_szfactor is not None and total_szfactor in adata.obs.keys():
         szfactors = adata.obs[total_szfactor][:, None]
+    else:
+        warnings.warn("{total_szfactor} is not None but it is not in adata object.")
 
     return szfactors, CM
 

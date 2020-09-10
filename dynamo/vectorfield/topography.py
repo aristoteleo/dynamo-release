@@ -711,5 +711,6 @@ def VectorField(
 
     if return_vf_object:
         return VecFld
-
+    else:
+        return adata
 

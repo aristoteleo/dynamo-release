@@ -511,7 +511,7 @@ def dynamics(
                             vel_N = vel.vel_u(U_)
                             vel_T = vel.vel_u(S_)  # don't consider splicing
             else:
-                vel_U = np.nan
+                vel_U = vel.vel_u(U)
                 vel_S = vel.vel_s(U, S)
                 vel_N, vel_T = np.nan, np.nan
 

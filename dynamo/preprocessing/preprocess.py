@@ -89,6 +89,7 @@ def szFactor(
                     adata.layers[t_key] if total is None else total + adata.layers[t_key]
                 )
             adata.layers["_total_"] = total
+            layers.extend(['_total_'])
 
     layers = get_layer_keys(adata, layers)
     if "raw" in layers and adata.raw is None:
