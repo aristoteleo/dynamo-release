@@ -6,6 +6,7 @@ sphinx_autodoc_typehints
 # converting notebooks to html
 ipykernel
 nbsphinx>=0.7
+pygments>=2.6.1
 
 numpy>=1.18.1
 pandas>=0.25.1
