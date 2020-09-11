@@ -83,6 +83,70 @@ def update_n_merge_dict(dict1, dict2):
     return dict1
 
 
+def create_layer(adata, data, layer_key=None, genes=None, cells=None, **kwargs):
+    all_genes = adata.var.index
+    if genes is None:
+        genes = all_genes
+    elif areinstance(genes, np.bool_) or areinstance(genes, bool):
+        genes = all_genes[genes]
+
+    if cells is None:
+        cells = np.arange(adata.n_obs)
+    
+    new = np.empty(adata.X.shape, **kwargs)
+    new[:] = np.nan
+    for i, g in enumerate(genes):
+        ig = np.where(all_genes==g)[0]
+        if len(ig) > 0:
+            new[cells, ig] = data[:, i]
+
+    if layer_key is not None:
+        adata.layers[layer_key] = new
+    else:
+        return new
+
+
+def index_gene(adata, arr, genes):
+    """A lightweight method for indexing adata arrays by genes. 
+    it is memory efficient especially when `.uns` contains large data.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object
+        arr: :class:`~numpy.ndarray`
+            The array to be indexed. 
+            If 1d, the length of the array has to be equal to `adata.n_vars`.
+            If 2d, the second dimension of the array has to be equal to `adata.n_vars`.
+        genes: list
+            A list of gene names or boolean flags for indexing.
+
+    Returns
+    -------
+        :class:`~numpy.ndarray`
+            The indexed array.
+    """
+    if areinstance(genes, str):
+        all_genes = adata.var.index
+        mask = np.zeros(len(all_genes), dtype=np.bool_)
+        for i, g in enumerate(all_genes):
+            if g in genes:
+                mask[i] = True
+    elif areinstance(genes, bool) or areinstance(genes, np.bool_):
+        mask = np.array(genes)
+
+    if arr.ndim == 1:
+        if len(arr) != adata.n_vars:
+            raise Exception('The length of the input array does not match the number of genes.')
+        else:
+            return arr[mask]
+    else:
+        if arr.shape[1] != adata.n_vars:
+            raise Exception('The dimension of the input array does not match the number of genes.')
+        else:
+            return arr[:, mask]
+
+
 def flatten(arr):
     if sp.issparse(arr):
         ret = arr.A.flatten()
@@ -344,6 +408,14 @@ def velocity_on_grid(X, V, n_grids, nbrs=None, k=None,
     return X_grid, V_grid
 
 
+def argsort_mat(mat):
+    isort = np.argsort(mat, axis=None)
+    index = np.zeros((len(isort), 2), dtype=int)
+    index[:, 0] = isort // mat.shape[1]
+    index[:, 1] = isort % mat.shape[1]
+    return [(index[i, 0], index[i, 1]) for i in range(len(isort))]
+
+
 def list_top_genes(arr, gene_names, n_top_genes=30, order=-1, return_sorted_array=False):
     imax = np.argsort(arr)[::order]
     if return_sorted_array:
@@ -352,14 +424,18 @@ def list_top_genes(arr, gene_names, n_top_genes=30, order=-1, return_sorted_arra
         return gene_names[imax][:n_top_genes]
 
 
-def table_top_genes(arrs, item_names, gene_names, return_df=True, **kwargs):
+def table_top_genes(arrs, item_names, gene_names, return_df=True, output_values=False, **kwargs):
     table = {}
     for i, item in enumerate(item_names):
-        table[item] = list_top_genes(arrs[i], gene_names, **kwargs)
+        if output_values:
+            table[item], table[item+'_values'] = list_top_genes(arrs[i], gene_names, return_sorted_array=True, **kwargs)
+        else:
+            table[item] = list_top_genes(arrs[i], gene_names, **kwargs)
     if return_df:
         return pd.DataFrame(data=table)
     else:
         return table
+
 
 def table_rank_dict(rank_dict, n_top_genes=30, order=1, output_values=False):
     """

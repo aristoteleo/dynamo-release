@@ -186,8 +186,32 @@ def vecfld_from_adata(adata, basis='', vf_key='VecFld'):
     return vf_dict, func
 
 
+def vector_transformation(V, Q):
+    """Transform vectors from PCA space to the original space using the formula:
+                    :math:`\hat{v} = v Q^T`,
+    where `Q, v, \hat{v}` are the PCA loading matrix, low dimensional vector and the
+    transformed high dimensional vector.
+
+    Parameters
+    ----------
+        V: :class:`~numpy.ndarray`
+            The n x k array of vectors to be transformed, where n is the number of vectors,
+            k the dimension.
+        Q: :class:`~numpy.ndarray`
+            PCA loading matrix with dimension d x k, where d is the dimension of the original space,
+            and k the number of leading PCs.
+
+    Returns
+    -------
+        ret: :class:`~numpy.ndarray`
+            The array of transformed vectors.
+
+    """
+    return V @ Q.T
+
+
 def vector_field_function_transformation(vf_func, Q):
-    """Transform vector field function from PCA space to original space.
+    """Transform vector field function from PCA space to the original space.
     The formula used for transformation:
                                             :math:`\hat{f} = f Q^T`,
     where `Q, f, \hat{f}` are the PCA loading matrix, low dimensional vector field function and the
@@ -203,7 +227,7 @@ def vector_field_function_transformation(vf_func, Q):
 
     Returns
     -------
-        ret: :class:`~numpy.ndarray`
+        ret: callable
             The transformed vector field function.
 
     """

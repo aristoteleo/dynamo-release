@@ -14,16 +14,26 @@ from .utils import (
     vector_field_function, 
     vecfld_from_adata, 
     curl2d, 
+    vector_transformation,
     elementwise_jacobian_transformation, 
     subset_jacobian_transformation,
     get_metric_gene_in_rank,
     get_metric_gene_in_rank_by_group,
     get_sorted_metric_genes_df,
-    rank_vector_calculus_metrics
+    rank_vector_calculus_metrics,
+    average_jacobian_by_group
     )
 from .scVectorField import vectorfield
 from ..tools.sampling import sample
-from ..tools.utils import isarray, ismatrix, areinstance, list_top_genes
+from ..tools.utils import (
+    isarray, 
+    ismatrix, 
+    areinstance, 
+    list_top_genes, 
+    create_layer,
+    index_gene,
+    table_top_genes
+)
 
 
 def velocities(adata,
@@ -133,6 +143,7 @@ def jacobian(adata,
              sampling=None,
              sample_ncells=1000,
              basis='pca',
+             Qkey='PCs',
              vector_field_class=None,
              method='analytical',
              store_in_adata=True,
@@ -165,9 +176,11 @@ def jacobian(adata,
             If `None`, all cells are used.
         sample_ncells: int (default: 1000)
             The number of cells to be sampled. If `sampling` is None, this parameter is ignored.
-        basis: str (default: `pca`)
+        basis: str (default: 'pca')
             The embedding data in which the vector field was reconstructed. If `None`, use the vector field function that
             was reconstructed directly from the original unreduced gene expression space.
+        Qkey: str (default: 'PCs')
+            The key of the PCA loading matrix in `.uns`.
         vector_field_class: :class:`~scVectorField.vectorfield`
             If not `None`, the divergene will be computed using this class instead of the vector field stored in adata.
         method: str (default: 'analytical')
@@ -213,8 +226,7 @@ def jacobian(adata,
         if len(regulators) == 0 or len(effectors) == 0:
             raise ValueError(f"Either the regulator or the effector gene list provided is not in the transition gene list!")
 
-        PCs_ = "PCs" if basis == 'pca' else "PCs_" + basis
-        Q = adata.uns[PCs_][:, :X.shape[1]]
+        Q = adata.uns[Qkey][:, :X.shape[1]]
         if len(regulators) == 1 and len(effectors) == 1:
             Jacobian = elementwise_jacobian_transformation(Js, 
                     Q[eff_idx, :].flatten(), Q[reg_idx, :].flatten(), **kwargs)
@@ -355,6 +367,7 @@ def divergence(adata,
 def acceleration(adata,
          basis='umap',
          vector_field_class=None,
+         Qkey='PCs',
          **kwargs
          ):
     """Calculate acceleration for each cell with the reconstructed vector field function.
@@ -379,17 +392,15 @@ def acceleration(adata,
         vector_field_class = vectorfield()
         vector_field_class.from_adata(adata, basis=basis)
 
-    acce_mat = vector_field_class.compute_acceleration(**kwargs)
-    acce = np.array([np.linalg.norm(i) for i in acce_mat])
+    acce = vector_field_class.compute_acceleration(**kwargs)
+    acce_norm = np.linalg.norm(acce, axis=1)
 
     acce_key = "acceleration" if basis is None else "acceleration_" + basis
-
-    adata.obs[acce_key] = acce
-    adata.obsm[acce_key] = acce_mat
-
+    adata.obsm[acce_key] = acce
+    adata.obs[acce_key] = acce_norm
     if basis == 'pca':
-        adata.layers['acceleration'] = adata.layers['velocity_S'].copy()
-        adata.layers['acceleration'][:, np.where(adata.var.use_for_dynamics)[0]] = acce_mat @ adata.uns['PCs'].T
+        acce_hi = vector_transformation(acce, adata.uns[Qkey])
+        create_layer(adata, acce_hi, layer_key='acceleration', genes=adata.var.use_for_dynamics)
 
 
 def curvature(adata,
@@ -476,6 +487,7 @@ def rank_genes(adata,
               genes=None,
               abs=False,
               fcn_pool=lambda x: np.mean(x, axis=0),
+              dtype=None,
               ):
     """Rank gene's absolute, positive, negative speed by different cell groups.
 
@@ -486,6 +498,8 @@ def rank_genes(adata,
         arr_key: str or :class:`~numpy.ndarray`
             The key of the to-be-ranked array stored in `.var` or or `.layer`.
             If the array is found in `.var`, the `groups` argument will be ignored.
+            If a numpy array is passed, it is used as the array to be ranked and must 
+            have the length of `.n_var`
         groups: str or None (default: None)
             The cell group that speed ranking will be grouped by.
         genes: list or None (default: None)
@@ -522,18 +536,22 @@ def rank_genes(adata,
         genes = dynamics_genes
 
     if not np.any(genes):
-        raise ValueError(f"The genes list you provided doesn't overlap with any dynamics genes.")
+        raise ValueError(f"The list of genes provided does not contain any dynamics genes.")
     
     if type(arr_key) is str:
         if arr_key in adata.layers.keys():
-            arr = adata[:, genes].layers[arr_key]
+            #arr = adata[:, genes].layers[arr_key]
+            arr = index_gene(adata, adata.layers[arr_key], genes)
         elif arr_key in adata.var.keys():
-            arr = np.array(adata[:, genes].var[arr_key])
+            #arr = np.array(adata[:, genes].var[arr_key])
+            arr = index_gene(adata, adata.var[arr_key], genes)
         else:
             raise Exception(f'Key {arr_key} not found in neither .layers nor .var.')
     else:
         arr = arr_key
     
+    if dtype is not None:
+        arr = np.array(arr, dtype=dtype)
     if abs:
         arr = np.abs(arr)
 
@@ -554,10 +572,11 @@ def rank_genes(adata,
         arr_dict = {'all': arr}
 
     ret_dict = {}
+    var_names = np.array(index_gene(adata, adata.var_names, genes))
     for g, arr in arr_dict.items():
         if ismatrix(arr):
             arr = arr.A.flatten()
-        glst, sarr = list_top_genes(arr, np.array(adata[:, genes].var_names), None, return_sorted_array=True)
+        glst, sarr = list_top_genes(arr, var_names, None, return_sorted_array=True)
         ret_dict[g] = {glst[i]: sarr[i] for i in range(len(glst))}
     return ret_dict
 
@@ -627,11 +646,7 @@ def rank_divergence_genes(adata,
         Genes = adata.uns[jkey]['regulators']
     cell_idx = adata.uns[jkey]['cell_idx']
     div = np.einsum('iij->ji', adata.uns[jkey]['jacobian_gene'])
-    Div = np.empty((adata.X.shape), dtype=np.float32)
-    Div[:] = np.nan
-    for i, g in enumerate(Genes):
-        ig = np.where(adata.var.index==g)[0]
-        Div[cell_idx, ig] = div[:, i]
+    Div = create_layer(adata, div, genes=Genes, cells=cell_idx, dtype=np.float32)
 
     if genes is not None:
         Genes = Genes.intersection(genes)
@@ -748,5 +763,58 @@ def rank_curvature_genes(adata,
                                "neg_genes_in_group_rank_by_gene": neg_genes_in_group_rank_by_gene}
 
 
+def rank_jacobian_genes(adata,
+                groups=None,
+                jkey='jacobian_pca',
+                abs=False,
+                mode='full reg',
+                **kwargs
+                ):
+    J_dict = adata.uns[jkey]
+    J = J_dict['jacobian_gene']
+    if abs:
+        J = np.abs(J)
+    if groups is None:
+        J_mean = {'all': np.mean(J, axis=2)}
+    else:
+        if type(groups) is str and groups in adata.obs.keys():
+            grps = np.array(adata.obs[groups])
+        elif isarray(groups):
+            grps = np.array(groups)
+        else:
+            raise Exception(f'The group information {groups} you provided is not in your adata object.')
+        J_mean = average_jacobian_by_group(J, grps[J_dict['cell_idx']])
 
-
+    eff = J_dict['effectors']
+    reg = J_dict['regulators']
+    rank_dict= {}
+    if mode == 'full reg':
+        for k, J in J_mean.items():
+            rank_dict[k] = table_top_genes(J, eff, reg, n_top_genes=None, **kwargs)
+    elif mode == 'full eff':
+        for k, J in J_mean.items():
+            rank_dict[k] = table_top_genes(J, reg, eff, n_top_genes=None, **kwargs)
+    elif mode == 'reg':
+        ov = kwargs.pop('output_values', False)
+        for k, J in J_mean.items():
+            j = np.mean(J, axis=0)
+            if ov:
+                rank_dict[k], rank_dict[k+'_values'] = list_top_genes(j, reg, None, return_sorted_array=True, **kwargs)
+            else:
+                rank_dict[k] = list_top_genes(j, reg, None, **kwargs)
+            rank_dict = pd.DataFrame(data=rank_dict)
+    elif mode == 'eff':
+        ov = kwargs.pop('output_values', False)
+        for k, J in J_mean.items():
+            j = np.mean(J, axis=1)
+            if ov:
+                rank_dict[k], rank_dict[k+'_values'] = list_top_genes(j, eff, None, return_sorted_array=True, **kwargs)
+            else:
+                rank_dict[k] = list_top_genes(j, eff, None, **kwargs)
+            rank_dict = pd.DataFrame(data=rank_dict)
+    elif mode == 'int':
+        for k, J in J_mean.items():
+            pass
+    else:
+        raise ValueError(f'No such mode as {mode}.')
+    return rank_dict

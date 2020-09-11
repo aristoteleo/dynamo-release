@@ -18,7 +18,8 @@ from .utils import (
     split_velocity_graph,
     norm,
     einsum_correlation,
-    log1p_
+    log1p_,
+    index_gene
 )
 
 from .dimension_reduction import reduceDimension
@@ -244,9 +245,11 @@ def cell_velocities(
             raise ValueError(f"None of the transition genes provided has velocity values. "
                              f"(or `.var.use_for_dynamics` is `False`).")
 
-    X = adata[:, transition_genes].layers[ekey] if X is None else X
+    #X = adata[:, transition_genes].layers[ekey] if X is None else X
+    X = index_gene(adata, adata.layers[ekey], transition_genes) if X is None else X
     V = (
-        adata[:, transition_genes].layers[vkey]
+        #adata[:, transition_genes].layers[vkey]
+        index_gene(adata, adata.layers[vkey], transition_genes)
         if vkey in adata.layers.keys()
         else None
     ) if V is None else V
