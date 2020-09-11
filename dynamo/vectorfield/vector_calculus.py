@@ -32,7 +32,8 @@ from ..tools.utils import (
     list_top_genes, 
     create_layer,
     index_gene,
-    table_top_genes
+    table_top_genes,
+    list_top_interactions,
 )
 
 
@@ -72,7 +73,7 @@ def velocities(adata,
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the "velocities" related key in the .uns.
+            AnnData object that is updated with the `"velocities"` related key in the `.uns`.
     """
 
     if VecFld is None:
@@ -118,7 +119,7 @@ def speed(adata,
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `speed` key in the .obs.
+            AnnData object that is updated with the `'speed'` key in the `.obs`.
     """
 
     if VecFld is None:
@@ -271,7 +272,7 @@ def curl(adata,
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `curl` key in the .obs.
+            AnnData object that is updated with the `'curl'` key in the `.obs`.
     """
 
     if vector_field_class is None:
@@ -326,7 +327,7 @@ def divergence(adata,
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `divergence` key in the .obs.
+            AnnData object that is updated with the `'divergence'` key in the `.obs`.
     """
 
     if vector_field_class is None:
@@ -384,7 +385,7 @@ def acceleration(adata,
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `acceleration` key in the .obs as well as .obsm. If basis is `pca`,
+            AnnData object that is updated with the `'acceleration'` key in the `.obs` as well as .obsm. If basis is `pca`,
             acceleration matrix will be inverse transformed back to original high dimension space.
     """
 
@@ -427,7 +428,7 @@ def curvature(adata,
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `curvature` key in the .obs.
+            AnnData object that is updated with the `curvature` key in the `.obs`.
     """
 
     if vector_field_class is None:
@@ -488,6 +489,7 @@ def rank_genes(adata,
               abs=False,
               fcn_pool=lambda x: np.mean(x, axis=0),
               dtype=None,
+              output_values=False
               ):
     """Rank gene's absolute, positive, negative speed by different cell groups.
 
@@ -501,7 +503,7 @@ def rank_genes(adata,
             If a numpy array is passed, it is used as the array to be ranked and must 
             have the length of `.n_var`
         groups: str or None (default: None)
-            The cell group that speed ranking will be grouped by.
+            Cell groups used to group the array.
         genes: list or None (default: None)
             The gene list that speed will be ranked. If provided, they must overlap the dynamics genes.
         abs: bool (default: False)
@@ -577,8 +579,11 @@ def rank_genes(adata,
         if ismatrix(arr):
             arr = arr.A.flatten()
         glst, sarr = list_top_genes(arr, var_names, None, return_sorted_array=True)
-        ret_dict[g] = {glst[i]: sarr[i] for i in range(len(glst))}
-    return ret_dict
+        #ret_dict[g] = {glst[i]: sarr[i] for i in range(len(glst))}
+        ret_dict[g] = glst
+        if output_values:
+            ret_dict[g+'_values'] = sarr
+    return pd.DataFrame(data=ret_dict)
 
 
 def rank_velocity_genes(adata, vkey='velocity_S', prefix_store='rank', **kwargs):
@@ -621,7 +626,7 @@ def rank_divergence_genes(adata,
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
-            AnnData object that contains the reconstructed vector field in the `uns` attribute.
+            AnnData object that contains the reconstructed vector field in the `.uns` attribute.
         jkey: str (default: 'jacobian_pca')
             The embedding data in which the vector field was reconstructed.
         genes: list or None (default: None)
@@ -634,7 +639,7 @@ def rank_divergence_genes(adata,
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object which has the rank dictionary for diagonal jacobians in .uns.
+            AnnData object which has the rank dictionary for diagonal jacobians in `.uns`.
     """
 
     if jkey not in adata.uns_keys():
@@ -652,11 +657,11 @@ def rank_divergence_genes(adata,
         Genes = Genes.intersection(genes)
     rdict = rank_genes(adata, Div, fcn_pool=lambda x: np.nanmean(x, axis=0), genes=Genes, **kwargs)
     adata.uns[prefix_store + '_' + jkey] = rdict
-    return adata
+    return rdict
 
 
 def rank_acceleration_genes(adata, akey='acceleration', prefix_store='rank', **kwargs):
-    """Rank gene's absolute, positive, negative acceleration by different cell groups.
+    """Rank genes based on their absolute, positive, negative accelerations for each cell group.
 
     Parameters
     ----------
@@ -693,7 +698,7 @@ def rank_curvature_genes(adata,
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
-            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+            AnnData object that contains the reconstructed vector field function in the `.uns` attribute.
         group: `str` or None (default: `None`)
             The cell group that speed ranking will be grouped-by.
         genes: `None` or `list`
@@ -706,7 +711,7 @@ def rank_curvature_genes(adata,
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `rank_curvature` related information in the .uns.
+            AnnData object that is updated with the `'rank_curvature'` related information in the .uns.
     """
 
     if vkey not in adata.layers.keys():
@@ -768,8 +773,38 @@ def rank_jacobian_genes(adata,
                 jkey='jacobian_pca',
                 abs=False,
                 mode='full reg',
+                exclude_diagonal=False,
                 **kwargs
                 ):
+    """Rank genes or gene-gene interactions based on their Jacobian elements for each cell group. 
+
+        Run .vf.jacobian and set store_in_adata=True before using this function.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field in the `.uns` attribute.
+        groups: str or None (default: None)
+            Cell groups used to group the Jacobians.
+        jkey: str (default: 'jacobian_pca')
+            The key of the stored Jacobians in `.uns`.
+        abs: bool (default: False)
+            Whether or not to take the absolute value of the Jacobian.
+        mode: {'full_reg', 'full_eff', 'reg', 'eff', 'int'} (default: 'full_reg')
+            The mode of ranking:
+            (1) `'full_reg'`: top regulators are ranked for each effector for each cell group;
+            (2) `'full eff'`: top effectors are ranked for each regulator for each cell group;
+            (3) '`reg`': top regulators in each cell group;
+            (4) '`eff`': top effectors in each cell group;
+            (5) '`int`': top effector-regulator pairs in each cell group.
+        kwargs:
+            Keyword arguments passed to ranking functions.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object which has the rank dictionary in `.uns`.
+    """
     J_dict = adata.uns[jkey]
     J = J_dict['jacobian_gene']
     if abs:
@@ -797,24 +832,42 @@ def rank_jacobian_genes(adata,
     elif mode == 'reg':
         ov = kwargs.pop('output_values', False)
         for k, J in J_mean.items():
-            j = np.mean(J, axis=0)
+            if exclude_diagonal:
+                for i, ef in enumerate(eff):
+                    ii = np.where(reg==ef)[0]
+                    if len(ii) > 0:
+                        J[i, ii] = np.nan
+            j = np.nanmean(J, axis=0)
             if ov:
                 rank_dict[k], rank_dict[k+'_values'] = list_top_genes(j, reg, None, return_sorted_array=True, **kwargs)
             else:
                 rank_dict[k] = list_top_genes(j, reg, None, **kwargs)
-            rank_dict = pd.DataFrame(data=rank_dict)
+        rank_dict = pd.DataFrame(data=rank_dict)
     elif mode == 'eff':
         ov = kwargs.pop('output_values', False)
         for k, J in J_mean.items():
-            j = np.mean(J, axis=1)
+            if exclude_diagonal:
+                for i, re in enumerate(reg):
+                    ii = np.where(eff==re)[0]
+                    if len(ii) > 0:
+                        J[ii, i] = np.nan
+            j = np.nanmean(J, axis=1)
             if ov:
                 rank_dict[k], rank_dict[k+'_values'] = list_top_genes(j, eff, None, return_sorted_array=True, **kwargs)
             else:
                 rank_dict[k] = list_top_genes(j, eff, None, **kwargs)
-            rank_dict = pd.DataFrame(data=rank_dict)
+        rank_dict = pd.DataFrame(data=rank_dict)
     elif mode == 'int':
+        ov = kwargs.pop('output_values', False)
         for k, J in J_mean.items():
-            pass
+            ints, vals = list_top_interactions(J, eff, reg, **kwargs)
+            rank_dict[k] = []
+            if ov: rank_dict[k+'_values'] = []
+            for l, i in enumerate(ints):
+                if not (exclude_diagonal and i[0] == i[1]):
+                    rank_dict[k].append(i[0] + ' - ' + i[1])
+                    if ov: rank_dict[k+'_values'].append(vals[l])
+        rank_dict = pd.DataFrame(data=rank_dict) 
     else:
         raise ValueError(f'No such mode as {mode}.')
     return rank_dict

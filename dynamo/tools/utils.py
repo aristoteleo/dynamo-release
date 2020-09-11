@@ -408,8 +408,8 @@ def velocity_on_grid(X, V, n_grids, nbrs=None, k=None,
     return X_grid, V_grid
 
 
-def argsort_mat(mat):
-    isort = np.argsort(mat, axis=None)
+def argsort_mat(mat, order=1):
+    isort = np.argsort(mat, axis=None)[::order]
     index = np.zeros((len(isort), 2), dtype=int)
     index[:, 0] = isort // mat.shape[1]
     index[:, 1] = isort % mat.shape[1]
@@ -422,6 +422,16 @@ def list_top_genes(arr, gene_names, n_top_genes=30, order=-1, return_sorted_arra
         return gene_names[imax][:n_top_genes], arr[imax][:n_top_genes]
     else:
         return gene_names[imax][:n_top_genes]
+
+
+def list_top_interactions(mat, row_names, column_names, order=-1):
+    imax = argsort_mat(mat, order=order)
+    ints = []
+    sorted_mat = []
+    for im in imax:
+        ints.append([row_names[im[0]], column_names[im[1]]])
+        sorted_mat.append(mat[im])
+    return ints, np.array(sorted_mat)
 
 
 def table_top_genes(arrs, item_names, gene_names, return_df=True, output_values=False, **kwargs):
