@@ -89,6 +89,9 @@ from .sampling import (
     sample
 )
 
+
+from .utils import cell_norm, table_rank_dict
+
 # cell proliferation and death:
 from .growth import (
     score_cells,

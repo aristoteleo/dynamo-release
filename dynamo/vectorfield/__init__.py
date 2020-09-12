@@ -20,10 +20,12 @@ from .vector_calculus import (
     acceleration,
     curvature,
     torsion,
-    rank_speed_genes,
+    rank_velocity_genes,
     rank_divergence_genes,
     rank_acceleration_genes,
     rank_curvature_genes,
+    rank_genes,
+    rank_jacobian_genes,
 )
 
 # potential related
