@@ -755,7 +755,7 @@ def phase_portraits(
             despline_all(ax2)
             deaxis_all(ax2)
 
-        v_max = np.max(np.abs(V_vec.values))
+        v_max = 0.01 if min(V_vec) + max(V_vec) == 0 else np.max(np.abs(V_vec.values))
         div_scatter_kwargs.update({"vmin": -v_max, "vmax": v_max})
 
         if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
@@ -1055,7 +1055,7 @@ def phase_portraits(
 
 def dynamics(
         adata,
-        vkey,
+        genes,
         unit="hours",
         log_unnormalized=True,
         y_log_scale=False,
@@ -1084,7 +1084,7 @@ def dynamics(
     ----------
         adata: :class:`~anndata.AnnData`
             an Annodata object.
-        vkey: list of `str`
+        genes: list of `str`
             key for variable or gene names.
         unit: `str` (default: `hour`)
             The unit of the labeling time, for example, `hours` or `minutes`.
@@ -1184,14 +1184,16 @@ def dynamics(
     T_uniq = np.unique(T)
     t = np.linspace(0, T_uniq[-1], 1000)
     valid_genes = adata.var_names[get_valid_bools(adata, filter_gene_mode)]
-    valid_gene_names = valid_genes.intersection(vkey)
+    valid_gene_names = valid_genes.intersection(genes)
 
     if len(valid_gene_names) == 0:
-        raise ValueError(f"no kinetic parameter fitting has performed for the gene {vkey} you provided. Try "
+        raise ValueError(f"no kinetic parameter fitting has performed for the gene {genes} you provided. Try "
                          f"using dyn.tl.dynamics(adata, filter_gene_mode='final', ...) or use only fitted genes.")
 
     valid_adata = adata[:, valid_gene_names]
-    gene_idx = np.array([np.where(valid_gene_names == gene)[0][0] for gene in vkey])
+    gene_idx = np.array([np.where(valid_genes == gene)[0][0] for gene in valid_gene_names])
+    X_data, X_fit_data = [X_data[i] for i in gene_idx], [X_fit_data[i] for i in gene_idx]
+
     if boxwidth is None and len(T_uniq) > 1:
         boxwidth = 0.8 * (np.diff(T_uniq).min() / 2)
 

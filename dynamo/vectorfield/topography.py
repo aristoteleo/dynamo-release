@@ -713,5 +713,3 @@ def VectorField(
         return VecFld
     else:
         return adata
-
-

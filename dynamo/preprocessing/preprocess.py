@@ -7,7 +7,7 @@ from sklearn.utils import sparsefuncs
 
 from ..tools.utils import update_dict
 from .utils import (
-    convert2gene_symbol,
+    convert2symbol,
     pca,
     clusters_stats,
     cook_dist,
@@ -36,6 +36,7 @@ def szFactor(
     locfunc=np.nanmean,
     round_exprs=False,
     method="median",
+    scale_to=None,
     use_all_genes_cells=True,
 ):
     """Calculate the size factor of the each cell using geometric mean of total UMI across cells for a AnnData object.
@@ -57,6 +58,8 @@ def szFactor(
             The method used to calculate the expected total reads / UMI used in size factor calculation.
             Only `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will be replaced with
             `np.nanmedian`.
+        scale_to: `float` or None (default: `None`)
+            The final total expression for each cell that will be scaled to.
         use_all_genes_cells: `bool` (default: `True`)
             A logic flag to determine whether all cells and genes should be used for the size factor calculation.
 
@@ -86,13 +89,15 @@ def szFactor(
                     adata.layers[t_key] if total is None else total + adata.layers[t_key]
                 )
             adata.layers["_total_"] = total
+            layers.extend(['_total_'])
 
     layers = get_layer_keys(adata, layers)
     if "raw" in layers and adata.raw is None:
         adata.raw = adata.copy()
 
     for layer in layers:
-        sfs, cell_total = sz_util(adata, layer, round_exprs, method, locfunc, total_layers=total_layers)
+        sfs, cell_total = sz_util(adata, layer, round_exprs, method, locfunc, total_layers=total_layers,
+                                  scale_to=scale_to)
 
         sfs[~np.isfinite(sfs)] = 1
         if layer == "raw":
@@ -125,6 +130,7 @@ def normalize_expr_data(
     keep_filtered=True,
     recalc_sz=False,
     sz_method='median',
+    scale_to=None,
 ):
     """Normalize the gene expression value for the AnnData object
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
@@ -154,6 +160,9 @@ def normalize_expr_data(
             The method used to calculate the expected total reads / UMI used in size factor calculation.
             Only `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will be replaced with
             `np.nanmedian`.
+        scale_to: `float` or None (default: `None`)
+            The final total expression for each cell that will be scaled to.
+
     Returns
     -------
         adata: :AnnData
@@ -187,6 +196,7 @@ def normalize_expr_data(
             locfunc=np.nanmean,
             round_exprs=True,
             method=sz_method,
+            scale_to=scale_to,
         )
 
     for layer in layers:
@@ -1157,6 +1167,7 @@ def recipe_monocle(
     method="pca",
     num_dim=30,
     sz_method='median',
+    scale_to=None,
     norm_method=None,
     pseudo_expr=1,
     feature_selection="SVR",
@@ -1164,6 +1175,7 @@ def recipe_monocle(
     relative_expr=True,
     keep_filtered_cells=True,
     keep_filtered_genes=True,
+    keep_raw_layers=True,
     scopes=None,
     fc_kwargs=None,
     fg_kwargs=None,
@@ -1176,9 +1188,10 @@ def recipe_monocle(
         adata: :class:`~anndata.AnnData`
             AnnData object.
         normalized: `None` or `bool` (default: `None`)
-            If you already normalized your data (or run recipe_monocle already), set this to be `True` to avoid renormalizing your data.
-            By default it is set to be `None` and the first 20 values of adata.X (if adata.X is sparse) or its first column will be checked to
-            determine whether you already normalized your data. This only works for UMI based or read-counts data.
+            If you already normalized your data (or run recipe_monocle already), set this to be `True` to avoid
+            renormalizing your data. By default it is set to be `None` and the first 20 values of adata.X (if adata.X is
+            sparse) or its first column will be checked to determine whether you already normalized your data. This only
+            works for UMI based or read-counts data.
         layer: str (default: `None`)
             The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
         total_layers: bool, list or None (default `None`)
@@ -1193,8 +1206,10 @@ def recipe_monocle(
             The number of linear dimensions reduced to.
         sz_method: `str` (default: `mean-geometric-mean-total`)
             The method used to calculate the expected total reads / UMI used in size factor calculation.
-            Only `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc` will be replaced with
-            `np.nanmedian`.
+            Only `mean-geometric-mean-total` / `geometric` and `median` are supported. When `median` is used, `locfunc`
+            will be replaced with `np.nanmedian`.
+        scale_to: `float` or None (default: `None`)
+            The final total expression for each cell that will be scaled to.
         norm_method: `function` or None (default: function `None`)
             The method to normalize the data. Can be any numpy function or `Freeman_Tukey`. By default, only .X will be
             size normalized and log1p transformed while data in other layers will only be size factor normalized.
@@ -1205,11 +1220,14 @@ def recipe_monocle(
         n_top_genes: `int` (default: `2000`)
             How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
         relative_expr: `bool` (default: `True`)
-            A logic flag to determine whether we need to divide gene expression values first by size factor before normalization.
+            A logic flag to determine whether we need to divide gene expression values first by size factor before
+            normalization.
         keep_filtered_cells: `bool` (default: `True`)
-            Whether to keep genes that don't pass the filtering in the adata object.
+            Whether to keep genes that don't pass the filtering in the returned adata object.
         keep_filtered_genes: `bool` (default: `True`)
-            Whether to keep genes that don't pass the filtering in the adata object.
+            Whether to keep genes that don't pass the filtering in the returned adata object.
+        keep_raw_layers: `bool` (default: `True`)
+            Whether to keep layers with raw measurements in the returned adata object.
         scopes: `str`, list-like` or `None` (default: `None`)
             Scopes are needed when you use non-official gene name as your gene indices (or adata.var_name). This
             arugument corresponds to type of types of identifiers, either a list or a comma-separated fields to specify
@@ -1226,41 +1244,12 @@ def recipe_monocle(
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions, etc.
+            A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced
+            dimensions, etc.
     """
 
     n_cells, n_genes = adata.n_obs, adata.n_vars
-    if np.all(adata.var_names.str.startswith('ENS')) or scopes is not None:
-        prefix = adata.var_names[0]
-        if scopes is None:
-            if prefix[:4] == 'ENSG' or prefix[:7] == 'ENSMUSG':
-                scopes = 'ensembl.gene'
-            elif prefix[:4] == 'ENST' or prefix[:7] == 'ENSMUST':
-                scopes = 'ensembl.transcript'
-            else:
-                raise Exception('Your adata object uses non-official gene names as gene index. \n'
-                                'Dynamo finds those IDs are neither from ensembl.gene or ensembl.transcript and thus cannot '
-                                'convert them automatically. \n'
-                                'Please pass the correct scopes or first convert the ensemble ID to gene short name '
-                                '(for example, using mygene package). \n'
-                                'See also dyn.pp.convert2gene_symbol')
-
-        adata.var['query'] = [i.split('.')[0] for i in adata.var.index]
-        if scopes is str:
-            adata.var[scopes] = adata.var.index
-        else:
-            adata.var['scopes'] = adata.var.index
-
-        warnings.warn('Your adata object uses non-official gene names as gene index. \n'
-                      'Dynamo is converting those names to official gene names.')
-        official_gene_df = convert2gene_symbol(adata.var_names, scopes)
-        merge_df = adata.var.merge(official_gene_df, left_on='query', right_on='query', how='left').set_index(
-            adata.var.index)
-        adata.var = merge_df
-        valid_ind = np.where(merge_df['notfound'] != True)[0]
-
-        adata._inplace_subset_var(valid_ind)
-        adata.var.index = adata.var['symbol'].values.copy()
+    adata = convert2symbol(adata, scopes=scopes)
 
     if norm_method == 'Freeman_Tukey': norm_method = Freeman_Tukey
 
@@ -1283,8 +1272,8 @@ def recipe_monocle(
     adata = layers2csr(adata)
     adata = collapse_adata(adata)
 
-    _szFactor, _logged = False, False
-    if normalized is None:
+    _szFactor, _logged = (True, True) if normalized else (False, False)
+    if normalized is None and not has_labeling:
         if 'raw_data' in adata.uns_keys():
             _szFactor, _logged = not adata.uns['raw_data'], not adata.uns['raw_data']
         else:
@@ -1304,6 +1293,10 @@ def recipe_monocle(
                     0,
                     atol=1e-1,
                 )
+
+        if _szFactor or _logged:
+            warnings.warn(f'dynamo detects your data is size factor normalized and/or log transformed. If this is not '
+                          f'right, plese set `normalized = False.')
 
     # filter bad cells
     filter_cells_kwargs = {
@@ -1350,7 +1343,8 @@ def recipe_monocle(
 
     # calculate sz factor
     if not _szFactor or "Size_Factor" not in adata.obs_keys():
-        adata = szFactor(adata, total_layers=total_layers, layers=layer if type(layer) is list else "all")
+        adata = szFactor(adata, total_layers=total_layers, scale_to=scale_to,
+                         layers=layer if type(layer) is list else "all")
 
     if feature_selection.lower() == "dispersion":
         adata = Dispersion(adata)
@@ -1398,11 +1392,12 @@ def recipe_monocle(
             relative_expr=relative_expr,
             keep_filtered=keep_filtered_genes,
             sz_method=sz_method,
+            scale_to=scale_to,
         )
     else:
         layers = get_layer_keys(adata, "all")
         for layer in layers:
-            adata.layers["X_" + layer] = adata.layers[layer].copy()
+            if layer != 'X': adata.layers["X_" + layer] = adata.layers[layer].copy()
 
         adata.uns["pp_norm_method"] = None
 
@@ -1462,6 +1457,11 @@ def recipe_monocle(
 
     if 'raw_data' in adata.uns_keys():
         adata.uns['raw_data'] = False
+
+    if not keep_raw_layers:
+        for layer in adata.layer.keys():
+            if not layer.startwith('X_'):
+                del adata.layers[layer]
 
     return adata
 

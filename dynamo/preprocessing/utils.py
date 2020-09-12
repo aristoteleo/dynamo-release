@@ -50,6 +50,46 @@ def convert2gene_symbol(input_names, scopes='ensembl.gene'):
 
     return var_pd
 
+def convert2symbol(adata, scopes=None, subset=True):
+    if np.all(adata.var_names.str.startswith('ENS')) or scopes is not None:
+        prefix = adata.var_names[0]
+        if scopes is None:
+            if prefix[:4] == 'ENSG' or prefix[:7] == 'ENSMUSG':
+                scopes = 'ensembl.gene'
+            elif prefix[:4] == 'ENST' or prefix[:7] == 'ENSMUST':
+                scopes = 'ensembl.transcript'
+            else:
+                raise Exception('Your adata object uses non-official gene names as gene index. \n'
+                                'Dynamo finds those IDs are neither from ensembl.gene or ensembl.transcript and thus cannot '
+                                'convert them automatically. \n'
+                                'Please pass the correct scopes or first convert the ensemble ID to gene short name '
+                                '(for example, using mygene package). \n'
+                                'See also dyn.pp.convert2gene_symbol')
+
+        adata.var['query'] = [i.split('.')[0] for i in adata.var.index]
+        if scopes is str:
+            adata.var[scopes] = adata.var.index
+        else:
+            adata.var['scopes'] = adata.var.index
+
+        warnings.warn('Your adata object uses non-official gene names as gene index. \n'
+                      'Dynamo is converting those names to official gene names.')
+        official_gene_df = convert2gene_symbol(adata.var_names, scopes)
+        merge_df = adata.var.merge(official_gene_df, left_on='query', right_on='query', how='left').set_index(
+            adata.var.index)
+        adata.var = merge_df
+        valid_ind = np.where(merge_df['notfound'] != True)[0]
+
+        if subset:
+            adata._inplace_subset_var(valid_ind)
+            adata.var.index = adata.var['symbol'].values.copy()
+        else:
+            indices = np.array(adata.var.index)
+            indices[valid_ind] = adata.var.loc[valid_ind, 'symbol'].values.copy()
+            adata.var.index = indices
+
+    return adata
+
 # ---------------------------------------------------------------------------------------------------
 # implmentation of Cooks' distance (but this is for Poisson distribution fitting)
 
@@ -329,7 +369,7 @@ def get_svr_filter(adata, layer="spliced", n_top_genes=3000, return_adata=False)
 
     return res
 
-def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None, CM=None):
+def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None, CM=None, scale_to=None):
     adata = adata.copy()
 
     if layer == '_total_' and '_total_' not in adata.layers.keys():
@@ -365,11 +405,11 @@ def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None, CM=No
     cell_total += cell_total == 0  # avoid infinity value after log (0)
 
     if method in ["mean-geometric-mean-total", 'geometric']:
-        sfs = cell_total / np.exp(locfunc(np.log(cell_total)))
+        sfs = cell_total / (np.exp(locfunc(np.log(cell_total))) if scale_to is None else scale_to)
     elif method == "median":
-        sfs = cell_total / np.nanmedian(cell_total)
+        sfs = cell_total / (np.nanmedian(cell_total) if scale_to is None else scale_to)
     elif method == "mean":
-        sfs = cell_total / np.nanmean(cell_total)
+        sfs = cell_total / (np.nanmean(cell_total) if scale_to is None else scale_to)
     else:
         raise NotImplementedError(f"This method {method} is not supported!")
 
@@ -394,6 +434,8 @@ def get_sz_exprs(adata, layer, total_szfactor=None):
 
     if total_szfactor is not None and total_szfactor in adata.obs.keys():
         szfactors = adata.obs[total_szfactor][:, None]
+    else:
+        warnings.warn("{total_szfactor} is not None but it is not in adata object.")
 
     return szfactors, CM
 
@@ -578,6 +620,28 @@ def NTR(adata):
 
     return ntr, var_ntr
 
+
+def scale(adata, layers=None, scale_to_layer=None, scale_to=1e6):
+    """scale layers to a particular total expression value, similar to `normalize_expr_data` function."""
+    layers = get_layer_keys(adata, layers)
+    has_splicing, has_labeling, _ = detect_datatype(adata)
+
+    if scale_to_layer is None:
+        scale_to_layer = 'total' if has_labeling else None
+        scale = scale_to / adata.layers[scale_to_layer].sum(1)
+    else:
+        scale = None
+
+    for layer in layers:
+        if scale is None:
+            scale = scale_to / adata.layers[layer].sum(1)
+
+        adata.layers[layer] = csr_matrix(adata.layers[layer].multiply(scale))
+
+    return adata
+
+# ---------------------------------------------------------------------------------------------------
+# ERCC related
 
 def relative2abs(adata,
                  dilution,

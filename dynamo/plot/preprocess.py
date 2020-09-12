@@ -544,6 +544,7 @@ def exp_by_groups(adata,
                     use_smoothed=True,
                     log=True,
                     angle=0,
+                    re_order=True,
                     figsize=(4, 3),
                     save_show_or_return='show',
                     save_kwargs={},
@@ -569,6 +570,10 @@ def exp_by_groups(adata,
             Whether to use the smoothed data as gene expression.
         log: `bool` (default: `True`)
             Whether to log1p transform the expression data.
+        angle: `float` (default: `0`)
+            The angle to rotate the xtick labels for the purpose of avoiding overlapping between text.
+        re_order: `bool` (default: `True`)
+            Whether to reorder categories before drawing groups on the x-axis.
         figsize: `string` (default: (4, 3))
             Figure size of each facet.
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
@@ -646,9 +651,10 @@ def exp_by_groups(adata,
         res = df.melt(id_vars=["group"])
 
     if res['group'].dtype.name == 'category':
-        xticks = res['group'].cat.categories
+        xticks = res['group'].cat.categories.sort_values() if re_order else res['group'].cat.categories
     else:
         xticks = np.sort(res['group'].unique())
+
     kws = dict(order=xticks)
 
     # https://wckdouglas.github.io/2016/12/seaborn_annoying_title

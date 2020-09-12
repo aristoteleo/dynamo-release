@@ -2,7 +2,11 @@ from tqdm import tqdm
 import inspect
 import numpy as np
 import pandas as pd
-from scipy.sparse import issparse, SparseEfficiencyWarning
+from scipy.sparse import (
+    csr_matrix,
+    issparse,
+    SparseEfficiencyWarning,
+)
 
 from .moments import moments, strat_mom
 from ..estimation.csc.velocity import fit_linreg, velocity, ss_estimation
@@ -13,6 +17,7 @@ from .utils import (
     get_valid_bools,
     get_data_for_kin_params_estimation,
     get_U_S_for_velocity_estimation,
+    one_shot_alpha_matrix,
 )
 from .utils import set_velocity, set_param_ss, set_param_kinetic
 from .moments import (
@@ -376,6 +381,9 @@ def dynamics(
 
             model = "deterministic"
 
+        if model_was_auto and experiment_type.lower() in ["kinetic", "kin", "degradation", "deg"]:
+            model = "deterministic"
+
         if assumption_mRNA.lower() == "ss" or (experiment_type.lower() in ["one-shot", "mix_std_stm"]):
             if est_method.lower() == "auto": est_method = "gmm" if model.lower() == 'stochastic' else 'ols'
             if experiment_type.lower() == "one_shot":
@@ -413,6 +421,8 @@ def dynamics(
                 if experiment_type.lower() in ["one-shot", "one_shot"]:
                     est.fit(one_shot_method=one_shot_method, **est_kwargs)
                 else:
+                    # experiment_type can be `kin` also and by default use
+                    # conventional method to estimate k but correct for time
                     est.fit(**est_kwargs)
 
             alpha, beta, gamma, eta, delta = est.parameters.values()
@@ -427,7 +437,7 @@ def dynamics(
             )
             vel = velocity(estimation=est)
 
-            if exp_type.lower() in ['one_shot', 'one-shot']:
+            if experiment_type.lower() in ['one_shot', 'one-shot', 'kin']:
                 U_, S_ = get_U_S_for_velocity_estimation(
                     subset_adata,
                     use_smoothed,
@@ -440,26 +450,66 @@ def dynamics(
                 # also get vel_N and vel_T
                 if NTR_vel:
                     if has_splicing:
-                        vel_U = vel.vel_u(U_)
-                        vel_S = vel.vel_s(U_, S_)
-                        vel_N = vel.vel_u(U)
-                        vel_T = vel.vel_s(U, S - U)  # need to consider splicing
+                        if experiment_type == "kin":
+                            vel_U = vel.vel_s(U_)
+                            vel_S = vel.vel_s(U_, S_)
+
+                            Kc = np.clip(gamma[:, None], 0, 1 - 1e-3)  # S - U slope
+                            gamma_ = -(np.log(1 - Kc) / t[None, :])  # actual gamma
+                            vel_N = vel.vel_u(U)
+                            # scale back to true velocity via multiplying "gamma / K".
+                            vel_T = (U - csr_matrix(Kc).multiply(S)).multiply(csr_matrix(gamma_ / Kc))
+                        else:
+                            vel_U = vel.vel_u(U_)
+                            vel_S = vel.vel_s(U_, S_)
+                            vel_N = vel.vel_u(U)
+                            vel_T = vel.vel_s(U, S - U)  # need to consider splicing
                     else:
-                        vel_U = np.nan
-                        vel_S = np.nan
-                        vel_N = vel.vel_u(U)
-                        vel_T = vel.vel_u(S)  # don't consider splicing
+                        if experiment_type == "kin":
+                            vel_U = np.nan
+                            vel_S = np.nan
+
+                            Kc = np.clip(gamma[:, None], 0, 1 - 1e-3)  # S - U slope
+                            gamma_ = -(np.log(1 - Kc) / t[None, :])  # actual gamma
+                            vel_N = vel.vel_u(U)
+                            # scale back to true velocity via multiplying "gamma / K".
+                            vel_T = (U - csr_matrix(Kc).multiply(S)).multiply(csr_matrix(gamma_ / Kc))
+                        else:
+                            vel_U = np.nan
+                            vel_S = np.nan
+                            vel_N = vel.vel_u(U)
+                            vel_T = vel.vel_u(S)  # don't consider splicing
                 else:
                     if has_splicing:
-                        vel_U = vel.vel_u(U)
-                        vel_S = vel.vel_s(U, S)
-                        vel_N = vel.vel_u(U_)
-                        vel_T = vel.vel_s(U_, S_ - U_)  # need to consider splicing
+                        if experiment_type == "kin":
+                            vel_U = vel.vel_u(U)
+                            vel_S = vel.vel_s(U, S)
+
+                            Kc = np.clip(gamma[:, None], 0, 1 - 1e-3)  # S - U slope
+                            gamma_ = -(np.log(1 - Kc) / t[None, :])  # actual gamma
+                            vel_N = vel.vel_u(U_)
+                            # scale back to true velocity via multiplying "gamma / K".
+                            vel_T = (U_ - csr_matrix(Kc).multiply(S_)).multiply(csr_matrix(gamma_ / Kc))
+                        else:
+                            vel_U = vel.vel_u(U)
+                            vel_S = vel.vel_s(U, S)
+                            vel_N = vel.vel_u(U_)
+                            vel_T = vel.vel_s(U_, S_ - U_)  # need to consider splicing
                     else:
-                        vel_U = np.nan
-                        vel_S = np.nan
-                        vel_N = vel.vel_u(U_)
-                        vel_T = vel.vel_u(S_)  # don't consider splicing
+                        if experiment_type == "kin":
+                            vel_U = np.nan
+                            vel_S = np.nan
+
+                            Kc = np.clip(gamma[:, None], 0, 1 - 1e-3)  # S - U slope
+                            gamma_ = -(np.log(1 - Kc) / t[None, :])  # actual gamma
+                            vel_N = vel.vel_u(U_)
+                            # scale back to true velocity via multiplying "gamma / K".
+                            vel_T = (U_ - csr_matrix(Kc).multiply(S_)).multiply(csr_matrix(gamma_ / Kc))
+                        else:
+                            vel_U = np.nan
+                            vel_S = np.nan
+                            vel_N = vel.vel_u(U_)
+                            vel_T = vel.vel_u(S_)  # don't consider splicing
             else:
                 vel_U = vel.vel_u(U)
                 vel_S = vel.vel_s(U, S)
@@ -506,15 +556,15 @@ def dynamics(
 
             len_t, len_g = len(np.unique(t)), len(_group)
             if cur_grp == _group[0]:
-                if len_g == 1:
-                    X_data, X_fit_data = np.array((adata.n_vars, len_t)), np.array((adata.n_vars, len_t))
-                else:
-                    X_data, X_fit_data = np.array((len_g, adata.n_vars, len_t)), np.array((len_g, adata.n_vars, len_t))
+                if len_g != 1:
+                    # X_data, X_fit_data = np.zeros((len_g, adata.n_vars, len_t)), np.zeros((len_g, adata.n_vars, len_t))
+                    X_data, X_fit_data = [None] * len_g,  [None] * len_g
 
             if len(_group) == 1:
                 X_data, X_fit_data = cur_X_data, cur_X_fit_data
             else:
-                X_data[cur_grp_i, :, :], X_fit_data[cur_grp_i, :, :] = cur_X_data, cur_X_fit_data
+                # X_data[cur_grp_i, :, :], X_fit_data[cur_grp_i, :, :] = cur_X_data, cur_X_fit_data
+                X_data[cur_grp_i], X_fit_data[cur_grp_i] = cur_X_data, cur_X_fit_data
 
             a, b, alpha_a, alpha_i, alpha, beta, gamma = (
                 params.loc[:, 'a'].values if 'a' in params.columns else None,
@@ -573,6 +623,11 @@ def dynamics(
                 else:
                     vel_U = np.nan
                     vel_S = np.nan
+                    # calculate cell-wise alpha
+                    alpha_ = one_shot_alpha_matrix(U, gamma, t)
+
+                    vel.parameters['alpha'] = alpha_
+
                     vel_N = vel.vel_u(U_)
                     vel_T = vel.vel_u(S_)  # need to consider splicing
 

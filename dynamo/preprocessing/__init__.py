@@ -11,7 +11,16 @@ from .preprocess import (
     Dispersion,
     filter_cells,
     select_genes,
+    filter_genes,
+    filter_genes_by_clusters_,
+    SVRs,
+    get_svr_filter,
 )
-from .preprocess import filter_genes, filter_genes_by_clusters_, SVRs, get_svr_filter
 from .cell_cycle import cell_cycle_scores
-from .utils import cook_dist, pca, relative2abs
+from .utils import (
+    cook_dist,
+    pca,
+    relative2abs,
+    scale,
+    convert2symbol,
+)

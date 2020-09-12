@@ -244,9 +244,16 @@ def cell_velocities(
         if len(transition_genes) < 1:
             raise ValueError(f"None of the transition genes provided has velocity values. "
                              f"(or `.var.use_for_dynamics` is `False`).")
-
+            
+        adata.var['use_for_transition'] = False
+        if type(transition_genes[0]) == bool:
+            adata.var.use_for_transition = transition_genes
+        else:
+            adata.var.loc[transition_genes, "use_for_transition"] = True
+            
     #X = adata[:, transition_genes].layers[ekey] if X is None else X
     X = index_gene(adata, adata.layers[ekey], transition_genes) if X is None else X
+
     V = (
         #adata[:, transition_genes].layers[vkey]
         index_gene(adata, adata.layers[vkey], transition_genes)

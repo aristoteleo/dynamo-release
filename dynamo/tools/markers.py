@@ -194,6 +194,7 @@ def find_group_markers(adata,
         cluster numbers and values are lists of marker genes for the corresponding clusters.
     """
 
+    if layer is None: layer = 'X'
     if layer.startswith('velocity'):
         exp_frac_thresh = 0 if exp_frac_thresh is None else exp_frac_thresh
         log2_fc_thresh = 0 if log2_fc_thresh is None else log2_fc_thresh
