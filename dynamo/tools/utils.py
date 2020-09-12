@@ -204,10 +204,10 @@ def norm(x, **kwargs):
 
 
 def cell_norm(adata,
-          key,
-          prefix_store=None,
-          **norm_kwargs
-          ):
+              key,
+              prefix_store=None,
+              **norm_kwargs
+              ):
     """Calculate the norm of vector for each cell.
 
     Parameters

@@ -418,10 +418,10 @@ def transform_jacobian(Js, Qi, Qj, pbar=False):
 
 
 def average_jacobian_by_group(Js, group_labels):
-    '''
+    """
         Returns a dictionary of averaged jacobians with group names as the keys.
         No vectorized indexing was used due to its high memory cost.
-    '''
+    """
     d1, d2, _ = Js.shape
     groups = np.unique(group_labels)
     
@@ -432,8 +432,8 @@ def average_jacobian_by_group(Js, group_labels):
             J_mean[g] += Js[:, :, i]
             N[g] += 1
         else:
-            J_mean[g] = np.zeros((d1, d2))
-            N[g] = 0
+            J_mean[g] = Js[:, :, i]
+            N[g] = 1
     for g in groups:
         J_mean[g] /= N[g]
     return J_mean
