@@ -1,6 +1,9 @@
+from pathlib import Path
+
 def enrichr(genes,
             organism,
-            gene_sets='GO_Biological_Process_2018',
+            background,
+            gene_sets=['GO_Biological_Process_2018'],
             description=None,
             outdir='./enrichr',
             cutoff=0.05,
@@ -32,21 +35,21 @@ def enrichr(genes,
         An Enrichr object, which obj.res2d stores your last query, obj.results stores your all queries.
 
     >>> import dynamo as dyn
-    >>> # perform gene enrichment analysis which will create the enrichr folder with saved figures and txt file of the
-    >>> # enrichment analysis results and return an Enrichr object
     >>> adata = dyn.sample_data.pancreatic_endocrinogenesis()
-    >>> dyn.pp.recipe_monocle(adata, n_top_genes=1000, fg_kwargs={'shared_count': 20}, total_layers=['spliced', 'unspliced'])
+    >>> dyn.pp.recipe_monocle(adata, n_top_genes=1000, fg_kwargs={'shared_count': 20})
     >>> dyn.tl.dynamics(adata, model='stochastic')
     >>> dyn.tl.reduceDimension(adata, n_pca_components=30)
     >>> dyn.tl.cell_velocities(adata)
     >>> dyn.pl.streamline_plot(adata, color=['clusters'], basis='umap', show_legend='on data', show_arrowed_spines=False)
+    >>> # perform gene enrichment analysis which will create the enrichr folder with saved figures and txt file of the
+    >>> # enrichment analysis results and return an Enrichr object
     >>> enr = dyn.ext.enrichr(adata.var_names[adata.var.use_for_transition].to_list(), organism='mouse', outdir='./enrichr')
     >>> enr.results.head(5)
     >>> # simple plotting function
     >>> from gseapy.plot import barplot, dotplot
     >>> # to save your figure, make sure that ``ofname`` is not None
-    >>> barplot(enr.res2d, title='GO_Biological_Process_2018', cutoff=0.1)
-    >>> dotplot(enr.res2d, title='KEGG_2016',cmap='viridis_r', cutoff=0.1)
+    >>> barplot(enr.res2d, title='GO_Biological_Process_2018', cutoff=0.05)
+    >>> dotplot(enr.res2d, title='KEGG_2016',cmap='viridis_r', cutoff=0.05)
     """
 
     try:
@@ -55,9 +58,12 @@ def enrichr(genes,
         raise ImportError("You need to install the package `gseapy`."
                           "install gseapy via `pip install gseapy`")
 
+    Path(outdir).mkdir(parents=True, exist_ok=True)
+
     enr = gp.enrichr(gene_list=genes,
                      gene_sets=gene_sets, # GO_Biological_Process_2018
                      organism=organism, # don't forget to set organism to the one you desired! e.g. Yeast
+                     background=background,
                      description=description,
                      outdir=outdir,
                      no_plot=no_plot,
