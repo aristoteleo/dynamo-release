@@ -241,8 +241,8 @@ def curvature(adata, basis='pca', color=None, frontier=True, *args, **kwargs):
 
 @docstrings.with_indent(4)
 def jacobian(adata,
-             source_genes=None,
-             target_genes=None,
+             regulators=None,
+             effectors=None,
              basis="umap",
              x=0,
              y=1,
@@ -328,9 +328,9 @@ def jacobian(adata,
     >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
     >>> adata = dyn.pp.recipe_monocle(adata)
     >>> dyn.tl.dynamics(adata)
-    >>> dyn.tl.VectorField(adata, basis='pca')
+    >>> dyn.vf.VectorField(adata, basis='pca')
     >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
-    >>> dyn.tl.jacobian(adata, source_genes=valid_gene_list[0], target_genes=valid_gene_list[1])
+    >>> dyn.vf.jacobian(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
     >>> dyn.pl.jacobian(adata)
     """
 
@@ -345,13 +345,13 @@ def jacobian(adata,
         _background = background
 
     Jacobian_ = "jacobian" if basis is None else "jacobian_" + basis
-    Der, cell_indx, jacobian_gene, regulators, effectors =  adata.uns[Jacobian_].values()
+    Der, cell_indx, _, regulators_, effectors_ = adata.uns[Jacobian_].values()
     adata_ = adata[cell_indx, :]
 
-    Der, source_genes, target_genes = intersect_sources_targets(source_genes,
-                              regulators,
+    Der, source_genes, target_genes = intersect_sources_targets(regulators,
+                              regulators_,
                               effectors,
-                              effectors,
+                              effectors_,
                               Der)
 
     cur_pd = pd.DataFrame(
@@ -430,6 +430,7 @@ def jacobian(adata,
 
 def jacobian_heatmap(adata,
                      cell_idx,
+                     basis='umap',
                      regulators=None,
                      effectors=None,
                      figsize=(7, 5),
@@ -482,23 +483,23 @@ def jacobian_heatmap(adata,
     >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
     >>> adata = dyn.pp.recipe_monocle(adata)
     >>> dyn.tl.dynamics(adata)
-    >>> dyn.tl.VectorField(adata, basis='pca')
+    >>> dyn.vf.VectorField(adata, basis='pca')
     >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
-    >>> dyn.tl.jacobian(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
+    >>> dyn.vf.jacobian(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
     >>> dyn.pl.jacobian_heatmap(adata)
     """
 
     import matplotlib.pyplot as plt
     import seaborn as sns
 
-    Jacobian_ = "jacobian" #f basis is None else "jacobian_" + basis
+    Jacobian_ = "jacobian" if basis is None else "jacobian_" + basis
     if type(cell_idx) == int: cell_idx = [cell_idx]
-    Der, cell_indx, jacobian_gene, regulators_, effectors_ =  adata.uns[Jacobian_].values()
-    Der, source_genes, target_genes = intersect_sources_targets(regulators,
-                              regulators_,
-                              effectors,
-                              effectors_,
-                              Der)
+    Der, cell_indx, _, regulators_, effectors_ = adata.uns[Jacobian_].values()
+    Der, regulators, effectors = intersect_sources_targets(regulators,
+                                                           regulators_,
+                                                           effectors,
+                                                           effectors_,
+                                                           Der)
 
     adata_ = adata[cell_indx, :]
     valid_cell_idx = list(set(cell_idx).intersection(cell_indx))
@@ -524,7 +525,7 @@ def jacobian_heatmap(adata,
     for i, name in enumerate(cell_names):
         ind = np.where(adata_.obs_names == name)[0]
         J = Der[:, :, ind][:, :, 0].T # dim 0: target; dim 1: source
-        J = pd.DataFrame(J, index=source_genes, columns=target_genes)
+        J = pd.DataFrame(J, index=regulators, columns=effectors)
         ax = plt.subplot(gs[i])
         sns.heatmap(J, annot=True, ax=ax, cmap=cmap, cbar=False, center=0, **heatmap_kwargs)
         plt.title(name)

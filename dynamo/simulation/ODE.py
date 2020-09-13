@@ -174,7 +174,7 @@ def state_space_sampler(ode, dim, clip=True, min_val=0, max_val=4, N=10000):
     return X, Y
 
 
-def Simulator(motif="neurogenesis", clip=True):
+def Simulator(motif="neurogenesis", clip=True, cell_num=1000):
     """Simulate the gene expression dynamics via deterministic ODE model
 
     Parameters
@@ -182,7 +182,9 @@ def Simulator(motif="neurogenesis", clip=True):
     motif: `str` (default: `neurogenesis`)
         Name of the network motif that will be used in the simulation.
     clip: `bool` (default: `True`)
-        Whether to clip data points that are negative.  
+        Whether to clip data points that are negative.
+    cell_num: `int` (default: `1000`)
+        Number of cells to simulate.
 
     Returns
     -------
@@ -191,11 +193,9 @@ def Simulator(motif="neurogenesis", clip=True):
     """
 
     if motif == "toggle":
-        cell_num = 5000
         X, Y = state_space_sampler(ode=toggle, dim=2, min_val=0, max_val=6, N=cell_num)
         gene_name = np.array(["X", "Y"])
     elif motif == "neurogenesis":
-        cell_num = 50000
         X, Y = state_space_sampler(
             ode=neurogenesis, dim=13, min_val=0, max_val=6, N=cell_num
         )
@@ -218,13 +218,11 @@ def Simulator(motif="neurogenesis", clip=True):
             ]
         )
     elif motif == "twogenes":
-        cell_num = 5000
         X, Y = state_space_sampler(
             ode=two_genes_motif, dim=2, min_val=0, max_val=4, N=cell_num
         )
         gene_name = np.array(["Pu.1", "Gata.1"])
     elif motif == "Ying":
-        cell_num = 5000
         X, Y = state_space_sampler(
             ode=Ying_model, dim=2, clip=clip, min_val=-3, max_val=3, N=cell_num
         )
