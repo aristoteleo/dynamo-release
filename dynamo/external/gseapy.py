@@ -2,7 +2,7 @@ from pathlib import Path
 
 def enrichr(genes,
             organism,
-            background,
+            background=None,
             gene_sets=['GO_Biological_Process_2018'],
             description=None,
             outdir='./enrichr',
@@ -14,21 +14,21 @@ def enrichr(genes,
 
     Parameters
     ----------
-    genes: list or str
-        Flat file with list of genes, one gene id per row, or a python list object.
-    organism: str
-        Enrichr supported organism. Select from (human, mouse, yeast, fly, fish, worm).
-                     see here for details: https://amp.pharm.mssm.edu/modEnrichr
-    gene_sets: str (default: `'GO_Biological_Process_2018'`)
-        Enrichr Library to query. Required enrichr library name(s). Separate each name by comma.
-    description: str or None (default: `None`)
-        name of analysis. optional.
-    outdir: str (default: `'./enrichr'`)
-         Output file directory
-    cutoff: float (default: `0.05`)
-        Show enriched terms which Adjusted P-value < cutoff. Only affects the output figure. Default: 0.05
-    kwargs:
-        additional arguments passed to the `gp.enrichr` function.
+        genes: list or str
+            Flat file with list of genes, one gene id per row, or a python list object.
+        organism: str
+            Enrichr supported organism. Select from (human, mouse, yeast, fly, fish, worm).
+            see here for details: https://amp.pharm.mssm.edu/modEnrichr
+        gene_sets: str (default: `'GO_Biological_Process_2018'`)
+            Enrichr Library to query. Required enrichr library name(s). Separate each name by comma.
+        description: str or None (default: `None`)
+            name of analysis. optional.
+        outdir: str (default: `'./enrichr'`)
+             Output file directory
+        cutoff: float (default: `0.05`)
+            Show enriched terms which Adjusted P-value < cutoff. Only affects the output figure. Default: 0.05
+        kwargs:
+            additional arguments passed to the `gp.enrichr` function.
 
     Returns
     -------

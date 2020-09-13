@@ -345,13 +345,13 @@ def jacobian(adata,
         _background = background
 
     Jacobian_ = "jacobian" if basis is None else "jacobian_" + basis
-    Der, source_genes_, target_genes_, cell_indx, _  =  adata.uns[Jacobian_].values()
+    Der, cell_indx, jacobian_gene, regulators, effectors =  adata.uns[Jacobian_].values()
     adata_ = adata[cell_indx, :]
 
     Der, source_genes, target_genes = intersect_sources_targets(source_genes,
-                              source_genes_,
-                              target_genes,
-                              target_genes_,
+                              regulators,
+                              effectors,
+                              effectors,
                               Der)
 
     cur_pd = pd.DataFrame(
@@ -430,8 +430,8 @@ def jacobian(adata,
 
 def jacobian_heatmap(adata,
                      cell_idx,
-                     source_genes=None,
-                     target_genes=None,
+                     regulators=None,
+                     effectors=None,
                      figsize=(7, 5),
                      ncols=1,
                      cmap='bwr',
@@ -448,10 +448,10 @@ def jacobian_heatmap(adata,
     ----------
         adata: :class:`~anndata.AnnData`
             an Annodata object with Jacobian matrix estimated.
-        source_genes: `list` or `None` (default: `None`)
+        regulators: `list` or `None` (default: `None`)
             The list of genes that will be used as regulators for plotting the Jacobian heatmap, only limited to genes
             that have already performed Jacobian analysis.
-        target_genes: `List` or `None` (default: `None`)
+        effectors: `List` or `None` (default: `None`)
             The list of genes that will be used as targets for plotting the Jacobian heatmap, only limited to genes
             that have already performed Jacobian analysis.
         cell_idx: `int` or `list`
@@ -484,7 +484,7 @@ def jacobian_heatmap(adata,
     >>> dyn.tl.dynamics(adata)
     >>> dyn.tl.VectorField(adata, basis='pca')
     >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
-    >>> dyn.tl.jacobian(adata, source_genes=valid_gene_list[0], target_genes=valid_gene_list[1])
+    >>> dyn.tl.jacobian(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
     >>> dyn.pl.jacobian_heatmap(adata)
     """
 
@@ -493,11 +493,11 @@ def jacobian_heatmap(adata,
 
     Jacobian_ = "jacobian" #f basis is None else "jacobian_" + basis
     if type(cell_idx) == int: cell_idx = [cell_idx]
-    Der, source_genes_, target_genes_, cell_indx, _  =  adata.uns[Jacobian_].values()
-    Der, source_genes, target_genes = intersect_sources_targets(source_genes,
-                              source_genes_,
-                              target_genes,
-                              target_genes_,
+    Der, cell_indx, jacobian_gene, regulators_, effectors_ =  adata.uns[Jacobian_].values()
+    Der, source_genes, target_genes = intersect_sources_targets(regulators,
+                              regulators_,
+                              effectors,
+                              effectors_,
                               Der)
 
     adata_ = adata[cell_indx, :]
@@ -542,25 +542,25 @@ def jacobian_heatmap(adata,
         return gs
 
 
-def intersect_sources_targets(source_genes,
-                              source_genes_,
-                              target_genes,
-                              target_genes_,
+def intersect_sources_targets(regulators,
+                              regulators_,
+                              effectors,
+                              effectors_,
                               Der):
-    source_genes = source_genes_ if source_genes is None else source_genes
-    target_genes = target_genes_ if target_genes is None else target_genes
-    if type(source_genes) == str: source_genes = [source_genes]
-    if type(target_genes) == str: target_genes = [target_genes]
-    source_genes = list(set(source_genes_).intersection(source_genes))
-    target_genes = list(set(target_genes_).intersection(target_genes))
-    if len(source_genes) == 0 or len(target_genes) == 0:
-        raise ValueError(f"Jacobian related to source genes {source_genes} and target genes {target_genes}"
-                         f"you provided are existed. Available source genes includes {source_genes_} while "
-                         f"available target genes includes {target_genes_}")
+    regulators = regulators_ if regulators is None else regulators
+    effectors = effectors_ if effectors is None else effectors
+    if type(regulators) == str: regulators = [regulators]
+    if type(effectors) == str: effectors = [effectors]
+    regulators = list(set(regulators_).intersection(regulators))
+    effectors = list(set(effectors_).intersection(effectors))
+    if len(regulators) == 0 or len(effectors) == 0:
+        raise ValueError(f"Jacobian related to source genes {regulators} and target genes {effectors}"
+                         f"you provided are existed. Available source genes includes {regulators_} while "
+                         f"available target genes includes {effectors_}")
     # subset Der with correct index of selected source / target genes
-    valid_source_idx = [i for i, e in enumerate(source_genes_) if e in source_genes]
-    valid_target_idx = [i for i, e in enumerate(target_genes_) if e in target_genes]
-    Der = Der[valid_target_idx,  :, :][:, valid_source_idx, :] if len(source_genes_) + len(target_genes_) > 2 else Der
-    source_genes, target_genes = source_genes_[valid_source_idx], target_genes_[valid_target_idx]
+    valid_source_idx = [i for i, e in enumerate(regulators_) if e in regulators]
+    valid_target_idx = [i for i, e in enumerate(effectors_) if e in effectors]
+    Der = Der[valid_target_idx,  :, :][:, valid_source_idx, :] if len(regulators_) + len(effectors_) > 2 else Der
+    regulators, effectors = regulators_[valid_source_idx], effectors_[valid_target_idx]
 
-    return Der, source_genes, target_genes
+    return Der, regulators, effectors
