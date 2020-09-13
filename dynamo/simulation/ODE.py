@@ -65,6 +65,10 @@ def two_genes_motif(x, t=None, a1=1, a2=1, b1=1, b2=1, k1=1, k2=1, S=0.5, n=4):
 
     return dx
 
+def two_genes_motif_jacobian(x1, x2):
+    J = np.array([[0.25 * x1**3 / (0.0625 + x1**4)**2 - 1, -0.25 * x2**3 / (0.0625 + x2**4)**2],
+                  [- 0.25 * x1**3 / (0.0625 + x1**4)**2, 0.25 * x2**3 / (0.0625 + x2**4)**2 - 1]])
+    return J
 
 def neurogenesis(
     x,
