@@ -264,14 +264,14 @@ def jacobian(adata,
     ----------
         adata: :class:`~anndata.AnnData`
             an Annodata object with Jacobian matrix estimated.
-        source_genes: `list` or `None` (default: `None`)
+        regulators: `list` or `None` (default: `None`)
             The list of genes that will be used as regulators for plotting the Jacobian heatmap, only limited to genes
             that have already performed Jacobian analysis.
-        target_genes: `List` or `None` (default: `None`)
+        effectors: `List` or `None` (default: `None`)
             The list of genes that will be used as targets for plotting the Jacobian heatmap, only limited to genes
             that have already performed Jacobian analysis.
         basis: `str`
-            The reduced dimension.
+            The reduced dimension basis.
         x: `int` (default: `0`)
             The column index of the low dimensional embedding for the x-axis.
         y: `int` (default: `1`)
@@ -449,14 +449,16 @@ def jacobian_heatmap(adata,
     ----------
         adata: :class:`~anndata.AnnData`
             an Annodata object with Jacobian matrix estimated.
+        cell_idx: `int` or `list`
+            The numeric indices of the cells that you want to draw the jacobian matrix to reveal the regulatory activity.
+        basis: `str`
+            The reduced dimension basis.
         regulators: `list` or `None` (default: `None`)
             The list of genes that will be used as regulators for plotting the Jacobian heatmap, only limited to genes
             that have already performed Jacobian analysis.
         effectors: `List` or `None` (default: `None`)
             The list of genes that will be used as targets for plotting the Jacobian heatmap, only limited to genes
             that have already performed Jacobian analysis.
-        cell_idx: `int` or `list`
-            The numeric indices of the cells that you want to draw the jacobian matrix to reveal the regulatory activity.
         figsize: `None` or `[float, float]` (default: None)
                 The width and height of each panel in the figure.
         ncols: `int` (default: `1`)

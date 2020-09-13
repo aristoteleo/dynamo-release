@@ -457,6 +457,8 @@ def jacobian_kinetics(
     ----------
         adata: :class:`~anndata.AnnData`
             an Annodata object.
+        basis: `str`
+            The reduced dimension basis.
         regulators: `list` or `None` (default: `None`)
             The list of genes that will be used as regulators for plotting the Jacobian heatmap, only limited to genes
             that have already performed Jacobian analysis.

@@ -174,7 +174,7 @@ def state_space_sampler(ode, dim, clip=True, min_val=0, max_val=4, N=10000):
     return X, Y
 
 
-def Simulator(motif="neurogenesis", clip=True, cell_num=1000):
+def Simulator(motif="neurogenesis", clip=True, cell_num=5000):
     """Simulate the gene expression dynamics via deterministic ODE model
 
     Parameters
@@ -183,7 +183,7 @@ def Simulator(motif="neurogenesis", clip=True, cell_num=1000):
         Name of the network motif that will be used in the simulation.
     clip: `bool` (default: `True`)
         Whether to clip data points that are negative.
-    cell_num: `int` (default: `1000`)
+    cell_num: `int` (default: `5000`)
         Number of cells to simulate.
 
     Returns
