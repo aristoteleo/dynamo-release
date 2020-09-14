@@ -643,7 +643,9 @@ def rank_divergence_genes(adata,
     if jkey not in adata.uns_keys():
         raise Exception(f'The provided dictionary key {jkey} is not in .uns.')
     
-    if adata.uns[jkey]['regulators'].to_list() != adata.uns[jkey]['effectors'].to_list():
+    reg = [x for x in adata.uns[jkey]['regulators']]
+    eff = [x for x in adata.uns[jkey]['effectors']]
+    if reg != eff:
         raise Exception(f'The Jacobian should have the same regulators and effectors.')
     else:
         Genes = adata.uns[jkey]['regulators']
@@ -818,8 +820,8 @@ def rank_jacobian_genes(adata,
             raise Exception(f'The group information {groups} you provided is not in your adata object.')
         J_mean = average_jacobian_by_group(J, grps[J_dict['cell_idx']])
 
-    eff = J_dict['effectors']
-    reg = J_dict['regulators']
+    eff = np.array([x for x in J_dict['effectors']])
+    reg = np.array([x for x in J_dict['regulators']])
     rank_dict= {}
     if mode == 'full reg':
         for k, J in J_mean.items():
