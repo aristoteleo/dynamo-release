@@ -238,8 +238,8 @@ def jacobian(adata,
 
     ret_dict = {"jacobian": Js, "cell_idx": cell_idx}
     if Jacobian is not None: ret_dict['jacobian_gene'] = Jacobian
-    if regulators is not None: ret_dict['regulators'] = regulators
-    if effectors is not None: ret_dict['effectors'] = effectors
+    if regulators is not None: ret_dict['regulators'] = regulators.to_list()
+    if effectors is not None: ret_dict['effectors'] = effectors.to_list()
 
     if store_in_adata:
         jkey = "jacobian" if basis is None else "jacobian_" + basis
