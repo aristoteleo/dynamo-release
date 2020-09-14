@@ -238,8 +238,8 @@ def jacobian(adata,
 
     ret_dict = {"jacobian": Js, "cell_idx": cell_idx}
     if Jacobian is not None: ret_dict['jacobian_gene'] = Jacobian
-    if regulators is not None: ret_dict['regulators'] = regulators
-    if effectors is not None: ret_dict['effectors'] = effectors
+    if regulators is not None: ret_dict['regulators'] = regulators.to_list()
+    if effectors is not None: ret_dict['effectors'] = effectors.to_list()
 
     if store_in_adata:
         jkey = "jacobian" if basis is None else "jacobian_" + basis
@@ -448,10 +448,10 @@ def curvature(adata,
 
 
 def torsion(adata,
-         basis='umap',
-         vector_field_class=None,
-         **kwargs
-         ):
+            basis='umap',
+            vector_field_class=None,
+            **kwargs
+           ):
     """Calculate torsion for each cell with the reconstructed vector field function.
 
     Parameters
@@ -483,15 +483,15 @@ def torsion(adata,
 
 
 def rank_genes(adata,
-              arr_key,
-              groups=None,
-              genes=None,
-              abs=False,
-              fcn_pool=lambda x: np.mean(x, axis=0),
-              dtype=None,
-              output_values=False
-              ):
-    """Rank gene's absolute, positive, negative speed by different cell groups.
+               arr_key,
+               groups=None,
+               genes=None,
+               abs=False,
+               fcn_pool=lambda x: np.mean(x, axis=0),
+               dtype=None,
+               output_values=False
+               ):
+    """Rank gene's absolute, positive, negative vector field metrics by different cell groups.
 
     Parameters
     ----------
@@ -525,9 +525,7 @@ def rank_genes(adata,
             genes = np.logical_and(genes, dynamics_genes.to_list())
         elif areinstance(genes, str):
             genes_ = adata.var_names[dynamics_genes].intersection(genes).to_list()
-            genes = np.zeros(adata.n_vars, dtype=bool)
-            for g in genes_:
-                genes[adata.var_names==g] = True
+            genes = adata.var_names.isin(genes_)
         elif areinstance(genes, bool) or areinstance(genes, np.bool_):
             genes = np.array(genes)
             genes = np.logical_and(genes, dynamics_genes.to_list())
@@ -612,11 +610,11 @@ def rank_velocity_genes(adata, vkey='velocity_S', prefix_store='rank', **kwargs)
 
 
 def rank_divergence_genes(adata,
-                    jkey='jacobian_pca',
-                    genes=None,
-                    prefix_store='rank_div_gene',
-                    **kwargs
-                    ):
+                         jkey='jacobian_pca',
+                         genes=None,
+                         prefix_store='rank_div_gene',
+                         **kwargs
+                         ):
     """Rank genes based on their diagonal Jacobian for each cell group. 
         Be aware that this 'divergence' refers to the diagonal elements of a gene-wise
         Jacobian, rather than its trace, which is the common definition of the divergence.
@@ -632,7 +630,7 @@ def rank_divergence_genes(adata,
         genes: list or None (default: None)
             A list of names for genes of interest.
         prefix_store: str (default: 'rank')
-            The prefix added to the key for storing the returned in adata.
+            The prefix added to the key for storing the returned ranking info in adata.
         kwargs:
             Keyword arguments passed to `vf.rank_genes`.
 
@@ -769,13 +767,13 @@ def rank_curvature_genes(adata,
 
 
 def rank_jacobian_genes(adata,
-                groups=None,
-                jkey='jacobian_pca',
-                abs=False,
-                mode='full reg',
-                exclude_diagonal=False,
-                **kwargs
-                ):
+                        groups=None,
+                        jkey='jacobian_pca',
+                        abs=False,
+                        mode='full reg',
+                        exclude_diagonal=False,
+                        **kwargs
+                        ):
     """Rank genes or gene-gene interactions based on their Jacobian elements for each cell group. 
 
         Run .vf.jacobian and set store_in_adata=True before using this function.

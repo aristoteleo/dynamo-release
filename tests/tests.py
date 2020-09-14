@@ -250,3 +250,48 @@ from scipy import optimize
 #             Q, _ = dyn.tl.solveQ(D, F)
 #             H = np.linalg.inv(D + Q).dot(F)
 #             U[i, j] = -0.5 * X_s @ H @ X_s
+
+# test calculating jacobian below:
+# import dynamo as dyn
+# import numpy as np
+#
+# adata = dyn.sim.Simulator(motif="twogenes")
+# adata.obsm['X_umap'], adata.obsm['velocity_umap'] = adata.X, adata.layers['velocity']
+# dyn.vf.VectorField(adata, basis='umap')
+#
+# # plot potential and topography
+# dyn.ext.ddhodge(adata, basis='umap')
+# dyn.pl.topography(adata, color='umap_ddhodge_potential')
+#
+# adata.var['use_for_dynamics'] = True
+# a = np.zeros((2, 2), int)
+# np.fill_diagonal(a, 1)
+#
+# adata.uns['PCs'] = a
+# dyn.vf.jacobian(adata, basis='umap', regulators=['Pu.1', 'Gata.1'],
+#                 effectors=['Pu.1', 'Gata.1'], store_in_adata=True)
+#
+# # plot the recovered jacobian
+# dyn.pl.jacobian(adata)
+#
+# #plot jacobian kinetics and heatmap
+# dyn.pl.jacobian_kinetics(adata, basis='umap', tkey='umap_ddhodge_potential')
+# dyn.pl.jacobian_heatmap(adata, cell_idx=[0], basis='umap')
+#
+# def jacobian(x1, x2):
+#     J = np.array([[0.25 * x1**3 / (0.0625 + x1**4)**2 - 1, -0.25 * x2**3 / (0.0625 + x2**4)**2],
+#                   [- 0.25 * x1**3 / (0.0625 + x1**4)**2, 0.25 * x2**3 / (0.0625 + x2**4)**2 - 1]])
+#     return J
+# # plot the true jacobian
+# J_dict = adata.uns['jacobian_umap'].copy()
+#
+# J = np.zeros_like(J_dict['jacobian'])
+# for ind, i in enumerate(adata.X):
+#     J[:, :, ind] = dyn.sim.two_genes_motif_jacobian(i[0], i[1])
+#
+# J_dict['jacobian'] = J
+# adata.uns['jacobian_true'] = J_dict
+# adata.obsm['X_true'] = adata.obsm['X_umap']
+#
+# dyn.pl.jacobian(adata, basis='true')
+#

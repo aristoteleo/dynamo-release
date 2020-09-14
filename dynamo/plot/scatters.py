@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import is_categorical_dtype
 
-from scipy.sparse import issparse
+import anndata
 from numbers import Number
 
 import matplotlib.colors
@@ -304,8 +304,8 @@ def scatters(
         1 if color is None else len(color),
         1 if layer is None else len(layer),
         1 if basis is None else len(basis),
-        1 if x is None else len(x),
-        1 if y is None else len(y),
+        1 if x is None else 1 if type(x) in [anndata._core.views.ArrayView, np.ndarray] else len(x), ## check whether it is an array
+        1 if y is None else 1 if type(y) in [anndata._core.views.ArrayView, np.ndarray]  else len(y), ## check whether it is an array
     )
 
     point_size = (
@@ -336,7 +336,7 @@ def scatters(
     for cur_b in basis:
         for cur_l in layer:
             if use_smoothed:
-                cur_l_smoothed = mapper[cur_l]
+                cur_l_smoothed = cur_l if cur_l.startswith('M_') | cur_l.startswith('velocity') else mapper[cur_l]
             prefix = cur_l + "_"
 
             # if prefix + cur_b in adata.obsm.keys():
@@ -353,7 +353,10 @@ def scatters(
                     _color = adata.obsm[cur_l].loc[cur_c, :]
                 else:
                     _color = adata.obs_vector(cur_c, layer=None) if cur_l == 'X' else adata.obs_vector(cur_c, layer=cur_l)
-                for cur_x, cur_y in zip(x, y):
+                if type(x) in [anndata._core.views.ArrayView, np.ndarray] and \
+                        type(y) in [anndata._core.views.ArrayView, np.ndarray]:
+                    x, y = [x], [y]
+                for cur_x, cur_y in zip(x, y): # here x / y are arrayes
                     if type(cur_x) is int and type(cur_y) is int:
                         points = pd.DataFrame(
                             {
@@ -405,7 +408,6 @@ def scatters(
                         points.columns = [cur_x + " (" + cur_l_smoothed + ")", cur_y]
                         cur_title = cur_x
                     elif is_layer_keys(adata, cur_x) and is_layer_keys(adata, cur_y):
-                        add_gamma_fit = True
                         cur_x_, cur_y_ = adata[:, cur_b].layers[cur_x], adata[:, cur_b].layers[cur_y]
                         points = pd.DataFrame(
                             {cur_x: flatten(cur_x_),
@@ -414,6 +416,15 @@ def scatters(
                         # points = points.loc[points.iloc[:, 0] > 0, :]
                         points.columns = [cur_x, cur_y]
                         cur_title = cur_b
+                    elif type(cur_x) in [anndata._core.views.ArrayView, np.ndarray] and \
+                            type(cur_y) in [anndata._core.views.ArrayView, np.ndarray]:
+                        points = pd.DataFrame(
+                            {'x': flatten(cur_x),
+                             'y': flatten(cur_y)}
+                        )
+                        points.columns = ['x', 'y']
+                        cur_title = cur_b
+
                     if aggregate is not None:
                         groups, uniq_grp = (
                             adata.obs[aggregate],

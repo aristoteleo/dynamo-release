@@ -433,8 +433,9 @@ def lowess_smoother(time, exprs, spaced_num):
 @docstrings.with_indent(4)
 def jacobian_kinetics(
     adata,
-    source_genes=None,
-    target_genes=None,
+    basis='umap',
+    regulators=None,
+    effectors=None,
     mode="pseudotime",
     tkey="potential",
     color_map="bwr",
@@ -456,10 +457,12 @@ def jacobian_kinetics(
     ----------
         adata: :class:`~anndata.AnnData`
             an Annodata object.
-        source_genes: `list` or `None` (default: `None`)
+        basis: `str`
+            The reduced dimension basis.
+        regulators: `list` or `None` (default: `None`)
             The list of genes that will be used as regulators for plotting the Jacobian heatmap, only limited to genes
             that have already performed Jacobian analysis.
-        target_genes: `List` or `None` (default: `None`)
+        effectors: `List` or `None` (default: `None`)
             The list of genes that will be used as targets for plotting the Jacobian heatmap, only limited to genes
             that have already performed Jacobian analysis.
         mode: `str` (default: `vector_field`)
@@ -506,9 +509,9 @@ def jacobian_kinetics(
     >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
     >>> adata = dyn.pp.recipe_monocle(adata)
     >>> dyn.tl.dynamics(adata)
-    >>> dyn.tl.VectorField(adata, basis='pca')
+    >>> dyn.vf.VectorField(adata, basis='pca')
     >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
-    >>> dyn.tl.jacobian(adata, source_genes=valid_gene_list[0], target_genes=valid_gene_list[1])
+    >>> dyn.vf.jacobian(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
     >>> dyn.pl.jacobian_kinetics(adata)
     """
 
@@ -516,8 +519,8 @@ def jacobian_kinetics(
     import seaborn as sns
     import matplotlib.pyplot as plt
 
-    Jacobian_ = "jacobian" #f basis is None else "jacobian_" + basis
-    Der, source_genes_, target_genes_, cell_indx, _  =  adata.uns[Jacobian_].values()
+    Jacobian_ = "jacobian" if basis is None else "jacobian_" + basis
+    Der, cell_indx, _, regulators_, effectors_ = adata.uns[Jacobian_].values()
     if tkey == "potential" and "potential" not in adata.obs_keys():
         ddhodge(adata)
 
@@ -525,22 +528,22 @@ def jacobian_kinetics(
     time = adata_.obs[tkey]
     jacobian_mat = Der.reshape((-1, Der.shape[2])) if Der.ndim == 3 else Der[None, :]
     n_source_targets_ = Der.shape[0] * Der.shape[1] if Der.ndim == 3 else 1
-    targets_, sources_ = (np.repeat(target_genes_, Der.shape[1]), np.tile(source_genes_, Der.shape[0])) if Der.ndim == 3 \
-        else (np.repeat(target_genes_, Der.shape[0]), np.repeat(target_genes_, Der.shape[0]))
+    targets_, sources_ = (np.repeat(effectors_, Der.shape[1]), np.tile(regulators_, Der.shape[0])) if Der.ndim == 3 \
+        else (np.repeat(effectors_, Der.shape[0]), np.repeat(effectors_, Der.shape[0]))
     source_targets_ = [sources_[i] + '->' + targets_[i] for i in range(n_source_targets_)]
 
-    source_genes = source_genes_ if source_genes is None else source_genes
-    target_genes = target_genes_ if target_genes is None else target_genes
-    if type(source_genes) == str: source_genes = [source_genes]
-    if type(target_genes) == str: target_genes = [target_genes]
-    source_genes = list(set(source_genes_).intersection(source_genes))
-    target_genes = list(set(target_genes_).intersection(target_genes))
-    if len(source_genes) == 0 or len(target_genes) == 0:
-        raise ValueError(f"Jacobian related to source genes {source_genes} and target genes {target_genes}"
-                         f"you provided are existed. Available source genes includes {source_genes_} while "
-                         f"available target genes includes {target_genes_}")
-    n_source_targets = len(source_genes) * len(target_genes)
-    targets, sources = np.repeat(target_genes, len(source_genes)), np.tile(source_genes, len(target_genes))
+    regulators = regulators_ if regulators is None else regulators
+    effectors = effectors_ if effectors is None else effectors
+    if type(regulators) == str: regulators = [regulators]
+    if type(effectors) == str: effectors = [effectors]
+    regulators = list(set(regulators_).intersection(regulators))
+    effectors = list(set(effectors_).intersection(effectors))
+    if len(regulators) == 0 or len(effectors) == 0:
+        raise ValueError(f"Jacobian related to source genes {regulators} and target genes {effectors}"
+                         f"you provided are existed. Available source genes includes {regulators_} while "
+                         f"available target genes includes {effectors_}")
+    n_source_targets = len(regulators) * len(effectors)
+    targets, sources = np.repeat(effectors, len(regulators)), np.tile(regulators, len(effectors))
     source_targets = [sources[i] + '->' + targets[i] for i in range(n_source_targets)]
 
     jacobian_mat = jacobian_mat[:, np.argsort(time)]

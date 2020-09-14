@@ -443,6 +443,7 @@ External (ext)
    :toctree: _autosummary
 
     ext.ddhodge
+    ext.enrichr
     ext.scribe
     ext.mutual_inform
     ext.scifate_glmnet
