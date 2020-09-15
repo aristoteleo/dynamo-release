@@ -57,13 +57,12 @@ If you want to contribute to the development of dynamo, please check out CONTRIB
 
 
 .. toctree::
-   :caption: labeling scRNA-seq
+   :caption: Labeling scRNA-seq
    :maxdepth: 1
    :hidden:
 
    scNT_seq_readthedocs
    scEU_seq_rpe1_analysis_kinetic
-   scEU_seq_organoid_analysis_kinetic
 
 
 Indices and tables

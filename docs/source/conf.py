@@ -37,7 +37,6 @@ notebooks = [
     "pancreatic_endocrinogenesis.ipynb",
     "scNT_seq_readthedocs.ipynb",
     "scEU_seq_rpe1_analysis_kinetic.ipynb",
-    "scEU_seq_organoid_analysis_kinetic.ipynb",
 ]
 for nb in notebooks:
     try:
