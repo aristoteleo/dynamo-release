@@ -139,4 +139,4 @@ def setup(app):
 html_static_path = ["_static"]
 
 sphinx_enable_epub_build=False
-sphinx_enable_pdf_build=False
+sphinx_enable_pdf_build=True
