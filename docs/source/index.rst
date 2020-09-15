@@ -28,6 +28,14 @@ If you want to contribute to the development of dynamo, please check out CONTRIB
 
 
 .. toctree::
+   :maxdepth: 1
+   :caption: Intro to time resolved scRNA-seq
+   :hidden:
+
+   Introduction
+
+
+.. toctree::
    :maxdepth: 3
    :caption: Contents
 
@@ -38,6 +46,7 @@ If you want to contribute to the development of dynamo, please check out CONTRIB
    Release_notes
    Reference
    Acknowledgement
+
 
 .. toctree::
    :maxdepth: 1

@@ -31,6 +31,7 @@ from urllib.request import urlretrieve
 
 notebooks_url = "https://github.com/aristoteleo/dynamo-tutorials/raw/master/"
 notebooks = [
+    "Introduction.ipynb",
     "zebrafish.ipynb",
     "dentategyrus_subset_scvelo.ipynb",
     "pancreatic_endocrinogenesis.ipynb",
