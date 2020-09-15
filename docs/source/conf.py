@@ -87,6 +87,7 @@ extensions = [
     "sphinx.ext.githubpages",
     'sphinx.ext.autosectionlabel',
     "sphinx_autodoc_typehints",  # Automatically document param types (less noise in class signature)
+    "scEU_seq_organoid_analysis_kinetic.ipynb",
 ]
 
 # Mappings for sphinx.ext.intersphinx. Projects have to have Sphinx-generated doc! (.inv file)
@@ -136,3 +137,6 @@ def setup(app):
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
+
+sphinx_enable_epub_build=False
+sphinx_enable_pdf_build=False
