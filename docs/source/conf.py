@@ -37,6 +37,7 @@ notebooks = [
     "pancreatic_endocrinogenesis.ipynb",
     "scNT_seq_readthedocs.ipynb",
     "scEU_seq_rpe1_analysis_kinetic.ipynb",
+    "scEU_seq_organoid_analysis_kinetic.ipynb",
 ]
 for nb in notebooks:
     try:
@@ -87,7 +88,6 @@ extensions = [
     "sphinx.ext.githubpages",
     'sphinx.ext.autosectionlabel',
     "sphinx_autodoc_typehints",  # Automatically document param types (less noise in class signature)
-    "scEU_seq_organoid_analysis_kinetic.ipynb",
 ]
 
 # Mappings for sphinx.ext.intersphinx. Projects have to have Sphinx-generated doc! (.inv file)
