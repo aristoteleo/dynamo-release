@@ -35,6 +35,7 @@ notebooks = [
     "zebrafish.ipynb",
     "dentategyrus_subset_scvelo.ipynb",
     "pancreatic_endocrinogenesis.ipynb",
+    "scNT_seq_readthedocs.ipynb",
 ]
 for nb in notebooks:
     try:
