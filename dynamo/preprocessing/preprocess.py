@@ -1459,8 +1459,8 @@ def recipe_monocle(
         adata.uns['raw_data'] = False
 
     if not keep_raw_layers:
-        for layer in adata.layer.keys():
-            if not layer.startwith('X_'):
+        for layer in adata.layers.keys():
+            if not layer.startswith('X_'):
                 del adata.layers[layer]
 
     return adata
