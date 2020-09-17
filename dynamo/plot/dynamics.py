@@ -1157,14 +1157,14 @@ def dynamics(
         uns_key = "dynamics"
         _group, grp_len = ["_all_cells"], 1
 
-    experiment_type = adata.uns[uns_key].pop('experiment_type', None)
-    T = adata.uns[uns_key].pop('t', None)
-    filter_gene_mode = adata.uns[uns_key].pop('filter_gene_mode', None)
-    X_data = adata.uns[uns_key].pop('X_data', None)
-    X_fit_data = adata.uns[uns_key].pop('X_fit_data', None)
-    has_splicing = adata.uns[uns_key].pop('has_splicing', None)
-    model = adata.uns[uns_key].pop('model', None)
-    use_smoothed = adata.uns[uns_key].pop('use_smoothed', None)
+    experiment_type = adata.uns[uns_key]['experiment_type']
+    T = adata.uns[uns_key]['t']
+    filter_gene_mode = adata.uns[uns_key]['filter_gene_mode']
+    X_data = adata.uns[uns_key]['X_data']
+    X_fit_data = adata.uns[uns_key]['X_fit_data']
+    has_splicing = adata.uns[uns_key]['has_splicing']
+    model = adata.uns[uns_key]['model']
+    use_smoothed = adata.uns[uns_key]['use_smoothed']
 
     # for key, val in adata.uns[uns_key].items():
     #     exec(key + '=val')
