@@ -522,7 +522,7 @@ def inverse_norm(adata, layer_x):
     return layer_x
 
 # ---------------------------------------------------------------------------------------------------
-# dynamics related:
+# kinetic parameters related:
 def one_shot_alpha(l, gamma, t):
     alpha = l * gamma / (1 - np.exp(-gamma * t))
     return alpha
@@ -569,6 +569,12 @@ def compute_velocity_labeling_B(B, alpha, R):
 
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
+def remove_2nd_moments(adata):
+    layers = list(adata.layers.keys())
+    for layer in layers:
+        if layer.startswith('M_') and len(layer) == 4:
+            del adata.layers[layer]
+
 def get_valid_bools(adata, filter_gene_mode):
     if filter_gene_mode == "final":
         valid_ind = adata.var.use_for_pca.values

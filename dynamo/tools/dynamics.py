@@ -18,6 +18,7 @@ from .utils import (
     get_data_for_kin_params_estimation,
     get_U_S_for_velocity_estimation,
     one_shot_alpha_matrix,
+    remove_2nd_moments,
 )
 from .utils import set_velocity, set_param_ss, set_param_kinetic
 from .moments import (
@@ -51,6 +52,7 @@ def dynamics(
     one_shot_method="combined",
     re_smooth=False,
     sanity_check=False,
+    remove_2nd_moments=False,
     cores=1,
     **est_kwargs
 ):
@@ -156,6 +158,10 @@ def dynamics(
             applicable to kinetic or degradation metabolic labeling based scRNA-seq data. The basic idea is that for
             kinetic (degradation) experiment, the total labelled RNA for each gene should increase (decrease) over time.
             If they don't satisfy this criteria, those genes will be ignored during the estimation.
+        remove_2nd_moments: `bool` (default: `False`)
+            Whether to remove second moments or covariances. Default it is `False` so this avoids to recalculate 2nd
+            moments or covariance but it may take a lot memory when your dataset is big. Set to to `True` when your data
+            is huge.
         cores: `int` (default: 1):
             Number of cores to run the estimation. If cores is set to be > 1, multiprocessing will be used to parallel
             the parameter estimation. Currently only applicable cases when assumption_mRNA is `ss` or cases when 
@@ -697,6 +703,9 @@ def dynamics(
         "NTR_vel": NTR_vel,
         "log_unnormalized": log_unnormalized,
     }
+
+    if remove_2nd_moments:
+        remove_2nd_moments(adata)
 
     return adata
 
