@@ -1157,23 +1157,18 @@ def dynamics(
         uns_key = "dynamics"
         _group, grp_len = ["_all_cells"], 1
 
-    (
-        filter_gene_mode,
-        T,
-        group,
-        X_data,
-        X_fit_data,
-        asspt_mRNA,
-        experiment_type,
-        normalized,
-        model,
-        has_splicing,
-        has_labeling,
-        has_protein,
-        use_smoothed,
-        NTR_vel,
-        log_unnormalized
-    ) = adata.uns[uns_key].values()
+    experiment_type = adata.uns[uns_key].pop('experiment_type', None)
+    T = adata.uns[uns_key].pop('t', None)
+    filter_gene_mode = adata.uns[uns_key].pop('filter_gene_mode', None)
+    X_data = adata.uns[uns_key].pop('X_data', None)
+    X_fit_data = adata.uns[uns_key].pop('X_fit_data', None)
+    has_splicing = adata.uns[uns_key].pop('has_splicing', None)
+    model = adata.uns[uns_key].pop('model', None)
+    use_smoothed = adata.uns[uns_key].pop('use_smoothed', None)
+
+    # for key, val in adata.uns[uns_key].items():
+    #     exec(key + '=val')
+
     if experiment_type == "conventional":
         # run the phase_portraits plot
         warnings.warn(
