@@ -242,6 +242,12 @@ def coexp_measure(adata, genes, layer_x, layer_y, cores=1, skip_mi=True):
             pearson[i] = einsum_correlation(x[None, mask], y[mask], type="pearson")
 
         if not skip_mi:
+            def pool_mi(x, y, k):
+                mask = np.logical_and(np.isfinite(x), np.isfinite(y))
+                x, y = [[i] for i in x[mask]], [[i] for i in y[mask]]
+
+                return mi(x, y, k)
+
             pool = ThreadPool(cores)
             res = pool.starmap(pool_mi, zip(X, Y, itertools.repeat(k)))
             pool.close()
@@ -251,9 +257,3 @@ def coexp_measure(adata, genes, layer_x, layer_y, cores=1, skip_mi=True):
     if not skip_mi: adata.var.loc[genes, 'mi'] = mi_vec
     adata.var.loc[genes, 'pearson'] = pearson
 
-
-def pool_mi(x, y, k):
-    mask = np.logical_and(np.isfinite(x), np.isfinite(y))
-    x, y = [[i] for i in x[mask]], [[i] for i in y[mask]]
-
-    return mi(x, y, k)
