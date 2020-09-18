@@ -159,9 +159,9 @@ def dynamics(
             kinetic (degradation) experiment, the total labelled RNA for each gene should increase (decrease) over time.
             If they don't satisfy this criteria, those genes will be ignored during the estimation.
         remove_2nd_moments: `bool` (default: `False`)
-            Whether to remove second moments or covariances. Default it is `False` so this avoids to recalculate 2nd
-            moments or covariance but it may take a lot memory when your dataset is big. Set to to `True` when your data
-            is huge.
+            Whether to remove second moments or covariances. Default it is `False` so this avoids recalculating 2nd
+            moments or covariance but it may take a lot memory when your dataset is big. Set this to `True` when your
+            data is huge (like > 25, 000 cells or so) to reducing the memory footprint.
         cores: `int` (default: 1):
             Number of cores to run the estimation. If cores is set to be > 1, multiprocessing will be used to parallel
             the parameter estimation. Currently only applicable cases when assumption_mRNA is `ss` or cases when 

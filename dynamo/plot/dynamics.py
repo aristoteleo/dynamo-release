@@ -245,24 +245,21 @@ def phase_portraits(
     if ekey in layers:
         if ekey == "X":
             E_vec = (
-                #adata[:, genes].layers[mapper["X"]]
                 index_gene(adata, adata.layers[mapper['X']], genes)
                 if mapper["X"] in adata.layers.keys()
-                else adata[:, genes].X
+                else index_gene(adata, adata.X, genes)
             )
         elif ekey in ["protein", "X_protein"]:
             E_vec = (
-                #adata[:, genes].layers[mapper[ekey]]
                 index_gene(adata, adata.layers[mapper[ekey]], genes)
                 if (ekey in mapper.keys()) and (mapper[ekey] in adata.obsm_keys())
-                else adata[:, genes].obsm[ekey]
+                else index_gene(adata, adata.obsm[ekey], genes)
             )
         else:
             E_vec = (
-                #adata[:, genes].layers[mapper[ekey]]
                 index_gene(adata, adata.layers[mapper[ekey]], genes)
                 if (ekey in mapper.keys()) and (mapper[ekey] in adata.layers.keys())
-                else adata[:, genes].layers[ekey]
+                else index_gene(adata, adata.layers[ekey], genes)
             )
         
         if log1p: E_vec = log1p_(adata, E_vec)
@@ -276,22 +273,16 @@ def phase_portraits(
     if "velocity_" not in vkey:
         vkey = "velocity_" + vkey
     if vkey == "velocity_U":
-        #V_vec = adata[:, genes].layers["velocity_U"]
         V_vec = index_gene(adata, adata.layers['velocity_U'], genes)
         if "velocity_P" in adata.obsm.keys():
-            #P_vec = adata[:, genes].layer["velocity_P"]
             P_vec = index_gene(adata, adata.layers['velocity_P'], genes)
     elif vkey == "velocity_S":
-        #V_vec = adata[:, genes].layers["velocity_S"]
         V_vec = index_gene(adata, adata.layers['velocity_S'], genes)
         if "velocity_P" in adata.obsm.keys():
-            #P_vec = adata[:, genes].layers["velocity_P"]
             P_vec = index_gene(adata, adata.layers['velocity_P'], genes)
     elif vkey == "velocity_T":
-        #V_vec = adata[:, genes].layers["velocity_T"]
         V_vec = index_gene(adata, adata.layers['velocity_T'], genes)
         if "velocity_P" in adata.obsm.keys():
-            #P_vec = adata[:, genes].layers["velocity_P"]
             P_vec = index_gene(adata, adata.layers['velocity_P'], genes)
     else:
         raise Exception(
@@ -310,8 +301,6 @@ def phase_portraits(
         ):
             adata.var.loc[:, "gamma_b"] = 0
         gamma, velocity_offset = (
-            #adata[:, genes].var.loc[:, k_name].values,
-            #adata[:, genes].var.gamma_b.values,
             index_gene(adata, adata.var.loc[:, k_name].values, genes),
             index_gene(adata, adata.var.gamma_b.values, genes)
         )
@@ -327,8 +316,6 @@ def phase_portraits(
 
     if mode == "labeling":
         new_mat, tot_mat = (
-            #adata[:, genes].layers[mapper["X_new"]],
-            #adata[:, genes].layers[mapper["X_total"]],
             index_gene(adata, adata.layers[mapper["X_new"]], genes),
             index_gene(adata, adata.layers[mapper["X_total"]], genes)
         )
@@ -338,8 +325,6 @@ def phase_portraits(
         )
 
         vel_u, vel_s = (
-            #adata[:, genes].layers["velocity_N"].A,
-            #adata[:, genes].layers["velocity_T"].A,
             index_gene(adata, adata.layers["velocity_N"].A, genes),
             index_gene(adata, adata.layers["velocity_T"].A, genes)
         )
@@ -362,8 +347,6 @@ def phase_portraits(
 
     elif mode == "splicing":
         unspliced_mat, spliced_mat = (
-            #adata[:, genes].layers[mapper["X_unspliced"]],
-            #adata[:, genes].layers[mapper["X_spliced"]],
             index_gene(adata, adata.layers[mapper["X_unspliced"]], genes),
             index_gene(adata, adata.layers[mapper["X_spliced"]], genes)
         )
@@ -375,8 +358,6 @@ def phase_portraits(
         )
 
         vel_u, vel_s = (
-            #np.zeros_like(adata[:, genes].layers["velocity_S"].A),
-            #adata[:, genes].layers["velocity_S"].A,
             np.zeros_like(index_gene(adata, adata.layers["velocity_S"].A, genes)),
             index_gene(adata, adata.layers["velocity_S"].A, genes)
         )
@@ -399,10 +380,6 @@ def phase_portraits(
 
     elif mode == "full":
         uu, ul, su, sl = (
-            #adata[:, genes].layers[mapper["X_uu"]],
-            #adata[:, genes].layers[mapper["X_ul"]],
-            #adata[:, genes].layers[mapper["X_su"]],
-            #adata[:, genes].layers[mapper["X_sl"]],
             index_gene(adata, adata.layers[mapper["X_uu"]], genes),
             index_gene(adata, adata.layers[mapper["X_ul"]], genes),
             index_gene(adata, adata.layers[mapper["X_su"]], genes),
@@ -410,13 +387,9 @@ def phase_portraits(
         )
 
         vel_u, vel_s = (
-            #adata[:, genes].layers["velocity_U"].A,
-            #adata[:, genes].layers["velocity_S"].A,
             index_gene(adata, adata.layers["velocity_U"].A, genes),
             index_gene(adata, adata.layers["velocity_S"].A, genes),
         ) if vkey == 'velocity_S' else (
-            #adata[:, genes].layers["velocity_N"].A,
-            #adata[:, genes].layers["velocity_T"].A,
             index_gene(adata, adata.layers["velocity_N"].A, genes),
             index_gene(adata, adata.layers["velocity_T"].A, genes),
         )
@@ -438,13 +411,11 @@ def phase_portraits(
                 )
 
             P = (
-                #adata[:, genes].obsm[mapper["X_protein"]]
                 index_gene(adata, adata.obsm[mapper["X_protein"]], genes)
                 if (
                         ["X_protein"] in adata.obsm.keys()
                         or [mapper["X_protein"]] in adata.obsm.keys()
                 )
-                #else adata[:, genes].obsm["protein"]
                 else index_gene(adata, adata.obsm["protein"], genes)
             )
             uu, ul, su, sl, P = (
