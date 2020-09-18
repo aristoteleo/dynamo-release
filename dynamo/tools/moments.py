@@ -75,7 +75,7 @@ def moments(adata,
             if not any([i.startswith('X_') for i in adata.layers.keys()]):
                 from ..preprocessing.preprocess import recipe_monocle
                 genes_to_use = adata.var_names[genes] if genes.dtype == 'bool' else genes
-                adata = recipe_monocle(adata, genes_to_use=genes_to_use, n_pca_components=n_pca_components)
+                adata = recipe_monocle(adata, genes_to_use=genes_to_use)
                 adata.obsm["X"] = adata.obsm["X_pca"]
             else:
                 CM = adata.X if genes is None else adata[:, genes].X
