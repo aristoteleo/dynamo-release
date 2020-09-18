@@ -153,7 +153,7 @@ def load_NASC_seq(dir, type='TPM', delimiter="_", colnames=None, dropna=False):
     adata.uns['raw_data'] = True
 
 
-def cleanup(adata, del_prediction=False):
+def cleanup(adata, del_prediction=False, del_2nd_moments=False):
     """clean up adata before saving it to a file"""
 
     if 'pca_fit' in adata.uns_keys(): adata.uns['pca_fit'] = None
@@ -176,5 +176,9 @@ def cleanup(adata, del_prediction=False):
                 if del_prediction: del adata.uns[i]['prediction']
             if 'VecFld_true' in adata.uns[i].keys():
                 if adata.uns[i]['VecFld_true'] is not None: del adata.uns[i]['VecFld_true']
+
+    if del_2nd_moments:
+        from .tools.utils import remove_2nd_moments
+        remove_2nd_moments(adata)
 
     return adata

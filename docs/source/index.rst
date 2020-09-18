@@ -28,6 +28,14 @@ If you want to contribute to the development of dynamo, please check out CONTRIB
 
 
 .. toctree::
+   :maxdepth: 1
+   :caption: Introduction
+   :hidden:
+
+   Introduction
+
+
+.. toctree::
    :maxdepth: 3
    :caption: Contents
 
@@ -39,21 +47,23 @@ If you want to contribute to the development of dynamo, please check out CONTRIB
    Reference
    Acknowledgement
 
+
 .. toctree::
    :maxdepth: 1
-   :caption: Main tutorials
+   :caption: Conventional scRNA-seq
    :hidden:
 
    zebrafish
 
+
 .. toctree::
-   :caption: Other tutorials
+   :caption: Labeling scRNA-seq
    :maxdepth: 1
    :hidden:
 
-   pancreatic_endocrinogenesis
-   dentategyrus_subset_scvelo
-
+   scNT_seq_readthedocs
+   scEU_seq_rpe1_analysis_kinetic
+   scEU_seq_organoid_analysis_kinetic
 
 Indices and tables
 ==================

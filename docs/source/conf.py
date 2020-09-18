@@ -31,9 +31,13 @@ from urllib.request import urlretrieve
 
 notebooks_url = "https://github.com/aristoteleo/dynamo-tutorials/raw/master/"
 notebooks = [
+    "Introduction.ipynb",
     "zebrafish.ipynb",
     "dentategyrus_subset_scvelo.ipynb",
     "pancreatic_endocrinogenesis.ipynb",
+    "scNT_seq_readthedocs.ipynb",
+    "scEU_seq_rpe1_analysis_kinetic.ipynb",
+    "scEU_seq_organoid_analysis_kinetic.ipynb",
 ]
 for nb in notebooks:
     try:
@@ -133,3 +137,6 @@ def setup(app):
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
+
+sphinx_enable_epub_build=False
+sphinx_enable_pdf_build=False

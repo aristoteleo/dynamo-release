@@ -3,5 +3,5 @@
 
 from .hodge import ddhodge
 from .gseapy import enrichr
-from .scribe import scribe, mutual_inform
+from .scribe import scribe, coexp_measure
 from .scifate import scifate_glmnet

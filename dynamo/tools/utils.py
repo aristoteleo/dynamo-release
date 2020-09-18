@@ -127,11 +127,14 @@ def index_gene(adata, arr, genes):
             The indexed array.
     """
     if areinstance(genes, str):
-        all_genes = adata.var.index
-        mask = np.zeros(len(all_genes), dtype=np.bool_)
-        for i, g in enumerate(all_genes):
-            if g in genes:
-                mask[i] = True
+        all_genes = adata.var_names
+        # Note: this mask here is in fact an indices vector!
+        mask = np.zeros(len(genes), dtype=int)
+        for i, g in enumerate(genes):
+            if g in all_genes:
+                mask[i] = all_genes.get_loc(g)
+            else:
+                raise ValueError(f"the gene {g} you provided is not included in the data.")
     elif areinstance(genes, bool) or areinstance(genes, np.bool_):
         mask = np.array(genes)
 
@@ -522,7 +525,7 @@ def inverse_norm(adata, layer_x):
     return layer_x
 
 # ---------------------------------------------------------------------------------------------------
-# dynamics related:
+# kinetic parameters related:
 def one_shot_alpha(l, gamma, t):
     alpha = l * gamma / (1 - np.exp(-gamma * t))
     return alpha
@@ -569,6 +572,12 @@ def compute_velocity_labeling_B(B, alpha, R):
 
 # ---------------------------------------------------------------------------------------------------
 # dynamics related:
+def remove_2nd_moments(adata):
+    layers = list(adata.layers.keys())
+    for layer in layers:
+        if layer.startswith('M_') and len(layer) == 4:
+            del adata.layers[layer]
+
 def get_valid_bools(adata, filter_gene_mode):
     if filter_gene_mode == "final":
         valid_ind = adata.var.use_for_pca.values

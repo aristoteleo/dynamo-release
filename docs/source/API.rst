@@ -445,7 +445,7 @@ External (ext)
     ext.ddhodge
     ext.enrichr
     ext.scribe
-    ext.mutual_inform
+    ext.coexp_measure
     ext.scifate_glmnet
 
 Utilities

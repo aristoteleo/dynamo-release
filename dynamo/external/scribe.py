@@ -182,8 +182,9 @@ def scribe(adata,
     return adata_
 
 
-def mutual_inform(adata, genes, layer_x, layer_y, cores=1):
-    """Calculate mutual information (as well as pearson correlation) of genes between two different layers.
+def coexp_measure(adata, genes, layer_x, layer_y, cores=1, skip_mi=True):
+    """Calculate co-expression measures, including mutual information (MI), pearson correlation, etc. of genes between
+    two different layers.
 
     Parameters
     ----------
@@ -191,13 +192,15 @@ def mutual_inform(adata, genes, layer_x, layer_y, cores=1):
             adata object that will be used for mutual information calculation.
         genes: `List` (default: None)
             Gene names from the adata object that will be used for mutual information calculation.
-        layer_x
+        layer_x: `str`
             The first key of the layer from the adata object that will be used for mutual information calculation.
-        layer_y
+        layer_y: `str`
             The second key of the layer from the adata object that will be used for mutual information calculation.
         cores: `int` (default: 1)
             Number of cores to run the MI calculation. If cores is set to be > 1, multiprocessing will be used to
-            parallel the calculation.
+            parallel the calculation. `cores` is only applicable to MI calculation.
+        skip_mi: `bool` (default: `True`)
+            Whether to skip the mutual information calculation step which is time-consuming.
 
     Returns
     -------
@@ -217,7 +220,9 @@ def mutual_inform(adata, genes, layer_x, layer_y, cores=1):
 
     adata.var['mi'], adata.var['pearson'] = np.nan, np.nan
 
-    mi_vec, pearson = np.zeros(len(genes)), np.zeros(len(genes))
+    if not skip_mi: mi_vec = np.zeros(len(genes))
+    pearson = np.zeros(len(genes))
+
     X, Y = adata[:, genes].layers[layer_x], adata[:, genes].layers[layer_y]
     X, Y = X.A if issparse(X) else X, Y.A if issparse(Y) else Y
 
@@ -229,27 +234,26 @@ def mutual_inform(adata, genes, layer_x, layer_y, cores=1):
             pearson[i] = einsum_correlation(x[None, mask], y[mask], type="pearson")
             x, y = [[i] for i in x[mask]], [[i] for i in y[mask]]
 
-            mi_vec[i] = mi(x, y, k=k)
+            if not skip_mi: mi_vec[i] = mi(x, y, k=k)
     else:
         for i in tqdm(range(len(genes)), desc=f'calculating mutual information between {layer_x} and {layer_y} data'):
             x, y = X[i], Y[i]
             mask = np.logical_and(np.isfinite(x), np.isfinite(y))
             pearson[i] = einsum_correlation(x[None, mask], y[mask], type="pearson")
 
-        def pool_mi(x, y, k):
-            mask = np.logical_and(np.isfinite(x), np.isfinite(y))
-            x, y = [[i] for i in x[mask]], [[i] for i in y[mask]]
+        if not skip_mi:
+            def pool_mi(x, y, k):
+                mask = np.logical_and(np.isfinite(x), np.isfinite(y))
+                x, y = [[i] for i in x[mask]], [[i] for i in y[mask]]
 
-            return mi(x, y, k)
+                return mi(x, y, k)
 
-        pool = ThreadPool(cores)
-        res = pool.starmap(pool_mi, zip(X, Y, itertools.repeat(k)))
-        pool.close()
-        pool.join()
-        mi_vec = np.array(res)
+            pool = ThreadPool(cores)
+            res = pool.starmap(pool_mi, zip(X, Y, itertools.repeat(k)))
+            pool.close()
+            pool.join()
+            mi_vec = np.array(res)
 
-    adata.var.loc[genes, 'mi'] = mi_vec
+    if not skip_mi: adata.var.loc[genes, 'mi'] = mi_vec
     adata.var.loc[genes, 'pearson'] = pearson
-
-
 
