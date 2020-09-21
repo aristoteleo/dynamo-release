@@ -5,21 +5,22 @@ from ...tools.utils import (
     find_extreme,
     elem_prod,
 )
-from ..csc.utils_velocity import fit_linreg
+from ..csc.utils_velocity import fit_linreg, fit_stochastic_linreg
 
 
-def fit_slope(R, N, intercept=False, perc_left=None, perc_right=5):
-    n_var = R.shape[0]
-    k, b, r2, all_r2 = np.zeros(n_var), np.zeros(n_var), np.zeros(n_var), np.zeros(n_var)
+def fit_slope_stochastic(S, U, US, S2, perc_left=None, perc_right=5):
+    n_var = S.shape[0]
+    k = np.zeros(n_var)
 
-    for i, r, n in tqdm(zip(np.arange(n_var), R, N), 'Estimate slope k via linear regression.'):
-        r = r.A.flatten() if issparse(r) else r.flatten()
-        n = n.A.flatten() if issparse(n) else n.flatten()
+    for i, s, u, us, s2 in tqdm(zip(np.arange(n_var), S, U, US, S2), 'Estimate slope k via linear regression.'):
+        u = u.A.flatten() if issparse(u) else u.flatten()
+        s = s.A.flatten() if issparse(s) else s.flatten()
+        us = us.A.flatten() if issparse(us) else us.flatten()
+        s2 = s2.A.flatten() if issparse(s2) else s2.flatten()
 
-        eind = find_extreme(n, r, perc_left=perc_left, perc_right=perc_right)
-        k[i], b[i], r2[i], all_r2[i] = fit_linreg(r[eind], n[eind], intercept=intercept)
-
-    return k, b, r2, all_r2
+        eind = find_extreme(u, s, perc_left=perc_left, perc_right=perc_right)
+        k[i] = fit_stochastic_linreg(u[eind], s[eind], us[eind], s2[eind])
+    return k
 
 
 

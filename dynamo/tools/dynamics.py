@@ -10,7 +10,7 @@ from scipy.sparse import (
 
 from .moments import moments, strat_mom
 from ..estimation.csc.velocity import fit_linreg, velocity, ss_estimation
-from ..estimation.tsc.twostep import lin_reg_gamma_synthesis, fit_slope
+from ..estimation.tsc.twostep import lin_reg_gamma_synthesis, fit_slope_stochastic
 from ..estimation.tsc.estimation_kinetic import *
 from ..estimation.tsc.utils_kinetic import *
 from .utils import (
@@ -582,6 +582,12 @@ def dynamics(
                                            data_type=data_type,
                                            **est_kwargs)
 
+            if type(params) == dict:
+                alpha = params.pop('alpha')
+                params = pd.DataFrame(params)
+            else:
+                alpha = params.loc[:, 'alpha'].values if 'alpha' in params.columns else None,
+
             len_t, len_g = len(np.unique(t)), len(_group)
             if cur_grp == _group[0]:
                 if len_g != 1:
@@ -594,12 +600,11 @@ def dynamics(
                 # X_data[cur_grp_i, :, :], X_fit_data[cur_grp_i, :, :] = cur_X_data, cur_X_fit_data
                 X_data[cur_grp_i], X_fit_data[cur_grp_i] = cur_X_data, cur_X_fit_data
 
-            a, b, alpha_a, alpha_i, alpha, beta, gamma = (
+            a, b, alpha_a, alpha_i, beta, gamma = (
                 params.loc[:, 'a'].values if 'a' in params.columns else None,
                 params.loc[:, 'b'].values if 'b' in params.columns else None,
                 params.loc[:, 'alpha_a'].values if 'alpha_a' in params.columns else None,
                 params.loc[:, 'alpha_i'].values if 'alpha_i' in params.columns else None,
-                params.loc[:, 'alpha'].values if 'alpha' in params.columns else None,
                 params.loc[:, 'beta'].values if 'beta' in params.columns else None,
                 params.loc[:, 'gamma'].values if 'gamma' in params.columns else None,
             )
@@ -636,18 +641,21 @@ def dynamics(
                     vel_U = vel.vel_u(U_)
                     vel_S = vel.vel_s(U_, S_)
                     vel_N = vel.vel_u(U)
-                    vel_T = vel.vel_s(U, S - U)  # need to consider splicing
+                    vel.parameters['beta'] = gamma
+                    vel_T = vel.vel_u(S) # no need to consider splicing
                 else:
                     vel_U = np.nan
                     vel_S = np.nan
                     vel_N = vel.vel_u(U)
                     vel_T = vel.vel_u(S)  # don't consider splicing
+
             else:
                 if has_splicing:
                     vel_U = vel.vel_u(U)
                     vel_S = vel.vel_s(U, S)
                     vel_N = vel.vel_u(U_)
-                    vel_T = vel.vel_s(U_, S_ - U_)  # need to consider splicing
+                    vel.parameters['beta'] = gamma
+                    vel_T = vel.vel_u(S_)  # no need to consider splicing
                 else:
                     vel_U = np.nan
                     vel_S = np.nan
@@ -747,9 +755,9 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                     else ['X_u', 'X_s', 'X_t', 'X_n']
                 U, S, Total, New = subset_adata.layers[layers[0]].T, subset_adata.layers[layers[1]].T, \
                                     subset_adata.layers[layers[2]].T, subset_adata.layers[layers[3]].T
-
+                US, S2 = subset_adata.layers['M_us'].T, subset_adata.layers['M_ss'].T
                 # beta, beta_r2 = lin_reg_gamma_synthesis(U, Ul, time, perc_right=100)
-                beta_k, beta_b, beta_r2, beta__all_r2 = fit_slope(S, U, intercept=False, perc_left=None, perc_right=5)
+                beta_k = fit_slope_stochastic(S, U, US, S2, perc_left=None, perc_right=5)
                 gamma, gamma_r2 = lin_reg_gamma_synthesis(Total, New, time, perc_right=100)
 
                 k = 1 - np.exp(- gamma[:, None] * time[None, :])
@@ -757,13 +765,12 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
 
                 Estm_df = {'alpha': csr_matrix(gamma[:, None]).multiply(New).multiply(1 / k),
                            'beta': beta,
+                           'beta_k': beta_k,
                            'gamma': gamma,
-                           'beta_r2': beta_r2,
                            'gamma_r2': gamma_r2,
                            }
                 half_life = np.log(2)/gamma
                 cost, logLL, _param_ranges, X_data, X_fit_data = None, None, None, None, None
-                Estm_df = pd.DataFrame(Estm_df)
 
                 return Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data
             else:
@@ -771,7 +778,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                             'M_t' in subset_adata.layers.keys() and data_type == 'smoothed') \
                     else ['X_t', 'X_n']
                 Total, New = subset_adata.layers[layers[0]].T, subset_adata.layers[layers[1]].T
-                gamma, gamma_r2 = lin_reg_gamma_synthesis(Total, New, time, perc_right=100)
+                gamma, gamma_r2 = lin_reg_gamma_synthesis(Total, New, time, perc_right=5)
 
                 k = 1 - np.exp(- gamma[:, None] * time[None, :])
                 Estm_df = {'alpha': csr_matrix(gamma[:, None]).multiply(New).multiply(1 / k),
@@ -780,7 +787,6 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                            }
                 half_life = np.log(2)/gamma
                 cost, logLL, _param_ranges, X_data, X_fit_data = None, None, None, None, None
-                Estm_df = pd.DataFrame(Estm_df)
 
                 return Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data
         elif est_method == 'direct':

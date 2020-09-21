@@ -1095,7 +1095,7 @@ def set_param_kinetic(
             adata.var[kin_param_pre + "logLL"],
         ) = (None, None, None, None, None, None, None, None, None, None, None)
 
-    adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha
+    adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha.mean(1) if isarray(alpha) else alpha
     adata.var.loc[valid_ind, kin_param_pre + "a"] = a
     adata.var.loc[valid_ind, kin_param_pre + "b"] = b
     adata.var.loc[valid_ind, kin_param_pre + "alpha_a"] = alpha_a
@@ -1129,12 +1129,20 @@ def get_U_S_for_velocity_estimation(
                         subset_adata.layers[mapper["X_su"]].T,
                         subset_adata.layers[mapper["X_sl"]].T,
                     )
+                    U, S = (
+                        subset_adata.layers[mapper["X_unspliced"]].T,
+                        subset_adata.layers[mapper["X_spliced"]].T,
+                    )
                 else:
                     uu, ul, su, sl = (
                         subset_adata.layers["X_uu"].T,
                         subset_adata.layers["X_ul"].T,
                         subset_adata.layers["X_su"].T,
                         subset_adata.layers["X_sl"].T,
+                    )
+                    U, S = (
+                        subset_adata.layers["X_unspliced"].T,
+                        subset_adata.layers["X_spliced"].T,
                     )
             else:
                 uu, ul, su, sl = (
@@ -1143,17 +1151,29 @@ def get_U_S_for_velocity_estimation(
                     subset_adata.layers["su"].T,
                     subset_adata.layers["sl"].T,
                 )
+                U, S = (
+                    subset_adata.layers["unspliced"].T,
+                    subset_adata.layers["spliced"].T,
+                )
                 if sp.issparse(uu):
                     uu.data = np.log(uu.data + 1) if log_unnormalized else uu.data
                     ul.data = np.log(ul.data + 1) if log_unnormalized else ul.data
                     su.data = np.log(su.data + 1) if log_unnormalized else su.data
                     sl.data = np.log(sl.data + 1) if log_unnormalized else sl.data
+                    U.data, S.data = (
+                        np.log(U.data + 1) if log_unnormalized else U.data,
+                        np.log(S.data + 1) if log_unnormalized else S.data,
+                    )
                 else:
                     uu = np.log(uu + 1) if log_unnormalized else uu
                     ul = np.log(ul + 1) if log_unnormalized else ul
                     su = np.log(su + 1) if log_unnormalized else su
                     sl = np.log(sl + 1) if log_unnormalized else sl
-            U, S = (ul + sl, uu + ul + su + sl) if NTR else (uu + ul, su + sl)
+                    U, S = (
+                        np.log(U + 1) if log_unnormalized else U,
+                        np.log(S + 1) if log_unnormalized else S,
+                    )
+            U, S = (ul + sl, uu + ul + su + sl) if NTR else (U, S)
             # U, S = (ul + sl, uu + ul + su + sl) if NTR else (ul, sl)
         else:
             if ("X_unspliced" in subset_adata.layers.keys()) or (
