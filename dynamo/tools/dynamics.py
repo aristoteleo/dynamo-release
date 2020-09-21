@@ -10,7 +10,7 @@ from scipy.sparse import (
 
 from .moments import moments, strat_mom
 from ..estimation.csc.velocity import fit_linreg, velocity, ss_estimation
-from ..estimation.tsc.twostep import lin_reg_gamma_synthesis
+from ..estimation.tsc.twostep import lin_reg_gamma_synthesis, fit_slope
 from ..estimation.tsc.estimation_kinetic import *
 from ..estimation.tsc.utils_kinetic import *
 from .utils import (
@@ -742,15 +742,18 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
         if est_method == 'twostep':
             time = time.values
             if has_splicing:
-                layers = ['M_u', 'M_ul', 'M_t', 'M_n'] if (
-                            'M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') \
-                    else ['X_u', 'X_ul', 'X_t', 'X_n']
-                U, Ul, Total, New = subset_adata.layers[layers[0]].T, subset_adata.layers[layers[1]].T, \
+                layers = ['M_u', 'M_s', 'M_t', 'M_n'] if (
+                            'M_u' in subset_adata.layers.keys() and data_type == 'smoothed') \
+                    else ['X_u', 'X_s', 'X_t', 'X_n']
+                U, S, Total, New = subset_adata.layers[layers[0]].T, subset_adata.layers[layers[1]].T, \
                                     subset_adata.layers[layers[2]].T, subset_adata.layers[layers[3]].T
-                beta, beta_r2 = lin_reg_gamma_synthesis(U, Ul, time, perc_right=100)
+
+                # beta, beta_r2 = lin_reg_gamma_synthesis(U, Ul, time, perc_right=100)
+                beta_k, beta_b, beta_r2, beta__all_r2 = fit_slope(S, U, intercept=False, perc_left=None, perc_right=5)
                 gamma, gamma_r2 = lin_reg_gamma_synthesis(Total, New, time, perc_right=100)
 
                 k = 1 - np.exp(- gamma[:, None] * time[None, :])
+                beta = gamma / beta_k # beta_k = gamma / beta
 
                 Estm_df = {'alpha': csr_matrix(gamma[:, None]).multiply(New).multiply(1 / k),
                            'beta': beta,

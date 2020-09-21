@@ -7,6 +7,22 @@ from ...tools.utils import (
 )
 from ..csc.utils_velocity import fit_linreg
 
+
+def fit_slope(R, N, intercept=False, perc_left=None, perc_right=5):
+    n_var = R.shape[0]
+    k, b, r2, all_r2 = np.zeros(n_var), np.zeros(n_var), np.zeros(n_var), np.zeros(n_var)
+
+    for i, r, n in tqdm(zip(np.arange(n_var), R, N), 'Estimate slope k via linear regression.'):
+        r = r.A.flatten() if issparse(r) else r.flatten()
+        n = n.A.flatten() if issparse(n) else n.flatten()
+
+        eind = find_extreme(n, r, perc_left=perc_left, perc_right=perc_right)
+        k[i], b[i], r2[i], all_r2[i] = fit_linreg(r[eind], n[eind], intercept=intercept)
+
+    return k, b, r2, all_r2
+
+
+
 def fit_labeling_synthesis(new, total, t, intercept=False, perc_left=None, perc_right=None):
     T = np.unique(t)
     K = np.zeros(len(T))
