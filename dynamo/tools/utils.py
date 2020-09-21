@@ -1343,12 +1343,16 @@ def set_transition_genes(
     store_key='use_for_transition'
 ):
     if adata.uns['dynamics']['est_method'] == 'twostep':
-        if adata.uns['dynamics']['has_splicing']:
-            min_r2 = 0.5 if min_r2 is None else min_r2
-        else:
+        # if adata.uns['dynamics']['has_splicing']:
+        #     min_r2 = 0.5 if min_r2 is None else min_r2
+        # else:
             min_r2 = 0.9 if min_r2 is None else min_r2
     else:
         min_r2 = 0.01 if min_r2 is None else min_r2
+
+    if min_alpha is None: min_alpha = 0.01
+    if min_gamma is None: min_gamma = 0.01
+    if min_delta is None: min_delta = 0.01
 
     layer = vkey.split("_")[1]
 
@@ -1411,6 +1415,25 @@ def set_transition_genes(
             & adata.var.use_for_dynamics
             if use_for_dynamics
             else (adata.var.delta > min_delta) & (adata.var.delta_r2 > min_r2)
+        )
+    if layer == "T":
+        if 'gamma' not in adata.var.columns:
+            is_group_gamma, is_group_gamma_r2 = get_group_params_indices(adata, 'gamma'), \
+                                                get_group_params_indices(adata, 'gamma_r2')
+            if is_group_gamma.sum() > 0:
+                adata.var['gamma'] = adata.var.loc[:, is_group_gamma].mean(1, skipna=True)
+                adata.var['gamma_r2'] = adata.var.loc[:, is_group_gamma_r2].mean(1, skipna=True)
+            else:
+                raise Exception("there is no gamma/gamma_r2 parameter estimated for your adata object")
+
+        if 'gamma_r2' not in adata.var.columns: adata.var['gamma_r2'] = None
+        if np.all(adata.var.gamma_r2.values == None): adata.var.gamma_r2 = 1
+        adata.var[store_key] = (
+            (adata.var.gamma > min_gamma)
+            & (adata.var.gamma_r2 > min_r2)
+            & adata.var.use_for_dynamics
+            if use_for_dynamics
+            else (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2)
         )
 
     return adata
