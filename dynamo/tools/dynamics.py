@@ -10,7 +10,7 @@ from scipy.sparse import (
 
 from .moments import moments, strat_mom
 from ..estimation.csc.velocity import fit_linreg, velocity, ss_estimation
-from ..estimation.tsc.hierarchical import lin_reg_gamma_synthesis
+from ..estimation.tsc.twostep import lin_reg_gamma_synthesis
 from ..estimation.tsc.estimation_kinetic import *
 from ..estimation.tsc.utils_kinetic import *
 from .utils import (
@@ -133,7 +133,7 @@ def dynamics(
             (1) 'auto': dynamo will choose the suitable estimation method based on the `assumption_mRNA`, `experiment_type`
             and `model` parameter.
             * Available options when the `model` is 'ss' include:
-            (1) `hierarchical`: first for each time point, estimate K (1-e^{-rt}) using the total and new RNA data. Then
+            (1) `twostep`: first for each time point, estimate K (1-e^{-rt}) using the total and new RNA data. Then
             use regression via t-np.log(1-K) to get degradation rate gamma. When splicing and labeling data both exist,
             replacing new/total with ul/u can be used to estimate beta. Suitable for velocity estimation.
             (2) `direct` (default): method that directly uses the kinetic model to estimate rate parameters, generally not good for
@@ -565,8 +565,22 @@ def dynamics(
             if est_method == 'auto': est_method = 'direct'
             data_type = 'smoothed' if use_smoothed else 'sfs'
 
-            params, half_life, cost, logLL, param_ranges, cur_X_data, cur_X_fit_data = kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_splicing,
-                          has_switch=True, param_rngs={}, data_type=data_type, **est_kwargs)
+            params, \
+            half_life, \
+            cost, \
+            logLL, \
+            param_ranges, \
+            cur_X_data, \
+            cur_X_fit_data = kinetic_model(subset_adata,
+                                           tkey,
+                                           model,
+                                           est_method,
+                                           experiment_type,
+                                           has_splicing,
+                                           has_switch=True,
+                                           param_rngs={},
+                                           data_type=data_type,
+                                           **est_kwargs)
 
             len_t, len_g = len(np.unique(t)), len(_group)
             if cur_grp == _group[0]:
@@ -720,25 +734,51 @@ def dynamics(
 
 def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_splicing, has_switch, param_rngs,
                   data_type='sfs', **est_kwargs):
-    """est_method is not used. data_type can either 'sfs' or 'smoothed'."""
+    """est_method can be either `twostep` (two-step model) or `direct`. data_type can either 'sfs' or 'smoothed'."""
     time = subset_adata.obs[tkey].astype('float')
 
     if experiment_type.lower() == 'kin':
-        if est_method == 'hierarchical':
+        if est_method == 'twostep':
+            time = time.values
             if has_splicing:
                 layers = ['M_u', 'M_ul', 'M_t', 'M_n'] if (
                             'M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') \
                     else ['X_u', 'X_ul', 'X_t', 'X_n']
-                U, Ul, Total, New = subset_adata.layers[layers[0]], subset_adata.layers[layers[1]], \
-                                    subset_adata.layers[layers[2]], subset_adata.layers[layers[3]]
-                beta, beta_r2, beta_K, beta_R2 = lin_reg_gamma_synthesis(U, Ul, time, perc_right=100)
-                gamma, gamma_r2, gamma_K, gamma_R2 = lin_reg_gamma_synthesis(Total, New, time, perc_right=100)
+                U, Ul, Total, New = subset_adata.layers[layers[0]].T, subset_adata.layers[layers[1]].T, \
+                                    subset_adata.layers[layers[2]].T, subset_adata.layers[layers[3]].T
+                beta, beta_r2 = lin_reg_gamma_synthesis(U, Ul, time, perc_right=100)
+                gamma, gamma_r2 = lin_reg_gamma_synthesis(Total, New, time, perc_right=100)
+
+                k = 1 - np.exp(- gamma[:, None] * time[None, :])
+
+                Estm_df = {'alpha': csr_matrix(gamma[:, None]).multiply(New).multiply(1 / k),
+                           'beta': beta,
+                           'gamma': gamma,
+                           'beta_r2': beta_r2,
+                           'gamma_r2': gamma_r2,
+                           }
+                half_life = np.log(2)/gamma
+                cost, logLL, _param_ranges, X_data, X_fit_data = None, None, None, None, None
+                Estm_df = pd.DataFrame(Estm_df)
+
+                return Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data
             else:
                 layers = ['M_t', 'M_n'] if (
                             'M_t' in subset_adata.layers.keys() and data_type == 'smoothed') \
                     else ['X_t', 'X_n']
-                Total, New = subset_adata.layers[layers[0]], subset_adata.layers[layers[1]]
-                gamma, gamma_r2, gamma_K, gamma_R2 = lin_reg_gamma_synthesis(Total, New, time, perc_right=100)
+                Total, New = subset_adata.layers[layers[0]].T, subset_adata.layers[layers[1]].T
+                gamma, gamma_r2 = lin_reg_gamma_synthesis(Total, New, time, perc_right=100)
+
+                k = 1 - np.exp(- gamma[:, None] * time[None, :])
+                Estm_df = {'alpha': csr_matrix(gamma[:, None]).multiply(New).multiply(1 / k),
+                           'gamma': gamma,
+                           'gamma_r2': gamma_r2,
+                           }
+                half_life = np.log(2)/gamma
+                cost, logLL, _param_ranges, X_data, X_fit_data = None, None, None, None, None
+                Estm_df = pd.DataFrame(Estm_df)
+
+                return Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data
         elif est_method == 'direct':
             if has_splicing:
                 layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (

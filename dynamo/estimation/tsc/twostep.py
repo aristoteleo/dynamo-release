@@ -12,8 +12,8 @@ def fit_labeling_synthesis(new, total, t, intercept=False, perc_left=None, perc_
     K = np.zeros(len(T))
     R2 = np.zeros(len(T))
     for i in range(len(T)):
-        n = new[t==T[i]]
-        r = total[t==T[i]]
+        n = new[t == T[i]]
+        r = total[t == T[i]]
         eind = find_extreme(n, r, perc_left=perc_left, perc_right=perc_right)
         K[i], _, R2[i], _ = fit_linreg(r[eind], n[eind], intercept=intercept)
     return K, R2
@@ -32,13 +32,13 @@ def compute_velocity_synthesis(N, R, gamma, t):
 
 def lin_reg_gamma_synthesis(R, N, time, perc_right=100):
     n_var = R.shape[0]
-    K, R2, gamma, r2 = np.zeros(n_var), np.zeros(n_var), np.zeros(n_var), np.zeros(n_var)
+    gamma, r2 = np.zeros(n_var), np.zeros(n_var)
 
-    for i, r, n in tqdm(zip(np.range(n_var), R, N), 'Estimate gamma via linear regression of t vs. -ln(1-K)'):
-        r = r.A if issparse(r) else r
-        n = n.A if issparse(n) else n
+    for i, r, n in tqdm(zip(np.arange(n_var), R, N), 'Estimate gamma via linear regression of t vs. -ln(1-K)'):
+        r = r.A.flatten() if issparse(r) else r.flatten()
+        n = n.A.flatten() if issparse(n) else n.flatten()
 
-        K[i], R2[i] = fit_labeling_synthesis(n, r, time, perc_right=perc_right)
-        gamma[i], r2[i] = compute_gamma_synthesis(K[i], time)
+        K, R2 = fit_labeling_synthesis(n, r, time, perc_right=perc_right)
+        gamma[i], r2[i] = compute_gamma_synthesis(K, np.unique(time))
 
-    return gamma, r2, K, R2
+    return gamma, r2
