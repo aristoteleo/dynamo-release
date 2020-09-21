@@ -10,6 +10,7 @@ from scipy.sparse import (
 
 from .moments import moments, strat_mom
 from ..estimation.csc.velocity import fit_linreg, velocity, ss_estimation
+from ..estimation.tsc.hierarchical import lin_reg_gamma_synthesis
 from ..estimation.tsc.estimation_kinetic import *
 from ..estimation.tsc.utils_kinetic import *
 from .utils import (
@@ -131,6 +132,12 @@ def dynamics(
             * Available options when the `assumption_mRNA` is 'kinetic' include:
             (1) 'auto': dynamo will choose the suitable estimation method based on the `assumption_mRNA`, `experiment_type`
             and `model` parameter.
+            * Available options when the `model` is 'ss' include:
+            (1) `hierarchical`: first for each time point, estimate K (1-e^{-rt}) using the total and new RNA data. Then
+            use regression via t-np.log(1-K) to get degradation rate gamma. When splicing and labeling data both exist,
+            replacing new/total with ul/u can be used to estimate beta. Suitable for velocity estimation.
+            (2) `direct` (default): method that directly uses the kinetic model to estimate rate parameters, generally not good for
+            velocity estimation.
             Under `kinetic` model, choosing estimation is `experiment_type` dependent. For `kinetics` experiments, dynamo
             supposes methods including RNA bursting or without RNA bursting. Dynamo also adaptively estimates parameters, based
             on whether the data has splicing or without splicing.
@@ -555,6 +562,7 @@ def dynamics(
 
         elif assumption_mRNA.lower() == "kinetic":
             if model_was_auto and experiment_type.lower() == "kin": model = "mixture"
+            if est_method == 'auto': est_method = 'direct'
             data_type = 'smoothed' if use_smoothed else 'sfs'
 
             params, half_life, cost, logLL, param_ranges, cur_X_data, cur_X_fit_data = kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_splicing,
@@ -716,125 +724,141 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
     time = subset_adata.obs[tkey].astype('float')
 
     if experiment_type.lower() == 'kin':
-        if has_splicing:
-            layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
-                        'M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') \
-                else ['X_ul', 'X_sl', 'X_uu', 'X_su']
-
-            if model.lower() in ['deterministic', 'stochastic']:
-                layer_u = 'M_ul' if ('M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_ul'
-                layer_s = 'M_sl' if ('M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_sl'
-
-                X, X_raw = prepare_data_has_splicing(subset_adata, subset_adata.var.index, time,
-                                                     layer_u=layer_u, layer_s=layer_s, total_layers=layers)
-            elif model.startswith('mixture'):
-                X, _, X_raw = prepare_data_deterministic(subset_adata, subset_adata.var.index, time,
-                                                         layers=layers, total_layers=layers)
-
-            if model.lower() == 'deterministic':
-                X = [X[i][[0, 1], :] for i in range(len(X))]
-                _param_ranges = {'alpha': [0, 1000], 'beta': [0, 1000], 'gamma': [0, 1000]}
-                x0 = {'u0': [0, 1000], 's0': [0, 1000]}
-                Est, _ = Estimation_DeterministicKin, Deterministic
-            elif model.lower() == 'stochastic':
-                x0 = {'u0': [0, 1000], 's0': [0, 1000],
-                      'uu0': [0, 1000], 'ss0': [0, 1000],
-                      'us0': [0, 1000]}
-
-                if has_switch:
-                    _param_ranges = {'a': [0, 1000], 'b': [0, 1000],
-                                    'alpha_a': [0, 1000], 'alpha_i': 0,
-                                    'beta': [0, 1000], 'gamma': [0, 1000], }
-                    Est, _ = Estimation_MomentKin, Moments
-                else:
-                    _param_ranges = {'alpha': [0, 1000], 'beta': [0, 1000], 'gamma': [0, 1000], }
-
-                    Est, _ = Estimation_MomentKinNoSwitch, Moments_NoSwitching
-            elif model.lower() == 'mixture':
-                _param_ranges = {'alpha': [0, 1000], 'alpha_2': [0, 0], 'beta': [0, 1000], 'gamma': [0, 1000], }
-                x0 = {'ul0': [0, 0], 'sl0': [0, 0], 'uu0': [0, 1000], 'su0': [0, 1000]}
-
-                Est = Mixture_KinDeg_NoSwitching(Deterministic(), Deterministic())
-            elif model.lower() == 'mixture_deterministic_stochastic':
-                X, X_raw = prepare_data_mix_has_splicing(subset_adata, subset_adata.var.index, time, layer_u=layers[2],
-                                                         layer_s=layers[3], layer_ul=layers[0], layer_sl=layers[1],
-                                                         total_layers=layers, mix_model_indices=[0, 1, 5, 6, 7, 8, 9])
-
-                _param_ranges = {'alpha': [0, 1000], 'alpha_2': [0, 0], 'beta': [0, 1000], 'gamma': [0, 1000], }
-                x0 = {'ul0': [0, 0], 'sl0': [0, 0],
-                      'u0': [0, 1000], 's0': [0, 1000],
-                      'uu0': [0, 1000], 'ss0': [0, 1000],
-                      'us0': [0, 1000], }
-                Est = Mixture_KinDeg_NoSwitching(Deterministic(), Moments_NoSwitching())
-            elif model.lower() == 'mixture_stochastic_stochastic':
-                _param_ranges = {'alpha': [0, 1000], 'alpha_2': [0, 0], 'beta': [0, 1000], 'gamma': [0, 1000], }
-                X, X_raw  = prepare_data_mix_has_splicing(subset_adata, subset_adata.var.index, time, layer_u=layers[2],
-                                                          layer_s=layers[3], layer_ul=layers[0], layer_sl=layers[1],
-                                                          total_layers=layers, mix_model_indices=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-                x0 = {'ul0': [0, 1000], 'sl0': [0, 1000],
-                      'ul_ul0': [0, 1000], 'sl_sl0': [0, 1000],
-                      'ul_sl0': [0, 1000],
-                      'u0': [0, 1000], 's0': [0, 1000],
-                      'uu0': [0, 1000], 'ss0': [0, 1000],
-                      'us0': [0, 1000], }
-                Est = Mixture_KinDeg_NoSwitching(Moments_NoSwitching(), Moments_NoSwitching())
+        if est_method == 'hierarchical':
+            if has_splicing:
+                layers = ['M_u', 'M_ul', 'M_t', 'M_n'] if (
+                            'M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') \
+                    else ['X_u', 'X_ul', 'X_t', 'X_n']
+                U, Ul, Total, New = subset_adata.layers[layers[0]], subset_adata.layers[layers[1]], \
+                                    subset_adata.layers[layers[2]], subset_adata.layers[layers[3]]
+                beta, beta_r2, beta_K, beta_R2 = lin_reg_gamma_synthesis(U, Ul, time, perc_right=100)
+                gamma, gamma_r2, gamma_K, gamma_R2 = lin_reg_gamma_synthesis(Total, New, time, perc_right=100)
             else:
-                raise NotImplementedError(f'model {model} with kinetic assumption is not implemented. '
-                                f'current supported models for kinetics experiments include: stochastic, deterministic, mixture,'
-                                f'mixture_deterministic_stochastic or mixture_stochastic_stochastic')
-        else:
-            total_layer = 'M_t' if ('M_t' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_total'
+                layers = ['M_t', 'M_n'] if (
+                            'M_t' in subset_adata.layers.keys() and data_type == 'smoothed') \
+                    else ['X_t', 'X_n']
+                Total, New = subset_adata.layers[layers[0]], subset_adata.layers[layers[1]]
+                gamma, gamma_r2, gamma_K, gamma_R2 = lin_reg_gamma_synthesis(Total, New, time, perc_right=100)
+        elif est_method == 'direct':
+            if has_splicing:
+                layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
+                            'M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') \
+                    else ['X_ul', 'X_sl', 'X_uu', 'X_su']
 
-            if model.lower() in ['deterministic', 'stochastic']:
-                layer = 'M_n' if ('M_n' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_new'
-                X, X_raw = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time, layer=layer,
-                                                    total_layer=total_layer)
-            elif model.lower().startswith('mixture'):
-                layers = ['M_n', 'M_t'] if ('M_n' in subset_adata.layers.keys() and data_type == 'smoothed') \
-                    else ['X_new', 'X_total']
+                if model.lower() in ['deterministic', 'stochastic']:
+                    layer_u = 'M_ul' if ('M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_ul'
+                    layer_s = 'M_sl' if ('M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_sl'
 
-                X, _, X_raw = prepare_data_deterministic(subset_adata, subset_adata.var.index, time, layers=layers,
-                                                         total_layers=total_layer)
+                    X, X_raw = prepare_data_has_splicing(subset_adata, subset_adata.var.index, time,
+                                                         layer_u=layer_u, layer_s=layer_s, total_layers=layers)
+                elif model.startswith('mixture'):
+                    X, _, X_raw = prepare_data_deterministic(subset_adata, subset_adata.var.index, time,
+                                                             layers=layers, total_layers=layers)
 
-            if model.lower() == 'deterministic':
-                X = [X[i][0, :] for i in range(len(X))]
-                _param_ranges = {'alpha': [0, 1000], 'gamma': [0, 1000], }
-                x0 = {'u0': [0, 1000]}
-                Est, _ = Estimation_DeterministicKinNosp, Deterministic_NoSplicing
-            elif model.lower() == 'stochastic':
-                x0 = {'u0': [0, 1000], 'uu0': [0, 1000], }
-                if has_switch:
-                    _param_ranges = {'a': [0, 1000], 'b': [0, 1000],
-                                    'alpha_a': [0, 1000], 'alpha_i': 0,
-                                    'gamma': [0, 1000], }
-                    Est, _ = Estimation_MomentKinNosp, Moments_Nosplicing
+                if model.lower() == 'deterministic':
+                    X = [X[i][[0, 1], :] for i in range(len(X))]
+                    _param_ranges = {'alpha': [0, 1000], 'beta': [0, 1000], 'gamma': [0, 1000]}
+                    x0 = {'u0': [0, 1000], 's0': [0, 1000]}
+                    Est, _ = Estimation_DeterministicKin, Deterministic
+                elif model.lower() == 'stochastic':
+                    x0 = {'u0': [0, 1000], 's0': [0, 1000],
+                          'uu0': [0, 1000], 'ss0': [0, 1000],
+                          'us0': [0, 1000]}
+
+                    if has_switch:
+                        _param_ranges = {'a': [0, 1000], 'b': [0, 1000],
+                                        'alpha_a': [0, 1000], 'alpha_i': 0,
+                                        'beta': [0, 1000], 'gamma': [0, 1000], }
+                        Est, _ = Estimation_MomentKin, Moments
+                    else:
+                        _param_ranges = {'alpha': [0, 1000], 'beta': [0, 1000], 'gamma': [0, 1000], }
+
+                        Est, _ = Estimation_MomentKinNoSwitch, Moments_NoSwitching
+                elif model.lower() == 'mixture':
+                    _param_ranges = {'alpha': [0, 1000], 'alpha_2': [0, 0], 'beta': [0, 1000], 'gamma': [0, 1000], }
+                    x0 = {'ul0': [0, 0], 'sl0': [0, 0], 'uu0': [0, 1000], 'su0': [0, 1000]}
+
+                    Est = Mixture_KinDeg_NoSwitching(Deterministic(), Deterministic())
+                elif model.lower() == 'mixture_deterministic_stochastic':
+                    X, X_raw = prepare_data_mix_has_splicing(subset_adata, subset_adata.var.index, time, layer_u=layers[2],
+                                                             layer_s=layers[3], layer_ul=layers[0], layer_sl=layers[1],
+                                                             total_layers=layers, mix_model_indices=[0, 1, 5, 6, 7, 8, 9])
+
+                    _param_ranges = {'alpha': [0, 1000], 'alpha_2': [0, 0], 'beta': [0, 1000], 'gamma': [0, 1000], }
+                    x0 = {'ul0': [0, 0], 'sl0': [0, 0],
+                          'u0': [0, 1000], 's0': [0, 1000],
+                          'uu0': [0, 1000], 'ss0': [0, 1000],
+                          'us0': [0, 1000], }
+                    Est = Mixture_KinDeg_NoSwitching(Deterministic(), Moments_NoSwitching())
+                elif model.lower() == 'mixture_stochastic_stochastic':
+                    _param_ranges = {'alpha': [0, 1000], 'alpha_2': [0, 0], 'beta': [0, 1000], 'gamma': [0, 1000], }
+                    X, X_raw  = prepare_data_mix_has_splicing(subset_adata, subset_adata.var.index, time, layer_u=layers[2],
+                                                              layer_s=layers[3], layer_ul=layers[0], layer_sl=layers[1],
+                                                              total_layers=layers, mix_model_indices=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+                    x0 = {'ul0': [0, 1000], 'sl0': [0, 1000],
+                          'ul_ul0': [0, 1000], 'sl_sl0': [0, 1000],
+                          'ul_sl0': [0, 1000],
+                          'u0': [0, 1000], 's0': [0, 1000],
+                          'uu0': [0, 1000], 'ss0': [0, 1000],
+                          'us0': [0, 1000], }
+                    Est = Mixture_KinDeg_NoSwitching(Moments_NoSwitching(), Moments_NoSwitching())
                 else:
+                    raise NotImplementedError(f'model {model} with kinetic assumption is not implemented. '
+                                    f'current supported models for kinetics experiments include: stochastic, deterministic, mixture,'
+                                    f'mixture_deterministic_stochastic or mixture_stochastic_stochastic')
+            else:
+                total_layer = 'M_t' if ('M_t' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_total'
+
+                if model.lower() in ['deterministic', 'stochastic']:
+                    layer = 'M_n' if ('M_n' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_new'
+                    X, X_raw = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time, layer=layer,
+                                                        total_layer=total_layer)
+                elif model.lower().startswith('mixture'):
+                    layers = ['M_n', 'M_t'] if ('M_n' in subset_adata.layers.keys() and data_type == 'smoothed') \
+                        else ['X_new', 'X_total']
+
+                    X, _, X_raw = prepare_data_deterministic(subset_adata, subset_adata.var.index, time, layers=layers,
+                                                             total_layers=total_layer)
+
+                if model.lower() == 'deterministic':
+                    X = [X[i][0, :] for i in range(len(X))]
                     _param_ranges = {'alpha': [0, 1000], 'gamma': [0, 1000], }
-                    Est, _ = Estimation_MomentKinNoSwitchNoSplicing, Moments_NoSwitchingNoSplicing
-            elif model.lower() == 'mixture':
-                _param_ranges = {'alpha': [0, 1000], 'alpha_2': [0, 0], 'gamma': [0, 1000], }
-                x0 = {'u0': [0, 0], 'o0': [0, 1000]}
-                Est = Mixture_KinDeg_NoSwitching(Deterministic_NoSplicing(), Deterministic_NoSplicing())
-            elif model.lower() == 'mixture_deterministic_stochastic':
-                X, X_raw = prepare_data_mix_no_splicing(subset_adata, subset_adata.var.index, time,
-                                                        layer_n=layers[0], layer_t=layers[1], total_layer=total_layer,
-                                                        mix_model_indices=[0, 2, 3])
+                    x0 = {'u0': [0, 1000]}
+                    Est, _ = Estimation_DeterministicKinNosp, Deterministic_NoSplicing
+                elif model.lower() == 'stochastic':
+                    x0 = {'u0': [0, 1000], 'uu0': [0, 1000], }
+                    if has_switch:
+                        _param_ranges = {'a': [0, 1000], 'b': [0, 1000],
+                                        'alpha_a': [0, 1000], 'alpha_i': 0,
+                                        'gamma': [0, 1000], }
+                        Est, _ = Estimation_MomentKinNosp, Moments_Nosplicing
+                    else:
+                        _param_ranges = {'alpha': [0, 1000], 'gamma': [0, 1000], }
+                        Est, _ = Estimation_MomentKinNoSwitchNoSplicing, Moments_NoSwitchingNoSplicing
+                elif model.lower() == 'mixture':
+                    _param_ranges = {'alpha': [0, 1000], 'alpha_2': [0, 0], 'gamma': [0, 1000], }
+                    x0 = {'u0': [0, 0], 'o0': [0, 1000]}
+                    Est = Mixture_KinDeg_NoSwitching(Deterministic_NoSplicing(), Deterministic_NoSplicing())
+                elif model.lower() == 'mixture_deterministic_stochastic':
+                    X, X_raw = prepare_data_mix_no_splicing(subset_adata, subset_adata.var.index, time,
+                                                            layer_n=layers[0], layer_t=layers[1], total_layer=total_layer,
+                                                            mix_model_indices=[0, 2, 3])
 
-                _param_ranges = {'alpha': [0, 1000], 'alpha_2': [0, 0], 'gamma': [0, 1000], }
-                x0 = {'u0': [0, 1000], 'o0': [0, 1000], 'oo0': [0, 1000]}
-                Est = Mixture_KinDeg_NoSwitching(Deterministic_NoSplicing(), Moments_NoSwitchingNoSplicing())
-            elif model.lower() == 'mixture_stochastic_stochastic':
-                X, X_raw = prepare_data_mix_no_splicing(subset_adata, subset_adata.var.index, time,
-                                                        layer_n=layers[0], layer_t=layers[1], total_layer=total_layer,
-                                                        mix_model_indices=[0, 1, 2, 3])
+                    _param_ranges = {'alpha': [0, 1000], 'alpha_2': [0, 0], 'gamma': [0, 1000], }
+                    x0 = {'u0': [0, 1000], 'o0': [0, 1000], 'oo0': [0, 1000]}
+                    Est = Mixture_KinDeg_NoSwitching(Deterministic_NoSplicing(), Moments_NoSwitchingNoSplicing())
+                elif model.lower() == 'mixture_stochastic_stochastic':
+                    X, X_raw = prepare_data_mix_no_splicing(subset_adata, subset_adata.var.index, time,
+                                                            layer_n=layers[0], layer_t=layers[1], total_layer=total_layer,
+                                                            mix_model_indices=[0, 1, 2, 3])
 
-                _param_ranges = {'alpha': [0, 1000], 'alpha_2': [0, 0], 'gamma': [0, 1000], }
-                x0 = {'u0': [0, 1000], 'uu0': [0, 1000], 'o0': [0, 1000], 'oo0': [0, 1000]}
-                Est = Mixture_KinDeg_NoSwitching(Moments_NoSwitchingNoSplicing(), Moments_NoSwitchingNoSplicing())
-            else:
-                raise Exception(f'model {model} with kinetic assumption is not implemented. '
-                                f'current supported models for kinetics experiments include: stochastic, deterministic, mixture,'
-                                f'mixture_deterministic_stochastic or mixture_stochastic_stochastic')
+                    _param_ranges = {'alpha': [0, 1000], 'alpha_2': [0, 0], 'gamma': [0, 1000], }
+                    x0 = {'u0': [0, 1000], 'uu0': [0, 1000], 'o0': [0, 1000], 'oo0': [0, 1000]}
+                    Est = Mixture_KinDeg_NoSwitching(Moments_NoSwitchingNoSplicing(), Moments_NoSwitchingNoSplicing())
+                else:
+                    raise Exception(f'model {model} with kinetic assumption is not implemented. '
+                                    f'current supported models for kinetics experiments include: stochastic, deterministic, mixture,'
+                                    f'mixture_deterministic_stochastic or mixture_stochastic_stochastic')
     elif experiment_type.lower() == 'deg':
         if has_splicing:
             layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
