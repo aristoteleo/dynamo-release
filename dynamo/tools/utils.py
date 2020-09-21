@@ -1335,13 +1335,21 @@ def get_group_params_indices(adata, param_name):
 def set_transition_genes(
     adata,
     vkey="velocity_S",
-    min_r2=0.01,
-    min_alpha=0.01,
-    min_gamma=0.01,
-    min_delta=0.01,
+    min_r2=None,
+    min_alpha=None,
+    min_gamma=None,
+    min_delta=None,
     use_for_dynamics=True,
     store_key='use_for_transition'
 ):
+    if adata.uns['dynamics']['est_method'] == 'twostep':
+        if adata.uns['dynamics']['has_splicing']:
+            min_r2 = 0.5 if min_r2 is None else min_r2
+        else:
+            min_r2 = 0.9 if min_r2 is None else min_r2
+    else:
+        min_r2 = 0.01 if min_r2 is None else min_r2
+
     layer = vkey.split("_")[1]
 
     # the following parameters aggreation for different groups can be improved later

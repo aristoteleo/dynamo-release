@@ -34,10 +34,10 @@ def cell_velocities(
     use_mnn=False,
     n_pca_components=None,
     transition_genes=None,
-    min_r2=0.01,
-    min_alpha=0.01,
-    min_gamma=0.01,
-    min_delta=0.01,
+    min_r2=None,
+    min_alpha=None,
+    min_gamma=None,
+    min_delta=None,
     basis="umap",
     neigh_key='neighbors',
     adj_key='distances',
@@ -101,13 +101,13 @@ def cell_velocities(
             If None, transition genes are determined based on the R2 of linear regression on phase planes.
             The argument can be either a dictionary key of .var, a list of gene names, or a list of booleans 
             of length .n_vars.
-        min_r2: float (optional, default 0.01)
+        min_r2: float or None (optional, default None)
             The minimal value of r-squared of the parameter fits for selecting transition genes.
-        min_alpha: float (optional, default 0.01)
+        min_alpha: float or None (optional, default None)
             The minimal value of alpha kinetic parameter for selecting transition genes.
-        min_gamma: float (optional, default 0.01)
+        min_gamma: float or None (optional, default None)
             The minimal value of gamma kinetic parameter for selecting transition genes.
-        min_delta: float (optional, default 0.01)
+        min_delta: float or None (optional, default None)
             The minimal value of delta kinetic parameter for selecting transition genes.
         basis: int (optional, default `umap`)
             The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.

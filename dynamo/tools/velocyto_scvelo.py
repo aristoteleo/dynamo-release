@@ -12,26 +12,27 @@ from anndata import AnnData
 
 def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None):
     """ Conversion function from the velocyto world to the dynamo world.
-		Code original from scSLAM-seq repository
+    Code original from scSLAM-seq repository
 
     Parameters
     ----------
-		vlm: VelocytoLoom Object
-			The VelocytoLoom object that will be converted into adata.
-		n_comps: `int` (default: 30)
-			The number of pc components that will be stored.
-		basis: `str` (default: `umap`)
-			The embedding that will be used to store the vlm.ts attribute. Note that velocyto doesn't usually use
-			umap as embedding although `umap` as set as default for the convenience of dynamo itself.
-		trans_mats: None or dict
-			A dict of all relevant transition matrices
-		cell_ixs: list of int
-			These are the indices of the subsampled cells
+        vlm: VelocytoLoom Object
+            The VelocytoLoom object that will be converted into adata.
+        n_comps: `int` (default: 30)
+            The number of pc components that will be stored.
+        basis: `str` (default: `umap`)
+            The embedding that will be used to store the vlm.ts attribute. Note that velocyto doesn't usually use
+            umap as embedding although `umap` as set as default for the convenience of dynamo itself.
+        trans_mats: None or dict
+            A dict of all relevant transition matrices
+        cell_ixs: list of int
+            These are the indices of the subsampled cells
 
     Returns
     -------
-		adata: AnnData object
+        adata: AnnData object
 	"""
+
     from collections import OrderedDict
 
     # set obs, var
@@ -128,6 +129,7 @@ def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None)
         "experiment_type": "conventional",
         "normalized": True,
         "model": "deterministic",
+        "est_method": "ols",
         "has_splicing": True,
         "has_labeling": False,
         "has_protein": False,

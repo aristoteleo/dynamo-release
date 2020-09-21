@@ -718,6 +718,7 @@ def dynamics(
         "experiment_type": experiment_type,
         "normalized": normalized,
         "model": model,
+        "est_method": est_method,
         "has_splicing": has_splicing,
         "has_labeling": has_labeling,
         "has_protein": has_protein,
