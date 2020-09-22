@@ -33,8 +33,8 @@ notebooks_url = "https://github.com/aristoteleo/dynamo-tutorials/raw/master/"
 notebooks = [
     "Introduction.ipynb",
     "zebrafish.ipynb",
-    "dentategyrus_subset_scvelo.ipynb",
-    "pancreatic_endocrinogenesis.ipynb",
+    # "dentategyrus_subset_scvelo.ipynb",
+    # "pancreatic_endocrinogenesis.ipynb",
     "scNT_seq_readthedocs.ipynb",
     "scEU_seq_rpe1_analysis_kinetic.ipynb",
     "scEU_seq_organoid_analysis_kinetic.ipynb",
