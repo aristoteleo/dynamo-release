@@ -110,7 +110,8 @@ def cell_velocities(
         min_delta: float or None (optional, default None)
             The minimal value of delta kinetic parameter for selecting transition genes.
         basis: int (optional, default `umap`)
-            The dictionary key that corresponds to the reduced dimension in `.obsm` attribute.
+            The dictionary key that corresponds to the reduced dimension in `.obsm` attribute. Can be `X_spliced_umap`
+            or `X_total_umap`, etc.
         neigh_key: str (optional, default `neighbors`)
             The dictionary key for the neighbor information (stores nearest neighbor `indices`) in .uns.
         adj_key: str (optional, default `distances`)
@@ -265,13 +266,26 @@ def cell_velocities(
         raise Exception(f"X and V do not have the same number of dimensions.")
     
     if X_embedding is None:
-        # velocity_S/T should use spliced and total (both are equivalent of .X) as the input for low dimensional
-        # projection while others should use layer (and layer + "_" + basis as the low dimensional embedding).
-        if vkey in ["velocity_S", "velocity_T"]:
-            X_embedding = adata.obsm["X_" + basis]
+        has_splicing, has_labeling = adata.uns['dynamics']['has_splicing'], adata.uns['dynamics']['has_labeling']
+        if has_splicing and has_labeling:
+            warnings.warn("\nYour data has both labeling / splicing data, please ensuring using the right `basis` "
+                          "({basis}):"
+                          "\n   when using `velocity_S`, please use basis based on X_spliced data;"
+                          "\n   when using `velocity_T, please use basis based X_total. "
+                          "\nIf not sure the data in adata.X, you may need to set `basis='X_spliced_umap'`"
+                          "(`basis='X_total_umap'`) when using `velocity_S` (`velocity_T`). "
+                          "")
+
+        if '_' in basis:
+            basis_layer, basis = basis.rsplit('_',1)
+            adata = reduceDimension(adata, layer=basis_layer, reduction_method=basis)
+            X_embedding = adata.obsm[basis]
         else:
-            adata = reduceDimension(adata, layer=layer, reduction_method=basis)
-            X_embedding = adata.obsm[layer + "_" + basis]
+            if vkey in ["velocity_S", "velocity_T"]:
+                X_embedding = adata.obsm["X_" + basis]
+            else:
+                adata = reduceDimension(adata, layer=layer, reduction_method=basis)
+                X_embedding = adata.obsm[layer + "_" + basis]
 
     if X.shape[0] != X_embedding.shape[0]:
         raise Exception("X and X_embedding do not have the same number of samples.")
