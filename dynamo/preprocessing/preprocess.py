@@ -33,6 +33,7 @@ def szFactor(
     adata_ori,
     layers="all",
     total_layers=None,
+    splicing_total_layers=False,
     locfunc=np.nanmean,
     round_exprs=False,
     method="median",
@@ -50,6 +51,8 @@ def szFactor(
             The layer(s) to be normalized. Default is `all`, including RNA (X, raw) or spliced, unspliced, protein, etc.
         total_layers: list or None (default `None`)
             The layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"], ["uu", "ul", "su", "sl"] or ["new", "old"], etc.
+        splicing_total_layers: bool (default `False`)
+            Whether to also normalize spliced / unspliced layers by size factor from total RNA.
         locfunc: `function` (default: `np.nanmean`)
             The function to normalize the data.
         round_exprs: `bool` (default: `False`)
@@ -96,8 +99,12 @@ def szFactor(
         adata.raw = adata.copy()
 
     for layer in layers:
-        sfs, cell_total = sz_util(adata, layer, round_exprs, method, locfunc, total_layers=total_layers,
-                                  scale_to=scale_to)
+        if layer in ['spliced', 'unspliced'] and not splicing_total_layers:
+            sfs, cell_total = sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None,
+                                      scale_to=scale_to)
+        else:
+            sfs, cell_total = sz_util(adata, layer, round_exprs, method, locfunc, total_layers=total_layers,
+                                      scale_to=scale_to)
 
         sfs[~np.isfinite(sfs)] = 1
         if layer == "raw":
@@ -124,6 +131,7 @@ def normalize_expr_data(
     adata,
     layers="all",
     total_szfactor='total_Size_Factor',
+    splicing_total_layers=False,
     norm_method=None,
     pseudo_expr=1,
     relative_expr=True,
@@ -143,6 +151,8 @@ def normalize_expr_data(
             The layer(s) to be normalized. Default is all, including RNA (X, raw) or spliced, unspliced, protein, etc.
         total_szfactor: `str` (default: `total_Size_Factor`)
             The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
+        splicing_total_layers: bool (default `False`)
+            Whether to also normalize spliced / unspliced layers by size factor from total RNA.
         norm_method: `function` or None (default: `None`)
             The method used to normalize data. Can be either function `np.log1p, np.log2 or any other functions or string
             `clr`. By default, only .X will be size normalized and log1p transformed while data in other layers will only
@@ -200,7 +210,11 @@ def normalize_expr_data(
         )
 
     for layer in layers:
-        szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=total_szfactor)
+        if layer in ['spliced', 'unspliced'] and not splicing_total_layers:
+            szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=None)
+        else:
+            szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=total_szfactor)
+
         if norm_method is None and layer == 'X':
             CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, np.log1p)
         elif norm_method in [np.log1p, np.log, np.log2, Freeman_Tukey, None] and layer != "protein":
@@ -1163,6 +1177,7 @@ def recipe_monocle(
     normalized=None,
     layer=None,
     total_layers=None,
+    splicing_total_layers=False,
     genes_to_use=None,
     method="pca",
     num_dim=30,
@@ -1198,6 +1213,8 @@ def recipe_monocle(
             The layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"], ["uu", "ul",
              "su", "sl"] or ["total"], etc. If total_layers is `True`, total_layers will be set to be `total` or
              ["uu", "ul", "su", "sl"] depends on whether you have labeling but no splicing or labeling and splicing data.
+        splicing_total_layers: bool (default `False`)
+            Whether to also normalize spliced / unspliced layers by size factor from total RNA.
         genes_to_use: `list` (default: `None`)
             A list genes of gene names that will be used to set as the feature genes for downstream analysis.
         method: `str` (default: `log`)
@@ -1344,6 +1361,7 @@ def recipe_monocle(
     # calculate sz factor
     if not _szFactor or "Size_Factor" not in adata.obs_keys():
         adata = szFactor(adata, total_layers=total_layers, scale_to=scale_to,
+                         splicing_total_layers=splicing_total_layers,
                          layers=layer if type(layer) is list else "all")
 
     if feature_selection.lower() == "dispersion":
@@ -1387,6 +1405,7 @@ def recipe_monocle(
             adata,
             layers=layer if type(layer) is list else "all",
             total_szfactor=total_szfactor,
+            splicing_total_layers=splicing_total_layers,
             norm_method=norm_method,
             pseudo_expr=pseudo_expr,
             relative_expr=relative_expr,

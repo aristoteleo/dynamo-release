@@ -1095,7 +1095,7 @@ def set_param_kinetic(
             adata.var[kin_param_pre + "logLL"],
         ) = (None, None, None, None, None, None, None, None, None, None, None)
 
-    adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha
+    adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha.mean(1) if isarray(alpha) else alpha
     adata.var.loc[valid_ind, kin_param_pre + "a"] = a
     adata.var.loc[valid_ind, kin_param_pre + "b"] = b
     adata.var.loc[valid_ind, kin_param_pre + "alpha_a"] = alpha_a
@@ -1129,12 +1129,20 @@ def get_U_S_for_velocity_estimation(
                         subset_adata.layers[mapper["X_su"]].T,
                         subset_adata.layers[mapper["X_sl"]].T,
                     )
+                    U, S = (
+                        subset_adata.layers[mapper["X_unspliced"]].T,
+                        subset_adata.layers[mapper["X_spliced"]].T,
+                    )
                 else:
                     uu, ul, su, sl = (
                         subset_adata.layers["X_uu"].T,
                         subset_adata.layers["X_ul"].T,
                         subset_adata.layers["X_su"].T,
                         subset_adata.layers["X_sl"].T,
+                    )
+                    U, S = (
+                        subset_adata.layers["X_unspliced"].T,
+                        subset_adata.layers["X_spliced"].T,
                     )
             else:
                 uu, ul, su, sl = (
@@ -1143,17 +1151,29 @@ def get_U_S_for_velocity_estimation(
                     subset_adata.layers["su"].T,
                     subset_adata.layers["sl"].T,
                 )
+                U, S = (
+                    subset_adata.layers["unspliced"].T,
+                    subset_adata.layers["spliced"].T,
+                )
                 if sp.issparse(uu):
                     uu.data = np.log(uu.data + 1) if log_unnormalized else uu.data
                     ul.data = np.log(ul.data + 1) if log_unnormalized else ul.data
                     su.data = np.log(su.data + 1) if log_unnormalized else su.data
                     sl.data = np.log(sl.data + 1) if log_unnormalized else sl.data
+                    U.data, S.data = (
+                        np.log(U.data + 1) if log_unnormalized else U.data,
+                        np.log(S.data + 1) if log_unnormalized else S.data,
+                    )
                 else:
                     uu = np.log(uu + 1) if log_unnormalized else uu
                     ul = np.log(ul + 1) if log_unnormalized else ul
                     su = np.log(su + 1) if log_unnormalized else su
                     sl = np.log(sl + 1) if log_unnormalized else sl
-            U, S = (ul + sl, uu + ul + su + sl) if NTR else (uu + ul, su + sl)
+                    U, S = (
+                        np.log(U + 1) if log_unnormalized else U,
+                        np.log(S + 1) if log_unnormalized else S,
+                    )
+            U, S = (ul + sl, uu + ul + su + sl) if NTR else (U, S)
             # U, S = (ul + sl, uu + ul + su + sl) if NTR else (ul, sl)
         else:
             if ("X_unspliced" in subset_adata.layers.keys()) or (
@@ -1335,13 +1355,25 @@ def get_group_params_indices(adata, param_name):
 def set_transition_genes(
     adata,
     vkey="velocity_S",
-    min_r2=0.01,
-    min_alpha=0.01,
-    min_gamma=0.01,
-    min_delta=0.01,
+    min_r2=None,
+    min_alpha=None,
+    min_gamma=None,
+    min_delta=None,
     use_for_dynamics=True,
     store_key='use_for_transition'
 ):
+    if adata.uns['dynamics']['est_method'] == 'twostep':
+        # if adata.uns['dynamics']['has_splicing']:
+        #     min_r2 = 0.5 if min_r2 is None else min_r2
+        # else:
+            min_r2 = 0.9 if min_r2 is None else min_r2
+    else:
+        min_r2 = 0.01 if min_r2 is None else min_r2
+
+    if min_alpha is None: min_alpha = 0.01
+    if min_gamma is None: min_gamma = 0.01
+    if min_delta is None: min_delta = 0.01
+
     layer = vkey.split("_")[1]
 
     # the following parameters aggreation for different groups can be improved later
@@ -1403,6 +1435,25 @@ def set_transition_genes(
             & adata.var.use_for_dynamics
             if use_for_dynamics
             else (adata.var.delta > min_delta) & (adata.var.delta_r2 > min_r2)
+        )
+    if layer == "T":
+        if 'gamma' not in adata.var.columns:
+            is_group_gamma, is_group_gamma_r2 = get_group_params_indices(adata, 'gamma'), \
+                                                get_group_params_indices(adata, 'gamma_r2')
+            if is_group_gamma.sum() > 0:
+                adata.var['gamma'] = adata.var.loc[:, is_group_gamma].mean(1, skipna=True)
+                adata.var['gamma_r2'] = adata.var.loc[:, is_group_gamma_r2].mean(1, skipna=True)
+            else:
+                raise Exception("there is no gamma/gamma_r2 parameter estimated for your adata object")
+
+        if 'gamma_r2' not in adata.var.columns: adata.var['gamma_r2'] = None
+        if np.all(adata.var.gamma_r2.values == None): adata.var.gamma_r2 = 1
+        adata.var[store_key] = (
+            (adata.var.gamma > min_gamma)
+            & (adata.var.gamma_r2 > min_r2)
+            & adata.var.use_for_dynamics
+            if use_for_dynamics
+            else (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2)
         )
 
     return adata

@@ -33,8 +33,8 @@ notebooks_url = "https://github.com/aristoteleo/dynamo-tutorials/raw/master/"
 notebooks = [
     "Introduction.ipynb",
     "zebrafish.ipynb",
-    "dentategyrus_subset_scvelo.ipynb",
-    "pancreatic_endocrinogenesis.ipynb",
+    # "dentategyrus_subset_scvelo.ipynb",
+    # "pancreatic_endocrinogenesis.ipynb",
     "scNT_seq_readthedocs.ipynb",
     "scEU_seq_rpe1_analysis_kinetic.ipynb",
     "scEU_seq_organoid_analysis_kinetic.ipynb",
@@ -53,9 +53,9 @@ nbsphinx_prolog = r"""
 
     <div class="note">
       <a href="https://colab.research.google.com/{{ docname|e }}" target="_parent">
-      <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
+      <img src="https://user-images.githubusercontent.com/7456281/93841442-99c3e180-fc61-11ea-9c87-07760b5dfc9a.png" width="119" alt="Open In Colab"/></a>
       <a href="https://nbviewer.jupyter.org/{{ docname|e }}" target="_parent">
-      <img src="https://github.com/aristoteleo/dynamo-release/raw/master/docs/source/_static/nbviewer-badge.svg" alt="Open In nbviewer"/></a>
+      <img src="https://user-images.githubusercontent.com/7456281/93841447-9c263b80-fc61-11ea-99b2-4eafe9958ee4.png" width="119" alt="Open In nbviewer"/></a>
     </div>
 """
 
