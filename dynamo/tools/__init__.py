@@ -99,3 +99,6 @@ from .growth import (
     n_descentants,
     growth_rate
 )
+
+# recipes:
+from .recipes import recipe_splicing_labeling_kinetics_data

@@ -59,7 +59,7 @@ def cell_velocities(
     """Project high dimensional velocity vectors onto given low dimensional embeddings, 
     and/or compute cell transition probabilities.
 
-    When method='kmc, the Itô kernel is used which not only considers the correlation between the vector from any cell to its
+    When method='kmc', the Itô kernel is used which not only considers the correlation between the vector from any cell to its
     nearest neighbors and its velocity vector but also the corresponding distances. We expect this new kernel will enable
     us to visualize more intricate vector flow or steady states in low dimension. We also expect it will improve the
     calculation of the stationary distribution or source states of sampled cells. The original "correlation/cosine"
@@ -276,7 +276,7 @@ def cell_velocities(
                           "(`basis='X_total_umap'`) when using `velocity_S` (`velocity_T`). "
                           "")
 
-        if '_' in basis:
+        if '_' in basis and any([i in basis for i in ['X_', 'spliced_', 'unspliced_', 'new_', 'total']]):
             basis_layer, basis = basis.rsplit('_',1)
             adata = reduceDimension(adata, layer=basis_layer, reduction_method=basis)
             X_embedding = adata.obsm[basis]
@@ -931,3 +931,4 @@ def embed_velocity(adata, x_basis, v_basis='velocity', emb_basis='X', velocity_g
         return Uc, kmc
     else:
         return Uc
+

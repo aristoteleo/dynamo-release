@@ -405,8 +405,7 @@ def neighbors(
     metric_kwads=None,
     cores=1,
     seed=19491001,
-    **kwargs
-
+    **kwargs,
 ):
     """Function to search nearest neighbors of the adata object.
 
@@ -422,7 +421,7 @@ def neighbors(
         basis: `str` (default: `pca`)
             The space that will be used for nearest neighbor search. Valid names includes, for example, `pca`, `umap`,
             `velocity_pca` or `X` (that is, you can use velocity for clustering), etc.
-        layers: str or list (default: `all`)
+        layers: str or None (default: `None`)
             The layer to be used for nearest neighbor search.
         n_pca_components: 'int' (optional, default `30`)
             Number of PCA components. Applicable only if you will use pca `basis` for nearest neighbor search.
