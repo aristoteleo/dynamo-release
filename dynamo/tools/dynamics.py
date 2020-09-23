@@ -286,7 +286,7 @@ def dynamics(
         model_was_auto = False
 
     if tkey is not None:
-        if adata.obs['tkey'].max() > 60:
+        if adata.obs[tkey].max() > 60:
             warnings.warn("Looks like you are using minutes as the time unit. For the purpose of numeric stability, "
                           "we recommend using hour as the time unit.")
 
@@ -755,7 +755,8 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
     if experiment_type.lower() == 'kin':
         if est_method == 'twostep':
             time = time.values
-            if has_splicing:
+            check_splicing_layers = len({'unspliced', 'spliced', 'new', 'total'}.difference(subset_adata.layers.keys()))
+            if check_splicing_layers == 0:
                 layers = ['M_u', 'M_s', 'M_t', 'M_n'] if (
                             'M_u' in subset_adata.layers.keys() and data_type == 'smoothed') \
                     else ['X_u', 'X_s', 'X_t', 'X_n']

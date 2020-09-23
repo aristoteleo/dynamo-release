@@ -1271,12 +1271,17 @@ def recipe_monocle(
     if norm_method == 'Freeman_Tukey': norm_method = Freeman_Tukey
 
     basic_stats(adata)
-    has_splicing, has_labeling, _ = detect_datatype(adata)
-    if has_splicing and has_labeling:
+    has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
+    if has_splicing and has_labeling and splicing_labeling:
         layer = ['X', 'uu', 'ul', 'su', 'sl', 'spliced', 'unspliced', 'new', 'total'] if layer is None else layer
 
         if type(total_layers) != list:
             total_layers = ['uu', 'ul', 'su', 'sl'] if total_layers else None
+    if has_splicing and has_labeling and not splicing_labeling:
+        layer = ['X', 'spliced', 'unspliced', 'new', 'total'] if layer is None else layer
+
+        if type(total_layers) != list:
+            total_layers = ['total'] if total_layers else None
     elif has_labeling and not has_splicing:
         layer = ['X', 'total', 'new'] if layer is None else layer
 

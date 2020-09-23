@@ -546,10 +546,12 @@ def collapse_adata(adata):
     return adata
 
 def detect_datatype(adata):
-    has_splicing, has_labeling, has_protein = False, False, False
+    has_splicing, has_labeling, splicing_labeling, has_protein = False, False, False, False
 
     layers = adata.layers.keys()
     if len({'ul', 'sl', 'uu', 'su'}.difference(layers)) == 0:
+        has_splicing, has_labeling, splicing_labeling = True, True, True
+    elif len({'unspliced', 'spliced', 'new', 'total'}.difference(layers)) == 0:
         has_splicing, has_labeling = True, True
     elif len({'unspliced', 'spliced'}.difference(layers)) == 0:
         has_splicing = True
@@ -559,11 +561,11 @@ def detect_datatype(adata):
     if "protein" in adata.obsm.keys():
         has_protein = True
 
-    return has_splicing, has_labeling, has_protein
+    return has_splicing, has_labeling, splicing_labeling, has_protein
 
 
 def default_layer(adata):
-    has_splicing, has_labeling, _ = detect_datatype(adata)
+    has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
 
     if has_splicing:
         if has_labeling:
@@ -579,6 +581,7 @@ def default_layer(adata):
             "X_total" in adata.layers.keys() else "total"
 
     return default_layer
+
 
 def NTR(adata):
     """calculate the new to total ratio across cells. Note that
