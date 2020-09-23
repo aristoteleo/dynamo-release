@@ -7,6 +7,9 @@ from .cell_velocities import cell_velocities
 
 def recipe_kin_data(adata,
                     n_top_genes=1000,
+                    keep_filtered_cells=False,
+                    keep_filtered_genes=False,
+                    keep_raw_layers=False,
                     del_2nd_moments=True,
                     tkey='time',
                     ekey='M_t',
@@ -24,6 +27,12 @@ def recipe_kin_data(adata,
         n_top_genes: `int` (default: `1000`)
             How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
             Arguments required by the `recipe_monocle` function.
+        keep_filtered_cells: `bool` (default: `False`)
+            Whether to keep genes that don't pass the filtering in the returned adata object. Used in `recipe_monocle`.
+        keep_filtered_genes: `bool` (default: `False`)
+            Whether to keep genes that don't pass the filtering in the returned adata object. Used in `recipe_monocle`.
+        keep_raw_layers: `bool` (default: `False`)
+            Whether to keep layers with raw measurements in the returned adata object. Used in `recipe_monocle`.
         del_2nd_moments: `bool` (default: `False`)
             Whether to remove second moments or covariances. Default it is `False` so this avoids recalculating 2nd
             moments or covariance but it may take a lot memory when your dataset is big. Set this to `True` when your
@@ -66,7 +75,13 @@ def recipe_kin_data(adata,
     if has_splicing and has_labeling:
         # new, total (and uu, ul, su, sl if existed) layers will be normalized with size factor calculated with total
         # layers spliced / unspliced layers will be normalized independently.
-        recipe_monocle(adata, n_top_genes=n_top_genes, total_layers=True)
+        recipe_monocle(adata,
+                       n_top_genes=n_top_genes,
+                       total_layers=True,
+                       keep_filtered_cells=keep_filtered_cells,
+                       keep_filtered_genes=keep_filtered_genes,
+                       keep_raw_layers=keep_raw_layers,
+                       )
 
         # first calculate moments for labeling data relevant layers using total based connectivity graph
         moments(adata, group=tkey, layers=layers)
@@ -92,7 +107,13 @@ def recipe_kin_data(adata,
         # lastly, project RNA velocity to low dimensional embedding.
         cell_velocities(adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis)
     else:
-        recipe_monocle(adata, n_top_genes=n_top_genes, total_layers=True)
+        recipe_monocle(adata,
+                       n_top_genes=n_top_genes,
+                       total_layers=True,
+                       keep_filtered_cells=keep_filtered_cells,
+                       keep_filtered_genes=keep_filtered_genes,
+                       keep_raw_layers=keep_raw_layers,
+                       )
         dynamics(adata, model='kinetic', est_method='twostep', tkey=tkey, remove_2nd_moments=del_2nd_moments)
         reduceDimension(adata, reduction_method=basis)
         cell_velocities(adata, basis=basis)

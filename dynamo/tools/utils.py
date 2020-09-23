@@ -10,7 +10,7 @@ from sklearn.neighbors import NearestNeighbors
 import warnings
 import time
 
-from ..preprocessing.utils import Freeman_Tukey
+from ..preprocessing.utils import Freeman_Tukey, detect_datatype
 
 # ---------------------------------------------------------------------------------------------------
 # others
@@ -617,13 +617,11 @@ def get_data_for_kin_params_estimation(
         None,
         None,
     )  # U: unlabeled unspliced; S: unlabel spliced
-    normalized, has_splicing, has_labeling, has_protein, assumption_mRNA = (
-        False,
-        False,
-        False,
+    normalized, assumption_mRNA = (
         False,
         None,
     )
+    has_splicing, has_labeling, splicing_labeling, has_protein = detect_datatype(subset_adata)
 
     mapper = get_mapper()
 
@@ -635,9 +633,7 @@ def get_data_for_kin_params_estimation(
             ([mapper[i] in subset_adata.layers.keys() for i in ["X_ul", "X_sl", "X_su"]])
         )
     ):  # only uu, ul, su, sl provided
-        has_splicing, has_labeling, normalized, assumption_mRNA = (
-            True,
-            True,
+        normalized, assumption_mRNA = (
             True,
             "ss" if NTR_vel else 'kinetic',
         )
@@ -656,9 +652,7 @@ def get_data_for_kin_params_estimation(
     elif np.all(
             ([i in subset_adata.layers.keys() for i in ["uu", "ul", "sl", "su"]])
     ):
-        has_splicing, has_labeling, normalized, assumption_mRNA = (
-            True,
-            True,
+        normalized, assumption_mRNA = (
             False,
             "ss" if NTR_vel else 'kinetic',
         )
@@ -679,8 +673,7 @@ def get_data_for_kin_params_estimation(
         ("X_new" in subset_adata.layers.keys() and not use_moments)
         or (mapper["X_new"] in subset_adata.layers.keys() and use_moments)
     ):  # run new / total ratio (NTR)
-        has_labeling, normalized, assumption_mRNA = (
-            True,
+        normalized, assumption_mRNA = (
             True,
             "ss" if NTR_vel else 'kinetic',
         )
@@ -697,8 +690,7 @@ def get_data_for_kin_params_estimation(
         )
 
     elif not has_splicing and "new" in subset_adata.layers.keys():
-        has_labeling, assumption_mRNA = (
-            True,
+        assumption_mRNA = (
             "ss" if NTR_vel else 'kinetic',
         )
         raw, raw_new, old = (
@@ -843,6 +835,7 @@ def get_data_for_kin_params_estimation(
         normalized,
         has_splicing,
         has_labeling,
+        splicing_labeling,
         has_protein,
         ind_for_proteins,
         assumption_mRNA,

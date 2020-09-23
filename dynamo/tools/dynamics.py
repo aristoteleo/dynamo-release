@@ -340,6 +340,7 @@ def dynamics(
             normalized,
             has_splicing,
             has_labeling,
+            splicing_labeling,
             has_protein,
             ind_for_proteins,
             assump_mRNA,
@@ -735,13 +736,14 @@ def dynamics(
         "est_method": est_method,
         "has_splicing": has_splicing,
         "has_labeling": has_labeling,
+        "splicing_labeling": splicing_labeling,
         "has_protein": has_protein,
         "use_smoothed": use_smoothed,
         "NTR_vel": NTR_vel,
         "log_unnormalized": log_unnormalized,
     }
 
-    if remove_2nd_moments:
+    if del_2nd_moments:
         remove_2nd_moments(adata)
 
     return adata
@@ -755,8 +757,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
     if experiment_type.lower() == 'kin':
         if est_method == 'twostep':
             time = time.values
-            check_splicing_layers = len({'unspliced', 'spliced', 'new', 'total'}.difference(subset_adata.layers.keys()))
-            if check_splicing_layers == 0:
+            if has_splicing:
                 layers = ['M_u', 'M_s', 'M_t', 'M_n'] if (
                             'M_u' in subset_adata.layers.keys() and data_type == 'smoothed') \
                     else ['X_u', 'X_s', 'X_t', 'X_n']
