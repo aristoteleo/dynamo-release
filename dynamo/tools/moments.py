@@ -811,10 +811,10 @@ def moment_model(adata, subset_adata, _group, cur_grp, log_unnormalized, tkey):
                     subset_adata.layers["su"].data,
                     subset_adata.layers["sl"].data,
                 ) = (
-                    np.log(subset_adata.layers["uu"].data + 1),
-                    np.log(subset_adata.layers["ul"].data + 1),
-                    np.log(subset_adata.layers["su"].data + 1),
-                    np.log(subset_adata.layers["sl"].data + 1),
+                    np.log1p(subset_adata.layers["uu"].data),
+                    np.log1p(subset_adata.layers["ul"].data),
+                    np.log1p(subset_adata.layers["su"].data),
+                    np.log1p(subset_adata.layers["sl"].data),
                 )
             else:
                 (
@@ -823,10 +823,10 @@ def moment_model(adata, subset_adata, _group, cur_grp, log_unnormalized, tkey):
                     subset_adata.layers["su"],
                     subset_adata.layers["sl"],
                 ) = (
-                    np.log(subset_adata.layers["uu"] + 1),
-                    np.log(subset_adata.layers["ul"] + 1),
-                    np.log(subset_adata.layers["su"] + 1),
-                    np.log(subset_adata.layers["sl"] + 1),
+                    np.log1p(subset_adata.layers["uu"]),
+                    np.log1p(subset_adata.layers["ul"]),
+                    np.log1p(subset_adata.layers["su"]),
+                    np.log1p(subset_adata.layers["sl"]),
                 )
 
         subset_adata_u, subset_adata_s = subset_adata.copy(), subset_adata.copy()
@@ -878,13 +878,13 @@ def moment_model(adata, subset_adata, _group, cur_grp, log_unnormalized, tkey):
         if log_unnormalized and "X_total" not in subset_adata.layers.keys():
             if issparse(subset_adata.layers["total"]):
                 subset_adata.layers["new"].data, subset_adata.layers["total"].data = (
-                    np.log(subset_adata.layers["new"].data + 1),
-                    np.log(subset_adata.layers["total"].data + 1),
+                    np.log1p(subset_adata.layers["new"].data),
+                    np.log1p(subset_adata.layers["total"].data),
                 )
             else:
                 subset_adata.layers["total"], subset_adata.layers["total"] = (
-                    np.log(subset_adata.layers["new"] + 1),
-                    np.log(subset_adata.layers["total"] + 1),
+                    np.log1p(subset_adata.layers["new"]),
+                    np.log1p(subset_adata.layers["total"]),
                 )
 
         Moment = MomData(subset_adata, tkey)

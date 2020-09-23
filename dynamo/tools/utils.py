@@ -593,7 +593,7 @@ def log_unnormalized_data(raw, log_unnormalized):
     if sp.issparse(raw):
         raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
     else:
-        raw = np.log(raw + 1) if log_unnormalized else raw
+        raw = np.log1p(raw) if log_unnormalized else raw
 
     return raw
 
@@ -699,11 +699,11 @@ def get_data_for_kin_params_estimation(
             subset_adata.layers["total"].T - subset_adata.layers["new"].T,
         )
         if sp.issparse(raw):
-            raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
-            old.data = np.log(old.data + 1) if log_unnormalized else old.data
+            raw.data = np.log1p(raw.data) if log_unnormalized else raw.data
+            old.data = np.log1p(old.data) if log_unnormalized else old.data
         else:
-            raw = np.log(raw + 1) if log_unnormalized else raw
-            old = np.log(old + 1) if log_unnormalized else old
+            raw = np.log1p(raw) if log_unnormalized else raw
+            old = np.log1p(old) if log_unnormalized else old
         U = old
         Ul = raw
 
@@ -727,9 +727,9 @@ def get_data_for_kin_params_estimation(
             subset_adata.layers["unspliced"].T,
         )
         if sp.issparse(raw):
-            raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+            raw.data = np.log1p(raw.data) if log_unnormalized else raw.data
         else:
-            raw = np.log(raw + 1) if log_unnormalized else raw
+            raw = np.log1p(raw) if log_unnormalized else raw
         U = raw
     if not has_labeling and (
         ("X_spliced" in subset_adata.layers.keys() and not use_moments)
@@ -746,9 +746,9 @@ def get_data_for_kin_params_estimation(
             subset_adata.layers["spliced"].T,
         )
         if sp.issparse(raw):
-            raw.data = np.log(raw.data + 1) if log_unnormalized else raw.data
+            raw.data = np.log1p(raw.data) if log_unnormalized else raw.data
         else:
-            raw = np.log(raw + 1) if log_unnormalized else raw
+            raw = np.log1p(raw) if log_unnormalized else raw
         S = raw
 
     # protein
@@ -1154,21 +1154,21 @@ def get_U_S_for_velocity_estimation(
                 )
                 if sp.issparse(U):
                     U.data, S.data = (
-                        np.log(U.data + 1) if log_unnormalized else U.data,
-                        np.log(S.data + 1) if log_unnormalized else S.data,
+                        np.log1p(U.data) if log_unnormalized else U.data,
+                        np.log1p(S.data) if log_unnormalized else S.data,
                     )
                     N.data, T.data = (
-                        np.log(N.data + 1) if log_unnormalized else N.data,
-                        np.log(T.data + 1) if log_unnormalized else T.data,
+                        np.log1p(N.data) if log_unnormalized else N.data,
+                        np.log1p(T.data) if log_unnormalized else T.data,
                     )
                 else:
                     U, S = (
-                        np.log(U + 1) if log_unnormalized else U,
-                        np.log(S + 1) if log_unnormalized else S,
+                        np.log1p(U) if log_unnormalized else U,
+                        np.log1p(S) if log_unnormalized else S,
                     )
                     N, T = (
-                        np.log(N + 1) if log_unnormalized else N,
-                        np.log(T + 1) if log_unnormalized else T,
+                        np.log1p(N) if log_unnormalized else N,
+                        np.log1p(T) if log_unnormalized else T,
                     )
             U, S = (N, T) if NTR else (U, S)
         else:
@@ -1191,11 +1191,11 @@ def get_U_S_for_velocity_estimation(
                     subset_adata.layers["spliced"].T,
                 )
                 if sp.issparse(U):
-                    U.data = np.log(U.data + 1) if log_unnormalized else U.data
-                    S.data = np.log(S.data + 1) if log_unnormalized else S.data
+                    U.data = np.log1p(U.data) if log_unnormalized else U.data
+                    S.data = np.log1p(S.data) if log_unnormalized else S.data
                 else:
-                    U = np.log(U + 1) if log_unnormalized else U
-                    S = np.log(S + 1) if log_unnormalized else S
+                    U = np.log1p(U) if log_unnormalized else U
+                    S = np.log1p(S) if log_unnormalized else S
     else:
         if ("X_new" in subset_adata.layers.keys()) or (
             mapper["X_new"] in subset_adata.layers.keys()
@@ -1224,11 +1224,11 @@ def get_U_S_for_velocity_estimation(
                 # else subset_adata.layers["total"].T - subset_adata.layers["new"].T
             )
             if sp.issparse(U):
-                U.data = np.log(U.data + 1) if log_unnormalized else U.data
-                S.data = np.log(S.data + 1) if log_unnormalized else S.data
+                U.data = np.log1p(U.data) if log_unnormalized else U.data
+                S.data = np.log1p(S.data) if log_unnormalized else S.data
             else:
-                U = np.log(U + 1) if log_unnormalized else U
-                S = np.log(S + 1) if log_unnormalized else S
+                U = np.log1p(U) if log_unnormalized else U
+                S = np.log1p(S) if log_unnormalized else S
 
     return U, S
 

@@ -88,7 +88,7 @@ class kinetic_estimation:
         return ret
 
     def normalize_data(self, X):
-        return np.log(X + 1)
+        return np.log1p(X)
     
     def extract_data_from_simulator(self):
         return self.simulator.x.T

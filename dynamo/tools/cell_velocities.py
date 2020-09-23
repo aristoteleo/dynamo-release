@@ -785,13 +785,13 @@ def kernels_from_velocyto_scvelo(
             diff = X[i_vals, :] - X[i, :]
 
             if transform == 'log':
-                diff_velocity = np.sign(velocity) * np.log(np.abs(velocity) + 1)
-                diff_rho = np.sign(diff) * np.log(np.abs(diff) + 1)
+                diff_velocity = np.sign(velocity) * np.log1p(np.abs(velocity))
+                diff_rho = np.sign(diff) * np.log1p(np.abs(diff))
             elif transform == 'logratio':
                 hi_dim, hi_dim_t = X[i, :], X[i, :] + velocity
-                log2hidim = np.log(np.abs(hi_dim) + 1)
-                diff_velocity = np.log(np.abs(hi_dim_t) + 1) - log2hidim
-                diff_rho = np.log(np.abs(X[i_vals, :]) + 1) - np.log(np.abs(hi_dim) + 1)
+                log2hidim = np.log1p(np.abs(hi_dim))
+                diff_velocity = np.log1p(np.abs(hi_dim_t)) - log2hidim
+                diff_rho = np.log1p(np.abs(X[i_vals, :])) - np.log1p(np.abs(hi_dim))
             elif transform == 'linear':
                 diff_velocity = velocity
                 diff_rho = diff

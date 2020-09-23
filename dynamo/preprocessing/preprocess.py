@@ -56,8 +56,6 @@ def szFactor(
             Whether to also normalize spliced / unspliced layers by size factor from total RNA.
         X_total_layers: bool (default `False`)
             Whether to also normalize adata.X by size factor from total RNA.
-        X_total_layers: bool (default `False`)
-            Whether to also normalize adata.X by size factor from total RNA.
         locfunc: `function` (default: `np.nanmean`)
             The function to normalize the data.
         round_exprs: `bool` (default: `False`)

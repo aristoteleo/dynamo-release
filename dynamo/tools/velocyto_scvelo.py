@@ -332,7 +332,7 @@ def run_dynamo_simple_fit(adata, log=True):
     return adata
 
 
-def run_dynamo_labelling(adata, log=True, group=False):
+def run_dynamo_labelling_deprecated(adata, log=True, group=False):
     ncells, gene_num = adata.X.shape
 
     # estimation all parameters
@@ -360,8 +360,8 @@ def run_dynamo_labelling(adata, log=True, group=False):
             )
             if log:
                 cur_U, cur_L = (
-                    np.log(cur_U.toarray().squeeze() + 1),
-                    np.log(cur_L.toarray().squeeze() + 1),
+                    np.log1p(cur_U.toarray().squeeze()),
+                    np.log1p(cur_L.toarray().squeeze()),
                 )
             else:
                 cur_U, cur_L = cur_U.toarray().squeeze(), cur_L.toarray().squeeze()
