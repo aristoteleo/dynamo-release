@@ -1475,8 +1475,8 @@ def recipe_monocle(
     try:
         cell_cycle_scores(adata)
     except Exception:
-        warnings.warn('Dynamo is not able to perform cell cycle staging for you automatically. \n'
-                      'Since dyn.pl.phase_diagram in dynamo by default color cells by its cell-cycle stage, \n'
+        warnings.warn('\nDynamo is not able to perform cell cycle staging for you automatically. \n'
+                      'Since dyn.pl.phase_diagram in dynamo by default colors cells by its cell-cycle stage, \n'
                       'you need to set color argument accordingly if confronting errors related to this.')
 
     if 'raw_data' in adata.uns_keys():

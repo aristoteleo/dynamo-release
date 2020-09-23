@@ -549,13 +549,17 @@ def detect_datatype(adata):
     has_splicing, has_labeling, splicing_labeling, has_protein = False, False, False, False
 
     layers = adata.layers.keys()
-    if len({'ul', 'sl', 'uu', 'su'}.difference(layers)) == 0:
+    if len({'ul', 'sl', 'uu', 'su'}.difference(layers)) == 0 or \
+            len({'X_ul', 'X_sl', 'X_uu', 'X_su'}.difference(layers)) == 0:
         has_splicing, has_labeling, splicing_labeling = True, True, True
-    elif len({'unspliced', 'spliced', 'new', 'total'}.difference(layers)) == 0:
+    elif len({'unspliced', 'spliced', 'new', 'total'}.difference(layers)) == 0 or \
+            len({'X_unspliced', 'X_spliced', 'X_new', 'X_total'}.difference(layers)) == 0:
         has_splicing, has_labeling = True, True
-    elif len({'unspliced', 'spliced'}.difference(layers)) == 0:
+    elif len({'unspliced', 'spliced'}.difference(layers)) == 0 or \
+            len({'X_unspliced', 'X_spliced'}.difference(layers)) == 0:
         has_splicing = True
-    elif len({'new', 'total'}.difference(layers)) == 0:
+    elif len({'new', 'total'}.difference(layers)) == 0 or \
+            len({'X_new', 'X_total'}.difference(layers)) == 0:
         has_labeling = True
 
     if "protein" in adata.obsm.keys():

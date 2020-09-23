@@ -101,7 +101,7 @@ def recipe_kin_data(adata,
         # then calculate moments for spliced related layers using spliced based connectivity graph
         moments(adata, group='time', conn=conn, layers=['X_spliced', 'X_unspliced'])
         # then perform kinetic estimations with properly preprocessed layers for either the labeling or the splicing data
-        dynamics(adata, experiment_type='kin', model='kinetic', tkey=tkey, est_method='twostep',
+        dynamics(adata, experiment_type='kin', model='deterministic', tkey=tkey, est_method='twostep',
                  remove_2nd_moments=del_2nd_moments)
         # then perform dimension reduction
         reduceDimension(adata, reduction_method=basis)
@@ -115,7 +115,7 @@ def recipe_kin_data(adata,
                        keep_filtered_genes=keep_filtered_genes,
                        keep_raw_layers=keep_raw_layers,
                        )
-        dynamics(adata, model='kinetic', est_method='twostep', tkey=tkey, remove_2nd_moments=del_2nd_moments)
+        dynamics(adata, model='deterministic', est_method='twostep', tkey=tkey, remove_2nd_moments=del_2nd_moments)
         reduceDimension(adata, reduction_method=basis)
         cell_velocities(adata, basis=basis)
 
@@ -208,7 +208,7 @@ def recipe_deg_data(adata,
         # then calculate moments for spliced related layers using spliced based connectivity graph
         moments(adata, group='time', conn=conn, layers=['X_spliced', 'X_unspliced'])
         # then perform kinetic estimations with properly preprocessed layers for either the labeling or the splicing data
-        dynamics(adata, experiment_type='deg', model='kinetic', tkey=tkey, est_method='twostep',
+        dynamics(adata, experiment_type='deg', model='deterministic', tkey=tkey, est_method='twostep',
                  remove_2nd_moments=del_2nd_moments)
         # then perform dimension reduction
         reduceDimension(adata, reduction_method=basis)
@@ -222,7 +222,7 @@ def recipe_deg_data(adata,
                        keep_filtered_genes=keep_filtered_genes,
                        keep_raw_layers=keep_raw_layers,
                        )
-        dynamics(adata, experiment_type='deg', model='kinetic', tkey=tkey, remove_2nd_moments=del_2nd_moments)
+        dynamics(adata, experiment_type='deg', model='deterministic', tkey=tkey, remove_2nd_moments=del_2nd_moments)
         reduceDimension(adata, reduction_method=basis)
         cell_velocities(adata, basis=basis)
 

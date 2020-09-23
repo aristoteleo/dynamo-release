@@ -584,6 +584,7 @@ def dynamics(
                                            est_method,
                                            experiment_type,
                                            has_splicing,
+                                           splicing_labeling,
                                            has_switch=True,
                                            param_rngs={},
                                            data_type=data_type,
@@ -645,34 +646,76 @@ def dynamics(
             # also get vel_N and vel_T
             if NTR_vel:
                 if has_splicing:
-                    vel_U = vel.vel_u(U_)
-                    vel_S = vel.vel_s(U_, S_)
-                    vel_N = vel.vel_u(U)
-                    vel.parameters['beta'] = gamma
-                    vel_T = vel.vel_u(S) # no need to consider splicing
+                    if experiment_type == 'kin':
+                        vel_U = vel.vel_u(U_)
+                        vel_S = vel.vel_s(U_, S_)
+                        vel_N = vel.vel_u(U)
+                        vel.parameters['beta'] = gamma
+                        vel_T = vel.vel_u(S) # no need to consider splicing
+                    elif experiment_type == 'deg':
+                        if splicing_labeling:
+                            vel_U = np.nan
+                            vel_S = vel.vel_s(U_, S_)
+                            vel_N = np.nan
+                            vel_T = np.nan
+                        else:
+                            vel_U = np.nan
+                            vel_S = vel.vel_s(U_, S_)
+                            vel_N = np.nan
+                            vel_T = np.nan
                 else:
-                    vel_U = np.nan
-                    vel_S = np.nan
-                    vel_N = vel.vel_u(U)
-                    vel_T = vel.vel_u(S)  # don't consider splicing
+                    if experiment_type == 'kin':
+                        vel_U = np.nan
+                        vel_S = np.nan
 
+                        # calculate cell-wise alpha, if est_method is twostep, this can be skipped
+                        alpha_ = one_shot_alpha_matrix(U_, gamma, t)
+
+                        vel.parameters['alpha'] = alpha_
+
+                        vel_N = vel.vel_u(U)
+                        vel_T = vel.vel_u(S)  # don't consider splicing
+                    elif experiment_type == 'deg':
+                        vel_U = np.nan
+                        vel_S = np.nan
+                        vel_N = np.nan
+                        vel_T = np.nan
             else:
                 if has_splicing:
-                    vel_U = vel.vel_u(U)
-                    vel_S = vel.vel_s(U, S)
-                    vel_N = vel.vel_u(U_)
-                    vel.parameters['beta'] = gamma
-                    vel_T = vel.vel_u(S_)  # no need to consider splicing
+                    if experiment_type == 'kin':
+                        vel_U = vel.vel_u(U)
+                        vel_S = vel.vel_s(U, S)
+                        vel_N = vel.vel_u(U_)
+                        vel.parameters['beta'] = gamma
+                        vel_T = vel.vel_u(S_)  # no need to consider splicing
+                    elif experiment_type == 'deg':
+                        if splicing_labeling:
+                            vel_U = np.nan
+                            vel_S = vel.vel_s(U, S)
+                            vel_N = np.nan
+                            vel_T = np.nan
+                        else:
+                            vel_U = np.nan
+                            vel_S = vel.vel_s(U, S)
+                            vel_N = np.nan
+                            vel_T = np.nan
                 else:
-                    vel_U = np.nan
-                    vel_S = np.nan
-                    # calculate cell-wise alpha
-                    alpha_ = one_shot_alpha_matrix(U, gamma, t)
+                    if experiment_type == 'kin':
+                        vel_U = np.nan
+                        vel_S = np.nan
 
-                    vel.parameters['alpha'] = alpha_
+                        # calculate cell-wise alpha, if est_method is twostep, this can be skipped
+                        alpha_ = one_shot_alpha_matrix(U, gamma, t)
 
-                    vel_N = vel.vel_u(U_)
-                    vel_T = vel.vel_u(S_)  # need to consider splicing
+                        vel.parameters['alpha'] = alpha_
+
+                        vel_N = vel.vel_u(U_)
+                        vel_T = vel.vel_u(S_)  # need to consider splicing
+                    elif experiment_type == 'deg':
+                        vel_U = np.nan
+                        vel_S = np.nan
+                        vel_N = np.nan
+                        vel_T = np.nan
 
             vel_P = vel.vel_p(S, P)
 
@@ -749,7 +792,7 @@ def dynamics(
     return adata
 
 
-def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_splicing, has_switch, param_rngs,
+def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_splicing, splicing_labeling, has_switch, param_rngs,
                   data_type='sfs', **est_kwargs):
     """est_method can be either `twostep` (two-step model) or `direct`. data_type can either 'sfs' or 'smoothed'."""
     time = subset_adata.obs[tkey].astype('float')
@@ -801,7 +844,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
 
                 return Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data
         elif est_method == 'direct':
-            if has_splicing:
+            if has_splicing and splicing_labeling:
                 layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
                             'M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') \
                     else ['X_ul', 'X_sl', 'X_uu', 'X_su']
@@ -921,7 +964,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                                     f'current supported models for kinetics experiments include: stochastic, deterministic, mixture,'
                                     f'mixture_deterministic_stochastic or mixture_stochastic_stochastic')
     elif experiment_type.lower() == 'deg':
-        if has_splicing:
+        if has_splicing and splicing_labeling:
             layers = ['M_ul', 'M_sl', 'M_uu', 'M_su'] if (
                         'M_ul' in subset_adata.layers.keys() and data_type == 'smoothed') \
                 else ['X_ul', 'X_sl', 'X_uu', 'X_su']
