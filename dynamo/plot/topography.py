@@ -150,7 +150,7 @@ def plot_flow_field(
     else:
         if len(start_points.shape) == 1:
             start_points.reshape((1, 2))
-        ax.scatter(*start_points, marker="*", zorder=100)
+        ax.scatter(*start_points, marker="*", zorder=4)
 
         s = ax.streamplot(
             uu,
@@ -317,10 +317,10 @@ def plot_fixed_points(
             cmap=_cmap,
             vmin=0,
             vmax=1,
-            zorder=1000
+            zorder=5
         )
         txt = ax.text(*Xss[i], repr(i), c=('black' if cur_ftype == -1 else 'blue' if cur_ftype == 0 else 'red'),
-                horizontalalignment='center', verticalalignment='center', zorder=1001, weight='bold',
+                horizontalalignment='center', verticalalignment='center', zorder=6, weight='bold',
         )
         txt.set_path_effects(
             [
@@ -953,7 +953,7 @@ def topography(
                 "linewidth": 0.1,
                 "edgecolors": edgecolors,
                 "alpha": 1,
-                "zorder": 10,
+                "zorder": 7,
             }
             quiver_kwargs = update_dict(quiver_kwargs, q_kwargs_dict)
             # axes_list[i].quiver(X_grid[:, 0], X_grid[:, 1], V_grid[:, 0], V_grid[:, 1], **quiver_kwargs)

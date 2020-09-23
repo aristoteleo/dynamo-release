@@ -101,7 +101,7 @@ def recipe_kin_data(adata,
         # then calculate moments for spliced related layers using spliced based connectivity graph
         moments(adata, group='time', conn=conn, layers=['X_spliced', 'X_unspliced'])
         # then perform kinetic estimations with properly preprocessed layers for either the labeling or the splicing data
-        dynamics(adata, model='kinetic', tkey='time', est_method='twostep', remove_2nd_moments=del_2nd_moments)
+        dynamics(adata, experiment_type='kin', model='kinetic', tkey='time', est_method='twostep', remove_2nd_moments=del_2nd_moments)
         # then perform dimension reduction
         reduceDimension(adata, reduction_method=basis)
         # lastly, project RNA velocity to low dimensional embedding.
@@ -123,9 +123,13 @@ def recipe_kin_data(adata,
 
 def recipe_deg_data(adata,
                     n_top_genes=1000,
+                    keep_filtered_cells=False,
+                    keep_filtered_genes=False,
+                    keep_raw_layers=False,
+                    del_2nd_moments=True,
                     tkey='time',
-                    ekey='M_s',
-                    vkey='velocity_S',
+                    ekey='M_t',
+                    vkey='velocity_T',
                     basis='umap',
                     ):
     """An analysis recipe that properly pre-processes different layers for an degradatation experiment with both
@@ -158,35 +162,66 @@ def recipe_deg_data(adata,
     -------
         An updated adata object that went through a proper and typical time-resolved RNA velocity analysis.
     """
+
     from ..preprocessing import recipe_monocle
-    from ..preprocessing import pca
+    from ..preprocessing.utils import pca, detect_datatype
 
-    if not (all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]) or
-            all([i in adata.layers.keys() for i in ['new', 'total', 'spliced', 'unspliced']])):
-        raise Exception(f"this recipe is only applicable to kinetics experiment dataset that have "
-                        f"`'uu', 'ul', 'su', 'sl'` four layers.")
+    has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
 
-    # new, total, uu, ul, su, sl layers will be normalized with size factor calculated with total layers
-    # spliced / unspliced layers will be normalized independently.
-    recipe_monocle(adata, n_top_genes=n_top_genes, total_layers=True)
+    if has_splicing and has_labeling and splicing_labeling:
+        layers = ['X_new', 'X_total', 'X_uu', 'X_ul', 'X_su', 'X_sl']
+    elif has_labeling:
+        layers = ['X_new', 'X_total']
 
-    # first calculate moments for labeling data relevant layers using total based connectivity graph
-    moments(adata, group=tkey, layers=['X_new', 'X_total', 'X_uu', 'X_ul', 'X_su', 'X_sl'])
+    if not has_labeling:
+        raise Exception(f"This recipe is only applicable to kinetics experiment datasets that have "
+                        f"labeling data (at least either with `'uu', 'ul', 'su', 'sl'` or `'spliced', 'unspliced'` "
+                        f"layers.")
 
-    # then we want to calculate moments for spliced and unspliced layers based on connectivity graph from spliced data.
-    # first get X_spliced based pca embedding
-    pca(adata, adata[:, adata.var.use_for_pca].layers['X_spliced'].A, pca_key='X_spliced_pca')
-    # then get neighbors graph based on X_spliced_pca
-    neighbors(adata, X_data=adata.obsm['X_spliced_pca'], layer='X_spliced')
-    # then normalize neighbors graph so that each row sums up to be 1
-    conn = normalize_knn_graph(adata.obsp["connectivities"] > 0)
-    # then calculate moments for spliced related layers using spliced based connectivity graph
-    moments(adata, group='time', conn=conn, layers=['X_spliced', 'X_unspliced'])
-    # then perform kinetic estimations with properly preprocessed layers for either the labeling or the splicing data
-    dynamics(adata, model='kinetic', tkey='time', est_method='twostep')  # no correction
-    # then perform dimension reduction
-    reduceDimension(adata, reduction_method='umap')
-    # lastly, project RNA velocity to low dimensional embedding.
-    cell_velocities(adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis)
+    if has_splicing and has_labeling:
+        # new, total (and uu, ul, su, sl if existed) layers will be normalized with size factor calculated with total
+        # layers spliced / unspliced layers will be normalized independently.
+        recipe_monocle(adata,
+                       n_top_genes=n_top_genes,
+                       total_layers=True,
+                       keep_filtered_cells=keep_filtered_cells,
+                       keep_filtered_genes=keep_filtered_genes,
+                       keep_raw_layers=keep_raw_layers,
+                       )
+
+        # first calculate moments for labeling data relevant layers using total based connectivity graph
+        moments(adata, group=tkey, layers=layers)
+
+        # then we want to calculate moments for spliced and unspliced layers based on connectivity graph from spliced data.
+        # first get X_spliced based pca embedding
+        CM = np.log1p(adata[:, adata.var.use_for_pca].layers['X_spliced'].A)
+        cm_genesums = CM.sum(axis=0)
+        valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
+        valid_ind = np.array(valid_ind).flatten()
+
+        pca(adata, CM[:, valid_ind], pca_key='X_spliced_pca')
+        # then get neighbors graph based on X_spliced_pca
+        neighbors(adata, X_data=adata.obsm['X_spliced_pca'], layer='X_spliced')
+        # then normalize neighbors graph so that each row sums up to be 1
+        conn = normalize_knn_graph(adata.obsp["connectivities"] > 0)
+        # then calculate moments for spliced related layers using spliced based connectivity graph
+        moments(adata, group='time', conn=conn, layers=['X_spliced', 'X_unspliced'])
+        # then perform kinetic estimations with properly preprocessed layers for either the labeling or the splicing data
+        dynamics(adata, experiment_type='deg', model='kinetic', tkey='time', est_method='twostep', remove_2nd_moments=del_2nd_moments)
+        # then perform dimension reduction
+        reduceDimension(adata, reduction_method=basis)
+        # lastly, project RNA velocity to low dimensional embedding.
+        cell_velocities(adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis)
+    else:
+        recipe_monocle(adata,
+                       n_top_genes=n_top_genes,
+                       total_layers=True,
+                       keep_filtered_cells=keep_filtered_cells,
+                       keep_filtered_genes=keep_filtered_genes,
+                       keep_raw_layers=keep_raw_layers,
+                       )
+        dynamics(adata, experiment_type='deg', model='kinetic', tkey=tkey, remove_2nd_moments=del_2nd_moments)
+        reduceDimension(adata, reduction_method=basis)
+        cell_velocities(adata, basis=basis)
 
     return adata

@@ -1075,7 +1075,23 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
 
         logLL[i_gene] = gof.calc_gaussian_loglikelihood()
 
-    Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[:len(Estm[0])]])
+    if experiment_type.lower() == 'deg' and est_method == 'twostep' and has_splicing:
+        layers = ['M_u', 'M_s'] if (
+                'M_u' in subset_adata.layers.keys() and data_type == 'smoothed') \
+            else ['X_u', 'X_s']
+        U, S = subset_adata.layers[layers[0]].T, subset_adata.layers[layers[1]].T
+        US, S2 = subset_adata.layers['M_us'].T, subset_adata.layers['M_ss'].T
+        # beta, beta_r2 = lin_reg_gamma_synthesis(U, Ul, time, perc_right=100)
+        beta_k, beta_b, beta_all_r2, beta_all_logLL = \
+            fit_slope_stochastic(S, U, US, S2, perc_left=None, perc_right=5)
+
+        Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[:len(Estm[0])]])
+        Estm_df['beta'] = Estm_df['gamma'] / beta_k  # beta_k = gamma / beta
+        Estm_df['gamma_r2'] = beta_all_r2
+
+        return Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data
+    else:
+        Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[:len(Estm[0])]])
 
     return Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data
 
