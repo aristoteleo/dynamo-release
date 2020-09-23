@@ -99,7 +99,7 @@ def recipe_kin_data(adata,
         # then normalize neighbors graph so that each row sums up to be 1
         conn = normalize_knn_graph(adata.obsp["connectivities"] > 0)
         # then calculate moments for spliced related layers using spliced based connectivity graph
-        moments(adata, group='time', conn=conn, layers=['X_spliced', 'X_unspliced'])
+        moments(adata, group=tkey, conn=conn, layers=['X_spliced', 'X_unspliced'])
         # then perform kinetic estimations with properly preprocessed layers for either the labeling or the splicing data
         dynamics(adata, experiment_type='kin', model='deterministic', tkey=tkey, est_method='twostep',
                  remove_2nd_moments=del_2nd_moments)
@@ -129,8 +129,8 @@ def recipe_deg_data(adata,
                     keep_raw_layers=False,
                     del_2nd_moments=True,
                     tkey='time',
-                    ekey='M_t',
-                    vkey='velocity_T',
+                    ekey='M_s',
+                    vkey='velocity_S',
                     basis='umap',
                     ):
     """An analysis recipe that properly pre-processes different layers for an degradatation experiment with both
@@ -206,7 +206,7 @@ def recipe_deg_data(adata,
         # then normalize neighbors graph so that each row sums up to be 1
         conn = normalize_knn_graph(adata.obsp["connectivities"] > 0)
         # then calculate moments for spliced related layers using spliced based connectivity graph
-        moments(adata, group='time', conn=conn, layers=['X_spliced', 'X_unspliced'])
+        moments(adata, group=tkey, conn=conn, layers=['X_spliced', 'X_unspliced'])
         # then perform kinetic estimations with properly preprocessed layers for either the labeling or the splicing data
         dynamics(adata, experiment_type='deg', model='deterministic', tkey=tkey, est_method='twostep',
                  remove_2nd_moments=del_2nd_moments)

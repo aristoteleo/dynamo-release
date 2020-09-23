@@ -594,7 +594,7 @@ def dynamics(
                 alpha = params.pop('alpha')
                 params = pd.DataFrame(params)
             else:
-                alpha = params.loc[:, 'alpha'].values if 'alpha' in params.columns else None,
+                alpha = params.loc[:, 'alpha'].values if 'alpha' in params.columns else None
 
             len_t, len_g = len(np.unique(t)), len(_group)
             if cur_grp == _group[0]:
@@ -1129,6 +1129,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
             fit_slope_stochastic(S, U, US, S2, perc_left=None, perc_right=5)
 
         Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[:len(Estm[0])]])
+        Estm_df['beta_k'] = beta_k  # beta_k = gamma / beta
         Estm_df['beta'] = Estm_df['gamma'] / beta_k  # beta_k = gamma / beta
         Estm_df['gamma_r2'] = beta_all_r2
 

@@ -34,6 +34,7 @@ def szFactor(
     layers="all",
     total_layers=None,
     splicing_total_layers=False,
+    X_total_layers=False,
     locfunc=np.nanmean,
     round_exprs=False,
     method="median",
@@ -53,6 +54,10 @@ def szFactor(
             The layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"], ["uu", "ul", "su", "sl"] or ["new", "old"], etc.
         splicing_total_layers: bool (default `False`)
             Whether to also normalize spliced / unspliced layers by size factor from total RNA.
+        X_total_layers: bool (default `False`)
+            Whether to also normalize adata.X by size factor from total RNA.
+        X_total_layers: bool (default `False`)
+            Whether to also normalize adata.X by size factor from total RNA.
         locfunc: `function` (default: `np.nanmean`)
             The function to normalize the data.
         round_exprs: `bool` (default: `False`)
@@ -98,8 +103,14 @@ def szFactor(
     if "raw" in layers and adata.raw is None:
         adata.raw = adata.copy()
 
+    excluded_layers = []
+    if X_total_layers:
+        excluded_layers.extend(['X'])
+    if splicing_total_layers:
+        excluded_layers.extend(['spliced', 'unspliced'])
+
     for layer in layers:
-        if layer in ['spliced', 'unspliced'] and not splicing_total_layers:
+        if layer in excluded_layers:
             sfs, cell_total = sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None,
                                       scale_to=scale_to)
         else:
@@ -132,6 +143,7 @@ def normalize_expr_data(
     layers="all",
     total_szfactor='total_Size_Factor',
     splicing_total_layers=False,
+    X_total_layers=False,
     norm_method=None,
     pseudo_expr=1,
     relative_expr=True,
@@ -153,6 +165,8 @@ def normalize_expr_data(
             The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
         splicing_total_layers: bool (default `False`)
             Whether to also normalize spliced / unspliced layers by size factor from total RNA.
+        X_total_layers: bool (default `False`)
+            Whether to also normalize adata.X by size factor from total RNA.
         norm_method: `function` or None (default: `None`)
             The method used to normalize data. Can be either function `np.log1p, np.log2 or any other functions or string
             `clr`. By default, only .X will be size normalized and log1p transformed while data in other layers will only
@@ -209,8 +223,14 @@ def normalize_expr_data(
             scale_to=scale_to,
         )
 
+    excluded_layers = []
+    if X_total_layers:
+        excluded_layers.extend(['X'])
+    if splicing_total_layers:
+        excluded_layers.extend(['spliced', 'unspliced'])
+
     for layer in layers:
-        if layer in ['spliced', 'unspliced'] and not splicing_total_layers:
+        if layer in excluded_layers:
             szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=None)
         else:
             szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=total_szfactor)
@@ -1178,6 +1198,7 @@ def recipe_monocle(
     layer=None,
     total_layers=None,
     splicing_total_layers=False,
+    X_total_layers=False,
     genes_to_use=None,
     method="pca",
     num_dim=30,
@@ -1367,6 +1388,7 @@ def recipe_monocle(
     if not _szFactor or "Size_Factor" not in adata.obs_keys():
         adata = szFactor(adata, total_layers=total_layers, scale_to=scale_to,
                          splicing_total_layers=splicing_total_layers,
+                         X_total_layers=X_total_layers,
                          layers=layer if type(layer) is list else "all")
 
     if feature_selection.lower() == "dispersion":
@@ -1411,6 +1433,7 @@ def recipe_monocle(
             layers=layer if type(layer) is list else "all",
             total_szfactor=total_szfactor,
             splicing_total_layers=splicing_total_layers,
+            X_total_layers=X_total_layers,
             norm_method=norm_method,
             pseudo_expr=pseudo_expr,
             relative_expr=relative_expr,

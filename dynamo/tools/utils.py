@@ -1358,7 +1358,8 @@ def set_transition_genes(
     use_for_dynamics=True,
     store_key='use_for_transition'
 ):
-    if adata.uns['dynamics']['est_method'] == 'twostep':
+    if adata.uns['dynamics']['est_method'] == 'twostep' and \
+            adata.uns['dynamics']['experiment_type'] == 'kin':
         # if adata.uns['dynamics']['has_splicing']:
         #     min_r2 = 0.5 if min_r2 is None else min_r2
         # else:
