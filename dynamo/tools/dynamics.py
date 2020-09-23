@@ -757,7 +757,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                                     subset_adata.layers[layers[2]].T, subset_adata.layers[layers[3]].T
                 US, S2 = subset_adata.layers['M_us'].T, subset_adata.layers['M_ss'].T
                 # beta, beta_r2 = lin_reg_gamma_synthesis(U, Ul, time, perc_right=100)
-                beta_k = fit_slope_stochastic(S, U, US, S2, perc_left=None, perc_right=5)
+                beta_k, beta_b, beta_all_r2, beta_all_logLL = fit_slope_stochastic(S, U, US, S2, perc_left=None, perc_right=5)
                 gamma, gamma_r2 = lin_reg_gamma_synthesis(Total, New, time, perc_right=100)
 
                 k = 1 - np.exp(- gamma[:, None] * time[None, :])
@@ -766,6 +766,9 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 Estm_df = {'alpha': csr_matrix(gamma[:, None]).multiply(New).multiply(1 / k),
                            'beta': beta,
                            'beta_k': beta_k,
+                           'beta_b': beta_b,
+                           'beta_r2': beta_all_r2,
+                           'beta_logLL': beta_all_logLL,
                            'gamma': gamma,
                            'gamma_r2': gamma_r2,
                            }

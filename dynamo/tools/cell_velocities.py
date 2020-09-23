@@ -220,7 +220,7 @@ def cell_velocities(
         if 'use_for_transition' not in adata.var.keys() or enforce:
             use_for_dynamics = True if "use_for_dynamics" in adata.var.keys() else False
             adata = set_transition_genes(
-                adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamics=use_for_dynamics,
+                adata, vkey=vkey, min_r2=min_r2, use_for_dynamics=use_for_dynamics,
                 min_alpha=min_alpha, min_gamma=min_gamma, min_delta=min_delta,
             )
         transition_genes = adata.var_names[adata.var.use_for_transition.values]

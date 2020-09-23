@@ -1,4 +1,4 @@
-from ..preprocessing import recipe_monocle, pca
+import numpy as np
 from .moments import moments
 from .connectivity import neighbors, normalize_knn_graph
 from .dynamics import dynamics
@@ -43,8 +43,11 @@ def recipe_splicing_labeling_kinetics_data(adata,
     -------
         An updated adata object that went through a proper and typical time-resolved RNA velocity analysis.
     """
+    from ..preprocessing import recipe_monocle
+    from ..preprocessing import pca
 
-    if not all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]):
+    if not (all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]) or
+            all([i in adata.layers.keys() for i in ['new', 'total', 'spliced', 'unspliced']])):
         raise Exception(f"this recipe is only applicable to kinetics experiment dataset that have "
                         f"`'uu', 'ul', 'su', 'sl'` four layers.")
 
@@ -57,9 +60,14 @@ def recipe_splicing_labeling_kinetics_data(adata,
 
     # then we want to calculate moments for spliced and unspliced layers based on connectivity graph from spliced data.
     # first get X_spliced based pca embedding
-    pca(adata, adata[:, adata.var.use_for_pca].layers['X_spliced'].A, pca_key='X_spliced_pca')
+    CM = np.log1p(adata[:, adata.var.use_for_pca].layers['X_spliced'].A)
+    cm_genesums = CM.sum(axis=0)
+    valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
+    valid_ind = np.array(valid_ind).flatten()
+
+    pca(adata, CM[:, valid_ind], pca_key='X_spliced_pca')
     # then get neighbors graph based on X_spliced_pca
-    neighbors(adata, X_data=adata.adata['X_spliced_pca'], layer='X_spliced')
+    neighbors(adata, X_data=adata.obsm['X_spliced_pca'], layer='X_spliced')
     # then normalize neighbors graph so that each row sums up to be 1
     conn = normalize_knn_graph(adata.obsp["connectivities"] > 0)
     # then calculate moments for spliced related layers using spliced based connectivity graph
@@ -111,8 +119,11 @@ def recipe_splicing_labeling_degradation_data(adata,
     -------
         An updated adata object that went through a proper and typical time-resolved RNA velocity analysis.
     """
+    from ..preprocessing import recipe_monocle
+    from ..preprocessing import pca
 
-    if not all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]):
+    if not (all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]) or
+            all([i in adata.layers.keys() for i in ['new', 'total', 'spliced', 'unspliced']])):
         raise Exception(f"this recipe is only applicable to kinetics experiment dataset that have "
                         f"`'uu', 'ul', 'su', 'sl'` four layers.")
 
@@ -127,7 +138,7 @@ def recipe_splicing_labeling_degradation_data(adata,
     # first get X_spliced based pca embedding
     pca(adata, adata[:, adata.var.use_for_pca].layers['X_spliced'].A, pca_key='X_spliced_pca')
     # then get neighbors graph based on X_spliced_pca
-    neighbors(adata, X_data=adata.adata['X_spliced_pca'], layer='X_spliced')
+    neighbors(adata, X_data=adata.obsm['X_spliced_pca'], layer='X_spliced')
     # then normalize neighbors graph so that each row sums up to be 1
     conn = normalize_knn_graph(adata.obsp["connectivities"] > 0)
     # then calculate moments for spliced related layers using spliced based connectivity graph
