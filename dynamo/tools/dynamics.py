@@ -623,7 +623,7 @@ def dynamics(
             # if alpha = None, set alpha to be U; N - gamma R
             params = {"alpha": alpha, "beta": beta, "gamma": gamma, "t": t}
             vel = velocity(**params)
-
+            # Fix below:
             U, S = get_U_S_for_velocity_estimation(
                 subset_adata,
                 use_smoothed,

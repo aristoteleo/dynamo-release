@@ -783,6 +783,10 @@ def get_data_for_kin_params_estimation(
     experiment_type = "conventional"
 
     if has_labeling:
+        if assumption_mRNA is None:
+            assumption_mRNA = (
+                "ss" if NTR_vel else 'kinetic'
+            )
         if tkey is None:
             warnings.warn(
                 "dynamo finds that your data has labeling, but you didn't provide a `tkey` for"
@@ -795,8 +799,14 @@ def get_data_for_kin_params_estimation(
             if len(np.unique(t)) == 1:
                 experiment_type = "one-shot"
             else:
-                labeled_sum = U.sum(0) if Ul is None else Ul.sum(0)
-                xx, yy = labeled_sum.A1 if sp.issparse(U) else labeled_sum, t
+                if splicing_labeling:
+                    labeled_sum = U.sum(0) if Ul is None else Ul.sum(0)
+                    xx = labeled_sum.A1 if sp.issparse(U) else labeled_sum
+                else:
+                    labeled_sum = subset_adata.layers['X_new'].T.sum(0)
+                    xx = labeled_sum.A1 if sp.issparse(subset_adata.layers['X_new']) else labeled_sum
+
+                yy = t
                 xm, ym = np.mean(xx), np.mean(yy)
                 cov = np.mean(xx * yy) - xm * ym
                 var_x = np.mean(xx * xx) - xm * xm
@@ -1114,60 +1124,53 @@ def get_U_S_for_velocity_estimation(
 
     if has_splicing:
         if has_labeling:
-            if "X_uu" in subset_adata.layers.keys():  # unlabel spliced: S
+            if "X_new" in subset_adata.layers.keys():  # unlabel spliced: S
                 if use_moments:
-                    uu, ul, su, sl = (
-                        subset_adata.layers[mapper["X_uu"]].T,
-                        subset_adata.layers[mapper["X_ul"]].T,
-                        subset_adata.layers[mapper["X_su"]].T,
-                        subset_adata.layers[mapper["X_sl"]].T,
-                    )
                     U, S = (
                         subset_adata.layers[mapper["X_unspliced"]].T,
                         subset_adata.layers[mapper["X_spliced"]].T,
                     )
-                else:
-                    uu, ul, su, sl = (
-                        subset_adata.layers["X_uu"].T,
-                        subset_adata.layers["X_ul"].T,
-                        subset_adata.layers["X_su"].T,
-                        subset_adata.layers["X_sl"].T,
+                    N, T = (
+                        subset_adata.layers[mapper["X_new"]].T,
+                        subset_adata.layers[mapper["X_total"]].T,
                     )
+                else:
                     U, S = (
                         subset_adata.layers["X_unspliced"].T,
                         subset_adata.layers["X_spliced"].T,
                     )
+                    N, T = (
+                        subset_adata.layers["X_new"].T,
+                        subset_adata.layers["X_total"].T,
+                    )
             else:
-                uu, ul, su, sl = (
-                    subset_adata.layers["uu"].T,
-                    subset_adata.layers["ul"].T,
-                    subset_adata.layers["su"].T,
-                    subset_adata.layers["sl"].T,
-                )
                 U, S = (
                     subset_adata.layers["unspliced"].T,
                     subset_adata.layers["spliced"].T,
                 )
-                if sp.issparse(uu):
-                    uu.data = np.log(uu.data + 1) if log_unnormalized else uu.data
-                    ul.data = np.log(ul.data + 1) if log_unnormalized else ul.data
-                    su.data = np.log(su.data + 1) if log_unnormalized else su.data
-                    sl.data = np.log(sl.data + 1) if log_unnormalized else sl.data
+                N, T = (
+                    subset_adata.layers["new"].T,
+                    subset_adata.layers["total"].T,
+                )
+                if sp.issparse(U):
                     U.data, S.data = (
                         np.log(U.data + 1) if log_unnormalized else U.data,
                         np.log(S.data + 1) if log_unnormalized else S.data,
                     )
+                    N.data, T.data = (
+                        np.log(N.data + 1) if log_unnormalized else N.data,
+                        np.log(T.data + 1) if log_unnormalized else T.data,
+                    )
                 else:
-                    uu = np.log(uu + 1) if log_unnormalized else uu
-                    ul = np.log(ul + 1) if log_unnormalized else ul
-                    su = np.log(su + 1) if log_unnormalized else su
-                    sl = np.log(sl + 1) if log_unnormalized else sl
                     U, S = (
                         np.log(U + 1) if log_unnormalized else U,
                         np.log(S + 1) if log_unnormalized else S,
                     )
-            U, S = (ul + sl, uu + ul + su + sl) if NTR else (U, S)
-            # U, S = (ul + sl, uu + ul + su + sl) if NTR else (ul, sl)
+                    N, T = (
+                        np.log(N + 1) if log_unnormalized else N,
+                        np.log(T + 1) if log_unnormalized else T,
+                    )
+            U, S = (N, T) if NTR else (U, S)
         else:
             if ("X_unspliced" in subset_adata.layers.keys()) or (
                 mapper["X_unspliced"] in subset_adata.layers.keys()
