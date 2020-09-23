@@ -101,4 +101,7 @@ from .growth import (
 )
 
 # recipes:
-from .recipes import recipe_splicing_labeling_kinetics_data
+from .recipes import (
+    recipe_kinetics_data,
+    recipe_splicing_labeling_degradation_data,
+)

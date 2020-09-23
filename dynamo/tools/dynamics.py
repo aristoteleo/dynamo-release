@@ -53,7 +53,7 @@ def dynamics(
     one_shot_method="combined",
     re_smooth=False,
     sanity_check=False,
-    remove_2nd_moments=False,
+    del_2nd_moments=False,
     cores=1,
     **est_kwargs
 ):
@@ -67,7 +67,8 @@ def dynamics(
             AnnData object.
         tkey: `str` or None (default: None)
             The column key for the time label of cells in .obs. Used for either "ss" or "kinetic" model.
-            mode  with labeled data. When `group` is None, `tkey` will also be used for calculating  1st/2st moment or covariance.
+            mode  with labeled data. When `group` is None, `tkey` will also be used for calculating  1st/2st moment or
+            covariance. We recommend to use hour as the unit of `time`.
         t_label_keys: `str`, `list` or None (default: None)
             The column key(s) for the labeling time label of cells in .obs. Used for either "ss" or "kinetic" model.
             Not used for now and `tkey` is implicitly assumed as `t_label_key` (however, `tkey` should just be the time
@@ -165,7 +166,7 @@ def dynamics(
             applicable to kinetic or degradation metabolic labeling based scRNA-seq data. The basic idea is that for
             kinetic (degradation) experiment, the total labelled RNA for each gene should increase (decrease) over time.
             If they don't satisfy this criteria, those genes will be ignored during the estimation.
-        remove_2nd_moments: `bool` (default: `False`)
+        del_2nd_moments: `bool` (default: `False`)
             Whether to remove second moments or covariances. Default it is `False` so this avoids recalculating 2nd
             moments or covariance but it may take a lot memory when your dataset is big. Set this to `True` when your
             data is huge (like > 25, 000 cells or so) to reducing the memory footprint.
@@ -283,6 +284,11 @@ def dynamics(
         model_was_auto = True
     else:
         model_was_auto = False
+
+    if tkey is not None:
+        if adata.obs['tkey'].max() > 60:
+            warnings.warn("Looks like you are using minutes as the time unit. For the purpose of numeric stability, "
+                          "we recommend using hour as the time unit.")
 
     if model.lower() == "stochastic" or use_smoothed or re_smooth:
         M_layers = [i for i in adata.layers.keys() if i.startswith("M_")]
@@ -781,7 +787,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                             'M_t' in subset_adata.layers.keys() and data_type == 'smoothed') \
                     else ['X_t', 'X_n']
                 Total, New = subset_adata.layers[layers[0]].T, subset_adata.layers[layers[1]].T
-                gamma, gamma_r2 = lin_reg_gamma_synthesis(Total, New, time, perc_right=5)
+                gamma, gamma_r2 = lin_reg_gamma_synthesis(Total, New, time, perc_right=100)
 
                 k = 1 - np.exp(- gamma[:, None] * time[None, :])
                 Estm_df = {'alpha': csr_matrix(gamma[:, None]).multiply(New).multiply(1 / k),

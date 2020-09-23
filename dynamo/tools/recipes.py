@@ -4,15 +4,18 @@ from .connectivity import neighbors, normalize_knn_graph
 from .dynamics import dynamics
 from .dimension_reduction import reduceDimension
 from .cell_velocities import cell_velocities
+from ..preprocessing import recipe_monocle
+from ..preprocessing.utils import pca, detect_datatype
 
 
-def recipe_splicing_labeling_kinetics_data(adata,
-                                           n_top_genes=1000,
-                                           tkey='time',
-                                           ekey='M_t',
-                                           vkey='velocity_T',
-                                           basis='umap',
-                                           ):
+def recipe_kinetics_data(adata,
+                         n_top_genes=1000,
+                         del_2nd_moments=True,
+                         tkey='time',
+                         ekey='M_t',
+                         vkey='velocity_T',
+                         basis='umap',
+                         ):
     """An analysis recipe that properly pre-processes different layers for an kinetics experiment with both labeling and
     splicing data.
 
@@ -24,6 +27,11 @@ def recipe_splicing_labeling_kinetics_data(adata,
         n_top_genes: `int` (default: `1000`)
             How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
             Arguments required by the `recipe_monocle` function.
+        del_2nd_moments: `bool` (default: `False`)
+            Whether to remove second moments or covariances. Default it is `False` so this avoids recalculating 2nd
+            moments or covariance but it may take a lot memory when your dataset is big. Set this to `True` when your
+            data is huge (like > 25, 000 cells or so) to reducing the memory footprint. Argument used for `dynamics`
+            function.
         tkey: `str` (default: `time`)
             The column key for the time label of cells in .obs. Used for  the "kinetic" model.
             mode  with labeled data. When `group` is None, `tkey` will also be used for calculating  1st/2st moment or
@@ -43,20 +51,24 @@ def recipe_splicing_labeling_kinetics_data(adata,
     -------
         An updated adata object that went through a proper and typical time-resolved RNA velocity analysis.
     """
-    from ..preprocessing import recipe_monocle
-    from ..preprocessing import pca
+    has_splicing, has_labeling, _ = detect_datatype(adata)
 
-    if not (all([i in adata.layers.keys() for i in ['uu', 'ul', 'su', 'sl']]) or
-            all([i in adata.layers.keys() for i in ['new', 'total', 'spliced', 'unspliced']])):
-        raise Exception(f"this recipe is only applicable to kinetics experiment dataset that have "
-                        f"`'uu', 'ul', 'su', 'sl'` four layers.")
+    if has_splicing and has_labeling:
+        layers = ['X_new', 'X_total', 'X_uu', 'X_ul', 'X_su', 'X_sl']
+    elif has_labeling:
+        layers = ['X_new', 'X_total']
+
+    if not has_labeling:
+        raise Exception(f"This recipe is only applicable to kinetics experiment datasets that have "
+                        f"labeling data (at least either with `'uu', 'ul', 'su', 'sl'` or `'spliced', 'unspliced'` "
+                        f"layers.")
 
     # new, total, uu, ul, su, sl layers will be normalized with size factor calculated with total layers
     # spliced / unspliced layers will be normalized independently.
     recipe_monocle(adata, n_top_genes=n_top_genes, total_layers=True)
 
     # first calculate moments for labeling data relevant layers using total based connectivity graph
-    moments(adata, group=tkey, layers=['X_new', 'X_total', 'X_uu', 'X_ul', 'X_su', 'X_sl'])
+    moments(adata, group=tkey, layers=layers)
 
     # then we want to calculate moments for spliced and unspliced layers based on connectivity graph from spliced data.
     # first get X_spliced based pca embedding
@@ -73,7 +85,7 @@ def recipe_splicing_labeling_kinetics_data(adata,
     # then calculate moments for spliced related layers using spliced based connectivity graph
     moments(adata, group='time', conn=conn, layers=['X_spliced', 'X_unspliced'])
     # then perform kinetic estimations with properly preprocessed layers for either the labeling or the splicing data
-    dynamics(adata, model='kinetic', tkey='time', est_method='twostep')  # no correction
+    dynamics(adata, model='kinetic', tkey='time', est_method='twostep', remove_2nd_moments=del_2nd_moments)  # no correction
     # then perform dimension reduction
     reduceDimension(adata, reduction_method='umap')
     # lastly, project RNA velocity to low dimensional embedding.
