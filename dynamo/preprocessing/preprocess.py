@@ -269,7 +269,7 @@ def normalize_expr_data(
         else:
             adata.layers["X_" + layer] = CM
 
-        adata.uns["pp_norm_method"] = norm_method.__name__ if callable(norm_method) else norm_method
+        adata.uns["pp"]["norm_method"] = norm_method.__name__ if callable(norm_method) else norm_method
 
     return adata
 
@@ -1194,6 +1194,7 @@ def recipe_monocle(
     adata,
     reset_X=False,
     tkey=None,
+    t_label_keys=None,
     experiment_type=None,
     normalized=None,
     layer=None,
@@ -1224,22 +1225,32 @@ def recipe_monocle(
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object.
-        reset_X: bool (default: `False`)
-            Whether do you want to let dynamo reset `adata.X` data based on layers stored in your experiment. One
-            critical functionality of dynamo is about visualizing RNA velocity vector flows which requires proper data
-            into which the high dimensional RNA velocity vectors can be be projected. For kinetics experiment, we
-            recommend the use of `total` layer as `adata.X` while for degradation experiment or conventional scRNA-seq,
-            we recommend using `splicing` layer as `adata.X`. Set `reset_X` to `True` if you are not sure.
         tkey: `str` or None (default: None)
-            The column key for the time label of cells in .obs. Used for either "ss" or "kinetic" model.
-            mode  with labeled data. When `group` is None, `tkey` will also be used for calculating  1st/2st moment or
-            covariance. We recommend to use hour as the unit of `time`.
-        experiment_type: `str` {`conventional`, `deg`, `kin`, `one-shot`, `auto`} or None, (default: `None`)
-            single cell RNA-seq experiment type. Available options are:
+            The column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data (will also
+            support for conventional scRNA-seq data). Note that `tkey` will be saved to adata.uns['pp']['tkey'] and used
+            in `dyn.tl.dynamics` in which when `group` is None, `tkey` will also be used for calculating  1st/2st moment
+            or covariance. We recommend to use hour as the unit of `time`.
+        t_label_keys: `str`, `list` or None (default: None)
+            The column key(s) for the labeling time label of cells in .obs. Used for either "ss" or "kinetic" model.
+            Not used for now and `tkey` is implicitly assumed as `t_label_key` (however, `tkey` should just be the time
+            of the experiment).
+        experiment_type: `str` {`deg`, `kin`, `one-shot`, `auto`} or None, (default: `None`)
+            experiment type for labeling single cell RNA-seq. Available options are:
             (1) 'conventional': conventional single-cell RNA-seq experiment;
             (2) 'deg': chase/degradation experiment;
             (3) 'kin': pulse/synthesis/kinetics experiment;
             (4) 'one-shot': one-shot kinetic experiment;
+            Other possible experiments include:
+            (5) 'mix_std_stm';
+            (4) 'mixture';
+            Note that we call non-labeling based scRNA-seq data's experiment type "conventional".
+        reset_X: bool (default: `False`)
+            Whether do you want to let dynamo reset `adata.X` data based on layers stored in your experiment. One
+            critical functionality of dynamo is about visualizing RNA velocity vector flows which requires proper data
+            into which the high dimensional RNA velocity vectors will be projected.
+            (1) For `kinetics` experiment, we recommend the use of `total` layer as `adata.X`;
+            (2) For `degradation/conventional` experiment scRNA-seq, we recommend using `splicing` layer as `adata.X`.
+            Set `reset_X` to `True` to set those default values if you are not sure.
         normalized: `None` or `bool` (default: `None`)
             If you already normalized your data (or run recipe_monocle already), set this to be `True` to avoid
             renormalizing your data. By default it is set to be `None` and the first 20 values of adata.X (if adata.X is
@@ -1303,13 +1314,18 @@ def recipe_monocle(
             dimensions, etc.
     """
 
+    adata.uns["pp"] = {}
     n_cells, n_genes = adata.n_obs, adata.n_vars
     adata = convert2symbol(adata, scopes=scopes)
 
     if norm_method == 'Freeman_Tukey': norm_method = Freeman_Tukey
 
     basic_stats(adata)
-    has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
+    has_splicing, has_labeling, splicing_labeling, has_protein = detect_datatype(adata)
+    adata.uns['pp']['has_splicing'], \
+    adata.uns['pp']['has_labeling'], \
+    adata.uns['pp']['splicing_labeling'], \
+    adata.uns['pp']['has_protein'] = has_splicing, has_labeling, splicing_labeling, has_protein
 
     if has_splicing and has_labeling and splicing_labeling:
         layer = ['X', 'uu', 'ul', 'su', 'sl', 'spliced', 'unspliced', 'new', 'total'] if layer is None else layer
@@ -1334,29 +1350,37 @@ def recipe_monocle(
     adata = collapse_adata(adata)
 
     # reset adata.X
+    if has_labeling:
+        if tkey is None:
+            warnings.warn(f"\nWhen analyzing labeling based scRNA-seq without providing `tkey`, dynamo will try to use "
+                          f"`time` as the key for labeling time. Please please correct this via supplying the correct "
+                          f"`tkey` if needed.")
+            tkey = 'time'
+        if tkey not in adata.obs.keys():
+            raise ValueError(f"`tkey` {tkey} that encodes the labeling time is not existed in your adata.")
+        if experiment_type is None:
+            t = np.array(adata.obs[tkey], dtype="float")
+            if len(np.unique(t)) == 1:
+                experiment_type = "one-shot"
+            else:
+                labeled_frac = adata.layers['new'].T.sum(0) / adata.layers['total'].T.sum(0)
+                xx = labeled_frac.A1 if issparse(adata.layers['new']) else labeled_frac
+
+                yy = t
+                xm, ym = np.mean(xx), np.mean(yy)
+                cov = np.mean(xx * yy) - xm * ym
+                var_x = np.mean(xx * xx) - xm * xm
+
+                k = cov / var_x
+
+                # total labeled RNA amount will increase (decrease) in kinetic (degradation) experiments over time.
+                experiment_type = "kin" if k > 0 else "deg"
+            warnings.warn(f"\nDynamo detects your labeling data is from a {experiment_type} experiment, please correct "
+                          f" this via supplying the correct experiment_type (one of `one-shot`, `kin`, `deg`) if "
+                          f"needed.")
+
     if reset_X:
-        if has_labeling and tkey is None and experiment_type is None:
-            raise ValueError(f"You must provide `tkey` or `experiment_type` if you have `reset_X=True` for labeling "
-                             f"scRNA-seq data.")
         if has_labeling:
-            if experiment_type is None:
-                t = np.array(adata.obs[tkey], dtype="float")
-                if len(np.unique(t)) == 1:
-                    experiment_type = "one-shot"
-                else:
-                    labeled_frac = adata.layers['new'].T.sum(0) / adata.layers['total'].T.sum(0)
-                    xx = labeled_frac.A1 if issparse(adata.layers['new']) else labeled_frac
-
-                    yy = t
-                    xm, ym = np.mean(xx), np.mean(yy)
-                    cov = np.mean(xx * yy) - xm * ym
-                    var_x = np.mean(xx * xx) - xm * xm
-
-                    k = cov / var_x
-
-                    # total labeled RNA amount will increase (decrease) in kinetic (degradation) experiments over time.
-                    experiment_type = "kin" if k > 0 else "deg"
-
             if experiment_type.lower() in ['one-shot', 'kin', 'mixture', 'mix_std_stm']:
                 adata.X = adata.layers['total'].copy()
             if experiment_type.lower() == 'deg' and has_splicing:
@@ -1369,6 +1393,14 @@ def recipe_monocle(
                 adata.X = adata.layers['total'].copy()
         else:
             adata.X = adata.layers['spliced'].copy()
+
+    if tkey is not None:
+        if adata.obs[tkey].max() > 60:
+            warnings.warn("Looks like you are using minutes as the time unit. For the purpose of numeric stability, "
+                          "we recommend using hour as the time unit.")
+
+    adata.uns['pp']['tkey'] = tkey
+    adata.uns['pp']['experiment_type'] = 'conventional' if experiment_type is None else experiment_type
 
     _szFactor, _logged = (True, True) if normalized else (False, False)
     if normalized is None and not has_labeling:
@@ -1501,7 +1533,7 @@ def recipe_monocle(
         for layer in layers:
             if layer != 'X': adata.layers["X_" + layer] = adata.layers[layer].copy()
 
-        adata.uns["pp_norm_method"] = None
+        adata.uns["pp"]["norm_method"] = None
 
     # only use genes pass filter (based on use_for_pca) to perform dimension reduction.
     if layer is None:

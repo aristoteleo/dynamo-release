@@ -484,10 +484,10 @@ def table_rank_dict(rank_dict, n_top_genes=30, order=1, output_values=False):
 # ---------------------------------------------------------------------------------------------------
 # data transformation related:
 def log1p_(adata, X_data):
-    if 'pp_norm_method' not in adata.uns.keys():
+    if 'norm_method' not in adata.uns['pp'].keys():
         return X_data
     else:
-        if adata.uns['pp_norm_method'] is None:
+        if adata.uns["pp"]["norm_method"] is None:
             if sp.issparse(X_data):
                 X_data.data = np.log1p(X_data.data)
             else:
@@ -500,25 +500,25 @@ def inverse_norm(adata, layer_x):
     if sp.issparse(layer_x):
         layer_x.data = (
             np.expm1(layer_x.data)
-            if adata.uns["pp_norm_method"] == "log1p"
+            if adata.uns["pp"]["norm_method"] == "log1p"
             else 2 ** layer_x.data - 1
-            if adata.uns["pp_norm_method"] == "log2"
+            if adata.uns["pp"]["norm_method"] == "log2"
             else np.exp(layer_x.data) - 1
-            if adata.uns["pp_norm_method"] == "log"
+            if adata.uns["pp"]["norm_method"] == "log"
             else Freeman_Tukey(layer_x.data + 1, inverse=True)
-            if adata.uns["pp_norm_method"] == "Freeman_Tukey"
+            if adata.uns["pp"]["norm_method"] == "Freeman_Tukey"
             else layer_x.data
         )
     else:
         layer_x = (
             np.expm1(layer_x)
-            if adata.uns["pp_norm_method"] == "log1p"
+            if adata.uns["pp"]["norm_method"] == "log1p"
             else 2 ** layer_x - 1
-            if adata.uns["pp_norm_method"] == "log2"
+            if adata.uns["pp"]["norm_method"] == "log2"
             else np.exp(layer_x) - 1
-            if adata.uns["pp_norm_method"] == "log"
+            if adata.uns["pp"]["norm_method"] == "log"
             else Freeman_Tukey(layer_x, inverse=True)
-            if adata.uns["pp_norm_method"] == "Freeman_Tukey"
+            if adata.uns["pp"]["norm_method"] == "Freeman_Tukey"
             else layer_x
         )
 
@@ -600,6 +600,8 @@ def log_unnormalized_data(raw, log_unnormalized):
 
 def get_data_for_kin_params_estimation(
     subset_adata,
+    has_splicing,
+    has_labeling,
     model,
     use_moments,
     tkey,
@@ -621,7 +623,6 @@ def get_data_for_kin_params_estimation(
         False,
         None,
     )
-    has_splicing, has_labeling, splicing_labeling, has_protein = detect_datatype(subset_adata)
 
     mapper = get_mapper()
 
@@ -712,7 +713,7 @@ def get_data_for_kin_params_estimation(
         ("X_unspliced" in subset_adata.layers.keys() and not use_moments)
         or (mapper["X_unspliced"] in subset_adata.layers.keys() and use_moments)
     ):
-        has_splicing, normalized, assumption_mRNA = True, True, "kinetic" \
+        normalized, assumption_mRNA = True, "kinetic" \
             if tkey in subset_adata.obs.columns else 'ss'
         U = (
             subset_adata.layers[mapper["X_unspliced"]].T
@@ -720,7 +721,7 @@ def get_data_for_kin_params_estimation(
             else subset_adata.layers["X_unspliced"].T
         )
     elif not has_labeling and "unspliced" in subset_adata.layers.keys():
-        has_splicing, assumption_mRNA = True, "kinetic" \
+        assumption_mRNA = "kinetic" \
             if tkey in subset_adata.obs.columns else 'ss'
         raw, raw_unspliced = (
             subset_adata.layers["unspliced"].T,
@@ -765,7 +766,6 @@ def get_data_for_kin_params_estimation(
     elif "protein" in subset_adata.obsm.keys():
         P = subset_adata.obsm["protein"].T
     if P is not None:
-        has_protein = True
         if protein_names is None:
             warnings.warn(
                 "protein layer exists but protein_names is not provided. No estimation will be performed for protein data."
@@ -780,41 +780,13 @@ def get_data_for_kin_params_estimation(
             subset_adata.var["is_protein_dynamics_genes"] = False
             subset_adata.var.loc[ind_for_proteins, "is_protein_dynamics_genes"] = True
 
-    experiment_type = "conventional"
-
     if has_labeling:
         if assumption_mRNA is None:
             assumption_mRNA = (
                 "ss" if NTR_vel else 'kinetic'
             )
-        if tkey is None:
-            warnings.warn(
-                "dynamo finds that your data has labeling, but you didn't provide a `tkey` for"
-                "metabolic labeling experiments, so experiment_type is set to be `one-shot`."
-            )
-            experiment_type = "one-shot"
-            t = np.ones_like(subset_adata.n_obs)
-        elif tkey in subset_adata.obs.columns:
+        if tkey in subset_adata.obs.columns:
             t = np.array(subset_adata.obs[tkey], dtype="float")
-            if len(np.unique(t)) == 1:
-                experiment_type = "one-shot"
-            else:
-                if splicing_labeling:
-                    labeled_sum = U.sum(0) if Ul is None else Ul.sum(0)
-                    xx = labeled_sum.A1 if sp.issparse(U) else labeled_sum
-                else:
-                    labeled_sum = subset_adata.layers['X_new'].T.sum(0)
-                    xx = labeled_sum.A1 if sp.issparse(subset_adata.layers['X_new']) else labeled_sum
-
-                yy = t
-                xm, ym = np.mean(xx), np.mean(yy)
-                cov = np.mean(xx * yy) - xm * ym
-                var_x = np.mean(xx * xx) - xm * xm
-
-                k = cov / var_x
-
-                # total labeled RNA amount will increase (decrease) in kinetic (degradation) experiments over time.
-                experiment_type = "kin" if k > 0 else "deg"
         else:
             raise Exception(
                 "the tkey ", tkey, " provided is not a valid column name in .obs."
@@ -823,9 +795,9 @@ def get_data_for_kin_params_estimation(
             [x in subset_adata.layers.keys() for x in ["M_tn", "M_nn", "M_tt"]]
         ):
             US, U2, S2 = (
-                subset_adata.layers["M_tn"].T,
-                subset_adata.layers["M_nn"].T if not has_splicing else None,
-                subset_adata.layers["M_tt"].T if not has_splicing else None,
+                subset_adata.layers["M_tn"].T if NTR_vel else subset_adata.layers["M_us"].T,
+                subset_adata.layers["M_nn"].T if NTR_vel else subset_adata.layers["M_uu"].T,
+                subset_adata.layers["M_tt"].T if NTR_vel else subset_adata.layers["M_ss"].T,
             )
     else:
         t = None
@@ -843,13 +815,8 @@ def get_data_for_kin_params_estimation(
         S2,
         t,
         normalized,
-        has_splicing,
-        has_labeling,
-        splicing_labeling,
-        has_protein,
         ind_for_proteins,
         assumption_mRNA,
-        experiment_type,
     )
 
 def set_velocity(

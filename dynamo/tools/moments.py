@@ -269,7 +269,7 @@ def prepare_data_deterministic(adata, genes, time, layers,
     raw = [None] * len(layers)
     for i, layer in enumerate(layers):
         if layer in ['X_total', 'total', 'M_t']:
-            if (layer == 'X_total' and adata.uns['pp_norm_method'] is None) or layer == 'M_t':
+            if (layer == 'X_total' and adata.uns["pp"]["norm_method"] is None) or layer == 'M_t':
                 x_layer = adata[:, genes].layers[layer]
                 x_layer = x_layer - adata[:, genes].layers[get_layer_pair(layer)]
             else:
@@ -301,7 +301,7 @@ def prepare_data_deterministic(adata, genes, time, layers,
 
                 x_layer = x_layer - y_layer
         else:
-            if (layer == ['X_new'] and adata.uns['pp_norm_method'] is None) or layer == 'M_n':
+            if (layer == ['X_new'] and adata.uns["pp"]["norm_method"] is None) or layer == 'M_n':
                 x_layer = adata[:, genes].layers[layer]
             else:
                 x_layer = adata.layers[layer]

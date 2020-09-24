@@ -8,7 +8,7 @@ from scipy.sparse import (
     SparseEfficiencyWarning,
 )
 
-from .moments import moments, strat_mom
+from .moments import moments
 from ..estimation.csc.velocity import fit_linreg, velocity, ss_estimation
 from ..estimation.tsc.twostep import lin_reg_gamma_synthesis, fit_slope_stochastic
 from ..estimation.tsc.estimation_kinetic import *
@@ -36,11 +36,8 @@ warnings.simplefilter('ignore', SparseEfficiencyWarning)
 # incorporate the model selection code soon
 def dynamics(
     adata,
-    tkey=None,
-    t_label_keys=None,
     filter_gene_mode="final",
     use_smoothed=True,
-    experiment_type='auto',
     assumption_mRNA='auto',
     assumption_protein="ss",
     model="auto",
@@ -65,26 +62,11 @@ def dynamics(
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object.
-        tkey: `str` or None (default: None)
-            The column key for the time label of cells in .obs. Used for either "ss" or "kinetic" model.
-            mode  with labeled data. When `group` is None, `tkey` will also be used for calculating  1st/2st moment or
-            covariance. We recommend to use hour as the unit of `time`.
-        t_label_keys: `str`, `list` or None (default: None)
-            The column key(s) for the labeling time label of cells in .obs. Used for either "ss" or "kinetic" model.
-            Not used for now and `tkey` is implicitly assumed as `t_label_key` (however, `tkey` should just be the time
-            of the experiment).
         filter_gene_mode: `str` (default: `final`)
             The string for indicating which mode (one of, {'final', 'basic', 'no'}) of gene filter will be used.
         use_smoothed: `bool` (default: 'True')
             Whether to use the smoothed data when estimating kinetic parameters and calculating velocity for each gene.
             When you have time-series data (`tkey` is not None), we recommend to smooth data among cells from each time point.
-        experiment_type: `str` {`conventional`, `deg`, `kin`, `one-shot`, `auto`}, (default: `auto`)
-            single cell RNA-seq experiment type. Available options are:
-            (1) 'conventional': conventional single-cell RNA-seq experiment;
-            (2) 'deg': chase/degradation experiment;
-            (3) 'kin': pulse/synthesis/kinetics experiment;
-            (4) 'one-shot': one-shot kinetic experiment;
-            (5) 'auto': dynamo will detect the experimental type automatically.
         assumption_mRNA: `str` `str` {`ss`, `kinetic`, `auto`}, (default: `auto`)
             Parameter estimation assumption for mRNA. Available options are:
             (1) 'ss': pseudo steady state;
@@ -265,6 +247,21 @@ def dynamics(
                 log_unnormalized: Whether to log transform unnormalized data.
     """
 
+    if "pp" not in adata.uns_keys():
+        raise ValueError(f"Please run `dyn.pp.receipe_monocle(adata)` before running this function!")
+    tkey, \
+    experiment_type, \
+    has_splicing, \
+    has_labeling, \
+    splicing_labeling, \
+    has_protein = \
+        adata.uns['pp']['tkey'], \
+        adata.uns['pp']['experiment_type'], \
+        adata.uns['pp']['has_splicing'], \
+        adata.uns['pp']['has_labeling'], \
+        adata.uns['pp']['splicing_labeling'], \
+        adata.uns['pp']['has_protein']
+
     X_data, X_fit_data = None, None
     filter_list, filter_gene_mode_list = ['use_for_pca', 'pass_basic_filter', 'no'], ['final', 'basic', 'no']
     filter_checker = [i in adata.var.columns for i in filter_list[:2]]
@@ -338,15 +335,12 @@ def dynamics(
             S2,
             t,
             normalized,
-            has_splicing,
-            has_labeling,
-            splicing_labeling,
-            has_protein,
             ind_for_proteins,
             assump_mRNA,
-            exp_type,
         ) = get_data_for_kin_params_estimation(
             subset_adata,
+            has_splicing,
+            has_labeling,
             model,
             use_smoothed,
             tkey,
@@ -354,15 +348,6 @@ def dynamics(
             log_unnormalized,
             NTR_vel,
         )
-
-        if experiment_type.lower() == 'auto':
-            experiment_type = exp_type
-        else:
-            if experiment_type != exp_type:
-                warnings.warn(
-                "dynamo detects the experiment type of your data as {}, but your input experiment_type "
-                "is {}".format(exp_type, experiment_type)
-                )
 
         valid_bools_ = valid_bools.copy()
         if sanity_check and experiment_type.lower() in ['kin', 'deg']:
