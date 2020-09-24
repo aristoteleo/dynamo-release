@@ -1192,6 +1192,9 @@ def select_genes(
 
 def recipe_monocle(
     adata,
+    reset_X=False,
+    tkey=None,
+    experiment_type=None,
     normalized=None,
     layer=None,
     total_layers=None,
@@ -1221,6 +1224,22 @@ def recipe_monocle(
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object.
+        reset_X: bool (default: `False`)
+            Whether do you want to let dynamo reset `adata.X` data based on layers stored in your experiment. One
+            critical functionality of dynamo is about visualizing RNA velocity vector flows which requires proper data
+            into which the high dimensional RNA velocity vectors can be be projected. For kinetics experiment, we
+            recommend the use of `total` layer as `adata.X` while for degradation experiment or conventional scRNA-seq,
+            we recommend using `splicing` layer as `adata.X`. Set `reset_X` to `True` if you are not sure.
+        tkey: `str` or None (default: None)
+            The column key for the time label of cells in .obs. Used for either "ss" or "kinetic" model.
+            mode  with labeled data. When `group` is None, `tkey` will also be used for calculating  1st/2st moment or
+            covariance. We recommend to use hour as the unit of `time`.
+        experiment_type: `str` {`conventional`, `deg`, `kin`, `one-shot`, `auto`} or None, (default: `None`)
+            single cell RNA-seq experiment type. Available options are:
+            (1) 'conventional': conventional single-cell RNA-seq experiment;
+            (2) 'deg': chase/degradation experiment;
+            (3) 'kin': pulse/synthesis/kinetics experiment;
+            (4) 'one-shot': one-shot kinetic experiment;
         normalized: `None` or `bool` (default: `None`)
             If you already normalized your data (or run recipe_monocle already), set this to be `True` to avoid
             renormalizing your data. By default it is set to be `None` and the first 20 values of adata.X (if adata.X is
@@ -1291,6 +1310,7 @@ def recipe_monocle(
 
     basic_stats(adata)
     has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
+
     if has_splicing and has_labeling and splicing_labeling:
         layer = ['X', 'uu', 'ul', 'su', 'sl', 'spliced', 'unspliced', 'new', 'total'] if layer is None else layer
 
@@ -1312,6 +1332,43 @@ def recipe_monocle(
     adata = unique_var_obs_adata(adata)
     adata = layers2csr(adata)
     adata = collapse_adata(adata)
+
+    # reset adata.X
+    if reset_X:
+        if has_labeling and tkey is None and experiment_type is None:
+            raise ValueError(f"You must provide `tkey` or `experiment_type` if you have `reset_X=True` for labeling "
+                             f"scRNA-seq data.")
+        if has_labeling:
+            if experiment_type is None:
+                t = np.array(adata.obs[tkey], dtype="float")
+                if len(np.unique(t)) == 1:
+                    experiment_type = "one-shot"
+                else:
+                    labeled_frac = adata.layers['new'].T.sum(0) / adata.layers['total'].T.sum(0)
+                    xx = labeled_frac.A1 if issparse(adata.layers['new']) else labeled_frac
+
+                    yy = t
+                    xm, ym = np.mean(xx), np.mean(yy)
+                    cov = np.mean(xx * yy) - xm * ym
+                    var_x = np.mean(xx * xx) - xm * xm
+
+                    k = cov / var_x
+
+                    # total labeled RNA amount will increase (decrease) in kinetic (degradation) experiments over time.
+                    experiment_type = "kin" if k > 0 else "deg"
+
+            if experiment_type.lower() in ['one-shot', 'kin', 'mixture', 'mix_std_stm']:
+                adata.X = adata.layers['total'].copy()
+            if experiment_type.lower() == 'deg' and has_splicing:
+                adata.X = adata.layers['spliced'].copy()
+            if experiment_type.lower() == 'deg' and not has_splicing:
+                warnings.warn("It is not possible to calculate RNA velocity from a degradation experiment which has no "
+                              "splicing information.")
+                adata.X = adata.layers['total'].copy()
+            else:
+                adata.X = adata.layers['total'].copy()
+        else:
+            adata.X = adata.layers['spliced'].copy()
 
     _szFactor, _logged = (True, True) if normalized else (False, False)
     if normalized is None and not has_labeling:
