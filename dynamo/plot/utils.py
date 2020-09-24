@@ -19,21 +19,21 @@ from ..tools.utils import integrate_vf  # integrate_vf_ivp
 # ---------------------------------------------------------------------------------------------------
 # variable checking utilities
 def is_gene_name(adata, var):
-    if type(var) == str:
+    if type(var) in [str, np.str_]:
         return var in adata.var.index
     else:
         return False
 
 
 def is_cell_anno_column(adata, var):
-    if type(var) == str:
+    if type(var) in [str, np.str_]:
         return var in adata.obs.columns
     else:
         return False
 
 
 def is_layer_keys(adata, var):
-    if type(var) == str:
+    if type(var) in [str, np.str_]:
         return var in adata.layers.keys()
     else:
         return False
