@@ -84,7 +84,7 @@ def recipe_kin_data(adata,
 
     if not has_labeling:
         raise Exception(f"This recipe is only applicable to kinetics experiment datasets that have "
-                        f"labeling data (at least either with `'uu', 'ul', 'su', 'sl'` or `'spliced', 'unspliced'` "
+                        f"labeling data (at least either with `'uu', 'ul', 'su', 'sl'` or `'new', 'total'` "
                         f"layers.")
 
     if has_splicing and has_labeling:
@@ -209,7 +209,7 @@ def recipe_deg_data(adata,
 
     if not has_labeling:
         raise Exception(f"This recipe is only applicable to kinetics experiment datasets that have "
-                        f"labeling data (at least either with `'uu', 'ul', 'su', 'sl'` or `'spliced', 'unspliced'` "
+                        f"labeling data (at least either with `'uu', 'ul', 'su', 'sl'` or `'new', 'total'` "
                         f"layers.")
 
     if has_splicing and has_labeling:
@@ -226,23 +226,23 @@ def recipe_deg_data(adata,
                        keep_raw_layers=keep_raw_layers,
                        )
 
-        # first calculate moments for labeling data relevant layers using total based connectivity graph
-        moments(adata, group=tkey, layers=layers)
+        tkey = adata.uns['pp']['tkey']
+        # first calculate moments for spliced related layers using spliced based connectivity graph
+        moments(adata, layers=['X_spliced', 'X_unspliced'])
 
-        # then we want to calculate moments for spliced and unspliced layers based on connectivity graph from spliced data.
-        # first get X_spliced based pca embedding
-        CM = np.log1p(adata[:, adata.var.use_for_pca].layers['X_spliced'].A)
+        # then calculate moments for labeling data relevant layers using total based connectivity graph
+        # first get X_total based pca embedding
+        CM = np.log1p(adata[:, adata.var.use_for_pca].layers['X_total'].A)
         cm_genesums = CM.sum(axis=0)
         valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
         valid_ind = np.array(valid_ind).flatten()
-
-        pca(adata, CM[:, valid_ind], pca_key='X_spliced_pca')
+        pca(adata, CM[:, valid_ind], pca_key='X_total_pca')
         # then get neighbors graph based on X_spliced_pca
-        neighbors(adata, X_data=adata.obsm['X_spliced_pca'], layer='X_spliced')
+        neighbors(adata, X_data=adata.obsm['X_total_pca'], layer='X_total')
         # then normalize neighbors graph so that each row sums up to be 1
         conn = normalize_knn_graph(adata.obsp["connectivities"] > 0)
-        # then calculate moments for spliced related layers using spliced based connectivity graph
-        moments(adata, conn=conn, layers=['X_spliced', 'X_unspliced'])
+        moments(adata, conn=conn, group=tkey, layers=layers)
+
         # then perform kinetic estimations with properly preprocessed layers for either the labeling or the splicing data
         dynamics(adata, model='deterministic', est_method='twostep', remove_2nd_moments=del_2nd_moments)
         # then perform dimension reduction
@@ -262,6 +262,5 @@ def recipe_deg_data(adata,
                        )
         dynamics(adata, model='deterministic', remove_2nd_moments=del_2nd_moments)
         reduceDimension(adata, reduction_method=basis)
-        cell_velocities(adata, basis=basis)
 
     return adata

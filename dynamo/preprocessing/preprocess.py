@@ -1381,11 +1381,11 @@ def recipe_monocle(
 
     if reset_X:
         if has_labeling:
-            if experiment_type.lower() in ['one-shot', 'kin', 'mixture', 'mix_std_stm']:
+            if experiment_type.lower() in ['one-shot', 'kin', 'mixture', 'mix_std_stm', 'kinetics']:
                 adata.X = adata.layers['total'].copy()
-            if experiment_type.lower() == 'deg' and has_splicing:
+            if experiment_type.lower() in ['deg', 'degradation'] and has_splicing:
                 adata.X = adata.layers['spliced'].copy()
-            if experiment_type.lower() == 'deg' and not has_splicing:
+            if experiment_type.lower() in ['deg', 'degradation'] and not has_splicing:
                 warnings.warn("It is not possible to calculate RNA velocity from a degradation experiment which has no "
                               "splicing information.")
                 adata.X = adata.layers['total'].copy()
