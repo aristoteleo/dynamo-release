@@ -248,7 +248,7 @@ def dynamics(
     """
 
     if "pp" not in adata.uns_keys():
-        raise ValueError(f"Please run `dyn.pp.receipe_monocle(adata)` before running this function!")
+        raise ValueError(f"\nPlease run `dyn.pp.receipe_monocle(adata)` before running this function!")
     tkey, \
     experiment_type, \
     has_splicing, \

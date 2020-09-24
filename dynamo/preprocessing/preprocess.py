@@ -102,9 +102,9 @@ def szFactor(
         adata.raw = adata.copy()
 
     excluded_layers = []
-    if X_total_layers:
+    if not X_total_layers:
         excluded_layers.extend(['X'])
-    if splicing_total_layers:
+    if not splicing_total_layers:
         excluded_layers.extend(['spliced', 'unspliced'])
 
     for layer in layers:
@@ -222,9 +222,9 @@ def normalize_expr_data(
         )
 
     excluded_layers = []
-    if X_total_layers:
+    if not X_total_layers:
         excluded_layers.extend(['X'])
-    if splicing_total_layers:
+    if not splicing_total_layers:
         excluded_layers.extend(['spliced', 'unspliced'])
 
     for layer in layers:
@@ -1231,19 +1231,19 @@ def recipe_monocle(
             in `dyn.tl.dynamics` in which when `group` is None, `tkey` will also be used for calculating  1st/2st moment
             or covariance. We recommend to use hour as the unit of `time`.
         t_label_keys: `str`, `list` or None (default: None)
-            The column key(s) for the labeling time label of cells in .obs. Used for either "ss" or "kinetic" model.
-            Not used for now and `tkey` is implicitly assumed as `t_label_key` (however, `tkey` should just be the time
-            of the experiment).
-        experiment_type: `str` {`deg`, `kin`, `one-shot`, `auto`} or None, (default: `None`)
+            The column key(s) for the labeling time label of cells in .obs. Used for either "conventional" or "labeling
+            based" scRNA-seq data. Not used for now and `tkey` is implicitly assumed as `t_label_key` (however, `tkey`
+            should just be the time of the experiment).
+        experiment_type: `str` {`deg`, `kin`, `one-shot`, `mix_std_stm`, 'mixture'} or None, (default: `None`)
             experiment type for labeling single cell RNA-seq. Available options are:
-            (1) 'conventional': conventional single-cell RNA-seq experiment;
-            (2) 'deg': chase/degradation experiment;
-            (3) 'kin': pulse/synthesis/kinetics experiment;
-            (4) 'one-shot': one-shot kinetic experiment;
+            (1) 'conventional': conventional single-cell RNA-seq experiment, if `experiment_type` is `None` and there is
+            only splicing data, this will be set to `conventional`;
+            (2) 'deg': chase/degradation experiment. Cells are first labeled with an extended period, followed by chase;
+            (3) 'kin': pulse/synthesis/kinetics experiment. Cells are labeled for different duration in a time-series;
+            (4) 'one-shot': one-shot kinetic experiment. Cells are only labeled for a short pulse duration;
             Other possible experiments include:
             (5) 'mix_std_stm';
             (4) 'mixture';
-            Note that we call non-labeling based scRNA-seq data's experiment type "conventional".
         reset_X: bool (default: `False`)
             Whether do you want to let dynamo reset `adata.X` data based on layers stored in your experiment. One
             critical functionality of dynamo is about visualizing RNA velocity vector flows which requires proper data
@@ -1353,8 +1353,8 @@ def recipe_monocle(
     if has_labeling:
         if tkey is None:
             warnings.warn(f"\nWhen analyzing labeling based scRNA-seq without providing `tkey`, dynamo will try to use "
-                          f"`time` as the key for labeling time. Please please correct this via supplying the correct "
-                          f"`tkey` if needed.")
+                          f"`\ntime` as the key for labeling time. Please correct this via supplying the correct `tkey`"
+                          f"\nif needed.")
             tkey = 'time'
         if tkey not in adata.obs.keys():
             raise ValueError(f"`tkey` {tkey} that encodes the labeling time is not existed in your adata.")
@@ -1376,7 +1376,7 @@ def recipe_monocle(
                 # total labeled RNA amount will increase (decrease) in kinetic (degradation) experiments over time.
                 experiment_type = "kin" if k > 0 else "deg"
             warnings.warn(f"\nDynamo detects your labeling data is from a {experiment_type} experiment, please correct "
-                          f" this via supplying the correct experiment_type (one of `one-shot`, `kin`, `deg`) if "
+                          f"\nthis via supplying the correct experiment_type (one of `one-shot`, `kin`, `deg`) as "
                           f"needed.")
 
     if reset_X:

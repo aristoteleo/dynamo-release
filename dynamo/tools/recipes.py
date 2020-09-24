@@ -5,13 +5,16 @@ from .dynamics import dynamics
 from .dimension_reduction import reduceDimension
 from .cell_velocities import cell_velocities
 
+# add recipe_csc_data()
+
 def recipe_kin_data(adata,
+                    tkey=None,
+                    reset_X=True,
                     n_top_genes=1000,
                     keep_filtered_cells=False,
                     keep_filtered_genes=False,
                     keep_raw_layers=False,
                     del_2nd_moments=True,
-                    tkey='time',
                     ekey='M_t',
                     vkey='velocity_T',
                     basis='umap',
@@ -24,6 +27,18 @@ def recipe_kin_data(adata,
         adata: :class:`~anndata.AnnData`
             AnnData object that stores data for the the kinetics experiment, must include `uu, ul, su, sl` four
             different layers.
+        tkey: `str` or None (default: None)
+            The column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data (will also
+            support for conventional scRNA-seq data). Note that `tkey` will be saved to adata.uns['pp']['tkey'] and used
+            in `dyn.tl.dynamics` in which when `group` is None, `tkey` will also be used for calculating  1st/2st moment
+            or covariance. We recommend to use hour as the unit of `time`.
+        reset_X: bool (default: `False`)
+            Whether do you want to let dynamo reset `adata.X` data based on layers stored in your experiment. One
+            critical functionality of dynamo is about visualizing RNA velocity vector flows which requires proper data
+            into which the high dimensional RNA velocity vectors will be projected.
+            (1) For `kinetics` experiment, we recommend the use of `total` layer as `adata.X`;
+            (2) For `degradation/conventional` experiment scRNA-seq, we recommend using `splicing` layer as `adata.X`.
+            Set `reset_X` to `True` to set those default values if you are not sure.
         n_top_genes: `int` (default: `1000`)
             How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
             Arguments required by the `recipe_monocle` function.
@@ -76,13 +91,16 @@ def recipe_kin_data(adata,
         # new, total (and uu, ul, su, sl if existed) layers will be normalized with size factor calculated with total
         # layers spliced / unspliced layers will be normalized independently.
         recipe_monocle(adata,
+                       tkey=tkey,
+                       experiment_type='kin',
+                       reset_X=reset_X,
                        n_top_genes=n_top_genes,
                        total_layers=True,
                        keep_filtered_cells=keep_filtered_cells,
                        keep_filtered_genes=keep_filtered_genes,
                        keep_raw_layers=keep_raw_layers,
                        )
-
+        tkey = adata.uns['pp']['tkey']
         # first calculate moments for labeling data relevant layers using total based connectivity graph
         moments(adata, group=tkey, layers=layers)
 
@@ -99,23 +117,25 @@ def recipe_kin_data(adata,
         # then normalize neighbors graph so that each row sums up to be 1
         conn = normalize_knn_graph(adata.obsp["connectivities"] > 0)
         # then calculate moments for spliced related layers using spliced based connectivity graph
-        moments(adata, group=tkey, conn=conn, layers=['X_spliced', 'X_unspliced'])
+        moments(adata, conn=conn, layers=['X_spliced', 'X_unspliced'])
         # then perform kinetic estimations with properly preprocessed layers for either the labeling or the splicing data
-        dynamics(adata, experiment_type='kin', model='deterministic', tkey=tkey, est_method='twostep',
-                 remove_2nd_moments=del_2nd_moments)
+        dynamics(adata, model='deterministic', est_method='twostep', remove_2nd_moments=del_2nd_moments)
         # then perform dimension reduction
         reduceDimension(adata, reduction_method=basis)
         # lastly, project RNA velocity to low dimensional embedding.
         cell_velocities(adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis)
     else:
         recipe_monocle(adata,
+                       tkey=tkey,
+                       experiment_type='kin',
+                       reset_X=reset_X,
                        n_top_genes=n_top_genes,
                        total_layers=True,
                        keep_filtered_cells=keep_filtered_cells,
                        keep_filtered_genes=keep_filtered_genes,
                        keep_raw_layers=keep_raw_layers,
                        )
-        dynamics(adata, model='deterministic', est_method='twostep', tkey=tkey, remove_2nd_moments=del_2nd_moments)
+        dynamics(adata, model='deterministic', est_method='twostep', remove_2nd_moments=del_2nd_moments)
         reduceDimension(adata, reduction_method=basis)
         cell_velocities(adata, basis=basis)
 
@@ -123,17 +143,18 @@ def recipe_kin_data(adata,
 
 
 def recipe_deg_data(adata,
+                    tkey=None,
+                    reset_X=True,
                     n_top_genes=1000,
                     keep_filtered_cells=False,
                     keep_filtered_genes=False,
                     keep_raw_layers=False,
                     del_2nd_moments=True,
-                    tkey='time',
                     ekey='M_s',
                     vkey='velocity_S',
                     basis='umap',
                     ):
-    """An analysis recipe that properly pre-processes different layers for an degradatation experiment with both
+    """An analysis recipe that properly pre-processes different layers for a degradation experiment with both
     labeling and splicing data. Functions need to be updated.
 
     Parameters
@@ -141,6 +162,18 @@ def recipe_deg_data(adata,
         adata: :class:`~anndata.AnnData`
             AnnData object that stores data for the the kinetics experiment, must include `uu, ul, su, sl` four
             different layers.
+        tkey: `str` or None (default: None)
+            The column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data (will also
+            support for conventional scRNA-seq data). Note that `tkey` will be saved to adata.uns['pp']['tkey'] and used
+            in `dyn.tl.dynamics` in which when `group` is None, `tkey` will also be used for calculating  1st/2st moment
+            or covariance. We recommend to use hour as the unit of `time`.
+        reset_X: bool (default: `False`)
+            Whether do you want to let dynamo reset `adata.X` data based on layers stored in your experiment. One
+            critical functionality of dynamo is about visualizing RNA velocity vector flows which requires proper data
+            into which the high dimensional RNA velocity vectors will be projected.
+            (1) For `kinetics` experiment, we recommend the use of `total` layer as `adata.X`;
+            (2) For `degradation/conventional` experiment scRNA-seq, we recommend using `splicing` layer as `adata.X`.
+            Set `reset_X` to `True` to set those default values if you are not sure.
         n_top_genes: `int` (default: `1000`)
             How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
             Arguments required by the `recipe_monocle` function.
@@ -183,6 +216,9 @@ def recipe_deg_data(adata,
         # new, total (and uu, ul, su, sl if existed) layers will be normalized with size factor calculated with total
         # layers spliced / unspliced layers will be normalized independently.
         recipe_monocle(adata,
+                       tkey=tkey,
+                       experiment_type='deg',
+                       reset_X=reset_X,
                        n_top_genes=n_top_genes,
                        total_layers=True,
                        keep_filtered_cells=keep_filtered_cells,
@@ -206,23 +242,25 @@ def recipe_deg_data(adata,
         # then normalize neighbors graph so that each row sums up to be 1
         conn = normalize_knn_graph(adata.obsp["connectivities"] > 0)
         # then calculate moments for spliced related layers using spliced based connectivity graph
-        moments(adata, group=tkey, conn=conn, layers=['X_spliced', 'X_unspliced'])
+        moments(adata, conn=conn, layers=['X_spliced', 'X_unspliced'])
         # then perform kinetic estimations with properly preprocessed layers for either the labeling or the splicing data
-        dynamics(adata, experiment_type='deg', model='deterministic', tkey=tkey, est_method='twostep',
-                 remove_2nd_moments=del_2nd_moments)
+        dynamics(adata, model='deterministic', est_method='twostep', remove_2nd_moments=del_2nd_moments)
         # then perform dimension reduction
         reduceDimension(adata, reduction_method=basis)
         # lastly, project RNA velocity to low dimensional embedding.
         cell_velocities(adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis)
     else:
         recipe_monocle(adata,
+                       tkey=tkey,
+                       experiment_type='deg',
+                       reset_X=reset_X,
                        n_top_genes=n_top_genes,
                        total_layers=True,
                        keep_filtered_cells=keep_filtered_cells,
                        keep_filtered_genes=keep_filtered_genes,
                        keep_raw_layers=keep_raw_layers,
                        )
-        dynamics(adata, experiment_type='deg', model='deterministic', tkey=tkey, remove_2nd_moments=del_2nd_moments)
+        dynamics(adata, model='deterministic', remove_2nd_moments=del_2nd_moments)
         reduceDimension(adata, reduction_method=basis)
         cell_velocities(adata, basis=basis)
 

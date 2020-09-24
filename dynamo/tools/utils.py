@@ -484,7 +484,7 @@ def table_rank_dict(rank_dict, n_top_genes=30, order=1, output_values=False):
 # ---------------------------------------------------------------------------------------------------
 # data transformation related:
 def log1p_(adata, X_data):
-    if 'norm_method' not in adata.uns['pp'].keys():
+    if "norm_method" not in adata.uns["pp"].keys():
         return X_data
     else:
         if adata.uns["pp"]["norm_method"] is None:
