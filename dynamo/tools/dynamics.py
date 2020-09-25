@@ -56,7 +56,7 @@ def dynamics(
 ):
     """Inclusive model of expression dynamics considers splicing, metabolic labeling and protein translation. It supports
     learning high-dimensional velocity vector samples for droplet based (10x, inDrop, drop-seq, etc), scSLAM-seq, NASC-seq
-    sci-fate, scNT-seq or cite-seq datasets.
+    sci-fate, scNT-seq, scEU-seq, cite-seq or REAP-seq datasets.
 
     Parameters
     ----------
