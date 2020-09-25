@@ -21,6 +21,14 @@ def guestimate_init_cond(x_data):
     x0 = np.clip(np.max(x_data, 1), 1e-4, np.inf)
     return x0
 
+def guestimate_p0_kinetic_chase(x_data, time):
+    t0 = np.min(time)
+    x0 = np.mean(x_data[time==t0])
+    idx = time!=t0
+    al0 = np.mean((x0 - x_data[idx]) / (time[idx] - t0))
+    ga0 = -np.mean((np.log(x_data[idx]) - np.log(x0))/(time[idx]-t0))
+    return al0, ga0, x0
+
 class kinetic_estimation:
     '''A general parameter estimation framework for all types of time-seris data
 
@@ -688,6 +696,50 @@ class Lambda_NoSwitching(Mixture_KinDeg_NoSwitching):
             return LambdaModels_NoSwitching(self.model1, self.model2)
         else:
             return self.simulator
+
+class Estimation_KineticChase(kinetic_estimation):
+    def __init__(self, alpha=None, gamma=None, x0=None):
+        self.kin_param_keys = np.array(['alpha', 'gamma'])
+        if alpha is not None and gamma is not None and x0 is not None:
+            self._initialize(alpha, gamma, x0)
+
+    def _initialize(self, alpha, gamma, x0):
+        ranges = np.zeros((2, 2))
+        ranges[0] = alpha * np.ones(2) if np.isscalar(alpha) else alpha
+        ranges[1] = gamma * np.ones(2) if np.isscalar(gamma) else gamma
+        super().__init__(ranges, np.atleast_2d(x0), KineticChase())
+
+    def auto_fit(self, time, x_data, **kwargs):
+        if len(time) != len(np.unique(time)):
+            t = np.unique(time)
+            x = strat_mom(x_data, time, np.mean)
+        else:
+            t, x = time, x_data
+        al0, ga0, x0 = guestimate_p0_kinetic_chase(x, t)
+        alpha_bound = np.array([0, 1e2*al0])
+        gamma_bound = np.array([0, 1e2*ga0])
+        x0_bound = np.array([0, 1e2*x0])
+        self._initialize(alpha_bound, gamma_bound, x0_bound)
+        popt, cost = self.fit_lsq(time, x_data, p0=np.hstack((al0, ga0, x0)), normalize=False, **kwargs)
+        return popt, cost
+
+    def get_alpha(self):
+        return self.popt[0]
+
+    def get_gamma(self):
+        return self.popt[1]
+
+    def calc_half_life(self):
+        return np.log(2)/self.get_gamma()
+
+    def export_dictionary(self):
+        mdl_name = type(self.simulator).__name__
+        params = self.export_parameters()
+        param_dict = {self.kin_param_keys[i]: params[i] for i in range(len(params))}
+        x0 = self.get_opt_x0_params()
+        dictionary = {'model': mdl_name, 
+            'kinetic_parameters': param_dict, 'x0': x0}
+        return dictionary
 
 class GoodnessOfFit:
     def __init__(self, simulator, params=None, x0=None):
