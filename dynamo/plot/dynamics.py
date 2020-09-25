@@ -170,7 +170,9 @@ def phase_portraits(
     from matplotlib.colors import to_hex
     # from matplotlib.colors import DivergingNorm  # TwoSlopeNorm
 
-    has_labeling, has_splicing = adata.uns['dynamics']['has_labeling'], adata.uns['dynamics']['has_splicing']
+    has_labeling, has_splicing, splicing_labeling = adata.uns['dynamics']['has_labeling'], \
+                                                    adata.uns['dynamics']['has_splicing'], \
+                                                    adata.uns['dynamics']['splicing_labeling']
     if background is None:
         _background = rcParams.get("figure.facecolor")
         _background = to_hex(_background) if type(_background) is tuple else _background
@@ -198,7 +200,7 @@ def phase_portraits(
     _genes = list(set(adata.var.index).intersection(genes))
 
     # avoid object for dtype in the gamma column https://stackoverflow.com/questions/40809503/python-numpy-typeerror-ufunc-isfinite-not-supported-for-the-input-types
-    k_name = 'gamma_k' if adata.uns['dynamics']['experiment_type'] == 'one-shot' else 'gamma'
+    k_name = 'gamma_k' if adata.uns['dynamics']['experiment_type'] in ['one-shot', 'kin', 'deg'] else 'gamma'
 
     valid_id = np.isfinite(
         np.array(adata.var.loc[_genes, k_name], dtype="float")
@@ -235,10 +237,14 @@ def phase_portraits(
         mode = 'splicing'
         vkey = 'S' if vkey is None else vkey
         ekey = 'M_s' if ekey is None else ekey
+    elif splicing_labeling:
+        mode = 'full'
+        vkey = 'S' if vkey is None else vkey
+        ekey = 'M_s' if ekey is None else ekey
     elif has_splicing and has_labeling:
         mode = 'full'
-        vkey = 'T' if vkey is None else vkey
-        ekey = 'M_t' if ekey is None else ekey
+        vkey = 'S' if vkey is None else vkey
+        ekey = 'M_s' if ekey is None else ekey
 
     layers = list(adata.layers.keys())
     layers.extend(["X", "protein", "X_protein"])
@@ -379,11 +385,14 @@ def phase_portraits(
         )
 
     elif mode == "full":
-        uu, ul, su, sl = (
-            index_gene(adata, adata.layers[mapper["X_uu"]], genes),
-            index_gene(adata, adata.layers[mapper["X_ul"]], genes),
-            index_gene(adata, adata.layers[mapper["X_su"]], genes),
-            index_gene(adata, adata.layers[mapper["X_sl"]], genes),
+        U, S, N, T = (
+            index_gene(adata, adata.layers[mapper["X_unspliced"]], genes),
+            index_gene(adata, adata.layers[mapper["X_spliced"]], genes),
+            index_gene(adata, adata.layers[mapper["X_new"]], genes),
+            index_gene(adata, adata.layers[mapper["X_total"]], genes),
+        )
+        U, S, N, T = (
+            (U.A, S.A, N.A, T.A) if issparse(U) else (U, S, N, T)
         )
 
         vel_u, vel_s = (
@@ -418,9 +427,7 @@ def phase_portraits(
                 )
                 else index_gene(adata, adata.obsm["protein"], genes)
             )
-            uu, ul, su, sl, P = (
-                (uu.A, ul.A, su.A, sl.A, P.A) if issparse(uu) else (uu, ul, su, sl, P)
-            )
+            P = P.A if issparse(P) else P
             if issparse(P_vec):
                 P_vec = P_vec.A
 
@@ -431,9 +438,10 @@ def phase_portraits(
             #                     np.tile(velocity_offset, n_cells), "velocity": genes * n_cells}, index=range(n_cells * n_genes))
             df = pd.DataFrame(
                 {
-                    "new": (ul + sl).flatten(),
-                    "total": (uu + ul + sl + su).flatten(),
-                    "S": (sl + su).flatten(),
+                    "new": N.flatten(),
+                    "total": T.flatten(),
+                    "S": S.flatten(),
+                    "U": U.flatten(),
                     "P": P.flatten(),
                     "gene": genes * n_cells,
                     "gamma": np.tile(gamma, n_cells),
@@ -453,8 +461,8 @@ def phase_portraits(
         else:
             df = pd.DataFrame(
                 {
-                    "new": (ul + sl).flatten(),
-                    "total": (uu + ul + sl + su).flatten(),
+                    "new": N.flatten(),
+                    "total": T.flatten(),
                     "gene": genes * n_cells,
                     "gamma": np.tile(gamma, n_cells),
                     "velocity_offset": np.tile(velocity_offset, n_cells),
@@ -620,7 +628,7 @@ def phase_portraits(
         )
         X_array, V_array = (
             cur_pd.iloc[:, [1, 0]].values,
-            cur_pd.loc[:, ["vel_s", "vel_u"]].values,
+            cur_pd.loc[:, ["vel_s", "vel_u"]].values
         )
 
         # add quiver:
@@ -846,8 +854,8 @@ def phase_portraits(
                     )
 
             ax4.set_title(gn)
-            ax1.set_xlabel("spliced (1st moment)")
-            ax1.set_ylabel("protein (1st moment)")
+            ax4.set_xlabel("spliced (1st moment)")
+            ax4.set_ylabel("protein (1st moment)")
 
             xnew = np.linspace(0, cur_pd.iloc[:, 3].max())
             ax4.plot(
