@@ -716,8 +716,45 @@ class Deterministic_NoSplicing(LinearODE):
 
     def integrate_analytical(self, t, x0=None):
         x0 = self.x0 if x0 is None else x0
-        u = sol_u(t, x0[self.u], self.al, self.ga)
+        x0 = x0 if np.isscalar(x0) else x0[self.u]
+        u = sol_u(t, x0, self.al, self.ga)
         return np.array([u]).T
+
+class KineticChase:
+    def __init__(self, alpha=None, gamma=None, x0=None):
+        """This class simulates the deterministic dynamics of
+        a transcription-splicing system."""
+        # species
+        self.u = 0
+        self.n_species = 1
+
+        self.x0 = x0 if x0 is not None else 0
+
+        self.methods = ['analytical']
+        self.default_method = 'analytical'
+
+        # parameters
+        self.params = {}
+        if not (alpha is None or gamma is None):
+            self.set_params(alpha, gamma)
+
+    def set_params(self, alpha, gamma):
+        self.params['alpha'] = alpha
+        self.params['gamma'] = gamma
+
+    def integrate(self, t, x0=None, method='analytical'):
+        x0 = self.x0 if x0 is None else x0
+        al = self.params['alpha']
+        ga = self.params['gamma']
+        self.t = t
+        self.x = al/ga * (np.exp(-ga*t) - 1) + x0
+
+    def calc_init_conc(self, t=None):
+        if t is not None:
+            self.integrate(t)
+        h = self.x/np.exp(-self.params['gamma']*self.t)
+        tau = np.max(self.t) - self.t
+        return tau, h
 
 nosplicing_models = [
     Deterministic_NoSplicing, 
