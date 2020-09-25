@@ -620,8 +620,8 @@ def phase_portraits(
             ax1.set_xlabel("spliced (1st moment)")
             ax1.set_ylabel("unspliced (1st moment)")
         elif vkey == 'velocity_T':
-            ax1.set_xlabel("new (1st moment)")
-            ax1.set_ylabel("total (1st moment)")
+            ax1.set_xlabel("total (1st moment)")
+            ax1.set_ylabel("new (1st moment)")
 
         xnew = np.linspace(0, cur_pd.iloc[:, 1].max() * 0.80)
         ax1.plot(
