@@ -34,6 +34,7 @@ def szFactor(
     layers="all",
     total_layers=None,
     splicing_total_layers=False,
+    X_total_layers=False,
     locfunc=np.nanmean,
     round_exprs=False,
     method="median",
@@ -53,6 +54,8 @@ def szFactor(
             The layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"], ["uu", "ul", "su", "sl"] or ["new", "old"], etc.
         splicing_total_layers: bool (default `False`)
             Whether to also normalize spliced / unspliced layers by size factor from total RNA.
+        X_total_layers: bool (default `False`)
+            Whether to also normalize adata.X by size factor from total RNA.
         locfunc: `function` (default: `np.nanmean`)
             The function to normalize the data.
         round_exprs: `bool` (default: `False`)
@@ -98,8 +101,14 @@ def szFactor(
     if "raw" in layers and adata.raw is None:
         adata.raw = adata.copy()
 
+    excluded_layers = []
+    if not X_total_layers:
+        excluded_layers.extend(['X'])
+    if not splicing_total_layers:
+        excluded_layers.extend(['spliced', 'unspliced'])
+
     for layer in layers:
-        if layer in ['spliced', 'unspliced'] and not splicing_total_layers:
+        if layer in excluded_layers:
             sfs, cell_total = sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None,
                                       scale_to=scale_to)
         else:
@@ -132,6 +141,7 @@ def normalize_expr_data(
     layers="all",
     total_szfactor='total_Size_Factor',
     splicing_total_layers=False,
+    X_total_layers=False,
     norm_method=None,
     pseudo_expr=1,
     relative_expr=True,
@@ -153,6 +163,8 @@ def normalize_expr_data(
             The column name in the .obs attribute that corresponds to the size factor for the total mRNA.
         splicing_total_layers: bool (default `False`)
             Whether to also normalize spliced / unspliced layers by size factor from total RNA.
+        X_total_layers: bool (default `False`)
+            Whether to also normalize adata.X by size factor from total RNA.
         norm_method: `function` or None (default: `None`)
             The method used to normalize data. Can be either function `np.log1p, np.log2 or any other functions or string
             `clr`. By default, only .X will be size normalized and log1p transformed while data in other layers will only
@@ -209,8 +221,14 @@ def normalize_expr_data(
             scale_to=scale_to,
         )
 
+    excluded_layers = []
+    if not X_total_layers:
+        excluded_layers.extend(['X'])
+    if not splicing_total_layers:
+        excluded_layers.extend(['spliced', 'unspliced'])
+
     for layer in layers:
-        if layer in ['spliced', 'unspliced'] and not splicing_total_layers:
+        if layer in excluded_layers:
             szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=None)
         else:
             szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=total_szfactor)
@@ -251,7 +269,7 @@ def normalize_expr_data(
         else:
             adata.layers["X_" + layer] = CM
 
-        adata.uns["pp_norm_method"] = norm_method.__name__ if callable(norm_method) else norm_method
+        adata.uns["pp"]["norm_method"] = norm_method.__name__ if callable(norm_method) else norm_method
 
     return adata
 
@@ -1174,10 +1192,15 @@ def select_genes(
 
 def recipe_monocle(
     adata,
+    reset_X=False,
+    tkey=None,
+    t_label_keys=None,
+    experiment_type=None,
     normalized=None,
     layer=None,
     total_layers=None,
     splicing_total_layers=False,
+    X_total_layers=False,
     genes_to_use=None,
     method="pca",
     num_dim=30,
@@ -1202,6 +1225,32 @@ def recipe_monocle(
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object.
+        tkey: `str` or None (default: None)
+            The column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data (will also
+            support for conventional scRNA-seq data). Note that `tkey` will be saved to adata.uns['pp']['tkey'] and used
+            in `dyn.tl.dynamics` in which when `group` is None, `tkey` will also be used for calculating  1st/2st moment
+            or covariance. We recommend to use hour as the unit of `time`.
+        t_label_keys: `str`, `list` or None (default: None)
+            The column key(s) for the labeling time label of cells in .obs. Used for either "conventional" or "labeling
+            based" scRNA-seq data. Not used for now and `tkey` is implicitly assumed as `t_label_key` (however, `tkey`
+            should just be the time of the experiment).
+        experiment_type: `str` {`deg`, `kin`, `one-shot`, `mix_std_stm`, 'mixture'} or None, (default: `None`)
+            experiment type for labeling single cell RNA-seq. Available options are:
+            (1) 'conventional': conventional single-cell RNA-seq experiment, if `experiment_type` is `None` and there is
+            only splicing data, this will be set to `conventional`;
+            (2) 'deg': chase/degradation experiment. Cells are first labeled with an extended period, followed by chase;
+            (3) 'kin': pulse/synthesis/kinetics experiment. Cells are labeled for different duration in a time-series;
+            (4) 'one-shot': one-shot kinetic experiment. Cells are only labeled for a short pulse duration;
+            Other possible experiments include:
+            (5) 'mix_std_stm';
+            (4) 'mixture';
+        reset_X: bool (default: `False`)
+            Whether do you want to let dynamo reset `adata.X` data based on layers stored in your experiment. One
+            critical functionality of dynamo is about visualizing RNA velocity vector flows which requires proper data
+            into which the high dimensional RNA velocity vectors will be projected.
+            (1) For `kinetics` experiment, we recommend the use of `total` layer as `adata.X`;
+            (2) For `degradation/conventional` experiment scRNA-seq, we recommend using `splicing` layer as `adata.X`.
+            Set `reset_X` to `True` to set those default values if you are not sure.
         normalized: `None` or `bool` (default: `None`)
             If you already normalized your data (or run recipe_monocle already), set this to be `True` to avoid
             renormalizing your data. By default it is set to be `None` and the first 20 values of adata.X (if adata.X is
@@ -1265,18 +1314,29 @@ def recipe_monocle(
             dimensions, etc.
     """
 
+    adata.uns["pp"] = {}
     n_cells, n_genes = adata.n_obs, adata.n_vars
     adata = convert2symbol(adata, scopes=scopes)
 
     if norm_method == 'Freeman_Tukey': norm_method = Freeman_Tukey
 
     basic_stats(adata)
-    has_splicing, has_labeling, _ = detect_datatype(adata)
-    if has_splicing and has_labeling:
+    has_splicing, has_labeling, splicing_labeling, has_protein = detect_datatype(adata)
+    adata.uns['pp']['has_splicing'], \
+    adata.uns['pp']['has_labeling'], \
+    adata.uns['pp']['splicing_labeling'], \
+    adata.uns['pp']['has_protein'] = has_splicing, has_labeling, splicing_labeling, has_protein
+
+    if has_splicing and has_labeling and splicing_labeling:
         layer = ['X', 'uu', 'ul', 'su', 'sl', 'spliced', 'unspliced', 'new', 'total'] if layer is None else layer
 
         if type(total_layers) != list:
             total_layers = ['uu', 'ul', 'su', 'sl'] if total_layers else None
+    if has_splicing and has_labeling and not splicing_labeling:
+        layer = ['X', 'spliced', 'unspliced', 'new', 'total'] if layer is None else layer
+
+        if type(total_layers) != list:
+            total_layers = ['total'] if total_layers else None
     elif has_labeling and not has_splicing:
         layer = ['X', 'total', 'new'] if layer is None else layer
 
@@ -1288,6 +1348,59 @@ def recipe_monocle(
     adata = unique_var_obs_adata(adata)
     adata = layers2csr(adata)
     adata = collapse_adata(adata)
+
+    # reset adata.X
+    if has_labeling:
+        if tkey is None:
+            warnings.warn(f"\nWhen analyzing labeling based scRNA-seq without providing `tkey`, dynamo will try to use "
+                          f"`\ntime` as the key for labeling time. Please correct this via supplying the correct `tkey`"
+                          f"\nif needed.")
+            tkey = 'time'
+        if tkey not in adata.obs.keys():
+            raise ValueError(f"`tkey` {tkey} that encodes the labeling time is not existed in your adata.")
+        if experiment_type is None:
+            t = np.array(adata.obs[tkey], dtype="float")
+            if len(np.unique(t)) == 1:
+                experiment_type = "one-shot"
+            else:
+                labeled_frac = adata.layers['new'].T.sum(0) / adata.layers['total'].T.sum(0)
+                xx = labeled_frac.A1 if issparse(adata.layers['new']) else labeled_frac
+
+                yy = t
+                xm, ym = np.mean(xx), np.mean(yy)
+                cov = np.mean(xx * yy) - xm * ym
+                var_x = np.mean(xx * xx) - xm * xm
+
+                k = cov / var_x
+
+                # total labeled RNA amount will increase (decrease) in kinetic (degradation) experiments over time.
+                experiment_type = "kin" if k > 0 else "deg"
+            warnings.warn(f"\nDynamo detects your labeling data is from a {experiment_type} experiment, please correct "
+                          f"\nthis via supplying the correct experiment_type (one of `one-shot`, `kin`, `deg`) as "
+                          f"needed.")
+
+    if reset_X:
+        if has_labeling:
+            if experiment_type.lower() in ['one-shot', 'kin', 'mixture', 'mix_std_stm', 'kinetics']:
+                adata.X = adata.layers['total'].copy()
+            if experiment_type.lower() in ['deg', 'degradation'] and has_splicing:
+                adata.X = adata.layers['spliced'].copy()
+            if experiment_type.lower() in ['deg', 'degradation'] and not has_splicing:
+                warnings.warn("It is not possible to calculate RNA velocity from a degradation experiment which has no "
+                              "splicing information.")
+                adata.X = adata.layers['total'].copy()
+            else:
+                adata.X = adata.layers['total'].copy()
+        else:
+            adata.X = adata.layers['spliced'].copy()
+
+    if tkey is not None:
+        if adata.obs[tkey].max() > 60:
+            warnings.warn("Looks like you are using minutes as the time unit. For the purpose of numeric stability, "
+                          "we recommend using hour as the time unit.")
+
+    adata.uns['pp']['tkey'] = tkey
+    adata.uns['pp']['experiment_type'] = 'conventional' if experiment_type is None else experiment_type
 
     _szFactor, _logged = (True, True) if normalized else (False, False)
     if normalized is None and not has_labeling:
@@ -1362,6 +1475,7 @@ def recipe_monocle(
     if not _szFactor or "Size_Factor" not in adata.obs_keys():
         adata = szFactor(adata, total_layers=total_layers, scale_to=scale_to,
                          splicing_total_layers=splicing_total_layers,
+                         X_total_layers=X_total_layers,
                          layers=layer if type(layer) is list else "all")
 
     if feature_selection.lower() == "dispersion":
@@ -1406,6 +1520,7 @@ def recipe_monocle(
             layers=layer if type(layer) is list else "all",
             total_szfactor=total_szfactor,
             splicing_total_layers=splicing_total_layers,
+            X_total_layers=X_total_layers,
             norm_method=norm_method,
             pseudo_expr=pseudo_expr,
             relative_expr=relative_expr,
@@ -1418,7 +1533,7 @@ def recipe_monocle(
         for layer in layers:
             if layer != 'X': adata.layers["X_" + layer] = adata.layers[layer].copy()
 
-        adata.uns["pp_norm_method"] = None
+        adata.uns["pp"]["norm_method"] = None
 
     # only use genes pass filter (based on use_for_pca) to perform dimension reduction.
     if layer is None:
@@ -1470,8 +1585,8 @@ def recipe_monocle(
     try:
         cell_cycle_scores(adata)
     except Exception:
-        warnings.warn('Dynamo is not able to perform cell cycle staging for you automatically. \n'
-                      'Since dyn.pl.phase_diagram in dynamo by default color cells by its cell-cycle stage, \n'
+        warnings.warn('\nDynamo is not able to perform cell cycle staging for you automatically. \n'
+                      'Since dyn.pl.phase_diagram in dynamo by default colors cells by its cell-cycle stage, \n'
                       'you need to set color argument accordingly if confronting errors related to this.')
 
     if 'raw_data' in adata.uns_keys():

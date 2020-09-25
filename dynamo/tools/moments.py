@@ -12,6 +12,7 @@ from ..preprocessing.utils import get_layer_keys, allowed_X_layer_names, pca
 def moments(adata,
             genes=None,
             group=None,
+            conn=None,
             use_gaussian_kernel=False,
             normalize=True,
             use_mnn=False,
@@ -36,6 +37,8 @@ def moments(adata,
             different cell types or different time points) of cells. This will be used to compute kNN graph for each
             group (i.e cell-type/time-point). This is important, for example, we don't want cells from different labeling
             time points to be mixed when performing the kNN graph for calculating the moments.
+        conn: csr_matrix or None (default: `None`)
+            The connectivity graph that will be used for moment calculations.
         use_gaussian_kernel: `bool` (default: `True`)
             Whether to normalize the kNN graph via a Guasian kernel.
         normalize: `bool` (default: `True`)
@@ -59,68 +62,73 @@ def moments(adata,
     mapper = get_mapper()
     only_splicing, only_labeling, splicing_and_labeling = allowed_X_layer_names()
 
-    if genes is None and 'use_for_pca' in adata.var.keys(): genes = adata.var_names[adata.var.use_for_pca]
-    if use_mnn:
-        if "mnn" not in adata.uns.keys():
-            adata = mnn(
-                adata,
-                n_pca_components=n_pca_components,
-                layers="all",
-                use_pca_fit=True,
-                save_all_to_adata=False,
-            )
-        conn = adata.uns["mnn"]
-    else:
-        if 'X' not in adata.obsm.keys():
-            if not any([i.startswith('X_') for i in adata.layers.keys()]):
-                from ..preprocessing.preprocess import recipe_monocle
-                genes_to_use = adata.var_names[genes] if genes.dtype == 'bool' else genes
-                adata = recipe_monocle(adata, genes_to_use=genes_to_use)
-                adata.obsm["X"] = adata.obsm["X_pca"]
-            else:
-                CM = adata.X if genes is None else adata[:, genes].X
-                cm_genesums = CM.sum(axis=0)
-                valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
-                valid_ind = np.array(valid_ind).flatten()
-                CM = CM[:, valid_ind]
-                adata, fit, _ = pca(adata, CM, n_pca_components=n_pca_components)
-
-                adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
-
-        X = adata.obsm["X"][:, :n_pca_components]
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            if group is None:
-                kNN, knn_indices, knn_dists, _ = umap_conn_indices_dist_embedding(
-                    X, n_neighbors=np.min((n_neighbors, adata.n_obs - 1)), return_mapper=False
+    if conn is None:
+        if genes is None and 'use_for_pca' in adata.var.keys(): genes = adata.var_names[adata.var.use_for_pca]
+        if use_mnn:
+            if "mnn" not in adata.uns.keys():
+                adata = mnn(
+                    adata,
+                    n_pca_components=n_pca_components,
+                    layers="all",
+                    use_pca_fit=True,
+                    save_all_to_adata=False,
                 )
-
-                if use_gaussian_kernel and not use_mnn:
-                    conn = gaussian_kernel(X, knn_indices, sigma=10, k=None, dists=knn_dists)
+            conn = adata.uns["mnn"]
+        else:
+            if 'X' not in adata.obsm.keys():
+                if not any([i.startswith('X_') for i in adata.layers.keys()]):
+                    from ..preprocessing.preprocess import recipe_monocle
+                    genes_to_use = adata.var_names[genes] if genes.dtype == 'bool' else genes
+                    adata = recipe_monocle(adata, genes_to_use=genes_to_use, n_pca_components=n_pca_components)
+                    adata.obsm["X"] = adata.obsm["X_pca"]
                 else:
-                    conn = normalize_knn_graph(kNN > 0)
-                    normalize = False
-            else:
-                if group not in adata.obs.keys():
-                    raise Exception(f'the group {group} provided is not a column name in .obs attribute.')
-                conn = csr_matrix((adata.n_obs, adata.n_obs))
-                cells_group = adata.obs[group]
-                uniq_grp = np.unique(cells_group)
-                for cur_grp in uniq_grp:
-                    cur_cells = cells_group == cur_grp
-                    cur_X = X[cur_cells, :]
-                    cur_kNN, cur_knn_indices, cur_knn_dists, _ = umap_conn_indices_dist_embedding(
-                        cur_X, n_neighbors=np.min((n_neighbors, sum(cur_cells) - 1)), return_mapper=False
+                    CM = adata.X if genes is None else adata[:, genes].X
+                    cm_genesums = CM.sum(axis=0)
+                    valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
+                    valid_ind = np.array(valid_ind).flatten()
+                    CM = CM[:, valid_ind]
+                    adata, fit, _ = pca(adata, CM, n_pca_components=n_pca_components)
+
+                    adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
+
+            X = adata.obsm["X"][:, :n_pca_components]
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                if group is None:
+                    kNN, knn_indices, knn_dists, _ = umap_conn_indices_dist_embedding(
+                        X, n_neighbors=np.min((n_neighbors, adata.n_obs - 1)), return_mapper=False
                     )
 
                     if use_gaussian_kernel and not use_mnn:
-                        cur_conn = gaussian_kernel(cur_X, cur_knn_indices, sigma=10, k=None, dists=cur_knn_dists)
+                        conn = gaussian_kernel(X, knn_indices, sigma=10, k=None, dists=knn_dists)
                     else:
-                        cur_conn = normalize_knn_graph(cur_kNN > 0)
+                        conn = normalize_knn_graph(kNN > 0)
+                        normalize = False
+                else:
+                    if group not in adata.obs.keys():
+                        raise Exception(f'the group {group} provided is not a column name in .obs attribute.')
+                    conn = csr_matrix((adata.n_obs, adata.n_obs))
+                    cells_group = adata.obs[group]
+                    uniq_grp = np.unique(cells_group)
+                    for cur_grp in uniq_grp:
+                        cur_cells = cells_group == cur_grp
+                        cur_X = X[cur_cells, :]
+                        cur_kNN, cur_knn_indices, cur_knn_dists, _ = umap_conn_indices_dist_embedding(
+                            cur_X, n_neighbors=np.min((n_neighbors, sum(cur_cells) - 1)), return_mapper=False
+                        )
 
-                    cur_cells_ = np.where(cur_cells)[0]
-                    conn[cur_cells_[:, None], cur_cells_] = cur_conn
+                        if use_gaussian_kernel and not use_mnn:
+                            cur_conn = gaussian_kernel(cur_X, cur_knn_indices, sigma=10, k=None, dists=cur_knn_dists)
+                        else:
+                            cur_conn = normalize_knn_graph(cur_kNN > 0)
+
+                        cur_cells_ = np.where(cur_cells)[0]
+                        conn[cur_cells_[:, None], cur_cells_] = cur_conn
+    else:
+        if conn.shape[0] != conn.shape[1] or conn.shape[0] != adata.n_obs:
+            raise ValueError(f"The connectivity data `conn` you provided should a square array with dimension equal to "
+                             f"the cell number!")
 
     layers = get_layer_keys(adata, layers, False, False)
     layers = [
@@ -261,7 +269,7 @@ def prepare_data_deterministic(adata, genes, time, layers,
     raw = [None] * len(layers)
     for i, layer in enumerate(layers):
         if layer in ['X_total', 'total', 'M_t']:
-            if (layer == 'X_total' and adata.uns['pp_norm_method'] is None) or layer == 'M_t':
+            if (layer == 'X_total' and adata.uns["pp"]["norm_method"] is None) or layer == 'M_t':
                 x_layer = adata[:, genes].layers[layer]
                 x_layer = x_layer - adata[:, genes].layers[get_layer_pair(layer)]
             else:
@@ -293,7 +301,7 @@ def prepare_data_deterministic(adata, genes, time, layers,
 
                 x_layer = x_layer - y_layer
         else:
-            if (layer == ['X_new'] and adata.uns['pp_norm_method'] is None) or layer == 'M_n':
+            if (layer == ['X_new'] and adata.uns["pp"]["norm_method"] is None) or layer == 'M_n':
                 x_layer = adata[:, genes].layers[layer]
             else:
                 x_layer = adata.layers[layer]
@@ -803,10 +811,10 @@ def moment_model(adata, subset_adata, _group, cur_grp, log_unnormalized, tkey):
                     subset_adata.layers["su"].data,
                     subset_adata.layers["sl"].data,
                 ) = (
-                    np.log(subset_adata.layers["uu"].data + 1),
-                    np.log(subset_adata.layers["ul"].data + 1),
-                    np.log(subset_adata.layers["su"].data + 1),
-                    np.log(subset_adata.layers["sl"].data + 1),
+                    np.log1p(subset_adata.layers["uu"].data),
+                    np.log1p(subset_adata.layers["ul"].data),
+                    np.log1p(subset_adata.layers["su"].data),
+                    np.log1p(subset_adata.layers["sl"].data),
                 )
             else:
                 (
@@ -815,10 +823,10 @@ def moment_model(adata, subset_adata, _group, cur_grp, log_unnormalized, tkey):
                     subset_adata.layers["su"],
                     subset_adata.layers["sl"],
                 ) = (
-                    np.log(subset_adata.layers["uu"] + 1),
-                    np.log(subset_adata.layers["ul"] + 1),
-                    np.log(subset_adata.layers["su"] + 1),
-                    np.log(subset_adata.layers["sl"] + 1),
+                    np.log1p(subset_adata.layers["uu"]),
+                    np.log1p(subset_adata.layers["ul"]),
+                    np.log1p(subset_adata.layers["su"]),
+                    np.log1p(subset_adata.layers["sl"]),
                 )
 
         subset_adata_u, subset_adata_s = subset_adata.copy(), subset_adata.copy()
@@ -870,13 +878,13 @@ def moment_model(adata, subset_adata, _group, cur_grp, log_unnormalized, tkey):
         if log_unnormalized and "X_total" not in subset_adata.layers.keys():
             if issparse(subset_adata.layers["total"]):
                 subset_adata.layers["new"].data, subset_adata.layers["total"].data = (
-                    np.log(subset_adata.layers["new"].data + 1),
-                    np.log(subset_adata.layers["total"].data + 1),
+                    np.log1p(subset_adata.layers["new"].data),
+                    np.log1p(subset_adata.layers["total"].data),
                 )
             else:
                 subset_adata.layers["total"], subset_adata.layers["total"] = (
-                    np.log(subset_adata.layers["new"] + 1),
-                    np.log(subset_adata.layers["total"] + 1),
+                    np.log1p(subset_adata.layers["new"]),
+                    np.log1p(subset_adata.layers["total"]),
                 )
 
         Moment = MomData(subset_adata, tkey)

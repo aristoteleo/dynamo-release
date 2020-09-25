@@ -250,7 +250,7 @@ def mean_var_by_time(X, Time):
     return mean_val.values, var_val.values
 
 
-def run_dynamo(adata, normalize=True, init_num=1, sample_method="lhs"):
+def run_dynamo_deprecated(adata, normalize=True, init_num=1, sample_method="lhs"):
     time = adata.obs["Step"].values
     uniqe_time = list(set(time))
     gene_num = adata.X.shape[1]
@@ -308,7 +308,7 @@ def run_dynamo(adata, normalize=True, init_num=1, sample_method="lhs"):
     return adata
 
 
-def run_dynamo_simple_fit(adata, log=True):
+def run_dynamo_simple_fit_deprecated(adata, log=True):
     ncells, gene_num = adata.X.shape
 
     # estimation all parameters
@@ -332,7 +332,7 @@ def run_dynamo_simple_fit(adata, log=True):
     return adata
 
 
-def run_dynamo_labelling(adata, log=True, group=False):
+def run_dynamo_labelling_deprecated(adata, log=True, group=False):
     ncells, gene_num = adata.X.shape
 
     # estimation all parameters
@@ -360,8 +360,8 @@ def run_dynamo_labelling(adata, log=True, group=False):
             )
             if log:
                 cur_U, cur_L = (
-                    np.log(cur_U.toarray().squeeze() + 1),
-                    np.log(cur_L.toarray().squeeze() + 1),
+                    np.log1p(cur_U.toarray().squeeze()),
+                    np.log1p(cur_L.toarray().squeeze()),
                 )
             else:
                 cur_U, cur_L = cur_U.toarray().squeeze(), cur_L.toarray().squeeze()
@@ -383,7 +383,7 @@ def run_dynamo_labelling(adata, log=True, group=False):
     return adata
 
 
-def compare_res(
+def compare_res_deprecated(
     adata,
     velocyto_res,
     svelo_res,

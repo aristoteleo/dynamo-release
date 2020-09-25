@@ -353,8 +353,12 @@ def scatters(
                     _color = adata.obsm[cur_l].loc[cur_c, :]
                 else:
                     _color = adata.obs_vector(cur_c, layer=None) if cur_l == 'X' else adata.obs_vector(cur_c, layer=cur_l)
-                if type(x) in [anndata._core.views.ArrayView, np.ndarray] and \
-                        type(y) in [anndata._core.views.ArrayView, np.ndarray]:
+                if hasattr(x, "__len__") and \
+                        hasattr(y, "__len__"):
+                    x, y = list(x), list(y)
+                elif type(x) in [anndata._core.views.ArrayView, np.ndarray] and \
+                     type(y) in [anndata._core.views.ArrayView, np.ndarray] and \
+                     len(x) == adata.n_obs and len(y) == adata.n_obs:
                     x, y = [x], [y]
                 for cur_x, cur_y in zip(x, y): # here x / y are arrayes
                     if type(cur_x) is int and type(cur_y) is int:

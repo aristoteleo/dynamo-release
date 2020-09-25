@@ -27,10 +27,6 @@ from .velocyto_scvelo import (
     run_velocyto,
     run_scvelo,
     mean_var_by_time,
-    run_dynamo,
-    run_dynamo_simple_fit,
-    run_dynamo_labelling,
-    compare_res,
 )
 
 # vector field related
@@ -98,4 +94,10 @@ from .growth import (
     cell_growth_rate,
     n_descentants,
     growth_rate
+)
+
+# recipes:
+from .recipes import (
+    recipe_kin_data,
+    recipe_deg_data,
 )

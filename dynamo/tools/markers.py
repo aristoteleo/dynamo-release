@@ -522,21 +522,21 @@ def glm_degs(adata,
         if issparse(X_data):
             X_data.data = (
                 2 ** X_data.data - 1
-                if adata.uns["pp_norm_method"] == "log2"
+                if adata.uns["pp"]["norm_method"] == "log2"
                 else np.exp(X_data.data) - 1
-                if adata.uns["pp_norm_method"] == "log"
+                if adata.uns["pp"]["norm_method"] == "log"
                 else Freeman_Tukey(X_data.data + 1, inverse=True)
-                if adata.uns["pp_norm_method"] == "Freeman_Tukey"
+                if adata.uns["pp"]["norm_method"] == "Freeman_Tukey"
                 else X_data.data
             )
         else:
             X_data = (
                 2 ** X_data - 1
-                if adata.uns["pp_norm_method"] == "log2"
+                if adata.uns["pp"]["norm_method"] == "log2"
                 else np.exp(X_data) - 1
-                if adata.uns["pp_norm_method"] == "log"
+                if adata.uns["pp"]["norm_method"] == "log"
                 else Freeman_Tukey(X_data, inverse=True)
-                if adata.uns["pp_norm_method"] == "Freeman_Tukey"
+                if adata.uns["pp"]["norm_method"] == "Freeman_Tukey"
                 else X_data
             )
 

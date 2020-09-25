@@ -59,7 +59,7 @@ def cell_velocities(
     """Project high dimensional velocity vectors onto given low dimensional embeddings, 
     and/or compute cell transition probabilities.
 
-    When method='kmc, the Itô kernel is used which not only considers the correlation between the vector from any cell to its
+    When method='kmc', the Itô kernel is used which not only considers the correlation between the vector from any cell to its
     nearest neighbors and its velocity vector but also the corresponding distances. We expect this new kernel will enable
     us to visualize more intricate vector flow or steady states in low dimension. We also expect it will improve the
     calculation of the stationary distribution or source states of sampled cells. The original "correlation/cosine"
@@ -220,7 +220,7 @@ def cell_velocities(
         if 'use_for_transition' not in adata.var.keys() or enforce:
             use_for_dynamics = True if "use_for_dynamics" in adata.var.keys() else False
             adata = set_transition_genes(
-                adata, vkey="velocity_S", min_r2=min_r2, use_for_dynamics=use_for_dynamics,
+                adata, vkey=vkey, min_r2=min_r2, use_for_dynamics=use_for_dynamics,
                 min_alpha=min_alpha, min_gamma=min_gamma, min_delta=min_delta,
             )
         transition_genes = adata.var_names[adata.var.use_for_transition.values]
@@ -276,7 +276,7 @@ def cell_velocities(
                           "(`basis='X_total_umap'`) when using `velocity_S` (`velocity_T`). "
                           "")
 
-        if '_' in basis:
+        if '_' in basis and any([i in basis for i in ['X_', 'spliced_', 'unspliced_', 'new_', 'total']]):
             basis_layer, basis = basis.rsplit('_',1)
             adata = reduceDimension(adata, layer=basis_layer, reduction_method=basis)
             X_embedding = adata.obsm[basis]
@@ -785,13 +785,13 @@ def kernels_from_velocyto_scvelo(
             diff = X[i_vals, :] - X[i, :]
 
             if transform == 'log':
-                diff_velocity = np.sign(velocity) * np.log(np.abs(velocity) + 1)
-                diff_rho = np.sign(diff) * np.log(np.abs(diff) + 1)
+                diff_velocity = np.sign(velocity) * np.log1p(np.abs(velocity))
+                diff_rho = np.sign(diff) * np.log1p(np.abs(diff))
             elif transform == 'logratio':
                 hi_dim, hi_dim_t = X[i, :], X[i, :] + velocity
-                log2hidim = np.log(np.abs(hi_dim) + 1)
-                diff_velocity = np.log(np.abs(hi_dim_t) + 1) - log2hidim
-                diff_rho = np.log(np.abs(X[i_vals, :]) + 1) - np.log(np.abs(hi_dim) + 1)
+                log2hidim = np.log1p(np.abs(hi_dim))
+                diff_velocity = np.log1p(np.abs(hi_dim_t)) - log2hidim
+                diff_rho = np.log1p(np.abs(X[i_vals, :])) - np.log1p(np.abs(hi_dim))
             elif transform == 'linear':
                 diff_velocity = velocity
                 diff_rho = diff
@@ -931,3 +931,4 @@ def embed_velocity(adata, x_basis, v_basis='velocity', emb_basis='X', velocity_g
         return Uc, kmc
     else:
         return Uc
+

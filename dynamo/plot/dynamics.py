@@ -1395,7 +1395,7 @@ def dynamics(
                         )
                         x_data = [tmp[0].A, tmp[1].A] if issparse(tmp[0]) else tmp
                         if log_unnormalized and "X_ul" not in valid_adata.layers.keys():
-                            x_data = [np.log(tmp[0] + 1), np.log(tmp[1] + 1)]
+                            x_data = [np.log1p(tmp[0]), np.log1p(tmp[1])]
 
                         title_ = [
                             "(unspliced labeled)",
@@ -1415,7 +1415,7 @@ def dynamics(
                         x_data = [tmp.A] if issparse(tmp) else [tmp]
 
                         if log_unnormalized and "X_new" not in valid_adata.layers.keys():
-                            x_data = [np.log(x_data[0] + 1)]
+                            x_data = [np.log1p(x_data[0])]
                         # only use new key for calculation, so we only have M, V
                         title_ = [" (labeled)", " (labeled)"]
                         Obs_m, Obs_v = [valid_adata.uns["M"]], [valid_adata.uns["V"]]
@@ -1555,10 +1555,10 @@ def dynamics(
 
                         if log_unnormalized and layers == ["uu", "ul", "su", "sl"]:
                             uu, ul, su, sl = (
-                                np.log(uu + 1),
-                                np.log(ul + 1),
-                                np.log(su + 1),
-                                np.log(sl + 1),
+                                np.log1p(uu),
+                                np.log1p(ul),
+                                np.log1p(su),
+                                np.log1p(sl),
                             )
 
                         alpha, beta, gamma, ul0, sl0, uu0, half_life = valid_adata.var.loc[
@@ -1631,7 +1631,7 @@ def dynamics(
                         )
 
                         if log_unnormalized and layers == ["new", "total"]:
-                            uu, ul = np.log(uu + 1), np.log(ul + 1)
+                            uu, ul = np.log1p(uu), np.log1p(ul)
 
                         alpha, gamma, uu0, ul0, half_life = valid_adata.var.loc[
                             gene_name,
@@ -1810,10 +1810,10 @@ def dynamics(
 
                             if log_unnormalized and layers == ["uu", "ul", "su", "sl"]:
                                 uu, ul, su, sl = (
-                                    np.log(uu + 1),
-                                    np.log(ul + 1),
-                                    np.log(su + 1),
-                                    np.log(sl + 1),
+                                    np.log1p(uu),
+                                    np.log1p(ul),
+                                    np.log1p(su),
+                                    np.log1p(sl),
                                 )
 
                             alpha, beta, gamma, uu0, su0 = valid_adata.var.loc[
@@ -1882,7 +1882,7 @@ def dynamics(
                             )
 
                             if log_unnormalized and layers == ["new", "total"]:
-                                uu, ul = np.log(uu + 1), np.log(ul + 1)
+                                uu, ul = np.log1p(uu), np.log1p(ul)
 
                             alpha, gamma, uu0 = valid_adata.var.loc[
                                 gene_name, [prefix + "alpha", prefix + "gamma", prefix + "uu0"]
@@ -2007,10 +2007,10 @@ def dynamics(
 
                         if log_unnormalized and layers == ["uu", "ul", "su", "sl"]:
                             uu, ul, su, sl = (
-                                np.log(uu + 1),
-                                np.log(ul + 1),
-                                np.log(su + 1),
-                                np.log(sl + 1),
+                                np.log1p(uu),
+                                np.log1p(ul),
+                                np.log1p(su),
+                                np.log1p(sl),
                             )
 
                         alpha, beta, gamma, U0, S0 = valid_adata.var.loc[
@@ -2069,7 +2069,7 @@ def dynamics(
                         )
 
                         if log_unnormalized and layers == ["new", "total"]:
-                            uu, ul = np.log(uu + 1), np.log(ul + 1)
+                            uu, ul = np.log1p(uu), np.log1p(ul)
 
                         alpha, gamma, total0 = valid_adata.var.loc[
                             gene_name,
@@ -2198,10 +2198,10 @@ def dynamics(
 
                         if log_unnormalized and layers == ["uu", "ul", "su", "sl"]:
                             uu, ul, su, sl = (
-                                np.log(uu + 1),
-                                np.log(ul + 1),
-                                np.log(su + 1),
-                                np.log(sl + 1),
+                                np.log1p(uu),
+                                np.log1p(ul),
+                                np.log1p(su),
+                                np.log1p(sl),
                             )
 
                         beta, gamma, alpha_std = valid_adata.var.loc[
@@ -2273,7 +2273,7 @@ def dynamics(
                         )
 
                         if log_unnormalized and layers == ["new", "total"]:
-                            uu, ul = np.log(uu + 1), np.log(ul + 1)
+                            uu, ul = np.log1p(uu), np.log1p(ul)
 
                         gamma, alpha_std = valid_adata.var.loc[
                             gene_name, [prefix + "gamma", prefix + "alpha_std"]

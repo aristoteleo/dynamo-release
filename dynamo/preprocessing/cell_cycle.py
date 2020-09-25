@@ -101,10 +101,10 @@ def group_score(adata, layer, gene_list):
             else expression_matrix.sum(1)
     else:
         if issparse(expression_matrix):
-            expression_matrix.data = np.log(expression_matrix.data + 1)
+            expression_matrix.data = np.log1p(expression_matrix.data)
             scores = expression_matrix.sum(1).A1
         else:
-            scores = np.log(expression_matrix + 1).sum(1)
+            scores = np.log1p(expression_matrix).sum(1)
 
     scores = (scores - scores.mean())/scores.std()
 
