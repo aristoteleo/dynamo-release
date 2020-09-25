@@ -55,18 +55,18 @@ def velocities(adata,
             Cell name or indices of the initial cell states for the historical or future cell state prediction with
             numerical integration. If the names in init_cells are not find in the adata.obs_name, it will be treated as
             cell indices and must be integers.
-        init_states: `numpy.ndarray` or None (default: None)
+        init_states: :class:`~numpy.ndarray` or None (default: None)
             Initial cell states for the historical or future cell state prediction with numerical integration.
-        basis: str or None (default: `None`)
+        basis: str or None (default: None)
             The embedding data to use for calculating velocities. If `basis` is either `umap` or `pca`, the reconstructed
             trajectory will be projected back to high dimensional space via the `inverse_transform` function.
         VecFld: dict
             The true ODE function, useful when the data is generated through simulation.
-        layer: `str` or None (default: 'X')
+        layer: str or None (default: 'X')
             Which layer of the data will be used for predicting cell fate with the reconstructed vector field function.
             The layer once provided, will override the `basis` argument and then predicting cell fate in high dimensional
             space.
-        dims: `scalar`, `list` or None (default: `None')
+        dims: int, list, or None (default: None)
             The dimensions that will be selected for velocity calculation.
 
 
