@@ -1152,6 +1152,7 @@ def dynamics(
     has_splicing = adata.uns[uns_key]['has_splicing']
     model = adata.uns[uns_key]['model']
     use_smoothed = adata.uns[uns_key]['use_smoothed']
+    est_method = adata.uns[uns_key]['est_method']
 
     # for key, val in adata.uns[uns_key].items():
     #     exec(key + '=val')
@@ -1209,6 +1210,8 @@ def dynamics(
             sub_plot_n = 1
         elif experiment_type == "mix_std_stm":
             sub_plot_n = 5
+        elif experiment_type == "mix_pulse_chase":
+            sub_plot_n = 2
     else:
         if model == "moment":
             sub_plot_n = 2  # number of subplots for each gene
@@ -1236,6 +1239,8 @@ def dynamics(
             sub_plot_n = 1
         elif experiment_type == "mix_std_stm":
             sub_plot_n = 3
+        elif experiment_type == "mix_pulse_chase":
+            sub_plot_n = 2
 
     ncols = ( # each column correspond to one gene
         len(gene_idx) * grp_len
@@ -1278,8 +1283,19 @@ def dynamics(
         est_params = [est_params_df.loc[:, 'alpha'].values, est_params_df.loc[:, 'beta'].values,
                       est_params_df.loc[:, 'gamma'].values]
 
-        if experiment_type == "kin":
-            if model == 'deterministic':
+        if experiment_type in ["mix_pulse_chase", "mix_kin_deg"]:
+            if est_method == 'twostep':
+                gs = plot_kin_twostep(valid_adata, valid_gene_names, has_splicing, use_smoothed,
+                                  t, T, T_uniq, unit, X_data, X_fit_data, logLL,
+                                  grp_len, sub_plot_n, ncols, gs, fig_mat, gene_order,
+                                  true_param_prefix, true_params, est_params, show_kin_parameters, )
+        elif experiment_type == "kin":
+            if est_method == 'twostep':
+                gs = plot_kin_twostep(valid_adata, valid_gene_names, has_splicing, use_smoothed,
+                                  t, T, T_uniq, unit, X_data, X_fit_data, logLL,
+                                  grp_len, sub_plot_n, ncols, gs, fig_mat, gene_order,
+                                  true_param_prefix, true_params, est_params, show_kin_parameters, )
+            elif model == 'deterministic':
                 gs = plot_kin_det(valid_adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
                                   t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
                                   grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
