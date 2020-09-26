@@ -370,8 +370,8 @@ def phase_portraits(
 
         df = pd.DataFrame(
             {
-                "unspliced": unspliced_mat.flatten(),
-                "spliced": spliced_mat.flatten(),
+                "U": unspliced_mat.flatten(),
+                "S": spliced_mat.flatten(),
                 "gene": genes * n_cells,
                 "gamma": np.tile(gamma, n_cells),
                 "velocity_offset": np.tile(velocity_offset, n_cells),
@@ -463,6 +463,8 @@ def phase_portraits(
                 {
                     "new": N.flatten(),
                     "total": T.flatten(),
+                    "S": S.flatten(),
+                    "U": U.flatten(),
                     "gene": genes * n_cells,
                     "gamma": np.tile(gamma, n_cells),
                     "velocity_offset": np.tile(velocity_offset, n_cells),
@@ -551,7 +553,7 @@ def phase_portraits(
         if cur_pd.color.isna().all():
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
                 ax1, color = _matplotlib_points(
-                    cur_pd.iloc[:, [1, 0]].values,
+                    cur_pd.loc[:, ['S', 'U']].values if vkey == 'velocity_S' else cur_pd.loc[:, ['total', 'new']].values,
                     ax=ax1,
                     labels=None,
                     values=cur_pd.loc[:, "expression"].values,
@@ -567,7 +569,7 @@ def phase_portraits(
                 )
             else:
                 ax1, color = _datashade_points(
-                    cur_pd.iloc[:, [1, 0]].values,
+                    cur_pd.loc[:, ['S', 'U']].values if vkey == 'velocity_S' else cur_pd.loc[:, ['total', 'new']].values,
                     ax=ax1,
                     labels=None,
                     values=cur_pd.loc[:, "expression"].values,
@@ -584,7 +586,7 @@ def phase_portraits(
         else:
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
                 ax1, color = _matplotlib_points(
-                    cur_pd.iloc[:, [1, 0]].values,
+                    cur_pd.loc[:, ['S', 'U']].values if vkey == 'velocity_S' else cur_pd.loc[:, ['total', 'new']].values,
                     ax=ax1,
                     labels=cur_pd.loc[:, "color"],
                     values=None,
@@ -600,7 +602,7 @@ def phase_portraits(
                 )
             else:
                 ax1, color = _datashade_points(
-                    cur_pd.iloc[:, [1, 0]].values,
+                    cur_pd.loc[:, ['S', 'U']].values if vkey == 'velocity_S' else cur_pd.loc[:, ['total', 'new']].values,
                     ax=ax1,
                     labels=cur_pd.loc[:, "color"],
                     values=None,
@@ -623,7 +625,8 @@ def phase_portraits(
             ax1.set_xlabel("total (1st moment)")
             ax1.set_ylabel("new (1st moment)")
 
-        xnew = np.linspace(0, cur_pd.iloc[:, 1].max() * 0.80)
+        xnew = np.linspace(0, cur_pd.loc[:, 'S'].max() * 0.80) if vkey == 'velocity_S' else \
+            np.linspace(0, cur_pd.loc[:, 'total'].max() * 0.80)
         ax1.plot(
             xnew,
             xnew * cur_pd.loc[:, "gamma"].unique()
@@ -632,7 +635,7 @@ def phase_portraits(
             c=font_color,
         )
         X_array, V_array = (
-            cur_pd.iloc[:, [1, 0]].values,
+            cur_pd.loc[:, ['S', 'U']].values if vkey == 'velocity_S' else cur_pd.loc[:, ['total', 'new']].values,
             cur_pd.loc[:, ["vel_s", "vel_u"]].values
         )
 
@@ -794,7 +797,7 @@ def phase_portraits(
             if cur_pd.color.unique() != np.nan:
                 if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
                     ax4, color = _matplotlib_points(
-                        cur_pd.iloc[:, [3, 2]].values,
+                        cur_pd.loc[:, ['P', 'S']].values,
                         ax=ax4,
                         labels=None,
                         values=cur_pd.loc[:, "expression"].values,
@@ -810,7 +813,7 @@ def phase_portraits(
                     )
                 else:
                     ax4, color = _datashade_points(
-                        cur_pd.iloc[:, [3, 2]].values,
+                        cur_pd.loc[:, ['P', 'S']].values,
                         ax=ax4,
                         labels=None,
                         values=cur_pd.loc[:, "expression"].values,
@@ -827,7 +830,7 @@ def phase_portraits(
             else:
                 if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
                     ax4, color = _matplotlib_points(
-                        cur_pd.iloc[:, [1, 0]].values,
+                        cur_pd.loc[:, ['P', 'S']].values,
                         ax=ax4,
                         labels=cur_pd.loc[:, "color"].values,
                         values=None,
@@ -843,7 +846,7 @@ def phase_portraits(
                     )
                 else:
                     ax4, color = _datashade_points(
-                        cur_pd.iloc[:, [1, 0]].values,
+                        cur_pd.loc[:, ['P', 'S']].values,
                         ax=ax4,
                         labels=cur_pd.loc[:, "color"].values,
                         values=None,
@@ -862,7 +865,7 @@ def phase_portraits(
             ax4.set_xlabel("spliced (1st moment)")
             ax4.set_ylabel("protein (1st moment)")
 
-            xnew = np.linspace(0, cur_pd.iloc[:, 3].max())
+            xnew = np.linspace(0, cur_pd.loc[:, 'P'].max())
             ax4.plot(
                 xnew,
                 xnew * cur_pd.loc[:, "gamma_P"].unique()
@@ -871,7 +874,7 @@ def phase_portraits(
                 c=font_color,
             )
             X_array, V_array = (
-                cur_pd.iloc[:, [3, 2]].values,
+                cur_pd.loc[:, ['P', 'S']].values,
                 cur_pd.loc[:, ["vel_p", "vel_s"]].values,
             )
 

@@ -55,7 +55,7 @@ def compute_velocity_synthesis(N, R, gamma, t):
 
 def lin_reg_gamma_synthesis(R, N, time, perc_right=100):
     n_var = R.shape[0]
-    gamma, r2 = np.zeros(n_var), np.zeros(n_var)
+    mean_R2, gamma, r2 = np.zeros(n_var), np.zeros(n_var), np.zeros(n_var)
 
     for i, r, n in tqdm(zip(np.arange(n_var), R, N), 'Estimate gamma via linear regression of t vs. -ln(1-K)'):
         r = r.A.flatten() if issparse(r) else r.flatten()
@@ -63,5 +63,7 @@ def lin_reg_gamma_synthesis(R, N, time, perc_right=100):
 
         K, R2 = fit_labeling_synthesis(n, r, time, perc_right=perc_right)
         gamma[i], r2[i] = compute_gamma_synthesis(K, np.unique(time))
+        K_fit = np.unique(time) * gamma[i]
+        mean_R2[i] = np.mean(R2)
 
-    return gamma, r2
+    return gamma, r2, K, mean_R2, K_fit

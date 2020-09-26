@@ -6,6 +6,7 @@ from ..tools.moments import (
     prepare_data_mix_has_splicing,
     prepare_data_mix_no_splicing,
 )
+from ..tools.utils import get_mapper
 
 def plot_kin_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                  t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
@@ -1260,3 +1261,38 @@ def plot_deg_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                 ax.set_ylabel("Expression")
 
     return gs
+
+
+def plot_kin_twostep(adata, genes, has_splicing, use_smoothed, log_unnormalized,
+                 t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
+                 grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
+                 true_param_prefix, true_params, est_params,
+                 show_variance, show_kin_parameters, ):
+    mapper = get_mapper()
+
+    for g in genes:
+        r = adata[:, g].layers[mapper["X_total"]] if use_smoothed else adata[:, g].layers["X_total"]
+        n = adata[:, g].layers[mapper["X_new"]] if use_smoothed else adata[:, g].layers["X_new"]
+
+        K, R2 = adata[:, g].var['gamma_k'], adata[:, g].var['gamma_k_r2'] #fit_labeling_synthesis(n, r, rpe1.obs['hour'], perc_right=100)
+        gamma, r2 = adata[:, g].var['gamma_k'], adata[:, g].var['gamma_k_r2'] #compute_gamma_synthesis(K, np.unique(rpe1.obs['hour']))
+
+        plt.figure(figsize=(15, 5))
+        plt.subplot(121)
+        plt.scatter(r, n, c=rpe1.obs['hour'])
+        for i in range(len(K)):
+            abline(K[i], 0, '--')
+        plt.colorbar()
+        plt.xlabel('total')
+        plt.ylabel('labeled')
+        plt.title(g)
+        plt.text(0.05, 0.6, '<r2> = %.4f' % (np.mean(R2)), horizontalalignment='left',
+                 verticalalignment='center', transform=plt.gca().transAxes)
+
+        plt.subplot(122)
+        plt.scatter(np.unique(rpe1.obs['hour']), -np.log(1 - K))
+        abline(gamma, 0, '--')
+        plt.xlabel('Time (hrs)')
+        plt.ylabel('-log(1-k)')
+        plt.text(0.05, 0.6, 'r2 = %.4f' % (r2), horizontalalignment='left',
+                 verticalalignment='center', transform=plt.gca().transAxes)
