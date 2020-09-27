@@ -399,10 +399,10 @@ def phase_portraits(
         )
 
         vel_u, vel_s = (
-            index_gene(adata, adata.layers["velocity_U"].A, genes) if "velocity_U" in adata.layers.keys else None,
+            index_gene(adata, adata.layers["velocity_U"].A, genes) if "velocity_U" in adata.layers.keys() else None,
             index_gene(adata, adata.layers["velocity_S"].A, genes),
         ) if vkey == 'velocity_S' else (
-            index_gene(adata, adata.layers["velocity_N"].A, genes) if "velocity_U" in adata.layers.keys else None,
+            index_gene(adata, adata.layers["velocity_N"].A, genes) if "velocity_U" in adata.layers.keys() else None,
             index_gene(adata, adata.layers["velocity_T"].A, genes),
         )
         if "protein" in adata.obsm.keys():

@@ -1372,6 +1372,10 @@ def plot_kin_twostep(adata, genes, has_splicing, use_smoothed,
                     gs[fig_mat[col_i, row_i][0]]
                 )
             if j == 0:
+                ax.text(0.05, 0.99, r'$logLL={0:.2f}$'.format(cur_logLL) + ' \n'
+                        + r"$t_{1/2} = $" + "{0:.2f}".format(np.log(2) / gamma[i]) + unit[0] \
+                        , ha='left', va='top', transform=ax.transAxes)
+
                 ax.scatter(r, n, c=colors, alpha=0.25, ec=None)
                 legend_elements = [
                     # Patch(facecolor=color_key[i], label=k)
@@ -1511,7 +1515,7 @@ def plot_kin_deg_twostep(adata, genes, has_splicing, use_smoothed, log_unnormali
 
     layer = 'M_n' if ('M_n' in adata.layers.keys() and use_smoothed) else 'X_new'
     total_layer = 'M_t' if ('M_t' in adata.layers.keys() and use_smoothed) else 'X_total'
-    X, X_raw = prepare_data_no_splicing(adata, adata.var.index, t, layer=layer,
+    _, X_raw = prepare_data_no_splicing(adata, adata.var.index, t, layer=layer,
                                         total_layer=total_layer)
 
     for i, gene_name in enumerate(genes):
@@ -1533,7 +1537,12 @@ def plot_kin_deg_twostep(adata, genes, has_splicing, use_smoothed, log_unnormali
                 plt.subplot(
                     gs[fig_mat[col_i, row_i][0]]
                 )
+
             if j == 0:
+                ax.text(0.9, 0.99, r'$logLL={0:.2f}$'.format(cur_logLL) + ' \n'
+                        + r"$t_{1/2} = $" + "{0:.2f}".format(np.log(2) / gamma[i]) + unit[0] \
+                        , ha='left', va='top', transform=ax.transAxes)
+
                 if show_variance:
                     ax.boxplot(
                         x=[Obs[T == std] for std in T_uniq],
