@@ -1497,24 +1497,28 @@ def plot_kin_twostep(adata, genes, has_splicing, use_smoothed,
 
 
 def plot_kin_deg_twostep(adata, genes, has_splicing, use_smoothed, log_unnormalized,
-                 t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
+                 t, T, T_uniq, unit, X_data, X_fit_data, logLL,
                  grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
                  true_param_prefix, true_params, est_params,
                  show_variance, show_kin_parameters, ):
     import matplotlib.pyplot as plt
     true_alpha, true_beta, true_gamma = true_params
     alpha, beta, gamma = est_params
-    mapper = get_mapper()
-    t_color = t.astype(str)
+    if len(T_uniq) > 6:
+        xticks, xticks_labels = np.round(np.linspace(0, max(T_uniq), 6), 2), np.round(np.linspace(0, max(T_uniq), 6), 2)
+    else:
+        xticks, xticks_labels = T_uniq, T_uniq
+
+    layer = 'M_n' if ('M_n' in adata.layers.keys() and use_smoothed) else 'X_new'
+    total_layer = 'M_t' if ('M_t' in adata.layers.keys() and use_smoothed) else 'X_total'
+    X, X_raw = prepare_data_no_splicing(adata, adata.var.index, t, layer=layer,
+                                        total_layer=total_layer)
 
     for i, gene_name in enumerate(genes):
-        cur_X_data, cur_X_fit_data, cur_logLL = X_data[i], X_fit_data[i], logLL[i]
-        r = adata[:, gene_name].layers[mapper["X_total"]] if use_smoothed else adata[:, gene_name].layers["X_total"]
-        n = adata[:, gene_name].layers[mapper["X_new"]] if use_smoothed else adata[:, gene_name].layers["X_new"]
+        cur_X_data, cur_logLL = X_data[i],  logLL[i]
+        cur_X_fit_data, cur_tt, cur_h = X_fit_data[i][0], X_fit_data[i][1][0], X_fit_data[i][1][1]
 
-        r2 = adata[:, gene_name].var['gamma_k_r2']
-        mean_R2 = adata[:, gene_name].var['mean_R2']
-
+        Obs = X_raw[i].A.flatten() if issparse(X_raw[i][0]) else X_raw[i].flatten()
         for j in range(sub_plot_n):
             row_ind = int(
                 np.floor(i / ncols)
@@ -1530,81 +1534,36 @@ def plot_kin_deg_twostep(adata, genes, has_splicing, use_smoothed, log_unnormali
                     gs[fig_mat[col_i, row_i][0]]
                 )
             if j == 0:
-                ax.scatter(t, x)
-                ax.plot(np.unique(t), xm, 'r--')
-                ax.set_xlabel('chase time (hrs.)')
-                ax.set_ylabel('labeled')
-                ax.set_title(gene_name + str(cost))
-
-
-
-                ax.scatter(r, n, c=t_color, cmap='viridis',)
-                color_key = plt.get_cmap('viridis')(np.linspace(0, 1, len(T_uniq)))
-                legend_elements = [
-                    # Patch(facecolor=color_key[i], label=k)
-                    Line2D(
-                        [0], [0], marker="o", color=color_key[i], label=k, linestyle="None"
+                if show_variance:
+                    ax.boxplot(
+                        x=[Obs[T == std] for std in T_uniq],
+                        positions=T_uniq,
+                        widths=boxwidth,
+                        showfliers=False,
+                        showmeans=True,
                     )
-                    for i, k in enumerate(T_uniq)
-                ]
-                ax.legend(
-                    handles=legend_elements,
-                    bbox_to_anchor=(1.04, 1),
-                    loc='upper left',
-                    ncol=len(T_uniq) // 15 + 1,
-                )
-                xnew = np.linspace(0, np.max(r) * 0.80)
-                for i in range(len(cur_X_data)):
-                    ax.plot(
-                        xnew,
-                        xnew * cur_X_data[i],
-                        dashes=[6, 2],
-                        c='k',
-                    )
-                if use_smoothed:
-                    ax.xlabel('total (1st moment)')
-                    ax.ylabel('new (1st moment)')
+                    ax.plot(T_uniq, cur_X_fit_data[j].T, "b")
+                    ax.plot(T_uniq, cur_X_data[j], "k--")
+                    ax.set_ylabel('labeled')
+                    ax.set_title(gene_name + str(cur_logLL))
                 else:
-                    ax.xlabel('total (size factor normalized only)')
-                    ax.ylabel('new (size factor normalized only)')
-
-                ax.title(gene_name)
-                ax.text(0.05, 0.6, '<r2> = %.4f' % (mean_R2), horizontalalignment='left',
-                         verticalalignment='center', transform=ax.transAxes)
+                    ax.plot(T_uniq, cur_X_fit_data[j].T, "b")
+                    ax.plot(T_uniq, cur_X_data[j], "k--")
+                    ax.set_ylabel('labeled')
+                    ax.set_title(gene_name + str(cur_logLL))
             elif j == 1:
-                plt.subplot(132)
-                plt.plot(np.unique(t), xm)
-                plt.plot(kc.t, kc.x, 'r*')
-                plt.xlabel('chase time (hrs.)')
-                plt.ylabel('labeled')
-                plt.legend(['data (mean)', 'model (kinetic chase)'])
-                plt.title('fitting')
-
-
-
-                ax.scatter(T_uniq, cur_X_data, c='k')
-                ax.scatter(T_uniq, cur_X_fit_data, c='r')
-                ax.plot(
-                    T,
-                    T * gamma[i],
-                    dashes=[6, 2],
-                    c='k',
-                )
-                ax.xlabel('Time (' + unit + ')')
-                ax.ylabel('-log(1-k)')
-                ax.text(0.05,
-                        0.6,
-                        'r2 = %.4f'.format(r2),
-                        ha='left',
-                        va='center',
-                        transform=ax.transAxes)
+                ax.plot(cur_tt, cur_h, 'b')
+                ax.plot(cur_tt, cur_h, 'r*')
+                ax.set_ylabel('labeled')
+                ax.set_legend(['model (deterministic)', 'model (kinetic chase)'])
+                ax.set_title('unseen initial conc.')
 
                 if show_kin_parameters:
                     if true_param_prefix is not None:
                         if has_splicing:
                             ax.text(
-                                0.01,
-                                0.99,
+                                0.80,
+                                0.6,
                                 r"$\alpha$"
                                 + ": {0:.2f}; ".format(true_alpha[i])
                                 + r"$\hat \alpha$"
@@ -1623,8 +1582,8 @@ def plot_kin_deg_twostep(adata, genes, has_splicing, use_smoothed, log_unnormali
                             )
                         else:
                             ax.text(
-                                0.01,
-                                0.99,
+                                0.80,
+                                0.6,
                                 r"$\alpha$"
                                 + ": {0:.2f}; ".format(true_alpha[i])
                                 + r"$\hat \alpha$"
@@ -1637,15 +1596,22 @@ def plot_kin_deg_twostep(adata, genes, has_splicing, use_smoothed, log_unnormali
                                 va="top",
                                 transform=ax.transAxes,
                             )
-            elif j == 2:
 
-                plt.subplot(133)
-                plt.plot(det.t, det.x)
-                plt.plot(tt, h, 'r*')
-                plt.xlabel('induction time (hrs.)')
-                plt.ylabel('labeled')
-                plt.legend(['model (deterministic)', 'model (kinetic chase)'])
-                plt.title('unseen initial conc.')
+        # properly set the xticks
+        ax.set_xticks(xticks)
+        ax.set_xticklabels(xticks_labels)
 
+        if use_smoothed:
+            ax.set_ylabel('labeled (1st moment)')
+        else:
+            ax.set_ylabel('labeled (size factor normalized only)')
+
+        ax.set_xlabel("time (" + unit + ")")
+        if y_log_scale:
+            ax.set_yscale("log")
+        if log_unnormalized:
+            ax.set_ylabel("Expression (log)")
+        else:
+            ax.set_ylabel("Expression")
 
     return gs
