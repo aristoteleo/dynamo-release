@@ -823,7 +823,8 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 k = 1 - np.exp(- gamma[:, None] * time[None, :])
                 Estm_df = {'alpha': csr_matrix(gamma[:, None]).multiply(New).multiply(1 / k),
                            'gamma': gamma,
-                           'gamma_r2': gamma_r2,
+                            'gamma_k': gamma, # required for phase_potrait
+                            'gamma_r2': gamma_r2,
                            'mean_R2': mean_R2,
                            }
                 half_life = np.log(2)/gamma

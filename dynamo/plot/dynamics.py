@@ -200,7 +200,10 @@ def phase_portraits(
     _genes = list(set(adata.var.index).intersection(genes))
 
     # avoid object for dtype in the gamma column https://stackoverflow.com/questions/40809503/python-numpy-typeerror-ufunc-isfinite-not-supported-for-the-input-types
-    k_name = 'gamma_k' if adata.uns['dynamics']['experiment_type'] in ['one-shot', 'kin', 'deg'] else 'gamma'
+    if adata.uns['dynamics']['experiment_type'] in ['one-shot', 'kin', 'deg']:
+        k_name = 'gamma_k'
+    else:
+        k_name = 'gamma'
 
     valid_id = np.isfinite(
         np.array(adata.var.loc[_genes, k_name], dtype="float")
@@ -1217,7 +1220,7 @@ def dynamics(
             sub_plot_n = 2  # number of subplots for each gene
         elif experiment_type == "kin":
             if model == 'deterministic':
-                sub_plot_n = 1
+                sub_plot_n = 1 if est_method != 'twostep' else 2
             elif model == 'stochastic':
                 mom_n = 1 if show_moms_fit else 0
                 sub_plot_n = 1 + mom_n if show_variance else 1 + mom_n

@@ -19,6 +19,10 @@ def plot_kin_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
     import matplotlib.pyplot as plt
     true_alpha, true_beta, true_gamma = true_params
     alpha, beta, gamma = est_params
+    if len(T_uniq) > 6:
+        xticks, xticks_labels = np.round(np.linspace(0, max(T_uniq), 6), 2), np.round(np.linspace(0, max(T_uniq), 6), 2)
+    else:
+        xticks, xticks_labels = T_uniq, T_uniq
 
     if has_splicing:
         if ('M_ul' in adata.layers.keys() and use_smoothed):
@@ -160,6 +164,10 @@ def plot_kin_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                 ax.plot(T_uniq, cur_X_data.T, "k--")
                 ax.set_title(gene_name)
 
+            # properly set the xticks
+            ax.set_xticks(xticks)
+            ax.set_xticklabels(xticks_labels)
+
             if true_param_prefix is not None:
                 if has_splicing:
                     ax.plot(t, true_p[j], "r")
@@ -184,6 +192,10 @@ def plot_kin_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
     import matplotlib.pyplot as plt
     true_alpha, true_beta, true_gamma = true_params
     alpha, beta, gamma = est_params
+    if len(T_uniq) > 6:
+        xticks, xticks_labels = np.round(np.linspace(0, max(T_uniq), 6), 2), np.round(np.linspace(0, max(T_uniq), 6), 2)
+    else:
+        xticks, xticks_labels = T_uniq, T_uniq
 
     if has_splicing:
         if ('M_ul' in adata.layers.keys() and use_smoothed):
@@ -344,6 +356,10 @@ def plot_kin_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
 
                 ax.set_title(gene_name)
 
+            # properly set the xticks
+            ax.set_xticks(xticks)
+            ax.set_xticklabels(xticks_labels)
+
             if true_param_prefix is not None:
                 ax.plot(t, true_p[j], "r")
             ax.set_xlabel("time (" + unit + ")")
@@ -365,6 +381,10 @@ def plot_kin_mix(adata, genes, has_splicing, use_smoothed, log_unnormalized,
     import matplotlib.pyplot as plt
     true_alpha, true_beta, true_gamma = true_params
     alpha, beta, gamma = est_params
+    if len(T_uniq) > 6:
+        xticks, xticks_labels = np.round(np.linspace(0, max(T_uniq), 6), 2), np.round(np.linspace(0, max(T_uniq), 6), 2)
+    else:
+        xticks, xticks_labels = T_uniq, T_uniq
 
     if has_splicing:
         if ('M_ul' in adata.layers.keys() and use_smoothed):
@@ -531,6 +551,10 @@ def plot_kin_mix(adata, genes, has_splicing, use_smoothed, log_unnormalized,
 
                 ax.set_title(gene_name)
 
+            # properly set the xticks
+            ax.set_xticks(xticks)
+            ax.set_xticklabels(xticks_labels)
+
             if true_param_prefix is not None:
                 ax.plot(t, true_p[j], "r")
             ax.set_xlabel("time (" + unit + ")")
@@ -543,6 +567,7 @@ def plot_kin_mix(adata, genes, has_splicing, use_smoothed, log_unnormalized,
 
     return gs
 
+
 def plot_kin_mix_det_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                  t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
                  grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
@@ -551,6 +576,10 @@ def plot_kin_mix_det_sto(adata, genes, has_splicing, use_smoothed, log_unnormali
     import matplotlib.pyplot as plt
     true_alpha, true_beta, true_gamma = true_params
     alpha, beta, gamma = est_params
+    if len(T_uniq) > 6:
+        xticks, xticks_labels = np.round(np.linspace(0, max(T_uniq), 6), 2), np.round(np.linspace(0, max(T_uniq), 6), 2)
+    else:
+        xticks, xticks_labels = T_uniq, T_uniq
 
     if has_splicing:
         if ('M_ul' in adata.layers.keys() and use_smoothed):
@@ -720,6 +749,10 @@ def plot_kin_mix_det_sto(adata, genes, has_splicing, use_smoothed, log_unnormali
 
                 ax.set_title(gene_name)
 
+            # properly set the xticks
+            ax.set_xticks(xticks)
+            ax.set_xticklabels(xticks_labels)
+
             if true_param_prefix is not None:
                 ax.plot(t, true_p[j], "r")
             ax.set_xlabel("time (" + unit + ")")
@@ -740,6 +773,10 @@ def plot_kin_mix_sto_sto(adata, genes, has_splicing, use_smoothed, log_unnormali
     import matplotlib.pyplot as plt
     true_alpha, true_beta, true_gamma = true_params
     alpha, beta, gamma = est_params
+    if len(T_uniq) > 6:
+        xticks, xticks_labels = np.round(np.linspace(0, max(T_uniq), 6), 2), np.round(np.linspace(0, max(T_uniq), 6), 2)
+    else:
+        xticks, xticks_labels = T_uniq, T_uniq
 
     if has_splicing:
         if ('M_ul' in adata.layers.keys() and use_smoothed):
@@ -913,6 +950,10 @@ def plot_kin_mix_sto_sto(adata, genes, has_splicing, use_smoothed, log_unnormali
 
                 ax.set_title(gene_name)
 
+            # properly set the xticks
+            ax.set_xticks(xticks)
+            ax.set_xticklabels(xticks_labels)
+
             if true_param_prefix is not None:
                 ax.plot(t, true_p[j], "r")
             ax.set_xlabel("time (" + unit + ")")
@@ -925,6 +966,7 @@ def plot_kin_mix_sto_sto(adata, genes, has_splicing, use_smoothed, log_unnormali
 
     return gs
 
+
 def plot_deg_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                  t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
                  grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
@@ -933,6 +975,10 @@ def plot_deg_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
     import matplotlib.pyplot as plt
     true_alpha, true_beta, true_gamma = true_params
     alpha, beta, gamma = est_params
+    if len(T_uniq) > 6:
+        xticks, xticks_labels = np.round(np.linspace(0, max(T_uniq), 6), 2), np.round(np.linspace(0, max(T_uniq), 6), 2)
+    else:
+        xticks, xticks_labels = T_uniq, T_uniq
 
     if has_splicing:
         if ('M_ul' in adata.layers.keys() and use_smoothed):
@@ -1072,6 +1118,10 @@ def plot_deg_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                 ax.plot(T_uniq, cur_X_data.T, "k--")
                 ax.set_title(gene_name)
 
+            # properly set the xticks
+            ax.set_xticks(xticks)
+            ax.set_xticklabels(xticks_labels)
+
             if true_param_prefix is not None:
                 if has_splicing:
                     ax.plot(t, true_p[j], "r")
@@ -1086,6 +1136,7 @@ def plot_deg_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                 ax.set_ylabel("Expression")
     return gs
 
+
 def plot_deg_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                  t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
                  grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
@@ -1094,6 +1145,10 @@ def plot_deg_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
     import matplotlib.pyplot as plt
     true_alpha, true_beta, true_gamma = true_params
     alpha, beta, gamma = est_params
+    if len(T_uniq) > 6:
+        xticks, xticks_labels = np.round(np.linspace(0, max(T_uniq), 6), 2), np.round(np.linspace(0, max(T_uniq), 6), 2)
+    else:
+        xticks, xticks_labels = T_uniq, T_uniq
 
     if has_splicing:
         if ('M_ul' in adata.layers.keys() and use_smoothed):
@@ -1253,6 +1308,10 @@ def plot_deg_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
 
                 ax.set_title(gene_name)
 
+            # properly set the xticks
+            ax.set_xticks(xticks)
+            ax.set_xticklabels(xticks_labels)
+
             if true_param_prefix is not None:
                 ax.plot(t, true_p[j], "r")
             ax.set_xlabel("time (" + unit + ")")
@@ -1274,6 +1333,10 @@ def plot_kin_twostep(adata, genes, has_splicing, use_smoothed,
     true_alpha, true_beta, true_gamma = true_params
     alpha, beta, gamma = est_params
     mapper = get_mapper()
+    if len(T_uniq) > 6:
+        xticks, xticks_labels = np.round(np.linspace(0, max(T_uniq), 6), 2), np.round(np.linspace(0, max(T_uniq), 6), 2)
+    else:
+        xticks, xticks_labels = T_uniq, T_uniq
 
     unique_labels = np.unique(T_uniq)
     color_key = _to_hex(
@@ -1309,7 +1372,7 @@ def plot_kin_twostep(adata, genes, has_splicing, use_smoothed,
                     gs[fig_mat[col_i, row_i][0]]
                 )
             if j == 0:
-                ax.scatter(r, n, c=colors, alpha=0.6)
+                ax.scatter(r, n, c=colors, alpha=0.25, ec=None)
                 legend_elements = [
                     # Patch(facecolor=color_key[i], label=k)
                     Line2D(
@@ -1425,7 +1488,13 @@ def plot_kin_twostep(adata, genes, has_splicing, use_smoothed,
                                 va="top",
                                 transform=ax.transAxes,
                             )
+
+                # properly set the xticks
+                ax.set_xticks(xticks)
+                ax.set_xticklabels(xticks_labels)
+
     return gs
+
 
 def plot_kin_deg_twostep(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                  t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
