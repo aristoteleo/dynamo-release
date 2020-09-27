@@ -1284,7 +1284,7 @@ def plot_kin_twostep(adata, genes, has_splicing, use_smoothed,
 
     colors = pd.Series(T).map(new_color_key).values
 
-    r2 = adata[:, genes].var['gamma_k_r2']
+    r2 = adata[:, genes].var['gamma_r2']
     mean_R2 = adata[:, genes].var['mean_R2']
 
     for i, gene_name in enumerate(genes):
@@ -1329,7 +1329,7 @@ def plot_kin_twostep(adata, genes, has_splicing, use_smoothed,
                         xnew,
                         xnew * cur_X_data[ind],
                         dashes=[6, 2],
-                        lw=2,
+                        lw=4,
                         c=new_color_key[T_uniq[ind]],
                     )
                 if use_smoothed:
