@@ -399,10 +399,10 @@ def phase_portraits(
         )
 
         vel_u, vel_s = (
-            index_gene(adata, adata.layers["velocity_U"].A, genes),
+            index_gene(adata, adata.layers["velocity_U"].A, genes) if "velocity_U" in adata.layers.keys else None,
             index_gene(adata, adata.layers["velocity_S"].A, genes),
         ) if vkey == 'velocity_S' else (
-            index_gene(adata, adata.layers["velocity_N"].A, genes),
+            index_gene(adata, adata.layers["velocity_N"].A, genes) if "velocity_U" in adata.layers.keys else None,
             index_gene(adata, adata.layers["velocity_T"].A, genes),
         )
         if "protein" in adata.obsm.keys():
@@ -455,7 +455,7 @@ def phase_portraits(
                     "velocity": V_vec.flatten(),
                     "velocity_protein": P_vec.flatten(),
                     "color": np.repeat(color_vec, n_genes),
-                    "vel_u": vel_u.flatten(),
+                    "vel_u": vel_u.flatten() if vel_u is not None else None,
                     "vel_s": vel_s.flatten(),
                     "vel_p": vel_p.flatten(),
                 },
@@ -1152,7 +1152,7 @@ def dynamics(
     filter_gene_mode = adata.uns[uns_key]['filter_gene_mode']
     X_data = adata.uns[uns_key]['X_data']
     X_fit_data = adata.uns[uns_key]['X_fit_data']
-    has_splicing = adata.uns[uns_key]['has_splicing']
+    has_splicing = adata.uns[uns_key]['has_splicing'] and adata.uns[uns_key]['splicing_labeling']
     model = adata.uns[uns_key]['model']
     use_smoothed = adata.uns[uns_key]['use_smoothed']
     est_method = adata.uns[uns_key]['est_method']

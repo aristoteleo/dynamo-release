@@ -1530,13 +1530,11 @@ def plot_kin_deg_twostep(adata, genes, has_splicing, use_smoothed, log_unnormali
                     gs[fig_mat[col_i, row_i][0]]
                 )
             if j == 0:
-                plt.figure(figsize=(15, 3))
-                plt.subplot(131)
-                plt.scatter(t, x)
-                plt.plot(np.unique(t), xm, 'r--')
-                plt.xlabel('chase time (hrs.)')
-                plt.ylabel('labeled')
-                plt.title(g + str(cost))
+                ax.scatter(t, x)
+                ax.plot(np.unique(t), xm, 'r--')
+                ax.set_xlabel('chase time (hrs.)')
+                ax.set_ylabel('labeled')
+                ax.set_title(gene_name + str(cost))
 
 
 
