@@ -1048,6 +1048,7 @@ def set_param_kinetic(
     extra_params,
     _group,
     cur_grp,
+    cur_cells_bools,
     valid_ind,
 ):
     if cur_grp == _group[0]:
@@ -1065,7 +1066,15 @@ def set_param_kinetic(
             adata.var[kin_param_pre + "logLL"],
         ) = (None, None, None, None, None, None, None, None, None, None, None)
 
-    adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha.mean(1) if isarray(alpha) else alpha
+    if isarray(alpha):
+        adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha.mean(1)
+        cur_cells_ind, valid_ind_ = np.where(cur_cells_bools)[0][:, np.newaxis], np.where(valid_ind)[0]
+        if cur_grp == _group[0]:
+            adata.layers["cell_wise_alpha"] = sp.csr_matrix((adata.shape), dtype=np.float64)
+        alpha = alpha.T.tocsr() if sp.issparse(alpha) else sp.csr_matrix(alpha, dtype=np.float64).T
+        adata.layers["cell_wise_alpha"][cur_cells_ind, valid_ind_] = alpha
+    else:
+        adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha
     adata.var.loc[valid_ind, kin_param_pre + "a"] = a
     adata.var.loc[valid_ind, kin_param_pre + "b"] = b
     adata.var.loc[valid_ind, kin_param_pre + "alpha_a"] = alpha_a

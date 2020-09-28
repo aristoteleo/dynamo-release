@@ -1372,9 +1372,10 @@ def plot_kin_twostep(adata, genes, has_splicing, use_smoothed,
                     gs[fig_mat[col_i, row_i][0]]
                 )
             if j == 0:
-                ax.text(0.05, 0.99, r'$logLL={0:.2f}$'.format(cur_logLL) + ' \n'
-                        + r"$t_{1/2} = $" + "{0:.2f}".format(np.log(2) / gamma[i]) + unit[0] \
-                        , ha='left', va='top', transform=ax.transAxes)
+                if cur_logLL is not None:
+                    ax.text(0.05, 0.99, r'$logLL={0:.2f}$'.format(cur_logLL) + ' \n'
+                            + r"$t_{1/2} = $" + "{0:.2f}".format(np.log(2) / gamma[i]) + unit[0] \
+                            , ha='left', va='top', transform=ax.transAxes)
 
                 ax.scatter(r, n, c=colors, alpha=0.25, ec=None)
                 legend_elements = [

@@ -634,8 +634,8 @@ def dynamics(
                     if experiment_type == 'kin':
                         vel_U = vel.vel_u(U_)
                         vel_S = vel.vel_s(U_, S_)
-                        vel_N = vel.vel_u(U)
                         vel.parameters['beta'] = gamma
+                        vel_N = vel.vel_u(U)
                         vel_T = vel.vel_u(S) # no need to consider splicing
                     elif experiment_type == 'deg':
                         if splicing_labeling:
@@ -654,7 +654,7 @@ def dynamics(
                         vel_S = np.nan
 
                         # calculate cell-wise alpha, if est_method is twostep, this can be skipped
-                        alpha_ = one_shot_alpha_matrix(U_, gamma, t)
+                        alpha_ = one_shot_alpha_matrix(U, gamma, t)
 
                         vel.parameters['alpha'] = alpha_
 
@@ -670,8 +670,8 @@ def dynamics(
                     if experiment_type == 'kin':
                         vel_U = vel.vel_u(U)
                         vel_S = vel.vel_s(U, S)
-                        vel_N = vel.vel_u(U_)
                         vel.parameters['beta'] = gamma
+                        vel_N = vel.vel_u(U_)
                         vel_T = vel.vel_u(S_)  # no need to consider splicing
                     elif experiment_type == 'deg':
                         if splicing_labeling:
@@ -690,7 +690,7 @@ def dynamics(
                         vel_S = np.nan
 
                         # calculate cell-wise alpha, if est_method is twostep, this can be skipped
-                        alpha_ = one_shot_alpha_matrix(U, gamma, t)
+                        alpha_ = one_shot_alpha_matrix(U_, gamma, t)
 
                         vel.parameters['alpha'] = alpha_
 
@@ -733,6 +733,7 @@ def dynamics(
                 extra_params,
                 _group,
                 cur_grp,
+                cur_cells_bools,
                 valid_bools_,
             )
             # add protein related parameters in the moment model below:
