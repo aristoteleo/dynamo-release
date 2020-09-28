@@ -649,7 +649,10 @@ class Deterministic(LinearODE):
         return K, p
 
     def integrate_analytical(self, t, x0=None):
-        x0 = self.x0 if x0 is None else x0
+        if x0 is None:
+            x0 = self.x0
+        else:
+            self.x0 = x0
         u = sol_u(t, x0[self.u], self.al, self.be)
         s = sol_s(t, x0[self.s], x0[self.u], self.al, self.be, self.ga)
         return np.array([u, s]).T
@@ -717,6 +720,7 @@ class Deterministic_NoSplicing(LinearODE):
     def integrate_analytical(self, t, x0=None):
         x0 = self.x0 if x0 is None else x0
         x0 = x0 if np.isscalar(x0) else x0[self.u]
+        if self.x0 is None: self.x0 = x0
         u = sol_u(t, x0, self.al, self.ga)
         return np.array([u]).T
 
@@ -743,7 +747,10 @@ class KineticChase:
         self.params['gamma'] = gamma
 
     def integrate(self, t, x0=None, method='analytical'):
-        x0 = self.x0 if x0 is None else x0
+        if x0 is None:
+            x0 = self.x0 
+        else:
+            self.x0 = x0
         al = self.params['alpha']
         ga = self.params['gamma']
         self.t = t
