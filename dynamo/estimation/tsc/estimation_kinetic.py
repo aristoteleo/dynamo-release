@@ -748,6 +748,7 @@ class GoodnessOfFit:
             self.simulator.set_params(*params)
         if x0 is not None:
             self.simulator.x0 = x0
+        self.time = None
         self.mean = None
         self.sigm = None
         self.pred = None
@@ -770,6 +771,7 @@ class GoodnessOfFit:
             x_data_norm, x_model_norm = self.normalize(x_data, x_model, scale)
         else:
             x_data_norm, x_model_norm = x_data, x_model
+        self.time = np.unique(t)
         self.mean = strat_mom(x_data_norm.T, t, np.mean)
         self.sigm = strat_mom(x_data_norm.T, t, np.std)
         self.pred = strat_mom(x_model_norm.T, t, np.mean)
@@ -797,3 +799,13 @@ class GoodnessOfFit:
         err = ((self.pred - self.mean) / sig).flatten()
         ret = -len(err)/2*np.log(2*np.pi) - np.sum(np.log(sig)) - 0.5*err.dot(err)
         return ret
+
+    def calc_mean_squared_deviation(self, weighted=True):
+        sig = np.array(self.sigm, copy=True)
+        if np.any(sig==0):
+            warnings.warn('Some standard deviations are 0; Set to 1 instead.')
+            sig[sig==0] = 1
+        err = self.pred - self.mean
+        if weighted:
+            err /= sig
+        return np.sqrt(err.dot(err))
