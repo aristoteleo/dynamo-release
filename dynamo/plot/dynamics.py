@@ -200,7 +200,10 @@ def phase_portraits(
     _genes = list(set(adata.var.index).intersection(genes))
 
     # avoid object for dtype in the gamma column https://stackoverflow.com/questions/40809503/python-numpy-typeerror-ufunc-isfinite-not-supported-for-the-input-types
-    k_name = 'gamma_k' if adata.uns['dynamics']['experiment_type'] in ['one-shot', 'kin', 'deg'] else 'gamma'
+    if adata.uns['dynamics']['experiment_type'] in ['one-shot', 'kin', 'deg']:
+        k_name = 'gamma_k'
+    else:
+        k_name = 'gamma'
 
     valid_id = np.isfinite(
         np.array(adata.var.loc[_genes, k_name], dtype="float")
@@ -370,8 +373,8 @@ def phase_portraits(
 
         df = pd.DataFrame(
             {
-                "unspliced": unspliced_mat.flatten(),
-                "spliced": spliced_mat.flatten(),
+                "U": unspliced_mat.flatten(),
+                "S": spliced_mat.flatten(),
                 "gene": genes * n_cells,
                 "gamma": np.tile(gamma, n_cells),
                 "velocity_offset": np.tile(velocity_offset, n_cells),
@@ -396,10 +399,10 @@ def phase_portraits(
         )
 
         vel_u, vel_s = (
-            index_gene(adata, adata.layers["velocity_U"].A, genes),
+            index_gene(adata, adata.layers["velocity_U"].A, genes) if "velocity_U" in adata.layers.keys() else None,
             index_gene(adata, adata.layers["velocity_S"].A, genes),
         ) if vkey == 'velocity_S' else (
-            index_gene(adata, adata.layers["velocity_N"].A, genes),
+            index_gene(adata, adata.layers["velocity_N"].A, genes) if "velocity_U" in adata.layers.keys() else None,
             index_gene(adata, adata.layers["velocity_T"].A, genes),
         )
         if "protein" in adata.obsm.keys():
@@ -452,7 +455,7 @@ def phase_portraits(
                     "velocity": V_vec.flatten(),
                     "velocity_protein": P_vec.flatten(),
                     "color": np.repeat(color_vec, n_genes),
-                    "vel_u": vel_u.flatten(),
+                    "vel_u": vel_u.flatten() if vel_u is not None else None,
                     "vel_s": vel_s.flatten(),
                     "vel_p": vel_p.flatten(),
                 },
@@ -463,6 +466,8 @@ def phase_portraits(
                 {
                     "new": N.flatten(),
                     "total": T.flatten(),
+                    "S": S.flatten(),
+                    "U": U.flatten(),
                     "gene": genes * n_cells,
                     "gamma": np.tile(gamma, n_cells),
                     "velocity_offset": np.tile(velocity_offset, n_cells),
@@ -551,7 +556,7 @@ def phase_portraits(
         if cur_pd.color.isna().all():
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
                 ax1, color = _matplotlib_points(
-                    cur_pd.iloc[:, [1, 0]].values,
+                    cur_pd.loc[:, ['S', 'U']].values if vkey == 'velocity_S' else cur_pd.loc[:, ['total', 'new']].values,
                     ax=ax1,
                     labels=None,
                     values=cur_pd.loc[:, "expression"].values,
@@ -567,7 +572,7 @@ def phase_portraits(
                 )
             else:
                 ax1, color = _datashade_points(
-                    cur_pd.iloc[:, [1, 0]].values,
+                    cur_pd.loc[:, ['S', 'U']].values if vkey == 'velocity_S' else cur_pd.loc[:, ['total', 'new']].values,
                     ax=ax1,
                     labels=None,
                     values=cur_pd.loc[:, "expression"].values,
@@ -584,7 +589,7 @@ def phase_portraits(
         else:
             if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
                 ax1, color = _matplotlib_points(
-                    cur_pd.iloc[:, [1, 0]].values,
+                    cur_pd.loc[:, ['S', 'U']].values if vkey == 'velocity_S' else cur_pd.loc[:, ['total', 'new']].values,
                     ax=ax1,
                     labels=cur_pd.loc[:, "color"],
                     values=None,
@@ -600,7 +605,7 @@ def phase_portraits(
                 )
             else:
                 ax1, color = _datashade_points(
-                    cur_pd.iloc[:, [1, 0]].values,
+                    cur_pd.loc[:, ['S', 'U']].values if vkey == 'velocity_S' else cur_pd.loc[:, ['total', 'new']].values,
                     ax=ax1,
                     labels=cur_pd.loc[:, "color"],
                     values=None,
@@ -620,10 +625,11 @@ def phase_portraits(
             ax1.set_xlabel("spliced (1st moment)")
             ax1.set_ylabel("unspliced (1st moment)")
         elif vkey == 'velocity_T':
-            ax1.set_xlabel("new (1st moment)")
-            ax1.set_ylabel("total (1st moment)")
+            ax1.set_xlabel("total (1st moment)")
+            ax1.set_ylabel("new (1st moment)")
 
-        xnew = np.linspace(0, cur_pd.iloc[:, 1].max() * 0.80)
+        xnew = np.linspace(0, cur_pd.loc[:, 'S'].max() * 0.80) if vkey == 'velocity_S' else \
+            np.linspace(0, cur_pd.loc[:, 'total'].max() * 0.80)
         ax1.plot(
             xnew,
             xnew * cur_pd.loc[:, "gamma"].unique()
@@ -632,7 +638,7 @@ def phase_portraits(
             c=font_color,
         )
         X_array, V_array = (
-            cur_pd.iloc[:, [1, 0]].values,
+            cur_pd.loc[:, ['S', 'U']].values if vkey == 'velocity_S' else cur_pd.loc[:, ['total', 'new']].values,
             cur_pd.loc[:, ["vel_s", "vel_u"]].values
         )
 
@@ -794,7 +800,7 @@ def phase_portraits(
             if cur_pd.color.unique() != np.nan:
                 if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
                     ax4, color = _matplotlib_points(
-                        cur_pd.iloc[:, [3, 2]].values,
+                        cur_pd.loc[:, ['P', 'S']].values,
                         ax=ax4,
                         labels=None,
                         values=cur_pd.loc[:, "expression"].values,
@@ -810,7 +816,7 @@ def phase_portraits(
                     )
                 else:
                     ax4, color = _datashade_points(
-                        cur_pd.iloc[:, [3, 2]].values,
+                        cur_pd.loc[:, ['P', 'S']].values,
                         ax=ax4,
                         labels=None,
                         values=cur_pd.loc[:, "expression"].values,
@@ -827,7 +833,7 @@ def phase_portraits(
             else:
                 if cur_pd.shape[0] <= figsize[0] * figsize[1] * 1000000:
                     ax4, color = _matplotlib_points(
-                        cur_pd.iloc[:, [1, 0]].values,
+                        cur_pd.loc[:, ['P', 'S']].values,
                         ax=ax4,
                         labels=cur_pd.loc[:, "color"].values,
                         values=None,
@@ -843,7 +849,7 @@ def phase_portraits(
                     )
                 else:
                     ax4, color = _datashade_points(
-                        cur_pd.iloc[:, [1, 0]].values,
+                        cur_pd.loc[:, ['P', 'S']].values,
                         ax=ax4,
                         labels=cur_pd.loc[:, "color"].values,
                         values=None,
@@ -862,7 +868,7 @@ def phase_portraits(
             ax4.set_xlabel("spliced (1st moment)")
             ax4.set_ylabel("protein (1st moment)")
 
-            xnew = np.linspace(0, cur_pd.iloc[:, 3].max())
+            xnew = np.linspace(0, cur_pd.loc[:, 'P'].max())
             ax4.plot(
                 xnew,
                 xnew * cur_pd.loc[:, "gamma_P"].unique()
@@ -871,7 +877,7 @@ def phase_portraits(
                 c=font_color,
             )
             X_array, V_array = (
-                cur_pd.iloc[:, [3, 2]].values,
+                cur_pd.loc[:, ['P', 'S']].values,
                 cur_pd.loc[:, ["vel_p", "vel_s"]].values,
             )
 
@@ -1146,9 +1152,10 @@ def dynamics(
     filter_gene_mode = adata.uns[uns_key]['filter_gene_mode']
     X_data = adata.uns[uns_key]['X_data']
     X_fit_data = adata.uns[uns_key]['X_fit_data']
-    has_splicing = adata.uns[uns_key]['has_splicing']
+    has_splicing = adata.uns[uns_key]['has_splicing'] and adata.uns[uns_key]['splicing_labeling']
     model = adata.uns[uns_key]['model']
     use_smoothed = adata.uns[uns_key]['use_smoothed']
+    est_method = adata.uns[uns_key]['est_method']
 
     # for key, val in adata.uns[uns_key].items():
     #     exec(key + '=val')
@@ -1206,12 +1213,14 @@ def dynamics(
             sub_plot_n = 1
         elif experiment_type == "mix_std_stm":
             sub_plot_n = 5
+        elif experiment_type == "mix_pulse_chase":
+            sub_plot_n = 2
     else:
         if model == "moment":
             sub_plot_n = 2  # number of subplots for each gene
         elif experiment_type == "kin":
             if model == 'deterministic':
-                sub_plot_n = 1
+                sub_plot_n = 1 if est_method != 'twostep' else 2
             elif model == 'stochastic':
                 mom_n = 1 if show_moms_fit else 0
                 sub_plot_n = 1 + mom_n if show_variance else 1 + mom_n
@@ -1233,6 +1242,8 @@ def dynamics(
             sub_plot_n = 1
         elif experiment_type == "mix_std_stm":
             sub_plot_n = 3
+        elif experiment_type == "mix_pulse_chase":
+            sub_plot_n = 2
 
     ncols = ( # each column correspond to one gene
         len(gene_idx) * grp_len
@@ -1275,8 +1286,19 @@ def dynamics(
         est_params = [est_params_df.loc[:, 'alpha'].values, est_params_df.loc[:, 'beta'].values,
                       est_params_df.loc[:, 'gamma'].values]
 
-        if experiment_type == "kin":
-            if model == 'deterministic':
+        if experiment_type in ["mix_pulse_chase", "mix_kin_deg"]:
+            if est_method == 'twostep':
+                gs = plot_kin_twostep(valid_adata, valid_gene_names, has_splicing, use_smoothed,
+                                  t, T, T_uniq, unit, X_data, X_fit_data, logLL,
+                                  grp_len, sub_plot_n, ncols, gs, fig_mat, gene_order,
+                                  true_param_prefix, true_params, est_params, show_kin_parameters, )
+        elif experiment_type == "kin":
+            if est_method == 'twostep':
+                gs = plot_kin_twostep(valid_adata, valid_gene_names, has_splicing, use_smoothed,
+                                  t, T, T_uniq, unit, X_data, X_fit_data, logLL,
+                                  grp_len, sub_plot_n, ncols, gs, fig_mat, gene_order,
+                                  true_param_prefix, true_params, est_params, show_kin_parameters, )
+            elif model == 'deterministic':
                 gs = plot_kin_det(valid_adata, valid_gene_names, has_splicing, use_smoothed, log_unnormalized,
                                   t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
                                   grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,

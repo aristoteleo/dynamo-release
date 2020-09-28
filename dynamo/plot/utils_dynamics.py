@@ -1,11 +1,15 @@
 import numpy as np
+import pandas as pd
 from scipy.sparse import issparse
+from matplotlib.lines import Line2D
 from ..tools.moments import (
     prepare_data_no_splicing,
     prepare_data_has_splicing,
     prepare_data_mix_has_splicing,
     prepare_data_mix_no_splicing,
 )
+from ..tools.utils import get_mapper
+from .utils import _to_hex
 
 def plot_kin_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                  t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
@@ -15,6 +19,10 @@ def plot_kin_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
     import matplotlib.pyplot as plt
     true_alpha, true_beta, true_gamma = true_params
     alpha, beta, gamma = est_params
+    if len(T_uniq) > 6:
+        xticks, xticks_labels = np.round(np.linspace(0, max(T_uniq), 6), 2), np.round(np.linspace(0, max(T_uniq), 6), 2)
+    else:
+        xticks, xticks_labels = T_uniq, T_uniq
 
     if has_splicing:
         if ('M_ul' in adata.layers.keys() and use_smoothed):
@@ -156,6 +164,10 @@ def plot_kin_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                 ax.plot(T_uniq, cur_X_data.T, "k--")
                 ax.set_title(gene_name)
 
+            # properly set the xticks
+            ax.set_xticks(xticks)
+            ax.set_xticklabels(xticks_labels)
+
             if true_param_prefix is not None:
                 if has_splicing:
                     ax.plot(t, true_p[j], "r")
@@ -180,6 +192,10 @@ def plot_kin_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
     import matplotlib.pyplot as plt
     true_alpha, true_beta, true_gamma = true_params
     alpha, beta, gamma = est_params
+    if len(T_uniq) > 6:
+        xticks, xticks_labels = np.round(np.linspace(0, max(T_uniq), 6), 2), np.round(np.linspace(0, max(T_uniq), 6), 2)
+    else:
+        xticks, xticks_labels = T_uniq, T_uniq
 
     if has_splicing:
         if ('M_ul' in adata.layers.keys() and use_smoothed):
@@ -340,6 +356,10 @@ def plot_kin_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
 
                 ax.set_title(gene_name)
 
+            # properly set the xticks
+            ax.set_xticks(xticks)
+            ax.set_xticklabels(xticks_labels)
+
             if true_param_prefix is not None:
                 ax.plot(t, true_p[j], "r")
             ax.set_xlabel("time (" + unit + ")")
@@ -361,6 +381,10 @@ def plot_kin_mix(adata, genes, has_splicing, use_smoothed, log_unnormalized,
     import matplotlib.pyplot as plt
     true_alpha, true_beta, true_gamma = true_params
     alpha, beta, gamma = est_params
+    if len(T_uniq) > 6:
+        xticks, xticks_labels = np.round(np.linspace(0, max(T_uniq), 6), 2), np.round(np.linspace(0, max(T_uniq), 6), 2)
+    else:
+        xticks, xticks_labels = T_uniq, T_uniq
 
     if has_splicing:
         if ('M_ul' in adata.layers.keys() and use_smoothed):
@@ -527,6 +551,10 @@ def plot_kin_mix(adata, genes, has_splicing, use_smoothed, log_unnormalized,
 
                 ax.set_title(gene_name)
 
+            # properly set the xticks
+            ax.set_xticks(xticks)
+            ax.set_xticklabels(xticks_labels)
+
             if true_param_prefix is not None:
                 ax.plot(t, true_p[j], "r")
             ax.set_xlabel("time (" + unit + ")")
@@ -539,6 +567,7 @@ def plot_kin_mix(adata, genes, has_splicing, use_smoothed, log_unnormalized,
 
     return gs
 
+
 def plot_kin_mix_det_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                  t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
                  grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
@@ -547,6 +576,10 @@ def plot_kin_mix_det_sto(adata, genes, has_splicing, use_smoothed, log_unnormali
     import matplotlib.pyplot as plt
     true_alpha, true_beta, true_gamma = true_params
     alpha, beta, gamma = est_params
+    if len(T_uniq) > 6:
+        xticks, xticks_labels = np.round(np.linspace(0, max(T_uniq), 6), 2), np.round(np.linspace(0, max(T_uniq), 6), 2)
+    else:
+        xticks, xticks_labels = T_uniq, T_uniq
 
     if has_splicing:
         if ('M_ul' in adata.layers.keys() and use_smoothed):
@@ -716,6 +749,10 @@ def plot_kin_mix_det_sto(adata, genes, has_splicing, use_smoothed, log_unnormali
 
                 ax.set_title(gene_name)
 
+            # properly set the xticks
+            ax.set_xticks(xticks)
+            ax.set_xticklabels(xticks_labels)
+
             if true_param_prefix is not None:
                 ax.plot(t, true_p[j], "r")
             ax.set_xlabel("time (" + unit + ")")
@@ -736,6 +773,10 @@ def plot_kin_mix_sto_sto(adata, genes, has_splicing, use_smoothed, log_unnormali
     import matplotlib.pyplot as plt
     true_alpha, true_beta, true_gamma = true_params
     alpha, beta, gamma = est_params
+    if len(T_uniq) > 6:
+        xticks, xticks_labels = np.round(np.linspace(0, max(T_uniq), 6), 2), np.round(np.linspace(0, max(T_uniq), 6), 2)
+    else:
+        xticks, xticks_labels = T_uniq, T_uniq
 
     if has_splicing:
         if ('M_ul' in adata.layers.keys() and use_smoothed):
@@ -909,6 +950,10 @@ def plot_kin_mix_sto_sto(adata, genes, has_splicing, use_smoothed, log_unnormali
 
                 ax.set_title(gene_name)
 
+            # properly set the xticks
+            ax.set_xticks(xticks)
+            ax.set_xticklabels(xticks_labels)
+
             if true_param_prefix is not None:
                 ax.plot(t, true_p[j], "r")
             ax.set_xlabel("time (" + unit + ")")
@@ -921,6 +966,7 @@ def plot_kin_mix_sto_sto(adata, genes, has_splicing, use_smoothed, log_unnormali
 
     return gs
 
+
 def plot_deg_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                  t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
                  grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
@@ -929,6 +975,10 @@ def plot_deg_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
     import matplotlib.pyplot as plt
     true_alpha, true_beta, true_gamma = true_params
     alpha, beta, gamma = est_params
+    if len(T_uniq) > 6:
+        xticks, xticks_labels = np.round(np.linspace(0, max(T_uniq), 6), 2), np.round(np.linspace(0, max(T_uniq), 6), 2)
+    else:
+        xticks, xticks_labels = T_uniq, T_uniq
 
     if has_splicing:
         if ('M_ul' in adata.layers.keys() and use_smoothed):
@@ -1068,6 +1118,10 @@ def plot_deg_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                 ax.plot(T_uniq, cur_X_data.T, "k--")
                 ax.set_title(gene_name)
 
+            # properly set the xticks
+            ax.set_xticks(xticks)
+            ax.set_xticklabels(xticks_labels)
+
             if true_param_prefix is not None:
                 if has_splicing:
                     ax.plot(t, true_p[j], "r")
@@ -1082,6 +1136,7 @@ def plot_deg_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                 ax.set_ylabel("Expression")
     return gs
 
+
 def plot_deg_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                  t, T, T_uniq, unit, X_data, X_fit_data, logLL, true_p,
                  grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
@@ -1090,6 +1145,10 @@ def plot_deg_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
     import matplotlib.pyplot as plt
     true_alpha, true_beta, true_gamma = true_params
     alpha, beta, gamma = est_params
+    if len(T_uniq) > 6:
+        xticks, xticks_labels = np.round(np.linspace(0, max(T_uniq), 6), 2), np.round(np.linspace(0, max(T_uniq), 6), 2)
+    else:
+        xticks, xticks_labels = T_uniq, T_uniq
 
     if has_splicing:
         if ('M_ul' in adata.layers.keys() and use_smoothed):
@@ -1249,6 +1308,10 @@ def plot_deg_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
 
                 ax.set_title(gene_name)
 
+            # properly set the xticks
+            ax.set_xticks(xticks)
+            ax.set_xticklabels(xticks_labels)
+
             if true_param_prefix is not None:
                 ax.plot(t, true_p[j], "r")
             ax.set_xlabel("time (" + unit + ")")
@@ -1258,5 +1321,306 @@ def plot_deg_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
                 ax.set_ylabel("Expression (log)")
             else:
                 ax.set_ylabel("Expression")
+
+    return gs
+
+
+def plot_kin_twostep(adata, genes, has_splicing, use_smoothed,
+                 t, T, T_uniq, unit, X_data, X_fit_data, logLL,
+                 grp_len, sub_plot_n, ncols, gs, fig_mat, gene_order,
+                 true_param_prefix, true_params, est_params, show_kin_parameters, ):
+    import matplotlib.pyplot as plt
+    true_alpha, true_beta, true_gamma = true_params
+    alpha, beta, gamma = est_params
+    mapper = get_mapper()
+    if len(T_uniq) > 6:
+        xticks, xticks_labels = np.round(np.linspace(0, max(T_uniq), 6), 2), np.round(np.linspace(0, max(T_uniq), 6), 2)
+    else:
+        xticks, xticks_labels = T_uniq, T_uniq
+
+    unique_labels = np.unique(T_uniq)
+    color_key = _to_hex(
+        plt.get_cmap('viridis')(np.linspace(0, 1, len(unique_labels)))
+    )
+
+    new_color_key = {k: color_key[i] for i, k in enumerate(unique_labels)}
+
+    colors = pd.Series(T).map(new_color_key).values
+
+    r2 = adata[:, genes].var['gamma_r2']
+    mean_R2 = adata[:, genes].var['mean_R2']
+
+    for i, gene_name in enumerate(genes):
+        cur_X_data, cur_X_fit_data, cur_logLL = X_data[i], X_fit_data[i], logLL[i]
+        r = adata[:, gene_name].layers[mapper["X_total"]] if use_smoothed else adata[:, gene_name].layers["X_total"]
+        n = adata[:, gene_name].layers[mapper["X_new"]] if use_smoothed else adata[:, gene_name].layers["X_new"]
+        r = r.A.flatten() if issparse(r) else r.flatten()
+        n = n.A.flatten() if issparse(n) else n.flatten()
+
+        for j in range(sub_plot_n):
+            row_ind = int(
+                np.floor(i / ncols)
+            )  # make sure unlabled and labeled are in the same column.
+
+            col_loc = (row_ind * sub_plot_n + j) * ncols * grp_len + \
+                      (i % ncols - 1) * grp_len + 1
+            row_i, col_i = np.where(fig_mat == col_loc)
+            ax = plt.subplot(
+                gs[col_loc]
+            ) if gene_order == 'column' else \
+                plt.subplot(
+                    gs[fig_mat[col_i, row_i][0]]
+                )
+            if j == 0:
+                ax.text(0.05, 0.99, r'$logLL={0:.2f}$'.format(cur_logLL) + ' \n'
+                        + r"$t_{1/2} = $" + "{0:.2f}".format(np.log(2) / gamma[i]) + unit[0] \
+                        , ha='left', va='top', transform=ax.transAxes)
+
+                ax.scatter(r, n, c=colors, alpha=0.25, ec=None)
+                legend_elements = [
+                    # Patch(facecolor=color_key[i], label=k)
+                    Line2D(
+                        [0], [0], marker="o", color=color_key[ind], label=k, linestyle="None"
+                    )
+                    for ind, k in enumerate(T_uniq)
+                ]
+                ax.legend(
+                    handles=legend_elements,
+                    bbox_to_anchor=(0.9, 1),
+                    loc='upper left',
+                    ncol=len(T_uniq) // 15 + 1,
+                )
+                xnew = np.linspace(0, np.max(r) * 0.80)
+                for ind in range(len(cur_X_data)):
+                    ax.plot(
+                        xnew,
+                        xnew * cur_X_data[ind],
+                        dashes=[6, 2],
+                        lw=4,
+                        c=new_color_key[T_uniq[ind]],
+                    )
+                if use_smoothed:
+                    ax.set_xlabel('total (1st moment)')
+                    ax.set_ylabel('new (1st moment)')
+                else:
+                    ax.set_xlabel('total (size factor normalized only)')
+                    ax.set_ylabel('new (size factor normalized only)')
+
+                ax.set_title(gene_name)
+                ax.text(0.05, 0.6, '<r2> = %.4f' % (mean_R2[i]), ha='left',
+                         va='center', transform=ax.transAxes)
+            elif j == 1:
+                ax.scatter(T_uniq, cur_X_data, c=color_key)
+                ax.scatter(T_uniq, cur_X_fit_data, c='r')
+                ax.plot(
+                    T,
+                    T * gamma[i],
+                    dashes=[6, 2],
+                    c='k',
+                )
+                ax.set_xlabel('Time (' + unit + ')')
+                ax.set_ylabel('-log(1-k)')
+                ax.text(0.05,
+                        0.6,
+                        'r2 = %.4f' % (r2[i]),
+                        ha='left',
+                        va='center',
+                        transform=ax.transAxes)
+
+                if show_kin_parameters:
+                    if true_param_prefix is not None:
+                        if has_splicing:
+                            ax.text(
+                                0.05,
+                                0.99,
+                                r"$\alpha$"
+                                + ": {0:.2f}; ".format(true_alpha[i])
+                                + r"$\hat \alpha$"
+                                + ": {0:.2f} \n".format(alpha[i])
+                                + r"$\beta$"
+                                + ": {0:.2f}; ".format(true_beta[i])
+                                + r"$\hat \beta$"
+                                + ": {0:.2f} \n".format(beta[i])
+                                + r"$\gamma$"
+                                + ": {0:.2f}; ".format(true_gamma[i])
+                                + r"$\hat \gamma$"
+                                + ": {0:.2f} \n".format(gamma[i]),
+                                ha="left",
+                                va="top",
+                                transform=ax.transAxes,
+                            )
+                        else:
+                            ax.text(
+                                0.05,
+                                0.99,
+                                r"$\alpha$"
+                                + ": {0:.2f}; ".format(true_alpha[i])
+                                + r"$\hat \alpha$"
+                                + ": {0:.2f} \n".format(alpha[i])
+                                + r"$\gamma$"
+                                + ": {0:.2f}; ".format(true_gamma[i])
+                                + r"$\hat \gamma$"
+                                + ": {0:.2f} \n".format(gamma[i]),
+                                ha="left",
+                                va="top",
+                                transform=ax.transAxes,
+                            )
+                    else:
+                        if has_splicing:
+                            ax.text(
+                                0.05,
+                                0.99,
+                                r"$\hat \alpha$"
+                                + ": {0:.2f} \n".format(alpha[i])
+                                + r"$\hat \beta$"
+                                + ": {0:.2f} \n".format(beta[i])
+                                + r"$\hat \gamma$"
+                                + ": {0:.2f} \n".format(gamma[i]),
+                                ha="left",
+                                va="top",
+                                transform=ax.transAxes,
+                            )
+                        else:
+                            ax.text(
+                                0.05,
+                                0.99,
+                                r"$\hat \alpha$"
+                                + ": {0:.2f} \n".format(alpha[i])
+                                + r"$\hat \gamma$"
+                                + ": {0:.2f} \n".format(gamma[i]),
+                                ha="left",
+                                va="top",
+                                transform=ax.transAxes,
+                            )
+
+                # properly set the xticks
+                ax.set_xticks(xticks)
+                ax.set_xticklabels(xticks_labels)
+
+    return gs
+
+
+def plot_kin_deg_twostep(adata, genes, has_splicing, use_smoothed, log_unnormalized,
+                 t, T, T_uniq, unit, X_data, X_fit_data, logLL,
+                 grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
+                 true_param_prefix, true_params, est_params,
+                 show_variance, show_kin_parameters, ):
+    import matplotlib.pyplot as plt
+    true_alpha, true_beta, true_gamma = true_params
+    alpha, beta, gamma = est_params
+    if len(T_uniq) > 6:
+        xticks, xticks_labels = np.round(np.linspace(0, max(T_uniq), 6), 2), np.round(np.linspace(0, max(T_uniq), 6), 2)
+    else:
+        xticks, xticks_labels = T_uniq, T_uniq
+
+    layer = 'M_n' if ('M_n' in adata.layers.keys() and use_smoothed) else 'X_new'
+    total_layer = 'M_t' if ('M_t' in adata.layers.keys() and use_smoothed) else 'X_total'
+    _, X_raw = prepare_data_no_splicing(adata, adata.var.index, t, layer=layer,
+                                        total_layer=total_layer)
+
+    for i, gene_name in enumerate(genes):
+        cur_X_data, cur_logLL = X_data[i],  logLL[i]
+        cur_X_fit_data, cur_tt, cur_h = X_fit_data[i][0], X_fit_data[i][1][0], X_fit_data[i][1][1]
+
+        Obs = X_raw[i].A.flatten() if issparse(X_raw[i][0]) else X_raw[i].flatten()
+        for j in range(sub_plot_n):
+            row_ind = int(
+                np.floor(i / ncols)
+            )  # make sure unlabled and labeled are in the same column.
+
+            col_loc = (row_ind * sub_plot_n + j) * ncols * grp_len + \
+                      (i % ncols - 1) * grp_len + 1
+            row_i, col_i = np.where(fig_mat == col_loc)
+            ax = plt.subplot(
+                gs[col_loc]
+            ) if gene_order == 'column' else \
+                plt.subplot(
+                    gs[fig_mat[col_i, row_i][0]]
+                )
+
+            if j == 0:
+                ax.text(0.9, 0.99, r'$logLL={0:.2f}$'.format(cur_logLL) + ' \n'
+                        + r"$t_{1/2} = $" + "{0:.2f}".format(np.log(2) / gamma[i]) + unit[0] \
+                        , ha='left', va='top', transform=ax.transAxes)
+
+                if show_variance:
+                    ax.boxplot(
+                        x=[Obs[T == std] for std in T_uniq],
+                        positions=T_uniq,
+                        widths=boxwidth,
+                        showfliers=False,
+                        showmeans=True,
+                    )
+                    ax.plot(T_uniq, cur_X_fit_data[j].T, "b")
+                    ax.plot(T_uniq, cur_X_data[j], "k--")
+                    ax.set_ylabel('labeled')
+                    ax.set_title(gene_name + str(cur_logLL))
+                else:
+                    ax.plot(T_uniq, cur_X_fit_data[j].T, "b")
+                    ax.plot(T_uniq, cur_X_data[j], "k--")
+                    ax.set_ylabel('labeled')
+                    ax.set_title(gene_name + str(cur_logLL))
+            elif j == 1:
+                ax.plot(cur_tt, cur_h, 'b')
+                ax.plot(cur_tt, cur_h, 'r*')
+                ax.set_ylabel('labeled')
+                ax.set_legend(['model (deterministic)', 'model (kinetic chase)'])
+                ax.set_title('unseen initial conc.')
+
+                if show_kin_parameters:
+                    if true_param_prefix is not None:
+                        if has_splicing:
+                            ax.text(
+                                0.80,
+                                0.6,
+                                r"$\alpha$"
+                                + ": {0:.2f}; ".format(true_alpha[i])
+                                + r"$\hat \alpha$"
+                                + ": {0:.2f} \n".format(alpha[i])
+                                + r"$\beta$"
+                                + ": {0:.2f}; ".format(true_beta[i])
+                                + r"$\hat \beta$"
+                                + ": {0:.2f} \n".format(beta[i])
+                                + r"$\gamma$"
+                                + ": {0:.2f}; ".format(true_gamma[i])
+                                + r"$\hat \gamma$"
+                                + ": {0:.2f} \n".format(gamma[i]),
+                                ha="left",
+                                va="top",
+                                transform=ax.transAxes,
+                            )
+                        else:
+                            ax.text(
+                                0.80,
+                                0.6,
+                                r"$\alpha$"
+                                + ": {0:.2f}; ".format(true_alpha[i])
+                                + r"$\hat \alpha$"
+                                + ": {0:.2f} \n".format(alpha[i])
+                                + r"$\gamma$"
+                                + ": {0:.2f}; ".format(true_gamma[i])
+                                + r"$\hat \gamma$"
+                                + ": {0:.2f} \n".format(gamma[i]),
+                                ha="left",
+                                va="top",
+                                transform=ax.transAxes,
+                            )
+
+        # properly set the xticks
+        ax.set_xticks(xticks)
+        ax.set_xticklabels(xticks_labels)
+
+        if use_smoothed:
+            ax.set_ylabel('labeled (1st moment)')
+        else:
+            ax.set_ylabel('labeled (size factor normalized only)')
+
+        ax.set_xlabel("time (" + unit + ")")
+        if y_log_scale:
+            ax.set_yscale("log")
+        if log_unnormalized:
+            ax.set_ylabel("Expression (log)")
+        else:
+            ax.set_ylabel("Expression")
 
     return gs

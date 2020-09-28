@@ -1242,8 +1242,11 @@ def recipe_monocle(
             (3) 'kin': pulse/synthesis/kinetics experiment. Cells are labeled for different duration in a time-series;
             (4) 'one-shot': one-shot kinetic experiment. Cells are only labeled for a short pulse duration;
             Other possible experiments include:
-            (5) 'mix_std_stm';
-            (4) 'mixture';
+            (5) 'mix_pulse_chase': This is a mixture chase experiment in which the entire experiment lasts for a certain
+            period of time which an initial pulse followed by washing out at different time point but chasing cells at
+            the same time point. This type of labeling strategy was adopted in scEU-seq paper. For kind of experiment,
+            we need to assume a non-steady state dynamics.
+            (4) 'mix_std_stm';
         reset_X: bool (default: `False`)
             Whether do you want to let dynamo reset `adata.X` data based on layers stored in your experiment. One
             critical functionality of dynamo is about visualizing RNA velocity vector flows which requires proper data
@@ -1264,6 +1267,8 @@ def recipe_monocle(
              ["uu", "ul", "su", "sl"] depends on whether you have labeling but no splicing or labeling and splicing data.
         splicing_total_layers: bool (default `False`)
             Whether to also normalize spliced / unspliced layers by size factor from total RNA.
+        X_total_layers: bool (default `False`)
+            Whether to also normalize adata.X by size factor from total RNA.
         genes_to_use: `list` (default: `None`)
             A list genes of gene names that will be used to set as the feature genes for downstream analysis.
         method: `str` (default: `log`)
@@ -1381,7 +1386,7 @@ def recipe_monocle(
 
     if reset_X:
         if has_labeling:
-            if experiment_type.lower() in ['one-shot', 'kin', 'mixture', 'mix_std_stm', 'kinetics']:
+            if experiment_type.lower() in ['one-shot', 'kin', 'mixture', 'mix_std_stm', 'kinetics', 'mix_pulse_chase']:
                 adata.X = adata.layers['total'].copy()
             if experiment_type.lower() in ['deg', 'degradation'] and has_splicing:
                 adata.X = adata.layers['spliced'].copy()

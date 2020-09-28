@@ -794,7 +794,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 US, S2 = subset_adata.layers['M_us'].T, subset_adata.layers['M_ss'].T
                 # gamma, gamma_r2 = lin_reg_gamma_synthesis(U, Ul, time, perc_right=100)
                 gamma_k, gamma_b, gamma_all_r2, gamma_all_logLL = fit_slope_stochastic(S, U, US, S2, perc_left=None, perc_right=5)
-                gamma, gamma_r2 = lin_reg_gamma_synthesis(Total, New, time, perc_right=100)
+                gamma, gamma_r2, X_data, mean_R2, K_fit = lin_reg_gamma_synthesis(Total, New, time, perc_right=100)
 
                 k = 1 - np.exp(- gamma[:, None] * time[None, :])
                 beta = gamma / gamma_k # gamma_k = gamma / beta
@@ -807,9 +807,10 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                            'gamma_logLL': gamma_all_logLL,
                            'gamma': gamma,
                            'gamma_r2': gamma_r2,
+                           'mean_R2': mean_R2,
                            }
                 half_life = np.log(2)/gamma
-                cost, logLL, _param_ranges, X_data, X_fit_data = None, None, None, None, None
+                cost, logLL, _param_ranges, X_data, X_fit_data = None, None, None, X_data, K_fit
 
                 return Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data
             else:
@@ -817,15 +818,17 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                             'M_t' in subset_adata.layers.keys() and data_type == 'smoothed') \
                     else ['X_t', 'X_n']
                 Total, New = subset_adata.layers[layers[0]].T, subset_adata.layers[layers[1]].T
-                gamma, gamma_r2 = lin_reg_gamma_synthesis(Total, New, time, perc_right=100)
+                gamma, gamma_r2, X_data, mean_R2, K_fit = lin_reg_gamma_synthesis(Total, New, time, perc_right=100)
 
                 k = 1 - np.exp(- gamma[:, None] * time[None, :])
                 Estm_df = {'alpha': csr_matrix(gamma[:, None]).multiply(New).multiply(1 / k),
                            'gamma': gamma,
-                           'gamma_r2': gamma_r2,
+                            'gamma_k': gamma, # required for phase_potrait
+                            'gamma_r2': gamma_r2,
+                           'mean_R2': mean_R2,
                            }
                 half_life = np.log(2)/gamma
-                cost, logLL, _param_ranges, X_data, X_fit_data = None, None, None, None, None
+                cost, logLL, _param_ranges, X_data, X_fit_data = None, None, None, X_data, K_fit
 
                 return Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data
         elif est_method == 'direct':
@@ -1002,7 +1005,20 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
     elif experiment_type.lower() == 'mix_std_stm':
         raise Exception(f'experiment {experiment_type} with kinetic assumption is not implemented')
     elif experiment_type.lower() == 'mix_pulse_chase':
-        raise Exception(f'experiment {experiment_type} with kinetic assumption is not implemented')
+        total_layer = 'M_t' if ('M_t' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_total'
+
+        if model.lower() in ['deterministic']:
+            layer = 'M_n' if ('M_n' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_new'
+            X, X_raw = prepare_data_no_splicing(subset_adata, subset_adata.var.index, time, layer=layer,
+                                                total_layer=total_layer)
+        if model.lower() == 'deterministic':
+            X = [X[i][0, :] for i in range(len(X))]
+            _param_ranges = {'alpha': [0, 1000], 'gamma': [0, 1000], }
+            x0 = {'u0': [0, 1000]}
+            Est = Estimation_KineticChase
+        else:
+            raise NotImplementedError(f"only `deterministic` model implemented for mix_pulse_chase experiment!")
+
     elif experiment_type.lower() == 'pulse_time_series':
         raise Exception(f'experiment {experiment_type} with kinetic assumption is not implemented')
     elif experiment_type.lower() == 'dual_labeling':
@@ -1019,6 +1035,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
     all_keys = [cur_key for cur_key in all_keys if cur_key != 'alpha_i']
     half_life, Estm = np.zeros(n_genes), [None] * n_genes
     X_data, X_fit_data = [None] * n_genes, [None] * n_genes
+    if experiment_type: popt = [None] * n_genes
 
     for i_gene in tqdm(range(n_genes), desc="estimating kinetic-parameters using kinetic model"):
         if model.lower().startswith('mixture'):
@@ -1074,6 +1091,13 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 _, cost[i_gene] = estm.auto_fit(np.unique(time), cur_X_data)
                 Estm[i_gene] = estm.export_parameters()[1:]
 
+            elif experiment_type.lower() == 'mix_pulse_chase':
+                estm = Est()
+                cur_X_data, cur_X_raw = X[i_gene], X_raw[i_gene]
+
+                popt[i_gene], cost[i_gene] = estm.auto_fit(np.unique(time), cur_X_data)
+                Estm[i_gene] = estm.export_parameters()[1:]
+
             if issparse(cur_X_raw[0, 0]):
                 cur_X_raw = np.hstack((cur_X_raw[0, 0].A, cur_X_raw[1, 0].A))
             # model_1, kinetic_parameters, mix_x0 = estm.export_dictionary().values()
@@ -1085,6 +1109,13 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
         if model.lower().startswith('mixture'):
             X_fit_data[i_gene] = estm.simulator.x.T
             X_fit_data[i_gene][estm.model1.n_species:] *= estm.scale
+        elif experiment_type == 'mix_pulse_chase':
+            # kinetic chase simulation
+            kinetic_chase = estm.simulator.x.T
+            # hidden x
+            tt, h = estm.simulator.calc_init_conc()
+
+            X_fit_data[i_gene] = [kinetic_chase, [tt, h]]
         else:
             if hasattr(estm, "extract_data_from_simulator"):
                 X_fit_data[i_gene] = estm.extract_data_from_simulator()
@@ -1119,6 +1150,21 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
         Estm_df['gamma_r2'] = gamma_all_r2
 
         return Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data
+    elif experiment_type.lower() == 'mix_pulse_chase' and est_method == 'twostep' and has_splicing:
+        layers = ['M_u', 'M_s'] if (
+                'M_u' in subset_adata.layers.keys() and data_type == 'smoothed') \
+            else ['X_u', 'X_s']
+        U, S = subset_adata.layers[layers[0]].T, subset_adata.layers[layers[1]].T
+        US, S2 = subset_adata.layers['M_us'].T, subset_adata.layers['M_ss'].T
+        # beta, beta_r2 = lin_reg_gamma_synthesis(U, Ul, time, perc_right=100)
+        gamma_k, gamma_b, gamma_all_r2, gamma_all_logLL = \
+            fit_slope_stochastic(S, U, US, S2, perc_left=None, perc_right=5)
+
+        Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[:len(Estm[0])]])
+        Estm_df['gamma_k'] = gamma_k  # gamma_k = gamma / beta
+        Estm_df['beta'] = Estm_df['gamma'] / gamma_k  # gamma_k = gamma / beta
+        Estm_df['gamma_r2'] = gamma_all_r2
+
     else:
         Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[:len(Estm[0])]])
 
