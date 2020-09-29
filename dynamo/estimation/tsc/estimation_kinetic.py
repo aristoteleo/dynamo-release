@@ -729,8 +729,8 @@ class Estimation_KineticChase(kinetic_estimation):
     def get_gamma(self):
         return self.popt[1]
 
-    def calc_half_life(self):
-        return np.log(2)/self.get_gamma()
+    def calc_half_life(self, key):
+        return np.log(2)/self.get_param(key)
 
     def export_dictionary(self):
         mdl_name = type(self.simulator).__name__
