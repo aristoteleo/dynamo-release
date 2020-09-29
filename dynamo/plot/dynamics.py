@@ -1213,7 +1213,7 @@ def dynamics(
             sub_plot_n = 1
         elif experiment_type == "mix_std_stm":
             sub_plot_n = 5
-        elif experiment_type == "mix_pulse_chase":
+        elif experiment_type in ['mix_pulse_chase', 'mix_kin_deg']:
             sub_plot_n = 2
     else:
         if model == "moment":
@@ -1242,7 +1242,7 @@ def dynamics(
             sub_plot_n = 1
         elif experiment_type == "mix_std_stm":
             sub_plot_n = 3
-        elif experiment_type == "mix_pulse_chase":
+        elif experiment_type in ['mix_pulse_chase', 'mix_kin_deg']:
             sub_plot_n = 2
 
     ncols = ( # each column correspond to one gene

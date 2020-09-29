@@ -648,6 +648,12 @@ def dynamics(
                             vel_S = vel.vel_s(U_, S_)
                             vel_N = np.nan
                             vel_T = np.nan
+                    elif experiment_type in ['mix_kin_deg', 'mix_pulse_chase']:
+                        vel_U = vel.vel_u(U_)
+                        vel_S = vel.vel_s(U_, S_)
+                        vel.parameters['beta'] = gamma
+                        vel_N = vel.vel_u(U)
+                        vel_T = vel.vel_u(S)  # no need to consider splicing
                 else:
                     if experiment_type == 'kin':
                         vel_U = np.nan
@@ -665,6 +671,11 @@ def dynamics(
                         vel_S = np.nan
                         vel_N = np.nan
                         vel_T = np.nan
+                    elif experiment_type in ['mix_kin_deg', 'mix_pulse_chase']:
+                        vel_U = np.nan
+                        vel_S = np.nan
+                        vel_N = vel.vel_u(U)
+                        vel_T = vel.vel_u(S)  # don't consider splicing
             else:
                 if has_splicing:
                     if experiment_type == 'kin':
@@ -684,6 +695,12 @@ def dynamics(
                             vel_S = vel.vel_s(U, S)
                             vel_N = np.nan
                             vel_T = np.nan
+                    elif experiment_type in ['mix_kin_deg', 'mix_pulse_chase']:
+                        vel_U = vel.vel_u(U)
+                        vel_S = vel.vel_s(U, S)
+                        vel.parameters['beta'] = gamma
+                        vel_N = vel.vel_u(U_)
+                        vel_T = vel.vel_u(S_)  # no need to consider splicing
                 else:
                     if experiment_type == 'kin':
                         vel_U = np.nan
@@ -701,6 +718,11 @@ def dynamics(
                         vel_S = np.nan
                         vel_N = np.nan
                         vel_T = np.nan
+                    elif experiment_type in ['mix_kin_deg', 'mix_pulse_chase']:
+                        vel_U = np.nan
+                        vel_S = np.nan
+                        vel_N = vel.vel_u(U_)
+                        vel_T = vel.vel_u(S_)  # don't consider splicing
 
             vel_P = vel.vel_p(S, P)
 
@@ -781,11 +803,10 @@ def dynamics(
 def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_splicing, splicing_labeling, has_switch, param_rngs,
                   data_type='sfs', **est_kwargs):
     """est_method can be either `twostep` (two-step model) or `direct`. data_type can either 'sfs' or 'smoothed'."""
-    time = subset_adata.obs[tkey].astype('float')
+    time = subset_adata.obs[tkey].astype('float').values
 
     if experiment_type.lower() == 'kin':
         if est_method == 'twostep':
-            time = time.values
             if has_splicing:
                 layers = ['M_u', 'M_s', 'M_t', 'M_n'] if (
                             'M_u' in subset_adata.layers.keys() and data_type == 'smoothed') \
@@ -1005,7 +1026,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                                 f'stochastic, deterministic.')
     elif experiment_type.lower() == 'mix_std_stm':
         raise Exception(f'experiment {experiment_type} with kinetic assumption is not implemented')
-    elif experiment_type.lower() == 'mix_pulse_chase':
+    elif experiment_type.lower() in ['mix_pulse_chase', 'mix_kin_deg']:
         total_layer = 'M_t' if ('M_t' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_total'
 
         if model.lower() in ['deterministic']:
@@ -1018,7 +1039,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
             x0 = {'u0': [0, 1000]}
             Est = Estimation_KineticChase
         else:
-            raise NotImplementedError(f"only `deterministic` model implemented for mix_pulse_chase experiment!")
+            raise NotImplementedError(f"only `deterministic` model implemented for mix_pulse_chase/mix_kin_deg experiment!")
 
     elif experiment_type.lower() == 'pulse_time_series':
         raise Exception(f'experiment {experiment_type} with kinetic assumption is not implemented')
@@ -1092,12 +1113,12 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 _, cost[i_gene] = estm.auto_fit(np.unique(time), cur_X_data)
                 Estm[i_gene] = estm.export_parameters()[1:]
 
-            elif experiment_type.lower() == 'mix_pulse_chase':
+            elif experiment_type.lower() in ['mix_pulse_chase', 'mix_kin_deg']:
                 estm = Est()
                 cur_X_data, cur_X_raw = X[i_gene], X_raw[i_gene]
 
                 popt[i_gene], cost[i_gene] = estm.auto_fit(np.unique(time), cur_X_data)
-                Estm[i_gene] = estm.export_parameters()[1:]
+                Estm[i_gene] = estm.export_parameters()
 
             if issparse(cur_X_raw[0, 0]):
                 cur_X_raw = np.hstack((cur_X_raw[0, 0].A, cur_X_raw[1, 0].A))
@@ -1110,7 +1131,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
         if model.lower().startswith('mixture'):
             X_fit_data[i_gene] = estm.simulator.x.T
             X_fit_data[i_gene][estm.model1.n_species:] *= estm.scale
-        elif experiment_type == 'mix_pulse_chase':
+        elif experiment_type in ['mix_kin_deg', 'mix_pulse_chase']:
             # kinetic chase simulation
             kinetic_chase = estm.simulator.x.T
             # hidden x
@@ -1151,7 +1172,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
         Estm_df['gamma_r2'] = gamma_all_r2
 
         return Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data
-    elif experiment_type.lower() == 'mix_pulse_chase' and est_method == 'twostep' and has_splicing:
+    elif experiment_type.lower() in ['mix_pulse_chase', 'mix_kin_deg'] and est_method == 'twostep' and has_splicing:
         layers = ['M_u', 'M_s'] if (
                 'M_u' in subset_adata.layers.keys() and data_type == 'smoothed') \
             else ['X_u', 'X_s']

@@ -1242,7 +1242,7 @@ def recipe_monocle(
             (3) 'kin': pulse/synthesis/kinetics experiment. Cells are labeled for different duration in a time-series;
             (4) 'one-shot': one-shot kinetic experiment. Cells are only labeled for a short pulse duration;
             Other possible experiments include:
-            (5) 'mix_pulse_chase': This is a mixture chase experiment in which the entire experiment lasts for a certain
+            (5) 'mix_pulse_chase' or 'mix_kin_deg': This is a mixture chase experiment in which the entire experiment lasts for a certain
             period of time which an initial pulse followed by washing out at different time point but chasing cells at
             the same time point. This type of labeling strategy was adopted in scEU-seq paper. For kind of experiment,
             we need to assume a non-steady state dynamics.
@@ -1386,7 +1386,8 @@ def recipe_monocle(
 
     if reset_X:
         if has_labeling:
-            if experiment_type.lower() in ['one-shot', 'kin', 'mixture', 'mix_std_stm', 'kinetics', 'mix_pulse_chase']:
+            if experiment_type.lower() in ['one-shot', 'kin', 'mixture', 'mix_std_stm', 'kinetics', 'mix_pulse_chase',
+                                           'mix_kin_deg']:
                 adata.X = adata.layers['total'].copy()
             if experiment_type.lower() in ['deg', 'degradation'] and has_splicing:
                 adata.X = adata.layers['spliced'].copy()

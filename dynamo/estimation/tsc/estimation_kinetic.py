@@ -27,6 +27,8 @@ def guestimate_p0_kinetic_chase(x_data, time):
     idx = time!=t0
     al0 = np.mean((x0 - x_data[idx]) / (time[idx] - t0))
     ga0 = -np.mean((np.log(x_data[idx]) - np.log(x0))/(time[idx]-t0))
+    ga0 = 1e-3 if not np.isfinite(ga0) else ga0
+    x0, al0, ga0 = max(1e-3, x0), max(1e-3, al0), max(1e-3, ga0)
     return al0, ga0, x0
 
 class kinetic_estimation:
@@ -716,12 +718,15 @@ class Estimation_KineticChase(kinetic_estimation):
         else:
             t, x = time, x_data
         al0, ga0, x0 = guestimate_p0_kinetic_chase(x, t)
-        alpha_bound = np.array([0, 1e2*al0])
-        gamma_bound = np.array([0, 1e2*ga0])
-        x0_bound = np.array([0, 1e2*x0])
+        alpha_bound = np.array([0, 1e2*al0 + 100])
+        gamma_bound = np.array([0, 1e2*ga0 + 100])
+        x0_bound = np.array([0, 1e2*x0 + 100])
         self._initialize(alpha_bound, gamma_bound, x0_bound)
         popt, cost = self.fit_lsq(time, x_data, p0=np.hstack((al0, ga0, x0)), normalize=False, **kwargs)
         return popt, cost
+
+    def get_param(self, key):
+        return self.popt[np.where(self.kin_param_keys == key)[0][0]]
 
     def get_alpha(self):
         return self.popt[0]
