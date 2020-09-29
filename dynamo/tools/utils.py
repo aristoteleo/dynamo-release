@@ -1346,6 +1346,8 @@ def set_transition_genes(
         adata.var[store_key] = adata.var.logLL.astype(float) < np.nanpercentile(adata.var.logLL.astype(float), 10)
         if layer in ['N', 'T']:
             return adata
+        else:
+            min_r2 == 0.01
     else:
         min_r2 = 0.01 if min_r2 is None else min_r2
 
@@ -1462,40 +1464,12 @@ def get_ekey_vkey_from_adata(adata):
 
     if has_splicing:
         if has_labeling:
-            if "X_uu" in adata.layers.keys():  # unlabel spliced: S
-                if use_smoothed:
-                    uu, ul, su, sl = (
-                        adata.layers[mapper["X_uu"]],
-                        adata.layers[mapper["X_ul"]],
-                        adata.layers[mapper["X_su"]],
-                        adata.layers[mapper["X_sl"]],
-                    )
-                    if 'M_n' not in adata.layers.keys():
-                        adata.layers["M_n"] = ul + sl
-                    elif NTR and "M_t" not in adata.layers.keys():
-                        adata.layers["M_t"] = uu + ul + su + sl
-                    elif not NTR and "M_s" not in adata.layers.keys():
-                        adata.layers["M_s"] = sl + su
-
-                uu, ul, su, sl = (
-                    adata.layers["X_uu"],
-                    adata.layers["X_ul"],
-                    adata.layers["X_su"],
-                    adata.layers["X_sl"],
-                )
-
-                if 'X_new' not in adata.layers.keys():
-                    adata.layers["X_new"] = ul + sl
-                elif NTR and "X_total" not in adata.layers.keys():
-                    adata.layers["X_total"] = uu + ul + su + sl
-                elif not NTR and "X_spliced" not in adata.layers.keys():
-                    adata.layers["X_spliced"] = sl + su
-            else:
+            if "X_new" not in adata.layers.keys():  # unlabel spliced: S
                 raise Exception(
                     "The input data you have is not normalized or normalized + smoothed!"
                 )
 
-            if experiment_type.lower() == "kin":
+            if experiment_type.lower() in ["kin", "mix_pulse_chase", 'mix_kin_deg']:
                 ekey, vkey, layer = (
                     (mapper["X_total"] if NTR else mapper["X_spliced"],
                      "velocity_T" if NTR else "velocity_S",
