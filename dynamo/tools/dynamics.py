@@ -1133,7 +1133,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
             gof = GoodnessOfFit(estm.export_model(), params=estm.export_parameters(), x0=estm.simulator.x0)
             gof.prepare_data(time, cur_X_raw.T, normalize=True)
 
-        logLL[i_gene] = gof.calc_gaussian_loglikelihood()
+        logLL[i_gene] = gof.calc_mean_squared_deviation() # .calc_gaussian_loglikelihood()
 
     if experiment_type.lower() == 'deg' and est_method == 'twostep' and has_splicing:
         layers = ['M_u', 'M_s'] if (
