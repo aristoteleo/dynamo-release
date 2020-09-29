@@ -696,11 +696,11 @@ def dynamics(
                             vel_N = np.nan
                             vel_T = np.nan
                     elif experiment_type in ['mix_kin_deg', 'mix_pulse_chase']:
-                        vel_U = vel.vel_u(U)
+                        vel_U = vel.vel_u(U, repeat=True)
                         vel_S = vel.vel_s(U, S)
                         vel.parameters['beta'] = gamma
-                        vel_N = vel.vel_u(U_)
-                        vel_T = vel.vel_u(S_)  # no need to consider splicing
+                        vel_N = vel.vel_u(U_, repeat=True)
+                        vel_T = vel.vel_u(S_, repeat=True)  # no need to consider splicing
                 else:
                     if experiment_type == 'kin':
                         vel_U = np.nan

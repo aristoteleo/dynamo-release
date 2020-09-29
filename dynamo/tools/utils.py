@@ -1066,7 +1066,7 @@ def set_param_kinetic(
             adata.var[kin_param_pre + "logLL"],
         ) = (None, None, None, None, None, None, None, None, None, None, None)
 
-    if isarray(alpha):
+    if isarray(alpha) and alpha.ndim > 1:
         adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha.mean(1)
         cur_cells_ind, valid_ind_ = np.where(cur_cells_bools)[0][:, np.newaxis], np.where(valid_ind)[0]
         if cur_grp == _group[0]:
@@ -1334,20 +1334,24 @@ def set_transition_genes(
     use_for_dynamics=True,
     store_key='use_for_transition'
 ):
+    layer = vkey.split("_")[1]
+
     if adata.uns['dynamics']['est_method'] == 'twostep' and \
             adata.uns['dynamics']['experiment_type'] == 'kin':
         # if adata.uns['dynamics']['has_splicing']:
         #     min_r2 = 0.5 if min_r2 is None else min_r2
         # else:
             min_r2 = 0.9 if min_r2 is None else min_r2
+    elif adata.uns['dynamics']['experiment_type'] in ['mix_kin_deg', 'mix_pulse_chase']:
+        adata.var[store_key] = adata.var.logLL.astype(float) < np.nanpercentile(adata.var.logLL.astype(float), 10)
+        if layer in ['N', 'T']:
+            return adata
     else:
         min_r2 = 0.01 if min_r2 is None else min_r2
 
     if min_alpha is None: min_alpha = 0.01
     if min_gamma is None: min_gamma = 0.01
     if min_delta is None: min_delta = 0.01
-
-    layer = vkey.split("_")[1]
 
     # the following parameters aggreation for different groups can be improved later
     if layer == "U":
