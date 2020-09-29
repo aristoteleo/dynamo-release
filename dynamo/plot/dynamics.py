@@ -200,7 +200,7 @@ def phase_portraits(
     _genes = list(set(adata.var.index).intersection(genes))
 
     # avoid object for dtype in the gamma column https://stackoverflow.com/questions/40809503/python-numpy-typeerror-ufunc-isfinite-not-supported-for-the-input-types
-    if adata.uns['dynamics']['experiment_type'] in ['one-shot', 'kin', 'deg']:
+    if adata.uns['dynamics']['experiment_type'] in ['one-shot', 'kin', 'deg', 'mix_kin_deg', 'mix_pulse_chase']:
         k_name = 'gamma_k'
     else:
         k_name = 'gamma'
@@ -1288,10 +1288,11 @@ def dynamics(
 
         if experiment_type in ["mix_pulse_chase", "mix_kin_deg"]:
             if est_method == 'twostep':
-                gs = plot_kin_twostep(valid_adata, valid_gene_names, has_splicing, use_smoothed,
-                                  t, T, T_uniq, unit, X_data, X_fit_data, logLL,
-                                  grp_len, sub_plot_n, ncols, gs, fig_mat, gene_order,
-                                  true_param_prefix, true_params, est_params, show_kin_parameters, )
+                gs = plot_kin_deg_twostep(valid_adata, valid_gene_names, has_splicing, use_smoothed,
+                                  log_unnormalized, T, T_uniq, unit, X_data, X_fit_data, logLL,
+                                  grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order,
+                                  y_log_scale, true_param_prefix, true_params, est_params,
+                                  show_variance, show_kin_parameters, )
         elif experiment_type == "kin":
             if est_method == 'twostep':
                 gs = plot_kin_twostep(valid_adata, valid_gene_names, has_splicing, use_smoothed,

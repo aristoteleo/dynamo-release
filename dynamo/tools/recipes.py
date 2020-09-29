@@ -429,5 +429,6 @@ def recipe_mix_kin_deg_data(adata,
                        )
         dynamics(adata, model='deterministic', est_method='twostep', remove_2nd_moments=del_2nd_moments)
         reduceDimension(adata, reduction_method=basis)
+        cell_velocities(adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis)
 
     return adata
