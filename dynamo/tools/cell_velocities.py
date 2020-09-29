@@ -297,7 +297,7 @@ def cell_velocities(
     finite_inds = get_finite_inds(V)
     X, V = X[:, finite_inds], V[:, finite_inds]
     if X.shape[0] < 5:
-        raise Exception(f'there are only {finite_inds.sum()} genes has finite values. '
+        raise Exception(f'there are only {finite_inds.sum()} genes have finite velocity values. '
                         f'Please make sure the {vkey} is correctly calculated!')
 
     if method == 'kmc' and n_pca_components is None: n_pca_components = 30

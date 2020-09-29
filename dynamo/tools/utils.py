@@ -1347,7 +1347,7 @@ def set_transition_genes(
         if layer in ['N', 'T']:
             return adata
         else:
-            min_r2 == 0.01
+            min_r2 = 0.01
     else:
         min_r2 = 0.01 if min_r2 is None else min_r2
 
