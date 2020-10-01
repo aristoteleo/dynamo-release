@@ -886,8 +886,8 @@ def streamline_plot(
             X = adata.obsm["X_" + basis][:, [x, y]]
             V = adata.obsm[vector + '_' + basis][:, [x, y]]
         else:
-            if "X_" + basis not in adata.obsm.keys():
-                layer, basis = basis.split("_")
+            if basis not in adata.obsm.keys() or "X_" + basis not in adata.obsm.keys():
+                layer, basis = basis.split("_") if '_' in basis else ('X', basis)
                 reduceDimension(adata, layer=layer, reduction_method=basis)
             if "kmc" not in adata.uns_keys():
                 cell_velocities(adata, vkey="velocity_S", basis=basis)

@@ -628,15 +628,18 @@ def phase_portraits(
             ax1.set_xlabel("total (1st moment)")
             ax1.set_ylabel("new (1st moment)")
 
-        xnew = np.linspace(0, cur_pd.loc[:, 'S'].max() * 0.80) if vkey == 'velocity_S' else \
-            np.linspace(0, cur_pd.loc[:, 'total'].max() * 0.80)
-        ax1.plot(
-            xnew,
-            xnew * cur_pd.loc[:, "gamma"].unique()
-            + cur_pd.loc[:, "velocity_offset"].unique(),
-            dashes=[6, 2],
-            c=font_color,
-        )
+        # only linear regression fitting of extreme cells will be plotted together with U-S phase plane.
+        if vkey == "velocity_S":
+            xnew = np.linspace(0, cur_pd.loc[:, 'S'].max() * 0.80) if vkey == 'velocity_S' else \
+                np.linspace(0, cur_pd.loc[:, 'total'].max() * 0.80)
+            ax1.plot(
+                xnew,
+                xnew * cur_pd.loc[:, "gamma"].unique()
+                + cur_pd.loc[:, "velocity_offset"].unique(),
+                dashes=[6, 2],
+                c=font_color,
+            )
+
         X_array, V_array = (
             cur_pd.loc[:, ['S', 'U']].values if vkey == 'velocity_S' else cur_pd.loc[:, ['total', 'new']].values,
             cur_pd.loc[:, ["vel_s", "vel_u"]].values

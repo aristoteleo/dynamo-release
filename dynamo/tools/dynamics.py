@@ -649,11 +649,11 @@ def dynamics(
                             vel_N = np.nan
                             vel_T = np.nan
                     elif experiment_type in ['mix_kin_deg', 'mix_pulse_chase']:
-                        vel_U = vel.vel_u(U_)
+                        vel_U = vel.vel_u(U_, repeat=True)
                         vel_S = vel.vel_s(U_, S_)
                         vel.parameters['beta'] = gamma
-                        vel_N = vel.vel_u(U)
-                        vel_T = vel.vel_u(S)  # no need to consider splicing
+                        vel_N = vel.vel_u(U, repeat=True)
+                        vel_T = vel.vel_u(S, repeat=True)  # no need to consider splicing
                 else:
                     if experiment_type == 'kin':
                         vel_U = np.nan
@@ -674,7 +674,7 @@ def dynamics(
                     elif experiment_type in ['mix_kin_deg', 'mix_pulse_chase']:
                         vel_U = np.nan
                         vel_S = np.nan
-                        vel_N = vel.vel_u(U)
+                        vel_N = vel.vel_u(U, repeat=True)
                         vel_T = vel.vel_u(S)  # don't consider splicing
             else:
                 if has_splicing:
@@ -721,8 +721,8 @@ def dynamics(
                     elif experiment_type in ['mix_kin_deg', 'mix_pulse_chase']:
                         vel_U = np.nan
                         vel_S = np.nan
-                        vel_N = vel.vel_u(U_)
-                        vel_T = vel.vel_u(S_)  # don't consider splicing
+                        vel_N = vel.vel_u(U_, repeat=True)
+                        vel_T = vel.vel_u(S_, repeat=True)  # don't consider splicing
 
             vel_P = vel.vel_p(S, P)
 
@@ -1172,21 +1172,24 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
         Estm_df['gamma_r2'] = gamma_all_r2
 
         return Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data
-    elif experiment_type.lower() in ['mix_pulse_chase', 'mix_kin_deg'] and est_method == 'twostep' and has_splicing:
-        layers = ['M_u', 'M_s'] if (
-                'M_u' in subset_adata.layers.keys() and data_type == 'smoothed') \
-            else ['X_u', 'X_s']
-        U, S = subset_adata.layers[layers[0]].T, subset_adata.layers[layers[1]].T
-        US, S2 = subset_adata.layers['M_us'].T, subset_adata.layers['M_ss'].T
-        # beta, beta_r2 = lin_reg_gamma_synthesis(U, Ul, time, perc_right=100)
-        gamma_k, gamma_b, gamma_all_r2, gamma_all_logLL = \
-            fit_slope_stochastic(S, U, US, S2, perc_left=None, perc_right=5)
+    elif experiment_type.lower() in ['mix_pulse_chase', 'mix_kin_deg'] and est_method == 'twostep':
+        if has_splicing:
+            layers = ['M_u', 'M_s'] if (
+                    'M_u' in subset_adata.layers.keys() and data_type == 'smoothed') \
+                else ['X_u', 'X_s']
+            U, S = subset_adata.layers[layers[0]].T, subset_adata.layers[layers[1]].T
+            US, S2 = subset_adata.layers['M_us'].T, subset_adata.layers['M_ss'].T
+            # beta, beta_r2 = lin_reg_gamma_synthesis(U, Ul, time, perc_right=100)
+            gamma_k, gamma_b, gamma_all_r2, gamma_all_logLL = \
+                fit_slope_stochastic(S, U, US, S2, perc_left=None, perc_right=5)
 
-        Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[:len(Estm[0])]])
-        Estm_df['gamma_k'] = gamma_k  # gamma_k = gamma / beta
-        Estm_df['beta'] = Estm_df['gamma'] / gamma_k  # gamma_k = gamma / beta
-        Estm_df['gamma_r2'] = gamma_all_r2
-
+            Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[:len(Estm[0])]])
+            Estm_df['gamma_k'] = gamma_k  # gamma_k = gamma / beta
+            Estm_df['beta'] = Estm_df['gamma'] / gamma_k  # gamma_k = gamma / beta
+            Estm_df['gamma_r2'] = gamma_all_r2
+        else:
+            Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[:len(Estm[0])]])
+            Estm_df['gamma_k'] = Estm_df['gamma'] # fix a bug in pl.dynamics
     else:
         Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[:len(Estm[0])]])
 
