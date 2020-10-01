@@ -1568,6 +1568,10 @@ def plot_kin_deg_twostep(adata, genes, has_splicing, use_smoothed, log_unnormali
                 ax.legend(['model (deterministic)', 'model (kinetic chase)'])
                 ax.set_title('unseen initial conc.')
 
+                # properly set the xticks
+                ax.set_xticks(xticks)
+                ax.set_xticklabels(xticks_labels)
+
                 if show_kin_parameters:
                     if true_param_prefix is not None:
                         if has_splicing:
@@ -1606,10 +1610,6 @@ def plot_kin_deg_twostep(adata, genes, has_splicing, use_smoothed, log_unnormali
                                 va="top",
                                 transform=ax.transAxes,
                             )
-
-        # properly set the xticks
-        ax.set_xticks(xticks)
-        ax.set_xticklabels(xticks_labels)
 
         if use_smoothed:
             ax.set_ylabel('labeled (1st moment)')
