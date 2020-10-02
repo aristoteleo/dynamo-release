@@ -609,6 +609,11 @@ def get_data_for_kin_params_estimation(
     log_unnormalized,
     NTR_vel,
 ):
+    if not NTR_vel:
+        if has_labeling and not has_splicing:
+            warnings.warn("Your adata only has labeling data, but `NTR_vel` is set to be "
+                          "`False`. Dynamo will reset it to `True` to enable this analysis.")
+
     U, Ul, S, Sl, P, US, U2, S2, = (
         None,
         None,

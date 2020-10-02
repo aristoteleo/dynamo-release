@@ -598,7 +598,7 @@ def exp_by_groups(adata,
     if group is not None and group not in adata.obs.keys():
         raise ValueError(f"The group {group} is not existed in your adata object!")
 
-    has_splicing, has_labeling, has_protein = detect_datatype(adata)
+    has_splicing, has_labeling, splicing_labeling, has_protein = detect_datatype(adata)
     if (has_splicing + has_labeling) == 0:
         layer = 'X' if layer is None else layer
     elif has_splicing and not has_labeling:
@@ -618,7 +618,7 @@ def exp_by_groups(adata,
     exprs = adata[:, valid_genes].X if layer == 'X' else adata[:, valid_genes].layers[layer]
     exprs = exprs.A if issparse(exprs) else exprs
     if use_ratio:
-        has_splicing, has_labeling, has_protein = detect_datatype(adata)
+        has_splicing, has_labeling, splicing_labeling, has_protein = detect_datatype(adata)
         if has_labeling:
             if layer.startswith('X_') or layer.startswith('M_'):
                 tot = adata[:, valid_genes].layers[mapper['X_total']] if use_smoothed \
