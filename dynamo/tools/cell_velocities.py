@@ -568,7 +568,8 @@ def confident_cell_velocities(adata,
     V = adata[:, confident_genes].layers[vkey]
     X_embedding = adata.obsm['X_' + basis]
 
-    cell_velocities(adata, enforce=True, X=X, V=V, X_embedding=X_embedding, basis=basis)
+    cell_velocities(adata, enforce=True, X=X, V=V, X_embedding=X_embedding, basis=basis,
+                    transition_genes=confident_genes)
 
     return adata
 
