@@ -29,7 +29,7 @@ def laplacian(f, x):
 # ---------------------------------------------------------------------------------------------------
 # vector field function
 @timeit
-def vector_field_function(x, vf_dict, dim=None, kernel='full', **kernel_kwargs):
+def vector_field_function(x, vf_dict, dim=None, kernel='full', X_ctrl_ind=None, **kernel_kwargs):
     """vector field function constructed by sparseVFC.
     Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
     """
@@ -58,7 +58,13 @@ def vector_field_function(x, vf_dict, dim=None, kernel='full', **kernel_kwargs):
         Xc = vf_dict["X_ctrl"]
         K = con_K(x, Xc, vf_dict["beta"], **kernel_kwargs)
 
-    K = K.dot(vf_dict["C"])
+    if X_ctrl_ind is not None:
+        C = np.zeros_like(vf_dict["C"])
+        C[X_ctrl_ind, :] = vf_dict["C"][X_ctrl_ind, :]
+    else:
+        C = vf_dict["C"]
+
+    K = K.dot(C)
 
     if dim is not None and not has_div_cur_free_kernels:
         if np.isscalar(dim):

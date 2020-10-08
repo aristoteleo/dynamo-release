@@ -196,6 +196,7 @@ def cook_dist(model, X, good):
 # preprocess utilities
 def basic_stats(adata):
     adata.obs['nGenes'], adata.obs['nCounts'] = (adata.X > 0).sum(1), (adata.X).sum(1)
+    adata.var['nCells'], adata.var['nCounts'] = (adata.X > 0).sum(0), (adata.X).sum(0)
     mito_genes = adata.var_names.str.upper().str.startswith('MT-')
     try:
         adata.obs['pMito'] = (adata[:, mito_genes].X).sum(1).A1 / adata.obs['nCounts'] if issparse(adata.X) else  \

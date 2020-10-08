@@ -249,122 +249,6 @@ def jacobian(adata,
         return ret_dict
 
 
-def curl(adata,
-         basis='umap',
-         vector_field_class=None,
-         **kwargs
-         ):
-    """Calculate Curl for each cell with the reconstructed vector field function.
-
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        basis: str or None (default: `umap`)
-            The embedding data in which the vector field was reconstructed.
-        vector_field_class: :class:`~.scVectorField.vectorfield`
-            If not None, the divergene will be computed using this class instead of the vector field stored in adata.
-        method: str (default: `analytical`)
-            The method that will be used for calculating divergence, either `analytical` or `numeric`. `analytical`
-            method will use the analytical form of the reconstructed vector field for calculating curl while
-            `numeric` method will use numdifftools for calculation. `analytical` method is much more efficient.
-
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `'curl'` key in the `.obs`.
-    """
-
-    if vector_field_class is None:
-        vector_field_class = vectorfield()
-        vector_field_class.from_adata(adata, basis=basis)
-    '''
-    X_data = adata.obsm["X_" + basis][:, :2]
-
-    curl = np.zeros((adata.n_obs, 1))
-    
-    Jacobian_ = "jacobian" if basis is None else "jacobian_" + basis
-
-    if Jacobian_ in adata.uns_keys():
-        Js = adata.uns[Jacobian_]['Jacobian_raw']
-        for i in tqdm(range(X_data.shape[0]), f"Calculating curl with the reconstructed vector field on the {basis} basis. "):
-            curl[i] = curl2d(func, None, method=method, VecFld=None, jac=Js[:, :, i])
-    else:
-        for i, x in tqdm(enumerate(X_data), f"Calculating curl with the reconstructed vector field on the {basis} basis. "):
-            curl[i] = vector_field_class.compute_curl(X=x, **kwargs)
-    '''
-    curl = vector_field_class.compute_curl(**kwargs)
-    curl_key = "curl" if basis is None else "curl_" + basis
-
-    adata.obs[curl_key] = curl
-
-
-def divergence(adata,
-               cell_idx=None,
-               sampling=None,
-               sample_ncells=1000,
-               basis='pca',
-               vector_field_class=None,
-               method='analytical',
-               store_in_adata=True,
-               **kwargs
-               ):
-    """Calculate divergence for each cell with the reconstructed vector field function.
-
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        basis: str or None (default: `umap`)
-            The embedding data in which the vector field was reconstructed.
-        vector_field_class: :class:`scVectorField.vectorfield`
-            If not None, the divergene will be computed using this class instead of the vector field stored in adata.
-        method: str (default: `analytical`)
-            The method that will be used for calculating divergence, either `analytical` or `numeric`. `analytical`
-            method will use the analytical form of the reconstructed vector field for calculating Jacobian while
-            `numeric` method will use numdifftools for calculation. `analytical` method is much more efficient.
-
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `'divergence'` key in the `.obs`.
-    """
-
-    if vector_field_class is None:
-        vector_field_class = vectorfield()
-        vector_field_class.from_adata(adata, basis=basis)
-
-    if basis == 'umap': cell_idx = np.arange(adata.n_obs)
-
-    X, V = vector_field_class.get_data()
-    if cell_idx is None:
-        if sampling is None or sampling == 'all':
-            cell_idx = np.arange(adata.n_obs)
-        else:
-            cell_idx = sample(np.arange(adata.n_obs), sample_ncells, sampling, X, V)
-
-    jkey = "jacobian" if basis is None else "jacobian_" + basis
-
-    div = np.zeros(len(cell_idx))
-    calculated = np.zeros(len(cell_idx), dtype=bool)
-    if jkey in adata.uns_keys():
-        Js = adata.uns[jkey]['Jacobian']
-        cidx = adata.uns[jkey]['cell_idx']
-        for i, c in tqdm(enumerate(cell_idx), desc="Calculating divergence with precomputed Jacobians"):
-            if c in cidx:
-                calculated[i] = True
-                div[i] = np.trace(Js[:, :, i]) if Js.shape[2] == len(cell_idx) else np.trace(Js[:, :, c])
-
-    div[~calculated] = vector_field_class.compute_divergence(X[cell_idx[~calculated]], **kwargs)
-
-    if store_in_adata:
-        div_key = "divergence" if basis is None else "divergence_" + basis
-        Div = np.array(adata.obs[div_key]) if div_key in adata.obs.keys() else np.ones(adata.n_obs) * np.nan
-        Div[cell_idx] = div
-        adata.obs[div_key] = Div
-    return div
-
-
 def acceleration(adata,
          basis='umap',
          vector_field_class=None,
@@ -480,6 +364,122 @@ def torsion(adata,
 
     adata.obs[torsion_key] = torsion
     adata.uns[torsion_key] = torsion_mat
+
+
+def curl(adata,
+         basis='umap',
+         vector_field_class=None,
+         **kwargs
+         ):
+    """Calculate Curl for each cell with the reconstructed vector field function.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        basis: str or None (default: `umap`)
+            The embedding data in which the vector field was reconstructed.
+        vector_field_class: :class:`~.scVectorField.vectorfield`
+            If not None, the divergene will be computed using this class instead of the vector field stored in adata.
+        method: str (default: `analytical`)
+            The method that will be used for calculating divergence, either `analytical` or `numeric`. `analytical`
+            method will use the analytical form of the reconstructed vector field for calculating curl while
+            `numeric` method will use numdifftools for calculation. `analytical` method is much more efficient.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that is updated with the `'curl'` key in the `.obs`.
+    """
+
+    if vector_field_class is None:
+        vector_field_class = vectorfield()
+        vector_field_class.from_adata(adata, basis=basis)
+    '''
+    X_data = adata.obsm["X_" + basis][:, :2]
+
+    curl = np.zeros((adata.n_obs, 1))
+    
+    Jacobian_ = "jacobian" if basis is None else "jacobian_" + basis
+
+    if Jacobian_ in adata.uns_keys():
+        Js = adata.uns[Jacobian_]['Jacobian_raw']
+        for i in tqdm(range(X_data.shape[0]), f"Calculating curl with the reconstructed vector field on the {basis} basis. "):
+            curl[i] = curl2d(func, None, method=method, VecFld=None, jac=Js[:, :, i])
+    else:
+        for i, x in tqdm(enumerate(X_data), f"Calculating curl with the reconstructed vector field on the {basis} basis. "):
+            curl[i] = vector_field_class.compute_curl(X=x, **kwargs)
+    '''
+    curl = vector_field_class.compute_curl(**kwargs)
+    curl_key = "curl" if basis is None else "curl_" + basis
+
+    adata.obs[curl_key] = curl
+
+
+def divergence(adata,
+               cell_idx=None,
+               sampling=None,
+               sample_ncells=1000,
+               basis='pca',
+               vector_field_class=None,
+               method='analytical',
+               store_in_adata=True,
+               **kwargs
+               ):
+    """Calculate divergence for each cell with the reconstructed vector field function.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        basis: str or None (default: `umap`)
+            The embedding data in which the vector field was reconstructed.
+        vector_field_class: :class:`scVectorField.vectorfield`
+            If not None, the divergene will be computed using this class instead of the vector field stored in adata.
+        method: str (default: `analytical`)
+            The method that will be used for calculating divergence, either `analytical` or `numeric`. `analytical`
+            method will use the analytical form of the reconstructed vector field for calculating Jacobian while
+            `numeric` method will use numdifftools for calculation. `analytical` method is much more efficient.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that is updated with the `'divergence'` key in the `.obs`.
+    """
+
+    if vector_field_class is None:
+        vector_field_class = vectorfield()
+        vector_field_class.from_adata(adata, basis=basis)
+
+    if basis == 'umap': cell_idx = np.arange(adata.n_obs)
+
+    X, V = vector_field_class.get_data()
+    if cell_idx is None:
+        if sampling is None or sampling == 'all':
+            cell_idx = np.arange(adata.n_obs)
+        else:
+            cell_idx = sample(np.arange(adata.n_obs), sample_ncells, sampling, X, V)
+
+    jkey = "jacobian" if basis is None else "jacobian_" + basis
+
+    div = np.zeros(len(cell_idx))
+    calculated = np.zeros(len(cell_idx), dtype=bool)
+    if jkey in adata.uns_keys():
+        Js = adata.uns[jkey]['Jacobian']
+        cidx = adata.uns[jkey]['cell_idx']
+        for i, c in tqdm(enumerate(cell_idx), desc="Calculating divergence with precomputed Jacobians"):
+            if c in cidx:
+                calculated[i] = True
+                div[i] = np.trace(Js[:, :, i]) if Js.shape[2] == len(cell_idx) else np.trace(Js[:, :, c])
+
+    div[~calculated] = vector_field_class.compute_divergence(X[cell_idx[~calculated]], **kwargs)
+
+    if store_in_adata:
+        div_key = "divergence" if basis is None else "divergence_" + basis
+        Div = np.array(adata.obs[div_key]) if div_key in adata.obs.keys() else np.ones(adata.n_obs) * np.nan
+        Div[cell_idx] = div
+        adata.obs[div_key] = Div
+    return div
 
 
 def rank_genes(adata,
