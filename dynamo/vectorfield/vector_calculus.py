@@ -289,7 +289,7 @@ def acceleration(adata,
 
 
 def curvature(adata,
-         basis='umap',
+         basis='pca',
          vector_field_class=None,
          formula=2,
          **kwargs
@@ -300,7 +300,7 @@ def curvature(adata,
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        basis: str or None (default: `umap`)
+        basis: str or None (default: `pca`)
             The embedding data in which the vector field was reconstructed.
         vector_field_class: :class:`~scVectorField.vectorfield`
             If not None, the divergene will be computed using this class instead of the vector field stored in adata.
@@ -328,7 +328,11 @@ def curvature(adata,
     curv_key = "curvature" if basis is None else "curvature_" + basis
 
     adata.obs[curv_key] = curv
-    adata.uns[curv_key] = curv_mat
+    adata.obsm[curv_key] = curv_mat
+    Qkey = 'PCs'
+    if basis == 'pca':
+        acce_hi = vector_transformation(curv_mat, adata.uns[Qkey])
+        create_layer(adata, acce_hi, layer_key='curvature', genes=adata.var.use_for_dynamics)
 
 
 def torsion(adata,
@@ -465,7 +469,7 @@ def divergence(adata,
     div = np.zeros(len(cell_idx))
     calculated = np.zeros(len(cell_idx), dtype=bool)
     if jkey in adata.uns_keys():
-        Js = adata.uns[jkey]['Jacobian']
+        Js = adata.uns[jkey]['jacobian']
         cidx = adata.uns[jkey]['cell_idx']
         for i, c in tqdm(enumerate(cell_idx), desc="Calculating divergence with precomputed Jacobians"):
             if c in cidx:

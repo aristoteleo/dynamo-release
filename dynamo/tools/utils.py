@@ -1441,7 +1441,7 @@ def set_transition_genes(
             else (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2)
         )
 
-    if adata.var[store_key].sum() < 5:
+    if adata.var[store_key].sum() < 5 and adata.n_vars > 5:
         raise Exception(f'Only less than 5 genes satisfies transition gene selection criteria, which may be resulted '
                         f'from: \n'
                         f'  1. Very low intron/new RNA ratio, try filtering low ratio and poor quality cells \n'
