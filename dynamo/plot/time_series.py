@@ -157,7 +157,7 @@ def kinetic_curves(
             facet_kws={"sharex": True, "sharey": False},
         )
 
-    if save_show_or_return == "save_fig":
+    if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'kinetic_curves', "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
@@ -290,7 +290,7 @@ def kinetic_heatmap(
     )
     if not show_colorbar: sns_heatmap.cax.set_visible(False)
 
-    if save_show_or_return == "save_fig":
+    if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'kinetic_heatmap', "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
