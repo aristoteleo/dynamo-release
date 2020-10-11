@@ -254,6 +254,7 @@ def jacobian(adata,
              show_legend=True,
              frontier=True,
              sym_c=True,
+             show_arrowed_spines=False,
              save_show_or_return="show",
              save_kwargs={},
              **kwargs):
@@ -307,6 +308,8 @@ def jacobian(adata,
         sym_c: `bool` (default: `False`)
             Whether do you want to make the limits of continuous color to be symmetric, normally this should be used for
             plotting velocity, jacobian, curl, divergence or other types of data with both positive or negative values.
+        show_arrowed_spines: bool (optional, default False)
+            Whether to show a pair of arrowed spines representing the basis of the scatter is currently using.
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -409,7 +412,7 @@ def jacobian(adata,
                 **scatter_kwargs
             )
             ax.set_title(r'$\frac{{\partial f_{{{}}} }}{{\partial {}}}$'.format(target, source))
-            if i + j == 0:
+            if i + j == 0 and show_arrowed_spines:
                 arrowed_spines(ax, basis, background)
             else:
                 despline_all(ax)

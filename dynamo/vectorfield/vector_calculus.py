@@ -277,8 +277,7 @@ def acceleration(adata,
         vector_field_class = vectorfield()
         vector_field_class.from_adata(adata, basis=basis)
 
-    acce = vector_field_class.compute_acceleration(**kwargs)
-    acce_norm = np.linalg.norm(acce, axis=1)
+    acce_norm, acce = vector_field_class.compute_acceleration(**kwargs)
 
     acce_key = "acceleration" if basis is None else "acceleration_" + basis
     adata.obsm[acce_key] = acce
