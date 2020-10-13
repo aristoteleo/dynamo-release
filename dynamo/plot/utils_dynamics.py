@@ -1372,9 +1372,10 @@ def plot_kin_twostep(adata, genes, has_splicing, use_smoothed,
                     gs[fig_mat[col_i, row_i][0]]
                 )
             if j == 0:
-                ax.text(0.05, 0.99, r'$logLL={0:.2f}$'.format(cur_logLL) + ' \n'
-                        + r"$t_{1/2} = $" + "{0:.2f}".format(np.log(2) / gamma[i]) + unit[0] \
-                        , ha='left', va='top', transform=ax.transAxes)
+                if cur_logLL is not None:
+                    ax.text(0.05, 0.99, r'$logLL={0:.2f}$'.format(cur_logLL) + ' \n'
+                            + r"$t_{1/2} = $" + "{0:.2f}".format(np.log(2) / gamma[i]) + unit[0] \
+                            , ha='left', va='top', transform=ax.transAxes)
 
                 ax.scatter(r, n, c=colors, alpha=0.25, ec=None)
                 legend_elements = [
@@ -1501,7 +1502,7 @@ def plot_kin_twostep(adata, genes, has_splicing, use_smoothed,
 
 
 def plot_kin_deg_twostep(adata, genes, has_splicing, use_smoothed, log_unnormalized,
-                 t, T, T_uniq, unit, X_data, X_fit_data, logLL,
+                 T, T_uniq, unit, X_data, X_fit_data, logLL,
                  grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order, y_log_scale,
                  true_param_prefix, true_params, est_params,
                  show_variance, show_kin_parameters, ):
@@ -1515,7 +1516,7 @@ def plot_kin_deg_twostep(adata, genes, has_splicing, use_smoothed, log_unnormali
 
     layer = 'M_n' if ('M_n' in adata.layers.keys() and use_smoothed) else 'X_new'
     total_layer = 'M_t' if ('M_t' in adata.layers.keys() and use_smoothed) else 'X_total'
-    _, X_raw = prepare_data_no_splicing(adata, adata.var.index, t, layer=layer,
+    _, X_raw = prepare_data_no_splicing(adata, adata.var.index, T, layer=layer,
                                         total_layer=total_layer)
 
     for i, gene_name in enumerate(genes):
@@ -1551,21 +1552,25 @@ def plot_kin_deg_twostep(adata, genes, has_splicing, use_smoothed, log_unnormali
                         showfliers=False,
                         showmeans=True,
                     )
-                    ax.plot(T_uniq, cur_X_fit_data[j].T, "b")
-                    ax.plot(T_uniq, cur_X_data[j], "k--")
+                    ax.plot(T_uniq, cur_X_fit_data, "b")#ax.plot(T_uniq, cur_X_fit_data[j].T, "b")
+                    ax.plot(T_uniq, cur_X_data, "k--")#ax.plot(T_uniq, cur_X_data[j], "k--")
                     ax.set_ylabel('labeled')
                     ax.set_title(gene_name + str(cur_logLL))
                 else:
-                    ax.plot(T_uniq, cur_X_fit_data[j].T, "b")
-                    ax.plot(T_uniq, cur_X_data[j], "k--")
+                    ax.plot(T_uniq, cur_X_fit_data.T, "b")
+                    ax.plot(T_uniq, cur_X_data, "k--")
                     ax.set_ylabel('labeled')
                     ax.set_title(gene_name + str(cur_logLL))
             elif j == 1:
                 ax.plot(cur_tt, cur_h, 'b')
                 ax.plot(cur_tt, cur_h, 'r*')
                 ax.set_ylabel('labeled')
-                ax.set_legend(['model (deterministic)', 'model (kinetic chase)'])
+                ax.legend(['model (deterministic)', 'model (kinetic chase)'])
                 ax.set_title('unseen initial conc.')
+
+                # properly set the xticks
+                ax.set_xticks(xticks)
+                ax.set_xticklabels(xticks_labels)
 
                 if show_kin_parameters:
                     if true_param_prefix is not None:
@@ -1605,10 +1610,6 @@ def plot_kin_deg_twostep(adata, genes, has_splicing, use_smoothed, log_unnormali
                                 va="top",
                                 transform=ax.transAxes,
                             )
-
-        # properly set the xticks
-        ax.set_xticks(xticks)
-        ax.set_xticklabels(xticks_labels)
 
         if use_smoothed:
             ax.set_ylabel('labeled (1st moment)')

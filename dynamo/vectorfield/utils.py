@@ -29,7 +29,7 @@ def laplacian(f, x):
 # ---------------------------------------------------------------------------------------------------
 # vector field function
 @timeit
-def vector_field_function(x, vf_dict, dim=None, kernel='full', **kernel_kwargs):
+def vector_field_function(x, vf_dict, dim=None, kernel='full', X_ctrl_ind=None, **kernel_kwargs):
     """vector field function constructed by sparseVFC.
     Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
     """
@@ -58,7 +58,13 @@ def vector_field_function(x, vf_dict, dim=None, kernel='full', **kernel_kwargs):
         Xc = vf_dict["X_ctrl"]
         K = con_K(x, Xc, vf_dict["beta"], **kernel_kwargs)
 
-    K = K.dot(vf_dict["C"])
+    if X_ctrl_ind is not None:
+        C = np.zeros_like(vf_dict["C"])
+        C[X_ctrl_ind, :] = vf_dict["C"][X_ctrl_ind, :]
+    else:
+        C = vf_dict["C"]
+
+    K = K.dot(C)
 
     if dim is not None and not has_div_cur_free_kernels:
         if np.isscalar(dim):
@@ -503,19 +509,21 @@ def compute_acceleration(vf, f_jac, X, return_all=False):
 
     """
     n = len(X)
-    acce = np.zeros((n, X.shape[1]))
+    acce = np.zeros(n)
+    acce_mat = np.zeros((n, X.shape[1]))
 
     v_ = vf(X)
     J_ = f_jac(X)
     for i in tqdm(range(n), desc=f"Calculating acceleration"):
         v = v_[i]
         J = J_[:, :, i]
-        acce[i] = acceleration_(v, J).flatten()
+        acce_mat[i] = acceleration_(v, J).flatten()
+        acce[i] = np.linalg.norm(acce_mat[i])
 
     if return_all:
-        return v_, J_, acce
+        return v_, J_, acce, acce_mat
     else:
-        return acce
+        return acce, acce_mat
 
 
 @timeit
@@ -533,7 +541,7 @@ def compute_curvature(vf, f_jac, X, formula=2):
     n = len(X)
 
     curv = np.zeros(n)
-    v, _, a = compute_acceleration(vf, f_jac, X, return_all=True)
+    v, _, _, a = compute_acceleration(vf, f_jac, X, return_all=True)
     cur_mat = np.zeros((n, X.shape[1])) if formula == 2 else None
 
     for i in tqdm(range(n), desc="Calculating curvature"):
@@ -543,7 +551,7 @@ def compute_curvature(vf, f_jac, X, formula=2):
             cur_mat[i] = curvature_2(a[i], v[i])
             curv[i] = np.linalg.norm(cur_mat[i])
 
-    return (curv, cur_mat)
+    return curv, cur_mat
 
 
 @timeit

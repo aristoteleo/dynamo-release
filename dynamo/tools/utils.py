@@ -609,6 +609,12 @@ def get_data_for_kin_params_estimation(
     log_unnormalized,
     NTR_vel,
 ):
+    if not NTR_vel:
+        if has_labeling and not has_splicing:
+            warnings.warn("Your adata only has labeling data, but `NTR_vel` is set to be "
+                          "`False`. Dynamo will reset it to `True` to enable this analysis.")
+        NTR_vel = True
+
     U, Ul, S, Sl, P, US, U2, S2, = (
         None,
         None,
@@ -1048,6 +1054,7 @@ def set_param_kinetic(
     extra_params,
     _group,
     cur_grp,
+    cur_cells_bools,
     valid_ind,
 ):
     if cur_grp == _group[0]:
@@ -1065,7 +1072,15 @@ def set_param_kinetic(
             adata.var[kin_param_pre + "logLL"],
         ) = (None, None, None, None, None, None, None, None, None, None, None)
 
-    adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha.mean(1) if isarray(alpha) else alpha
+    if isarray(alpha) and alpha.ndim > 1:
+        adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha.mean(1)
+        cur_cells_ind, valid_ind_ = np.where(cur_cells_bools)[0][:, np.newaxis], np.where(valid_ind)[0]
+        if cur_grp == _group[0]:
+            adata.layers["cell_wise_alpha"] = sp.csr_matrix((adata.shape), dtype=np.float64)
+        alpha = alpha.T.tocsr() if sp.issparse(alpha) else sp.csr_matrix(alpha, dtype=np.float64).T
+        adata.layers["cell_wise_alpha"][cur_cells_ind, valid_ind_] = alpha
+    else:
+        adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha
     adata.var.loc[valid_ind, kin_param_pre + "a"] = a
     adata.var.loc[valid_ind, kin_param_pre + "b"] = b
     adata.var.loc[valid_ind, kin_param_pre + "alpha_a"] = alpha_a
@@ -1325,20 +1340,26 @@ def set_transition_genes(
     use_for_dynamics=True,
     store_key='use_for_transition'
 ):
+    layer = vkey.split("_")[1]
+
     if adata.uns['dynamics']['est_method'] == 'twostep' and \
             adata.uns['dynamics']['experiment_type'] == 'kin':
         # if adata.uns['dynamics']['has_splicing']:
         #     min_r2 = 0.5 if min_r2 is None else min_r2
         # else:
             min_r2 = 0.9 if min_r2 is None else min_r2
+    elif adata.uns['dynamics']['experiment_type'] in ['mix_kin_deg', 'mix_pulse_chase']:
+        adata.var[store_key] = adata.var.logLL.astype(float) < np.nanpercentile(adata.var.logLL.astype(float), 10)
+        if layer in ['N', 'T']:
+            return adata
+        else:
+            min_r2 = 0.01
     else:
         min_r2 = 0.01 if min_r2 is None else min_r2
 
     if min_alpha is None: min_alpha = 0.01
     if min_gamma is None: min_gamma = 0.01
     if min_delta is None: min_delta = 0.01
-
-    layer = vkey.split("_")[1]
 
     # the following parameters aggreation for different groups can be improved later
     if layer == "U":
@@ -1420,7 +1441,7 @@ def set_transition_genes(
             else (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2)
         )
 
-    if adata.var[store_key].sum() < 5:
+    if adata.var[store_key].sum() < 5 and adata.n_vars > 5:
         raise Exception(f'Only less than 5 genes satisfies transition gene selection criteria, which may be resulted '
                         f'from: \n'
                         f'  1. Very low intron/new RNA ratio, try filtering low ratio and poor quality cells \n'
@@ -1449,40 +1470,12 @@ def get_ekey_vkey_from_adata(adata):
 
     if has_splicing:
         if has_labeling:
-            if "X_uu" in adata.layers.keys():  # unlabel spliced: S
-                if use_smoothed:
-                    uu, ul, su, sl = (
-                        adata.layers[mapper["X_uu"]],
-                        adata.layers[mapper["X_ul"]],
-                        adata.layers[mapper["X_su"]],
-                        adata.layers[mapper["X_sl"]],
-                    )
-                    if 'M_n' not in adata.layers.keys():
-                        adata.layers["M_n"] = ul + sl
-                    elif NTR and "M_t" not in adata.layers.keys():
-                        adata.layers["M_t"] = uu + ul + su + sl
-                    elif not NTR and "M_s" not in adata.layers.keys():
-                        adata.layers["M_s"] = sl + su
-
-                uu, ul, su, sl = (
-                    adata.layers["X_uu"],
-                    adata.layers["X_ul"],
-                    adata.layers["X_su"],
-                    adata.layers["X_sl"],
-                )
-
-                if 'X_new' not in adata.layers.keys():
-                    adata.layers["X_new"] = ul + sl
-                elif NTR and "X_total" not in adata.layers.keys():
-                    adata.layers["X_total"] = uu + ul + su + sl
-                elif not NTR and "X_spliced" not in adata.layers.keys():
-                    adata.layers["X_spliced"] = sl + su
-            else:
+            if "X_new" not in adata.layers.keys():  # unlabel spliced: S
                 raise Exception(
                     "The input data you have is not normalized or normalized + smoothed!"
                 )
 
-            if experiment_type.lower() == "kin":
+            if experiment_type.lower() in ["kin", "mix_pulse_chase", 'mix_kin_deg']:
                 ekey, vkey, layer = (
                     (mapper["X_total"] if NTR else mapper["X_spliced"],
                      "velocity_T" if NTR else "velocity_S",

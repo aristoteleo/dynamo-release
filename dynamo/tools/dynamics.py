@@ -634,8 +634,8 @@ def dynamics(
                     if experiment_type == 'kin':
                         vel_U = vel.vel_u(U_)
                         vel_S = vel.vel_s(U_, S_)
-                        vel_N = vel.vel_u(U)
                         vel.parameters['beta'] = gamma
+                        vel_N = vel.vel_u(U)
                         vel_T = vel.vel_u(S) # no need to consider splicing
                     elif experiment_type == 'deg':
                         if splicing_labeling:
@@ -648,13 +648,19 @@ def dynamics(
                             vel_S = vel.vel_s(U_, S_)
                             vel_N = np.nan
                             vel_T = np.nan
+                    elif experiment_type in ['mix_kin_deg', 'mix_pulse_chase']:
+                        vel_U = vel.vel_u(U_, repeat=True)
+                        vel_S = vel.vel_s(U_, S_)
+                        vel.parameters['beta'] = gamma
+                        vel_N = vel.vel_u(U, repeat=True)
+                        vel_T = vel.vel_u(S, repeat=True)  # no need to consider splicing
                 else:
                     if experiment_type == 'kin':
                         vel_U = np.nan
                         vel_S = np.nan
 
                         # calculate cell-wise alpha, if est_method is twostep, this can be skipped
-                        alpha_ = one_shot_alpha_matrix(U_, gamma, t)
+                        alpha_ = one_shot_alpha_matrix(U, gamma, t)
 
                         vel.parameters['alpha'] = alpha_
 
@@ -665,13 +671,18 @@ def dynamics(
                         vel_S = np.nan
                         vel_N = np.nan
                         vel_T = np.nan
+                    elif experiment_type in ['mix_kin_deg', 'mix_pulse_chase']:
+                        vel_U = np.nan
+                        vel_S = np.nan
+                        vel_N = vel.vel_u(U, repeat=True)
+                        vel_T = vel.vel_u(S)  # don't consider splicing
             else:
                 if has_splicing:
                     if experiment_type == 'kin':
                         vel_U = vel.vel_u(U)
                         vel_S = vel.vel_s(U, S)
-                        vel_N = vel.vel_u(U_)
                         vel.parameters['beta'] = gamma
+                        vel_N = vel.vel_u(U_)
                         vel_T = vel.vel_u(S_)  # no need to consider splicing
                     elif experiment_type == 'deg':
                         if splicing_labeling:
@@ -684,13 +695,19 @@ def dynamics(
                             vel_S = vel.vel_s(U, S)
                             vel_N = np.nan
                             vel_T = np.nan
+                    elif experiment_type in ['mix_kin_deg', 'mix_pulse_chase']:
+                        vel_U = vel.vel_u(U, repeat=True)
+                        vel_S = vel.vel_s(U, S)
+                        vel.parameters['beta'] = gamma
+                        vel_N = vel.vel_u(U_, repeat=True)
+                        vel_T = vel.vel_u(S_, repeat=True)  # no need to consider splicing
                 else:
                     if experiment_type == 'kin':
                         vel_U = np.nan
                         vel_S = np.nan
 
                         # calculate cell-wise alpha, if est_method is twostep, this can be skipped
-                        alpha_ = one_shot_alpha_matrix(U, gamma, t)
+                        alpha_ = one_shot_alpha_matrix(U_, gamma, t)
 
                         vel.parameters['alpha'] = alpha_
 
@@ -701,6 +718,11 @@ def dynamics(
                         vel_S = np.nan
                         vel_N = np.nan
                         vel_T = np.nan
+                    elif experiment_type in ['mix_kin_deg', 'mix_pulse_chase']:
+                        vel_U = np.nan
+                        vel_S = np.nan
+                        vel_N = vel.vel_u(U_, repeat=True)
+                        vel_T = vel.vel_u(S_, repeat=True)  # don't consider splicing
 
             vel_P = vel.vel_p(S, P)
 
@@ -733,6 +755,7 @@ def dynamics(
                 extra_params,
                 _group,
                 cur_grp,
+                cur_cells_bools,
                 valid_bools_,
             )
             # add protein related parameters in the moment model below:
@@ -780,11 +803,10 @@ def dynamics(
 def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_splicing, splicing_labeling, has_switch, param_rngs,
                   data_type='sfs', **est_kwargs):
     """est_method can be either `twostep` (two-step model) or `direct`. data_type can either 'sfs' or 'smoothed'."""
-    time = subset_adata.obs[tkey].astype('float')
+    time = subset_adata.obs[tkey].astype('float').values
 
     if experiment_type.lower() == 'kin':
         if est_method == 'twostep':
-            time = time.values
             if has_splicing:
                 layers = ['M_u', 'M_s', 'M_t', 'M_n'] if (
                             'M_u' in subset_adata.layers.keys() and data_type == 'smoothed') \
@@ -1004,7 +1026,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                                 f'stochastic, deterministic.')
     elif experiment_type.lower() == 'mix_std_stm':
         raise Exception(f'experiment {experiment_type} with kinetic assumption is not implemented')
-    elif experiment_type.lower() == 'mix_pulse_chase':
+    elif experiment_type.lower() in ['mix_pulse_chase', 'mix_kin_deg']:
         total_layer = 'M_t' if ('M_t' in subset_adata.layers.keys() and data_type == 'smoothed') else 'X_total'
 
         if model.lower() in ['deterministic']:
@@ -1017,7 +1039,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
             x0 = {'u0': [0, 1000]}
             Est = Estimation_KineticChase
         else:
-            raise NotImplementedError(f"only `deterministic` model implemented for mix_pulse_chase experiment!")
+            raise NotImplementedError(f"only `deterministic` model implemented for mix_pulse_chase/mix_kin_deg experiment!")
 
     elif experiment_type.lower() == 'pulse_time_series':
         raise Exception(f'experiment {experiment_type} with kinetic assumption is not implemented')
@@ -1091,12 +1113,12 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
                 _, cost[i_gene] = estm.auto_fit(np.unique(time), cur_X_data)
                 Estm[i_gene] = estm.export_parameters()[1:]
 
-            elif experiment_type.lower() == 'mix_pulse_chase':
+            elif experiment_type.lower() in ['mix_pulse_chase', 'mix_kin_deg']:
                 estm = Est()
                 cur_X_data, cur_X_raw = X[i_gene], X_raw[i_gene]
 
                 popt[i_gene], cost[i_gene] = estm.auto_fit(np.unique(time), cur_X_data)
-                Estm[i_gene] = estm.export_parameters()[1:]
+                Estm[i_gene] = estm.export_parameters()
 
             if issparse(cur_X_raw[0, 0]):
                 cur_X_raw = np.hstack((cur_X_raw[0, 0].A, cur_X_raw[1, 0].A))
@@ -1109,7 +1131,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
         if model.lower().startswith('mixture'):
             X_fit_data[i_gene] = estm.simulator.x.T
             X_fit_data[i_gene][estm.model1.n_species:] *= estm.scale
-        elif experiment_type == 'mix_pulse_chase':
+        elif experiment_type in ['mix_kin_deg', 'mix_pulse_chase']:
             # kinetic chase simulation
             kinetic_chase = estm.simulator.x.T
             # hidden x
@@ -1132,7 +1154,7 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
             gof = GoodnessOfFit(estm.export_model(), params=estm.export_parameters(), x0=estm.simulator.x0)
             gof.prepare_data(time, cur_X_raw.T, normalize=True)
 
-        logLL[i_gene] = gof.calc_gaussian_loglikelihood()
+        logLL[i_gene] = gof.calc_mean_squared_deviation() # .calc_gaussian_loglikelihood()
 
     if experiment_type.lower() == 'deg' and est_method == 'twostep' and has_splicing:
         layers = ['M_u', 'M_s'] if (
@@ -1150,21 +1172,24 @@ def kinetic_model(subset_adata, tkey, model, est_method, experiment_type, has_sp
         Estm_df['gamma_r2'] = gamma_all_r2
 
         return Estm_df, half_life, cost, logLL, _param_ranges, X_data, X_fit_data
-    elif experiment_type.lower() == 'mix_pulse_chase' and est_method == 'twostep' and has_splicing:
-        layers = ['M_u', 'M_s'] if (
-                'M_u' in subset_adata.layers.keys() and data_type == 'smoothed') \
-            else ['X_u', 'X_s']
-        U, S = subset_adata.layers[layers[0]].T, subset_adata.layers[layers[1]].T
-        US, S2 = subset_adata.layers['M_us'].T, subset_adata.layers['M_ss'].T
-        # beta, beta_r2 = lin_reg_gamma_synthesis(U, Ul, time, perc_right=100)
-        gamma_k, gamma_b, gamma_all_r2, gamma_all_logLL = \
-            fit_slope_stochastic(S, U, US, S2, perc_left=None, perc_right=5)
+    elif experiment_type.lower() in ['mix_pulse_chase', 'mix_kin_deg'] and est_method == 'twostep':
+        if has_splicing:
+            layers = ['M_u', 'M_s'] if (
+                    'M_u' in subset_adata.layers.keys() and data_type == 'smoothed') \
+                else ['X_u', 'X_s']
+            U, S = subset_adata.layers[layers[0]].T, subset_adata.layers[layers[1]].T
+            US, S2 = subset_adata.layers['M_us'].T, subset_adata.layers['M_ss'].T
+            # beta, beta_r2 = lin_reg_gamma_synthesis(U, Ul, time, perc_right=100)
+            gamma_k, gamma_b, gamma_all_r2, gamma_all_logLL = \
+                fit_slope_stochastic(S, U, US, S2, perc_left=None, perc_right=5)
 
-        Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[:len(Estm[0])]])
-        Estm_df['gamma_k'] = gamma_k  # gamma_k = gamma / beta
-        Estm_df['beta'] = Estm_df['gamma'] / gamma_k  # gamma_k = gamma / beta
-        Estm_df['gamma_r2'] = gamma_all_r2
-
+            Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[:len(Estm[0])]])
+            Estm_df['gamma_k'] = gamma_k  # gamma_k = gamma / beta
+            Estm_df['beta'] = Estm_df['gamma'] / gamma_k  # gamma_k = gamma / beta
+            Estm_df['gamma_r2'] = gamma_all_r2
+        else:
+            Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[:len(Estm[0])]])
+            Estm_df['gamma_k'] = Estm_df['gamma'] # fix a bug in pl.dynamics
     else:
         Estm_df = pd.DataFrame(np.vstack(Estm), columns=[*all_keys[:len(Estm[0])]])
 

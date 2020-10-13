@@ -200,7 +200,7 @@ def phase_portraits(
     _genes = list(set(adata.var.index).intersection(genes))
 
     # avoid object for dtype in the gamma column https://stackoverflow.com/questions/40809503/python-numpy-typeerror-ufunc-isfinite-not-supported-for-the-input-types
-    if adata.uns['dynamics']['experiment_type'] in ['one-shot', 'kin', 'deg']:
+    if adata.uns['dynamics']['experiment_type'] in ['one-shot', 'kin', 'deg', 'mix_kin_deg', 'mix_pulse_chase']:
         k_name = 'gamma_k'
     else:
         k_name = 'gamma'
@@ -628,15 +628,18 @@ def phase_portraits(
             ax1.set_xlabel("total (1st moment)")
             ax1.set_ylabel("new (1st moment)")
 
-        xnew = np.linspace(0, cur_pd.loc[:, 'S'].max() * 0.80) if vkey == 'velocity_S' else \
-            np.linspace(0, cur_pd.loc[:, 'total'].max() * 0.80)
-        ax1.plot(
-            xnew,
-            xnew * cur_pd.loc[:, "gamma"].unique()
-            + cur_pd.loc[:, "velocity_offset"].unique(),
-            dashes=[6, 2],
-            c=font_color,
-        )
+        # only linear regression fitting of extreme cells will be plotted together with U-S phase plane.
+        if vkey == "velocity_S":
+            xnew = np.linspace(0, cur_pd.loc[:, 'S'].max() * 0.80) if vkey == 'velocity_S' else \
+                np.linspace(0, cur_pd.loc[:, 'total'].max() * 0.80)
+            ax1.plot(
+                xnew,
+                xnew * cur_pd.loc[:, "gamma"].unique()
+                + cur_pd.loc[:, "velocity_offset"].unique(),
+                dashes=[6, 2],
+                c=font_color,
+            )
+
         X_array, V_array = (
             cur_pd.loc[:, ['S', 'U']].values if vkey == 'velocity_S' else cur_pd.loc[:, ['total', 'new']].values,
             cur_pd.loc[:, ["vel_s", "vel_u"]].values
@@ -1213,7 +1216,7 @@ def dynamics(
             sub_plot_n = 1
         elif experiment_type == "mix_std_stm":
             sub_plot_n = 5
-        elif experiment_type == "mix_pulse_chase":
+        elif experiment_type in ['mix_pulse_chase', 'mix_kin_deg']:
             sub_plot_n = 2
     else:
         if model == "moment":
@@ -1242,7 +1245,7 @@ def dynamics(
             sub_plot_n = 1
         elif experiment_type == "mix_std_stm":
             sub_plot_n = 3
-        elif experiment_type == "mix_pulse_chase":
+        elif experiment_type in ['mix_pulse_chase', 'mix_kin_deg']:
             sub_plot_n = 2
 
     ncols = ( # each column correspond to one gene
@@ -1288,10 +1291,11 @@ def dynamics(
 
         if experiment_type in ["mix_pulse_chase", "mix_kin_deg"]:
             if est_method == 'twostep':
-                gs = plot_kin_twostep(valid_adata, valid_gene_names, has_splicing, use_smoothed,
-                                  t, T, T_uniq, unit, X_data, X_fit_data, logLL,
-                                  grp_len, sub_plot_n, ncols, gs, fig_mat, gene_order,
-                                  true_param_prefix, true_params, est_params, show_kin_parameters, )
+                gs = plot_kin_deg_twostep(valid_adata, valid_gene_names, has_splicing, use_smoothed,
+                                  log_unnormalized, T, T_uniq, unit, X_data, X_fit_data, logLL,
+                                  grp_len, sub_plot_n, ncols, boxwidth, gs, fig_mat, gene_order,
+                                  y_log_scale, true_param_prefix, true_params, est_params,
+                                  show_variance, show_kin_parameters, )
         elif experiment_type == "kin":
             if est_method == 'twostep':
                 gs = plot_kin_twostep(valid_adata, valid_gene_names, has_splicing, use_smoothed,

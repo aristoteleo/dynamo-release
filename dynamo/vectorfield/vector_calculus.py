@@ -249,6 +249,126 @@ def jacobian(adata,
         return ret_dict
 
 
+def acceleration(adata,
+         basis='umap',
+         vector_field_class=None,
+         Qkey='PCs',
+         **kwargs
+         ):
+    """Calculate acceleration for each cell with the reconstructed vector field function.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        basis: `str` or None (default: `umap`)
+            The embedding data in which the vector field was reconstructed.
+        vector_field_class: :class:`~scVectorField.vectorfield`
+            If not None, the divergene will be computed using this class instead of the vector field stored in adata.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that is updated with the `'acceleration'` key in the `.obs` as well as .obsm. If basis is `pca`,
+            acceleration matrix will be inverse transformed back to original high dimension space.
+    """
+
+    if vector_field_class is None:
+        vector_field_class = vectorfield()
+        vector_field_class.from_adata(adata, basis=basis)
+
+    acce_norm, acce = vector_field_class.compute_acceleration(**kwargs)
+
+    acce_key = "acceleration" if basis is None else "acceleration_" + basis
+    adata.obsm[acce_key] = acce
+    adata.obs[acce_key] = acce_norm
+    if basis == 'pca':
+        acce_hi = vector_transformation(acce, adata.uns[Qkey])
+        create_layer(adata, acce_hi, layer_key='acceleration', genes=adata.var.use_for_dynamics)
+
+
+def curvature(adata,
+         basis='pca',
+         vector_field_class=None,
+         formula=2,
+         **kwargs
+         ):
+    """Calculate curvature for each cell with the reconstructed vector field function.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        basis: str or None (default: `pca`)
+            The embedding data in which the vector field was reconstructed.
+        vector_field_class: :class:`~scVectorField.vectorfield`
+            If not None, the divergene will be computed using this class instead of the vector field stored in adata.
+        formula: int (default: 2)
+            Which formula of curvature will be used, there are two formulas, so formula can be either `{1, 2}`. By
+            default it is 2 and returns both the curvature vectors and the norm of the curvature. The formula one only
+            gives the norm of the curvature.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that is updated with the `curvature` key in the `.obs`.
+    """
+
+    if vector_field_class is None:
+        vector_field_class = vectorfield()
+        vector_field_class.from_adata(adata, basis=basis)
+
+    if formula not in [1, 2]:
+        raise ValueError(f"There are only two available formulas (formula can be either `{1, 2}`) to calculate "
+                         f"curvature, but your formula argument is {formula}.")
+
+    curv, curv_mat = vector_field_class.compute_curvature(formula=formula, **kwargs)
+
+    curv_key = "curvature" if basis is None else "curvature_" + basis
+
+    adata.obs[curv_key] = curv
+    adata.obsm[curv_key] = curv_mat
+    Qkey = 'PCs'
+    if basis == 'pca':
+        acce_hi = vector_transformation(curv_mat, adata.uns[Qkey])
+        create_layer(adata, acce_hi, layer_key='curvature', genes=adata.var.use_for_dynamics)
+
+
+def torsion(adata,
+            basis='umap',
+            vector_field_class=None,
+            **kwargs
+           ):
+    """Calculate torsion for each cell with the reconstructed vector field function.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
+        basis: str or None (default: `umap`)
+            The embedding data in which the vector field was reconstructed.
+        vector_field_class: dict
+            The true ODE function, useful when the data is generated through simulation.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that is updated with the `torsion` key in the .obs.
+    """
+
+    if vector_field_class is None:
+        vector_field_class = vectorfield()
+        vector_field_class.from_adata(adata, basis=basis)
+
+    torsion_mat = vector_field_class.compute_torsion(**kwargs)
+    torsion = np.array([np.linalg.norm(i) for i in torsion_mat])
+
+    torsion_key = "torsion" if basis is None else "torsion_" + basis
+
+    adata.obs[torsion_key] = torsion
+    adata.uns[torsion_key] = torsion_mat
+
+
 def curl(adata,
          basis='umap',
          vector_field_class=None,
@@ -348,7 +468,7 @@ def divergence(adata,
     div = np.zeros(len(cell_idx))
     calculated = np.zeros(len(cell_idx), dtype=bool)
     if jkey in adata.uns_keys():
-        Js = adata.uns[jkey]['Jacobian']
+        Js = adata.uns[jkey]['jacobian']
         cidx = adata.uns[jkey]['cell_idx']
         for i, c in tqdm(enumerate(cell_idx), desc="Calculating divergence with precomputed Jacobians"):
             if c in cidx:
@@ -363,123 +483,6 @@ def divergence(adata,
         Div[cell_idx] = div
         adata.obs[div_key] = Div
     return div
-
-
-def acceleration(adata,
-         basis='umap',
-         vector_field_class=None,
-         Qkey='PCs',
-         **kwargs
-         ):
-    """Calculate acceleration for each cell with the reconstructed vector field function.
-
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        basis: `str` or None (default: `umap`)
-            The embedding data in which the vector field was reconstructed.
-        vector_field_class: :class:`~scVectorField.vectorfield`
-            If not None, the divergene will be computed using this class instead of the vector field stored in adata.
-
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `'acceleration'` key in the `.obs` as well as .obsm. If basis is `pca`,
-            acceleration matrix will be inverse transformed back to original high dimension space.
-    """
-
-    if vector_field_class is None:
-        vector_field_class = vectorfield()
-        vector_field_class.from_adata(adata, basis=basis)
-
-    acce = vector_field_class.compute_acceleration(**kwargs)
-    acce_norm = np.linalg.norm(acce, axis=1)
-
-    acce_key = "acceleration" if basis is None else "acceleration_" + basis
-    adata.obsm[acce_key] = acce
-    adata.obs[acce_key] = acce_norm
-    if basis == 'pca':
-        acce_hi = vector_transformation(acce, adata.uns[Qkey])
-        create_layer(adata, acce_hi, layer_key='acceleration', genes=adata.var.use_for_dynamics)
-
-
-def curvature(adata,
-         basis='umap',
-         vector_field_class=None,
-         formula=2,
-         **kwargs
-         ):
-    """Calculate curvature for each cell with the reconstructed vector field function.
-
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        basis: str or None (default: `umap`)
-            The embedding data in which the vector field was reconstructed.
-        vector_field_class: :class:`~scVectorField.vectorfield`
-            If not None, the divergene will be computed using this class instead of the vector field stored in adata.
-        formula: int (default: 2)
-            Which formula of curvature will be used, there are two formulas, so formula can be either `{1, 2}`. By
-            default it is 2 and returns both the curvature vectors and the norm of the curvature. The formula one only
-            gives the norm of the curvature.
-
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `curvature` key in the `.obs`.
-    """
-
-    if vector_field_class is None:
-        vector_field_class = vectorfield()
-        vector_field_class.from_adata(adata, basis=basis)
-
-    if formula not in [1, 2]:
-        raise ValueError(f"There are only two available formulas (formula can be either `{1, 2}`) to calculate "
-                         f"curvature, but your formula argument is {formula}.")
-
-    curv, curv_mat = vector_field_class.compute_curvature(formula=formula, **kwargs)
-
-    curv_key = "curvature" if basis is None else "curvature_" + basis
-
-    adata.obs[curv_key] = curv
-    adata.uns[curv_key] = curv_mat
-
-
-def torsion(adata,
-            basis='umap',
-            vector_field_class=None,
-            **kwargs
-           ):
-    """Calculate torsion for each cell with the reconstructed vector field function.
-
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        basis: str or None (default: `umap`)
-            The embedding data in which the vector field was reconstructed.
-        vector_field_class: dict
-            The true ODE function, useful when the data is generated through simulation.
-
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            AnnData object that is updated with the `torsion` key in the .obs.
-    """
-
-    if vector_field_class is None:
-        vector_field_class = vectorfield()
-        vector_field_class.from_adata(adata, basis=basis)
-
-    torsion_mat = vector_field_class.compute_torsion(**kwargs)
-    torsion = np.array([np.linalg.norm(i) for i in torsion_mat])
-
-    torsion_key = "torsion" if basis is None else "torsion_" + basis
-
-    adata.obs[torsion_key] = torsion
-    adata.uns[torsion_key] = torsion_mat
 
 
 def rank_genes(adata,
