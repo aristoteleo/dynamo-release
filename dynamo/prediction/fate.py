@@ -150,10 +150,12 @@ def fate(adata,
         Qkey = 'PCs'
         if type(prediction) == list:
             high_prediction = [vector_transformation(cur_pred.T, adata.uns[Qkey]) for cur_pred in prediction]
+            high_p_n = high_prediction[0].shape[1]
         else:
             high_prediction = vector_transformation(prediction.T, adata.uns[Qkey])
+            high_p_n = high_prediction.shape[1]
 
-        if adata.var.use_for_dynamics.sum() == high_prediction.shape[1]:
+        if adata.var.use_for_dynamics.sum() == high_p_n:
             valid_genes = adata.var_names[adata.var.use_for_dynamics]
         else:
             valid_genes = adata.var_names[adata.var.use_for_transition]
