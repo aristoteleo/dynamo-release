@@ -13,7 +13,7 @@ from .utils import (
     integrate_vf_ivp,
 )
 from ..vectorfield import vector_field_function
-
+from ..vectorfield.utils import vector_transformation
 
 def fate(adata,
          init_cells,
@@ -29,6 +29,7 @@ def fate(adata,
          sampling='arc_length',
          VecFld_true=None,
          inverse_transform=False,
+         Qkey='PCs',
          scale=1,
          cores=1,
          **kwargs
@@ -85,6 +86,8 @@ def fate(adata,
             this has been set.
         inverse_transform: `bool` (default: `False`)
             Whether to inverse transform the low dimensional vector field prediction back to high dimensional space.
+        Qkey: str (default: 'PCs')
+            The key of the PCA loading matrix in `.uns`.
         scale: `float` (default: `1`)
             The value that will be used to scale the predicted velocity value from the reconstructed vector field function.
         cores: `int` (default: 1):
@@ -129,7 +132,7 @@ def fate(adata,
     elif dims is not None:
         init_states = init_states[:, dims]
 
-    vf = lambda x: scale*vector_field_function(x=x, vf_dict=VecFld, dim=dims) if VecFld_true is None else VecFld_true
+    vf = (lambda x: scale*vector_field_function(x=x, vf_dict=VecFld, dim=dims)) if VecFld_true is None else VecFld_true
     t, prediction = _fate(
         vf,
         init_states,
@@ -144,7 +147,12 @@ def fate(adata,
 
     high_prediction = None
     if basis == "pca" and inverse_transform:
-        high_prediction = adata.uns["pca_fit"].inverse_transform(prediction)
+        Qkey = 'PCs'
+        if type(prediction) == list:
+            high_prediction = [vector_transformation(cur_pred.T, adata.uns[Qkey]) for cur_pred in prediction]
+        else:
+            high_prediction = vector_transformation(prediction, adata.uns[Qkey])
+        # high_prediction = adata.uns["pca_fit"].inverse_transform(prediction.T)
         if adata.var.use_for_dynamics.sum() == high_prediction.shape[1]:
             valid_genes = adata.var_names[adata.var.use_for_dynamics]
         else:

@@ -291,6 +291,7 @@ def curvature(adata,
          basis='pca',
          vector_field_class=None,
          formula=2,
+         Qkey='PCs',
          **kwargs
          ):
     """Calculate curvature for each cell with the reconstructed vector field function.
@@ -307,6 +308,8 @@ def curvature(adata,
             Which formula of curvature will be used, there are two formulas, so formula can be either `{1, 2}`. By
             default it is 2 and returns both the curvature vectors and the norm of the curvature. The formula one only
             gives the norm of the curvature.
+        Qkey: str (default: 'PCs')
+            The key of the PCA loading matrix in `.uns`.
 
     Returns
     -------
@@ -328,7 +331,6 @@ def curvature(adata,
 
     adata.obs[curv_key] = curv
     adata.obsm[curv_key] = curv_mat
-    Qkey = 'PCs'
     if basis == 'pca':
         acce_hi = vector_transformation(curv_mat, adata.uns[Qkey])
         create_layer(adata, acce_hi, layer_key='curvature', genes=adata.var.use_for_dynamics)
@@ -657,7 +659,7 @@ def rank_divergence_genes(adata,
     Div = create_layer(adata, div, genes=Genes, cells=cell_idx, dtype=np.float32)
 
     if genes is not None:
-        Genes = Genes.intersection(genes)
+        Genes = list(set(Genes).intersection(genes))
     rdict = rank_genes(adata, Div, fcn_pool=lambda x: np.nanmean(x, axis=0), genes=Genes, **kwargs)
     adata.uns[prefix_store + '_' + jkey] = rdict
     return rdict

@@ -566,7 +566,7 @@ def intersect_sources_targets(regulators,
     # subset Der with correct index of selected source / target genes
     valid_source_idx = [i for i, e in enumerate(regulators_) if e in regulators]
     valid_target_idx = [i for i, e in enumerate(effectors_) if e in effectors]
-    Der = Der[valid_target_idx,  :, :][:, valid_source_idx, :] if len(regulators_) + len(effectors_) > 2 else Der
+    Der = Der[valid_target_idx, :, :][:, valid_source_idx, :] if len(regulators_) + len(effectors_) > 2 else Der
     regulators, effectors = np.array(regulators_)[valid_source_idx], np.array(effectors_)[valid_target_idx]
 
     return Der, regulators, effectors
