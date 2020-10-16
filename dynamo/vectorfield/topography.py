@@ -709,6 +709,12 @@ def VectorField(
             if X.shape[1] == 2: curl(adata, basis=basis)
             divergence(adata, basis=basis)
 
+    control_point, inlier_prob, valid_ids = "control_point_" + basis, 'inlier_prob_' + basis, \
+                                            vf_dict['VecFld']['valid_ind']
+    adata.obs[control_point], adata.obs[inlier_prob] = False, np.nan
+    adata.obs[control_point][vf_dict['VecFld']['ctrl_idx']] = True
+    adata.obs[inlier_prob][valid_ids] = vf_dict['VecFld']['P'].flatten()
+
     if return_vf_object:
         return VecFld
     else:
