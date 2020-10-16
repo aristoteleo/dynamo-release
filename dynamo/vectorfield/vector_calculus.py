@@ -241,6 +241,9 @@ def jacobian(adata,
     if regulators is not None: ret_dict['regulators'] = regulators.to_list()
     if effectors is not None: ret_dict['effectors'] = effectors.to_list()
 
+    Js_det = [np.linalg.det(Js[:, :, i]) for i in np.arange(Js.shape[2])]
+    adata.obs['jacobian_det'] = np.nan
+    adata.obs['jacobian_det'][cell_idx] = Js_det
     if store_in_adata:
         jkey = "jacobian" if basis is None else "jacobian_" + basis
         adata.uns[jkey] = ret_dict
