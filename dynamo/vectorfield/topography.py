@@ -16,7 +16,7 @@ from ..tools.utils import (
     inverse_norm,
 )
 
-from .utils import vector_field_function, vecfld_from_adata
+from .utils import vector_field_function, vecfld_from_adata, angle
 
 from ..external.hodge import ddhodge
 from .vector_calculus import curl, divergence
@@ -714,6 +714,12 @@ def VectorField(
     adata.obs[control_point], adata.obs[inlier_prob] = False, np.nan
     adata.obs[control_point][vf_dict['VecFld']['ctrl_idx']] = True
     adata.obs[inlier_prob][valid_ids] = vf_dict['VecFld']['P'].flatten()
+
+    # angles between observed velocity and that predicted by vector field across cells:
+    cell_angels, adata.obs["obs_vf_angle_" + basis] = np.zeros(adata.n_obs), np.nan
+    for i, u, v in zip(valid_ids, V[valid_ids], vf_dict['VecFld']['V']):
+        cell_angels[i] = angle(u, v)
+    adata.obs["obs_vf_angle_" + basis] = cell_angels
 
     if return_vf_object:
         return VecFld
