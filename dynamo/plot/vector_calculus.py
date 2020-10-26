@@ -244,6 +244,7 @@ def jacobian(adata,
              regulators=None,
              effectors=None,
              basis="umap",
+             J_basis="pca",
              x=0,
              y=1,
              highlights=None,
@@ -271,8 +272,10 @@ def jacobian(adata,
         effectors: `List` or `None` (default: `None`)
             The list of genes that will be used as targets for plotting the Jacobian heatmap, only limited to genes
             that have already performed Jacobian analysis.
-        basis: `str`
+        basis: `str` (default: `umap`)
             The reduced dimension basis.
+        J_basis: `str` (default: `pca`)
+            The reduced dimension space that will be used to calculate the jacobian matrix.
         x: `int` (default: `0`)
             The column index of the low dimensional embedding for the x-axis.
         y: `int` (default: `1`)
@@ -347,15 +350,21 @@ def jacobian(adata,
     else:
         _background = background
 
-    Jacobian_ = "jacobian" if basis is None else "jacobian_" + basis
-    Der, cell_indx, _, regulators_, effectors_ = adata.uns[Jacobian_].values()
+    Jacobian_ = "jacobian" if J_basis is None else "jacobian_" + J_basis
+    Der, cell_indx, jacobian_gene, regulators_, effectors_ = adata.uns[Jacobian_].values()
     adata_ = adata[cell_indx, :]
+
+    if (regulators_ is None or effectors_ is None) and Der.shape[0] != adata.n_vars:
+        raise Exception(f'You need to calculate jacobian matrix of genes to plot the jacobian.'
+                        f'Try run something like dyn.vf.jacobian(adata, '
+                        f'regulators=adata.var.index[adata.var.use_for_transition],'
+                        f'effectors=adata.var.index[adata.var.use_for_transition]) first.')
 
     Der, source_genes, target_genes = intersect_sources_targets(regulators,
                               regulators_,
                               effectors,
                               effectors_,
-                              Der)
+                              Der if jacobian_gene is None else jacobian_gene)
 
     cur_pd = pd.DataFrame(
         {

@@ -237,9 +237,9 @@ def jacobian(adata,
         Jacobian = None
 
     ret_dict = {"jacobian": Js, "cell_idx": cell_idx}
-    if Jacobian is not None: ret_dict['jacobian_gene'] = Jacobian
-    if regulators is not None: ret_dict['regulators'] = regulators.to_list()
-    if effectors is not None: ret_dict['effectors'] = effectors.to_list()
+    ret_dict['jacobian_gene'] = None if Jacobian is None else Jacobian
+    ret_dict['regulators'] = None if regulators is None else regulators.to_list()
+    ret_dict['effectors'] = None if effectors is None else effectors.to_list()
 
     Js_det = [np.linalg.det(Js[:, :, i]) for i in np.arange(Js.shape[2])]
     adata.obs['jacobian_det_' + basis] = np.nan
