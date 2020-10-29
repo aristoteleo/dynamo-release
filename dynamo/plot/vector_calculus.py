@@ -1,6 +1,7 @@
 """plotting utilities that are used to visualize the curl, divergence."""
 
 import numpy as np, pandas as pd
+import anndata
 
 from .scatters import scatters
 from .scatters import docstrings
@@ -10,9 +11,15 @@ from .utils import (
     arrowed_spines,
     deaxis_all,
     despline_all,
+    is_gene_name,
+    is_cell_anno_column,
+    is_layer_keys,
 )
 
-from ..tools.utils import update_dict
+from ..tools.utils import (
+    update_dict,
+    flatten,
+)
 
 
 docstrings.delete_params("scatters.parameters", "adata", "color", "cmap", "frontier", "sym_c")
@@ -247,6 +254,7 @@ def jacobian(adata,
              J_basis="pca",
              x=0,
              y=1,
+             layer='M_s',
              highlights=None,
              cmap='bwr',
              background=None,
@@ -354,24 +362,81 @@ def jacobian(adata,
     Der, cell_indx, jacobian_gene, regulators_, effectors_ = adata.uns[Jacobian_].values()
     adata_ = adata[cell_indx, :]
 
-    if (regulators_ is None or effectors_ is None) and Der.shape[0] != adata.n_vars:
-        raise Exception(f'You need to calculate jacobian matrix of genes to plot the jacobian.'
-                        f'Try run something like dyn.vf.jacobian(adata, '
-                        f'regulators=adata.var.index[adata.var.use_for_transition],'
-                        f'effectors=adata.var.index[adata.var.use_for_transition]) first.')
+    # test the simulation data here
+    if (regulators_ is None or effectors_ is None) and Der.shape[0] != adata_.n_vars:
+        source_genes = [J_basis + '_' + str(i) for i in range(Der.shape[0])]
+        target_genes = [J_basis + '_' + str(i) for i in range(Der.shape[1])]
 
-    Der, source_genes, target_genes = intersect_sources_targets(regulators,
-                              regulators_,
-                              effectors,
-                              effectors_,
-                              Der if jacobian_gene is None else jacobian_gene)
+    else:
+        Der, source_genes, target_genes = intersect_sources_targets(regulators,
+                                  regulators_,
+                                  effectors,
+                                  effectors_,
+                                  Der if jacobian_gene is None else jacobian_gene)
 
-    cur_pd = pd.DataFrame(
-        {
-            basis + "_0": adata_.obsm["X_" + basis][:, x],
-            basis + "_1": adata_.obsm["X_" + basis][:, y],
-        }
-    )
+
+    ## integrate this with the code in scatter ##
+
+    if type(x) is int and type(y) is int:
+        prefix = 'X_'
+        cur_pd = pd.DataFrame(
+            {
+                basis + "_" + str(x): adata_.obsm[prefix + basis][:, x],
+                basis + "_" + str(y): adata_.obsm[prefix + basis][:, y],
+            }
+        )
+    elif is_gene_name(adata_, x) and is_gene_name(adata_, y):
+        cur_pd = pd.DataFrame(
+            {
+                x: adata_.obs_vector(k=x, layer=None) if layer == 'X' else adata_.obs_vector(k=x, layer=layer),
+                y: adata_.obs_vector(k=y, layer=None) if layer == 'X' else adata_.obs_vector(k=y, layer=layer),
+            }
+        )
+        # cur_pd = cur_pd.loc[(cur_pd > 0).sum(1) > 1, :]
+        cur_pd.columns = [
+            x + " (" + layer + ")",
+            y + " (" + layer + ")",
+        ]
+    elif is_cell_anno_column(adata_, x) and is_cell_anno_column(adata_, y):
+        cur_pd = pd.DataFrame(
+            {
+                x: adata_.obs_vector(x),
+                y: adata_.obs_vector(y),
+            }
+        )
+        cur_pd.columns = [x, y]
+    elif is_cell_anno_column(adata_, x) and is_gene_name(adata_, y):
+        cur_pd = pd.DataFrame(
+            {
+                x: adata_.obs_vector(x),
+                y: adata_.obs_vector(k=y, layer=None) if layer == 'X' else adata_.obs_vector(k=y, layer=layer),
+            }
+        )
+        cur_pd.columns = [x, y + " (" + layer + ")"]
+    elif is_gene_name(adata_, x) and is_cell_anno_column(adata_, y):
+        cur_pd = pd.DataFrame(
+            {
+                x: adata_.obs_vector(k=x, layer=None) if layer == 'X' else adata_.obs_vector(k=x, layer=layer),
+                y: adata_.obs_vector(y)
+            }
+        )
+        # cur_pd = cur_pd.loc[cur_pd.iloc[:, 0] > 0, :]
+        cur_pd.columns = [x + " (" + layer + ")", y]
+    elif is_layer_keys(adata_, x) and is_layer_keys(adata_, y):
+        x_, y_ = adata_[:, basis].layers[x], adata_[:, basis].layers[y]
+        cur_pd = pd.DataFrame(
+            {x: flatten(x_),
+             y: flatten(y_)}
+        )
+        # cur_pd = cur_pd.loc[cur_pd.iloc[:, 0] > 0, :]
+        cur_pd.columns = [x, y]
+    elif type(x) in [anndata._core.views.ArrayView, np.ndarray] and \
+            type(y) in [anndata._core.views.ArrayView, np.ndarray]:
+        cur_pd = pd.DataFrame(
+            {'x': flatten(x),
+             'y': flatten(y)}
+        )
+        cur_pd.columns = ['x', 'y']
 
     point_size = (
         500.0 / np.sqrt(adata_.shape[0])
