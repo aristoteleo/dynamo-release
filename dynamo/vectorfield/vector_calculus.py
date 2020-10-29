@@ -237,10 +237,13 @@ def jacobian(adata,
         Jacobian = None
 
     ret_dict = {"jacobian": Js, "cell_idx": cell_idx}
-    if Jacobian is not None: ret_dict['jacobian_gene'] = Jacobian
-    if regulators is not None: ret_dict['regulators'] = regulators.to_list()
-    if effectors is not None: ret_dict['effectors'] = effectors.to_list()
+    ret_dict['jacobian_gene'] = None if Jacobian is None else Jacobian
+    ret_dict['regulators'] = None if regulators is None else regulators.to_list()
+    ret_dict['effectors'] = None if effectors is None else effectors.to_list()
 
+    Js_det = [np.linalg.det(Js[:, :, i]) for i in np.arange(Js.shape[2])]
+    adata.obs['jacobian_det_' + basis] = np.nan
+    adata.obs['jacobian_det_' + basis][cell_idx] = Js_det
     if store_in_adata:
         jkey = "jacobian" if basis is None else "jacobian_" + basis
         adata.uns[jkey] = ret_dict
@@ -291,6 +294,7 @@ def curvature(adata,
          basis='pca',
          vector_field_class=None,
          formula=2,
+         Qkey='PCs',
          **kwargs
          ):
     """Calculate curvature for each cell with the reconstructed vector field function.
@@ -307,6 +311,8 @@ def curvature(adata,
             Which formula of curvature will be used, there are two formulas, so formula can be either `{1, 2}`. By
             default it is 2 and returns both the curvature vectors and the norm of the curvature. The formula one only
             gives the norm of the curvature.
+        Qkey: str (default: 'PCs')
+            The key of the PCA loading matrix in `.uns`.
 
     Returns
     -------
@@ -328,10 +334,9 @@ def curvature(adata,
 
     adata.obs[curv_key] = curv
     adata.obsm[curv_key] = curv_mat
-    Qkey = 'PCs'
     if basis == 'pca':
-        acce_hi = vector_transformation(curv_mat, adata.uns[Qkey])
-        create_layer(adata, acce_hi, layer_key='curvature', genes=adata.var.use_for_dynamics)
+        curv_hi = vector_transformation(curv_mat, adata.uns[Qkey])
+        create_layer(adata, curv_hi, layer_key='curvature', genes=adata.var.use_for_dynamics)
 
 
 def torsion(adata,
@@ -657,13 +662,16 @@ def rank_divergence_genes(adata,
     Div = create_layer(adata, div, genes=Genes, cells=cell_idx, dtype=np.float32)
 
     if genes is not None:
-        Genes = Genes.intersection(genes)
+        Genes = list(set(Genes).intersection(genes))
     rdict = rank_genes(adata, Div, fcn_pool=lambda x: np.nanmean(x, axis=0), genes=Genes, **kwargs)
     adata.uns[prefix_store + '_' + jkey] = rdict
     return rdict
 
 
-def rank_acceleration_genes(adata, akey='acceleration', prefix_store='rank', **kwargs):
+def rank_acceleration_genes(adata,
+                            akey='acceleration',
+                            prefix_store='rank',
+                            **kwargs):
     """Rank genes based on their absolute, positive, negative accelerations for each cell group.
 
     Parameters
@@ -672,8 +680,6 @@ def rank_acceleration_genes(adata, akey='acceleration', prefix_store='rank', **k
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
         group: str or None (default: None)
             The cell group that speed ranking will be grouped-by.
-        genes: None or list
-            The gene list that speed will be ranked. If provided, they must overlap the dynamics genes.
         akey: str (default: 'acceleration')
             The acceleration key.
 
@@ -691,25 +697,19 @@ def rank_acceleration_genes(adata, akey='acceleration', prefix_store='rank', **k
 
 
 def rank_curvature_genes(adata,
-              group=None,
-              genes=None,
-              vkey='velocity_S',
-              akey='acceleration',
-              ):
+                         ckey='curvature',
+                         prefix_store='rank',
+                         **kwargs):
     """Rank gene's absolute, positive, negative curvature by different cell groups.
 
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `.uns` attribute.
-        group: `str` or None (default: `None`)
+        groups: `str` or None (default: `None`)
             The cell group that speed ranking will be grouped-by.
-        genes: `None` or `list`
-            The gene list that speed will be ranked. If provided, they must overlap the dynamics genes.
-        vkey: `str` (default: `velocity_S`)
-            The velocity key.
-        akey: `str` (default: `acceleration`)
-            The acceleration key.
+        ckey: `str` (default: `curvature`)
+            The curvature key.
 
     Returns
     -------
@@ -717,58 +717,11 @@ def rank_curvature_genes(adata,
             AnnData object that is updated with the `'rank_curvature'` related information in the .uns.
     """
 
-    if vkey not in adata.layers.keys():
-        raise Exception('You need to run `dyn.tl.dynamics` before ranking speed of genes!')
-    if akey not in adata.layers.keys():
-        raise Exception('You need to run `dyn.tl.acceleration` before ranking speed of genes!')
-
-    if group is not None and group not in adata.obs.keys():
-        raise Exception(f'The group information {group} you provided is not in your adata object.')
-
-    genes = adata.var_names[adata.var.use_for_dynamics] if genes is None else \
-        adata.var_names[adata.var.use_for_dynamics].intersection(genes).to_list()
-
-    if len(genes) == 0:
-        raise ValueError(f"The genes list you provided doesn't overlap with any dynamics genes.")
-
-    V, A = adata[:, genes].layers[vkey], adata[:, genes].layers[vkey]
-
-    if sp.issparse(V):
-        V.data = V.data ** 3
-        C = elem_prod(elem_prod(V, A), V)
-    else:
-        C = elem_prod(elem_prod(V, A), V**3)
-
-    rank_key = 'rank_curvature' if group is None else 'rank_curvature_' + group
-
-    if group is None:
-        metric_in_rank, genes_in_rank, pos_metric_in_rank, pos_genes_in_rank, neg_metric_in_rank, neg_genes_in_rank = \
-            rank_vector_calculus_metrics(C, genes, group=None, groups=None, uniq_group=None)
-        adata.uns[rank_key] = {"curvature_in_rank": metric_in_rank, "genes_in_rank": genes_in_rank,
-                               "pos_curvature_in_rank": pos_metric_in_rank, "pos_genes_in_rank": pos_genes_in_rank,
-                               "neg_curvature_in_rank": neg_metric_in_rank, "neg_genes_in_rank": neg_genes_in_rank}
-
-    else:
-        groups, uniq_group = adata.obs[group], adata.obs[group].unique()
-
-        metric_in_gene_rank_by_group, genes_in_gene_rank_by_group, pos_metric_in_gene_rank_by_group, \
-        pos_genes_in_gene_rank_by_group, neg_metric_in_gene_rank_by_group, neg_genes_in_gene_rank_by_group, \
-        metric_in_group_rank_by_gene, genes_in_group_rank_by_gene, pos_metric_gene_rank_by_group, \
-        pos_genes_group_rank_by_gene, neg_metric_in_group_rank_by_gene, neg_genes_in_group_rank_by_gene = \
-            rank_vector_calculus_metrics(C, genes, group, groups, uniq_group)
-
-        adata.uns[rank_key] = {"curvature_in_gene_rank_by_group": metric_in_gene_rank_by_group,
-                               "genes_in_gene_rank_by_group": genes_in_gene_rank_by_group,
-                               "pos_curvature_in_gene_rank_by_group": pos_metric_in_gene_rank_by_group,
-                               "pos_genes_in_gene_rank_by_group": pos_genes_in_gene_rank_by_group,
-                               "neg_curvature_in_gene_rank_by_group": neg_metric_in_gene_rank_by_group,
-                               "neg_genes_in_gene_rank_by_group": neg_genes_in_gene_rank_by_group,
-                               "curvature_in_group_rank_by_gene": metric_in_group_rank_by_gene,
-                               "genes_in_group_rank_by_gene": genes_in_group_rank_by_gene,
-                               "pos_curvature_gene_rank_by_group": pos_metric_gene_rank_by_group,
-                               "pos_genes_group_rank_by_gene": pos_genes_group_rank_by_gene,
-                               "neg_curvature_in_group_rank_by_gene": neg_metric_in_group_rank_by_gene,
-                               "neg_genes_in_group_rank_by_gene": neg_genes_in_group_rank_by_gene}
+    rdict = rank_genes(adata, ckey, **kwargs)
+    rdict_abs = rank_genes(adata, ckey, abs=True, **kwargs)
+    adata.uns[prefix_store + '_' + ckey] = rdict
+    adata.uns[prefix_store + '_abs_' + ckey] = rdict_abs
+    return adata
 
 
 def rank_jacobian_genes(adata,

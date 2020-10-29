@@ -23,13 +23,22 @@ def convert2float(adata, columns, var=False):
         raise ValueError(f"the columns {columns} you provided doesn't match with any columns from the adata object.")
 
     for i in columns:
-        data = adata.var[i] if var else adata.obs[i]
-        data[data == 'None'] = None
-        data = data.astype(float)
-        if var:
-            adata.var[i] = data.copy()
+        if i.startswith('use_for') or i == 'pass_basic_filter':
+            data = adata.var[i] if var else adata.obs[i]
+            data[data == 'None'] = None
+            data = data.astype(bool)
+            if var:
+                adata.var[i] = data.copy()
+            else:
+                adata.obs[i] = data.copy()
         else:
-            adata.obs[i] = data.copy()
+            data = adata.var[i] if var else adata.obs[i]
+            data[data == 'None'] = None
+            data = data.astype(float)
+            if var:
+                adata.var[i] = data.copy()
+            else:
+                adata.obs[i] = data.copy()
 
 
 def load_NASC_seq(dir, type='TPM', delimiter="_", colnames=None, dropna=False):

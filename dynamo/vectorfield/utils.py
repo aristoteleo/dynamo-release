@@ -7,6 +7,7 @@ import numdifftools as nd
 from multiprocessing.dummy import Pool as ThreadPool
 import multiprocessing as mp
 import itertools, functools
+from numba import njit
 from ..tools.utils import timeit
 
 
@@ -707,3 +708,26 @@ def rank_vector_calculus_metrics(mat, genes, group, groups, uniq_group):
                 metric_in_group_rank_by_gene, genes_in_group_rank_by_gene, pos_metric_gene_rank_by_group,
                 pos_genes_group_rank_by_gene, neg_metric_in_group_rank_by_gene, neg_genes_in_group_rank_by_gene,)
 
+
+# https://stackoverflow.com/questions/2827393/angles-between-two-n-dimensional-vectors-in-python#answer-13849249
+# answer from crizCraig
+@njit(cache=True, nogil=True)
+def angle(vector1, vector2):
+    """ Returns the angle in radians between given vectors"""
+    v1_u = unit_vector(vector1)
+    v2_u = unit_vector(vector2)
+    minor = np.linalg.det(
+        np.stack((v1_u[-2:], v2_u[-2:]))
+    )
+    if minor == 0:
+        sign = 1
+    else:
+        sign = -np.sign(minor)
+    dot_p = np.dot(v1_u, v2_u)
+    dot_p = min(max(dot_p, -1.0), 1.0)
+    return sign * np.arccos(dot_p)
+
+@njit(cache=True, nogil=True)
+def unit_vector(vector):
+    """ Returns the unit vector of the vector.  """
+    return vector / np.linalg.norm(vector)
