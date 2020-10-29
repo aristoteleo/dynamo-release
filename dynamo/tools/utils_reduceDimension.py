@@ -151,7 +151,7 @@ def run_reduce_dim(adata, X_data, n_components, n_pca_components, reduction_meth
         }
     elif reduction_method == "umap":
         _umap_kwargs = {
-            "n_components": 2,
+            "n_components": n_components,
             "metric": "euclidean",
             "min_dist": 0.5,
             "spread": 1.0,

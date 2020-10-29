@@ -746,9 +746,9 @@ def rank_jacobian_genes(adata,
             The key of the stored Jacobians in `.uns`.
         abs: bool (default: False)
             Whether or not to take the absolute value of the Jacobian.
-        mode: {'full_reg', 'full_eff', 'reg', 'eff', 'int'} (default: 'full_reg')
+        mode: {'full reg', 'full eff', 'reg', 'eff', 'int'} (default: 'full_reg')
             The mode of ranking:
-            (1) `'full_reg'`: top regulators are ranked for each effector for each cell group;
+            (1) `'full reg'`: top regulators are ranked for each effector for each cell group;
             (2) `'full eff'`: top effectors are ranked for each regulator for each cell group;
             (3) '`reg`': top regulators in each cell group;
             (4) '`eff`': top effectors in each cell group;
