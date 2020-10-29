@@ -363,10 +363,12 @@ def jacobian(adata,
     adata_ = adata[cell_indx, :]
 
     # test the simulation data here
-    if (regulators_ is None or effectors_ is None) and Der.shape[0] != adata_.n_vars:
-        source_genes = [J_basis + '_' + str(i) for i in range(Der.shape[0])]
-        target_genes = [J_basis + '_' + str(i) for i in range(Der.shape[1])]
-
+    if (regulators_ is None or effectors_ is None):
+        if Der.shape[0] != adata_.n_vars:
+            source_genes = [J_basis + '_' + str(i) for i in range(Der.shape[0])]
+            target_genes = [J_basis + '_' + str(i) for i in range(Der.shape[1])]
+        else:
+            source_genes, target_genes = adata_.var_names, adata_.var_names
     else:
         Der, source_genes, target_genes = intersect_sources_targets(regulators,
                                   regulators_,
