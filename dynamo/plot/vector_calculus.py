@@ -318,7 +318,7 @@ def jacobian(adata,
             of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
             cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
             https://science.sciencemag.org/content/367/6482/1151.
-        sym_c: `bool` (default: `False`)
+        sym_c: `bool` (default: `True`)
             Whether do you want to make the limits of continuous color to be symmetric, normally this should be used for
             plotting velocity, jacobian, curl, divergence or other types of data with both positive or negative values.
         sort: `str` (optional, default `abs`)
