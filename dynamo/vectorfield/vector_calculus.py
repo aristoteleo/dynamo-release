@@ -215,9 +215,23 @@ def jacobian(adata,
 
     Jac_func = vector_field_class.get_Jacobian(method=method)
     Js = Jac_func(X[cell_idx])
+
+    if regulators is None and effectors is not None:
+        regulators = effectors
+    elif effectors is None and regulators is not None:
+        effectors = regulators
+
     if regulators is not None and effectors is not None:
-        if type(regulators) is str: regulators = [regulators]
-        if type(effectors) is str: effectors = [effectors]
+        if type(regulators) is str: 
+            if regulators in adata.var.keys():
+                regulators = adata.var.index[adata.var[regulators]]
+            else:
+                regulators = [regulators]
+        if type(effectors) is str: 
+            if effectors in adata.var.keys():
+                effectors = adata.var.index[adata.var[effectors]]
+            else:
+                effectors = [effectors]
         var_df = adata[:, adata.var.use_for_dynamics].var
         regulators = var_df.index.intersection(regulators)
         effectors = var_df.index.intersection(effectors)
@@ -225,7 +239,7 @@ def jacobian(adata,
         reg_idx, eff_idx = get_pd_row_column_idx(var_df, regulators, "row"), \
                                 get_pd_row_column_idx(var_df, effectors, "row")
         if len(regulators) == 0 or len(effectors) == 0:
-            raise ValueError(f"Either the regulator or the effector gene list provided is not in the transition gene list!")
+            raise ValueError(f"Either the regulator or the effector gene list provided is not in the dynamic gene list!")
 
         Q = adata.uns[Qkey][:, :X.shape[1]]
         if len(regulators) == 1 and len(effectors) == 1:
@@ -237,9 +251,10 @@ def jacobian(adata,
         Jacobian = None
 
     ret_dict = {"jacobian": Js, "cell_idx": cell_idx}
-    ret_dict['jacobian_gene'] = None if Jacobian is None else Jacobian
-    ret_dict['regulators'] = None if regulators is None else regulators.to_list()
-    ret_dict['effectors'] = None if effectors is None else effectors.to_list()
+    # use 'str_key' in dict.keys() to check if these items are computed, or use dict.get('str_key')
+    if Jacobian is not None: ret_dict['jacobian_gene'] = Jacobian
+    if regulators is not None: ret_dict['regulators'] = regulators.to_list()
+    if effectors is not None: ret_dict['effectors'] = effectors.to_list()
 
     Js_det = [np.linalg.det(Js[:, :, i]) for i in np.arange(Js.shape[2])]
     adata.obs['jacobian_det_' + basis] = np.nan
@@ -545,13 +560,11 @@ def rank_genes(adata,
 
     if not np.any(genes):
         raise ValueError(f"The list of genes provided does not contain any dynamics genes.")
-    
+
     if type(arr_key) is str:
         if arr_key in adata.layers.keys():
-            #arr = adata[:, genes].layers[arr_key]
             arr = index_gene(adata, adata.layers[arr_key], genes)
         elif arr_key in adata.var.keys():
-            #arr = np.array(adata[:, genes].var[arr_key])
             arr = index_gene(adata, adata.var[arr_key], genes)
         else:
             raise Exception(f'Key {arr_key} not found in neither .layers nor .var.')
@@ -584,7 +597,7 @@ def rank_genes(adata,
     for g, arr in arr_dict.items():
         if ismatrix(arr):
             arr = arr.A.flatten()
-        glst, sarr = list_top_genes(arr, var_names, None, return_sorted_array=True)
+        glst, sarr = list_top_genes(arr[genes], var_names, None, return_sorted_array=True)
         #ret_dict[g] = {glst[i]: sarr[i] for i in range(len(glst))}
         ret_dict[g] = glst
         if output_values:
@@ -663,6 +676,7 @@ def rank_divergence_genes(adata,
 
     if genes is not None:
         Genes = list(set(Genes).intersection(genes))
+
     rdict = rank_genes(adata, Div, fcn_pool=lambda x: np.nanmean(x, axis=0), genes=Genes, **kwargs)
     adata.uns[prefix_store + '_' + jkey] = rdict
     return rdict
@@ -779,10 +793,10 @@ def rank_jacobian_genes(adata,
     eff = np.array([x for x in J_dict['effectors']])
     reg = np.array([x for x in J_dict['regulators']])
     rank_dict= {}
-    if mode == 'full reg':
+    if mode in ['full reg', 'full_reg']:
         for k, J in J_mean.items():
             rank_dict[k] = table_top_genes(J, eff, reg, n_top_genes=None, **kwargs)
-    elif mode == 'full eff':
+    elif mode in ['full eff', 'full_eff']:
         for k, J in J_mean.items():
             rank_dict[k] = table_top_genes(J.T, reg, eff, n_top_genes=None, **kwargs)
     elif mode == 'reg':
