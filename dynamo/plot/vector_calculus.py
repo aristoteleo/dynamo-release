@@ -321,6 +321,9 @@ def jacobian(adata,
         sym_c: `bool` (default: `False`)
             Whether do you want to make the limits of continuous color to be symmetric, normally this should be used for
             plotting velocity, jacobian, curl, divergence or other types of data with both positive or negative values.
+        sort: `str` (optional, default `abs`)
+            The method to reorder data so that high values points will be on top of background points. Can be one of
+            {'raw', 'abs', 'neg'}, i.e. sorted by raw data, sort by absolute values or sort by negative values.
         show_arrowed_spines: bool (optional, default False)
             Whether to show a pair of arrowed spines representing the basis of the scatter is currently using.
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
@@ -330,7 +333,7 @@ def jacobian(adata,
             will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
-        stacked_fraction: bool (default: True)
+        stacked_fraction: bool (default: False)
             If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction style is used.
         kwargs:
             Additional arguments passed to plt.scatters.
