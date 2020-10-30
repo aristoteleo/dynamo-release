@@ -20,6 +20,7 @@ from .cell_cycle import cell_cycle_scores
 from .utils import (
     cook_dist,
     pca,
+    filter_pca_genes,
     relative2abs,
     scale,
     convert2symbol,
