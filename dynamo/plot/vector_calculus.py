@@ -267,7 +267,7 @@ def jacobian(adata,
              show_arrowed_spines=False,
              save_show_or_return="show",
              save_kwargs={},
-             stacked_fraction=True,
+             stacked_fraction=False,
              **kwargs):
     """\
     Scatter plot with pca basis.
