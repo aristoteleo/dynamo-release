@@ -520,7 +520,11 @@ def jacobian_kinetics(
     import matplotlib.pyplot as plt
 
     Jacobian_ = "jacobian" if basis is None else "jacobian_" + basis
-    Der, cell_indx, _, regulators_, effectors_ = adata.uns[Jacobian_].values()
+    Der, cell_indx, jacobian_gene, regulators_, effectors_ = adata.uns[Jacobian_].get('jacobian'), \
+                                                              adata.uns[Jacobian_].get('cell_idx'), \
+                                                              adata.uns[Jacobian_].get('jacobian_gene'), \
+                                                              adata.uns[Jacobian_].get('regulators'), \
+                                                              adata.uns[Jacobian_].get('effectors')
     if tkey == "potential" and "potential" not in adata.obs_keys():
         ddhodge(adata)
 

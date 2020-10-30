@@ -363,7 +363,12 @@ def jacobian(adata,
         _background = background
 
     Jacobian_ = "jacobian" if J_basis is None else "jacobian_" + J_basis
-    Der, cell_indx, jacobian_gene, regulators_, effectors_ = adata.uns[Jacobian_].values()
+    Der, cell_indx, jacobian_gene, regulators_, effectors_ = adata.uns[Jacobian_].get('jacobian'), \
+                                                              adata.uns[Jacobian_].get('cell_idx'), \
+                                                              adata.uns[Jacobian_].get('jacobian_gene'), \
+                                                              adata.uns[Jacobian_].get('regulators'), \
+                                                              adata.uns[Jacobian_].get('effectors')
+
     adata_ = adata[cell_indx, :]
 
     # test the simulation data here
@@ -583,7 +588,12 @@ def jacobian_heatmap(adata,
 
     Jacobian_ = "jacobian" if basis is None else "jacobian_" + basis
     if type(cell_idx) == int: cell_idx = [cell_idx]
-    Der, cell_indx, _, regulators_, effectors_ = adata.uns[Jacobian_].values()
+    Der, cell_indx, jacobian_gene, regulators_, effectors_ = adata.uns[Jacobian_].get('jacobian'), \
+                                                              adata.uns[Jacobian_].get('cell_idx'), \
+                                                              adata.uns[Jacobian_].get('jacobian_gene'), \
+                                                              adata.uns[Jacobian_].get('regulators'), \
+                                                              adata.uns[Jacobian_].get('effectors')
+
     Der, regulators, effectors = intersect_sources_targets(regulators,
                                                            regulators_,
                                                            effectors,
