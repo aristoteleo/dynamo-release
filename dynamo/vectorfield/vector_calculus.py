@@ -784,7 +784,7 @@ def rank_jacobian_genes(adata,
             rank_dict[k] = table_top_genes(J, eff, reg, n_top_genes=None, **kwargs)
     elif mode == 'full eff':
         for k, J in J_mean.items():
-            rank_dict[k] = table_top_genes(J, reg, eff, n_top_genes=None, **kwargs)
+            rank_dict[k] = table_top_genes(J.T, reg, eff, n_top_genes=None, **kwargs)
     elif mode == 'reg':
         ov = kwargs.pop('output_values', False)
         for k, J in J_mean.items():
