@@ -239,7 +239,7 @@ def jacobian(adata,
         reg_idx, eff_idx = get_pd_row_column_idx(var_df, regulators, "row"), \
                                 get_pd_row_column_idx(var_df, effectors, "row")
         if len(regulators) == 0 or len(effectors) == 0:
-            raise ValueError(f"Either the regulator or the effector gene list provided is not in the dynamic gene list!")
+            raise ValueError(f"Either the regulator or the effector gene list provided is not in the transition gene list!")
 
         Q = adata.uns[Qkey][:, :X.shape[1]]
         if len(regulators) == 1 and len(effectors) == 1:
