@@ -258,6 +258,7 @@ def jacobian(adata,
              show_arrowed_spines=False,
              save_show_or_return="show",
              save_kwargs={},
+             stacked_fraction=True,
              **kwargs):
     """\
     Scatter plot with pca basis.
@@ -320,6 +321,8 @@ def jacobian(adata,
             will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent": True, "close":
             True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
             according to your needs.
+        stacked_fraction: bool (default: True)
+            If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction style is used.
         kwargs:
             Additional arguments passed to plt.scatters.
 
@@ -360,6 +363,11 @@ def jacobian(adata,
                         f'regulators=adata.var.index[adata.var.use_for_transition],'
                         f'effectors=adata.var.index[adata.var.use_for_transition]) first.')
 
+    if regulators is None and effectors is not None:
+        regulators = effectors
+    elif effectors is None and regulators is not None:
+        effectors = regulators
+        
     Der, source_genes, target_genes = intersect_sources_targets(regulators,
                               regulators_,
                               effectors,
@@ -397,7 +405,7 @@ def jacobian(adata,
     for i, source in enumerate(source_genes):
         for j, target in enumerate(target_genes):
             ax = plt.subplot(gs[i * ncol + j])
-            J = Der if nrow == 1 and ncol == 1 else Der[j, i, :] # dim 0: target; dim 1: source
+            J = Der[j, i, :] # dim 0: target; dim 1: source
             cur_pd["jacobian"] = J
 
             # cur_pd.loc[:, "jacobian"] = np.array([scinot(i) for i in cur_pd.loc[:, "jacobian"].values])
@@ -420,7 +428,10 @@ def jacobian(adata,
                 sym_c=sym_c,
                 **scatter_kwargs
             )
-            ax.set_title(r'$\frac{{\partial f_{{{}}} }}{{\partial {}}}$'.format(target, source))
+            if stacked_fraction:
+                ax.set_title(r'$\frac{\partial f_{%s}}{\partial x_{%s}}$'%(target, source))
+            else:
+                ax.set_title(r'$\partial f_{%s} / \partial x_{%s}$'%(target, source))
             if i + j == 0 and show_arrowed_spines:
                 arrowed_spines(ax, basis, background)
             else:

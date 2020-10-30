@@ -514,6 +514,12 @@ def pca_genes(PCs, n_top_genes=100):
     return ret
 
 
+def filter_pca_genes(adata, pc_key='PCs', n_top_genes=100):
+    genes = pca_genes(adata.uns[pc_key])
+    adata.var['pca_genes'] = genes
+    return adata
+
+
 def add_noise_to_duplicates(adata, basis='pca'):
     X_data = adata.obsm['X_' + basis]
     min_val = abs(X_data).min()
