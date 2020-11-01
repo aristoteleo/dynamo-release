@@ -17,12 +17,13 @@ def get_group_interaction(rank_df,
 
         for cur_gene in valid_genes:
             targets = list(set(top_n_genes_df[cur_gene].values).intersection(valid_genes))
-            targets_inds = [list(top_n_genes_df[cur_gene].values).index(i) for i in targets]
-
-            targets_values = top_n_genes_values_df.loc[:, cur_gene + '_values'].iloc[targets_inds].values
             t_n = len(targets)
 
             if t_n > 0:
+                targets_inds = [list(top_n_genes_df[cur_gene].values).index(i) for i in targets]
+
+                targets_values = top_n_genes_values_df.loc[:, cur_gene + '_values'].iloc[targets_inds].values
+
                 if rank_regulators:
                     tmp = pd.DataFrame({'regulator': targets,
                                         "target": np.repeat(cur_gene, t_n),
@@ -44,6 +45,7 @@ def build_cluster_graph(adata,
                         full_eff_rank=None,
                         genes=None,
                         top_n=100):
+    genes = np.unique(genes)
     if full_reg_rank is None:
         full_reg_rank = rank_jacobian_genes(adata, groups=cluster, mode='full reg', abs=True, output_values=True)
     if full_eff_rank is None:
