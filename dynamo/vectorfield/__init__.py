@@ -27,6 +27,9 @@ from .vector_calculus import (
     rank_genes,
     rank_jacobian_genes,
 )
+from .networks import (
+    build_cluster_graph,
+)
 
 # potential related
 from .scPotential import (

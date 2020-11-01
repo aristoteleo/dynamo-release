@@ -329,14 +329,15 @@ def jacobian(adata,
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-            according to your needs.
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig
+            function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent": True,
+            "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly
+            modify those keys according to your needs.
         stacked_fraction: bool (default: False)
-            If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction style is used.
+            If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction
+            style is used.
         kwargs:
-            Additional arguments passed to plt.scatters.
+            Additional arguments passed to plt._matplotlib_points.
 
     Returns
     -------
