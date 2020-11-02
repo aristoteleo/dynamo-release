@@ -67,7 +67,7 @@ def build_network_per_cluster(adata,
                               full_eff_rank=None,
                               genes=None,
                               n_top_genes=100):
-    """Build a cluster specific network between input genes based ranking information of Jacobian analysis.
+    """Build a cluster specific network between input genes based on ranking information of Jacobian analysis.
 
     Parameters
     ----------

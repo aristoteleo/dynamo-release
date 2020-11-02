@@ -44,8 +44,9 @@ from .vector_calculus import (
     jacobian_heatmap,
 )
 from .networks import (
-    arcplot,
-    hiveplot,
+    arcPlot,
+    circosPlot,
+    hivePlot,
 )
 
 from .fate import (
