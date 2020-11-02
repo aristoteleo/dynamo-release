@@ -265,9 +265,9 @@ def jacobian(adata,
              sym_c=True,
              sort='abs',
              show_arrowed_spines=False,
+             stacked_fraction=False,
              save_show_or_return="show",
              save_kwargs={},
-             stacked_fraction=False,
              **kwargs):
     """\
     Scatter plot with pca basis.
@@ -309,7 +309,7 @@ def jacobian(adata,
             handle for you. Note that if theme
             is passed then this value will be overridden by the
             corresponding option of the theme.
-        figsize: `None` or `[float, float]` (default: None)
+        figsize: `None` or `[float, float]` (default: (6, 4))
                 The width and height of each panel in the figure.
         show_legend: bool (optional, default True)
             Whether to display a legend of the labels
@@ -326,6 +326,9 @@ def jacobian(adata,
             {'raw', 'abs', 'neg'}, i.e. sorted by raw data, sort by absolute values or sort by negative values.
         show_arrowed_spines: bool (optional, default False)
             Whether to show a pair of arrowed spines representing the basis of the scatter is currently using.
+        stacked_fraction: bool (default: False)
+            If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction
+            style is used.
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -333,9 +336,6 @@ def jacobian(adata,
             function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent": True,
             "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly
             modify those keys according to your needs.
-        stacked_fraction: bool (default: False)
-            If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction
-            style is used.
         kwargs:
             Additional arguments passed to plt._matplotlib_points.
 

@@ -3,14 +3,48 @@ from ..tools.utils import update_dict
 from .utils import save_fig
 
 def arcplot(adata,
-            network,
             cluster,
-            cluster_names,
-            weigt_scale=1,
+            cluster_name,
+            edges_list,
+            network=None,
+            weight_scale=5e3,
             figsize=(6, 6),
             save_show_or_return='show',
             save_kwargs={},
             ):
+    """Arc plot of gene regulatory network for a particular cell cluster.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`.
+            AnnData object, must at least have gene-wise Jacobian matrix calculated for each or selected cell.
+        edges_list: `dict` of `pandas.DataFrame`
+            A dictionary of dataframe of interactions between input genes for each group of cells based on ranking
+            information of Jacobian analysis. Each composite dataframe has `regulator`, `target` and `weight` three columns.
+        network: class:`~networkx.classes.digraph.DiGraph`
+            A direct network for this cluster constructed based on Jacobian analysis.
+        cluster: `str`
+            The group key that points to the columns of `adata.obs`.
+        cluster_name: `str` (default: `None`)
+            The group whose network and arcplot will be constructed and created.
+        weight_scale: `float` (default: `1e3`)
+            Because values in Jacobian matrix, the value will be multiplied by the weigt_scale.
+        figsize: `None` or `[float, float]` (default: (6, 6)
+            The width and height of each panel in the figure.
+        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig
+            function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent": True,
+            "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly
+            modify those keys according to your needs.
+
+    Returns
+    -------
+        Nothing but plot an ArcPlot of the input direct network.
+    """
+
+    import matplotlib.pyplot as plt
     try:
         import networkx as nx
         import nxviz as nv
@@ -19,9 +53,12 @@ def arcplot(adata,
                           f"install networkx via `pip install networkx`."
                           f"install nxviz via `pip install nxviz`.")
 
-    import matplotlib.pyplot as plt
+    if edges_list is not None:
+        network = nx.from_pandas_edgelist(edges_list[cluster], 'regulator', 'target', edge_attr='weight',
+                                          create_using=nx.DiGraph())
+
     # Iterate over all the nodes in G, including the metadata
-    if type(cluster_names) is str: cluster_names = [cluster_names]
+    if type(cluster_name) is str: cluster_names = [cluster_name]
     for n, d in network.nodes(data=True):
         # Calculate the degree of each node: G.node[n]['degree']
         network.nodes[n]['degree'] = nx.degree(network, n)
@@ -29,7 +66,7 @@ def arcplot(adata,
         network.nodes[n]['size'] = adata[adata.obs[cluster].isin(cluster_names), n].layers['M_s'].A.mean().astype(float)
         network.nodes[n]['label'] = n
     for e in network.edges():
-        network.edges[e]['weight'] *= weigt_scale
+        network.edges[e]['weight'] *= weight_scale
 
     # Create the customized ArcPlot object: a2
     nv_ax = nv.ArcPlot(network,
@@ -63,9 +100,41 @@ def hiveplot(adata,
              edges_list,
              cluster,
              cluster_names=None,
+             figsize=(6, 6),
              save_show_or_return='show',
              save_kwargs={},
              ):
+    """Hive plot of cell cluster specific gene regulatory networks.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`.
+            AnnData object, must at least have gene-wise Jacobian matrix calculated for each or selected cell.
+        edges_list: `dict` of `pandas.DataFrame`
+            A dictionary of dataframe of interactions between input genes for each group of cells based on ranking
+            information of Jacobian analysis. Each composite dataframe has `regulator`, `target` and `weight` three columns.
+        cluster: `str`
+            The group key that points to the columns of `adata.obs`.
+        cluster_names: `str` (default: `None`)
+            The group whose network and arcplot will be constructed and created.
+        figsize: `None` or `[float, float]` (default: (6, 6)
+            The width and height of each panel in the figure.
+        save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig
+            function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent": True,
+            "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly
+            modify those keys according to your needs.
+
+    Returns
+    -------
+        Nothing but plot a hive plot of the input cell cluster specific direct network.
+    """
+
+    # from matplotlib.lines import Line2D
+    import matplotlib.pyplot as plt
+
     try:
         import networkx as nx
         from hiveplotlib import Axis, Node, HivePlot
@@ -85,8 +154,6 @@ def hiveplot(adata,
             raise ValueError(f"the clusters argument {cluster_names} provided doesn't match up with any clusters from the "
                              f"adata.")
 
-    from matplotlib.lines import Line2D
-    import matplotlib.pyplot as plt
     combined_edges, G, edges_dict = None, {}, {}
     for i, grp in enumerate(edges_list.keys()):
         G[grp] = nx.from_pandas_edgelist(edges_list[grp], 'regulator', 'target', edge_attr='weight', create_using=nx.DiGraph())
@@ -139,7 +206,7 @@ def hiveplot(adata,
                                axis_id_2=nex_grp, c="C" + str(i)) ### different color for each lineage
 
     # plot axes
-    fig, ax = axes_viz_mpl(hp,
+    fig, ax = axes_viz_mpl(hp, figsize=figsize,
                            axes_labels_buffer=1.4)
     # plot nodes
     node_viz_mpl(hp,

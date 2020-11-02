@@ -1,12 +1,34 @@
 import numpy as np, pandas as pd
 from .vector_calculus import rank_jacobian_genes
 
-def get_group_interaction(rank_df,
-                          group,
-                          genes,
-                          n_top_genes=100,
-                          rank_regulators=False):
-    subset_rank_df = rank_df[group].head(n_top_genes)
+def get_interaction_in_cluster(rank_df_dict,
+                               group,
+                               genes,
+                               n_top_genes=100,
+                               rank_regulators=False):
+    """Retrieve interactions among input genes given the ranking dataframe.
+
+    Parameters
+    ----------
+        rank_df_dict: `dict` of `pandas.DataFrame`
+            The dictionary of pandas data frame storing the gene ranking information for each cluster.
+        group: `str`
+            The group name that points to the key for the rank_df.
+        genes: `list`
+            The list of input genes, from which the network will be constructed.
+        n_top_genes: `int`
+            Number of top genes that will be selected from to build the network.
+        rank_regulators
+            Whether the input dictionary is about ranking top regulators of each gene per cluster.
+
+    Returns
+    -------
+        A dataframe of interactions between input genes for the specified group of cells based on ranking information
+        of Jacobian analysis. It has `regulator`, `target` and `weight` three columns.
+
+    """
+
+    subset_rank_df = rank_df_dict[group].head(n_top_genes)
     valid_genes = subset_rank_df.columns.intersection(genes).to_list()
     edges = None
 
@@ -38,13 +60,43 @@ def get_group_interaction(rank_df,
     return edges
 
 
-def build_cluster_graph(adata,
-                        cluster,
-                        cluster_names=None,
-                        full_reg_rank=None,
-                        full_eff_rank=None,
-                        genes=None,
-                        top_n=100):
+def build_network_per_cluster(adata,
+                              cluster,
+                              cluster_names=None,
+                              full_reg_rank=None,
+                              full_eff_rank=None,
+                              genes=None,
+                              n_top_genes=100):
+    """Build a cluster specific network between input genes based ranking information of Jacobian analysis.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`.
+            AnnData object, must at least have gene-wise Jacobian matrix calculated for each or selected cell.
+        cluster: `str`
+            The group key that points to the columns of `adata.obs`.
+        cluster_names: `str` or `list` (default: `None`)
+            The groups whose networks will be constructed, must overlap with names in adata.obs and / or keys from the
+            ranking dictionaries.
+        full_reg_rank: `dict` (default: `None`)
+            The dictionary stores the regulator ranking information per cluster based on cell-wise Jacobian matrix. If
+            None, we will call `rank_jacobian_genes(adata, groups=cluster, mode='full reg', abs=True,
+            output_values=True)` to first obtain this dictionary.
+        full_eff_rank (default: `None`)
+            The dictionary stores the effector ranking information per cluster based on cell-wise Jacobian matrix. If
+            None, we will call `rank_jacobian_genes(adata, , groups=cluster, mode='full eff', abs=True,
+            output_values=True)` to first obtain this dictionary.
+        genes: `list` (default: `None`)
+            The list of input genes, from which the network will be constructed.
+        n_top_genes: `int` (default: `100`)
+            Number of top genes that will be selected from to build the network.
+
+    Returns
+    -------
+        A dictionary of dataframe of interactions between input genes for each group of cells based on ranking
+        information of Jacobian analysis. Each composite dataframe has `regulator`, `target` and `weight` three columns.
+    """
+
     genes = np.unique(genes)
     if full_reg_rank is None:
         full_reg_rank = rank_jacobian_genes(adata, groups=cluster, mode='full reg', abs=True, output_values=True)
@@ -73,11 +125,11 @@ def build_cluster_graph(adata,
             reg_valid_genes, eff_valid_genes = full_reg_rank[c].columns.intersection(genes), \
                                                full_eff_rank[c].columns.intersection(genes)
         if len(reg_valid_genes) > 0:
-            reg_df = get_group_interaction(full_reg_rank, c, reg_valid_genes, n_top_genes=top_n,
-                                           rank_regulators=True)
+            reg_df = get_interaction_in_cluster(full_reg_rank, c, reg_valid_genes, n_top_genes=n_top_genes,
+                                                rank_regulators=True)
         if len(eff_valid_genes) > 0:
-            eff_df = get_group_interaction(full_eff_rank, c, eff_valid_genes, n_top_genes=top_n,
-                                           rank_regulators=False)
+            eff_df = get_interaction_in_cluster(full_eff_rank, c, eff_valid_genes, n_top_genes=n_top_genes,
+                                                rank_regulators=False)
 
         if len(reg_valid_genes) > 0 and len(eff_valid_genes) == 0:
             edges_list[c] = reg_df
