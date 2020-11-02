@@ -43,6 +43,12 @@ from .vector_calculus import (
     jacobian,
     jacobian_heatmap,
 )
+from .networks import (
+    arcPlot,
+    circosPlot,
+    hivePlot,
+)
+
 from .fate import (
     fate_bias,
 )

@@ -265,9 +265,9 @@ def jacobian(adata,
              sym_c=True,
              sort='abs',
              show_arrowed_spines=False,
+             stacked_fraction=False,
              save_show_or_return="show",
              save_kwargs={},
-             stacked_fraction=False,
              **kwargs):
     """\
     Scatter plot with pca basis.
@@ -309,7 +309,7 @@ def jacobian(adata,
             handle for you. Note that if theme
             is passed then this value will be overridden by the
             corresponding option of the theme.
-        figsize: `None` or `[float, float]` (default: None)
+        figsize: `None` or `[float, float]` (default: (6, 4))
                 The width and height of each panel in the figure.
         show_legend: bool (optional, default True)
             Whether to display a legend of the labels
@@ -318,22 +318,26 @@ def jacobian(adata,
             of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
             cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
             https://science.sciencemag.org/content/367/6482/1151.
-        sym_c: `bool` (default: `False`)
+        sym_c: `bool` (default: `True`)
             Whether do you want to make the limits of continuous color to be symmetric, normally this should be used for
             plotting velocity, jacobian, curl, divergence or other types of data with both positive or negative values.
+        sort: `str` (optional, default `abs`)
+            The method to reorder data so that high values points will be on top of background points. Can be one of
+            {'raw', 'abs', 'neg'}, i.e. sorted by raw data, sort by absolute values or sort by negative values.
         show_arrowed_spines: bool (optional, default False)
             Whether to show a pair of arrowed spines representing the basis of the scatter is currently using.
+        stacked_fraction: bool (default: False)
+            If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction
+            style is used.
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-            according to your needs.
-        stacked_fraction: bool (default: True)
-            If True the jacobian will be represented as a stacked fraction in the title, otherwise a linear fraction style is used.
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig
+            function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent": True,
+            "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly
+            modify those keys according to your needs.
         kwargs:
-            Additional arguments passed to plt.scatters.
+            Additional arguments passed to plt._matplotlib_points.
 
     Returns
     -------
