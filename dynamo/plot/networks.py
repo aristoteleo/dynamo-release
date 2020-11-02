@@ -362,10 +362,8 @@ def hivePlot(adata,
                                       sorting_feature_to_use="degree")
     for i, grp in enumerate(reg_groups):
         ### edges ###
-        cur_edges = np.array(G[grp].edges)
-
         nex_grp = reg_groups[i + 1] if i < len(reg_groups) - 1 else reg_groups[0]
-        hp.connect_axes(edges=cur_edges, axis_id_1=grp,
+        hp.connect_axes(edges=edges_dict[grp], axis_id_1=grp,
                                axis_id_2=nex_grp, c="C" + str(i)) ### different color for each lineage
 
     # plot axes
@@ -375,7 +373,7 @@ def hivePlot(adata,
     node_viz_mpl(hp,
                  fig=fig, ax=ax, s=80, c="black")
     # plot edges
-    edge_viz_mpl(hive_plot=hp, fig=fig, ax=ax, alpha=0.3,
+    edge_viz_mpl(hive_plot=hp, fig=fig, ax=ax, alpha=0.7,
                  zorder=-1)
 
     # ax.set_title("Hive Plot", fontsize=20, y=0.9)
