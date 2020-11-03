@@ -13,6 +13,7 @@ def nxvizPlot(adata,
               figsize=(6, 6),
               save_show_or_return='show',
               save_kwargs={},
+              **kwargs,
               ):
     """Arc or circos plot of gene regulatory network for a particular cell cluster.
 
@@ -43,6 +44,8 @@ def nxvizPlot(adata,
             function will use the {"path": None, "prefix": 'arcplot', "dpi": None, "ext": 'pdf', "transparent": True,
             "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly
             modify those keys according to your needs.
+        **kwargs:
+            Additional parameters that will pass to ArcPlot or CircosPlot
 
     Returns
     -------
@@ -73,32 +76,54 @@ def nxvizPlot(adata,
     for e in network.edges():
         network.edges[e]['weight'] *= weight_scale
 
-    if plot == 'arcplot':
+    if plot.lower() == 'arcplot':
+        prefix = 'arcPlot'
         # Create the customized ArcPlot object: a2
         nv_ax = nv.ArcPlot(network,
-                           node_order='degree',
-                           nodeprops={'cmap': 'viridis'},
-                           node_labels=True,
-                           node_color='size',
-                           edge_width='weight',
-                           # node_grouping='grouping',
+                           node_order=kwargs.pop('node_order', 'degree'),
+                           node_size=kwargs.pop('node_size', None),
+                           node_grouping=kwargs.pop('node_grouping', None),
+                           group_order=kwargs.pop('group_order', 'alphabetically'),
+                           node_color=kwargs.pop('node_color', 'size'),
+                           node_labels=kwargs.pop('node_labels', True),
+                           edge_width=kwargs.pop('edge_width', 'weight'),
+                           edge_color=kwargs.pop('edge_color', None),
+                           data_types=kwargs.pop('data_types', None),
+                           nodeprops=kwargs.pop('nodeprops',
+                                                {'facecolor': 'None', 'alpha': 0.2, 'cmap': 'viridis', 'label': 'label'}),
+                           edgeprops=kwargs.pop('edgeprops', {'facecolor': 'None', 'alpha': 0.2}),
+                           node_label_color=kwargs.pop('node_label_color', False),
+                           group_label_position=kwargs.pop('group_label_position', None),
+                           group_label_color=kwargs.pop('group_label_color', False),
+                           fontsize=kwargs.pop('fontsize', 10),
+                           fontfamily=kwargs.pop('fontfamily', "serif"),
                            figsize=figsize,
                            )
-    elif plot == 'circosplot':
+    elif plot.lower() == 'circosplot':
+        prefix = 'circosPlot'
         # Create the customized CircosPlot object: a2
         nv_ax = nv.CircosPlot(network,
-                       node_order='degree',
-                       nodeprops={'facecolor': 'None', 'alpha': 0.2, 'cmap': 'viridis', 'label': 'label'},
-                       node_labels=True,
-                       node_color='size',
-                       edge_width='weight',
-                       # node_grouping='grouping',
-                       figsize=figsize,
-                       edgeprops = {'facecolor': 'None', 'alpha': 0.2},
-                       )
+                              node_order=kwargs.pop('node_order', 'degree'),
+                              node_size=kwargs.pop('node_size', None),
+                              node_grouping=kwargs.pop('node_grouping', None),
+                              group_order=kwargs.pop('group_order', 'alphabetically'),
+                              node_color=kwargs.pop('node_color', 'size'),
+                              node_labels=kwargs.pop('node_labels', True),
+                              edge_width=kwargs.pop('edge_width', 'weight'),
+                              edge_color=kwargs.pop('edge_color', None),
+                              data_types=kwargs.pop('data_types', None),
+                              nodeprops=kwargs.pop('nodeprops', None),
+                              edgeprops=kwargs.pop('edgeprops', {'facecolor': 'None', 'alpha': 0.2}),
+                              node_label_color=kwargs.pop('node_label_color', False),
+                              group_label_position=kwargs.pop('group_label_position', None),
+                              group_label_color=kwargs.pop('group_label_color', False),
+                              fontsize=kwargs.pop('fontsize', 10),
+                              fontfamily=kwargs.pop('fontfamily', "serif"),
+                              figsize=figsize,
+                              )
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'arcplot', "dpi": None,
+        s_kwargs = {"path": None, "prefix": prefix, "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
@@ -123,6 +148,7 @@ def arcPlot(adata,
             figsize=(6, 6),
             save_show_or_return='show',
             save_kwargs={},
+            **kwargs,
             ):
     """Arc plot of gene regulatory network for a particular cell cluster.
 
@@ -151,6 +177,8 @@ def arcPlot(adata,
             function will use the {"path": None, "prefix": 'arcplot', "dpi": None, "ext": 'pdf', "transparent": True,
             "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly
             modify those keys according to your needs.
+        **kwargs:
+            Additional parameters that will eventually pass to ArcPlot.
 
     Returns
     -------
@@ -160,12 +188,14 @@ def arcPlot(adata,
             cluster,
             cluster_name,
             edges_list,
-            type='arcplot',
+            plot='arcplot',
             network=network,
             weight_scale=weight_scale,
             figsize=figsize,
             save_show_or_return=save_show_or_return,
-            save_kwargs=save_kwargs,)
+            save_kwargs=save_kwargs,
+            **kwargs,
+            )
 
 
 def circosPlot(adata,
@@ -174,9 +204,10 @@ def circosPlot(adata,
                edges_list,
                network=None,
                weight_scale=5e3,
-               figsize=(6, 6),
+               figsize=(12, 6),
                save_show_or_return='show',
                save_kwargs={},
+               **kwargs,
                ):
     """Circos plot of gene regulatory network for a particular cell cluster.
 
@@ -196,7 +227,7 @@ def circosPlot(adata,
         weight_scale: `float` (default: `1e3`)
             Because values in Jacobian matrix is often small, the value will be multiplied by the weight_scale so that
             the edge will have proper width in display.
-        figsize: `None` or `[float, float]` (default: (6, 6)
+        figsize: `None` or `[float, float]` (default: (12, 6)
             The width and height of each panel in the figure.
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
             Whether to save, show or return the figure.
@@ -205,6 +236,8 @@ def circosPlot(adata,
             function will use the {"path": None, "prefix": 'arcplot', "dpi": None, "ext": 'pdf', "transparent": True,
             "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly
             modify those keys according to your needs.
+        **kwargs:
+            Additional parameters that will eventually pass to CircosPlot.
 
     Returns
     -------
@@ -214,12 +247,14 @@ def circosPlot(adata,
               cluster,
               cluster_name,
               edges_list,
-              type='circosplot',
+              plot='circosplot',
               network=network,
               weight_scale=weight_scale,
               figsize=figsize,
               save_show_or_return=save_show_or_return,
-              save_kwargs=save_kwargs, )
+              save_kwargs=save_kwargs,
+              **kwargs,
+              )
 
 
 def hivePlot(adata,
