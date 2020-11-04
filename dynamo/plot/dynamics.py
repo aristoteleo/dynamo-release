@@ -2435,7 +2435,7 @@ def dynamics(
                     pass  # group by different groups
                 elif experiment_type == "coassay":
                     pass  # show protein velocity (steady state and the Gamma distribution model)
-    g.autofmt_xdate(rotation=-30, ha='right')
+    # g.autofmt_xdate(rotation=-30, ha='right')
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'dynamics', "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}

@@ -166,7 +166,7 @@ def plot_kin_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
 
             # properly set the xticks
             ax.set_xticks(xticks)
-            ax.set_xticklabels(xticks_labels)
+            ax.set_xticklabels(xticks_labels, rotation=30, ha='right')
 
             if true_param_prefix is not None:
                 if has_splicing:
@@ -358,7 +358,7 @@ def plot_kin_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
 
             # properly set the xticks
             ax.set_xticks(xticks)
-            ax.set_xticklabels(xticks_labels)
+            ax.set_xticklabels(xticks_labels, rotation=30, ha='right')
 
             if true_param_prefix is not None:
                 ax.plot(t, true_p[j], "r")
@@ -553,7 +553,7 @@ def plot_kin_mix(adata, genes, has_splicing, use_smoothed, log_unnormalized,
 
             # properly set the xticks
             ax.set_xticks(xticks)
-            ax.set_xticklabels(xticks_labels)
+            ax.set_xticklabels(xticks_labels, rotation=30, ha='right')
 
             if true_param_prefix is not None:
                 ax.plot(t, true_p[j], "r")
@@ -751,7 +751,7 @@ def plot_kin_mix_det_sto(adata, genes, has_splicing, use_smoothed, log_unnormali
 
             # properly set the xticks
             ax.set_xticks(xticks)
-            ax.set_xticklabels(xticks_labels)
+            ax.set_xticklabels(xticks_labels, rotation=30, ha='right')
 
             if true_param_prefix is not None:
                 ax.plot(t, true_p[j], "r")
@@ -952,7 +952,7 @@ def plot_kin_mix_sto_sto(adata, genes, has_splicing, use_smoothed, log_unnormali
 
             # properly set the xticks
             ax.set_xticks(xticks)
-            ax.set_xticklabels(xticks_labels)
+            ax.set_xticklabels(xticks_labels, rotation=30, ha='right')
 
             if true_param_prefix is not None:
                 ax.plot(t, true_p[j], "r")
@@ -1120,7 +1120,7 @@ def plot_deg_det(adata, genes, has_splicing, use_smoothed, log_unnormalized,
 
             # properly set the xticks
             ax.set_xticks(xticks)
-            ax.set_xticklabels(xticks_labels)
+            ax.set_xticklabels(xticks_labels, rotation=30, ha='right')
 
             if true_param_prefix is not None:
                 if has_splicing:
@@ -1310,7 +1310,7 @@ def plot_deg_sto(adata, genes, has_splicing, use_smoothed, log_unnormalized,
 
             # properly set the xticks
             ax.set_xticks(xticks)
-            ax.set_xticklabels(xticks_labels)
+            ax.set_xticklabels(xticks_labels, rotation=30, ha='right')
 
             if true_param_prefix is not None:
                 ax.plot(t, true_p[j], "r")
@@ -1496,7 +1496,7 @@ def plot_kin_twostep(adata, genes, has_splicing, use_smoothed,
 
                 # properly set the xticks
                 ax.set_xticks(xticks)
-                ax.set_xticklabels(xticks_labels)
+                ax.set_xticklabels(xticks_labels, rotation=30, ha='right')
 
     return gs
 
@@ -1570,7 +1570,7 @@ def plot_kin_deg_twostep(adata, genes, has_splicing, use_smoothed, log_unnormali
 
                 # properly set the xticks
                 ax.set_xticks(xticks)
-                ax.set_xticklabels(xticks_labels)
+                ax.set_xticklabels(xticks_labels, rotation=30, ha='right')
 
                 if show_kin_parameters:
                     if true_param_prefix is not None:
