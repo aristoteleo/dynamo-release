@@ -269,9 +269,9 @@ def ddhodge(adata,
         adata.obs[prefix + 'ddhodge_sampled'], adata.obs[prefix + 'ddhodge_div'], adata.obs[prefix + 'potential'] = False, 0, 0
         adata.obs.loc[adata.obs_names[cell_idx], prefix + 'ddhodge_sampled'] = True
         adata.obs.loc[adata.obs_names[cell_idx], prefix + 'ddhodge_div'] = ddhodge_div
-        adata.obs.loc[adata.obs_names[cell_idx], prefix + 'potential'] = potential_
+        adata.obs.loc[adata.obs_names[cell_idx], prefix + 'ddhodge_potential'] = potential_
         adata.obs.loc[adata.obs_names[query_idx], prefix + 'ddhodge_div'] = query_data_div
-        adata.obs.loc[adata.obs_names[query_idx], prefix + 'potential'] = query_data_potential
+        adata.obs.loc[adata.obs_names[query_idx], prefix + 'ddhodge_potential'] = query_data_potential
     else:
         adata.obs[prefix + 'ddhodge_div'] = ddhodge_div
         adata.obs[prefix + 'ddhodge_potential'] = potential_
