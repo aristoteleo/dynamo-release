@@ -630,8 +630,8 @@ def phase_portraits(
 
         # only linear regression fitting of extreme cells will be plotted together with U-S phase plane.
         if vkey == "velocity_S":
-            xnew = np.linspace(0, cur_pd.loc[:, 'S'].max() * 0.80) if vkey == 'velocity_S' else \
-                np.linspace(0, cur_pd.loc[:, 'total'].max() * 0.80)
+            xnew = np.linspace(cur_pd.loc[:, 'S'].min(), cur_pd.loc[:, 'S'].max() * 0.80) if vkey == 'velocity_S' else \
+                np.linspace(cur_pd.loc[:, 'total'].min(), cur_pd.loc[:, 'total'].max() * 0.80)
             ax1.plot(
                 xnew,
                 xnew * cur_pd.loc[:, "gamma"].unique()

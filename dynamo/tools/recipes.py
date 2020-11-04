@@ -195,6 +195,17 @@ def recipe_deg_data(adata,
         n_top_genes: `int` (default: `1000`)
             How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
             Arguments required by the `recipe_monocle` function.
+        keep_filtered_cells: `bool` (default: `False`)
+            Whether to keep genes that don't pass the filtering in the returned adata object. Used in `recipe_monocle`.
+        keep_filtered_genes: `bool` (default: `False`)
+            Whether to keep genes that don't pass the filtering in the returned adata object. Used in `recipe_monocle`.
+        keep_raw_layers: `bool` (default: `False`)
+            Whether to keep layers with raw measurements in the returned adata object. Used in `recipe_monocle`.
+        del_2nd_moments: `bool` (default: `False`)
+            Whether to remove second moments or covariances. Default it is `False` so this avoids recalculating 2nd
+            moments or covariance but it may take a lot memory when your dataset is big. Set this to `True` when your
+            data is huge (like > 25, 000 cells or so) to reducing the memory footprint. Argument used for `dynamics`
+            function.
         tkey: `str` (default: `time`)
             The column key for the time label of cells in .obs. Used for  the "kinetic" model.
             mode  with labeled data. When `group` is None, `tkey` will also be used for calculating  1st/2st moment or

@@ -1391,7 +1391,7 @@ def plot_kin_twostep(adata, genes, has_splicing, use_smoothed,
                     loc='upper left',
                     ncol=len(T_uniq) // 15 + 1,
                 )
-                xnew = np.linspace(0, np.max(r) * 0.80)
+                xnew = np.linspace(np.min(r), np.max(r) * 0.80)
                 for ind in range(len(cur_X_data)):
                     ax.plot(
                         xnew,
