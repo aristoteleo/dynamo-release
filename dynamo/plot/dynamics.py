@@ -688,8 +688,8 @@ def phase_portraits(
                 **quiver_kwargs
             )
 
-        ax1.set_xlim(0, np.max(X_array[:, 0]) * 1.02)
-        ax1.set_ylim(0, np.max(X_array[:, 1]) * 1.02)
+        ax1.set_xlim(np.min(X_array[:, 0]), np.max(X_array[:, 0]) * 1.02)
+        ax1.set_ylim(np.min(X_array[:, 0]), np.max(X_array[:, 1]) * 1.02)
 
         despline(ax1)  # sns.despline()
 
@@ -871,7 +871,7 @@ def phase_portraits(
             ax4.set_xlabel("spliced (1st moment)")
             ax4.set_ylabel("protein (1st moment)")
 
-            xnew = np.linspace(0, cur_pd.loc[:, 'P'].max())
+            xnew = np.linspace(cur_pd.loc[:, 'P'].min(), cur_pd.loc[:, 'P'].max())
             ax4.plot(
                 xnew,
                 xnew * cur_pd.loc[:, "gamma_P"].unique()
@@ -927,8 +927,8 @@ def phase_portraits(
                     **quiver_kwargs
                 )
 
-            ax4.set_ylim(0, np.max(X_array[:, 0]) * 1.02)
-            ax4.set_xlim(0, np.max(X_array[:, 1]) * 1.02)
+            ax4.set_ylim(np.min(X_array[:, 0]), np.max(X_array[:, 0]) * 1.02)
+            ax4.set_xlim(np.min(X_array[:, 1]), np.max(X_array[:, 1]) * 1.02)
 
             despline(ax1)  # sns.despline()
 
