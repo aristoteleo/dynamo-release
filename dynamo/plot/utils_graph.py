@@ -49,6 +49,7 @@ def arcplot(x,
             curve_alpha=1, 
             arrow_direction=-1,
             node_name_rotation=-45,
+            hide_frame=True,
             **kwargs):
     X = np.vstack((x, np.zeros(len(x)))).T
     plt.scatter(X[:, 0], X[:, 1], **kwargs)
@@ -78,6 +79,12 @@ def arcplot(x,
 
     if node_names is not None:
         plt.xticks(x, node_names, rotation=node_name_rotation)
+
+    if hide_frame:
+        plt.gca().spines["top"].set_visible(False)
+        plt.gca().spines["right"].set_visible(False)
+        plt.gca().spines["bottom"].set_visible(False)
+        plt.gca().spines["left"].set_visible(False)
 
 
 class ArcPlot:
