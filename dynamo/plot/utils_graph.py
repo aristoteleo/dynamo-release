@@ -71,7 +71,7 @@ def arcplot(x,
                     tail_width = width
                 elif edge_mode == 'width':
                     alpha = curve_alpha
-                    tail_width = E[i, j] / alp_scale * width
+                    tail_width = E[i, j] / alp_scale * width * 5
                 elif edge_mode == 'const':
                     alpha = curve_alpha
                     tail_width = width
