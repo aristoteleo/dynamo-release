@@ -11,6 +11,7 @@ def nxvizPlot(adata,
               plot='arcplot',
               network=None,
               weight_scale=5e3,
+              weight_threshold=1e-4,
               figsize=(6, 6),
               save_show_or_return='show',
               save_kwargs={},
@@ -36,6 +37,8 @@ def nxvizPlot(adata,
         weight_scale: `float` (default: `1e3`)
             Because values in Jacobian matrix is often small, the value will be multiplied by the weight_scale so that
             the edge will have proper width in display.
+        weight_threshold: `float` (default: `weight_threshold`)
+            The threshold of weight that will be used to trim the edges for network reconstruction.
         figsize: `None` or `[float, float]` (default: (6, 6)
             The width and height of each panel in the figure.
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
@@ -53,6 +56,9 @@ def nxvizPlot(adata,
         Nothing but plot an ArcPlot of the input direct network.
     """
 
+    has_splicing, has_labeling = adata.uns['pp'].get('has_splicing'), adata.uns['pp'].get('has_labeling')
+    layer = 'M_s' if not has_labeling else 'M_t'
+
     import matplotlib.pyplot as plt
     try:
         import networkx as nx
@@ -63,8 +69,11 @@ def nxvizPlot(adata,
                           f"install nxviz via `pip install nxviz`.")
 
     if edges_list is not None:
-        network = nx.from_pandas_edgelist(edges_list[cluster], 'regulator', 'target', edge_attr='weight',
+        network = nx.from_pandas_edgelist(edges_list[cluster_name].query("weight > @weight_threshold"), 'regulator', 'target', edge_attr='weight',
                                           create_using=nx.DiGraph())
+        if len(network.node) == 0:
+            raise ValueError(f'weight_threshold is too high, no edge has weight than {weight_threshold} '
+                             f'for cluster {cluster}.')
 
     # Iterate over all the nodes in G, including the metadata
     if type(cluster_name) is str: cluster_names = [cluster_name]
@@ -72,7 +81,11 @@ def nxvizPlot(adata,
         # Calculate the degree of each node: G.node[n]['degree']
         network.nodes[n]['degree'] = nx.degree(network, n)
         # data has to be float
-        network.nodes[n]['size'] = adata[adata.obs[cluster].isin(cluster_names), n].layers['M_s'].A.mean().astype(float)
+        if cluster is not None:
+            network.nodes[n]['size'] = adata[adata.obs[cluster].isin(cluster_names), n].layers[layer].A.mean().astype(float)
+        else:
+            network.nodes[n]['size'] = adata.layers[layer].A.mean().astype(float)
+
         network.nodes[n]['label'] = n
     for e in network.edges():
         network.edges[e]['weight'] *= weight_scale
@@ -114,6 +127,7 @@ def nxvizPlot(adata,
                               edge_color=kwargs.pop('edge_color', None),
                               data_types=kwargs.pop('data_types', None),
                               nodeprops=kwargs.pop('nodeprops', None),
+                              node_label_layout="rotation",
                               edgeprops=kwargs.pop('edgeprops', {'facecolor': 'None', 'alpha': 0.2}),
                               node_label_color=kwargs.pop('node_label_color', False),
                               group_label_position=kwargs.pop('group_label_position', None),
@@ -124,6 +138,9 @@ def nxvizPlot(adata,
                               )
 
     if save_show_or_return == "save":
+        # Draw a to the screen
+        nv_ax.draw()
+        plt.autoscale()
         s_kwargs = {"path": None, "prefix": prefix, "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
@@ -173,6 +190,8 @@ def arcPlot(adata,
         weight_scale: `float` (default: `1e3`)
             Because values in Jacobian matrix is often small, the value will be multiplied by the weight_scale so that
             the edge will have proper width in display.
+        weight_threshold: `float` (default: `weight_threshold`)
+            The threshold of weight that will be used to trim the edges for network reconstruction.
         figsize: `None` or `[float, float]` (default: (6, 6)
             The width and height of each panel in the figure.
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
@@ -189,6 +208,7 @@ def arcPlot(adata,
     -------
         Nothing but plot an ArcPlot of the input direct network.
     """
+
     '''nxvizPlot(adata,
             cluster,
             cluster_name,
@@ -230,14 +250,13 @@ def arcPlot(adata,
             cbar.ax.set_ylabel(cbar_text, va='top')
 
 
-
-
 def circosPlot(adata,
                cluster,
                cluster_name,
                edges_list,
                network=None,
                weight_scale=5e3,
+               weight_threshold=1e-4,
                figsize=(12, 6),
                save_show_or_return='show',
                save_kwargs={},
@@ -261,6 +280,8 @@ def circosPlot(adata,
         weight_scale: `float` (default: `1e3`)
             Because values in Jacobian matrix is often small, the value will be multiplied by the weight_scale so that
             the edge will have proper width in display.
+        weight_threshold: `float` (default: `weight_threshold`)
+            The threshold of weight that will be used to trim the edges for network reconstruction.
         figsize: `None` or `[float, float]` (default: (12, 6)
             The width and height of each panel in the figure.
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
@@ -284,6 +305,7 @@ def circosPlot(adata,
               plot='circosplot',
               network=network,
               weight_scale=weight_scale,
+              weight_threshold=weight_threshold,
               figsize=figsize,
               save_show_or_return=save_show_or_return,
               save_kwargs=save_kwargs,
@@ -295,6 +317,7 @@ def hivePlot(adata,
              edges_list,
              cluster,
              cluster_names=None,
+             weight_threshold=1e-4,
              figsize=(6, 6),
              save_show_or_return='show',
              save_kwargs={},
@@ -312,6 +335,8 @@ def hivePlot(adata,
             The group key that points to the columns of `adata.obs`.
         cluster_names: `str` (default: `None`)
             The group whose network and arcplot will be constructed and created.
+        weight_threshold: `float` (default: `weight_threshold`)
+            The threshold of weight that will be used to trim the edges for network reconstruction.
         figsize: `None` or `[float, float]` (default: (6, 6)
             The width and height of each panel in the figure.
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
@@ -327,6 +352,8 @@ def hivePlot(adata,
         Nothing but plot a hive plot of the input cell cluster specific direct network.
     """
 
+    has_splicing, has_labeling = adata.uns['pp'].get('has_splicing'), adata.uns['pp'].get('has_labeling')
+    layer = 'M_s' if not has_labeling else 'M_t'
     # from matplotlib.lines import Line2D
     import matplotlib.pyplot as plt
 
@@ -351,12 +378,15 @@ def hivePlot(adata,
 
     combined_edges, G, edges_dict = None, {}, {}
     for i, grp in enumerate(edges_list.keys()):
-        G[grp] = nx.from_pandas_edgelist(edges_list[grp], 'regulator', 'target', edge_attr='weight', create_using=nx.DiGraph())
+        G[grp] = nx.from_pandas_edgelist(edges_list[grp].query("weight > @weight_threshold"), 'regulator', 'target', edge_attr='weight', create_using=nx.DiGraph())
+        if len(G[grp].node) == 0:
+            raise ValueError(f'weight_threshold is too high, no edge has weight than {weight_threshold} '
+                             f'for cluster {grp}.')
         edges_dict[grp] = np.array(G[grp].edges)
         combined_edges = edges_list[grp] if combined_edges is None else pd.concat((combined_edges, edges_list[grp]))
 
     # pull out degree information from nodes for later use
-    combined_G = nx.from_pandas_edgelist(combined_edges, 'regulator', 'target',
+    combined_G = nx.from_pandas_edgelist(combined_edges.query("weight > @weight_threshold"), 'regulator', 'target',
                                          edge_attr='weight', create_using=nx.DiGraph())
     edges = np.array(combined_G.edges)
     node_ids, degrees = np.unique(edges, return_counts=True)

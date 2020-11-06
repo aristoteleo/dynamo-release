@@ -1349,7 +1349,12 @@ def set_transition_genes(
         # else:
             min_r2 = 0.9 if min_r2 is None else min_r2
     elif adata.uns['dynamics']['experiment_type'] in ['mix_kin_deg', 'mix_pulse_chase']:
-        adata.var[store_key] = adata.var.logLL.astype(float) < np.nanpercentile(adata.var.logLL.astype(float), 10)
+        logLL_col = adata.var.columns[adata.var.columns.str.endswith('logLL')]
+        if len(logLL_col) > 1:
+            warnings.warn(f"there are two columns ends with logLL: {logLL_col}")
+
+        adata.var[store_key] = adata.var[logLL_col[-1]].astype(float) < \
+                               np.nanpercentile(adata.var[logLL_col[-1]].astype(float), 10)
         if layer in ['N', 'T']:
             return adata
         else:

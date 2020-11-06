@@ -377,7 +377,10 @@ def dynamics(
             adata.var[kin_param_pre + 'sanity_check'] = valid_bools_
 
         if assumption_mRNA.lower() == 'auto': assumption_mRNA = assump_mRNA
-        if experiment_type.lower() == 'conventional': assumption_mRNA = 'ss'
+        if experiment_type.lower() == 'conventional':
+            assumption_mRNA = 'ss'
+        elif experiment_type.lower() in ['mix_pulse_chase', 'deg', 'kin']:
+            assumption_mRNA = 'kinetic'
 
         if model.lower() == "stochastic" and experiment_type.lower() not in ["conventional", "kinetics", "degradation", "kin", "deg", "one-shot"]:
             """

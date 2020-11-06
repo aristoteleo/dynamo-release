@@ -602,7 +602,7 @@ def scatters(
                     labels, values = None, None  # reset labels and values
 
                     if add_gamma_fit and cur_b in adata.var_names[adata.var.use_for_dynamics]:
-                        xnew = np.linspace(0, points.iloc[:, 0].max() * 0.80)
+                        xnew = np.linspace(points.iloc[:, 0].min() , points.iloc[:, 0].max() * 0.80)
                         k_name = 'gamma_k' if adata.uns['dynamics']['experiment_type'] == 'one-shot' else 'gamma'
                         if k_name in adata.var.columns:
                             if (

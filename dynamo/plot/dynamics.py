@@ -630,8 +630,8 @@ def phase_portraits(
 
         # only linear regression fitting of extreme cells will be plotted together with U-S phase plane.
         if vkey == "velocity_S":
-            xnew = np.linspace(0, cur_pd.loc[:, 'S'].max() * 0.80) if vkey == 'velocity_S' else \
-                np.linspace(0, cur_pd.loc[:, 'total'].max() * 0.80)
+            xnew = np.linspace(cur_pd.loc[:, 'S'].min(), cur_pd.loc[:, 'S'].max() * 0.80) if vkey == 'velocity_S' else \
+                np.linspace(cur_pd.loc[:, 'total'].min(), cur_pd.loc[:, 'total'].max() * 0.80)
             ax1.plot(
                 xnew,
                 xnew * cur_pd.loc[:, "gamma"].unique()
@@ -688,8 +688,8 @@ def phase_portraits(
                 **quiver_kwargs
             )
 
-        ax1.set_xlim(0, np.max(X_array[:, 0]) * 1.02)
-        ax1.set_ylim(0, np.max(X_array[:, 1]) * 1.02)
+        ax1.set_xlim(np.min(X_array[:, 0]), np.max(X_array[:, 0]) * 1.02)
+        ax1.set_ylim(np.min(X_array[:, 0]), np.max(X_array[:, 1]) * 1.02)
 
         despline(ax1)  # sns.despline()
 
@@ -871,7 +871,7 @@ def phase_portraits(
             ax4.set_xlabel("spliced (1st moment)")
             ax4.set_ylabel("protein (1st moment)")
 
-            xnew = np.linspace(0, cur_pd.loc[:, 'P'].max())
+            xnew = np.linspace(cur_pd.loc[:, 'P'].min(), cur_pd.loc[:, 'P'].max())
             ax4.plot(
                 xnew,
                 xnew * cur_pd.loc[:, "gamma_P"].unique()
@@ -927,8 +927,8 @@ def phase_portraits(
                     **quiver_kwargs
                 )
 
-            ax4.set_ylim(0, np.max(X_array[:, 0]) * 1.02)
-            ax4.set_xlim(0, np.max(X_array[:, 1]) * 1.02)
+            ax4.set_ylim(np.min(X_array[:, 0]), np.max(X_array[:, 0]) * 1.02)
+            ax4.set_xlim(np.min(X_array[:, 1]), np.max(X_array[:, 1]) * 1.02)
 
             despline(ax1)  # sns.despline()
 
@@ -2435,7 +2435,7 @@ def dynamics(
                     pass  # group by different groups
                 elif experiment_type == "coassay":
                     pass  # show protein velocity (steady state and the Gamma distribution model)
-    g.autofmt_xdate(rotation=-30, ha='right')
+    # g.autofmt_xdate(rotation=-30, ha='right')
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'dynamics', "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
