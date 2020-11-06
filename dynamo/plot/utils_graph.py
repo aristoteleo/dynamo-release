@@ -45,11 +45,12 @@ def arcplot(x,
             curve_radius=0.7, 
             node_rad=10, 
             width=1, 
-            arrow_head=True,
+            arrow_head=5,
             curve_alpha=1, 
             arrow_direction=-1,
             node_name_rotation=-45,
             hide_frame=True,
+            edge_mode='alpha',
             **kwargs):
     X = np.vstack((x, np.zeros(len(x)))).T
     plt.scatter(X[:, 0], X[:, 1], **kwargs)
@@ -60,19 +61,31 @@ def arcplot(x,
     # arrow style
     curve_radius = np.abs(curve_radius) * arrow_direction
     cstyle = 'arc3, rad=%f'%curve_radius
-    head_width = width * 5 if arrow_head else 0
 
     for i in range(E.shape[0]):
         for j in range(E.shape[1]):
             if i != j and E[i, j] > edge_threshold:
                 posA, posB = X[i], X[j]
+                if edge_mode == 'alpha':
+                    alpha = E[i, j] / alp_scale * curve_alpha
+                    tail_width = width
+                elif edge_mode == 'width':
+                    alpha = curve_alpha
+                    tail_width = E[i, j] / alp_scale * width
+                elif edge_mode == 'const':
+                    alpha = curve_alpha
+                    tail_width = width
+                else:
+                    raise NotImplementedError('Unidentified edge mode. Options are `alpha`, `width`, and `const`.')
+                
+                head_width = tail_width * arrow_head
                 arrow = create_edge_patch(
                         posA, posB, 
                         node_rad=node_rad, 
                         head_width=head_width, 
-                        tail_width=width, 
+                        tail_width=tail_width, 
                         connectionstyle=cstyle, 
-                        alpha=E[i, j] / alp_scale * curve_alpha)
+                        alpha=alpha)
                 plt.gca().add_patch(arrow)
     
     plt.gca().get_yaxis().set_ticks([])

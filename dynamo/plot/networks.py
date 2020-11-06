@@ -1,6 +1,7 @@
 import numpy as np, pandas as pd
-from ..tools.utils import update_dict
+from ..tools.utils import update_dict, index_gene, flatten
 from .utils import save_fig
+from .utils_graph import ArcPlot
 
 
 def nxvizPlot(adata,
@@ -144,7 +145,11 @@ def arcPlot(adata,
             cluster_name,
             edges_list,
             network=None,
-            weight_scale=5e3,
+            color=None,
+            node_size=100,
+            cbar=True,
+            cbar_shrink=0.6,
+            cbar_text=None,
             figsize=(6, 6),
             save_show_or_return='show',
             save_kwargs={},
@@ -184,7 +189,7 @@ def arcPlot(adata,
     -------
         Nothing but plot an ArcPlot of the input direct network.
     """
-    nxvizPlot(adata,
+    '''nxvizPlot(adata,
             cluster,
             cluster_name,
             edges_list,
@@ -195,7 +200,36 @@ def arcPlot(adata,
             save_show_or_return=save_show_or_return,
             save_kwargs=save_kwargs,
             **kwargs,
-            )
+            )'''
+    import matplotlib.pyplot as plt
+    try:
+        import networkx as nx
+    except ImportError:
+        raise ImportError(f"You need to install the package `networkx`."
+                          f"install networkx via `pip install networkx`.")
+
+    if edges_list is not None:
+        network = nx.from_pandas_edgelist(edges_list[cluster], 'regulator', 'target', edge_attr='weight',
+                                          create_using=nx.DiGraph())
+
+    # Iterate over all the nodes in G, including the metadata
+    if type(cluster_name) is str: cluster_names = [cluster_name]
+    if type(color) is str and color in adata.layers.keys():
+        data = adata[adata.obs[cluster].isin(cluster_names), :].layers[color]
+        color = []
+        for gene in network.nodes:
+            c = np.mean(flatten(index_gene(adata, data, [gene])))
+            color.append(c)
+    
+    ap = ArcPlot(network=network, c=color, s=node_size, **kwargs)
+    ap.draw()
+    
+    if cbar:
+        cbar = plt.colorbar(shrink=cbar_shrink)
+        if cbar_text is not None:
+            cbar.ax.set_ylabel(cbar_text, va='top')
+
+
 
 
 def circosPlot(adata,
