@@ -1078,9 +1078,18 @@ def filter_genes(
         )
     if shared_count is not None:
         layers = get_layer_keys(adata, "all", False)
-        detected_bool = detected_bool & get_shared_counts(
+        tmp = get_shared_counts(
             adata, layers, shared_count, "gene"
         )
+        if tmp.sum() > 2000:
+            detected_bool &= tmp
+        else:
+            # in case the labeling time is very short for pulse experiment or
+            # chase time is very long for degradation experiment.
+            tmp = get_shared_counts(
+                adata, list(set(layers).difference(['new', "labelled", 'labeled'])), shared_count, "gene"
+            )
+            detected_bool &= tmp
 
     ############################## The following code need to be updated ##############################
     # just remove genes that are not following the protein criteria
