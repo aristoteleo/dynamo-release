@@ -187,11 +187,11 @@ def arcPlot(adata,
         network: class:`~networkx.classes.digraph.DiGraph`
             A direct network for this cluster constructed based on Jacobian analysis.
         color: `str` or None (default: `None`)
-            The layer key that will be used to color the node of each gene.
+            The layer key that will be used to retrieve average expression to color the node of each gene.
         node_size: `float` (default: `100`)
             The size of the node, a constant.
         cbar: `bool` (default: `True`)
-            Whether or not to display colorbar when color is not None.
+            Whether or not to display colorbar when `color` is not None.
         cbar_title: `float` (default: `weight_threshold`)
             The title of the color bar when displayed.
         figsize: `None` or `[float, float]` (default: (6, 6)
@@ -223,9 +223,10 @@ def arcPlot(adata,
             save_kwargs=save_kwargs,
             **kwargs,
             )'''
-    import matplotlib.pyplot as plt
     import matplotlib
+    import matplotlib.pyplot as plt
     from matplotlib.ticker import MaxNLocator
+
     try:
         import networkx as nx
     except ImportError:
@@ -270,7 +271,6 @@ def arcPlot(adata,
 
     if save_show_or_return == "save":
         # Draw a to the screen
-        ap.draw()
         plt.autoscale()
         s_kwargs = {"path": None, "prefix": "arcPlot", "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
@@ -279,7 +279,6 @@ def arcPlot(adata,
         save_fig(**s_kwargs)
     elif save_show_or_return == "show":
         # Draw a to the screen
-        ap.draw()
         plt.autoscale()
         # Display the plot
         plt.show()
