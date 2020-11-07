@@ -1,6 +1,6 @@
 import numpy as np, pandas as pd
 from ..tools.utils import update_dict, index_gene, flatten
-from .utils import save_fig
+from .utils import set_colorbar, save_fig
 from .utils_graph import ArcPlot
 
 
@@ -84,7 +84,7 @@ def nxvizPlot(adata,
         if cluster is not None:
             network.nodes[n]['size'] = adata[adata.obs[cluster].isin(cluster_names), n].layers[layer].A.mean().astype(float)
         else:
-            network.nodes[n]['size'] = adata.layers[layer].A.mean().astype(float)
+            network.nodes[n]['size'] = adata[:, n].layers[layer].A.mean().astype(float)
 
         network.nodes[n]['label'] = n
     for e in network.edges():
@@ -165,8 +165,7 @@ def arcPlot(adata,
             color=None,
             node_size=100,
             cbar=True,
-            cbar_shrink=0.6,
-            cbar_text=None,
+            cbar_title=None,
             figsize=(6, 6),
             save_show_or_return='show',
             save_kwargs={},
@@ -187,11 +186,14 @@ def arcPlot(adata,
             information of Jacobian analysis. Each composite dataframe has `regulator`, `target` and `weight` three columns.
         network: class:`~networkx.classes.digraph.DiGraph`
             A direct network for this cluster constructed based on Jacobian analysis.
-        weight_scale: `float` (default: `1e3`)
-            Because values in Jacobian matrix is often small, the value will be multiplied by the weight_scale so that
-            the edge will have proper width in display.
-        weight_threshold: `float` (default: `weight_threshold`)
-            The threshold of weight that will be used to trim the edges for network reconstruction.
+        color: `str` or None (default: `None`)
+            The layer key that will be used to color the node of each gene.
+        node_size: `float` (default: `100`)
+            The size of the node, a constant.
+        cbar: `bool` (default: `True`)
+            Whether or not to display colorbar when color is not None.
+        cbar_title: `float` (default: `weight_threshold`)
+            The title of the color bar when displayed.
         figsize: `None` or `[float, float]` (default: (6, 6)
             The width and height of each panel in the figure.
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
@@ -222,6 +224,8 @@ def arcPlot(adata,
             **kwargs,
             )'''
     import matplotlib.pyplot as plt
+    import matplotlib
+    from matplotlib.ticker import MaxNLocator
     try:
         import networkx as nx
     except ImportError:
@@ -241,13 +245,47 @@ def arcPlot(adata,
             c = np.mean(flatten(index_gene(adata, data, [gene])))
             color.append(c)
     
-    ap = ArcPlot(network=network, c=color, s=node_size, **kwargs)
+    fig, ax = plt.subplots(figsize=figsize)
+    ap = ArcPlot(network=network, c=color, s=node_size, cmap='viridis', **kwargs)
     ap.draw()
     
-    if cbar:
-        cbar = plt.colorbar(shrink=cbar_shrink)
-        if cbar_text is not None:
-            cbar.ax.set_ylabel(cbar_text, va='top')
+    if cbar and color is not None:
+        norm = matplotlib.colors.Normalize(vmin=np.min(color), vmax=np.max(color))
+
+        mappable = matplotlib.cm.ScalarMappable(norm=norm, cmap="viridis") #
+        mappable.set_array(color)
+        cb = plt.colorbar(mappable, cax=set_colorbar(ax, {"width": "12%",  # width = 5% of parent_bbox width
+                                                           "height":"100%",  # height : 50%
+                                                           "loc": 'upper right',
+                                                           "bbox_to_anchor": (0.85, 0.85, 0.145, 0.17),
+                                                           "borderpad": 1.85,
+                                                           }), ax=ax)
+        if cbar_title is not None:
+            cb.ax.set_title(cbar_title)
+
+        cb.set_alpha(1)
+        cb.draw_all()
+        cb.locator = MaxNLocator(nbins=3, integer=True)
+        cb.update_ticks()
+
+    if save_show_or_return == "save":
+        # Draw a to the screen
+        ap.draw()
+        plt.autoscale()
+        s_kwargs = {"path": None, "prefix": "arcPlot", "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save_fig(**s_kwargs)
+    elif save_show_or_return == "show":
+        # Draw a to the screen
+        ap.draw()
+        plt.autoscale()
+        # Display the plot
+        plt.show()
+        # plt.savefig('./unknown_arcplot.pdf', dpi=300)
+    elif save_show_or_return == "return":
+        return ap
 
 
 def circosPlot(adata,
