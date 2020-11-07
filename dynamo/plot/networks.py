@@ -245,6 +245,8 @@ def arcPlot(adata,
         for gene in network.nodes:
             c = np.mean(flatten(index_gene(adata, data, [gene])))
             color.append(c)
+    else:
+        color = None
     
     fig, ax = plt.subplots(figsize=figsize)
     ap = ArcPlot(network=network, c=color, s=node_size, cmap='viridis', **kwargs)
