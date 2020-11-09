@@ -51,33 +51,42 @@ def arcplot(x,
             node_name_rotation=-45,
             hide_frame=True,
             edge_mode='alpha',
+            edge_pos_color='r',
+            edge_neg_color='b',
+            edge_color='k',
             **kwargs):
     X = np.vstack((x, np.zeros(len(x)))).T
     plt.scatter(X[:, 0], X[:, 1], **kwargs)
 
     # calculate alpha
-    alp_scale = np.max(E)
+    E_abs = np.abs(E)
+    alp_scale = np.max(E_abs)
 
     # arrow style
     curve_radius = np.abs(curve_radius) * arrow_direction
     cstyle = 'arc3, rad=%f'%curve_radius
 
+    if np.min(E) >= 0:
+        edge_pos_color = edge_neg_color = edge_color
+
     for i in range(E.shape[0]):
         for j in range(E.shape[1]):
-            if i != j and E[i, j] > edge_threshold:
+            if i != j and E_abs[i, j] > edge_threshold:
                 posA, posB = X[i], X[j]
                 if edge_mode == 'alpha':
-                    alpha = E[i, j] / alp_scale * curve_alpha
+                    alpha = E_abs[i, j] / alp_scale * curve_alpha
                     tail_width = width
                 elif edge_mode == 'width':
                     alpha = curve_alpha
-                    tail_width = E[i, j] / alp_scale * width * 5
+                    tail_width = E_abs[i, j] / alp_scale * width * 5
                 elif edge_mode == 'const':
                     alpha = curve_alpha
                     tail_width = width
                 else:
                     raise NotImplementedError('Unidentified edge mode. Options are `alpha`, `width`, and `const`.')
                 
+                ec = edge_pos_color if E[i, j] > 0 else edge_neg_color
+
                 head_width = tail_width * arrow_head
                 arrow = create_edge_patch(
                         posA, posB, 
@@ -85,7 +94,9 @@ def arcplot(x,
                         head_width=head_width, 
                         tail_width=tail_width, 
                         connectionstyle=cstyle, 
-                        alpha=alpha)
+                        alpha=alpha,
+                        facecolor=ec,
+                        edgecolor=ec)
                 plt.gca().add_patch(arrow)
     
     plt.gca().get_yaxis().set_ticks([])
