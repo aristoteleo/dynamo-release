@@ -4,6 +4,7 @@ from .connectivity import neighbors, normalize_knn_graph
 from .dynamics import dynamics
 from .dimension_reduction import reduceDimension
 from .cell_velocities import cell_velocities
+from .utils import set_transition_genes
 
 # add recipe_csc_data()
 
@@ -279,7 +280,12 @@ def recipe_deg_data(adata,
         # then perform dimension reduction
         reduceDimension(adata, reduction_method=basis)
         # lastly, project RNA velocity to low dimensional embedding.
-        cell_velocities(adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis)
+        try:
+            set_transition_genes(adata)
+            cell_velocities(adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis)
+        except:
+            cell_velocities(adata, min_r2=adata.var.gamma_r2.min(), enforce=True, vkey=vkey, ekey=ekey, basis=basis)
+
     else:
         recipe_monocle(adata,
                        tkey=tkey,

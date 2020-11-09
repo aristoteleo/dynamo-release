@@ -37,6 +37,7 @@ def phase_portraits(
         show_quiver=False,
         quiver_size=None,
         quiver_length=None,
+        no_vel_u=True,
         frontier=True,
         q_kwargs_dict={},
         show_arrowed_spines=None,
@@ -143,6 +144,8 @@ def phase_portraits(
             applying `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale
             of quiver indicates the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller
             scale parameter makes the arrow longer.
+        no_vel_u: `bool` (default: True)
+            Wheter to not show velocity U (velocity of unpsliced RNAs).
         q_kwargs_dict: `dict` (default: {})
             The dictionary of the quiver arguments. The default setting of quiver argument is identical to that used in
             the cell_wise_velocity and grid_velocity.
@@ -644,7 +647,7 @@ def phase_portraits(
             cur_pd.loc[:, ['S', 'U']].values if vkey == 'velocity_S' else cur_pd.loc[:, ['total', 'new']].values,
             cur_pd.loc[:, ["vel_s", "vel_u"]].values
         )
-
+        if no_vel_u and vkey == 'velocity_S': V_array[:, 1] = 0
         # add quiver:
         if show_quiver:
             V_array /= 3 * quiver_autoscaler(X_array, V_array)
