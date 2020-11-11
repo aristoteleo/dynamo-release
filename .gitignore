@@ -1,3 +1,4 @@
+*.html
 # vscode related
 .vscode/
 dynamo/.vscode/
