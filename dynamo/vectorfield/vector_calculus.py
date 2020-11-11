@@ -388,7 +388,7 @@ def torsion(adata,
         vector_field_class: dict
             The true ODE function, useful when the data is generated through simulation.
         kwargs:
-            Any additional keys that will be passed to vector_field_class.compute_acceleration function.
+            Any additional keys that will be passed to vector_field_class.compute_torsion function.
 
     Returns
     -------
