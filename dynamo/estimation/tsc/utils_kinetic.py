@@ -425,7 +425,7 @@ class Moments_NoSwitching(LinearODE):
 
         # second moments
         dx[self.uu] = al + 2*al*x[self.u] + be*x[self.u] - 2*be*x[self.uu]
-        dx[self.us] = al*x[self.s] + be*x[self.uu] - be*x[self.us] - ga*x[self.us]
+        dx[self.us] = al*x[self.s] - be*x[self.u] + be*x[self.uu] - (be + ga) * x[self.us]
         dx[self.ss] = be*x[self.u] + 2*be*x[self.us] + ga*x[self.s] - 2*ga*x[self.ss]
 
         return dx
