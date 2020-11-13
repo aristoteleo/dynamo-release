@@ -27,6 +27,9 @@ from .scVectorField import (
     line_integral_conv,
     plot_energy
 )  # , plot_LIC_gray
+from .streamtube import (
+    plot_3d_streamtube
+)
 from .topography import (
     plot_flow_field,
     plot_fixed_points,

@@ -183,15 +183,16 @@ def jacobian(adata,
         Qkey: str (default: 'PCs')
             The key of the PCA loading matrix in `.uns`.
         vector_field_class: :class:`~scVectorField.vectorfield`
-            If not `None`, the divergene will be computed using this class instead of the vector field stored in adata.
+            If not `None`, the jacobian will be computed using this class instead of the vector field stored in adata.
         method: str (default: 'analytical')
             The method that will be used for calculating Jacobian, either `'analytical'` or `'numerical'`. `'analytical'`
             method uses the analytical expressions for calculating Jacobian while `'numerical'` method uses numdifftools,
-            a numerical differentiation tool, for computing Jacobian. 
-            `'analytical'` method is much more efficient.
+            a numerical differentiation tool, for computing Jacobian. `'analytical'` method is much more efficient.
         cores: int (default: 1)
             Number of cores to calculate Jacobian. If cores is set to be > 1, multiprocessing will be used to
             parallel the Jacobian calculation.
+        kwargs:
+            Any additional keys that will be passed to elementwise_jacobian_transformation function.
 
     Returns
     -------
@@ -271,6 +272,7 @@ def acceleration(adata,
          basis='umap',
          vector_field_class=None,
          Qkey='PCs',
+         method='analytical',
          **kwargs
          ):
     """Calculate acceleration for each cell with the reconstructed vector field function.
@@ -283,6 +285,15 @@ def acceleration(adata,
             The embedding data in which the vector field was reconstructed.
         vector_field_class: :class:`~scVectorField.vectorfield`
             If not None, the divergene will be computed using this class instead of the vector field stored in adata.
+        Qkey: str (default: 'PCs')
+            The key of the PCA loading matrix in `.uns`.
+        method: str (default: 'analytical')
+            The method that will be used for calculating acceleration field, either `'analytical'` or `'numerical'`.
+            `'analytical'` method uses the analytical expressions for calculating acceleration field while `'numerical'`
+            method uses numdifftools, a numerical differentiation tool, for computing acceleration. `'analytical'` method
+            is much more efficient.
+        kwargs:
+            Any additional keys that will be passed to vector_field_class.compute_acceleration function.
 
     Returns
     -------
@@ -295,7 +306,7 @@ def acceleration(adata,
         vector_field_class = vectorfield()
         vector_field_class.from_adata(adata, basis=basis)
 
-    acce_norm, acce = vector_field_class.compute_acceleration(**kwargs)
+    acce_norm, acce = vector_field_class.compute_acceleration(method=method, **kwargs)
 
     acce_key = "acceleration" if basis is None else "acceleration_" + basis
     adata.obsm[acce_key] = acce
@@ -310,6 +321,7 @@ def curvature(adata,
          vector_field_class=None,
          formula=2,
          Qkey='PCs',
+         method="analytical",
          **kwargs
          ):
     """Calculate curvature for each cell with the reconstructed vector field function.
@@ -328,6 +340,12 @@ def curvature(adata,
             gives the norm of the curvature.
         Qkey: str (default: 'PCs')
             The key of the PCA loading matrix in `.uns`.
+        method: str (default: 'analytical')
+            The method that will be used for calculating curvature field, either `'analytical'` or `'numerical'`. `'analytical'`
+            method uses the analytical expressions for calculating curvature while `'numerical'` method uses numdifftools,
+            a numerical differentiation tool, for computing curvature. `'analytical'` method is much more efficient.
+        kwargs:
+            Any additional keys that will be passed to vector_field_class.compute_curvature function.
 
     Returns
     -------
@@ -343,7 +361,7 @@ def curvature(adata,
         raise ValueError(f"There are only two available formulas (formula can be either `{1, 2}`) to calculate "
                          f"curvature, but your formula argument is {formula}.")
 
-    curv, curv_mat = vector_field_class.compute_curvature(formula=formula, **kwargs)
+    curv, curv_mat = vector_field_class.compute_curvature(formula=formula, method=method, **kwargs)
 
     curv_key = "curvature" if basis is None else "curvature_" + basis
 
@@ -369,6 +387,8 @@ def torsion(adata,
             The embedding data in which the vector field was reconstructed.
         vector_field_class: dict
             The true ODE function, useful when the data is generated through simulation.
+        kwargs:
+            Any additional keys that will be passed to vector_field_class.compute_torsion function.
 
     Returns
     -------
@@ -392,6 +412,7 @@ def torsion(adata,
 def curl(adata,
          basis='umap',
          vector_field_class=None,
+         method='analytical',
          **kwargs
          ):
     """Calculate Curl for each cell with the reconstructed vector field function.
@@ -405,9 +426,11 @@ def curl(adata,
         vector_field_class: :class:`~.scVectorField.vectorfield`
             If not None, the divergene will be computed using this class instead of the vector field stored in adata.
         method: str (default: `analytical`)
-            The method that will be used for calculating divergence, either `analytical` or `numeric`. `analytical`
+            The method that will be used for calculating curl, either `analytical` or `numeric`. `analytical`
             method will use the analytical form of the reconstructed vector field for calculating curl while
             `numeric` method will use numdifftools for calculation. `analytical` method is much more efficient.
+        kwargs:
+            Any additional keys that will be passed to vector_field_class.compute_curl function.
 
     Returns
     -------
@@ -433,7 +456,7 @@ def curl(adata,
         for i, x in tqdm(enumerate(X_data), f"Calculating curl with the reconstructed vector field on the {basis} basis. "):
             curl[i] = vector_field_class.compute_curl(X=x, **kwargs)
     '''
-    curl = vector_field_class.compute_curl(**kwargs)
+    curl = vector_field_class.compute_curl(method=method, **kwargs)
     curl_key = "curl" if basis is None else "curl_" + basis
 
     adata.obs[curl_key] = curl
@@ -461,8 +484,12 @@ def divergence(adata,
             If not None, the divergene will be computed using this class instead of the vector field stored in adata.
         method: str (default: `analytical`)
             The method that will be used for calculating divergence, either `analytical` or `numeric`. `analytical`
-            method will use the analytical form of the reconstructed vector field for calculating Jacobian while
+            method will use the analytical form of the reconstructed vector field for calculating divergence while
             `numeric` method will use numdifftools for calculation. `analytical` method is much more efficient.
+        store_in_adata: bool (default: `True`)
+            Whether to store the divergence result in adata.
+        kwargs:
+            Any additional keys that will be passed to vector_field_class.compute_divergence function.
 
     Returns
     -------
@@ -495,7 +522,7 @@ def divergence(adata,
                 calculated[i] = True
                 div[i] = np.trace(Js[:, :, i]) if Js.shape[2] == len(cell_idx) else np.trace(Js[:, :, c])
 
-    div[~calculated] = vector_field_class.compute_divergence(X[cell_idx[~calculated]], **kwargs)
+    div[~calculated] = vector_field_class.compute_divergence(X[cell_idx[~calculated]], method=method, **kwargs)
 
     if store_in_adata:
         div_key = "divergence" if basis is None else "divergence_" + basis
