@@ -278,7 +278,7 @@ def plot_fixed_points(
         ax: :class:`~matplotlib.axes.Axes`
             The matplotlib axes used for plotting. Default is to use the current axis.
     """
-
+    import matplotlib
     from matplotlib import rcParams, markers
     import matplotlib.patheffects as PathEffects
     from matplotlib.colors import to_hex
@@ -301,9 +301,11 @@ def plot_fixed_points(
 
     Xss, ftype = vecfld.get_fixed_points(get_types=True)
     confidence = vecfld.get_Xss_confidence()
+    
     if ax is None:
         ax = plt.gca()
-
+    
+    cm = matplotlib.cm.get_cmap(_cmap) if type(_cmap) is str else _cmap
     for i in range(len(Xss)):
         cur_ftype = ftype[i]
         marker_ = markers.MarkerStyle(marker=marker, fillstyle=filltype[int(cur_ftype + 1)])
@@ -311,12 +313,11 @@ def plot_fixed_points(
             *Xss[i],
             marker=marker_,
             s=markersize,
-            c=confidence[i],
+            c=cm(confidence[i]),
             edgecolor=_select_font_color(_background),
             linewidths=1,
             cmap=_cmap,
             vmin=0,
-            vmax=1,
             zorder=5
         )
         txt = ax.text(*Xss[i], repr(i), c=('black' if cur_ftype == -1 else 'blue' if cur_ftype == 0 else 'red'),

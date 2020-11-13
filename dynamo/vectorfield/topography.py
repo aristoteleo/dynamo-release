@@ -14,6 +14,7 @@ from ..tools.utils import (
     form_triu_matrix,
     index_condensed_matrix,
     inverse_norm,
+    gaussian_1d,
 )
 
 from .utils import vector_field_function, vecfld_from_adata, angle
@@ -336,7 +337,7 @@ class FixedPoints:
 
 
 class VectorField2D:
-    def __init__(self, func, func_vx=None, func_vy=None, X_data=None, k=50):
+    def __init__(self, func, func_vx=None, func_vy=None, X_data=None):
         self.func = func
 
         def func_dim(x, func, dim):
@@ -357,7 +358,6 @@ class VectorField2D:
             self.fy = func_vy
         self.Xss = FixedPoints()
         self.X_data = X_data
-        self.k = k
         self.NCx = None
         self.NCy = None
 
@@ -379,26 +379,29 @@ class VectorField2D:
                     ftype[i] = -1
             return X, ftype
 
-    def get_Xss_confidence(self):
+    def get_Xss_confidence(self, k=50):
         X = self.X_data
         X = X.A if sp.issparse(X) else X
         Xss = self.Xss.get_X()
-        alg = 'ball_tree' if Xss.shape[1] > 10 else 'kd_tree'
+        Xref = np.mean(X, 0)
+        Xss = np.vstack((Xss, Xref))
 
         if X.shape[0] > 200000 and X.shape[1] > 2: 
             from pynndescent import NNDescent
 
-            nbrs = NNDescent(X, metric='euclidean', n_neighbors=min(self.k, X.shape[0] - 1), n_jobs=-1, random_state=19491001)
-            _, dist = nbrs.query(Xss, k=min(self.k, X.shape[0] - 1))
+            nbrs = NNDescent(X, metric='euclidean', n_neighbors=min(k, X.shape[0] - 1), n_jobs=-1, random_state=19491001)
+            _, dist = nbrs.query(Xss, k=min(k, X.shape[0] - 1))
         else:
             alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
-            nbrs = NearestNeighbors(n_neighbors=min(self.k, X.shape[0] - 1), algorithm=alg, n_jobs=-1).fit(X)
+            nbrs = NearestNeighbors(n_neighbors=min(k, X.shape[0] - 1), algorithm=alg, n_jobs=-1).fit(X)
             dist, _ = nbrs.kneighbors(Xss)
 
         dist_m = dist.mean(1)
-        confidence = 1 - dist_m / dist_m.max()
-
-        return confidence
+        #confidence = 1 - dist_m / dist_m.max()
+        sigma = 0.1*0.5*(np.max(X[:, 0]) - np.min(X[:, 0]) + np.max(X[:, 1]) - np.min(X[:, 1]))
+        confidence = gaussian_1d(dist_m, sigma=sigma)
+        confidence /= np.max(confidence)
+        return confidence[:-1]
 
     def find_fixed_points_by_sampling(
         self, n, x_range, y_range, lhs=True, tol_redundant=1e-4
