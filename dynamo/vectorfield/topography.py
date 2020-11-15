@@ -383,7 +383,7 @@ class VectorField2D:
         X = self.X_data
         X = X.A if sp.issparse(X) else X
         Xss = self.Xss.get_X()
-        Xref = np.mean(X, 0)
+        Xref = np.median(X, 0)
         Xss = np.vstack((Xss, Xref))
 
         if X.shape[0] > 200000 and X.shape[1] > 2: 
