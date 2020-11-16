@@ -139,3 +139,59 @@ def build_network_per_cluster(adata,
             edges_list[c] = pd.concat((reg_df, eff_df), axis=0)
 
     return edges_list
+
+
+def adj_list_to_matrix(adj_list, only_one_edge=False, clr=False, graph=False):
+    """Convert a pandas adjacency list (with regulator, target, weight columns) to a processed adjacency matrix (or
+    network).
+
+    Parameters
+    ----------
+    adj_list: `pandas.DataFrae`
+        A pandas adjacency dataframe with regulator, target, weight columns for representing a network graph.
+    only_one_edge: `bool`
+        Whether or not to only keep the edges with higher weight for any two gene pair.
+    clr: `bool`
+        Whether to post-process the direct network via the context likelihood relatedness.
+    graph: `bool`
+        Whether a direct, weighted graph based on networkx should be returned.
+
+    Returns
+    -------
+        A pandas adjacency matrix or a direct, weighted graph constructed via networkx.
+    """
+
+    uniq_genes = list(set(adj_list.regulator) | set(adj_list.target))
+
+    adj_matrix = pd.DataFrame(0, index=uniq_genes, columns=uniq_genes)
+
+    for i, row in adj_list.iterrows():
+        adj_matrix.loc[row.regulator, row.target] = row.weight
+
+    if only_one_edge:
+        row_ind, col_ind = np.where(adj_matrix - adj_matrix.T < 0)
+        adj_matrix[row_ind, col_ind] = 0
+    if clr:
+        try:
+            import Scribe
+        except ImportError:
+            raise ImportError("You need to install the package `Scribe`."
+                              "Plelease install from https://github.com/aristoteleo/Scribe-py."
+                              "Also check our paper: "
+                              "https://www.sciencedirect.com/science/article/abs/pii/S2405471220300363")
+
+        from Scribe.Scribe import CLR
+        adj_matrix = CLR(adj_matrix)
+        adj_matrix[np.isnan(adj_matrix)] = 0
+        adj_matrix[np.isfinite(adj_matrix)] = adj_matrix[np.isfinite(adj_matrix)].max().max()
+    if graph:
+        try:
+            import networkx as nx
+        except ImportError:
+            raise ImportError(f"You need to install the package `networkx`."
+                              f"install networkx via `pip install networkx`.")
+
+        network = nx.from_pandas_adjacency(adj_matrix, create_using=nx.DiGraph())
+        return network
+    else:
+        return adj_matrix
