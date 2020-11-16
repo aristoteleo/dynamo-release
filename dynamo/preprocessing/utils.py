@@ -514,7 +514,7 @@ def pca_genes(PCs, n_top_genes=100):
     return ret
 
 
-def filter_pca_genes(adata, pc_key='PCs', n_top_genes=100):
+def top_pca_genes(adata, pc_key='PCs', n_top_genes=100):
     genes = pca_genes(adata.uns[pc_key])
     adata.var['pca_genes'] = genes
     return adata
