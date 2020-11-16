@@ -169,21 +169,9 @@ def adj_list_to_matrix(adj_list, only_one_edge=False, clr=False, graph=False):
         adj_matrix.loc[row.regulator, row.target] = row.weight
 
     if only_one_edge:
-        row_ind, col_ind = np.where(adj_matrix - adj_matrix.T < 0)
-        adj_matrix[row_ind, col_ind] = 0
+        adj_matrix[adj_matrix - adj_matrix.T < 0] = 0
     if clr:
-        try:
-            import Scribe
-        except ImportError:
-            raise ImportError("You need to install the package `Scribe`."
-                              "Plelease install from https://github.com/aristoteleo/Scribe-py."
-                              "Also check our paper: "
-                              "https://www.sciencedirect.com/science/article/abs/pii/S2405471220300363")
-
-        from Scribe.Scribe import CLR
-        adj_matrix = CLR(adj_matrix)
-        adj_matrix[np.isnan(adj_matrix)] = 0
-        adj_matrix[np.isfinite(adj_matrix)] = adj_matrix[np.isfinite(adj_matrix)].max().max()
+        adj_matrix = clr_directed(adj_matrix)
     if graph:
         try:
             import networkx as nx
@@ -195,3 +183,21 @@ def adj_list_to_matrix(adj_list, only_one_edge=False, clr=False, graph=False):
         return network
     else:
         return adj_matrix
+
+
+def clr_directed(adj_mat):
+    """clr on directed graph"""
+    col_means = adj_mat.mean(axis=0)
+    col_sd = adj_mat.std(axis=0)
+    col_sd[col_sd == 0] = - 1e-4
+
+    updated_adj_mat = adj_mat.copy()
+    for i, row_i in adj_mat.iterrows():
+        row_mean, row_sd = np.mean(row_i), np.std(row_i)
+        if row_sd == 0: row_sd = - 1e-4
+
+        s_i_vec = np.maximum(0, (row_i - row_mean) / row_sd)
+        s_j_vec = np.maximum(0, (row_i - col_means) / col_sd)
+        updated_adj_mat.loc[i, :] = np.sqrt(s_i_vec**2 + s_j_vec**2)
+
+    return updated_adj_mat

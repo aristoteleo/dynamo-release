@@ -250,7 +250,8 @@ def arcPlot(adata,
     
     fig, ax = plt.subplots(figsize=figsize)
     ap = ArcPlot(network=network, c=color, s=node_size, cmap='viridis', **kwargs)
-    ap.draw()
+    node_degree = [network.degree[i] for i in network.nodes]
+    ap.draw(node_order=node_degree)
     
     if cbar and color is not None:
         norm = matplotlib.colors.Normalize(vmin=np.min(color), vmax=np.max(color))
