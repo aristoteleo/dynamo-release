@@ -781,14 +781,14 @@ def compute_velocity_labeling(N, R, K, tau):
     return elem_prod(Beta_or_gamma, N)/K - elem_prod(Beta_or_gamma, R)
 
 
-def compute_bursting_properties(M_r, phi, gamma):
+def compute_bursting_properties(M_t, phi, gamma):
     """Compute bursting frequency and size for the negative binomial regression model.
     The equations come from:
     Anton J.M. Larsson et al. Genomic encoding of transcriptional burst kinetics, Nature volume 565, pages251–254(2019) 
 
     Arguments
     ---------
-    M_r: :class:`~numpy.ndarray` or float
+    M_t: :class:`~numpy.ndarray` or float
         The first moment of the number of total mRNA.
         If an array is passed, a cell-wise bursting size will be calculated.
     phi: float
@@ -803,6 +803,6 @@ def compute_bursting_properties(M_r, phi, gamma):
     bf: float
         Bursting frequency
     """
-    bs = M_r * phi
+    bs = M_t * phi
     bf = gamma / phi
     return bs, bf

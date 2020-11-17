@@ -139,7 +139,7 @@ class ArcPlot:
             raise Exception('The adjacency matrix is not set.')
         
         if node_order is None:
-            self.x = np.arange(len(self.node_names))
+            self.x = np.arange(E.shape[0])
         else:
             self.x = np.argsort(node_order)
 
