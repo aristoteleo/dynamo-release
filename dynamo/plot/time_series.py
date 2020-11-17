@@ -264,7 +264,7 @@ def kinetic_heatmap(
 
         df = pd.DataFrame(all, index=genes)
     elif gene_order_method == 'maximum':
-        exprs = lowess_smoother(time, exprs.T, spaced_num=100)
+        exprs = lowess_smoother(time, exprs.T, spaced_num=None)
         exprs = exprs[np.isfinite(exprs.sum(1)), :]
 
         if standard_scale is not None:
@@ -412,20 +412,27 @@ def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):
     return time, all, np.isfinite(nt[:, 0]) & np.isfinite(nt[:, -1]), gene_idx
 
 
-def lowess_smoother(time, exprs, spaced_num):
+def lowess_smoother(time, exprs, spaced_num=None):
     gene_num = exprs.shape[0]
-    res = np.zeros((gene_num, spaced_num))
+    res = exprs.copy() if spaced_num is None else np.zeros((gene_num, spaced_num))
 
     for i in range(gene_num):
         x = exprs[i]
 
-        lowess = sm.nonparametric.lowess
-        tmp = lowess(x, time, frac=.3)
-        # run scipy's interpolation.
-        f = interp1d(tmp[:, 0], tmp[:, 1], bounds_error=False)
+        if spaced_num is None:
+            x_convolved = np.convolve(x[np.argsort(time)], np.ones(30) / 30, mode="same")
+            res[i, :] = x_convolved
+        else:
+            # lowess = sm.nonparametric.lowess
+            # tmp = lowess(x, time, frac=.3)
+            # # run scipy's interpolation.
+            # f = interp1d(tmp[:, 0], tmp[:, 1], bounds_error=False)
 
-        time_linspace = np.linspace(np.min(time), np.max(time), spaced_num)
-        res[i, :] = f(time_linspace)
+            x_convolved = np.convolve(x[np.argsort(time)], np.ones(30) / 30, mode="same")
+            f = interp1d(time[np.argsort(time)], x_convolved, bounds_error=False)
+
+            time_linspace = np.linspace(np.min(time), np.max(time), spaced_num)
+            res[i, :] = f(time_linspace)
 
     return res
 
