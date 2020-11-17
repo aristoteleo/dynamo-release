@@ -752,20 +752,24 @@ def fit_k_negative_binomial(n, r, var, phi=None, k0=None, return_k0=False):
         return ret.x[0]
 
 
-def fit_K_negbin(N, R, varR, perc_left=None, perc_right=None):
+def fit_K_negbin(N, R, varR, perc_left=None, perc_right=None, return_phi=False):
     n_gene = N.shape[1]
     K = np.zeros(n_gene)
+    Phi = np.zeros(n_gene)
     for i in range(n_gene):
         n = N[:, i].flatten()
         r = R[:, i].flatten()
         var = varR[:, i].flatten()
-        phi = compute_dispersion(r, var)
+        Phi[i] = compute_dispersion(r, var)
         if perc_left is None and perc_right is None:
-            K[i] = fit_k_negative_binomial(n, r, var, phi)
+            K[i] = fit_k_negative_binomial(n, r, var, Phi[i])
         else:
             eind = find_extreme(n, r, perc_left=perc_left, perc_right=perc_right)
-            K[i] = fit_k_negative_binomial(n[eind], r[eind], var[eind], phi)
-    return K
+            K[i] = fit_k_negative_binomial(n[eind], r[eind], var[eind], Phi[i])
+    if return_phi:
+        return K, Phi
+    else:
+        return K
 
 
 def compute_velocity_labeling(N, R, K, tau):
@@ -776,3 +780,28 @@ def compute_velocity_labeling(N, R, K, tau):
         Beta_or_gamma = -(np.log(1-Kc)[None, :].T/tau).T
     return elem_prod(Beta_or_gamma, N)/K - elem_prod(Beta_or_gamma, R)
 
+
+def compute_bursting_properties(r, phi, gamma):
+    """Compute bursting frequency and size for the negative binomial regression model.
+    The equations come from: https://www.nature.com/articles/s41586-018-0836-1
+
+    Arguments
+    ---------
+    r: :class:`~numpy.ndarray` or float
+        The number of total mRNA.
+        If an array is passed, a cell-wise bursting size will be calculated.
+    phi: float
+        The reciprocal dispersion parameter.
+    gamma: float
+        Degradation rate constant.
+
+    Returns
+    -------
+    bs: :class:`~numpy.ndarray` or float
+        Bursting size
+    bf: float
+        Bursting frequency
+    """
+    bs = r * phi
+    bf = gamma / phi
+    return bs, bf
