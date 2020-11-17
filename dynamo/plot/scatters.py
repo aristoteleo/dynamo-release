@@ -428,7 +428,9 @@ def scatters(
                         )
                         points.columns = ['x', 'y']
                         cur_title = cur_b
-
+                    else:
+                        raise Exception('Make sure your `x` and `y` are integers, gene names, column names in .obs, etc.')
+                    
                     if aggregate is not None:
                         groups, uniq_grp = (
                             adata.obs[aggregate],
