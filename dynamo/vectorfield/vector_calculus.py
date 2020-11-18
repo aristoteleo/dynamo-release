@@ -241,8 +241,14 @@ def jacobian(adata,
                                 get_pd_row_column_idx(var_df, effectors, "row")
         if len(regulators) == 0 or len(effectors) == 0:
             raise ValueError(f"Either the regulator or the effector gene list provided is not in the dynamics gene list!")
-
-        Q = adata.uns[Qkey][:, :X.shape[1]]
+        
+        if Qkey in adata.uns.keys():
+            Q = adata.uns[Qkey]
+        elif Qkey in adata.varm.keys():
+            Q = adata.varm[Qkey]
+        else:
+            raise Exception(f'No PC matrix {Qkey} found in neither .uns nor .varm.')
+        Q = Q[:, :X.shape[1]]
         if len(regulators) == 1 and len(effectors) == 1:
             Jacobian = elementwise_jacobian_transformation(Js, 
                     Q[eff_idx, :].flatten(), Q[reg_idx, :].flatten(), **kwargs)
@@ -312,7 +318,13 @@ def acceleration(adata,
     adata.obsm[acce_key] = acce
     adata.obs[acce_key] = acce_norm
     if basis == 'pca':
-        acce_hi = vector_transformation(acce, adata.uns[Qkey])
+        if Qkey in adata.uns.keys():
+            Q = adata.uns[Qkey]
+        elif Qkey in adata.varm.keys():
+            Q = adata.varm[Qkey]
+        else:
+            raise Exception(f'No PC matrix {Qkey} found in neither .uns nor .varm.')
+        acce_hi = vector_transformation(acce, Q)
         create_layer(adata, acce_hi, layer_key='acceleration', genes=adata.var.use_for_dynamics)
 
 
@@ -529,7 +541,8 @@ def divergence(adata,
         Div = np.array(adata.obs[div_key]) if div_key in adata.obs.keys() else np.ones(adata.n_obs) * np.nan
         Div[cell_idx] = div
         adata.obs[div_key] = Div
-    return div
+    else:
+        return div
 
 
 def rank_genes(adata,

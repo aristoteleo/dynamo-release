@@ -375,6 +375,10 @@ def jacobian(adata,
 
     adata_ = adata[cell_indx, :]
 
+    if regulators is None and effectors is not None:
+        regulators = effectors
+    elif effectors is None and regulators is not None:
+        effectors = regulators
     # test the simulation data here
     if (regulators_ is None or effectors_ is None):
         if Der.shape[0] != adata_.n_vars:

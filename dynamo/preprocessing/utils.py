@@ -515,7 +515,13 @@ def pca_genes(PCs, n_top_genes=100):
 
 
 def top_pca_genes(adata, pc_key='PCs', n_top_genes=100):
-    genes = pca_genes(adata.uns[pc_key])
+    if pc_key in adata.uns.keys():
+        Q = adata.uns[pc_key]
+    elif pc_key in adata.varm.keys():
+        Q = adata.varm[pc_key]
+    else:
+        raise Exception(f'No PC matrix {pc_key} found in neither .uns nor .varm.')
+    genes = pca_genes(Q)
     adata.var['pca_genes'] = genes
     return adata
 
