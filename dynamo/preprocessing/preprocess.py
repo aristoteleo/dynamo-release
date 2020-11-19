@@ -1525,7 +1525,7 @@ def recipe_monocle(
     else:
         adata.var["use_for_pca"] = adata.var.index.isin(genes_to_use)
         if not keep_filtered_genes:
-            adata = adata[:, adata.var["use_for_pca"]]
+            adata._inplace_subset_var(adata.var["use_for_pca"])
 
     # normalized data based on sz factor
     if not _logged:

@@ -29,6 +29,7 @@ from .vector_calculus import (
 )
 from .networks import (
     build_network_per_cluster,
+    adj_list_to_matrix,
 )
 
 # potential related

@@ -184,11 +184,13 @@ def kinetic_heatmap(
     tkey="potential",
     dist_threshold=1e-10,
     color_map="BrBG",
-    gene_order_method='half_max_ordering',
+    gene_order_method='maximum',
     show_colorbar=False,
     cluster_row_col=[False, False],
     figsize=(11.5, 6),
     standard_scale=1,
+    n_convolve=30,
+    spaced_num=100,
     save_show_or_return='show',
     save_kwargs={},
     **kwargs
@@ -218,6 +220,8 @@ def kinetic_heatmap(
         standard_scale: `int` (default: 1)
             Either 0 (rows, cells) or 1 (columns, genes). Whether or not to standardize that dimension, meaning for each row or column,
             subtract the minimum and divide each by its maximum.
+        n_convolve: `int` (default: 30)
+            Number of cells for convolution.
         save_show_or_return: {'show', 'save_fig', 'return'} (default: `show`)
             Whether to save_fig, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -264,7 +268,7 @@ def kinetic_heatmap(
 
         df = pd.DataFrame(all, index=genes)
     elif gene_order_method == 'maximum':
-        exprs = lowess_smoother(time, exprs.T, spaced_num=100)
+        exprs = lowess_smoother(time, exprs.T, spaced_num=spaced_num, n_convolve=n_convolve)
         exprs = exprs[np.isfinite(exprs.sum(1)), :]
 
         if standard_scale is not None:
@@ -272,7 +276,11 @@ def kinetic_heatmap(
                 exprs, axis=standard_scale
             )[:, None]
         max_sort = np.argsort(np.argmax(exprs, axis=1))
-        df = pd.DataFrame(exprs[max_sort, :], index=np.array(valid_genes)[max_sort])
+        if spaced_num is None:
+            df = pd.DataFrame(exprs[max_sort, :], index=np.array(valid_genes)[max_sort],
+                              columns=adata.obs_names)
+        else:
+            df = pd.DataFrame(exprs[max_sort, :], index=np.array(valid_genes)[max_sort])
     else:
         raise Exception('gene order_method can only be either half_max_ordering or maximum')
 
@@ -412,20 +420,27 @@ def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):
     return time, all, np.isfinite(nt[:, 0]) & np.isfinite(nt[:, -1]), gene_idx
 
 
-def lowess_smoother(time, exprs, spaced_num):
+def lowess_smoother(time, exprs, spaced_num=None, n_convolve=30):
     gene_num = exprs.shape[0]
-    res = np.zeros((gene_num, spaced_num))
+    res = exprs.copy() if spaced_num is None else np.zeros((gene_num, spaced_num))
 
     for i in range(gene_num):
         x = exprs[i]
 
-        lowess = sm.nonparametric.lowess
-        tmp = lowess(x, time, frac=.3)
-        # run scipy's interpolation.
-        f = interp1d(tmp[:, 0], tmp[:, 1], bounds_error=False)
+        if spaced_num is None:
+            x_convolved = np.convolve(x[np.argsort(time)], np.ones(30) / 30, mode="same")
+            res[i, :] = x_convolved
+        else:
+            # lowess = sm.nonparametric.lowess
+            # tmp = lowess(x, time, frac=.3)
+            # # run scipy's interpolation.
+            # f = interp1d(tmp[:, 0], tmp[:, 1], bounds_error=False)
 
-        time_linspace = np.linspace(np.min(time), np.max(time), spaced_num)
-        res[i, :] = f(time_linspace)
+            x_convolved = np.convolve(x[np.argsort(time)], np.ones(n_convolve) / n_convolve, mode="same")
+            f = interp1d(time[np.argsort(time)], x_convolved, bounds_error=False)
+
+            time_linspace = np.linspace(np.min(time), np.max(time), spaced_num)
+            res[i, :] = f(time_linspace)
 
     return res
 
@@ -444,6 +459,7 @@ def jacobian_kinetics(
     cluster_row_col=[False, True],
     figsize=(11.5, 6),
     standard_scale=1,
+    n_convolve=30,
     save_show_or_return='show',
     save_kwargs={},
     **kwargs
@@ -489,6 +505,8 @@ def jacobian_kinetics(
         standard_scale: `int` (default: 1)
             Either 0 (rows, cells) or 1 (columns, genes). Whether or not to standardize that dimension, meaning for each row or column,
             subtract the minimum and divide each by its maximum.
+        n_convolve: `int` (default: 30)
+            Number of cells for convolution.
         save_show_or_return: {'show', 'save_fig', 'return'} (default: `show`)
             Whether to save_fig, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -560,7 +578,7 @@ def jacobian_kinetics(
 
         df = pd.DataFrame(all, index=source_targets_)
     elif gene_order_method == 'maximum':
-        jacobian_mat = lowess_smoother(time, jacobian_mat, spaced_num=100)
+        jacobian_mat = lowess_smoother(time, jacobian_mat, spaced_num=None, n_convolve=n_convolve)
         jacobian_mat = jacobian_mat[np.isfinite(jacobian_mat.sum(1)), :]
 
         if standard_scale is not None:
@@ -568,10 +586,12 @@ def jacobian_kinetics(
                 jacobian_mat, axis=standard_scale
             )[:, None]
         max_sort = np.argsort(np.argmax(exprs, axis=1))
-        df = pd.DataFrame(exprs[max_sort, :], index=np.array(source_targets_)[max_sort])
+        df = pd.DataFrame(exprs[max_sort, :], index=np.array(source_targets_)[max_sort],
+                          columns=adata.obs_names)
     elif gene_order_method == "raw":
         jacobian_mat /= np.abs(jacobian_mat).max(1)[:, None]
-        df = pd.DataFrame(jacobian_mat, index=np.array(source_targets_))
+        df = pd.DataFrame(jacobian_mat, index=np.array(source_targets_),
+                          columns=adata.obs_names)
     else:
         raise Exception('gene order_method can only be either half_max_ordering or maximum')
 

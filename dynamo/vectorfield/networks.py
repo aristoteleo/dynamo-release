@@ -139,3 +139,65 @@ def build_network_per_cluster(adata,
             edges_list[c] = pd.concat((reg_df, eff_df), axis=0)
 
     return edges_list
+
+
+def adj_list_to_matrix(adj_list, only_one_edge=False, clr=False, graph=False):
+    """Convert a pandas adjacency list (with regulator, target, weight columns) to a processed adjacency matrix (or
+    network).
+
+    Parameters
+    ----------
+    adj_list: `pandas.DataFrae`
+        A pandas adjacency dataframe with regulator, target, weight columns for representing a network graph.
+    only_one_edge: `bool`
+        Whether or not to only keep the edges with higher weight for any two gene pair.
+    clr: `bool`
+        Whether to post-process the direct network via the context likelihood relatedness.
+    graph: `bool`
+        Whether a direct, weighted graph based on networkx should be returned.
+
+    Returns
+    -------
+        A pandas adjacency matrix or a direct, weighted graph constructed via networkx.
+    """
+
+    uniq_genes = list(set(adj_list.regulator) | set(adj_list.target))
+
+    adj_matrix = pd.DataFrame(0, index=uniq_genes, columns=uniq_genes)
+
+    for i, row in adj_list.iterrows():
+        adj_matrix.loc[row.regulator, row.target] = row.weight
+
+    if only_one_edge:
+        adj_matrix[adj_matrix - adj_matrix.T < 0] = 0
+    if clr:
+        adj_matrix = clr_directed(adj_matrix)
+    if graph:
+        try:
+            import networkx as nx
+        except ImportError:
+            raise ImportError(f"You need to install the package `networkx`."
+                              f"install networkx via `pip install networkx`.")
+
+        network = nx.from_pandas_adjacency(adj_matrix, create_using=nx.DiGraph())
+        return network
+    else:
+        return adj_matrix
+
+
+def clr_directed(adj_mat):
+    """clr on directed graph"""
+    col_means = adj_mat.mean(axis=0)
+    col_sd = adj_mat.std(axis=0)
+    col_sd[col_sd == 0] = - 1e-4
+
+    updated_adj_mat = adj_mat.copy()
+    for i, row_i in adj_mat.iterrows():
+        row_mean, row_sd = np.mean(row_i), np.std(row_i)
+        if row_sd == 0: row_sd = - 1e-4
+
+        s_i_vec = np.maximum(0, (row_i - row_mean) / row_sd)
+        s_j_vec = np.maximum(0, (row_i - col_means) / col_sd)
+        updated_adj_mat.loc[i, :] = np.sqrt(s_i_vec**2 + s_j_vec**2)
+
+    return updated_adj_mat
