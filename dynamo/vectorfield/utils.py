@@ -576,6 +576,26 @@ def compute_torsion(vf, f_jac, X):
     return tor
 
 
+@timeit
+def compute_sensitivity(f_jac, X):
+    """Calculate sensitivity for many samples via
+
+    .. math::
+    S = (I - J)^{-1} D(\frac{1}{I-J}^{-1})
+    """
+    J = f_jac(X)
+
+    n_genes, n_genes_, n_cells = J.shape
+    S = np.zeros_like(J)
+
+    I = np.eye(n_genes)
+    for i in tqdm(np.arange(n_cells), desc="Calculating sensitivity matrix with precomputed Jacobians"):
+        s = np.linalg.inv(I - J[:, :, i])  # np.transpose(J)
+        S[:, :, i] = s.dot(np.diag(1 / np.diag(s)))
+
+    return S
+
+
 def _curl(f, x, method='analytical', VecFld=None, jac=None):
     """Curl of the reconstructed vector field f evaluated at x in 3D"""
     if jac is None:

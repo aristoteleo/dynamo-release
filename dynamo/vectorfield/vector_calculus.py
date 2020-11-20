@@ -11,11 +11,11 @@ from ..tools.utils import (
     fetch_states
 )
 from .utils import (
-    vector_field_function, 
-    vecfld_from_adata, 
-    curl2d, 
+    vector_field_function,
+    vecfld_from_adata,
+    curl2d,
     vector_transformation,
-    elementwise_jacobian_transformation, 
+    elementwise_jacobian_transformation,
     subset_jacobian_transformation,
     get_metric_gene_in_rank,
     get_metric_gene_in_rank_by_group,
@@ -26,10 +26,10 @@ from .utils import (
 from .scVectorField import vectorfield
 from ..tools.sampling import sample
 from ..tools.utils import (
-    isarray, 
-    ismatrix, 
-    areinstance, 
-    list_top_genes, 
+    isarray,
+    ismatrix,
+    areinstance,
+    list_top_genes,
     create_layer,
     index_gene,
     table_top_genes,
@@ -223,12 +223,12 @@ def jacobian(adata,
         effectors = regulators
 
     if regulators is not None and effectors is not None:
-        if type(regulators) is str: 
+        if type(regulators) is str:
             if regulators in adata.var.keys():
                 regulators = adata.var.index[adata.var[regulators]]
             else:
                 regulators = [regulators]
-        if type(effectors) is str: 
+        if type(effectors) is str:
             if effectors in adata.var.keys():
                 effectors = adata.var.index[adata.var[effectors]]
             else:
@@ -244,7 +244,7 @@ def jacobian(adata,
 
         Q = adata.uns[Qkey][:, :X.shape[1]]
         if len(regulators) == 1 and len(effectors) == 1:
-            Jacobian = elementwise_jacobian_transformation(Js, 
+            Jacobian = elementwise_jacobian_transformation(Js,
                     Q[eff_idx, :].flatten(), Q[reg_idx, :].flatten(), **kwargs)
         else:
             Jacobian = subset_jacobian_transformation(Js, Q[eff_idx, :], Q[reg_idx, :], **kwargs)
@@ -263,6 +263,137 @@ def jacobian(adata,
     if store_in_adata:
         jkey = "jacobian" if basis is None else "jacobian_" + basis
         adata.uns[jkey] = ret_dict
+        return adata
+    else:
+        return ret_dict
+
+
+def sensitivity(adata,
+                regulators=None,
+                effectors=None,
+                cell_idx=None,
+                sampling=None,
+                sample_ncells=1000,
+                basis='pca',
+                Qkey='PCs',
+                vector_field_class=None,
+                method='analytical',
+                store_in_adata=True,
+                **kwargs
+                ):
+    """Calculate Sensitivity matrix for each cell with the reconstructed vector field.
+
+    If the vector field was reconstructed from the reduced PCA space, the Sensitivity matrix will then be inverse
+    transformed back to high dimension. Note that this should also be possible for reduced UMAP space and will be
+    supported shortly. Note that we compute the Sensitivity for the RKHS kernel vector field analytically,
+    which is much more computationally efficient than the numerical method.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field in `.uns`.
+        regulators: list
+            The list of genes that will be used as regulators when calculating the cell-wise Jacobian matrix. The Jacobian
+            is the matrix consisting of partial derivatives of the vector field wrt gene expressions. It can be used to
+            evaluate the change in velocities of effectors (see below) as the expressions of regulators increase. The
+            regulators are the denominators of the partial derivatives.
+        effectors: list or None (default: None)
+            The list of genes that will be used as effectors when calculating the cell-wise Jacobian matrix. The effectors
+            are the numerators of the partial derivatives.
+        cell_idx: list or None (default: None)
+            A list of cell index (or boolean flags) for which the jacobian is calculated.
+            If `None`, all or a subset of sampled cells are used.
+        sampling: {None, 'random', 'velocity', 'trn'}, (default: None)
+            See specific information on these methods in `.tl.sample`.
+            If `None`, all cells are used.
+        sample_ncells: int (default: 1000)
+            The number of cells to be sampled. If `sampling` is None, this parameter is ignored.
+        basis: str (default: 'pca')
+            The embedding data in which the vector field was reconstructed. If `None`, use the vector field function that
+            was reconstructed directly from the original unreduced gene expression space.
+        Qkey: str (default: 'PCs')
+            The key of the PCA loading matrix in `.uns`.
+        vector_field_class: :class:`~scVectorField.vectorfield`
+            If not `None`, the jacobian will be computed using this class instead of the vector field stored in adata.
+        method: str (default: 'analytical')
+            The method that will be used for calculating Jacobian, either `'analytical'` or `'numerical'`. `'analytical'`
+            method uses the analytical expressions for calculating Jacobian while `'numerical'` method uses numdifftools,
+            a numerical differentiation tool, for computing Jacobian. `'analytical'` method is much more efficient.
+        cores: int (default: 1)
+            Number of cores to calculate Jacobian. If cores is set to be > 1, multiprocessing will be used to
+            parallel the Jacobian calculation.
+        kwargs:
+            Any additional keys that will be passed to elementwise_jacobian_transformation function.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that is updated with the `'sensitivity'` key in the `.uns`. This is a 3-dimensional tensor with
+            dimensions n_obs x n_regulators x n_effectors.
+    """
+
+    if vector_field_class is None:
+        vector_field_class = vectorfield()
+        vector_field_class.from_adata(adata, basis=basis)
+
+    if basis == 'umap': cell_idx = np.arange(adata.n_obs)
+
+    X, V = vector_field_class.get_data()
+    if cell_idx is None:
+        if sampling is None or sampling == 'all':
+            cell_idx = np.arange(adata.n_obs)
+        else:
+            cell_idx = sample(np.arange(adata.n_obs), sample_ncells, sampling, X, V)
+
+    S = vector_field_class.compute_sensitivity(method=method)
+
+    if regulators is None and effectors is not None:
+        regulators = effectors
+    elif effectors is None and regulators is not None:
+        effectors = regulators
+
+    if regulators is not None and effectors is not None:
+        if type(regulators) is str:
+            if regulators in adata.var.keys():
+                regulators = adata.var.index[adata.var[regulators]]
+            else:
+                regulators = [regulators]
+        if type(effectors) is str:
+            if effectors in adata.var.keys():
+                effectors = adata.var.index[adata.var[effectors]]
+            else:
+                effectors = [effectors]
+        var_df = adata[:, adata.var.use_for_dynamics].var
+        regulators = var_df.index.intersection(regulators)
+        effectors = var_df.index.intersection(effectors)
+
+        reg_idx, eff_idx = get_pd_row_column_idx(var_df, regulators, "row"), \
+                           get_pd_row_column_idx(var_df, effectors, "row")
+        if len(regulators) == 0 or len(effectors) == 0:
+            raise ValueError(
+                f"Either the regulator or the effector gene list provided is not in the dynamics gene list!")
+
+        Q = adata.uns[Qkey][:, :X.shape[1]]
+        if len(regulators) == 1 and len(effectors) == 1:
+            Sensitivity = elementwise_jacobian_transformation(S,
+                                                           Q[eff_idx, :].flatten(), Q[reg_idx, :].flatten(), **kwargs)
+        else:
+            Sensitivity = subset_jacobian_transformation(S, Q[eff_idx, :], Q[reg_idx, :], **kwargs)
+    else:
+        Sensitivity = None
+
+    ret_dict = {"sensitivity": S, "cell_idx": cell_idx}
+    # use 'str_key' in dict.keys() to check if these items are computed, or use dict.get('str_key')
+    if Sensitivity is not None: ret_dict['sensitivity_gene'] = Sensitivity
+    if regulators is not None: ret_dict['regulators'] = regulators.to_list()
+    if effectors is not None: ret_dict['effectors'] = effectors.to_list()
+
+    S_det = [np.linalg.det(S[:, :, i]) for i in np.arange(S.shape[2])]
+    adata.obs['sensitivity_det_' + basis] = np.nan
+    adata.obs['sensitivity_det_' + basis][cell_idx] = S_det
+    if store_in_adata:
+        skey = "sensitivity" if basis is None else "sensitivity_" + basis
+        adata.uns[skey] = ret_dict
         return adata
     else:
         return ret_dict
@@ -597,7 +728,7 @@ def rank_genes(adata,
             raise Exception(f'Key {arr_key} not found in neither .layers nor .var.')
     else:
         arr = arr_key
-    
+
     if dtype is not None:
         arr = np.array(arr, dtype=dtype)
     if abs:
@@ -674,7 +805,7 @@ def rank_divergence_genes(adata,
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field in the `.uns` attribute.
         jkey: str (default: 'jacobian_pca')
-            The embedding data in which the vector field was reconstructed.
+            The key in .uns of the cell-wise Jacobian matrix.
         genes: list or None (default: None)
             A list of names for genes of interest.
         prefix_store: str (default: 'rank')
@@ -690,7 +821,7 @@ def rank_divergence_genes(adata,
 
     if jkey not in adata.uns_keys():
         raise Exception(f'The provided dictionary key {jkey} is not in .uns.')
-    
+
     reg = [x for x in adata.uns[jkey]['regulators']]
     eff = [x for x in adata.uns[jkey]['effectors']]
     if reg != eff:
@@ -706,6 +837,58 @@ def rank_divergence_genes(adata,
 
     rdict = rank_genes(adata, Div, fcn_pool=lambda x: np.nanmean(x, axis=0), genes=Genes, **kwargs)
     adata.uns[prefix_store + '_' + jkey] = rdict
+    return rdict
+
+
+def rank_s_divergence_genes(adata,
+                           skey='sensitivity_pca',
+                           genes=None,
+                           prefix_store='rank_s_div_gene',
+                           **kwargs
+                           ):
+    """Rank genes based on their diagonal Sensitivity for each cell group.
+        Be aware that this 'divergence' refers to the diagonal elements of a gene-wise
+        Sensitivity, rather than its trace, which is the common definition of the divergence.
+
+        Run .vf.sensitivity and set store_in_adata=True before using this function.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field in the `.uns` attribute.
+        skey: str (default: 'sensitivity_pca')
+            The key in .uns of the cell-wise sensitivity matrix.
+        genes: list or None (default: None)
+            A list of names for genes of interest.
+        prefix_store: str (default: 'rank')
+            The prefix added to the key for storing the returned ranking info in adata.
+        kwargs:
+            Keyword arguments passed to `vf.rank_genes`.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object which has the rank dictionary for diagonal sensitivity in `.uns`.
+    """
+
+    if skey not in adata.uns_keys():
+        raise Exception(f'The provided dictionary key {skey} is not in .uns.')
+
+    reg = [x for x in adata.uns[skey]['regulators']]
+    eff = [x for x in adata.uns[skey]['effectors']]
+    if reg != eff:
+        raise Exception(f'The Jacobian should have the same regulators and effectors.')
+    else:
+        Genes = adata.uns[skey]['regulators']
+    cell_idx = adata.uns[skey]['cell_idx']
+    div = np.einsum('iij->ji', adata.uns[skey]['sensitivity_gene'])
+    Div = create_layer(adata, div, genes=Genes, cells=cell_idx, dtype=np.float32)
+
+    if genes is not None:
+        Genes = list(set(Genes).intersection(genes))
+
+    rdict = rank_genes(adata, Div, fcn_pool=lambda x: np.nanmean(x, axis=0), genes=Genes, **kwargs)
+    adata.uns[prefix_store + '_' + skey] = rdict
     return rdict
 
 
@@ -864,7 +1047,112 @@ def rank_jacobian_genes(adata,
                 if not (exclude_diagonal and i[0] == i[1]):
                     rank_dict[k].append(i[0] + ' - ' + i[1])
                     if ov: rank_dict[k+'_values'].append(vals[l])
-        rank_dict = pd.DataFrame(data=rank_dict) 
+        rank_dict = pd.DataFrame(data=rank_dict)
+    else:
+        raise ValueError(f'No such mode as {mode}.')
+    return rank_dict
+
+
+def rank_sensitivity_genes(adata,
+                        groups=None,
+                        skey='sensitivity_pca',
+                        abs=False,
+                        mode='full reg',
+                        exclude_diagonal=False,
+                        **kwargs
+                        ):
+    """Rank genes or gene-gene interactions based on their sensitivity elements for each cell group.
+
+        Run .vf.sensitivity and set store_in_adata=True before using this function.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field in the `.uns` attribute.
+        groups: str or None (default: None)
+            Cell groups used to group the sensitivity.
+        skey: str (default: 'sensitivity_pca')
+            The key of the stored sensitivity in `.uns`.
+        abs: bool (default: False)
+            Whether or not to take the absolute value of the Jacobian.
+        mode: {'full reg', 'full eff', 'reg', 'eff', 'int'} (default: 'full_reg')
+            The mode of ranking:
+            (1) `'full reg'`: top regulators are ranked for each effector for each cell group;
+            (2) `'full eff'`: top effectors are ranked for each regulator for each cell group;
+            (3) '`reg`': top regulators in each cell group;
+            (4) '`eff`': top effectors in each cell group;
+            (5) '`int`': top effector-regulator pairs in each cell group.
+        kwargs:
+            Keyword arguments passed to ranking functions.
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object which has the rank dictionary in `.uns`.
+    """
+    S_dict = adata.uns[skey]
+    S = S_dict['sensitivity_gene']
+    if abs:
+        S = np.abs(S)
+    if groups is None:
+        S_mean = {'all': np.mean(S, axis=2)}
+    else:
+        if type(groups) is str and groups in adata.obs.keys():
+            grps = np.array(adata.obs[groups])
+        elif isarray(groups):
+            grps = np.array(groups)
+        else:
+            raise Exception(f'The group information {groups} you provided is not in your adata object.')
+        S_mean = average_jacobian_by_group(S, grps[S_dict['cell_idx']])
+
+    eff = np.array([x for x in S_dict['effectors']])
+    reg = np.array([x for x in S_dict['regulators']])
+    rank_dict= {}
+    if mode in ['full reg', 'full_reg']:
+        for k, S in S_mean.items():
+            rank_dict[k] = table_top_genes(S, eff, reg, n_top_genes=None, **kwargs)
+    elif mode in ['full eff', 'full_eff']:
+        for k, S in S_mean.items():
+            rank_dict[k] = table_top_genes(S.T, reg, eff, n_top_genes=None, **kwargs)
+    elif mode == 'reg':
+        ov = kwargs.pop('output_values', False)
+        for k, S in S_mean.items():
+            if exclude_diagonal:
+                for i, ef in enumerate(eff):
+                    ii = np.where(reg==ef)[0]
+                    if len(ii) > 0:
+                        S[i, ii] = np.nan
+            j = np.nanmean(S, axis=0)
+            if ov:
+                rank_dict[k], rank_dict[k+'_values'] = list_top_genes(j, reg, None, return_sorted_array=True, **kwargs)
+            else:
+                rank_dict[k] = list_top_genes(j, reg, None, **kwargs)
+        rank_dict = pd.DataFrame(data=rank_dict)
+    elif mode == 'eff':
+        ov = kwargs.pop('output_values', False)
+        for k, S in S_mean.items():
+            if exclude_diagonal:
+                for i, re in enumerate(reg):
+                    ii = np.where(eff == re)[0]
+                    if len(ii) > 0:
+                        S[ii, i] = np.nan
+            j = np.nanmean(S, axis=1)
+            if ov:
+                rank_dict[k], rank_dict[k+'_values'] = list_top_genes(j, eff, None, return_sorted_array=True, **kwargs)
+            else:
+                rank_dict[k] = list_top_genes(j, eff, None, **kwargs)
+        rank_dict = pd.DataFrame(data=rank_dict)
+    elif mode == 'int':
+        ov = kwargs.pop('output_values', False)
+        for k, S in S_mean.items():
+            ints, vals = list_top_interactions(S, eff, reg, **kwargs)
+            rank_dict[k] = []
+            if ov: rank_dict[k+'_values'] = []
+            for l, i in enumerate(ints):
+                if not (exclude_diagonal and i[0] == i[1]):
+                    rank_dict[k].append(i[0] + ' - ' + i[1])
+                    if ov: rank_dict[k+'_values'].append(vals[l])
+        rank_dict = pd.DataFrame(data=rank_dict)
     else:
         raise ValueError(f'No such mode as {mode}.')
     return rank_dict

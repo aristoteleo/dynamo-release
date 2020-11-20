@@ -15,7 +15,12 @@ from .preprocess import (
 from .cell_cycle import cell_cycle_scores
 
 from .dynamics import phase_portraits, dynamics
-from .time_series import kinetic_curves, kinetic_heatmap, jacobian_kinetics
+from .time_series import (
+    kinetic_curves,
+    kinetic_heatmap,
+    jacobian_kinetics,
+    sensitivity_kinetics,
+)
 
 from .dimension_reduction import pca, tsne, umap, trimap
 from .connectivity import nneighbors
@@ -45,6 +50,8 @@ from .vector_calculus import (
     curvature,
     jacobian,
     jacobian_heatmap,
+    sensitivity,
+    sensitivity_heatmap,
 )
 from .networks import (
     arcPlot,

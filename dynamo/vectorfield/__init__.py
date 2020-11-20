@@ -15,6 +15,7 @@ from .vector_calculus import (
     velocities,
     speed,
     jacobian,
+    sensitivity,
     curl,
     divergence,
     acceleration,
@@ -22,10 +23,12 @@ from .vector_calculus import (
     torsion,
     rank_velocity_genes,
     rank_divergence_genes,
+    rank_s_divergence_genes,
     rank_acceleration_genes,
     rank_curvature_genes,
     rank_genes,
     rank_jacobian_genes,
+    rank_sensitivity_genes,
 )
 from .networks import (
     build_network_per_cluster,

@@ -28,6 +28,7 @@ from .utils import (
     compute_acceleration,
     compute_curvature,
     compute_torsion,
+    compute_sensitivity,
     Jacobian_rkhs_gaussian,
     Jacobian_rkhs_gaussian_parallel,
     vecfld_from_adata,
@@ -724,6 +725,12 @@ class vectorfield:
         X = self.data['X'] if X is None else X
         f_jac = self.get_Jacobian(method=method)
         return compute_torsion(self.func, f_jac, X, **kwargs)
+
+
+    def compute_sensitivity(self, X=None, method='analytical', **kwargs):
+        X = self.data['X'] if X is None else X
+        f_jac = self.get_Jacobian(method=method)
+        return compute_sensitivity(f_jac, X, **kwargs)
 
 
     def get_Jacobian(self, method='analytical', input_vector_convention='row', **kwargs):
