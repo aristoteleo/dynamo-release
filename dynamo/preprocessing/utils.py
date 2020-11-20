@@ -514,15 +514,21 @@ def pca_genes(PCs, n_top_genes=100):
     return ret
 
 
-def top_pca_genes(adata, pc_key='PCs', n_top_genes=100):
+def top_pca_genes(adata, pc_key='PCs', n_top_genes=100, adata_store_key='top_pca_genes'):
     if pc_key in adata.uns.keys():
         Q = adata.uns[pc_key]
     elif pc_key in adata.varm.keys():
         Q = adata.varm[pc_key]
     else:
         raise Exception(f'No PC matrix {pc_key} found in neither .uns nor .varm.')
-    genes = pca_genes(Q)
-    adata.var['pca_genes'] = genes
+    pcg = pca_genes(Q, n_top_genes=n_top_genes)
+    genes = np.zeros(adata.n_vars, dtype=bool)
+    if 'use_for_pca' in adata.var.keys():
+        genes[adata.var['use_for_pca']] = pcg
+    else:
+        genes = pcg
+    print('%d top PCA genes found for %d PCs.'%(np.sum(pcg), Q.shape[1]))
+    adata.var[adata_store_key] = genes
     return adata
 
 
