@@ -464,7 +464,7 @@ def jacobian_kinetics(
     save_kwargs={},
     **kwargs
 ):
-    """Plot the Jacobian expression dynamics over time (pseudotime or inferred real time) in a heatmap.
+    """Plot the Jacobian dynamics over time (pseudotime or inferred real time) in a heatmap.
 
     Note that by default `potential` estimated with the diffusion graph built from reconstructed vector field will be
     used as the measure of pseudotime.

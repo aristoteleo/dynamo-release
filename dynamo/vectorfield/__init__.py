@@ -29,6 +29,7 @@ from .vector_calculus import (
     rank_genes,
     rank_jacobian_genes,
     rank_sensitivity_genes,
+    aggregateRegEffs,
 )
 from .networks import (
     build_network_per_cluster,

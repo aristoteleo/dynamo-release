@@ -21,6 +21,7 @@ from ..tools.utils import (
     flatten,
 )
 
+from ..vectorfield.utils import intersect_sources_targets
 
 docstrings.delete_params("scatters.parameters", "adata", "color", "cmap", "frontier", "sym_c")
 docstrings.delete_params("scatters.parameters", "adata", "color", "cmap", "frontier")
@@ -251,7 +252,8 @@ def jacobian(adata,
              regulators=None,
              effectors=None,
              basis="umap",
-             J_basis="pca",
+             jkey='jacobian',
+             j_basis="pca",
              x=0,
              y=1,
              layer='M_s',
@@ -284,7 +286,9 @@ def jacobian(adata,
             that have already performed Jacobian analysis.
         basis: `str` (default: `umap`)
             The reduced dimension basis.
-        J_basis: `str` (default: `pca`)
+        jkey: `str` (default: `jacobian`)
+            The key to the jacobian dictionary in .uns.
+        j_basis: `str` (default: `pca`)
             The reduced dimension space that will be used to calculate the jacobian matrix.
         x: `int` (default: `0`)
             The column index of the low dimensional embedding for the x-axis.
@@ -366,10 +370,10 @@ def jacobian(adata,
     else:
         _background = background
 
-    Jacobian_ = "jacobian" if J_basis is None else "jacobian_" + J_basis
-    Der, cell_indx, jacobian_gene, regulators_, effectors_ = adata.uns[Jacobian_].get('jacobian'), \
+    Jacobian_ = jkey if j_basis is None else jkey + "_" + j_basis
+    Der, cell_indx, jacobian_gene, regulators_, effectors_ = adata.uns[Jacobian_].get(jkey.split("_")[1]), \
                                                               adata.uns[Jacobian_].get('cell_idx'), \
-                                                              adata.uns[Jacobian_].get('jacobian_gene'), \
+                                                              adata.uns[Jacobian_].get(jkey.split("_")[1] + '_gene'), \
                                                               adata.uns[Jacobian_].get('regulators'), \
                                                               adata.uns[Jacobian_].get('effectors')
 
@@ -378,8 +382,8 @@ def jacobian(adata,
     # test the simulation data here
     if (regulators_ is None or effectors_ is None):
         if Der.shape[0] != adata_.n_vars:
-            source_genes = [J_basis + '_' + str(i) for i in range(Der.shape[0])]
-            target_genes = [J_basis + '_' + str(i) for i in range(Der.shape[1])]
+            source_genes = [j_basis + '_' + str(i) for i in range(Der.shape[0])]
+            target_genes = [j_basis + '_' + str(i) for i in range(Der.shape[1])]
         else:
             source_genes, target_genes = adata_.var_names, adata_.var_names
     else:
@@ -512,7 +516,7 @@ def jacobian(adata,
                 deaxis_all(ax)
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'jacobian', "dpi": None,
+        s_kwargs = {"path": None, "prefix": jkey, "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
@@ -526,6 +530,7 @@ def jacobian(adata,
 
 def jacobian_heatmap(adata,
                      cell_idx,
+                     jkey='jacobian',
                      basis='umap',
                      regulators=None,
                      effectors=None,
@@ -547,6 +552,8 @@ def jacobian_heatmap(adata,
             an Annodata object with Jacobian matrix estimated.
         cell_idx: `int` or `list`
             The numeric indices of the cells that you want to draw the jacobian matrix to reveal the regulatory activity.
+        jkey: `str` (default: `jacobian`)
+            The key to the jacobian dictionary in .uns.
         basis: `str`
             The reduced dimension basis.
         regulators: `list` or `None` (default: `None`)
@@ -590,11 +597,11 @@ def jacobian_heatmap(adata,
     import matplotlib.pyplot as plt
     import seaborn as sns
 
-    Jacobian_ = "jacobian" if basis is None else "jacobian_" + basis
+    Jacobian_ = jkey if basis is None else jkey + "_" + basis
     if type(cell_idx) == int: cell_idx = [cell_idx]
-    Der, cell_indx, jacobian_gene, regulators_, effectors_ = adata.uns[Jacobian_].get('jacobian'), \
+    Der, cell_indx, jacobian_gene, regulators_, effectors_ = adata.uns[Jacobian_].get(jkey.split("_")[1]), \
                                                               adata.uns[Jacobian_].get('cell_idx'), \
-                                                              adata.uns[Jacobian_].get('jacobian_gene'), \
+                                                              adata.uns[Jacobian_].get(jkey.split("_")[1] + '_gene'), \
                                                               adata.uns[Jacobian_].get('regulators'), \
                                                               adata.uns[Jacobian_].get('effectors')
 
@@ -634,7 +641,7 @@ def jacobian_heatmap(adata,
         plt.title(name)
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'jacobian_heatmap', "dpi": None,
+        s_kwargs = {"path": None, "prefix": jkey + '_heatmap', "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
@@ -645,37 +652,13 @@ def jacobian_heatmap(adata,
     elif save_show_or_return == "return":
         return gs
 
-
-def intersect_sources_targets(regulators,
-                              regulators_,
-                              effectors,
-                              effectors_,
-                              Der):
-    regulators = regulators_ if regulators is None else regulators
-    effectors = effectors_ if effectors is None else effectors
-    if type(regulators) == str: regulators = [regulators]
-    if type(effectors) == str: effectors = [effectors]
-    regulators = list(set(regulators_).intersection(regulators))
-    effectors = list(set(effectors_).intersection(effectors))
-    if len(regulators) == 0 or len(effectors) == 0:
-        raise ValueError(f"Jacobian related to source genes {regulators} and target genes {effectors}"
-                         f"you provided are existed. Available source genes includes {regulators_} while "
-                         f"available target genes includes {effectors_}")
-    # subset Der with correct index of selected source / target genes
-    valid_source_idx = [i for i, e in enumerate(regulators_) if e in regulators]
-    valid_target_idx = [i for i, e in enumerate(effectors_) if e in effectors]
-    Der = Der[valid_target_idx, :, :][:, valid_source_idx, :] if len(regulators_) + len(effectors_) > 2 else Der
-    regulators, effectors = np.array(regulators_)[valid_source_idx], np.array(effectors_)[valid_target_idx]
-
-    return Der, regulators, effectors
-
-
 @docstrings.with_indent(4)
 def sensitivity(adata,
                 regulators=None,
                 effectors=None,
                 basis="umap",
-                S_basis="pca",
+                skey='sensitivity',
+                s_basis="pca",
                 x=0,
                 y=1,
                 layer='M_s',
@@ -708,7 +691,9 @@ def sensitivity(adata,
             that have already performed Jacobian analysis.
         basis: `str` (default: `umap`)
             The reduced dimension basis.
-        S_basis: `str` (default: `pca`)
+        skey: `str` (default: `sensitivity`)
+            The key to the sensitivity dictionary in .uns.
+        s_basis: `str` (default: `pca`)
             The reduced dimension space that will be used to calculate the jacobian matrix.
         x: `int` (default: `0`)
             The column index of the low dimensional embedding for the x-axis.
@@ -790,10 +775,10 @@ def sensitivity(adata,
     else:
         _background = background
 
-    Sensitivity_ = "sensitivity" if S_basis is None else "sensitivity_" + S_basis
-    Der, cell_indx, sensitivity_gene, regulators_, effectors_ = adata.uns[Sensitivity_].get('sensitivity_'), \
+    Sensitivity_ = skey if s_basis is None else skey + "_" + s_basis
+    Der, cell_indx, sensitivity_gene, regulators_, effectors_ = adata.uns[Sensitivity_].get(skey.split("_")[1]), \
                                                              adata.uns[Sensitivity_].get('cell_idx'), \
-                                                             adata.uns[Sensitivity_].get('sensitivity_gene'), \
+                                                             adata.uns[Sensitivity_].get(skey.split("_")[1] + '_gene'), \
                                                              adata.uns[Sensitivity_].get('regulators'), \
                                                              adata.uns[Sensitivity_].get('effectors')
 
@@ -802,8 +787,8 @@ def sensitivity(adata,
     # test the simulation data here
     if (regulators_ is None or effectors_ is None):
         if Der.shape[0] != adata_.n_vars:
-            source_genes = [S_basis + '_' + str(i) for i in range(Der.shape[0])]
-            target_genes = [S_basis + '_' + str(i) for i in range(Der.shape[1])]
+            source_genes = [s_basis + '_' + str(i) for i in range(Der.shape[0])]
+            target_genes = [s_basis + '_' + str(i) for i in range(Der.shape[1])]
         else:
             source_genes, target_genes = adata_.var_names, adata_.var_names
     else:
@@ -935,7 +920,7 @@ def sensitivity(adata,
                 deaxis_all(ax)
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'sensitivity', "dpi": None,
+        s_kwargs = {"path": None, "prefix": skey, "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
@@ -949,6 +934,7 @@ def sensitivity(adata,
 
 def sensitivity_heatmap(adata,
                      cell_idx,
+                     skey='sensitivity',
                      basis='pca',
                      regulators=None,
                      effectors=None,
@@ -970,6 +956,8 @@ def sensitivity_heatmap(adata,
             an Annodata object with Jacobian matrix estimated.
         cell_idx: `int` or `list`
             The numeric indices of the cells that you want to draw the sensitivity matrix to reveal the regulatory activity.
+        skey: `str` (default: `sensitivity`)
+            The key to the sensitivity dictionary in .uns.
         basis: `str`
             The reduced dimension basis.
         regulators: `list` or `None` (default: `None`)
@@ -1013,11 +1001,11 @@ def sensitivity_heatmap(adata,
     import matplotlib.pyplot as plt
     import seaborn as sns
 
-    Sensitivity_ = "sensitivity" if basis is None else "sensitivity_" + basis
+    Sensitivity_ = skey if basis is None else skey + "_" + basis
     if type(cell_idx) == int: cell_idx = [cell_idx]
-    Der, cell_indx, sensitivity_gene, regulators_, effectors_ = adata.uns[Sensitivity_].get('sensitivity'), \
+    Der, cell_indx, sensitivity_gene, regulators_, effectors_ = adata.uns[Sensitivity_].get(skey.split("_")[1]), \
                                                               adata.uns[Sensitivity_].get('cell_idx'), \
-                                                              adata.uns[Sensitivity_].get('sensitivity_gene'), \
+                                                              adata.uns[Sensitivity_].get(skey.split("_")[1] + '_gene'), \
                                                               adata.uns[Sensitivity_].get('regulators'), \
                                                               adata.uns[Sensitivity_].get('effectors')
 
@@ -1057,7 +1045,7 @@ def sensitivity_heatmap(adata,
         plt.title(name)
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'sensitivity_heatmap', "dpi": None,
+        s_kwargs = {"path": None, "prefix": skey + '_heatmap', "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 

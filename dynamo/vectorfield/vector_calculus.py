@@ -21,7 +21,8 @@ from .utils import (
     get_metric_gene_in_rank_by_group,
     get_sorted_metric_genes_df,
     rank_vector_calculus_metrics,
-    average_jacobian_by_group
+    average_jacobian_by_group,
+    intersect_sources_targets,
     )
 from .scVectorField import vectorfield
 from ..tools.sampling import sample
@@ -278,6 +279,7 @@ def sensitivity(adata,
                 Qkey='PCs',
                 vector_field_class=None,
                 method='analytical',
+                projection_method='from_jacobian',
                 store_in_adata=True,
                 **kwargs
                 ):
@@ -319,6 +321,14 @@ def sensitivity(adata,
             The method that will be used for calculating Jacobian, either `'analytical'` or `'numerical'`. `'analytical'`
             method uses the analytical expressions for calculating Jacobian while `'numerical'` method uses numdifftools,
             a numerical differentiation tool, for computing Jacobian. `'analytical'` method is much more efficient.
+        projection_method: str (dfault: 'from_jacobian')
+            The method that will be used to project back to original gene expression space for calculating gene-wise
+            sensitivity matrix:
+                (1) 'from_jacobian': first calculate jacobian matrix and then calculate sensitivity matrix. This method
+                    will take the combined regulator + effectors gene set for calculating a square Jacobian matrix
+                    required for the sensitivyt matrix calculation.
+                (2) 'direct': The sensitivity matrix on low dimension will first calculated and then projected back to
+                    original gene expression space in a way that is similar to the gene-wise jacobian calculation.
         cores: int (default: 1)
             Number of cores to calculate Jacobian. If cores is set to be > 1, multiprocessing will be used to
             parallel the Jacobian calculation.
@@ -366,19 +376,43 @@ def sensitivity(adata,
         var_df = adata[:, adata.var.use_for_dynamics].var
         regulators = var_df.index.intersection(regulators)
         effectors = var_df.index.intersection(effectors)
+        if projection_method == 'direct':
 
-        reg_idx, eff_idx = get_pd_row_column_idx(var_df, regulators, "row"), \
-                           get_pd_row_column_idx(var_df, effectors, "row")
-        if len(regulators) == 0 or len(effectors) == 0:
-            raise ValueError(
-                f"Either the regulator or the effector gene list provided is not in the dynamics gene list!")
+                reg_idx, eff_idx = get_pd_row_column_idx(var_df, regulators, "row"), \
+                                   get_pd_row_column_idx(var_df, effectors, "row")
+                if len(regulators) == 0 or len(effectors) == 0:
+                    raise ValueError(
+                        f"Either the regulator or the effector gene list provided is not in the dynamics gene list!")
 
-        Q = adata.uns[Qkey][:, :X.shape[1]]
-        if len(regulators) == 1 and len(effectors) == 1:
-            Sensitivity = elementwise_jacobian_transformation(S,
-                                                           Q[eff_idx, :].flatten(), Q[reg_idx, :].flatten(), **kwargs)
+                Q = adata.uns[Qkey][:, :X.shape[1]]
+                if len(regulators) == 1 and len(effectors) == 1:
+                    Sensitivity = elementwise_jacobian_transformation(S,
+                                                                   Q[eff_idx, :].flatten(), Q[reg_idx, :].flatten(), **kwargs)
+                else:
+                    Sensitivity = subset_jacobian_transformation(S, Q[eff_idx, :], Q[reg_idx, :], **kwargs)
+        elif projection_method == 'from_jacobian':
+            Js = jacobian(adata,
+                        regulators=regulators + effectors,
+                        effectors=regulators + effectors,
+                        cell_idx=cell_idx,
+                        sampling=sampling,
+                        sample_ncells=sample_ncells,
+                        basis=basis,
+                        Qkey=Qkey,
+                        vector_field_class=vector_field_class,
+                        method=method,
+                        store_in_adata=False,
+                        **kwargs
+                        )
+
+            J, regulators, effectors = Js.get('jacobian_gene'), Js.get('regulators'), Js.get('effectors')
+            Sensitivity = np.zeros_like(J)
+            I = np.eye(J.shape[0])
+            for i in tqdm(np.arange(n_cells), desc="Calculating sensitivity matrix with precomputed gene-wise Jacobians"):
+                s = np.linalg.inv(I - J[:, :, i])  # np.transpose(J)
+                Sensitivity[:, :, i] = s.dot(np.diag(1 / np.diag(s)))
         else:
-            Sensitivity = subset_jacobian_transformation(S, Q[eff_idx, :], Q[reg_idx, :], **kwargs)
+            raise ValueError(f"`projection_method` can only be `from_jacoian` or `direct`!")
     else:
         Sensitivity = None
 
@@ -1156,3 +1190,87 @@ def rank_sensitivity_genes(adata,
     else:
         raise ValueError(f'No such mode as {mode}.')
     return rank_dict
+
+
+# ---------------------------------------------------------------------------------------------------
+# aggregate regulators or targets
+def aggregateRegEffs(adata,
+                     data_dict=None,
+                     reg_dict=None,
+                     eff_dict=None,
+                     key="jacobian",
+                     basis='pca',
+                     store_in_adata=True):
+    """Aggregate multiple genes' Jacobian or sensitivity.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the reconstructed vector field in `.uns`.
+        data_dict: `dict`
+            A dictionary corresponds to the Jacobian or sensitivity information, must be calculated with either:
+            `dyn.vf.jacobian(adata, basis='pca', regulators=genes, effectors=genes)` or
+            `dyn.vf.sensitivity(adata, basis='pca', regulators=genes, effectors=genes)`
+        reg_dict: `dict`
+            A dictionary in which keys correspond to regulator-groups (i.e. TFs for specific cell type) while values
+            a list of genes that must have at least one overlapped genes with that from the Jacobian or sensitivity dict.
+        eff_dict: `dict`
+            A dictionary in which keys correspond to effector-groups (i.e. markers for specific cell type) while values
+            a list of genes that must have at least one overlapped genes with that from the Jacobian or sensitivity dict.
+        key: `str`
+            The key in .uns that corresponds to the Jacobian or sensitivity matrix information.
+        basis: str (default: 'pca')
+            The embedding data in which the vector field was reconstructed. If `None`, use the vector field function that
+            was reconstructed directly from the original unreduced gene expression space.
+        store_in_adata: bool (default: `True`)
+            Whether to store the divergence result in adata.
+
+
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            Depending on `store_in_adata`, it will either return a dictionary that include the aggregated Jacobian or
+            sensitivity information or the updated AnnData object that is updated with the `'aggregation'` key in the
+            `.uns`. This dictionary contains a 3-dimensional tensor with dimensions n_obs x n_regulators x n_effectors
+            as well as other information.
+    """
+
+    key_ = key if basis is None else key + '_' + basis
+    data_dict = adata.uns[key_] if data_dict is None else data_dict
+
+    tensor, cell_idx, tensor_gene, regulators_, effectors_ = data_dict.get(key + '_'), \
+                                                                data_dict.get('cell_idx'), \
+                                                                data_dict.get(key + '_gene'), \
+                                                                data_dict.get('regulators'), \
+                                                                data_dict.get('effectors')
+
+    Aggregation = np.zeros((len(eff_dict), len(reg_dict), len(cell_idx)))
+    reg_ind = 0
+    for reg_key, reg_val in reg_dict.items():
+        eff_ind = 0
+        for eff_key, eff_val in eff_dict.items():
+            Der, source_genes, target_genes = intersect_sources_targets(reg_val,
+                                                                        regulators_,
+                                                                        eff_val,
+                                                                        effectors_,
+                                                                        tensor if tensor_gene is None else tensor_gene)
+            if len(source_genes) + len(target_genes) > 0:
+                Aggregation[eff_ind, reg_ind, :] = Der.sum(axis=(0, 1))
+            eff_ind += 1
+        reg_ind += 0
+
+    ret_dict = {"aggregation": None, "cell_idx": cell_idx}
+    # use 'str_key' in dict.keys() to check if these items are computed, or use dict.get('str_key')
+    if Aggregation is not None: ret_dict['aggregation_gene'] = Aggregation
+    if reg_dict.keys() is not None: ret_dict['regulators'] = list(reg_dict.keys())
+    if eff_dict.keys() is not None: ret_dict['effectors'] = list(eff_dict.keys())
+
+    det = [np.linalg.det(Aggregation[:, :, i]) for i in np.arange(Aggregation.shape[2])]
+    adata.obs['aggregation_det_' + basis] = np.nan
+    adata.obs['aggregation_det_' + basis][cell_idx] = det
+    if store_in_adata:
+        key = key + "_aggregation" if basis is None else key + "_aggregation_" + basis
+        adata.uns[key] = ret_dict
+        return adata
+    else:
+        return ret_dict
