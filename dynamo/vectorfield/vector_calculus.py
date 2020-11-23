@@ -1256,7 +1256,7 @@ def aggregateRegEffs(adata,
     key_ = key if basis is None else key + '_' + basis
     data_dict = adata.uns[key_] if data_dict is None else data_dict
 
-    tensor, cell_idx, tensor_gene, regulators_, effectors_ = data_dict.get(key + '_'), \
+    tensor, cell_idx, tensor_gene, regulators_, effectors_ = data_dict.get(key), \
                                                                 data_dict.get('cell_idx'), \
                                                                 data_dict.get(key + '_gene'), \
                                                                 data_dict.get('regulators'), \
@@ -1277,6 +1277,8 @@ def aggregateRegEffs(adata,
                                                                         tensor if tensor_gene is None else tensor_gene)
             if len(source_genes) + len(target_genes) > 0:
                 Aggregation[eff_ind, reg_ind, :] = Der.sum(axis=(0, 1))
+            else:
+                Aggregation[eff_ind, reg_ind, :] = np.nan
             eff_ind += 1
         reg_ind += 0
 
@@ -1287,10 +1289,10 @@ def aggregateRegEffs(adata,
     if eff_dict.keys() is not None: ret_dict['effectors'] = list(eff_dict.keys())
 
     det = [np.linalg.det(Aggregation[:, :, i]) for i in np.arange(Aggregation.shape[2])]
-    adata.obs['aggregation_det_' + basis] = np.nan
-    adata.obs['aggregation_det_' + basis][cell_idx] = det
+    key = key + "_aggregation" if basis is None else key + "_aggregation_" + basis
+    adata.obs[key + '_det'] = np.nan
+    adata.obs[key + '_det'][cell_idx] = det
     if store_in_adata:
-        key = key + "_aggregation" if basis is None else key + "_aggregation_" + basis
         adata.uns[key] = ret_dict
         return adata
     else:
