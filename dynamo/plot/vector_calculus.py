@@ -371,9 +371,9 @@ def jacobian(adata,
         _background = background
 
     Jacobian_ = jkey if j_basis is None else jkey + "_" + j_basis
-    Der, cell_indx, jacobian_gene, regulators_, effectors_ = adata.uns[Jacobian_].get(jkey.split("_")[1]), \
+    Der, cell_indx, jacobian_gene, regulators_, effectors_ = adata.uns[Jacobian_].get(jkey.split("_")[-1]), \
                                                               adata.uns[Jacobian_].get('cell_idx'), \
-                                                              adata.uns[Jacobian_].get(jkey.split("_")[1] + '_gene'), \
+                                                              adata.uns[Jacobian_].get(jkey.split("_")[-1] + '_gene'), \
                                                               adata.uns[Jacobian_].get('regulators'), \
                                                               adata.uns[Jacobian_].get('effectors')
 
@@ -603,9 +603,9 @@ def jacobian_heatmap(adata,
 
     Jacobian_ = jkey if basis is None else jkey + "_" + basis
     if type(cell_idx) == int: cell_idx = [cell_idx]
-    Der, cell_indx, jacobian_gene, regulators_, effectors_ = adata.uns[Jacobian_].get(jkey.split("_")[1]), \
+    Der, cell_indx, jacobian_gene, regulators_, effectors_ = adata.uns[Jacobian_].get(jkey.split("_")[-1]), \
                                                               adata.uns[Jacobian_].get('cell_idx'), \
-                                                              adata.uns[Jacobian_].get(jkey.split("_")[1] + '_gene'), \
+                                                              adata.uns[Jacobian_].get(jkey.split("_")[-1] + '_gene'), \
                                                               adata.uns[Jacobian_].get('regulators'), \
                                                               adata.uns[Jacobian_].get('effectors')
 
@@ -780,9 +780,9 @@ def sensitivity(adata,
         _background = background
 
     Sensitivity_ = skey if s_basis is None else skey + "_" + s_basis
-    Der, cell_indx, sensitivity_gene, regulators_, effectors_ = adata.uns[Sensitivity_].get(skey.split("_")[1]), \
+    Der, cell_indx, sensitivity_gene, regulators_, effectors_ = adata.uns[Sensitivity_].get(skey.split("_")[-1]), \
                                                              adata.uns[Sensitivity_].get('cell_idx'), \
-                                                             adata.uns[Sensitivity_].get(skey.split("_")[1] + '_gene'), \
+                                                             adata.uns[Sensitivity_].get(skey.split("_")[-1] + '_gene'), \
                                                              adata.uns[Sensitivity_].get('regulators'), \
                                                              adata.uns[Sensitivity_].get('effectors')
 
@@ -1007,9 +1007,9 @@ def sensitivity_heatmap(adata,
 
     Sensitivity_ = skey if basis is None else skey + "_" + basis
     if type(cell_idx) == int: cell_idx = [cell_idx]
-    Der, cell_indx, sensitivity_gene, regulators_, effectors_ = adata.uns[Sensitivity_].get(skey.split("_")[1]), \
+    Der, cell_indx, sensitivity_gene, regulators_, effectors_ = adata.uns[Sensitivity_].get(skey.split("_")[-1]), \
                                                               adata.uns[Sensitivity_].get('cell_idx'), \
-                                                              adata.uns[Sensitivity_].get(skey.split("_")[1] + '_gene'), \
+                                                              adata.uns[Sensitivity_].get(skey.split("_")[-1] + '_gene'), \
                                                               adata.uns[Sensitivity_].get('regulators'), \
                                                               adata.uns[Sensitivity_].get('effectors')
 

@@ -382,8 +382,8 @@ def sensitivity(adata,
         var_df = adata[:, adata.var.use_for_dynamics].var
         regulators = var_df.index.intersection(regulators)
         effectors = var_df.index.intersection(effectors)
-        if projection_method == 'direct':
 
+        if projection_method == 'direct':
                 reg_idx, eff_idx = get_pd_row_column_idx(var_df, regulators, "row"), \
                                    get_pd_row_column_idx(var_df, effectors, "row")
                 if len(regulators) == 0 or len(effectors) == 0:
@@ -398,8 +398,8 @@ def sensitivity(adata,
                     Sensitivity = subset_jacobian_transformation(S, Q[eff_idx, :], Q[reg_idx, :], **kwargs)
         elif projection_method == 'from_jacobian':
             Js = jacobian(adata,
-                        regulators=regulators + effectors,
-                        effectors=regulators + effectors,
+                        regulators=list(regulators) + list(effectors),
+                        effectors=list(regulators) + list(effectors),
                         cell_idx=cell_idx,
                         sampling=sampling,
                         sample_ncells=sample_ncells,
@@ -413,7 +413,8 @@ def sensitivity(adata,
 
             J, regulators, effectors = Js.get('jacobian_gene'), Js.get('regulators'), Js.get('effectors')
             Sensitivity = np.zeros_like(J)
-            I = np.eye(J.shape[0])
+            n_genes, n_genes_, n_cells = J.shape
+            I = np.eye(n_genes)
             for i in tqdm(np.arange(n_cells), desc="Calculating sensitivity matrix with precomputed gene-wise Jacobians"):
                 s = np.linalg.inv(I - J[:, :, i])  # np.transpose(J)
                 Sensitivity[:, :, i] = s.dot(np.diag(1 / np.diag(s)))
@@ -425,8 +426,8 @@ def sensitivity(adata,
     ret_dict = {"sensitivity": S, "cell_idx": cell_idx}
     # use 'str_key' in dict.keys() to check if these items are computed, or use dict.get('str_key')
     if Sensitivity is not None: ret_dict['sensitivity_gene'] = Sensitivity
-    if regulators is not None: ret_dict['regulators'] = regulators.to_list()
-    if effectors is not None: ret_dict['effectors'] = effectors.to_list()
+    if regulators is not None: ret_dict['regulators'] = regulators if type(regulators) == list else regulators.to_list()
+    if effectors is not None: ret_dict['effectors'] = effectors if type(effectors) == list else effectors.to_list()
 
     S_det = [np.linalg.det(S[:, :, i]) for i in np.arange(S.shape[2])]
     adata.obs['sensitivity_det_' + basis] = np.nan
