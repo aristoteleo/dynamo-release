@@ -360,6 +360,8 @@ def jacobian(adata,
     >>> dyn.pl.jacobian(adata)
     """
 
+    regulators, effectors = list(np.unique(regulators)) if regulators is not None else None, \
+                            list(np.unique(effectors)) if effectors is not None else None
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
@@ -598,6 +600,8 @@ def jacobian_heatmap(adata,
     >>> dyn.pl.jacobian_heatmap(adata)
     """
 
+    regulators, effectors = list(np.unique(regulators)) if regulators is not None else None, \
+                            list(np.unique(effectors)) if effectors is not None else None
     import matplotlib.pyplot as plt
     import seaborn as sns
 
@@ -768,6 +772,9 @@ def sensitivity(adata,
     >>> dyn.vf.sensitivity(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
     >>> dyn.pl.sensitivity(adata)
     """
+
+    regulators, effectors = list(np.unique(regulators)) if regulators is not None else None, \
+                            list(np.unique(effectors)) if effectors is not None else None
 
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
@@ -1001,6 +1008,9 @@ def sensitivity_heatmap(adata,
     >>> dyn.vf.sensitivity(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
     >>> dyn.pl.sensitivity_heatmap(adata)
     """
+
+    regulators, effectors = list(np.unique(regulators)) if regulators is not None else None, \
+                            list(np.unique(effectors)) if effectors is not None else None
 
     import matplotlib.pyplot as plt
     import seaborn as sns

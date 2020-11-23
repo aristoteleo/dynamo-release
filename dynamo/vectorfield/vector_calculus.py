@@ -202,6 +202,8 @@ def jacobian(adata,
             dimensions n_obs x n_regulators x n_effectors.
     """
 
+    regulators, effectors = list(np.unique(regulators)) if regulators is not None else None, \
+                            list(np.unique(effectors)) if effectors is not None else None
     if vector_field_class is None:
         vector_field_class = vectorfield()
         vector_field_class.from_adata(adata, basis=basis)
@@ -348,6 +350,8 @@ def sensitivity(adata,
             dimensions n_obs x n_regulators x n_effectors.
     """
 
+    regulators, effectors = list(np.unique(regulators)) if regulators is not None else None, \
+                            list(np.unique(effectors)) if effectors is not None else None
     if vector_field_class is None:
         vector_field_class = vectorfield()
         vector_field_class.from_adata(adata, basis=basis)
@@ -1263,6 +1267,9 @@ def aggregateRegEffs(adata,
     for reg_key, reg_val in reg_dict.items():
         eff_ind = 0
         for eff_key, eff_val in eff_dict.items():
+            reg_val, eff_val = list(np.unique(reg_val)) if reg_val is not None else None, \
+                                    list(np.unique(eff_val)) if eff_val is not None else None
+
             Der, source_genes, target_genes = intersect_sources_targets(reg_val,
                                                                         regulators_,
                                                                         eff_val,
