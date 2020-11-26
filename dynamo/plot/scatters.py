@@ -360,7 +360,7 @@ def scatters(
                      type(y) in [anndata._core.views.ArrayView, np.ndarray] and \
                      len(x) == adata.n_obs and len(y) == adata.n_obs:
                     x, y = [x], [y]
-                for cur_x, cur_y in zip(x, y): # here x / y are arrayes
+                for cur_x, cur_y in zip(x, y): # here x / y are arrays
                     if type(cur_x) is int and type(cur_y) is int:
                         points = pd.DataFrame(
                             {

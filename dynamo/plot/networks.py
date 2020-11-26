@@ -163,6 +163,7 @@ def arcPlot(adata,
             edges_list,
             network=None,
             color=None,
+            cmap='viridis',
             node_size=100,
             cbar=True,
             cbar_title=None,
@@ -249,14 +250,15 @@ def arcPlot(adata,
         color = None
     
     fig, ax = plt.subplots(figsize=figsize)
-    ap = ArcPlot(network=network, c=color, s=node_size, cmap='viridis', **kwargs)
+    ap = ArcPlot(network=network, c=color, s=node_size, cmap=cmap, **kwargs)
     node_degree = [network.degree[i] for i in network.nodes]
+    print(node_degree)
     ap.draw(node_order=node_degree)
     
     if cbar and color is not None:
         norm = matplotlib.colors.Normalize(vmin=np.min(color), vmax=np.max(color))
 
-        mappable = matplotlib.cm.ScalarMappable(norm=norm, cmap="viridis") #
+        mappable = matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
         mappable.set_array(color)
         cb = plt.colorbar(mappable, cax=set_colorbar(ax, {"width": "12%",  # width = 5% of parent_bbox width
                                                            "height":"100%",  # height : 50%
