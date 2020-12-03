@@ -1276,7 +1276,7 @@ def aggregateRegEffs(adata,
                                                                         effectors_,
                                                                         tensor if tensor_gene is None else tensor_gene)
             if len(source_genes) + len(target_genes) > 0:
-                Aggregation[eff_ind, reg_ind, :] = Der.sum(axis=(0, 1))
+                Aggregation[eff_ind, reg_ind, :] = Der.sum(axis=(0, 1)) # dim 0: target; dim 1: source
             else:
                 Aggregation[eff_ind, reg_ind, :] = np.nan
             eff_ind += 1
