@@ -3,7 +3,7 @@ import statsmodels.api as sm
 import numpy as np
 from scipy.sparse import issparse
 from scipy.interpolate import interp1d
-from ..tools.utils import update_dict, update_n_merge_dict
+from ..tools.utils import update_dict
 from ..prediction.utils import fetch_exprs
 from .utils import save_fig
 
@@ -287,7 +287,7 @@ def kinetic_heatmap(
     heatmap_kwargs = dict(xticklabels=False, yticklabels=1, row_colors=None, col_colors=None, row_linkage=None,
                           col_linkage=None, method='average', metric='euclidean', z_score=None, standard_scale=None)
     if kwargs is not None:
-        heatmap_kwargs = update_n_merge_dict(heatmap_kwargs, kwargs)
+        heatmap_kwargs = update_dict(heatmap_kwargs, kwargs)
 
     sns_heatmap = sns.clustermap(
         df,
@@ -599,7 +599,7 @@ def jacobian_kinetics(
     heatmap_kwargs = dict(xticklabels=False, yticklabels=1, row_colors=None, col_colors=None, row_linkage=None,
                           col_linkage=None, method='average', metric='euclidean', z_score=None, standard_scale=None)
     if kwargs is not None:
-        heatmap_kwargs = update_n_merge_dict(heatmap_kwargs, kwargs)
+        heatmap_kwargs = update_dict(heatmap_kwargs, kwargs)
 
     sns_heatmap = sns.clustermap(
         df.loc[source_targets, :],
@@ -780,7 +780,7 @@ def sensitivity_kinetics(
     heatmap_kwargs = dict(xticklabels=False, yticklabels=1, row_colors=None, col_colors=None, row_linkage=None,
                           col_linkage=None, method='average', metric='euclidean', z_score=None, standard_scale=None)
     if kwargs is not None:
-        heatmap_kwargs = update_n_merge_dict(heatmap_kwargs, kwargs)
+        heatmap_kwargs = update_dict(heatmap_kwargs, kwargs)
 
     sns_heatmap = sns.clustermap(
         df.loc[source_targets, :],
