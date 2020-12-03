@@ -284,7 +284,8 @@ def kinetic_heatmap(
     else:
         raise Exception('gene order_method can only be either half_max_ordering or maximum')
 
-    heatmap_kwargs = dict(xticklabels=False, yticklabels=1)
+    heatmap_kwargs = dict(xticklabels=False, yticklabels=1, row_colors=None, col_colors=None, row_linkage=None,
+                          col_linkage=None, method='average', metric='euclidean', z_score=None, standard_scale=None)
     if kwargs is not None:
         heatmap_kwargs = update_n_merge_dict(heatmap_kwargs, kwargs)
 
@@ -595,7 +596,8 @@ def jacobian_kinetics(
     else:
         raise Exception('gene order_method can only be either half_max_ordering or maximum')
 
-    heatmap_kwargs = dict(xticklabels=False, yticklabels=1)
+    heatmap_kwargs = dict(xticklabels=False, yticklabels=1, row_colors=None, col_colors=None, row_linkage=None,
+                          col_linkage=None, method='average', metric='euclidean', z_score=None, standard_scale=None)
     if kwargs is not None:
         heatmap_kwargs = update_n_merge_dict(heatmap_kwargs, kwargs)
 
@@ -775,7 +777,8 @@ def sensitivity_kinetics(
     else:
         raise Exception('gene order_method can only be either half_max_ordering or maximum')
 
-    heatmap_kwargs = dict(xticklabels=False, yticklabels=1)
+    heatmap_kwargs = dict(xticklabels=False, yticklabels=1, row_colors=None, col_colors=None, row_linkage=None,
+                          col_linkage=None, method='average', metric='euclidean', z_score=None, standard_scale=None)
     if kwargs is not None:
         heatmap_kwargs = update_n_merge_dict(heatmap_kwargs, kwargs)
 
