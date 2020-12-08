@@ -1250,7 +1250,7 @@ def save_fig(path=None, prefix=None, dpi=None, ext='pdf', transparent=True, clos
         print(f"Saving figure to {savepath}...")
 
     # Actually save the figure
-    plt.savefig(savepath, dpi=dpi, transparent=transparent, format=ext)
+    plt.savefig(savepath, dpi=dpi, transparent=transparent, format=ext, bbox_inches='tight')
 
     # Close it
     if close:
