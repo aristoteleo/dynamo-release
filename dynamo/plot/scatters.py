@@ -262,10 +262,10 @@ def scatters(
     if background is None:
         _background = rcParams.get("figure.facecolor")
         _background = to_hex(_background) if type(_background) is tuple else _background
-        set_figure_params('dynamo', background=_background)
+        # if save_show_or_return != 'save': set_figure_params('dynamo', background=_background)
     else:
         _background = background
-        set_figure_params('dynamo', background=_background)
+        # if save_show_or_return != 'save': set_figure_params('dynamo', background=_background)
 
     x, y = [x] if type(x) in [int, str] else x, [y] if type(y) in [int, str] else y
     if all([is_gene_name(adata, i) for i in basis]):

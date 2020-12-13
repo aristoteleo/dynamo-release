@@ -460,11 +460,12 @@ def set_pub_style_mpltex():
     params = {"font.family": "sans-serif",
                "font.serif": ["Times", "Computer Modern Roman"],
                "font.sans-serif": ["Arial", "sans-serif", "Helvetica", "Computer Modern Sans serif"],
-               "font.size": 6,
-               "text.usetex": True,
+               "font.size": 4,
+               # "text.usetex": True,
                # "text.latex.preamble": latex_preamble,  # To force LaTeX use Helvetica
 
                # "axes.prop_cycle": default_color_cycler,
+               "axes.titlesize": 6,
                "axes.labelsize": 6,
                "axes.linewidth": 1,
 
@@ -482,7 +483,7 @@ def set_pub_style_mpltex():
                "legend.fontsize": 4,
                "legend.frameon": False,
                "legend.numpoints": 1,
-               "legend.handlelength": 2,
+               "legend.handlelength": 0.5,
                "legend.scatterpoints": 1,
                "legend.labelspacing": 0.5,
                "legend.markerscale": 0.9,
@@ -491,9 +492,9 @@ def set_pub_style_mpltex():
                "legend.borderpad": 0.5,  # pad between legend and legend content
                "legend.columnspacing": 1,  # pad between each legend column
 
-               # "text.fontsize" : 6,
-               "xtick.labelsize": 6,
-               "ytick.labelsize": 6,
+               # "text.fontsize" : 4,
+               "xtick.labelsize": 4,
+               "ytick.labelsize": 4,
 
                "lines.linewidth": 1,
                "lines.markersize": 4,
@@ -508,5 +509,8 @@ def set_pub_style_mpltex():
                "xtick.top": True,
                "ytick.direction": "in",
                "ytick.right": True,
+
+              'axes.titlepad': 1,
+              'axes.labelpad': 1
                }
     matplotlib.rcParams.update(params)
