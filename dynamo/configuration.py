@@ -279,7 +279,7 @@ def config_dynamo_rcParams(
 
     # dpi options (mpl default: 100, 100)
     rcParams["figure.dpi"] = 100
-    rcParams["savefig.dpi"] = 150
+    rcParams["savefig.dpi"] = 300
 
     # figure (default: 0.125, 0.96, 0.15, 0.91)
     rcParams["figure.figsize"] = (6, 4)
@@ -448,4 +448,65 @@ def set_pub_style(scaler=1):
               'axes.titlepad': 1 * scaler,
               'axes.labelpad': 1 * scaler
     }
+    matplotlib.rcParams.update(params)
+
+
+def set_pub_style_mpltex():
+    """formatting helper function based on mpltex package that can be used to save publishable figures"""
+    set_figure_params('dynamo', background='white')
+    matplotlib.use('cairo')
+    # the following code is adapted from https://github.com/liuyxpp/mpltex
+    # latex_preamble = r"\usepackage{siunitx}\sisetup{detect-all}\usepackage{helvet}\usepackage[eulergreek,EULERGREEK]{sansmath}\sansmath"
+    params = {"font.family": "sans-serif",
+               "font.serif": ["Times", "Computer Modern Roman"],
+               "font.sans-serif": ["Arial", "sans-serif", "Helvetica", "Computer Modern Sans serif"],
+               "font.size": 6,
+               "text.usetex": True,
+               # "text.latex.preamble": latex_preamble,  # To force LaTeX use Helvetica
+
+               # "axes.prop_cycle": default_color_cycler,
+               "axes.labelsize": 6,
+               "axes.linewidth": 1,
+
+               "figure.subplot.left": 0.125,
+               "figure.subplot.right": 0.95,
+               "figure.subplot.bottom": 0.1,
+               "figure.subplot.top": 0.95,
+
+               "savefig.dpi": 300,
+               "savefig.format": "pdf",
+               # "savefig.bbox": "tight",
+               # this will crop white spaces around images that will make
+               # width/height no longer the same as the specified one.
+
+               "legend.fontsize": 4,
+               "legend.frameon": False,
+               "legend.numpoints": 1,
+               "legend.handlelength": 2,
+               "legend.scatterpoints": 1,
+               "legend.labelspacing": 0.5,
+               "legend.markerscale": 0.9,
+               "legend.handletextpad": 0.5,  # pad between handle and text
+               "legend.borderaxespad": 0.5,  # pad between legend and axes
+               "legend.borderpad": 0.5,  # pad between legend and legend content
+               "legend.columnspacing": 1,  # pad between each legend column
+
+               # "text.fontsize" : 6,
+               "xtick.labelsize": 6,
+               "ytick.labelsize": 6,
+
+               "lines.linewidth": 1,
+               "lines.markersize": 4,
+               # "lines.markeredgewidth": 0,
+               # 0 will make line-type markers, such as "+", "x", invisible
+
+               # Revert some properties to mpl v1 which is more suitable for publishing
+               "axes.autolimit_mode": "round_numbers",
+               "axes.xmargin": 0,
+               "axes.ymargin": 0,
+               "xtick.direction": "in",
+               "xtick.top": True,
+               "ytick.direction": "in",
+               "ytick.right": True,
+               }
     matplotlib.rcParams.update(params)
