@@ -576,6 +576,29 @@ def compute_torsion(vf, f_jac, X):
     return tor
 
 
+@timeit
+def compute_sensitivity(f_jac, X):
+    """Calculate sensitivity for many samples via
+
+    .. math::
+    S = (I - J)^{-1} D(\frac{1}{{I-J}^{-1}})
+    """
+    J = f_jac(X)
+
+    n_genes, n_genes_, n_cells = J.shape
+    S = np.zeros_like(J)
+
+    I = np.eye(n_genes)
+    for i in tqdm(np.arange(n_cells), desc="Calculating sensitivity matrix with precomputed component-wise Jacobians"):
+        s = np.linalg.inv(I - J[:, :, i])  # np.transpose(J)
+        S[:, :, i] = s.dot(np.diag(1 / np.diag(s)))
+        # tmp = np.transpose(J[:, :, i])
+        # s = np.linalg.inv(I - tmp)
+        # S[:, :, i] = s * (1 / np.diag(s)[None, :])
+
+    return S
+
+
 def _curl(f, x, method='analytical', VecFld=None, jac=None):
     """Curl of the reconstructed vector field f evaluated at x in 3D"""
     if jac is None:
@@ -620,7 +643,6 @@ def compute_curl(f_jac, X):
         curl[i] = f(None, None, method='analytical', VecFld=None, jac=J)
 
     return curl
-
 
 # ---------------------------------------------------------------------------------------------------
 # ranking related utilies
@@ -731,3 +753,28 @@ def angle(vector1, vector2):
 def unit_vector(vector):
     """ Returns the unit vector of the vector.  """
     return vector / np.linalg.norm(vector)
+
+# ---------------------------------------------------------------------------------------------------
+# data retrieval related utilies
+def intersect_sources_targets(regulators,
+                              regulators_,
+                              effectors,
+                              effectors_,
+                              Der):
+    regulators = regulators_ if regulators is None else regulators
+    effectors = effectors_ if effectors is None else effectors
+    if type(regulators) == str: regulators = [regulators]
+    if type(effectors) == str: effectors = [effectors]
+    regulators = list(set(regulators_).intersection(regulators))
+    effectors = list(set(effectors_).intersection(effectors))
+    if len(regulators) == 0 or len(effectors) == 0:
+        raise ValueError(f"Jacobian related to source genes {regulators} and target genes {effectors}"
+                         f"you provided are existed. Available source genes includes {regulators_} while "
+                         f"available target genes includes {effectors_}")
+    # subset Der with correct index of selected source / target genes
+    valid_source_idx = [i for i, e in enumerate(regulators_) if e in regulators]
+    valid_target_idx = [i for i, e in enumerate(effectors_) if e in effectors]
+    Der = Der[valid_target_idx, :, :][:, valid_source_idx, :] if len(regulators_) + len(effectors_) > 2 else Der
+    regulators, effectors = np.array(regulators_)[valid_source_idx], np.array(effectors_)[valid_target_idx]
+
+    return Der, regulators, effectors

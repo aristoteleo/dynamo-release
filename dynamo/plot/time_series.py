@@ -284,7 +284,8 @@ def kinetic_heatmap(
     else:
         raise Exception('gene order_method can only be either half_max_ordering or maximum')
 
-    heatmap_kwargs = dict(xticklabels=False, yticklabels=1)
+    heatmap_kwargs = dict(xticklabels=False, yticklabels=1, row_colors=None, col_colors=None, row_linkage=None,
+                          col_linkage=None, method='average', metric='euclidean', z_score=None, standard_scale=None)
     if kwargs is not None:
         heatmap_kwargs = update_dict(heatmap_kwargs, kwargs)
 
@@ -464,7 +465,7 @@ def jacobian_kinetics(
     save_kwargs={},
     **kwargs
 ):
-    """Plot the gene expression dynamics over time (pseudotime or inferred real time) in a heatmap.
+    """Plot the Jacobian dynamics over time (pseudotime or inferred real time) in a heatmap.
 
     Note that by default `potential` estimated with the diffusion graph built from reconstructed vector field will be
     used as the measure of pseudotime.
@@ -595,7 +596,8 @@ def jacobian_kinetics(
     else:
         raise Exception('gene order_method can only be either half_max_ordering or maximum')
 
-    heatmap_kwargs = dict(xticklabels=False, yticklabels=1)
+    heatmap_kwargs = dict(xticklabels=False, yticklabels=1, row_colors=None, col_colors=None, row_linkage=None,
+                          col_linkage=None, method='average', metric='euclidean', z_score=None, standard_scale=None)
     if kwargs is not None:
         heatmap_kwargs = update_dict(heatmap_kwargs, kwargs)
 
@@ -612,6 +614,187 @@ def jacobian_kinetics(
 
     if save_show_or_return == "save_fig":
         s_kwargs = {"path": None, "prefix": 'jacobian_kinetics', "dpi": None,
+                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save_fig(**s_kwargs)
+    elif save_show_or_return == "show":
+        if show_colorbar:
+            plt.subplots_adjust(right=0.85)
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return sns_heatmap
+
+
+@docstrings.with_indent(4)
+def sensitivity_kinetics(
+    adata,
+    basis='umap',
+    regulators=None,
+    effectors=None,
+    mode="pseudotime",
+    tkey="potential",
+    color_map="bwr",
+    gene_order_method='raw',
+    show_colorbar=False,
+    cluster_row_col=[False, True],
+    figsize=(11.5, 6),
+    standard_scale=1,
+    n_convolve=30,
+    save_show_or_return='show',
+    save_kwargs={},
+    **kwargs
+):
+    """Plot the Sensitivity dynamics over time (pseudotime or inferred real time) in a heatmap.
+
+    Note that by default `potential` estimated with the diffusion graph built from reconstructed vector field will be
+    used as the measure of pseudotime.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            an Annodata object.
+        basis: `str`
+            The reduced dimension basis.
+        regulators: `list` or `None` (default: `None`)
+            The list of genes that will be used as regulators for plotting the Jacobian heatmap, only limited to genes
+            that have already performed Jacobian analysis.
+        effectors: `List` or `None` (default: `None`)
+            The list of genes that will be used as targets for plotting the Jacobian heatmap, only limited to genes
+            that have already performed Jacobian analysis.
+        mode: `str` (default: `vector_field`)
+            Which data mode will be used, either vector_field or pseudotime. if mode is vector_field, the trajectory predicted by
+            vector field function will be used, otherwise pseudotime trajectory (defined by time argument) will be used.
+            By default `potential` estimated with the diffusion graph built reconstructed vector field will be used as
+            pseudotime.
+        tkey: `str` (default: `potential`)
+            The .obs column that will be used for timing each cell, only used when mode is not `vector_field`.
+        color_map: `str` (default: `BrBG`)
+            Color map that will be used to color the gene expression. If `half_max_ordering` is True, the
+            color map need to be divergent, good examples, include `BrBG`, `RdBu_r` or `coolwarm`, etc.
+        gene_order_method: `str` (default: `half_max_ordering`) [`half_max_ordering`, `maximum`]
+            Supports two different methods for ordering genes when plotting the heatmap: either `half_max_ordering`,
+            or `maximum`. For `half_max_ordering`, it will order genes into up, down and transit groups by the half
+            max ordering algorithm (HA Pliner, et. al, Molecular cell 71 (5), 858-871. e8). While for `maximum`,
+            it will order by the position of the highest gene expression.
+        show_colorbar: `bool` (default: `False`)
+            Whether to show the color bar.
+        cluster_row_col: `[bool, bool]` (default: `[False, False]`)
+            Whether to cluster the row or columns.
+        figsize: `str` (default: `(11.5, 6)`
+            Size of figure
+        standard_scale: `int` (default: 1)
+            Either 0 (rows, cells) or 1 (columns, genes). Whether or not to standardize that dimension, meaning for each row or column,
+            subtract the minimum and divide each by its maximum.
+        n_convolve: `int` (default: 30)
+            Number of cells for convolution.
+        save_show_or_return: {'show', 'save_fig', 'return'} (default: `show`)
+            Whether to save_fig, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            will use the {"path": None, "prefix": 'kinetic_curves', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
+        kwargs:
+            All other keyword arguments are passed to heatmap(). Currently `xticklabels=False, yticklabels='auto'` is passed
+            to heatmap() by default.
+    Returns
+    -------
+        Nothing but plots a heatmap that shows the element of Jacobian matrix dynamics over time (potential decreasing).
+
+    Examples
+    --------
+    >>> import dynamo as dyn
+    >>> adata = dyn.sample_data.hgForebrainGlutamatergic()
+    >>> adata = dyn.pp.recipe_monocle(adata)
+    >>> dyn.tl.dynamics(adata)
+    >>> dyn.vf.VectorField(adata, basis='pca')
+    >>> valid_gene_list = adata[:, adata.var.use_for_transition].var.index[:2]
+    >>> dyn.vf.sensitivity(adata, regulators=valid_gene_list[0], effectors=valid_gene_list[1])
+    >>> dyn.pl.sensitivity_kinetics(adata)
+    """
+
+    import pandas as pd
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+
+    Sensitivity_ = "sensitivity" if basis is None else "sensitivity_" + basis
+    Der, cell_indx, sensitivity_gene, regulators_, effectors_ = adata.uns[Sensitivity_].get('sensitivity'), \
+                                                              adata.uns[Sensitivity_].get('cell_idx'), \
+                                                              adata.uns[Sensitivity_].get('sensitivity_gene'), \
+                                                              adata.uns[Sensitivity_].get('regulators'), \
+                                                              adata.uns[Sensitivity_].get('effectors')
+    if tkey == "potential" and "potential" not in adata.obs_keys():
+        ddhodge(adata)
+
+    adata_ = adata[cell_indx, :]
+    time = adata_.obs[tkey]
+    sensitivity_mat = Der.reshape((-1, Der.shape[2])) if Der.ndim == 3 else Der[None, :]
+    n_source_targets_ = Der.shape[0] * Der.shape[1] if Der.ndim == 3 else 1
+    targets_, sources_ = (np.repeat(effectors_, Der.shape[1]), np.tile(regulators_, Der.shape[0])) if Der.ndim == 3 \
+        else (np.repeat(effectors_, Der.shape[0]), np.repeat(effectors_, Der.shape[0]))
+    source_targets_ = [sources_[i] + '->' + targets_[i] for i in range(n_source_targets_)]
+
+    regulators = regulators_ if regulators is None else regulators
+    effectors = effectors_ if effectors is None else effectors
+    if type(regulators) == str: regulators = [regulators]
+    if type(effectors) == str: effectors = [effectors]
+    regulators = list(set(regulators_).intersection(regulators))
+    effectors = list(set(effectors_).intersection(effectors))
+    if len(regulators) == 0 or len(effectors) == 0:
+        raise ValueError(f"Sensitivity related to source genes {regulators} and target genes {effectors}"
+                         f"you provided are existed. Available source genes includes {regulators_} while "
+                         f"available target genes includes {effectors_}")
+    n_source_targets = len(regulators) * len(effectors)
+    targets, sources = np.repeat(effectors, len(regulators)), np.tile(regulators, len(effectors))
+    source_targets = [sources[i] + '->' + targets[i] for i in range(n_source_targets)]
+
+    sensitivity_mat = sensitivity_mat[:, np.argsort(time)]
+
+    if gene_order_method == "half_max_ordering":
+        time, all, valid_ind, gene_idx = _half_max_ordering(
+            sensitivity_mat, time, mode=mode, interpolate=True, spaced_num=100
+        )
+        all, source_targets = all[np.isfinite(all.sum(1)), :], np.array(source_targets)[gene_idx][np.isfinite(all.sum(1))]
+
+        df = pd.DataFrame(all, index=source_targets_)
+    elif gene_order_method == 'maximum':
+        sensitivity_mat = lowess_smoother(time, sensitivity_mat, spaced_num=None, n_convolve=n_convolve)
+        sensitivity_mat = sensitivity_mat[np.isfinite(sensitivity_mat.sum(1)), :]
+
+        if standard_scale is not None:
+            exprs = (sensitivity_mat - np.min(sensitivity_mat, axis=standard_scale)[:, None]) / np.ptp(
+                sensitivity_mat, axis=standard_scale
+            )[:, None]
+        max_sort = np.argsort(np.argmax(exprs, axis=1))
+        df = pd.DataFrame(exprs[max_sort, :], index=np.array(source_targets_)[max_sort],
+                          columns=adata.obs_names)
+    elif gene_order_method == "raw":
+        sensitivity_mat /= np.abs(sensitivity_mat).max(1)[:, None]
+        df = pd.DataFrame(sensitivity_mat, index=np.array(source_targets_),
+                          columns=adata.obs_names)
+    else:
+        raise Exception('gene order_method can only be either half_max_ordering or maximum')
+
+    heatmap_kwargs = dict(xticklabels=False, yticklabels=1, row_colors=None, col_colors=None, row_linkage=None,
+                          col_linkage=None, method='average', metric='euclidean', z_score=None, standard_scale=None)
+    if kwargs is not None:
+        heatmap_kwargs = update_dict(heatmap_kwargs, kwargs)
+
+    sns_heatmap = sns.clustermap(
+        df.loc[source_targets, :],
+        col_cluster=cluster_row_col[0],
+        row_cluster=cluster_row_col[1] if len(source_targets) > 2 else False,
+        cmap=color_map,
+        figsize=figsize,
+        center=0,
+        **heatmap_kwargs
+    )
+    if not show_colorbar: sns_heatmap.cax.set_visible(False)
+
+    if save_show_or_return == "save_fig":
+        s_kwargs = {"path": None, "prefix": 'sensitivity_kinetics', "dpi": None,
                     "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
