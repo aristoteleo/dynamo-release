@@ -250,7 +250,11 @@ def construct_v(X, i, idx, n_int_steps, func, distance_free, dist, D, n):
         pts = np.linspace(x, y, n_int_steps)
         v = func(pts)
 
-        u = (y - x) / np.linalg.norm(y - x)
+        lxy = np.linalg.norm(y - x)
+        if lxy > 0:
+            u = (y - x) / np.linalg.norm(y - x)
+        else:
+            u = y - x
         v = np.mean(v.dot(u))
         if not distance_free:
             if dist is None:
