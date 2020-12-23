@@ -228,8 +228,8 @@ def bubble(adata,
         color_key = plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
 
     if figsize is None:
-        width = 7 * len(genes) / 7
-        height = 5 * len(clusters) / 5
+        width = 10 * len(genes) / 14
+        height = 5 * len(clusters) / 14
     else:
         width, height = figsize
 
