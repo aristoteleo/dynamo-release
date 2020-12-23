@@ -203,7 +203,7 @@ def bubble(adata,
     gene_df = gene_df.A if issparse(gene_df) else gene_df
     gene_df = pd.DataFrame(gene_df.T, index=genes, columns=adata.obs_names)
 
-    xmin, xmax = gene_df.quantile(vmin/100, axis=0), gene_df.quantile(vmax/100, axis=0)
+    xmin, xmax = gene_df.quantile(vmin/100, axis=1), gene_df.quantile(vmax/100, axis=1)
     if sym_c:
         _vmin, _vmax = np.zeros_like(xmin), np.zeros_like(xmax)
         i = 0
@@ -259,8 +259,13 @@ def bubble(adata,
                            ax=axes[igene],
                            alpha=alpha,
                            **kwargs)
-            axes[igene].set_xlim(xmin[igene], xmax[igene])
-            axes[igene].set_xticks([])
+            if transpose:
+                axes[igene].set_ylim(xmin[igene], xmax[igene])
+                axes[igene].set_yticks([])
+            else:
+                axes[igene].set_xlim(xmin[igene], xmax[igene])
+                axes[igene].set_xticks([])
+
             # axes[igene].set_title(gene)
         elif type == 'dot':
             # use sort here
