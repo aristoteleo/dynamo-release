@@ -5,7 +5,8 @@ def get_interaction_in_cluster(rank_df_dict,
                                group,
                                genes,
                                n_top_genes=100,
-                               rank_regulators=False):
+                               rank_regulators=False,
+                               negative_values=False):
     """Retrieve interactions among input genes given the ranking dataframe.
 
     Parameters
@@ -29,6 +30,8 @@ def get_interaction_in_cluster(rank_df_dict,
     """
 
     subset_rank_df = rank_df_dict[group].head(n_top_genes)
+    if negative_values:
+        subset_rank_df = pd.concat([subset_rank_df, rank_df_dict[group].tail(n_top_genes)])
     valid_genes = subset_rank_df.columns.intersection(genes).to_list()
     edges = None
 
@@ -66,7 +69,8 @@ def build_network_per_cluster(adata,
                               full_reg_rank=None,
                               full_eff_rank=None,
                               genes=None,
-                              n_top_genes=100):
+                              n_top_genes=100,
+                              abs=False):
     """Build a cluster specific network between input genes based on ranking information of Jacobian analysis.
 
     Parameters
@@ -99,9 +103,9 @@ def build_network_per_cluster(adata,
 
     genes = np.unique(genes)
     if full_reg_rank is None:
-        full_reg_rank = rank_jacobian_genes(adata, groups=cluster, mode='full reg', abs=True, output_values=True)
+        full_reg_rank = rank_jacobian_genes(adata, groups=cluster, mode='full reg', abs=abs, output_values=True)
     if full_eff_rank is None:
-        full_eff_rank = rank_jacobian_genes(adata, groups=cluster, mode='full eff', abs=True, output_values=True)
+        full_eff_rank = rank_jacobian_genes(adata, groups=cluster, mode='full eff', abs=abs, output_values=True)
 
     edges_list = {}
 
@@ -126,10 +130,10 @@ def build_network_per_cluster(adata,
                                                full_eff_rank[c].columns.intersection(genes)
         if len(reg_valid_genes) > 0:
             reg_df = get_interaction_in_cluster(full_reg_rank, c, reg_valid_genes, n_top_genes=n_top_genes,
-                                                rank_regulators=True)
+                                                rank_regulators=True, negative_values=not abs)
         if len(eff_valid_genes) > 0:
             eff_df = get_interaction_in_cluster(full_eff_rank, c, eff_valid_genes, n_top_genes=n_top_genes,
-                                                rank_regulators=False)
+                                                rank_regulators=False, negative_values=not abs)
 
         if len(reg_valid_genes) > 0 and len(eff_valid_genes) == 0:
             edges_list[c] = reg_df

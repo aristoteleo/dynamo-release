@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import matplotlib.patches as pat
 from matplotlib.patches import ConnectionPatch
+from ..tools.utils import areinstance
 
 import numpy as np
 
@@ -60,7 +61,7 @@ def arcplot(x,
 
     # calculate alpha
     E_abs = np.abs(E)
-    alp_scale = np.max(E_abs)
+    alp_scale = np.max(E_abs - np.diag(np.diag(E_abs)))
 
     # arrow style
     curve_radius = np.abs(curve_radius) * arrow_direction
@@ -141,7 +142,12 @@ class ArcPlot:
         if node_order is None:
             self.x = np.arange(self.E.shape[0])
         else:
-            self.x = np.argsort(node_order)
+            if areinstance(node_order, str):
+                self.x = np.zeros(self.E.shape[0], dtype=int)
+                for i, n in enumerate(node_order):
+                    self.x[np.where(np.array(self.node_names) == n)[0][0]] = i
+            else:
+                self.x = np.argsort(node_order)
 
     def draw(self, node_order=None):
         if self.x is None:
