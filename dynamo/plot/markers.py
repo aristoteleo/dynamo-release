@@ -242,16 +242,20 @@ def bubble(adata,
     if figsize is None:
         width = 10 * len(genes) / 14
         height = 5 * len(clusters) / 14
+        figsize = (height, width) if transpose else (width, height)
     else:
-        width, height = figsize
+        figsize = figsize[::-1] if transpose else figsize
 
     # scatter_kwargs = dict(
     #     alpha=0.8, s=point_size, edgecolor=None, linewidth=0, rasterized=False
     # )  # (0, 0, 0, 1)
 
-    fig, axes = plt.subplots(1, len(genes), figsize=(width, height), facecolor=background)
+    fig, axes = plt.subplots(len(genes) if transpose else 1, 1 if transpose else len(genes),
+                             figsize=figsize, facecolor=background)
     fig.subplots_adjust(hspace=0, wspace=0)
     clusters_vec = cells_df.loc[gene_df.columns.values].values
+
+    # may also use clusters when transpose
     for igene, gene in enumerate(genes):
         cur_gene_df = pd.DataFrame({gene: gene_df.loc[gene, :].values, "clusters_": clusters_vec})
         cur_gene_df = cur_gene_df.loc[cur_gene_df['clusters_'].isin(clusters)]
@@ -262,7 +266,7 @@ def bubble(adata,
                            x='clusters_' if transpose else gene,
                            y=gene if transpose else "clusters_",
                            orient='v' if transpose else 'h',
-                           order=clusters,
+                           order=clusters, # genes if transpose else
                            linewidth=0,
                            palette=color_key,
                            inner=None,
@@ -274,11 +278,12 @@ def bubble(adata,
             if transpose:
                 axes[igene].set_ylim(xmin[igene], xmax[igene])
                 axes[igene].set_yticks([])
+                axes[igene].set_ylabel(gene, rotation='horizontal', ha='right', va='center')
             else:
                 axes[igene].set_xlim(xmin[igene], xmax[igene])
                 axes[igene].set_xticks([])
+                axes[igene].set_xlabel(gene, rotation=30, ha='right')
 
-            # axes[igene].set_title(gene)
         elif type == 'dot':
             # use sort here
             avg_perc_cluster = cur_gene_df.groupby('clusters_').expression.apply(
@@ -297,11 +302,18 @@ def bubble(adata,
                                 linewidth=linewidth,
                                 alpha=alpha,
                                 )
-        if igene != 0:
-            axes[igene].set_yticks([])
+        if transpose:
+            if igene != len(genes)-1:
+                axes[igene].set_xticks([])
+            else:
+                axes[igene].set_xticklabels(list(map(str, np.array(clusters))), rotation=30, ha="right")
         else:
-            axes[igene].set_yticklabels(list(map(str, np.array(clusters))))
-        axes[igene].set_ylabel('')
+            if igene != 0:
+                axes[igene].set_yticks([])
+            else:
+                axes[igene].set_yticklabels(list(map(str, np.array(clusters))), rotation='horizontal',
+                                            ha="right", va='center')
+        axes[igene].set_xlabel('') if transpose else axes[igene].set_ylabel('')
 
     if save_show_or_return == "save":
         s_kwargs = {"path": None, "prefix": 'violin', "dpi": None,
