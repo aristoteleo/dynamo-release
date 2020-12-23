@@ -13,6 +13,7 @@ from ..configuration import _themes, set_figure_params, reset_rcParams
 def bubble(adata,
            genes,
            group,
+           gene_order=None,
            group_order=None,
            layer=None,
            theme=None,
@@ -22,7 +23,7 @@ def bubble(adata,
            background="white",
            pointsize=None,
            vmin=0,
-           vmax=98,
+           vmax=100,
            sym_c=False,
            alpha=0.8,
            edgecolor=None,
@@ -46,6 +47,8 @@ def bubble(adata,
             an Annodata object
         genes: `list`
             The gene list, i.e. marker gene or top acceleration, curvature genes, etc.
+        group_order: `None` or `list` (default: `None`)
+            The gene groups order that will show up in the resulting bubble plot.
         group: `str`
             The column key in `adata.obs` that will be used to group cells.
         group_order: `None` or `list` (default: `None`)
@@ -104,7 +107,7 @@ def bubble(adata,
             pointsize`
         vmin: `float` (default: `0`)
             The percentage of minimal value to consider.
-        vmax: `float` (default: `98`)
+        vmax: `float` (default: `100`)
             The percentage of maximal value to consider.
         sym_c: `bool` (default: `False`)
             Whether do you want to make the limits of continuous color to be symmetric, normally this should be used for
@@ -189,6 +192,7 @@ def bubble(adata,
     if len(genes) == 0:
         raise ValueError(f"names from argument genes {genes} don't match any genes from `adata.var_names`.")
 
+    # sort gene/cluster to update the orders
     uniq_groups = adata.obs[group].unique()
     if group_order is None:
         clusters = uniq_groups
@@ -197,6 +201,14 @@ def bubble(adata,
             raise ValueError(f"names from argument group_order {group_order} is not a subset of "
                              f"`adata.obs[group].unique()`.")
         clusters = group_order
+
+    if gene_order is None:
+        genes = genes
+    else:
+        if set(gene_order).issubset(genes):
+            raise ValueError(f"names from argument gene_order {gene_order} is not a subset of "
+                             f"`adata.var_names.intersection(set(genes)).to_list()`.")
+        genes = gene_order
 
     cells_df = adata.obs.get(group)
     gene_df = adata[:, genes].layers[layer]
@@ -249,7 +261,7 @@ def bubble(adata,
             sns.violinplot(data=cur_gene_df,
                            x='clusters_' if transpose else gene,
                            y=gene if transpose else "clusters_",
-                           orient='h',
+                           orient='v' if transpose else 'h',
                            order=clusters,
                            linewidth=0,
                            palette=color_key,
