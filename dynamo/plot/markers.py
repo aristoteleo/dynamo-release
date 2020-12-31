@@ -31,6 +31,8 @@ def bubble(adata,
            type='violin',
            sort='diagnoal',
            transpose=False,
+           rotate_xlabel='horizontol',
+           rotate_ylabel='horizontol',
            figsize=None,
            save_show_or_return='show',
            save_kwargs={},
@@ -127,6 +129,10 @@ def bubble(adata,
         transpose: `bool` (default: `False`)
             Whether to transpose the row/column of the resulting bubble plot. Gene and cell types are on x/y-axis by
             default.
+        rotate_xlabel: `float` (default: `horizontal`)
+            The angel to rotate the x-label.
+        rotate_ylabel: `float` (default: `horizontal`)
+            The angel to rotate the y-label.
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -240,8 +246,8 @@ def bubble(adata,
         color_key = plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
 
     if figsize is None:
-        width = 10 * len(genes) / 14
-        height = 5 * len(clusters) / 14
+        width = 6 * len(genes) / 14 if transpose else 9 * len(genes) / 14
+        height = 4.5 * len(clusters) / 14 if transpose else 4.5 * len(genes) / 14
         figsize = (height, width) if transpose else (width, height)
     else:
         figsize = figsize[::-1] if transpose else figsize
@@ -278,11 +284,11 @@ def bubble(adata,
             if transpose:
                 axes[igene].set_ylim(xmin[igene], xmax[igene])
                 axes[igene].set_yticks([])
-                axes[igene].set_ylabel(gene, rotation='horizontal', ha='right', va='center')
+                axes[igene].set_ylabel(gene, rotation=rotate_ylabel, ha='right', va='center')
             else:
                 axes[igene].set_xlim(xmin[igene], xmax[igene])
                 axes[igene].set_xticks([])
-                axes[igene].set_xlabel(gene, rotation=30, ha='right')
+                axes[igene].set_xlabel(gene, rotation=rotate_xlabel, ha='right')
 
         elif type == 'dot':
             # use sort here
@@ -306,12 +312,12 @@ def bubble(adata,
             if igene != len(genes)-1:
                 axes[igene].set_xticks([])
             else:
-                axes[igene].set_xticklabels(list(map(str, np.array(clusters))), rotation=30, ha="right")
+                axes[igene].set_xticklabels(list(map(str, np.array(clusters))), rotation=rotate_xlabel, ha="right")
         else:
             if igene != 0:
                 axes[igene].set_yticks([])
             else:
-                axes[igene].set_yticklabels(list(map(str, np.array(clusters))), rotation='horizontal',
+                axes[igene].set_yticklabels(list(map(str, np.array(clusters))), rotation=rotate_ylabel,
                                             ha="right", va='center')
         axes[igene].set_xlabel('') if transpose else axes[igene].set_ylabel('')
 

@@ -313,7 +313,7 @@ def plot_fixed_points(
             *Xss[i],
             marker=marker_,
             s=markersize,
-            c=cm(confidence[i]),
+            c=np.array(cm(confidence[i])).reshape(1, -1),
             edgecolor=_select_font_color(_background),
             linewidths=1,
             cmap=_cmap,
