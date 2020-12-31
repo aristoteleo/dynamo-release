@@ -12,7 +12,7 @@ class TRNET:
         self.seed = seed
 
     def draw_sample(self, n_samples):
-        np.random.seed(seed)
+        np.random.seed(self.seed)
 
         idx = np.random.randint(0, self.X.shape[0], n_samples)
         return self.X[idx]
