@@ -1373,7 +1373,7 @@ def set_transition_genes(
                                                 get_group_params_indices(adata, 'alpha_r2')
             if is_group_alpha.sum() > 0:
                 adata.var['alpha'] = adata.var.loc[:, is_group_alpha].mean(1, skipna=True)
-                adata.var['alpha_r2'] = adata.var.loc[:, is_group_alpha_r2].mean(1, skipna=True)
+                adata.var['alpha_r2'] = adata.var.loc[:, np.hstack((is_group_alpha_r2, False))].mean(1, skipna=True)
             else:
                 raise Exception("there is no alpha/alpha_r2 parameter estimated for your adata object")
 
@@ -1393,7 +1393,7 @@ def set_transition_genes(
                                                 get_group_params_indices(adata, 'gamma_r2')
             if is_group_gamma.sum() > 0:
                 adata.var['gamma'] = adata.var.loc[:, is_group_gamma].mean(1, skipna=True)
-                adata.var['gamma_r2'] = adata.var.loc[:, is_group_gamma_r2].mean(1, skipna=True)
+                adata.var['gamma_r2'] = adata.var.loc[:, np.hstack((is_group_gamma_r2, False))].mean(1, skipna=True)
             else:
                 raise Exception("there is no gamma/gamma_r2 parameter estimated for your adata object")
 
@@ -1412,7 +1412,7 @@ def set_transition_genes(
                                                 get_group_params_indices(adata, 'delta_r2')
             if is_group_delta.sum() > 0:
                 adata.var['delta'] = adata.var.loc[:, is_group_delta].mean(1, skipna=True)
-                adata.var['delta_r2'] = adata.var.loc[:, is_group_delta_r2].mean(1, skipna=True)
+                adata.var['delta_r2'] = adata.var.loc[:, np.hstack((is_group_delta_r2, False))].mean(1, skipna=True)
             else:
                 raise Exception("there is no delta/delta_r2 parameter estimated for your adata object")
 
@@ -1432,7 +1432,7 @@ def set_transition_genes(
                                                 get_group_params_indices(adata, 'gamma_r2')
             if is_group_gamma.sum() > 0:
                 adata.var['gamma'] = adata.var.loc[:, is_group_gamma].mean(1, skipna=True)
-                adata.var['gamma_r2'] = adata.var.loc[:, is_group_gamma_r2].mean(1, skipna=True)
+                adata.var['gamma_r2'] = adata.var.loc[:, np.hstack((is_group_gamma_r2, False))].mean(1, skipna=True)
             else:
                 raise Exception("there is no gamma/gamma_r2 parameter estimated for your adata object")
 
