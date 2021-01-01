@@ -120,9 +120,9 @@ def sample(arr, n, method, X=None, V=None, seed=19491001, **kwargs):
         np.random.seed(seed)
         cell_idx = np.random.choice(arr, size=n, replace=False)
     elif method == 'velocity' and V is not None:
-        cell_idx = sample_by_velocity(V, n, seed, **kwargs)
+        cell_idx = sample_by_velocity(V=V, n=n, seed=seed, **kwargs)
     elif method == 'trn' and X is not None:
-        cell_idx = trn(X, n, seed, **kwargs)
+        cell_idx = trn(X=X, n=n, return_index=True, seed=seed, **kwargs)
     else:
         raise NotImplementedError(f"The sampling method {method} is not implemented or relevant data are not provided.")
     return cell_idx
