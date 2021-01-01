@@ -13,6 +13,7 @@ from .preprocess import (
     exp_by_groups,
 )
 from .cell_cycle import cell_cycle_scores
+from .markers import bubble
 
 from .dynamics import phase_portraits, dynamics
 from .time_series import (

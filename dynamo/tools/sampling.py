@@ -4,13 +4,16 @@ from sklearn.neighbors import NearestNeighbors
 from .utils import timeit
 
 class TRNET:
-    def __init__(self, n_nodes, X):
+    def __init__(self, n_nodes, X, seed=19491001):
         self.n_nodes = n_nodes
         self.n_dims = X.shape[1]
         self.X = X
         self.W = self.draw_sample(self.n_nodes)     # initialize the positions of nodes
-    
+        self.seed = seed
+
     def draw_sample(self, n_samples):
+        np.random.seed(self.seed)
+
         idx = np.random.randint(0, self.X.shape[0], n_samples)
         return self.X[idx]
         
@@ -65,8 +68,8 @@ class TRNET:
 
 
 @timeit
-def trn(X, n, return_index=True, **kwargs):
-    trnet = TRNET(n, X)
+def trn(X, n, return_index=True, seed=19491001, **kwargs):
+    trnet = TRNET(n, X, seed)
     trnet.run(**kwargs)
     if not return_index:
         return trnet.W
@@ -74,7 +77,7 @@ def trn(X, n, return_index=True, **kwargs):
         if X.shape[0] > 200000 and X.shape[1] > 2: 
             from pynndescent import NNDescent
 
-            nbrs = NNDescent(X, metric='euclidean', n_neighbors=1, n_jobs=-1, random_state=19491001)
+            nbrs = NNDescent(X, metric='euclidean', n_neighbors=1, n_jobs=-1, random_state=seed)
             idx, _ = nbrs.query(trnet.W, k=1)
         else:
             alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
@@ -83,15 +86,17 @@ def trn(X, n, return_index=True, **kwargs):
 
         return idx[:, 0]
 
-def sample_by_velocity(V, n):
+def sample_by_velocity(V, n, seed=19491001):
+    np.random.seed(seed)
     tmp_V = np.linalg.norm(V, axis=1)
     p = tmp_V / np.sum(tmp_V)
     idx = np.random.choice(np.arange(len(V)), size=n, p=p, replace=False)
     return idx
 
-def lhsclassic(n_samples, n_dim):
+def lhsclassic(n_samples, n_dim, seed=19491001):
     # From PyDOE
     # Generate the intervals
+    np.random.seed(seed)
     cut = np.linspace(0, 1, n_samples + 1)
 
     # Fill points uniformly in each interval
@@ -110,13 +115,14 @@ def lhsclassic(n_samples, n_dim):
 
     return H
 
-def sample(arr, n, method, X=None, V=None, **kwargs):
+def sample(arr, n, method, X=None, V=None, seed=19491001, **kwargs):
     if method == 'random':
+        np.random.seed(seed)
         cell_idx = np.random.choice(arr, size=n, replace=False)
     elif method == 'velocity' and V is not None:
-        cell_idx = sample_by_velocity(V, n, **kwargs)
+        cell_idx = sample_by_velocity(V=V, n=n, seed=seed, **kwargs)
     elif method == 'trn' and X is not None:
-        cell_idx = trn(X, n, **kwargs)
+        cell_idx = trn(X=X, n=n, return_index=True, seed=seed, **kwargs)
     else:
         raise NotImplementedError(f"The sampling method {method} is not implemented or relevant data are not provided.")
     return cell_idx
