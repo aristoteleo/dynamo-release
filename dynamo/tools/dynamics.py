@@ -309,6 +309,11 @@ def dynamics(
     valid_adata = adata[:, valid_bools].copy()
     if group is not None and group in adata.obs.columns:
         _group = adata.obs[group].unique()
+        if any(adata.obs[group].value_counts() < 50):
+            warnings.warn(f"Note that some groups have less than 50 cells, this may leads to the velocities for some "
+                          f"cells are all NaN values and cause issues for all downstream analysis. Please try to "
+                          f"coarse-grain cell groupings. Cell number for each group are {adata.obs[group].value_counts()}")
+
     else:
         _group = ["_all_cells"]
 

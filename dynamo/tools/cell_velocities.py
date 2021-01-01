@@ -296,7 +296,8 @@ def cell_velocities(
     X = X.A if sp.issparse(X) else X
     finite_inds = get_finite_inds(V)
     X, V = X[:, finite_inds], V[:, finite_inds]
-    if X.shape[0] < 5:
+
+    if finite_inds.sum() < 5:
         raise Exception(f'there are only {finite_inds.sum()} genes have finite velocity values. '
                         f'Please make sure the {vkey} is correctly calculated!')
 
