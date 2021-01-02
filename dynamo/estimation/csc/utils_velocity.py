@@ -383,7 +383,10 @@ def fit_stochastic_linreg(u, s, us, ss, fit_2_gammas=True, err_cov=False):
     for i in range(x.shape[1]):
         xy += y[:, i].T @ cov_inv @ x[:, i]
         xx += x[:, i].T @ cov_inv @ x[:, i]
-    gamma = xy/xx
+    if xx == 0:
+        gamma = np.nan
+    else:
+        gamma = xy / xx
     return gamma
 
 
