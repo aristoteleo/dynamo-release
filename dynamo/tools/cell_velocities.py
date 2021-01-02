@@ -296,9 +296,13 @@ def cell_velocities(
     X = X.A if sp.issparse(X) else X
     finite_inds = get_finite_inds(V)
     X, V = X[:, finite_inds], V[:, finite_inds]
-    if X.shape[0] < 5:
+
+    if finite_inds.sum() < 5:
         raise Exception(f'there are only {finite_inds.sum()} genes have finite velocity values. '
-                        f'Please make sure the {vkey} is correctly calculated!')
+                        f'Please make sure the {vkey} is correctly calculated! And if you run kinetic parameters '
+                        f'estimation for each cell-group via `group` argument, make sure all groups have sufficient '
+                        f'number of cells, e.g. 50 cells at least. Otherwise some cells may have NaN values for all '
+                        f'genes.')
 
     if method == 'kmc' and n_pca_components is None: n_pca_components = 30
     if n_pca_components is not None:
