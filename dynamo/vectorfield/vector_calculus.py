@@ -495,7 +495,7 @@ def acceleration(adata,
         else:
             raise Exception(f'No PC matrix {Qkey} found in neither .uns nor .varm.')
         acce_hi = vector_transformation(acce, Q)
-        create_layer(adata, acce_hi, layer_key='acceleration', genes=adata.var.use_for_dynamics)
+        create_layer(adata, acce_hi, layer_key='acceleration', genes=adata.var.use_for_pca)
 
 
 def curvature(adata,
@@ -551,7 +551,7 @@ def curvature(adata,
     adata.obsm[curv_key] = curv_mat
     if basis == 'pca':
         curv_hi = vector_transformation(curv_mat, adata.uns[Qkey])
-        create_layer(adata, curv_hi, layer_key='curvature', genes=adata.var.use_for_dynamics)
+        create_layer(adata, curv_hi, layer_key='curvature', genes=adata.var.use_for_pca)
 
 
 def torsion(adata,
@@ -807,7 +807,7 @@ def rank_genes(adata,
     for g, arr in arr_dict.items():
         if ismatrix(arr):
             arr = arr.A.flatten()
-        glst, sarr = list_top_genes(arr[genes], var_names, None, return_sorted_array=True)
+        glst, sarr = list_top_genes(arr, var_names, None, return_sorted_array=True)
         #ret_dict[g] = {glst[i]: sarr[i] for i in range(len(glst))}
         ret_dict[g] = glst
         if output_values:
