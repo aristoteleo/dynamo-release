@@ -807,7 +807,7 @@ def rank_genes(adata,
     for g, arr in arr_dict.items():
         if ismatrix(arr):
             arr = arr.A.flatten()
-        glst, sarr = list_top_genes(arr[genes], var_names, None, return_sorted_array=True)
+        glst, sarr = list_top_genes(arr, var_names, None, return_sorted_array=True)
         #ret_dict[g] = {glst[i]: sarr[i] for i in range(len(glst))}
         ret_dict[g] = glst
         if output_values:
