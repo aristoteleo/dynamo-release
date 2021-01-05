@@ -734,7 +734,7 @@ def rank_genes(adata,
             The key of the to-be-ranked array stored in `.var` or or `.layer`.
             If the array is found in `.var`, the `groups` argument will be ignored.
             If a numpy array is passed, it is used as the array to be ranked and must 
-            have the length of `.n_var`
+            be either an 1d array of length `.n_var`, or a `.n_obs`-by-`.n_var` 2d array.
         groups: str or None (default: None)
             Cell groups used to group the array.
         genes: list or None (default: None)
@@ -779,7 +779,7 @@ def rank_genes(adata,
         else:
             raise Exception(f'Key {arr_key} not found in neither .layers nor .var.')
     else:
-        arr = arr_key
+        arr = index_gene(adata, arr_key, genes)
 
     if dtype is not None:
         arr = np.array(arr, dtype=dtype)
