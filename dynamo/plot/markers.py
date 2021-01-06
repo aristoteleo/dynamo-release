@@ -31,8 +31,8 @@ def bubble(adata,
            type='violin',
            sort='diagnoal',
            transpose=False,
-           rotate_xlabel='horizontol',
-           rotate_ylabel='horizontol',
+           rotate_xlabel='horizontal',
+           rotate_ylabel='horizontal',
            figsize=None,
            save_show_or_return='show',
            save_kwargs={},
@@ -49,10 +49,10 @@ def bubble(adata,
             an Annodata object
         genes: `list`
             The gene list, i.e. marker gene or top acceleration, curvature genes, etc.
-        group_order: `None` or `list` (default: `None`)
-            The gene groups order that will show up in the resulting bubble plot.
         group: `str`
             The column key in `adata.obs` that will be used to group cells.
+        gene_order: `None` or `list` (default: `None`)
+            The gene groups order that will show up in the resulting bubble plot.
         group_order: `None` or `list` (default: `None`)
             The cells groups order that will show up in the resulting bubble plot.
         layer: `None` or `str` (default: `None`)
@@ -203,15 +203,15 @@ def bubble(adata,
     if group_order is None:
         clusters = uniq_groups
     else:
-        if set(group_order).issubset(uniq_groups):
-            raise ValueError(f"names from argument group_order {group_order} is not a subset of "
+        if not set(group_order).issubset(uniq_groups):
+            raise ValueError(f"names from argument group_order {group_order} are not subsets of "
                              f"`adata.obs[group].unique()`.")
         clusters = group_order
 
     if gene_order is None:
         genes = genes
     else:
-        if set(gene_order).issubset(genes):
+        if not set(gene_order).issubset(genes):
             raise ValueError(f"names from argument gene_order {gene_order} is not a subset of "
                              f"`adata.var_names.intersection(set(genes)).to_list()`.")
         genes = gene_order
