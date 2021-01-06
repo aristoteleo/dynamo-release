@@ -212,7 +212,7 @@ def scatters(
             form the mask to create the contour. We also add the polygon shape as a frontier of the data point (similar
             to when setting `frontier = True`). When the color of the data points is continuous, we will use the same cmap
             as for the scatter points by default, when color is categorical, no contour will be drawn but just the
-            polygon. cmap can be set with `ccmap` argument. See below.
+            polygon. cmap can be set with `ccmap` argument. See below. This has recently changed to use seaborn's kdeplot.
         ccmap: `str` or `None` (default: `None`)
             The name of a matplotlib colormap to use for coloring or shading points the contour. See above.
         calpha: `float` (default: `2.3`)
@@ -478,7 +478,7 @@ def scatters(
                     )
 
                     if is_not_continous:
-                        labels = _color.to_dense() if is_categorical_dtype(_color) else _color
+                        labels = np.asarray(_color) if is_categorical_dtype(_color) else _color
                         if theme is None:
                             if _background in ["#ffffff", "black"]:
                                 _theme_ = "glasbey_dark"
