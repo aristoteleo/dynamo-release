@@ -815,6 +815,107 @@ def rank_genes(adata,
     return pd.DataFrame(data=ret_dict)
 
 
+def rank_cells(adata,
+               arr_key,
+               groups=None,
+               genes=None,
+               abs=False,
+               fcn_pool=lambda x: np.mean(x, axis=0),
+               dtype=None,
+               output_values=False
+               ):
+    """Rank cell's absolute, positive, negative vector field metrics by different gene groups.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the array to be sorted in `.var` or `.layer`.
+        arr_key: str or :class:`~numpy.ndarray`
+            The key of the to-be-ranked array stored in `.var` or or `.layer`.
+            If the array is found in `.var`, the `groups` argument will be ignored.
+            If a numpy array is passed, it is used as the array to be ranked and must
+            be either an 1d array of length `.n_var`, or a `.n_obs`-by-`.n_var` 2d array.
+        groups: str or None (default: None)
+            Gene groups used to group the array.
+        genes: list or None (default: None)
+            The gene list that speed will be ranked. If provided, they must overlap the dynamics genes.
+        abs: bool (default: False)
+            When pooling the values in the array (see below), whether to take the absolute values.
+        fcn_pool: callable (default: numpy.mean(x, axis=0))
+            The function used to pool values in the to-be-ranked array if the array is 2d.
+    Returns
+    -------
+        ret_dict: dict
+            A dictionary of cells names and values based on which the genes are sorted for each gene group.
+    """
+
+    dynamics_genes = adata.var.use_for_dynamics \
+        if 'use_for_dynamics' in adata.var.keys() \
+        else np.ones(adata.n_vars, dtype=bool)
+    if genes is not None:
+        if type(genes) is str:
+            genes = adata.var[genes].to_list()
+            genes = np.logical_and(genes, dynamics_genes.to_list())
+        elif areinstance(genes, str):
+            genes_ = adata.var_names[dynamics_genes].intersection(genes).to_list()
+            genes = adata.var_names.isin(genes_)
+        elif areinstance(genes, bool) or areinstance(genes, np.bool_):
+            genes = np.array(genes)
+            genes = np.logical_and(genes, dynamics_genes.to_list())
+        else:
+            raise TypeError(f"The provided genes should either be a key of adata.var, "
+                                f"an array of gene names, or of booleans.")
+    else:
+        genes = dynamics_genes
+
+    if not np.any(genes):
+        raise ValueError(f"The list of genes provided does not contain any dynamics genes.")
+
+    if type(arr_key) is str:
+        if arr_key in adata.layers.keys():
+            arr = index_gene(adata, adata.layers[arr_key], genes)
+        elif arr_key in adata.var.keys():
+            arr = index_gene(adata, adata.var[arr_key], genes)
+        else:
+            raise Exception(f'Key {arr_key} not found in neither .layers nor .var.')
+    else:
+        arr = index_gene(adata, arr_key, genes)
+
+    if dtype is not None:
+        arr = np.array(arr, dtype=dtype)
+    if abs:
+        arr = np.abs(arr)
+    arr = arr.T # genes x cells
+
+    if arr.ndim > 1:
+        if groups is not None:
+            if type(groups) is str and groups in adata.var.keys():
+                grps = np.array(adata.var[groups])
+            elif isarray(groups):
+                grps = np.array(groups)
+            else:
+                raise Exception(f'The group information {groups} you provided is not in your adata object.')
+            arr_dict = {}
+            for g in np.unique(grps):
+                arr_dict[g] = fcn_pool(arr[grps==g])
+        else:
+            arr_dict = {'all': fcn_pool(arr)}
+    else:
+        arr_dict = {'all': arr}
+
+    ret_dict = {}
+    cell_names = np.array(adata.obs_names)
+    for g, arr in arr_dict.items():
+        if ismatrix(arr):
+            arr = arr.A.flatten()
+        glst, sarr = list_top_genes(arr, cell_names, None, return_sorted_array=True)
+        #ret_dict[g] = {glst[i]: sarr[i] for i in range(len(glst))}
+        ret_dict[g] = glst
+        if output_values:
+            ret_dict[g+'_values'] = sarr
+    return pd.DataFrame(data=ret_dict)
+
+
 def rank_velocity_genes(adata, vkey='velocity_S', prefix_store='rank', **kwargs):
     """Rank genes based on their raw and absolute velocities for each cell group.
 
