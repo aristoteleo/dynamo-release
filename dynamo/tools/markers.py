@@ -359,10 +359,11 @@ def two_groups_degs(adata,
             control_vals = all_vals[adata.obs[group] == control_groups[i]]
 
             if subset_control_vals:
-                if layer.startswith('velocity') or layer in ['acceleration', 'curvature']:
-                    control_vals = control_vals[np.argsort(np.absolute(control_vals))]
-                else:
+                if layer is None or not (layer.startswith('velocity') or layer in ['acceleration', 'curvature']):
                     control_vals.sort()
+                else:
+                    control_vals = control_vals[np.argsort(np.absolute(control_vals))]
+
                 control_vals = control_vals[-min_n[i]:]
                 cur_n1n2 = n1n2[i]
             else:
