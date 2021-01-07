@@ -349,8 +349,12 @@ def two_groups_degs(adata,
             perfect_specificity[i + 1] = 1.0
 
             specificity_ = specificity(perc, perfect_specificity)
-            diff_ratio_pos = sum(np.sign(test_vals) > 0)[0] / len(test_vals) - \
-                             sum(np.sign(control_vals) > 0)[0] / len(control_vals)
+
+            tmp0, tmp1 = sum(np.sign(test_vals) > 0), sum(np.sign(control_vals) > 0)
+            tmp0 = tmp0 if np.isscalar(tmp0) else tmp0[0]
+            tmp1 = tmp0 if np.isscalar(tmp1) else tmp1[0]
+
+            diff_ratio_pos = tmp0 / len(test_vals) -  tmp1 / len(control_vals)
 
             de.append((gene, control_groups[i], ef, rbc, log_fc, mw_p, specificity_, diff_ratio_pos))
 
