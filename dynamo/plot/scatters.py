@@ -335,9 +335,16 @@ def scatters(
     axes_list, color_list = [], []
     for cur_b in basis:
         for cur_l in layer:
-            if use_smoothed:
-                cur_l_smoothed = cur_l if cur_l.startswith('M_') | cur_l.startswith('velocity') else mapper[cur_l]
-            prefix = cur_l + "_"
+            if cur_l in ['acceleration', 'curvature']:
+                cur_l_smoothed = cur_l
+                cmap, sym_c = 'bwr', True
+            else:
+                if use_smoothed:
+                    cur_l_smoothed = cur_l if cur_l.startswith('M_') | cur_l.startswith('velocity') else mapper[cur_l]
+                    if cur_l.startswith('velocity'):
+                        cmap, sym_c = 'bwr', True
+
+            prefix = cur_l + "_" if any([i == cur_l + '_' + cur_b for i in adata.obsm.keys()]) else "X_"
 
             # if prefix + cur_b in adata.obsm.keys():
             #     if type(x) != str and type(y) != str:

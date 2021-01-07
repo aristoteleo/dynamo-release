@@ -212,18 +212,30 @@ def find_group_markers(adata,
         adata.obs[group] = adata.obs[group].astype('str')
         cluster_set = adata.obs[group].unique()
 
+        if len(cluster_set) < 2:
+            raise ValueError(f"the number of groups for the argument {group} must be at least two.")
+
     de_tables = [None] * len(cluster_set)
     de_genes = {}
 
-    for i, test_group in enumerate(cluster_set):
-        control_groups = sorted(set(cluster_set).difference([test_group]))
+    if len(cluster_set) > 2:
+        for i, test_group in enumerate(cluster_set):
+            control_groups = sorted(set(cluster_set).difference([test_group]))
 
-        de = two_groups_degs(adata, genes, layer, group, test_group, control_groups, X_data, exp_frac_thresh,
+            de = two_groups_degs(adata, genes, layer, group, test_group, control_groups, X_data, exp_frac_thresh,
+                                 log2_fc_thresh, qval_thresh, )
+
+            de_tables[i] = de.copy()
+            de_genes[i] = [k for k, v in Counter(de['gene']).items()
+                           if v >= de_frequency]
+    else:
+        de = two_groups_degs(adata, genes, layer, group, cluster_set[0], cluster_set[1], X_data, exp_frac_thresh,
                              log2_fc_thresh, qval_thresh, )
 
-        de_tables[i] = de.copy()
-        de_genes[i] = [k for k, v in Counter(de['gene']).items()
+        de_tables[0] = de.copy()
+        de_genes[0] = [k for k, v in Counter(de['gene']).items()
                        if v >= de_frequency]
+
     de_table = pd.concat(de_tables).reset_index().drop(columns=['index'])
 
     adata.uns['cluster_markers'] = {'deg_table': de_table, 'de_genes': de_genes}
