@@ -312,14 +312,14 @@ def two_groups_degs(adata,
         A pandas DataFrame of the differential expression analysis result between the two groups.
     """
 
-    if layer.startswith('velocity') or layer in ['acceleration', 'curvature']:
-        exp_frac_thresh = 0 if exp_frac_thresh is None else exp_frac_thresh
-        log2_fc_thresh = None
-        subset_control_vals = False if subset_control_vals is None else subset_control_vals
-    else:
+    if layer is None or not (layer.startswith('velocity') or layer in ['acceleration', 'curvature']):
         exp_frac_thresh = 0.1 if exp_frac_thresh is None else exp_frac_thresh
         log2_fc_thresh = 1 if log2_fc_thresh is None else log2_fc_thresh
         subset_control_vals = True if subset_control_vals is None else subset_control_vals
+    else:
+        exp_frac_thresh = 0 if exp_frac_thresh is None else exp_frac_thresh
+        log2_fc_thresh = None
+        subset_control_vals = False if subset_control_vals is None else subset_control_vals
 
     if X_data is None:
         genes, X_data = fetch_X_data(adata, genes, layer)
