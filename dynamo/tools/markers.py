@@ -199,14 +199,14 @@ def find_group_markers(adata,
         a concated pandas DataFrame of the differential expression analysis result for all groups and a dictionary where keys are
         cluster numbers and values are lists of marker genes for the corresponding clusters.
     """
-    if layer.startswith('velocity') or layer in ['acceleration', 'curvature']:
-        exp_frac_thresh = 0 if exp_frac_thresh is None else exp_frac_thresh
-        log2_fc_thresh = None
-        subset_control_vals = False if subset_control_vals is None else subset_control_vals
-    else:
+    if layer is None or not (layer.startswith('velocity') or layer in ['acceleration', 'curvature']):
         exp_frac_thresh = 0.1 if exp_frac_thresh is None else exp_frac_thresh
         log2_fc_thresh = 1 if log2_fc_thresh is None else log2_fc_thresh
         subset_control_vals = True if subset_control_vals is None else subset_control_vals
+    else:
+        exp_frac_thresh = 0 if exp_frac_thresh is None else exp_frac_thresh
+        log2_fc_thresh = None
+        subset_control_vals = False if subset_control_vals is None else subset_control_vals
 
     genes, X_data = fetch_X_data(adata, genes, layer)
     if len(genes) == 0:
@@ -224,7 +224,7 @@ def find_group_markers(adata,
     de_tables = [None] * len(cluster_set)
     de_genes = {}
 
-    if len(cluster_set) >= 2:
+    if len(cluster_set) > 2:
         for i, test_group in enumerate(cluster_set):
             control_groups = sorted(set(cluster_set).difference([test_group]))
 
