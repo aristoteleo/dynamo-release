@@ -145,6 +145,7 @@ def find_group_markers(adata,
                        log2_fc_thresh=None,
                        qval_thresh=0.05,
                        de_frequency=1,
+                       subset_control_vals=None,
                        ):
     """Find marker genes for each group of cells based on gene expression or velocity values as specified by the layer.
 
@@ -186,6 +187,11 @@ def find_group_markers(adata,
         de_frequency:
             Minimum number of clusters against a gene should be significantly differentially expressed for it to qualify
             as a marker.
+        subset_control_vals: `None` or `bool` (default: `None`)
+            Whether to subset the top ranked control values. When `subset_control_vals = None`, this is subset to be
+            `True` when layer is not related to either `velocity` related or `acceleration` or `curvature` related
+            layers and `False` otherwise. When layer is not related to either `velocity` related or `acceleration` or
+            `curvature` related layers used, the control values will be sorted by absolute values.
 
     Returns
     -------
@@ -193,14 +199,14 @@ def find_group_markers(adata,
         a concated pandas DataFrame of the differential expression analysis result for all groups and a dictionary where keys are
         cluster numbers and values are lists of marker genes for the corresponding clusters.
     """
-
-    if layer is None: layer = 'X'
-    if layer.startswith('velocity'):
+    if layer.startswith('velocity') or layer in ['acceleration', 'curvature']:
         exp_frac_thresh = 0 if exp_frac_thresh is None else exp_frac_thresh
-        log2_fc_thresh = 0 if log2_fc_thresh is None else log2_fc_thresh
+        log2_fc_thresh = None
+        subset_control_vals = False if subset_control_vals is None else subset_control_vals
     else:
         exp_frac_thresh = 0.1 if exp_frac_thresh is None else exp_frac_thresh
         log2_fc_thresh = 1 if log2_fc_thresh is None else log2_fc_thresh
+        subset_control_vals = True if subset_control_vals is None else subset_control_vals
 
     genes, X_data = fetch_X_data(adata, genes, layer)
     if len(genes) == 0:
@@ -218,19 +224,19 @@ def find_group_markers(adata,
     de_tables = [None] * len(cluster_set)
     de_genes = {}
 
-    if len(cluster_set) > 2:
+    if len(cluster_set) >= 2:
         for i, test_group in enumerate(cluster_set):
             control_groups = sorted(set(cluster_set).difference([test_group]))
 
             de = two_groups_degs(adata, genes, layer, group, test_group, control_groups, X_data, exp_frac_thresh,
-                                 log2_fc_thresh, qval_thresh, )
+                                 log2_fc_thresh, qval_thresh, subset_control_vals)
 
             de_tables[i] = de.copy()
             de_genes[i] = [k for k, v in Counter(de['gene']).items()
                            if v >= de_frequency]
     else:
         de = two_groups_degs(adata, genes, layer, group, cluster_set[0], cluster_set[1], X_data, exp_frac_thresh,
-                             log2_fc_thresh, qval_thresh, )
+                             log2_fc_thresh, qval_thresh, subset_control_vals)
 
         de_tables[0] = de.copy()
         de_genes[0] = [k for k, v in Counter(de['gene']).items()
@@ -253,6 +259,7 @@ def two_groups_degs(adata,
                     exp_frac_thresh=None,
                     log2_fc_thresh=None,
                     qval_thresh=0.05,
+                    subset_control_vals=None,
                     ):
     """Find marker genes between two groups of cells based on gene expression or velocity values as specified by the layer.
 
@@ -293,6 +300,11 @@ def two_groups_degs(adata,
             not `velocity` related (i.e. `velocity_S`), `log2_fc_thresh` by default is set to be 1, otherwise 0.
         qval_thresh: `float` (default: 0.05)
             The maximal threshold of qval to be considered as significant genes.
+        subset_control_vals: `None` or `bool` (default: `None`)
+            Whether to subset the top ranked control values. When `subset_control_vals = None`, this is subset to be
+            `True` when layer is not related to either `velocity` related or `acceleration` or `curvature` related
+            layers and `False` otherwise. When layer is not related to either `velocity` related or `acceleration` or
+            `curvature` related layers used, the control values will be sorted by absolute values.
 
 
     Returns
@@ -300,12 +312,14 @@ def two_groups_degs(adata,
         A pandas DataFrame of the differential expression analysis result between the two groups.
     """
 
-    if layer.startswith('velocity'):
+    if layer.startswith('velocity') or layer in ['acceleration', 'curvature']:
         exp_frac_thresh = 0 if exp_frac_thresh is None else exp_frac_thresh
-        log2_fc_thresh = 0 if log2_fc_thresh is None else log2_fc_thresh
+        log2_fc_thresh = None
+        subset_control_vals = False if subset_control_vals is None else subset_control_vals
     else:
         exp_frac_thresh = 0.1 if exp_frac_thresh is None else exp_frac_thresh
         log2_fc_thresh = 1 if log2_fc_thresh is None else log2_fc_thresh
+        subset_control_vals = True if subset_control_vals is None else subset_control_vals
 
     if X_data is None:
         genes, X_data = fetch_X_data(adata, genes, layer)
@@ -323,8 +337,10 @@ def two_groups_degs(adata,
 
     num_test_cells = test_cells.sum()
     num_groups = len(control_groups)
-    min_n = [min(num_test_cells, sum(adata.obs[group] == x)) for x in control_groups]
-    n1n2 = [num_test_cells * x for x in min_n]
+
+    if subset_control_vals:
+        min_n = [min(num_test_cells, sum(adata.obs[group] == x)) for x in control_groups]
+        n1n2 = [num_test_cells * x for x in min_n]
 
     de = []
     for i_gene, gene in tqdm(enumerate(genes), desc="identifying top markers for each group"):
@@ -341,22 +357,35 @@ def two_groups_degs(adata,
 
         for i in range(num_groups):
             control_vals = all_vals[adata.obs[group] == control_groups[i]]
-            control_vals.sort()
-            control_vals = control_vals[-min_n[i]:]
 
-            mean_control_vals = control_vals.mean()
-            if mean_control_vals == 0:
-                log_fc = np.inf
+            if subset_control_vals:
+                if layer.startswith('velocity') or layer in ['acceleration', 'curvature']:
+                    control_vals = control_vals[np.argsort(np.absolute(control_vals))]
+                else:
+                    control_vals.sort()
+                control_vals = control_vals[-min_n[i]:]
+                cur_n1n2 = n1n2[i]
             else:
-                log_fc = log_mean_test_vals - np.log2(mean_control_vals)
-            if abs(log_fc) < log2_fc_thresh:
-                continue
+                cur_n1n2 = num_test_cells * len(control_vals)
+
+            if log2_fc_thresh is not None:
+                mean_control_vals = control_vals.mean()
+                if mean_control_vals == 0:
+                    log_fc = np.inf
+                else:
+                    log_fc = log_mean_test_vals - np.log2(mean_control_vals)
+
+                if abs(log_fc) < log2_fc_thresh:
+                    continue
+            else:
+                log_fc = np.nan # for curvature, acceleration, log fc is meaningless
+
             try:
                 u, mw_p = mannwhitneyu(test_vals, control_vals)
             except ValueError:
                 pass
             else:
-                rbc = 1 - ((2 * u) / n1n2[i])
+                rbc = 1 - ((2 * u) / cur_n1n2)
 
             perfect_specificity = np.repeat(0.0, num_groups + 1)
             perfect_specificity[i + 1] = 1.0
@@ -367,7 +396,7 @@ def two_groups_degs(adata,
             tmp0 = tmp0 if np.isscalar(tmp0) else tmp0[0]
             tmp1 = tmp0 if np.isscalar(tmp1) else tmp1[0]
 
-            diff_ratio_pos = tmp0 / len(test_vals) -  tmp1 / len(control_vals)
+            diff_ratio_pos = tmp0 / len(test_vals) - tmp1 / len(control_vals)
 
             de.append((gene, control_groups[i], ef, rbc, log_fc, mw_p, specificity_, diff_ratio_pos))
 
