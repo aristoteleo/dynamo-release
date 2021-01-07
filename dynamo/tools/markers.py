@@ -317,6 +317,7 @@ def two_groups_degs(adata,
     n_cells, n_genes = X_data.shape
     sparse = issparse(X_data)
 
+    if type(control_groups) == str: control_groups = [control_groups]
     test_cells, control_cells = adata.obs[group] == test_group, \
                                 adata.obs[group].isin(control_groups)
 
