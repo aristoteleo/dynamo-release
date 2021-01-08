@@ -1,5 +1,5 @@
 from tqdm import tqdm
-import multiprocessing as mp
+from anndata._core.views import ArrayView
 import itertools, functools
 import scipy.sparse as sp
 import numpy as np
@@ -781,6 +781,9 @@ def rank_genes(adata,
     else:
         arr = index_gene(adata, arr_key, genes)
 
+    if sp.issparse(arr): arr = arr.A
+    arr[np.isnan(arr)] = 0
+
     if dtype is not None:
         arr = np.array(arr, dtype=dtype)
     if abs:
@@ -880,6 +883,9 @@ def rank_cells(adata,
             raise Exception(f'Key {arr_key} not found in neither .layers nor .var.')
     else:
         arr = index_gene(adata, arr_key, genes)
+    if type(arr) == ArrayView: arr = np.array(arr)
+    if sp.issparse(arr): arr = arr.A
+    arr[np.isnan(arr)] = 0
 
     if dtype is not None:
         arr = np.array(arr, dtype=dtype)

@@ -275,7 +275,7 @@ def bubble(adata,
                            order=clusters, # genes if transpose else
                            linewidth=0,
                            palette=color_key,
-                           inner=None,
+                           inner='box',
                            scale='width',
                            cut=0,
                            ax=axes[igene],

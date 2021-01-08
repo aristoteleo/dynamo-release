@@ -243,6 +243,7 @@ def find_group_markers(adata,
                        if v >= de_frequency]
 
     de_table = pd.concat(de_tables).reset_index().drop(columns=['index'])
+    de_table['log2_fc'] = de_table['log2_fc'].astype('float')
 
     adata.uns['cluster_markers'] = {'deg_table': de_table, 'de_genes': de_genes}
 
@@ -471,8 +472,12 @@ def top_n_markers(adata,
         adata = find_group_markers(adata, group='clusters')
 
     deg_table = adata.uns['cluster_markers']['deg_table']
+
     if len(deg_table['log2_fc'].unique()) > 1:
-        log2_fc_thresh = 1 if log2_fc_thresh is None else log2_fc_thresh
+        if np.abs(deg_table['log2_fc']).max() < 1:
+            log2_fc_thresh = -np.inf if log2_fc_thresh is None else log2_fc_thresh
+        else:
+            log2_fc_thresh = 1 if log2_fc_thresh is None else log2_fc_thresh
         deg_table = deg_table.query("exp_frac > @exp_frac_thresh and "
                                     "log2_fc > @log2_fc_thresh and "
                                     "qval < @qval_thresh and "
