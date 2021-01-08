@@ -379,7 +379,7 @@ def two_groups_degs(adata,
                 if abs(log_fc) < log2_fc_thresh:
                     continue
             else:
-                log_fc = np.nan # for curvature, acceleration, log fc is meaningless
+                log_fc = 1 # for curvature, acceleration, log fc is meaningless
 
             try:
                 u, mw_p = mannwhitneyu(test_vals, control_vals)
@@ -425,7 +425,7 @@ def top_n_markers(adata,
                   sort_order='decreasing',
                   top_n_genes=5,
                   exp_frac_thresh=0.1,
-                  log2_fc_thresh=1,
+                  log2_fc_thresh=None,
                   qval_thresh=0.05,
                   specificity_thresh=0.3,
                   only_gene_list=False,
@@ -448,8 +448,9 @@ def top_n_markers(adata,
             The number of top sorted markers.
         exp_frac_thresh: `float` (default: 0.1)
             The minimum percentage of cells with expression for a gene to proceed selection of top markers.
-        log2_fc_thresh: `float` (default: 0.1)
-            The minimal threshold of log2 fold change for a gene to proceed selection of top markers.
+        log2_fc_thresh: `None` or `float` (default: None)
+            The minimal threshold of log2 fold change for a gene to proceed selection of top markers. Applicable to none
+            `velocity`, `acceleration` or `curvature` layers based DEGs.
         qval_thresh: `float` (default: 0.05)
             The maximal threshold of qval to be considered as top markers.
         only_gene_list: `bool`
@@ -470,10 +471,17 @@ def top_n_markers(adata,
         adata = find_group_markers(adata, group='clusters')
 
     deg_table = adata.uns['cluster_markers']['deg_table']
-    deg_table = deg_table.query("exp_frac > @exp_frac_thresh and "
-                                "log2_fc > @log2_fc_thresh and "
-                                "qval < @qval_thresh and "
-                                "specificity > @specificity_thresh")
+    if len(deg_table['log2_fc'].unique()) > 1:
+        log2_fc_thresh = 1 if log2_fc_thresh is None else log2_fc_thresh
+        deg_table = deg_table.query("exp_frac > @exp_frac_thresh and "
+                                    "log2_fc > @log2_fc_thresh and "
+                                    "qval < @qval_thresh and "
+                                    "specificity > @specificity_thresh")
+    else:
+        deg_table = deg_table.query("exp_frac > @exp_frac_thresh and "
+                                    "qval < @qval_thresh and "
+                                    "specificity > @specificity_thresh")
+
     if deg_table.shape[0] == 0:
         raise ValueError(f'Looks like your filter threshold is too extreme. No gene detected. '
                          f'Please try relaxing the thresholds you specified: '
