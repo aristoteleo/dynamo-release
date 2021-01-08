@@ -379,7 +379,7 @@ def two_groups_degs(adata,
                 if abs(log_fc) < log2_fc_thresh:
                     continue
             else:
-                log_fc = 1 # for curvature, acceleration, log fc is meaningless
+                log_fc = test_vals.mean() - control_vals.mean() # for curvature, acceleration, log fc is meaningless
 
             try:
                 u, mw_p = mannwhitneyu(test_vals, control_vals)
