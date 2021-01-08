@@ -781,6 +781,7 @@ def rank_genes(adata,
     else:
         arr = index_gene(adata, arr_key, genes)
 
+    if type(arr) == ArrayView: arr = np.array(arr)
     if sp.issparse(arr): arr = arr.A
     arr[np.isnan(arr)] = 0
 
@@ -883,6 +884,7 @@ def rank_cells(adata,
             raise Exception(f'Key {arr_key} not found in neither .layers nor .var.')
     else:
         arr = index_gene(adata, arr_key, genes)
+
     if type(arr) == ArrayView: arr = np.array(arr)
     if sp.issparse(arr): arr = arr.A
     arr[np.isnan(arr)] = 0

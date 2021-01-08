@@ -273,7 +273,7 @@ def bubble(adata,
                            y=gene if transpose else "clusters_",
                            orient='v' if transpose else 'h',
                            order=clusters, # genes if transpose else
-                           linewidth=0,
+                           linewidth=None,
                            palette=color_key,
                            inner='box',
                            scale='width',
