@@ -209,7 +209,7 @@ def _matplotlib_points(
                     -1
                 ] = "#bdbdbd"  # lightgray hex code https://www.color-hex.com/color/d3d3d3
 
-                labels[[i not in highlights for i in labels]] = "other"
+                labels[[i not in highlights[:-1] for i in labels]] = "other"
                 points = pd.DataFrame(points)
                 points["label"] = pd.Categorical(labels)
 
@@ -218,13 +218,13 @@ def _matplotlib_points(
                     points["label"] != "other",
                     points["label"] == "other",
                 )
-                reorder_data = points.copy(deep=True)
-                (
-                    reorder_data.loc[:sum(background_ids), :],
-                    reorder_data.loc[sum(background_ids):, :],
-                ) = (points.loc[background_ids, :], points.loc[highlight_ids, :])
-
-                points = reorder_data.values
+                # reorder_data = points.copy(deep=True)
+                # (
+                #     reorder_data.loc[:(sum(background_ids) - 1), :],
+                #     reorder_data.loc[sum(background_ids):, :],
+                # ) = (points.loc[background_ids, :].values, points.loc[highlight_ids, :].values)
+                points = pd.concat((points.loc[background_ids, :], points.loc[highlight_ids, :])).values
+                labels = points[:, 2]
 
         if isinstance(color_key, dict):
             colors = pd.Series(labels).map(color_key).values
@@ -259,41 +259,52 @@ def _matplotlib_points(
             ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "1.0", lw=0, rasterized=rasterized)
             ax.scatter(points[:, 0], points[:, 1], c=colors, plotnonfinite=True, **kwargs)
         elif contour:
-            try:
-                from shapely.geometry import Polygon, MultiPoint, Point
-            except ImportError:
-                raise ImportError(
-                    "If you want to use the tricontourf in plotting function, you need to install `shapely` "
-                    "package via `pip install shapely` see more details at https://pypi.org/project/Shapely/,"
-                )
-
-            x, y = points[:, :2].T
-            triang = tri.Triangulation(x, y)
-            concave_hull, edge_points = alpha_shape(x, y, alpha=calpha)
-            ax = plot_polygon(concave_hull, ax=ax)
-
-            # Use the mean distance between the triangulated x & y poitns
-            x2 = x[triang.triangles].mean(axis=1)
-            y2 = y[triang.triangles].mean(axis=1)
-            ##note the very obscure mean command, which, if not present causes an error.
-            ##now we need some masking condition.
-
-            # Create an empty set to fill with zeros and ones
-            cond = np.empty(len(x2))
-            # iterate through points checking if the point lies within the polygon
-            for i in range(len(x2)):
-                cond[i] = concave_hull.contains(Point(x2[i], y2[i]))
-
-            mask = np.where(cond, 0, 1)
-            # apply masking
-            triang.set_mask(mask)
-
+            # try:
+            #     from shapely.geometry import Polygon, MultiPoint, Point
+            # except ImportError:
+            #     raise ImportError(
+            #         "If you want to use the tricontourf in plotting function, you need to install `shapely` "
+            #         "package via `pip install shapely` see more details at https://pypi.org/project/Shapely/,"
+            #     )
+            #
+            # x, y = points[:, :2].T
+            # triang = tri.Triangulation(x, y)
+            # concave_hull, edge_points = alpha_shape(x, y, alpha=calpha)
+            # ax = plot_polygon(concave_hull, ax=ax)
+            #
+            # # Use the mean distance between the triangulated x & y poitns
+            # x2 = x[triang.triangles].mean(axis=1)
+            # y2 = y[triang.triangles].mean(axis=1)
+            # ##note the very obscure mean command, which, if not present causes an error.
+            # ##now we need some masking condition.
+            #
+            # # Create an empty set to fill with zeros and ones
+            # cond = np.empty(len(x2))
+            # # iterate through points checking if the point lies within the polygon
+            # for i in range(len(x2)):
+            #     cond[i] = concave_hull.contains(Point(x2[i], y2[i]))
+            #
+            # mask = np.where(cond, 0, 1)
+            # # apply masking
+            # triang.set_mask(mask)
+            #
             ccmap = 'viridis' if ccmap is None else ccmap
-            # ax.tricontourf(triang, values, cmap=ccmap)
+            # # ax.tricontourf(triang, values, cmap=ccmap)
+            # ax.scatter(x, y,
+            #            c=values,
+            #            cmap=cmap,
+            #            plotnonfinite=True,
+            #            **kwargs, )
+            import seaborn as sns
+            df = pd.DataFrame(points, columns=['x', 'y', 'z'][:points.shape[1]])
+            ax = sns.kdeplot(data=df.iloc[:, :2], hue=values, fill=True, alpha=kwargs.get('alpha', '0.4'),
+                             palette=ccmap, ax=ax, thresh=0, levels=100, cmap=ccmap,
+                             )
+            x, y = points[:, :2].T
             ax.scatter(x, y,
-                       c=values,
-                       cmap=cmap,
+                       c=colors,
                        plotnonfinite=True,
+                       zorder=21,
                        **kwargs, )
         else:
             ax.scatter(points[:, 0], points[:, 1], c=colors, plotnonfinite=True, **kwargs)

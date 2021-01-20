@@ -27,6 +27,7 @@ from .vector_calculus import (
     rank_acceleration_genes,
     rank_curvature_genes,
     rank_genes,
+    rank_cells,
     rank_jacobian_genes,
     rank_sensitivity_genes,
     aggregateRegEffs,

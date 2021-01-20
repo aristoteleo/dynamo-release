@@ -98,7 +98,8 @@ def create_layer(adata, data, layer_key=None, genes=None, cells=None, **kwargs):
     for i, g in enumerate(genes):
         ig = np.where(all_genes==g)[0]
         if len(ig) > 0:
-            new[cells, ig] = data[:, i]
+            for igi in ig:
+                new[cells, igi] = data[:, i]
 
     if layer_key is not None:
         adata.layers[layer_key] = new
