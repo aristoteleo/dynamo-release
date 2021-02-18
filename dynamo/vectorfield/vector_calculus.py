@@ -482,7 +482,7 @@ def acceleration(adata,
         vector_field_class = svc_vectorfield()
         vector_field_class.from_adata(adata, basis=basis)
 
-1    acce_norm, acce = vector_field_class.compute_acceleration(method=method, **kwargs)
+    acce_norm, acce = vector_field_class.compute_acceleration(method=method, **kwargs)
 
     acce_key = "acceleration" if basis is None else "acceleration_" + basis
     adata.obsm[acce_key] = acce
