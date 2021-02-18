@@ -18,7 +18,7 @@ We're interested in many different types of contributions, including filing gith
 
 When considering contributing to dynamo, you should begin by posting an issue to the [dynamo issue tracker](https://github.com/aristoteleo/dynamo-release/issues). The information that you include in that post will differ based on the type of contribution. Your contribution will also need to be fully tested where applicable (discussed further below).
 
-* For feature additions, please describe why the functionality that you are proposing to add is relevant. For it to be relevant, it should be demonstrably useful to dynamo users and it should also fit within the genomics, systems biology or bioinformatics domain. 
+* For feature additions, please describe why the functionality that you are proposing to add is relevant. For it to be relevant, it should be demonstrably useful to dynamo users and it should also train within the genomics, systems biology or bioinformatics domain. 
 
 * For bug fixes, please provide a detailed description of the bug so other developers can reproduce it. We take bugs in dynamo very seriously. Bugs can be related to errors in code, documentation, or tests. Errors in documentation or tests are usually updated in the next scheduled release of dynamo. Errors in code that could result in incorrect results or inability to access certain functionality may result in a bug fix release of dynamo that is released ahead of schedule.
 

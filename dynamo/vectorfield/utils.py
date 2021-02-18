@@ -188,7 +188,14 @@ def vecfld_from_adata(adata, basis='', vf_key='VecFld'):
             f"Try firstly running dyn.tl.VectorField(adata, basis='{basis}')")
         
     vf_dict = adata.uns[vf_key]['VecFld']
-    func = lambda x: vector_field_function(x, vf_dict)
+
+    method = vf_dict['method']
+    if method.lower() == 'sparsevfc':
+        func = lambda x: vector_field_function(x, vf_dict)
+    elif method == 'dynode':
+        func = lambda x: vf_dict['dynode'].predict_velocity(input_x=x).numpy()
+    else:
+        raise ValueError(f"current only support two methods, SparseVFC and dynode")
 
     return vf_dict, func
 

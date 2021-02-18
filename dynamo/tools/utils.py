@@ -78,9 +78,9 @@ def update_dict(dict1, dict2):
 
 
 def update_n_merge_dict(dict1, dict2):
-    dict1.update((k, dict2[k]) for k in dict1.keys() | dict2.keys())
+    dict = {**dict1, **dict2} # dict1.update((k, dict2[k]) for k in dict1.keys() | dict2.keys())
     
-    return dict1
+    return dict
 
 
 def create_layer(adata, data, layer_key=None, genes=None, cells=None, **kwargs):

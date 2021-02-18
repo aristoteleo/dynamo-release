@@ -24,7 +24,7 @@ from .utils import (
     average_jacobian_by_group,
     intersect_sources_targets,
     )
-from .scVectorField import vectorfield
+from .scVectorField import svc_vectorfield
 from ..tools.sampling import sample
 from ..tools.utils import (
     isarray,
@@ -205,7 +205,7 @@ def jacobian(adata,
     regulators, effectors = list(np.unique(regulators)) if regulators is not None else None, \
                             list(np.unique(effectors)) if effectors is not None else None
     if vector_field_class is None:
-        vector_field_class = vectorfield()
+        vector_field_class = svc_vectorfield()
         vector_field_class.from_adata(adata, basis=basis)
 
     if basis == 'umap': cell_idx = np.arange(adata.n_obs)
@@ -353,7 +353,7 @@ def sensitivity(adata,
     regulators, effectors = list(np.unique(regulators)) if regulators is not None else None, \
                             list(np.unique(effectors)) if effectors is not None else None
     if vector_field_class is None:
-        vector_field_class = vectorfield()
+        vector_field_class = svc_vectorfield()
         vector_field_class.from_adata(adata, basis=basis)
 
     if basis == 'umap': cell_idx = np.arange(adata.n_obs)
@@ -479,7 +479,7 @@ def acceleration(adata,
     """
 
     if vector_field_class is None:
-        vector_field_class = vectorfield()
+        vector_field_class = svc_vectorfield()
         vector_field_class.from_adata(adata, basis=basis)
 
     acce_norm, acce = vector_field_class.compute_acceleration(method=method, **kwargs)
@@ -536,7 +536,7 @@ def curvature(adata,
     """
 
     if vector_field_class is None:
-        vector_field_class = vectorfield()
+        vector_field_class = svc_vectorfield()
         vector_field_class.from_adata(adata, basis=basis)
 
     if formula not in [1, 2]:
@@ -579,7 +579,7 @@ def torsion(adata,
     """
 
     if vector_field_class is None:
-        vector_field_class = vectorfield()
+        vector_field_class = svc_vectorfield()
         vector_field_class.from_adata(adata, basis=basis)
 
     torsion_mat = vector_field_class.compute_torsion(**kwargs)
@@ -621,7 +621,7 @@ def curl(adata,
     """
 
     if vector_field_class is None:
-        vector_field_class = vectorfield()
+        vector_field_class = svc_vectorfield()
         vector_field_class.from_adata(adata, basis=basis)
     '''
     X_data = adata.obsm["X_" + basis][:, :2]
@@ -680,7 +680,7 @@ def divergence(adata,
     """
 
     if vector_field_class is None:
-        vector_field_class = vectorfield()
+        vector_field_class = svc_vectorfield()
         vector_field_class.from_adata(adata, basis=basis)
 
     if basis == 'umap': cell_idx = np.arange(adata.n_obs)

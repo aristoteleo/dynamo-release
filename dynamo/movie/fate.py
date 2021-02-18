@@ -1,7 +1,7 @@
 import numpy as np
 import warnings
 from scipy.integrate import odeint
-from ..vectorfield.scVectorField import vectorfield
+from ..vectorfield.scVectorField import svc_vectorfield
 from ..plot.topography import topography
 from .utils import remove_particles
 
@@ -155,7 +155,7 @@ class StreamFuncAnim():
                 self.init_states = self.init_states
 
         # vf = lambda x: vector_field_function(x=x, vf_dict=VecFld)
-        vf = vectorfield()
+        vf = svc_vectorfield()
         vf.from_adata(adata, basis=basis)
         # Initialize velocity field and displace *functions*
         self.f = lambda x, _: vf.func(x)  # scale *

@@ -505,7 +505,41 @@ def SparseVFC(
     return VecFld
 
 
-class vectorfield:
+class base_vectorfield:
+    def __init__(
+        self,
+        X=None,
+        V=None,
+        Grid=None,
+    ):
+        self.data = {"X": X, "V": V, "Grid": Grid}
+
+    def construct_graph(self, X=None, **kwargs):
+        X = self.data['X'] if X is None else X
+        return graphize_vecfld(self.func, X, **kwargs)
+
+
+    def from_adata(self, adata, basis='', vf_key='VecFld'):
+        vf_dict, func = vecfld_from_adata(adata, basis=basis, vf_key=vf_key)
+        self.data['X'] = vf_dict['X']
+        self.data['V'] = vf_dict['V']
+        self.vf_dict['VecFld'] = vf_dict
+        self.func = func
+
+
+    def get_X(self):
+        return self.data['X']
+
+
+    def get_V(self):
+        return self.data['V']
+
+
+    def get_data(self):
+        return self.data['X'], self.data['V']
+
+
+class svc_vectorfield(base_vectorfield):
     def __init__(
         self,
         X=None,
@@ -586,7 +620,7 @@ class vectorfield:
         self.func = None
 
 
-    def fit(self, normalize=False, method="SparseVFC", **kwargs):
+    def train(self, normalize=False, method="SparseVFC", **kwargs):
         """Learn an function of vector field from sparse single cell samples in the entire space robustly.
         Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
 
@@ -618,20 +652,19 @@ class vectorfield:
 
         verbose = kwargs.pop('verbose', 0)
         lstsq_method = kwargs.pop('lstsq_method', 'drouin')
-        if method == "SparseVFC":
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                
-                VecFld = SparseVFC(
-                        self.data["X"],
-                        self.data["V"],
-                        self.data["Grid"],
-                        **self.parameters,
-                        verbose=verbose,
-                        lstsq_method=lstsq_method,
-                    )
-            if normalize:
-                VecFld = denorm(VecFld, X_old, V_old, self.norm_dict)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+
+            VecFld = SparseVFC(
+                    self.data["X"],
+                    self.data["V"],
+                    self.data["Grid"],
+                    **self.parameters,
+                    verbose=verbose,
+                    lstsq_method=lstsq_method,
+                )
+        if normalize:
+            VecFld = denorm(VecFld, X_old, V_old, self.norm_dict)
 
         self.parameters = update_dict(self.parameters, VecFld)
 
@@ -771,11 +804,6 @@ class vectorfield:
                                       f"supports 'analytical', 'numerical', and 'parallel'.")
 
 
-    def construct_graph(self, X=None, **kwargs):
-        X = self.data['X'] if X is None else X
-        return graphize_vecfld(self.func, X, **kwargs)
-
-
     def evaluate(self, CorrectIndex, VFCIndex, siz):
         """Evaluate the precision, recall, corrRate of the sparseVFC algorithm.
 
@@ -818,21 +846,95 @@ class vectorfield:
         return corrRate, precision, recall
 
 
-    def from_adata(self, adata, basis='', vf_key='VecFld'):
-        vf_dict, func = vecfld_from_adata(adata, basis=basis, vf_key=vf_key)
-        self.data['X'] = vf_dict['X']
-        self.data['V'] = vf_dict['V']
-        self.vf_dict['VecFld'] = vf_dict
-        self.func = func
+try:
+    import dynode
+    use_dynode  = True
+except ImportError:
+    use_dynode = False
+
+if use_dynode:
+    class dynode_vectorfield(base_vectorfield, dynode.vf.vectorfield.Dynode): #
+        def __init__(
+            self,
+            X=None,
+            V=None,
+            Grid=None,
+            **kwargs
+        ):
+            self.data = {"X": X, "V": V, "Grid": Grid}
+
+            if X is not None and V is not None:
+                self.parameters = kwargs
+
+                import tempfile
+
+                try:
+                    import dynode
+                    from dynode.vectorfield import Dynode
+                    from dynode.vectorfield import networkModels
+                    from dynode.vectorfield.samplers import VelocityDataSampler
+                    from dynode.vectorfield.losses_weighted import MSE  # MAD, BinomialChannel, WassersteinDistance, CosineDistance
+                except ImportError:
+                    raise ImportError("You need to install the package `dynode`."
+                                      "install dynode via `pip install dynode`")
+
+                X, V = self.data['X'], self.data['V']
+
+                good_ind = np.where(~ np.isnan(V.sum(1)))[0]
+                V = V[good_ind, :]
+                X = X[good_ind, :]
+                self.valid_ind = good_ind
+
+                velocity_data_sampler = VelocityDataSampler(adata={'X': X, 'V': V},
+                                                            normalize_velocity=kwargs.get('normalize_velocity', False))
+
+                self.VecFld = Dynode(model=networkModels,
+                                sirens=self.parameters.get("sirens", False),
+                                enforce_positivity=self.parameters.get("enforce_positivity", False),
+                                velocity_data_sampler=self.parameters.get("velocity_data_sampler", velocity_data_sampler),
+                                time_course_data_sampler=self.parameters.get("time_course_data_sampler", None),
+                                network_dim=self.parameters.get("network_dim", 2),  # X.shape[1]
+                                velocity_loss_function=self.parameters.get("velocity_loss_function", MSE()),  # CosineDistance(), # #MSE(), MAD()
+                                time_course_loss_function=self.parameters.get("time_course_loss_function", None),  # BinomialChannel(p=0.1, alpha=1)
+                                velocity_x_initialize=self.parameters.get("velocity_x_initialize", X),
+                                time_course_x0_initialize=self.parameters.get("time_course_x0_initialize", None),
+                                smoothing_factor=self.parameters.get("smoothing_factor", None),
+                                stability_factor=self.parameters.get("stability_factor", None),
+                                load_model_from_buffer=self.parameters.get("load_model_from_buffer", False),
+                                buffer_path=self.parameters.get("buffer_path", tempfile.mkdtemp())
+                               )
 
 
-    def get_X(self):
-        return self.data['X']
+        def train(self, **kwargs):
+            if len(kwargs) > 0: self.parameters = update_n_merge_dict(self.parameters, kwargs)
+            max_iter = (2 * 100000 * np.log(self.data['X'].shape[0]) / (250+ np.log(self.data['X'].shape[0])))
+            self.VecFld.train(max_iter=self.parameters.get("max_iter", int(max_iter)),
+                         velocity_batch_size=self.parameters.get("velocity_batch_size", 50),
+                         time_course_batch_size=self.parameters.get("time_course_batch_size", 100),
+                         autoencoder_batch_size=self.parameters.get("autoencoder_batch_size", 50),
+                         velocity_lr=self.parameters.get("velocity_lr", 1e-4),
+                         velocity_x_lr=self.parameters.get("velocity_x_lr", 0),
+                         time_course_lr=self.parameters.get("time_course_lr", 1e-4),
+                         time_course_x0_lr=self.parameters.get("time_course_x0_lr", 1e4),
+                         autoencoder_lr=self.parameters.get("autoencoder_lr", 1e-4)
+                         )
+
+            self.func = self.VecFld.predict_velocity
+            self.vf_dict = {
+                "VecFld": {"dynode": self.VecFld,
+                           "X": self.data['X'],
+                           "valid_ind": self.valid_ind,
+                           "Y": self.data['V'],
+                           "grid": self.data['Grid'],
+                           "V": self.func(self.data["X"]),
+                           "iteration": self.parameters.pop('max_iter', int(max_iter)),
+                           "velocity_loss_traj": self.VecFld.velocity_loss_traj,
+                           "time_course_loss_traj": self.VecFld.time_course_loss_traj,
+                           "autoencoder_loss_traj": self.VecFld.autoencoder_loss_traj,
+                           },
+                "parameters": self.parameters
+            }
+
+            return self.vf_dict
 
 
-    def get_V(self):
-        return self.data['V']
-
-
-    def get_data(self):
-        return self.data['X'], self.data['V']

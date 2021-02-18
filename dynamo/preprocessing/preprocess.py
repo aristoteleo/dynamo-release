@@ -366,7 +366,7 @@ def parametricDispersionFit(disp_table, initial_coefs=np.array([1e-6, 1])):
             "disp ~ I(1 / mu)",
             data=good,
             family=sm.families.Gamma(link=sm.genmod.families.links.identity),
-        ).fit(start_params=coefs)
+        ).train(start_params=coefs)
 
         oldcoefs = coefs
         coefs = fit.params
