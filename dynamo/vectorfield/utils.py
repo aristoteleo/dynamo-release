@@ -193,7 +193,7 @@ def vecfld_from_adata(adata, basis='', vf_key='VecFld'):
     if method.lower() == 'sparsevfc':
         func = lambda x: vector_field_function(x, vf_dict)
     elif method == 'dynode':
-        func = lambda x: vf_dict['dynode'].predict_velocity(input_x=x).numpy()
+        func = lambda x: vf_dict['dynode'].predict_velocity(input_x=x)
     else:
         raise ValueError(f"current only support two methods, SparseVFC and dynode")
 
