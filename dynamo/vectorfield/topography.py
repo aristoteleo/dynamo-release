@@ -488,7 +488,10 @@ def topography(adata, basis="umap", layer=None, X=None, dims=None, n=25, VecFld=
     if VecFld is None:
         VecFld, func = vecfld_from_adata(adata, basis)
     else:
-        func = lambda x: vector_field_function(x, VecFld)
+        if 'dynode' in VecFld.keys():
+            func = lambda x: VecFld['dynode'].predict_velocity(input_x=x).numpy()
+        else:
+            func = lambda x: vector_field_function(x, VecFld)
 
     if dims is None:
         dims = [0, 1]
