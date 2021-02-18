@@ -189,7 +189,7 @@ def vecfld_from_adata(adata, basis='', vf_key='VecFld'):
         
     vf_dict = adata.uns[vf_key]['VecFld']
 
-    method = vf_dict['method']
+    method = adata.uns[vf_key]['method']
     if method.lower() == 'sparsevfc':
         func = lambda x: vector_field_function(x, vf_dict)
     elif method == 'dynode':

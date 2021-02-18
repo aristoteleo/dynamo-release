@@ -927,6 +927,7 @@ if use_dynode:
                            "Y": self.data['V'],
                            "grid": self.data['Grid'],
                            "V": self.func(self.data["X"]),
+                           "grid_V": self.func(self.data["Grid"]),
                            "iteration": self.parameters.pop('max_iter', int(max_iter)),
                            "velocity_loss_traj": self.VecFld.velocity_loss_traj,
                            "time_course_loss_traj": self.VecFld.time_course_loss_traj,
