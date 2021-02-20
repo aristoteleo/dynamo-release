@@ -7,8 +7,9 @@ import numdifftools as nd
 from multiprocessing.dummy import Pool as ThreadPool
 import multiprocessing as mp
 import itertools, functools
+import inspect
 from numba import njit
-from ..tools.utils import timeit
+from ..tools.utils import timeit, subset_dict_with_key_list
 
 
 def is_outside_domain(x, domain):
@@ -75,6 +76,22 @@ def vector_field_function(x, vf_dict, dim=None, kernel='full', X_ctrl_ind=None, 
 
     return K
 
+
+def dynode_vector_field_function(x, vf_dict, dim=None, **kwargs):
+    try:
+        import dynode
+        from dynode.vectorfield import Dynode
+    except ImportError:
+        raise ImportError("You need to install the package `dynode`."
+                          "install dynode via `pip install dynode`")
+    vf_dict['parameters']["load_model_from_buffer"] = True
+    dynode_inspect = inspect.getfullargspec(Dynode)
+    dynode_dict = subset_dict_with_key_list(vf_dict['parameters'], inspect.args)
+
+    nn = Dynode(**dynode_dict)
+
+    func = lambda x: nn.predict_velocity(input_x=x)[:, dim]
+    return func
 
 @timeit
 def con_K(x, y, beta, method='cdist', return_d=False):
@@ -178,7 +195,7 @@ def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
     return G, df_kernel, cf_kernel
 
 
-def vecfld_from_adata(adata, basis='', vf_key='VecFld'):
+def get_vf_dict(adata, basis='', vf_key='VecFld'):
     if basis is not None or len(basis) > 0:
         vf_key = '%s_%s' % (vf_key, basis)
 
@@ -186,18 +203,23 @@ def vecfld_from_adata(adata, basis='', vf_key='VecFld'):
         raise ValueError(
             f'Vector field function {vf_key} is not included in the adata object! '
             f"Try firstly running dyn.tl.VectorField(adata, basis='{basis}')")
-        
-    vf_dict = adata.uns[vf_key]['VecFld']
 
-    method = adata.uns[vf_key]['method']
+    vf_dict = adata.uns[vf_key]
+    return vf_dict
+
+
+def vecfld_from_adata(adata, basis='', vf_key='VecFld'):
+    vf_dict = get_vf_dict(adata, basis=basis, vf_key=vf_key)
+
+    method = vf_dict['method']
     if method.lower() == 'sparsevfc':
-        func = lambda x: vector_field_function(x, vf_dict)
-    elif method == 'dynode':
-        func = lambda x: vf_dict['dynode'].predict_velocity(input_x=x)
+        func = lambda x: vector_field_function(x, vf_dict['VecFld'])
+    elif method.lower() == 'dynode':
+        func = dynode_vector_field_function(x, vf_dict['VecFld'])
     else:
         raise ValueError(f"current only support two methods, SparseVFC and dynode")
 
-    return vf_dict, func
+    return vf_dict['VecFld'], func
 
 
 def vector_transformation(V, Q):

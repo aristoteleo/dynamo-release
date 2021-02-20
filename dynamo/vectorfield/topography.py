@@ -1,4 +1,6 @@
 # create by Yan Zhang, minor adjusted by Xiaojie Qiu
+import os
+import datetime
 import warnings
 import numpy as np
 import scipy.sparse as sp
@@ -17,7 +19,12 @@ from ..tools.utils import (
     gaussian_1d,
 )
 
-from .utils import vector_field_function, vecfld_from_adata, angle
+from .utils import (
+    vector_field_function,
+    dynode_vector_field_function,
+    vecfld_from_adata,
+    angle,
+)
 
 from ..external.hodge import ddhodge
 from .vector_calculus import curl, divergence
@@ -488,8 +495,8 @@ def topography(adata, basis="umap", layer=None, X=None, dims=None, n=25, VecFld=
     if VecFld is None:
         VecFld, func = vecfld_from_adata(adata, basis)
     else:
-        if 'dynode' in VecFld.keys():
-            func = lambda x: VecFld['dynode'].predict_velocity(input_x=x)
+        if 'velocity_loss_traj' in VecFld.keys():
+            func = lambda x: dynode_vector_field_function(x, VecFld)
         else:
             func = lambda x: vector_field_function(x, VecFld)
 
@@ -548,6 +555,7 @@ def VectorField(
     grid_num=50,
     velocity_key="velocity_S",
     method="SparseVFC",
+    model_buffer_path=None,
     return_vf_object=False,
     map_topography=True,
     pot_curl_div=False,
@@ -591,6 +599,9 @@ def VectorField(
         method: `str` (default: `sparseVFC`)
             Method that is used to reconstruct the vector field functionally. Currently only SparseVFC supported but other
             improved approaches are under development.
+        buffer_path: `None` or `str` (default `None`)
+               The directory address keeping all the saved/to-be-saved torch variables and NN modules. When `method` is
+               set to be `dynode`, buffer_path will set to be
         return_vf_object: `bool` (default: `False`)
             Whether or not to include an instance of a vectorfield class in the the `VecFld` dictionary in the `uns`
             attribute.
@@ -677,10 +688,9 @@ def VectorField(
             "seed": 0,
         }
     elif method.lower() == 'dynode':
-        import tempfile
-
         try:
             import dynode
+            from dynode.vectorfield import networkModels
             from dynode.vectorfield.samplers import VelocityDataSampler
             from dynode.vectorfield.losses_weighted import MSE # MAD, BinomialChannel, WassersteinDistance, CosineDistance
             from .scVectorField import dynode_vectorfield
@@ -695,12 +705,19 @@ def VectorField(
         velocity_data_sampler = VelocityDataSampler(adata = {'X': X, 'V': V}, normalize_velocity=normalize)
         max_iter = (2 * 100000 * np.log(X.shape[0]) / (250 + np.log(X.shape[0])))
 
+        cwd, cwt = os.getcwd(), datetime.datetime.now()
+
+        if model_buffer_path is None:
+            model_buffer_path = cwd + '/' + str(cwt.year) + '_' + str(cwt.month) + '_' + str(cwt.day)
+            warnings.warn(f"the buffer path saving the dynode model is in %s" % (model_buffer_path))
+
         vf_kwargs = {
+            "model": networkModels,
             "sirens": False,
             "enforce_positivity": False,
             "velocity_data_sampler": velocity_data_sampler,
             "time_course_data_sampler": None,
-            "network_dim": 2,  # X.shape[1]
+            "network_dim": X.shape[1],
             "velocity_loss_function": MSE(),  # CosineDistance(), # #MSE(), MAD()
             "time_course_loss_function": None,  # BinomialChannel(p=0.1, alpha=1)
             "velocity_x_initialize": X,
@@ -708,7 +725,13 @@ def VectorField(
             "smoothing_factor": None,
             "stability_factor": None,
             "load_model_from_buffer": False,
-            "buffer_path": tempfile.mkdtemp(),
+            "buffer_path": model_buffer_path,
+            "hidden_features": 256,
+            "hidden_layers": 3,
+            "first_omega_0": 30.,
+            "hidden_omega_0": 30.,
+        }
+        train_kwargs = {
             "max_iter": int(max_iter),
             "velocity_batch_size": 50,
             "time_course_batch_size": 100,
@@ -718,6 +741,9 @@ def VectorField(
             "time_course_lr": 1e-4,
             "time_course_x0_lr": 1e4,
             "autoencoder_lr": 1e-4,
+            "velocity_sample_fraction": 1,
+            "time_course_sample_fraction": 1,
+            "iter_per_sample_update": None,
         }
     else:
         raise ValueError(f"current only support two methods, SparseVFC and dynode")
@@ -728,8 +754,9 @@ def VectorField(
         VecFld = svc_vectorfield(X, V, Grid, **vf_kwargs)
         vf_dict = VecFld.train(normalize=normalize, **kwargs)
     elif method.lower() == 'dynode':
+        train_kwargs = update_dict(train_kwargs, kwargs)
         VecFld = dynode_vectorfield(X, V, Grid, **vf_kwargs)
-        vf_dict = VecFld.train(**kwargs) # {"VecFld": VecFld.train(**kwargs)}
+        vf_dict = VecFld.train(**train_kwargs) # {"VecFld": VecFld.train(**kwargs)}
 
     vf_key = "VecFld" if basis is None else "VecFld_" + basis
 

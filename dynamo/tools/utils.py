@@ -82,6 +82,8 @@ def update_n_merge_dict(dict1, dict2):
     
     return dict
 
+def subset_dict_with_key_list(dict, list):
+    return {key: value for key, value in dict.items() if key in list}
 
 def create_layer(adata, data, layer_key=None, genes=None, cells=None, **kwargs):
     all_genes = adata.var.index
