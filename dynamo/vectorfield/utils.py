@@ -86,12 +86,27 @@ def dynode_vector_field_function(x, vf_dict, dim=None, **kwargs):
                           "install dynode via `pip install dynode`")
     vf_dict['parameters']["load_model_from_buffer"] = True
     dynode_inspect = inspect.getfullargspec(Dynode)
-    dynode_dict = subset_dict_with_key_list(vf_dict['parameters'], inspect.args)
+    dynode_dict = subset_dict_with_key_list(vf_dict['parameters'], dynode_inspect.args)
 
     nn = Dynode(**dynode_dict)
 
-    func = lambda x: nn.predict_velocity(input_x=x)[:, dim]
-    return func
+    if x.ndim == 1:
+        to_flatten = True
+        x = x[None, :]
+
+    res = nn.predict_velocity(input_x=x)
+
+    if dim is not None:
+        if np.isscalar(dim):
+            res = res[:, :dim]
+        elif dim is not None:
+            res = res[:, dim]
+
+    if to_flatten == 1:
+        res = res.flatten()
+
+    return res
+
 
 @timeit
 def con_K(x, y, beta, method='cdist', return_d=False):
