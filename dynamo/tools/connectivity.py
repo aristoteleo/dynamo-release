@@ -268,7 +268,7 @@ def umap_conn_indices_dist_embedding(
         "var_shift": dens_var_shift,
         "n_neighbors": n_neighbors,
     }
-    embedding_ = simplicial_set_embedding(
+    embedding_, aux_data = simplicial_set_embedding(
         data=_raw_data,
         graph=graph,
         n_components=n_components,
