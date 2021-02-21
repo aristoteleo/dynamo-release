@@ -12,7 +12,6 @@ from ..tools.utils import (
 )
 from .utils import (
     vector_field_function,
-    dynode_vector_field_function,
     get_vf_dict,
     vecfld_from_adata,
     curl2d,
@@ -26,7 +25,7 @@ from .utils import (
     average_jacobian_by_group,
     intersect_sources_targets,
     )
-from .scVectorField import svc_vectorfield, dynode_vectorfield
+from .scVectorField import svc_vectorfield
 from ..tools.sampling import sample
 from ..tools.utils import (
     isarray,
@@ -38,7 +37,18 @@ from ..tools.utils import (
     table_top_genes,
     list_top_interactions,
 )
+try:
+    import dynode
+    from dynode.vectorfield import Dynode
 
+    use_dynode  = True
+except ImportError:
+    use_dynode = False
+
+if use_dynode:
+    from .utils import dynode_vector_field_function
+    from .scVectorField import dynode_vectorfield
+    
 
 def velocities(adata,
                init_cells,
