@@ -90,6 +90,7 @@ def dynode_vector_field_function(x, vf_dict, dim=None, **kwargs):
 
     nn = Dynode(**dynode_dict)
 
+    to_flatten = False
     if x.ndim == 1:
         to_flatten = True
         x = x[None, :]
@@ -102,7 +103,7 @@ def dynode_vector_field_function(x, vf_dict, dim=None, **kwargs):
         elif dim is not None:
             res = res[:, dim]
 
-    if to_flatten == 1:
+    if to_flatten:
         res = res.flatten()
 
     return res
@@ -230,7 +231,7 @@ def vecfld_from_adata(adata, basis='', vf_key='VecFld'):
     if method.lower() == 'sparsevfc':
         func = lambda x: vector_field_function(x, vf_dict['VecFld'])
     elif method.lower() == 'dynode':
-        func = dynode_vector_field_function(x, vf_dict['VecFld'])
+        func = lambda x: dynode_vector_field_function(x, vf_dict['VecFld'])
     else:
         raise ValueError(f"current only support two methods, SparseVFC and dynode")
 

@@ -201,7 +201,6 @@ def ddhodge(adata,
             raise ValueError(f"The X_data you provided doesn't correspond to exactly {adata.n_obs} cells")
         X_data_full = X_data.copy()
 
-
     if to_downsample:
         if sampling_method == 'trn':
             cell_idx = trn(X_data_full, n_downsamples)

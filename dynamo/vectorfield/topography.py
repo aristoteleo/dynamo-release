@@ -791,12 +791,8 @@ def VectorField(
     if pot_curl_div:
         if basis in ["pca", 'umap', 'tsne', 'diffusion_map', 'trimap']:
             ddhodge(adata, basis=basis, cores=cores)
-            if method.lower() == 'sparsevfc':
-                if X.shape[1] == 2: curl(adata, basis=basis)
-                divergence(adata, basis=basis)
-            elif method.lower() == 'dynode':
-                if X.shape[1] == 2: vf_dict['VecFld']['dynode'].compute_curl()
-                vf_dict['VecFld']['dynode'].compute_divergence()
+            if X.shape[1] == 2: curl(adata, basis=basis)
+            divergence(adata, basis=basis)
 
     control_point, inlier_prob, valid_ids = "control_point_" + basis if basis is not None else "control_point", \
                                             'inlier_prob_' + basis if basis is not None else "inlier_prob", \

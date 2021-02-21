@@ -215,8 +215,8 @@ def jacobian(adata,
             vector_field_class = svc_vectorfield()
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict['method'].lower() == 'dynode':
-            vf_dict.parameters["load_model_from_buffer"] = True
-            vector_field_class = dynode_vectorfield(**vf_dict.parameters)
+            vf_dict["parameters"]["load_model_from_buffer"] = True
+            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
         else:
             raise ValueError(f"current only support two methods, SparseVFC and dynode")
 
@@ -371,8 +371,8 @@ def sensitivity(adata,
             vector_field_class = svc_vectorfield()
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict['method'].lower() == 'dynode':
-            vf_dict.parameters["load_model_from_buffer"] = True
-            vector_field_class = dynode_vectorfield(**vf_dict.parameters)
+            vf_dict["parameters"]["load_model_from_buffer"] = True
+            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
         else:
             raise ValueError(f"current only support two methods, SparseVFC and dynode")
 
@@ -505,8 +505,8 @@ def acceleration(adata,
             vector_field_class = svc_vectorfield()
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict['method'].lower() == 'dynode':
-            vf_dict.parameters["load_model_from_buffer"] = True
-            vector_field_class = dynode_vectorfield(**vf_dict.parameters)
+            vf_dict["parameters"]["load_model_from_buffer"] = True
+            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
         else:
             raise ValueError(f"current only support two methods, SparseVFC and dynode")
 
@@ -570,8 +570,8 @@ def curvature(adata,
             vector_field_class = svc_vectorfield()
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict['method'].lower() == 'dynode':
-            vf_dict.parameters["load_model_from_buffer"] = True
-            vector_field_class = dynode_vectorfield(**vf_dict.parameters)
+            vf_dict["parameters"]["load_model_from_buffer"] = True
+            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
         else:
             raise ValueError(f"current only support two methods, SparseVFC and dynode")
 
@@ -621,8 +621,8 @@ def torsion(adata,
             vector_field_class = svc_vectorfield()
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict['method'].lower() == 'dynode':
-            vf_dict.parameters["load_model_from_buffer"] = True
-            vector_field_class = dynode_vectorfield(**vf_dict.parameters)
+            vf_dict["parameters"]["load_model_from_buffer"] = True
+            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
         else:
             raise ValueError(f"current only support two methods, SparseVFC and dynode")
 
@@ -671,8 +671,8 @@ def curl(adata,
             vector_field_class = svc_vectorfield()
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict['method'].lower() == 'dynode':
-            vf_dict.parameters["load_model_from_buffer"] = True
-            vector_field_class = dynode_vectorfield(**vf_dict.parameters)
+            vf_dict["parameters"]["load_model_from_buffer"] = True
+            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
         else:
             raise ValueError(f"current only support two methods, SparseVFC and dynode")
     '''
@@ -738,8 +738,8 @@ def divergence(adata,
             vector_field_class = svc_vectorfield()
             vector_field_class.from_adata(adata, basis=basis)
         elif vf_dict['method'].lower() == 'dynode':
-            vf_dict.parameters["load_model_from_buffer"] = True
-            vector_field_class = dynode_vectorfield(**vf_dict.parameters)
+            vf_dict["parameters"]["load_model_from_buffer"] = True
+            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
         else:
             raise ValueError(f"current only support two methods, SparseVFC and dynode")
 
