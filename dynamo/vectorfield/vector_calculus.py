@@ -48,7 +48,7 @@ except ImportError:
 if use_dynode:
     from .utils import dynode_vector_field_function
     from .scVectorField import dynode_vectorfield
-    
+
 
 def velocities(adata,
                init_cells,
