@@ -998,6 +998,8 @@ def set_param_ss(
                 None,
                 None,
                 None,
+                None,
+                None,
             )
 
         adata.var.loc[valid_ind, kin_param_pre + "alpha_b"] = alpha_intercept
