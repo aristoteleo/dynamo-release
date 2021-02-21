@@ -218,7 +218,7 @@ def get_vf_dict(adata, basis='', vf_key='VecFld'):
     if vf_key not in adata.uns.keys():
         raise ValueError(
             f'Vector field function {vf_key} is not included in the adata object! '
-            f"Try firstly running dyn.tl.VectorField(adata, basis='{basis}')")
+            f"Try firstly running dyn.vf.VectorField(adata, basis='{basis}')")
 
     vf_dict = adata.uns[vf_key]
     return vf_dict
