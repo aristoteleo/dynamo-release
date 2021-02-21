@@ -953,6 +953,8 @@ def set_param_ss(
             gamma_logLL,
             delta_intercept,
             delta_r2,
+            bs,
+            bf,
             uu0,
             ul0,
             su0,
@@ -972,6 +974,8 @@ def set_param_ss(
                 adata.var[kin_param_pre + "gamma_logLL"],
                 adata.var[kin_param_pre + "delta_b"],
                 adata.var[kin_param_pre + "delta_r2"],
+                adata.var[kin_param_pre + "bs"],
+                adata.var[kin_param_pre + "bf"],
                 adata.var[kin_param_pre + "uu0"],
                 adata.var[kin_param_pre + "ul0"],
                 adata.var[kin_param_pre + "su0"],
@@ -1004,6 +1008,9 @@ def set_param_ss(
         adata.var.loc[valid_ind, kin_param_pre + "gamma_b"] = gamma_intercept
         adata.var.loc[valid_ind, kin_param_pre + "gamma_r2"] = gamma_r2
         adata.var.loc[valid_ind, kin_param_pre + "gamma_logLL"] = gamma_logLL
+
+        adata.var.loc[valid_ind, kin_param_pre + "bs"] = bs
+        adata.var.loc[valid_ind, kin_param_pre + "bf"] = bf
 
         adata.var.loc[valid_ind, kin_param_pre + "uu0"] = uu0
         adata.var.loc[valid_ind, kin_param_pre + "ul0"] = ul0

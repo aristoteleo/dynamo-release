@@ -450,6 +450,8 @@ class ss_estimation:
             "gamma_logLL": None,
             "delta_intercept": None,
             "delta_r2": None,
+            "bs": None,
+            "bf": None,
             "uu0": None,
             "ul0": None,
             "su0": None,
@@ -575,7 +577,9 @@ class ss_estimation:
             elif self.model.lower() == 'stochastic':
                 if np.all(self._exist_data("uu", "su")):
                     self.parameters["beta"] = np.ones(n)
-                    gamma, gamma_intercept, gamma_r2, gamma_logLL = (
+                    gamma, gamma_intercept, gamma_r2, gamma_logLL, bs, bf = (
+                        np.zeros(n),
+                        np.zeros(n),
                         np.zeros(n),
                         np.zeros(n),
                         np.zeros(n),
@@ -606,6 +610,8 @@ class ss_estimation:
                                 gamma_r2[i],
                                 _,
                                 gamma_logLL[i],
+                                bs[i],
+                                bf[i],
                             ) = self.fit_gamma_stochastic(
                                 self.est_method,
                                 U[i],
@@ -623,18 +629,26 @@ class ss_estimation:
                                                itertools.repeat(perc_right), itertools.repeat(True)))
                         pool.close()
                         pool.join()
-                        (gamma, gamma_intercept, _, gamma_r2, _, gamma_logLL) = zip(*res)
-                        (gamma, gamma_intercept, gamma_r2, gamma_logLL) = np.array(gamma), np.array(gamma_intercept), \
-                                                                          np.array(gamma_r2), np.array(gamma_logLL)
+                        (gamma, gamma_intercept, _, gamma_r2, _, gamma_logLL, bs, bf) = zip(*res)
+                        (gamma, gamma_intercept, gamma_r2, gamma_logLL, bs, bf) = np.array(gamma), \
+                                                                                  np.array(gamma_intercept), \
+                                                                                  np.array(gamma_r2), \
+                                                                                  np.array(gamma_logLL), \
+                                                                                  np.array(bs), \
+                                                                                  np.array(bf)
                     (
                         self.parameters["gamma"],
                         self.aux_param["gamma_intercept"],
                         self.aux_param["gamma_r2"],
                         self.aux_param["gamma_logLL"],
-                    ) = (gamma, gamma_intercept, gamma_r2, gamma_logLL)
+                        self.aux_param["bs"],
+                        self.aux_param["bf"],
+                    ) = (gamma, gamma_intercept, gamma_r2, gamma_logLL, bs, bf)
                 elif np.all(self._exist_data("uu", "ul")):
                     self.parameters["beta"] = np.ones(n)
-                    gamma, gamma_intercept, gamma_r2, gamma_logLL = (
+                    gamma, gamma_intercept, gamma_r2, gamma_logLL, bs, bf = (
+                        np.zeros(n),
+                        np.zeros(n),
                         np.zeros(n),
                         np.zeros(n),
                         np.zeros(n),
@@ -657,6 +671,8 @@ class ss_estimation:
                                 gamma_r2[i],
                                 _,
                                 gamma_logLL[i],
+                                bs[i],
+                                bf[i],
                             ) = self.fit_gamma_stochastic(
                                 self.est_method,
                                 U[i],
@@ -674,15 +690,22 @@ class ss_estimation:
                                          itertools.repeat(perc_right), itertools.repeat(True)))
                         pool.close()
                         pool.join()
-                        (gamma, gamma_intercept, _, gamma_r2, _, gamma_logLL) = zip(*res)
-                        (gamma, gamma_intercept, gamma_r2, gamma_logLL) = np.array(gamma), np.array(gamma_intercept), \
-                                                                          np.array(gamma_r2), np.array(gamma_logLL)
+                        (gamma, gamma_intercept, _, gamma_r2, _, gamma_logLL, bs, bf) = zip(*res)
+                        (gamma, gamma_intercept, gamma_r2, gamma_logLL, bs, bf) = np.array(gamma), \
+                                                                                  np.array(gamma_intercept), \
+                                                                                  np.array(gamma_r2), \
+                                                                                  np.array(gamma_logLL), \
+                                                                                  np.array(bs), \
+                                                                                  np.array(bf)
+
                     (
                         self.parameters["gamma"],
                         self.aux_param["gamma_intercept"],
                         self.aux_param["gamma_r2"],
                         self.aux_param["gamma_logLL"],
-                    ) = (gamma, gamma_intercept, gamma_r2, gamma_logLL)
+                        self.aux_param["bs"],
+                        self.aux_param["bf"],
+                    ) = (gamma, gamma_intercept, gamma_r2, gamma_logLL, bs, bf)
         else:
             if self.extyp.lower() == "deg":
                 if np.all(self._exist_data("ul", "sl")):
@@ -981,7 +1004,9 @@ class ss_estimation:
                 elif self.model.lower() == "stochastic":
                     if np.all(self._exist_data("uu", "ul", "su", "sl")):
                         self.parameters["beta"] = np.ones(n)
-                        k, k_intercept, k_r2, k_logLL = (
+                        k, k_intercept, k_r2, k_logLL, bs, bf = (
+                            np.zeros(n),
+                            np.zeros(n),
                             np.zeros(n),
                             np.zeros(n),
                             np.zeros(n),
@@ -1004,6 +1029,8 @@ class ss_estimation:
                                     k_r2[i],
                                     _,
                                     k_logLL[i],
+                                    bs[i],
+                                    bf[i]
                                 ) = self.fit_gamma_stochastic(
                                     self.est_method,
                                     U[i],
@@ -1023,9 +1050,13 @@ class ss_estimation:
                                                                               itertools.repeat(True)))
                                 pool.close()
                                 pool.join()
-                                (k, k_intercept, _, k_r2, _, k_logLL) = zip(*res)
-                                (k, k_intercept, k_r2, k_logLL) = np.array(k), np.array(k_intercept), \
-                                                                              np.array(k_r2), np.array(k_logLL)
+                                (k, k_intercept, _, k_r2, _, k_logLL, bs, bf) = zip(*res)
+                                (k, k_intercept, k_r2, k_logLL, bs, bf) = np.array(k), \
+                                                                          np.array(k_intercept), \
+                                                                          np.array(k_r2), \
+                                                                          np.array(k_logLL), \
+                                                                          np.array(bs), \
+                                                                          np.array(bf)
                         beta, alpha0 = one_shot_gamma_alpha_matrix(k, t_uniq, U)
 
                         self.parameters["beta"], self.aux_param["beta_k"] = beta, k
@@ -1047,6 +1078,8 @@ class ss_estimation:
                                     k_r2[i],
                                     _,
                                     k_logLL[i],
+                                    bs[i],
+                                    bf[i],
                                 ) = self.fit_gamma_stochastic(
                                     self.est_method,
                                     U[i],
@@ -1066,9 +1099,14 @@ class ss_estimation:
                                                                               itertools.repeat(True)))
                             pool.close()
                             pool.join()
-                            (k, k_intercept, _, k_r2, _, k_logLL) = zip(*res)
-                            (k, k_intercept, k_r2, k_logLL) = np.array(k), np.array(k_intercept), \
-                                                              np.array(k_r2), np.array(k_logLL)
+                            (k, k_intercept, _, k_r2, _, k_logLL, bs, bf) = zip(*res)
+                            (k, k_intercept, k_r2, k_logLL, bs, bf) = np.array(k), \
+                                                                      np.array(k_intercept), \
+                                                                      np.array(k_r2), \
+                                                                      np.array(k_logLL), \
+                                                                      np.array(bs), \
+                                                                      np.array(bf)
+
                         gamma, alpha = one_shot_gamma_alpha_matrix(k, t_uniq, U)
                         (
                             self.parameters["alpha"],
@@ -1077,9 +1115,13 @@ class ss_estimation:
                             self.aux_param["gamma_intercept"],
                             self.aux_param["gamma_r2"],
                             self.aux_param["gamma_logLL"],
-                        ) = ((alpha + alpha0) / 2, gamma, k, k_intercept, k_r2, k_logLL)
+                            self.aux_param["bs"],
+                            self.aux_param["bf"],
+                        ) = ((alpha + alpha0) / 2, gamma, k, k_intercept, k_r2, k_logLL, bs, bf)
                     elif np.all(self._exist_data("uu", "ul")):
-                        k, k_intercept, k_r2, k_logLL = (
+                        k, k_intercept, k_r2, k_logLL, bs, bf = (
+                            np.zeros(n),
+                            np.zeros(n),
                             np.zeros(n),
                             np.zeros(n),
                             np.zeros(n),
@@ -1102,6 +1144,8 @@ class ss_estimation:
                                     k_r2[i],
                                     _,
                                     k_logLL[i],
+                                    bs[i],
+                                    bf[i],
                                 ) = self.fit_gamma_stochastic(
                                     self.est_method,
                                     U[i],
@@ -1121,9 +1165,14 @@ class ss_estimation:
                                                                               itertools.repeat(True)))
                             pool.close()
                             pool.join()
-                            (k, k_intercept, _, k_r2, _, k_logLL) = zip(*res)
-                            (k, k_intercept, k_r2, k_logLL) = np.array(k), np.array(k_intercept), \
-                                                              np.array(k_r2), np.array(k_logLL)
+                            (k, k_intercept, _, k_r2, _, k_logLL, bs, bf) = zip(*res)
+                            (k, k_intercept, k_r2, k_logLL, bs, bf) = np.array(k), \
+                                                                      np.array(k_intercept), \
+                                                                      np.array(k_r2), \
+                                                                      np.array(k_logLL), \
+                                                                      np.array(bs), \
+                                                                      np.array(bf)
+
                         gamma, alpha = one_shot_gamma_alpha_matrix(k, t_uniq, U)
                         (
                             self.parameters["alpha"],
@@ -1132,7 +1181,9 @@ class ss_estimation:
                             self.aux_param["gamma_intercept"],
                             self.aux_param["gamma_r2"],
                             self.aux_param["gamma_logLL"],
-                        ) = (alpha, gamma, k, k_intercept, k_r2, k_logLL)
+                            self.aux_param["bs"],
+                            self.aux_param["bf"],
+                        ) = (alpha, gamma, k, k_intercept, k_r2, k_logLL, bs, bf)
             elif self.extyp.lower() == "mix_std_stm":
                 t_min, t_max = np.min(self.t), np.max(self.t)
                 if np.all(self._exist_data("ul", "uu", "su")):
@@ -1377,16 +1428,18 @@ class ss_estimation:
             s, u, normalize=normalize, perc_left=perc_left, perc_right=perc_right
         )
 
+        bs, bf = None, None
         if est_method.lower() == 'gmm':
             k = fit_stochastic_linreg(u[mask], s[mask], us[mask], ss[mask])
         elif est_method.lower() == 'negbin':
             phi = compute_dispersion(s, ss)
             k = fit_k_negative_binomial(u[mask], s[mask],  ss[mask], phi)
+            bs, bf = compute_bursting_properties(np.mean(u[mask] + s[mask]), phi, k)
 
         r2, all_r2 = calc_R2(s[mask], u[mask], k), calc_R2(s, u, k)
         logLL, all_logLL = calc_norm_loglikelihood(s[mask], u[mask], k), calc_norm_loglikelihood(s, u, k)
 
-        return k, 0, r2, all_r2, logLL, all_logLL
+        return (k, 0, r2, all_r2, logLL, all_logLL, bs, bf)
 
     def fit_beta_gamma_lsq(self, t, U, S):
         """Estimate beta and gamma with the degradation data using the least squares method.
