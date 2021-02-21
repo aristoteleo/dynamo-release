@@ -873,7 +873,7 @@ if use_dynode:
             self.func = None
 
             if X is not None and V is not None:
-                self.parameters = kwargs
+                self.parameters = update_n_merge_dict(kwargs, {"X": X, "V": V, "Grid": Grid})
 
                 import tempfile
                 from dynode.vectorfield import networkModels
