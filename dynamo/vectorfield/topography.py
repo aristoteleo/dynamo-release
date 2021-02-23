@@ -763,15 +763,15 @@ def VectorField(
     vf_dict['method'] = method
     if basis is not None:
         key = "velocity_" + basis + '_' + method
-        adata.obsm[key] = vf_dict['VecFld']['V']
-        adata.obsm['X_' + basis + '_' + method] = vf_dict['VecFld']['X']
+        adata.obsm[key] = vf_dict['V']
+        adata.obsm['X_' + basis + '_' + method] = vf_dict['X']
 
         vf_dict['dims'] = dims
         adata.uns[vf_key] = vf_dict
     else:
         key = velocity_key + '_' + method
         adata.layers[key] = sp.csr_matrix((adata.shape))
-        adata.layers[key][:, np.where(adata.var.use_for_transition)[0]] = vf_dict['VecFld']['V']
+        adata.layers[key][:, np.where(adata.var.use_for_transition)[0]] = vf_dict['V']
 
         vf_dict['layer'] = layer
         vf_dict['genes'] = genes
@@ -786,7 +786,7 @@ def VectorField(
             warnings.simplefilter("ignore")
 
             adata = topography(
-                adata, basis=basis, X=X, layer=layer, dims=[0, 1], VecFld=vf_dict['VecFld'], **tp_kwargs
+                adata, basis=basis, X=X, layer=layer, dims=[0, 1], VecFld=vf_dict, **tp_kwargs
             )
     if pot_curl_div:
         if basis in ["pca", 'umap', 'tsne', 'diffusion_map', 'trimap']:
@@ -796,15 +796,15 @@ def VectorField(
 
     control_point, inlier_prob, valid_ids = "control_point_" + basis if basis is not None else "control_point", \
                                             'inlier_prob_' + basis if basis is not None else "inlier_prob", \
-                                            vf_dict['VecFld']['valid_ind']
+                                            vf_dict['valid_ind']
     if method.lower() == 'sparsevfc':
         adata.obs[control_point], adata.obs[inlier_prob] = False, np.nan
-        adata.obs[control_point][vf_dict['VecFld']['ctrl_idx']] = True
-        adata.obs[inlier_prob][valid_ids] = vf_dict['VecFld']['P'].flatten()
+        adata.obs[control_point][vf_dict['ctrl_idx']] = True
+        adata.obs[inlier_prob][valid_ids] = vf_dict['P'].flatten()
 
     # angles between observed velocity and that predicted by vector field across cells:
     cell_angels = np.zeros(adata.n_obs)
-    for i, u, v in zip(valid_ids, V[valid_ids], vf_dict['VecFld']['V']):
+    for i, u, v in zip(valid_ids, V[valid_ids], vf_dict['V']):
         cell_angels[i] = angle(u, v)
 
     if basis is not None:

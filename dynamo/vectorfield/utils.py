@@ -229,13 +229,13 @@ def vecfld_from_adata(adata, basis='', vf_key='VecFld'):
 
     method = vf_dict['method']
     if method.lower() == 'sparsevfc':
-        func = lambda x: vector_field_function(x, vf_dict['VecFld'])
+        func = lambda x: vector_field_function(x, vf_dict)
     elif method.lower() == 'dynode':
-        func = lambda x: dynode_vector_field_function(x, vf_dict['VecFld'])
+        func = lambda x: dynode_vector_field_function(x, vf_dict)
     else:
         raise ValueError(f"current only support two methods, SparseVFC and dynode")
 
-    return vf_dict['VecFld'], func
+    return vf_dict, func
 
 
 def vector_transformation(V, Q):
