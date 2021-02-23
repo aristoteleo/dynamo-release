@@ -201,9 +201,9 @@ def _dynamics(
                 warnings.simplefilter("ignore")
 
                 if experiment_type in ["one-shot", "one_shot"]:
-                    est.fit(one_shot_method=one_shot_method)
+                    est.train(one_shot_method=one_shot_method)
                 else:
-                    est.fit()
+                    est.train()
 
             alpha, beta, gamma, eta, delta = est.parameters.values()
 
@@ -254,7 +254,7 @@ def _dynamics(
             )
             t_ind += 1
 
-            params, costs = Est.fit()
+            params, costs = Est.train()
             a, b, alpha_a, alpha_i, beta, gamma = (
                 params[:, 0],
                 params[:, 1],

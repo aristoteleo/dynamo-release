@@ -634,7 +634,7 @@ def diff_test_helper(data,
     poisson_df['AUX_OLS_DEP'] = poisson_df.apply(lambda x: ((x['expression'] - x['mu']) ** 2
                                                             - x['expression']) / x['mu'], axis=1)
     ols_expr = """AUX_OLS_DEP ~ mu - 1"""
-    aux_olsr_results = smf.ols(ols_expr, poisson_df).fit()
+    aux_olsr_results = smf.ols(ols_expr, poisson_df).train()
 
     nb2_family = sm.families.NegativeBinomial(alpha=aux_olsr_results.params[0])
 

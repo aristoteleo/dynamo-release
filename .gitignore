@@ -18,6 +18,7 @@ debug/
 integral_seq/
 env/
 
+load_model_from_*
 dynamo.egg-info/
 dynamo_release.egg-info/
 

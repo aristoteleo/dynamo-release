@@ -104,6 +104,11 @@ def umap_conn_indices_dist_embedding(
     negative_sample_rate=5,
     init_pos="spectral",
     random_state=0,
+    densmap=False,
+    dens_lambda=2.0,
+    dens_frac=0.3,
+    dens_var_shift=0.1,
+    output_dens=False,
     return_mapper=True,
     verbose=False,
     **umap_kwargs
@@ -148,8 +153,30 @@ def umap_conn_indices_dist_embedding(
         random_state: `int`, `RandomState` instance or `None`, optional (default: None)
             If int, random_state is the seed used by the random number generator; If RandomState instance, random_state is
             the random number generator; If None, the random number generator is the RandomState instance used by `numpy.random`.
+        dens_lambda: float (optional, default 2.0)
+            Controls the regularization weight of the density correlation term
+            in densMAP. Higher values prioritize density preservation over the
+            UMAP objective, and vice versa for values closer to zero. Setting this
+            parameter to zero is equivalent to running the original UMAP algorithm.
+        dens_frac: float (optional, default 0.3)
+            Controls the fraction of epochs (between 0 and 1) where the
+            density-augmented objective is used in densMAP. The first
+            (1 - dens_frac) fraction of epochs optimize the original UMAP objective
+            before introducing the density correlation term.
+        dens_var_shift: float (optional, default 0.1)
+            A small constant added to the variance of local radii in the
+            embedding when calculating the density correlation objective to
+            prevent numerical instability from dividing by a small number
+        output_dens: float (optional, default False)
+            Determines whether the local radii of the final embedding (an inverse
+            measure of local density) are computed and returned in addition to
+            the embedding. If set to True, local radii of the original data
+            are also included in the output for comparison; the output is a tuple
+            (embedding, original local radii, embedding local radii). This option
+            can also be used when densmap=False to calculate the densities for
+            UMAP embeddings.
         verbose: `bool` (optional, default False)
-            Controls verbosity of logging.
+                Controls verbosity of logging.
 
     Returns
     -------
@@ -224,7 +251,24 @@ def umap_conn_indices_dist_embedding(
 
     a, b = find_ab_params(spread, min_dist)
     if type(graph) == tuple: graph = graph[0]
-    embedding_ = simplicial_set_embedding(
+
+    dens_lambda = dens_lambda if densmap else 0.0
+    dens_frac = dens_frac if densmap else 0.0
+
+    if dens_lambda < 0.0:
+        raise ValueError("dens_lambda cannot be negative")
+    if dens_frac < 0.0 or dens_frac > 1.0:
+        raise ValueError("dens_frac must be between 0.0 and 1.0")
+    if dens_var_shift < 0.0:
+        raise ValueError("dens_var_shift cannot be negative")
+
+    densmap_kwds = {
+        "lambda": dens_lambda,
+        "frac": dens_frac,
+        "var_shift": dens_var_shift,
+        "n_neighbors": n_neighbors,
+    }
+    embedding_, aux_data = simplicial_set_embedding(
         data=_raw_data,
         graph=graph,
         n_components=n_components,
@@ -239,6 +283,9 @@ def umap_conn_indices_dist_embedding(
         metric=metric,
         metric_kwds={},
         verbose=verbose,
+        densmap=densmap,
+        densmap_kwds=densmap_kwds,
+        output_dens=output_dens,
     )
 
     if return_mapper:

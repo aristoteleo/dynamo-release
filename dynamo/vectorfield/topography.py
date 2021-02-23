@@ -1,4 +1,6 @@
 # create by Yan Zhang, minor adjusted by Xiaojie Qiu
+import os
+import datetime
 import warnings
 import numpy as np
 import scipy.sparse as sp
@@ -8,7 +10,7 @@ from scipy.linalg import eig
 from scipy.integrate import odeint
 from sklearn.neighbors import NearestNeighbors
 
-from .scVectorField import vectorfield
+from .scVectorField import svc_vectorfield
 from ..tools.utils import (
     update_dict,
     form_triu_matrix,
@@ -17,7 +19,12 @@ from ..tools.utils import (
     gaussian_1d,
 )
 
-from .utils import vector_field_function, vecfld_from_adata, angle
+from .utils import (
+    vector_field_function,
+    dynode_vector_field_function,
+    vecfld_from_adata,
+    angle,
+)
 
 from ..external.hodge import ddhodge
 from .vector_calculus import curl, divergence
@@ -488,7 +495,10 @@ def topography(adata, basis="umap", layer=None, X=None, dims=None, n=25, VecFld=
     if VecFld is None:
         VecFld, func = vecfld_from_adata(adata, basis)
     else:
-        func = lambda x: vector_field_function(x, VecFld)
+        if 'velocity_loss_traj' in VecFld.keys():
+            func = lambda x: dynode_vector_field_function(x, VecFld)
+        else:
+            func = lambda x: vector_field_function(x, VecFld)
 
     if dims is None:
         dims = [0, 1]
@@ -545,6 +555,7 @@ def VectorField(
     grid_num=50,
     velocity_key="velocity_S",
     method="SparseVFC",
+    model_buffer_path=None,
     return_vf_object=False,
     map_topography=True,
     pot_curl_div=False,
@@ -588,6 +599,9 @@ def VectorField(
         method: `str` (default: `sparseVFC`)
             Method that is used to reconstruct the vector field functionally. Currently only SparseVFC supported but other
             improved approaches are under development.
+        buffer_path: `None` or `str` (default `None`)
+               The directory address keeping all the saved/to-be-saved torch variables and NN modules. When `method` is
+               set to be `dynode`, buffer_path will set to be
         return_vf_object: `bool` (default: `False`)
             Whether or not to include an instance of a vectorfield class in the the `VecFld` dictionary in the `uns`
             attribute.
@@ -656,29 +670,97 @@ def VectorField(
     elif V is None:
         raise Exception("V is None. Make sure you passed the correct V.")
 
-    vf_kwargs = {
-        "M": None,
-        "a": 5,
-        "beta": None,
-        "ecr": 1e-5,
-        "gamma": 0.9,
-        "lambda_": 3,
-        "minP": 1e-5,
-        "MaxIter": 30,
-        "theta": 0.75,
-        "div_cur_free_kernels": False,
-        "velocity_based_sampling": True,
-        "sigma": 0.8,
-        "eta": 0.5,
-        "seed": 0,
-    }
+    if method.lower() == 'sparsevfc':
+        vf_kwargs = {
+            "M": None,
+            "a": 5,
+            "beta": None,
+            "ecr": 1e-5,
+            "gamma": 0.9,
+            "lambda_": 3,
+            "minP": 1e-5,
+            "MaxIter": 30,
+            "theta": 0.75,
+            "div_cur_free_kernels": False,
+            "velocity_based_sampling": True,
+            "sigma": 0.8,
+            "eta": 0.5,
+            "seed": 0,
+        }
+    elif method.lower() == 'dynode':
+        try:
+            import dynode
+            from dynode.vectorfield import networkModels
+            from dynode.vectorfield.samplers import VelocityDataSampler
+            from dynode.vectorfield.losses_weighted import MSE # MAD, BinomialChannel, WassersteinDistance, CosineDistance
+            from .scVectorField import dynode_vectorfield
+        except ImportError:
+            raise ImportError("You need to install the package `dynode`."
+                              "install dynode via `pip install dynode`")
+
+        good_ind = np.where(~ np.isnan(V.sum(1)))[0]
+        V = V[good_ind, :]
+        X = X[good_ind, :]
+
+        velocity_data_sampler = VelocityDataSampler(adata = {'X': X, 'V': V}, normalize_velocity=normalize)
+        max_iter = (2 * 100000 * np.log(X.shape[0]) / (250 + np.log(X.shape[0])))
+
+        cwd, cwt = os.getcwd(), datetime.datetime.now()
+
+        if model_buffer_path is None:
+            model_buffer_path = cwd + '/' + str(cwt.year) + '_' + str(cwt.month) + '_' + str(cwt.day)
+            warnings.warn(f"the buffer path saving the dynode model is in %s" % (model_buffer_path))
+
+        vf_kwargs = {
+            "model": networkModels,
+            "sirens": False,
+            "enforce_positivity": False,
+            "velocity_data_sampler": velocity_data_sampler,
+            "time_course_data_sampler": None,
+            "network_dim": X.shape[1],
+            "velocity_loss_function": MSE(),  # CosineDistance(), # #MSE(), MAD()
+            "time_course_loss_function": None,  # BinomialChannel(p=0.1, alpha=1)
+            "velocity_x_initialize": X,
+            "time_course_x0_initialize": None,
+            "smoothing_factor": None,
+            "stability_factor": None,
+            "load_model_from_buffer": False,
+            "buffer_path": model_buffer_path,
+            "hidden_features": 256,
+            "hidden_layers": 3,
+            "first_omega_0": 30.,
+            "hidden_omega_0": 30.,
+        }
+        train_kwargs = {
+            "max_iter": int(max_iter),
+            "velocity_batch_size": 50,
+            "time_course_batch_size": 100,
+            "autoencoder_batch_size": 50,
+            "velocity_lr": 1e-4,
+            "velocity_x_lr": 0,
+            "time_course_lr": 1e-4,
+            "time_course_x0_lr": 1e4,
+            "autoencoder_lr": 1e-4,
+            "velocity_sample_fraction": 1,
+            "time_course_sample_fraction": 1,
+            "iter_per_sample_update": None,
+        }
+    else:
+        raise ValueError(f"current only support two methods, SparseVFC and dynode")
+
     vf_kwargs = update_dict(vf_kwargs, kwargs)
 
-    VecFld = vectorfield(X, V, Grid, **vf_kwargs)
-    vf_dict = VecFld.fit(normalize=normalize, method=method, **kwargs)
+    if method.lower() == "sparsevfc":
+        VecFld = svc_vectorfield(X, V, Grid, **vf_kwargs)
+        vf_dict = VecFld.train(normalize=normalize, **kwargs)
+    elif method.lower() == 'dynode':
+        train_kwargs = update_dict(train_kwargs, kwargs)
+        VecFld = dynode_vectorfield(X, V, Grid, **vf_kwargs)
+        vf_dict = VecFld.train(**train_kwargs) # {"VecFld": VecFld.train(**kwargs)}
 
     vf_key = "VecFld" if basis is None else "VecFld_" + basis
 
+    vf_dict['method'] = method
     if basis is not None:
         key = "velocity_" + basis + '_' + method
         adata.obsm[key] = vf_dict['VecFld']['V']
@@ -712,17 +794,23 @@ def VectorField(
             if X.shape[1] == 2: curl(adata, basis=basis)
             divergence(adata, basis=basis)
 
-    control_point, inlier_prob, valid_ids = "control_point_" + basis, 'inlier_prob_' + basis, \
+    control_point, inlier_prob, valid_ids = "control_point_" + basis if basis is not None else "control_point", \
+                                            'inlier_prob_' + basis if basis is not None else "inlier_prob", \
                                             vf_dict['VecFld']['valid_ind']
-    adata.obs[control_point], adata.obs[inlier_prob] = False, np.nan
-    adata.obs[control_point][vf_dict['VecFld']['ctrl_idx']] = True
-    adata.obs[inlier_prob][valid_ids] = vf_dict['VecFld']['P'].flatten()
+    if method.lower() == 'sparsevfc':
+        adata.obs[control_point], adata.obs[inlier_prob] = False, np.nan
+        adata.obs[control_point][vf_dict['VecFld']['ctrl_idx']] = True
+        adata.obs[inlier_prob][valid_ids] = vf_dict['VecFld']['P'].flatten()
 
     # angles between observed velocity and that predicted by vector field across cells:
-    cell_angels, adata.obs["obs_vf_angle_" + basis] = np.zeros(adata.n_obs), np.nan
+    cell_angels = np.zeros(adata.n_obs)
     for i, u, v in zip(valid_ids, V[valid_ids], vf_dict['VecFld']['V']):
         cell_angels[i] = angle(u, v)
-    adata.obs["obs_vf_angle_" + basis] = cell_angels
+
+    if basis is not None:
+        adata.obs["obs_vf_angle_" + basis] = cell_angels
+    else:
+        adata.obs["obs_vf_angle"] = cell_angels
 
     if return_vf_object:
         return VecFld

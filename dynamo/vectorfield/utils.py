@@ -7,8 +7,9 @@ import numdifftools as nd
 from multiprocessing.dummy import Pool as ThreadPool
 import multiprocessing as mp
 import itertools, functools
+import inspect
 from numba import njit
-from ..tools.utils import timeit
+from ..tools.utils import timeit, subset_dict_with_key_list
 
 
 def is_outside_domain(x, domain):
@@ -74,6 +75,38 @@ def vector_field_function(x, vf_dict, dim=None, kernel='full', X_ctrl_ind=None, 
             K = K[:, dim]
 
     return K
+
+
+def dynode_vector_field_function(x, vf_dict, dim=None, **kwargs):
+    try:
+        import dynode
+        from dynode.vectorfield import Dynode
+    except ImportError:
+        raise ImportError("You need to install the package `dynode`."
+                          "install dynode via `pip install dynode`")
+    vf_dict['parameters']["load_model_from_buffer"] = True
+    dynode_inspect = inspect.getfullargspec(Dynode)
+    dynode_dict = subset_dict_with_key_list(vf_dict['parameters'], dynode_inspect.args)
+
+    nn = Dynode(**dynode_dict)
+
+    to_flatten = False
+    if x.ndim == 1:
+        to_flatten = True
+        x = x[None, :]
+
+    res = nn.predict_velocity(input_x=x)
+
+    if dim is not None:
+        if np.isscalar(dim):
+            res = res[:, :dim]
+        elif dim is not None:
+            res = res[:, dim]
+
+    if to_flatten:
+        res = res.flatten()
+
+    return res
 
 
 @timeit
@@ -178,19 +211,31 @@ def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
     return G, df_kernel, cf_kernel
 
 
-def vecfld_from_adata(adata, basis='', vf_key='VecFld'):
+def get_vf_dict(adata, basis='', vf_key='VecFld'):
     if basis is not None or len(basis) > 0:
         vf_key = '%s_%s' % (vf_key, basis)
 
     if vf_key not in adata.uns.keys():
         raise ValueError(
             f'Vector field function {vf_key} is not included in the adata object! '
-            f"Try firstly running dyn.tl.VectorField(adata, basis='{basis}')")
-        
-    vf_dict = adata.uns[vf_key]['VecFld']
-    func = lambda x: vector_field_function(x, vf_dict)
+            f"Try firstly running dyn.vf.VectorField(adata, basis='{basis}')")
 
-    return vf_dict, func
+    vf_dict = adata.uns[vf_key]
+    return vf_dict
+
+
+def vecfld_from_adata(adata, basis='', vf_key='VecFld'):
+    vf_dict = get_vf_dict(adata, basis=basis, vf_key=vf_key)
+
+    method = vf_dict['method']
+    if method.lower() == 'sparsevfc':
+        func = lambda x: vector_field_function(x, vf_dict['VecFld'])
+    elif method.lower() == 'dynode':
+        func = lambda x: dynode_vector_field_function(x, vf_dict['VecFld'])
+    else:
+        raise ValueError(f"current only support two methods, SparseVFC and dynode")
+
+    return vf_dict['VecFld'], func
 
 
 def vector_transformation(V, Q):

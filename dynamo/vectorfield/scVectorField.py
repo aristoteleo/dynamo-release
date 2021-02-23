@@ -505,12 +505,50 @@ def SparseVFC(
     return VecFld
 
 
-class vectorfield:
+class base_vectorfield:
     def __init__(
         self,
         X=None,
         V=None,
         Grid=None,
+        *args,
+        **kwargs
+    ):
+        self.data = {"X": X, "V": V, "Grid": Grid}
+        super().__init__(**kwargs)
+
+    def construct_graph(self, X=None, **kwargs):
+        X = self.data['X'] if X is None else X
+        return graphize_vecfld(self.func, X, **kwargs)
+
+
+    def from_adata(self, adata, basis='', vf_key='VecFld'):
+        vf_dict, func = vecfld_from_adata(adata, basis=basis, vf_key=vf_key)
+        self.data['X'] = vf_dict['X']
+        self.data['V'] = vf_dict['Y'] # use the raw velocity
+        self.vf_dict['VecFld'] = vf_dict
+        self.func = func
+
+
+    def get_X(self):
+        return self.data['X']
+
+
+    def get_V(self):
+        return self.data['V']
+
+
+    def get_data(self):
+        return self.data['X'], self.data['V']
+
+
+class svc_vectorfield(base_vectorfield):
+    def __init__(
+        self,
+        X=None,
+        V=None,
+        Grid=None,
+        *args,
         **kwargs
     ):
         """Initialize the VectorField class.
@@ -586,7 +624,7 @@ class vectorfield:
         self.func = None
 
 
-    def fit(self, normalize=False, method="SparseVFC", **kwargs):
+    def train(self, normalize=False, **kwargs):
         """Learn an function of vector field from sparse single cell samples in the entire space robustly.
         Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
 
@@ -608,30 +646,29 @@ class vectorfield:
         """
 
         if normalize:
-            X_old, V_old, T_old, norm_dict = norm(self.data["X"], self.data["V"], self.data["Grid"])
+            X_norm, V_norm, T_norm, norm_dict = norm(self.data["X"], self.data["V"], self.data["Grid"])
             self.data["X"], self.data["V"], self.data["Grid"], self.norm_dict = (
-                X_old,
-                V_old,
-                T_old,
+                X_norm,
+                V_norm,
+                T_norm,
                 norm_dict,
             )
 
         verbose = kwargs.pop('verbose', 0)
         lstsq_method = kwargs.pop('lstsq_method', 'drouin')
-        if method == "SparseVFC":
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                
-                VecFld = SparseVFC(
-                        self.data["X"],
-                        self.data["V"],
-                        self.data["Grid"],
-                        **self.parameters,
-                        verbose=verbose,
-                        lstsq_method=lstsq_method,
-                    )
-            if normalize:
-                VecFld = denorm(VecFld, X_old, V_old, self.norm_dict)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+
+            VecFld = SparseVFC(
+                    self.data["X"],
+                    self.data["V"],
+                    self.data["Grid"],
+                    **self.parameters,
+                    verbose=verbose,
+                    lstsq_method=lstsq_method,
+                )
+        if normalize:
+            VecFld = denorm(VecFld, X_norm, V_norm, self.norm_dict)
 
         self.parameters = update_dict(self.parameters, VecFld)
 
@@ -771,11 +808,6 @@ class vectorfield:
                                       f"supports 'analytical', 'numerical', and 'parallel'.")
 
 
-    def construct_graph(self, X=None, **kwargs):
-        X = self.data['X'] if X is None else X
-        return graphize_vecfld(self.func, X, **kwargs)
-
-
     def evaluate(self, CorrectIndex, VFCIndex, siz):
         """Evaluate the precision, recall, corrRate of the sparseVFC algorithm.
 
@@ -818,21 +850,107 @@ class vectorfield:
         return corrRate, precision, recall
 
 
-    def from_adata(self, adata, basis='', vf_key='VecFld'):
-        vf_dict, func = vecfld_from_adata(adata, basis=basis, vf_key=vf_key)
-        self.data['X'] = vf_dict['X']
-        self.data['V'] = vf_dict['V']
-        self.vf_dict['VecFld'] = vf_dict
-        self.func = func
+try:
+    import dynode
+    from dynode.vectorfield import Dynode
+
+    use_dynode  = True
+except ImportError:
+    use_dynode = False
+
+if use_dynode:
+    class dynode_vectorfield(base_vectorfield, Dynode): #
+        def __init__(
+            self,
+            X=None,
+            V=None,
+            Grid=None,
+            *args,
+            **kwargs
+        ):
+            self.norm_dict = {}
+            self.vf_dict = {}
+            self.func = None
+
+            if X is not None and V is not None:
+                self.parameters = update_n_merge_dict(kwargs, {"X": X, "V": V, "Grid": Grid})
+
+                import tempfile
+                from dynode.vectorfield import networkModels
+                from dynode.vectorfield.samplers import VelocityDataSampler
+                from dynode.vectorfield.losses_weighted import MSE  # MAD, BinomialChannel, WassersteinDistance, CosineDistance
+
+                good_ind = np.where(~ np.isnan(V.sum(1)))[0]
+                V = V[good_ind, :]
+                X = X[good_ind, :]
+
+                self.valid_ind = good_ind
+
+                velocity_data_sampler = VelocityDataSampler(adata={'X': X, 'V': V},
+                                                            normalize_velocity=kwargs.get('normalize_velocity', False))
+
+                vf_kwargs = {
+                    "X": X, "V": V, "Grid": Grid,
+                    "model": networkModels,
+                    "sirens": False,
+                    "enforce_positivity": False,
+                    "velocity_data_sampler": velocity_data_sampler,
+                    "time_course_data_sampler": None,
+                    "network_dim": X.shape[1],
+                    "velocity_loss_function": MSE(),  # CosineDistance(), # #MSE(), MAD()
+                    "time_course_loss_function": None,  # BinomialChannel(p=0.1, alpha=1)
+                    "velocity_x_initialize": X,
+                    "time_course_x0_initialize": None,
+                    "smoothing_factor": None,
+                    "stability_factor": None,
+                    "load_model_from_buffer": False,
+                    "buffer_path": tempfile.mkdtemp(),
+                    "hidden_features": 256,
+                    "hidden_layers": 3,
+                    "first_omega_0": 30.,
+                    "hidden_omega_0": 30.,
+                }
+                vf_kwargs = update_dict(vf_kwargs, self.parameters)
+                super().__init__(**vf_kwargs)
+
+        def train(self, **kwargs):
+            if len(kwargs) > 0: self.parameters = update_n_merge_dict(self.parameters, kwargs)
+            max_iter = (2 * 100000 * np.log(self.data['X'].shape[0]) / (250 + np.log(self.data['X'].shape[0])))
+            train_kwargs = {
+                "max_iter": int(max_iter),
+                "velocity_batch_size": 50,
+                "time_course_batch_size": 100,
+                "autoencoder_batch_size": 50,
+                "velocity_lr": 1e-4,
+                "velocity_x_lr": 0,
+                "time_course_lr": 1e-4,
+                "time_course_x0_lr": 1e4,
+                "autoencoder_lr": 1e-4,
+                "velocity_sample_fraction": 1,
+                "time_course_sample_fraction": 1,
+                "iter_per_sample_update": None,
+            }
+            train_kwargs = update_dict(train_kwargs, kwargs)
+
+            super().train(**train_kwargs)
+
+            self.func = self.predict_velocity
+            self.vf_dict = {
+                "VecFld": {"X": self.data['X'],
+                           "valid_ind": self.valid_ind,
+                           "Y": self.data['V'],
+                           "V": self.func(self.data["X"]),
+                           "grid": self.data['Grid'],
+                           "grid_V": self.func(self.data["Grid"]),
+                           "iteration": self.parameters.pop('max_iter', int(max_iter)),
+                           "velocity_loss_traj": self.velocity_loss_traj,
+                           "time_course_loss_traj": self.time_course_loss_traj,
+                           "autoencoder_loss_traj": self.autoencoder_loss_traj,
+                           "parameters": self.parameters,
+                           },
+                "parameters": self.parameters ## remove this?
+            }
+
+            return self.vf_dict
 
 
-    def get_X(self):
-        return self.data['X']
-
-
-    def get_V(self):
-        return self.data['V']
-
-
-    def get_data(self):
-        return self.data['X'], self.data['V']

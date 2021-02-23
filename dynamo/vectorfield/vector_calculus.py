@@ -12,6 +12,7 @@ from ..tools.utils import (
 )
 from .utils import (
     vector_field_function,
+    get_vf_dict,
     vecfld_from_adata,
     curl2d,
     vector_transformation,
@@ -24,7 +25,7 @@ from .utils import (
     average_jacobian_by_group,
     intersect_sources_targets,
     )
-from .scVectorField import vectorfield
+from .scVectorField import svc_vectorfield
 from ..tools.sampling import sample
 from ..tools.utils import (
     isarray,
@@ -36,6 +37,17 @@ from ..tools.utils import (
     table_top_genes,
     list_top_interactions,
 )
+try:
+    import dynode
+    from dynode.vectorfield import Dynode
+
+    use_dynode  = True
+except ImportError:
+    use_dynode = False
+
+if use_dynode:
+    from .utils import dynode_vector_field_function
+    from .scVectorField import dynode_vectorfield
 
 
 def velocities(adata,
@@ -80,7 +92,8 @@ def velocities(adata,
     if VecFld is None:
         VecFld, func = vecfld_from_adata(adata, basis)
     else:
-        func = lambda x: vector_field_function(x, VecFld)
+        func = lambda x: vector_field_function(x, VecFld) if 'velocity_loss_traj' not in VecFld.keys() else \
+            dynode_vector_field_function(x, VecFld)
 
     init_states, _, _, _ = fetch_states(
         adata, init_states, init_cells, basis, layer, False, None
@@ -126,7 +139,8 @@ def speed(adata,
     if VecFld is None:
         VecFld, func = vecfld_from_adata(adata, basis)
     else:
-        func = lambda x: vector_field_function(x, VecFld)
+        func = lambda x: vector_field_function(x, VecFld) if 'velocity_loss_traj' not in VecFld.keys() else \
+            dynode_vector_field_function(x, VecFld)
 
     X_data = adata.obsm["X_" + basis]
 
@@ -205,8 +219,16 @@ def jacobian(adata,
     regulators, effectors = list(np.unique(regulators)) if regulators is not None else None, \
                             list(np.unique(effectors)) if effectors is not None else None
     if vector_field_class is None:
-        vector_field_class = vectorfield()
-        vector_field_class.from_adata(adata, basis=basis)
+        vf_dict = get_vf_dict(adata, basis=basis)
+        if "method" not in vf_dict.keys(): vf_dict['method'] = 'sparsevfc'
+        if vf_dict['method'].lower() == 'sparsevfc':
+            vector_field_class = svc_vectorfield()
+            vector_field_class.from_adata(adata, basis=basis)
+        elif vf_dict['method'].lower() == 'dynode':
+            vf_dict["parameters"]["load_model_from_buffer"] = True
+            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
+        else:
+            raise ValueError(f"current only support two methods, SparseVFC and dynode")
 
     if basis == 'umap': cell_idx = np.arange(adata.n_obs)
 
@@ -353,8 +375,16 @@ def sensitivity(adata,
     regulators, effectors = list(np.unique(regulators)) if regulators is not None else None, \
                             list(np.unique(effectors)) if effectors is not None else None
     if vector_field_class is None:
-        vector_field_class = vectorfield()
-        vector_field_class.from_adata(adata, basis=basis)
+        vf_dict = get_vf_dict(adata, basis=basis)
+        if "method" not in vf_dict.keys(): vf_dict['method'] = 'sparsevfc'
+        if vf_dict['method'].lower() == 'sparsevfc':
+            vector_field_class = svc_vectorfield()
+            vector_field_class.from_adata(adata, basis=basis)
+        elif vf_dict['method'].lower() == 'dynode':
+            vf_dict["parameters"]["load_model_from_buffer"] = True
+            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
+        else:
+            raise ValueError(f"current only support two methods, SparseVFC and dynode")
 
     if basis == 'umap': cell_idx = np.arange(adata.n_obs)
 
@@ -479,8 +509,16 @@ def acceleration(adata,
     """
 
     if vector_field_class is None:
-        vector_field_class = vectorfield()
-        vector_field_class.from_adata(adata, basis=basis)
+        vf_dict = get_vf_dict(adata, basis=basis)
+        if "method" not in vf_dict.keys(): vf_dict['method'] = 'sparsevfc'
+        if vf_dict['method'].lower() == 'sparsevfc':
+            vector_field_class = svc_vectorfield()
+            vector_field_class.from_adata(adata, basis=basis)
+        elif vf_dict['method'].lower() == 'dynode':
+            vf_dict["parameters"]["load_model_from_buffer"] = True
+            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
+        else:
+            raise ValueError(f"current only support two methods, SparseVFC and dynode")
 
     acce_norm, acce = vector_field_class.compute_acceleration(method=method, **kwargs)
 
@@ -536,8 +574,16 @@ def curvature(adata,
     """
 
     if vector_field_class is None:
-        vector_field_class = vectorfield()
-        vector_field_class.from_adata(adata, basis=basis)
+        vf_dict = get_vf_dict(adata, basis=basis)
+        if "method" not in vf_dict.keys(): vf_dict['method'] = 'sparsevfc'
+        if vf_dict['method'].lower() == 'sparsevfc':
+            vector_field_class = svc_vectorfield()
+            vector_field_class.from_adata(adata, basis=basis)
+        elif vf_dict['method'].lower() == 'dynode':
+            vf_dict["parameters"]["load_model_from_buffer"] = True
+            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
+        else:
+            raise ValueError(f"current only support two methods, SparseVFC and dynode")
 
     if formula not in [1, 2]:
         raise ValueError(f"There are only two available formulas (formula can be either `{1, 2}`) to calculate "
@@ -579,8 +625,16 @@ def torsion(adata,
     """
 
     if vector_field_class is None:
-        vector_field_class = vectorfield()
-        vector_field_class.from_adata(adata, basis=basis)
+        vf_dict = get_vf_dict(adata, basis=basis)
+        if "method" not in vf_dict.keys(): vf_dict['method'] = 'sparsevfc'
+        if vf_dict['method'].lower() == 'sparsevfc':
+            vector_field_class = svc_vectorfield()
+            vector_field_class.from_adata(adata, basis=basis)
+        elif vf_dict['method'].lower() == 'dynode':
+            vf_dict["parameters"]["load_model_from_buffer"] = True
+            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
+        else:
+            raise ValueError(f"current only support two methods, SparseVFC and dynode")
 
     torsion_mat = vector_field_class.compute_torsion(**kwargs)
     torsion = np.array([np.linalg.norm(i) for i in torsion_mat])
@@ -621,8 +675,16 @@ def curl(adata,
     """
 
     if vector_field_class is None:
-        vector_field_class = vectorfield()
-        vector_field_class.from_adata(adata, basis=basis)
+        vf_dict = get_vf_dict(adata, basis=basis)
+        if "method" not in vf_dict.keys(): vf_dict['method'] = 'sparsevfc'
+        if vf_dict['method'].lower() == 'sparsevfc':
+            vector_field_class = svc_vectorfield()
+            vector_field_class.from_adata(adata, basis=basis)
+        elif vf_dict['method'].lower() == 'dynode':
+            vf_dict["parameters"]["load_model_from_buffer"] = True
+            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
+        else:
+            raise ValueError(f"current only support two methods, SparseVFC and dynode")
     '''
     X_data = adata.obsm["X_" + basis][:, :2]
 
@@ -680,8 +742,16 @@ def divergence(adata,
     """
 
     if vector_field_class is None:
-        vector_field_class = vectorfield()
-        vector_field_class.from_adata(adata, basis=basis)
+        vf_dict = get_vf_dict(adata, basis=basis)
+        if "method" not in vf_dict.keys(): vf_dict['method'] = 'sparsevfc'
+        if vf_dict['method'].lower() == 'sparsevfc':
+            vector_field_class = svc_vectorfield()
+            vector_field_class.from_adata(adata, basis=basis)
+        elif vf_dict['method'].lower() == 'dynode':
+            vf_dict["parameters"]["load_model_from_buffer"] = True
+            vector_field_class = dynode_vectorfield(**vf_dict["parameters"])
+        else:
+            raise ValueError(f"current only support two methods, SparseVFC and dynode")
 
     if basis == 'umap': cell_idx = np.arange(adata.n_obs)
 

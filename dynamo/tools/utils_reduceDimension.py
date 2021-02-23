@@ -161,6 +161,11 @@ def run_reduce_dim(adata, X_data, n_components, n_pca_components, reduction_meth
             "negative_sample_rate": 5,
             "init_pos": "spectral",
             "random_state": 0,
+            "densmap": False,
+            "dens_lambda": 2.0,
+            "dens_frac": 0.3,
+            "dens_var_shift": 0.1,
+            "output_dens": False,
             "verbose": False,
         }
         umap_kwargs = update_dict(_umap_kwargs, kwargs)

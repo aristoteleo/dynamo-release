@@ -721,21 +721,22 @@ def topography(
         color = [color]
     elif color is None:
         obs_keys = adata.obs.keys()
-        if np.array(["potential" in key for key in obs_keys]).sum() == 0:
+        if np.array([key.endswith("potential") for key in obs_keys]).sum() == 0:
             ddhodge(adata, basis=basis)
-            color = [basis + '_' + "potential"]
+            prefix = '' if basis is None else basis + '_'
+            color = [prefix + "ddhodge_potential"]
         else:
-            color = np.array(obs_keys)[["potential" in key for key in obs_keys]][0]
-        if np.array(["curl" in key for key in obs_keys]).sum() == 0:
+            color = np.array(obs_keys)[[key.endswith("potential")for key in obs_keys]][0]
+        if np.array([key.endswith("curl") for key in obs_keys]).sum() == 0:
             curl(adata, basis=basis)
             color.extend("curl_" + basis)
         else:
-            color.extend(np.array(obs_keys)[["curl" in key for key in obs_keys]][0])
-        if np.array(["divergence" in key for key in obs_keys]).sum() == 0:
+            color.extend(np.array(obs_keys)[[key.endswith("curl") for key in obs_keys]][0])
+        if np.array([key.endswith("divergence") for key in obs_keys]).sum() == 0:
             divergence(adata, basis=basis)
             color.extend("divergence_" + basis)
         else:
-            color.extend(np.array(obs_keys)[["divergence" in key for key in obs_keys]][0])
+            color.extend(np.array(obs_keys)[[key.endswith("divergence") for key in obs_keys]][0])
 
     if background is None:
         _background = rcParams.get("figure.facecolor")

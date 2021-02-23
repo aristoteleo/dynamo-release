@@ -4,7 +4,8 @@
 from .scVectorField import (
     SparseVFC,
     graphize_vecfld,
-    vectorfield
+    base_vectorfield,
+    svc_vectorfield
 )  # , evaluate, con_K_div_cur_free
 from .utils import (
     vector_field_function,
