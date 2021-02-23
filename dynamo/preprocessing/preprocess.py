@@ -1392,6 +1392,12 @@ def recipe_monocle(
             warnings.warn(f"\nDynamo detects your labeling data is from a {experiment_type} experiment, please correct "
                           f"\nthis via supplying the correct experiment_type (one of `one-shot`, `kin`, `deg`) as "
                           f"needed.")
+        elif experiment_type not in ['one-shot', 'kin', 'mixture', 'mix_std_stm', 'kinetics', 'mix_pulse_chase',
+                                           'mix_kin_deg']:
+            raise ValueError(f"expriment_type can only be one of ['one-shot', 'kin', 'mixture', 'mix_std_stm', "
+                             f"'kinetics', 'mix_pulse_chase','mix_kin_deg']")
+        elif experiment_type == 'kinetics':
+            experiment_type = 'kin'
 
     if reset_X:
         if has_labeling:

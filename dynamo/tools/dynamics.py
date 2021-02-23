@@ -450,7 +450,7 @@ def dynamics(
             )
             vel = velocity(estimation=est)
 
-            if experiment_type.lower() in ['one_shot', 'one-shot', 'kin']:
+            if experiment_type.lower() in ['one_shot', 'one-shot', 'kin', 'mix_std_stm']:
                 U_, S_ = get_U_S_for_velocity_estimation(
                     subset_adata,
                     use_smoothed,
@@ -463,14 +463,23 @@ def dynamics(
                 # also get vel_N and vel_T
                 if NTR_vel:
                     if has_splicing:
-                        if experiment_type == "kin":
+                        if experiment_type in ['one_shot', 'one-shot', "kin"]:
+                            vel_U = (U - csr_matrix(Kc).multiply(U_)).multiply(csr_matrix(gamma_ / Kc)) # vel.vel_s(U_)
+                            vel_S = vel.vel_s(U_, S_)
+
+                            Kc = np.clip(gamma[:, None], 0, 1 - 1e-3)  # S - U slope
+                            gamma_ = -(np.log(1 - Kc) / t[None, :])  # actual gamma
+                            vel_N = (U - csr_matrix(Kc).multiply(U)).multiply(csr_matrix(gamma_ / Kc)) # vel.vel_u(U)
+                            # scale back to true velocity via multiplying "gamma_ / Kc".
+                            vel_T = (U - csr_matrix(Kc).multiply(S)).multiply(csr_matrix(gamma_ / Kc))
+                        elif experiment_type == 'mix_std_stm':
                             vel_U = vel.vel_s(U_)
                             vel_S = vel.vel_s(U_, S_)
 
                             Kc = np.clip(gamma[:, None], 0, 1 - 1e-3)  # S - U slope
                             gamma_ = -(np.log(1 - Kc) / t[None, :])  # actual gamma
                             vel_N = vel.vel_u(U)
-                            # scale back to true velocity via multiplying "gamma / K".
+                            # scale back to true velocity via multiplying "gamma_ / Kc".
                             vel_T = (U - csr_matrix(Kc).multiply(S)).multiply(csr_matrix(gamma_ / Kc))
                         else:
                             vel_U = vel.vel_u(U_)
@@ -478,14 +487,23 @@ def dynamics(
                             vel_N = vel.vel_u(U)
                             vel_T = vel.vel_s(U, S - U)  # need to consider splicing
                     else:
-                        if experiment_type == "kin":
+                        if experiment_type in ['one_shot', 'one-shot', "kin"]:
+                            vel_U = np.nan
+                            vel_S = np.nan
+
+                            Kc = np.clip(gamma[:, None], 0, 1 - 1e-3)  # S - U slope
+                            gamma_ = -(np.log(1 - Kc) / t[None, :])  # actual gamma
+                            vel_N = (U - csr_matrix(Kc).multiply(U)).multiply(csr_matrix(gamma_ / Kc)) # vel.vel_u(U)
+                            # scale back to true velocity via multiplying "gamma_ / Kc".
+                            vel_T = (U - csr_matrix(Kc).multiply(S)).multiply(csr_matrix(gamma_ / Kc))
+                        elif experiment_type == 'mix_std_stm':
                             vel_U = np.nan
                             vel_S = np.nan
 
                             Kc = np.clip(gamma[:, None], 0, 1 - 1e-3)  # S - U slope
                             gamma_ = -(np.log(1 - Kc) / t[None, :])  # actual gamma
                             vel_N = vel.vel_u(U)
-                            # scale back to true velocity via multiplying "gamma / K".
+                            # scale back to true velocity via multiplying "gamma_ / Kc".
                             vel_T = (U - csr_matrix(Kc).multiply(S)).multiply(csr_matrix(gamma_ / Kc))
                         else:
                             vel_U = np.nan
@@ -494,14 +512,23 @@ def dynamics(
                             vel_T = vel.vel_u(S)  # don't consider splicing
                 else:
                     if has_splicing:
-                        if experiment_type == "kin":
+                        if experiment_type in ['one_shot', 'one-shot', "kin"]:
+                            vel_U = (U_ - csr_matrix(Kc).multiply(U)).multiply(csr_matrix(gamma_ / Kc)) # vel.vel_u(U)
+                            vel_S = vel.vel_s(U, S)
+
+                            Kc = np.clip(gamma[:, None], 0, 1 - 1e-3)  # S - U slope
+                            gamma_ = -(np.log(1 - Kc) / t[None, :])  # actual gamma
+                            vel_N = (U_ - csr_matrix(Kc).multiply(U_)).multiply(csr_matrix(gamma_ / Kc)) # vel.vel_u(U_)
+                            # scale back to true velocity via multiplying "gamma_ / Kc".
+                            vel_T = (U_ - csr_matrix(Kc).multiply(S_)).multiply(csr_matrix(gamma_ / Kc))
+                        elif experiment_type == 'mix_std_stm':
                             vel_U = vel.vel_u(U)
                             vel_S = vel.vel_s(U, S)
 
                             Kc = np.clip(gamma[:, None], 0, 1 - 1e-3)  # S - U slope
                             gamma_ = -(np.log(1 - Kc) / t[None, :])  # actual gamma
-                            vel_N = vel.vel_u(U_)
-                            # scale back to true velocity via multiplying "gamma / K".
+                            vel_N = (U_ - csr_matrix(Kc).multiply(U_)).multiply(csr_matrix(gamma_ / Kc)) # vel.vel_u(U_)
+                            # scale back to true velocity via multiplying "gamma_ / Kc".
                             vel_T = (U_ - csr_matrix(Kc).multiply(S_)).multiply(csr_matrix(gamma_ / Kc))
                         else:
                             vel_U = vel.vel_u(U)
@@ -509,14 +536,23 @@ def dynamics(
                             vel_N = vel.vel_u(U_)
                             vel_T = vel.vel_s(U_, S_ - U_)  # need to consider splicing
                     else:
-                        if experiment_type == "kin":
+                        if experiment_type in ['one_shot', 'one-shot', "kin"]:
+                            vel_U = np.nan
+                            vel_S = np.nan
+
+                            Kc = np.clip(gamma[:, None], 0, 1 - 1e-3)  # S - U slope
+                            gamma_ = -(np.log(1 - Kc) / t[None, :])  # actual gamma
+                            vel_N = (U_ - csr_matrix(Kc).multiply(U_)).multiply(csr_matrix(gamma_ / Kc)) # vel.vel_u(U_)
+                            # scale back to true velocity via multiplying "gamma_ / Kc".
+                            vel_T = (U_ - csr_matrix(Kc).multiply(S_)).multiply(csr_matrix(gamma_ / Kc))
+                        elif experiment_type == 'mix_std_stm':
                             vel_U = np.nan
                             vel_S = np.nan
 
                             Kc = np.clip(gamma[:, None], 0, 1 - 1e-3)  # S - U slope
                             gamma_ = -(np.log(1 - Kc) / t[None, :])  # actual gamma
                             vel_N = vel.vel_u(U_)
-                            # scale back to true velocity via multiplying "gamma / K".
+                            # scale back to true velocity via multiplying "gamma_ / Kc".
                             vel_T = (U_ - csr_matrix(Kc).multiply(S_)).multiply(csr_matrix(gamma_ / Kc))
                         else:
                             vel_U = np.nan
