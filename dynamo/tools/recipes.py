@@ -449,3 +449,5 @@ def recipe_mix_kin_deg_data(adata,
         cell_velocities(adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis)
 
     return adata
+
+# add one-shot recipe for getting absolute spliced/total RNA velocity
