@@ -511,8 +511,11 @@ class base_vectorfield:
         X=None,
         V=None,
         Grid=None,
+        *args,
+        **kwargs,
     ):
         self.data = {"X": X, "V": V, "Grid": Grid}
+        super().__init__(**kwargs)
         self.vf_dict = {}
         self.func = None
 
@@ -861,7 +864,6 @@ if use_dynode:
             *args,
             **kwargs
         ):
-            super().__init__(X=X, V=V, Grid=Grid)
             self.norm_dict = {}
 
             if X is not None and V is not None:
