@@ -511,11 +511,10 @@ class base_vectorfield:
         X=None,
         V=None,
         Grid=None,
-        *args,
-        **kwargs
     ):
         self.data = {"X": X, "V": V, "Grid": Grid}
-        super().__init__(**kwargs)
+        self.vf_dict = {}
+        self.func = None
 
     def construct_graph(self, X=None, **kwargs):
         X = self.data['X'] if X is None else X
@@ -526,7 +525,7 @@ class base_vectorfield:
         vf_dict, func = vecfld_from_adata(adata, basis=basis, vf_key=vf_key)
         self.data['X'] = vf_dict['X']
         self.data['V'] = vf_dict['Y'] # use the raw velocity
-        self.vf_dict['VecFld'] = vf_dict
+        self.vf_dict = vf_dict
         self.func = func
 
 
@@ -598,8 +597,7 @@ class svc_vectorfield(base_vectorfield):
             is to be 0 for ensure consistency between different runs.
         """
 
-        
-        self.data = {"X": X, "V": V, "Grid": Grid}
+        super().__init__(X, V, Grid)
         if X is not None and V is not None:
             self.parameters = kwargs
             self.parameters = update_n_merge_dict(self.parameters, {
@@ -620,8 +618,6 @@ class svc_vectorfield(base_vectorfield):
             })
 
         self.norm_dict = {}
-        self.vf_dict = {}
-        self.func = None
 
 
     def train(self, normalize=False, **kwargs):
@@ -672,13 +668,10 @@ class svc_vectorfield(base_vectorfield):
 
         self.parameters = update_dict(self.parameters, VecFld)
 
-        self.vf_dict = {
-            "VecFld": VecFld,
-            "parameters": self.parameters
-        }
+        self.vf_dict = VecFld
 
         self.func = lambda x: vector_field_function(x, VecFld)
-        self.vf_dict['VecFld']['V'] = self.func(self.data["X"])
+        self.vf_dict['V'] = self.func(self.data["X"])
 
         return self.vf_dict
 
@@ -868,9 +861,8 @@ if use_dynode:
             *args,
             **kwargs
         ):
+            super().__init__(X=X, V=V, Grid=Grid)
             self.norm_dict = {}
-            self.vf_dict = {}
-            self.func = None
 
             if X is not None and V is not None:
                 self.parameters = update_n_merge_dict(kwargs, {"X": X, "V": V, "Grid": Grid})
@@ -935,8 +927,7 @@ if use_dynode:
             super().train(**train_kwargs)
 
             self.func = self.predict_velocity
-            self.vf_dict = {
-                "VecFld": {"X": self.data['X'],
+            self.vf_dict = {"X": self.data['X'],
                            "valid_ind": self.valid_ind,
                            "Y": self.data['V'],
                            "V": self.func(self.data["X"]),
@@ -947,9 +938,7 @@ if use_dynode:
                            "time_course_loss_traj": self.time_course_loss_traj,
                            "autoencoder_loss_traj": self.autoencoder_loss_traj,
                            "parameters": self.parameters,
-                           },
-                "parameters": self.parameters ## remove this?
-            }
+                           }
 
             return self.vf_dict
 
