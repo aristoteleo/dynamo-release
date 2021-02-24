@@ -308,8 +308,7 @@ def dynamics(
             if group is not None and group in adata.obs.columns:
                 moments(adata, genes=valid_bools, group=group)
             else:
-                moments(adata, genes=valid_bools, group=tkey) if len(np.unique(adata.obs[tkey])) > 1 \
-                    else moments(adata, genes=valid_bools)
+                moments(adata, genes=valid_bools, group=tkey)
         elif tkey is not None:
             warnings.warn(f"You used tkey {tkey} (or group {group}), but you have calculated local smoothing (1st moment) "
                           f"for your data before. Please ensure you used the desired tkey or group when the smoothing was "
