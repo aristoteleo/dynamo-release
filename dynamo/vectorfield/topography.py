@@ -704,7 +704,7 @@ def VectorField(
         cwd, cwt = os.getcwd(), datetime.datetime.now()
 
         if model_buffer_path is None:
-            model_buffer_path = cwd + '/' + str(cwt.year) + '_' + str(cwt.month) + '_' + str(cwt.day)
+            model_buffer_path = cwd + '/' + basis + '_' + str(cwt.year) + '_' + str(cwt.month) + '_' + str(cwt.day)
             warnings.warn(f"the buffer path saving the dynode model is in %s" % (model_buffer_path))
 
         vf_kwargs = {

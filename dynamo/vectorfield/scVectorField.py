@@ -943,27 +943,3 @@ if use_dynode:
                            }
 
             return self.vf_dict
-
-        # def get_Jacobian(self, X=None, **kwargs):
-        #     if X is None: X = self.X_ori
-        #     return self.get_Jacobian(X=X, **kwargs)
-        #
-        # def compute_divergence(self, X=None, **kwargs):
-        #     if X is None: X = self.X_ori
-        #     return self.compute_divergence(X=X, **kwargs)
-        #
-        # def compute_curl(self, X=None, **kwargs):
-        #     if X is None: X = self.X_ori
-        #     return self.compute_curl(X=X, **kwargs)
-        #
-        # def compute_acceleration(self, X=None, **kwargs):
-        #     if X is None: X = self.X_ori
-        #     return self.compute_acceleration(X=X, **kwargs)
-        #
-        # def compute_curvature(self, X=None, **kwargs):
-        #     if X is None: X = self.X_ori
-        #     return self.compute_curvature(X=X, **kwargs)
-        #
-        # def compute_torsion(self, X=None, **kwargs):
-        #     if X is None: X = self.X_ori
-        #     return self.compute_torsion(X=X, **kwargs)
