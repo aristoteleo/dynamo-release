@@ -875,12 +875,12 @@ if use_dynode:
                 from dynode.vectorfield.losses_weighted import MSE  # MAD, BinomialChannel, WassersteinDistance, CosineDistance
 
                 good_ind = np.where(~ np.isnan(V.sum(1)))[0]
-                V = V[good_ind, :]
-                X = X[good_ind, :]
+                good_V = V[good_ind, :]
+                good_X = X[good_ind, :]
 
                 self.valid_ind = good_ind
 
-                velocity_data_sampler = VelocityDataSampler(adata={'X': X, 'V': V},
+                velocity_data_sampler = VelocityDataSampler(adata={'X': good_X, 'V': good_V},
                                                             normalize_velocity=kwargs.get('normalize_velocity', False))
 
                 vf_kwargs = {
@@ -932,7 +932,7 @@ if use_dynode:
             self.vf_dict = {"X": self.data['X'],
                            "valid_ind": self.valid_ind,
                            "Y": self.data['V'],
-                           "V": self.func(self.data["X"]),
+                           "V": self.func(self.data['X']),
                            "grid": self.data['Grid'],
                            "grid_V": self.func(self.data["Grid"]),
                            "iteration": self.parameters.pop('max_iter', int(max_iter)),
@@ -944,4 +944,26 @@ if use_dynode:
 
             return self.vf_dict
 
-
+        # def get_Jacobian(self, X=None, **kwargs):
+        #     if X is None: X = self.X_ori
+        #     return self.get_Jacobian(X=X, **kwargs)
+        #
+        # def compute_divergence(self, X=None, **kwargs):
+        #     if X is None: X = self.X_ori
+        #     return self.compute_divergence(X=X, **kwargs)
+        #
+        # def compute_curl(self, X=None, **kwargs):
+        #     if X is None: X = self.X_ori
+        #     return self.compute_curl(X=X, **kwargs)
+        #
+        # def compute_acceleration(self, X=None, **kwargs):
+        #     if X is None: X = self.X_ori
+        #     return self.compute_acceleration(X=X, **kwargs)
+        #
+        # def compute_curvature(self, X=None, **kwargs):
+        #     if X is None: X = self.X_ori
+        #     return self.compute_curvature(X=X, **kwargs)
+        #
+        # def compute_torsion(self, X=None, **kwargs):
+        #     if X is None: X = self.X_ori
+        #     return self.compute_torsion(X=X, **kwargs)

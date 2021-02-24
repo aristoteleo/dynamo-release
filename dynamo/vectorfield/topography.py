@@ -698,10 +698,6 @@ def VectorField(
             raise ImportError("You need to install the package `dynode`."
                               "install dynode via `pip install dynode`")
 
-        good_ind = np.where(~ np.isnan(V.sum(1)))[0]
-        V = V[good_ind, :]
-        X = X[good_ind, :]
-
         velocity_data_sampler = VelocityDataSampler(adata = {'X': X, 'V': V}, normalize_velocity=normalize)
         max_iter = (2 * 100000 * np.log(X.shape[0]) / (250 + np.log(X.shape[0])))
 
