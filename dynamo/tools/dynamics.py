@@ -10,6 +10,7 @@ from scipy.sparse import (
 
 from .moments import moments
 from ..estimation.csc.velocity import fit_linreg, velocity, ss_estimation
+from ..estimation.csc.utils_velocity import solve_alpha_2p_mat
 from ..estimation.tsc.twostep import lin_reg_gamma_synthesis, fit_slope_stochastic
 from ..estimation.tsc.estimation_kinetic import *
 from ..estimation.tsc.utils_kinetic import *
@@ -141,6 +142,13 @@ def dynamics(
             Whether to concatenate data before estimation. If your data is a list of matrices for each time point, this need to be set as True.
         log_unnormalized: `bool` (default: `True`)
             Whether to log transform the unnormalized data.
+        one_shot_method: `str` (default: `combined`)
+            The method that will be used for estimating kinetic parameters for one-shot experiment data. Can be one of
+            {"combined", "sci-fate", "sci_fate"}.
+            (1). the "sci-fate" method directly solves gamma with the first-order decay model;
+            (2). the "combined" model uses the linear regression under steady state to estimate relative gamma, and then
+                 calculate absolute gamma (degradation rate), beta (splicing rate) and cell-wise alpha (transcription
+                 rate).
         re_smooth: `bool` (default: `False`)
             Whether to re-smooth the adata and also recalculate 1/2 moments or covariance.
         sanity_check: `bool` (default: `False`)
@@ -300,7 +308,8 @@ def dynamics(
             if group is not None and group in adata.obs.columns:
                 moments(adata, genes=valid_bools, group=group)
             else:
-                moments(adata, genes=valid_bools, group=tkey)
+                moments(adata, genes=valid_bools, group=tkey) if len(np.unique(adata.obs[tkey])) > 1 \
+                    else moments(adata, genes=valid_bools)
         elif tkey is not None:
             warnings.warn(f"You used tkey {tkey} (or group {group}), but you have calculated local smoothing (1st moment) "
                           f"for your data before. Please ensure you used the desired tkey or group when the smoothing was "
@@ -463,31 +472,33 @@ def dynamics(
                 # also get vel_N and vel_T
                 if NTR_vel:
                     if has_splicing:
-                        if experiment_type in ['one_shot', 'one-shot', "kin"]:
-                            vel_U = (U - csr_matrix(Kc).multiply(U_)).multiply(csr_matrix(gamma_ / Kc)) # vel.vel_s(U_)
-                            vel_S = vel.vel_s(U_, S_)
-
+                        if experiment_type == "kin":
                             Kc = np.clip(gamma[:, None], 0, 1 - 1e-3)  # S - U slope
                             gamma_ = -(np.log(1 - Kc) / t[None, :])  # actual gamma
+
+                            vel_U = (U.multiply(csr_matrix(gamma_ / Kc)) - csr_matrix(beta).multiply(U_)) # vel.vel_s(U_)
+                            vel_S = vel.vel_s(U_, S_)
+
                             vel_N = (U - csr_matrix(Kc).multiply(U)).multiply(csr_matrix(gamma_ / Kc)) # vel.vel_u(U)
                             # scale back to true velocity via multiplying "gamma_ / Kc".
                             vel_T = (U - csr_matrix(Kc).multiply(S)).multiply(csr_matrix(gamma_ / Kc))
                         elif experiment_type == 'mix_std_stm':
-                            vel_U = vel.vel_s(U_)
+                            # steady state RNA: u0, stimulation RNA: u_new;
+                            # cell-wise transcription rate under simulation: alpha1
+                            u0, u_new, alpha1 = solve_alpha_2p_mat(t0=np.max(t) - t, t1=t,
+                                                                   alpha0=alpha[0], beta=beta, u1=U)
+                            vel_U = alpha1 - csr_matrix(beta[:, None]).multiply(U_)
                             vel_S = vel.vel_s(U_, S_)
 
-                            Kc = np.clip(gamma[:, None], 0, 1 - 1e-3)  # S - U slope
-                            gamma_ = -(np.log(1 - Kc) / t[None, :])  # actual gamma
-                            vel_N = vel.vel_u(U)
-                            # scale back to true velocity via multiplying "gamma_ / Kc".
-                            vel_T = (U - csr_matrix(Kc).multiply(S)).multiply(csr_matrix(gamma_ / Kc))
+                            vel_N = alpha1 - csr_matrix(gamma[:, None]).multiply(u_new)
+                            vel_T = alpha1 - csr_matrix(beta[:, None]).multiply(S)
                         else:
                             vel_U = vel.vel_u(U_)
                             vel_S = vel.vel_s(U_, S_)
                             vel_N = vel.vel_u(U)
                             vel_T = vel.vel_s(U, S - U)  # need to consider splicing
                     else:
-                        if experiment_type in ['one_shot', 'one-shot', "kin"]:
+                        if experiment_type == "kin":
                             vel_U = np.nan
                             vel_S = np.nan
 
@@ -500,11 +511,13 @@ def dynamics(
                             vel_U = np.nan
                             vel_S = np.nan
 
-                            Kc = np.clip(gamma[:, None], 0, 1 - 1e-3)  # S - U slope
-                            gamma_ = -(np.log(1 - Kc) / t[None, :])  # actual gamma
-                            vel_N = vel.vel_u(U)
-                            # scale back to true velocity via multiplying "gamma_ / Kc".
-                            vel_T = (U - csr_matrix(Kc).multiply(S)).multiply(csr_matrix(gamma_ / Kc))
+                            # steady state RNA: u0, stimulation RNA: u_new;
+                            # cell-wise transcription rate under simulation: alpha1
+                            u0, u_new, alpha1 = solve_alpha_2p_mat(t0=np.max(t) - t, t1=t,
+                                                                   alpha0=alpha[0], beta=gamma, u1=U)
+
+                            vel_N = alpha1 - csr_matrix(gamma[:, None]).multiply(u_new)
+                            vel_T = alpha1 - csr_matrix(gamma[:, None]).multiply(S)
                         else:
                             vel_U = np.nan
                             vel_S = np.nan
@@ -512,31 +525,35 @@ def dynamics(
                             vel_T = vel.vel_u(S)  # don't consider splicing
                 else:
                     if has_splicing:
-                        if experiment_type in ['one_shot', 'one-shot', "kin"]:
-                            vel_U = (U_ - csr_matrix(Kc).multiply(U)).multiply(csr_matrix(gamma_ / Kc)) # vel.vel_u(U)
-                            vel_S = vel.vel_s(U, S)
-
+                        if experiment_type == "kin":
                             Kc = np.clip(gamma[:, None], 0, 1 - 1e-3)  # S - U slope
                             gamma_ = -(np.log(1 - Kc) / t[None, :])  # actual gamma
+
+                            vel_U = (U_.multiply(csr_matrix(gamma_ / Kc) - csr_matrix(beta).multiply(U))) # vel.vel_u(U)
+                            vel_S = vel.vel_s(U, S)
+
                             vel_N = (U_ - csr_matrix(Kc).multiply(U_)).multiply(csr_matrix(gamma_ / Kc)) # vel.vel_u(U_)
                             # scale back to true velocity via multiplying "gamma_ / Kc".
                             vel_T = (U_ - csr_matrix(Kc).multiply(S_)).multiply(csr_matrix(gamma_ / Kc))
                         elif experiment_type == 'mix_std_stm':
-                            vel_U = vel.vel_u(U)
+                            # steady state RNA: u0, stimulation RNA: u_new;
+                            # cell-wise transcription rate under simulation: alpha1
+                            u0, u_new, alpha1 = solve_alpha_2p_mat(t0=np.max(t) - t, t1=t,
+                                                                   alpha0=alpha[0], beta=beta, u1=U_)
+
+                            vel_U = alpha1 - csr_matrix(beta[:, None]).multiply(U)
                             vel_S = vel.vel_s(U, S)
 
-                            Kc = np.clip(gamma[:, None], 0, 1 - 1e-3)  # S - U slope
-                            gamma_ = -(np.log(1 - Kc) / t[None, :])  # actual gamma
-                            vel_N = (U_ - csr_matrix(Kc).multiply(U_)).multiply(csr_matrix(gamma_ / Kc)) # vel.vel_u(U_)
-                            # scale back to true velocity via multiplying "gamma_ / Kc".
-                            vel_T = (U_ - csr_matrix(Kc).multiply(S_)).multiply(csr_matrix(gamma_ / Kc))
+                            vel_N = alpha1 - csr_matrix(gamma[:, None]).multiply(u_new)
+                            vel_T = alpha1 - csr_matrix(beta[:, None]).multiply(S_)
+
                         else:
                             vel_U = vel.vel_u(U)
                             vel_S = vel.vel_s(U, S)
                             vel_N = vel.vel_u(U_)
                             vel_T = vel.vel_s(U_, S_ - U_)  # need to consider splicing
                     else:
-                        if experiment_type in ['one_shot', 'one-shot', "kin"]:
+                        if experiment_type == "kin":
                             vel_U = np.nan
                             vel_S = np.nan
 
@@ -549,11 +566,13 @@ def dynamics(
                             vel_U = np.nan
                             vel_S = np.nan
 
-                            Kc = np.clip(gamma[:, None], 0, 1 - 1e-3)  # S - U slope
-                            gamma_ = -(np.log(1 - Kc) / t[None, :])  # actual gamma
-                            vel_N = vel.vel_u(U_)
-                            # scale back to true velocity via multiplying "gamma_ / Kc".
-                            vel_T = (U_ - csr_matrix(Kc).multiply(S_)).multiply(csr_matrix(gamma_ / Kc))
+                            # steady state RNA: u0, stimulation RNA: u_new;
+                            # cell-wise transcription rate under simulation: alpha1
+                            u0, u_new, alpha1 = solve_alpha_2p_mat(t0=np.max(t) - t, t1=t,
+                                                                   alpha0=alpha[0], beta=gamma, u1=U_)
+
+                            vel_N = alpha1 - csr_matrix(gamma[:, None]).multiply(u_new)
+                            vel_T = alpha1 - csr_matrix(gamma[:, None]).multiply(S_)
                         else:
                             vel_U = np.nan
                             vel_S = np.nan
