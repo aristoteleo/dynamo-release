@@ -1,5 +1,5 @@
 import numpy as np
-from random import uniform
+from random import uniform, seed
 from anndata import AnnData
 import pandas as pd
 
@@ -168,17 +168,18 @@ def neurogenesis(
     return dx
 
 
-def state_space_sampler(ode, dim, clip=True, min_val=0, max_val=4, N=10000):
+def state_space_sampler(ode, dim, seed_num=19491001, clip=True, min_val=0, max_val=4, N=10000):
     """Sample N points from the dim dimension gene expression space while restricting the values to be between min_val and max_val. Velocity vector at the sampled points will be calculated according to ode function.
     """
 
+    seed(seed)
     X = np.array([[uniform(min_val, max_val) for _ in range(dim)] for _ in range(N)])
     Y = np.clip(X + ode(X), a_min=min_val, a_max=None) if clip else X + ode(X)
 
     return X, Y
 
 
-def Simulator(motif="neurogenesis", clip=True, cell_num=5000):
+def Simulator(motif="neurogenesis", seed_num=19491001, clip=True, cell_num=5000):
     """Simulate the gene expression dynamics via deterministic ODE model
 
     Parameters
@@ -197,11 +198,11 @@ def Simulator(motif="neurogenesis", clip=True, cell_num=5000):
     """
 
     if motif == "toggle":
-        X, Y = state_space_sampler(ode=toggle, dim=2, min_val=0, max_val=6, N=cell_num)
+        X, Y = state_space_sampler(ode=toggle, dim=2, seed_num=seed_num, min_val=0, max_val=6, N=cell_num)
         gene_name = np.array(["X", "Y"])
     elif motif == "neurogenesis":
         X, Y = state_space_sampler(
-            ode=neurogenesis, dim=13, min_val=0, max_val=6, N=cell_num
+            ode=neurogenesis, dim=13, seed_num=seed_num, min_val=0, max_val=6, N=cell_num
         )
 
         gene_name = np.array(
