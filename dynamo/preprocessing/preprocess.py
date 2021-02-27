@@ -1547,6 +1547,10 @@ def recipe_monocle(
         valid_genes = adata.var.index.intersection(genes_to_exclude)
         if len(valid_genes) > 0: adata.var.loc[valid_genes, "use_for_pca"] = False
 
+        if adata.var.use_for_pca.sum() < 50:
+            warnings.warn(f"You only have less than 50 feature gene selected. Are you sure you want to exclude all "
+                          f"genes passed to the genes_to_exclude argument?")
+
     # normalized data based on sz factor
     if not _logged:
         total_szfactor = "total_Size_Factor" if total_layers is not None else None
