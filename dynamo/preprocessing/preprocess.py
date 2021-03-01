@@ -1597,7 +1597,7 @@ def recipe_monocle(
     valid_ind = np.array(valid_ind).flatten()
 
     bad_genes = np.where(adata.var.use_for_pca)[0][~valid_ind]
-    if len(adata.var.index[bad_genes].intersection(genes_to_append)) > 0:
+    if genes_to_append is not None and len(adata.var.index[bad_genes].intersection(genes_to_append)) > 0:
         raise ValueError(f"The gene list passed to argument genes_to_append contains genes with no expression "
                          f"across cells or non finite values. Please check those genes:"
                          f"{set(bad_genes).intersection(genes_to_append)}!")
