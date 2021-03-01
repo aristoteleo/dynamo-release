@@ -401,6 +401,8 @@ def cell_wise_vectors(
                 V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
                 adata.obsm[vector + "_" + basis] = V
 
+    X, V = X.copy(), V.copy()
+
     V /= 3 * quiver_autoscaler(X, V)
     if inverse: V = -V
 
@@ -632,6 +634,8 @@ def grid_vectors(
                 X = adata.obsm["X_" + basis][:, [x, y]]
                 V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
                 adata.obsm[vector + '_' + basis] = V
+
+    X, V = X.copy(), V.copy()
 
     grid_kwargs_dict = {
         "density": None,
@@ -898,6 +902,8 @@ def streamline_plot(
                 X = adata.obsm["X_" + basis][:, [x, y]]
                 V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
                 adata.obsm[vector + '_' + basis] = V
+
+    X, V = X.copy(), V.copy()
 
     grid_kwargs_dict = {
         "density": None,
