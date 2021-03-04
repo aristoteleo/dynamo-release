@@ -24,6 +24,9 @@ def integrate_vf_ivp(init_states,
 
     T, Y, SOL = [], [], []
 
+    if interpolation_num is not None and integration_direction == 'both':
+        interpolation_num = interpolation_num * 2
+
     for i in tqdm(range(n_cell), desc="integration with ivp solver", disable=disable):
         y0 = init_states[i, :]
         ivp_f, ivp_f_event = (
@@ -80,9 +83,6 @@ def integrate_vf_ivp(init_states,
                 np.hstack((y_ivp_b.t[::-1], y_ivp_f.t)),
             )
             sol = [y_ivp_b.sol, y_ivp_f.sol]
-
-            if interpolation_num is not None:
-                interpolation_num = interpolation_num * 2
         else:
             raise Exception(
                 "both, forward, backward are the only valid direction argument strings"
@@ -121,7 +121,7 @@ def integrate_vf_ivp(init_states,
         Y, t = Y_, t_
     elif sampling == 'logspace':
         Y_, t_ = [None] * n_cell, [None] * n_cell
-        for i in tqdm(range(n_cell), desc="uniformly sampling points along a trajectory", disable=disable):
+        for i in tqdm(range(n_cell), desc="sampling points along a trajectory in logspace", disable=disable):
             tau, x = T[i], Y[i].T
             t_[i] = np.logspace(0, np.log10(max(tau) + 1), interpolation_num) - 1
 
@@ -157,7 +157,7 @@ def integrate_vf_ivp(init_states,
         _Y = None
         if integration_direction == "both":
             neg_t_len = sum(valid_t_trans < 0)
-        for i in tqdm(range(n_cell), desc="calculate solutions on the sampled time points", disable=disable):
+        for i in tqdm(range(n_cell), desc="calculate solutions on the sampled time points in logspace", disable=disable):
             cur_Y = (
                 SOL[i](valid_t_trans)
                 if integration_direction != "both"

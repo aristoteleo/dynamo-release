@@ -96,7 +96,7 @@ def moran_i(adata,
         i: row.indices
         for i, row in enumerate(neighbor_graph)
     }
-    if weighted :
+    if weighted:
         weight_dict = {
             i: row.data
             for i, row in enumerate(neighbor_graph)
