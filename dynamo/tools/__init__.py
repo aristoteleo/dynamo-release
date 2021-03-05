@@ -86,7 +86,7 @@ from .sampling import (
 )
 
 
-from .utils import cell_norm, table_rank_dict
+from .utils import cell_norm, table_rank_dict, index_gene
 
 # cell proliferation and death:
 from .growth import (
