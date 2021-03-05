@@ -710,16 +710,17 @@ class svc_vectorfield(base_vectorfield):
         elif dims is not None:
             init_states = init_states[:, dims]
 
-        VecFld = self.vf_dict
-        vf = lambda x: scale * vector_field_function(x=x, vf_dict=VecFld,
-                                                     dim=dims) if VecFld_true is None else VecFld_true
+        if self.func is None:
+            VecFld = self.vf_dict
+            self.func = lambda x: scale * vector_field_function(x=x, vf_dict=VecFld,
+                                                        dim=dims) if VecFld_true is None else VecFld_true
         if t_end is None: t_end = getTend(self.get_X(), self.get_V())
         t_linspace = getTseq(init_states, t_end, step_size)
         t, prediction = integrate_vf_ivp(init_states,
                                t=t_linspace,
                                args=args,
                                integration_direction=integration_direction,
-                               f=vf,
+                               f=self.func,
                                interpolation_num=interpolation_num,
                                average=average,
                                sampling=sampling,
