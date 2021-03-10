@@ -9,7 +9,7 @@ with open("README.md", "r") as fh:
 setup(
     name="dynamo-release",
     version="0.95.2",
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     install_requires=[
         l.strip() for l in Path('requirements.txt').read_text('utf-8').splitlines()
     ], # 'yt>=3.5.1',

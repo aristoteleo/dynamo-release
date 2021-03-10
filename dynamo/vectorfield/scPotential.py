@@ -460,7 +460,7 @@ def Potential(adata, DiffMat=None, method="Ao", **kwargs):
 
     """
 
-    Function = adata.uns["VecFld"]["VecFld"]
+    Function = adata.uns["VecFld"]
     DiffMat = DiffusionMatrix if DiffMat is None else DiffMat
     pot = Pot(Function, DiffMat, **kwargs)
     pot.fit(method=method)

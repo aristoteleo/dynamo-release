@@ -297,7 +297,7 @@ def cell_velocities(
     finite_inds = get_finite_inds(V)
     X, V = X[:, finite_inds], V[:, finite_inds]
 
-    if finite_inds.sum() < 5:
+    if finite_inds.sum() < 5 and len(finite_inds) > 100:
         raise Exception(f'there are only {finite_inds.sum()} genes have finite velocity values. '
                         f'Please make sure the {vkey} is correctly calculated! And if you run kinetic parameters '
                         f'estimation for each cell-group via `group` argument, make sure all groups have sufficient '

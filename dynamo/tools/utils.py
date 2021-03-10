@@ -1775,7 +1775,7 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
         vf_key = "VecFld_" + basis
     else:
         vf_key = "VecFld"
-    VecFld = adata.uns[vf_key]['VecFld']
+    VecFld = adata.uns[vf_key]
     X = VecFld['X']
     valid_genes = None
 
@@ -1796,7 +1796,7 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
             init_states = adata[_cell_names].obsm["X_" + basis].copy()
             if len(_cell_names) == 1:
                 init_states = init_states.reshape((1, -1))
-            VecFld = adata.uns["VecFld_" + basis]["VecFld"]
+            VecFld = adata.uns["VecFld_" + basis]
             X = adata.obsm["X_" + basis]
 
             valid_genes = [
@@ -1820,10 +1820,10 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
                 init_states = init_states.reshape((1, -1))
 
             if layer == "X":
-                VecFld = adata.uns["VecFld"]["VecFld"]
+                VecFld = adata.uns["VecFld"]
                 X = adata[:, valid_genes].X
             else:
-                VecFld = adata.uns["VecFld_" + layer]["VecFld"]
+                VecFld = adata.uns["VecFld_" + layer]
                 X = log1p_(adata, adata[:, valid_genes].layers[layer])
 
     if init_states.shape[0] > 1 and average in ["origin", 'trajectory', True]:

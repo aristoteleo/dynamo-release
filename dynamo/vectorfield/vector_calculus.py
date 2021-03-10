@@ -520,7 +520,9 @@ def acceleration(adata,
         else:
             raise ValueError(f"current only support two methods, SparseVFC and dynode")
 
-    acce_norm, acce = vector_field_class.compute_acceleration(method=method, **kwargs)
+    X, V = vector_field_class.get_data()
+
+    acce_norm, acce = vector_field_class.compute_acceleration(X=X, method=method, **kwargs)
 
     acce_key = "acceleration" if basis is None else "acceleration_" + basis
     adata.obsm[acce_key] = acce
@@ -589,7 +591,9 @@ def curvature(adata,
         raise ValueError(f"There are only two available formulas (formula can be either `{1, 2}`) to calculate "
                          f"curvature, but your formula argument is {formula}.")
 
-    curv, curv_mat = vector_field_class.compute_curvature(formula=formula, method=method, **kwargs)
+    X, V = vector_field_class.get_data()
+
+    curv, curv_mat = vector_field_class.compute_curvature(X=X, formula=formula, method=method, **kwargs)
 
     curv_key = "curvature" if basis is None else "curvature_" + basis
 
@@ -636,7 +640,8 @@ def torsion(adata,
         else:
             raise ValueError(f"current only support two methods, SparseVFC and dynode")
 
-    torsion_mat = vector_field_class.compute_torsion(**kwargs)
+    X, V = vector_field_class.get_data()
+    torsion_mat = vector_field_class.compute_torsion(X=X, **kwargs)
     torsion = np.array([np.linalg.norm(i) for i in torsion_mat])
 
     torsion_key = "torsion" if basis is None else "torsion_" + basis
@@ -700,7 +705,8 @@ def curl(adata,
         for i, x in tqdm(enumerate(X_data), f"Calculating curl with the reconstructed vector field on the {basis} basis. "):
             curl[i] = vector_field_class.compute_curl(X=x, **kwargs)
     '''
-    curl = vector_field_class.compute_curl(method=method, **kwargs)
+    X, V = vector_field_class.get_data()
+    curl = vector_field_class.compute_curl(X=X, method=method, **kwargs)
     curl_key = "curl" if basis is None else "curl_" + basis
 
     adata.obs[curl_key] = curl

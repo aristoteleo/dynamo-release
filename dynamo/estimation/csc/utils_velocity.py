@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.optimize import least_squares
-from scipy.sparse import issparse
+from scipy.sparse import issparse, csr_matrix
 from sklearn.linear_model import LinearRegression, RANSACRegressor
 import statsmodels.api as sm
 from ...tools.moments import strat_mom
@@ -189,9 +189,58 @@ def solve_alpha_2p(t0, t1, alpha0, beta, u1):
     u1 = np.mean(u1)
 
     u0 = alpha0 / beta * (1 - np.exp(-beta * t0))
+    if t0 == 0: u0 = 0
     alpha1 = beta * (u1 - u0 * np.exp(-beta * t1)) / (1 - np.exp(-beta * t1))
+    if t0 == 0: alpha1 = 0
 
     return alpha1
+
+
+def solve_alpha_2p_mat(t0, t1, alpha0, beta, u1):
+    """Given known steady state alpha and beta, solve stimulation alpha for a mixed steady state and stimulation
+    labeling experiment in a matrix form.
+
+    Parameters
+    ----------
+    t0: :class:`~numpy.ndarray`
+        Time period for steady state labeling for each cell.
+    t1: :class:`~numpy.ndarray`
+        Time period for stimulation labeling for each cell.
+    alpha0: :class:`~numpy.ndarray`
+        steady state transcription rate calculated from one-shot experiment mode for each gene.
+    beta: :class:`~numpy.ndarray`
+        steady state (and simulation) splicing rate calculated from one-shot experiment mode for each gene.
+    u1: :class:`~numpy.ndarray` or sparse `csr_matrix`
+        A vector of labeled RNA amount in each cell observed at time t0 + t1.
+
+    Returns
+    -------
+    Returns the transcription rate (alpha1) for the stimulation period in the data.
+    """
+
+    alpha0 = np.repeat(
+        alpha0.reshape((-1, 1)), u1.shape[1], axis=1
+    )
+    beta = np.repeat(
+        beta.reshape((-1, 1)), u1.shape[1], axis=1
+    )
+    t0 = np.repeat(
+        t0.reshape((-1, 1)), u1.shape[0], axis=1
+    ).T
+    t1 = np.repeat(
+        t1.reshape((-1, 1)), u1.shape[0], axis=1
+    ).T
+
+    u0 = alpha0 / np.multiply(beta, (1 - np.exp(-np.multiply(beta, t0))))
+    u0[t0 == 0] = 0
+
+    u_new = u1 - np.multiply(u0, np.exp(-np.multiply(beta, t1)))
+    u_new[t1 == 0] = 0
+
+    alpha1 = np.multiply(beta, u_new / (1 - np.exp(-np.multiply(beta, t1))))
+    alpha1[t1 == 0] = 0
+
+    return csr_matrix(u0), csr_matrix(u_new), csr_matrix(alpha1)
 
 
 def fit_linreg(x, y, mask=None, intercept=False, r2=True):

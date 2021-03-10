@@ -698,17 +698,13 @@ def VectorField(
             raise ImportError("You need to install the package `dynode`."
                               "install dynode via `pip install dynode`")
 
-        good_ind = np.where(~ np.isnan(V.sum(1)))[0]
-        V = V[good_ind, :]
-        X = X[good_ind, :]
-
         velocity_data_sampler = VelocityDataSampler(adata = {'X': X, 'V': V}, normalize_velocity=normalize)
         max_iter = (2 * 100000 * np.log(X.shape[0]) / (250 + np.log(X.shape[0])))
 
         cwd, cwt = os.getcwd(), datetime.datetime.now()
 
         if model_buffer_path is None:
-            model_buffer_path = cwd + '/' + str(cwt.year) + '_' + str(cwt.month) + '_' + str(cwt.day)
+            model_buffer_path = cwd + '/' + basis + '_' + str(cwt.year) + '_' + str(cwt.month) + '_' + str(cwt.day)
             warnings.warn(f"the buffer path saving the dynode model is in %s" % (model_buffer_path))
 
         vf_kwargs = {

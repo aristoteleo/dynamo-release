@@ -1211,6 +1211,8 @@ def recipe_monocle(
     splicing_total_layers=False,
     X_total_layers=False,
     genes_to_use=None,
+    genes_to_append=None,
+    genes_to_exclude=None,
     method="pca",
     num_dim=30,
     sz_method='median',
@@ -1279,7 +1281,11 @@ def recipe_monocle(
         X_total_layers: bool (default `False`)
             Whether to also normalize adata.X by size factor from total RNA.
         genes_to_use: `list` (default: `None`)
-            A list genes of gene names that will be used to set as the feature genes for downstream analysis.
+            A list of gene names that will be used to set as the feature genes for downstream analysis.
+        genes_to_append: `list` (default: `None`)
+            A list of gene names that will be appended to the feature genes list for downstream analysis.
+        genes_to_exclude: `list` (default: `None`)
+            A list of gene names that will be excluded to the feature genes list for downstream analysis.
         method: `str` (default: `log`)
             The linear dimension reduction methods to be used.
         num_dim: `int` (default: `30`)
@@ -1392,6 +1398,12 @@ def recipe_monocle(
             warnings.warn(f"\nDynamo detects your labeling data is from a {experiment_type} experiment, please correct "
                           f"\nthis via supplying the correct experiment_type (one of `one-shot`, `kin`, `deg`) as "
                           f"needed.")
+        elif experiment_type not in ['one-shot', 'kin', 'mixture', 'mix_std_stm', 'kinetics', 'mix_pulse_chase',
+                                           'mix_kin_deg']:
+            raise ValueError(f"expriment_type can only be one of ['one-shot', 'kin', 'mixture', 'mix_std_stm', "
+                             f"'kinetics', 'mix_pulse_chase','mix_kin_deg']")
+        elif experiment_type == 'kinetics':
+            experiment_type = 'kin'
 
     if reset_X:
         if has_labeling:
@@ -1527,6 +1539,18 @@ def recipe_monocle(
         if not keep_filtered_genes:
             adata._inplace_subset_var(adata.var["use_for_pca"])
 
+    if genes_to_append is not None:
+        valid_genes = adata.var.index.intersection(genes_to_append)
+        if len(valid_genes) > 0: adata.var.loc[valid_genes, "use_for_pca"] = True
+
+    if genes_to_exclude is not None:
+        valid_genes = adata.var.index.intersection(genes_to_exclude)
+        if len(valid_genes) > 0: adata.var.loc[valid_genes, "use_for_pca"] = False
+
+        if adata.var.use_for_pca.sum() < 50:
+            warnings.warn(f"You only have less than 50 feature gene selected. Are you sure you want to exclude all "
+                          f"genes passed to the genes_to_exclude argument?")
+
     # normalized data based on sz factor
     if not _logged:
         total_szfactor = "total_Size_Factor" if total_layers is not None else None
@@ -1571,10 +1595,14 @@ def recipe_monocle(
     cm_genesums = CM.sum(axis=0)
     valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
     valid_ind = np.array(valid_ind).flatten()
-    adata.var.iloc[
-        np.where(adata.var.use_for_pca)[0][~valid_ind],
-        adata.var.columns.tolist().index("use_for_pca"),
-    ] = False
+
+    bad_genes = np.where(adata.var.use_for_pca)[0][~valid_ind]
+    if genes_to_append is not None and len(adata.var.index[bad_genes].intersection(genes_to_append)) > 0:
+        raise ValueError(f"The gene list passed to argument genes_to_append contains genes with no expression "
+                         f"across cells or non finite values. Please check those genes:"
+                         f"{set(bad_genes).intersection(genes_to_append)}!")
+
+    adata.var.iloc[bad_genes, adata.var.columns.tolist().index("use_for_pca")] = False
     CM = CM[:, valid_ind]
     if method == "pca":
         adata, fit, _ = pca(adata, CM, num_dim, "X_" + method.lower())
