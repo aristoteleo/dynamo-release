@@ -53,6 +53,10 @@ def state_graph(
             AnnData object that will be used to calculate a cell type (group) transition graph.
         group: `str`
             The attribute to group cells (column names in the adata.obs).
+        method: `str` (default: 'vf')
+            The method that will be used to construct lumped cell state graph. Must be one of {`vf` or `markov`}
+        transition_mat_key: `str` (default: 'pearson_transition_matrix')
+            The key that corresponds to the transition graph used in the KernelMarkovChain cluster for lumping.
         approx: `bool` (default: False)
             Whether to use streamplot to get the integration lines from each cell.
         basis: `str` or None (default: `umap`)
@@ -192,6 +196,8 @@ def state_graph(
                     grp_avg_time[i, ind_other_cell_type] += (
                         pass_df.groupby("group")["t"].mean()[confident_pass_check].values
                     )
+            else:
+                raise ValueError(f"Currently only support vector field or Markov chain based lumping.")
 
             # average across cells
             grp_avg_time[i, :] /= grp_graph[i, :]
