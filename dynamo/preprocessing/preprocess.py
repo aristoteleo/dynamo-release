@@ -1345,7 +1345,9 @@ def recipe_monocle(
             dimensions, etc.
     """
 
-    adata.var['use_for_pca'] = False # avoid use_for_pca was set previously.
+    if 'use_for_pca' in adata.var.columns:
+        del adata.var['use_for_pca'] # avoid use_for_pca was set previously.
+
     adata.uns["pp"] = {}
     n_cells, n_genes = adata.n_obs, adata.n_vars
     adata = convert2symbol(adata, scopes=scopes)
