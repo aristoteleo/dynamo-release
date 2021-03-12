@@ -8,6 +8,7 @@ from scipy.linalg import eig, null_space
 from numba import jit
 from .utils import append_iterative_neighbor_indices
 
+
 def markov_combination(x, v, X):
     from cvxopt import matrix, solvers
 
@@ -526,9 +527,28 @@ class KernelMarkovChain(MarkovChain):
         Y = np.real(vals[1 : n_dims + 1] ** t) * np.real(vecs[:, 1 : n_dims + 1])
         return Y
 
-    def lump(self, M_part, M_weight=None):
+    def compute_theta(self, p_st=None):
+        p_st = self.compute_stationary_distribution() if p_st is None else p_st
+        Pi = sp.csr_matrix(np.diag(np.sqrt(p_st)))
+        Pi_right = sp.csc_matrix(np.diag(np.sqrt(p_st)))
+        #Pi_inv = sp.csr_matrix(np.linalg.pinv(Pi))
+        #Pi_inv_right = sp.csc_matrix(np.linalg.pinv(Pi))
+        Pi_inv = sp.csr_matrix(np.diag(np.sqrt(1/p_st)))
+        Pi_inv_right = sp.csc_matrix(np.diag(np.sqrt(1/p_st)))
+        Theta = 0.5 * (Pi @ self.P @ Pi_inv_right + Pi_inv @ self.P.T @ Pi_right)
 
+        return Theta
+
+    def lump(self, labels, M_weight=None):
+        k = len(labels)
         M_part = np.zeros((k, self.get_num_states()))
+
+        P = self.compute_stationary_distribution()
+
+        Theta = self.compute_theta(P)
+        if sp.issparse(Theta): Theta = Theta.A
+        _, vecs = sp.linalg.eigsh(Theta, k=k)
+
         for i in range(len(labels)):
             M_part[labels[i], i] = 1
 
@@ -538,8 +558,16 @@ class KernelMarkovChain(MarkovChain):
             M_weight = np.multiply(M_part, p_st)
             M_weight = np.divide(M_weight.T, M_weight @ np.ones(n_node))
         P_lumped = M_part @ self.P @ M_weight
+
         return P_lumped
 
+    def navie_lump(self, x, grp, axis=0):
+        k = len(np.unique(grp))
+        y = np.zeros(k)
+        for i in range(len(y)):
+            y[i] = np.mean(x[grp == i], axis)
+
+        return y
 
 class DiscreteTimeMarkovChain(MarkovChain):
     def __init__(self, P=None):
