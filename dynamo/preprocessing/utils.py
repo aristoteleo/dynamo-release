@@ -90,6 +90,17 @@ def convert2symbol(adata, scopes=None, subset=True):
 
     return adata
 
+
+def gene_exp_fraction(X, threshold=0.001):
+    """Calculate fraction of each gene's coun to total counts across cells and identify high fraction genes."""
+
+    frac = X.sum(0) / X.sum()
+    if issparse(X): frac = frac.A.reshape(-1, 1)
+
+    valid_ids = np.where(frac > threshold)[1]
+
+    return frac, valid_ids
+
 # ---------------------------------------------------------------------------------------------------
 # implmentation of Cooks' distance (but this is for Poisson distribution fitting)
 

@@ -26,6 +26,7 @@ from .utils import (
     detect_datatype,
     basic_stats,
     add_noise_to_duplicates,
+    gene_exp_fraction,
 )
 from .cell_cycle import cell_cycle_scores
 
@@ -1121,6 +1122,7 @@ def select_genes(
     sort_by="SVR",
     n_top_genes=2000,
     SVRs_kwargs={},
+    only_bools=False,
 ):
     """Select feature genes based on a collection of filters.
 
@@ -1138,6 +1140,8 @@ def select_genes(
             Which soring method, either SVR, dispersion or Gini index, to be used to select genes.
         n_top_genes: `int` (default: `int`)
             How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
+        only_bools: `bool` (default: `False`)
+            Only return a vector of bool values.
 
     Returns
     -------
@@ -1196,7 +1200,7 @@ def select_genes(
         adata._inplace_subset_var(filter_bool)
         adata.var["use_for_pca"] = True
 
-    return adata
+    return filter_bool if only_bools else adata
 
 
 def recipe_monocle(
@@ -1213,6 +1217,7 @@ def recipe_monocle(
     genes_to_use=None,
     genes_to_append=None,
     genes_to_exclude=None,
+    expression_threshold=0.005,
     method="pca",
     num_dim=30,
     sz_method='median',
@@ -1221,6 +1226,7 @@ def recipe_monocle(
     pseudo_expr=1,
     feature_selection="SVR",
     n_top_genes=2000,
+    maintain_n_top_genes=True,
     relative_expr=True,
     keep_filtered_cells=True,
     keep_filtered_genes=True,
@@ -1286,6 +1292,8 @@ def recipe_monocle(
             A list of gene names that will be appended to the feature genes list for downstream analysis.
         genes_to_exclude: `list` (default: `None`)
             A list of gene names that will be excluded to the feature genes list for downstream analysis.
+        expression_threshold: `float` (default: `0.001`)
+            The minimal fraction of gene counts to the total counts across cells that will used to filter genes.
         method: `str` (default: `log`)
             The linear dimension reduction methods to be used.
         num_dim: `int` (default: `30`)
@@ -1531,13 +1539,15 @@ def recipe_monocle(
             adata,
             sort_by=feature_selection,
             n_top_genes=n_top_genes,
-            keep_filtered=keep_filtered_genes,
+            keep_filtered=True,
             SVRs_kwargs=select_genes_dict,
         )
     else:
         adata.var["use_for_pca"] = adata.var.index.isin(genes_to_use)
-        if not keep_filtered_genes:
-            adata._inplace_subset_var(adata.var["use_for_pca"])
+
+    adata.var['frac'], valid_ids = gene_exp_fraction(X=adata.X, threshold=expression_threshold)
+    genes_to_exclude = adata.var_names[valid_ids] if genes_to_exclude is None else \
+        genes_to_exclude + list(adata.var_names[valid_ids])
 
     if genes_to_append is not None:
         valid_genes = adata.var.index.intersection(genes_to_append)
@@ -1547,9 +1557,31 @@ def recipe_monocle(
         valid_genes = adata.var.index.intersection(genes_to_exclude)
         if len(valid_genes) > 0: adata.var.loc[valid_genes, "use_for_pca"] = False
 
-        if adata.var.use_for_pca.sum() < 50:
+        if adata.var.use_for_pca.sum() < 50 and not maintain_n_top_genes:
             warnings.warn(f"You only have less than 50 feature gene selected. Are you sure you want to exclude all "
                           f"genes passed to the genes_to_exclude argument?")
+
+    if maintain_n_top_genes:
+        if genes_to_append is not None:
+            n_top_genes = n_top_genes - len(genes_to_append)
+            valid_ids = adata.var.index.difference(genes_to_exclude + genes_to_append)
+        else:
+            valid_ids = adata.var.index.difference(genes_to_exclude)
+
+        if n_top_genes > 0:
+            filter_bool = select_genes(
+                adata[:, valid_ids],
+                sort_by=feature_selection,
+                n_top_genes=n_top_genes,
+                keep_filtered=True, # no effect to adata
+                SVRs_kwargs=select_genes_dict,
+                only_bools=True
+            )
+
+            adata.var.loc[valid_ids, "use_for_pca"] = filter_bool
+
+    if not keep_filtered_genes:
+        adata._inplace_subset_var(adata.var["use_for_pca"])
 
     # normalized data based on sz factor
     if not _logged:
