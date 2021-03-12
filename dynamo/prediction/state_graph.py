@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from scipy.spatial import cKDTree
 from tqdm import tqdm
-from sklearn.decomposition import PCA
+
 from sklearn.preprocessing import OrdinalEncoder
 
 from ..tools.Markov import KernelMarkovChain
@@ -56,7 +56,7 @@ def state_graph(
         method: `str` (default: 'vf')
             The method that will be used to construct lumped cell state graph. Must be one of {`vf` or `markov`}
         transition_mat_key: `str` (default: 'pearson_transition_matrix')
-            The key that corresponds to the transition graph used in the KernelMarkovChain cluster for lumping.
+            The key that corresponds to the transition graph used in the KernelMarkovChain class for lumping.
         approx: `bool` (default: False)
             Whether to use streamplot to get the integration lines from each cell.
         basis: `str` or None (default: `umap`)
@@ -81,7 +81,7 @@ def state_graph(
         kmc = KernelMarkovChain(P=adata.obsp[transition_mat_key])
 
         ord_enc = OrdinalEncoder()
-        labels = ord_enc.fit_transform(adata.obs[['Cell_type']])
+        labels = ord_enc.fit_transform(adata.obs[[group]])
         labels = labels.flatten().astype(int)
 
         grp_graph = kmc.lump(labels)
@@ -197,7 +197,7 @@ def state_graph(
                         pass_df.groupby("group")["t"].mean()[confident_pass_check].values
                     )
             else:
-                raise ValueError(f"Currently only support vector field or Markov chain based lumping.")
+                raise ValueError(f"Currently only support vector field (vf) or Markov chain (markov) based lumping.")
 
             # average across cells
             grp_avg_time[i, :] /= grp_graph[i, :]
