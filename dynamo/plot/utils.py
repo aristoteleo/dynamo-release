@@ -11,6 +11,7 @@ import matplotlib.patheffects as PathEffects
 import matplotlib.tri as tri
 from scipy.spatial import Delaunay
 from warnings import warn
+import copy
 
 from ..configuration import _themes
 from ..tools.utils import integrate_vf  # integrate_vf_ivp
@@ -190,7 +191,7 @@ def _matplotlib_points(
                 )
             )
         if color_key is None:
-            cmap = matplotlib.cm.get_cmap(color_key_cmap)
+            cmap = copy.copy(matplotlib.cm.get_cmap(color_key_cmap))
             cmap.set_bad("lightgray")
 
             if highlights is None:

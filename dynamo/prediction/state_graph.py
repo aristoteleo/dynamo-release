@@ -66,7 +66,7 @@ def state_graph(
         and the average transition time.
     """
 
-    groups, uniq_grp = adata.obs[group], adata.obs[group].unique().to_list()
+    groups, uniq_grp = adata.obs[group], list(adata.obs[group].unique())
     grp_graph = np.zeros((len(uniq_grp), len(uniq_grp)))
     grp_avg_time = np.zeros((len(uniq_grp), len(uniq_grp)))
 
@@ -80,6 +80,8 @@ def state_graph(
         t_end=None,
     )
     kdt = cKDTree(all_X, leafsize=30)
+
+    vf_dict = adata.uns["VecFld_" + basis]
 
     for i, cur_grp in enumerate(tqdm(uniq_grp, desc="iterate groups:")):
         init_cells = adata.obs_names[groups == cur_grp]
@@ -99,8 +101,8 @@ def state_graph(
         )
         if approx and basis != "pca" and layer is None:
             X_grid, V_grid = (
-                adata.uns["VecFld_" + basis]["VecFld"]["grid"],
-                adata.uns["VecFld_" + basis]["VecFld"]["grid_V"],
+                vf_dict["grid"],
+                vf_dict["grid_V"],
             )
             N = int(np.sqrt(V_grid.shape[0]))
             X_grid, V_grid = (
@@ -118,10 +120,9 @@ def state_graph(
                 interpolation_num=250,
                 average=False,
             )
-
         else:
             t, X = _fate(
-                lambda x: vector_field_function(x=x, VecFld=VecFld),
+                lambda x: vector_field_function(x=x, vf_dict=vf_dict),
                 init_states,
                 t_end=t_end,
                 step_size=None,
@@ -129,6 +130,7 @@ def state_graph(
                 interpolation_num=250,
                 average=False,
             )
+            t, X = np.hstack(t), np.hstack(X).T
 
         len_per_cell = len(t)
         cell_num = int(X.shape[0] / len(t))

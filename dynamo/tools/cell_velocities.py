@@ -290,7 +290,8 @@ def cell_velocities(
     if X.shape[0] != X_embedding.shape[0]:
         raise Exception("X and X_embedding do not have the same number of samples.")
     if X.shape[1] < X_embedding.shape[1]:
-        raise Exception("The number of dimensions of X is smaller than that of the embedding.")
+        raise Exception("The number of dimensions of X is smaller than that of the embedding. Try lower the min_r2, "
+                        "min_gamma thresholds.")
 
     V = V.A if sp.issparse(V) else V
     X = X.A if sp.issparse(X) else X

@@ -526,6 +526,20 @@ class KernelMarkovChain(MarkovChain):
         Y = np.real(vals[1 : n_dims + 1] ** t) * np.real(vecs[:, 1 : n_dims + 1])
         return Y
 
+    def lump(self, M_part, M_weight=None):
+
+        M_part = np.zeros((k, self.get_num_states()))
+        for i in range(len(labels)):
+            M_part[labels[i], i] = 1
+
+        n_node = self.get_num_states()
+        if M_weight is None:
+            p_st = self.compute_stationary_distribution()
+            M_weight = np.multiply(M_part, p_st)
+            M_weight = np.divide(M_weight.T, M_weight @ np.ones(n_node))
+        P_lumped = M_part @ self.P @ M_weight
+        return P_lumped
+
 
 class DiscreteTimeMarkovChain(MarkovChain):
     def __init__(self, P=None):

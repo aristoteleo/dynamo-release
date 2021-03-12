@@ -539,7 +539,7 @@ def neighbors(
     adata.obsp["connectivities"], adata.obsp["distances"] = get_conn_dist_graph(knn, distances)
 
     adata.uns['neighbors'] = {}
-    adata.uns['neighbors']["indices"] =  knn
+    adata.uns['neighbors']["indices"] = knn
     adata.uns["neighbors"]["params"] = {
         "n_neighbors": n_neighbors,
         "method": method,

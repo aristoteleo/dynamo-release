@@ -126,7 +126,7 @@ def state_graph(
     grp_size = adata.obs[group].value_counts().values
     s_kwargs_dict.update({"s": grp_size})
 
-    Pl = adata.uns["Cell type annotation_graph"]["group_graph"]
+    Pl = adata.uns[group + "_graph"]["group_graph"]
     Pl[Pl - Pl.T < 0] = 0
     Pl /= Pl.sum(1)[:, None]
 
