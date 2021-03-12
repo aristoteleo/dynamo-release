@@ -97,7 +97,7 @@ def gene_exp_fraction(X, threshold=0.001):
     frac = X.sum(0) / X.sum()
     if issparse(X): frac = frac.A.reshape(-1, 1)
 
-    valid_ids = np.where(frac > threshold)[1]
+    valid_ids = np.where(frac > threshold)[0]
 
     return frac, valid_ids
 

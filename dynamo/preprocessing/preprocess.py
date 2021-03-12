@@ -1217,7 +1217,7 @@ def recipe_monocle(
     genes_to_use=None,
     genes_to_append=None,
     genes_to_exclude=None,
-    expression_threshold=0.005,
+    exprs_frac_max=0.005,
     method="pca",
     num_dim=30,
     sz_method='median',
@@ -1292,7 +1292,7 @@ def recipe_monocle(
             A list of gene names that will be appended to the feature genes list for downstream analysis.
         genes_to_exclude: `list` (default: `None`)
             A list of gene names that will be excluded to the feature genes list for downstream analysis.
-        expression_threshold: `float` (default: `0.001`)
+        exprs_frac_max: `float` (default: `0.001`)
             The minimal fraction of gene counts to the total counts across cells that will used to filter genes.
         method: `str` (default: `log`)
             The linear dimension reduction methods to be used.
@@ -1313,6 +1313,9 @@ def recipe_monocle(
             Which soring method, either dispersion, SVR or Gini index, to be used to select genes.
         n_top_genes: `int` (default: `2000`)
             How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
+        maintain_n_top_genes: `bool` (default: `True`)
+            Whether to ensure 2000 feature genes selected no matter what genes_to_use, genes_to_append, etc. are
+            specified. The only exception is that if `genes_to_use` is supplied with `n_top_genes`.
         relative_expr: `bool` (default: `True`)
             A logic flag to determine whether we need to divide gene expression values first by size factor before
             normalization.
@@ -1342,6 +1345,7 @@ def recipe_monocle(
             dimensions, etc.
     """
 
+    adata.var['use_for_pca'] = False # avoid use_for_pca was set previously.
     adata.uns["pp"] = {}
     n_cells, n_genes = adata.n_obs, adata.n_vars
     adata = convert2symbol(adata, scopes=scopes)
@@ -1545,8 +1549,8 @@ def recipe_monocle(
     else:
         adata.var["use_for_pca"] = adata.var.index.isin(genes_to_use)
 
-    adata.var['frac'], valid_ids = gene_exp_fraction(X=adata.X, threshold=expression_threshold)
-    genes_to_exclude = adata.var_names[valid_ids] if genes_to_exclude is None else \
+    adata.var['frac'], valid_ids = gene_exp_fraction(X=adata.X, threshold=exprs_frac_max)
+    genes_to_exclude = list(adata.var_names[valid_ids]) if genes_to_exclude is None else \
         genes_to_exclude + list(adata.var_names[valid_ids])
 
     if genes_to_append is not None:
