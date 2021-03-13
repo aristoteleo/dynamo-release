@@ -631,16 +631,16 @@ def VectorField(
             Number of cores to run the ddhodge function. If cores is set to be > 1, multiprocessing will be used to parallel
             the ddhodge calculation.
         copy:
-            Whether to return a new deep copy of adata instead of updating adata object passed in arguments and returning None.
+            Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments and returning `None`.
         kwargs:
             Other additional parameters passed to the vectorfield class.
 
     Returns
     -------
-        adata:
-            If copy and return_vf_object arguments are set to False, `AnnData` object that is updated with the `VecFld` dictionary in the `uns` attribute.
-            If return_vf_object is set to True, then a vector field class object is returned.
-            If copy is set to True, a deep copy of the original adata object is returned.
+        adata: :class:`Union[anndata.AnnData, base_vectorfield]`
+            If `copy` and `return_vf_object` arguments are set to False, `annData` object is updated with the `VecFld` dictionary in the `uns` attribute.
+            If `return_vf_object` is set to True, then a vector field class object is returned.
+            If `copy` is set to True, a deep copy of the original `adata` object is returned.
     """
     if copy:
         adata = adata.deepcopy()
