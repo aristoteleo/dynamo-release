@@ -196,12 +196,13 @@ def state_graph(
                     grp_avg_time[i, ind_other_cell_type] += (
                         pass_df.groupby("group")["t"].mean()[confident_pass_check].values
                     )
-            else:
-                raise ValueError(f"Currently only support vector field (vf) or Markov chain (markov) based lumping.")
 
             # average across cells
             grp_avg_time[i, :] /= grp_graph[i, :]
             grp_graph[i, :] /= cell_num
+
+    else:
+        raise ValueError(f"Currently only support vector field (vf) or Markov chain (markov) based lumping.")
 
     adata.uns[group + "_graph"] = {
         "group_graph": grp_graph,
