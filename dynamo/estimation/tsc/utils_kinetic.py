@@ -2,9 +2,10 @@ import numpy as np
 from scipy.integrate import odeint
 from ..csc.utils_velocity import sol_u, sol_s
 
+
 class LinearODE:
     def __init__(self, n_species, x0=None):
-        '''A general class for linear odes'''
+        """A general class for linear odes"""
         self.n_species = n_species
         # solution
         self.t = None
@@ -13,19 +14,19 @@ class LinearODE:
         self.K = None
         self.p = None
         # methods
-        self.methods = ['numerical', 'matrix']
-        self.default_method = 'matrix'
-        
+        self.methods = ["numerical", "matrix"]
+        self.default_method = "matrix"
+
     def ode_func(self, x, t):
-        '''Implement your own ODE functions here such that dx=f(x, t)'''
+        """Implement your own ODE functions here such that dx=f(x, t)"""
         dx = np.zeros(len(x))
         return dx
-    
+
     def integrate(self, t, x0=None, method=None):
         method = self.default_method if method is None else method
-        if method == 'matrix':
+        if method == "matrix":
             sol = self.integrate_matrix(t, x0)
-        elif method == 'numerical':
+        elif method == "numerical":
             sol = self.integrate_numerical(t, x0)
         self.x = sol
         self.t = t
@@ -38,29 +39,29 @@ class LinearODE:
             self.x0 = x0
         sol = odeint(self.ode_func, x0, t)
         return sol
-    
+
     def reset(self):
         # reset solutions
         self.t = None
         self.x = None
         self.K = None
         self.p = None
-        
+
     def computeKnp(self):
-        '''Implement your own vectorized ODE functions here such that dx = Kx + p'''
+        """Implement your own vectorized ODE functions here such that dx = Kx + p"""
         K = np.zeros((self.n_species, self.n_species))
         p = np.zeros(self.n_species)
         return K, p
-    
+
     def integrate_matrix(self, t, x0=None):
-        #t0 = t[0]
+        # t0 = t[0]
         t0 = 0
         if x0 is None:
             x0 = self.x0
         else:
             self.x0 = x0
 
-        if self.K is None or self.p is None: 
+        if self.K is None or self.p is None:
             K, p = self.computeKnp()
             self.K = K
             self.p = p
@@ -68,7 +69,7 @@ class LinearODE:
             K = self.K
             p = self.p
         x_ss = np.linalg.solve(K, p)
-        #x_ss = linalg.inv(K).dot(p)
+        # x_ss = linalg.inv(K).dot(p)
         y0 = x0 + x_ss
 
         D, U = np.linalg.eig(K)
@@ -76,14 +77,15 @@ class LinearODE:
         D, U, V = map(np.real, (D, U, V))
         expD = np.exp(D)
         x = np.zeros((len(t), self.n_species))
-        #x[0] = x0
+        # x[0] = x0
         for i in range(len(t)):
-            x[i] = U.dot(np.diag(expD**(t[i]-t0))).dot(V).dot(y0) - x_ss
+            x[i] = U.dot(np.diag(expD ** (t[i] - t0))).dot(V).dot(y0) - x_ss
         return x
+
 
 class MixtureModels:
     def __init__(self, models, param_distributor):
-        '''A general class for linear odes'''
+        """A general class for linear odes"""
         self.n_models = len(models)
         self.models = models
         self.n_species = np.array([mdl.n_species for mdl in self.models])
@@ -92,8 +94,8 @@ class MixtureModels:
         self.t = None
         self.x = None
         # methods
-        self.methods = ['numerical', 'matrix']
-        self.default_method = 'matrix'
+        self.methods = ["numerical", "matrix"]
+        self.default_method = "matrix"
 
     def integrate(self, t, x0=None, method=None):
         self.x = np.zeros((len(t), np.sum(self.n_species)))
@@ -106,8 +108,8 @@ class MixtureModels:
 
     def get_model_species(self, model_index):
         id = np.hstack((0, np.cumsum(self.n_species)))
-        idx = np.arange(id[-1]+1)
-        return idx[id[model_index] : id[model_index+1]]
+        idx = np.arange(id[-1] + 1)
+        return idx[id[model_index] : id[model_index + 1]]
 
     def reset(self):
         # reset solutions
@@ -129,12 +131,13 @@ class MixtureModels:
             mdl.set_params(*p)
         self.reset()
 
+
 class LambdaModels_NoSwitching(MixtureModels):
     def __init__(self, model1, model2):
-        '''
-            parameter order: alpha, lambda, (beta), gamma
-            distributor order: alpha_1, alpha_2, (beta), gamma
-        '''
+        """
+        parameter order: alpha, lambda, (beta), gamma
+        distributor order: alpha_1, alpha_2, (beta), gamma
+        """
         models = [model1, model2]
         if type(model1) in nosplicing_models and type(model2) in nosplicing_models:
             param_distributor = [[0, 2], [1, 2]]
@@ -151,9 +154,10 @@ class LambdaModels_NoSwitching(MixtureModels):
         p = np.hstack((alp_1, alp_2, params[2:]))
         return p
 
+
 class Moments(LinearODE):
     def __init__(self, a=None, b=None, alpha_a=None, alpha_i=None, beta=None, gamma=None, x0=None):
-        """This class simulates the dynamics of first and second moments of 
+        """This class simulates the dynamics of first and second moments of
         a transcription-splicing system with promoter switching."""
         # species
         self.ua = 0
@@ -172,7 +176,7 @@ class Moments(LinearODE):
         # parameters
         if not (a is None or b is None or alpha_a is None or alpha_i is None or beta is None or gamma is None):
             self.set_params(a, b, alpha_a, alpha_i, beta, gamma)
-        
+
     def ode_func(self, x, t):
         dx = np.zeros(len(x))
         # parameters
@@ -184,20 +188,20 @@ class Moments(LinearODE):
         ga = self.ga
 
         # first moments
-        dx[self.ua] = aa - be*x[self.ua] + a*(x[self.ui]-x[self.ua])
-        dx[self.ui] = ai - be*x[self.ui] - b*(x[self.ui]-x[self.ua])
-        dx[self.xa] = be*x[self.ua] - ga*x[self.xa] + a*(x[self.xi]-x[self.xa])
-        dx[self.xi] = be*x[self.ui] - ga*x[self.xi] - b*(x[self.xi]-x[self.xa])
+        dx[self.ua] = aa - be * x[self.ua] + a * (x[self.ui] - x[self.ua])
+        dx[self.ui] = ai - be * x[self.ui] - b * (x[self.ui] - x[self.ua])
+        dx[self.xa] = be * x[self.ua] - ga * x[self.xa] + a * (x[self.xi] - x[self.xa])
+        dx[self.xi] = be * x[self.ui] - ga * x[self.xi] - b * (x[self.xi] - x[self.xa])
 
         # second moments
-        dx[self.uu] = 2*self.fbar(aa*x[self.ua], ai*x[self.ui]) - 2*be*x[self.uu]
-        dx[self.xx] = 2*be*x[self.ux] - 2*ga*x[self.xx]
-        dx[self.ux] = self.fbar(aa*x[self.xa], ai*x[self.xi]) + be*x[self.uu] - (be+ga)*x[self.ux]
+        dx[self.uu] = 2 * self.fbar(aa * x[self.ua], ai * x[self.ui]) - 2 * be * x[self.uu]
+        dx[self.xx] = 2 * be * x[self.ux] - 2 * ga * x[self.xx]
+        dx[self.ux] = self.fbar(aa * x[self.xa], ai * x[self.xi]) + be * x[self.uu] - (be + ga) * x[self.ux]
 
         return dx
 
     def fbar(self, x_a, x_i):
-        return self.b/(self.a + self.b) * x_a + self.a/(self.a + self.b) * x_i
+        return self.b / (self.a + self.b) * x_a + self.a / (self.a + self.b) * x_i
 
     def set_params(self, a, b, alpha_a, alpha_i, beta, gamma):
         self.a = a
@@ -229,17 +233,17 @@ class Moments(LinearODE):
 
     def get_nx(self):
         return self.fbar(self.x[:, self.xa], self.x[:, self.xi])
-    
+
     def get_n_labeled(self):
         return self.get_nu() + self.get_nx()
 
     def get_var_nu(self):
         c = self.get_nu()
-        return self.x[:, self.uu] + c - c**2
+        return self.x[:, self.uu] + c - c ** 2
 
     def get_var_nx(self):
         c = self.get_nx()
-        return self.x[:, self.xx] + c - c**2
+        return self.x[:, self.xx] + c - c ** 2
 
     def get_cov_ux(self):
         cu = self.get_nu()
@@ -247,7 +251,7 @@ class Moments(LinearODE):
         return self.x[:, self.ux] - cu * cx
 
     def get_var_labeled(self):
-        return self.get_var_nu() + self.get_var_nx() + 2*self.get_cov_ux()
+        return self.get_var_nu() + self.get_var_nx() + 2 * self.get_cov_ux()
 
     def computeKnp(self):
         # parameters
@@ -272,8 +276,8 @@ class Moments(LinearODE):
         K[self.xi, self.xi] = -ga - b
 
         # E3
-        K[self.uu, self.uu] = -2*be
-        K[self.xx, self.xx] = -2*ga
+        K[self.uu, self.uu] = -2 * be
+        K[self.xx, self.xx] = -2 * ga
 
         # E4
         K[self.ux, self.ux] = -be - ga
@@ -287,24 +291,25 @@ class Moments(LinearODE):
         K[self.uu, self.ui] = 2 * ai * a / (a + b)
 
         # F34
-        K[self.xx, self.ux] = 2*be
+        K[self.xx, self.ux] = 2 * be
 
         # F42
-        K[self.ux, self.xa] = aa*b/(a+b)
-        K[self.ux, self.xi] = ai*a/(a+b)
+        K[self.ux, self.xa] = aa * b / (a + b)
+        K[self.ux, self.xi] = ai * a / (a + b)
 
         # F43
         K[self.ux, self.uu] = be
 
         p = np.zeros(self.n_species)
         p[self.ua] = aa
-        p[self.ui] = ai 
+        p[self.ui] = ai
 
         return K, p
 
+
 class Moments_Nosplicing(LinearODE):
     def __init__(self, a=None, b=None, alpha_a=None, alpha_i=None, gamma=None, x0=None):
-        """This class simulates the dynamics of first and second moments of 
+        """This class simulates the dynamics of first and second moments of
         a transcription-splicing system with promoter switching."""
         # species
         self.ua = 0
@@ -319,7 +324,7 @@ class Moments_Nosplicing(LinearODE):
         # parameters
         if not (a is None or b is None or alpha_a is None or alpha_i is None or gamma is None):
             self.set_params(a, b, alpha_a, alpha_i, gamma)
-        
+
     def ode_func(self, x, t):
         dx = np.zeros(len(x))
         # parameters
@@ -330,16 +335,16 @@ class Moments_Nosplicing(LinearODE):
         ga = self.ga
 
         # first moments
-        dx[self.ua] = aa - ga*x[self.ua] + a*(x[self.ui]-x[self.ua])
-        dx[self.ui] = ai - ga*x[self.ui] - b*(x[self.ui]-x[self.ua])
+        dx[self.ua] = aa - ga * x[self.ua] + a * (x[self.ui] - x[self.ua])
+        dx[self.ui] = ai - ga * x[self.ui] - b * (x[self.ui] - x[self.ua])
 
         # second moments
-        dx[self.uu] = 2*self.fbar(aa*x[self.ua], ai*x[self.ui]) - 2*ga*x[self.uu]
+        dx[self.uu] = 2 * self.fbar(aa * x[self.ua], ai * x[self.ui]) - 2 * ga * x[self.uu]
 
         return dx
 
     def fbar(self, x_a, x_i):
-        return self.b/(self.a + self.b) * x_a + self.a/(self.a + self.b) * x_i
+        return self.b / (self.a + self.b) * x_a + self.a / (self.a + self.b) * x_i
 
     def set_params(self, a, b, alpha_a, alpha_i, gamma):
         self.a = a
@@ -362,7 +367,7 @@ class Moments_Nosplicing(LinearODE):
 
     def get_var_nu(self):
         c = self.get_nu()
-        return self.x[:, self.uu] + c - c**2
+        return self.x[:, self.uu] + c - c ** 2
 
     def computeKnp(self):
         # parameters
@@ -380,7 +385,7 @@ class Moments_Nosplicing(LinearODE):
         K[self.ui, self.ui] = -ga - b
 
         # E3
-        K[self.uu, self.uu] = -2*ga
+        K[self.uu, self.uu] = -2 * ga
 
         # F31
         K[self.uu, self.ua] = 2 * aa * b / (a + b)
@@ -388,13 +393,14 @@ class Moments_Nosplicing(LinearODE):
 
         p = np.zeros(self.n_species)
         p[self.ua] = aa
-        p[self.ui] = ai 
+        p[self.ui] = ai
 
         return K, p
 
+
 class Moments_NoSwitching(LinearODE):
     def __init__(self, alpha=None, beta=None, gamma=None, x0=None):
-        """This class simulates the dynamics of first and second moments of 
+        """This class simulates the dynamics of first and second moments of
         a transcription-splicing system without promoter switching."""
         # species
         self.u = 0
@@ -411,7 +417,7 @@ class Moments_NoSwitching(LinearODE):
         # parameters
         if not (alpha is None or beta is None or gamma is None):
             self.set_params(alpha, beta, gamma)
-        
+
     def ode_func(self, x, t):
         dx = np.zeros(len(x))
         # parameters
@@ -420,13 +426,13 @@ class Moments_NoSwitching(LinearODE):
         ga = self.ga
 
         # first moments
-        dx[self.u] = al - be*x[self.u]
-        dx[self.s] = be*x[self.u] - ga*x[self.s]
+        dx[self.u] = al - be * x[self.u]
+        dx[self.s] = be * x[self.u] - ga * x[self.s]
 
         # second moments
-        dx[self.uu] = al + 2*al*x[self.u] + be*x[self.u] - 2*be*x[self.uu]
-        dx[self.us] = al*x[self.s] - be*x[self.u] + be*x[self.uu] - (be + ga) * x[self.us]
-        dx[self.ss] = be*x[self.u] + 2*be*x[self.us] + ga*x[self.s] - 2*ga*x[self.ss]
+        dx[self.uu] = al + 2 * al * x[self.u] + be * x[self.u] - 2 * be * x[self.uu]
+        dx[self.us] = al * x[self.s] - be * x[self.u] + be * x[self.uu] - (be + ga) * x[self.us]
+        dx[self.ss] = be * x[self.u] + 2 * be * x[self.us] + ga * x[self.s] - 2 * ga * x[self.ss]
 
         return dx
 
@@ -450,7 +456,7 @@ class Moments_NoSwitching(LinearODE):
     def get_nosplice_central_moments(self):
         ret = np.zeros((2, len(self.t)))
         ret[0] = self.get_mean_u() + self.get_mean_s()
-        ret[1] = self.x[:, self.uu] + self.x[:, self.ss] + 2*self.x[:, self.us]
+        ret[1] = self.x[:, self.uu] + self.x[:, self.ss] + 2 * self.x[:, self.us]
         return ret
 
     def get_mean_u(self):
@@ -461,11 +467,11 @@ class Moments_NoSwitching(LinearODE):
 
     def get_var_u(self):
         c = self.get_mean_u()
-        return self.x[:, self.uu] - c**2
+        return self.x[:, self.uu] - c ** 2
 
     def get_var_s(self):
         c = self.get_mean_s()
-        return self.x[:, self.ss] - c**2
+        return self.x[:, self.ss] - c ** 2
 
     def get_cov_us(self):
         cu = self.get_mean_u()
@@ -484,21 +490,21 @@ class Moments_NoSwitching(LinearODE):
         K[self.s, self.s] = -ga
 
         # E3
-        K[self.uu, self.uu] = -2*be
+        K[self.uu, self.uu] = -2 * be
         K[self.us, self.us] = -be - ga
-        K[self.ss, self.ss] = -2*ga
+        K[self.ss, self.ss] = -2 * ga
 
         # F21
         K[self.s, self.u] = be
 
         # F31
-        K[self.uu, self.u] = 2*al + be
-        
+        K[self.uu, self.u] = 2 * al + be
+
         K[self.us, self.s] = al
         K[self.us, self.uu] = be
-        
+
         K[self.ss, self.u] = be
-        K[self.ss, self.us] = 2*be
+        K[self.ss, self.us] = 2 * be
         K[self.ss, self.s] = ga
 
         p = np.zeros(self.n_species)
@@ -507,9 +513,10 @@ class Moments_NoSwitching(LinearODE):
 
         return K, p
 
+
 class Moments_NoSwitchingNoSplicing(LinearODE):
     def __init__(self, alpha=None, gamma=None, x0=None):
-        """This class simulates the dynamics of first and second moments of 
+        """This class simulates the dynamics of first and second moments of
         a transcription system without promoter switching."""
         # species
         self.u = 0
@@ -523,7 +530,7 @@ class Moments_NoSwitchingNoSplicing(LinearODE):
         # parameters
         if not (alpha is None or gamma is None):
             self.set_params(alpha, gamma)
-        
+
     def ode_func(self, x, t):
         dx = np.zeros(len(x))
         # parameters
@@ -531,10 +538,10 @@ class Moments_NoSwitchingNoSplicing(LinearODE):
         ga = self.ga
 
         # first moments
-        dx[self.u] = al - ga*x[self.u]
+        dx[self.u] = al - ga * x[self.u]
 
         # second moments
-        dx[self.uu] = al + (2*al + ga)*x[self.u] - 2*ga*x[self.uu]
+        dx[self.uu] = al + (2 * al + ga) * x[self.u] - 2 * ga * x[self.uu]
 
         return dx
 
@@ -556,8 +563,8 @@ class Moments_NoSwitchingNoSplicing(LinearODE):
 
     def get_var_u(self):
         c = self.get_mean_u()
-        return self.x[:, self.uu] - c**2
-    
+        return self.x[:, self.uu] - c ** 2
+
     def computeKnp(self):
         # parameters
         al = self.al
@@ -568,16 +575,17 @@ class Moments_NoSwitchingNoSplicing(LinearODE):
         K[self.u, self.u] = -ga
 
         # E3
-        K[self.uu, self.uu] = -2*ga
+        K[self.uu, self.uu] = -2 * ga
 
         # F31
-        K[self.uu, self.u] = 2*al + ga
+        K[self.uu, self.u] = 2 * al + ga
 
         p = np.zeros(self.n_species)
         p[self.u] = al
         p[self.uu] = al
 
         return K, p
+
 
 class Deterministic(LinearODE):
     def __init__(self, alpha=None, beta=None, gamma=None, x0=None):
@@ -592,8 +600,8 @@ class Deterministic(LinearODE):
         # solution
         super().__init__(n_species, x0)
 
-        self.methods = ['numerical', 'matrix', 'analytical']
-        self.default_method = 'analytical'
+        self.methods = ["numerical", "matrix", "analytical"]
+        self.default_method = "analytical"
 
         # parameters
         if not (alpha is None or beta is None or gamma is None):
@@ -607,8 +615,8 @@ class Deterministic(LinearODE):
         ga = self.ga
 
         # kinetics
-        dx[self.u] = al - be*x[self.u]
-        dx[self.s] = be*x[self.u] - ga*x[self.s]
+        dx[self.u] = al - be * x[self.u]
+        dx[self.s] = be * x[self.u] - ga * x[self.s]
 
         return dx
 
@@ -620,9 +628,9 @@ class Deterministic(LinearODE):
         # reset solutions
         super().reset()
 
-    def integrate(self, t, x0=None, method='analytical'):
+    def integrate(self, t, x0=None, method="analytical"):
         method = self.default_method if method is None else method
-        if method == 'analytical':
+        if method == "analytical":
             sol = self.integrate_analytical(t, x0)
         else:
             sol = super().integrate(t, x0, method)
@@ -657,6 +665,7 @@ class Deterministic(LinearODE):
         s = sol_s(t, x0[self.s], x0[self.u], self.al, self.be, self.ga)
         return np.array([u, s]).T
 
+
 class Deterministic_NoSplicing(LinearODE):
     def __init__(self, alpha=None, gamma=None, x0=None):
         """This class simulates the deterministic dynamics of
@@ -669,8 +678,8 @@ class Deterministic_NoSplicing(LinearODE):
         # solution
         super().__init__(n_species, x0)
 
-        self.methods = ['numerical', 'matrix', 'analytical']
-        self.default_method = 'analytical'
+        self.methods = ["numerical", "matrix", "analytical"]
+        self.default_method = "analytical"
 
         # parameters
         if not (alpha is None or gamma is None):
@@ -683,7 +692,7 @@ class Deterministic_NoSplicing(LinearODE):
         ga = self.ga
 
         # kinetics
-        dx[self.u] = al - ga*x[self.u]
+        dx[self.u] = al - ga * x[self.u]
 
         return dx
 
@@ -694,9 +703,9 @@ class Deterministic_NoSplicing(LinearODE):
         # reset solutions
         super().reset()
 
-    def integrate(self, t, x0=None, method='analytical'):
+    def integrate(self, t, x0=None, method="analytical"):
         method = self.default_method if method is None else method
-        if method == 'analytical':
+        if method == "analytical":
             sol = self.integrate_analytical(t, x0)
         else:
             sol = super().integrate(t, x0, method)
@@ -720,9 +729,11 @@ class Deterministic_NoSplicing(LinearODE):
     def integrate_analytical(self, t, x0=None):
         x0 = self.x0 if x0 is None else x0
         x0 = x0 if np.isscalar(x0) else x0[self.u]
-        if self.x0 is None: self.x0 = x0
+        if self.x0 is None:
+            self.x0 = x0
         u = sol_u(t, x0, self.al, self.ga)
         return np.array([u]).T
+
 
 class KineticChase:
     def __init__(self, alpha=None, gamma=None, x0=None):
@@ -734,8 +745,8 @@ class KineticChase:
 
         self.x0 = x0 if x0 is not None else 0
 
-        self.methods = ['analytical']
-        self.default_method = 'analytical'
+        self.methods = ["analytical"]
+        self.default_method = "analytical"
 
         # parameters
         self.params = {}
@@ -743,27 +754,25 @@ class KineticChase:
             self.set_params(alpha, gamma)
 
     def set_params(self, alpha, gamma):
-        self.params['alpha'] = alpha
-        self.params['gamma'] = gamma
+        self.params["alpha"] = alpha
+        self.params["gamma"] = gamma
 
-    def integrate(self, t, x0=None, method='analytical'):
+    def integrate(self, t, x0=None, method="analytical"):
         if x0 is None:
-            x0 = self.x0 
+            x0 = self.x0
         else:
             self.x0 = x0
-        al = self.params['alpha']
-        ga = self.params['gamma']
+        al = self.params["alpha"]
+        ga = self.params["gamma"]
         self.t = t
-        self.x = al/ga * (np.exp(-ga*t) - 1) + x0
+        self.x = al / ga * (np.exp(-ga * t) - 1) + x0
 
     def calc_init_conc(self, t=None):
         if t is not None:
             self.integrate(t)
-        h = self.x/np.exp(-self.params['gamma']*self.t)
+        h = self.x / np.exp(-self.params["gamma"] * self.t)
         tau = np.max(self.t) - self.t
         return tau, h
 
-nosplicing_models = [
-    Deterministic_NoSplicing, 
-    Moments_Nosplicing, 
-    Moments_NoSwitchingNoSplicing]
+
+nosplicing_models = [Deterministic_NoSplicing, Moments_Nosplicing, Moments_NoSwitchingNoSplicing]

@@ -6,15 +6,17 @@ from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 from .utils import update_dict
 
 
-def hdbscan(adata,
-            X_data=None,
-            genes=None,
-            layer=None,
-            basis='pca',
-            dims=None,
-            n_pca_components=30,
-            n_components=2,
-            **hdbscan_kwargs):
+def hdbscan(
+    adata,
+    X_data=None,
+    genes=None,
+    layer=None,
+    basis="pca",
+    dims=None,
+    n_pca_components=30,
+    n_components=2,
+    **hdbscan_kwargs
+):
     """Apply hdbscan to cluster cells in the space defined by basis.
 
     HDBSCAN is a clustering algorithm developed by Campello, Moulavi, and Sander
@@ -63,72 +65,78 @@ def hdbscan(adata,
     """
 
     if X_data is None:
-        _, n_components, has_basis, basis = prepare_dim_reduction(adata,
-                              genes=genes,
-                              layer=layer,
-                              basis=basis,
-                              dims=dims,
-                              n_pca_components=n_pca_components,
-                              n_components=n_components, )
+        _, n_components, has_basis, basis = prepare_dim_reduction(
+            adata,
+            genes=genes,
+            layer=layer,
+            basis=basis,
+            dims=dims,
+            n_pca_components=n_pca_components,
+            n_components=n_components,
+        )
 
     if has_basis:
         X_data = adata.obsm[basis]
     else:
-        reduction_method = basis.split('_')[-1]
-        embedding_key = (
-            "X_" + reduction_method if layer is None else layer + "_" + reduction_method
-        )
+        reduction_method = basis.split("_")[-1]
+        embedding_key = "X_" + reduction_method if layer is None else layer + "_" + reduction_method
         neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
 
-        adata = run_reduce_dim(adata, X_data, n_components, n_pca_components, reduction_method,
-                               embedding_key=embedding_key, n_neighbors=30, neighbor_key=neighbor_key, cores=1)
+        adata = run_reduce_dim(
+            adata,
+            X_data,
+            n_components,
+            n_pca_components,
+            reduction_method,
+            embedding_key=embedding_key,
+            n_neighbors=30,
+            neighbor_key=neighbor_key,
+            cores=1,
+        )
 
     X_data = X_data if dims is None else X_data[:, dims]
 
-    if hdbscan_kwargs is not None and 'metric' in hdbscan_kwargs.keys():
-        if hdbscan_kwargs['metric'] == 'cosine':
+    if hdbscan_kwargs is not None and "metric" in hdbscan_kwargs.keys():
+        if hdbscan_kwargs["metric"] == "cosine":
             from sklearn.preprocessing import normalize
-            X_data = normalize(X_data, norm='l2')
 
-    h_kwargs = {"min_cluster_size": 5,
-                "min_samples": None,
-                "metric": "euclidean",
-                "p": None,
-                "alpha": 1.0,
-                "cluster_selection_epsilon": 0.0,
-                "algorithm": 'best',
-                "leaf_size": 40,
-                "approx_min_span_tree": True,
-                "gen_min_span_tree": False,
-                "core_dist_n_jobs": 1,
-                "cluster_selection_method": 'eom',
-                "allow_single_cluster": False,
-                "prediction_data": False,
-                "match_reference_implementation": False,
-                }
+            X_data = normalize(X_data, norm="l2")
+
+    h_kwargs = {
+        "min_cluster_size": 5,
+        "min_samples": None,
+        "metric": "euclidean",
+        "p": None,
+        "alpha": 1.0,
+        "cluster_selection_epsilon": 0.0,
+        "algorithm": "best",
+        "leaf_size": 40,
+        "approx_min_span_tree": True,
+        "gen_min_span_tree": False,
+        "core_dist_n_jobs": 1,
+        "cluster_selection_method": "eom",
+        "allow_single_cluster": False,
+        "prediction_data": False,
+        "match_reference_implementation": False,
+    }
 
     h_kwargs = update_dict(h_kwargs, hdbscan_kwargs)
     cluster = HDBSCAN(**h_kwargs)
     cluster.fit(X_data)
-    adata.obs['hdbscan'] = cluster.labels_.astype('str')
-    adata.obs['hdbscan_prob'] = cluster.probabilities_
-    adata.uns['hdbscan'] = {'hdbscan': cluster.labels_.astype('str'),
-                            "probabilities_": cluster.probabilities_,
-                            "cluster_persistence_": cluster.cluster_persistence_,
-                            "outlier_scores_": cluster.outlier_scores_,
-                            "exemplars_": cluster.exemplars_,
-                            }
+    adata.obs["hdbscan"] = cluster.labels_.astype("str")
+    adata.obs["hdbscan_prob"] = cluster.probabilities_
+    adata.uns["hdbscan"] = {
+        "hdbscan": cluster.labels_.astype("str"),
+        "probabilities_": cluster.probabilities_,
+        "cluster_persistence_": cluster.cluster_persistence_,
+        "outlier_scores_": cluster.outlier_scores_,
+        "exemplars_": cluster.exemplars_,
+    }
 
     return adata
 
 
-def cluster_field(adata,
-                  basis='pca',
-                  embedding_basis=None,
-                  normalize=True,
-                  method='louvain',
-                  cores=1,
-                  **kwargs):
+def cluster_field(adata, basis="pca", embedding_basis=None, normalize=True, method="louvain", cores=1, **kwargs):
     """Cluster cells based on vector field features.
 
     We would like to see whether the vector field can be used to better define cell state/types. This can be accessed via
@@ -171,54 +179,67 @@ def cluster_field(adata,
 
     """
 
-    if method in ['louvain', 'leiden']:
+    if method in ["louvain", "leiden"]:
         try:
             import scanpy as sc
         except ImportError:
-            raise ImportError("You need to install the excellent package `scanpy` if you want to use louvain or leiden "
-                              "for clustering.")
+            raise ImportError(
+                "You need to install the excellent package `scanpy` if you want to use louvain or leiden "
+                "for clustering."
+            )
 
-    feature_key = ['speed_' + basis, basis + '_ddhodge_potential', 'divergence_' + basis, 'acceleration_' + basis,
-                   'curvature_' + basis]
+    feature_key = [
+        "speed_" + basis,
+        basis + "_ddhodge_potential",
+        "divergence_" + basis,
+        "acceleration_" + basis,
+        "curvature_" + basis,
+    ]
 
     if feature_key[0] not in adata.obs.keys():
         from .vector_calculus import speed
+
         speed(adata, basis=basis)
     if feature_key[1] not in adata.obs.keys():
         from ..ext import ddhodge
+
         ddhodge(adata, basis=basis)
     if feature_key[2] not in adata.obs.keys():
         from .vector_calculus import divergence
+
         divergence(adata, basis=basis)
     if feature_key[3] not in adata.obs.keys():
         from .vector_calculus import acceleration
+
         acceleration(adata, basis=basis)
     if feature_key[4] not in adata.obs.keys():
         from .vector_calculus import curvature
+
         curvature(adata, basis=basis)
 
     feature_data = adata.obs.loc[:, feature_key].values
-    if embedding_basis is None: embedding_basis = basis
-    X = np.hstack((feature_data, adata.obsm['X_' + embedding_basis]))
+    if embedding_basis is None:
+        embedding_basis = basis
+    X = np.hstack((feature_data, adata.obsm["X_" + embedding_basis]))
 
     if normalize:
         # X = (X - X.min(0)) / X.ptp(0)
         X = (X - X.mean(0)) / X.std(0)
 
-    if method in ['hdbscan', 'kmeans']:
-        if method == 'hdbscan':
+    if method in ["hdbscan", "kmeans"]:
+        if method == "hdbscan":
             hdbscan(adata, X_data=X, **kwargs)
-        elif method == 'kmeans':
+        elif method == "kmeans":
             from sklearn.cluster import KMeans
-            kmeans = KMeans(random_state=0, **kwargs).fit(X)
-            adata.obs['kmeans'] = kmeans.labels_.astype('str')
 
-    elif method in ['louvain', 'leiden']:
-        if X.shape[0] > 200000 and X.shape[1] > 2: 
+            kmeans = KMeans(random_state=0, **kwargs).fit(X)
+            adata.obs["kmeans"] = kmeans.labels_.astype("str")
+
+    elif method in ["louvain", "leiden"]:
+        if X.shape[0] > 200000 and X.shape[1] > 2:
             from pynndescent import NNDescent
 
-            nbrs = NNDescent(X, metric='euclidean', n_neighbors=31, n_jobs=cores,
-                              random_state=19491001)
+            nbrs = NNDescent(X, metric="euclidean", n_neighbors=31, n_jobs=cores, random_state=19491001)
             nbrs_idx, dist = nbrs.query(X, k=31)
         else:
             nbrs = NearestNeighbors(n_neighbors=31, n_jobs=cores).fit(X)
@@ -227,9 +248,9 @@ def cluster_field(adata,
         row = np.repeat(nbrs_idx[:, 0], 30)
         col = nbrs_idx[:, 1:].flatten()
         g = csr_matrix((np.repeat(1, len(col)), (row, col)), shape=(adata.n_obs, adata.n_obs))
-        adata.obsp['feature_knn'] = g
+        adata.obsp["feature_knn"] = g
 
-        if method == 'louvain':
-            sc.tl.louvain(adata, obsp='feature_knn', **kwargs)
-        elif method == 'leiden':
-            sc.tl.leiden(adata, obsp='feature_knn', **kwargs)
+        if method == "louvain":
+            sc.tl.louvain(adata, obsp="feature_knn", **kwargs)
+        elif method == "leiden":
+            sc.tl.leiden(adata, obsp="feature_knn", **kwargs)

@@ -2,13 +2,10 @@ from ..tools.cell_velocities import cell_velocities
 from .topography import VectorField
 from .vector_calculus import acceleration, curvature
 
-def cell_accelerations(adata,
-                       vf_basis='pca',
-                       basis='umap',
-                       enforce=True,
-                       preserve_len=True,
-                       other_kernels_dict={},
-                       **kwargs):
+
+def cell_accelerations(
+    adata, vf_basis="pca", basis="umap", enforce=True, preserve_len=True, other_kernels_dict={}, **kwargs
+):
     """Compute RNA acceleration field via reconstructed vector field and project it to low dimensional embeddings.
 
     In classical physics, including fluidics and aerodynamics, velocity and acceleration vector fields are used as
@@ -67,20 +64,20 @@ def cell_accelerations(adata,
             kernel method (default) or the diffusion approximation or the method from (La Manno et al. 2018).
     """
 
-    if 'velocity_' + vf_basis not in adata.obsm.keys():
+    if "velocity_" + vf_basis not in adata.obsm.keys():
         cell_velocities(adata, basis=vf_basis)
 
-    if 'VecFld_' + vf_basis not in adata.uns_keys():
+    if "VecFld_" + vf_basis not in adata.uns_keys():
         VectorField(adata, basis=vf_basis)
 
-    if 'acceleration_' + vf_basis not in adata.obsm.keys():
+    if "acceleration_" + vf_basis not in adata.obsm.keys():
         acceleration(adata, basis=vf_basis)
 
-    X = adata.obsm['X_' + vf_basis]
-    V = adata.obsm['acceleration_' + vf_basis]
-    X_embedding = adata.obsm['X_' + basis]
+    X = adata.obsm["X_" + vf_basis]
+    V = adata.obsm["acceleration_" + vf_basis]
+    X_embedding = adata.obsm["X_" + basis]
 
-    if basis != vf_basis and vf_basis.lower() not in ['umap', 'tsne', 'trimap', 'ddtree', 'diffusion_map']:
+    if basis != vf_basis and vf_basis.lower() not in ["umap", "tsne", "trimap", "ddtree", "diffusion_map"]:
         cell_velocities(
             adata,
             X=X,
@@ -88,20 +85,16 @@ def cell_accelerations(adata,
             X_embedding=X_embedding,
             basis=basis,
             enforce=enforce,
-            key='acceleration',
+            key="acceleration",
             preserve_len=preserve_len,
             other_kernels_dict=other_kernels_dict,
             **kwargs
         )
 
 
-def cell_curvatures(adata,
-                    vf_basis='pca',
-                    basis='umap',
-                    enforce=True,
-                    preserve_len=True,
-                    other_kernels_dict={},
-                    **kwargs):
+def cell_curvatures(
+    adata, vf_basis="pca", basis="umap", enforce=True, preserve_len=True, other_kernels_dict={}, **kwargs
+):
     """Compute RNA curvature field via reconstructed vector field and project it to low dimensional embeddings.
 
     In classical physics, including fluidics and aerodynamics, velocity and acceleration vector fields are used as
@@ -160,20 +153,20 @@ def cell_curvatures(adata,
             method (default) or the diffusion approximation or the method from (La Manno et al. 2018).
     """
 
-    if 'velocity_' + vf_basis not in adata.obsm.keys():
+    if "velocity_" + vf_basis not in adata.obsm.keys():
         cell_velocities(adata, basis=vf_basis)
 
-    if 'VecFld_' + vf_basis not in adata.uns_keys():
+    if "VecFld_" + vf_basis not in adata.uns_keys():
         VectorField(adata, basis=vf_basis)
 
-    if 'curvature_' + vf_basis not in adata.obsm.keys():
+    if "curvature_" + vf_basis not in adata.obsm.keys():
         curvature(adata, basis=vf_basis)
 
-    X = adata.obsm['X_' + vf_basis]
-    V = adata.obsm['curvature_' + vf_basis]
-    X_embedding = adata.obsm['X_' + basis]
+    X = adata.obsm["X_" + vf_basis]
+    V = adata.obsm["curvature_" + vf_basis]
+    X_embedding = adata.obsm["X_" + basis]
 
-    if basis != vf_basis and vf_basis.lower() not in ['umap', 'tsne', 'trimap', 'ddtree', 'diffusion_map']:
+    if basis != vf_basis and vf_basis.lower() not in ["umap", "tsne", "trimap", "ddtree", "diffusion_map"]:
         cell_velocities(
             adata,
             X=X,
@@ -181,7 +174,7 @@ def cell_curvatures(adata,
             X_embedding=X_embedding,
             basis=basis,
             enforce=enforce,
-            key='curvature',
+            key="curvature",
             preserve_len=preserve_len,
             other_kernels_dict=other_kernels_dict,
             **kwargs

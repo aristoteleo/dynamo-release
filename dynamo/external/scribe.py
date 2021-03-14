@@ -7,19 +7,21 @@ from tqdm import tqdm
 from .utils import normalize_data, TF_link_gene_chip
 from ..tools.utils import flatten, einsum_correlation
 
-def scribe(adata,
-           genes=None,
-           TFs=None,
-           Targets=None,
-           gene_filter_rate=0.1,
-           cell_filter_UMI=10000,
-           motif_ref='https://www.dropbox.com/s/s8em539ojl55kgf/motifAnnotations_hgnc.csv?dl=1',
-           nt_layers=['X_new', 'X_total'],
-           normalize=True,
-           do_CLR=True,
-           drop_zero_cells=True,
-           TF_link_ENCODE_ref='https://www.dropbox.com/s/bjuope41pte7mf4/df_gene_TF_link_ENCODE.csv?dl=1',
-           ):
+
+def scribe(
+    adata,
+    genes=None,
+    TFs=None,
+    Targets=None,
+    gene_filter_rate=0.1,
+    cell_filter_UMI=10000,
+    motif_ref="https://www.dropbox.com/s/s8em539ojl55kgf/motifAnnotations_hgnc.csv?dl=1",
+    nt_layers=["X_new", "X_total"],
+    normalize=True,
+    do_CLR=True,
+    drop_zero_cells=True,
+    TF_link_ENCODE_ref="https://www.dropbox.com/s/bjuope41pte7mf4/df_gene_TF_link_ENCODE.csv?dl=1",
+):
     """Apply Scribe to calculate causal network from spliced/unspliced, metabolic labeling based and other "real" time
     series datasets. Note that this function can be applied to both of the metabolic labeling based single-cell assays with
     newly synthesized and total RNA as well as the regular single cell assays with both the unspliced and spliced
@@ -78,23 +80,31 @@ def scribe(adata,
     try:
         import Scribe
     except ImportError:
-        raise ImportError("You need to install the package `Scribe`."
-                          "Plelease install from https://github.com/aristoteleo/Scribe-py."
-                          "Also check our paper: "
-                          "https://www.sciencedirect.com/science/article/abs/pii/S2405471220300363")
+        raise ImportError(
+            "You need to install the package `Scribe`."
+            "Plelease install from https://github.com/aristoteleo/Scribe-py."
+            "Also check our paper: "
+            "https://www.sciencedirect.com/science/article/abs/pii/S2405471220300363"
+        )
 
     from Scribe.Scribe import causal_net_dynamics_coupling, CLR
 
     # detect format of the gene name:
-    str_format = "upper" if adata.var_names[0].isupper() else 'lower' \
-        if adata.var_names[0].islower() else "title" \
-        if adata.var_names[0].istitle() else "other"
+    str_format = (
+        "upper"
+        if adata.var_names[0].isupper()
+        else "lower"
+        if adata.var_names[0].islower()
+        else "title"
+        if adata.var_names[0].istitle()
+        else "other"
+    )
 
-    motifAnnotations_hgnc = pd.read_csv(motif_ref, sep='\t')
-    TF_list = motifAnnotations_hgnc.loc[:, 'TF'].values
+    motifAnnotations_hgnc = pd.read_csv(motif_ref, sep="\t")
+    TF_list = motifAnnotations_hgnc.loc[:, "TF"].values
     if str_format == "title":
         TF_list = [i.capitalize() for i in TF_list]
-    elif str_format == 'lower':
+    elif str_format == "lower":
         TF_list = [i.lower() for i in TF_list]
 
     adata_ = adata.copy()
@@ -105,8 +115,10 @@ def scribe(adata,
 
     gene_filter_new = (adata.layers[nt_layers[0]] > 0).sum(0) > (gene_filter_rate * n_obs)
     gene_filter_tot = (adata.layers[nt_layers[1]] > 0).sum(0) > (gene_filter_rate * n_obs)
-    if issparse(adata.layers[nt_layers[0]]): gene_filter_new = gene_filter_new.A1
-    if issparse(adata.layers[nt_layers[1]]): gene_filter_tot = gene_filter_tot.A1
+    if issparse(adata.layers[nt_layers[0]]):
+        gene_filter_new = gene_filter_new.A1
+    if issparse(adata.layers[nt_layers[1]]):
+        gene_filter_tot = gene_filter_tot.A1
     adata = adata[:, gene_filter_new * gene_filter_tot]
 
     print(f"Gene number after filtering: {sum(gene_filter_new * gene_filter_tot)}")
@@ -115,18 +127,21 @@ def scribe(adata,
     print(f"Original cell number: {n_obs}")
 
     cell_filter = adata.layers[nt_layers[1]].sum(1) > cell_filter_UMI
-    if issparse(adata.layers[nt_layers[1]]): cell_filter = cell_filter.A1
+    if issparse(adata.layers[nt_layers[1]]):
+        cell_filter = cell_filter.A1
     adata = adata[cell_filter, :]
     if adata.n_obs == 0:
-        raise Exception('No cells remaining after filtering, try relaxing `cell_filtering_UMI`.')
+        raise Exception("No cells remaining after filtering, try relaxing `cell_filtering_UMI`.")
 
     print(f"Cell number after filtering: {adata.n_obs}")
 
     # generate the expression matrix for downstream analysis
-    if nt_layers[1] == 'old' and 'old' not in adata.layers.keys():
-        adata.layers['old'] = adata.layers['total'] - adata.layers['new'] \
-            if 'velocity' not in adata.layers.keys() \
-            else adata.layers['total'] - adata.layers['velocity']
+    if nt_layers[1] == "old" and "old" not in adata.layers.keys():
+        adata.layers["old"] = (
+            adata.layers["total"] - adata.layers["new"]
+            if "velocity" not in adata.layers.keys()
+            else adata.layers["total"] - adata.layers["velocity"]
+        )
 
     new = adata.layers[nt_layers[0]]
     total = adata.layers[nt_layers[1]]
@@ -134,7 +149,8 @@ def scribe(adata,
     if normalize:
         # recalculate size factor
         from ..preprocessing import szFactor
-        adata = szFactor(adata, method='mean-geometric-mean-total', round_exprs=True, total_layers=['total'])
+
+        adata = szFactor(adata, method="mean-geometric-mean-total", round_exprs=True, total_layers=["total"])
         szfactors = adata.obs["Size_Factor"][:, None]
 
         # normalize data (size factor correction, log transform and the scaling)
@@ -150,34 +166,38 @@ def scribe(adata,
         Targets = list(set(genes).intersection(Targets))
 
     if len(TFs) == 0 or len(Targets) == 0:
-        raise Exception('The TFs or Targets are empty! Something (input TFs/Targets list, gene_filter_rate, etc.) is wrong.')
+        raise Exception(
+            "The TFs or Targets are empty! Something (input TFs/Targets list, gene_filter_rate, etc.) is wrong."
+        )
 
     print(f"Potential TFs are: {len(TFs)}")
     print(f"Potential Targets are: {len(Targets)}")
 
-    causal_net_dynamics_coupling(adata, TFs, Targets, t0_key=nt_layers[1], t1_key=nt_layers[0], normalize=False,
-                                 drop_zero_cells=drop_zero_cells)
-    res_dict = {"RDI": adata.uns['causal_net']["RDI"]}
-    if do_CLR: res_dict.update({"CLR": CLR(res_dict['RDI'])})
+    causal_net_dynamics_coupling(
+        adata, TFs, Targets, t0_key=nt_layers[1], t1_key=nt_layers[0], normalize=False, drop_zero_cells=drop_zero_cells
+    )
+    res_dict = {"RDI": adata.uns["causal_net"]["RDI"]}
+    if do_CLR:
+        res_dict.update({"CLR": CLR(res_dict["RDI"])})
 
     if TF_link_ENCODE_ref is not None:
-        df_gene_TF_link_ENCODE = pd.read_csv(TF_link_ENCODE_ref, sep='\t')
-        df_gene_TF_link_ENCODE['id_gene'] = df_gene_TF_link_ENCODE['id'].astype('str') + '_' + \
-                                            df_gene_TF_link_ENCODE['linked_gene_name'].astype('str')
+        df_gene_TF_link_ENCODE = pd.read_csv(TF_link_ENCODE_ref, sep="\t")
+        df_gene_TF_link_ENCODE["id_gene"] = (
+            df_gene_TF_link_ENCODE["id"].astype("str") + "_" + df_gene_TF_link_ENCODE["linked_gene_name"].astype("str")
+        )
 
         df_gene = pd.DataFrame(adata.var.index, index=adata.var.index)
-        df_gene.columns = ['linked_gene']
+        df_gene.columns = ["linked_gene"]
 
         net = res_dict[list(res_dict.keys())[-1]]
-        net = net.reset_index().melt(id_vars='index', id_names='id', var_name='linked_gene', value_name='corcoef')
+        net = net.reset_index().melt(id_vars="index", id_names="id", var_name="linked_gene", value_name="corcoef")
         net_var = net.merge(df_gene)
-        net_var['id_gene'] = net_var['id'].astype('str') + '_' + \
-                             net_var['linked_gene_name'].astype('str')
+        net_var["id_gene"] = net_var["id"].astype("str") + "_" + net_var["linked_gene_name"].astype("str")
 
         filtered = TF_link_gene_chip(net_var, df_gene_TF_link_ENCODE, adata.var, cor_thresh=0.02)
         res_dict.update({"filtered": filtered})
 
-    adata_.uns['causal_net'] = res_dict
+    adata_.uns["causal_net"] = res_dict
 
     return adata_
 
@@ -211,16 +231,19 @@ def coexp_measure(adata, genes, layer_x, layer_y, cores=1, skip_mi=True):
     try:
         import Scribe
     except ImportError:
-        raise ImportError("You need to install the package `Scribe`."
-                          "Plelease install from https://github.com/aristoteleo/Scribe-py."
-                          "Also check our paper: "
-                          "https://www.sciencedirect.com/science/article/abs/pii/S2405471220300363")
+        raise ImportError(
+            "You need to install the package `Scribe`."
+            "Plelease install from https://github.com/aristoteleo/Scribe-py."
+            "Also check our paper: "
+            "https://www.sciencedirect.com/science/article/abs/pii/S2405471220300363"
+        )
 
     from Scribe.information_estimators import mi
 
-    adata.var['mi'], adata.var['pearson'] = np.nan, np.nan
+    adata.var["mi"], adata.var["pearson"] = np.nan, np.nan
 
-    if not skip_mi: mi_vec = np.zeros(len(genes))
+    if not skip_mi:
+        mi_vec = np.zeros(len(genes))
     pearson = np.zeros(len(genes))
 
     X, Y = adata[:, genes].layers[layer_x], adata[:, genes].layers[layer_y]
@@ -228,20 +251,22 @@ def coexp_measure(adata, genes, layer_x, layer_y, cores=1, skip_mi=True):
 
     k = min(5, int(adata.n_obs / 5 + 1))
     if cores == 1:
-        for i in tqdm(range(len(genes)), desc=f'calculating mutual information between {layer_x} and {layer_y} data'):
+        for i in tqdm(range(len(genes)), desc=f"calculating mutual information between {layer_x} and {layer_y} data"):
             x, y = X[i], Y[i]
             mask = np.logical_and(np.isfinite(x), np.isfinite(y))
             pearson[i] = einsum_correlation(x[None, mask], y[mask], type="pearson")
             x, y = [[i] for i in x[mask]], [[i] for i in y[mask]]
 
-            if not skip_mi: mi_vec[i] = mi(x, y, k=k)
+            if not skip_mi:
+                mi_vec[i] = mi(x, y, k=k)
     else:
-        for i in tqdm(range(len(genes)), desc=f'calculating mutual information between {layer_x} and {layer_y} data'):
+        for i in tqdm(range(len(genes)), desc=f"calculating mutual information between {layer_x} and {layer_y} data"):
             x, y = X[i], Y[i]
             mask = np.logical_and(np.isfinite(x), np.isfinite(y))
             pearson[i] = einsum_correlation(x[None, mask], y[mask], type="pearson")
 
         if not skip_mi:
+
             def pool_mi(x, y, k):
                 mask = np.logical_and(np.isfinite(x), np.isfinite(y))
                 x, y = [[i] for i in x[mask]], [[i] for i in y[mask]]
@@ -254,6 +279,6 @@ def coexp_measure(adata, genes, layer_x, layer_y, cores=1, skip_mi=True):
             pool.join()
             mi_vec = np.array(res)
 
-    if not skip_mi: adata.var.loc[genes, 'mi'] = mi_vec
-    adata.var.loc[genes, 'pearson'] = pearson
-
+    if not skip_mi:
+        adata.var.loc[genes, "mi"] = mi_vec
+    adata.var.loc[genes, "pearson"] = pearson

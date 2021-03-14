@@ -84,11 +84,7 @@ def sol_s(t, s0, u0, alpha, beta, gamma):
     """
     exp_gt = np.exp(-gamma * t)
     if beta == gamma:
-        s = (
-            s0 * exp_gt
-            + (beta * u0 - alpha) * t * exp_gt
-            + alpha / gamma * (1 - exp_gt)
-        )
+        s = s0 * exp_gt + (beta * u0 - alpha) * t * exp_gt + alpha / gamma * (1 - exp_gt)
     else:
         s = (
             s0 * exp_gt
@@ -135,15 +131,13 @@ def sol_p(t, p0, s0, u0, alpha, beta, gamma, eta, delta):
     s = sol_s(t, s0, u0, alpha, beta, gamma)
     exp_gt = np.exp(-delta * t)
     p = p0 * exp_gt + eta / (delta - gamma) * (
-        s
-        - s0 * exp_gt
-        - beta / (delta - beta) * (u - u0 * exp_gt - alpha / delta * (1 - exp_gt))
+        s - s0 * exp_gt - beta / (delta - beta) * (u - u0 * exp_gt - alpha / delta * (1 - exp_gt))
     )
     return p, s, u
 
 
 def solve_gamma(t, old, total):
-    """ Analytical solution to calculate gamma (degradation rate) using first-order degradation kinetics.
+    """Analytical solution to calculate gamma (degradation rate) using first-order degradation kinetics.
 
     Parameters
     ----------
@@ -189,9 +183,11 @@ def solve_alpha_2p(t0, t1, alpha0, beta, u1):
     u1 = np.mean(u1)
 
     u0 = alpha0 / beta * (1 - np.exp(-beta * t0))
-    if t0 == 0: u0 = 0
+    if t0 == 0:
+        u0 = 0
     alpha1 = beta * (u1 - u0 * np.exp(-beta * t1)) / (1 - np.exp(-beta * t1))
-    if t0 == 0: alpha1 = 0
+    if t0 == 0:
+        alpha1 = 0
 
     return alpha1
 
@@ -218,18 +214,10 @@ def solve_alpha_2p_mat(t0, t1, alpha0, beta, u1):
     Returns the transcription rate (alpha1) for the stimulation period in the data.
     """
 
-    alpha0 = np.repeat(
-        alpha0.reshape((-1, 1)), u1.shape[1], axis=1
-    )
-    beta = np.repeat(
-        beta.reshape((-1, 1)), u1.shape[1], axis=1
-    )
-    t0 = np.repeat(
-        t0.reshape((-1, 1)), u1.shape[0], axis=1
-    ).T
-    t1 = np.repeat(
-        t1.reshape((-1, 1)), u1.shape[0], axis=1
-    ).T
+    alpha0 = np.repeat(alpha0.reshape((-1, 1)), u1.shape[1], axis=1)
+    beta = np.repeat(beta.reshape((-1, 1)), u1.shape[1], axis=1)
+    t0 = np.repeat(t0.reshape((-1, 1)), u1.shape[0], axis=1).T
+    t1 = np.repeat(t1.reshape((-1, 1)), u1.shape[0], axis=1).T
 
     u0 = alpha0 / np.multiply(beta, (1 - np.exp(-np.multiply(beta, t0))))
     u0[t0 == 0] = 0
@@ -307,7 +295,8 @@ def fit_linreg(x, y, mask=None, intercept=False, r2=True):
     else:
         return k, b
 
-def fit_linreg_robust(x, y, mask=None, intercept=False, r2=True, est_method='rlm'):
+
+def fit_linreg_robust(x, y, mask=None, intercept=False, r2=True, est_method="rlm"):
     """Apply robust linear regression of y w.r.t x.
 
     Arguments
@@ -345,17 +334,19 @@ def fit_linreg_robust(x, y, mask=None, intercept=False, r2=True, est_method='rlm
     yy = y[_mask]
 
     try:
-        if est_method.lower() == 'rlm':
+        if est_method.lower() == "rlm":
             xx_ = sm.add_constant(xx) if intercept else xx
             res = sm.RLM(yy, xx_).fit()
             k, b = res.params[::-1] if intercept else (res.params[0], 0)
-        elif est_method.lower() == 'ransac':
+        elif est_method.lower() == "ransac":
             reg = RANSACRegressor(LinearRegression(fit_intercept=intercept), random_state=0)
             reg.fit(xx.reshape(-1, 1), yy.reshape(-1, 1))
             k, b = reg.estimator_.coef_[0, 0], (reg.estimator_.intercept_[0] if intercept else 0)
         else:
-            raise ImportError(f"estimation method {est_method} is not implemented. "
-                              f"Currently supported linear regression methods include `rlm` and `ransac`.")
+            raise ImportError(
+                f"estimation method {est_method} is not implemented. "
+                f"Currently supported linear regression methods include `rlm` and `ransac`."
+            )
     except:
         if intercept:
             ym = np.mean(yy)
@@ -407,21 +398,21 @@ def fit_stochastic_linreg(u, s, us, ss, fit_2_gammas=True, err_cov=False):
     gamma: float
         The estimated gamma.
     """
-    y = np.vstack((u.flatten(), (u + 2*us).flatten()))
-    x = np.vstack((s.flatten(), (2*ss - s).flatten()))
+    y = np.vstack((u.flatten(), (u + 2 * us).flatten()))
+    x = np.vstack((s.flatten(), (2 * ss - s).flatten()))
 
     # construct the error covariance matrix
     if fit_2_gammas:
         k1 = fit_linreg(x[0], y[0])[0]
         k2 = fit_linreg(x[1], y[1])[0]
         k = np.array([k1, k2])
-        E = y - k[:, None]*x
+        E = y - k[:, None] * x
     else:
         k = np.mean(np.sum(elem_prod(y, x), 0)) / np.mean(np.sum(elem_prod(x, x), 0))
-        E = y - k*x
+        E = y - k * x
 
     if err_cov:
-        #cov = E @ E.T
+        # cov = E @ E.T
         cov = np.cov(E)
     else:
         cov = np.diag(E.var(1))
@@ -678,9 +669,7 @@ def solve_alpha_degradation(t, u, beta, intercept=False):
     # calculate intercept
     b = ym - k * xm if intercept else 0
     SS_tot_n = np.var(y)
-    SS_res_n = (
-        np.mean((y - k * x - b) ** 2) if b is not None else np.mean((y - k * x) ** 2)
-    )
+    SS_res_n = np.mean((y - k * x - b) ** 2) if b is not None else np.mean((y - k * x) ** 2)
     r2 = 1 - SS_res_n / SS_tot_n
 
     return k * beta, b, r2
@@ -825,18 +814,18 @@ def fit_K_negbin(N, R, varR, perc_left=None, perc_right=None, return_phi=False):
 
 
 def compute_velocity_labeling(N, R, K, tau):
-    Kc = np.clip(K, 0, 1-1e-3)
+    Kc = np.clip(K, 0, 1 - 1e-3)
     if np.isscalar(tau):
-        Beta_or_gamma = -np.log(1-Kc)/tau
+        Beta_or_gamma = -np.log(1 - Kc) / tau
     else:
-        Beta_or_gamma = -(np.log(1-Kc)[None, :].T/tau).T
-    return elem_prod(Beta_or_gamma, N)/K - elem_prod(Beta_or_gamma, R)
+        Beta_or_gamma = -(np.log(1 - Kc)[None, :].T / tau).T
+    return elem_prod(Beta_or_gamma, N) / K - elem_prod(Beta_or_gamma, R)
 
 
 def compute_bursting_properties(M_t, phi, gamma):
     """Compute bursting frequency and size for the negative binomial regression model.
     The equations come from:
-    Anton J.M. Larsson et al. Genomic encoding of transcriptional burst kinetics, Nature volume 565, pages251–254(2019) 
+    Anton J.M. Larsson et al. Genomic encoding of transcriptional burst kinetics, Nature volume 565, pages251–254(2019)
 
     Arguments
     ---------

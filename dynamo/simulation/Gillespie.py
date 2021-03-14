@@ -95,10 +95,7 @@ def Gillespie(
             t_eval=None,
             report=verbose,
         )  # unfinished, no need to interpolate now.
-        uu, ul, su, sl = [
-            np.transpose(trajs_C[:, :, i + 1, :].reshape((gene_num, -1)))
-            for i in range(4)
-        ]
+        uu, ul, su, sl = [np.transpose(trajs_C[:, :, i + 1, :].reshape((gene_num, -1))) for i in range(4)]
 
         u = uu + ul
         s = su + sl
@@ -261,9 +258,7 @@ def Gillespie(
 
         # synthesize steady state before treatment
         n_cell = 50
-        c0 = np.array(
-            [40, 100, 40, 100, 0, 0, 0, 0, 1000, 1000]
-        )  # same as the os model after this line of code
+        c0 = np.array([40, 100, 40, 100, 0, 0, 0, 0, 1000, 1000])  # same as the os model after this line of code
 
         n_species = len(c0)
         trajs_T, trajs_C = simulate(
@@ -366,29 +361,17 @@ def Gillespie(
             [j for j in kin_Tl for i in range(n_cell)],
         )
         one_shot_cell_ids, one_shot_Trajectory, one_shot_Step = (
-            [
-                "one_shot_traj_%d_time_%d" % (i, j)
-                for j in kin_T_CP
-                for i in range(n_cell)
-            ],
+            ["one_shot_traj_%d_time_%d" % (i, j) for j in kin_T_CP for i in range(n_cell)],
             [i for j in kin_T_CP for i in range(n_cell)],
             [j for j in kin_T_CP for i in range(n_cell)],
         )  # first n_traj and then steps
         begin_cell_ids, begin_Trajectory, begin_Step = (
-            [
-                "begin_deg_traj_%d_time_%d" % (i, j)
-                for j in deg_label_t
-                for i in range(n_cell)
-            ],
+            ["begin_deg_traj_%d_time_%d" % (i, j) for j in deg_label_t for i in range(n_cell)],
             [i for j in deg_label_t for i in range(n_cell)],
             [j for j in deg_label_t for i in range(n_cell)],
         )  # first n_traj and then steps
         end_cell_ids, end_Trajectory, end_Step = (
-            [
-                "end_deg_traj_%d_time_%d" % (i, j)
-                for j in deg_label_t
-                for i in range(n_cell)
-            ],
+            ["end_deg_traj_%d_time_%d" % (i, j) for j in deg_label_t for i in range(n_cell)],
             [i for j in deg_label_t for i in range(n_cell)],
             [j for j in deg_label_t for i in range(n_cell)],
         )  # first n_traj and then steps
@@ -513,9 +496,7 @@ def Gillespie(
         )
 
         n_species = len(c0)
-        trajs_T, trajs_C = simulate(
-            model_unlab, C0=[c0] * n_cell, t_span=[0, 100], n_traj=n_cell, report=True
-        )
+        trajs_T, trajs_C = simulate(model_unlab, C0=[c0] * n_cell, t_span=[0, 100], n_traj=n_cell, report=True)
 
         kin_5, kin_40, kin_200, kin_300, one_shot, deg_begin, deg_end = osc_diff_dup(
             n_species, trajs_C, model_lab, model_unlab, n_cell
@@ -609,29 +590,17 @@ def Gillespie(
             [j for j in kin_Tl for i in range(n_cell)],
         )
         one_shot_cell_ids, one_shot_Trajectory, one_shot_Step = (
-            [
-                "one_shot_traj_%d_time_%d" % (i, j)
-                for j in kin_T_CP
-                for i in range(n_cell)
-            ],
+            ["one_shot_traj_%d_time_%d" % (i, j) for j in kin_T_CP for i in range(n_cell)],
             [i for j in kin_T_CP for i in range(n_cell)],
             [j for j in kin_T_CP for i in range(n_cell)],
         )  # first n_traj and then steps
         begin_cell_ids, begin_Trajectory, begin_Step = (
-            [
-                "begin_deg_traj_%d_time_%d" % (i, j)
-                for j in deg_label_t
-                for i in range(n_cell)
-            ],
+            ["begin_deg_traj_%d_time_%d" % (i, j) for j in deg_label_t for i in range(n_cell)],
             [i for j in deg_label_t for i in range(n_cell)],
             [j for j in deg_label_t for i in range(n_cell)],
         )  # first n_traj and then steps
         end_cell_ids, end_Trajectory, end_Step = (
-            [
-                "end_deg_traj_%d_time_%d" % (i, j)
-                for j in deg_label_t
-                for i in range(n_cell)
-            ],
+            ["end_deg_traj_%d_time_%d" % (i, j) for j in deg_label_t for i in range(n_cell)],
             [i for j in deg_label_t for i in range(n_cell)],
             [j for j in deg_label_t for i in range(n_cell)],
         )  # first n_traj and then steps
@@ -712,8 +681,6 @@ def Gillespie(
         adata_no_splicing.obsm["protein"] = P
     # remove cells that has no expression
     adata = adata[np.array(adata.X.sum(1)).flatten() > 0, :]
-    adata_no_splicing = adata_no_splicing[
-        np.array(adata_no_splicing.X.sum(1)).flatten() > 0, :
-    ]
+    adata_no_splicing = adata_no_splicing[np.array(adata_no_splicing.X.sum(1)).flatten() > 0, :]
 
     return adata, adata_no_splicing

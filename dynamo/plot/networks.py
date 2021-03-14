@@ -4,19 +4,20 @@ from .utils import set_colorbar, save_fig
 from .utils_graph import ArcPlot
 
 
-def nxvizPlot(adata,
-              cluster,
-              cluster_name,
-              edges_list,
-              plot='arcplot',
-              network=None,
-              weight_scale=5e3,
-              weight_threshold=1e-4,
-              figsize=(6, 6),
-              save_show_or_return='show',
-              save_kwargs={},
-              **kwargs,
-              ):
+def nxvizPlot(
+    adata,
+    cluster,
+    cluster_name,
+    edges_list,
+    plot="arcplot",
+    network=None,
+    weight_scale=5e3,
+    weight_threshold=1e-4,
+    figsize=(6, 6),
+    save_show_or_return="show",
+    save_kwargs={},
+    **kwargs,
+):
     """Arc or circos plot of gene regulatory network for a particular cell cluster.
 
     Parameters
@@ -56,93 +57,113 @@ def nxvizPlot(adata,
         Nothing but plot an ArcPlot of the input direct network.
     """
 
-    has_splicing, has_labeling = adata.uns['pp'].get('has_splicing'), adata.uns['pp'].get('has_labeling')
-    layer = 'M_s' if not has_labeling else 'M_t'
+    has_splicing, has_labeling = adata.uns["pp"].get("has_splicing"), adata.uns["pp"].get("has_labeling")
+    layer = "M_s" if not has_labeling else "M_t"
 
     import matplotlib.pyplot as plt
+
     try:
         import networkx as nx
         import nxviz as nv
     except ImportError:
-        raise ImportError(f"You need to install the packages `networkx, nxviz`."
-                          f"install networkx via `pip install networkx`."
-                          f"install nxviz via `pip install nxviz`.")
+        raise ImportError(
+            f"You need to install the packages `networkx, nxviz`."
+            f"install networkx via `pip install networkx`."
+            f"install nxviz via `pip install nxviz`."
+        )
 
     if edges_list is not None:
-        network = nx.from_pandas_edgelist(edges_list[cluster_name].query("weight > @weight_threshold"), 'regulator', 'target', edge_attr='weight',
-                                          create_using=nx.DiGraph())
+        network = nx.from_pandas_edgelist(
+            edges_list[cluster_name].query("weight > @weight_threshold"),
+            "regulator",
+            "target",
+            edge_attr="weight",
+            create_using=nx.DiGraph(),
+        )
         if len(network.node) == 0:
-            raise ValueError(f'weight_threshold is too high, no edge has weight than {weight_threshold} '
-                             f'for cluster {cluster}.')
+            raise ValueError(
+                f"weight_threshold is too high, no edge has weight than {weight_threshold} " f"for cluster {cluster}."
+            )
 
     # Iterate over all the nodes in G, including the metadata
-    if type(cluster_name) is str: cluster_names = [cluster_name]
+    if type(cluster_name) is str:
+        cluster_names = [cluster_name]
     for n, d in network.nodes(data=True):
         # Calculate the degree of each node: G.node[n]['degree']
-        network.nodes[n]['degree'] = nx.degree(network, n)
+        network.nodes[n]["degree"] = nx.degree(network, n)
         # data has to be float
         if cluster is not None:
-            network.nodes[n]['size'] = adata[adata.obs[cluster].isin(cluster_names), n].layers[layer].A.mean().astype(float)
+            network.nodes[n]["size"] = (
+                adata[adata.obs[cluster].isin(cluster_names), n].layers[layer].A.mean().astype(float)
+            )
         else:
-            network.nodes[n]['size'] = adata[:, n].layers[layer].A.mean().astype(float)
+            network.nodes[n]["size"] = adata[:, n].layers[layer].A.mean().astype(float)
 
-        network.nodes[n]['label'] = n
+        network.nodes[n]["label"] = n
     for e in network.edges():
-        network.edges[e]['weight'] *= weight_scale
+        network.edges[e]["weight"] *= weight_scale
 
-    if plot.lower() == 'arcplot':
-        prefix = 'arcPlot'
+    if plot.lower() == "arcplot":
+        prefix = "arcPlot"
         # Create the customized ArcPlot object: a2
-        nv_ax = nv.ArcPlot(network,
-                           node_order=kwargs.pop('node_order', 'degree'),
-                           node_size=kwargs.pop('node_size', None),
-                           node_grouping=kwargs.pop('node_grouping', None),
-                           group_order=kwargs.pop('group_order', 'alphabetically'),
-                           node_color=kwargs.pop('node_color', 'size'),
-                           node_labels=kwargs.pop('node_labels', True),
-                           edge_width=kwargs.pop('edge_width', 'weight'),
-                           edge_color=kwargs.pop('edge_color', None),
-                           data_types=kwargs.pop('data_types', None),
-                           nodeprops=kwargs.pop('nodeprops',
-                                                {'facecolor': 'None', 'alpha': 0.2, 'cmap': 'viridis', 'label': 'label'}),
-                           edgeprops=kwargs.pop('edgeprops', {'facecolor': 'None', 'alpha': 0.2}),
-                           node_label_color=kwargs.pop('node_label_color', False),
-                           group_label_position=kwargs.pop('group_label_position', None),
-                           group_label_color=kwargs.pop('group_label_color', False),
-                           fontsize=kwargs.pop('fontsize', 10),
-                           fontfamily=kwargs.pop('fontfamily', "serif"),
-                           figsize=figsize,
-                           )
-    elif plot.lower() == 'circosplot':
-        prefix = 'circosPlot'
+        nv_ax = nv.ArcPlot(
+            network,
+            node_order=kwargs.pop("node_order", "degree"),
+            node_size=kwargs.pop("node_size", None),
+            node_grouping=kwargs.pop("node_grouping", None),
+            group_order=kwargs.pop("group_order", "alphabetically"),
+            node_color=kwargs.pop("node_color", "size"),
+            node_labels=kwargs.pop("node_labels", True),
+            edge_width=kwargs.pop("edge_width", "weight"),
+            edge_color=kwargs.pop("edge_color", None),
+            data_types=kwargs.pop("data_types", None),
+            nodeprops=kwargs.pop("nodeprops", {"facecolor": "None", "alpha": 0.2, "cmap": "viridis", "label": "label"}),
+            edgeprops=kwargs.pop("edgeprops", {"facecolor": "None", "alpha": 0.2}),
+            node_label_color=kwargs.pop("node_label_color", False),
+            group_label_position=kwargs.pop("group_label_position", None),
+            group_label_color=kwargs.pop("group_label_color", False),
+            fontsize=kwargs.pop("fontsize", 10),
+            fontfamily=kwargs.pop("fontfamily", "serif"),
+            figsize=figsize,
+        )
+    elif plot.lower() == "circosplot":
+        prefix = "circosPlot"
         # Create the customized CircosPlot object: a2
-        nv_ax = nv.CircosPlot(network,
-                              node_order=kwargs.pop('node_order', 'degree'),
-                              node_size=kwargs.pop('node_size', None),
-                              node_grouping=kwargs.pop('node_grouping', None),
-                              group_order=kwargs.pop('group_order', 'alphabetically'),
-                              node_color=kwargs.pop('node_color', 'size'),
-                              node_labels=kwargs.pop('node_labels', True),
-                              edge_width=kwargs.pop('edge_width', 'weight'),
-                              edge_color=kwargs.pop('edge_color', None),
-                              data_types=kwargs.pop('data_types', None),
-                              nodeprops=kwargs.pop('nodeprops', None),
-                              node_label_layout="rotation",
-                              edgeprops=kwargs.pop('edgeprops', {'facecolor': 'None', 'alpha': 0.2}),
-                              node_label_color=kwargs.pop('node_label_color', False),
-                              group_label_position=kwargs.pop('group_label_position', None),
-                              group_label_color=kwargs.pop('group_label_color', False),
-                              fontsize=kwargs.pop('fontsize', 10),
-                              fontfamily=kwargs.pop('fontfamily', "serif"),
-                              figsize=figsize,
-                              )
+        nv_ax = nv.CircosPlot(
+            network,
+            node_order=kwargs.pop("node_order", "degree"),
+            node_size=kwargs.pop("node_size", None),
+            node_grouping=kwargs.pop("node_grouping", None),
+            group_order=kwargs.pop("group_order", "alphabetically"),
+            node_color=kwargs.pop("node_color", "size"),
+            node_labels=kwargs.pop("node_labels", True),
+            edge_width=kwargs.pop("edge_width", "weight"),
+            edge_color=kwargs.pop("edge_color", None),
+            data_types=kwargs.pop("data_types", None),
+            nodeprops=kwargs.pop("nodeprops", None),
+            node_label_layout="rotation",
+            edgeprops=kwargs.pop("edgeprops", {"facecolor": "None", "alpha": 0.2}),
+            node_label_color=kwargs.pop("node_label_color", False),
+            group_label_position=kwargs.pop("group_label_position", None),
+            group_label_color=kwargs.pop("group_label_color", False),
+            fontsize=kwargs.pop("fontsize", 10),
+            fontfamily=kwargs.pop("fontfamily", "serif"),
+            figsize=figsize,
+        )
 
     if save_show_or_return == "save":
         # Draw a to the screen
         nv_ax.draw()
         plt.autoscale()
-        s_kwargs = {"path": None, "prefix": prefix, "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": prefix,
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
@@ -157,21 +178,22 @@ def nxvizPlot(adata,
         return nv_ax
 
 
-def arcPlot(adata,
-            cluster,
-            cluster_name,
-            edges_list,
-            network=None,
-            color=None,
-            cmap='viridis',
-            node_size=100,
-            cbar=True,
-            cbar_title=None,
-            figsize=(6, 6),
-            save_show_or_return='show',
-            save_kwargs={},
-            **kwargs,
-            ):
+def arcPlot(
+    adata,
+    cluster,
+    cluster_name,
+    edges_list,
+    network=None,
+    color=None,
+    cmap="viridis",
+    node_size=100,
+    cbar=True,
+    cbar_title=None,
+    figsize=(6, 6),
+    save_show_or_return="show",
+    save_kwargs={},
+    **kwargs,
+):
     """Arc plot of gene regulatory network for a particular cell cluster.
 
     Parameters
@@ -212,7 +234,7 @@ def arcPlot(adata,
         Nothing but plot an ArcPlot of the input direct network.
     """
 
-    '''nxvizPlot(adata,
+    """nxvizPlot(adata,
             cluster,
             cluster_name,
             edges_list,
@@ -223,7 +245,7 @@ def arcPlot(adata,
             save_show_or_return=save_show_or_return,
             save_kwargs=save_kwargs,
             **kwargs,
-            )'''
+            )"""
     import matplotlib
     import matplotlib.pyplot as plt
     from matplotlib.ticker import MaxNLocator
@@ -231,15 +253,18 @@ def arcPlot(adata,
     try:
         import networkx as nx
     except ImportError:
-        raise ImportError(f"You need to install the package `networkx`."
-                          f"install networkx via `pip install networkx`.")
+        raise ImportError(
+            f"You need to install the package `networkx`." f"install networkx via `pip install networkx`."
+        )
 
     if edges_list is not None:
-        network = nx.from_pandas_edgelist(edges_list[cluster], 'regulator', 'target', edge_attr='weight',
-                                          create_using=nx.DiGraph())
+        network = nx.from_pandas_edgelist(
+            edges_list[cluster], "regulator", "target", edge_attr="weight", create_using=nx.DiGraph()
+        )
 
     # Iterate over all the nodes in G, including the metadata
-    if type(cluster_name) is str: cluster_names = [cluster_name]
+    if type(cluster_name) is str:
+        cluster_names = [cluster_name]
     if type(color) is str and color in adata.layers.keys():
         data = adata[adata.obs[cluster].isin(cluster_names), :].layers[color]
         color = []
@@ -248,24 +273,32 @@ def arcPlot(adata,
             color.append(c)
     else:
         color = None
-    
+
     fig, ax = plt.subplots(figsize=figsize)
     ap = ArcPlot(network=network, c=color, s=node_size, cmap=cmap, **kwargs)
     node_degree = [network.degree[i] for i in network.nodes]
     print(node_degree)
     ap.draw(node_order=node_degree)
-    
+
     if cbar and color is not None:
         norm = matplotlib.colors.Normalize(vmin=np.min(color), vmax=np.max(color))
 
         mappable = matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
         mappable.set_array(color)
-        cb = plt.colorbar(mappable, cax=set_colorbar(ax, {"width": "12%",  # width = 5% of parent_bbox width
-                                                           "height":"100%",  # height : 50%
-                                                           "loc": 'upper right',
-                                                           "bbox_to_anchor": (0.85, 0.85, 0.145, 0.17),
-                                                           "borderpad": 1.85,
-                                                           }), ax=ax)
+        cb = plt.colorbar(
+            mappable,
+            cax=set_colorbar(
+                ax,
+                {
+                    "width": "12%",  # width = 5% of parent_bbox width
+                    "height": "100%",  # height : 50%
+                    "loc": "upper right",
+                    "bbox_to_anchor": (0.85, 0.85, 0.145, 0.17),
+                    "borderpad": 1.85,
+                },
+            ),
+            ax=ax,
+        )
         if cbar_title is not None:
             cb.ax.set_title(cbar_title)
 
@@ -277,8 +310,15 @@ def arcPlot(adata,
     if save_show_or_return == "save":
         # Draw a to the screen
         plt.autoscale()
-        s_kwargs = {"path": None, "prefix": "arcPlot", "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "arcPlot",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
@@ -292,18 +332,19 @@ def arcPlot(adata,
         return ap
 
 
-def circosPlot(adata,
-               cluster,
-               cluster_name,
-               edges_list,
-               network=None,
-               weight_scale=5e3,
-               weight_threshold=1e-4,
-               figsize=(12, 6),
-               save_show_or_return='show',
-               save_kwargs={},
-               **kwargs,
-               ):
+def circosPlot(
+    adata,
+    cluster,
+    cluster_name,
+    edges_list,
+    network=None,
+    weight_scale=5e3,
+    weight_threshold=1e-4,
+    figsize=(12, 6),
+    save_show_or_return="show",
+    save_kwargs={},
+    **kwargs,
+):
     """Circos plot of gene regulatory network for a particular cell cluster.
 
     Parameters
@@ -340,30 +381,32 @@ def circosPlot(adata,
     -------
         Nothing but plot an CircosPlot of the input direct network.
     """
-    nxvizPlot(adata,
-              cluster,
-              cluster_name,
-              edges_list,
-              plot='circosplot',
-              network=network,
-              weight_scale=weight_scale,
-              weight_threshold=weight_threshold,
-              figsize=figsize,
-              save_show_or_return=save_show_or_return,
-              save_kwargs=save_kwargs,
-              **kwargs,
-              )
+    nxvizPlot(
+        adata,
+        cluster,
+        cluster_name,
+        edges_list,
+        plot="circosplot",
+        network=network,
+        weight_scale=weight_scale,
+        weight_threshold=weight_threshold,
+        figsize=figsize,
+        save_show_or_return=save_show_or_return,
+        save_kwargs=save_kwargs,
+        **kwargs,
+    )
 
 
-def hivePlot(adata,
-             edges_list,
-             cluster,
-             cluster_names=None,
-             weight_threshold=1e-4,
-             figsize=(6, 6),
-             save_show_or_return='show',
-             save_kwargs={},
-             ):
+def hivePlot(
+    adata,
+    edges_list,
+    cluster,
+    cluster_names=None,
+    weight_threshold=1e-4,
+    figsize=(6, 6),
+    save_show_or_return="show",
+    save_kwargs={},
+):
     """Hive plot of cell cluster specific gene regulatory networks.
 
     Parameters
@@ -394,8 +437,8 @@ def hivePlot(adata,
         Nothing but plot a hive plot of the input cell cluster specific direct network.
     """
 
-    has_splicing, has_labeling = adata.uns['pp'].get('has_splicing'), adata.uns['pp'].get('has_labeling')
-    layer = 'M_s' if not has_labeling else 'M_t'
+    has_splicing, has_labeling = adata.uns["pp"].get("has_splicing"), adata.uns["pp"].get("has_labeling")
+    layer = "M_s" if not has_labeling else "M_t"
     # from matplotlib.lines import Line2D
     import matplotlib.pyplot as plt
 
@@ -404,44 +447,59 @@ def hivePlot(adata,
         from hiveplotlib import Axis, Node, HivePlot
         from hiveplotlib.viz import axes_viz_mpl, node_viz_mpl, edge_viz_mpl
     except ImportError:
-        raise ImportError(f"You need to install the package `networkx, hiveplotlib`."
-                          f"install hiveplotlib via `pip install hiveplotlib`"
-                          f"install networkx via `pip install nxviz`.")
+        raise ImportError(
+            f"You need to install the package `networkx, hiveplotlib`."
+            f"install hiveplotlib via `pip install hiveplotlib`"
+            f"install networkx via `pip install nxviz`."
+        )
 
     reg_groups = adata.obs[cluster].unique().to_list()
     if not set(edges_list.keys()).issubset(reg_groups):
-        raise ValueError(f"the edges_list's keys are not equal or subset of the clusters from the "
-                         f"adata.obs[{cluster}]")
+        raise ValueError(
+            f"the edges_list's keys are not equal or subset of the clusters from the " f"adata.obs[{cluster}]"
+        )
     if cluster_names is not None:
         reg_groups = list(set(reg_groups).intersection(cluster_names))
         if len(reg_groups) == 0:
-            raise ValueError(f"the clusters argument {cluster_names} provided doesn't match up with any clusters from the "
-                             f"adata.")
+            raise ValueError(
+                f"the clusters argument {cluster_names} provided doesn't match up with any clusters from the " f"adata."
+            )
 
     combined_edges, G, edges_dict = None, {}, {}
     for i, grp in enumerate(edges_list.keys()):
-        G[grp] = nx.from_pandas_edgelist(edges_list[grp].query("weight > @weight_threshold"), 'regulator', 'target', edge_attr='weight', create_using=nx.DiGraph())
+        G[grp] = nx.from_pandas_edgelist(
+            edges_list[grp].query("weight > @weight_threshold"),
+            "regulator",
+            "target",
+            edge_attr="weight",
+            create_using=nx.DiGraph(),
+        )
         if len(G[grp].node) == 0:
-            raise ValueError(f'weight_threshold is too high, no edge has weight than {weight_threshold} '
-                             f'for cluster {grp}.')
+            raise ValueError(
+                f"weight_threshold is too high, no edge has weight than {weight_threshold} " f"for cluster {grp}."
+            )
         edges_dict[grp] = np.array(G[grp].edges)
         combined_edges = edges_list[grp] if combined_edges is None else pd.concat((combined_edges, edges_list[grp]))
 
     # pull out degree information from nodes for later use
-    combined_G = nx.from_pandas_edgelist(combined_edges.query("weight > @weight_threshold"), 'regulator', 'target',
-                                         edge_attr='weight', create_using=nx.DiGraph())
+    combined_G = nx.from_pandas_edgelist(
+        combined_edges.query("weight > @weight_threshold"),
+        "regulator",
+        "target",
+        edge_attr="weight",
+        create_using=nx.DiGraph(),
+    )
     edges = np.array(combined_G.edges)
     node_ids, degrees = np.unique(edges, return_counts=True)
 
     nodes = []
     for node_id, degree in zip(node_ids, degrees):
         # store the index number as a way to align the nodes on axes
-        combined_G.nodes.data()[node_id]['loc'] = node_id
+        combined_G.nodes.data()[node_id]["loc"] = node_id
         # also store the degree of each node as another way to
         #  align nodes on axes
-        combined_G.nodes.data()[node_id]['degree'] = degree
-        temp_node = Node(unique_id=node_id,
-                         data=combined_G.nodes.data()[node_id])
+        combined_G.nodes.data()[node_id]["degree"] = degree
+        temp_node = Node(unique_id=node_id, data=combined_G.nodes.data()[node_id])
         nodes.append(temp_node)
 
     hp = HivePlot()
@@ -453,8 +511,7 @@ def hivePlot(adata,
     angles = np.linspace(0, 360, len(reg_groups) + 1)
     axes = []
     for i, grp in enumerate(reg_groups):
-        axis = Axis(axis_id=grp, start=1, end=5, angle=angles[i],
-                    long_name=grp)
+        axis = Axis(axis_id=grp, start=1, end=5, angle=angles[i], long_name=grp)
         axes.append(axis)
 
     hp.add_axes(axes)
@@ -464,23 +521,20 @@ def hivePlot(adata,
 
     # assign nodes and sorting procedure to position nodes on axis
     for i, grp in enumerate(reg_groups):
-        hp.place_nodes_on_axis(axis_id=grp, unique_ids=nodes,
-                                      sorting_feature_to_use="degree")
+        hp.place_nodes_on_axis(axis_id=grp, unique_ids=nodes, sorting_feature_to_use="degree")
     for i, grp in enumerate(reg_groups):
         ### edges ###
         nex_grp = reg_groups[i + 1] if i < len(reg_groups) - 1 else reg_groups[0]
-        hp.connect_axes(edges=edges_dict[grp], axis_id_1=grp,
-                               axis_id_2=nex_grp, c="C" + str(i)) ### different color for each lineage
+        hp.connect_axes(
+            edges=edges_dict[grp], axis_id_1=grp, axis_id_2=nex_grp, c="C" + str(i)
+        )  ### different color for each lineage
 
     # plot axes
-    fig, ax = axes_viz_mpl(hp, figsize=figsize,
-                           axes_labels_buffer=1.4)
+    fig, ax = axes_viz_mpl(hp, figsize=figsize, axes_labels_buffer=1.4)
     # plot nodes
-    node_viz_mpl(hp,
-                 fig=fig, ax=ax, s=80, c="black")
+    node_viz_mpl(hp, fig=fig, ax=ax, s=80, c="black")
     # plot edges
-    edge_viz_mpl(hive_plot=hp, fig=fig, ax=ax, alpha=0.7,
-                 zorder=-1)
+    edge_viz_mpl(hive_plot=hp, fig=fig, ax=ax, alpha=0.7, zorder=-1)
 
     # ax.set_title("Hive Plot", fontsize=20, y=0.9)
     # custom_lines = [Line2D([0], [0], color=f'C{i}', lw=3, linestyle='-') for i in range(len(reg_groups))]
@@ -488,8 +542,15 @@ def hivePlot(adata,
     #           title="Regulatory network based on Jacobian analysis")
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'hiveplot', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "hiveplot",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)

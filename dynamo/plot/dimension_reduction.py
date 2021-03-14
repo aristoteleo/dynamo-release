@@ -65,6 +65,7 @@ def umap(adata, *args, **kwargs):
 
     return scatters(adata, "umap", *args, **kwargs)
 
+
 @docstrings.with_indent(4)
 def trimap(adata, *args, **kwargs):
     """\

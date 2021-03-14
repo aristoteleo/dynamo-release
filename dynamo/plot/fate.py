@@ -5,15 +5,17 @@ from .utils import save_fig
 from ..prediction.fate import fate_bias as fate_bias_pd
 from ..tools.utils import update_dict
 
-def fate_bias(adata,
-              group,
-              basis='umap',
-              fate_bias_df=None,
-              figsize=(6, 4),
-              save_show_or_return='show',
-              save_kwargs={},
-              **cluster_maps_kwargs
-              ):
+
+def fate_bias(
+    adata,
+    group,
+    basis="umap",
+    fate_bias_df=None,
+    figsize=(6, 4),
+    save_show_or_return="show",
+    save_kwargs={},
+    **cluster_maps_kwargs
+):
     """Plot the lineage (fate) bias of cells states whose vector field trajectories are predicted.
 
     This function internally calls `dyn.tl.fate_bias` to calculate fate bias dataframe. You can also visualize the data
@@ -54,15 +56,23 @@ def fate_bias(adata,
 
     fate_bias = fate_bias_pd(adata, group=group, basis=basis) if fate_bias_df is None else fate_bias_df
 
-    if 'confidence' in fate_bias.keys():
+    if "confidence" in fate_bias.keys():
         fate_bias.set_index([fate_bias.index, fate_bias.confidence], inplace=True)
 
-    ax = sns.clustermap(fate_bias, col_cluster=True, row_cluster=True, figsize=figsize, yticklabels=False,
-                        **cluster_maps_kwargs)
+    ax = sns.clustermap(
+        fate_bias, col_cluster=True, row_cluster=True, figsize=figsize, yticklabels=False, **cluster_maps_kwargs
+    )
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'fate_bias', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "fate_bias",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
@@ -71,4 +81,3 @@ def fate_bias(adata,
         plt.show()
     elif save_show_or_return == "return":
         return ax
-

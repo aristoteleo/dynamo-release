@@ -35,7 +35,7 @@ def plot_flow_field(
     streamline_color=None,
     streamline_alpha=0.4,
     color_start_points=None,
-    save_show_or_return='return',
+    save_show_or_return="return",
     save_kwargs={},
     ax=None,
     **streamline_kwargs,
@@ -97,9 +97,15 @@ def plot_flow_field(
         _background = background
 
     if _background in ["#ffffff", "black"]:
-        color, color_start_points = "white" if streamline_color is None else streamline_color, "red" if color_start_points is None else color_start_points
+        color, color_start_points = (
+            "white" if streamline_color is None else streamline_color,
+            "red" if color_start_points is None else color_start_points,
+        )
     else:
-        color, color_start_points = "black" if streamline_color is None else streamline_color, "red" if color_start_points is None else color_start_points
+        color, color_start_points = (
+            "black" if streamline_color is None else streamline_color,
+            "red" if color_start_points is None else color_start_points,
+        )
 
     # Set up u,v space
     u = np.linspace(x_range[0], x_range[1], n_grid)
@@ -142,8 +148,12 @@ def plot_flow_field(
         ax = plt.gca()
     if start_points is None:
         s = ax.streamplot(
-            uu, vv, u_vel, v_vel, color=color, **streamplot_kwargs,
-
+            uu,
+            vv,
+            u_vel,
+            v_vel,
+            color=color,
+            **streamplot_kwargs,
         )
         set_arrow_alpha(ax, streamline_alpha)
         set_stream_line_alpha(s, streamline_alpha)
@@ -166,8 +176,15 @@ def plot_flow_field(
         set_stream_line_alpha(s, streamline_alpha)
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'plot_flow_field', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "plot_flow_field",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
@@ -178,12 +195,7 @@ def plot_flow_field(
         return ax
 
 
-def plot_nullclines(vecfld,
-                    lw=3,
-                    background=None,
-                    save_show_or_return='return',
-                    save_kwargs={},
-                    ax=None):
+def plot_nullclines(vecfld, lw=3, background=None, save_show_or_return="return", save_kwargs={}, ax=None):
     """Plot nullclines stored in the VectorField2D class.
 
     Arguments
@@ -227,8 +239,15 @@ def plot_nullclines(vecfld,
         ax.plot(*ncy.T, c=colors[1], lw=lw)
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'plot_nullclines', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "plot_nullclines",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
@@ -246,7 +265,7 @@ def plot_fixed_points(
     cmap=None,
     filltype=["full", "top", "none"],
     background=None,
-    save_show_or_return='return',
+    save_show_or_return="return",
     save_kwargs={},
     ax=None,
 ):
@@ -290,21 +309,17 @@ def plot_fixed_points(
         _background = background
 
     if _background in ["#ffffff", "black"]:
-        _theme_ = (
-            "inferno"
-        )
+        _theme_ = "inferno"
     else:
-        _theme_ = (
-            "viridis"
-        )
+        _theme_ = "viridis"
     _cmap = _themes[_theme_]["cmap"] if cmap is None else cmap
 
     Xss, ftype = vecfld.get_fixed_points(get_types=True)
     confidence = vecfld.get_Xss_confidence()
-    
+
     if ax is None:
         ax = plt.gca()
-    
+
     cm = matplotlib.cm.get_cmap(_cmap) if type(_cmap) is str else _cmap
     for i in range(len(Xss)):
         cur_ftype = ftype[i]
@@ -318,10 +333,16 @@ def plot_fixed_points(
             linewidths=1,
             cmap=_cmap,
             vmin=0,
-            zorder=5
+            zorder=5,
         )
-        txt = ax.text(*Xss[i], repr(i), c=('black' if cur_ftype == -1 else 'blue' if cur_ftype == 0 else 'red'),
-                horizontalalignment='center', verticalalignment='center', zorder=6, weight='bold',
+        txt = ax.text(
+            *Xss[i],
+            repr(i),
+            c=("black" if cur_ftype == -1 else "blue" if cur_ftype == 0 else "red"),
+            horizontalalignment="center",
+            verticalalignment="center",
+            zorder=6,
+            weight="bold",
         )
         txt.set_path_effects(
             [
@@ -331,8 +352,15 @@ def plot_fixed_points(
         )
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'plot_fixed_points', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "plot_fixed_points",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
@@ -343,16 +371,17 @@ def plot_fixed_points(
         return ax
 
 
-def plot_traj(f,
-              y0,
-              t,
-              args=(),
-              lw=2,
-              background=None,
-              integration_direction="both",
-              save_show_or_return='return',
-              save_kwargs={},
-              ax=None
+def plot_traj(
+    f,
+    y0,
+    t,
+    args=(),
+    lw=2,
+    background=None,
+    integration_direction="both",
+    save_show_or_return="return",
+    save_kwargs={},
+    ax=None,
 ):
     """Plots a trajectory on a phase portrait.
     code adapted from: http://be150.caltech.edu/2017/handouts/dynamical_systems_approaches.html
@@ -411,8 +440,15 @@ def plot_traj(f,
             ax = _plot_traj(cur_y0, t, args, integration_direction, ax, color, lw, f)
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'plot_traj', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "plot_traj",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
@@ -423,16 +459,17 @@ def plot_traj(f,
         return ax
 
 
-def plot_separatrix(vecfld,
-                    x_range,
-                    y_range,
-                    t,
-                    noise=1e-6,
-                    lw=3,
-                    background=None,
-                    save_show_or_return='return',
-                    save_kwargs={},
-                    ax=None
+def plot_separatrix(
+    vecfld,
+    x_range,
+    y_range,
+    t,
+    noise=1e-6,
+    lw=3,
+    background=None,
+    save_show_or_return="return",
+    save_kwargs={},
+    ax=None,
 ):
     """Plot separatrix on phase portrait.
 
@@ -517,16 +554,19 @@ def plot_separatrix(vecfld,
             # Plot
             ax.plot(sep_a, sep_b, "-", color=color, lw=lw)
 
-            all_sep_a = (
-                sep_a if all_sep_a is None else np.concatenate((all_sep_a, sep_a))
-            )
-            all_sep_b = (
-                sep_b if all_sep_b is None else np.concatenate((all_sep_b, sep_b))
-            )
+            all_sep_a = sep_a if all_sep_a is None else np.concatenate((all_sep_a, sep_a))
+            all_sep_b = sep_b if all_sep_b is None else np.concatenate((all_sep_b, sep_b))
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'plot_separatrix', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "plot_separatrix",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
@@ -543,7 +583,7 @@ def topography(
     basis="umap",
     x=0,
     y=1,
-    color='ntr',
+    color="ntr",
     layer="X",
     highlights=None,
     labels=None,
@@ -552,11 +592,11 @@ def topography(
     cmap=None,
     color_key=None,
     color_key_cmap=None,
-    background='white',
+    background="white",
     ncols=4,
     pointsize=None,
     figsize=(6, 4),
-    show_legend='on data',
+    show_legend="on data",
     use_smoothed=True,
     xlim=None,
     ylim=None,
@@ -576,16 +616,16 @@ def topography(
     color_start_points=None,
     markersize=200,
     marker_cmap=None,
-    save_show_or_return='show',
+    save_show_or_return="show",
     save_kwargs={},
     aggregate=None,
     show_arrowed_spines=False,
     ax=None,
-    sort='raw',
+    sort="raw",
     frontier=False,
     s_kwargs_dict={},
     q_kwargs_dict={},
-    **streamline_kwargs_dict
+    **streamline_kwargs_dict,
 ):
     """Plot the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system
     for single cells. The plot is created on two dimensional space.
@@ -723,10 +763,10 @@ def topography(
         obs_keys = adata.obs.keys()
         if np.array([key.endswith("potential") for key in obs_keys]).sum() == 0:
             ddhodge(adata, basis=basis)
-            prefix = '' if basis is None else basis + '_'
+            prefix = "" if basis is None else basis + "_"
             color = [prefix + "ddhodge_potential"]
         else:
-            color = np.array(obs_keys)[[key.endswith("potential")for key in obs_keys]][0]
+            color = np.array(obs_keys)[[key.endswith("potential") for key in obs_keys]][0]
         if np.array([key.endswith("curl") for key in obs_keys]).sum() == 0:
             curl(adata, basis=basis)
             color.extend("curl_" + basis)
@@ -752,7 +792,7 @@ def topography(
             terms = list(set(terms).difference("trajectory"))
 
     if init_cells is not None or init_states is not None:
-        terms.extend('trajectory')
+        terms.extend("trajectory")
 
     uns_key = "VecFld" if basis == "X" else "VecFld_" + basis
 
@@ -765,11 +805,8 @@ def topography(
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
 
-            _topology(adata, basis, VecFld=None)        
-    elif (
-        "VecFld2D" in adata.uns[uns_key].keys()
-        and type(adata.uns[uns_key]["VecFld2D"]) == str
-    ):
+            _topology(adata, basis, VecFld=None)
+    elif "VecFld2D" in adata.uns[uns_key].keys() and type(adata.uns[uns_key]["VecFld2D"]) == str:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
 
@@ -797,9 +834,7 @@ def topography(
         if init_states is None:
             init_states = _init_states
 
-    if quiver_source == "reconstructed" or (
-        init_states is not None and init_cells is None
-    ):
+    if quiver_source == "reconstructed" or (init_states is not None and init_cells is None):
         from ..tools.utils import vector_field_function
 
         V = vector_field_function(init_states, VF, [0, 1])
@@ -851,20 +886,12 @@ def topography(
         axes_list[i].set_facecolor(background)
 
         if t is None:
-            max_t = np.max((np.diff(xlim), np.diff(ylim))) / np.min(
-                np.abs(VF["grid_V"])
-            )
+            max_t = np.max((np.diff(xlim), np.diff(ylim))) / np.min(np.abs(VF["grid_V"]))
 
             t = np.linspace(0, max_t, 10 ** (np.min((int(np.log10(max_t)), 8))))
 
         integration_direction = (
-            "both"
-            if fate == "both"
-            else "forward"
-            if fate == "future"
-            else "backward"
-            if fate == "history"
-            else "both"
+            "both" if fate == "both" else "forward" if fate == "future" else "backward" if fate == "history" else "both"
         )
 
         if "streamline" in terms:
@@ -899,19 +926,19 @@ def topography(
                 )
 
         if "nullcline" in terms:
-            axes_list[i] = plot_nullclines(
-                vecfld, background=_background, ax=axes_list[i]
-            )
+            axes_list[i] = plot_nullclines(vecfld, background=_background, ax=axes_list[i])
 
         if "fixed_points" in terms:
             axes_list[i] = plot_fixed_points(
-                vecfld, background=_background, ax=axes_list[i], markersize=markersize, cmap=marker_cmap,
+                vecfld,
+                background=_background,
+                ax=axes_list[i],
+                markersize=markersize,
+                cmap=marker_cmap,
             )
 
         if "separatrices" in terms:
-            axes_list[i] = plot_separatrix(
-                vecfld, xlim, ylim, t=t, background=_background, ax=axes_list[i]
-            )
+            axes_list[i] = plot_separatrix(vecfld, xlim, ylim, t=t, background=_background, ax=axes_list[i])
 
         if init_states is not None and "trajectory" in terms:
             if not approx:
@@ -938,9 +965,7 @@ def topography(
             else:
                 edgecolors = "black"
 
-            head_w, head_l, ax_l, scale = default_quiver_args(
-                quiver_size, quiver_length
-            )  #
+            head_w, head_l, ax_l, scale = default_quiver_args(quiver_size, quiver_length)  #
             quiver_kwargs = {
                 "angles": "xy",
                 "scale": scale,
@@ -960,25 +985,28 @@ def topography(
             quiver_kwargs = update_dict(quiver_kwargs, q_kwargs_dict)
             # axes_list[i].quiver(X_grid[:, 0], X_grid[:, 1], V_grid[:, 0], V_grid[:, 1], **quiver_kwargs)
             axes_list[i].quiver(
-                df.iloc[:, 0],
-                df.iloc[:, 1],
-                df.iloc[:, 2],
-                df.iloc[:, 3],
-                **quiver_kwargs
+                df.iloc[:, 0], df.iloc[:, 1], df.iloc[:, 2], df.iloc[:, 3], **quiver_kwargs
             )  # color='red',  facecolors='gray'
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'topography', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "topography",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
     elif save_show_or_return == "show":
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-        
+
             plt.tight_layout()
-        
+
         plt.show()
     elif save_show_or_return == "return":
         return axes_list if len(axes_list) > 1 else axes_list[0]

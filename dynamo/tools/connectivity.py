@@ -31,10 +31,10 @@ def adj_to_knn(adj, n_neighbors):
     Returns
     -------
         idx: :class:`~numpy.ndarray`
-            The matrix (n x n_neighbors) that stores the indices for each node's 
+            The matrix (n x n_neighbors) that stores the indices for each node's
             n_neighbors nearest neighbors.
         wgt: :class:`~numpy.ndarray`
-            The matrix (n x n_neighbors) that stores the weights on the edges 
+            The matrix (n x n_neighbors) that stores the weights on the edges
             for each node's n_neighbors nearest neighbors.
     """
 
@@ -52,26 +52,20 @@ def adj_to_knn(adj, n_neighbors):
         # there could be more or less than n_neighbors because of an approximate search
         cur_n_neighbors = len(cur_neighbors[1])
         if cur_n_neighbors > n_neighbors - 1:
-            sorted_indices = np.argsort(adj[cur_cell][:, cur_neighbors[1]].A)[0][
-                : (n_neighbors - 1)
-            ]
+            sorted_indices = np.argsort(adj[cur_cell][:, cur_neighbors[1]].A)[0][: (n_neighbors - 1)]
             idx[cur_cell, 1:] = cur_neighbors[1][sorted_indices]
-            wgt[cur_cell, 1:] = adj[cur_cell][
-                0, cur_neighbors[1][sorted_indices]
-            ].A
+            wgt[cur_cell, 1:] = adj[cur_cell][0, cur_neighbors[1][sorted_indices]].A
         else:
             idx[cur_cell, 1 : (cur_n_neighbors + 1)] = cur_neighbors[1]
-            wgt[cur_cell, 1 : (cur_n_neighbors + 1)] = adj[cur_cell][
-                :, cur_neighbors[1]
-            ].A
+            wgt[cur_cell, 1 : (cur_n_neighbors + 1)] = adj[cur_cell][:, cur_neighbors[1]].A
 
     return idx, wgt
 
 
 def knn_to_adj(knn_indices, knn_weights):
-    adj = csr_matrix((knn_weights.flatten(),
-                    (np.repeat(knn_indices[:, 0], knn_indices.shape[1]),
-                     knn_indices.flatten())))
+    adj = csr_matrix(
+        (knn_weights.flatten(), (np.repeat(knn_indices[:, 0], knn_indices.shape[1]), knn_indices.flatten()))
+    )
     adj.eliminate_zeros()
 
     return adj
@@ -79,8 +73,9 @@ def knn_to_adj(knn_indices, knn_weights):
 
 def get_conn_dist_graph(knn, distances):
     n_obs, n_neighbors = knn.shape
-    distances = csr_matrix((distances.flatten(), (np.repeat(np.arange(n_obs), n_neighbors), knn.flatten())),
-                           shape=(n_obs, n_obs))
+    distances = csr_matrix(
+        (distances.flatten(), (np.repeat(np.arange(n_obs), n_neighbors), knn.flatten())), shape=(n_obs, n_obs)
+    )
     connectivities = distances.copy()
     connectivities.data[connectivities.data > 0] = 1
 
@@ -111,7 +106,7 @@ def umap_conn_indices_dist_embedding(
     output_dens=False,
     return_mapper=True,
     verbose=False,
-    **umap_kwargs
+    **umap_kwargs,
 ):
     """Compute connectivity graph, matrices for kNN neighbor indices, distance matrix and low dimension embedding with UMAP.
     This code is adapted from umap-learn (https://github.com/lmcinnes/umap/blob/97d33f57459de796774ab2d7fcf73c639835676d/umap/umap_.py)
@@ -207,14 +202,13 @@ def umap_conn_indices_dist_embedding(
             metric="precomputed",
             verbose=verbose,
         )
-        if type(graph) == tuple: graph = graph[0]
+        if type(graph) == tuple:
+            graph = graph[0]
 
         # extract knn_indices, knn_dist
         g_tmp = deepcopy(graph)
         g_tmp[graph.nonzero()] = dmat[graph.nonzero()]
-        knn_indices, knn_dists = adj_to_knn(
-            g_tmp, n_neighbors=n_neighbors
-        )
+        knn_indices, knn_dists = adj_to_knn(g_tmp, n_neighbors=n_neighbors)
     else:
         # Standard case
         (knn_indices, knn_dists, rp_forest) = nearest_neighbors(
@@ -250,7 +244,8 @@ def umap_conn_indices_dist_embedding(
         print("Construct embedding")
 
     a, b = find_ab_params(spread, min_dist)
-    if type(graph) == tuple: graph = graph[0]
+    if type(graph) == tuple:
+        graph = graph[0]
 
     dens_lambda = dens_lambda if densmap else 0.0
     dens_frac = dens_frac if densmap else 0.0
@@ -322,7 +317,7 @@ def umap_conn_indices_dist_embedding(
             init=init_pos,
             random_state=random_state,
             verbose=verbose,
-            **umap_kwargs
+            **umap_kwargs,
         ).fit(X)
 
         return mapper, graph, knn_indices, knn_dists, embedding_
@@ -331,8 +326,7 @@ def umap_conn_indices_dist_embedding(
 
 
 def mnn_from_list(knn_graph_list):
-    """Apply reduce function to calculate the mutual kNN.
-    """
+    """Apply reduce function to calculate the mutual kNN."""
     import functools
 
     mnn = (
@@ -345,8 +339,7 @@ def mnn_from_list(knn_graph_list):
 
 
 def normalize_knn_graph(knn):
-    """normalize the knn graph so that each row will be sum up to 1.
-    """
+    """normalize the knn graph so that each row will be sum up to 1."""
     knn.setdiag(1)
     knn = knn.astype("float32")
     sparsefuncs.inplace_row_scale(knn, 1 / knn.sum(axis=1).A1)
@@ -362,7 +355,7 @@ def mnn(
     use_pca_fit=True,
     save_all_to_adata=False,
 ):
-    """ Function to calculate mutual nearest neighbor graph across specific data layers.
+    """Function to calculate mutual nearest neighbor graph across specific data layers.
 
     Parameters
     ----------
@@ -388,16 +381,13 @@ def mnn(
         if "pca_fit" in adata.uns.keys():
             fiter = adata.uns["pca_fit"]
         else:
-            raise Exception(
-                "use_pca_fit is set to be True, but there is no pca fit results in .uns attribute."
-            )
+            raise Exception("use_pca_fit is set to be True, but there is no pca fit results in .uns attribute.")
 
     layers = get_layer_keys(adata, layers, False, False)
     layers = [
         layer
         for layer in layers
-        if layer.startswith("X_")
-        and (not layer.endswith("_matrix") and not layer.endswith("_ambiguous"))
+        if layer.startswith("X_") and (not layer.endswith("_matrix") and not layer.endswith("_ambiguous"))
     ]
     knn_graph_list = []
     for layer in layers:
@@ -406,9 +396,7 @@ def mnn(
         if use_pca_fit:
             layer_pca = fiter.fit_transform(layer_X)[:, 1:]
         else:
-            transformer = TruncatedSVD(
-                n_components=n_pca_components + 1, random_state=0
-            )
+            transformer = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)
             layer_pca = transformer.fit_transform(layer_X)[:, 1:]
 
         with warnings.catch_warnings():
@@ -419,9 +407,7 @@ def mnn(
 
         if save_all_to_adata:
             adata.obsm[layer + "_pca"], adata.obsm[layer + "_umap"] = layer_pca, X_dim
-            n_neighbors = signature(umap_conn_indices_dist_embedding).parameters[
-                "n_neighbors"
-            ]
+            n_neighbors = signature(umap_conn_indices_dist_embedding).parameters["n_neighbors"]
 
             adata.uns[layer + "_neighbors"] = {
                 "params": {"n_neighbors": eval(n_neighbors), "method": "umap"},
@@ -443,7 +429,7 @@ def neighbors(
     adata,
     X_data=None,
     genes=None,
-    basis='pca',
+    basis="pca",
     layer=None,
     n_pca_components=30,
     n_neighbors=30,
@@ -500,8 +486,9 @@ def neighbors(
     """
 
     if X_data is None:
-        if basis == 'pca' and 'X_pca' not in adata.obsm_keys():
+        if basis == "pca" and "X_pca" not in adata.obsm_keys():
             from ..preprocessing.utils import pca
+
             CM = adata.X if genes is None else adata[:, genes].X
             cm_genesums = CM.sum(axis=0)
             valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
@@ -509,37 +496,46 @@ def neighbors(
             CM = CM[:, valid_ind]
             adata, _, _ = pca(adata, CM, n_pca_components=n_pca_components)
 
-            X_data = adata.obsm['X_pca']
+            X_data = adata.obsm["X_pca"]
         else:
             genes, X_data = fetch_X_data(adata, genes, layer, basis)
 
     if method is None:
         if X_data.shape[0] > 200000 and X_data.shape[1] > 2:
             from pynndescent import NNDescent
-            method = 'pynn'
+
+            method = "pynn"
         elif X_data.shape[1] > 10:
-            method = 'ball_tree' 
+            method = "ball_tree"
         else:
-            method = 'kd_tree'
+            method = "kd_tree"
 
     # may distinguish between umap and pynndescent -- treat them equal for now
-    if method.lower() in ['pynn', 'umap']:
-        index = NNDescent(X_data, metric=metric, metric_kwads=metric_kwads, n_neighbors=n_neighbors, n_jobs=cores,
-                          random_state=seed, **kwargs)
+    if method.lower() in ["pynn", "umap"]:
+        index = NNDescent(
+            X_data,
+            metric=metric,
+            metric_kwads=metric_kwads,
+            n_neighbors=n_neighbors,
+            n_jobs=cores,
+            random_state=seed,
+            **kwargs,
+        )
         knn, distances = index.query(X_data, k=n_neighbors)
-    elif method in ['ball_tree', 'kd_tree']:
+    elif method in ["ball_tree", "kd_tree"]:
         from sklearn.neighbors import NearestNeighbors
-        nbrs = NearestNeighbors(n_neighbors=n_neighbors, metric=metric, metric_params=metric_kwads, algorithm=method,
-                                n_jobs=cores, **kwargs).fit(X_data)
+
+        nbrs = NearestNeighbors(
+            n_neighbors=n_neighbors, metric=metric, metric_params=metric_kwads, algorithm=method, n_jobs=cores, **kwargs
+        ).fit(X_data)
         distances, knn = nbrs.kneighbors(X_data)
     else:
-        raise ImportError(f'nearest neighbor search method {method} is not supported')
-
+        raise ImportError(f"nearest neighbor search method {method} is not supported")
 
     adata.obsp["connectivities"], adata.obsp["distances"] = get_conn_dist_graph(knn, distances)
 
-    adata.uns['neighbors'] = {}
-    adata.uns['neighbors']["indices"] = knn
+    adata.uns["neighbors"] = {}
+    adata.uns["neighbors"]["indices"] = knn
     adata.uns["neighbors"]["params"] = {
         "n_neighbors": n_neighbors,
         "method": method,

@@ -5,17 +5,19 @@ from ..tools.utils import log1p_
 from .utils import vecfld_from_adata, vector_field_function
 
 
-def diffusionMatrix(adata,
-              X_data=None,
-              V_data=None,
-              genes=None,
-              layer=None,
-              basis="umap",
-              dims=None,
-              n=30,
-              VecFld=None,
-              residual='vector_field'):
-    """"Calculate the diffusion matrix from the estimated velocity vector and the reconstructed vector field.
+def diffusionMatrix(
+    adata,
+    X_data=None,
+    V_data=None,
+    genes=None,
+    layer=None,
+    basis="umap",
+    dims=None,
+    n=30,
+    VecFld=None,
+    residual="vector_field",
+):
+    """ "Calculate the diffusion matrix from the estimated velocity vector and the reconstructed vector field.
 
     Parameters
     ----------
@@ -54,28 +56,31 @@ def diffusionMatrix(adata,
         if genes is not None:
             genes = adata.var_name.intersection(genes).to_list()
             if len(genes) == 0:
-                raise ValueError(f'no genes from your genes list appear in your adata object.')
+                raise ValueError(f"no genes from your genes list appear in your adata object.")
         if layer is not None:
             if layer not in adata.layers.keys():
-                raise ValueError(f'the layer {layer} you provided is not included in the adata object!')
+                raise ValueError(f"the layer {layer} you provided is not included in the adata object!")
 
             if basis is None:
-                vkey = 'velocity_' + layer[0].upper()
+                vkey = "velocity_" + layer[0].upper()
                 if vkey not in adata.obsm.keys():
                     raise ValueError(
-                        f'the data corresponds to the velocity key {vkey} is not included in the adata object!')
+                        f"the data corresponds to the velocity key {vkey} is not included in the adata object!"
+                    )
 
         if VecFld is None:
             VecFld, func = vecfld_from_adata(adata, basis)
         else:
             func = lambda x: vector_field_function(x, VecFld)
 
-        prefix = 'X_' if layer is None else layer + '_'
+        prefix = "X_" if layer is None else layer + "_"
 
         if basis is not None:
-            if basis.split(prefix)[-1] not in ['pca', 'umap', 'trimap', 'tsne', 'diffmap']:
-                raise ValueError(f"basis (or the suffix of basis) can only be one of "
-                                 f"['pca', 'umap', 'trimap', 'tsne', 'diffmap'].")
+            if basis.split(prefix)[-1] not in ["pca", "umap", "trimap", "tsne", "diffmap"]:
+                raise ValueError(
+                    f"basis (or the suffix of basis) can only be one of "
+                    f"['pca', 'umap', 'trimap', 'tsne', 'diffmap']."
+                )
             if basis.startswith(prefix):
                 basis = basis
                 vkey = "velocity_" + basis.split(prefix)[-1]
@@ -85,37 +90,44 @@ def diffusionMatrix(adata,
 
             if vkey not in adata.obsm_keys():
                 raise ValueError(
-                    f'the data corresponds to the velocity key {vkey} is not included in the adata object!')
+                    f"the data corresponds to the velocity key {vkey} is not included in the adata object!"
+                )
 
         if basis is None:
             if layer is None:
                 vkey = "velocity_S"
                 if vkey not in adata.uns_keys():
                     raise ValueError(
-                        f'the data corresponds to the velocity key {vkey} is not included in the adata object!')
+                        f"the data corresponds to the velocity key {vkey} is not included in the adata object!"
+                    )
 
                 if genes is not None:
                     X_data, V_data = adata[:, genes].X, adata[:, genes].uns[vkey]
                 else:
-                    if 'use_for_dynamics' not in adata.var.keys():
+                    if "use_for_dynamics" not in adata.var.keys():
                         X_data, V_data = adata.X, adata.uns[vkey]
                     else:
-                        X_data, V_data = adata[:, adata.var.use_for_dynamics].X, \
-                                         adata[:, adata.var.use_for_dynamics].uns[vkey]
+                        X_data, V_data = (
+                            adata[:, adata.var.use_for_dynamics].X,
+                            adata[:, adata.var.use_for_dynamics].uns[vkey],
+                        )
             else:
                 vkey = "velocity_" + layer[0].upper()
                 if vkey not in adata.uns_keys():
                     raise ValueError(
-                        f'the data corresponds to the velocity key {vkey} is not included in the adata object!')
+                        f"the data corresponds to the velocity key {vkey} is not included in the adata object!"
+                    )
 
                 if genes is not None:
                     X_data, V_data = adata[:, genes].layers[layer], adata[:, genes].uns[vkey]
                 else:
-                    if 'use_for_dynamics' not in adata.var.keys():
+                    if "use_for_dynamics" not in adata.var.keys():
                         X_data, V_data = adata.layers[layer], adata.uns[vkey]
                     else:
-                        X_data, V_data = adata[:, adata.var.use_for_dynamics].layers[layer], \
-                                         adata[:, adata.var.use_for_dynamics].uns[vkey]
+                        X_data, V_data = (
+                            adata[:, adata.var.use_for_dynamics].layers[layer],
+                            adata[:, adata.var.use_for_dynamics].uns[vkey],
+                        )
                 X_data = log1p_(adata, X_data)
         else:
             X_data, V_data = adata.obsm[basis], adata.obsm[vkey]
@@ -125,13 +137,13 @@ def diffusionMatrix(adata,
 
     neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
     if neighbor_key not in adata.uns_keys() or (X_data is not None and V_data is not None):
-        if X_data.shape[0] > 200000 and X_data.shape[1] > 2: 
+        if X_data.shape[0] > 200000 and X_data.shape[1] > 2:
             from pynndescent import NNDescent
 
-            nbrs = NNDescent(X_data, metric='euclidean', n_neighbors=n, n_jobs=-1, random_state=19491001)
+            nbrs = NNDescent(X_data, metric="euclidean", n_neighbors=n, n_jobs=-1, random_state=19491001)
             Idx, _ = nbrs.query(X_data, k=n)
         else:
-            alg = 'ball_tree' if X_data.shape[1] > 10 else 'kd_tree'
+            alg = "ball_tree" if X_data.shape[1] > 10 else "kd_tree"
             nbrs = NearestNeighbors(n_neighbors=n, algorithm=alg, n_jobs=-1).fit(X_data)
             _, Idx = nbrs.kneighbors(X_data)
     else:
@@ -139,16 +151,18 @@ def diffusionMatrix(adata,
         neighbors = adata.obsp[conn_key]
         Idx = neighbors.tolil().rows
 
-    if residual == 'average':
+    if residual == "average":
         V_ave = np.zeros_like(V_data)
         for i in range(X_data.shape[0]):
             vv = V_data[Idx[i]]
             V_ave[i] = vv.mean(0)
-    elif residual == 'vector_field':
+    elif residual == "vector_field":
         V_ave = func(X_data)
     else:
-        raise ValueError(f'The method for calculate residual {residual} is not supported. '
-                         f'Currently only {"average", "vector_field"} supported.')
+        raise ValueError(
+            f"The method for calculate residual {residual} is not supported. "
+            f'Currently only {"average", "vector_field"} supported.'
+        )
 
     V_diff = V_data - V_ave
     val = np.zeros((V_data.shape[0], 1))
@@ -160,8 +174,8 @@ def diffusionMatrix(adata,
         val[i] = np.sqrt(sum(sum(d)))
         dmatrix[i] = d
 
-    adata.obs['diffusion'] = val
-    adata.uns['diffusion_matrix'] = dmatrix
+    adata.obs["diffusion"] = val
+    adata.uns["diffusion_matrix"] = dmatrix
 
 
 def diffusionMatrix2D(V_mat):
@@ -181,16 +195,10 @@ def diffusionMatrix2D(V_mat):
     See also:: :func:`diffusionMatrix`
     """
 
-    D = np.zeros(
-        (V_mat.shape[0], 2, 2)
-    )
+    D = np.zeros((V_mat.shape[0], 2, 2))
 
-    D[:, 0, 0] = np.mean(
-        (V_mat[:, :, 0] - np.mean(V_mat[:, :, 0], axis=1)[:, None]) ** 2, axis=1
-    )
-    D[:, 1, 1] = np.mean(
-        (V_mat[:, :, 1] - np.mean(V_mat[:, :, 1], axis=1)[:, None]) ** 2, axis=1
-    )
+    D[:, 0, 0] = np.mean((V_mat[:, :, 0] - np.mean(V_mat[:, :, 0], axis=1)[:, None]) ** 2, axis=1)
+    D[:, 1, 1] = np.mean((V_mat[:, :, 1] - np.mean(V_mat[:, :, 1], axis=1)[:, None]) ** 2, axis=1)
     D[:, 0, 1] = np.mean(
         (V_mat[:, :, 0] - np.mean(V_mat[:, :, 0], axis=1)[:, None])
         * (V_mat[:, :, 1] - np.mean(V_mat[:, :, 1], axis=1)[:, None]),

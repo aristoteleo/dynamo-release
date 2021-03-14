@@ -7,15 +7,7 @@ from .utils import save_fig
 docstrings.delete_params("scatters.parameters", "aggregate", "kwargs", "save_kwargs")
 
 
-def create_edge_patch(
-    posA,
-    posB,
-    width=1,
-    node_rad=0,
-    connectionstyle="arc3, rad=0.25",
-    facecolor="k",
-    **kwargs
-):
+def create_edge_patch(posA, posB, width=1, node_rad=0, connectionstyle="arc3, rad=0.25", facecolor="k", **kwargs):
     import matplotlib.patches as pat
 
     style = "simple,head_length=%d,head_width=%d,tail_width=%d" % (10, 10, 3 * width)
@@ -27,20 +19,12 @@ def create_edge_patch(
         facecolor=facecolor,
         shrinkA=node_rad,
         shrinkB=node_rad,
-        **kwargs
+        **kwargs,
     )
 
 
 def create_edge_patches_from_markov_chain(
-    P,
-    X,
-    width=3,
-    node_rad=0,
-    tol=1e-7,
-    connectionstyle="arc3, rad=0.25",
-    facecolor="k",
-    alpha=0.8,
-    **kwargs
+    P, X, width=3, node_rad=0, tol=1e-7, connectionstyle="arc3, rad=0.25", facecolor="k", alpha=0.8, **kwargs
 ):
     arrows = []
     for i in range(P.shape[0]):
@@ -55,7 +39,7 @@ def create_edge_patches_from_markov_chain(
                         connectionstyle=connectionstyle,
                         facecolor=facecolor,
                         alpha=alpha * min(2 * P[i, j], 1),
-                        **kwargs
+                        **kwargs,
                     )
                 )
     return arrows
@@ -68,7 +52,7 @@ def state_graph(
     basis="umap",
     x=0,
     y=1,
-    color='ntr',
+    color="ntr",
     layer="X",
     highlights=None,
     labels=None,
@@ -85,7 +69,7 @@ def state_graph(
     use_smoothed=True,
     show_arrowed_spines=True,
     ax=None,
-    sort='raw',
+    sort="raw",
     frontier=False,
     save_show_or_return="show",
     save_kwargs={},
@@ -162,15 +146,13 @@ def state_graph(
         show_arrowed_spines=show_arrowed_spines,
         ax=ax,
         sort=sort,
-        save_show_or_return='return',
+        save_show_or_return="return",
         frontier=frontier,
         **s_kwargs_dict,
         return_all=True,
     )
 
-    arrows = create_edge_patches_from_markov_chain(
-        Pl, group_median, tol=0.01, node_rad=15
-    )
+    arrows = create_edge_patches_from_markov_chain(Pl, group_median, tol=0.01, node_rad=15)
     if type(axes_list) == list:
         for i in range(len(axes_list)):
             for arrow in arrows:
@@ -186,8 +168,15 @@ def state_graph(
     plt.show()
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'state_graph', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "state_graph",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)

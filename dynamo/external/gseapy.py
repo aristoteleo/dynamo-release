@@ -1,15 +1,17 @@
 from pathlib import Path
 
-def enrichr(genes,
-            organism,
-            background=None,
-            gene_sets=['GO_Biological_Process_2018'],
-            description=None,
-            outdir='./enrichr',
-            cutoff=0.05,
-            no_plot=False,
-            **kwargs,
-            ):
+
+def enrichr(
+    genes,
+    organism,
+    background=None,
+    gene_sets=["GO_Biological_Process_2018"],
+    description=None,
+    outdir="./enrichr",
+    cutoff=0.05,
+    no_plot=False,
+    **kwargs,
+):
     """Perform gene list enrichment with gseapy.
 
     Parameters
@@ -55,20 +57,20 @@ def enrichr(genes,
     try:
         import gseapy as gp
     except ImportError:
-        raise ImportError("You need to install the package `gseapy`."
-                          "install gseapy via `pip install gseapy`")
+        raise ImportError("You need to install the package `gseapy`." "install gseapy via `pip install gseapy`")
 
     Path(outdir).mkdir(parents=True, exist_ok=True)
 
-    enr = gp.enrichr(gene_list=genes,
-                     gene_sets=gene_sets, # GO_Biological_Process_2018
-                     organism=organism, # don't forget to set organism to the one you desired! e.g. Yeast
-                     background=background,
-                     description=description,
-                     outdir=outdir,
-                     no_plot=no_plot,
-                     cutoff=cutoff, # test dataset, use lower value from range(0,1)
-                     **kwargs
-                    )
+    enr = gp.enrichr(
+        gene_list=genes,
+        gene_sets=gene_sets,  # GO_Biological_Process_2018
+        organism=organism,  # don't forget to set organism to the one you desired! e.g. Yeast
+        background=background,
+        description=description,
+        outdir=outdir,
+        no_plot=no_plot,
+        cutoff=cutoff,  # test dataset, use lower value from range(0,1)
+        **kwargs,
+    )
 
     return enr

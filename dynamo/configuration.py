@@ -5,23 +5,29 @@ from cycler import cycler
 import matplotlib.pyplot as plt
 
 # create cmap
-zebrafish_colors = ['#4876ff', '#85C7F2', '#cd00cd', '#911eb4', '#000080', '#808080', '#008080', '#ffc125', '#262626',
-                    '#3cb44b', '#ff4241', '#b77df9']
+zebrafish_colors = [
+    "#4876ff",
+    "#85C7F2",
+    "#cd00cd",
+    "#911eb4",
+    "#000080",
+    "#808080",
+    "#008080",
+    "#ffc125",
+    "#262626",
+    "#3cb44b",
+    "#ff4241",
+    "#b77df9",
+]
 zebrafish_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("zebrafish", zebrafish_colors)
 
 fire_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("fire", colorcet.fire)
-darkblue_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-    "darkblue", colorcet.kbc
-)
-darkgreen_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-    "darkgreen", colorcet.kgy
-)
+darkblue_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("darkblue", colorcet.kbc)
+darkgreen_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("darkgreen", colorcet.kgy)
 darkred_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
     "darkred", colors=colorcet.linear_kry_5_95_c72[:192], N=256
 )
-darkpurple_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-    "darkpurple", colorcet.linear_bmw_5_95_c89
-)
+darkpurple_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("darkpurple", colorcet.linear_bmw_5_95_c89)
 # add gkr theme for velocity
 div_blue_black_red_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
     "div_blue_black_red", colorcet.diverging_gkr_60_10_c40
@@ -31,9 +37,7 @@ div_blue_red_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
     "div_blue_red", colorcet.diverging_bwr_55_98_c37
 )
 # add glasbey_bw for cell annotation in white background
-glasbey_white_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-    "glasbey_white", colorcet.glasbey_bw_minc_20
-)
+glasbey_white_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("glasbey_white", colorcet.glasbey_bw_minc_20)
 # add glasbey_bw_minc_20_maxl_70 theme for cell annotation in dark background
 glasbey_dark_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
     "glasbey_dark", colorcet.glasbey_bw_minc_20_maxl_70
@@ -50,7 +54,6 @@ plt.register_cmap("div_blue_black_red", div_blue_black_red_cmap)
 plt.register_cmap("div_blue_red", div_blue_red_cmap)
 plt.register_cmap("glasbey_white", glasbey_white_cmap)
 plt.register_cmap("glasbey_dark", glasbey_dark_cmap)
-
 
 _themes = {
     "fire": {
@@ -144,6 +147,7 @@ cyc_10 = list(map(colors.to_hex, cm.tab10.colors))
 cyc_20 = list(map(colors.to_hex, cm.tab20c.colors))
 zebrafish_256 = list(map(colors.to_hex, zebrafish_colors))
 
+
 # ideally let us convert the following ggplot theme for Nature publisher group into matplotlib.rcParams
 # nm_theme <- function() {
 #   theme(strip.background = element_rect(colour = 'white', fill = 'white')) +
@@ -209,9 +213,7 @@ def dyn_theme(background="white"):
         )
 
 
-def config_dynamo_rcParams(
-    background="white", prop_cycle=zebrafish_256, fontsize=8, color_map=None, frameon=None
-):
+def config_dynamo_rcParams(background="white", prop_cycle=zebrafish_256, fontsize=8, color_map=None, frameon=None):
     """Configure matplotlib.rcParams to dynamo defaults (based on ggplot style and scanpy).
 
     Parameters
@@ -249,9 +251,7 @@ def config_dynamo_rcParams(
     # rcParams['axes.titlesize'] =  "x-large"
     # rcParams['axes.labelsize'] = "large"
     rcParams["axes.labelcolor"] = "555555"
-    rcParams[
-        "axes.axisbelow"
-    ] = True  # grid/ticks are below elements (e.g., lines, text)
+    rcParams["axes.axisbelow"] = True  # grid/ticks are below elements (e.g., lines, text)
 
     # rcParams['axes.prop_cycle'] = cycler('color', ['E24A33', '348ABD', '988ED5', '777777', 'FBC15E', '8EBA42', 'FFB5B8'])
     # # E24A33 : red
@@ -409,9 +409,7 @@ def set_figure_params(
     file_format_figs = format
 
     if dynamo:
-        config_dynamo_rcParams(
-            background=background, fontsize=fontsize, color_map=color_map
-        )
+        config_dynamo_rcParams(background=background, fontsize=fontsize, color_map=color_map)
     if figsize is not None:
         rcParams["figure.figsize"] = figsize
 
@@ -435,82 +433,76 @@ def reset_rcParams():
 
 def set_pub_style(scaler=1):
     """formatting helper function that can be used to save publishable figures"""
-    set_figure_params('dynamo', background='white')
-    matplotlib.use('cairo')
-    matplotlib.rcParams.update({'font.size': 4 * scaler})
-    params = {'font.size': 4 * scaler,
-              'legend.fontsize': 4 * scaler,
-              'legend.handlelength': 0.5 * scaler,
-              'axes.labelsize': 6 * scaler,
-              'axes.titlesize': 6 * scaler,
-              'xtick.labelsize': 6 * scaler,
-              'ytick.labelsize': 6 * scaler,
-              'axes.titlepad': 1 * scaler,
-              'axes.labelpad': 1 * scaler
+    set_figure_params("dynamo", background="white")
+    matplotlib.use("cairo")
+    matplotlib.rcParams.update({"font.size": 4 * scaler})
+    params = {
+        "font.size": 4 * scaler,
+        "legend.fontsize": 4 * scaler,
+        "legend.handlelength": 0.5 * scaler,
+        "axes.labelsize": 6 * scaler,
+        "axes.titlesize": 6 * scaler,
+        "xtick.labelsize": 6 * scaler,
+        "ytick.labelsize": 6 * scaler,
+        "axes.titlepad": 1 * scaler,
+        "axes.labelpad": 1 * scaler,
     }
     matplotlib.rcParams.update(params)
 
 
 def set_pub_style_mpltex():
     """formatting helper function based on mpltex package that can be used to save publishable figures"""
-    set_figure_params('dynamo', background='white')
-    matplotlib.use('cairo')
+    set_figure_params("dynamo", background="white")
+    matplotlib.use("cairo")
     # the following code is adapted from https://github.com/liuyxpp/mpltex
     # latex_preamble = r"\usepackage{siunitx}\sisetup{detect-all}\usepackage{helvet}\usepackage[eulergreek,EULERGREEK]{sansmath}\sansmath"
-    params = {"font.family": "sans-serif",
-               "font.serif": ["Times", "Computer Modern Roman"],
-               "font.sans-serif": ["Arial", "sans-serif", "Helvetica", "Computer Modern Sans serif"],
-               "font.size": 4,
-               # "text.usetex": True,
-               # "text.latex.preamble": latex_preamble,  # To force LaTeX use Helvetica
-
-               # "axes.prop_cycle": default_color_cycler,
-               "axes.titlesize": 6,
-               "axes.labelsize": 6,
-               "axes.linewidth": 1,
-
-               "figure.subplot.left": 0.125,
-               "figure.subplot.right": 0.95,
-               "figure.subplot.bottom": 0.1,
-               "figure.subplot.top": 0.95,
-
-               "savefig.dpi": 300,
-               "savefig.format": "pdf",
-               # "savefig.bbox": "tight",
-               # this will crop white spaces around images that will make
-               # width/height no longer the same as the specified one.
-
-               "legend.fontsize": 4,
-               "legend.frameon": False,
-               "legend.numpoints": 1,
-               "legend.handlelength": 0.5,
-               "legend.scatterpoints": 1,
-               "legend.labelspacing": 0.5,
-               "legend.markerscale": 0.9,
-               "legend.handletextpad": 0.5,  # pad between handle and text
-               "legend.borderaxespad": 0.5,  # pad between legend and axes
-               "legend.borderpad": 0.5,  # pad between legend and legend content
-               "legend.columnspacing": 1,  # pad between each legend column
-
-               # "text.fontsize" : 4,
-               "xtick.labelsize": 4,
-               "ytick.labelsize": 4,
-
-               "lines.linewidth": 1,
-               "lines.markersize": 4,
-               # "lines.markeredgewidth": 0,
-               # 0 will make line-type markers, such as "+", "x", invisible
-
-               # Revert some properties to mpl v1 which is more suitable for publishing
-               "axes.autolimit_mode": "round_numbers",
-               "axes.xmargin": 0,
-               "axes.ymargin": 0,
-               "xtick.direction": "in",
-               "xtick.top": True,
-               "ytick.direction": "in",
-               "ytick.right": True,
-
-              'axes.titlepad': 1,
-              'axes.labelpad': 1
-               }
+    params = {
+        "font.family": "sans-serif",
+        "font.serif": ["Times", "Computer Modern Roman"],
+        "font.sans-serif": ["Arial", "sans-serif", "Helvetica", "Computer Modern Sans serif"],
+        "font.size": 4,
+        # "text.usetex": True,
+        # "text.latex.preamble": latex_preamble,  # To force LaTeX use Helvetica
+        # "axes.prop_cycle": default_color_cycler,
+        "axes.titlesize": 6,
+        "axes.labelsize": 6,
+        "axes.linewidth": 1,
+        "figure.subplot.left": 0.125,
+        "figure.subplot.right": 0.95,
+        "figure.subplot.bottom": 0.1,
+        "figure.subplot.top": 0.95,
+        "savefig.dpi": 300,
+        "savefig.format": "pdf",
+        # "savefig.bbox": "tight",
+        # this will crop white spaces around images that will make
+        # width/height no longer the same as the specified one.
+        "legend.fontsize": 4,
+        "legend.frameon": False,
+        "legend.numpoints": 1,
+        "legend.handlelength": 0.5,
+        "legend.scatterpoints": 1,
+        "legend.labelspacing": 0.5,
+        "legend.markerscale": 0.9,
+        "legend.handletextpad": 0.5,  # pad between handle and text
+        "legend.borderaxespad": 0.5,  # pad between legend and axes
+        "legend.borderpad": 0.5,  # pad between legend and legend content
+        "legend.columnspacing": 1,  # pad between each legend column
+        # "text.fontsize" : 4,
+        "xtick.labelsize": 4,
+        "ytick.labelsize": 4,
+        "lines.linewidth": 1,
+        "lines.markersize": 4,
+        # "lines.markeredgewidth": 0,
+        # 0 will make line-type markers, such as "+", "x", invisible
+        # Revert some properties to mpl v1 which is more suitable for publishing
+        "axes.autolimit_mode": "round_numbers",
+        "axes.xmargin": 0,
+        "axes.ymargin": 0,
+        "xtick.direction": "in",
+        "xtick.top": True,
+        "ytick.direction": "in",
+        "ytick.right": True,
+        "axes.titlepad": 1,
+        "axes.labelpad": 1,
+    }
     matplotlib.rcParams.update(params)

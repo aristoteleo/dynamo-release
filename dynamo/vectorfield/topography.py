@@ -70,8 +70,7 @@ def find_fixed_points(X0, func_vf, tol_redundant=1e-4, full_output=False):
 
     if tol_redundant is not None:
         if full_output:
-            X, discard = remove_redundant_points(
-                X, tol_redundant, output_discard=True)
+            X, discard = remove_redundant_points(X, tol_redundant, output_discard=True)
             J = J[~discard]
             fval = fval[~discard]
         else:
@@ -85,7 +84,10 @@ def find_fixed_points(X0, func_vf, tol_redundant=1e-4, full_output=False):
 
 def pac_onestep(x0, func, v0, ds=0.01):
     x01 = x0 + v0 * ds
-    def F(x): return np.array([func(x), (x - x0).dot(v0) - ds])
+
+    def F(x):
+        return np.array([func(x), (x - x0).dot(v0) - ds])
+
     x1 = fsolve(F, x01)
     return x1
 
@@ -130,9 +132,7 @@ def clip_curves(curves, domain, tol_discont=None):
                 for i_end in range(i_start, len(cur)):
                     if clip_away[i_end]:
                         break
-                ret.append(
-                    cur[i_start:i_end]
-                )  # a tiny bit of the end could be chopped off
+                ret.append(cur[i_start:i_end])  # a tiny bit of the end could be chopped off
                 i_start = i_end
             else:
                 i_start += 1
@@ -219,9 +219,7 @@ def find_intersection_2d(curve1, curve2, tol_redundant=1e-4):
     return np.array(P)
 
 
-def find_fixed_points_nullcline(
-    func, NCx, NCy, sample_interval=0.5, tol_redundant=1e-4, full_output=False
-):
+def find_fixed_points_nullcline(func, NCx, NCy, sample_interval=0.5, tol_redundant=1e-4, full_output=False):
     test_Px = []
     for i in range(len(NCx)):
         test_Px.append(set_test_points_on_curve(NCx[i], sample_interval))
@@ -238,8 +236,7 @@ def find_fixed_points_nullcline(
                 int_P.append(p[k])
     int_P = np.array(int_P)
     if full_output:
-        P, J, _ = find_fixed_points(
-            int_P, func, tol_redundant, full_output=True)
+        P, J, _ = find_fixed_points(int_P, func, tol_redundant, full_output=True)
         return P, J
     else:
         P = find_fixed_points(int_P, func, tol_redundant)
@@ -257,15 +254,15 @@ def is_outside(X, domain):
 def calc_fft(x):
     out = np.fft.rfft(x)
     n = len(x)
-    xFFT = abs(out)/n*2
-    freq = np.arange(int(n/2))/n
-    return xFFT[:int(n/2)], freq
+    xFFT = abs(out) / n * 2
+    freq = np.arange(int(n / 2)) / n
+    return xFFT[: int(n / 2)], freq
 
 
 def dup_osc_idx(x, n_dom=3, tol=0.05):
     l = int(np.floor(len(x) / n_dom))
-    y1 = x[(n_dom-2)*l: (n_dom-1)*l]
-    y2 = x[(n_dom-1)*l: n_dom*l]
+    y1 = x[(n_dom - 2) * l : (n_dom - 1) * l]
+    y2 = x[(n_dom - 1) * l : n_dom * l]
 
     def calc_fft_k(x):
         ret = []
@@ -277,9 +274,9 @@ def dup_osc_idx(x, n_dom=3, tol=0.05):
     xFFt1 = calc_fft_k(y1)
     xFFt2 = calc_fft_k(y2)
 
-    diff = np.linalg.norm(xFFt1 - xFFt2)/len(xFFt1)
+    diff = np.linalg.norm(xFFt1 - xFFt2) / len(xFFt1)
     if diff <= tol:
-        idx = (n_dom-1)*l
+        idx = (n_dom - 1) * l
     else:
         idx = None
     return idx, diff
@@ -290,7 +287,7 @@ def dup_osc_idx_iter(x, max_iter=5, **kwargs):
     idx = len(x)
     j = 0
     D = []
-    while (not stop):
+    while not stop:
         i, d = dup_osc_idx(x[:idx], **kwargs)
         D.append(d)
         if i is None:
@@ -405,27 +402,23 @@ class VectorField2D:
         if X.shape[0] > 200000 and X.shape[1] > 2:
             from pynndescent import NNDescent
 
-            nbrs = NNDescent(X, metric='euclidean', n_neighbors=min(
-                k, X.shape[0] - 1), n_jobs=-1, random_state=19491001)
+            nbrs = NNDescent(
+                X, metric="euclidean", n_neighbors=min(k, X.shape[0] - 1), n_jobs=-1, random_state=19491001
+            )
             _, dist = nbrs.query(Xss, k=min(k, X.shape[0] - 1))
         else:
-            alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
-            nbrs = NearestNeighbors(n_neighbors=min(
-                k, X.shape[0] - 1), algorithm=alg, n_jobs=-1).fit(X)
+            alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
+            nbrs = NearestNeighbors(n_neighbors=min(k, X.shape[0] - 1), algorithm=alg, n_jobs=-1).fit(X)
             dist, _ = nbrs.kneighbors(Xss)
 
         dist_m = dist.mean(1)
-        #confidence = 1 - dist_m / dist_m.max()
-        sigma = 0.1*0.5 * \
-            (np.max(X[:, 0]) - np.min(X[:, 0]) +
-             np.max(X[:, 1]) - np.min(X[:, 1]))
+        # confidence = 1 - dist_m / dist_m.max()
+        sigma = 0.1 * 0.5 * (np.max(X[:, 0]) - np.min(X[:, 0]) + np.max(X[:, 1]) - np.min(X[:, 1]))
         confidence = gaussian_1d(dist_m, sigma=sigma)
         confidence /= np.max(confidence)
         return confidence[:-1]
 
-    def find_fixed_points_by_sampling(
-        self, n, x_range, y_range, lhs=True, tol_redundant=1e-4
-    ):
+    def find_fixed_points_by_sampling(self, n, x_range, y_range, lhs=True, tol_redundant=1e-4):
         if lhs:
             from ..tools.sampling import lhsclassic
 
@@ -434,25 +427,19 @@ class VectorField2D:
             X0 = np.random.rand(n, 2)
         X0[:, 0] = X0[:, 0] * (x_range[1] - x_range[0]) + x_range[0]
         X0[:, 1] = X0[:, 1] * (y_range[1] - y_range[0]) + y_range[0]
-        X, J, _ = find_fixed_points(
-            X0, self.func, tol_redundant=tol_redundant, full_output=True
-        )
+        X, J, _ = find_fixed_points(X0, self.func, tol_redundant=tol_redundant, full_output=True)
         # remove points that are outside the domain
         outside = is_outside(X, [x_range, y_range])
         self.Xss.add_fixed_points(X[~outside], J[~outside], tol_redundant)
 
     def find_nearest_fixed_point(self, x, x_range, y_range, tol_redundant=1e-4):
-        X, J, _ = find_fixed_points(
-            x, self.func, tol_redundant=tol_redundant, full_output=True
-        )
+        X, J, _ = find_fixed_points(x, self.func, tol_redundant=tol_redundant, full_output=True)
         # remove point if outside the domain
         outside = is_outside(X, [x_range, y_range])[0]
         if not outside:
             self.Xss.add_fixed_points(X, J, tol_redundant)
 
-    def compute_nullclines(
-        self, x_range, y_range, find_new_fixed_points=False, tol_redundant=1e-4
-    ):
+    def compute_nullclines(self, x_range, y_range, find_new_fixed_points=False, tol_redundant=1e-4):
         # compute arguments
         s_max = 5 * ((x_range[1] - x_range[0]) + (y_range[1] - y_range[0]))
         ds = s_max / 1e3
@@ -461,9 +448,7 @@ class VectorField2D:
         )
         if find_new_fixed_points:
             sample_interval = ds * 10
-            X, J = find_fixed_points_nullcline(
-                self.func, self.NCx, self.NCy, sample_interval, tol_redundant, True
-            )
+            X, J = find_fixed_points_nullcline(self.func, self.NCx, self.NCy, sample_interval, tol_redundant, True)
             outside = is_outside(X, [x_range, y_range])
             self.Xss.add_fixed_points(X[~outside], J[~outside], tol_redundant)
 
@@ -508,20 +493,23 @@ def topography(adata, basis="umap", layer=None, X=None, dims=None, n=25, VecFld=
     if VecFld is None:
         VecFld, func = vecfld_from_adata(adata, basis)
     else:
-        if 'velocity_loss_traj' in VecFld.keys():
-            def func(x): return dynode_vector_field_function(x, VecFld)
+        if "velocity_loss_traj" in VecFld.keys():
+
+            def func(x):
+                return dynode_vector_field_function(x, VecFld)
+
         else:
-            def func(x): return vector_field_function(x, VecFld)
+
+            def func(x):
+                return vector_field_function(x, VecFld)
 
     if dims is None:
         dims = [0, 1]
     X_basis = adata.obsm["X_" + basis][:, dims] if X is None else X[:, dims]
     min_, max_ = X_basis.min(0), X_basis.max(0)
 
-    xlim = [min_[0] - (max_[0] - min_[0]) * 0.1,
-            max_[0] + (max_[0] - min_[0]) * 0.1]
-    ylim = [min_[1] - (max_[1] - min_[1]) * 0.1,
-            max_[1] + (max_[1] - min_[1]) * 0.1]
+    xlim = [min_[0] - (max_[0] - min_[0]) * 0.1, max_[0] + (max_[0] - min_[0]) * 0.1]
+    ylim = [min_[1] - (max_[1] - min_[1]) * 0.1, max_[1] + (max_[1] - min_[1]) * 0.1]
 
     vecfld = VectorField2D(func, X_data=X_basis)
     vecfld.find_fixed_points_by_sampling(n, xlim, ylim)
@@ -532,9 +520,7 @@ def topography(adata, basis="umap", layer=None, X=None, dims=None, n=25, VecFld=
 
     if layer is None:
         if "VecFld_" + basis in adata.uns_keys():
-            adata.uns["VecFld_" + basis].update(
-                {"VecFld": VecFld, "VecFld2D": vecfld, "xlim": xlim, "ylim": ylim}
-            )
+            adata.uns["VecFld_" + basis].update({"VecFld": VecFld, "VecFld2D": vecfld, "xlim": xlim, "ylim": ylim})
         else:
             adata.uns["VecFld_" + basis] = {
                 "VecFld": VecFld,
@@ -545,9 +531,7 @@ def topography(adata, basis="umap", layer=None, X=None, dims=None, n=25, VecFld=
     else:
         vf_key = "VecFld" if layer == "X" else "VecFld_" + layer
         if "VecFld" in adata.uns_keys():
-            adata.uns[vf_key].update(
-                {"VecFld": VecFld, "VecFld2D": vecfld, "xlim": xlim, "ylim": ylim}
-            )
+            adata.uns[vf_key].update({"VecFld": VecFld, "VecFld2D": vecfld, "xlim": xlim, "ylim": ylim})
         else:
             adata.uns[vf_key] = {
                 "VecFld": VecFld,
@@ -680,19 +664,15 @@ def VectorField(
         min_vec = min_vec - 0.01 * np.abs(max_vec - min_vec)
         max_vec = max_vec + 0.01 * np.abs(max_vec - min_vec)
 
-        Grid_list = np.meshgrid(
-            *[np.linspace(i, j, grid_num) for i, j in zip(min_vec, max_vec)]
-        )
+        Grid_list = np.meshgrid(*[np.linspace(i, j, grid_num) for i, j in zip(min_vec, max_vec)])
         Grid = np.array([i.flatten() for i in Grid_list]).T
 
     if X is None:
-        raise Exception(
-            f"X is None. Make sure you passed the correct X or {basis} dimension reduction method."
-        )
+        raise Exception(f"X is None. Make sure you passed the correct X or {basis} dimension reduction method.")
     elif V is None:
         raise Exception("V is None. Make sure you passed the correct V.")
 
-    if method.lower() == 'sparsevfc':
+    if method.lower() == "sparsevfc":
         vf_kwargs = {
             "M": None,
             "a": 5,
@@ -709,7 +689,7 @@ def VectorField(
             "eta": 0.5,
             "seed": 0,
         }
-    elif method.lower() == 'dynode':
+    elif method.lower() == "dynode":
         try:
             import dynode
             from dynode.vectorfield import networkModels
@@ -719,21 +699,16 @@ def VectorField(
             from dynode.vectorfield.losses_weighted import MSE
             from .scVectorField import dynode_vectorfield
         except ImportError:
-            raise ImportError("You need to install the package `dynode`."
-                              "install dynode via `pip install dynode`")
+            raise ImportError("You need to install the package `dynode`." "install dynode via `pip install dynode`")
 
-        velocity_data_sampler = VelocityDataSampler(
-            adata={'X': X, 'V': V}, normalize_velocity=normalize)
-        max_iter = (
-            2 * 100000 * np.log(X.shape[0]) / (250 + np.log(X.shape[0])))
+        velocity_data_sampler = VelocityDataSampler(adata={"X": X, "V": V}, normalize_velocity=normalize)
+        max_iter = 2 * 100000 * np.log(X.shape[0]) / (250 + np.log(X.shape[0]))
 
         cwd, cwt = os.getcwd(), datetime.datetime.now()
 
         if model_buffer_path is None:
-            model_buffer_path = cwd + '/' + basis + '_' + \
-                str(cwt.year) + '_' + str(cwt.month) + '_' + str(cwt.day)
-            warnings.warn(
-                f"the buffer path saving the dynode model is in %s" % (model_buffer_path))
+            model_buffer_path = cwd + "/" + basis + "_" + str(cwt.year) + "_" + str(cwt.month) + "_" + str(cwt.day)
+            warnings.warn(f"the buffer path saving the dynode model is in %s" % (model_buffer_path))
 
         vf_kwargs = {
             "model": networkModels,
@@ -753,8 +728,8 @@ def VectorField(
             "buffer_path": model_buffer_path,
             "hidden_features": 256,
             "hidden_layers": 3,
-            "first_omega_0": 30.,
-            "hidden_omega_0": 30.,
+            "first_omega_0": 30.0,
+            "hidden_omega_0": 30.0,
         }
         train_kwargs = {
             "max_iter": int(max_iter),
@@ -771,15 +746,14 @@ def VectorField(
             "iter_per_sample_update": None,
         }
     else:
-        raise ValueError(
-            f"current only support two methods, SparseVFC and dynode")
+        raise ValueError(f"current only support two methods, SparseVFC and dynode")
 
     vf_kwargs = update_dict(vf_kwargs, kwargs)
 
     if method.lower() == "sparsevfc":
         VecFld = svc_vectorfield(X, V, Grid, **vf_kwargs)
         vf_dict = VecFld.train(normalize=normalize, **kwargs)
-    elif method.lower() == 'dynode':
+    elif method.lower() == "dynode":
         train_kwargs = update_dict(train_kwargs, kwargs)
         VecFld = dynode_vectorfield(X, V, Grid, **vf_kwargs)
         # {"VecFld": VecFld.train(**kwargs)}
@@ -787,22 +761,22 @@ def VectorField(
 
     vf_key = "VecFld" if basis is None else "VecFld_" + basis
 
-    vf_dict['method'] = method
+    vf_dict["method"] = method
     if basis is not None:
-        key = "velocity_" + basis + '_' + method
-        adata.obsm[key] = vf_dict['V']
-        adata.obsm['X_' + basis + '_' + method] = vf_dict['X']
+        key = "velocity_" + basis + "_" + method
+        adata.obsm[key] = vf_dict["V"]
+        adata.obsm["X_" + basis + "_" + method] = vf_dict["X"]
 
-        vf_dict['dims'] = dims
+        vf_dict["dims"] = dims
         adata.uns[vf_key] = vf_dict
     else:
-        key = velocity_key + '_' + method
+        key = velocity_key + "_" + method
         adata.layers[key] = sp.csr_matrix((adata.shape))
-        adata.layers[key][:, valid_genes] = vf_dict['V']
+        adata.layers[key][:, valid_genes] = vf_dict["V"]
 
-        vf_dict['layer'] = layer
-        vf_dict['genes'] = genes
-        vf_dict['velocity_key'] = velocity_key
+        vf_dict["layer"] = layer
+        vf_dict["genes"] = genes
+        vf_dict["velocity_key"] = velocity_key
         adata.uns[vf_key] = vf_dict
 
     if X.shape[1] == 2 and map_topography:
@@ -812,27 +786,27 @@ def VectorField(
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
 
-            adata = topography(
-                adata, basis=basis, X=X, layer=layer, dims=[0, 1], VecFld=vf_dict, **tp_kwargs
-            )
+            adata = topography(adata, basis=basis, X=X, layer=layer, dims=[0, 1], VecFld=vf_dict, **tp_kwargs)
     if pot_curl_div:
-        if basis in ["pca", 'umap', 'tsne', 'diffusion_map', 'trimap']:
+        if basis in ["pca", "umap", "tsne", "diffusion_map", "trimap"]:
             ddhodge(adata, basis=basis, cores=cores)
             if X.shape[1] == 2:
                 curl(adata, basis=basis)
             divergence(adata, basis=basis)
 
-    control_point, inlier_prob, valid_ids = "control_point_" + basis if basis is not None else "control_point", \
-                                            'inlier_prob_' + basis if basis is not None else "inlier_prob", \
-                                            vf_dict['valid_ind']
-    if method.lower() == 'sparsevfc':
+    control_point, inlier_prob, valid_ids = (
+        "control_point_" + basis if basis is not None else "control_point",
+        "inlier_prob_" + basis if basis is not None else "inlier_prob",
+        vf_dict["valid_ind"],
+    )
+    if method.lower() == "sparsevfc":
         adata.obs[control_point], adata.obs[inlier_prob] = False, np.nan
-        adata.obs[control_point][vf_dict['ctrl_idx']] = True
-        adata.obs[inlier_prob][valid_ids] = vf_dict['P'].flatten()
+        adata.obs[control_point][vf_dict["ctrl_idx"]] = True
+        adata.obs[inlier_prob][valid_ids] = vf_dict["P"].flatten()
 
     # angles between observed velocity and that predicted by vector field across cells:
     cell_angels = np.zeros(adata.n_obs)
-    for i, u, v in zip(valid_ids, V[valid_ids], vf_dict['V']):
+    for i, u, v in zip(valid_ids, V[valid_ids], vf_dict["V"]):
         cell_angels[i] = angle(u, v)
 
     if basis is not None:

@@ -31,11 +31,9 @@ from .scVectorField import (
     grid_vectors,
     streamline_plot,
     line_integral_conv,
-    plot_energy
+    plot_energy,
 )  # , plot_LIC_gray
-from .streamtube import (
-    plot_3d_streamtube
-)
+from .streamtube import plot_3d_streamtube
 from .topography import (
     plot_flow_field,
     plot_fixed_points,
@@ -68,10 +66,10 @@ from .state_graph import state_graph
 from .scPotential import show_landscape
 
 from .ezplots import (
-    zscatter, 
-    zstreamline, 
-    multiplot, 
-    plot_V, 
+    zscatter,
+    zstreamline,
+    multiplot,
+    plot_V,
     plot_X,
     SchemeDiverge,
     SchemeDivergeBWR,

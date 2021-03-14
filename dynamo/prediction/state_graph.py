@@ -16,18 +16,11 @@ from .utils import (
 )
 
 
-def classify_clone_cell_type(
-    adata, clone, clone_column, cell_type_column, cell_type_to_excluded
-):
+def classify_clone_cell_type(adata, clone, clone_column, cell_type_column, cell_type_to_excluded):
     """find the dominant cell type of all the cells that are from the same clone"""
     cell_ids = np.where(adata.obs[clone_column] == clone)[0]
 
-    to_check = (
-        adata[cell_ids]
-        .obs[cell_type_column]
-        .value_counts()
-        .index.isin(list(cell_type_to_excluded))
-    )
+    to_check = adata[cell_ids].obs[cell_type_column].value_counts().index.isin(list(cell_type_to_excluded))
 
     cell_type = np.where(to_check)[0]
 
@@ -37,8 +30,8 @@ def classify_clone_cell_type(
 def state_graph(
     adata,
     group,
-    method='vf',
-    transition_mat_key='pearson_transition_matrix',
+    method="vf",
+    transition_mat_key="pearson_transition_matrix",
     approx=True,
     basis="umap",
     layer=None,
@@ -77,7 +70,7 @@ def state_graph(
 
     groups, uniq_grp = adata.obs[group], list(adata.obs[group].unique())
 
-    if method.lower() == 'markov':
+    if method.lower() == "markov":
         kmc = KernelMarkovChain(P=adata.obsp[transition_mat_key])
 
         ord_enc = OrdinalEncoder()
@@ -87,7 +80,7 @@ def state_graph(
         grp_graph = kmc.lump(labels)
         grp_avg_time = None
 
-    elif method == 'vf':
+    elif method == "vf":
         grp_graph = np.zeros((len(uniq_grp), len(uniq_grp)))
         grp_avg_time = np.zeros((len(uniq_grp), len(uniq_grp)))
 
@@ -164,9 +157,7 @@ def state_graph(
 
             for j in np.arange(cell_num):
                 cur_ind = np.arange(j * len_per_cell, (j + 1) * len_per_cell)
-                Y, arclength, T_bool = remove_redundant_points_trajectory(
-                    X[cur_ind], tol=dist_min, output_discard=True
-                )
+                Y, arclength, T_bool = remove_redundant_points_trajectory(X[cur_ind], tol=dist_min, output_discard=True)
 
                 if arc_sample:
                     Y, arclength, T = arclength_sampling(Y, arclength / 1000, t=t[~T_bool])
@@ -177,9 +168,7 @@ def state_graph(
 
                 # set up a dataframe with group and time
                 pass_t = np.where(knn_dist < dist_threshold)[0]
-                pass_df = pd.DataFrame(
-                    {"group": adata[knn_ind[pass_t]].obs[group], "t": T[pass_t]}
-                )
+                pass_df = pd.DataFrame({"group": adata[knn_ind[pass_t]].obs[group], "t": T[pass_t]})
                 # only consider trajectory that pass at least 10 cells in group as confident pass
                 pass_group_counter = pass_df.group.value_counts()
                 pass_groups, confident_pass_check = (
@@ -188,10 +177,7 @@ def state_graph(
                 )
                 # assign the transition matrix and average transition time
                 if len(confident_pass_check) > 0:
-                    ind_other_cell_type = [
-                        uniq_grp.index(k)
-                        for k in np.array(pass_groups)[confident_pass_check]
-                    ]
+                    ind_other_cell_type = [uniq_grp.index(k) for k in np.array(pass_groups)[confident_pass_check]]
                     grp_graph[i, ind_other_cell_type] += 1
                     grp_avg_time[i, ind_other_cell_type] += (
                         pass_df.groupby("group")["t"].mean()[confident_pass_check].values

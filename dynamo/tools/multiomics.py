@@ -1,6 +1,7 @@
 from anndata import AnnData
 import numpy as np
 
+
 # 1. concatenate RNA/protein data
 # 2. filter gene/protein for velocity
 # 3. use steady state assumption to calculate protein velocity
@@ -28,13 +29,9 @@ def AddAssay(adata, data, key, slot="obsm"):
     """
 
     if slot == "uns":
-        adata.uns[key] = data.loc[
-            adata.obs.index, set(adata.var.index).intersection(data.columns)
-        ]
+        adata.uns[key] = data.loc[adata.obs.index, set(adata.var.index).intersection(data.columns)]
     elif slot == "obsm":
-        adata.obsm[key] = data.loc[
-            adata.obs.index, set(adata.var.index).intersection(data.columns)
-        ]
+        adata.obsm[key] = data.loc[adata.obs.index, set(adata.var.index).intersection(data.columns)]
 
     return adata
 

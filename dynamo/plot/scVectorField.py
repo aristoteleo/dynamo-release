@@ -23,13 +23,12 @@ docstrings.delete_params("scatters.parameters", "show_legend", "kwargs", "save_k
 
 import scipy as sc
 
+
 # from licpy.lic import runlic
 
 # moran'I on the transition genes, etc.
 
 # cellranger data, velocyto, comparison and phase diagram
-
-
 
 
 def cell_wise_vectors_3d():
@@ -102,9 +101,9 @@ def line_integral_conv(
     const_alpha=False,
     kernellen=100,
     V_threshold=None,
-    vector='velocity',
+    vector="velocity",
     file=None,
-    save_show_or_return='show',
+    save_show_or_return="show",
     save_kwargs={},
     g_kwargs_dict={},
 ):
@@ -158,21 +157,14 @@ def line_integral_conv(
     """
 
     import matplotlib.pyplot as plt
+
     X = adata.obsm["X_" + basis][:, :2] if "X_" + basis in adata.obsm.keys() else None
-    V = (
-        adata.obsm[vector + '_' + basis][:, :2]
-        if vector + '_' + basis in adata.obsm.keys()
-        else None
-    )
+    V = adata.obsm[vector + "_" + basis][:, :2] if vector + "_" + basis in adata.obsm.keys() else None
 
     if X is None:
-        raise Exception(
-            f"The {basis} dimension reduction is not performed over your data yet."
-        )
+        raise Exception(f"The {basis} dimension reduction is not performed over your data yet.")
     if V is None:
-        raise Exception(
-            f"The {basis}_velocity velocity (or velocity) result does not existed in your data."
-        )
+        raise Exception(f"The {basis}_velocity velocity (or velocity) result does not existed in your data.")
 
     if U_grid is None or V_grid is None:
         if "VecFld_" + basis in adata.uns.keys():
@@ -207,9 +199,7 @@ def line_integral_conv(
             }
             grid_kwargs_dict.update(g_kwargs_dict)
 
-            X_grid_, V_grid_, _ = velocity_on_grid(
-                X[:, [0, 1]], V[:, [0, 1]], xy_grid_nums, **grid_kwargs_dict
-            )
+            X_grid_, V_grid_, _ = velocity_on_grid(X[:, [0, 1]], V[:, [0, 1]], xy_grid_nums, **grid_kwargs_dict)
             U_grid = V_grid_[0, :, :].T
             V_grid = V_grid_[1, :, :].T
 
@@ -232,15 +222,9 @@ def line_integral_conv(
             V_grid,
             np.zeros(U_grid.shape),
         )
-        velocity_x = np.repeat(
-            velocity_x_ori[:, :, np.newaxis], V_grid.shape[1], axis=2
-        )
-        velocity_y = np.repeat(
-            velocity_y_ori[:, :, np.newaxis], V_grid.shape[1], axis=2
-        )
-        velocity_z = np.repeat(
-            velocity_z_ori[np.newaxis, :, :], V_grid.shape[1], axis=0
-        )
+        velocity_x = np.repeat(velocity_x_ori[:, :, np.newaxis], V_grid.shape[1], axis=2)
+        velocity_y = np.repeat(velocity_y_ori[:, :, np.newaxis], V_grid.shape[1], axis=2)
+        velocity_z = np.repeat(velocity_z_ori[np.newaxis, :, :], V_grid.shape[1], axis=0)
 
         data = {}
 
@@ -249,9 +233,7 @@ def line_integral_conv(
         data["velocity_z"] = (velocity_z, "km/s")
         data["velocity_sum"] = (np.sqrt(velocity_x ** 2 + velocity_y ** 2), "km/s")
 
-        ds = yt.load_uniform_grid(
-            data, data["velocity_x"][0].shape, length_unit=(1.0, "Mpc")
-        )
+        ds = yt.load_uniform_grid(data, data["velocity_x"][0].shape, length_unit=(1.0, "Mpc"))
         slc = yt.SlicePlot(ds, "z", ["velocity_sum"])
         slc.set_cmap("velocity_sum", cmap)
         slc.set_log("velocity_sum", False)
@@ -284,8 +266,15 @@ def line_integral_conv(
         pass
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'line_integral_conv', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "line_integral_conv",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
@@ -302,7 +291,7 @@ def cell_wise_vectors(
     basis="umap",
     x=0,
     y=1,
-    color='ntr',
+    color="ntr",
     layer="X",
     highlights=None,
     labels=None,
@@ -311,23 +300,23 @@ def cell_wise_vectors(
     cmap=None,
     color_key=None,
     color_key_cmap=None,
-    background='white',
+    background="white",
     ncols=4,
     pointsize=None,
     figsize=(6, 4),
-    show_legend='on data',
+    show_legend="on data",
     use_smoothed=True,
     ax=None,
-    sort='raw',
+    sort="raw",
     aggregate=None,
     show_arrowed_spines=True,
     inverse=False,
     cell_ind="all",
     quiver_size=None,
     quiver_length=None,
-    vector='velocity',
+    vector="velocity",
     frontier=False,
-    save_show_or_return='show',
+    save_show_or_return="show",
     save_kwargs={},
     s_kwargs_dict={},
     **cell_wise_kwargs,
@@ -377,14 +366,14 @@ def cell_wise_vectors(
 
     if type(x) == str and type(y) == str:
         if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y])) != 2:
-            raise ValueError(f'If you want to plot the vector flow of two genes, please make sure those two genes '
-                             f'belongs to dynamics genes or .var.use_for_dynamics is True.')
-        X = adata[:, [x, y]].layers['M_s'].A
-        V = adata[:, [x, y]].layers['velocity_S'].A
+            raise ValueError(
+                f"If you want to plot the vector flow of two genes, please make sure those two genes "
+                f"belongs to dynamics genes or .var.use_for_dynamics is True."
+            )
+        X = adata[:, [x, y]].layers["M_s"].A
+        V = adata[:, [x, y]].layers["velocity_S"].A
     else:
-        if ("X_" + basis in adata.obsm.keys()) and (
-            vector + "_" + basis in adata.obsm.keys()
-        ):
+        if ("X_" + basis in adata.obsm.keys()) and (vector + "_" + basis in adata.obsm.keys()):
             X = adata.obsm["X_" + basis][:, [x, y]]
             V = adata.obsm[vector + "_" + basis][:, [x, y]]
         else:
@@ -404,7 +393,8 @@ def cell_wise_vectors(
     X, V = X.copy(), V.copy()
 
     V /= 3 * quiver_autoscaler(X, V)
-    if inverse: V = -V
+    if inverse:
+        V = -V
 
     df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "u": V[:, 0], "v": V[:, 1]})
 
@@ -475,9 +465,7 @@ def cell_wise_vectors(
     elif cell_ind == "random":
         ix_choice = np.random.choice(np.range(adata.shape[0]), size=1000, replace=False)
     elif type(cell_ind) is int:
-        ix_choice = np.random.choice(
-            np.range(adata.shape[0]), size=cell_ind, replace=False
-        )
+        ix_choice = np.random.choice(np.range(adata.shape[0]), size=cell_ind, replace=False)
     elif type(cell_ind) is list:
         ix_choice = cell_ind
 
@@ -506,8 +494,15 @@ def cell_wise_vectors(
         axes_list.set_facecolor(background)
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'cell_wise_vector', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "cell_wise_vector",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
@@ -524,7 +519,7 @@ def grid_vectors(
     basis="umap",
     x=0,
     y=1,
-    color='ntr',
+    color="ntr",
     layer="X",
     highlights=None,
     labels=None,
@@ -533,14 +528,14 @@ def grid_vectors(
     cmap=None,
     color_key=None,
     color_key_cmap=None,
-    background='white',
+    background="white",
     ncols=4,
     pointsize=None,
     figsize=(6, 4),
-    show_legend='on data',
+    show_legend="on data",
     use_smoothed=True,
     ax=None,
-    sort='raw',
+    sort="raw",
     aggregate=None,
     show_arrowed_spines=True,
     inverse=False,
@@ -549,9 +544,9 @@ def grid_vectors(
     cut_off_velocity=True,
     quiver_size=None,
     quiver_length=None,
-    vector='velocity',
+    vector="velocity",
     frontier=False,
-    save_show_or_return='show',
+    save_show_or_return="show",
     save_kwargs={},
     s_kwargs_dict={},
     q_kwargs_dict={},
@@ -611,16 +606,16 @@ def grid_vectors(
 
     if type(x) == str and type(y) == str:
         if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y])) != 2:
-            raise ValueError(f'If you want to plot the vector flow of two genes, please make sure those two genes '
-                             f'belongs to dynamics genes or .var.use_for_dynamics is True.')
-        X = adata[:, [x, y]].layers['M_s'].A
-        V = adata[:, [x, y]].layers['velocity_S'].A
+            raise ValueError(
+                f"If you want to plot the vector flow of two genes, please make sure those two genes "
+                f"belongs to dynamics genes or .var.use_for_dynamics is True."
+            )
+        X = adata[:, [x, y]].layers["M_s"].A
+        V = adata[:, [x, y]].layers["velocity_S"].A
     else:
-        if ("X_" + basis in adata.obsm.keys()) and (
-            vector + '_' + basis in adata.obsm.keys()
-        ):
+        if ("X_" + basis in adata.obsm.keys()) and (vector + "_" + basis in adata.obsm.keys()):
             X = adata.obsm["X_" + basis][:, [x, y]]
-            V = adata.obsm[vector + '_' + basis][:, [x, y]]
+            V = adata.obsm[vector + "_" + basis][:, [x, y]]
         else:
             if "X_" + basis not in adata.obsm.keys():
                 layer, basis = basis.split("_")
@@ -628,12 +623,12 @@ def grid_vectors(
             if "kmc" not in adata.uns_keys():
                 cell_velocities(adata, vkey="velocity_S", basis=basis)
                 X = adata.obsm["X_" + basis][:, [x, y]]
-                V = adata.obsm[vector + '_' + basis][:, [x, y]]
+                V = adata.obsm[vector + "_" + basis][:, [x, y]]
             else:
                 kmc = adata.uns["kmc"]
                 X = adata.obsm["X_" + basis][:, [x, y]]
                 V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
-                adata.obsm[vector + '_' + basis] = V
+                adata.obsm[vector + "_" + basis] = V
 
     X, V = X.copy(), V.copy()
 
@@ -658,12 +653,14 @@ def grid_vectors(
         N = int(np.sqrt(V_grid.shape[0]))
 
         if cut_off_velocity:
-            X_grid, p_mass, neighs, weight = prepare_velocity_grid_data(X,
-                                                                xy_grid_nums,
-                                                                density=grid_kwargs_dict['density'],
-                                                                smooth=grid_kwargs_dict['smooth'],
-                                                                n_neighbors=grid_kwargs_dict['n_neighbors'], )
-            for i in ['density', 'smooth', 'n_neighbors']:
+            X_grid, p_mass, neighs, weight = prepare_velocity_grid_data(
+                X,
+                xy_grid_nums,
+                density=grid_kwargs_dict["density"],
+                smooth=grid_kwargs_dict["smooth"],
+                n_neighbors=grid_kwargs_dict["n_neighbors"],
+            )
+            for i in ["density", "smooth", "n_neighbors"]:
                 grid_kwargs_dict.pop(i)
 
             VecFld, func = vecfld_from_adata(adata, basis)
@@ -671,12 +668,7 @@ def grid_vectors(
             V_emb = func(X)
             V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[:, None]
             X_grid, V_grid = grid_velocity_filter(
-                V_emb=V,
-                neighs=neighs,
-                p_mass=p_mass,
-                X_grid=X_grid,
-                V_grid=V_grid,
-                **grid_kwargs_dict
+                V_emb=V, neighs=neighs, p_mass=p_mass, X_grid=X_grid, V_grid=V_grid, **grid_kwargs_dict
             )
         else:
             X_grid, V_grid = (
@@ -684,9 +676,7 @@ def grid_vectors(
                 np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))]),
             )
     elif method.lower() == "gaussian":
-        X_grid, V_grid, D = velocity_on_grid(
-            X, V, xy_grid_nums, cut_off_velocity=cut_off_velocity, **grid_kwargs_dict
-        )
+        X_grid, V_grid, D = velocity_on_grid(X, V, xy_grid_nums, cut_off_velocity=cut_off_velocity, **grid_kwargs_dict)
     elif "grid_velocity_" + basis in adata.uns.keys():
         X_grid, V_grid, _ = (
             adata.uns["grid_velocity_" + basis]["VecFld"]["X_grid"],
@@ -700,7 +690,8 @@ def grid_vectors(
         )
 
     V_grid /= 3 * quiver_autoscaler(X_grid, V_grid)
-    if inverse: V_grid = -V_grid
+    if inverse:
+        V_grid = -V_grid
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
@@ -768,19 +759,22 @@ def grid_vectors(
 
     if type(axes_list) == list:
         for i in range(len(axes_list)):
-            axes_list[i].quiver(
-                X_grid[0], X_grid[1], V_grid[0], V_grid[1], **quiver_kwargs
-            )
+            axes_list[i].quiver(X_grid[0], X_grid[1], V_grid[0], V_grid[1], **quiver_kwargs)
             axes_list[i].set_facecolor(background)
     else:
-        axes_list.quiver(
-            X_grid[0], X_grid[1], V_grid[0], V_grid[1], **quiver_kwargs
-        )
+        axes_list.quiver(X_grid[0], X_grid[1], V_grid[0], V_grid[1], **quiver_kwargs)
         axes_list.set_facecolor(background)
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'grid_velocity', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "grid_velocity",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
@@ -797,7 +791,7 @@ def streamline_plot(
     basis="umap",
     x=0,
     y=1,
-    color='ntr',
+    color="ntr",
     layer="X",
     highlights=None,
     labels=None,
@@ -806,14 +800,14 @@ def streamline_plot(
     cmap=None,
     color_key=None,
     color_key_cmap=None,
-    background='white',
+    background="white",
     ncols=4,
     pointsize=None,
     figsize=(6, 4),
-    show_legend='on data',
+    show_legend="on data",
     use_smoothed=True,
     ax=None,
-    sort='raw',
+    sort="raw",
     aggregate=None,
     show_arrowed_spines=True,
     inverse=False,
@@ -823,9 +817,9 @@ def streamline_plot(
     density=1,
     linewidth=1,
     streamline_alpha=1,
-    vector='velocity',
+    vector="velocity",
     frontier=False,
-    save_show_or_return='show',
+    save_show_or_return="show",
     save_kwargs={},
     s_kwargs_dict={},
     **streamline_kwargs,
@@ -879,29 +873,29 @@ def streamline_plot(
 
     if type(x) == str and type(y) == str:
         if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y])) != 2:
-            raise ValueError(f'If you want to plot the vector flow of two genes, please make sure those two genes '
-                             f'belongs to dynamics genes or .var.use_for_dynamics is True.')
-        X = adata[:, [x, y]].layers['M_s'].A
-        V = adata[:, [x, y]].layers['velocity_S'].A
+            raise ValueError(
+                f"If you want to plot the vector flow of two genes, please make sure those two genes "
+                f"belongs to dynamics genes or .var.use_for_dynamics is True."
+            )
+        X = adata[:, [x, y]].layers["M_s"].A
+        V = adata[:, [x, y]].layers["velocity_S"].A
     else:
-        if ("X_" + basis in adata.obsm.keys()) and (
-            vector + "_" + basis in adata.obsm.keys()
-        ):
+        if ("X_" + basis in adata.obsm.keys()) and (vector + "_" + basis in adata.obsm.keys()):
             X = adata.obsm["X_" + basis][:, [x, y]]
-            V = adata.obsm[vector + '_' + basis][:, [x, y]]
+            V = adata.obsm[vector + "_" + basis][:, [x, y]]
         else:
             if basis not in adata.obsm.keys() or "X_" + basis not in adata.obsm.keys():
-                layer, basis = basis.split("_") if '_' in basis else ('X', basis)
+                layer, basis = basis.split("_") if "_" in basis else ("X", basis)
                 reduceDimension(adata, layer=layer, reduction_method=basis)
             if "kmc" not in adata.uns_keys():
                 cell_velocities(adata, vkey="velocity_S", basis=basis)
                 X = adata.obsm["X_" + basis][:, [x, y]]
-                V = adata.obsm[vector + '_' + basis][:, [x, y]]
+                V = adata.obsm[vector + "_" + basis][:, [x, y]]
             else:
                 kmc = adata.uns["kmc"]
                 X = adata.obsm["X_" + basis][:, [x, y]]
                 V = kmc.compute_density_corrected_drift(X, kmc.Idx, normalize_vector=True)
-                adata.obsm[vector + '_' + basis] = V
+                adata.obsm[vector + "_" + basis] = V
 
     X, V = X.copy(), V.copy()
 
@@ -926,12 +920,14 @@ def streamline_plot(
         N = int(np.sqrt(V_grid.shape[0]))
 
         if cut_off_velocity:
-            X_grid, p_mass, neighs, weight = prepare_velocity_grid_data(X,
-                                                                xy_grid_nums,
-                                                                density=grid_kwargs_dict['density'],
-                                                                smooth=grid_kwargs_dict['smooth'],
-                                                                n_neighbors=grid_kwargs_dict['n_neighbors'], )
-            for i in ['density', 'smooth', 'n_neighbors']:
+            X_grid, p_mass, neighs, weight = prepare_velocity_grid_data(
+                X,
+                xy_grid_nums,
+                density=grid_kwargs_dict["density"],
+                smooth=grid_kwargs_dict["smooth"],
+                n_neighbors=grid_kwargs_dict["n_neighbors"],
+            )
+            for i in ["density", "smooth", "n_neighbors"]:
                 grid_kwargs_dict.pop(i)
 
             VecFld, func = vecfld_from_adata(adata, basis)
@@ -939,12 +935,7 @@ def streamline_plot(
             V_emb = func(X)
             V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[:, None]
             X_grid, V_grid = grid_velocity_filter(
-                V_emb=V,
-                neighs=neighs,
-                p_mass=p_mass,
-                X_grid=X_grid,
-                V_grid=V_grid,
-                **grid_kwargs_dict
+                V_emb=V, neighs=neighs, p_mass=p_mass, X_grid=X_grid, V_grid=V_grid, **grid_kwargs_dict
             )
         else:
             X_grid, V_grid = (
@@ -953,9 +944,7 @@ def streamline_plot(
             )
 
     elif method.lower() == "gaussian":
-        X_grid, V_grid, D = velocity_on_grid(
-            X, V, xy_grid_nums, cut_off_velocity=cut_off_velocity, **grid_kwargs_dict
-        )
+        X_grid, V_grid, D = velocity_on_grid(X, V, xy_grid_nums, cut_off_velocity=cut_off_velocity, **grid_kwargs_dict)
     elif "grid_velocity_" + basis in adata.uns.keys():
         X_grid, V_grid, _ = (
             adata.uns["grid_velocity_" + basis]["VecFld"]["X_grid"],
@@ -968,7 +957,8 @@ def streamline_plot(
             "the current adata object.".format(method)
         )
 
-    if inverse: V_grid = -V_grid
+    if inverse:
+        V_grid = -V_grid
     streamplot_kwargs = {
         "density": density * 2,
         "linewidth": None,
@@ -985,7 +975,7 @@ def streamline_plot(
     }
     mass = np.sqrt((V_grid ** 2).sum(0))
     linewidth *= 2 * mass / mass[~np.isnan(mass)].max()
-    streamplot_kwargs.update({"linewidth": linewidth * streamline_kwargs.pop('linewidth', 1)})
+    streamplot_kwargs.update({"linewidth": linewidth * streamline_kwargs.pop("linewidth", 1)})
 
     streamplot_kwargs = update_dict(streamplot_kwargs, streamline_kwargs)
 
@@ -1057,8 +1047,15 @@ def streamline_plot(
         set_stream_line_alpha(s, streamline_alpha)
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'streamline_plot', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "streamline_plot",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
@@ -1071,14 +1068,16 @@ def streamline_plot(
 
 # refactor line_conv_integration
 
-def plot_energy(adata,
-                basis=None,
-                vecfld_dict=None,
-                figsize=None,
-                fig=None,
-                save_show_or_return='show',
-                save_kwargs={},
-                ):
+
+def plot_energy(
+    adata,
+    basis=None,
+    vecfld_dict=None,
+    figsize=None,
+    fig=None,
+    save_show_or_return="show",
+    save_kwargs={},
+):
     """Plot the energy and energy change rate over each optimization iteration.
 
     Parameters
@@ -1110,16 +1109,19 @@ def plot_energy(adata,
     """
 
     import matplotlib.pyplot as plt
+
     if vecfld_dict is None:
-        vf_key = 'VecFld' if basis is None else 'VecFld_' + basis
+        vf_key = "VecFld" if basis is None else "VecFld_" + basis
         if vf_key not in adata.uns.keys():
-            raise ValueError(f"Your adata doesn't have the key for Vector Field with {basis} basis."
-                             f"Try firstly running dyn.tl.VectorField(adata, basis={basis}).")
+            raise ValueError(
+                f"Your adata doesn't have the key for Vector Field with {basis} basis."
+                f"Try firstly running dyn.tl.VectorField(adata, basis={basis})."
+            )
 
         vecfld_dict = adata.uns[vf_key]
 
-    E = vecfld_dict['VecFld']['E_traj'] if 'E_traj' in vecfld_dict['VecFld'] else None
-    tecr = vecfld_dict['VecFld']['tecr_traj'] if 'tecr_traj' in vecfld_dict['VecFld'] else None
+    E = vecfld_dict["VecFld"]["E_traj"] if "E_traj" in vecfld_dict["VecFld"] else None
+    tecr = vecfld_dict["VecFld"]["tecr_traj"] if "tecr_traj" in vecfld_dict["VecFld"] else None
 
     if E is not None and tecr is not None:
         fig = fig or plt.figure(figsize=figsize)
@@ -1127,22 +1129,29 @@ def plot_energy(adata,
         Iterations = np.arange(0, len(E))
         ax = fig.add_subplot(1, 2, 1)
         E_ = E - np.min(E) + 1
-        ax.plot(Iterations, E_, 'k')
-        ax.plot(E_, 'r.')
+        ax.plot(Iterations, E_, "k")
+        ax.plot(E_, "r.")
         ax.set_yscale("log")
-        plt.xlabel('Iteration')
-        plt.ylabel('Energy')
+        plt.xlabel("Iteration")
+        plt.ylabel("Energy")
 
         ax = fig.add_subplot(1, 2, 2)
-        ax.plot(Iterations, tecr, 'k')
-        ax.plot(tecr, 'r.')
+        ax.plot(Iterations, tecr, "k")
+        ax.plot(tecr, "r.")
         ax.set_yscale("log")
-        plt.xlabel('Iteration')
-        plt.ylabel('Energy change rate')
+        plt.xlabel("Iteration")
+        plt.ylabel("Energy change rate")
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'energy', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "energy",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)

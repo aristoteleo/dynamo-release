@@ -34,6 +34,7 @@ from .utils import (
     vecfld_from_adata,
 )
 
+
 def norm(X, V, T):
     """Normalizes the X, Y (X + V) matrix to have zero means and unit covariance.
         We use the mean of X, Y's center (mean) and scale parameters (standard deviation) to normalize T.
@@ -79,12 +80,12 @@ def norm(X, V, T):
 
 
 def bandwidth_rule_of_thumb(X, return_sigma=False):
-    '''
-        This function computes a rule-of-thumb bandwidth for a Gaussian kernel based on:
-        https://en.wikipedia.org/wiki/Kernel_density_estimation#A_rule-of-thumb_bandwidth_estimator
-    '''
+    """
+    This function computes a rule-of-thumb bandwidth for a Gaussian kernel based on:
+    https://en.wikipedia.org/wiki/Kernel_density_estimation#A_rule-of-thumb_bandwidth_estimator
+    """
     sig = sig = np.sqrt(np.mean(np.diag(np.cov(X.T))))
-    h = 1.06 * sig/(len(X)**(-1/5))
+    h = 1.06 * sig / (len(X) ** (-1 / 5))
     if return_sigma:
         return h, sig
     else:
@@ -92,18 +93,18 @@ def bandwidth_rule_of_thumb(X, return_sigma=False):
 
 
 def bandwidth_selector(X):
-    '''
-        This function computes an empirical bandwidth for a Gaussian kernel.
-    '''
+    """
+    This function computes an empirical bandwidth for a Gaussian kernel.
+    """
     n, m = X.shape
-    if n > 200000 and m > 2: 
+    if n > 200000 and m > 2:
         from pynndescent import NNDescent
 
-        nbrs = NNDescent(X, metric='euclidean', n_neighbors=max(2, int(0.2*n)), n_jobs=-1, random_state=19491001)
-        _, distances = nbrs.query(X, k=max(2, int(0.2*n)))
+        nbrs = NNDescent(X, metric="euclidean", n_neighbors=max(2, int(0.2 * n)), n_jobs=-1, random_state=19491001)
+        _, distances = nbrs.query(X, k=max(2, int(0.2 * n)))
     else:
-        alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
-        nbrs = NearestNeighbors(n_neighbors=max(2, int(0.2*n)), algorithm=alg, n_jobs=-1).fit(X)
+        alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
+        nbrs = NearestNeighbors(n_neighbors=max(2, int(0.2 * n)), algorithm=alg, n_jobs=-1).fit(X)
         distances, _ = nbrs.kneighbors(X)
 
     d = np.mean(distances[:, 1:]) / 1.5
@@ -130,30 +131,37 @@ def denorm(VecFld, X_old, V_old, norm_dict):
     """
 
     Y_old = X_old + V_old
-    X, Y, V, xm, ym, x_scale, y_scale = VecFld['X'], VecFld['Y'], VecFld['V'], norm_dict['xm'], norm_dict['ym'], \
-                                        norm_dict['xscale'], norm_dict['yscale']
-    grid, grid_V = VecFld['grid'], VecFld['grid_V']
+    X, Y, V, xm, ym, x_scale, y_scale = (
+        VecFld["X"],
+        VecFld["Y"],
+        VecFld["V"],
+        norm_dict["xm"],
+        norm_dict["ym"],
+        norm_dict["xscale"],
+        norm_dict["yscale"],
+    )
+    grid, grid_V = VecFld["grid"], VecFld["grid_V"]
     xy_m, xy_scale = (xm + ym) / 2, (x_scale + y_scale) / 2
 
-    VecFld['X'] = X_old
-    VecFld['Y'] = Y_old
-    VecFld['X_ctrl'] = X * x_scale + np.matlib.tile(xm, [X.shape[0], 1])
-    VecFld['grid'] = grid * xy_scale + np.matlib.tile(xy_m, [X.shape[0], 1])
-    VecFld['grid_V'] = (grid + grid_V) * xy_scale + np.matlib.tile(xy_m, [Y.shape[0], 1]) - grid
-    VecFld['V'] = (V + X) * y_scale + np.matlib.tile(ym, [Y.shape[0], 1]) - X_old
-    VecFld['norm_dict'] = norm_dict
+    VecFld["X"] = X_old
+    VecFld["Y"] = Y_old
+    VecFld["X_ctrl"] = X * x_scale + np.matlib.tile(xm, [X.shape[0], 1])
+    VecFld["grid"] = grid * xy_scale + np.matlib.tile(xy_m, [X.shape[0], 1])
+    VecFld["grid_V"] = (grid + grid_V) * xy_scale + np.matlib.tile(xy_m, [Y.shape[0], 1]) - grid
+    VecFld["V"] = (V + X) * y_scale + np.matlib.tile(ym, [Y.shape[0], 1]) - X_old
+    VecFld["norm_dict"] = norm_dict
 
     return VecFld
 
 
 @timeit
-def lstsq_solver(lhs, rhs, method='drouin'):
-    if method == 'scipy':
+def lstsq_solver(lhs, rhs, method="drouin"):
+    if method == "scipy":
         C = lstsq(lhs, rhs)[0]
-    elif method == 'drouin':
+    elif method == "drouin":
         C = linear_least_squares(lhs, rhs)
     else:
-        warnings.warn('Invalid linear least squares solver. Use Drouin\'s method instead.')
+        warnings.warn("Invalid linear least squares solver. Use Drouin's method instead.")
         C = linear_least_squares(lhs, rhs)
     return C
 
@@ -187,18 +195,15 @@ def get_P(Y, V, sigma2, gamma, a, div_cur_free_kernels=False):
     """
 
     if div_cur_free_kernels:
-        Y = Y.reshape((2, int(Y.shape[0] / 2)), order='F').T
-        V = V.reshape((2, int(V.shape[0] / 2)), order='F').T
+        Y = Y.reshape((2, int(Y.shape[0] / 2)), order="F").T
+        V = V.reshape((2, int(V.shape[0] / 2)), order="F").T
 
     D = Y.shape[1]
     temp1 = np.exp(-np.sum((Y - V) ** 2, 1) / (2 * sigma2))
     temp2 = (2 * np.pi * sigma2) ** (D / 2) * (1 - gamma) / (gamma * a)
     temp1[temp1 == 0] = np.min(temp1[temp1 != 0])
     P = temp1 / (temp1 + temp2)
-    E = (
-        P.T.dot(np.sum((Y - V) ** 2, 1)) / (2 * sigma2)
-        + np.sum(P) * np.log(sigma2) * D / 2
-    )
+    E = P.T.dot(np.sum((Y - V) ** 2, 1)) / (2 * sigma2) + np.sum(P) * np.log(sigma2) * D / 2
 
     return (P[:, None], E) if P.ndim == 1 else (P, E)
 
@@ -209,14 +214,14 @@ def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True,
 
     nbrs = None
     if nbrs_idx is None:
-        if X.shape[0] > 200000 and X.shape[1] > 2: 
+        if X.shape[0] > 200000 and X.shape[1] > 2:
             from pynndescent import NNDescent
 
-            nbrs = NNDescent(X, metric='euclidean', n_neighbors=k+1, n_jobs=-1, random_state=19491001)
-            nbrs_idx, dist = nbrs.query(X, k=k+1)
+            nbrs = NNDescent(X, metric="euclidean", n_neighbors=k + 1, n_jobs=-1, random_state=19491001)
+            nbrs_idx, dist = nbrs.query(X, k=k + 1)
         else:
-            alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
-            nbrs = NearestNeighbors(n_neighbors=k+1, algorithm=alg, n_jobs=-1).fit(X)
+            alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
+            nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm=alg, n_jobs=-1).fit(X)
             dist, nbrs_idx = nbrs.kneighbors(X)
 
     if dist is None and not distance_free:
@@ -226,14 +231,25 @@ def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True,
 
     V = sp.csr_matrix((n, n))
     if cores == 1:
-        for i, idx in tqdm(enumerate(nbrs_idx), desc='Constructing diffusion graph from reconstructed vector field'):
+        for i, idx in tqdm(enumerate(nbrs_idx), desc="Constructing diffusion graph from reconstructed vector field"):
             V += construct_v(X, i, idx, n_int_steps, func, distance_free, dist, D, n)
 
     else:
         pool = ThreadPool(cores)
-        res = pool.starmap(construct_v, zip(itertools.repeat(X), np.arange(len(nbrs_idx)), nbrs_idx, itertools.repeat(n_int_steps),
-                                            itertools.repeat(func), itertools.repeat(distance_free),
-                                            itertools.repeat(dist), itertools.repeat(D), itertools.repeat(n)))
+        res = pool.starmap(
+            construct_v,
+            zip(
+                itertools.repeat(X),
+                np.arange(len(nbrs_idx)),
+                nbrs_idx,
+                itertools.repeat(n_int_steps),
+                itertools.repeat(func),
+                itertools.repeat(distance_free),
+                itertools.repeat(dist),
+                itertools.repeat(D),
+                itertools.repeat(n),
+            ),
+        )
         pool.close()
         pool.join()
         V = functools.reduce((lambda a, b: a + b), res)
@@ -287,8 +303,8 @@ def SparseVFC(
     sigma=0.8,
     eta=0.5,
     seed=0,
-    lstsq_method='drouin',
-    verbose=1
+    lstsq_method="drouin",
+    verbose=1,
 ):
     """Apply sparseVFC (vector field consensus) algorithm to learn a functional form of the vector field from random
     samples with outlier on the entire space robustly and efficiently. (Ma, Jiayi, etc. al, Pattern Recognition, 2013)
@@ -381,18 +397,16 @@ def SparseVFC(
     if velocity_based_sampling:
         np.random.seed(seed)
         if verbose > 1:
-            print('Sampling control points based on data velocity magnitude...')
+            print("Sampling control points based on data velocity magnitude...")
         idx = sample_by_velocity(Y[uid], M)
     else:
-        idx = np.random.RandomState(seed=seed).permutation(
-            tmp_X.shape[0]
-        )  # rand select some initial points
+        idx = np.random.RandomState(seed=seed).permutation(tmp_X.shape[0])  # rand select some initial points
         idx = idx[range(M)]
     ctrl_pts = tmp_X[idx, :]
 
     if beta is None:
         h = bandwidth_selector(ctrl_pts)
-        beta = 1/h**2
+        beta = 1 / h ** 2
 
     K = (
         con_K(ctrl_pts, ctrl_pts, beta, timeit=timeit_)
@@ -410,7 +424,7 @@ def SparseVFC(
             if div_cur_free_kernels is False
             else con_K_div_cur_free(Grid, ctrl_pts, sigma, eta, timeit=timeit_)[0]
         )
-    M = ctrl_pts.shape[0]*D if div_cur_free_kernels else ctrl_pts.shape[0]
+    M = ctrl_pts.shape[0] * D if div_cur_free_kernels else ctrl_pts.shape[0]
 
     if div_cur_free_kernels:
         X = X.flatten()[:, None]
@@ -420,7 +434,9 @@ def SparseVFC(
     V = X.copy() if div_cur_free_kernels else np.zeros((N, D))
     C = np.zeros((M, 1)) if div_cur_free_kernels else np.zeros((M, D))
     i, tecr, E = 0, 1, 1
-    sigma2 = sum(sum((Y - X) ** 2)) / (N * D) if div_cur_free_kernels else sum(sum((Y - V) ** 2)) / (N * D)  ## test this
+    sigma2 = (
+        sum(sum((Y - X) ** 2)) / (N * D) if div_cur_free_kernels else sum(sum((Y - V) ** 2)) / (N * D)
+    )  ## test this
     # sigma2 = 1e-7 if sigma2 > 1e-8 else sigma2
     tecr_vec = np.ones(MaxIter) * np.nan
     E_vec = np.ones(MaxIter) * np.nan
@@ -436,10 +452,12 @@ def SparseVFC(
         tecr_vec[i] = tecr
 
         if verbose > 1:
-            print('\niterate: %d, gamma: %.3f, energy change rate: %s, sigma2=%s'
-                %(i, gamma, scinot(tecr, 3), scinot(sigma2, 3)))
+            print(
+                "\niterate: %d, gamma: %.3f, energy change rate: %s, sigma2=%s"
+                % (i, gamma, scinot(tecr, 3), scinot(sigma2, 3))
+            )
         elif verbose > 0:
-            print('\niteration %d'%i)
+            print("\niteration %d" % i)
 
         # M-step. Solve linear system for C.
         if timeit_:
@@ -447,7 +465,7 @@ def SparseVFC(
 
         P = np.maximum(P, minP)
         if div_cur_free_kernels:
-            P = np.kron(P, np.ones((int(U.shape[0] / P.shape[0]), 1))) # np.kron(P, np.ones((D, 1)))
+            P = np.kron(P, np.ones((int(U.shape[0] / P.shape[0]), 1)))  # np.kron(P, np.ones((D, 1)))
             lhs = (U.T * np.matlib.tile(P.T, [M, 1])).dot(U) + lambda_ * sigma2 * K
             rhs = (U.T * np.matlib.tile(P.T, [M, 1])).dot(Y)
         else:
@@ -456,10 +474,10 @@ def SparseVFC(
             rhs = UP.dot(Y)
 
         if timeit_:
-            print('Time elapsed for computing lhs and rhs: %f s'%(time.time()-st))
-        
+            print("Time elapsed for computing lhs and rhs: %f s" % (time.time() - st))
+
         C = lstsq_solver(lhs, rhs, method=lstsq_method, timeit=timeit_)
-            
+
         # Update V and sigma**2
         V = U.dot(C)
         Sp = sum(P) / 2 if div_cur_free_kernels else sum(P)
@@ -496,11 +514,15 @@ def SparseVFC(
         "grid_V": grid_V,
         "iteration": i - 1,
         "tecr_traj": tecr_vec[:i],
-        "E_traj": E_vec[:i]
+        "E_traj": E_vec[:i],
     }
     if div_cur_free_kernels:
-        VecFld['div_cur_free_kernels'], VecFld['sigma'], VecFld['eta'] = True, sigma, eta
-        _, VecFld['df_kernel'], VecFld['cf_kernel'], = con_K_div_cur_free(X, ctrl_pts, sigma, eta, timeit=timeit_)
+        VecFld["div_cur_free_kernels"], VecFld["sigma"], VecFld["eta"] = True, sigma, eta
+        (
+            _,
+            VecFld["df_kernel"],
+            VecFld["cf_kernel"],
+        ) = con_K_div_cur_free(X, ctrl_pts, sigma, eta, timeit=timeit_)
 
     return VecFld
 
@@ -520,39 +542,28 @@ class base_vectorfield:
         self.func = None
 
     def construct_graph(self, X=None, **kwargs):
-        X = self.data['X'] if X is None else X
+        X = self.data["X"] if X is None else X
         return graphize_vecfld(self.func, X, **kwargs)
 
-
-    def from_adata(self, adata, basis='', vf_key='VecFld'):
+    def from_adata(self, adata, basis="", vf_key="VecFld"):
         vf_dict, func = vecfld_from_adata(adata, basis=basis, vf_key=vf_key)
-        self.data['X'] = vf_dict['X']
-        self.data['V'] = vf_dict['Y'] # use the raw velocity
+        self.data["X"] = vf_dict["X"]
+        self.data["V"] = vf_dict["Y"]  # use the raw velocity
         self.vf_dict = vf_dict
         self.func = func
 
-
     def get_X(self):
-        return self.data['X']
-
+        return self.data["X"]
 
     def get_V(self):
-        return self.data['V']
-
+        return self.data["V"]
 
     def get_data(self):
-        return self.data['X'], self.data['V']
+        return self.data["X"], self.data["V"]
 
 
 class svc_vectorfield(base_vectorfield):
-    def __init__(
-        self,
-        X=None,
-        V=None,
-        Grid=None,
-        *args,
-        **kwargs
-    ):
+    def __init__(self, X=None, V=None, Grid=None, *args, **kwargs):
         """Initialize the VectorField class.
 
         Parameters
@@ -603,25 +614,28 @@ class svc_vectorfield(base_vectorfield):
         super().__init__(X, V, Grid)
         if X is not None and V is not None:
             self.parameters = kwargs
-            self.parameters = update_n_merge_dict(self.parameters, {
-                "M": kwargs.pop('M', None) or max(min([50, len(X)]), int(0.05 * len(X)) + 1), # min(len(X), int(1500 * np.log(len(X)) / (np.log(len(X)) + np.log(100)))),
-                "a": kwargs.pop('a', 5),
-                "beta": kwargs.pop('beta', None),
-                "ecr": kwargs.pop('ecr', 1e-5),
-                "gamma": kwargs.pop('gamma', 0.9),
-                "lambda_": kwargs.pop('lambda_', 3),
-                "minP": kwargs.pop('minP', 1e-5),
-                "MaxIter": kwargs.pop('MaxIter', 500),
-                "theta": kwargs.pop('theta', 0.75),
-                "div_cur_free_kernels": kwargs.pop('div_cur_free_kernels', False),
-                "velocity_based_sampling": kwargs.pop('velocity_based_sampling', True),
-                "sigma": kwargs.pop('sigma', 0.8),
-                "eta": kwargs.pop('eta', 0.5),
-                "seed": kwargs.pop('seed', 0),
-            })
+            self.parameters = update_n_merge_dict(
+                self.parameters,
+                {
+                    "M": kwargs.pop("M", None) or max(min([50, len(X)]), int(0.05 * len(X)) + 1),
+                    # min(len(X), int(1500 * np.log(len(X)) / (np.log(len(X)) + np.log(100)))),
+                    "a": kwargs.pop("a", 5),
+                    "beta": kwargs.pop("beta", None),
+                    "ecr": kwargs.pop("ecr", 1e-5),
+                    "gamma": kwargs.pop("gamma", 0.9),
+                    "lambda_": kwargs.pop("lambda_", 3),
+                    "minP": kwargs.pop("minP", 1e-5),
+                    "MaxIter": kwargs.pop("MaxIter", 500),
+                    "theta": kwargs.pop("theta", 0.75),
+                    "div_cur_free_kernels": kwargs.pop("div_cur_free_kernels", False),
+                    "velocity_based_sampling": kwargs.pop("velocity_based_sampling", True),
+                    "sigma": kwargs.pop("sigma", 0.8),
+                    "eta": kwargs.pop("eta", 0.5),
+                    "seed": kwargs.pop("seed", 0),
+                },
+            )
 
         self.norm_dict = {}
-
 
     def train(self, normalize=False, **kwargs):
         """Learn an function of vector field from sparse single cell samples in the entire space robustly.
@@ -653,19 +667,19 @@ class svc_vectorfield(base_vectorfield):
                 norm_dict,
             )
 
-        verbose = kwargs.pop('verbose', 0)
-        lstsq_method = kwargs.pop('lstsq_method', 'drouin')
+        verbose = kwargs.pop("verbose", 0)
+        lstsq_method = kwargs.pop("lstsq_method", "drouin")
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
 
             VecFld = SparseVFC(
-                    self.data["X"],
-                    self.data["V"],
-                    self.data["Grid"],
-                    **self.parameters,
-                    verbose=verbose,
-                    lstsq_method=lstsq_method,
-                )
+                self.data["X"],
+                self.data["V"],
+                self.data["Grid"],
+                **self.parameters,
+                verbose=verbose,
+                lstsq_method=lstsq_method,
+            )
         if normalize:
             VecFld = denorm(VecFld, X_norm, V_norm, self.norm_dict)
 
@@ -674,30 +688,31 @@ class svc_vectorfield(base_vectorfield):
         self.vf_dict = VecFld
 
         self.func = lambda x: vector_field_function(x, VecFld)
-        self.vf_dict['V'] = self.func(self.data["X"])
+        self.vf_dict["V"] = self.func(self.data["X"])
 
         return self.vf_dict
 
-
     def plot_energy(self, figsize=None, fig=None):
         from ..plot.scVectorField import plot_energy
+
         plot_energy(None, vecfld_dict=self.vf_dict, figsize=figsize, fig=fig)
 
-
-    def integrate(self,
-                  init_states,
-                  VecFld_true=None,
-                  dims=None,
-                  scale=1,
-                  t_end=None,
-                  step_size=None,
-                  args=(),
-                  integration_direction='forward',
-                  interpolation_num=250,
-                  average=True,
-                  sampling='arc_length',
-                  verbose=False,
-                  disable=False):
+    def integrate(
+        self,
+        init_states,
+        VecFld_true=None,
+        dims=None,
+        scale=1,
+        t_end=None,
+        step_size=None,
+        args=(),
+        integration_direction="forward",
+        interpolation_num=250,
+        average=True,
+        sampling="arc_length",
+        verbose=False,
+        disable=False,
+    ):
 
         from ..tools.utils import (
             getTend,
@@ -712,33 +727,36 @@ class svc_vectorfield(base_vectorfield):
 
         if self.func is None:
             VecFld = self.vf_dict
-            self.func = lambda x: scale * vector_field_function(x=x, vf_dict=VecFld,
-                                                        dim=dims) if VecFld_true is None else VecFld_true
-        if t_end is None: t_end = getTend(self.get_X(), self.get_V())
+            self.func = (
+                lambda x: scale * vector_field_function(x=x, vf_dict=VecFld, dim=dims)
+                if VecFld_true is None
+                else VecFld_true
+            )
+        if t_end is None:
+            t_end = getTend(self.get_X(), self.get_V())
         t_linspace = getTseq(init_states, t_end, step_size)
-        t, prediction = integrate_vf_ivp(init_states,
-                               t=t_linspace,
-                               args=args,
-                               integration_direction=integration_direction,
-                               f=self.func,
-                               interpolation_num=interpolation_num,
-                               average=average,
-                               sampling=sampling,
-                               verbose=verbose,
-                               disable=disable,
+        t, prediction = integrate_vf_ivp(
+            init_states,
+            t=t_linspace,
+            args=args,
+            integration_direction=integration_direction,
+            f=self.func,
+            interpolation_num=interpolation_num,
+            average=average,
+            sampling=sampling,
+            verbose=verbose,
+            disable=disable,
         )
 
         return t, prediction
 
-
-    def compute_divergence(self, X=None, method='analytical', **kwargs):
-        X = self.data['X'] if X is None else X
+    def compute_divergence(self, X=None, method="analytical", **kwargs):
+        X = self.data["X"] if X is None else X
         f_jac = self.get_Jacobian(method=method)
         return compute_divergence(f_jac, X, **kwargs)
 
-
-    def compute_curl(self, X=None, method='analytical', dim1=0, dim2=1, dim3=2, **kwargs):
-        X = self.data['X'] if X is None else X
+    def compute_curl(self, X=None, method="analytical", dim1=0, dim2=1, dim3=2, **kwargs):
+        X = self.data["X"] if X is None else X
         if dim3 is None or X.shape[1] < 3:
             X = X[:, [dim1, dim2]]
         else:
@@ -746,64 +764,60 @@ class svc_vectorfield(base_vectorfield):
         f_jac = self.get_Jacobian(method=method, **kwargs)
         return compute_curl(f_jac, X, **kwargs)
 
-
-    def compute_acceleration(self, X=None, method='analytical', **kwargs):
-        X = self.data['X'] if X is None else X
+    def compute_acceleration(self, X=None, method="analytical", **kwargs):
+        X = self.data["X"] if X is None else X
         f_jac = self.get_Jacobian(method=method)
         return compute_acceleration(self.func, f_jac, X, **kwargs)
 
-
-    def compute_curvature(self, X=None, method='analytical', formula=2, **kwargs):
-        X = self.data['X'] if X is None else X
+    def compute_curvature(self, X=None, method="analytical", formula=2, **kwargs):
+        X = self.data["X"] if X is None else X
         f_jac = self.get_Jacobian(method=method)
         return compute_curvature(self.func, f_jac, X, formula=formula, **kwargs)
 
-
-    def compute_torsion(self, X=None, method='analytical', **kwargs):
-        X = self.data['X'] if X is None else X
+    def compute_torsion(self, X=None, method="analytical", **kwargs):
+        X = self.data["X"] if X is None else X
         f_jac = self.get_Jacobian(method=method)
         return compute_torsion(self.func, f_jac, X, **kwargs)
 
-
-    def compute_sensitivity(self, X=None, method='analytical', **kwargs):
-        X = self.data['X'] if X is None else X
+    def compute_sensitivity(self, X=None, method="analytical", **kwargs):
+        X = self.data["X"] if X is None else X
         f_jac = self.get_Jacobian(method=method)
         return compute_sensitivity(f_jac, X, **kwargs)
 
+    def get_Jacobian(self, method="analytical", input_vector_convention="row", **kwargs):
+        """
+        Get the Jacobian of the vector field function.
+        If method is 'analytical':
+        The analytical Jacobian will be returned and it always
+        take row vectors as input no matter what input_vector_convention is.
 
-    def get_Jacobian(self, method='analytical', input_vector_convention='row', **kwargs):
-        '''
-            Get the Jacobian of the vector field function.
-            If method is 'analytical': 
-            The analytical Jacobian will be returned and it always
-            take row vectors as input no matter what input_vector_convention is.
+        If method is 'numerical':
+        If the input_vector_convention is 'row', it means that fjac takes row vectors
+        as input, otherwise the input should be an array of column vectors. Note that
+        the returned Jacobian would behave exactly the same if the input is an 1d array.
 
-            If method is 'numerical':
-            If the input_vector_convention is 'row', it means that fjac takes row vectors
-            as input, otherwise the input should be an array of column vectors. Note that
-            the returned Jacobian would behave exactly the same if the input is an 1d array.
+        The column vector convention is slightly faster than the row vector convention.
+        So the matrix of row vector convention is converted into column vector convention
+        under the hood.
 
-            The column vector convention is slightly faster than the row vector convention.
-            So the matrix of row vector convention is converted into column vector convention
-            under the hood.
-
-            No matter the method and input vector convention, the returned Jacobian is of the 
-            following format:
-                    df_1/dx_1   df_1/dx_2   df_1/dx_3   ...
-                    df_2/dx_1   df_2/dx_2   df_2/dx_3   ...
-                    df_3/dx_1   df_3/dx_2   df_3/dx_3   ...
-                    ...         ...         ...         ...
-        '''
-        if method == 'numerical':
+        No matter the method and input vector convention, the returned Jacobian is of the
+        following format:
+                df_1/dx_1   df_1/dx_2   df_1/dx_3   ...
+                df_2/dx_1   df_2/dx_2   df_2/dx_3   ...
+                df_3/dx_1   df_3/dx_2   df_3/dx_3   ...
+                ...         ...         ...         ...
+        """
+        if method == "numerical":
             return Jacobian_numerical(self.func, input_vector_convention, **kwargs)
-        elif method == 'parallel':
+        elif method == "parallel":
             return lambda x: Jacobian_rkhs_gaussian_parallel(x, self.vf_dict, **kwargs)
-        elif method == 'analytical':
+        elif method == "analytical":
             return lambda x: Jacobian_rkhs_gaussian(x, self.vf_dict, **kwargs)
         else:
-            raise NotImplementedError(f"The method {method} is not implemented. Currently only "
-                                      f"supports 'analytical', 'numerical', and 'parallel'.")
-
+            raise NotImplementedError(
+                f"The method {method} is not implemented. Currently only "
+                f"supports 'analytical', 'numerical', and 'parallel'."
+            )
 
     def evaluate(self, CorrectIndex, VFCIndex, siz):
         """Evaluate the precision, recall, corrRate of the sparseVFC algorithm.
@@ -837,10 +851,7 @@ class svc_vectorfield(base_vectorfield):
         precision = NumVFCCorrect / NumVFCIndex
         recall = NumVFCCorrect / NumCorrectIndex
 
-        print(
-            "correct correspondence rate in the original data: %d/%d = %f"
-            % (NumCorrectIndex, siz, corrRate)
-        )
+        print("correct correspondence rate in the original data: %d/%d = %f" % (NumCorrectIndex, siz, corrRate))
         print("precision rate: %d/%d = %f" % (NumVFCCorrect, NumVFCIndex, precision))
         print("recall rate: %d/%d = %f" % (NumVFCCorrect, NumCorrectIndex, recall))
 
@@ -851,20 +862,14 @@ try:
     import dynode
     from dynode.vectorfield import Dynode
 
-    use_dynode  = True
+    use_dynode = True
 except ImportError:
     use_dynode = False
 
 if use_dynode:
-    class dynode_vectorfield(base_vectorfield, Dynode): #
-        def __init__(
-            self,
-            X=None,
-            V=None,
-            Grid=None,
-            *args,
-            **kwargs
-        ):
+
+    class dynode_vectorfield(base_vectorfield, Dynode):  #
+        def __init__(self, X=None, V=None, Grid=None, *args, **kwargs):
             self.norm_dict = {}
 
             if X is not None and V is not None:
@@ -873,19 +878,24 @@ if use_dynode:
                 import tempfile
                 from dynode.vectorfield import networkModels
                 from dynode.vectorfield.samplers import VelocityDataSampler
-                from dynode.vectorfield.losses_weighted import MSE  # MAD, BinomialChannel, WassersteinDistance, CosineDistance
+                from dynode.vectorfield.losses_weighted import (
+                    MSE,
+                )  # MAD, BinomialChannel, WassersteinDistance, CosineDistance
 
-                good_ind = np.where(~ np.isnan(V.sum(1)))[0]
+                good_ind = np.where(~np.isnan(V.sum(1)))[0]
                 good_V = V[good_ind, :]
                 good_X = X[good_ind, :]
 
                 self.valid_ind = good_ind
 
-                velocity_data_sampler = VelocityDataSampler(adata={'X': good_X, 'V': good_V},
-                                                            normalize_velocity=kwargs.get('normalize_velocity', False))
+                velocity_data_sampler = VelocityDataSampler(
+                    adata={"X": good_X, "V": good_V}, normalize_velocity=kwargs.get("normalize_velocity", False)
+                )
 
                 vf_kwargs = {
-                    "X": X, "V": V, "Grid": Grid,
+                    "X": X,
+                    "V": V,
+                    "Grid": Grid,
                     "model": networkModels,
                     "sirens": False,
                     "enforce_positivity": False,
@@ -902,15 +912,16 @@ if use_dynode:
                     "buffer_path": tempfile.mkdtemp(),
                     "hidden_features": 256,
                     "hidden_layers": 3,
-                    "first_omega_0": 30.,
-                    "hidden_omega_0": 30.,
+                    "first_omega_0": 30.0,
+                    "hidden_omega_0": 30.0,
                 }
                 vf_kwargs = update_dict(vf_kwargs, self.parameters)
                 super().__init__(**vf_kwargs)
 
         def train(self, **kwargs):
-            if len(kwargs) > 0: self.parameters = update_n_merge_dict(self.parameters, kwargs)
-            max_iter = (2 * 100000 * np.log(self.data['X'].shape[0]) / (250 + np.log(self.data['X'].shape[0])))
+            if len(kwargs) > 0:
+                self.parameters = update_n_merge_dict(self.parameters, kwargs)
+            max_iter = 2 * 100000 * np.log(self.data["X"].shape[0]) / (250 + np.log(self.data["X"].shape[0]))
             train_kwargs = {
                 "max_iter": int(max_iter),
                 "velocity_batch_size": 50,
@@ -930,17 +941,18 @@ if use_dynode:
             super().train(**train_kwargs)
 
             self.func = self.predict_velocity
-            self.vf_dict = {"X": self.data['X'],
-                           "valid_ind": self.valid_ind,
-                           "Y": self.data['V'],
-                           "V": self.func(self.data['X']),
-                           "grid": self.data['Grid'],
-                           "grid_V": self.func(self.data["Grid"]),
-                           "iteration": self.parameters.pop('max_iter', int(max_iter)),
-                           "velocity_loss_traj": self.velocity_loss_traj,
-                           "time_course_loss_traj": self.time_course_loss_traj,
-                           "autoencoder_loss_traj": self.autoencoder_loss_traj,
-                           "parameters": self.parameters,
-                           }
+            self.vf_dict = {
+                "X": self.data["X"],
+                "valid_ind": self.valid_ind,
+                "Y": self.data["V"],
+                "V": self.func(self.data["X"]),
+                "grid": self.data["Grid"],
+                "grid_V": self.func(self.data["Grid"]),
+                "iteration": self.parameters.pop("max_iter", int(max_iter)),
+                "velocity_loss_traj": self.velocity_loss_traj,
+                "time_course_loss_traj": self.time_course_loss_traj,
+                "autoencoder_loss_traj": self.autoencoder_loss_traj,
+                "parameters": self.parameters,
+            }
 
             return self.vf_dict

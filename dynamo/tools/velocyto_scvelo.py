@@ -11,7 +11,7 @@ from anndata import AnnData
 
 
 def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None):
-    """ Conversion function from the velocyto world to the dynamo world.
+    """Conversion function from the velocyto world to the dynamo world.
     Code original from scSLAM-seq repository
 
     Parameters
@@ -31,7 +31,7 @@ def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None)
     Returns
     -------
         adata: AnnData object
-	"""
+    """
 
     from collections import OrderedDict
 
@@ -70,9 +70,9 @@ def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None)
 
     # set X_spliced / X_unspliced
     if hasattr(vlm, "S_norm"):
-        layers["X_spliced"] = csr_matrix(2**vlm.S_norm - 1).T
+        layers["X_spliced"] = csr_matrix(2 ** vlm.S_norm - 1).T
     if hasattr(vlm, "U_norm"):
-        layers["X_unspliced"] = csr_matrix(2**vlm.U_norm - 1).T
+        layers["X_unspliced"] = csr_matrix(2 ** vlm.U_norm - 1).T
     if hasattr(vlm, "S_sz") and not hasattr(vlm, "S_norm"):
         layers["X_spliced"] = csr_matrix(vlm.S_sz).T
     if hasattr(vlm, "U_sz") and hasattr(vlm, "U_norm"):
@@ -113,11 +113,9 @@ def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None)
         from .connectivity import adj_to_knn
 
         n_neighbors = np.unique((vlm.embedding_knn > 0).sum(1)).min()
-        ind_mat, dist_mat = adj_to_knn(
-            vlm.emedding_knn, n_neighbors
-        )
+        ind_mat, dist_mat = adj_to_knn(vlm.emedding_knn, n_neighbors)
         uns["neighbors"] = {"indices": ind_mat}
-        obsp = {'distances': dist_mat, "connectivities": vlm.emedding_knn}
+        obsp = {"distances": dist_mat, "connectivities": vlm.emedding_knn}
 
     uns["dynamics"] = {
         "filter_gene_mode": None,
@@ -152,10 +150,10 @@ def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None)
 
 def converter(data_in, from_type="adata", to_type="vlm", dir="."):
     """
-	convert adata to loom object
-	- we may save_fig to a temp directory automatically
-	- we may write a on-the-fly converter which doesn't involve saving and reading files  
-	"""
+    convert adata to loom object
+    - we may save_fig to a temp directory automatically
+    - we may write a on-the-fly converter which doesn't involve saving and reading files
+    """
     if from_type == "adata":
         if to_type == "vlm":
             file = dir + "/data.loom"
@@ -183,10 +181,10 @@ def converter(data_in, from_type="adata", to_type="vlm", dir="."):
 
 def run_velocyto(adata):
     """
-	1. convert adata to vlm data
-	2. set up PCA, UMAP, etc.
-	3. estimate the gamma parameter
-	"""
+    1. convert adata to vlm data
+    2. set up PCA, UMAP, etc.
+    3. estimate the gamma parameter
+    """
     vlm = converter(adata)
 
     # U_norm: log2(U_sz + pcount)
@@ -224,10 +222,10 @@ def run_velocyto(adata):
 
 def run_scvelo(adata):
     """
-	1. set up PCA, UMAP, etc. 
-	2. estimate gamma and all other parameters 
-	3. return results (adata.var['velocity_gamma'])
-	"""
+    1. set up PCA, UMAP, etc.
+    2. estimate gamma and all other parameters
+    3. return results (adata.var['velocity_gamma'])
+    """
     # scv.pp.filter_and_normalize(adata, min_counts=2, min_counts_u=1, n_top_genes=3000)
     scv.pp.moments(adata)  # , n_pcs = 12, n_neighbors = 15, mode = 'distances'
     scv.tl.velocity(adata)
@@ -398,11 +396,11 @@ def compare_res_deprecated(
     gamma_val,
 ):
     """
-	function to compare results from velocyto and scvelo with our new method
-	0. retrieve gamm or gamma with other parameters from velocyto result or scvelo
-	1. plot the correlation between parameters estimated with different methods
-	2. calculate the correltion between those parameters
-	"""
+    function to compare results from velocyto and scvelo with our new method
+    0. retrieve gamm or gamma with other parameters from velocyto result or scvelo
+    1. plot the correlation between parameters estimated with different methods
+    2. calculate the correltion between those parameters
+    """
     # self._offset, self._offset2, self._beta, self._gamma, self._r2, self._velocity_genes
 
     velocyto_gammas = velocyto_res.gammas
@@ -487,12 +485,8 @@ def compare_res_deprecated(
         "a": np.corrcoef(a_val, list(dynamo_res.uns["dynamo"]["a"]))[1, 0],
         "b": np.corrcoef(b_val, list(dynamo_res.uns["dynamo"]["b"]))[1, 0],
         "la": np.corrcoef(la_val, list(dynamo_res.uns["dynamo"]["la"]))[1, 0],
-        "alpha_a": np.corrcoef(alpha_a_val, list(dynamo_res.uns["dynamo"]["alpha_a"]))[
-            1, 0
-        ],
-        "alpha_i": np.corrcoef(alpha_i_val, list(dynamo_res.uns["dynamo"]["alpha_i"]))[
-            1, 0
-        ],
+        "alpha_a": np.corrcoef(alpha_a_val, list(dynamo_res.uns["dynamo"]["alpha_a"]))[1, 0],
+        "alpha_i": np.corrcoef(alpha_i_val, list(dynamo_res.uns["dynamo"]["alpha_i"]))[1, 0],
         "sigma": np.corrcoef(sigma_val, list(dynamo_res.uns["dynamo"]["sigma"]))[1, 0],
         "beta": np.corrcoef(beta_val, list(dynamo_res.uns["dynamo"]["beta"]))[1, 0],
         "gamma": np.corrcoef(gamma_val, list(dynamo_res.uns["dynamo"]["gamma"]))[1, 0],

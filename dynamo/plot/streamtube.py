@@ -7,22 +7,24 @@ from .utils import is_gene_name, is_cell_anno_column, _to_hex
 from ..tools.Markov import prepare_velocity_grid_data
 from ..configuration import _themes
 
-def plot_3d_streamtube(adata,
-                       color,
-                       layer,
-                       group,
-                       init_group,
-                       basis='umap',
-                       dims=[0, 1, 2],
-                       theme=None,
-                       background=None,
-                       cmap=None,
-                       color_key=None,
-                       color_key_cmap=None,
-                       html_fname=None,
-                       save_show_or_return="show",
-                       save_kwargs={},
-                       ):
+
+def plot_3d_streamtube(
+    adata,
+    color,
+    layer,
+    group,
+    init_group,
+    basis="umap",
+    dims=[0, 1, 2],
+    theme=None,
+    background=None,
+    cmap=None,
+    color_key=None,
+    color_key_cmap=None,
+    html_fname=None,
+    save_show_or_return="show",
+    save_kwargs={},
+):
     """Plot a interative 3d streamtube plot via plotly.
 
     A streamtube is a tubular region surrounded by streamlines that form a closed loop. It's a continuous version of a
@@ -64,14 +66,12 @@ def plot_3d_streamtube(adata,
         # 3D streamtube:
         import plotly.graph_objects as go
     except ImportError:
-        raise ImportError(f"You need to install the package `plotly`."
-                          f"install hiveplotlib via `pip install plotly`")
+        raise ImportError(f"You need to install the package `plotly`." f"install hiveplotlib via `pip install plotly`")
 
     import matplotlib, matplotlib.pyplot as plt
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
     import matplotlib.cm as cm
-
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
@@ -80,15 +80,11 @@ def plot_3d_streamtube(adata,
         _background = background
 
     if is_gene_name(adata, color):
-        color_val = adata.obs_vector(k=color, layer=None) if layer == 'X' else \
-            adata.obs_vector(k=color, layer=layer)
+        color_val = adata.obs_vector(k=color, layer=None) if layer == "X" else adata.obs_vector(k=color, layer=layer)
     elif is_cell_anno_column(adata, color):
         color_val = adata.obs_vector
 
-
-    is_not_continous = (
-                not isinstance(color_val[0], Number) or color_val.dtype.name == 'category'
-        )
+    is_not_continous = not isinstance(color_val[0], Number) or color_val.dtype.name == "category"
 
     if is_not_continous:
         labels = color_val.to_dense() if is_categorical_dtype(color_val) else color_val
@@ -103,24 +99,14 @@ def plot_3d_streamtube(adata,
         values = color_val
         if theme is None:
             if _background in ["#ffffff", "black"]:
-                _theme_ = (
-                    "inferno"
-                    if not layer.startswith("velocity")
-                    else "div_blue_black_red"
-                )
+                _theme_ = "inferno" if not layer.startswith("velocity") else "div_blue_black_red"
             else:
-                _theme_ = (
-                    "viridis" if not layer.startswith("velocity") else "div_blue_red"
-                )
+                _theme_ = "viridis" if not layer.startswith("velocity") else "div_blue_red"
         else:
             _theme_ = theme
 
     _cmap = _themes[_theme_]["cmap"] if cmap is None else cmap
-    _color_key_cmap = (
-        _themes[_theme_]["color_key_cmap"]
-        if color_key_cmap is None
-        else color_key_cmap
-    )
+    _color_key_cmap = _themes[_theme_]["color_key_cmap"] if color_key_cmap is None else color_key_cmap
 
     if is_not_continous:
         labels = adata.obs[color]
@@ -148,35 +134,39 @@ def plot_3d_streamtube(adata,
         "V_threshold": None,
     }
 
-    X_grid, p_mass, neighs, weight = prepare_velocity_grid_data(X,
-                                                                [60, 60, 60],
-                                                                density=grid_kwargs_dict['density'],
-                                                                smooth=grid_kwargs_dict['smooth'],
-                                                                n_neighbors=grid_kwargs_dict['n_neighbors'], )
+    X_grid, p_mass, neighs, weight = prepare_velocity_grid_data(
+        X,
+        [60, 60, 60],
+        density=grid_kwargs_dict["density"],
+        smooth=grid_kwargs_dict["smooth"],
+        n_neighbors=grid_kwargs_dict["n_neighbors"],
+    )
 
     from dynamo.vectorfield.utils import vecfld_from_adata
 
-    VecFld, func = vecfld_from_adata(adata, basis='umap')
+    VecFld, func = vecfld_from_adata(adata, basis="umap")
 
     velocity_grid = func(X_grid)
 
-    fig = go.Figure(data=go.Streamtube(
-        x=X_grid[:, 0],
-        y=X_grid[:, 1],
-        z=X_grid[:, 2],
-        u=velocity_grid[:, 0],
-        v=velocity_grid[:, 1],
-        w=velocity_grid[:, 2],
-        starts=dict(
-            x=adata[labels == init_group, :].obsm['X_umap'][:125, 0],
-            y=adata[labels == init_group, :].obsm['X_umap'][:125, 1],
-            z=adata[labels == init_group, :].obsm['X_umap'][:125, 2]
-        ),
-        sizeref=3000,
-        colorscale='Portland',
-        showscale=False,
-        maxdisplayed=3000
-    ))
+    fig = go.Figure(
+        data=go.Streamtube(
+            x=X_grid[:, 0],
+            y=X_grid[:, 1],
+            z=X_grid[:, 2],
+            u=velocity_grid[:, 0],
+            v=velocity_grid[:, 1],
+            w=velocity_grid[:, 2],
+            starts=dict(
+                x=adata[labels == init_group, :].obsm["X_umap"][:125, 0],
+                y=adata[labels == init_group, :].obsm["X_umap"][:125, 1],
+                z=adata[labels == init_group, :].obsm["X_umap"][:125, 2],
+            ),
+            sizeref=3000,
+            colorscale="Portland",
+            showscale=False,
+            maxdisplayed=3000,
+        )
+    )
 
     fig.update_layout(
         scene=dict(
@@ -186,15 +176,9 @@ def plot_3d_streamtube(adata,
                 z=1,
             )
         ),
-        margin=dict(
-            t=20,
-            b=20,
-            l=20,
-            r=20
-        )
+        margin=dict(t=20, b=20, l=20, r=20),
     )
-    fig.add_scatter3d(x=X[:, 0], y=X[:, 1], z=X[:, 2], mode='markers',
-                      marker=dict(size=2, color=colors.values))
+    fig.add_scatter3d(x=X[:, 0], y=X[:, 1], z=X[:, 2], mode="markers", marker=dict(size=2, color=colors.values))
 
     if save_show_or_return == "save" or html_fname is not None:
         html_fname = "streamtube_" + color + "_" + group + "_" + init_group if html_fname is None else html_fname
@@ -205,4 +189,3 @@ def plot_3d_streamtube(adata,
         fig.show()
     elif save_show_or_return == "return":
         return fig
-

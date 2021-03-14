@@ -4,18 +4,21 @@ import scipy.sparse as sp
 from ..tools.utils import squareform, condensed_idx_to_squareform_idx, timeit
 from tqdm import tqdm
 
+
 # from scPotential import show_landscape
 
+
 def f_left(X, F):
-    '''An auxiliary function for fast computation of F.X - (F.X)^T'''
+    """An auxiliary function for fast computation of F.X - (F.X)^T"""
     R = F.dot(X)
     return R - R.T
 
+
 def f_left_jac(q, F):
-    '''
-        Analytical Jacobian of f(Q) = F.Q - (F.Q)^T, where Q is 
-        an anti-symmetric matrix s.t. Q^T = -Q.
-    '''
+    """
+    Analytical Jacobian of f(Q) = F.Q - (F.Q)^T, where Q is
+    an anti-symmetric matrix s.t. Q^T = -Q.
+    """
     J = np.zeros((np.prod(F.shape), len(q)))
     for i in range(len(q)):
         jac = np.zeros(F.shape)
@@ -26,6 +29,7 @@ def f_left_jac(q, F):
         jac[a, :] -= -F[:, b]
         J[:, i] = jac.flatten()
     return J
+
 
 @timeit
 def solveQ(D, F, q0=None, debug=False, precompute_jac=True, **kwargs):
@@ -61,7 +65,7 @@ def solveQ(D, F, q0=None, debug=False, precompute_jac=True, **kwargs):
         J = f_left_jac(q0, F)
         f_jac = lambda q: J
     else:
-        f_jac = '2-point'
+        f_jac = "2-point"
     sol = least_squares(f_obj, q0, jac=f_jac, **kwargs)
     Q = squareform(sol.x, True)
     if debug:
@@ -132,14 +136,14 @@ def Ao_pot_map(vecFunc, X, D=None, **kwargs):
 def Ao_pot_map_jac(fjac, X, D=None, **kwargs):
     nobs, ndim = X.shape
     if D is None:
-        D = 0.1 * np.eye(ndim) 
+        D = 0.1 * np.eye(ndim)
     elif np.isscalar(D):
         D = D * np.eye(ndim)
     U = np.zeros((nobs, 1))
 
     m = int(ndim * (ndim - 1) / 2)
     q0 = np.ones(m) * np.mean(np.diag(D)) * 1000
-    for i in tqdm(range(nobs), 'Calc Ao potential'):
+    for i in tqdm(range(nobs), "Calc Ao potential"):
         X_s = X[i, :]
         F = fjac(X_s)
         Q, _ = solveQ(D, F, q0=q0, **kwargs)

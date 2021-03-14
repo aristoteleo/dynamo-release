@@ -8,11 +8,14 @@ from .utils import save_fig
 from ..tools.utils import update_dict, get_mapper
 from ..preprocessing.utils import detect_datatype
 
-def basic_stats(adata,
-                  group=None,
-                  figsize=(4, 3),
-                  save_show_or_return='show',
-                  save_kwargs={},):
+
+def basic_stats(
+    adata,
+    group=None,
+    figsize=(4, 3),
+    save_show_or_return="show",
+    save_kwargs={},
+):
     """Plot the basic statics (nGenes, nCounts and pMito) of each category of adata.
 
     Parameters
@@ -39,40 +42,43 @@ def basic_stats(adata,
     import matplotlib.pyplot as plt
     import seaborn as sns
 
-    if len(adata.obs.columns.intersection(['nGenes', 'nCounts', 'pMito'])) != 3:
+    if len(adata.obs.columns.intersection(["nGenes", "nCounts", "pMito"])) != 3:
         from ..preprocessing.utils import basic_stats
+
         basic_stats(adata)
 
     df = pd.DataFrame(
-            {"nGenes": adata.obs['nGenes'], "nCounts": adata.obs['nCounts'],
-             "pMito": adata.obs['pMito']}, index=adata.obs.index,
+        {"nGenes": adata.obs["nGenes"], "nCounts": adata.obs["nCounts"], "pMito": adata.obs["pMito"]},
+        index=adata.obs.index,
     )
 
     if group is not None and group in adata.obs.columns:
         df["group"] = adata.obs.loc[:, group]
-        res = (
-            df.melt(
-                value_vars=["nGenes", "nCounts", "pMito"], id_vars=["group"]
-            )
-        )
+        res = df.melt(value_vars=["nGenes", "nCounts", "pMito"], id_vars=["group"])
     else:
-        res = (
-            df.melt(value_vars=["nGenes", "nCounts", "pMito"])
-        )
+        res = df.melt(value_vars=["nGenes", "nCounts", "pMito"])
 
     # https://wckdouglas.github.io/2016/12/seaborn_annoying_title
-    g = sns.FacetGrid(res, col="variable", sharex=False, sharey=False, margin_titles=True, hue="variable",
-                      height=figsize[1], aspect=figsize[0]/figsize[1])
+    g = sns.FacetGrid(
+        res,
+        col="variable",
+        sharex=False,
+        sharey=False,
+        margin_titles=True,
+        hue="variable",
+        height=figsize[1],
+        aspect=figsize[0] / figsize[1],
+    )
 
     if group is None:
         g.map_dataframe(sns.violinplot, x="variable", y="value")
         g.set_xticklabels([])
         g.set(xticks=[])
     else:
-        if res['group'].dtype.name == 'category':
-            xticks = res['group'].cat.categories
+        if res["group"].dtype.name == "category":
+            xticks = res["group"].cat.categories
         else:
-            xticks = np.sort(res['group'].unique())
+            xticks = np.sort(res["group"].unique())
         kws = dict(order=xticks)
 
         g.map_dataframe(sns.violinplot, x="group", y="value", **kws)
@@ -80,15 +86,22 @@ def basic_stats(adata,
 
     [plt.setp(ax.texts, text="") for ax in g.axes.flat]  # remove the original texts
     # important to add this before setting titles
-    g.set_titles(row_template='{row_name}', col_template='{col_name}')
+    g.set_titles(row_template="{row_name}", col_template="{col_name}")
 
     g.set_xlabels("")
     g.set_ylabels("")
     g.set(ylim=(0, None))
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'basic_stats', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "basic_stats",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
@@ -99,12 +112,14 @@ def basic_stats(adata,
         return g
 
 
-def show_fraction(adata,
-                  genes=None,
-                  group=None,
-                  figsize=(4, 3),
-                  save_show_or_return='show',
-                  save_kwargs={},):
+def show_fraction(
+    adata,
+    genes=None,
+    group=None,
+    figsize=(4, 3),
+    save_show_or_return="show",
+    save_kwargs={},
+):
     """Plot the fraction of each category of data used in the velocity estimation.
 
     Parameters
@@ -148,13 +163,14 @@ def show_fraction(adata,
         mode = "full"
 
     if not (mode in ["labelling", "splicing", "full"]):
-        raise Exception(
-            "your data doesn't seem to have either splicing or labeling or both information"
-        )
+        raise Exception("your data doesn't seem to have either splicing or labeling or both information")
 
     if mode == "labelling":
-        new_mat, total_mat = (adata.layers["new"], adata.layers["total"]) if genes is None else \
-            (adata[:, genes].layers["new"], adata[:, genes].layers["total"])
+        new_mat, total_mat = (
+            (adata.layers["new"], adata.layers["total"])
+            if genes is None
+            else (adata[:, genes].layers["new"], adata[:, genes].layers["total"])
+        )
 
         new_cell_sum, tot_cell_sum = (
             (np.sum(new_mat, 1), np.sum(total_mat, 1))
@@ -171,9 +187,7 @@ def show_fraction(adata,
 
         if group is not None and group in adata.obs.keys():
             df["group"] = adata.obs[group]
-            res = df.melt(
-                value_vars=["new_frac_cell", "old_frac_cell"], id_vars=["group"]
-            )
+            res = df.melt(value_vars=["new_frac_cell", "old_frac_cell"], id_vars=["group"])
         else:
             res = df.melt(value_vars=["new_frac_cell", "old_frac_cell"])
 
@@ -181,11 +195,7 @@ def show_fraction(adata,
         if "ambiguous" in adata.layers.keys():
             ambiguous = adata.layers["ambiguous"] if genes is None else adata[:, genes].layers["ambiguous"]
         else:
-            ambiguous = (
-                csr_matrix(np.array([[0]]))
-                if issparse(adata.layers["unspliced"])
-                else np.array([[0]])
-            )
+            ambiguous = csr_matrix(np.array([[0]])) if issparse(adata.layers["unspliced"]) else np.array([[0]])
 
         unspliced_mat, spliced_mat, ambiguous_mat = (
             adata.layers["unspliced"] if genes is None else adata[:, genes].layers["unspliced"],
@@ -199,11 +209,7 @@ def show_fraction(adata,
         )
 
         if "ambiguous" in adata.layers.keys():
-            am_cell_sum = (
-                ambiguous_mat.sum(1).A1
-                if issparse(unspliced_mat)
-                else np.sum(ambiguous_mat, 1)
-            )
+            am_cell_sum = ambiguous_mat.sum(1).A1 if issparse(unspliced_mat) else np.sum(ambiguous_mat, 1)
             tot_cell_sum = un_cell_sum + sp_cell_sum + am_cell_sum
             un_frac_cell, sp_frac_cell, am_frac_cell = (
                 un_cell_sum / tot_cell_sum,
@@ -232,9 +238,7 @@ def show_fraction(adata,
         if group is not None and group in adata.obs.columns:
             df["group"] = adata.obs.loc[:, group]
             res = (
-                df.melt(
-                    value_vars=["unspliced", "spliced", "ambiguous"], id_vars=["group"]
-                )
+                df.melt(value_vars=["unspliced", "spliced", "ambiguous"], id_vars=["group"])
                 if "ambiguous" in adata.layers.keys()
                 else df.melt(value_vars=["unspliced", "spliced"], id_vars=["group"])
             )
@@ -253,15 +257,14 @@ def show_fraction(adata,
             adata.layers["sl"] if genes is None else adata[:, genes].layers["sl"],
         )
         uu_sum, ul_sum, su_sum, sl_sum = (
-            np.sum(uu, 1),
-            np.sum(ul, 1),
-            np.sum(su, 1),
-            np.sum(sl, 1)
-        ) if not issparse(uu) else (
-            uu.sum(1).A1,
-            ul.sum(1).A1,
-            su.sum(1).A1,
-            sl.sum(1).A1,
+            (np.sum(uu, 1), np.sum(ul, 1), np.sum(su, 1), np.sum(sl, 1))
+            if not issparse(uu)
+            else (
+                uu.sum(1).A1,
+                ul.sum(1).A1,
+                su.sum(1).A1,
+                sl.sum(1).A1,
+            )
         )
 
         tot_cell_sum = uu_sum + ul_sum + su_sum + sl_sum
@@ -290,17 +293,25 @@ def show_fraction(adata,
         else:
             res = df.melt(value_vars=["uu_frac", "ul_frac", "su_frac", "sl_frac"])
 
-    g = sns.FacetGrid(res, col="variable", sharex=False, sharey=False, margin_titles=True, hue="variable",
-                      height=figsize[1], aspect=figsize[0]/figsize[1])
+    g = sns.FacetGrid(
+        res,
+        col="variable",
+        sharex=False,
+        sharey=False,
+        margin_titles=True,
+        hue="variable",
+        height=figsize[1],
+        aspect=figsize[0] / figsize[1],
+    )
     if group is None:
         g.map_dataframe(sns.violinplot, x="variable", y="value")
         g.set_xticklabels([])
         g.set(xticks=[])
     else:
-        if res['group'].dtype.name == 'category':
-            xticks = res['group'].cat.categories
+        if res["group"].dtype.name == "category":
+            xticks = res["group"].cat.categories
         else:
-            xticks = np.sort(res['group'].unique())
+            xticks = np.sort(res["group"].unique())
         kws = dict(order=xticks)
 
         g.map_dataframe(sns.violinplot, x="group", y="value", **kws)
@@ -308,15 +319,22 @@ def show_fraction(adata,
 
     [plt.setp(ax.texts, text="") for ax in g.axes.flat]  # remove the original texts
     # important to add this before setting titles
-    g.set_titles(row_template='{row_name}', col_template='{col_name}')
+    g.set_titles(row_template="{row_name}", col_template="{col_name}")
 
     g.set_xlabels("")
     g.set_ylabels("Fraction")
     g.set(ylim=(0, None))
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'show_fraction', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "show_fraction",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
@@ -327,13 +345,14 @@ def show_fraction(adata,
         return g
 
 
-def variance_explained(adata,
-                       threshold=0.002,
-                       n_pcs=None,
-                       figsize=(4, 3),
-                       save_show_or_return='show',
-                       save_kwargs={},
-                       ):
+def variance_explained(
+    adata,
+    threshold=0.002,
+    n_pcs=None,
+    figsize=(4, 3),
+    save_show_or_return="show",
+    save_kwargs={},
+):
     """Plot the accumulative variance explained by the principal components.
 
     Parameters
@@ -374,8 +393,15 @@ def variance_explained(adata,
     ax.set_xlim(0, len(var_))
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'variance_explained', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "variance_explained",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
@@ -386,12 +412,13 @@ def variance_explained(adata,
         return ax
 
 
-def feature_genes(adata,
-                  layer="X",
-                  mode=None,
-                  figsize=(4, 3),
-                  save_show_or_return='show',
-                  save_kwargs={},
+def feature_genes(
+    adata,
+    layer="X",
+    mode=None,
+    figsize=(4, 3),
+    save_show_or_return="show",
+    save_kwargs={},
 ):
     """Plot selected feature genes on top of the mean vs. dispersion scatterplot.
 
@@ -434,25 +461,14 @@ def feature_genes(adata,
         )
     elif mode == "SVR":
         prefix = "" if layer == "X" else layer + "_"
-        key = (
-            "velocyto_SVR"
-            if layer == "raw" or layer == "X"
-            else layer + "_velocyto_SVR"
-        )
+        key = "velocyto_SVR" if layer == "raw" or layer == "X" else layer + "_velocyto_SVR"
 
-        if not np.all(
-            pd.Series([prefix + "log_m", prefix + "score"]).isin(adata.var.columns)
-        ):
-            raise Exception(
-                "Looks like you have not run support vector machine regression yet, try run SVRs first."
-            )
+        if not np.all(pd.Series([prefix + "log_m", prefix + "score"]).isin(adata.var.columns)):
+            raise Exception("Looks like you have not run support vector machine regression yet, try run SVRs first.")
         else:
-            table = adata.var.loc[:
-                , [prefix + "log_m", prefix + "log_cv", prefix + "score"]
-            ]
+            table = adata.var.loc[:, [prefix + "log_m", prefix + "log_cv", prefix + "score"]]
             table = table.loc[
-                np.isfinite(table[prefix + "log_m"])
-                & np.isfinite(table[prefix + "log_cv"]),
+                np.isfinite(table[prefix + "log_m"]) & np.isfinite(table[prefix + "log_cv"]),
                 :,
             ]
             x_min, x_max = (
@@ -460,9 +476,7 @@ def feature_genes(adata,
                 np.nanmax(table[prefix + "log_m"]),
             )
 
-    ordering_genes = (
-        adata.var["use_for_pca"] if "use_for_pca" in adata.var.columns else None
-    )
+    ordering_genes = adata.var["use_for_pca"] if "use_for_pca" in adata.var.columns else None
 
     mu_linspace = np.linspace(x_min, x_max, num=1000)
     fit = (
@@ -524,8 +538,15 @@ def feature_genes(adata,
     plt.ylabel("Dispersion (log)") if mode == "dispersion" else plt.ylabel("CV (log)")
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'feature_genes', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "feature_genes",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
@@ -536,19 +557,20 @@ def feature_genes(adata,
         return ax
 
 
-def exp_by_groups(adata,
-                    genes,
-                    layer=None,
-                    group=None,
-                    use_ratio=False,
-                    use_smoothed=True,
-                    log=True,
-                    angle=0,
-                    re_order=True,
-                    figsize=(4, 3),
-                    save_show_or_return='show',
-                    save_kwargs={},
-                  ):
+def exp_by_groups(
+    adata,
+    genes,
+    layer=None,
+    group=None,
+    use_ratio=False,
+    use_smoothed=True,
+    log=True,
+    angle=0,
+    re_order=True,
+    figsize=(4, 3),
+    save_show_or_return="show",
+    save_kwargs={},
+):
     """Plot the (labeled) expression values of genes across different groups (time points).
 
     This function can be used as a sanity check about the labeled species to see whether they increase or decrease across
@@ -600,68 +622,82 @@ def exp_by_groups(adata,
 
     has_splicing, has_labeling, splicing_labeling, has_protein = detect_datatype(adata)
     if (has_splicing + has_labeling) == 0:
-        layer = 'X' if layer is None else layer
+        layer = "X" if layer is None else layer
     elif has_splicing and not has_labeling:
-        layer = 'X_spliced' if layer is None else layer
+        layer = "X_spliced" if layer is None else layer
     elif not has_splicing and has_labeling:
-        layer = 'X_new' if layer is None else layer
+        layer = "X_new" if layer is None else layer
     elif has_splicing and has_labeling:
-        layer = 'X_new' if layer is None else layer
+        layer = "X_new" if layer is None else layer
 
     if use_smoothed:
         mapper = get_mapper()
         layer = mapper[layer]
 
-    if layer != 'X' and layer not in adata.layers.keys():
+    if layer != "X" and layer not in adata.layers.keys():
         raise ValueError(f"The layer {layer} is not existed in your adata object!")
 
-    exprs = adata[:, valid_genes].X if layer == 'X' else adata[:, valid_genes].layers[layer]
+    exprs = adata[:, valid_genes].X if layer == "X" else adata[:, valid_genes].layers[layer]
     exprs = exprs.A if issparse(exprs) else exprs
     if use_ratio:
         has_splicing, has_labeling, splicing_labeling, has_protein = detect_datatype(adata)
         if has_labeling:
-            if layer.startswith('X_') or layer.startswith('M_'):
-                tot = adata[:, valid_genes].layers[mapper['X_total']] if use_smoothed \
-                    else adata[:, valid_genes].layers['X_total']
+            if layer.startswith("X_") or layer.startswith("M_"):
+                tot = (
+                    adata[:, valid_genes].layers[mapper["X_total"]]
+                    if use_smoothed
+                    else adata[:, valid_genes].layers["X_total"]
+                )
                 tot = tot.A if issparse(tot) else tot
                 exprs = exprs / tot
             else:
                 exprs = exprs
         else:
-            if layer.startswith('X_') or layer.startswith('M_'):
-                tot = adata[:, valid_genes].layers[mapper['X_unspliced']] + \
-                        adata[:, valid_genes].layers[mapper['X_spliced']] if use_smoothed \
-                    else adata[:, valid_genes].layers['X_unspliced'] + \
-                         adata[:, valid_genes].layers['X_spliced']
+            if layer.startswith("X_") or layer.startswith("M_"):
+                tot = (
+                    adata[:, valid_genes].layers[mapper["X_unspliced"]]
+                    + adata[:, valid_genes].layers[mapper["X_spliced"]]
+                    if use_smoothed
+                    else adata[:, valid_genes].layers["X_unspliced"] + adata[:, valid_genes].layers["X_spliced"]
+                )
                 tot = tot.A if issparse(tot) else tot
                 exprs = exprs / tot
             else:
                 exprs = exprs
 
-    df = pd.DataFrame(np.log1p(exprs), index=adata.obs_names, columns=valid_genes) if log else \
+    df = (
         pd.DataFrame(np.log1p(exprs), index=adata.obs_names, columns=valid_genes)
+        if log
+        else pd.DataFrame(np.log1p(exprs), index=adata.obs_names, columns=valid_genes)
+    )
 
     if group is not None and group in adata.obs.columns:
         df["group"] = adata.obs[group]
-        res = (
-            df.melt(id_vars=["group"])
-        )
+        res = df.melt(id_vars=["group"])
     else:
-        df["group"] =1
+        df["group"] = 1
         res = df.melt(id_vars=["group"])
 
-    if res['group'].dtype.name == 'category':
-        xticks = res['group'].cat.categories.sort_values() if re_order else res['group'].cat.categories
+    if res["group"].dtype.name == "category":
+        xticks = res["group"].cat.categories.sort_values() if re_order else res["group"].cat.categories
     else:
-        xticks = np.sort(res['group'].unique())
+        xticks = np.sort(res["group"].unique())
 
     kws = dict(order=xticks)
 
     # https://wckdouglas.github.io/2016/12/seaborn_annoying_title
-    g = sns.FacetGrid(res, row="variable", sharex=False, sharey=False, margin_titles=True, hue="variable",
-                      height=figsize[1], aspect=figsize[0]/figsize[1])
-    g.map_dataframe(sns.violinplot, x="group", y="value",  **kws)
-    g.map_dataframe(sns.pointplot, x="group", y="value", color='k',  **kws)
+    g = sns.FacetGrid(
+        res,
+        row="variable",
+        sharex=False,
+        sharey=False,
+        margin_titles=True,
+        hue="variable",
+        height=figsize[1],
+        aspect=figsize[0] / figsize[1],
+    )
+    g.map_dataframe(sns.violinplot, x="group", y="value", **kws)
+    g.map_dataframe(sns.pointplot, x="group", y="value", color="k", **kws)
     if group is None:
         g.set_xticklabels([])
         g.set(xticks=[])
@@ -670,7 +706,7 @@ def exp_by_groups(adata,
 
     [plt.setp(ax.texts, text="") for ax in g.axes.flat]  # remove the original texts
     # important to add this before setting titles
-    g.set_titles(row_template='{row_name}', col_template='{col_name}')
+    g.set_titles(row_template="{row_name}", col_template="{col_name}")
 
     if log:
         g.set_ylabels("log(Expression + 1)")
@@ -681,8 +717,15 @@ def exp_by_groups(adata,
     g.set(ylim=(0, None))
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'exp_by_groups', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "exp_by_groups",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)

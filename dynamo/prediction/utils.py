@@ -5,33 +5,37 @@ from scipy.integrate import solve_ivp
 from ..vectorfield.topography import dup_osc_idx_iter
 from ..tools.utils import log1p_
 
-def integrate_vf_ivp(init_states,
-                     t,
-                     args,
-                     integration_direction,
-                     f,
-                     interpolation_num=250,
-                     average=True,
-                     sampling='arc_length',
-                     verbose=False,
-                     disable=False,
+
+def integrate_vf_ivp(
+    init_states,
+    t,
+    args,
+    integration_direction,
+    f,
+    interpolation_num=250,
+    average=True,
+    sampling="arc_length",
+    verbose=False,
+    disable=False,
 ):
     """integrating along vector field function using the initial value problem solver from scipy.integrate"""
 
-    if init_states.ndim == 1: init_states = init_states[None, :]
+    if init_states.ndim == 1:
+        init_states = init_states[None, :]
     n_cell, n_feature = init_states.shape
     max_step = np.abs(t[-1] - t[0]) / interpolation_num
 
     T, Y, SOL = [], [], []
 
-    if interpolation_num is not None and integration_direction == 'both':
+    if interpolation_num is not None and integration_direction == "both":
         interpolation_num = interpolation_num * 2
 
     for i in tqdm(range(n_cell), desc="integration with ivp solver", disable=disable):
         y0 = init_states[i, :]
         ivp_f, ivp_f_event = (
             lambda t, x: f(x),
-            lambda t, x: np.all(abs(f(x)) < 1e-5) - 1, # np.linalg.norm(np.abs(f(x))) - 1e-5 if velocity on all dimension is less than 1e-5
+            lambda t, x: np.all(abs(f(x)) < 1e-5) - 1,
+            # np.linalg.norm(np.abs(f(x))) - 1e-5 if velocity on all dimension is less than 1e-5
         )
         ivp_f_event.terminal = True
 
@@ -84,9 +88,7 @@ def integrate_vf_ivp(init_states,
             )
             sol = [y_ivp_b.sol, y_ivp_f.sol]
         else:
-            raise Exception(
-                "both, forward, backward are the only valid direction argument strings"
-            )
+            raise Exception("both, forward, backward are the only valid direction argument strings")
 
         T.append(t_trans)
         Y.append(y)
@@ -95,7 +97,7 @@ def integrate_vf_ivp(init_states,
         if verbose:
             print("\nintegration time: ", len(t_trans))
 
-    if sampling == 'arc_length':
+    if sampling == "arc_length":
         Y_, t_ = [None] * n_cell, [None] * n_cell
         for i in tqdm(range(n_cell), desc="uniformly sampling points along a trajectory", disable=disable):
             tau, x = T[i], Y[i].T
@@ -109,25 +111,30 @@ def integrate_vf_ivp(init_states,
             if integration_direction == "both":
                 neg_t_len = sum(np.array(t_[i]) < 0)
 
-            odeint_cur_Y = SOL[i](t_[i]) if integration_direction != "both" \
+            odeint_cur_Y = (
+                SOL[i](t_[i])
+                if integration_direction != "both"
                 else np.hstack(
-                (
-                    SOL[i][0](t_[i][:neg_t_len]),
-                    SOL[i][1](t_[i][neg_t_len:]),
+                    (
+                        SOL[i][0](t_[i][:neg_t_len]),
+                        SOL[i][1](t_[i][neg_t_len:]),
+                    )
                 )
             )
             Y_[i] = odeint_cur_Y
 
         Y, t = Y_, t_
-    elif sampling == 'logspace':
+    elif sampling == "logspace":
         Y_, t_ = [None] * n_cell, [None] * n_cell
         for i in tqdm(range(n_cell), desc="sampling points along a trajectory in logspace", disable=disable):
             tau, x = T[i], Y[i].T
             neg_tau, pos_tau = tau[tau < 0], tau[tau >= 0]
 
             if len(neg_tau) > 0:
-                t_0, t_1 = - (np.logspace(0, np.log10(abs(min(neg_tau)) + 1), interpolation_num)) - 1, \
-                           np.logspace(0, np.log10(max(pos_tau) + 1), interpolation_num) - 1
+                t_0, t_1 = (
+                    -(np.logspace(0, np.log10(abs(min(neg_tau)) + 1), interpolation_num)) - 1,
+                    np.logspace(0, np.log10(max(pos_tau) + 1), interpolation_num) - 1,
+                )
                 t_[i] = np.hstack((t_0[::-1], t_1))
             else:
                 t_[i] = np.logspace(0, np.log10(max(tau) + 1), interpolation_num) - 1
@@ -135,20 +142,25 @@ def integrate_vf_ivp(init_states,
             if integration_direction == "both":
                 neg_t_len = sum(np.array(t_[i]) < 0)
 
-            odeint_cur_Y = SOL[i](t_[i]) if integration_direction != "both" \
+            odeint_cur_Y = (
+                SOL[i](t_[i])
+                if integration_direction != "both"
                 else np.hstack(
-                (
-                    SOL[i][0](t_[i][:neg_t_len]),
-                    SOL[i][1](t_[i][neg_t_len:]),
+                    (
+                        SOL[i][0](t_[i][:neg_t_len]),
+                        SOL[i][1](t_[i][neg_t_len:]),
+                    )
                 )
             )
             Y_[i] = odeint_cur_Y
 
         Y, t = Y_, t_
-    elif sampling == 'uniform_indices':
+    elif sampling == "uniform_indices":
         t_uniq = np.unique(np.hstack(T))
         if len(t_uniq) > interpolation_num:
-            valid_t_trans = np.hstack([0, np.sort(t_uniq)])[(np.linspace(0, len(t_uniq), interpolation_num)).astype(int)]
+            valid_t_trans = np.hstack([0, np.sort(t_uniq)])[
+                (np.linspace(0, len(t_uniq), interpolation_num)).astype(int)
+            ]
 
             if len(valid_t_trans) != interpolation_num:
                 n_missed = interpolation_num - len(valid_t_trans)
@@ -160,15 +172,16 @@ def integrate_vf_ivp(init_states,
                 valid_t_trans = np.sort(np.hstack([tmp, valid_t_trans]))
         else:
             neg_tau, pos_tau = t_uniq[t_uniq < 0], t_uniq[t_uniq >= 0]
-            t_0, t_1 = - np.linspace(min(t_uniq), 0, interpolation_num), \
-                       np.linspace(0, max(t_uniq), interpolation_num)
+            t_0, t_1 = -np.linspace(min(t_uniq), 0, interpolation_num), np.linspace(0, max(t_uniq), interpolation_num)
 
             valid_t_trans = np.hstack((t_0, t_1))
 
         _Y = None
         if integration_direction == "both":
             neg_t_len = sum(valid_t_trans < 0)
-        for i in tqdm(range(n_cell), desc="calculate solutions on the sampled time points in logspace", disable=disable):
+        for i in tqdm(
+            range(n_cell), desc="calculate solutions on the sampled time points in logspace", disable=disable
+        ):
             cur_Y = (
                 SOL[i](valid_t_trans)
                 if integration_direction != "both"
@@ -196,9 +209,8 @@ def integrate_vf_ivp(init_states,
 
     return t, Y
 
-def integrate_streamline(
-    X, Y, U, V, integration_direction, init_states, interpolation_num=100, average=True
-):
+
+def integrate_streamline(X, Y, U, V, integration_direction, init_states, interpolation_num=100, average=True):
     """use streamline's integrator to alleviate stacking of the solve_ivp. Need to update with the correct time."""
     import matplotlib.pyplot as plt
 
@@ -305,7 +317,8 @@ def arclength_sampling(X, step_length, t=None):
                 break
             else:
                 l += d
-        if j == len(X) - 1: i += 1
+        if j == len(X) - 1:
+            i += 1
         arclength += step_length
         if l + d < step_length:
             terminate = True
@@ -326,11 +339,7 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
     else:
         fate_key = "fate" if layer == "X" else "fate_" + layer
 
-    time = (
-        adata.obs[time].values
-        if mode != "vector_field"
-        else adata.uns[fate_key]["t"]
-    )
+    time = adata.obs[time].values if mode != "vector_field" else adata.uns[fate_key]["t"]
 
     if mode != "vector_field":
         valid_genes = list(set(genes).intersection(adata.var.index))
@@ -343,9 +352,7 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
         elif layer == "protein":  # update subset here
             exprs = adata[np.isfinite(time), :][:, valid_genes].obsm[layer]
         else:
-            raise Exception(
-                f"The {layer} you passed in is not existed in the adata object."
-            )
+            raise Exception(f"The {layer} you passed in is not existed in the adata object.")
     else:
         fate_genes = adata.uns[fate_key]["genes"]
         valid_genes = list(set(genes).intersection(fate_genes))
@@ -363,4 +370,3 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
     time = time[np.isfinite(time)]
 
     return exprs, valid_genes, time
-

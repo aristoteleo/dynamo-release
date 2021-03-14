@@ -10,7 +10,6 @@ from pathlib import Path
 from subprocess import run, PIPE, CalledProcessError
 from typing import NamedTuple, List, Union, Optional
 
-
 RE_VERSION = r"([\d.]+?)(?:\.dev(\d+))?(?:[_+-]([0-9a-zA-Z.]+))?"
 RE_GIT_DESCRIBE = r"v?(?:([\d.]+)-(\d+)-g)?([0-9a-f]{7})(-dirty)?"
 ON_RTD = os.environ.get("READTHEDOCS") == "True"
@@ -86,9 +85,7 @@ def get_version_from_git(parent):
         check=True,
     )
 
-    release, dev, hex_, dirty = match_groups(
-        f"{RE_GIT_DESCRIBE}$", p.stdout.rstrip("\r\n")
-    )
+    release, dev, hex_, dirty = match_groups(f"{RE_GIT_DESCRIBE}$", p.stdout.rstrip("\r\n"))
 
     labels = []
     if dev == "0":
@@ -174,12 +171,12 @@ def get_all_dependencies_version(display=True):
     from IPython.display import display
     import pandas as pd
 
-    _package_name = 'dynamo-release'
+    _package_name = "dynamo-release"
     _package = pkg_resources.working_set.by_key[_package_name]
 
-    all_dependencies = ([str(r).split('>')[0] for r in _package.requires()])  # retrieve deps from setup.py
+    all_dependencies = [str(r).split(">")[0] for r in _package.requires()]  # retrieve deps from setup.py
     all_dependencies.sort(reverse=True)
-    all_dependencies.insert(0, 'dynamo-release')
+    all_dependencies.insert(0, "dynamo-release")
 
     all_dependencies_list = []
 
@@ -187,19 +184,16 @@ def get_all_dependencies_version(display=True):
         if m.project_name.lower() in all_dependencies:
             all_dependencies_list.append([m.project_name, m.version])
 
-    df = pd.DataFrame(
-                    all_dependencies_list[::-1],
-                    columns=["package", "version"]
-                ).set_index("package").T
+    df = pd.DataFrame(all_dependencies_list[::-1], columns=["package", "version"]).set_index("package").T
 
     if display:
-        pd.options.display.max_columns=None
+        pd.options.display.max_columns = None
         display(df)
     else:
         return df
 
-__version__ = get_version(__file__)
 
+__version__ = get_version(__file__)
 
 if __name__ == "__main__":
     print(__version__)

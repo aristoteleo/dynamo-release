@@ -9,20 +9,22 @@ import pandas as pd
 from scipy.sparse import issparse
 from sklearn.neighbors import NearestNeighbors
 
-def score_cells(adata,
-                genes=None,
-                layer=None,
-                basis=None,
-                n_neighbors=30,
-                beta=0.1,
-                iteration=5,
-                metric="euclidean",
-                metric_kwds=None,
-                cores=1,
-                seed=19491001,
-                return_score=True,
-                **kwargs,
-                ):
+
+def score_cells(
+    adata,
+    genes=None,
+    layer=None,
+    basis=None,
+    n_neighbors=30,
+    beta=0.1,
+    iteration=5,
+    metric="euclidean",
+    metric_kwds=None,
+    cores=1,
+    seed=19491001,
+    return_score=True,
+    **kwargs,
+):
     """Score cells based on a set of genes.
 
     Parameters
@@ -82,29 +84,32 @@ def score_cells(adata,
     if genes is None:
         genes = adata.var_names[adata.use_for_pca]
     else:
-        genes = list(adata.var_names.intersection(genes)) if adata.var_names[0].isupper() else \
-            list(adata.var_names.intersection([i.capitalize() for i in genes])) if \
-                 adata.var_names[0][0].isupper() and adata.var_names[0][1:].islower() else \
-                     list(adata.var_names.intersection([i.lower() for i in genes]))
+        genes = (
+            list(adata.var_names.intersection(genes))
+            if adata.var_names[0].isupper()
+            else list(adata.var_names.intersection([i.capitalize() for i in genes]))
+            if adata.var_names[0][0].isupper() and adata.var_names[0][1:].islower()
+            else list(adata.var_names.intersection([i.lower() for i in genes]))
+        )
 
     if len(genes) < 1:
         raise ValueError(f"Your inputted gene list doesn't overlap any gene in your adata object.")
 
-    X_basis = adata.obsm['X_pca'] if basis is None else adata.obsm['X_' + basis]
+    X_basis = adata.obsm["X_pca"] if basis is None else adata.obsm["X_" + basis]
 
     if X_basis.shape[0] > 5000 and X_basis.shape[1] > 2:
         from pynndescent import NNDescent
 
-        nbrs = NNDescent(X_basis, metric=metric, metric_kwds=metric_kwds, n_neighbors=30, n_jobs=cores,
-                              random_state=seed, **kwargs)
+        nbrs = NNDescent(
+            X_basis, metric=metric, metric_kwds=metric_kwds, n_neighbors=30, n_jobs=cores, random_state=seed, **kwargs
+        )
         knn, distances = nbrs.query(X_basis, k=n_neighbors)
     else:
-        alg = 'ball_tree' if X_basis.shape[1] > 10 else 'kd_tree'
+        alg = "ball_tree" if X_basis.shape[1] > 10 else "kd_tree"
         nbrs = NearestNeighbors(n_neighbors=n_neighbors, algorithm=alg, n_jobs=cores).fit(X_basis)
         distances, knn = nbrs.kneighbors(X_basis)
 
-
-    X_data = adata[:, genes].X if layer in [None, 'X'] else adata[:, genes].layers[layer]
+    X_data = adata[:, genes].X if layer in [None, "X"] else adata[:, genes].layers[layer]
 
     prev_score = X_data.mean(1).A1 if issparse(X_data) else X_data.mean(1)
     cur_score = np.zeros(prev_score.shape)
@@ -120,24 +125,13 @@ def score_cells(adata,
     if return_score:
         return smoothed_score
     else:
-        adata.uns['score_cells'] = {"smoothed_score": smoothed_score,
-                                    "genes": genes,
-                                    "layer": layer,
-                                    "basis": basis}
-        adata.obs['cell_score'] = smoothed_score
+        adata.uns["score_cells"] = {"smoothed_score": smoothed_score, "genes": genes, "layer": layer, "basis": basis}
+        adata.obs["cell_score"] = smoothed_score
 
 
-def cell_growth_rate(adata,
-                     group,
-                     source,
-                     target,
-                     L0=0.3,
-                     L=1.2,
-                     k=1e-3,
-                     birth_genes=None,
-                     death_genes=None,
-                     clone_column=None,
-                     **kwargs):
+def cell_growth_rate(
+    adata, group, source, target, L0=0.3, L=1.2, k=1e-3, birth_genes=None, death_genes=None, clone_column=None, **kwargs
+):
     """Estimate the growth rate via clone information or logistic equation of population dynamics.
 
     Growth rate is calculated as 1) number_of_cell_at_source_time_in_the_clone / number_of_cell_at_end_time_in_the_clone
@@ -188,11 +182,15 @@ def cell_growth_rate(adata,
     if all(i is not None for i in all_clone_info):
 
         if any(i not in adata.obs.keys() for i in all_clone_info[:2]):
-            raise ValueError(f"At least one of your input clone information {clone_column}, {group} "
-                             f"is not in your adata .obs attribute.")
+            raise ValueError(
+                f"At least one of your input clone information {clone_column}, {group} "
+                f"is not in your adata .obs attribute."
+            )
         if any(i not in adata.obs[group] for i in all_clone_info[2:]):
-            raise ValueError(f"At least one of your input source/target information {source}, {target} "
-                             f"is not in your adata.obs[{group}] column.")
+            raise ValueError(
+                f"At least one of your input source/target information {source}, {target} "
+                f"is not in your adata.obs[{group}] column."
+            )
 
         clone_time_count = obs.groupby([clone_column])[group].value_counts().unstack().fillna(0).astype(int)
         source_meta = obs.loc[source_mask_]
@@ -208,19 +206,21 @@ def cell_growth_rate(adata,
     else:
         # calculate growth rate when there is no clone information.
         if birth_genes is None:
-            birth_genes = pd.read_csv('https://raw.githubusercontent.com/Xiaojieqiu/jungle/master/Cell_cycle.txt',
-                                      header=None, dtype=str)
+            birth_genes = pd.read_csv(
+                "https://raw.githubusercontent.com/Xiaojieqiu/jungle/master/Cell_cycle.txt", header=None, dtype=str
+            )
             birth_genes = birth_genes[0].values
 
         if death_genes is None:
-            death_genes = pd.read_csv('https://raw.githubusercontent.com/Xiaojieqiu/jungle/master/Apoptosis.txt',
-                                      header=None, dtype=str)
+            death_genes = pd.read_csv(
+                "https://raw.githubusercontent.com/Xiaojieqiu/jungle/master/Apoptosis.txt", header=None, dtype=str
+            )
             death_genes = death_genes[0].values
 
         birth_score = score_cells(adata, genes=birth_genes, **kwargs)
         death_score = score_cells(adata, genes=death_genes, **kwargs)
-        adata.obs['birth_score'] = birth_score
-        adata.obs['death_score'] = death_score
+        adata.obs["birth_score"] = birth_score
+        adata.obs["death_score"] = death_score
 
         kb = np.log(k) / np.min(birth_score)
         kd = np.log(k) / np.min(death_score)
@@ -232,8 +232,8 @@ def cell_growth_rate(adata,
         d = L0 + L / (1 + np.exp(-kd * d))
         growth_rates = b - d
 
-    adata.obs['growth_rate'] = np.nan
-    adata.obs.loc[source_mask_, 'growth_rate'] = growth_rates
+    adata.obs["growth_rate"] = np.nan
+    adata.obs.loc[source_mask_, "growth_rate"] = growth_rates
 
     return adata
 
@@ -244,4 +244,3 @@ def n_descentants(birth, death, dt):
 
 def growth_rate(n, dt):
     return np.log(n) / dt
-
