@@ -10,6 +10,7 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
+from urllib.request import urlretrieve
 import os
 import sys
 
@@ -23,11 +24,9 @@ source_suffix = [".rst", ".ipynb"]
 master_doc = "index"
 
 
-
 # the following are borrowed from scvelo
 # -- Retrieve notebooks ------------------------------------------------
 
-from urllib.request import urlretrieve
 
 notebooks_url = "https://github.com/aristoteleo/dynamo-tutorials/raw/master/"
 notebooks = [
@@ -83,7 +82,7 @@ extensions = [
     "sphinx.ext.coverage",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
-    "sphinx.ext.intersphinx", # Link to other project's documentation (see mapping below)
+    "sphinx.ext.intersphinx",  # Link to other project's documentation (see mapping below)
     'sphinx.ext.viewcode',  # Add a link to the Python source code for classes, functions etc.
     "sphinx.ext.githubpages",
     'sphinx.ext.autosectionlabel',
@@ -93,6 +92,20 @@ extensions = [
 # Mappings for sphinx.ext.intersphinx. Projects have to have Sphinx-generated doc! (.inv file)
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
+    "anndata": ('https://anndata.readthedocs.io/en/stable/', None),
+    "cycler": ('https://matplotlib.org/cycler/', None),
+    "h5py": ('http://docs.h5py.org/en/stable/', None),
+    "ipython": ('https://ipython.readthedocs.io/en/stable/', None),
+    "louvain": ('https://louvain-igraph.readthedocs.io/en/latest/', None),
+    "matplotlib": ('https://matplotlib.org/', None),
+    "networkx": ('https://networkx.github.io/documentation/networkx-1.10/', None),
+    "numpy": ('https://docs.scipy.org/doc/numpy/', None),
+    "pandas": ('https://pandas.pydata.org/pandas-docs/stable/', None),
+    "pytest": ('https://docs.pytest.org/en/latest/', None),
+    "python": ('https://docs.python.org/3', None),
+    "scipy": ('https://docs.scipy.org/doc/scipy/reference/', None),
+    "seaborn": ('https://seaborn.pydata.org/', None),
+    "sklearn": ('https://scikit-learn.org/stable/', None),
 }
 
 
@@ -130,13 +143,15 @@ html_context = dict(
     conf_py_path="/docs/source/",
 )
 
+
 def setup(app):
     app.add_css_file("custom.css")
+
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
 
-sphinx_enable_epub_build=False
-sphinx_enable_pdf_build=False
+sphinx_enable_epub_build = False
+sphinx_enable_pdf_build = False
