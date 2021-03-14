@@ -561,7 +561,7 @@ def topography(adata, basis="umap", layer=None, X=None, dims=None, n=25, VecFld=
 
 def VectorField(
     adata: anndata.AnnData,
-    basis: str = None,
+    basis: Union[None, str] = None,
     layer: str = "X",
     dims: Union[int, list, None] = None,
     genes: Union[list, None] = None,
@@ -798,8 +798,7 @@ def VectorField(
     else:
         key = velocity_key + '_' + method
         adata.layers[key] = sp.csr_matrix((adata.shape))
-        adata.layers[key][:, np.where(adata.var.use_for_transition)[
-            0]] = vf_dict['V']
+        adata.layers[key][:, valid_genes] = vf_dict['V']
 
         vf_dict['layer'] = layer
         vf_dict['genes'] = genes

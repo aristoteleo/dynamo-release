@@ -92,9 +92,18 @@ extensions = [
 
 # Mappings for sphinx.ext.intersphinx. Projects have to have Sphinx-generated doc! (.inv file)
 intersphinx_mapping = {
+    "anndata": ('https://anndata.readthedocs.io/en/stable/', None),
+    "ipython": ('https://ipython.readthedocs.io/en/stable/', None),
+    "matplotlib": ('https://matplotlib.org/', None),
+    "networkx": ('https://networkx.github.io/documentation/networkx-1.10/', None),
+    "numpy": ('https://docs.scipy.org/doc/numpy/', None),
+    "pandas": ('https://pandas.pydata.org/pandas-docs/stable/', None),
+    "pytest": ('https://docs.pytest.org/en/latest/', None),
     "python": ("https://docs.python.org/3/", None),
+    "scipy": ('https://docs.scipy.org/doc/scipy/reference/', None),
+    "seaborn": ('https://seaborn.pydata.org/', None),
+    "sklearn": ('https://scikit-learn.org/stable/', None),
 }
-
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
