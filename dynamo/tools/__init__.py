@@ -90,3 +90,8 @@ from .recipes import (
     recipe_deg_data,
     recipe_mix_kin_deg_data,
 )
+
+from .dynamoLogger import (
+    Logger,
+    LoggerManager,
+)

@@ -104,8 +104,8 @@ class Logger:
 
 class LoggerManager:
 
-    mainLogger = Logger("Dynamo")
+    main_logger = Logger("Dynamo")
 
     @staticmethod
     def get_main_logger():
-        return
+        return LoggerManager.main_logger
