@@ -32,6 +32,7 @@ from ..external.hodge import ddhodge
 from .vector_calculus import curl, divergence
 from ..tools import LoggerManager
 
+
 def remove_redundant_points(X, tol=1e-4, output_discard=False):
     X = np.atleast_2d(X)
     discard = np.zeros(len(X), dtype=bool)

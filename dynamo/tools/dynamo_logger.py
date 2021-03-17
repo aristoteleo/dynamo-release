@@ -15,15 +15,15 @@ def silence_logger(name):
 
 
 def format_logging_message(msg, logging_level, indent_level=1, indent_space_num=4):
-    indent_str = '-' * indent_space_num
-    prefix = '|' + indent_str * indent_level
+    indent_str = "-" * indent_space_num
+    prefix = "|" + indent_str * indent_level
     if logging_level == logging.INFO:
-        prefix += '>'
+        prefix += ">"
     elif logging_level == logging.WARNING:
-        prefix += '?'
+        prefix += "?"
     elif logging_level == logging.CRITICAL:
-        prefix += '!!'
-    new_msg = prefix + ' ' + msg
+        prefix += "!!"
+    new_msg = prefix + " " + msg
     return new_msg
 
 
@@ -101,8 +101,7 @@ class Logger:
         return self.logger.setLevel(*args, **kwargs)
 
     def debug(self, message, indent_level=1, *args, **kwargs):
-        message = format_logging_message(
-            message, logging.DEBUG, indent_level=indent_level)
+        message = format_logging_message(message, logging.DEBUG, indent_level=indent_level)
         return self.logger.debug(self.namespace_message(message), *args, **kwargs)
 
     def info(self, message, indent_level=1, *args, **kwargs):
@@ -114,18 +113,15 @@ class Logger:
         return self.logger.warning(self.namespace_message(message), *args, **kwargs)
 
     def exception(self, message, indent_level=1, *args, **kwargs):
-        message = format_logging_message(
-            message, logging.ERROR, indent_level=indent_level)
+        message = format_logging_message(message, logging.ERROR, indent_level=indent_level)
         return self.logger.exception(self.namespace_message(message), *args, **kwargs)
 
     def critical(self, message, indent_level=1, *args, **kwargs):
-        message = format_logging_message(
-            message, logging.CRITICAL, indent_level=indent_level)
+        message = format_logging_message(message, logging.CRITICAL, indent_level=indent_level)
         return self.logger.critical(self.namespace_message(message), *args, **kwargs)
 
     def error(self, message, indent_level=1, *args, **kwargs):
-        message = format_logging_message(
-            message, logging.ERROR, indent_level=indent_level)
+        message = format_logging_message(message, logging.ERROR, indent_level=indent_level)
         return self.logger.error(self.namespace_message(message), *args, **kwargs)
 
 
