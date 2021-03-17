@@ -91,7 +91,7 @@ from .recipes import (
     recipe_mix_kin_deg_data,
 )
 
-from .dynamoLogger import (
+from .dynamo_logger import (
     Logger,
     LoggerManager,
 )

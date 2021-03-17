@@ -14,14 +14,26 @@ def silence_logger(name):
     package_logger.propagate = False
 
 
+def format_logging_message(msg, logging_level, indent_level=1, indent_space_num=4):
+    indent_str = '-' * indent_space_num
+    prefix = '|' + indent_str * indent_level
+    if logging_level == logging.INFO:
+        prefix += '>'
+    elif logging_level == logging.WARNING:
+        prefix += '?'
+    elif logging_level == logging.CRITICAL:
+        prefix += '!!'
+    new_msg = prefix + ' ' + msg
+    return new_msg
+
+
 class Logger:
     """Dynamo-specific logger that sets up logging for the entire package."""
 
     FORMAT = "[%(asctime)s] %(levelname)7s %(message)s"
 
-    def __init__(self, name):
+    def __init__(self, name, level=None):
         self.namespace = "main"
-
         self.logger = logging.getLogger(name)
         self.ch = logging.StreamHandler()
         self.ch.setFormatter(logging.Formatter(self.FORMAT))
@@ -34,6 +46,11 @@ class Logger:
         silence_logger("numba")
         silence_logger("pysam")
         silence_logger("pystan")
+
+        if not (level is None):
+            self.logger.setLevel(level)
+        else:
+            self.logger.setLevel(logging.INFO)
 
     def namespaced(self, namespace):
         """Function decorator to set the logging namespace for the duration of
@@ -83,22 +100,32 @@ class Logger:
     def setLevel(self, *args, **kwargs):
         return self.logger.setLevel(*args, **kwargs)
 
-    def debug(self, message, *args, **kwargs):
+    def debug(self, message, indent_level=1, *args, **kwargs):
+        message = format_logging_message(
+            message, logging.DEBUG, indent_level=indent_level)
         return self.logger.debug(self.namespace_message(message), *args, **kwargs)
 
-    def info(self, message, *args, **kwargs):
+    def info(self, message, indent_level=1, *args, **kwargs):
+        message = format_logging_message(message, logging.INFO, indent_level=indent_level)
         return self.logger.info(self.namespace_message(message), *args, **kwargs)
 
-    def warning(self, message, *args, **kwargs):
+    def warning(self, message, indent_level=1, *args, **kwargs):
+        message = format_logging_message(message, logging.WARNING, indent_level=indent_level)
         return self.logger.warning(self.namespace_message(message), *args, **kwargs)
 
-    def exception(self, message, *args, **kwargs):
+    def exception(self, message, indent_level=1, *args, **kwargs):
+        message = format_logging_message(
+            message, logging.ERROR, indent_level=indent_level)
         return self.logger.exception(self.namespace_message(message), *args, **kwargs)
 
-    def critical(self, message, *args, **kwargs):
+    def critical(self, message, indent_level=1, *args, **kwargs):
+        message = format_logging_message(
+            message, logging.CRITICAL, indent_level=indent_level)
         return self.logger.critical(self.namespace_message(message), *args, **kwargs)
 
-    def error(self, message, *args, **kwargs):
+    def error(self, message, indent_level=1, *args, **kwargs):
+        message = format_logging_message(
+            message, logging.ERROR, indent_level=indent_level)
         return self.logger.error(self.namespace_message(message), *args, **kwargs)
 
 
@@ -109,3 +136,7 @@ class LoggerManager:
     @staticmethod
     def get_main_logger():
         return LoggerManager.main_logger
+
+    @staticmethod
+    def get_logger(name):
+        return Logger(name)

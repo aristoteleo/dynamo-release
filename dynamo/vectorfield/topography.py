@@ -30,7 +30,7 @@ from .utils import (
 
 from ..external.hodge import ddhodge
 from .vector_calculus import curl, divergence
-
+from ..tools import LoggerManager
 
 def remove_redundant_points(X, tol=1e-4, output_discard=False):
     X = np.atleast_2d(X)
@@ -626,6 +626,8 @@ def VectorField(
             If `return_vf_object` is set to True, then a vector field class object is returned.
             If `copy` is set to True, a deep copy of the original `adata` object is returned.
     """
+    logger = LoggerManager.get_main_logger()
+    logger.info("vectorfield calculation begins...")
     if copy:
         adata = adata.deepcopy()
 
