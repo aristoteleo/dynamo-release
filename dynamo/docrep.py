@@ -10,8 +10,7 @@ from warnings import warn
 
 def dedents(s):
     warn(
-        "The dedent function has been depreceated and will be removed soon. "
-        "Use inspect.cleandoc instead",
+        "The dedent function has been depreceated and will be removed soon. " "Use inspect.cleandoc instead",
         DeprecationWarning,
         stacklevel=2,
     )
@@ -22,13 +21,11 @@ __version__ = "0.2.7"
 
 __author__ = "Philipp Sommer"
 
-
 substitution_pattern = re.compile(
     r"""(?s)(?<!%)(%%)*%(?!%)   # uneven number of %
         \((?P<key>.*?)\)# key enclosed in brackets""",
     re.VERBOSE,
 )
-
 
 summary_patt = re.compile(r"(?s).*?(?=(\n\s*\n)|$)")
 
@@ -238,33 +235,26 @@ class DocstringProcessor(object):
 
     def __init__(self, *args, **kwargs):
         """
-    Parameters
-    ----------
-    ``*args`` and ``**kwargs``
-        Parameters that shall be used for the substitution. Note that you can
-        only provide either ``*args`` or ``**kwargs``, furthermore most of the
-        methods like `get_sectionsf` require ``**kwargs`` to be provided."""
+        Parameters
+        ----------
+        ``*args`` and ``**kwargs``
+            Parameters that shall be used for the substitution. Note that you can
+            only provide either ``*args`` or ``**kwargs``, furthermore most of the
+            methods like `get_sectionsf` require ``**kwargs`` to be provided."""
         if len(args) and len(kwargs):
             raise ValueError("Only positional or keyword args are allowed")
         self.params = args or kwargs
         patterns = {}
         all_sections = self.param_like_sections + self.text_sections
         for section in self.param_like_sections:
-            patterns[section] = re.compile(
-                "(?s)(?<=%s\n%s\n)(.+?)(?=\n\n\S+|$)" % (section, "-" * len(section))
-            )
-        all_sections_patt = "|".join(
-            "%s\n%s\n" % (s, "-" * len(s)) for s in all_sections
-        )
+            patterns[section] = re.compile("(?s)(?<=%s\n%s\n)(.+?)(?=\n\n\S+|$)" % (section, "-" * len(section)))
+        all_sections_patt = "|".join("%s\n%s\n" % (s, "-" * len(s)) for s in all_sections)
         # examples and see also
         for section in self.text_sections:
             patterns[section] = re.compile(
-                "(?s)(?<=%s\n%s\n)(.+?)(?=%s|$)"
-                % (section, "-" * len(section), all_sections_patt)
+                "(?s)(?<=%s\n%s\n)(.+?)(?=%s|$)" % (section, "-" * len(section), all_sections_patt)
             )
-        self._extended_summary_patt = re.compile(
-            "(?s)(.+?)(?=%s|$)" % all_sections_patt
-        )
+        self._extended_summary_patt = re.compile("(?s)(.+?)(?=%s|$)" % all_sections_patt)
         self._all_sections_patt = re.compile(all_sections_patt)
         self.patterns = patterns
 
@@ -361,8 +351,7 @@ class DocstringProcessor(object):
         return func
 
     def _set_object_doc(self, obj, doc, stacklevel=3):
-        """Convenience method to set the __doc__ attribute of a python object
-        """
+        """Convenience method to set the __doc__ attribute of a python object"""
         if isinstance(obj, types.MethodType) and six.PY2:
             obj = obj.im_func
         try:
@@ -420,9 +409,7 @@ class DocstringProcessor(object):
         with_indents, dedent"""
 
         def replace(func):
-            doc = func.__doc__ and self.with_indents(
-                func.__doc__, indent=indent, stacklevel=4
-            )
+            doc = func.__doc__ and self.with_indents(func.__doc__, indent=indent, stacklevel=4)
             return self._set_object_doc(func, doc)
 
         return replace
@@ -448,10 +435,7 @@ class DocstringProcessor(object):
         with_indent, dedents"""
         # we make a new dictionary with objects that indent the original
         # strings if necessary. Note that the first line is not indented
-        d = {
-            key: _StrWithIndentation(val, indent)
-            for key, val in six.iteritems(self.params)
-        }
+        d = {key: _StrWithIndentation(val, indent) for key, val in six.iteritems(self.params)}
         return safe_modulo(s, d, stacklevel=stacklevel)
 
     def delete_params(self, base_key, *params):
@@ -475,9 +459,7 @@ class DocstringProcessor(object):
         See Also
         --------
         delete_types, keep_params"""
-        self.params[base_key + ".no_" + "|".join(params)] = self.delete_params_s(
-            self.params[base_key], params
-        )
+        self.params[base_key + ".no_" + "|".join(params)] = self.delete_params_s(self.params[base_key], params)
 
     @staticmethod
     def delete_params_s(s, params):
@@ -528,9 +510,7 @@ class DocstringProcessor(object):
             warn("Neither args nor kwargs are given. I do nothing for %s" % (base_key))
             return
         ext = ".no" + ("_args" if args else "") + ("_kwargs" if kwargs else "")
-        self.params[base_key + ext] = self.delete_kwargs_s(
-            self.params[base_key], args, kwargs
-        )
+        self.params[base_key + ext] = self.delete_kwargs_s(self.params[base_key], args, kwargs)
 
     @classmethod
     def delete_kwargs_s(cls, s, args=None, kwargs=None):
@@ -580,9 +560,7 @@ class DocstringProcessor(object):
         See Also
         --------
         delete_params"""
-        self.params["%s.%s" % (base_key, out_key)] = self.delete_types_s(
-            self.params[base_key], types
-        )
+        self.params["%s.%s" % (base_key, out_key)] = self.delete_types_s(self.params[base_key], types)
 
     @staticmethod
     def delete_types_s(s, types):
@@ -602,7 +580,11 @@ class DocstringProcessor(object):
             The modified string `s` without the descriptions of `types`
         """
         patt = "(?s)" + "|".join("(?<=\n)" + s + "\n.+?\n(?=\S+|$)" for s in types)
-        return re.sub(patt, "", "\n" + s.strip() + "\n",).strip()
+        return re.sub(
+            patt,
+            "",
+            "\n" + s.strip() + "\n",
+        ).strip()
 
     def keep_params(self, base_key, *params):
         """
@@ -676,9 +658,7 @@ class DocstringProcessor(object):
             ...     %(do_something.parameters.no_b)s'''
             ...     pass
         """
-        self.params[base_key + "." + "|".join(params)] = self.keep_params_s(
-            self.params[base_key], params
-        )
+        self.params[base_key + "." + "|".join(params)] = self.keep_params_s(self.params[base_key], params)
 
     @staticmethod
     def keep_params_s(s, params):
@@ -768,9 +748,7 @@ class DocstringProcessor(object):
             ...     %(do_something.returns.no_float)s'''
             ...     return do_something()[1]
         """
-        self.params["%s.%s" % (base_key, out_key)] = self.keep_types_s(
-            self.params[base_key], types
-        )
+        self.params["%s.%s" % (base_key, out_key)] = self.keep_types_s(self.params[base_key], types)
 
     @staticmethod
     def keep_types_s(s, types):

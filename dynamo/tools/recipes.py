@@ -6,22 +6,25 @@ from .dimension_reduction import reduceDimension
 from .cell_velocities import cell_velocities
 from .utils import set_transition_genes
 
+
 # add recipe_csc_data()
 
-def recipe_kin_data(adata,
-                    tkey=None,
-                    reset_X=True,
-                    X_total_layers=False,
-                    splicing_total_layers=False,
-                    n_top_genes=1000,
-                    keep_filtered_cells=False,
-                    keep_filtered_genes=False,
-                    keep_raw_layers=False,
-                    del_2nd_moments=True,
-                    ekey='M_t',
-                    vkey='velocity_T',
-                    basis='umap',
-                    ):
+
+def recipe_kin_data(
+    adata,
+    tkey=None,
+    reset_X=True,
+    X_total_layers=False,
+    splicing_total_layers=False,
+    n_top_genes=1000,
+    keep_filtered_cells=False,
+    keep_filtered_genes=False,
+    keep_raw_layers=False,
+    del_2nd_moments=True,
+    ekey="M_t",
+    vkey="velocity_T",
+    basis="umap",
+):
     """An analysis recipe that properly pre-processes different layers for an kinetics experiment with both labeling and
     splicing data.
 
@@ -86,88 +89,93 @@ def recipe_kin_data(adata,
     has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
 
     if has_splicing and has_labeling and splicing_labeling:
-        layers = ['X_new', 'X_total', 'X_uu', 'X_ul', 'X_su', 'X_sl']
+        layers = ["X_new", "X_total", "X_uu", "X_ul", "X_su", "X_sl"]
     elif has_labeling:
-        layers = ['X_new', 'X_total']
+        layers = ["X_new", "X_total"]
 
     if not has_labeling:
-        raise Exception(f"This recipe is only applicable to kinetics experiment datasets that have "
-                        f"labeling data (at least either with `'uu', 'ul', 'su', 'sl'` or `'new', 'total'` "
-                        f"layers.")
+        raise Exception(
+            f"This recipe is only applicable to kinetics experiment datasets that have "
+            f"labeling data (at least either with `'uu', 'ul', 'su', 'sl'` or `'new', 'total'` "
+            f"layers."
+        )
 
     if has_splicing and has_labeling:
         # new, total (and uu, ul, su, sl if existed) layers will be normalized with size factor calculated with total
         # layers spliced / unspliced layers will be normalized independently.
-        recipe_monocle(adata,
-                       tkey=tkey,
-                       experiment_type='kin',
-                       reset_X=reset_X,
-                       X_total_layers=X_total_layers,
-                       splicing_total_layers=splicing_total_layers,
-                       n_top_genes=n_top_genes,
-                       total_layers=True,
-                       keep_filtered_cells=keep_filtered_cells,
-                       keep_filtered_genes=keep_filtered_genes,
-                       keep_raw_layers=keep_raw_layers,
-                       )
-        tkey = adata.uns['pp']['tkey']
+        recipe_monocle(
+            adata,
+            tkey=tkey,
+            experiment_type="kin",
+            reset_X=reset_X,
+            X_total_layers=X_total_layers,
+            splicing_total_layers=splicing_total_layers,
+            n_top_genes=n_top_genes,
+            total_layers=True,
+            keep_filtered_cells=keep_filtered_cells,
+            keep_filtered_genes=keep_filtered_genes,
+            keep_raw_layers=keep_raw_layers,
+        )
+        tkey = adata.uns["pp"]["tkey"]
         # first calculate moments for labeling data relevant layers using total based connectivity graph
         moments(adata, group=tkey, layers=layers)
 
         # then we want to calculate moments for spliced and unspliced layers based on connectivity graph from spliced data.
         # first get X_spliced based pca embedding
-        CM = np.log1p(adata[:, adata.var.use_for_pca].layers['X_spliced'].A)
+        CM = np.log1p(adata[:, adata.var.use_for_pca].layers["X_spliced"].A)
         cm_genesums = CM.sum(axis=0)
         valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
         valid_ind = np.array(valid_ind).flatten()
 
-        pca(adata, CM[:, valid_ind], pca_key='X_spliced_pca')
+        pca(adata, CM[:, valid_ind], pca_key="X_spliced_pca")
         # then get neighbors graph based on X_spliced_pca
-        neighbors(adata, X_data=adata.obsm['X_spliced_pca'], layer='X_spliced')
+        neighbors(adata, X_data=adata.obsm["X_spliced_pca"], layer="X_spliced")
         # then normalize neighbors graph so that each row sums up to be 1
         conn = normalize_knn_graph(adata.obsp["connectivities"] > 0)
         # then calculate moments for spliced related layers using spliced based connectivity graph
-        moments(adata, conn=conn, layers=['X_spliced', 'X_unspliced'])
+        moments(adata, conn=conn, layers=["X_spliced", "X_unspliced"])
         # then perform kinetic estimations with properly preprocessed layers for either the labeling or the splicing data
-        dynamics(adata, model='deterministic', est_method='twostep', del_2nd_moments=del_2nd_moments)
+        dynamics(adata, model="deterministic", est_method="twostep", del_2nd_moments=del_2nd_moments)
         # then perform dimension reduction
         reduceDimension(adata, reduction_method=basis)
         # lastly, project RNA velocity to low dimensional embedding.
         cell_velocities(adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis)
     else:
-        recipe_monocle(adata,
-                       tkey=tkey,
-                       experiment_type='kin',
-                       reset_X=reset_X,
-                       X_total_layers=X_total_layers,
-                       splicing_total_layers=splicing_total_layers,
-                       n_top_genes=n_top_genes,
-                       total_layers=True,
-                       keep_filtered_cells=keep_filtered_cells,
-                       keep_filtered_genes=keep_filtered_genes,
-                       keep_raw_layers=keep_raw_layers,
-                       )
-        dynamics(adata, model='deterministic', est_method='twostep', del_2nd_moments=del_2nd_moments)
+        recipe_monocle(
+            adata,
+            tkey=tkey,
+            experiment_type="kin",
+            reset_X=reset_X,
+            X_total_layers=X_total_layers,
+            splicing_total_layers=splicing_total_layers,
+            n_top_genes=n_top_genes,
+            total_layers=True,
+            keep_filtered_cells=keep_filtered_cells,
+            keep_filtered_genes=keep_filtered_genes,
+            keep_raw_layers=keep_raw_layers,
+        )
+        dynamics(adata, model="deterministic", est_method="twostep", del_2nd_moments=del_2nd_moments)
         reduceDimension(adata, reduction_method=basis)
         cell_velocities(adata, basis=basis)
 
     return adata
 
 
-def recipe_deg_data(adata,
-                    tkey=None,
-                    reset_X=True,
-                    X_total_layers=False,
-                    splicing_total_layers=False,
-                    n_top_genes=1000,
-                    keep_filtered_cells=False,
-                    keep_filtered_genes=False,
-                    keep_raw_layers=False,
-                    del_2nd_moments=True,
-                    ekey='M_s',
-                    vkey='velocity_S',
-                    basis='umap',
-                    ):
+def recipe_deg_data(
+    adata,
+    tkey=None,
+    reset_X=True,
+    X_total_layers=False,
+    splicing_total_layers=False,
+    n_top_genes=1000,
+    keep_filtered_cells=False,
+    keep_filtered_genes=False,
+    keep_raw_layers=False,
+    del_2nd_moments=True,
+    ekey="M_s",
+    vkey="velocity_S",
+    basis="umap",
+):
     """An analysis recipe that properly pre-processes different layers for a degradation experiment with both
     labeling and splicing data. Functions need to be updated.
 
@@ -233,50 +241,53 @@ def recipe_deg_data(adata,
     has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
 
     if has_splicing and has_labeling and splicing_labeling:
-        layers = ['X_new', 'X_total', 'X_uu', 'X_ul', 'X_su', 'X_sl']
+        layers = ["X_new", "X_total", "X_uu", "X_ul", "X_su", "X_sl"]
     elif has_labeling:
-        layers = ['X_new', 'X_total']
+        layers = ["X_new", "X_total"]
 
     if not has_labeling:
-        raise Exception(f"This recipe is only applicable to kinetics experiment datasets that have "
-                        f"labeling data (at least either with `'uu', 'ul', 'su', 'sl'` or `'new', 'total'` "
-                        f"layers.")
+        raise Exception(
+            f"This recipe is only applicable to kinetics experiment datasets that have "
+            f"labeling data (at least either with `'uu', 'ul', 'su', 'sl'` or `'new', 'total'` "
+            f"layers."
+        )
 
     if has_splicing and has_labeling:
         # new, total (and uu, ul, su, sl if existed) layers will be normalized with size factor calculated with total
         # layers spliced / unspliced layers will be normalized independently.
-        recipe_monocle(adata,
-                       tkey=tkey,
-                       experiment_type='deg',
-                       reset_X=reset_X,
-                       X_total_layers=X_total_layers,
-                       splicing_total_layers=splicing_total_layers,
-                       n_top_genes=n_top_genes,
-                       total_layers=True,
-                       keep_filtered_cells=keep_filtered_cells,
-                       keep_filtered_genes=keep_filtered_genes,
-                       keep_raw_layers=keep_raw_layers,
-                       )
+        recipe_monocle(
+            adata,
+            tkey=tkey,
+            experiment_type="deg",
+            reset_X=reset_X,
+            X_total_layers=X_total_layers,
+            splicing_total_layers=splicing_total_layers,
+            n_top_genes=n_top_genes,
+            total_layers=True,
+            keep_filtered_cells=keep_filtered_cells,
+            keep_filtered_genes=keep_filtered_genes,
+            keep_raw_layers=keep_raw_layers,
+        )
 
-        tkey = adata.uns['pp']['tkey']
+        tkey = adata.uns["pp"]["tkey"]
         # first calculate moments for spliced related layers using spliced based connectivity graph
-        moments(adata, layers=['X_spliced', 'X_unspliced'])
+        moments(adata, layers=["X_spliced", "X_unspliced"])
 
         # then calculate moments for labeling data relevant layers using total based connectivity graph
         # first get X_total based pca embedding
-        CM = np.log1p(adata[:, adata.var.use_for_pca].layers['X_total'].A)
+        CM = np.log1p(adata[:, adata.var.use_for_pca].layers["X_total"].A)
         cm_genesums = CM.sum(axis=0)
         valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
         valid_ind = np.array(valid_ind).flatten()
-        pca(adata, CM[:, valid_ind], pca_key='X_total_pca')
+        pca(adata, CM[:, valid_ind], pca_key="X_total_pca")
         # then get neighbors graph based on X_spliced_pca
-        neighbors(adata, X_data=adata.obsm['X_total_pca'], layer='X_total')
+        neighbors(adata, X_data=adata.obsm["X_total_pca"], layer="X_total")
         # then normalize neighbors graph so that each row sums up to be 1
         conn = normalize_knn_graph(adata.obsp["connectivities"] > 0)
         moments(adata, conn=conn, group=tkey, layers=layers)
 
         # then perform kinetic estimations with properly preprocessed layers for either the labeling or the splicing data
-        dynamics(adata, model='deterministic', est_method='twostep', del_2nd_moments=del_2nd_moments)
+        dynamics(adata, model="deterministic", est_method="twostep", del_2nd_moments=del_2nd_moments)
         # then perform dimension reduction
         reduceDimension(adata, reduction_method=basis)
         # lastly, project RNA velocity to low dimensional embedding.
@@ -287,38 +298,40 @@ def recipe_deg_data(adata,
             cell_velocities(adata, min_r2=adata.var.gamma_r2.min(), enforce=True, vkey=vkey, ekey=ekey, basis=basis)
 
     else:
-        recipe_monocle(adata,
-                       tkey=tkey,
-                       experiment_type='deg',
-                       reset_X=reset_X,
-                       X_total_layers=X_total_layers,
-                       splicing_total_layers=splicing_total_layers,
-                       n_top_genes=n_top_genes,
-                       total_layers=True,
-                       keep_filtered_cells=keep_filtered_cells,
-                       keep_filtered_genes=keep_filtered_genes,
-                       keep_raw_layers=keep_raw_layers,
-                       )
-        dynamics(adata, model='deterministic', del_2nd_moments=del_2nd_moments)
+        recipe_monocle(
+            adata,
+            tkey=tkey,
+            experiment_type="deg",
+            reset_X=reset_X,
+            X_total_layers=X_total_layers,
+            splicing_total_layers=splicing_total_layers,
+            n_top_genes=n_top_genes,
+            total_layers=True,
+            keep_filtered_cells=keep_filtered_cells,
+            keep_filtered_genes=keep_filtered_genes,
+            keep_raw_layers=keep_raw_layers,
+        )
+        dynamics(adata, model="deterministic", del_2nd_moments=del_2nd_moments)
         reduceDimension(adata, reduction_method=basis)
 
     return adata
 
 
-def recipe_mix_kin_deg_data(adata,
-                            tkey=None,
-                            reset_X=True,
-                            X_total_layers=False,
-                            splicing_total_layers=False,
-                            n_top_genes=1000,
-                            keep_filtered_cells=False,
-                            keep_filtered_genes=False,
-                            keep_raw_layers=False,
-                            del_2nd_moments=True,
-                            ekey='M_t',
-                            vkey='velocity_T',
-                            basis='umap',
-                            ):
+def recipe_mix_kin_deg_data(
+    adata,
+    tkey=None,
+    reset_X=True,
+    X_total_layers=False,
+    splicing_total_layers=False,
+    n_top_genes=1000,
+    keep_filtered_cells=False,
+    keep_filtered_genes=False,
+    keep_raw_layers=False,
+    del_2nd_moments=True,
+    ekey="M_t",
+    vkey="velocity_T",
+    basis="umap",
+):
     """An analysis recipe that properly pre-processes different layers for an kinetics experiment with both labeling and
     splicing data.
 
@@ -383,71 +396,76 @@ def recipe_mix_kin_deg_data(adata,
     has_splicing, has_labeling, splicing_labeling, _ = detect_datatype(adata)
 
     if has_splicing and has_labeling and splicing_labeling:
-        layers = ['X_new', 'X_total', 'X_uu', 'X_ul', 'X_su', 'X_sl']
+        layers = ["X_new", "X_total", "X_uu", "X_ul", "X_su", "X_sl"]
     elif has_labeling:
-        layers = ['X_new', 'X_total']
+        layers = ["X_new", "X_total"]
 
     if not has_labeling:
-        raise Exception(f"This recipe is only applicable to kinetics experiment datasets that have "
-                        f"labeling data (at least either with `'uu', 'ul', 'su', 'sl'` or `'new', 'total'` "
-                        f"layers.")
+        raise Exception(
+            f"This recipe is only applicable to kinetics experiment datasets that have "
+            f"labeling data (at least either with `'uu', 'ul', 'su', 'sl'` or `'new', 'total'` "
+            f"layers."
+        )
 
     if has_splicing and has_labeling:
         # new, total (and uu, ul, su, sl if existed) layers will be normalized with size factor calculated with total
         # layers spliced / unspliced layers will be normalized independently.
-        recipe_monocle(adata,
-                       tkey=tkey,
-                       experiment_type='mix_pulse_chase',
-                       reset_X=reset_X,
-                       X_total_layers=X_total_layers,
-                       splicing_total_layers=splicing_total_layers,
-                       n_top_genes=n_top_genes,
-                       total_layers=True,
-                       keep_filtered_cells=keep_filtered_cells,
-                       keep_filtered_genes=keep_filtered_genes,
-                       keep_raw_layers=keep_raw_layers,
-                       )
-        tkey = adata.uns['pp']['tkey']
+        recipe_monocle(
+            adata,
+            tkey=tkey,
+            experiment_type="mix_pulse_chase",
+            reset_X=reset_X,
+            X_total_layers=X_total_layers,
+            splicing_total_layers=splicing_total_layers,
+            n_top_genes=n_top_genes,
+            total_layers=True,
+            keep_filtered_cells=keep_filtered_cells,
+            keep_filtered_genes=keep_filtered_genes,
+            keep_raw_layers=keep_raw_layers,
+        )
+        tkey = adata.uns["pp"]["tkey"]
         # first calculate moments for labeling data relevant layers using total based connectivity graph
         moments(adata, group=tkey, layers=layers)
 
         # then we want to calculate moments for spliced and unspliced layers based on connectivity graph from spliced data.
         # first get X_spliced based pca embedding
-        CM = np.log1p(adata[:, adata.var.use_for_pca].layers['X_spliced'].A)
+        CM = np.log1p(adata[:, adata.var.use_for_pca].layers["X_spliced"].A)
         cm_genesums = CM.sum(axis=0)
         valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
         valid_ind = np.array(valid_ind).flatten()
 
-        pca(adata, CM[:, valid_ind], pca_key='X_spliced_pca')
+        pca(adata, CM[:, valid_ind], pca_key="X_spliced_pca")
         # then get neighbors graph based on X_spliced_pca
-        neighbors(adata, X_data=adata.obsm['X_spliced_pca'], layer='X_spliced')
+        neighbors(adata, X_data=adata.obsm["X_spliced_pca"], layer="X_spliced")
         # then normalize neighbors graph so that each row sums up to be 1
         conn = normalize_knn_graph(adata.obsp["connectivities"] > 0)
         # then calculate moments for spliced related layers using spliced based connectivity graph
-        moments(adata, conn=conn, layers=['X_spliced', 'X_unspliced'])
+        moments(adata, conn=conn, layers=["X_spliced", "X_unspliced"])
         # then perform kinetic estimations with properly preprocessed layers for either the labeling or the splicing data
-        dynamics(adata, model='deterministic', est_method='twostep', del_2nd_moments=del_2nd_moments)
+        dynamics(adata, model="deterministic", est_method="twostep", del_2nd_moments=del_2nd_moments)
         # then perform dimension reduction
         reduceDimension(adata, reduction_method=basis)
         # lastly, project RNA velocity to low dimensional embedding.
         cell_velocities(adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis)
     else:
-        recipe_monocle(adata,
-                       tkey=tkey,
-                       experiment_type='mix_pulse_chase',
-                       reset_X=reset_X,
-                       X_total_layers=X_total_layers,
-                       splicing_total_layers=splicing_total_layers,
-                       n_top_genes=n_top_genes,
-                       total_layers=True,
-                       keep_filtered_cells=keep_filtered_cells,
-                       keep_filtered_genes=keep_filtered_genes,
-                       keep_raw_layers=keep_raw_layers,
-                       )
-        dynamics(adata, model='deterministic', est_method='twostep', del_2nd_moments=del_2nd_moments)
+        recipe_monocle(
+            adata,
+            tkey=tkey,
+            experiment_type="mix_pulse_chase",
+            reset_X=reset_X,
+            X_total_layers=X_total_layers,
+            splicing_total_layers=splicing_total_layers,
+            n_top_genes=n_top_genes,
+            total_layers=True,
+            keep_filtered_cells=keep_filtered_cells,
+            keep_filtered_genes=keep_filtered_genes,
+            keep_raw_layers=keep_raw_layers,
+        )
+        dynamics(adata, model="deterministic", est_method="twostep", del_2nd_moments=del_2nd_moments)
         reduceDimension(adata, reduction_method=basis)
         cell_velocities(adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis)
 
     return adata
+
 
 # add one-shot recipe for getting absolute spliced/total RNA velocity

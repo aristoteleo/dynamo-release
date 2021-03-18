@@ -100,8 +100,8 @@ def connectivity_base(
     background="black",
     figsize=(7, 5),
     ax=None,
-    sort='raw',
-    save_show_or_return='return',
+    sort="raw",
+    save_show_or_return="return",
     save_kwargs={},
 ):
     """Plot connectivity relationships of the underlying UMAP
@@ -262,10 +262,7 @@ def connectivity_base(
     if edge_bundling is None:
         edges = bd.directly_connect_edges(point_df, edge_df, weight="weight")
     elif edge_bundling == "hammer":
-        warn(
-            "Hammer edge bundling is expensive for large graphs!\n"
-            "This may take a long time to compute!"
-        )
+        warn("Hammer edge bundling is expensive for large graphs!\n" "This may take a long time to compute!")
         edges = bd.hammer_bundle(point_df, edge_df, weight="weight")
     else:
         raise ValueError("{} is not a recognised bundling method".format(edge_bundling))
@@ -308,8 +305,15 @@ def connectivity_base(
     ax.set(xticks=[], yticks=[])
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'connectivity_base', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "connectivity_base",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
@@ -328,7 +332,7 @@ def nneighbors(
     adata,
     x=0,
     y=1,
-    color='ntr',
+    color="ntr",
     basis="umap",
     layer="X",
     highlights=None,
@@ -345,7 +349,7 @@ def nneighbors(
     background="black",
     figsize=(6, 4),
     ax=None,
-    save_show_or_return='show',
+    save_show_or_return="show",
     save_kwargs={},
 ):
     """Plot nearest neighbor graph of cells used to embed data into low dimension space.
@@ -476,13 +480,9 @@ def nneighbors(
                 # if highligts is a list of lists - each list is relate to each color element
                 if is_list_of_lists(highlights):
                     _highlights = highlights[color.index(cur_c)]
-                    _highlights = (
-                        _highlights if all([i in _color for i in _highlights]) else None
-                    )
+                    _highlights = _highlights if all([i in _color for i in _highlights]) else None
                 else:
-                    _highlights = (
-                        highlights if all([i in _color for i in highlights]) else None
-                    )
+                    _highlights = highlights if all([i in _color for i in highlights]) else None
 
                 connectivity_base(
                     x_,
@@ -503,13 +503,22 @@ def nneighbors(
                     ax,
                 )
 
-                ax.set_xlabel(cur_b + "_1",)
+                ax.set_xlabel(
+                    cur_b + "_1",
+                )
                 ax.set_ylabel(cur_b + "_2")
                 ax.set_title(cur_c)
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'nneighbors', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "nneighbors",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)

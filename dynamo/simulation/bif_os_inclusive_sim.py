@@ -90,22 +90,10 @@ class sim_diff:
         # propensities
         prop = np.zeros(18)
         # transcription
-        prop[0] = (
-            a1 * p1 ** n / (K ** n + p1 ** n) + b1 * K ** n / (K ** n + p2 ** n) + c1
-        )  # 0 -> u1
-        prop[1] = (
-            a2 * p2 ** n / (K ** n + p2 ** n) + b2 * K ** n / (K ** n + p1 ** n) + c2
-        )  # 0 -> u2
-        prop[2] = (
-            a1_l * p1 ** n / (K ** n + p1 ** n)
-            + b1_l * K ** n / (K ** n + p2 ** n)
-            + c1_l
-        )  # 0 -> w1
-        prop[3] = (
-            a2_l * p2 ** n / (K ** n + p2 ** n)
-            + b2_l * K ** n / (K ** n + p1 ** n)
-            + c2_l
-        )  # 0 -> w2
+        prop[0] = a1 * p1 ** n / (K ** n + p1 ** n) + b1 * K ** n / (K ** n + p2 ** n) + c1  # 0 -> u1
+        prop[1] = a2 * p2 ** n / (K ** n + p2 ** n) + b2 * K ** n / (K ** n + p1 ** n) + c2  # 0 -> u2
+        prop[2] = a1_l * p1 ** n / (K ** n + p1 ** n) + b1_l * K ** n / (K ** n + p2 ** n) + c1_l  # 0 -> w1
+        prop[3] = a2_l * p2 ** n / (K ** n + p2 ** n) + b2_l * K ** n / (K ** n + p1 ** n) + c2_l  # 0 -> w2
         # splicing
         prop[4] = self.parameters["be1"] * u1  # u1 -> s1
         prop[5] = self.parameters["be2"] * u2  # u2 -> s2
@@ -243,24 +231,16 @@ class sim_osc:
         # transcription
         uw1 = u1 + w1
         uw2 = u2 + w2
-        prop[0] = self.parameters["a1"] * uw1 ** n / (
-            K ** n + uw1 ** n
-        ) + self.parameters["b1"] * K ** n / (
+        prop[0] = self.parameters["a1"] * uw1 ** n / (K ** n + uw1 ** n) + self.parameters["b1"] * K ** n / (
             K ** n + uw2 ** n
         )  # 0 -> u1
-        prop[1] = self.parameters["a2"] * uw2 ** n / (
-            K ** n + uw2 ** n
-        ) + self.parameters["b2"] * uw1 ** n / (
+        prop[1] = self.parameters["a2"] * uw2 ** n / (K ** n + uw2 ** n) + self.parameters["b2"] * uw1 ** n / (
             K ** n + uw1 ** n
         )  # 0 -(u1 u2)-> u2
-        prop[2] = self.parameters["a1_l"] * uw1 ** n / (
-            K ** n + uw1 ** n
-        ) + self.parameters["b1_l"] * K ** n / (
+        prop[2] = self.parameters["a1_l"] * uw1 ** n / (K ** n + uw1 ** n) + self.parameters["b1_l"] * K ** n / (
             K ** n + uw2 ** n
         )  # 0 -> u1
-        prop[3] = self.parameters["a2_l"] * uw2 ** n / (
-            K ** n + uw2 ** n
-        ) + self.parameters["b2_l"] * uw1 ** n / (
+        prop[3] = self.parameters["a2_l"] * uw2 ** n / (K ** n + uw2 ** n) + self.parameters["b2_l"] * uw1 ** n / (
             K ** n + uw1 ** n
         )  # 0 -(u1 u2)-> u2
         # splicing
@@ -350,9 +330,7 @@ def simulate(model, C0, t_span, n_traj, report=False):
 def syn_kin_data(model_lab, n_trajs, t_idx, trajs_CP, Tl, n_cell):
     C0 = [trajs_CP[j][:, t_idx] for j in range(n_trajs)]
     # label for 1 unit of time
-    trajs_T, trajs_C = simulate(
-        model_lab, C0=C0, t_span=[0, 1], n_traj=n_cell, report=True
-    )
+    trajs_T, trajs_C = simulate(model_lab, C0=C0, t_span=[0, 1], n_traj=n_cell, report=True)
     # interpolate labeling data
     trajs_C = temporal_interp(Tl, trajs_T, trajs_C, round=True)
     gene_num = 2
@@ -385,14 +363,10 @@ def syn_kin_data(model_lab, n_trajs, t_idx, trajs_CP, Tl, n_cell):
 def syn_deg_data(model_lab, model_unlab, n_trajs, t_idx, trajs_CP, Tl, n_cell):
     C0 = [trajs_CP[j][:, t_idx] for j in range(n_trajs)]
     # label for 10 unit of time
-    trajs_T, trajs_C = simulate(
-        model_lab, C0=C0, t_span=[0, 10], n_traj=n_cell, report=True
-    )
+    trajs_T, trajs_C = simulate(model_lab, C0=C0, t_span=[0, 10], n_traj=n_cell, report=True)
     # stop labeling, and detect at t = 0, 1, 2, 4, 8
     C0 = [trajs_C[j][:, -1] for j in range(n_trajs)]
-    trajs_T, trajs_C = simulate(
-        model_unlab, C0=C0, t_span=[0, 10], n_traj=n_cell, report=True
-    )
+    trajs_T, trajs_C = simulate(model_unlab, C0=C0, t_span=[0, 10], n_traj=n_cell, report=True)
     # interpolate labeling data
     trajs_C = temporal_interp(Tl, trajs_T, trajs_C, round=True)
     gene_num = 2
@@ -422,7 +396,6 @@ def syn_deg_data(model_lab, model_unlab, n_trajs, t_idx, trajs_CP, Tl, n_cell):
 
 
 def osc_diff_dup(n_species, trajs_C, model_lab, model_unlab, n_cell):
-
     n_trajs = len(trajs_C)
 
     # get the steady state expression (cell state at the final time point) for the cells
@@ -434,9 +407,7 @@ def osc_diff_dup(n_species, trajs_C, model_lab, model_unlab, n_cell):
         C0.append(c0)
 
     # synthesize data after treatment
-    trajs_T, trajs_C = simulate(
-        model_unlab, C0=C0, t_span=[0, 410], n_traj=n_cell, report=True
-    )
+    trajs_T, trajs_C = simulate(model_unlab, C0=C0, t_span=[0, 410], n_traj=n_cell, report=True)
 
     # interpolate checkpoint data
     T_CP = np.array([0, 5, 10, 40, 100, 200, 300, 400])
@@ -461,9 +432,7 @@ def osc_diff_dup(n_species, trajs_C, model_lab, model_unlab, n_cell):
     )
     for i, t_cp in enumerate(T_CP):
         C0 = [trajs_CP[j][:, i] for j in range(n_trajs)]
-        trajs_T, trajs_C = simulate(
-            model_lab, C0=C0, t_span=[0, t_lab], n_traj=n_cell, report=True
-        )
+        trajs_T, trajs_C = simulate(model_lab, C0=C0, t_span=[0, t_lab], n_traj=n_cell, report=True)
         u = [trajs_C[j][(0, 2), -1] for j in range(n_trajs)]
         s = [trajs_C[j][(1, 3), -1] for j in range(n_trajs)]
         w = [trajs_C[j][(4, 6), -1] for j in range(n_trajs)]

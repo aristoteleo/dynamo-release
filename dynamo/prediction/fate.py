@@ -15,24 +15,26 @@ from .utils import (
 from ..vectorfield import vector_field_function
 from ..vectorfield.utils import vector_transformation
 
-def fate(adata,
-         init_cells,
-         init_states=None,
-         basis=None,
-         layer="X",
-         dims=None,
-         genes=None,
-         t_end=None,
-         direction="both",
-         interpolation_num=250,
-         average=False,
-         sampling='arc_length',
-         VecFld_true=None,
-         inverse_transform=False,
-         Qkey='PCs',
-         scale=1,
-         cores=1,
-         **kwargs
+
+def fate(
+    adata,
+    init_cells,
+    init_states=None,
+    basis=None,
+    layer="X",
+    dims=None,
+    genes=None,
+    t_end=None,
+    direction="both",
+    interpolation_num=250,
+    average=False,
+    sampling="arc_length",
+    VecFld_true=None,
+    inverse_transform=False,
+    Qkey="PCs",
+    scale=1,
+    cores=1,
+    **kwargs,
 ):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales.
 
@@ -102,29 +104,36 @@ def fate(adata,
             AnnData object that is updated with the dictionary Fate (includes `t` and `prediction` keys) in uns attribute.
     """
 
-    if sampling in ['arc_length', 'logspace', 'uniform_indices']:
-        if average in ['origin', 'trajectory', True]:
+    if sampling in ["arc_length", "logspace", "uniform_indices"]:
+        if average in ["origin", "trajectory", True]:
             warnings.warn(
-               f"using {sampling} to sample data points along an integral path at different integration "
-                "time points. Average trajectory won't be calculated")
+                f"using {sampling} to sample data points along an integral path at different integration "
+                "time points. Average trajectory won't be calculated"
+            )
 
         average = False
 
     if basis is not None:
         fate_key = "fate_" + basis
-        #vf_key = "VecFld_" + basis
+        # vf_key = "VecFld_" + basis
     else:
         fate_key = "fate" if layer == "X" else "fate_" + layer
-        #vf_key = "VecFld"
+        # vf_key = "VecFld"
 
-    #VecFld = adata.uns[vf_key]["VecFld"]
-    #X = VecFld["X"]
-    #xmin, xmax = X.min(0), X.max(0)
-    #t_end = np.max(xmax - xmin) / np.min(np.abs(VecFld["V"]))
-    #valid_genes = None
+    # VecFld = adata.uns[vf_key]["VecFld"]
+    # X = VecFld["X"]
+    # xmin, xmax = X.min(0), X.max(0)
+    # t_end = np.max(xmax - xmin) / np.min(np.abs(VecFld["V"]))
+    # valid_genes = None
 
     init_states, VecFld, t_end, valid_genes = fetch_states(
-        adata, init_states, init_cells, basis, layer, True if average in ['origin', 'trajectory', True] else False, t_end
+        adata,
+        init_states,
+        init_cells,
+        basis,
+        layer,
+        True if average in ["origin", "trajectory", True] else False,
+        t_end,
     )
 
     if np.isscalar(dims):
@@ -132,22 +141,24 @@ def fate(adata,
     elif dims is not None:
         init_states = init_states[:, dims]
 
-    vf = (lambda x: scale*vector_field_function(x=x, vf_dict=VecFld, dim=dims)) if VecFld_true is None else VecFld_true
+    vf = (
+        (lambda x: scale * vector_field_function(x=x, vf_dict=VecFld, dim=dims)) if VecFld_true is None else VecFld_true
+    )
     t, prediction = _fate(
         vf,
         init_states,
         t_end=t_end,
         direction=direction,
         interpolation_num=interpolation_num,
-        average=True if average in ['origin', 'trajectory', True] else False,
+        average=True if average in ["origin", "trajectory", True] else False,
         sampling=sampling,
         cores=cores,
-        **kwargs
+        **kwargs,
     )
 
     high_prediction = None
     if basis == "pca" and inverse_transform:
-        Qkey = 'PCs'
+        Qkey = "PCs"
         if type(prediction) == list:
             high_prediction = [vector_transformation(cur_pred.T, adata.uns[Qkey]) for cur_pred in prediction]
             high_p_n = high_prediction[0].shape[1]
@@ -162,15 +173,16 @@ def fate(adata,
 
     elif basis == "umap" and inverse_transform:
         # this requires umap 0.4; reverse project to PCA space.
-        if prediction.ndim == 1: prediction = prediction[None, :]
-        high_prediction = adata.uns["umap_fit"]['fit'].inverse_transform(prediction)
+        if prediction.ndim == 1:
+            prediction = prediction[None, :]
+        high_prediction = adata.uns["umap_fit"]["fit"].inverse_transform(prediction)
 
         # further reverse project back to raw expression space
-        PCs = adata.uns['PCs'].T
+        PCs = adata.uns["PCs"].T
         if PCs.shape[0] == high_prediction.shape[1]:
             high_prediction = high_prediction @ PCs
 
-        ndim = adata.uns["umap_fit"]['fit']._raw_data.shape[1]
+        ndim = adata.uns["umap_fit"]["fit"]._raw_data.shape[1]
 
         if "X" in adata.obsm_keys():
             if ndim == adata.obsm["X"].shape[1]:  # lift the dimension up again
@@ -187,15 +199,15 @@ def fate(adata,
             )
 
     adata.uns[fate_key] = {
-            "init_states": init_states,
-            "init_cells": init_cells,
-            "average": average,
-            "t": t,
-            "prediction": prediction,
-            # "VecFld": VecFld,
-            "VecFld_true": VecFld_true,
-            "genes": valid_genes,
-        }
+        "init_states": init_states,
+        "init_cells": init_cells,
+        "average": average,
+        "t": t,
+        "prediction": prediction,
+        # "VecFld": VecFld,
+        "VecFld_true": VecFld_true,
+        "genes": valid_genes,
+    }
     if high_prediction is not None:
         adata.uns[fate_key]["inverse_transform"] = high_prediction
 
@@ -210,7 +222,7 @@ def _fate(
     direction="both",
     interpolation_num=250,
     average=True,
-    sampling='arc_length',
+    sampling="arc_length",
     cores=1,
 ):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales by integrating vector field
@@ -272,17 +284,21 @@ def _fate(
         )
     else:
         pool = ThreadPool(cores)
-        res = pool.starmap(integrate_vf_ivp, zip(init_states,
-                                                 itertools.repeat(t_linspace),
-                                                 itertools.repeat(()),
-                                                 itertools.repeat(direction),
-                                                 itertools.repeat(VecFld),
-                                                 itertools.repeat(interpolation_num),
-                                                 itertools.repeat(average),
-                                                 itertools.repeat(sampling),
-                                                 itertools.repeat(False),
-                                                 itertools.repeat(True)
-                                                 )) # disable tqdm when using multiple cores.
+        res = pool.starmap(
+            integrate_vf_ivp,
+            zip(
+                init_states,
+                itertools.repeat(t_linspace),
+                itertools.repeat(()),
+                itertools.repeat(direction),
+                itertools.repeat(VecFld),
+                itertools.repeat(interpolation_num),
+                itertools.repeat(average),
+                itertools.repeat(sampling),
+                itertools.repeat(False),
+                itertools.repeat(True),
+            ),
+        )  # disable tqdm when using multiple cores.
         pool.close()
         pool.join()
         t_, prediction_ = zip(*res)
@@ -303,19 +319,20 @@ def _fate(
     return t, prediction
 
 
-def fate_bias(adata,
-              group,
-              basis='umap',
-              inds=None,
-              speed_percentile=5,
-              dist_threshold=None,
-              source_groups=None,
-              metric="euclidean",
-              metric_kwds=None,
-              cores=1,
-              seed=19491001,
-              **kwargs,
-            ):
+def fate_bias(
+    adata,
+    group,
+    basis="umap",
+    inds=None,
+    speed_percentile=5,
+    dist_threshold=None,
+    source_groups=None,
+    metric="euclidean",
+    metric_kwds=None,
+    cores=1,
+    seed=19491001,
+    **kwargs,
+):
     """Calculate the lineage (fate) bias of states whose trajectory are predicted.
 
     Fate bias is currently calculated as the percentage of points along the predicted cell fate trajectory whose distance
@@ -396,46 +413,52 @@ def fate_bias(adata,
         dist_threshold = 1
 
     if group not in adata.obs.keys():
-        raise ValueError(f'The group {group} you provided is not a key of .obs attribute.')
+        raise ValueError(f"The group {group} you provided is not a key of .obs attribute.")
     else:
         clusters = adata.obs[group]
 
-    basis_key = 'X_' + basis if basis is not None else 'X'
-    fate_key = 'fate_' + basis if basis is not None else 'fate'
+    basis_key = "X_" + basis if basis is not None else "X"
+    fate_key = "fate_" + basis if basis is not None else "fate"
 
     if basis_key not in adata.obsm.keys():
-        raise ValueError(f'The basis {basis_key} you provided is not a key of .obsm attribute.')
+        raise ValueError(f"The basis {basis_key} you provided is not a key of .obsm attribute.")
     if fate_key not in adata.uns.keys():
-        raise ValueError(f"The {fate_key} key is not existed in the .uns attribute of the adata object. You need to run"
-                         f"dyn.pd.fate(adata, basis='{basis}') before calculate fate bias.")
+        raise ValueError(
+            f"The {fate_key} key is not existed in the .uns attribute of the adata object. You need to run"
+            f"dyn.pd.fate(adata, basis='{basis}') before calculate fate bias."
+        )
 
     if source_groups is not None:
-        if type(source_groups) is str: source_groups = [source_groups]
+        if type(source_groups) is str:
+            source_groups = [source_groups]
         source_groups = list(set(source_groups).intersection(clusters))
         if len(source_groups) == 0:
-            raise ValueError(f"the {source_groups} you provided doesn't intersect with any groups in the {group} column.")
+            raise ValueError(
+                f"the {source_groups} you provided doesn't intersect with any groups in the {group} column."
+            )
 
-    X = adata.obsm[basis_key] if basis_key != 'X' else adata.X
+    X = adata.obsm[basis_key] if basis_key != "X" else adata.X
 
     if X.shape[0] > 5000 and X.shape[1] > 2:
         from pynndescent import NNDescent
 
-        nbrs = NNDescent(X, metric=metric, metric_kwds=metric_kwds, n_neighbors=30, n_jobs=cores,
-                              random_state=seed, **kwargs)
+        nbrs = NNDescent(
+            X, metric=metric, metric_kwds=metric_kwds, n_neighbors=30, n_jobs=cores, random_state=seed, **kwargs
+        )
         knn, distances = nbrs.query(X, k=30)
     else:
-        alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+        alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
         nbrs = NearestNeighbors(n_neighbors=30, algorithm=alg, n_jobs=cores).fit(X)
         distances, knn = nbrs.kneighbors(X)
 
     median_dist = np.median(distances[:, 1])
 
     pred_dict = {}
-    cell_predictions, cell_indx = adata.uns[fate_key]['prediction'], adata.uns[fate_key]['init_cells']
-    t = adata.uns[fate_key]['t']
+    cell_predictions, cell_indx = adata.uns[fate_key]["prediction"], adata.uns[fate_key]["init_cells"]
+    t = adata.uns[fate_key]["t"]
     confidence = np.zeros(len(t))
 
-    for i, prediction in tqdm(enumerate(cell_predictions), desc='calculating fate distributions'):
+    for i, prediction in tqdm(enumerate(cell_predictions), desc="calculating fate distributions"):
         cur_t, n_steps = t[i], len(t[i])
 
         # ensure to identify sink where the speed is very slow if inds is not provided.
@@ -450,12 +473,12 @@ def fate_bias(adata,
         else:
             indices = inds
 
-        if hasattr(nbrs, 'query'):
-            knn, distances = nbrs.query(prediction[:, indices].T, k=30) 
+        if hasattr(nbrs, "query"):
+            knn, distances = nbrs.query(prediction[:, indices].T, k=30)
         else:
-            distances, knn = nbrs.kneighbors(prediction[:, indices].T) 
+            distances, knn = nbrs.kneighbors(prediction[:, indices].T)
 
-        # if final steps too far away from observed cells, ignore them
+            # if final steps too far away from observed cells, ignore them
         walk_back_steps = 0
         while True:
             is_dist_larger_than_threshold = distances.flatten() < dist_threshold * median_dist
@@ -463,10 +486,10 @@ def fate_bias(adata,
 
                 # let us diffuse one step further to identify cells from terminal cell types in case
                 # cells with indices are all close to some random progenitor cells.
-                if hasattr(nbrs, 'query'):
+                if hasattr(nbrs, "query"):
                     knn, _ = nbrs.query(X[knn.flatten(), :], k=30)
                 else:
-                   _, knn = nbrs.kneighbors(X[knn.flatten(), :])
+                    _, knn = nbrs.kneighbors(X[knn.flatten(), :])
 
                 fate_prob = clusters[knn.flatten()].value_counts() / len(knn.flatten())
                 if source_groups is not None:
@@ -477,8 +500,9 @@ def fate_bias(adata,
 
                 pred_dict[i] = fate_prob
 
-                confidence[i] = 1 - (sum(~ is_dist_larger_than_threshold) + walk_back_steps) / (
-                        len(is_dist_larger_than_threshold) + walk_back_steps)
+                confidence[i] = 1 - (sum(~is_dist_larger_than_threshold) + walk_back_steps) / (
+                    len(is_dist_larger_than_threshold) + walk_back_steps
+                )
 
                 break
             else:
@@ -488,10 +512,10 @@ def fate_bias(adata,
                     pred_dict[i] = clusters[knn.flatten()].value_counts() * np.nan
                     break
 
-                if hasattr(nbrs, 'query'):
+                if hasattr(nbrs, "query"):
                     knn, distances = nbrs.query(prediction[:, indices - 1].T, k=30)
                 else:
-                    distances, knn = nbrs.kneighbors(prediction[:, indices - 1].T) 
+                    distances, knn = nbrs.kneighbors(prediction[:, indices - 1].T)
 
                 knn, distances = knn[:, 0], distances[:, 0]
                 indices = indices - 1
@@ -500,9 +524,11 @@ def fate_bias(adata,
     conf = pd.DataFrame({"confidence": confidence}, index=bias.index)
     bias = pd.merge(conf, bias, left_index=True, right_index=True)
 
-    if cell_indx is not None: bias.index = cell_indx
+    if cell_indx is not None:
+        bias.index = cell_indx
 
     return bias
+
 
 # def fate_(adata, time, direction = 'forward'):
 #     from .moments import *

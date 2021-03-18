@@ -24,10 +24,10 @@ def kinetic_curves(
     tkey="potential",
     dist_threshold=1e-10,
     ncol=4,
-    color='ntr',
+    color="ntr",
     c_palette="Set2",
     standard_scale=0,
-    save_show_or_return='show',
+    save_show_or_return="show",
     save_kwargs={},
 ):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) as kinetic curves.
@@ -88,31 +88,22 @@ def kinetic_curves(
     if tkey == "potential" and "potential" not in adata.obs_keys():
         ddhodge(adata)
 
-    exprs, valid_genes, time = fetch_exprs(
-        adata, basis, layer, genes, tkey, mode, project_back_to_high_dim
-    )
+    exprs, valid_genes, time = fetch_exprs(adata, basis, layer, genes, tkey, mode, project_back_to_high_dim)
 
     Color = np.empty((0, 1))
     if color is not None and mode != "vector_field":
         color = list(set(color).intersection(adata.obs.keys()))
-        Color = (
-            adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
-        )
+        Color = adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
 
     exprs = exprs.A if issparse(exprs) else exprs
     if standard_scale is not None:
-        exprs = (exprs - np.min(exprs, axis=standard_scale)) / np.ptp(
-            exprs, axis=standard_scale
-        )
+        exprs = (exprs - np.min(exprs, axis=standard_scale)) / np.ptp(exprs, axis=standard_scale)
 
     time = np.sort(time)
     exprs = exprs[np.argsort(time), :]
 
-    if dist_threshold is not None and mode == 'vector_field':
-        valid_ind = list(
-            np.where(np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold)[0]
-            + 1
-        )
+    if dist_threshold is not None and mode == "vector_field":
+        valid_ind = list(np.where(np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold)[0] + 1)
         valid_ind.insert(0, 0)
         exprs = exprs[valid_ind, :]
         time = time[valid_ind]
@@ -158,8 +149,15 @@ def kinetic_curves(
         )
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'kinetic_curves', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "kinetic_curves",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
@@ -184,16 +182,16 @@ def kinetic_heatmap(
     tkey="potential",
     dist_threshold=1e-10,
     color_map="BrBG",
-    gene_order_method='maximum',
+    gene_order_method="maximum",
     show_colorbar=False,
     cluster_row_col=[False, False],
     figsize=(11.5, 6),
     standard_scale=1,
     n_convolve=30,
     spaced_num=100,
-    save_show_or_return='show',
+    save_show_or_return="show",
     save_kwargs={},
-    **kwargs
+    **kwargs,
 ):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) in a heatmap.
 
@@ -245,47 +243,47 @@ def kinetic_heatmap(
     if tkey == "potential" and "potential" not in adata.obs_keys():
         ddhodge(adata)
 
-    exprs, valid_genes, time = fetch_exprs(
-        adata, basis, layer, genes, tkey, mode, project_back_to_high_dim
-    )
+    exprs, valid_genes, time = fetch_exprs(adata, basis, layer, genes, tkey, mode, project_back_to_high_dim)
 
     exprs = exprs.A if issparse(exprs) else exprs
 
-    if dist_threshold is not None and mode == 'vector_field':
-        valid_ind = list(
-            np.where(np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold)[0]
-            + 1
-        )
+    if dist_threshold is not None and mode == "vector_field":
+        valid_ind = list(np.where(np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold)[0] + 1)
         valid_ind.insert(0, 0)
         exprs = exprs[valid_ind, :]
         time = time[valid_ind]
 
     if gene_order_method == "half_max_ordering":
-        time, all, valid_ind, gene_idx = _half_max_ordering(
-            exprs.T, time, mode=mode, interpolate=True, spaced_num=100
-        )
+        time, all, valid_ind, gene_idx = _half_max_ordering(exprs.T, time, mode=mode, interpolate=True, spaced_num=100)
         all, genes = all[np.isfinite(all.sum(1)), :], np.array(valid_genes)[gene_idx][np.isfinite(all.sum(1))]
 
         df = pd.DataFrame(all, index=genes)
-    elif gene_order_method == 'maximum':
+    elif gene_order_method == "maximum":
         exprs = lowess_smoother(time, exprs.T, spaced_num=spaced_num, n_convolve=n_convolve)
         exprs = exprs[np.isfinite(exprs.sum(1)), :]
 
         if standard_scale is not None:
-            exprs = (exprs - np.min(exprs, axis=standard_scale)[:, None]) / np.ptp(
-                exprs, axis=standard_scale
-            )[:, None]
+            exprs = (exprs - np.min(exprs, axis=standard_scale)[:, None]) / np.ptp(exprs, axis=standard_scale)[:, None]
         max_sort = np.argsort(np.argmax(exprs, axis=1))
         if spaced_num is None:
-            df = pd.DataFrame(exprs[max_sort, :], index=np.array(valid_genes)[max_sort],
-                              columns=adata.obs_names)
+            df = pd.DataFrame(exprs[max_sort, :], index=np.array(valid_genes)[max_sort], columns=adata.obs_names)
         else:
             df = pd.DataFrame(exprs[max_sort, :], index=np.array(valid_genes)[max_sort])
     else:
-        raise Exception('gene order_method can only be either half_max_ordering or maximum')
+        raise Exception("gene order_method can only be either half_max_ordering or maximum")
 
-    heatmap_kwargs = dict(xticklabels=False, yticklabels=1, row_colors=None, col_colors=None, row_linkage=None,
-                          col_linkage=None, method='average', metric='euclidean', z_score=None, standard_scale=None)
+    heatmap_kwargs = dict(
+        xticklabels=False,
+        yticklabels=1,
+        row_colors=None,
+        col_colors=None,
+        row_linkage=None,
+        col_linkage=None,
+        method="average",
+        metric="euclidean",
+        z_score=None,
+        standard_scale=None,
+    )
     if kwargs is not None:
         heatmap_kwargs = update_dict(heatmap_kwargs, kwargs)
 
@@ -295,13 +293,21 @@ def kinetic_heatmap(
         row_cluster=cluster_row_col[1],
         cmap=color_map,
         figsize=figsize,
-        **heatmap_kwargs
+        **heatmap_kwargs,
     )
-    if not show_colorbar: sns_heatmap.cax.set_visible(False)
+    if not show_colorbar:
+        sns_heatmap.cax.set_visible(False)
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'kinetic_heatmap', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "kinetic_heatmap",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
@@ -367,7 +373,7 @@ def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):
     for i in range(gene_num):
         hm_mat_scaled[i] = tmp[i] - np.min(tmp[i])
         hm_mat_scaled[i] = hm_mat_scaled[i] / np.max(hm_mat_scaled[i])
-        scale_tmp = (tmp[i] - np.mean(tmp[i])) / np.std(tmp[i]) # scale in R
+        scale_tmp = (tmp[i] - np.mean(tmp[i])) / np.std(tmp[i])  # scale in R
         hm_mat_scaled_z[i] = scale_tmp
 
         count, current = 0, hm_mat_scaled_z[i, 0] < 0  # check this
@@ -382,9 +388,7 @@ def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):
 
     begin = np.arange(max([5, 0.05 * cell_num]))
     end = np.arange(exprs.shape[1] - max([5, 0.05 * cell_num]), cell_num)
-    trans_indx = np.logical_and(
-        transient > 1, not [i in np.concatenate((begin, end)) for i in trans_max]
-    )
+    trans_indx = np.logical_and(transient > 1, not [i in np.concatenate((begin, end)) for i in trans_max])
 
     trans_idx, trans, half_max_trans = (
         np.where(trans_indx)[0],
@@ -449,21 +453,21 @@ def lowess_smoother(time, exprs, spaced_num=None, n_convolve=30):
 @docstrings.with_indent(4)
 def jacobian_kinetics(
     adata,
-    basis='umap',
+    basis="umap",
     regulators=None,
     effectors=None,
     mode="pseudotime",
     tkey="potential",
     color_map="bwr",
-    gene_order_method='raw',
+    gene_order_method="raw",
     show_colorbar=False,
     cluster_row_col=[False, True],
     figsize=(11.5, 6),
     standard_scale=1,
     n_convolve=30,
-    save_show_or_return='show',
+    save_show_or_return="show",
     save_kwargs={},
-    **kwargs
+    **kwargs,
 ):
     """Plot the Jacobian dynamics over time (pseudotime or inferred real time) in a heatmap.
 
@@ -539,11 +543,13 @@ def jacobian_kinetics(
     import matplotlib.pyplot as plt
 
     Jacobian_ = "jacobian" if basis is None else "jacobian_" + basis
-    Der, cell_indx, jacobian_gene, regulators_, effectors_ = adata.uns[Jacobian_].get('jacobian'), \
-                                                              adata.uns[Jacobian_].get('cell_idx'), \
-                                                              adata.uns[Jacobian_].get('jacobian_gene'), \
-                                                              adata.uns[Jacobian_].get('regulators'), \
-                                                              adata.uns[Jacobian_].get('effectors')
+    Der, cell_indx, jacobian_gene, regulators_, effectors_ = (
+        adata.uns[Jacobian_].get("jacobian"),
+        adata.uns[Jacobian_].get("cell_idx"),
+        adata.uns[Jacobian_].get("jacobian_gene"),
+        adata.uns[Jacobian_].get("regulators"),
+        adata.uns[Jacobian_].get("effectors"),
+    )
     if tkey == "potential" and "potential" not in adata.obs_keys():
         ddhodge(adata)
 
@@ -551,23 +557,30 @@ def jacobian_kinetics(
     time = adata_.obs[tkey]
     jacobian_mat = Der.reshape((-1, Der.shape[2])) if Der.ndim == 3 else Der[None, :]
     n_source_targets_ = Der.shape[0] * Der.shape[1] if Der.ndim == 3 else 1
-    targets_, sources_ = (np.repeat(effectors_, Der.shape[1]), np.tile(regulators_, Der.shape[0])) if Der.ndim == 3 \
+    targets_, sources_ = (
+        (np.repeat(effectors_, Der.shape[1]), np.tile(regulators_, Der.shape[0]))
+        if Der.ndim == 3
         else (np.repeat(effectors_, Der.shape[0]), np.repeat(effectors_, Der.shape[0]))
-    source_targets_ = [sources_[i] + '->' + targets_[i] for i in range(n_source_targets_)]
+    )
+    source_targets_ = [sources_[i] + "->" + targets_[i] for i in range(n_source_targets_)]
 
     regulators = regulators_ if regulators is None else regulators
     effectors = effectors_ if effectors is None else effectors
-    if type(regulators) == str: regulators = [regulators]
-    if type(effectors) == str: effectors = [effectors]
+    if type(regulators) == str:
+        regulators = [regulators]
+    if type(effectors) == str:
+        effectors = [effectors]
     regulators = list(set(regulators_).intersection(regulators))
     effectors = list(set(effectors_).intersection(effectors))
     if len(regulators) == 0 or len(effectors) == 0:
-        raise ValueError(f"Jacobian related to source genes {regulators} and target genes {effectors}"
-                         f"you provided are existed. Available source genes includes {regulators_} while "
-                         f"available target genes includes {effectors_}")
+        raise ValueError(
+            f"Jacobian related to source genes {regulators} and target genes {effectors}"
+            f"you provided are existed. Available source genes includes {regulators_} while "
+            f"available target genes includes {effectors_}"
+        )
     n_source_targets = len(regulators) * len(effectors)
     targets, sources = np.repeat(effectors, len(regulators)), np.tile(regulators, len(effectors))
-    source_targets = [sources[i] + '->' + targets[i] for i in range(n_source_targets)]
+    source_targets = [sources[i] + "->" + targets[i] for i in range(n_source_targets)]
 
     jacobian_mat = jacobian_mat[:, np.argsort(time)]
 
@@ -575,10 +588,13 @@ def jacobian_kinetics(
         time, all, valid_ind, gene_idx = _half_max_ordering(
             jacobian_mat, time, mode=mode, interpolate=True, spaced_num=100
         )
-        all, source_targets = all[np.isfinite(all.sum(1)), :], np.array(source_targets)[gene_idx][np.isfinite(all.sum(1))]
+        all, source_targets = (
+            all[np.isfinite(all.sum(1)), :],
+            np.array(source_targets)[gene_idx][np.isfinite(all.sum(1))],
+        )
 
         df = pd.DataFrame(all, index=source_targets_)
-    elif gene_order_method == 'maximum':
+    elif gene_order_method == "maximum":
         jacobian_mat = lowess_smoother(time, jacobian_mat, spaced_num=None, n_convolve=n_convolve)
         jacobian_mat = jacobian_mat[np.isfinite(jacobian_mat.sum(1)), :]
 
@@ -587,17 +603,25 @@ def jacobian_kinetics(
                 jacobian_mat, axis=standard_scale
             )[:, None]
         max_sort = np.argsort(np.argmax(exprs, axis=1))
-        df = pd.DataFrame(exprs[max_sort, :], index=np.array(source_targets_)[max_sort],
-                          columns=adata.obs_names)
+        df = pd.DataFrame(exprs[max_sort, :], index=np.array(source_targets_)[max_sort], columns=adata.obs_names)
     elif gene_order_method == "raw":
         jacobian_mat /= np.abs(jacobian_mat).max(1)[:, None]
-        df = pd.DataFrame(jacobian_mat, index=np.array(source_targets_),
-                          columns=adata.obs_names)
+        df = pd.DataFrame(jacobian_mat, index=np.array(source_targets_), columns=adata.obs_names)
     else:
-        raise Exception('gene order_method can only be either half_max_ordering or maximum')
+        raise Exception("gene order_method can only be either half_max_ordering or maximum")
 
-    heatmap_kwargs = dict(xticklabels=False, yticklabels=1, row_colors=None, col_colors=None, row_linkage=None,
-                          col_linkage=None, method='average', metric='euclidean', z_score=None, standard_scale=None)
+    heatmap_kwargs = dict(
+        xticklabels=False,
+        yticklabels=1,
+        row_colors=None,
+        col_colors=None,
+        row_linkage=None,
+        col_linkage=None,
+        method="average",
+        metric="euclidean",
+        z_score=None,
+        standard_scale=None,
+    )
     if kwargs is not None:
         heatmap_kwargs = update_dict(heatmap_kwargs, kwargs)
 
@@ -608,13 +632,21 @@ def jacobian_kinetics(
         cmap=color_map,
         figsize=figsize,
         center=0,
-        **heatmap_kwargs
+        **heatmap_kwargs,
     )
-    if not show_colorbar: sns_heatmap.cax.set_visible(False)
+    if not show_colorbar:
+        sns_heatmap.cax.set_visible(False)
 
     if save_show_or_return == "save_fig":
-        s_kwargs = {"path": None, "prefix": 'jacobian_kinetics', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "jacobian_kinetics",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
@@ -630,21 +662,21 @@ def jacobian_kinetics(
 @docstrings.with_indent(4)
 def sensitivity_kinetics(
     adata,
-    basis='umap',
+    basis="umap",
     regulators=None,
     effectors=None,
     mode="pseudotime",
     tkey="potential",
     color_map="bwr",
-    gene_order_method='raw',
+    gene_order_method="raw",
     show_colorbar=False,
     cluster_row_col=[False, True],
     figsize=(11.5, 6),
     standard_scale=1,
     n_convolve=30,
-    save_show_or_return='show',
+    save_show_or_return="show",
     save_kwargs={},
-    **kwargs
+    **kwargs,
 ):
     """Plot the Sensitivity dynamics over time (pseudotime or inferred real time) in a heatmap.
 
@@ -720,11 +752,13 @@ def sensitivity_kinetics(
     import matplotlib.pyplot as plt
 
     Sensitivity_ = "sensitivity" if basis is None else "sensitivity_" + basis
-    Der, cell_indx, sensitivity_gene, regulators_, effectors_ = adata.uns[Sensitivity_].get('sensitivity'), \
-                                                              adata.uns[Sensitivity_].get('cell_idx'), \
-                                                              adata.uns[Sensitivity_].get('sensitivity_gene'), \
-                                                              adata.uns[Sensitivity_].get('regulators'), \
-                                                              adata.uns[Sensitivity_].get('effectors')
+    Der, cell_indx, sensitivity_gene, regulators_, effectors_ = (
+        adata.uns[Sensitivity_].get("sensitivity"),
+        adata.uns[Sensitivity_].get("cell_idx"),
+        adata.uns[Sensitivity_].get("sensitivity_gene"),
+        adata.uns[Sensitivity_].get("regulators"),
+        adata.uns[Sensitivity_].get("effectors"),
+    )
     if tkey == "potential" and "potential" not in adata.obs_keys():
         ddhodge(adata)
 
@@ -732,23 +766,30 @@ def sensitivity_kinetics(
     time = adata_.obs[tkey]
     sensitivity_mat = Der.reshape((-1, Der.shape[2])) if Der.ndim == 3 else Der[None, :]
     n_source_targets_ = Der.shape[0] * Der.shape[1] if Der.ndim == 3 else 1
-    targets_, sources_ = (np.repeat(effectors_, Der.shape[1]), np.tile(regulators_, Der.shape[0])) if Der.ndim == 3 \
+    targets_, sources_ = (
+        (np.repeat(effectors_, Der.shape[1]), np.tile(regulators_, Der.shape[0]))
+        if Der.ndim == 3
         else (np.repeat(effectors_, Der.shape[0]), np.repeat(effectors_, Der.shape[0]))
-    source_targets_ = [sources_[i] + '->' + targets_[i] for i in range(n_source_targets_)]
+    )
+    source_targets_ = [sources_[i] + "->" + targets_[i] for i in range(n_source_targets_)]
 
     regulators = regulators_ if regulators is None else regulators
     effectors = effectors_ if effectors is None else effectors
-    if type(regulators) == str: regulators = [regulators]
-    if type(effectors) == str: effectors = [effectors]
+    if type(regulators) == str:
+        regulators = [regulators]
+    if type(effectors) == str:
+        effectors = [effectors]
     regulators = list(set(regulators_).intersection(regulators))
     effectors = list(set(effectors_).intersection(effectors))
     if len(regulators) == 0 or len(effectors) == 0:
-        raise ValueError(f"Sensitivity related to source genes {regulators} and target genes {effectors}"
-                         f"you provided are existed. Available source genes includes {regulators_} while "
-                         f"available target genes includes {effectors_}")
+        raise ValueError(
+            f"Sensitivity related to source genes {regulators} and target genes {effectors}"
+            f"you provided are existed. Available source genes includes {regulators_} while "
+            f"available target genes includes {effectors_}"
+        )
     n_source_targets = len(regulators) * len(effectors)
     targets, sources = np.repeat(effectors, len(regulators)), np.tile(regulators, len(effectors))
-    source_targets = [sources[i] + '->' + targets[i] for i in range(n_source_targets)]
+    source_targets = [sources[i] + "->" + targets[i] for i in range(n_source_targets)]
 
     sensitivity_mat = sensitivity_mat[:, np.argsort(time)]
 
@@ -756,10 +797,13 @@ def sensitivity_kinetics(
         time, all, valid_ind, gene_idx = _half_max_ordering(
             sensitivity_mat, time, mode=mode, interpolate=True, spaced_num=100
         )
-        all, source_targets = all[np.isfinite(all.sum(1)), :], np.array(source_targets)[gene_idx][np.isfinite(all.sum(1))]
+        all, source_targets = (
+            all[np.isfinite(all.sum(1)), :],
+            np.array(source_targets)[gene_idx][np.isfinite(all.sum(1))],
+        )
 
         df = pd.DataFrame(all, index=source_targets_)
-    elif gene_order_method == 'maximum':
+    elif gene_order_method == "maximum":
         sensitivity_mat = lowess_smoother(time, sensitivity_mat, spaced_num=None, n_convolve=n_convolve)
         sensitivity_mat = sensitivity_mat[np.isfinite(sensitivity_mat.sum(1)), :]
 
@@ -768,17 +812,25 @@ def sensitivity_kinetics(
                 sensitivity_mat, axis=standard_scale
             )[:, None]
         max_sort = np.argsort(np.argmax(exprs, axis=1))
-        df = pd.DataFrame(exprs[max_sort, :], index=np.array(source_targets_)[max_sort],
-                          columns=adata.obs_names)
+        df = pd.DataFrame(exprs[max_sort, :], index=np.array(source_targets_)[max_sort], columns=adata.obs_names)
     elif gene_order_method == "raw":
         sensitivity_mat /= np.abs(sensitivity_mat).max(1)[:, None]
-        df = pd.DataFrame(sensitivity_mat, index=np.array(source_targets_),
-                          columns=adata.obs_names)
+        df = pd.DataFrame(sensitivity_mat, index=np.array(source_targets_), columns=adata.obs_names)
     else:
-        raise Exception('gene order_method can only be either half_max_ordering or maximum')
+        raise Exception("gene order_method can only be either half_max_ordering or maximum")
 
-    heatmap_kwargs = dict(xticklabels=False, yticklabels=1, row_colors=None, col_colors=None, row_linkage=None,
-                          col_linkage=None, method='average', metric='euclidean', z_score=None, standard_scale=None)
+    heatmap_kwargs = dict(
+        xticklabels=False,
+        yticklabels=1,
+        row_colors=None,
+        col_colors=None,
+        row_linkage=None,
+        col_linkage=None,
+        method="average",
+        metric="euclidean",
+        z_score=None,
+        standard_scale=None,
+    )
     if kwargs is not None:
         heatmap_kwargs = update_dict(heatmap_kwargs, kwargs)
 
@@ -789,13 +841,21 @@ def sensitivity_kinetics(
         cmap=color_map,
         figsize=figsize,
         center=0,
-        **heatmap_kwargs
+        **heatmap_kwargs,
     )
-    if not show_colorbar: sns_heatmap.cax.set_visible(False)
+    if not show_colorbar:
+        sns_heatmap.cax.set_visible(False)
 
     if save_show_or_return == "save_fig":
-        s_kwargs = {"path": None, "prefix": 'sensitivity_kinetics', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "sensitivity_kinetics",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)

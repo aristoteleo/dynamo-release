@@ -31,7 +31,7 @@ def laplacian(f, x):
 # ---------------------------------------------------------------------------------------------------
 # vector field function
 @timeit
-def vector_field_function(x, vf_dict, dim=None, kernel='full', X_ctrl_ind=None, **kernel_kwargs):
+def vector_field_function(x, vf_dict, dim=None, kernel="full", X_ctrl_ind=None, **kernel_kwargs):
     """vector field function constructed by sparseVFC.
     Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
     """
@@ -41,16 +41,16 @@ def vector_field_function(x, vf_dict, dim=None, kernel='full', X_ctrl_ind=None, 
     else:
         has_div_cur_free_kernels = False
 
-    #x = np.array(x)
+    # x = np.array(x)
     if x.ndim == 1:
         x = x[None, :]
 
     if has_div_cur_free_kernels:
-        if kernel == 'full':
+        if kernel == "full":
             kernel_ind = 0
-        elif kernel == 'df_kernel':
+        elif kernel == "df_kernel":
             kernel_ind = 1
-        elif kernel == 'cf_kernel':
+        elif kernel == "cf_kernel":
             kernel_ind = 2
         else:
             raise ValueError(f"the kernel can only be one of {'full', 'df_kernel', 'cf_kernel'}!")
@@ -82,11 +82,10 @@ def dynode_vector_field_function(x, vf_dict, dim=None, **kwargs):
         import dynode
         from dynode.vectorfield import Dynode
     except ImportError:
-        raise ImportError("You need to install the package `dynode`."
-                          "install dynode via `pip install dynode`")
-    vf_dict['parameters']["load_model_from_buffer"] = True
+        raise ImportError("You need to install the package `dynode`." "install dynode via `pip install dynode`")
+    vf_dict["parameters"]["load_model_from_buffer"] = True
     dynode_inspect = inspect.getfullargspec(Dynode)
-    dynode_dict = subset_dict_with_key_list(vf_dict['parameters'], dynode_inspect.args)
+    dynode_dict = subset_dict_with_key_list(vf_dict["parameters"], dynode_inspect.args)
 
     nn = Dynode(**dynode_dict)
 
@@ -110,7 +109,7 @@ def dynode_vector_field_function(x, vf_dict, dim=None, **kwargs):
 
 
 @timeit
-def con_K(x, y, beta, method='cdist', return_d=False):
+def con_K(x, y, beta, method="cdist", return_d=False):
     """con_K constructs the kernel K, where K(i, j) = k(x, y) = exp(-beta * ||x - y||^2).
 
     Arguments
@@ -129,8 +128,8 @@ def con_K(x, y, beta, method='cdist', return_d=False):
     K: :class:`~numpy.ndarray`
     the kernel to represent the vector field function.
     """
-    if method == 'cdist' and not return_d:
-        K = cdist(x, y, 'sqeuclidean')
+    if method == "cdist" and not return_d:
+        K = cdist(x, y, "sqeuclidean")
         if len(K) == 1:
             K = K.flatten()
     else:
@@ -139,8 +138,7 @@ def con_K(x, y, beta, method='cdist', return_d=False):
 
         # https://stackoverflow.com/questions/1721802/what-is-the-equivalent-of-matlabs-repmat-in-numpy
         # https://stackoverflow.com/questions/12787475/matlabs-permute-in-python
-        D = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(
-            np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0])
+        D = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0])
         K = np.squeeze(np.sum(D ** 2, 1))
     K = -beta * K
     K = np.exp(K)
@@ -176,9 +174,7 @@ def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
     m, d = x.shape
     n, d = y.shape
     sigma2 = sigma ** 2
-    G_tmp = np.matlib.tile(x[:, :, None], [1, 1, n]) - np.transpose(
-        np.matlib.tile(y[:, :, None], [1, 1, m]), [2, 1, 0]
-    )
+    G_tmp = np.matlib.tile(x[:, :, None], [1, 1, n]) - np.transpose(np.matlib.tile(y[:, :, None], [1, 1, m]), [2, 1, 0])
     G_tmp = np.squeeze(np.sum(G_tmp ** 2, 1))
     G_tmp3 = -G_tmp / sigma2
     G_tmp = -G_tmp / (2 * sigma2)
@@ -187,15 +183,15 @@ def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
 
     x_tmp = np.matlib.tile(x, [n, 1])
     y_tmp = np.matlib.tile(y, [1, m]).T
-    y_tmp = y_tmp.reshape((d, m * n), order='F').T
+    y_tmp = y_tmp.reshape((d, m * n), order="F").T
     xminusy = x_tmp - y_tmp
     G_tmp2 = np.zeros((d * m, d * n))
 
     tmp4_ = np.zeros((d, d))
     for i in tqdm(range(d), desc="Iterating each dimension in con_K_div_cur_free:"):
         for j in np.arange(i, d):
-            tmp1 = xminusy[:, i].reshape((m, n), order='F')
-            tmp2 = xminusy[:, j].reshape((m, n), order='F')
+            tmp1 = xminusy[:, i].reshape((m, n), order="F")
+            tmp2 = xminusy[:, j].reshape((m, n), order="F")
             tmp3 = tmp1 * tmp2
             tmp4 = tmp4_.copy()
             tmp4[i, j] = 1
@@ -211,26 +207,27 @@ def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
     return G, df_kernel, cf_kernel
 
 
-def get_vf_dict(adata, basis='', vf_key='VecFld'):
+def get_vf_dict(adata, basis="", vf_key="VecFld"):
     if basis is not None or len(basis) > 0:
-        vf_key = '%s_%s' % (vf_key, basis)
+        vf_key = "%s_%s" % (vf_key, basis)
 
     if vf_key not in adata.uns.keys():
         raise ValueError(
-            f'Vector field function {vf_key} is not included in the adata object! '
-            f"Try firstly running dyn.vf.VectorField(adata, basis='{basis}')")
+            f"Vector field function {vf_key} is not included in the adata object! "
+            f"Try firstly running dyn.vf.VectorField(adata, basis='{basis}')"
+        )
 
     vf_dict = adata.uns[vf_key]
     return vf_dict
 
 
-def vecfld_from_adata(adata, basis='', vf_key='VecFld'):
+def vecfld_from_adata(adata, basis="", vf_key="VecFld"):
     vf_dict = get_vf_dict(adata, basis=basis, vf_key=vf_key)
 
-    method = vf_dict['method']
-    if method.lower() == 'sparsevfc':
+    method = vf_dict["method"]
+    if method.lower() == "sparsevfc":
         func = lambda x: vector_field_function(x, vf_dict)
-    elif method.lower() == 'dynode':
+    elif method.lower() == "dynode":
         func = lambda x: dynode_vector_field_function(x, vf_dict)
     else:
         raise ValueError(f"current only support two methods, SparseVFC and dynode")
@@ -291,46 +288,48 @@ def vector_field_function_transformation(vf_func, Q):
 def Jacobian_rkhs_gaussian(x, vf_dict, vectorize=False):
     """analytical Jacobian for RKHS vector field functions with Gaussian kernel.
 
-        Arguments
-        ---------
-        x: :class:`~numpy.ndarray`
-            Coordinates where the Jacobian is evaluated.
-        vf_dict: dict
-            A dictionary containing RKHS vector field control points, Gaussian bandwidth,
-            and RKHS coefficients.
-            Essential keys: 'X_ctrl', 'beta', 'C'
+    Arguments
+    ---------
+    x: :class:`~numpy.ndarray`
+        Coordinates where the Jacobian is evaluated.
+    vf_dict: dict
+        A dictionary containing RKHS vector field control points, Gaussian bandwidth,
+        and RKHS coefficients.
+        Essential keys: 'X_ctrl', 'beta', 'C'
 
-        Returns
-        -------
-        J: :class:`~numpy.ndarray`
-            Jacobian matrices stored as d-by-d-by-n numpy arrays evaluated at x.
-            d is the number of dimensions and n the number of coordinates in x.
+    Returns
+    -------
+    J: :class:`~numpy.ndarray`
+        Jacobian matrices stored as d-by-d-by-n numpy arrays evaluated at x.
+        d is the number of dimensions and n the number of coordinates in x.
     """
-    if x.ndim == 1: 
-        K, D = con_K(x[None, :], vf_dict['X_ctrl'], vf_dict['beta'], return_d=True)
-        J = (vf_dict['C'].T * K) @ D[0].T
+    if x.ndim == 1:
+        K, D = con_K(x[None, :], vf_dict["X_ctrl"], vf_dict["beta"], return_d=True)
+        J = (vf_dict["C"].T * K) @ D[0].T
     elif not vectorize:
         n, d = x.shape
         J = np.zeros((d, d, n))
         for i, xi in enumerate(x):
-            K, D = con_K(xi[None, :], vf_dict['X_ctrl'], vf_dict['beta'], return_d=True)
-            J[:, :, i] = (vf_dict['C'].T * K) @ D[0].T
+            K, D = con_K(xi[None, :], vf_dict["X_ctrl"], vf_dict["beta"], return_d=True)
+            J[:, :, i] = (vf_dict["C"].T * K) @ D[0].T
     else:
-        K, D = con_K(x, vf_dict['X_ctrl'], vf_dict['beta'], return_d=True)
-        if K.ndim == 1: K = K[None, :]
-        J = np.einsum('nm, mi, njm -> ijn', K, vf_dict['C'], D)
+        K, D = con_K(x, vf_dict["X_ctrl"], vf_dict["beta"], return_d=True)
+        if K.ndim == 1:
+            K = K[None, :]
+        J = np.einsum("nm, mi, njm -> ijn", K, vf_dict["C"], D)
 
-    return -2 * vf_dict['beta'] * J
+    return -2 * vf_dict["beta"] * J
 
 
 def Jacobian_rkhs_gaussian_parallel(x, vf_dict, cores=None):
     n = len(x)
-    if cores is None: cores = mp.cpu_count()
+    if cores is None:
+        cores = mp.cpu_count()
     n_j_per_core = int(np.ceil(n / cores))
     xx = []
     for i in range(0, n, n_j_per_core):
-        xx.append(x[i:i+n_j_per_core])
-    #with mp.Pool(cores) as p:
+        xx.append(x[i : i + n_j_per_core])
+    # with mp.Pool(cores) as p:
     #    ret = p.starmap(Jacobian_rkhs_gaussian, zip(xx, itertools.repeat(vf_dict)))
     with ThreadPool(cores) as p:
         ret = p.starmap(Jacobian_rkhs_gaussian, zip(xx, itertools.repeat(vf_dict)))
@@ -339,26 +338,27 @@ def Jacobian_rkhs_gaussian_parallel(x, vf_dict, cores=None):
     return ret
 
 
-def Jacobian_numerical(f, input_vector_convention='row'):
-    '''
-        Get the numerical Jacobian of the vector field function.
-        If the input_vector_convention is 'row', it means that fjac takes row vectors
-        as input, otherwise the input should be an array of column vectors. Note that
-        the returned Jacobian would behave exactly the same if the input is an 1d array.
+def Jacobian_numerical(f, input_vector_convention="row"):
+    """
+    Get the numerical Jacobian of the vector field function.
+    If the input_vector_convention is 'row', it means that fjac takes row vectors
+    as input, otherwise the input should be an array of column vectors. Note that
+    the returned Jacobian would behave exactly the same if the input is an 1d array.
 
-        The column vector convention is slightly faster than the row vector convention.
-        So the matrix of row vector convention is converted into column vector convention
-        under the hood.
+    The column vector convention is slightly faster than the row vector convention.
+    So the matrix of row vector convention is converted into column vector convention
+    under the hood.
 
-        No matter the input vector convention, the returned Jacobian is of the following
-        format:
-                df_1/dx_1   df_1/dx_2   df_1/dx_3   ...
-                df_2/dx_1   df_2/dx_2   df_2/dx_3   ...
-                df_3/dx_1   df_3/dx_2   df_3/dx_3   ...
-                ...         ...         ...         ...
-    '''
+    No matter the input vector convention, the returned Jacobian is of the following
+    format:
+            df_1/dx_1   df_1/dx_2   df_1/dx_3   ...
+            df_2/dx_1   df_2/dx_2   df_2/dx_3   ...
+            df_3/dx_1   df_3/dx_2   df_3/dx_3   ...
+            ...         ...         ...         ...
+    """
     fjac = nd.Jacobian(lambda x: f(x.T).T)
-    if input_vector_convention == 'row' or input_vector_convention == 0:
+    if input_vector_convention == "row" or input_vector_convention == 0:
+
         def f_aux(x):
             x = x.T
             return fjac(x)
@@ -370,8 +370,8 @@ def Jacobian_numerical(f, input_vector_convention='row'):
 
 @timeit
 def elementwise_jacobian_transformation(Js, qi, qj):
-    """Inverse transform low dimensional k x k Jacobian matrix (:math:`\partial F_i / \partial x_j`) back to the 
-    d-dimensional gene expression space. The formula used to inverse transform Jacobian matrix calculated from 
+    """Inverse transform low dimensional k x k Jacobian matrix (:math:`\partial F_i / \partial x_j`) back to the
+    d-dimensional gene expression space. The formula used to inverse transform Jacobian matrix calculated from
     low dimension (PCs) is:
                                             :math:`Jac = Q J Q^T`,
     where `Q, J, Jac` are the PCA loading matrix, low dimensional Jacobian matrix and the inverse transformed high
@@ -399,6 +399,7 @@ def elementwise_jacobian_transformation(Js, qi, qj):
         ret[i] = qi @ Js[:, :, i] @ qj
 
     return ret
+
 
 @timeit
 def subset_jacobian_transformation(Js, Qi, Qj, cores=1):
@@ -442,14 +443,14 @@ def subset_jacobian_transformation(Js, Qi, Qj, cores=1):
     if cores == 1:
         ret = transform_jacobian(Js, Qi, Qj, pbar=True)
     else:
-        if cores is None: cores = mp.cpu_count()
+        if cores is None:
+            cores = mp.cpu_count()
         n_j_per_core = int(np.ceil(n / cores))
         JJ = []
         for i in range(0, n, n_j_per_core):
-            JJ.append(Js[:, :, i:i+n_j_per_core])
+            JJ.append(Js[:, :, i : i + n_j_per_core])
         with ThreadPool(cores) as p:
-            ret = p.starmap(transform_jacobian, zip(JJ, 
-                        itertools.repeat(Qi), itertools.repeat(Qj)))
+            ret = p.starmap(transform_jacobian, zip(JJ, itertools.repeat(Qi), itertools.repeat(Qj)))
         ret = [np.transpose(r, axes=(2, 0, 1)) for r in ret]
         ret = np.transpose(np.vstack(ret), axes=(1, 2, 0))
 
@@ -460,7 +461,7 @@ def transform_jacobian(Js, Qi, Qj, pbar=False):
     d1, d2, n = Qi.shape[0], Qj.shape[0], Js.shape[2]
     ret = np.zeros((d1, d2, n), dtype=np.float32)
     if pbar:
-        iterj = tqdm(range(n), desc='Transforming subset Jacobian')
+        iterj = tqdm(range(n), desc="Transforming subset Jacobian")
     else:
         iterj = range(n)
     for i in iterj:
@@ -471,12 +472,12 @@ def transform_jacobian(Js, Qi, Qj, pbar=False):
 
 def average_jacobian_by_group(Js, group_labels):
     """
-        Returns a dictionary of averaged jacobians with group names as the keys.
-        No vectorized indexing was used due to its high memory cost.
+    Returns a dictionary of averaged jacobians with group names as the keys.
+    No vectorized indexing was used due to its high memory cost.
     """
     d1, d2, _ = Js.shape
     groups = np.unique(group_labels)
-    
+
     J_mean = {}
     N = {}
     for i, g in enumerate(group_labels):
@@ -498,7 +499,7 @@ def _divergence(f, x):
     jac = nd.Jacobian(f)(x)
     return np.trace(jac)
 
- 
+
 @timeit
 def compute_divergence(f_jac, X, vectorize_size=1):
     """Calculate divergence for many samples by taking the trace of a Jacobian matrix.
@@ -508,24 +509,27 @@ def compute_divergence(f_jac, X, vectorize_size=1):
         If vectorize_size = None, all samples are vectorized.
     """
     n = len(X)
-    if vectorize_size is None: vectorize_size = n
+    if vectorize_size is None:
+        vectorize_size = n
 
     div = np.zeros(n)
     for i in tqdm(range(0, n, vectorize_size), desc="Calculating divergence"):
-        J = f_jac(X[i:i+vectorize_size])
-        div[i:i+vectorize_size] = np.trace(J)
+        J = f_jac(X[i : i + vectorize_size])
+        div[i : i + vectorize_size] = np.trace(J)
     return div
 
 
 def acceleration_(v, J):
-    if v.ndim == 1: v = v[:, None]
+    if v.ndim == 1:
+        v = v[:, None]
     return J.dot(v)
 
 
 def curvature_1(a, v):
     """https://link.springer.com/article/10.1007/s12650-018-0474-6"""
-    if v.ndim == 1: v = v[:, None]
-    kappa = np.linalg.norm(np.outer(v, a)) / np.linalg.norm(v)**3
+    if v.ndim == 1:
+        v = v[:, None]
+    kappa = np.linalg.norm(np.outer(v, a)) / np.linalg.norm(v) ** 3
 
     return kappa
 
@@ -533,15 +537,16 @@ def curvature_1(a, v):
 def curvature_2(a, v):
     """https://dl.acm.org/doi/10.5555/319351.319441"""
     # if v.ndim == 1: v = v[:, None]
-    kappa = (np.multiply(a, np.dot(v, v)) - np.multiply(v, np.dot(v, a))) / np.linalg.norm(v)**4
+    kappa = (np.multiply(a, np.dot(v, v)) - np.multiply(v, np.dot(v, a))) / np.linalg.norm(v) ** 4
 
     return kappa
 
 
 def torsion_(v, J, a):
     """only works in 3D"""
-    if v.ndim == 1: v = v[:, None]
-    tau = np.outer(v, a).dot(J.dot(a)) / np.linalg.norm(np.outer(v, a))**2
+    if v.ndim == 1:
+        v = v[:, None]
+    tau = np.outer(v, a).dot(J.dot(a)) / np.linalg.norm(np.outer(v, a)) ** 2
 
     return tau
 
@@ -608,7 +613,7 @@ def compute_torsion(vf, f_jac, X):
     \tau = \frac{(\mathbf{v} \times \mathbf{a}) \cdot (\mathbf{J} \cdot \mathbf{a})}{||\mathbf{V} \times \mathbf{a}||^2}
     """
     if X.shape[1] != 3:
-        raise Exception(f'torsion is only defined in 3 dimension.')
+        raise Exception(f"torsion is only defined in 3 dimension.")
 
     n = len(X)
 
@@ -644,10 +649,10 @@ def compute_sensitivity(f_jac, X):
     return S
 
 
-def _curl(f, x, method='analytical', VecFld=None, jac=None):
+def _curl(f, x, method="analytical", VecFld=None, jac=None):
     """Curl of the reconstructed vector field f evaluated at x in 3D"""
     if jac is None:
-        if method == 'analytical' and VecFld is not None:
+        if method == "analytical" and VecFld is not None:
             jac = Jacobian_rkhs_gaussian(x, VecFld)
         else:
             jac = nd.Jacobian(f)(x)
@@ -655,10 +660,10 @@ def _curl(f, x, method='analytical', VecFld=None, jac=None):
     return np.array([jac[2, 1] - jac[1, 2], jac[0, 2] - jac[2, 0], jac[1, 0] - jac[0, 1]])
 
 
-def curl2d(f, x, method='analytical', VecFld=None, jac=None):
+def curl2d(f, x, method="analytical", VecFld=None, jac=None):
     """Curl of the reconstructed vector field f evaluated at x in 2D"""
     if jac is None:
-        if method == 'analytical' and VecFld is not None:
+        if method == "analytical" and VecFld is not None:
             jac = Jacobian_rkhs_gaussian(x, VecFld)
         else:
             jac = nd.Jacobian(f)(x)
@@ -667,12 +672,12 @@ def curl2d(f, x, method='analytical', VecFld=None, jac=None):
 
     return curl
 
+
 @timeit
 def compute_curl(f_jac, X):
-    """Calculate curl for many samples for 2/3 D systems.
-    """
+    """Calculate curl for many samples for 2/3 D systems."""
     if X.shape[1] > 3:
-        raise Exception(f'curl is only defined in 2/3 dimension.')
+        raise Exception(f"curl is only defined in 2/3 dimension.")
 
     n = len(X)
 
@@ -685,9 +690,10 @@ def compute_curl(f_jac, X):
 
     for i in tqdm(range(n), desc=f"Calculating {X.shape[1]}-D curl"):
         J = f_jac(X[i])
-        curl[i] = f(None, None, method='analytical', VecFld=None, jac=J)
+        curl[i] = f(None, None, method="analytical", VecFld=None, jac=J)
 
     return curl
+
 
 # ---------------------------------------------------------------------------------------------------
 # ranking related utilies
@@ -701,10 +707,13 @@ def get_metric_gene_in_rank(mat, genes, neg=False):
 
 def get_metric_gene_in_rank_by_group(mat, genes, groups, grp, neg=False):
     mask = groups == grp
-    if type(mask) == pd.Series: mask = mask.values
+    if type(mask) == pd.Series:
+        mask = mask.values
 
-    gene_wise_metrics, group_wise_metrics = mat[mask, :].mean(0).A1 if issparse(mat) else mat[mask, :].mean(0), \
-                                            mat[mask, :].mean(0).A1 if issparse(mat) else mat[mask, :].mean(0)
+    gene_wise_metrics, group_wise_metrics = (
+        mat[mask, :].mean(0).A1 if issparse(mat) else mat[mask, :].mean(0),
+        mat[mask, :].mean(0).A1 if issparse(mat) else mat[mask, :].mean(0),
+    )
     rank = gene_wise_metrics.argsort() if neg else gene_wise_metrics.argsort()[::-1]
     gene_wise_metrics, genes_in_rank = gene_wise_metrics[rank], genes[rank]
 
@@ -712,10 +721,18 @@ def get_metric_gene_in_rank_by_group(mat, genes, groups, grp, neg=False):
 
 
 def get_sorted_metric_genes_df(df, genes, neg=False):
-    sorted_metric = pd.DataFrame({key: (sorted(values, reverse=False) if neg else sorted(values, reverse=True))
-                                  for key, values in df.transpose().iterrows()})
-    sorted_genes = pd.DataFrame({key: (genes[values.argsort()] if neg else genes[values.argsort()[::-1]])
-                                 for key, values in df.transpose().iterrows()})
+    sorted_metric = pd.DataFrame(
+        {
+            key: (sorted(values, reverse=False) if neg else sorted(values, reverse=True))
+            for key, values in df.transpose().iterrows()
+        }
+    )
+    sorted_genes = pd.DataFrame(
+        {
+            key: (genes[values.argsort()] if neg else genes[values.argsort()[::-1]])
+            for key, values in df.transpose().iterrows()
+        }
+    )
     return sorted_metric, sorted_genes
 
 
@@ -723,13 +740,13 @@ def rank_vector_calculus_metrics(mat, genes, group, groups, uniq_group):
     if issparse(mat):
         mask = mat.data > 0
         pos_mat, neg_mat = mat.copy(), mat.copy()
-        pos_mat.data[~ mask], neg_mat.data[mask] = 0, 0
+        pos_mat.data[~mask], neg_mat.data[mask] = 0, 0
         pos_mat.eliminate_zeros()
         neg_mat.eliminate_zeros()
     else:
         mask = mat > 0
         pos_mat, neg_mat = mat.copy(), mat.copy()
-        pos_mat[~ mask], neg_mat[mask] = 0, 0
+        pos_mat[~mask], neg_mat[mask] = 0, 0
 
     if group is None:
         metric_in_rank, genes_in_rank = get_metric_gene_in_rank(abs(mat), genes)
@@ -738,42 +755,87 @@ def rank_vector_calculus_metrics(mat, genes, group, groups, uniq_group):
 
         neg_metric_in_rank, neg_genes_in_rank = get_metric_gene_in_rank(neg_mat, genes, neg=True)
 
-        return metric_in_rank, genes_in_rank, pos_metric_in_rank, pos_genes_in_rank, neg_metric_in_rank, neg_genes_in_rank
+        return (
+            metric_in_rank,
+            genes_in_rank,
+            pos_metric_in_rank,
+            pos_genes_in_rank,
+            neg_metric_in_rank,
+            neg_genes_in_rank,
+        )
     else:
-        gene_wise_metrics, gene_wise_genes, gene_wise_pos_metrics, gene_wise_pos_genes, gene_wise_neg_metrics, gene_wise_neg_genes = {}, {}, {}, {}, {}, {}
-        group_wise_metrics, group_wise_genes, group_wise_pos_metrics, group_wise_pos_genes, group_wise_neg_metrics, group_wise_neg_genes = {}, {}, {}, {}, {}, {}
-        for i, grp in tqdm(enumerate(uniq_group), desc='ranking genes across gropus'):
+        (
+            gene_wise_metrics,
+            gene_wise_genes,
+            gene_wise_pos_metrics,
+            gene_wise_pos_genes,
+            gene_wise_neg_metrics,
+            gene_wise_neg_genes,
+        ) = ({}, {}, {}, {}, {}, {})
+        (
+            group_wise_metrics,
+            group_wise_genes,
+            group_wise_pos_metrics,
+            group_wise_pos_genes,
+            group_wise_neg_metrics,
+            group_wise_neg_genes,
+        ) = ({}, {}, {}, {}, {}, {})
+        for i, grp in tqdm(enumerate(uniq_group), desc="ranking genes across gropus"):
             gene_wise_metrics[grp], group_wise_metrics[grp], gene_wise_genes[grp] = None, None, None
-            gene_wise_metrics[grp], group_wise_metrics[grp], gene_wise_genes[grp] = \
-                get_metric_gene_in_rank_by_group(abs(mat), genes, groups, grp)
+            gene_wise_metrics[grp], group_wise_metrics[grp], gene_wise_genes[grp] = get_metric_gene_in_rank_by_group(
+                abs(mat), genes, groups, grp
+            )
 
             gene_wise_pos_metrics[grp], group_wise_pos_metrics[grp], gene_wise_pos_genes[grp] = None, None, None
-            gene_wise_pos_metrics[grp], group_wise_pos_metrics[grp], gene_wise_pos_genes[grp] = \
-                get_metric_gene_in_rank_by_group(pos_mat, genes, groups, grp)
+            (
+                gene_wise_pos_metrics[grp],
+                group_wise_pos_metrics[grp],
+                gene_wise_pos_genes[grp],
+            ) = get_metric_gene_in_rank_by_group(pos_mat, genes, groups, grp)
 
             gene_wise_neg_metrics[grp], group_wise_neg_metrics[grp], gene_wise_neg_genes[grp] = None, None, None
-            gene_wise_neg_metrics[grp], group_wise_neg_metrics[grp], gene_wise_neg_genes[grp] = \
-                get_metric_gene_in_rank_by_group(neg_mat, genes, groups, grp, neg=True)
+            (
+                gene_wise_neg_metrics[grp],
+                group_wise_neg_metrics[grp],
+                gene_wise_neg_genes[grp],
+            ) = get_metric_gene_in_rank_by_group(neg_mat, genes, groups, grp, neg=True)
 
-        metric_in_group_rank_by_gene, genes_in_group_rank_by_gene = \
-            get_sorted_metric_genes_df(pd.DataFrame(group_wise_metrics), genes)
-        pos_metric_gene_rank_by_group, pos_genes_group_rank_by_gene = \
-            get_sorted_metric_genes_df(pd.DataFrame(group_wise_pos_metrics), genes)
-        neg_metric_in_group_rank_by_gene, neg_genes_in_group_rank_by_gene = \
-            get_sorted_metric_genes_df(pd.DataFrame(group_wise_neg_metrics), genes, neg=True)
+        metric_in_group_rank_by_gene, genes_in_group_rank_by_gene = get_sorted_metric_genes_df(
+            pd.DataFrame(group_wise_metrics), genes
+        )
+        pos_metric_gene_rank_by_group, pos_genes_group_rank_by_gene = get_sorted_metric_genes_df(
+            pd.DataFrame(group_wise_pos_metrics), genes
+        )
+        neg_metric_in_group_rank_by_gene, neg_genes_in_group_rank_by_gene = get_sorted_metric_genes_df(
+            pd.DataFrame(group_wise_neg_metrics), genes, neg=True
+        )
 
-        metric_in_gene_rank_by_group, genes_in_gene_rank_by_group = \
-            pd.DataFrame(gene_wise_metrics), pd.DataFrame(gene_wise_genes)
-        pos_metric_in_gene_rank_by_group, pos_genes_in_gene_rank_by_group = \
-            pd.DataFrame(gene_wise_pos_metrics), pd.DataFrame(gene_wise_pos_genes)
-        neg_metric_in_gene_rank_by_group, neg_genes_in_gene_rank_by_group = \
-            pd.DataFrame(gene_wise_neg_metrics), pd.DataFrame(gene_wise_neg_genes)
+        metric_in_gene_rank_by_group, genes_in_gene_rank_by_group = pd.DataFrame(gene_wise_metrics), pd.DataFrame(
+            gene_wise_genes
+        )
+        pos_metric_in_gene_rank_by_group, pos_genes_in_gene_rank_by_group = (
+            pd.DataFrame(gene_wise_pos_metrics),
+            pd.DataFrame(gene_wise_pos_genes),
+        )
+        neg_metric_in_gene_rank_by_group, neg_genes_in_gene_rank_by_group = (
+            pd.DataFrame(gene_wise_neg_metrics),
+            pd.DataFrame(gene_wise_neg_genes),
+        )
 
-        return (metric_in_gene_rank_by_group, genes_in_gene_rank_by_group, pos_metric_in_gene_rank_by_group,
-                pos_genes_in_gene_rank_by_group, neg_metric_in_gene_rank_by_group, neg_genes_in_gene_rank_by_group,
-
-                metric_in_group_rank_by_gene, genes_in_group_rank_by_gene, pos_metric_gene_rank_by_group,
-                pos_genes_group_rank_by_gene, neg_metric_in_group_rank_by_gene, neg_genes_in_group_rank_by_gene,)
+        return (
+            metric_in_gene_rank_by_group,
+            genes_in_gene_rank_by_group,
+            pos_metric_in_gene_rank_by_group,
+            pos_genes_in_gene_rank_by_group,
+            neg_metric_in_gene_rank_by_group,
+            neg_genes_in_gene_rank_by_group,
+            metric_in_group_rank_by_gene,
+            genes_in_group_rank_by_gene,
+            pos_metric_gene_rank_by_group,
+            pos_genes_group_rank_by_gene,
+            neg_metric_in_group_rank_by_gene,
+            neg_genes_in_group_rank_by_gene,
+        )
 
 
 # https://stackoverflow.com/questions/2827393/angles-between-two-n-dimensional-vectors-in-python#answer-13849249
@@ -783,9 +845,7 @@ def angle(vector1, vector2):
     """ Returns the angle in radians between given vectors"""
     v1_u = unit_vector(vector1)
     v2_u = unit_vector(vector2)
-    minor = np.linalg.det(
-        np.stack((v1_u[-2:], v2_u[-2:]))
-    )
+    minor = np.linalg.det(np.stack((v1_u[-2:], v2_u[-2:])))
     if minor == 0:
         sign = 1
     else:
@@ -794,28 +854,30 @@ def angle(vector1, vector2):
     dot_p = min(max(dot_p, -1.0), 1.0)
     return sign * np.arccos(dot_p)
 
+
 @njit(cache=True, nogil=True)
 def unit_vector(vector):
     """ Returns the unit vector of the vector.  """
     return vector / np.linalg.norm(vector)
 
+
 # ---------------------------------------------------------------------------------------------------
 # data retrieval related utilies
-def intersect_sources_targets(regulators,
-                              regulators_,
-                              effectors,
-                              effectors_,
-                              Der):
+def intersect_sources_targets(regulators, regulators_, effectors, effectors_, Der):
     regulators = regulators_ if regulators is None else regulators
     effectors = effectors_ if effectors is None else effectors
-    if type(regulators) == str: regulators = [regulators]
-    if type(effectors) == str: effectors = [effectors]
+    if type(regulators) == str:
+        regulators = [regulators]
+    if type(effectors) == str:
+        effectors = [effectors]
     regulators = list(set(regulators_).intersection(regulators))
     effectors = list(set(effectors_).intersection(effectors))
     if len(regulators) == 0 or len(effectors) == 0:
-        raise ValueError(f"Jacobian related to source genes {regulators} and target genes {effectors}"
-                         f"you provided are existed. Available source genes includes {regulators_} while "
-                         f"available target genes includes {effectors_}")
+        raise ValueError(
+            f"Jacobian related to source genes {regulators} and target genes {effectors}"
+            f"you provided are existed. Available source genes includes {regulators_} while "
+            f"available target genes includes {effectors_}"
+        )
     # subset Der with correct index of selected source / target genes
     valid_source_idx = [i for i, e in enumerate(regulators_) if e in regulators]
     valid_target_idx = [i for i, e in enumerate(effectors_) if e in effectors]

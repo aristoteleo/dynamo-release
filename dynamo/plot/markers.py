@@ -10,34 +10,36 @@ from .utils import (
 )
 from ..configuration import _themes, set_figure_params, reset_rcParams
 
-def bubble(adata,
-           genes,
-           group,
-           gene_order=None,
-           group_order=None,
-           layer=None,
-           theme=None,
-           cmap=None,
-           color_key=None,
-           color_key_cmap='Spectral',
-           background="white",
-           pointsize=None,
-           vmin=0,
-           vmax=100,
-           sym_c=False,
-           alpha=0.8,
-           edgecolor=None,
-           linewidth=0,
-           type='violin',
-           sort='diagnoal',
-           transpose=False,
-           rotate_xlabel='horizontal',
-           rotate_ylabel='horizontal',
-           figsize=None,
-           save_show_or_return='show',
-           save_kwargs={},
-           **kwargs
-           ):
+
+def bubble(
+    adata,
+    genes,
+    group,
+    gene_order=None,
+    group_order=None,
+    layer=None,
+    theme=None,
+    cmap=None,
+    color_key=None,
+    color_key_cmap="Spectral",
+    background="white",
+    pointsize=None,
+    vmin=0,
+    vmax=100,
+    sym_c=False,
+    alpha=0.8,
+    edgecolor=None,
+    linewidth=0,
+    type="violin",
+    sort="diagnoal",
+    transpose=False,
+    rotate_xlabel="horizontal",
+    rotate_ylabel="horizontal",
+    figsize=None,
+    save_show_or_return="show",
+    save_kwargs={},
+    **kwargs,
+):
     """Bubble plots generalized to velocity, acceleration, curvature.
     It supports either the `dot` or `violin` plot mode. This function is loosely based on
     https://github.com/QuKunLab/COVID-19/blob/master/step3_plot_umap_and_marker_gene_expression.ipynb
@@ -175,21 +177,19 @@ def bubble(adata,
     if layer is None:
         mapper = get_mapper()
 
-        has_splicing, \
-        has_labeling, \
-        splicing_labeling, \
-        has_protein = \
-            adata.uns['pp']['has_splicing'], \
-            adata.uns['pp']['has_labeling'], \
-            adata.uns['pp']['splicing_labeling'], \
-            adata.uns['pp']['has_protein']
+        has_splicing, has_labeling, splicing_labeling, has_protein = (
+            adata.uns["pp"]["has_splicing"],
+            adata.uns["pp"]["has_labeling"],
+            adata.uns["pp"]["splicing_labeling"],
+            adata.uns["pp"]["has_protein"],
+        )
 
         if splicing_labeling:
-            layer = mapper['X_total'] if mapper['X_total'] in adata.layers else 'X_total'
+            layer = mapper["X_total"] if mapper["X_total"] in adata.layers else "X_total"
         elif has_labeling:
-            layer = mapper['X_total'] if mapper['X_total'] in adata.layers else 'X_total'
+            layer = mapper["X_total"] if mapper["X_total"] in adata.layers else "X_total"
         else:
-            layer = mapper['X_spliced'] if mapper['X_spliced'] in adata.layers else 'X_spliced'
+            layer = mapper["X_spliced"] if mapper["X_spliced"] in adata.layers else "X_spliced"
 
     if group not in adata.obs_keys():
         raise ValueError(f"argument group {group} is not a column name in `adata.obs`")
@@ -204,16 +204,19 @@ def bubble(adata,
         clusters = uniq_groups
     else:
         if not set(group_order).issubset(uniq_groups):
-            raise ValueError(f"names from argument group_order {group_order} are not subsets of "
-                             f"`adata.obs[group].unique()`.")
+            raise ValueError(
+                f"names from argument group_order {group_order} are not subsets of " f"`adata.obs[group].unique()`."
+            )
         clusters = group_order
 
     if gene_order is None:
         genes = genes
     else:
         if not set(gene_order).issubset(genes):
-            raise ValueError(f"names from argument gene_order {gene_order} is not a subset of "
-                             f"`adata.var_names.intersection(set(genes)).to_list()`.")
+            raise ValueError(
+                f"names from argument gene_order {gene_order} is not a subset of "
+                f"`adata.var_names.intersection(set(genes)).to_list()`."
+            )
         genes = gene_order
 
     cells_df = adata.obs.get(group)
@@ -221,7 +224,7 @@ def bubble(adata,
     gene_df = gene_df.A if issparse(gene_df) else gene_df
     gene_df = pd.DataFrame(gene_df.T, index=genes, columns=adata.obs_names)
 
-    xmin, xmax = gene_df.quantile(vmin/100, axis=1), gene_df.quantile(vmax/100, axis=1)
+    xmin, xmax = gene_df.quantile(vmin / 100, axis=1), gene_df.quantile(vmax / 100, axis=1)
     if sym_c:
         _vmin, _vmax = np.zeros_like(xmin), np.zeros_like(xmax)
         i = 0
@@ -233,9 +236,7 @@ def bubble(adata,
         xmin, xmax = _vmin, _vmax
 
     point_size = (
-        16000.0 / np.sqrt(adata.shape[0])
-        if pointsize is None
-        else 16000.0 / (len(genes) * len(clusters)) * pointsize
+        16000.0 / np.sqrt(adata.shape[0]) if pointsize is None else 16000.0 / (len(genes) * len(clusters)) * pointsize
     )
 
     if color_key is None:
@@ -256,60 +257,66 @@ def bubble(adata,
     #     alpha=0.8, s=point_size, edgecolor=None, linewidth=0, rasterized=False
     # )  # (0, 0, 0, 1)
 
-    fig, axes = plt.subplots(len(genes) if transpose else 1, 1 if transpose else len(genes),
-                             figsize=figsize, facecolor=background)
+    fig, axes = plt.subplots(
+        len(genes) if transpose else 1, 1 if transpose else len(genes), figsize=figsize, facecolor=background
+    )
     fig.subplots_adjust(hspace=0, wspace=0)
     clusters_vec = cells_df.loc[gene_df.columns.values].values
 
     # may also use clusters when transpose
     for igene, gene in enumerate(genes):
         cur_gene_df = pd.DataFrame({gene: gene_df.loc[gene, :].values, "clusters_": clusters_vec})
-        cur_gene_df = cur_gene_df.loc[cur_gene_df['clusters_'].isin(clusters)]
+        cur_gene_df = cur_gene_df.loc[cur_gene_df["clusters_"].isin(clusters)]
 
-        if type == 'violin':
+        if type == "violin":
             # use sort here
-            sns.violinplot(data=cur_gene_df,
-                           x='clusters_' if transpose else gene,
-                           y=gene if transpose else "clusters_",
-                           orient='v' if transpose else 'h',
-                           order=clusters, # genes if transpose else
-                           linewidth=None,
-                           palette=color_key,
-                           inner='box',
-                           scale='width',
-                           cut=0,
-                           ax=axes[igene],
-                           alpha=alpha,
-                           **kwargs)
+            sns.violinplot(
+                data=cur_gene_df,
+                x="clusters_" if transpose else gene,
+                y=gene if transpose else "clusters_",
+                orient="v" if transpose else "h",
+                order=clusters,  # genes if transpose else
+                linewidth=None,
+                palette=color_key,
+                inner="box",
+                scale="width",
+                cut=0,
+                ax=axes[igene],
+                alpha=alpha,
+                **kwargs,
+            )
             if transpose:
                 axes[igene].set_ylim(xmin[igene], xmax[igene])
                 axes[igene].set_yticks([])
-                axes[igene].set_ylabel(gene, rotation=rotate_ylabel, ha='right', va='center')
+                axes[igene].set_ylabel(gene, rotation=rotate_ylabel, ha="right", va="center")
             else:
                 axes[igene].set_xlim(xmin[igene], xmax[igene])
                 axes[igene].set_xticks([])
-                axes[igene].set_xlabel(gene, rotation=rotate_xlabel, ha='right')
+                axes[igene].set_xlabel(gene, rotation=rotate_xlabel, ha="right")
 
-        elif type == 'dot':
+        elif type == "dot":
             # use sort here
-            avg_perc_cluster = cur_gene_df.groupby('clusters_').expression.apply(
-                lambda x: pd.Series([x.mean(), (x != 0).sum()
-                                     / len(x)])).unstack()
-            avg_perc_cluster.columns = ['avg', 'perc']
+            avg_perc_cluster = (
+                cur_gene_df.groupby("clusters_")
+                .expression.apply(lambda x: pd.Series([x.mean(), (x != 0).sum() / len(x)]))
+                .unstack()
+            )
+            avg_perc_cluster.columns = ["avg", "perc"]
 
-            axes[igene].scatter(x=clusters if transpose else gene,
-                                y=gene if transpose else clusters,
-                                s=avg_perc_cluster.loc[clusters, 'perc'] * point_size,
-                                lw=2,
-                                c=avg_perc_cluster.loc[clusters, 'avg'],
-                                cmap='viridis' if cmap is None else cmap,
-                                rasterized=False,
-                                edgecolor=edgecolor,
-                                linewidth=linewidth,
-                                alpha=alpha,
-                                )
+            axes[igene].scatter(
+                x=clusters if transpose else gene,
+                y=gene if transpose else clusters,
+                s=avg_perc_cluster.loc[clusters, "perc"] * point_size,
+                lw=2,
+                c=avg_perc_cluster.loc[clusters, "avg"],
+                cmap="viridis" if cmap is None else cmap,
+                rasterized=False,
+                edgecolor=edgecolor,
+                linewidth=linewidth,
+                alpha=alpha,
+            )
         if transpose:
-            if igene != len(genes)-1:
+            if igene != len(genes) - 1:
                 axes[igene].set_xticks([])
             else:
                 axes[igene].set_xticklabels(list(map(str, np.array(clusters))), rotation=rotate_xlabel, ha="right")
@@ -317,26 +324,36 @@ def bubble(adata,
             if igene != 0:
                 axes[igene].set_yticks([])
             else:
-                axes[igene].set_yticklabels(list(map(str, np.array(clusters))), rotation=rotate_ylabel,
-                                            ha="right", va='center')
-        axes[igene].set_xlabel('') if transpose else axes[igene].set_ylabel('')
+                axes[igene].set_yticklabels(
+                    list(map(str, np.array(clusters))), rotation=rotate_ylabel, ha="right", va="center"
+                )
+        axes[igene].set_xlabel("") if transpose else axes[igene].set_ylabel("")
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'violin', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "violin",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
-        if background is not None: reset_rcParams()
+        if background is not None:
+            reset_rcParams()
     elif save_show_or_return == "show":
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             plt.tight_layout()
 
         plt.show()
-        if background is not None: reset_rcParams()
+        if background is not None:
+            reset_rcParams()
     elif save_show_or_return == "return":
-        if background is not None: reset_rcParams()
+        if background is not None:
+            reset_rcParams()
 
         return fig, axes
-

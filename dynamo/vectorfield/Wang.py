@@ -42,10 +42,7 @@ def Wang_action(X_input, F, D, dim, N, lamada_=1):
         F_l[i] = F_m.dot(delta[:, i]) / delta_l[i]
 
     P = np.sum((delta_l - np.linalg.norm(X_input[:, N - 1] - X_input[:, 0]) / N) ** 2)
-    S_HJ = (
-        np.sum((np.sqrt((E_eff + V_m[:N]) / D) - 1 / (2 * D) * F_l) * delta_l)
-        + lamada_ * P
-    )
+    S_HJ = np.sum((np.sqrt((E_eff + V_m[:N]) / D) - 1 / (2 * D) * F_l) * delta_l) + lamada_ * P
 
     print(S_HJ)
     return S_HJ
@@ -121,15 +118,13 @@ def Wang_LAP(F, n_points, point_start, point_end, D=0.1, lambda_=1):
     -------
         The least action path and the action way of the inferred path.
     """
-    initpath = point_start.dot(np.ones((1, n_points + 1))) + (
-        point_end - point_start
-    ).dot(np.linspace(0, 1, n_points + 1, endpoint=True).reshape(1, -1))
+    initpath = point_start.dot(np.ones((1, n_points + 1))) + (point_end - point_start).dot(
+        np.linspace(0, 1, n_points + 1, endpoint=True).reshape(1, -1)
+    )
 
     dim, N = initpath.shape
     # update this optimization method
-    res = optimize.basinhopping(
-        Wang_action, x0=initpath, minimizer_kwargs={"args": (F, D, dim, N, lambda_)}
-    )
+    res = optimize.basinhopping(Wang_action, x0=initpath, minimizer_kwargs={"args": (F, D, dim, N, lambda_)})
 
     return res
 

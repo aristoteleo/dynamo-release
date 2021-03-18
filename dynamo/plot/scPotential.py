@@ -1,14 +1,16 @@
 from ..tools.utils import update_dict
 from .utils import save_fig
 
-def show_landscape(adata,
-                   Xgrid,
-                   Ygrid,
-                   Zgrid,
-                   basis="umap",
-                   save_show_or_return='show',
-                   save_kwargs={},
-                   ):
+
+def show_landscape(
+    adata,
+    Xgrid,
+    Ygrid,
+    Zgrid,
+    basis="umap",
+    save_show_or_return="show",
+    save_kwargs={},
+):
     """Plot the quasi-potential landscape.
 
     Parameters
@@ -83,8 +85,15 @@ def show_landscape(adata,
     ax.set_zlabel("U")
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": 'show_landscape', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": "show_landscape",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)

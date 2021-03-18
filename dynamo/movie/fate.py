@@ -6,22 +6,23 @@ from ..plot.topography import topography
 from .utils import remove_particles
 
 
-class StreamFuncAnim():
+class StreamFuncAnim:
     """Animating cell fate commitment prediction via reconstructed vector field function."""
 
-    def __init__(self,
-                 adata,
-                 basis='umap',
-                 dims=None,
-                 n_steps=100,
-                 cell_states=None,
-                 color='ntr',
-                 fig=None,
-                 ax=None,
-                 logspace=False,
-                 max_time=None,
-                 frame_color=None,
-                 ):
+    def __init__(
+        self,
+        adata,
+        basis="umap",
+        dims=None,
+        n_steps=100,
+        cell_states=None,
+        color="ntr",
+        fig=None,
+        ax=None,
+        logspace=False,
+        max_time=None,
+        frame_color=None,
+    ):
         """Animating cell fate commitment prediction via reconstructed vector field function.
 
         This class creates necessary components to produce an animation that describes the exact speed of a set of cells
@@ -117,14 +118,16 @@ class StreamFuncAnim():
         self.adata = adata
         self.basis = basis
 
-        fate_key = 'fate_' + basis
+        fate_key = "fate_" + basis
         if fate_key not in adata.uns_keys():
-            raise Exception(f"You need to first perform fate prediction before animate the prediction, please run"
-                            f"dyn.pd.fate(adata, basis='{basis}' before running this function")
+            raise Exception(
+                f"You need to first perform fate prediction before animate the prediction, please run"
+                f"dyn.pd.fate(adata, basis='{basis}' before running this function"
+            )
 
-        self.init_states = adata.uns[fate_key]['init_states']
+        self.init_states = adata.uns[fate_key]["init_states"]
         # self.prediction = adata.uns['fate_umap']['prediction']
-        self.t = adata.uns[fate_key]['t']
+        self.t = adata.uns[fate_key]["t"]
 
         flat_list = np.unique([item for sublist in self.t for item in sublist])
         flat_list = np.hstack((0, flat_list))
@@ -144,8 +147,10 @@ class StreamFuncAnim():
         # )
         n_states = self.init_states.shape[0]
         if n_states > 50:
-            warnings.warn(f'the number of cell states with fate prediction is more than 50. You may want to '
-                          f'lower the max number of cell states to draw via cell_states argument.')
+            warnings.warn(
+                f"the number of cell states with fate prediction is more than 50. You may want to "
+                f"lower the max number of cell states to draw via cell_states argument."
+            )
         if cell_states is not None:
             if type(cell_states) is int:
                 self.init_states = self.init_states[np.random.choice(range(n_states), min(n_states, cell_states))]
@@ -162,7 +167,7 @@ class StreamFuncAnim():
         self.displace = lambda x, dt: odeint(self.f, x, [0, dt])
 
         # Save bounds of plot
-        X_data = adata.obsm['X_' + basis][:, :2] if dims is None else adata.obsm['X_' + basis][:, dims]
+        X_data = adata.obsm["X_" + basis][:, :2] if dims is None else adata.obsm["X_" + basis][:, dims]
         m, M = np.min(X_data, 0), np.max(X_data, 0)
         m = m - 0.01 * np.abs(M - m)
         M = M + 0.01 * np.abs(M - m)
@@ -176,16 +181,17 @@ class StreamFuncAnim():
         # Animation objects must create `fig` and `ax` attributes.
         if ax is None or fig is None:
             self.fig, self.ax = plt.subplots()
-            self.ax = topography(self.adata, basis=self.basis, color=self.color, ax=self.ax, save_show_or_return='return')
+            self.ax = topography(
+                self.adata, basis=self.basis, color=self.color, ax=self.ax, save_show_or_return="return"
+            )
         else:
             self.fig = fig
             self.ax = ax
 
-        self.ln, = self.ax.plot([], [], 'ro')
-
+        (self.ln,) = self.ax.plot([], [], "ro")
 
     def init_background(self):
-        return self.ln,
+        return (self.ln,)
 
     def update(self, frame):
         """Update locations of "particles" in flow on each frame frame."""
@@ -199,12 +205,9 @@ class StreamFuncAnim():
 
             self.ax.lines = []
             (self.ln,) = self.ax.plot(x, y, "ro", zorder=20)
-            return self.ln,  # return line so that blit works properly
+            return (self.ln,)  # return line so that blit works properly
         else:
-            pts = [
-                self.displace(cur_pts, time_vec[frame])[1].tolist()
-                for cur_pts in pts
-            ]
+            pts = [self.displace(cur_pts, time_vec[frame])[1].tolist() for cur_pts in pts]
             pts = np.asarray(pts)
 
         pts = np.asarray(pts)
@@ -222,25 +225,27 @@ class StreamFuncAnim():
 
         # anim.event_source.interval = (time_vec[frame] - time_vec[frame - 1]) / 100
 
-        return self.ln,  # return line so that blit works properly
+        return (self.ln,)  # return line so that blit works properly
 
 
-def animate_fates(adata,
-                  basis='umap',
-                  dims=None,
-                  n_steps=100,
-                  cell_states=None,
-                  color='ntr',
-                  fig=None,
-                  ax=None,
-                  logspace=False,
-                  max_time=None,
-                  frame_color=None,
-                  interval=100,
-                  blit=True,
-                  save_show_or_return='show',
-                  save_kwargs={},
-                  **kwargs):
+def animate_fates(
+    adata,
+    basis="umap",
+    dims=None,
+    n_steps=100,
+    cell_states=None,
+    color="ntr",
+    fig=None,
+    ax=None,
+    logspace=False,
+    max_time=None,
+    frame_color=None,
+    interval=100,
+    blit=True,
+    save_show_or_return="show",
+    save_kwargs={},
+    **kwargs,
+):
     """Animating cell fate commitment prediction via reconstructed vector field function.
 
     This class creates necessary components to produce an animation that describes the exact speed of a set of cells
@@ -313,27 +318,36 @@ def animate_fates(adata,
 
     from matplotlib import animation
 
-    instance = StreamFuncAnim(adata=adata,
-                              basis=basis,
-                              dims=dims,
-                              n_steps=n_steps,
-                              cell_states=cell_states,
-                              color=color,
-                              fig=fig,
-                              ax=ax,
-                              logspace=logspace,
-                              max_time=max_time,
-                              frame_color=frame_color,
-                              )
+    instance = StreamFuncAnim(
+        adata=adata,
+        basis=basis,
+        dims=dims,
+        n_steps=n_steps,
+        cell_states=cell_states,
+        color=color,
+        fig=fig,
+        ax=ax,
+        logspace=logspace,
+        max_time=max_time,
+        frame_color=frame_color,
+    )
 
-    anim = animation.FuncAnimation(instance.fig, instance.update, init_func=instance.init_background,
-                                   frames=np.arange(n_steps), interval=interval, blit=blit, **kwargs)
-    if save_show_or_return == 'save':
-        save_kwargs_ = {"filename": 'fate_ani.gif', "writer": "imagemagick"}
+    anim = animation.FuncAnimation(
+        instance.fig,
+        instance.update,
+        init_func=instance.init_background,
+        frames=np.arange(n_steps),
+        interval=interval,
+        blit=blit,
+        **kwargs,
+    )
+    if save_show_or_return == "save":
+        save_kwargs_ = {"filename": "fate_ani.gif", "writer": "imagemagick"}
         save_kwargs_.update(save_kwargs)
         anim.save(**save_kwargs_)  # save as gif file.
-    elif save_show_or_return == 'show':
+    elif save_show_or_return == "show":
         from IPython.core.display import HTML
+
         HTML(anim.to_jshtml())  # embedding to jupyter notebook.
     else:
         anim

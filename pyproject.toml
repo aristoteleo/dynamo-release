@@ -44,3 +44,20 @@ classifiers = [
 	'Programming Language :: Python :: 3.7',
 	'Programming Language :: Python :: 3.8'
 ]
+
+[tool.black]
+line-length = 120
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''

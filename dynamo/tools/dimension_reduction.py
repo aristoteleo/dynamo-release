@@ -8,7 +8,7 @@ def reduceDimension(
     X_data=None,
     genes=None,
     layer=None,
-    basis='pca',
+    basis="pca",
     dims=None,
     n_pca_components=30,
     n_components=2,
@@ -16,9 +16,8 @@ def reduceDimension(
     reduction_method="umap",
     enforce=False,
     cores=1,
-    **kwargs
+    **kwargs,
 ):
-
     """Compute a low dimension reduction projection of an annodata object first with PCA, followed by non-linear
     dimension reduction methods
 
@@ -58,28 +57,40 @@ def reduceDimension(
     """
 
     if X_data is None:
-        X_data, n_components, has_basis, _ = prepare_dim_reduction(adata,
-                              genes=genes,
-                              layer=layer,
-                              basis=reduction_method,
-                              dims=dims,
-                              n_pca_components=n_pca_components,
-                              n_components=n_components, )
+        X_data, n_components, has_basis, _ = prepare_dim_reduction(
+            adata,
+            genes=genes,
+            layer=layer,
+            basis=reduction_method,
+            dims=dims,
+            n_pca_components=n_pca_components,
+            n_components=n_components,
+        )
     else:
         has_basis = False
 
     if has_basis and not enforce:
-        warnings.warn(f"adata already have basis {reduction_method}. dimension reduction {reduction_method} will be skipped! \n"
-                      f"set enforce=True to re-performing dimension reduction.")
+        warnings.warn(
+            f"adata already have basis {reduction_method}. dimension reduction {reduction_method} will be skipped! \n"
+            f"set enforce=True to re-performing dimension reduction."
+        )
 
-    embedding_key = (
-        "X_" + reduction_method if layer is None else layer + "_" + reduction_method
-    )
+    embedding_key = "X_" + reduction_method if layer is None else layer + "_" + reduction_method
     neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
 
     if enforce or not has_basis:
-       adata = run_reduce_dim(adata, X_data, n_components, n_pca_components, reduction_method, embedding_key,
-                              n_neighbors, neighbor_key, cores, kwargs)
+        adata = run_reduce_dim(
+            adata,
+            X_data,
+            n_components,
+            n_pca_components,
+            reduction_method,
+            embedding_key,
+            n_neighbors,
+            neighbor_key,
+            cores,
+            kwargs,
+        )
     if neighbor_key not in adata.uns_keys():
         neighbors(adata)
 

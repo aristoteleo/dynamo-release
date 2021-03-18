@@ -2,34 +2,36 @@ from scipy.sparse import issparse
 import warnings
 from ..preprocessing.utils import pca
 from .utils import update_dict, log1p_
-from .connectivity import (
-    umap_conn_indices_dist_embedding, knn_to_adj
-)
+from .connectivity import umap_conn_indices_dist_embedding, knn_to_adj
 from .psl_py import *
 
+
 # ---------------------------------------------------------------------------------------------------
-def prepare_dim_reduction(adata,
-                          genes=None,
-                          layer=None,
-                          basis='pca',
-                          dims=None,
-                          n_pca_components=30,
-                          n_components=2,):
+def prepare_dim_reduction(
+    adata,
+    genes=None,
+    layer=None,
+    basis="pca",
+    dims=None,
+    n_pca_components=30,
+    n_components=2,
+):
     if genes is not None:
         genes = adata.var_name.intersection(genes).to_list()
         if len(genes) == 0:
-            raise ValueError(f'no genes from your genes list appear in your adata object.')
+            raise ValueError(f"no genes from your genes list appear in your adata object.")
     if layer is not None:
         if layer not in adata.layers.keys():
-            raise ValueError(f'the layer {layer} you provided is not included in the adata object!')
+            raise ValueError(f"the layer {layer} you provided is not included in the adata object!")
 
-    prefix = 'X_' if layer is None else layer + '_'
+    prefix = "X_" if layer is None else layer + "_"
     has_basis = False
 
     if basis is not None:
-        if basis.split(prefix)[-1] not in ['pca', 'umap', 'trimap', 'tsne', 'diffmap']:
-            raise ValueError(f"basis (or the suffix of basis) can only be one of "
-                             f"['pca', 'umap', 'trimap', 'tsne', 'diffmap'].")
+        if basis.split(prefix)[-1] not in ["pca", "umap", "trimap", "tsne", "diffmap"]:
+            raise ValueError(
+                f"basis (or the suffix of basis) can only be one of " f"['pca', 'umap', 'trimap', 'tsne', 'diffmap']."
+            )
         if basis.startswith(prefix):
             basis = basis
         else:
@@ -40,14 +42,18 @@ def prepare_dim_reduction(adata,
             if genes is not None:
                 X_data = adata[:, genes].X
             else:
-                X_data = adata.X if 'use_for_dynamics' not in adata.var.keys() \
-                    else adata[:, adata.var.use_for_dynamics].X
+                X_data = (
+                    adata.X if "use_for_dynamics" not in adata.var.keys() else adata[:, adata.var.use_for_dynamics].X
+                )
         else:
             if genes is not None:
                 X_data = adata[:, genes].layers[layer]
             else:
-                X_data = adata.layers[layer] if 'use_for_dynamics' not in adata.var.keys() \
-                        else adata[:, adata.var.use_for_dynamics].layers[layer]
+                X_data = (
+                    adata.layers[layer]
+                    if "use_for_dynamics" not in adata.var.keys()
+                    else adata[:, adata.var.use_for_dynamics].layers[layer]
+                )
 
             X_data = log1p_(adata, X_data)
     else:
@@ -55,20 +61,25 @@ def prepare_dim_reduction(adata,
         n_pca_components = max(max(dims), n_pca_components) if dims is not None else n_pca_components
 
         if basis not in adata.obsm.keys():
-            if genes is not None or pca_key not in adata.obsm.keys() or \
-                    adata.obsm[pca_key].shape[1] < n_pca_components:
+            if genes is not None or pca_key not in adata.obsm.keys() or adata.obsm[pca_key].shape[1] < n_pca_components:
                 if layer is None:
                     if genes is not None:
                         CM = adata[:, genes].X
                     else:
-                        CM = adata.X if 'use_for_dynamics' not in adata.var.keys() \
+                        CM = (
+                            adata.X
+                            if "use_for_dynamics" not in adata.var.keys()
                             else adata[:, adata.var.use_for_dynamics].X
+                        )
                 else:
                     if genes is not None:
                         CM = adata[:, genes].layers[layer]
                     else:
-                        CM = adata.layers[layer] if 'use_for_dynamics' not in adata.var.keys() \
+                        CM = (
+                            adata.layers[layer]
+                            if "use_for_dynamics" not in adata.var.keys()
                             else adata[:, adata.var.use_for_dynamics].layers[layer]
+                        )
 
                     CM = log1p_(adata, CM)
 
@@ -87,8 +98,11 @@ def prepare_dim_reduction(adata,
             if genes is not None:
                 CM = adata[:, genes].layers[layer]
             else:
-                CM = adata.layers[layer] if 'use_for_dynamics' not in adata.var.keys() \
+                CM = (
+                    adata.layers[layer]
+                    if "use_for_dynamics" not in adata.var.keys()
                     else adata[:, adata.var.use_for_dynamics].layers[layer]
+                )
 
             CM = log1p_(adata, CM)
 
@@ -101,12 +115,24 @@ def prepare_dim_reduction(adata,
 
             X_data = adata.obsm[pca_key]
 
-    if dims is not None: X_data = X_data[:, dims]
+    if dims is not None:
+        X_data = X_data[:, dims]
 
     return X_data, n_components, has_basis, basis
 
-def run_reduce_dim(adata, X_data, n_components, n_pca_components, reduction_method, embedding_key, n_neighbors,
-                   neighbor_key, cores, kwargs):
+
+def run_reduce_dim(
+    adata,
+    X_data,
+    n_components,
+    n_pca_components,
+    reduction_method,
+    embedding_key,
+    n_neighbors,
+    neighbor_key,
+    cores,
+    kwargs,
+):
     if reduction_method == "trimap":
         import trimap
 
@@ -172,13 +198,7 @@ def run_reduce_dim(adata, X_data, n_components, n_pca_components, reduction_meth
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            (
-                mapper,
-                graph,
-                knn_indices,
-                knn_dists,
-                X_dim,
-            ) = umap_conn_indices_dist_embedding(
+            (mapper, graph, knn_indices, knn_dists, X_dim,) = umap_conn_indices_dist_embedding(
                 X_data, n_neighbors, **umap_kwargs
             )  # X
 
@@ -190,8 +210,8 @@ def run_reduce_dim(adata, X_data, n_components, n_pca_components, reduction_meth
             # "distances": "distances",
             "indices": knn_indices,
         }
-        
-        layer = neighbor_key.split('_')[0] if neighbor_key.__contains__('_') else None 
+
+        layer = neighbor_key.split("_")[0] if neighbor_key.__contains__("_") else None
         conn_key = "connectivities" if layer is None else layer + "_connectivities"
         dist_key = "distances" if layer is None else layer + "_distances"
 
@@ -199,15 +219,11 @@ def run_reduce_dim(adata, X_data, n_components, n_pca_components, reduction_meth
 
         adata.uns["umap_fit"] = {"fit": mapper, "n_pca_components": n_pca_components}
     elif reduction_method == "psl":
-        adj_mat, X_dim = psl(
-            X_data, d=n_components, K=n_neighbors
-        )  # this need to be updated
+        adj_mat, X_dim = psl(X_data, d=n_components, K=n_neighbors)  # this need to be updated
         adata.obsm[embedding_key] = X_dim
         adata.uns[neighbor_key] = adj_mat
 
     else:
-        raise Exception(
-            "reduction_method {} is not supported.".format(reduction_method)
-        )
+        raise Exception("reduction_method {} is not supported.".format(reduction_method))
 
     return adata

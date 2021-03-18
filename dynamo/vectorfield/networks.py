@@ -1,12 +1,10 @@
 import numpy as np, pandas as pd
 from .vector_calculus import rank_jacobian_genes
 
-def get_interaction_in_cluster(rank_df_dict,
-                               group,
-                               genes,
-                               n_top_genes=100,
-                               rank_regulators=False,
-                               negative_values=False):
+
+def get_interaction_in_cluster(
+    rank_df_dict, group, genes, n_top_genes=100, rank_regulators=False, negative_values=False
+):
     """Retrieve interactions among input genes given the ranking dataframe.
 
     Parameters
@@ -37,7 +35,7 @@ def get_interaction_in_cluster(rank_df_dict,
 
     if len(valid_genes) > 0:
         top_n_genes_df = subset_rank_df.loc[:, valid_genes]
-        valid_genes_values = [i + '_values' for i in valid_genes]
+        valid_genes_values = [i + "_values" for i in valid_genes]
         top_n_genes_values_df = subset_rank_df.loc[:, valid_genes_values]
 
         for cur_gene in valid_genes:
@@ -47,30 +45,25 @@ def get_interaction_in_cluster(rank_df_dict,
             if t_n > 0:
                 targets_inds = [list(top_n_genes_df[cur_gene].values).index(i) for i in targets]
 
-                targets_values = top_n_genes_values_df.loc[:, cur_gene + '_values'].iloc[targets_inds].values
+                targets_values = top_n_genes_values_df.loc[:, cur_gene + "_values"].iloc[targets_inds].values
 
                 if rank_regulators:
-                    tmp = pd.DataFrame({'regulator': targets,
-                                        "target": np.repeat(cur_gene, t_n),
-                                        "weight": targets_values})
+                    tmp = pd.DataFrame(
+                        {"regulator": targets, "target": np.repeat(cur_gene, t_n), "weight": targets_values}
+                    )
                 else:
-                    tmp = pd.DataFrame({'regulator': np.repeat(cur_gene, t_n),
-                                        "target": targets,
-                                        "weight": targets_values})
+                    tmp = pd.DataFrame(
+                        {"regulator": np.repeat(cur_gene, t_n), "target": targets, "weight": targets_values}
+                    )
 
                 edges = tmp if edges is None else pd.concat((edges, tmp), axis=0)
 
     return edges
 
 
-def build_network_per_cluster(adata,
-                              cluster,
-                              cluster_names=None,
-                              full_reg_rank=None,
-                              full_eff_rank=None,
-                              genes=None,
-                              n_top_genes=100,
-                              abs=False):
+def build_network_per_cluster(
+    adata, cluster, cluster_names=None, full_reg_rank=None, full_eff_rank=None, genes=None, n_top_genes=100, abs=False
+):
     """Build a cluster specific network between input genes based on ranking information of Jacobian analysis.
 
     Parameters
@@ -103,9 +96,9 @@ def build_network_per_cluster(adata,
 
     genes = np.unique(genes)
     if full_reg_rank is None:
-        full_reg_rank = rank_jacobian_genes(adata, groups=cluster, mode='full reg', abs=abs, output_values=True)
+        full_reg_rank = rank_jacobian_genes(adata, groups=cluster, mode="full reg", abs=abs, output_values=True)
     if full_eff_rank is None:
-        full_eff_rank = rank_jacobian_genes(adata, groups=cluster, mode='full eff', abs=abs, output_values=True)
+        full_eff_rank = rank_jacobian_genes(adata, groups=cluster, mode="full eff", abs=abs, output_values=True)
 
     edges_list = {}
 
@@ -116,24 +109,38 @@ def build_network_per_cluster(adata,
     if cluster_names is not None:
         reg_groups = list(set(reg_groups).intersection(cluster_names))
         if len(reg_groups) == 0:
-            raise ValueError(f"the clusters argument {cluster_names} provided doesn't match up with any clusters from the "
-                             f"adata.")
+            raise ValueError(
+                f"the clusters argument {cluster_names} provided doesn't match up with any clusters from the " f"adata."
+            )
 
     for c in reg_groups:
         if genes is None:
-            reg_valid_genes, eff_valid_genes = full_reg_rank[c].columns.values, \
-                                               full_eff_rank[c].columns.values
+            reg_valid_genes, eff_valid_genes = full_reg_rank[c].columns.values, full_eff_rank[c].columns.values
             reg_valid_genes = reg_valid_genes[np.arange(0, len(reg_valid_genes), 2)].tolist()
             eff_valid_genes = eff_valid_genes[np.arange(0, len(eff_valid_genes), 2)].tolist()
         else:
-            reg_valid_genes, eff_valid_genes = full_reg_rank[c].columns.intersection(genes), \
-                                               full_eff_rank[c].columns.intersection(genes)
+            reg_valid_genes, eff_valid_genes = (
+                full_reg_rank[c].columns.intersection(genes),
+                full_eff_rank[c].columns.intersection(genes),
+            )
         if len(reg_valid_genes) > 0:
-            reg_df = get_interaction_in_cluster(full_reg_rank, c, reg_valid_genes, n_top_genes=n_top_genes,
-                                                rank_regulators=True, negative_values=not abs)
+            reg_df = get_interaction_in_cluster(
+                full_reg_rank,
+                c,
+                reg_valid_genes,
+                n_top_genes=n_top_genes,
+                rank_regulators=True,
+                negative_values=not abs,
+            )
         if len(eff_valid_genes) > 0:
-            eff_df = get_interaction_in_cluster(full_eff_rank, c, eff_valid_genes, n_top_genes=n_top_genes,
-                                                rank_regulators=False, negative_values=not abs)
+            eff_df = get_interaction_in_cluster(
+                full_eff_rank,
+                c,
+                eff_valid_genes,
+                n_top_genes=n_top_genes,
+                rank_regulators=False,
+                negative_values=not abs,
+            )
 
         if len(reg_valid_genes) > 0 and len(eff_valid_genes) == 0:
             edges_list[c] = reg_df
@@ -180,8 +187,9 @@ def adj_list_to_matrix(adj_list, only_one_edge=False, clr=False, graph=False):
         try:
             import networkx as nx
         except ImportError:
-            raise ImportError(f"You need to install the package `networkx`."
-                              f"install networkx via `pip install networkx`.")
+            raise ImportError(
+                f"You need to install the package `networkx`." f"install networkx via `pip install networkx`."
+            )
 
         network = nx.from_pandas_adjacency(adj_matrix, create_using=nx.DiGraph())
         return network
@@ -193,15 +201,16 @@ def clr_directed(adj_mat):
     """clr on directed graph"""
     col_means = adj_mat.mean(axis=0)
     col_sd = adj_mat.std(axis=0)
-    col_sd[col_sd == 0] = - 1e-4
+    col_sd[col_sd == 0] = -1e-4
 
     updated_adj_mat = adj_mat.copy()
     for i, row_i in adj_mat.iterrows():
         row_mean, row_sd = np.mean(row_i), np.std(row_i)
-        if row_sd == 0: row_sd = - 1e-4
+        if row_sd == 0:
+            row_sd = -1e-4
 
         s_i_vec = np.maximum(0, (row_i - row_mean) / row_sd)
         s_j_vec = np.maximum(0, (row_i - col_means) / col_sd)
-        updated_adj_mat.loc[i, :] = np.sqrt(s_i_vec**2 + s_j_vec**2)
+        updated_adj_mat.loc[i, :] = np.sqrt(s_i_vec ** 2 + s_j_vec ** 2)
 
     return updated_adj_mat

@@ -9,7 +9,6 @@ from scipy.sparse import csr_matrix
 
 
 def cal_ncenter(ncells, ncells_limit=100):
-
     res = np.round(
         2 * ncells_limit * np.log(ncells) / (np.log(ncells) + np.log(ncells_limit))
     )
@@ -99,7 +98,7 @@ def eye(m, n):
 
 
 def DDRTree(
-    X, maxIter, sigma, gamma, eps=0, dim=2, Lambda=1.0, ncenter=None, keep_history=False
+        X, maxIter, sigma, gamma, eps=0, dim=2, Lambda=1.0, ncenter=None, keep_history=False
 ):
     """	This function is a pure Python implementation of the DDRTree algorithm.
 

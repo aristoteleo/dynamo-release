@@ -98,7 +98,7 @@ def diag_mat(values):
 
 
 def psl(
-    Y, sG=None, dist=None, K=10, C=1e3, param_gamma=1e-3, d=2, maxIter=10, verbose=False
+        Y, sG=None, dist=None, K=10, C=1e3, param_gamma=1e-3, d=2, maxIter=10, verbose=False
 ):
     """This function is a pure Python implementation of the PSL algorithm.
 
@@ -149,9 +149,9 @@ def psl(
             location = 0
 
             for i in range(N):
-                rows[location : location + K] = i
-                cols[location : location + K] = indices[i]
-                dists[location : location + K] = distances[i]
+                rows[location: location + K] = i
+                cols[location: location + K] = indices[i]
+                dists[location: location + K] = distances[i]
                 location = location + K
             sG = csr_matrix((np.array(dists) ** 2, (rows, cols)), shape=(N, N))
             sG = scipy.sparse.csc_matrix.maximum(sG, sG.T)  # symmetrize the matrix
@@ -160,7 +160,7 @@ def psl(
             sidx = np.argsort(dist)
             # flatten first rows and then cols
             i = repmat(sidx[:, 0][:, None], K, 1).flatten()  # .reshape(1, -1)[0]
-            j = sidx[:, 1 : K + 1].T.flatten()  # .reshape(1, -1)[0]
+            j = sidx[:, 1: K + 1].T.flatten()  # .reshape(1, -1)[0]
             sG = csr_matrix(
                 (np.repeat(1, N * K), (i, j)), shape=(N, N)
             )  # [1 for k in range(N * K)]
@@ -190,11 +190,11 @@ def psl(
         S = csr_matrix((s, (rows, cols)), shape=(N, N))  # .toarray()
         S = S + S.T
         Q = (
-            scipy.sparse.diags(
-                functools.reduce(operator.concat, S.sum(axis=1)[:, 0].tolist())
-            )
-            - S
-            + 0.25 * (param_gamma + 1) * scipy.sparse.eye(N, N)
+                scipy.sparse.diags(
+                    functools.reduce(operator.concat, S.sum(axis=1)[:, 0].tolist())
+                )
+                - S
+                + 0.25 * (param_gamma + 1) * scipy.sparse.eye(N, N)
         )  ##################
         R = scipy.linalg.cholesky(
             Q.toarray()
@@ -217,12 +217,12 @@ def psl(
         logdet_Q = 2 * sum(np.log(np.diag(np.linalg.cholesky(Q.toarray()).T)))
         # log(det(Q))
         obj = (
-            0.5 * D * logdet_Q
-            - scipy.sparse.csr_matrix.sum(scipy.sparse.csr_matrix.multiply(S, dist))
-            + 0.25
-            / C
-            * scipy.sparse.csr_matrix.sum(scipy.sparse.csr_matrix.multiply(S, S))
-            - 0.125 * param_gamma ** 2 * sum(np.diag(np.dot(W.T, np.dot(Y.T, invQYW))))
+                0.5 * D * logdet_Q
+                - scipy.sparse.csr_matrix.sum(scipy.sparse.csr_matrix.multiply(S, dist))
+                + 0.25
+                / C
+                * scipy.sparse.csr_matrix.sum(scipy.sparse.csr_matrix.multiply(S, S))
+                - 0.125 * param_gamma ** 2 * sum(np.diag(np.dot(W.T, np.dot(Y.T, invQYW))))
         )  # trace: #sum(diag(m))
         objs[iter] = obj
 
@@ -236,12 +236,12 @@ def psl(
 
         for i in range(len(rows)):
             subgrad[i] = (
-                P[rows[i], rows[i]]
-                + P[cols[i], cols[i]]
-                - P[rows[i], cols[i]]
-                - P[cols[i], rows[i]]
-                - 1 / C * S[rows[i], cols[i]]
-                - 2 * dist[rows[i], cols[i]]
+                    P[rows[i], rows[i]]
+                    + P[cols[i], cols[i]]
+                    - P[rows[i], cols[i]]
+                    - P[cols[i], rows[i]]
+                    - 1 / C * S[rows[i], cols[i]]
+                    - 2 * dist[rows[i], cols[i]]
             )
 
         s = s + 1 / (iter + 1) * subgrad

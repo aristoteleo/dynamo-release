@@ -8,6 +8,7 @@ from scipy.linalg import eig, null_space
 from numba import jit
 from .utils import append_iterative_neighbor_indices
 
+
 def markov_combination(x, v, X):
     from cvxopt import matrix, solvers
 
@@ -162,13 +163,13 @@ def makeTransitionMatrix(Qnn, I, tol=0.0):
 @jit(nopython=True)
 def compute_tau(X, V, k=100, nbr_idx=None):
     if nbr_idx is None:
-        if X.shape[0] > 200000 and X.shape[1] > 2: 
+        if X.shape[0] > 200000 and X.shape[1] > 2:
             from pynndescent import NNDescent
 
-            nbrs = NNDescent(X, metric='euclidean', n_neighbors=k, n_jobs=-1, random_state=19491001)
+            nbrs = NNDescent(X, metric="euclidean", n_neighbors=k, n_jobs=-1, random_state=19491001)
             _, dist = nbrs.query(X, k=k)
         else:
-            alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+            alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
             nbrs = NearestNeighbors(n_neighbors=k, algorithm=alg, n_jobs=-1).fit(X)
             dists, _ = nbrs.kneighbors(X)
 
@@ -185,12 +186,13 @@ def compute_tau(X, V, k=100, nbr_idx=None):
     return tau, v
 
 
-def prepare_velocity_grid_data(X_emb,
-           xy_grid_nums,
-           density=None,
-           smooth=None,
-           n_neighbors=None,):
-
+def prepare_velocity_grid_data(
+    X_emb,
+    xy_grid_nums,
+    density=None,
+    smooth=None,
+    n_neighbors=None,
+):
     n_obs, n_dim = X_emb.shape
     density = 1 if density is None else density
     smooth = 0.5 if smooth is None else smooth
@@ -213,14 +215,13 @@ def prepare_velocity_grid_data(X_emb,
     if n_neighbors is None:
         n_neighbors = np.max([10, int(n_obs / 50)])
 
-    if X_emb.shape[0] > 200000 and X_emb.shape[1] > 2: 
+    if X_emb.shape[0] > 200000 and X_emb.shape[1] > 2:
         from pynndescent import NNDescent
 
-        nn = NNDescent(X_emb, metric='euclidean', n_neighbors=n_neighbors, n_jobs=-1,
-                          random_state=19491001)
+        nn = NNDescent(X_emb, metric="euclidean", n_neighbors=n_neighbors, n_jobs=-1, random_state=19491001)
         neighs, dists = nn.query(X_grid, k=n_neighbors)
-    else: 
-        alg = "ball_tree" if X_emb.shape[1] > 10 else 'kd_tree'
+    else:
+        alg = "ball_tree" if X_emb.shape[1] > 10 else "kd_tree"
         nn = NearestNeighbors(n_neighbors=n_neighbors, n_jobs=-1, algorithm=alg)
         nn.fit(X_emb)
         dists, neighs = nn.kneighbors(X_grid)
@@ -257,9 +258,7 @@ def grid_velocity_filter(
             cutoff = mass.reshape(V_grid[0].shape) < min_mass
 
             if neighs is not None:
-                length = np.sum(
-                    np.mean(np.abs(V_emb[neighs]), axis=1), axis=1
-                ).T.reshape(ns, ns)
+                length = np.sum(np.mean(np.abs(V_emb[neighs]), axis=1), axis=1).T.reshape(ns, ns)
                 cutoff |= length < np.percentile(length, 5)
 
             V_grid[0][cutoff] = np.nan
@@ -294,23 +293,22 @@ def velocity_on_grid(
     V_threshold=None,
     cut_off_velocity=True,
 ):
-    """Function to calculate the velocity vectors on a grid for grid vector field  quiver plot and streamplot, adapted from scVelo
-    """
+    """Function to calculate the velocity vectors on a grid for grid vector field  quiver plot and streamplot, adapted from scVelo"""
     from ..vectorfield.stochastic_process import diffusionMatrix2D
 
     valid_idx = np.isfinite(X_emb.sum(1) + V_emb.sum(1))
     X_emb, V_emb = X_emb[valid_idx], V_emb[valid_idx]
 
-    X_grid, p_mass, neighs, weight = prepare_velocity_grid_data(X_emb,
-                                    xy_grid_nums,
-                                    density=density,
-                                    smooth=smooth,
-                                    n_neighbors=n_neighbors,)
+    X_grid, p_mass, neighs, weight = prepare_velocity_grid_data(
+        X_emb,
+        xy_grid_nums,
+        density=density,
+        smooth=smooth,
+        n_neighbors=n_neighbors,
+    )
 
     # V_grid = (V_emb[neighs] * (weight / p_mass[:, None])[:, :, None]).sum(1) # / np.maximum(1, p_mass)[:, None]
-    V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[
-        :, None
-    ]
+    V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[:, None]
     # calculate diffusion matrix D
     D = diffusionMatrix2D(V_emb[neighs])
 
@@ -383,21 +381,18 @@ class KernelMarkovChain(MarkovChain):
     ):
         # compute connectivity
         if neighbor_idx is None:
-            if X.shape[0] > 200000 and X.shape[1] > 2: 
+            if X.shape[0] > 200000 and X.shape[1] > 2:
                 from pynndescent import NNDescent
 
-                nbrs = NNDescent(X, metric='euclidean', n_neighbors=k, n_jobs=-1,
-                                  random_state=19491001)
+                nbrs = NNDescent(X, metric="euclidean", n_neighbors=k, n_jobs=-1, random_state=19491001)
                 neighbor_idx, _ = nbrs.query(X, k=k)
             else:
-                alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+                alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
                 nbrs = NearestNeighbors(n_neighbors=k, algorithm=alg, n_jobs=-1).fit(X)
                 _, neighbor_idx = nbrs.kneighbors(X)
 
         if n_recurse_neighbors is not None:
-            self.Idx = append_iterative_neighbor_indices(
-                neighbor_idx, n_recurse_neighbors
-            )
+            self.Idx = append_iterative_neighbor_indices(neighbor_idx, n_recurse_neighbors)
         else:
             self.Idx = neighbor_idx
 
@@ -435,9 +430,7 @@ class KernelMarkovChain(MarkovChain):
                 self.Kd = np.zeros((n, n))
             inv_eps = 1 / epsilon
             for i in range(n):
-                self.Kd[i, self.Idx[i]] = compute_density_kernel(
-                    X[i], X[self.Idx[i]], inv_eps
-                )
+                self.Kd[i, self.Idx[i]] = compute_density_kernel(X[i], X[self.Idx[i]], inv_eps)
             self.Kd = sp.csc_matrix(self.Kd)
             D = np.sum(self.Kd, 0)
 
@@ -526,6 +519,49 @@ class KernelMarkovChain(MarkovChain):
         Y = np.real(vals[1 : n_dims + 1] ** t) * np.real(vecs[:, 1 : n_dims + 1])
         return Y
 
+    def compute_theta(self, p_st=None):
+        p_st = self.compute_stationary_distribution() if p_st is None else p_st
+        Pi = sp.csr_matrix(np.diag(np.sqrt(p_st)))
+        Pi_right = sp.csc_matrix(np.diag(np.sqrt(p_st)))
+        # Pi_inv = sp.csr_matrix(np.linalg.pinv(Pi))
+        # Pi_inv_right = sp.csc_matrix(np.linalg.pinv(Pi))
+        Pi_inv = sp.csr_matrix(np.diag(np.sqrt(1 / p_st)))
+        Pi_inv_right = sp.csc_matrix(np.diag(np.sqrt(1 / p_st)))
+        Theta = 0.5 * (Pi @ self.P @ Pi_inv_right + Pi_inv @ self.P.T @ Pi_right)
+
+        return Theta
+
+    def lump(self, labels, M_weight=None):
+        k = len(labels)
+        M_part = np.zeros((k, self.get_num_states()))
+
+        P = self.compute_stationary_distribution()
+
+        Theta = self.compute_theta(P)
+        if sp.issparse(Theta):
+            Theta = Theta.A
+        _, vecs = sp.linalg.eigsh(Theta, k=k)
+
+        for i in range(len(labels)):
+            M_part[labels[i], i] = 1
+
+        n_node = self.get_num_states()
+        if M_weight is None:
+            p_st = self.compute_stationary_distribution()
+            M_weight = np.multiply(M_part, p_st)
+            M_weight = np.divide(M_weight.T, M_weight @ np.ones(n_node))
+        P_lumped = M_part @ self.P @ M_weight
+
+        return P_lumped
+
+    def navie_lump(self, x, grp, axis=0):
+        k = len(np.unique(grp))
+        y = np.zeros(k)
+        for i in range(len(y)):
+            y[i] = np.mean(x[grp == i], axis)
+
+        return y
+
 
 class DiscreteTimeMarkovChain(MarkovChain):
     def __init__(self, P=None):
@@ -536,13 +572,13 @@ class DiscreteTimeMarkovChain(MarkovChain):
         # the parameter k will be replaced by a connectivity matrix in the future.
         self.__reset__()
         # knn clustering
-        if X.shape[0] > 200000 and X.shape[1] > 2: 
+        if X.shape[0] > 200000 and X.shape[1] > 2:
             from pynndescent import NNDescent
 
-            nbrs = NNDescent(X, metric='euclidean', n_neighbors=k, n_jobs=-1, random_state=19491001)
+            nbrs = NNDescent(X, metric="euclidean", n_neighbors=k, n_jobs=-1, random_state=19491001)
             Idx, _ = nbrs.query(X, k=k)
         else:
-            alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+            alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
             nbrs = NearestNeighbors(n_neighbors=k, algorithm=alg, n_jobs=-1).fit(X)
             _, Idx = nbrs.kneighbors(X)
         # compute transition prob.
@@ -555,9 +591,7 @@ class DiscreteTimeMarkovChain(MarkovChain):
                 self.Kd = np.zeros((n, n))
                 inv_eps = 1 / eps
                 for i in range(n):
-                    self.Kd[i, Idx[i]] = compute_density_kernel(
-                        X[i], X[Idx[i]], inv_eps
-                    )
+                    self.Kd[i, Idx[i]] = compute_density_kernel(X[i], X[Idx[i]], inv_eps)
                 D = np.sum(self.Kd, 0)
         for i in range(n):
             y = X[i]
@@ -599,9 +633,7 @@ class DiscreteTimeMarkovChain(MarkovChain):
             k = n
         V = np.zeros_like(X)
         for i in range(n):
-            d = (
-                X - X[i]
-            )  ###############################no self.nbrs_idx[i] is here.... may be wrong?
+            d = X - X[i]  ###############################no self.nbrs_idx[i] is here.... may be wrong?
             if normalize_vector:
                 d /= np.linalg.norm(d)
             V[i] = d.T.dot(self.P[:, i] - 1 / k)
@@ -645,14 +677,13 @@ class ContinuousTimeMarkovChain(MarkovChain):
         self.__reset__()
         # knn clustering
         if self.nbrs_idx is None:
-            if X.shape[0] > 200000 and X.shape[1] > 2: 
+            if X.shape[0] > 200000 and X.shape[1] > 2:
                 from pynndescent import NNDescent
 
-                nbrs = NNDescent(X, metric='euclidean', n_neighbors=k + 1, n_jobs=-1,
-                                  random_state=19491001)
-                Idx, _ = nbrs.query(X, k=k+1)
+                nbrs = NNDescent(X, metric="euclidean", n_neighbors=k + 1, n_jobs=-1, random_state=19491001)
+                Idx, _ = nbrs.query(X, k=k + 1)
             else:
-                alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+                alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
                 nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm=alg, n_jobs=-1).fit(X)
                 _, Idx = nbrs.kneighbors(X)
 
@@ -693,9 +724,7 @@ class ContinuousTimeMarkovChain(MarkovChain):
     def solve_distribution(self, p0, t):
         if self.D is None:
             self.eigsys()
-        p = np.real(self.W @ np.diag(np.exp(self.D * t)) @ np.linalg.inv(self.W)).dot(
-            p0
-        )
+        p = np.real(self.W @ np.diag(np.exp(self.D * t)) @ np.linalg.inv(self.W)).dot(p0)
         return p
 
     def compute_stationary_distribution(self):

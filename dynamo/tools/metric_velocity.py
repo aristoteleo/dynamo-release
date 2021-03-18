@@ -12,14 +12,10 @@ from .utils import (
 )
 
 
-def cell_wise_confidence(adata,
-                         X_data=None,
-                         V_data=None,
-                         ekey="M_s",
-                         vkey="velocity_S",
-                         neighbors_from_basis=False,
-                         method="jaccard"):
-    """ Calculate the cell-wise velocity confidence metric.
+def cell_wise_confidence(
+    adata, X_data=None, V_data=None, ekey="M_s", vkey="velocity_S", neighbors_from_basis=False, method="jaccard"
+):
+    """Calculate the cell-wise velocity confidence metric.
 
     Parameters
     ----------
@@ -56,7 +52,7 @@ def cell_wise_confidence(adata,
     if ekey == "X":
         X, V = (adata.X if X_data is None else X_data, adata.layers[vkey] if V_data is None else V_data)
         norm_method = adata.uns["pp"]["norm_method"].copy()
-        adata.uns["pp"]["norm_method"] = 'log1p'
+        adata.uns["pp"]["norm_method"] = "log1p"
         X = inverse_norm(adata, X) if X_data is None else X_data
         adata.uns["pp"]["norm_method"] = norm_method
     else:
@@ -71,13 +67,13 @@ def cell_wise_confidence(adata,
     else:
         n_neigh = 30
 
-        if X.shape[0] > 200000 and X.shape[1] > 2: 
+        if X.shape[0] > 200000 and X.shape[1] > 2:
             from pynndescent import NNDescent
 
-            nbrs = NNDescent(X, metric='euclidean', n_neighbors=n_neigh + 1, n_jobs=-1, random_state=19491001)
+            nbrs = NNDescent(X, metric="euclidean", n_neighbors=n_neigh + 1, n_jobs=-1, random_state=19491001)
             nbrs_idx, dist = nbrs.query(X, k=n_neigh + 1)
         else:
-            alg = 'ball_tree' if X.shape[1] > 10 else 'kd_tree'
+            alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
             nbrs = NearestNeighbors(n_neighbors=n_neigh + 1, algorithm=alg, n_jobs=-1).fit(X)
             dist, nbrs_idx = nbrs.kneighbors(X)
 
@@ -99,46 +95,52 @@ def cell_wise_confidence(adata,
         jac, intersect_, _ = jaccard(X, V, n_pca_components, n_neigh, X_neighbors)
 
         confidence = np.zeros(adata.n_obs)
-        for i in tqdm(range(adata.n_obs), desc='calculating hybrid method (jaccard + consensus) based cell wise confidence'):
+        for i in tqdm(
+            range(adata.n_obs), desc="calculating hybrid method (jaccard + consensus) based cell wise confidence"
+        ):
             neigh_ids = np.where(intersect_[i].A)[0] if issparse(intersect_) else np.where(intersect_[i])[0]
-            confidence[i] = jac[i] * np.mean(
-                [consensus(V[i].A.flatten(), V[j].A.flatten()) for j in neigh_ids]
-            )  if issparse(V) else jac[i] * np.mean(
-                [consensus(V[i].flatten(), V[j].flatten()) for j in neigh_ids]
+            confidence[i] = (
+                jac[i] * np.mean([consensus(V[i].A.flatten(), V[j].A.flatten()) for j in neigh_ids])
+                if issparse(V)
+                else jac[i] * np.mean([consensus(V[i].flatten(), V[j].flatten()) for j in neigh_ids])
             )
 
     elif method == "cosine":
         indices = adata.uns["neighbors"]["indices"]
         confidence = np.zeros(adata.n_obs)
-        for i in tqdm(range(adata.n_obs), desc='calculating cosine based cell wise confidence'):
+        for i in tqdm(range(adata.n_obs), desc="calculating cosine based cell wise confidence"):
             neigh_ids = indices[i]
-            confidence[i] = np.mean(
-                [einsum_correlation(V[i].A, V[j].A.flatten(), type="cosine")[0, 0] for j in neigh_ids]
-            ) if issparse(V) else np.mean(
-                [einsum_correlation(V[i][None, :], V[j].flatten(), type="cosine")[0, 0] for j in neigh_ids]
+            confidence[i] = (
+                np.mean([einsum_correlation(V[i].A, V[j].A.flatten(), type="cosine")[0, 0] for j in neigh_ids])
+                if issparse(V)
+                else np.mean(
+                    [einsum_correlation(V[i][None, :], V[j].flatten(), type="cosine")[0, 0] for j in neigh_ids]
+                )
             )
 
     elif method == "consensus":
         indices = adata.uns["neighbors"]["indices"]
         confidence = np.zeros(adata.n_obs)
-        for i in tqdm(range(adata.n_obs), desc='calculating consensus based cell wise confidence'):
+        for i in tqdm(range(adata.n_obs), desc="calculating consensus based cell wise confidence"):
             neigh_ids = indices[i]
-            confidence[i] = np.mean(
-                [consensus(V[i].A.flatten(), V[j].A.flatten()) for j in neigh_ids]
-            ) if issparse(V) else np.mean(
-                [consensus(V[i], V[j].flatten()) for j in neigh_ids]
+            confidence[i] = (
+                np.mean([consensus(V[i].A.flatten(), V[j].A.flatten()) for j in neigh_ids])
+                if issparse(V)
+                else np.mean([consensus(V[i], V[j].flatten()) for j in neigh_ids])
             )
 
     elif method == "correlation":
         # this is equivalent to scVelo
         indices = adata.uns["neighbors"]["indices"]
         confidence = np.zeros(adata.n_obs)
-        for i in tqdm(range(adata.n_obs), desc='calculating correlation based cell wise confidence'):
+        for i in tqdm(range(adata.n_obs), desc="calculating correlation based cell wise confidence"):
             neigh_ids = indices[i]
-            confidence[i] = np.mean(
-                [einsum_correlation(V[i].A, V[j].A.flatten(), type="pearson")[0, 0] for j in neigh_ids]
-            ) if issparse(V) else np.mean(
-                [einsum_correlation(V[i][None, :], V[j].flatten(), type="pearson")[0, 0] for j in neigh_ids]
+            confidence[i] = (
+                np.mean([einsum_correlation(V[i].A, V[j].A.flatten(), type="pearson")[0, 0] for j in neigh_ids])
+                if issparse(V)
+                else np.mean(
+                    [einsum_correlation(V[i][None, :], V[j].flatten(), type="pearson")[0, 0] for j in neigh_ids]
+                )
             )
 
     elif method == "divergence":
@@ -146,8 +148,7 @@ def cell_wise_confidence(adata,
 
     else:
         raise Exception(
-            "The input {} method for cell-wise velocity confidence calculation is not implemented"
-            " yet".format(method)
+            "The input {} method for cell-wise velocity confidence calculation is not implemented" " yet".format(method)
         )
 
     adata.obs[method + "_velocity_confidence"] = confidence
@@ -168,9 +169,7 @@ def jaccard(X, V, n_pca_components, n_neigh, X_neighbors):
     X_fit = transformer.fit(Xt)
     Xt_pca = X_fit.transform(Xt)[:, 1:]
 
-    V_neighbors, _, _, _ = umap_conn_indices_dist_embedding(
-        Xt_pca, n_neighbors=n_neigh, return_mapper=False
-    )
+    V_neighbors, _, _, _ = umap_conn_indices_dist_embedding(Xt_pca, n_neighbors=n_neigh, return_mapper=False)
     X_neighbors_, V_neighbors_ = (
         X_neighbors.dot(X_neighbors),
         V_neighbors.dot(V_neighbors),
@@ -178,33 +177,31 @@ def jaccard(X, V, n_pca_components, n_neigh, X_neighbors):
     union_ = X_neighbors_ + V_neighbors_ > 0
     intersect_ = mnn_from_list([X_neighbors_, V_neighbors_]) > 0
 
-    jaccard = (
-        (intersect_.sum(1) / union_.sum(1)).A1
-        if issparse(X)
-        else intersect_.sum(1) / union_.sum(1)
-    )
+    jaccard = (intersect_.sum(1) / union_.sum(1)).A1 if issparse(X) else intersect_.sum(1) / union_.sum(1)
 
     return jaccard, intersect_, union_
 
 
 def consensus(x, y):
     x_norm, y_norm = np.linalg.norm(x), np.linalg.norm(y)
-    consensus = einsum_correlation(x[None, :], y, type="cosine")[0, 0] * \
-                np.min([x_norm, y_norm]) / np.max([x_norm, y_norm])
+    consensus = (
+        einsum_correlation(x[None, :], y, type="cosine")[0, 0] * np.min([x_norm, y_norm]) / np.max([x_norm, y_norm])
+    )
 
     return consensus
 
 
-def gene_wise_confidence(adata,
-                         group,
-                         lineage_dict=None,
-                         genes=None,
-                         ekey='M_s',
-                         vkey='velocity_S',
-                         X_data=None,
-                         V_data=None,
-                         V_threshold=1,
-                         ):
+def gene_wise_confidence(
+    adata,
+    group,
+    lineage_dict=None,
+    genes=None,
+    ekey="M_s",
+    vkey="velocity_S",
+    X_data=None,
+    V_data=None,
+    V_threshold=1,
+):
     """Diagnostic measure to identify genes contributed to "wrong" directionality of the vector flow.
 
     In some scenarios, you may find unexpected "wrong vector backflow" from your dynamo analysis, in order to diagnose
@@ -278,20 +275,27 @@ def gene_wise_confidence(adata,
         genes, X_data = fetch_X_data(adata, genes, ekey)
     else:
         if genes is None or len(genes) != X_data.shape[1]:
-            raise ValueError(f"When providing X_data, a list of genes name that corresponds to the columns of X_data "
-                             f"must be provided")
+            raise ValueError(
+                f"When providing X_data, a list of genes name that corresponds to the columns of X_data "
+                f"must be provided"
+            )
     if V_data is None:
         genes, V_data = fetch_X_data(adata, genes, vkey)
     else:
         if genes is None or len(genes) != X_data.shape[1]:
-            raise ValueError(f"When providing V_data, a list of genes name that corresponds to the columns of X_data "
-                             f"must be provided")
+            raise ValueError(
+                f"When providing V_data, a list of genes name that corresponds to the columns of X_data "
+                f"must be provided"
+            )
 
     sparse, sparse_v = issparse(X_data), issparse(V_data)
 
     confidence = []
-    for i_gene, gene in tqdm(enumerate(genes), desc="calculating gene velocity vectors confidence based on phase "
-                                                    "portrait location with priors of progenitor/mature cell types"):
+    for i_gene, gene in tqdm(
+        enumerate(genes),
+        desc="calculating gene velocity vectors confidence based on phase "
+        "portrait location with priors of progenitor/mature cell types",
+    ):
         all_vals = X_data[:, i_gene].A if sparse else X_data[:, i_gene]
         all_vals_v = V_data[:, i_gene].A if sparse_v else V_data[:, i_gene]
 
@@ -311,28 +315,31 @@ def gene_wise_confidence(adata,
 
                     if np.nanmedian(prog_vals) - np.nanmedian(mature_vals) > 0:
                         # repression phase (bottom curve -- phase curve below the linear line indicates steady states)
-                        prog_confidence = 1 - sum(prog_vals_v > - threshold_val)[0] / len(
-                            prog_vals_v)  # most cells should downregulate / ss
-                        mature_confidence = 1 - sum(mature_vals_v > - threshold_val)[0] / len(
-                            mature_vals_v)  # most cell should downregulate / ss
+                        prog_confidence = 1 - sum(prog_vals_v > -threshold_val)[0] / len(
+                            prog_vals_v
+                        )  # most cells should downregulate / ss
+                        mature_confidence = 1 - sum(mature_vals_v > -threshold_val)[0] / len(
+                            mature_vals_v
+                        )  # most cell should downregulate / ss
                     else:
                         # induction phase (upper curve -- phase curve above the linear line indicates steady states)
                         prog_confidence = 1 - sum(prog_vals_v < threshold_val)[0] / len(
-                            prog_vals_v)  # most cells should upregulate / ss
+                            prog_vals_v
+                        )  # most cells should upregulate / ss
                         mature_confidence = 1 - sum(mature_vals_v < threshold_val)[0] / len(
-                            mature_vals_v)  # most cell should upregulate / ss
+                            mature_vals_v
+                        )  # most cell should upregulate / ss
 
                     confidence.append((gene, progenitor, mature, prog_confidence, mature_confidence))
 
-    confidence = pd.DataFrame(confidence,
-                      columns=['gene', 'progenitor', 'mature', 'prog_confidence', 'mature_confidence'])
-    confidence.astype(dtype={"prog_confidence": "float64",
-                             "prog_confidence": "float64"})
-    adata.var['avg_prog_confidence'], adata.var['avg_mature_confidence'] = np.nan, np.nan
-    avg = confidence.groupby('gene')['prog_confidence', 'mature_confidence'].mean()
-    avg = avg.reset_index().set_index('gene')
-    adata.var.loc[genes, 'avg_prog_confidence'] = avg.loc[genes, 'prog_confidence']
-    adata.var.loc[genes, 'avg_mature_confidence'] = avg.loc[genes, 'mature_confidence']
+    confidence = pd.DataFrame(
+        confidence, columns=["gene", "progenitor", "mature", "prog_confidence", "mature_confidence"]
+    )
+    confidence.astype(dtype={"prog_confidence": "float64", "prog_confidence": "float64"})
+    adata.var["avg_prog_confidence"], adata.var["avg_mature_confidence"] = np.nan, np.nan
+    avg = confidence.groupby("gene")["prog_confidence", "mature_confidence"].mean()
+    avg = avg.reset_index().set_index("gene")
+    adata.var.loc[genes, "avg_prog_confidence"] = avg.loc[genes, "prog_confidence"]
+    adata.var.loc[genes, "avg_mature_confidence"] = avg.loc[genes, "mature_confidence"]
 
-    adata.uns['gene_wise_confidence'] = confidence
-
+    adata.uns["gene_wise_confidence"] = confidence

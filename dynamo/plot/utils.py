@@ -11,6 +11,7 @@ import matplotlib.patheffects as PathEffects
 import matplotlib.tri as tri
 from scipy.spatial import Delaunay
 from warnings import warn
+import copy
 
 from ..configuration import _themes
 from ..tools.utils import integrate_vf  # integrate_vf_ivp
@@ -47,7 +48,8 @@ def is_list_of_lists(list_of_lists):
 # plotting utilities that borrowed from umap
 # link: https://github.com/lmcinnes/umap/blob/7e051d8f3c4adca90ca81eb45f6a9d1372c076cf/umap/plot.py
 
-def map2color(val, min=None, max=None, cmap='viridis'):
+
+def map2color(val, min=None, max=None, cmap="viridis"):
     import matplotlib
     import matplotlib.pyplot as plt
     import matplotlib.cm as cm
@@ -120,10 +122,7 @@ def _select_font_color(background):
         mean_val = np.mean(
             # specify 0 as the base in order to invoke this prefix-guessing behavior;
             # omitting it means to assume base-10
-            [
-                int("0x" + c, 0)
-                for c in (background[1:3], background[3:5], background[5:7])
-            ]
+            [int("0x" + c, 0) for c in (background[1:3], background[3:5], background[5:7])]
         )
         if mean_val > 126:
             font_color = "black"
@@ -137,28 +136,28 @@ def _select_font_color(background):
 
 
 def _matplotlib_points(
-        points,
-        ax=None,
-        labels=None,
-        values=None,
-        highlights=None,
-        cmap="Blues",
-        color_key=None,
-        color_key_cmap="Spectral",
-        background="white",
-        width=7,
-        height=5,
-        show_legend=True,
-        vmin=2,
-        vmax=98,
-        sort='raw',
-        frontier=False,
-        contour=False,
-        ccmap=None,
-        calpha=2.3,
-        sym_c=False,
-        inset_dict={},
-        **kwargs,
+    points,
+    ax=None,
+    labels=None,
+    values=None,
+    highlights=None,
+    cmap="Blues",
+    color_key=None,
+    color_key_cmap="Spectral",
+    background="white",
+    width=7,
+    height=5,
+    show_legend=True,
+    vmin=2,
+    vmax=98,
+    sort="raw",
+    frontier=False,
+    contour=False,
+    ccmap=None,
+    calpha=2.3,
+    sym_c=False,
+    inset_dict={},
+    **kwargs,
 ):
     import matplotlib.pyplot as plt
     from matplotlib.ticker import MaxNLocator
@@ -185,12 +184,10 @@ def _matplotlib_points(
         if labels.shape[0] != points.shape[0]:
             raise ValueError(
                 "Labels must have a label for "
-                "each sample (size mismatch: {} {})".format(
-                    labels.shape[0], points.shape[0]
-                )
+                "each sample (size mismatch: {} {})".format(labels.shape[0], points.shape[0])
             )
         if color_key is None:
-            cmap = matplotlib.cm.get_cmap(color_key_cmap)
+            cmap = copy.copy(matplotlib.cm.get_cmap(color_key_cmap))
             cmap.set_bad("lightgray")
 
             if highlights is None:
@@ -198,16 +195,13 @@ def _matplotlib_points(
                 num_labels = unique_labels.shape[0]
                 color_key = plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
             else:
-                if type(highlights) is str: highlights = [highlights]
+                if type(highlights) is str:
+                    highlights = [highlights]
                 highlights.append("other")
                 unique_labels = np.array(highlights)
                 num_labels = unique_labels.shape[0]
-                color_key = _to_hex(
-                    plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
-                )
-                color_key[
-                    -1
-                ] = "#bdbdbd"  # lightgray hex code https://www.color-hex.com/color/d3d3d3
+                color_key = _to_hex(plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels)))
+                color_key[-1] = "#bdbdbd"  # lightgray hex code https://www.color-hex.com/color/d3d3d3
 
                 labels[[i not in highlights[:-1] for i in labels]] = "other"
                 points = pd.DataFrame(points)
@@ -231,32 +225,26 @@ def _matplotlib_points(
             unique_labels = np.unique(labels)
             legend_elements = [
                 # Patch(facecolor=color_key[k], label=k) for k in unique_labels
-                Line2D(
-                    [0], [0], marker="o", color=color_key[k], label=k, linestyle="None"
-                )
+                Line2D([0], [0], marker="o", color=color_key[k], label=k, linestyle="None")
                 for k in unique_labels
             ]
         else:
             unique_labels = np.unique(labels)
             if len(color_key) < unique_labels.shape[0]:
-                raise ValueError(
-                    "Color key must have enough colors for the number of labels"
-                )
+                raise ValueError("Color key must have enough colors for the number of labels")
 
             new_color_key = {k: color_key[i] for i, k in enumerate(unique_labels)}
             legend_elements = [
                 # Patch(facecolor=color_key[i], label=k)
-                Line2D(
-                    [0], [0], marker="o", color=color_key[i], label=k, linestyle="None"
-                )
+                Line2D([0], [0], marker="o", color=color_key[i], label=k, linestyle="None")
                 for i, k in enumerate(unique_labels)
             ]
             colors = pd.Series(labels).map(new_color_key)
 
         if frontier:
-            rasterized = kwargs['rasterized'] if 'rasterized' in kwargs.keys() else None
-            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "0.0", lw=2, rasterized=rasterized)
-            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "1.0", lw=0, rasterized=rasterized)
+            rasterized = kwargs["rasterized"] if "rasterized" in kwargs.keys() else None
+            ax.scatter(points[:, 0], points[:, 1], kwargs["s"] * 2, "0.0", lw=2, rasterized=rasterized)
+            ax.scatter(points[:, 0], points[:, 1], kwargs["s"] * 2, "1.0", lw=0, rasterized=rasterized)
             ax.scatter(points[:, 0], points[:, 1], c=colors, plotnonfinite=True, **kwargs)
         elif contour:
             # try:
@@ -288,7 +276,7 @@ def _matplotlib_points(
             # # apply masking
             # triang.set_mask(mask)
             #
-            ccmap = 'viridis' if ccmap is None else ccmap
+            ccmap = "viridis" if ccmap is None else ccmap
             # # ax.tricontourf(triang, values, cmap=ccmap)
             # ax.scatter(x, y,
             #            c=values,
@@ -296,16 +284,28 @@ def _matplotlib_points(
             #            plotnonfinite=True,
             #            **kwargs, )
             import seaborn as sns
-            df = pd.DataFrame(points, columns=['x', 'y', 'z'][:points.shape[1]])
-            ax = sns.kdeplot(data=df.iloc[:, :2], hue=values, fill=True, alpha=kwargs.get('alpha', '0.4'),
-                             palette=ccmap, ax=ax, thresh=0, levels=100, cmap=ccmap,
-                             )
+
+            df = pd.DataFrame(points, columns=["x", "y", "z"][: points.shape[1]])
+            ax = sns.kdeplot(
+                data=df.iloc[:, :2],
+                hue=values,
+                fill=True,
+                alpha=kwargs.get("alpha", "0.4"),
+                palette=ccmap,
+                ax=ax,
+                thresh=0,
+                levels=100,
+                cmap=ccmap,
+            )
             x, y = points[:, :2].T
-            ax.scatter(x, y,
-                       c=colors,
-                       plotnonfinite=True,
-                       zorder=21,
-                       **kwargs, )
+            ax.scatter(
+                x,
+                y,
+                c=colors,
+                plotnonfinite=True,
+                zorder=21,
+                **kwargs,
+            )
         else:
             ax.scatter(points[:, 0], points[:, 1], c=colors, plotnonfinite=True, **kwargs)
 
@@ -317,13 +317,12 @@ def _matplotlib_points(
         if values.shape[0] != points.shape[0]:
             raise ValueError(
                 "Values must have a value for "
-                "each sample (size mismatch: {} {})".format(
-                    values.shape[0], points.shape[0]
-                )
+                "each sample (size mismatch: {} {})".format(values.shape[0], points.shape[0])
             )
         # reorder data so that high values points will be on top of background points
-        sorted_id = np.argsort(abs(values)) if sort == 'abs' else np.argsort(- values) if sort == 'neg' \
-            else np.argsort(values)
+        sorted_id = (
+            np.argsort(abs(values)) if sort == "abs" else np.argsort(-values) if sort == "neg" else np.argsort(values)
+        )
         values, points = values[sorted_id], points[sorted_id, :]
 
         # if there are very few cells have expression, set the vmin/vmax only based on positive values
@@ -340,12 +339,24 @@ def _matplotlib_points(
         # if positive and sum up to 1, take fraction
         # if positive and sum up to 100, take percentage
         # otherwise take the data
-        _vmin = np.nanmin(values) if vmin is None else np.nanpercentile(values, vmin * 100) if \
-            (vmin + vmax == 1 and 0 <= vmin < vmax) else np.nanpercentile(values, vmin) \
-            if (vmin + vmax == 100 and 0 <= vmin < vmax) else vmin
-        _vmax = np.nanmax(values) if vmax is None else np.nanpercentile(values, vmax * 100) if \
-            (vmin + vmax == 1 and 0 <= vmin < vmax) else np.nanpercentile(values, vmax) \
-            if (vmin + vmax == 100 and 0 <= vmin < vmax) else vmax
+        _vmin = (
+            np.nanmin(values)
+            if vmin is None
+            else np.nanpercentile(values, vmin * 100)
+            if (vmin + vmax == 1 and 0 <= vmin < vmax)
+            else np.nanpercentile(values, vmin)
+            if (vmin + vmax == 100 and 0 <= vmin < vmax)
+            else vmin
+        )
+        _vmax = (
+            np.nanmax(values)
+            if vmax is None
+            else np.nanpercentile(values, vmax * 100)
+            if (vmin + vmax == 1 and 0 <= vmin < vmax)
+            else np.nanpercentile(values, vmax)
+            if (vmin + vmax == 100 and 0 <= vmin < vmax)
+            else vmax
+        )
 
         if sym_c and _vmin < 0 and _vmax > 0:
             bounds = np.nanmax([np.abs(_vmin), _vmax])
@@ -353,9 +364,9 @@ def _matplotlib_points(
             _vmin, _vmax = bounds
 
         if frontier:
-            rasterized = kwargs['rasterized'] if 'rasterized' in kwargs.keys() else None
-            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "0.0", lw=2, rasterized=rasterized)
-            ax.scatter(points[:, 0], points[:, 1], kwargs['s'] * 2, "1.0", lw=0, rasterized=rasterized)
+            rasterized = kwargs["rasterized"] if "rasterized" in kwargs.keys() else None
+            ax.scatter(points[:, 0], points[:, 1], kwargs["s"] * 2, "0.0", lw=2, rasterized=rasterized)
+            ax.scatter(points[:, 0], points[:, 1], kwargs["s"] * 2, "1.0", lw=0, rasterized=rasterized)
             ax.scatter(
                 points[:, 0],
                 points[:, 1],
@@ -373,7 +384,7 @@ def _matplotlib_points(
                 raise ImportError(
                     "If you want to use the tricontourf in plotting function, you need to install `shapely` "
                     "package via `pip install shapely` see more details at https://pypi.org/project/Shapely/,"
-                    )
+                )
 
             x, y = points[:, :2].T
             triang = tri.Triangulation(x, y)
@@ -399,13 +410,16 @@ def _matplotlib_points(
             ccmap = cmap if ccmap is None else ccmap
 
             ax.tricontourf(triang, values, cmap=ccmap)
-            ax.scatter(x, y,
-                       c=values,
-                       cmap=cmap,
-                       vmin=_vmin,
-                       vmax=_vmax,
-                       plotnonfinite=True,
-                       **kwargs,)
+            ax.scatter(
+                x,
+                y,
+                c=values,
+                cmap=cmap,
+                vmin=_vmin,
+                vmax=_vmax,
+                plotnonfinite=True,
+                **kwargs,
+            )
         else:
             ax.scatter(
                 points[:, 0],
@@ -418,8 +432,8 @@ def _matplotlib_points(
                 **kwargs,
             )
 
-        if 'norm' in kwargs:
-            norm = kwargs['norm']
+        if "norm" in kwargs:
+            norm = kwargs["norm"]
         else:
             norm = matplotlib.colors.Normalize(vmin=_vmin, vmax=_vmax)
 
@@ -442,9 +456,9 @@ def _matplotlib_points(
         if len(unique_labels) > 1 and show_legend == "on data":
             font_color = "white" if background in ["black", "#ffffff"] else "black"
             for i in unique_labels:
-                if i == 'other':
+                if i == "other":
                     continue
-                color_cnt = np.nanmedian(points[np.where(labels == i)[0], :2].astype('float'), 0)
+                color_cnt = np.nanmedian(points[np.where(labels == i)[0], :2].astype("float"), 0)
                 txt = plt.text(
                     color_cnt[0],
                     color_cnt[1],
@@ -473,22 +487,22 @@ def _matplotlib_points(
 
 
 def _datashade_points(
-        points,
-        ax=None,
-        labels=None,
-        values=None,
-        highlights=None,
-        cmap="blue",
-        color_key=None,
-        color_key_cmap="Spectral",
-        background="black",
-        width=7,
-        height=5,
-        show_legend=True,
-        vmin=2,
-        vmax=98,
-        sort='raw',
-        **kwargs,
+    points,
+    ax=None,
+    labels=None,
+    values=None,
+    highlights=None,
+    cmap="blue",
+    color_key=None,
+    color_key_cmap="Spectral",
+    background="black",
+    width=7,
+    height=5,
+    show_legend=True,
+    vmin=2,
+    vmax=98,
+    sort="raw",
+    **kwargs,
 ):
     import matplotlib.pyplot as plt
 
@@ -515,9 +529,7 @@ def _datashade_points(
         if labels.shape[0] != points.shape[0]:
             raise ValueError(
                 "Labels must have a label for "
-                "each sample (size mismatch: {} {})".format(
-                    labels.shape[0], points.shape[0]
-                )
+                "each sample (size mismatch: {} {})".format(labels.shape[0], points.shape[0])
             )
 
         labels = np.array(labels, dtype="str")
@@ -534,19 +546,13 @@ def _datashade_points(
                 aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
                 unique_labels = np.unique(labels)
                 num_labels = unique_labels.shape[0]
-                color_key = _to_hex(
-                    plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
-                )
+                color_key = _to_hex(plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels)))
             else:
                 highlights.append("other")
                 unique_labels = np.array(highlights)
                 num_labels = unique_labels.shape[0]
-                color_key = _to_hex(
-                    plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
-                )
-                color_key[
-                    -1
-                ] = "#bdbdbd"  # lightgray hex code https://www.color-hex.com/color/d3d3d3
+                color_key = _to_hex(plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels)))
+                color_key[-1] = "#bdbdbd"  # lightgray hex code https://www.color-hex.com/color/d3d3d3
 
                 labels[[i not in highlights for i in labels]] = "other"
                 data["label"] = pd.Categorical(labels)
@@ -559,23 +565,16 @@ def _datashade_points(
                 reorder_data = data.copy(deep=True)
                 (
                     reorder_data.iloc[: sum(background_ids), :],
-                    reorder_data.iloc[sum(background_ids):, :],
+                    reorder_data.iloc[sum(background_ids) :, :],
                 ) = (data.iloc[background_ids, :], data.iloc[highlight_ids, :])
-                aggregation = canvas.points(
-                    reorder_data, "x", "y", agg=ds.count_cat("label")
-                )
+                aggregation = canvas.points(reorder_data, "x", "y", agg=ds.count_cat("label"))
 
-            legend_elements = [
-                Patch(facecolor=color_key[i], label=k)
-                for i, k in enumerate(unique_labels)
-            ]
+            legend_elements = [Patch(facecolor=color_key[i], label=k) for i, k in enumerate(unique_labels)]
             result = tf.shade(aggregation, color_key=color_key, how="eq_hist")
         else:
             aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("label"))
 
-            legend_elements = [
-                Patch(facecolor=color_key[k], label=k) for k in color_key.keys()
-            ]
+            legend_elements = [Patch(facecolor=color_key[k], label=k) for k in color_key.keys()]
             result = tf.shade(aggregation, color_key=color_key, how="eq_hist")
 
     # Color by values
@@ -586,12 +585,10 @@ def _datashade_points(
         if values.shape[0] != points.shape[0]:
             raise ValueError(
                 "Values must have a value for "
-                "each sample (size mismatch: {} {})".format(
-                    values.shape[0], points.shape[0]
-                )
+                "each sample (size mismatch: {} {})".format(values.shape[0], points.shape[0])
             )
         # reorder data so that high values data will be on top of background data
-        sorted_id = np.argsort(abs(values)) if sort == 'abs' else np.argsort(values)
+        sorted_id = np.argsort(abs(values)) if sort == "abs" else np.argsort(values)
         values, data = values[sorted_id], data.iloc[sorted_id, :]
 
         values[np.isnan(values)] = 0
@@ -604,18 +601,14 @@ def _datashade_points(
         if unique_values.shape[0] >= 256:
             min_val, max_val = np.min(values), np.max(values)
             bin_size = (max_val - min_val) / 255.0
-            data["val_cat"] = pd.Categorical(
-                np.round((values - min_val) / bin_size).astype(np.int16)
-            )
+            data["val_cat"] = pd.Categorical(np.round((values - min_val) / bin_size).astype(np.int16))
             aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("val_cat"))
             color_key = _to_hex(plt.get_cmap(cmap)(np.linspace(0, 1, 256)))
             result = tf.shade(aggregation, color_key=color_key, how="eq_hist")
         else:
             data["val_cat"] = pd.Categorical(values)
             aggregation = canvas.points(data, "x", "y", agg=ds.count_cat("val_cat"))
-            color_key_cols = _to_hex(
-                plt.get_cmap(cmap)(np.linspace(0, 1, unique_values.shape[0]))
-            )
+            color_key_cols = _to_hex(plt.get_cmap(cmap)(np.linspace(0, 1, unique_values.shape[0])))
             color_key = dict(zip(unique_values, color_key_cols))
             result = tf.shade(aggregation, color_key=color_key, how="eq_hist")
 
@@ -633,9 +626,7 @@ def _datashade_points(
             if len(unique_labels) > 1 and show_legend == "on data":
                 font_color = "white" if background == "black" else "black"
                 for i in unique_labels:
-                    color_cnt = np.nanmedian(
-                        points.iloc[np.where(labels == i)[0], :2], 0
-                    )
+                    color_cnt = np.nanmedian(points.iloc[np.where(labels == i)[0], :2], 0)
                     txt = plt.text(
                         color_cnt[0],
                         color_cnt[1],
@@ -671,18 +662,18 @@ def _datashade_points(
 
 
 def interactive(
-        umap_object,
-        labels=None,
-        values=None,
-        hover_data=None,
-        theme=None,
-        cmap="Blues",
-        color_key=None,
-        color_key_cmap="Spectral",
-        background="white",
-        width=7,
-        height=5,
-        point_size=None,
+    umap_object,
+    labels=None,
+    values=None,
+    hover_data=None,
+    theme=None,
+    cmap="Blues",
+    color_key=None,
+    color_key_cmap="Spectral",
+    background="white",
+    width=7,
+    height=5,
+    point_size=None,
 ):
     """Create an interactive bokeh plot of a UMAP embedding.
     While static plots are useful, sometimes a plot that
@@ -790,9 +781,7 @@ def interactive(
         background = _themes[theme]["background"]
 
     if labels is not None and values is not None:
-        raise ValueError(
-            "Conflicting options; only one of labels or values should be set"
-        )
+        raise ValueError("Conflicting options; only one of labels or values should be set")
 
     points = umap_object.embedding_
 
@@ -810,18 +799,14 @@ def interactive(
         if color_key is None:
             unique_labels = np.unique(labels)
             num_labels = unique_labels.shape[0]
-            color_key = _to_hex(
-                plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels))
-            )
+            color_key = _to_hex(plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels)))
 
         if isinstance(color_key, dict):
             data["color"] = pd.Series(labels).map(color_key)
         else:
             unique_labels = np.unique(labels)
             if len(color_key) < unique_labels.shape[0]:
-                raise ValueError(
-                    "Color key must have enough colors for the number of labels"
-                )
+                raise ValueError("Color key must have enough colors for the number of labels")
 
             new_color_key = {k: color_key[i] for i, k in enumerate(unique_labels)}
             data["color"] = pd.Series(labels).map(new_color_key)
@@ -831,9 +816,7 @@ def interactive(
     elif values is not None:
         data["value"] = values
         palette = _to_hex(plt.get_cmap(cmap)(np.linspace(0, 1, 256)))
-        colors = btr.linear_cmap(
-            "value", palette, low=np.min(values), high=np.max(values)
-        )
+        colors = btr.linear_cmap("value", palette, low=np.min(values), high=np.max(values))
 
     else:
         colors = matplotlib.colors.rgb2hex(plt.get_cmap(cmap)(0.5))
@@ -867,8 +850,7 @@ def interactive(
     else:
         if hover_data is not None:
             warn(
-                "Too many points for hover data -- tooltips will not"
-                "be displayed. Sorry; try subssampling your data."
+                "Too many points for hover data -- tooltips will not" "be displayed. Sorry; try subssampling your data."
             )
         hv.extension("bokeh")
         hv.output(size=300)
@@ -885,9 +867,7 @@ def interactive(
         elif values is not None:
             min_val = data.values.min()
             val_range = data.values.max() - min_val
-            data["val_cat"] = pd.Categorical(
-                (data.values - min_val) // (val_range // 256)
-            )
+            data["val_cat"] = pd.Categorical((data.values - min_val) // (val_range // 256))
             point_plot = hv.Points(data, kdims=["x", "y"], vdims=["val_cat"])
             plot = hd.datashade(
                 point_plot,
@@ -932,7 +912,7 @@ def despline_all(ax=None):
 
     ax = plt.gca() if ax is None else ax
 
-    for side in ['bottom','right','top','left']:
+    for side in ["bottom", "right", "top", "left"]:
         ax.spines[side].set_visible(False)
 
 
@@ -989,18 +969,14 @@ def scatter_with_colorbar(fig, ax, x, y, c, cmap, **scatter_kwargs):
     return fig, ax
 
 
-def scatter_with_legend(
-        fig, ax, df, font_color, x, y, c, cmap, legend, **scatter_kwargs
-):
+def scatter_with_legend(fig, ax, df, font_color, x, y, c, cmap, legend, **scatter_kwargs):
     import seaborn as sns
     import matplotlib.patheffects as PathEffects
 
     unique_labels = np.unique(c)
 
     if legend == "on data":
-        g = sns.scatterplot(
-            x, y, hue=c, palette=cmap, ax=ax, legend=False, **scatter_kwargs
-        )
+        g = sns.scatterplot(x, y, hue=c, palette=cmap, ax=ax, legend=False, **scatter_kwargs)
 
         for i in unique_labels:
             color_cnt = np.nanmedian(df.iloc[np.where(c == i)[0], :2], 0)
@@ -1016,19 +992,16 @@ def scatter_with_legend(
             )  # c
             txt.set_path_effects(
                 [
-                    PathEffects.Stroke(
-                        linewidth=1.5, foreground=font_color, alpha=0.8
-                    ),  # 'w'
+                    PathEffects.Stroke(linewidth=1.5, foreground=font_color, alpha=0.8),  # 'w'
                     PathEffects.Normal(),
                 ]
             )
     else:
-        g = sns.scatterplot(
-            x, y, hue=c, palette=cmap, ax=ax, legend="full", **scatter_kwargs
-        )
+        g = sns.scatterplot(x, y, hue=c, palette=cmap, ax=ax, legend="full", **scatter_kwargs)
         ax.legend(loc=legend, ncol=unique_labels // 15)
 
     return fig, ax
+
 
 def set_colorbar(ax, inset_dict={}):
     """https://matplotlib.org/3.1.0/gallery/axes_grid1/demo_colorbar_with_inset_locator.html"""
@@ -1036,26 +1009,29 @@ def set_colorbar(ax, inset_dict={}):
 
     if len(inset_dict) == 0:
         # see more at https://matplotlib.org/gallery/axes_grid1/inset_locator_demo.html
-        axins = inset_axes(ax,
-                           width="12%",  # width = 5% of parent_bbox width
-                           height="100%",  # height : 50%
-                           loc='upper right',
-                           bbox_to_anchor=(0.85, 0.97, 0.145, 0.17),
-                           bbox_transform=ax.transAxes,
-                           borderpad=1.85,
-                           )
+        axins = inset_axes(
+            ax,
+            width="12%",  # width = 5% of parent_bbox width
+            height="100%",  # height : 50%
+            loc="upper right",
+            bbox_to_anchor=(0.85, 0.97, 0.145, 0.17),
+            bbox_transform=ax.transAxes,
+            borderpad=1.85,
+        )
     else:
         axins = inset_axes(ax, bbox_transform=ax.transAxes, **inset_dict)
 
     return axins
 
 
-def arrowed_spines(ax, columns, background='white'):
+def arrowed_spines(ax, columns, background="white"):
     """https://stackoverflow.com/questions/33737736/matplotlib-axis-arrow-tip
-        modified based on Answer 6
+    modified based on Answer 6
     """
-    if type(columns) == str: columns = [columns.upper() + ' 0', columns.upper() + ' 1']
+    if type(columns) == str:
+        columns = [columns.upper() + " 0", columns.upper() + " 1"]
     import matplotlib.pyplot as plt
+
     fig = plt.gcf()
 
     xmin, xmax = ax.get_xlim()
@@ -1074,40 +1050,71 @@ def arrowed_spines(ax, columns, background='white'):
     width, height = bbox.width, bbox.height
 
     # manual arrowhead width and length (x-axis)
-    hw = 1./20.*(ymax-ymin)
-    hl = 1./20.*(xmax-xmin)
-    lw = 1. # axis line width
-    ohg = 0.2 # arrow overhang
+    hw = 1.0 / 20.0 * (ymax - ymin)
+    hl = 1.0 / 20.0 * (xmax - xmin)
+    lw = 1.0  # axis line width
+    ohg = 0.2  # arrow overhang
 
     # compute matching arrowhead length and width (y-axis)
-    yhw = hw/(ymax-ymin)*(xmax-xmin)* height/width
-    yhl = hl/(xmax-xmin)*(ymax-ymin)* width/height
+    yhw = hw / (ymax - ymin) * (xmax - xmin) * height / width
+    yhl = hl / (xmax - xmin) * (ymax - ymin) * width / height
 
     # draw x and y axis
-    fc, ec = ("w", "w") if background in ['black', "#ffffff"] else ('k', 'k')
-    ax.arrow(xmin, ymin, hl * 5/2, 0, fc=fc, ec=ec,
-             lw=lw,
-             head_width=hw/2, head_length=hl/2,
-             overhang=ohg/2,
-             length_includes_head=True, clip_on=False)
-    ax.arrow(xmin, ymin, 0, hw * 5/2, fc=fc, ec=ec,
-             lw=lw,
-             head_width=yhw/2, head_length=yhl/2,
-             overhang=ohg/2,
-             length_includes_head=True, clip_on=False)
+    fc, ec = ("w", "w") if background in ["black", "#ffffff"] else ("k", "k")
+    ax.arrow(
+        xmin,
+        ymin,
+        hl * 5 / 2,
+        0,
+        fc=fc,
+        ec=ec,
+        lw=lw,
+        head_width=hw / 2,
+        head_length=hl / 2,
+        overhang=ohg / 2,
+        length_includes_head=True,
+        clip_on=False,
+    )
+    ax.arrow(
+        xmin,
+        ymin,
+        0,
+        hw * 5 / 2,
+        fc=fc,
+        ec=ec,
+        lw=lw,
+        head_width=yhw / 2,
+        head_length=yhl / 2,
+        overhang=ohg / 2,
+        length_includes_head=True,
+        clip_on=False,
+    )
 
-    ax.text(xmin + hl * 2.5/2, ymin - 1.5 * hw/2, columns[0], ha="center", va="center", rotation=0,
-            # size=hl * 5 / (2 * len(str(columns[0]))) * 20,
-            # size=matplotlib.rcParams['axes.titlesize'],
-            size=np.clip((hl + yhw) * 8 / 2, 6, 18)
-            )
-    ax.text(xmin - 1.5 * yhw/2, ymin + hw * 2.5/2, columns[1], ha="center", va="center", rotation=90,
-            # size=hw * 5 / (2 * len(str(columns[1]))) * 20,
-            # size=matplotlib.rcParams['axes.titlesize'],
-            size=np.clip((hl + yhw) * 8 / 2, 6, 18)
-            )
+    ax.text(
+        xmin + hl * 2.5 / 2,
+        ymin - 1.5 * hw / 2,
+        columns[0],
+        ha="center",
+        va="center",
+        rotation=0,
+        # size=hl * 5 / (2 * len(str(columns[0]))) * 20,
+        # size=matplotlib.rcParams['axes.titlesize'],
+        size=np.clip((hl + yhw) * 8 / 2, 6, 18),
+    )
+    ax.text(
+        xmin - 1.5 * yhw / 2,
+        ymin + hw * 2.5 / 2,
+        columns[1],
+        ha="center",
+        va="center",
+        rotation=90,
+        # size=hw * 5 / (2 * len(str(columns[1]))) * 20,
+        # size=matplotlib.rcParams['axes.titlesize'],
+        size=np.clip((hl + yhw) * 8 / 2, 6, 18),
+    )
 
     return ax
+
 
 # ---------------------------------------------------------------------------------------------------
 # vector field plot related utilities
@@ -1129,6 +1136,7 @@ def quiver_autoscaler(X_emb, V_emb):
     """
 
     import matplotlib.pyplot as plt
+
     fig, ax = plt.subplots()
 
     scale_factor = np.ptp(X_emb, 0).mean()
@@ -1190,8 +1198,10 @@ def _plot_traj(y0, t, args, integration_direction, ax, color, lw, f):
 # streamline related aesthetics
 # ---------------------------------------------------------------------------------------------------
 
+
 def set_arrow_alpha(ax=None, alpha=1):
     from matplotlib import patches
+
     ax = plt.gca() if ax is None else ax
 
     # iterate through the children of ax
@@ -1201,15 +1211,18 @@ def set_arrow_alpha(ax=None, alpha=1):
             continue
         art.set_alpha(alpha)
 
+
 def set_stream_line_alpha(s=None, alpha=1):
     """s has to be a StreamplotSet"""
     s.lines.set_alpha(alpha)
+
 
 # ---------------------------------------------------------------------------------------------------
 # save_fig figure related
 # ---------------------------------------------------------------------------------------------------
 
-def save_fig(path=None, prefix=None, dpi=None, ext='pdf', transparent=True, close=True, verbose=True):
+
+def save_fig(path=None, prefix=None, dpi=None, ext="pdf", transparent=True, close=True, verbose=True):
     """Save a figure from pyplot.
     code adapated from http://www.jesshamrick.com/2012/09/03/saving-figures-from-pyplot/
 
@@ -1239,29 +1252,33 @@ def save_fig(path=None, prefix=None, dpi=None, ext='pdf', transparent=True, clos
     """
     import matplotlib.pyplot as plt
 
-    if path is None: path = os.getcwd() + '/'
+    if path is None:
+        path = os.getcwd() + "/"
 
     # Extract the directory and filename from the given path
     directory = os.path.split(path)[0]
     filename = os.path.split(path)[1]
-    if directory == '':
-        directory = '.'
-    if filename == '':
-        filename = 'dyn_savefig'
+    if directory == "":
+        directory = "."
+    if filename == "":
+        filename = "dyn_savefig"
 
     # If the directory does not exist, create it
     if not os.path.exists(directory):
         os.makedirs(directory)
 
     # The final path to save_fig to
-    savepath = os.path.join(directory, filename + '.' + ext) if prefix is None \
-        else os.path.join(directory, prefix + '_' + filename + '.' + ext)
+    savepath = (
+        os.path.join(directory, filename + "." + ext)
+        if prefix is None
+        else os.path.join(directory, prefix + "_" + filename + "." + ext)
+    )
 
     if verbose:
         print(f"Saving figure to {savepath}...")
 
     # Actually save the figure
-    plt.savefig(savepath, dpi=300 if dpi is None else dpi, transparent=transparent, format=ext, bbox_inches='tight')
+    plt.savefig(savepath, dpi=300 if dpi is None else dpi, transparent=transparent, format=ext, bbox_inches="tight")
 
     # Close it
     if close:
@@ -1280,9 +1297,10 @@ def alpha_shape(x, y, alpha):
         from shapely.ops import triangulate
         from shapely.ops import cascaded_union, polygonize
     except ImportError:
-        raise ImportError("If you want to use the tricontourf in plotting function, you need to install `shapely` "
-                          "package via `pip install shapely` see more details at https://pypi.org/project/Shapely/,"
-                          )
+        raise ImportError(
+            "If you want to use the tricontourf in plotting function, you need to install `shapely` "
+            "package via `pip install shapely` see more details at https://pypi.org/project/Shapely/,"
+        )
 
     crds = np.array([x.flatten(), y.flatten()]).transpose()
     points = MultiPoint(crds)
@@ -1303,8 +1321,7 @@ def alpha_shape(x, y, alpha):
         edges.add((i, j))
         edge_points.append(coords[[i, j]])
 
-    coords = np.array([point.coords[0]
-                       for point in points])
+    coords = np.array([point.coords[0] for point in points])
 
     tri = Delaunay(coords)
     edges = set()
@@ -1342,22 +1359,17 @@ def alpha_shape(x, y, alpha):
 
 
 # View the polygon and adjust alpha if needed
-def plot_polygon(polygon,
-                 margin=1,
-                 fc='#999999',
-                 ec='#000000',
-                 fill=True,
-                 ax=None,
-                 **kwargs):
+def plot_polygon(polygon, margin=1, fc="#999999", ec="#000000", fill=True, ax=None, **kwargs):
     try:
         from descartes.patch import PolygonPatch
     except ImportError:
-        raise ImportError("If you want to use the tricontourf in plotting function, you need to install `descartes` "
-                          "package via `pip install descartes` see more details at https://pypi.org/project/descartes/,"
-                          )
-
+        raise ImportError(
+            "If you want to use the tricontourf in plotting function, you need to install `descartes` "
+            "package via `pip install descartes` see more details at https://pypi.org/project/descartes/,"
+        )
 
     from descartes.patch import PolygonPatch
+
     if ax is None:
         fig = plt.figure()
         ax = fig.add_subplot(111)
@@ -1370,6 +1382,7 @@ def plot_polygon(polygon,
     ax.add_patch(patch)
 
     return ax
+
 
 # ---------------------------------------------------------------------------------------------------
 # the following Loess class is taken from:
@@ -1460,9 +1473,7 @@ class Loess(object):
             mean_x = sum_weight_x / sum_weight
             mean_y = sum_weight_y / sum_weight
 
-            b = (sum_weight_xy - mean_x * mean_y * sum_weight) / (
-                    sum_weight_x2 - mean_x * mean_x * sum_weight
-            )
+            b = (sum_weight_xy - mean_x * mean_y * sum_weight) / (sum_weight_x2 - mean_x * mean_x * sum_weight)
             a = mean_y - b * mean_x
             y = a + b * n_x
         return self.denormalize_y(y)

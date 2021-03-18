@@ -26,8 +26,9 @@ from ..vectorfield.utils import intersect_sources_targets
 docstrings.delete_params("scatters.parameters", "adata", "color", "cmap", "frontier", "sym_c")
 docstrings.delete_params("scatters.parameters", "adata", "color", "cmap", "frontier")
 
+
 @docstrings.with_indent(4)
-def speed(adata, basis='pca', color=None, frontier=True, *args, **kwargs):
+def speed(adata, basis="pca", color=None, frontier=True, *args, **kwargs):
     """\
     Scatter plot with cells colored by the estimated velocity speed (and other information if provided).
 
@@ -78,7 +79,7 @@ def speed(adata, basis='pca', color=None, frontier=True, *args, **kwargs):
 
 
 @docstrings.with_indent(4)
-def curl(adata, basis='umap', color=None, cmap='bwr', frontier=True, sym_c=True, *args, **kwargs):
+def curl(adata, basis="umap", color=None, cmap="bwr", frontier=True, sym_c=True, *args, **kwargs):
     """\
     Scatter plot with cells colored by the estimated curl (and other information if provided).
 
@@ -139,7 +140,7 @@ def curl(adata, basis='umap', color=None, cmap='bwr', frontier=True, sym_c=True,
 
 
 @docstrings.with_indent(4)
-def divergence(adata, basis='pca', color=None, cmap='bwr', frontier=True, sym_c=True, *args, **kwargs):
+def divergence(adata, basis="pca", color=None, cmap="bwr", frontier=True, sym_c=True, *args, **kwargs):
     """\
     Scatter plot with cells colored by the estimated divergence (and other information if provided).
 
@@ -198,7 +199,7 @@ def divergence(adata, basis='pca', color=None, cmap='bwr', frontier=True, sym_c=
 
 
 @docstrings.with_indent(4)
-def curvature(adata, basis='pca', color=None, frontier=True, *args, **kwargs):
+def curvature(adata, basis="pca", color=None, frontier=True, *args, **kwargs):
     """\
     Scatter plot with cells colored by the estimated curvature (and other information if provided).
 
@@ -235,10 +236,12 @@ def curvature(adata, basis='pca', color=None, frontier=True, *args, **kwargs):
     curv_key = "curvature" if basis is None else "curvature_" + basis
     color_ = [curv_key]
     if not np.any(adata.obs.columns.isin(color_)):
-        raise Exception(f"{curv_key} is not existed in .obs, try run dyn.tl.curvature(adata, basis='{curv_key}') first.")
+        raise Exception(
+            f"{curv_key} is not existed in .obs, try run dyn.tl.curvature(adata, basis='{curv_key}') first."
+        )
 
-    adata.obs[curv_key] = adata.obs[curv_key].astype('float')
-    adata_ = adata[~ adata.obs[curv_key].isna(), :]
+    adata.obs[curv_key] = adata.obs[curv_key].astype("float")
+    adata_ = adata[~adata.obs[curv_key].isna(), :]
 
     if color is not None:
         color = [color] if type(color) == str else color
@@ -248,29 +251,31 @@ def curvature(adata, basis='pca', color=None, frontier=True, *args, **kwargs):
 
 
 @docstrings.with_indent(4)
-def jacobian(adata,
-             regulators=None,
-             effectors=None,
-             basis="umap",
-             jkey='jacobian',
-             j_basis="pca",
-             x=0,
-             y=1,
-             layer='M_s',
-             highlights=None,
-             cmap='bwr',
-             background=None,
-             pointsize=None,
-             figsize=(6, 4),
-             show_legend=True,
-             frontier=True,
-             sym_c=True,
-             sort='abs',
-             show_arrowed_spines=False,
-             stacked_fraction=False,
-             save_show_or_return="show",
-             save_kwargs={},
-             **kwargs):
+def jacobian(
+    adata,
+    regulators=None,
+    effectors=None,
+    basis="umap",
+    jkey="jacobian",
+    j_basis="pca",
+    x=0,
+    y=1,
+    layer="M_s",
+    highlights=None,
+    cmap="bwr",
+    background=None,
+    pointsize=None,
+    figsize=(6, 4),
+    show_legend=True,
+    frontier=True,
+    sym_c=True,
+    sort="abs",
+    show_arrowed_spines=False,
+    stacked_fraction=False,
+    save_show_or_return="show",
+    save_kwargs={},
+    **kwargs,
+):
     """\
     Scatter plot of Jacobian values across cells.
 
@@ -360,8 +365,10 @@ def jacobian(adata,
     >>> dyn.pl.jacobian(adata)
     """
 
-    regulators, effectors = list(np.unique(regulators)) if regulators is not None else None, \
-                            list(np.unique(effectors)) if effectors is not None else None
+    regulators, effectors = (
+        list(np.unique(regulators)) if regulators is not None else None,
+        list(np.unique(effectors)) if effectors is not None else None,
+    )
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
@@ -373,11 +380,13 @@ def jacobian(adata,
         _background = background
 
     Jacobian_ = jkey if j_basis is None else jkey + "_" + j_basis
-    Der, cell_indx, jacobian_gene, regulators_, effectors_ = adata.uns[Jacobian_].get(jkey.split("_")[-1]), \
-                                                              adata.uns[Jacobian_].get('cell_idx'), \
-                                                              adata.uns[Jacobian_].get(jkey.split("_")[-1] + '_gene'), \
-                                                              adata.uns[Jacobian_].get('regulators'), \
-                                                              adata.uns[Jacobian_].get('effectors')
+    Der, cell_indx, jacobian_gene, regulators_, effectors_ = (
+        adata.uns[Jacobian_].get(jkey.split("_")[-1]),
+        adata.uns[Jacobian_].get("cell_idx"),
+        adata.uns[Jacobian_].get(jkey.split("_")[-1] + "_gene"),
+        adata.uns[Jacobian_].get("regulators"),
+        adata.uns[Jacobian_].get("effectors"),
+    )
 
     adata_ = adata[cell_indx, :]
 
@@ -386,24 +395,21 @@ def jacobian(adata,
     elif effectors is None and regulators is not None:
         effectors = regulators
     # test the simulation data here
-    if (regulators_ is None or effectors_ is None):
+    if regulators_ is None or effectors_ is None:
         if Der.shape[0] != adata_.n_vars:
-            source_genes = [j_basis + '_' + str(i) for i in range(Der.shape[0])]
-            target_genes = [j_basis + '_' + str(i) for i in range(Der.shape[1])]
+            source_genes = [j_basis + "_" + str(i) for i in range(Der.shape[0])]
+            target_genes = [j_basis + "_" + str(i) for i in range(Der.shape[1])]
         else:
             source_genes, target_genes = adata_.var_names, adata_.var_names
     else:
-        Der, source_genes, target_genes = intersect_sources_targets(regulators,
-                                  regulators_,
-                                  effectors,
-                                  effectors_,
-                                  Der if jacobian_gene is None else jacobian_gene)
-
+        Der, source_genes, target_genes = intersect_sources_targets(
+            regulators, regulators_, effectors, effectors_, Der if jacobian_gene is None else jacobian_gene
+        )
 
     ## integrate this with the code in scatter ##
 
     if type(x) is int and type(y) is int:
-        prefix = 'X_'
+        prefix = "X_"
         cur_pd = pd.DataFrame(
             {
                 basis + "_" + str(x): adata_.obsm[prefix + basis][:, x],
@@ -413,8 +419,8 @@ def jacobian(adata,
     elif is_gene_name(adata_, x) and is_gene_name(adata_, y):
         cur_pd = pd.DataFrame(
             {
-                x: adata_.obs_vector(k=x, layer=None) if layer == 'X' else adata_.obs_vector(k=x, layer=layer),
-                y: adata_.obs_vector(k=y, layer=None) if layer == 'X' else adata_.obs_vector(k=y, layer=layer),
+                x: adata_.obs_vector(k=x, layer=None) if layer == "X" else adata_.obs_vector(k=x, layer=layer),
+                y: adata_.obs_vector(k=y, layer=None) if layer == "X" else adata_.obs_vector(k=y, layer=layer),
             }
         )
         # cur_pd = cur_pd.loc[(cur_pd > 0).sum(1) > 1, :]
@@ -434,44 +440,39 @@ def jacobian(adata,
         cur_pd = pd.DataFrame(
             {
                 x: adata_.obs_vector(x),
-                y: adata_.obs_vector(k=y, layer=None) if layer == 'X' else adata_.obs_vector(k=y, layer=layer),
+                y: adata_.obs_vector(k=y, layer=None) if layer == "X" else adata_.obs_vector(k=y, layer=layer),
             }
         )
         cur_pd.columns = [x, y + " (" + layer + ")"]
     elif is_gene_name(adata_, x) and is_cell_anno_column(adata_, y):
         cur_pd = pd.DataFrame(
             {
-                x: adata_.obs_vector(k=x, layer=None) if layer == 'X' else adata_.obs_vector(k=x, layer=layer),
-                y: adata_.obs_vector(y)
+                x: adata_.obs_vector(k=x, layer=None) if layer == "X" else adata_.obs_vector(k=x, layer=layer),
+                y: adata_.obs_vector(y),
             }
         )
         # cur_pd = cur_pd.loc[cur_pd.iloc[:, 0] > 0, :]
         cur_pd.columns = [x + " (" + layer + ")", y]
     elif is_layer_keys(adata_, x) and is_layer_keys(adata_, y):
         x_, y_ = adata_[:, basis].layers[x], adata_[:, basis].layers[y]
-        cur_pd = pd.DataFrame(
-            {x: flatten(x_),
-             y: flatten(y_)}
-        )
+        cur_pd = pd.DataFrame({x: flatten(x_), y: flatten(y_)})
         # cur_pd = cur_pd.loc[cur_pd.iloc[:, 0] > 0, :]
         cur_pd.columns = [x, y]
-    elif type(x) in [anndata._core.views.ArrayView, np.ndarray] and \
-            type(y) in [anndata._core.views.ArrayView, np.ndarray]:
-        cur_pd = pd.DataFrame(
-            {'x': flatten(x),
-             'y': flatten(y)}
-        )
-        cur_pd.columns = ['x', 'y']
+    elif type(x) in [anndata._core.views.ArrayView, np.ndarray] and type(y) in [
+        anndata._core.views.ArrayView,
+        np.ndarray,
+    ]:
+        cur_pd = pd.DataFrame({"x": flatten(x), "y": flatten(y)})
+        cur_pd.columns = ["x", "y"]
 
-    point_size = (
-        500.0 / np.sqrt(adata_.shape[0])
-        if pointsize is None
-        else 500.0 / np.sqrt(adata_.shape[0]) * pointsize
-    )
+    point_size = 500.0 / np.sqrt(adata_.shape[0]) if pointsize is None else 500.0 / np.sqrt(adata_.shape[0]) * pointsize
     point_size = 4 * point_size
 
     scatter_kwargs = dict(
-        alpha=0.2, s=point_size, edgecolor=None, linewidth=0,
+        alpha=0.2,
+        s=point_size,
+        edgecolor=None,
+        linewidth=0,
     )  # (0, 0, 0, 1)
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
@@ -487,7 +488,7 @@ def jacobian(adata,
     for i, source in enumerate(source_genes):
         for j, target in enumerate(target_genes):
             ax = plt.subplot(gs[i * ncol + j])
-            J = Der[j, i, :] # dim 0: target; dim 1: source
+            J = Der[j, i, :]  # dim 0: target; dim 1: source
             cur_pd["jacobian"] = J
 
             # cur_pd.loc[:, "jacobian"] = np.array([scinot(i) for i in cur_pd.loc[:, "jacobian"].values])
@@ -509,12 +510,12 @@ def jacobian(adata,
                 frontier=frontier,
                 sort=sort,
                 sym_c=sym_c,
-                **scatter_kwargs
+                **scatter_kwargs,
             )
             if stacked_fraction:
-                ax.set_title(r'$\frac{\partial f_{%s}}{\partial x_{%s}}$'%(target, source))
+                ax.set_title(r"$\frac{\partial f_{%s}}{\partial x_{%s}}$" % (target, source))
             else:
-                ax.set_title(r'$\partial f_{%s} / \partial x_{%s}$'%(target, source))
+                ax.set_title(r"$\partial f_{%s} / \partial x_{%s}$" % (target, source))
             if i + j == 0 and show_arrowed_spines:
                 arrowed_spines(ax, basis, background)
             else:
@@ -522,8 +523,15 @@ def jacobian(adata,
                 deaxis_all(ax)
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": jkey, "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": jkey,
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
@@ -534,18 +542,20 @@ def jacobian(adata,
         return gs
 
 
-def jacobian_heatmap(adata,
-                     cell_idx,
-                     jkey='jacobian',
-                     basis='umap',
-                     regulators=None,
-                     effectors=None,
-                     figsize=(7, 5),
-                     ncols=1,
-                     cmap='bwr',
-                     save_show_or_return="show",
-                     save_kwargs={},
-                     **kwargs):
+def jacobian_heatmap(
+    adata,
+    cell_idx,
+    jkey="jacobian",
+    basis="umap",
+    regulators=None,
+    effectors=None,
+    figsize=(7, 5),
+    ncols=1,
+    cmap="bwr",
+    save_show_or_return="show",
+    save_kwargs={},
+    **kwargs,
+):
     """\
     Plot the Jacobian matrix for each cell as a heatmap.
 
@@ -600,32 +610,35 @@ def jacobian_heatmap(adata,
     >>> dyn.pl.jacobian_heatmap(adata)
     """
 
-    regulators, effectors = list(np.unique(regulators)) if regulators is not None else None, \
-                            list(np.unique(effectors)) if effectors is not None else None
+    regulators, effectors = (
+        list(np.unique(regulators)) if regulators is not None else None,
+        list(np.unique(effectors)) if effectors is not None else None,
+    )
     import matplotlib.pyplot as plt
     import seaborn as sns
 
     Jacobian_ = jkey if basis is None else jkey + "_" + basis
-    if type(cell_idx) == int: cell_idx = [cell_idx]
-    Der, cell_indx, jacobian_gene, regulators_, effectors_ = adata.uns[Jacobian_].get(jkey.split("_")[-1]), \
-                                                              adata.uns[Jacobian_].get('cell_idx'), \
-                                                              adata.uns[Jacobian_].get(jkey.split("_")[-1] + '_gene'), \
-                                                              adata.uns[Jacobian_].get('regulators'), \
-                                                              adata.uns[Jacobian_].get('effectors')
+    if type(cell_idx) == int:
+        cell_idx = [cell_idx]
+    Der, cell_indx, jacobian_gene, regulators_, effectors_ = (
+        adata.uns[Jacobian_].get(jkey.split("_")[-1]),
+        adata.uns[Jacobian_].get("cell_idx"),
+        adata.uns[Jacobian_].get(jkey.split("_")[-1] + "_gene"),
+        adata.uns[Jacobian_].get("regulators"),
+        adata.uns[Jacobian_].get("effectors"),
+    )
 
-    Der, regulators, effectors = intersect_sources_targets(regulators,
-                                                           regulators_,
-                                                           effectors,
-                                                           effectors_,
-                                                           Der)
+    Der, regulators, effectors = intersect_sources_targets(regulators, regulators_, effectors, effectors_, Der)
 
     adata_ = adata[cell_indx, :]
     valid_cell_idx = list(set(cell_idx).intersection(cell_indx))
     if len(valid_cell_idx) == 0:
-        raise ValueError(f"Jacobian matrix was not calculated for the cells you provided {cell_indx}."
-                         f"Check adata.uns[{Jacobian_}].values() for available cells that have Jacobian matrix calculated."
-                         f"Note that limiting calculation of Jacobian matrix only for a subset of cells are required for "
-                         f"speeding up calculations.")
+        raise ValueError(
+            f"Jacobian matrix was not calculated for the cells you provided {cell_indx}."
+            f"Check adata.uns[{Jacobian_}].values() for available cells that have Jacobian matrix calculated."
+            f"Note that limiting calculation of Jacobian matrix only for a subset of cells are required for "
+            f"speeding up calculations."
+        )
     else:
         cell_names = adata.obs_names[valid_cell_idx]
 
@@ -642,15 +655,22 @@ def jacobian_heatmap(adata,
     heatmap_kwargs = update_dict(heatmap_kwargs, kwargs)
     for i, name in enumerate(cell_names):
         ind = np.where(adata_.obs_names == name)[0]
-        J = Der[:, :, ind][:, :, 0].T # dim 0: target; dim 1: source
+        J = Der[:, :, ind][:, :, 0].T  # dim 0: target; dim 1: source
         J = pd.DataFrame(J, index=regulators, columns=effectors)
         ax = plt.subplot(gs[i])
         sns.heatmap(J, annot=True, ax=ax, cmap=cmap, cbar=False, center=0, **heatmap_kwargs)
         plt.title(name)
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": jkey + '_heatmap', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": jkey + "_heatmap",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
@@ -660,30 +680,33 @@ def jacobian_heatmap(adata,
     elif save_show_or_return == "return":
         return gs
 
+
 @docstrings.with_indent(4)
-def sensitivity(adata,
-                regulators=None,
-                effectors=None,
-                basis="umap",
-                skey='sensitivity',
-                s_basis="pca",
-                x=0,
-                y=1,
-                layer='M_s',
-                highlights=None,
-                cmap='bwr',
-                background=None,
-                pointsize=None,
-                figsize=(6, 4),
-                show_legend=True,
-                frontier=True,
-                sym_c=True,
-                sort='abs',
-                show_arrowed_spines=False,
-                stacked_fraction=False,
-                save_show_or_return="show",
-                save_kwargs={},
-                **kwargs):
+def sensitivity(
+    adata,
+    regulators=None,
+    effectors=None,
+    basis="umap",
+    skey="sensitivity",
+    s_basis="pca",
+    x=0,
+    y=1,
+    layer="M_s",
+    highlights=None,
+    cmap="bwr",
+    background=None,
+    pointsize=None,
+    figsize=(6, 4),
+    show_legend=True,
+    frontier=True,
+    sym_c=True,
+    sort="abs",
+    show_arrowed_spines=False,
+    stacked_fraction=False,
+    save_show_or_return="show",
+    save_kwargs={},
+    **kwargs,
+):
     """\
     Scatter plot of Sensitivity value across cells.
 
@@ -773,8 +796,10 @@ def sensitivity(adata,
     >>> dyn.pl.sensitivity(adata)
     """
 
-    regulators, effectors = list(np.unique(regulators)) if regulators is not None else None, \
-                            list(np.unique(effectors)) if effectors is not None else None
+    regulators, effectors = (
+        list(np.unique(regulators)) if regulators is not None else None,
+        list(np.unique(effectors)) if effectors is not None else None,
+    )
 
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
@@ -787,32 +812,32 @@ def sensitivity(adata,
         _background = background
 
     Sensitivity_ = skey if s_basis is None else skey + "_" + s_basis
-    Der, cell_indx, sensitivity_gene, regulators_, effectors_ = adata.uns[Sensitivity_].get(skey.split("_")[-1]), \
-                                                             adata.uns[Sensitivity_].get('cell_idx'), \
-                                                             adata.uns[Sensitivity_].get(skey.split("_")[-1] + '_gene'), \
-                                                             adata.uns[Sensitivity_].get('regulators'), \
-                                                             adata.uns[Sensitivity_].get('effectors')
+    Der, cell_indx, sensitivity_gene, regulators_, effectors_ = (
+        adata.uns[Sensitivity_].get(skey.split("_")[-1]),
+        adata.uns[Sensitivity_].get("cell_idx"),
+        adata.uns[Sensitivity_].get(skey.split("_")[-1] + "_gene"),
+        adata.uns[Sensitivity_].get("regulators"),
+        adata.uns[Sensitivity_].get("effectors"),
+    )
 
     adata_ = adata[cell_indx, :]
 
     # test the simulation data here
-    if (regulators_ is None or effectors_ is None):
+    if regulators_ is None or effectors_ is None:
         if Der.shape[0] != adata_.n_vars:
-            source_genes = [s_basis + '_' + str(i) for i in range(Der.shape[0])]
-            target_genes = [s_basis + '_' + str(i) for i in range(Der.shape[1])]
+            source_genes = [s_basis + "_" + str(i) for i in range(Der.shape[0])]
+            target_genes = [s_basis + "_" + str(i) for i in range(Der.shape[1])]
         else:
             source_genes, target_genes = adata_.var_names, adata_.var_names
     else:
-        Der, source_genes, target_genes = intersect_sources_targets(regulators,
-                                                                    regulators_,
-                                                                    effectors,
-                                                                    effectors_,
-                                                                    Der if sensitivity_gene is None else sensitivity_gene)
+        Der, source_genes, target_genes = intersect_sources_targets(
+            regulators, regulators_, effectors, effectors_, Der if sensitivity_gene is None else sensitivity_gene
+        )
 
     ## integrate this with the code in scatter ##
 
     if type(x) is int and type(y) is int:
-        prefix = 'X_'
+        prefix = "X_"
         cur_pd = pd.DataFrame(
             {
                 basis + "_" + str(x): adata_.obsm[prefix + basis][:, x],
@@ -822,8 +847,8 @@ def sensitivity(adata,
     elif is_gene_name(adata_, x) and is_gene_name(adata_, y):
         cur_pd = pd.DataFrame(
             {
-                x: adata_.obs_vector(k=x, layer=None) if layer == 'X' else adata_.obs_vector(k=x, layer=layer),
-                y: adata_.obs_vector(k=y, layer=None) if layer == 'X' else adata_.obs_vector(k=y, layer=layer),
+                x: adata_.obs_vector(k=x, layer=None) if layer == "X" else adata_.obs_vector(k=x, layer=layer),
+                y: adata_.obs_vector(k=y, layer=None) if layer == "X" else adata_.obs_vector(k=y, layer=layer),
             }
         )
         # cur_pd = cur_pd.loc[(cur_pd > 0).sum(1) > 1, :]
@@ -843,44 +868,39 @@ def sensitivity(adata,
         cur_pd = pd.DataFrame(
             {
                 x: adata_.obs_vector(x),
-                y: adata_.obs_vector(k=y, layer=None) if layer == 'X' else adata_.obs_vector(k=y, layer=layer),
+                y: adata_.obs_vector(k=y, layer=None) if layer == "X" else adata_.obs_vector(k=y, layer=layer),
             }
         )
         cur_pd.columns = [x, y + " (" + layer + ")"]
     elif is_gene_name(adata_, x) and is_cell_anno_column(adata_, y):
         cur_pd = pd.DataFrame(
             {
-                x: adata_.obs_vector(k=x, layer=None) if layer == 'X' else adata_.obs_vector(k=x, layer=layer),
-                y: adata_.obs_vector(y)
+                x: adata_.obs_vector(k=x, layer=None) if layer == "X" else adata_.obs_vector(k=x, layer=layer),
+                y: adata_.obs_vector(y),
             }
         )
         # cur_pd = cur_pd.loc[cur_pd.iloc[:, 0] > 0, :]
         cur_pd.columns = [x + " (" + layer + ")", y]
     elif is_layer_keys(adata_, x) and is_layer_keys(adata_, y):
         x_, y_ = adata_[:, basis].layers[x], adata_[:, basis].layers[y]
-        cur_pd = pd.DataFrame(
-            {x: flatten(x_),
-             y: flatten(y_)}
-        )
+        cur_pd = pd.DataFrame({x: flatten(x_), y: flatten(y_)})
         # cur_pd = cur_pd.loc[cur_pd.iloc[:, 0] > 0, :]
         cur_pd.columns = [x, y]
-    elif type(x) in [anndata._core.views.ArrayView, np.ndarray] and \
-            type(y) in [anndata._core.views.ArrayView, np.ndarray]:
-        cur_pd = pd.DataFrame(
-            {'x': flatten(x),
-             'y': flatten(y)}
-        )
-        cur_pd.columns = ['x', 'y']
+    elif type(x) in [anndata._core.views.ArrayView, np.ndarray] and type(y) in [
+        anndata._core.views.ArrayView,
+        np.ndarray,
+    ]:
+        cur_pd = pd.DataFrame({"x": flatten(x), "y": flatten(y)})
+        cur_pd.columns = ["x", "y"]
 
-    point_size = (
-        500.0 / np.sqrt(adata_.shape[0])
-        if pointsize is None
-        else 500.0 / np.sqrt(adata_.shape[0]) * pointsize
-    )
+    point_size = 500.0 / np.sqrt(adata_.shape[0]) if pointsize is None else 500.0 / np.sqrt(adata_.shape[0]) * pointsize
     point_size = 4 * point_size
 
     scatter_kwargs = dict(
-        alpha=0.2, s=point_size, edgecolor=None, linewidth=0,
+        alpha=0.2,
+        s=point_size,
+        edgecolor=None,
+        linewidth=0,
     )  # (0, 0, 0, 1)
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
@@ -918,12 +938,12 @@ def sensitivity(adata,
                 frontier=frontier,
                 sort=sort,
                 sym_c=sym_c,
-                **scatter_kwargs
+                **scatter_kwargs,
             )
             if stacked_fraction:
-                ax.set_title(r'$\frac{d x_{%s}}{d x_{%s}}$' % (target, source))
+                ax.set_title(r"$\frac{d x_{%s}}{d x_{%s}}$" % (target, source))
             else:
-                ax.set_title(r'$d x_{%s} / d x_{%s}$' % (target, source))
+                ax.set_title(r"$d x_{%s} / d x_{%s}$" % (target, source))
             if i + j == 0 and show_arrowed_spines:
                 arrowed_spines(ax, basis, background)
             else:
@@ -931,8 +951,15 @@ def sensitivity(adata,
                 deaxis_all(ax)
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": skey, "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": skey,
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)
@@ -943,18 +970,20 @@ def sensitivity(adata,
         return gs
 
 
-def sensitivity_heatmap(adata,
-                     cell_idx,
-                     skey='sensitivity',
-                     basis='pca',
-                     regulators=None,
-                     effectors=None,
-                     figsize=(7, 5),
-                     ncols=1,
-                     cmap='bwr',
-                     save_show_or_return="show",
-                     save_kwargs={},
-                     **kwargs):
+def sensitivity_heatmap(
+    adata,
+    cell_idx,
+    skey="sensitivity",
+    basis="pca",
+    regulators=None,
+    effectors=None,
+    figsize=(7, 5),
+    ncols=1,
+    cmap="bwr",
+    save_show_or_return="show",
+    save_kwargs={},
+    **kwargs,
+):
     """\
     Plot the Jacobian matrix for each cell as a heatmap.
 
@@ -1009,33 +1038,36 @@ def sensitivity_heatmap(adata,
     >>> dyn.pl.sensitivity_heatmap(adata)
     """
 
-    regulators, effectors = list(np.unique(regulators)) if regulators is not None else None, \
-                            list(np.unique(effectors)) if effectors is not None else None
+    regulators, effectors = (
+        list(np.unique(regulators)) if regulators is not None else None,
+        list(np.unique(effectors)) if effectors is not None else None,
+    )
 
     import matplotlib.pyplot as plt
     import seaborn as sns
 
     Sensitivity_ = skey if basis is None else skey + "_" + basis
-    if type(cell_idx) == int: cell_idx = [cell_idx]
-    Der, cell_indx, sensitivity_gene, regulators_, effectors_ = adata.uns[Sensitivity_].get(skey.split("_")[-1]), \
-                                                              adata.uns[Sensitivity_].get('cell_idx'), \
-                                                              adata.uns[Sensitivity_].get(skey.split("_")[-1] + '_gene'), \
-                                                              adata.uns[Sensitivity_].get('regulators'), \
-                                                              adata.uns[Sensitivity_].get('effectors')
+    if type(cell_idx) == int:
+        cell_idx = [cell_idx]
+    Der, cell_indx, sensitivity_gene, regulators_, effectors_ = (
+        adata.uns[Sensitivity_].get(skey.split("_")[-1]),
+        adata.uns[Sensitivity_].get("cell_idx"),
+        adata.uns[Sensitivity_].get(skey.split("_")[-1] + "_gene"),
+        adata.uns[Sensitivity_].get("regulators"),
+        adata.uns[Sensitivity_].get("effectors"),
+    )
 
-    Der, regulators, effectors = intersect_sources_targets(regulators,
-                                                           regulators_,
-                                                           effectors,
-                                                           effectors_,
-                                                           Der)
+    Der, regulators, effectors = intersect_sources_targets(regulators, regulators_, effectors, effectors_, Der)
 
     adata_ = adata[cell_indx, :]
     valid_cell_idx = list(set(cell_idx).intersection(cell_indx))
     if len(valid_cell_idx) == 0:
-        raise ValueError(f"Sensitivity matrix was not calculated for the cells you provided {cell_indx}."
-                         f"Check adata.uns[{Sensitivity_}].values() for available cells that have Sensitivity matrix calculated."
-                         f"Note that limiting calculation of Sensitivity matrix only for a subset of cells are required for "
-                         f"speeding up calculations.")
+        raise ValueError(
+            f"Sensitivity matrix was not calculated for the cells you provided {cell_indx}."
+            f"Check adata.uns[{Sensitivity_}].values() for available cells that have Sensitivity matrix calculated."
+            f"Note that limiting calculation of Sensitivity matrix only for a subset of cells are required for "
+            f"speeding up calculations."
+        )
     else:
         cell_names = adata.obs_names[valid_cell_idx]
 
@@ -1052,15 +1084,22 @@ def sensitivity_heatmap(adata,
     heatmap_kwargs = update_dict(heatmap_kwargs, kwargs)
     for i, name in enumerate(cell_names):
         ind = np.where(adata_.obs_names == name)[0]
-        J = Der[:, :, ind][:, :, 0].T # dim 0: target; dim 1: source
+        J = Der[:, :, ind][:, :, 0].T  # dim 0: target; dim 1: source
         J = pd.DataFrame(J, index=regulators, columns=effectors)
         ax = plt.subplot(gs[i])
         sns.heatmap(J, annot=True, ax=ax, cmap=cmap, cbar=False, center=0, **heatmap_kwargs)
         plt.title(name)
 
     if save_show_or_return == "save":
-        s_kwargs = {"path": None, "prefix": skey + '_heatmap', "dpi": None,
-                    "ext": 'pdf', "transparent": True, "close": True, "verbose": True}
+        s_kwargs = {
+            "path": None,
+            "prefix": skey + "_heatmap",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
         s_kwargs = update_dict(s_kwargs, save_kwargs)
 
         save_fig(**s_kwargs)

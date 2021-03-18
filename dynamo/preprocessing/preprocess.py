@@ -26,8 +26,10 @@ from .utils import (
     detect_datatype,
     basic_stats,
     add_noise_to_duplicates,
+    gene_exp_fraction,
 )
 from .cell_cycle import cell_cycle_scores
+
 
 def szFactor(
     adata_ori,
@@ -77,8 +79,8 @@ def szFactor(
     if use_all_genes_cells:
         adata = adata_ori
     else:
-        cell_inds = adata_ori.obs.use_for_pca if 'use_for_pca' in adata_ori.obs.columns else adata_ori.obs.index
-        filter_list = ['use_for_pca', 'pass_basic_filter']
+        cell_inds = adata_ori.obs.use_for_pca if "use_for_pca" in adata_ori.obs.columns else adata_ori.obs.index
+        filter_list = ["use_for_pca", "pass_basic_filter"]
         filter_checker = [i in adata_ori.var.columns for i in filter_list]
         which_filter = np.where(filter_checker)[0]
 
@@ -87,15 +89,14 @@ def szFactor(
         adata = adata_ori[cell_inds, :][:, gene_inds]
 
     if total_layers is not None:
-        if not isinstance(total_layers, list): total_layers = [total_layers]
+        if not isinstance(total_layers, list):
+            total_layers = [total_layers]
         if len(set(total_layers).difference(adata.layers.keys())) == 0:
             total = None
             for t_key in total_layers:
-                total = (
-                    adata.layers[t_key] if total is None else total + adata.layers[t_key]
-                )
+                total = adata.layers[t_key] if total is None else total + adata.layers[t_key]
             adata.layers["_total_"] = total
-            layers.extend(['_total_'])
+            layers.extend(["_total_"])
 
     layers = get_layer_keys(adata, layers)
     if "raw" in layers and adata.raw is None:
@@ -103,17 +104,17 @@ def szFactor(
 
     excluded_layers = []
     if not X_total_layers:
-        excluded_layers.extend(['X'])
+        excluded_layers.extend(["X"])
     if not splicing_total_layers:
-        excluded_layers.extend(['spliced', 'unspliced'])
+        excluded_layers.extend(["spliced", "unspliced"])
 
     for layer in layers:
         if layer in excluded_layers:
-            sfs, cell_total = sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None,
-                                      scale_to=scale_to)
+            sfs, cell_total = sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None, scale_to=scale_to)
         else:
-            sfs, cell_total = sz_util(adata, layer, round_exprs, method, locfunc, total_layers=total_layers,
-                                      scale_to=scale_to)
+            sfs, cell_total = sz_util(
+                adata, layer, round_exprs, method, locfunc, total_layers=total_layers, scale_to=scale_to
+            )
 
         sfs[~np.isfinite(sfs)] = 1
         if layer == "raw":
@@ -131,7 +132,7 @@ def szFactor(
             adata.obs[layer + "_Size_Factor"] = sfs
             adata.obs["initial_" + layer + "_cell_size"] = cell_total
 
-    adata_ori = merge_adata_attrs(adata_ori, adata, attr='obs')
+    adata_ori = merge_adata_attrs(adata_ori, adata, attr="obs")
 
     return adata_ori
 
@@ -139,7 +140,7 @@ def szFactor(
 def normalize_expr_data(
     adata,
     layers="all",
-    total_szfactor='total_Size_Factor',
+    total_szfactor="total_Size_Factor",
     splicing_total_layers=False,
     X_total_layers=False,
     norm_method=None,
@@ -147,7 +148,7 @@ def normalize_expr_data(
     relative_expr=True,
     keep_filtered=True,
     recalc_sz=False,
-    sz_method='median',
+    sz_method="median",
     scale_to=None,
 ):
     """Normalize the gene expression value for the AnnData object
@@ -204,12 +205,7 @@ def normalize_expr_data(
     layers_to_sz = list(set(layer_sz_column_names).difference(adata.obs.keys()))
 
     if len(layers_to_sz) > 0:
-        layers = (
-            pd.Series(layers_to_sz)
-            .str.split("_Size_Factor", expand=True)
-            .iloc[:, 0]
-            .tolist()
-        )
+        layers = pd.Series(layers_to_sz).str.split("_Size_Factor", expand=True).iloc[:, 0].tolist()
         if "Size_Factor" in layers:
             layers[np.where(np.array(layers) == "Size_Factor")[0][0]] = "X"
         szFactor(
@@ -223,9 +219,9 @@ def normalize_expr_data(
 
     excluded_layers = []
     if not X_total_layers:
-        excluded_layers.extend(['X'])
+        excluded_layers.extend(["X"])
     if not splicing_total_layers:
-        excluded_layers.extend(['spliced', 'unspliced'])
+        excluded_layers.extend(["spliced", "unspliced"])
 
     for layer in layers:
         if layer in excluded_layers:
@@ -233,7 +229,7 @@ def normalize_expr_data(
         else:
             szfactors, CM = get_sz_exprs(adata, layer, total_szfactor=total_szfactor)
 
-        if norm_method is None and layer == 'X':
+        if norm_method is None and layer == "X":
             CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, np.log1p)
         elif norm_method in [np.log1p, np.log, np.log2, Freeman_Tukey, None] and layer != "protein":
             CM = normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method)
@@ -254,9 +250,7 @@ def normalize_expr_data(
                 res = np.log1p(x / (np.exp(np.nansum(np.log1p(x[x > 0])) / n_feature)))
                 res[np.isnan(res)] = 0
                 # res[res > 100] = 100
-                CM[
-                    i
-                ] = res  # no .A is required # https://stackoverflow.com/questions/28427236/set-row-of-csr-matrix
+                CM[i] = res  # no .A is required # https://stackoverflow.com/questions/28427236/set-row-of-csr-matrix
 
             CM = CM.T
         else:
@@ -314,18 +308,14 @@ def Gini(adata, layers="all"):
         gini = np.zeros(n_features)
 
         for i in np.arange(n_features):
-            cur_cm = (
-                CM[:, i].A if issparse(CM) else CM[:, i]
-            )  # all values are treated equally, arrays must be 1d
+            cur_cm = CM[:, i].A if issparse(CM) else CM[:, i]  # all values are treated equally, arrays must be 1d
             if np.amin(CM) < 0:
                 cur_cm -= np.amin(cur_cm)  # values cannot be negative
             cur_cm += 0.0000001  # np.min(array[array!=0]) #values cannot be 0
             cur_cm = np.sort(cur_cm)  # values must be sorted
             index = np.arange(1, cur_cm.shape[0] + 1)  # index per array element
             n = cur_cm.shape[0]  # number of array elements
-            gini[i] = (np.sum((2 * index - n - 1) * cur_cm)) / (
-                n * np.sum(cur_cm)
-            )  # Gini coefficient
+            gini[i] = (np.sum((2 * index - n - 1) * cur_cm)) / (n * np.sum(cur_cm))  # Gini coefficient
 
         if layer in ["raw", "X"]:
             adata.var["gini"] = gini
@@ -390,7 +380,7 @@ def parametricDispersionFit(disp_table, initial_coefs=np.array([1e-6, 1])):
 
 
 def disp_calc_helper_NB(adata, layers="X", min_cells_detected=1):
-    """ This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
+    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
     ----------
@@ -426,11 +416,7 @@ def disp_calc_helper_NB(adata, layers="X", min_cells_detected=1):
         else:
             rounded = CM.round().astype("int")
 
-        lowerDetectedLimit = (
-            adata.uns["lowerDetectedLimit"]
-            if "lowerDetectedLimit" in adata.uns.keys()
-            else 1
-        )
+        lowerDetectedLimit = adata.uns["lowerDetectedLimit"] if "lowerDetectedLimit" in adata.uns.keys() else 1
         nzGenes = (rounded > lowerDetectedLimit).sum(axis=0)
         nzGenes = nzGenes > min_cells_detected
 
@@ -451,16 +437,12 @@ def disp_calc_helper_NB(adata, layers="X", min_cells_detected=1):
         # For NB: Var(Y) = mu * (1 + mu / k)
         # x.A.var(axis=0, ddof=1)
         f_expression_var = (
-            (x.multiply(x).mean(0).A1 - f_expression_mean.A1 ** 2)
-            * x.shape[0]
-            / (x.shape[0] - 1)
+            (x.multiply(x).mean(0).A1 - f_expression_mean.A1 ** 2) * x.shape[0] / (x.shape[0] - 1)
             if issparse(x)
             else x.var(axis=0, ddof=0) ** 2
         )  # np.mean(np.power(x - f_expression_mean, 2), axis=0) # variance with n - 1
         # https://scialert.net/fulltext/?doi=ajms.2010.1.15 method of moments
-        disp_guess_meth_moments = (
-            f_expression_var - xim * f_expression_mean
-        )  # variance - mu
+        disp_guess_meth_moments = f_expression_var - xim * f_expression_mean  # variance - mu
 
         disp_guess_meth_moments = disp_guess_meth_moments / np.power(
             f_expression_mean, 2
@@ -484,7 +466,7 @@ def disp_calc_helper_NB(adata, layers="X", min_cells_detected=1):
 
 
 def topTable(adata, layer="X", mode="dispersion"):
-    """ This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
+    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
     ----------
@@ -513,9 +495,7 @@ def topTable(adata, layer="X", mode="dispersion"):
             {
                 "gene_id": adata.uns[key]["disp_table"]["gene_id"],
                 "mean_expression": adata.uns[key]["disp_table"]["mu"],
-                "dispersion_fit": adata.uns[key]["disp_func"](
-                    adata.uns[key]["disp_table"]["mu"]
-                ),
+                "dispersion_fit": adata.uns[key]["disp_func"](adata.uns[key]["disp_table"]["mu"]),
                 "dispersion_empirical": adata.uns[key]["disp_table"]["disp"],
             }
         )
@@ -528,7 +508,7 @@ def topTable(adata, layer="X", mode="dispersion"):
 
 
 def vstExprs(adata, expr_matrix=None, round_vals=True):
-    """ This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
+    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
     ----------
@@ -562,12 +542,7 @@ def vstExprs(adata, expr_matrix=None, round_vals=True):
 
     def vst(q):  # c( "asymptDisp", "extraPois" )
         return np.log(
-            (
-                1
-                + coefs[1]
-                + 2 * coefs[0] * q
-                + 2 * np.sqrt(coefs[0] * q * (1 + coefs[1] + coefs[0] * q))
-            )
+            (1 + coefs[1] + 2 * coefs[0] * q + 2 * np.sqrt(coefs[0] * q * (1 + coefs[1] + coefs[0] * q)))
             / (4 * coefs[0])
         ) / np.log(2)
 
@@ -576,10 +551,8 @@ def vstExprs(adata, expr_matrix=None, round_vals=True):
     return res
 
 
-def Dispersion(
-    adata, layers="X", modelFormulaStr="~ 1", min_cells_detected=1, removeOutliers=False
-):
-    """ This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
+def Dispersion(adata, layers="X", modelFormulaStr="~ 1", min_cells_detected=1, removeOutliers=False):
+    """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
     ----------
@@ -617,9 +590,7 @@ def Dispersion(
         layer, disp_table = layers[ind], disp_tables[ind]
 
         if disp_table is None:
-            raise Exception(
-                "Parametric dispersion fitting failed, please set a different lowerDetectionLimit"
-            )
+            raise Exception("Parametric dispersion fitting failed, please set a different lowerDetectionLimit")
 
         disp_table = disp_table.loc[np.where(disp_table["mu"] != np.nan)[0], :]
 
@@ -666,7 +637,7 @@ def SVRs(
     filter_bool=None,
     layers="X",
     relative_expr=True,
-    total_szfactor='total_Size_Factor',
+    total_szfactor="total_Size_Factor",
     min_expr_cells=0,
     min_expr_avg=0,
     max_expr_avg=0,
@@ -720,8 +691,8 @@ def SVRs(
     if use_all_genes_cells:
         adata = adata_ori[:, filter_bool].copy() if filter_bool is not None else adata_ori
     else:
-        cell_inds = adata_ori.obs.use_for_pca if 'use_for_pca' in adata_ori.obs.columns else adata_ori.obs.index
-        filter_list = ['use_for_pca', 'pass_basic_filter']
+        cell_inds = adata_ori.obs.use_for_pca if "use_for_pca" in adata_ori.obs.columns else adata_ori.obs.index
+        filter_list = ["use_for_pca", "pass_basic_filter"]
         filter_checker = [i in adata_ori.var.columns for i in filter_list]
         which_filter = np.where(filter_checker)[0]
 
@@ -756,11 +727,7 @@ def SVRs(
             )
 
         if total_szfactor is not None and total_szfactor in adata.obs.keys():
-            szfactors = (
-                adata.obs[total_szfactor].values[:, None]
-                if total_szfactor in adata.obs.columns
-                else None
-            )
+            szfactors = adata.obs[total_szfactor].values[:, None] if total_szfactor in adata.obs.columns else None
 
         if szfactors is not None and relative_expr:
             if issparse(CM):
@@ -770,14 +737,10 @@ def SVRs(
 
         if winsorize:
             if min_expr_cells <= ((100 - winsor_perc[1]) * CM.shape[0] * 0.01):
-                min_expr_cells = (
-                    int(np.ceil((100 - winsor_perc[1]) * CM.shape[1] * 0.01)) + 2
-                )
+                min_expr_cells = int(np.ceil((100 - winsor_perc[1]) * CM.shape[1] * 0.01)) + 2
 
         detected_bool = np.array(
-            ((CM > 0).sum(0) >= min_expr_cells)
-            & (CM.mean(0) <= max_expr_avg)
-            & (CM.mean(0) >= min_expr_avg)
+            ((CM > 0).sum(0) >= min_expr_cells) & (CM.mean(0) <= max_expr_avg) & (CM.mean(0) >= min_expr_avg)
         ).flatten()
 
         valid_CM = CM[:, detected_bool]
@@ -840,14 +803,10 @@ def SVRs(
             np.array(score).flatten(),
         )
 
-        key = (
-            "velocyto_SVR"
-            if layer == "raw" or layer == "X"
-            else layer + "_velocyto_SVR"
-        )
+        key = "velocyto_SVR" if layer == "raw" or layer == "X" else layer + "_velocyto_SVR"
         adata_ori.uns[key] = {"SVR": fitted_fun}
 
-    adata_ori = merge_adata_attrs(adata_ori, adata, attr='var')
+    adata_ori = merge_adata_attrs(adata_ori, adata, attr="var")
 
     return adata_ori
 
@@ -902,8 +861,7 @@ def filter_cells(
 
     detected_bool = np.ones(adata.X.shape[0], dtype=bool)
     detected_bool = (detected_bool) & (
-        ((adata.X > 0).sum(1) >= min_expr_genes_s)
-        & ((adata.X > 0).sum(1) <= max_expr_genes_s)
+        ((adata.X > 0).sum(1) >= min_expr_genes_s) & ((adata.X > 0).sum(1) <= max_expr_genes_s)
     ).flatten()
 
     if ("spliced" in adata.layers.keys()) & (layer == "spliced" or layer == "all"):
@@ -933,13 +891,9 @@ def filter_cells(
 
     if shared_count is not None:
         layers = get_layer_keys(adata, layer, False)
-        detected_bool = detected_bool & get_shared_counts(
-            adata, layers, shared_count, "cell"
-        )
+        detected_bool = detected_bool & get_shared_counts(adata, layers, shared_count, "cell")
 
-    filter_bool = (
-        filter_bool & detected_bool if filter_bool is not None else detected_bool
-    )
+    filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
 
     filter_bool = np.array(filter_bool).flatten()
     if keep_filtered:
@@ -951,31 +905,29 @@ def filter_cells(
     return adata
 
 
-def filter_genes_by_clusters_(
-    adata, cluster, min_avg_U=0.02, min_avg_S=0.08, size_limit=40
-):
+def filter_genes_by_clusters_(adata, cluster, min_avg_U=0.02, min_avg_S=0.08, size_limit=40):
     """Prepare filtering genes on the basis of cluster-wise expression threshold
-        This function is taken from velocyto in order to reproduce velocyto's DentateGyrus notebook.
+    This function is taken from velocyto in order to reproduce velocyto's DentateGyrus notebook.
 
-        Arguments
-        ---------
-            adata: :class:`~anndata.AnnData`
-                AnnData object.
-            cluster: `str`
-                A column in the adata.obs attribute which will be used for cluster specific expression filtering.
-            min_avg_U: float
-                Include genes that have unspliced average bigger than `min_avg_U` in at least one of the clusters
-            min_avg_S: float
-                Include genes that have spliced average bigger than `min_avg_U` in at least one of the clusters
-            Note: the two conditions are combined by and "&" logical operator.
+    Arguments
+    ---------
+        adata: :class:`~anndata.AnnData`
+            AnnData object.
+        cluster: `str`
+            A column in the adata.obs attribute which will be used for cluster specific expression filtering.
+        min_avg_U: float
+            Include genes that have unspliced average bigger than `min_avg_U` in at least one of the clusters
+        min_avg_S: float
+            Include genes that have spliced average bigger than `min_avg_U` in at least one of the clusters
+        Note: the two conditions are combined by and "&" logical operator.
 
-        Returns
-        -------
-        Nothing but it creates the attribute
-        clu_avg_selected: np.ndarray bool
-            The gene cluster that is selected
-        To perform the filtering use the method `filter_genes`
-        """
+    Returns
+    -------
+    Nothing but it creates the attribute
+    clu_avg_selected: np.ndarray bool
+        The gene cluster that is selected
+    To perform the filtering use the method `filter_genes`
+    """
     U, S, cluster_uid = (
         adata.layers["unspliced"],
         adata.layers["spliced"],
@@ -983,9 +935,7 @@ def filter_genes_by_clusters_(
     )
     cluster_uid, cluster_ix = np.unique(cluster_uid, return_inverse=True)
 
-    U_avgs, S_avgs = clusters_stats(
-        U, S, cluster_uid, cluster_ix, size_limit=size_limit
-    )
+    U_avgs, S_avgs = clusters_stats(U, S, cluster_uid, cluster_ix, size_limit=size_limit)
     clu_avg_selected = (U_avgs.max(1) > min_avg_U) & (S_avgs.max(1) > min_avg_S)
 
     return clu_avg_selected
@@ -1078,16 +1028,14 @@ def filter_genes(
         )
     if shared_count is not None:
         layers = get_layer_keys(adata, "all", False)
-        tmp = get_shared_counts(
-            adata, layers, shared_count, "gene"
-        )
+        tmp = get_shared_counts(adata, layers, shared_count, "gene")
         if tmp.sum() > 2000:
             detected_bool &= tmp
         else:
             # in case the labeling time is very short for pulse experiment or
             # chase time is very long for degradation experiment.
             tmp = get_shared_counts(
-                adata, list(set(layers).difference(['new', "labelled", 'labeled'])), shared_count, "gene"
+                adata, list(set(layers).difference(["new", "labelled", "labeled"])), shared_count, "gene"
             )
             detected_bool &= tmp
 
@@ -1104,9 +1052,7 @@ def filter_genes(
             ).flatten()
         )
 
-    filter_bool = (
-        filter_bool & detected_bool if filter_bool is not None else detected_bool
-    )
+    filter_bool = filter_bool & detected_bool if filter_bool is not None else detected_bool
 
     adata.var["pass_basic_filter"] = np.array(filter_bool).flatten()
 
@@ -1116,11 +1062,12 @@ def filter_genes(
 def select_genes(
     adata,
     layer="X",
-    total_szfactor='total_Size_Factor',
+    total_szfactor="total_Size_Factor",
     keep_filtered=True,
     sort_by="SVR",
     n_top_genes=2000,
     SVRs_kwargs={},
+    only_bools=False,
 ):
     """Select feature genes based on a collection of filters.
 
@@ -1138,6 +1085,8 @@ def select_genes(
             Which soring method, either SVR, dispersion or Gini index, to be used to select genes.
         n_top_genes: `int` (default: `int`)
             How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
+        only_bools: `bool` (default: `False`)
+            Only return a vector of bool values.
 
     Returns
     -------
@@ -1146,8 +1095,11 @@ def select_genes(
             downstream analysis. adata will be subsetted with only the genes pass filter if keep_unflitered is set to be False.
     """
 
-    filter_bool = adata.var["pass_basic_filter"] if "pass_basic_filter" in adata.var.columns \
+    filter_bool = (
+        adata.var["pass_basic_filter"]
+        if "pass_basic_filter" in adata.var.columns
         else np.ones(adata.shape[1], dtype=bool)
+    )
 
     if adata.shape[1] <= n_top_genes:
         filter_bool = np.ones(adata.shape[1], dtype=bool)
@@ -1155,12 +1107,8 @@ def select_genes(
         if sort_by == "dispersion":
             table = topTable(adata, layer, mode="dispersion")
             valid_table = table.query("dispersion_empirical > dispersion_fit")
-            valid_table = valid_table.loc[
-                set(adata.var.index[filter_bool]).intersection(valid_table.index), :
-            ]
-            gene_id = np.argsort(-valid_table.loc[:, "dispersion_empirical"])[
-                :n_top_genes
-            ]
+            valid_table = valid_table.loc[set(adata.var.index[filter_bool]).intersection(valid_table.index), :]
+            gene_id = np.argsort(-valid_table.loc[:, "dispersion_empirical"])[:n_top_genes]
             gene_id = valid_table.iloc[gene_id, :].index
             filter_bool = adata.var.index.isin(gene_id)
         elif sort_by == "gini":
@@ -1180,13 +1128,7 @@ def select_genes(
                 "sort_inverse": False,
             }
             SVRs_args = update_dict(SVRs_args, SVRs_kwargs)
-            adata = SVRs(
-                adata,
-                layers=layer,
-                total_szfactor=total_szfactor,
-                filter_bool=filter_bool,
-                **SVRs_args
-            )
+            adata = SVRs(adata, layers=layer, total_szfactor=total_szfactor, filter_bool=filter_bool, **SVRs_args)
 
             filter_bool = get_svr_filter(adata, layer=layer, n_top_genes=n_top_genes, return_adata=False)
 
@@ -1196,7 +1138,7 @@ def select_genes(
         adata._inplace_subset_var(filter_bool)
         adata.var["use_for_pca"] = True
 
-    return adata
+    return filter_bool if only_bools else adata
 
 
 def recipe_monocle(
@@ -1213,14 +1155,16 @@ def recipe_monocle(
     genes_to_use=None,
     genes_to_append=None,
     genes_to_exclude=None,
+    exprs_frac_max=0.005,
     method="pca",
     num_dim=30,
-    sz_method='median',
+    sz_method="median",
     scale_to=None,
     norm_method=None,
     pseudo_expr=1,
     feature_selection="SVR",
     n_top_genes=2000,
+    maintain_n_top_genes=True,
     relative_expr=True,
     keep_filtered_cells=True,
     keep_filtered_genes=True,
@@ -1286,6 +1230,8 @@ def recipe_monocle(
             A list of gene names that will be appended to the feature genes list for downstream analysis.
         genes_to_exclude: `list` (default: `None`)
             A list of gene names that will be excluded to the feature genes list for downstream analysis.
+        exprs_frac_max: `float` (default: `0.001`)
+            The minimal fraction of gene counts to the total counts across cells that will used to filter genes.
         method: `str` (default: `log`)
             The linear dimension reduction methods to be used.
         num_dim: `int` (default: `30`)
@@ -1305,6 +1251,9 @@ def recipe_monocle(
             Which soring method, either dispersion, SVR or Gini index, to be used to select genes.
         n_top_genes: `int` (default: `2000`)
             How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
+        maintain_n_top_genes: `bool` (default: `True`)
+            Whether to ensure 2000 feature genes selected no matter what genes_to_use, genes_to_append, etc. are
+            specified. The only exception is that if `genes_to_use` is supplied with `n_top_genes`.
         relative_expr: `bool` (default: `True`)
             A logic flag to determine whether we need to divide gene expression values first by size factor before
             normalization.
@@ -1334,36 +1283,42 @@ def recipe_monocle(
             dimensions, etc.
     """
 
+    if "use_for_pca" in adata.var.columns:
+        del adata.var["use_for_pca"]  # avoid use_for_pca was set previously.
+
     adata.uns["pp"] = {}
     n_cells, n_genes = adata.n_obs, adata.n_vars
     adata = convert2symbol(adata, scopes=scopes)
 
-    if norm_method == 'Freeman_Tukey': norm_method = Freeman_Tukey
+    if norm_method == "Freeman_Tukey":
+        norm_method = Freeman_Tukey
 
     basic_stats(adata)
     has_splicing, has_labeling, splicing_labeling, has_protein = detect_datatype(adata)
-    adata.uns['pp']['has_splicing'], \
-    adata.uns['pp']['has_labeling'], \
-    adata.uns['pp']['splicing_labeling'], \
-    adata.uns['pp']['has_protein'] = has_splicing, has_labeling, splicing_labeling, has_protein
+    (
+        adata.uns["pp"]["has_splicing"],
+        adata.uns["pp"]["has_labeling"],
+        adata.uns["pp"]["splicing_labeling"],
+        adata.uns["pp"]["has_protein"],
+    ) = (has_splicing, has_labeling, splicing_labeling, has_protein)
 
     if has_splicing and has_labeling and splicing_labeling:
-        layer = ['X', 'uu', 'ul', 'su', 'sl', 'spliced', 'unspliced', 'new', 'total'] if layer is None else layer
+        layer = ["X", "uu", "ul", "su", "sl", "spliced", "unspliced", "new", "total"] if layer is None else layer
 
         if type(total_layers) != list:
-            total_layers = ['uu', 'ul', 'su', 'sl'] if total_layers else None
+            total_layers = ["uu", "ul", "su", "sl"] if total_layers else None
     if has_splicing and has_labeling and not splicing_labeling:
-        layer = ['X', 'spliced', 'unspliced', 'new', 'total'] if layer is None else layer
+        layer = ["X", "spliced", "unspliced", "new", "total"] if layer is None else layer
 
         if type(total_layers) != list:
-            total_layers = ['total'] if total_layers else None
+            total_layers = ["total"] if total_layers else None
     elif has_labeling and not has_splicing:
-        layer = ['X', 'total', 'new'] if layer is None else layer
+        layer = ["X", "total", "new"] if layer is None else layer
 
         if type(total_layers) != list:
-            total_layers = ['total'] if total_layers else None
+            total_layers = ["total"] if total_layers else None
     elif has_splicing and not has_labeling:
-        layer = ['X', 'spliced', 'unspliced'] if layer is None else layer
+        layer = ["X", "spliced", "unspliced"] if layer is None else layer
 
     adata = unique_var_obs_adata(adata)
     adata = layers2csr(adata)
@@ -1372,10 +1327,12 @@ def recipe_monocle(
     # reset adata.X
     if has_labeling:
         if tkey is None:
-            warnings.warn(f"\nWhen analyzing labeling based scRNA-seq without providing `tkey`, dynamo will try to use "
-                          f"`\ntime` as the key for labeling time. Please correct this via supplying the correct `tkey`"
-                          f"\nif needed.")
-            tkey = 'time'
+            warnings.warn(
+                f"\nWhen analyzing labeling based scRNA-seq without providing `tkey`, dynamo will try to use "
+                f"`\ntime` as the key for labeling time. Please correct this via supplying the correct `tkey`"
+                f"\nif needed."
+            )
+            tkey = "time"
         if tkey not in adata.obs.keys():
             raise ValueError(f"`tkey` {tkey} that encodes the labeling time is not existed in your adata.")
         if experiment_type is None:
@@ -1383,8 +1340,8 @@ def recipe_monocle(
             if len(np.unique(t)) == 1:
                 experiment_type = "one-shot"
             else:
-                labeled_frac = adata.layers['new'].T.sum(0) / adata.layers['total'].T.sum(0)
-                xx = labeled_frac.A1 if issparse(adata.layers['new']) else labeled_frac
+                labeled_frac = adata.layers["new"].T.sum(0) / adata.layers["total"].T.sum(0)
+                xx = labeled_frac.A1 if issparse(adata.layers["new"]) else labeled_frac
 
                 yy = t
                 xm, ym = np.mean(xx), np.mean(yy)
@@ -1395,44 +1352,66 @@ def recipe_monocle(
 
                 # total labeled RNA amount will increase (decrease) in kinetic (degradation) experiments over time.
                 experiment_type = "kin" if k > 0 else "deg"
-            warnings.warn(f"\nDynamo detects your labeling data is from a {experiment_type} experiment, please correct "
-                          f"\nthis via supplying the correct experiment_type (one of `one-shot`, `kin`, `deg`) as "
-                          f"needed.")
-        elif experiment_type not in ['one-shot', 'kin', 'mixture', 'mix_std_stm', 'kinetics', 'mix_pulse_chase',
-                                           'mix_kin_deg']:
-            raise ValueError(f"expriment_type can only be one of ['one-shot', 'kin', 'mixture', 'mix_std_stm', "
-                             f"'kinetics', 'mix_pulse_chase','mix_kin_deg']")
-        elif experiment_type == 'kinetics':
-            experiment_type = 'kin'
+            warnings.warn(
+                f"\nDynamo detects your labeling data is from a {experiment_type} experiment, please correct "
+                f"\nthis via supplying the correct experiment_type (one of `one-shot`, `kin`, `deg`) as "
+                f"needed."
+            )
+        elif experiment_type not in [
+            "one-shot",
+            "kin",
+            "mixture",
+            "mix_std_stm",
+            "kinetics",
+            "mix_pulse_chase",
+            "mix_kin_deg",
+        ]:
+            raise ValueError(
+                f"expriment_type can only be one of ['one-shot', 'kin', 'mixture', 'mix_std_stm', "
+                f"'kinetics', 'mix_pulse_chase','mix_kin_deg']"
+            )
+        elif experiment_type == "kinetics":
+            experiment_type = "kin"
 
     if reset_X:
         if has_labeling:
-            if experiment_type.lower() in ['one-shot', 'kin', 'mixture', 'mix_std_stm', 'kinetics', 'mix_pulse_chase',
-                                           'mix_kin_deg']:
-                adata.X = adata.layers['total'].copy()
-            if experiment_type.lower() in ['deg', 'degradation'] and has_splicing:
-                adata.X = adata.layers['spliced'].copy()
-            if experiment_type.lower() in ['deg', 'degradation'] and not has_splicing:
-                warnings.warn("It is not possible to calculate RNA velocity from a degradation experiment which has no "
-                              "splicing information.")
-                adata.X = adata.layers['total'].copy()
+            if experiment_type.lower() in [
+                "one-shot",
+                "kin",
+                "mixture",
+                "mix_std_stm",
+                "kinetics",
+                "mix_pulse_chase",
+                "mix_kin_deg",
+            ]:
+                adata.X = adata.layers["total"].copy()
+            if experiment_type.lower() in ["deg", "degradation"] and has_splicing:
+                adata.X = adata.layers["spliced"].copy()
+            if experiment_type.lower() in ["deg", "degradation"] and not has_splicing:
+                warnings.warn(
+                    "It is not possible to calculate RNA velocity from a degradation experiment which has no "
+                    "splicing information."
+                )
+                adata.X = adata.layers["total"].copy()
             else:
-                adata.X = adata.layers['total'].copy()
+                adata.X = adata.layers["total"].copy()
         else:
-            adata.X = adata.layers['spliced'].copy()
+            adata.X = adata.layers["spliced"].copy()
 
     if tkey is not None:
         if adata.obs[tkey].max() > 60:
-            warnings.warn("Looks like you are using minutes as the time unit. For the purpose of numeric stability, "
-                          "we recommend using hour as the time unit.")
+            warnings.warn(
+                "Looks like you are using minutes as the time unit. For the purpose of numeric stability, "
+                "we recommend using hour as the time unit."
+            )
 
-    adata.uns['pp']['tkey'] = tkey
-    adata.uns['pp']['experiment_type'] = 'conventional' if experiment_type is None else experiment_type
+    adata.uns["pp"]["tkey"] = tkey
+    adata.uns["pp"]["experiment_type"] = "conventional" if experiment_type is None else experiment_type
 
     _szFactor, _logged = (True, True) if normalized else (False, False)
     if normalized is None and not has_labeling:
-        if 'raw_data' in adata.uns_keys():
-            _szFactor, _logged = not adata.uns['raw_data'], not adata.uns['raw_data']
+        if "raw_data" in adata.uns_keys():
+            _szFactor, _logged = not adata.uns["raw_data"], not adata.uns["raw_data"]
         else:
             # automatically detect whether the data is size-factor normalized -- no integers (only works for readcounts / UMI based data).
             _szFactor = not np.allclose(
@@ -1443,17 +1422,16 @@ def recipe_monocle(
             # check whether total UMI is the same -- if not the same, logged
             if _szFactor:
                 _logged = not np.allclose(
-                    np.sum(
-                        adata.X.sum(1)[np.random.choice(adata.n_obs, 10)]
-                        - adata.X.sum(1)[0]
-                    ),
+                    np.sum(adata.X.sum(1)[np.random.choice(adata.n_obs, 10)] - adata.X.sum(1)[0]),
                     0,
                     atol=1e-1,
                 )
 
         if _szFactor or _logged:
-            warnings.warn(f'dynamo detects your data is size factor normalized and/or log transformed. If this is not '
-                          f'right, plese set `normalized = False.')
+            warnings.warn(
+                f"dynamo detects your data is size factor normalized and/or log transformed. If this is not "
+                f"right, plese set `normalized = False."
+            )
 
     # filter bad cells
     filter_cells_kwargs = {
@@ -1470,9 +1448,7 @@ def recipe_monocle(
     if fc_kwargs is not None:
         filter_cells_kwargs.update(fc_kwargs)
 
-    adata = filter_cells(
-        adata, keep_filtered=keep_filtered_cells, **filter_cells_kwargs
-    )
+    adata = filter_cells(adata, keep_filtered=keep_filtered_cells, **filter_cells_kwargs)
 
     filter_genes_kwargs = {
         "filter_bool": None,
@@ -1500,56 +1476,93 @@ def recipe_monocle(
 
     # calculate sz factor
     if not _szFactor or "Size_Factor" not in adata.obs_keys():
-        adata = szFactor(adata, total_layers=total_layers, scale_to=scale_to,
-                         splicing_total_layers=splicing_total_layers,
-                         X_total_layers=X_total_layers,
-                         layers=layer if type(layer) is list else "all")
+        adata = szFactor(
+            adata,
+            total_layers=total_layers,
+            scale_to=scale_to,
+            splicing_total_layers=splicing_total_layers,
+            X_total_layers=X_total_layers,
+            layers=layer if type(layer) is list else "all",
+        )
 
     if feature_selection.lower() == "dispersion":
         adata = Dispersion(adata)
 
     # set use_for_pca (use basic_filtered data)
     select_genes_dict = {
-                "min_expr_cells": 0,
-                "min_expr_avg": 0,
-                "max_expr_avg": np.inf,
-                "svr_gamma": None,
-                "winsorize": False,
-                "winsor_perc": (1, 99.5),
-                "sort_inverse": False,
-            }
+        "min_expr_cells": 0,
+        "min_expr_avg": 0,
+        "max_expr_avg": np.inf,
+        "svr_gamma": None,
+        "winsorize": False,
+        "winsor_perc": (1, 99.5),
+        "sort_inverse": False,
+    }
     if sg_kwargs is not None:
         select_genes_dict.update(sg_kwargs)
 
     if genes_to_use is None:
         pass_basic_filter_num = adata.var.pass_basic_filter.sum()
         if pass_basic_filter_num < n_top_genes:
-            warnings.warn(f'only {pass_basic_filter_num} genes passed basic filtering, but you requested {n_top_genes} '
-                          f'genes for feature selection. Try lowering the gene selection stringency: '
-                          f'{select_genes_dict}')
+            warnings.warn(
+                f"only {pass_basic_filter_num} genes passed basic filtering, but you requested {n_top_genes} "
+                f"genes for feature selection. Try lowering the gene selection stringency: "
+                f"{select_genes_dict}"
+            )
         adata = select_genes(
             adata,
             sort_by=feature_selection,
             n_top_genes=n_top_genes,
-            keep_filtered=keep_filtered_genes,
+            keep_filtered=True,
             SVRs_kwargs=select_genes_dict,
         )
     else:
         adata.var["use_for_pca"] = adata.var.index.isin(genes_to_use)
-        if not keep_filtered_genes:
-            adata._inplace_subset_var(adata.var["use_for_pca"])
+
+    adata.var["frac"], valid_ids = gene_exp_fraction(X=adata.X, threshold=exprs_frac_max)
+    genes_to_exclude = (
+        list(adata.var_names[valid_ids])
+        if genes_to_exclude is None
+        else genes_to_exclude + list(adata.var_names[valid_ids])
+    )
 
     if genes_to_append is not None:
         valid_genes = adata.var.index.intersection(genes_to_append)
-        if len(valid_genes) > 0: adata.var.loc[valid_genes, "use_for_pca"] = True
+        if len(valid_genes) > 0:
+            adata.var.loc[valid_genes, "use_for_pca"] = True
 
     if genes_to_exclude is not None:
         valid_genes = adata.var.index.intersection(genes_to_exclude)
-        if len(valid_genes) > 0: adata.var.loc[valid_genes, "use_for_pca"] = False
+        if len(valid_genes) > 0:
+            adata.var.loc[valid_genes, "use_for_pca"] = False
 
-        if adata.var.use_for_pca.sum() < 50:
-            warnings.warn(f"You only have less than 50 feature gene selected. Are you sure you want to exclude all "
-                          f"genes passed to the genes_to_exclude argument?")
+        if adata.var.use_for_pca.sum() < 50 and not maintain_n_top_genes:
+            warnings.warn(
+                f"You only have less than 50 feature gene selected. Are you sure you want to exclude all "
+                f"genes passed to the genes_to_exclude argument?"
+            )
+
+    if maintain_n_top_genes:
+        if genes_to_append is not None:
+            n_top_genes = n_top_genes - len(genes_to_append)
+            valid_ids = adata.var.index.difference(genes_to_exclude + genes_to_append)
+        else:
+            valid_ids = adata.var.index.difference(genes_to_exclude)
+
+        if n_top_genes > 0:
+            filter_bool = select_genes(
+                adata[:, valid_ids],
+                sort_by=feature_selection,
+                n_top_genes=n_top_genes,
+                keep_filtered=True,  # no effect to adata
+                SVRs_kwargs=select_genes_dict,
+                only_bools=True,
+            )
+
+            adata.var.loc[valid_ids, "use_for_pca"] = filter_bool
+
+    if not keep_filtered_genes:
+        adata._inplace_subset_var(adata.var["use_for_pca"])
 
     # normalized data based on sz factor
     if not _logged:
@@ -1570,7 +1583,8 @@ def recipe_monocle(
     else:
         layers = get_layer_keys(adata, "all")
         for layer in layers:
-            if layer != 'X': adata.layers["X_" + layer] = adata.layers[layer].copy()
+            if layer != "X":
+                adata.layers["X_" + layer] = adata.layers[layer].copy()
 
         adata.uns["pp"]["norm_method"] = None
 
@@ -1589,8 +1603,10 @@ def recipe_monocle(
         elif type(layer) is str:
             CM = adata.layers["X_" + layer][:, adata.var.use_for_pca.values]
         else:
-            raise ValueError(f'your input layer argument should be either a `str` or a list that includes one of `X`, '
-                             f'`total`, `protein` element. `Layer` currently is {layer}.')
+            raise ValueError(
+                f"your input layer argument should be either a `str` or a list that includes one of `X`, "
+                f"`total`, `protein` element. `Layer` currently is {layer}."
+            )
 
     cm_genesums = CM.sum(axis=0)
     valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
@@ -1598,9 +1614,11 @@ def recipe_monocle(
 
     bad_genes = np.where(adata.var.use_for_pca)[0][~valid_ind]
     if genes_to_append is not None and len(adata.var.index[bad_genes].intersection(genes_to_append)) > 0:
-        raise ValueError(f"The gene list passed to argument genes_to_append contains genes with no expression "
-                         f"across cells or non finite values. Please check those genes:"
-                         f"{set(bad_genes).intersection(genes_to_append)}!")
+        raise ValueError(
+            f"The gene list passed to argument genes_to_append contains genes with no expression "
+            f"across cells or non finite values. Please check those genes:"
+            f"{set(bad_genes).intersection(genes_to_append)}!"
+        )
 
     adata.var.iloc[bad_genes, adata.var.columns.tolist().index("use_for_pca")] = False
     CM = CM[:, valid_ind]
@@ -1608,37 +1626,37 @@ def recipe_monocle(
         adata, fit, _ = pca(adata, CM, num_dim, "X_" + method.lower())
 
         adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
-        adata.obsm['X'] = adata.obsm["X_" + method.lower()]
+        adata.obsm["X"] = adata.obsm["X_" + method.lower()]
     elif method == "ica":
-        fit = FastICA(
-            num_dim, algorithm="deflation", tol=5e-6, fun="logcosh", max_iter=1000
-        )
+        fit = FastICA(num_dim, algorithm="deflation", tol=5e-6, fun="logcosh", max_iter=1000)
         reduce_dim = fit.fit_transform(CM.toarray())
 
         adata.obsm["X_" + method.lower()] = reduce_dim
-        adata.obsm['X'] = adata.obsm["X_" + method.lower()]
+        adata.obsm["X"] = adata.obsm["X_" + method.lower()]
 
     adata.uns[method + "_fit"], adata.uns["feature_selection"] = fit, feature_selection
     # calculate NTR for every cell:
     ntr, var_ntr = NTR(adata)
     if ntr is not None:
-        adata.obs['ntr'] = ntr
-        adata.var['ntr'] = var_ntr
+        adata.obs["ntr"] = ntr
+        adata.var["ntr"] = var_ntr
 
     try:
         cell_cycle_scores(adata)
     except Exception:
-        warnings.warn('\nDynamo is not able to perform cell cycle staging for you automatically. \n'
-                      'Since dyn.pl.phase_diagram in dynamo by default colors cells by its cell-cycle stage, \n'
-                      'you need to set color argument accordingly if confronting errors related to this.')
+        warnings.warn(
+            "\nDynamo is not able to perform cell cycle staging for you automatically. \n"
+            "Since dyn.pl.phase_diagram in dynamo by default colors cells by its cell-cycle stage, \n"
+            "you need to set color argument accordingly if confronting errors related to this."
+        )
 
-    if 'raw_data' in adata.uns_keys():
-        adata.uns['raw_data'] = False
+    if "raw_data" in adata.uns_keys():
+        adata.uns["raw_data"] = False
 
     if not keep_raw_layers:
         layers = list(adata.layers.keys())
         for layer in layers:
-            if not layer.startswith('X_'):
+            if not layer.startswith("X_"):
                 del adata.layers[layer]
 
     return adata
@@ -1658,37 +1676,37 @@ def recipe_velocyto(
     keep_filtered_genes=True,
 ):
     """This function is adapted from the velocyto's DentateGyrus notebook.
-.
+    .
 
-    Parameters
-    ----------
-        adata: :class:`~anndata.AnnData`
-            AnnData object.
-        total_layers: list or None (default `None`)
-            The layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"], ["uu", "ul", "su", "sl"] or ["new", "old"], etc.
-        method: `str` (default: `log`)
-            The linear dimension reduction methods to be used.
-        num_dim: `int` (default: `50`)
-            The number of linear dimensions reduced to.
-        norm_method: `function`, `str` or `None` (default: function `None`)
-            The method to normalize the data.
-        pseudo_expr: `int` (default: `1`)
-            A pseudocount added to the gene expression value before log/log2 normalization.
-        feature_selection: `str` (default: `SVR`)
-            Which soring method, either dispersion, SVR or Gini index, to be used to select genes.
-        n_top_genes: `int` (default: `2000`)
-            How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
-        cluster: `str`
-            A column in the adata.obs attribute which will be used for cluster specific expression filtering.
-        relative_expr: `bool` (default: `True`)
-            A logic flag to determine whether we need to divide gene expression values first by size factor before normalization.
-        keep_filtered_genes: `bool` (default: `True`)
-            Whether to keep genes that don't pass the filtering in the adata object.
+        Parameters
+        ----------
+            adata: :class:`~anndata.AnnData`
+                AnnData object.
+            total_layers: list or None (default `None`)
+                The layer(s) that can be summed up to get the total mRNA. for example, ["spliced", "unspliced"], ["uu", "ul", "su", "sl"] or ["new", "old"], etc.
+            method: `str` (default: `log`)
+                The linear dimension reduction methods to be used.
+            num_dim: `int` (default: `50`)
+                The number of linear dimensions reduced to.
+            norm_method: `function`, `str` or `None` (default: function `None`)
+                The method to normalize the data.
+            pseudo_expr: `int` (default: `1`)
+                A pseudocount added to the gene expression value before log/log2 normalization.
+            feature_selection: `str` (default: `SVR`)
+                Which soring method, either dispersion, SVR or Gini index, to be used to select genes.
+            n_top_genes: `int` (default: `2000`)
+                How many top genes based on scoring method (specified by sort_by) will be selected as feature genes.
+            cluster: `str`
+                A column in the adata.obs attribute which will be used for cluster specific expression filtering.
+            relative_expr: `bool` (default: `True`)
+                A logic flag to determine whether we need to divide gene expression values first by size factor before normalization.
+            keep_filtered_genes: `bool` (default: `True`)
+                Whether to keep genes that don't pass the filtering in the adata object.
 
-    Returns
-    -------
-        adata: :class:`~anndata.AnnData`
-            A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions, etc.
+        Returns
+        -------
+            adata: :class:`~anndata.AnnData`
+                A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions, etc.
     """
     adata = szFactor(adata, method="mean", total_layers=total_layers)
     initial_Ucell_size = adata.layers["unspliced"].sum(1)
@@ -1701,9 +1719,7 @@ def recipe_velocyto(
 
     adata = adata[:, filter_bool]
 
-    adata = SVRs(
-        adata, layers=["spliced"], min_expr_cells=2, max_expr_avg=35, min_expr_avg=0
-    )
+    adata = SVRs(adata, layers=["spliced"], min_expr_cells=2, max_expr_avg=35, min_expr_avg=0)
 
     filter_bool = get_svr_filter(adata, layer="spliced", n_top_genes=n_top_genes)
 
@@ -1716,9 +1732,7 @@ def recipe_velocyto(
         min_cell_u=20,
         shared_count=None,
     )
-    filter_bool_cluster = filter_genes_by_clusters_(
-        adata, min_avg_S=0.08, min_avg_U=0.01, cluster=cluster
-    )
+    filter_bool_cluster = filter_genes_by_clusters_(adata, min_avg_S=0.08, min_avg_U=0.01, cluster=cluster)
 
     adata = adata[:, filter_bool_gene & filter_bool_cluster]
 
@@ -1748,9 +1762,7 @@ def recipe_velocyto(
         valid_ind = np.array(valid_ind).flatten()
         CM = CM[:, valid_ind]
 
-        fit = FastICA(
-            num_dim, algorithm="deflation", tol=5e-6, fun="logcosh", max_iter=1000
-        )
+        fit = FastICA(num_dim, algorithm="deflation", tol=5e-6, fun="logcosh", max_iter=1000)
         reduce_dim = fit.fit_transform(CM.toarray())
 
         adata.obsm["X_" + method.lower()] = reduce_dim
@@ -1760,6 +1772,7 @@ def recipe_velocyto(
 
     # calculate NTR for every cell:
     ntr = NTR(adata)
-    if ntr is not None: adata.obs['ntr'] = ntr
+    if ntr is not None:
+        adata.obs["ntr"] = ntr
 
     return adata
