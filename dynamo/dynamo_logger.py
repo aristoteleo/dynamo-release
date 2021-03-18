@@ -2,7 +2,6 @@ import functools
 import logging
 from contextlib import contextmanager
 
-
 def silence_logger(name):
     """Given a logger name, silence it completely.
 
@@ -14,9 +13,10 @@ def silence_logger(name):
     package_logger.propagate = False
 
 
-def format_logging_message(msg, logging_level, indent_level=1, indent_space_num=4):
+def format_logging_message(msg, logging_level, indent_level=1, indent_space_num=6):
     indent_str = "-" * indent_space_num
-    prefix = "|" + indent_str * indent_level
+    prefix = indent_str * indent_level
+    prefix = "|" + prefix[1:]
     if logging_level == logging.INFO:
         prefix += ">"
     elif logging_level == logging.WARNING:
@@ -30,14 +30,17 @@ def format_logging_message(msg, logging_level, indent_level=1, indent_space_num=
 class Logger:
     """Dynamo-specific logger that sets up logging for the entire package."""
 
-    FORMAT = "[%(asctime)s] %(levelname)7s %(message)s"
+    FORMAT = "%(message)s"
 
-    def __init__(self, name, level=None):
-        self.namespace = "main"
-        self.logger = logging.getLogger(name)
-        self.ch = logging.StreamHandler()
-        self.ch.setFormatter(logging.Formatter(self.FORMAT))
-        self.logger.addHandler(self.ch)
+    def __init__(self, namespace="main", level=None):
+        self.namespace = namespace
+        self.logger = logging.getLogger(namespace)
+
+        # To-do: add file handler in future
+        # e.g. logging.StreamHandler(None) if log_file_path is None else logging.FileHandler(name)
+        self.logger_stream_handler = logging.StreamHandler()
+        self.logger_stream_handler.setFormatter(logging.Formatter(self.FORMAT))
+        self.logger.addHandler(self.logger_stream_handler)
         self.logger.propagate = False
 
         # Other global initialization
@@ -51,6 +54,7 @@ class Logger:
             self.logger.setLevel(level)
         else:
             self.logger.setLevel(logging.INFO)
+
 
     def namespaced(self, namespace):
         """Function decorator to set the logging namespace for the duration of
@@ -124,6 +128,10 @@ class Logger:
         message = format_logging_message(message, logging.ERROR, indent_level=indent_level)
         return self.logger.error(self.namespace_message(message), *args, **kwargs)
 
+    def info_insert_adata(self, key, adata_attr="obsm", indent_level=1,  *args, **kwargs):
+        message = "<insert> %s to %s in AnnData Object." % (key, adata_attr)
+        message = format_logging_message(message, logging.INFO, indent_level=indent_level)
+        return self.logger.error(self.namespace_message(message), *args, **kwargs)
 
 class LoggerManager:
 
@@ -134,5 +142,5 @@ class LoggerManager:
         return LoggerManager.main_logger
 
     @staticmethod
-    def get_logger(name):
-        return Logger(name)
+    def get_logger(namespace):
+        return Logger(namespace)

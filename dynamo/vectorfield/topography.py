@@ -11,6 +11,7 @@ from scipy.integrate import odeint
 from sklearn.neighbors import NearestNeighbors
 import anndata
 from typing import Union
+from ..dynamo_logger import LoggerManager
 
 from .scVectorField import base_vectorfield, svc_vectorfield
 from ..tools.utils import (
@@ -30,7 +31,6 @@ from .utils import (
 
 from ..external.hodge import ddhodge
 from .vector_calculus import curl, divergence
-
 
 def remove_redundant_points(X, tol=1e-4, output_discard=False):
     X = np.atleast_2d(X)
@@ -626,11 +626,13 @@ def VectorField(
             If `return_vf_object` is set to True, then a vector field class object is returned.
             If `copy` is set to True, a deep copy of the original `adata` object is returned.
     """
-    logger = LoggerManager.get_main_logger()
-    logger.info("vectorfield calculation begins...")
+    logger = LoggerManager.get_logger("dynamo-topography")
+    logger.info("vectorfield calculation begins...", indent_level=1)
     if copy:
+        logger.info("Deep copying annData object and working on the new copy. Original annData object will not be modified.", indent_level=1)
         adata = adata.deepcopy()
 
+    logger.info("Retrieve X and V based on basis: %s." % basis)
     if basis is not None:
         X = adata.obsm["X_" + basis].copy()
         V = adata.obsm["velocity_" + basis].copy()
@@ -674,6 +676,7 @@ def VectorField(
     elif V is None:
         raise Exception("V is None. Make sure you passed the correct V.")
 
+    logger.info("Calculate vector field with method: %s" % (method.lower()))
     if method.lower() == "sparsevfc":
         vf_kwargs = {
             "M": None,
@@ -766,19 +769,27 @@ def VectorField(
     vf_dict["method"] = method
     if basis is not None:
         key = "velocity_" + basis + "_" + method
+        X_copy_key = "X_" + basis + "_" + method
+
+        logger.info_insert_adata(key, adata_attr="obsm")
+        logger.info_insert_adata(X_copy_key, adata_attr="obsm")
         adata.obsm[key] = vf_dict["V"]
-        adata.obsm["X_" + basis + "_" + method] = vf_dict["X"]
+        adata.obsm[X_copy_key] = vf_dict["X"]
 
         vf_dict["dims"] = dims
         adata.uns[vf_key] = vf_dict
     else:
         key = velocity_key + "_" + method
+
+        logger.info_insert_adata(key, adata_attr="layers")
         adata.layers[key] = sp.csr_matrix((adata.shape))
         adata.layers[key][:, valid_genes] = vf_dict["V"]
 
         vf_dict["layer"] = layer
         vf_dict["genes"] = genes
         vf_dict["velocity_key"] = velocity_key
+
+        logger.info_insert_adata(vf_key, adata_attr="uns")
         adata.uns[vf_key] = vf_dict
 
     if X.shape[1] == 2 and map_topography:
@@ -791,8 +802,11 @@ def VectorField(
             adata = topography(adata, basis=basis, X=X, layer=layer, dims=[0, 1], VecFld=vf_dict, **tp_kwargs)
     if pot_curl_div:
         if basis in ["pca", "umap", "tsne", "diffusion_map", "trimap"]:
+            logger.info("Computing divergence")
+
             ddhodge(adata, basis=basis, cores=cores)
             if X.shape[1] == 2:
+                logger.info("Computing curl")
                 curl(adata, basis=basis)
             divergence(adata, basis=basis)
 
@@ -802,7 +816,10 @@ def VectorField(
         vf_dict["valid_ind"],
     )
     if method.lower() == "sparsevfc":
-        adata.obs[control_point], adata.obs[inlier_prob] = False, np.nan
+        logger.info_insert_adata(control_point, adata_attr="obs")
+        logger.info_insert_adata(inlier_prob, adata_attr="obs")
+
+        adata.obs[control_point], adata.obs[inlier_prob] = False, np.nan        
         adata.obs[control_point][vf_dict["ctrl_idx"]] = True
         adata.obs[inlier_prob][valid_ids] = vf_dict["P"].flatten()
 
@@ -812,9 +829,14 @@ def VectorField(
         cell_angels[i] = angle(u, v)
 
     if basis is not None:
-        adata.obs["obs_vf_angle_" + basis] = cell_angels
+        temp_key = "obs_vf_angle_" + basis
+
+        logger.info_insert_adata(temp_key, adata_attr="obs")
+        adata.obs[temp_key] = cell_angels
     else:
-        adata.obs["obs_vf_angle"] = cell_angels
+        temp_key = "obs_vf_angle"
+        logger.info_insert_adata(temp_key, adata_attr="obs")
+        adata.obs[temp_key] = cell_angels
 
     if return_vf_object:
         return VecFld
