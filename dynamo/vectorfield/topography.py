@@ -30,7 +30,6 @@ from .utils import (
 
 from ..external.hodge import ddhodge
 from .vector_calculus import curl, divergence
-from ..tools import LoggerManager
 
 
 def remove_redundant_points(X, tol=1e-4, output_discard=False):
