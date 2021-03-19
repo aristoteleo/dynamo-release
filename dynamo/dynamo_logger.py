@@ -2,6 +2,7 @@ import functools
 import logging
 from contextlib import contextmanager
 
+
 def silence_logger(name):
     """Given a logger name, silence it completely.
 
@@ -40,7 +41,11 @@ class Logger:
         # e.g. logging.StreamHandler(None) if log_file_path is None else logging.FileHandler(name)
         self.logger_stream_handler = logging.StreamHandler()
         self.logger_stream_handler.setFormatter(logging.Formatter(self.FORMAT))
-        self.logger.addHandler(self.logger_stream_handler)
+
+        # ensure only one stream handler exisits in the logger
+        if len(self.logger.handlers) == 0:
+            self.logger.addHandler(self.logger_stream_handler)
+
         self.logger.propagate = False
 
         # Other global initialization
@@ -54,7 +59,6 @@ class Logger:
             self.logger.setLevel(level)
         else:
             self.logger.setLevel(logging.INFO)
-
 
     def namespaced(self, namespace):
         """Function decorator to set the logging namespace for the duration of
@@ -128,10 +132,11 @@ class Logger:
         message = format_logging_message(message, logging.ERROR, indent_level=indent_level)
         return self.logger.error(self.namespace_message(message), *args, **kwargs)
 
-    def info_insert_adata(self, key, adata_attr="obsm", indent_level=1,  *args, **kwargs):
+    def info_insert_adata(self, key, adata_attr="obsm", indent_level=1, *args, **kwargs):
         message = "<insert> %s to %s in AnnData Object." % (key, adata_attr)
         message = format_logging_message(message, logging.INFO, indent_level=indent_level)
         return self.logger.error(self.namespace_message(message), *args, **kwargs)
+
 
 class LoggerManager:
 

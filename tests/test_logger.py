@@ -28,8 +28,10 @@ def test_vectorField_logger():
     dyn.tl.reduceDimension(adata, enforce=True)
     dyn.tl.cell_velocities(adata, basis="pca")
     dyn.vf.VectorField(adata, basis="pca", M=1000)
+    dyn.vf.VectorField(adata, basis="pca", M=1000)
+    dyn.vf.VectorField(adata, basis="pca", M=1000)
 
 
 if __name__ == "__main__":
     # test_logger_simple_output_1(LoggerManager.get_main_logger())
-    test_vectorField_logger(None)
+    test_vectorField_logger()
