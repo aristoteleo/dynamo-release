@@ -17,6 +17,7 @@ from ..tools.utils import (
     linear_least_squares,
     timeit,
     index_condensed_matrix,
+    flatten
 )
 from .utils import (
     vector_field_function,

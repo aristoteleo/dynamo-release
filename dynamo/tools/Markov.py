@@ -3,10 +3,11 @@ from tqdm import tqdm
 import numpy as np
 import scipy.sparse as sp
 from sklearn.neighbors import NearestNeighbors
+from sklearn.decomposition import PCA
 from scipy.stats import norm
 from scipy.linalg import eig, null_space
 from numba import jit
-from .utils import append_iterative_neighbor_indices
+from .utils import append_iterative_neighbor_indices, flatten
 
 
 def markov_combination(x, v, X):
@@ -333,19 +334,135 @@ def velocity_on_grid(
     return X_grid, V_grid, D
 
 
-class MarkovChain:
-    def __init__(self, P=None):
-        self.P = P
-        self.D = None  # eigenvalues
-        self.U = None  # left eigenvectors
-        self.W = None  # right eigenvectors
+# we might need a separate module/file for discrete vector field and markovian methods in the future
+def graphize_velocity(V, X, nbrs_idx=None, k=30, normalize_v=False, E_func=None):
+    '''
+        The function generates a graph based on the velocity data. The flow from i- to j-th
+        node is returned as E[i, j], and E[i, j] = -E[j, i].
+    '''
+    n, d = X.shape
 
-    def eigsys(self):
-        D, U, W = eig(self.P, left=True, right=True)
-        idx = D.argsort()[::-1]
-        self.D = D[idx]
-        self.U = U[:, idx]
-        self.W = W[:, idx]
+    nbrs = None
+    if nbrs_idx is None:
+        if n > 200000 and d > 2: 
+            from pynndescent import NNDescent
+
+            nbrs = NNDescent(X, metric='euclidean', n_neighbors=k+1, n_jobs=-1, random_state=19491001)
+            nbrs_idx, _ = nbrs.query(X, k=k+1)
+        else:
+            alg = 'ball_tree' if d > 10 else 'kd_tree'
+            nbrs = NearestNeighbors(n_neighbors=k+1, algorithm=alg, n_jobs=-1).fit(X)
+            _, nbrs_idx = nbrs.kneighbors(X)
+
+    if type(E_func) is str:
+        if E_func == 'sqrt':
+            E_func = np.sqrt
+        elif E_func == 'exp':
+            E_func = np.exp
+        else:
+            raise NotImplementedError('The specified edge function is not implemented.')
+
+    #E = sp.csr_matrix((n, n))      # Making E a csr_matrix will slow down this process. Try lil_matrix maybe?
+    E = np.zeros((n, n))
+    for i in range(n):
+        x = flatten(X[i])
+        idx = nbrs_idx[i]
+        if len(idx) > 0 and idx[0] == i:      # excluding the node itself from the neighbors
+            idx = idx[1:]
+        vi = flatten(V[i])
+        if normalize_v:
+            vi_norm = np.linalg.norm(vi)
+            if vi_norm > 0:
+                vi /= vi_norm
+        
+        # normalized differences
+        U = X[idx] - x
+        U_norm = np.linalg.norm(U, axis=1)
+        U_norm[U_norm==0] = 1
+        U /= U_norm[:, None]
+        
+        for jj, j in enumerate(idx):
+            vj = flatten(V[j])
+            if normalize_v:
+                vj_norm = np.linalg.norm(vj)
+                if vj_norm > 0:
+                    vj /= vj_norm
+            u = flatten(U[jj])
+            v = np.mean((vi.dot(u), vj.dot(u)))
+
+            if E_func is not None:
+                v = np.sign(v) * E_func(np.abs(v))
+            E[i, j] = v
+            E[j, i] = -v
+
+    return E, nbrs_idx
+
+
+def calc_Laplacian(E, convention='graph'):
+    A = np.abs(np.sign(E))
+    L = np.diag(np.sum(A, 0)) - A
+
+    if convention == 'diffusion':
+        L = -L
+
+    return L
+
+
+def fp_operator(E, D):
+    # drift
+    Mu = E.T.copy()
+    Mu[Mu<0] = 0
+    Mu = np.diag(np.sum(Mu, 0)) - Mu
+    # diffusion
+    L = calc_Laplacian(E, convention='diffusion')
+    
+    return - Mu + D * L
+
+
+def divergence(E, tol=1e-5):
+    n = E.shape[0]
+    div = np.zeros(n)
+    # optimize for sparse matrices later...
+    for i in range(n):
+        for j in range(i+1, n):
+            if np.abs(E[i, j]) > tol:
+                div[i] += E[i, j] - E[j, i]
+
+    return div
+
+
+class MarkovChain:
+    def __init__(self, P=None, eignum=None):
+        self.P = P
+        self.D = None       # eigenvalues
+        self.U = None       # left eigenvectors
+        self.W = None       # right eigenvectors
+        self.W_inv = None
+        self.eignum = eignum  # if None all eigs are solved
+
+    def eigsys(self, eignum=None):
+        if eignum is not None:
+            self.eignum = eignum
+        if self.eignum is None:
+            D, U, W = eig(self.P, left=True, right=True)
+            idx = D.argsort()[::-1] 
+            self.D = D[idx]
+            self.U = U[:, idx]
+            self.W = W[:, idx]
+            try:
+                self.W_inv = np.linalg.inv(self.W)
+            except np.linalg.LinAlgError:
+                self.W_inv = np.linalg.pinv(self.W)
+        else:
+            self.D, self.W = sp.linalg.eigs(self.P, k=self.eignum, which='LR')
+            self.U = self.right_eigvecs_to_left(self.W, self.W[:, 0])
+            self.W_inv = self.U.T.copy()
+            self.U /= np.linalg.norm(self.U, axis=0)
+    
+    def right_eigvecs_to_left(self, W, p_st):
+        U = np.diag(1/np.abs(p_st)) @ W
+        f = np.mean(np.diag(U.T @ U))
+        return U/np.sqrt(f)
 
     def get_num_states(self):
         return self.P.shape[0]
@@ -354,6 +471,7 @@ class MarkovChain:
         self.D = None
         self.U = None
         self.W = None
+        self.W_inv = None
 
 
 class KernelMarkovChain(MarkovChain):
@@ -668,26 +786,28 @@ class DiscreteTimeMarkovChain(MarkovChain):
 
 
 class ContinuousTimeMarkovChain(MarkovChain):
-    def __init__(self, P=None, nbrs_idx=None):
-        super().__init__(P)
+    def __init__(self, P=None, nbrs_idx=None, **kwargs):
+        super().__init__(self.check_transition_rate_matrix(P), **kwargs)
+        self.Q = None       # embedded markov chain transition matrix
         self.Kd = None
         self.nbrs_idx = nbrs_idx
+        self.p_st = None
 
-    def fit(self, X, V, k, s=None, tol=1e-4):
+    def check_transition_rate_matrix(self, P, tol=1e-6):
+        if np.any(flatten(np.abs(np.sum(P, 0))) <= tol):
+            return P
+        elif np.any(flatten(np.abs(np.sum(P, 1))) <= tol):
+            return P.T
+        else:
+            raise ValueError('The input transition rate matrix must have a zero row- or column-sum.')
+
+    '''def fit(self, X, V, k, s=None, tol=1e-4):
         self.__reset__()
         # knn clustering
         if self.nbrs_idx is None:
-            if X.shape[0] > 200000 and X.shape[1] > 2:
-                from pynndescent import NNDescent
-
-                nbrs = NNDescent(X, metric="euclidean", n_neighbors=k + 1, n_jobs=-1, random_state=19491001)
-                Idx, _ = nbrs.query(X, k=k + 1)
-            else:
-                alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
-                nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm=alg, n_jobs=-1).fit(X)
-                _, Idx = nbrs.kneighbors(X)
-
-            self.nbrs_idx = Idx[:, 1:]
+            nbrs = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(X)
+            _, Idx = nbrs.kneighbors(X)
+            self.nbrs_idx = Idx
         else:
             Idx = self.nbrs_idx
         # compute transition prob.
@@ -698,36 +818,98 @@ class ContinuousTimeMarkovChain(MarkovChain):
             v = V[i]
             Y = X[Idx[i, 1:]]
             p = compute_markov_trans_prob(y, v, Y, s, cont_time=True)
-            p[p <= tol] = 0  # tolerance check
+            p[p<=tol] = 0       # tolerance check
             self.P[Idx[i, 1:], i] = p
-            self.P[i, i] = -np.sum(p)
+            self.P[i, i] = - np.sum(p)'''
 
-    def compute_drift(self, X):
+    def compute_drift(self, X, t):
         n = self.get_num_states()
         V = np.zeros_like(X)
+        P = self.compute_transition_matrix(t)
         for i in range(n):
-            V[i] = (X - X[i]).T.dot(self.P[:, i])
+            V[i] = (X - X[i]).T.dot(P[:, i])
         return V
 
-    def compute_density_corrected_drift(self, X, k=None, normalize_vector=False):
+    def compute_density_corrected_drift(self, X, t, k=None, normalize_vector=False):
         n = self.get_num_states()
-        if k is None:
-            k = n
         V = np.zeros_like(X)
+        P = self.compute_transition_matrix(t)
         for i in range(n):
-            d = X[self.nbrs_idx[i]] - X[i]
+            P[i, i] = 0
+            P[:, i] /= np.sum(P[:, i])
+            d = X - X[i]
             if normalize_vector:
                 d /= np.linalg.norm(d)
-            V[i] = d.T.dot(self.P[self.nbrs_idx[i], i] - 1 / k)
+            correction = 1/k if k is not None else np.mean(P[:, i])
+            V[i] = d.T.dot(P[:, i] - correction)
         return V
 
-    def solve_distribution(self, p0, t):
+    def compute_transition_matrix(self, t):
         if self.D is None:
             self.eigsys()
-        p = np.real(self.W @ np.diag(np.exp(self.D * t)) @ np.linalg.inv(self.W)).dot(p0)
-        return p
+        P = np.real(self.W @ np.diag(np.exp(self.D * t)) @ self.W_inv)
+        return P
 
-    def compute_stationary_distribution(self):
-        p = np.real(null_space(self.P)[:, 0].flatten())
-        p = p / np.sum(p)
+    def compute_embedded_transition_matrix(self):
+        self.Q = np.array(self.P, copy=True)
+        for i in range(self.Q.shape[1]):
+            self.Q[i, i] = 0
+            self.Q[:, i] /= np.sum(self.Q[:, i])
+        return self.Q
+
+    def solve_distribution(self, p0, t):
+        P = self.compute_transition_matrix(t)
+        p = P @ p0
+        p = p/np.sum(p)
         return p
+    
+    def compute_stationary_distribution(self, method='eig'):
+        if self.p_st is None:
+            if method == 'null':
+                p = np.abs(np.real(null_space(self.P)[:, 0].flatten()))
+                p = p / np.sum(p)
+                self.p_st = p
+            else:
+                if self.D is None:
+                    self.eigsys()
+                p = np.abs(np.real(self.W[:, 0]))
+                p = p / np.sum(p)
+                self.p_st = p
+        return self.p_st
+
+    def simulate_random_walk(self, init_idx, tspan):
+        P = self.P.copy()
+        def prop_func(c):
+            a = P[:, c[0]]
+            a[c[0]] = 0
+            return a
+
+        def update_func(c, mu):
+            return np.array([mu])
+
+        T, C = directMethod(prop_func, update_func,
+             tspan=tspan, C0=np.array([init_idx]))
+        
+        return C, T
+
+    def compute_hitting_time(self, p_st=None, return_Z=False):
+        p_st = self.compute_stationary_distribution() if p_st is None else p_st
+        n_nodes = len(p_st)
+        W = np.ones((n_nodes, 1)) * p_st
+        Z = np.linalg.inv(-self.P.T + W)
+        H = np.ones((n_nodes, 1)) * np.diag(Z).T - Z
+        H = H / W
+        H = H.T
+        if return_Z:
+            return H, Z
+        else:
+            return H
+
+    def diffusion_map_embedding(self, n_dims=2, t=1, n_pca_dims=None):
+        if self.D is None:
+            self.eigsys()
+        Y = np.real(np.exp(self.D[1:n_dims+1]**t)) * np.real(self.U[:, 1:n_dims+1])
+        if n_pca_dims is not None:
+            pca = PCA(n_components=n_pca_dims)
+            Y = pca.fit_transform(Y)
+        return Y
