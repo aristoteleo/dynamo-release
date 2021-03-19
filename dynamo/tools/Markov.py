@@ -8,6 +8,7 @@ from scipy.stats import norm
 from scipy.linalg import eig, null_space
 from numba import jit
 from .utils import append_iterative_neighbor_indices, flatten
+from ..simulation.gillespie_utils import directMethod
 
 
 def markov_combination(x, v, X):
@@ -338,7 +339,32 @@ def velocity_on_grid(
 def graphize_velocity(V, X, nbrs_idx=None, k=30, normalize_v=False, E_func=None):
     '''
         The function generates a graph based on the velocity data. The flow from i- to j-th
-        node is returned as E[i, j], and E[i, j] = -E[j, i].
+        node is returned as the edge matrix E[i, j], and E[i, j] = -E[j, i].
+
+    Arguments
+    ---------
+        V: :class:`~numpy.ndarray`
+            The velocities for all cells.
+        X: :class:`~numpy.ndarray`
+            The coordinates for all cells.
+        nbrs_idx: list (optional, default None)
+            a list of neighbor indices for each cell. If None a KNN will be performed instead.
+        k: int (optional, default 30)
+            The number of neighbors for the KNN search. 
+        normalize_v: bool (optional, default False)
+            Whether or not normalizing the velocity vectors.
+        E_func: str, function, or None (optional, default None)
+            A variance stabilizing function for reducing the variance of the flows.
+            If a string is passed, there are two options:
+                'sqrt': the numpy.sqrt square root function;
+                'exp': the numpy.exp exponential function.
+
+    Returns
+    -------
+        E: :class:`~numpy.ndarray`
+            The edge matrix.
+        nbrs_idx: list
+            Neighbor indices.
     '''
     n, d = X.shape
 
