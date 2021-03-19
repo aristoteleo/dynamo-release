@@ -15,7 +15,6 @@ from .cell_velocities import (
     stationary_distribution,
     diffusion,
     expected_return_time,
-    embed_velocity,
 )
 
 from .dynamics import dynamics

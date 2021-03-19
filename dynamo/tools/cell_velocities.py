@@ -51,11 +51,10 @@ def cell_velocities(
     scale=True,
     sample_fraction=None,
     random_seed=19491001,
-    other_kernels_dict={},
     enforce=False,
     key=None,
     preserve_len=False,
-    **kmc_kwargs,
+    **kernel_kwargs,
 ):
     """Project high dimensional velocity vectors onto given low dimensional embeddings,
     and/or compute cell transition probabilities.
@@ -150,12 +149,12 @@ def cell_velocities(
         preserve_len: bool (default: False)
             Whether to preserve the length of high dimension vector length. When set to be True, the length  of low
             dimension projected vector will be proportionally scaled to that of the high dimensional vector.
-        other_kernels_dict: dict (default: {})
-            A dictionary of paramters that will be passed to the cosine/correlation kernel.
         enforce: bool (default: False)
             Whether to enforce 1) redefining use_for_transition column in obs attribute; However this is NOT executed if
                                     the argument 'transition_genes' is not None.
                                2) recalculation of the transition matrix.
+        kernel_kwargs: dict
+            A dictionary of paramters that will be passed to the kernel for constructing the transition matrix.
 
     Returns
     -------
@@ -366,7 +365,7 @@ def cell_velocities(
             "adaptive_local_kernel": True,
             "tol": 1e-7,
         }
-        kmc_args = update_dict(kmc_args, kmc_kwargs)
+        kmc_args = update_dict(kmc_args, kernel_kwargs)
 
         if method + "_transition_matrix" not in adata.obsp.keys() or not enforce:
             kmc.fit(X, V, neighbor_idx=indices, sample_fraction=sample_fraction, **kmc_args)  #
@@ -406,7 +405,7 @@ def cell_velocities(
             "transform": "sqrt",
             "use_neg_vals": True,
         }
-        vs_kwargs = update_dict(vs_kwargs, other_kernels_dict)
+        vs_kwargs = update_dict(vs_kwargs, kernel_kwargs)
 
         if method + "_transition_matrix" in adata.obsp.keys() and not enforce:
             print("Using existing %s found in .obsp." % (method + "_transition_matrix"))
@@ -425,6 +424,29 @@ def cell_velocities(
             T_rnd, delta_X_rnd, X_grid_rnd, V_grid_rnd, D_rnd = kernels_from_velocyto_scvelo(
                 X, X_embedding, V, indices, neg_cells_trick, xy_grid_nums, method, **vs_kwargs
             )
+    
+    elif method == 'fp':
+        graph_kwargs = {
+            "k": 30,
+            "E_func": "sqrt",
+            "normalize_v": False,
+        }
+        graph_kwargs = update_dict(graph_kwargs, kernel_kwargs)
+        
+        fp_kwargs = {"D": 100,}
+        fp_kwargs = update_dict(fp_kwargs, kernel_kwargs)
+
+        ctmc_kwargs = {"eignum": 30,}
+        ctmc_kwargs = update_dict(ctmc_kwargs, kernel_kwargs)
+
+        E, _ = graphize_velocity(V, X, nbrs_idx=indices, **graph_kwargs)
+        W = fp_operator(E, **fp_kwargs)
+        ctmc = ContinuousTimeMarkovChain(P=W, **ctmc_kwargs)
+        T = ctmc.P.T
+        P = sp.csr_matrix(ctmc.compute_embedded_transition_matrix().T)
+        delta_X = projection_with_transition_matrix(P.shape[0], P, X_embedding)
+        X_grid, V_grid, D = velocity_on_grid(X_embedding, delta_X, xy_grid_nums=xy_grid_nums)   # This function seems to be independent of the method; consider moving it out of the if-else block.
+    
     elif method == "transform":
         umap_trans, n_pca_components = (
             adata.uns["umap_fit"]["fit"],
@@ -897,6 +919,7 @@ def permute_rows_nsign(A):
         A[:, i] = A[:, i] * np.random.choice(plmi, size=A.shape[0])
 
 
+'''This function can be removed now
 def embed_velocity(
     adata,
     x_basis,
@@ -948,4 +971,4 @@ def embed_velocity(
     if return_kmc:
         return Uc, kmc
     else:
-        return Uc
+        return Uc'''
