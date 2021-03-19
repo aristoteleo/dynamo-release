@@ -32,6 +32,7 @@ from .utils import (
 from ..external.hodge import ddhodge
 from .vector_calculus import curl, divergence
 
+
 def remove_redundant_points(X, tol=1e-4, output_discard=False):
     X = np.atleast_2d(X)
     discard = np.zeros(len(X), dtype=bool)
@@ -629,7 +630,10 @@ def VectorField(
     logger = LoggerManager.get_logger("dynamo-topography")
     logger.info("vectorfield calculation begins...", indent_level=1)
     if copy:
-        logger.info("Deep copying annData object and working on the new copy. Original annData object will not be modified.", indent_level=1)
+        logger.info(
+            "Deep copying annData object and working on the new copy. Original annData object will not be modified.",
+            indent_level=1,
+        )
         adata = adata.deepcopy()
 
     logger.info("Retrieve X and V based on basis: %s." % basis)
@@ -819,7 +823,7 @@ def VectorField(
         logger.info_insert_adata(control_point, adata_attr="obs")
         logger.info_insert_adata(inlier_prob, adata_attr="obs")
 
-        adata.obs[control_point], adata.obs[inlier_prob] = False, np.nan        
+        adata.obs[control_point], adata.obs[inlier_prob] = False, np.nan
         adata.obs[control_point][vf_dict["ctrl_idx"]] = True
         adata.obs[inlier_prob][valid_ids] = vf_dict["P"].flatten()
 
