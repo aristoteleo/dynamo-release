@@ -155,13 +155,14 @@ class Logger:
         self.logger_stream_handler.flush()
         self.logger_stream_handler.terminator = saved_terminator
 
-    def finish_progress(self, time_unit="s"):
+    def finish_progress(self, progress_name="", time_unit="s"):
         self.log_time()
         self.logger.info("\r")
+        
         if time_unit == "s":
-            self.info("finished [%.4fs]" % (self.time_passed))
+            self.info("%s finished [%.4fs]" % (progress_name, self.time_passed))
         elif time_unit == "ms":
-            self.info("finished [%.4fs]" % (self.time_passed * 1e3))
+            self.info("%s finished [%.4fms]" % (progress_name, self.time_passed * 1e3))
         else:
             raise NotImplementedError
         self.logger_stream_handler.flush()

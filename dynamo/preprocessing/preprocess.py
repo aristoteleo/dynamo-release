@@ -577,7 +577,7 @@ def Dispersion(adata, layers="X", modelFormulaStr="~ 1", min_cells_detected=1, r
             A updated annData object with dispFitInfo added to uns attribute as a new key.
     """
     import re
-
+    logger = LoggerManager.get_logger("dynamo-preprocessing")
     mu = None
     model_terms = [x.strip() for x in re.compile("~|\\*|\\+").split(modelFormulaStr)]
     model_terms = list(set(model_terms) - set([""]))
@@ -621,12 +621,14 @@ def Dispersion(adata, layers="X", modelFormulaStr="~ 1", min_cells_detected=1, r
             return coefs[0] + coefs[1] / q
 
         if layer == "X":
+            logger.info_insert_adata("dispFitInfo", "uns")
             adata.uns["dispFitInfo"] = {
                 "disp_table": good,
                 "disp_func": ans,
                 "coefs": coefs,
             }
         else:
+            logger.info_insert_adata(layer + "_dispFitInfo", "uns")
             adata.uns[layer + "_dispFitInfo"] = {
                 "disp_table": good,
                 "disp_func": ans,
@@ -1178,7 +1180,7 @@ def recipe_monocle(
     fg_kwargs: Union[dict, None] = None,
     sg_kwargs: Union[dict, None] = None,
     copy: bool = False,
-):
+) -> AnnData:
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
@@ -1290,7 +1292,7 @@ def recipe_monocle(
             dimensions, etc.
     """
     logger = LoggerManager.get_logger("dynamo-preprocessing")
-
+    logger.log_time()
     if copy:
         logger.info(
             "Deep copying annData object and working on the new copy. Original annData object will not be modified.",
@@ -1310,6 +1312,10 @@ def recipe_monocle(
 
     basic_stats(adata)
     has_splicing, has_labeling, splicing_labeling, has_protein = detect_datatype(adata)
+    logger.info_insert_adata("pp.has_splicing", "uns")
+    logger.info_insert_adata("pp.has_labling", "uns")
+    logger.info_insert_adata("pp.splicing_labeling", "uns")
+    logger.info_insert_adata("pp.has_protein", "uns")
     (
         adata.uns["pp"]["has_splicing"],
         adata.uns["pp"]["has_labeling"],
@@ -1420,6 +1426,8 @@ def recipe_monocle(
                 "we recommend using hour as the time unit."
             )
 
+    logger.info_insert_adata("pp.tkey", "uns")
+    logger.info_insert_adata("pp.experiment_type", "uns")
     adata.uns["pp"]["tkey"] = tkey
     adata.uns["pp"]["experiment_type"] = "conventional" if experiment_type is None else experiment_type
 
@@ -1463,6 +1471,7 @@ def recipe_monocle(
     if fc_kwargs is not None:
         filter_cells_kwargs.update(fc_kwargs)
 
+    logger.info("filtering cells...")
     adata = filter_cells(adata, keep_filtered=keep_filtered_cells, **filter_cells_kwargs)
 
     filter_genes_kwargs = {
@@ -1484,6 +1493,7 @@ def recipe_monocle(
         filter_genes_kwargs.update(fg_kwargs)
 
     # set pass_basic_filter for genes
+    logger.info("filtering genes...")
     adata = filter_genes(
         adata,
         **filter_genes_kwargs,
@@ -1519,11 +1529,12 @@ def recipe_monocle(
     if genes_to_use is None:
         pass_basic_filter_num = adata.var.pass_basic_filter.sum()
         if pass_basic_filter_num < n_top_genes:
-            warnings.warn(
+            logger.warning(
                 f"only {pass_basic_filter_num} genes passed basic filtering, but you requested {n_top_genes} "
                 f"genes for feature selection. Try lowering the gene selection stringency: "
-                f"{select_genes_dict}"
+                f"{select_genes_dict}",
             )
+        logger.info("selecting genes...")
         adata = select_genes(
             adata,
             sort_by=feature_selection,
@@ -1532,8 +1543,10 @@ def recipe_monocle(
             SVRs_kwargs=select_genes_dict,
         )
     else:
+        logger.info_insert_adata("use_for_pca", "var")
         adata.var["use_for_pca"] = adata.var.index.isin(genes_to_use)
 
+    logger.info_insert_adata("frac", "var")
     adata.var["frac"], valid_ids = gene_exp_fraction(X=adata.X, threshold=exprs_frac_max)
     genes_to_exclude = (
         list(adata.var_names[valid_ids])
@@ -1577,11 +1590,13 @@ def recipe_monocle(
             adata.var.loc[valid_ids, "use_for_pca"] = filter_bool
 
     if not keep_filtered_genes:
+        logger.info("Discarding genes that failed the filtering...")
         adata._inplace_subset_var(adata.var["use_for_pca"])
 
     # normalized data based on sz factor
     if not _logged:
         total_szfactor = "total_Size_Factor" if total_layers is not None else None
+        logger.info("normalizing experiment data")
         adata = normalize_expr_data(
             adata,
             layers=layer if type(layer) is list else "all",
@@ -1599,8 +1614,9 @@ def recipe_monocle(
         layers = get_layer_keys(adata, "all")
         for layer in layers:
             if layer != "X":
+                logger.info_insert_adata("X_" + layer, "layers")
                 adata.layers["X_" + layer] = adata.layers[layer].copy()
-
+        logger.info_insert_adata("pp.norm_method", "uns")
         adata.uns["pp"]["norm_method"] = None
 
     # only use genes pass filter (based on use_for_pca) to perform dimension reduction.
@@ -1637,6 +1653,7 @@ def recipe_monocle(
 
     adata.var.iloc[bad_genes, adata.var.columns.tolist().index("use_for_pca")] = False
     CM = CM[:, valid_ind]
+    logger.info("applying %s method..." % (method))
     if method == "pca":
         adata, fit, _ = pca(adata, CM, num_dim, "X_" + method.lower())
 
@@ -1649,23 +1666,27 @@ def recipe_monocle(
         adata.obsm["X_" + method.lower()] = reduce_dim
         adata.obsm["X"] = adata.obsm["X_" + method.lower()]
 
+    logger.info_insert_adata(method + "_fit", "uns")
     adata.uns[method + "_fit"], adata.uns["feature_selection"] = fit, feature_selection
     # calculate NTR for every cell:
     ntr, var_ntr = NTR(adata)
     if ntr is not None:
+        logger.info_insert_adata("ntr", "obs")
+        logger.info_insert_adata("ntr", "var")
         adata.obs["ntr"] = ntr
         adata.var["ntr"] = var_ntr
 
     try:
         cell_cycle_scores(adata)
     except Exception:
-        warnings.warn(
+        logger.warning(
             "\nDynamo is not able to perform cell cycle staging for you automatically. \n"
             "Since dyn.pl.phase_diagram in dynamo by default colors cells by its cell-cycle stage, \n"
             "you need to set color argument accordingly if confronting errors related to this."
         )
 
     if "raw_data" in adata.uns_keys():
+        logger.info_insert_adata("raw_data", "uns")
         adata.uns["raw_data"] = False
 
     if not keep_raw_layers:
@@ -1674,6 +1695,7 @@ def recipe_monocle(
             if not layer.startswith("X_"):
                 del adata.layers[layer]
 
+    logger.finish_progress(progress_name="recipe_monocle preprocess")
     return adata
 
 
