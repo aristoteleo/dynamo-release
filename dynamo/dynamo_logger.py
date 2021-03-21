@@ -1,6 +1,7 @@
 import functools
 import logging
 from contextlib import contextmanager
+import time
 
 
 def silence_logger(name):
@@ -34,8 +35,11 @@ class Logger:
     FORMAT = "%(message)s"
 
     def __init__(self, namespace="main", level=None):
+
         self.namespace = namespace
         self.logger = logging.getLogger(namespace)
+        self.previous_timestamp = time.time()  # in seconds
+        self.time_passed = 0
 
         # To-do: add file handler in future
         # e.g. logging.StreamHandler(None) if log_file_path is None else logging.FileHandler(name)
@@ -136,6 +140,20 @@ class Logger:
         message = "<insert> %s to %s in AnnData Object." % (key, adata_attr)
         message = format_logging_message(message, logging.INFO, indent_level=indent_level)
         return self.logger.error(self.namespace_message(message), *args, **kwargs)
+
+    def log_time(self):
+        now = time.time()
+        self.time_passed = now - self.previous_timestamp
+        self.previous_timestamp = now
+        return self.time_passed
+
+    def report_progress(self, percent):
+        logging.info(f"\r in progress: {percent}%")
+        self.logger_stream_handler.flush()
+
+    def finish_progress(self):
+        logging.info(f"\r")
+        self.logger_stream_handler.flush()
 
 
 class LoggerManager:
