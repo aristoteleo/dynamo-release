@@ -43,5 +43,5 @@ def test_vectorField_logger():
 
 if __name__ == "__main__":
     # test_logger_simple_output_1(LoggerManager.get_main_logger())
-    test_logger_simple_progress_logger(LoggerManager.get_main_logger())
-    # test_vectorField_logger()
+    # test_logger_simple_progress_logger(LoggerManager.get_main_logger())
+    test_vectorField_logger()

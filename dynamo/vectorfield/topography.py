@@ -629,6 +629,7 @@ def VectorField(
     """
     logger = LoggerManager.get_logger("dynamo-topography")
     logger.info("vectorfield calculation begins...", indent_level=1)
+    logger.log_time()
     if copy:
         logger.info(
             "Deep copying annData object and working on the new copy. Original annData object will not be modified.",
@@ -842,6 +843,7 @@ def VectorField(
         logger.info_insert_adata(temp_key, adata_attr="obs")
         adata.obs[temp_key] = cell_angels
 
+    logger.finish_progress("VectorField")
     if return_vf_object:
         return VecFld
     elif copy:
