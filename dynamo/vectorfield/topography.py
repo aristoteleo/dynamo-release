@@ -680,7 +680,7 @@ def VectorField(
     elif V is None:
         raise Exception("V is None. Make sure you passed the correct V.")
 
-    logger.info("Calculate vector field with method: %s" % (method.lower()))
+    logger.info("Learning vector field with method: %s" % (method.lower()))
     if method.lower() == "sparsevfc":
         vf_kwargs = {
             "M": None,

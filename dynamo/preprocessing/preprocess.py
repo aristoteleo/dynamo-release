@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 import numpy as np
 import pandas as pd
 import warnings
@@ -29,6 +30,9 @@ from .utils import (
     gene_exp_fraction,
 )
 from .cell_cycle import cell_cycle_scores
+from typing import Union
+from anndata import AnnData
+from ..dynamo_logger import LoggerManager
 
 
 def szFactor(
@@ -1142,37 +1146,38 @@ def select_genes(
 
 
 def recipe_monocle(
-    adata,
-    reset_X=False,
-    tkey=None,
-    t_label_keys=None,
-    experiment_type=None,
-    normalized=None,
-    layer=None,
-    total_layers=None,
-    splicing_total_layers=False,
-    X_total_layers=False,
-    genes_to_use=None,
-    genes_to_append=None,
-    genes_to_exclude=None,
-    exprs_frac_max=0.005,
-    method="pca",
-    num_dim=30,
-    sz_method="median",
-    scale_to=None,
-    norm_method=None,
-    pseudo_expr=1,
-    feature_selection="SVR",
-    n_top_genes=2000,
-    maintain_n_top_genes=True,
-    relative_expr=True,
-    keep_filtered_cells=True,
-    keep_filtered_genes=True,
-    keep_raw_layers=True,
-    scopes=None,
-    fc_kwargs=None,
-    fg_kwargs=None,
-    sg_kwargs=None,
+    adata: AnnData,
+    reset_X: bool = False,
+    tkey: Union[str, None] = None,
+    t_label_keys: Union[str, list, None] = None,
+    experiment_type: Union[str, None] = None,
+    normalized: Union[bool, None] = None,
+    layer: Union[str, None] = None,
+    total_layers: Union[bool, list, None] = None,
+    splicing_total_layers: bool = False,
+    X_total_layers: bool = False,
+    genes_to_use: Union[list, None] = None,
+    genes_to_append: Union[list, None] = None,
+    genes_to_exclude: Union[list, None] = None,
+    exprs_frac_max: float = 0.005,
+    method: str = "pca",
+    num_dim: int = 30,
+    sz_method: str = "median",
+    scale_to: Union[float, None] = None,
+    norm_method: Union[str, None] = None,
+    pseudo_expr: int = 1,
+    feature_selection: str = "SVR",
+    n_top_genes: int = 2000,
+    maintain_n_top_genes: bool = True,
+    relative_expr: bool = True,
+    keep_filtered_cells: bool = True,
+    keep_filtered_genes: bool = True,
+    keep_raw_layers: bool = True,
+    scopes: Union[str, Iterable, None] = None,
+    fc_kwargs: Union[dict, None] = None,
+    fg_kwargs: Union[dict, None] = None,
+    sg_kwargs: Union[dict, None] = None,
+    copy: bool = False,
 ):
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
@@ -1232,7 +1237,7 @@ def recipe_monocle(
             A list of gene names that will be excluded to the feature genes list for downstream analysis.
         exprs_frac_max: `float` (default: `0.001`)
             The minimal fraction of gene counts to the total counts across cells that will used to filter genes.
-        method: `str` (default: `log`)
+        method: `str` (default: `pca`)
             The linear dimension reduction methods to be used.
         num_dim: `int` (default: `30`)
             The number of linear dimensions reduced to.
@@ -1263,7 +1268,7 @@ def recipe_monocle(
             Whether to keep genes that don't pass the filtering in the returned adata object.
         keep_raw_layers: `bool` (default: `True`)
             Whether to keep layers with raw measurements in the returned adata object.
-        scopes: `str`, list-like` or `None` (default: `None`)
+        scopes: `str`, `list-like` or `None` (default: `None`)
             Scopes are needed when you use non-official gene name as your gene indices (or adata.var_name). This
             arugument corresponds to type of types of identifiers, either a list or a comma-separated fields to specify
             type of input qterms, e.g. “entrezgene”, “entrezgene,symbol”, [“ensemblgene”, “symbol”]. Refer to official
@@ -1275,14 +1280,24 @@ def recipe_monocle(
             Other Parameters passed into the filter_cells function.
         sg_kwargs: `dict` or None (default: `None`)
             Other Parameters passed into the select_cells function.
+        copy:
+            Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments.
 
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced
+            An new or updated anndata object, based on copy parameter, that are updated with Size_Factor, normalized expression values, X and reduced
             dimensions, etc.
     """
+    logger = LoggerManager.get_logger("dynamo-preprocessing")
 
+    if copy:
+        logger.info(
+            "Deep copying annData object and working on the new copy. Original annData object will not be modified.",
+            indent_level=1,
+        )
+        adata = adata.deepcopy()
+    logger.info("apply Monocole recipe to adata...", indent_level=1)
     if "use_for_pca" in adata.var.columns:
         del adata.var["use_for_pca"]  # avoid use_for_pca was set previously.
 

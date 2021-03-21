@@ -1,6 +1,7 @@
 import functools
 import logging
 from contextlib import contextmanager
+import time
 
 
 def silence_logger(name):
@@ -34,8 +35,11 @@ class Logger:
     FORMAT = "%(message)s"
 
     def __init__(self, namespace="main", level=None):
+
         self.namespace = namespace
         self.logger = logging.getLogger(namespace)
+        self.previous_timestamp = time.time()  # in seconds
+        self.time_passed = 0
 
         # To-do: add file handler in future
         # e.g. logging.StreamHandler(None) if log_file_path is None else logging.FileHandler(name)
@@ -110,32 +114,57 @@ class Logger:
 
     def debug(self, message, indent_level=1, *args, **kwargs):
         message = format_logging_message(message, logging.DEBUG, indent_level=indent_level)
-        return self.logger.debug(self.namespace_message(message), *args, **kwargs)
+        return self.logger.debug(message, *args, **kwargs)
 
     def info(self, message, indent_level=1, *args, **kwargs):
         message = format_logging_message(message, logging.INFO, indent_level=indent_level)
-        return self.logger.info(self.namespace_message(message), *args, **kwargs)
+        return self.logger.info(message, *args, **kwargs)
 
     def warning(self, message, indent_level=1, *args, **kwargs):
         message = format_logging_message(message, logging.WARNING, indent_level=indent_level)
-        return self.logger.warning(self.namespace_message(message), *args, **kwargs)
+        return self.logger.warning(message, *args, **kwargs)
 
     def exception(self, message, indent_level=1, *args, **kwargs):
         message = format_logging_message(message, logging.ERROR, indent_level=indent_level)
-        return self.logger.exception(self.namespace_message(message), *args, **kwargs)
+        return self.logger.exception(message, *args, **kwargs)
 
     def critical(self, message, indent_level=1, *args, **kwargs):
         message = format_logging_message(message, logging.CRITICAL, indent_level=indent_level)
-        return self.logger.critical(self.namespace_message(message), *args, **kwargs)
+        return self.logger.critical(message, *args, **kwargs)
 
     def error(self, message, indent_level=1, *args, **kwargs):
         message = format_logging_message(message, logging.ERROR, indent_level=indent_level)
-        return self.logger.error(self.namespace_message(message), *args, **kwargs)
+        return self.logger.error(message, *args, **kwargs)
 
     def info_insert_adata(self, key, adata_attr="obsm", indent_level=1, *args, **kwargs):
         message = "<insert> %s to %s in AnnData Object." % (key, adata_attr)
         message = format_logging_message(message, logging.INFO, indent_level=indent_level)
-        return self.logger.error(self.namespace_message(message), *args, **kwargs)
+        return self.logger.error(message, *args, **kwargs)
+
+    def log_time(self):
+        now = time.time()
+        self.time_passed = now - self.previous_timestamp
+        self.previous_timestamp = now
+        return self.time_passed
+
+    def report_progress(self, percent):
+        saved_terminator = self.logger_stream_handler.terminator
+        self.logger_stream_handler.terminator = ""
+        message = "\r" + format_logging_message(f"in progress: {percent}%", logging_level=logging.INFO)
+        self.logger.info(message)
+        self.logger_stream_handler.flush()
+        self.logger_stream_handler.terminator = saved_terminator
+
+    def finish_progress(self, time_unit="s"):
+        self.log_time()
+        self.logger.info("\r")
+        if time_unit == "s":
+            self.info("finished [%.4fs]" % (self.time_passed))
+        elif time_unit == "ms":
+            self.info("finished [%.4fs]" % (self.time_passed * 1e3))
+        else:
+            raise NotImplementedError
+        self.logger_stream_handler.flush()
 
 
 class LoggerManager:
