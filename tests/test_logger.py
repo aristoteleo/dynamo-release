@@ -1,8 +1,8 @@
-from numba import jit
 import dynamo.tools
 from dynamo import LoggerManager
 import dynamo as dyn
 import pytest
+import time
 
 
 @pytest.fixture
@@ -16,6 +16,14 @@ def test_logger_simple_output_1(test_logger):
     test_logger.warning("someWarningMessage", indent_level=2)
     test_logger.critical("someCriticalMessage", indent_level=3)
     test_logger.critical("someERRORMessage", indent_level=2)
+
+
+def test_logger_simple_progress_logger(test_logger):
+    total = 10
+    for i in range(total):
+        test_logger.report_progress(i / total * 100)
+        time.sleep(0.1)
+    test_logger.finish_progress()
 
 
 # To-do:
@@ -34,4 +42,5 @@ def test_vectorField_logger():
 
 if __name__ == "__main__":
     # test_logger_simple_output_1(LoggerManager.get_main_logger())
-    test_vectorField_logger()
+    test_logger_simple_progress_logger(LoggerManager.get_main_logger())
+    # test_vectorField_logger()

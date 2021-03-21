@@ -148,11 +148,18 @@ class Logger:
         return self.time_passed
 
     def report_progress(self, percent):
-        logging.info(f"\r in progress: {percent}%")
+        saved_terminator = self.logger_stream_handler.terminator
+        self.logger_stream_handler.terminator = ""
+        message = "\r" + self.namespace_message(
+            format_logging_message(f"in progress: {percent}%", logging_level=logging.INFO)
+        )
+        self.logger.info(message)
         self.logger_stream_handler.flush()
+        self.logger_stream_handler.terminator = saved_terminator
 
     def finish_progress(self):
-        logging.info(f"\r")
+        self.logger.info("\r")
+        self.info("finished")
         self.logger_stream_handler.flush()
 
 
