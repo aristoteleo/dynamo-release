@@ -20,6 +20,7 @@ def test_logger_simple_output_1(test_logger):
 
 def test_logger_simple_progress_logger(test_logger):
     total = 10
+    test_logger.log_time()
     for i in range(total):
         test_logger.report_progress(i / total * 100)
         time.sleep(0.1)
