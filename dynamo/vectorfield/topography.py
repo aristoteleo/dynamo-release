@@ -635,7 +635,7 @@ def VectorField(
             "Deep copying annData object and working on the new copy. Original annData object will not be modified.",
             indent_level=1,
         )
-        adata = adata.deepcopy()
+        adata = adata.copy()
 
     logger.info("Retrieve X and V based on basis: %s." % basis)
     if basis is not None:

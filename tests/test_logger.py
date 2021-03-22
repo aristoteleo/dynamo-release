@@ -36,9 +36,9 @@ def test_vectorField_logger():
     dyn.tl.dynamics(adata, model="stochastic", cores=8)
     dyn.tl.reduceDimension(adata, enforce=True)
     dyn.tl.cell_velocities(adata, basis="pca")
-    dyn.vf.VectorField(adata, basis="pca", M=1000)
-    dyn.vf.VectorField(adata, basis="pca", M=1000)
-    dyn.vf.VectorField(adata, basis="pca", M=1000)
+    dyn.vf.VectorField(adata, basis="pca", M=100)
+    dyn.vf.VectorField(adata, basis="pca", M=100)
+    dyn.vf.VectorField(adata, basis="pca", M=100)
 
 
 if __name__ == "__main__":

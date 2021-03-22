@@ -158,7 +158,7 @@ class Logger:
     def finish_progress(self, progress_name="", time_unit="s"):
         self.log_time()
         self.logger.info("\r")
-        
+
         if time_unit == "s":
             self.info("%s finished [%.4fs]" % (progress_name, self.time_passed))
         elif time_unit == "ms":
