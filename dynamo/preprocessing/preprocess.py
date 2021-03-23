@@ -577,6 +577,7 @@ def Dispersion(adata, layers="X", modelFormulaStr="~ 1", min_cells_detected=1, r
             A updated annData object with dispFitInfo added to uns attribute as a new key.
     """
     import re
+
     logger = LoggerManager.get_logger("dynamo-preprocessing")
     mu = None
     model_terms = [x.strip() for x in re.compile("~|\\*|\\+").split(modelFormulaStr)]
@@ -1298,7 +1299,7 @@ def recipe_monocle(
             "Deep copying annData object and working on the new copy. Original annData object will not be modified.",
             indent_level=1,
         )
-        adata = adata.deepcopy()
+        adata = adata.copy()
     logger.info("apply Monocole recipe to adata...", indent_level=1)
     if "use_for_pca" in adata.var.columns:
         del adata.var["use_for_pca"]  # avoid use_for_pca was set previously.
