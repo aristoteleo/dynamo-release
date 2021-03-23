@@ -57,6 +57,8 @@ def convert2gene_symbol(input_names, scopes="ensembl.gene"):
 
 def convert2symbol(adata, scopes=None, subset=True):
     if np.all(adata.var_names.str.startswith("ENS")) or scopes is not None:
+        # logger.info("convert ensemble name to official gene name", indent_level=1)
+
         prefix = adata.var_names[0]
         if scopes is None:
             if prefix[:4] == "ENSG" or prefix[:7] == "ENSMUSG":

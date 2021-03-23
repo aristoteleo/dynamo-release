@@ -1313,10 +1313,11 @@ def recipe_monocle(
 
     basic_stats(adata)
     has_splicing, has_labeling, splicing_labeling, has_protein = detect_datatype(adata)
-    logger.info_insert_adata("pp.has_splicing", "uns")
-    logger.info_insert_adata("pp.has_labling", "uns")
-    logger.info_insert_adata("pp.splicing_labeling", "uns")
-    logger.info_insert_adata("pp.has_protein", "uns")
+    logger.info_insert_adata("pp", "uns")
+    logger.info_insert_adata("has_splicing", "uns['pp']", indent_level=2)
+    logger.info_insert_adata("has_labling", "uns['pp']", indent_level=2)
+    logger.info_insert_adata("splicing_labeling", "uns['pp']", indent_level=2)
+    logger.info_insert_adata("has_protein", "uns['pp']", indent_level=2)
     (
         adata.uns["pp"]["has_splicing"],
         adata.uns["pp"]["has_labeling"],
@@ -1342,8 +1343,11 @@ def recipe_monocle(
     elif has_splicing and not has_labeling:
         layer = ["X", "spliced", "unspliced"] if layer is None else layer
 
+    logger.info("ensure all cell and variable names unique.", indent_level=1)
     adata = unique_var_obs_adata(adata)
+    logger.info("ensure all data in different layers in csr sparse matrix format.", indent_level=1)
     adata = layers2csr(adata)
+    logger.info("ensure all labeling data properly collapased", indent_level=1)
     adata = collapse_adata(adata)
 
     # reset adata.X
@@ -1427,8 +1431,8 @@ def recipe_monocle(
                 "we recommend using hour as the time unit."
             )
 
-    logger.info_insert_adata("pp.tkey", "uns")
-    logger.info_insert_adata("pp.experiment_type", "uns")
+    logger.info_insert_adata("tkey", "uns['pp']", indent_level=2)
+    logger.info_insert_adata("experiment_type", "uns['pp']", indent_level=2)
     adata.uns["pp"]["tkey"] = tkey
     adata.uns["pp"]["experiment_type"] = "conventional" if experiment_type is None else experiment_type
 
@@ -1501,6 +1505,7 @@ def recipe_monocle(
     )
 
     # calculate sz factor
+    logger.info("filtering genes...")
     if not _szFactor or "Size_Factor" not in adata.obs_keys():
         adata = szFactor(
             adata,
@@ -1597,7 +1602,7 @@ def recipe_monocle(
     # normalized data based on sz factor
     if not _logged:
         total_szfactor = "total_Size_Factor" if total_layers is not None else None
-        logger.info("normalizing experiment data")
+        logger.info("normalizing data by size factor")
         adata = normalize_expr_data(
             adata,
             layers=layer if type(layer) is list else "all",
@@ -1617,7 +1622,7 @@ def recipe_monocle(
             if layer != "X":
                 logger.info_insert_adata("X_" + layer, "layers")
                 adata.layers["X_" + layer] = adata.layers[layer].copy()
-        logger.info_insert_adata("pp.norm_method", "uns")
+        logger.info_insert_adata("norm_method", "uns['pp']", indent_level=2)
         adata.uns["pp"]["norm_method"] = None
 
     # only use genes pass filter (based on use_for_pca) to perform dimension reduction.
@@ -1654,7 +1659,7 @@ def recipe_monocle(
 
     adata.var.iloc[bad_genes, adata.var.columns.tolist().index("use_for_pca")] = False
     CM = CM[:, valid_ind]
-    logger.info("applying %s method..." % (method))
+    logger.info("applying %s ..." % (method.upper()))
     if method == "pca":
         adata, fit, _ = pca(adata, CM, num_dim, "X_" + method.lower())
 
@@ -1677,6 +1682,7 @@ def recipe_monocle(
         adata.obs["ntr"] = ntr
         adata.var["ntr"] = var_ntr
 
+    logger.info("cell cycle scoring...")
     try:
         cell_cycle_scores(adata)
     except Exception:
