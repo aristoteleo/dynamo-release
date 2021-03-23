@@ -825,8 +825,8 @@ def VectorField(
         logger.info_insert_adata(inlier_prob, adata_attr="obs")
 
         adata.obs[control_point], adata.obs[inlier_prob] = False, np.nan
-        adata.obs[control_point][vf_dict["ctrl_idx"]] = True
-        adata.obs[inlier_prob][valid_ids] = vf_dict["P"].flatten()
+        adata[vf_dict["ctrl_idx"]].obs[control_point] = True
+        adata[valid_ids].obs[inlier_prob] = vf_dict["P"].flatten()
 
     # angles between observed velocity and that predicted by vector field across cells:
     cell_angels = np.zeros(adata.n_obs)

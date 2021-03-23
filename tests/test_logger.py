@@ -1,5 +1,5 @@
-import dynamo.tools
 from dynamo import LoggerManager
+import dynamo.tools
 import dynamo as dyn
 import pytest
 import time
@@ -34,7 +34,7 @@ def test_vectorField_logger():
     adata = dyn.sample_data.zebrafish()
     dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_max=0.005)
     dyn.tl.dynamics(adata, model="stochastic", cores=8)
-    dyn.tl.reduceDimension(adata, enforce=True)
+    dyn.tl.reduceDimension(adata, n_pca_components=5, enforce=True)
     dyn.tl.cell_velocities(adata, basis="pca")
     dyn.vf.VectorField(adata, basis="pca", M=100)
     dyn.vf.VectorField(adata, basis="pca", M=100)
