@@ -1296,7 +1296,7 @@ def recipe_monocle(
     logger.log_time()
     if copy:
         logger.info(
-            "Deep copying annData object and working on the new copy. Original annData object will not be modified.",
+            "Deep copying AnnData object and working on the new copy. Original AnnData object will not be modified.",
             indent_level=1,
         )
         adata = adata.copy()

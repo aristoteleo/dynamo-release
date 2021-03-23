@@ -632,13 +632,16 @@ def VectorField(
     logger.log_time()
     if copy:
         logger.info(
-            "Deep copying annData object and working on the new copy. Original annData object will not be modified.",
+            "Deep copying AnnData object and working on the new copy. Original AnnData object will not be modified.",
             indent_level=1,
         )
         adata = adata.copy()
 
-    logger.info("Retrieve X and V based on basis: %s." % basis)
     if basis is not None:
+        logger.info(
+            "Retrieve X and V based on basis: %s. \n "
+            "       Vector field will be learned in the %s space." % (basis.upper(), basis.upper())
+        )
         X = adata.obsm["X_" + basis].copy()
         V = adata.obsm["velocity_" + basis].copy()
 
@@ -647,6 +650,10 @@ def VectorField(
         elif type(dims) is list:
             X, V = X[:, dims], V[:, dims]
     else:
+        logger.info(
+            "Retrieve X and V based on `genes`, layer: %s. \n "
+            "       Vector field will be learned in the gene expression space." % layer
+        )
         valid_genes = (
             list(set(genes).intersection(adata.var.index))
             if genes is not None
@@ -665,6 +672,7 @@ def VectorField(
 
     Grid = None
     if X.shape[1] < 4 or grid_velocity:
+        logger.info("Generating high dimensional grids and convert into a row matrix.")
         # smart way for generating high dimensional grids and convert into a row matrix
         min_vec, max_vec = (
             X.min(0),
@@ -681,7 +689,7 @@ def VectorField(
     elif V is None:
         raise Exception("V is None. Make sure you passed the correct V.")
 
-    logger.info("Learning vector field with method: %s" % (method.lower()))
+    logger.info("Learning vector field with method: %s." % (method.lower()))
     if method.lower() == "sparsevfc":
         vf_kwargs = {
             "M": None,
@@ -782,6 +790,8 @@ def VectorField(
         adata.obsm[X_copy_key] = vf_dict["X"]
 
         vf_dict["dims"] = dims
+
+        logger.info_insert_adata(vf_key, adata_attr="uns")
         adata.uns[vf_key] = vf_dict
     else:
         key = velocity_key + "_" + method
@@ -801,18 +811,21 @@ def VectorField(
         tp_kwargs = {"n": 25}
         tp_kwargs = update_dict(tp_kwargs, kwargs)
 
+        logger.info("Mapping topography...")
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
 
             adata = topography(adata, basis=basis, X=X, layer=layer, dims=[0, 1], VecFld=vf_dict, **tp_kwargs)
     if pot_curl_div:
         if basis in ["pca", "umap", "tsne", "diffusion_map", "trimap"]:
-            logger.info("Computing divergence")
+            logger.info("Running ddhodge to estimate vector field based pseudotime...")
 
             ddhodge(adata, basis=basis, cores=cores)
             if X.shape[1] == 2:
-                logger.info("Computing curl")
+                logger.info("Computing curl...")
                 curl(adata, basis=basis)
+
+            logger.info("Computing divergence...")
             divergence(adata, basis=basis)
 
     control_point, inlier_prob, valid_ids = (
@@ -825,8 +838,8 @@ def VectorField(
         logger.info_insert_adata(inlier_prob, adata_attr="obs")
 
         adata.obs[control_point], adata.obs[inlier_prob] = False, np.nan
-        adata[vf_dict["ctrl_idx"]].obs[control_point] = True
-        adata[valid_ids].obs[inlier_prob] = vf_dict["P"].flatten()
+        adata.obs.loc[adata.obs_names[vf_dict["ctrl_idx"]], control_point] = True
+        adata.obs.loc[adata.obs_names[valid_ids], inlier_prob] = vf_dict["P"].flatten()
 
     # angles between observed velocity and that predicted by vector field across cells:
     cell_angels = np.zeros(adata.n_obs)
