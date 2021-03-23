@@ -25,7 +25,7 @@ def format_logging_message(msg, logging_level, indent_level=1, indent_space_num=
         prefix += "?"
     elif logging_level == logging.CRITICAL:
         prefix += "!!"
-    new_msg = prefix + " " + msg
+    new_msg = prefix + " " + str(msg)
     return new_msg
 
 
