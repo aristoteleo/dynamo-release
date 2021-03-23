@@ -142,7 +142,7 @@ def plot_3d_streamtube(
         n_neighbors=grid_kwargs_dict["n_neighbors"],
     )
 
-    from dynamo.vectorfield.utils import vecfld_from_adata
+    from .vectorfield.utils import vecfld_from_adata
 
     VecFld, func = vecfld_from_adata(adata, basis="umap")
 
