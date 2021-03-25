@@ -105,7 +105,7 @@ def state_graph(
     aggregate = group
 
     points = adata.obsm["X_" + basis][:, [x, y]]
-    groups, uniq_grp = adata.obs[group], adata.obs[group].unique().to_list()
+    groups, uniq_grp = adata.obs[group], list(adata.obs[group].unique())
     group_median = np.zeros((len(uniq_grp), 2))
     grp_size = adata.obs[group].value_counts().values
     s_kwargs_dict.update({"s": grp_size})
