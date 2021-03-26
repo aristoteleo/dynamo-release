@@ -221,9 +221,9 @@ def basic_stats(adata):
     mito_genes = adata.var_names.str.upper().str.startswith("MT-")
     try:
         adata.obs["pMito"] = (
-            (adata[:, mito_genes].X).sum(1).A1 / adata.obs["nCounts"]
+            (adata.X[:, mito_genes]).sum(1).A1 / adata.obs["nCounts"]
             if issparse(adata.X)
-            else (adata[:, mito_genes].X).sum(1) / adata.obs["nCounts"]
+            else (adata.X[:, mito_genes]).sum(1) / adata.obs["nCounts"]
         )
     except:
         raise Exception(f"looks like your var_names may be corrupted (i.e. include nan values)")
@@ -442,7 +442,8 @@ def get_sz_exprs(adata, layer, total_szfactor=None):
     if total_szfactor is not None and total_szfactor in adata.obs.keys():
         szfactors = adata.obs[total_szfactor][:, None]
     else:
-        warnings.warn("`total_szfactor` is not `None` and it is not in adata object.")
+        if total_szfactor is not None:
+            warnings.warn("`total_szfactor` is not `None` and it is not in adata object.")
 
     return szfactors, CM
 

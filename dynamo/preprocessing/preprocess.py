@@ -696,7 +696,10 @@ def SVRs(
     layers = get_layer_keys(adata_ori, layers)
 
     if use_all_genes_cells:
-        adata = adata_ori[:, filter_bool].copy() if filter_bool is not None else adata_ori
+        # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            adata = adata_ori[:, filter_bool].copy() if filter_bool is not None else adata_ori
     else:
         cell_inds = adata_ori.obs.use_for_pca if "use_for_pca" in adata_ori.obs.columns else adata_ori.obs.index
         filter_list = ["use_for_pca", "pass_basic_filter"]
@@ -705,7 +708,10 @@ def SVRs(
 
         gene_inds = adata_ori.var[filter_list[which_filter[0]]] if len(which_filter) > 0 else adata_ori.var.index
 
-        adata = adata_ori[cell_inds, gene_inds].copy()
+        with warnings.catch_warnings():
+            # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
+            warnings.simplefilter('ignore')
+            adata = adata_ori[cell_inds, gene_inds].copy()
         filter_bool = filter_bool[gene_inds]
 
     for layer in layers:
@@ -1162,7 +1168,7 @@ def recipe_monocle(
     genes_to_use: Union[list, None] = None,
     genes_to_append: Union[list, None] = None,
     genes_to_exclude: Union[list, None] = None,
-    exprs_frac_max: float = 0.005,
+    exprs_frac_max: float = 1,
     method: str = "pca",
     num_dim: int = 30,
     sz_method: str = "median",
@@ -1238,8 +1244,10 @@ def recipe_monocle(
             A list of gene names that will be appended to the feature genes list for downstream analysis.
         genes_to_exclude: `list` (default: `None`)
             A list of gene names that will be excluded to the feature genes list for downstream analysis.
-        exprs_frac_max: `float` (default: `0.001`)
-            The minimal fraction of gene counts to the total counts across cells that will used to filter genes.
+        exprs_frac_max: `float` (default: `1`)
+            The minimal fraction of gene counts to the total counts across cells that will used to filter genes. By
+            default it is 1 which means we don't filter any genes, but we need to change it to 0.005 or something in
+            order to remove some highly expressed housekeeping genes.
         method: `str` (default: `pca`)
             The linear dimension reduction methods to be used.
         num_dim: `int` (default: `30`)
@@ -1505,7 +1513,7 @@ def recipe_monocle(
     )
 
     # calculate sz factor
-    logger.info("filtering genes...")
+    logger.info("calculating size factor...")
     if not _szFactor or "Size_Factor" not in adata.obs_keys():
         adata = szFactor(
             adata,
@@ -1553,11 +1561,11 @@ def recipe_monocle(
         adata.var["use_for_pca"] = adata.var.index.isin(genes_to_use)
 
     logger.info_insert_adata("frac", "var")
-    adata.var["frac"], valid_ids = gene_exp_fraction(X=adata.X, threshold=exprs_frac_max)
+    adata.var["frac"], invalid_ids = gene_exp_fraction(X=adata.X, threshold=exprs_frac_max)
     genes_to_exclude = (
-        list(adata.var_names[valid_ids])
+        list(adata.var_names[invalid_ids])
         if genes_to_exclude is None
-        else genes_to_exclude + list(adata.var_names[valid_ids])
+        else genes_to_exclude + list(adata.var_names[invalid_ids])
     )
 
     if genes_to_append is not None:
@@ -1584,14 +1592,17 @@ def recipe_monocle(
             valid_ids = adata.var.index.difference(genes_to_exclude)
 
         if n_top_genes > 0:
-            filter_bool = select_genes(
-                adata[:, valid_ids],
-                sort_by=feature_selection,
-                n_top_genes=n_top_genes,
-                keep_filtered=True,  # no effect to adata
-                SVRs_kwargs=select_genes_dict,
-                only_bools=True,
-            )
+            # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore')
+                filter_bool = select_genes(
+                    adata[:, valid_ids],
+                    sort_by=feature_selection,
+                    n_top_genes=n_top_genes,
+                    keep_filtered=True,  # no effect to adata
+                    SVRs_kwargs=select_genes_dict,
+                    only_bools=True,
+                )
 
             adata.var.loc[valid_ids, "use_for_pca"] = filter_bool
 
@@ -1703,7 +1714,10 @@ def recipe_monocle(
                 del adata.layers[layer]
 
     logger.finish_progress(progress_name="recipe_monocle preprocess")
-    return adata
+
+    if copy:
+        return adata
+    return None
 
 
 def recipe_velocyto(
