@@ -459,7 +459,7 @@ def scatters(
                     if aggregate is not None:
                         groups, uniq_grp = (
                             adata.obs[aggregate],
-                            adata.obs[aggregate].unique().to_list(),
+                            list(adata.obs[aggregate].unique()),
                         )
                         group_color, group_median = (
                             np.zeros((1, len(uniq_grp))).flatten()
