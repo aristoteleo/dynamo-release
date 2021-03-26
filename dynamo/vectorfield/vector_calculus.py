@@ -304,7 +304,7 @@ def jacobian(
 
     Js_det = [np.linalg.det(Js[:, :, i]) for i in np.arange(Js.shape[2])]
     adata.obs["jacobian_det_" + basis] = np.nan
-    adata.obs["jacobian_det_" + basis][cell_idx] = Js_det
+    adata[cell_idx].obs["jacobian_det_" + basis] = Js_det
     if store_in_adata:
         jkey = "jacobian" if basis is None else "jacobian_" + basis
         adata.uns[jkey] = ret_dict

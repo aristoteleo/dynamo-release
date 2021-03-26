@@ -31,9 +31,9 @@ def group_corr(adata, layer, gene_list):
         raise Exception(f"your adata doesn't have any gene from the gene_list {gene_list}.")
 
     if layer is None:
-        expression_matrix = adata[:, intersect_genes].X
+        expression_matrix = adata.X[:, intersect_genes]
     else:
-        expression_matrix = adata[:, intersect_genes].layers[layer]
+        expression_matrix = adata.layers[layer][:, intersect_genes]
         expression_matrix = log1p_(adata, expression_matrix)
 
     avg_exp = expression_matrix.mean(axis=1)
@@ -94,11 +94,12 @@ def group_score(adata, layer, gene_list):
         raise Exception(f"your adata doesn't have any gene from the gene_list {gene_list}.")
 
     if layer is None:
-        expression_matrix = adata[:, intersect_genes].X
+        expression_matrix = adata.X[:, intersect_genes]
     else:
-        expression_matrix = adata[:, intersect_genes].layers[layer]
+        expression_matrix = adata.layers[layer][:, intersect_genes]
         expression_matrix = log1p_(adata, expression_matrix)
 
+    # To-do: FutureWarning: Index.is_all_dates is deprecated, will be removed in a future version.  check index.inferred_type instead
     if layer is None or layer.startswith("X_"):
         scores = expression_matrix.sum(1).A1 if issparse(expression_matrix) else expression_matrix.sum(1)
     else:
