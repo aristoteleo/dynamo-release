@@ -69,7 +69,7 @@ def state_graph(
         and the average transition time.
     """
     logger = LoggerManager.get_main_logger()
-    timer_logger = LoggerManager.get_main_logger("dynamo-timer")
+    timer_logger = LoggerManager.get_logger("dynamo-timer")
     timer_logger.log_time()
 
     logger.info("Estimating the transition probability between cell types...")
