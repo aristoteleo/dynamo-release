@@ -14,6 +14,7 @@ from .utils import (
     arclength_sampling,
     integrate_streamline,
 )
+from ..dynamo_logger import LoggerManager
 
 
 def classify_clone_cell_type(adata, clone, clone_column, cell_type_column, cell_type_to_excluded):
@@ -67,7 +68,7 @@ def state_graph(
         An updated adata object that is added with the `group + '_graph'` key, including the transition graph
         and the average transition time.
     """
-
+    logger = LoggerManager.get_main_logger()
     groups, uniq_grp = adata.obs[group], list(adata.obs[group].unique())
 
     if method.lower() == "markov":
@@ -93,8 +94,9 @@ def state_graph(
             average=False,
             t_end=None,
         )
+        logger.log_time()
         kdt = cKDTree(all_X, leafsize=30)
-
+        logger.finish_progress(progress_name="KDTree computation")
         vf_dict = adata.uns["VecFld_" + basis]
 
         for i, cur_grp in enumerate(tqdm(uniq_grp, desc="iterate groups:")):
