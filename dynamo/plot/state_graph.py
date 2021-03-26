@@ -1,5 +1,5 @@
 import numpy as np
-
+import pandas as pd
 from ..tools.utils import update_dict
 from .scatters import scatters, docstrings
 from .utils import save_fig
@@ -108,8 +108,10 @@ def state_graph(
     unique_group_obs = adata.obs[group].unique()
     if type(adata.obs[group]) is np.ndarray:
         groups, uniq_grp = adata.obs[group], unique_group_obs.tolist()
-    else:
+    elif type(adata.obs[group]) is pd.Series:
         groups, uniq_grp = adata.obs[group], unique_group_obs.to_list()
+    else:
+        groups, uniq_grp = adata.obs[group], list(adata.obs[group].unique())
     group_median = np.zeros((len(uniq_grp), 2))
     grp_size = adata.obs[group].value_counts().values
     s_kwargs_dict.update({"s": grp_size})

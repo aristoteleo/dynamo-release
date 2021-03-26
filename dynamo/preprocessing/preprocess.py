@@ -1602,7 +1602,7 @@ def recipe_monocle(
     # normalized data based on sz factor
     if not _logged:
         total_szfactor = "total_Size_Factor" if total_layers is not None else None
-        logger.info("normalizing data by size factor")
+        logger.info("size factor normalizing the data, followed by log1p transformation.")
         adata = normalize_expr_data(
             adata,
             layers=layer if type(layer) is list else "all",
