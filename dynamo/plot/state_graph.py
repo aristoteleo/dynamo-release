@@ -106,12 +106,12 @@ def state_graph(
 
     points = adata.obsm["X_" + basis][:, [x, y]]
     unique_group_obs = adata.obs[group].unique()
-    if type(adata.obs[group]) is np.ndarray:
+    if type(unique_group_obs) is np.ndarray:
         groups, uniq_grp = adata.obs[group], unique_group_obs.tolist()
-    elif type(adata.obs[group]) is pd.Series:
+    elif type(unique_group_obs) is pd.Series:
         groups, uniq_grp = adata.obs[group], unique_group_obs.to_list()
     else:
-        groups, uniq_grp = adata.obs[group], list(adata.obs[group].unique())
+        groups, uniq_grp = adata.obs[group], list(unique_group_obs)
     group_median = np.zeros((len(uniq_grp), 2))
     grp_size = adata.obs[group].value_counts().values
     s_kwargs_dict.update({"s": grp_size})
