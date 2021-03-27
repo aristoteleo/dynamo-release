@@ -10,6 +10,7 @@ import itertools, functools
 import inspect
 from numba import njit
 from ..tools.utils import timeit, subset_dict_with_key_list
+from ..dynamo_logger import LoggerManager
 
 
 def is_outside_domain(x, domain):
@@ -565,7 +566,8 @@ def compute_acceleration(vf, f_jac, X, return_all=False):
 
     v_ = vf(X)
     J_ = f_jac(X)
-    for i in tqdm(range(n), desc=f"Calculating acceleration"):
+    temp_logger = LoggerManager.get_temp_timer_logger()
+    for i in LoggerManager.progress_logger(range(n), temp_logger, progress_name="Calculating acceleration"):
         v = v_[i]
         J = J_[:, :, i]
         acce_mat[i] = acceleration_(v, J).flatten()
@@ -595,7 +597,9 @@ def compute_curvature(vf, f_jac, X, formula=2):
     v, _, _, a = compute_acceleration(vf, f_jac, X, return_all=True)
     cur_mat = np.zeros((n, X.shape[1])) if formula == 2 else None
 
-    for i in tqdm(range(n), desc="Calculating curvature"):
+    for i in LoggerManager.progress_logger(
+        range(n), LoggerManager.get_temp_timer_logger(), progress_name="Calculating curvature"
+    ):
         if formula == 1:
             curv[i] = curvature_1(a[i], v[i])
         elif formula == 2:

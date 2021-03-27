@@ -18,13 +18,21 @@ def test_logger_simple_output_1(test_logger):
     test_logger.critical("someERRORMessage", indent_level=2)
 
 
-def test_logger_simple_progress_logger(test_logger):
+def test_logger_simple_progress_naive(test_logger):
     total = 10
     test_logger.log_time()
     for i in range(total):
-        test_logger.report_progress(i / total * 100)
+        # test_logger.report_progress(i / total * 100)
+        test_logger.report_progress(count=i, total=total)
         time.sleep(0.1)
-    test_logger.finish_progress()
+    test_logger.finish_progress(progress_name="pytest simple progress logger test")
+
+
+def test_logger_simple_progress_logger(test_logger):
+    total = 10
+    test_logger.log_time()
+    for _ in LoggerManager.progress_logger(range(total), test_logger, progress_name="progress logger test"):
+        time.sleep(0.1)
 
 
 # To-do:
@@ -64,6 +72,8 @@ def test_zebrafish_topography_tutorial_logger():
 
 if __name__ == "__main__":
     # test_logger_simple_output_1(LoggerManager.get_main_logger())
+    # test_logger_simple_progress_naive(LoggerManager.get_main_logger())
     # test_logger_simple_progress_logger(LoggerManager.get_main_logger())
+    # test_logger_simple_progress_logger(LoggerManager.get_temp_timer_logger())
     # test_vectorField_logger()
     test_zebrafish_topography_tutorial_logger()

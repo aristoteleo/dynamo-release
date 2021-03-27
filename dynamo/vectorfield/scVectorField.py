@@ -17,7 +17,7 @@ from ..tools.utils import (
     linear_least_squares,
     timeit,
     index_condensed_matrix,
-    flatten
+    flatten,
 )
 from .utils import (
     vector_field_function,
@@ -34,6 +34,7 @@ from .utils import (
     Jacobian_rkhs_gaussian_parallel,
     vecfld_from_adata,
 )
+from ..dynamo_logger import LoggerManager
 
 
 def norm(X, V, T):
@@ -231,8 +232,12 @@ def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True,
         D = None
 
     V = sp.csr_matrix((n, n))
+    logger = LoggerManager.get_temp_timer_logger()
+    logger.log_time()
+    logger.report_progress(0)
     if cores == 1:
-        for i, idx in tqdm(enumerate(nbrs_idx), desc="Constructing diffusion graph from reconstructed vector field"):
+        for i, idx in enumerate(nbrs_idx):
+            logger.report_progress(count=idx, total=len(nbrs_idx))
             V += construct_v(X, i, idx, n_int_steps, func, distance_free, dist, D, n)
 
     else:
@@ -254,6 +259,7 @@ def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True,
         pool.close()
         pool.join()
         V = functools.reduce((lambda a, b: a + b), res)
+    logger.finish_progress(progress_name="graphize_vecfld")
 
     return V, nbrs
 

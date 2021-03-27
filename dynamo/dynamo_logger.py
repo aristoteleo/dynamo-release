@@ -43,12 +43,14 @@ class Logger:
 
         # To-do: add file handler in future
         # e.g. logging.StreamHandler(None) if log_file_path is None else logging.FileHandler(name)
-        self.logger_stream_handler = logging.StreamHandler()
-        self.logger_stream_handler.setFormatter(logging.Formatter(self.FORMAT))
 
         # ensure only one stream handler exisits in the logger
         if len(self.logger.handlers) == 0:
+            self.logger_stream_handler = logging.StreamHandler()
+            self.logger_stream_handler.setFormatter(logging.Formatter(self.FORMAT))
             self.logger.addHandler(self.logger_stream_handler)
+        else:
+            self.logger_stream_handler = self.logger.handlers[0]
 
         self.logger.propagate = False
 
@@ -147,10 +149,17 @@ class Logger:
         self.previous_timestamp = now
         return self.time_passed
 
-    def report_progress(self, percent):
+    def report_progress(self, percent=None, count=None, total=None, progress_name=""):
+        if percent is None:
+            assert (not count is None) and (not total is None)
+            percent = count / total * 100
         saved_terminator = self.logger_stream_handler.terminator
         self.logger_stream_handler.terminator = ""
-        message = "\r" + format_logging_message(f"in progress: {percent}%", logging_level=logging.INFO)
+        if progress_name != "":
+            progress_name = "[" + str(progress_name) + "] "
+        message = "\r" + format_logging_message(
+            "%sin progress: %.4f%%" % (progress_name, percent), logging_level=logging.INFO
+        )
         self.logger.info(message)
         self.logger_stream_handler.flush()
         self.logger_stream_handler.terminator = saved_terminator
@@ -160,9 +169,9 @@ class Logger:
         self.logger.info("\r")
 
         if time_unit == "s":
-            self.info("%s finished [%.4fs]" % (progress_name, self.time_passed))
+            self.info("[%s] finished [%.4fs]" % (progress_name, self.time_passed))
         elif time_unit == "ms":
-            self.info("%s finished [%.4fms]" % (progress_name, self.time_passed * 1e3))
+            self.info("[%s] finished [%.4fms]" % (progress_name, self.time_passed * 1e3))
         else:
             raise NotImplementedError
         self.logger_stream_handler.flush()
@@ -179,3 +188,18 @@ class LoggerManager:
     @staticmethod
     def get_logger(namespace):
         return Logger(namespace)
+
+    @staticmethod
+    def get_temp_timer_logger():
+        return Logger("dynamo-temp-timer-logger")
+
+    @staticmethod
+    def progress_logger(generator, logger, progress_name=""):
+        iterator = iter(generator)
+        logger.log_time()
+        i = 0
+        while i < len(generator):
+            i += 1
+            logger.report_progress(count=i, total=len(generator), progress_name=progress_name)
+            yield next(iterator)
+        logger.finish_progress(progress_name=progress_name)
