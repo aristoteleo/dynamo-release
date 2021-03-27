@@ -311,10 +311,8 @@ def _matplotlib_points(
 
     # Color by values
     elif values is not None:
-        # cmap_ = matplotlib.cm.get_cmap(cmap)
         cmap_ = copy.copy(matplotlib.cm.get_cmap(cmap))
         cmap_.set_bad("lightgray")
-
         matplotlib.cm.register_cmap(name=cmap_.name, cmap=cmap_)
 
         if values.shape[0] != points.shape[0]:
