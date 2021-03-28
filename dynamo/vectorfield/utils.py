@@ -597,9 +597,7 @@ def compute_curvature(vf, f_jac, X, formula=2):
     v, _, _, a = compute_acceleration(vf, f_jac, X, return_all=True)
     cur_mat = np.zeros((n, X.shape[1])) if formula == 2 else None
 
-    for i in LoggerManager.progress_logger(
-        range(n), LoggerManager.get_temp_timer_logger(), progress_name="Calculating curvature"
-    ):
+    for i in LoggerManager.progress_logger(range(n), progress_name="Calculating curvature"):
         if formula == 1:
             curv[i] = curvature_1(a[i], v[i])
         elif formula == 2:
