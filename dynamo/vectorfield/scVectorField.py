@@ -232,12 +232,8 @@ def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True,
         D = None
 
     V = sp.csr_matrix((n, n))
-    logger = LoggerManager.get_temp_timer_logger()
-    logger.log_time()
-    logger.report_progress(0)
     if cores == 1:
-        for i, idx in enumerate(nbrs_idx):
-            logger.report_progress(count=idx, total=len(nbrs_idx))
+        for i, idx in enumerate(LoggerManager.progress_logger(nbrs_idx, progress_name="graphize_vecfld")):
             V += construct_v(X, i, idx, n_int_steps, func, distance_free, dist, D, n)
 
     else:
@@ -259,8 +255,6 @@ def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True,
         pool.close()
         pool.join()
         V = functools.reduce((lambda a, b: a + b), res)
-    logger.finish_progress(progress_name="graphize_vecfld")
-
     return V, nbrs
 
 
