@@ -194,7 +194,9 @@ class LoggerManager:
         return Logger("dynamo-temp-timer-logger")
 
     @staticmethod
-    def progress_logger(generator, logger, progress_name=""):
+    def progress_logger(generator, logger=None, progress_name=""):
+        if logger is None:
+            logger = LoggerManager.get_temp_timer_logger()
         iterator = iter(generator)
         logger.log_time()
         i = 0

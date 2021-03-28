@@ -68,6 +68,7 @@ def test_zebrafish_topography_tutorial_logger():
     dyn.pp.top_pca_genes(adata)
     top_pca_genes = adata.var.index[adata.var.top_pca_genes]
     dyn.vf.jacobian(adata, regulators=top_pca_genes, effectors=top_pca_genes)
+    dyn.pd.state_graph(adata, group="Cell_type", basis="pca", method="vf")
 
 
 if __name__ == "__main__":

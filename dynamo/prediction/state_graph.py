@@ -106,9 +106,7 @@ def state_graph(
         logger.finish_progress(progress_name="KDTree computation")
         vf_dict = adata.uns["VecFld_" + basis]
 
-        for i, cur_grp in LoggerManager.progress_logger(
-            enumerate(uniq_grp), LoggerManager.get_temp_timer_logger(), progress_name="iterate groups:"
-        ):
+        for i, cur_grp in enumerate(LoggerManager.progress_logger(uniq_grp, progress_name="iterate groups")):
             init_cells = adata.obs_names[groups == cur_grp]
             if sample_num is not None:
                 cell_num = np.min((sample_num, len(init_cells)))

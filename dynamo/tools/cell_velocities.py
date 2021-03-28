@@ -482,10 +482,7 @@ def cell_velocities(
     if preserve_len:
         basis_len, high_len = np.linalg.norm(delta_X, axis=1), np.linalg.norm(V, axis=1)
         scaler = np.nanmedian(basis_len) / np.nanmedian(high_len)
-        temp_logger = LoggerManager.get_temp_timer_logger()
-        for i in LoggerManager.progress_logger(
-            range(adata.n_obs), temp_logger, progress_name="rescaling velocity norm"
-        ):
+        for i in LoggerManager.progress_logger(range(adata.n_obs), progress_name="rescaling velocity norm"):
             idx = T[i].indices
             high_len_ = high_len[idx]
             T_i = T[i].data
@@ -814,10 +811,8 @@ def kernels_from_velocyto_scvelo(
         vals = []
 
     delta_X = np.zeros((n, X_embedding.shape[1]))
-    temp_logger = LoggerManager.get_temp_timer_logger()
     for i in LoggerManager.progress_logger(
         range(n),
-        temp_logger,
         progress_name=f"calculating transition matrix via {kernel} kernel with {transform} transform.",
     ):
         velocity = V[i, :]  # project V to pca space
@@ -890,9 +885,8 @@ def projection_with_transition_matrix(n, T, X_embedding):
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        temp_logger = LoggerManager.get_temp_timer_logger()
         for i in LoggerManager.progress_logger(
-            range(n), temp_logger, progress_name=f"projecting velocity vector to low dimensional embedding"
+            range(n), progress_name=f"projecting velocity vector to low dimensional embedding"
         ):
             idx = T[i].indices
             diff_emb = X_embedding[idx] - X_embedding[i, None]
