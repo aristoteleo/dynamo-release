@@ -100,7 +100,7 @@ def state_graph(
             average=False,
             t_end=None,
         )
-        logger.report_progress(progress_name="KDTree parameter preparation computation")
+        logger.report_progress(percent=0, progress_name="KDTree parameter preparation computation")
         logger.log_time()
         kdt = cKDTree(all_X, leafsize=30)
         logger.finish_progress(progress_name="KDTree computation")
