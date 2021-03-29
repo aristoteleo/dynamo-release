@@ -1221,10 +1221,13 @@ def rank_jacobian_genes(
 
     Returns
     -------
-        rank_pd:
-            1. A pandas dataframe containing ranking info based on Jacobian elements
-            2. A dictionary object whose keys correspond to groups, and whose values are
-            specific rank's pd dataframe
+        rank_info:
+            different modes return different types of return values
+            1. full reg and full eff:
+                A pandas dataframe containing ranking info based on Jacobian elements
+            2. reg eff int:
+                A dictionary object whose keys correspond to groups, and whose values are
+                specific rank's pd dataframe
     """
     J_dict = adata.uns[jkey]
     J = J_dict["jacobian_gene"]
