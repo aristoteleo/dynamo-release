@@ -191,7 +191,7 @@ class LoggerManager:
 
     @staticmethod
     def get_temp_timer_logger():
-        return Logger("dynamo-temp-timer-logger")
+        return Logger("Dynamo-temp-timer-logger")
 
     @staticmethod
     def progress_logger(generator, logger=None, progress_name=""):
