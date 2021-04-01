@@ -24,39 +24,42 @@ from .utils import (
 
 from .dimension_reduction import reduceDimension
 from ..dynamo_logger import LoggerManager
+from anndata import AnnData
+from typing import Union
+import scipy
 
 
 def cell_velocities(
-    adata,
-    ekey=None,
-    vkey=None,
-    X=None,
-    V=None,
-    X_embedding=None,
-    use_mnn=False,
-    n_pca_components=None,
-    transition_genes=None,
-    min_r2=None,
-    min_alpha=None,
-    min_gamma=None,
-    min_delta=None,
-    basis="umap",
-    neigh_key="neighbors",
-    adj_key="distances",
-    n_neighbors=30,
-    method="pearson",
-    neg_cells_trick=True,
-    calc_rnd_vel=False,
-    xy_grid_nums=(50, 50),
-    correct_density=True,
-    scale=True,
-    sample_fraction=None,
-    random_seed=19491001,
-    enforce=False,
-    key=None,
-    preserve_len=False,
+    adata: AnnData,
+    ekey: Union[str, None] = None,
+    vkey: Union[str, None] = None,
+    X: Union[np.array, scipy.sparse.csr_matrix, None] = None,
+    V: Union[np.array, scipy.sparse.csr_matrix, None] = None,
+    X_embedding: Union[str, None] = None,
+    use_mnn: bool = False,
+    n_pca_components: Union[int, None] = None,
+    transition_genes: Union[str, list, None] = None,
+    min_r2: Union[float, None] = None,
+    min_alpha: Union[float, None] = None,
+    min_gamma: Union[float, None] = None,
+    min_delta: Union[float, None] = None,
+    basis: int = "umap",
+    neigh_key: str = "neighbors",
+    adj_key: str = "distances",
+    n_neighbors: int = 30,
+    method: str = "pearson",
+    neg_cells_trick: bool = True,
+    calc_rnd_vel: bool = False,
+    xy_grid_nums: tuple = (50, 50),
+    correct_density: bool = True,
+    scale: bool = True,
+    sample_fraction: Union[float, None] = None,
+    random_seed: int = 19491001,
+    enforce: bool = False,
+    key: Union[str, None] = None,
+    preserve_len: bool = False,
     **kernel_kwargs,
-):
+) -> AnnData:
     """Project high dimensional velocity vectors onto given low dimensional embeddings,
     and/or compute cell transition probabilities.
 

@@ -1,21 +1,24 @@
 import warnings
 from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 from .connectivity import neighbors
+import numpy as np
+from anndata import AnnData
+from typing import Union
 
 
 def reduceDimension(
-    adata,
-    X_data=None,
-    genes=None,
-    layer=None,
-    basis="pca",
-    dims=None,
-    n_pca_components=30,
-    n_components=2,
-    n_neighbors=30,
-    reduction_method="umap",
-    enforce=False,
-    cores=1,
+    adata: AnnData,
+    X_data: np.ndarray = None,
+    genes: Union[list, None] = None,
+    layer: Union[str, None] = None,
+    basis: Union[str, None] = "pca",
+    dims: Union[list, None] = None,
+    n_pca_components: int = 30,
+    n_components: int = 2,
+    n_neighbors: int = 30,
+    reduction_method: str = "umap",
+    enforce: bool = False,
+    cores: int = 1,
     **kwargs,
 ):
     """Compute a low dimension reduction projection of an annodata object first with PCA, followed by non-linear
