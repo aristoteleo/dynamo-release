@@ -303,13 +303,13 @@ def IntGrad(points, Function, DiffusionMatrix, dt):
 
     Arguments
     ---------
-        points: 'np.ndarray'
+        points: :class:`~numpy.ndarray`
             The sampled points in the state space used to calculate the action.
-        Function: 'function'
+        Function: function
             The (learned) vector field function.
-        DiffusionMatrix: 'function'
+        DiffusionMatrix: function
             The function that returns diffusion matrix which can be dependent on the variables (for example, genes)
-        dt: 'function'
+        dt: 'float'
             The time interval used in calculating action
 
     Returns
@@ -334,8 +334,8 @@ def DiffusionMatrix(x):
 
     Arguments
     ---------
-        x: 'np.ndarray'
-            The matrix of sampled points (cells) in the (gene expression) state space.
+        x: :class:`~numpy.ndarray`
+            The matrix of sampled points (cells) in the (gene expression) state space. A
 
     Returns
     -------
@@ -348,10 +348,9 @@ def DiffusionMatrix(x):
     return out
 
 
-# rewrite action in TF with SGD
 def action(n_points, tmax, point_start, point_end, boundary, Function, DiffusionMatrix):
-    """It calculates the minimized action value given an intial path, ODE, and diffusion matrix. The minimization is
-    realized by scipy.optimize.Bounds function in python (withnot using the gradient of the action function).
+    """It calculates the minimized action value given an initial path, ODE, and diffusion matrix. The minimization is
+    realized by scipy.optimize.Bounds function in python (without using the gradient of the action function).
 
     Arguments
     ---------
@@ -359,27 +358,29 @@ def action(n_points, tmax, point_start, point_end, boundary, Function, Diffusion
             The number of points along the least action path.
         tmax: 'int'
             The value at maximum t.
-        point_start: 'np.ndarray'
+        point_start: :class:`~numpy.ndarray`
             The matrix for storing the coordinates (gene expression configuration) of the start point (initial cell state).
-        point_end: 'np.ndarray'
+        point_end: :class:`~numpy.ndarray`
             The matrix for storing the coordinates (gene expression configuration) of the end point (terminal cell state).
-        Function: 'function'
+        boundary: :class:`~numpy.ndarray`
+            Not used.
+        Function: function
             The (reconstructed) vector field function.
-        DiffusionMatrix: 'function'
+        DiffusionMatrix: function
             The function that returns the diffusion matrix which can variable (for example, gene) dependent.
 
     Returns
     -------
-    fval: 'np.ndarray'
+    fval: :class:`~numpy.ndarray`
         The action value for the learned least action path.
-    output_path: 'np.ndarray'
+    output_path: :class:`~numpy.ndarray`
         The least action path learned
     """
 
     dim = point_end.shape[0]  # genes x cells
     dt = tmax / n_points
     lambda_f = lambda x: IntGrad(
-        np.hstack((point_start, x.reshape((2, -1)), point_end)),
+        np.hstack((point_start, x.reshape((dim, -1)), point_end)),
         Function,
         DiffusionMatrix,
         dt,

@@ -708,8 +708,8 @@ def SVRs(
 
         gene_inds = adata_ori.var[filter_list[which_filter[0]]] if len(which_filter) > 0 else adata_ori.var.index
 
+        # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
         with warnings.catch_warnings():
-            # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
             warnings.simplefilter('ignore')
             adata = adata_ori[cell_inds, gene_inds].copy()
         filter_bool = filter_bool[gene_inds]
