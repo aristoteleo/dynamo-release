@@ -144,19 +144,19 @@ def szFactor(
 
 
 def normalize_expr_data(
-    adata,
-    layers="all",
-    total_szfactor="total_Size_Factor",
-    splicing_total_layers=False,
-    X_total_layers=False,
-    norm_method=None,
-    pseudo_expr=1,
-    relative_expr=True,
-    keep_filtered=True,
-    recalc_sz=False,
-    sz_method="median",
-    scale_to=None,
-):
+    adata: AnnData,
+    layers: str = "all",
+    total_szfactor: str = "total_Size_Factor",
+    splicing_total_layers: str = False,
+    X_total_layers: str = False,
+    norm_method: Union[Callable, None] = None,
+    pseudo_expr: int = 1,
+    relative_expr: bool = True,
+    keep_filtered: bool = True,
+    recalc_sz: bool = False,
+    sz_method: str = "median",
+    scale_to: union[float, None] = None,
+) -> AnnData:
     """Normalize the gene expression value for the AnnData object
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
@@ -331,7 +331,7 @@ def Gini(adata, layers="all"):
     return adata
 
 
-def parametricDispersionFit(disp_table, initial_coefs=np.array([1e-6, 1])):
+def parametricDispersionFit(disp_table: pd.DataFrame, initial_coefs: np.ndarray = np.array([1e-6, 1])):
     """fThis function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
@@ -385,7 +385,7 @@ def parametricDispersionFit(disp_table, initial_coefs=np.array([1e-6, 1])):
     return fit, coefs, good
 
 
-def disp_calc_helper_NB(adata, layers="X", min_cells_detected=1):
+def disp_calc_helper_NB(adata: AnnData, layers: str = "X", min_cells_detected: int = 1) -> pd.DataFrame:
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
@@ -471,7 +471,7 @@ def disp_calc_helper_NB(adata, layers="X", min_cells_detected=1):
     return layers, res_list
 
 
-def topTable(adata, layer="X", mode="dispersion"):
+def topTable(adata: AnnData, layer: str = "X", mode: str = "dispersion") -> pd.DataFrame:
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
@@ -513,7 +513,7 @@ def topTable(adata, layer="X", mode="dispersion"):
     return top_df
 
 
-def vstExprs(adata, expr_matrix=None, round_vals=True):
+def vstExprs(adata: AnnData, expr_matrix: Union[np.ndarray, None] = None, round_vals: bool = True) -> np.ndarray:
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
@@ -522,7 +522,7 @@ def vstExprs(adata, expr_matrix=None, round_vals=True):
             AnnData object
         dispModelName: `str`
             The name of the dispersion function to use for VST.
-        expr_matrix: :class:`~numpy.ndarray`
+        expr_matrix: :class:`~numpy.ndarray` or `None` (default: `None`)
             An matrix of values to transform. Must be normalized (e.g. by size factors) already. This function doesn't do this for you.
         round_vals: `bool`
             Whether to round expression values to the nearest integer before applying the transformation.
@@ -557,7 +557,13 @@ def vstExprs(adata, expr_matrix=None, round_vals=True):
     return res
 
 
-def Dispersion(adata, layers="X", modelFormulaStr="~ 1", min_cells_detected=1, removeOutliers=False):
+def Dispersion(
+    adata: AnnData,
+    layers: str = "X",
+    modelFormulaStr: str = "~ 1",
+    min_cells_detected: int = 1,
+    removeOutliers: bool = False,
+) -> AnnData:
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
@@ -642,20 +648,20 @@ def Dispersion(adata, layers="X", modelFormulaStr="~ 1", min_cells_detected=1, r
 
 
 def SVRs(
-    adata_ori,
-    filter_bool=None,
-    layers="X",
-    relative_expr=True,
-    total_szfactor="total_Size_Factor",
-    min_expr_cells=0,
-    min_expr_avg=0,
-    max_expr_avg=0,
-    svr_gamma=None,
-    winsorize=False,
-    winsor_perc=(1, 99.5),
-    sort_inverse=False,
-    use_all_genes_cells=False,
-):
+    adata_ori: AnnData,
+    filter_bool: Union[np.ndarray, None] = None,
+    layers: str = "X",
+    relative_expr: bool = True,
+    total_szfactor: str = "total_Size_Factor",
+    min_expr_cells: int = 0,
+    min_expr_avg: int = 0,
+    max_expr_avg: int = 0,
+    svr_gamma: Union[float, None] = None,
+    winsorize: bool = False,
+    winsor_perc: tuple = (1, 99.5),
+    sort_inverse: bool = False,
+    use_all_genes_cells: bool = False,
+) -> AnnData:
     """This function is modified from https://github.com/velocyto-team/velocyto.py/blob/master/velocyto/analysis.py
 
     Parameters
@@ -827,18 +833,18 @@ def SVRs(
 
 
 def filter_cells(
-    adata,
-    filter_bool=None,
-    layer="all",
-    keep_filtered=False,
-    min_expr_genes_s=50,
-    min_expr_genes_u=25,
-    min_expr_genes_p=1,
-    max_expr_genes_s=np.inf,
-    max_expr_genes_u=np.inf,
-    max_expr_genes_p=np.inf,
-    shared_count=None,
-):
+    adata: AnnData,
+    filter_bool: Union[nd.array, None] = None,
+    layer: str = "all",
+    keep_filtered: bool = False,
+    min_expr_genes_s: int = 50,
+    min_expr_genes_u: int = 25,
+    min_expr_genes_p: int = 1,
+    max_expr_genes_s: float = np.inf,
+    max_expr_genes_u: float = np.inf,
+    max_expr_genes_p: float = np.inf,
+    shared_count: Union[int, None] = None,
+) -> AnnData:
     """Select valid cells based on a collection of filters.
 
     Parameters
@@ -863,7 +869,7 @@ def filter_cells(
             Maximal number of genes with expression for a cell in the data from the unspliced layer.
         max_expr_genes_p: `float` (default: `np.inf`)
             Maximal number of protein with expression for a cell in the data from the protein layer.
-        shared_count: `float` (default: `30`)
+        shared_count: `int` or `None` (default: `None`)
             The minimal shared number of counts for each cell across genes between layers.
 
     Returns
@@ -920,7 +926,9 @@ def filter_cells(
     return adata
 
 
-def filter_genes_by_clusters_(adata, cluster, min_avg_U=0.02, min_avg_S=0.08, size_limit=40):
+def filter_genes_by_clusters_(
+    adata: AnnData, cluster: str, min_avg_U: float = 0.02, min_avg_S: float = 0.08, size_limit: int = 40
+):
     """Prepare filtering genes on the basis of cluster-wise expression threshold
     This function is taken from velocyto in order to reproduce velocyto's DentateGyrus notebook.
 
@@ -957,21 +965,21 @@ def filter_genes_by_clusters_(adata, cluster, min_avg_U=0.02, min_avg_S=0.08, si
 
 
 def filter_genes(
-    adata,
-    filter_bool=None,
-    layer="all",
-    min_cell_s=1,
-    min_cell_u=1,
-    min_cell_p=1,
-    min_avg_exp_s=1e-10,
-    min_avg_exp_u=0,
-    min_avg_exp_p=0,
-    max_avg_exp=np.infty,
-    min_count_s=0,
-    min_count_u=0,
-    min_count_p=0,
-    shared_count=30,
-):
+    adata: AnnData,
+    filter_bool: Union[np.ndarray, None] = None,
+    layer: str = "all",
+    min_cell_s: int = 1,
+    min_cell_u: int = 1,
+    min_cell_p: int = 1,
+    min_avg_exp_s: float = 1e-10,
+    min_avg_exp_u: float = 0,
+    min_avg_exp_p: float = 0,
+    max_avg_exp: float = np.infty,
+    min_count_s: int = 0,
+    min_count_u: int = 0,
+    min_count_p: int = 0,
+    shared_count: int = 30,
+) -> AnnData:
     """Basic filter of genes based a collection of expression filters.
 
     Parameters
@@ -1002,7 +1010,7 @@ def filter_genes(
             Minimal number of counts (UMI/expression) for the data in the unspliced layer.
         min_cell_p: `int` (default: `5`)
             Minimal number of counts (UMI/expression) for the data in the protein layer.
-        shared_count: `float` (default: `30`)
+        shared_count: `int` (default: `30`)
             The minimal shared number of counts for each genes across cell between layers.
     Returns
     -------
@@ -1075,15 +1083,15 @@ def filter_genes(
 
 
 def select_genes(
-    adata,
-    layer="X",
-    total_szfactor="total_Size_Factor",
-    keep_filtered=True,
-    sort_by="SVR",
-    n_top_genes=2000,
-    SVRs_kwargs={},
-    only_bools=False,
-):
+    adata: AnnData,
+    layer: str = "X",
+    total_szfactor: str = "total_Size_Factor",
+    keep_filtered: bool = True,
+    sort_by: str = "SVR",
+    n_top_genes: int = 2000,
+    SVRs_kwargs: dict = {},
+    only_bools: bool = False,
+) -> AnnData:
     """Select feature genes based on a collection of filters.
 
     Parameters
@@ -1723,7 +1731,7 @@ def recipe_monocle(
 
 
 def recipe_velocyto(
-    adata,
+    adata: AnnData,
     total_layers=None,
     method="pca",
     num_dim=30,
