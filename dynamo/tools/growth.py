@@ -69,7 +69,7 @@ def score_cells(
 
     Returns
     -------
-        Depending on return_score, it either return the cell scores or a updated adata object that contains the cell
+        Depending on return_score, it either return the cell scores or An updated adata object that contains the cell
         score information.
     """
 
@@ -169,7 +169,7 @@ def cell_growth_rate(
 
     Returns
     -------
-        A updated adata object that includes `growth_rate` column or `growth_rate, birth_score, death_score` in its
+        An updated adata object that includes `growth_rate` column or `growth_rate, birth_score, death_score` in its
         `.obs` attribute when the clone based or purely expression based growth rate was calculated.
     """
 

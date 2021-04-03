@@ -59,7 +59,7 @@ def moments(
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            A updated AnnData object with calculated first/second moments (including uncentered covariance) included.
+            An updated AnnData object with calculated first/second moments (including uncentered covariance) included.
     """
     mapper = get_mapper()
     only_splicing, only_labeling, splicing_and_labeling = allowed_X_layer_names()
@@ -212,7 +212,7 @@ def time_moment(
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            A updated AnnData object with calculated first/second moments (including uncentered covariance) for
+            An updated AnnData object with calculated first/second moments (including uncentered covariance) for
              each time point for each layer included.
     """
 
