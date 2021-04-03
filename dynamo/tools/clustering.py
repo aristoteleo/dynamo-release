@@ -59,7 +59,7 @@ def hdbscan(
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            A updated AnnData object with the clustering updated. `hdbscan` and `hdbscan_prob` are two newly added columns
+            An updated AnnData object with the clustering updated. `hdbscan` and `hdbscan_prob` are two newly added columns
             from .obs, corresponding to either the Cluster results or the probability of each cell belong to a cluster.
             `hdbscan` key in .uns corresponds to a dictionary that includes additional results returned from hdbscan run.
     """

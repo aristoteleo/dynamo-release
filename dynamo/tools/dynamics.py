@@ -172,7 +172,7 @@ def dynamics(
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            A updated AnnData object with estimated kinetic parameters, inferred velocity and estimation related information
+            An updated AnnData object with estimated kinetic parameters, inferred velocity and estimation related information
             included. The estimated kinetic parameters are currently appended to .obs (should move to .obsm with the key
             `dynamics` later). Depends on the estimation method, experiment type and whether you applied estimation for
             each groups via `group`, the number of returned parameters can be variable. For conventional scRNA-seq (including

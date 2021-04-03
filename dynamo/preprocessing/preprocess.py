@@ -33,20 +33,22 @@ from .cell_cycle import cell_cycle_scores
 from typing import Union
 from anndata import AnnData
 from ..dynamo_logger import LoggerManager
+from anndata import AnnData
+from typing import Union, Callable
 
 
 def szFactor(
-    adata_ori,
-    layers="all",
-    total_layers=None,
-    splicing_total_layers=False,
-    X_total_layers=False,
-    locfunc=np.nanmean,
-    round_exprs=False,
-    method="median",
-    scale_to=None,
-    use_all_genes_cells=True,
-):
+    adata_ori: AnnData,
+    layers: Union[str, list] = "all",
+    total_layers: Union[list, None] = None,
+    splicing_total_layers: bool = False,
+    X_total_layers: bool = False,
+    locfunc: Callable = np.nanmean,
+    round_exprs: bool = False,
+    method: str = "median",
+    scale_to: Union[float, None] = None,
+    use_all_genes_cells: bool = True,
+) -> AnnData:
     """Calculate the size factor of the each cell using geometric mean of total UMI across cells for a AnnData object.
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
@@ -78,7 +80,7 @@ def szFactor(
     Returns
     -------
         adata: :AnnData
-            A updated anndata object that are updated with the `Size_Factor` (`layer_` + `Size_Factor`) column(s) in the obs attribute.
+            An updated anndata object that are updated with the `Size_Factor` (`layer_` + `Size_Factor`) column(s) in the obs attribute.
     """
     if use_all_genes_cells:
         adata = adata_ori
@@ -193,7 +195,7 @@ def normalize_expr_data(
     Returns
     -------
         adata: :AnnData
-            A updated anndata object that are updated with normalized expression values for different layers.
+            An updated anndata object that are updated with normalized expression values for different layers.
     """
 
     if recalc_sz:
@@ -286,7 +288,7 @@ def Gini(adata, layers="all"):
     Returns
     -------
         adata: :AnnData
-            A updated anndata object with gini score for the layers (include .X) in the corresponding var columns (layer + '_gini').
+            An updated anndata object with gini score for the layers (include .X) in the corresponding var columns (layer + '_gini').
     """
 
     # From: https://github.com/oliviaguest/gini
@@ -574,11 +576,11 @@ def Dispersion(adata, layers="X", modelFormulaStr="~ 1", min_cells_detected=1, r
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            A updated annData object with dispFitInfo added to uns attribute as a new key.
+            An updated annData object with dispFitInfo added to uns attribute as a new key.
     """
     import re
 
-    logger = LoggerManager.get_logger("dynamo-preprocessing")
+    logger = LoggerManager.gen_logger("dynamo-preprocessing")
     mu = None
     model_terms = [x.strip() for x in re.compile("~|\\*|\\+").split(modelFormulaStr)]
     model_terms = list(set(model_terms) - set([""]))
@@ -688,7 +690,7 @@ def SVRs(
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            A updated annData object with `log_m`, `log_cv`, `score` added to .obs columns and `SVR` added to uns attribute
+            An updated annData object with `log_m`, `log_cv`, `score` added to .obs columns and `SVR` added to uns attribute
             as a new key.
     """
     from sklearn.svm import SVR
@@ -698,7 +700,7 @@ def SVRs(
     if use_all_genes_cells:
         # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
         with warnings.catch_warnings():
-            warnings.simplefilter('ignore')
+            warnings.simplefilter("ignore")
             adata = adata_ori[:, filter_bool].copy() if filter_bool is not None else adata_ori
     else:
         cell_inds = adata_ori.obs.use_for_pca if "use_for_pca" in adata_ori.obs.columns else adata_ori.obs.index
@@ -710,7 +712,7 @@ def SVRs(
 
         with warnings.catch_warnings():
             # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
-            warnings.simplefilter('ignore')
+            warnings.simplefilter("ignore")
             adata = adata_ori[cell_inds, gene_inds].copy()
         filter_bool = filter_bool[gene_inds]
 
@@ -1300,7 +1302,7 @@ def recipe_monocle(
             An new or updated anndata object, based on copy parameter, that are updated with Size_Factor, normalized expression values, X and reduced
             dimensions, etc.
     """
-    logger = LoggerManager.get_logger("dynamo-preprocessing")
+    logger = LoggerManager.gen_logger("dynamo-preprocessing")
     logger.log_time()
     if copy:
         logger.info(
@@ -1594,7 +1596,7 @@ def recipe_monocle(
         if n_top_genes > 0:
             # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
             with warnings.catch_warnings():
-                warnings.simplefilter('ignore')
+                warnings.simplefilter("ignore")
                 filter_bool = select_genes(
                     adata[:, valid_ids],
                     sort_by=feature_selection,
@@ -1764,7 +1766,7 @@ def recipe_velocyto(
         Returns
         -------
             adata: :class:`~anndata.AnnData`
-                A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions, etc.
+                An updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions, etc.
     """
     adata = szFactor(adata, method="mean", total_layers=total_layers)
     initial_Ucell_size = adata.layers["unspliced"].sum(1)
