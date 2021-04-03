@@ -31,7 +31,9 @@ def test_logger_simple_progress_naive(test_logger):
 def test_logger_simple_progress_logger(test_logger):
     total = 10
     test_logger.log_time()
-    for _ in LoggerManager.progress_logger(range(total), test_logger, progress_name="progress logger test"):
+    for _ in LoggerManager.progress_logger(
+        range(total), test_logger, progress_name="progress logger test looooooooooooooooooooooooooooooong"
+    ):
         time.sleep(0.1)
 
 

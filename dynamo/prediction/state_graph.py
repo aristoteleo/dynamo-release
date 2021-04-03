@@ -69,7 +69,7 @@ def state_graph(
         and the average transition time.
     """
     logger = LoggerManager.get_main_logger()
-    timer_logger = LoggerManager.get_logger("dynamo-timer")
+    timer_logger = LoggerManager.get_temp_timer_logger()
     timer_logger.log_time()
 
     logger.info("Estimating the transition probability between cell types...")
@@ -100,7 +100,7 @@ def state_graph(
             average=False,
             t_end=None,
         )
-        logger.finish_progress(progress_name="KDTree parameter preparation computation")
+        logger.report_progress(percent=0, progress_name="KDTree parameter preparation computation")
         logger.log_time()
         kdt = cKDTree(all_X, leafsize=30)
         logger.finish_progress(progress_name="KDTree computation")

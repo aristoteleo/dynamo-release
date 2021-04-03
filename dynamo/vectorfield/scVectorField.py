@@ -232,12 +232,8 @@ def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True,
         D = None
 
     V = sp.csr_matrix((n, n))
-    logger = LoggerManager.get_temp_timer_logger()
-    logger.log_time()
-    logger.report_progress(0)
     if cores == 1:
-        for i, idx in enumerate(nbrs_idx):
-            logger.report_progress(count=idx, total=len(nbrs_idx))
+        for i, idx in enumerate(LoggerManager.progress_logger(nbrs_idx, progress_name="graphize_vecfld")):
             V += construct_v(X, i, idx, n_int_steps, func, distance_free, dist, D, n)
 
     else:
@@ -259,8 +255,6 @@ def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True,
         pool.close()
         pool.join()
         V = functools.reduce((lambda a, b: a + b), res)
-    logger.finish_progress(progress_name="graphize_vecfld")
-
     return V, nbrs
 
 
@@ -293,26 +287,26 @@ def construct_v(X, i, idx, n_int_steps, func, distance_free, dist, D, n):
 
 
 def SparseVFC(
-    X,
-    Y,
-    Grid,
-    M=100,
-    a=5,
-    beta=None,
-    ecr=1e-5,
-    gamma=0.9,
-    lambda_=3,
-    minP=1e-5,
-    MaxIter=500,
-    theta=0.75,
-    div_cur_free_kernels=False,
-    velocity_based_sampling=True,
-    sigma=0.8,
-    eta=0.5,
+    X: np.ndarray,
+    Y: np.ndarray,
+    Grid: np.ndarray,
+    M: int = 100,
+    a: float = 5,
+    beta: float = None,
+    ecr: float = 1e-5,
+    gamma: float = 0.9,
+    lambda_: float = 3,
+    minP: float = 1e-5,
+    MaxIter: int = 500,
+    theta: float = 0.75,
+    div_cur_free_kernels: bool = False,
+    velocity_based_sampling: bool = True,
+    sigma: float = 0.8,
+    eta: float = 0.5,
     seed=0,
-    lstsq_method="drouin",
-    verbose=1,
-):
+    lstsq_method: str = "drouin",
+    verbose: int = 1,
+) -> dict:
     """Apply sparseVFC (vector field consensus) algorithm to learn a functional form of the vector field from random
     samples with outlier on the entire space robustly and efficiently. (Ma, Jiayi, etc. al, Pattern Recognition, 2013)
 

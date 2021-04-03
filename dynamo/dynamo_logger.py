@@ -179,19 +179,20 @@ class Logger:
 
 class LoggerManager:
 
-    main_logger = Logger("Dynamo")
+    main_logger = Logger("dynamo")
+    temp_timer_logger = Logger("dynamo-temp-timer-logger")
 
     @staticmethod
     def get_main_logger():
         return LoggerManager.main_logger
 
     @staticmethod
-    def get_logger(namespace):
+    def gen_logger(namespace):
         return Logger(namespace)
 
     @staticmethod
     def get_temp_timer_logger():
-        return Logger("dynamo-temp-timer-logger")
+        return LoggerManager.temp_timer_logger
 
     @staticmethod
     def progress_logger(generator, logger=None, progress_name=""):

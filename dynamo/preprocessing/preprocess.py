@@ -29,24 +29,24 @@ from .utils import (
     add_noise_to_duplicates,
     gene_exp_fraction,
 )
-from .cell_cycle import cell_cycle_scores
-from typing import Union
 from anndata import AnnData
+from typing import Union, Callable
+from .cell_cycle import cell_cycle_scores
 from ..dynamo_logger import LoggerManager
 
 
 def szFactor(
-    adata_ori,
-    layers="all",
-    total_layers=None,
-    splicing_total_layers=False,
-    X_total_layers=False,
-    locfunc=np.nanmean,
-    round_exprs=False,
-    method="median",
-    scale_to=None,
-    use_all_genes_cells=True,
-):
+    adata_ori: AnnData,
+    layers: Union[str, list] = "all",
+    total_layers: Union[list, None] = None,
+    splicing_total_layers: bool = False,
+    X_total_layers: bool = False,
+    locfunc: Callable = np.nanmean,
+    round_exprs: bool = False,
+    method: str = "median",
+    scale_to: Union[float, None] = None,
+    use_all_genes_cells: bool = True,
+) -> AnnData:
     """Calculate the size factor of the each cell using geometric mean of total UMI across cells for a AnnData object.
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
@@ -78,7 +78,7 @@ def szFactor(
     Returns
     -------
         adata: :AnnData
-            A updated anndata object that are updated with the `Size_Factor` (`layer_` + `Size_Factor`) column(s) in the obs attribute.
+            An updated anndata object that are updated with the `Size_Factor` (`layer_` + `Size_Factor`) column(s) in the obs attribute.
     """
     if use_all_genes_cells:
         adata = adata_ori
@@ -142,19 +142,19 @@ def szFactor(
 
 
 def normalize_expr_data(
-    adata,
-    layers="all",
-    total_szfactor="total_Size_Factor",
-    splicing_total_layers=False,
-    X_total_layers=False,
-    norm_method=None,
-    pseudo_expr=1,
-    relative_expr=True,
-    keep_filtered=True,
-    recalc_sz=False,
-    sz_method="median",
-    scale_to=None,
-):
+    adata: AnnData,
+    layers: str = "all",
+    total_szfactor: str = "total_Size_Factor",
+    splicing_total_layers: str = False,
+    X_total_layers: str = False,
+    norm_method: Union[Callable, None] = None,
+    pseudo_expr: int = 1,
+    relative_expr: bool = True,
+    keep_filtered: bool = True,
+    recalc_sz: bool = False,
+    sz_method: str = "median",
+    scale_to: Union[float, None] = None,
+) -> AnnData:
     """Normalize the gene expression value for the AnnData object
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
@@ -193,7 +193,7 @@ def normalize_expr_data(
     Returns
     -------
         adata: :AnnData
-            A updated anndata object that are updated with normalized expression values for different layers.
+            An updated anndata object that are updated with normalized expression values for different layers.
     """
 
     if recalc_sz:
@@ -254,7 +254,8 @@ def normalize_expr_data(
                 res = np.log1p(x / (np.exp(np.nansum(np.log1p(x[x > 0])) / n_feature)))
                 res[np.isnan(res)] = 0
                 # res[res > 100] = 100
-                CM[i] = res  # no .A is required # https://stackoverflow.com/questions/28427236/set-row-of-csr-matrix
+                # no .A is required # https://stackoverflow.com/questions/28427236/set-row-of-csr-matrix
+                CM[i] = res
 
             CM = CM.T
         else:
@@ -286,7 +287,7 @@ def Gini(adata, layers="all"):
     Returns
     -------
         adata: :AnnData
-            A updated anndata object with gini score for the layers (include .X) in the corresponding var columns (layer + '_gini').
+            An updated anndata object with gini score for the layers (include .X) in the corresponding var columns (layer + '_gini').
     """
 
     # From: https://github.com/oliviaguest/gini
@@ -312,12 +313,14 @@ def Gini(adata, layers="all"):
         gini = np.zeros(n_features)
 
         for i in np.arange(n_features):
-            cur_cm = CM[:, i].A if issparse(CM) else CM[:, i]  # all values are treated equally, arrays must be 1d
+            # all values are treated equally, arrays must be 1d
+            cur_cm = CM[:, i].A if issparse(CM) else CM[:, i]
             if np.amin(CM) < 0:
                 cur_cm -= np.amin(cur_cm)  # values cannot be negative
             cur_cm += 0.0000001  # np.min(array[array!=0]) #values cannot be 0
             cur_cm = np.sort(cur_cm)  # values must be sorted
-            index = np.arange(1, cur_cm.shape[0] + 1)  # index per array element
+            # index per array element
+            index = np.arange(1, cur_cm.shape[0] + 1)
             n = cur_cm.shape[0]  # number of array elements
             gini[i] = (np.sum((2 * index - n - 1) * cur_cm)) / (n * np.sum(cur_cm))  # Gini coefficient
 
@@ -329,7 +332,7 @@ def Gini(adata, layers="all"):
     return adata
 
 
-def parametricDispersionFit(disp_table, initial_coefs=np.array([1e-6, 1])):
+def parametricDispersionFit(disp_table: pd.DataFrame, initial_coefs: np.ndarray = np.array([1e-6, 1])):
     """fThis function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
@@ -383,7 +386,7 @@ def parametricDispersionFit(disp_table, initial_coefs=np.array([1e-6, 1])):
     return fit, coefs, good
 
 
-def disp_calc_helper_NB(adata, layers="X", min_cells_detected=1):
+def disp_calc_helper_NB(adata: AnnData, layers: str = "X", min_cells_detected: int = 1) -> pd.DataFrame:
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
@@ -469,7 +472,7 @@ def disp_calc_helper_NB(adata, layers="X", min_cells_detected=1):
     return layers, res_list
 
 
-def topTable(adata, layer="X", mode="dispersion"):
+def topTable(adata: AnnData, layer: str = "X", mode: str = "dispersion") -> pd.DataFrame:
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
@@ -511,7 +514,7 @@ def topTable(adata, layer="X", mode="dispersion"):
     return top_df
 
 
-def vstExprs(adata, expr_matrix=None, round_vals=True):
+def vstExprs(adata: AnnData, expr_matrix: Union[np.ndarray, None] = None, round_vals: bool = True) -> np.ndarray:
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
@@ -520,7 +523,7 @@ def vstExprs(adata, expr_matrix=None, round_vals=True):
             AnnData object
         dispModelName: `str`
             The name of the dispersion function to use for VST.
-        expr_matrix: :class:`~numpy.ndarray`
+        expr_matrix: :class:`~numpy.ndarray` or `None` (default: `None`)
             An matrix of values to transform. Must be normalized (e.g. by size factors) already. This function doesn't do this for you.
         round_vals: `bool`
             Whether to round expression values to the nearest integer before applying the transformation.
@@ -555,7 +558,13 @@ def vstExprs(adata, expr_matrix=None, round_vals=True):
     return res
 
 
-def Dispersion(adata, layers="X", modelFormulaStr="~ 1", min_cells_detected=1, removeOutliers=False):
+def Dispersion(
+    adata: AnnData,
+    layers: str = "X",
+    modelFormulaStr: str = "~ 1",
+    min_cells_detected: int = 1,
+    removeOutliers: bool = False,
+) -> AnnData:
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
@@ -574,11 +583,11 @@ def Dispersion(adata, layers="X", modelFormulaStr="~ 1", min_cells_detected=1, r
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            A updated annData object with dispFitInfo added to uns attribute as a new key.
+            An updated annData object with dispFitInfo added to uns attribute as a new key.
     """
     import re
 
-    logger = LoggerManager.get_logger("dynamo-preprocessing")
+    logger = LoggerManager.gen_logger("dynamo-preprocessing")
     mu = None
     model_terms = [x.strip() for x in re.compile("~|\\*|\\+").split(modelFormulaStr)]
     model_terms = list(set(model_terms) - set([""]))
@@ -640,20 +649,20 @@ def Dispersion(adata, layers="X", modelFormulaStr="~ 1", min_cells_detected=1, r
 
 
 def SVRs(
-    adata_ori,
-    filter_bool=None,
-    layers="X",
-    relative_expr=True,
-    total_szfactor="total_Size_Factor",
-    min_expr_cells=0,
-    min_expr_avg=0,
-    max_expr_avg=0,
-    svr_gamma=None,
-    winsorize=False,
-    winsor_perc=(1, 99.5),
-    sort_inverse=False,
-    use_all_genes_cells=False,
-):
+    adata_ori: AnnData,
+    filter_bool: Union[np.ndarray, None] = None,
+    layers: str = "X",
+    relative_expr: bool = True,
+    total_szfactor: str = "total_Size_Factor",
+    min_expr_cells: int = 0,
+    min_expr_avg: int = 0,
+    max_expr_avg: int = 0,
+    svr_gamma: Union[float, None] = None,
+    winsorize: bool = False,
+    winsor_perc: tuple = (1, 99.5),
+    sort_inverse: bool = False,
+    use_all_genes_cells: bool = False,
+) -> AnnData:
     """This function is modified from https://github.com/velocyto-team/velocyto.py/blob/master/velocyto/analysis.py
 
     Parameters
@@ -688,7 +697,7 @@ def SVRs(
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            A updated annData object with `log_m`, `log_cv`, `score` added to .obs columns and `SVR` added to uns attribute
+            An updated annData object with `log_m`, `log_cv`, `score` added to .obs columns and `SVR` added to uns attribute
             as a new key.
     """
     from sklearn.svm import SVR
@@ -698,7 +707,7 @@ def SVRs(
     if use_all_genes_cells:
         # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
         with warnings.catch_warnings():
-            warnings.simplefilter('ignore')
+            warnings.simplefilter("ignore")
             adata = adata_ori[:, filter_bool].copy() if filter_bool is not None else adata_ori
     else:
         cell_inds = adata_ori.obs.use_for_pca if "use_for_pca" in adata_ori.obs.columns else adata_ori.obs.index
@@ -710,7 +719,7 @@ def SVRs(
 
         # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
         with warnings.catch_warnings():
-            warnings.simplefilter('ignore')
+            warnings.simplefilter("ignore")
             adata = adata_ori[cell_inds, gene_inds].copy()
         filter_bool = filter_bool[gene_inds]
 
@@ -825,18 +834,18 @@ def SVRs(
 
 
 def filter_cells(
-    adata,
-    filter_bool=None,
-    layer="all",
-    keep_filtered=False,
-    min_expr_genes_s=50,
-    min_expr_genes_u=25,
-    min_expr_genes_p=1,
-    max_expr_genes_s=np.inf,
-    max_expr_genes_u=np.inf,
-    max_expr_genes_p=np.inf,
-    shared_count=None,
-):
+    adata: AnnData,
+    filter_bool: Union[np.ndarray, None] = None,
+    layer: str = "all",
+    keep_filtered: bool = False,
+    min_expr_genes_s: int = 50,
+    min_expr_genes_u: int = 25,
+    min_expr_genes_p: int = 1,
+    max_expr_genes_s: float = np.inf,
+    max_expr_genes_u: float = np.inf,
+    max_expr_genes_p: float = np.inf,
+    shared_count: Union[int, None] = None,
+) -> AnnData:
     """Select valid cells based on a collection of filters.
 
     Parameters
@@ -861,7 +870,7 @@ def filter_cells(
             Maximal number of genes with expression for a cell in the data from the unspliced layer.
         max_expr_genes_p: `float` (default: `np.inf`)
             Maximal number of protein with expression for a cell in the data from the protein layer.
-        shared_count: `float` (default: `30`)
+        shared_count: `int` or `None` (default: `None`)
             The minimal shared number of counts for each cell across genes between layers.
 
     Returns
@@ -918,7 +927,9 @@ def filter_cells(
     return adata
 
 
-def filter_genes_by_clusters_(adata, cluster, min_avg_U=0.02, min_avg_S=0.08, size_limit=40):
+def filter_genes_by_clusters_(
+    adata: AnnData, cluster: str, min_avg_U: float = 0.02, min_avg_S: float = 0.08, size_limit: int = 40
+):
     """Prepare filtering genes on the basis of cluster-wise expression threshold
     This function is taken from velocyto in order to reproduce velocyto's DentateGyrus notebook.
 
@@ -955,21 +966,21 @@ def filter_genes_by_clusters_(adata, cluster, min_avg_U=0.02, min_avg_S=0.08, si
 
 
 def filter_genes(
-    adata,
-    filter_bool=None,
-    layer="all",
-    min_cell_s=1,
-    min_cell_u=1,
-    min_cell_p=1,
-    min_avg_exp_s=1e-10,
-    min_avg_exp_u=0,
-    min_avg_exp_p=0,
-    max_avg_exp=np.infty,
-    min_count_s=0,
-    min_count_u=0,
-    min_count_p=0,
-    shared_count=30,
-):
+    adata: AnnData,
+    filter_bool: Union[np.ndarray, None] = None,
+    layer: str = "all",
+    min_cell_s: int = 1,
+    min_cell_u: int = 1,
+    min_cell_p: int = 1,
+    min_avg_exp_s: float = 1e-10,
+    min_avg_exp_u: float = 0,
+    min_avg_exp_p: float = 0,
+    max_avg_exp: float = np.infty,
+    min_count_s: int = 0,
+    min_count_u: int = 0,
+    min_count_p: int = 0,
+    shared_count: int = 30,
+) -> AnnData:
     """Basic filter of genes based a collection of expression filters.
 
     Parameters
@@ -1000,7 +1011,7 @@ def filter_genes(
             Minimal number of counts (UMI/expression) for the data in the unspliced layer.
         min_cell_p: `int` (default: `5`)
             Minimal number of counts (UMI/expression) for the data in the protein layer.
-        shared_count: `float` (default: `30`)
+        shared_count: `int` (default: `30`)
             The minimal shared number of counts for each genes across cell between layers.
     Returns
     -------
@@ -1073,15 +1084,15 @@ def filter_genes(
 
 
 def select_genes(
-    adata,
-    layer="X",
-    total_szfactor="total_Size_Factor",
-    keep_filtered=True,
-    sort_by="SVR",
-    n_top_genes=2000,
-    SVRs_kwargs={},
-    only_bools=False,
-):
+    adata: AnnData,
+    layer: str = "X",
+    total_szfactor: str = "total_Size_Factor",
+    keep_filtered: bool = True,
+    sort_by: str = "SVR",
+    n_top_genes: int = 2000,
+    SVRs_kwargs: dict = {},
+    only_bools: bool = False,
+) -> AnnData:
     """Select feature genes based on a collection of filters.
 
     Parameters
@@ -1300,7 +1311,7 @@ def recipe_monocle(
             An new or updated anndata object, based on copy parameter, that are updated with Size_Factor, normalized expression values, X and reduced
             dimensions, etc.
     """
-    logger = LoggerManager.get_logger("dynamo-preprocessing")
+    logger = LoggerManager.gen_logger("dynamo-preprocessing")
     logger.log_time()
     if copy:
         logger.info(
@@ -1594,7 +1605,7 @@ def recipe_monocle(
         if n_top_genes > 0:
             # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
             with warnings.catch_warnings():
-                warnings.simplefilter('ignore')
+                warnings.simplefilter("ignore")
                 filter_bool = select_genes(
                     adata[:, valid_ids],
                     sort_by=feature_selection,
@@ -1721,7 +1732,7 @@ def recipe_monocle(
 
 
 def recipe_velocyto(
-    adata,
+    adata: AnnData,
     total_layers=None,
     method="pca",
     num_dim=30,
@@ -1764,7 +1775,7 @@ def recipe_velocyto(
         Returns
         -------
             adata: :class:`~anndata.AnnData`
-                A updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions, etc.
+                An updated anndata object that are updated with Size_Factor, normalized expression values, X and reduced dimensions, etc.
     """
     adata = szFactor(adata, method="mean", total_layers=total_layers)
     initial_Ucell_size = adata.layers["unspliced"].sum(1)
