@@ -29,12 +29,10 @@ from .utils import (
     add_noise_to_duplicates,
     gene_exp_fraction,
 )
-from .cell_cycle import cell_cycle_scores
-from typing import Union
-from anndata import AnnData
-from ..dynamo_logger import LoggerManager
 from anndata import AnnData
 from typing import Union, Callable
+from .cell_cycle import cell_cycle_scores
+from ..dynamo_logger import LoggerManager
 
 
 def szFactor(
@@ -155,7 +153,7 @@ def normalize_expr_data(
     keep_filtered: bool = True,
     recalc_sz: bool = False,
     sz_method: str = "median",
-    scale_to: union[float, None] = None,
+    scale_to: Union[float, None] = None,
 ) -> AnnData:
     """Normalize the gene expression value for the AnnData object
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
@@ -256,7 +254,8 @@ def normalize_expr_data(
                 res = np.log1p(x / (np.exp(np.nansum(np.log1p(x[x > 0])) / n_feature)))
                 res[np.isnan(res)] = 0
                 # res[res > 100] = 100
-                CM[i] = res  # no .A is required # https://stackoverflow.com/questions/28427236/set-row-of-csr-matrix
+                # no .A is required # https://stackoverflow.com/questions/28427236/set-row-of-csr-matrix
+                CM[i] = res
 
             CM = CM.T
         else:
@@ -314,12 +313,14 @@ def Gini(adata, layers="all"):
         gini = np.zeros(n_features)
 
         for i in np.arange(n_features):
-            cur_cm = CM[:, i].A if issparse(CM) else CM[:, i]  # all values are treated equally, arrays must be 1d
+            # all values are treated equally, arrays must be 1d
+            cur_cm = CM[:, i].A if issparse(CM) else CM[:, i]
             if np.amin(CM) < 0:
                 cur_cm -= np.amin(cur_cm)  # values cannot be negative
             cur_cm += 0.0000001  # np.min(array[array!=0]) #values cannot be 0
             cur_cm = np.sort(cur_cm)  # values must be sorted
-            index = np.arange(1, cur_cm.shape[0] + 1)  # index per array element
+            # index per array element
+            index = np.arange(1, cur_cm.shape[0] + 1)
             n = cur_cm.shape[0]  # number of array elements
             gini[i] = (np.sum((2 * index - n - 1) * cur_cm)) / (n * np.sum(cur_cm))  # Gini coefficient
 
@@ -834,7 +835,7 @@ def SVRs(
 
 def filter_cells(
     adata: AnnData,
-    filter_bool: Union[nd.array, None] = None,
+    filter_bool: Union[np.ndarray, None] = None,
     layer: str = "all",
     keep_filtered: bool = False,
     min_expr_genes_s: int = 50,
