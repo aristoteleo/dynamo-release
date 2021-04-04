@@ -4,28 +4,36 @@ import dynamo as dyn
 import pytest
 import time
 
+test_data_path = "test_clustering_zebrafish.h5ad"
 
-def test_simple_clustering():
-    test_data_path = "test_clustering_zebrafish.h5ad"
-    # logger = LoggerManager.get_main_logger()
-    # adata = dyn.sample_data.zebrafish()
-    # adata = adata[:1000]
-    # dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_max=0.005)
-    # dyn.tl.dynamics(adata, model="stochastic", cores=8)
-    # dyn.tl.reduceDimension(adata, n_pca_components=5, enforce=True)
-    # dyn.tl.cell_velocities(adata, basis="pca")
-    # dyn.vf.VectorField(adata, basis="pca", M=100)
-    # dyn.vf.curvature(adata, basis="pca")
-    # dyn.vf.acceleration(adata, basis="pca")
-    # dyn.cleanup(adata)
-    # adata.write_h5ad(test_data_path)
 
+def gen_test_data():
+    logger = LoggerManager.get_main_logger()
+    adata = dyn.sample_data.zebrafish()
+    adata = adata[:1000]
+    dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_max=0.005)
+    dyn.tl.dynamics(adata, model="stochastic", cores=8)
+    dyn.tl.reduceDimension(adata, n_pca_components=5, enforce=True)
+    dyn.tl.cell_velocities(adata, basis="pca")
+    dyn.vf.VectorField(adata, basis="pca", M=100)
+    dyn.vf.curvature(adata, basis="pca")
+    dyn.vf.acceleration(adata, basis="pca")
+    dyn.cleanup(adata)
+    adata.write_h5ad(test_data_path)
+
+
+def test_simple_detect_community_adata_general(adata):
+    dyn.tl.detect_community_adata_general(adata)
+
+
+def test_simple_cluster_field(adata):
     # select a subset of adata for testing
-    adata = dyn.read_h5ad(test_data_path)
     print(adata)
-    dyn.tl.cluster(adata, method="louvain")
-    # dyn.tl.cluster_field(adata, method="leiden")
+    dyn.tl.cluster_field(adata, method="louvain")
+    dyn.tl.cluster_field(adata, method="leiden")
 
 
 if __name__ == "__main__":
-    test_simple_clustering()
+    adata = dyn.read_h5ad(test_data_path)
+    test_simple_detect_community_adata_general(adata)
+    # test_simple_cluster_field(adata)
