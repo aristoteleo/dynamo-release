@@ -252,18 +252,44 @@ def cluster_field(adata, basis="pca", embedding_basis=None, normalize=True, meth
 
         row = np.repeat(nbrs_idx[:, 0], 30)
         col = nbrs_idx[:, 1:].flatten()
-        g = csr_matrix((np.repeat(1, len(col)), (row, col)), shape=(adata.n_obs, adata.n_obs))
-        adata.obsp["vf_feature_knn"] = g
+        graph = csr_matrix((np.repeat(1, len(col)), (row, col)), shape=(adata.n_obs, adata.n_obs))
+        adata.obsp["vf_feature_knn"] = graph
 
         if method == "louvain":
             # sc.tl.louvain(adata, obsp="feature_knn", **kwargs)
-            louvain_coms = algorithms.louvain(g)
+            louvain_coms = detect_community_from_graph_general(method="louvain", graph_sparse_matrix=graph)
         elif method == "leiden":
             # sc.tl.leiden(adata, obsp="feature_knn", **kwargs)
-            leiden_coms = algorithms.leiden(g)
+            leiden_coms = detect_community_from_graph_general(method="leiden", graph_sparse_matrix=graph)
 
 
-def cluster(adata, graph=None, method="louvian", **kwargs):
-    graph = nx.convert_matrix.from_scipy_sparse_matrix(graph)
-    graph = graph.to_directed()
-    pass
+def detect_community_adata_general(adata):
+    graph_sparse_matrix = adata.obsp["connectivities"]
+    detect_community_from_graph_general(graph_sparse_matrix=graph_sparse_matrix)
+
+
+def detect_community_from_graph_general(graph=None, graph_sparse_matrix=None, method="louvain", **kwargs):
+    try:
+        import cdlib
+        from cdlib import algorithms
+    except ImportError:
+        raise ImportError(
+            "You need to install the excellent package `cdlib` if you want to use louvain or leiden " "for clustering."
+        )
+    if graph is not None:
+        # highest priority
+        pass
+    elif graph_sparse_matrix is not None:
+        graph = nx.convert_matrix.from_scipy_sparse_matrix(graph_sparse_matrix)
+    else:
+        raise ValueError("Expected graph inputs are invalid")
+
+    if method == "louvain":
+        graph = graph.to_undirected()
+        coms = algorithms.louvain(graph)
+    elif method == "leiden":
+        graph = graph.to_directed()
+        coms = algorithms.leiden(graph)
+    else:
+        raise NotImplementedError("clustering algorithm not implemented yet")
+    return coms
