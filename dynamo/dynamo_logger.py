@@ -201,8 +201,13 @@ class LoggerManager:
         iterator = iter(generator)
         logger.log_time()
         i = 0
+        prev_progress_percent = 0
         while i < len(generator):
             i += 1
-            logger.report_progress(count=i, total=len(generator), progress_name=progress_name)
+            new_progress_percent = i / len(generator) * 100
+            # report every `interval` percent
+            if new_progress_percent - prev_progress_percent > 1:
+                logger.report_progress(count=i, total=len(generator), progress_name=progress_name)
+                prev_progress_percent = new_progress_percent
             yield next(iterator)
         logger.finish_progress(progress_name=progress_name)
