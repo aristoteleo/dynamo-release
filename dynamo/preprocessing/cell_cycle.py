@@ -491,7 +491,7 @@ def cell_cycle_scores(
     temp_timer_logger = LoggerManager.get_temp_timer_logger()
     temp_timer_logger.info("computing cell phase...")
     cell_cycle_scores = get_cell_phase(adata, layer=layer, refine=refine, gene_list=gene_list, threshold=threshold)
-    # temp_timer_logger.report_progress(progress_name="cell phase estimation")
+    temp_timer_logger.finish_progress(progress_name="cell phase estimation")
 
     cell_cycle_scores.index = adata.obs_names[cell_cycle_scores.index.values.astype("int")]
 
@@ -502,4 +502,4 @@ def cell_cycle_scores(
     # .values
     logger.info_insert_adata("cell_cycle_scores", adata_attr="obsm")
     adata.obsm["cell_cycle_scores"] = cell_cycle_scores.loc[adata.obs_names, :]
-    # logger.report_progress(progress_name="Cell Cycle Scores Estimation")
+    logger.finish_progress(progress_name="Cell Cycle Scores Estimation")

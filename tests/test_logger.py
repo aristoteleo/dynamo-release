@@ -73,10 +73,23 @@ def test_zebrafish_topography_tutorial_logger():
     dyn.pd.state_graph(adata, group="Cell_type", basis="pca", method="vf")
 
 
+def test_cell_cycle_score_logger_pancreatic_endocrinogenesis():
+    adata = dyn.sample_data.pancreatic_endocrinogenesis()
+    dyn.pp.recipe_monocle(
+        adata,
+        n_top_genes=1000,
+        fg_kwargs={"shared_count": 20},
+        # genes_to_append=['Xkr4', 'Gm28672', 'Gm20837'],
+        genes_to_exclude=["Sbspon", "Adgrb3", "Eif2s3y"],
+    )
+    dyn.pp.cell_cycle_scores(adata)
+
+
 if __name__ == "__main__":
     # test_logger_simple_output_1(LoggerManager.get_main_logger())
     # test_logger_simple_progress_naive(LoggerManager.get_main_logger())
     # test_logger_simple_progress_logger(LoggerManager.get_main_logger())
     # test_logger_simple_progress_logger(LoggerManager.get_temp_timer_logger())
     # test_vectorField_logger()
-    test_zebrafish_topography_tutorial_logger()
+    # test_zebrafish_topography_tutorial_logger()
+    test_cell_cycle_score_logger_pancreatic_endocrinogenesis()
