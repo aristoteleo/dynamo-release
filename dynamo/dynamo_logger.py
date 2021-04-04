@@ -53,6 +53,7 @@ class Logger:
             self.logger_stream_handler = self.logger.handlers[0]
 
         self.logger.propagate = False
+        self.log_time()
 
         # Other global initialization
         silence_logger("anndata")
