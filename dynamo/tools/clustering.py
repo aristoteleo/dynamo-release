@@ -2,8 +2,11 @@ from hdbscan import HDBSCAN
 from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import csr_matrix
 import numpy as np
+import networkx as nx
+
 from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 from .utils import update_dict
+from ..utils import LoggerManager
 
 
 def hdbscan(
@@ -167,7 +170,7 @@ def cluster_field(adata, basis="pca", embedding_basis=None, normalize=True, meth
         Whether to mean center and scale the feature across all cells so that the mean
     method: `str` (default: `louvain`)
         The method that will be used for clustering, one of `{'kmeans'', 'hdbscan', 'louvain', 'leiden'}`. If `louvain`
-        or `leiden` used, you need to have `scanpy` installed.
+        or `leiden` used, you need to have `cdlib` installed.
     cores: `int` (default: 1)
         The number of parallel jobs to run for neighbors search. ``None`` means 1 unless in a :obj:`joblib.parallel_backend` context.
         ``-1`` means using all processors.
@@ -181,10 +184,12 @@ def cluster_field(adata, basis="pca", embedding_basis=None, normalize=True, meth
 
     if method in ["louvain", "leiden"]:
         try:
-            import scanpy as sc
+            import cdlib
+            from cdlib import algorithms
+
         except ImportError:
             raise ImportError(
-                "You need to install the excellent package `scanpy` if you want to use louvain or leiden "
+                "You need to install the excellent package `cdlib` if you want to use louvain or leiden "
                 "for clustering."
             )
 
@@ -197,7 +202,7 @@ def cluster_field(adata, basis="pca", embedding_basis=None, normalize=True, meth
     ]
 
     if feature_key[0] not in adata.obs.keys():
-        from .vector_calculus import speed
+        from ..vectorfield import speed
 
         speed(adata, basis=basis)
     if feature_key[1] not in adata.obs.keys():
@@ -205,15 +210,15 @@ def cluster_field(adata, basis="pca", embedding_basis=None, normalize=True, meth
 
         ddhodge(adata, basis=basis)
     if feature_key[2] not in adata.obs.keys():
-        from .vector_calculus import divergence
+        from ..vectorfield import divergence
 
         divergence(adata, basis=basis)
     if feature_key[3] not in adata.obs.keys():
-        from .vector_calculus import acceleration
+        from ..vectorfield import acceleration
 
         acceleration(adata, basis=basis)
     if feature_key[4] not in adata.obs.keys():
-        from .vector_calculus import curvature
+        from ..vectorfield import curvature
 
         curvature(adata, basis=basis)
 
@@ -248,9 +253,17 @@ def cluster_field(adata, basis="pca", embedding_basis=None, normalize=True, meth
         row = np.repeat(nbrs_idx[:, 0], 30)
         col = nbrs_idx[:, 1:].flatten()
         g = csr_matrix((np.repeat(1, len(col)), (row, col)), shape=(adata.n_obs, adata.n_obs))
-        adata.obsp["feature_knn"] = g
+        adata.obsp["vf_feature_knn"] = g
 
         if method == "louvain":
-            sc.tl.louvain(adata, obsp="feature_knn", **kwargs)
+            # sc.tl.louvain(adata, obsp="feature_knn", **kwargs)
+            louvain_coms = algorithms.louvain(g)
         elif method == "leiden":
-            sc.tl.leiden(adata, obsp="feature_knn", **kwargs)
+            # sc.tl.leiden(adata, obsp="feature_knn", **kwargs)
+            leiden_coms = algorithms.leiden(g)
+
+
+def cluster(adata, graph=None, method="louvian", **kwargs):
+    graph = nx.convert_matrix.from_scipy_sparse_matrix(graph)
+    graph = graph.to_directed()
+    pass
