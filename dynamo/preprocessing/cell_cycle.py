@@ -29,7 +29,10 @@ def group_corr(adata, layer, gene_list):
     """
 
     # returns list of correlations of each gene within a list of genes with the total expression of the group
-    intersect_genes = adata.var_names.intersection(gene_list)
+    tmp = adata.var_names.intersection(gene_list)
+    # get the location of gene names
+    intersect_genes = [adata.var.index.get_loc(i) for i in tmp]
+
     if len(intersect_genes) == 0:
         raise Exception(f"your adata doesn't have any gene from the gene_list {gene_list}.")
 
@@ -46,7 +49,8 @@ def group_corr(adata, layer, gene_list):
         else einsum_correlation(np.array(expression_matrix.T, dtype="float"), np.array(avg_exp, dtype="float"))
     )
 
-    return np.array(intersect_genes), cor.flatten()
+    # get back to gene names again
+    return np.array(adata.var.index[intersect_genes]), cor.flatten()
 
 
 def refine_gene_list(adata, layer, gene_list, threshold, return_corrs=False):
@@ -92,7 +96,10 @@ def group_score(adata, layer, gene_list):
         Z-scored expression data
     """
 
-    intersect_genes = adata.var_names.intersection(gene_list)
+    tmp = adata.var_names.intersection(gene_list)
+    # use indices
+    intersect_genes = [adata.var_names.get_loc(i) for i in tmp]
+
     if len(intersect_genes) == 0:
         raise Exception(f"your adata doesn't have any gene from the gene_list {gene_list}.")
 
@@ -484,7 +491,7 @@ def cell_cycle_scores(
     temp_timer_logger = LoggerManager.get_temp_timer_logger()
     temp_timer_logger.info("computing cell phase...")
     cell_cycle_scores = get_cell_phase(adata, layer=layer, refine=refine, gene_list=gene_list, threshold=threshold)
-    temp_timer_logger.report_progress(progress_name="cell phase estimation")
+    # temp_timer_logger.report_progress(progress_name="cell phase estimation")
 
     cell_cycle_scores.index = adata.obs_names[cell_cycle_scores.index.values.astype("int")]
 
@@ -495,4 +502,4 @@ def cell_cycle_scores(
     # .values
     logger.info_insert_adata("cell_cycle_scores", adata_attr="obsm")
     adata.obsm["cell_cycle_scores"] = cell_cycle_scores.loc[adata.obs_names, :]
-    logger.report_progress(progress_name="Cell Cycle Scores Estimation")
+    # logger.report_progress(progress_name="Cell Cycle Scores Estimation")
