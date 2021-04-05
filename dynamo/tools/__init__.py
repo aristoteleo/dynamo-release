@@ -56,7 +56,7 @@ from .Markov import (
 from .dimension_reduction import reduceDimension  # , run_umap
 
 # clustering related
-from .clustering import hdbscan, cluster_field, detect_community_adata_general, detect_community_from_graph_general
+from .clustering import hdbscan, cluster_field, cluster_community_adata, cluster_community_from_graph
 
 # mnn related
 from .connectivity import mnn, neighbors

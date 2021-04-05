@@ -257,18 +257,19 @@ def cluster_field(adata, basis="pca", embedding_basis=None, normalize=True, meth
 
         if method == "louvain":
             # sc.tl.louvain(adata, obsp="feature_knn", **kwargs)
-            louvain_coms = detect_community_from_graph_general(method="louvain", graph_sparse_matrix=graph)
+            louvain_coms = cluster_community_from_graph(method="louvain", graph_sparse_matrix=graph)
         elif method == "leiden":
             # sc.tl.leiden(adata, obsp="feature_knn", **kwargs)
-            leiden_coms = detect_community_from_graph_general(method="leiden", graph_sparse_matrix=graph)
+            leiden_coms = cluster_community_from_graph(method="leiden", graph_sparse_matrix=graph)
 
 
-def detect_community_adata_general(adata):
+def cluster_community_adata(adata, method="louvain", **kwargs):
     graph_sparse_matrix = adata.obsp["connectivities"]
-    detect_community_from_graph_general(graph_sparse_matrix=graph_sparse_matrix)
+    communities = cluster_community_from_graph(method=method, graph_sparse_matrix=graph_sparse_matrix, **kwargs)
+    return communities
 
 
-def detect_community_from_graph_general(graph=None, graph_sparse_matrix=None, method="louvain", **kwargs):
+def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="louvain", **kwargs):
     try:
         import cdlib
         from cdlib import algorithms
