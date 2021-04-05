@@ -109,7 +109,7 @@ def cell_velocities(
             The minimal value of gamma kinetic parameter for selecting transition genes.
         min_delta: float or None (optional, default None)
             The minimal value of delta kinetic parameter for selecting transition genes.
-        basis: int (optional, default `umap`)
+        basis: str (optional, default `umap`)
             The dictionary key that corresponds to the reduced dimension in `.obsm` attribute. Can be `X_spliced_umap`
             or `X_total_umap`, etc.
         neigh_key: str (optional, default `neighbors`)
@@ -136,8 +136,8 @@ def cell_velocities(
         xy_grid_nums: tuple (default: (50, 50)).
             A tuple of number of grids on each dimension.
         correct_density: bool (default: False)
-            Whether to correct density when calculating the markov transition matrix, applicable to the `kmc` kernel.
-        correct_density: bool (default: False)
+            Whether to correct density when calculating the markov transition matrix.
+        scale: bool (default: False)
             Whether to scale velocity when calculating the markov transition matrix, applicable to the `kmc` kernel.
         sample_fraction: None or float (default: None)
             The downsampled fraction of kNN for the purpose of acceleration, applicable to the `kmc` kernel.
@@ -410,7 +410,7 @@ def cell_velocities(
         if method + "_transition_matrix" in adata.obsp.keys() and not enforce:
             print("Using existing %s found in .obsp." % (method + "_transition_matrix"))
             T = adata.obsp[method + "_transition_matrix"]
-            delta_X = projection_with_transition_matrix(X.shape[0], T, X_embedding)
+            delta_X = projection_with_transition_matrix(X.shape[0], T, X_embedding, correct_density)
             X_grid, V_grid, D = velocity_on_grid(
                 X_embedding[:, :2], (X_embedding + delta_X)[:, :2], xy_grid_nums=xy_grid_nums
             )
@@ -444,7 +444,7 @@ def cell_velocities(
         ctmc = ContinuousTimeMarkovChain(P=W, **ctmc_kwargs)
         T = ctmc.P.T
         P = sp.csr_matrix(ctmc.compute_embedded_transition_matrix().T)
-        delta_X = projection_with_transition_matrix(P.shape[0], P, X_embedding)
+        delta_X = projection_with_transition_matrix(P.shape[0], P, X_embedding, correct_density)
         X_grid, V_grid, D = velocity_on_grid(X_embedding, delta_X, xy_grid_nums=xy_grid_nums)   # This function seems to be independent of the method; consider moving it out of the if-else block.
     
     elif method == "transform":
@@ -794,6 +794,7 @@ def kernels_from_velocyto_scvelo(
     max_neighs=None,
     transform="sqrt",
     use_neg_vals=True,
+    correct_density=True,
 ):
     """utility function for calculating the transition matrix and low dimensional velocity embedding via the original
     pearson correlation kernel (La Manno et al., 2018) or the cosine kernel from scVelo (Bergen et al., 2019)."""
@@ -864,14 +865,14 @@ def kernels_from_velocyto_scvelo(
     T.setdiag(0)
     T.eliminate_zeros()
 
-    delta_X = projection_with_transition_matrix(n, T, X_embedding)
+    delta_X = projection_with_transition_matrix(n, T, X_embedding, correct_density)
 
     X_grid, V_grid, D = velocity_on_grid(X_embedding[:, :2], (X_embedding + delta_X)[:, :2], xy_grid_nums=xy_grid_nums)
 
     return T, delta_X, X_grid, V_grid, D
 
 
-def projection_with_transition_matrix(n, T, X_embedding):
+def projection_with_transition_matrix(n, T, X_embedding, correct_density=True):
     delta_X = np.zeros((n, X_embedding.shape[1]))
 
     with warnings.catch_warnings():
@@ -883,7 +884,9 @@ def projection_with_transition_matrix(n, T, X_embedding):
             diff_emb /= norm(diff_emb, axis=1)[:, None]
             diff_emb[np.isnan(diff_emb)] = 0
             T_i = T[i].data
-            delta_X[i] = T_i.dot(diff_emb) - T_i.mean() * diff_emb.sum(0)
+            delta_X[i] = T_i.dot(diff_emb)
+            if correct_density:
+                delta_X[i] -= T_i.mean() * diff_emb.sum(0)
 
     return delta_X
 
