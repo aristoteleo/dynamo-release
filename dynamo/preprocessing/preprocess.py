@@ -1410,13 +1410,16 @@ def recipe_monocle(
             "kinetics",
             "mix_pulse_chase",
             "mix_kin_deg",
+            'deg',
         ]:
             raise ValueError(
                 f"expriment_type can only be one of ['one-shot', 'kin', 'mixture', 'mix_std_stm', "
-                f"'kinetics', 'mix_pulse_chase','mix_kin_deg']"
+                f"'kinetics', 'mix_pulse_chase','mix_kin_deg', 'deg']"
             )
         elif experiment_type == "kinetics":
             experiment_type = "kin"
+        elif experiment_type == "degradation":
+            experiment_type = "deg"
 
     if reset_X:
         if has_labeling:
