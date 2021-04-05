@@ -22,18 +22,20 @@ def gen_test_data():
     adata.write_h5ad(test_data_path)
 
 
-def test_simple_detect_community_adata_general(adata):
-    dyn.tl.detect_community_adata_general(adata)
+def test_simple_cluster_community_adata(adata):
+    dyn.tl.cluster_community_adata(adata)
 
 
 def test_simple_cluster_field(adata):
-    # select a subset of adata for testing
-    print(adata)
+
     dyn.tl.cluster_field(adata, method="louvain")
     dyn.tl.cluster_field(adata, method="leiden")
 
 
 if __name__ == "__main__":
     adata = dyn.read_h5ad(test_data_path)
-    test_simple_detect_community_adata_general(adata)
+    print(adata)
+    # select a subset of adata for testing
+
+    test_simple_cluster_community_adata(adata)
     # test_simple_cluster_field(adata)

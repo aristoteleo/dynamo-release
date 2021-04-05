@@ -263,10 +263,27 @@ def cluster_field(adata, basis="pca", embedding_basis=None, normalize=True, meth
             leiden_coms = cluster_community_from_graph(method="leiden", graph_sparse_matrix=graph)
 
 
+def louvain(adata, **kwargs):
+    cluster_community_adata(adata, method="louvain", **kwargs)
+
+
+def leiden(adata, **kwargs):
+    cluster_community_adata(adata, method="leiden", **kwargs)
+
+
 def cluster_community_adata(adata, method="louvain", **kwargs):
+    NONE_COMMUNITY_INDEX = -1
+    result_key = "%s_communities" % (method)
+
     graph_sparse_matrix = adata.obsp["connectivities"]
-    communities = cluster_community_from_graph(method=method, graph_sparse_matrix=graph_sparse_matrix, **kwargs)
-    return communities
+
+    community_result = cluster_community_from_graph(method=method, graph_sparse_matrix=graph_sparse_matrix, **kwargs)
+
+    # graph = community_result.graph
+    adata.obs[result_key] = np.zeros(len(adata), dtype=int) + NONE_COMMUNITY_INDEX
+    for i, community in enumerate(community_result.communities):
+        adata.obs[result_key][community] = i
+    return adata
 
 
 def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="louvain", **kwargs):
