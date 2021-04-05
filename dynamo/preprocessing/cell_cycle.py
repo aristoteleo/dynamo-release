@@ -6,6 +6,9 @@ import numpy as np
 from collections import OrderedDict
 from scipy.sparse import issparse
 from ..tools.utils import einsum_correlation, log1p_
+from anndata import AnnData
+from typing import Union
+from ..utils import copy_annData, LoggerManager
 
 
 def group_corr(adata, layer, gene_list):
@@ -26,14 +29,17 @@ def group_corr(adata, layer, gene_list):
     """
 
     # returns list of correlations of each gene within a list of genes with the total expression of the group
-    intersect_genes = adata.var_names.intersection(gene_list)
+    tmp = adata.var_names.intersection(gene_list)
+    # get the location of gene names
+    intersect_genes = [adata.var.index.get_loc(i) for i in tmp]
+
     if len(intersect_genes) == 0:
         raise Exception(f"your adata doesn't have any gene from the gene_list {gene_list}.")
 
     if layer is None:
-        expression_matrix = adata[:, intersect_genes].X
+        expression_matrix = adata.X[:, intersect_genes]
     else:
-        expression_matrix = adata[:, intersect_genes].layers[layer]
+        expression_matrix = adata.layers[layer][:, intersect_genes]
         expression_matrix = log1p_(adata, expression_matrix)
 
     avg_exp = expression_matrix.mean(axis=1)
@@ -43,7 +49,8 @@ def group_corr(adata, layer, gene_list):
         else einsum_correlation(np.array(expression_matrix.T, dtype="float"), np.array(avg_exp, dtype="float"))
     )
 
-    return np.array(intersect_genes), cor.flatten()
+    # get back to gene names again
+    return np.array(adata.var.index[intersect_genes]), cor.flatten()
 
 
 def refine_gene_list(adata, layer, gene_list, threshold, return_corrs=False):
@@ -89,16 +96,20 @@ def group_score(adata, layer, gene_list):
         Z-scored expression data
     """
 
-    intersect_genes = adata.var_names.intersection(gene_list)
+    tmp = adata.var_names.intersection(gene_list)
+    # use indices
+    intersect_genes = [adata.var_names.get_loc(i) for i in tmp]
+
     if len(intersect_genes) == 0:
         raise Exception(f"your adata doesn't have any gene from the gene_list {gene_list}.")
 
     if layer is None:
-        expression_matrix = adata[:, intersect_genes].X
+        expression_matrix = adata.X[:, intersect_genes]
     else:
-        expression_matrix = adata[:, intersect_genes].layers[layer]
+        expression_matrix = adata.layers[layer][:, intersect_genes]
         expression_matrix = log1p_(adata, expression_matrix)
 
+    # To-do: FutureWarning: Index.is_all_dates is deprecated, will be removed in a future version.  check index.inferred_type instead
     if layer is None or layer.startswith("X_"):
         scores = expression_matrix.sum(1).A1 if issparse(expression_matrix) else expression_matrix.sum(1)
     else:
@@ -439,7 +450,14 @@ def get_cell_phase(adata, layer=None, gene_list=None, refine=True, threshold=0.3
     return cell_cycle_scores
 
 
-def cell_cycle_scores(adata, layer=None, gene_list=None, refine=True, threshold=0.3):
+def cell_cycle_scores(
+    adata: AnnData,
+    layer: Union[str, None] = None,
+    gene_list: Union[OrderedDict, None] = None,
+    refine: bool = True,
+    threshold: float = 0.3,
+    copy: bool = False,
+) -> AnnData:
     """Call cell cycle positions for cells within the population. If more direct control is desired,
     use get_cell_phase.
 
@@ -457,6 +475,8 @@ def cell_cycle_scores(adata, layer=None, gene_list=None, refine=True, threshold=
             threshold on correlation coefficient used to discard genes (expression of each
             gene is compared to the bulk expression of the group and any gene with a correlation
             coefficient less than this is discarded)
+        copy:
+            If true, copy the original AnnData object and return it
 
     Returns
     -------
@@ -464,10 +484,22 @@ def cell_cycle_scores(adata, layer=None, gene_list=None, refine=True, threshold=
         frame with `cell_cycle_scores` key to .obsm where the cell cycle scores indicating the likelihood a
         given cell is in a given cell cycle phase.
     """
+    logger = LoggerManager.gen_logger("dynamo-cell-cycle-score")
+    if copy:
+        adata = copy_annData(adata, logger=logger)
 
+    temp_timer_logger = LoggerManager.get_temp_timer_logger()
+    temp_timer_logger.info("computing cell phase...")
     cell_cycle_scores = get_cell_phase(adata, layer=layer, refine=refine, gene_list=gene_list, threshold=threshold)
+    # temp_timer_logger.report_progress(progress_name="cell phase estimation")
+
     cell_cycle_scores.index = adata.obs_names[cell_cycle_scores.index.values.astype("int")]
+
+    logger.info_insert_adata("cell_cycle_phase", adata_attr="obs")
     adata.obs["cell_cycle_phase"] = cell_cycle_scores["cell_cycle_phase"].astype("category")
 
     # adata.obsm['cell_cycle_scores'] = cell_cycle_scores.set_index(adata.obs_names)
-    adata.obsm["cell_cycle_scores"] = cell_cycle_scores.loc[adata.obs_names, :]  # .values
+    # .values
+    logger.info_insert_adata("cell_cycle_scores", adata_attr="obsm")
+    adata.obsm["cell_cycle_scores"] = cell_cycle_scores.loc[adata.obs_names, :]
+    # logger.report_progress(progress_name="Cell Cycle Scores Estimation")

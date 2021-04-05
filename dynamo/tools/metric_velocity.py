@@ -266,7 +266,7 @@ def gene_wise_confidence(
 
     Returns
     -------
-        A updated adata object with a new `gene_wise_confidence` key in .uns, which contains gene-wise confidence score
+        An updated adata object with a new `gene_wise_confidence` key in .uns, which contains gene-wise confidence score
         in each cell state. .var will also be updated with `avg_prog_confidence` and `avg_mature_confidence` key which
         correspond to the average gene wise confidence in the progenitor state or the mature cell state.
     """

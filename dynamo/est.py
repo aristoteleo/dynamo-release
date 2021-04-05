@@ -1,4 +1,4 @@
 """Mapping Vector Field of Single Cells
 """
 
-from dynamo.estimation import *
+from .estimation import *

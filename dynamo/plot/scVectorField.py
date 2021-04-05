@@ -311,7 +311,7 @@ def cell_wise_vectors(
     aggregate=None,
     show_arrowed_spines=True,
     inverse=False,
-    cell_ind="all",
+    cell_inds="all",
     quiver_size=None,
     quiver_length=None,
     vector="velocity",
@@ -328,8 +328,9 @@ def cell_wise_vectors(
         %(scatters.parameters.no_show_legend|kwargs|save_kwargs)s
         inverse: `bool` (default: False)
             Whether to inverse the direction of the velocity vectors.
-        cell_ind: `str` or `list` (default: all)
-            the cell index that will be chosen to draw velocity vectors.
+        cell_inds: `str` or `list` (default: all)
+            the cell index that will be chosen to draw velocity vectors. Can be a list of integers (cell integer indices)
+            or str (Cell names).
         quiver_size: `float` or None (default: None)
             The size of quiver. If None, we will use set quiver_size to be 1. Note that quiver quiver_size is used to calculate
             the head_width (10 x quiver_size), head_length (12 x quiver_size) and headaxislength (8 x quiver_size) of the quiver.
@@ -398,6 +399,19 @@ def cell_wise_vectors(
 
     df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "u": V[:, 0], "v": V[:, 1]})
 
+    if cell_inds == "all":
+        ix_choice = np.arange(adata.shape[0])
+    elif cell_inds == "random":
+        ix_choice = np.random.choice(np.range(adata.shape[0]), size=1000, replace=False)
+    elif type(cell_inds) is int:
+        ix_choice = np.random.choice(np.range(adata.shape[0]), size=cell_inds, replace=False)
+    elif type(cell_inds) is list:
+        if type(cell_inds[0]) is str:
+            cell_inds = [adata.obs_names.to_list().index(i) for i in cell_inds]
+        ix_choice = cell_inds
+
+    df = df.iloc[ix_choice, :]
+
     if background is None:
         _background = rcParams.get("figure.facecolor")
         background = to_hex(_background) if type(_background) is tuple else _background
@@ -460,22 +474,13 @@ def cell_wise_vectors(
         return_all=True,
     )
 
-    if cell_ind == "all":
-        ix_choice = np.arange(adata.shape[0])
-    elif cell_ind == "random":
-        ix_choice = np.random.choice(np.range(adata.shape[0]), size=1000, replace=False)
-    elif type(cell_ind) is int:
-        ix_choice = np.random.choice(np.range(adata.shape[0]), size=cell_ind, replace=False)
-    elif type(cell_ind) is list:
-        ix_choice = cell_ind
-
     if type(axes_list) == list:
         for i in range(len(axes_list)):
             axes_list[i].quiver(
-                df.iloc[ix_choice, 0],
-                df.iloc[ix_choice, 1],
-                df.iloc[ix_choice, 2],
-                df.iloc[ix_choice, 3],
+                df.iloc[:, 0],
+                df.iloc[:, 1],
+                df.iloc[:, 2],
+                df.iloc[:, 3],
                 color=color_list[i],
                 facecolors=color_list[i],
                 **quiver_kwargs,
@@ -483,10 +488,10 @@ def cell_wise_vectors(
             axes_list[i].set_facecolor(background)
     else:
         axes_list.quiver(
-            df.iloc[ix_choice, 0],
-            df.iloc[ix_choice, 1],
-            df.iloc[ix_choice, 2],
-            df.iloc[ix_choice, 3],
+            df.iloc[:, 0],
+            df.iloc[:, 1],
+            df.iloc[:, 2],
+            df.iloc[:, 3],
             color=color_list,
             facecolors=color_list,
             **quiver_kwargs,
@@ -539,6 +544,7 @@ def grid_vectors(
     aggregate=None,
     show_arrowed_spines=True,
     inverse=False,
+    cell_inds="all",
     method="gaussian",
     xy_grid_nums=[50, 50],
     cut_off_velocity=True,
@@ -559,6 +565,9 @@ def grid_vectors(
         %(scatters.parameters.no_show_legend|kwargs|save_kwargs)s
         inverse: `bool` (default: False)
             Whether to inverse the direction of the velocity vectors.
+        cell_inds: `str` or `list` (default: all)
+            the cell index that will be chosen to draw velocity vectors. Can be a list of integers (cell integer indices)
+            or str (Cell names).
         method: `str` (default: `SparseVFC`)
             Method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the empirical method
             Gaussian kernel method from RNA velocity (Gaussian).
@@ -631,6 +640,19 @@ def grid_vectors(
                 adata.obsm[vector + "_" + basis] = V
 
     X, V = X.copy(), V.copy()
+
+    if cell_inds == "all":
+        ix_choice = np.arange(adata.shape[0])
+    elif cell_inds == "random":
+        ix_choice = np.random.choice(np.range(adata.shape[0]), size=1000, replace=False)
+    elif type(cell_inds) is int:
+        ix_choice = np.random.choice(np.range(adata.shape[0]), size=cell_inds, replace=False)
+    elif type(cell_inds) is list:
+        if type(cell_inds[0]) is str:
+            cell_inds = [adata.obs_names.to_list().index(i) for i in cell_inds]
+        ix_choice = cell_inds
+
+    X, V = X[ix_choice, :], V[ix_choice, :] # 0, 0
 
     grid_kwargs_dict = {
         "density": None,
@@ -811,6 +833,7 @@ def streamline_plot(
     aggregate=None,
     show_arrowed_spines=True,
     inverse=False,
+    cell_inds="all",
     method="gaussian",
     xy_grid_nums=[50, 50],
     cut_off_velocity=True,
@@ -831,6 +854,9 @@ def streamline_plot(
         %(scatters.parameters.no_show_legend|kwargs|save_kwargs)s
         inverse: `bool` (default: False)
             Whether to inverse the direction of the velocity vectors.
+        cell_inds: `str` or `list` (default: all)
+            the cell index that will be chosen to draw velocity vectors. Can be a list of integers (cell integer indices)
+            or str (Cell names).
         method: `str` (default: `SparseVFC`)
             Method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the empirical method
             Gaussian kernel method from RNA velocity (Gaussian).
@@ -898,6 +924,19 @@ def streamline_plot(
                 adata.obsm[vector + "_" + basis] = V
 
     X, V = X.copy(), V.copy()
+
+    if cell_inds == "all":
+        ix_choice = np.arange(adata.shape[0])
+    elif cell_inds == "random":
+        ix_choice = np.random.choice(np.range(adata.shape[0]), size=1000, replace=False)
+    elif type(cell_inds) is int:
+        ix_choice = np.random.choice(np.range(adata.shape[0]), size=cell_inds, replace=False)
+    elif type(cell_inds) is list:
+        if type(cell_inds[0]) is str:
+            cell_inds = [adata.obs_names.to_list().index(i) for i in cell_inds]
+        ix_choice = cell_inds
+
+    X, V = X[ix_choice, :], V[ix_choice, :] # 0, 0
 
     grid_kwargs_dict = {
         "density": None,

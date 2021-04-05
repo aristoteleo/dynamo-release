@@ -14,6 +14,7 @@ from .utils import (
     arclength_sampling,
     integrate_streamline,
 )
+from ..dynamo_logger import LoggerManager
 
 
 def classify_clone_cell_type(adata, clone, clone_column, cell_type_column, cell_type_to_excluded):
@@ -67,10 +68,15 @@ def state_graph(
         An updated adata object that is added with the `group + '_graph'` key, including the transition graph
         and the average transition time.
     """
+    logger = LoggerManager.get_main_logger()
+    timer_logger = LoggerManager.get_temp_timer_logger()
+    timer_logger.log_time()
 
+    logger.info("Estimating the transition probability between cell types...")
     groups, uniq_grp = adata.obs[group], list(adata.obs[group].unique())
 
     if method.lower() == "markov":
+        logger.info("Applying kernel Markov chain")
         kmc = KernelMarkovChain(P=adata.obsp[transition_mat_key])
 
         ord_enc = OrdinalEncoder()
@@ -81,6 +87,7 @@ def state_graph(
         grp_avg_time = None
 
     elif method == "vf":
+        logger.info("Applying vector field")
         grp_graph = np.zeros((len(uniq_grp), len(uniq_grp)))
         grp_avg_time = np.zeros((len(uniq_grp), len(uniq_grp)))
 
@@ -93,11 +100,13 @@ def state_graph(
             average=False,
             t_end=None,
         )
+        logger.report_progress(percent=0, progress_name="KDTree parameter preparation computation")
+        logger.log_time()
         kdt = cKDTree(all_X, leafsize=30)
-
+        logger.finish_progress(progress_name="KDTree computation")
         vf_dict = adata.uns["VecFld_" + basis]
 
-        for i, cur_grp in enumerate(tqdm(uniq_grp, desc="iterate groups:")):
+        for i, cur_grp in enumerate(LoggerManager.progress_logger(uniq_grp, progress_name="iterate groups")):
             init_cells = adata.obs_names[groups == cur_grp]
             if sample_num is not None:
                 cell_num = np.min((sample_num, len(init_cells)))
@@ -194,5 +203,5 @@ def state_graph(
         "group_graph": grp_graph,
         "group_avg_time": grp_avg_time,
     }
-
+    timer_logger.finish_progress(progress_name="State graph estimation")
     return adata

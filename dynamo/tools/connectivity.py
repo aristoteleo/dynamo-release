@@ -374,7 +374,7 @@ def mnn(
     Returns
     -------
         adata: :AnnData
-            A updated anndata object that are updated with the `mnn` or other relevant data that are calculated during mnn
+            An updated anndata object that are updated with the `mnn` or other relevant data that are calculated during mnn
             calculation.
     """
     if use_pca_fit:
@@ -481,7 +481,7 @@ def neighbors(
     Returns
     -------
         adata: :AnnData
-            A updated anndata object that are updated with the `indices`, `connectivity`, `distance` to the .obsp, as well
+            An updated anndata object that are updated with the `indices`, `connectivity`, `distance` to the .obsp, as well
             as a new `neighbors` key in .uns.
     """
 

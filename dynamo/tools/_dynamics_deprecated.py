@@ -97,7 +97,7 @@ def _dynamics(
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            A updated AnnData object with estimated kinetic parameters and inferred velocity included.
+            An updated AnnData object with estimated kinetic parameters and inferred velocity included.
     """
 
     if "use_for_dynamics" not in adata.var.columns and "pass_basic_filter" not in adata.var.columns:

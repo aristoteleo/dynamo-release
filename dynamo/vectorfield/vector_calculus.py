@@ -304,7 +304,7 @@ def jacobian(
 
     Js_det = [np.linalg.det(Js[:, :, i]) for i in np.arange(Js.shape[2])]
     adata.obs["jacobian_det_" + basis] = np.nan
-    adata.obs["jacobian_det_" + basis][cell_idx] = Js_det
+    adata.obs.loc[adata.obs_names[cell_idx], "jacobian_det_" + basis] = Js_det
     if store_in_adata:
         jkey = "jacobian" if basis is None else "jacobian_" + basis
         adata.uns[jkey] = ret_dict
@@ -1221,8 +1221,13 @@ def rank_jacobian_genes(
 
     Returns
     -------
-        adata: :class:`~anndata.AnnData`
-            AnnData object which has the rank dictionary in `.uns`.
+        rank_info:
+            different modes return different types of return values
+            1. full reg and full eff:
+                A pandas dataframe containing ranking info based on Jacobian elements
+            2. reg eff int:
+                A dictionary object whose keys correspond to groups, and whose values are
+                specific rank's pd dataframe
     """
     J_dict = adata.uns[jkey]
     J = J_dict["jacobian_gene"]

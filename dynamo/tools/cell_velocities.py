@@ -23,39 +23,43 @@ from .utils import (
 )
 
 from .dimension_reduction import reduceDimension
+from ..dynamo_logger import LoggerManager
+from anndata import AnnData
+from typing import Union
+import scipy
 
 
 def cell_velocities(
-    adata,
-    ekey=None,
-    vkey=None,
-    X=None,
-    V=None,
-    X_embedding=None,
-    use_mnn=False,
-    n_pca_components=None,
-    transition_genes=None,
-    min_r2=None,
-    min_alpha=None,
-    min_gamma=None,
-    min_delta=None,
-    basis="umap",
-    neigh_key="neighbors",
-    adj_key="distances",
-    n_neighbors=30,
-    method="pearson",
-    neg_cells_trick=True,
-    calc_rnd_vel=False,
-    xy_grid_nums=(50, 50),
-    correct_density=True,
-    scale=True,
-    sample_fraction=None,
-    random_seed=19491001,
-    enforce=False,
-    key=None,
-    preserve_len=False,
+    adata: AnnData,
+    ekey: Union[str, None] = None,
+    vkey: Union[str, None] = None,
+    X: Union[np.array, scipy.sparse.csr_matrix, None] = None,
+    V: Union[np.array, scipy.sparse.csr_matrix, None] = None,
+    X_embedding: Union[str, None] = None,
+    use_mnn: bool = False,
+    n_pca_components: Union[int, None] = None,
+    transition_genes: Union[str, list, None] = None,
+    min_r2: Union[float, None] = None,
+    min_alpha: Union[float, None] = None,
+    min_gamma: Union[float, None] = None,
+    min_delta: Union[float, None] = None,
+    basis: int = "umap",
+    neigh_key: str = "neighbors",
+    adj_key: str = "distances",
+    n_neighbors: int = 30,
+    method: str = "pearson",
+    neg_cells_trick: bool = True,
+    calc_rnd_vel: bool = False,
+    xy_grid_nums: tuple = (50, 50),
+    correct_density: bool = True,
+    scale: bool = True,
+    sample_fraction: Union[float, None] = None,
+    random_seed: int = 19491001,
+    enforce: bool = False,
+    key: Union[str, None] = None,
+    preserve_len: bool = False,
     **kernel_kwargs,
-):
+) -> AnnData:
     """Project high dimensional velocity vectors onto given low dimensional embeddings,
     and/or compute cell transition probabilities.
 
@@ -424,19 +428,23 @@ def cell_velocities(
             T_rnd, delta_X_rnd, X_grid_rnd, V_grid_rnd, D_rnd = kernels_from_velocyto_scvelo(
                 X, X_embedding, V, indices, neg_cells_trick, xy_grid_nums, method, **vs_kwargs
             )
-    
-    elif method == 'fp':
+
+    elif method == "fp":
         graph_kwargs = {
             "k": 30,
             "E_func": "sqrt",
             "normalize_v": False,
         }
         graph_kwargs = update_dict(graph_kwargs, kernel_kwargs)
-        
-        fp_kwargs = {"D": 100,}
+
+        fp_kwargs = {
+            "D": 100,
+        }
         fp_kwargs = update_dict(fp_kwargs, kernel_kwargs)
 
-        ctmc_kwargs = {"eignum": 30,}
+        ctmc_kwargs = {
+            "eignum": 30,
+        }
         ctmc_kwargs = update_dict(ctmc_kwargs, kernel_kwargs)
 
         E, _ = graphize_velocity(V, X, nbrs_idx=indices, **graph_kwargs)
@@ -445,8 +453,10 @@ def cell_velocities(
         T = ctmc.P.T
         P = sp.csr_matrix(ctmc.compute_embedded_transition_matrix().T)
         delta_X = projection_with_transition_matrix(P.shape[0], P, X_embedding, correct_density)
-        X_grid, V_grid, D = velocity_on_grid(X_embedding, delta_X, xy_grid_nums=xy_grid_nums)   # This function seems to be independent of the method; consider moving it out of the if-else block.
-    
+        X_grid, V_grid, D = velocity_on_grid(
+            X_embedding, delta_X, xy_grid_nums=xy_grid_nums
+        )  # This function seems to be independent of the method; consider moving it out of the if-else block.
+
     elif method == "transform":
         umap_trans, n_pca_components = (
             adata.uns["umap_fit"]["fit"],
@@ -475,7 +485,7 @@ def cell_velocities(
     if preserve_len:
         basis_len, high_len = np.linalg.norm(delta_X, axis=1), np.linalg.norm(V, axis=1)
         scaler = np.nanmedian(basis_len) / np.nanmedian(high_len)
-        for i in tqdm(range(adata.n_obs), desc=f"rescaling velocity norm..."):
+        for i in LoggerManager.progress_logger(range(adata.n_obs), progress_name="rescaling velocity norm"):
             idx = T[i].indices
             high_len_ = high_len[idx]
             T_i = T[i].data
@@ -805,7 +815,10 @@ def kernels_from_velocyto_scvelo(
         vals = []
 
     delta_X = np.zeros((n, X_embedding.shape[1]))
-    for i in tqdm(range(n), desc=f"calculating transition matrix via {kernel} kernel with {transform} transform."):
+    for i in LoggerManager.progress_logger(
+        range(n),
+        progress_name=f"calculating transition matrix via {kernel} kernel with {transform} transform.",
+    ):
         velocity = V[i, :]  # project V to pca space
 
         if velocity.sum() != 0:
@@ -835,7 +848,6 @@ def kernels_from_velocyto_scvelo(
             rows.extend([i] * len(i_vals))
             cols.extend(i_vals)
             vals.extend(vals_)
-
     vals = np.hstack(vals)
     vals[np.isnan(vals)] = 0
     G = sp.csr_matrix((vals, (rows, cols)), shape=(X_embedding.shape[0], X_embedding.shape[0]))
@@ -877,8 +889,9 @@ def projection_with_transition_matrix(n, T, X_embedding, correct_density=True):
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-
-        for i in tqdm(range(n), desc=f"projecting velocity vector to low dimensional embedding..."):
+        for i in LoggerManager.progress_logger(
+            range(n), progress_name=f"projecting velocity vector to low dimensional embedding"
+        ):
             idx = T[i].indices
             diff_emb = X_embedding[idx] - X_embedding[i, None]
             diff_emb /= norm(diff_emb, axis=1)[:, None]
@@ -922,7 +935,7 @@ def permute_rows_nsign(A):
         A[:, i] = A[:, i] * np.random.choice(plmi, size=A.shape[0])
 
 
-'''This function can be removed now
+"""This function can be removed now
 def embed_velocity(
     adata,
     x_basis,
@@ -974,4 +987,4 @@ def embed_velocity(
     if return_kmc:
         return Uc, kmc
     else:
-        return Uc'''
+        return Uc"""

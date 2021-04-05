@@ -57,6 +57,8 @@ def convert2gene_symbol(input_names, scopes="ensembl.gene"):
 
 def convert2symbol(adata, scopes=None, subset=True):
     if np.all(adata.var_names.str.startswith("ENS")) or scopes is not None:
+        # logger.info("convert ensemble name to official gene name", indent_level=1)
+
         prefix = adata.var_names[0]
         if scopes is None:
             if prefix[:4] == "ENSG" or prefix[:7] == "ENSMUSG":
@@ -219,9 +221,9 @@ def basic_stats(adata):
     mito_genes = adata.var_names.str.upper().str.startswith("MT-")
     try:
         adata.obs["pMito"] = (
-            (adata[:, mito_genes].X).sum(1).A1 / adata.obs["nCounts"]
+            (adata.X[:, mito_genes]).sum(1).A1 / adata.obs["nCounts"]
             if issparse(adata.X)
-            else (adata[:, mito_genes].X).sum(1) / adata.obs["nCounts"]
+            else (adata.X[:, mito_genes]).sum(1) / adata.obs["nCounts"]
         )
     except:
         raise Exception(f"looks like your var_names may be corrupted (i.e. include nan values)")
@@ -440,7 +442,8 @@ def get_sz_exprs(adata, layer, total_szfactor=None):
     if total_szfactor is not None and total_szfactor in adata.obs.keys():
         szfactors = adata.obs[total_szfactor][:, None]
     else:
-        warnings.warn("`total_szfactor` is not `None` and it is not in adata object.")
+        if total_szfactor is not None:
+            warnings.warn("`total_szfactor` is not `None` and it is not in adata object.")
 
     return szfactors, CM
 
