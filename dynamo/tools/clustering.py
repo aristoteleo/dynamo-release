@@ -279,10 +279,10 @@ def cluster_community_adata(adata, method="louvain", **kwargs):
 
     community_result = cluster_community_from_graph(method=method, graph_sparse_matrix=graph_sparse_matrix, **kwargs)
 
-    # graph = community_result.graph
-    adata.obs[result_key] = np.zeros(len(adata), dtype=int) + NONE_COMMUNITY_INDEX
+    labels = np.zeros(len(adata), dtype=int) + NONE_COMMUNITY_INDEX
     for i, community in enumerate(community_result.communities):
-        adata.obs[result_key][community] = i
+        labels[community] = i
+    adata.obs[result_key] = labels
     return adata
 
 

@@ -3,6 +3,8 @@ import dynamo.tools
 import dynamo as dyn
 import pytest
 import time
+import numpy as np
+
 
 test_data_path = "test_clustering_zebrafish.h5ad"
 
@@ -23,11 +25,11 @@ def gen_test_data():
 
 
 def test_simple_cluster_community_adata(adata):
-    dyn.tl.cluster_community_adata(adata)
+    dyn.tl.cluster_community_adata(adata, method="louvain")
+    assert np.all(adata.obs["louvain_communities"] != -1)
 
 
 def test_simple_cluster_field(adata):
-
     dyn.tl.cluster_field(adata, method="louvain")
     dyn.tl.cluster_field(adata, method="leiden")
 
