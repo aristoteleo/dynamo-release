@@ -865,8 +865,10 @@ def angle(vector1, vector2):
 def unit_vector(vector):
     """ Returns the unit vector of the vector.  """
     vec_norm = np.linalg.norm(vector)
-    return 0, vector / vec_norm if vec_norm == 0 else vec_norm, vector / vec_norm
-
+    if vec_norm == 0:
+        return vec_norm, vector
+    else:
+        return vec_norm, vector / vec_norm
 
 # ---------------------------------------------------------------------------------------------------
 # data retrieval related utilies
