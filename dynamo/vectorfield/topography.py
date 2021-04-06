@@ -844,10 +844,8 @@ def VectorField(
     # angles between observed velocity and that predicted by vector field across cells:
     cell_angels = np.zeros(adata.n_obs)
     for i, u, v in zip(valid_ids, V[valid_ids], vf_dict["V"]):
-        if np.linalg.norm(u) > 0 and np.linalg.norm(v) > 0:
-            cell_angels[i] = angle(u, v)
-        else:
-            cell_angels[i] = np.nan
+        # fix the u, v norm == 0 in angle function
+        cell_angels[i] = angle(u, v)
 
     if basis is not None:
         temp_key = "obs_vf_angle_" + basis
