@@ -39,7 +39,7 @@ def test_logger_simple_progress_logger(test_logger):
 
 # To-do:
 # following test does not work with pytest but can be run in main directly
-# the reason seems to be compatibility of pytest and numba
+# the reason seems to be related compatibility of pytest and numba
 def test_vectorField_logger():
     adata = dyn.sample_data.zebrafish()
     dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_max=0.005)
