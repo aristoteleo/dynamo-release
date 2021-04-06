@@ -990,6 +990,7 @@ class FixedPoints:
                 ftype[i] = -1
         return ftype
 
+       
 # ---------------------------------------------------------------------------------------------------
 # data retrieval related utilies
 def intersect_sources_targets(regulators, regulators_, effectors, effectors_, Der):
