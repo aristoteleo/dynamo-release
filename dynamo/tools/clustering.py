@@ -2,7 +2,6 @@ from hdbscan import HDBSCAN
 from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import csr_matrix
 import numpy as np
-import networkx as nx
 
 from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 from .utils import update_dict
@@ -271,24 +270,47 @@ def leiden(adata, **kwargs):
     cluster_community_adata(adata, method="leiden", **kwargs)
 
 
-def cluster_community_adata(adata, method="louvain", **kwargs):
-    NONE_COMMUNITY_INDEX = -1
+def cluster_community_adata(adata, method="louvain", no_community_label=-1, **kwargs):
+    """Detect communities and insert data into adata.
+
+    Args:
+        adata ([type]): [description]
+        method (str, optional): [description]. Defaults to "louvain".
+
+    Returns:
+        [type]: [description]
+    """
     result_key = "%s_communities" % (method)
-
     graph_sparse_matrix = adata.obsp["connectivities"]
-
     community_result = cluster_community_from_graph(method=method, graph_sparse_matrix=graph_sparse_matrix, **kwargs)
 
-    labels = np.zeros(len(adata), dtype=int) + NONE_COMMUNITY_INDEX
+    labels = np.zeros(len(adata), dtype=int) + no_community_label
     for i, community in enumerate(community_result.communities):
         labels[community] = i
     adata.obs[result_key] = labels
+
     return adata
 
 
 def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="louvain", **kwargs):
+    """Detect communities based on graph inputs and selected methods with arguments passed in kwargs.
+
+    Args:
+        graph ([type], optional): [description]. Defaults to None.
+        graph_sparse_matrix ([type], optional): [description]. Defaults to None.
+        method (str, optional): [description]. Defaults to "louvain".
+
+    Raises:
+        ImportError: Missing libraries
+        ValueError: No valid graph input found
+        NotImplementedError: Method not supported
+
+    Returns:
+        [type]: NodeClustering Object from CDlib
+    """
     try:
         import cdlib
+        import networkx as nx
         from cdlib import algorithms
     except ImportError:
         raise ImportError(
@@ -303,11 +325,23 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
         raise ValueError("Expected graph inputs are invalid")
 
     if method == "louvain":
+        resolution = 1.0
+        weight = "weight"
+        if "resolution" in kwargs:
+            resolution = kwargs["resolution"]
+        if "weight" in kwargs:
+            weight = kwargs["weight"]
         graph = graph.to_undirected()
-        coms = algorithms.louvain(graph)
+        coms = algorithms.louvain(graph, weight=weight, resolution=resolution)
+
     elif method == "leiden":
+        initial_membership, weights = None, None
+        if "initial_membership" in kwargs:
+            initial_membership = kwargs["initial_membership"]
+        if "weights" in kwargs:
+            weights = kwargs["weights"]
         graph = graph.to_directed()
-        coms = algorithms.leiden(graph)
+        coms = algorithms.leiden(graph, weights=weights, initial_membership=initial_membership)
     else:
         raise NotImplementedError("clustering algorithm not implemented yet")
     return coms
