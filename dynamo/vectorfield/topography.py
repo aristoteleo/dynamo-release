@@ -5,7 +5,6 @@ import warnings
 import numpy as np
 import scipy.sparse as sp
 from scipy.optimize import fsolve
-from scipy.spatial.distance import pdist
 from scipy.linalg import eig
 from scipy.integrate import odeint
 from sklearn.neighbors import NearestNeighbors
@@ -16,8 +15,6 @@ from ..dynamo_logger import LoggerManager
 from .scVectorField import base_vectorfield, svc_vectorfield
 from ..tools.utils import (
     update_dict,
-    form_triu_matrix,
-    index_condensed_matrix,
     inverse_norm,
     gaussian_1d,
 )
@@ -27,60 +24,14 @@ from .utils import (
     dynode_vector_field_function,
     vecfld_from_adata,
     angle,
+    is_outside,
+    remove_redundant_points,
+    find_fixed_points,
+    FixedPoints,
 )
 
 from ..external.hodge import ddhodge
 from .vector_calculus import curl, divergence
-
-
-def remove_redundant_points(X, tol=1e-4, output_discard=False):
-    X = np.atleast_2d(X)
-    discard = np.zeros(len(X), dtype=bool)
-    if X.shape[0] > 1:
-        dist = pdist(X)
-        for i in range(len(X)):
-            for j in range(i + 1, len(X)):
-                if dist[index_condensed_matrix(len(X), i, j)] < tol:
-                    discard[j] = True
-        X = X[~discard]
-    if output_discard:
-        return X, discard
-    else:
-        return X
-
-
-def find_fixed_points(X0, func_vf, tol_redundant=1e-4, full_output=False):
-    X = []
-    J = []
-    fval = []
-    for x0 in X0:
-        if full_output:
-            x, info_dict, _, _ = fsolve(func_vf, x0, full_output=True)
-            fval.append(info_dict["fvec"])
-            # compute Jacobian
-            Q = info_dict["fjac"]
-            R = form_triu_matrix(info_dict["r"])
-            J.append(Q.T @ R)
-        else:
-            x = fsolve(func_vf, x0)
-        X.append(x)
-    X = np.array(X)
-    if full_output:
-        J = np.array(J)
-        fval = np.array(fval)
-
-    if tol_redundant is not None:
-        if full_output:
-            X, discard = remove_redundant_points(X, tol_redundant, output_discard=True)
-            J = J[~discard]
-            fval = fval[~discard]
-        else:
-            X = remove_redundant_points(X, tol_redundant)
-
-    if full_output:
-        return X, J, fval
-    else:
-        return X
 
 
 def pac_onestep(x0, func, v0, ds=0.01):
@@ -220,7 +171,7 @@ def find_intersection_2d(curve1, curve2, tol_redundant=1e-4):
     return np.array(P)
 
 
-def find_fixed_points_nullcline(func, NCx, NCy, sample_interval=0.5, tol_redundant=1e-4, full_output=False):
+def find_fixed_points_nullcline(func, NCx, NCy, sample_interval=0.5, tol_redundant=1e-4):
     test_Px = []
     for i in range(len(NCx)):
         test_Px.append(set_test_points_on_curve(NCx[i], sample_interval))
@@ -236,20 +187,8 @@ def find_fixed_points_nullcline(func, NCx, NCy, sample_interval=0.5, tol_redunda
             for k in range(len(p)):
                 int_P.append(p[k])
     int_P = np.array(int_P)
-    if full_output:
-        P, J, _ = find_fixed_points(int_P, func, tol_redundant, full_output=True)
-        return P, J
-    else:
-        P = find_fixed_points(int_P, func, tol_redundant)
-        return P
-
-
-def is_outside(X, domain):
-    is_outside = np.zeros(X.shape[0], dtype=bool)
-    for k in range(X.shape[1]):
-        o = np.logical_or(X[:, k] < domain[k][0], X[:, k] > domain[k][1])
-        is_outside = np.logical_or(is_outside, o)
-    return is_outside
+    P, J, _ = find_fixed_points(int_P, func, tol_redundant)
+    return P, J
 
 
 def calc_fft(x):
@@ -300,54 +239,6 @@ def dup_osc_idx_iter(x, max_iter=5, **kwargs):
             stop = True
     D = np.array(D)
     return idx, D
-
-
-class FixedPoints:
-    def __init__(self, X=None, J=None):
-        self.X = X or []
-        self.J = J or []
-        self.eigvals = []
-
-    def get_X(self):
-        return np.array(self.X)
-
-    def get_J(self):
-        return np.array(self.J)
-
-    def add_fixed_points(self, X, J, tol_redundant=1e-4):
-        for i, x in enumerate(X):
-            redundant = False
-            if tol_redundant is not None and len(self.X) > 0:
-                for y in self.X:
-                    if np.linalg.norm(x - y) <= tol_redundant:
-                        redundant = True
-            if not redundant:
-                self.X.append(x)
-                self.J.append(J[i])
-
-    def compute_eigvals(self):
-        self.eigvals = []
-        for i in range(len(self.J)):
-            w, _ = eig(self.J[i])
-            self.eigvals.append(w)
-
-    def is_stable(self):
-        if len(self.eigvals) != len(self.X):
-            self.compute_eigvals()
-
-        stable = np.ones(len(self.eigvals), dtype=bool)
-        for i, w in enumerate(self.eigvals):
-            if np.any(np.real(w) >= 0):
-                stable[i] = False
-        return stable
-
-    def is_saddle(self):
-        is_stable = self.is_stable()
-        saddle = np.zeros(len(self.eigvals), dtype=bool)
-        for i, w in enumerate(self.eigvals):
-            if not is_stable[i] and np.any(np.real(w) < 0):
-                saddle[i] = True
-        return saddle, is_stable
 
 
 class VectorField2D:
@@ -428,16 +319,13 @@ class VectorField2D:
             X0 = np.random.rand(n, 2)
         X0[:, 0] = X0[:, 0] * (x_range[1] - x_range[0]) + x_range[0]
         X0[:, 1] = X0[:, 1] * (y_range[1] - y_range[0]) + y_range[0]
-        X, J, _ = find_fixed_points(X0, self.func, tol_redundant=tol_redundant, full_output=True)
-        # remove points that are outside the domain
-        outside = is_outside(X, [x_range, y_range])
-        self.Xss.add_fixed_points(X[~outside], J[~outside], tol_redundant)
+        X, J, _ = find_fixed_points(X0, self.func, domain=[x_range, y_range], tol_redundant=tol_redundant)
+        if len(X) > 0:
+            self.Xss.add_fixed_points(X, J, tol_redundant)
 
     def find_nearest_fixed_point(self, x, x_range, y_range, tol_redundant=1e-4):
-        X, J, _ = find_fixed_points(x, self.func, tol_redundant=tol_redundant, full_output=True)
-        # remove point if outside the domain
-        outside = is_outside(X, [x_range, y_range])[0]
-        if not outside:
+        X, J, _ = find_fixed_points(x, self.func, domain=[x_range, y_range], tol_redundant=tol_redundant)
+        if len(X) > 0:
             self.Xss.add_fixed_points(X, J, tol_redundant)
 
     def compute_nullclines(self, x_range, y_range, find_new_fixed_points=False, tol_redundant=1e-4):
@@ -449,7 +337,7 @@ class VectorField2D:
         )
         if find_new_fixed_points:
             sample_interval = ds * 10
-            X, J = find_fixed_points_nullcline(self.func, self.NCx, self.NCy, sample_interval, tol_redundant, True)
+            X, J = find_fixed_points_nullcline(self.func, self.NCx, self.NCy, sample_interval, tol_redundant)
             outside = is_outside(X, [x_range, y_range])
             self.Xss.add_fixed_points(X[~outside], J[~outside], tol_redundant)
 

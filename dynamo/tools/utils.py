@@ -88,6 +88,12 @@ def subset_dict_with_key_list(dict, list):
     return {key: value for key, value in dict.items() if key in list}
 
 
+def nearest_neighbors(coord, coords, k=5):
+    nbrs = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(coords)
+    _, neighs = nbrs.kneighbors(np.atleast_2d(coord))
+    return neighs
+    
+
 def create_layer(adata, data, layer_key=None, genes=None, cells=None, **kwargs):
     all_genes = adata.var.index
     if genes is None:

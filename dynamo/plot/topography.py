@@ -5,7 +5,7 @@ import scipy
 import matplotlib.pyplot as plt
 
 from ..vectorfield.topography import topography as _topology  # , compute_separatrices
-from ..tools.utils import update_dict
+from ..tools.utils import update_dict, nearest_neighbors
 from ..external.hodge import ddhodge
 from ..vectorfield.vector_calculus import curl, divergence
 from .utils import default_quiver_args
@@ -258,7 +258,7 @@ def plot_nullclines(vecfld, lw=3, background=None, save_show_or_return="return",
         return ax
 
 
-def plot_fixed_points(
+def plot_fixed_points_2d(
     vecfld,
     marker="o",
     markersize=200,
@@ -329,6 +329,128 @@ def plot_fixed_points(
             marker=marker_,
             s=markersize,
             c=np.array(cm(confidence[i])).reshape(1, -1),
+            edgecolor=_select_font_color(_background),
+            linewidths=1,
+            cmap=_cmap,
+            vmin=0,
+            zorder=5,
+        )
+        txt = ax.text(
+            *Xss[i],
+            repr(i),
+            c=("black" if cur_ftype == -1 else "blue" if cur_ftype == 0 else "red"),
+            horizontalalignment="center",
+            verticalalignment="center",
+            zorder=6,
+            weight="bold",
+        )
+        txt.set_path_effects(
+            [
+                PathEffects.Stroke(linewidth=1.5, foreground=_background, alpha=0.8),
+                PathEffects.Normal(),
+            ]
+        )
+
+    if save_show_or_return == "save":
+        s_kwargs = {
+            "path": None,
+            "prefix": "plot_fixed_points",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save_fig(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    elif save_show_or_return == "return":
+        return ax
+
+
+def plot_fixed_points(
+    adata,
+    vecfld,
+    basis='X_umap',
+    marker="o",
+    markersize=200,
+    c='w',
+    cmap=None,
+    filltype=["full", "top", "none"],
+    background=None,
+    save_show_or_return="return",
+    save_kwargs={},
+    ax=None,
+    **kwargs
+):
+    """Plot fixed points stored in the VectorField2D class.
+
+    Arguments
+    ---------
+        vecfld: :class:`~vector_field`
+            An instance of the vector_field class.
+        basis: `str` (default: 'umap')
+            The basis on which the fixed points are ploted.
+        marker: `str` (default: `o`)
+            The marker type. Any string supported by matplotlib.markers.
+        markersize: `float` (default: 200)
+            The size of the marker.
+        cmap: string (optional, default 'Blues')
+            The name of a matplotlib colormap to use for coloring or shading the confidence of fixed points. If None, the
+            default color map will set to be viridis (inferno) when the background is white (black).
+        filltype: list
+            The fill type used for stable, saddle, and unstable fixed points. Default is 'full', 'top' and 'none',
+            respectively.
+        background: `str` or None (default: None)
+            The background color of the plot.
+        save_show_or_return: {'show', 'save', 'return'} (default: `return`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
+            will use the {"path": None, "prefix": 'plot_fixed_points', "dpi": None, "ext": 'pdf', "transparent": True, "close":
+            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
+            according to your needs.
+        ax: :class:`~matplotlib.axes.Axes`
+            The matplotlib axes used for plotting. Default is to use the current axis.
+        kwargs:
+            Key word arguments passed to the find_fixed_point function of the vector field class.
+    """
+    import matplotlib
+    from matplotlib import rcParams, markers
+    import matplotlib.patheffects as PathEffects
+    from matplotlib.colors import to_hex
+
+    if background is None:
+        _background = rcParams.get("figure.facecolor")
+        _background = to_hex(_background) if type(_background) is tuple else _background
+    else:
+        _background = background
+
+    if _background in ["#ffffff", "black"]:
+        _theme_ = "inferno"
+    else:
+        _theme_ = "viridis"
+    _cmap = _themes[_theme_]["cmap"] if cmap is None else cmap
+
+    Xss, ftype = vecfld.get_fixed_points(**kwargs)
+    if Xss.shape[1] > 2:
+        fp_ind = nearest_neighbors(Xss, vecfld.data['X'], 1).flatten()
+        Xss = adata.obsm[basis][fp_ind]
+
+    if ax is None:
+        ax = plt.gca()
+
+    for i in range(len(Xss)):
+        cur_ftype = ftype[i]
+        marker_ = markers.MarkerStyle(marker=marker, fillstyle=filltype[int(cur_ftype + 1)])
+        ax.scatter(
+            *Xss[i],
+            marker=marker_,
+            s=markersize,
+            c=c,
             edgecolor=_select_font_color(_background),
             linewidths=1,
             cmap=_cmap,
@@ -929,7 +1051,7 @@ def topography(
             axes_list[i] = plot_nullclines(vecfld, background=_background, ax=axes_list[i])
 
         if "fixed_points" in terms:
-            axes_list[i] = plot_fixed_points(
+            axes_list[i] = plot_fixed_points_2d(
                 vecfld,
                 background=_background,
                 ax=axes_list[i],

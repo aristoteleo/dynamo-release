@@ -1,15 +1,22 @@
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
-from scipy.spatial.distance import cdist
+from scipy.spatial.distance import cdist, pdist
 from scipy.sparse import issparse
+from scipy.optimize import fsolve
+from scipy.linalg import eig
 import numdifftools as nd
 from multiprocessing.dummy import Pool as ThreadPool
 import multiprocessing as mp
 import itertools, functools
 import inspect
 from numba import njit
-from ..tools.utils import timeit, subset_dict_with_key_list
+from ..tools.utils import (
+    form_triu_matrix,
+    index_condensed_matrix,
+    timeit,
+    subset_dict_with_key_list,
+)
 from ..dynamo_logger import LoggerManager
 
 
@@ -848,7 +855,7 @@ def angle(vector1, vector2):
     v1_norm, v1_u = unit_vector(vector1)
     v2_norm, v2_u = unit_vector(vector2)
 
-    if v1_norm == 0 and v2_norm == 0:
+    if v1_norm == 0 or v2_norm == 0:
         return np.nan
     else:
         minor = np.linalg.det(np.stack((v1_u[-2:], v2_u[-2:])))
@@ -865,8 +872,123 @@ def angle(vector1, vector2):
 def unit_vector(vector):
     """ Returns the unit vector of the vector.  """
     vec_norm = np.linalg.norm(vector)
-    return 0, vector / vec_norm if vec_norm == 0 else vec_norm, vector / vec_norm
+    if vec_norm == 0:
+        return vec_norm, vector
+    else:
+        return vec_norm, vector / vec_norm
 
+
+# ---------------------------------------------------------------------------------------------------
+# topology related utilies
+
+def is_outside(X, domain):
+    is_outside = np.zeros(X.shape[0], dtype=bool)
+    for k in range(X.shape[1]):
+        o = np.logical_or(X[:, k] < domain[k][0], X[:, k] > domain[k][1])
+        is_outside = np.logical_or(is_outside, o)
+    return is_outside
+
+
+def remove_redundant_points(X, tol=1e-4, output_discard=False):
+    X = np.atleast_2d(X)
+    discard = np.zeros(len(X), dtype=bool)
+    if X.shape[0] > 1:
+        dist = pdist(X)
+        for i in range(len(X)):
+            for j in range(i + 1, len(X)):
+                if dist[index_condensed_matrix(len(X), i, j)] < tol:
+                    discard[j] = True
+        X = X[~discard]
+    if output_discard:
+        return X, discard
+    else:
+        return X
+
+
+def find_fixed_points(X0, func_vf, domain=None, tol_redundant=1e-4):
+    X = []
+    J = []
+    fval = []
+    for x0 in X0:
+        x, info_dict, _, _ = fsolve(func_vf, x0, full_output=True)
+
+        outside = is_outside(x[None, :], domain)[0] if domain is not None else False
+        if not outside:
+            fval.append(info_dict["fvec"])
+            # compute Jacobian
+            Q = info_dict["fjac"]
+            R = form_triu_matrix(info_dict["r"])
+            J.append(Q.T @ R)
+            X.append(x)
+    X = np.array(X)
+    J = np.array(J)
+    fval = np.array(fval)
+
+    if tol_redundant is not None:
+        X, discard = remove_redundant_points(X, tol_redundant, output_discard=True)
+        J = J[~discard]
+        fval = fval[~discard]
+
+    return X, J, fval
+
+
+class FixedPoints:
+    def __init__(self, X=None, J=None):
+        self.X = X if X is not None else []
+        self.J = J if J is not None else []
+        self.eigvals = []
+
+    def get_X(self):
+        return np.array(self.X)
+
+    def get_J(self):
+        return np.array(self.J)
+
+    def add_fixed_points(self, X, J, tol_redundant=1e-4):
+        for i, x in enumerate(X):
+            redundant = False
+            if tol_redundant is not None and len(self.X) > 0:
+                for y in self.X:
+                    if np.linalg.norm(x - y) <= tol_redundant:
+                        redundant = True
+            if not redundant:
+                self.X.append(x)
+                self.J.append(J[i])
+
+    def compute_eigvals(self):
+        self.eigvals = []
+        for i in range(len(self.J)):
+            w, _ = eig(self.J[i])
+            self.eigvals.append(w)
+
+    def is_stable(self):
+        if len(self.eigvals) != len(self.X):
+            self.compute_eigvals()
+
+        stable = np.ones(len(self.eigvals), dtype=bool)
+        for i, w in enumerate(self.eigvals):
+            if np.any(np.real(w) >= 0):
+                stable[i] = False
+        return stable
+
+    def is_saddle(self):
+        is_stable = self.is_stable()
+        saddle = np.zeros(len(self.eigvals), dtype=bool)
+        for i, w in enumerate(self.eigvals):
+            if not is_stable[i] and np.any(np.real(w) < 0):
+                saddle[i] = True
+        return saddle, is_stable
+
+    def get_fixed_point_types(self):
+        is_saddle, is_stable = self.is_saddle()
+        # -1 -- stable, 0 -- saddle, 1 -- unstable
+        ftype = np.ones(len(self.X))
+        for i in range(len(ftype)):
+            if is_saddle[i]:
+                ftype[i] = 0
+            elif is_stable[i]:
+                ftype[i] = -1
+        return ftype
 
 # ---------------------------------------------------------------------------------------------------
 # data retrieval related utilies

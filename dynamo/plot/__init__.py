@@ -36,6 +36,7 @@ from .scVectorField import (
 from .streamtube import plot_3d_streamtube
 from .topography import (
     plot_flow_field,
+    plot_fixed_points_2d,
     plot_fixed_points,
     plot_nullclines,
     plot_separatrix,

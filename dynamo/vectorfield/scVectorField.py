@@ -1,3 +1,4 @@
+from logging import raiseExceptions
 from tqdm import tqdm
 import numpy.matlib
 from numpy import format_float_scientific as scinot
@@ -10,7 +11,7 @@ from multiprocessing.dummy import Pool as ThreadPool
 import itertools, functools
 import warnings
 import time
-from ..tools.sampling import sample_by_velocity
+from ..tools.sampling import sample_by_velocity, sample
 from ..tools.utils import (
     update_dict,
     update_n_merge_dict,
@@ -33,6 +34,8 @@ from .utils import (
     Jacobian_rkhs_gaussian,
     Jacobian_rkhs_gaussian_parallel,
     vecfld_from_adata,
+    find_fixed_points,
+    FixedPoints,
 )
 from ..dynamo_logger import LoggerManager
 
@@ -541,6 +544,7 @@ class base_vectorfield:
         super().__init__(**kwargs)
         self.vf_dict = {}
         self.func = None
+        self.fixed_points = None
 
     def construct_graph(self, X=None, **kwargs):
         X = self.data["X"] if X is None else X
@@ -562,6 +566,44 @@ class base_vectorfield:
     def get_data(self):
         return self.data["X"], self.data["V"]
 
+    def find_fixed_points(self, n_x0=100, X0=None, domain=None, sampling_method='random', **kwargs):
+        """
+        Search for fixed points of the vector field function.
+
+        """
+        if self.data is None and X0 is None:
+            raise Exception(f'The initial points `X0` are not provided, '
+                f'and no data is stored in the vector field for the sampling of initial points.')
+        elif X0 is None:
+            indices = sample(np.arange(len(self.data['X'])), n_x0, method=sampling_method)
+            X0 = self.data['X'][indices]
+        
+        if domain is None and self.data is not None:
+            domain = np.vstack((np.min(self.data['X'], axis=0), np.max(self.data['X'], axis=0))).T
+
+        X, J, _ = find_fixed_points(X0, self.func, domain=domain, **kwargs)
+        self.fixed_points = FixedPoints(X, J)
+
+    def get_fixed_points(self, **kwargs):
+        """
+        Get fixed points of the vector field function.
+        
+        Returns
+        -------
+            Xss: :class:`~numpy.ndarray`
+                Coordinates of the fixed points.
+            ftype: :class:`~numpy.ndarray`
+                Types of the fixed points:
+                -1 -- stable, 
+                 0 -- saddle, 
+                 1 -- unstable
+        """
+        if self.fixed_points is None:
+            self.find_fixed_points(**kwargs)
+        
+        Xss = self.fixed_points.get_X()
+        ftype = self.fixed_points.get_fixed_point_types()
+        return Xss, ftype
 
 class svc_vectorfield(base_vectorfield):
     def __init__(self, X=None, V=None, Grid=None, *args, **kwargs):
@@ -569,13 +611,13 @@ class svc_vectorfield(base_vectorfield):
 
         Parameters
         ----------
-        X: 'np.ndarray' (dimension: n_obs x n_features)
+        X: :class:`~numpy.ndarray` (dimension: n_obs x n_features)
                 Original data.
-        V: 'np.ndarray' (dimension: n_obs x n_features)
+        V: :class:`~numpy.ndarray` (dimension: n_obs x n_features)
                 Velocities of cells in the same order and dimension of X.
-        Grid: 'np.ndarray'
+        Grid: :class:`~numpy.ndarray`
                 The function that returns diffusion matrix which can be dependent on the variables (for example, genes)
-        M: 'int' (default: None)
+        M: `int` (default: None)
             The number of basis functions to approximate the vector field. By default it is calculated as
             `min(len(X), int(1500 * np.log(len(X)) / (np.log(len(X)) + np.log(100))))`. So that any datasets with less
             than  about 900 data points (cells) will use full data for vector field reconstruction while any dataset
@@ -603,9 +645,9 @@ class svc_vectorfield(base_vectorfield):
         div_cur_free_kernels: `bool` (default: False)
             A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the vector
             field.
-        sigma: 'int'
+        sigma: `int`
             Bandwidth parameter.
-        eta: 'int'
+        eta: `int`
             Combination coefficient for the divergence-free or the curl-free kernels.
         seed : int or 1-d array_like, optional (default: `0`)
             Seed for RandomState. Must be convertible to 32 bit unsigned integers. Used in sampling control points. Default
