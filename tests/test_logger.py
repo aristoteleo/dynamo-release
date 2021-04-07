@@ -77,7 +77,7 @@ def test_zebrafish_topography_tutorial_logger():
 
 def test_cell_cycle_score_logger_pancreatic_endocrinogenesis():
     adata = dyn.sample_data.pancreatic_endocrinogenesis()
-    adata = adata[:500]
+    adata = adata[:1000]
     dyn.pp.recipe_monocle(
         adata,
         n_top_genes=1000,
@@ -93,6 +93,6 @@ if __name__ == "__main__":
     # test_logger_simple_progress_naive(LoggerManager.get_main_logger())
     # test_logger_simple_progress_logger(LoggerManager.get_main_logger())
     # test_logger_simple_progress_logger(LoggerManager.get_temp_timer_logger())
-    test_vectorField_logger()
-    test_zebrafish_topography_tutorial_logger()
+    # test_vectorField_logger()
+    # test_zebrafish_topography_tutorial_logger()
     test_cell_cycle_score_logger_pancreatic_endocrinogenesis()

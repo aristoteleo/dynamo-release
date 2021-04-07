@@ -11,14 +11,14 @@ from typing import Union
 from ..utils import copy_annData, LoggerManager
 
 
-def group_corr(adata: AnnData, gene_list: list, layer: Union[str, None] = None) -> tuple:
+def group_corr(adata: AnnData, layer: Union[str, None], gene_list: list) -> tuple:
     """Measures the correlation of all genes within a list to the average expression of all genes within that
     list (used for cell cycle position calling)
 
     Arguments
     ---------
         adata: an anndata object.
-        layer: `str` or None (default: `None`)
+        layer: `str` or None
             The layer of data to use for calculating correlation. If None, use adata.X.
         gene_list: list of gene names
 
@@ -62,7 +62,7 @@ def refine_gene_list(
     Parameters
     ----------
         adata: an anndata object.
-        layer: `str` or None (default: `None`)
+        layer: `str` or None
             The layer of data to use for calculating correlation. If None, use adata.X.
         gene_list: list of gene names
         threshold: threshold on correlation coefficient used to discard genes (expression of each gene is
@@ -82,14 +82,14 @@ def refine_gene_list(
         return gene_list[corrs >= threshold]
 
 
-def group_score(adata: AnnData, gene_list: list, layer: Union[str, None] = None):
+def group_score(adata: AnnData, layer: Union[str, None], gene_list: list):
     """Scores cells within population for expression of a set of genes. Raw expression data are first
     log transformed, then the values are summed, and then scores are Z-normalized across all cells.
 
     Arguments
     ---------
         adata: an anndata object.
-        layer: `str` or None (default: `None`)
+        layer: `str` or None
             The layer of data to use for calculating correlation. If None, use adata.X.
         gene_list: list of gene names
 
@@ -126,7 +126,7 @@ def group_score(adata: AnnData, gene_list: list, layer: Union[str, None] = None)
     return scores
 
 
-def batch_group_score(adata: AnnData, gene_list: list, layer: Union[str, None] = None) -> OrderedDict:
+def batch_group_score(adata: AnnData, layer: Union[str, None], gene_lists: list) -> OrderedDict:
     """Scores cells within population for expression of sets of genes. Raw expression data are first
     log transformed, then the values are summed, and then scores are Z-normalized across all cells.
     Returns an OrderedDict of each score.
@@ -134,7 +134,7 @@ def batch_group_score(adata: AnnData, gene_list: list, layer: Union[str, None] =
     Arguments
     ---------
         adata: an anndata object.
-        layer: `str` or None (default: `None`)
+        layer: `str` or None
             The layer of data to use for calculating correlation. If None, use adata.X.
         gene_lists: list of lists of gene names
 
