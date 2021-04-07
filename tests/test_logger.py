@@ -42,6 +42,7 @@ def test_logger_simple_progress_logger(test_logger):
 # the reason seems to be related compatibility of pytest and numba
 def test_vectorField_logger():
     adata = dyn.sample_data.zebrafish()
+    adata = adata[:500]
     dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_max=0.005)
     dyn.tl.dynamics(adata, model="stochastic", cores=8)
     dyn.tl.reduceDimension(adata, n_pca_components=5, enforce=True)
@@ -59,6 +60,7 @@ def test_vectorField_logger():
 
 def test_zebrafish_topography_tutorial_logger():
     adata = dyn.sample_data.zebrafish()
+    adata = adata[:500]
     dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_max=0.005)
     dyn.tl.dynamics(adata, model="stochastic", cores=8)
     dyn.tl.reduceDimension(adata, n_pca_components=5, enforce=True)
@@ -75,6 +77,7 @@ def test_zebrafish_topography_tutorial_logger():
 
 def test_cell_cycle_score_logger_pancreatic_endocrinogenesis():
     adata = dyn.sample_data.pancreatic_endocrinogenesis()
+    adata = adata[:500]
     dyn.pp.recipe_monocle(
         adata,
         n_top_genes=1000,
@@ -90,6 +93,6 @@ if __name__ == "__main__":
     # test_logger_simple_progress_naive(LoggerManager.get_main_logger())
     # test_logger_simple_progress_logger(LoggerManager.get_main_logger())
     # test_logger_simple_progress_logger(LoggerManager.get_temp_timer_logger())
-    # test_vectorField_logger()
-    # test_zebrafish_topography_tutorial_logger()
+    test_vectorField_logger()
+    test_zebrafish_topography_tutorial_logger()
     test_cell_cycle_score_logger_pancreatic_endocrinogenesis()

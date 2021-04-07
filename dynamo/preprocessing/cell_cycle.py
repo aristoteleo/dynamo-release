@@ -11,7 +11,7 @@ from typing import Union
 from ..utils import copy_annData, LoggerManager
 
 
-def group_corr(adata, layer, gene_list):
+def group_corr(adata: AnnData, gene_list: list, layer: Union[str, None] = None) -> tuple:
     """Measures the correlation of all genes within a list to the average expression of all genes within that
     list (used for cell cycle position calling)
 
@@ -53,7 +53,9 @@ def group_corr(adata, layer, gene_list):
     return np.array(adata.var.index[intersect_genes]), cor.flatten()
 
 
-def refine_gene_list(adata, layer, gene_list, threshold, return_corrs=False):
+def refine_gene_list(
+    adata: AnnData, layer: Union[str, None], gene_list: list, threshold: Union[float, None], return_corrs: bool = False
+) -> list:
     """Refines a list of genes by removing those that don't correlate well with the average expression of
     those genes
 
@@ -80,7 +82,7 @@ def refine_gene_list(adata, layer, gene_list, threshold, return_corrs=False):
         return gene_list[corrs >= threshold]
 
 
-def group_score(adata, layer, gene_list):
+def group_score(adata: AnnData, gene_list: list, layer: Union[str, None] = None):
     """Scores cells within population for expression of a set of genes. Raw expression data are first
     log transformed, then the values are summed, and then scores are Z-normalized across all cells.
 
@@ -124,7 +126,7 @@ def group_score(adata, layer, gene_list):
     return scores
 
 
-def batch_group_score(adata, layer, gene_lists):
+def batch_group_score(adata: AnnData, gene_list: list, layer: Union[str, None] = None) -> OrderedDict:
     """Scores cells within population for expression of sets of genes. Raw expression data are first
     log transformed, then the values are summed, and then scores are Z-normalized across all cells.
     Returns an OrderedDict of each score.
@@ -147,7 +149,9 @@ def batch_group_score(adata, layer, gene_lists):
     return batch_scores
 
 
-def get_cell_phase_genes(adata, layer, refine=True, threshold=0.3):
+def get_cell_phase_genes(
+    adata: AnnData, layer: Union[str, None], refine: bool = True, threshold: Union[float, None] = 0.3
+) -> list:
     """Returns a list of cell-cycle-regulated marker genes, filtered for coherence
 
     Arguments
@@ -380,12 +384,18 @@ def get_cell_phase_genes(adata, layer, refine=True, threshold=0.3):
     return cell_phase_genes
 
 
-def get_cell_phase(adata, layer=None, gene_list=None, refine=True, threshold=0.3):
+def get_cell_phase(
+    adata: AnnData,
+    layer: str = None,
+    gene_list: Union[OrderedDict, None] = None,
+    refine: bool = True,
+    threshold: Union[float, None] = 0.3,
+) -> pd.DataFrame:
     """Compute cell cycle phase scores for cells in the population
 
     Arguments
     ---------
-        adata: an anndata object.
+        adata: `AnnData`.
         layer: `str` or None (default: `None`)
             The layer of data to use for calculating correlation. If None, use adata.X.
         gene_list: `OrderedDict` or None (default: `None`)
