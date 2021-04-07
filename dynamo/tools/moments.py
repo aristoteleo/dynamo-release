@@ -3,25 +3,31 @@ import warnings
 from anndata import AnnData
 from scipy.sparse import issparse, csr_matrix, lil_matrix, diags
 from tqdm import tqdm
+from anndata import AnnData
+from typing import Union
+
 from .utils import get_mapper, elem_prod, inverse_norm
 from .connectivity import mnn, normalize_knn_graph, umap_conn_indices_dist_embedding
 from ..preprocessing.utils import get_layer_keys, allowed_X_layer_names, pca
+from ..dynamo_logger import LoggerManager
 
 
 # ---------------------------------------------------------------------------------------------------
 # use for calculating moments for stochastic model:
 def moments(
-    adata,
-    genes=None,
-    group=None,
-    conn=None,
-    use_gaussian_kernel=False,
-    normalize=True,
-    use_mnn=False,
-    layers="all",
-    n_pca_components=30,
-    n_neighbors=30,
-):
+    adata: AnnData,
+    X_data: np.ndarray = None,
+    genes: Union[list, None] = None,
+    group: Union[str, None] = None,
+    conn: Union[csr_matrix, None] = None,
+    use_gaussian_kernel: bool = False,
+    normalize: bool = True,
+    use_mnn: bool = False,
+    layers: str = "all",
+    n_pca_components: int = 30,
+    n_neighbors: int = 30,
+    copy: bool = False,
+) -> Union[AnnData, None]:
     """Calculate kNN based first and second moments (including uncentered covariance) for
      different layers of data.
 
@@ -29,6 +35,8 @@ def moments(
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object.
+        X_data: `np.ndarray` (default: `None`)
+            The user supplied data that will be used for constructing the nearest neighbor graph directly.
         genes: `np.array` (default: `None`)
             The one-dimensional numpy array of the genes that you want to perform pca analysis (if adata.obsm['X'] is not
             available). `X` keyname (instead of `X_pca`) was used to enable you use a different set of genes for flexible
@@ -58,9 +66,22 @@ def moments(
 
     Returns
     -------
-        adata: :class:`~anndata.AnnData`
-            An updated AnnData object with calculated first/second moments (including uncentered covariance) included.
-    """
+         adata: :class:`Union[AnnData, None]`
+            If `copy` is set to False, `annData` object is updated with with calculated first/second moments (including
+                uncentered covariance)
+            If `copy` is set to True, a deep copy of the original `adata` object is returned.
+   """
+    logger = LoggerManager.gen_logger("dynamo-moments")
+    logger.info("calculating first/second moments begins...", indent_level=1)
+    logger.log_time()
+
+    if copy:
+        logger.info(
+            "Deep copying AnnData object and working on the new copy. Original AnnData object will not be modified.",
+            indent_level=1,
+        )
+        adata = adata.copy()
+
     mapper = get_mapper()
     only_splicing, only_labeling, splicing_and_labeling = allowed_X_layer_names()
 
@@ -78,24 +99,27 @@ def moments(
                 )
             conn = adata.uns["mnn"]
         else:
-            if "X" not in adata.obsm.keys():
-                if not any([i.startswith("X_") for i in adata.layers.keys()]):
-                    from ..preprocessing.preprocess import recipe_monocle
+            if X_data is not None:
+                X = X_data
+            else:
+                if "X" not in adata.obsm.keys():
+                    if not any([i.startswith("X_") for i in adata.layers.keys()]):
+                        from ..preprocessing.preprocess import recipe_monocle
 
-                    genes_to_use = adata.var_names[genes] if genes.dtype == "bool" else genes
-                    adata = recipe_monocle(adata, genes_to_use=genes_to_use, num_dim=n_pca_components)
-                    adata.obsm["X"] = adata.obsm["X_pca"]
-                else:
-                    CM = adata.X if genes is None else adata[:, genes].X
-                    cm_genesums = CM.sum(axis=0)
-                    valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
-                    valid_ind = np.array(valid_ind).flatten()
-                    CM = CM[:, valid_ind]
-                    adata, fit, _ = pca(adata, CM, n_pca_components=n_pca_components)
+                        genes_to_use = adata.var_names[genes] if genes.dtype == "bool" else genes
+                        adata = recipe_monocle(adata, genes_to_use=genes_to_use, num_dim=n_pca_components)
+                        adata.obsm["X"] = adata.obsm["X_pca"]
+                    else:
+                        CM = adata.X if genes is None else adata[:, genes].X
+                        cm_genesums = CM.sum(axis=0)
+                        valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
+                        valid_ind = np.array(valid_ind).flatten()
+                        CM = CM[:, valid_ind]
+                        adata, fit, _ = pca(adata, CM, n_pca_components=n_pca_components)
 
-                    adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
+                        adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
-            X = adata.obsm["X"][:, :n_pca_components]
+                X = adata.obsm["X"][:, :n_pca_components]
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
@@ -180,7 +204,11 @@ def moments(
         adata.obsm[mapper["X_protein"]] = conn.dot(adata.obsm["X_protein"])
     adata.obsp["moments_con"] = conn
 
-    return adata
+    logger.finish_progress("moments calculation")
+
+    if copy:
+        return adata
+    return None
 
 
 def time_moment(
