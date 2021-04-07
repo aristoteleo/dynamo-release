@@ -287,7 +287,7 @@ def cluster_community_adata(adata, method="louvain", no_community_label=-1, **kw
     [type]
         [description]
     """
-    result_key = "%s_communities" % (method)
+    result_key = "%s_community" % (method)
     graph_sparse_matrix = adata.obsp["connectivities"]
     community_result = cluster_community_from_graph(method=method, graph_sparse_matrix=graph_sparse_matrix, **kwargs)
 

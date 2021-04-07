@@ -75,3 +75,5 @@ from .ezplots import (
     SchemeDiverge,
     SchemeDivergeBWR,
 )
+
+from .clustering_community import louvain, leiden

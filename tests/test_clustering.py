@@ -26,7 +26,11 @@ def gen_test_data():
 
 def test_simple_cluster_community_adata(adata):
     dyn.tl.cluster_community_adata(adata, method="louvain")
-    assert np.all(adata.obs["louvain_communities"] != -1)
+    dyn.tl.cluster_community_adata(adata, method="leiden")
+    assert np.all(adata.obs["louvain_community"] != -1)
+    assert np.all(adata.obs["leiden_community"] != -1)
+    dyn.pl.louvain(adata, basis="pca")
+    dyn.pl.leiden(adata, basis="pca")
 
 
 def test_simple_cluster_field(adata):
@@ -35,9 +39,13 @@ def test_simple_cluster_field(adata):
 
 
 if __name__ == "__main__":
+    # generate data if needed
+    # gen_test_data()
+
+    # To-do: use a fixture in future
     adata = dyn.read_h5ad(test_data_path)
-    print(adata)
     # select a subset of adata for testing
 
+    ######### testing begins here #########
     test_simple_cluster_community_adata(adata)
     # test_simple_cluster_field(adata)
