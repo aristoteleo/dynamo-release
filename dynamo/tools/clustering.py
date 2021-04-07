@@ -270,7 +270,9 @@ def leiden(adata, **kwargs):
     cluster_community_adata(adata, method="leiden", **kwargs)
 
 
-def cluster_community_adata(adata, method="louvain", no_community_label=-1, **kwargs):
+def cluster_community_adata(
+    adata, method="louvain", graph_matrix_key="connectivities", no_community_label=-1, **kwargs
+):
     """Detect communities and insert data into adata.
 
     Parameters
@@ -279,6 +281,8 @@ def cluster_community_adata(adata, method="louvain", no_community_label=-1, **kw
         [description]
     method : str, optional
         [description], by default "louvain"
+    graph_matrix_key : str, optional
+        [description], by default "connectivities"
     no_community_label : int, optional
         [description], by default -1
 
@@ -288,7 +292,7 @@ def cluster_community_adata(adata, method="louvain", no_community_label=-1, **kw
         [description]
     """
     result_key = "%s_community" % (method)
-    graph_sparse_matrix = adata.obsp["connectivities"]
+    graph_sparse_matrix = adata.obsp[graph_matrix_key]
     community_result = cluster_community_from_graph(method=method, graph_sparse_matrix=graph_sparse_matrix, **kwargs)
 
     labels = np.zeros(len(adata), dtype=int) + no_community_label
