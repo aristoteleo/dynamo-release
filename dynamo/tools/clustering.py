@@ -273,12 +273,19 @@ def leiden(adata, **kwargs):
 def cluster_community_adata(adata, method="louvain", no_community_label=-1, **kwargs):
     """Detect communities and insert data into adata.
 
-    Args:
-        adata ([type]): [description]
-        method (str, optional): [description]. Defaults to "louvain".
+    Parameters
+    ----------
+    adata : [type]
+        [description]
+    method : str, optional
+        [description], by default "louvain"
+    no_community_label : int, optional
+        [description], by default -1
 
-    Returns:
-        [type]: [description]
+    Returns
+    -------
+    [type]
+        [description]
     """
     result_key = "%s_communities" % (method)
     graph_sparse_matrix = adata.obsp["connectivities"]
@@ -295,19 +302,30 @@ def cluster_community_adata(adata, method="louvain", no_community_label=-1, **kw
 def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="louvain", **kwargs):
     """Detect communities based on graph inputs and selected methods with arguments passed in kwargs.
 
-    Args:
-        graph ([type], optional): [description]. Defaults to None.
-        graph_sparse_matrix ([type], optional): [description]. Defaults to None.
-        method (str, optional): [description]. Defaults to "louvain".
+    Parameters
+    ----------
+    graph : [type], optional
+        [description], by default None
+    graph_sparse_matrix : [type], optional
+        [description], by default None
+    method : str, optional
+        [description], by default "louvain"
 
-    Raises:
-        ImportError: Missing libraries
-        ValueError: No valid graph input found
-        NotImplementedError: Method not supported
+    Returns
+    -------
+    [type]
+        NodeClustering Object from CDlib
 
-    Returns:
-        [type]: NodeClustering Object from CDlib
+    Raises
+    ------
+    ImportError
+        [description]
+    ValueError
+        [description]
+    NotImplementedError
+        [description]
     """
+
     try:
         import cdlib
         import networkx as nx
