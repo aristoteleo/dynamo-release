@@ -2,6 +2,7 @@ from hdbscan import HDBSCAN
 from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import csr_matrix
 import numpy as np
+from anndata import AnnData
 
 from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 from .utils import update_dict
@@ -262,16 +263,64 @@ def cluster_field(adata, basis="pca", embedding_basis=None, normalize=True, meth
             leiden_coms = cluster_community_from_graph(method="leiden", graph_sparse_matrix=graph)
 
 
-def louvain(adata, **kwargs):
-    cluster_community_adata(adata, method="louvain", **kwargs)
+def louvain(
+    adata, resolution=1.0, adj_sparse_matrix=None, weight="weight", randomize=False, result_key=None, **kwargs
+) -> AnnData:
+    """[summary]
+
+    Parameters
+    ----------
+    adata : [type]
+        [description]
+    resolution : float, optional
+        [description], by default 1.0
+    adj_sparse_matrix : [type], optional
+        [description], by default None
+    weight : str, optional
+        [description], by default "weight"
+    randomize : bool, optional
+        randomize – boolean, from CDlib: "randomize the node evaluation order and the community evaluation order to get different partitions at each call, by default False"
+    result_key : [type], optional
+        [description], by default None
+
+    Returns
+    -------
+    AnnData
+        [description]
+    """
+    kwargs.update(
+        {
+            "resolution": resolution,
+            "weight": weight,
+            "randomize": randomize,
+        }
+    )
+    cluster_community(adata, method="louvain", result_key=result_key, **kwargs)
 
 
-def leiden(adata, **kwargs):
-    cluster_community_adata(adata, method="leiden", **kwargs)
+def leiden(adata, adj_sparse_matrix=None, weight="weight", result_key=None, **kwargs) -> AnnData:
+    kwargs.update(
+        {
+            "weight": weight,
+        }
+    )
+    cluster_community(adata, method="leiden", result_key=result_key, **kwargs)
 
 
-def cluster_community_adata(
-    adata, method="louvain", graph_matrix_key="connectivities", no_community_label=-1, **kwargs
+def infomap(adata, adj_sparse_matrix=None, result_key=None, **kwargs) -> AnnData:
+    kwargs.update({})
+    cluster_community(adata, method="infomap", result_key=result_key, **kwargs)
+
+
+def cluster_community(
+    adata,
+    method="louvain",
+    result_key=None,
+    adj_or_weight_matrix=None,
+    adj_or_weight_matrix_key="connectivities",
+    use_weight=False,
+    no_community_label=-1,
+    **kwargs
 ):
     """Detect communities and insert data into adata.
 
@@ -291,8 +340,9 @@ def cluster_community_adata(
     [type]
         [description]
     """
-    result_key = "%s_community" % (method)
-    graph_sparse_matrix = adata.obsp[graph_matrix_key]
+    if result_key is None:
+        result_key = "%s_community" % (method)
+    graph_sparse_matrix = adata.obsp[adj_or_weight_matrix_key]
     community_result = cluster_community_from_graph(method=method, graph_sparse_matrix=graph_sparse_matrix, **kwargs)
 
     labels = np.zeros(len(adata), dtype=int) + no_community_label
@@ -347,15 +397,18 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
         raise ValueError("Expected graph inputs are invalid")
 
     if method == "louvain":
-        resolution = 1.0
-        weight = "weight"
-        if "resolution" in kwargs:
-            resolution = kwargs["resolution"]
-        if "weight" in kwargs:
-            weight = kwargs["weight"]
-        graph = graph.to_undirected()
-        coms = algorithms.louvain(graph, weight=weight, resolution=resolution)
+        if "resolution" not in kwargs:
+            raise KeyError("resolution not in louvain input parameters")
+        if "weight" not in kwargs:
+            raise KeyError("weight not in louvain input parameters")
+        if "randomize" not in kwargs:
+            raise KeyError("randomize not in louvain input parameters")
 
+        resolution = kwargs["resolution"]
+        weight = kwargs["weight"]
+        randomize = kwargs["randomize"]
+        graph = graph.to_undirected()
+        coms = algorithms.louvain(graph, weight=weight, resolution=resolution, randomize=randomize)
     elif method == "leiden":
         initial_membership, weights = None, None
         if "initial_membership" in kwargs:
@@ -364,6 +417,8 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
             weights = kwargs["weights"]
         graph = graph.to_directed()
         coms = algorithms.leiden(graph, weights=weights, initial_membership=initial_membership)
+    elif method == "infomap":
+        coms = algorithms.infomap(graph)
     else:
         raise NotImplementedError("clustering algorithm not implemented yet")
     return coms
