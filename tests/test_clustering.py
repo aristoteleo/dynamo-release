@@ -4,6 +4,7 @@ import dynamo as dyn
 import pytest
 import time
 import numpy as np
+import os
 
 
 test_data_path = "test_clustering_zebrafish.h5ad"
@@ -40,12 +41,16 @@ def test_simple_cluster_field(adata):
 
 if __name__ == "__main__":
     # generate data if needed
-    # gen_test_data()
+    if not os.path.exists(test_data_path):
+        print("generating test data...")
+        gen_test_data()
 
+    print("reading test data...")
     # To-do: use a fixture in future
     adata = dyn.read_h5ad(test_data_path)
     # select a subset of adata for testing
 
+    print("tests begin...")
     ######### testing begins here #########
     test_simple_cluster_community_adata(adata)
     # test_simple_cluster_field(adata)
