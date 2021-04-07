@@ -416,8 +416,10 @@ def plot_fixed_points(
         ax: :class:`~matplotlib.axes.Axes`
             The matplotlib axes used for plotting. Default is to use the current axis.
         kwargs:
-            Key word arguments passed to the find_fixed_point function of the vector field class.
+            Key word arguments passed to the find_fixed_point function of the vector field class for high dimension fixed
+            point identification.
     """
+
     import matplotlib
     from matplotlib import rcParams, markers
     import matplotlib.patheffects as PathEffects
@@ -438,6 +440,7 @@ def plot_fixed_points(
     Xss, ftype = vecfld.get_fixed_points(**kwargs)
     if Xss.shape[1] > 2:
         fp_ind = nearest_neighbors(Xss, vecfld.data['X'], 1).flatten()
+        # fix the bug when certain cells are filtered during the vector field learning
         Xss = adata.obsm[basis][fp_ind]
 
     if ax is None:
