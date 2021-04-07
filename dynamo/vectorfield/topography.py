@@ -17,6 +17,7 @@ from ..tools.utils import (
     update_dict,
     inverse_norm,
     gaussian_1d,
+    nearest_neighbors,
 )
 
 from .utils import (
@@ -350,7 +351,15 @@ class VectorField2D:
         return dict_vf
 
 
-def topography(adata, basis="umap", layer=None, X=None, dims=None, n=25, VecFld=None):
+def topography(adata,
+               basis="umap",
+               layer=None,
+               X=None,
+               dims=None,
+               n=25,
+               VecFld=None,
+               **kwargs,
+    ):
     """Map the topography of the single cell vector field in (first) two dimensions.
 
     Parameters
@@ -370,6 +379,9 @@ def topography(adata, basis="umap", layer=None, X=None, dims=None, n=25, VecFld=
             Number of samples for calculating the fixed points.
         VecFld: `dictionary` or None (default: None)
             The reconstructed vector field function.
+        kwargs:
+            Key word arguments passed to the find_fixed_point function of the vector field class for high dimension fixed
+            point identification.
 
     Returns
     -------
@@ -393,41 +405,53 @@ def topography(adata, basis="umap", layer=None, X=None, dims=None, n=25, VecFld=
                 return vector_field_function(x, VecFld)
 
     if dims is None:
-        dims = [0, 1]
+        dims = [0, 1] if basis not in ['pca', 'ica'] else np.arange(adata.obsm['X_' + basis].shape[1])
     X_basis = adata.obsm["X_" + basis][:, dims] if X is None else X[:, dims]
-    min_, max_ = X_basis.min(0), X_basis.max(0)
 
-    xlim = [min_[0] - (max_[0] - min_[0]) * 0.1, max_[0] + (max_[0] - min_[0]) * 0.1]
-    ylim = [min_[1] - (max_[1] - min_[1]) * 0.1, max_[1] + (max_[1] - min_[1]) * 0.1]
+    if X_basis.shape[1] == 2:
+        min_, max_ = X_basis.min(0), X_basis.max(0)
 
-    vecfld = VectorField2D(func, X_data=X_basis)
-    vecfld.find_fixed_points_by_sampling(n, xlim, ylim)
-    if vecfld.get_num_fixed_points() > 0:
-        vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
+        xlim = [min_[0] - (max_[0] - min_[0]) * 0.1, max_[0] + (max_[0] - min_[0]) * 0.1]
+        ylim = [min_[1] - (max_[1] - min_[1]) * 0.1, max_[1] + (max_[1] - min_[1]) * 0.1]
+
+        vecfld = VectorField2D(func, X_data=X_basis)
+        vecfld.find_fixed_points_by_sampling(n, xlim, ylim)
+        if vecfld.get_num_fixed_points() > 0:
+            vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
+    else:
+        Xss, ftype = VecFld.get_fixed_points(**kwargs)
+        if Xss.shape[1] > 2:
+            fp_ind = nearest_neighbors(Xss, VecFld.data['X'], 1).flatten()
+            Xss = VecFld.data['X'][fp_ind]
+
+    # commented for now, will go back to this later.
     # sep = compute_separatrices(vecfld.Xss.get_X(), vecfld.Xss.get_J(), vecfld.func, xlim, ylim)
-    #
 
     if layer is None:
-        if "VecFld_" + basis in adata.uns_keys():
-            adata.uns["VecFld_" + basis].update({"VecFld": VecFld, "VecFld2D": vecfld, "xlim": xlim, "ylim": ylim})
-        else:
-            adata.uns["VecFld_" + basis] = {
-                "VecFld": VecFld,
-                "VecFld2D": vecfld,
-                "xlim": xlim,
-                "ylim": ylim,
-            }
+        vf_key = "VecFld_" + basis
     else:
         vf_key = "VecFld" if layer == "X" else "VecFld_" + layer
-        if "VecFld" in adata.uns_keys():
-            adata.uns[vf_key].update({"VecFld": VecFld, "VecFld2D": vecfld, "xlim": xlim, "ylim": ylim})
-        else:
-            adata.uns[vf_key] = {
-                "VecFld": VecFld,
-                "VecFld2D": vecfld,
-                "xlim": xlim,
-                "ylim": ylim,
-            }
+
+    if vf_key in adata.uns_keys():
+        adata.uns[vf_key].update({
+            "xlim": xlim,
+            "ylim": ylim,
+            "X_data": X_basis,
+            "fixedpoints": Xss,
+            "nullcline": None,
+            "separatrices": None,
+        })
+    else:
+        adata.uns[vf_key] = {
+            "xlim": xlim,
+            "ylim": ylim,
+            "X_data": X_basis,
+            "fixedpoints": Xss,
+            "nullcline": None,
+            "separatrices": None,
+        }
+
+    # need to save those fixed point inform, etc.
 
     return adata
 
@@ -495,7 +519,9 @@ def VectorField(
             Whether or not to include an instance of a vectorfield class in the the `VecFld` dictionary in the `uns`
             attribute.
         map_topography:
-            Whether to quantify the topography of the 2D vector field.
+            Whether to quantify the topography of vector field. Note that for higher than 2D vector field, we can only
+            identify fixed points as high-dimensional nullcline and separatrices are mathematically difficult to be
+            identified. Nullcline and separatrices will also be a surface or manifold in high-dimensional vector field.
         pot_curl_div:
             Whether to calculate potential, curl or divergence for each cell. Potential can be calculated for any basis
             while curl and divergence is by default only applied to 2D basis. However, divergence is applicable for any
@@ -695,7 +721,7 @@ def VectorField(
         logger.info_insert_adata(vf_key, adata_attr="uns")
         adata.uns[vf_key] = vf_dict
 
-    if X.shape[1] == 2 and map_topography:
+    if map_topography:
         tp_kwargs = {"n": 25}
         tp_kwargs = update_dict(tp_kwargs, kwargs)
 
@@ -703,7 +729,7 @@ def VectorField(
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
 
-            adata = topography(adata, basis=basis, X=X, layer=layer, dims=[0, 1], VecFld=vf_dict, **tp_kwargs)
+            adata = topography(adata, basis=basis, X=X, layer=layer, dims=None, VecFld=vf_dict, **tp_kwargs)
     if pot_curl_div:
         if basis in ["pca", "umap", "tsne", "diffusion_map", "trimap"]:
             logger.info("Running ddhodge to estimate vector field based pseudotime...")

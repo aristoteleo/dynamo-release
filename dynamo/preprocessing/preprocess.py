@@ -46,6 +46,7 @@ def szFactor(
     method: str = "median",
     scale_to: Union[float, None] = None,
     use_all_genes_cells: bool = True,
+    genes_as_for_norm: Union[list, None] = None,
 ) -> AnnData:
     """Calculate the size factor of the each cell using geometric mean of total UMI across cells for a AnnData object.
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
@@ -74,6 +75,10 @@ def szFactor(
             The final total expression for each cell that will be scaled to.
         use_all_genes_cells: `bool` (default: `True`)
             A logic flag to determine whether all cells and genes should be used for the size factor calculation.
+        genes_as_for_norm: `list` (default: `None`)
+            A list of gene names that will be used to calculate total RNA for each cell and then the size factor for
+            normalization. This is often very useful when you want to use only the host genes to normalize the dataset
+            in a virus infection experiment (i.e. CMV or SARS-CoV-2 infection).
 
     Returns
     -------
@@ -81,7 +86,10 @@ def szFactor(
             An updated anndata object that are updated with the `Size_Factor` (`layer_` + `Size_Factor`) column(s) in the obs attribute.
     """
     if use_all_genes_cells:
-        adata = adata_ori
+        # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            adata = adata_ori if genes_as_for_norm is None else adata_ori[:, genes_as_for_norm]
     else:
         cell_inds = adata_ori.obs.use_for_pca if "use_for_pca" in adata_ori.obs.columns else adata_ori.obs.index
         filter_list = ["use_for_pca", "pass_basic_filter"]
@@ -91,6 +99,13 @@ def szFactor(
         gene_inds = adata_ori.var[filter_list[which_filter[0]]] if len(which_filter) > 0 else adata_ori.var.index
 
         adata = adata_ori[cell_inds, :][:, gene_inds]
+
+        if genes_as_for_norm is not None:
+            # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+
+                adata = adata[:, adata.var_names.intersection(genes_as_for_norm)]
 
     if total_layers is not None:
         if not isinstance(total_layers, list):
@@ -1176,6 +1191,7 @@ def recipe_monocle(
     total_layers: Union[bool, list, None] = None,
     splicing_total_layers: bool = False,
     X_total_layers: bool = False,
+    genes_as_for_norm: Union[list, None] = None,
     genes_to_use: Union[list, None] = None,
     genes_to_append: Union[list, None] = None,
     genes_to_exclude: Union[list, None] = None,
@@ -1198,7 +1214,7 @@ def recipe_monocle(
     fg_kwargs: Union[dict, None] = None,
     sg_kwargs: Union[dict, None] = None,
     copy: bool = False,
-) -> AnnData:
+) -> Union[AnnData, None]:
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
@@ -1249,6 +1265,10 @@ def recipe_monocle(
             Whether to also normalize spliced / unspliced layers by size factor from total RNA.
         X_total_layers: bool (default `False`)
             Whether to also normalize adata.X by size factor from total RNA.
+        genes_as_for_norm: `list` (default: `None`)
+            A list of gene names that will be used to calculate total RNA for each cell and then the size factor for
+            normalization. This is often very useful when you want to use only the host genes to normalize the dataset
+            in a virus infection experiment (i.e. CMV or SARS-CoV-2 infection).
         genes_to_use: `list` (default: `None`)
             A list of gene names that will be used to set as the feature genes for downstream analysis.
         genes_to_append: `list` (default: `None`)
@@ -1536,6 +1556,7 @@ def recipe_monocle(
             splicing_total_layers=splicing_total_layers,
             X_total_layers=X_total_layers,
             layers=layer if type(layer) is list else "all",
+            genes_as_for_norm=genes_as_for_norm,
         )
 
     if feature_selection.lower() == "dispersion":
