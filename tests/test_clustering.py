@@ -29,6 +29,11 @@ def gen_test_data():
 def test_simple_cluster_community_adata(adata):
     dyn.tl.louvain(adata)
     dyn.tl.leiden(adata)
+    initial_membership = np.random.randint(
+        low=0, high=100, size=len(adata), dtype=int
+    )
+
+    dyn.tl.leiden(adata, **{"initial_membership": initial_membership})
     dyn.tl.infomap(adata)
     # dyn.tl.cluster_community(adata, method="louvain")
     # dyn.tl.cluster_community(adata, method="leiden")

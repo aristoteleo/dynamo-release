@@ -436,7 +436,8 @@ def cluster_community_from_graph(
     NotImplementedError
         [description]
     """
-
+    logger = LoggerManager.get_main_logger()
+    logger.info("Detecting communities on graph...")
     try:
         import cdlib
         import networkx as nx
@@ -450,6 +451,9 @@ def cluster_community_from_graph(
         # highest priority
         pass
     elif graph_sparse_matrix is not None:
+        logger.info(
+            "Converting graph_sparse_matrix to networkx object", indent_level=2
+        )
         graph = nx.convert_matrix.from_scipy_sparse_matrix(graph_sparse_matrix)
     else:
         raise ValueError("Expected graph inputs are invalid")
@@ -472,6 +476,9 @@ def cluster_community_from_graph(
     elif method == "leiden":
         initial_membership, weights = None, None
         if "initial_membership" in kwargs:
+            logger.info(
+                "Detecting community with initial_membership input from caller"
+            )
             initial_membership = kwargs["initial_membership"]
         if "weights" in kwargs:
             weights = kwargs["weights"]
@@ -483,4 +490,7 @@ def cluster_community_from_graph(
         coms = algorithms.infomap(graph)
     else:
         raise NotImplementedError("clustering algorithm not implemented yet")
+    logger.finish_progress(
+        progress_name="Community clustering with %s" % (method)
+    )
     return coms
