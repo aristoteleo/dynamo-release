@@ -37,11 +37,13 @@ def test_simple_cluster_community_adata(adata):
     dyn.tl.infomap(adata)
     # dyn.tl.cluster_community(adata, method="louvain")
     # dyn.tl.cluster_community(adata, method="leiden")
+    # dyn.tl.cluster_community(adata, method="infomap")
     assert np.all(adata.obs["louvain_community"] != -1)
     assert np.all(adata.obs["leiden_community"] != -1)
     assert np.all(adata.obs["infomap_community"] != -1)
     # dyn.pl.louvain(adata, basis="pca")
     # dyn.pl.leiden(adata, basis="pca")
+    # dyn.pl.infomap(adata, basis="pca")
 
 
 def test_simple_cluster_field(adata):
