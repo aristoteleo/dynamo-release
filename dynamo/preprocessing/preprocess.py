@@ -1191,7 +1191,7 @@ def recipe_monocle(
     total_layers: Union[bool, list, None] = None,
     splicing_total_layers: bool = False,
     X_total_layers: bool = False,
-    genes_as_for_norm: Union[list, None] = None,
+    genes_use_for_norm: Union[list, None] = None,
     genes_to_use: Union[list, None] = None,
     genes_to_append: Union[list, None] = None,
     genes_to_exclude: Union[list, None] = None,
@@ -1265,7 +1265,7 @@ def recipe_monocle(
             Whether to also normalize spliced / unspliced layers by size factor from total RNA.
         X_total_layers: bool (default `False`)
             Whether to also normalize adata.X by size factor from total RNA.
-        genes_as_for_norm: `list` (default: `None`)
+        genes_use_for_norm: `list` (default: `None`)
             A list of gene names that will be used to calculate total RNA for each cell and then the size factor for
             normalization. This is often very useful when you want to use only the host genes to normalize the dataset
             in a virus infection experiment (i.e. CMV or SARS-CoV-2 infection).
@@ -1556,7 +1556,7 @@ def recipe_monocle(
             splicing_total_layers=splicing_total_layers,
             X_total_layers=X_total_layers,
             layers=layer if type(layer) is list else "all",
-            genes_as_for_norm=genes_as_for_norm,
+            genes_as_for_norm=genes_use_for_norm,
         )
 
     if feature_selection.lower() == "dispersion":

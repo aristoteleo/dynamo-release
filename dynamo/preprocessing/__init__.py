@@ -24,4 +24,5 @@ from .utils import (
     relative2abs,
     scale,
     convert2symbol,
+    filter_genes_by_pattern,
 )

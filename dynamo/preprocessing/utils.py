@@ -3,9 +3,11 @@ import pandas as pd
 import statsmodels.api as sm
 from scipy.sparse import issparse, csr_matrix
 import warnings
-
-# from functools import reduce
 from sklearn.decomposition import PCA, TruncatedSVD
+from anndata import AnnData
+from typing import Union
+
+from ..dynamo_logger import LoggerManager
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -57,7 +59,8 @@ def convert2gene_symbol(input_names, scopes="ensembl.gene"):
 
 def convert2symbol(adata, scopes=None, subset=True):
     if np.all(adata.var_names.str.startswith("ENS")) or scopes is not None:
-        # logger.info("convert ensemble name to official gene name", indent_level=1)
+        logger = LoggerManager.gen_logger("dynamo-utils")
+        logger.info("convert ensemble name to official gene name", indent_level=1)
 
         prefix = adata.var_names[0]
         if scopes is None:
@@ -81,7 +84,7 @@ def convert2symbol(adata, scopes=None, subset=True):
         else:
             adata.var["scopes"] = adata.var.index
 
-        warnings.warn(
+        logger.warn(
             "Your adata object uses non-official gene names as gene index. \n"
             "Dynamo is converting those names to official gene names."
         )
@@ -215,6 +218,39 @@ def cook_dist(model, X, good):
 
 # ---------------------------------------------------------------------------------------------------
 # preprocess utilities
+def filter_genes_by_pattern(adata: AnnData,
+                            patterns: tuple = ('MT-', 'RPS', 'RPL', 'MRPS', 'MRPL', 'ERCC-'),
+                            drop_genes: bool = False
+                            ) -> Union[AnnData, None]:
+    """Utility function to filter mitochondria, ribsome protein and ERCC spike-in genes, etc."""
+    logger = LoggerManager.gen_logger("dynamo-utils")
+
+    matched_genes = pd.Series(adata.var_names).str.startswith(patterns).to_list()
+    logger.info(
+        'total matched genes is ' + str(sum(matched_genes)),
+        indent_level=1,
+    )
+    if sum(matched_genes) > 0:
+        if drop_genes:
+            gene_bools = np.ones(adata.n_vars, dtype=bool)
+            gene_bools[matched_genes] = False
+            logger.info(
+                'inplace subset matched genes ... ',
+                indent_level=1,
+            )
+            # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+
+                adata._inplace_subset_var(gene_bools)
+
+            logger.finish_progress(progress_name="filter_genes_by_pattern filter")
+            return None
+        else:
+            logger.finish_progress(progress_name="filter_genes_by_pattern filter")
+            return matched_genes
+
+
 def basic_stats(adata):
     adata.obs["nGenes"], adata.obs["nCounts"] = (adata.X > 0).sum(1), (adata.X).sum(1)
     adata.var["nCells"], adata.var["nCounts"] = (adata.X > 0).sum(0).T, (adata.X).sum(0).T
@@ -790,3 +826,4 @@ def relative2abs(
 
                 res = k * X_i + b if logged else np.expm1(k * X_i + b)
                 adata.layers[cur_layer][i, :] = csr_matrix(res) if issparse(X) else res
+
