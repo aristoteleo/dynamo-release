@@ -84,7 +84,7 @@ def convert2symbol(adata, scopes=None, subset=True):
         else:
             adata.var["scopes"] = adata.var.index
 
-        logger.warn(
+        logger.warning(
             "Your adata object uses non-official gene names as gene index. \n"
             "Dynamo is converting those names to official gene names."
         )
