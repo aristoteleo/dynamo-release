@@ -2,11 +2,11 @@ import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 from scipy.sparse import issparse, csr_matrix
-import warnings
 from sklearn.decomposition import PCA, TruncatedSVD
+
+import warnings
 from anndata import AnnData
 from typing import Union
-
 from ..dynamo_logger import LoggerManager
 
 
@@ -244,10 +244,10 @@ def filter_genes_by_pattern(adata: AnnData,
 
                 adata._inplace_subset_var(gene_bools)
 
-            logger.finish_progress(progress_name="filter_genes_by_pattern filter")
+            logger.finish_progress(progress_name="filter_genes_by_pattern")
             return None
         else:
-            logger.finish_progress(progress_name="filter_genes_by_pattern filter")
+            logger.finish_progress(progress_name="filter_genes_by_pattern")
             return matched_genes
 
 

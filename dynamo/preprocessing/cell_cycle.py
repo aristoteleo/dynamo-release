@@ -6,6 +6,7 @@ import numpy as np
 from collections import OrderedDict
 from scipy.sparse import issparse
 from ..tools.utils import einsum_correlation, log1p_
+
 from anndata import AnnData
 from typing import Union
 from ..utils import copy_annData, LoggerManager
