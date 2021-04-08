@@ -82,7 +82,11 @@ def hdbscan(
         X_data = adata.obsm[basis]
     else:
         reduction_method = basis.split("_")[-1]
-        embedding_key = "X_" + reduction_method if layer is None else layer + "_" + reduction_method
+        embedding_key = (
+            "X_" + reduction_method
+            if layer is None
+            else layer + "_" + reduction_method
+        )
         neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
 
         adata = run_reduce_dim(
@@ -139,7 +143,15 @@ def hdbscan(
     return adata
 
 
-def cluster_field(adata, basis="pca", embedding_basis=None, normalize=True, method="louvain", cores=1, **kwargs):
+def cluster_field(
+    adata,
+    basis="pca",
+    embedding_basis=None,
+    normalize=True,
+    method="louvain",
+    cores=1,
+    **kwargs
+):
     """Cluster cells based on vector field features.
 
     We would like to see whether the vector field can be used to better define cell state/types. This can be accessed via
@@ -244,7 +256,13 @@ def cluster_field(adata, basis="pca", embedding_basis=None, normalize=True, meth
         if X.shape[0] > 200000 and X.shape[1] > 2:
             from pynndescent import NNDescent
 
-            nbrs = NNDescent(X, metric="euclidean", n_neighbors=31, n_jobs=cores, random_state=19491001)
+            nbrs = NNDescent(
+                X,
+                metric="euclidean",
+                n_neighbors=31,
+                n_jobs=cores,
+                random_state=19491001,
+            )
             nbrs_idx, dist = nbrs.query(X, k=31)
         else:
             nbrs = NearestNeighbors(n_neighbors=31, n_jobs=cores).fit(X)
@@ -252,19 +270,32 @@ def cluster_field(adata, basis="pca", embedding_basis=None, normalize=True, meth
 
         row = np.repeat(nbrs_idx[:, 0], 30)
         col = nbrs_idx[:, 1:].flatten()
-        graph = csr_matrix((np.repeat(1, len(col)), (row, col)), shape=(adata.n_obs, adata.n_obs))
+        graph = csr_matrix(
+            (np.repeat(1, len(col)), (row, col)),
+            shape=(adata.n_obs, adata.n_obs),
+        )
         adata.obsp["vf_feature_knn"] = graph
 
         if method == "louvain":
             # sc.tl.louvain(adata, obsp="feature_knn", **kwargs)
-            louvain_coms = cluster_community_from_graph(method="louvain", graph_sparse_matrix=graph)
+            louvain_coms = cluster_community_from_graph(
+                method="louvain", graph_sparse_matrix=graph
+            )
         elif method == "leiden":
             # sc.tl.leiden(adata, obsp="feature_knn", **kwargs)
-            leiden_coms = cluster_community_from_graph(method="leiden", graph_sparse_matrix=graph)
+            leiden_coms = cluster_community_from_graph(
+                method="leiden", graph_sparse_matrix=graph
+            )
 
 
 def louvain(
-    adata, resolution=1.0, adj_sparse_matrix=None, weight="weight", randomize=False, result_key=None, **kwargs
+    adata,
+    resolution=1.0,
+    adj_sparse_matrix=None,
+    weight="weight",
+    randomize=False,
+    result_key=None,
+    **kwargs
 ) -> AnnData:
     """[summary]
 
@@ -295,29 +326,51 @@ def louvain(
             "randomize": randomize,
         }
     )
-    cluster_community(adata, method="louvain", result_key=result_key, **kwargs)
+    cluster_community(
+        adata,
+        method="louvain",
+        result_key=result_key,
+        adj_matrix=adj_sparse_matrix,
+        **kwargs
+    )
 
 
-def leiden(adata, adj_sparse_matrix=None, weight="weight", result_key=None, **kwargs) -> AnnData:
+def leiden(
+    adata, adj_sparse_matrix=None, weight="weight", result_key=None, **kwargs
+) -> AnnData:
     kwargs.update(
         {
             "weight": weight,
         }
     )
-    cluster_community(adata, method="leiden", result_key=result_key, **kwargs)
+    cluster_community(
+        adata,
+        method="leiden",
+        result_key=result_key,
+        adj_matrix=adj_sparse_matrix,
+        **kwargs
+    )
 
 
-def infomap(adata, adj_sparse_matrix=None, result_key=None, **kwargs) -> AnnData:
+def infomap(
+    adata, adj_sparse_matrix=None, result_key=None, **kwargs
+) -> AnnData:
     kwargs.update({})
-    cluster_community(adata, method="infomap", result_key=result_key, **kwargs)
+    cluster_community(
+        adata,
+        method="infomap",
+        result_key=result_key,
+        adj_matrix=adj_sparse_matrix,
+        **kwargs
+    )
 
 
 def cluster_community(
     adata,
     method="louvain",
     result_key=None,
-    adj_or_weight_matrix=None,
-    adj_or_weight_matrix_key="connectivities",
+    adj_matrix=None,
+    adj_matrix_key="connectivities",
     use_weight=False,
     no_community_label=-1,
     **kwargs
@@ -342,8 +395,10 @@ def cluster_community(
     """
     if result_key is None:
         result_key = "%s_community" % (method)
-    graph_sparse_matrix = adata.obsp[adj_or_weight_matrix_key]
-    community_result = cluster_community_from_graph(method=method, graph_sparse_matrix=graph_sparse_matrix, **kwargs)
+    graph_sparse_matrix = adata.obsp[adj_matrix_key]
+    community_result = cluster_community_from_graph(
+        method=method, graph_sparse_matrix=graph_sparse_matrix, **kwargs
+    )
 
     labels = np.zeros(len(adata), dtype=int) + no_community_label
     for i, community in enumerate(community_result.communities):
@@ -353,7 +408,9 @@ def cluster_community(
     return adata
 
 
-def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="louvain", **kwargs):
+def cluster_community_from_graph(
+    graph=None, graph_sparse_matrix=None, method="louvain", **kwargs
+):
     """Detect communities based on graph inputs and selected methods with arguments passed in kwargs.
 
     Parameters
@@ -386,7 +443,8 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
         from cdlib import algorithms
     except ImportError:
         raise ImportError(
-            "You need to install the excellent package `cdlib` if you want to use louvain or leiden " "for clustering."
+            "You need to install the excellent package `cdlib` if you want to use louvain or leiden "
+            "for clustering."
         )
     if graph is not None:
         # highest priority
@@ -408,7 +466,9 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
         weight = kwargs["weight"]
         randomize = kwargs["randomize"]
         graph = graph.to_undirected()
-        coms = algorithms.louvain(graph, weight=weight, resolution=resolution, randomize=randomize)
+        coms = algorithms.louvain(
+            graph, weight=weight, resolution=resolution, randomize=randomize
+        )
     elif method == "leiden":
         initial_membership, weights = None, None
         if "initial_membership" in kwargs:
@@ -416,7 +476,9 @@ def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="l
         if "weights" in kwargs:
             weights = kwargs["weights"]
         graph = graph.to_directed()
-        coms = algorithms.leiden(graph, weights=weights, initial_membership=initial_membership)
+        coms = algorithms.leiden(
+            graph, weights=weights, initial_membership=initial_membership
+        )
     elif method == "infomap":
         coms = algorithms.infomap(graph)
     else:
