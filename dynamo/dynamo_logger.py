@@ -15,7 +15,9 @@ def silence_logger(name):
     package_logger.propagate = False
 
 
-def format_logging_message(msg, logging_level, indent_level=1, indent_space_num=6):
+def format_logging_message(
+    msg, logging_level, indent_level=1, indent_space_num=6
+):
     indent_str = "-" * indent_space_num
     prefix = indent_str * indent_level
     prefix = "|" + prefix[1:]
@@ -47,12 +49,15 @@ class Logger:
         # ensure only one stream handler exisits in the logger
         if len(self.logger.handlers) == 0:
             self.logger_stream_handler = logging.StreamHandler()
-            self.logger_stream_handler.setFormatter(logging.Formatter(self.FORMAT))
+            self.logger_stream_handler.setFormatter(
+                logging.Formatter(self.FORMAT)
+            )
             self.logger.addHandler(self.logger_stream_handler)
         else:
             self.logger_stream_handler = self.logger.handlers[0]
 
         self.logger.propagate = False
+        self.log_time()
 
         # Other global initialization
         silence_logger("anndata")
@@ -115,32 +120,48 @@ class Logger:
         return self.logger.setLevel(*args, **kwargs)
 
     def debug(self, message, indent_level=1, *args, **kwargs):
-        message = format_logging_message(message, logging.DEBUG, indent_level=indent_level)
+        message = format_logging_message(
+            message, logging.DEBUG, indent_level=indent_level
+        )
         return self.logger.debug(message, *args, **kwargs)
 
     def info(self, message, indent_level=1, *args, **kwargs):
-        message = format_logging_message(message, logging.INFO, indent_level=indent_level)
+        message = format_logging_message(
+            message, logging.INFO, indent_level=indent_level
+        )
         return self.logger.info(message, *args, **kwargs)
 
     def warning(self, message, indent_level=1, *args, **kwargs):
-        message = format_logging_message(message, logging.WARNING, indent_level=indent_level)
+        message = format_logging_message(
+            message, logging.WARNING, indent_level=indent_level
+        )
         return self.logger.warning(message, *args, **kwargs)
 
     def exception(self, message, indent_level=1, *args, **kwargs):
-        message = format_logging_message(message, logging.ERROR, indent_level=indent_level)
+        message = format_logging_message(
+            message, logging.ERROR, indent_level=indent_level
+        )
         return self.logger.exception(message, *args, **kwargs)
 
     def critical(self, message, indent_level=1, *args, **kwargs):
-        message = format_logging_message(message, logging.CRITICAL, indent_level=indent_level)
+        message = format_logging_message(
+            message, logging.CRITICAL, indent_level=indent_level
+        )
         return self.logger.critical(message, *args, **kwargs)
 
     def error(self, message, indent_level=1, *args, **kwargs):
-        message = format_logging_message(message, logging.ERROR, indent_level=indent_level)
+        message = format_logging_message(
+            message, logging.ERROR, indent_level=indent_level
+        )
         return self.logger.error(message, *args, **kwargs)
 
-    def info_insert_adata(self, key, adata_attr="obsm", indent_level=1, *args, **kwargs):
+    def info_insert_adata(
+        self, key, adata_attr="obsm", indent_level=1, *args, **kwargs
+    ):
         message = "<insert> %s to %s in AnnData Object." % (key, adata_attr)
-        message = format_logging_message(message, logging.INFO, indent_level=indent_level)
+        message = format_logging_message(
+            message, logging.INFO, indent_level=indent_level
+        )
         return self.logger.error(message, *args, **kwargs)
 
     def log_time(self):
@@ -149,7 +170,9 @@ class Logger:
         self.previous_timestamp = now
         return self.time_passed
 
-    def report_progress(self, percent=None, count=None, total=None, progress_name=""):
+    def report_progress(
+        self, percent=None, count=None, total=None, progress_name=""
+    ):
         if percent is None:
             assert (not count is None) and (not total is None)
             percent = count / total * 100
@@ -158,7 +181,8 @@ class Logger:
         if progress_name != "":
             progress_name = "[" + str(progress_name) + "] "
         message = "\r" + format_logging_message(
-            "%sin progress: %.4f%%" % (progress_name, percent), logging_level=logging.INFO
+            "%sin progress: %.4f%%" % (progress_name, percent),
+            logging_level=logging.INFO,
         )
         self.logger.info(message)
         self.logger_stream_handler.flush()
@@ -166,12 +190,17 @@ class Logger:
 
     def finish_progress(self, progress_name="", time_unit="s"):
         self.log_time()
-        self.logger.info("\r")
+        self.logger.info("\r|")
 
         if time_unit == "s":
-            self.info("[%s] finished [%.4fs]" % (progress_name, self.time_passed))
+            self.info(
+                "[%s] finished [%.4fs]" % (progress_name, self.time_passed)
+            )
         elif time_unit == "ms":
-            self.info("[%s] finished [%.4fms]" % (progress_name, self.time_passed * 1e3))
+            self.info(
+                "[%s] finished [%.4fms]"
+                % (progress_name, self.time_passed * 1e3)
+            )
         else:
             raise NotImplementedError
         self.logger_stream_handler.flush()
@@ -201,8 +230,15 @@ class LoggerManager:
         iterator = iter(generator)
         logger.log_time()
         i = 0
+        prev_progress_percent = 0
         while i < len(generator):
             i += 1
-            logger.report_progress(count=i, total=len(generator), progress_name=progress_name)
+            new_progress_percent = i / len(generator) * 100
+            # report every `interval` percent
+            if new_progress_percent - prev_progress_percent > 1:
+                logger.report_progress(
+                    count=i, total=len(generator), progress_name=progress_name
+                )
+                prev_progress_percent = new_progress_percent
             yield next(iterator)
         logger.finish_progress(progress_name=progress_name)

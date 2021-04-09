@@ -2,8 +2,11 @@ from hdbscan import HDBSCAN
 from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import csr_matrix
 import numpy as np
+from anndata import AnnData
+
 from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 from .utils import update_dict
+from ..utils import LoggerManager
 
 
 def hdbscan(
@@ -79,7 +82,11 @@ def hdbscan(
         X_data = adata.obsm[basis]
     else:
         reduction_method = basis.split("_")[-1]
-        embedding_key = "X_" + reduction_method if layer is None else layer + "_" + reduction_method
+        embedding_key = (
+            "X_" + reduction_method
+            if layer is None
+            else layer + "_" + reduction_method
+        )
         neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
 
         adata = run_reduce_dim(
@@ -136,7 +143,15 @@ def hdbscan(
     return adata
 
 
-def cluster_field(adata, basis="pca", embedding_basis=None, normalize=True, method="louvain", cores=1, **kwargs):
+def cluster_field(
+    adata,
+    basis="pca",
+    embedding_basis=None,
+    normalize=True,
+    method="louvain",
+    cores=1,
+    **kwargs
+):
     """Cluster cells based on vector field features.
 
     We would like to see whether the vector field can be used to better define cell state/types. This can be accessed via
@@ -167,7 +182,7 @@ def cluster_field(adata, basis="pca", embedding_basis=None, normalize=True, meth
         Whether to mean center and scale the feature across all cells so that the mean
     method: `str` (default: `louvain`)
         The method that will be used for clustering, one of `{'kmeans'', 'hdbscan', 'louvain', 'leiden'}`. If `louvain`
-        or `leiden` used, you need to have `scanpy` installed.
+        or `leiden` used, you need to have `cdlib` installed.
     cores: `int` (default: 1)
         The number of parallel jobs to run for neighbors search. ``None`` means 1 unless in a :obj:`joblib.parallel_backend` context.
         ``-1`` means using all processors.
@@ -181,10 +196,12 @@ def cluster_field(adata, basis="pca", embedding_basis=None, normalize=True, meth
 
     if method in ["louvain", "leiden"]:
         try:
-            import scanpy as sc
+            import cdlib
+            from cdlib import algorithms
+
         except ImportError:
             raise ImportError(
-                "You need to install the excellent package `scanpy` if you want to use louvain or leiden "
+                "You need to install the excellent package `cdlib` if you want to use louvain or leiden "
                 "for clustering."
             )
 
@@ -197,7 +214,7 @@ def cluster_field(adata, basis="pca", embedding_basis=None, normalize=True, meth
     ]
 
     if feature_key[0] not in adata.obs.keys():
-        from .vector_calculus import speed
+        from ..vectorfield import speed
 
         speed(adata, basis=basis)
     if feature_key[1] not in adata.obs.keys():
@@ -205,15 +222,15 @@ def cluster_field(adata, basis="pca", embedding_basis=None, normalize=True, meth
 
         ddhodge(adata, basis=basis)
     if feature_key[2] not in adata.obs.keys():
-        from .vector_calculus import divergence
+        from ..vectorfield import divergence
 
         divergence(adata, basis=basis)
     if feature_key[3] not in adata.obs.keys():
-        from .vector_calculus import acceleration
+        from ..vectorfield import acceleration
 
         acceleration(adata, basis=basis)
     if feature_key[4] not in adata.obs.keys():
-        from .vector_calculus import curvature
+        from ..vectorfield import curvature
 
         curvature(adata, basis=basis)
 
@@ -239,7 +256,13 @@ def cluster_field(adata, basis="pca", embedding_basis=None, normalize=True, meth
         if X.shape[0] > 200000 and X.shape[1] > 2:
             from pynndescent import NNDescent
 
-            nbrs = NNDescent(X, metric="euclidean", n_neighbors=31, n_jobs=cores, random_state=19491001)
+            nbrs = NNDescent(
+                X,
+                metric="euclidean",
+                n_neighbors=31,
+                n_jobs=cores,
+                random_state=19491001,
+            )
             nbrs_idx, dist = nbrs.query(X, k=31)
         else:
             nbrs = NearestNeighbors(n_neighbors=31, n_jobs=cores).fit(X)
@@ -247,10 +270,273 @@ def cluster_field(adata, basis="pca", embedding_basis=None, normalize=True, meth
 
         row = np.repeat(nbrs_idx[:, 0], 30)
         col = nbrs_idx[:, 1:].flatten()
-        g = csr_matrix((np.repeat(1, len(col)), (row, col)), shape=(adata.n_obs, adata.n_obs))
-        adata.obsp["feature_knn"] = g
+        graph = csr_matrix(
+            (np.repeat(1, len(col)), (row, col)),
+            shape=(adata.n_obs, adata.n_obs),
+        )
+        adata.obsp["vf_feature_knn"] = graph
 
         if method == "louvain":
-            sc.tl.louvain(adata, obsp="feature_knn", **kwargs)
+            # sc.tl.louvain(adata, obsp="feature_knn", **kwargs)
+            louvain_coms = cluster_community_from_graph(
+                method="louvain", graph_sparse_matrix=graph
+            )
         elif method == "leiden":
-            sc.tl.leiden(adata, obsp="feature_knn", **kwargs)
+            # sc.tl.leiden(adata, obsp="feature_knn", **kwargs)
+            leiden_coms = cluster_community_from_graph(
+                method="leiden", graph_sparse_matrix=graph
+            )
+
+
+def louvain(
+    adata,
+    resolution=1.0,
+    weight="weight",
+    adj_matrix=None,
+    adj_matrix_key="connectivities",
+    randomize=False,
+    result_key=None,
+    directed=False,
+    copy=False,
+    **kwargs
+) -> AnnData:
+    """[summary]
+
+    Parameters
+    ----------
+    adata : [type]
+        [description]
+    resolution : float, optional
+        [description], by default 1.0
+    adj_matrix : [type], optional
+        [description], by default None
+    weight : str, optional
+        [description], by default "weight"
+    randomize : bool, optional
+        randomize – boolean, from CDlib: "randomize the node evaluation order and the community evaluation order to get different partitions at each call, by default False"
+    result_key : [type], optional
+        [description], by default None
+
+    Returns
+    -------
+    AnnData
+        [description]
+    """
+    if directed:
+        raise ValueError(
+            "CDlib does not support directed graph for Louvain community detection for now."
+        )
+    kwargs.update(
+        {
+            "resolution": resolution,
+            "weight": weight,
+            "randomize": randomize,
+        }
+    )
+
+    cluster_community(
+        adata,
+        method="louvain",
+        result_key=result_key,
+        adj_matrix=adj_matrix,
+        directed=directed,
+        copy=copy,
+        **kwargs
+    )
+    return adata
+
+
+def leiden(
+    adata,
+    weight="weight",
+    initial_membership=None,
+    adj_matrix=None,
+    adj_matrix_key="connectivities",
+    result_key=None,
+    directed=False,
+    copy=False,
+    **kwargs
+) -> AnnData:
+    kwargs.update(
+        {
+            "weight": weight,
+            "initial_membership": initial_membership,
+        }
+    )
+    cluster_community(
+        adata,
+        method="leiden",
+        result_key=result_key,
+        adj_matrix=adj_matrix,
+        directed=directed,
+        copy=copy,
+        **kwargs
+    )
+    return adata
+
+
+def infomap(
+    adata,
+    adj_matrix=None,
+    adj_matrix_key="connectivities",
+    result_key=None,
+    copy=False,
+    directed=False,
+    **kwargs
+) -> AnnData:
+    kwargs.update({})
+    return cluster_community(
+        adata,
+        method="infomap",
+        result_key=result_key,
+        adj_matrix=adj_matrix,
+        adj_matrix_key=adj_matrix_key,
+        directed=directed,
+        copy=copy,
+        **kwargs
+    )
+
+
+def cluster_community(
+    adata,
+    method="leiden",
+    result_key=None,
+    adj_matrix=None,
+    adj_matrix_key="connectivities",
+    use_weight=False,
+    no_community_label=-1,
+    directed=False,
+    copy=False,
+    **kwargs
+):
+    """Detect communities and insert data into adata.
+
+    Parameters
+    ----------
+    adata : [type]
+        [description]
+    method : str, optional
+        [description], by default "louvain"
+    graph_matrix_key : str, optional
+        [description], by default "connectivities"
+    no_community_label : int, optional
+        [description], by default -1
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
+    if copy:
+        adata = copy_annData(adata)
+    if result_key is None:
+        result_key = "%s" % (method)
+    graph_sparse_matrix = adata.obsp[adj_matrix_key]
+    community_result = cluster_community_from_graph(
+        method=method,
+        graph_sparse_matrix=graph_sparse_matrix,
+        directed=directed,
+        **kwargs
+    )
+
+    labels = np.zeros(len(adata), dtype=int) + no_community_label
+    for i, community in enumerate(community_result.communities):
+        labels[community] = i
+    adata.obs[result_key] = labels
+
+    return adata
+
+
+def cluster_community_from_graph(
+    graph=None,
+    graph_sparse_matrix=None,
+    method="louvain",
+    directed=False,
+    **kwargs
+):
+    """Detect communities based on graph inputs and selected methods with arguments passed in kwargs.
+
+    Parameters
+    ----------
+    graph : [type], optional
+        [description], by default None
+    graph_sparse_matrix : [type], optional
+        [description], by default None
+    method : str, optional
+        [description], by default "louvain"
+
+    Returns
+    -------
+    [type]
+        NodeClustering Object from CDlib
+
+    Raises
+    ------
+    ImportError
+        [description]
+    ValueError
+        [description]
+    NotImplementedError
+        [description]
+    """
+    logger = LoggerManager.get_main_logger()
+    logger.info("Detecting communities on graph...")
+    try:
+        import cdlib
+        import networkx as nx
+        from cdlib import algorithms
+    except ImportError:
+        raise ImportError(
+            "You need to install the excellent package `cdlib` if you want to use louvain or leiden "
+            "for clustering."
+        )
+    if graph is not None:
+        # highest priority
+        pass
+    elif graph_sparse_matrix is not None:
+        logger.info(
+            "Converting graph_sparse_matrix to networkx object", indent_level=2
+        )
+        graph = nx.convert_matrix.from_scipy_sparse_matrix(graph_sparse_matrix)
+    else:
+        raise ValueError("Expected graph inputs are invalid")
+
+    if directed:
+        graph = graph.to_directed()
+    else:
+        graph = graph.to_undirected()
+    if method == "louvain":
+        if "resolution" not in kwargs:
+            raise KeyError("resolution not in louvain input parameters")
+        if "weight" not in kwargs:
+            raise KeyError("weight not in louvain input parameters")
+        if "randomize" not in kwargs:
+            raise KeyError("randomize not in louvain input parameters")
+
+        resolution = kwargs["resolution"]
+        weight = kwargs["weight"]
+        randomize = kwargs["randomize"]
+        coms = algorithms.louvain(
+            graph, weight=weight, resolution=resolution, randomize=randomize
+        )
+    elif method == "leiden":
+        initial_membership, weights = None, None
+        if "initial_membership" in kwargs:
+            logger.info(
+                "Detecting community with initial_membership input from caller"
+            )
+            initial_membership = kwargs["initial_membership"]
+        if "weights" in kwargs:
+            weights = kwargs["weights"]
+
+        coms = algorithms.leiden(
+            graph, weights=weights, initial_membership=initial_membership
+        )
+    elif method == "infomap":
+        coms = algorithms.infomap(graph)
+    else:
+        raise NotImplementedError("clustering algorithm not implemented yet")
+    logger.finish_progress(
+        progress_name="Community clustering with %s" % (method)
+    )
+    return coms

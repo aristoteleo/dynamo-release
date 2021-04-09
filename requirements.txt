@@ -20,3 +20,4 @@ tqdm
 python-igraph>=0.7.1
 pynndescent>=0.4.8
 pre-commit
+networkx
