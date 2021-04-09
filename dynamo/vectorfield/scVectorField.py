@@ -781,9 +781,9 @@ class svc_vectorfield(base_vectorfield):
         t, prediction = integrate_vf_ivp(
             init_states,
             t=t_linspace,
-            args=args,
             integration_direction=integration_direction,
             f=self.func,
+            args=args,
             interpolation_num=interpolation_num,
             average=average,
             sampling=sampling,
