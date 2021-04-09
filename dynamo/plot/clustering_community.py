@@ -5,7 +5,7 @@ docstrings.delete_params("scatters.parameters", "adata", "basis")
 
 
 @docstrings.with_indent(4)
-def louvain(adata, basis, key="louvain_community", *args, **kwargs):
+def louvain(adata, basis, key="louvain", *args, **kwargs):
     """\
     Scatter plot for louvain community detection in selected basis.
 
@@ -24,7 +24,7 @@ def louvain(adata, basis, key="louvain_community", *args, **kwargs):
 
 
 @docstrings.with_indent(4)
-def leiden(adata, basis, key="leiden_community", *args, **kwargs):
+def leiden(adata, basis, key="leiden", *args, **kwargs):
     """\
    Scatter plot for leiden community detection in selected basis.
 
@@ -43,7 +43,7 @@ def leiden(adata, basis, key="leiden_community", *args, **kwargs):
 
 
 @docstrings.with_indent(4)
-def infomap(adata, basis, key="infomap_community", *args, **kwargs):
+def infomap(adata, basis, key="infomap", *args, **kwargs):
     """\
     Scatter plot for infomap community detection in selected basis.
 

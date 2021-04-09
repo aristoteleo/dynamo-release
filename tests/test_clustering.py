@@ -12,7 +12,6 @@ logger = LoggerManager.get_main_logger()
 
 
 def gen_test_data():
-
     adata = dyn.sample_data.zebrafish()
     adata = adata[:1000]
     dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_max=0.005)
@@ -32,15 +31,29 @@ def test_simple_cluster_community_adata(adata):
     initial_membership = np.random.randint(
         low=0, high=100, size=len(adata), dtype=int
     )
-
-    dyn.tl.leiden(adata, **{"initial_membership": initial_membership})
+    dyn.tl.leiden(adata, initial_membership=initial_membership)
     dyn.tl.infomap(adata)
+
+    try:
+        dyn.tl.louvain(adata, directed=True)
+    except ValueError as e:
+        print("################################################")
+        print("PASSED: Value error captured as EXPECTED, Exception info:")
+        print(e)
+        print("################################################")
+
+    dyn.tl.leiden(adata, directed=True)
+    initial_membership = np.random.randint(
+        low=0, high=100, size=len(adata), dtype=int
+    )
+    dyn.tl.leiden(adata, directed=True, initial_membership=initial_membership)
+    dyn.tl.infomap(adata, directed=True)
     # dyn.tl.cluster_community(adata, method="louvain")
     # dyn.tl.cluster_community(adata, method="leiden")
     # dyn.tl.cluster_community(adata, method="infomap")
-    assert np.all(adata.obs["louvain_community"] != -1)
-    assert np.all(adata.obs["leiden_community"] != -1)
-    assert np.all(adata.obs["infomap_community"] != -1)
+    assert np.all(adata.obs["louvain"] != -1)
+    assert np.all(adata.obs["leiden"] != -1)
+    assert np.all(adata.obs["infomap"] != -1)
     # dyn.pl.louvain(adata, basis="pca")
     # dyn.pl.leiden(adata, basis="pca")
     # dyn.pl.infomap(adata, basis="pca")
@@ -60,6 +73,7 @@ if __name__ == "__main__":
     print("reading test data...")
     # To-do: use a fixture in future
     adata = dyn.read_h5ad(test_data_path)
+    print(adata)
     # select a subset of adata for testing
 
     print("tests begin...")

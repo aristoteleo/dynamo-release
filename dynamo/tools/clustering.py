@@ -291,10 +291,13 @@ def cluster_field(
 def louvain(
     adata,
     resolution=1.0,
-    adj_sparse_matrix=None,
     weight="weight",
+    adj_matrix=None,
+    adj_matrix_key="connectivities",
     randomize=False,
     result_key=None,
+    directed=False,
+    copy=False,
     **kwargs
 ) -> AnnData:
     """[summary]
@@ -305,7 +308,7 @@ def louvain(
         [description]
     resolution : float, optional
         [description], by default 1.0
-    adj_sparse_matrix : [type], optional
+    adj_matrix : [type], optional
         [description], by default None
     weight : str, optional
         [description], by default "weight"
@@ -319,6 +322,10 @@ def louvain(
     AnnData
         [description]
     """
+    if directed:
+        raise ValueError(
+            "CDlib does not support directed graph for Louvain community detection for now."
+        )
     kwargs.update(
         {
             "resolution": resolution,
@@ -326,53 +333,80 @@ def louvain(
             "randomize": randomize,
         }
     )
+
     cluster_community(
         adata,
         method="louvain",
         result_key=result_key,
-        adj_matrix=adj_sparse_matrix,
+        adj_matrix=adj_matrix,
+        directed=directed,
+        copy=copy,
         **kwargs
     )
+    return adata
 
 
 def leiden(
-    adata, adj_sparse_matrix=None, weight="weight", result_key=None, **kwargs
+    adata,
+    weight="weight",
+    initial_membership=None,
+    adj_matrix=None,
+    adj_matrix_key="connectivities",
+    result_key=None,
+    directed=False,
+    copy=False,
+    **kwargs
 ) -> AnnData:
     kwargs.update(
         {
             "weight": weight,
+            "initial_membership": initial_membership,
         }
     )
     cluster_community(
         adata,
         method="leiden",
         result_key=result_key,
-        adj_matrix=adj_sparse_matrix,
+        adj_matrix=adj_matrix,
+        directed=directed,
+        copy=copy,
         **kwargs
     )
+    return adata
 
 
 def infomap(
-    adata, adj_sparse_matrix=None, result_key=None, **kwargs
+    adata,
+    adj_matrix=None,
+    adj_matrix_key="connectivities",
+    result_key=None,
+    copy=False,
+    directed=False,
+    **kwargs
 ) -> AnnData:
     kwargs.update({})
-    cluster_community(
+    return cluster_community(
         adata,
         method="infomap",
         result_key=result_key,
-        adj_matrix=adj_sparse_matrix,
+        adj_matrix=adj_matrix,
+        adj_matrix_key=adj_matrix_key,
+        directed=directed,
+        copy=copy,
         **kwargs
     )
 
 
 def cluster_community(
     adata,
-    method="louvain",
+    method="leiden",
     result_key=None,
     adj_matrix=None,
     adj_matrix_key="connectivities",
     use_weight=False,
     no_community_label=-1,
+    directed=False,
+    copy=False,
     **kwargs
 ):
     """Detect communities and insert data into adata.
@@ -393,11 +427,16 @@ def cluster_community(
     [type]
         [description]
     """
+    if copy:
+        adata = copy_annData(adata)
     if result_key is None:
-        result_key = "%s_community" % (method)
+        result_key = "%s" % (method)
     graph_sparse_matrix = adata.obsp[adj_matrix_key]
     community_result = cluster_community_from_graph(
-        method=method, graph_sparse_matrix=graph_sparse_matrix, **kwargs
+        method=method,
+        graph_sparse_matrix=graph_sparse_matrix,
+        directed=directed,
+        **kwargs
     )
 
     labels = np.zeros(len(adata), dtype=int) + no_community_label
@@ -409,7 +448,11 @@ def cluster_community(
 
 
 def cluster_community_from_graph(
-    graph=None, graph_sparse_matrix=None, method="louvain", **kwargs
+    graph=None,
+    graph_sparse_matrix=None,
+    method="louvain",
+    directed=False,
+    **kwargs
 ):
     """Detect communities based on graph inputs and selected methods with arguments passed in kwargs.
 
@@ -458,6 +501,10 @@ def cluster_community_from_graph(
     else:
         raise ValueError("Expected graph inputs are invalid")
 
+    if directed:
+        graph = graph.to_directed()
+    else:
+        graph = graph.to_undirected()
     if method == "louvain":
         if "resolution" not in kwargs:
             raise KeyError("resolution not in louvain input parameters")
@@ -469,7 +516,6 @@ def cluster_community_from_graph(
         resolution = kwargs["resolution"]
         weight = kwargs["weight"]
         randomize = kwargs["randomize"]
-        graph = graph.to_undirected()
         coms = algorithms.louvain(
             graph, weight=weight, resolution=resolution, randomize=randomize
         )
@@ -482,7 +528,7 @@ def cluster_community_from_graph(
             initial_membership = kwargs["initial_membership"]
         if "weights" in kwargs:
             weights = kwargs["weights"]
-        graph = graph.to_directed()
+
         coms = algorithms.leiden(
             graph, weights=weights, initial_membership=initial_membership
         )
