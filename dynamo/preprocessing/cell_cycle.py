@@ -9,7 +9,7 @@ from ..tools.utils import einsum_correlation, log1p_
 
 from anndata import AnnData
 from typing import Union
-from ..utils import copy_annData, LoggerManager
+from ..utils import copy_adata, LoggerManager
 
 
 def group_corr(adata: AnnData, layer: Union[str, None], gene_list: list) -> tuple:
@@ -497,7 +497,7 @@ def cell_cycle_scores(
     """
     logger = LoggerManager.gen_logger("dynamo-cell-cycle-score")
     if copy:
-        adata = copy_annData(adata, logger=logger)
+        adata = copy_adata(adata, logger=logger)
 
     temp_timer_logger = LoggerManager.get_temp_timer_logger()
     temp_timer_logger.info("computing cell phase...")

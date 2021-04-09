@@ -6,8 +6,7 @@ from anndata import AnnData
 
 from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 from .utils import update_dict
-from ..utils import LoggerManager
-
+from ..utils import LoggerManager, copy_adata
 
 def hdbscan(
     adata,
@@ -428,7 +427,7 @@ def cluster_community(
         [description]
     """
     if copy:
-        adata = copy_annData(adata)
+        adata = copy_adata(adata)
     if result_key is None:
         result_key = "%s" % (method)
     graph_sparse_matrix = adata.obsp[adj_matrix_key]

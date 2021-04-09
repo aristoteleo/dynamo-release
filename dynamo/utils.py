@@ -5,7 +5,7 @@ from anndata import AnnData
 from .dynamo_logger import LoggerManager
 
 
-def copy_annData(adata, logger=None):
+def copy_adata(adata, logger=None):
     if logger is None:
         logger = LoggerManager.get_main_logger()
     logger.info(
