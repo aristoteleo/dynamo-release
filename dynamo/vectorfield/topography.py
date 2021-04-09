@@ -469,7 +469,7 @@ def VectorField(
     method: str = "SparseVFC",
     model_buffer_path: Union[str, None] = None,
     return_vf_object: bool = False,
-    map_topography: bool = True,
+    map_topography: bool = False,
     pot_curl_div: bool = False,
     cores: int = 1,
     copy: bool = False,
