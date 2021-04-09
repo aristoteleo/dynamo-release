@@ -9,9 +9,9 @@ from ..tools.utils import log1p_
 def integrate_vf_ivp(
     init_states,
     t,
-    args,
     integration_direction,
     f,
+    args=None,
     interpolation_num=250,
     average=True,
     sampling="arc_length",

@@ -275,7 +275,6 @@ def _fate(
         t, prediction = integrate_vf_ivp(
             init_states,
             t_linspace,
-            (),
             direction,
             VecFld,
             interpolation_num=interpolation_num,
@@ -289,9 +288,9 @@ def _fate(
             zip(
                 init_states,
                 itertools.repeat(t_linspace),
-                itertools.repeat(()),
                 itertools.repeat(direction),
                 itertools.repeat(VecFld),
+                itertools.repeat(()),
                 itertools.repeat(interpolation_num),
                 itertools.repeat(average),
                 itertools.repeat(sampling),
