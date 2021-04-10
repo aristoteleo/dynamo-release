@@ -4,9 +4,11 @@ from scipy.sparse import csr_matrix
 import numpy as np
 from anndata import AnnData
 
+from .connectivity import neighbors
 from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 from .utils import update_dict
 from ..utils import LoggerManager, copy_adata
+
 
 def hdbscan(
     adata,
@@ -292,9 +294,12 @@ def louvain(
     resolution=1.0,
     weight="weight",
     adj_matrix=None,
-    adj_matrix_key="connectivities",
+    adj_matrix_key=None,
     randomize=False,
     result_key=None,
+    layer=None,
+    selected_cluster_subset: list = None,
+    selected_cell_subset=None,
     directed=False,
     copy=False,
     **kwargs
@@ -336,8 +341,12 @@ def louvain(
     cluster_community(
         adata,
         method="louvain",
-        result_key=result_key,
         adj_matrix=adj_matrix,
+        adj_matrix_key=adj_matrix_key,
+        result_key=result_key,
+        layer=layer,
+        selected_cluster_subset=selected_cluster_subset,
+        selected_cell_subset=selected_cell_subset,
         directed=directed,
         copy=copy,
         **kwargs
@@ -350,8 +359,11 @@ def leiden(
     weight="weight",
     initial_membership=None,
     adj_matrix=None,
-    adj_matrix_key="connectivities",
+    adj_matrix_key=None,
     result_key=None,
+    layer=None,
+    selected_cluster_subset: list = None,
+    selected_cell_subset=None,
     directed=False,
     copy=False,
     **kwargs
@@ -367,6 +379,10 @@ def leiden(
         method="leiden",
         result_key=result_key,
         adj_matrix=adj_matrix,
+        adj_matrix_key=adj_matrix_key,
+        layer=layer,
+        selected_cluster_subset=selected_cluster_subset,
+        selected_cell_subset=selected_cell_subset,
         directed=directed,
         copy=copy,
         **kwargs
@@ -377,10 +393,13 @@ def leiden(
 def infomap(
     adata,
     adj_matrix=None,
-    adj_matrix_key="connectivities",
+    adj_matrix_key=None,
     result_key=None,
-    copy=False,
+    layer=None,
+    selected_cluster_subset: list = None,
+    selected_cell_subset=None,
     directed=False,
+    copy=False,
     **kwargs
 ) -> AnnData:
     kwargs.update({})
@@ -390,6 +409,9 @@ def infomap(
         result_key=result_key,
         adj_matrix=adj_matrix,
         adj_matrix_key=adj_matrix_key,
+        layer=layer,
+        selected_cluster_subset=selected_cluster_subset,
+        selected_cell_subset=selected_cell_subset,
         directed=directed,
         copy=copy,
         **kwargs
@@ -401,25 +423,44 @@ def cluster_community(
     method="leiden",
     result_key=None,
     adj_matrix=None,
-    adj_matrix_key="connectivities",
+    adj_matrix_key=None,
     use_weight=False,
     no_community_label=-1,
+    layer=None,
+    layer_conn_type="connectivites",
+    selected_cluster_subset: list = None,
+    selected_cell_subset=None,
     directed=False,
     copy=False,
     **kwargs
 ):
     """Detect communities and insert data into adata.
 
+
     Parameters
     ----------
     adata : [type]
         [description]
     method : str, optional
-        [description], by default "louvain"
-    graph_matrix_key : str, optional
+        [description], by default "leiden"
+    result_key : [type], optional
+        [description], by default None
+    adj_matrix : [type], optional
+        [description], by default None
+    adj_matrix_key : str, optional
         [description], by default "connectivities"
+    use_weight : bool, optional
+        [description], by default False
     no_community_label : int, optional
         [description], by default -1
+    selected_cluster_subset : list, optional
+        [description], by default None
+    selected_cell_subset : [type], optional
+        [description], by default None
+    directed : bool, optional
+        [description], by default False
+    copy : bool, optional
+        [description], by default False
 
     Returns
     -------
@@ -428,9 +469,39 @@ def cluster_community(
     """
     if copy:
         adata = copy_adata(adata)
+    if (layer is not None) and (adj_matrix_key is not None):
+        raise ValueError("Please supply one of adj_matrix_key and layer")
+    if adj_matrix_key is None:
+        if layer is None:
+            adj_matrix_key = "connectivities"
+        else:
+            adj_matrix_key = layer + "_" + layer_conn_type
+
+    # try generating required adj_matrix according to
+    # user inputs through "neighbors" interface
+    if not (adj_matrix_key in adata.obsp):
+        if layer is None:
+            neighbors(adata)
+        else:
+            neighbors(adata, X_data=adata.layers[layer])
+
+    if not (adj_matrix_key in adata.obsp):
+        raise ValueError("%s not exist in adata.obsp" % adj_matrix_key)
+
+    graph_sparse_matrix = adata.obsp[adj_matrix_key]
+
     if result_key is None:
         result_key = "%s" % (method)
-    graph_sparse_matrix = adata.obsp[adj_matrix_key]
+    if selected_cell_subset is not None:
+        adata = adata[selected_cell_subset]
+    if selected_cluster_subset is not None:
+        cluster_col, allowed_clusters = (
+            selected_cluster_subset[0],
+            selected_cluster_subset[1],
+        )
+        valid_indices = np.isin(adata.obs[cluster_col], allowed_clusters)
+        adata = adata[valid_indices]
+
     community_result = cluster_community_from_graph(
         method=method,
         graph_sparse_matrix=graph_sparse_matrix,
