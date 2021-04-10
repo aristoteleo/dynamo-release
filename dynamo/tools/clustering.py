@@ -555,7 +555,7 @@ def cluster_community(
         else:
             valid_indices = cell_subsets
 
-        graph_sparse_matrix = graph_sparse_matrix[valid_indices, valid_indices]
+        graph_sparse_matrix = graph_sparse_matrix[valid_indices, :][:, valid_indices]
 
     valid_indices = None
     if cluster_and_subsets is not None:
