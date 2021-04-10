@@ -11,7 +11,7 @@ from ..utils import LoggerManager, copy_adata
 
 
 def hdbscan(
-    Adata,
+    adata,
     X_data=None,
     genes=None,
     layer=None,
@@ -41,7 +41,7 @@ def hdbscan(
 
     Parameters
     ----------
-    Adata: :class:`~anndata.AnnData`
+    adata: :class:`~anndata.AnnData`
         AnnData object.
     X_data: `np.ndarray` (default: `None`)
         The user supplied data that will be used for clustering directly.
@@ -74,14 +74,7 @@ def hdbscan(
 
     logger = LoggerManager.gen_logger("dynamo-hdbscan")
     logger.log_time()
-    if copy:
-        logger.info(
-            "Deep copying AnnData object and working on the new copy. Original AnnData object will not be modified.",
-            indent_level=1,
-        )
-        adata = Adata.copy()
-    else:
-        adata = Adata
+    adata = copy_adata(adata) if copy else adata
 
     if X_data is None:
         _, n_components, has_basis, basis = prepare_dim_reduction(
@@ -167,7 +160,7 @@ def hdbscan(
 
 
 def cluster_field(
-    Adata,
+    adata,
     basis="pca",
     embedding_basis=None,
     normalize=True,
@@ -223,14 +216,7 @@ def cluster_field(
 
     logger = LoggerManager.gen_logger("dynamo-cluster_field")
     logger.log_time()
-    if copy:
-        logger.info(
-            "Deep copying AnnData object and working on the new copy. Original AnnData object will not be modified.",
-            indent_level=1,
-        )
-        adata = Adata.copy()
-    else:
-        adata = Adata
+    adata = copy_adata(adata) if copy else adata
 
     if method in ["louvain", "leiden"]:
         try:
@@ -283,11 +269,12 @@ def cluster_field(
 
     if method in ["hdbscan", "kmeans"]:
         if method == "hdbscan":
-            key = 'field_hdbscan'
+            key = "field_hdbscan"
             hdbscan(adata, X_data=X, result_key=key, **kwargs)
         elif method == "kmeans":
             from sklearn.cluster import KMeans
-            key = 'field_kmeans'
+
+            key = "field_kmeans"
 
             kmeans = KMeans(random_state=0, **kwargs).fit(X)
             adata.obs[key] = kmeans.labels_.astype("str")
@@ -320,17 +307,23 @@ def cluster_field(
         adata.obsp["vf_feature_knn"] = graph
 
         if method == "leiden":
-            leiden(adata,
-                    adj_matrix_key="vf_feature_knn",
-                    result_key='field_leiden')
+            leiden(
+                adata,
+                adj_matrix_key="vf_feature_knn",
+                result_key="field_leiden",
+            )
         elif method == "louvain":
-            louvain(adata,
-                    adj_matrix_key="vf_feature_knn",
-                    result_key='field_louvain')
-        elif method == "informap":
-            infomap(adata,
-                    adj_matrix_key="vf_feature_knn",
-                    result_key='field_informap')
+            louvain(
+                adata,
+                adj_matrix_key="vf_feature_knn",
+                result_key="field_louvain",
+            )
+        elif method == "infomap":
+            infomap(
+                adata,
+                adj_matrix_key="vf_feature_knn",
+                result_key="field_infomap",
+            )
 
     logger.finish_progress(progress_name="clustering_field")
 
@@ -340,18 +333,18 @@ def cluster_field(
 
 
 def leiden(
-        adata,
-        weight="weight",
-        initial_membership=None,
-        adj_matrix=None,
-        adj_matrix_key=None,
-        result_key=None,
-        layer=None,
-        selected_cluster_subset: list = None,
-        selected_cell_subset=None,
-        directed=False,
-        copy=False,
-        **kwargs
+    adata,
+    weight="weight",
+    initial_membership=None,
+    adj_matrix=None,
+    adj_matrix_key=None,
+    result_key=None,
+    layer=None,
+    selected_cluster_subset: list = None,
+    selected_cell_subset=None,
+    directed=False,
+    copy=False,
+    **kwargs
 ) -> AnnData:
     kwargs.update(
         {
@@ -469,7 +462,7 @@ def infomap(
 
 
 def cluster_community(
-    Adata,
+    adata,
     method="leiden",
     result_key=None,
     adj_matrix=None,
@@ -489,7 +482,7 @@ def cluster_community(
 
     Parameters
     ----------
-    Adata : [type]
+    adata : [type]
         [description]
     method : str, optional
         [description], by default "leiden"
@@ -518,7 +511,7 @@ def cluster_community(
         [description]
     """
 
-    adata = copy_adata(Adata) if copy else Adata
+    adata = copy_adata(adata) if copy else adata
     if (layer is not None) and (adj_matrix_key is not None):
         raise ValueError("Please supply one of adj_matrix_key and layer")
     if adj_matrix_key is None:
@@ -546,9 +539,15 @@ def cluster_community(
 
     if result_key is None:
         if any((cell_subsets is None, cluster_and_subsets is None)):
-            result_key = "%s" % (method) if layer is None else layer + '_' + method
+            result_key = (
+                "%s" % (method) if layer is None else layer + "_" + method
+            )
         else:
-            result_key = 'subset_' + method if layer is None else layer + '_subset_' + method
+            result_key = (
+                "subset_" + method
+                if layer is None
+                else layer + "_subset_" + method
+            )
 
     if cell_subsets is not None:
         if type(cell_subsets[0]) == str:
@@ -578,7 +577,9 @@ def cluster_community(
         **kwargs
     )
 
-    labels = np.zeros(graph_sparse_matrix.shape[0], dtype=int) + no_community_label
+    labels = (
+        np.zeros(graph_sparse_matrix.shape[0], dtype=int) + no_community_label
+    )
     for i, community in enumerate(community_result.communities):
         labels[community] = i
 
@@ -599,7 +600,7 @@ def cluster_community(
         "layer_conn_type": layer_conn_type,
         "cell_subsets": cell_subsets,
         "cluster_and_subsets": cluster_and_subsets,
-        "directed": directed
+        "directed": directed,
     }
 
     if copy:

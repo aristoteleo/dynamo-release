@@ -25,14 +25,18 @@ def test_logger_simple_progress_naive(test_logger):
         # test_logger.report_progress(i / total * 100)
         test_logger.report_progress(count=i, total=total)
         time.sleep(0.1)
-    test_logger.finish_progress(progress_name="pytest simple progress logger test")
+    test_logger.finish_progress(
+        progress_name="pytest simple progress logger test"
+    )
 
 
 def test_logger_simple_progress_logger(test_logger):
     total = 10
     test_logger.log_time()
     for _ in LoggerManager.progress_logger(
-        range(total), test_logger, progress_name="progress logger test looooooooooooooooooooooooooooooong"
+        range(total),
+        test_logger,
+        progress_name="progress logger test looooooooooooooooooooooooooooooong",
     ):
         time.sleep(0.1)
 
@@ -93,6 +97,6 @@ if __name__ == "__main__":
     # test_logger_simple_progress_naive(LoggerManager.get_main_logger())
     # test_logger_simple_progress_logger(LoggerManager.get_main_logger())
     # test_logger_simple_progress_logger(LoggerManager.get_temp_timer_logger())
-    # test_vectorField_logger()
-    # test_zebrafish_topography_tutorial_logger()
+    test_vectorField_logger()
+    test_zebrafish_topography_tutorial_logger()
     test_cell_cycle_score_logger_pancreatic_endocrinogenesis()

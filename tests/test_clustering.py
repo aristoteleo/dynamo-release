@@ -101,7 +101,7 @@ if __name__ == "__main__":
 
     print("tests begin...")
     ######### testing begins here #########
-    # test_simple_cluster_community_adata(adata)
-    # test_simple_cluster_subset(adata)
+    test_simple_cluster_community_adata(adata)
+    test_simple_cluster_subset(adata)
     test_simple_cluster_keys(adata)
     # test_simple_cluster_field(adata)

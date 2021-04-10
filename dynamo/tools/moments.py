@@ -7,7 +7,12 @@ from anndata import AnnData
 from typing import Union
 
 from .utils import get_mapper, elem_prod, inverse_norm
-from .connectivity import mnn, normalize_knn_graph, umap_conn_indices_dist_embedding
+from .connectivity import (
+    mnn,
+    normalize_knn_graph,
+    umap_conn_indices_dist_embedding,
+)
+from ..utils import copy_adata
 from ..preprocessing.utils import get_layer_keys, allowed_X_layer_names, pca
 from ..dynamo_logger import LoggerManager
 
@@ -70,20 +75,19 @@ def moments(
             If `copy` is set to False, `annData` object is updated with with calculated first/second moments (including
                 uncentered covariance)
             If `copy` is set to True, a deep copy of the original `adata` object is returned.
-   """
+    """
     logger = LoggerManager.gen_logger("dynamo-moments")
     logger.info("calculating first/second moments begins...", indent_level=1)
     logger.log_time()
 
-    if copy:
-        logger.info(
-            "Deep copying AnnData object and working on the new copy. Original AnnData object will not be modified.",
-            indent_level=1,
-        )
-        adata = adata.copy()
+    adata = copy_adata(adata) if copy else adata
 
     mapper = get_mapper()
-    only_splicing, only_labeling, splicing_and_labeling = allowed_X_layer_names()
+    (
+        only_splicing,
+        only_labeling,
+        splicing_and_labeling,
+    ) = allowed_X_layer_names()
 
     if conn is None:
         if genes is None and "use_for_pca" in adata.var.keys():
@@ -103,51 +107,93 @@ def moments(
                 X = X_data
             else:
                 if "X" not in adata.obsm.keys():
-                    if not any([i.startswith("X_") for i in adata.layers.keys()]):
+                    if not any(
+                        [i.startswith("X_") for i in adata.layers.keys()]
+                    ):
                         from ..preprocessing.preprocess import recipe_monocle
 
-                        genes_to_use = adata.var_names[genes] if genes.dtype == "bool" else genes
-                        adata = recipe_monocle(adata, genes_to_use=genes_to_use, num_dim=n_pca_components)
+                        genes_to_use = (
+                            adata.var_names[genes]
+                            if genes.dtype == "bool"
+                            else genes
+                        )
+                        adata = recipe_monocle(
+                            adata,
+                            genes_to_use=genes_to_use,
+                            num_dim=n_pca_components,
+                        )
                         adata.obsm["X"] = adata.obsm["X_pca"]
                     else:
                         CM = adata.X if genes is None else adata[:, genes].X
                         cm_genesums = CM.sum(axis=0)
-                        valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
+                        valid_ind = np.logical_and(
+                            np.isfinite(cm_genesums), cm_genesums != 0
+                        )
                         valid_ind = np.array(valid_ind).flatten()
                         CM = CM[:, valid_ind]
-                        adata, fit, _ = pca(adata, CM, n_pca_components=n_pca_components)
+                        adata, fit, _ = pca(
+                            adata, CM, n_pca_components=n_pca_components
+                        )
 
-                        adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
+                        adata.uns[
+                            "explained_variance_ratio_"
+                        ] = fit.explained_variance_ratio_[1:]
 
                 X = adata.obsm["X"][:, :n_pca_components]
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 if group is None:
-                    kNN, knn_indices, knn_dists, _ = umap_conn_indices_dist_embedding(
-                        X, n_neighbors=np.min((n_neighbors, adata.n_obs - 1)), return_mapper=False
+                    (
+                        kNN,
+                        knn_indices,
+                        knn_dists,
+                        _,
+                    ) = umap_conn_indices_dist_embedding(
+                        X,
+                        n_neighbors=np.min((n_neighbors, adata.n_obs - 1)),
+                        return_mapper=False,
                     )
 
                     if use_gaussian_kernel and not use_mnn:
-                        conn = gaussian_kernel(X, knn_indices, sigma=10, k=None, dists=knn_dists)
+                        conn = gaussian_kernel(
+                            X, knn_indices, sigma=10, k=None, dists=knn_dists
+                        )
                     else:
                         conn = normalize_knn_graph(kNN > 0)
                         normalize = False
                 else:
                     if group not in adata.obs.keys():
-                        raise Exception(f"the group {group} provided is not a column name in .obs attribute.")
+                        raise Exception(
+                            f"the group {group} provided is not a column name in .obs attribute."
+                        )
                     conn = csr_matrix((adata.n_obs, adata.n_obs))
                     cells_group = adata.obs[group]
                     uniq_grp = np.unique(cells_group)
                     for cur_grp in uniq_grp:
                         cur_cells = cells_group == cur_grp
                         cur_X = X[cur_cells, :]
-                        cur_kNN, cur_knn_indices, cur_knn_dists, _ = umap_conn_indices_dist_embedding(
-                            cur_X, n_neighbors=np.min((n_neighbors, sum(cur_cells) - 1)), return_mapper=False
+                        (
+                            cur_kNN,
+                            cur_knn_indices,
+                            cur_knn_dists,
+                            _,
+                        ) = umap_conn_indices_dist_embedding(
+                            cur_X,
+                            n_neighbors=np.min(
+                                (n_neighbors, sum(cur_cells) - 1)
+                            ),
+                            return_mapper=False,
                         )
 
                         if use_gaussian_kernel and not use_mnn:
-                            cur_conn = gaussian_kernel(cur_X, cur_knn_indices, sigma=10, k=None, dists=cur_knn_dists)
+                            cur_conn = gaussian_kernel(
+                                cur_X,
+                                cur_knn_indices,
+                                sigma=10,
+                                k=None,
+                                dists=cur_knn_dists,
+                            )
                         else:
                             cur_conn = normalize_knn_graph(cur_kNN > 0)
 
@@ -164,12 +210,20 @@ def moments(
     layers = [
         layer
         for layer in layers
-        if layer.startswith("X_") and (not layer.endswith("matrix") and not layer.endswith("ambiguous"))
+        if layer.startswith("X_")
+        and (not layer.endswith("matrix") and not layer.endswith("ambiguous"))
     ]
-    layers.sort(reverse=True)  # ensure we get M_us, M_tn, etc (instead of M_su or M_nt).
+    layers.sort(
+        reverse=True
+    )  # ensure we get M_us, M_tn, etc (instead of M_su or M_nt).
     for i, layer in enumerate(layers):
         layer_x = adata.layers[layer].copy()
-        layer_x_group = np.where([layer in x for x in [only_splicing, only_labeling, splicing_and_labeling]])[0][0]
+        layer_x_group = np.where(
+            [
+                layer in x
+                for x in [only_splicing, only_labeling, splicing_and_labeling]
+            ]
+        )[0][0]
         layer_x = inverse_norm(adata, layer_x)
 
         if mapper[layer] not in adata.layers.keys():
@@ -181,7 +235,16 @@ def moments(
         for layer2 in layers[i:]:
             layer_y = adata.layers[layer2].copy()
 
-            layer_y_group = np.where([layer2 in x for x in [only_splicing, only_labeling, splicing_and_labeling]])[0][0]
+            layer_y_group = np.where(
+                [
+                    layer2 in x
+                    for x in [
+                        only_splicing,
+                        only_labeling,
+                        splicing_and_labeling,
+                    ]
+                ]
+            )[0][0]
             # don't calculate 2 moments among uu, ul, su, sl -
             # they should be time-dependent moments and
             # those calculations are model specific
@@ -200,7 +263,9 @@ def moments(
                 layer_x, layer_y, conn, normalize_W=normalize, mX=None, mY=None
             )
 
-    if "X_protein" in adata.obsm.keys():  # may need to update with mnn or just use knn from protein layer itself.
+    if (
+        "X_protein" in adata.obsm.keys()
+    ):  # may need to update with mnn or just use knn from protein layer itself.
         adata.obsm[mapper["X_protein"]] = conn.dot(adata.obsm["X_protein"])
     adata.obsp["moments_con"] = conn
 
@@ -253,7 +318,9 @@ def time_moment(
         layers = ["unspliced", "spliced"]
 
     time = adata.obs[tkey]
-    m, v = prepare_data_deterministic(adata, adata.var.index, time, layers, use_total_layers=True, log=False)
+    m, v = prepare_data_deterministic(
+        adata, adata.var.index, time, layers, use_total_layers=True, log=False
+    )
     adata.uns["time_moments"] = {"time": time}
     adata.varm["m_t"] = m
     adata.varm["v_t"] = v
@@ -264,7 +331,14 @@ def time_moment(
 # ---------------------------------------------------------------------------------------------------
 # use for kinetic assumption
 def get_layer_pair(layer):
-    pair = {"new": "total", "total": "new", "X_new": "X_total", "X_total": "X_new", "M_t": "M_n", "M_n": "M_t"}
+    pair = {
+        "new": "total",
+        "total": "new",
+        "X_new": "X_total",
+        "X_total": "X_new",
+        "M_t": "M_n",
+        "M_n": "M_t",
+    }
     return pair[layer] if layer in pair.keys() else None
 
 
@@ -287,7 +361,13 @@ def get_layer_group(layer):
 
 
 def prepare_data_deterministic(
-    adata, genes, time, layers, use_total_layers=True, total_layers=["X_ul", "X_sl", "X_uu", "X_su"], log=False
+    adata,
+    genes,
+    time,
+    layers,
+    use_total_layers=True,
+    total_layers=["X_ul", "X_sl", "X_uu", "X_su"],
+    log=False,
 ):
     from ..preprocessing.utils import sz_util, normalize_util
 
@@ -295,7 +375,12 @@ def prepare_data_deterministic(
         if "total_Size_Factor" not in adata.obs.keys():
             # total_layers = ["uu", "ul", "su", "sl"] if 'uu' in adata.layers.keys() else ['total']
             sfs, _ = sz_util(
-                adata, "_total_", round_exprs=False, method="median", locfunc=np.nanmean, total_layers=total_layers
+                adata,
+                "_total_",
+                round_exprs=False,
+                method="median",
+                locfunc=np.nanmean,
+                total_layers=total_layers,
             )
         else:
             sfs = adata.obs.total_Size_Factor
@@ -306,23 +391,31 @@ def prepare_data_deterministic(
     raw = [None] * len(layers)
     for i, layer in enumerate(layers):
         if layer in ["X_total", "total", "M_t"]:
-            if (layer == "X_total" and adata.uns["pp"]["norm_method"] is None) or layer == "M_t":
+            if (
+                layer == "X_total" and adata.uns["pp"]["norm_method"] is None
+            ) or layer == "M_t":
                 x_layer = adata[:, genes].layers[layer]
-                x_layer = x_layer - adata[:, genes].layers[get_layer_pair(layer)]
+                x_layer = (
+                    x_layer - adata[:, genes].layers[get_layer_pair(layer)]
+                )
             else:
                 x_layer = adata.layers[layer]
                 group_pair_x_layer_ = get_layer_group(get_layer_pair(layer))
                 pair_x_layer, group_x_layer, group_pair_x_layer = (
                     adata.layers[get_layer_pair(layer)],
                     adata.layers[get_layer_group(layer)],
-                    None if group_pair_x_layer_ is None else adata.layers[group_pair_x_layer_],
+                    None
+                    if group_pair_x_layer_ is None
+                    else adata.layers[group_pair_x_layer_],
                 )
                 if layer.startswith("X_"):
                     x_layer, pair_x_layer, group_x_layer, group_pair_x_layer = (
                         inverse_norm(adata, x_layer),
                         inverse_norm(adata, pair_x_layer),
                         inverse_norm(adata, group_x_layer),
-                        0 if group_pair_x_layer_ is None else inverse_norm(adata, group_pair_x_layer),
+                        0
+                        if group_pair_x_layer_ is None
+                        else inverse_norm(adata, group_pair_x_layer),
                     )
 
                 if not use_total_layers:
@@ -347,7 +440,11 @@ def prepare_data_deterministic(
                     sfs_x, sfs_y = sfs_x[:, None], sfs_y[:, None]
 
                 x_layer = normalize_util(
-                    x_layer[:, adata.var_names.isin(genes)], sfs_x, relative_expr=True, pseudo_expr=0, norm_method=None
+                    x_layer[:, adata.var_names.isin(genes)],
+                    sfs_x,
+                    relative_expr=True,
+                    pseudo_expr=0,
+                    norm_method=None,
                 )
                 y_layer = normalize_util(
                     pair_x_layer[:, adata.var_names.isin(genes)],
@@ -359,7 +456,9 @@ def prepare_data_deterministic(
 
                 x_layer = x_layer - y_layer
         else:
-            if (layer == ["X_new"] and adata.uns["pp"]["norm_method"] is None) or layer == "M_n":
+            if (
+                layer == ["X_new"] and adata.uns["pp"]["norm_method"] is None
+            ) or layer == "M_n":
                 x_layer = adata[:, genes].layers[layer]
             else:
                 x_layer = adata.layers[layer]
@@ -418,14 +517,25 @@ def prepare_data_has_splicing(
     )
 
     layer_ul_data, layer_sl_data = adata.layers[layer_u], adata.layers[layer_s]
-    layer_uu_data, layer_su_data = adata.layers[total_layers[2]], adata.layers[total_layers[3]]
+    layer_uu_data, layer_su_data = (
+        adata.layers[total_layers[2]],
+        adata.layers[total_layers[3]],
+    )
     layer_ul_data, layer_sl_data = (
-        layer_ul_data if layer_u == "M_ul" else inverse_norm(adata, layer_ul_data),
-        layer_sl_data if layer_s == "M_sl" else inverse_norm(adata, layer_sl_data),
+        layer_ul_data
+        if layer_u == "M_ul"
+        else inverse_norm(adata, layer_ul_data),
+        layer_sl_data
+        if layer_s == "M_sl"
+        else inverse_norm(adata, layer_sl_data),
     )
     layer_uu_data, layer_su_data = (
-        layer_uu_data if total_layers[2] == "M_uu" else inverse_norm(adata, layer_uu_data),
-        layer_su_data if total_layers[3] == "M_su" else inverse_norm(adata, layer_su_data),
+        layer_uu_data
+        if total_layers[2] == "M_uu"
+        else inverse_norm(adata, layer_uu_data),
+        layer_su_data
+        if total_layers[3] == "M_su"
+        else inverse_norm(adata, layer_su_data),
     )
 
     if use_total_layers:
@@ -437,7 +547,10 @@ def prepare_data_has_splicing(
                 method="median",
                 locfunc=np.nanmean,
                 total_layers=total_layers,
-                CM=layer_ul_data + layer_sl_data + layer_uu_data + layer_su_data,
+                CM=layer_ul_data
+                + layer_sl_data
+                + layer_uu_data
+                + layer_su_data,
             )
             sfs_u, sfs_s = sfs[:, None], sfs[:, None]
         else:
@@ -466,11 +579,19 @@ def prepare_data_has_splicing(
 
     if U is None:
         U = normalize_util(
-            layer_ul_data[:, adata.var_names.isin(genes)], sfs_u, relative_expr=True, pseudo_expr=0, norm_method=None
+            layer_ul_data[:, adata.var_names.isin(genes)],
+            sfs_u,
+            relative_expr=True,
+            pseudo_expr=0,
+            norm_method=None,
         )
     if S is None:
         S = normalize_util(
-            layer_sl_data[:, adata.var_names.isin(genes)], sfs_s, relative_expr=True, pseudo_expr=0, norm_method=None
+            layer_sl_data[:, adata.var_names.isin(genes)],
+            sfs_s,
+            relative_expr=True,
+            pseudo_expr=0,
+            norm_method=None,
         )
 
     for i, g in enumerate(genes):
@@ -481,7 +602,11 @@ def prepare_data_has_splicing(
         uut = strat_mom(elem_prod(u, u), time, np.mean)
         ust = strat_mom(elem_prod(u, s), time, np.mean)
         sst = strat_mom(elem_prod(s, s), time, np.mean)
-        x = np.vstack([ut, st, uut, sst, ust]) if return_cov else np.vstack([ut, st, uut, sst])
+        x = (
+            np.vstack([ut, st, uut, sst, ust])
+            if return_cov
+            else np.vstack([ut, st, uut, sst])
+        )
 
         res[i] = x
         raw[i] = np.vstack((u, s))
@@ -489,7 +614,15 @@ def prepare_data_has_splicing(
     return res, raw
 
 
-def prepare_data_no_splicing(adata, genes, time, layer, use_total_layers=True, total_layer="X_total", return_old=False):
+def prepare_data_no_splicing(
+    adata,
+    genes,
+    time,
+    layer,
+    use_total_layers=True,
+    total_layer="X_total",
+    return_old=False,
+):
     """Prepare data when assumption is kinetic and data has no splicing"""
     from ..preprocessing.utils import sz_util, normalize_util
 
@@ -506,7 +639,9 @@ def prepare_data_no_splicing(adata, genes, time, layer, use_total_layers=True, t
 
     layer_data, total_layer_data = (
         layer_data if layer == "M_n" else inverse_norm(adata, layer_data),
-        total_layer_data if total_layer == "M_t" else inverse_norm(adata, total_layer_data),
+        total_layer_data
+        if total_layer == "M_t"
+        else inverse_norm(adata, total_layer_data),
     )
 
     if use_total_layers:
@@ -525,16 +660,32 @@ def prepare_data_no_splicing(adata, genes, time, layer, use_total_layers=True, t
         sfs, tot_sfs = sfs[:, None], sfs[:, None]
     else:
         sfs, _ = sz_util(
-            adata, layer, round_exprs=False, method="median", locfunc=np.nanmean, total_layers=None, CM=layer_data
+            adata,
+            layer,
+            round_exprs=False,
+            method="median",
+            locfunc=np.nanmean,
+            total_layers=None,
+            CM=layer_data,
         )
         tot_sfs, _ = sz_util(
-            adata, layer, round_exprs=False, method="median", locfunc=np.nanmean, total_layers=None, CM=total_layer_data
+            adata,
+            layer,
+            round_exprs=False,
+            method="median",
+            locfunc=np.nanmean,
+            total_layers=None,
+            CM=total_layer_data,
         )
         sfs, tot_sfs = sfs[:, None], tot_sfs[:, None]
 
     if U is None:
         U = normalize_util(
-            layer_data[:, adata.var_names.isin(genes)], sfs, relative_expr=True, pseudo_expr=0, norm_method=None
+            layer_data[:, adata.var_names.isin(genes)],
+            sfs,
+            relative_expr=True,
+            pseudo_expr=0,
+            norm_method=None,
         )
     if T is None:
         T = normalize_util(
@@ -586,14 +737,25 @@ def prepare_data_mix_has_splicing(
     )
 
     layer_u_data, layer_s_data = adata.layers[layer_u], adata.layers[layer_s]
-    layer_ul_data, layer_sl_data = adata.layers[layer_ul], adata.layers[layer_sl]
+    layer_ul_data, layer_sl_data = (
+        adata.layers[layer_ul],
+        adata.layers[layer_sl],
+    )
     layer_u_data, layer_s_data = (
-        layer_u_data if layer_u == "M_uu" else inverse_norm(adata, layer_u_data),
-        layer_s_data if layer_s == "M_su" else inverse_norm(adata, layer_s_data),
+        layer_u_data
+        if layer_u == "M_uu"
+        else inverse_norm(adata, layer_u_data),
+        layer_s_data
+        if layer_s == "M_su"
+        else inverse_norm(adata, layer_s_data),
     )
     layer_ul_data, layer_sl_data = (
-        layer_ul_data if layer_ul == "M_ul" else inverse_norm(adata, layer_ul_data),
-        layer_sl_data if layer_sl == "M_sl" else inverse_norm(adata, layer_sl_data),
+        layer_ul_data
+        if layer_ul == "M_ul"
+        else inverse_norm(adata, layer_ul_data),
+        layer_sl_data
+        if layer_sl == "M_sl"
+        else inverse_norm(adata, layer_sl_data),
     )
 
     if use_total_layers:
@@ -613,28 +775,56 @@ def prepare_data_mix_has_splicing(
             sfs_u, sfs_s = sfs[:, None], sfs[:, None]
     else:
         sfs_u, _ = sz_util(
-            adata, layer_u, False, "median", np.nanmean, total_layers=None, CM=layer_u_data + layer_ul_data
+            adata,
+            layer_u,
+            False,
+            "median",
+            np.nanmean,
+            total_layers=None,
+            CM=layer_u_data + layer_ul_data,
         )
         sfs_s, _ = sz_util(
-            adata, layer_s, False, "median", np.nanmean, total_layers=None, CM=layer_s_data + layer_sl_data
+            adata,
+            layer_s,
+            False,
+            "median",
+            np.nanmean,
+            total_layers=None,
+            CM=layer_s_data + layer_sl_data,
         )
         sfs_u, sfs_s = sfs_u[:, None], sfs_s[:, None]
 
     if U is None:
         U = normalize_util(
-            layer_u_data[:, adata.var_names.isin(genes)], sfs_u, relative_expr=True, pseudo_expr=0, norm_method=None
+            layer_u_data[:, adata.var_names.isin(genes)],
+            sfs_u,
+            relative_expr=True,
+            pseudo_expr=0,
+            norm_method=None,
         )
     if S is None:
         S = normalize_util(
-            layer_s_data[:, adata.var_names.isin(genes)], sfs_s, relative_expr=True, pseudo_expr=0, norm_method=None
+            layer_s_data[:, adata.var_names.isin(genes)],
+            sfs_s,
+            relative_expr=True,
+            pseudo_expr=0,
+            norm_method=None,
         )
     if Ul is None:
         Ul = normalize_util(
-            layer_ul_data[:, adata.var_names.isin(genes)], sfs_u, relative_expr=True, pseudo_expr=0, norm_method=None
+            layer_ul_data[:, adata.var_names.isin(genes)],
+            sfs_u,
+            relative_expr=True,
+            pseudo_expr=0,
+            norm_method=None,
         )
     if Sl is None:
         Sl = normalize_util(
-            layer_sl_data[:, adata.var_names.isin(genes)], sfs_s, relative_expr=True, pseudo_expr=0, norm_method=None
+            layer_sl_data[:, adata.var_names.isin(genes)],
+            sfs_s,
+            relative_expr=True,
+            pseudo_expr=0,
+            norm_method=None,
         )
 
     for i, g in enumerate(genes):
@@ -665,7 +855,14 @@ def prepare_data_mix_has_splicing(
 
 
 def prepare_data_mix_no_splicing(
-    adata, genes, time, layer_n, layer_t, use_total_layers=True, total_layer="X_total", mix_model_indices=None
+    adata,
+    genes,
+    time,
+    layer_n,
+    layer_t,
+    use_total_layers=True,
+    total_layer="X_total",
+    mix_model_indices=None,
 ):
     """Prepare data for mixture modeling when assumption is kinetic and data has NO splicing.
     Note that the mix_model_indices is indexed on 4 total species, which can be used to specify
@@ -690,23 +887,55 @@ def prepare_data_mix_no_splicing(
 
     if use_total_layers:
         if "total_Size_Factor" not in adata.obs.keys():
-            sfs, _ = sz_util(adata, total_layer, False, "median", np.nanmean, total_layers="total", CM=layer_t_data)
+            sfs, _ = sz_util(
+                adata,
+                total_layer,
+                False,
+                "median",
+                np.nanmean,
+                total_layers="total",
+                CM=layer_t_data,
+            )
             sfs_n, sfs_t = sfs[:, None], sfs[:, None]
         else:
             sfs = adata.obs.total_Size_Factor
             sfs_n, sfs_t = sfs[:, None], sfs[:, None]
     else:
-        sfs_n, _ = sz_util(adata, layer_n, False, "median", np.nanmean, total_layers=None, CM=layer_n_data)
-        sfs_t, _ = sz_util(adata, layer_t, False, "median", np.nanmean, total_layers=None, CM=layer_t_data)
+        sfs_n, _ = sz_util(
+            adata,
+            layer_n,
+            False,
+            "median",
+            np.nanmean,
+            total_layers=None,
+            CM=layer_n_data,
+        )
+        sfs_t, _ = sz_util(
+            adata,
+            layer_t,
+            False,
+            "median",
+            np.nanmean,
+            total_layers=None,
+            CM=layer_t_data,
+        )
         sfs_n, sfs_t = sfs_n[:, None], sfs_t[:, None]
 
     if N is None:
         N = normalize_util(
-            layer_n_data[:, adata.var_names.isin(genes)], sfs_n, relative_expr=True, pseudo_expr=0, norm_method=None
+            layer_n_data[:, adata.var_names.isin(genes)],
+            sfs_n,
+            relative_expr=True,
+            pseudo_expr=0,
+            norm_method=None,
         )
     if T is None:
         T = normalize_util(
-            layer_t_data[:, adata.var_names.isin(genes)], sfs_t, relative_expr=True, pseudo_expr=0, norm_method=None
+            layer_t_data[:, adata.var_names.isin(genes)],
+            sfs_t,
+            relative_expr=True,
+            pseudo_expr=0,
+            norm_method=None,
         )
 
     for i, g in enumerate(genes):
@@ -805,7 +1034,9 @@ def calc_12_mom_labeling(data, t, calculate_2_mom=True):
 
     for i in range(data.shape[0]):
         data_ = (
-            np.array(data[i].A.flatten(), dtype=float) if issparse(data) else np.array(data[i], dtype=float)
+            np.array(data[i].A.flatten(), dtype=float)
+            if issparse(data)
+            else np.array(data[i], dtype=float)
         )  # consider using the `adata.obs_vector`, `adata.var_vector` methods or accessing the array directly.
         m[i] = strat_mom(data_, t, np.nanmean)
         if calculate_2_mom:
@@ -862,7 +1093,9 @@ class MomData(AnnData):
         for g in tqdm(range(ng), desc="calculating 1/2 moments"):
             tmp = self[:, g].layers["new"]
             L = (
-                np.array(tmp.A, dtype=float) if issparse(tmp) else np.array(tmp, dtype=float)
+                np.array(tmp.A, dtype=float)
+                if issparse(tmp)
+                else np.array(tmp, dtype=float)
             )  # consider using the `adata.obs_vector`, `adata.var_vector` methods or accessing the array directly.
             if has_nan:
                 self.M[g] = strat_mom(L, self.times, np.nanmean)
@@ -895,7 +1128,9 @@ class Estimation:
     ):
         # initialize Estimation
         self.data = MomData(adata, time_key, has_nan)
-        self.data_u = MomData(adata_u, time_key, has_nan) if adata_u is not None else None
+        self.data_u = (
+            MomData(adata_u, time_key, has_nan) if adata_u is not None else None
+        )
         if param_ranges is None:
             param_ranges = {
                 "a": [0, 10],
@@ -975,7 +1210,10 @@ class Estimation:
 def moment_model(adata, subset_adata, _group, cur_grp, log_unnormalized, tkey):
     """deprecated"""
     # a few hard code to set up data for moment mode:
-    if "uu" in subset_adata.layers.keys() or "X_uu" in subset_adata.layers.keys():
+    if (
+        "uu" in subset_adata.layers.keys()
+        or "X_uu" in subset_adata.layers.keys()
+    ):
         if log_unnormalized and "X_uu" not in subset_adata.layers.keys():
             if issparse(subset_adata.layers["uu"]):
                 (
@@ -1002,7 +1240,10 @@ def moment_model(adata, subset_adata, _group, cur_grp, log_unnormalized, tkey):
                     np.log1p(subset_adata.layers["sl"]),
                 )
 
-        subset_adata_u, subset_adata_s = subset_adata.copy(), subset_adata.copy()
+        subset_adata_u, subset_adata_s = (
+            subset_adata.copy(),
+            subset_adata.copy(),
+        )
         del (
             subset_adata_u.layers["su"],
             subset_adata_u.layers["sl"],
@@ -1020,11 +1261,18 @@ def moment_model(adata, subset_adata, _group, cur_grp, log_unnormalized, tkey):
             subset_adata_s.layers.pop("sl"),
             subset_adata_s.layers.pop("su"),
         )
-        Moment, Moment_ = MomData(subset_adata_s, tkey), MomData(subset_adata_u, tkey)
+        Moment, Moment_ = MomData(subset_adata_s, tkey), MomData(
+            subset_adata_u, tkey
+        )
         if cur_grp == _group[0]:
             t_ind = 0
             g_len, t_len = len(_group), len(np.unique(adata.obs[tkey]))
-            (adata.uns["M_sl"], adata.uns["V_sl"], adata.uns["M_ul"], adata.uns["V_ul"],) = (
+            (
+                adata.uns["M_sl"],
+                adata.uns["V_sl"],
+                adata.uns["M_ul"],
+                adata.uns["V_ul"],
+            ) = (
                 np.zeros((Moment.M.shape[0], g_len * t_len)),
                 np.zeros((Moment.M.shape[0], g_len * t_len)),
                 np.zeros((Moment.M.shape[0], g_len * t_len)),
@@ -1039,11 +1287,16 @@ def moment_model(adata, subset_adata, _group, cur_grp, log_unnormalized, tkey):
         ) = (Moment.M, Moment.V, Moment_.M, Moment_.V)
 
         del Moment_
-        Est = Estimation(Moment, adata_u=subset_adata_u, time_key=tkey, normalize=True)  # # data is already normalized
+        Est = Estimation(
+            Moment, adata_u=subset_adata_u, time_key=tkey, normalize=True
+        )  # # data is already normalized
     else:
         if log_unnormalized and "X_total" not in subset_adata.layers.keys():
             if issparse(subset_adata.layers["total"]):
-                subset_adata.layers["new"].data, subset_adata.layers["total"].data = (
+                (
+                    subset_adata.layers["new"].data,
+                    subset_adata.layers["total"].data,
+                ) = (
                     np.log1p(subset_adata.layers["new"].data),
                     np.log1p(subset_adata.layers["total"].data),
                 )
@@ -1066,6 +1319,8 @@ def moment_model(adata, subset_adata, _group, cur_grp, log_unnormalized, tkey):
             adata.uns["M"][:, (t_len * t_ind) : (t_len * (t_ind + 1))],
             adata.uns["V"][:, (t_len * t_ind) : (t_len * (t_ind + 1))],
         ) = (Moment.M, Moment.V)
-        Est = Estimation(Moment, time_key=tkey, normalize=True)  # # data is already normalized
+        Est = Estimation(
+            Moment, time_key=tkey, normalize=True
+        )  # # data is already normalized
 
     return adata, Est, t_ind
