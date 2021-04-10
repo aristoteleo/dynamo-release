@@ -457,7 +457,7 @@ def topography(adata,
 
 
 def VectorField(
-    adata: anndata.AnnData,
+    Adata: anndata.AnnData,
     basis: Union[None, str] = None,
     layer: str = "X",
     dims: Union[int, list, None] = None,
@@ -479,7 +479,7 @@ def VectorField(
 
     Parameters
     ----------
-        adata:
+        Adata:
             AnnData object that contains embedding and velocity data
         basis:
             The embedding data to use. The vector field function will be learned on the low dimensional embedding and can be then
@@ -549,7 +549,9 @@ def VectorField(
             "Deep copying AnnData object and working on the new copy. Original AnnData object will not be modified.",
             indent_level=1,
         )
-        adata = adata.copy()
+        adata = Adata.copy()
+    else:
+        adata = Adata
 
     if basis is not None:
         logger.info(

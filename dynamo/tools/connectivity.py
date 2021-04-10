@@ -473,6 +473,7 @@ def neighbors(
     metric_kwads=None,
     cores=1,
     seed=19491001,
+    result_prefix='',
     **kwargs,
 ):
     """Function to search nearest neighbors of the adata object.
@@ -506,18 +507,21 @@ def neighbors(
         metric_params : dict, default=None
             Additional keyword arguments for the metric function.
         cores: `int` (default: 1)
-            The number of parallel jobs to run for neighbors search. ``None`` means 1 unless in a :obj:`joblib.parallel_backend` context.
-            ``-1`` means using all processors.
+            The number of parallel jobs to run for neighbors search. ``None`` means 1 unless in a
+            :obj:`joblib.parallel_backend` context. ``-1`` means using all processors.
         seed: `int` (default `19491001`)
             Random seed to ensure the reproducibility of each run.
+        result_prefix: `str` (default: `''`)
+            The key that will be used as the prefix of the connectivity, distance and neighbor keys in the returning 
+            adata. 
         kwargs:
             Additional arguments that will be passed to each nearest neighbor search algorithm.
 
     Returns
     -------
         adata: :AnnData
-            An updated anndata object that are updated with the `indices`, `connectivity`, `distance` to the .obsp, as well
-            as a new `neighbors` key in .uns.
+            An updated anndata object that are updated with the `indices`, `connectivity`, `distance` to the .obsp, as
+            well as a new `neighbors` key in .uns.
     """
 
     if X_data is None:
@@ -562,7 +566,7 @@ def neighbors(
     elif method in ["ball_tree", "kd_tree"]:
         from sklearn.neighbors import NearestNeighbors
 
-        print("***debug X_data:", X_data)
+        # print("***debug X_data:", X_data)
         nbrs = NearestNeighbors(
             n_neighbors=n_neighbors,
             metric=metric,
@@ -577,13 +581,19 @@ def neighbors(
             f"nearest neighbor search method {method} is not supported"
         )
 
-    adata.obsp["connectivities"], adata.obsp["distances"] = get_conn_dist_graph(
+    if result_prefix != '':
+        result_prefix = result_prefix if result_prefix.endswith('_') else result_prefix + '_'
+
+    conn_key, dist_key, neigh_key = result_prefix + "connectivities", \
+                                    result_prefix + "distances", \
+                                    result_prefix + "neighbors"
+    adata.obsp[conn_key], adata.obsp[dist_key] = get_conn_dist_graph(
         knn, distances
     )
 
-    adata.uns["neighbors"] = {}
-    adata.uns["neighbors"]["indices"] = knn
-    adata.uns["neighbors"]["params"] = {
+    adata.uns[neigh_key] = {}
+    adata.uns[neigh_key]["indices"] = knn
+    adata.uns[neigh_key]["params"] = {
         "n_neighbors": n_neighbors,
         "method": method,
         "metric": metric,

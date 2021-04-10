@@ -11,7 +11,7 @@ from ..utils import LoggerManager, copy_adata
 
 
 def hdbscan(
-    adata,
+    Adata,
     X_data=None,
     genes=None,
     layer=None,
@@ -19,6 +19,8 @@ def hdbscan(
     dims=None,
     n_pca_components=30,
     n_components=2,
+    result_key=None,
+    copy=False,
     **hdbscan_kwargs
 ):
     """Apply hdbscan to cluster cells in the space defined by basis.
@@ -39,7 +41,7 @@ def hdbscan(
 
     Parameters
     ----------
-    adata: :class:`~anndata.AnnData`
+    Adata: :class:`~anndata.AnnData`
         AnnData object.
     X_data: `np.ndarray` (default: `None`)
         The user supplied data that will be used for clustering directly.
@@ -57,6 +59,8 @@ def hdbscan(
         The number of pca components that will be used.
     n_components: `int` (default: `2`)
         The number of dimension that non-linear dimension reduction will be projected to.
+    copy:
+        Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments.
     hdbscan_kwargs: `dict`
         Additional parameters that will be passed to hdbscan function.
 
@@ -67,6 +71,17 @@ def hdbscan(
             from .obs, corresponding to either the Cluster results or the probability of each cell belong to a cluster.
             `hdbscan` key in .uns corresponds to a dictionary that includes additional results returned from hdbscan run.
     """
+
+    logger = LoggerManager.gen_logger("dynamo-hdbscan")
+    logger.log_time()
+    if copy:
+        logger.info(
+            "Deep copying AnnData object and working on the new copy. Original AnnData object will not be modified.",
+            indent_level=1,
+        )
+        adata = Adata.copy()
+    else:
+        adata = Adata
 
     if X_data is None:
         _, n_components, has_basis, basis = prepare_dim_reduction(
@@ -131,9 +146,12 @@ def hdbscan(
     h_kwargs = update_dict(h_kwargs, hdbscan_kwargs)
     cluster = HDBSCAN(**h_kwargs)
     cluster.fit(X_data)
-    adata.obs["hdbscan"] = cluster.labels_.astype("str")
-    adata.obs["hdbscan_prob"] = cluster.probabilities_
-    adata.uns["hdbscan"] = {
+
+    if result_key is None:
+        key = "hdbscan"
+    adata.obs[key] = cluster.labels_.astype("str")
+    adata.obs[key + "_prob"] = cluster.probabilities_
+    adata.uns[key] = {
         "hdbscan": cluster.labels_.astype("str"),
         "probabilities_": cluster.probabilities_,
         "cluster_persistence_": cluster.cluster_persistence_,
@@ -141,16 +159,21 @@ def hdbscan(
         "exemplars_": cluster.exemplars_,
     }
 
-    return adata
+    logger.finish_progress(progress_name="hdbscan density-based-clustering")
+
+    if copy:
+        return adata
+    return None
 
 
 def cluster_field(
-    adata,
+    Adata,
     basis="pca",
     embedding_basis=None,
     normalize=True,
     method="louvain",
     cores=1,
+    copy=False,
     **kwargs
 ):
     """Cluster cells based on vector field features.
@@ -159,7 +182,8 @@ def cluster_field(
     characterizing critical points (attractor/saddle/repressor, etc.) and characteristic curves (nullcline, separatrix).
     However, the calculation of those is not easy, for example, a strict definition of an attractor is states where
     velocity is 0 and the eigenvalue of the jacobian matrix at that point is all negative. Under this strict definition,
-    we may sometimes find the attractors are very far away from our sampled cell states which makes them less meaningful.
+    we may sometimes find the attractors are very far away from our sampled cell states which makes them less meaningful
+    although this can be largely avoided when we decide to remove the density correction during the velocity projection.
     This is not unexpected as the vector field we learned is defined via a set of basis functions based on gaussian
     kernels and thus it is hard to satisfy that strict definition.
 
@@ -187,6 +211,8 @@ def cluster_field(
     cores: `int` (default: 1)
         The number of parallel jobs to run for neighbors search. ``None`` means 1 unless in a :obj:`joblib.parallel_backend` context.
         ``-1`` means using all processors.
+    copy:
+        Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments.
     kwargs:
         Any additional arguments that will be passed to either kmeans, hdbscan, louvain or leiden clustering algorithms.
 
@@ -194,6 +220,17 @@ def cluster_field(
     -------
 
     """
+
+    logger = LoggerManager.gen_logger("dynamo-cluster_field")
+    logger.log_time()
+    if copy:
+        logger.info(
+            "Deep copying AnnData object and working on the new copy. Original AnnData object will not be modified.",
+            indent_level=1,
+        )
+        adata = Adata.copy()
+    else:
+        adata = Adata
 
     if method in ["louvain", "leiden"]:
         try:
@@ -246,12 +283,17 @@ def cluster_field(
 
     if method in ["hdbscan", "kmeans"]:
         if method == "hdbscan":
-            hdbscan(adata, X_data=X, **kwargs)
+            key = 'field_hdbscan'
+            hdbscan(adata, X_data=X, result_key=key, **kwargs)
         elif method == "kmeans":
             from sklearn.cluster import KMeans
+            key = 'field_kmeans'
 
             kmeans = KMeans(random_state=0, **kwargs).fit(X)
-            adata.obs["kmeans"] = kmeans.labels_.astype("str")
+            adata.obs[key] = kmeans.labels_.astype("str")
+
+        # clusters need to be categorical variables
+        adata.obs.obs[key] = adata.obs.obs[key].astype("category")
 
     elif method in ["louvain", "leiden"]:
         if X.shape[0] > 200000 and X.shape[1] > 2:
@@ -277,16 +319,60 @@ def cluster_field(
         )
         adata.obsp["vf_feature_knn"] = graph
 
-        if method == "louvain":
-            # sc.tl.louvain(adata, obsp="feature_knn", **kwargs)
-            louvain_coms = cluster_community_from_graph(
-                method="louvain", graph_sparse_matrix=graph
-            )
-        elif method == "leiden":
-            # sc.tl.leiden(adata, obsp="feature_knn", **kwargs)
-            leiden_coms = cluster_community_from_graph(
-                method="leiden", graph_sparse_matrix=graph
-            )
+        if method == "leiden":
+            leiden(adata,
+                    adj_matrix_key="vf_feature_knn",
+                    result_key='field_leiden')
+        elif method == "louvain":
+            louvain(adata,
+                    adj_matrix_key="vf_feature_knn",
+                    result_key='field_louvain')
+        elif method == "informap":
+            infomap(adata,
+                    adj_matrix_key="vf_feature_knn",
+                    result_key='field_informap')
+
+    logger.finish_progress(progress_name="clustering_field")
+
+    if copy:
+        return adata
+    return None
+
+
+def leiden(
+        adata,
+        weight="weight",
+        initial_membership=None,
+        adj_matrix=None,
+        adj_matrix_key=None,
+        result_key=None,
+        layer=None,
+        selected_cluster_subset: list = None,
+        selected_cell_subset=None,
+        directed=False,
+        copy=False,
+        **kwargs
+) -> AnnData:
+    kwargs.update(
+        {
+            "weight": weight,
+            "initial_membership": initial_membership,
+        }
+    )
+
+    return cluster_community(
+        adata,
+        method="leiden",
+        result_key=result_key,
+        adj_matrix=adj_matrix,
+        adj_matrix_key=adj_matrix_key,
+        layer=layer,
+        cluster_and_subsets=selected_cluster_subset,
+        cell_subsets=selected_cell_subset,
+        directed=directed,
+        copy=copy,
+        **kwargs
+    )
 
 
 def louvain(
@@ -338,56 +424,19 @@ def louvain(
         }
     )
 
-    cluster_community(
+    return cluster_community(
         adata,
         method="louvain",
         adj_matrix=adj_matrix,
         adj_matrix_key=adj_matrix_key,
         result_key=result_key,
         layer=layer,
-        selected_cluster_subset=selected_cluster_subset,
-        selected_cell_subset=selected_cell_subset,
+        cluster_and_subsets=selected_cluster_subset,
+        cell_subsets=selected_cell_subset,
         directed=directed,
         copy=copy,
         **kwargs
     )
-    return adata
-
-
-def leiden(
-    adata,
-    weight="weight",
-    initial_membership=None,
-    adj_matrix=None,
-    adj_matrix_key=None,
-    result_key=None,
-    layer=None,
-    selected_cluster_subset: list = None,
-    selected_cell_subset=None,
-    directed=False,
-    copy=False,
-    **kwargs
-) -> AnnData:
-    kwargs.update(
-        {
-            "weight": weight,
-            "initial_membership": initial_membership,
-        }
-    )
-    cluster_community(
-        adata,
-        method="leiden",
-        result_key=result_key,
-        adj_matrix=adj_matrix,
-        adj_matrix_key=adj_matrix_key,
-        layer=layer,
-        selected_cluster_subset=selected_cluster_subset,
-        selected_cell_subset=selected_cell_subset,
-        directed=directed,
-        copy=copy,
-        **kwargs
-    )
-    return adata
 
 
 def infomap(
@@ -403,6 +452,7 @@ def infomap(
     **kwargs
 ) -> AnnData:
     kwargs.update({})
+
     return cluster_community(
         adata,
         method="infomap",
@@ -410,8 +460,8 @@ def infomap(
         adj_matrix=adj_matrix,
         adj_matrix_key=adj_matrix_key,
         layer=layer,
-        selected_cluster_subset=selected_cluster_subset,
-        selected_cell_subset=selected_cell_subset,
+        cluster_and_subsets=selected_cluster_subset,
+        cell_subsets=selected_cell_subset,
         directed=directed,
         copy=copy,
         **kwargs
@@ -419,18 +469,18 @@ def infomap(
 
 
 def cluster_community(
-    adata,
+    Adata,
     method="leiden",
     result_key=None,
     adj_matrix=None,
     adj_matrix_key=None,
-    use_weight=False,
+    use_weight=True,
     no_community_label=-1,
     layer=None,
-    layer_conn_type="connectivites",
-    selected_cluster_subset: list = None,
-    selected_cell_subset=None,
-    directed=False,
+    layer_conn_type="connectivities",
+    cell_subsets=None,
+    cluster_and_subsets: list = None,
+    directed=True,
     copy=False,
     **kwargs
 ):
@@ -439,7 +489,7 @@ def cluster_community(
 
     Parameters
     ----------
-    adata : [type]
+    Adata : [type]
         [description]
     method : str, optional
         [description], by default "leiden"
@@ -453,9 +503,9 @@ def cluster_community(
         [description], by default False
     no_community_label : int, optional
         [description], by default -1
-    selected_cluster_subset : list, optional
+    cell_subsets : [type], optional
         [description], by default None
-    selected_cell_subset : [type], optional
+    cluster_and_subsets : list, optional
         [description], by default None
     directed : bool, optional
         [description], by default False
@@ -467,8 +517,8 @@ def cluster_community(
     [type]
         [description]
     """
-    if copy:
-        adata = copy_adata(adata)
+
+    adata = copy_adata(Adata) if copy else Adata
     if (layer is not None) and (adj_matrix_key is not None):
         raise ValueError("Please supply one of adj_matrix_key and layer")
     if adj_matrix_key is None:
@@ -479,28 +529,47 @@ def cluster_community(
 
     # try generating required adj_matrix according to
     # user inputs through "neighbors" interface
-    if not (adj_matrix_key in adata.obsp):
-        if layer is None:
-            neighbors(adata)
-        else:
-            neighbors(adata, X_data=adata.layers[layer])
+    if adj_matrix is None:
+        if not (adj_matrix_key in adata.obsp):
+            if layer is None:
+                neighbors(adata)
+            else:
+                X_data = adata[:, adata.var.use_for_pca].layers[layer]
+                neighbors(adata, X_data=X_data, result_prefix=layer)
 
-    if not (adj_matrix_key in adata.obsp):
-        raise ValueError("%s not exist in adata.obsp" % adj_matrix_key)
+        if not (adj_matrix_key in adata.obsp):
+            raise ValueError("%s not exist in adata.obsp" % adj_matrix_key)
 
-    graph_sparse_matrix = adata.obsp[adj_matrix_key]
+        graph_sparse_matrix = adata.obsp[adj_matrix_key]
+    else:
+        graph_sparse_matrix = adj_matrix
 
     if result_key is None:
-        result_key = "%s" % (method)
-    if selected_cell_subset is not None:
-        adata = adata[selected_cell_subset]
-    if selected_cluster_subset is not None:
+        if any((cell_subsets is None, cluster_and_subsets is None)):
+            result_key = "%s" % (method) if layer is None else layer + '_' + method
+        else:
+            result_key = 'subset_' + method if layer is None else layer + '_subset_' + method
+
+    if cell_subsets is not None:
+        if type(cell_subsets[0]) == str:
+            valid_indices = [adata.var_names.get_loc(i) for i in cell_subsets]
+        else:
+            valid_indices = cell_subsets
+
+        graph_sparse_matrix = graph_sparse_matrix[valid_indices, valid_indices]
+
+    valid_indices = None
+    if cluster_and_subsets is not None:
         cluster_col, allowed_clusters = (
-            selected_cluster_subset[0],
-            selected_cluster_subset[1],
+            cluster_and_subsets[0],
+            cluster_and_subsets[1],
         )
         valid_indices = np.isin(adata.obs[cluster_col], allowed_clusters)
-        adata = adata[valid_indices]
+
+        graph_sparse_matrix = graph_sparse_matrix[valid_indices, valid_indices]
+
+    if not use_weight:
+        graph_sparse_matrix.data = 1
 
     community_result = cluster_community_from_graph(
         method=method,
@@ -509,12 +578,32 @@ def cluster_community(
         **kwargs
     )
 
-    labels = np.zeros(len(adata), dtype=int) + no_community_label
+    labels = np.zeros(graph_sparse_matrix.shape[0], dtype=int) + no_community_label
     for i, community in enumerate(community_result.communities):
         labels[community] = i
-    adata.obs[result_key] = labels
 
-    return adata
+    if valid_indices is None:
+        adata.obs[result_key] = labels
+    else:
+        adata.obs[result_key] = -1
+        adata.obs.loc[valid_indices, result_key] = labels
+
+    # clusters need to be categorical variables
+    adata.obs[result_key] = adata.obs[result_key].astype("category")
+
+    adata.uns[result_key] = {
+        "method": method,
+        "adj_matrix_key": adj_matrix_key,
+        "use_weight": use_weight,
+        "layer": layer,
+        "layer_conn_type": layer_conn_type,
+        "cell_subsets": cell_subsets,
+        "cluster_and_subsets": cluster_and_subsets,
+        "directed": directed
+    }
+
+    if copy:
+        return adata
 
 
 def cluster_community_from_graph(
@@ -575,7 +664,20 @@ def cluster_community_from_graph(
         graph = graph.to_directed()
     else:
         graph = graph.to_undirected()
-    if method == "louvain":
+    if method == "leiden":
+        initial_membership, weights = None, None
+        if "initial_membership" in kwargs:
+            logger.info(
+                "Detecting community with initial_membership input from caller"
+            )
+            initial_membership = kwargs["initial_membership"]
+        if "weights" in kwargs:
+            weights = kwargs["weights"]
+
+        coms = algorithms.leiden(
+            graph, weights=weights, initial_membership=initial_membership
+        )
+    elif method == "louvain":
         if "resolution" not in kwargs:
             raise KeyError("resolution not in louvain input parameters")
         if "weight" not in kwargs:
@@ -589,24 +691,13 @@ def cluster_community_from_graph(
         coms = algorithms.louvain(
             graph, weight=weight, resolution=resolution, randomize=randomize
         )
-    elif method == "leiden":
-        initial_membership, weights = None, None
-        if "initial_membership" in kwargs:
-            logger.info(
-                "Detecting community with initial_membership input from caller"
-            )
-            initial_membership = kwargs["initial_membership"]
-        if "weights" in kwargs:
-            weights = kwargs["weights"]
-
-        coms = algorithms.leiden(
-            graph, weights=weights, initial_membership=initial_membership
-        )
     elif method == "infomap":
         coms = algorithms.infomap(graph)
     else:
         raise NotImplementedError("clustering algorithm not implemented yet")
+
     logger.finish_progress(
         progress_name="Community clustering with %s" % (method)
     )
+
     return coms

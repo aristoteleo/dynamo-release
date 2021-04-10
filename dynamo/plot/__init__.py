@@ -76,4 +76,4 @@ from .ezplots import (
     SchemeDivergeBWR,
 )
 
-from .clustering_community import louvain, leiden, infomap
+from .clustering import louvain, leiden, infomap

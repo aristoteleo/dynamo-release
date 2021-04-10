@@ -12,5 +12,5 @@ def copy_adata(adata, logger=None):
         "Deep copying AnnData object and working on the new copy. Original AnnData object will not be modified.",
         indent_level=1,
     )
-    adata = adata.copy()
-    return adata
+    data = adata.copy()
+    return data

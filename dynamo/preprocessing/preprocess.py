@@ -1182,7 +1182,7 @@ def select_genes(
 
 
 def recipe_monocle(
-    adata: AnnData,
+    Adata: AnnData,
     reset_X: bool = False,
     tkey: Union[str, None] = None,
     t_label_keys: Union[str, list, None] = None,
@@ -1220,7 +1220,7 @@ def recipe_monocle(
 
     Parameters
     ----------
-        adata: :class:`~anndata.AnnData`
+        Adata: :class:`~anndata.AnnData`
             AnnData object.
         tkey: `str` or None (default: None)
             The column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data (will also
@@ -1339,7 +1339,9 @@ def recipe_monocle(
             "Deep copying AnnData object and working on the new copy. Original AnnData object will not be modified.",
             indent_level=1,
         )
-        adata = adata.copy()
+        adata = Adata.copy()
+    else:
+        adata = Adata
     logger.info("apply Monocole recipe to adata...", indent_level=1)
     if "use_for_pca" in adata.var.columns:
         del adata.var["use_for_pca"]  # avoid use_for_pca was set previously.
