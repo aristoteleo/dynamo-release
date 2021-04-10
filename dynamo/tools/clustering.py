@@ -3,6 +3,7 @@ from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import csr_matrix
 import numpy as np
 from anndata import AnnData
+import pandas as pd
 
 from .connectivity import neighbors
 from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
@@ -467,7 +468,6 @@ def cluster_community(
     result_key=None,
     adj_matrix=None,
     adj_matrix_key=None,
-    use_weight=True,
     no_community_label=-1,
     layer=None,
     layer_conn_type="connectivities",
@@ -538,7 +538,7 @@ def cluster_community(
         graph_sparse_matrix = adj_matrix
 
     if result_key is None:
-        if any((cell_subsets is None, cluster_and_subsets is None)):
+        if all((cell_subsets is None, cluster_and_subsets is None)):
             result_key = (
                 "%s" % (method) if layer is None else layer + "_" + method
             )
@@ -549,26 +549,30 @@ def cluster_community(
                 else layer + "_subset_" + method
             )
 
+    valid_indices = None
     if cell_subsets is not None:
         if type(cell_subsets[0]) == str:
             valid_indices = [adata.var_names.get_loc(i) for i in cell_subsets]
         else:
             valid_indices = cell_subsets
 
-        graph_sparse_matrix = graph_sparse_matrix[valid_indices, valid_indices]
+        graph_sparse_matrix = graph_sparse_matrix[valid_indices, :][
+            :, valid_indices
+        ]
 
-    valid_indices = None
     if cluster_and_subsets is not None:
         cluster_col, allowed_clusters = (
             cluster_and_subsets[0],
             cluster_and_subsets[1],
         )
-        valid_indices = np.isin(adata.obs[cluster_col], allowed_clusters)
+        valid_indices_bools = np.isin(adata.obs[cluster_col], allowed_clusters)
+        valid_indices = np.argwhere(valid_indices_bools).flatten()
+        graph_sparse_matrix = graph_sparse_matrix[valid_indices, :][
+            :, valid_indices
+        ]
 
-        graph_sparse_matrix = graph_sparse_matrix[valid_indices, valid_indices]
-
-    if not use_weight:
-        graph_sparse_matrix.data = 1
+    # if not use_weight:
+    #     graph_sparse_matrix.data = 1
 
     community_result = cluster_community_from_graph(
         method=method,
@@ -577,25 +581,20 @@ def cluster_community(
         **kwargs
     )
 
-    labels = (
-        np.zeros(graph_sparse_matrix.shape[0], dtype=int) + no_community_label
-    )
-    for i, community in enumerate(community_result.communities):
-        labels[community] = i
+    labels = np.zeros(len(adata), dtype=int) + no_community_label
 
+    # No subset required case, use all indices
     if valid_indices is None:
-        adata.obs[result_key] = labels
-    else:
-        adata.obs[result_key] = -1
-        adata.obs.loc[valid_indices, result_key] = labels
-
+        valid_indices = np.arange(0, len(adata))
+    for i, community in enumerate(community_result.communities):
+        labels[valid_indices[community]] = i
     # clusters need to be categorical variables
-    adata.obs[result_key] = adata.obs[result_key].astype("category")
+    adata.obs[result_key] = pd.Categorical(labels)
 
     adata.uns[result_key] = {
         "method": method,
         "adj_matrix_key": adj_matrix_key,
-        "use_weight": use_weight,
+        # "use_weight": use_weight,
         "layer": layer,
         "layer_conn_type": layer_conn_type,
         "cell_subsets": cell_subsets,
@@ -603,8 +602,7 @@ def cluster_community(
         "directed": directed,
     }
 
-    if copy:
-        return adata
+    return adata
 
 
 def cluster_community_from_graph(
