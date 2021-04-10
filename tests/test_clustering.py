@@ -59,17 +59,17 @@ def test_simple_cluster_community_adata(adata):
 
 def test_simple_cluster_subset(adata):
     print(adata.obs["Cluster"])
-    adata = dyn.tl.infomap(
+    result = dyn.tl.infomap(
         adata,
         directed=True,
         copy=True,
         selected_cluster_subset=["Cluster", [0, 1, 2]],
     )
-    print(adata.obs["infomap"])
-    adata = dyn.tl.infomap(
+    print(result.obs["subset_infomap"])
+    result = dyn.tl.infomap(
         adata, directed=True, copy=True, selected_cell_subset=np.arange(0, 10)
     )
-    print(adata.obs["infomap"])
+    print(result.obs["subset_infomap"])
 
 
 def test_simple_cluster_field(adata):
@@ -104,4 +104,3 @@ if __name__ == "__main__":
     test_simple_cluster_community_adata(adata)
     test_simple_cluster_subset(adata)
     test_simple_cluster_keys(adata)
-    # test_simple_cluster_field(adata)
