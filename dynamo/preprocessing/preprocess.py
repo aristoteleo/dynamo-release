@@ -5,6 +5,9 @@ import warnings
 from scipy.sparse import issparse, csr_matrix
 from sklearn.decomposition import FastICA
 from sklearn.utils import sparsefuncs
+from anndata import AnnData
+from typing import Union, Callable
+
 
 from .cell_cycle import cell_cycle_scores
 from ..tools.utils import update_dict
@@ -30,10 +33,8 @@ from .utils import (
     add_noise_to_duplicates,
     gene_exp_fraction,
 )
-
-from anndata import AnnData
-from typing import Union, Callable
 from ..dynamo_logger import LoggerManager
+from ..utils import copy_adata
 
 
 def szFactor(

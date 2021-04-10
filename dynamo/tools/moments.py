@@ -12,6 +12,7 @@ from .connectivity import (
     normalize_knn_graph,
     umap_conn_indices_dist_embedding,
 )
+from ..utils import copy_adata
 from ..preprocessing.utils import get_layer_keys, allowed_X_layer_names, pca
 from ..dynamo_logger import LoggerManager
 

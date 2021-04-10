@@ -33,6 +33,7 @@ from .utils import (
 
 from ..external.hodge import ddhodge
 from .vector_calculus import curl, divergence
+from ..utils import copy_adata
 
 
 def pac_onestep(x0, func, v0, ds=0.01):
