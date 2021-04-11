@@ -924,12 +924,15 @@ def find_fixed_points(X0, func_vf, domain=None, tol_redundant=1e-4):
     J = np.array(J)
     fval = np.array(fval)
 
-    if tol_redundant is not None:
-        X, discard = remove_redundant_points(X, tol_redundant, output_discard=True)
-        J = J[~discard]
-        fval = fval[~discard]
+    if X.size != 0:
+        if tol_redundant is not None:
+            X, discard = remove_redundant_points(X, tol_redundant, output_discard=True)
+            J = J[~discard]
+            fval = fval[~discard]
 
-    return X, J, fval
+        return X, J, fval
+    else:
+        return None, None, None
 
 
 class FixedPoints:

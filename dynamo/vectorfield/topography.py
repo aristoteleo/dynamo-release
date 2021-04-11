@@ -441,18 +441,13 @@ def topography(
 
             def func(x):
                 return dynode_vector_field_function(x, VecFld)
-
         else:
-
             def func(x):
                 return vector_field_function(x, VecFld)
 
     if dims is None:
-        dims = (
-            [0, 1]
-            if basis not in ["pca", "ica"]
-            else np.arange(adata.obsm["X_" + basis].shape[1])
-        )
+        dims = np.arange(adata.obsm["X_" + basis].shape[1])
+
     X_basis = adata.obsm["X_" + basis][:, dims] if X is None else X[:, dims]
 
     if X_basis.shape[1] == 2:
@@ -471,11 +466,19 @@ def topography(
         vecfld.find_fixed_points_by_sampling(n, xlim, ylim)
         if vecfld.get_num_fixed_points() > 0:
             vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
+
+        Xss, ftype = vecfld.get_fixed_points(get_types=True)
+        confidence = vecfld.get_Xss_confidence()
     else:
-        Xss, ftype = VecFld.get_fixed_points(**kwargs)
-        if Xss.shape[1] > 2:
-            fp_ind = nearest_neighbors(Xss, VecFld.data["X"], 1).flatten()
-            Xss = VecFld.data["X"][fp_ind]
+        xlim, ylim, confidence = None, None, None
+        vecfld = base_vectorfield(X=VecFld['X'][VecFld['valid_ind'], :],
+                                  V=VecFld['Y'][VecFld['valid_ind'], :],
+                                  func=func)
+
+        Xss, ftype = vecfld.get_fixed_points(**kwargs)
+        if Xss.ndim > 1 and Xss.shape[1] > 2:
+            fp_ind = nearest_neighbors(Xss, vecfld.data["X"], 1).flatten()
+            Xss = vecfld.data["X"][fp_ind]
 
     # commented for now, will go back to this later.
     # sep = compute_separatrices(vecfld.Xss.get_X(), vecfld.Xss.get_J(), vecfld.func, xlim, ylim)
@@ -492,6 +495,8 @@ def topography(
                 "ylim": ylim,
                 "X_data": X_basis,
                 "fixedpoints": Xss,
+                "ftype": ftype,
+                "confidence": confidence,
                 "nullcline": None,
                 "separatrices": None,
             }
@@ -502,6 +507,8 @@ def topography(
             "ylim": ylim,
             "X_data": X_basis,
             "fixedpoints": Xss,
+            "ftype": ftype,
+            "confidence": confidence,
             "nullcline": None,
             "separatrices": None,
         }

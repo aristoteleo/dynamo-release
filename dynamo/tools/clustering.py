@@ -520,7 +520,7 @@ def cluster_community(
         raise ValueError("Please supply one of adj_matrix_key and layer")
     if adj_matrix_key is None:
         if layer is None:
-            adj_matrix_key = "distance"
+            adj_matrix_key = "connectivities"
         else:
             adj_matrix_key = layer + "_" + layer_conn_type
 
