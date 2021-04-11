@@ -5,6 +5,9 @@ import scipy
 import matplotlib.pyplot as plt
 
 from ..vectorfield.topography import topography as _topology  # , compute_separatrices
+from ..vectorfield.topography import VectorField2D # , compute_separatrices
+from ..vectorfield.scVectorField import base_vectorfield
+from ..vectorfield.utils import vecfld_from_adata
 from ..tools.utils import update_dict, nearest_neighbors
 from ..external.hodge import ddhodge
 from ..vectorfield.vector_calculus import curl, divergence
@@ -117,7 +120,7 @@ def plot_flow_field(
     v_vel = np.empty_like(vv)
     for i in range(uu.shape[0]):
         for j in range(uu.shape[1]):
-            u_vel[i, j], v_vel[i, j] = vecfld.func(np.array([uu[i, j], vv[i, j]]))
+            u_vel[i, j], v_vel[i, j] = vecfld(np.array([uu[i, j], vv[i, j]]))
 
     # Compute speed
     speed = np.sqrt(u_vel ** 2 + v_vel ** 2)
@@ -195,7 +198,7 @@ def plot_flow_field(
         return ax
 
 
-def plot_nullclines(vecfld, lw=3, background=None, save_show_or_return="return", save_kwargs={}, ax=None):
+def plot_nullclines(vecfld, vecfld_dict=None, lw=3, background=None, save_show_or_return="return", save_kwargs={}, ax=None):
     """Plot nullclines stored in the VectorField2D class.
 
     Arguments
@@ -231,12 +234,41 @@ def plot_nullclines(vecfld, lw=3, background=None, save_show_or_return="return",
     else:
         colors = ["#189e1a", "#1f77b4"]
 
+    NCx, NCy = None, None
+
+    # if nullcline is not previously calculated, calculate and plot them
+    if vecfld_dict is None or 'nullcline' not in vecfld_dict.keys():
+        if vecfld_dict is not None:
+            X_basis = vecfld_dict['X'][:, :2]
+            min_, max_ = X_basis.min(0), X_basis.max(0)
+
+            xlim = [
+                min_[0] - (max_[0] - min_[0]) * 0.1,
+                max_[0] + (max_[0] - min_[0]) * 0.1,
+            ]
+            ylim = [
+                min_[1] - (max_[1] - min_[1]) * 0.1,
+                max_[1] + (max_[1] - min_[1]) * 0.1,
+            ]
+
+            vecfld2d = VectorField2D(vecfld, X_data=vecfld_dict['X'])
+            vecfld2d.find_fixed_points_by_sampling(25, xlim, ylim)
+
+            if vecfld2d.get_num_fixed_points() > 0:
+                vecfld2d.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
+
+                NCx, NCy = vecfld2d.NCx, vecfld.NCy
+    else:
+        NCx, NCy = vecfld_dict['nullcline'][0], vecfld_dict['nullcline'][1]
+
     if ax is None:
         ax = plt.gca()
-    for ncx in vecfld.NCx:
-        ax.plot(*ncx.T, c=colors[0], lw=lw)
-    for ncy in vecfld.NCy:
-        ax.plot(*ncy.T, c=colors[1], lw=lw)
+
+    if NCx is not None and NCy is not None:
+        for ncx in NCx:
+            ax.plot(*ncx.T, c=colors[0], lw=lw)
+        for ncy in NCy:
+            ax.plot(*ncy.T, c=colors[1], lw=lw)
 
     if save_show_or_return == "save":
         s_kwargs = {
@@ -372,9 +404,8 @@ def plot_fixed_points_2d(
 
 
 def plot_fixed_points(
-    adata,
     vecfld,
-    basis='X_umap',
+    vecfld_dict=None,
     marker="o",
     markersize=200,
     c='w',
@@ -437,15 +468,45 @@ def plot_fixed_points(
         _theme_ = "viridis"
     _cmap = _themes[_theme_]["cmap"] if cmap is None else cmap
 
-    Xss, ftype = vecfld.get_fixed_points(**kwargs)
-    if Xss.shape[1] > 2:
-        fp_ind = nearest_neighbors(Xss, vecfld.data['X'], 1).flatten()
-        # fix the bug when certain cells are filtered during the vector field learning
-        Xss = adata.obsm[basis][fp_ind]
+    if vecfld_dict is None or any(('Xss' not in vecfld_dict.keys(), 'ftype' not in vecfld_dict.keys())):
+        if vecfld_dict is not None:
+            if vecfld_dict['X'].shape[1] == 2:
+                min_, max_ = vecfld_dict['X'].min(0), vecfld_dict['X'].max(0)
+
+                xlim = [
+                    min_[0] - (max_[0] - min_[0]) * 0.1,
+                    max_[0] + (max_[0] - min_[0]) * 0.1,
+                ]
+                ylim = [
+                    min_[1] - (max_[1] - min_[1]) * 0.1,
+                    max_[1] + (max_[1] - min_[1]) * 0.1,
+                ]
+
+                vecfld = VectorField2D(vecfld, X_data=vecfld_dict['X'])
+                vecfld.find_fixed_points_by_sampling(25, xlim, ylim)
+                if vecfld.get_num_fixed_points() > 0:
+                    vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
+
+                Xss, ftype = vecfld.get_fixed_points(get_types=True)
+                confidence = vecfld.get_Xss_confidence()
+            else:
+                confidence = None
+                vecfld = base_vectorfield(X=vecfld_dict['X'][vecfld_dict['valid_ind'], :],
+                                          V=vecfld_dict['Y'][vecfld_dict['valid_ind'], :],
+                                          func=vecfld)
+
+                Xss, ftype = vecfld.get_fixed_points(**kwargs)
+                if Xss.ndim > 1 and Xss.shape[1] > 2:
+                    fp_ind = nearest_neighbors(Xss, vecfld.data["X"], 1).flatten()
+                    Xss = vecfld.data["X"][fp_ind]
+
+    else:
+        Xss, ftype, confidence = vecfld_dict['Xss'], vecfld_dict['ftype'], vecfld_dict['confidence']
 
     if ax is None:
         ax = plt.gca()
 
+    cm = matplotlib.cm.get_cmap(_cmap) if type(_cmap) is str else _cmap
     for i in range(len(Xss)):
         cur_ftype = ftype[i]
         marker_ = markers.MarkerStyle(marker=marker, fillstyle=filltype[int(cur_ftype + 1)])
@@ -453,7 +514,7 @@ def plot_fixed_points(
             *Xss[i],
             marker=marker_,
             s=markersize,
-            c=c,
+            c=c if confidence is None else np.array(cm(confidence[i])).reshape(1, -1),
             edgecolor=_select_font_color(_background),
             linewidths=1,
             cmap=_cmap,
@@ -591,6 +652,7 @@ def plot_separatrix(
     t,
     noise=1e-6,
     lw=3,
+    vecfld_dict=None,
     background=None,
     save_show_or_return="return",
     save_kwargs={},
@@ -641,46 +703,63 @@ def plot_separatrix(
         color = "tomato"
 
     # No saddle point, no separatrix.
-    fps, ftypes = vecfld.get_fixed_points(get_types=True)
-    J = vecfld.Xss.get_J()
-    saddle = fps[ftypes == 0]
-    Jacobian = J[[ftypes == 0]]
-    if len(saddle) > 0:
-        # Negative time function to integrate to compute separatrix
-        def rhs(ab, t):
-            # Unpack variables
-            a, b = ab
-            # Stop integrating if we get the edge of where we want to integrate
-            if x_range[0] < a < x_range[1] and y_range[0] < b < y_range[1]:
-                return -vecfld.func(ab)
-            else:
-                return np.array([0, 0])
+    if vecfld_dict is None or 'separatrix' not in vecfld_dict.keys():
+        if vecfld_dict is not None:
+            X_basis = vecfld_dict['X'][:, :2]
+            min_, max_ = X_basis.min(0), X_basis.max(0)
 
-        # Parameters for building separatrix
-        # t = np.linspace(0, t_max, 400)
-        all_sep_a, all_sep_b = None, None
-        if ax is None:
-            ax = plt.gca()
-        for i in range(len(saddle)):
-            fps = saddle[i]
-            J = Jacobian[i]
-            # Build upper right branch of separatrix
-            ab0 = fps + noise
-            ab_upper = scipy.integrate.odeint(rhs, ab0, t)
+            xlim = [
+                min_[0] - (max_[0] - min_[0]) * 0.1,
+                max_[0] + (max_[0] - min_[0]) * 0.1,
+            ]
+            ylim = [
+                min_[1] - (max_[1] - min_[1]) * 0.1,
+                max_[1] + (max_[1] - min_[1]) * 0.1,
+            ]
 
-            # Build lower left branch of separatrix
-            ab0 = fps - noise
-            ab_lower = scipy.integrate.odeint(rhs, ab0, t)
+            vecfld2d = VectorField2D(vecfld, X_data=vecfld_dict['X'])
+            vecfld2d.find_fixed_points_by_sampling(25, xlim, ylim)
 
-            # Concatenate, reversing lower so points are sequential
-            sep_a = np.concatenate((ab_lower[::-1, 0], ab_upper[:, 0]))
-            sep_b = np.concatenate((ab_lower[::-1, 1], ab_upper[:, 1]))
+            fps, ftypes = vecfld2d.get_fixed_points(get_types=True)
+            J = vecfld2d.Xss.get_J()
+            saddle = fps[ftypes == 0]
+            Jacobian = J[[ftypes == 0]]
+            if len(saddle) > 0:
+                # Negative time function to integrate to compute separatrix
+                def rhs(ab, t):
+                    # Unpack variables
+                    a, b = ab
+                    # Stop integrating if we get the edge of where we want to integrate
+                    if x_range[0] < a < x_range[1] and y_range[0] < b < y_range[1]:
+                        return -vecfld2d(ab)
+                    else:
+                        return np.array([0, 0])
 
-            # Plot
-            ax.plot(sep_a, sep_b, "-", color=color, lw=lw)
+                # Parameters for building separatrix
+                # t = np.linspace(0, t_max, 400)
+                all_sep_a, all_sep_b = None, None
+                if ax is None:
+                    ax = plt.gca()
+                for i in range(len(saddle)):
+                    fps = saddle[i]
+                    J = Jacobian[i]
+                    # Build upper right branch of separatrix
+                    ab0 = fps + noise
+                    ab_upper = scipy.integrate.odeint(rhs, ab0, t)
 
-            all_sep_a = sep_a if all_sep_a is None else np.concatenate((all_sep_a, sep_a))
-            all_sep_b = sep_b if all_sep_b is None else np.concatenate((all_sep_b, sep_b))
+                    # Build lower left branch of separatrix
+                    ab0 = fps - noise
+                    ab_lower = scipy.integrate.odeint(rhs, ab0, t)
+
+                    # Concatenate, reversing lower so points are sequential
+                    sep_a = np.concatenate((ab_lower[::-1, 0], ab_upper[:, 0]))
+                    sep_b = np.concatenate((ab_lower[::-1, 1], ab_upper[:, 1]))
+
+                    # Plot
+                    ax.plot(sep_a, sep_b, "-", color=color, lw=lw)
+
+                    all_sep_a = sep_a if all_sep_a is None else np.concatenate((all_sep_a, sep_a))
+                    all_sep_b = sep_b if all_sep_b is None else np.concatenate((all_sep_b, sep_b))
 
     if save_show_or_return == "save":
         s_kwargs = {
@@ -706,6 +785,7 @@ def plot_separatrix(
 def topography(
     adata,
     basis="umap",
+    fixed_point_basis='umap',
     x=0,
     y=1,
     color="ntr",
@@ -809,7 +889,7 @@ def topography(
         init_cells: `list` (default: None)
             Cell name or indices of the initial cell states for the historical or future cell state prediction with numerical integration.
             If the names in init_cells are not find in the adata.obs_name, it will be treated as cell indices and must be integers.
-        init_state: `numpy.ndarray` (default: None)
+        init_states: `numpy.ndarray` (default: None)
             Initial cell states for the historical or future cell state prediction with numerical integration. It can be
             either a one-dimensional array or N x 2 dimension array. The `init_state` will be replaced to that defined by init_cells if
             init_cells are not None.
@@ -926,43 +1006,56 @@ def topography(
             warnings.simplefilter("ignore")
 
             _topology(adata, basis, VecFld=None)
-    elif "VecFld2D" not in adata.uns[uns_key].keys():
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
+    # elif "VecFld2D" not in adata.uns[uns_key].keys():
+    #     with warnings.catch_warnings():
+    #         warnings.simplefilter("ignore")
+    # 
+    #         _topology(adata, basis, VecFld=None)
+    # elif "VecFld2D" in adata.uns[uns_key].keys() and type(adata.uns[uns_key]["VecFld2D"]) == str:
+    #     with warnings.catch_warnings():
+    #         warnings.simplefilter("ignore")
+    # 
+    #         _topology(adata, basis, VecFld=None)
 
-            _topology(adata, basis, VecFld=None)
-    elif "VecFld2D" in adata.uns[uns_key].keys() and type(adata.uns[uns_key]["VecFld2D"]) == str:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-
-            _topology(adata, basis, VecFld=None)
-
-    VF, vecfld = adata.uns[uns_key]["VecFld"], adata.uns[uns_key]["VecFld2D"]
+    vecfld_dict, vecfld = vecfld_from_adata(adata, basis)
     xlim, ylim = (
         adata.uns[uns_key]["xlim"] if xlim is None else xlim,
         adata.uns[uns_key]["ylim"] if ylim is None else ylim,
     )
 
-    if init_cells is not None:
-        intersect_cell_names = list(set(init_cells).intersection(adata.obs_names))
-        _init_states = (
-            adata.obsm["X_" + basis][init_cells, :]
-            if len(intersect_cell_names) == 0
-            else adata[intersect_cell_names].obsm["X_" + basis].copy()
-        )
-        V = (
-            adata.obsm["velocity_" + basis][init_cells, :]
-            if len(intersect_cell_names) == 0
-            else adata[intersect_cell_names].obsm["velocity_" + basis].copy()
-        )
+    if xlim is None or ylim is None:
+        X_basis = vecfld_dict['X'][:, :2]
+        min_, max_ = X_basis.min(0), X_basis.max(0)
 
+        xlim = [
+            min_[0] - (max_[0] - min_[0]) * 0.1,
+            max_[0] + (max_[0] - min_[0]) * 0.1,
+        ]
+        ylim = [
+            min_[1] - (max_[1] - min_[1]) * 0.1,
+            max_[1] + (max_[1] - min_[1]) * 0.1,
+        ]
+
+    if init_cells is not None:
         if init_states is None:
+            intersect_cell_names = list(set(init_cells).intersection(adata.obs_names))
+            _init_states = (
+                adata.obsm["X_" + basis][init_cells, :]
+                if len(intersect_cell_names) == 0
+                else adata[intersect_cell_names].obsm["X_" + basis].copy()
+            )
+            V = (
+                adata.obsm["velocity_" + basis][init_cells, :]
+                if len(intersect_cell_names) == 0
+                else adata[intersect_cell_names].obsm["velocity_" + basis].copy()
+            )
+
             init_states = _init_states
 
     if quiver_source == "reconstructed" or (init_states is not None and init_cells is None):
         from ..tools.utils import vector_field_function
 
-        V = vector_field_function(init_states, VF, [0, 1])
+        V = vector_field_function(init_states, vecfld_dict, [0, 1])
 
     # plt.figure(facecolor=_background)
     axes_list, color_list, font_color = scatters(
@@ -1011,7 +1104,10 @@ def topography(
         axes_list[i].set_facecolor(background)
 
         if t is None:
-            max_t = np.max((np.diff(xlim), np.diff(ylim))) / np.min(np.abs(VF["grid_V"]))
+            if vecfld_dict["grid_V"] is None:
+                max_t = np.max((np.diff(xlim), np.diff(ylim))) / np.min(np.abs(vecfld_dict["V"][:, :2]))
+            else:
+                max_t = np.max((np.diff(xlim), np.diff(ylim))) / np.min(np.abs(vecfld_dict["grid_V"]))
 
             t = np.linspace(0, max_t, 10 ** (np.min((int(np.log10(max_t)), 8))))
 
@@ -1051,11 +1147,15 @@ def topography(
                 )
 
         if "nullcline" in terms:
-            axes_list[i] = plot_nullclines(vecfld, background=_background, ax=axes_list[i])
+            axes_list[i] = plot_nullclines(vecfld,
+                                           vecfld_dict,
+                                           background=_background,
+                                           ax=axes_list[i])
 
         if "fixed_points" in terms:
-            axes_list[i] = plot_fixed_points_2d(
+            axes_list[i] = plot_fixed_points(
                 vecfld,
+                vecfld_dict,
                 background=_background,
                 ax=axes_list[i],
                 markersize=markersize,
@@ -1063,7 +1163,12 @@ def topography(
             )
 
         if "separatrices" in terms:
-            axes_list[i] = plot_separatrix(vecfld, xlim, ylim, t=t, background=_background, ax=axes_list[i])
+            axes_list[i] = plot_separatrix(vecfld,
+                                           xlim,
+                                           ylim,
+                                           t=t,
+                                           background=_background,
+                                           ax=axes_list[i])
 
         if init_states is not None and "trajectory" in terms:
             if not approx:
