@@ -498,7 +498,8 @@ def plot_fixed_points(
                 Xss, ftype = vecfld.get_fixed_points(**kwargs)
                 if Xss.ndim > 1 and Xss.shape[1] > 2:
                     fp_ind = nearest_neighbors(Xss, vecfld.data["X"], 1).flatten()
-                    Xss = vecfld.data["X"][fp_ind]
+                    # need to use "X_basis" to plot on the scatter point space
+                    Xss = vecfld_dict["X_basis"][fp_ind]
 
     else:
         Xss, ftype, confidence = vecfld_dict['Xss'], vecfld_dict['ftype'], vecfld_dict['confidence']
@@ -785,7 +786,7 @@ def plot_separatrix(
 def topography(
     adata,
     basis="umap",
-    fixed_point_basis='umap',
+    fps_basis='umap',
     x=0,
     y=1,
     color="ntr",
@@ -1000,12 +1001,18 @@ def topography(
         terms.extend("trajectory")
 
     uns_key = "VecFld" if basis == "X" else "VecFld_" + basis
+    fps_uns_key = "VecFld" if fps_basis == "X" else "VecFld_" + fps_basis
 
     if uns_key not in adata.uns.keys():
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
 
             _topology(adata, basis, VecFld=None)
+    if fps_uns_key not in adata.uns.keys():
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+
+            _topology(adata, fps_basis, VecFld=None)
     # elif "VecFld2D" not in adata.uns[uns_key].keys():
     #     with warnings.catch_warnings():
     #         warnings.simplefilter("ignore")
@@ -1018,6 +1025,13 @@ def topography(
     #         _topology(adata, basis, VecFld=None)
 
     vecfld_dict, vecfld = vecfld_from_adata(adata, basis)
+    fps_vecfld_dict, fps_vecfld = vecfld_from_adata(adata, fps_basis)
+
+    # need to use "X_basis" to plot on the scatter point space
+    if adata.uns['VecFld_pca']['Xss'].size > 0 and fps_vecfld_dict['Xss'].shape[1] > 2:
+        fps_vecfld_dict['X_basis'], fps_vecfld_dict['Xss'] = vecfld_dict['X'][:, :2], \
+                                                             vecfld_dict['X'][fps_vecfld_dict['fp_ind'], :2]
+
     xlim, ylim = (
         adata.uns[uns_key]["xlim"] if xlim is None else xlim,
         adata.uns[uns_key]["ylim"] if ylim is None else ylim,
@@ -1154,8 +1168,8 @@ def topography(
 
         if "fixed_points" in terms:
             axes_list[i] = plot_fixed_points(
-                vecfld,
-                vecfld_dict,
+                fps_vecfld,
+                fps_vecfld_dict,
                 background=_background,
                 ax=axes_list[i],
                 markersize=markersize,

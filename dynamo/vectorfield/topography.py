@@ -404,6 +404,7 @@ def util_topology(adata,
     X_basis = adata.obsm["X_" + basis][:, dims] if X is None else X[:, dims]
 
     if X_basis.shape[1] == 2:
+        fp_ind = None
         min_, max_ = X_basis.min(0), X_basis.max(0)
 
         xlim = [
@@ -424,17 +425,18 @@ def util_topology(adata,
         Xss, ftype = vecfld.get_fixed_points(get_types=True)
         confidence = vecfld.get_Xss_confidence()
     else:
+        fp_ind = None
         xlim, ylim, confidence, NCx, NCy = None, None, None, None, None
         vecfld = base_vectorfield(X=VecFld['X'][VecFld['valid_ind'], :],
                                   V=VecFld['Y'][VecFld['valid_ind'], :],
                                   func=func)
 
-        Xss, ftype = vecfld.get_fixed_points(**kwargs)
+        Xss, ftype = vecfld.get_fixed_points(n_x0=n, **kwargs)
         if Xss.ndim > 1 and Xss.shape[1] > 2:
             fp_ind = nearest_neighbors(Xss, vecfld.data["X"], 1).flatten()
             Xss = vecfld.data["X"][fp_ind]
 
-    return X_basis, xlim, ylim, confidence, NCx, NCy, Xss, ftype
+    return X_basis, xlim, ylim, confidence, NCx, NCy, Xss, ftype, fp_ind
 
 
 def topography(
@@ -492,7 +494,7 @@ def topography(
     if dims is None:
         dims = np.arange(adata.obsm["X_" + basis].shape[1])
 
-    X_basis, xlim, ylim, confidence, NCx, NCy, Xss, ftype = util_topology(adata,
+    X_basis, xlim, ylim, confidence, NCx, NCy, Xss, ftype, fp_ind = util_topology(adata,
                                                                          basis,
                                                                          X,
                                                                          dims,
@@ -520,6 +522,7 @@ def topography(
                 "confidence": confidence,
                 "nullcline": [NCx, NCy],
                 "separatrices": None,
+                "fp_ind": fp_ind,
             }
         )
     else:
@@ -532,6 +535,7 @@ def topography(
             "confidence": confidence,
             "nullcline": [NCx, NCy],
             "separatrices": None,
+            "fp_ind": fp_ind,
         }
 
     return adata
