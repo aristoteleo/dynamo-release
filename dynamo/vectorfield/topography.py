@@ -196,7 +196,7 @@ def find_fixed_points_nullcline(
             for k in range(len(p)):
                 int_P.append(p[k])
     int_P = np.array(int_P)
-    P, J, _ = find_fixed_points(int_P, func, tol_redundant)
+    P, J, _ = find_fixed_points(int_P, func, tol_redundant=tol_redundant)
     return P, J
 
 
