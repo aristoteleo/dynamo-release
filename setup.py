@@ -9,7 +9,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name="dynamo-release",
-    version="0.95.2",
+    version="0.96.0",
     python_requires=">=3.7",
     install_requires=[l.strip() for l in Path("requirements.txt").read_text("utf-8").splitlines()],  # 'yt>=3.5.1',
     extras_require={
@@ -27,7 +27,7 @@ setup(
         "Operating System :: OS Independent",
     ],
     #     include_dirs=[np.get_include()],
-    author="Xiaojie Qiu, Yan Zhang",
+    author="Xiaojie Qiu, Yan Zhang, Ke Ni",
     author_email="xqiu.sc@gmail.com",
     description="Mapping Vector Field of Single Cells",
     long_description=long_description,
