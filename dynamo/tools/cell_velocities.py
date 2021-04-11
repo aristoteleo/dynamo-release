@@ -501,6 +501,7 @@ def cell_velocities(
                 neg_cells_trick,
                 xy_grid_nums,
                 method,
+                correct_density=correct_density,
                 **vs_kwargs,
             )
 
@@ -520,6 +521,7 @@ def cell_velocities(
                 neg_cells_trick,
                 xy_grid_nums,
                 method,
+                correct_density=correct_density,
                 **vs_kwargs,
             )
 

@@ -5,7 +5,7 @@ import warnings
 from scipy.sparse import issparse, csr_matrix
 from sklearn.decomposition import FastICA
 from sklearn.utils import sparsefuncs
-from anndata import AnnData
+import anndata
 from typing import Union, Callable
 
 
@@ -38,7 +38,7 @@ from ..utils import copy_adata
 
 
 def szFactor(
-    adata_ori: AnnData,
+    adata_ori: anndata.AnnData,
     layers: Union[str, list] = "all",
     total_layers: Union[list, None] = None,
     splicing_total_layers: bool = False,
@@ -49,7 +49,7 @@ def szFactor(
     scale_to: Union[float, None] = None,
     use_all_genes_cells: bool = True,
     genes_use_for_norm: Union[list, None] = None,
-) -> AnnData:
+) -> anndata.AnnData:
     """Calculate the size factor of the each cell using geometric mean of total UMI across cells for a AnnData object.
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
@@ -191,7 +191,7 @@ def szFactor(
 
 
 def normalize_expr_data(
-    adata: AnnData,
+    adata: anndata.AnnData,
     layers: str = "all",
     total_szfactor: str = "total_Size_Factor",
     splicing_total_layers: str = False,
@@ -203,7 +203,7 @@ def normalize_expr_data(
     recalc_sz: bool = False,
     sz_method: str = "median",
     scale_to: Union[float, None] = None,
-) -> AnnData:
+) -> anndata.AnnData:
     """Normalize the gene expression value for the AnnData object
     This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
@@ -466,7 +466,7 @@ def parametricDispersionFit(
 
 
 def disp_calc_helper_NB(
-    adata: AnnData, layers: str = "X", min_cells_detected: int = 1
+    adata: anndata.AnnData, layers: str = "X", min_cells_detected: int = 1
 ) -> pd.DataFrame:
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
@@ -562,7 +562,7 @@ def disp_calc_helper_NB(
 
 
 def topTable(
-    adata: AnnData, layer: str = "X", mode: str = "dispersion"
+    adata: anndata.AnnData, layer: str = "X", mode: str = "dispersion"
 ) -> pd.DataFrame:
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
@@ -608,7 +608,7 @@ def topTable(
 
 
 def vstExprs(
-    adata: AnnData,
+    adata: anndata.AnnData,
     expr_matrix: Union[np.ndarray, None] = None,
     round_vals: bool = True,
 ) -> np.ndarray:
@@ -661,12 +661,12 @@ def vstExprs(
 
 
 def Dispersion(
-    adata: AnnData,
+    adata: anndata.AnnData,
     layers: str = "X",
     modelFormulaStr: str = "~ 1",
     min_cells_detected: int = 1,
     removeOutliers: bool = False,
-) -> AnnData:
+) -> anndata.AnnData:
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
@@ -757,7 +757,7 @@ def Dispersion(
 
 
 def SVRs(
-    adata_ori: AnnData,
+    adata_ori: anndata.AnnData,
     filter_bool: Union[np.ndarray, None] = None,
     layers: str = "X",
     relative_expr: bool = True,
@@ -770,7 +770,7 @@ def SVRs(
     winsor_perc: tuple = (1, 99.5),
     sort_inverse: bool = False,
     use_all_genes_cells: bool = False,
-) -> AnnData:
+) -> anndata.AnnData:
     """This function is modified from https://github.com/velocyto-team/velocyto.py/blob/master/velocyto/analysis.py
 
     Parameters
@@ -967,7 +967,7 @@ def SVRs(
 
 
 def filter_cells(
-    adata: AnnData,
+    adata: anndata.AnnData,
     filter_bool: Union[np.ndarray, None] = None,
     layer: str = "all",
     keep_filtered: bool = False,
@@ -978,7 +978,7 @@ def filter_cells(
     max_expr_genes_u: float = np.inf,
     max_expr_genes_p: float = np.inf,
     shared_count: Union[int, None] = None,
-) -> AnnData:
+) -> anndata.AnnData:
     """Select valid cells based on a collection of filters.
 
     Parameters
@@ -1074,7 +1074,7 @@ def filter_cells(
 
 
 def filter_genes_by_clusters_(
-    adata: AnnData,
+    adata: anndata.AnnData,
     cluster: str,
     min_avg_U: float = 0.02,
     min_avg_S: float = 0.08,
@@ -1118,7 +1118,7 @@ def filter_genes_by_clusters_(
 
 
 def filter_genes(
-    adata: AnnData,
+    adata: anndata.AnnData,
     filter_bool: Union[np.ndarray, None] = None,
     layer: str = "all",
     min_cell_s: int = 1,
@@ -1132,7 +1132,7 @@ def filter_genes(
     min_count_u: int = 0,
     min_count_p: int = 0,
     shared_count: int = 30,
-) -> AnnData:
+) -> anndata.AnnData:
     """Basic filter of genes based a collection of expression filters.
 
     Parameters
@@ -1247,7 +1247,7 @@ def filter_genes(
 
 
 def select_genes(
-    adata: AnnData,
+    adata: anndata.AnnData,
     layer: str = "X",
     total_szfactor: str = "total_Size_Factor",
     keep_filtered: bool = True,
@@ -1255,7 +1255,7 @@ def select_genes(
     n_top_genes: int = 2000,
     SVRs_kwargs: dict = {},
     only_bools: bool = False,
-) -> AnnData:
+) -> anndata.AnnData:
     """Select feature genes based on a collection of filters.
 
     Parameters
@@ -1344,7 +1344,7 @@ def select_genes(
 
 
 def recipe_monocle(
-    adata: AnnData,
+    adata: anndata.AnnData,
     reset_X: bool = False,
     tkey: Union[str, None] = None,
     t_label_keys: Union[str, list, None] = None,
@@ -1377,7 +1377,7 @@ def recipe_monocle(
     fg_kwargs: Union[dict, None] = None,
     sg_kwargs: Union[dict, None] = None,
     copy: bool = False,
-) -> Union[AnnData, None]:
+) -> Union[anndata.AnnData, None]:
     """This function is partly based on Monocle R package (https://github.com/cole-trapnell-lab/monocle3).
 
     Parameters
@@ -1990,7 +1990,7 @@ def recipe_monocle(
 
 
 def recipe_velocyto(
-    adata: AnnData,
+    adata: anndata.AnnData,
     total_layers=None,
     method="pca",
     num_dim=30,

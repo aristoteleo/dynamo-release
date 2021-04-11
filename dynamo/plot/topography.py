@@ -1028,7 +1028,7 @@ def topography(
     fps_vecfld_dict, fps_vecfld = vecfld_from_adata(adata, fps_basis)
 
     # need to use "X_basis" to plot on the scatter point space
-    if adata.uns['VecFld_pca']['Xss'].size > 0 and fps_vecfld_dict['Xss'].shape[1] > 2:
+    if fps_vecfld_dict['Xss'].size > 0 and fps_vecfld_dict['Xss'].shape[1] > 2:
         fps_vecfld_dict['X_basis'], fps_vecfld_dict['Xss'] = vecfld_dict['X'][:, :2], \
                                                              vecfld_dict['X'][fps_vecfld_dict['fp_ind'], :2]
 
