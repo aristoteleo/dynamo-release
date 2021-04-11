@@ -3,7 +3,7 @@ pandas>=0.25.1
 scipy>=1.0
 scikit-learn>=0.19.1
 cvxopt>=1.2.3
-anndata==0.7.5
+anndata>=0.7.6
 loompy>=3.0.5
 matplotlib>=3.1.0
 trimap>=1.0.11
@@ -18,6 +18,6 @@ seaborn>=0.9.0
 colorcet>=2.0.1
 tqdm
 python-igraph>=0.7.1
-pynndescent>=0.4.8
+pynndescent>=0.5.2
 pre-commit
 networkx

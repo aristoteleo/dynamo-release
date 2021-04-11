@@ -218,10 +218,11 @@ def cook_dist(model, X, good):
 
 # ---------------------------------------------------------------------------------------------------
 # preprocess utilities
-def filter_genes_by_pattern(adata: anndata.AnnData,
-                            patterns: tuple = ('MT-', 'RPS', 'RPL', 'MRPS', 'MRPL', 'ERCC-'),
-                            drop_genes: bool = False
-                            ) -> Union[anndata.AnnData, None]:
+def filter_genes_by_pattern(
+        adata: anndata.AnnData,
+        patterns: tuple = ('MT-', 'RPS', 'RPL', 'MRPS', 'MRPL', 'ERCC-'),
+        drop_genes: bool = False,
+) -> Union[list, None]:
     """Utility function to filter mitochondria, ribsome protein and ERCC spike-in genes, etc."""
     logger = LoggerManager.gen_logger("dynamo-utils")
 
