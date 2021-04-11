@@ -5,7 +5,7 @@ from scipy.sparse import issparse, csr_matrix
 from sklearn.decomposition import PCA, TruncatedSVD
 
 import warnings
-from anndata import AnnData
+import anndata
 from typing import Union
 from ..dynamo_logger import LoggerManager
 
@@ -218,10 +218,10 @@ def cook_dist(model, X, good):
 
 # ---------------------------------------------------------------------------------------------------
 # preprocess utilities
-def filter_genes_by_pattern(adata: AnnData,
+def filter_genes_by_pattern(adata: anndata.AnnData,
                             patterns: tuple = ('MT-', 'RPS', 'RPL', 'MRPS', 'MRPL', 'ERCC-'),
                             drop_genes: bool = False
-                            ) -> Union[AnnData, None]:
+                            ) -> Union[anndata.AnnData, None]:
     """Utility function to filter mitochondria, ribsome protein and ERCC spike-in genes, etc."""
     logger = LoggerManager.gen_logger("dynamo-utils")
 

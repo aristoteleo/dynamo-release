@@ -10,7 +10,7 @@ from .gillespie_utils import *
 from .bif_os_inclusive_sim import sim_diff, sim_osc, simulate, osc_diff_dup
 import pandas as pd
 import scipy.sparse
-from anndata import AnnData
+import anndata
 
 
 # deterministic as well as noise
@@ -664,13 +664,13 @@ def Gillespie(
     )  # use the real name in simulation?
     var.set_index("gene_short_name", inplace=True)
 
-    adata = AnnData(
+    adata = anndata.AnnData(
         scipy.sparse.csc_matrix(E.astype(int)).copy(),
         obs.copy(),
         var.copy(),
         layers=layers.copy(),
     )
-    adata_no_splicing = AnnData(
+    adata_no_splicing = anndata.AnnData(
         scipy.sparse.csc_matrix(E.astype(int)).copy(),
         obs.copy(),
         var.copy(),

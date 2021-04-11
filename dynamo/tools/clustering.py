@@ -2,7 +2,7 @@ from hdbscan import HDBSCAN
 from sklearn.neighbors import NearestNeighbors
 from scipy.sparse import csr_matrix
 import numpy as np
-from anndata import AnnData
+import anndata
 import pandas as pd
 
 from .connectivity import neighbors
@@ -346,7 +346,7 @@ def leiden(
     directed=False,
     copy=False,
     **kwargs
-) -> AnnData:
+) -> anndata.AnnData:
     kwargs.update(
         {
             "use_weight": use_weight,
@@ -383,7 +383,7 @@ def louvain(
     directed=False,
     copy=False,
     **kwargs
-) -> AnnData:
+) -> anndata.AnnData:
     """[summary]
 
     Parameters
@@ -445,7 +445,7 @@ def infomap(
     directed=False,
     copy=False,
     **kwargs
-) -> AnnData:
+) -> anndata.AnnData:
     kwargs.update({
         "use_weight": use_weight,
     })

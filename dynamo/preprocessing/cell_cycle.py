@@ -7,13 +7,13 @@ from collections import OrderedDict
 from scipy.sparse import issparse
 from ..tools.utils import einsum_correlation, log1p_
 
-from anndata import AnnData
+import anndata
 from typing import Union
 from ..utils import copy_adata, LoggerManager
 
 
 def group_corr(
-    adata: AnnData, layer: Union[str, None], gene_list: list
+    adata: anndata.AnnData, layer: Union[str, None], gene_list: list
 ) -> tuple:
     """Measures the correlation of all genes within a list to the average expression of all genes within that
     list (used for cell cycle position calling)
@@ -65,7 +65,7 @@ def group_corr(
 
 
 def refine_gene_list(
-    adata: AnnData,
+    adata: anndata.AnnData,
     layer: Union[str, None],
     gene_list: list,
     threshold: Union[float, None],
@@ -97,7 +97,7 @@ def refine_gene_list(
         return gene_list[corrs >= threshold]
 
 
-def group_score(adata: AnnData, layer: Union[str, None], gene_list: list):
+def group_score(adata: anndata.AnnData, layer: Union[str, None], gene_list: list):
     """Scores cells within population for expression of a set of genes. Raw expression data are first
     log transformed, then the values are summed, and then scores are Z-normalized across all cells.
 
@@ -148,7 +148,7 @@ def group_score(adata: AnnData, layer: Union[str, None], gene_list: list):
 
 
 def batch_group_score(
-    adata: AnnData, layer: Union[str, None], gene_lists: list
+    adata: anndata.AnnData, layer: Union[str, None], gene_lists: list
 ) -> OrderedDict:
     """Scores cells within population for expression of sets of genes. Raw expression data are first
     log transformed, then the values are summed, and then scores are Z-normalized across all cells.
@@ -175,7 +175,7 @@ def batch_group_score(
 
 
 def get_cell_phase_genes(
-    adata: AnnData,
+    adata: anndata.AnnData,
     layer: Union[str, None],
     refine: bool = True,
     threshold: Union[float, None] = 0.3,
@@ -416,7 +416,7 @@ def get_cell_phase_genes(
 
 
 def get_cell_phase(
-    adata: AnnData,
+    adata: anndata.AnnData,
     layer: str = None,
     gene_list: Union[OrderedDict, None] = None,
     refine: bool = True,
@@ -513,13 +513,13 @@ def get_cell_phase(
 
 
 def cell_cycle_scores(
-    adata: AnnData,
+    adata: anndata.AnnData,
     layer: Union[str, None] = None,
     gene_list: Union[OrderedDict, None] = None,
     refine: bool = True,
     threshold: float = 0.3,
     copy: bool = False,
-) -> AnnData:
+) -> anndata.AnnData:
     """Call cell cycle positions for cells within the population. If more direct control is desired,
     use get_cell_phase.
 

@@ -1,9 +1,8 @@
 import numpy as np
 import warnings
-from anndata import AnnData
 from scipy.sparse import issparse, csr_matrix, lil_matrix, diags
 from tqdm import tqdm
-from anndata import AnnData
+import anndata
 from typing import Union
 
 from .utils import get_mapper, elem_prod, inverse_norm
@@ -20,7 +19,7 @@ from ..dynamo_logger import LoggerManager
 # ---------------------------------------------------------------------------------------------------
 # use for calculating moments for stochastic model:
 def moments(
-    adata: AnnData,
+    adata: anndata.AnnData,
     X_data: np.ndarray = None,
     genes: Union[list, None] = None,
     group: Union[str, None] = None,
@@ -32,7 +31,7 @@ def moments(
     n_pca_components: int = 30,
     n_neighbors: int = 30,
     copy: bool = False,
-) -> Union[AnnData, None]:
+) -> Union[anndata.AnnData, None]:
     """Calculate kNN based first and second moments (including uncentered covariance) for
      different layers of data.
 
@@ -1077,7 +1076,7 @@ def calc_2nd_moment(X, Y, W, normalize_W=True, center=False, mX=None, mY=None):
 
 # ---------------------------------------------------------------------------------------------------
 # old moment estimation code
-class MomData(AnnData):
+class MomData(anndata.AnnData):
     """deprecated"""
 
     def __init__(self, adata, time_key="Time", has_nan=False):

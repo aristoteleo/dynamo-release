@@ -7,7 +7,7 @@ import pandas as pd
 from scipy.sparse import csr_matrix
 import matplotlib.pyplot as plt
 from .moments import *
-from anndata import AnnData
+import anndata
 
 
 def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None):
@@ -143,7 +143,7 @@ def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None)
         X = csr_matrix(vlm.S_sz.T) if hasattr(vlm, "S_sz") else csr_matrix(vlm.S.T)
 
     # create an anndata object with Dynamo characteristics.
-    dyn_adata = AnnData(X=X, obs=obs, obsp=obsp, obsm=obsm, var=var, layers=layers, uns=uns)
+    dyn_adata = anndata.AnnData(X=X, obs=obs, obsp=obsp, obsm=obsm, var=var, layers=layers, uns=uns)
 
     return dyn_adata
 

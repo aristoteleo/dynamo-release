@@ -1,6 +1,6 @@
 import numpy as np
 from random import uniform, seed
-from anndata import AnnData
+import anndata
 import pandas as pd
 
 
@@ -180,7 +180,7 @@ def Simulator(motif="neurogenesis", seed_num=19491001, clip=True, cell_num=5000)
 
     layers = {"velocity": Y - X}  # ambiguous is required for velocyto
 
-    adata = AnnData(X.copy(), obs.copy(), var.copy(), layers=layers.copy())
+    adata = anndata.AnnData(X.copy(), obs.copy(), var.copy(), layers=layers.copy())
 
     # remove cells that has no expression
     adata = adata[adata.X.sum(1) > 0, :] if clip else adata

@@ -1,4 +1,4 @@
-from anndata import AnnData
+import anndata
 import numpy as np
 
 

@@ -24,13 +24,13 @@ from .utils import (
 
 from .dimension_reduction import reduceDimension
 from ..dynamo_logger import LoggerManager
-from anndata import AnnData
+import anndata
 from typing import Union
 import scipy
 
 
 def cell_velocities(
-    adata: AnnData,
+    adata: anndata.AnnData,
     ekey: Union[str, None] = None,
     vkey: Union[str, None] = None,
     X: Union[np.array, scipy.sparse.csr_matrix, None] = None,
@@ -59,7 +59,7 @@ def cell_velocities(
     key: Union[str, None] = None,
     preserve_len: bool = False,
     **kernel_kwargs,
-) -> AnnData:
+) -> anndata.AnnData:
     """Project high dimensional velocity vectors onto given low dimensional embeddings,
     and/or compute cell transition probabilities.
 

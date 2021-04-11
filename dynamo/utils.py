@@ -1,7 +1,6 @@
 """General utilility functions
 """
 
-from anndata import AnnData
 from .dynamo_logger import LoggerManager
 
 

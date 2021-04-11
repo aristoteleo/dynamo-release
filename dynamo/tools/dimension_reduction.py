@@ -2,12 +2,12 @@ import warnings
 from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 from .connectivity import neighbors
 import numpy as np
-from anndata import AnnData
+import anndata
 from typing import Union
 
 
 def reduceDimension(
-    adata: AnnData,
+    adata: anndata.AnnData,
     X_data: np.ndarray = None,
     genes: Union[list, None] = None,
     layer: Union[str, None] = None,
