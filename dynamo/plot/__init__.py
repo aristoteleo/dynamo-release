@@ -77,3 +77,6 @@ from .ezplots import (
 )
 
 from .clustering import louvain, leiden, infomap
+
+# spatial data related
+from .space import space
