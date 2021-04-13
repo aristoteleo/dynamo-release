@@ -1,5 +1,6 @@
 """General utilility functions
 """
+import anndata
 
 from .dynamo_logger import LoggerManager
 
@@ -40,3 +41,4 @@ def copy_adata(adata, logger=None):
     )
     data = adata.copy()
     return data
+
