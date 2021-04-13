@@ -12,6 +12,7 @@ from anndata import (
     read_umi_tools,
     read_zarr,
     read_text,
+    AnnData,
 )
 
 
@@ -165,7 +166,7 @@ def load_NASC_seq(dir, type='TPM', delimiter="_", colnames=None, dropna=False):
 
 def aggregate_adata(
         file_list: list
-) -> anndata.AnnData:
+) -> AnnData:
     """Aggregate gene expression from adata.X or layer for a list of adata based on the same cell and gene names.
 
     Parameters
