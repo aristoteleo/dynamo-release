@@ -1,6 +1,6 @@
 """Mapping Vector Field of Single Cells
 """
-vectorfield
+
 from .scVectorField import (
     SparseVFC,
     graphize_vecfld,
