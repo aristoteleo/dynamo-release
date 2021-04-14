@@ -180,6 +180,9 @@ def aggregate_adata(
             Aggregated adata object.
     """
 
+    import anndata
+    from anndata import AnnData
+
     if type(file_list[0]) == anndata._core.anndata.AnnData:
         adata_list = adata_list
     elif type(file_list[0]) == str:
