@@ -14,8 +14,10 @@ from urllib.request import urlretrieve
 import os
 import sys
 
-module_path = os.path.join(os.path.dirname(__file__), '../..')
-sys.path.insert(0, os.path.abspath(module_path))
+# module_path = os.path.join(os.path.dirname(__file__), '../..')
+# sys.path.insert(0, os.path.abspath(module_path))
+# sys.path.insert(0, os.path.abspath('../'))
+sys.path.insert(0, os.path.abspath("../../"))
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -65,7 +67,7 @@ copyright = "2020, Xiaojie Qiu, Yan Zhang, Ke Ni"
 author = "Xiaojie Qiu, Yan Zhang, Ke Ni"
 
 # The full version, including alpha/beta/rc tags
-release = "0.96"
+release = "0.96.0"
 
 # -- General configuration ---------------------------------------------------
 
@@ -82,29 +84,35 @@ extensions = [
     "sphinx.ext.coverage",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
-    "sphinx.ext.intersphinx",  # Link to other project's documentation (see mapping below)
-    'sphinx.ext.viewcode',  # Add a link to the Python source code for classes, functions etc.
+    # Link to other project's documentation (see mapping below)
+    "sphinx.ext.intersphinx",
+    # Add a link to the Python source code for classes, functions etc.
+    "sphinx.ext.viewcode",
     "sphinx.ext.githubpages",
-    'sphinx.ext.autosectionlabel',
-    "sphinx_autodoc_typehints",  # Automatically document param types (less noise in class signature)
+    "sphinx.ext.autosectionlabel",
+    # Automatically document param types (less noise in class signature)
+    "sphinx_autodoc_typehints",
 ]
 
 # Mappings for sphinx.ext.intersphinx. Projects have to have Sphinx-generated doc! (.inv file)
 intersphinx_mapping = {
-    "anndata": ('https://anndata.readthedocs.io/en/stable/', None),
-    "cycler": ('https://matplotlib.org/cycler/', None),
-    "h5py": ('http://docs.h5py.org/en/stable/', None),
-    "ipython": ('https://ipython.readthedocs.io/en/stable/', None),
-    "louvain": ('https://louvain-igraph.readthedocs.io/en/latest/', None),
-    "matplotlib": ('https://matplotlib.org/', None),
-    "networkx": ('https://networkx.github.io/documentation/networkx-1.10/', None),
-    "numpy": ('https://docs.scipy.org/doc/numpy/', None),
-    "pandas": ('https://pandas.pydata.org/pandas-docs/stable/', None),
-    "pytest": ('https://docs.pytest.org/en/latest/', None),
-    "python": ('https://docs.python.org/3', None),
-    "scipy": ('https://docs.scipy.org/doc/scipy/reference/', None),
-    "seaborn": ('https://seaborn.pydata.org/', None),
-    "sklearn": ('https://scikit-learn.org/stable/', None),
+    "anndata": ("https://anndata.readthedocs.io/en/stable/", None),
+    "cycler": ("https://matplotlib.org/cycler/", None),
+    "h5py": ("http://docs.h5py.org/en/stable/", None),
+    "ipython": ("https://ipython.readthedocs.io/en/stable/", None),
+    "louvain": ("https://louvain-igraph.readthedocs.io/en/latest/", None),
+    "matplotlib": ("https://matplotlib.org/", None),
+    "networkx": (
+        "https://networkx.github.io/documentation/networkx-1.10/",
+        None,
+    ),
+    "numpy": ("https://docs.scipy.org/doc/numpy/", None),
+    "pandas": ("https://pandas.pydata.org/pandas-docs/stable/", None),
+    "pytest": ("https://docs.pytest.org/en/latest/", None),
+    "python": ("https://docs.python.org/3", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/reference/", None),
+    "seaborn": ("https://seaborn.pydata.org/", None),
+    "sklearn": ("https://scikit-learn.org/stable/", None),
 }
 
 # List of patterns, relative to source directory, that match files and
@@ -114,10 +122,12 @@ exclude_patterns = []
 
 # Generate the API documentation when building
 autosummary_generate = True
-autodoc_member_order = 'bysource'
+autodoc_member_order = "bysource"
 autoclass_content = "both"  # Add __init__ doc (ie. params) to class summaries
-html_show_sourcelink = True  # Remove 'view source code' from top of page (for html, not python)
-autodoc_inherit_docstrings = True  # If no class summary, inherit base class summary
+# Remove 'view source code' from top of page (for html, not python)
+html_show_sourcelink = True
+# If no class summary, inherit base class summary
+autodoc_inherit_docstrings = True
 
 autodoc_default_flags = [
     # Make sure that any autodoc declarations show the right members
