@@ -184,7 +184,7 @@ def aggregate_adata(
     from anndata import AnnData
 
     if type(file_list[0]) == anndata._core.anndata.AnnData:
-        adata_list = adata_list
+        adata_list = file_list
     elif type(file_list[0]) == str:
         adata_list = [anndata.read(i) for i in file_list]
 
