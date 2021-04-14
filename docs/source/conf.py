@@ -61,11 +61,11 @@ nbsphinx_prolog = r"""
 # -- Project information -----------------------------------------------------
 
 project = "dynamo"
-copyright = "2020, Xiaojie Qiu, Yan Zhang"
-author = "Xiaojie Qiu, Yan Zhang"
+copyright = "2020, Xiaojie Qiu, Yan Zhang, Ke Ni"
+author = "Xiaojie Qiu, Yan Zhang, Ke Ni"
 
 # The full version, including alpha/beta/rc tags
-release = "0.95.2"
+release = "0.96"
 
 # -- General configuration ---------------------------------------------------
 

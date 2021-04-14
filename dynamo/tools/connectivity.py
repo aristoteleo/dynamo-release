@@ -43,7 +43,8 @@ def adj_to_knn(adj, n_neighbors):
     wgt = np.zeros((n_cells, n_neighbors), dtype=adj.dtype)
 
     for cur_cell in range(n_cells):
-        cur_neighbors = adj[cur_cell, :].nonzero()  # returns the coordinate tuple for non-zero items
+        # returns the coordinate tuple for non-zero items
+        cur_neighbors = adj[cur_cell, :].nonzero()
 
         # set itself as the nearest neighbor
         idx[cur_cell, :] = cur_cell
@@ -52,19 +53,31 @@ def adj_to_knn(adj, n_neighbors):
         # there could be more or less than n_neighbors because of an approximate search
         cur_n_neighbors = len(cur_neighbors[1])
         if cur_n_neighbors > n_neighbors - 1:
-            sorted_indices = np.argsort(adj[cur_cell][:, cur_neighbors[1]].A)[0][: (n_neighbors - 1)]
+            sorted_indices = np.argsort(adj[cur_cell][:, cur_neighbors[1]].A)[
+                0
+            ][: (n_neighbors - 1)]
             idx[cur_cell, 1:] = cur_neighbors[1][sorted_indices]
-            wgt[cur_cell, 1:] = adj[cur_cell][0, cur_neighbors[1][sorted_indices]].A
+            wgt[cur_cell, 1:] = adj[cur_cell][
+                0, cur_neighbors[1][sorted_indices]
+            ].A
         else:
             idx[cur_cell, 1 : (cur_n_neighbors + 1)] = cur_neighbors[1]
-            wgt[cur_cell, 1 : (cur_n_neighbors + 1)] = adj[cur_cell][:, cur_neighbors[1]].A
+            wgt[cur_cell, 1 : (cur_n_neighbors + 1)] = adj[cur_cell][
+                :, cur_neighbors[1]
+            ].A
 
     return idx, wgt
 
 
 def knn_to_adj(knn_indices, knn_weights):
     adj = csr_matrix(
-        (knn_weights.flatten(), (np.repeat(knn_indices[:, 0], knn_indices.shape[1]), knn_indices.flatten()))
+        (
+            knn_weights.flatten(),
+            (
+                np.repeat(knn_indices[:, 0], knn_indices.shape[1]),
+                knn_indices.flatten(),
+            ),
+        )
     )
     adj.eliminate_zeros()
 
@@ -74,7 +87,11 @@ def knn_to_adj(knn_indices, knn_weights):
 def get_conn_dist_graph(knn, distances):
     n_obs, n_neighbors = knn.shape
     distances = csr_matrix(
-        (distances.flatten(), (np.repeat(np.arange(n_obs), n_neighbors), knn.flatten())), shape=(n_obs, n_obs)
+        (
+            distances.flatten(),
+            (np.repeat(np.arange(n_obs), n_neighbors), knn.flatten()),
+        ),
+        shape=(n_obs, n_obs),
     )
     connectivities = distances.copy()
     connectivities.data[connectivities.data > 0] = 1
@@ -373,7 +390,7 @@ def mnn(
 
     Returns
     -------
-        adata: :AnnData
+        adata: :class:`~anndata.AnnData`
             An updated anndata object that are updated with the `mnn` or other relevant data that are calculated during mnn
             calculation.
     """
@@ -381,13 +398,16 @@ def mnn(
         if "pca_fit" in adata.uns.keys():
             fiter = adata.uns["pca_fit"]
         else:
-            raise Exception("use_pca_fit is set to be True, but there is no pca fit results in .uns attribute.")
+            raise Exception(
+                "use_pca_fit is set to be True, but there is no pca fit results in .uns attribute."
+            )
 
     layers = get_layer_keys(adata, layers, False, False)
     layers = [
         layer
         for layer in layers
-        if layer.startswith("X_") and (not layer.endswith("_matrix") and not layer.endswith("_ambiguous"))
+        if layer.startswith("X_")
+        and (not layer.endswith("_matrix") and not layer.endswith("_ambiguous"))
     ]
     knn_graph_list = []
     for layer in layers:
@@ -396,18 +416,30 @@ def mnn(
         if use_pca_fit:
             layer_pca = fiter.fit_transform(layer_X)[:, 1:]
         else:
-            transformer = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)
+            transformer = TruncatedSVD(
+                n_components=n_pca_components + 1, random_state=0
+            )
             layer_pca = transformer.fit_transform(layer_X)[:, 1:]
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            graph, knn_indices, knn_dists, X_dim = umap_conn_indices_dist_embedding(
+            (
+                graph,
+                knn_indices,
+                knn_dists,
+                X_dim,
+            ) = umap_conn_indices_dist_embedding(
                 layer_pca, n_neighbors=n_neighbors, return_mapper=False
             )
 
         if save_all_to_adata:
-            adata.obsm[layer + "_pca"], adata.obsm[layer + "_umap"] = layer_pca, X_dim
-            n_neighbors = signature(umap_conn_indices_dist_embedding).parameters["n_neighbors"]
+            adata.obsm[layer + "_pca"], adata.obsm[layer + "_umap"] = (
+                layer_pca,
+                X_dim,
+            )
+            n_neighbors = signature(
+                umap_conn_indices_dist_embedding
+            ).parameters["n_neighbors"]
 
             adata.uns[layer + "_neighbors"] = {
                 "params": {"n_neighbors": eval(n_neighbors), "method": "umap"},
@@ -415,7 +447,10 @@ def mnn(
                 # "distances": None,
                 "indices": knn_indices,
             }
-            adata.obsp[layer + "_connectivities"], adata.obsp[layer + "_distances"] = graph, knn_dists
+            (
+                adata.obsp[layer + "_connectivities"],
+                adata.obsp[layer + "_distances"],
+            ) = (graph, knn_dists)
 
         knn_graph_list.append(graph > 0)
 
@@ -438,6 +473,7 @@ def neighbors(
     metric_kwads=None,
     cores=1,
     seed=19491001,
+    result_prefix="",
     **kwargs,
 ):
     """Function to search nearest neighbors of the adata object.
@@ -471,18 +507,21 @@ def neighbors(
         metric_params : dict, default=None
             Additional keyword arguments for the metric function.
         cores: `int` (default: 1)
-            The number of parallel jobs to run for neighbors search. ``None`` means 1 unless in a :obj:`joblib.parallel_backend` context.
-            ``-1`` means using all processors.
+            The number of parallel jobs to run for neighbors search. ``None`` means 1 unless in a
+            :obj:`joblib.parallel_backend` context. ``-1`` means using all processors.
         seed: `int` (default `19491001`)
             Random seed to ensure the reproducibility of each run.
+        result_prefix: `str` (default: `''`)
+            The key that will be used as the prefix of the connectivity, distance and neighbor keys in the returning
+            adata.
         kwargs:
             Additional arguments that will be passed to each nearest neighbor search algorithm.
 
     Returns
     -------
-        adata: :AnnData
-            An updated anndata object that are updated with the `indices`, `connectivity`, `distance` to the .obsp, as well
-            as a new `neighbors` key in .uns.
+        adata: :class:`~anndata.AnnData`
+            An updated anndata object that are updated with the `indices`, `connectivity`, `distance` to the .obsp, as
+            well as a new `neighbors` key in .uns.
     """
 
     if X_data is None:
@@ -491,7 +530,9 @@ def neighbors(
 
             CM = adata.X if genes is None else adata[:, genes].X
             cm_genesums = CM.sum(axis=0)
-            valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
+            valid_ind = np.logical_and(
+                np.isfinite(cm_genesums), cm_genesums != 0
+            )
             valid_ind = np.array(valid_ind).flatten()
             CM = CM[:, valid_ind]
             adata, _, _ = pca(adata, CM, n_pca_components=n_pca_components)
@@ -525,18 +566,40 @@ def neighbors(
     elif method in ["ball_tree", "kd_tree"]:
         from sklearn.neighbors import NearestNeighbors
 
+        # print("***debug X_data:", X_data)
         nbrs = NearestNeighbors(
-            n_neighbors=n_neighbors, metric=metric, metric_params=metric_kwads, algorithm=method, n_jobs=cores, **kwargs
+            n_neighbors=n_neighbors,
+            metric=metric,
+            metric_params=metric_kwads,
+            algorithm=method,
+            n_jobs=cores,
+            **kwargs,
         ).fit(X_data)
         distances, knn = nbrs.kneighbors(X_data)
     else:
-        raise ImportError(f"nearest neighbor search method {method} is not supported")
+        raise ImportError(
+            f"nearest neighbor search method {method} is not supported"
+        )
 
-    adata.obsp["connectivities"], adata.obsp["distances"] = get_conn_dist_graph(knn, distances)
+    if result_prefix != "":
+        result_prefix = (
+            result_prefix
+            if result_prefix.endswith("_")
+            else result_prefix + "_"
+        )
 
-    adata.uns["neighbors"] = {}
-    adata.uns["neighbors"]["indices"] = knn
-    adata.uns["neighbors"]["params"] = {
+    conn_key, dist_key, neigh_key = (
+        result_prefix + "connectivities",
+        result_prefix + "distances",
+        result_prefix + "neighbors",
+    )
+    adata.obsp[conn_key], adata.obsp[dist_key] = get_conn_dist_graph(
+        knn, distances
+    )
+
+    adata.uns[neigh_key] = {}
+    adata.uns[neigh_key]["indices"] = knn
+    adata.uns[neigh_key]["params"] = {
         "n_neighbors": n_neighbors,
         "method": method,
         "metric": metric,

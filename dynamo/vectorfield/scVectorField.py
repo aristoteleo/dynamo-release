@@ -541,10 +541,10 @@ class base_vectorfield:
         **kwargs,
     ):
         self.data = {"X": X, "V": V, "Grid": Grid}
+        self.vf_dict = kwargs.pop("vf_dict", {})
+        self.func = kwargs.pop("func", None)
+        self.fixed_points = kwargs.pop("fixed_points", None)
         super().__init__(**kwargs)
-        self.vf_dict = {}
-        self.func = None
-        self.fixed_points = None
 
     def construct_graph(self, X=None, **kwargs):
         X = self.data["X"] if X is None else X
@@ -604,6 +604,7 @@ class base_vectorfield:
         Xss = self.fixed_points.get_X()
         ftype = self.fixed_points.get_fixed_point_types()
         return Xss, ftype
+
 
 class svc_vectorfield(base_vectorfield):
     def __init__(self, X=None, V=None, Grid=None, *args, **kwargs):

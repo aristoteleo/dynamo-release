@@ -7,10 +7,12 @@ import pandas as pd
 from scipy.sparse import csr_matrix
 import matplotlib.pyplot as plt
 from .moments import *
-from anndata import AnnData
+import anndata
 
 
-def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None):
+def vlm_to_adata(
+    vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None
+):
     """Conversion function from the velocyto world to the dynamo world.
     Code original from scSLAM-seq repository
 
@@ -30,7 +32,8 @@ def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None)
 
     Returns
     -------
-        adata: AnnData object
+        adata: :class:`~anndata.AnnData`
+            AnnData object
     """
 
     from collections import OrderedDict
@@ -140,10 +143,16 @@ def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None)
     if hasattr(vlm, "S_norm"):
         X = csr_matrix(vlm.S_norm.T)
     else:
-        X = csr_matrix(vlm.S_sz.T) if hasattr(vlm, "S_sz") else csr_matrix(vlm.S.T)
+        X = (
+            csr_matrix(vlm.S_sz.T)
+            if hasattr(vlm, "S_sz")
+            else csr_matrix(vlm.S.T)
+        )
 
     # create an anndata object with Dynamo characteristics.
-    dyn_adata = AnnData(X=X, obs=obs, obsp=obsp, obsm=obsm, var=var, layers=layers, uns=uns)
+    dyn_adata = anndata.AnnData(
+        X=X, obs=obs, obsp=obsp, obsm=obsm, var=var, layers=layers, uns=uns
+    )
 
     return dyn_adata
 
@@ -163,7 +172,8 @@ def converter(data_in, from_type="adata", to_type="vlm", dir="."):
         if to_type == "adata":
             data_out = vlm_to_adata(vlm)
 
-    data_out.ra["Gene"] = data_out.ra["var_names"]  # required by plot_phase_portraits
+    # required by plot_phase_portraits
+    data_out.ra["Gene"] = data_out.ra["var_names"]
     colors20 = np.vstack(
         (
             plt.cm.tab20b(np.linspace(0.0, 1, 20))[::2],
@@ -248,7 +258,9 @@ def mean_var_by_time(X, Time):
     return mean_val.values, var_val.values
 
 
-def run_dynamo_deprecated(adata, normalize=True, init_num=1, sample_method="lhs"):
+def run_dynamo_deprecated(
+    adata, normalize=True, init_num=1, sample_method="lhs"
+):
     time = adata.obs["Step"].values
     uniqe_time = list(set(time))
     gene_num = adata.X.shape[1]
@@ -288,12 +300,25 @@ def run_dynamo_deprecated(adata, normalize=True, init_num=1, sample_method="lhs"
     estm = estimation(list(p0_range.values()))
     param_out = pd.DataFrame(
         index=adata.var.index,
-        columns=["a", "b", "la", "alpha_a", "alpha_i", "sigma", "beta", "gamma"],
+        columns=[
+            "a",
+            "b",
+            "la",
+            "alpha_a",
+            "alpha_i",
+            "sigma",
+            "beta",
+            "gamma",
+        ],
     )
     for i in range(gene_num):
         cur_x_data = x_data[:, :, i].squeeze()
         param_out.iloc[i, :], cost = estm.fit_lsq(
-            uniqe_time, cur_x_data, p0=None, n_p0=init_num, sample_method=sample_method
+            uniqe_time,
+            cur_x_data,
+            p0=None,
+            n_p0=init_num,
+            sample_method=sample_method,
         )
 
     # estimate only on the spliced and unspliced dataset
@@ -340,7 +365,9 @@ def run_dynamo_labelling_deprecated(adata, log=True, group=False):
 
     param_out = pd.DataFrame(
         index=adata.var.index,
-        columns=[i + "_" + j for j in groups for i in ["alpha", "gamma", "u0", "l0"]],
+        columns=[
+            i + "_" + j for j in groups for i in ["alpha", "gamma", "u0", "l0"]
+        ],
     )
     L, U = adata.layers["L"], adata.layers["U"]
     velocity_u, velocity_s = L, U
@@ -362,7 +389,10 @@ def run_dynamo_labelling_deprecated(adata, log=True, group=False):
                     np.log1p(cur_L.toarray().squeeze()),
                 )
             else:
-                cur_U, cur_L = cur_U.toarray().squeeze(), cur_L.toarray().squeeze()
+                cur_U, cur_L = (
+                    cur_U.toarray().squeeze(),
+                    cur_L.toarray().squeeze(),
+                )
 
             gamma, l0 = fit_gamma_labelling(T, cur_L, mode=None)
             alpha, u0 = fit_alpha_labelling(T, cur_U, gamma, mode=None)
@@ -485,11 +515,21 @@ def compare_res_deprecated(
         "a": np.corrcoef(a_val, list(dynamo_res.uns["dynamo"]["a"]))[1, 0],
         "b": np.corrcoef(b_val, list(dynamo_res.uns["dynamo"]["b"]))[1, 0],
         "la": np.corrcoef(la_val, list(dynamo_res.uns["dynamo"]["la"]))[1, 0],
-        "alpha_a": np.corrcoef(alpha_a_val, list(dynamo_res.uns["dynamo"]["alpha_a"]))[1, 0],
-        "alpha_i": np.corrcoef(alpha_i_val, list(dynamo_res.uns["dynamo"]["alpha_i"]))[1, 0],
-        "sigma": np.corrcoef(sigma_val, list(dynamo_res.uns["dynamo"]["sigma"]))[1, 0],
-        "beta": np.corrcoef(beta_val, list(dynamo_res.uns["dynamo"]["beta"]))[1, 0],
-        "gamma": np.corrcoef(gamma_val, list(dynamo_res.uns["dynamo"]["gamma"]))[1, 0],
+        "alpha_a": np.corrcoef(
+            alpha_a_val, list(dynamo_res.uns["dynamo"]["alpha_a"])
+        )[1, 0],
+        "alpha_i": np.corrcoef(
+            alpha_i_val, list(dynamo_res.uns["dynamo"]["alpha_i"])
+        )[1, 0],
+        "sigma": np.corrcoef(
+            sigma_val, list(dynamo_res.uns["dynamo"]["sigma"])
+        )[1, 0],
+        "beta": np.corrcoef(beta_val, list(dynamo_res.uns["dynamo"]["beta"]))[
+            1, 0
+        ],
+        "gamma": np.corrcoef(
+            gamma_val, list(dynamo_res.uns["dynamo"]["gamma"])
+        )[1, 0],
     }
 
     return {

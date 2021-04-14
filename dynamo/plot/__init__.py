@@ -75,3 +75,8 @@ from .ezplots import (
     SchemeDiverge,
     SchemeDivergeBWR,
 )
+
+from .clustering import louvain, leiden, infomap
+
+# spatial data related
+from .space import space

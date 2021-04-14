@@ -4,7 +4,13 @@ from .vector_calculus import acceleration, curvature
 
 
 def cell_accelerations(
-    adata, vf_basis="pca", basis="umap", enforce=True, preserve_len=True, other_kernels_dict={}, **kwargs
+    adata,
+    vf_basis="pca",
+    basis="umap",
+    enforce=True,
+    preserve_len=True,
+    other_kernels_dict={},
+    **kwargs
 ):
     """Compute RNA acceleration field via reconstructed vector field and project it to low dimensional embeddings.
 
@@ -58,7 +64,7 @@ def cell_accelerations(
 
     Returns
     -------
-        Adata: :class:`~anndata.AnnData`
+        adata: :class:`~anndata.AnnData`
             Returns an updated `~anndata.AnnData` with transition_matrix and projected embedding of high dimension
             acceleration vectors in the existing embeddings of current cell state, calculated using either the Itô
             kernel method (default) or the diffusion approximation or the method from (La Manno et al. 2018).
@@ -77,7 +83,13 @@ def cell_accelerations(
     V = adata.obsm["acceleration_" + vf_basis]
     X_embedding = adata.obsm["X_" + basis]
 
-    if basis != vf_basis and vf_basis.lower() not in ["umap", "tsne", "trimap", "ddtree", "diffusion_map"]:
+    if basis != vf_basis and vf_basis.lower() not in [
+        "umap",
+        "tsne",
+        "trimap",
+        "ddtree",
+        "diffusion_map",
+    ]:
         cell_velocities(
             adata,
             X=X,
@@ -93,7 +105,13 @@ def cell_accelerations(
 
 
 def cell_curvatures(
-    adata, vf_basis="pca", basis="umap", enforce=True, preserve_len=True, other_kernels_dict={}, **kwargs
+    adata,
+    vf_basis="pca",
+    basis="umap",
+    enforce=True,
+    preserve_len=True,
+    other_kernels_dict={},
+    **kwargs
 ):
     """Compute RNA curvature field via reconstructed vector field and project it to low dimensional embeddings.
 
@@ -147,7 +165,7 @@ def cell_curvatures(
 
     Returns
     -------
-        Adata: :class:`~anndata.AnnData`
+        adata: :class:`~anndata.AnnData`
             Returns an updated `~anndata.AnnData` with transition_matrix and projected embedding of high dimension
             curvature vectors in the existing embeddings of current cell state, calculated using either the Itô kernel
             method (default) or the diffusion approximation or the method from (La Manno et al. 2018).
@@ -166,7 +184,13 @@ def cell_curvatures(
     V = adata.obsm["curvature_" + vf_basis]
     X_embedding = adata.obsm["X_" + basis]
 
-    if basis != vf_basis and vf_basis.lower() not in ["umap", "tsne", "trimap", "ddtree", "diffusion_map"]:
+    if basis != vf_basis and vf_basis.lower() not in [
+        "umap",
+        "tsne",
+        "trimap",
+        "ddtree",
+        "diffusion_map",
+    ]:
         cell_velocities(
             adata,
             X=X,

@@ -25,23 +25,28 @@ def test_logger_simple_progress_naive(test_logger):
         # test_logger.report_progress(i / total * 100)
         test_logger.report_progress(count=i, total=total)
         time.sleep(0.1)
-    test_logger.finish_progress(progress_name="pytest simple progress logger test")
+    test_logger.finish_progress(
+        progress_name="pytest simple progress logger test"
+    )
 
 
 def test_logger_simple_progress_logger(test_logger):
     total = 10
     test_logger.log_time()
     for _ in LoggerManager.progress_logger(
-        range(total), test_logger, progress_name="progress logger test looooooooooooooooooooooooooooooong"
+        range(total),
+        test_logger,
+        progress_name="progress logger test looooooooooooooooooooooooooooooong",
     ):
         time.sleep(0.1)
 
 
 # To-do:
 # following test does not work with pytest but can be run in main directly
-# the reason seems to be compatibility of pytest and numba
+# the reason seems to be related compatibility of pytest and numba
 def test_vectorField_logger():
     adata = dyn.sample_data.zebrafish()
+    adata = adata[:500]
     dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_max=0.005)
     dyn.tl.dynamics(adata, model="stochastic", cores=8)
     dyn.tl.reduceDimension(adata, n_pca_components=5, enforce=True)
@@ -59,6 +64,7 @@ def test_vectorField_logger():
 
 def test_zebrafish_topography_tutorial_logger():
     adata = dyn.sample_data.zebrafish()
+    adata = adata[:500]
     dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_max=0.005)
     dyn.tl.dynamics(adata, model="stochastic", cores=8)
     dyn.tl.reduceDimension(adata, n_pca_components=5, enforce=True)
@@ -73,10 +79,24 @@ def test_zebrafish_topography_tutorial_logger():
     dyn.pd.state_graph(adata, group="Cell_type", basis="pca", method="vf")
 
 
+def test_cell_cycle_score_logger_pancreatic_endocrinogenesis():
+    adata = dyn.sample_data.pancreatic_endocrinogenesis()
+    adata = adata[:1000]
+    dyn.pp.recipe_monocle(
+        adata,
+        n_top_genes=1000,
+        fg_kwargs={"shared_count": 20},
+        # genes_to_append=['Xkr4', 'Gm28672', 'Gm20837'],
+        genes_to_exclude=["Sbspon", "Adgrb3", "Eif2s3y"],
+    )
+    dyn.pp.cell_cycle_scores(adata)
+
+
 if __name__ == "__main__":
     # test_logger_simple_output_1(LoggerManager.get_main_logger())
     # test_logger_simple_progress_naive(LoggerManager.get_main_logger())
     # test_logger_simple_progress_logger(LoggerManager.get_main_logger())
     # test_logger_simple_progress_logger(LoggerManager.get_temp_timer_logger())
-    # test_vectorField_logger()
+    test_vectorField_logger()
     test_zebrafish_topography_tutorial_logger()
+    test_cell_cycle_score_logger_pancreatic_endocrinogenesis()

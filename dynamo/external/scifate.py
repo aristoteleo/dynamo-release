@@ -6,21 +6,23 @@ from tqdm import tqdm
 import pandas as pd
 import numpy as np
 from anndata.utils import make_index_unique
+from anndata import AnnData
+from typing import Union
 from scipy.sparse import issparse
 from .utils import normalize_data, TF_link_gene_chip
 from ..tools.utils import einsum_correlation
 
 
 def scifate_glmnet(
-    adata,
-    gene_filter_rate=0.1,
-    cell_filter_UMI=10000,
-    core_n_lasso=1,
-    core_n_filtering=1,
-    motif_ref="https://www.dropbox.com/s/s8em539ojl55kgf/motifAnnotations_hgnc.csv?dl=1",
-    TF_link_ENCODE_ref="https://www.dropbox.com/s/bjuope41pte7mf4/df_gene_TF_link_ENCODE.csv?dl=1",
-    nt_layers=["X_new", "X_total"],
-):
+    adata: AnnData,
+    gene_filter_rate: float = 0.1,
+    cell_filter_UMI: int = 10000,
+    core_n_lasso: int = 1,
+    core_n_filtering: int = 1,
+    motif_ref: str = "https://www.dropbox.com/s/s8em539ojl55kgf/motifAnnotations_hgnc.csv?dl=1",
+    TF_link_ENCODE_ref: str = "https://www.dropbox.com/s/bjuope41pte7mf4/df_gene_TF_link_ENCODE.csv?dl=1",
+    nt_layers: list = ["X_new", "X_total"],
+) -> AnnData:
     """Reconstruction of regulatory network (Cao, et. al, Nature Biotechnology, 2020) from TFs to other target
      genes via LASSO regression between the total expression of known transcription factors and the newly synthesized
      RNA of potential targets. The inferred regulatory relationships between TF and targets are further filtered based
@@ -44,28 +46,28 @@ def scifate_glmnet(
         adata: :class:`~anndata.AnnData`.
             adata object that includes both newly synthesized and total gene expression of cells. Alternatively,
             the object should include both unspliced and spliced gene expression of cells.
-        gene_filter_rate: `float` (default: 0.1)
+        gene_filter_rate:
             minimum percentage of expressed cells for gene filtering.
-        cell_filter_UMI: `int` (default: 10000)
+        cell_filter_UMI:
             minimum number of UMIs for cell filtering.
-        core_n_lasso: `int` (default: 1)
+        core_n_lasso:
             number of cores for lasso regression in linkage analysis. By default, it is 1 and parallel is turned off.
             Parallel computing can significantly speed up the computation process, especially for datasets involve
             many cells or genes. But for smaller datasets or genes, it could result in a reduction in speed due to the
             additional overhead. User discretion is advised.
-        core_n_filtering: `int` (default: 1)
+        core_n_filtering:
             number of cores for filtering TF-gene links. Not used currently.
-        motif_ref: `str` (default: 'https://www.dropbox.com/s/bjuope41pte7mf4/df_gene_TF_link_ENCODE.csv?dl=1')
+        motif_ref:
             The path to the TF binding motif data as described above. It provides the list of TFs gene names and
             is used to process adata object to generate the TF expression and target new expression matrix for glmnet
             based TF-target synthesis rate linkage analysis. But currently it is not used for motif based filtering.
             By default it is a dropbox link that store the data from us. Other motif reference can bed downloaded from RcisTarget:
             https://resources.aertslab.org/cistarget/. For human motif matrix, it can be downloaded from June's shared folder:
             https://shendure-web.gs.washington.edu/content/members/cao1025/public/nobackup/sci_fate/data/hg19-tss-centered-10kb-7species.mc9nr.feather
-        TF_link_ENCODE_ref: `str` (default: 'https://www.dropbox.com/s/s8em539ojl55kgf/motifAnnotations_hgnc.csv?dl=1')
+        TF_link_ENCODE_ref:
             The path to the TF chip-seq data. By default it is a dropbox link from us that stores the data. Other data can
             be downloaded from: https://amp.pharm.mssm.edu/Harmonizome/dataset/ENCODE+Transcription+Factor+Targets.
-        nt_layers: `list([str, str])` (default: `['X_new', 'X_total']`)
+        nt_layers:
             The layers that will be used for the network inference. Note that the layers can be changed flexibly. See
             the description of this function above.
 
@@ -102,28 +104,47 @@ def scifate_glmnet(
 
     # Apply LASSO for TF-gene linkage analysis
     new_size_factor = obs.loc[:, "Size_Factor"]
-    new_size_factor = (new_size_factor - np.mean(new_size_factor)) / np.std(new_size_factor)
+    new_size_factor = (new_size_factor - np.mean(new_size_factor)) / np.std(
+        new_size_factor
+    )
 
     TF_matrix.loc["new_size_factor"] = new_size_factor
     labeling_rate = obs["labeling_rate"]
     if np.std(labeling_rate) != 0:
-        labeling_ratio = (labeling_rate - np.mean(labeling_rate)) / np.std(labeling_rate)
+        labeling_ratio = (labeling_rate - np.mean(labeling_rate)) / np.std(
+            labeling_rate
+        )
         TF_matrix.loc["labeling_ratio", :] = labeling_ratio
 
     # link TF and genes based on covariance
-    link_result = link_TF_gene_analysis(TF_matrix, new_mat, var_TF, core_num=core_n_lasso)
-    link_result = pd.concat([i if i != "unknown" else None for i in link_result], axis=0)
+    link_result = link_TF_gene_analysis(
+        TF_matrix, new_mat, var_TF, core_num=core_n_lasso
+    )
+    link_result = pd.concat(
+        [i if i != "unknown" else None for i in link_result], axis=0
+    )
 
     # filtering the links using TF-gene binding data and store the result in the target folder
     # note that currently the motif filtering is not implement
-    df_gene_TF_link_chip = TF_gene_filter_links(link_result, var, core_n_filtering, motif_ref, df_gene_TF_link_ENCODE)
+    df_gene_TF_link_chip = TF_gene_filter_links(
+        link_result, var, core_n_filtering, motif_ref, df_gene_TF_link_ENCODE
+    )
 
-    adata.uns["scifate"] = {"glmnet_res": link_result, "glmnet_chip_filter": df_gene_TF_link_chip}
+    adata.uns["scifate"] = {
+        "glmnet_res": link_result,
+        "glmnet_chip_filter": df_gene_TF_link_chip,
+    }
 
     return adata
 
 
-def adata_processing_TF_link(adata, nt_layers, TF_list, gene_filter_rate=0.1, cell_filter_UMI=10000):
+def adata_processing_TF_link(
+    adata: AnnData,
+    nt_layers: list,
+    TF_list: list,
+    gene_filter_rate: float = 0.1,
+    cell_filter_UMI: int = 10000,
+) -> tuple:
     """preprocess adata and get ready for TF-target gene analysis"""
 
     n_obs, n_var = adata.n_obs, adata.n_vars
@@ -131,15 +152,21 @@ def adata_processing_TF_link(adata, nt_layers, TF_list, gene_filter_rate=0.1, ce
     # filter genes
     print(f"Original gene number: {n_var}")
 
-    gene_filter_new = (adata.layers[nt_layers[0]] > 0).sum(0) > (gene_filter_rate * n_obs)
-    gene_filter_tot = (adata.layers[nt_layers[1]] > 0).sum(0) > (gene_filter_rate * n_obs)
+    gene_filter_new = (adata.layers[nt_layers[0]] > 0).sum(0) > (
+        gene_filter_rate * n_obs
+    )
+    gene_filter_tot = (adata.layers[nt_layers[1]] > 0).sum(0) > (
+        gene_filter_rate * n_obs
+    )
     if issparse(adata.layers[nt_layers[0]]):
         gene_filter_new = gene_filter_new.A1
     if issparse(adata.layers[nt_layers[1]]):
         gene_filter_tot = gene_filter_tot.A1
     adata = adata[:, gene_filter_new * gene_filter_tot]
 
-    print(f"Gene number after filtering: {sum(gene_filter_new * gene_filter_tot)}")
+    print(
+        f"Gene number after filtering: {sum(gene_filter_new * gene_filter_tot)}"
+    )
 
     # filter cells
     print(f"Original cell number: {n_obs}")
@@ -158,7 +185,12 @@ def adata_processing_TF_link(adata, nt_layers, TF_list, gene_filter_rate=0.1, ce
     # recalculate size factor
     from ..preprocessing import szFactor
 
-    adata = szFactor(adata, method="mean-geometric-mean-total", round_exprs=True, total_layers=["total"])
+    adata = szFactor(
+        adata,
+        method="mean-geometric-mean-total",
+        round_exprs=True,
+        total_layers=["total"],
+    )
     szfactors = adata.obs["Size_Factor"][:, None]
 
     # normalize data (size factor correction, log transform and the scaling)
@@ -168,14 +200,22 @@ def adata_processing_TF_link(adata, nt_layers, TF_list, gene_filter_rate=0.1, ce
         total = total.A
     new_mat = normalize_data(new, szfactors, pseudo_expr=0.1)
     tot_mat = normalize_data(total, szfactors, pseudo_expr=0.1)
-    new_mat = pd.DataFrame(new_mat, index=adata.obs_names, columns=adata.var_names)
-    tot_mat = pd.DataFrame(tot_mat, index=adata.obs_names, columns=adata.var_names)
+    new_mat = pd.DataFrame(
+        new_mat, index=adata.obs_names, columns=adata.var_names
+    )
+    tot_mat = pd.DataFrame(
+        tot_mat, index=adata.obs_names, columns=adata.var_names
+    )
 
     # compute the labeling reads rate in each cell
     obs = adata.obs
     var = adata.var
-    var.loc[:, "gene_short_name"] = make_index_unique(var.loc[:, "gene_short_name"].astype("str"))
-    obs.loc[:, "labeling_rate"] = adata.layers["new"].sum(1) / adata.layers["total"].sum(1)
+    var.loc[:, "gene_short_name"] = make_index_unique(
+        var.loc[:, "gene_short_name"].astype("str")
+    )
+    obs.loc[:, "labeling_rate"] = adata.layers["new"].sum(1) / adata.layers[
+        "total"
+    ].sum(1)
 
     # extract the TF matrix
     var_TF = var.query("gene_short_name in @TF_list")
@@ -187,18 +227,31 @@ def adata_processing_TF_link(adata, nt_layers, TF_list, gene_filter_rate=0.1, ce
     return (tot_mat.T, new_mat.T, obs, var, var_TF, TF_matrix.T)
 
 
-def link_TF_gene_analysis(TF_matrix, gene_matrix, var_TF, core_num=1, cor_thresh=0.03, seed=123456):
+def link_TF_gene_analysis(
+    TF_matrix: pd.DataFrame,
+    gene_matrix: pd.DataFrame,
+    var_TF: pd.DataFrame,
+    core_num: int = 1,
+    cor_thresh: float = 0.03,
+    seed: int = 123456,
+) -> list:
     """Perform lasso regression for each gene."""
 
     gene_list = gene_matrix.index
     link_result = [None] * len(gene_list)
 
-    for i, linked_gene in tqdm(enumerate(gene_list), desc=f"Perform lasso regression for each gene:"):
+    for i, linked_gene in tqdm(
+        enumerate(gene_list), desc=f"Perform lasso regression for each gene:"
+    ):
         gene_name, TFs = (
-            var_TF.loc[linked_gene, "gene_short_name"] if linked_gene in var_TF.index else None,
+            var_TF.loc[linked_gene, "gene_short_name"]
+            if linked_gene in var_TF.index
+            else None,
             TF_matrix.index,
         )
-        valid_gene_ids = TFs if gene_name is None else list(TFs.difference(set(gene_name)))
+        valid_gene_ids = (
+            TFs if gene_name is None else list(TFs.difference(set(gene_name)))
+        )
         input_TF_matrix = TF_matrix.loc[valid_gene_ids, :]
 
         result = TF_gene_link(
@@ -214,23 +267,34 @@ def link_TF_gene_analysis(TF_matrix, gene_matrix, var_TF, core_num=1, cor_thresh
     return link_result
 
 
-def TF_gene_link(TF_matrix, linked_gene, linked_gene_expr_vector, core_num=1, cor_thresh=0.03, seed=123456):
+def TF_gene_link(
+    TF_matrix: pd.DataFrame,
+    linked_gene: str,
+    linked_gene_expr_vector,
+    core_num: int = 1,
+    cor_thresh: float = 0.03,
+    seed: int = 123456,
+):
     """Estimate the regulatory weight of each TF to its potential targets via lasso regression for each gene."""
 
-    expr_cor = einsum_correlation(TF_matrix.values, linked_gene_expr_vector.values)[0]
+    expr_cor = einsum_correlation(
+        TF_matrix.values, linked_gene_expr_vector.values
+    )[0]
     select_sites = abs(expr_cor) > cor_thresh
     TF_matrix = TF_matrix.iloc[select_sites, :]
 
     if select_sites.sum() > 1:
         TF_matrix = TF_matrix.T
-        result = lasso_regression_expression(TF_matrix, linked_gene, linked_gene_expr_vector, seed, core_num)
+        result = lasso_regression_expression(
+            TF_matrix, linked_gene, linked_gene_expr_vector, seed, core_num
+        )
 
         return result
     else:
         return "unknown"
 
 
-def lasso_regression_expression(x1, linked_gene, y, seed, parallel=1):
+def lasso_regression_expression(x1, linked_gene, y, seed: int, parallel=1):
     """Lasso linear model with iterative fitting along a regularization path. Select best model is by cross-validation."""
 
     x1 = x1.loc[:, ~x1.columns.duplicated(keep="first")]
@@ -242,7 +306,14 @@ def lasso_regression_expression(x1, linked_gene, y, seed, parallel=1):
     seq = np.linspace(np.log(0.001), np.log(10), 100)
 
     # alpha = 1 is required for lasso regression.
-    cv_out = cvglmnet(x=x1.values, y=y.values, ptype="mse", alpha=1, lambdau=np.exp(seq), parallel=parallel)
+    cv_out = cvglmnet(
+        x=x1.values,
+        y=y.values,
+        ptype="mse",
+        alpha=1,
+        lambdau=np.exp(seq),
+        parallel=parallel,
+    )
     r2 = r2_glmnet(cv_out, y)
 
     bestlam = cv_out["lambda_1se"]
@@ -276,7 +347,9 @@ def r2_glmnet(cv_out, y):
     return r2[0]
 
 
-def TF_gene_filter_links(raw_glmnet_res, var, core_n, motif_ref, df_gene_TF_link_ENCODE):
+def TF_gene_filter_links(
+    raw_glmnet_res: pd.DataFrame, var, core_n, motif_ref, df_gene_TF_link_ENCODE
+):
     """prepare data for TF-target gene link filtering"""
 
     var_ori = var.copy()
@@ -284,9 +357,13 @@ def TF_gene_filter_links(raw_glmnet_res, var, core_n, motif_ref, df_gene_TF_link
     df_gene.columns = ["linked_gene", "linked_gene_name", "gene_type"]
 
     raw_glmnet_res_var = raw_glmnet_res.merge(df_gene)
-    raw_glmnet_res_var = raw_glmnet_res_var.query("id != 'labeling_ratio' and id != 'new_size_factor'")
+    raw_glmnet_res_var = raw_glmnet_res_var.query(
+        "id != 'labeling_ratio' and id != 'new_size_factor'"
+    )
 
     # filter the link by ChIP-seq analysis
-    df_gene_TF_link_chip = TF_link_gene_chip(raw_glmnet_res_var, df_gene_TF_link_ENCODE, var_ori, cor_thresh=0.04)
+    df_gene_TF_link_chip = TF_link_gene_chip(
+        raw_glmnet_res_var, df_gene_TF_link_ENCODE, var_ori, cor_thresh=0.04
+    )
 
     return df_gene_TF_link_chip

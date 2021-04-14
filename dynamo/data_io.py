@@ -1,5 +1,6 @@
 from tqdm import tqdm
 import numpy as np
+from functools import reduce
 from anndata import (
     read,
     read_loom,
@@ -11,6 +12,7 @@ from anndata import (
     read_umi_tools,
     read_zarr,
     read_text,
+    AnnData,
 )
 
 
@@ -160,6 +162,53 @@ def load_NASC_seq(dir, type='TPM', delimiter="_", colnames=None, dropna=False):
 
     adata = adata[:, adata.X.sum(0).A > 0]
     adata.uns['raw_data'] = True
+
+
+def aggregate_adata(
+        file_list: list
+) -> AnnData:
+    """Aggregate gene expression from adata.X or layer for a list of adata based on the same cell and gene names.
+
+    Parameters
+    ----------
+        file_list:
+            A list of strings specifies the link to the anndata object.
+
+    Returns
+    -------
+        agg_adata:
+            Aggregated adata object.
+    """
+
+    import anndata
+    from anndata import AnnData
+
+    if type(file_list[0]) == anndata._core.anndata.AnnData:
+        adata_list = file_list
+    elif type(file_list[0]) == str:
+        adata_list = [anndata.read(i) for i in file_list]
+
+    valid_cells = reduce(lambda a, b: a.intersection(b), [i.obs_names for i in adata_list])
+    valid_genes = reduce(lambda a, b: a.intersection(b), [i.var_names for i in adata_list])
+
+    if len(valid_cells) == 0 or len(valid_genes) == 0:
+        raise Exception(f"we don't find any gene or cell names shared across different adata objects."
+                        f"Please check your data. ")
+
+    layer_dict = {}
+    for i in adata_list[0].layers.keys():
+        layer_dict[i] = reduce(lambda a, b: a + b,
+                                  [adata[valid_cells, valid_genes].layers[i]
+                                   for adata in adata_list])
+
+    agg_adata = anndata.AnnData(
+        X=reduce(lambda a, b: a + b, [adata[valid_cells, valid_genes].X for adata in adata_list]),
+        obs=adata_list[0][valid_cells, valid_genes].obs,
+        var=adata_list[0][valid_cells, valid_genes].var,
+        layers=layer_dict,
+    )
+
+    return agg_adata
 
 
 def cleanup(adata, del_prediction=False, del_2nd_moments=False):
