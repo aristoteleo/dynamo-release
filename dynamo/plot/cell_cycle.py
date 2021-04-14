@@ -12,7 +12,7 @@ def cell_cycle_scores(
 
     Parameters
     ----------
-        adata: an anndata object.
+        adata: :class:`~anndata.AnnData`
         cells: a list of cell ids used to subset the adata object.
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
             Whether to save, show or return the figure.
@@ -30,9 +30,15 @@ def cell_cycle_scores(
     if cells is None:
         cell_cycle_scores = adata.obsm["cell_cycle_scores"].dropna()
     else:
-        cell_cycle_scores = adata[cells, :].obsm["cell_cycle_scores"].dropna().dropna()
+        cell_cycle_scores = (
+            adata[cells, :].obsm["cell_cycle_scores"].dropna().dropna()
+        )
 
-    cell_cycle_scores.sort_values(["cell_cycle_phase", "cell_cycle_progress"], ascending=[True, False], inplace=True)
+    cell_cycle_scores.sort_values(
+        ["cell_cycle_phase", "cell_cycle_progress"],
+        ascending=[True, False],
+        inplace=True,
+    )
 
     # based on https://stackoverflow.com/questions/47916205/seaborn-heatmap-move-colorbar-on-top-of-the-plot
     # answwer 4
@@ -48,7 +54,9 @@ def cell_cycle_scores(
     # split axes of heatmap to put colorbar
     ax_divider = make_axes_locatable(ax)
     # define size and padding of axes for colorbar
-    cax = ax_divider.append_axes("right", size="2%", pad="0.5%", aspect=4, anchor="NW")
+    cax = ax_divider.append_axes(
+        "right", size="2%", pad="0.5%", aspect=4, anchor="NW"
+    )
     # make colorbar for heatmap.
     # Heatmap returns an axes obj but you need to get a mappable obj (get_children)
     colorbar(ax.get_children()[0], cax=cax, ticks=[-0.9, 0, 0.9])

@@ -39,39 +39,38 @@ def scribe(
         adata: :class:`~anndata.AnnData`.
             adata object that includes both newly synthesized and total gene expression of cells. Alternatively,
             the object should include both unspliced and spliced gene expression of cells.
-        genes: `List` (default: None)
+        genes:
             The list of gene names that will be used for casual network inference. By default, it is `None` and thus will
             use all genes.
-        TFs: `List` or `None` (default: None)
+        TFs:
             The list of transcription factors that will be used for casual network inference. When it is `None` gene list
             included in the file linked by `motif_ref` will be used.
-        Targets: `List` or `None` (default: None)
+        Targets:
             The list of target genes that will be used for casual network inference. When it is `None` gene list not
             included in the file linked by `motif_ref` will be used.
-        gene_filter_rate: `float` (default: 0.1)
+        gene_filter_rate:
             minimum percentage of expressed cells for gene filtering.
-        cell_filter_UMI: `int` (default: 10000)
+        cell_filter_UMI:
              minimum number of UMIs for cell filtering.
-        motif_ref: `str` (default: 'https://www.dropbox.com/s/bjuope41pte7mf4/df_gene_TF_link_ENCODE.csv?dl=1')
+        motif_ref:
             It provides the list of TFs gene names and is used to parse the data to get the list of TFs and Targets
             for the causal network inference from those TFs to Targets. But currently the motif based filtering is not implemented.
             By default it is a dropbox link that store the data from us. Other motif reference can bed downloaded from RcisTarget:
             https://resources.aertslab.org/cistarget/. For human motif matrix, it can be downloaded from June's shared folder:
             https://shendure-web.gs.washington.edu/content/members/cao1025/public/nobackup/sci_fate/data/hg19-tss-centered-10kb-7species.mc9nr.feather
-        nt_layers: `List` (Default: ['X_new', 'X_total'])
+        nt_layers:
             The two keys for layers that will be used for the network inference. Note that the layers can be changed
             flexibly. See the description of this function above. The first key corresponds to the transcriptome of the
             next time point, for example unspliced RNAs (or estimated velocitym, see Fig 6 of the Scribe preprint:
             https://www.biorxiv.org/content/10.1101/426981v1) from RNA velocity, old RNA from scSLAM-seq data, etc.
             The second key corresponds to the transcriptome of the initial time point, for example spliced RNAs from RNA
             velocity, old RNA from scSLAM-seq data.
-        drop_zero_cells: `bool` (Default: False)
+        drop_zero_cells:
             Whether to drop cells that with zero expression for either the potential regulator or potential target. This
-            can signify the relationship between potential regulators and targets, speed up the calculation, but at the risk
-            of ignoring strong inhibition effects from certain regulators to targets.
-        do_CLR: `bool` (Default: True)
+            can signify the relationship between potential regulators and targets, speed up the calculation, but at the risk of ignoring strong inhibition effects from certain regulators to targets.
+        do_CLR:
             Whether to perform context likelihood relatedness analysis on the reconstructed causal network
-        TF_link_ENCODE_ref: `str` (default: 'https://www.dropbox.com/s/s8em539ojl55kgf/motifAnnotations_hgnc.csv?dl=1')
+        TF_link_ENCODE_ref:
             The path to the TF chip-seq data. By default it is a dropbox link from us that stores the data. Other data can
             be downloaded from: https://amp.pharm.mssm.edu/Harmonizome/dataset/ENCODE+Transcription+Factor+Targets.
 

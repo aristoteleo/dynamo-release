@@ -154,36 +154,36 @@ def ddhodge(
     ----------
         adata: :class:`~anndata.AnnData`
             an Annodata object.
-        X_data: `np.ndarray` (default: `None`)
+        X_data:
             The user supplied expression (embedding) data that will be used for graph hodege decomposition directly.
-        layer: `str` or None (default: None)
+        layer:
             Which layer of the data will be used for graph Hodge decomposition.
-        basis: `str` (default: `pca`)
+        basis:
             Which basis of the data will be used for graph Hodge decomposition.
-        n: `int` (default: `10`)
+        n:
             Number of nearest neighbors when the nearest neighbor graph is not included.
-        VecFld: `dictionary` or None (default: None)
+        VecFld:
             The reconstructed vector field function.
-        adjmethod: `str` (default: `graphize_vecfld`)
+        adjmethod:
             The method to build the ajacency matrix that will be used to create the sparse diffusion graph, can be either
             "naive" or "graphize_vecfld". If "naive" used, the transition_matrix that created during vector field projection
             will be used; if "graphize_vecfld" used, a method that guarantees the preservance of divergence will be used.
-        n_downsamples: `int` (default: `5000`)
+        n_downsamples:
             Number of cells to downsample to if the cell number is large than this value. Three downsampling methods are
             available, see `sampling_method`.
-        up_sampling: `bool` (default: `True`)
+        up_sampling:
             Whether to assign calculated potential, curl and divergence to cells not sampled based on values from their
             nearest sampled cells.
-        sampling_method: `str` (default: `random`)
+        sampling_method:
             Methods to downsample datasets to facilitate calculation. Can be one of {`random`, `velocity`, `trn`}, each
             corresponds to random sampling, velocity magnitude based and topology representing network based sampling.
-        seed : int or 1-d array_like, optional (default: `0`)
+        seed:
             Seed for RandomState. Must be convertible to 32 bit unsigned integers. Used in sampling control points. Default
             is to be 0 for ensure consistency between different runs.
-        enforce: `bool` (default: `False`)
+        enforce:
             Whether to enforce the calculation of adjacency matrix for estimating potential, curl, divergence for each
             cell.
-        cores: `int` (default: 1):
+        cores:
             Number of cores to run the graphize_vecfld function. If cores is set to be > 1, multiprocessing will be used
             to parallel the graphize_vecfld calculation.
 

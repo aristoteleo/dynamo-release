@@ -26,11 +26,11 @@ def enrichr(
               :param gene_sets:
         gene_sets:
             str, list, tuple of Enrichr Library name(s).
-        description: str or None (default: `None`)
+        description:
             name of analysis. optional.
-        outdir: str (default: `'./enrichr'`)
+        outdir:
              Output file directory
-        cutoff: float (default: `0.05`)
+        cutoff:
             Show enriched terms which Adjusted P-value < cutoff. Only affects the output figure. Default: 0.05
         kwargs:
             additional arguments passed to the `gp.enrichr` function.
