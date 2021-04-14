@@ -1,28 +1,31 @@
 from pathlib import Path
+from ..dynamo_logger import LoggerManager
+from typing import Union
 
 
 def enrichr(
-    genes,
-    organism,
-    background=None,
-    gene_sets=["GO_Biological_Process_2018"],
-    description=None,
-    outdir="./enrichr",
-    cutoff=0.05,
-    no_plot=False,
+    genes: Union[list, str],
+    organism: str,
+    background: Union[str, None] = None,
+    gene_sets: Union[str, list, tuple] = ["GO_Biological_Process_2018"],
+    description: Union[str, None] = None,
+    outdir: str = "./enrichr",
+    cutoff: float = 0.05,
+    no_plot: bool = False,
     **kwargs,
 ):
     """Perform gene list enrichment with gseapy.
 
     Parameters
     ----------
-        genes: list or str
+        genes:
             Flat file with list of genes, one gene id per row, or a python list object.
-        organism: str
+        organism:
             Enrichr supported organism. Select from (human, mouse, yeast, fly, fish, worm).
             see here for details: https://amp.pharm.mssm.edu/modEnrichr
-        gene_sets: str (default: `'GO_Biological_Process_2018'`)
-            Enrichr Library to query. Required enrichr library name(s). Separate each name by comma.
+              :param gene_sets:
+        gene_sets:
+            str, list, tuple of Enrichr Library name(s).
         description: str or None (default: `None`)
             name of analysis. optional.
         outdir: str (default: `'./enrichr'`)
@@ -57,7 +60,10 @@ def enrichr(
     try:
         import gseapy as gp
     except ImportError:
-        raise ImportError("You need to install the package `gseapy`." "install gseapy via `pip install gseapy`")
+        raise ImportError(
+            "You need to install the package `gseapy`."
+            "install gseapy via `pip install gseapy`"
+        )
 
     Path(outdir).mkdir(parents=True, exist_ok=True)
 
