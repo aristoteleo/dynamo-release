@@ -241,7 +241,7 @@ def normalize_expr_data(
 
     Returns
     -------
-        adata: :AnnData
+        adata: :class:`~anndata.AnnData`
             An updated anndata object that are updated with normalized expression values for different layers.
     """
 
@@ -357,7 +357,7 @@ def Gini(adata, layers="all"):
 
     Returns
     -------
-        adata: :AnnData
+        adata: :class:`~anndata.AnnData`
             An updated anndata object with gini score for the layers (include .X) in the corresponding var columns (layer + '_gini').
     """
 

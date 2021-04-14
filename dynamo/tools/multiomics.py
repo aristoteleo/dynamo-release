@@ -24,14 +24,18 @@ def AddAssay(adata, data, key, slot="obsm"):
 
     Returns
     -------
-        adata: :AnnData
+        adata: :class:`~anndata.AnnData`
             An updated anndata object that are updated with a new data as a key to the specified slot.
     """
 
     if slot == "uns":
-        adata.uns[key] = data.loc[adata.obs.index, set(adata.var.index).intersection(data.columns)]
+        adata.uns[key] = data.loc[
+            adata.obs.index, set(adata.var.index).intersection(data.columns)
+        ]
     elif slot == "obsm":
-        adata.obsm[key] = data.loc[adata.obs.index, set(adata.var.index).intersection(data.columns)]
+        adata.obsm[key] = data.loc[
+            adata.obs.index, set(adata.var.index).intersection(data.columns)
+        ]
 
     return adata
 
@@ -41,7 +45,7 @@ def getAssay(adata, key, slot="obsm"):
 
     Parameters
     ----------
-        adata: :AnnData
+        adata: :class:`~anndata.AnnData`
             AnnData object
         key: `str`
             The key name to be used for the new data.

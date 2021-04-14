@@ -390,7 +390,7 @@ def mnn(
 
     Returns
     -------
-        adata: :AnnData
+        adata: :class:`~anndata.AnnData`
             An updated anndata object that are updated with the `mnn` or other relevant data that are calculated during mnn
             calculation.
     """
@@ -473,7 +473,7 @@ def neighbors(
     metric_kwads=None,
     cores=1,
     seed=19491001,
-    result_prefix='',
+    result_prefix="",
     **kwargs,
 ):
     """Function to search nearest neighbors of the adata object.
@@ -512,14 +512,14 @@ def neighbors(
         seed: `int` (default `19491001`)
             Random seed to ensure the reproducibility of each run.
         result_prefix: `str` (default: `''`)
-            The key that will be used as the prefix of the connectivity, distance and neighbor keys in the returning 
-            adata. 
+            The key that will be used as the prefix of the connectivity, distance and neighbor keys in the returning
+            adata.
         kwargs:
             Additional arguments that will be passed to each nearest neighbor search algorithm.
 
     Returns
     -------
-        adata: :AnnData
+        adata: :class:`~anndata.AnnData`
             An updated anndata object that are updated with the `indices`, `connectivity`, `distance` to the .obsp, as
             well as a new `neighbors` key in .uns.
     """
@@ -581,12 +581,18 @@ def neighbors(
             f"nearest neighbor search method {method} is not supported"
         )
 
-    if result_prefix != '':
-        result_prefix = result_prefix if result_prefix.endswith('_') else result_prefix + '_'
+    if result_prefix != "":
+        result_prefix = (
+            result_prefix
+            if result_prefix.endswith("_")
+            else result_prefix + "_"
+        )
 
-    conn_key, dist_key, neigh_key = result_prefix + "connectivities", \
-                                    result_prefix + "distances", \
-                                    result_prefix + "neighbors"
+    conn_key, dist_key, neigh_key = (
+        result_prefix + "connectivities",
+        result_prefix + "distances",
+        result_prefix + "neighbors",
+    )
     adata.obsp[conn_key], adata.obsp[dist_key] = get_conn_dist_graph(
         knn, distances
     )

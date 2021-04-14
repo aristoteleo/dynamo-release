@@ -20,7 +20,8 @@ def group_corr(
 
     Arguments
     ---------
-        adata: an anndata object.
+        adata: :class:`~anndata.AnnData`
+            an anndata object.
         layer: `str` or None
             The layer of data to use for calculating correlation. If None, use adata.X.
         gene_list: list of gene names
@@ -76,7 +77,8 @@ def refine_gene_list(
 
     Parameters
     ----------
-        adata: an anndata object.
+        adata: :class:`~anndata.AnnData`
+            an anndata object.
         layer: `str` or None
             The layer of data to use for calculating correlation. If None, use adata.X.
         gene_list: list of gene names
@@ -97,13 +99,16 @@ def refine_gene_list(
         return gene_list[corrs >= threshold]
 
 
-def group_score(adata: anndata.AnnData, layer: Union[str, None], gene_list: list):
+def group_score(
+    adata: anndata.AnnData, layer: Union[str, None], gene_list: list
+):
     """Scores cells within population for expression of a set of genes. Raw expression data are first
     log transformed, then the values are summed, and then scores are Z-normalized across all cells.
 
     Arguments
     ---------
-        adata: an anndata object.
+        adata: :class:`~anndata.AnnData`
+            an anndata object.
         layer: `str` or None
             The layer of data to use for calculating correlation. If None, use adata.X.
         gene_list: list of gene names
@@ -426,7 +431,7 @@ def get_cell_phase(
 
     Arguments
     ---------
-        adata: `AnnData`.
+        adata: :class:`~anndata.AnnData`
         layer: `str` or None (default: `None`)
             The layer of data to use for calculating correlation. If None, use adata.X.
         gene_list: `OrderedDict` or None (default: `None`)
