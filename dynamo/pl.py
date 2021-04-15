@@ -1,4 +1,4 @@
 """Mapping Vector Field of Single Cells
 """
 
-from .plot import *
+from dynamo.plot import *

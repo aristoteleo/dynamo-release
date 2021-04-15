@@ -1,4 +1,4 @@
 """Mapping Vector Field of Single Cells
 """
 
-from .prediction import *
+from dynamo.prediction import *
