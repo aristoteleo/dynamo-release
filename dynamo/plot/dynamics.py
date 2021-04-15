@@ -684,7 +684,7 @@ def phase_portraits(
             ax1.quiver(X_array[:, 0], X_array[:, 1], V_array[:, 0], V_array[:, 1], **quiver_kwargs)
 
         ax1.set_xlim(np.min(X_array[:, 0]), np.max(X_array[:, 0]) * 1.02)
-        ax1.set_ylim(np.min(X_array[:, 0]), np.max(X_array[:, 1]) * 1.02)
+        ax1.set_ylim(np.min(X_array[:, 1]), np.max(X_array[:, 1]) * 1.02)
 
         despline(ax1)  # sns.despline()
 
