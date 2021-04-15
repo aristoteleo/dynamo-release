@@ -14,9 +14,9 @@ from urllib.request import urlretrieve
 import os
 import sys
 
-# module_path = os.path.join(os.path.dirname(__file__), '../..')
-# sys.path.insert(0, os.path.abspath(module_path))
-# sys.path.insert(0, os.path.abspath('../'))
+module_path = os.path.join(os.path.dirname(__file__), '../..')
+sys.path.insert(0, os.path.abspath(module_path))
+sys.path.insert(0, os.path.abspath('../'))
 sys.path.insert(0, os.path.abspath("../../"))
 
 # Add any paths that contain templates here, relative to this directory.
