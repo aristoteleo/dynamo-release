@@ -393,14 +393,7 @@ class VectorField2D:
         return dict_vf
 
 
-def util_topology(adata,
-                 basis,
-                 X,
-                 dims,
-                 func,
-                 VecFld,
-                 n=25,
-                 **kwargs):
+def util_topology(adata, basis, X, dims, func, VecFld, n=25, **kwargs):
     X_basis = adata.obsm["X_" + basis][:, dims] if X is None else X[:, dims]
 
     if X_basis.shape[1] == 2:
@@ -427,9 +420,11 @@ def util_topology(adata,
     else:
         fp_ind = None
         xlim, ylim, confidence, NCx, NCy = None, None, None, None, None
-        vecfld = base_vectorfield(X=VecFld['X'][VecFld['valid_ind'], :],
-                                  V=VecFld['Y'][VecFld['valid_ind'], :],
-                                  func=func)
+        vecfld = base_vectorfield(
+            X=VecFld["X"][VecFld["valid_ind"], :],
+            V=VecFld["Y"][VecFld["valid_ind"], :],
+            func=func,
+        )
 
         Xss, ftype = vecfld.get_fixed_points(n_x0=n, **kwargs)
         if Xss.ndim > 1 and Xss.shape[1] > 2:
@@ -487,21 +482,26 @@ def topography(
 
             def func(x):
                 return dynode_vector_field_function(x, VecFld)
+
         else:
+
             def func(x):
                 return vector_field_function(x, VecFld)
 
     if dims is None:
         dims = np.arange(adata.obsm["X_" + basis].shape[1])
 
-    X_basis, xlim, ylim, confidence, NCx, NCy, Xss, ftype, fp_ind = util_topology(adata,
-                                                                         basis,
-                                                                         X,
-                                                                         dims,
-                                                                         func,
-                                                                         VecFld,
-                                                                         n=n,
-                                                                         *kwargs)
+    (
+        X_basis,
+        xlim,
+        ylim,
+        confidence,
+        NCx,
+        NCy,
+        Xss,
+        ftype,
+        fp_ind,
+    ) = util_topology(adata, basis, X, dims, func, VecFld, n=n, *kwargs)
 
     # commented for now, will go back to this later.
     # sep = compute_separatrices(vecfld.Xss.get_X(), vecfld.Xss.get_J(), vecfld.func, xlim, ylim)
@@ -565,7 +565,7 @@ def VectorField(
 
     Parameters
     ----------
-        adata:
+        adata: :class:`~anndata.AnnData`
             AnnData object that contains embedding and velocity data
         basis:
             The embedding data to use. The vector field function will be learned on the low dimensional embedding and can be then
