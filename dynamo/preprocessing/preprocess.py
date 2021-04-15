@@ -1935,6 +1935,7 @@ def recipe_monocle(
         adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[
             1:
         ]
+        adata.uns['pca_mean'] = fit.mean_
         adata.obsm["X"] = adata.obsm["X_" + method.lower()]
     elif method == "ica":
         fit = FastICA(

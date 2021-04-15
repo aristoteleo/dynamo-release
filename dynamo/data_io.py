@@ -36,7 +36,7 @@ def convert2float(adata, columns, var=False):
         else:
             data = adata.var[i] if var else adata.obs[i]
             data[data == 'None'] = None
-            data = data.astype(float)
+            data = data.astype(str).astype(float)
             if var:
                 adata.var[i] = data.copy()
             else:

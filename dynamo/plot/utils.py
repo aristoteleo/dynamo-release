@@ -276,26 +276,21 @@ def _matplotlib_points(
             # # apply masking
             # triang.set_mask(mask)
             #
-            ccmap = "viridis" if ccmap is None else ccmap
             # # ax.tricontourf(triang, values, cmap=ccmap)
-            # ax.scatter(x, y,
-            #            c=values,
-            #            cmap=cmap,
-            #            plotnonfinite=True,
-            #            **kwargs, )
             import seaborn as sns
 
+            ccmap = "viridis" if ccmap is None else ccmap
             df = pd.DataFrame(points, columns=["x", "y", "z"][: points.shape[1]])
             ax = sns.kdeplot(
                 data=df.iloc[:, :2],
-                hue=values,
+                x='x',
+                y='y',
                 fill=True,
                 alpha=kwargs.get("alpha", "0.4"),
                 palette=ccmap,
                 ax=ax,
                 thresh=0,
                 levels=100,
-                cmap=ccmap,
             )
             x, y = points[:, :2].T
             ax.scatter(
@@ -379,41 +374,59 @@ def _matplotlib_points(
                 **kwargs,
             )
         elif contour:
-            try:
-                from shapely.geometry import Polygon, MultiPoint, Point
-            except ImportError:
-                raise ImportError(
-                    "If you want to use the tricontourf in plotting function, you need to install `shapely` "
-                    "package via `pip install shapely` see more details at https://pypi.org/project/Shapely/,"
-                )
+            # try:
+            #     from shapely.geometry import Polygon, MultiPoint, Point
+            # except ImportError:
+            #     raise ImportError(
+            #         "If you want to use the tricontourf in plotting function, you need to install `shapely` "
+            #         "package via `pip install shapely` see more details at https://pypi.org/project/Shapely/,"
+            #     )
+            #
+            # x, y = points[:, :2].T
+            # triang = tri.Triangulation(x, y)
+            # concave_hull, edge_points = alpha_shape(x, y, alpha=calpha)
+            # ax = plot_polygon(concave_hull, ax=ax)
+            #
+            # # Use the mean distance between the triangulated x & y poitns
+            # x2 = x[triang.triangles].mean(axis=1)
+            # y2 = y[triang.triangles].mean(axis=1)
+            # ##note the very obscure mean command, which, if not present causes an error.
+            # ##now we need some masking condition.
+            #
+            # # Create an empty set to fill with zeros and ones
+            # cond = np.empty(len(x2))
+            # # iterate through points checking if the point lies within the polygon
+            # for i in range(len(x2)):
+            #     cond[i] = concave_hull.contains(Point(x2[i], y2[i]))
+            #
+            # mask = np.where(cond, 0, 1)
+            # # apply masking
+            # triang.set_mask(mask)
 
-            x, y = points[:, :2].T
-            triang = tri.Triangulation(x, y)
-            concave_hull, edge_points = alpha_shape(x, y, alpha=calpha)
-            ax = plot_polygon(concave_hull, ax=ax)
+            ccmap = "viridis" if ccmap is None else ccmap
+            # # ax.tricontourf(triang, values, cmap=ccmap)
+            # ax.scatter(x, y,
+            #            c=values,
+            #            cmap=cmap,
+            #            plotnonfinite=True,
+            #            **kwargs, )
+            import seaborn as sns
 
-            # Use the mean distance between the triangulated x & y poitns
-            x2 = x[triang.triangles].mean(axis=1)
-            y2 = y[triang.triangles].mean(axis=1)
-            ##note the very obscure mean command, which, if not present causes an error.
-            ##now we need some masking condition.
-
-            # Create an empty set to fill with zeros and ones
-            cond = np.empty(len(x2))
-            # iterate through points checking if the point lies within the polygon
-            for i in range(len(x2)):
-                cond[i] = concave_hull.contains(Point(x2[i], y2[i]))
-
-            mask = np.where(cond, 0, 1)
-            # apply masking
-            triang.set_mask(mask)
-
-            ccmap = cmap if ccmap is None else ccmap
-
-            ax.tricontourf(triang, values, cmap=ccmap)
+            df = pd.DataFrame(points, columns=["x", "y", "z"][: points.shape[1]])
+            ax = sns.kdeplot(
+                data=df.iloc[:, :2],
+                x='x',
+                y='y',
+                fill=True,
+                alpha=kwargs.get("alpha", "0.4"),
+                palette=ccmap,
+                ax=ax,
+                thresh=0,
+                levels=100,
+            )
             ax.scatter(
-                x,
-                y,
+                points[:, 0],
+                points[:, 1],
                 c=values,
                 cmap=cmap,
                 vmin=_vmin,
