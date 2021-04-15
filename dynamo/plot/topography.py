@@ -4,8 +4,9 @@ import pandas as pd
 import scipy
 import matplotlib.pyplot as plt
 
+from ..tools.cell_velocities import cell_velocities
 from ..vectorfield.topography import topography as _topology  # , compute_separatrices
-from ..vectorfield.topography import VectorField2D # , compute_separatrices
+from ..vectorfield.topography import VectorField2D, VectorField # , compute_separatrices
 from ..vectorfield.scVectorField import base_vectorfield
 from ..vectorfield.utils import vecfld_from_adata
 from ..tools.utils import update_dict, nearest_neighbors
@@ -23,6 +24,7 @@ from .utils import (
     _select_font_color,
 )
 from ..configuration import _themes
+from ..dynamo_logger import LoggerManager
 
 
 def plot_flow_field(
@@ -959,6 +961,8 @@ def topography(
 
     See also:: :func:`pp.cell_cycle_scores`
     """
+    logger = LoggerManager.gen_logger("dynamo-topography-plot")
+    logger.log_time()
 
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
@@ -1004,15 +1008,34 @@ def topography(
     fps_uns_key = "VecFld" if fps_basis == "X" else "VecFld_" + fps_basis
 
     if uns_key not in adata.uns.keys():
+
+        if "velocity_" + basis not in adata.obsm_keys():
+            logger.info(f"velocity_{basis} is computed yet. "
+                        f"Projecting the velocity vector to {basis} basis now ...", indent_level=1)
+            cell_velocities(adata, basis=basis)
+
+        logger.info(f"Vector field for {basis} is not constructed. Constructing it now ...", indent_level=1)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
 
-            _topology(adata, basis, VecFld=None)
+            if basis == fps_basis:
+                logger.info(f"`basis` and `fps_basis` are all {basis}. Will also map topography ...", indent_level=2)
+                VectorField(adata, basis, map_topography=True)
+            else:
+                VectorField(adata, basis)
     if fps_uns_key not in adata.uns.keys():
+        if "velocity_" + basis not in adata.obsm_keys():
+            logger.info(f"velocity_{basis} is computed yet. "
+                        f"Projecting the velocity vector to {basis} basis now ...", indent_level=1)
+            cell_velocities(adata, basis=basis)
+
+        logger.info(f"Vector field for {fps_basis} is not constructed. "
+                    f"Constructing it and mapping its topography now ...", indent_level=1)
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
 
-            _topology(adata, fps_basis, VecFld=None)
+            VectorField(adata, fps_basis, map_topography=True)
     # elif "VecFld2D" not in adata.uns[uns_key].keys():
     #     with warnings.catch_warnings():
     #         warnings.simplefilter("ignore")
@@ -1025,16 +1048,33 @@ def topography(
     #         _topology(adata, basis, VecFld=None)
 
     vecfld_dict, vecfld = vecfld_from_adata(adata, basis)
+    if vecfld_dict['Y'].shape[1] > 2:
+        logger.info(f"Vector field for {fps_basis} is but its topography is not mapped. "
+                    f"Mapping topography now ...", indent_level=1)
+        new_basis = f'{basis}_{x}_{y}'
+        adata.obsm['X_' + new_basis], adata.obsm['velocity_' + new_basis] = adata.obsm['X_' + basis][:, [x, y]], \
+                                                                              adata.obsm['velocity_' + basis][:, [x, y]]
+        VectorField(adata, new_basis, dims=[x, y])
+        vecfld_dict, vecfld = vecfld_from_adata(adata, new_basis)
+
     fps_vecfld_dict, fps_vecfld = vecfld_from_adata(adata, fps_basis)
 
     # need to use "X_basis" to plot on the scatter point space
-    if fps_vecfld_dict['Xss'].size > 0 and fps_vecfld_dict['Xss'].shape[1] > 2:
-        fps_vecfld_dict['X_basis'], fps_vecfld_dict['Xss'] = vecfld_dict['X'][:, :2], \
-                                                             vecfld_dict['X'][fps_vecfld_dict['fp_ind'], :2]
+    if "Xss" not in fps_vecfld_dict:
+        # if topology is not mapped for this basis, calculate it now.
+        logger.info(f"Vector field for {fps_basis} is but its topography is not mapped. "
+                    f"Mapping topography now ...", indent_level=1)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            _topology(adata, fps_basis, VecFld=None)
+    else:
+        if fps_vecfld_dict['Xss'].size > 0 and fps_vecfld_dict['Xss'].shape[1] > 2:
+            fps_vecfld_dict['X_basis'], fps_vecfld_dict['Xss'] = vecfld_dict['X'][:, :2], \
+                                                                 vecfld_dict['X'][fps_vecfld_dict['fp_ind'], :2]
 
     xlim, ylim = (
-        adata.uns[uns_key]["xlim"] if xlim is None else xlim,
-        adata.uns[uns_key]["ylim"] if ylim is None else ylim,
+        adata.uns[fps_uns_key]["xlim"] if xlim is None else xlim,
+        adata.uns[fps_uns_key]["ylim"] if ylim is None else ylim,
     )
 
     if xlim is None or ylim is None:

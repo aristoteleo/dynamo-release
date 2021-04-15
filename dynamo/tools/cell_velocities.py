@@ -43,7 +43,7 @@ def cell_velocities(
     min_alpha: Union[float, None] = None,
     min_gamma: Union[float, None] = None,
     min_delta: Union[float, None] = None,
-    basis: int = "umap",
+    basis: str = "umap",
     neigh_key: str = "neighbors",
     adj_key: str = "distances",
     n_neighbors: int = 30,

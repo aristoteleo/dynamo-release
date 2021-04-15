@@ -557,6 +557,7 @@ def VectorField(
     map_topography: bool = False,
     pot_curl_div: bool = False,
     cores: int = 1,
+    result_key: Union[str, None] = None,
     copy: bool = False,
     **kwargs,
 ) -> Union[anndata.AnnData, base_vectorfield]:
@@ -614,6 +615,8 @@ def VectorField(
         cores:
             Number of cores to run the ddhodge function. If cores is set to be > 1, multiprocessing will be used to parallel
             the ddhodge calculation.
+        result_key:
+            The key that will be used as prefix for the vector field key in .uns
         copy:
             Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments and returning `None`.
         kwargs:
@@ -799,7 +802,10 @@ def VectorField(
         # {"VecFld": VecFld.train(**kwargs)}
         vf_dict = VecFld.train(**train_kwargs)
 
-    vf_key = "VecFld" if basis is None else "VecFld_" + basis
+    if result_key is None:
+        vf_key = "VecFld" if basis is None else "VecFld_" + basis
+    else:
+        vf_key = result_key if basis is None else result_key + '_' + basis
 
     vf_dict["method"] = method
     if basis is not None:
