@@ -553,7 +553,7 @@ class base_vectorfield:
     def from_adata(self, adata, basis="", vf_key="VecFld"):
         vf_dict, func = vecfld_from_adata(adata, basis=basis, vf_key=vf_key)
         self.data["X"] = vf_dict["X"]
-        self.data["V"] = vf_dict["Y"]  # use the raw velocity
+        self.data["V"] = vf_dict["V"]  # use the raw velocity
         self.vf_dict = vf_dict
         self.func = func
 
