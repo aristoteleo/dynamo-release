@@ -19,8 +19,10 @@ module_path = os.path.join(os.path.dirname(__file__), '../..')
 sys.path.insert(0, os.path.abspath(module_path))
 sys.path.insert(0, os.path.abspath('../'))
 sys.path.insert(0, os.path.abspath("../../"))
-HERE = Path(__file__).parent
-sys.path[:0] = [str(HERE.parent)]
+
+import dynamo
+# HERE = Path(__file__).parent
+# sys.path[:0] = [str(HERE.parent)]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
