@@ -3,11 +3,6 @@ build-backend = 'flit.buildapi'
 requires = ['flit']
 
 [tool.flit.metadata]
-requires-extra = { doc = ['docutils', 'setuptools',
-'sphinx==3.1.1',
-'sphinx-rtd-theme==0.5.0'
-'sphinx_autodoc_typehints',
-'nbsphinx'], test = ['pytest', 'sympy>=1.4'], spatial = ['pysal>2.0.0'], dimension_reduction = ['fitsne>=1.0.1'], bigdata_visualization = ["datashader>=0.9.0", "bokeh>=1.4.0", "holoviews>=1.9.2"] }
 author = 'Xiaojie Qiu, Yan Zhang, Ke Ni'
 author-email = 'xqiu.sc@gmail.com'
 classifiers = [
@@ -51,6 +46,19 @@ requires = [
   'setuptools',
 ]
 requires-python = '>=3.6'
+[tool.flit.metadata.requires-extra]
+bigdata_visualization = ["datashader>=0.9.0", "bokeh>=1.4.0", "holoviews>=1.9.2"]
+dimension_reduction = ['fitsne>=1.0.1']
+doc = [
+  'docutils',
+  'setuptools',
+  'sphinx==3.1.1',
+  'sphinx-rtd-theme==0.5.0',
+  'sphinx_autodoc_typehints',
+  'nbsphinx',
+]
+spatial = ['pysal>2.0.0']
+test = ['pytest', 'sympy>=1.4']
 
 [tool.flit.sdist]
 exclude = [
