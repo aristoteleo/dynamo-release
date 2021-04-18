@@ -1,7 +1,10 @@
 import numpy as np
 import pandas as pd
 from scipy.sparse import issparse, csr_matrix
-
+from anndata import AnnData
+from typing import Union, Optional
+from matplotlib.axes import Axes
+import matplotlib.pyplot as plt
 from ..preprocessing.preprocess import topTable
 from ..preprocessing.utils import get_layer_keys
 from .utils import save_fig
@@ -48,13 +51,19 @@ def basic_stats(
         basic_stats(adata)
 
     df = pd.DataFrame(
-        {"nGenes": adata.obs["nGenes"], "nCounts": adata.obs["nCounts"], "pMito": adata.obs["pMito"]},
+        {
+            "nGenes": adata.obs["nGenes"],
+            "nCounts": adata.obs["nCounts"],
+            "pMito": adata.obs["pMito"],
+        },
         index=adata.obs.index,
     )
 
     if group is not None and group in adata.obs.columns:
         df["group"] = adata.obs.loc[:, group]
-        res = df.melt(value_vars=["nGenes", "nCounts", "pMito"], id_vars=["group"])
+        res = df.melt(
+            value_vars=["nGenes", "nCounts", "pMito"], id_vars=["group"]
+        )
     else:
         res = df.melt(value_vars=["nGenes", "nCounts", "pMito"])
 
@@ -84,7 +93,9 @@ def basic_stats(
         g.map_dataframe(sns.violinplot, x="group", y="value", **kws)
         g.set_xticklabels(rotation=-30)
 
-    [plt.setp(ax.texts, text="") for ax in g.axes.flat]  # remove the original texts
+    [
+        plt.setp(ax.texts, text="") for ax in g.axes.flat
+    ]  # remove the original texts
     # important to add this before setting titles
     g.set_titles(row_template="{row_name}", col_template="{col_name}")
 
@@ -152,7 +163,9 @@ def show_fraction(
         genes = list(adata.var_names.intersection(genes))
 
         if len(genes) == 0:
-            raise Exception("The gene list you provided doesn't much any genes from the adata object.")
+            raise Exception(
+                "The gene list you provided doesn't much any genes from the adata object."
+            )
 
     mode = None
     if pd.Series(["spliced", "unspliced"]).isin(adata.layers.keys()).all():
@@ -163,13 +176,18 @@ def show_fraction(
         mode = "full"
 
     if not (mode in ["labelling", "splicing", "full"]):
-        raise Exception("your data doesn't seem to have either splicing or labeling or both information")
+        raise Exception(
+            "your data doesn't seem to have either splicing or labeling or both information"
+        )
 
     if mode == "labelling":
         new_mat, total_mat = (
             (adata.layers["new"], adata.layers["total"])
             if genes is None
-            else (adata[:, genes].layers["new"], adata[:, genes].layers["total"])
+            else (
+                adata[:, genes].layers["new"],
+                adata[:, genes].layers["total"],
+            )
         )
 
         new_cell_sum, tot_cell_sum = (
@@ -187,19 +205,33 @@ def show_fraction(
 
         if group is not None and group in adata.obs.keys():
             df["group"] = adata.obs[group]
-            res = df.melt(value_vars=["new_frac_cell", "old_frac_cell"], id_vars=["group"])
+            res = df.melt(
+                value_vars=["new_frac_cell", "old_frac_cell"], id_vars=["group"]
+            )
         else:
             res = df.melt(value_vars=["new_frac_cell", "old_frac_cell"])
 
     elif mode == "splicing":
         if "ambiguous" in adata.layers.keys():
-            ambiguous = adata.layers["ambiguous"] if genes is None else adata[:, genes].layers["ambiguous"]
+            ambiguous = (
+                adata.layers["ambiguous"]
+                if genes is None
+                else adata[:, genes].layers["ambiguous"]
+            )
         else:
-            ambiguous = csr_matrix(np.array([[0]])) if issparse(adata.layers["unspliced"]) else np.array([[0]])
+            ambiguous = (
+                csr_matrix(np.array([[0]]))
+                if issparse(adata.layers["unspliced"])
+                else np.array([[0]])
+            )
 
         unspliced_mat, spliced_mat, ambiguous_mat = (
-            adata.layers["unspliced"] if genes is None else adata[:, genes].layers["unspliced"],
-            adata.layers["spliced"] if genes is None else adata[:, genes].layers["spliced"],
+            adata.layers["unspliced"]
+            if genes is None
+            else adata[:, genes].layers["unspliced"],
+            adata.layers["spliced"]
+            if genes is None
+            else adata[:, genes].layers["spliced"],
             ambiguous,
         )
         un_cell_sum, sp_cell_sum = (
@@ -209,7 +241,11 @@ def show_fraction(
         )
 
         if "ambiguous" in adata.layers.keys():
-            am_cell_sum = ambiguous_mat.sum(1).A1 if issparse(unspliced_mat) else np.sum(ambiguous_mat, 1)
+            am_cell_sum = (
+                ambiguous_mat.sum(1).A1
+                if issparse(unspliced_mat)
+                else np.sum(ambiguous_mat, 1)
+            )
             tot_cell_sum = un_cell_sum + sp_cell_sum + am_cell_sum
             un_frac_cell, sp_frac_cell, am_frac_cell = (
                 un_cell_sum / tot_cell_sum,
@@ -238,9 +274,14 @@ def show_fraction(
         if group is not None and group in adata.obs.columns:
             df["group"] = adata.obs.loc[:, group]
             res = (
-                df.melt(value_vars=["unspliced", "spliced", "ambiguous"], id_vars=["group"])
+                df.melt(
+                    value_vars=["unspliced", "spliced", "ambiguous"],
+                    id_vars=["group"],
+                )
                 if "ambiguous" in adata.layers.keys()
-                else df.melt(value_vars=["unspliced", "spliced"], id_vars=["group"])
+                else df.melt(
+                    value_vars=["unspliced", "spliced"], id_vars=["group"]
+                )
             )
         else:
             res = (
@@ -251,10 +292,18 @@ def show_fraction(
 
     elif mode == "full":
         uu, ul, su, sl = (
-            adata.layers["uu"] if genes is None else adata[:, genes].layers["uu"],
-            adata.layers["ul"] if genes is None else adata[:, genes].layers["ul"],
-            adata.layers["su"] if genes is None else adata[:, genes].layers["su"],
-            adata.layers["sl"] if genes is None else adata[:, genes].layers["sl"],
+            adata.layers["uu"]
+            if genes is None
+            else adata[:, genes].layers["uu"],
+            adata.layers["ul"]
+            if genes is None
+            else adata[:, genes].layers["ul"],
+            adata.layers["su"]
+            if genes is None
+            else adata[:, genes].layers["su"],
+            adata.layers["sl"]
+            if genes is None
+            else adata[:, genes].layers["sl"],
         )
         uu_sum, ul_sum, su_sum, sl_sum = (
             (np.sum(uu, 1), np.sum(ul, 1), np.sum(su, 1), np.sum(sl, 1))
@@ -291,7 +340,9 @@ def show_fraction(
                 id_vars=["group"],
             )
         else:
-            res = df.melt(value_vars=["uu_frac", "ul_frac", "su_frac", "sl_frac"])
+            res = df.melt(
+                value_vars=["uu_frac", "ul_frac", "su_frac", "sl_frac"]
+            )
 
     g = sns.FacetGrid(
         res,
@@ -317,7 +368,9 @@ def show_fraction(
         g.map_dataframe(sns.violinplot, x="group", y="value", **kws)
         g.set_xticklabels(rotation=-30)
 
-    [plt.setp(ax.texts, text="") for ax in g.axes.flat]  # remove the original texts
+    [
+        plt.setp(ax.texts, text="") for ax in g.axes.flat
+    ]  # remove the original texts
     # important to add this before setting titles
     g.set_titles(row_template="{row_name}", col_template="{col_name}")
 
@@ -385,7 +438,13 @@ def variance_explained(
     _, ax = plt.subplots(figsize=figsize)
     ax.plot(var_, c="r")
     tmp = np.diff(np.diff(np.cumsum(var_)) > threshold)
-    n_comps = n_pcs if n_pcs is not None else np.where(tmp)[0][0] if np.any(tmp) else 20
+    n_comps = (
+        n_pcs
+        if n_pcs is not None
+        else np.where(tmp)[0][0]
+        if np.any(tmp)
+        else 20
+    )
     ax.axvline(n_comps, c="r")
     ax.set_xlabel("PCs")
     ax.set_ylabel("Variance explained")
@@ -461,14 +520,27 @@ def feature_genes(
         )
     elif mode == "SVR":
         prefix = "" if layer == "X" else layer + "_"
-        key = "velocyto_SVR" if layer == "raw" or layer == "X" else layer + "_velocyto_SVR"
+        key = (
+            "velocyto_SVR"
+            if layer == "raw" or layer == "X"
+            else layer + "_velocyto_SVR"
+        )
 
-        if not np.all(pd.Series([prefix + "log_m", prefix + "score"]).isin(adata.var.columns)):
-            raise Exception("Looks like you have not run support vector machine regression yet, try run SVRs first.")
+        if not np.all(
+            pd.Series([prefix + "log_m", prefix + "score"]).isin(
+                adata.var.columns
+            )
+        ):
+            raise Exception(
+                "Looks like you have not run support vector machine regression yet, try run SVRs first."
+            )
         else:
-            table = adata.var.loc[:, [prefix + "log_m", prefix + "log_cv", prefix + "score"]]
+            table = adata.var.loc[
+                :, [prefix + "log_m", prefix + "log_cv", prefix + "score"]
+            ]
             table = table.loc[
-                np.isfinite(table[prefix + "log_m"]) & np.isfinite(table[prefix + "log_cv"]),
+                np.isfinite(table[prefix + "log_m"])
+                & np.isfinite(table[prefix + "log_cv"]),
                 :,
             ]
             x_min, x_max = (
@@ -476,7 +548,9 @@ def feature_genes(
                 np.nanmax(table[prefix + "log_m"]),
             )
 
-    ordering_genes = adata.var["use_for_pca"] if "use_for_pca" in adata.var.columns else None
+    ordering_genes = (
+        adata.var["use_for_pca"] if "use_for_pca" in adata.var.columns else None
+    )
 
     mu_linspace = np.linspace(x_min, x_max, num=1000)
     fit = (
@@ -535,7 +609,9 @@ def feature_genes(
         plt.xscale("log")
     plt.yscale("log")
     plt.xlabel("Mean (log)")
-    plt.ylabel("Dispersion (log)") if mode == "dispersion" else plt.ylabel("CV (log)")
+    plt.ylabel("Dispersion (log)") if mode == "dispersion" else plt.ylabel(
+        "CV (log)"
+    )
 
     if save_show_or_return == "save":
         s_kwargs = {
@@ -616,11 +692,20 @@ def exp_by_groups(
 
     valid_genes = adata.var_names.intersection(genes)
     if len(valid_genes) == 0:
-        raise ValueError(f"The adata object doesn't include any gene from the list you provided!")
+        raise ValueError(
+            f"The adata object doesn't include any gene from the list you provided!"
+        )
     if group is not None and group not in adata.obs.keys():
-        raise ValueError(f"The group {group} is not existed in your adata object!")
+        raise ValueError(
+            f"The group {group} is not existed in your adata object!"
+        )
 
-    has_splicing, has_labeling, splicing_labeling, has_protein = detect_datatype(adata)
+    (
+        has_splicing,
+        has_labeling,
+        splicing_labeling,
+        has_protein,
+    ) = detect_datatype(adata)
     if (has_splicing + has_labeling) == 0:
         layer = "X" if layer is None else layer
     elif has_splicing and not has_labeling:
@@ -635,12 +720,23 @@ def exp_by_groups(
         layer = mapper[layer]
 
     if layer != "X" and layer not in adata.layers.keys():
-        raise ValueError(f"The layer {layer} is not existed in your adata object!")
+        raise ValueError(
+            f"The layer {layer} is not existed in your adata object!"
+        )
 
-    exprs = adata[:, valid_genes].X if layer == "X" else adata[:, valid_genes].layers[layer]
+    exprs = (
+        adata[:, valid_genes].X
+        if layer == "X"
+        else adata[:, valid_genes].layers[layer]
+    )
     exprs = exprs.A if issparse(exprs) else exprs
     if use_ratio:
-        has_splicing, has_labeling, splicing_labeling, has_protein = detect_datatype(adata)
+        (
+            has_splicing,
+            has_labeling,
+            splicing_labeling,
+            has_protein,
+        ) = detect_datatype(adata)
         if has_labeling:
             if layer.startswith("X_") or layer.startswith("M_"):
                 tot = (
@@ -658,7 +754,8 @@ def exp_by_groups(
                     adata[:, valid_genes].layers[mapper["X_unspliced"]]
                     + adata[:, valid_genes].layers[mapper["X_spliced"]]
                     if use_smoothed
-                    else adata[:, valid_genes].layers["X_unspliced"] + adata[:, valid_genes].layers["X_spliced"]
+                    else adata[:, valid_genes].layers["X_unspliced"]
+                    + adata[:, valid_genes].layers["X_spliced"]
                 )
                 tot = tot.A if issparse(tot) else tot
                 exprs = exprs / tot
@@ -666,9 +763,13 @@ def exp_by_groups(
                 exprs = exprs
 
     df = (
-        pd.DataFrame(np.log1p(exprs), index=adata.obs_names, columns=valid_genes)
+        pd.DataFrame(
+            np.log1p(exprs), index=adata.obs_names, columns=valid_genes
+        )
         if log
-        else pd.DataFrame(np.log1p(exprs), index=adata.obs_names, columns=valid_genes)
+        else pd.DataFrame(
+            np.log1p(exprs), index=adata.obs_names, columns=valid_genes
+        )
     )
 
     if group is not None and group in adata.obs.columns:
@@ -679,7 +780,11 @@ def exp_by_groups(
         res = df.melt(id_vars=["group"])
 
     if res["group"].dtype.name == "category":
-        xticks = res["group"].cat.categories.sort_values() if re_order else res["group"].cat.categories
+        xticks = (
+            res["group"].cat.categories.sort_values()
+            if re_order
+            else res["group"].cat.categories
+        )
     else:
         xticks = np.sort(res["group"].unique())
 
@@ -704,7 +809,9 @@ def exp_by_groups(
     else:
         g.set_xticklabels(rotation=angle)
 
-    [plt.setp(ax.texts, text="") for ax in g.axes.flat]  # remove the original texts
+    [
+        plt.setp(ax.texts, text="") for ax in g.axes.flat
+    ]  # remove the original texts
     # important to add this before setting titles
     g.set_titles(row_template="{row_name}", col_template="{col_name}")
 
@@ -734,3 +841,46 @@ def exp_by_groups(
         plt.show()
     elif save_show_or_return == "return":
         return g
+
+
+def highest_expr_genes(
+    adata: AnnData,
+    n_top: int = 30,
+    show: Optional[bool] = True,
+    save: Optional[Union[str]] = None,
+    ax: Optional[Axes] = None,
+    gene_annotations: Optional[list] = None,
+    gene_annotation_key: Optional[str] = None,
+    log: bool = False,
+    store_key="expr_percent",
+):
+    import seaborn as sns
+
+    if ax is None:
+        height = n_top * 0.4
+        fig, ax = plt.subplots(figsize=(7, height))
+    if log:
+        ax.set_xscale("log")
+    # compute gene percents at each cell row
+    row_sum = adata.X.sum(axis=1).flatten()
+    gene_X_percents = adata.X / row_sum.reshape([-1, 1])
+    # compute gene's total percents in the dataset
+    gene_percents = adata.X.sum(axis=0)
+    gene_percents = (gene_percents / adata.X.shape[1]).reshape([-1, 1])
+    # store gene expr percent results
+    adata.var[store_key] = gene_percents
+    # obtain top genes
+    sorted_indices = np.argsort(-adata.var[store_key])
+    selected_indices = sorted_indices[:n_top]
+    # assemble a dataframe
+    top_genes_df = pd.DataFrame(
+        gene_X_percents[:, selected_indices],
+        index=adata.obs_names,
+        columns=selected_indices,
+    )
+
+    # draw plots
+    sns.boxplot(data=top_genes_df, orient="h", ax=ax, fliersize=1)
+    ax.set_xlabel("percents of total counts")
+    if show:
+        plt.show()

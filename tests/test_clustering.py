@@ -5,13 +5,13 @@ import pytest
 import time
 import numpy as np
 import os
+from test_utils import *
 
-
-test_data_path = "test_clustering_zebrafish.h5ad"
+test_zebrafish_data_path = "test_clustering_zebrafish.h5ad"
 logger = LoggerManager.get_main_logger()
 
 
-def gen_test_data():
+def gen_zebrafish_test_data():
     adata = dyn.sample_data.zebrafish()
     # adata = adata[:3000]
     dyn.pp.recipe_monocle(adata, num_dim=20, exprs_frac_max=0.005)
@@ -22,7 +22,7 @@ def gen_test_data():
     dyn.vf.curvature(adata, basis="pca")
     dyn.vf.acceleration(adata, basis="pca")
     dyn.cleanup(adata)
-    adata.write_h5ad(test_data_path)
+    adata.write_h5ad(test_zebrafish_data_path)
 
 
 def test_simple_cluster_community_adata(adata):
@@ -89,13 +89,13 @@ def test_simple_cluster_keys(adata):
 
 if __name__ == "__main__":
     # generate data if needed
-    if not os.path.exists(test_data_path):
+    if not os.path.exists(test_zebrafish_data_path):
         print("generating test data...")
-        gen_test_data()
+        gen_zebrafish_test_data()
 
     print("reading test data...")
     # To-do: use a fixture in future
-    adata = dyn.read_h5ad(test_data_path)
+    adata = dyn.read_h5ad(test_zebrafish_data_path)
     print("******acc layer: ", adata.layers["curvature"])
     print(adata)
 

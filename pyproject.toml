@@ -58,8 +58,10 @@ docs = [
   'sphinx_autodoc_typehints',
   'nbsphinx',
 ]
+network = ["networkx", "nxviz", "hiveplotlib"]
 spatial = ['pysal>2.0.0']
 test = ['pytest', 'sympy>=1.4']
+dev = ['pytest']
 
 [tool.flit.sdist]
 exclude = [
