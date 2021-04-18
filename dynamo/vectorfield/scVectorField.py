@@ -18,7 +18,7 @@ from ..tools.utils import (
     linear_least_squares,
     timeit,
     index_condensed_matrix,
-    flatten,
+    starmap_with_kwargs,
     nearest_neighbors,
 )
 from .utils import (
@@ -615,13 +615,6 @@ class base_vectorfield:
         if cores == 1:
             X, J, _ = find_fixed_points(self.data['X'], self.func, domain=domain, return_all=True, **kwargs)
         else:
-            def starmap_with_kwargs(pool, fn, args_iter, kwargs_iter):
-                args_for_starmap = zip(itertools.repeat(fn), args_iter, kwargs_iter)
-                return pool.starmap(apply_args_and_kwargs, args_for_starmap)
-
-            def apply_args_and_kwargs(fn, args, kwargs):
-                return fn(*args, **kwargs)
-
             pool = ThreadPool(cores)
 
             args_iter = zip(
@@ -635,18 +628,20 @@ class base_vectorfield:
 
             pool.close()
             pool.join()
+
             (X, J, _) = zip(*res)
-            (X, J) = (
-                list(X),
-                list(J),
-            )
+            X = np.vstack([[i] * self.data['X'].shape[1]
+                           if i is None else i for i in X]).astype(float)
+            J = np.array([np.zeros((self.data['X'].shape[1], self.data['X'].shape[1])) * np.nan
+                          if i is None else i for i in J])
 
         self.fixed_points = FixedPoints(X, J)
         fps_assignment = self.fixed_points.get_X()
         fps_type_assignment = self.fixed_points.get_fixed_point_types()
 
-        X, discard = remove_redundant_points(fps_assignment[fps_assignment.sum(1) > 0, :],
-                                             output_discard=True)
+        valid_fps_assignment, valid_fps_type_assignment = fps_assignment[fps_assignment.sum(1) > 0, :], \
+                                                          fps_type_assignment[fps_assignment.sum(1) > 0]
+        X, discard = remove_redundant_points(valid_fps_assignment, output_discard=True)
         assignment_id = np.zeros(len(fps_assignment))
         for i, cur_fps in enumerate(fps_assignment):
             if np.isnan(cur_fps).any():
@@ -654,7 +649,7 @@ class base_vectorfield:
             else:
                 assignment_id[i] = nearest_neighbors(cur_fps, X, 1)
 
-        return X, fps_type_assignment[discard], assignment_id
+        return X, valid_fps_type_assignment[discard], assignment_id
 
 
 class svc_vectorfield(base_vectorfield):

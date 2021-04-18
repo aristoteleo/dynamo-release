@@ -9,6 +9,7 @@ from scipy.linalg.blas import dgemm
 from sklearn.neighbors import NearestNeighbors
 import warnings
 import time
+import itertools
 
 from ..preprocessing.utils import Freeman_Tukey, detect_datatype
 
@@ -1838,3 +1839,17 @@ def getTseq(init_states, t_end, step_size=None):
         t_linspace = np.arange(0, t_end + step_size, step_size)
 
     return t_linspace
+
+
+# ---------------------------------------------------------------------------------------------------
+# multiple core related
+
+# Pass kwargs to starmap while using Pool
+# https://stackoverflow.com/questions/45718523/pass-kwargs-to-starmap-while-using-pool-in-python
+def starmap_with_kwargs(pool, fn, args_iter, kwargs_iter):
+    args_for_starmap = zip(itertools.repeat(fn), args_iter, kwargs_iter)
+    return pool.starmap(apply_args_and_kwargs, args_for_starmap)
+
+
+def apply_args_and_kwargs(fn, args, kwargs):
+    return fn(*args, **kwargs)
