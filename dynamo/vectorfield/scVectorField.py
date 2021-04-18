@@ -639,15 +639,15 @@ class base_vectorfield:
         fps_assignment = self.fixed_points.get_X()
         fps_type_assignment = self.fixed_points.get_fixed_point_types()
 
-        valid_fps_assignment, valid_fps_type_assignment = fps_assignment[fps_assignment.sum(1) > 0, :], \
-                                                          fps_type_assignment[fps_assignment.sum(1) > 0]
+        valid_fps_assignment, valid_fps_type_assignment = fps_assignment[np.abs(fps_assignment).sum(1) > 0, :], \
+                                                          fps_type_assignment[np.abs(fps_assignment).sum(1) > 0]
         X, discard = remove_redundant_points(valid_fps_assignment, output_discard=True)
         assignment_id = np.zeros(len(fps_assignment))
         for i, cur_fps in enumerate(fps_assignment):
             if np.isnan(cur_fps).any():
                 assignment_id[i] = np.nan
             else:
-                assignment_id[i] = nearest_neighbors(cur_fps, X, 1)
+                assignment_id[i] = int(nearest_neighbors(cur_fps, X, 1))
 
         return X, valid_fps_type_assignment[discard], assignment_id
 

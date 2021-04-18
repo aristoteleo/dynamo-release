@@ -908,7 +908,7 @@ def VectorField(
 
 def assign_fixedpoints(
     adata: anndata.AnnData,
-    basis: str='umap',
+    basis: str='pca',
     cores: int=1,
     copy: bool = False,
 ) -> Union[None, anndata.AnnData]:
@@ -917,18 +917,21 @@ def assign_fixedpoints(
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
-            AnnData object that contains embedding and velocity data
+            AnnData object that contains reconstructed vector field in the `basis` space.
         basis:
-            The embedding data to use. The vector field function will be learned on the low dimensional embedding and can be then
-            projected back to the high dimensional space.
+            The vector field function for the `basis` that will be used to assign fixed points for each cell.
         cores:
             Number of cores to run the fixed-point search for each cell.
         copy:
-            Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments and returning `None`.
+            Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments and
+            returning `None`.
 
     Returns
     -------
-
+        adata: :class:`Union[None, anndata.AnnData]`
+            If `copy` is set to False, return None but the adata object will updated with a `fps_assignment` in .obs as
+            well as the `'fps_assignment_' + basis` in the .uns.
+            If `copy` is set to True, a deep copy of the original `adata` object is returned.
     """
     logger = LoggerManager.gen_logger("dynamo-assign_fixedpoints")
     logger.info("assign_fixedpoints begins...", indent_level=1)
@@ -944,8 +947,8 @@ def assign_fixedpoints(
     )
 
     X, valid_fps_type_assignment, assignment_id = vecfld_class.assign_fixed_points(cores=cores)
-    adata.obs['fps_assignment'] = 'nan'
-    adata.obs.loc[VecFld["valid_ind"], 'fps_assignment'] = assignment_id.astype(str)
+    assignment_id = [str(int(i)) if np.isfinite(i) else None for i in assignment_id]
+    adata.obs['fps_assignment'] = assignment_id
     adata.uns['fps_assignment_' + basis] = {"X": X,
                                             "valid_fps_type_assignment": valid_fps_type_assignment,
                                             "assignment_id": assignment_id}
