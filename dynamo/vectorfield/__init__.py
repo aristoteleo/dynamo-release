@@ -10,7 +10,14 @@ from .scVectorField import (
 from .utils import (
     vector_field_function,
 )
-from .topography import FixedPoints, VectorField2D, topography, VectorField
+from .topography import (
+    FixedPoints,
+    VectorField2D,
+    topography,
+    VectorField,
+    assign_fixedpoints,
+)
+
 from .cell_vectors import cell_accelerations, cell_curvatures
 from .vector_calculus import (
     velocities,

@@ -904,3 +904,53 @@ def VectorField(
     elif copy:
         return adata
     return None
+
+
+def assign_fixedpoints(
+    adata: anndata.AnnData,
+    basis: str='umap',
+    cores: int=1,
+    copy: bool = False,
+) -> Union[None, anndata.AnnData]:
+    """Assign each cell in our data to a fixed point.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains embedding and velocity data
+        basis:
+            The embedding data to use. The vector field function will be learned on the low dimensional embedding and can be then
+            projected back to the high dimensional space.
+        cores:
+            Number of cores to run the fixed-point search for each cell.
+        copy:
+            Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments and returning `None`.
+
+    Returns
+    -------
+
+    """
+    logger = LoggerManager.gen_logger("dynamo-assign_fixedpoints")
+    logger.info("assign_fixedpoints begins...", indent_level=1)
+    logger.log_time()
+    adata = copy_adata(adata) if copy else adata
+
+    VecFld, func = vecfld_from_adata(adata, basis=basis)
+
+    vecfld_class = base_vectorfield(
+        X=VecFld["X"],
+        V=VecFld["Y"],
+        func=func,
+    )
+
+    X, valid_fps_type_assignment, assignment_id = vecfld_class.assign_fixed_points(cores=cores)
+    adata.obs['fps_assignment'] = 'nan'
+    adata.obs.loc[VecFld["valid_ind"], 'fps_assignment'] = assignment_id.astype(str)
+    adata.uns['fps_assignment_' + basis] = {"X": X,
+                                            "valid_fps_type_assignment": valid_fps_type_assignment,
+                                            "assignment_id": assignment_id}
+
+    logger.finish_progress("assign_fixedpoints")
+    if copy:
+        return adata
+    return None
