@@ -19,6 +19,7 @@ from ..tools.utils import (
     timeit,
     index_condensed_matrix,
     flatten,
+    nearest_neighbors,
 )
 from .utils import (
     vector_field_function,
@@ -36,6 +37,7 @@ from .utils import (
     vecfld_from_adata,
     find_fixed_points,
     FixedPoints,
+    remove_redundant_points,
 )
 from ..dynamo_logger import LoggerManager
 
@@ -604,6 +606,55 @@ class base_vectorfield:
         Xss = self.fixed_points.get_X()
         ftype = self.fixed_points.get_fixed_point_types()
         return Xss, ftype
+
+    def assign_fixed_points(self, domain=None, cores=1, **kwargs):
+        """assign each cell to the associated fixed points"""
+        if domain is None and self.data is not None:
+            domain = np.vstack((np.min(self.data['X'], axis=0), np.max(self.data['X'], axis=0))).T
+
+        if cores == 1:
+            X, J, _ = find_fixed_points(self.data['X'], self.func, domain=domain, return_all=True, **kwargs)
+        else:
+            def starmap_with_kwargs(pool, fn, args_iter, kwargs_iter):
+                args_for_starmap = zip(itertools.repeat(fn), args_iter, kwargs_iter)
+                return pool.starmap(apply_args_and_kwargs, args_for_starmap)
+
+            def apply_args_and_kwargs(fn, args, kwargs):
+                return fn(*args, **kwargs)
+
+            pool = ThreadPool(cores)
+
+            args_iter = zip(
+                    [i[None, :] for i in self.data['X']],
+                    itertools.repeat(self.func),
+                    itertools.repeat(domain),
+                    itertools.repeat(True)
+            )
+            kwargs_iter = itertools.repeat(kwargs)
+            res = starmap_with_kwargs(pool, find_fixed_points, args_iter, kwargs_iter)
+
+            pool.close()
+            pool.join()
+            (X, J, _) = zip(*res)
+            (X, J) = (
+                list(X),
+                list(J),
+            )
+
+        self.fixed_points = FixedPoints(X, J)
+        fps_assignment = self.fixed_points.get_X()
+        fps_type_assignment = self.fixed_points.get_fixed_point_types()
+
+        X, discard = remove_redundant_points(fps_assignment[fps_assignment.sum(1) > 0, :],
+                                             output_discard=True)
+        assignment_id = np.zeros(len(fps_assignment))
+        for i, cur_fps in enumerate(fps_assignment):
+            if np.isnan(cur_fps).any():
+                assignment_id[i] = np.nan
+            else:
+                assignment_id[i] = nearest_neighbors(cur_fps, X, 1)
+
+        return X, fps_type_assignment[discard], assignment_id
 
 
 class svc_vectorfield(base_vectorfield):

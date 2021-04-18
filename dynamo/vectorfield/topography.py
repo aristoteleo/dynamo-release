@@ -853,18 +853,17 @@ def VectorField(
                 **tp_kwargs,
             )
     if pot_curl_div:
-        if basis in ["pca", "umap", "tsne", "diffusion_map", "trimap"]:
-            logger.info(
-                "Running ddhodge to estimate vector field based pseudotime..."
-            )
+        logger.info(
+            f"Running ddhodge to estimate vector field based pseudotime in {basis} basis..."
+        )
 
-            ddhodge(adata, basis=basis, cores=cores)
-            if X.shape[1] == 2:
-                logger.info("Computing curl...")
-                curl(adata, basis=basis)
+        ddhodge(adata, basis=basis, cores=cores)
+        if X.shape[1] == 2:
+            logger.info("Computing curl...")
+            curl(adata, basis=basis)
 
-            logger.info("Computing divergence...")
-            divergence(adata, basis=basis)
+        logger.info("Computing divergence...")
+        divergence(adata, basis=basis)
 
     control_point, inlier_prob, valid_ids = (
         "control_point_" + basis if basis is not None else "control_point",

@@ -139,7 +139,7 @@ def cell_velocities(
             downstream as a negative control and used to adjust the quiver scale of the velocity field.
         xy_grid_nums: tuple (default: (50, 50)).
             A tuple of number of grids on each dimension.
-        correct_density: bool (default: False)
+        correct_density: bool (default: True)
             Whether to correct density when calculating the markov transition matrix.
         scale: bool (default: False)
             Whether to scale velocity when calculating the markov transition matrix, applicable to the `kmc` kernel.

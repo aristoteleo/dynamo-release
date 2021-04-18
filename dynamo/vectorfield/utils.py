@@ -905,7 +905,7 @@ def remove_redundant_points(X, tol=1e-4, output_discard=False):
         return X
 
 
-def find_fixed_points(X0, func_vf, domain=None, tol_redundant=1e-4):
+def find_fixed_points(X0, func_vf, domain=None, tol_redundant=1e-4, return_all=False):
     X = []
     J = []
     fval = []
@@ -920,19 +920,26 @@ def find_fixed_points(X0, func_vf, domain=None, tol_redundant=1e-4):
             R = form_triu_matrix(info_dict["r"])
             J.append(Q.T @ R)
             X.append(x)
+        elif return_all:
+            X.append(np.zeros_like(x) * np.nan)
+            J.append(np.zeros((len(x), len(x))) * np.nan)
+
     X = np.array(X)
     J = np.array(J)
     fval = np.array(fval)
 
-    if X.size != 0:
-        if tol_redundant is not None:
-            X, discard = remove_redundant_points(X, tol_redundant, output_discard=True)
-            J = J[~discard]
-            fval = fval[~discard]
-
+    if return_all:
         return X, J, fval
     else:
-        return None, None, None
+        if X.size != 0:
+            if tol_redundant is not None:
+                X, discard = remove_redundant_points(X, tol_redundant, output_discard=True)
+                J = J[~discard]
+                fval = fval[~discard]
+
+            return X, J, fval
+        else:
+            return None, None, None
 
 
 class FixedPoints:
@@ -961,7 +968,10 @@ class FixedPoints:
     def compute_eigvals(self):
         self.eigvals = []
         for i in range(len(self.J)):
-            w, _ = eig(self.J[i])
+            if self.J[i] is None or np.isnan(self.J[i]).any():
+                w = np.nan
+            else:
+                w, _ = eig(self.J[i])
             self.eigvals.append(w)
 
     def is_stable(self):
@@ -970,16 +980,22 @@ class FixedPoints:
 
         stable = np.ones(len(self.eigvals), dtype=bool)
         for i, w in enumerate(self.eigvals):
-            if np.any(np.real(w) >= 0):
-                stable[i] = False
+            if w is None or np.isnan(w).any():
+                stable[i] = np.nan
+            else:
+                if np.any(np.real(w) >= 0):
+                    stable[i] = False
         return stable
 
     def is_saddle(self):
         is_stable = self.is_stable()
         saddle = np.zeros(len(self.eigvals), dtype=bool)
         for i, w in enumerate(self.eigvals):
-            if not is_stable[i] and np.any(np.real(w) < 0):
-                saddle[i] = True
+            if w is None or np.isnan(w).any():
+                saddle[i] = np.nan
+            else:
+                if not is_stable[i] and np.any(np.real(w) < 0):
+                    saddle[i] = True
         return saddle, is_stable
 
     def get_fixed_point_types(self):
@@ -987,10 +1003,13 @@ class FixedPoints:
         # -1 -- stable, 0 -- saddle, 1 -- unstable
         ftype = np.ones(len(self.X))
         for i in range(len(ftype)):
-            if is_saddle[i]:
-                ftype[i] = 0
-            elif is_stable[i]:
-                ftype[i] = -1
+            if self.X[i] is None or np.isnan((self.X[i])).any():
+                ftype[i] = np.nan
+            else:
+                if is_saddle[i]:
+                    ftype[i] = 0
+                elif is_stable[i]:
+                    ftype[i] = -1
         return ftype
 
        
