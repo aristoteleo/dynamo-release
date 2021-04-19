@@ -49,6 +49,7 @@ requires-python = '>=3.6'
 
 [tool.flit.metadata.requires-extra]
 bigdata_visualization = ["datashader>=0.9.0", "bokeh>=1.4.0", "holoviews>=1.9.2"]
+dev = ['pytest']
 dimension_reduction = ['fitsne>=1.0.1']
 docs = [
   'docutils',
@@ -58,6 +59,7 @@ docs = [
   'sphinx_autodoc_typehints',
   'nbsphinx',
 ]
+network = ["networkx", "nxviz", "hiveplotlib", "python-igraph", "leidenalg", "wurlitzer"]
 spatial = ['pysal>2.0.0']
 test = ['pytest', 'sympy>=1.4']
 
