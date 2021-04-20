@@ -11,6 +11,7 @@ from .preprocess import (
     feature_genes,
     variance_explained,
     exp_by_groups,
+    highest_frac_genes,
 )
 from .cell_cycle import cell_cycle_scores
 from .markers import bubble
@@ -59,9 +60,7 @@ from .networks import (
     hivePlot,
 )
 
-from .fate import (
-    fate_bias,
-)
+from .fate import fate_bias
 from .state_graph import state_graph
 
 from .scPotential import show_landscape

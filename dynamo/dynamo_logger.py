@@ -242,3 +242,19 @@ class LoggerManager:
                 prev_progress_percent = new_progress_percent
             yield next(iterator)
         logger.finish_progress(progress_name=progress_name)
+
+
+def main_info(message, indent_level=1):
+    LoggerManager.main_logger.info(message, indent_level)
+
+
+def main_warning(message, indent_level=1):
+    LoggerManager.main_logger.warning(message, indent_level)
+
+
+def main_exception(message, indent_level=1):
+    LoggerManager.main_logger.exception(message, indent_level)
+
+
+def main_critical(message, indent_level=1):
+    LoggerManager.main_logger.critical(message, indent_level)

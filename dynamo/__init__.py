@@ -19,4 +19,11 @@ from . import sample_data
 from . import configuration
 from . import ext
 from .get_version import get_all_dependencies_version
-from .dynamo_logger import Logger, LoggerManager
+from .dynamo_logger import (
+    Logger,
+    LoggerManager,
+    main_info,
+    main_warning,
+    main_critical,
+    main_exception,
+)
