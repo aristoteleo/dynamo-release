@@ -350,7 +350,10 @@ def leiden(
     **kwargs
 ) -> anndata.AnnData:
     kwargs.update(
-        {"weight": weight, "initial_membership": initial_membership,}
+        {
+            "weight": weight,
+            "initial_membership": initial_membership,
+        }
     )
 
     return cluster_community(
@@ -413,7 +416,10 @@ def louvain(
             "CDlib does not support directed graph for Louvain community detection for now."
         )
     kwargs.update(
-        {"resolution": resolution, "randomize": randomize,}
+        {
+            "resolution": resolution,
+            "randomize": randomize,
+        }
     )
 
     return cluster_community(
