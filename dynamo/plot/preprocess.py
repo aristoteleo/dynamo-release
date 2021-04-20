@@ -849,7 +849,7 @@ def highest_frac_genes(
     n_top: int = 30,
     gene_prefix_list: list = None,
     show: Optional[bool] = True,
-    save: Optional[Union[str]] = None,
+    save_path: Optional[Union[str]] = None,
     ax: Optional[Axes] = None,
     gene_annotations: Optional[list] = None,
     gene_annotation_key: str = "use_for_pca",
@@ -919,3 +919,5 @@ def highest_frac_genes(
 
     if show:
         plt.show()
+    if save_path:
+        plt.savefig(save_path)

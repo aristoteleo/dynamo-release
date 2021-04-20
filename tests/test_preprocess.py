@@ -5,7 +5,9 @@ logger = LoggerManager.get_main_logger()
 
 
 def test_highest_frac_genes_plot(adata, is_X_sparse=True):
-    dyn.pl.highest_frac_genes(adata)
+    dyn.pl.highest_frac_genes(
+        adata, log=False, save_path="./test_simple_highest_frac_genes.png"
+    )
 
     if is_X_sparse:
         adata.X = adata.X.toarray()
@@ -32,5 +34,5 @@ if __name__ == "__main__":
     print("reading test data...")
     # To-do: use a fixture in future
     adata = dyn.read_h5ad(test_zebrafish_data_path)
-    test_highest_frac_genes_plot(adata)
-    test_highest_frac_genes_plot_prefix_list(adata)
+    test_highest_frac_genes_plot(adata.copy())
+    test_highest_frac_genes_plot_prefix_list(adata.copy())
