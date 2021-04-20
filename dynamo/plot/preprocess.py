@@ -10,6 +10,7 @@ from ..preprocessing.utils import get_layer_keys
 from .utils import save_fig
 from ..tools.utils import update_dict, get_mapper
 from ..preprocessing.utils import detect_datatype
+from ..dynamo_logger import main_info, main_critical
 
 
 def basic_stats(
@@ -843,9 +844,10 @@ def exp_by_groups(
         return g
 
 
-def highest_expr_genes(
+def highest_frac_genes(
     adata: AnnData,
     n_top: int = 30,
+    gene_prefix_list: list = None,
     show: Optional[bool] = True,
     save: Optional[Union[str]] = None,
     ax: Optional[Axes] = None,
@@ -861,8 +863,31 @@ def highest_expr_genes(
         fig, ax = plt.subplots(figsize=(7, height))
     if log:
         ax.set_xscale("log")
+
+    valid_gene_set = set()
+    if gene_prefix_list is not None:
+        for name in adata.var_names:
+            for prefix in gene_prefix_list:
+                length = len(prefix)
+                if name[:length] == prefix:
+                    valid_gene_set.add(name)
+                    break
+        if len(valid_gene_set) == 0:
+            main_critical(
+                "NO VALID GENES FOUND WITH REQUIRED GENE PREFIX LIST, GIVING UP PLOTTING"
+            )
+            return
+        adata = adata[:, list(valid_gene_set)]
+
     # compute gene percents at each cell row
     row_sum = adata.X.sum(axis=1).flatten()
+
+    # get rid of cells that have all zero counts
+    not_all_zero = row_sum != 0
+    adata = adata[not_all_zero]
+    row_sum = row_sum[not_all_zero]
+    main_info("%d rows(cells) are not zero" % np.sum(not_all_zero))
+
     gene_X_percents = adata.X / row_sum.reshape([-1, 1])
     # compute gene's total percents in the dataset
     gene_percents = adata.X.sum(axis=0)

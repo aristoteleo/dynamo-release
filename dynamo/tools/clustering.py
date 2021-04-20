@@ -694,7 +694,12 @@ def cluster_community_from_graph(
             initial_membership,
         )
         print("===graph mat debug====:\n", graph_sparse_matrix.shape)
-        print("===graph debug====:\n", len(graph.nodes))
+        print(
+            "===graph debug====:\n#nodes:",
+            len(graph.nodes),
+            "\n#edges:",
+            len(graph.edges),
+        )
         coms = algorithms.leiden(
             graph, weights=weights, initial_membership=initial_membership
         )
