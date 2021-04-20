@@ -850,7 +850,7 @@ def highest_expr_genes(
     save: Optional[Union[str]] = None,
     ax: Optional[Axes] = None,
     gene_annotations: Optional[list] = None,
-    gene_annotation_key: Optional[str] = None,
+    gene_annotation_key: str = "use_for_pca",
     log: bool = False,
     store_key="expr_percent",
 ):
@@ -872,15 +872,25 @@ def highest_expr_genes(
     # obtain top genes
     sorted_indices = np.argsort(-adata.var[store_key])
     selected_indices = sorted_indices[:n_top]
+    gene_names = adata.var_names[selected_indices]
+
     # assemble a dataframe
     top_genes_df = pd.DataFrame(
         gene_X_percents[:, selected_indices],
         index=adata.obs_names,
-        columns=selected_indices,
+        columns=gene_names,
     )
 
     # draw plots
     sns.boxplot(data=top_genes_df, orient="h", ax=ax, fliersize=1)
     ax.set_xlabel("percents of total counts")
+
+    gene_annotation_labels = adata.var[gene_annotation_key][selected_indices]
+    ax2 = ax.twinx()
+    ax2.set_ylim(ax.get_ylim())
+    ax2.set_yticks(ax.get_yticks())
+    ax2.set_yticklabels(gene_annotation_labels)
+    ax2.set_ylabel(gene_annotation_key)
+
     if show:
         plt.show()
