@@ -11,7 +11,7 @@ from .preprocess import (
     feature_genes,
     variance_explained,
     exp_by_groups,
-    highest_expr_genes,
+    highest_frac_genes,
 )
 from .cell_cycle import cell_cycle_scores
 from .markers import bubble
