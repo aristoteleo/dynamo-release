@@ -4,7 +4,7 @@ from scipy.sparse import csr_matrix
 import numpy as np
 import anndata
 import pandas as pd
-
+from ..dynamo_logger import main_info
 from .connectivity import neighbors
 from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 from .utils import update_dict
@@ -705,21 +705,13 @@ def cluster_community_from_graph(
         if "weights" in kwargs:
             weights = kwargs["weights"]
 
-        print(
-            "===initial membership debug====:\nmax:",
-            max(initial_membership)
-            if initial_membership is not None
-            else "None",
-            "\n",
-            initial_membership,
-        )
-        print("===graph mat debug====:\n", graph_sparse_matrix.shape)
-        print(
-            "===graph debug====:\n#nodes:",
-            len(graph.nodes),
-            "\n#edges:",
-            len(graph.edges),
-        )
+        if initial_membership is not None:
+            main_info(
+                "Currently initial_membership for leiden has some issue and thus we ignore it. "
+                "We will support it in future."
+            )
+            initial_membership = None
+
         coms = algorithms.leiden(
             graph, weights=weights, initial_membership=initial_membership
         )
