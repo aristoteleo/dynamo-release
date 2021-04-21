@@ -5,8 +5,9 @@ from .scatters import (
 
 docstrings.delete_params("scatters.parameters", "adata", "basis", "figsize")
 
+
 @docstrings.with_indent(4)
-def space(adata, space='spatial', width=6, *args, **kwargs):
+def space(adata, space="spatial", width=6, *args, **kwargs):
     """\
     Scatter plot for physical coordinates of each cell.
 
@@ -26,8 +27,8 @@ def space(adata, space='spatial', width=6, *args, **kwargs):
     """
 
     if space in adata.obsm_keys():
-        space_key = 'X_' + space
-    elif 'X_' + space in adata.obsm_keys():
+        space_key = "X_" + space
+    elif "X_" + space in adata.obsm_keys():
         space_key = space
 
     ptp_vec = adata.obsm[space_key].ptp(0)
@@ -36,9 +37,10 @@ def space(adata, space='spatial', width=6, *args, **kwargs):
     figsize = (width, ptp_vec[1] / ptp_vec[0] * width)
 
     # here we should pass different point size, type (square or hexogon, etc), etc.
-    return scatters(adata,
-                    basis=space_key,
-                    figsize=figsize,
-                    *args,
-                    **kwargs,
-              )
+    return scatters(
+        adata,
+        basis=space_key,
+        figsize=figsize,
+        *args,
+        **kwargs,
+    )
