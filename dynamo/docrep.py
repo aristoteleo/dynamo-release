@@ -10,7 +10,8 @@ from warnings import warn
 
 def dedents(s):
     warn(
-        "The dedent function has been depreceated and will be removed soon. " "Use inspect.cleandoc instead",
+        "The dedent function has been depreceated and will be removed soon. "
+        "Use inspect.cleandoc instead",
         DeprecationWarning,
         stacklevel=2,
     )
@@ -87,7 +88,11 @@ def safe_modulo(s, meta, checked="", print_warning=True, stacklevel=2):
             key = m.group("key")
             if not isinstance(meta, dict) or key not in meta:
                 if print_warning:
-                    warn("%r is not a valid key!" % key, SyntaxWarning, stacklevel)
+                    warn(
+                        "%r is not a valid key!" % key,
+                        SyntaxWarning,
+                        stacklevel,
+                    )
                 full = m.group()
                 s = s.replace(full, "%" + full)
         if "KEY" not in checked:
@@ -216,7 +221,12 @@ class DocstringProcessor(object):
 
     #: sections that behave the same as the `Parameter` section by defining a
     #: list
-    param_like_sections = ["Parameters", "Other Parameters", "Returns", "Raises"]
+    param_like_sections = [
+        "Parameters",
+        "Other Parameters",
+        "Returns",
+        "Raises",
+    ]
     #: sections that include (possibly not list-like) text
     text_sections = ["Warnings", "Notes", "Examples", "See Also", "References"]
 
@@ -247,14 +257,22 @@ class DocstringProcessor(object):
         patterns = {}
         all_sections = self.param_like_sections + self.text_sections
         for section in self.param_like_sections:
-            patterns[section] = re.compile("(?s)(?<=%s\n%s\n)(.+?)(?=\n\n\S+|$)" % (section, "-" * len(section)))
-        all_sections_patt = "|".join("%s\n%s\n" % (s, "-" * len(s)) for s in all_sections)
+            patterns[section] = re.compile(
+                "(?s)(?<=%s\n%s\n)(.+?)(?=\n\n\S+|$)"
+                % (section, "-" * len(section))
+            )
+        all_sections_patt = "|".join(
+            "%s\n%s\n" % (s, "-" * len(s)) for s in all_sections
+        )
         # examples and see also
         for section in self.text_sections:
             patterns[section] = re.compile(
-                "(?s)(?<=%s\n%s\n)(.+?)(?=%s|$)" % (section, "-" * len(section), all_sections_patt)
+                "(?s)(?<=%s\n%s\n)(.+?)(?=%s|$)"
+                % (section, "-" * len(section), all_sections_patt)
             )
-        self._extended_summary_patt = re.compile("(?s)(.+?)(?=%s|$)" % all_sections_patt)
+        self._extended_summary_patt = re.compile(
+            "(?s)(.+?)(?=%s|$)" % all_sections_patt
+        )
         self._all_sections_patt = re.compile(all_sections_patt)
         self.patterns = patterns
 
@@ -270,10 +288,14 @@ class DocstringProcessor(object):
         --------
         dedent: also dedents the doc
         with_indent: also indents the doc"""
-        doc = func.__doc__ and safe_modulo(func.__doc__, self.params, stacklevel=3)
+        doc = func.__doc__ and safe_modulo(
+            func.__doc__, self.params, stacklevel=3
+        )
         return self._set_object_doc(func, doc)
 
-    def get_sections(self, s, base, sections=["Parameters", "Other Parameters"]):
+    def get_sections(
+        self, s, base, sections=["Parameters", "Other Parameters"]
+    ):
         """
         Method that extracts the specified sections out of the given string if
         (and only if) the docstring follows the numpy documentation guidelines
@@ -357,7 +379,9 @@ class DocstringProcessor(object):
         try:
             obj.__doc__ = doc
         except AttributeError:  # probably python2 class
-            if self.python2_classes != "raise" and (inspect.isclass(obj) and six.PY2):
+            if self.python2_classes != "raise" and (
+                inspect.isclass(obj) and six.PY2
+            ):
                 if self.python2_classes == "warn":
                     warn(
                         "Cannot modify docstring of classes in python2!",
@@ -409,7 +433,9 @@ class DocstringProcessor(object):
         with_indents, dedent"""
 
         def replace(func):
-            doc = func.__doc__ and self.with_indents(func.__doc__, indent=indent, stacklevel=4)
+            doc = func.__doc__ and self.with_indents(
+                func.__doc__, indent=indent, stacklevel=4
+            )
             return self._set_object_doc(func, doc)
 
         return replace
@@ -435,7 +461,10 @@ class DocstringProcessor(object):
         with_indent, dedents"""
         # we make a new dictionary with objects that indent the original
         # strings if necessary. Note that the first line is not indented
-        d = {key: _StrWithIndentation(val, indent) for key, val in six.iteritems(self.params)}
+        d = {
+            key: _StrWithIndentation(val, indent)
+            for key, val in six.iteritems(self.params)
+        }
         return safe_modulo(s, d, stacklevel=stacklevel)
 
     def delete_params(self, base_key, *params):
@@ -459,7 +488,9 @@ class DocstringProcessor(object):
         See Also
         --------
         delete_types, keep_params"""
-        self.params[base_key + ".no_" + "|".join(params)] = self.delete_params_s(self.params[base_key], params)
+        self.params[
+            base_key + ".no_" + "|".join(params)
+        ] = self.delete_params_s(self.params[base_key], params)
 
     @staticmethod
     def delete_params_s(s, params):
@@ -478,7 +509,9 @@ class DocstringProcessor(object):
         str
             The modified string `s` without the descriptions of `params`
         """
-        patt = "(?s)" + "|".join("(?<=\n)" + s + "\s*:.+?\n(?=\S+|$)" for s in params)
+        patt = "(?s)" + "|".join(
+            "(?<=\n)" + s + "\s*:.+?\n(?=\S+|$)" for s in params
+        )
         return re.sub(patt, "", "\n" + s.strip() + "\n").strip()
 
     def delete_kwargs(self, base_key, args=None, kwargs=None):
@@ -507,10 +540,15 @@ class DocstringProcessor(object):
         ``'`'``). Similarily, the type name of `kwargs` in `s` has to be like
         ````**<kwargs>````"""
         if not args and not kwargs:
-            warn("Neither args nor kwargs are given. I do nothing for %s" % (base_key))
+            warn(
+                "Neither args nor kwargs are given. I do nothing for %s"
+                % (base_key)
+            )
             return
         ext = ".no" + ("_args" if args else "") + ("_kwargs" if kwargs else "")
-        self.params[base_key + ext] = self.delete_kwargs_s(self.params[base_key], args, kwargs)
+        self.params[base_key + ext] = self.delete_kwargs_s(
+            self.params[base_key], args, kwargs
+        )
 
     @classmethod
     def delete_kwargs_s(cls, s, args=None, kwargs=None):
@@ -560,7 +598,9 @@ class DocstringProcessor(object):
         See Also
         --------
         delete_params"""
-        self.params["%s.%s" % (base_key, out_key)] = self.delete_types_s(self.params[base_key], types)
+        self.params["%s.%s" % (base_key, out_key)] = self.delete_types_s(
+            self.params[base_key], types
+        )
 
     @staticmethod
     def delete_types_s(s, types):
@@ -579,7 +619,9 @@ class DocstringProcessor(object):
         str
             The modified string `s` without the descriptions of `types`
         """
-        patt = "(?s)" + "|".join("(?<=\n)" + s + "\n.+?\n(?=\S+|$)" for s in types)
+        patt = "(?s)" + "|".join(
+            "(?<=\n)" + s + "\n.+?\n(?=\S+|$)" for s in types
+        )
         return re.sub(
             patt,
             "",
@@ -658,7 +700,9 @@ class DocstringProcessor(object):
             ...     %(do_something.parameters.no_b)s'''
             ...     pass
         """
-        self.params[base_key + "." + "|".join(params)] = self.keep_params_s(self.params[base_key], params)
+        self.params[base_key + "." + "|".join(params)] = self.keep_params_s(
+            self.params[base_key], params
+        )
 
     @staticmethod
     def keep_params_s(s, params):
@@ -677,7 +721,9 @@ class DocstringProcessor(object):
         str
             The modified string `s` with only the descriptions of `params`
         """
-        patt = "(?s)" + "|".join("(?<=\n)" + s + "\s*:.+?\n(?=\S+|$)" for s in params)
+        patt = "(?s)" + "|".join(
+            "(?<=\n)" + s + "\s*:.+?\n(?=\S+|$)" for s in params
+        )
         return "".join(re.findall(patt, "\n" + s.strip() + "\n")).rstrip()
 
     def keep_types(self, base_key, out_key, *types):
@@ -748,7 +794,9 @@ class DocstringProcessor(object):
             ...     %(do_something.returns.no_float)s'''
             ...     return do_something()[1]
         """
-        self.params["%s.%s" % (base_key, out_key)] = self.keep_types_s(self.params[base_key], types)
+        self.params["%s.%s" % (base_key, out_key)] = self.keep_types_s(
+            self.params[base_key], types
+        )
 
     @staticmethod
     def keep_types_s(s, types):
@@ -767,7 +815,9 @@ class DocstringProcessor(object):
         str
             The modified string `s` with only the descriptions of `types`
         """
-        patt = "(?s)" + "|".join("(?<=\n)" + s + "\n.+?\n(?=\S+|$)" for s in types)
+        patt = "(?s)" + "|".join(
+            "(?<=\n)" + s + "\n.+?\n(?=\S+|$)" for s in types
+        )
         return "".join(re.findall(patt, "\n" + s.strip() + "\n")).rstrip()
 
     def save_docstring(self, key):

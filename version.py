@@ -17,7 +17,9 @@ ON_RTD = os.environ.get("READTHEDOCS") == "True"
 def match_groups(regex, target):
     match = re.match(regex, target)
     if match is None:
-        raise re.error(f"Regex does not match “{target}”. RE Pattern: {regex}", regex)
+        raise re.error(
+            f"Regex does not match “{target}”. RE Pattern: {regex}", regex
+        )
     return match.groups()
 
 

@@ -15,12 +15,13 @@ import os
 import sys
 from pathlib import Path
 
-module_path = os.path.join(os.path.dirname(__file__), '../..')
+module_path = os.path.join(os.path.dirname(__file__), "../..")
 sys.path.insert(0, os.path.abspath(module_path))
-sys.path.insert(0, os.path.abspath('../'))
+sys.path.insert(0, os.path.abspath("../"))
 sys.path.insert(0, os.path.abspath("../../"))
 
 import dynamo
+
 # HERE = Path(__file__).parent
 # sys.path[:0] = [str(HERE.parent)]
 

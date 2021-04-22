@@ -4,7 +4,7 @@ from scipy.sparse import csr_matrix
 import numpy as np
 import anndata
 import pandas as pd
-
+from ..dynamo_logger import main_info
 from .connectivity import neighbors
 from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 from .utils import update_dict
@@ -336,6 +336,7 @@ def cluster_field(
 def leiden(
     adata,
     use_weight=True,
+    weight=None,
     initial_membership=None,
     adj_matrix=None,
     adj_matrix_key=None,
@@ -350,7 +351,7 @@ def leiden(
 ) -> anndata.AnnData:
     kwargs.update(
         {
-            "use_weight": use_weight,
+            "weight": weight,
             "initial_membership": initial_membership,
         }
     )
@@ -358,6 +359,7 @@ def leiden(
     return cluster_community(
         adata,
         method="leiden",
+        use_weight=use_weight,
         result_key=result_key,
         adj_matrix=adj_matrix,
         adj_matrix_key=adj_matrix_key,
@@ -416,7 +418,6 @@ def louvain(
     kwargs.update(
         {
             "resolution": resolution,
-            "use_weight": use_weight,
             "randomize": randomize,
         }
     )
@@ -424,6 +425,7 @@ def louvain(
     return cluster_community(
         adata,
         method="louvain",
+        use_weight=use_weight,
         adj_matrix=adj_matrix,
         adj_matrix_key=adj_matrix_key,
         result_key=result_key,
@@ -451,13 +453,12 @@ def infomap(
     copy=False,
     **kwargs
 ) -> anndata.AnnData:
-    kwargs.update({
-        "use_weight": use_weight,
-    })
+    kwargs.update({})
 
     return cluster_community(
         adata,
         method="infomap",
+        use_weight=use_weight,
         result_key=result_key,
         adj_matrix=adj_matrix,
         adj_matrix_key=adj_matrix_key,
@@ -480,7 +481,7 @@ def cluster_community(
     use_weight=True,
     no_community_label=-1,
     layer=None,
-    conn_type="connectivities",
+    conn_type="distances",
     obsm_key=None,
     cell_subsets=None,
     cluster_and_subsets: list = None,
@@ -534,9 +535,9 @@ def cluster_community(
     if adj_matrix_key is None:
         if layer is None:
             if obsm_key is None:
-                adj_matrix_key = "connectivities"
+                adj_matrix_key = "distances"
             else:
-                adj_matrix_key = obsm_key + "_" + "connectivities"
+                adj_matrix_key = obsm_key + "_" + "distances"
         else:
             adj_matrix_key = layer + "_" + conn_type
 
@@ -679,7 +680,13 @@ def cluster_community_from_graph(
         logger.info(
             "Converting graph_sparse_matrix to networkx object", indent_level=2
         )
-        graph = nx.convert_matrix.from_scipy_sparse_matrix(graph_sparse_matrix)
+        # if graph matrix is with weight, then edge attr "weight" stores weight of edges
+        graph = nx.convert_matrix.from_scipy_sparse_matrix(
+            graph_sparse_matrix, edge_attribute="weight"
+        )
+        for i in range(graph_sparse_matrix.shape[0]):
+            if not (i in graph.nodes):
+                graph.add_node(i)
     else:
         raise ValueError("Expected graph inputs are invalid")
 
@@ -687,6 +694,7 @@ def cluster_community_from_graph(
         graph = graph.to_directed()
     else:
         graph = graph.to_undirected()
+
     if method == "leiden":
         initial_membership, weights = None, None
         if "initial_membership" in kwargs:
@@ -697,19 +705,26 @@ def cluster_community_from_graph(
         if "weights" in kwargs:
             weights = kwargs["weights"]
 
+        if initial_membership is not None:
+            main_info(
+                "Currently initial_membership for leiden has some issue and thus we ignore it. "
+                "We will support it in future."
+            )
+            initial_membership = None
+
         coms = algorithms.leiden(
             graph, weights=weights, initial_membership=initial_membership
         )
     elif method == "louvain":
         if "resolution" not in kwargs:
             raise KeyError("resolution not in louvain input parameters")
-        if "weight" not in kwargs:
-            raise KeyError("weight not in louvain input parameters")
+        # if "weight" not in kwargs:
+        #     raise KeyError("weight not in louvain input parameters")
         if "randomize" not in kwargs:
             raise KeyError("randomize not in louvain input parameters")
 
         resolution = kwargs["resolution"]
-        weight = kwargs["weight"]
+        weight = "weight"
         randomize = kwargs["randomize"]
         coms = algorithms.louvain(
             graph, weight=weight, resolution=resolution, randomize=randomize
