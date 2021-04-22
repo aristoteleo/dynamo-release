@@ -1,11 +1,18 @@
 import numpy as np
+from scipy.interpolate import interp1d
 from ..vectorfield.utils import normalize_vectors, angle
 from .utils import arclength_sampling, remove_redundant_points_trajectory
 
-class trajectory:
+class Trajectory:
     def __init__(self, X, t=None) -> None:
         self.X = X
         self.t = t
+
+    def __len__(self):
+        return self.X.shape[0]
+
+    def __dim__(self):
+        return self.X.shape[1]
 
     def calc_tangent(self, normalize=True):
         tvec = self.X[1:] - self.X[:-1]
@@ -47,6 +54,11 @@ class trajectory:
         if overwrite: self.X, self.t = X, t
         
         return X, t
+
+    def interpolate(self, t, **interp_kwargs):
+        if self.t is None:
+            raise Exception('`self.t` is `None`, which is needed for interpolation.')
+        return interp1d(self.t, self.X, axis=0, **interp_kwargs)(t)
 
     def integrate(self, func):
         ''' Calculate the integral of func along the curve. The first and last points are omitted. '''

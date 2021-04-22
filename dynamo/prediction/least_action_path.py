@@ -1,15 +1,13 @@
 import numpy as np
 from scipy.optimize import minimize
+from scipy.interpolate import interp1d
 import networkx as nx
 from ..tools.utils import (
     nearest_neighbors,
 )
-from ..vectorfield.utils import (
-    vecfld_from_adata,
-    vector_field_function,
-)
 from ..vectorfield import svc_vectorfield
 from .utils import remove_redundant_points_trajectory, arclength_sampling
+from .trajectory import Trajectory
 from ..dynamo_logger import LoggerManager
 
 def action(path, vf_func, D=1, dt=1):
@@ -137,6 +135,31 @@ def least_action(
         D=D,
     )
     logger.info(sol_dict['message'], indent_level=1)
+    logger.info('optimal action: %f'%action_opt, indent_level=1)
     logger.finish_progress(progress_name='least action path')
 
-    return path_sol, dt_sol, action_opt
+    trajectory = LeastActionPath(X=path_sol, vf_func=vf.func, D=D, dt=dt_sol)
+    #return path_sol, dt_sol, action_opt
+    return trajectory
+
+class LeastActionPath(Trajectory):
+    def __init__(self, X, vf_func, D=1, dt=1) -> None:
+        super().__init__(X, t=np.arange(X.shape[0])*dt)
+        self.func = vf_func
+        self.D = D
+        self._action = np.zeros(X.shape[0])
+        for i in range(1, len(self._action)):
+            self._action[i] = action(self.X[:i+1], self.func, self.D, dt) 
+
+    def get_dt(self):
+        return np.mean(np.diff(self.t))
+
+    def action(self, t=None, **interp_kwargs):
+        if t is None:
+            return self._action
+        else:
+            return interp1d(self.t, self._action, **interp_kwargs)(t)
+
+    def mfpt(self, action=None):
+        action = self._action if action is None else action
+        return 1/np.exp(-action)
