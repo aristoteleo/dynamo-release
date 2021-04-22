@@ -9,8 +9,8 @@ from ..vectorfield.utils import (
     vector_field_function,
 )
 from ..vectorfield import svc_vectorfield
-
 from .utils import remove_redundant_points_trajectory, arclength_sampling
+from ..dynamo_logger import LoggerManager
 
 def action(path, vf_func, D=1, dt=1):
     # centers
@@ -51,7 +51,7 @@ def reshape_path(path_flatten, dim, start=None, end=None):
     return path
 
 
-def least_action_path(start, end, vf_func, jac_func, n_points=20, init_path=None, D=1):
+def least_action_path(start, end, vf_func, jac_func, n_points=20, init_path=None, D=1, dt_0=1):
     dim = len(start)
     if init_path is None:
         path_0 = (
@@ -59,12 +59,15 @@ def least_action_path(start, end, vf_func, jac_func, n_points=20, init_path=None
         )
     else:
         path_0 = init_path
-    fun = lambda x: action_aux(x, vf_func, dim, start=path_0[0], end=path_0[-1], D=D)
-    jac = lambda x: action_grad_aux(x, vf_func, jac_func, dim, start=path_0[0], end=path_0[-1], D=D)
+    fun = lambda x: action_aux(x, vf_func, dim, start=path_0[0], end=path_0[-1], D=D, dt=dt_0)
+    jac = lambda x: action_grad_aux(x, vf_func, jac_func, dim, start=path_0[0], end=path_0[-1], D=D, dt=dt_0)
     sol_dict = minimize(fun, path_0[1:-1], jac=jac)
     path_sol = reshape_path(sol_dict['x'], dim, start=path_0[0], end=path_0[-1])
 
-    return path_sol, sol_dict
+    t_dict = minimize(lambda t: action(path_sol, vf_func, D=D, dt=t), dt_0)
+    action_opt = t_dict['fun']
+    dt_sol = t_dict['x'][0]
+    return path_sol, dt_sol, action_opt, sol_dict
 
 
 def get_init_path(G, start, end, coords, interpolation_num=20):
@@ -118,10 +121,13 @@ def least_action(
     # beta:
     # end = np.where(adata.obs.clusters == 'Beta')[0]
     # end = adata.obsm['X_umap'][end[-1], :]
-
+    logger = LoggerManager.gen_logger("dynamo-least-action-path")
+    logger.info("initializing path with the connectivity...", indent_level=1)
     init_path = get_init_path(G, start, end, coords, interpolation_num=n_points)
 
-    path_sol, _ = least_action_path(
+    logger.info("searching for the least action path...", indent_level=1)
+    logger.log_time()
+    path_sol, dt_sol, action_opt, sol_dict = least_action_path(
         start,
         end,
         vf.func,
@@ -130,5 +136,7 @@ def least_action(
         init_path=init_path,
         D=D,
     )
+    logger.info(sol_dict['message'], indent_level=1)
+    logger.finish_progress(progress_name='least action path')
 
-    return path_sol
+    return path_sol, dt_sol, action_opt
