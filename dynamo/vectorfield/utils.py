@@ -965,6 +965,16 @@ def unit_vector(vector):
         return vec_norm, vector / vec_norm
 
 
+def normalize_vectors(vectors, axis=1, **kwargs):
+    """ Returns the unit vectors of the vectors.  """
+    vec = np.array(vectors, copy=True)
+    vec = np.atleast_2d(vec)
+    vec_norm = np.linalg.norm(vec, axis=axis, **kwargs)
+
+    vec_norm[vec_norm == 0] = 1
+    vec = (vec.T / vec_norm).T
+    return vec
+
 # ---------------------------------------------------------------------------------------------------
 # topology related utilies
 
