@@ -27,11 +27,8 @@ def test_highest_frac_genes_plot_prefix_list(adata, is_X_sparse=True):
 
 if __name__ == "__main__":
     # generate data if needed
-    if not os.path.exists(test_zebrafish_data_path):
-        print("generating test data...")
-        gen_zebrafish_test_data()
+    adata = gen_or_read_zebrafish_data()
 
-    print("reading test data...")
     # To-do: use a fixture in future
     adata = dyn.read_h5ad(test_zebrafish_data_path)
     test_highest_frac_genes_plot(adata.copy())
