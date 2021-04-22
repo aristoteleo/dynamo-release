@@ -87,10 +87,8 @@ if __name__ == "__main__":
     print("reading test data...")
     # To-do: use a fixture in future
     adata = dyn.read_h5ad(test_zebrafish_data_path)
-    print("******acc layer: ", adata.layers["curvature"])
-    print(adata)
-
     print("tests begin...")
+
     ######### testing begins here #########
     test_leiden_membership_input(adata)
     test_simple_cluster_community_adata(adata)
