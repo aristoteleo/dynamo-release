@@ -22,3 +22,15 @@ def gen_zebrafish_test_data():
     dyn.vf.acceleration(adata, basis="pca")
     dyn.cleanup(adata)
     adata.write_h5ad(test_zebrafish_data_path)
+
+
+def gen_or_read_zebrafish_data():
+    # generate data if needed
+    if not os.path.exists(test_zebrafish_data_path):
+        print("generating test data...")
+        gen_zebrafish_test_data()
+
+    print("reading test data...")
+    # To-do: use a fixture in future
+    adata = dyn.read_h5ad(test_zebrafish_data_path)
+    return adata
