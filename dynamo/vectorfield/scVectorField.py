@@ -18,7 +18,8 @@ from ..tools.utils import (
     linear_least_squares,
     timeit,
     index_condensed_matrix,
-    flatten,
+    starmap_with_kwargs,
+    nearest_neighbors,
 )
 from .utils import (
     vector_field_function,
@@ -36,6 +37,7 @@ from .utils import (
     vecfld_from_adata,
     find_fixed_points,
     FixedPoints,
+    remove_redundant_points,
 )
 from ..dynamo_logger import LoggerManager
 
@@ -105,11 +107,19 @@ def bandwidth_selector(X):
     if n > 200000 and m > 2:
         from pynndescent import NNDescent
 
-        nbrs = NNDescent(X, metric="euclidean", n_neighbors=max(2, int(0.2 * n)), n_jobs=-1, random_state=19491001)
+        nbrs = NNDescent(
+            X,
+            metric="euclidean",
+            n_neighbors=max(2, int(0.2 * n)),
+            n_jobs=-1,
+            random_state=19491001,
+        )
         _, distances = nbrs.query(X, k=max(2, int(0.2 * n)))
     else:
         alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
-        nbrs = NearestNeighbors(n_neighbors=max(2, int(0.2 * n)), algorithm=alg, n_jobs=-1).fit(X)
+        nbrs = NearestNeighbors(
+            n_neighbors=max(2, int(0.2 * n)), algorithm=alg, n_jobs=-1
+        ).fit(X)
         distances, _ = nbrs.kneighbors(X)
 
     d = np.mean(distances[:, 1:]) / 1.5
@@ -152,8 +162,14 @@ def denorm(VecFld, X_old, V_old, norm_dict):
     VecFld["Y"] = Y_old
     VecFld["X_ctrl"] = X * x_scale + np.matlib.tile(xm, [X.shape[0], 1])
     VecFld["grid"] = grid * xy_scale + np.matlib.tile(xy_m, [X.shape[0], 1])
-    VecFld["grid_V"] = (grid + grid_V) * xy_scale + np.matlib.tile(xy_m, [Y.shape[0], 1]) - grid
-    VecFld["V"] = (V + X) * y_scale + np.matlib.tile(ym, [Y.shape[0], 1]) - X_old
+    VecFld["grid_V"] = (
+        (grid + grid_V) * xy_scale
+        + np.matlib.tile(xy_m, [Y.shape[0], 1])
+        - grid
+    )
+    VecFld["V"] = (
+        (V + X) * y_scale + np.matlib.tile(ym, [Y.shape[0], 1]) - X_old
+    )
     VecFld["norm_dict"] = norm_dict
 
     return VecFld
@@ -166,7 +182,9 @@ def lstsq_solver(lhs, rhs, method="drouin"):
     elif method == "drouin":
         C = linear_least_squares(lhs, rhs)
     else:
-        warnings.warn("Invalid linear least squares solver. Use Drouin's method instead.")
+        warnings.warn(
+            "Invalid linear least squares solver. Use Drouin's method instead."
+        )
         C = linear_least_squares(lhs, rhs)
     return C
 
@@ -208,13 +226,25 @@ def get_P(Y, V, sigma2, gamma, a, div_cur_free_kernels=False):
     temp2 = (2 * np.pi * sigma2) ** (D / 2) * (1 - gamma) / (gamma * a)
     temp1[temp1 == 0] = np.min(temp1[temp1 != 0])
     P = temp1 / (temp1 + temp2)
-    E = P.T.dot(np.sum((Y - V) ** 2, 1)) / (2 * sigma2) + np.sum(P) * np.log(sigma2) * D / 2
+    E = (
+        P.T.dot(np.sum((Y - V) ** 2, 1)) / (2 * sigma2)
+        + np.sum(P) * np.log(sigma2) * D / 2
+    )
 
     return (P[:, None], E) if P.ndim == 1 else (P, E)
 
 
 @timeit
-def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True, n_int_steps=20, cores=1):
+def graphize_vecfld(
+    func,
+    X,
+    nbrs_idx=None,
+    dist=None,
+    k=30,
+    distance_free=True,
+    n_int_steps=20,
+    cores=1,
+):
     n, d = X.shape
 
     nbrs = None
@@ -222,11 +252,19 @@ def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True,
         if X.shape[0] > 200000 and X.shape[1] > 2:
             from pynndescent import NNDescent
 
-            nbrs = NNDescent(X, metric="euclidean", n_neighbors=k + 1, n_jobs=-1, random_state=19491001)
+            nbrs = NNDescent(
+                X,
+                metric="euclidean",
+                n_neighbors=k + 1,
+                n_jobs=-1,
+                random_state=19491001,
+            )
             nbrs_idx, dist = nbrs.query(X, k=k + 1)
         else:
             alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
-            nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm=alg, n_jobs=-1).fit(X)
+            nbrs = NearestNeighbors(
+                n_neighbors=k + 1, algorithm=alg, n_jobs=-1
+            ).fit(X)
             dist, nbrs_idx = nbrs.kneighbors(X)
 
     if dist is None and not distance_free:
@@ -236,8 +274,14 @@ def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True,
 
     V = sp.csr_matrix((n, n))
     if cores == 1:
-        for i, idx in enumerate(LoggerManager.progress_logger(nbrs_idx, progress_name="graphize_vecfld")):
-            V += construct_v(X, i, idx, n_int_steps, func, distance_free, dist, D, n)
+        for i, idx in enumerate(
+            LoggerManager.progress_logger(
+                nbrs_idx, progress_name="graphize_vecfld"
+            )
+        ):
+            V += construct_v(
+                X, i, idx, n_int_steps, func, distance_free, dist, D, n
+            )
 
     else:
         pool = ThreadPool(cores)
@@ -404,7 +448,9 @@ def SparseVFC(
             print("Sampling control points based on data velocity magnitude...")
         idx = sample_by_velocity(Y[uid], M)
     else:
-        idx = np.random.RandomState(seed=seed).permutation(tmp_X.shape[0])  # rand select some initial points
+        idx = np.random.RandomState(seed=seed).permutation(
+            tmp_X.shape[0]
+        )  # rand select some initial points
         idx = idx[range(M)]
     ctrl_pts = tmp_X[idx, :]
 
@@ -415,7 +461,9 @@ def SparseVFC(
     K = (
         con_K(ctrl_pts, ctrl_pts, beta, timeit=timeit_)
         if div_cur_free_kernels is False
-        else con_K_div_cur_free(ctrl_pts, ctrl_pts, sigma, eta, timeit=timeit_)[0]
+        else con_K_div_cur_free(ctrl_pts, ctrl_pts, sigma, eta, timeit=timeit_)[
+            0
+        ]
     )
     U = (
         con_K(X, ctrl_pts, beta, timeit=timeit_)
@@ -426,7 +474,9 @@ def SparseVFC(
         grid_U = (
             con_K(Grid, ctrl_pts, beta, timeit=timeit_)
             if div_cur_free_kernels is False
-            else con_K_div_cur_free(Grid, ctrl_pts, sigma, eta, timeit=timeit_)[0]
+            else con_K_div_cur_free(Grid, ctrl_pts, sigma, eta, timeit=timeit_)[
+                0
+            ]
         )
     M = ctrl_pts.shape[0] * D if div_cur_free_kernels else ctrl_pts.shape[0]
 
@@ -439,7 +489,9 @@ def SparseVFC(
     C = np.zeros((M, 1)) if div_cur_free_kernels else np.zeros((M, D))
     i, tecr, E = 0, 1, 1
     sigma2 = (
-        sum(sum((Y - X) ** 2)) / (N * D) if div_cur_free_kernels else sum(sum((Y - V) ** 2)) / (N * D)
+        sum(sum((Y - X) ** 2)) / (N * D)
+        if div_cur_free_kernels
+        else sum(sum((Y - V) ** 2)) / (N * D)
     )  ## test this
     # sigma2 = 1e-7 if sigma2 > 1e-8 else sigma2
     tecr_vec = np.ones(MaxIter) * np.nan
@@ -469,8 +521,12 @@ def SparseVFC(
 
         P = np.maximum(P, minP)
         if div_cur_free_kernels:
-            P = np.kron(P, np.ones((int(U.shape[0] / P.shape[0]), 1)))  # np.kron(P, np.ones((D, 1)))
-            lhs = (U.T * np.matlib.tile(P.T, [M, 1])).dot(U) + lambda_ * sigma2 * K
+            P = np.kron(
+                P, np.ones((int(U.shape[0] / P.shape[0]), 1))
+            )  # np.kron(P, np.ones((D, 1)))
+            lhs = (U.T * np.matlib.tile(P.T, [M, 1])).dot(
+                U
+            ) + lambda_ * sigma2 * K
             rhs = (U.T * np.matlib.tile(P.T, [M, 1])).dot(Y)
         else:
             UP = U.T * numpy.matlib.repmat(P.T, M, 1)
@@ -478,7 +534,10 @@ def SparseVFC(
             rhs = UP.dot(Y)
 
         if timeit_:
-            print("Time elapsed for computing lhs and rhs: %f s" % (time.time() - st))
+            print(
+                "Time elapsed for computing lhs and rhs: %f s"
+                % (time.time() - st)
+            )
 
         C = lstsq_solver(lhs, rhs, method=lstsq_method, timeit=timeit_)
 
@@ -521,7 +580,11 @@ def SparseVFC(
         "E_traj": E_vec[:i],
     }
     if div_cur_free_kernels:
-        VecFld["div_cur_free_kernels"], VecFld["sigma"], VecFld["eta"] = True, sigma, eta
+        VecFld["div_cur_free_kernels"], VecFld["sigma"], VecFld["eta"] = (
+            True,
+            sigma,
+            eta,
+        )
         (
             _,
             VecFld["df_kernel"],
@@ -566,20 +629,28 @@ class base_vectorfield:
     def get_data(self):
         return self.data["X"], self.data["V"]
 
-    def find_fixed_points(self, n_x0=100, X0=None, domain=None, sampling_method='random', **kwargs):
+    def find_fixed_points(
+        self, n_x0=100, X0=None, domain=None, sampling_method="random", **kwargs
+    ):
         """
         Search for fixed points of the vector field function.
 
         """
         if self.data is None and X0 is None:
-            raise Exception(f'The initial points `X0` are not provided, '
-                f'and no data is stored in the vector field for the sampling of initial points.')
+            raise Exception(
+                f"The initial points `X0` are not provided, "
+                f"and no data is stored in the vector field for the sampling of initial points."
+            )
         elif X0 is None:
-            indices = sample(np.arange(len(self.data['X'])), n_x0, method=sampling_method)
-            X0 = self.data['X'][indices]
-        
+            indices = sample(
+                np.arange(len(self.data["X"])), n_x0, method=sampling_method
+            )
+            X0 = self.data["X"][indices]
+
         if domain is None and self.data is not None:
-            domain = np.vstack((np.min(self.data['X'], axis=0), np.max(self.data['X'], axis=0))).T
+            domain = np.vstack(
+                (np.min(self.data["X"], axis=0), np.max(self.data["X"], axis=0))
+            ).T
 
         X, J, _ = find_fixed_points(X0, self.func, domain=domain, **kwargs)
         self.fixed_points = FixedPoints(X, J)
@@ -587,23 +658,90 @@ class base_vectorfield:
     def get_fixed_points(self, **kwargs):
         """
         Get fixed points of the vector field function.
-        
+
         Returns
         -------
             Xss: :class:`~numpy.ndarray`
                 Coordinates of the fixed points.
             ftype: :class:`~numpy.ndarray`
                 Types of the fixed points:
-                -1 -- stable, 
-                 0 -- saddle, 
+                -1 -- stable,
+                 0 -- saddle,
                  1 -- unstable
         """
         if self.fixed_points is None:
             self.find_fixed_points(**kwargs)
-        
+
         Xss = self.fixed_points.get_X()
         ftype = self.fixed_points.get_fixed_point_types()
         return Xss, ftype
+
+    def assign_fixed_points(self, domain=None, cores=1, **kwargs):
+        """assign each cell to the associated fixed points"""
+        if domain is None and self.data is not None:
+            domain = np.vstack(
+                (np.min(self.data["X"], axis=0), np.max(self.data["X"], axis=0))
+            ).T
+
+        if cores == 1:
+            X, J, _ = find_fixed_points(
+                self.data["X"],
+                self.func,
+                domain=domain,
+                return_all=True,
+                **kwargs,
+            )
+        else:
+            pool = ThreadPool(cores)
+
+            args_iter = zip(
+                [i[None, :] for i in self.data["X"]],
+                itertools.repeat(self.func),
+                itertools.repeat(domain),
+                itertools.repeat(True),
+            )
+            kwargs_iter = itertools.repeat(kwargs)
+            res = starmap_with_kwargs(
+                pool, find_fixed_points, args_iter, kwargs_iter
+            )
+
+            pool.close()
+            pool.join()
+
+            (X, J, _) = zip(*res)
+            X = np.vstack(
+                [[i] * self.data["X"].shape[1] if i is None else i for i in X]
+            ).astype(float)
+            J = np.array(
+                [
+                    np.zeros((self.data["X"].shape[1], self.data["X"].shape[1]))
+                    * np.nan
+                    if i is None
+                    else i
+                    for i in J
+                ]
+            )
+
+        self.fixed_points = FixedPoints(X, J)
+        fps_assignment = self.fixed_points.get_X()
+        fps_type_assignment = self.fixed_points.get_fixed_point_types()
+
+        valid_fps_assignment, valid_fps_type_assignment = (
+            fps_assignment[np.abs(fps_assignment).sum(1) > 0, :],
+            fps_type_assignment[np.abs(fps_assignment).sum(1) > 0],
+        )
+        X, discard = remove_redundant_points(
+            valid_fps_assignment, output_discard=True
+        )
+
+        assignment_id = np.zeros(len(fps_assignment))
+        for i, cur_fps in enumerate(fps_assignment):
+            if np.isnan(cur_fps).any():
+                assignment_id[i] = np.nan
+            else:
+                assignment_id[i] = int(nearest_neighbors(cur_fps, X, 1))
+
+        return X, valid_fps_type_assignment[discard], assignment_id
 
 
 class svc_vectorfield(base_vectorfield):
@@ -661,7 +799,8 @@ class svc_vectorfield(base_vectorfield):
             self.parameters = update_n_merge_dict(
                 self.parameters,
                 {
-                    "M": kwargs.pop("M", None) or max(min([50, len(X)]), int(0.05 * len(X)) + 1),
+                    "M": kwargs.pop("M", None)
+                    or max(min([50, len(X)]), int(0.05 * len(X)) + 1),
                     # min(len(X), int(1500 * np.log(len(X)) / (np.log(len(X)) + np.log(100)))),
                     "a": kwargs.pop("a", 5),
                     "beta": kwargs.pop("beta", None),
@@ -671,8 +810,12 @@ class svc_vectorfield(base_vectorfield):
                     "minP": kwargs.pop("minP", 1e-5),
                     "MaxIter": kwargs.pop("MaxIter", 500),
                     "theta": kwargs.pop("theta", 0.75),
-                    "div_cur_free_kernels": kwargs.pop("div_cur_free_kernels", False),
-                    "velocity_based_sampling": kwargs.pop("velocity_based_sampling", True),
+                    "div_cur_free_kernels": kwargs.pop(
+                        "div_cur_free_kernels", False
+                    ),
+                    "velocity_based_sampling": kwargs.pop(
+                        "velocity_based_sampling", True
+                    ),
                     "sigma": kwargs.pop("sigma", 0.8),
                     "eta": kwargs.pop("eta", 0.5),
                     "seed": kwargs.pop("seed", 0),
@@ -703,8 +846,15 @@ class svc_vectorfield(base_vectorfield):
         """
 
         if normalize:
-            X_norm, V_norm, T_norm, norm_dict = norm(self.data["X"], self.data["V"], self.data["Grid"])
-            self.data["X"], self.data["V"], self.data["Grid"], self.norm_dict = (
+            X_norm, V_norm, T_norm, norm_dict = norm(
+                self.data["X"], self.data["V"], self.data["Grid"]
+            )
+            (
+                self.data["X"],
+                self.data["V"],
+                self.data["Grid"],
+                self.norm_dict,
+            ) = (
                 X_norm,
                 V_norm,
                 T_norm,
@@ -772,7 +922,8 @@ class svc_vectorfield(base_vectorfield):
         if self.func is None:
             VecFld = self.vf_dict
             self.func = (
-                lambda x: scale * vector_field_function(x=x, vf_dict=VecFld, dim=dims)
+                lambda x: scale
+                * vector_field_function(x=x, vf_dict=VecFld, dim=dims)
                 if VecFld_true is None
                 else VecFld_true
             )
@@ -799,7 +950,9 @@ class svc_vectorfield(base_vectorfield):
         f_jac = self.get_Jacobian(method=method)
         return compute_divergence(f_jac, X, **kwargs)
 
-    def compute_curl(self, X=None, method="analytical", dim1=0, dim2=1, dim3=2, **kwargs):
+    def compute_curl(
+        self, X=None, method="analytical", dim1=0, dim2=1, dim3=2, **kwargs
+    ):
         X = self.data["X"] if X is None else X
         if dim3 is None or X.shape[1] < 3:
             X = X[:, [dim1, dim2]]
@@ -813,7 +966,9 @@ class svc_vectorfield(base_vectorfield):
         f_jac = self.get_Jacobian(method=method)
         return compute_acceleration(self.func, f_jac, X, **kwargs)
 
-    def compute_curvature(self, X=None, method="analytical", formula=2, **kwargs):
+    def compute_curvature(
+        self, X=None, method="analytical", formula=2, **kwargs
+    ):
         X = self.data["X"] if X is None else X
         f_jac = self.get_Jacobian(method=method)
         return compute_curvature(self.func, f_jac, X, formula=formula, **kwargs)
@@ -828,7 +983,9 @@ class svc_vectorfield(base_vectorfield):
         f_jac = self.get_Jacobian(method=method)
         return compute_sensitivity(f_jac, X, **kwargs)
 
-    def get_Jacobian(self, method="analytical", input_vector_convention="row", **kwargs):
+    def get_Jacobian(
+        self, method="analytical", input_vector_convention="row", **kwargs
+    ):
         """
         Get the Jacobian of the vector field function.
         If method is 'analytical':
@@ -852,9 +1009,13 @@ class svc_vectorfield(base_vectorfield):
                 ...         ...         ...         ...
         """
         if method == "numerical":
-            return Jacobian_numerical(self.func, input_vector_convention, **kwargs)
+            return Jacobian_numerical(
+                self.func, input_vector_convention, **kwargs
+            )
         elif method == "parallel":
-            return lambda x: Jacobian_rkhs_gaussian_parallel(x, self.vf_dict, **kwargs)
+            return lambda x: Jacobian_rkhs_gaussian_parallel(
+                x, self.vf_dict, **kwargs
+            )
         elif method == "analytical":
             return lambda x: Jacobian_rkhs_gaussian(x, self.vf_dict, **kwargs)
         else:
@@ -895,9 +1056,17 @@ class svc_vectorfield(base_vectorfield):
         precision = NumVFCCorrect / NumVFCIndex
         recall = NumVFCCorrect / NumCorrectIndex
 
-        print("correct correspondence rate in the original data: %d/%d = %f" % (NumCorrectIndex, siz, corrRate))
-        print("precision rate: %d/%d = %f" % (NumVFCCorrect, NumVFCIndex, precision))
-        print("recall rate: %d/%d = %f" % (NumVFCCorrect, NumCorrectIndex, recall))
+        print(
+            "correct correspondence rate in the original data: %d/%d = %f"
+            % (NumCorrectIndex, siz, corrRate)
+        )
+        print(
+            "precision rate: %d/%d = %f"
+            % (NumVFCCorrect, NumVFCIndex, precision)
+        )
+        print(
+            "recall rate: %d/%d = %f" % (NumVFCCorrect, NumCorrectIndex, recall)
+        )
 
         return corrRate, precision, recall
 
@@ -917,7 +1086,9 @@ if use_dynode:
             self.norm_dict = {}
 
             if X is not None and V is not None:
-                self.parameters = update_n_merge_dict(kwargs, {"X": X, "V": V, "Grid": Grid})
+                self.parameters = update_n_merge_dict(
+                    kwargs, {"X": X, "V": V, "Grid": Grid}
+                )
 
                 import tempfile
                 from dynode.vectorfield import networkModels
@@ -933,7 +1104,8 @@ if use_dynode:
                 self.valid_ind = good_ind
 
                 velocity_data_sampler = VelocityDataSampler(
-                    adata={"X": good_X, "V": good_V}, normalize_velocity=kwargs.get("normalize_velocity", False)
+                    adata={"X": good_X, "V": good_V},
+                    normalize_velocity=kwargs.get("normalize_velocity", False),
                 )
 
                 vf_kwargs = {
@@ -965,7 +1137,12 @@ if use_dynode:
         def train(self, **kwargs):
             if len(kwargs) > 0:
                 self.parameters = update_n_merge_dict(self.parameters, kwargs)
-            max_iter = 2 * 100000 * np.log(self.data["X"].shape[0]) / (250 + np.log(self.data["X"].shape[0]))
+            max_iter = (
+                2
+                * 100000
+                * np.log(self.data["X"].shape[0])
+                / (250 + np.log(self.data["X"].shape[0]))
+            )
             train_kwargs = {
                 "max_iter": int(max_iter),
                 "velocity_batch_size": 50,

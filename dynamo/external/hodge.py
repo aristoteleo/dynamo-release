@@ -304,8 +304,9 @@ def ddhodge(
             shape=(len(query_idx), len(cell_idx)),
         )
 
-        query_data_div, query_data_potential = W.dot(ddhodge_div), W.dot(
-            potential_
+        query_data_div, query_data_potential = (
+            W.dot(ddhodge_div),
+            W.dot(potential_),
         )
         (
             adata.obs[prefix + "ddhodge_sampled"],

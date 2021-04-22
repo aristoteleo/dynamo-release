@@ -3,8 +3,9 @@ from .scatters import docstrings
 
 docstrings.delete_params("scatters.parameters", "adata", "basis")
 
+
 @docstrings.with_indent(4)
-def hdbscan(adata, basis='umap', color="hdbscan", *args, **kwargs):
+def hdbscan(adata, basis="umap", color="hdbscan", *args, **kwargs):
     """\
     Scatter plot for hdbscan clustering in selected basis.
 
@@ -23,7 +24,7 @@ def hdbscan(adata, basis='umap', color="hdbscan", *args, **kwargs):
 
 
 @docstrings.with_indent(4)
-def leiden(adata, basis='umap', color="leiden", *args, **kwargs):
+def leiden(adata, basis="umap", color="leiden", *args, **kwargs):
     """\
    Scatter plot for leiden community detection in selected basis.
 
@@ -41,9 +42,8 @@ def leiden(adata, basis='umap', color="leiden", *args, **kwargs):
     return scatters(adata, basis=basis, color=color, *args, **kwargs)
 
 
-
 @docstrings.with_indent(4)
-def louvain(adata, basis='umap', color="louvain", *args, **kwargs):
+def louvain(adata, basis="umap", color="louvain", *args, **kwargs):
     """\
     Scatter plot for louvain community detection in selected basis.
 
@@ -62,7 +62,7 @@ def louvain(adata, basis='umap', color="louvain", *args, **kwargs):
 
 
 @docstrings.with_indent(4)
-def infomap(adata, basis='umap', color="infomap", *args, **kwargs):
+def infomap(adata, basis="umap", color="infomap", *args, **kwargs):
     """\
     Scatter plot for infomap community detection in selected basis.
 

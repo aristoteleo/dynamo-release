@@ -5,12 +5,19 @@ from .scVectorField import (
     SparseVFC,
     graphize_vecfld,
     base_vectorfield,
-    svc_vectorfield
+    svc_vectorfield,
 )  # , evaluate, con_K_div_cur_free
 from .utils import (
     vector_field_function,
 )
-from .topography import FixedPoints, VectorField2D, topography, VectorField
+from .topography import (
+    FixedPoints,
+    VectorField2D,
+    topography,
+    VectorField,
+    assign_fixedpoints,
+)
+
 from .cell_vectors import cell_accelerations, cell_curvatures
 from .vector_calculus import (
     velocities,
@@ -47,7 +54,7 @@ from .scPotential import (
     DiffusionMatrix,
     action,
     Potential,
-    Pot
+    Pot,
 )  # , vector_field_function
 from .Bhattacharya import path_integral, alignment
 from .Wang import Wang_action, Wang_LAP, transition_rate, MFPT
