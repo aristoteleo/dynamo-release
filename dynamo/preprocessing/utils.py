@@ -50,7 +50,13 @@ def convert2gene_symbol(input_names, scopes="ensembl.gene"):
     mg = mygene.MyGeneInfo()
 
     ensemble_names = [i.split(".")[0] for i in input_names]
-    var_pd = mg.querymany(ensemble_names, scopes=scopes, fields="symbol", as_dataframe=True, df_index=True)
+    var_pd = mg.querymany(
+        ensemble_names,
+        scopes=scopes,
+        fields="symbol",
+        as_dataframe=True,
+        df_index=True,
+    )
     # var_pd.drop_duplicates(subset='query', inplace=True) # use when df_index is not True
     var_pd = var_pd.loc[~var_pd.index.duplicated(keep="first")]
 
@@ -60,7 +66,9 @@ def convert2gene_symbol(input_names, scopes="ensembl.gene"):
 def convert2symbol(adata, scopes=None, subset=True):
     if np.all(adata.var_names.str.startswith("ENS")) or scopes is not None:
         logger = LoggerManager.gen_logger("dynamo-utils")
-        logger.info("convert ensemble name to official gene name", indent_level=1)
+        logger.info(
+            "convert ensemble name to official gene name", indent_level=1
+        )
 
         prefix = adata.var_names[0]
         if scopes is None:
@@ -89,9 +97,9 @@ def convert2symbol(adata, scopes=None, subset=True):
             "Dynamo is converting those names to official gene names."
         )
         official_gene_df = convert2gene_symbol(adata.var_names, scopes)
-        merge_df = adata.var.merge(official_gene_df, left_on="query", right_on="query", how="left").set_index(
-            adata.var.index
-        )
+        merge_df = adata.var.merge(
+            official_gene_df, left_on="query", right_on="query", how="left"
+        ).set_index(adata.var.index)
         adata.var = merge_df
         valid_ind = np.where(merge_df["notfound"] != True)[0]
 
@@ -100,7 +108,9 @@ def convert2symbol(adata, scopes=None, subset=True):
             adata.var.index = adata.var["symbol"].values.copy()
         else:
             indices = np.array(adata.var.index)
-            indices[valid_ind] = adata.var.loc[valid_ind, "symbol"].values.copy()
+            indices[valid_ind] = adata.var.loc[
+                valid_ind, "symbol"
+            ].values.copy()
             adata.var.index = indices
 
     return adata
@@ -199,7 +209,9 @@ def cook_dist(model, X, good):
 
     # Hat matrix
     H = _hat_matrix(X, W)
-    hii = np.diag(H)  # Diagonal values of hat matrix # fit.get_influence().hat_matrix_diag
+    hii = np.diag(
+        H
+    )  # Diagonal values of hat matrix # fit.get_influence().hat_matrix_diag
 
     # Pearson residuals
     r = model.resid_pearson
@@ -211,7 +223,9 @@ def cook_dist(model, X, good):
     rss = np.sum(resid ** 2)
     MSE = rss / (good.shape[0] - 2)
     # use the formula from: https://www.mathworks.com/help/stats/cooks-distance.html
-    cooks_d = r ** 2 / (2 * MSE) * hii / (1 - hii) ** 2  # (r / (1 - hii)) ** 2 *  / (1 * 2)
+    cooks_d = (
+        r ** 2 / (2 * MSE) * hii / (1 - hii) ** 2
+    )  # (r / (1 - hii)) ** 2 *  / (1 * 2)
 
     return cooks_d
 
@@ -219,16 +233,18 @@ def cook_dist(model, X, good):
 # ---------------------------------------------------------------------------------------------------
 # preprocess utilities
 def filter_genes_by_pattern(
-        adata: anndata.AnnData,
-        patterns: tuple = ('MT-', 'RPS', 'RPL', 'MRPS', 'MRPL', 'ERCC-'),
-        drop_genes: bool = False,
+    adata: anndata.AnnData,
+    patterns: tuple = ("MT-", "RPS", "RPL", "MRPS", "MRPL", "ERCC-"),
+    drop_genes: bool = False,
 ) -> Union[list, None]:
     """Utility function to filter mitochondria, ribsome protein and ERCC spike-in genes, etc."""
     logger = LoggerManager.gen_logger("dynamo-utils")
 
-    matched_genes = pd.Series(adata.var_names).str.startswith(patterns).to_list()
+    matched_genes = (
+        pd.Series(adata.var_names).str.startswith(patterns).to_list()
+    )
     logger.info(
-        'total matched genes is ' + str(sum(matched_genes)),
+        "total matched genes is " + str(sum(matched_genes)),
         indent_level=1,
     )
     if sum(matched_genes) > 0:
@@ -236,7 +252,7 @@ def filter_genes_by_pattern(
             gene_bools = np.ones(adata.n_vars, dtype=bool)
             gene_bools[matched_genes] = False
             logger.info(
-                'inplace subset matched genes ... ',
+                "inplace subset matched genes ... ",
                 indent_level=1,
             )
             # let us ignore the `inplace` parameter in pandas.Categorical.remove_unused_categories  warning.
@@ -253,8 +269,12 @@ def filter_genes_by_pattern(
 
 
 def basic_stats(adata):
-    adata.obs["nGenes"], adata.obs["nCounts"] = (adata.X > 0).sum(1), (adata.X).sum(1)
-    adata.var["nCells"], adata.var["nCounts"] = (adata.X > 0).sum(0).T, (adata.X).sum(0).T
+    adata.obs["nGenes"], adata.obs["nCounts"] = (adata.X > 0).sum(1), (
+        adata.X
+    ).sum(1)
+    adata.var["nCells"], adata.var["nCounts"] = (adata.X > 0).sum(0).T, (
+        adata.X
+    ).sum(0).T
     mito_genes = adata.var_names.str.upper().str.startswith("MT-")
     try:
         adata.obs["pMito"] = (
@@ -263,7 +283,9 @@ def basic_stats(adata):
             else (adata.X[:, mito_genes]).sum(1) / adata.obs["nCounts"]
         )
     except:
-        raise Exception(f"looks like your var_names may be corrupted (i.e. include nan values)")
+        raise Exception(
+            f"looks like your var_names may be corrupted (i.e. include nan values)"
+        )
 
 
 def unique_var_obs_adata(adata):
@@ -277,7 +299,11 @@ def unique_var_obs_adata(adata):
 def layers2csr(adata):
     """Function to make the obs and var attribute's index unique"""
     for i in adata.layers.keys():
-        adata.layers[i] = csr_matrix(adata.layers[i]) if not issparse(adata.layers[i]) else adata.layers[i]
+        adata.layers[i] = (
+            csr_matrix(adata.layers[i])
+            if not issparse(adata.layers[i])
+            else adata.layers[i]
+        )
 
     return adata
 
@@ -285,11 +311,15 @@ def layers2csr(adata):
 def merge_adata_attrs(adata_ori, adata, attr):
     if attr == "var":
         _columns = set(adata.var.columns).difference(adata_ori.var.columns)
-        var_df = adata_ori.var.merge(adata.var[_columns], how="left", left_index=True, right_index=True)
+        var_df = adata_ori.var.merge(
+            adata.var[_columns], how="left", left_index=True, right_index=True
+        )
         adata_ori.var = var_df.loc[adata_ori.var.index, :]
     elif attr == "obs":
         _columns = set(adata.obs.columns).difference(adata_ori.obs.columns)
-        obs_df = adata_ori.obs.merge(adata.obs[_columns], how="left", left_index=True, right_index=True)
+        obs_df = adata_ori.obs.merge(
+            adata.obs[_columns], how="left", left_index=True, right_index=True
+        )
         adata_ori.obs = obs_df.loc[adata_ori.obs.index, :]
 
     return adata_ori
@@ -311,7 +341,9 @@ def allowed_X_layer_names():
     return only_splicing, only_labeling, splicing_and_labeling
 
 
-def get_layer_keys(adata, layers="all", remove_normalized=True, include_protein=True):
+def get_layer_keys(
+    adata, layers="all", remove_normalized=True, include_protein=True
+):
     """Get the list of available layers' keys."""
     layer_keys = list(adata.layers.keys())
     if remove_normalized:
@@ -321,22 +353,38 @@ def get_layer_keys(adata, layers="all", remove_normalized=True, include_protein=
         layer_keys.extend(["X", "protein"])
     else:
         layer_keys.extend(["X"])
-    layers = layer_keys if layers == "all" else list(set(layer_keys).intersection(list(layers)))
+    layers = (
+        layer_keys
+        if layers == "all"
+        else list(set(layer_keys).intersection(list(layers)))
+    )
 
     layers = list(set(layers).difference(["matrix", "ambiguous", "spanning"]))
     return layers
 
 
 def get_shared_counts(adata, layers, min_shared_count, type="gene"):
-    layers = list(set(layers).difference(["X", "matrix", "ambiguous", "spanning"]))
-    layers = np.array(layers)[~pd.DataFrame(layers)[0].str.startswith("X_").values]
+    layers = list(
+        set(layers).difference(["X", "matrix", "ambiguous", "spanning"])
+    )
+    layers = np.array(layers)[
+        ~pd.DataFrame(layers)[0].str.startswith("X_").values
+    ]
 
     _nonzeros, _sum = None, None
     for layer in layers:
         if issparse(adata.layers[layers[0]]):
-            _nonzeros = adata.layers[layer] > 0 if _nonzeros is None else _nonzeros.multiply(adata.layers[layer] > 0)
+            _nonzeros = (
+                adata.layers[layer] > 0
+                if _nonzeros is None
+                else _nonzeros.multiply(adata.layers[layer] > 0)
+            )
         else:
-            _nonzeros = adata.layers[layer] > 0 if _nonzeros is None else _nonzeros * (adata.layers[layer] > 0)
+            _nonzeros = (
+                adata.layers[layer] > 0
+                if _nonzeros is None
+                else _nonzeros * (adata.layers[layer] > 0)
+            )
 
     for layer in layers:
         if issparse(adata.layers[layers[0]]):
@@ -391,14 +439,20 @@ def clusters_stats(U, S, clusters_uid, cluster_ix, size_limit=40):
     return U_avgs, S_avgs
 
 
-def get_svr_filter(adata, layer="spliced", n_top_genes=3000, return_adata=False):
+def get_svr_filter(
+    adata, layer="spliced", n_top_genes=3000, return_adata=False
+):
     score_name = "score" if layer in ["X", "all"] else layer + "_score"
     valid_idx = np.where(np.isfinite(adata.var.loc[:, score_name]))[0]
 
     valid_table = adata.var.iloc[valid_idx, :]
-    nth_score = np.sort(valid_table.loc[:, score_name])[::-1][np.min((n_top_genes - 1, valid_table.shape[0] - 1))]
+    nth_score = np.sort(valid_table.loc[:, score_name])[::-1][
+        np.min((n_top_genes - 1, valid_table.shape[0] - 1))
+    ]
 
-    feature_gene_idx = np.where(valid_table.loc[:, score_name] >= nth_score)[0][:n_top_genes]
+    feature_gene_idx = np.where(valid_table.loc[:, score_name] >= nth_score)[0][
+        :n_top_genes
+    ]
     feature_gene_idx = valid_idx[feature_gene_idx]
 
     if return_adata:
@@ -413,7 +467,16 @@ def get_svr_filter(adata, layer="spliced", n_top_genes=3000, return_adata=False)
     return res
 
 
-def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None, CM=None, scale_to=None):
+def sz_util(
+    adata,
+    layer,
+    round_exprs,
+    method,
+    locfunc,
+    total_layers=None,
+    CM=None,
+    scale_to=None,
+):
     adata = adata.copy()
 
     if layer == "_total_" and "_total_" not in adata.layers.keys():
@@ -423,7 +486,11 @@ def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None, CM=No
             if len(set(total_layers).difference(adata.layers.keys())) == 0:
                 total = None
                 for t_key in total_layers:
-                    total = adata.layers[t_key] if total is None else total + adata.layers[t_key]
+                    total = (
+                        adata.layers[t_key]
+                        if total is None
+                        else total + adata.layers[t_key]
+                    )
                 adata.layers["_total_"] = total
 
     if layer == "raw":
@@ -448,11 +515,19 @@ def sz_util(adata, layer, round_exprs, method, locfunc, total_layers=None, CM=No
     cell_total += cell_total == 0  # avoid infinity value after log (0)
 
     if method in ["mean-geometric-mean-total", "geometric"]:
-        sfs = cell_total / (np.exp(locfunc(np.log(cell_total))) if scale_to is None else scale_to)
+        sfs = cell_total / (
+            np.exp(locfunc(np.log(cell_total)))
+            if scale_to is None
+            else scale_to
+        )
     elif method == "median":
-        sfs = cell_total / (np.nanmedian(cell_total) if scale_to is None else scale_to)
+        sfs = cell_total / (
+            np.nanmedian(cell_total) if scale_to is None else scale_to
+        )
     elif method == "mean":
-        sfs = cell_total / (np.nanmean(cell_total) if scale_to is None else scale_to)
+        sfs = cell_total / (
+            np.nanmean(cell_total) if scale_to is None else scale_to
+        )
     else:
         raise NotImplementedError(f"This method {method} is not supported!")
 
@@ -480,21 +555,33 @@ def get_sz_exprs(adata, layer, total_szfactor=None):
         szfactors = adata.obs[total_szfactor][:, None]
     else:
         if total_szfactor is not None:
-            warnings.warn("`total_szfactor` is not `None` and it is not in adata object.")
+            warnings.warn(
+                "`total_szfactor` is not `None` and it is not in adata object."
+            )
 
     return szfactors, CM
 
 
-def normalize_util(CM, szfactors, relative_expr, pseudo_expr, norm_method=np.log1p):
+def normalize_util(
+    CM, szfactors, relative_expr, pseudo_expr, norm_method=np.log1p
+):
     if norm_method == np.log1p:
         pseudo_expr = 0
     if relative_expr:
-        CM = CM.multiply(csr_matrix(1 / szfactors)) if issparse(CM) else CM / szfactors
+        CM = (
+            CM.multiply(csr_matrix(1 / szfactors))
+            if issparse(CM)
+            else CM / szfactors
+        )
 
     if pseudo_expr is None:
         pseudo_expr = 1
     if issparse(CM):
-        CM.data = norm_method(CM.data + pseudo_expr) if norm_method is not None else CM.data
+        CM.data = (
+            norm_method(CM.data + pseudo_expr)
+            if norm_method is not None
+            else CM.data
+        )
         if norm_method is not None and norm_method.__name__ == "Freeman_Tukey":
             CM.data -= 1
     else:
@@ -518,22 +605,33 @@ def Freeman_Tukey(X, inverse=False):
 
 def pca(adata, CM, n_pca_components=30, pca_key="X", pcs_key="PCs"):
     if adata.n_obs < 100000:
-        pca = PCA(n_components=min(n_pca_components, CM.shape[1] - 1), svd_solver="arpack", random_state=0)
+        pca = PCA(
+            n_components=min(n_pca_components, CM.shape[1] - 1),
+            svd_solver="arpack",
+            random_state=0,
+        )
         fit = pca.fit(CM.toarray()) if issparse(CM) else pca.fit(CM)
-        X_pca = fit.transform(CM.toarray()) if issparse(CM) else fit.transform(CM)
+        X_pca = (
+            fit.transform(CM.toarray()) if issparse(CM) else fit.transform(CM)
+        )
         adata.obsm[pca_key] = X_pca
         adata.uns[pcs_key] = fit.components_.T
 
         adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_
     else:
         # unscaled PCA
-        fit = TruncatedSVD(n_components=min(n_pca_components + 1, CM.shape[1] - 1), random_state=0)
+        fit = TruncatedSVD(
+            n_components=min(n_pca_components + 1, CM.shape[1] - 1),
+            random_state=0,
+        )
         # first columns is related to the total UMI (or library size)
         X_pca = fit.fit_transform(CM)[:, 1:]
         adata.obsm[pca_key] = X_pca
         adata.uns[pcs_key] = fit.components_.T
 
-        adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
+        adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[
+            1:
+        ]
 
     return adata, fit, X_pca
 
@@ -547,13 +645,17 @@ def pca_genes(PCs, n_top_genes=100):
     return ret
 
 
-def top_pca_genes(adata, pc_key="PCs", n_top_genes=100, adata_store_key="top_pca_genes"):
+def top_pca_genes(
+    adata, pc_key="PCs", n_top_genes=100, adata_store_key="top_pca_genes"
+):
     if pc_key in adata.uns.keys():
         Q = adata.uns[pc_key]
     elif pc_key in adata.varm.keys():
         Q = adata.varm[pc_key]
     else:
-        raise Exception(f"No PC matrix {pc_key} found in neither .uns nor .varm.")
+        raise Exception(
+            f"No PC matrix {pc_key} found in neither .uns nor .varm."
+        )
     pcg = pca_genes(Q, n_top_genes=n_top_genes)
     genes = np.zeros(adata.n_vars, dtype=bool)
     if "use_for_pca" in adata.var.keys():
@@ -578,7 +680,9 @@ def add_noise_to_duplicates(adata, basis="pca"):
             adata.obsm["X_" + basis] = X_data
             break
         else:
-            X_data[duplicated_idx, :] += np.random.normal(0, min_val / 1000, (len(duplicated_idx), n_var))
+            X_data[duplicated_idx, :] += np.random.normal(
+                0, min_val / 1000, (len(duplicated_idx), n_var)
+            )
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -587,23 +691,42 @@ def add_noise_to_duplicates(adata, basis="pca"):
 
 def collapse_adata(adata):
     """Function to collapse the four species data, will be generalized to handle dual-datasets"""
-    only_splicing, only_labeling, splicing_and_labeling = allowed_layer_raw_names()
+    (
+        only_splicing,
+        only_labeling,
+        splicing_and_labeling,
+    ) = allowed_layer_raw_names()
 
     if np.all([i in adata.layers.keys() for i in splicing_and_labeling]):
         if only_splicing[0] not in adata.layers.keys():
-            adata.layers[only_splicing[0]] = adata.layers["su"] + adata.layers["sl"]
+            adata.layers[only_splicing[0]] = (
+                adata.layers["su"] + adata.layers["sl"]
+            )
         if only_splicing[1] not in adata.layers.keys():
-            adata.layers[only_splicing[1]] = adata.layers["uu"] + adata.layers["ul"]
+            adata.layers[only_splicing[1]] = (
+                adata.layers["uu"] + adata.layers["ul"]
+            )
         if only_labeling[0] not in adata.layers.keys():
-            adata.layers[only_labeling[0]] = adata.layers["ul"] + adata.layers["sl"]
+            adata.layers[only_labeling[0]] = (
+                adata.layers["ul"] + adata.layers["sl"]
+            )
         if only_labeling[1] not in adata.layers.keys():
-            adata.layers[only_labeling[1]] = adata.layers[only_labeling[0]] + adata.layers["uu"] + adata.layers["su"]
+            adata.layers[only_labeling[1]] = (
+                adata.layers[only_labeling[0]]
+                + adata.layers["uu"]
+                + adata.layers["su"]
+            )
 
     return adata
 
 
 def detect_datatype(adata):
-    has_splicing, has_labeling, splicing_labeling, has_protein = False, False, False, False
+    has_splicing, has_labeling, splicing_labeling, has_protein = (
+        False,
+        False,
+        False,
+        False,
+    )
 
     layers = adata.layers.keys()
     if (
@@ -613,7 +736,10 @@ def detect_datatype(adata):
         has_splicing, has_labeling, splicing_labeling = True, True, True
     elif (
         len({"unspliced", "spliced", "new", "total"}.difference(layers)) == 0
-        or len({"X_unspliced", "X_spliced", "X_new", "X_total"}.difference(layers)) == 0
+        or len(
+            {"X_unspliced", "X_spliced", "X_new", "X_total"}.difference(layers)
+        )
+        == 0
     ):
         has_splicing, has_labeling = True, True
     elif (
@@ -621,7 +747,10 @@ def detect_datatype(adata):
         or len({"X_unspliced", "X_spliced"}.difference(layers)) == 0
     ):
         has_splicing = True
-    elif len({"new", "total"}.difference(layers)) == 0 or len({"X_new", "X_total"}.difference(layers)) == 0:
+    elif (
+        len({"new", "total"}.difference(layers)) == 0
+        or len({"X_new", "X_total"}.difference(layers)) == 0
+    ):
         has_labeling = True
 
     if "protein" in adata.obsm.keys():
@@ -635,10 +764,21 @@ def default_layer(adata):
 
     if has_splicing:
         if has_labeling:
-            if len(set(adata.layers.keys()).intersection(["new", "total", "spliced", "unspliced"])) == 4:
+            if (
+                len(
+                    set(adata.layers.keys()).intersection(
+                        ["new", "total", "spliced", "unspliced"]
+                    )
+                )
+                == 4
+            ):
                 adata = collapse_adata(adata)
             default_layer = (
-                "M_t" if "M_t" in adata.layers.keys() else "X_total" if "X_total" in adata.layers.keys() else "total"
+                "M_t"
+                if "M_t" in adata.layers.keys()
+                else "X_total"
+                if "X_total" in adata.layers.keys()
+                else "total"
             )
         else:
             default_layer = (
@@ -650,7 +790,11 @@ def default_layer(adata):
             )
     else:
         default_layer = (
-            "M_t" if "M_t" in adata.layers.keys() else "X_total" if "X_total" in adata.layers.keys() else "total"
+            "M_t"
+            if "M_t" in adata.layers.keys()
+            else "X_total"
+            if "X_total" in adata.layers.keys()
+            else "total"
         )
 
     return default_layer
@@ -682,8 +826,12 @@ def NTR(adata):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
 
-            ntr = adata.layers["unspliced"].sum(1) / (adata.layers["unspliced"] + adata.layers["spliced"]).sum(1)
-            var_ntr = adata.layers["unspliced"].sum(0) / (adata.layers["unspliced"] + adata.layers["spliced"]).sum(0)
+            ntr = adata.layers["unspliced"].sum(1) / (
+                adata.layers["unspliced"] + adata.layers["spliced"]
+            ).sum(1)
+            var_ntr = adata.layers["unspliced"].sum(0) / (
+                adata.layers["unspliced"] + adata.layers["spliced"]
+            ).sum(0)
 
         ntr = ntr.A1 if issparse(adata.layers["unspliced"]) else ntr
         var_ntr = var_ntr.A1 if issparse(adata.layers["unspliced"]) else var_ntr
@@ -718,7 +866,14 @@ def scale(adata, layers=None, scale_to_layer=None, scale_to=1e6):
 
 
 def relative2abs(
-    adata, dilution, volume, from_layer=None, to_layers=None, mixture_type=1, ERCC_controls=None, ERCC_annotation=None
+    adata,
+    dilution,
+    volume,
+    from_layer=None,
+    to_layers=None,
+    mixture_type=1,
+    ERCC_controls=None,
+    ERCC_annotation=None,
 ):
     """Converts FPKM/TPM data to transcript counts using ERCC spike-in. This is based on the relative2abs function from
     monocle 2 (Qiu, et. al, Nature Methods, 2017).
@@ -753,13 +908,18 @@ def relative2abs(
     """
 
     if ERCC_annotation is None:
-        ERCC_annotation = pd.read_csv("https://www.dropbox.com/s/cmiuthdw5tt76o5/ERCC_specification.txt?dl=1", sep="\t")
+        ERCC_annotation = pd.read_csv(
+            "https://www.dropbox.com/s/cmiuthdw5tt76o5/ERCC_specification.txt?dl=1",
+            sep="\t",
+        )
 
     ERCC_id = ERCC_annotation["ERCC ID"]
 
     ERCC_id = adata.var_names.intersection(ERCC_id)
     if len(ERCC_id) < 10 and ERCC_controls is None:
-        raise Exception(f"The adata object you provided has less than 10 ERCC genes.")
+        raise Exception(
+            f"The adata object you provided has less than 10 ERCC genes."
+        )
 
     if to_layers is not None:
         to_layers = [to_layers] if to_layers is str else to_layers
@@ -771,18 +931,34 @@ def relative2abs(
             )
 
     mixture_name = (
-        "concentration in Mix 1 (attomoles/ul)" if mixture_type == 1 else "concentration in Mix 2 (attomoles/ul)"
+        "concentration in Mix 1 (attomoles/ul)"
+        if mixture_type == 1
+        else "concentration in Mix 2 (attomoles/ul)"
     )
     ERCC_annotation["numMolecules"] = ERCC_annotation.loc[:, mixture_name] * (
-        volume * 10 ** (-3) * 1 / dilution * 10 ** (-18) * 6.02214129 * 10 ** (23)
+        volume
+        * 10 ** (-3)
+        * 1
+        / dilution
+        * 10 ** (-18)
+        * 6.02214129
+        * 10 ** (23)
     )
 
-    ERCC_annotation["rounded_numMolecules"] = ERCC_annotation["numMolecules"].astype(int)
+    ERCC_annotation["rounded_numMolecules"] = ERCC_annotation[
+        "numMolecules"
+    ].astype(int)
 
     if from_layer in [None, "X"]:
-        X, X_ercc = (adata.X, adata[:, ERCC_id].X if ERCC_controls is None else ERCC_controls)
+        X, X_ercc = (
+            adata.X,
+            adata[:, ERCC_id].X if ERCC_controls is None else ERCC_controls,
+        )
     else:
-        X, X_ercc = (adata.layers[from_layer], adata[:, ERCC_id] if ERCC_controls is None else ERCC_controls)
+        X, X_ercc = (
+            adata.layers[from_layer],
+            adata[:, ERCC_id] if ERCC_controls is None else ERCC_controls,
+        )
 
     logged = False if X.max() > 100 else True
 
@@ -792,7 +968,10 @@ def relative2abs(
             np.log1p(X_ercc.A) if issparse(X_ercc) else np.log1p(X_ercc),
         )
     else:
-        X, X_ercc = (X.A if issparse(X_ercc) else X, X_ercc.A if issparse(X_ercc) else X_ercc)
+        X, X_ercc = (
+            X.A if issparse(X_ercc) else X,
+            X_ercc.A if issparse(X_ercc) else X_ercc,
+        )
 
     y = np.log1p(ERCC_annotation["numMolecules"])
 
@@ -821,10 +1000,15 @@ def relative2abs(
 
                 logged = False if X.max() > 100 else True
                 if not logged:
-                    X_i = np.log1p(X[i, :].A) if issparse(X) else np.log1p(X[i, :])
+                    X_i = (
+                        np.log1p(X[i, :].A)
+                        if issparse(X)
+                        else np.log1p(X[i, :])
+                    )
                 else:
                     X_i = X[i, :].A if issparse(X) else X[i, :]
 
                 res = k * X_i + b if logged else np.expm1(k * X_i + b)
-                adata.layers[cur_layer][i, :] = csr_matrix(res) if issparse(X) else res
-
+                adata.layers[cur_layer][i, :] = (
+                    csr_matrix(res) if issparse(X) else res
+                )

@@ -4,13 +4,27 @@ from ..tools.utils import update_dict
 from .scatters import scatters, docstrings
 from .utils import save_fig
 
-docstrings.delete_params("scatters.parameters", "aggregate", "kwargs", "save_kwargs")
+docstrings.delete_params(
+    "scatters.parameters", "aggregate", "kwargs", "save_kwargs"
+)
 
 
-def create_edge_patch(posA, posB, width=1, node_rad=0, connectionstyle="arc3, rad=0.25", facecolor="k", **kwargs):
+def create_edge_patch(
+    posA,
+    posB,
+    width=1,
+    node_rad=0,
+    connectionstyle="arc3, rad=0.25",
+    facecolor="k",
+    **kwargs
+):
     import matplotlib.patches as pat
 
-    style = "simple,head_length=%d,head_width=%d,tail_width=%d" % (10, 10, 3 * width)
+    style = "simple,head_length=%d,head_width=%d,tail_width=%d" % (
+        10,
+        10,
+        3 * width,
+    )
     return pat.FancyArrowPatch(
         posA=posA,
         posB=posB,
@@ -24,7 +38,15 @@ def create_edge_patch(posA, posB, width=1, node_rad=0, connectionstyle="arc3, ra
 
 
 def create_edge_patches_from_markov_chain(
-    P, X, width=3, node_rad=0, tol=1e-7, connectionstyle="arc3, rad=0.25", facecolor="k", alpha=0.8, **kwargs
+    P,
+    X,
+    width=3,
+    node_rad=0,
+    tol=1e-7,
+    connectionstyle="arc3, rad=0.25",
+    facecolor="k",
+    alpha=0.8,
+    **kwargs
 ):
     arrows = []
     for i in range(P.shape[0]):
@@ -121,11 +143,15 @@ def state_graph(
     Pl /= Pl.sum(1)[:, None]
 
     for i, cur_grp in enumerate(uniq_grp):
-        group_median[i, :] = np.nanmedian(points[np.where(groups == cur_grp)[0], :2], 0)
+        group_median[i, :] = np.nanmedian(
+            points[np.where(groups == cur_grp)[0], :2], 0
+        )
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
-        background = to_hex(_background) if type(_background) is tuple else _background
+        background = (
+            to_hex(_background) if type(_background) is tuple else _background
+        )
 
     plt.figure(facecolor=_background)
     axes_list, color_list, font_color = scatters(
@@ -158,7 +184,9 @@ def state_graph(
         return_all=True,
     )
 
-    arrows = create_edge_patches_from_markov_chain(Pl, group_median, tol=0.01, node_rad=15)
+    arrows = create_edge_patches_from_markov_chain(
+        Pl, group_median, tol=0.01, node_rad=15
+    )
     if type(axes_list) == list:
         for i in range(len(axes_list)):
             for arrow in arrows:

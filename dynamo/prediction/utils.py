@@ -30,7 +30,9 @@ def integrate_vf_ivp(
     if interpolation_num is not None and integration_direction == "both":
         interpolation_num = interpolation_num * 2
 
-    for i in tqdm(range(n_cell), desc="integration with ivp solver", disable=disable):
+    for i in tqdm(
+        range(n_cell), desc="integration with ivp solver", disable=disable
+    ):
         y0 = init_states[i, :]
         ivp_f, ivp_f_event = (
             lambda t, x: f(x),
@@ -40,7 +42,9 @@ def integrate_vf_ivp(
         ivp_f_event.terminal = True
 
         if verbose:
-            print("\nintegrating cell ", i, "; Initial state: ", init_states[i, :])
+            print(
+                "\nintegrating cell ", i, "; Initial state: ", init_states[i, :]
+            )
         if integration_direction == "forward":
             y_ivp = solve_ivp(
                 ivp_f,
@@ -88,7 +92,9 @@ def integrate_vf_ivp(
             )
             sol = [y_ivp_b.sol, y_ivp_f.sol]
         else:
-            raise Exception("both, forward, backward are the only valid direction argument strings")
+            raise Exception(
+                "both, forward, backward are the only valid direction argument strings"
+            )
 
         T.append(t_trans)
         Y.append(y)
@@ -99,14 +105,24 @@ def integrate_vf_ivp(
 
     if sampling == "arc_length":
         Y_, t_ = [None] * n_cell, [None] * n_cell
-        for i in tqdm(range(n_cell), desc="uniformly sampling points along a trajectory", disable=disable):
+        for i in tqdm(
+            range(n_cell),
+            desc="uniformly sampling points along a trajectory",
+            disable=disable,
+        ):
             tau, x = T[i], Y[i].T
-            idx = dup_osc_idx_iter(x, max_iter=100, tol=x.ptp(0).mean() / 1000)[0]
+            idx = dup_osc_idx_iter(x, max_iter=100, tol=x.ptp(0).mean() / 1000)[
+                0
+            ]
             # idx = dup_osc_idx_iter(x)
             x = x[:idx]
-            _, arclen, _ = remove_redundant_points_trajectory(x, tol=1e-4, output_discard=True)
+            _, arclen, _ = remove_redundant_points_trajectory(
+                x, tol=1e-4, output_discard=True
+            )
             arc_stepsize = arclen / interpolation_num
-            cur_Y, alen, t_[i] = arclength_sampling(x, step_length=arc_stepsize, t=tau[:idx])
+            cur_Y, alen, t_[i] = arclength_sampling(
+                x, step_length=arc_stepsize, t=tau[:idx]
+            )
 
             if integration_direction == "both":
                 neg_t_len = sum(np.array(t_[i]) < 0)
@@ -126,18 +142,35 @@ def integrate_vf_ivp(
         Y, t = Y_, t_
     elif sampling == "logspace":
         Y_, t_ = [None] * n_cell, [None] * n_cell
-        for i in tqdm(range(n_cell), desc="sampling points along a trajectory in logspace", disable=disable):
+        for i in tqdm(
+            range(n_cell),
+            desc="sampling points along a trajectory in logspace",
+            disable=disable,
+        ):
             tau, x = T[i], Y[i].T
             neg_tau, pos_tau = tau[tau < 0], tau[tau >= 0]
 
             if len(neg_tau) > 0:
                 t_0, t_1 = (
-                    -(np.logspace(0, np.log10(abs(min(neg_tau)) + 1), interpolation_num)) - 1,
-                    np.logspace(0, np.log10(max(pos_tau) + 1), interpolation_num) - 1,
+                    -(
+                        np.logspace(
+                            0,
+                            np.log10(abs(min(neg_tau)) + 1),
+                            interpolation_num,
+                        )
+                    )
+                    - 1,
+                    np.logspace(
+                        0, np.log10(max(pos_tau) + 1), interpolation_num
+                    )
+                    - 1,
                 )
                 t_[i] = np.hstack((t_0[::-1], t_1))
             else:
-                t_[i] = np.logspace(0, np.log10(max(tau) + 1), interpolation_num) - 1
+                t_[i] = (
+                    np.logspace(0, np.log10(max(tau) + 1), interpolation_num)
+                    - 1
+                )
 
             if integration_direction == "both":
                 neg_t_len = sum(np.array(t_[i]) < 0)
@@ -172,7 +205,10 @@ def integrate_vf_ivp(
                 valid_t_trans = np.sort(np.hstack([tmp, valid_t_trans]))
         else:
             neg_tau, pos_tau = t_uniq[t_uniq < 0], t_uniq[t_uniq >= 0]
-            t_0, t_1 = -np.linspace(min(t_uniq), 0, interpolation_num), np.linspace(0, max(t_uniq), interpolation_num)
+            t_0, t_1 = (
+                -np.linspace(min(t_uniq), 0, interpolation_num),
+                np.linspace(0, max(t_uniq), interpolation_num),
+            )
 
             valid_t_trans = np.hstack((t_0, t_1))
 
@@ -180,7 +216,9 @@ def integrate_vf_ivp(
         if integration_direction == "both":
             neg_t_len = sum(valid_t_trans < 0)
         for i in tqdm(
-            range(n_cell), desc="calculate solutions on the sampled time points in logspace", disable=disable
+            range(n_cell),
+            desc="calculate solutions on the sampled time points in logspace",
+            disable=disable,
         ):
             cur_Y = (
                 SOL[i](valid_t_trans)
@@ -210,7 +248,16 @@ def integrate_vf_ivp(
     return t, Y
 
 
-def integrate_streamline(X, Y, U, V, integration_direction, init_states, interpolation_num=100, average=True):
+def integrate_streamline(
+    X,
+    Y,
+    U,
+    V,
+    integration_direction,
+    init_states,
+    interpolation_num=100,
+    average=True,
+):
     """use streamline's integrator to alleviate stacking of the solve_ivp. Need to update with the correct time."""
     import matplotlib.pyplot as plt
 
@@ -331,7 +378,9 @@ def arclength_sampling(X, step_length, t=None):
 
 # ---------------------------------------------------------------------------------------------------
 # fate related
-def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim):
+def fetch_exprs(
+    adata, basis, layer, genes, time, mode, project_back_to_high_dim
+):
     import pandas as pd
 
     if basis is not None:
@@ -339,7 +388,11 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
     else:
         fate_key = "fate" if layer == "X" else "fate_" + layer
 
-    time = adata.obs[time].values if mode != "vector_field" else adata.uns[fate_key]["t"]
+    time = (
+        adata.obs[time].values
+        if mode != "vector_field"
+        else adata.uns[fate_key]["t"]
+    )
 
     if mode != "vector_field":
         valid_genes = list(set(genes).intersection(adata.var.index))
@@ -352,7 +405,9 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
         elif layer == "protein":  # update subset here
             exprs = adata[np.isfinite(time), :][:, valid_genes].obsm[layer]
         else:
-            raise Exception(f"The {layer} you passed in is not existed in the adata object.")
+            raise Exception(
+                f"The {layer} you passed in is not existed in the adata object."
+            )
     else:
         fate_genes = adata.uns[fate_key]["genes"]
         valid_genes = list(set(genes).intersection(fate_genes))
@@ -360,12 +415,18 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
         if basis is not None:
             if project_back_to_high_dim:
                 exprs = adata.uns[fate_key]["high_prediction"]
-                exprs = exprs[np.isfinite(time), pd.Series(fate_genes).isin(valid_genes)]
+                exprs = exprs[
+                    np.isfinite(time), pd.Series(fate_genes).isin(valid_genes)
+                ]
             else:
                 exprs = adata.uns[fate_key]["prediction"][np.isfinite(time), :]
-                valid_genes = [basis + "_" + str(i) for i in np.arange(exprs.shape[1])]
+                valid_genes = [
+                    basis + "_" + str(i) for i in np.arange(exprs.shape[1])
+                ]
         else:
-            exprs = adata.uns[fate_key]["prediction"][np.isfinite(time), pd.Series(fate_genes).isin(valid_genes)]
+            exprs = adata.uns[fate_key]["prediction"][
+                np.isfinite(time), pd.Series(fate_genes).isin(valid_genes)
+            ]
 
     time = time[np.isfinite(time)]
 

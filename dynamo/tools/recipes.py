@@ -135,7 +135,12 @@ def recipe_kin_data(
         # then calculate moments for spliced related layers using spliced based connectivity graph
         moments(adata, conn=conn, layers=["X_spliced", "X_unspliced"])
         # then perform kinetic estimations with properly preprocessed layers for either the labeling or the splicing data
-        dynamics(adata, model="deterministic", est_method="twostep", del_2nd_moments=del_2nd_moments)
+        dynamics(
+            adata,
+            model="deterministic",
+            est_method="twostep",
+            del_2nd_moments=del_2nd_moments,
+        )
         # then perform dimension reduction
         reduceDimension(adata, reduction_method=basis)
         # lastly, project RNA velocity to low dimensional embedding.
@@ -154,7 +159,12 @@ def recipe_kin_data(
             keep_filtered_genes=keep_filtered_genes,
             keep_raw_layers=keep_raw_layers,
         )
-        dynamics(adata, model="deterministic", est_method="twostep", del_2nd_moments=del_2nd_moments)
+        dynamics(
+            adata,
+            model="deterministic",
+            est_method="twostep",
+            del_2nd_moments=del_2nd_moments,
+        )
         reduceDimension(adata, reduction_method=basis)
         cell_velocities(adata, basis=basis)
 
@@ -287,15 +297,29 @@ def recipe_deg_data(
         moments(adata, conn=conn, group=tkey, layers=layers)
 
         # then perform kinetic estimations with properly preprocessed layers for either the labeling or the splicing data
-        dynamics(adata, model="deterministic", est_method="twostep", del_2nd_moments=del_2nd_moments)
+        dynamics(
+            adata,
+            model="deterministic",
+            est_method="twostep",
+            del_2nd_moments=del_2nd_moments,
+        )
         # then perform dimension reduction
         reduceDimension(adata, reduction_method=basis)
         # lastly, project RNA velocity to low dimensional embedding.
         try:
             set_transition_genes(adata)
-            cell_velocities(adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis)
+            cell_velocities(
+                adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis
+            )
         except:
-            cell_velocities(adata, min_r2=adata.var.gamma_r2.min(), enforce=True, vkey=vkey, ekey=ekey, basis=basis)
+            cell_velocities(
+                adata,
+                min_r2=adata.var.gamma_r2.min(),
+                enforce=True,
+                vkey=vkey,
+                ekey=ekey,
+                basis=basis,
+            )
 
     else:
         recipe_monocle(
@@ -442,7 +466,12 @@ def recipe_mix_kin_deg_data(
         # then calculate moments for spliced related layers using spliced based connectivity graph
         moments(adata, conn=conn, layers=["X_spliced", "X_unspliced"])
         # then perform kinetic estimations with properly preprocessed layers for either the labeling or the splicing data
-        dynamics(adata, model="deterministic", est_method="twostep", del_2nd_moments=del_2nd_moments)
+        dynamics(
+            adata,
+            model="deterministic",
+            est_method="twostep",
+            del_2nd_moments=del_2nd_moments,
+        )
         # then perform dimension reduction
         reduceDimension(adata, reduction_method=basis)
         # lastly, project RNA velocity to low dimensional embedding.
@@ -461,7 +490,12 @@ def recipe_mix_kin_deg_data(
             keep_filtered_genes=keep_filtered_genes,
             keep_raw_layers=keep_raw_layers,
         )
-        dynamics(adata, model="deterministic", est_method="twostep", del_2nd_moments=del_2nd_moments)
+        dynamics(
+            adata,
+            model="deterministic",
+            est_method="twostep",
+            del_2nd_moments=del_2nd_moments,
+        )
         reduceDimension(adata, reduction_method=basis)
         cell_velocities(adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis)
 

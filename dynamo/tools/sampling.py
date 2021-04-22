@@ -9,7 +9,9 @@ class TRNET:
         self.n_nodes = n_nodes
         self.n_dims = X.shape[1]
         self.X = X
-        self.W = self.draw_sample(self.n_nodes)  # initialize the positions of nodes
+        self.W = self.draw_sample(
+            self.n_nodes
+        )  # initialize the positions of nodes
         self.seed = seed
 
     def draw_sample(self, n_samples):
@@ -52,7 +54,9 @@ class TRNET:
             # run once
             self.runOnce(P[t - 1], l, ep, c)
 
-    def run_n_pause(self, k0, k, tmax=200, li=0.2, lf=0.01, ei=0.3, ef=0.05, c=0):
+    def run_n_pause(
+        self, k0, k, tmax=200, li=0.2, lf=0.01, ei=0.3, ef=0.05, c=0
+    ):
         tmax = int(tmax * self.n_nodes)
         li = li * self.n_nodes
         P = self.draw_sample(tmax)
@@ -78,11 +82,19 @@ def trn(X, n, return_index=True, seed=19491001, **kwargs):
         if X.shape[0] > 200000 and X.shape[1] > 2:
             from pynndescent import NNDescent
 
-            nbrs = NNDescent(X, metric="euclidean", n_neighbors=1, n_jobs=-1, random_state=seed)
+            nbrs = NNDescent(
+                X,
+                metric="euclidean",
+                n_neighbors=1,
+                n_jobs=-1,
+                random_state=seed,
+            )
             idx, _ = nbrs.query(trnet.W, k=1)
         else:
             alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
-            nbrs = NearestNeighbors(n_neighbors=1, algorithm=alg, n_jobs=-1).fit(X)
+            nbrs = NearestNeighbors(
+                n_neighbors=1, algorithm=alg, n_jobs=-1
+            ).fit(X)
             _, idx = nbrs.kneighbors(trnet.W)
 
         return idx[:, 0]
@@ -128,5 +140,7 @@ def sample(arr, n, method, X=None, V=None, seed=19491001, **kwargs):
     elif method == "trn" and X is not None:
         cell_idx = trn(X=X, n=n, return_index=True, seed=seed, **kwargs)
     else:
-        raise NotImplementedError(f"The sampling method {method} is not implemented or relevant data are not provided.")
+        raise NotImplementedError(
+            f"The sampling method {method} is not implemented or relevant data are not provided."
+        )
     return cell_idx

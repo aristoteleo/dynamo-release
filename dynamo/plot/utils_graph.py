@@ -17,7 +17,11 @@ def create_edge_patch(
     tail_width=3,
     **kwargs,
 ):
-    style = "simple,head_length=%d,head_width=%d,tail_width=%d" % (head_length, head_width, tail_width)
+    style = "simple,head_length=%d,head_width=%d,tail_width=%d" % (
+        head_length,
+        head_width,
+        tail_width,
+    )
     return pat.FancyArrowPatch(
         posA=posA,
         posB=posB,
@@ -31,7 +35,14 @@ def create_edge_patch(
 
 
 def create_edge_patches_from_markov_chain(
-    P, X, width=3, node_rad=0, tol=1e-7, connectionstyle="arc3, rad=0.25", facecolor="k", **kwargs
+    P,
+    X,
+    width=3,
+    node_rad=0,
+    tol=1e-7,
+    connectionstyle="arc3, rad=0.25",
+    facecolor="k",
+    **kwargs,
 ):
     arrows = []
     for i in range(P.shape[0]):
@@ -52,7 +63,9 @@ def create_edge_patches_from_markov_chain(
     return arrows
 
 
-def plot_alternate_function(X, E, arrowstype="-|>", node_rad=5, arrow_size=10, fc="w"):
+def plot_alternate_function(
+    X, E, arrowstype="-|>", node_rad=5, arrow_size=10, fc="w"
+):
     for i in range(len(X)):
         for j in range(i + 1, len(X)):
             if E[i, j] != 0:
@@ -119,7 +132,9 @@ def arcplot(
                     alpha = curve_alpha
                     tail_width = width
                 else:
-                    raise NotImplementedError("Unidentified edge mode. Options are `alpha`, `width`, and `const`.")
+                    raise NotImplementedError(
+                        "Unidentified edge mode. Options are `alpha`, `width`, and `const`."
+                    )
 
                 ec = edge_pos_color if E[i, j] > 0 else edge_neg_color
 
@@ -163,7 +178,8 @@ class ArcPlot:
             import networkx as nx
         except ImportError:
             raise ImportError(
-                f"You need to install the packages `networkx`." f"install networkx via `pip install networkx`."
+                f"You need to install the packages `networkx`."
+                f"install networkx via `pip install networkx`."
             )
         self.E = nx.to_numpy_matrix(network)
         self.node_names = list(network.nodes)

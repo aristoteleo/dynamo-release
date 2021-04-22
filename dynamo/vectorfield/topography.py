@@ -805,7 +805,7 @@ def VectorField(
     if result_key is None:
         vf_key = "VecFld" if basis is None else "VecFld_" + basis
     else:
-        vf_key = result_key if basis is None else result_key + '_' + basis
+        vf_key = result_key if basis is None else result_key + "_" + basis
 
     vf_dict["method"] = method
     if basis is not None:
@@ -908,8 +908,8 @@ def VectorField(
 
 def assign_fixedpoints(
     adata: anndata.AnnData,
-    basis: str='pca',
-    cores: int=1,
+    basis: str = "pca",
+    cores: int = 1,
     copy: bool = False,
 ) -> Union[None, anndata.AnnData]:
     """Assign each cell in our data to a fixed point.
@@ -946,12 +946,20 @@ def assign_fixedpoints(
         func=func,
     )
 
-    X, valid_fps_type_assignment, assignment_id = vecfld_class.assign_fixed_points(cores=cores)
-    assignment_id = [str(int(i)) if np.isfinite(i) else None for i in assignment_id]
-    adata.obs['fps_assignment'] = assignment_id
-    adata.uns['fps_assignment_' + basis] = {"X": X,
-                                            "valid_fps_type_assignment": valid_fps_type_assignment,
-                                            "assignment_id": assignment_id}
+    (
+        X,
+        valid_fps_type_assignment,
+        assignment_id,
+    ) = vecfld_class.assign_fixed_points(cores=cores)
+    assignment_id = [
+        str(int(i)) if np.isfinite(i) else None for i in assignment_id
+    ]
+    adata.obs["fps_assignment"] = assignment_id
+    adata.uns["fps_assignment_" + basis] = {
+        "X": X,
+        "valid_fps_type_assignment": valid_fps_type_assignment,
+        "assignment_id": assignment_id,
+    }
 
     logger.finish_progress("assign_fixedpoints")
     if copy:
