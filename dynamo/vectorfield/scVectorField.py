@@ -639,8 +639,8 @@ class base_vectorfield:
         fps_assignment = self.fixed_points.get_X()
         fps_type_assignment = self.fixed_points.get_fixed_point_types()
 
-        valid_fps_assignment, valid_fps_type_assignment = fps_assignment[np.abs(fps_assignment).sum(1) > 0, :], \
-                                                          fps_type_assignment[np.abs(fps_assignment).sum(1) > 0]
+        valid_fps_assignment, valid_fps_type_assignment = fps_assignment[np.abs(fps_assignment).sum(1) >= 0, :], \
+                                                          fps_type_assignment[np.abs(fps_assignment).sum(1) >= 0]
         X, discard = remove_redundant_points(valid_fps_assignment, output_discard=True)
         assignment_id = np.zeros(len(fps_assignment))
         for i, cur_fps in enumerate(fps_assignment):
