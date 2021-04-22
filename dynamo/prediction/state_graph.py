@@ -17,11 +17,18 @@ from .utils import (
 from ..dynamo_logger import LoggerManager
 
 
-def classify_clone_cell_type(adata, clone, clone_column, cell_type_column, cell_type_to_excluded):
+def classify_clone_cell_type(
+    adata, clone, clone_column, cell_type_column, cell_type_to_excluded
+):
     """find the dominant cell type of all the cells that are from the same clone"""
     cell_ids = np.where(adata.obs[clone_column] == clone)[0]
 
-    to_check = adata[cell_ids].obs[cell_type_column].value_counts().index.isin(list(cell_type_to_excluded))
+    to_check = (
+        adata[cell_ids]
+        .obs[cell_type_column]
+        .value_counts()
+        .index.isin(list(cell_type_to_excluded))
+    )
 
     cell_type = np.where(to_check)[0]
 
@@ -100,13 +107,19 @@ def state_graph(
             average=False,
             t_end=None,
         )
-        logger.report_progress(percent=0, progress_name="KDTree parameter preparation computation")
+        logger.report_progress(
+            percent=0, progress_name="KDTree parameter preparation computation"
+        )
         logger.log_time()
         kdt = cKDTree(all_X, leafsize=30)
         logger.finish_progress(progress_name="KDTree computation")
         vf_dict = adata.uns["VecFld_" + basis]
 
-        for i, cur_grp in enumerate(LoggerManager.progress_logger(uniq_grp, progress_name="iterate groups")):
+        for i, cur_grp in enumerate(
+            LoggerManager.progress_logger(
+                uniq_grp, progress_name="iterate groups"
+            )
+        ):
             init_cells = adata.obs_names[groups == cur_grp]
             if sample_num is not None:
                 cell_num = np.min((sample_num, len(init_cells)))
@@ -129,8 +142,15 @@ def state_graph(
                 )
                 N = int(np.sqrt(V_grid.shape[0]))
                 X_grid, V_grid = (
-                    np.array([np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]),
-                    np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))]),
+                    np.array(
+                        [np.unique(X_grid[:, 0]), np.unique(X_grid[:, 1])]
+                    ),
+                    np.array(
+                        [
+                            V_grid[:, 0].reshape((N, N)),
+                            V_grid[:, 1].reshape((N, N)),
+                        ]
+                    ),
                 )
 
                 t, X = integrate_streamline(
@@ -166,10 +186,14 @@ def state_graph(
 
             for j in np.arange(cell_num):
                 cur_ind = np.arange(j * len_per_cell, (j + 1) * len_per_cell)
-                Y, arclength, T_bool = remove_redundant_points_trajectory(X[cur_ind], tol=dist_min, output_discard=True)
+                Y, arclength, T_bool = remove_redundant_points_trajectory(
+                    X[cur_ind], tol=dist_min, output_discard=True
+                )
 
                 if arc_sample:
-                    Y, arclength, T = arclength_sampling(Y, arclength / 1000, t=t[~T_bool])
+                    Y, arclength, T = arclength_sampling(
+                        Y, arclength / 1000, t=t[~T_bool]
+                    )
                 else:
                     T = t[~T_bool]
 
@@ -177,7 +201,9 @@ def state_graph(
 
                 # set up a dataframe with group and time
                 pass_t = np.where(knn_dist < dist_threshold)[0]
-                pass_df = pd.DataFrame({"group": adata[knn_ind[pass_t]].obs[group], "t": T[pass_t]})
+                pass_df = pd.DataFrame(
+                    {"group": adata[knn_ind[pass_t]].obs[group], "t": T[pass_t]}
+                )
                 # only consider trajectory that pass at least 10 cells in group as confident pass
                 pass_group_counter = pass_df.group.value_counts()
                 pass_groups, confident_pass_check = (
@@ -186,10 +212,15 @@ def state_graph(
                 )
                 # assign the transition matrix and average transition time
                 if len(confident_pass_check) > 0:
-                    ind_other_cell_type = [uniq_grp.index(k) for k in np.array(pass_groups)[confident_pass_check]]
+                    ind_other_cell_type = [
+                        uniq_grp.index(k)
+                        for k in np.array(pass_groups)[confident_pass_check]
+                    ]
                     grp_graph[i, ind_other_cell_type] += 1
                     grp_avg_time[i, ind_other_cell_type] += (
-                        pass_df.groupby("group")["t"].mean()[confident_pass_check].values
+                        pass_df.groupby("group")["t"]
+                        .mean()[confident_pass_check]
+                        .values
                     )
 
             # average across cells
@@ -197,7 +228,9 @@ def state_graph(
             grp_graph[i, :] /= cell_num
 
     else:
-        raise ValueError(f"Currently only support vector field (vf) or Markov chain (markov) based lumping.")
+        raise ValueError(
+            f"Currently only support vector field (vf) or Markov chain (markov) based lumping."
+        )
 
     adata.uns[group + "_graph"] = {
         "group_graph": grp_graph,

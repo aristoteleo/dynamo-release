@@ -142,7 +142,9 @@ def fate(
         init_states = init_states[:, dims]
 
     vf = (
-        (lambda x: scale * vector_field_function(x=x, vf_dict=VecFld, dim=dims)) if VecFld_true is None else VecFld_true
+        (lambda x: scale * vector_field_function(x=x, vf_dict=VecFld, dim=dims))
+        if VecFld_true is None
+        else VecFld_true
     )
     t, prediction = _fate(
         vf,
@@ -160,10 +162,15 @@ def fate(
     if basis == "pca" and inverse_transform:
         Qkey = "PCs"
         if type(prediction) == list:
-            high_prediction = [vector_transformation(cur_pred.T, adata.uns[Qkey]) for cur_pred in prediction]
+            high_prediction = [
+                vector_transformation(cur_pred.T, adata.uns[Qkey])
+                for cur_pred in prediction
+            ]
             high_p_n = high_prediction[0].shape[1]
         else:
-            high_prediction = vector_transformation(prediction.T, adata.uns[Qkey])
+            high_prediction = vector_transformation(
+                prediction.T, adata.uns[Qkey]
+            )
             high_p_n = high_prediction.shape[1]
 
         if adata.var.use_for_dynamics.sum() == high_p_n:
@@ -175,7 +182,9 @@ def fate(
         # this requires umap 0.4; reverse project to PCA space.
         if prediction.ndim == 1:
             prediction = prediction[None, :]
-        high_prediction = adata.uns["umap_fit"]["fit"].inverse_transform(prediction)
+        high_prediction = adata.uns["umap_fit"]["fit"].inverse_transform(
+            prediction
+        )
 
         # further reverse project back to raw expression space
         PCs = adata.uns["PCs"].T
@@ -186,7 +195,9 @@ def fate(
 
         if "X" in adata.obsm_keys():
             if ndim == adata.obsm["X"].shape[1]:  # lift the dimension up again
-                high_prediction = adata.uns["pca_fit"].inverse_transform(prediction)
+                high_prediction = adata.uns["pca_fit"].inverse_transform(
+                    prediction
+                )
 
         if adata.var.use_for_dynamics.sum() == high_prediction.shape[1]:
             valid_genes = adata.var_names[adata.var.use_for_dynamics]
@@ -310,7 +321,9 @@ def _fate(
             avg = np.zeros((n_feature, t_len))
 
             for i in range(t_len):
-                avg[:, i] = np.mean(prediction_stack[:, np.arange(n_cell) * t_len + i], 1)
+                avg[:, i] = np.mean(
+                    prediction_stack[:, np.arange(n_cell) * t_len + i], 1
+                )
 
             prediction = [avg]
             t = [np.sort(np.unique(t))]
@@ -412,7 +425,9 @@ def fate_bias(
         dist_threshold = 1
 
     if group not in adata.obs.keys():
-        raise ValueError(f"The group {group} you provided is not a key of .obs attribute.")
+        raise ValueError(
+            f"The group {group} you provided is not a key of .obs attribute."
+        )
     else:
         clusters = adata.obs[group]
 
@@ -420,7 +435,9 @@ def fate_bias(
     fate_key = "fate_" + basis if basis is not None else "fate"
 
     if basis_key not in adata.obsm.keys():
-        raise ValueError(f"The basis {basis_key} you provided is not a key of .obsm attribute.")
+        raise ValueError(
+            f"The basis {basis_key} you provided is not a key of .obsm attribute."
+        )
     if fate_key not in adata.uns.keys():
         raise ValueError(
             f"The {fate_key} key is not existed in the .uns attribute of the adata object. You need to run"
@@ -442,30 +459,47 @@ def fate_bias(
         from pynndescent import NNDescent
 
         nbrs = NNDescent(
-            X, metric=metric, metric_kwds=metric_kwds, n_neighbors=30, n_jobs=cores, random_state=seed, **kwargs
+            X,
+            metric=metric,
+            metric_kwds=metric_kwds,
+            n_neighbors=30,
+            n_jobs=cores,
+            random_state=seed,
+            **kwargs,
         )
         knn, distances = nbrs.query(X, k=30)
     else:
         alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
-        nbrs = NearestNeighbors(n_neighbors=30, algorithm=alg, n_jobs=cores).fit(X)
+        nbrs = NearestNeighbors(
+            n_neighbors=30, algorithm=alg, n_jobs=cores
+        ).fit(X)
         distances, knn = nbrs.kneighbors(X)
 
     median_dist = np.median(distances[:, 1])
 
     pred_dict = {}
-    cell_predictions, cell_indx = adata.uns[fate_key]["prediction"], adata.uns[fate_key]["init_cells"]
+    cell_predictions, cell_indx = (
+        adata.uns[fate_key]["prediction"],
+        adata.uns[fate_key]["init_cells"],
+    )
     t = adata.uns[fate_key]["t"]
     confidence = np.zeros(len(t))
 
-    for i, prediction in tqdm(enumerate(cell_predictions), desc="calculating fate distributions"):
+    for i, prediction in tqdm(
+        enumerate(cell_predictions), desc="calculating fate distributions"
+    ):
         cur_t, n_steps = t[i], len(t[i])
 
         # ensure to identify sink where the speed is very slow if inds is not provided.
         # if inds is the percentage, use the last percentage of steps to check for cell fate bias.
         # otherwise inds need to be a list.
         if inds is None:
-            avg_speed = np.array([np.linalg.norm(i) for i in np.diff(prediction, 1).T]) / np.diff(cur_t)
-            sink_checker = np.where(avg_speed[::-1] > np.percentile(avg_speed, speed_percentile))[0]
+            avg_speed = np.array(
+                [np.linalg.norm(i) for i in np.diff(prediction, 1).T]
+            ) / np.diff(cur_t)
+            sink_checker = np.where(
+                avg_speed[::-1] > np.percentile(avg_speed, speed_percentile)
+            )[0]
             indices = np.arange(n_steps - max(min(sink_checker), 10), n_steps)
         elif inds is float:
             indices = np.arange(int(n_steps - inds * n_steps), n_steps)
@@ -480,7 +514,9 @@ def fate_bias(
             # if final steps too far away from observed cells, ignore them
         walk_back_steps = 0
         while True:
-            is_dist_larger_than_threshold = distances.flatten() < dist_threshold * median_dist
+            is_dist_larger_than_threshold = (
+                distances.flatten() < dist_threshold * median_dist
+            )
             if any(is_dist_larger_than_threshold):
 
                 # let us diffuse one step further to identify cells from terminal cell types in case
@@ -490,7 +526,9 @@ def fate_bias(
                 else:
                     _, knn = nbrs.kneighbors(X[knn.flatten(), :])
 
-                fate_prob = clusters[knn.flatten()].value_counts() / len(knn.flatten())
+                fate_prob = clusters[knn.flatten()].value_counts() / len(
+                    knn.flatten()
+                )
                 if source_groups is not None:
                     source_p = fate_prob[source_groups].sum()
                     if 1 > source_p > 0:
@@ -499,22 +537,28 @@ def fate_bias(
 
                 pred_dict[i] = fate_prob
 
-                confidence[i] = 1 - (sum(~is_dist_larger_than_threshold) + walk_back_steps) / (
-                    len(is_dist_larger_than_threshold) + walk_back_steps
-                )
+                confidence[i] = 1 - (
+                    sum(~is_dist_larger_than_threshold) + walk_back_steps
+                ) / (len(is_dist_larger_than_threshold) + walk_back_steps)
 
                 break
             else:
                 walk_back_steps += 1
 
                 if any(indices - 1 < 0):
-                    pred_dict[i] = clusters[knn.flatten()].value_counts() * np.nan
+                    pred_dict[i] = (
+                        clusters[knn.flatten()].value_counts() * np.nan
+                    )
                     break
 
                 if hasattr(nbrs, "query"):
-                    knn, distances = nbrs.query(prediction[:, indices - 1].T, k=30)
+                    knn, distances = nbrs.query(
+                        prediction[:, indices - 1].T, k=30
+                    )
                 else:
-                    distances, knn = nbrs.kneighbors(prediction[:, indices - 1].T)
+                    distances, knn = nbrs.kneighbors(
+                        prediction[:, indices - 1].T
+                    )
 
                 knn, distances = knn[:, 0], distances[:, 0]
                 indices = indices - 1

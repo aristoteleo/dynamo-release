@@ -41,4 +41,3 @@ def copy_adata(adata, logger=None):
     )
     data = adata.copy()
     return data
-

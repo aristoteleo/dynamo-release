@@ -1,7 +1,9 @@
 import numpy as np
 
 
-def directMethod(prop_fcn, update_fcn, tspan, C0, record_skip_steps=0, record_max_length=1e5):
+def directMethod(
+    prop_fcn, update_fcn, tspan, C0, record_skip_steps=0, record_max_length=1e5
+):
     retC = np.zeros((len(C0), int(record_max_length)), np.float64)
     retT = np.zeros(int(record_max_length), np.float64)
     c = C0.flatten()
@@ -57,7 +59,9 @@ def prop_slam(C, a, b, la, aa, ai, si, be, ga):
     return prop
 
 
-def simulate_Gillespie(a, b, la, aa, ai, si, be, ga, C0, t_span, n_traj, report=False):
+def simulate_Gillespie(
+    a, b, la, aa, ai, si, be, ga, C0, t_span, n_traj, report=False
+):
     # species
     s = 0
     u_l = 1
@@ -110,10 +114,14 @@ def prop_2bifurgenes(C, a1, b1, a2, b2, K, n, be1, ga1, be2, ga2):
 
     # propensities
     prop = np.zeros(6)
-    prop[0] = a1 * s1 ** n / (K ** n + s1 ** n) + b1 * K ** n / (K ** n + s2 ** n)  # 0 -> u1
+    prop[0] = a1 * s1 ** n / (K ** n + s1 ** n) + b1 * K ** n / (
+        K ** n + s2 ** n
+    )  # 0 -> u1
     prop[1] = be1 * u1  # u1 -> s1
     prop[2] = ga1 * s1  # s1 -> 0
-    prop[3] = a2 * s2 ** n / (K ** n + s2 ** n) + b2 * K ** n / (K ** n + s1 ** n)  # 0 -> u2
+    prop[3] = a2 * s2 ** n / (K ** n + s2 ** n) + b2 * K ** n / (
+        K ** n + s1 ** n
+    )  # 0 -> u2
     prop[4] = be2 * u2  # u2 -> s2
     prop[5] = ga2 * s2  # s2 -> 0
 
@@ -141,7 +149,9 @@ def stoich_2bifurgenes():
     return stoich
 
 
-def simulate_2bifurgenes(a1, b1, a2, b2, K, n, be1, ga1, be2, ga2, C0, t_span, n_traj, report=False):
+def simulate_2bifurgenes(
+    a1, b1, a2, b2, K, n, be1, ga1, be2, ga2, C0, t_span, n_traj, report=False
+):
     stoich = stoich_2bifurgenes()
     update_func = lambda C, mu: C + stoich[mu, :]
 
@@ -150,7 +160,9 @@ def simulate_2bifurgenes(a1, b1, a2, b2, K, n, be1, ga1, be2, ga2, C0, t_span, n
 
     for i in range(n_traj):
         T, C = directMethod(
-            lambda C: prop_2bifurgenes(C, a1, b1, a2, b2, K, n, be1, ga1, be2, ga2),
+            lambda C: prop_2bifurgenes(
+                C, a1, b1, a2, b2, K, n, be1, ga1, be2, ga2
+            ),
             update_func,
             t_span,
             C0,
@@ -211,7 +223,9 @@ def convert_nosplice(trajs_T, trajs_C):
     return trajs_C_nosplice
 
 
-def simulate_multigene(a, b, la, aa, ai, si, be, ga, C0, t_span, n_traj, t_eval, report=False):
+def simulate_multigene(
+    a, b, la, aa, ai, si, be, ga, C0, t_span, n_traj, t_eval, report=False
+):
     n_genes = len(a)
     ret = []
     for i in range(n_genes):

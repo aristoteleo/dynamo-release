@@ -78,7 +78,11 @@ def reduceDimension(
             f"set enforce=True to re-performing dimension reduction."
         )
 
-    embedding_key = "X_" + reduction_method if layer is None else layer + "_" + reduction_method
+    embedding_key = (
+        "X_" + reduction_method
+        if layer is None
+        else layer + "_" + reduction_method
+    )
     neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
 
     if enforce or not has_basis:
