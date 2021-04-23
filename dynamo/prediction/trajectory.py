@@ -3,8 +3,12 @@ from scipy.interpolate import interp1d
 from ..vectorfield.utils import normalize_vectors, angle
 from .utils import arclength_sampling, remove_redundant_points_trajectory
 
+
 class Trajectory:
     def __init__(self, X, t=None) -> None:
+        """
+        Base class for handling trajectory interpolation, resampling, etc.
+        """
         self.X = X
         self.t = t
 
@@ -28,15 +32,19 @@ class Trajectory:
     def calc_curvature(self):
         tvec = self.calc_tangent(normalize=False)
         kappa = np.zeros(self.X.shape[0])
-        for i in range(1, self.X.shape[0]-1):
+        for i in range(1, self.X.shape[0] - 1):
             # ref: http://www.cs.jhu.edu/~misha/Fall09/1-curves.pdf
-            kappa[i] = angle(tvec[i-1], tvec[i]) / (np.linalg.norm(tvec[i-1]/2) + np.linalg.norm(tvec[i]/2))
+            kappa[i] = angle(tvec[i - 1], tvec[i]) / (
+                np.linalg.norm(tvec[i - 1] / 2) + np.linalg.norm(tvec[i] / 2)
+            )
         return kappa
 
     def resample(self, n_points, tol=1e-4, overwrite=True):
         # remove redundant points
         if tol is not None:
-            X, arclen, discard = remove_redundant_points_trajectory(self.X, tol=tol, output_discard=True)
+            X, arclen, discard = remove_redundant_points_trajectory(
+                self.X, tol=tol, output_discard=True
+            )
             if self.t is not None:
                 t = np.array(self.t[~discard], copy=True)
             else:
@@ -47,24 +55,32 @@ class Trajectory:
             arclen = self.calc_arclength()
 
         # resample using the arclength sampling
-        ret = arclength_sampling(X, arclen/n_points, t=t)
+        ret = arclength_sampling(X, arclen / n_points, t=t)
         X = ret[0]
-        if t is not None: t = ret[2]
+        if t is not None:
+            t = ret[2]
 
-        if overwrite: self.X, self.t = X, t
-        
+        if overwrite:
+            self.X, self.t = X, t
+
         return X, t
 
     def interpolate(self, t, **interp_kwargs):
         if self.t is None:
-            raise Exception('`self.t` is `None`, which is needed for interpolation.')
+            raise Exception(
+                "`self.t` is `None`, which is needed for interpolation."
+            )
         return interp1d(self.t, self.X, axis=0, **interp_kwargs)(t)
 
     def integrate(self, func):
-        ''' Calculate the integral of func along the curve. The first and last points are omitted. '''
+        """ Calculate the integral of func along the curve. The first and last points are omitted. """
         F = np.zeros(func(self.X[0]).shape)
         tvec = self.calc_tangent(normalize=False)
-        for i in range(1, self.X.shape[0]-1):
+        for i in range(1, self.X.shape[0] - 1):
             # ref: http://www.cs.jhu.edu/~misha/Fall09/1-curves.pdf
-            F += func(self.X[i]) * (np.linalg.norm(tvec[i-1]) + np.linalg.norm(tvec[i])) / 2
+            F += (
+                func(self.X[i])
+                * (np.linalg.norm(tvec[i - 1]) + np.linalg.norm(tvec[i]))
+                / 2
+            )
         return F
