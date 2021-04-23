@@ -481,7 +481,7 @@ def cluster_community(
     use_weight=True,
     no_community_label=-1,
     layer=None,
-    conn_type="distances",
+    conn_type="connectivities",
     obsm_key=None,
     cell_subsets=None,
     cluster_and_subsets: list = None,
@@ -535,9 +535,9 @@ def cluster_community(
     if adj_matrix_key is None:
         if layer is None:
             if obsm_key is None:
-                adj_matrix_key = "distances"
+                adj_matrix_key = "connectivities"
             else:
-                adj_matrix_key = obsm_key + "_" + "distances"
+                adj_matrix_key = obsm_key + "_" + "connectivities"
         else:
             adj_matrix_key = layer + "_" + conn_type
 

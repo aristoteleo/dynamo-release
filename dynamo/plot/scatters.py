@@ -7,8 +7,13 @@ from pandas.api.types import is_categorical_dtype
 import anndata
 from numbers import Number
 
+import matplotlib
 import matplotlib.colors
 import matplotlib.cm
+from matplotlib.axes import Axes
+from anndata import AnnData
+from typing import Union, Optional
+
 
 from ..configuration import _themes, set_figure_params, reset_rcParams
 from .utils import (
@@ -43,43 +48,43 @@ docstrings = DocstringProcessor()
 
 @docstrings.get_sectionsf("scatters")
 def scatters(
-    adata,
-    basis="umap",
-    x=0,
-    y=1,
-    color="ntr",
-    layer="X",
-    highlights=None,
-    labels=None,
-    values=None,
-    theme=None,
-    cmap=None,
-    color_key=None,
-    color_key_cmap=None,
-    background=None,
-    ncols=4,
-    pointsize=None,
-    figsize=(6, 4),
+    adata: AnnData,
+    basis: str = "umap",
+    x: int = 0,
+    y: int = 1,
+    color: str = "ntr",
+    layer: str = "X",
+    highlights: Optional[list] = None,
+    labels: Optional[list] = None,
+    values: Optional[list] = None,
+    theme: Optional[str] = None,
+    cmap: Optional[str] = None,
+    color_key: Union[dict, list] = None,
+    color_key_cmap: Optional[str] = None,
+    background: Optional[str] = None,
+    ncols: int = 4,
+    pointsize: Union[None, float] = None,
+    figsize: tuple = (6, 4),
     show_legend="on data",
-    use_smoothed=True,
-    aggregate=None,
-    show_arrowed_spines=False,
-    ax=None,
-    sort="raw",
-    save_show_or_return="show",
-    save_kwargs={},
-    return_all=False,
-    add_gamma_fit=False,
-    frontier=False,
-    contour=False,
-    ccmap=None,
-    calpha=2.3,
-    sym_c=False,
-    smooth=False,
-    dpi=100,
-    inset_dict={},
+    use_smoothed: bool = True,
+    aggregate: Optional[str] = None,
+    show_arrowed_spines: bool = False,
+    ax: Optional[matplotlib.axes.Axes] = None,
+    sort: str = "raw",
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
+    return_all: bool = False,
+    add_gamma_fit: bool = False,
+    frontier: bool = False,
+    contour: bool = False,
+    ccmap: Optional[str] = None,
+    calpha: float = 2.3,
+    sym_c: bool = False,
+    smooth: bool = False,
+    dpi: int = 100,
+    inset_dict: dict = {},
     **kwargs,
-):
+) -> Union[None, Axes]:
     """Plot an embedding as points. Currently this only works
     for 2D embeddings. While there are many optional parameters
     to further control and tailor the plotting, you need only
@@ -152,7 +157,7 @@ def scatters(
             the label. Note that if theme
             is passed then this value will be overridden by the
             corresponding option of the theme.
-        color_key_cmap: string (optional, default 'Spectral')
+        color_key_cmap:
             The name of a matplotlib colormap to use for categorical coloring.
             If an explicit ``color_key`` is not given a color mapping for
             categories can be generated from the label list and selecting
@@ -248,8 +253,8 @@ def scatters(
 
     Returns
     -------
-        result: matplotlib axis
-            The result is a matplotlib axis with the relevant plot displayed.
+        result:
+            Either None or a matplotlib axis with the relevant plot displayed.
             If you are using a notbooks and have ``%matplotlib inline`` set
             then this will simply display inline.
     """
@@ -271,10 +276,16 @@ def scatters(
         _background = background
         # if save_show_or_return != 'save': set_figure_params('dynamo', background=_background)
 
-    x, y = [x] if type(x) in [int, str] else x, [y] if type(y) in [
-        int,
-        str,
-    ] else y
+    x, y = (
+        [x] if type(x) in [int, str] else x,
+        [y]
+        if type(y)
+        in [
+            int,
+            str,
+        ]
+        else y,
+    )
     if all([is_gene_name(adata, i) for i in basis]):
         if x[0] not in [
             "M_s",
@@ -365,8 +376,9 @@ def scatters(
 
     font_color = _select_font_color(_background)
 
-    total_panels, ncols = n_c * n_l * n_b * n_x * n_y, min(
-        max([n_c, n_l, n_b, n_x, n_y]), ncols
+    total_panels, ncols = (
+        n_c * n_l * n_b * n_x * n_y,
+        min(max([n_c, n_l, n_b, n_x, n_y]), ncols),
     )
     nrow, ncol = int(np.ceil(total_panels / ncols)), ncols
     if figsize is None:
