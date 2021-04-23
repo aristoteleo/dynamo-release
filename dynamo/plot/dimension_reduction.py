@@ -1,5 +1,9 @@
 """plotting utilities that are built based on scSLAM-seq paper"""
 
+from anndata import AnnData
+from typing import Optional, Union
+
+
 from .scatters import scatters
 from .scatters import docstrings
 
@@ -7,7 +11,7 @@ docstrings.delete_params("scatters.parameters", "adata", "basis")
 
 
 @docstrings.with_indent(4)
-def pca(adata, *args, **kwargs):
+def pca(adata: AnnData, *args, **kwargs):
     """\
     Scatter plot with pca basis.
 
@@ -37,7 +41,7 @@ def pca(adata, *args, **kwargs):
 
 
 @docstrings.with_indent(4)
-def umap(adata, *args, **kwargs):
+def umap(adata: AnnData, *args, **kwargs):
     """\
     Scatter plot with umap basis.
 
@@ -67,7 +71,7 @@ def umap(adata, *args, **kwargs):
 
 
 @docstrings.with_indent(4)
-def trimap(adata, *args, **kwargs):
+def trimap(adata: AnnData, *args, **kwargs):
     """\
     Scatter plot with trimap basis.
 
@@ -96,7 +100,7 @@ def trimap(adata, *args, **kwargs):
 
 
 @docstrings.with_indent(4)
-def tsne(adata, *args, **kwargs):
+def tsne(adata: AnnData, *args, **kwargs):
     """\
     Scatter plot with tsne basis.
 
