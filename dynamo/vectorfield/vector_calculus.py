@@ -225,10 +225,6 @@ def jacobian(
             dimensions n_obs x n_regulators x n_effectors.
     """
 
-    regulators, effectors = (
-        list(np.unique(regulators)) if regulators is not None else None,
-        list(np.unique(effectors)) if effectors is not None else None,
-    )
     if vector_field_class is None:
         vf_dict = get_vf_dict(adata, basis=basis)
         if "method" not in vf_dict.keys():
@@ -275,6 +271,10 @@ def jacobian(
                 effectors = adata.var.index[adata.var[effectors]]
             else:
                 effectors = [effectors]
+        
+        regulators = np.unique(regulators)
+        effectors = np.unique(effectors)
+
         var_df = adata[:, adata.var.use_for_dynamics].var
         regulators = var_df.index.intersection(regulators)
         effectors = var_df.index.intersection(effectors)
@@ -381,7 +381,7 @@ def sensitivity(
             The method that will be used for calculating Jacobian, either `'analytical'` or `'numerical'`. `'analytical'`
             method uses the analytical expressions for calculating Jacobian while `'numerical'` method uses numdifftools,
             a numerical differentiation tool, for computing Jacobian. `'analytical'` method is much more efficient.
-        projection_method: str (dfault: 'from_jacobian')
+        projection_method: str (default: 'from_jacobian')
             The method that will be used to project back to original gene expression space for calculating gene-wise
             sensitivity matrix:
                 (1) 'from_jacobian': first calculate jacobian matrix and then calculate sensitivity matrix. This method
