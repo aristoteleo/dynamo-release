@@ -7,22 +7,17 @@ from pandas.api.types import is_categorical_dtype
 import anndata
 from numbers import Number
 
-import matplotlib
-import matplotlib.colors
+
 import matplotlib.cm
 from matplotlib.axes import Axes
 from anndata import AnnData
 from typing import Union, Optional
 
 
-from ..configuration import _themes, set_figure_params, reset_rcParams
+from ..configuration import _themes, reset_rcParams
 from .utils import (
-    despline,
     despline_all,
     deaxis_all,
-    set_spine_linewidth,
-    scatter_with_colorbar,
-    scatter_with_legend,
     _select_font_color,
     arrowed_spines,
     is_gene_name,
@@ -36,7 +31,6 @@ from .utils import (
 from ..tools.utils import (
     update_dict,
     get_mapper,
-    log1p_,
     flatten,
 )
 from ..tools.moments import calc_1nd_moment
@@ -111,7 +105,8 @@ def scatters(
         layer: `str` (default: `X`)
             The layer of data to use for the scatter plot.
         highlights: `list` (default: None)
-            Which color group will be highlighted. if highligts is a list of lists - each list is relate to each color element.
+            Which color group will be highlighted. if highligts is a list of lists - each list is relate to each color
+            element.
         labels: array, shape (n_samples,) (optional, default None)
             An array of labels (assumed integer or categorical),
             one for each data sample.
@@ -195,31 +190,33 @@ def scatters(
             The method to reorder data so that high values points will be on top of background points. Can be one of
             {'raw', 'abs', 'neg'}, i.e. sorted by raw data, sort by absolute values or sort by negative values.
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
-            Whether to save, show or return the figure.
+            Whether to save, show or return the figure. If "both", it will save and plot the figure at the same time. If
+            "all", the figure will be saved, displayed and the associated axis and other object will be return.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-            according to your needs.
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            save_fig function will use the {"path": None, "prefix": 'scatter', "dpi": None, "ext": 'pdf', "transparent":
+            True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that
+            properly modify those keys according to your needs.
         return_all: `bool` (default: `False`)
             Whether to return all the scatter related variables. Default is False.
         add_gamma_fit: `bool` (default: `False`)
-            Whether to add the line of the gamma fitting. This will automatically turn on if `basis` points to gene names
-            and those genes have went through gamma fitting.
+            Whether to add the line of the gamma fitting. This will automatically turn on if `basis` points to gene
+            names and those genes have went through gamma fitting.
         frontier: `bool` (default: `False`)
-            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show area
-            of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
-            cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
-            https://science.sciencemag.org/content/367/6482/1151. If `contour` is set  to be True, `frontier` will be
-            ignored as `contour` also add an outlier for data points.
+            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show
+            area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips &
+            tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq
+            paper: https://science.sciencemag.org/content/367/6482/1151. If `contour` is set  to be True, `frontier`
+            will be ignored as `contour` also add an outlier for data points.
         contour: `bool` (default: `False`)
-            Whether to add an countor on top of scatter plots. We use `tricontourf` to plot contour for non-gridded data.
+            Whether to add an countor on top of scatter plots. We use tricontourf to plot contour for non-gridded data.
             The shapely package was used to create a polygon of the concave hull of the scatters. With the polygon we
             then check if the mean of the triangulated points are within the polygon and use this as our condition to
             form the mask to create the contour. We also add the polygon shape as a frontier of the data point (similar
-            to when setting `frontier = True`). When the color of the data points is continuous, we will use the same cmap
-            as for the scatter points by default, when color is categorical, no contour will be drawn but just the
-            polygon. cmap can be set with `ccmap` argument. See below. This has recently changed to use seaborn's kdeplot.
+            to when setting `frontier = True`). When the color of the data points is continuous, we will use the same
+            cmap as for the scatter points by default, when color is categorical, no contour will be drawn but just the
+            polygon. cmap can be set with `ccmap` argument. See below. This has recently changed to use seaborn's
+            kdeplot.
         ccmap: `str` or `None` (default: `None`)
             The name of a matplotlib colormap to use for coloring or shading points the contour. See above.
         calpha: `float` (default: `2.3`)
@@ -229,26 +226,32 @@ def scatters(
             Whether do you want to make the limits of continuous color to be symmetric, normally this should be used for
             plotting velocity, jacobian, curl, divergence or other types of data with both positive or negative values.
         smooth: `bool` or `int` (default: `False`)
-            Whether do you want to further smooth data and how much smoothing do you want. If it is `False`, no smoothing
-            will be applied. If `True`, smoothing based on one step diffusion of connectivity matrix (`.uns['moment_cnn']
-            will be applied. If a number larger than 1, smoothing will based on `smooth` steps of diffusion.
+            Whether do you want to further smooth data and how much smoothing do you want. If it is `False`, no
+            smoothing will be applied. If `True`, smoothing based on one step diffusion of connectivity matrix
+            (`.uns['moment_cnn'] will be applied. If a number larger than 1, smoothing will based on `smooth` steps of
+            diffusion.
         dpi: `float`, (default: 100.0)
             The resolution of the figure in dots-per-inch. Dots per inches (dpi) determines how many pixels the figure
             comprises. dpi is different from ppi or points per inches. Note that most elements like lines, markers,
             texts have a size given in points so you can convert the points to inches. Matplotlib figures use Points per
-            inch (ppi) of 72. A line with thickness 1 point will be 1./72. inch wide. A text with fontsize 12 points will
-            be 12./72. inch heigh. Of course if you change the figure size in inches, points will not change, so a larger
-            figure in inches still has the same size of the elements.Changing the figure size is thus like taking a piece
-            of paper of a different size. Doing so, would of course not change the width of the line drawn with the same
-            pen. On the other hand, changing the dpi scales those elements. At 72 dpi, a line of 1 point size is one
-            pixel strong. At 144 dpi, this line is 2 pixels strong. A larger dpi will therefore act like a magnifying
-            glass. All elements are scaled by the magnifying power of the lens. see more details at answer 2 by
-            @ImportanceOfBeingErnest: https://stackoverflow.com/questions/47633546/relationship-between-dpi-and-figure-size
+            inch (ppi) of 72. A line with thickness 1 point will be 1./72. inch wide. A text with fontsize 12 points
+            will be 12./72. inch heigh. Of course if you change the figure size in inches, points will not change, so a
+            larger figure in inches still has the same size of the elements.Changing the figure size is thus like taking
+            a piece of paper of a different size. Doing so, would of course not change the width of the line drawn with
+            the same pen. On the other hand, changing the dpi scales those elements. At 72 dpi, a line of 1 point size
+            is one pixel strong. At 144 dpi, this line is 2 pixels strong. A larger dpi will therefore act like a
+            magnifying glass. All elements are scaled by the magnifying power of the lens. see more details at answer 2
+            by @ImportanceOfBeingErnest:
+            https://stackoverflow.com/questions/47633546/relationship-between-dpi-and-figure-size
         inset_dict: `dict` (default: {})
             A dictionary of parameters in inset_ax. Example, something like {"width": "5%", "height": "50%", "loc":
             'lower left', "bbox_to_anchor": (0.85, 0.90, 0.145, 0.145), "bbox_transform": ax.transAxes, "borderpad": 0}
             See more details at https://matplotlib.org/api/_as_gen/mpl_toolkits.axes_grid1.inset_locator.inset_axes.html
-            or https://stackoverflow.com/questions/39803385/what-does-a-4-element-tuple-argument-for-bbox-to-anchor-mean-in-matplotlib
+            or https://stackoverflow.com/questions/39803385/what-does-a-4-element-tuple-argument-for-bbox-to-anchor-mean
+            -in-matplotlib
+        marker: `str` (default: None)
+            The marker style. marker can be either an instance of the class or the text shorthand for a particular
+            marker. See matplotlib.markers for more information about marker styles.
         kwargs:
             Additional arguments passed to plt.scatters.
 
@@ -286,7 +289,7 @@ def scatters(
         else y,
     )
     if all([is_gene_name(adata, i) for i in basis]):
-        if x[0] not in ["M_s", "X_spliced", "M_t", "X_total", "spliced", "total",] and y[0] not in [
+        if x[0] not in ["M_s", "X_spliced", "M_t", "X_total", "spliced", "total"] and y[0] not in [
             "M_u",
             "X_unspliced",
             "M_n",
@@ -308,10 +311,10 @@ def scatters(
                 x, y = ["total"], ["new"]
             else:
                 raise ValueError(
-                    f"your adata oject is corrupted. Please make sure it has at least one of the following "
-                    f"pair of layers:"
-                    f"'M_s', 'X_spliced', 'M_t', 'X_total', 'spliced', 'total' and "
-                    f"'M_u', 'X_unspliced', 'M_n', 'X_new', 'unspliced', 'new'. "
+                    "your adata oject is corrupted. Please make sure it has at least one of the following "
+                    "pair of layers:"
+                    "'M_s', 'X_spliced', 'M_t', 'X_total', 'spliced', 'total' and "
+                    "'M_u', 'X_unspliced', 'M_n', 'X_new', 'unspliced', 'new'. "
                 )
 
     if use_smoothed:
@@ -330,9 +333,9 @@ def scatters(
         1 if layer is None else len(layer),
         1 if basis is None else len(basis),
         1 if x is None else 1 if type(x) in [anndata._core.views.ArrayView, np.ndarray] else len(x),
-        ## check whether it is an array
+        # check whether it is an array
         1 if y is None else 1 if type(y) in [anndata._core.views.ArrayView, np.ndarray] else len(y),
-        ## check whether it is an array
+        # check whether it is an array
     )
 
     point_size = (
@@ -483,7 +486,7 @@ def scatters(
                         # points = points.loc[points.iloc[:, 0] > 0, :]
                         points.columns = [cur_x, cur_y]
                         cur_title = cur_b
-                    elif type(cur_x) in [anndata._core.views.ArrayView, np.ndarray,] and type(cur_y) in [
+                    elif type(cur_x) in [anndata._core.views.ArrayView, np.ndarray] and type(cur_y) in [
                         anndata._core.views.ArrayView,
                         np.ndarray,
                     ]:
@@ -661,10 +664,10 @@ def scatters(
                             )
                         else:
                             raise Exception(
-                                "adata does not seem to have velocity_gamma column. Velocity estimation is required before "
-                                "running this function."
+                                "adata does not seem to have velocity_gamma column. Velocity estimation is required "
+                                "before running this function."
                             )
-    if save_show_or_return == "save":
+    if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
             "prefix": "scatters",
@@ -679,7 +682,7 @@ def scatters(
         save_fig(**s_kwargs)
         if background is not None:
             reset_rcParams()
-    elif save_show_or_return == "show":
+    elif save_show_or_return in ["show", "both", "all"]:
         if show_legend:
             plt.subplots_adjust(right=0.85)
 
@@ -690,7 +693,7 @@ def scatters(
         plt.show()
         if background is not None:
             reset_rcParams()
-    elif save_show_or_return == "return":
+    elif save_show_or_return in ["return", "all"]:
         if background is not None:
             reset_rcParams()
 

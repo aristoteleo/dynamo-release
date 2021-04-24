@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.sparse import issparse, csr_matrix
 from anndata import AnnData
-from typing import Union, Optional
+from typing import Optional
 from matplotlib.axes import Axes
 
 from ..preprocessing.preprocess import topTable
@@ -33,10 +33,10 @@ def basic_stats(
     save_show_or_return: {'show', 'save', 'return'} (default: `show`)
         Whether to save, show or return the figure.
     save_kwargs: `dict` (default: `{}`)
-        A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-        will use the {"path": None, "prefix": 'basic_stats', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-        True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-        according to your needs.
+        A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig
+        function will use the {"path": None, "prefix": 'basic_stats', "dpi": None, "ext": 'pdf', "transparent": True,
+        "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify
+        those keys according to your needs.
 
     Returns
     -------
@@ -144,10 +144,10 @@ def show_fraction(
     save_show_or_return: {'show', 'save', 'return'} (default: `show`)
         Whether to save, show or return the figure.
     save_kwargs: `dict` (default: `{}`)
-        A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-        will use the {"path": None, "prefix": 'show_fraction', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-        True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-        according to your needs.
+        A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig
+        function will use the {"path": None, "prefix": 'show_fraction', "dpi": None, "ext": 'pdf', "transparent": True,
+        "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify
+        those keys according to your needs.
 
     Returns
     -------
@@ -375,8 +375,8 @@ def variance_explained(
         adata: :class:`~anndata.AnnData`
         threshold: `float` (default: `0.002`)
             The threshold for the second derivative of the cumulative sum of the variance for each principal component.
-            This threshold is used to determine the number of principal component used for downstream non-linear dimension
-            reduction.
+            This threshold is used to determine the number of principal component used for downstream non-linear
+            dimension reduction.
         n_pcs: `int` (default: `None`)
             Number of principal components.
         figsize: `string` (default: (4, 3))
@@ -384,10 +384,10 @@ def variance_explained(
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'variance_explained', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-            according to your needs.
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            save_fig function will use the {"path": None, "prefix": 'variance_explained', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+            dictionary that properly modify those keys according to your needs.
 
     Returns
     -------
@@ -450,10 +450,10 @@ def feature_genes(
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'feature_genes', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-            according to your needs.
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            save_fig function will use the {"path": None, "prefix": 'feature_genes', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+            dictionary that properly modify those keys according to your needs.
 
     Returns
     -------
@@ -588,8 +588,8 @@ def exp_by_groups(
 ):
     """Plot the (labeled) expression values of genes across different groups (time points).
 
-    This function can be used as a sanity check about the labeled species to see whether they increase or decrease across
-    time for a kinetic or degradation experiment, etc.
+    This function can be used as a sanity check about the labeled species to see whether they increase or decrease
+    across time for a kinetic or degradation experiment, etc.
 
     Parameters
     ----------
@@ -599,8 +599,9 @@ def exp_by_groups(
             The list of genes that you want to plot the gene expression.
         group: `string` (default: None)
             Which group information to plot aganist (as elements on x-axis). Default is None, or no groups will be used.
-            Normally you should supply the column that indicates the time related to the labeling experiment. For example,
-            it can be either the labeling time for a kinetic experiment or the chase time for a degradation experiment.
+            Normally you should supply the column that indicates the time related to the labeling experiment. For
+            example, it can be either the labeling time for a kinetic experiment or the chase time for a degradation
+            experiment.
         use_ratio: `bool` (default: False)
             Whether to plot the fraction of expression (for example NTR, new to total ratio) over groups.
         use_smoothed: `bool` (default: 'True')
@@ -616,10 +617,10 @@ def exp_by_groups(
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'exp_by_groups', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-            according to your needs.
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            save_fig function will use the {"path": None, "prefix": 'exp_by_groups', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+            dictionary that properly modify those keys according to your needs.
 
     Returns
     -------
@@ -631,7 +632,7 @@ def exp_by_groups(
 
     valid_genes = adata.var_names.intersection(genes)
     if len(valid_genes) == 0:
-        raise ValueError(f"The adata object doesn't include any gene from the list you provided!")
+        raise ValueError("The adata object doesn't include any gene from the list you provided!")
     if group is not None and group not in adata.obs.keys():
         raise ValueError(f"The group {group} is not existed in your adata object!")
 
@@ -894,7 +895,7 @@ def highest_frac_genes(
             "path": save_path,
             "prefix": "plot_highest_gene",
             "dpi": None,
-            "ext": "png",
+            "ext": "pdf",
             "transparent": True,
             "close": True,
             "verbose": True,
