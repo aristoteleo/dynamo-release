@@ -10,6 +10,11 @@ from test_utils import *
 logger = LoggerManager.get_main_logger()
 
 
+@pytest.fixture
+def adata():
+    return gen_or_read_zebrafish_data()
+
+
 def test_simple_cluster_community_adata(adata):
     dyn.tl.louvain(adata)
     dyn.tl.leiden(adata)
@@ -79,14 +84,7 @@ def test_leiden_membership_input(adata):
 
 
 if __name__ == "__main__":
-    # generate data if needed
-    if not os.path.exists(test_zebrafish_data_path):
-        print("generating test data...")
-        gen_zebrafish_test_data()
-
-    print("reading test data...")
-    # To-do: use a fixture in future
-    adata = dyn.read_h5ad(test_zebrafish_data_path)
+    adata = gen_or_read_zebrafish_data()
     print("tests begin...")
 
     ######### testing begins here #########
