@@ -15,7 +15,7 @@ def test_highest_frac_genes_plot(adata, is_X_sparse=True):
     dyn.pl.highest_frac_genes(
         adata,
         log=False,
-        save_return_or_show="save",
+        show=True,
         save_path="test_simple_highest_frac_genes.png",
     )
 
@@ -25,7 +25,10 @@ def test_highest_frac_genes_plot(adata, is_X_sparse=True):
 
 
 def test_highest_frac_genes_plot_prefix_list(adata, is_X_sparse=True):
+    sample_list = ["MT-", "RPS", "RPL", "MRPS", "MRPL", "ERCC-"]
+    dyn.pl.highest_frac_genes(adata, gene_prefix_list=sample_list)
     dyn.pl.highest_frac_genes(adata, gene_prefix_list=["RPL", "MRPL"])
+
     dyn.pl.highest_frac_genes(adata, gene_prefix_list=["someGenePrefixNotExisting"], show=False)
 
     if is_X_sparse:
@@ -38,6 +41,5 @@ if __name__ == "__main__":
     adata = gen_or_read_zebrafish_data()
 
     # To-do: use a fixture in future
-    adata = dyn.read_h5ad(test_zebrafish_data_path)
     test_highest_frac_genes_plot(adata.copy())
     test_highest_frac_genes_plot_prefix_list(adata.copy())

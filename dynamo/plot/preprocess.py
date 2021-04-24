@@ -10,7 +10,7 @@ from ..preprocessing.utils import get_layer_keys
 from .utils import save_fig
 from ..tools.utils import update_dict, get_mapper
 from ..preprocessing.utils import detect_datatype
-from ..dynamo_logger import main_info, main_critical
+from ..dynamo_logger import main_info, main_critical, main_warning
 
 
 def basic_stats(
@@ -765,6 +765,7 @@ def highest_frac_genes(
     adata: AnnData,
     n_top: int = 30,
     gene_prefix_list: list = None,
+    show_individual_prefix_gene: bool = False,
     show: Optional[bool] = True,
     save_path: str = None,
     ax: Optional[Axes] = None,
@@ -774,6 +775,38 @@ def highest_frac_genes(
     store_key="expr_percent",
     **kwargs,
 ):
+    """[summary]
+
+    Parameters
+    ----------
+    adata : AnnData
+        [description]
+    n_top : int, optional
+        [description], by default 30
+    gene_prefix_list : list, optional
+        A list of gene name prefix, by default None
+    show_individual_prefix_gene: bool, optional
+        [description], by default False
+    show : Optional[bool], optional
+        [description], by default True
+    save_path : str, optional
+        [description], by default None
+    ax : Optional[Axes], optional
+        [description], by default None
+    gene_annotations : Optional[list], optional
+        Annotations for genes, or annotations for gene prefix subsets, by default None
+    gene_annotation_key : str, optional
+        [description], by default "use_for_pca"
+    log : bool, optional
+        [description], by default False
+    store_key : str, optional
+        [description], by default "expr_percent"
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
     import seaborn as sns
     import matplotlib.pyplot as plt
 
@@ -783,27 +816,38 @@ def highest_frac_genes(
     if log:
         ax.set_xscale("log")
 
+    # compute gene percents at each cell row
+    row_sum = adata.X.sum(axis=1).flatten()
+    # get rid of cells that have all zero counts
+    not_all_zero = row_sum != 0
+    adata = adata[not_all_zero, :]
+    row_sum = row_sum[not_all_zero]
+    main_info("%d rows(cells or subsets) are not zero" % np.sum(not_all_zero))
+
     valid_gene_set = set()
+    prefix_to_genes = {}
     if gene_prefix_list is not None:
+        prefix_to_genes = {prefix: [] for prefix in gene_prefix_list}
         for name in adata.var_names:
             for prefix in gene_prefix_list:
                 length = len(prefix)
                 if name[:length] == prefix:
                     valid_gene_set.add(name)
+                    prefix_to_genes[prefix].append(name)
                     break
         if len(valid_gene_set) == 0:
             main_critical("NO VALID GENES FOUND WITH REQUIRED GENE PREFIX LIST, GIVING UP PLOTTING")
             return
-        adata = adata[:, list(valid_gene_set)]
-
-    # compute gene percents at each cell row
-    row_sum = adata.X.sum(axis=1).flatten()
-
-    # get rid of cells that have all zero counts
-    not_all_zero = row_sum != 0
-    adata = adata[not_all_zero, :]
-    row_sum = row_sum[not_all_zero]
-    main_info("%d rows(cells) are not zero" % np.sum(not_all_zero))
+        if not show_individual_prefix_gene:
+            # gathering gene prefix set data
+            df = pd.DataFrame(index=adata.obs.index)
+            for prefix in prefix_to_genes:
+                if len(prefix_to_genes[prefix]) == 0:
+                    main_info("There is no %s gene prefix in adata." % prefix)
+                    continue
+                df[prefix] = adata[:, prefix_to_genes[prefix]].X.sum(axis=1)
+            # adata = adata[:, list(valid_gene_set)]
+            adata = AnnData(X=df)
 
     gene_X_percents = adata.X / row_sum.reshape([-1, 1])
     # compute gene's total percents in the dataset
@@ -824,18 +868,25 @@ def highest_frac_genes(
     )
 
     # draw plots
-    sns.boxplot(data=top_genes_df, orient="h", ax=ax, fliersize=1)
+    sns.boxplot(data=top_genes_df, orient="v", ax=ax, fliersize=1)
     ax.set_xlabel("percents of total counts")
 
-    gene_annotation_labels = adata.var[gene_annotation_key][selected_indices]
-    ax2 = ax.twinx()
-    ax2.set_ylim(ax.get_ylim())
-    ax2.set_yticks(ax.get_yticks())
-    ax2.set_yticklabels(gene_annotation_labels)
-    ax2.set_ylabel(gene_annotation_key)
+    if gene_annotations is None:
+        if gene_annotation_key in adata.var:
+            gene_annotations = adata.var[gene_annotation_key][selected_indices]
+            ax2 = ax.twinx()
+            ax2.set_ylim(ax.get_ylim())
+            ax2.set_yticks(ax.get_yticks())
+
+            ax2.set_yticklabels(gene_annotations)
+            ax2.set_ylabel(gene_annotation_key)
+        else:
+            main_warning(
+                "%s not in adata.var, ignoring the gene annotation key when plotting",
+                indent_level=2,
+            )
 
     if show:
-
         plt.show()
 
     if save_path:
@@ -849,7 +900,7 @@ def highest_frac_genes(
             "verbose": True,
         }
         save_fig(**s_kwargs)
-
+    return ax
     # if save_show_or_return == "save":
     #     s_kwargs = {
     #         "path": save_path,
