@@ -5,8 +5,18 @@ logger = LoggerManager.get_main_logger()
 
 
 def test_highest_frac_genes_plot(adata, is_X_sparse=True):
+    dyn.pl.highest_frac_genes(adata, log=False, save_path="./test_simple_highest_frac_genes.png")
     dyn.pl.highest_frac_genes(
-        adata, log=False, save_path="./test_simple_highest_frac_genes.png"
+        adata,
+        log=False,
+        show=False,
+        save_path="test_simple_highest_frac_genes.png",
+    )
+    dyn.pl.highest_frac_genes(
+        adata,
+        log=False,
+        save_return_or_show="save",
+        save_path="test_simple_highest_frac_genes.png",
     )
 
     if is_X_sparse:
@@ -16,9 +26,7 @@ def test_highest_frac_genes_plot(adata, is_X_sparse=True):
 
 def test_highest_frac_genes_plot_prefix_list(adata, is_X_sparse=True):
     dyn.pl.highest_frac_genes(adata, gene_prefix_list=["RPL", "MRPL"])
-    dyn.pl.highest_frac_genes(
-        adata, gene_prefix_list=["someGenePrefixNotExisting"], show=False
-    )
+    dyn.pl.highest_frac_genes(adata, gene_prefix_list=["someGenePrefixNotExisting"], show=False)
 
     if is_X_sparse:
         adata.X = adata.X.toarray()
