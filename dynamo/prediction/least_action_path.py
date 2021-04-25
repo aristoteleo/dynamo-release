@@ -230,6 +230,8 @@ class LeastActionPath(Trajectory):
     def inverse_transform(self):
         # reverse project back to raw expression space
         exprs = None
+
+        means = 0 if self.means is None else self.means
         if self.PCs is not None and self.PCs.T.shape[0] == self.X.shape[1]:
-            exprs = np.expm1((self.X + self.means) @ self.PCs.T)
+            exprs = np.expm1(self.X @ self.PCs.T + means)
         return exprs
