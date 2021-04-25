@@ -107,7 +107,7 @@ def least_action(
     vf_key="VecFld",
     vecfld=None,
     adj_key="pearson_transition_matrix",
-    n_points=20,
+    n_points=25,
     D=10,
     PCs=None,
 ):

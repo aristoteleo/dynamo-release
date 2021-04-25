@@ -27,6 +27,7 @@ def kinetic_curves(
     c_palette="Set2",
     standard_scale=0,
     traj_ind=0,
+    log=True,
     save_show_or_return="show",
     save_kwargs={},
 ):
@@ -74,6 +75,12 @@ def kinetic_curves(
         traj_ind: `int` (default: 0)
             If the element from the dictionary is a list (obtained from a list of trajectories), the index of trajectory
             that will be selected for visualization.
+        log: `bool` (default: True)
+            Whether to log1p transform your data before data visualization. If expression data is from adata object,
+            it is generally already log1p transformed. When the data is from predicted either from traj simulation or
+            LAP, the data is generally in the original gene expression space and needs to be log1p transformed. Note:
+            when predicted data is not inverse transformed back to original expression space, no transformation will be
+            applied.
         save_show_or_return: {'show', 'save_fig', 'return'} (default: `show`)
             Whether to save_fig, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -102,6 +109,10 @@ def kinetic_curves(
         Color = adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
 
     exprs = exprs.A if issparse(exprs) else exprs
+    if len(set(genes).intersection(valid_genes)) > 0:
+        # by default, expression values are log1p tranformed if using the expression from adata.
+        exprs = np.expm1(exprs) if not log else exprs
+
     if standard_scale is not None:
         exprs = (exprs - np.min(exprs, axis=standard_scale)) / np.ptp(exprs, axis=standard_scale)
 
@@ -195,6 +206,7 @@ def kinetic_heatmap(
     n_convolve=30,
     spaced_num=100,
     traj_ind=0,
+    log=True,
     save_show_or_return="show",
     save_kwargs={},
     **kwargs,
@@ -229,6 +241,12 @@ def kinetic_heatmap(
         traj_ind: `int` (default: 0)
             If the element from the dictionary is a list (obtained from a list of trajectories), the index of trajectory
             that will be selected for visualization.
+        log: `bool` (default: True)
+            Whether to log1p transform your data before data visualization. If expression data is from adata object,
+            it is generally already log1p transformed. When the data is from predicted either from traj simulation or
+            LAP, the data is generally in the original gene expression space and needs to be log1p transformed. Note:
+            when predicted data is not inverse transformed back to original expression space, no transformation will be
+            applied.
         save_show_or_return: {'show', 'save_fig', 'return'} (default: `show`)
             Whether to save_fig, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -255,6 +273,11 @@ def kinetic_heatmap(
     exprs, valid_genes, time = fetch_exprs(adata, basis, layer, genes, tkey, mode, project_back_to_high_dim, traj_ind)
 
     exprs = exprs.A if issparse(exprs) else exprs
+    if mode != "pseudotime":
+        exprs = np.log1p(exprs) if log else exprs
+    if len(set(genes).intersection(valid_genes)) > 0:
+        # by default, expression values are log1p tranformed if using the expression from adata.
+        exprs = np.expm1(exprs) if not log else exprs
 
     if dist_threshold is not None and mode == "vector_field":
         valid_ind = list(np.where(np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold)[0] + 1)

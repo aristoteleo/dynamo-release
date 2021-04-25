@@ -184,7 +184,7 @@ def fate(
         # further reverse project back to raw expression space
         PCs = adata.uns["PCs"].T
         if PCs.shape[0] == exprs.shape[1]:
-            exprs = exprs @ PCs
+            exprs = np.expm1(exprs @ PCs + adata.uns["pca_mean"])
 
         ndim = adata.uns["umap_fit"]["fit"]._raw_data.shape[1]
 
