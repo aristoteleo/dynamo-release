@@ -42,39 +42,42 @@ def kinetic_curves(
         genes: `list`
             The gene names whose gene expression will be faceted.
         mode: `str` (default: `vector_field`)
-            Which data mode will be used, either vector_field or pseudotime. if mode is vector_field, the trajectory predicted by
-            vector field function will be used, otherwise pseudotime trajectory (defined by time argument) will be used.
+            Which data mode will be used, either vector_field, lap or pseudotime. if mode is vector_field, the
+            trajectory predicted by vector field function will be used; if mode is lap, the trajectory predicted by
+            least action path will be used otherwise pseudotime trajectory (defined by time argument) will be used.
             By default `potential` estimated with the diffusion graph built from reconstructed vector field will be used
-            as pseudotime.
+            as pseudotime when mode is pseudotime.
         basis: `str` or None (default: `None`)
-            The embedding data used for drawing the kinetic gene expression curves, only used when mode is `vector_field`.
+            The embedding data used for drawing the kinetic gene expression curves, only used when mode is
+            `vector_field`.
         layer: `str` (default: X)
             Which layer of expression value will be used. Not used if mode is `vector_field`.
         project_back_to_high_dim: `bool` (default: `False`)
-            Whether to map the coordinates in low dimension back to high dimension to visualize the gene expression curves,
-            only used when mode is `vector_field` and basis is not `X`. Currently only works when basis is 'pca' and 'umap'.
+            Whether to map the coordinates in low dimension back to high dimension to visualize the gene expression
+            curves, only used when mode is `vector_field` and basis is not `X`. Currently only works when basis is 'pca'
+            and 'umap'.
         color: `list` or None (default: 'ntr')
             A list of attributes of cells (column names in the adata.obs) will be used to color cells.
         tkey: `str` (default: `potential`)
             The .obs column that will be used for timing each cell, only used when mode is not `vector_field`.
         dist_threshold: `float` or None (default: 1e-10)
             The threshold for the distance between two points in the gene expression state, i.e, x(t), x(t+1). If below
-            this threshold, we assume steady state is achieved and those data points will not be considered. This argument
-            is ignored when mode is `pseudotime`.
+            this threshold, we assume steady state is achieved and those data points will not be considered. This
+            argument is ignored when mode is `pseudotime`.
         ncol: `int` (default: 4)
             Number of columns in each facet grid.
         c_palette: Name of color_palette supported in seaborn color_palette function (default: None)
             The color map function to use.
         standard_scale: `int` (default: 1)
-            Either 0 (rows) or 1 (columns). Whether or not to standardize that dimension, meaning for each row or column,
-            subtract the minimum and divide each by its maximum.
+            Either 0 (rows) or 1 (columns). Whether or not to standardize that dimension, meaning for each row or
+            column, subtract the minimum and divide each by its maximum.
         save_show_or_return: {'show', 'save_fig', 'return'} (default: `show`)
             Whether to save_fig, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'kinetic_curves', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-            according to your needs.
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            save_fig function will use the {"path": None, "prefix": 'kinetic_curves', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+            dictionary that properly modify those keys according to your needs.
 
     Returns
     -------
@@ -85,38 +88,25 @@ def kinetic_curves(
     import seaborn as sns
     import matplotlib.pyplot as plt
 
-    if tkey == "potential" and "potential" not in adata.obs_keys():
+    if mode == "pseudotime" and tkey == "potential" and "potential" not in adata.obs_keys():
         ddhodge(adata)
 
-    exprs, valid_genes, time = fetch_exprs(
-        adata, basis, layer, genes, tkey, mode, project_back_to_high_dim
-    )
+    exprs, valid_genes, time = fetch_exprs(adata, basis, layer, genes, tkey, mode, project_back_to_high_dim)
 
     Color = np.empty((0, 1))
     if color is not None and mode != "vector_field":
         color = list(set(color).intersection(adata.obs.keys()))
-        Color = (
-            adata.obs[color].values.T.flatten()
-            if len(color) > 0
-            else np.empty((0, 1))
-        )
+        Color = adata.obs[color].values.T.flatten() if len(color) > 0 else np.empty((0, 1))
 
     exprs = exprs.A if issparse(exprs) else exprs
     if standard_scale is not None:
-        exprs = (exprs - np.min(exprs, axis=standard_scale)) / np.ptp(
-            exprs, axis=standard_scale
-        )
+        exprs = (exprs - np.min(exprs, axis=standard_scale)) / np.ptp(exprs, axis=standard_scale)
 
     time = np.sort(time)
     exprs = exprs[np.argsort(time), :]
 
     if dist_threshold is not None and mode == "vector_field":
-        valid_ind = list(
-            np.where(
-                np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold
-            )[0]
-            + 1
-        )
+        valid_ind = list(np.where(np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold)[0] + 1)
         valid_ind.insert(0, 0)
         exprs = exprs[valid_ind, :]
         time = time[valid_ind]
@@ -128,7 +118,6 @@ def kinetic_curves(
             "Gene": np.tile(valid_genes, len(time)),
         }
     )
-    exprs_df = exprs_df.query("Gene in @genes")
 
     if exprs_df.shape[0] == 0:
         raise Exception(
@@ -229,20 +218,20 @@ def kinetic_heatmap(
         figsize: `str` (default: `(11.5, 6)`
             Size of figure
         standard_scale: `int` (default: 1)
-            Either 0 (rows, cells) or 1 (columns, genes). Whether or not to standardize that dimension, meaning for each row or column,
-            subtract the minimum and divide each by its maximum.
+            Either 0 (rows, cells) or 1 (columns, genes). Whether or not to standardize that dimension, meaning for each
+            row or column, subtract the minimum and divide each by its maximum.
         n_convolve: `int` (default: 30)
             Number of cells for convolution.
         save_show_or_return: {'show', 'save_fig', 'return'} (default: `show`)
             Whether to save_fig, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'kinetic_heatmap', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-            according to your needs.
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            save_fig function will use the {"path": None, "prefix": 'kinetic_heatmap', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+            dictionary that properly modify those keys according to your needs.
         kwargs:
-            All other keyword arguments are passed to heatmap(). Currently `xticklabels=False, yticklabels='auto'` is passed
-            to heatmap() by default.
+            All other keyword arguments are passed to heatmap(). Currently `xticklabels=False, yticklabels='auto'` is
+            passed to heatmap() by default.
 
     Returns
     -------
@@ -253,30 +242,21 @@ def kinetic_heatmap(
     import seaborn as sns
     import matplotlib.pyplot as plt
 
-    if tkey == "potential" and "potential" not in adata.obs_keys():
+    if mode == "pseudotime" and tkey == "potential" and "potential" not in adata.obs_keys():
         ddhodge(adata)
 
-    exprs, valid_genes, time = fetch_exprs(
-        adata, basis, layer, genes, tkey, mode, project_back_to_high_dim
-    )
+    exprs, valid_genes, time = fetch_exprs(adata, basis, layer, genes, tkey, mode, project_back_to_high_dim)
 
     exprs = exprs.A if issparse(exprs) else exprs
 
     if dist_threshold is not None and mode == "vector_field":
-        valid_ind = list(
-            np.where(
-                np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold
-            )[0]
-            + 1
-        )
+        valid_ind = list(np.where(np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold)[0] + 1)
         valid_ind.insert(0, 0)
         exprs = exprs[valid_ind, :]
         time = time[valid_ind]
 
     if gene_order_method == "half_max_ordering":
-        time, all, valid_ind, gene_idx = _half_max_ordering(
-            exprs.T, time, mode=mode, interpolate=True, spaced_num=100
-        )
+        time, all, valid_ind, gene_idx = _half_max_ordering(exprs.T, time, mode=mode, interpolate=True, spaced_num=100)
         all, genes = (
             all[np.isfinite(all.sum(1)), :],
             np.array(valid_genes)[gene_idx][np.isfinite(all.sum(1))],
@@ -284,15 +264,11 @@ def kinetic_heatmap(
 
         df = pd.DataFrame(all, index=genes)
     elif gene_order_method == "maximum":
-        exprs = lowess_smoother(
-            time, exprs.T, spaced_num=spaced_num, n_convolve=n_convolve
-        )
+        exprs = lowess_smoother(time, exprs.T, spaced_num=spaced_num, n_convolve=n_convolve)
         exprs = exprs[np.isfinite(exprs.sum(1)), :]
 
         if standard_scale is not None:
-            exprs = (
-                exprs - np.min(exprs, axis=standard_scale)[:, None]
-            ) / np.ptp(exprs, axis=standard_scale)[:, None]
+            exprs = (exprs - np.min(exprs, axis=standard_scale)[:, None]) / np.ptp(exprs, axis=standard_scale)[:, None]
         max_sort = np.argsort(np.argmax(exprs, axis=1))
         if spaced_num is None:
             df = pd.DataFrame(
@@ -301,13 +277,9 @@ def kinetic_heatmap(
                 columns=adata.obs_names,
             )
         else:
-            df = pd.DataFrame(
-                exprs[max_sort, :], index=np.array(valid_genes)[max_sort]
-            )
+            df = pd.DataFrame(exprs[max_sort, :], index=np.array(valid_genes)[max_sort])
     else:
-        raise Exception(
-            "gene order_method can only be either half_max_ordering or maximum"
-        )
+        raise Exception("gene order_method can only be either half_max_ordering or maximum")
 
     heatmap_kwargs = dict(
         xticklabels=False,
@@ -367,8 +339,9 @@ def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):
         time: `np.ndarray`
             Pseudotime or inferred real time.
         mode: `str` (default: `vector_field`)
-            Which data mode will be used, either vector_field or pseudotime. if mode is vector_field, the trajectory predicted by
-            vector field function will be used, otherwise pseudotime trajectory (defined by time argument) will be used.
+            Which data mode will be used, either vector_field or pseudotime. if mode is vector_field, the trajectory
+            predicted by vector field function will be used, otherwise pseudotime trajectory (defined by time argument)
+            will be used.
         interpolate: `bool` (default: `False`)
             Whether to interpolate the data when performing the loess fitting.
         spaced_num: `float` (default: `100`)
@@ -379,7 +352,8 @@ def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):
         time: `np.ndarray`
             The time at which the loess is evaluated.
         all: `np.ndarray`
-            The ordered smoothed, scaled expression matrix, the first group is up, then down, followed by the transient gene groups.
+            The ordered smoothed, scaled expression matrix, the first group is up, then down, followed by the transient
+            gene groups.
         valid_ind: `np.ndarray`
             The indices of valid genes that Loess smoothed.
         gene_idx: `np.ndarray`
@@ -397,9 +371,7 @@ def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):
             np.zeros((gene_num, cell_num)),
         )
     else:
-        hm_mat_scaled, hm_mat_scaled_z = np.zeros_like(exprs), np.zeros_like(
-            exprs
-        )
+        hm_mat_scaled, hm_mat_scaled_z = np.zeros_like(exprs), np.zeros_like(exprs)
 
     transient, trans_max, half_max = (
         np.zeros(gene_num),
@@ -469,17 +441,13 @@ def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):
 
 def lowess_smoother(time, exprs, spaced_num=None, n_convolve=30):
     gene_num = exprs.shape[0]
-    res = (
-        exprs.copy() if spaced_num is None else np.zeros((gene_num, spaced_num))
-    )
+    res = exprs.copy() if spaced_num is None else np.zeros((gene_num, spaced_num))
 
     for i in range(gene_num):
         x = exprs[i]
 
         if spaced_num is None:
-            x_convolved = np.convolve(
-                x[np.argsort(time)], np.ones(30) / 30, mode="same"
-            )
+            x_convolved = np.convolve(x[np.argsort(time)], np.ones(30) / 30, mode="same")
             res[i, :] = x_convolved
         else:
             # lowess = sm.nonparametric.lowess
@@ -492,12 +460,19 @@ def lowess_smoother(time, exprs, spaced_num=None, n_convolve=30):
                 np.ones(n_convolve) / n_convolve,
                 mode="same",
             )
-            f = interp1d(
-                time[np.argsort(time)], x_convolved, bounds_error=False
-            )
 
-            time_linspace = np.linspace(np.min(time), np.max(time), spaced_num)
-            res[i, :] = f(time_linspace)
+            # check: is any difference between interpld and np.convolve?
+            if len(time) == len(x_convolved):
+                f = interp1d(time[np.argsort(time)], x_convolved, bounds_error=False)
+
+                time_linspace = np.linspace(np.min(time), np.max(time), spaced_num)
+                res[i, :] = f(time_linspace)
+            else:
+                res[i, :] = np.convolve(
+                    x[np.argsort(time)],
+                    np.ones(spaced_num) / spaced_num,
+                    mode="same",
+                )
 
     return res
 
@@ -539,10 +514,10 @@ def jacobian_kinetics(
             The list of genes that will be used as targets for plotting the Jacobian heatmap, only limited to genes
             that have already performed Jacobian analysis.
         mode: `str` (default: `vector_field`)
-            Which data mode will be used, either vector_field or pseudotime. if mode is vector_field, the trajectory predicted by
-            vector field function will be used, otherwise pseudotime trajectory (defined by time argument) will be used.
-            By default `potential` estimated with the diffusion graph built reconstructed vector field will be used as
-            pseudotime.
+            Which data mode will be used, either vector_field or pseudotime. if mode is vector_field, the trajectory
+            predicted by vector field function will be used, otherwise pseudotime trajectory (defined by time argument)
+            will be used. By default `potential` estimated with the diffusion graph built reconstructed vector field
+            will be used as pseudotime.
         tkey: `str` (default: `potential`)
             The .obs column that will be used for timing each cell, only used when mode is not `vector_field`.
         color_map: `str` (default: `BrBG`)
@@ -560,20 +535,20 @@ def jacobian_kinetics(
         figsize: `str` (default: `(11.5, 6)`
             Size of figure
         standard_scale: `int` (default: 1)
-            Either 0 (rows, cells) or 1 (columns, genes). Whether or not to standardize that dimension, meaning for each row or column,
-            subtract the minimum and divide each by its maximum.
+            Either 0 (rows, cells) or 1 (columns, genes). Whether or not to standardize that dimension, meaning for each
+            row or column, subtract the minimum and divide each by its maximum.
         n_convolve: `int` (default: 30)
             Number of cells for convolution.
         save_show_or_return: {'show', 'save_fig', 'return'} (default: `show`)
             Whether to save_fig, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'kinetic_curves', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-            according to your needs.
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            save_fig function will use the {"path": None, "prefix": 'kinetic_curves', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+            dictionary that properly modify those keys according to your needs.
         kwargs:
-            All other keyword arguments are passed to heatmap(). Currently `xticklabels=False, yticklabels='auto'` is passed
-            to heatmap() by default.
+            All other keyword arguments are passed to heatmap(). Currently `xticklabels=False, yticklabels='auto'` is
+            passed to heatmap() by default.
     Returns
     -------
         Nothing but plots a heatmap that shows the element of Jacobian matrix dynamics over time (potential decreasing).
@@ -607,9 +582,7 @@ def jacobian_kinetics(
 
     adata_ = adata[cell_indx, :]
     time = adata_.obs[tkey]
-    jacobian_mat = (
-        Der.reshape((-1, Der.shape[2])) if Der.ndim == 3 else Der[None, :]
-    )
+    jacobian_mat = Der.reshape((-1, Der.shape[2])) if Der.ndim == 3 else Der[None, :]
     n_source_targets_ = Der.shape[0] * Der.shape[1] if Der.ndim == 3 else 1
     targets_, sources_ = (
         (
@@ -622,9 +595,7 @@ def jacobian_kinetics(
             np.repeat(effectors_, Der.shape[0]),
         )
     )
-    source_targets_ = [
-        sources_[i] + "->" + targets_[i] for i in range(n_source_targets_)
-    ]
+    source_targets_ = [sources_[i] + "->" + targets_[i] for i in range(n_source_targets_)]
 
     regulators = regulators_ if regulators is None else regulators
     effectors = effectors_ if effectors is None else effectors
@@ -641,12 +612,8 @@ def jacobian_kinetics(
             f"available target genes includes {effectors_}"
         )
     n_source_targets = len(regulators) * len(effectors)
-    targets, sources = np.repeat(effectors, len(regulators)), np.tile(
-        regulators, len(effectors)
-    )
-    source_targets = [
-        sources[i] + "->" + targets[i] for i in range(n_source_targets)
-    ]
+    targets, sources = np.repeat(effectors, len(regulators)), np.tile(regulators, len(effectors))
+    source_targets = [sources[i] + "->" + targets[i] for i in range(n_source_targets)]
 
     jacobian_mat = jacobian_mat[:, np.argsort(time)]
 
@@ -661,16 +628,13 @@ def jacobian_kinetics(
 
         df = pd.DataFrame(all, index=source_targets_)
     elif gene_order_method == "maximum":
-        jacobian_mat = lowess_smoother(
-            time, jacobian_mat, spaced_num=None, n_convolve=n_convolve
-        )
+        jacobian_mat = lowess_smoother(time, jacobian_mat, spaced_num=None, n_convolve=n_convolve)
         jacobian_mat = jacobian_mat[np.isfinite(jacobian_mat.sum(1)), :]
 
         if standard_scale is not None:
-            exprs = (
-                jacobian_mat
-                - np.min(jacobian_mat, axis=standard_scale)[:, None]
-            ) / np.ptp(jacobian_mat, axis=standard_scale)[:, None]
+            exprs = (jacobian_mat - np.min(jacobian_mat, axis=standard_scale)[:, None]) / np.ptp(
+                jacobian_mat, axis=standard_scale
+            )[:, None]
         max_sort = np.argsort(np.argmax(exprs, axis=1))
         df = pd.DataFrame(
             exprs[max_sort, :],
@@ -685,9 +649,7 @@ def jacobian_kinetics(
             columns=adata.obs_names,
         )
     else:
-        raise Exception(
-            "gene order_method can only be either half_max_ordering or maximum"
-        )
+        raise Exception("gene order_method can only be either half_max_ordering or maximum")
 
     heatmap_kwargs = dict(
         xticklabels=False,
@@ -775,10 +737,10 @@ def sensitivity_kinetics(
             The list of genes that will be used as targets for plotting the Jacobian heatmap, only limited to genes
             that have already performed Jacobian analysis.
         mode: `str` (default: `vector_field`)
-            Which data mode will be used, either vector_field or pseudotime. if mode is vector_field, the trajectory predicted by
-            vector field function will be used, otherwise pseudotime trajectory (defined by time argument) will be used.
-            By default `potential` estimated with the diffusion graph built reconstructed vector field will be used as
-            pseudotime.
+            Which data mode will be used, either vector_field or pseudotime. if mode is vector_field, the trajectory
+            predicted byvector field function will be used, otherwise pseudotime trajectory (defined by time argument)
+            will be used. By default `potential` estimated with the diffusion graph built reconstructed vector field
+            will be used as pseudotime.
         tkey: `str` (default: `potential`)
             The .obs column that will be used for timing each cell, only used when mode is not `vector_field`.
         color_map: `str` (default: `BrBG`)
@@ -796,20 +758,20 @@ def sensitivity_kinetics(
         figsize: `str` (default: `(11.5, 6)`
             Size of figure
         standard_scale: `int` (default: 1)
-            Either 0 (rows, cells) or 1 (columns, genes). Whether or not to standardize that dimension, meaning for each row or column,
-            subtract the minimum and divide each by its maximum.
+            Either 0 (rows, cells) or 1 (columns, genes). Whether or not to standardize that dimension, meaning for each
+            row or column, subtract the minimum and divide each by its maximum.
         n_convolve: `int` (default: 30)
             Number of cells for convolution.
         save_show_or_return: {'show', 'save_fig', 'return'} (default: `show`)
             Whether to save_fig, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'kinetic_curves', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-            according to your needs.
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            save_fig function will use the {"path": None, "prefix": 'kinetic_curves', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+            dictionary that properly modify those keys according to your needs.
         kwargs:
-            All other keyword arguments are passed to heatmap(). Currently `xticklabels=False, yticklabels='auto'` is passed
-            to heatmap() by default.
+            All other keyword arguments are passed to heatmap(). Currently `xticklabels=False, yticklabels='auto'` is
+            passed to heatmap() by default.
     Returns
     -------
         Nothing but plots a heatmap that shows the element of Jacobian matrix dynamics over time (potential decreasing).
@@ -831,7 +793,7 @@ def sensitivity_kinetics(
     import matplotlib.pyplot as plt
 
     Sensitivity_ = "sensitivity" if basis is None else "sensitivity_" + basis
-    Der, cell_indx, sensitivity_gene, regulators_, effectors_ = (
+    Der, cell_indx, _, regulators_, effectors_ = (
         adata.uns[Sensitivity_].get("sensitivity"),
         adata.uns[Sensitivity_].get("cell_idx"),
         adata.uns[Sensitivity_].get("sensitivity_gene"),
@@ -843,9 +805,7 @@ def sensitivity_kinetics(
 
     adata_ = adata[cell_indx, :]
     time = adata_.obs[tkey]
-    sensitivity_mat = (
-        Der.reshape((-1, Der.shape[2])) if Der.ndim == 3 else Der[None, :]
-    )
+    sensitivity_mat = Der.reshape((-1, Der.shape[2])) if Der.ndim == 3 else Der[None, :]
     n_source_targets_ = Der.shape[0] * Der.shape[1] if Der.ndim == 3 else 1
     targets_, sources_ = (
         (
@@ -858,9 +818,7 @@ def sensitivity_kinetics(
             np.repeat(effectors_, Der.shape[0]),
         )
     )
-    source_targets_ = [
-        sources_[i] + "->" + targets_[i] for i in range(n_source_targets_)
-    ]
+    source_targets_ = [sources_[i] + "->" + targets_[i] for i in range(n_source_targets_)]
 
     regulators = regulators_ if regulators is None else regulators
     effectors = effectors_ if effectors is None else effectors
@@ -877,12 +835,8 @@ def sensitivity_kinetics(
             f"available target genes includes {effectors_}"
         )
     n_source_targets = len(regulators) * len(effectors)
-    targets, sources = np.repeat(effectors, len(regulators)), np.tile(
-        regulators, len(effectors)
-    )
-    source_targets = [
-        sources[i] + "->" + targets[i] for i in range(n_source_targets)
-    ]
+    targets, sources = np.repeat(effectors, len(regulators)), np.tile(regulators, len(effectors))
+    source_targets = [sources[i] + "->" + targets[i] for i in range(n_source_targets)]
 
     sensitivity_mat = sensitivity_mat[:, np.argsort(time)]
 
@@ -897,18 +851,13 @@ def sensitivity_kinetics(
 
         df = pd.DataFrame(all, index=source_targets_)
     elif gene_order_method == "maximum":
-        sensitivity_mat = lowess_smoother(
-            time, sensitivity_mat, spaced_num=None, n_convolve=n_convolve
-        )
-        sensitivity_mat = sensitivity_mat[
-            np.isfinite(sensitivity_mat.sum(1)), :
-        ]
+        sensitivity_mat = lowess_smoother(time, sensitivity_mat, spaced_num=None, n_convolve=n_convolve)
+        sensitivity_mat = sensitivity_mat[np.isfinite(sensitivity_mat.sum(1)), :]
 
         if standard_scale is not None:
-            exprs = (
-                sensitivity_mat
-                - np.min(sensitivity_mat, axis=standard_scale)[:, None]
-            ) / np.ptp(sensitivity_mat, axis=standard_scale)[:, None]
+            exprs = (sensitivity_mat - np.min(sensitivity_mat, axis=standard_scale)[:, None]) / np.ptp(
+                sensitivity_mat, axis=standard_scale
+            )[:, None]
         max_sort = np.argsort(np.argmax(exprs, axis=1))
         df = pd.DataFrame(
             exprs[max_sort, :],
@@ -923,9 +872,7 @@ def sensitivity_kinetics(
             columns=adata.obs_names,
         )
     else:
-        raise Exception(
-            "gene order_method can only be either half_max_ordering or maximum"
-        )
+        raise Exception("gene order_method can only be either half_max_ordering or maximum")
 
     heatmap_kwargs = dict(
         xticklabels=False,

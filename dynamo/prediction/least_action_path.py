@@ -4,6 +4,7 @@ from scipy.interpolate import interp1d
 import networkx as nx
 from ..tools.utils import (
     nearest_neighbors,
+    fetch_states,
 )
 from ..vectorfield import svc_vectorfield
 from .utils import remove_redundant_points_trajectory, arclength_sampling
@@ -98,13 +99,15 @@ def get_init_path(G, start, end, coords, interpolation_num=20):
 
 def least_action(
     adata,
-    start,
-    end,
+    init_cells,
+    target_cells,
+    init_states=None,
+    target_states=None,
     basis="pca",
     vf_key="VecFld",
     vecfld=None,
     adj_key="pearson_transition_matrix",
-    n_points=100,
+    n_points=20,
     D=10,
     PCs=None,
 ):
@@ -125,30 +128,76 @@ def least_action(
         "initializing path with the shortest path in the graph built from the velocity transition matrix...",
         indent_level=1,
     )
-    init_path = get_init_path(G, start, end, coords, interpolation_num=n_points)
+    init_states, _, _, _ = fetch_states(
+        adata,
+        init_states,
+        init_cells,
+        basis,
+        "X",
+        False,
+        None,
+    )
+    target_states, _, _, valid_genes = fetch_states(
+        adata,
+        target_states,
+        target_cells,
+        basis,
+        "X",
+        False,
+        None,
+    )
 
     logger.info("searching for the least action path...", indent_level=1)
     logger.log_time()
-    path_sol, dt_sol, action_opt, sol_dict = least_action_path(
-        start,
-        end,
-        vf.func,
-        vf.get_Jacobian(),
-        n_points=n_points,
-        init_path=init_path,
-        D=D,
-    )
-    logger.info(sol_dict["message"], indent_level=1)
-    logger.info("optimal action: %f" % action_opt, indent_level=1)
+
+    init_states = np.atleast_2d(init_states)
+    target_states = np.atleast_2d(target_states)
+    t, prediction, action, exprs, mftp, trajectory = [], [], [], [], [], []
+
+    for init_state in LoggerManager.progress_logger(init_states, progress_name="iterating through init states"):
+        for target_state in target_states:
+            init_path = get_init_path(G, init_state, target_state, coords, interpolation_num=n_points)
+
+            path_sol, dt_sol, action_opt, sol_dict = least_action_path(
+                init_state,
+                target_state,
+                vf.func,
+                vf.get_Jacobian(),
+                n_points=n_points,
+                init_path=init_path,
+                D=D,
+            )
+
+            if PCs is None and basis == "pca":
+                PCs = adata.uns["PCs"]
+
+            traj = LeastActionPath(X=path_sol, vf_func=vf.func, D=D, dt=dt_sol, PCs=PCs)
+            trajectory.append(traj)
+
+            t.append(np.arange(path_sol.shape[0]) * dt_sol)
+            prediction.append(path_sol)
+            action.append(traj.action())
+            exprs.append(traj.inverse_transform())
+            mftp.append(traj.mfpt())
+
+            logger.info(sol_dict["message"], indent_level=1)
+            logger.info("optimal action: %f" % action_opt, indent_level=1)
+
+    LAP_key = "LAP" if basis is None else "LAP_" + basis
+    adata.uns[LAP_key] = {
+        "init_states": init_states,
+        "init_cells": init_cells,
+        "t": t,
+        "mftp": mftp,
+        "prediction": prediction,
+        "action": action,
+        "genes": adata.var_names[adata.var.use_for_pca],
+        "exprs": exprs,
+    }
+
     logger.finish_progress(progress_name="least action path")
 
-    if PCs is None and basis == "pca":
-        PCs = adata.uns["PCs"]
-
-    trajectory = LeastActionPath(X=path_sol, vf_func=vf.func, D=D, dt=dt_sol, PCs=PCs)
-
-    adata.uns["LAP"] = {"path_sol": path_sol, "dt_sol": dt_sol, "action_opt": action_opt}
-    return trajectory
+    return trajectory[0] if len(init_states) + len(init_states) == 2 else trajectory
 
 
 class LeastActionPath(Trajectory):
@@ -181,6 +230,6 @@ class LeastActionPath(Trajectory):
     def inverse_transform(self):
         # reverse project back to raw expression space
         exprs = None
-        if self.PCs is not None and self.PCs.shape[0] == self.X.shape[1]:
-            exprs = self.X @ self.PCs
+        if self.PCs is not None and self.PCs.T.shape[0] == self.X.shape[1]:
+            exprs = self.X @ self.PCs.T
         return exprs

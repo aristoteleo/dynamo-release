@@ -62,6 +62,7 @@ from .networks import (
 
 from .fate import fate_bias
 from .state_graph import state_graph
+from .least_action_path import least_action
 
 from .scPotential import show_landscape
 
