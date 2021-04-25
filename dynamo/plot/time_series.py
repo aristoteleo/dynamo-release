@@ -1,5 +1,4 @@
 # include pseudotime and predict cell trajectory
-import statsmodels.api as sm
 import numpy as np
 from scipy.sparse import issparse
 from scipy.interpolate import interp1d
@@ -27,6 +26,7 @@ def kinetic_curves(
     color="ntr",
     c_palette="Set2",
     standard_scale=0,
+    traj_ind=0,
     save_show_or_return="show",
     save_kwargs={},
 ):
@@ -71,6 +71,9 @@ def kinetic_curves(
         standard_scale: `int` (default: 1)
             Either 0 (rows) or 1 (columns). Whether or not to standardize that dimension, meaning for each row or
             column, subtract the minimum and divide each by its maximum.
+        traj_ind: `int` (default: 0)
+            If the element from the dictionary is a list (obtained from a list of trajectories), the index of trajectory
+            that will be selected for visualization.
         save_show_or_return: {'show', 'save_fig', 'return'} (default: `show`)
             Whether to save_fig, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -91,7 +94,7 @@ def kinetic_curves(
     if mode == "pseudotime" and tkey == "potential" and "potential" not in adata.obs_keys():
         ddhodge(adata)
 
-    exprs, valid_genes, time = fetch_exprs(adata, basis, layer, genes, tkey, mode, project_back_to_high_dim)
+    exprs, valid_genes, time = fetch_exprs(adata, basis, layer, genes, tkey, mode, project_back_to_high_dim, traj_ind)
 
     Color = np.empty((0, 1))
     if color is not None and mode != "vector_field":
@@ -191,6 +194,7 @@ def kinetic_heatmap(
     standard_scale=1,
     n_convolve=30,
     spaced_num=100,
+    traj_ind=0,
     save_show_or_return="show",
     save_kwargs={},
     **kwargs,
@@ -222,6 +226,9 @@ def kinetic_heatmap(
             row or column, subtract the minimum and divide each by its maximum.
         n_convolve: `int` (default: 30)
             Number of cells for convolution.
+        traj_ind: `int` (default: 0)
+            If the element from the dictionary is a list (obtained from a list of trajectories), the index of trajectory
+            that will be selected for visualization.
         save_show_or_return: {'show', 'save_fig', 'return'} (default: `show`)
             Whether to save_fig, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -245,7 +252,7 @@ def kinetic_heatmap(
     if mode == "pseudotime" and tkey == "potential" and "potential" not in adata.obs_keys():
         ddhodge(adata)
 
-    exprs, valid_genes, time = fetch_exprs(adata, basis, layer, genes, tkey, mode, project_back_to_high_dim)
+    exprs, valid_genes, time = fetch_exprs(adata, basis, layer, genes, tkey, mode, project_back_to_high_dim, traj_ind)
 
     exprs = exprs.A if issparse(exprs) else exprs
 
@@ -570,7 +577,7 @@ def jacobian_kinetics(
     import matplotlib.pyplot as plt
 
     Jacobian_ = "jacobian" if basis is None else "jacobian_" + basis
-    Der, cell_indx, jacobian_gene, regulators_, effectors_ = (
+    Der, cell_indx, _, regulators_, effectors_ = (
         adata.uns[Jacobian_].get("jacobian"),
         adata.uns[Jacobian_].get("cell_idx"),
         adata.uns[Jacobian_].get("jacobian_gene"),

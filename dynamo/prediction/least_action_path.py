@@ -171,7 +171,7 @@ def least_action(
             if PCs is None and basis == "pca":
                 PCs = adata.uns["PCs"]
 
-            traj = LeastActionPath(X=path_sol, vf_func=vf.func, D=D, dt=dt_sol, PCs=PCs)
+            traj = LeastActionPath(X=path_sol, vf_func=vf.func, D=D, dt=dt_sol, PCs=PCs, means=adata.uns["pca_mean"])
             trajectory.append(traj)
 
             t.append(np.arange(path_sol.shape[0]) * dt_sol)
@@ -201,14 +201,14 @@ def least_action(
 
 
 class LeastActionPath(Trajectory):
-    def __init__(self, X, vf_func, D=1, dt=1, PCs=None) -> None:
+    def __init__(self, X, vf_func, D=1, dt=1, PCs=None, means=None) -> None:
         super().__init__(X, t=np.arange(X.shape[0]) * dt)
         self.func = vf_func
         self.D = D
         self._action = np.zeros(X.shape[0])
         for i in range(1, len(self._action)):
             self._action[i] = action(self.X[: i + 1], self.func, self.D, dt)
-        self.PCs = PCs
+        self.PCs, self.means = PCs, means
 
     def get_t(self):
         return self.t
@@ -231,5 +231,5 @@ class LeastActionPath(Trajectory):
         # reverse project back to raw expression space
         exprs = None
         if self.PCs is not None and self.PCs.T.shape[0] == self.X.shape[1]:
-            exprs = self.X @ self.PCs.T
+            exprs = np.expm1((self.X + self.means) @ self.PCs.T)
         return exprs

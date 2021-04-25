@@ -328,16 +328,16 @@ def arclength_sampling(X, step_length, t=None):
     arclength = 0
 
     while i < len(X) - 1 and not terminate:
-        l = 0
+        L = 0
         for j in range(i, len(X)):
             tangent = X[j] - x0 if j == i else X[j] - X[j - 1]
             d = np.linalg.norm(tangent)
-            if l + d >= step_length:
+            if L + d >= step_length:
                 x = x0 if j == i else X[j - 1]
-                y = x + (step_length - l) * tangent / d
+                y = x + (step_length - L) * tangent / d
                 if t is not None:
                     tau = t0 if j == i else t[j - 1]
-                    tau += (step_length - l) / d * (t[j] - tau)
+                    tau += (step_length - L) / d * (t[j] - tau)
                     T.append(tau)
                     t0 = tau
                 Y.append(y)
@@ -345,11 +345,11 @@ def arclength_sampling(X, step_length, t=None):
                 i = j
                 break
             else:
-                l += d
+                L += d
         if j == len(X) - 1:
             i += 1
         arclength += step_length
-        if l + d < step_length:
+        if L + d < step_length:
             terminate = True
 
     if T is not None:
@@ -360,7 +360,7 @@ def arclength_sampling(X, step_length, t=None):
 
 # ---------------------------------------------------------------------------------------------------
 # fate related
-def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim):
+def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim, traj_ind):
     import pandas as pd
 
     prefix = "LAP_" if mode.lower() == "lap" else "fate_"
@@ -370,6 +370,8 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
         traj_key = prefix if layer == "X" else prefix + layer
 
     time = adata.obs[time].values if mode == "pseudotime" else adata.uns[traj_key]["t"]
+    if type(time) == list:
+        time = time[traj_ind]
 
     if mode.lower() not in ["vector_field", "lap"]:
         valid_genes = list(set(genes).intersection(adata.var.index))
@@ -390,12 +392,20 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
         if basis is not None:
             if project_back_to_high_dim:
                 exprs = adata.uns[traj_key]["exprs"]
+                if type(exprs) == list:
+                    exprs = exprs[traj_ind]
                 exprs = exprs[np.isfinite(time), :][:, pd.Series(fate_genes).isin(valid_genes)]
             else:
-                exprs = adata.uns[traj_key]["prediction"][np.isfinite(time), :]
+                exprs = adata.uns[traj_key]["prediction"]
+                if type(exprs) == list:
+                    exprs = exprs[traj_ind]
+                exprs = exprs[np.isfinite(time), :]
                 valid_genes = [basis + "_" + str(i) for i in np.arange(exprs.shape[1])]
         else:
-            exprs = adata.uns[traj_key]["prediction"][np.isfinite(time), pd.Series(fate_genes).isin(valid_genes)]
+            exprs = adata.uns[traj_key]["prediction"]
+            if type(exprs) == list:
+                exprs = exprs[traj_ind]
+            exprs = exprs[np.isfinite(time), pd.Series(fate_genes).isin(valid_genes)]
 
     time = time[np.isfinite(time)]
 
