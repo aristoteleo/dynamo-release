@@ -65,10 +65,10 @@ def least_action_path(start, end, vf_func, jac_func, n_points=20, init_path=None
         path_0 = init_path
 
     def fun(x):
-        action_aux(x, vf_func, dim, start=path_0[0], end=path_0[-1], D=D, dt=dt_0)
+        return action_aux(x, vf_func, dim, start=path_0[0], end=path_0[-1], D=D, dt=dt_0)
 
     def jac(x):
-        action_grad_aux(x, vf_func, jac_func, dim, start=path_0[0], end=path_0[-1], D=D, dt=dt_0)
+        return action_grad_aux(x, vf_func, jac_func, dim, start=path_0[0], end=path_0[-1], D=D, dt=dt_0)
 
     sol_dict = minimize(fun, path_0[1:-1], jac=jac)
     path_sol = reshape_path(sol_dict["x"], dim, start=path_0[0], end=path_0[-1])
@@ -181,6 +181,6 @@ class LeastActionPath(Trajectory):
     def inverse_transform(self):
         # reverse project back to raw expression space
         exprs = None
-        if self.PCs.shape[0] == self.X.shape[1]:
+        if self.PCs is not None and self.PCs.shape[0] == self.X.shape[1]:
             exprs = self.X @ self.PCs
         return exprs
