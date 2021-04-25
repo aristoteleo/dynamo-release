@@ -100,12 +100,13 @@ def least_action(
     adata,
     start,
     end,
-    basis="umap",
+    basis="pca",
     vf_key="VecFld",
     vecfld=None,
     adj_key="pearson_transition_matrix",
     n_points=100,
     D=10,
+    PCs=None,
 ):
     logger = LoggerManager.gen_logger("dynamo-least-action-path")
 
@@ -141,20 +142,24 @@ def least_action(
     logger.info("optimal action: %f" % action_opt, indent_level=1)
     logger.finish_progress(progress_name="least action path")
 
-    trajectory = LeastActionPath(X=path_sol, vf_func=vf.func, D=D, dt=dt_sol)
+    if PCs is None and basis == "pca":
+        PCs = adata.uns["PCs"]
+
+    trajectory = LeastActionPath(X=path_sol, vf_func=vf.func, D=D, dt=dt_sol, PCs=PCs)
 
     adata.uns["LAP"] = {"path_sol": path_sol, "dt_sol": dt_sol, "action_opt": action_opt}
     return trajectory
 
 
 class LeastActionPath(Trajectory):
-    def __init__(self, X, vf_func, D=1, dt=1) -> None:
+    def __init__(self, X, vf_func, D=1, dt=1, PCs=None) -> None:
         super().__init__(X, t=np.arange(X.shape[0]) * dt)
         self.func = vf_func
         self.D = D
         self._action = np.zeros(X.shape[0])
         for i in range(1, len(self._action)):
             self._action[i] = action(self.X[: i + 1], self.func, self.D, dt)
+        self.PCs = PCs
 
     def get_t(self):
         return self.t
@@ -172,3 +177,10 @@ class LeastActionPath(Trajectory):
         """Eqn. 7 of Epigenetics as a first exit problem."""
         action = self._action if action is None else action
         return 1 / np.exp(-action)
+
+    def inverse_transform(self):
+        # reverse project back to raw expression space
+        exprs = None
+        if self.PCs.shape[0] == self.X.shape[1]:
+            exprs = self.X @ self.PCs
+        return exprs
