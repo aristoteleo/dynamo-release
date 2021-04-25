@@ -33,18 +33,14 @@ class Trajectory:
         tvec = self.calc_tangent(normalize=False)
         kappa = np.zeros(self.X.shape[0])
         for i in range(1, self.X.shape[0] - 1):
-            # ref: http://www.cs.jhu.edu/~misha/Fall09/1-curves.pdf
-            kappa[i] = angle(tvec[i - 1], tvec[i]) / (
-                np.linalg.norm(tvec[i - 1] / 2) + np.linalg.norm(tvec[i] / 2)
-            )
+            # ref: http://www.cs.jhu.edu/~misha/Fall09/1-curves.pdf (p. 55)
+            kappa[i] = angle(tvec[i - 1], tvec[i]) / (np.linalg.norm(tvec[i - 1] / 2) + np.linalg.norm(tvec[i] / 2))
         return kappa
 
     def resample(self, n_points, tol=1e-4, overwrite=True):
         # remove redundant points
         if tol is not None:
-            X, arclen, discard = remove_redundant_points_trajectory(
-                self.X, tol=tol, output_discard=True
-            )
+            X, arclen, discard = remove_redundant_points_trajectory(self.X, tol=tol, output_discard=True)
             if self.t is not None:
                 t = np.array(self.t[~discard], copy=True)
             else:
@@ -67,9 +63,7 @@ class Trajectory:
 
     def interpolate(self, t, **interp_kwargs):
         if self.t is None:
-            raise Exception(
-                "`self.t` is `None`, which is needed for interpolation."
-            )
+            raise Exception("`self.t` is `None`, which is needed for interpolation.")
         return interp1d(self.t, self.X, axis=0, **interp_kwargs)(t)
 
     def integrate(self, func):
@@ -77,10 +71,6 @@ class Trajectory:
         F = np.zeros(func(self.X[0]).shape)
         tvec = self.calc_tangent(normalize=False)
         for i in range(1, self.X.shape[0] - 1):
-            # ref: http://www.cs.jhu.edu/~misha/Fall09/1-curves.pdf
-            F += (
-                func(self.X[i])
-                * (np.linalg.norm(tvec[i - 1]) + np.linalg.norm(tvec[i]))
-                / 2
-            )
+            # ref: http://www.cs.jhu.edu/~misha/Fall09/1-curves.pdf P. 47
+            F += func(self.X[i]) * (np.linalg.norm(tvec[i - 1]) + np.linalg.norm(tvec[i])) / 2
         return F
