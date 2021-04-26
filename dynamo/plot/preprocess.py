@@ -774,6 +774,8 @@ def highest_frac_genes(
     gene_annotation_key: str = "use_for_pca",
     log: bool = False,
     store_key="expr_percent",
+    orient="v",
+    figsize=None,
     **kwargs,
 ):
     """[summary]
@@ -813,16 +815,19 @@ def highest_frac_genes(
 
     if ax is None:
         height = n_top * 0.4
-        fig, ax = plt.subplots(figsize=(7, height))
+        if figsize is None:
+            fig, ax = plt.subplots(figsize=(7, height))
+        else:
+            fig, ax = plt.subplots(figsize=figsize)
     if log:
         ax.set_xscale("log")
 
     # compute gene percents at each cell row
-    row_sum = adata.X.sum(axis=1).flatten()
+    cell_expression_sum = adata.X.sum(axis=1).flatten()
     # get rid of cells that have all zero counts
-    not_all_zero = row_sum != 0
+    not_all_zero = cell_expression_sum != 0
     adata = adata[not_all_zero, :]
-    row_sum = row_sum[not_all_zero]
+    cell_expression_sum = cell_expression_sum[not_all_zero]
     main_info("%d rows(cells or subsets) are not zero" % np.sum(not_all_zero))
 
     valid_gene_set = set()
@@ -850,7 +855,7 @@ def highest_frac_genes(
             # adata = adata[:, list(valid_gene_set)]
             adata = AnnData(X=df)
 
-    gene_X_percents = adata.X / row_sum.reshape([-1, 1])
+    gene_X_percents = adata.X / cell_expression_sum.reshape([-1, 1])
     # compute gene's total percents in the dataset
     gene_percents = adata.X.sum(axis=0)
     gene_percents = (gene_percents / adata.X.shape[1]).reshape([-1, 1])
@@ -869,9 +874,17 @@ def highest_frac_genes(
     )
 
     # draw plots
-    sns.boxplot(data=top_genes_df, orient="v", ax=ax, fliersize=1)
-    ax.set_xlabel("percents of total counts")
+    sns.boxplot(data=top_genes_df, orient=orient, ax=ax, fliersize=1, showmeans=True)
 
+    if orient == "v":
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=30)
+        ax.set_xlabel("genes")
+        ax.set_ylabel("percents of total counts")
+    elif orient == "h":
+        ax.set_xlabel("percents of total counts")
+        ax.set_ylabel("genes")
+    else:
+        raise NotImplementedError()
     if gene_annotations is None:
         if gene_annotation_key in adata.var:
             gene_annotations = adata.var[gene_annotation_key][selected_indices]
@@ -879,6 +892,7 @@ def highest_frac_genes(
             ax2.set_ylim(ax.get_ylim())
             ax2.set_yticks(ax.get_yticks())
 
+            ax2.set_yticks(list(range(len(gene_annotations))))
             ax2.set_yticklabels(gene_annotations)
             ax2.set_ylabel(gene_annotation_key)
         else:

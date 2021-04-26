@@ -38,6 +38,7 @@ def test_highest_frac_genes_plot_prefix_list(adata, is_X_sparse=True):
 
 if __name__ == "__main__":
     # generate data if needed
+    adata = gen_or_read_zebrafish_data()
 
     # To-do: use a fixture in future
     test_highest_frac_genes_plot(adata.copy())
