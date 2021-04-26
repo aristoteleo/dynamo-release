@@ -815,9 +815,9 @@ def highest_frac_genes(
     import seaborn as sns
     import matplotlib.pyplot as plt
 
-    X_original = adata.X
+    gene_mat = adata.X
     if layer is not None:
-        adata.X = adata.layers[layer]
+        gene_mat = adata.layers[layer]
     if ax is None:
         height = n_top * 0.4
         if figsize is None:
@@ -828,7 +828,7 @@ def highest_frac_genes(
         ax.set_xscale("log")
 
     # compute gene percents at each cell row
-    cell_expression_sum = adata.X.sum(axis=1).flatten()
+    cell_expression_sum = gene_mat.sum(axis=1).flatten()
     # get rid of cells that have all zero counts
     not_all_zero = cell_expression_sum != 0
     adata = adata[not_all_zero, :]
@@ -860,10 +860,10 @@ def highest_frac_genes(
             # adata = adata[:, list(valid_gene_set)]
             adata = AnnData(X=df)
 
-    gene_X_percents = adata.X / cell_expression_sum.reshape([-1, 1])
+    gene_X_percents = gene_mat / cell_expression_sum.reshape([-1, 1])
     # compute gene's total percents in the dataset
-    gene_percents = adata.X.sum(axis=0)
-    gene_percents = (gene_percents / adata.X.shape[1]).reshape([-1, 1])
+    gene_percents = gene_mat.sum(axis=0)
+    gene_percents = (gene_percents / gene_mat.shape[1]).reshape([-1, 1])
     # store gene expr percent results
     adata.var[store_key] = gene_percents
     # obtain top genes
@@ -926,9 +926,6 @@ def highest_frac_genes(
             "verbose": True,
         }
         save_fig(**s_kwargs)
-
-    if layer is not None:
-        adata.X = X_original
 
     return ax
     # if save_show_or_return == "save":
