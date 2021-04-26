@@ -9,6 +9,15 @@ The code base will be extended extensively to consider the following cases:
     6. others
 """
 
+import scipy
+import pandas as pd
+import numpy as np
+from warnings import warn
+from typing import Optional, Union
+from matplotlib.axes import Axes
+from anndata import AnnData
+from matplotlib.figure import Figure
+
 from ..tools.utils import update_dict
 from .utils import (
     _select_font_color,
@@ -17,19 +26,14 @@ from .utils import (
     _datashade_points,
     save_fig,
 )
-
 from .utils import is_list_of_lists  # is_gene_name
 from ..configuration import _themes
 from ..docrep import DocstringProcessor
 
-import pandas as pd
-import numpy as np
-from warnings import warn
-
 docstrings = DocstringProcessor()
 
 
-def _plt_connectivity(coord, connectivity):
+def _plt_connectivity(coord: dict, connectivity: scipy.sparse.csr_matrix):
     """Plot connectivity graph via networkx and matplotlib.
 
     Parameters
@@ -86,26 +90,26 @@ def _plt_connectivity(coord, connectivity):
 
 @docstrings.get_sectionsf("con_base")
 def connectivity_base(
-    x,
-    y,
-    edge_df,
-    highlights=None,
-    edge_bundling=None,
-    edge_cmap="gray_r",
-    show_points=True,
-    labels=None,
-    values=None,
-    theme=None,
-    cmap="Blues",
-    color_key=None,
-    color_key_cmap="Spectral",
-    background="black",
-    figsize=(7, 5),
-    ax=None,
-    sort="raw",
-    save_show_or_return="return",
-    save_kwargs={},
-):
+    x: int,
+    y: int,
+    edge_df: pd.DataFrame,
+    highlights: Optional[list] = None,
+    edge_bundling: Optional[str] = None,
+    edge_cmap: str = "gray_r",
+    show_points: bool = True,
+    labels: Optional[list] = None,
+    values: Optional[list] = None,
+    theme: Optional[str] = None,
+    cmap: str = "Blues",
+    color_key: Union[dict, list, None] = None,
+    color_key_cmap: str = "Spectral",
+    background: str = "black",
+    figsize: tuple = (7, 5),
+    ax: Optional[Axes] = None,
+    sort: str = "raw",
+    save_show_or_return: str = "return",
+    save_kwargs: dict = {},
+) -> Union[None, Axes]:
     """Plot connectivity relationships of the underlying UMAP
     simplicial set data structure. Internally UMAP will make
     use of what can be viewed as a weighted graph. This graph
@@ -220,8 +224,8 @@ def connectivity_base(
 
     Returns
     -------
-    result: matplotlib axis
-        The result is a matplotlib axis with the relevant plot displayed.
+    result:
+        Either return None or a matplotlib axis with the relevant plot displayed based on arguments.
         If you are using a notbooks and have ``%matplotlib inline`` set
         then this will simply display inline.
     """
@@ -338,29 +342,29 @@ docstrings.delete_params(
 
 @docstrings.with_indent(4)
 def nneighbors(
-    adata,
-    x=0,
-    y=1,
-    color="ntr",
-    basis="umap",
-    layer="X",
-    highlights=None,
-    ncols=1,
-    edge_bundling=None,
-    edge_cmap="gray_r",
-    show_points=True,
-    labels=None,
-    values=None,
-    theme=None,
-    cmap=None,
-    color_key=None,
-    color_key_cmap=None,
-    background="black",
-    figsize=(6, 4),
-    ax=None,
-    save_show_or_return="show",
-    save_kwargs={},
-):
+    adata: AnnData,
+    x: int = 0,
+    y: int = 1,
+    color: str = "ntr",
+    basis: str = "umap",
+    layer: str = "X",
+    highlights: Union[list] = None,
+    ncols: int = 1,
+    edge_bundling: Optional[str] = None,
+    edge_cmap: str = "gray_r",
+    show_points: bool = True,
+    labels: Optional[list] = None,
+    values: Optional[list] = None,
+    theme: Optional[str] = None,
+    cmap: str = "Blues",
+    color_key: Optional[Union[dict, list]] = None,
+    color_key_cmap: str = "Spectral",
+    background: str = "black",
+    figsize: tuple = (6, 4),
+    ax: Optional[Axes] = None,
+    save_show_or_return: str = "return",
+    save_kwargs: dict = {},
+) -> Union[None, Figure]:
     """Plot nearest neighbor graph of cells used to embed data into low dimension space.
 
     Parameters
