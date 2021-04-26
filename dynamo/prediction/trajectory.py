@@ -2,6 +2,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 from ..vectorfield.utils import normalize_vectors, angle
 from .utils import arclength_sampling, remove_redundant_points_trajectory
+from .utils import pca_to_expr, expr_to_pca
 
 
 class Trajectory:
@@ -15,7 +16,7 @@ class Trajectory:
     def __len__(self):
         return self.X.shape[0]
 
-    def __dim__(self):
+    def dim(self):
         return self.X.shape[1]
 
     def calc_tangent(self, normalize=True):
@@ -74,3 +75,28 @@ class Trajectory:
             # ref: http://www.cs.jhu.edu/~misha/Fall09/1-curves.pdf P. 47
             F += func(self.X[i]) * (np.linalg.norm(tvec[i - 1]) + np.linalg.norm(tvec[i])) / 2
         return F
+
+    def calc_msd(self, decomp_dim=True, ref=0):
+        S = (self.X - self.X[ref]) ** 2
+        if decomp_dim:
+            S = S.sum(axis=0)
+        else:
+            S = S.sum()
+        S /= len(self)
+        return S
+
+
+class GeneTrajectory(Trajectory):
+    def __init__(self, X=None, t=None) -> None:
+        """
+        This class is not fully functional yet.
+        """
+        if X is not None:
+            super().__init__(X, t=t)
+
+    def from_pca(self, X_pca, PCs, mean=None, func=np.expm1, t=None):
+        X = pca_to_expr(X_pca, PCs, mean=mean, func=func)
+        super().__init__(X, t=t)
+
+    def to_pca(self, PCs, mean=None, func=np.log1p):
+        return expr_to_pca(self.X, PCs, mean=mean, func=func)

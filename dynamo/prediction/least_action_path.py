@@ -7,7 +7,7 @@ from ..tools.utils import (
     fetch_states,
 )
 from ..vectorfield import svc_vectorfield
-from .utils import remove_redundant_points_trajectory, arclength_sampling
+from .utils import remove_redundant_points_trajectory, arclength_sampling, pca_to_expr
 from .trajectory import Trajectory
 from ..dynamo_logger import LoggerManager
 
@@ -110,6 +110,7 @@ def least_action(
     n_points=25,
     D=10,
     PCs=None,
+    expr_func=np.expm1,
 ):
     logger = LoggerManager.gen_logger("dynamo-least-action-path")
 
@@ -168,17 +169,24 @@ def least_action(
                 D=D,
             )
 
-            if PCs is None and basis == "pca":
-                PCs = adata.uns["PCs"]
-
-            traj = LeastActionPath(X=path_sol, vf_func=vf.func, D=D, dt=dt_sol, PCs=PCs, means=adata.uns["pca_mean"])
+            traj = LeastActionPath(X=path_sol, vf_func=vf.func, D=D, dt=dt_sol)
             trajectory.append(traj)
-
             t.append(np.arange(path_sol.shape[0]) * dt_sol)
             prediction.append(path_sol)
             action.append(traj.action())
-            exprs.append(traj.inverse_transform())
             mftp.append(traj.mfpt())
+
+            if PCs is None and basis == "pca":
+                if "PCs" not in adata.uns.keys():
+                    logger.warning(
+                        "Expressions along the trajectories cannot be retrieved, due to lack of `PCs` in .uns."
+                    )
+                else:
+                    if "pca_mean" not in adata.uns.keys():
+                        pca_mean = None
+                    else:
+                        pca_mean = adata.uns["pca_mean"]
+                    exprs.append(pca_to_expr(traj.X, adata.uns["PCs"], pca_mean, func=expr_func))
 
             logger.info(sol_dict["message"], indent_level=1)
             logger.info("optimal action: %f" % action_opt, indent_level=1)
@@ -201,14 +209,13 @@ def least_action(
 
 
 class LeastActionPath(Trajectory):
-    def __init__(self, X, vf_func, D=1, dt=1, PCs=None, means=None) -> None:
+    def __init__(self, X, vf_func, D=1, dt=1) -> None:
         super().__init__(X, t=np.arange(X.shape[0]) * dt)
         self.func = vf_func
         self.D = D
         self._action = np.zeros(X.shape[0])
         for i in range(1, len(self._action)):
             self._action[i] = action(self.X[: i + 1], self.func, self.D, dt)
-        self.PCs, self.means = PCs, means
 
     def get_t(self):
         return self.t
@@ -226,12 +233,3 @@ class LeastActionPath(Trajectory):
         """Eqn. 7 of Epigenetics as a first exit problem."""
         action = self._action if action is None else action
         return 1 / np.exp(-action)
-
-    def inverse_transform(self):
-        # reverse project back to raw expression space
-        exprs = None
-
-        means = 0 if self.means is None else self.means
-        if self.PCs is not None and self.PCs.T.shape[0] == self.X.shape[1]:
-            exprs = np.expm1(self.X @ self.PCs.T + means)
-        return exprs
