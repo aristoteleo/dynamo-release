@@ -776,6 +776,8 @@ def highest_frac_genes(
     store_key="expr_percent",
     orient="v",
     figsize=None,
+    layer=None,
+    title=None,
     **kwargs,
 ):
     """[summary]
@@ -813,6 +815,9 @@ def highest_frac_genes(
     import seaborn as sns
     import matplotlib.pyplot as plt
 
+    X_original = adata.X
+    if layer is not None:
+        adata.X = adata.layers[layer]
     if ax is None:
         height = n_top * 0.4
         if figsize is None:
@@ -885,6 +890,7 @@ def highest_frac_genes(
         ax.set_ylabel("genes")
     else:
         raise NotImplementedError()
+
     if gene_annotations is None:
         if gene_annotation_key in adata.var:
             gene_annotations = adata.var[gene_annotation_key][selected_indices]
@@ -901,6 +907,11 @@ def highest_frac_genes(
                 indent_level=2,
             )
 
+    if title is None:
+        if layer is None:
+            ax.set_title("Rank by gene expression fraction")
+        else:
+            ax.set_title("Rank by %s fraction" % layer)
     if show:
         plt.show()
 
@@ -915,6 +926,10 @@ def highest_frac_genes(
             "verbose": True,
         }
         save_fig(**s_kwargs)
+
+    if layer is not None:
+        adata.X = X_original
+
     return ax
     # if save_show_or_return == "save":
     #     s_kwargs = {
