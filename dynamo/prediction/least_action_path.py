@@ -55,7 +55,7 @@ def reshape_path(path_flatten, dim, start=None, end=None):
     return path
 
 
-def least_action_path(start, end, vf_func, jac_func, n_points=20, init_path=None, D=1, dt_0=1):
+def least_action_path(start, end, vf_func, jac_func, n_points=20, init_path=None, D=1, dt_0=1, EM_steps=2):
     dim = len(start)
     if init_path is None:
         path_0 = (
@@ -65,16 +65,25 @@ def least_action_path(start, end, vf_func, jac_func, n_points=20, init_path=None
     else:
         path_0 = init_path
 
-    def fun(x):
-        return action_aux(x, vf_func, dim, start=path_0[0], end=path_0[-1], D=D, dt=dt_0)
+    while EM_steps > 0:
+        EM_steps -= 1
 
-    def jac(x):
-        return action_grad_aux(x, vf_func, jac_func, dim, start=path_0[0], end=path_0[-1], D=D, dt=dt_0)
+        # E-step:
+        t_dict = minimize(lambda t: action(path_0, vf_func, D=D, dt=t), dt_0)
+        dt_sol = t_dict["x"][0]
 
-    sol_dict = minimize(fun, path_0[1:-1], jac=jac)
-    path_sol = reshape_path(sol_dict["x"], dim, start=path_0[0], end=path_0[-1])
+        # M-step:
+        def fun(x):
+            return action_aux(x, vf_func, dim, start=path_0[0], end=path_0[-1], D=D, dt=dt_sol)
 
-    t_dict = minimize(lambda t: action(path_sol, vf_func, D=D, dt=t), dt_0)
+        def jac(x):
+            return action_grad_aux(x, vf_func, jac_func, dim, start=path_0[0], end=path_0[-1], D=D, dt=dt_sol)
+
+        sol_dict = minimize(fun, path_0[1:-1], jac=jac)
+        path_0 = reshape_path(sol_dict["x"], dim, start=path_0[0], end=path_0[-1])
+
+    path_sol = path_0
+    t_dict = minimize(lambda t: action(path_sol, vf_func, D=D, dt=t), dt_sol)
     action_opt = t_dict["fun"]
     dt_sol = t_dict["x"][0]
     return path_sol, dt_sol, action_opt, sol_dict
@@ -103,6 +112,7 @@ def least_action(
     target_cells,
     init_states=None,
     target_states=None,
+    paired=True,
     basis="pca",
     vf_key="VecFld",
     vecfld=None,
@@ -111,6 +121,7 @@ def least_action(
     D=10,
     PCs=None,
     expr_func=np.expm1,
+    **kwargs,
 ):
     logger = LoggerManager.gen_logger("dynamo-least-action-path")
 
@@ -153,43 +164,53 @@ def least_action(
 
     init_states = np.atleast_2d(init_states)
     target_states = np.atleast_2d(target_states)
+
+    if paired:
+        if init_states.shape[0] != target_states.shape[0]:
+            logger.warning("The numbers of initial and target states are not equal. The longer one is trimmed")
+            num = min(init_states.shape[0], target_states.shape[0])
+            init_states = init_states[:num]
+            target_states = target_states[:num]
+        pairs = [(init_states[i], target_states[i]) for i in range(init_states.shape[0])]
+    else:
+        pairs = [(pi, pt) for pi in init_states for pt in target_states]
+        logger.warning(
+            f"A total of {len(pairs)} pairs of initial and target states will be calculated."
+            "To reduce the number of LAP calculations, please use the `paired` mode."
+        )
+
     t, prediction, action, exprs, mftp, trajectory = [], [], [], [], [], []
 
-    for init_state in LoggerManager.progress_logger(init_states, progress_name="iterating through init states"):
-        for target_state in target_states:
-            init_path = get_init_path(G, init_state, target_state, coords, interpolation_num=n_points)
+    # for init_state in LoggerManager.progress_logger(init_states, progress_name="iterating through init states"):
+    #    for target_state in target_states:
+    for (init_state, target_state) in LoggerManager.progress_logger(
+        pairs, progress_name=f"iterating through {len(pairs)} pairs"
+    ):
+        init_path = get_init_path(G, init_state, target_state, coords, interpolation_num=n_points)
 
-            path_sol, dt_sol, action_opt, sol_dict = least_action_path(
-                init_state,
-                target_state,
-                vf.func,
-                vf.get_Jacobian(),
-                n_points=n_points,
-                init_path=init_path,
-                D=D,
-            )
+        path_sol, dt_sol, action_opt, sol_dict = least_action_path(
+            init_state, target_state, vf.func, vf.get_Jacobian(), n_points=n_points, init_path=init_path, D=D, **kwargs
+        )
 
-            traj = LeastActionPath(X=path_sol, vf_func=vf.func, D=D, dt=dt_sol)
-            trajectory.append(traj)
-            t.append(np.arange(path_sol.shape[0]) * dt_sol)
-            prediction.append(path_sol)
-            action.append(traj.action())
-            mftp.append(traj.mfpt())
+        traj = LeastActionPath(X=path_sol, vf_func=vf.func, D=D, dt=dt_sol)
+        trajectory.append(traj)
+        t.append(np.arange(path_sol.shape[0]) * dt_sol)
+        prediction.append(path_sol)
+        action.append(traj.action())
+        mftp.append(traj.mfpt())
 
-            if PCs is None and basis == "pca":
-                if "PCs" not in adata.uns.keys():
-                    logger.warning(
-                        "Expressions along the trajectories cannot be retrieved, due to lack of `PCs` in .uns."
-                    )
+        if PCs is None and basis == "pca":
+            if "PCs" not in adata.uns.keys():
+                logger.warning("Expressions along the trajectories cannot be retrieved, due to lack of `PCs` in .uns.")
+            else:
+                if "pca_mean" not in adata.uns.keys():
+                    pca_mean = None
                 else:
-                    if "pca_mean" not in adata.uns.keys():
-                        pca_mean = None
-                    else:
-                        pca_mean = adata.uns["pca_mean"]
-                    exprs.append(pca_to_expr(traj.X, adata.uns["PCs"], pca_mean, func=expr_func))
+                    pca_mean = adata.uns["pca_mean"]
+                exprs.append(pca_to_expr(traj.X, adata.uns["PCs"], pca_mean, func=expr_func))
 
-            logger.info(sol_dict["message"], indent_level=1)
-            logger.info("optimal action: %f" % action_opt, indent_level=1)
+        logger.info(sol_dict["message"], indent_level=1)
+        logger.info("optimal action: %f" % action_opt, indent_level=1)
 
     LAP_key = "LAP" if basis is None else "LAP_" + basis
     adata.uns[LAP_key] = {
@@ -205,7 +226,7 @@ def least_action(
 
     logger.finish_progress(progress_name="least action path")
 
-    return trajectory[0] if len(init_states) + len(init_states) == 2 else trajectory
+    return trajectory[0] if len(trajectory) == 1 else trajectory
 
 
 class LeastActionPath(Trajectory):
