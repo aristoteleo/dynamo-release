@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.sparse import issparse, csr_matrix
 from anndata import AnnData
-from typing import Optional
+from typing import Optional, Union
 from matplotlib.axes import Axes
 
 from ..preprocessing.preprocess import topTable
@@ -773,11 +773,11 @@ def highest_frac_genes(
     gene_annotations: Optional[list] = None,
     gene_annotation_key: str = "use_for_pca",
     log: bool = False,
-    store_key="expr_percent",
-    orient="v",
-    figsize=None,
-    layer=None,
-    title=None,
+    store_key: str = "expr_percent",
+    orient: str = "v",
+    figsize: Union[list, None] = None,
+    layer: Union[str, None] = None,
+    title: Union[str, None] = None,
     **kwargs,
 ):
     """[summary]
@@ -819,75 +819,76 @@ def highest_frac_genes(
     if layer is not None:
         gene_mat = adata.layers[layer]
     if ax is None:
-        height = n_top * 0.4
+        width = n_top * 0.4
         if figsize is None:
-            fig, ax = plt.subplots(figsize=(7, height))
+            fig, ax = plt.subplots(figsize=(width, 4))
         else:
             fig, ax = plt.subplots(figsize=figsize)
     if log:
         ax.set_xscale("log")
 
-    # compute gene percents at each cell row
-    cell_expression_sum = gene_mat.sum(axis=1).flatten()
-    # get rid of cells that have all zero counts
-    not_all_zero = cell_expression_sum != 0
-    adata = adata[not_all_zero, :]
-    cell_expression_sum = cell_expression_sum[not_all_zero]
-    main_info("%d rows(cells or subsets) are not zero" % np.sum(not_all_zero))
+    if "top_genes_df" not in adata.uns_keys():
+        # compute gene percents at each cell row
+        cell_expression_sum = gene_mat.sum(axis=1).flatten()
+        # get rid of cells that have all zero counts
+        not_all_zero = cell_expression_sum != 0
+        adata = adata[not_all_zero, :]
+        cell_expression_sum = cell_expression_sum[not_all_zero]
+        main_info("%d rows(cells or subsets) are not zero. zero total RNA cells are removed." % np.sum(not_all_zero))
 
-    valid_gene_set = set()
-    prefix_to_genes = {}
-    if gene_prefix_list is not None:
-        prefix_to_genes = {prefix: [] for prefix in gene_prefix_list}
-        for name in adata.var_names:
-            for prefix in gene_prefix_list:
-                length = len(prefix)
-                if name[:length] == prefix:
-                    valid_gene_set.add(name)
-                    prefix_to_genes[prefix].append(name)
-                    break
-        if len(valid_gene_set) == 0:
-            main_critical("NO VALID GENES FOUND WITH REQUIRED GENE PREFIX LIST, GIVING UP PLOTTING")
-            return
-        if not show_individual_prefix_gene:
-            # gathering gene prefix set data
-            df = pd.DataFrame(index=adata.obs.index)
-            for prefix in prefix_to_genes:
-                if len(prefix_to_genes[prefix]) == 0:
-                    main_info("There is no %s gene prefix in adata." % prefix)
-                    continue
-                df[prefix] = adata[:, prefix_to_genes[prefix]].X.sum(axis=1)
-            # adata = adata[:, list(valid_gene_set)]
-            adata = AnnData(X=df)
+        valid_gene_set = set()
+        if gene_prefix_list is not None:
+            prefix_to_genes = {prefix: [] for prefix in gene_prefix_list}
+            for name in adata.var_names:
+                for prefix in gene_prefix_list:
+                    length = len(prefix)
+                    if name[:length] == prefix:
+                        valid_gene_set.add(name)
+                        prefix_to_genes[prefix].append(name)
+                        break
+            if len(valid_gene_set) == 0:
+                main_critical("NO VALID GENES FOUND WITH REQUIRED GENE PREFIX LIST, GIVING UP PLOTTING")
+                return
+            if not show_individual_prefix_gene:
+                # gathering gene prefix set data
+                df = pd.DataFrame(index=adata.obs.index)
+                for prefix in prefix_to_genes:
+                    if len(prefix_to_genes[prefix]) == 0:
+                        main_info("There is no %s gene prefix in adata." % prefix)
+                        continue
+                    df[prefix] = adata[:, prefix_to_genes[prefix]].X.sum(axis=1)
+                # adata = adata[:, list(valid_gene_set)]
+                adata = AnnData(X=df)
 
-    gene_X_percents = gene_mat / cell_expression_sum.reshape([-1, 1])
-    # compute gene's total percents in the dataset
-    gene_percents = gene_mat.sum(axis=0)
-    gene_percents = (gene_percents / gene_mat.shape[1]).reshape([-1, 1])
-    # store gene expr percent results
-    adata.var[store_key] = gene_percents
-    # obtain top genes
-    sorted_indices = np.argsort(-adata.var[store_key])
-    selected_indices = sorted_indices[:n_top]
-    gene_names = adata.var_names[selected_indices]
+        # compute gene's total percents in the dataset
+        gene_percents = gene_mat.sum(axis=0)
+        gene_percents = (gene_percents / gene_mat.shape[1]).reshape([-1, 1])
+        # store gene expr percent results
+        adata.var[store_key] = gene_percents
+        # obtain top genes
+        sorted_indices = np.argsort(-adata.var[store_key])
+        selected_indices = sorted_indices[:n_top]
+        gene_names = adata.var_names[selected_indices]
 
-    # assemble a dataframe
-    top_genes_df = pd.DataFrame(
-        gene_X_percents[:, selected_indices],
-        index=adata.obs_names,
-        columns=gene_names,
-    )
+        # assemble a dataframe
+        gene_X_percents = gene_mat[:, selected_indices] / cell_expression_sum[selected_indices].reshape([-1, 1])
+        top_genes_df = pd.DataFrame(
+            gene_X_percents,
+            index=adata.obs_names,
+            columns=gene_names,
+        )
+    else:
+        main_info("Using prexisting top_genes_df in .uns.")
+        top_genes_df = adata.uns["top_genes_df"]
 
     # draw plots
-    sns.boxplot(data=top_genes_df, orient=orient, ax=ax, fliersize=1, showmeans=True)
+    sns.boxplot(data=top_genes_df, orient=orient, ax=ax, fliersize=1, showmeans=True, **kwargs)
 
     if orient == "v":
         ax.set_xticklabels(ax.get_xticklabels(), rotation=30)
-        ax.set_xlabel("genes")
-        ax.set_ylabel("percents of total counts")
+        ax.set_ylabel("fractions of total counts")
     elif orient == "h":
-        ax.set_xlabel("percents of total counts")
-        ax.set_ylabel("genes")
+        ax.set_xlabel("fractions of total counts")
     else:
         raise NotImplementedError()
 
