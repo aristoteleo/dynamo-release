@@ -254,3 +254,12 @@ class LeastActionPath(Trajectory):
         """Eqn. 7 of Epigenetics as a first exit problem."""
         action = self._action if action is None else action
         return 1 / np.exp(-action)
+
+    def optimize_dt(self):
+        dt_0 = self.get_dt()
+        t_dict = minimize(lambda t: action(self.X, self.func, D=self.D, dt=t), dt_0)
+        LoggerManager.main_logger.info(t_dict["message"])
+        LoggerManager.main_logger.info("optimal action: %f" % t_dict["fun"])
+        dt_sol = t_dict["x"][0]
+        self.t = np.arange(self.X.shape[0]) * dt_sol
+        return dt_sol
