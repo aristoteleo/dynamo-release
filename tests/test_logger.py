@@ -1,4 +1,5 @@
 from dynamo import LoggerManager
+from dynamo.dynamo_logger import main_tqdm
 import dynamo.tools
 import dynamo as dyn
 import pytest
@@ -25,9 +26,7 @@ def test_logger_simple_progress_naive(test_logger):
         # test_logger.report_progress(i / total * 100)
         test_logger.report_progress(count=i, total=total)
         time.sleep(0.1)
-    test_logger.finish_progress(
-        progress_name="pytest simple progress logger test"
-    )
+    test_logger.finish_progress(progress_name="pytest simple progress logger test")
 
 
 def test_logger_simple_progress_logger(test_logger):
@@ -38,6 +37,13 @@ def test_logger_simple_progress_logger(test_logger):
         test_logger,
         progress_name="progress logger test looooooooooooooooooooooooooooooong",
     ):
+        time.sleep(0.1)
+
+
+def test_tqdm_style_loops():
+    for i in main_tqdm(range(1, 11), desc="using TQDM style logging"):
+        time.sleep(0.1)
+    for i in LoggerManager.progress_logger(range(1, 11), progress_name="using LoggerManager's progress_logger"):
         time.sleep(0.1)
 
 
@@ -93,10 +99,13 @@ def test_cell_cycle_score_logger_pancreatic_endocrinogenesis():
 
 
 if __name__ == "__main__":
-    # test_logger_simple_output_1(LoggerManager.get_main_logger())
-    # test_logger_simple_progress_naive(LoggerManager.get_main_logger())
-    # test_logger_simple_progress_logger(LoggerManager.get_main_logger())
-    # test_logger_simple_progress_logger(LoggerManager.get_temp_timer_logger())
+    test_tqdm_style_loops()
+
+    test_logger_simple_output_1(LoggerManager.get_main_logger())
+    test_logger_simple_progress_naive(LoggerManager.get_main_logger())
+    test_logger_simple_progress_logger(LoggerManager.get_main_logger())
+    test_logger_simple_progress_logger(LoggerManager.get_temp_timer_logger())
+
     test_vectorField_logger()
     test_zebrafish_topography_tutorial_logger()
     test_cell_cycle_score_logger_pancreatic_endocrinogenesis()
