@@ -859,6 +859,7 @@ def highest_frac_genes(
                 df[prefix] = adata[:, prefix_to_genes[prefix]].X.sum(axis=1)
             # adata = adata[:, list(valid_gene_set)]
             adata = AnnData(X=df)
+            gene_mat = adata.X
 
     gene_X_percents = gene_mat / cell_expression_sum.reshape([-1, 1])
     # compute gene's total percents in the dataset
@@ -881,31 +882,40 @@ def highest_frac_genes(
     # draw plots
     sns.boxplot(data=top_genes_df, orient=orient, ax=ax, fliersize=1, showmeans=True)
 
-    if orient == "v":
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=30)
-        ax.set_xlabel("genes")
-        ax.set_ylabel("percents of total counts")
-    elif orient == "h":
-        ax.set_xlabel("percents of total counts")
-        ax.set_ylabel("genes")
-    else:
-        raise NotImplementedError()
-
     if gene_annotations is None:
         if gene_annotation_key in adata.var:
             gene_annotations = adata.var[gene_annotation_key][selected_indices]
-            ax2 = ax.twinx()
-            ax2.set_ylim(ax.get_ylim())
-            ax2.set_yticks(ax.get_yticks())
 
-            ax2.set_yticks(list(range(len(gene_annotations))))
-            ax2.set_yticklabels(gene_annotations)
-            ax2.set_ylabel(gene_annotation_key)
         else:
             main_warning(
                 "%s not in adata.var, ignoring the gene annotation key when plotting",
                 indent_level=2,
             )
+
+    if orient == "v":
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=30)
+        ax.set_xlabel("genes")
+        ax.set_ylabel("percents of total counts")
+
+        if gene_annotations is not None:
+            ax2 = ax.twiny()
+            ax2.set_xlim(ax.get_ylim())
+            ax2.set_xticks(ax.get_yticks())
+            ax2.set_xticks(list(range(len(gene_annotations))))
+            ax2.set_xticklabels(gene_annotations, rotation=30)
+            ax2.set_xlabel(gene_annotation_key)
+    elif orient == "h":
+        ax.set_xlabel("percents of total counts")
+        ax.set_ylabel("genes")
+        if gene_annotations is not None:
+            ax2 = ax.twinx()
+            ax2.set_ylim(ax.get_ylim())
+            ax2.set_yticks(ax.get_yticks())
+            ax2.set_yticks(list(range(len(gene_annotations))))
+            ax2.set_yticklabels(gene_annotations)
+            ax2.set_ylabel(gene_annotation_key)
+    else:
+        raise NotImplementedError()
 
     if title is None:
         if layer is None:
@@ -920,7 +930,7 @@ def highest_frac_genes(
             "path": save_path,
             "prefix": "plot_highest_gene",
             "dpi": None,
-            "ext": "pdf",
+            "ext": "png",
             "transparent": True,
             "close": True,
             "verbose": True,

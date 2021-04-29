@@ -23,6 +23,13 @@ def test_highest_frac_genes_plot(adata, is_X_sparse=True):
         log=False,
         show=True,
         save_path="test_simple_highest_frac_genes.png",
+        orient="h",
+    )
+    dyn.pl.highest_frac_genes(
+        adata,
+        log=False,
+        show=True,
+        save_path="test_simple_highest_frac_genes.png",
         layer="M_s",
     )
 
