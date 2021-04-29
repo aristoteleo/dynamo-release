@@ -827,16 +827,25 @@ def highest_frac_genes(
     if log:
         ax.set_xscale("log")
 
-    if "top_genes_df" not in adata.uns_keys():
+    def _compute_top_genes_df():
+        """Compute top genes dataframe for plotting later.
+
+        Returns
+        -------
+        [type]
+            [description]
+        """
+        nonlocal adata, gene_mat
         # compute gene percents at each cell row
         cell_expression_sum = gene_mat.sum(axis=1).flatten()
         # get rid of cells that have all zero counts
         not_all_zero = cell_expression_sum != 0
         adata = adata[not_all_zero, :]
         cell_expression_sum = cell_expression_sum[not_all_zero]
-        main_info("%d rows(cells or subsets) are not zero. zero total RNA cells are removed." % np.sum(not_all_zero))
+        main_info("%d rows(cells or subsets) are not zero" % np.sum(not_all_zero))
 
         valid_gene_set = set()
+        prefix_to_genes = {}
         if gene_prefix_list is not None:
             prefix_to_genes = {prefix: [] for prefix in gene_prefix_list}
             for name in adata.var_names:
@@ -848,7 +857,7 @@ def highest_frac_genes(
                         break
             if len(valid_gene_set) == 0:
                 main_critical("NO VALID GENES FOUND WITH REQUIRED GENE PREFIX LIST, GIVING UP PLOTTING")
-                return
+                return None
             if not show_individual_prefix_gene:
                 # gathering gene prefix set data
                 df = pd.DataFrame(index=adata.obs.index)
@@ -859,6 +868,7 @@ def highest_frac_genes(
                     df[prefix] = adata[:, prefix_to_genes[prefix]].X.sum(axis=1)
                 # adata = adata[:, list(valid_gene_set)]
                 adata = AnnData(X=df)
+                gene_mat = adata.X
 
         # compute gene's total percents in the dataset
         gene_percents = gene_mat.sum(axis=0)
@@ -870,43 +880,76 @@ def highest_frac_genes(
         selected_indices = sorted_indices[:n_top]
         gene_names = adata.var_names[selected_indices]
 
+        gene_X_percents = gene_mat / cell_expression_sum.reshape([-1, 1])
+        # To-do: faster but not fails test, switch to the version below in future
+        # gene_X_percents = gene_mat[:, selected_indices] / cell_expression_sum[
+        #     selected_indices
+        # ].reshape([-1, 1])
+
         # assemble a dataframe
-        gene_X_percents = gene_mat[:, selected_indices] / cell_expression_sum[selected_indices].reshape([-1, 1])
         top_genes_df = pd.DataFrame(
-            gene_X_percents,
+            gene_X_percents[:, selected_indices],
             index=adata.obs_names,
             columns=gene_names,
         )
-    else:
-        main_info("Using prexisting top_genes_df in .uns.")
-        top_genes_df = adata.uns["top_genes_df"]
+
+        return adata, gene_mat, top_genes_df, selected_indices
+
+    result = _compute_top_genes_df()
+    if result is None:
+        return
+    adata, gene_mat, top_genes_df, selected_indices = result
+
+    # To-do: use top genes_df dataframe; however this logic currently
+    # does not fit subset logics and may fail tests.
+
+    # main_info("Using prexisting top_genes_df in .uns.")
+    # top_genes_df = adata.uns["top_genes_df"]
 
     # draw plots
-    sns.boxplot(data=top_genes_df, orient=orient, ax=ax, fliersize=1, showmeans=True, **kwargs)
-
-    if orient == "v":
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=30)
-        ax.set_ylabel("fractions of total counts")
-    elif orient == "h":
-        ax.set_xlabel("fractions of total counts")
-    else:
-        raise NotImplementedError()
+    sns.boxplot(
+        data=top_genes_df,
+        orient=orient,
+        ax=ax,
+        fliersize=1,
+        showmeans=True,
+        **kwargs,
+    )
 
     if gene_annotations is None:
         if gene_annotation_key in adata.var:
             gene_annotations = adata.var[gene_annotation_key][selected_indices]
-            ax2 = ax.twinx()
-            ax2.set_ylim(ax.get_ylim())
-            ax2.set_yticks(ax.get_yticks())
 
-            ax2.set_yticks(list(range(len(gene_annotations))))
-            ax2.set_yticklabels(gene_annotations)
-            ax2.set_ylabel(gene_annotation_key)
         else:
             main_warning(
                 "%s not in adata.var, ignoring the gene annotation key when plotting",
                 indent_level=2,
             )
+
+    if orient == "v":
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=30)
+        ax.set_xlabel("genes")
+        ax.set_ylabel("fractions of total counts")
+
+        if gene_annotations is not None:
+            ax2 = ax.twiny()
+            ax2.set_xlim(ax.get_ylim())
+            ax2.set_xticks(ax.get_yticks())
+            ax2.set_xticks(list(range(len(gene_annotations))))
+            ax2.set_xticklabels(gene_annotations, rotation=30)
+            ax2.set_xlabel(gene_annotation_key)
+    elif orient == "h":
+        ax.set_xlabel("fractions of total counts")
+        ax.set_ylabel("genes")
+        if gene_annotations is not None:
+            ax2 = ax.twinx()
+            ax2.set_ylim(ax.get_ylim())
+            ax2.set_yticks(ax.get_yticks())
+            ax2.set_yticks(list(range(len(gene_annotations))))
+            ax2.set_yticklabels(gene_annotations)
+            ax2.set_ylabel(gene_annotation_key)
+    else:
+        raise NotImplementedError()
 
     if title is None:
         if layer is None:
@@ -921,7 +964,7 @@ def highest_frac_genes(
             "path": save_path,
             "prefix": "plot_highest_gene",
             "dpi": None,
-            "ext": "pdf",
+            "ext": "png",
             "transparent": True,
             "close": True,
             "verbose": True,
