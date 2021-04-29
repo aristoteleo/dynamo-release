@@ -926,16 +926,6 @@ def highest_frac_genes(
                 indent_level=2,
             )
 
-    if gene_annotations is None:
-        if gene_annotation_key in adata.var:
-            gene_annotations = adata.var[gene_annotation_key][selected_indices]
-
-        else:
-            main_warning(
-                "%s not in adata.var, ignoring the gene annotation key when plotting",
-                indent_level=2,
-            )
-
     if orient == "v":
         ax.set_xticklabels(ax.get_xticklabels(), rotation=30)
         ax.set_xlabel("genes")
