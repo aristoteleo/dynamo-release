@@ -36,6 +36,13 @@ def test_highest_frac_genes_plot(adata, is_X_sparse=True):
         log=False,
         show=SHOW_FIG,
         save_path="test_simple_highest_frac_genes.png",
+        orient="h",
+    )
+    dyn.pl.highest_frac_genes(
+        adata,
+        log=False,
+        show=SHOW_FIG,
+        save_path="test_simple_highest_frac_genes.png",
         layer="M_s",
     )
 
@@ -46,13 +53,15 @@ def test_highest_frac_genes_plot(adata, is_X_sparse=True):
 
 def test_highest_frac_genes_plot_prefix_list(adata, is_X_sparse=True):
     sample_list = ["MT-", "RPS", "RPL", "MRPS", "MRPL", "ERCC-"]
-    dyn.pl.highest_frac_genes(adata, show=SHOW_FIG, gene_prefix_list=sample_list)
-    dyn.pl.highest_frac_genes(adata, show=SHOW_FIG, gene_prefix_list=["RPL", "MRPL"])
+    dyn.pl.highest_frac_genes(
+        adata, show=SHOW_FIG, gene_prefix_list=sample_list
+    )
+    dyn.pl.highest_frac_genes(
+        adata, show=SHOW_FIG, gene_prefix_list=["RPL", "MRPL"]
+    )
 
     dyn.pl.highest_frac_genes(
-        adata,
-        gene_prefix_list=["someGenePrefixNotExisting"],
-        show=SHOW_FIG,
+        adata, gene_prefix_list=["someGenePrefixNotExisting"], show=SHOW_FIG,
     )
 
 
