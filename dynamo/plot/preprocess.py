@@ -842,7 +842,7 @@ def highest_frac_genes(
         not_all_zero = cell_expression_sum != 0
         adata = adata[not_all_zero, :]
         cell_expression_sum = cell_expression_sum[not_all_zero]
-        main_info("%d rows(cells or subsets) are not zero" % np.sum(not_all_zero))
+        main_info("%d rows(cells or subsets) are not zero. zero total RNA cells are removed." % np.sum(not_all_zero))
 
         valid_gene_set = set()
         prefix_to_genes = {}
