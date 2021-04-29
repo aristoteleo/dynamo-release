@@ -67,6 +67,16 @@ class Trajectory:
             raise Exception("`self.t` is `None`, which is needed for interpolation.")
         return interp1d(self.t, self.X, axis=0, **interp_kwargs)(t)
 
+    def interp_t(self, num=100):
+        if self.t is None:
+            raise Exception("`self.t` is `None`, which is needed for interpolation.")
+        return np.linspace(self.t[0], self.t[-1], num=num)
+
+    def interp_X(self, num=100, **interp_kwargs):
+        if self.t is None:
+            raise Exception("`self.t` is `None`, which is needed for interpolation.")
+        return self.interpolate(self.interp_t(num=num), **interp_kwargs)
+
     def integrate(self, func):
         """ Calculate the integral of func along the curve. The first and last points are omitted. """
         F = np.zeros(func(self.X[0]).shape)
