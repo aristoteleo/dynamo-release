@@ -3,6 +3,8 @@ import pandas as pd
 from scipy.sparse import issparse
 from matplotlib.axes import Axes
 from anndata import AnnData
+from typing import List, Union, Optional
+from matplotlib.figure import Figure
 
 from .scatters import scatters
 from .utils import (
@@ -1140,7 +1142,7 @@ def plot_energy(
     basis: Optional[str] = None,
     vecfld_dict: Optional[dict] = None,
     figsize: Optional[tuple] = None,
-    fig: Optional[matplotlib.figure.Figure] = None,
+    fig: Optional[Figure] = None,
     save_show_or_return: str = "show",
     save_kwargs: dict = {},
 ):
