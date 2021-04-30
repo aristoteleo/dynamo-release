@@ -2,6 +2,9 @@
 import numpy as np
 from scipy.sparse import issparse
 from scipy.interpolate import interp1d
+from anndata import AnnData
+from typing import Optional, Union
+
 from ..tools.utils import update_dict
 from ..prediction.utils import fetch_exprs
 from .utils import save_fig
@@ -14,22 +17,22 @@ docstrings = DocstringProcessor()
 
 @docstrings.get_sectionsf("kin_curves")
 def kinetic_curves(
-    adata,
-    genes,
-    mode="vector_field",
-    basis=None,
-    layer="X",
-    project_back_to_high_dim=True,
-    tkey="potential",
-    dist_threshold=1e-10,
-    ncol=4,
-    color="ntr",
-    c_palette="Set2",
-    standard_scale=0,
-    traj_ind=0,
-    log=True,
-    save_show_or_return="show",
-    save_kwargs={},
+    adata: AnnData,
+    genes: list,
+    mode: str = "vector_field",
+    basis: Optional[str] = None,
+    layer: str = "X",
+    project_back_to_high_dim: bool = True,
+    tkey: str = "potential",
+    dist_threshold: float = 1e-10,
+    ncol: int = 4,
+    color: Union[list, None] = "ntr",
+    c_palette: str = "Set2",
+    standard_scale: int = 0,
+    traj_ind: int = 0,
+    log: bool = True,
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
 ):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) as kinetic curves.
 
@@ -61,7 +64,7 @@ def kinetic_curves(
             A list of attributes of cells (column names in the adata.obs) will be used to color cells.
         tkey: `str` (default: `potential`)
             The .obs column that will be used for timing each cell, only used when mode is not `vector_field`.
-        dist_threshold: `float` or None (default: 1e-10)
+        dist_threshold: `float` (default: 1e-10)
             The threshold for the distance between two points in the gene expression state, i.e, x(t), x(t+1). If below
             this threshold, we assume steady state is achieved and those data points will not be considered. This
             argument is ignored when mode is `pseudotime`.
@@ -101,7 +104,16 @@ def kinetic_curves(
     if mode == "pseudotime" and tkey == "potential" and "potential" not in adata.obs_keys():
         ddhodge(adata)
 
-    exprs, valid_genes, time = fetch_exprs(adata, basis, layer, genes, tkey, mode, project_back_to_high_dim, traj_ind)
+    exprs, valid_genes, time = fetch_exprs(
+        adata,
+        basis,
+        layer,
+        genes,
+        tkey,
+        mode,
+        project_back_to_high_dim,
+        traj_ind,
+    )
 
     Color = np.empty((0, 1))
     if color is not None and mode != "vector_field":
@@ -189,26 +201,26 @@ docstrings.delete_params("kin_curves.parameters", "ncol", "color", "c_palette")
 
 @docstrings.with_indent(4)
 def kinetic_heatmap(
-    adata,
-    genes,
-    mode="vector_field",
-    basis=None,
-    layer="X",
-    project_back_to_high_dim=True,
-    tkey="potential",
-    dist_threshold=1e-10,
-    color_map="BrBG",
-    gene_order_method="maximum",
-    show_colorbar=False,
-    cluster_row_col=[False, False],
-    figsize=(11.5, 6),
-    standard_scale=1,
-    n_convolve=30,
-    spaced_num=100,
-    traj_ind=0,
-    log=True,
-    save_show_or_return="show",
-    save_kwargs={},
+    adata: AnnData,
+    genes: list,
+    mode: str = "vector_field",
+    basis: Optional[str] = None,
+    layer: str = "X",
+    project_back_to_high_dim: bool = True,
+    tkey: str = "potential",
+    dist_threshold: float = 1e-10,
+    color_map: int = "BrBG",
+    gene_order_method: str = "maximum",
+    show_colorbar: bool = False,
+    cluster_row_col: list = [False, False],
+    figsize: tuple = (11.5, 6),
+    standard_scale: int = 1,
+    n_convolve: int = 30,
+    spaced_num: int = 100,
+    traj_ind: int = 0,
+    log: bool = True,
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
     **kwargs,
 ):
     """Plot the gene expression dynamics over time (pseudotime or inferred real time) in a heatmap.
@@ -270,7 +282,16 @@ def kinetic_heatmap(
     if mode == "pseudotime" and tkey == "potential" and "potential" not in adata.obs_keys():
         ddhodge(adata)
 
-    exprs, valid_genes, time = fetch_exprs(adata, basis, layer, genes, tkey, mode, project_back_to_high_dim, traj_ind)
+    exprs, valid_genes, time = fetch_exprs(
+        adata,
+        basis,
+        layer,
+        genes,
+        tkey,
+        mode,
+        project_back_to_high_dim,
+        traj_ind,
+    )
 
     exprs = exprs.A if issparse(exprs) else exprs
     if mode != "pseudotime":
@@ -401,7 +422,10 @@ def _half_max_ordering(exprs, time, mode, interpolate=False, spaced_num=100):
             np.zeros((gene_num, cell_num)),
         )
     else:
-        hm_mat_scaled, hm_mat_scaled_z = np.zeros_like(exprs), np.zeros_like(exprs)
+        hm_mat_scaled, hm_mat_scaled_z = (
+            np.zeros_like(exprs),
+            np.zeros_like(exprs),
+        )
 
     transient, trans_max, half_max = (
         np.zeros(gene_num),
@@ -509,21 +533,21 @@ def lowess_smoother(time, exprs, spaced_num=None, n_convolve=30):
 
 @docstrings.with_indent(4)
 def jacobian_kinetics(
-    adata,
-    basis="umap",
-    regulators=None,
-    effectors=None,
-    mode="pseudotime",
-    tkey="potential",
-    color_map="bwr",
-    gene_order_method="raw",
-    show_colorbar=False,
-    cluster_row_col=[False, True],
-    figsize=(11.5, 6),
-    standard_scale=1,
-    n_convolve=30,
-    save_show_or_return="show",
-    save_kwargs={},
+    adata: AnnData,
+    basis: str = "umap",
+    regulators: Optional[list] = None,
+    effectors: Optional[list] = None,
+    mode: str = "pseudotime",
+    tkey: str = "potential",
+    color_map: str = "bwr",
+    gene_order_method: str = "raw",
+    show_colorbar: bool = False,
+    cluster_row_col: list = [False, True],
+    figsize: tuple = (11.5, 6),
+    standard_scale: int = 1,
+    n_convolve: int = 30,
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
     **kwargs,
 ):
     """Plot the Jacobian dynamics over time (pseudotime or inferred real time) in a heatmap.
@@ -642,7 +666,10 @@ def jacobian_kinetics(
             f"available target genes includes {effectors_}"
         )
     n_source_targets = len(regulators) * len(effectors)
-    targets, sources = np.repeat(effectors, len(regulators)), np.tile(regulators, len(effectors))
+    targets, sources = (
+        np.repeat(effectors, len(regulators)),
+        np.tile(regulators, len(effectors)),
+    )
     source_targets = [sources[i] + "->" + targets[i] for i in range(n_source_targets)]
 
     jacobian_mat = jacobian_mat[:, np.argsort(time)]
@@ -865,7 +892,10 @@ def sensitivity_kinetics(
             f"available target genes includes {effectors_}"
         )
     n_source_targets = len(regulators) * len(effectors)
-    targets, sources = np.repeat(effectors, len(regulators)), np.tile(regulators, len(effectors))
+    targets, sources = (
+        np.repeat(effectors, len(regulators)),
+        np.tile(regulators, len(effectors)),
+    )
     source_targets = [sources[i] + "->" + targets[i] for i in range(n_source_targets)]
 
     sensitivity_mat = sensitivity_mat[:, np.argsort(time)]

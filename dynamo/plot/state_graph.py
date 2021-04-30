@@ -1,23 +1,17 @@
 import numpy as np
 import pandas as pd
+from anndata import AnnData
+from typing import Optional, Union
+from matplotlib.axes import Axes
+
 from ..tools.utils import update_dict
 from .scatters import scatters, docstrings
 from .utils import save_fig
 
-docstrings.delete_params(
-    "scatters.parameters", "aggregate", "kwargs", "save_kwargs"
-)
+docstrings.delete_params("scatters.parameters", "aggregate", "kwargs", "save_kwargs")
 
 
-def create_edge_patch(
-    posA,
-    posB,
-    width=1,
-    node_rad=0,
-    connectionstyle="arc3, rad=0.25",
-    facecolor="k",
-    **kwargs
-):
+def create_edge_patch(posA, posB, width=1, node_rad=0, connectionstyle="arc3, rad=0.25", facecolor="k", **kwargs):
     import matplotlib.patches as pat
 
     style = "simple,head_length=%d,head_width=%d,tail_width=%d" % (
@@ -38,15 +32,7 @@ def create_edge_patch(
 
 
 def create_edge_patches_from_markov_chain(
-    P,
-    X,
-    width=3,
-    node_rad=0,
-    tol=1e-7,
-    connectionstyle="arc3, rad=0.25",
-    facecolor="k",
-    alpha=0.8,
-    **kwargs
+    P, X, width=3, node_rad=0, tol=1e-7, connectionstyle="arc3, rad=0.25", facecolor="k", alpha=0.8, **kwargs
 ):
     arrows = []
     for i in range(P.shape[0]):
@@ -69,33 +55,33 @@ def create_edge_patches_from_markov_chain(
 
 @docstrings.with_indent(4)
 def state_graph(
-    adata,
-    group,
-    basis="umap",
-    x=0,
-    y=1,
-    color="ntr",
-    layer="X",
-    highlights=None,
-    labels=None,
-    values=None,
-    theme=None,
-    cmap=None,
-    color_key=None,
-    color_key_cmap=None,
-    background=None,
-    ncols=1,
-    pointsize=None,
-    figsize=(6, 4),
-    show_legend=True,
-    use_smoothed=True,
-    show_arrowed_spines=True,
-    ax=None,
-    sort="raw",
-    frontier=False,
-    save_show_or_return="show",
-    save_kwargs={},
-    s_kwargs_dict={},
+    adata: AnnData,
+    group: Optional[str] = None,
+    basis: str = "umap",
+    x: int = 0,
+    y: int = 1,
+    color: str = "ntr",
+    layer: str = "X",
+    highlights: Optional[list] = None,
+    labels: Optional[list] = None,
+    values: Optional[list] = None,
+    theme: Optional[str] = None,
+    cmap: Optional[str] = None,
+    color_key: Union[dict, list] = None,
+    color_key_cmap: Optional[str] = None,
+    background: Optional[str] = None,
+    ncols: int = 4,
+    pointsize: Union[None, float] = None,
+    figsize: tuple = (6, 4),
+    show_legend: bool = True,
+    use_smoothed: bool = True,
+    show_arrowed_spines: bool = True,
+    ax: Optional[Axes] = None,
+    sort: str = "raw",
+    frontier: bool = False,
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
+    s_kwargs_dict: dict = {},
     **kwargs
 ):
     """Plot a summarized cell type (state) transition graph. This function tries to create a model that summarizes
@@ -143,15 +129,11 @@ def state_graph(
     Pl /= Pl.sum(1)[:, None]
 
     for i, cur_grp in enumerate(uniq_grp):
-        group_median[i, :] = np.nanmedian(
-            points[np.where(groups == cur_grp)[0], :2], 0
-        )
+        group_median[i, :] = np.nanmedian(points[np.where(groups == cur_grp)[0], :2], 0)
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
-        background = (
-            to_hex(_background) if type(_background) is tuple else _background
-        )
+        background = to_hex(_background) if type(_background) is tuple else _background
 
     plt.figure(facecolor=_background)
     axes_list, color_list, font_color = scatters(
@@ -184,9 +166,7 @@ def state_graph(
         return_all=True,
     )
 
-    arrows = create_edge_patches_from_markov_chain(
-        Pl, group_median, tol=0.01, node_rad=15
-    )
+    arrows = create_edge_patches_from_markov_chain(Pl, group_median, tol=0.01, node_rad=15)
     if type(axes_list) == list:
         for i in range(len(axes_list)):
             for arrow in arrows:
