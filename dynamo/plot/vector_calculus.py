@@ -31,7 +31,7 @@ docstrings.delete_params("scatters.parameters", "adata", "color", "cmap", "front
 
 @docstrings.with_indent(4)
 def speed(
-    adata: Anndata,
+    adata: AnnData,
     basis: str = "pca",
     color: Union[str, list, None] = None,
     frontier: bool = True,
