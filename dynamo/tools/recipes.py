@@ -24,6 +24,7 @@ def recipe_kin_data(
     ekey="M_t",
     vkey="velocity_T",
     basis="umap",
+    rm_kwargs={},
 ):
     """An analysis recipe that properly pre-processes different layers for an kinetics experiment with both labeling and
     splicing data.
@@ -78,6 +79,8 @@ def recipe_kin_data(
         basis: int (optional, default `umap`)
             The dictionary key that corresponds to the reduced dimension in `.obsm` attribute. Can be `X_spliced_umap`
             or `X_total_umap`, etc. Parameters required by `cell_velocities`
+        rm_kwargs: `dict` or None (default: `None`)
+            Other Parameters passed into the pp.recipe_monocle function.
 
     Returns
     -------
@@ -95,9 +98,9 @@ def recipe_kin_data(
 
     if not has_labeling:
         raise Exception(
-            f"This recipe is only applicable to kinetics experiment datasets that have "
-            f"labeling data (at least either with `'uu', 'ul', 'su', 'sl'` or `'new', 'total'` "
-            f"layers."
+            "This recipe is only applicable to kinetics experiment datasets that have "
+            "labeling data (at least either with `'uu', 'ul', 'su', 'sl'` or `'new', 'total'` "
+            "layers."
         )
 
     if has_splicing and has_labeling:
@@ -115,12 +118,14 @@ def recipe_kin_data(
             keep_filtered_cells=keep_filtered_cells,
             keep_filtered_genes=keep_filtered_genes,
             keep_raw_layers=keep_raw_layers,
+            **rm_kwargs,
         )
         tkey = adata.uns["pp"]["tkey"]
         # first calculate moments for labeling data relevant layers using total based connectivity graph
         moments(adata, group=tkey, layers=layers)
 
-        # then we want to calculate moments for spliced and unspliced layers based on connectivity graph from spliced data.
+        # then we want to calculate moments for spliced and unspliced layers based on connectivity graph from spliced
+        # data.
         # first get X_spliced based pca embedding
         CM = np.log1p(adata[:, adata.var.use_for_pca].layers["X_spliced"].A)
         cm_genesums = CM.sum(axis=0)
@@ -134,7 +139,8 @@ def recipe_kin_data(
         conn = normalize_knn_graph(adata.obsp["connectivities"] > 0)
         # then calculate moments for spliced related layers using spliced based connectivity graph
         moments(adata, conn=conn, layers=["X_spliced", "X_unspliced"])
-        # then perform kinetic estimations with properly preprocessed layers for either the labeling or the splicing data
+        # then perform kinetic estimations with properly preprocessed layers for either the labeling or the splicing
+        # data
         dynamics(
             adata,
             model="deterministic",
@@ -158,6 +164,7 @@ def recipe_kin_data(
             keep_filtered_cells=keep_filtered_cells,
             keep_filtered_genes=keep_filtered_genes,
             keep_raw_layers=keep_raw_layers,
+            **rm_kwargs,
         )
         dynamics(
             adata,
@@ -185,6 +192,7 @@ def recipe_deg_data(
     ekey="M_s",
     vkey="velocity_S",
     basis="umap",
+    rm_kwargs={},
 ):
     """An analysis recipe that properly pre-processes different layers for a degradation experiment with both
     labeling and splicing data. Functions need to be updated.
@@ -239,6 +247,8 @@ def recipe_deg_data(
         basis: int (optional, default `umap`)
             The dictionary key that corresponds to the reduced dimension in `.obsm` attribute. Can be `X_spliced_umap`
             or `X_total_umap`, etc. Parameters required by `cell_velocities`
+        rm_kwargs: `dict` or None (default: `None`)
+            Other Parameters passed into the pp.recipe_monocle function.
 
     Returns
     -------
@@ -257,9 +267,9 @@ def recipe_deg_data(
 
     if not has_labeling:
         raise Exception(
-            f"This recipe is only applicable to kinetics experiment datasets that have "
-            f"labeling data (at least either with `'uu', 'ul', 'su', 'sl'` or `'new', 'total'` "
-            f"layers."
+            "This recipe is only applicable to kinetics experiment datasets that have "
+            "labeling data (at least either with `'uu', 'ul', 'su', 'sl'` or `'new', 'total'` "
+            "layers."
         )
 
     if has_splicing and has_labeling:
@@ -277,6 +287,7 @@ def recipe_deg_data(
             keep_filtered_cells=keep_filtered_cells,
             keep_filtered_genes=keep_filtered_genes,
             keep_raw_layers=keep_raw_layers,
+            **rm_kwargs,
         )
 
         tkey = adata.uns["pp"]["tkey"]
@@ -296,7 +307,8 @@ def recipe_deg_data(
         conn = normalize_knn_graph(adata.obsp["connectivities"] > 0)
         moments(adata, conn=conn, group=tkey, layers=layers)
 
-        # then perform kinetic estimations with properly preprocessed layers for either the labeling or the splicing data
+        # then perform kinetic estimations with properly preprocessed layers for either the labeling or the splicing
+        # data
         dynamics(
             adata,
             model="deterministic",
@@ -308,10 +320,8 @@ def recipe_deg_data(
         # lastly, project RNA velocity to low dimensional embedding.
         try:
             set_transition_genes(adata)
-            cell_velocities(
-                adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis
-            )
-        except:
+            cell_velocities(adata, enforce=True, vkey=vkey, ekey=ekey, basis=basis)
+        except BaseException:
             cell_velocities(
                 adata,
                 min_r2=adata.var.gamma_r2.min(),
@@ -334,6 +344,7 @@ def recipe_deg_data(
             keep_filtered_cells=keep_filtered_cells,
             keep_filtered_genes=keep_filtered_genes,
             keep_raw_layers=keep_raw_layers,
+            **rm_kwargs,
         )
         dynamics(adata, model="deterministic", del_2nd_moments=del_2nd_moments)
         reduceDimension(adata, reduction_method=basis)
@@ -355,6 +366,7 @@ def recipe_mix_kin_deg_data(
     ekey="M_t",
     vkey="velocity_T",
     basis="umap",
+    rm_kwargs={},
 ):
     """An analysis recipe that properly pre-processes different layers for an kinetics experiment with both labeling and
     splicing data.
@@ -409,6 +421,8 @@ def recipe_mix_kin_deg_data(
         basis: int (optional, default `umap`)
             The dictionary key that corresponds to the reduced dimension in `.obsm` attribute. Can be `X_spliced_umap`
             or `X_total_umap`, etc. Parameters required by `cell_velocities`
+        rm_kwargs: `dict` or None (default: `None`)
+            Other Parameters passed into the pp.recipe_monocle function.
 
     Returns
     -------
@@ -426,9 +440,9 @@ def recipe_mix_kin_deg_data(
 
     if not has_labeling:
         raise Exception(
-            f"This recipe is only applicable to kinetics experiment datasets that have "
-            f"labeling data (at least either with `'uu', 'ul', 'su', 'sl'` or `'new', 'total'` "
-            f"layers."
+            "This recipe is only applicable to kinetics experiment datasets that have "
+            "labeling data (at least either with `'uu', 'ul', 'su', 'sl'` or `'new', 'total'` "
+            "layers."
         )
 
     if has_splicing and has_labeling:
@@ -446,12 +460,14 @@ def recipe_mix_kin_deg_data(
             keep_filtered_cells=keep_filtered_cells,
             keep_filtered_genes=keep_filtered_genes,
             keep_raw_layers=keep_raw_layers,
+            **rm_kwargs,
         )
         tkey = adata.uns["pp"]["tkey"]
         # first calculate moments for labeling data relevant layers using total based connectivity graph
         moments(adata, group=tkey, layers=layers)
 
-        # then we want to calculate moments for spliced and unspliced layers based on connectivity graph from spliced data.
+        # then we want to calculate moments for spliced and unspliced layers based on connectivity graph from spliced
+        # data.
         # first get X_spliced based pca embedding
         CM = np.log1p(adata[:, adata.var.use_for_pca].layers["X_spliced"].A)
         cm_genesums = CM.sum(axis=0)
@@ -465,7 +481,8 @@ def recipe_mix_kin_deg_data(
         conn = normalize_knn_graph(adata.obsp["connectivities"] > 0)
         # then calculate moments for spliced related layers using spliced based connectivity graph
         moments(adata, conn=conn, layers=["X_spliced", "X_unspliced"])
-        # then perform kinetic estimations with properly preprocessed layers for either the labeling or the splicing data
+        # then perform kinetic estimations with properly preprocessed layers for either the labeling or the splicing
+        # data
         dynamics(
             adata,
             model="deterministic",
@@ -489,6 +506,7 @@ def recipe_mix_kin_deg_data(
             keep_filtered_cells=keep_filtered_cells,
             keep_filtered_genes=keep_filtered_genes,
             keep_raw_layers=keep_raw_layers,
+            **rm_kwargs,
         )
         dynamics(
             adata,
