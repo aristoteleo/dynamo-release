@@ -404,7 +404,6 @@ def cell_velocities(
 
         # P = kmc.compute_stationary_distribution()
         # adata.obs['stationary_distribution'] = P
-        X_grid, V_grid, D = velocity_on_grid(X_embedding[:, :2], delta_X[:, :2], xy_grid_nums=xy_grid_nums)
 
         if calc_rnd_vel:
             kmc = KernelMarkovChain()
@@ -419,9 +418,6 @@ def cell_velocities(
                 delta_X_rnd = kmc.compute_drift(X_embedding)
             # P_rnd = kmc.compute_stationary_distribution()
             # adata.obs['stationary_distribution_rnd'] = P_rnd
-            X_grid_rnd, V_grid_rnd, D_rnd = velocity_on_grid(
-                X_embedding[:, :2], delta_X_rnd[:, :2], xy_grid_nums=xy_grid_nums
-            )
 
         adata.uns["kmc"] = kmc
     elif method in ["pearson", "cosine"]:
@@ -487,15 +483,17 @@ def cell_velocities(
         }
         ctmc_kwargs = update_dict(ctmc_kwargs, kernel_kwargs)
 
-        E, _ = graphize_velocity(V, X, nbrs_idx=indices, **graph_kwargs)
-        W = fp_operator(E, **fp_kwargs)
-        ctmc = ContinuousTimeMarkovChain(P=W, **ctmc_kwargs)
-        T = ctmc.P.T
-        P = sp.csr_matrix(ctmc.compute_embedded_transition_matrix().T)
-        delta_X = projection_with_transition_matrix(P.shape[0], P, X_embedding, correct_density)
-        X_grid, V_grid, D = velocity_on_grid(
-            X_embedding[:, :2], delta_X[:, :2], xy_grid_nums=xy_grid_nums
-        )  # This function seems to be independent of the method; consider moving it out of the if-else block.
+        if method + "_transition_matrix" in adata.obsp.keys() and not enforce:
+            E, _ = graphize_velocity(V, X, nbrs_idx=indices, **graph_kwargs)
+            W = fp_operator(E, **fp_kwargs)
+            ctmc = ContinuousTimeMarkovChain(P=W, **ctmc_kwargs)
+            T = ctmc.P.T
+            P = sp.csr_matrix(ctmc.compute_embedded_transition_matrix().T)
+            delta_X = projection_with_transition_matrix(P.shape[0], P, X_embedding, correct_density)
+        else:
+            print("Using existing %s found in .obsp." % (method + "_transition_matrix"))
+            T = adata.obsp[method + "_transition_matrix"]
+            delta_X = projection_with_transition_matrix(T.shape[0], T, X_embedding, correct_density)
 
     elif method == "transform":
         umap_trans, n_pca_components = (
@@ -520,7 +518,12 @@ def cell_velocities(
 
         delta_X = Y - X_embedding
 
-        X_grid, V_grid, D = (velocity_on_grid(X_embedding, delta_X, xy_grid_nums=xy_grid_nums),)
+    if method not in ["pearson", "cosine"]:
+        X_grid, V_grid, D = velocity_on_grid(X_embedding[:, :2], delta_X[:, :2], xy_grid_nums=xy_grid_nums)
+        if calc_rnd_vel:
+            X_grid_rnd, V_grid_rnd, D_rnd = velocity_on_grid(
+                X_embedding[:, :2], delta_X_rnd[:, :2], xy_grid_nums=xy_grid_nums
+            )
 
     if preserve_len:
         basis_len, high_len = np.linalg.norm(delta_X, axis=1), np.linalg.norm(V, axis=1)
