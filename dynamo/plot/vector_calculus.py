@@ -2,6 +2,8 @@
 
 import numpy as np, pandas as pd
 import anndata
+from anndata import AnnData
+from typing import List, Union, Optional
 
 from .scatters import scatters
 from .scatters import docstrings
@@ -23,16 +25,19 @@ from ..tools.utils import (
 
 from ..vectorfield.utils import intersect_sources_targets
 
-docstrings.delete_params(
-    "scatters.parameters", "adata", "color", "cmap", "frontier", "sym_c"
-)
-docstrings.delete_params(
-    "scatters.parameters", "adata", "color", "cmap", "frontier"
-)
+docstrings.delete_params("scatters.parameters", "adata", "color", "cmap", "frontier", "sym_c")
+docstrings.delete_params("scatters.parameters", "adata", "color", "cmap", "frontier")
 
 
 @docstrings.with_indent(4)
-def speed(adata, basis="pca", color=None, frontier=True, *args, **kwargs):
+def speed(
+    adata: AnnData,
+    basis: str = "pca",
+    color: Union[str, list, None] = None,
+    frontier: bool = True,
+    *args,
+    **kwargs,
+):
     """\
     Scatter plot with cells colored by the estimated velocity speed (and other information if provided).
 
@@ -73,9 +78,7 @@ def speed(adata, basis="pca", color=None, frontier=True, *args, **kwargs):
     speed_key = "speed" if basis is None else "speed_" + basis
     color_ = [speed_key]
     if not np.any(adata.obs.columns.isin(color_)):
-        raise Exception(
-            f"{speed_key} is not existed in .obs, try run dyn.tl.speed(adata, basis='{basis}') first."
-        )
+        raise Exception(f"{speed_key} is not existed in .obs, try run dyn.tl.speed(adata, basis='{basis}') first.")
 
     if color is not None:
         color = [color] if type(color) == str else color
@@ -86,12 +89,12 @@ def speed(adata, basis="pca", color=None, frontier=True, *args, **kwargs):
 
 @docstrings.with_indent(4)
 def curl(
-    adata,
-    basis="umap",
-    color=None,
-    cmap="bwr",
-    frontier=True,
-    sym_c=True,
+    adata: AnnData,
+    basis: str = "umap",
+    color: Union[str, list, None] = None,
+    cmap: str = "bwr",
+    frontier: bool = True,
+    sym_c: bool = True,
     *args,
     **kwargs,
 ):
@@ -142,9 +145,7 @@ def curl(
     curl_key = "curl" if basis is None else "curl_" + basis
     color_ = [curl_key]
     if not np.any(adata.obs.columns.isin(color_)):
-        raise Exception(
-            f"{curl_key} is not existed in .obs, try run dyn.tl.curl(adata, basis='{basis}') first."
-        )
+        raise Exception(f"{curl_key} is not existed in .obs, try run dyn.tl.curl(adata, basis='{basis}') first.")
 
     if color is not None:
         color = [color] if type(color) == str else color
@@ -166,12 +167,12 @@ def curl(
 
 @docstrings.with_indent(4)
 def divergence(
-    adata,
-    basis="pca",
-    color=None,
-    cmap="bwr",
-    frontier=True,
-    sym_c=True,
+    adata: AnnData,
+    basis: str = "pca",
+    color: Union[str, list, None] = None,
+    cmap: str = "bwr",
+    frontier: bool = True,
+    sym_c: bool = True,
     *args,
     **kwargs,
 ):
@@ -220,9 +221,7 @@ def divergence(
     div_key = "divergence" if basis is None else "divergence_" + basis
     color_ = [div_key]
     if not np.any(adata.obs.columns.isin(color_)):
-        raise Exception(
-            f"{div_key} is not existed in .obs, try run dyn.tl.divergence(adata, basis='{basis}') first."
-        )
+        raise Exception(f"{div_key} is not existed in .obs, try run dyn.tl.divergence(adata, basis='{basis}') first.")
 
     # adata.obs[div_key] = adata.obs[div_key].astype('float')
     # adata_ = adata[~ adata.obs[div_key].isna(), :]
@@ -243,7 +242,14 @@ def divergence(
 
 
 @docstrings.with_indent(4)
-def curvature(adata, basis="pca", color=None, frontier=True, *args, **kwargs):
+def curvature(
+    adata: AnnData,
+    basis: str = "pca",
+    color: Union[str, list, None] = None,
+    frontier: bool = True,
+    *args,
+    **kwargs,
+):
     """\
     Scatter plot with cells colored by the estimated curvature (and other information if provided).
 
@@ -296,28 +302,28 @@ def curvature(adata, basis="pca", color=None, frontier=True, *args, **kwargs):
 
 @docstrings.with_indent(4)
 def jacobian(
-    adata,
-    regulators=None,
-    effectors=None,
-    basis="umap",
-    jkey="jacobian",
-    j_basis="pca",
-    x=0,
-    y=1,
-    layer="M_s",
-    highlights=None,
-    cmap="bwr",
-    background=None,
-    pointsize=None,
-    figsize=(6, 4),
-    show_legend=True,
-    frontier=True,
-    sym_c=True,
-    sort="abs",
-    show_arrowed_spines=False,
-    stacked_fraction=False,
-    save_show_or_return="show",
-    save_kwargs={},
+    adata: AnnData,
+    regulators: Optional[List] = None,
+    effectors: Optional[List] = None,
+    basis: str = "umap",
+    jkey: str = "jacobian",
+    j_basis: str = "pca",
+    x: int = 0,
+    y: int = 1,
+    layer: str = "M_s",
+    highlights: list = None,
+    cmap: str = "bwr",
+    background: Optional[str] = None,
+    pointsize: Union[None, float] = None,
+    figsize: tuple = (6, 4),
+    show_legend: bool = True,
+    frontier: bool = True,
+    sym_c: bool = True,
+    sort: str = "abs",
+    show_arrowed_spines: bool = False,
+    stacked_fraction: bool = False,
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
     **kwargs,
 ):
     """\
@@ -419,9 +425,7 @@ def jacobian(
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
-        _background = (
-            to_hex(_background) if type(_background) is tuple else _background
-        )
+        _background = to_hex(_background) if type(_background) is tuple else _background
     else:
         _background = background
 
@@ -469,12 +473,8 @@ def jacobian(
     elif is_gene_name(adata_, x) and is_gene_name(adata_, y):
         cur_pd = pd.DataFrame(
             {
-                x: adata_.obs_vector(k=x, layer=None)
-                if layer == "X"
-                else adata_.obs_vector(k=x, layer=layer),
-                y: adata_.obs_vector(k=y, layer=None)
-                if layer == "X"
-                else adata_.obs_vector(k=y, layer=layer),
+                x: adata_.obs_vector(k=x, layer=None) if layer == "X" else adata_.obs_vector(k=x, layer=layer),
+                y: adata_.obs_vector(k=y, layer=None) if layer == "X" else adata_.obs_vector(k=y, layer=layer),
             }
         )
         # cur_pd = cur_pd.loc[(cur_pd > 0).sum(1) > 1, :]
@@ -494,18 +494,14 @@ def jacobian(
         cur_pd = pd.DataFrame(
             {
                 x: adata_.obs_vector(x),
-                y: adata_.obs_vector(k=y, layer=None)
-                if layer == "X"
-                else adata_.obs_vector(k=y, layer=layer),
+                y: adata_.obs_vector(k=y, layer=None) if layer == "X" else adata_.obs_vector(k=y, layer=layer),
             }
         )
         cur_pd.columns = [x, y + " (" + layer + ")"]
     elif is_gene_name(adata_, x) and is_cell_anno_column(adata_, y):
         cur_pd = pd.DataFrame(
             {
-                x: adata_.obs_vector(k=x, layer=None)
-                if layer == "X"
-                else adata_.obs_vector(k=x, layer=layer),
+                x: adata_.obs_vector(k=x, layer=None) if layer == "X" else adata_.obs_vector(k=x, layer=layer),
                 y: adata_.obs_vector(y),
             }
         )
@@ -523,11 +519,7 @@ def jacobian(
         cur_pd = pd.DataFrame({"x": flatten(x), "y": flatten(y)})
         cur_pd.columns = ["x", "y"]
 
-    point_size = (
-        500.0 / np.sqrt(adata_.shape[0])
-        if pointsize is None
-        else 500.0 / np.sqrt(adata_.shape[0]) * pointsize
-    )
+    point_size = 500.0 / np.sqrt(adata_.shape[0]) if pointsize is None else 500.0 / np.sqrt(adata_.shape[0]) * pointsize
     point_size = 4 * point_size
 
     scatter_kwargs = dict(
@@ -541,13 +533,9 @@ def jacobian(
 
     nrow, ncol = len(source_genes), len(target_genes)
     if figsize is None:
-        g = plt.figure(
-            None, (3 * ncol, 3 * nrow), facecolor=_background
-        )  # , dpi=160
+        g = plt.figure(None, (3 * ncol, 3 * nrow), facecolor=_background)  # , dpi=160
     else:
-        g = plt.figure(
-            None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=_background
-        )  # , dpi=160
+        g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=_background)  # , dpi=160
 
     gs = plt.GridSpec(nrow, ncol, wspace=0.12)
 
@@ -579,14 +567,9 @@ def jacobian(
                 **scatter_kwargs,
             )
             if stacked_fraction:
-                ax.set_title(
-                    r"$\frac{\partial f_{%s}}{\partial x_{%s}}$"
-                    % (target, source)
-                )
+                ax.set_title(r"$\frac{\partial f_{%s}}{\partial x_{%s}}$" % (target, source))
             else:
-                ax.set_title(
-                    r"$\partial f_{%s} / \partial x_{%s}$" % (target, source)
-                )
+                ax.set_title(r"$\partial f_{%s} / \partial x_{%s}$" % (target, source))
             if i + j == 0 and show_arrowed_spines:
                 arrowed_spines(ax, basis, background)
             else:
@@ -614,17 +597,17 @@ def jacobian(
 
 
 def jacobian_heatmap(
-    adata,
-    cell_idx,
-    jkey="jacobian",
-    basis="umap",
-    regulators=None,
-    effectors=None,
-    figsize=(7, 5),
-    ncols=1,
-    cmap="bwr",
-    save_show_or_return="show",
-    save_kwargs={},
+    adata: AnnData,
+    cell_idx: Union[int, List],
+    jkey: str = "jacobian",
+    basis: str = "umap",
+    regulators: Optional[List] = None,
+    effectors: Optional[List] = None,
+    figsize: tuple = (7, 5),
+    ncols: int = 1,
+    cmap: str = "bwr",
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
     **kwargs,
 ):
     """\
@@ -699,9 +682,7 @@ def jacobian_heatmap(
         adata.uns[Jacobian_].get("effectors"),
     )
 
-    Der, regulators, effectors = intersect_sources_targets(
-        regulators, regulators_, effectors, effectors_, Der
-    )
+    Der, regulators, effectors = intersect_sources_targets(regulators, regulators_, effectors, effectors_, Der)
 
     adata_ = adata[cell_indx, :]
     valid_cell_idx = list(set(cell_idx).intersection(cell_indx))
@@ -721,9 +702,7 @@ def jacobian_heatmap(
     if figsize is None:
         g = plt.figure(None, (3 * ncol, 3 * nrow))  # , dpi=160
     else:
-        g = plt.figure(
-            None, (figsize[0] * ncol, figsize[1] * nrow)
-        )  # , dpi=160
+        g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow))  # , dpi=160
 
     gs = plt.GridSpec(nrow, ncol)
     heatmap_kwargs = dict(xticklabels=1, yticklabels=1)
@@ -890,9 +869,7 @@ def sensitivity(
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
-        _background = (
-            to_hex(_background) if type(_background) is tuple else _background
-        )
+        _background = to_hex(_background) if type(_background) is tuple else _background
     else:
         _background = background
 
@@ -936,12 +913,8 @@ def sensitivity(
     elif is_gene_name(adata_, x) and is_gene_name(adata_, y):
         cur_pd = pd.DataFrame(
             {
-                x: adata_.obs_vector(k=x, layer=None)
-                if layer == "X"
-                else adata_.obs_vector(k=x, layer=layer),
-                y: adata_.obs_vector(k=y, layer=None)
-                if layer == "X"
-                else adata_.obs_vector(k=y, layer=layer),
+                x: adata_.obs_vector(k=x, layer=None) if layer == "X" else adata_.obs_vector(k=x, layer=layer),
+                y: adata_.obs_vector(k=y, layer=None) if layer == "X" else adata_.obs_vector(k=y, layer=layer),
             }
         )
         # cur_pd = cur_pd.loc[(cur_pd > 0).sum(1) > 1, :]
@@ -961,18 +934,14 @@ def sensitivity(
         cur_pd = pd.DataFrame(
             {
                 x: adata_.obs_vector(x),
-                y: adata_.obs_vector(k=y, layer=None)
-                if layer == "X"
-                else adata_.obs_vector(k=y, layer=layer),
+                y: adata_.obs_vector(k=y, layer=None) if layer == "X" else adata_.obs_vector(k=y, layer=layer),
             }
         )
         cur_pd.columns = [x, y + " (" + layer + ")"]
     elif is_gene_name(adata_, x) and is_cell_anno_column(adata_, y):
         cur_pd = pd.DataFrame(
             {
-                x: adata_.obs_vector(k=x, layer=None)
-                if layer == "X"
-                else adata_.obs_vector(k=x, layer=layer),
+                x: adata_.obs_vector(k=x, layer=None) if layer == "X" else adata_.obs_vector(k=x, layer=layer),
                 y: adata_.obs_vector(y),
             }
         )
@@ -990,11 +959,7 @@ def sensitivity(
         cur_pd = pd.DataFrame({"x": flatten(x), "y": flatten(y)})
         cur_pd.columns = ["x", "y"]
 
-    point_size = (
-        500.0 / np.sqrt(adata_.shape[0])
-        if pointsize is None
-        else 500.0 / np.sqrt(adata_.shape[0]) * pointsize
-    )
+    point_size = 500.0 / np.sqrt(adata_.shape[0]) if pointsize is None else 500.0 / np.sqrt(adata_.shape[0]) * pointsize
     point_size = 4 * point_size
 
     scatter_kwargs = dict(
@@ -1008,13 +973,9 @@ def sensitivity(
 
     nrow, ncol = len(source_genes), len(target_genes)
     if figsize is None:
-        g = plt.figure(
-            None, (3 * ncol, 3 * nrow), facecolor=_background
-        )  # , dpi=160
+        g = plt.figure(None, (3 * ncol, 3 * nrow), facecolor=_background)  # , dpi=160
     else:
-        g = plt.figure(
-            None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=_background
-        )  # , dpi=160
+        g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=_background)  # , dpi=160
 
     gs = plt.GridSpec(nrow, ncol, wspace=0.12)
 
@@ -1162,9 +1123,7 @@ def sensitivity_heatmap(
         adata.uns[Sensitivity_].get("effectors"),
     )
 
-    Der, regulators, effectors = intersect_sources_targets(
-        regulators, regulators_, effectors, effectors_, Der
-    )
+    Der, regulators, effectors = intersect_sources_targets(regulators, regulators_, effectors, effectors_, Der)
 
     adata_ = adata[cell_indx, :]
     valid_cell_idx = list(set(cell_idx).intersection(cell_indx))
@@ -1184,9 +1143,7 @@ def sensitivity_heatmap(
     if figsize is None:
         g = plt.figure(None, (3 * ncol, 3 * nrow))  # , dpi=160
     else:
-        g = plt.figure(
-            None, (figsize[0] * ncol, figsize[1] * nrow)
-        )  # , dpi=160
+        g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow))  # , dpi=160
 
     gs = plt.GridSpec(nrow, ncol)
     heatmap_kwargs = dict(xticklabels=1, yticklabels=1)

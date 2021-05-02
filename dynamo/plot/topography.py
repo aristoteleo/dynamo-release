@@ -3,6 +3,9 @@ import numpy as np
 import pandas as pd
 import scipy
 import matplotlib.pyplot as plt
+from typing import List, Union, Optional, Callable
+from matplotlib.axes import Axes
+from anndata import AnnData
 
 from ..tools.cell_velocities import cell_velocities
 from ..vectorfield.topography import (
@@ -33,21 +36,21 @@ from ..dynamo_logger import LoggerManager
 
 
 def plot_flow_field(
-    vecfld,
-    x_range,
-    y_range,
-    n_grid=100,
-    start_points=None,
-    integration_direction="both",
-    background=None,
-    density=1,
-    linewidth=1,
-    streamline_color=None,
-    streamline_alpha=0.4,
-    color_start_points=None,
-    save_show_or_return="return",
-    save_kwargs={},
-    ax=None,
+    vecfld: VectorField2D,
+    x_range: List,
+    y_range: List,
+    n_grid: int = 100,
+    start_points: np.ndarray = None,
+    integration_direction: str = "both",
+    background: str = None,
+    density: float = 1,
+    linewidth: float = 1,
+    streamline_color: Optional[str] = None,
+    streamline_alpha: float = 0.4,
+    color_start_points: Optional[float] = None,
+    save_show_or_return: str = "return",
+    save_kwargs: dict = {},
+    ax: Axes = None,
     **streamline_kwargs,
 ):
     """Plots the flow field with line thickness proportional to speed.
@@ -70,7 +73,7 @@ def plot_flow_field(
         Integrate the streamline in forward, backward or both directions. default is 'both'.
     background: `str` or None (default: None)
         The background color of the plot.
-    density: `float` or None (default: 1)
+    density: `float` (default: 1)
         density of the plt.streamplot function.
     linewidth: `float` or None (default: 1)
         multiplier of automatically calculated linewidth passed to the plt.streamplot function.
@@ -102,9 +105,7 @@ def plot_flow_field(
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
-        _background = (
-            to_hex(_background) if type(_background) is tuple else _background
-        )
+        _background = to_hex(_background) if type(_background) is tuple else _background
     else:
         _background = background
 
@@ -208,13 +209,13 @@ def plot_flow_field(
 
 
 def plot_nullclines(
-    vecfld,
-    vecfld_dict=None,
-    lw=3,
-    background=None,
-    save_show_or_return="return",
-    save_kwargs={},
-    ax=None,
+    vecfld: VectorField2D,
+    vecfld_dict: dict = None,
+    lw: float = 3,
+    background: Optional[float] = None,
+    save_show_or_return: str = "return",
+    save_kwargs: dict = {},
+    ax: Axes = None,
 ):
     """Plot nullclines stored in the VectorField2D class.
 
@@ -242,9 +243,7 @@ def plot_nullclines(
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
-        _background = (
-            to_hex(_background) if type(_background) is tuple else _background
-        )
+        _background = to_hex(_background) if type(_background) is tuple else _background
     else:
         _background = background
 
@@ -274,9 +273,7 @@ def plot_nullclines(
             vecfld2d.find_fixed_points_by_sampling(25, xlim, ylim)
 
             if vecfld2d.get_num_fixed_points() > 0:
-                vecfld2d.compute_nullclines(
-                    xlim, ylim, find_new_fixed_points=True
-                )
+                vecfld2d.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
 
                 NCx, NCy = vecfld2d.NCx, vecfld.NCy
     else:
@@ -357,9 +354,7 @@ def plot_fixed_points_2d(
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
-        _background = (
-            to_hex(_background) if type(_background) is tuple else _background
-        )
+        _background = to_hex(_background) if type(_background) is tuple else _background
     else:
         _background = background
 
@@ -378,9 +373,7 @@ def plot_fixed_points_2d(
     cm = matplotlib.cm.get_cmap(_cmap) if type(_cmap) is str else _cmap
     for i in range(len(Xss)):
         cur_ftype = ftype[i]
-        marker_ = markers.MarkerStyle(
-            marker=marker, fillstyle=filltype[int(cur_ftype + 1)]
-        )
+        marker_ = markers.MarkerStyle(marker=marker, fillstyle=filltype[int(cur_ftype + 1)])
         ax.scatter(
             *Xss[i],
             marker=marker_,
@@ -395,13 +388,7 @@ def plot_fixed_points_2d(
         txt = ax.text(
             *Xss[i],
             repr(i),
-            c=(
-                "black"
-                if cur_ftype == -1
-                else "blue"
-                if cur_ftype == 0
-                else "red"
-            ),
+            c=("black" if cur_ftype == -1 else "blue" if cur_ftype == 0 else "red"),
             horizontalalignment="center",
             verticalalignment="center",
             zorder=6,
@@ -409,9 +396,7 @@ def plot_fixed_points_2d(
         )
         txt.set_path_effects(
             [
-                PathEffects.Stroke(
-                    linewidth=1.5, foreground=_background, alpha=0.8
-                ),
+                PathEffects.Stroke(linewidth=1.5, foreground=_background, alpha=0.8),
                 PathEffects.Normal(),
             ]
         )
@@ -437,17 +422,17 @@ def plot_fixed_points_2d(
 
 
 def plot_fixed_points(
-    vecfld,
-    vecfld_dict=None,
-    marker="o",
-    markersize=200,
-    c="w",
-    cmap=None,
-    filltype=["full", "top", "none"],
-    background=None,
-    save_show_or_return="return",
-    save_kwargs={},
-    ax=None,
+    vecfld: VectorField2D,
+    vecfld_dict: dict = None,
+    marker: str = "o",
+    markersize: int = 200,
+    c: str = "w",
+    cmap: Optional[str] = None,
+    filltype: list = ["full", "top", "none"],
+    background: Optional[str] = None,
+    save_show_or_return: str = "return",
+    save_kwargs: dict = {},
+    ax: Axes = None,
     **kwargs,
 ):
     """Plot fixed points stored in the VectorField2D class.
@@ -491,9 +476,7 @@ def plot_fixed_points(
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
-        _background = (
-            to_hex(_background) if type(_background) is tuple else _background
-        )
+        _background = to_hex(_background) if type(_background) is tuple else _background
     else:
         _background = background
 
@@ -503,9 +486,7 @@ def plot_fixed_points(
         _theme_ = "viridis"
     _cmap = _themes[_theme_]["cmap"] if cmap is None else cmap
 
-    if vecfld_dict is None or any(
-        ("Xss" not in vecfld_dict.keys(), "ftype" not in vecfld_dict.keys())
-    ):
+    if vecfld_dict is None or any(("Xss" not in vecfld_dict.keys(), "ftype" not in vecfld_dict.keys())):
         if vecfld_dict is not None:
             if vecfld_dict["X"].shape[1] == 2:
                 min_, max_ = vecfld_dict["X"].min(0), vecfld_dict["X"].max(0)
@@ -522,9 +503,7 @@ def plot_fixed_points(
                 vecfld = VectorField2D(vecfld, X_data=vecfld_dict["X"])
                 vecfld.find_fixed_points_by_sampling(25, xlim, ylim)
                 if vecfld.get_num_fixed_points() > 0:
-                    vecfld.compute_nullclines(
-                        xlim, ylim, find_new_fixed_points=True
-                    )
+                    vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
 
                 Xss, ftype = vecfld.get_fixed_points(get_types=True)
                 confidence = vecfld.get_Xss_confidence()
@@ -538,9 +517,7 @@ def plot_fixed_points(
 
                 Xss, ftype = vecfld.get_fixed_points(**kwargs)
                 if Xss.ndim > 1 and Xss.shape[1] > 2:
-                    fp_ind = nearest_neighbors(
-                        Xss, vecfld.data["X"], 1
-                    ).flatten()
+                    fp_ind = nearest_neighbors(Xss, vecfld.data["X"], 1).flatten()
                     # need to use "X_basis" to plot on the scatter point space
                     Xss = vecfld_dict["X_basis"][fp_ind]
 
@@ -557,16 +534,12 @@ def plot_fixed_points(
     cm = matplotlib.cm.get_cmap(_cmap) if type(_cmap) is str else _cmap
     for i in range(len(Xss)):
         cur_ftype = ftype[i]
-        marker_ = markers.MarkerStyle(
-            marker=marker, fillstyle=filltype[int(cur_ftype + 1)]
-        )
+        marker_ = markers.MarkerStyle(marker=marker, fillstyle=filltype[int(cur_ftype + 1)])
         ax.scatter(
             *Xss[i],
             marker=marker_,
             s=markersize,
-            c=c
-            if confidence is None
-            else np.array(cm(confidence[i])).reshape(1, -1),
+            c=c if confidence is None else np.array(cm(confidence[i])).reshape(1, -1),
             edgecolor=_select_font_color(_background),
             linewidths=1,
             cmap=_cmap,
@@ -576,13 +549,7 @@ def plot_fixed_points(
         txt = ax.text(
             *Xss[i],
             repr(i),
-            c=(
-                "black"
-                if cur_ftype == -1
-                else "blue"
-                if cur_ftype == 0
-                else "red"
-            ),
+            c=("black" if cur_ftype == -1 else "blue" if cur_ftype == 0 else "red"),
             horizontalalignment="center",
             verticalalignment="center",
             zorder=6,
@@ -590,9 +557,7 @@ def plot_fixed_points(
         )
         txt.set_path_effects(
             [
-                PathEffects.Stroke(
-                    linewidth=1.5, foreground=_background, alpha=0.8
-                ),
+                PathEffects.Stroke(linewidth=1.5, foreground=_background, alpha=0.8),
                 PathEffects.Normal(),
             ]
         )
@@ -618,16 +583,16 @@ def plot_fixed_points(
 
 
 def plot_traj(
-    f,
-    y0,
-    t,
-    args=(),
-    lw=2,
-    background=None,
-    integration_direction="both",
-    save_show_or_return="return",
-    save_kwargs={},
-    ax=None,
+    f: Callable,
+    y0: List,
+    t: List,
+    args: tuple = (),
+    lw: float = 2,
+    background: Optional[str] = None,
+    integration_direction: str = "both",
+    save_show_or_return: str = "return",
+    save_kwargs: dict = {},
+    ax: Axes = None,
 ):
     """Plots a trajectory on a phase portrait.
     code adapted from: http://be150.caltech.edu/2017/handouts/dynamical_systems_approaches.html
@@ -669,9 +634,7 @@ def plot_traj(
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
-        _background = (
-            to_hex(_background) if type(_background) is tuple else _background
-        )
+        _background = to_hex(_background) if type(_background) is tuple else _background
     else:
         _background = background
 
@@ -685,9 +648,7 @@ def plot_traj(
     else:
         for i in range(y0.shape[0]):
             cur_y0 = y0[i, None]  # don't drop dimension
-            ax = _plot_traj(
-                cur_y0, t, args, integration_direction, ax, color, lw, f
-            )
+            ax = _plot_traj(cur_y0, t, args, integration_direction, ax, color, lw, f)
 
     if save_show_or_return == "save":
         s_kwargs = {
@@ -710,17 +671,17 @@ def plot_traj(
 
 
 def plot_separatrix(
-    vecfld,
-    x_range,
-    y_range,
-    t,
-    noise=1e-6,
-    lw=3,
-    vecfld_dict=None,
-    background=None,
-    save_show_or_return="return",
-    save_kwargs={},
-    ax=None,
+    vecfld: VectorField2D,
+    x_range: List,
+    y_range: List,
+    t: List,
+    noise: float = 1e-6,
+    lw: float = 3,
+    vecfld_dict: dict = None,
+    background: Optional[str] = None,
+    save_show_or_return: str = "return",
+    save_kwargs: dict = {},
+    ax: Axes = None,
 ):
     """Plot separatrix on phase portrait.
 
@@ -733,7 +694,7 @@ def plot_separatrix(
         y_range: array_like, shape (2,)
         t : array_like
             Time points for trajectory.
-        noise : tuple, default ()
+        noise : float
             A small noise added to steady states for drawing the separatrix.
         lw : `float`, (default: 2)
             The line width of the trajectory.
@@ -757,9 +718,7 @@ def plot_separatrix(
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
-        _background = (
-            to_hex(_background) if type(_background) is tuple else _background
-        )
+        _background = to_hex(_background) if type(_background) is tuple else _background
     else:
         _background = background
 
@@ -796,10 +755,7 @@ def plot_separatrix(
                     # Unpack variables
                     a, b = ab
                     # Stop integrating if we get the edge of where we want to integrate
-                    if (
-                        x_range[0] < a < x_range[1]
-                        and y_range[0] < b < y_range[1]
-                    ):
+                    if x_range[0] < a < x_range[1] and y_range[0] < b < y_range[1]:
                         return -vecfld2d(ab)
                     else:
                         return np.array([0, 0])
@@ -827,16 +783,8 @@ def plot_separatrix(
                     # Plot
                     ax.plot(sep_a, sep_b, "-", color=color, lw=lw)
 
-                    all_sep_a = (
-                        sep_a
-                        if all_sep_a is None
-                        else np.concatenate((all_sep_a, sep_a))
-                    )
-                    all_sep_b = (
-                        sep_b
-                        if all_sep_b is None
-                        else np.concatenate((all_sep_b, sep_b))
-                    )
+                    all_sep_a = sep_a if all_sep_a is None else np.concatenate((all_sep_a, sep_a))
+                    all_sep_b = sep_b if all_sep_b is None else np.concatenate((all_sep_b, sep_b))
 
     if save_show_or_return == "save":
         s_kwargs = {
@@ -860,53 +808,53 @@ def plot_separatrix(
 
 @docstrings.with_indent(4)
 def topography(
-    adata,
-    basis="umap",
-    fps_basis="umap",
-    x=0,
-    y=1,
-    color="ntr",
-    layer="X",
-    highlights=None,
-    labels=None,
-    values=None,
-    theme=None,
-    cmap=None,
-    color_key=None,
-    color_key_cmap=None,
-    background="white",
-    ncols=4,
-    pointsize=None,
-    figsize=(6, 4),
+    adata: AnnData,
+    basis: str = "umap",
+    fps_basis: str = "umap",
+    x: int = 0,
+    y: int = 1,
+    color: str = "ntr",
+    layer: str = "X",
+    highlights: Optional[list] = None,
+    labels: Optional[list] = None,
+    values: Optional[list] = None,
+    theme: Optional[str] = None,
+    cmap: Optional[str] = None,
+    color_key: Union[dict, list] = None,
+    color_key_cmap: Optional[str] = None,
+    background: Optional[str] = "white",
+    ncols: int = 4,
+    pointsize: Union[None, float] = None,
+    figsize: tuple = (6, 4),
     show_legend="on data",
-    use_smoothed=True,
-    xlim=None,
-    ylim=None,
-    t=None,
-    terms=("streamline", "fixed_points"),
-    init_cells=None,
-    init_states=None,
-    quiver_source="raw",
-    fate="both",
-    approx=False,
-    quiver_size=None,
-    quiver_length=None,
-    density=1,
-    linewidth=1,
-    streamline_color=None,
-    streamline_alpha=0.4,
-    color_start_points=None,
-    markersize=200,
-    marker_cmap=None,
-    save_show_or_return="show",
-    save_kwargs={},
-    aggregate=None,
-    show_arrowed_spines=False,
-    ax=None,
-    sort="raw",
-    frontier=False,
-    s_kwargs_dict={},
-    q_kwargs_dict={},
+    use_smoothed: bool = True,
+    xlim: np.ndarray = None,
+    ylim: np.ndarray = None,
+    t: List = None,
+    terms: tuple = ("streamline", "fixed_points"),
+    init_cells: List = None,
+    init_states: List = None,
+    quiver_source: str = "raw",
+    fate: str = "both",
+    approx: bool = False,
+    quiver_size: Optional[float] = None,
+    quiver_length: Optional[float] = None,
+    density: float = 1,
+    linewidth: float = 1,
+    streamline_color: Optional[str] = None,
+    streamline_alpha: float = 0.4,
+    color_start_points: Optional[str] = None,
+    markersize: float = 200,
+    marker_cmap: Optional[str] = None,
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
+    aggregate: Optional[str] = None,
+    show_arrowed_spines: bool = False,
+    ax: Axes = None,
+    sort: str = "raw",
+    frontier: bool = False,
+    s_kwargs_dict: dict = {},
+    q_kwargs_dict: dict = {},
     **streamline_kwargs_dict,
 ):
     """Plot the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system
@@ -1050,46 +998,25 @@ def topography(
             prefix = "" if basis is None else basis + "_"
             color = [prefix + "ddhodge_potential"]
         else:
-            color = np.array(obs_keys)[
-                [key.endswith("potential") for key in obs_keys]
-            ][0]
+            color = np.array(obs_keys)[[key.endswith("potential") for key in obs_keys]][0]
         if np.array([key.endswith("curl") for key in obs_keys]).sum() == 0:
             curl(adata, basis=basis)
             color.extend("curl_" + basis)
         else:
-            color.extend(
-                np.array(obs_keys)[[key.endswith("curl") for key in obs_keys]][
-                    0
-                ]
-            )
-        if (
-            np.array([key.endswith("divergence") for key in obs_keys]).sum()
-            == 0
-        ):
+            color.extend(np.array(obs_keys)[[key.endswith("curl") for key in obs_keys]][0])
+        if np.array([key.endswith("divergence") for key in obs_keys]).sum() == 0:
             divergence(adata, basis=basis)
             color.extend("divergence_" + basis)
         else:
-            color.extend(
-                np.array(obs_keys)[
-                    [key.endswith("divergence") for key in obs_keys]
-                ][0]
-            )
+            color.extend(np.array(obs_keys)[[key.endswith("divergence") for key in obs_keys]][0])
 
     if background is None:
         _background = rcParams.get("figure.facecolor")
-        _background = (
-            to_hex(_background) if type(_background) is tuple else _background
-        )
+        _background = to_hex(_background) if type(_background) is tuple else _background
     else:
         _background = background
 
-    terms = (
-        list(terms)
-        if type(terms) is tuple
-        else [terms]
-        if type(terms) is str
-        else terms
-    )
+    terms = list(terms) if type(terms) is tuple else [terms] if type(terms) is str else terms
     if approx:
         if "streamline" not in terms:
             terms.append("streamline")
@@ -1106,8 +1033,7 @@ def topography(
 
         if "velocity_" + basis not in adata.obsm_keys():
             logger.info(
-                f"velocity_{basis} is computed yet. "
-                f"Projecting the velocity vector to {basis} basis now ...",
+                f"velocity_{basis} is computed yet. " f"Projecting the velocity vector to {basis} basis now ...",
                 indent_level=1,
             )
             cell_velocities(adata, basis=basis)
@@ -1130,15 +1056,13 @@ def topography(
     if fps_uns_key not in adata.uns.keys():
         if "velocity_" + basis not in adata.obsm_keys():
             logger.info(
-                f"velocity_{basis} is computed yet. "
-                f"Projecting the velocity vector to {basis} basis now ...",
+                f"velocity_{basis} is computed yet. " f"Projecting the velocity vector to {basis} basis now ...",
                 indent_level=1,
             )
             cell_velocities(adata, basis=basis)
 
         logger.info(
-            f"Vector field for {fps_basis} is not constructed. "
-            f"Constructing it and mapping its topography now ...",
+            f"Vector field for {fps_basis} is not constructed. " f"Constructing it and mapping its topography now ...",
             indent_level=1,
         )
 
@@ -1160,8 +1084,7 @@ def topography(
     vecfld_dict, vecfld = vecfld_from_adata(adata, basis)
     if vecfld_dict["Y"].shape[1] > 2:
         logger.info(
-            f"Vector field for {fps_basis} is but its topography is not mapped. "
-            f"Mapping topography now ...",
+            f"Vector field for {fps_basis} is but its topography is not mapped. " f"Mapping topography now ...",
             indent_level=1,
         )
         new_basis = f"{basis}_{x}_{y}"
@@ -1178,18 +1101,14 @@ def topography(
     if "Xss" not in fps_vecfld_dict:
         # if topology is not mapped for this basis, calculate it now.
         logger.info(
-            f"Vector field for {fps_basis} is but its topography is not mapped. "
-            f"Mapping topography now ...",
+            f"Vector field for {fps_basis} is but its topography is not mapped. " f"Mapping topography now ...",
             indent_level=1,
         )
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             _topology(adata, fps_basis, VecFld=None)
     else:
-        if (
-            fps_vecfld_dict["Xss"].size > 0
-            and fps_vecfld_dict["Xss"].shape[1] > 2
-        ):
+        if fps_vecfld_dict["Xss"].size > 0 and fps_vecfld_dict["Xss"].shape[1] > 2:
             fps_vecfld_dict["X_basis"], fps_vecfld_dict["Xss"] = (
                 vecfld_dict["X"][:, :2],
                 vecfld_dict["X"][fps_vecfld_dict["fp_ind"], :2],
@@ -1215,9 +1134,7 @@ def topography(
 
     if init_cells is not None:
         if init_states is None:
-            intersect_cell_names = list(
-                set(init_cells).intersection(adata.obs_names)
-            )
+            intersect_cell_names = list(set(init_cells).intersection(adata.obs_names))
             _init_states = (
                 adata.obsm["X_" + basis][init_cells, :]
                 if len(intersect_cell_names) == 0
@@ -1226,16 +1143,12 @@ def topography(
             V = (
                 adata.obsm["velocity_" + basis][init_cells, :]
                 if len(intersect_cell_names) == 0
-                else adata[intersect_cell_names]
-                .obsm["velocity_" + basis]
-                .copy()
+                else adata[intersect_cell_names].obsm["velocity_" + basis].copy()
             )
 
             init_states = _init_states
 
-    if quiver_source == "reconstructed" or (
-        init_states is not None and init_cells is None
-    ):
+    if quiver_source == "reconstructed" or (init_states is not None and init_cells is None):
         from ..tools.utils import vector_field_function
 
         V = vector_field_function(init_states, vecfld_dict, [0, 1])
@@ -1292,24 +1205,14 @@ def topography(
 
         if t is None:
             if vecfld_dict["grid_V"] is None:
-                max_t = np.max((np.diff(xlim), np.diff(ylim))) / np.min(
-                    np.abs(vecfld_dict["V"][:, :2])
-                )
+                max_t = np.max((np.diff(xlim), np.diff(ylim))) / np.min(np.abs(vecfld_dict["V"][:, :2]))
             else:
-                max_t = np.max((np.diff(xlim), np.diff(ylim))) / np.min(
-                    np.abs(vecfld_dict["grid_V"])
-                )
+                max_t = np.max((np.diff(xlim), np.diff(ylim))) / np.min(np.abs(vecfld_dict["grid_V"]))
 
             t = np.linspace(0, max_t, 10 ** (np.min((int(np.log10(max_t)), 8))))
 
         integration_direction = (
-            "both"
-            if fate == "both"
-            else "forward"
-            if fate == "future"
-            else "backward"
-            if fate == "history"
-            else "both"
+            "both" if fate == "both" else "forward" if fate == "future" else "backward" if fate == "history" else "both"
         )
 
         if "streamline" in terms:
@@ -1344,9 +1247,7 @@ def topography(
                 )
 
         if "nullcline" in terms:
-            axes_list[i] = plot_nullclines(
-                vecfld, vecfld_dict, background=_background, ax=axes_list[i]
-            )
+            axes_list[i] = plot_nullclines(vecfld, vecfld_dict, background=_background, ax=axes_list[i])
 
         if "fixed_points" in terms:
             axes_list[i] = plot_fixed_points(
@@ -1359,9 +1260,7 @@ def topography(
             )
 
         if "separatrices" in terms:
-            axes_list[i] = plot_separatrix(
-                vecfld, xlim, ylim, t=t, background=_background, ax=axes_list[i]
-            )
+            axes_list[i] = plot_separatrix(vecfld, xlim, ylim, t=t, background=_background, ax=axes_list[i])
 
         if init_states is not None and "trajectory" in terms:
             if not approx:
@@ -1379,9 +1278,7 @@ def topography(
             X = init_states
             V /= 3 * quiver_autoscaler(X, V)
 
-            df = pd.DataFrame(
-                {"x": X[:, 0], "y": X[:, 1], "u": V[:, 0], "v": V[:, 1]}
-            )
+            df = pd.DataFrame({"x": X[:, 0], "y": X[:, 1], "u": V[:, 0], "v": V[:, 1]})
 
             if quiver_size is None:
                 quiver_size = 1
@@ -1390,9 +1287,7 @@ def topography(
             else:
                 edgecolors = "black"
 
-            head_w, head_l, ax_l, scale = default_quiver_args(
-                quiver_size, quiver_length
-            )  #
+            head_w, head_l, ax_l, scale = default_quiver_args(quiver_size, quiver_length)  #
             quiver_kwargs = {
                 "angles": "xy",
                 "scale": scale,

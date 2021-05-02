@@ -14,11 +14,11 @@ from ..dynamo_logger import main_info, main_critical, main_warning
 
 
 def basic_stats(
-    adata,
-    group=None,
-    figsize=(4, 3),
-    save_show_or_return="show",
-    save_kwargs={},
+    adata: AnnData,
+    group: Optional[str] = None,
+    figsize: tuple = (4, 3),
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
 ):
     """Plot the basic statics (nGenes, nCounts and pMito) of each category of adata.
 
@@ -28,7 +28,7 @@ def basic_stats(
         an Annodata object
     group: `string` (default: None)
         Which group to facets the data into subplots. Default is None, or no faceting will be used.
-    figsize: `string` (default: (4, 3))
+    figsize:
         Figure size of each facet.
     save_show_or_return: {'show', 'save', 'return'} (default: `show`)
         Whether to save, show or return the figure.
@@ -122,12 +122,12 @@ def basic_stats(
 
 
 def show_fraction(
-    adata,
-    genes=None,
-    group=None,
-    figsize=(4, 3),
-    save_show_or_return="show",
-    save_kwargs={},
+    adata: AnnData,
+    genes: Optional[list] = None,
+    group: Optional[str] = None,
+    figsize: tuple = (4, 3),
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
 ):
     """Plot the fraction of each category of data used in the velocity estimation.
 
@@ -361,12 +361,12 @@ def show_fraction(
 
 
 def variance_explained(
-    adata,
-    threshold=0.002,
-    n_pcs=None,
-    figsize=(4, 3),
-    save_show_or_return="show",
-    save_kwargs={},
+    adata: AnnData,
+    threshold: float = 0.002,
+    n_pcs: Optional[int] = None,
+    figsize: tuple = (4, 3),
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
 ):
     """Plot the accumulative variance explained by the principal components.
 
@@ -428,12 +428,12 @@ def variance_explained(
 
 
 def feature_genes(
-    adata,
-    layer="X",
-    mode=None,
-    figsize=(4, 3),
-    save_show_or_return="show",
-    save_kwargs={},
+    adata: AnnData,
+    layer: str = "X",
+    mode: Union[None, str] = None,
+    figsize: tuple = (4, 3),
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
 ):
     """Plot selected feature genes on top of the mean vs. dispersion scatterplot.
 
@@ -573,18 +573,18 @@ def feature_genes(
 
 
 def exp_by_groups(
-    adata,
-    genes,
-    layer=None,
-    group=None,
-    use_ratio=False,
-    use_smoothed=True,
-    log=True,
-    angle=0,
-    re_order=True,
-    figsize=(4, 3),
-    save_show_or_return="show",
-    save_kwargs={},
+    adata: AnnData,
+    genes: list,
+    layer: Optional[str] = None,
+    group: Optional[str] = None,
+    use_ratio: bool = False,
+    use_smoothed: bool = True,
+    log: bool = True,
+    angle: int = 0,
+    re_order: bool = True,
+    figsize: tuple = (4, 3),
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
 ):
     """Plot the (labeled) expression values of genes across different groups (time points).
 
