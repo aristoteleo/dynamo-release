@@ -11,6 +11,7 @@ from .Markov import (
     graphize_velocity,
     fp_operator,
     ContinuousTimeMarkovChain,
+    get_transition_matrix,
 )
 from .connectivity import adj_to_knn
 
@@ -483,9 +484,16 @@ def cell_velocities(
         }
         ctmc_kwargs = update_dict(ctmc_kwargs, kernel_kwargs)
 
-        if method + "_transition_matrix" in adata.obsp.keys() and not enforce:
-            print("Using existing %s found in .obsp." % (method + "_transition_matrix"))
-            T = adata.obsp[method + "_transition_matrix"]
+        if (
+            method + "_transition_matrix" in adata.obsp.keys() or method + "_transition_rate" in adata.obsp.keys()
+        ) and not enforce:
+            if method + "_transition_matrix" in adata.obsp.keys():
+                print("Using existing %s found in .obsp." % (method + "_transition_matrix"))
+                T = adata.obsp[method + "_transition_matrix"]
+            elif method + "_transition_rate" in adata.obsp.keys():
+                print("Using existing %s found in .obsp." % (method + "_transition_rate"))
+                R = adata.obsp[method + "_transition_rate"]
+                T = get_transition_matrix(R)
             delta_X = projection_with_transition_matrix(T.shape[0], T, X_embedding, correct_density)
         else:
             E, _ = graphize_velocity(V, X, nbrs_idx=indices, **graph_kwargs)
@@ -493,6 +501,8 @@ def cell_velocities(
             ctmc = ContinuousTimeMarkovChain(P=W, **ctmc_kwargs)
             T = sp.csr_matrix(ctmc.compute_embedded_transition_matrix().T)
             delta_X = projection_with_transition_matrix(T.shape[0], T, X_embedding, correct_density)
+
+            adata.obsp["fp_transition_rate"] = ctmc.P.T
 
     elif method == "transform":
         umap_trans, n_pca_components = (
