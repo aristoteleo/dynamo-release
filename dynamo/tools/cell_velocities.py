@@ -484,15 +484,14 @@ def cell_velocities(
         ctmc_kwargs = update_dict(ctmc_kwargs, kernel_kwargs)
 
         if method + "_transition_matrix" in adata.obsp.keys() and not enforce:
+            print("Using existing %s found in .obsp." % (method + "_transition_matrix"))
+            T = adata.obsp[method + "_transition_matrix"]
+            delta_X = projection_with_transition_matrix(T.shape[0], T, X_embedding, correct_density)
+        else:
             E, _ = graphize_velocity(V, X, nbrs_idx=indices, **graph_kwargs)
             W = fp_operator(E, **fp_kwargs)
             ctmc = ContinuousTimeMarkovChain(P=W, **ctmc_kwargs)
-            T = ctmc.P.T
-            P = sp.csr_matrix(ctmc.compute_embedded_transition_matrix().T)
-            delta_X = projection_with_transition_matrix(P.shape[0], P, X_embedding, correct_density)
-        else:
-            print("Using existing %s found in .obsp." % (method + "_transition_matrix"))
-            T = adata.obsp[method + "_transition_matrix"]
+            T = sp.csr_matrix(ctmc.compute_embedded_transition_matrix().T)
             delta_X = projection_with_transition_matrix(T.shape[0], T, X_embedding, correct_density)
 
     elif method == "transform":
