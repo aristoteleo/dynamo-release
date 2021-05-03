@@ -524,7 +524,7 @@ def SparseVFC(
             gamma = 0.05
 
         i += 1
-    if not (tecr > ecr and sigma2 > 1e-8):
+    if i > 0 and not (tecr > ecr and sigma2 > 1e-8):
         raise Exception(
             "please check your input parameters, "
             f"tecr: {tecr}, ecr {ecr} and sigma2 {sigma2},"
