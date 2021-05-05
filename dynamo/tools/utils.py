@@ -167,6 +167,34 @@ def index_gene(adata, arr, genes):
 
 
 def select_cell(adata, grp_keys, grps, presel=None, mode="union", output_format="index"):
+    """
+    Select cells based on `grp_keys` in .obs
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object
+        grp_keys: str or list
+            The key(s) in `.obs` to be used for selecting cells.
+            If list, each element is a key in .obs that corresponds to an element in `grps`.
+        grps: str or list
+            The value(s) in `.obs[grp_keys]` to be used for selecting cells.
+            If list, each element is a value that corresponds to an element in `grp_keys`.
+        presel: None, list, or :class:`~numpy.ndarray`
+            An array of indices or mask of pre-selected cells. It will be combined with selected cells specified by
+            `grp_keys` and `grps` according to `mode`.
+        mode: str
+            "union" - the selected cells are the union of the groups specified in `grp_keys` and `grps`;
+            "intersection" - the selected cells are the intersection of the groups specified in `grp_keys` and `grps`.
+        output_format: str
+            "index" - returns a list of indices of selected cells;
+            "mask" - returns an array of booleans.
+
+    Returns
+    -------
+        list or :class:`~numpy.ndarray`
+            The cell index or mask array.
+    """
     if type(grp_keys) is str:
         grp_keys = [grp_keys]
     if not isarray(grps):
@@ -1320,6 +1348,20 @@ def fetch_X_data(adata, genes, layer, basis=None):
 
 class AnnDataPredicate(object):
     def __init__(self, key, value, op="=="):
+        """
+        Predicate class for item selection for anndata
+
+        Parameters
+        ----------
+            key: str
+                The key in the dictionary (specified as `data` in `.check()`) that will be used for selection.
+            value: any
+                The value that will be used based on `op` to select items.
+            op: str
+                operators for selection:
+                '==' - equal to `value`; '!=' - unequal to; '>' - greater than; '<' - smaller than;
+                '>=' - greater than or equal to; '<=' - less than or equal to.
+        """
         self.key = key
         self.value = value
         self.op = op
