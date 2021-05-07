@@ -68,7 +68,8 @@ def pseudotime_velocity(
     adj_key: str = "distances",
     ekey: str = "M_s",
     vkey: str = "velocity_S",
-    method: str = "knn",
+    add_tkey: str = "pseudotime_transition_matrix",
+    method: str = "dhoge",
 ):
     """Embrace RNA velocity and velocity vector field analysis for pseudotime.
 
@@ -95,8 +96,11 @@ def pseudotime_velocity(
             calculate RNA velocity.
         vkey: str or None (optional, default `velocity_S`)
             The dictionary key that will be used to save the estimated velocity values in the layers attribute.
+        add_tkey: str (default: `pseudotime_transition_matrix`)
+            The dictionary key that will be used to keep the pseudotime-based transition matrix.
         method:
-            Which pseudotime to vector field method to be used.
+            Which pseudotime to vector field method to be used. There are three different methods, `hodge`, `naive`,
+            `gradient`. By default the `hodge` method will be used.
 
     Returns
     -------
@@ -130,7 +134,7 @@ def pseudotime_velocity(
             T[i, 1:] = weights_scale
 
         T = knn_to_adj(knn, T)
-    elif method == "ddhodge":
+    elif method == "hoge":
         grad_ddhodge = gradop(build_graph(E)).dot(pseudotime)
 
         T = csr_matrix((grad_ddhodge, (E.nonzero())), shape=E.shape)
@@ -140,3 +144,5 @@ def pseudotime_velocity(
 
     delta_X = projection_with_transition_matrix(T.shape[0], T, adata.layers[ekey].A, True)
     adata.layers[vkey] = csr_matrix(delta_X)
+
+    adata.obsp[add_tkey] = T
