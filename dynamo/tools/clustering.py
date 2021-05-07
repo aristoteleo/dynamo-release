@@ -4,7 +4,7 @@ from scipy.sparse import csr_matrix
 import numpy as np
 import anndata
 import pandas as pd
-
+from ..dynamo_logger import main_info
 from .connectivity import neighbors
 from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 from .utils import update_dict
@@ -165,7 +165,7 @@ def cluster_field(
     basis="pca",
     embedding_basis=None,
     normalize=True,
-    method="louvain",
+    method="leiden",
     cores=1,
     copy=False,
     **kwargs
@@ -199,7 +199,7 @@ def cluster_field(
         The embedding basis that will be combined with the vector field feature space for clustering.
     normalize: `bool` (default: `True`)
         Whether to mean center and scale the feature across all cells so that the mean
-    method: `str` (default: `louvain`)
+    method: `str` (default: `leiden`)
         The method that will be used for clustering, one of `{'kmeans'', 'hdbscan', 'louvain', 'leiden'}`. If `louvain`
         or `leiden` used, you need to have `cdlib` installed.
     cores: `int` (default: 1)
@@ -342,6 +342,7 @@ def leiden(
     adj_matrix_key=None,
     result_key=None,
     layer=None,
+    obsm_key=None,
     selected_cluster_subset: list = None,
     selected_cell_subset=None,
     directed=False,
@@ -363,6 +364,7 @@ def leiden(
         adj_matrix=adj_matrix,
         adj_matrix_key=adj_matrix_key,
         layer=layer,
+        obsm_key=obsm_key,
         cluster_and_subsets=selected_cluster_subset,
         cell_subsets=selected_cell_subset,
         directed=directed,
@@ -380,6 +382,7 @@ def louvain(
     randomize=False,
     result_key=None,
     layer=None,
+    obsm_key=None,
     selected_cluster_subset: list = None,
     selected_cell_subset=None,
     directed=False,
@@ -427,6 +430,7 @@ def louvain(
         adj_matrix_key=adj_matrix_key,
         result_key=result_key,
         layer=layer,
+        obsm_key=obsm_key,
         cluster_and_subsets=selected_cluster_subset,
         cell_subsets=selected_cell_subset,
         directed=directed,
@@ -442,6 +446,7 @@ def infomap(
     adj_matrix_key=None,
     result_key=None,
     layer=None,
+    obsm_key=None,
     selected_cluster_subset: list = None,
     selected_cell_subset=None,
     directed=False,
@@ -458,6 +463,7 @@ def infomap(
         adj_matrix=adj_matrix,
         adj_matrix_key=adj_matrix_key,
         layer=layer,
+        obsm_key=obsm_key,
         cluster_and_subsets=selected_cluster_subset,
         cell_subsets=selected_cell_subset,
         directed=directed,
@@ -475,7 +481,8 @@ def cluster_community(
     use_weight=True,
     no_community_label=-1,
     layer=None,
-    layer_conn_type="distances",
+    conn_type="connectivities",
+    obsm_key=None,
     cell_subsets=None,
     cluster_and_subsets: list = None,
     directed=True,
@@ -501,6 +508,12 @@ def cluster_community(
         [description], by default False
     no_community_label : int, optional
         [description], by default -1
+    layer: str or None:
+        [description], by default None
+    conn_type: str:
+        [description], by default "connectivities"
+    obsm_key: str or None:
+        [description], by default None
     cell_subsets : [type], optional
         [description], by default None
     cluster_and_subsets : list, optional
@@ -521,16 +534,23 @@ def cluster_community(
         raise ValueError("Please supply one of adj_matrix_key and layer")
     if adj_matrix_key is None:
         if layer is None:
-            adj_matrix_key = "distances"
+            if obsm_key is None:
+                adj_matrix_key = "connectivities"
+            else:
+                adj_matrix_key = obsm_key + "_" + "connectivities"
         else:
-            adj_matrix_key = layer + "_" + layer_conn_type
+            adj_matrix_key = layer + "_" + conn_type
 
     # try generating required adj_matrix according to
     # user inputs through "neighbors" interface
     if adj_matrix is None:
         if not (adj_matrix_key in adata.obsp):
             if layer is None:
-                neighbors(adata)
+                if obsm_key is None:
+                    neighbors(adata)
+                else:
+                    X_data = adata.obsm[obsm_key]
+                    neighbors(adata, X_data=X_data, result_prefix=obsm_key)
             else:
                 X_data = adata[:, adata.var.use_for_pca].layers[layer]
                 neighbors(adata, X_data=X_data, result_prefix=layer)
@@ -557,7 +577,7 @@ def cluster_community(
     valid_indices = None
     if cell_subsets is not None:
         if type(cell_subsets[0]) == str:
-            valid_indices = [adata.var_names.get_loc(i) for i in cell_subsets]
+            valid_indices = [adata.obs_names.get_loc(i) for i in cell_subsets]
         else:
             valid_indices = cell_subsets
 
@@ -601,7 +621,7 @@ def cluster_community(
         "adj_matrix_key": adj_matrix_key,
         "use_weight": use_weight,
         "layer": layer,
-        "layer_conn_type": layer_conn_type,
+        "layer_conn_type": conn_type,
         "cell_subsets": cell_subsets,
         "cluster_and_subsets": cluster_and_subsets,
         "directed": directed,
@@ -685,16 +705,13 @@ def cluster_community_from_graph(
         if "weights" in kwargs:
             weights = kwargs["weights"]
 
-        print(
-            "===initial membership debug====:\nmax:",
-            max(initial_membership)
-            if initial_membership is not None
-            else "None",
-            "\n",
-            initial_membership,
-        )
-        print("===graph mat debug====:\n", graph_sparse_matrix.shape)
-        print("===graph debug====:\n", len(graph.nodes))
+        if initial_membership is not None:
+            main_info(
+                "Currently initial_membership for leiden has some issue and thus we ignore it. "
+                "We will support it in future."
+            )
+            initial_membership = None
+
         coms = algorithms.leiden(
             graph, weights=weights, initial_membership=initial_membership
         )

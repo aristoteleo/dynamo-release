@@ -1,3 +1,4 @@
+import matplotlib
 from .scatters import (
     scatters,
     docstrings,
@@ -5,8 +6,9 @@ from .scatters import (
 
 docstrings.delete_params("scatters.parameters", "adata", "basis", "figsize")
 
+
 @docstrings.with_indent(4)
-def space(adata, space='spatial', width=6, *args, **kwargs):
+def space(adata, space="spatial", width=6, marker="p", *args, **kwargs):
     """\
     Scatter plot for physical coordinates of each cell.
 
@@ -19,6 +21,9 @@ def space(adata, space='spatial', width=6, *args, **kwargs):
         width: `int`
             an Annodata object.
         %(scatters.parameters.no_adata|basis|figsize)s
+        marker:
+            a string representing some marker from matplotlib
+            https://matplotlib.org/stable/api/markers_api.html#module-matplotlib.markers
 
     Returns
     -------
@@ -26,9 +31,9 @@ def space(adata, space='spatial', width=6, *args, **kwargs):
     """
 
     if space in adata.obsm_keys():
-        space_key = 'X_' + space
-    elif 'X_' + space in adata.obsm_keys():
         space_key = space
+    elif "X_" + space in adata.obsm_keys():
+        space_key = "X_" + space
 
     ptp_vec = adata.obsm[space_key].ptp(0)
     # calculate the figure size based on the width and the ratio between width and height
@@ -36,9 +41,11 @@ def space(adata, space='spatial', width=6, *args, **kwargs):
     figsize = (width, ptp_vec[1] / ptp_vec[0] * width)
 
     # here we should pass different point size, type (square or hexogon, etc), etc.
-    return scatters(adata,
-                    basis=space_key,
-                    figsize=figsize,
-                    *args,
-                    **kwargs,
-              )
+    return scatters(
+        adata,
+        marker=marker,
+        basis=space_key,
+        figsize=figsize,
+        *args,
+        **kwargs,
+    )

@@ -19,7 +19,16 @@ SchemeDivergeBWR = {
 }
 
 
-def plot_X(X, dim1=0, dim2=1, dim3=None, create_figure=False, figsize=(6, 6), sort_by_c="raw", **kwargs):
+def plot_X(
+    X,
+    dim1=0,
+    dim2=1,
+    dim3=None,
+    create_figure=False,
+    figsize=(6, 6),
+    sort_by_c="raw",
+    **kwargs,
+):
     if create_figure:
         plt.figure(figsize=figsize)
 
@@ -87,7 +96,11 @@ def zscatter(
             color = adata.obs[color]
 
     # categorical data
-    if color is not None and type(color) is not str and np.any([type(a) is str for a in color]):
+    if (
+        color is not None
+        and type(color) is not str
+        and np.any([type(a) is str for a in color])
+    ):
         cat_color = True
         try:
             cat = color.cat.categories
@@ -111,12 +124,22 @@ def zscatter(
     if color_map is None:
         plot_X(X, dim1=dim1, dim2=dim2, dim3=dim3, c=color, **kwargs)
     else:
-        plot_X(X, dim1=dim1, dim2=dim2, dim3=dim3, c=color, cmap=color_map, **kwargs)
+        plot_X(
+            X,
+            dim1=dim1,
+            dim2=dim2,
+            dim3=dim3,
+            c=color,
+            cmap=color_map,
+            **kwargs,
+        )
     if isarray(color):
         if cbar:
             if cat_color:
                 cb = plt.colorbar(
-                    ticks=[i for i in value_dict.values()], values=[i for i in value_dict.values()], shrink=cbar_shrink
+                    ticks=[i for i in value_dict.values()],
+                    values=[i for i in value_dict.values()],
+                    shrink=cbar_shrink,
                 )
                 cb.ax.set_yticklabels(value_dict.keys())
             else:
@@ -170,7 +193,9 @@ def zstreamline(
     #    grid_num = grid_num * np.ones(2)
     # V_grid, X_grid = smoothen_drift_on_grid(X, V, n_grid=grid_num, smoothness=smoothness)
     # V_grid, X_grid = V_grid.T, X_grid.T
-    X_grid, V_grid = velocity_on_grid(X, V, n_grids=grid_num, smoothness=smoothness, cutoff_coeff=cutoff)
+    X_grid, V_grid = velocity_on_grid(
+        X, V, n_grids=grid_num, smoothness=smoothness, cutoff_coeff=cutoff
+    )
     V_grid, X_grid = V_grid.T, X_grid.T
 
     streamplot_kwargs = {
@@ -212,7 +237,9 @@ def zstreamline(
         return X_grid.T, V_grid.T
 
 
-def multiplot(plot_func, arr, n_row=None, n_col=3, fig=None, subplot_size=(6, 4)):
+def multiplot(
+    plot_func, arr, n_row=None, n_col=3, fig=None, subplot_size=(6, 4)
+):
     if n_col is None and n_row is None:
         n_col = 3
     n = len(arr[list(arr.keys())[0]]) if type(arr) is dict else len(arr)
@@ -240,7 +267,14 @@ def multiplot(plot_func, arr, n_row=None, n_col=3, fig=None, subplot_size=(6, 4)
     return ax_list
 
 
-def plot_jacobian_gene(adata, jkey="jacobian", basis="pca", regulators=None, effectors=None, **kwargs):
+def plot_jacobian_gene(
+    adata,
+    jkey="jacobian",
+    basis="pca",
+    regulators=None,
+    effectors=None,
+    **kwargs,
+):
     jkey = f"{jkey}_{basis}" if basis is not None else jkey
     J_dict = adata.uns[jkey]
     c_arr = []

@@ -61,11 +61,18 @@ def _cal_ncenter(ncells, ncells_limit=100):
     if ncells <= ncells_limit:
         return None
     else:
-        return np.round(2 * ncells_limit * np.log(ncells) / (np.log(ncells) + np.log(ncells_limit)))
+        return np.round(
+            2
+            * ncells_limit
+            * np.log(ncells)
+            / (np.log(ncells) + np.log(ncells_limit))
+        )
 
 
 # make this function to also calculate the directed graph between clusters:
-def compute_partition(adata, transition_matrix, cell_membership, principal_g, group=None):
+def compute_partition(
+    adata, transition_matrix, cell_membership, principal_g, group=None
+):
     """
 
     Parameters
@@ -95,7 +102,9 @@ def compute_partition(adata, transition_matrix, cell_membership, principal_g, gr
     Tcsr = minimum_spanning_tree(X)
     principal_g = Tcsr.toarray().astype(int)
 
-    membership_matrix = cell_membership.T.dot(transition_matrix).dot(cell_membership)
+    membership_matrix = cell_membership.T.dot(transition_matrix).dot(
+        cell_membership
+    )
 
     direct_principal_g = principal_g * membership_matrix
 

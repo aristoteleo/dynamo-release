@@ -1,5 +1,3 @@
-from logging import raiseExceptions
-from tqdm import tqdm
 import numpy.matlib
 from numpy import format_float_scientific as scinot
 import numpy as np
@@ -8,17 +6,22 @@ from scipy.linalg import lstsq
 from scipy.spatial.distance import pdist
 from sklearn.neighbors import NearestNeighbors
 from multiprocessing.dummy import Pool as ThreadPool
-import itertools, functools
+import itertools
+import functools
 import warnings
 import time
-from ..tools.sampling import sample_by_velocity, sample
+from ..tools.sampling import (
+    sample_by_velocity,
+    sample,
+)
 from ..tools.utils import (
     update_dict,
     update_n_merge_dict,
     linear_least_squares,
     timeit,
     index_condensed_matrix,
-    flatten,
+    starmap_with_kwargs,
+    nearest_neighbors,
 )
 from .utils import (
     vector_field_function,
@@ -36,6 +39,7 @@ from .utils import (
     vecfld_from_adata,
     find_fixed_points,
     FixedPoints,
+    remove_redundant_points,
 )
 from ..dynamo_logger import LoggerManager
 
@@ -49,9 +53,11 @@ def norm(X, V, T):
         X: 'np.ndarray'
             Current state. This corresponds to, for example, the spliced transcriptomic state.
         V: 'np.ndarray'
-            Velocity estimates in delta t. This corresponds to, for example, the inferred spliced transcriptomic velocity estimated calculated by dynamo or velocyto, scvelo.
+            Velocity estimates in delta t. This corresponds to, for example, the inferred spliced transcriptomic
+            velocity estimated calculated by dynamo or velocyto, scvelo.
         T: 'np.ndarray'
-            Current state on a grid which is often used to visualize the vector field. This corresponds to, for example, the spliced transcriptomic state.
+            Current state on a grid which is often used to visualize the vector field. This corresponds to, for example,
+            the spliced transcriptomic state.
 
     Returns
     -------
@@ -105,7 +111,13 @@ def bandwidth_selector(X):
     if n > 200000 and m > 2:
         from pynndescent import NNDescent
 
-        nbrs = NNDescent(X, metric="euclidean", n_neighbors=max(2, int(0.2 * n)), n_jobs=-1, random_state=19491001)
+        nbrs = NNDescent(
+            X,
+            metric="euclidean",
+            n_neighbors=max(2, int(0.2 * n)),
+            n_jobs=-1,
+            random_state=19491001,
+        )
         _, distances = nbrs.query(X, k=max(2, int(0.2 * n)))
     else:
         alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
@@ -185,10 +197,11 @@ def get_P(Y, V, sigma2, gamma, a, div_cur_free_kernels=False):
         gamma: 'float'
             Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important.
         a: 'float'
-            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's variation space is a.
+            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
+            outlier's variation space is a.
         div_cur_free_kernels: `bool` (default: False)
-            A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the vector
-            field.
+            A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the
+            vector field.
 
     Returns
     -------
@@ -214,7 +227,16 @@ def get_P(Y, V, sigma2, gamma, a, div_cur_free_kernels=False):
 
 
 @timeit
-def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True, n_int_steps=20, cores=1):
+def graphize_vecfld(
+    func,
+    X,
+    nbrs_idx=None,
+    dist=None,
+    k=30,
+    distance_free=True,
+    n_int_steps=20,
+    cores=1,
+):
     n, d = X.shape
 
     nbrs = None
@@ -222,7 +244,13 @@ def graphize_vecfld(func, X, nbrs_idx=None, dist=None, k=30, distance_free=True,
         if X.shape[0] > 200000 and X.shape[1] > 2:
             from pynndescent import NNDescent
 
-            nbrs = NNDescent(X, metric="euclidean", n_neighbors=k + 1, n_jobs=-1, random_state=19491001)
+            nbrs = NNDescent(
+                X,
+                metric="euclidean",
+                n_neighbors=k + 1,
+                n_jobs=-1,
+                random_state=19491001,
+            )
             nbrs_idx, dist = nbrs.query(X, k=k + 1)
         else:
             alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
@@ -318,8 +346,8 @@ def SparseVFC(
         X: 'np.ndarray'
             Current state. This corresponds to, for example, the spliced transcriptomic state.
         Y: 'np.ndarray'
-            Velocity estimates in delta t. This corresponds to, for example, the inferred spliced transcriptomic velocity
-            or total RNA velocity based on metabolic labeling data estimated calculated by dynamo.
+            Velocity estimates in delta t. This corresponds to, for example, the inferred spliced transcriptomic
+            velocity or total RNA velocity based on metabolic labeling data estimated calculated by dynamo.
         Grid: 'np.ndarray'
             Current state on a grid which is often used to visualize the vector field. This corresponds to, for example,
             the spliced transcriptomic state or total RNA state.
@@ -336,8 +364,8 @@ def SparseVFC(
         gamma: 'float' (default: 0.9)
             Percentage of inliers in the samples. This is an initial value for EM iteration, and it is not important.
         lambda_: 'float' (default: 0.3)
-            Represents the trade-off between the goodness of data fit and regularization. Larger Lambda_ put more weights
-            on regularization.
+            Represents the trade-off between the goodness of data fit and regularization. Larger Lambda_ put more
+            weights on regularization.
         minP: 'float' (default: 1e-5)
             The posterior probability Matrix P may be singular for matrix inversion. We set the minimum value of P as
             minP.
@@ -347,15 +375,15 @@ def SparseVFC(
             Define how could be an inlier. If the posterior probability of a sample is an inlier is larger than theta,
             then it is regarded as an inlier.
         div_cur_free_kernels: `bool` (default: False)
-            A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the vector
-            field.
+            A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the
+            vector field.
         sigma: 'int' (default: `0.8`)
             Bandwidth parameter.
         eta: 'int' (default: `0.5`)
             Combination coefficient for the divergence-free or the curl-free kernels.
         seed : int or 1-d array_like, optional (default: `0`)
-            Seed for RandomState. Must be convertible to 32 bit unsigned integers. Used in sampling control points. Default
-            is to be 0 for ensure consistency between different runs.
+            Seed for RandomState. Must be convertible to 32 bit unsigned integers. Used in sampling control points.
+            Default is to be 0 for ensure consistency between different runs.
         lstsq_method: 'str' (default: `drouin`)
            The name of the linear least square solver, can be either 'scipy` or `douin`.
         verbose: `int` (default: `1`)
@@ -438,13 +466,12 @@ def SparseVFC(
     V = X.copy() if div_cur_free_kernels else np.zeros((N, D))
     C = np.zeros((M, 1)) if div_cur_free_kernels else np.zeros((M, D))
     i, tecr, E = 0, 1, 1
-    sigma2 = (
-        sum(sum((Y - X) ** 2)) / (N * D) if div_cur_free_kernels else sum(sum((Y - V) ** 2)) / (N * D)
-    )  ## test this
-    # sigma2 = 1e-7 if sigma2 > 1e-8 else sigma2
+    # test this
+    sigma2 = sum(sum((Y - X) ** 2)) / (N * D) if div_cur_free_kernels else sum(sum((Y - V) ** 2)) / (N * D)
+    sigma2 = 1e-7 if sigma2 < 1e-8 else sigma2
     tecr_vec = np.ones(MaxIter) * np.nan
     E_vec = np.ones(MaxIter) * np.nan
-
+    P = None
     while i < MaxIter and tecr > ecr and sigma2 > 1e-8:
         # E_step
         E_old = E
@@ -497,6 +524,12 @@ def SparseVFC(
             gamma = 0.05
 
         i += 1
+    if i == 0 and not (tecr > ecr and sigma2 > 1e-8):
+        raise Exception(
+            "please check your input parameters, "
+            f"tecr: {tecr}, ecr {ecr} and sigma2 {sigma2},"
+            f"tecr must larger than ecr and sigma2 must larger than 1e-8"
+        )
 
     grid_V = None
     if Grid is not None:
@@ -521,7 +554,11 @@ def SparseVFC(
         "E_traj": E_vec[:i],
     }
     if div_cur_free_kernels:
-        VecFld["div_cur_free_kernels"], VecFld["sigma"], VecFld["eta"] = True, sigma, eta
+        VecFld["div_cur_free_kernels"], VecFld["sigma"], VecFld["eta"] = (
+            True,
+            sigma,
+            eta,
+        )
         (
             _,
             VecFld["df_kernel"],
@@ -566,20 +603,22 @@ class base_vectorfield:
     def get_data(self):
         return self.data["X"], self.data["V"]
 
-    def find_fixed_points(self, n_x0=100, X0=None, domain=None, sampling_method='random', **kwargs):
+    def find_fixed_points(self, n_x0=100, X0=None, domain=None, sampling_method="random", **kwargs):
         """
         Search for fixed points of the vector field function.
 
         """
         if self.data is None and X0 is None:
-            raise Exception(f'The initial points `X0` are not provided, '
-                f'and no data is stored in the vector field for the sampling of initial points.')
+            raise Exception(
+                "The initial points `X0` are not provided, "
+                "and no data is stored in the vector field for the sampling of initial points."
+            )
         elif X0 is None:
-            indices = sample(np.arange(len(self.data['X'])), n_x0, method=sampling_method)
-            X0 = self.data['X'][indices]
-        
+            indices = sample(np.arange(len(self.data["X"])), n_x0, method=sampling_method)
+            X0 = self.data["X"][indices]
+
         if domain is None and self.data is not None:
-            domain = np.vstack((np.min(self.data['X'], axis=0), np.max(self.data['X'], axis=0))).T
+            domain = np.vstack((np.min(self.data["X"], axis=0), np.max(self.data["X"], axis=0))).T
 
         X, J, _ = find_fixed_points(X0, self.func, domain=domain, **kwargs)
         self.fixed_points = FixedPoints(X, J)
@@ -587,23 +626,76 @@ class base_vectorfield:
     def get_fixed_points(self, **kwargs):
         """
         Get fixed points of the vector field function.
-        
+
         Returns
         -------
             Xss: :class:`~numpy.ndarray`
                 Coordinates of the fixed points.
             ftype: :class:`~numpy.ndarray`
                 Types of the fixed points:
-                -1 -- stable, 
-                 0 -- saddle, 
+                -1 -- stable,
+                 0 -- saddle,
                  1 -- unstable
         """
         if self.fixed_points is None:
             self.find_fixed_points(**kwargs)
-        
+
         Xss = self.fixed_points.get_X()
         ftype = self.fixed_points.get_fixed_point_types()
         return Xss, ftype
+
+    def assign_fixed_points(self, domain=None, cores=1, **kwargs):
+        """assign each cell to the associated fixed points"""
+        if domain is None and self.data is not None:
+            domain = np.vstack((np.min(self.data["X"], axis=0), np.max(self.data["X"], axis=0))).T
+
+        if cores == 1:
+            X, J, _ = find_fixed_points(
+                self.data["X"],
+                self.func,
+                domain=domain,
+                return_all=True,
+                **kwargs,
+            )
+        else:
+            pool = ThreadPool(cores)
+
+            args_iter = zip(
+                [i[None, :] for i in self.data["X"]],
+                itertools.repeat(self.func),
+                itertools.repeat(domain),
+                itertools.repeat(True),
+            )
+            kwargs_iter = itertools.repeat(kwargs)
+            res = starmap_with_kwargs(pool, find_fixed_points, args_iter, kwargs_iter)
+
+            pool.close()
+            pool.join()
+
+            (X, J, _) = zip(*res)
+            X = np.vstack([[i] * self.data["X"].shape[1] if i is None else i for i in X]).astype(float)
+            J = np.array(
+                [np.zeros((self.data["X"].shape[1], self.data["X"].shape[1])) * np.nan if i is None else i for i in J]
+            )
+
+        self.fixed_points = FixedPoints(X, J)
+        fps_assignment = self.fixed_points.get_X()
+        fps_type_assignment = self.fixed_points.get_fixed_point_types()
+
+        valid_fps_assignment, valid_fps_type_assignment = (
+            fps_assignment[np.abs(fps_assignment).sum(1) > 0, :],
+            fps_type_assignment[np.abs(fps_assignment).sum(1) > 0],
+        )
+        X, discard = remove_redundant_points(valid_fps_assignment, output_discard=True)
+
+        assignment_id = np.zeros(len(fps_assignment))
+        for i, cur_fps in enumerate(fps_assignment):
+            if np.isnan(cur_fps).any():
+                assignment_id[i] = np.nan
+            else:
+                assignment_id[i] = int(nearest_neighbors(cur_fps, X, 1))
+
+        return X, valid_fps_type_assignment[discard], assignment_id
 
 
 class svc_vectorfield(base_vectorfield):
@@ -624,8 +716,8 @@ class svc_vectorfield(base_vectorfield):
             than  about 900 data points (cells) will use full data for vector field reconstruction while any dataset
             larger than that will at most use 1500 data points.
         a: `float` (default 5)
-            Parameter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's
-            variation space is a.
+            Parameter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
+            outlier's variation space is a.
         beta: `float` (default: None)
              Parameter of Gaussian Kernel, k(x, y) = exp(-beta*||x-y||^2).
              If None, a rule-of-thumb bandwidth will be computed automatically.
@@ -637,22 +729,23 @@ class svc_vectorfield(base_vectorfield):
         lambda_: `float` (default: 3)
             Represents the trade-off between the goodness of data fit and regularization.
         minP: `float` (default: 1e-5)
-            The posterior probability Matrix P may be singular for matrix inversion. We set the minimum value of P as minP.
+            The posterior probability Matrix P may be singular for matrix inversion. We set the minimum value of P as
+            minP.
         MaxIter: `int` (default: 500)
             Maximum iteration times.
         theta: `float` (default 0.75)
-            Define how could be an inlier. If the posterior probability of a sample is an inlier is larger than theta, then
-            it is regarded as an inlier.
+            Define how could be an inlier. If the posterior probability of a sample is an inlier is larger than theta,
+            then it is regarded as an inlier.
         div_cur_free_kernels: `bool` (default: False)
-            A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the vector
-            field.
+            A logic flag to determine whether the divergence-free or curl-free kernels will be used for learning the
+            vector field.
         sigma: `int`
             Bandwidth parameter.
         eta: `int`
             Combination coefficient for the divergence-free or the curl-free kernels.
         seed : int or 1-d array_like, optional (default: `0`)
-            Seed for RandomState. Must be convertible to 32 bit unsigned integers. Used in sampling control points. Default
-            is to be 0 for ensure consistency between different runs.
+            Seed for RandomState. Must be convertible to 32 bit unsigned integers. Used in sampling control points.
+            Default is to be 0 for ensure consistency between different runs.
         """
 
         super().__init__(X, V, Grid)
@@ -683,28 +776,30 @@ class svc_vectorfield(base_vectorfield):
 
     def train(self, normalize=False, **kwargs):
         """Learn an function of vector field from sparse single cell samples in the entire space robustly.
-        Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
+        Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al,
+        Pattern Recognition
 
         Arguments
         ---------
             normalize: 'bool' (default: False)
-                Logic flag to determine whether to normalize the data to have zero means and unit covariance. This is often
-                required for raw dataset (for example, raw UMI counts and RNA velocity values in high dimension). But it is
-                normally not required for low dimensional embeddings by PCA or other non-linear dimension reduction methods.
+                Logic flag to determine whether to normalize the data to have zero means and unit covariance. This is
+                often required for raw dataset (for example, raw UMI counts and RNA velocity values in high dimension).
+                But it is normally not required for low dimensional embeddings by PCA or other non-linear dimension
+                reduction methods.
             method: 'string'
-                Method that is used to reconstruct the vector field functionally. Currently only SparseVFC supported but other
-                improved approaches are under development.
+                Method that is used to reconstruct the vector field functionally. Currently only SparseVFC supported but
+                other improved approaches are under development.
 
         Returns
         -------
             VecFld: `dict'
-                A dictionary which contains X, Y, beta, V, C, P, VFCIndex. Where V = f(X), P is the posterior probability and
-                VFCIndex is the indexes of inliers which found by VFC.
+                A dictionary which contains X, Y, beta, V, C, P, VFCIndex. Where V = f(X), P is the posterior
+                probability and VFCIndex is the indexes of inliers which found by VFC.
         """
 
         if normalize:
             X_norm, V_norm, T_norm, norm_dict = norm(self.data["X"], self.data["V"], self.data["Grid"])
-            self.data["X"], self.data["V"], self.data["Grid"], self.norm_dict = (
+            (self.data["X"], self.data["V"], self.data["Grid"], self.norm_dict,) = (
                 X_norm,
                 V_norm,
                 T_norm,
@@ -903,7 +998,6 @@ class svc_vectorfield(base_vectorfield):
 
 
 try:
-    import dynode
     from dynode.vectorfield import Dynode
 
     use_dynode = True
@@ -933,7 +1027,8 @@ if use_dynode:
                 self.valid_ind = good_ind
 
                 velocity_data_sampler = VelocityDataSampler(
-                    adata={"X": good_X, "V": good_V}, normalize_velocity=kwargs.get("normalize_velocity", False)
+                    adata={"X": good_X, "V": good_V},
+                    normalize_velocity=kwargs.get("normalize_velocity", False),
                 )
 
                 vf_kwargs = {

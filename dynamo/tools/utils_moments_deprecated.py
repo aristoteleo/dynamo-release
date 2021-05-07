@@ -78,25 +78,57 @@ class moments:
         # first moments
         dx[self.ua] = la * aa - be * x[self.ua] + a * (x[self.ui] - x[self.ua])
         dx[self.ui] = la * ai - be * x[self.ui] - b * (x[self.ui] - x[self.ua])
-        dx[self.wa] = (1 - la) * aa - be * x[self.wa] + a * (x[self.wi] - x[self.wa])
-        dx[self.wi] = (1 - la) * ai - be * x[self.wi] - b * (x[self.wi] - x[self.wa])
-        dx[self.xa] = be * (1 - si) * x[self.ua] - ga * x[self.xa] + a * (x[self.xi] - x[self.xa])
-        dx[self.xi] = be * (1 - si) * x[self.ui] - ga * x[self.xi] - b * (x[self.xi] - x[self.xa])
-        dx[self.ya] = be * si * x[self.ua] + be * x[self.wa] - ga * x[self.ya] + a * (x[self.yi] - x[self.ya])
-        dx[self.yi] = be * si * x[self.ui] + be * x[self.wi] - ga * x[self.yi] - b * (x[self.yi] - x[self.ya])
+        dx[self.wa] = (
+            (1 - la) * aa - be * x[self.wa] + a * (x[self.wi] - x[self.wa])
+        )
+        dx[self.wi] = (
+            (1 - la) * ai - be * x[self.wi] - b * (x[self.wi] - x[self.wa])
+        )
+        dx[self.xa] = (
+            be * (1 - si) * x[self.ua]
+            - ga * x[self.xa]
+            + a * (x[self.xi] - x[self.xa])
+        )
+        dx[self.xi] = (
+            be * (1 - si) * x[self.ui]
+            - ga * x[self.xi]
+            - b * (x[self.xi] - x[self.xa])
+        )
+        dx[self.ya] = (
+            be * si * x[self.ua]
+            + be * x[self.wa]
+            - ga * x[self.ya]
+            + a * (x[self.yi] - x[self.ya])
+        )
+        dx[self.yi] = (
+            be * si * x[self.ui]
+            + be * x[self.wi]
+            - ga * x[self.yi]
+            - b * (x[self.yi] - x[self.ya])
+        )
 
         # second moments
-        dx[self.uu] = 2 * la * self.fbar(aa * x[self.ua], ai * x[self.ui]) - 2 * be * x[self.uu]
-        dx[self.ww] = 2 * (1 - la) * self.fbar(self.aa * x[self.wa], ai * x[self.wi]) - 2 * be * x[self.ww]
+        dx[self.uu] = (
+            2 * la * self.fbar(aa * x[self.ua], ai * x[self.ui])
+            - 2 * be * x[self.uu]
+        )
+        dx[self.ww] = (
+            2 * (1 - la) * self.fbar(self.aa * x[self.wa], ai * x[self.wi])
+            - 2 * be * x[self.ww]
+        )
         dx[self.xx] = 2 * be * (1 - si) * x[self.ux] - 2 * ga * x[self.xx]
-        dx[self.yy] = 2 * si * be * x[self.uy] + 2 * be * x[self.wy] - 2 * ga * x[self.yy]
+        dx[self.yy] = (
+            2 * si * be * x[self.uy] + 2 * be * x[self.wy] - 2 * ga * x[self.yy]
+        )
         dx[self.uw] = (
             la * self.fbar(aa * x[self.wa], ai * x[self.wi])
             + (1 - la) * self.fbar(aa * x[self.ua], ai * x[self.ui])
             - 2 * be * x[self.uw]
         )
         dx[self.ux] = (
-            la * self.fbar(aa * x[self.xa], ai * x[self.xi]) + be * (1 - si) * x[self.uu] - (be + ga) * x[self.ux]
+            la * self.fbar(aa * x[self.xa], ai * x[self.xi])
+            + be * (1 - si) * x[self.uu]
+            - (be + ga) * x[self.ux]
         )
         dx[self.uy] = (
             la * self.fbar(aa * x[self.ya], ai * x[self.yi])
@@ -124,7 +156,9 @@ class moments:
         return sol
 
     def fbar(self, x_a, x_i):
-        return self.b / (self.a + self.b) * x_a + self.a / (self.a + self.b) * x_i
+        return (
+            self.b / (self.a + self.b) * x_a + self.a / (self.a + self.b) * x_i
+        )
 
     def set_params(self, a, b, la, alpha_a, alpha_i, sigma, beta, gamma):
         self.a = a
@@ -416,7 +450,9 @@ class moments_simple:
         return self.be * self.si * nu0 + self.be * nw0 - self.ga * ny0
 
     def fbar(self, x_a, x_i):
-        return self.b / (self.a + self.b) * x_a + self.a / (self.a + self.b) * x_i
+        return (
+            self.b / (self.a + self.b) * x_a + self.a / (self.a + self.b) * x_i
+        )
 
     def set_params(self, a, b, la, alpha_a, alpha_i, sigma, beta, gamma):
         self.a = a
@@ -508,12 +544,18 @@ class estimation:
         if method == "lhs":
             ret = self._lhsclassic(samples)
             for i in range(self.n_params):
-                ret[:, i] = ret[:, i] * (self.ranges[i][1] - self.ranges[i][0]) + self.ranges[i][0]
+                ret[:, i] = (
+                    ret[:, i] * (self.ranges[i][1] - self.ranges[i][0])
+                    + self.ranges[i][0]
+                )
         else:
             for n in range(samples):
                 for i in range(self.n_params):
                     r = random.rand()
-                    ret[n, i] = r * (self.ranges[i][1] - self.ranges[i][0]) + self.ranges[i][0]
+                    ret[n, i] = (
+                        r * (self.ranges[i][1] - self.ranges[i][0])
+                        + self.ranges[i][0]
+                    )
         return ret
 
     def _lhsclassic(self, samples):
@@ -558,7 +600,9 @@ class estimation:
         ret = self.normalize_data(ret)
         return ret.flatten()
 
-    def f_lsq(self, params, t, x_data_norm, method="analytical", experiment_type=None):
+    def f_lsq(
+        self, params, t, x_data_norm, method="analytical", experiment_type=None
+    ):
         self.simulator.set_params(*params)
         if method == "numerical":
             self.simulator.integrate(t, self.simulator.x0)
@@ -580,7 +624,9 @@ class estimation:
         x_data_norm = self.normalize_data(x_data)
         if bounds is None:
             bounds = (self.get_bound(0), self.get_bound(1))
-        popt, pcov = curve_fit(self.f_curve_fit, t, x_data_norm.flatten(), p0=p0, bounds=bounds)
+        popt, pcov = curve_fit(
+            self.f_curve_fit, t, x_data_norm.flatten(), p0=p0, bounds=bounds
+        )
         return popt, pcov
 
     def fit_lsq(
@@ -608,7 +654,9 @@ class estimation:
         X = []
         for i in range(n_p0):
             ret = least_squares(
-                lambda p: self.f_lsq(p, t, x_data_norm.flatten(), method, experiment_type),
+                lambda p: self.f_lsq(
+                    p, t, x_data_norm.flatten(), method, experiment_type
+                ),
                 p0[i],
                 bounds=bounds,
             )

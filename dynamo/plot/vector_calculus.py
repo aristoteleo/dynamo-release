@@ -2,6 +2,8 @@
 
 import numpy as np, pandas as pd
 import anndata
+from anndata import AnnData
+from typing import List, Union, Optional
 
 from .scatters import scatters
 from .scatters import docstrings
@@ -28,7 +30,14 @@ docstrings.delete_params("scatters.parameters", "adata", "color", "cmap", "front
 
 
 @docstrings.with_indent(4)
-def speed(adata, basis="pca", color=None, frontier=True, *args, **kwargs):
+def speed(
+    adata: AnnData,
+    basis: str = "pca",
+    color: Union[str, list, None] = None,
+    frontier: bool = True,
+    *args,
+    **kwargs,
+):
     """\
     Scatter plot with cells colored by the estimated velocity speed (and other information if provided).
 
@@ -79,7 +88,16 @@ def speed(adata, basis="pca", color=None, frontier=True, *args, **kwargs):
 
 
 @docstrings.with_indent(4)
-def curl(adata, basis="umap", color=None, cmap="bwr", frontier=True, sym_c=True, *args, **kwargs):
+def curl(
+    adata: AnnData,
+    basis: str = "umap",
+    color: Union[str, list, None] = None,
+    cmap: str = "bwr",
+    frontier: bool = True,
+    sym_c: bool = True,
+    *args,
+    **kwargs,
+):
     """\
     Scatter plot with cells colored by the estimated curl (and other information if provided).
 
@@ -136,11 +154,28 @@ def curl(adata, basis="umap", color=None, cmap="bwr", frontier=True, sym_c=True,
     # adata.obs[curl_key] = adata.obs[curl_key].astype('float')
     # adata_ = adata[~ adata.obs[curl_key].isna(), :]
 
-    return scatters(adata, color=color_, cmap=cmap, frontier=frontier, sym_c=sym_c, *args, **kwargs)
+    return scatters(
+        adata,
+        color=color_,
+        cmap=cmap,
+        frontier=frontier,
+        sym_c=sym_c,
+        *args,
+        **kwargs,
+    )
 
 
 @docstrings.with_indent(4)
-def divergence(adata, basis="pca", color=None, cmap="bwr", frontier=True, sym_c=True, *args, **kwargs):
+def divergence(
+    adata: AnnData,
+    basis: str = "pca",
+    color: Union[str, list, None] = None,
+    cmap: str = "bwr",
+    frontier: bool = True,
+    sym_c: bool = True,
+    *args,
+    **kwargs,
+):
     """\
     Scatter plot with cells colored by the estimated divergence (and other information if provided).
 
@@ -195,11 +230,26 @@ def divergence(adata, basis="pca", color=None, cmap="bwr", frontier=True, sym_c=
         color = [color] if type(color) == str else color
         color_.extend(color)
 
-    return scatters(adata, color=color_, cmap=cmap, frontier=frontier, sym_c=sym_c, *args, **kwargs)
+    return scatters(
+        adata,
+        color=color_,
+        cmap=cmap,
+        frontier=frontier,
+        sym_c=sym_c,
+        *args,
+        **kwargs,
+    )
 
 
 @docstrings.with_indent(4)
-def curvature(adata, basis="pca", color=None, frontier=True, *args, **kwargs):
+def curvature(
+    adata: AnnData,
+    basis: str = "pca",
+    color: Union[str, list, None] = None,
+    frontier: bool = True,
+    *args,
+    **kwargs,
+):
     """\
     Scatter plot with cells colored by the estimated curvature (and other information if provided).
 
@@ -252,28 +302,28 @@ def curvature(adata, basis="pca", color=None, frontier=True, *args, **kwargs):
 
 @docstrings.with_indent(4)
 def jacobian(
-    adata,
-    regulators=None,
-    effectors=None,
-    basis="umap",
-    jkey="jacobian",
-    j_basis="pca",
-    x=0,
-    y=1,
-    layer="M_s",
-    highlights=None,
-    cmap="bwr",
-    background=None,
-    pointsize=None,
-    figsize=(6, 4),
-    show_legend=True,
-    frontier=True,
-    sym_c=True,
-    sort="abs",
-    show_arrowed_spines=False,
-    stacked_fraction=False,
-    save_show_or_return="show",
-    save_kwargs={},
+    adata: AnnData,
+    regulators: Optional[List] = None,
+    effectors: Optional[List] = None,
+    basis: str = "umap",
+    jkey: str = "jacobian",
+    j_basis: str = "pca",
+    x: int = 0,
+    y: int = 1,
+    layer: str = "M_s",
+    highlights: list = None,
+    cmap: str = "bwr",
+    background: Optional[str] = None,
+    pointsize: Union[None, float] = None,
+    figsize: tuple = (6, 4),
+    show_legend: bool = True,
+    frontier: bool = True,
+    sym_c: bool = True,
+    sort: str = "abs",
+    show_arrowed_spines: bool = False,
+    stacked_fraction: bool = False,
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
     **kwargs,
 ):
     """\
@@ -403,7 +453,11 @@ def jacobian(
             source_genes, target_genes = adata_.var_names, adata_.var_names
     else:
         Der, source_genes, target_genes = intersect_sources_targets(
-            regulators, regulators_, effectors, effectors_, Der if jacobian_gene is None else jacobian_gene
+            regulators,
+            regulators_,
+            effectors,
+            effectors_,
+            Der if jacobian_gene is None else jacobian_gene,
         )
 
     ## integrate this with the code in scatter ##
@@ -543,17 +597,17 @@ def jacobian(
 
 
 def jacobian_heatmap(
-    adata,
-    cell_idx,
-    jkey="jacobian",
-    basis="umap",
-    regulators=None,
-    effectors=None,
-    figsize=(7, 5),
-    ncols=1,
-    cmap="bwr",
-    save_show_or_return="show",
-    save_kwargs={},
+    adata: AnnData,
+    cell_idx: Union[int, List],
+    jkey: str = "jacobian",
+    basis: str = "umap",
+    regulators: Optional[List] = None,
+    effectors: Optional[List] = None,
+    figsize: tuple = (7, 5),
+    ncols: int = 1,
+    cmap: str = "bwr",
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
     **kwargs,
 ):
     """\
@@ -658,7 +712,15 @@ def jacobian_heatmap(
         J = Der[:, :, ind][:, :, 0].T  # dim 0: target; dim 1: source
         J = pd.DataFrame(J, index=regulators, columns=effectors)
         ax = plt.subplot(gs[i])
-        sns.heatmap(J, annot=True, ax=ax, cmap=cmap, cbar=False, center=0, **heatmap_kwargs)
+        sns.heatmap(
+            J,
+            annot=True,
+            ax=ax,
+            cmap=cmap,
+            cbar=False,
+            center=0,
+            **heatmap_kwargs,
+        )
         plt.title(name)
 
     if save_show_or_return == "save":
@@ -831,7 +893,11 @@ def sensitivity(
             source_genes, target_genes = adata_.var_names, adata_.var_names
     else:
         Der, source_genes, target_genes = intersect_sources_targets(
-            regulators, regulators_, effectors, effectors_, Der if sensitivity_gene is None else sensitivity_gene
+            regulators,
+            regulators_,
+            effectors,
+            effectors_,
+            Der if sensitivity_gene is None else sensitivity_gene,
         )
 
     ## integrate this with the code in scatter ##
@@ -1087,7 +1153,15 @@ def sensitivity_heatmap(
         J = Der[:, :, ind][:, :, 0].T  # dim 0: target; dim 1: source
         J = pd.DataFrame(J, index=regulators, columns=effectors)
         ax = plt.subplot(gs[i])
-        sns.heatmap(J, annot=True, ax=ax, cmap=cmap, cbar=False, center=0, **heatmap_kwargs)
+        sns.heatmap(
+            J,
+            annot=True,
+            ax=ax,
+            cmap=cmap,
+            cbar=False,
+            center=0,
+            **heatmap_kwargs,
+        )
         plt.title(name)
 
     if save_show_or_return == "save":

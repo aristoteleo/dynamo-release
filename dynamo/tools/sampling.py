@@ -78,7 +78,13 @@ def trn(X, n, return_index=True, seed=19491001, **kwargs):
         if X.shape[0] > 200000 and X.shape[1] > 2:
             from pynndescent import NNDescent
 
-            nbrs = NNDescent(X, metric="euclidean", n_neighbors=1, n_jobs=-1, random_state=seed)
+            nbrs = NNDescent(
+                X,
+                metric="euclidean",
+                n_neighbors=1,
+                n_jobs=-1,
+                random_state=seed,
+            )
             idx, _ = nbrs.query(trnet.W, k=1)
         else:
             alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
@@ -119,7 +125,7 @@ def lhsclassic(n_samples, n_dim, seed=19491001):
     return H
 
 
-def sample(arr, n, method, X=None, V=None, seed=19491001, **kwargs):
+def sample(arr, n, method="random", X=None, V=None, seed=19491001, **kwargs):
     if method == "random":
         np.random.seed(seed)
         cell_idx = np.random.choice(arr, size=n, replace=False)

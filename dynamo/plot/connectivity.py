@@ -9,6 +9,15 @@ The code base will be extended extensively to consider the following cases:
     6. others
 """
 
+import scipy
+import pandas as pd
+import numpy as np
+from warnings import warn
+from typing import Optional, Union
+from matplotlib.axes import Axes
+from anndata import AnnData
+from matplotlib.figure import Figure
+
 from ..tools.utils import update_dict
 from .utils import (
     _select_font_color,
@@ -17,19 +26,14 @@ from .utils import (
     _datashade_points,
     save_fig,
 )
-
 from .utils import is_list_of_lists  # is_gene_name
 from ..configuration import _themes
 from ..docrep import DocstringProcessor
 
-import pandas as pd
-import numpy as np
-from warnings import warn
-
 docstrings = DocstringProcessor()
 
 
-def _plt_connectivity(coord, connectivity):
+def _plt_connectivity(coord: dict, connectivity: scipy.sparse.csr_matrix):
     """Plot connectivity graph via networkx and matplotlib.
 
     Parameters
@@ -52,7 +56,9 @@ def _plt_connectivity(coord, connectivity):
     G = (
         nx.from_scipy_sparse_matrix(connectivity, create_using=nx.Graph())
         if if_symmetric
-        else nx.from_scipy_sparse_matrix(connectivity, create_using=nx.DiGraph())
+        else nx.from_scipy_sparse_matrix(
+            connectivity, create_using=nx.DiGraph()
+        )
     )
     W = []
     for n, nbrs in G.adj.items():
@@ -84,26 +90,26 @@ def _plt_connectivity(coord, connectivity):
 
 @docstrings.get_sectionsf("con_base")
 def connectivity_base(
-    x,
-    y,
-    edge_df,
-    highlights=None,
-    edge_bundling=None,
-    edge_cmap="gray_r",
-    show_points=True,
-    labels=None,
-    values=None,
-    theme=None,
-    cmap="Blues",
-    color_key=None,
-    color_key_cmap="Spectral",
-    background="black",
-    figsize=(7, 5),
-    ax=None,
-    sort="raw",
-    save_show_or_return="return",
-    save_kwargs={},
-):
+    x: int,
+    y: int,
+    edge_df: pd.DataFrame,
+    highlights: Optional[list] = None,
+    edge_bundling: Optional[str] = None,
+    edge_cmap: str = "gray_r",
+    show_points: bool = True,
+    labels: Optional[list] = None,
+    values: Optional[list] = None,
+    theme: Optional[str] = None,
+    cmap: str = "Blues",
+    color_key: Union[dict, list, None] = None,
+    color_key_cmap: str = "Spectral",
+    background: str = "black",
+    figsize: tuple = (7, 5),
+    ax: Optional[Axes] = None,
+    sort: str = "raw",
+    save_show_or_return: str = "return",
+    save_kwargs: dict = {},
+) -> Union[None, Axes]:
     """Plot connectivity relationships of the underlying UMAP
     simplicial set data structure. Internally UMAP will make
     use of what can be viewed as a weighted graph. This graph
@@ -218,8 +224,8 @@ def connectivity_base(
 
     Returns
     -------
-    result: matplotlib axis
-        The result is a matplotlib axis with the relevant plot displayed.
+    result:
+        Either return None or a matplotlib axis with the relevant plot displayed based on arguments.
         If you are using a notbooks and have ``%matplotlib inline`` set
         then this will simply display inline.
     """
@@ -262,10 +268,15 @@ def connectivity_base(
     if edge_bundling is None:
         edges = bd.directly_connect_edges(point_df, edge_df, weight="weight")
     elif edge_bundling == "hammer":
-        warn("Hammer edge bundling is expensive for large graphs!\n" "This may take a long time to compute!")
+        warn(
+            "Hammer edge bundling is expensive for large graphs!\n"
+            "This may take a long time to compute!"
+        )
         edges = bd.hammer_bundle(point_df, edge_df, weight="weight")
     else:
-        raise ValueError("{} is not a recognised bundling method".format(edge_bundling))
+        raise ValueError(
+            "{} is not a recognised bundling method".format(edge_bundling)
+        )
 
     edge_img = tf.shade(
         canvas.line(edges, "x", "y", agg=ds.sum("weight")),
@@ -324,34 +335,36 @@ def connectivity_base(
         return ax
 
 
-docstrings.delete_params("con_base.parameters", "edge_df", "save_show_or_return", "save_kwargs")
+docstrings.delete_params(
+    "con_base.parameters", "edge_df", "save_show_or_return", "save_kwargs"
+)
 
 
 @docstrings.with_indent(4)
 def nneighbors(
-    adata,
-    x=0,
-    y=1,
-    color="ntr",
-    basis="umap",
-    layer="X",
-    highlights=None,
-    ncols=1,
-    edge_bundling=None,
-    edge_cmap="gray_r",
-    show_points=True,
-    labels=None,
-    values=None,
-    theme=None,
-    cmap=None,
-    color_key=None,
-    color_key_cmap=None,
-    background="black",
-    figsize=(6, 4),
-    ax=None,
-    save_show_or_return="show",
-    save_kwargs={},
-):
+    adata: AnnData,
+    x: int = 0,
+    y: int = 1,
+    color: str = "ntr",
+    basis: str = "umap",
+    layer: str = "X",
+    highlights: Union[list] = None,
+    ncols: int = 1,
+    edge_bundling: Optional[str] = None,
+    edge_cmap: str = "gray_r",
+    show_points: bool = True,
+    labels: Optional[list] = None,
+    values: Optional[list] = None,
+    theme: Optional[str] = None,
+    cmap: str = "Blues",
+    color_key: Optional[Union[dict, list]] = None,
+    color_key_cmap: str = "Spectral",
+    background: str = "black",
+    figsize: tuple = (6, 4),
+    ax: Optional[Axes] = None,
+    save_show_or_return: str = "return",
+    save_kwargs: dict = {},
+) -> Union[None, Figure]:
     """Plot nearest neighbor graph of cells used to embed data into low dimension space.
 
     Parameters
@@ -447,7 +460,9 @@ def nneighbors(
         )
 
     if total_panels > 1:
-        g = plt.figure(None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background)
+        g = plt.figure(
+            None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=background
+        )
         gs = plt.GridSpec(nrow, ncol, wspace=0.12)
 
     i = 0
@@ -471,7 +486,9 @@ def nneighbors(
                 else:
                     values = _color
                     if theme is None:
-                        theme = "inferno" if cur_l != "velocity" else "div_blue_red"
+                        theme = (
+                            "inferno" if cur_l != "velocity" else "div_blue_red"
+                        )
 
                 if total_panels > 1:
                     ax = plt.subplot(gs[i])
@@ -480,9 +497,17 @@ def nneighbors(
                 # if highligts is a list of lists - each list is relate to each color element
                 if is_list_of_lists(highlights):
                     _highlights = highlights[color.index(cur_c)]
-                    _highlights = _highlights if all([i in _color for i in _highlights]) else None
+                    _highlights = (
+                        _highlights
+                        if all([i in _color for i in _highlights])
+                        else None
+                    )
                 else:
-                    _highlights = highlights if all([i in _color for i in highlights]) else None
+                    _highlights = (
+                        highlights
+                        if all([i in _color for i in highlights])
+                        else None
+                    )
 
                 connectivity_base(
                     x_,

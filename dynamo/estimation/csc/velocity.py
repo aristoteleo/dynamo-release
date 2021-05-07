@@ -90,7 +90,10 @@ class velocity:
         t = self.parameters["t"]
         t_uniq, t_uniq_cnt = np.unique(self.parameters["t"], return_counts=True)
         if self.parameters["alpha"] is not None:
-            if self.parameters["beta"] is None and self.parameters["gamma"] is not None:
+            if (
+                self.parameters["beta"] is None
+                and self.parameters["gamma"] is not None
+            ):
                 no_beta = True
                 self.parameters["beta"] = self.parameters["gamma"]
             else:
@@ -102,24 +105,42 @@ class velocity:
 
                 if self.parameters["alpha"].ndim == 1:
                     alpha = (
-                        np.repeat(self.parameters["alpha"].reshape((-1, 1)), U.shape[1], axis=1)
+                        np.repeat(
+                            self.parameters["alpha"].reshape((-1, 1)),
+                            U.shape[1],
+                            axis=1,
+                        )
                         if repeat
-                        else one_shot_alpha_matrix(U, self.parameters["gamma"], self.parameters["t"])
+                        else one_shot_alpha_matrix(
+                            U, self.parameters["gamma"], self.parameters["t"]
+                        )
                     )
                 elif self.parameters["alpha"].shape[1] == U.shape[1]:
                     alpha = self.parameters["alpha"]
-                elif self.parameters["alpha"].shape[1] == len(t_uniq) and len(t_uniq) > 1:
+                elif (
+                    self.parameters["alpha"].shape[1] == len(t_uniq)
+                    and len(t_uniq) > 1
+                ):
                     alpha = np.zeros(U.shape)
                     for i in range(len(t_uniq)):
                         cell_inds = t == t_uniq[i]
-                        alpha[:, cell_inds] = np.repeat(self.parameters["alpha"][:, i], t_uniq_cnt[i], axis=1)
+                        alpha[:, cell_inds] = np.repeat(
+                            self.parameters["alpha"][:, i],
+                            t_uniq_cnt[i],
+                            axis=1,
+                        )
                 else:
-                    alpha = np.repeat(self.parameters["alpha"], U.shape[1], axis=1)
+                    alpha = np.repeat(
+                        self.parameters["alpha"], U.shape[1], axis=1
+                    )
             else:  # need to correct the velocity vector prediction when you use mix_std_stm experiments
                 # if repeat is None: repeat = True # not used for now
                 if self.parameters["alpha"][1].shape[1] == U.shape[1]:
                     alpha = self.parameters["alpha"][1]
-                elif self.parameters["alpha"][1].shape[1] == len(t_uniq) and len(t_uniq) > 1:
+                elif (
+                    self.parameters["alpha"][1].shape[1] == len(t_uniq)
+                    and len(t_uniq) > 1
+                ):
                     alpha = np.zeros(U.shape)
                     for i in range(len(t_uniq)):
                         cell_inds = t == t_uniq[i]
@@ -129,11 +150,18 @@ class velocity:
                             axis=1,
                         )
                 else:
-                    alpha = np.repeat(self.parameters["alpha"][1], U.shape[1], axis=1)
+                    alpha = np.repeat(
+                        self.parameters["alpha"][1], U.shape[1], axis=1
+                    )
 
             if self.parameters["beta"].ndim == 1:
-                beta = np.repeat(self.parameters["beta"].reshape((-1, 1)), U.shape[1], axis=1)
-            elif self.parameters["beta"].shape[1] == len(t_uniq) and len(t_uniq) > 1:
+                beta = np.repeat(
+                    self.parameters["beta"].reshape((-1, 1)), U.shape[1], axis=1
+                )
+            elif (
+                self.parameters["beta"].shape[1] == len(t_uniq)
+                and len(t_uniq) > 1
+            ):
                 beta = np.zeros_like(U.shape)
                 for i in range(len(t_uniq)):
                     cell_inds = t == t_uniq[i]
@@ -148,7 +176,8 @@ class velocity:
             if no_beta:
                 self.parameters["beta"] = None
             V = (
-                csr_matrix(alpha, dtype=np.float64) - (csr_matrix(beta, dtype=np.float64).multiply(U))
+                csr_matrix(alpha, dtype=np.float64)
+                - (csr_matrix(beta, dtype=np.float64).multiply(U))
                 if issparse(U)
                 else alpha - beta * U
             )
@@ -178,45 +207,66 @@ class velocity:
         t = self.parameters["t"]
         t_uniq, t_uniq_cnt = np.unique(self.parameters["t"], return_counts=True)
         if self.parameters["gamma"] is not None:
-            if self.parameters["beta"] is None and self.parameters["alpha"] is not None:
+            if (
+                self.parameters["beta"] is None
+                and self.parameters["alpha"] is not None
+            ):
                 no_beta = True
                 self.parameters["beta"] = self.parameters["alpha"]
             else:
                 no_beta = False
 
             if self.parameters["beta"].ndim == 1:
-                beta = np.repeat(self.parameters["beta"].reshape((-1, 1)), U.shape[1], axis=1)
+                beta = np.repeat(
+                    self.parameters["beta"].reshape((-1, 1)), U.shape[1], axis=1
+                )
             elif self.parameters["beta"].shape[1] == U.shape[1]:
                 beta = self.parameters["beta"]
-            elif self.parameters["beta"].shape[1] == len(t_uniq) and len(t_uniq) > 1:
+            elif (
+                self.parameters["beta"].shape[1] == len(t_uniq)
+                and len(t_uniq) > 1
+            ):
                 beta = np.zeros_like(U.shape)
                 for i in range(len(t_uniq)):
                     cell_inds = t == t_uniq[i]
-                    beta[:, cell_inds] = np.repeat(self.parameters["beta"][:, i], t_uniq_cnt[i], axis=1)
+                    beta[:, cell_inds] = np.repeat(
+                        self.parameters["beta"][:, i], t_uniq_cnt[i], axis=1
+                    )
             else:
                 beta = np.repeat(self.parameters["beta"], U.shape[1], axis=1)
 
             if len(self.parameters["gamma"].shape) == 1:
-                gamma = np.repeat(self.parameters["gamma"].reshape((-1, 1)), U.shape[1], axis=1)
+                gamma = np.repeat(
+                    self.parameters["gamma"].reshape((-1, 1)),
+                    U.shape[1],
+                    axis=1,
+                )
             elif self.parameters["gamma"].shape[1] == U.shape[1]:
                 gamma = self.parameters["gamma"]
-            elif self.parameters["gamma"].shape[1] == len(t_uniq) and len(t_uniq) > 1:
+            elif (
+                self.parameters["gamma"].shape[1] == len(t_uniq)
+                and len(t_uniq) > 1
+            ):
                 gamma = np.zeros_like(U.shape)
                 for i in range(len(t_uniq)):
                     cell_inds = t == t_uniq[i]
-                    gamma[:, cell_inds] = np.repeat(self.parameters["gamma"][:, i], t_uniq_cnt[i], axis=1)
+                    gamma[:, cell_inds] = np.repeat(
+                        self.parameters["gamma"][:, i], t_uniq_cnt[i], axis=1
+                    )
             else:
                 gamma = np.repeat(self.parameters["gamma"], U.shape[1], axis=1)
 
             if no_beta:
                 V = (
-                    csr_matrix(beta, dtype=np.float64) - csr_matrix(gamma, dtype=np.float64).multiply(S)
+                    csr_matrix(beta, dtype=np.float64)
+                    - csr_matrix(gamma, dtype=np.float64).multiply(S)
                     if issparse(U)
                     else beta - gamma * S
                 )
             else:
                 V = (
-                    csr_matrix(beta, dtype=np.float64).multiply(U) - csr_matrix(gamma, dtype=np.float64).multiply(S)
+                    csr_matrix(beta, dtype=np.float64).multiply(U)
+                    - csr_matrix(gamma, dtype=np.float64).multiply(S)
                     if issparse(U)
                     else beta * U - gamma * S
                 )
@@ -242,33 +292,53 @@ class velocity:
 
         t = self.parameters["t"]
         t_uniq, t_uniq_cnt = np.unique(self.parameters["t"], return_counts=True)
-        if self.parameters["eta"] is not None and self.parameters["delta"] is not None:
+        if (
+            self.parameters["eta"] is not None
+            and self.parameters["delta"] is not None
+        ):
             if self.parameters["eta"].ndim == 1:
-                eta = np.repeat(self.parameters["eta"].reshape((-1, 1)), S.shape[1], axis=1)
+                eta = np.repeat(
+                    self.parameters["eta"].reshape((-1, 1)), S.shape[1], axis=1
+                )
             elif self.parameters["eta"].shape[1] == S.shape[1]:
                 eta = self.parameters["eta"]
-            elif self.parameters["eta"].shape[1] == len(t_uniq) and len(t_uniq) > 1:
+            elif (
+                self.parameters["eta"].shape[1] == len(t_uniq)
+                and len(t_uniq) > 1
+            ):
                 eta = np.zeros_like(S.shape)
                 for i in range(len(t_uniq)):
                     cell_inds = t == t_uniq[i]
-                    eta[:, cell_inds] = np.repeat(self.parameters["eta"][:, i], t_uniq_cnt[i], axis=1)
+                    eta[:, cell_inds] = np.repeat(
+                        self.parameters["eta"][:, i], t_uniq_cnt[i], axis=1
+                    )
             else:
                 eta = np.repeat(self.parameters["eta"], S.shape[1], axis=1)
 
             if len(self.parameters["delta"].shape) == 1:
-                delta = np.repeat(self.parameters["delta"].reshape((-1, 1)), S.shape[1], axis=1)
+                delta = np.repeat(
+                    self.parameters["delta"].reshape((-1, 1)),
+                    S.shape[1],
+                    axis=1,
+                )
             elif self.parameters["delta"].shape[1] == S.shape[1]:
                 delta = self.parameters["delta"]
-            elif self.parameters["delta"].shape[1] == len(t_uniq) and len(t_uniq) > 1:
+            elif (
+                self.parameters["delta"].shape[1] == len(t_uniq)
+                and len(t_uniq) > 1
+            ):
                 delta = np.zeros_like(S.shape)
                 for i in range(len(t_uniq)):
                     cell_inds = t == t_uniq[i]
-                    delta[:, cell_inds] = np.repeat(self.parameters["delta"][:, i], t_uniq_cnt[i], axis=1)
+                    delta[:, cell_inds] = np.repeat(
+                        self.parameters["delta"][:, i], t_uniq_cnt[i], axis=1
+                    )
             else:
                 delta = np.repeat(self.parameters["delta"], S.shape[1], axis=1)
 
             V = (
-                csr_matrix(eta, dtype=np.float64).multiply(S) - csr_matrix(delta, dtype=np.float64).multiply(P)
+                csr_matrix(eta, dtype=np.float64).multiply(S)
+                - csr_matrix(delta, dtype=np.float64).multiply(P)
                 if issparse(P)
                 else eta * S - delta * P
             )
@@ -402,7 +472,15 @@ class ss_estimation:
     ):
 
         self.t = t
-        self.data = {"uu": U, "ul": Ul, "su": S, "sl": Sl, "p": P, "us": US, "s2": S2}
+        self.data = {
+            "uu": U,
+            "ul": Ul,
+            "su": S,
+            "sl": Sl,
+            "p": P,
+            "us": US,
+            "s2": S2,
+        }
         if concat_data:
             self.concatenate_data()
 
@@ -479,8 +557,16 @@ class ss_estimation:
                         np.zeros(n),
                         np.zeros(n),
                     )
-                    U = self.data["uu"] if self.data["ul"] is None else self.data["uu"] + self.data["ul"]
-                    S = self.data["su"] if self.data["sl"] is None else self.data["su"] + self.data["sl"]
+                    U = (
+                        self.data["uu"]
+                        if self.data["ul"] is None
+                        else self.data["uu"] + self.data["ul"]
+                    )
+                    S = (
+                        self.data["su"]
+                        if self.data["sl"] is None
+                        else self.data["su"] + self.data["sl"]
+                    )
                     if cores == 1:
                         for i in tqdm(range(n), desc="estimating gamma"):
                             (
@@ -490,7 +576,9 @@ class ss_estimation:
                                 gamma_r2[i],
                                 _,
                                 gamma_logLL[i],
-                            ) = self.fit_gamma_steady_state(U[i], S[i], intercept, perc_left, perc_right)
+                            ) = self.fit_gamma_steady_state(
+                                U[i], S[i], intercept, perc_left, perc_right
+                            )
                     else:
                         pool = ThreadPool(cores)
                         res = pool.starmap(
@@ -505,7 +593,14 @@ class ss_estimation:
                         )
                         pool.close()
                         pool.join()
-                        (gamma, gamma_intercept, _, gamma_r2, _, gamma_logLL) = zip(*res)
+                        (
+                            gamma,
+                            gamma_intercept,
+                            _,
+                            gamma_r2,
+                            _,
+                            gamma_logLL,
+                        ) = zip(*res)
                         (gamma, gamma_intercept, gamma_r2, gamma_logLL) = (
                             np.array(gamma),
                             np.array(gamma_intercept),
@@ -537,7 +632,9 @@ class ss_estimation:
                                 gamma_r2[i],
                                 _,
                                 gamma_logLL[i],
-                            ) = self.fit_gamma_steady_state(U[i], S[i], intercept, perc_left, perc_right)
+                            ) = self.fit_gamma_steady_state(
+                                U[i], S[i], intercept, perc_left, perc_right
+                            )
                     else:
                         pool = ThreadPool(cores)
                         res = pool.starmap(
@@ -552,7 +649,14 @@ class ss_estimation:
                         )
                         pool.close()
                         pool.join()
-                        (gamma, gamma_intercept, _, gamma_r2, _, gamma_logLL) = zip(*res)
+                        (
+                            gamma,
+                            gamma_intercept,
+                            _,
+                            gamma_r2,
+                            _,
+                            gamma_logLL,
+                        ) = zip(*res)
                         (gamma, gamma_intercept, gamma_r2, gamma_logLL) = (
                             np.array(gamma),
                             np.array(gamma_intercept),
@@ -576,17 +680,29 @@ class ss_estimation:
                         np.zeros(n),
                         np.zeros(n),
                     )
-                    U = self.data["uu"] if self.data["ul"] is None else self.data["uu"] + self.data["ul"]
-                    S = self.data["su"] if self.data["sl"] is None else self.data["su"] + self.data["sl"]
+                    U = (
+                        self.data["uu"]
+                        if self.data["ul"] is None
+                        else self.data["uu"] + self.data["ul"]
+                    )
+                    S = (
+                        self.data["su"]
+                        if self.data["sl"] is None
+                        else self.data["su"] + self.data["sl"]
+                    )
                     US = (
                         self.data["us"]
                         if self.data["us"] is not None
-                        else calc_2nd_moment(U.T, S.T, self.conn, mX=U.T, mY=S.T).T
+                        else calc_2nd_moment(
+                            U.T, S.T, self.conn, mX=U.T, mY=S.T
+                        ).T
                     )
                     S2 = (
                         self.data["s2"]
                         if self.data["s2"] is not None
-                        else calc_2nd_moment(S.T, S.T, self.conn, mX=S.T, mY=S.T).T
+                        else calc_2nd_moment(
+                            S.T, S.T, self.conn, mX=S.T, mY=S.T
+                        ).T
                     )
                     if cores == 1:
                         for i in tqdm(range(n), desc="estimating gamma"):
@@ -626,8 +742,24 @@ class ss_estimation:
                         )
                         pool.close()
                         pool.join()
-                        (gamma, gamma_intercept, _, gamma_r2, _, gamma_logLL, bs, bf) = zip(*res)
-                        (gamma, gamma_intercept, gamma_r2, gamma_logLL, bs, bf) = (
+                        (
+                            gamma,
+                            gamma_intercept,
+                            _,
+                            gamma_r2,
+                            _,
+                            gamma_logLL,
+                            bs,
+                            bf,
+                        ) = zip(*res)
+                        (
+                            gamma,
+                            gamma_intercept,
+                            gamma_r2,
+                            gamma_logLL,
+                            bs,
+                            bf,
+                        ) = (
                             np.array(gamma),
                             np.array(gamma_intercept),
                             np.array(gamma_r2),
@@ -658,12 +790,16 @@ class ss_estimation:
                     US = (
                         self.data["us"]
                         if self.data["us"] is not None
-                        else calc_2nd_moment(U.T, S.T, self.conn, mX=U.T, mY=S.T).T
+                        else calc_2nd_moment(
+                            U.T, S.T, self.conn, mX=U.T, mY=S.T
+                        ).T
                     )
                     S2 = (
                         self.data["s2"]
                         if self.data["s2"] is not None
-                        else calc_2nd_moment(S.T, S.T, self.conn, mX=S.T, mY=S.T).T
+                        else calc_2nd_moment(
+                            S.T, S.T, self.conn, mX=S.T, mY=S.T
+                        ).T
                     )
                     if cores == 1:
                         for i in tqdm(range(n), desc="estimating gamma"):
@@ -703,8 +839,24 @@ class ss_estimation:
                         )
                         pool.close()
                         pool.join()
-                        (gamma, gamma_intercept, _, gamma_r2, _, gamma_logLL, bs, bf) = zip(*res)
-                        (gamma, gamma_intercept, gamma_r2, gamma_logLL, bs, bf) = (
+                        (
+                            gamma,
+                            gamma_intercept,
+                            _,
+                            gamma_r2,
+                            _,
+                            gamma_logLL,
+                            bs,
+                            bf,
+                        ) = zip(*res)
+                        (
+                            gamma,
+                            gamma_intercept,
+                            gamma_r2,
+                            gamma_logLL,
+                            bs,
+                            bf,
+                        ) = (
                             np.array(gamma),
                             np.array(gamma_intercept),
                             np.array(gamma_r2),
@@ -725,8 +877,12 @@ class ss_estimation:
             if self.extyp.lower() == "deg":
                 if np.all(self._exist_data("ul", "sl")):
                     # beta & gamma estimation
-                    ul_m, ul_v, t_uniq = calc_12_mom_labeling(self.data["ul"], self.t)
-                    sl_m, sl_v, _ = calc_12_mom_labeling(self.data["sl"], self.t)
+                    ul_m, ul_v, t_uniq = calc_12_mom_labeling(
+                        self.data["ul"], self.t
+                    )
+                    sl_m, sl_v, _ = calc_12_mom_labeling(
+                        self.data["sl"], self.t
+                    )
                     (
                         self.parameters["beta"],
                         self.parameters["gamma"],
@@ -735,8 +891,14 @@ class ss_estimation:
                     ) = self.fit_beta_gamma_lsq(t_uniq, ul_m, sl_m)
                     if self._exist_data("uu"):
                         # alpha estimation
-                        uu_m, uu_v, _ = calc_12_mom_labeling(self.data["uu"], self.t)
-                        alpha, uu0, r2 = np.zeros((n, 1)), np.zeros(n), np.zeros(n)
+                        uu_m, uu_v, _ = calc_12_mom_labeling(
+                            self.data["uu"], self.t
+                        )
+                        alpha, uu0, r2 = (
+                            np.zeros((n, 1)),
+                            np.zeros(n),
+                            np.zeros(n),
+                        )
                         if cores == 1:
                             for i in range(n):
                                 alpha[i], uu0[i], r2[i] = fit_alpha_degradation(
@@ -749,12 +911,21 @@ class ss_estimation:
                             pool = ThreadPool(cores)
                             res = pool.starmap(
                                 fit_alpha_degradation,
-                                zip(itertools.repeat(t_uniq), uu_m, self.parameters["beta"], itertools.repeat(True)),
+                                zip(
+                                    itertools.repeat(t_uniq),
+                                    uu_m,
+                                    self.parameters["beta"],
+                                    itertools.repeat(True),
+                                ),
                             )
                             pool.close()
                             pool.join()
                             (alpha, uu0, r2) = zip(*res)
-                            (alpha, uu0, r2) = np.array(alpha), np.array(uu0), np.array(r2)
+                            (alpha, uu0, r2) = (
+                                np.array(alpha),
+                                np.array(uu0),
+                                np.array(r2),
+                            )
                         (
                             self.parameters["alpha"],
                             self.aux_param["alpha_intercept"],
@@ -764,42 +935,74 @@ class ss_estimation:
                 elif self._exist_data("ul"):
                     # gamma estimation
                     # use mean + var for fitting degradation parameter k
-                    ul_m, ul_v, t_uniq = calc_12_mom_labeling(self.data["ul"], self.t)
+                    ul_m, ul_v, t_uniq = calc_12_mom_labeling(
+                        self.data["ul"], self.t
+                    )
                     (
                         self.parameters["gamma"],
                         self.aux_param["ul0"],
                     ) = self.fit_gamma_nosplicing_lsq(t_uniq, ul_m)
                     if self._exist_data("uu"):
                         # alpha estimation
-                        alpha, alpha_b, alpha_r2 = np.zeros(n), np.zeros(n), np.zeros(n)
-                        uu_m, uu_v, _ = calc_12_mom_labeling(self.data["uu"], self.t)
+                        alpha, alpha_b, alpha_r2 = (
+                            np.zeros(n),
+                            np.zeros(n),
+                            np.zeros(n),
+                        )
+                        uu_m, uu_v, _ = calc_12_mom_labeling(
+                            self.data["uu"], self.t
+                        )
                         if cores == 1:
                             for i in tqdm(range(n), desc="estimating alpha"):
-                                alpha[i], alpha_b[i], alpha_r2[i] = fit_alpha_degradation(
-                                    t_uniq, uu_m[i], self.parameters["gamma"][i], intercept=True
+                                (
+                                    alpha[i],
+                                    alpha_b[i],
+                                    alpha_r2[i],
+                                ) = fit_alpha_degradation(
+                                    t_uniq,
+                                    uu_m[i],
+                                    self.parameters["gamma"][i],
+                                    intercept=True,
                                 )
                         else:
                             pool = ThreadPool(cores)
                             res = pool.starmap(
                                 fit_alpha_degradation,
-                                zip(itertools.repeat(t_uniq), uu_m, self.parameters["gamma"], itertools.repeat(True)),
+                                zip(
+                                    itertools.repeat(t_uniq),
+                                    uu_m,
+                                    self.parameters["gamma"],
+                                    itertools.repeat(True),
+                                ),
                             )
                             pool.close()
                             pool.join()
                             (alpha, alpha_b, alpha_r2) = zip(*res)
-                            (alpha, alpha_b, alpha_r2) = np.array(alpha), np.array(alpha_b), np.array(alpha_r2)
+                            (alpha, alpha_b, alpha_r2) = (
+                                np.array(alpha),
+                                np.array(alpha_b),
+                                np.array(alpha_r2),
+                            )
                         (
                             self.parameters["alpha"],
                             self.aux_param["alpha_intercept"],
                             self.aux_param["uu0"],
                             self.aux_param["alpha_r2"],
                         ) = (alpha, alpha_b, alpha_b, alpha_r2)
-            elif (self.extyp.lower() == "kin" or self.extyp.lower() == "one-shot") and len(np.unique(self.t)) > 1:
+            elif (
+                self.extyp.lower() == "kin" or self.extyp.lower() == "one-shot"
+            ) and len(np.unique(self.t)) > 1:
                 if np.all(self._exist_data("ul", "uu", "su")):
                     if not self._exist_parameter("beta"):
-                        warn("beta & gamma estimation: only works when there're at least 2 time points.")
-                        uu_m, uu_v, t_uniq = calc_12_mom_labeling(self.data["uu"], self.t)
-                        su_m, su_v, _ = calc_12_mom_labeling(self.data["su"], self.t)
+                        warn(
+                            "beta & gamma estimation: only works when there're at least 2 time points."
+                        )
+                        uu_m, uu_v, t_uniq = calc_12_mom_labeling(
+                            self.data["uu"], self.t
+                        )
+                        su_m, su_v, _ = calc_12_mom_labeling(
+                            self.data["su"], self.t
+                        )
 
                         (
                             self.parameters["beta"],
@@ -808,17 +1011,26 @@ class ss_estimation:
                             self.aux_param["su0"],
                         ) = self.fit_beta_gamma_lsq(t_uniq, uu_m, su_m)
                     # alpha estimation
-                    ul_m, ul_v, t_uniq = calc_12_mom_labeling(self.data["ul"], self.t)
+                    ul_m, ul_v, t_uniq = calc_12_mom_labeling(
+                        self.data["ul"], self.t
+                    )
                     alpha = np.zeros(n)
                     # let us only assume one alpha for each gene in all cells
                     if cores == 1:
                         for i in tqdm(range(n), desc="estimating alpha"):
                             # for j in range(len(self.data['ul'][i])):
-                            alpha[i] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters["beta"][i])
+                            alpha[i] = fit_alpha_synthesis(
+                                t_uniq, ul_m[i], self.parameters["beta"][i]
+                            )
                     else:
                         pool = ThreadPool(cores)
                         alpha = pool.starmap(
-                            fit_alpha_synthesis, zip(itertools.repeat(t_uniq), ul_m, self.parameters["beta"])
+                            fit_alpha_synthesis,
+                            zip(
+                                itertools.repeat(t_uniq),
+                                ul_m,
+                                self.parameters["beta"],
+                            ),
                         )
                         pool.close()
                         pool.join()
@@ -827,24 +1039,37 @@ class ss_estimation:
                 elif np.all(self._exist_data("ul", "uu")):
                     n = self.data["uu"].shape[0]  # self.get_n_genes(data=U)
                     u0, gamma = np.zeros(n), np.zeros(n)
-                    uu_m, uu_v, t_uniq = calc_12_mom_labeling(self.data["uu"], self.t)
+                    uu_m, uu_v, t_uniq = calc_12_mom_labeling(
+                        self.data["uu"], self.t
+                    )
                     for i in tqdm(range(n), desc="estimating gamma"):
                         try:
-                            gamma[i], u0[i] = fit_first_order_deg_lsq(t_uniq, uu_m[i])
+                            gamma[i], u0[i] = fit_first_order_deg_lsq(
+                                t_uniq, uu_m[i]
+                            )
                         except:
                             gamma[i], u0[i] = 0, 0
                     self.parameters["gamma"], self.aux_param["uu0"] = gamma, u0
                     alpha = np.zeros(n)
                     # let us only assume one alpha for each gene in all cells
-                    ul_m, ul_v, _ = calc_12_mom_labeling(self.data["ul"], self.t)
+                    ul_m, ul_v, _ = calc_12_mom_labeling(
+                        self.data["ul"], self.t
+                    )
                     if cores == 1:
                         for i in tqdm(range(n), desc="estimating gamma"):
                             # for j in range(len(self.data['ul'][i])):
-                            alpha[i] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters["gamma"][i])
+                            alpha[i] = fit_alpha_synthesis(
+                                t_uniq, ul_m[i], self.parameters["gamma"][i]
+                            )
                     else:
                         pool = ThreadPool(cores)
                         alpha = pool.starmap(
-                            fit_alpha_synthesis, zip(itertools.repeat(t_uniq), ul_m, self.parameters["gamma"])
+                            fit_alpha_synthesis,
+                            zip(
+                                itertools.repeat(t_uniq),
+                                ul_m,
+                                self.parameters["gamma"],
+                            ),
                         )
                         pool.close()
                         pool.join()
@@ -863,7 +1088,10 @@ class ss_estimation:
                     if np.all(self._exist_data("ul", "uu", "su")):
                         if self._exist_parameter("beta", "gamma").all():
                             self.parameters["alpha"] = self.fit_alpha_oneshot(
-                                self.t, self.data["ul"], self.parameters["beta"], clusters
+                                self.t,
+                                self.data["ul"],
+                                self.parameters["beta"],
+                                clusters,
                             )
                         else:
                             beta, gamma, U0, S0 = (
@@ -882,11 +1110,15 @@ class ss_estimation:
 
                                 S0[i], gamma[i] = (
                                     np.mean(S),
-                                    solve_gamma(np.max(self.t), self.data["su"][i], S),
+                                    solve_gamma(
+                                        np.max(self.t), self.data["su"][i], S
+                                    ),
                                 )
                                 U0[i], beta[i] = (
                                     np.mean(U),
-                                    solve_gamma(np.max(self.t), self.data["uu"][i], U),
+                                    solve_gamma(
+                                        np.max(self.t), self.data["uu"][i], U
+                                    ),
                                 )
                             (
                                 self.aux_param["U0"],
@@ -895,17 +1127,30 @@ class ss_estimation:
                                 self.parameters["gamma"],
                             ) = (U0, S0, beta, gamma)
 
-                            ul_m, ul_v, t_uniq = calc_12_mom_labeling(self.data["ul"], self.t)
+                            ul_m, ul_v, t_uniq = calc_12_mom_labeling(
+                                self.data["ul"], self.t
+                            )
                             alpha = np.zeros(n)
                             # let us only assume one alpha for each gene in all cells
                             if cores == 1:
-                                for i in tqdm(range(n), desc="estimating alpha"):
+                                for i in tqdm(
+                                    range(n), desc="estimating alpha"
+                                ):
                                     # for j in range(len(self.data['ul'][i])):
-                                    alpha[i] = fit_alpha_synthesis(t_uniq, ul_m[i], self.parameters["beta"][i])
+                                    alpha[i] = fit_alpha_synthesis(
+                                        t_uniq,
+                                        ul_m[i],
+                                        self.parameters["beta"][i],
+                                    )
                             else:
                                 pool = ThreadPool(cores)
                                 alpha = pool.starmap(
-                                    fit_alpha_synthesis, zip(itertools.repeat(t_uniq), ul_m, self.parameters["beta"])
+                                    fit_alpha_synthesis,
+                                    zip(
+                                        itertools.repeat(t_uniq),
+                                        ul_m,
+                                        self.parameters["beta"],
+                                    ),
                                 )
                                 pool.close()
                                 pool.join()
@@ -913,38 +1158,64 @@ class ss_estimation:
                             self.parameters["alpha"] = alpha
                             # self.parameters['alpha'] = self.fit_alpha_oneshot(self.t, self.data['ul'], self.parameters['beta'], clusters)
                     else:
-                        if self._exist_data("ul") and self._exist_parameter("gamma"):
+                        if self._exist_data("ul") and self._exist_parameter(
+                            "gamma"
+                        ):
                             self.parameters["alpha"] = self.fit_alpha_oneshot(
-                                self.t, self.data["ul"], self.parameters["gamma"], clusters
+                                self.t,
+                                self.data["ul"],
+                                self.parameters["gamma"],
+                                clusters,
                             )
                         elif self._exist_data("ul") and self._exist_data("uu"):
                             if one_shot_method in ["sci-fate", "sci_fate"]:
                                 gamma, total0 = np.zeros(n), np.zeros(n)
-                                for i in tqdm(range(n), desc="estimating gamma"):
-                                    total = self.data["uu"][i] + self.data["ul"][i]
+                                for i in tqdm(
+                                    range(n), desc="estimating gamma"
+                                ):
+                                    total = (
+                                        self.data["uu"][i] + self.data["ul"][i]
+                                    )
                                     total0[i], gamma[i] = (
                                         np.mean(total),
-                                        solve_gamma(np.max(self.t), self.data["uu"][i], total),
+                                        solve_gamma(
+                                            np.max(self.t),
+                                            self.data["uu"][i],
+                                            total,
+                                        ),
                                     )
-                                self.aux_param["total0"], self.parameters["gamma"] = (
+                                (
+                                    self.aux_param["total0"],
+                                    self.parameters["gamma"],
+                                ) = (
                                     total0,
                                     gamma,
                                 )
 
-                                ul_m, ul_v, t_uniq = calc_12_mom_labeling(self.data["ul"], self.t)
+                                ul_m, ul_v, t_uniq = calc_12_mom_labeling(
+                                    self.data["ul"], self.t
+                                )
                                 # let us only assume one alpha for each gene in all cells
                                 alpha = np.zeros(n)
                                 if cores == 1:
-                                    for i in tqdm(range(n), desc="estimating alpha"):
+                                    for i in tqdm(
+                                        range(n), desc="estimating alpha"
+                                    ):
                                         # for j in range(len(self.data['ul'][i])):
                                         alpha[i] = fit_alpha_synthesis(
-                                            t_uniq, ul_m[i], self.parameters["gamma"][i]
+                                            t_uniq,
+                                            ul_m[i],
+                                            self.parameters["gamma"][i],
                                         )  # ul_m[i] / t_uniq
                                 else:
                                     pool = ThreadPool(cores)
                                     alpha = pool.starmap(
                                         fit_alpha_synthesis,
-                                        zip(itertools.repeat(t_uniq), ul_m, self.parameters["gamma"]),
+                                        zip(
+                                            itertools.repeat(t_uniq),
+                                            ul_m,
+                                            self.parameters["gamma"],
+                                        ),
                                     )
                                     pool.close()
                                     pool.join()
@@ -957,7 +1228,14 @@ class ss_estimation:
                                     if issparse(self.data["ul"])
                                     else np.zeros_like(self.data["ul"].shape)
                                 )
-                                t_uniq, gamma, gamma_k, gamma_intercept, gamma_r2, gamma_logLL = (
+                                (
+                                    t_uniq,
+                                    gamma,
+                                    gamma_k,
+                                    gamma_intercept,
+                                    gamma_r2,
+                                    gamma_logLL,
+                                ) = (
                                     np.unique(self.t),
                                     np.zeros(n),
                                     np.zeros(n),
@@ -965,10 +1243,15 @@ class ss_estimation:
                                     np.zeros(n),
                                     np.zeros(n),
                                 )
-                                U, S = self.data["ul"], self.data["uu"] + self.data["ul"]
+                                U, S = (
+                                    self.data["ul"],
+                                    self.data["uu"] + self.data["ul"],
+                                )
 
                                 if cores == 1:
-                                    for i in tqdm(range(n), desc="estimating gamma"):
+                                    for i in tqdm(
+                                        range(n), desc="estimating gamma"
+                                    ):
                                         (
                                             gamma_k[i],
                                             gamma_intercept[i],
@@ -976,11 +1259,15 @@ class ss_estimation:
                                             gamma_r2[i],
                                             _,
                                             gamma_logLL[i],
-                                        ) = self.fit_gamma_steady_state(U[i], S[i], False, None, perc_right)
+                                        ) = self.fit_gamma_steady_state(
+                                            U[i], S[i], False, None, perc_right
+                                        )
                                         (
                                             gamma[i],
                                             self.parameters["alpha"][i],
-                                        ) = one_shot_gamma_alpha(gamma_k[i], t_uniq, U[i])
+                                        ) = one_shot_gamma_alpha(
+                                            gamma_k[i], t_uniq, U[i]
+                                        )
                                 else:
                                     pool = ThreadPool(cores)
                                     res1 = pool.starmap(
@@ -994,18 +1281,38 @@ class ss_estimation:
                                         ),
                                     )
 
-                                    (gamma_k, gamma_intercept, _, gamma_r2, _, gamma_logLL) = zip(*res1)
-                                    (gamma_k, gamma_intercept, gamma_r2, gamma_logLL) = (
+                                    (
+                                        gamma_k,
+                                        gamma_intercept,
+                                        _,
+                                        gamma_r2,
+                                        _,
+                                        gamma_logLL,
+                                    ) = zip(*res1)
+                                    (
+                                        gamma_k,
+                                        gamma_intercept,
+                                        gamma_r2,
+                                        gamma_logLL,
+                                    ) = (
                                         np.array(gamma_k),
                                         np.array(gamma_intercept),
                                         np.array(gamma_r2),
                                         np.array(gamma_logLL),
                                     )
 
-                                    res2 = pool.starmap(one_shot_gamma_alpha, zip(gamma_k, itertools.repeat(t_uniq), U))
+                                    res2 = pool.starmap(
+                                        one_shot_gamma_alpha,
+                                        zip(
+                                            gamma_k, itertools.repeat(t_uniq), U
+                                        ),
+                                    )
 
                                     (gamma, alpha) = zip(*res2)
-                                    (gamma, self.parameters["alpha"]) = np.array(gamma), np.array(alpha)
+                                    (gamma, self.parameters["alpha"]) = (
+                                        np.array(gamma),
+                                        np.array(alpha),
+                                    )
 
                                     pool.close()
                                     pool.join()
@@ -1016,7 +1323,14 @@ class ss_estimation:
                                     self.aux_param["gamma_r2"],
                                     self.aux_param["gamma_logLL"],
                                     self.aux_param["alpha_r2"],
-                                ) = (gamma, gamma_k, gamma_intercept, gamma_r2, gamma_logLL, gamma_r2)
+                                ) = (
+                                    gamma,
+                                    gamma_k,
+                                    gamma_intercept,
+                                    gamma_r2,
+                                    gamma_logLL,
+                                    gamma_r2,
+                                )
                 elif self.model.lower() == "stochastic":
                     if np.all(self._exist_data("uu", "ul", "su", "sl")):
                         self.parameters["beta"] = np.ones(n)
@@ -1033,15 +1347,22 @@ class ss_estimation:
                         US = (
                             self.data["us"]
                             if self.data["us"] is not None
-                            else calc_2nd_moment(U.T, S.T, self.conn, mX=U.T, mY=S.T).T
+                            else calc_2nd_moment(
+                                U.T, S.T, self.conn, mX=U.T, mY=S.T
+                            ).T
                         )
                         S2 = (
                             self.data["s2"]
                             if self.data["s2"] is not None
-                            else calc_2nd_moment(S.T, S.T, self.conn, mX=S.T, mY=S.T).T
+                            else calc_2nd_moment(
+                                S.T, S.T, self.conn, mX=S.T, mY=S.T
+                            ).T
                         )
                         if cores == 1:
-                            for i in tqdm(range(n), desc="estimating beta and alpha for one-shot experiment"):
+                            for i in tqdm(
+                                range(n),
+                                desc="estimating beta and alpha for one-shot experiment",
+                            ):
                                 (
                                     k[i],
                                     k_intercept[i],
@@ -1078,7 +1399,16 @@ class ss_estimation:
                                 )
                                 pool.close()
                                 pool.join()
-                                (k, k_intercept, _, k_r2, _, k_logLL, bs, bf) = zip(*res)
+                                (
+                                    k,
+                                    k_intercept,
+                                    _,
+                                    k_r2,
+                                    _,
+                                    k_logLL,
+                                    bs,
+                                    bf,
+                                ) = zip(*res)
                                 (k, k_intercept, k_r2, k_logLL, bs, bf) = (
                                     np.array(k),
                                     np.array(k_intercept),
@@ -1089,22 +1419,32 @@ class ss_estimation:
                                 )
                         beta, alpha0 = one_shot_gamma_alpha_matrix(k, t_uniq, U)
 
-                        self.parameters["beta"], self.aux_param["beta_k"] = beta, k
+                        self.parameters["beta"], self.aux_param["beta_k"] = (
+                            beta,
+                            k,
+                        )
 
                         U = self.data["uu"] + self.data["ul"]
                         S = U + self.data["su"] + self.data["sl"]
                         US = (
                             self.data["us"]
                             if self.data["us"] is not None
-                            else calc_2nd_moment(U.T, S.T, self.conn, mX=U.T, mY=S.T).T
+                            else calc_2nd_moment(
+                                U.T, S.T, self.conn, mX=U.T, mY=S.T
+                            ).T
                         )
                         S2 = (
                             self.data["s2"]
                             if self.data["s2"] is not None
-                            else calc_2nd_moment(S.T, S.T, self.conn, mX=S.T, mY=S.T).T
+                            else calc_2nd_moment(
+                                S.T, S.T, self.conn, mX=S.T, mY=S.T
+                            ).T
                         )
                         if cores == 1:
-                            for i in tqdm(range(n), desc="estimating gamma and alpha for one-shot experiment"):
+                            for i in tqdm(
+                                range(n),
+                                desc="estimating gamma and alpha for one-shot experiment",
+                            ):
                                 (
                                     k[i],
                                     k_intercept[i],
@@ -1141,7 +1481,9 @@ class ss_estimation:
                             )
                             pool.close()
                             pool.join()
-                            (k, k_intercept, _, k_r2, _, k_logLL, bs, bf) = zip(*res)
+                            (k, k_intercept, _, k_r2, _, k_logLL, bs, bf) = zip(
+                                *res
+                            )
                             (k, k_intercept, k_r2, k_logLL, bs, bf) = (
                                 np.array(k),
                                 np.array(k_intercept),
@@ -1161,7 +1503,16 @@ class ss_estimation:
                             self.aux_param["gamma_logLL"],
                             self.aux_param["bs"],
                             self.aux_param["bf"],
-                        ) = ((alpha + alpha0) / 2, gamma, k, k_intercept, k_r2, k_logLL, bs, bf)
+                        ) = (
+                            (alpha + alpha0) / 2,
+                            gamma,
+                            k,
+                            k_intercept,
+                            k_r2,
+                            k_logLL,
+                            bs,
+                            bf,
+                        )
                     elif np.all(self._exist_data("uu", "ul")):
                         k, k_intercept, k_r2, k_logLL, bs, bf = (
                             np.zeros(n),
@@ -1176,12 +1527,16 @@ class ss_estimation:
                         US = (
                             self.data["us"]
                             if self.data["us"] is not None
-                            else calc_2nd_moment(U.T, S.T, self.conn, mX=U.T, mY=S.T).T
+                            else calc_2nd_moment(
+                                U.T, S.T, self.conn, mX=U.T, mY=S.T
+                            ).T
                         )
                         S2 = (
                             self.data["s2"]
                             if self.data["s2"] is not None
-                            else calc_2nd_moment(S.T, S.T, self.conn, mX=S.T, mY=S.T).T
+                            else calc_2nd_moment(
+                                S.T, S.T, self.conn, mX=S.T, mY=S.T
+                            ).T
                         )
                         if cores == 1:
                             for i in tqdm(range(n), desc="estimating gamma"):
@@ -1221,7 +1576,9 @@ class ss_estimation:
                             )
                             pool.close()
                             pool.join()
-                            (k, k_intercept, _, k_r2, _, k_logLL, bs, bf) = zip(*res)
+                            (k, k_intercept, _, k_r2, _, k_logLL, bs, bf) = zip(
+                                *res
+                            )
                             (k, k_intercept, k_r2, k_logLL, bs, bf) = (
                                 np.array(k),
                                 np.array(k_intercept),
@@ -1241,7 +1598,16 @@ class ss_estimation:
                             self.aux_param["gamma_logLL"],
                             self.aux_param["bs"],
                             self.aux_param["bf"],
-                        ) = (alpha, gamma, k, k_intercept, k_r2, k_logLL, bs, bf)
+                        ) = (
+                            alpha,
+                            gamma,
+                            k,
+                            k_intercept,
+                            k_r2,
+                            k_logLL,
+                            bs,
+                            bf,
+                        )
             elif self.extyp.lower() == "mix_std_stm":
                 t_min, t_max = np.min(self.t), np.max(self.t)
                 if np.all(self._exist_data("ul", "uu", "su")):
@@ -1263,13 +1629,21 @@ class ss_estimation:
                         total[i] = np.mean(tmp)
                         gamma[i] = solve_gamma(
                             t_max,
-                            self.data["uu"][i, self.t == t_max] + self.data["su"][i, self.t == t_max],
+                            self.data["uu"][i, self.t == t_max]
+                            + self.data["su"][i, self.t == t_max],
                             tmp,
                         )
                         # same for beta
-                        tmp = self.data["uu"][i, self.t == t_max] + self.data["ul"][i, self.t == t_max]
+                        tmp = (
+                            self.data["uu"][i, self.t == t_max]
+                            + self.data["ul"][i, self.t == t_max]
+                        )
                         U[i] = np.mean(tmp)
-                        beta[i] = solve_gamma(np.max(self.t), self.data["uu"][i, self.t == t_max], tmp)
+                        beta[i] = solve_gamma(
+                            np.max(self.t),
+                            self.data["uu"][i, self.t == t_max],
+                            tmp,
+                        )
 
                     (
                         self.parameters["beta"],
@@ -1288,11 +1662,16 @@ class ss_estimation:
                         range(n), desc="solving gamma, alpha"
                     ):  # apply sci-fate like approach (can also use one-single time point to estimate gamma)
                         # tmp = self.data['uu'][i, self.t == 0] + self.data['ul'][i, self.t == 0]
-                        tmp_ = self.data["uu"][i, self.t == t_max] + self.data["ul"][i, self.t == t_max]
+                        tmp_ = (
+                            self.data["uu"][i, self.t == t_max]
+                            + self.data["ul"][i, self.t == t_max]
+                        )
 
                         U[i] = np.mean(tmp_)
                         # gamma_1 = solve_gamma(np.max(self.t), self.data['uu'][i, self.t == 0], tmp) # steady state
-                        gamma_2 = solve_gamma(t_max, self.data["uu"][i, self.t == t_max], tmp_)  # stimulation
+                        gamma_2 = solve_gamma(
+                            t_max, self.data["uu"][i, self.t == t_max], tmp_
+                        )  # stimulation
                         # gamma_3 = solve_gamma(np.max(self.t), self.data['uu'][i, self.t == np.max(self.t)], tmp) # sci-fate
                         gamma[i] = gamma_2
                         # print('Steady state, stimulation, sci-fate like gamma values are ', gamma_1, '; ', gamma_2, '; ', gamma_3)
@@ -1321,7 +1700,8 @@ class ss_estimation:
                 )
 
                 s = (
-                    self.data["su"][ind_for_proteins] + self.data["sl"][ind_for_proteins]
+                    self.data["su"][ind_for_proteins]
+                    + self.data["sl"][ind_for_proteins]
                     if self._exist_data("sl")
                     else self.data["su"][ind_for_proteins]
                 )
@@ -1334,7 +1714,13 @@ class ss_estimation:
                             delta_r2[i],
                             _,
                             delta_logLL[i],
-                        ) = self.fit_gamma_steady_state(s[i], self.data["p"][i], intercept, perc_left, perc_right)
+                        ) = self.fit_gamma_steady_state(
+                            s[i],
+                            self.data["p"][i],
+                            intercept,
+                            perc_left,
+                            perc_right,
+                        )
                 else:
                     pool = ThreadPool(cores)
                     res = pool.starmap(
@@ -1349,7 +1735,9 @@ class ss_estimation:
                     )
                     pool.close()
                     pool.join()
-                    (delta, delta_intercept, _, delta_r2, _, delta_logLL) = zip(*res)
+                    (delta, delta_intercept, _, delta_r2, _, delta_logLL) = zip(
+                        *res
+                    )
                     (delta, delta_intercept, delta_r2, delta_logLL) = (
                         np.array(delta),
                         np.array(delta_intercept),
@@ -1363,7 +1751,9 @@ class ss_estimation:
                     _,  # self.aux_param["delta_logLL"],
                 ) = (delta, delta_intercept, delta_r2, delta_logLL)
 
-    def fit_gamma_steady_state(self, u, s, intercept=True, perc_left=None, perc_right=5, normalize=True):
+    def fit_gamma_steady_state(
+        self, u, s, intercept=True, perc_left=None, perc_right=5, normalize=True
+    ):
         """Estimate gamma using linear regression based on the steady state assumption.
 
         Arguments
@@ -1403,18 +1793,39 @@ class ss_estimation:
         u = u.A.flatten() if issparse(u) else u.flatten()
         s = s.A.flatten() if issparse(s) else s.flatten()
 
-        mask = find_extreme(s, u, normalize=normalize, perc_left=perc_left, perc_right=perc_right)
+        mask = find_extreme(
+            s,
+            u,
+            normalize=normalize,
+            perc_left=perc_left,
+            perc_right=perc_right,
+        )
 
         if self.est_method.lower() == "ols":
             k, b, r2, all_r2 = fit_linreg(s, u, mask, intercept)
         else:
-            k, b, r2, all_r2 = fit_linreg_robust(s, u, mask, intercept, self.est_method)
+            k, b, r2, all_r2 = fit_linreg_robust(
+                s, u, mask, intercept, self.est_method
+            )
 
-        logLL, all_logLL = calc_norm_loglikelihood(s[mask], u[mask], k), calc_norm_loglikelihood(s, u, k)
+        logLL, all_logLL = (
+            calc_norm_loglikelihood(s[mask], u[mask], k),
+            calc_norm_loglikelihood(s, u, k),
+        )
 
         return k, b, r2, all_r2, logLL, all_logLL
 
-    def fit_gamma_stochastic(self, est_method, u, s, us, ss, perc_left=None, perc_right=5, normalize=True):
+    def fit_gamma_stochastic(
+        self,
+        est_method,
+        u,
+        s,
+        us,
+        ss,
+        perc_left=None,
+        perc_right=5,
+        normalize=True,
+    ):
         """Estimate gamma using GMM (generalized method of moments) or negbin distrubtion based on the steady state assumption.
 
         Arguments
@@ -1468,7 +1879,13 @@ class ss_estimation:
         us = us.A.flatten() if issparse(us) else us.flatten()
         ss = ss.A.flatten() if issparse(ss) else ss.flatten()
 
-        mask = find_extreme(s, u, normalize=normalize, perc_left=perc_left, perc_right=perc_right)
+        mask = find_extreme(
+            s,
+            u,
+            normalize=normalize,
+            perc_left=perc_left,
+            perc_right=perc_right,
+        )
 
         bs, bf = None, None
         if est_method.lower() == "gmm":
@@ -1476,10 +1893,15 @@ class ss_estimation:
         elif est_method.lower() == "negbin":
             phi = compute_dispersion(s, ss)
             k = fit_k_negative_binomial(u[mask], s[mask], ss[mask], phi)
-            bs, bf = compute_bursting_properties(np.mean(u[mask] + s[mask]), phi, k)
+            bs, bf = compute_bursting_properties(
+                np.mean(u[mask] + s[mask]), phi, k
+            )
 
         r2, all_r2 = calc_R2(s[mask], u[mask], k), calc_R2(s, u, k)
-        logLL, all_logLL = calc_norm_loglikelihood(s[mask], u[mask], k), calc_norm_loglikelihood(s, u, k)
+        logLL, all_logLL = (
+            calc_norm_loglikelihood(s[mask], u[mask], k),
+            calc_norm_loglikelihood(s, u, k),
+        )
 
         return (k, 0, r2, all_r2, logLL, all_logLL, bs, bf)
 
@@ -1541,10 +1963,16 @@ class ss_estimation:
         l0 = np.zeros(n)
 
         for i in tqdm(range(n), desc="estimating gamma"):
-            gamma[i], l0[i] = fit_first_order_deg_lsq(t, L[i].A[0]) if issparse(L) else fit_first_order_deg_lsq(t, L[i])
+            gamma[i], l0[i] = (
+                fit_first_order_deg_lsq(t, L[i].A[0])
+                if issparse(L)
+                else fit_first_order_deg_lsq(t, L[i])
+            )
         return gamma, l0
 
-    def solve_alpha_mix_std_stm(self, t, ul, beta, clusters=None, alpha_time_dependent=True):
+    def solve_alpha_mix_std_stm(
+        self, t, ul, beta, clusters=None, alpha_time_dependent=True
+    ):
         """Estimate the steady state transcription rate and analytically calculate the stimulation transcription rate
         given beta and steady state alpha for a mixed steady state and stimulation labeling experiment.
 
@@ -1583,9 +2011,16 @@ class ss_estimation:
         alpha_std_ini = self.fit_alpha_oneshot(
             np.array([t_max]), np.mean(ul[:, t == t_min], 1), beta, clusters
         ).flatten()
-        alpha_std, alpha_stm = alpha_std_ini, np.zeros((ul.shape[0], len(t_uniq)))
-        alpha_stm[:, 0] = alpha_std_ini  # 0 stimulation point is the steady state transcription
-        for i in tqdm(range(ul.shape[0]), desc="solving steady state alpha and induction alpha"):
+        alpha_std, alpha_stm = alpha_std_ini, np.zeros(
+            (ul.shape[0], len(t_uniq))
+        )
+        alpha_stm[
+            :, 0
+        ] = alpha_std_ini  # 0 stimulation point is the steady state transcription
+        for i in tqdm(
+            range(ul.shape[0]),
+            desc="solving steady state alpha and induction alpha",
+        ):
             l = ul[i].A.flatten() if issparse(ul) else ul[i]
             for t_ind in np.arange(1, len(t_uniq)):
                 alpha_stm[i, t_ind] = solve_alpha_2p(
@@ -1646,7 +2081,9 @@ class ss_estimation:
             data = self.data[k]
             if type(data) is list:
                 if not time_unrolled and self.t is not None:
-                    self.data[k], self.t = concat_time_series_matrices(self.data[k], self.t)
+                    self.data[k], self.t = concat_time_series_matrices(
+                        self.data[k], self.t
+                    )
                     time_unrolled = True
                 else:
                     self.data[k] = concat_time_series_matrices(self.data[k])
@@ -1682,14 +2119,19 @@ class ss_estimation:
         if len(data_names) == 1:
             ret = self.data[data_names[0]] is not None
         else:
-            ret = np.array([self.data[k] is not None for k in data_names], dtype=bool)
+            ret = np.array(
+                [self.data[k] is not None for k in data_names], dtype=bool
+            )
         return ret
 
     def _exist_parameter(self, *param_names):
         if len(param_names) == 1:
             ret = self.parameters[param_names[0]] is not None
         else:
-            ret = np.array([self.parameters[k] is not None for k in param_names], dtype=bool)
+            ret = np.array(
+                [self.parameters[k] is not None for k in param_names],
+                dtype=bool,
+            )
         return ret
 
     def get_exist_data_names(self):

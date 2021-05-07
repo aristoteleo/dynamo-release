@@ -1,5 +1,10 @@
-import numpy as np, pandas as pd
-from ..tools.utils import update_dict, index_gene, flatten
+import numpy as np
+import pandas as pd
+from ..tools.utils import (
+    update_dict,
+    index_gene,
+    flatten,
+)
 from .utils import set_colorbar, save_fig
 from .utils_graph import ArcPlot
 
@@ -30,7 +35,8 @@ def nxvizPlot(
             The group whose network and arcplot will be constructed and created.
         edges_list: `dict` of `pandas.DataFrame`
             A dictionary of dataframe of interactions between input genes for each group of cells based on ranking
-            information of Jacobian analysis. Each composite dataframe has `regulator`, `target` and `weight` three columns.
+            information of Jacobian analysis. Each composite dataframe has `regulator`, `target` and `weight` three
+            columns.
         plot: `str` (default: `arcplot`)
             Which nxviz plot to use, one of {'arcplot', 'circosplot'}.
         network: class:`~networkx.classes.digraph.DiGraph`
@@ -45,10 +51,10 @@ def nxvizPlot(
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig
-            function will use the {"path": None, "prefix": 'arcplot', "dpi": None, "ext": 'pdf', "transparent": True,
-            "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly
-            modify those keys according to your needs.
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            save_fig function will use the {"path": None, "prefix": 'arcplot', "dpi": None, "ext": 'pdf', "transparent":
+            True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that
+            properly modify those keys according to your needs.
         **kwargs:
             Additional parameters that will pass to ArcPlot or CircosPlot
 
@@ -57,7 +63,10 @@ def nxvizPlot(
         Nothing but plot an ArcPlot of the input direct network.
     """
 
-    has_splicing, has_labeling = adata.uns["pp"].get("has_splicing"), adata.uns["pp"].get("has_labeling")
+    _, has_labeling = (
+        adata.uns["pp"].get("has_splicing"),
+        adata.uns["pp"].get("has_labeling"),
+    )
     layer = "M_s" if not has_labeling else "M_t"
 
     import matplotlib.pyplot as plt
@@ -67,9 +76,9 @@ def nxvizPlot(
         import nxviz as nv
     except ImportError:
         raise ImportError(
-            f"You need to install the packages `networkx, nxviz`."
-            f"install networkx via `pip install networkx`."
-            f"install nxviz via `pip install nxviz`."
+            "You need to install the packages `networkx, nxviz`."
+            "install networkx via `pip install networkx`."
+            "install nxviz via `pip install nxviz`."
         )
 
     if edges_list is not None:
@@ -117,7 +126,15 @@ def nxvizPlot(
             edge_width=kwargs.pop("edge_width", "weight"),
             edge_color=kwargs.pop("edge_color", None),
             data_types=kwargs.pop("data_types", None),
-            nodeprops=kwargs.pop("nodeprops", {"facecolor": "None", "alpha": 0.2, "cmap": "viridis", "label": "label"}),
+            nodeprops=kwargs.pop(
+                "nodeprops",
+                {
+                    "facecolor": "None",
+                    "alpha": 0.2,
+                    "cmap": "viridis",
+                    "label": "label",
+                },
+            ),
             edgeprops=kwargs.pop("edgeprops", {"facecolor": "None", "alpha": 0.2}),
             node_label_color=kwargs.pop("node_label_color", False),
             group_label_position=kwargs.pop("group_label_position", None),
@@ -206,7 +223,8 @@ def arcPlot(
             The group whose network and arcplot will be constructed and created.
         edges_list: `dict` of `pandas.DataFrame`
             A dictionary of dataframe of interactions between input genes for each group of cells based on ranking
-            information of Jacobian analysis. Each composite dataframe has `regulator`, `target` and `weight` three columns.
+            information of Jacobian analysis. Each composite dataframe has `regulator`, `target` and `weight` three
+            columns.
         network: class:`~networkx.classes.digraph.DiGraph`
             A direct network for this cluster constructed based on Jacobian analysis.
         color: `str` or None (default: `None`)
@@ -222,10 +240,10 @@ def arcPlot(
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig
-            function will use the {"path": None, "prefix": 'arcplot', "dpi": None, "ext": 'pdf', "transparent": True,
-            "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly
-            modify those keys according to your needs.
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            save_fig function will use the {"path": None, "prefix": 'arcplot', "dpi": None, "ext": 'pdf', "transparent":
+            True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that
+            properly modify those keys according to your needs.
         **kwargs:
             Additional parameters that will eventually pass to ArcPlot.
 
@@ -253,13 +271,15 @@ def arcPlot(
     try:
         import networkx as nx
     except ImportError:
-        raise ImportError(
-            f"You need to install the package `networkx`." f"install networkx via `pip install networkx`."
-        )
+        raise ImportError("You need to install the package `networkx`." "install networkx via `pip install networkx`.")
 
     if edges_list is not None:
         network = nx.from_pandas_edgelist(
-            edges_list[cluster], "regulator", "target", edge_attr="weight", create_using=nx.DiGraph()
+            edges_list[cluster],
+            "regulator",
+            "target",
+            edge_attr="weight",
+            create_using=nx.DiGraph(),
         )
 
     # Iterate over all the nodes in G, including the metadata
@@ -357,7 +377,8 @@ def circosPlot(
             The group whose network and arcplot will be constructed and created.
         edges_list: `dict` of `pandas.DataFrame`
             A dictionary of dataframe of interactions between input genes for each group of cells based on ranking
-            information of Jacobian analysis. Each composite dataframe has `regulator`, `target` and `weight` three columns.
+            information of Jacobian analysis. Each composite dataframe has `regulator`, `target` and `weight` three
+            columns.
         network: class:`~networkx.classes.digraph.DiGraph`
             A direct network for this cluster constructed based on Jacobian analysis.
         weight_scale: `float` (default: `1e3`)
@@ -370,10 +391,10 @@ def circosPlot(
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig
-            function will use the {"path": None, "prefix": 'arcplot', "dpi": None, "ext": 'pdf', "transparent": True,
-            "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly
-            modify those keys according to your needs.
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            save_fig function will use the {"path": None, "prefix": 'arcplot', "dpi": None, "ext": 'pdf', "transparent":
+            True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that
+            properly modify those keys according to your needs.
         **kwargs:
             Additional parameters that will eventually pass to CircosPlot.
 
@@ -415,7 +436,8 @@ def hivePlot(
             AnnData object.
         edges_list: `dict` of `pandas.DataFrame`
             A dictionary of dataframe of interactions between input genes for each group of cells based on ranking
-            information of Jacobian analysis. Each composite dataframe has `regulator`, `target` and `weight` three columns.
+            information of Jacobian analysis. Each composite dataframe has `regulator`, `target` and `weight` three
+            columns.
         cluster: `str`
             The group key that points to the columns of `adata.obs`.
         cluster_names: `str` (default: `None`)
@@ -427,18 +449,21 @@ def hivePlot(
         save_show_or_return: `str` {'save', 'show', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig
-            function will use the {"path": None, "prefix": 'hiveplot', "dpi": None, "ext": 'pdf', "transparent": True,
-            "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly
-            modify those keys according to your needs.
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            save_fig function will use the {"path": None, "prefix": 'hiveplot', "dpi": None, "ext": 'pdf',
+            "transparent": True,  "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+            dictionary that properly modify those keys according to your needs.
 
     Returns
     -------
         Nothing but plot a hive plot of the input cell cluster specific direct network.
     """
 
-    has_splicing, has_labeling = adata.uns["pp"].get("has_splicing"), adata.uns["pp"].get("has_labeling")
-    layer = "M_s" if not has_labeling else "M_t"
+    # _, has_labeling = (
+    #     adata.uns["pp"].get("has_splicing"),
+    #     adata.uns["pp"].get("has_labeling"),
+    # )
+    # layer = "M_s" if not has_labeling else "M_t"
     # from matplotlib.lines import Line2D
     import matplotlib.pyplot as plt
 
@@ -448,12 +473,12 @@ def hivePlot(
         from hiveplotlib.viz import axes_viz_mpl, node_viz_mpl, edge_viz_mpl
     except ImportError:
         raise ImportError(
-            f"You need to install the package `networkx, hiveplotlib`."
-            f"install hiveplotlib via `pip install hiveplotlib`"
-            f"install networkx via `pip install nxviz`."
+            "You need to install the package `networkx, hiveplotlib`."
+            "install hiveplotlib via `pip install hiveplotlib`"
+            "install networkx via `pip install nxviz`."
         )
 
-    reg_groups = adata.obs[cluster].unique().to_list()
+    reg_groups = list(adata.obs[cluster].unique())
     if not set(edges_list.keys()).issubset(reg_groups):
         raise ValueError(
             f"the edges_list's keys are not equal or subset of the clusters from the " f"adata.obs[{cluster}]"
@@ -504,10 +529,10 @@ def hivePlot(
 
     hp = HivePlot()
 
-    ### nodes ###
+    # nodes ###
     hp.add_nodes(nodes)
 
-    ### axes ###
+    # axes ###
     angles = np.linspace(0, 360, len(reg_groups) + 1)
     axes = []
     for i, grp in enumerate(reg_groups):
@@ -516,18 +541,21 @@ def hivePlot(
 
     hp.add_axes(axes)
 
-    ### node assignments ###
+    # node assignments ###
     nodes = [node.unique_id for node in nodes]
 
     # assign nodes and sorting procedure to position nodes on axis
     for i, grp in enumerate(reg_groups):
         hp.place_nodes_on_axis(axis_id=grp, unique_ids=nodes, sorting_feature_to_use="degree")
     for i, grp in enumerate(reg_groups):
-        ### edges ###
+        # edges ###
         nex_grp = reg_groups[i + 1] if i < len(reg_groups) - 1 else reg_groups[0]
         hp.connect_axes(
-            edges=edges_dict[grp], axis_id_1=grp, axis_id_2=nex_grp, c="C" + str(i)
-        )  ### different color for each lineage
+            edges=edges_dict[grp],
+            axis_id_1=grp,
+            axis_id_2=nex_grp,
+            c="C" + str(i),
+        )  # different color for each lineage
 
     # plot axes
     fig, ax = axes_viz_mpl(hp, figsize=figsize, axes_labels_buffer=1.4)

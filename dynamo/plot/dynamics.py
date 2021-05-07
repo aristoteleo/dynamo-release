@@ -1,48 +1,62 @@
 import pandas as pd
 import sys
 import warnings
+from anndata import AnnData
+from typing import Optional, Union
+
 from .utils_dynamics import *
-from .utils import despline, _matplotlib_points, _datashade_points, _select_font_color
+from .utils import (
+    despline,
+    _matplotlib_points,
+    _datashade_points,
+    _select_font_color,
+)
 from .utils import arrowed_spines, despline_all, deaxis_all
 from .utils import quiver_autoscaler, default_quiver_args
 from .utils import save_fig
 from .scatters import scatters
 from ..estimation.csc.velocity import sol_u, sol_s, solve_first_order_deg
 from ..estimation.tsc.utils_moments import moments
-from ..tools.utils import get_mapper, log1p_, update_dict, get_valid_bools, index_gene
+from ..tools.utils import (
+    get_mapper,
+    log1p_,
+    update_dict,
+    get_valid_bools,
+    index_gene,
+)
 from ..configuration import _themes
 
 
 def phase_portraits(
-    adata,
-    genes,
-    x=0,
-    y=1,
-    pointsize=None,
-    vkey=None,
-    ekey=None,
-    basis="umap",
-    log1p=True,
-    color="cell_cycle_phase",
-    use_smoothed=True,
-    highlights=None,
-    discrete_continous_div_themes=None,
-    discrete_continous_div_cmap=None,
-    discrete_continous_div_color_key=[None, None, None],
-    discrete_continous_div_color_key_cmap=None,
-    figsize=(6, 4),
-    ncols=None,
-    legend="upper left",
-    background=None,
-    show_quiver=False,
-    quiver_size=None,
-    quiver_length=None,
-    no_vel_u=True,
-    frontier=True,
-    q_kwargs_dict={},
-    show_arrowed_spines=None,
-    save_show_or_return="show",
-    save_kwargs={},
+    adata: AnnData,
+    genes: list,
+    x: int = 0,
+    y: int = 1,
+    pointsize: Optional[float] = None,
+    vkey: Optional[str] = None,
+    ekey: Optional[str] = None,
+    basis: str = "umap",
+    log1p: bool = True,
+    color: str = "cell_cycle_phase",
+    use_smoothed: bool = True,
+    highlights: Optional[list] = None,
+    discrete_continous_div_themes: Optional[list] = None,
+    discrete_continous_div_cmap: Optional[list] = None,
+    discrete_continous_div_color_key: Optional[list] = [None, None, None],
+    discrete_continous_div_color_key_cmap: Optional[list] = None,
+    figsize: tuple = (6, 4),
+    ncols: Optional[int] = None,
+    legend: str = "upper left",
+    background: Optional[str] = None,
+    show_quiver: bool = False,
+    quiver_size: Optional[float] = None,
+    quiver_length: Optional[float] = None,
+    no_vel_u: bool = True,
+    frontier: bool = True,
+    q_kwargs_dict: dict = {},
+    show_arrowed_spines: Optional[bool] = None,
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
     **kwargs,
 ):
     """Draw the phase portrait, expression values , velocity on the low dimensional embedding.
@@ -129,6 +143,8 @@ def phase_portraits(
         legend: `str` (default: `on data`)
                 Where to put the legend.  Legend is drawn by seaborn with “brief” mode, numeric hue and size variables
                 will be represented with a sample of evenly spaced values. By default legend is drawn on top of cells.
+        background:
+            background color
         show_quiver: `bool` (default: False)
             Whether to show the quiver plot. If velocity for x component (corresponds to either spliced, total RNA,
             protein, etc) or y component (corresponds to either unspliced, new RNA, protein, etc) are both calculated,
@@ -202,7 +218,13 @@ def phase_portraits(
     _genes = list(set(adata.var.index).intersection(genes))
 
     # avoid object for dtype in the gamma column https://stackoverflow.com/questions/40809503/python-numpy-typeerror-ufunc-isfinite-not-supported-for-the-input-types
-    if adata.uns["dynamics"]["experiment_type"] in ["one-shot", "kin", "deg", "mix_kin_deg", "mix_pulse_chase"]:
+    if adata.uns["dynamics"]["experiment_type"] in [
+        "one-shot",
+        "kin",
+        "deg",
+        "mix_kin_deg",
+        "mix_pulse_chase",
+    ]:
         k_name = "gamma_k"
     else:
         k_name = "gamma"
@@ -496,7 +518,11 @@ def phase_portraits(
                 "div_blue_red",
             )
     else:
-        discrete_theme, continous_theme, divergent_theme = discrete_continous_div_themes
+        (
+            discrete_theme,
+            continous_theme,
+            divergent_theme,
+        ) = discrete_continous_div_themes
 
     discrete_cmap, discrete_color_key_cmap, discrete_background = (
         _themes[discrete_theme]["cmap"] if discrete_continous_div_cmap is None else discrete_continous_div_cmap[0],
@@ -633,7 +659,10 @@ def phase_portraits(
             xnew = (
                 np.linspace(cur_pd.loc[:, "S"].min(), cur_pd.loc[:, "S"].max() * 0.80)
                 if vkey == "velocity_S"
-                else np.linspace(cur_pd.loc[:, "total"].min(), cur_pd.loc[:, "total"].max() * 0.80)
+                else np.linspace(
+                    cur_pd.loc[:, "total"].min(),
+                    cur_pd.loc[:, "total"].max() * 0.80,
+                )
             )
             ax1.plot(
                 xnew,
@@ -681,7 +710,13 @@ def phase_portraits(
                 "zorder": 10,
             }
             quiver_kwargs = update_dict(quiver_kwargs, q_kwargs_dict)
-            ax1.quiver(X_array[:, 0], X_array[:, 1], V_array[:, 0], V_array[:, 1], **quiver_kwargs)
+            ax1.quiver(
+                X_array[:, 0],
+                X_array[:, 1],
+                V_array[:, 0],
+                V_array[:, 1],
+                **quiver_kwargs,
+            )
 
         ax1.set_xlim(np.min(X_array[:, 0]), np.max(X_array[:, 0]) * 1.02)
         ax1.set_ylim(np.min(X_array[:, 1]), np.max(X_array[:, 1]) * 1.02)
@@ -911,7 +946,13 @@ def phase_portraits(
                     "zorder": 10,
                 }
                 quiver_kwargs = update_dict(quiver_kwargs, q_kwargs_dict)
-                ax4.quiver(X_array[:, 0], X_array[:, 1], V_array[:, 0], V_array[:, 1], **quiver_kwargs)
+                ax4.quiver(
+                    X_array[:, 0],
+                    X_array[:, 1],
+                    V_array[:, 0],
+                    V_array[:, 1],
+                    **quiver_kwargs,
+                )
 
             ax4.set_ylim(np.min(X_array[:, 0]), np.max(X_array[:, 0]) * 1.02)
             ax4.set_xlim(np.min(X_array[:, 1]), np.max(X_array[:, 1]) * 1.02)
@@ -1038,25 +1079,25 @@ def phase_portraits(
 
 
 def dynamics(
-    adata,
-    genes,
-    unit="hours",
-    log_unnormalized=True,
-    y_log_scale=False,
-    ci=None,
-    ncols=None,
-    figsize=None,
-    dpi=None,
-    boxwidth=None,
-    barwidth=None,
-    true_param_prefix=None,
-    show_moms_fit=False,
-    show_variance=True,
-    show_kin_parameters=True,
-    gene_order="column",
-    font_size_scale=1,
-    save_show_or_return="show",
-    save_kwargs={},
+    adata: AnnData,
+    genes: Union[list],
+    unit: str = "hours",
+    log_unnormalized: bool = True,
+    y_log_scale: bool = False,
+    ci: Optional[str] = None,
+    ncols: Optional[int] = None,
+    figsize: Union[list, tuple, None] = None,
+    dpi: Optional[float] = None,
+    boxwidth: Optional[float] = None,
+    barwidth: Optional[float] = None,
+    true_param_prefix: Optional[str] = None,
+    show_moms_fit: bool = False,
+    show_variance: bool = True,
+    show_kin_parameters: bool = True,
+    gene_order: str = "column",
+    font_size_scale: float = 1,
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
 ):
     """Plot the data and fitting of different metabolic labeling experiments.
     Note that if non-smoothed data was used for kinetic fitting, you often won't see boxplot
@@ -1138,7 +1179,10 @@ def dynamics(
 
     if group is not None:
         uns_key = group + "_dynamics"
-        _group, grp_len = np.unique(adata.obs[group]), len(np.unique(adata.obs[group]))
+        _group, grp_len = (
+            np.unique(adata.obs[group]),
+            len(np.unique(adata.obs[group])),
+        )
     else:
         uns_key = "dynamics"
         _group, grp_len = ["_all_cells"], 1
@@ -1176,7 +1220,10 @@ def dynamics(
 
     valid_adata = adata[:, valid_gene_names]
     gene_idx = np.array([np.where(valid_genes == gene)[0][0] for gene in valid_gene_names])
-    X_data, X_fit_data = [X_data[i] for i in gene_idx], [X_fit_data[i] for i in gene_idx]
+    X_data, X_fit_data = (
+        [X_data[i] for i in gene_idx],
+        [X_fit_data[i] for i in gene_idx],
+    )
 
     if boxwidth is None and len(T_uniq) > 1:
         boxwidth = 0.8 * (np.diff(T_uniq).min() / 2)
@@ -1632,8 +1679,14 @@ def dynamics(
                             "(unspliced labeled)",
                             "(spliced labeled)",
                         ]
-                        Obs_m = [valid_adata.uns["M_ul"], valid_adata.uns["M_sl"]]
-                        Obs_v = [valid_adata.uns["V_ul"], valid_adata.uns["V_sl"]]
+                        Obs_m = [
+                            valid_adata.uns["M_ul"],
+                            valid_adata.uns["M_sl"],
+                        ]
+                        Obs_v = [
+                            valid_adata.uns["V_ul"],
+                            valid_adata.uns["V_sl"],
+                        ]
                         j_species = 2  # number of species
                     else:
                         tmp = (
@@ -1647,7 +1700,10 @@ def dynamics(
                             x_data = [np.log1p(x_data[0])]
                         # only use new key for calculation, so we only have M, V
                         title_ = [" (labeled)", " (labeled)"]
-                        Obs_m, Obs_v = [valid_adata.uns["M"]], [valid_adata.uns["V"]]
+                        Obs_m, Obs_v = (
+                            [valid_adata.uns["M"]],
+                            [valid_adata.uns["V"]],
+                        )
                         j_species = 1
 
                     for j in range(sub_plot_n):
@@ -1777,10 +1833,20 @@ def dynamics(
                                 sl.toarray().squeeze(),
                             )
                             if issparse(uu)
-                            else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
+                            else (
+                                uu.squeeze(),
+                                ul.squeeze(),
+                                su.squeeze(),
+                                sl.squeeze(),
+                            )
                         )
 
-                        if log_unnormalized and layers == ["uu", "ul", "su", "sl"]:
+                        if log_unnormalized and layers == [
+                            "uu",
+                            "ul",
+                            "su",
+                            "sl",
+                        ]:
                             uu, ul, su, sl = (
                                 np.log1p(uu),
                                 np.log1p(ul),
@@ -1788,7 +1854,7 @@ def dynamics(
                                 np.log1p(sl),
                             )
 
-                        alpha, beta, gamma, ul0, sl0, uu0, half_life = valid_adata.var.loc[
+                        (alpha, beta, gamma, ul0, sl0, uu0, half_life,) = valid_adata.var.loc[
                             gene_name,
                             [
                                 prefix + "alpha",
@@ -1839,7 +1905,10 @@ def dynamics(
                             "(spliced labeled)",
                         ]
 
-                        Obs, Pred = np.vstack((uu, ul, su, sl)), np.vstack((u, w, s, l))
+                        Obs, Pred = (
+                            np.vstack((uu, ul, su, sl)),
+                            np.vstack((u, w, s, l)),
+                        )
                     else:
                         layers = ["X_new", "X_total"] if "X_new" in valid_adata.layers.keys() else ["new", "total"]
                         uu, ul = (
@@ -2046,10 +2115,20 @@ def dynamics(
                                     sl.toarray().squeeze(),
                                 )
                                 if issparse(uu)
-                                else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
+                                else (
+                                    uu.squeeze(),
+                                    ul.squeeze(),
+                                    su.squeeze(),
+                                    sl.squeeze(),
+                                )
                             )
 
-                            if log_unnormalized and layers == ["uu", "ul", "su", "sl"]:
+                            if log_unnormalized and layers == [
+                                "uu",
+                                "ul",
+                                "su",
+                                "sl",
+                            ]:
                                 uu, ul, su, sl = (
                                     np.log1p(uu),
                                     np.log1p(ul),
@@ -2104,7 +2183,10 @@ def dynamics(
                                 "(spliced labeled)",
                             ]
 
-                            Obs, Pred = np.vstack((uu, ul, su, sl)), np.vstack((u, w, s, l))
+                            Obs, Pred = (
+                                np.vstack((uu, ul, su, sl)),
+                                np.vstack((u, w, s, l)),
+                            )
                         else:
                             layers = ["X_new", "X_total"] if "X_new" in valid_adata.layers.keys() else ["new", "total"]
                             uu, ul = (
@@ -2122,7 +2204,12 @@ def dynamics(
                                 uu, ul = np.log1p(uu), np.log1p(ul)
 
                             alpha, gamma, uu0 = valid_adata.var.loc[
-                                gene_name, [prefix + "alpha", prefix + "gamma", prefix + "uu0"]
+                                gene_name,
+                                [
+                                    prefix + "alpha",
+                                    prefix + "gamma",
+                                    prefix + "uu0",
+                                ],
                             ]
 
                             # require no beta functions
@@ -2235,10 +2322,20 @@ def dynamics(
                                 sl.toarray().squeeze(),
                             )
                             if issparse(uu)
-                            else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
+                            else (
+                                uu.squeeze(),
+                                ul.squeeze(),
+                                su.squeeze(),
+                                sl.squeeze(),
+                            )
                         )
 
-                        if log_unnormalized and layers == ["uu", "ul", "su", "sl"]:
+                        if log_unnormalized and layers == [
+                            "uu",
+                            "ul",
+                            "su",
+                            "sl",
+                        ]:
                             uu, ul, su, sl = (
                                 np.log1p(uu),
                                 np.log1p(ul),
@@ -2301,7 +2398,11 @@ def dynamics(
 
                         alpha, gamma, total0 = valid_adata.var.loc[
                             gene_name,
-                            [prefix + "alpha", prefix + "gamma", prefix + "total0"],
+                            [
+                                prefix + "alpha",
+                                prefix + "gamma",
+                                prefix + "total0",
+                            ],
                         ]
 
                         # require no beta functions
@@ -2408,10 +2509,20 @@ def dynamics(
                                 sl.toarray().squeeze(),
                             )
                             if issparse(uu)
-                            else (uu.squeeze(), ul.squeeze(), su.squeeze(), sl.squeeze())
+                            else (
+                                uu.squeeze(),
+                                ul.squeeze(),
+                                su.squeeze(),
+                                sl.squeeze(),
+                            )
                         )
 
-                        if log_unnormalized and layers == ["uu", "ul", "su", "sl"]:
+                        if log_unnormalized and layers == [
+                            "uu",
+                            "ul",
+                            "su",
+                            "sl",
+                        ]:
                             uu, ul, su, sl = (
                                 np.log1p(uu),
                                 np.log1p(ul),
@@ -2421,7 +2532,11 @@ def dynamics(
 
                         beta, gamma, alpha_std = valid_adata.var.loc[
                             gene_name,
-                            [prefix + "beta", prefix + "gamma", prefix + "alpha_std"],
+                            [
+                                prefix + "beta",
+                                prefix + "gamma",
+                                prefix + "alpha_std",
+                            ],
                         ]
                         alpha_stm = valid_adata[:, gene_name].varm[prefix + "alpha"].flatten()[1:]
                         alpha_stm0, k, _ = solve_first_order_deg(T_uniq[1:], alpha_stm)
@@ -2520,7 +2635,10 @@ def dynamics(
                             ],
                         )
 
-                    group_list = [np.repeat(alpha_std, len(alpha_stm)), alpha_stm]
+                    group_list = [
+                        np.repeat(alpha_std, len(alpha_stm)),
+                        alpha_stm,
+                    ]
 
                     for j in range(sub_plot_n):
                         row_ind = int(

@@ -9,6 +9,7 @@ from scipy.linalg.blas import dgemm
 from sklearn.neighbors import NearestNeighbors
 import warnings
 import time
+import itertools
 
 from ..preprocessing.utils import Freeman_Tukey, detect_datatype
 
@@ -79,7 +80,10 @@ def update_dict(dict1, dict2):
 
 
 def update_n_merge_dict(dict1, dict2):
-    dict = {**dict1, **dict2}  # dict1.update((k, dict2[k]) for k in dict1.keys() | dict2.keys())
+    dict = {
+        **dict1,
+        **dict2,
+    }  # dict1.update((k, dict2[k]) for k in dict1.keys() | dict2.keys())
 
     return dict
 
@@ -89,10 +93,10 @@ def subset_dict_with_key_list(dict, list):
 
 
 def nearest_neighbors(coord, coords, k=5):
-    nbrs = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(coords)
+    nbrs = NearestNeighbors(n_neighbors=k, algorithm="ball_tree").fit(coords)
     _, neighs = nbrs.kneighbors(np.atleast_2d(coord))
     return neighs
-    
+
 
 def create_layer(adata, data, layer_key=None, genes=None, cells=None, **kwargs):
     all_genes = adata.var.index
@@ -160,6 +164,83 @@ def index_gene(adata, arr, genes):
             raise Exception("The dimension of the input array does not match the number of genes.")
         else:
             return arr[:, mask]
+
+
+def select_cell(adata, grp_keys, grps, presel=None, mode="union", output_format="index"):
+    """
+    Select cells based on `grp_keys` in .obs
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object
+        grp_keys: str or list
+            The key(s) in `.obs` to be used for selecting cells.
+            If list, each element is a key in .obs that corresponds to an element in `grps`.
+        grps: str or list
+            The value(s) in `.obs[grp_keys]` to be used for selecting cells.
+            If list, each element is a value that corresponds to an element in `grp_keys`.
+        presel: None, list, or :class:`~numpy.ndarray`
+            An array of indices or mask of pre-selected cells. It will be combined with selected cells specified by
+            `grp_keys` and `grps` according to `mode`.
+        mode: str
+            "union" - the selected cells are the union of the groups specified in `grp_keys` and `grps`;
+            "intersection" - the selected cells are the intersection of the groups specified in `grp_keys` and `grps`.
+        output_format: str
+            "index" - returns a list of indices of selected cells;
+            "mask" - returns an array of booleans.
+
+    Returns
+    -------
+        list or :class:`~numpy.ndarray`
+            The cell index or mask array.
+    """
+    if type(grp_keys) is str:
+        grp_keys = [grp_keys]
+    if not isarray(grps):
+        grps = [grps]
+
+    if len(grp_keys) == 1 and len(grps) > 1:
+        grp_keys = np.repeat(grp_keys, len(grps))
+
+    if mode == "intersection":
+        pred = AlwaysTrue()
+    elif mode == "union":
+        pred = AlwaysFalse()
+    else:
+        raise NotImplementedError(f"The mode {mode} is not implemented.")
+
+    for i, k in enumerate(grp_keys):
+        # check if all keys in grp_keys are in adata.obs
+        if k not in adata.obs.keys():
+            raise Exception(f"The group key `{k}` is not in .obs.")
+        else:
+            in_grp = AnnDataPredicate(k, grps[i])
+            if mode == "intersection":
+                pred = pred & in_grp
+            else:
+                pred = pred | in_grp
+
+    cell_idx = pred.check(adata.obs)
+
+    if presel is not None:
+        if np.issubsctype(presel, int):
+            temp = np.zeros(adata.n_obs, dtype=bool)
+            temp[presel] = True
+            presel = temp
+        if mode == "intersection":
+            cell_idx = np.logical_and(presel, cell_idx)
+        else:
+            cell_idx = np.logical_or(presel, cell_idx)
+
+    if output_format == "index":
+        cell_idx = np.where(cell_idx)[0]
+    elif output_format == "mask":
+        pass
+    else:
+        raise NotImplementedError(f"The output format `{output_format}` is not supported.")
+
+    return cell_idx
 
 
 def flatten(arr):
@@ -373,7 +454,16 @@ def timeit(method):
     return timed
 
 
-def velocity_on_grid(X, V, n_grids, nbrs=None, k=None, smoothness=1, cutoff_coeff=2, margin_coeff=0.025):
+def velocity_on_grid(
+    X,
+    V,
+    n_grids,
+    nbrs=None,
+    k=None,
+    smoothness=1,
+    cutoff_coeff=2,
+    margin_coeff=0.025,
+):
     # codes adapted from velocyto
     _, D = X.shape
     if np.isscalar(n_grids):
@@ -394,7 +484,13 @@ def velocity_on_grid(X, V, n_grids, nbrs=None, k=None, smoothness=1, cutoff_coef
         if X.shape[0] > 200000 and X.shape[1] > 2:
             from pynndescent import NNDescent
 
-            nbrs = NNDescent(X, metric="euclidean", n_neighbors=k + 1, n_jobs=-1, random_state=19491001)
+            nbrs = NNDescent(
+                X,
+                metric="euclidean",
+                n_neighbors=k + 1,
+                n_jobs=-1,
+                random_state=19491001,
+            )
         else:
             alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
             nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm=alg, n_jobs=-1).fit(X)
@@ -725,7 +821,10 @@ def get_data_for_kin_params_estimation(
         ("X_unspliced" in subset_adata.layers.keys() and not use_moments)
         or (mapper["X_unspliced"] in subset_adata.layers.keys() and use_moments)
     ):
-        normalized, assumption_mRNA = True, "kinetic" if tkey in subset_adata.obs.columns else "ss"
+        normalized, assumption_mRNA = (
+            True,
+            "kinetic" if tkey in subset_adata.obs.columns else "ss",
+        )
         U = subset_adata.layers[mapper["X_unspliced"]].T if use_moments else subset_adata.layers["X_unspliced"].T
     elif not has_labeling and "unspliced" in subset_adata.layers.keys():
         assumption_mRNA = "kinetic" if tkey in subset_adata.obs.columns else "ss"
@@ -779,7 +878,11 @@ def get_data_for_kin_params_estimation(
         if tkey in subset_adata.obs.columns:
             t = np.array(subset_adata.obs[tkey], dtype="float")
         else:
-            raise Exception("the tkey ", tkey, " provided is not a valid column name in .obs.")
+            raise Exception(
+                "the tkey ",
+                tkey,
+                " provided is not a valid column name in .obs.",
+            )
         if model == "stochastic" and all([x in subset_adata.layers.keys() for x in ["M_tn", "M_nn", "M_tt"]]):
             US, U2, S2 = (
                 subset_adata.layers["M_tn"].T if NTR_vel else subset_adata.layers["M_us"].T,
@@ -789,7 +892,11 @@ def get_data_for_kin_params_estimation(
     else:
         t = None
         if model == "stochastic":
-            US, U2, S2 = subset_adata.layers["M_us"].T, subset_adata.layers["M_uu"].T, subset_adata.layers["M_ss"].T
+            US, U2, S2 = (
+                subset_adata.layers["M_us"].T,
+                subset_adata.layers["M_uu"].T,
+                subset_adata.layers["M_ss"].T,
+            )
 
     return (
         U,
@@ -820,7 +927,10 @@ def set_velocity(
     valid_ind,
     ind_for_proteins,
 ):
-    cur_cells_ind, valid_ind_ = np.where(cur_cells_bools)[0][:, np.newaxis], np.where(valid_ind)[0]
+    cur_cells_ind, valid_ind_ = (
+        np.where(cur_cells_bools)[0][:, np.newaxis],
+        np.where(valid_ind)[0],
+    )
     if type(vel_U) is not float:
         if cur_grp == _group[0]:
             adata.layers["velocity_U"] = sp.csr_matrix((adata.shape), dtype=np.float64)
@@ -1055,7 +1165,10 @@ def set_param_kinetic(
 
     if isarray(alpha) and alpha.ndim > 1:
         adata.var.loc[valid_ind, kin_param_pre + "alpha"] = alpha.mean(1)
-        cur_cells_ind, valid_ind_ = np.where(cur_cells_bools)[0][:, np.newaxis], np.where(valid_ind)[0]
+        cur_cells_ind, valid_ind_ = (
+            np.where(cur_cells_bools)[0][:, np.newaxis],
+            np.where(valid_ind)[0],
+        )
         if cur_grp == _group[0]:
             adata.layers["cell_wise_alpha"] = sp.csr_matrix((adata.shape), dtype=np.float64)
         alpha = alpha.T.tocsr() if sp.issparse(alpha) else sp.csr_matrix(alpha, dtype=np.float64).T
@@ -1233,6 +1346,141 @@ def fetch_X_data(adata, genes, layer, basis=None):
     return genes, X_data
 
 
+class AnnDataPredicate(object):
+    def __init__(self, key, value, op="=="):
+        """
+        Predicate class for item selection for anndata
+
+        Parameters
+        ----------
+            key: str
+                The key in the dictionary (specified as `data` in `.check()`) that will be used for selection.
+            value: any
+                The value that will be used based on `op` to select items.
+            op: str
+                operators for selection:
+                '==' - equal to `value`; '!=' - unequal to; '>' - greater than; '<' - smaller than;
+                '>=' - greater than or equal to; '<=' - less than or equal to.
+        """
+        self.key = key
+        self.value = value
+        self.op = op
+
+    def check(self, data):
+        if self.op == "==":
+            return data[self.key] == self.value
+        elif self.op == "!=":
+            return data[self.key] != self.value
+        elif self.op == ">":
+            return data[self.key] > self.value
+        elif self.op == "<":
+            return data[self.key] < self.value
+        elif self.op == ">=":
+            return data[self.key] >= self.value
+        elif self.op == "<=":
+            return data[self.key] <= self.value
+        else:
+            raise NotImplementedError(f"Unidentified operator {self.op}!")
+
+    def __or__(self, other):
+        return PredicateUnion(self, other)
+
+    def __and__(self, other):
+        return PredicateIntersection(self, other)
+
+    def __invert__(self):
+        if self.op == "==":
+            op = "!="
+        elif self.op == "!=":
+            op = "=="
+        elif self.op == ">":
+            op = "<="
+        elif self.op == "<":
+            op = ">="
+        elif self.op == ">=":
+            op = "<"
+        elif self.op == "<=":
+            op = ">"
+        else:
+            raise NotImplementedError(f"Unidentified operator {self.op}!")
+
+        return AnnDataPredicate(self.key, self.value, op)
+
+
+class AlwaysTrue(AnnDataPredicate):
+    def __init__(self, key=None):
+        self.key = key
+
+    def check(self, data):
+        key = self.key if self.key is not None else data.keys()[0]
+        return np.ones(len(data[key]), dtype=bool)
+
+    def __invert__(self):
+        return AlwaysFalse(key=self.key)
+
+
+class AlwaysFalse(AnnDataPredicate):
+    def __init__(self, key=None):
+        self.key = key
+
+    def check(self, data):
+        key = self.key if self.key is not None else data.keys()[0]
+        return np.zeros(len(data[key]), dtype=bool)
+
+    def __invert__(self):
+        return AlwaysTrue(key=self.key)
+
+
+class AnnDataPredicates(object):
+    def __init__(self, *predicates):
+        self.predicates = predicates
+
+    def binop(self, other, op):
+        if isinstance(other, AnnDataPredicate):
+            return op(*self.predicates, other)
+        elif isinstance(other, AnnDataPredicates):
+            return op(*self.predicates, *other)
+        else:
+            raise NotImplementedError(f"Unidentified predicate type {type(other)}!")
+
+
+class PredicateUnion(AnnDataPredicates):
+    def check(self, data):
+        ret = None
+        for pred in self.predicates:
+            ret = np.logical_or(ret, pred.check(data)) if ret is not None else pred.check(data)
+        return ret
+
+    def __or__(self, other):
+        return self.binop(other, PredicateUnion)
+
+    def __and__(self, other):
+        return self.binop(other, PredicateIntersection)
+
+
+class PredicateIntersection(AnnDataPredicates):
+    def check(self, data):
+        ret = None
+        for pred in self.predicates:
+            ret = np.logical_and(ret, pred.check(data)) if ret is not None else pred.check(data)
+        return ret
+
+    def __or__(self, other):
+        return self.binop(other, PredicateUnion)
+
+    def __and__(self, other):
+        return self.binop(other, PredicateIntersection)
+
+
+def select(array, pred=AlwaysTrue(), output_format="mask"):
+    ret = pred.check(array)
+    if output_format == "mask":
+        pass
+    elif output_format == "index":
+        ret = np.where(ret)[0]
+    return ret
+
+
 # ---------------------------------------------------------------------------------------------------
 # estimation related
 
@@ -1331,7 +1579,10 @@ def set_transition_genes(
         #     min_r2 = 0.5 if min_r2 is None else min_r2
         # else:
         min_r2 = 0.9 if min_r2 is None else min_r2
-    elif adata.uns["dynamics"]["experiment_type"] in ["mix_kin_deg", "mix_pulse_chase"]:
+    elif adata.uns["dynamics"]["experiment_type"] in [
+        "mix_kin_deg",
+        "mix_pulse_chase",
+    ]:
         logLL_col = adata.var.columns[adata.var.columns.str.endswith("logLL")]
         if len(logLL_col) > 1:
             warnings.warn(f"there are two columns ends with logLL: {logLL_col}")
@@ -1356,8 +1607,9 @@ def set_transition_genes(
     # the following parameters aggreation for different groups can be improved later
     if layer == "U":
         if "alpha" not in adata.var.columns:
-            is_group_alpha, is_group_alpha_r2 = get_group_params_indices(adata, "alpha"), get_group_params_indices(
-                adata, "alpha_r2"
+            is_group_alpha, is_group_alpha_r2 = (
+                get_group_params_indices(adata, "alpha"),
+                get_group_params_indices(adata, "alpha_r2"),
             )
             if is_group_alpha.sum() > 0:
                 adata.var["alpha"] = adata.var.loc[:, is_group_alpha].mean(1, skipna=True)
@@ -1376,8 +1628,9 @@ def set_transition_genes(
         )
     elif layer == "S":
         if "gamma" not in adata.var.columns:
-            is_group_gamma, is_group_gamma_r2 = get_group_params_indices(adata, "gamma"), get_group_params_indices(
-                adata, "gamma_r2"
+            is_group_gamma, is_group_gamma_r2 = (
+                get_group_params_indices(adata, "gamma"),
+                get_group_params_indices(adata, "gamma_r2"),
             )
             if is_group_gamma.sum() > 0:
                 adata.var["gamma"] = adata.var.loc[:, is_group_gamma].mean(1, skipna=True)
@@ -1396,8 +1649,9 @@ def set_transition_genes(
         )
     elif layer == "P":
         if "delta" not in adata.var.columns:
-            is_group_delta, is_group_delta_r2 = get_group_params_indices(adata, "delta"), get_group_params_indices(
-                adata, "delta_r2"
+            is_group_delta, is_group_delta_r2 = (
+                get_group_params_indices(adata, "delta"),
+                get_group_params_indices(adata, "delta_r2"),
             )
             if is_group_delta.sum() > 0:
                 adata.var["delta"] = adata.var.loc[:, is_group_delta].mean(1, skipna=True)
@@ -1416,8 +1670,9 @@ def set_transition_genes(
         )
     if layer == "T":
         if "gamma" not in adata.var.columns:
-            is_group_gamma, is_group_gamma_r2 = get_group_params_indices(adata, "gamma"), get_group_params_indices(
-                adata, "gamma_r2"
+            is_group_gamma, is_group_gamma_r2 = (
+                get_group_params_indices(adata, "gamma"),
+                get_group_params_indices(adata, "gamma_r2"),
             )
             if is_group_gamma.sum() > 0:
                 adata.var["gamma"] = adata.var.loc[:, is_group_gamma].mean(1, skipna=True)
@@ -1469,7 +1724,11 @@ def get_ekey_vkey_from_adata(adata):
             if "X_new" not in adata.layers.keys():  # unlabel spliced: S
                 raise Exception("The input data you have is not normalized or normalized + smoothed!")
 
-            if experiment_type.lower() in ["kin", "mix_pulse_chase", "mix_kin_deg"]:
+            if experiment_type.lower() in [
+                "kin",
+                "mix_pulse_chase",
+                "mix_kin_deg",
+            ]:
                 ekey, vkey, layer = (
                     (
                         mapper["X_total"] if NTR else mapper["X_spliced"],
@@ -1689,7 +1948,15 @@ def linear_least_squares(a, b, residuals=False):
         return x
 
 
-def integrate_vf(init_states, t, args, integration_direction, f, interpolation_num=None, average=True):
+def integrate_vf(
+    init_states,
+    t,
+    args,
+    integration_direction,
+    f,
+    interpolation_num=None,
+    average=True,
+):
     """integrating along vector field function"""
 
     n_cell, n_feature, n_steps = (
@@ -1838,3 +2105,17 @@ def getTseq(init_states, t_end, step_size=None):
         t_linspace = np.arange(0, t_end + step_size, step_size)
 
     return t_linspace
+
+
+# ---------------------------------------------------------------------------------------------------
+# multiple core related
+
+# Pass kwargs to starmap while using Pool
+# https://stackoverflow.com/questions/45718523/pass-kwargs-to-starmap-while-using-pool-in-python
+def starmap_with_kwargs(pool, fn, args_iter, kwargs_iter):
+    args_for_starmap = zip(itertools.repeat(fn), args_iter, kwargs_iter)
+    return pool.starmap(apply_args_and_kwargs, args_for_starmap)
+
+
+def apply_args_and_kwargs(fn, args, kwargs):
+    return fn(*args, **kwargs)

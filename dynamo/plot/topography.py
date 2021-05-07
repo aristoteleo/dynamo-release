@@ -3,10 +3,18 @@ import numpy as np
 import pandas as pd
 import scipy
 import matplotlib.pyplot as plt
+from typing import List, Union, Optional, Callable
+from matplotlib.axes import Axes
+from anndata import AnnData
 
 from ..tools.cell_velocities import cell_velocities
-from ..vectorfield.topography import topography as _topology  # , compute_separatrices
-from ..vectorfield.topography import VectorField2D, VectorField # , compute_separatrices
+from ..vectorfield.topography import (
+    topography as _topology,
+)  # , compute_separatrices
+from ..vectorfield.topography import (
+    VectorField2D,
+    VectorField,
+)  # , compute_separatrices
 from ..vectorfield.scVectorField import base_vectorfield
 from ..vectorfield.utils import vecfld_from_adata
 from ..tools.utils import update_dict, nearest_neighbors
@@ -28,21 +36,21 @@ from ..dynamo_logger import LoggerManager
 
 
 def plot_flow_field(
-    vecfld,
-    x_range,
-    y_range,
-    n_grid=100,
-    start_points=None,
-    integration_direction="both",
-    background=None,
-    density=1,
-    linewidth=1,
-    streamline_color=None,
-    streamline_alpha=0.4,
-    color_start_points=None,
-    save_show_or_return="return",
-    save_kwargs={},
-    ax=None,
+    vecfld: VectorField2D,
+    x_range: List,
+    y_range: List,
+    n_grid: int = 100,
+    start_points: np.ndarray = None,
+    integration_direction: str = "both",
+    background: str = None,
+    density: float = 1,
+    linewidth: float = 1,
+    streamline_color: Optional[str] = None,
+    streamline_alpha: float = 0.4,
+    color_start_points: Optional[float] = None,
+    save_show_or_return: str = "return",
+    save_kwargs: dict = {},
+    ax: Axes = None,
     **streamline_kwargs,
 ):
     """Plots the flow field with line thickness proportional to speed.
@@ -65,7 +73,7 @@ def plot_flow_field(
         Integrate the streamline in forward, backward or both directions. default is 'both'.
     background: `str` or None (default: None)
         The background color of the plot.
-    density: `float` or None (default: 1)
+    density: `float` (default: 1)
         density of the plt.streamplot function.
     linewidth: `float` or None (default: 1)
         multiplier of automatically calculated linewidth passed to the plt.streamplot function.
@@ -200,7 +208,15 @@ def plot_flow_field(
         return ax
 
 
-def plot_nullclines(vecfld, vecfld_dict=None, lw=3, background=None, save_show_or_return="return", save_kwargs={}, ax=None):
+def plot_nullclines(
+    vecfld: VectorField2D,
+    vecfld_dict: dict = None,
+    lw: float = 3,
+    background: Optional[float] = None,
+    save_show_or_return: str = "return",
+    save_kwargs: dict = {},
+    ax: Axes = None,
+):
     """Plot nullclines stored in the VectorField2D class.
 
     Arguments
@@ -239,9 +255,9 @@ def plot_nullclines(vecfld, vecfld_dict=None, lw=3, background=None, save_show_o
     NCx, NCy = None, None
 
     # if nullcline is not previously calculated, calculate and plot them
-    if vecfld_dict is None or 'nullcline' not in vecfld_dict.keys():
+    if vecfld_dict is None or "nullcline" not in vecfld_dict.keys():
         if vecfld_dict is not None:
-            X_basis = vecfld_dict['X'][:, :2]
+            X_basis = vecfld_dict["X"][:, :2]
             min_, max_ = X_basis.min(0), X_basis.max(0)
 
             xlim = [
@@ -253,7 +269,7 @@ def plot_nullclines(vecfld, vecfld_dict=None, lw=3, background=None, save_show_o
                 max_[1] + (max_[1] - min_[1]) * 0.1,
             ]
 
-            vecfld2d = VectorField2D(vecfld, X_data=vecfld_dict['X'])
+            vecfld2d = VectorField2D(vecfld, X_data=vecfld_dict["X"])
             vecfld2d.find_fixed_points_by_sampling(25, xlim, ylim)
 
             if vecfld2d.get_num_fixed_points() > 0:
@@ -261,7 +277,7 @@ def plot_nullclines(vecfld, vecfld_dict=None, lw=3, background=None, save_show_o
 
                 NCx, NCy = vecfld2d.NCx, vecfld.NCy
     else:
-        NCx, NCy = vecfld_dict['nullcline'][0], vecfld_dict['nullcline'][1]
+        NCx, NCy = vecfld_dict["nullcline"][0], vecfld_dict["nullcline"][1]
 
     if ax is None:
         ax = plt.gca()
@@ -406,18 +422,18 @@ def plot_fixed_points_2d(
 
 
 def plot_fixed_points(
-    vecfld,
-    vecfld_dict=None,
-    marker="o",
-    markersize=200,
-    c='w',
-    cmap=None,
-    filltype=["full", "top", "none"],
-    background=None,
-    save_show_or_return="return",
-    save_kwargs={},
-    ax=None,
-    **kwargs
+    vecfld: VectorField2D,
+    vecfld_dict: dict = None,
+    marker: str = "o",
+    markersize: int = 200,
+    c: str = "w",
+    cmap: Optional[str] = None,
+    filltype: list = ["full", "top", "none"],
+    background: Optional[str] = None,
+    save_show_or_return: str = "return",
+    save_kwargs: dict = {},
+    ax: Axes = None,
+    **kwargs,
 ):
     """Plot fixed points stored in the VectorField2D class.
 
@@ -470,10 +486,10 @@ def plot_fixed_points(
         _theme_ = "viridis"
     _cmap = _themes[_theme_]["cmap"] if cmap is None else cmap
 
-    if vecfld_dict is None or any(('Xss' not in vecfld_dict.keys(), 'ftype' not in vecfld_dict.keys())):
+    if vecfld_dict is None or any(("Xss" not in vecfld_dict.keys(), "ftype" not in vecfld_dict.keys())):
         if vecfld_dict is not None:
-            if vecfld_dict['X'].shape[1] == 2:
-                min_, max_ = vecfld_dict['X'].min(0), vecfld_dict['X'].max(0)
+            if vecfld_dict["X"].shape[1] == 2:
+                min_, max_ = vecfld_dict["X"].min(0), vecfld_dict["X"].max(0)
 
                 xlim = [
                     min_[0] - (max_[0] - min_[0]) * 0.1,
@@ -484,7 +500,7 @@ def plot_fixed_points(
                     max_[1] + (max_[1] - min_[1]) * 0.1,
                 ]
 
-                vecfld = VectorField2D(vecfld, X_data=vecfld_dict['X'])
+                vecfld = VectorField2D(vecfld, X_data=vecfld_dict["X"])
                 vecfld.find_fixed_points_by_sampling(25, xlim, ylim)
                 if vecfld.get_num_fixed_points() > 0:
                     vecfld.compute_nullclines(xlim, ylim, find_new_fixed_points=True)
@@ -493,9 +509,11 @@ def plot_fixed_points(
                 confidence = vecfld.get_Xss_confidence()
             else:
                 confidence = None
-                vecfld = base_vectorfield(X=vecfld_dict['X'][vecfld_dict['valid_ind'], :],
-                                          V=vecfld_dict['Y'][vecfld_dict['valid_ind'], :],
-                                          func=vecfld)
+                vecfld = base_vectorfield(
+                    X=vecfld_dict["X"][vecfld_dict["valid_ind"], :],
+                    V=vecfld_dict["Y"][vecfld_dict["valid_ind"], :],
+                    func=vecfld,
+                )
 
                 Xss, ftype = vecfld.get_fixed_points(**kwargs)
                 if Xss.ndim > 1 and Xss.shape[1] > 2:
@@ -504,7 +522,11 @@ def plot_fixed_points(
                     Xss = vecfld_dict["X_basis"][fp_ind]
 
     else:
-        Xss, ftype, confidence = vecfld_dict['Xss'], vecfld_dict['ftype'], vecfld_dict['confidence']
+        Xss, ftype, confidence = (
+            vecfld_dict["Xss"],
+            vecfld_dict["ftype"],
+            vecfld_dict["confidence"],
+        )
 
     if ax is None:
         ax = plt.gca()
@@ -561,16 +583,16 @@ def plot_fixed_points(
 
 
 def plot_traj(
-    f,
-    y0,
-    t,
-    args=(),
-    lw=2,
-    background=None,
-    integration_direction="both",
-    save_show_or_return="return",
-    save_kwargs={},
-    ax=None,
+    f: Callable,
+    y0: List,
+    t: List,
+    args: tuple = (),
+    lw: float = 2,
+    background: Optional[str] = None,
+    integration_direction: str = "both",
+    save_show_or_return: str = "return",
+    save_kwargs: dict = {},
+    ax: Axes = None,
 ):
     """Plots a trajectory on a phase portrait.
     code adapted from: http://be150.caltech.edu/2017/handouts/dynamical_systems_approaches.html
@@ -649,17 +671,17 @@ def plot_traj(
 
 
 def plot_separatrix(
-    vecfld,
-    x_range,
-    y_range,
-    t,
-    noise=1e-6,
-    lw=3,
-    vecfld_dict=None,
-    background=None,
-    save_show_or_return="return",
-    save_kwargs={},
-    ax=None,
+    vecfld: VectorField2D,
+    x_range: List,
+    y_range: List,
+    t: List,
+    noise: float = 1e-6,
+    lw: float = 3,
+    vecfld_dict: dict = None,
+    background: Optional[str] = None,
+    save_show_or_return: str = "return",
+    save_kwargs: dict = {},
+    ax: Axes = None,
 ):
     """Plot separatrix on phase portrait.
 
@@ -672,7 +694,7 @@ def plot_separatrix(
         y_range: array_like, shape (2,)
         t : array_like
             Time points for trajectory.
-        noise : tuple, default ()
+        noise : float
             A small noise added to steady states for drawing the separatrix.
         lw : `float`, (default: 2)
             The line width of the trajectory.
@@ -706,9 +728,9 @@ def plot_separatrix(
         color = "tomato"
 
     # No saddle point, no separatrix.
-    if vecfld_dict is None or 'separatrix' not in vecfld_dict.keys():
+    if vecfld_dict is None or "separatrix" not in vecfld_dict.keys():
         if vecfld_dict is not None:
-            X_basis = vecfld_dict['X'][:, :2]
+            X_basis = vecfld_dict["X"][:, :2]
             min_, max_ = X_basis.min(0), X_basis.max(0)
 
             xlim = [
@@ -720,7 +742,7 @@ def plot_separatrix(
                 max_[1] + (max_[1] - min_[1]) * 0.1,
             ]
 
-            vecfld2d = VectorField2D(vecfld, X_data=vecfld_dict['X'])
+            vecfld2d = VectorField2D(vecfld, X_data=vecfld_dict["X"])
             vecfld2d.find_fixed_points_by_sampling(25, xlim, ylim)
 
             fps, ftypes = vecfld2d.get_fixed_points(get_types=True)
@@ -786,53 +808,53 @@ def plot_separatrix(
 
 @docstrings.with_indent(4)
 def topography(
-    adata,
-    basis="umap",
-    fps_basis='umap',
-    x=0,
-    y=1,
-    color="ntr",
-    layer="X",
-    highlights=None,
-    labels=None,
-    values=None,
-    theme=None,
-    cmap=None,
-    color_key=None,
-    color_key_cmap=None,
-    background="white",
-    ncols=4,
-    pointsize=None,
-    figsize=(6, 4),
+    adata: AnnData,
+    basis: str = "umap",
+    fps_basis: str = "umap",
+    x: int = 0,
+    y: int = 1,
+    color: str = "ntr",
+    layer: str = "X",
+    highlights: Optional[list] = None,
+    labels: Optional[list] = None,
+    values: Optional[list] = None,
+    theme: Optional[str] = None,
+    cmap: Optional[str] = None,
+    color_key: Union[dict, list] = None,
+    color_key_cmap: Optional[str] = None,
+    background: Optional[str] = "white",
+    ncols: int = 4,
+    pointsize: Union[None, float] = None,
+    figsize: tuple = (6, 4),
     show_legend="on data",
-    use_smoothed=True,
-    xlim=None,
-    ylim=None,
-    t=None,
-    terms=("streamline", "fixed_points"),
-    init_cells=None,
-    init_states=None,
-    quiver_source="raw",
-    fate="both",
-    approx=False,
-    quiver_size=None,
-    quiver_length=None,
-    density=1,
-    linewidth=1,
-    streamline_color=None,
-    streamline_alpha=0.4,
-    color_start_points=None,
-    markersize=200,
-    marker_cmap=None,
-    save_show_or_return="show",
-    save_kwargs={},
-    aggregate=None,
-    show_arrowed_spines=False,
-    ax=None,
-    sort="raw",
-    frontier=False,
-    s_kwargs_dict={},
-    q_kwargs_dict={},
+    use_smoothed: bool = True,
+    xlim: np.ndarray = None,
+    ylim: np.ndarray = None,
+    t: List = None,
+    terms: tuple = ("streamline", "fixed_points"),
+    init_cells: List = None,
+    init_states: List = None,
+    quiver_source: str = "raw",
+    fate: str = "both",
+    approx: bool = False,
+    quiver_size: Optional[float] = None,
+    quiver_length: Optional[float] = None,
+    density: float = 1,
+    linewidth: float = 1,
+    streamline_color: Optional[str] = None,
+    streamline_alpha: float = 0.4,
+    color_start_points: Optional[str] = None,
+    markersize: float = 200,
+    marker_cmap: Optional[str] = None,
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
+    aggregate: Optional[str] = None,
+    show_arrowed_spines: bool = False,
+    ax: Axes = None,
+    sort: str = "raw",
+    frontier: bool = False,
+    s_kwargs_dict: dict = {},
+    q_kwargs_dict: dict = {},
     **streamline_kwargs_dict,
 ):
     """Plot the streamline, fixed points (attractor / saddles), nullcline, separatrices of a recovered dynamic system
@@ -1010,27 +1032,39 @@ def topography(
     if uns_key not in adata.uns.keys():
 
         if "velocity_" + basis not in adata.obsm_keys():
-            logger.info(f"velocity_{basis} is computed yet. "
-                        f"Projecting the velocity vector to {basis} basis now ...", indent_level=1)
+            logger.info(
+                f"velocity_{basis} is computed yet. " f"Projecting the velocity vector to {basis} basis now ...",
+                indent_level=1,
+            )
             cell_velocities(adata, basis=basis)
 
-        logger.info(f"Vector field for {basis} is not constructed. Constructing it now ...", indent_level=1)
+        logger.info(
+            f"Vector field for {basis} is not constructed. Constructing it now ...",
+            indent_level=1,
+        )
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
 
             if basis == fps_basis:
-                logger.info(f"`basis` and `fps_basis` are all {basis}. Will also map topography ...", indent_level=2)
+                logger.info(
+                    f"`basis` and `fps_basis` are all {basis}. Will also map topography ...",
+                    indent_level=2,
+                )
                 VectorField(adata, basis, map_topography=True)
             else:
                 VectorField(adata, basis)
     if fps_uns_key not in adata.uns.keys():
         if "velocity_" + basis not in adata.obsm_keys():
-            logger.info(f"velocity_{basis} is computed yet. "
-                        f"Projecting the velocity vector to {basis} basis now ...", indent_level=1)
+            logger.info(
+                f"velocity_{basis} is computed yet. " f"Projecting the velocity vector to {basis} basis now ...",
+                indent_level=1,
+            )
             cell_velocities(adata, basis=basis)
 
-        logger.info(f"Vector field for {fps_basis} is not constructed. "
-                    f"Constructing it and mapping its topography now ...", indent_level=1)
+        logger.info(
+            f"Vector field for {fps_basis} is not constructed. " f"Constructing it and mapping its topography now ...",
+            indent_level=1,
+        )
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -1039,21 +1073,25 @@ def topography(
     # elif "VecFld2D" not in adata.uns[uns_key].keys():
     #     with warnings.catch_warnings():
     #         warnings.simplefilter("ignore")
-    # 
+    #
     #         _topology(adata, basis, VecFld=None)
     # elif "VecFld2D" in adata.uns[uns_key].keys() and type(adata.uns[uns_key]["VecFld2D"]) == str:
     #     with warnings.catch_warnings():
     #         warnings.simplefilter("ignore")
-    # 
+    #
     #         _topology(adata, basis, VecFld=None)
 
     vecfld_dict, vecfld = vecfld_from_adata(adata, basis)
-    if vecfld_dict['Y'].shape[1] > 2:
-        logger.info(f"Vector field for {fps_basis} is but its topography is not mapped. "
-                    f"Mapping topography now ...", indent_level=1)
-        new_basis = f'{basis}_{x}_{y}'
-        adata.obsm['X_' + new_basis], adata.obsm['velocity_' + new_basis] = adata.obsm['X_' + basis][:, [x, y]], \
-                                                                              adata.obsm['velocity_' + basis][:, [x, y]]
+    if vecfld_dict["Y"].shape[1] > 2:
+        logger.info(
+            f"Vector field for {fps_basis} is but its topography is not mapped. " f"Mapping topography now ...",
+            indent_level=1,
+        )
+        new_basis = f"{basis}_{x}_{y}"
+        adata.obsm["X_" + new_basis], adata.obsm["velocity_" + new_basis] = (
+            adata.obsm["X_" + basis][:, [x, y]],
+            adata.obsm["velocity_" + basis][:, [x, y]],
+        )
         VectorField(adata, new_basis, dims=[x, y])
         vecfld_dict, vecfld = vecfld_from_adata(adata, new_basis)
 
@@ -1062,15 +1100,19 @@ def topography(
     # need to use "X_basis" to plot on the scatter point space
     if "Xss" not in fps_vecfld_dict:
         # if topology is not mapped for this basis, calculate it now.
-        logger.info(f"Vector field for {fps_basis} is but its topography is not mapped. "
-                    f"Mapping topography now ...", indent_level=1)
+        logger.info(
+            f"Vector field for {fps_basis} is but its topography is not mapped. " f"Mapping topography now ...",
+            indent_level=1,
+        )
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             _topology(adata, fps_basis, VecFld=None)
     else:
-        if fps_vecfld_dict['Xss'].size > 0 and fps_vecfld_dict['Xss'].shape[1] > 2:
-            fps_vecfld_dict['X_basis'], fps_vecfld_dict['Xss'] = vecfld_dict['X'][:, :2], \
-                                                                 vecfld_dict['X'][fps_vecfld_dict['fp_ind'], :2]
+        if fps_vecfld_dict["Xss"].size > 0 and fps_vecfld_dict["Xss"].shape[1] > 2:
+            fps_vecfld_dict["X_basis"], fps_vecfld_dict["Xss"] = (
+                vecfld_dict["X"][:, :2],
+                vecfld_dict["X"][fps_vecfld_dict["fp_ind"], :2],
+            )
 
     xlim, ylim = (
         adata.uns[fps_uns_key]["xlim"] if xlim is None else xlim,
@@ -1078,7 +1120,7 @@ def topography(
     )
 
     if xlim is None or ylim is None:
-        X_basis = vecfld_dict['X'][:, :2]
+        X_basis = vecfld_dict["X"][:, :2]
         min_, max_ = X_basis.min(0), X_basis.max(0)
 
         xlim = [
@@ -1143,7 +1185,11 @@ def topography(
     )
 
     if type(axes_list) != list:
-        axes_list, color_list, font_color = [axes_list], [color_list], [font_color]
+        axes_list, color_list, font_color = (
+            [axes_list],
+            [color_list],
+            [font_color],
+        )
     for i in range(len(axes_list)):
         # ax = axes_list[i]
 
@@ -1201,10 +1247,7 @@ def topography(
                 )
 
         if "nullcline" in terms:
-            axes_list[i] = plot_nullclines(vecfld,
-                                           vecfld_dict,
-                                           background=_background,
-                                           ax=axes_list[i])
+            axes_list[i] = plot_nullclines(vecfld, vecfld_dict, background=_background, ax=axes_list[i])
 
         if "fixed_points" in terms:
             axes_list[i] = plot_fixed_points(
@@ -1217,12 +1260,7 @@ def topography(
             )
 
         if "separatrices" in terms:
-            axes_list[i] = plot_separatrix(vecfld,
-                                           xlim,
-                                           ylim,
-                                           t=t,
-                                           background=_background,
-                                           ax=axes_list[i])
+            axes_list[i] = plot_separatrix(vecfld, xlim, ylim, t=t, background=_background, ax=axes_list[i])
 
         if init_states is not None and "trajectory" in terms:
             if not approx:
@@ -1269,7 +1307,11 @@ def topography(
             quiver_kwargs = update_dict(quiver_kwargs, q_kwargs_dict)
             # axes_list[i].quiver(X_grid[:, 0], X_grid[:, 1], V_grid[:, 0], V_grid[:, 1], **quiver_kwargs)
             axes_list[i].quiver(
-                df.iloc[:, 0], df.iloc[:, 1], df.iloc[:, 2], df.iloc[:, 3], **quiver_kwargs
+                df.iloc[:, 0],
+                df.iloc[:, 1],
+                df.iloc[:, 2],
+                df.iloc[:, 3],
+                **quiver_kwargs,
             )  # color='red',  facecolors='gray'
 
     if save_show_or_return == "save":

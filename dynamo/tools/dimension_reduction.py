@@ -1,9 +1,10 @@
-import warnings
 from .utils_reduceDimension import prepare_dim_reduction, run_reduce_dim
 from .connectivity import neighbors
 import numpy as np
 import anndata
 from typing import Union
+from ..dynamo_logger import LoggerManager
+from ..utils import copy_adata
 
 
 def reduceDimension(
@@ -17,10 +18,13 @@ def reduceDimension(
     n_components: int = 2,
     n_neighbors: int = 30,
     reduction_method: str = "umap",
+    embedding_key: Union[str, None] = None,
+    neighbor_key: Union[str, None] = None,
     enforce: bool = False,
     cores: int = 1,
+    copy: bool = False,
     **kwargs,
-):
+) -> Union[anndata.AnnData, None]:
     """Compute a low dimension reduction projection of an annodata object first with PCA, followed by non-linear
     dimension reduction methods
 
@@ -28,43 +32,57 @@ def reduceDimension(
     ---------
         adata: :class:`~anndata.AnnData`
             an Annodata object
-        X_data: `np.ndarray` (default: `None`)
+        X_data:
             The user supplied data that will be used for dimension reduction directly.
-        genes: `list` or None (default: `None`)
-            The list of genes that will be used to subset the data for dimension reduction and clustering. If `None`, all
-            genes will be used.
-        layer: `str` or None (default: `None`)
+        genes:
+            The list of genes that will be used to subset the data for dimension reduction and clustering. If `None`,
+            all genes will be used.
+        layer:
             The layer that will be used to retrieve data for dimension reduction and clustering. If `None`, .X is used.
-        basis: `str` or None (default: `None`)
+        basis:
             The space that will be used for clustering. Valid names includes, for example, `pca`, `umap`, `velocity_pca`
             (that is, you can use velocity for clustering), etc.
-        dims: `list` or None (default: `None`)
+        dims:
             The list of dimensions that will be selected for clustering. If `None`, all dimensions will be used.
-        n_pca_components: 'int' (optional, default 30)
+        n_pca_components:
             Number of PCA components.
-        n_components: 'int' (optional, default 2)
+        n_components:
             The dimension of the space to embed into.
-        n_neighbors: 'int' (optional, default 30)
+        n_neighbors:
             Number of nearest neighbors when constructing adjacency matrix.
-        reduction_method: 'str' (optional, default umap)
+        reduction_method:
             Non-linear dimension reduction method to further reduce dimension based on the top n_pca_components PCA
             components. Currently, PSL
             (probablistic structure learning, a new dimension reduction by us), tSNE (fitsne instead of traditional tSNE
             used) or umap are supported.
-        cores: `int` (optional, default `1`)
+        embedding_key:
+            The str in .obsm that will be used as the key to save the reduced embedding space. By default it is None and
+            embedding key is set as layer + reduction_method. If layer is None, it will be "X_neighbors".
+        neighbor_key:
+            The str in .uns that will be used as the key to save the nearest neighbor graph. By default it is None and
+            neighbor_key key is set as layer + "_neighbors". If layer is None, it will be "X_neighbors".
+        cores:
             Number of cores. Used only when the tSNE reduction_method is used.
 
     Returns
     -------
-        Returns an updated `adata` with reduced dimension data for data from different layers.
+       adata: :class:`~anndata.AnnData`
+            An new or updated anndata object, based on copy parameter, that are updated with reduced dimension data for
+            data from different layers.
     """
 
+    logger = LoggerManager.gen_logger("dynamo-dimension-reduction")
+    logger.log_time()
+
+    adata = copy_adata(adata) if copy else adata
+
+    logger.info("retrive data for non-linear dimension reduction...", indent_level=1)
     if X_data is None:
         X_data, n_components, has_basis, _ = prepare_dim_reduction(
             adata,
             genes=genes,
             layer=layer,
-            basis=reduction_method,
+            basis=basis,
             dims=dims,
             n_pca_components=n_pca_components,
             n_components=n_components,
@@ -73,15 +91,18 @@ def reduceDimension(
         has_basis = False
 
     if has_basis and not enforce:
-        warnings.warn(
+        logger.warning(
             f"adata already have basis {reduction_method}. dimension reduction {reduction_method} will be skipped! \n"
             f"set enforce=True to re-performing dimension reduction."
         )
 
-    embedding_key = "X_" + reduction_method if layer is None else layer + "_" + reduction_method
-    neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
+    if embedding_key is None:
+        embedding_key = "X_" + reduction_method if layer is None else layer + "_" + reduction_method
+    if neighbor_key is None:
+        neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
 
     if enforce or not has_basis:
+        logger.info(f"perform {reduction_method}...", indent_level=1)
         adata = run_reduce_dim(
             adata,
             X_data,
@@ -97,7 +118,11 @@ def reduceDimension(
     if neighbor_key not in adata.uns_keys():
         neighbors(adata)
 
-    return adata
+    logger.finish_progress(progress_name="dimension_reduction projection")
+
+    if copy:
+        return adata
+    return None
 
 
 # @docstrings.with_indent(4)
@@ -123,9 +148,12 @@ def reduceDimension(
 #     Returns
 #     -------
 #         graph, knn_indices, knn_dists, embedding_, mapper
-#             A tuple of kNN graph (`graph`), indices of nearest neighbors of each cell (knn_indicies), distances of nearest
-#             neighbors (knn_dists), the low dimensional embedding (embedding_) and finally the fit mapper from umap which
-#             can be used to transform new high dimensional data to low dimensional space or perofrm inverse transform of
+#             A tuple of kNN graph (`graph`), indices of nearest neighbors of each cell (knn_indicies), distances of
+#             nearest
+#             neighbors (knn_dists), the low dimensional embedding (embedding_) and finally the fit mapper from umap
+#             which
+#             can be used to transform new high dimensional data to low dimensional space or perofrm inverse transform
+#             of
 #             new data back to high dimension.
 #     """
 #

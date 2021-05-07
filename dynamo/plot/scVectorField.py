@@ -1,6 +1,10 @@
 import numpy as np
 import pandas as pd
 from scipy.sparse import issparse
+from matplotlib.axes import Axes
+from anndata import AnnData
+from typing import List, Union, Optional
+from matplotlib.figure import Figure
 
 from .scatters import scatters
 from .utils import (
@@ -12,7 +16,11 @@ from .utils import (
 )
 from ..tools.dimension_reduction import reduceDimension
 from ..tools.cell_velocities import cell_velocities
-from ..tools.Markov import prepare_velocity_grid_data, velocity_on_grid, grid_velocity_filter
+from ..tools.Markov import (
+    prepare_velocity_grid_data,
+    velocity_on_grid,
+    grid_velocity_filter,
+)
 from ..vectorfield.topography import VectorField
 from ..tools.utils import update_dict
 from ..vectorfield.utils import vecfld_from_adata
@@ -88,24 +96,24 @@ def plot_LIC_gray(tex):
 
 
 def line_integral_conv(
-    adata,
-    basis="umap",
-    U_grid=None,
-    V_grid=None,
-    xy_grid_nums=[50, 50],
-    method="yt",
-    cmap="viridis",
-    normalize=False,
-    density=1,
+    adata: AnnData,
+    basis: str = "umap",
+    U_grid: Optional[np.ndarray] = None,
+    V_grid: Optional[np.ndarray] = None,
+    xy_grid_nums: Union[tuple, list] = [50, 50],
+    method: str = "yt",
+    cmap: str = "viridis",
+    normalize: bool = False,
+    density: float = 1,
     lim=(0, 1),
-    const_alpha=False,
-    kernellen=100,
-    V_threshold=None,
-    vector="velocity",
+    const_alpha: bool = False,
+    kernellen: float = 100,
+    V_threshold: Optional[float] = None,
+    vector: str = "velocity",
     file=None,
-    save_show_or_return="show",
-    save_kwargs={},
-    g_kwargs_dict={},
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
+    g_kwargs_dict: dict = {},
 ):
     """Visualize vector field with quiver, streamline and line integral convolution (LIC), using velocity estimates on a grid from the associated data.
     A white noise background will be used for texture as default. Adjust the bounds of lim in the range of [0, 1] which applies
@@ -231,7 +239,10 @@ def line_integral_conv(
         data["velocity_x"] = (velocity_x, "km/s")
         data["velocity_y"] = (velocity_y, "km/s")
         data["velocity_z"] = (velocity_z, "km/s")
-        data["velocity_sum"] = (np.sqrt(velocity_x ** 2 + velocity_y ** 2), "km/s")
+        data["velocity_sum"] = (
+            np.sqrt(velocity_x ** 2 + velocity_y ** 2),
+            "km/s",
+        )
 
         ds = yt.load_uniform_grid(data, data["velocity_x"][0].shape, length_unit=(1.0, "Mpc"))
         slc = yt.SlicePlot(ds, "z", ["velocity_sum"])
@@ -287,38 +298,38 @@ def line_integral_conv(
 
 @docstrings.with_indent(4)
 def cell_wise_vectors(
-    adata,
-    basis="umap",
-    x=0,
-    y=1,
-    color="ntr",
-    layer="X",
-    highlights=None,
-    labels=None,
-    values=None,
-    theme=None,
-    cmap=None,
-    color_key=None,
-    color_key_cmap=None,
-    background="white",
-    ncols=4,
-    pointsize=None,
-    figsize=(6, 4),
+    adata: AnnData,
+    basis: str = "umap",
+    x: int = 0,
+    y: int = 1,
+    color: str = "ntr",
+    layer: str = "X",
+    highlights: Optional[list] = None,
+    labels: Optional[list] = None,
+    values: Optional[list] = None,
+    theme: Optional[str] = None,
+    cmap: Optional[str] = None,
+    color_key: Union[dict, list] = None,
+    color_key_cmap: Optional[str] = None,
+    background: Optional[str] = "white",
+    ncols: int = 4,
+    pointsize: Union[None, float] = None,
+    figsize: tuple = (6, 4),
     show_legend="on data",
-    use_smoothed=True,
-    ax=None,
-    sort="raw",
-    aggregate=None,
-    show_arrowed_spines=True,
-    inverse=False,
-    cell_inds="all",
-    quiver_size=None,
-    quiver_length=None,
-    vector="velocity",
-    frontier=False,
-    save_show_or_return="show",
-    save_kwargs={},
-    s_kwargs_dict={},
+    use_smoothed: bool = True,
+    ax: Optional[Axes] = None,
+    sort: str = "raw",
+    aggregate: Optional[str] = None,
+    show_arrowed_spines: bool = True,
+    inverse: True = False,
+    cell_inds: str = "all",
+    quiver_size: Optional[float] = None,
+    quiver_length: Optional[float] = None,
+    vector: str = "velocity",
+    frontier: bool = False,
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
+    s_kwargs_dict: dict = {},
     **cell_wise_kwargs,
 ):
     """Plot the velocity or acceleration vector of each cell.
@@ -520,42 +531,43 @@ def cell_wise_vectors(
 
 @docstrings.with_indent(4)
 def grid_vectors(
-    adata,
-    basis="umap",
-    x=0,
-    y=1,
-    color="ntr",
-    layer="X",
-    highlights=None,
-    labels=None,
-    values=None,
-    theme=None,
-    cmap=None,
-    color_key=None,
-    color_key_cmap=None,
-    background="white",
-    ncols=4,
-    pointsize=None,
-    figsize=(6, 4),
+    adata: AnnData,
+    basis: str = "umap",
+    x: int = 0,
+    y: int = 1,
+    color: str = "ntr",
+    layer: str = "X",
+    highlights: Optional[list] = None,
+    labels: Optional[list] = None,
+    values: Optional[list] = None,
+    theme: Optional[str] = None,
+    cmap: Optional[str] = None,
+    color_key: Union[dict, list] = None,
+    color_key_cmap: Optional[str] = None,
+    background: Optional[str] = "white",
+    ncols: int = 4,
+    pointsize: Union[None, float] = None,
+    figsize: tuple = (6, 4),
     show_legend="on data",
-    use_smoothed=True,
-    ax=None,
-    sort="raw",
-    aggregate=None,
-    show_arrowed_spines=True,
-    inverse=False,
-    cell_inds="all",
-    method="gaussian",
-    xy_grid_nums=[50, 50],
-    cut_off_velocity=True,
-    quiver_size=None,
-    quiver_length=None,
-    vector="velocity",
-    frontier=False,
-    save_show_or_return="show",
-    save_kwargs={},
-    s_kwargs_dict={},
-    q_kwargs_dict={},
+    use_smoothed: bool = True,
+    ax: Optional[Axes] = None,
+    sort: str = "raw",
+    # To-do: aggregate position not same as what is in scatters.py
+    aggregate: Optional[str] = None,
+    show_arrowed_spines: bool = True,
+    inverse: bool = False,
+    cell_inds: Union[str, list] = "all",
+    method: str = "gaussian",
+    xy_grid_nums: list = [50, 50],
+    cut_off_velocity: bool = True,
+    quiver_size: Optional[float] = None,
+    quiver_length: Optional[float] = None,
+    vector: str = "velocity",
+    frontier: bool = False,
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
+    s_kwargs_dict: dict = {},
+    q_kwargs_dict: dict = {},
     **grid_kwargs,
 ):
     """Plot the velocity or acceleration vector of each cell on a grid.
@@ -652,7 +664,7 @@ def grid_vectors(
             cell_inds = [adata.obs_names.to_list().index(i) for i in cell_inds]
         ix_choice = cell_inds
 
-    X, V = X[ix_choice, :], V[ix_choice, :] # 0, 0
+    X, V = X[ix_choice, :], V[ix_choice, :]  # 0, 0
 
     grid_kwargs_dict = {
         "density": None,
@@ -690,7 +702,12 @@ def grid_vectors(
             V_emb = func(X)
             V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[:, None]
             X_grid, V_grid = grid_velocity_filter(
-                V_emb=V, neighs=neighs, p_mass=p_mass, X_grid=X_grid, V_grid=V_grid, **grid_kwargs_dict
+                V_emb=V,
+                neighs=neighs,
+                p_mass=p_mass,
+                X_grid=X_grid,
+                V_grid=V_grid,
+                **grid_kwargs_dict,
             )
         else:
             X_grid, V_grid = (
@@ -698,7 +715,13 @@ def grid_vectors(
                 np.array([V_grid[:, 0].reshape((N, N)), V_grid[:, 1].reshape((N, N))]),
             )
     elif method.lower() == "gaussian":
-        X_grid, V_grid, D = velocity_on_grid(X, V, xy_grid_nums, cut_off_velocity=cut_off_velocity, **grid_kwargs_dict)
+        X_grid, V_grid, D = velocity_on_grid(
+            X,
+            V,
+            xy_grid_nums,
+            cut_off_velocity=cut_off_velocity,
+            **grid_kwargs_dict,
+        )
     elif "grid_velocity_" + basis in adata.uns.keys():
         X_grid, V_grid, _ = (
             adata.uns["grid_velocity_" + basis]["VecFld"]["X_grid"],
@@ -809,42 +832,43 @@ def grid_vectors(
 
 @docstrings.with_indent(4)
 def streamline_plot(
-    adata,
-    basis="umap",
-    x=0,
-    y=1,
-    color="ntr",
-    layer="X",
-    highlights=None,
-    labels=None,
-    values=None,
-    theme=None,
-    cmap=None,
-    color_key=None,
-    color_key_cmap=None,
-    background="white",
-    ncols=4,
-    pointsize=None,
-    figsize=(6, 4),
+    adata: AnnData,
+    basis: str = "umap",
+    x: int = 0,
+    y: int = 1,
+    color: str = "ntr",
+    layer: str = "X",
+    highlights: Optional[list] = None,
+    labels: Optional[list] = None,
+    values: Optional[list] = None,
+    theme: Optional[str] = None,
+    cmap: Optional[str] = None,
+    color_key: Union[dict, list] = None,
+    color_key_cmap: Optional[str] = None,
+    background: Optional[str] = "white",
+    ncols: int = 4,
+    pointsize: Union[None, float] = None,
+    figsize: tuple = (6, 4),
     show_legend="on data",
-    use_smoothed=True,
-    ax=None,
-    sort="raw",
-    aggregate=None,
-    show_arrowed_spines=True,
-    inverse=False,
-    cell_inds="all",
-    method="gaussian",
-    xy_grid_nums=[50, 50],
-    cut_off_velocity=True,
-    density=1,
-    linewidth=1,
-    streamline_alpha=1,
-    vector="velocity",
-    frontier=False,
-    save_show_or_return="show",
-    save_kwargs={},
-    s_kwargs_dict={},
+    use_smoothed: bool = True,
+    ax: Optional[Axes] = None,
+    sort: str = "raw",
+    # To-do: aggregate position not same as what is in scatters.py
+    aggregate: Optional[str] = None,
+    show_arrowed_spines: bool = True,
+    inverse: bool = False,
+    cell_inds: Union[str, list] = "all",
+    method: str = "gaussian",
+    xy_grid_nums: list = [50, 50],
+    cut_off_velocity: bool = True,
+    density: float = 1,
+    linewidth: float = 1,
+    streamline_alpha: float = 1,
+    vector: str = "velocity",
+    frontier: bool = False,
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
+    s_kwargs_dict: dict = {},
     **streamline_kwargs,
 ):
     """Plot the velocity vector of each cell.
@@ -936,7 +960,7 @@ def streamline_plot(
             cell_inds = [adata.obs_names.to_list().index(i) for i in cell_inds]
         ix_choice = cell_inds
 
-    X, V = X[ix_choice, :], V[ix_choice, :] # 0, 0
+    X, V = X[ix_choice, :], V[ix_choice, :]  # 0, 0
 
     grid_kwargs_dict = {
         "density": None,
@@ -974,7 +998,12 @@ def streamline_plot(
             V_emb = func(X)
             V_grid = (V_emb[neighs] * weight[:, :, None]).sum(1) / np.maximum(1, p_mass)[:, None]
             X_grid, V_grid = grid_velocity_filter(
-                V_emb=V, neighs=neighs, p_mass=p_mass, X_grid=X_grid, V_grid=V_grid, **grid_kwargs_dict
+                V_emb=V,
+                neighs=neighs,
+                p_mass=p_mass,
+                X_grid=X_grid,
+                V_grid=V_grid,
+                **grid_kwargs_dict,
             )
         else:
             X_grid, V_grid = (
@@ -983,7 +1012,13 @@ def streamline_plot(
             )
 
     elif method.lower() == "gaussian":
-        X_grid, V_grid, D = velocity_on_grid(X, V, xy_grid_nums, cut_off_velocity=cut_off_velocity, **grid_kwargs_dict)
+        X_grid, V_grid, D = velocity_on_grid(
+            X,
+            V,
+            xy_grid_nums,
+            cut_off_velocity=cut_off_velocity,
+            **grid_kwargs_dict,
+        )
     elif "grid_velocity_" + basis in adata.uns.keys():
         X_grid, V_grid, _ = (
             adata.uns["grid_velocity_" + basis]["VecFld"]["X_grid"],
@@ -1109,13 +1144,13 @@ def streamline_plot(
 
 
 def plot_energy(
-    adata,
-    basis=None,
-    vecfld_dict=None,
-    figsize=None,
-    fig=None,
-    save_show_or_return="show",
-    save_kwargs={},
+    adata: AnnData,
+    basis: Optional[str] = None,
+    vecfld_dict: Optional[dict] = None,
+    figsize: Optional[tuple] = None,
+    fig: Optional[Figure] = None,
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
 ):
     """Plot the energy and energy change rate over each optimization iteration.
 

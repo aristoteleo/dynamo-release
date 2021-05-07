@@ -805,7 +805,7 @@ def VectorField(
     if result_key is None:
         vf_key = "VecFld" if basis is None else "VecFld_" + basis
     else:
-        vf_key = result_key if basis is None else result_key + '_' + basis
+        vf_key = result_key if basis is None else result_key + "_" + basis
 
     vf_dict["method"] = method
     if basis is not None:
@@ -853,18 +853,17 @@ def VectorField(
                 **tp_kwargs,
             )
     if pot_curl_div:
-        if basis in ["pca", "umap", "tsne", "diffusion_map", "trimap"]:
-            logger.info(
-                "Running ddhodge to estimate vector field based pseudotime..."
-            )
+        logger.info(
+            f"Running ddhodge to estimate vector field based pseudotime in {basis} basis..."
+        )
 
-            ddhodge(adata, basis=basis, cores=cores)
-            if X.shape[1] == 2:
-                logger.info("Computing curl...")
-                curl(adata, basis=basis)
+        ddhodge(adata, basis=basis, cores=cores)
+        if X.shape[1] == 2:
+            logger.info("Computing curl...")
+            curl(adata, basis=basis)
 
-            logger.info("Computing divergence...")
-            divergence(adata, basis=basis)
+        logger.info("Computing divergence...")
+        divergence(adata, basis=basis)
 
     control_point, inlier_prob, valid_ids = (
         "control_point_" + basis if basis is not None else "control_point",
@@ -903,5 +902,66 @@ def VectorField(
     if return_vf_object:
         return VecFld
     elif copy:
+        return adata
+    return None
+
+
+def assign_fixedpoints(
+    adata: anndata.AnnData,
+    basis: str = "pca",
+    cores: int = 1,
+    copy: bool = False,
+) -> Union[None, anndata.AnnData]:
+    """Assign each cell in our data to a fixed point.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains reconstructed vector field in the `basis` space.
+        basis:
+            The vector field function for the `basis` that will be used to assign fixed points for each cell.
+        cores:
+            Number of cores to run the fixed-point search for each cell.
+        copy:
+            Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments and
+            returning `None`.
+
+    Returns
+    -------
+        adata: :class:`Union[None, anndata.AnnData]`
+            If `copy` is set to False, return None but the adata object will updated with a `fps_assignment` in .obs as
+            well as the `'fps_assignment_' + basis` in the .uns.
+            If `copy` is set to True, a deep copy of the original `adata` object is returned.
+    """
+    logger = LoggerManager.gen_logger("dynamo-assign_fixedpoints")
+    logger.info("assign_fixedpoints begins...", indent_level=1)
+    logger.log_time()
+    adata = copy_adata(adata) if copy else adata
+
+    VecFld, func = vecfld_from_adata(adata, basis=basis)
+
+    vecfld_class = base_vectorfield(
+        X=VecFld["X"],
+        V=VecFld["Y"],
+        func=func,
+    )
+
+    (
+        X,
+        valid_fps_type_assignment,
+        assignment_id,
+    ) = vecfld_class.assign_fixed_points(cores=cores)
+    assignment_id = [
+        str(int(i)) if np.isfinite(i) else None for i in assignment_id
+    ]
+    adata.obs["fps_assignment"] = assignment_id
+    adata.uns["fps_assignment_" + basis] = {
+        "X": X,
+        "valid_fps_type_assignment": valid_fps_type_assignment,
+        "assignment_id": assignment_id,
+    }
+
+    logger.finish_progress("assign_fixedpoints")
+    if copy:
         return adata
     return None

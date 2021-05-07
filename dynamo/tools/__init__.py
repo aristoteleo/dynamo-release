@@ -86,7 +86,7 @@ from .markers import (
 # Sampling methods
 from .sampling import TRNET, trn, sample_by_velocity, lhsclassic, sample
 
-from .utils import cell_norm, table_rank_dict, index_gene
+from .utils import cell_norm, table_rank_dict, index_gene, select_cell, select, AnnDataPredicate
 
 # cell proliferation and death:
 from .growth import score_cells, cell_growth_rate, n_descentants, growth_rate

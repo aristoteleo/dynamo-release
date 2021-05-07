@@ -10,15 +10,14 @@ from test_utils import *
 logger = LoggerManager.get_main_logger()
 
 
+@pytest.fixture
+def adata():
+    return gen_or_read_zebrafish_data()
+
+
 def test_simple_cluster_community_adata(adata):
     dyn.tl.louvain(adata)
     dyn.tl.leiden(adata)
-    # to-do: fix the following test cases
-    # initial_membership = np.random.randint(
-    #     low=0, high=min(100, len(adata)), size=len(adata), dtype=int
-    # )
-    # print(initial_membership)
-    # dyn.tl.leiden(adata, initial_membership=initial_membership)
     dyn.tl.infomap(adata)
 
     try:
@@ -30,10 +29,6 @@ def test_simple_cluster_community_adata(adata):
         print("################################################")
 
     dyn.tl.leiden(adata, directed=True)
-    initial_membership = np.random.randint(
-        low=0, high=100, size=len(adata), dtype=int
-    )
-    # dyn.tl.leiden(adata, directed=True, initial_membership=initial_membership)
     dyn.tl.infomap(adata, directed=True)
     assert np.all(adata.obs["louvain"] != -1)
     assert np.all(adata.obs["leiden"] != -1)
@@ -74,20 +69,26 @@ def test_simple_cluster_keys(adata):
     # )
 
 
+def test_leiden_membership_input(adata):
+    # to-do: fix the following test cases
+    # somehow this initial member ship works before, but not now
+    initial_membership = np.random.randint(
+        low=0, high=min(100, len(adata)), size=len(adata), dtype=int
+    )
+    dyn.tl.leiden(adata, initial_membership=initial_membership)
+
+    initial_membership = np.random.randint(
+        low=0, high=100, size=len(adata), dtype=int
+    )
+    dyn.tl.leiden(adata, directed=True, initial_membership=initial_membership)
+
+
 if __name__ == "__main__":
-    # generate data if needed
-    if not os.path.exists(test_zebrafish_data_path):
-        print("generating test data...")
-        gen_zebrafish_test_data()
-
-    print("reading test data...")
-    # To-do: use a fixture in future
-    adata = dyn.read_h5ad(test_zebrafish_data_path)
-    print("******acc layer: ", adata.layers["curvature"])
-    print(adata)
-
+    adata = gen_or_read_zebrafish_data()
     print("tests begin...")
+
     ######### testing begins here #########
+    test_leiden_membership_input(adata)
     test_simple_cluster_community_adata(adata)
     test_simple_cluster_subset(adata)
     test_simple_cluster_keys(adata)
