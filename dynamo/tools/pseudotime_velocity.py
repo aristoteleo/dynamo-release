@@ -10,6 +10,10 @@ from .connectivity import (
     adj_to_knn,
     knn_to_adj,
 )
+from ..external.hodge import (
+    build_graph,
+    gradop,
+)
 
 
 def gradient(E, f, tol=1e-5):
@@ -126,6 +130,10 @@ def pseudotime_velocity(
             T[i, 1:] = weights_scale
 
         T = knn_to_adj(knn, T)
+    elif method == "ddhodge":
+        grad_ddhodge = gradop(build_graph(E)).dot(pseudotime)
+
+        T = csr_matrix((grad_ddhodge, (E.nonzero())), shape=E.shape)
 
     delta_x = projection_with_transition_matrix(T.shape[0], T, adata.obsm[embedding_key], True)
     adata.obsm[velocity_key] = delta_x
