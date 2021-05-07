@@ -16,6 +16,7 @@ from .cell_velocities import (
     diffusion,
     expected_return_time,
 )
+from .pseudotime_velocity import pseudotime_velocity
 
 from .dynamics import dynamics
 
