@@ -14,6 +14,7 @@ from .graph_operators import (
     build_graph,
     gradop,
 )
+from dynamo.dynamo_logger import LoggerManager
 
 
 def gradient(E, f, tol=1e-5):
@@ -69,7 +70,9 @@ def pseudotime_velocity(
     ekey: str = "M_s",
     vkey: str = "velocity_S",
     add_tkey: str = "pseudotime_transition_matrix",
-    method: str = "dhoge",
+    method: str = "hodge",
+    dynamics_info: bool = False,
+    unspliced_RNA: bool = False,
 ):
     """Embrace RNA velocity and velocity vector field analysis for pseudotime.
 
@@ -98,9 +101,15 @@ def pseudotime_velocity(
             The dictionary key that will be used to save the estimated velocity values in the layers attribute.
         add_tkey: str (default: `pseudotime_transition_matrix`)
             The dictionary key that will be used to keep the pseudotime-based transition matrix.
-        method:
+        method: str (default: `hodge`)
             Which pseudotime to vector field method to be used. There are three different methods, `hodge`, `naive`,
             `gradient`. By default the `hodge` method will be used.
+        dynamics_info: bool (default: `False`)
+            Whether to add dynamics info (a dictionary (with `dynamics` key to the .uns) to your adata object
+            which is required for downstream velocity and vector field analysis.
+        unspliced_RNA: bool (default: `False`)
+            Whether to add a unspliced layer to your adata object which is required for downstream velocity and
+            vector field analysis.
 
     Returns
     -------
@@ -109,20 +118,37 @@ def pseudotime_velocity(
             pseudotime based transition matrix as well as the pseudotime based RNA velocity.
     """
 
+    logger = LoggerManager.get_main_logger()
+    logger.info(
+        "Embrace RNA velocity and velocity vector field analysis for pseudotime...",
+    )
+
+    logger.info(
+        "Retrieve neighbor graph and pseudotime...",
+    )
     embedding_key, velocity_key = "X_" + basis, "velocity_" + basis
     E = adata.obsp[adj_key]
-    pseudotime_vec = adata.obs[pseudotime]
+    pseudotime_vec = adata.obs[pseudotime].values
 
-    if method == "gradient":
-        T = pseudotime_transition(E, pseudotime, laplace_weight=10)
-        delta_x = projection_with_transition_matrix(T.shape[0], T, pseudotime_vec, True)
+    logger.info(
+        f"Computing transition graph via calculating pseudotime gradient with {method} method...",
+    )
 
-        adata.obsm[velocity_key] = delta_x
-    elif method == "knn":
+    if method == "hodge":
+        grad_ddhodge = gradop(build_graph(E)).dot(pseudotime_vec)
+
+        T = csr_matrix((grad_ddhodge, (E.nonzero())), shape=E.shape)
+
+    elif method == "gradient":
+        T = pseudotime_transition(E, pseudotime_vec, laplace_weight=10)
+
+    elif method == "naive":
         knn, dist = adj_to_knn(E, n_neighbors=31)
         T = np.zeros((knn.shape[0], 31))
 
+        logger.log_time()
         for neighbors, distances, i in zip(knn, dist, np.arange(knn.shape[0])):
+            logger.report_progress(count=i, total=knn.shape[0])
             meanDis = np.mean(distances[1:])
             weights = distances[1:] / meanDis
             weights_exp = np.exp(weights)
@@ -132,17 +158,52 @@ def pseudotime_velocity(
             weights_scale = weights_exp / sumW
             weights_scale *= np.sign(pseudotime_diff)
             T[i, 1:] = weights_scale
+        logger.finish_progress(progress_name="Iterating through each cell...")
 
         T = knn_to_adj(knn, T)
-    elif method == "hoge":
-        grad_ddhodge = gradop(build_graph(E)).dot(pseudotime)
+    else:
+        raise Exception(f"{method} method is not supported. only `hodge`, `gradient` and `naive` method is supported!")
 
-        T = csr_matrix((grad_ddhodge, (E.nonzero())), shape=E.shape)
-
+    logger.info("Use pseudotime transition matrix to learn low dimensional velocity projection.")
     delta_x = projection_with_transition_matrix(T.shape[0], T, adata.obsm[embedding_key], True)
+    logger.info_insert_adata(velocity_key, "obsm")
     adata.obsm[velocity_key] = delta_x
 
+    logger.info("Use pseudotime transition matrix to learn gene-wise velocity vectors.")
     delta_X = projection_with_transition_matrix(T.shape[0], T, adata.layers[ekey].A, True)
+    logger.info_insert_adata(vkey, "layers")
     adata.layers[vkey] = csr_matrix(delta_X)
 
+    logger.info_insert_adata(add_tkey, "obsp")
     adata.obsp[add_tkey] = T
+
+    if dynamics_info:
+        if "dynamics" not in adata.uns["dynamics"]:
+            logger.info_insert_adata("dynamics", "uns")
+            adata.uns["dynamics"] = {}
+
+        logger.info_insert_adata("has_labeling", "uns['has_labeling']", indent_level=2)
+        adata.uns["dynamics"]["has_labeling"] = False
+
+        logger.info_insert_adata("has_splicing", "uns['has_labeling']", indent_level=2)
+        adata.uns["dynamics"]["has_splicing"] = True
+
+        logger.info_insert_adata("splicing_labeling", "uns['has_labeling']", indent_level=2)
+        adata.uns["dynamics"]["splicing_labeling"] = False
+
+        logger.info_insert_adata("experiment_type", "uns['has_labeling']", indent_level=2)
+        adata.uns["dynamics"]["experiment_type"] = "conventional"
+
+    if unspliced_RNA:
+        logger.info("set velocity_S to be the unspliced RNA.")
+
+        if ekey.startswith("M_s"):
+            logger.info_insert_adata("M_u", "layers", indent_level=2)
+            adata.layers["M_u"] = adata.layers["velocity_S"].copy()
+        else:
+            logger.info_insert_adata("X_spliced", "layers", indent_level=2)
+            adata.layers["X_spliced"] = adata.layers["velocity_S"].copy()
+
+        logger.info("set gamma to be 0 in .var. so that velocity_S = M_u.")
+        logger.info_insert_adata("gamma", "var", indent_level=2)
+        adata.var["gamma"] = 0
