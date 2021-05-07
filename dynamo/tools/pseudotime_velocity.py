@@ -13,8 +13,6 @@ from .connectivity import (
 
 
 def gradient(E, f, tol=1e-5):
-    G = csr_matrix(E.shape)
-
     if issparse(E):
         row, col = E.nonzero()
         val = E.data
@@ -22,16 +20,16 @@ def gradient(E, f, tol=1e-5):
         row, col = np.where(E != 0)
         val = E[E != 0]
 
-    for i, j, k in zip(list(row), list(col), list(val)):
-        if i != j and np.abs(k) > tol:
-            G[i, j] = f[j] - f[i]
+    G_i, G_j, G_val = np.zeros_like(row), np.zeros_like(col), np.zeros_like(val)
 
-    # # too slow
-    # n = E.shape[0]
-    # for i in range(n):
-    #     for j in range(n):
-    #         if i != j and np.abs(E[i, j]) > tol:
-    #             G[i, j] = f[j] - f[i]
+    for ind, i, j, k in zip(np.arange(len(row)), list(row), list(col), list(val)):
+        if i != j and np.abs(k) > tol:
+            G_i[ind], G_j[ind] = i, j
+            G_val[ind] = f[j] - f[i]
+
+    valid_ind = G_val != 0
+    G = csr_matrix((G_val[valid_ind], (G_i[valid_ind], G_j[valid_ind])), shape=E.shape)
+    G.eliminate_zeros()
 
     return G
 
@@ -46,6 +44,9 @@ def laplacian(E, convention="graph"):
         L = np.diag(np.sum(A, 0)) - A
     if convention == "diffusion":
         L = -L
+
+    L = csr_matrix(L)
+
     return L
 
 
@@ -63,7 +64,7 @@ def pseudotime_velocity(
     adj_key: str = "distances",
     ekey: str = "M_s",
     vkey: str = "velocity_S",
-    method: str = "gradient",
+    method: str = "knn",
 ):
     """Embrace RNA velocity and velocity vector field analysis for pseudotime.
 
@@ -109,7 +110,7 @@ def pseudotime_velocity(
         delta_x = projection_with_transition_matrix(T.shape[0], T, pseudotime_vec, True)
 
         adata.obsm[velocity_key] = delta_x
-    elif method == "exponent":
+    elif method == "knn":
         knn, dist = adj_to_knn(E, n_neighbors=31)
         T = np.zeros((knn.shape[0], 31))
 
@@ -126,6 +127,8 @@ def pseudotime_velocity(
 
         T = knn_to_adj(knn, T)
 
-    delta_X = projection_with_transition_matrix(T.shape[0], T, adata.layers[ekey].A, True)
+    delta_x = projection_with_transition_matrix(T.shape[0], T, adata.obsm[embedding_key], True)
+    adata.obsm[velocity_key] = delta_x
 
-    adata.layers[vkey] = delta_X
+    delta_X = projection_with_transition_matrix(T.shape[0], T, adata.layers[ekey].A, True)
+    adata.layers[vkey] = csr_matrix(delta_X)
