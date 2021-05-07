@@ -10,7 +10,7 @@ from .connectivity import (
     adj_to_knn,
     knn_to_adj,
 )
-from ..external.hodge import (
+from .graph_operators import (
     build_graph,
     gradop,
 )
