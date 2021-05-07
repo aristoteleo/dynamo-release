@@ -762,6 +762,101 @@ def exp_by_groups(
         return g
 
 
+def _compute_top_genes_df(
+    adata: AnnData,
+    store_key: str = "highest_frac_genes",
+    n_top: int = 30,
+    gene_prefix_list: list = None,
+    show_individual_prefix_gene: bool = False,
+    layer: Union[str, None] = None,
+):
+    """Compute top genes dataframe for plotting later.
+
+    Returns
+    -------
+    [type]
+        [description]
+    """
+    gene_mat = adata.X
+    if layer is not None:
+        gene_mat = adata.layers[layer]
+    # compute gene percents at each cell row
+    cell_expression_sum = gene_mat.sum(axis=1).flatten()
+    # get rid of cells that have all zero counts
+    not_all_zero = cell_expression_sum != 0
+    adata = adata[not_all_zero, :]
+    cell_expression_sum = cell_expression_sum[not_all_zero]
+    main_info("%d rows(cells or subsets) are not zero. zero total RNA cells are removed." % np.sum(not_all_zero))
+
+    valid_gene_set = set()
+    prefix_to_genes = {}
+    if gene_prefix_list is not None:
+        prefix_to_genes = {prefix: [] for prefix in gene_prefix_list}
+        for name in adata.var_names:
+            for prefix in gene_prefix_list:
+                length = len(prefix)
+                if name[:length] == prefix:
+                    valid_gene_set.add(name)
+                    prefix_to_genes[prefix].append(name)
+                    break
+        if len(valid_gene_set) == 0:
+            main_critical("NO VALID GENES FOUND WITH REQUIRED GENE PREFIX LIST, GIVING UP PLOTTING")
+            return None
+        if not show_individual_prefix_gene:
+            # gathering gene prefix set data
+            df = pd.DataFrame(index=adata.obs.index)
+            for prefix in prefix_to_genes:
+                if len(prefix_to_genes[prefix]) == 0:
+                    main_info("There is no %s gene prefix in adata." % prefix)
+                    continue
+                df[prefix] = adata[:, prefix_to_genes[prefix]].X.sum(axis=1)
+            # adata = adata[:, list(valid_gene_set)]
+            adata = AnnData(X=df)
+            gene_mat = adata.X
+
+    # compute gene's total percents in the dataset
+    gene_percents = gene_mat.sum(axis=0)
+    gene_percents = (gene_percents / gene_mat.shape[1]).flatten()
+    # obtain top genes
+    sorted_indices = np.argsort(-gene_percents)
+    selected_indices = sorted_indices[:n_top]
+    gene_names = adata.var_names[selected_indices]
+
+    gene_X_percents = gene_mat / cell_expression_sum.reshape([-1, 1])
+    # To-do: faster but not fails test, switch to the version below in future
+    # gene_X_percents = gene_mat[:, selected_indices] / cell_expression_sum[
+    #     selected_indices
+    # ].reshape([-1, 1])
+
+    # assemble a dataframe
+    print("debug shape:", selected_indices.shape)
+    print("gene_percents:", gene_percents)
+    print("selected indices:", selected_indices)
+    print(
+        "gene x percents:",
+    )
+    print("gene names:", gene_names)
+    selected_gene_X_percents = gene_X_percents[:, selected_indices]
+    print("selected_gene_X_percents: ", selected_gene_X_percents.shape)
+    selected_gene_X_percents = np.squeeze(selected_gene_X_percents)
+    top_genes_df = pd.DataFrame(
+        selected_gene_X_percents,
+        index=adata.obs_names,
+        columns=gene_names,
+    )
+    adata.uns[store_key] = {
+        "top_genes_df": top_genes_df,
+        "gene_mat": gene_mat,
+        "layer": layer,
+        "selected_indices": selected_indices,
+        "gene_prefix_list": gene_prefix_list,
+        "show_individual_prefix_gene": show_individual_prefix_gene,
+        "gene_percents": gene_percents,
+    }
+
+    return adata
+
+
 def highest_frac_genes(
     adata: AnnData,
     n_top: int = 30,
@@ -773,7 +868,7 @@ def highest_frac_genes(
     gene_annotations: Optional[list] = None,
     gene_annotation_key: str = "use_for_pca",
     log: bool = False,
-    store_key: str = "expr_percent",
+    store_key: str = "highest_frac_genes",
     orient: str = "v",
     figsize: Union[list, None] = None,
     layer: Union[str, None] = None,
@@ -815,9 +910,6 @@ def highest_frac_genes(
     import seaborn as sns
     import matplotlib.pyplot as plt
 
-    gene_mat = adata.X
-    if layer is not None:
-        gene_mat = adata.layers[layer]
     if ax is None:
         width = n_top * 0.4
         if figsize is None:
@@ -827,78 +919,22 @@ def highest_frac_genes(
     if log:
         ax.set_xscale("log")
 
-    def _compute_top_genes_df():
-        """Compute top genes dataframe for plotting later.
-
-        Returns
-        -------
-        [type]
-            [description]
-        """
-        nonlocal adata, gene_mat
-        # compute gene percents at each cell row
-        cell_expression_sum = gene_mat.sum(axis=1).flatten()
-        # get rid of cells that have all zero counts
-        not_all_zero = cell_expression_sum != 0
-        adata = adata[not_all_zero, :]
-        cell_expression_sum = cell_expression_sum[not_all_zero]
-        main_info("%d rows(cells or subsets) are not zero. zero total RNA cells are removed." % np.sum(not_all_zero))
-
-        valid_gene_set = set()
-        prefix_to_genes = {}
-        if gene_prefix_list is not None:
-            prefix_to_genes = {prefix: [] for prefix in gene_prefix_list}
-            for name in adata.var_names:
-                for prefix in gene_prefix_list:
-                    length = len(prefix)
-                    if name[:length] == prefix:
-                        valid_gene_set.add(name)
-                        prefix_to_genes[prefix].append(name)
-                        break
-            if len(valid_gene_set) == 0:
-                main_critical("NO VALID GENES FOUND WITH REQUIRED GENE PREFIX LIST, GIVING UP PLOTTING")
-                return None
-            if not show_individual_prefix_gene:
-                # gathering gene prefix set data
-                df = pd.DataFrame(index=adata.obs.index)
-                for prefix in prefix_to_genes:
-                    if len(prefix_to_genes[prefix]) == 0:
-                        main_info("There is no %s gene prefix in adata." % prefix)
-                        continue
-                    df[prefix] = adata[:, prefix_to_genes[prefix]].X.sum(axis=1)
-                # adata = adata[:, list(valid_gene_set)]
-                adata = AnnData(X=df)
-                gene_mat = adata.X
-
-        # compute gene's total percents in the dataset
-        gene_percents = gene_mat.sum(axis=0)
-        gene_percents = (gene_percents / gene_mat.shape[1]).reshape([-1, 1])
-        # store gene expr percent results
-        adata.var[store_key] = gene_percents
-        # obtain top genes
-        sorted_indices = np.argsort(-adata.var[store_key])
-        selected_indices = sorted_indices[:n_top]
-        gene_names = adata.var_names[selected_indices]
-
-        gene_X_percents = gene_mat / cell_expression_sum.reshape([-1, 1])
-        # To-do: faster but not fails test, switch to the version below in future
-        # gene_X_percents = gene_mat[:, selected_indices] / cell_expression_sum[
-        #     selected_indices
-        # ].reshape([-1, 1])
-
-        # assemble a dataframe
-        top_genes_df = pd.DataFrame(
-            gene_X_percents[:, selected_indices],
-            index=adata.obs_names,
-            columns=gene_names,
-        )
-
-        return adata, gene_mat, top_genes_df, selected_indices
-
-    result = _compute_top_genes_df()
-    if result is None:
+    adata = _compute_top_genes_df(
+        adata,
+        store_key=store_key,
+        n_top=n_top,
+        layer=layer,
+        gene_prefix_list=gene_prefix_list,
+        show_individual_prefix_gene=show_individual_prefix_gene,
+    )
+    if adata is None:
+        # something wrong with user input or compute_top_genes_df
         return
-    adata, gene_mat, top_genes_df, selected_indices = result
+    gene_mat, top_genes_df, selected_indices = (
+        adata.uns[store_key]["gene_mat"],
+        adata.uns[store_key]["top_genes_df"],
+        adata.uns[store_key]["selected_indices"],
+    )
 
     # To-do: use top genes_df dataframe; however this logic currently
     # does not fit subset logics and may fail tests.
