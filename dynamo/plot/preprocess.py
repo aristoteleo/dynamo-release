@@ -815,7 +815,7 @@ def _compute_top_genes_df(
             gene_mat = adata.X
 
     # compute gene's total percents in the dataset
-    gene_percents = gene_mat.sum(axis=0)
+    gene_percents = np.array(gene_mat.sum(axis=0))
     gene_percents = (gene_percents / gene_mat.shape[1]).flatten()
     # obtain top genes
     sorted_indices = np.argsort(-gene_percents)
@@ -829,16 +829,9 @@ def _compute_top_genes_df(
     # ].reshape([-1, 1])
 
     # assemble a dataframe
-    print("debug shape:", selected_indices.shape)
-    print("gene_percents:", gene_percents)
-    print("selected indices:", selected_indices)
-    print(
-        "gene x percents:",
-    )
-    print("gene names:", gene_names)
-    selected_gene_X_percents = gene_X_percents[:, selected_indices]
-    print("selected_gene_X_percents: ", selected_gene_X_percents.shape)
+    selected_gene_X_percents = np.array(gene_X_percents)[:, selected_indices]
     selected_gene_X_percents = np.squeeze(selected_gene_X_percents)
+
     top_genes_df = pd.DataFrame(
         selected_gene_X_percents,
         index=adata.obs_names,
