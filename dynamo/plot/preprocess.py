@@ -10,6 +10,7 @@ from ..preprocessing.utils import get_layer_keys
 from .utils import save_fig
 from ..tools.utils import update_dict, get_mapper
 from ..preprocessing.utils import detect_datatype
+from ..preprocessing import compute_highest_frac_genes
 from ..dynamo_logger import main_info, main_critical, main_warning
 
 
@@ -762,94 +763,6 @@ def exp_by_groups(
         return g
 
 
-def _compute_top_genes_df(
-    adata: AnnData,
-    store_key: str = "highest_frac_genes",
-    n_top: int = 30,
-    gene_prefix_list: list = None,
-    show_individual_prefix_gene: bool = False,
-    layer: Union[str, None] = None,
-):
-    """Compute top genes dataframe for plotting later.
-
-    Returns
-    -------
-    [type]
-        [description]
-    """
-    gene_mat = adata.X
-    if layer is not None:
-        gene_mat = adata.layers[layer]
-    # compute gene percents at each cell row
-    cell_expression_sum = gene_mat.sum(axis=1).flatten()
-    # get rid of cells that have all zero counts
-    not_all_zero = cell_expression_sum != 0
-    adata = adata[not_all_zero, :]
-    cell_expression_sum = cell_expression_sum[not_all_zero]
-    main_info("%d rows(cells or subsets) are not zero. zero total RNA cells are removed." % np.sum(not_all_zero))
-
-    valid_gene_set = set()
-    prefix_to_genes = {}
-    if gene_prefix_list is not None:
-        prefix_to_genes = {prefix: [] for prefix in gene_prefix_list}
-        for name in adata.var_names:
-            for prefix in gene_prefix_list:
-                length = len(prefix)
-                if name[:length] == prefix:
-                    valid_gene_set.add(name)
-                    prefix_to_genes[prefix].append(name)
-                    break
-        if len(valid_gene_set) == 0:
-            main_critical("NO VALID GENES FOUND WITH REQUIRED GENE PREFIX LIST, GIVING UP PLOTTING")
-            return None
-        if not show_individual_prefix_gene:
-            # gathering gene prefix set data
-            df = pd.DataFrame(index=adata.obs.index)
-            for prefix in prefix_to_genes:
-                if len(prefix_to_genes[prefix]) == 0:
-                    main_info("There is no %s gene prefix in adata." % prefix)
-                    continue
-                df[prefix] = adata[:, prefix_to_genes[prefix]].X.sum(axis=1)
-            # adata = adata[:, list(valid_gene_set)]
-            adata = AnnData(X=df)
-            gene_mat = adata.X
-
-    # compute gene's total percents in the dataset
-    gene_percents = np.array(gene_mat.sum(axis=0))
-    gene_percents = (gene_percents / gene_mat.shape[1]).flatten()
-    # obtain top genes
-    sorted_indices = np.argsort(-gene_percents)
-    selected_indices = sorted_indices[:n_top]
-    gene_names = adata.var_names[selected_indices]
-
-    gene_X_percents = gene_mat / cell_expression_sum.reshape([-1, 1])
-    # To-do: faster but not fails test, switch to the version below in future
-    # gene_X_percents = gene_mat[:, selected_indices] / cell_expression_sum[
-    #     selected_indices
-    # ].reshape([-1, 1])
-
-    # assemble a dataframe
-    selected_gene_X_percents = np.array(gene_X_percents)[:, selected_indices]
-    selected_gene_X_percents = np.squeeze(selected_gene_X_percents)
-
-    top_genes_df = pd.DataFrame(
-        selected_gene_X_percents,
-        index=adata.obs_names,
-        columns=gene_names,
-    )
-    adata.uns[store_key] = {
-        "top_genes_df": top_genes_df,
-        "gene_mat": gene_mat,
-        "layer": layer,
-        "selected_indices": selected_indices,
-        "gene_prefix_list": gene_prefix_list,
-        "show_individual_prefix_gene": show_individual_prefix_gene,
-        "gene_percents": gene_percents,
-    }
-
-    return adata
-
-
 def highest_frac_genes(
     adata: AnnData,
     n_top: int = 30,
@@ -889,7 +802,9 @@ def highest_frac_genes(
     gene_annotations : Optional[list], optional
         Annotations for genes, or annotations for gene prefix subsets, by default None
     gene_annotation_key : str, optional
-        [description], by default "use_for_pca"
+        gene annotations key in adata.var, by default "use_for_pca".
+        This option is not available for gene_prefix_list and thus users should
+        pass gene_annotations argument for the prefix list.
     log : bool, optional
         [description], by default False
     store_key : str, optional
@@ -912,7 +827,7 @@ def highest_frac_genes(
     if log:
         ax.set_xscale("log")
 
-    adata = _compute_top_genes_df(
+    adata = compute_highest_frac_genes(
         adata,
         store_key=store_key,
         n_top=n_top,
@@ -923,8 +838,7 @@ def highest_frac_genes(
     if adata is None:
         # something wrong with user input or compute_top_genes_df
         return
-    gene_mat, top_genes_df, selected_indices = (
-        adata.uns[store_key]["gene_mat"],
+    top_genes_df, selected_indices = (
         adata.uns[store_key]["top_genes_df"],
         adata.uns[store_key]["selected_indices"],
     )
@@ -993,7 +907,7 @@ def highest_frac_genes(
             "path": save_path,
             "prefix": "plot_highest_gene",
             "dpi": None,
-            "ext": "png",
+            "ext": "pdf",
             "transparent": True,
             "close": True,
             "verbose": True,
