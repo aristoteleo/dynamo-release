@@ -5,12 +5,13 @@ from anndata import AnnData
 from typing import Optional, Union
 from matplotlib.axes import Axes
 
+from ..preprocessing import preprocess as pp
 from ..preprocessing.preprocess import topTable
 from ..preprocessing.utils import get_layer_keys
 from .utils import save_fig
 from ..tools.utils import update_dict, get_mapper
 from ..preprocessing.utils import detect_datatype
-from ..preprocessing import compute_highest_frac_genes
+from ..preprocessing import highest_frac_genes
 from ..dynamo_logger import main_info, main_critical, main_warning
 
 
@@ -827,7 +828,7 @@ def highest_frac_genes(
     if log:
         ax.set_xscale("log")
 
-    adata = compute_highest_frac_genes(
+    adata = pp.highest_frac_genes(
         adata,
         store_key=store_key,
         n_top=n_top,

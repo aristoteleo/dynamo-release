@@ -33,7 +33,12 @@ from .utils import (
     add_noise_to_duplicates,
     gene_exp_fraction,
 )
-from ..dynamo_logger import main_info, main_critical, main_warning, LoggerManager
+from ..dynamo_logger import (
+    main_info,
+    main_critical,
+    main_warning,
+    LoggerManager,
+)
 from ..utils import copy_adata
 
 
@@ -1971,7 +1976,7 @@ def recipe_velocyto(
     return adata
 
 
-def compute_highest_frac_genes(
+def highest_frac_genes(
     adata: AnnData,
     store_key: str = "highest_frac_genes",
     n_top: int = 30,
