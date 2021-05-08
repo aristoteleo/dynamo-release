@@ -5,12 +5,13 @@ from anndata import AnnData
 from typing import Optional, Union
 from matplotlib.axes import Axes
 
+from ..preprocessing import preprocess as pp
 from ..preprocessing.preprocess import topTable
 from ..preprocessing.utils import get_layer_keys
 from .utils import save_fig
 from ..tools.utils import update_dict, get_mapper
 from ..preprocessing.utils import detect_datatype
-from ..preprocessing import compute_highest_frac_genes
+from ..preprocessing import highest_frac_genes
 from ..dynamo_logger import main_info, main_critical, main_warning
 
 
@@ -779,6 +780,7 @@ def highest_frac_genes(
     figsize: Union[list, None] = None,
     layer: Union[str, None] = None,
     title: Union[str, None] = None,
+    v_rotation: float = 35,
     **kwargs,
 ):
     """[summary]
@@ -819,15 +821,18 @@ def highest_frac_genes(
     import matplotlib.pyplot as plt
 
     if ax is None:
-        width = n_top * 0.4
+        length = n_top * 0.4
         if figsize is None:
-            fig, ax = plt.subplots(figsize=(width, 4))
+            if orient == "v":
+                fig, ax = plt.subplots(figsize=(length, 5))
+            else:
+                fig, ax = plt.subplots(figsize=(7, length))
         else:
             fig, ax = plt.subplots(figsize=figsize)
     if log:
         ax.set_xscale("log")
 
-    adata = compute_highest_frac_genes(
+    adata = pp.highest_frac_genes(
         adata,
         store_key=store_key,
         n_top=n_top,
@@ -870,7 +875,7 @@ def highest_frac_genes(
             )
 
     if orient == "v":
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=30)
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=v_rotation, ha="right")
         ax.set_xlabel("genes")
         ax.set_ylabel("fractions of total counts")
 
@@ -879,7 +884,7 @@ def highest_frac_genes(
             ax2.set_xlim(ax.get_ylim())
             ax2.set_xticks(ax.get_yticks())
             ax2.set_xticks(list(range(len(gene_annotations))))
-            ax2.set_xticklabels(gene_annotations, rotation=30)
+            ax2.set_xticklabels(gene_annotations, rotation=v_rotation, ha="left")
             ax2.set_xlabel(gene_annotation_key)
     elif orient == "h":
         ax.set_xlabel("fractions of total counts")
