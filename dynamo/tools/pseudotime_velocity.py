@@ -14,7 +14,7 @@ from .graph_operators import (
     build_graph,
     gradop,
 )
-from dynamo.dynamo_logger import LoggerManager
+from ..dynamo_logger import LoggerManager
 
 
 def gradient(E, f, tol=1e-5):
