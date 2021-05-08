@@ -1980,7 +1980,7 @@ def compute_highest_frac_genes(
     layer: Union[str, None] = None,
 ):
     """
-    Compute top genes df and store results in adata.uns
+    Compute top genes df and store results in `adata.uns`
 
 
     Parameters

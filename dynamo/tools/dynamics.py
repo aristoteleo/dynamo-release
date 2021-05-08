@@ -347,7 +347,7 @@ def dynamics(
             cur_cells_bools = np.ones(valid_adata.shape[0], dtype=bool)
             subset_adata = valid_adata[cur_cells_bools]
         else:
-            kin_param_pre = group + "_" + cur_grp + "_"
+            kin_param_pre = str(group) + "_" + str(cur_grp) + "_"
             cur_cells_bools = (valid_adata.obs[group] == cur_grp).values
             subset_adata = valid_adata[cur_cells_bools]
 
