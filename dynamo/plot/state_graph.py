@@ -57,6 +57,8 @@ def create_edge_patches_from_markov_chain(
 def state_graph(
     adata: AnnData,
     group: Optional[str] = None,
+    transition_threshold: float = 0.001,
+    keep_only_one_direction: bool = True,
     basis: str = "umap",
     x: int = 0,
     y: int = 1,
@@ -92,12 +94,17 @@ def state_graph(
         group: `str` or `None` (default: `None`)
             The column in adata.obs that will be used to aggregate data points for the purpose of creating a cell type
             transition model.
+        transition_threshold: `float` (default: 0.001)
+            The threshold of cell fate transition. Transition will be ignored if below this threshold.
+        keep_only_one_direction: `bool` (default: True)
+            Whether to only keep the higher transition between two cell type. That is if the transition rate from A to B
+            is higher than B to A, only edge from A to B will be plotted.
         %(scatters.parameters.no_aggregate|kwargs|save_kwargs)s
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'state_graph', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-            according to your needs.
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            save_fig function will use the {"path": None, "prefix": 'state_graph', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+            dictionary that properly modify those keys according to your needs.
         s_kwargs_dict: `dict` (default: {})
             The dictionary of the scatter arguments.
     Returns
@@ -121,11 +128,15 @@ def state_graph(
     else:
         groups, uniq_grp = adata.obs[group], list(unique_group_obs)
     group_median = np.zeros((len(uniq_grp), 2))
-    grp_size = adata.obs[group].value_counts().values
+    grp_size = adata.obs[group].value_counts()[uniq_grp]
     s_kwargs_dict.update({"s": grp_size})
 
     Pl = adata.uns[group + "_graph"]["group_graph"]
-    Pl[Pl - Pl.T < 0] = 0
+    if keep_only_one_direction:
+        Pl[Pl - Pl.T < 0] = 0
+    if transition_threshold is not None:
+        Pl[Pl < transition_threshold] = 0
+
     Pl /= Pl.sum(1)[:, None]
 
     for i, cur_grp in enumerate(uniq_grp):
