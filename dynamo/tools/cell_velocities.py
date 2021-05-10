@@ -45,6 +45,7 @@ def cell_velocities(
     X: Union[np.array, scipy.sparse.csr_matrix, None] = None,
     V: Union[np.array, scipy.sparse.csr_matrix, None] = None,
     X_embedding: Union[str, None] = None,
+    transition_matrix: Union[np.array, scipy.sparse.csr_matrix, None] = None,
     use_mnn: bool = False,
     n_pca_components: Union[int, None] = None,
     transition_genes: Union[str, list, None] = None,

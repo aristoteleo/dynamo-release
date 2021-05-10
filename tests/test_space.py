@@ -13,6 +13,10 @@ def test_space_simple1(adata):
     space(adata, marker="*", save_show_or_return="show")
 
 
+def test_space_data():
+    adata = dyn.read_h5ad("allstage_splice.h5ad")
+
+
 if __name__ == "__main__":
     # generate data if needed
     adata = gen_or_read_zebrafish_data()

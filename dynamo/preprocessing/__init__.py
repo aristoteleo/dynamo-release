@@ -15,6 +15,7 @@ from .preprocess import (
     filter_genes_by_clusters_,
     SVRs,
     get_svr_filter,
+    highest_frac_genes,
 )
 from .cell_cycle import cell_cycle_scores
 from .utils import (

@@ -78,7 +78,7 @@ def reduceDimension(
 
     logger.info("retrive data for non-linear dimension reduction...", indent_level=1)
     if X_data is None:
-        X_data, n_components, has_basis, _ = prepare_dim_reduction(
+        X_data, n_components, basis = prepare_dim_reduction(
             adata,
             genes=genes,
             layer=layer,
@@ -87,6 +87,8 @@ def reduceDimension(
             n_pca_components=n_pca_components,
             n_components=n_components,
         )
+    if basis[:2] + reduction_method in adata.obsm_keys():
+        has_basis = True
     else:
         has_basis = False
 

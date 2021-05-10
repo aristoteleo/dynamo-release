@@ -25,7 +25,6 @@ def prepare_dim_reduction(
             raise ValueError(f"the layer {layer} you provided is not included in the adata object!")
 
     prefix = "X_" if layer is None else layer + "_"
-    has_basis = False
 
     if basis is not None:
         if basis.split(prefix)[-1] not in [
@@ -94,8 +93,6 @@ def prepare_dim_reduction(
                     pca_key=pca_key,
                 )
                 adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
-        else:
-            has_basis = True
 
         if pca_key in adata.obsm.keys():
             X_data = adata.obsm[pca_key]
@@ -123,7 +120,7 @@ def prepare_dim_reduction(
     if dims is not None:
         X_data = X_data[:, dims]
 
-    return X_data, n_components, has_basis, basis
+    return X_data, n_components, basis
 
 
 def run_reduce_dim(
