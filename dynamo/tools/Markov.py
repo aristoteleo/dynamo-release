@@ -737,11 +737,12 @@ class KernelMarkovChain(MarkovChain):
 
         return P_lumped
 
-    def navie_lump(self, x, grp, axis=0):
+    def navie_lump(self, x, grp):
         k = len(np.unique(grp))
-        y = np.zeros(k)
+        y = np.zeros((k, k))
         for i in range(len(y)):
-            y[i] = np.mean(x[grp == i], axis)
+            for j in range(len(y)):
+                y[i, j] = x[grp == i, :][:, grp == j].mean()
 
         return y
 
