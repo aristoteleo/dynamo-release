@@ -697,6 +697,59 @@ class base_vectorfield:
 
         return X, valid_fps_type_assignment[discard], assignment_id
 
+    def integrate(
+        self,
+        init_states,
+        VecFld_true=None,
+        dims=None,
+        scale=1,
+        t_end=None,
+        step_size=None,
+        args=(),
+        integration_direction="forward",
+        interpolation_num=250,
+        average=True,
+        sampling="arc_length",
+        verbose=False,
+        disable=False,
+    ):
+
+        from ..tools.utils import (
+            getTend,
+            getTseq,
+        )
+        from ..prediction.utils import integrate_vf_ivp
+
+        if np.isscalar(dims):
+            init_states = init_states[:, :dims]
+        elif dims is not None:
+            init_states = init_states[:, dims]
+
+        if self.func is None:
+            VecFld = self.vf_dict
+            self.func = (
+                lambda x: scale * vector_field_function(x=x, vf_dict=VecFld, dim=dims)
+                if VecFld_true is None
+                else VecFld_true
+            )
+        if t_end is None:
+            t_end = getTend(self.get_X(), self.get_V())
+        t_linspace = getTseq(init_states, t_end, step_size)
+        t, prediction = integrate_vf_ivp(
+            init_states,
+            t=t_linspace,
+            integration_direction=integration_direction,
+            f=self.func,
+            args=args,
+            interpolation_num=interpolation_num,
+            average=average,
+            sampling=sampling,
+            verbose=verbose,
+            disable=disable,
+        )
+
+        return t, prediction
+
 
 class svc_vectorfield(base_vectorfield):
     def __init__(self, X=None, V=None, Grid=None, *args, **kwargs):
@@ -835,59 +888,6 @@ class svc_vectorfield(base_vectorfield):
         from ..plot.scVectorField import plot_energy
 
         plot_energy(None, vecfld_dict=self.vf_dict, figsize=figsize, fig=fig)
-
-    def integrate(
-        self,
-        init_states,
-        VecFld_true=None,
-        dims=None,
-        scale=1,
-        t_end=None,
-        step_size=None,
-        args=(),
-        integration_direction="forward",
-        interpolation_num=250,
-        average=True,
-        sampling="arc_length",
-        verbose=False,
-        disable=False,
-    ):
-
-        from ..tools.utils import (
-            getTend,
-            getTseq,
-        )
-        from ..prediction.utils import integrate_vf_ivp
-
-        if np.isscalar(dims):
-            init_states = init_states[:, :dims]
-        elif dims is not None:
-            init_states = init_states[:, dims]
-
-        if self.func is None:
-            VecFld = self.vf_dict
-            self.func = (
-                lambda x: scale * vector_field_function(x=x, vf_dict=VecFld, dim=dims)
-                if VecFld_true is None
-                else VecFld_true
-            )
-        if t_end is None:
-            t_end = getTend(self.get_X(), self.get_V())
-        t_linspace = getTseq(init_states, t_end, step_size)
-        t, prediction = integrate_vf_ivp(
-            init_states,
-            t=t_linspace,
-            integration_direction=integration_direction,
-            f=self.func,
-            args=args,
-            interpolation_num=interpolation_num,
-            average=average,
-            sampling=sampling,
-            verbose=verbose,
-            disable=disable,
-        )
-
-        return t, prediction
 
     def compute_divergence(self, X=None, method="analytical", **kwargs):
         X = self.data["X"] if X is None else X
