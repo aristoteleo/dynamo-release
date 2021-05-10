@@ -128,8 +128,8 @@ def state_graph(
     else:
         groups, uniq_grp = adata.obs[group], list(unique_group_obs)
     group_median = np.zeros((len(uniq_grp), 2))
-    grp_size = adata.obs[group].value_counts()[uniq_grp]
-    s_kwargs_dict.update({"s": grp_size})
+    # grp_size = adata.obs[group].value_counts()[uniq_grp].values
+    # s_kwargs_dict.update({"s": grp_size})
 
     Pl = adata.uns[group + "_graph"]["group_graph"]
     if keep_only_one_direction:
@@ -173,7 +173,7 @@ def state_graph(
         sort=sort,
         save_show_or_return="return",
         frontier=frontier,
-        **s_kwargs_dict,
+        # **s_kwargs_dict,
         return_all=True,
     )
 
