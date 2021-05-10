@@ -2,7 +2,7 @@ from test_utils import *
 import dynamo as dyn
 
 logger = LoggerManager.get_main_logger()
-SHOW_FIG = False
+SHOW_FIG = True
 
 
 def test_highest_frac_genes_plot(adata, is_X_sparse=True):
