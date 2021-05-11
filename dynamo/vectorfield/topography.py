@@ -204,9 +204,9 @@ def calc_fft(x):
 
 def dup_osc_idx(x, n_dom=3, tol=0.05):
     l_int = int(np.floor(len(x) / n_dom))
-    ind_a, ind_b = np.arange(l_int, (n_dom - 1) * l_int), np.arange(l_int, n_dom * l_int)
-    y1 = x[(n_dom - 2) * ind_a]
-    y2 = x[(n_dom - 1) * ind_b]
+    ind_a, ind_b = np.arange((n_dom - 2) * l_int, (n_dom - 1) * l_int), np.arange((n_dom - 1) * l_int, n_dom * l_int)
+    y1 = x[ind_a]
+    y2 = x[ind_b]
 
     def calc_fft_k(x):
         ret = []
