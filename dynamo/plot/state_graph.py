@@ -77,13 +77,13 @@ def state_graph(
     figsize: tuple = (6, 4),
     show_legend: bool = True,
     use_smoothed: bool = True,
-    show_arrowed_spines: bool = True,
+    show_arrowed_spines: bool = False,
     ax: Optional[Axes] = None,
     sort: str = "raw",
     frontier: bool = False,
     save_show_or_return: str = "show",
     save_kwargs: dict = {},
-    s_kwargs_dict: dict = {},
+    s_kwargs_dict: dict = {"alpha": 1},
     **kwargs
 ):
     """Plot a summarized cell type (state) transition graph. This function tries to create a model that summarizes
@@ -105,7 +105,7 @@ def state_graph(
             save_fig function will use the {"path": None, "prefix": 'state_graph', "dpi": None, "ext": 'pdf',
             "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
             dictionary that properly modify those keys according to your needs.
-        s_kwargs_dict: `dict` (default: {})
+        s_kwargs_dict: `dict` (default: {"alpha": 1})
             The dictionary of the scatter arguments.
     Returns
     -------
@@ -173,7 +173,7 @@ def state_graph(
         sort=sort,
         save_show_or_return="return",
         frontier=frontier,
-        # **s_kwargs_dict,
+        **s_kwargs_dict,
         return_all=True,
     )
 
