@@ -248,8 +248,6 @@ def state_graph(
 
     plt.axis("off")
 
-    plt.show()
-
     if save_show_or_return == "save":
         s_kwargs = {
             "path": None,
