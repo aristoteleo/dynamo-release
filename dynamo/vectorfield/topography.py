@@ -215,8 +215,12 @@ def dup_osc_idx(x, n_dom=3, tol=0.05):
             ret.append(xFFT[1:])
         return np.hstack(ret)
 
-    xFFt1 = calc_fft_k(y1)
-    xFFt2 = calc_fft_k(y2)
+    try:
+        xFFt1 = calc_fft_k(y1)
+        xFFt2 = calc_fft_k(y2)
+    except ValueError:
+        print("calc_fft_k run failed...")
+        return None, None
 
     diff = np.linalg.norm(xFFt1 - xFFt2) / len(xFFt1)
     if diff <= tol:

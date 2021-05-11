@@ -105,11 +105,9 @@ def integrate_vf_ivp(
             disable=disable,
         ):
             tau, x = T[i], Y[i].T
-            if len(x) == 0:
-                continue
+
             idx = dup_osc_idx_iter(x, max_iter=100, tol=x.ptp(0).mean() / 1000)[0]
-            if idx == 0:
-                continue
+
             # idx = dup_osc_idx_iter(x)
             x = x[:idx]
             _, arclen, _ = remove_redundant_points_trajectory(x, tol=1e-4, output_discard=True)
