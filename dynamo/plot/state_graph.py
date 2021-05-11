@@ -32,12 +32,45 @@ def create_edge_patch(posA, posB, width=1, node_rad=0, connectionstyle="arc3, ra
 
 
 def create_edge_patches_from_markov_chain(
-    P, X, width=3, node_rad=0, tol=1e-7, connectionstyle="arc3, rad=0.25", facecolor="k", alpha=0.8, **kwargs
+    P,
+    X,
+    width=3,
+    node_rad=0,
+    tol=1e-7,
+    connectionstyle="arc3, rad=0.25",
+    facecolor="k",
+    edgecolor="k",
+    alpha=0.8,
+    **kwargs
 ):
     arrows = []
     for i in range(P.shape[0]):
         for j in range(P.shape[0]):
             if P[i, j] > tol:
+                if type(facecolor) == str:
+                    fc = facecolor
+                else:
+                    if type(facecolor) == pd.DataFrame:
+                        fc = facecolor.iloc[i, j]
+                    else:
+                        fc = facecolor[i, j]
+
+                if type(edgecolor) == str:
+                    ec = edgecolor
+                else:
+                    if type(edgecolor) == pd.DataFrame:
+                        ec = edgecolor.iloc[i, j]
+                    else:
+                        ec = edgecolor[i, j]
+
+                if type(alpha) == float:
+                    ac = alpha * min(2 * P[i, j], 1)
+                else:
+                    if type(alpha) == pd.DataFrame:
+                        ac = alpha.iloc[i, j]
+                    else:
+                        ac = alpha[i, j]
+
                 arrows.append(
                     create_edge_patch(
                         X[i],
@@ -45,8 +78,9 @@ def create_edge_patches_from_markov_chain(
                         width=P[i, j] * width,
                         node_rad=node_rad,
                         connectionstyle=connectionstyle,
-                        facecolor=facecolor,
-                        alpha=alpha * min(2 * P[i, j], 1),
+                        facecolor=fc,
+                        edgecolor=ec,
+                        alpha=ac,
                         **kwargs,
                     )
                 )
@@ -59,6 +93,11 @@ def state_graph(
     group: Optional[str] = None,
     transition_threshold: float = 0.001,
     keep_only_one_direction: bool = True,
+    edge_scale: float = 1,
+    state_graph: Union[None, np.ndarray] = None,
+    edgecolor: Union[None, np.ndarray, pd.DataFrame] = None,
+    facecolor: Union[None, np.ndarray, pd.DataFrame] = None,
+    graph_alpha: Union[None, np.ndarray, pd.DataFrame] = None,
     basis: str = "umap",
     x: int = 0,
     y: int = 1,
@@ -99,6 +138,16 @@ def state_graph(
         keep_only_one_direction: `bool` (default: True)
             Whether to only keep the higher transition between two cell type. That is if the transition rate from A to B
             is higher than B to A, only edge from A to B will be plotted.
+        edge_scale: `float` (default: 1)
+            The scaler that can be used to scale the edge width of drawn transition graph.
+        state_graph: `np.ndarray`, `pd.DataFrame` or `None` (default: None)
+            The lumped transition graph between cell states (e.g. cell clusters or types).
+        edgecolor: `np.ndarray`, `pd.DataFrame` or `None` (default: None)
+            The edge color of the arcs that corresponds to the lumped transition graph between cell states.
+        facecolor: `np.ndarray`, `pd.DataFrame` or `None` (default: None)
+            The edge color of the arcs that corresponds to the lumped transition graph between cell states.
+        graph_alpha: `np.ndarray`, `pd.DataFrame` or `None` (default: None)
+            The alpha of the arcs that corresponds to the lumped transition graph between cell states.
         %(scatters.parameters.no_aggregate|kwargs|save_kwargs)s
         save_kwargs: `dict` (default: `{}`)
             A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
@@ -131,13 +180,16 @@ def state_graph(
     # grp_size = adata.obs[group].value_counts()[uniq_grp].values
     # s_kwargs_dict.update({"s": grp_size})
 
-    Pl = adata.uns[group + "_graph"]["group_graph"]
-    if keep_only_one_direction:
-        Pl[Pl - Pl.T < 0] = 0
-    if transition_threshold is not None:
-        Pl[Pl < transition_threshold] = 0
+    if state_graph is None:
+        Pl = adata.uns[group + "_graph"]["group_graph"]
+        if keep_only_one_direction:
+            Pl[Pl - Pl.T < 0] = 0
+        if transition_threshold is not None:
+            Pl[Pl < transition_threshold] = 0
 
-    Pl /= Pl.sum(1)[:, None]
+        Pl /= Pl.sum(1)[:, None] * edge_scale
+    else:
+        Pl = state_graph
 
     for i, cur_grp in enumerate(uniq_grp):
         group_median[i, :] = np.nanmedian(points[np.where(groups == cur_grp)[0], :2], 0)
@@ -177,7 +229,13 @@ def state_graph(
         return_all=True,
     )
 
-    arrows = create_edge_patches_from_markov_chain(Pl, group_median, tol=0.01, node_rad=15)
+    edgecolor = "k" if edgecolor is None else edgecolor
+    facecolor = "k" if facecolor is None else facecolor
+    graph_alpha = 0.8 if graph_alpha is None else graph_alpha
+
+    arrows = create_edge_patches_from_markov_chain(
+        Pl, group_median, edgecolor=edgecolor, facecolor=facecolor, alpha=graph_alpha, tol=0.01, node_rad=15
+    )
     if type(axes_list) == list:
         for i in range(len(axes_list)):
             for arrow in arrows:

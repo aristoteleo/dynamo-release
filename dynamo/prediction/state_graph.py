@@ -78,7 +78,7 @@ def state_graph(
     if method.lower() in ["naive", "markov"]:
         logger.info("Applying kernel Markov chain")
         T = adata.obsp[transition_mat_key]
-        if np.isclose(T.sum(0), 1).sum() > np.isclose(T.sum(1), 1).sum():
+        if np.isclose(T.sum(1), 1).sum() > np.isclose(T.sum(0), 1).sum():
             logger.info("KernelMarkovChain assuming column sum to be 1. Transposing transition matrix")
             T = T.T
         kmc = KernelMarkovChain(P=T)
