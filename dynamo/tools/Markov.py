@@ -9,6 +9,7 @@ from scipy.linalg import eig, null_space
 from numba import jit
 from .utils import append_iterative_neighbor_indices, flatten
 from ..simulation.gillespie_utils import directMethod
+from ..dynamo_logger import LoggerManager
 
 
 def markov_combination(x, v, X):
@@ -481,16 +482,17 @@ def divergence(E, tol=1e-5):
     return div
 
 
-def get_transition_matrix(P):
-    Q = np.array(P, copy=True)
-    for i in range(Q.shape[1]):
-        Q[i, i] = 0
-        Q[:, i] /= np.sum(Q[:, i])
-    return Q
-
-
 class MarkovChain:
-    def __init__(self, P=None, eignum=None):
+    def __init__(self, P=None, eignum=None, check_norm=True, sumto=1, tol=1e-3):
+        if check_norm and not self.is_normalized(P, axis=0, sumto=sumto, tol=tol):
+            if self.is_normalized(P, axis=1, sumto=sumto, tol=tol):
+                LoggerManager.main_logger.info(
+                    f"Column sums of the input matrix are not {sumto} but row sums are. "
+                    "Transposing the transition matrix"
+                )
+                P = P.T
+            else:
+                raise Exception(f"Neither the row nor the column sums of the input matrix are {sumto}.")
         self.P = P
         self.D = None  # eigenvalues
         self.U = None  # left eigenvectors
@@ -524,6 +526,26 @@ class MarkovChain:
 
     def get_num_states(self):
         return self.P.shape[0]
+
+    def is_normalized(self, P=None, tol=1e-3, sumto=1, axis=0, ignore_nan=True):
+        """
+        check if the matrix is properly normalized up to `tol`.
+
+        Parameters
+        ----------
+            P: None or :class:`~numpy.ndarray` (default `None`)
+                The transition matrix. If None, self.P is checked instead.
+            tol: float (default 1e-3)
+                The numerical tolerance.
+            sumto: int (default: 1)
+                The value that each column/row should sum to.
+            axis: int (default: 0)
+                0 - check if the matrix is column normalized;
+                1 - check if the matrix is row normalized.
+        """
+        P = self.P if P is None else P
+        sumfunc = np.sum if not ignore_nan else np.nansum
+        return np.all(np.abs(sumfunc(P, axis=axis) - sumto) < tol)
 
     def __reset__(self):
         self.D = None
@@ -714,45 +736,13 @@ class KernelMarkovChain(MarkovChain):
 
         return Theta
 
-    def lump(self, labels, M_weight=None):
-        k = len(labels)
-        M_part = np.zeros((k, self.get_num_states()))
-
-        P = self.compute_stationary_distribution()
-
-        Theta = self.compute_theta(P)
-        if sp.issparse(Theta):
-            Theta = Theta.A
-        _, vecs = sp.linalg.eigsh(Theta, k=k)
-
-        for i in range(len(labels)):
-            M_part[labels[i], i] = 1
-
-        n_node = self.get_num_states()
-        if M_weight is None:
-            p_st = self.compute_stationary_distribution()
-            M_weight = np.multiply(M_part, p_st)
-            M_weight = np.divide(M_weight.T, M_weight @ np.ones(n_node))
-        P_lumped = M_part @ self.P @ M_weight
-
-        return P_lumped
-
-    def navie_lump(self, x, grp):
-        k = len(np.unique(grp))
-        y = np.zeros((k, k))
-        for i in range(len(y)):
-            for j in range(len(y)):
-                y[i, j] = x[grp == i, :][:, grp == j].mean()
-
-        return y
-
 
 class DiscreteTimeMarkovChain(MarkovChain):
-    def __init__(self, P=None):
-        super().__init__(P)
-        self.Kd = None
+    def __init__(self, P=None, eignum=None, sumto=1, **kwargs):
+        super().__init__(P, eignum=eignum, sumto=sumto, **kwargs)
+        # self.Kd = None
 
-    def fit(self, X, V, k, s=None, method="qp", eps=None, tol=1e-4):  # pass index
+    """def fit(self, X, V, k, s=None, method="qp", eps=None, tol=1e-4):  # pass index
         # the parameter k will be replaced by a connectivity matrix in the future.
         self.__reset__()
         # knn clustering
@@ -801,11 +791,11 @@ class DiscreteTimeMarkovChain(MarkovChain):
                 p = k / np.sum(k)
                 p[p <= tol] = 0  # tolerance check
                 p = p / np.sum(p)
-                self.P[Idx[i], i] = p
+                self.P[Idx[i], i] = p"""
 
     def propagate_P(self, num_prop):
         ret = np.array(self.P, copy=True)
-        for i in range(num_prop - 1):
+        for _ in range(num_prop - 1):
             ret = self.P @ ret
         return ret
 
@@ -850,6 +840,35 @@ class DiscreteTimeMarkovChain(MarkovChain):
         p = p / np.sum(p)
         return p
 
+    def lump(self, labels, M_weight=None):
+        """
+        Markov chain lumping based on:
+        K. Hoffmanna and P. Salamon, Bounding the lumping error in Markov chain dynamics, Appl Math Lett, (2009)
+        """
+        k = len(labels)
+        M_part = np.zeros((k, self.get_num_states()))
+
+        for i in range(len(labels)):
+            M_part[labels[i], i] = 1
+
+        n_node = self.get_num_states()
+        if M_weight is None:
+            p_st = self.compute_stationary_distribution()
+            M_weight = np.multiply(M_part, p_st)
+            M_weight = np.divide(M_weight.T, M_weight @ np.ones(n_node))
+        P_lumped = M_part @ self.P @ M_weight
+
+        return P_lumped
+
+    def naive_lump(self, x, grp):
+        k = len(np.unique(grp))
+        y = np.zeros((k, k))
+        for i in range(len(y)):
+            for j in range(len(y)):
+                y[i, j] = x[grp == i, :][:, grp == j].mean()
+
+        return y
+
     def diffusion_map_embedding(self, n_dims=2, t=1):
         if self.W is None:
             self.eigsys()
@@ -860,11 +879,10 @@ class DiscreteTimeMarkovChain(MarkovChain):
 
 
 class ContinuousTimeMarkovChain(MarkovChain):
-    def __init__(self, P=None, nbrs_idx=None, **kwargs):
-        super().__init__(self.check_transition_rate_matrix(P), **kwargs)
+    def __init__(self, P=None, eignum=None, **kwargs):
+        super().__init__(P, eignum=eignum, sumto=0, **kwargs)
         self.Q = None  # embedded markov chain transition matrix
         self.Kd = None
-        self.nbrs_idx = nbrs_idx
         self.p_st = None
 
     def check_transition_rate_matrix(self, P, tol=1e-6):
@@ -925,7 +943,10 @@ class ContinuousTimeMarkovChain(MarkovChain):
         return P
 
     def compute_embedded_transition_matrix(self):
-        self.Q = get_transition_matrix(self.P)
+        self.Q = np.array(self.P, copy=True)
+        for i in range(self.Q.shape[1]):
+            self.Q[i, i] = 0
+            self.Q[:, i] /= np.sum(self.Q[:, i])
         return self.Q
 
     def solve_distribution(self, p0, t):

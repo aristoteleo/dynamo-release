@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.colors import ListedColormap
-from ..tools.utils import flatten, isarray, velocity_on_grid
+from ..tools.utils import flatten, isarray, velocity_on_grid, index_gene, areinstance
 
 # from ..tools.Markov import smoothen_drift_on_grid
 
@@ -87,9 +87,9 @@ def zscatter(
         if color in adata.var.index:
             title = color
             if c_layer is None:
-                color = flatten(adata[:, color].X)
+                color = flatten(index_gene(adata, adata.X, color))
             else:
-                color = flatten(adata[:, color].layers[c_layer])
+                color = flatten(index_gene(adata, adata.layers[c_layer], color))
         elif color in adata.obs.keys():
             title = color
             # color = flatten(np.array(adata.obs[color]))
@@ -99,7 +99,8 @@ def zscatter(
     if (
         color is not None
         and type(color) is not str
-        and np.any([type(a) is str for a in color])
+        # and np.any([type(a) is str for a in color])
+        and (areinstance(color, [str, bytes], np.any))
     ):
         cat_color = True
         try:
@@ -112,6 +113,8 @@ def zscatter(
             if type(color_dict) is dict:
                 color_map = ListedColormap([color_dict[c] for c in cat])
             else:
+                if areinstance(color_dict, bytes):
+                    color_dict = [c.decode() for c in color_dict]
                 color_map = ListedColormap(color_dict)
         else:
             color_map = cm.get_cmap("tab20")
@@ -193,9 +196,7 @@ def zstreamline(
     #    grid_num = grid_num * np.ones(2)
     # V_grid, X_grid = smoothen_drift_on_grid(X, V, n_grid=grid_num, smoothness=smoothness)
     # V_grid, X_grid = V_grid.T, X_grid.T
-    X_grid, V_grid = velocity_on_grid(
-        X, V, n_grids=grid_num, smoothness=smoothness, cutoff_coeff=cutoff
-    )
+    X_grid, V_grid = velocity_on_grid(X, V, n_grids=grid_num, smoothness=smoothness, cutoff_coeff=cutoff)
     V_grid, X_grid = V_grid.T, X_grid.T
 
     streamplot_kwargs = {
@@ -237,9 +238,7 @@ def zstreamline(
         return X_grid.T, V_grid.T
 
 
-def multiplot(
-    plot_func, arr, n_row=None, n_col=3, fig=None, subplot_size=(6, 4)
-):
+def multiplot(plot_func, arr, n_row=None, n_col=3, fig=None, subplot_size=(6, 4)):
     if n_col is None and n_row is None:
         n_col = 3
     n = len(arr[list(arr.keys())[0]]) if type(arr) is dict else len(arr)

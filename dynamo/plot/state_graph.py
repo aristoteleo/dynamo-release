@@ -43,6 +43,10 @@ def create_edge_patches_from_markov_chain(
     alpha=0.8,
     **kwargs
 ):
+    """
+    create edge patches from a markov chain transition matrix. If P[i, j] > tol, an arrow is created from
+    node i to j.
+    """
     arrows = []
     for i in range(P.shape[0]):
         for j in range(P.shape[0]):

@@ -1,10 +1,10 @@
 import pandas as pd
 import numpy as np
 from scipy.spatial import cKDTree
-
+import scipy.sparse as sp
 from sklearn.preprocessing import OrdinalEncoder
 
-from ..tools.Markov import KernelMarkovChain
+from ..tools.Markov import DiscreteTimeMarkovChain
 from ..prediction.fate import _fate
 from ..vectorfield import vector_field_function
 from ..tools.utils import fetch_states
@@ -81,13 +81,18 @@ def state_graph(
         if np.isclose(T.sum(1), 1).sum() > np.isclose(T.sum(0), 1).sum():
             logger.info("KernelMarkovChain assuming column sum to be 1. Transposing transition matrix")
             T = T.T
-        kmc = KernelMarkovChain(P=T)
+        if sp.issparse(T):
+            T = T.A
+        dtmc = DiscreteTimeMarkovChain(P=T, check_norm=False)
 
-        ord_enc = OrdinalEncoder()
-        labels = ord_enc.fit_transform(adata.obs[[group]])
-        labels = labels.flatten().astype(int)
+        # ord_enc = OrdinalEncoder()
+        # labels = ord_enc.fit_transform(adata.obs[[group]])
+        # labels = labels.flatten().astype(int)
+        labels = np.zeros(len(groups), dtype=int)
+        for i, grp in enumerate(uniq_grp):
+            labels[groups == grp] = i
 
-        grp_graph = kmc.lump(labels) if method == "markov" else kmc.navie_lump(T.A, labels)
+        grp_graph = dtmc.lump(labels).T if method == "markov" else dtmc.naive_lump(T.A, labels).T
         label_len, grp_avg_time = len(np.unique(labels)), None
         grp_graph = grp_graph[:label_len, :label_len]
 
@@ -212,11 +217,8 @@ def state_graph(
             grp_graph[i, :] /= cell_num
 
     else:
-        raise ValueError("Currently only support vector field (vf) or Markov chain (markov) based lumping.")
+        raise NotImplementedError("Only vector field (vf) or Markov chain (markov) based lumping are supported.")
 
-    adata.uns[group + "_graph"] = {
-        "group_graph": grp_graph,
-        "group_avg_time": grp_avg_time,
-    }
+    adata.uns[group + "_graph"] = {"group_graph": grp_graph, "group_avg_time": grp_avg_time, "group_names": uniq_grp}
     timer_logger.finish_progress(progress_name="State graph estimation")
     return adata
