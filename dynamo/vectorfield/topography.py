@@ -46,9 +46,7 @@ def pac_onestep(x0, func, v0, ds=0.01):
     return x1
 
 
-def continuation(
-    x0, func, s_max, ds=0.01, v0=None, param_axis=0, param_direction=1
-):
+def continuation(x0, func, s_max, ds=0.01, v0=None, param_axis=0, param_direction=1):
     ret = [x0]
     if v0 is None:  # initialize tangent predictor
         v = np.zeros_like(x0)
@@ -119,9 +117,7 @@ def compute_nullclines_2d(X0, fdx, fdy, x_range, y_range, s_max=None, ds=None):
     return NCx, NCy
 
 
-def compute_separatrices(
-    Xss, Js, func, x_range, y_range, t=50, n_sample=500, eps=1e-6
-):
+def compute_separatrices(Xss, Js, func, x_range, y_range, t=50, n_sample=500, eps=1e-6):
     ret = []
     for i, x in enumerate(Xss):
         print(x)
@@ -178,9 +174,7 @@ def find_intersection_2d(curve1, curve2, tol_redundant=1e-4):
     return np.array(P)
 
 
-def find_fixed_points_nullcline(
-    func, NCx, NCy, sample_interval=0.5, tol_redundant=1e-4
-):
+def find_fixed_points_nullcline(func, NCx, NCy, sample_interval=0.5, tol_redundant=1e-4):
     test_Px = []
     for i in range(len(NCx)):
         test_Px.append(set_test_points_on_curve(NCx[i], sample_interval))
@@ -209,9 +203,10 @@ def calc_fft(x):
 
 
 def dup_osc_idx(x, n_dom=3, tol=0.05):
-    l = int(np.floor(len(x) / n_dom))
-    y1 = x[(n_dom - 2) * l : (n_dom - 1) * l]
-    y2 = x[(n_dom - 1) * l : n_dom * l]
+    l_int = int(np.floor(len(x) / n_dom))
+    ind_a, ind_b = np.arange((n_dom - 2) * l_int, (n_dom - 1) * l_int), np.arange((n_dom - 1) * l_int, n_dom * l_int)
+    y1 = x[ind_a]
+    y2 = x[ind_b]
 
     def calc_fft_k(x):
         ret = []
@@ -220,12 +215,16 @@ def dup_osc_idx(x, n_dom=3, tol=0.05):
             ret.append(xFFT[1:])
         return np.hstack(ret)
 
-    xFFt1 = calc_fft_k(y1)
-    xFFt2 = calc_fft_k(y2)
+    try:
+        xFFt1 = calc_fft_k(y1)
+        xFFt2 = calc_fft_k(y2)
+    except ValueError:
+        print("calc_fft_k run failed...")
+        return None, None
 
     diff = np.linalg.norm(xFFt1 - xFFt2) / len(xFFt1)
     if diff <= tol:
-        idx = (n_dom - 1) * l
+        idx = (n_dom - 1) * l_int
     else:
         idx = None
     return idx, diff
@@ -244,7 +243,7 @@ def dup_osc_idx_iter(x, max_iter=5, **kwargs):
         else:
             idx = i
         j += 1
-        if j >= max_iter:
+        if j >= max_iter or idx == 0:
             stop = True
     D = np.array(D)
     return idx, D
@@ -313,30 +312,17 @@ class VectorField2D:
             _, dist = nbrs.query(Xss, k=min(k, X.shape[0] - 1))
         else:
             alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
-            nbrs = NearestNeighbors(
-                n_neighbors=min(k, X.shape[0] - 1), algorithm=alg, n_jobs=-1
-            ).fit(X)
+            nbrs = NearestNeighbors(n_neighbors=min(k, X.shape[0] - 1), algorithm=alg, n_jobs=-1).fit(X)
             dist, _ = nbrs.kneighbors(Xss)
 
         dist_m = dist.mean(1)
         # confidence = 1 - dist_m / dist_m.max()
-        sigma = (
-            0.1
-            * 0.5
-            * (
-                np.max(X[:, 0])
-                - np.min(X[:, 0])
-                + np.max(X[:, 1])
-                - np.min(X[:, 1])
-            )
-        )
+        sigma = 0.1 * 0.5 * (np.max(X[:, 0]) - np.min(X[:, 0]) + np.max(X[:, 1]) - np.min(X[:, 1]))
         confidence = gaussian_1d(dist_m, sigma=sigma)
         confidence /= np.max(confidence)
         return confidence[:-1]
 
-    def find_fixed_points_by_sampling(
-        self, n, x_range, y_range, lhs=True, tol_redundant=1e-4
-    ):
+    def find_fixed_points_by_sampling(self, n, x_range, y_range, lhs=True, tol_redundant=1e-4):
         if lhs:
             from ..tools.sampling import lhsclassic
 
@@ -355,15 +341,11 @@ class VectorField2D:
             self.Xss.add_fixed_points(X, J, tol_redundant)
 
     def find_nearest_fixed_point(self, x, x_range, y_range, tol_redundant=1e-4):
-        X, J, _ = find_fixed_points(
-            x, self.func, domain=[x_range, y_range], tol_redundant=tol_redundant
-        )
+        X, J, _ = find_fixed_points(x, self.func, domain=[x_range, y_range], tol_redundant=tol_redundant)
         if len(X) > 0:
             self.Xss.add_fixed_points(X, J, tol_redundant)
 
-    def compute_nullclines(
-        self, x_range, y_range, find_new_fixed_points=False, tol_redundant=1e-4
-    ):
+    def compute_nullclines(self, x_range, y_range, find_new_fixed_points=False, tol_redundant=1e-4):
         # compute arguments
         s_max = 5 * ((x_range[1] - x_range[0]) + (y_range[1] - y_range[0]))
         ds = s_max / 1e3
@@ -378,9 +360,7 @@ class VectorField2D:
         )
         if find_new_fixed_points:
             sample_interval = ds * 10
-            X, J = find_fixed_points_nullcline(
-                self.func, self.NCx, self.NCy, sample_interval, tol_redundant
-            )
+            X, J = find_fixed_points_nullcline(self.func, self.NCx, self.NCy, sample_interval, tol_redundant)
             outside = is_outside(X, [x_range, y_range])
             self.Xss.add_fixed_points(X[~outside], J[~outside], tol_redundant)
 
@@ -453,8 +433,8 @@ def topography(
         basis: `str` (default: `trimap`)
             The reduced dimension embedding of cells to visualize.
         layer: `str` or None (default: None)
-            Which layer of the data will be used for vector field function reconstruction. This will be used in conjunction
-            with X.
+            Which layer of the data will be used for vector field function reconstruction. This will be used in
+            conjunction with X.
         X: 'np.ndarray' (dimension: n_obs x n_features)
                 Original data. Not used
         dims: `list` or `None` (default: `None`)
@@ -464,15 +444,15 @@ def topography(
         VecFld: `dictionary` or None (default: None)
             The reconstructed vector field function.
         kwargs:
-            Key word arguments passed to the find_fixed_point function of the vector field class for high dimension fixed
-            point identification.
+            Key word arguments passed to the find_fixed_point function of the vector field class for high dimension
+            fixed point identification.
 
     Returns
     -------
         adata: :class:`~anndata.AnnData`
             `AnnData` object that is updated with the `VecFld` or 'VecFld_' + basis dictionary in the `uns` attribute.
-            The `VecFld2D` key stores an instance of the VectorField2D class which presumably has fixed points, nullcline,
-             separatrix, computed and stored.
+            The `VecFld2D` key stores an instance of the VectorField2D class which presumably has fixed points,
+            nullcline, separatrix, computed and stored.
     """
 
     if VecFld is None:
@@ -568,36 +548,37 @@ def VectorField(
         adata: :class:`~anndata.AnnData`
             AnnData object that contains embedding and velocity data
         basis:
-            The embedding data to use. The vector field function will be learned on the low dimensional embedding and can be then
-            projected back to the high dimensional space.
+            The embedding data to use. The vector field function will be learned on the low dimensional embedding and
+            can be then projected back to the high dimensional space.
         layer:
-            Which layer of the data will be used for vector field function reconstruction. The layer once provided, will override
-            the `basis` argument and then learn the vector field function in high dimensional space.
+            Which layer of the data will be used for vector field function reconstruction. The layer once provided, will
+            override the `basis` argument and then learn the vector field function in high dimensional space.
         dims:
-            The dimensions that will be used for reconstructing vector field functions. If it is an `int` all dimension from
-            the first dimension to `dims` will be used; if it is a list, the dimensions in the list will be used.
+            The dimensions that will be used for reconstructing vector field functions. If it is an `int` all dimension
+            from the first dimension to `dims` will be used; if it is a list, the dimensions in the list will be used.
         genes:
             The gene names whose gene expression will be used for vector field reconstruction. By default (when genes is
-            set to None), the genes used for velocity embedding (var.use_for_transition) will be used for vector field reconstruction.
-            Note that the genes to be used need to have velocity calculated.
+            set to None), the genes used for velocity embedding (var.use_for_transition) will be used for vector field
+            reconstruction. Note that the genes to be used need to have velocity calculated.
         normalize:
             Logic flag to determine whether to normalize the data to have zero means and unit covariance. This is often
             required for raw dataset (for example, raw UMI counts and RNA velocity values in high dimension). But it is
             normally not required for low dimensional embeddings by PCA or other non-linear dimension reduction methods.
         grid_velocity:
-            Whether to generate grid velocity. Note that by default it is set to be False, but for datasets with embedding
-            dimension less than 4, the grid velocity will still be generated. Please note that number of total grids in
-            the space increases exponentially as the number of dimensions increases. So it may quickly lead to lack of
-            memory, for example, it cannot allocate the array with grid_num set to be 50 and dimension is 6 (50^6 total
-            grids) on 32 G memory computer. Although grid velocity may not be generated, the vector field function can still
-            be learned for thousands of dimensions and we can still predict the transcriptomic cell states over long time period.
+            Whether to generate grid velocity. Note that by default it is set to be False, but for datasets with
+            embedding dimension less than 4, the grid velocity will still be generated. Please note that number of total
+            grids in the space increases exponentially as the number of dimensions increases. So it may quickly lead to
+            lack of memory, for example, it cannot allocate the array with grid_num set to be 50 and dimension is 6
+            (50^6 total grids) on 32 G memory computer. Although grid velocity may not be generated, the vector field
+            function can still be learned for thousands of dimensions and we can still predict the transcriptomic cell
+            states over long time period.
         grid_num:
             The number of grids in each dimension for generating the grid velocity.
         velocity_key:
             The key from the adata layer that corresponds to the velocity matrix.
         method:
-            Method that is used to reconstruct the vector field functionally. Currently only SparseVFC supported but other
-            improved approaches are under development.
+            Method that is used to reconstruct the vector field functionally. Currently only SparseVFC supported but
+            other improved approaches are under development.
         buffer_path:
                The directory address keeping all the saved/to-be-saved torch variables and NN modules. When `method` is
                set to be `dynode`, buffer_path will set to be
@@ -613,19 +594,21 @@ def VectorField(
             while curl and divergence is by default only applied to 2D basis. However, divergence is applicable for any
             dimension while curl is generally only defined for 2/3 D systems.
         cores:
-            Number of cores to run the ddhodge function. If cores is set to be > 1, multiprocessing will be used to parallel
-            the ddhodge calculation.
+            Number of cores to run the ddhodge function. If cores is set to be > 1, multiprocessing will be used to
+            parallel the ddhodge calculation.
         result_key:
             The key that will be used as prefix for the vector field key in .uns
         copy:
-            Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments and returning `None`.
+            Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments and
+            returning `None`.
         kwargs:
             Other additional parameters passed to the vectorfield class.
 
     Returns
     -------
         adata: :class:`Union[anndata.AnnData, base_vectorfield]`
-            If `copy` and `return_vf_object` arguments are set to False, `annData` object is updated with the `VecFld` dictionary in the `uns` attribute.
+            If `copy` and `return_vf_object` arguments are set to False, `annData` object is updated with the `VecFld`
+            dictionary in the `uns` attribute.
             If `return_vf_object` is set to True, then a vector field class object is returned.
             If `copy` is set to True, a deep copy of the original `adata` object is returned.
     """
@@ -637,8 +620,7 @@ def VectorField(
     if basis is not None:
         logger.info(
             "Retrieve X and V based on basis: %s. \n "
-            "       Vector field will be learned in the %s space."
-            % (basis.upper(), basis.upper())
+            "       Vector field will be learned in the %s space." % (basis.upper(), basis.upper())
         )
         X = adata.obsm["X_" + basis].copy()
         V = adata.obsm["velocity_" + basis].copy()
@@ -650,8 +632,7 @@ def VectorField(
     else:
         logger.info(
             "Retrieve X and V based on `genes`, layer: %s. \n "
-            "       Vector field will be learned in the gene expression space."
-            % layer
+            "       Vector field will be learned in the gene expression space." % layer
         )
         valid_genes = (
             list(set(genes).intersection(adata.var.index))
@@ -671,9 +652,7 @@ def VectorField(
 
     Grid = None
     if X.shape[1] < 4 or grid_velocity:
-        logger.info(
-            "Generating high dimensional grids and convert into a row matrix."
-        )
+        logger.info("Generating high dimensional grids and convert into a row matrix.")
         # smart way for generating high dimensional grids and convert into a row matrix
         min_vec, max_vec = (
             X.min(0),
@@ -682,15 +661,11 @@ def VectorField(
         min_vec = min_vec - 0.01 * np.abs(max_vec - min_vec)
         max_vec = max_vec + 0.01 * np.abs(max_vec - min_vec)
 
-        Grid_list = np.meshgrid(
-            *[np.linspace(i, j, grid_num) for i, j in zip(min_vec, max_vec)]
-        )
+        Grid_list = np.meshgrid(*[np.linspace(i, j, grid_num) for i, j in zip(min_vec, max_vec)])
         Grid = np.array([i.flatten() for i in Grid_list]).T
 
     if X is None:
-        raise Exception(
-            f"X is None. Make sure you passed the correct X or {basis} dimension reduction method."
-        )
+        raise Exception(f"X is None. Make sure you passed the correct X or {basis} dimension reduction method.")
     elif V is None:
         raise Exception("V is None. Make sure you passed the correct V.")
 
@@ -714,7 +689,6 @@ def VectorField(
         }
     elif method.lower() == "dynode":
         try:
-            import dynode
             from dynode.vectorfield import networkModels
             from dynode.vectorfield.samplers import VelocityDataSampler
 
@@ -722,34 +696,16 @@ def VectorField(
             from dynode.vectorfield.losses_weighted import MSE
             from .scVectorField import dynode_vectorfield
         except ImportError:
-            raise ImportError(
-                "You need to install the package `dynode`."
-                "install dynode via `pip install dynode`"
-            )
+            raise ImportError("You need to install the package `dynode`." "install dynode via `pip install dynode`")
 
-        velocity_data_sampler = VelocityDataSampler(
-            adata={"X": X, "V": V}, normalize_velocity=normalize
-        )
+        velocity_data_sampler = VelocityDataSampler(adata={"X": X, "V": V}, normalize_velocity=normalize)
         max_iter = 2 * 100000 * np.log(X.shape[0]) / (250 + np.log(X.shape[0]))
 
         cwd, cwt = os.getcwd(), datetime.datetime.now()
 
         if model_buffer_path is None:
-            model_buffer_path = (
-                cwd
-                + "/"
-                + basis
-                + "_"
-                + str(cwt.year)
-                + "_"
-                + str(cwt.month)
-                + "_"
-                + str(cwt.day)
-            )
-            warnings.warn(
-                f"the buffer path saving the dynode model is in %s"
-                % (model_buffer_path)
-            )
+            model_buffer_path = cwd + "/" + basis + "_" + str(cwt.year) + "_" + str(cwt.month) + "_" + str(cwt.day)
+            warnings.warn("the buffer path saving the dynode model is in %s" % (model_buffer_path))
 
         vf_kwargs = {
             "model": networkModels,
@@ -787,9 +743,7 @@ def VectorField(
             "iter_per_sample_update": None,
         }
     else:
-        raise ValueError(
-            f"current only support two methods, SparseVFC and dynode"
-        )
+        raise ValueError("current only support two methods, SparseVFC and dynode")
 
     vf_kwargs = update_dict(vf_kwargs, kwargs)
 
@@ -853,9 +807,7 @@ def VectorField(
                 **tp_kwargs,
             )
     if pot_curl_div:
-        logger.info(
-            f"Running ddhodge to estimate vector field based pseudotime in {basis} basis..."
-        )
+        logger.info(f"Running ddhodge to estimate vector field based pseudotime in {basis} basis...")
 
         ddhodge(adata, basis=basis, cores=cores)
         if X.shape[1] == 2:
@@ -875,12 +827,8 @@ def VectorField(
         logger.info_insert_adata(inlier_prob, adata_attr="obs")
 
         adata.obs[control_point], adata.obs[inlier_prob] = False, np.nan
-        adata.obs.loc[
-            adata.obs_names[vf_dict["ctrl_idx"]], control_point
-        ] = True
-        adata.obs.loc[adata.obs_names[valid_ids], inlier_prob] = vf_dict[
-            "P"
-        ].flatten()
+        adata.obs.loc[adata.obs_names[vf_dict["ctrl_idx"]], control_point] = True
+        adata.obs.loc[adata.obs_names[valid_ids], inlier_prob] = vf_dict["P"].flatten()
 
     # angles between observed velocity and that predicted by vector field across cells:
     cell_angels = np.zeros(adata.n_obs)
@@ -951,9 +899,7 @@ def assign_fixedpoints(
         valid_fps_type_assignment,
         assignment_id,
     ) = vecfld_class.assign_fixed_points(cores=cores)
-    assignment_id = [
-        str(int(i)) if np.isfinite(i) else None for i in assignment_id
-    ]
+    assignment_id = [str(int(i)) if np.isfinite(i) else None for i in assignment_id]
     adata.obs["fps_assignment"] = assignment_id
     adata.uns["fps_assignment_" + basis] = {
         "X": X,

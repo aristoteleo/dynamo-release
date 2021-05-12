@@ -288,7 +288,7 @@ def scatters(
         else y,
     )
     if all([is_gene_name(adata, i) for i in basis]):
-        if x[0] not in ["M_s", "X_spliced", "M_t", "X_total", "spliced", "total",] and y[0] not in [
+        if x[0] not in ["M_s", "X_spliced", "M_t", "X_total", "spliced", "total"] and y[0] not in [
             "M_u",
             "X_unspliced",
             "M_n",
@@ -485,7 +485,7 @@ def scatters(
                         # points = points.loc[points.iloc[:, 0] > 0, :]
                         points.columns = [cur_x, cur_y]
                         cur_title = cur_b
-                    elif type(cur_x) in [anndata._core.views.ArrayView, np.ndarray,] and type(cur_y) in [
+                    elif type(cur_x) in [anndata._core.views.ArrayView, np.ndarray] and type(cur_y) in [
                         anndata._core.views.ArrayView,
                         np.ndarray,
                     ]:
@@ -509,7 +509,7 @@ def scatters(
                             np.zeros((len(uniq_grp), 2)),
                         )
 
-                        grp_size = adata.obs[aggregate].value_counts().values
+                        grp_size = adata.obs[aggregate].value_counts()[uniq_grp].values
                         scatter_kwargs = (
                             {"s": grp_size} if scatter_kwargs is None else update_dict(scatter_kwargs, {"s": grp_size})
                         )

@@ -32,7 +32,7 @@ def state_graph(
     group,
     method="vf",
     transition_mat_key="pearson_transition_matrix",
-    approx=True,
+    approx=False,
     basis="umap",
     layer=None,
     arc_sample=False,
@@ -168,10 +168,10 @@ def state_graph(
                     interpolation_num=250,
                     average=False,
                 )
-                t, X = np.hstack(t), np.hstack(X).T
+                # t, X = np.hstack(t), np.hstack(X).T
 
-            len_per_cell = len(t)
-            cell_num = int(X.shape[0] / len(t))
+            len_per_cell = None if type(t) == list else len(t)
+            cell_num = len(t) if type(X) == list else int(X.shape[0] / len(t))
 
             knn_dist_, knn_ind_ = kdt.query(init_states, k=2)
             dist_min, dist_threshold = (
@@ -180,13 +180,18 @@ def state_graph(
             )
 
             for j in np.arange(cell_num):
-                cur_ind = np.arange(j * len_per_cell, (j + 1) * len_per_cell)
-                Y, arclength, T_bool = remove_redundant_points_trajectory(X[cur_ind], tol=dist_min, output_discard=True)
+                if len_per_cell is not None:
+                    cur_ind = np.arange(j * len_per_cell, (j + 1) * len_per_cell)
+                    Y, arclength, T_bool = remove_redundant_points_trajectory(
+                        X[cur_ind], tol=dist_min, output_discard=True
+                    )
 
-                if arc_sample:
-                    Y, arclength, T = arclength_sampling(Y, arclength / 1000, t=t[~T_bool])
+                    if arc_sample:
+                        Y, arclength, T = arclength_sampling(Y, arclength / 1000, t=t[~T_bool])
+                    else:
+                        T = t[~T_bool]
                 else:
-                    T = t[~T_bool]
+                    Y, T = X[j].T, t[j] if type(t[j]) == np.ndarray else np.array(t[j])
 
                 knn_dist, knn_ind = kdt.query(Y, k=1)
 
