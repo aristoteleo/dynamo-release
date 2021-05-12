@@ -34,6 +34,10 @@ def create_edge_patch(posA, posB, width=1, node_rad=0, connectionstyle="arc3, ra
 def create_edge_patches_from_markov_chain(
     P, X, width=3, node_rad=0, tol=1e-7, connectionstyle="arc3, rad=0.25", facecolor="k", alpha=0.8, **kwargs
 ):
+    """
+    create edge patches from a markov chain transition matrix. If P[i, j] > tol, an arrow is created from
+    node i to j.
+    """
     arrows = []
     for i in range(P.shape[0]):
         for j in range(P.shape[0]):
@@ -125,8 +129,8 @@ def state_graph(
     s_kwargs_dict.update({"s": grp_size})
 
     Pl = adata.uns[group + "_graph"]["group_graph"]
-    Pl[Pl - Pl.T < 0] = 0
-    Pl /= Pl.sum(1)[:, None]
+    # Pl[Pl - Pl.T < 0] = 0
+    # Pl /= Pl.sum(1)[:, None]
 
     for i, cur_grp in enumerate(uniq_grp):
         group_median[i, :] = np.nanmedian(points[np.where(groups == cur_grp)[0], :2], 0)

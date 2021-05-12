@@ -142,7 +142,10 @@ def index_gene(adata, arr, genes):
         :class:`~numpy.ndarray`
             The indexed array.
     """
-    if areinstance(genes, str):
+
+    if areinstance(genes, [bool, np.bool_]):
+        mask = np.array(genes)
+    else:
         all_genes = adata.var_names
         # Note: this mask here is in fact an indices vector!
         mask = np.zeros(len(genes), dtype=int)
@@ -151,8 +154,6 @@ def index_gene(adata, arr, genes):
                 mask[i] = all_genes.get_loc(g)
             else:
                 raise ValueError(f"the gene {g} you provided is not included in the data.")
-    elif areinstance(genes, bool) or areinstance(genes, np.bool_):
-        mask = np.array(genes)
 
     if arr.ndim == 1:
         if len(arr) != adata.n_vars:
@@ -256,7 +257,7 @@ def isarray(arr):
     Check if a variable is an array. Essentially the variable has the attribute 'len'
     and it is not a string.
     """
-    return hasattr(arr, "__len__") and (not isinstance(arr, str))
+    return hasattr(arr, "__len__") and (not isinstance(arr, str) and (not isinstance(arr, type)))
 
 
 def ismatrix(arr):
@@ -271,7 +272,14 @@ def areinstance(arr, dtype, logic_func=all):
     """
     Check if elements of an array are all (by default) of 'dtype'.
     """
-    ret = [isinstance(a, dtype) for a in arr]
+    if not isarray(dtype):
+        dtype = [dtype]
+    ret = None
+    for dt in dtype:
+        if ret is None:
+            ret = [isinstance(a, dt) for a in arr]
+        else:
+            ret = np.logical_or(ret, [isinstance(a, dt) for a in arr])
     return logic_func(ret)
 
 

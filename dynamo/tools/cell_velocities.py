@@ -11,7 +11,6 @@ from .Markov import (
     graphize_velocity,
     fp_operator,
     ContinuousTimeMarkovChain,
-    get_transition_matrix,
 )
 from .connectivity import adj_to_knn
 
@@ -494,7 +493,7 @@ def cell_velocities(
             elif method + "_transition_rate" in adata.obsp.keys():
                 print("Using existing %s found in .obsp." % (method + "_transition_rate"))
                 R = adata.obsp[method + "_transition_rate"]
-                T = get_transition_matrix(R)
+                T = ContinuousTimeMarkovChain(P=R.T).compute_embedded_transition_matrix()
             delta_X = projection_with_transition_matrix(T.shape[0], T, X_embedding, correct_density)
         else:
             E, _ = graphize_velocity(V, X, nbrs_idx=indices, **graph_kwargs)
