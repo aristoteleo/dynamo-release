@@ -493,7 +493,7 @@ def cell_velocities(
             elif method + "_transition_rate" in adata.obsp.keys():
                 print("Using existing %s found in .obsp." % (method + "_transition_rate"))
                 R = adata.obsp[method + "_transition_rate"]
-                T = ContinuousTimeMarkovChain(P=R.T).compute_embedded_transition_matrix()
+                T = ContinuousTimeMarkovChain(P=R.T).compute_embedded_transition_matrix().T
             delta_X = projection_with_transition_matrix(T.shape[0], T, X_embedding, correct_density)
         else:
             E, _ = graphize_velocity(V, X, nbrs_idx=indices, **graph_kwargs)
