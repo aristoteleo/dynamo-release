@@ -55,6 +55,8 @@ def cell_velocities(
     basis: str = "umap",
     neigh_key: str = "neighbors",
     adj_key: str = "distances",
+    add_transition_key: str = None,
+    add_velocity_key: str = None,
     n_neighbors: int = 30,
     method: str = "pearson",
     neg_cells_trick: bool = True,
@@ -65,7 +67,6 @@ def cell_velocities(
     sample_fraction: Union[float, None] = None,
     random_seed: int = 19491001,
     enforce: bool = False,
-    key: Union[str, None] = None,
     preserve_len: bool = False,
     **kernel_kwargs,
 ) -> anndata.AnnData:
@@ -130,6 +131,10 @@ def cell_velocities(
             The dictionary key for the neighbor information (stores nearest neighbor `indices`) in .uns.
         adj_key: str (optional, default `distances`)
             The dictionary key for the adjacency matrix of the nearest neighbor graph in .obsp.
+        add_transition_key: str or None (default: None)
+            The dictionary key that will be used for storing the transition matrix in .obsp.
+        add_velocity_key: str or None (default: None)
+            The dictionary key that will be used for storing the low dimensional velocity projection matrix in .obsm.
         method: str (optional, default `pearson`)
             The method to calculate the transition matrix and project high dimensional vector to low dimension, either
             `kmc`, `fp`, `cosine`, `pearson`, or `transform`. "kmc" is our new approach to learn the transition matrix
@@ -543,42 +548,44 @@ def cell_velocities(
             T_i = T[i].data
             delta_X[i] *= T_i.dot(high_len_) / basis_len[i] * scaler
 
-    if key is None:
-        adata.obsp[method + "_transition_matrix"] = T
-        adata.obsm["velocity_" + basis] = delta_X
-        adata.uns["grid_velocity_" + basis] = {
-            "X_grid": X_grid,
-            "V_grid": V_grid,
-            "D": D,
-        }
+    if add_transition_key is None:
+        transition_key = method + "_transition_matrix"
     else:
-        adata.obsp[key + "_" + method + "_transition_matrix"] = T
-        adata.obsm[key + "_" + basis] = delta_X
-        adata.uns["grid_" + key + "_" + basis] = {
-            "X_grid": X_grid,
-            "V_grid": V_grid,
-            "D": D,
-        }
+        transition_key = add_transition_key
+
+    adata.obsp[transition_key] = T
+    if add_velocity_key is None:
+        velocity_key, grid_velocity_key = "velocity_" + basis, "grid_velocity_" + basis
+    else:
+        velocity_key, grid_velocity_key = add_velocity_key, "grid_" + add_velocity_key
+
+    adata.obsm[velocity_key] = delta_X
+    adata.uns[grid_velocity_key] = {
+        "X_grid": X_grid,
+        "V_grid": V_grid,
+        "D": D,
+    }
 
     if calc_rnd_vel:
-        if key is None:
-            adata.obsp[method + "_transition_matrix_rnd"] = T_rnd
-            adata.obsm["X_" + basis + "_rnd"] = X_embedding
-            adata.obsm["velocity_" + basis + "_rnd"] = delta_X_rnd
-            adata.uns["grid_velocity_" + basis + "_rnd"] = {
-                "X_grid": X_grid_rnd,
-                "V_grid": V_grid_rnd,
-                "D": D_rnd,
-            }
+        if add_transition_key is None:
+            transition_rnd_key = method + "_transition_matrix_rnd"
         else:
-            adata.obsp[key + "_" + method + "_transition_matrix_rnd"] = T_rnd
-            adata.obsm["X_" + key + "_" + basis + "_rnd"] = X_embedding
-            adata.obsm[key + "_" + basis + "_rnd"] = delta_X_rnd
-            adata.uns["grid_" + key + "_" + basis + "_rnd"] = {
-                "X_grid": X_grid_rnd,
-                "V_grid": V_grid_rnd,
-                "D": D_rnd,
-            }
+            transition_rnd_key = add_transition_key + "_rnd"
+
+        if add_velocity_key is None:
+            velocity_rnd_key, grid_velocity_rnd_key = "velocity_" + basis + "_rnd", "grid_velocity_" + basis + "_rnd"
+        else:
+            velocity_rnd_key, grid_velocity_rnd_key = add_velocity_key + "_rnd", "grid_" + add_velocity_key + "_rnd"
+
+        X_embedding_rnd = "X_" + basis + "_rnd"
+        adata.obsp[transition_rnd_key] = T_rnd
+        adata.obsm[X_embedding_rnd] = X_embedding
+        adata.obsm[velocity_rnd_key] = delta_X_rnd
+        adata.uns[grid_velocity_rnd_key] = {
+            "X_grid": X_grid_rnd,
+            "V_grid": V_grid_rnd,
+            "D": D_rnd,
+        }
 
     return adata
 
