@@ -246,3 +246,11 @@ def main_tqdm(generator, desc="", indent_level=1, logger=LoggerManager().main_lo
         description of your progress
     """
     return LoggerManager.progress_logger(generator, logger=logger, progress_name=desc, indent_level=indent_level)
+
+
+def main_log_time():
+    LoggerManager.main_logger.log_time()
+
+
+def main_finish_progress():
+    LoggerManager.main_logger.finish_progress()

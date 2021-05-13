@@ -5,6 +5,7 @@ from .scatters import (
 )
 
 from ..tl import compute_smallest_distance
+from ..dynamo_logger import *
 
 docstrings.delete_params("scatters.parameters", "adata", "basis", "figsize")
 
@@ -31,7 +32,7 @@ def space(adata, space="spatial", width=6, marker="p", *args, **kwargs):
     -------
         plots gene or cell feature of the adata object on the physical spatial coordinates.
     """
-
+    main_log_time()
     if space in adata.obsm_keys():
         space_key = space
     elif "X_" + space in adata.obsm_keys():
@@ -45,6 +46,7 @@ def space(adata, space="spatial", width=6, marker="p", *args, **kwargs):
     # calculate point size based on minimum radius
     pointsize = compute_smallest_distance(adata[space_key])
 
+    main_finish_progress()
     # here we should pass different point size, type (square or hexogon, etc), etc.
     return scatters(
         adata,
