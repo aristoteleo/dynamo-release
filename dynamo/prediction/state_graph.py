@@ -2,7 +2,8 @@ import pandas as pd
 import numpy as np
 from scipy.spatial import cKDTree
 import scipy.sparse as sp
-from sklearn.preprocessing import OrdinalEncoder
+
+# from sklearn.preprocessing import OrdinalEncoder
 
 from ..tools.Markov import DiscreteTimeMarkovChain
 from ..prediction.fate import _fate
@@ -33,6 +34,7 @@ def state_graph(
     method="vf",
     transition_mat_key="pearson_transition_matrix",
     approx=False,
+    eignum=5,
     basis="umap",
     layer=None,
     arc_sample=False,
@@ -52,6 +54,10 @@ def state_graph(
             The key that corresponds to the transition graph used in the KernelMarkovChain class for lumping.
         approx: `bool` (default: False)
             Whether to use streamplot to get the integration lines from each cell.
+        eignum: `int` (default: 5)
+            The number of eigen-vectors when performing the eigen-decomposition to obtain the stationary
+            distribution. 5 should be sufficient as the stationary distribution will be the first eigenvector. This also
+            accelerates the calculation.
         basis: `str` or None (default: `umap`)
             The embedding data to use for predicting cell fate. If `basis` is either `umap` or `pca`, the reconstructed
             trajectory will be projected back to high dimensional space via the `inverse_transform` function.
@@ -83,7 +89,7 @@ def state_graph(
             T = T.T
         if sp.issparse(T):
             T = T.A
-        dtmc = DiscreteTimeMarkovChain(P=T, check_norm=False)
+        dtmc = DiscreteTimeMarkovChain(P=T, eignum=eignum, check_norm=False)
 
         # ord_enc = OrdinalEncoder()
         # labels = ord_enc.fit_transform(adata.obs[[group]])

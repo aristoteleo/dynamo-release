@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.sparse import csr_matrix
 import anndata
 from typing import Union
 
@@ -13,6 +14,7 @@ def perturbation(
     adata: anndata.AnnData,
     genes: Union[str, list],
     expression: Union[float, list] = 10,
+    zero_perturb_genes_vel: bool = False,
     pca_key: Union[str, np.ndarray, None] = None,
     PCs_key: Union[str, np.ndarray, None] = None,
     pca_mean_key: Union[str, np.ndarray, None] = None,
@@ -28,9 +30,8 @@ def perturbation(
 
     To simulate genetic perturbation and its downstream effects, we take advantage of the analytical Jacobian from our
     vector field function. In particular, we first calculate the perturbation velocity vector:
-                        \delta Y = J \dot \delta X.
-    where the J is the analytical Jacobian, \delta X is the perturbation vector (that is, if upregulate gene i to
-    expression 10 but downregulate gene j to -10 while keep other genes not changed, we have
+    $\delta Y = J \dot \delta X.$ where the J is the analytical Jacobian, \delta X is the perturbation vector (that is,
+    if overexpression gene i to expression 10 but downexpression gene j to -10 but keep others not changed, we have
     delta X = [0, 0, 0, delta x_i = 10, 0, 0, .., x_j = -10, 0, 0, 0]). Because Jacobian encodes the instantaneous
     changes of velocity of any genes after increasing any other gene, J \dot \delta X will produce the perturbation
     effect vector after propogating the genetic perturbation (\delta_X) through the gene regulatory network. We can then
@@ -46,20 +47,23 @@ def perturbation(
         expression:
              The numerical value or list of values that will be used to encode the genetic perturbation. High positive
              values indicates up-regulation while low negative value repression.
-        pca_key
+        zero_perturb_genes_vel:
+            Whether to set the peturbed genes' perturbation velocity vector values to be zero.
+        pca_key:
             The key that corresponds to pca embedding. Can also be the actual embedding matrix.
-        PCs_key
+        PCs_key:
             The key that corresponds to PC loading embedding. Can also be the actual loading matrix.
-        pca_mean_key
+        pca_mean_key:
             The key that corresponds to means values that used for pca projection. Can also be the actual means matrix.
-        basis
+        basis:
             The key that corresponds to perturbation vector projection embedding.
         X_pca:
             The pca embedding matrix.
         delta_Y:
             The actual perturbation matrix. This argument enables more customized perturbation schemes.
         add_delta_Y_key:
-            The key that will be used to store the perturbation effect matrix.
+            The key that will be used to store the perturbation effect matrix. Both the pca dimension matrix (stored in
+            obsm) or the matrix of the original gene expression space (stored in .layers) will use this key.
         add_transition_key: str or None (default: None)
             The dictionary key that will be used for storing the transition matrix in .obsp.
         add_velocity_key: str or None (default: None)
@@ -97,9 +101,7 @@ def perturbation(
             )
 
     if X_pca is None:
-        logger.info(
-            "Retrive X_pca, PCs, pca_mean...",
-        )
+        logger.info("Retrive X_pca, PCs, pca_mean...")
 
         pca_key = "X_pca" if pca_key is None else pca_key
         PCs_key = "PCs" if PCs_key is None else PCs_key
@@ -108,9 +110,7 @@ def perturbation(
         X_pca = adata.obsm[pca_key]
 
     if delta_Y is None:
-        logger.info(
-            "Calculate perturbation effect matrix via \delta Y = J \dot \delta X....",
-        )
+        logger.info("Calculate perturbation effect matrix via \delta Y = J \dot \delta X....")
 
         if type(PCs_key) == np.ndarray:
             PCs = PCs_key
@@ -155,6 +155,12 @@ def perturbation(
     logger.info_insert_adata(add_delta_Y_key, "obsm", indent_level=1)
 
     adata.obsm[add_delta_Y_key] = delta_Y
+
+    perturbation_csc = pca_to_expr(delta_Y, PCs, means)
+    adata.layers[add_delta_Y_key] = csr_matrix(adata.shape, dtype=np.float64)
+    adata.layers[add_delta_Y_key][:, adata.var.use_for_pca] = perturbation_csc
+    if zero_perturb_genes_vel:
+        adata.layers[add_delta_Y_key][:, gene_loc] = 0
 
     logger.info(
         "project the pca perturbation vector to low dimensional space....",
