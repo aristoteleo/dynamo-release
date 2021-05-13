@@ -4,6 +4,8 @@ from .scatters import (
     docstrings,
 )
 
+from ..tl import compute_smallest_distance
+
 docstrings.delete_params("scatters.parameters", "adata", "basis", "figsize")
 
 
@@ -40,12 +42,16 @@ def space(adata, space="spatial", width=6, marker="p", *args, **kwargs):
     # from the physical coordinate.
     figsize = (width, ptp_vec[1] / ptp_vec[0] * width)
 
+    # calculate point size based on minimum radius
+    pointsize = compute_smallest_distance(adata[space_key])
+
     # here we should pass different point size, type (square or hexogon, etc), etc.
     return scatters(
         adata,
         marker=marker,
         basis=space_key,
         figsize=figsize,
+        pointsize=pointsize,
         *args,
         **kwargs,
     )
