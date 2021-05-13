@@ -33,7 +33,7 @@ from ..tools.utils import (
     flatten,
 )
 from ..tools.moments import calc_1nd_moment
-
+from ..dynamo_logger import *
 from ..docrep import DocstringProcessor
 
 docstrings = DocstringProcessor()
@@ -77,6 +77,8 @@ def scatters(
     dpi: int = 100,
     inset_dict: dict = {},
     marker: str = None,
+    group: str = None,
+    add_group_gamma_fit=False,
     **kwargs,
 ) -> Union[None, Axes]:
     """Plot an embedding as points. Currently this only works
@@ -663,9 +665,45 @@ def scatters(
                             )
                         else:
                             raise Exception(
-                                "adata does not seem to have velocity_gamma column. Velocity estimation is required "
-                                "before running this function."
+                                "adata does not seem to have %s column. Velocity estimation is required "
+                                "before running this function." % k_name
                             )
+                    if group is not None and add_group_gamma_fit:
+                        colors = ["b", "g", "r", "c", "m", "y", "k", "w"]
+                        cell_groups = adata.obs[group]
+                        unique_groups = np.unique(cell_groups)
+                        k_suffix = "gamma_k" if adata.uns["dynamics"]["experiment_type"] == "one-shot" else "gamma"
+                        for group_idx, cur_group in enumerate(unique_groups):
+                            k_name = group + "_" + cur_group + "_" + k_suffix
+                            group_adata = adata[adata.obs[group] == cur_group]
+                            group_points = points.iloc[np.array(adata.obs[group] == cur_group)]
+                            group_gamma_key = group + "_" + cur_group + "_" + "gamma_b"
+                            group_xnew = np.linspace(
+                                group_points.iloc[:, 0].min(),
+                                group_points.iloc[:, 0].max() * 0.90,
+                            )
+                            group_ynew = (
+                                group_xnew * group_adata[:, cur_b].var.loc[:, k_name].unique()
+                                + group_adata[:, cur_b].var.loc[:, group_gamma_key].unique()
+                            )
+                            ax.annotate(group + "_" + cur_group, xy=(group_xnew[-1], group_ynew[-1]))
+                            if k_name in group_adata.var.columns:
+                                if not (group_gamma_key in group_adata.var.columns) or all(
+                                    group_adata.var.gamma_b.isna()
+                                ):
+                                    group_adata.var.loc[:, group_gamma_key] = 0
+                                    main_info("No %s found, setting all bias terms to zero" % group_gamma_key)
+                                ax.plot(
+                                    group_xnew,
+                                    group_ynew,
+                                    dashes=[6, 2],
+                                    c=colors[group_idx % len(colors)],
+                                )
+                            else:
+                                raise Exception(
+                                    "adata does not seem to have %s column. Velocity estimation is required "
+                                    "before running this function." % k_name
+                                )
     if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,
