@@ -668,13 +668,17 @@ def scatters(
                                 "adata does not seem to have %s column. Velocity estimation is required "
                                 "before running this function." % k_name
                             )
-                    if group is not None and add_group_gamma_fit:
+                    if (
+                        group is not None
+                        and add_group_gamma_fit
+                        and cur_b in adata.var_names[adata.var.use_for_dynamics]
+                    ):
                         colors = ["b", "g", "r", "c", "m", "y", "k", "w"]
                         cell_groups = adata.obs[group]
                         unique_groups = np.unique(cell_groups)
                         k_suffix = "gamma_k" if adata.uns["dynamics"]["experiment_type"] == "one-shot" else "gamma"
                         for group_idx, cur_group in enumerate(unique_groups):
-                            k_name = group + "_" + cur_group + "_" + k_suffix
+                            group_k_name = group + "_" + cur_group + "_" + k_suffix
                             group_adata = adata[adata.obs[group] == cur_group]
                             group_points = points.iloc[np.array(adata.obs[group] == cur_group)]
                             group_gamma_key = group + "_" + cur_group + "_" + "gamma_b"
@@ -683,13 +687,13 @@ def scatters(
                                 group_points.iloc[:, 0].max() * 0.90,
                             )
                             group_ynew = (
-                                group_xnew * group_adata[:, cur_b].var.loc[:, k_name].unique()
+                                group_xnew * group_adata[:, cur_b].var.loc[:, group_k_name].unique()
                                 + group_adata[:, cur_b].var.loc[:, group_gamma_key].unique()
                             )
                             ax.annotate(group + "_" + cur_group, xy=(group_xnew[-1], group_ynew[-1]))
-                            if k_name in group_adata.var.columns:
+                            if group_k_name in group_adata.var.columns:
                                 if not (group_gamma_key in group_adata.var.columns) or all(
-                                    group_adata.var.gamma_b.isna()
+                                    group_adata.var[group_gamma_key].isna()
                                 ):
                                     group_adata.var.loc[:, group_gamma_key] = 0
                                     main_info("No %s found, setting all bias terms to zero" % group_gamma_key)
@@ -702,7 +706,7 @@ def scatters(
                             else:
                                 raise Exception(
                                     "adata does not seem to have %s column. Velocity estimation is required "
-                                    "before running this function." % k_name
+                                    "before running this function." % group_k_name
                                 )
     if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
