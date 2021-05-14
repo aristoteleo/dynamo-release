@@ -252,5 +252,5 @@ def main_log_time():
     LoggerManager.main_logger.log_time()
 
 
-def main_finish_progress():
-    LoggerManager.main_logger.finish_progress()
+def main_finish_progress(progress_name=""):
+    LoggerManager.main_logger.finish_progress(progress_name=progress_name)
