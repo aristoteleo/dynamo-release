@@ -46,7 +46,7 @@ def space(adata, space="spatial", width=6, marker="p", *args, **kwargs):
 
     # calculate point size based on minimum radius
     pointsize = compute_smallest_distance(adata.obsm[space_key])
-    main_finish_progress()
+    main_finish_progress("Plot space")
     # here we should pass different point size, type (square or hexogon, etc), etc.
     return scatters(
         adata,
