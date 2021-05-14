@@ -64,12 +64,4 @@ def space(
         main_info("estimated point size for plotting each cell in space: %f" % (pointsize))
     main_finish_progress("space plot")
     # here we should pass different point size, type (square or hexogon, etc), etc.
-    return scatters(
-        adata,
-        marker=marker,
-        basis=space_key,
-        figsize=figsize,
-        pointsize=pointsize,
-        *args,
-        **kwargs,
-    )
+    return scatters(adata, marker=marker, basis=space_key, figsize=figsize, pointsize=pointsize, *args, **kwargs,)
