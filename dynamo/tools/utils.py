@@ -7,6 +7,7 @@ from scipy import interpolate, stats
 from scipy.spatial.distance import squareform as spsquare
 from scipy.integrate import odeint
 from scipy.linalg.blas import dgemm
+import sklearn
 from sklearn.neighbors import NearestNeighbors
 import warnings
 import time
@@ -2093,6 +2094,41 @@ def getTseq(init_states, t_end, step_size=None):
         t_linspace = np.arange(0, t_end + step_size, step_size)
 
     return t_linspace
+
+
+def compute_smallest_distance(coords, leaf_size=40):
+    """Compute and return smallest distance. A wrapper for sklearn API
+
+    Parameters
+    ----------
+    coords : [type]
+        NxM matrix. N is the number of data points and M is the dimension of each point's feature.
+    leaf_size : int, optional
+        [description], by default 40
+
+    Returns
+    -------
+    float
+        the minimum distance between points
+
+    Raises
+    ------
+    ValueError
+        [description]
+    """
+    if len(coords.shape) != 2:
+        raise ValueError("Coordinates should be a NxM array.")
+    # kd_tree = scipy.spatial.KDTree(coords)
+    kd_tree = sklearn.neighbors.KDTree(coords, leaf_size=leaf_size)
+    N, M = coords.shape
+
+    # Note k=2 here because the nearest query is always a point itself.
+    distances, indices = kd_tree.query(coords, k=2, return_distance=True)
+    min_dist = float("inf")
+    for i in range(N):
+        min_dist = min(min_dist, distances[i, 1])
+
+    return min_dist
 
 
 # ---------------------------------------------------------------------------------------------------
