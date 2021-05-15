@@ -440,14 +440,7 @@ def timeit(method):
 
 
 def velocity_on_grid(
-    X,
-    V,
-    n_grids,
-    nbrs=None,
-    k=None,
-    smoothness=1,
-    cutoff_coeff=2,
-    margin_coeff=0.025,
+    X, V, n_grids, nbrs=None, k=None, smoothness=1, cutoff_coeff=2, margin_coeff=0.025,
 ):
     # codes adapted from velocyto
     _, D = X.shape
@@ -469,13 +462,7 @@ def velocity_on_grid(
         if X.shape[0] > 200000 and X.shape[1] > 2:
             from pynndescent import NNDescent
 
-            nbrs = NNDescent(
-                X,
-                metric="euclidean",
-                n_neighbors=k + 1,
-                n_jobs=-1,
-                random_state=19491001,
-            )
+            nbrs = NNDescent(X, metric="euclidean", n_neighbors=k + 1, n_jobs=-1, random_state=19491001,)
         else:
             alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
             nbrs = NearestNeighbors(n_neighbors=k + 1, algorithm=alg, n_jobs=-1).fit(X)
@@ -697,15 +684,7 @@ def log_unnormalized_data(raw, log_unnormalized):
 
 
 def get_data_for_kin_params_estimation(
-    subset_adata,
-    has_splicing,
-    has_labeling,
-    model,
-    use_moments,
-    tkey,
-    protein_names,
-    log_unnormalized,
-    NTR_vel,
+    subset_adata, has_splicing, has_labeling, model, use_moments, tkey, protein_names, log_unnormalized, NTR_vel,
 ):
     if not NTR_vel:
         if has_labeling and not has_splicing:
@@ -865,9 +844,7 @@ def get_data_for_kin_params_estimation(
             t = np.array(subset_adata.obs[tkey], dtype="float")
         else:
             raise Exception(
-                "the tkey ",
-                tkey,
-                " provided is not a valid column name in .obs.",
+                "the tkey ", tkey, " provided is not a valid column name in .obs.",
             )
         if model == "stochastic" and all([x in subset_adata.layers.keys() for x in ["M_tn", "M_nn", "M_tt"]]):
             US, U2, S2 = (
@@ -901,17 +878,7 @@ def get_data_for_kin_params_estimation(
 
 
 def set_velocity(
-    adata,
-    vel_U,
-    vel_S,
-    vel_N,
-    vel_T,
-    vel_P,
-    _group,
-    cur_grp,
-    cur_cells_bools,
-    valid_ind,
-    ind_for_proteins,
+    adata, vel_U, vel_S, vel_N, vel_T, vel_P, _group, cur_grp, cur_cells_bools, valid_ind, ind_for_proteins,
 ):
     cur_cells_ind, valid_ind_ = (
         np.where(cur_cells_bools)[0][:, np.newaxis],
@@ -967,10 +934,7 @@ def set_param_ss(
             if cur_grp == _group[0]:
                 adata.varm[kin_param_pre + "alpha"] = np.zeros((adata.shape[1], alpha[1].shape[1]))
             adata.varm[kin_param_pre + "alpha"][valid_ind, :] = alpha[1]
-            (
-                adata.var[kin_param_pre + "alpha"],
-                adata.var[kin_param_pre + "alpha_std"],
-            ) = (None, None)
+            (adata.var[kin_param_pre + "alpha"], adata.var[kin_param_pre + "alpha_std"],) = (None, None)
             (
                 adata.var.loc[valid_ind, kin_param_pre + "alpha"],
                 adata.var.loc[valid_ind, kin_param_pre + "alpha_std"],
@@ -1936,13 +1900,7 @@ def linear_least_squares(a, b, residuals=False):
 
 
 def integrate_vf(
-    init_states,
-    t,
-    args,
-    integration_direction,
-    f,
-    interpolation_num=None,
-    average=True,
+    init_states, t, args, integration_direction, f, interpolation_num=None, average=True,
 ):
     """integrating along vector field function"""
 
@@ -2028,8 +1986,7 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
         if type(init_cells) == str:
             init_cells = [init_cells]
         intersect_cell_names = sorted(
-            set(init_cells).intersection(adata.obs_names),
-            key=lambda x: list(init_cells).index(x),
+            set(init_cells).intersection(adata.obs_names), key=lambda x: list(init_cells).index(x),
         )
         _cell_names = init_cells if len(intersect_cell_names) == 0 else intersect_cell_names
 
@@ -2096,6 +2053,41 @@ def getTseq(init_states, t_end, step_size=None):
     return t_linspace
 
 
+def compute_smallest_distance(coords: list, leaf_size: int = 40) -> float:
+    """Compute and return smallest distance. A wrapper for sklearn API
+
+    Parameters
+    ----------
+    coords :
+        NxM matrix. N is the number of data points and M is the dimension of each point's feature.
+    leaf_size : int, optional
+        Leaf size parameter for building Kd-tree, by default 40
+
+    Returns
+    -------
+    float
+        the minimum distance between points
+
+    Raises
+    ------
+    ValueError
+        [description]
+    """
+    if len(coords.shape) != 2:
+        raise ValueError("Coordinates should be a NxM array.")
+    # kd_tree = scipy.spatial.KDTree(coords)
+    kd_tree = sklearn.neighbors.KDTree(coords, leaf_size=leaf_size)
+    N, M = coords.shape
+
+    # Note k=2 here because the nearest query is always a point itself.
+    distances, indices = kd_tree.query(coords, k=2, return_distance=True)
+    min_dist = float("inf")
+    for i in range(N):
+        min_dist = min(min_dist, distances[i, 1])
+
+    return min_dist
+
+
 # ---------------------------------------------------------------------------------------------------
 # spatial related
 def compute_smallest_distance(coords: list, leaf_size: int = 40, sample_num=1000) -> float:
@@ -2147,11 +2139,7 @@ def apply_args_and_kwargs(fn, args, kwargs):
 # ---------------------------------------------------------------------------------------------------
 # ranking related
 def get_rank_array(
-    adata,
-    arr_key,
-    genes=None,
-    abs=False,
-    dtype=None,
+    adata, arr_key, genes=None, abs=False, dtype=None,
 ):
     """Get the data array that will be used for gene-wise or cell-wise ranking
 
