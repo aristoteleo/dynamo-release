@@ -2116,6 +2116,8 @@ def getTseq(init_states, t_end, step_size=None):
     return t_linspace
 
 
+# ---------------------------------------------------------------------------------------------------
+# spatial related
 def compute_smallest_distance(coords: list, leaf_size: int = 40) -> float:
     """Compute and return smallest distance. A wrapper for sklearn API
 
