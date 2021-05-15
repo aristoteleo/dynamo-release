@@ -2096,15 +2096,15 @@ def getTseq(init_states, t_end, step_size=None):
     return t_linspace
 
 
-def compute_smallest_distance(coords, leaf_size=40):
+def compute_smallest_distance(coords: list, leaf_size: int = 40) -> float:
     """Compute and return smallest distance. A wrapper for sklearn API
 
     Parameters
     ----------
-    coords : [type]
+    coords :
         NxM matrix. N is the number of data points and M is the dimension of each point's feature.
     leaf_size : int, optional
-        [description], by default 40
+        Leaf size parameter for building Kd-tree, by default 40
 
     Returns
     -------
