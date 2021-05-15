@@ -12,7 +12,17 @@ docstrings.delete_params("scatters.parameters", "adata", "basis", "figsize")
 
 
 @docstrings.with_indent(4)
-def space(adata, space="spatial", width=6, marker="p", pointsize=None, pointsize_estimation_num=1000, *args, **kwargs):
+def space(
+    adata,
+    genes="all",
+    space="spatial",
+    width=6,
+    marker="p",
+    pointsize=None,
+    pointsize_estimation_num=1000,
+    *args,
+    **kwargs
+):
     """\
     Scatter plot for physical coordinates of each cell.
 
