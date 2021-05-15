@@ -681,22 +681,22 @@ def scatters(
                             group_k_name = group + "_" + cur_group + "_" + k_suffix
                             group_adata = adata[adata.obs[group] == cur_group]
                             group_points = points.iloc[np.array(adata.obs[group] == cur_group)]
-                            group_gamma_key = group + "_" + cur_group + "_" + "gamma_b"
+                            group_b_key = group + "_" + cur_group + "_" + "gamma_b"
                             group_xnew = np.linspace(
                                 group_points.iloc[:, 0].min(),
                                 group_points.iloc[:, 0].max() * 0.90,
                             )
                             group_ynew = (
                                 group_xnew * group_adata[:, cur_b].var.loc[:, group_k_name].unique()
-                                + group_adata[:, cur_b].var.loc[:, group_gamma_key].unique()
+                                + group_adata[:, cur_b].var.loc[:, group_b_key].unique()
                             )
                             ax.annotate(group + "_" + cur_group, xy=(group_xnew[-1], group_ynew[-1]))
                             if group_k_name in group_adata.var.columns:
-                                if not (group_gamma_key in group_adata.var.columns) or all(
-                                    group_adata.var[group_gamma_key].isna()
+                                if not (group_b_key in group_adata.var.columns) or all(
+                                    group_adata.var[group_b_key].isna()
                                 ):
-                                    group_adata.var.loc[:, group_gamma_key] = 0
-                                    main_info("No %s found, setting all bias terms to zero" % group_gamma_key)
+                                    group_adata.var.loc[:, group_b_key] = 0
+                                    main_info("No %s found, setting all bias terms to zero" % group_b_key)
                                 ax.plot(
                                     group_xnew,
                                     group_ynew,
