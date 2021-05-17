@@ -1496,6 +1496,27 @@ def select(array, pred=AlwaysTrue(), output_format="mask"):
     return ret
 
 
+def anndata_bytestring_decode(adata_item):
+    for key in adata_item.keys():
+        df = adata_item[key]
+        if df.dtype.name == "category" and areinstance(df.cat.categories, bytes):
+            cat = [c.decode() for c in df.cat.categories]
+            df.cat.rename_categories(cat, inplace=True)
+
+
+def decode_index(adata_item):
+    if areinstance(adata_item.index, bytes):
+        index = {i: i.decode() for i in adata_item.index}
+        adata_item.rename(index, inplace=True)
+
+
+def decode(adata):
+    decode_index(adata.obs)
+    decode_index(adata.var)
+    anndata_bytestring_decode(adata.obs)
+    anndata_bytestring_decode(adata.var)
+
+
 # ---------------------------------------------------------------------------------------------------
 # estimation related
 
