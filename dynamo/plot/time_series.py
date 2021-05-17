@@ -385,7 +385,8 @@ def kinetic_heatmap(
     if not show_colorbar:
         sns_heatmap.cax.set_visible(False)
     if len(hlines_kwargs) > 0:
-        sns_heatmap.hlines(*hlines_kwargs, *sns_heatmap.get_xlim())
+        hl_kwargs = update_dict({"linestype": "dashdot"}, hlines_kwargs)
+        sns_heatmap.hlines(*hl_kwargs, *sns_heatmap.get_xlim())
 
     if save_show_or_return == "save":
         s_kwargs = {

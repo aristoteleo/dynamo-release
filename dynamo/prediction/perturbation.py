@@ -163,7 +163,7 @@ def perturbation(
         delta_Y = np.zeros_like(X_pca)
 
         # get the actual delta_X:
-        delta_X = X_perturb_pca - X_pca
+        delta_X = X_pca - X_perturb_pca
         for i in np.arange(adata.n_obs):
             delta_Y[i, :] = Js[:, :, i].dot(delta_X[i])
 
