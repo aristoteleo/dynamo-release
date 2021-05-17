@@ -202,16 +202,16 @@ def perturbation(
 
 
 def rank_perturbation_genes(adata, pkey="perturbation_vector", prefix_store="rank", **kwargs):
-    """Rank genes based on their raw and absolute perturbation for each cell group.
+    """Rank genes based on their raw and absolute perturbation effects for each cell group.
 
     Parameters
     ----------
         adata: :class:`~anndata.AnnData`
-            AnnData object that contains the gene-wise velocities.
+            AnnData object that contains the gene-wise perturbation effect vectors.
         pkey: str (default: 'perturbation_vector')
             The perturbation key.
         prefix_store: str (default: 'rank')
-            The prefix added to the key for storing the returned in adata.
+            The prefix added to the key for storing the returned ranking information in adata.
         kwargs:
             Keyword arguments passed to `vf.rank_genes`.
     Returns

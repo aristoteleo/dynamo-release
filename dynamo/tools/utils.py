@@ -2218,4 +2218,4 @@ def get_rank_array(
     if abs:
         arr = np.abs(arr)
 
-    return arr
+    return genes, arr

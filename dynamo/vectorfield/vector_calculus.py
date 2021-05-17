@@ -862,7 +862,7 @@ def rank_genes(
             A dictionary of gene names and values based on which the genes are sorted for each cell group.
     """
 
-    arr = get_rank_array(
+    genes, arr = get_rank_array(
         adata,
         arr_key,
         genes=genes,
@@ -934,7 +934,7 @@ def rank_cells(
             A dictionary of cells names and values based on which the genes are sorted for each gene group.
     """
 
-    arr = get_rank_array(
+    genes, arr = get_rank_array(
         adata,
         arr_key,
         genes=genes,
