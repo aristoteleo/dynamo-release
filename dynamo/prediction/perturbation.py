@@ -5,9 +5,16 @@ from typing import Union
 
 from ..tools.cell_velocities import cell_velocities
 from ..vectorfield.vector_calculus import jacobian
-from .utils import expr_to_pca, pca_to_expr
+from .utils import (
+    expr_to_pca,
+    pca_to_expr,
+)
 
-from ..vectorfield.vector_calculus import rank_genes, rank_cells
+from ..vectorfield.vector_calculus import (
+    rank_genes,
+    rank_cells,
+    rank_cell_groups,
+)
 from ..dynamo_logger import LoggerManager
 
 
@@ -155,6 +162,8 @@ def perturbation(
         # calculate perturbation velocity vector: \delta Y = J \dot \delta X:
         delta_Y = np.zeros_like(X_pca)
 
+        # get the actual delta_X:
+        X_perturb_pca -= X_pca
         for i in np.arange(adata.n_obs):
             delta_Y[i, :] = Js[:, :, i].dot(X_perturb_pca[i])
 
@@ -269,8 +278,8 @@ def rank_perturbation_cell_clusters(adata, pkey="perturbation_vector", prefix_st
         adata: :class:`~anndata.AnnData`
             AnnData object which has the rank dictionary for perturbation effects in `.uns`.
     """
-    rdict = rank_cells(adata, pkey, **kwargs)
-    rdict_abs = rank_cells(adata, pkey, abs=True, **kwargs)
-    adata.uns[prefix_store + "_" + pkey + "_cells"] = rdict
-    adata.uns[prefix_store + "_abs_" + pkey + "_cells"] = rdict_abs
+    rdict = rank_cell_groups(adata, pkey, **kwargs)
+    rdict_abs = rank_cell_groups(adata, pkey, abs=True, **kwargs)
+    adata.uns[prefix_store + "_" + pkey + "_cell_groups"] = rdict
+    adata.uns[prefix_store + "_abs_" + pkey + "_cells_groups"] = rdict_abs
     return adata
