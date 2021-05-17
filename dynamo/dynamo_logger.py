@@ -150,7 +150,7 @@ class Logger:
         self.previous_timestamp = now
         return self.time_passed
 
-    def report_progress(self, percent=None, count=None, total=None, progress_name=""):
+    def report_progress(self, percent=None, count=None, total=None, progress_name="", indent_level=1):
         if percent is None:
             assert (not count is None) and (not total is None)
             percent = count / total * 100
@@ -159,21 +159,20 @@ class Logger:
         if progress_name != "":
             progress_name = "[" + str(progress_name) + "] "
         message = "\r" + format_logging_message(
-            "%sin progress: %.4f%%" % (progress_name, percent),
-            logging_level=logging.INFO,
+            "%sin progress: %.4f%%" % (progress_name, percent), logging_level=logging.INFO, indent_level=indent_level
         )
         self.logger.info(message)
         self.logger_stream_handler.flush()
         self.logger_stream_handler.terminator = saved_terminator
 
-    def finish_progress(self, progress_name="", time_unit="s"):
+    def finish_progress(self, progress_name="", time_unit="s", indent_level=1):
         self.log_time()
         self.logger.info("\r|")
 
         if time_unit == "s":
-            self.info("[%s] finished [%.4fs]" % (progress_name, self.time_passed))
+            self.info("[%s] finished [%.4fs]" % (progress_name, self.time_passed), indent_level=indent_level)
         elif time_unit == "ms":
-            self.info("[%s] finished [%.4fms]" % (progress_name, self.time_passed * 1e3))
+            self.info("[%s] finished [%.4fms]" % (progress_name, self.time_passed * 1e3), indent_level=indent_level)
         else:
             raise NotImplementedError
         self.logger_stream_handler.flush()
@@ -197,7 +196,7 @@ class LoggerManager:
         return LoggerManager.temp_timer_logger
 
     @staticmethod
-    def progress_logger(generator, logger=None, progress_name=""):
+    def progress_logger(generator, logger=None, progress_name="", indent_level=1):
         if logger is None:
             logger = LoggerManager.get_temp_timer_logger()
         iterator = iter(generator)
@@ -209,10 +208,12 @@ class LoggerManager:
             new_progress_percent = i / len(generator) * 100
             # report every `interval` percent
             if new_progress_percent - prev_progress_percent > 1 or new_progress_percent >= 100:
-                logger.report_progress(count=i, total=len(generator), progress_name=progress_name)
+                logger.report_progress(
+                    count=i, total=len(generator), progress_name=progress_name, indent_level=indent_level
+                )
                 prev_progress_percent = new_progress_percent
             yield next(iterator)
-        logger.finish_progress(progress_name=progress_name)
+        logger.finish_progress(progress_name=progress_name, indent_level=indent_level)
 
 
 def main_info(message, indent_level=1):
@@ -231,7 +232,7 @@ def main_critical(message, indent_level=1):
     LoggerManager.main_logger.critical(message, indent_level)
 
 
-def main_tqdm(generator, desc=""):
+def main_tqdm(generator, desc="", indent_level=1, logger=LoggerManager().main_logger):
     """a TQDM style wrapper for logging something like a loop.
     e.g.
     for item in main_tqdm(alist, desc=""):
@@ -244,4 +245,12 @@ def main_tqdm(generator, desc=""):
     desc : str, optional
         description of your progress
     """
-    return LoggerManager.progress_logger(generator, logger=LoggerManager.main_logger, progress_name=desc)
+    return LoggerManager.progress_logger(generator, logger=logger, progress_name=desc, indent_level=indent_level)
+
+
+def main_log_time():
+    LoggerManager.main_logger.log_time()
+
+
+def main_finish_progress():
+    LoggerManager.main_logger.finish_progress()
