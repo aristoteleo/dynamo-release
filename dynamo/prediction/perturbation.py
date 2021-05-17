@@ -7,6 +7,7 @@ from ..tools.cell_velocities import cell_velocities
 from ..vectorfield.vector_calculus import jacobian
 from .utils import expr_to_pca, pca_to_expr
 
+from ..vectorfield.vector_calculus import rank_genes, rank_cells
 from ..dynamo_logger import LoggerManager
 
 
@@ -30,13 +31,18 @@ def perturbation(
 
     To simulate genetic perturbation and its downstream effects, we take advantage of the analytical Jacobian from our
     vector field function. In particular, we first calculate the perturbation velocity vector:
-    $\delta Y = J \dot \delta X.$ where the J is the analytical Jacobian, \delta X is the perturbation vector (that is,
-    if overexpression gene i to expression 10 but downexpression gene j to -10 but keep others not changed, we have
+
+    .. math::
+        \\delta Y = J \\dot \\delta X
+
+    where the J is the analytical Jacobian, \\delta X is the perturbation vector (that is,
+
+    if overexpress gene i to expression 10 but downexpress gene j to -10 but keep others not changed, we have
     delta X = [0, 0, 0, delta x_i = 10, 0, 0, .., x_j = -10, 0, 0, 0]). Because Jacobian encodes the instantaneous
-    changes of velocity of any genes after increasing any other gene, J \dot \delta X will produce the perturbation
-    effect vector after propogating the genetic perturbation (\delta_X) through the gene regulatory network. We can then
-    use X_pca and \delta_Y as a pair (just like M_s and velocity_S) to project the perturbation vector to low
-    dimensional space. The \delta_Y can be also used to identify the strongest responders of the genetic perturbation.
+    changes of velocity of any genes after increasing any other gene, J \\dot \\delta X will produce the perturbation
+    effect vector after propagating the genetic perturbation (\\delta_X) through the gene regulatory network. We then
+    use X_pca and \\delta_Y as a pair (just like M_s and velocity_S) to project the perturbation vector to low
+    dimensional space. The \\delta_Y can be also used to identify the strongest responders of the genetic perturbation.
 
     Parameters
     ----------
@@ -110,7 +116,7 @@ def perturbation(
         X_pca = adata.obsm[pca_key]
 
     if delta_Y is None:
-        logger.info("Calculate perturbation effect matrix via \delta Y = J \dot \delta X....")
+        logger.info("Calculate perturbation effect matrix via \\delta Y = J \\dot \\delta X....")
 
         if type(PCs_key) == np.ndarray:
             PCs = PCs_key
@@ -193,3 +199,78 @@ def perturbation(
         f"perturbation vector"
     )
     adata.obsm[embedding_key] = adata.obsm["X_" + basis].copy()
+
+
+def rank_perturbation_genes(adata, pkey="perturbation_vector", prefix_store="rank", **kwargs):
+    """Rank genes based on their raw and absolute perturbation for each cell group.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the gene-wise velocities.
+        pkey: str (default: 'perturbation_vector')
+            The perturbation key.
+        prefix_store: str (default: 'rank')
+            The prefix added to the key for storing the returned in adata.
+        kwargs:
+            Keyword arguments passed to `vf.rank_genes`.
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object which has the rank dictionary for perturbation effects in `.uns`.
+    """
+    rdict = rank_genes(adata, pkey, **kwargs)
+    rdict_abs = rank_genes(adata, pkey, abs=True, **kwargs)
+    adata.uns[prefix_store + "_" + pkey] = rdict
+    adata.uns[prefix_store + "_abs_" + pkey] = rdict_abs
+    return adata
+
+
+def rank_perturbation_cells(adata, pkey="perturbation_vector", prefix_store="rank", **kwargs):
+    """Rank cells based on their raw and absolute perturbation for each cell group.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the gene-wise velocities.
+        pkey: str (default: 'perturbation_vector')
+            The perturbation key.
+        prefix_store: str (default: 'rank')
+            The prefix added to the key for storing the returned in adata.
+        kwargs:
+            Keyword arguments passed to `vf.rank_cells`.
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object which has the rank dictionary for perturbation effects in `.uns`.
+    """
+    rdict = rank_cells(adata, pkey, **kwargs)
+    rdict_abs = rank_cells(adata, pkey, abs=True, **kwargs)
+    adata.uns[prefix_store + "_" + pkey + "_cells"] = rdict
+    adata.uns[prefix_store + "_abs_" + pkey + "_cells"] = rdict_abs
+    return adata
+
+
+def rank_perturbation_cell_clusters(adata, pkey="perturbation_vector", prefix_store="rank", **kwargs):
+    """Rank cells based on their raw and absolute perturbation for each cell group.
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the gene-wise velocities.
+        pkey: str (default: 'perturbation_vector')
+            The perturbation key.
+        prefix_store: str (default: 'rank')
+            The prefix added to the key for storing the returned in adata.
+        kwargs:
+            Keyword arguments passed to `vf.rank_cells`.
+    Returns
+    -------
+        adata: :class:`~anndata.AnnData`
+            AnnData object which has the rank dictionary for perturbation effects in `.uns`.
+    """
+    rdict = rank_cells(adata, pkey, **kwargs)
+    rdict_abs = rank_cells(adata, pkey, abs=True, **kwargs)
+    adata.uns[prefix_store + "_" + pkey + "_cells"] = rdict
+    adata.uns[prefix_store + "_abs_" + pkey + "_cells"] = rdict_abs
+    return adata

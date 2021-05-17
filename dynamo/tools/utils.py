@@ -1,4 +1,5 @@
 from tqdm import tqdm
+from anndata._core.views import ArrayView
 import numpy as np
 import scipy.sparse as sp
 import pandas as pd
@@ -11,7 +12,7 @@ import warnings
 import time
 import itertools
 
-from ..preprocessing.utils import Freeman_Tukey, detect_datatype
+from ..preprocessing.utils import Freeman_Tukey
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -46,8 +47,9 @@ def get_finite_inds(X, ax=0):
 
 
 def get_pd_row_column_idx(df, queries, type="column"):
-    """Find the numeric indices of multiple index/column matches with a vectorized solution using np.searchsorted method.
-    adapted from: https://stackoverflow.com/questions/13021654/get-column-index-from-column-name-in-python-pandas
+    """Find the numeric indices of multiple index/column matches with a vectorized solution using np.searchsorted
+    method. adapted from:
+    https://stackoverflow.com/questions/13021654/get-column-index-from-column-name-in-python-pandas
 
     Parameters
     ----------
@@ -332,7 +334,7 @@ def cell_norm(adata, key, prefix_store=None, **norm_kwargs):
     elif key in adata.layers.keys():
         X = adata.layers[key]
     else:
-        raise ValueError(f"The key is not found in adata.obsm and adata.layers!")
+        raise ValueError("The key is not found in adata.obsm and adata.layers!")
 
     ret = norm(X, axis=1, **norm_kwargs)
 
@@ -342,7 +344,8 @@ def cell_norm(adata, key, prefix_store=None, **norm_kwargs):
 
 
 def einsum_correlation(X, Y_i, type="pearson"):
-    """calculate pearson or cosine correlation between X (genes/pcs/embeddings x cells) and the velocity vectors Y_i for gene i"""
+    """calculate pearson or cosine correlation between X (genes/pcs/embeddings x cells) and the velocity vectors Y_i
+    for gene i"""
 
     if type == "pearson":
         X -= X.mean(axis=1)[:, None]
@@ -415,7 +418,10 @@ def index_condensed_matrix(n, i, j):
 
 def condensed_idx_to_squareform_idx(arr_len, i):
     n = int((1 + np.sqrt(1 + 8 * arr_len)) / 2)
-    fr = lambda x: int(x * (n - (x + 3) * 0.5) + n - 1)
+
+    def fr(x):
+        return int(x * (n - (x + 3) * 0.5) + n - 1)
+
     for x in range(n):
         d = fr(x) - (i + 1)
         if d >= 0:
@@ -643,19 +649,19 @@ def inverse_norm(adata, layer_x):
 
 # ---------------------------------------------------------------------------------------------------
 # kinetic parameters related:
-def one_shot_alpha(l, gamma, t):
-    alpha = l * gamma / (1 - np.exp(-gamma * t))
+def one_shot_alpha(labeled, gamma, t):
+    alpha = labeled * gamma / (1 - np.exp(-gamma * t))
     return alpha
 
 
-def one_shot_alpha_matrix(l, gamma, t):
-    alpha = elem_prod(gamma[:, None], l) / (1 - np.exp(-elem_prod(gamma[:, None], t[None, :])))
+def one_shot_alpha_matrix(labeled, gamma, t):
+    alpha = elem_prod(gamma[:, None], labeled) / (1 - np.exp(-elem_prod(gamma[:, None], t[None, :])))
     return sp.csr_matrix(alpha)
 
 
-def one_shot_gamma_alpha(k, t, l):
+def one_shot_gamma_alpha(k, t, labeled):
     gamma = -np.log(1 - k) / t
-    alpha = l * (gamma / k)[0]
+    alpha = labeled * (gamma / k)[0]
     return gamma, alpha
 
 
@@ -780,16 +786,16 @@ def get_data_for_kin_params_estimation(
             False,
             "ss" if NTR_vel else "kinetic",
         )
-        raw, raw_uu = subset_adata.layers["uu"].T, subset_adata.layers["uu"].T
+        raw, _ = subset_adata.layers["uu"].T, subset_adata.layers["uu"].T
         U = log_unnormalized_data(raw, log_unnormalized)
 
-        raw, raw_ul = subset_adata.layers["ul"].T, subset_adata.layers["ul"].T
+        raw, _ = subset_adata.layers["ul"].T, subset_adata.layers["ul"].T
         Ul = log_unnormalized_data(raw, log_unnormalized)
 
-        raw, raw_sl = subset_adata.layers["sl"].T, subset_adata.layers["sl"].T
+        raw, _ = subset_adata.layers["sl"].T, subset_adata.layers["sl"].T
         Sl = log_unnormalized_data(raw, log_unnormalized)
 
-        raw, raw_su = subset_adata.layers["su"].T, subset_adata.layers["su"].T
+        raw, _ = subset_adata.layers["su"].T, subset_adata.layers["su"].T
         S = log_unnormalized_data(raw, log_unnormalized)
 
     # labeling without splicing
@@ -810,7 +816,7 @@ def get_data_for_kin_params_estimation(
 
     elif not has_splicing and "new" in subset_adata.layers.keys():
         assumption_mRNA = ("ss" if NTR_vel else "kinetic",)
-        raw, raw_new, old = (
+        raw, _, old = (
             subset_adata.layers["new"].T,
             subset_adata.layers["new"].T,
             subset_adata.layers["total"].T - subset_adata.layers["new"].T,
@@ -836,7 +842,7 @@ def get_data_for_kin_params_estimation(
         U = subset_adata.layers[mapper["X_unspliced"]].T if use_moments else subset_adata.layers["X_unspliced"].T
     elif not has_labeling and "unspliced" in subset_adata.layers.keys():
         assumption_mRNA = "kinetic" if tkey in subset_adata.obs.columns else "ss"
-        raw, raw_unspliced = (
+        raw, _ = (
             subset_adata.layers["unspliced"].T,
             subset_adata.layers["unspliced"].T,
         )
@@ -851,7 +857,7 @@ def get_data_for_kin_params_estimation(
     ):
         S = subset_adata.layers[mapper["X_spliced"]].T if use_moments else subset_adata.layers["X_spliced"].T
     elif not has_labeling and "spliced" in subset_adata.layers.keys():
-        raw, raw_spliced = (
+        raw, _ = (
             subset_adata.layers["spliced"].T,
             subset_adata.layers["spliced"].T,
         )
@@ -872,7 +878,8 @@ def get_data_for_kin_params_estimation(
     if P is not None:
         if protein_names is None:
             warnings.warn(
-                "protein layer exists but protein_names is not provided. No estimation will be performed for protein data."
+                "protein layer exists but protein_names is not provided. No estimation will be performed for protein "
+                "data."
             )
         else:
             protein_names = list(set(subset_adata.var.index).intersection(protein_names))
@@ -1326,9 +1333,9 @@ def fetch_X_data(adata, genes, layer, basis=None):
     if genes is not None:
         genes = adata.var_names.intersection(genes).to_list()
         if len(genes) == 0:
-            raise ValueError(f"No genes from your genes list appear in your adata object.")
+            raise ValueError("No genes from your genes list appear in your adata object.")
 
-    if layer == None:
+    if layer is None:
         if genes is not None:
             X_data = adata[:, genes].X
         else:
@@ -1627,7 +1634,7 @@ def set_transition_genes(
 
         if "alpha_r2" not in adata.var.columns:
             adata.var["alpha_r2"] = None
-        if np.all(adata.var.alpha_r2.values == None):
+        if np.all(adata.var.alpha_r2.values is None):
             adata.var.alpha_r2 = 1
         adata.var[store_key] = (
             (adata.var.alpha > min_alpha) & (adata.var.alpha_r2 > min_r2) & adata.var.use_for_dynamics
@@ -1648,7 +1655,7 @@ def set_transition_genes(
 
         if "gamma_r2" not in adata.var.columns:
             adata.var["gamma_r2"] = None
-        if np.all(adata.var.gamma_r2.values == None):
+        if np.all(adata.var.gamma_r2.values is None):
             adata.var.gamma_r2 = 1
         adata.var[store_key] = (
             (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2) & adata.var.use_for_dynamics
@@ -1669,7 +1676,7 @@ def set_transition_genes(
 
         if "delta_r2" not in adata.var.columns:
             adata.var["delta_r2"] = None
-        if np.all(adata.var.delta_r2.values == None):
+        if np.all(adata.var.delta_r2.values is None):
             adata.var.delta_r2 = 1
         adata.var[store_key] = (
             (adata.var.delta > min_delta) & (adata.var.delta_r2 > min_r2) & adata.var.use_for_dynamics
@@ -1690,7 +1697,7 @@ def set_transition_genes(
 
         if "gamma_r2" not in adata.var.columns:
             adata.var["gamma_r2"] = None
-        if np.all(adata.var.gamma_r2.values == None):
+        if np.all(adata.var.gamma_r2.values is None):
             adata.var.gamma_r2 = 1
         adata.var[store_key] = (
             (adata.var.gamma > min_gamma) & (adata.var.gamma_r2 > min_r2) & adata.var.use_for_dynamics
@@ -1700,11 +1707,11 @@ def set_transition_genes(
 
     if adata.var[store_key].sum() < 5 and adata.n_vars > 5:
         raise Exception(
-            f"Only less than 5 genes satisfies transition gene selection criteria, which may be resulted "
-            f"from: \n"
-            f"  1. Very low intron/new RNA ratio, try filtering low ratio and poor quality cells \n"
-            f"  2. Your selection criteria may be set to be too stringent, try loosing those thresholds \n"
-            f"  3. Your data has strange expression kinetics. Welcome reporting to us for more insights."
+            "Only less than 5 genes satisfies transition gene selection criteria, which may be resulted "
+            "from: \n"
+            "  1. Very low intron/new RNA ratio, try filtering low ratio and poor quality cells \n"
+            "  2. Your selection criteria may be set to be too stringent, try loosing those thresholds \n"
+            "  3. Your data has strange expression kinetics. Welcome reporting to us for more insights."
         )
 
     return adata
@@ -1795,7 +1802,8 @@ def get_ekey_vkey_from_adata(adata):
         else:
             if not (("X_unspliced" in adata.layers.keys()) or (mapper["X_unspliced"] in adata.layers.keys())):
                 raise Exception(
-                    "The input data you have is not normalized/log transformed or smoothed and normalized/log transformed!"
+                    "The input data you have is not normalized/log transformed or smoothed and normalized/log "
+                    "transformed!"
                 )
             ekey, vkey, layer = (
                 (mapper["X_spliced"], "velocity_S", "X_spliced")
@@ -2014,7 +2022,8 @@ def integrate_vf(
 
         _t, _Y = None, None
         for i in range(n_cell):
-            cur_Y = Y[i : (i + 1) * len(t_trans), :][valid_ids, :]
+            ind_vec = np.arange(i, (i + 1) * len(t_trans))
+            cur_Y = Y[ind_vec, :][valid_ids, :]
             t_linspace = np.linspace(valid_t_trans[0], valid_t_trans[-1], interpolation_num)
             f = interpolate.interp1d(valid_t_trans, cur_Y.T)
             _Y = f(t_linspace) if _Y is None else np.hstack((_Y, f(t_linspace)))
@@ -2062,7 +2071,8 @@ def fetch_states(adata, init_states, init_cells, basis, layer, average, t_end):
 
             valid_genes = [basis + "_" + str(i) for i in np.arange(init_states.shape[1])]
         else:
-            # valid_genes = list(set(genes).intersection(adata.var_names[adata.var.use_for_transition]) if genes is not None \
+            # valid_genes = list(set(genes).intersection(adata.var_names[adata.var.use_for_transition]) if genes is not
+            # None \
             #     else adata.var_names[adata.var.use_for_transition]
             # ----------- enable the function to only only a subset genes -----------
 
@@ -2127,3 +2137,85 @@ def starmap_with_kwargs(pool, fn, args_iter, kwargs_iter):
 
 def apply_args_and_kwargs(fn, args, kwargs):
     return fn(*args, **kwargs)
+
+
+# ---------------------------------------------------------------------------------------------------
+# ranking related
+def get_rank_array(
+    adata,
+    arr_key,
+    genes=None,
+    abs=False,
+    dtype=None,
+):
+    """Get the data array that will be used for gene-wise or cell-wise ranking
+
+    Parameters
+    ----------
+        adata: :class:`~anndata.AnnData`
+            AnnData object that contains the array to be sorted in `.var` or `.layer`.
+        arr_key: str or :class:`~numpy.ndarray`
+            The key of the to-be-ranked array stored in `.var` or or `.layer`.
+            If the array is found in `.var`, the `groups` argument will be ignored.
+            If a numpy array is passed, it is used as the array to be ranked and must
+            be either an 1d array of length `.n_var`, or a `.n_obs`-by-`.n_var` 2d array.
+        groups: str or None (default: None)
+            Cell groups used to group the array.
+        genes: list or None (default: None)
+            The gene list that speed will be ranked. If provided, they must overlap the dynamics genes.
+        abs: bool (default: False)
+            When pooling the values in the array (see below), whether to take the absolute values.
+        fcn_pool: callable (default: numpy.mean(x, axis=0))
+            The function used to pool values in the to-be-ranked array if the array is 2d.
+
+    Returns
+    -------
+        arr: `~numpy.ndarray`
+            An array that stores information required for gene/cell-wise ranking.
+    """
+
+    dynamics_genes = (
+        adata.var.use_for_dynamics if "use_for_dynamics" in adata.var.keys() else np.ones(adata.n_vars, dtype=bool)
+    )
+    if genes is not None:
+        if type(genes) is str:
+            genes = adata.var[genes].to_list()
+            genes = np.logical_and(genes, dynamics_genes.to_list())
+        elif areinstance(genes, str):
+            genes_ = adata.var_names[dynamics_genes].intersection(genes).to_list()
+            genes = adata.var_names.isin(genes_)
+        elif areinstance(genes, bool) or areinstance(genes, np.bool_):
+            genes = np.array(genes)
+            genes = np.logical_and(genes, dynamics_genes.to_list())
+        else:
+            raise TypeError(
+                "The provided genes should either be a key of adata.var, an array of gene names, or of booleans."
+            )
+    else:
+        genes = dynamics_genes
+
+    if not np.any(genes):
+        raise ValueError("The list of genes provided does not contain any dynamics genes.")
+
+    if type(arr_key) is str:
+        if arr_key in adata.layers.keys():
+            arr = index_gene(adata, adata.layers[arr_key], genes)
+        elif arr_key in adata.var.keys():
+            arr = index_gene(adata, adata.var[arr_key], genes)
+        else:
+            raise Exception(f"Key {arr_key} not found in neither .layers nor .var.")
+    else:
+        arr = index_gene(adata, arr_key, genes)
+
+    if type(arr) == ArrayView:
+        arr = np.array(arr)
+    if sp.issparse(arr):
+        arr = arr.A
+    arr[np.isnan(arr)] = 0
+
+    if dtype is not None:
+        arr = np.array(arr, dtype=dtype)
+    if abs:
+        arr = np.abs(arr)
+
+    return arr
