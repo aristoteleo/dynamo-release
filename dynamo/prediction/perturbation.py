@@ -163,9 +163,9 @@ def perturbation(
         delta_Y = np.zeros_like(X_pca)
 
         # get the actual delta_X:
-        X_perturb_pca -= X_pca
+        delta_X = X_perturb_pca - X_pca
         for i in np.arange(adata.n_obs):
-            delta_Y[i, :] = Js[:, :, i].dot(X_perturb_pca[i])
+            delta_Y[i, :] = Js[:, :, i].dot(delta_X[i])
 
     logger.info_insert_adata(add_delta_Y_key, "obsm", indent_level=1)
 
