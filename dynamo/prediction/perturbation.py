@@ -4,7 +4,11 @@ import anndata
 from typing import Union
 
 from ..tools.cell_velocities import cell_velocities
-from ..vectorfield.vector_calculus import jacobian
+from ..vectorfield.vector_calculus import (
+    jacobian,
+    # velocities,
+)
+from ..vectorfield.utils import vecfld_from_adata
 from .utils import (
     expr_to_pca,
     pca_to_expr,
@@ -29,6 +33,9 @@ def perturbation(
     basis: Union[str, None] = "umap",
     X_pca: Union[np.ndarray, None] = None,
     delta_Y: Union[np.ndarray, None] = None,
+    use_delta_X: bool = True,
+    diffusion_n: int = 1,
+    perturb_velocity: bool = False,
     add_delta_Y_key: str = "perturbation_vector",
     add_transition_key: str = None,
     add_velocity_key: str = None,
@@ -163,13 +170,20 @@ def perturbation(
         delta_Y = np.zeros_like(X_pca)
 
         # get the actual delta_X:
-        delta_X = X_perturb_pca - X_pca
+        delta_X = X_perturb_pca - X_pca if use_delta_X else X_perturb_pca
         for i in np.arange(adata.n_obs):
-            delta_Y[i, :] = Js[:, :, i].dot(delta_X[i])
+            if diffusion_n != 1:
+                delta_Y[i, :] = np.linalg.matrix_power(Js[:, :, i], diffusion_n).dot(delta_X[i])
+            else:
+                delta_Y[i, :] = Js[:, :, i].dot(delta_X[i])
 
     logger.info_insert_adata(add_delta_Y_key, "obsm", indent_level=1)
 
     adata.obsm[add_delta_Y_key] = delta_Y
+    if perturb_velocity:
+        _, func = vecfld_from_adata(adata, basis)
+        vec_mat = func(X_perturb_pca)
+        delta_Y, adata.obsm[add_delta_Y_key] = vec_mat, vec_mat
 
     perturbation_csc = pca_to_expr(delta_Y, PCs, means)
     adata.layers[add_delta_Y_key] = csr_matrix(adata.shape, dtype=np.float64)

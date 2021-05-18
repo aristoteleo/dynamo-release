@@ -382,7 +382,7 @@ def kinetic_heatmap(
 
         color_key = _to_hex(plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels)))
         gene_lut = dict(zip(map(str, uniq_gene_grps), color_key))
-        row_colors = adata.obs.clusters.map(gene_lut)
+        row_colors = adata.var[gene_group].map(gene_lut)
     else:
         uniq_gene_grps, gene_lut = [], {}
 
@@ -393,7 +393,7 @@ def kinetic_heatmap(
 
         color_key = _to_hex(plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels)))
         cell_lut = dict(zip(map(str, uniq_cell_grps), color_key))
-        col_colors = adata.obs.clusters.map(cell_lut)
+        col_colors = adata.var[cell_group].map(cell_lut)
     else:
         uniq_cell_grps, cell_lut = [], {}
 
