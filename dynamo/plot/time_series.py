@@ -222,10 +222,15 @@ def kinetic_heatmap(
     spaced_num: int = 100,
     traj_ind: int = 0,
     log: bool = True,
-    cell_group=None,
-    cell_group_cmap=None,
+    gene_group: Union[None, list] = None,
+    gene_group_cmap: Union[None, list] = None,
+    cell_group: Union[None, list] = None,
+    cell_group_cmap: Union[None, list] = None,
     enforce: bool = False,
+    hline_rows: Union[None, list] = None,
     hlines_kwargs: dict = {},
+    vline_cols: Union[None, list] = None,
+    vlines_kwargs: dict = {},
     save_show_or_return: str = "show",
     save_kwargs: dict = {},
     **kwargs,
@@ -266,6 +271,26 @@ def kinetic_heatmap(
             LAP, the data is generally in the original gene expression space and needs to be log1p transformed. Note:
             when predicted data is not inverse transformed back to original expression space, no transformation will be
             applied.
+        gene_group:
+            The key of the gene groups in .var.
+        gene_group_cmap:
+            The str of the colormap for gene groups.
+        cell_group:
+             The key of the cell groups in .obs.
+        cell_group_cmap:
+            The str of the colormap for cell groups.
+        enforce:
+            Whether to recalculate the dataframe that will be used to create the kinetic heatmap. If this is set to be
+            False and the the .uns['kinetic_heatmap'] is in the adata object, we will use data from
+            `.uns['kinetic_heatmap']` directly.
+        hline_rows:
+            The indices of rows that we can place a line on the heatmap.
+        hlines_kwargs:
+            The dictionary of arguments that will be passed into sns_heatmap.ax_heatmap.hlines.
+        vline_cols:
+            The indices of column that we can place a line on the heatmap.
+        vlines_kwargs:
+            The dictionary of arguments that will be passed into sns_heatmap.ax_heatmap.vlines.
         save_show_or_return: {'show', 'save_fig', 'return'} (default: `show`)
             Whether to save_fig, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -349,21 +374,34 @@ def kinetic_heatmap(
     else:
         df = adata.uns["kinetics_heatmap"]
 
-    cluster_color = None
-    if cell_group is not None:
-        color_key_cmap = "tab20" if cell_group_cmap is None else cell_group_cmap
-        uniq_grps = adata.obs.clusters.unique().tolist()
-        num_labels = len(uniq_grps)
+    row_colors, col_colors = None, None
+    if gene_group is not None:
+        color_key_cmap = "tab20" if gene_group_cmap is None else gene_group_cmap
+        uniq_gene_grps = adata.var[gene_group].unique().tolist()
+        num_labels = len(uniq_gene_grps)
 
         color_key = _to_hex(plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels)))
-        lut = dict(zip(uniq_grps, color_key))
-        cluster_color = adata.obs.clusters.map(lut)
+        gene_lut = dict(zip(map(str, uniq_gene_grps), color_key))
+        row_colors = adata.var[gene_group].map(gene_lut)
+    else:
+        uniq_gene_grps, gene_lut = [], {}
+
+    if cell_group is not None:
+        color_key_cmap = "tab20" if cell_group_cmap is None else cell_group_cmap
+        uniq_cell_grps = adata.obs[cell_group].unique().tolist()
+        num_labels = len(uniq_cell_grps)
+
+        color_key = _to_hex(plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels)))
+        cell_lut = dict(zip(map(str, uniq_cell_grps), color_key))
+        col_colors = adata.obs[cell_group].map(cell_lut)
+    else:
+        uniq_cell_grps, cell_lut = [], {}
 
     heatmap_kwargs = dict(
         xticklabels=False,
         yticklabels=1,
-        row_colors=None,
-        col_colors=cluster_color,
+        row_colors=row_colors,
+        col_colors=col_colors,
         row_linkage=None,
         col_linkage=None,
         method="average",
@@ -382,10 +420,40 @@ def kinetic_heatmap(
         figsize=figsize,
         **heatmap_kwargs,
     )
+
     if not show_colorbar:
         sns_heatmap.cax.set_visible(False)
-    if len(hlines_kwargs) > 0:
-        sns_heatmap.hlines(*hlines_kwargs, *sns_heatmap.get_xlim())
+    if cell_group is not None or gene_group is not None:
+        # https://stackoverflow.com/questions/27988846/how-to-express-classes-on-the-axis-of-a-heatmap-in-seaborn
+        # answer from mwaskom
+        uniq_grps = uniq_cell_grps + uniq_gene_grps
+        lut = cell_lut.copy()
+        lut.update(gene_lut)
+        for label in uniq_grps:
+            sns_heatmap.ax_col_dendrogram.bar(0, 0, color=lut[label], label=label, linewidth=0)
+        cell_group_num, gene_group_num = len(cell_lut), len(gene_lut)
+
+        if cell_group_num > 0 and gene_group_num > 0:
+            ncol = min([cell_group_num, gene_group_num])
+        else:
+            ncol = 5
+
+        if cell_group is None:
+            title = gene_group
+        elif gene_group is None:
+            title = cell_group
+        else:
+            title = gene_group + cell_group
+
+        sns_heatmap.ax_col_dendrogram.legend(title=title, loc="center", ncol=ncol)
+        sns_heatmap.cax.set_position([0.15, 0.2, 0.03, 0.45])
+
+    if hline_rows is not None:
+        hl_kwargs = update_dict({"linestyles": "dashdot"}, hlines_kwargs)
+        sns_heatmap.ax_heatmap.hlines(hline_rows, *sns_heatmap.ax_heatmap.get_xlim(), **hl_kwargs)
+    if vline_cols is not None:
+        vline_kwargs = update_dict({"linestyles": "dashdot"}, vlines_kwargs)
+        sns_heatmap.ax_heatmap.vlines(vline_cols, *sns_heatmap.ax_heatmap.get_ylim(), **vline_kwargs)
 
     if save_show_or_return == "save":
         s_kwargs = {
