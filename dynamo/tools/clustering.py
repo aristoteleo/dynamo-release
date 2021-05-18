@@ -68,9 +68,10 @@ def hdbscan(
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            An updated AnnData object with the clustering updated. `hdbscan` and `hdbscan_prob` are two newly added columns
-            from .obs, corresponding to either the Cluster results or the probability of each cell belong to a cluster.
-            `hdbscan` key in .uns corresponds to a dictionary that includes additional results returned from hdbscan run.
+            An updated AnnData object with the clustering updated. `hdbscan` and `hdbscan_prob` are two newly added
+            columns from .obs, corresponding to either the Cluster results or the probability of each cell belong to a
+            cluster. `hdbscan` key in .uns corresponds to a dictionary that includes additional results returned from
+            hdbscan run.
     """
 
     logger = LoggerManager.gen_logger("dynamo-hdbscan")
@@ -92,11 +93,7 @@ def hdbscan(
         X_data = adata.obsm[basis]
     else:
         reduction_method = basis.split("_")[-1]
-        embedding_key = (
-            "X_" + reduction_method
-            if layer is None
-            else layer + "_" + reduction_method
-        )
+        embedding_key = "X_" + reduction_method if layer is None else layer + "_" + reduction_method
         neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
 
         adata = run_reduce_dim(
@@ -161,32 +158,25 @@ def hdbscan(
 
 
 def cluster_field(
-    adata,
-    basis="pca",
-    embedding_basis=None,
-    normalize=True,
-    method="leiden",
-    cores=1,
-    copy=False,
-    **kwargs
+    adata, basis="pca", embedding_basis=None, normalize=True, method="leiden", cores=1, copy=False, **kwargs
 ):
     """Cluster cells based on vector field features.
 
-    We would like to see whether the vector field can be used to better define cell state/types. This can be accessed via
-    characterizing critical points (attractor/saddle/repressor, etc.) and characteristic curves (nullcline, separatrix).
-    However, the calculation of those is not easy, for example, a strict definition of an attractor is states where
-    velocity is 0 and the eigenvalue of the jacobian matrix at that point is all negative. Under this strict definition,
-    we may sometimes find the attractors are very far away from our sampled cell states which makes them less meaningful
-    although this can be largely avoided when we decide to remove the density correction during the velocity projection.
-    This is not unexpected as the vector field we learned is defined via a set of basis functions based on gaussian
-    kernels and thus it is hard to satisfy that strict definition.
+    We would like to see whether the vector field can be used to better define cell state/types. This can be accessed
+    via characterizing critical points (attractor/saddle/repressor, etc.) and characteristic curves (nullcline,
+    separatrix). However, the calculation of those is not easy, for example, a strict definition of an attractor is
+    states where velocity is 0 and the eigenvalue of the jacobian matrix at that point is all negative. Under this
+    strict definition, we may sometimes find the attractors are very far away from our sampled cell states which makes
+    them less meaningful although this can be largely avoided when we decide to remove the density correction during the
+    velocity projection. This is not unexpected as the vector field we learned is defined via a set of basis functions
+    based on gaussian kernels and thus it is hard to satisfy that strict definition.
 
     Fortunately, we can handle this better with the help of a different set of ideas. Instead of using critical points
     by the classical dynamic system methods, we can use some machine learning approaches that are based on extracting
-    geometric features of streamline to "cluster vector field space" for define cell states/type. This requires calculating,
-    potential (ordered pseudotime), speed, curliness, divergence, acceleration, curvature, etc. Thanks to the fact that we
-    can analytically calculate Jacobian matrix matrix, those quantities of the vector field function can be conveniently
-    and efficiently calculated.
+    geometric features of streamline to "cluster vector field space" for define cell states/type. This requires
+    calculating, potential (ordered pseudotime), speed, curliness, divergence, acceleration, curvature, etc. Thanks to
+    the fact that we can analytically calculate Jacobian matrix matrix, those quantities of the vector field function
+    can be conveniently and efficiently calculated.
 
     Parameters
     ----------
@@ -194,7 +184,8 @@ def cluster_field(
         adata object that includes both newly synthesized and total gene expression of cells. Alternatively,
         the object should include both unspliced and spliced gene expression of cells.
     basis: `str` or None (default: `None`)
-        The space that will be used for calculating vector field features. Valid names includes, for example, `pca`, `umap`, etc.
+        The space that will be used for calculating vector field features. Valid names includes, for example, `pca`,
+        `umap`, etc.
     embedding_basis: `str` or None (default: `None`)
         The embedding basis that will be combined with the vector field feature space for clustering.
     normalize: `bool` (default: `True`)
@@ -203,7 +194,8 @@ def cluster_field(
         The method that will be used for clustering, one of `{'kmeans'', 'hdbscan', 'louvain', 'leiden'}`. If `louvain`
         or `leiden` used, you need to have `cdlib` installed.
     cores: `int` (default: 1)
-        The number of parallel jobs to run for neighbors search. ``None`` means 1 unless in a :obj:`joblib.parallel_backend` context.
+        The number of parallel jobs to run for neighbors search. ``None`` means 1 unless in a
+        :obj:`joblib.parallel_backend` context.
         ``-1`` means using all processors.
     copy:
         Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments.
@@ -221,8 +213,9 @@ def cluster_field(
 
     if method in ["louvain", "leiden"]:
         try:
-            import cdlib
             from cdlib import algorithms
+
+            "leiden" in dir(algorithms)
 
         except ImportError:
             raise ImportError(
@@ -402,7 +395,8 @@ def louvain(
     use_weight : bool, optional
         [description], by default True
     randomize : bool, optional
-        randomize – boolean, from CDlib: "randomize the node evaluation order and the community evaluation order to get different partitions at each call, by default False"
+        randomize – boolean, from CDlib: "randomize the node evaluation order and the community evaluation order to get
+        different partitions at each call, by default False"
     result_key : [type], optional
         [description], by default None
 
@@ -412,9 +406,7 @@ def louvain(
         [description]
     """
     if directed:
-        raise ValueError(
-            "CDlib does not support directed graph for Louvain community detection for now."
-        )
+        raise ValueError("CDlib does not support directed graph for Louvain community detection for now.")
     kwargs.update(
         {
             "resolution": resolution,
@@ -564,15 +556,9 @@ def cluster_community(
 
     if result_key is None:
         if all((cell_subsets is None, cluster_and_subsets is None)):
-            result_key = (
-                "%s" % (method) if layer is None else layer + "_" + method
-            )
+            result_key = "%s" % (method) if layer is None else layer + "_" + method
         else:
-            result_key = (
-                "subset_" + method
-                if layer is None
-                else layer + "_subset_" + method
-            )
+            result_key = "subset_" + method if layer is None else layer + "_subset_" + method
 
     valid_indices = None
     if cell_subsets is not None:
@@ -581,9 +567,7 @@ def cluster_community(
         else:
             valid_indices = cell_subsets
 
-        graph_sparse_matrix = graph_sparse_matrix[valid_indices, :][
-            :, valid_indices
-        ]
+        graph_sparse_matrix = graph_sparse_matrix[valid_indices, :][:, valid_indices]
 
     if cluster_and_subsets is not None:
         cluster_col, allowed_clusters = (
@@ -592,18 +576,13 @@ def cluster_community(
         )
         valid_indices_bools = np.isin(adata.obs[cluster_col], allowed_clusters)
         valid_indices = np.argwhere(valid_indices_bools).flatten()
-        graph_sparse_matrix = graph_sparse_matrix[valid_indices, :][
-            :, valid_indices
-        ]
+        graph_sparse_matrix = graph_sparse_matrix[valid_indices, :][:, valid_indices]
 
     if not use_weight:
         graph_sparse_matrix.data = 1
 
     community_result = cluster_community_from_graph(
-        method=method,
-        graph_sparse_matrix=graph_sparse_matrix,
-        directed=directed,
-        **kwargs
+        method=method, graph_sparse_matrix=graph_sparse_matrix, directed=directed, **kwargs
     )
 
     labels = np.zeros(len(adata), dtype=int) + no_community_label
@@ -613,8 +592,8 @@ def cluster_community(
         valid_indices = np.arange(0, len(adata))
     for i, community in enumerate(community_result.communities):
         labels[valid_indices[community]] = i
-    # clusters need to be categorical variables
-    adata.obs[result_key] = pd.Categorical(labels)
+    # clusters need to be categorical strings
+    adata.obs[result_key] = pd.Categorical(labels.astype(str))
 
     adata.uns[result_key] = {
         "method": method,
@@ -630,13 +609,7 @@ def cluster_community(
     return adata
 
 
-def cluster_community_from_graph(
-    graph=None,
-    graph_sparse_matrix=None,
-    method="louvain",
-    directed=False,
-    **kwargs
-):
+def cluster_community_from_graph(graph=None, graph_sparse_matrix=None, method="louvain", directed=False, **kwargs):
     """Detect communities based on graph inputs and selected methods with arguments passed in kwargs.
 
     Parameters
@@ -665,25 +638,19 @@ def cluster_community_from_graph(
     logger = LoggerManager.get_main_logger()
     logger.info("Detecting communities on graph...")
     try:
-        import cdlib
         import networkx as nx
         from cdlib import algorithms
     except ImportError:
         raise ImportError(
-            "You need to install the excellent package `cdlib` if you want to use louvain or leiden "
-            "for clustering."
+            "You need to install the excellent package `cdlib` if you want to use louvain or leiden " "for clustering."
         )
     if graph is not None:
         # highest priority
         pass
     elif graph_sparse_matrix is not None:
-        logger.info(
-            "Converting graph_sparse_matrix to networkx object", indent_level=2
-        )
+        logger.info("Converting graph_sparse_matrix to networkx object", indent_level=2)
         # if graph matrix is with weight, then edge attr "weight" stores weight of edges
-        graph = nx.convert_matrix.from_scipy_sparse_matrix(
-            graph_sparse_matrix, edge_attribute="weight"
-        )
+        graph = nx.convert_matrix.from_scipy_sparse_matrix(graph_sparse_matrix, edge_attribute="weight")
         for i in range(graph_sparse_matrix.shape[0]):
             if not (i in graph.nodes):
                 graph.add_node(i)
@@ -698,9 +665,7 @@ def cluster_community_from_graph(
     if method == "leiden":
         initial_membership, weights = None, None
         if "initial_membership" in kwargs:
-            logger.info(
-                "Detecting community with initial_membership input from caller"
-            )
+            logger.info("Detecting community with initial_membership input from caller")
             initial_membership = kwargs["initial_membership"]
         if "weights" in kwargs:
             weights = kwargs["weights"]
@@ -712,9 +677,7 @@ def cluster_community_from_graph(
             )
             initial_membership = None
 
-        coms = algorithms.leiden(
-            graph, weights=weights, initial_membership=initial_membership
-        )
+        coms = algorithms.leiden(graph, weights=weights, initial_membership=initial_membership)
     elif method == "louvain":
         if "resolution" not in kwargs:
             raise KeyError("resolution not in louvain input parameters")
@@ -726,16 +689,12 @@ def cluster_community_from_graph(
         resolution = kwargs["resolution"]
         weight = "weight"
         randomize = kwargs["randomize"]
-        coms = algorithms.louvain(
-            graph, weight=weight, resolution=resolution, randomize=randomize
-        )
+        coms = algorithms.louvain(graph, weight=weight, resolution=resolution, randomize=randomize)
     elif method == "infomap":
         coms = algorithms.infomap(graph)
     else:
         raise NotImplementedError("clustering algorithm not implemented yet")
 
-    logger.finish_progress(
-        progress_name="Community clustering with %s" % (method)
-    )
+    logger.finish_progress(progress_name="Community clustering with %s" % (method))
 
     return coms

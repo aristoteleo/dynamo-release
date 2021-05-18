@@ -7,7 +7,10 @@ from typing import Optional, Union
 
 from ..tools.utils import update_dict
 from ..prediction.utils import fetch_exprs
-from .utils import save_fig
+from .utils import (
+    _to_hex,
+    save_fig,
+)
 
 from ..docrep import DocstringProcessor
 from ..external.hodge import ddhodge
@@ -219,6 +222,15 @@ def kinetic_heatmap(
     spaced_num: int = 100,
     traj_ind: int = 0,
     log: bool = True,
+    gene_group: Union[None, list] = None,
+    gene_group_cmap: Union[None, list] = None,
+    cell_group: Union[None, list] = None,
+    cell_group_cmap: Union[None, list] = None,
+    enforce: bool = False,
+    hline_rows: Union[None, list] = None,
+    hlines_kwargs: dict = {},
+    vline_cols: Union[None, list] = None,
+    vlines_kwargs: dict = {},
     save_show_or_return: str = "show",
     save_kwargs: dict = {},
     **kwargs,
@@ -259,6 +271,26 @@ def kinetic_heatmap(
             LAP, the data is generally in the original gene expression space and needs to be log1p transformed. Note:
             when predicted data is not inverse transformed back to original expression space, no transformation will be
             applied.
+        gene_group:
+            The key of the gene groups in .var.
+        gene_group_cmap:
+            The str of the colormap for gene groups.
+        cell_group:
+             The key of the cell groups in .obs.
+        cell_group_cmap:
+            The str of the colormap for cell groups.
+        enforce:
+            Whether to recalculate the dataframe that will be used to create the kinetic heatmap. If this is set to be
+            False and the the .uns['kinetic_heatmap'] is in the adata object, we will use data from
+            `.uns['kinetic_heatmap']` directly.
+        hline_rows:
+            The indices of rows that we can place a line on the heatmap.
+        hlines_kwargs:
+            The dictionary of arguments that will be passed into sns_heatmap.ax_heatmap.hlines.
+        vline_cols:
+            The indices of column that we can place a line on the heatmap.
+        vlines_kwargs:
+            The dictionary of arguments that will be passed into sns_heatmap.ax_heatmap.vlines.
         save_show_or_return: {'show', 'save_fig', 'return'} (default: `show`)
             Whether to save_fig, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
@@ -279,64 +311,97 @@ def kinetic_heatmap(
     import seaborn as sns
     import matplotlib.pyplot as plt
 
-    if mode == "pseudotime" and tkey == "potential" and "potential" not in adata.obs_keys():
-        ddhodge(adata)
+    if enforce or "kinetic_heatmap" not in adata.uns_keys():
 
-    exprs, valid_genes, time = fetch_exprs(
-        adata,
-        basis,
-        layer,
-        genes,
-        tkey,
-        mode,
-        project_back_to_high_dim,
-        traj_ind,
-    )
+        if mode == "pseudotime" and tkey == "potential" and "potential" not in adata.obs_keys():
+            ddhodge(adata)
 
-    exprs = exprs.A if issparse(exprs) else exprs
-    if mode != "pseudotime":
-        exprs = np.log1p(exprs) if log else exprs
-    if len(set(genes).intersection(valid_genes)) > 0:
-        # by default, expression values are log1p tranformed if using the expression from adata.
-        exprs = np.expm1(exprs) if not log else exprs
-
-    if dist_threshold is not None and mode == "vector_field":
-        valid_ind = list(np.where(np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold)[0] + 1)
-        valid_ind.insert(0, 0)
-        exprs = exprs[valid_ind, :]
-        time = time[valid_ind]
-
-    if gene_order_method == "half_max_ordering":
-        time, all, valid_ind, gene_idx = _half_max_ordering(exprs.T, time, mode=mode, interpolate=True, spaced_num=100)
-        all, genes = (
-            all[np.isfinite(all.sum(1)), :],
-            np.array(valid_genes)[gene_idx][np.isfinite(all.sum(1))],
+        exprs, valid_genes, time = fetch_exprs(
+            adata,
+            basis,
+            layer,
+            genes,
+            tkey,
+            mode,
+            project_back_to_high_dim,
+            traj_ind,
         )
 
-        df = pd.DataFrame(all, index=genes)
-    elif gene_order_method == "maximum":
-        exprs = lowess_smoother(time, exprs.T, spaced_num=spaced_num, n_convolve=n_convolve)
-        exprs = exprs[np.isfinite(exprs.sum(1)), :]
+        exprs = exprs.A if issparse(exprs) else exprs
+        if mode != "pseudotime":
+            exprs = np.log1p(exprs) if log else exprs
+        if len(set(genes).intersection(valid_genes)) > 0:
+            # by default, expression values are log1p tranformed if using the expression from adata.
+            exprs = np.expm1(exprs) if not log else exprs
 
-        if standard_scale is not None:
-            exprs = (exprs - np.min(exprs, axis=standard_scale)[:, None]) / np.ptp(exprs, axis=standard_scale)[:, None]
-        max_sort = np.argsort(np.argmax(exprs, axis=1))
-        if spaced_num is None:
-            df = pd.DataFrame(
-                exprs[max_sort, :],
-                index=np.array(valid_genes)[max_sort],
-                columns=adata.obs_names,
+        if dist_threshold is not None and mode == "vector_field":
+            valid_ind = list(np.where(np.sum(np.diff(exprs, axis=0) ** 2, axis=1) > dist_threshold)[0] + 1)
+            valid_ind.insert(0, 0)
+            exprs = exprs[valid_ind, :]
+            time = time[valid_ind]
+
+        if gene_order_method == "half_max_ordering":
+            time, all, valid_ind, gene_idx = _half_max_ordering(
+                exprs.T, time, mode=mode, interpolate=True, spaced_num=spaced_num
             )
+            all, genes = (
+                all[np.isfinite(all.sum(1)), :],
+                np.array(valid_genes)[gene_idx][np.isfinite(all.sum(1))],
+            )
+
+            df = pd.DataFrame(all, index=genes)
+        elif gene_order_method == "maximum":
+            exprs = lowess_smoother(time, exprs.T, spaced_num=spaced_num, n_convolve=n_convolve)
+            exprs = exprs[np.isfinite(exprs.sum(1)), :]
+
+            if standard_scale is not None:
+                exprs = (exprs - np.min(exprs, axis=standard_scale)[:, None]) / np.ptp(exprs, axis=standard_scale)[
+                    :, None
+                ]
+            max_sort = np.argsort(np.argmax(exprs, axis=1))
+            if spaced_num is None:
+                df = pd.DataFrame(
+                    exprs[max_sort, :],
+                    index=np.array(valid_genes)[max_sort],
+                    columns=adata.obs_names,
+                )
+            else:
+                df = pd.DataFrame(exprs[max_sort, :], index=np.array(valid_genes)[max_sort])
         else:
-            df = pd.DataFrame(exprs[max_sort, :], index=np.array(valid_genes)[max_sort])
+            raise Exception("gene order_method can only be either half_max_ordering or maximum")
+
+        adata.uns["kinetics_heatmap"] = df
     else:
-        raise Exception("gene order_method can only be either half_max_ordering or maximum")
+        df = adata.uns["kinetics_heatmap"]
+
+    row_colors, col_colors = None, None
+    if gene_group is not None:
+        color_key_cmap = "tab20" if gene_group_cmap is None else gene_group_cmap
+        uniq_gene_grps = adata.var[gene_group].unique().tolist()
+        num_labels = len(uniq_gene_grps)
+
+        color_key = _to_hex(plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels)))
+        gene_lut = dict(zip(map(str, uniq_gene_grps), color_key))
+        row_colors = adata.obs.clusters.map(gene_lut)
+    else:
+        uniq_gene_grps, gene_lut = [], {}
+
+    if cell_group is not None:
+        color_key_cmap = "tab20" if cell_group_cmap is None else cell_group_cmap
+        uniq_cell_grps = adata.obs[cell_group].unique().tolist()
+        num_labels = len(uniq_cell_grps)
+
+        color_key = _to_hex(plt.get_cmap(color_key_cmap)(np.linspace(0, 1, num_labels)))
+        cell_lut = dict(zip(map(str, uniq_cell_grps), color_key))
+        col_colors = adata.obs.clusters.map(cell_lut)
+    else:
+        uniq_cell_grps, cell_lut = [], {}
 
     heatmap_kwargs = dict(
         xticklabels=False,
         yticklabels=1,
-        row_colors=None,
-        col_colors=None,
+        row_colors=row_colors,
+        col_colors=col_colors,
         row_linkage=None,
         col_linkage=None,
         method="average",
@@ -355,8 +420,40 @@ def kinetic_heatmap(
         figsize=figsize,
         **heatmap_kwargs,
     )
+
     if not show_colorbar:
         sns_heatmap.cax.set_visible(False)
+    if cell_group is not None or gene_group is not None:
+        # https://stackoverflow.com/questions/27988846/how-to-express-classes-on-the-axis-of-a-heatmap-in-seaborn
+        # answer from mwaskom
+        uniq_grps = uniq_cell_grps + uniq_gene_grps
+        lut = cell_lut.copy()
+        lut.update(gene_lut)
+        for label in uniq_grps:
+            sns_heatmap.ax_col_dendrogram.bar(0, 0, color=lut[label], label=label, linewidth=0)
+        cell_group_num, gene_group_num = len(cell_lut), len(gene_lut)
+
+        if cell_group_num > 0 and gene_group_num > 0:
+            ncol = min([cell_group_num, gene_group_num])
+        else:
+            ncol = 5
+
+        if cell_group is None:
+            title = gene_group
+        elif gene_group is None:
+            title = cell_group
+        else:
+            title = gene_group + cell_group
+
+        sns_heatmap.ax_col_dendrogram.legend(title=title, loc="center", ncol=ncol)
+        sns_heatmap.cax.set_position([0.15, 0.2, 0.03, 0.45])
+
+    if hline_rows is not None:
+        hl_kwargs = update_dict({"linestyles": "dashdot"}, hlines_kwargs)
+        sns_heatmap.ax_heatmap.hlines(hline_rows, *sns_heatmap.ax_heatmap.get_xlim(), **hl_kwargs)
+    if vline_cols is not None:
+        vline_kwargs = update_dict({"linestyles": "dashdot"}, vlines_kwargs)
+        sns_heatmap.ax_heatmap.vlines(vline_cols, *sns_heatmap.ax_heatmap.get_ylim(), **vline_kwargs)
 
     if save_show_or_return == "save":
         s_kwargs = {

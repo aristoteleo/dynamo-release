@@ -94,6 +94,7 @@ from .utils import (
     select_cell,
     select,
     AnnDataPredicate,
+    decode,
     compute_smallest_distance,
 )
 

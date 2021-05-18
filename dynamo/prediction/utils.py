@@ -1,9 +1,17 @@
 from tqdm import tqdm
+
+# from anndata._core.views import ArrayView
 import numpy as np
 from scipy import interpolate
 from scipy.integrate import solve_ivp
+
+# import scipy.sparse as sp
 from ..vectorfield.topography import dup_osc_idx_iter
-from ..tools.utils import log1p_
+from ..tools.utils import (
+    log1p_,
+    # index_gene,
+    # areinstance,
+)
 
 
 def integrate_vf_ivp(
