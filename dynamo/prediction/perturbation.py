@@ -4,20 +4,19 @@ import anndata
 from typing import Union
 
 from ..tools.cell_velocities import cell_velocities
-from ..vectorfield.vector_calculus import (
-    jacobian,
-    # velocities,
-)
-from ..vectorfield.utils import vecfld_from_adata
+from ..vectorfield.vector_calculus import jacobian
 from .utils import (
     expr_to_pca,
     pca_to_expr,
+    z_score,
+    z_score_inv,
 )
 
 from ..vectorfield.vector_calculus import (
     rank_genes,
     rank_cells,
     rank_cell_groups,
+    vecfld_from_adata,
 )
 from ..dynamo_logger import LoggerManager
 
@@ -26,14 +25,18 @@ def perturbation(
     adata: anndata.AnnData,
     genes: Union[str, list],
     expression: Union[float, list] = 10,
+    perturb_mode: str = "raw",
+    cells: Union[list, np.ndarray, None] = None,
     zero_perturb_genes_vel: bool = False,
     pca_key: Union[str, np.ndarray, None] = None,
     PCs_key: Union[str, np.ndarray, None] = None,
     pca_mean_key: Union[str, np.ndarray, None] = None,
     basis: Union[str, None] = "umap",
+    jac_key: str = "jacobian_pca",
     X_pca: Union[np.ndarray, None] = None,
     delta_Y: Union[np.ndarray, None] = None,
-    method: str = "j_delta_x",
+    projection_method: str = "fp",
+    pertubation_method: str = "j_delta_x",
     add_delta_Y_key: str = None,
     add_transition_key: str = None,
     add_velocity_key: str = None,
@@ -79,7 +82,7 @@ def perturbation(
             The pca embedding matrix.
         delta_Y:
             The actual perturbation matrix. This argument enables more customized perturbation schemes.
-        method:
+        pertubation_method:
             The approach that will be used to calculate the perturbation effect vector after in-silico genetic
             perturbation.
         add_delta_Y_key:
@@ -101,9 +104,9 @@ def perturbation(
 
     """
 
-    if method.lower() not in ["j_delta_x", "j_x_prime", "f_x_prime", "f_x_prime_minus_f_x_0"]:
+    if pertubation_method.lower() not in ["j_delta_x", "j_x_prime", "f_x_prime", "f_x_prime_minus_f_x_0"]:
         raise ValueError(
-            f"your method is set to be {method.lower()} but must be one of `j_delta_x`, `j_x_prime`, "
+            f"your method is set to be {pertubation_method.lower()} but must be one of `j_delta_x`, `j_x_prime`, "
             "`f_x_prime`, `f_x_prime_minus_f_x_0`"
         )
 
@@ -160,40 +163,47 @@ def perturbation(
         # in-silico perturbation
         X_perturb = X.copy()
 
-        if len(expression) > 1:
-            for i, gene in enumerate(gene_loc):
-                X_perturb[:, gene] = expression[i]
-        else:
-            X_perturb[:, gene_loc] = expression
+        if cells is None:
+            cells = np.arange(adata.n_obs)
+
+        for i, gene in enumerate(gene_loc):
+            if perturb_mode == "z_score":
+                x = X_perturb[:, gene]
+                _, m, s = z_score(x, 0)
+                X_perturb[cells, gene] = z_score_inv(expression[i], m, s)
+            elif perturb_mode == "raw":
+                X_perturb[cells, gene] = expression[i]
+            else:
+                raise NotImplementedError(f"The perturbation mode {perturb_mode} is not supported.")
 
         # project gene expression back to pca space
         X_perturb_pca = expr_to_pca(X_perturb, PCs, means)
 
         # calculate Jacobian
-        if "jacobian_pca" not in adata.uns_keys():
+        if jac_key not in adata.uns_keys():
             jacobian(adata, regulators=valid_genes, effectors=valid_genes)
 
-        Js = adata.uns["jacobian_pca"]["jacobian"]  # pcs x pcs x cells
+        Js = adata.uns[jac_key]["jacobian"]  # pcs x pcs x cells
 
         # calculate perturbation velocity vector: \delta Y = J \dot \delta X:
         delta_Y = np.zeros_like(X_pca)
 
         # get the actual delta_X:
-        if method.lower() in ["j_delta_x", "j_x_prime"]:
-            delta_X = X_perturb_pca - X_pca if method.lower() == "j_delta_x" else X_perturb_pca
+        if pertubation_method.lower() in ["j_delta_x", "j_x_prime"]:
+            delta_X = X_perturb_pca - X_pca if pertubation_method.lower() == "j_delta_x" else X_perturb_pca
 
             for i in np.arange(adata.n_obs):
                 delta_Y[i, :] = Js[:, :, i].dot(delta_X[i])
 
     if add_delta_Y_key is None:
-        add_delta_Y_key = method + "_perturbation"
+        add_delta_Y_key = pertubation_method + "_perturbation"
     logger.info_insert_adata(add_delta_Y_key, "obsm", indent_level=1)
 
-    if method.lower() == "f_x_prime":
+    if pertubation_method.lower() == "f_x_prime":
         _, func = vecfld_from_adata(adata, basis)
         vec_mat = func(X_perturb_pca)
         delta_Y = vec_mat
-    elif method.lower() == "f_x_prime_minus_f_x_0":
+    elif pertubation_method.lower() == "f_x_prime_minus_f_x_0":
         _, func = vecfld_from_adata(adata, basis)
         vec_mat = func(X_perturb_pca) - func(X_pca)
         delta_Y = vec_mat
@@ -226,6 +236,7 @@ def perturbation(
         V=delta_Y,
         basis=basis,
         enforce=True,
+        method=projection_method,
         add_transition_key=transition_key,
         add_velocity_key=velocity_key,
     )
@@ -233,7 +244,7 @@ def perturbation(
     logger.info_insert_adata("X_" + basis + "_perturbation", "obsm", indent_level=1)
 
     logger.info(
-        f"so that you can use dyn.pl.streamline_plot(adata, basis={basis} + '_' + {perturbation}) to visualize the "
+        f"you can use dyn.pl.streamline_plot(adata, basis='{basis}_perturbation') to visualize the "
         f"perturbation vector"
     )
     adata.obsm[embedding_key] = adata.obsm["X_" + basis].copy()
