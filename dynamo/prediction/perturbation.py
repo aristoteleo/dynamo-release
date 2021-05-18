@@ -31,7 +31,7 @@ def perturbation(
     pca_key: Union[str, np.ndarray, None] = None,
     PCs_key: Union[str, np.ndarray, None] = None,
     pca_mean_key: Union[str, np.ndarray, None] = None,
-    basis: Union[str, None] = "umap",
+    basis: Union[str, None] = "pca",
     jac_key: str = "jacobian_pca",
     X_pca: Union[np.ndarray, None] = None,
     delta_Y: Union[np.ndarray, None] = None,
@@ -68,6 +68,10 @@ def perturbation(
         expression:
              The numerical value or list of values that will be used to encode the genetic perturbation. High positive
              values indicates up-regulation while low negative value repression.
+        perturb_mode:
+            The mode for perturbing the gene expression vector, either `raw` or `z_score`.
+        cells:
+            The list of the cell indices that we will perform the perturbation.
         zero_perturb_genes_vel:
             Whether to set the peturbed genes' perturbation velocity vector values to be zero.
         pca_key:
@@ -77,14 +81,19 @@ def perturbation(
         pca_mean_key:
             The key that corresponds to means values that used for pca projection. Can also be the actual means matrix.
         basis:
-            The key that corresponds to perturbation vector projection embedding.
+            The key that corresponds to the basis from which the vector field is reconstructed.
+        jac_key:
+            The key to the jacobian matrix.
         X_pca:
             The pca embedding matrix.
         delta_Y:
             The actual perturbation matrix. This argument enables more customized perturbation schemes.
+        projection_method:
+            The approach that will be used to project the high dimensional perturbation effect vector to low dimensional
+            space.
         pertubation_method:
             The approach that will be used to calculate the perturbation effect vector after in-silico genetic
-            perturbation.
+            perturbation. Can only be one of `"j_delta_x", "j_x_prime", "f_x_prime", "f_x_prime_minus_f_x_0"`
         add_delta_Y_key:
             The key that will be used to store the perturbation effect matrix. Both the pca dimension matrix (stored in
             obsm) or the matrix of the original gene expression space (stored in .layers) will use this key. By default
