@@ -33,10 +33,8 @@ def perturbation(
     basis: Union[str, None] = "umap",
     X_pca: Union[np.ndarray, None] = None,
     delta_Y: Union[np.ndarray, None] = None,
-    use_delta_X: bool = True,
-    diffusion_n: int = 1,
-    perturb_velocity: bool = False,
-    add_delta_Y_key: str = "perturbation_vector",
+    method: str = "j_delta_x",
+    add_delta_Y_key: str = None,
     add_transition_key: str = None,
     add_velocity_key: str = None,
     add_embedding_key: str = None,
@@ -81,9 +79,13 @@ def perturbation(
             The pca embedding matrix.
         delta_Y:
             The actual perturbation matrix. This argument enables more customized perturbation schemes.
+        method:
+            The approach that will be used to calculate the perturbation effect vector after in-silico genetic
+            perturbation.
         add_delta_Y_key:
             The key that will be used to store the perturbation effect matrix. Both the pca dimension matrix (stored in
-            obsm) or the matrix of the original gene expression space (stored in .layers) will use this key.
+            obsm) or the matrix of the original gene expression space (stored in .layers) will use this key. By default
+            it is None and is set to be `method + '_perturbation'`.
         add_transition_key: str or None (default: None)
             The dictionary key that will be used for storing the transition matrix in .obsp.
         add_velocity_key: str or None (default: None)
@@ -98,6 +100,13 @@ def perturbation(
             , and a cell transition matrix based on the perturbation vectors.
 
     """
+
+    if method.lower() not in ["j_delta_x", "j_x_prime", "f_x_prime", "f_x_prime_minus_f_x_0"]:
+        raise ValueError(
+            f"your method is set to be {method.lower()} but must be one of `j_delta_x`, `j_x_prime`, "
+            "`f_x_prime`, `f_x_prime_minus_f_x_0`"
+        )
+
     logger = LoggerManager.get_main_logger()
     logger.info(
         "In silico perturbation of single-cells and prediction of cell fate after perturbation...",
@@ -170,20 +179,26 @@ def perturbation(
         delta_Y = np.zeros_like(X_pca)
 
         # get the actual delta_X:
-        delta_X = X_perturb_pca - X_pca if use_delta_X else X_perturb_pca
-        for i in np.arange(adata.n_obs):
-            if diffusion_n != 1:
-                delta_Y[i, :] = np.linalg.matrix_power(Js[:, :, i], diffusion_n).dot(delta_X[i])
-            else:
+        if method.lower() in ["j_delta_x", "j_x_prime"]:
+            delta_X = X_perturb_pca - X_pca if method.lower() == "j_delta_x" else X_perturb_pca
+
+            for i in np.arange(adata.n_obs):
                 delta_Y[i, :] = Js[:, :, i].dot(delta_X[i])
 
+    if add_delta_Y_key is None:
+        add_delta_Y_key = method + "_perturbation"
     logger.info_insert_adata(add_delta_Y_key, "obsm", indent_level=1)
 
-    adata.obsm[add_delta_Y_key] = delta_Y
-    if perturb_velocity:
+    if method.lower() == "f_x_prime":
         _, func = vecfld_from_adata(adata, basis)
         vec_mat = func(X_perturb_pca)
-        delta_Y, adata.obsm[add_delta_Y_key] = vec_mat, vec_mat
+        delta_Y = vec_mat
+    elif method.lower() == "f_x_prime_minus_f_x_0":
+        _, func = vecfld_from_adata(adata, basis)
+        vec_mat = func(X_perturb_pca) - func(X_pca)
+        delta_Y = vec_mat
+
+    adata.obsm[add_delta_Y_key] = delta_Y
 
     perturbation_csc = pca_to_expr(delta_Y, PCs, means)
     adata.layers[add_delta_Y_key] = csr_matrix(adata.shape, dtype=np.float64)
@@ -203,7 +218,7 @@ def perturbation(
     if add_velocity_key is None:
         velocity_key, embedding_key = "velocity_" + basis + "_perturbation", "X_" + basis + "_perturbation"
     else:
-        velocity_key, embedding_key = add_velocity_key, "grid_" + add_velocity_key, add_embedding_key
+        velocity_key, embedding_key = add_velocity_key, add_embedding_key
 
     cell_velocities(
         adata,
