@@ -9,6 +9,7 @@ from scipy.integrate import solve_ivp
 from ..vectorfield.topography import dup_osc_idx_iter
 from ..tools.utils import (
     log1p_,
+    isarray,
     # index_gene,
     # areinstance,
 )
@@ -444,3 +445,22 @@ def fetch_exprs(adata, basis, layer, genes, time, mode, project_back_to_high_dim
     time = time[np.isfinite(time)]
 
     return exprs, valid_genes, time
+
+
+# ---------------------------------------------------------------------------------------------------
+# perturbation related
+
+
+def z_score(X, axis=1):
+    s = X.std(axis)
+    m = X.mean(axis)
+    Z = ((X.T - m) / s).T
+    return Z, m, s
+
+
+def z_score_inv(Z, m, s):
+    if isarray(Z):
+        X = (Z.T * s + m).T
+    else:
+        X = Z * s + m
+    return X

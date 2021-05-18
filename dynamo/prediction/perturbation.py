@@ -5,10 +5,7 @@ from typing import Union
 
 from ..tools.cell_velocities import cell_velocities
 from ..vectorfield.vector_calculus import jacobian
-from .utils import (
-    expr_to_pca,
-    pca_to_expr,
-)
+from .utils import expr_to_pca, pca_to_expr, z_score, z_score_inv
 
 from ..vectorfield.vector_calculus import (
     rank_genes,
@@ -22,13 +19,17 @@ def perturbation(
     adata: anndata.AnnData,
     genes: Union[str, list],
     expression: Union[float, list] = 10,
+    perturb_mode: str = "raw",
+    cells: Union[list, np.ndarray, None] = None,
     zero_perturb_genes_vel: bool = False,
     pca_key: Union[str, np.ndarray, None] = None,
     PCs_key: Union[str, np.ndarray, None] = None,
     pca_mean_key: Union[str, np.ndarray, None] = None,
     basis: Union[str, None] = "umap",
+    jac_key: str = "jacobian_pca",
     X_pca: Union[np.ndarray, None] = None,
     delta_Y: Union[np.ndarray, None] = None,
+    embed_method: str = "fp",
     add_delta_Y_key: str = "perturbation_vector",
     add_transition_key: str = None,
     add_velocity_key: str = None,
@@ -144,20 +145,27 @@ def perturbation(
         # in-silico perturbation
         X_perturb = X.copy()
 
-        if len(expression) > 1:
-            for i, gene in enumerate(gene_loc):
-                X_perturb[:, gene] = expression[i]
-        else:
-            X_perturb[:, gene_loc] = expression
+        if cells is None:
+            cells = np.arange(adata.n_obs)
+
+        for i, gene in enumerate(gene_loc):
+            if perturb_mode == "z_score":
+                x = X_perturb[:, gene]
+                _, m, s = z_score(x, 0)
+                X_perturb[cells, gene] = z_score_inv(expression[i], m, s)
+            elif perturb_mode == "raw":
+                X_perturb[cells, gene] = expression[i]
+            else:
+                raise NotImplementedError(f"The perturbation mode {perturb_mode} is not supported.")
 
         # project gene expression back to pca space
         X_perturb_pca = expr_to_pca(X_perturb, PCs, means)
 
         # calculate Jacobian
-        if "jacobian_pca" not in adata.uns_keys():
+        if jac_key not in adata.uns_keys():
             jacobian(adata, regulators=valid_genes, effectors=valid_genes)
 
-        Js = adata.uns["jacobian_pca"]["jacobian"]  # pcs x pcs x cells
+        Js = adata.uns[jac_key]["jacobian"]  # pcs x pcs x cells
 
         # calculate perturbation velocity vector: \delta Y = J \dot \delta X:
         delta_Y = np.zeros_like(X_pca)
@@ -189,7 +197,8 @@ def perturbation(
     if add_velocity_key is None:
         velocity_key, embedding_key = "velocity_" + basis + "_perturbation", "X_" + basis + "_perturbation"
     else:
-        velocity_key, embedding_key = add_velocity_key, "grid_" + add_velocity_key, add_embedding_key
+        # velocity_key, embedding_key = add_velocity_key, "grid_" + add_velocity_key, add_embedding_key
+        velocity_key, embedding_key = add_velocity_key, add_embedding_key
 
     cell_velocities(
         adata,
@@ -197,6 +206,7 @@ def perturbation(
         V=delta_Y,
         basis=basis,
         enforce=True,
+        method=embed_method,
         add_transition_key=transition_key,
         add_velocity_key=velocity_key,
     )
@@ -204,7 +214,7 @@ def perturbation(
     logger.info_insert_adata("X_" + basis + "_perturbation", "obsm", indent_level=1)
 
     logger.info(
-        f"so that you can use dyn.pl.streamline_plot(adata, basis={basis} + '_' + {perturbation}) to visualize the "
+        f"you can use dyn.pl.streamline_plot(adata, basis='{basis}_perturbation') to visualize the "
         f"perturbation vector"
     )
     adata.obsm[embedding_key] = adata.obsm["X_" + basis].copy()
