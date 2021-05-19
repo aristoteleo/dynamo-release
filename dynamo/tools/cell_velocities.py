@@ -16,7 +16,6 @@ from .connectivity import adj_to_knn
 
 from .metric_velocity import gene_wise_confidence
 from .utils import (
-    areinstance,
     set_transition_genes,
     get_finite_inds,
     get_ekey_vkey_from_adata,
@@ -32,6 +31,7 @@ from .utils import (
 
 from .dimension_reduction import reduceDimension
 from ..dynamo_logger import LoggerManager
+from ..utils import areinstance
 import anndata
 from typing import Union
 import scipy

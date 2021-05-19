@@ -9,10 +9,9 @@ from scipy.integrate import solve_ivp
 from ..vectorfield.topography import dup_osc_idx_iter
 from ..tools.utils import (
     log1p_,
-    isarray,
-    # index_gene,
-    # areinstance,
 )
+
+from ..utils import isarray
 
 
 def integrate_vf_ivp(
