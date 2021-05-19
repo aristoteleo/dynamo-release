@@ -1,4 +1,4 @@
-from test_utils import *
+from utils import *
 import dynamo as dyn
 from dynamo.pl import space
 
