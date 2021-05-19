@@ -5,7 +5,7 @@ import pytest
 import time
 import numpy as np
 import os
-from test_utils import *
+from utils import *
 
 logger = LoggerManager.get_main_logger()
 
