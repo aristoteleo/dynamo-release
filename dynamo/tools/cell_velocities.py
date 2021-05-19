@@ -234,50 +234,53 @@ def cell_velocities(
             "Run `dyn.tl.reduceDimension` or `dyn.tl.neighbors` first."
         )
 
-    if transition_genes is None:
-        if "use_for_transition" not in adata.var.keys() or enforce:
-            use_for_dynamics = True if "use_for_dynamics" in adata.var.keys() else False
-            adata = set_transition_genes(
-                adata,
-                vkey=vkey,
-                min_r2=min_r2,
-                use_for_dynamics=use_for_dynamics,
-                min_alpha=min_alpha,
-                min_gamma=min_gamma,
-                min_delta=min_delta,
-            )
-        transition_genes = adata.var_names[adata.var.use_for_transition.values]
-    else:
-        if not enforce:
-            warnings.warn(
-                "A new set of transition genes is used, but because enforce=False, "
-                "the transition matrix might not be recalculated if it is found in .obsp."
-            )
-        dynamics_genes = (
-            adata.var.use_for_dynamics if "use_for_dynamics" in adata.var.keys() else np.ones(adata.n_vars, dtype=bool)
-        )
-        if type(transition_genes) is str:
-            transition_genes = adata.var[transition_genes].to_list()
-            transition_genes = np.logical_and(transition_genes, dynamics_genes.to_list())
-        elif areinstance(transition_genes, str):
-            transition_genes = adata.var_names[dynamics_genes].intersection(transition_genes).to_list()
-        elif areinstance(transition_genes, bool) or areinstance(transition_genes, np.bool_):
-            transition_genes = np.array(transition_genes)
-            transition_genes = np.logical_and(transition_genes, dynamics_genes.to_list())
+    if X is None and V is None:
+        if transition_genes is None:
+            if "use_for_transition" not in adata.var.keys() or enforce:
+                use_for_dynamics = True if "use_for_dynamics" in adata.var.keys() else False
+                adata = set_transition_genes(
+                    adata,
+                    vkey=vkey,
+                    min_r2=min_r2,
+                    use_for_dynamics=use_for_dynamics,
+                    min_alpha=min_alpha,
+                    min_gamma=min_gamma,
+                    min_delta=min_delta,
+                )
+            transition_genes = adata.var_names[adata.var.use_for_transition.values]
         else:
-            raise TypeError(
-                "transition genes should either be a key of adata.var, an array of gene names, or of booleans."
+            if not enforce:
+                warnings.warn(
+                    "A new set of transition genes is used, but because enforce=False, "
+                    "the transition matrix might not be recalculated if it is found in .obsp."
+                )
+            dynamics_genes = (
+                adata.var.use_for_dynamics
+                if "use_for_dynamics" in adata.var.keys()
+                else np.ones(adata.n_vars, dtype=bool)
             )
-        if len(transition_genes) < 1:
-            raise ValueError(
-                "None of the transition genes provided has velocity values. (or `.var.use_for_dynamics` is `False`)."
-            )
+            if type(transition_genes) is str:
+                transition_genes = adata.var[transition_genes].to_list()
+                transition_genes = np.logical_and(transition_genes, dynamics_genes.to_list())
+            elif areinstance(transition_genes, str):
+                transition_genes = adata.var_names[dynamics_genes].intersection(transition_genes).to_list()
+            elif areinstance(transition_genes, bool) or areinstance(transition_genes, np.bool_):
+                transition_genes = np.array(transition_genes)
+                transition_genes = np.logical_and(transition_genes, dynamics_genes.to_list())
+            else:
+                raise TypeError(
+                    "transition genes should either be a key of adata.var, an array of gene names, or of booleans."
+                )
+            if len(transition_genes) < 1:
+                raise ValueError(
+                    "None of the transition genes provided has velocity values. (or `var.use_for_dynamics` is `False`)."
+                )
 
-        adata.var["use_for_transition"] = False
-        if type(transition_genes[0]) == bool:
-            adata.var.use_for_transition = transition_genes
-        else:
-            adata.var.loc[transition_genes, "use_for_transition"] = True
+            adata.var["use_for_transition"] = False
+            if type(transition_genes[0]) == bool:
+                adata.var.use_for_transition = transition_genes
+            else:
+                adata.var.loc[transition_genes, "use_for_transition"] = True
 
     # X = adata[:, transition_genes].layers[ekey] if X is None else X
     X = index_gene(adata, adata.layers[ekey], transition_genes) if X is None else X
@@ -378,7 +381,7 @@ def cell_velocities(
     # add both source and sink distribution
     if method == "kmc":
         if method + "_transition_matrix" in adata.obsp.keys() and not enforce:
-            T = adata.obsp[method + "_transition_matrix"]
+            T = adata.obsp[method + "_transition_matrix"] if transition_matrix is None else transition_matrix
             kmc = KernelMarkovChain(P=T)
         else:
             kmc = KernelMarkovChain()
@@ -437,7 +440,7 @@ def cell_velocities(
 
         if method + "_transition_matrix" in adata.obsp.keys() and not enforce:
             print("Using existing %s found in .obsp." % (method + "_transition_matrix"))
-            T = adata.obsp[method + "_transition_matrix"]
+            T = adata.obsp[method + "_transition_matrix"] if transition_matrix is None else transition_matrix
             delta_X = projection_with_transition_matrix(X.shape[0], T, X_embedding, correct_density)
             X_grid, V_grid, D = velocity_on_grid(
                 X_embedding[:, :2],
@@ -494,7 +497,7 @@ def cell_velocities(
         ) and not enforce:
             if method + "_transition_matrix" in adata.obsp.keys():
                 print("Using existing %s found in .obsp." % (method + "_transition_matrix"))
-                T = adata.obsp[method + "_transition_matrix"]
+                T = adata.obsp[method + "_transition_matrix"] if transition_matrix is None else transition_matrix
             elif method + "_transition_rate" in adata.obsp.keys():
                 print("Using existing %s found in .obsp." % (method + "_transition_rate"))
                 R = adata.obsp[method + "_transition_rate"]
@@ -519,7 +522,7 @@ def cell_velocities(
             CM = adata.X[:, adata.var.use_for_dynamics.values]
             from ..preprocessing.utils import pca
 
-            adata, pca_fit, X_pca = pca(adata, CM, n_pca_components, "X")
+            adata, pca_fit, X_pca = pca(adata, CM, n_pca_components, "X", return_all=True)
             adata.uns["pca_fit"] = pca_fit
 
         X_pca, pca_fit = adata.obsm["X"], adata.uns["pca_fit"]

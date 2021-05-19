@@ -1,9 +1,10 @@
 import numpy as np
 import pandas as pd
-from scipy.sparse import issparse
+
+# from scipy.sparse import issparse
 from matplotlib.axes import Axes
 from anndata import AnnData
-from typing import List, Union, Optional
+from typing import Union, Optional
 from matplotlib.figure import Figure
 
 from .scatters import scatters
@@ -29,7 +30,7 @@ from .scatters import docstrings
 
 docstrings.delete_params("scatters.parameters", "show_legend", "kwargs", "save_kwargs")
 
-import scipy as sc
+# import scipy as sc
 
 
 # from licpy.lic import runlic
@@ -68,7 +69,8 @@ def plot_LIC_gray(tex):
         gamma: 'float'
             Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important.
         a: 'float'
-            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's variation space is a.
+            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
+            outlier's variation space is a.
 
     Returns
     -------
@@ -115,10 +117,11 @@ def line_integral_conv(
     save_kwargs: dict = {},
     g_kwargs_dict: dict = {},
 ):
-    """Visualize vector field with quiver, streamline and line integral convolution (LIC), using velocity estimates on a grid from the associated data.
-    A white noise background will be used for texture as default. Adjust the bounds of lim in the range of [0, 1] which applies
-    upper and lower bounds to the values of line integral convolution and enhance the visibility of plots. When const_alpha=False,
-    alpha will be weighted spatially by the values of line integral convolution; otherwise a constant value of the given alpha is used.
+    """Visualize vector field with quiver, streamline and line integral convolution (LIC), using velocity estimates on a
+     grid from the associated data. A white noise background will be used for texture as default. Adjust the bounds of
+     lim in the range of [0, 1] which applies upper and lower bounds to the values of line integral convolution and
+     enhance the visibility of plots. When const_alpha=False, alpha will be weighted spatially by the values of line
+     integral convolution; otherwise a constant value of the given alpha is used.
 
     Arguments
     ---------
@@ -137,15 +140,20 @@ def line_integral_conv(
         cmap: 'float'
             Percentage of inliers in the samples. This is an inital value for EM iteration, and it is not important.
         normalize: 'float'
-            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's variation space is a.
+            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
+            outlier's variation space is a.
         density: 'float'
-            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's variation space is a.
+            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
+            outlier's variation space is a.
         lim: 'float'
-            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's variation space is a.
+            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
+            outlier's variation space is a.
         const_alpha: 'float'
-            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's variation space is a.
+            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
+            outlier's variation space is a.
         kernellen: 'float'
-            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of outlier's variation space is a.
+            Paramerter of the model of outliers. We assume the outliers obey uniform distribution, and the volume of
+            outlier's variation space is a.
         V_threshold: `float` or `None` (default: None)
             The threshold of velocity value for visualization
         vector: `str` (default: `velocity`)
@@ -154,10 +162,10 @@ def line_integral_conv(
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'line_integral_conv', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-            according to your needs.
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            save_fig function will use the {"path": None, "prefix": 'line_integral_conv', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+            dictionary that properly modify those keys according to your needs.
 
     Returns
     -------
@@ -340,29 +348,31 @@ def cell_wise_vectors(
         inverse: `bool` (default: False)
             Whether to inverse the direction of the velocity vectors.
         cell_inds: `str` or `list` (default: all)
-            the cell index that will be chosen to draw velocity vectors. Can be a list of integers (cell integer indices)
-            or str (Cell names).
+            the cell index that will be chosen to draw velocity vectors. Can be a list of integers (cell indices) or str
+            (Cell names).
         quiver_size: `float` or None (default: None)
-            The size of quiver. If None, we will use set quiver_size to be 1. Note that quiver quiver_size is used to calculate
-            the head_width (10 x quiver_size), head_length (12 x quiver_size) and headaxislength (8 x quiver_size) of the quiver.
-            This is done via the `default_quiver_args` function which also calculate the scale of the quiver (1 / quiver_length).
+            The size of quiver. If None, we will use set quiver_size to be 1. Note that quiver quiver_size is used to
+            calculate the head_width (10 x quiver_size), head_length (12 x quiver_size) and headaxislength (8 x
+            quiver_size) of the quiver. This is done via the `default_quiver_args` function which also calculate the
+            scale of the quiver (1 / quiver_length).
         quiver_length: `float` or None (default: None)
-            The length of quiver. The quiver length which will be used to calculate scale of quiver. Note that befoe applying
-            `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale of quiver indicates
-            the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller scale parameter makes the arrow longer.
+            The length of quiver. The quiver length which will be used to calculate scale of quiver. Note that befoe
+            applying `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale
+            of quiver indicates the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller
+            scale parameter makes the arrow longer.
         vector: `str` (default: `velocity`)
             Which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity field or
             acceleration field will be plotted.
         frontier: `bool` (default: `False`)
-            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show area
-            of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
-            cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
-            https://science.sciencemag.org/content/367/6482/1151.
+            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show
+            area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips &
+            tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq
+            paper: https://science.sciencemag.org/content/367/6482/1151.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'cell_wise_velocity', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-            according to your needs.
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            save_fig function will use the {"path": None, "prefix": 'cell_wise_velocity', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+            dictionary that properly modify those keys according to your needs.
         s_kwargs_dict: `dict` (default: {})
             The dictionary of the scatter arguments.
         cell_wise_kwargs:
@@ -379,8 +389,8 @@ def cell_wise_vectors(
     if type(x) == str and type(y) == str:
         if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y])) != 2:
             raise ValueError(
-                f"If you want to plot the vector flow of two genes, please make sure those two genes "
-                f"belongs to dynamics genes or .var.use_for_dynamics is True."
+                "If you want to plot the vector flow of two genes, please make sure those two genes "
+                "belongs to dynamics genes or .var.use_for_dynamics is True."
             )
         X = adata[:, [x, y]].layers["M_s"].A
         V = adata[:, [x, y]].layers["velocity_S"].A
@@ -578,37 +588,39 @@ def grid_vectors(
         inverse: `bool` (default: False)
             Whether to inverse the direction of the velocity vectors.
         cell_inds: `str` or `list` (default: all)
-            the cell index that will be chosen to draw velocity vectors. Can be a list of integers (cell integer indices)
-            or str (Cell names).
+            the cell index that will be chosen to draw velocity vectors. Can be a list of integers (cell integer
+            indices)  or str (Cell names).
         method: `str` (default: `SparseVFC`)
-            Method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the empirical method
-            Gaussian kernel method from RNA velocity (Gaussian).
+            Method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the empirical
+            method Gaussian kernel method from RNA velocity (Gaussian).
         xy_grid_nums: `tuple` (default: (50, 50))
             the number of grids in either x or y axis.
         cut_off_velocity: `bool` (default: True)
             Whether to remove small velocity vectors from the recovered the vector field grid, either through the simple
             Gaussian kernel (applicable to 2D) or the powerful sparseVFC approach.
         quiver_size: `float` or None (default: None)
-            The size of quiver. If None, we will use set quiver_size to be 1. Note that quiver quiver_size is used to calculate
-            the head_width (10 x quiver_size), head_length (12 x quiver_size) and headaxislength (8 x quiver_size) of the quiver.
-            This is done via the `default_quiver_args` function which also calculate the scale of the quiver (1 / quiver_length).
+            The size of quiver. If None, we will use set quiver_size to be 1. Note that quiver quiver_size is used to
+            calculate the head_width (10 x quiver_size), head_length (12 x quiver_size) and headaxislength (8 x
+            quiver_size) of the quiver. This is done via the `default_quiver_args` function which also calculate the
+            scale of the quiver (1 / quiver_length).
         quiver_length: `float` or None (default: None)
-            The length of quiver. The quiver length which will be used to calculate scale of quiver. Note that befoe applying
-            `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale of quiver indicates
-            the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller scale parameter makes the arrow longer.
+            The length of quiver. The quiver length which will be used to calculate scale of quiver. Note that befoe
+            applying `default_quiver_args` velocity values are first rescaled via the quiver_autoscaler function. Scale
+            of quiver indicates the nuumber of data units per arrow length unit, e.g., m/s per plot width; a smaller
+            scale parameter makes the arrow longer.
         vector: `str` (default: `velocity`)
             Which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity field or
             acceleration field will be plotted.
         frontier: `bool` (default: `False`)
-            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show area
-            of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
-            cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
-            https://science.sciencemag.org/content/367/6482/1151.
+            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show
+            area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips &
+            tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq
+            paper: https://science.sciencemag.org/content/367/6482/1151.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'grid_velocity', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-            according to your needs.
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            save_fig function will use the {"path": None, "prefix": 'grid_velocity', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+            dictionary that properly modify those keys according to your needs.
         s_kwargs_dict: `dict` (default: {})
             The dictionary of the scatter arguments.
         q_kwargs_dict: `dict` (default: {})
@@ -628,8 +640,8 @@ def grid_vectors(
     if type(x) == str and type(y) == str:
         if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y])) != 2:
             raise ValueError(
-                f"If you want to plot the vector flow of two genes, please make sure those two genes "
-                f"belongs to dynamics genes or .var.use_for_dynamics is True."
+                "If you want to plot the vector flow of two genes, please make sure those two genes "
+                "belongs to dynamics genes or .var.use_for_dynamics is True."
             )
         X = adata[:, [x, y]].layers["M_s"].A
         V = adata[:, [x, y]].layers["velocity_S"].A
@@ -681,8 +693,8 @@ def grid_vectors(
         if "VecFld_" + basis not in adata.uns.keys():
             VectorField(adata, basis=basis, dims=[x, y])
         X_grid, V_grid = (
-            adata.uns["VecFld_" + basis]["VecFld"]["grid"],
-            adata.uns["VecFld_" + basis]["VecFld"]["grid_V"],
+            adata.uns["VecFld_" + basis]["grid"],
+            adata.uns["VecFld_" + basis]["grid_V"],
         )
         N = int(np.sqrt(V_grid.shape[0]))
 
@@ -724,7 +736,7 @@ def grid_vectors(
         )
     elif "grid_velocity_" + basis in adata.uns.keys():
         X_grid, V_grid, _ = (
-            adata.uns["grid_velocity_" + basis]["VecFld"]["X_grid"],
+            adata.uns["grid_velocity_" + basis]["VecFld"]["grid"],
             adata.uns["grid_velocity_" + basis]["VecFld"]["V_grid"],
             adata.uns["grid_velocity_" + basis]["VecFld"]["D"],
         )
@@ -879,11 +891,11 @@ def streamline_plot(
         inverse: `bool` (default: False)
             Whether to inverse the direction of the velocity vectors.
         cell_inds: `str` or `list` (default: all)
-            the cell index that will be chosen to draw velocity vectors. Can be a list of integers (cell integer indices)
-            or str (Cell names).
+            the cell index that will be chosen to draw velocity vectors. Can be a list of integers (cell integer
+            indices) or str (Cell names).
         method: `str` (default: `SparseVFC`)
-            Method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the empirical method
-            Gaussian kernel method from RNA velocity (Gaussian).
+            Method to reconstruct the vector field. Currently it supports either SparseVFC (default) or the empirical
+            method Gaussian kernel method from RNA velocity (Gaussian).
         xy_grid_nums: `tuple` (default: (50, 50))
             the number of grids in either x or y axis.
         cut_off_velocity: `bool` (default: True)
@@ -899,15 +911,15 @@ def streamline_plot(
             Which vector type will be used for plotting, one of {'velocity', 'acceleration'} or either velocity field or
             acceleration field will be plotted.
         frontier: `bool` (default: `False`)
-            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show area
-            of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips & tricks
-            cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq paper:
-            https://science.sciencemag.org/content/367/6482/1151.
+            Whether to add the frontier. Scatter plots can be enhanced by using transparency (alpha) in order to show
+            area of high density and multiple scatter plots can be used to delineate a frontier. See matplotlib tips &
+            tricks cheatsheet (https://github.com/matplotlib/cheatsheets). Originally inspired by figures from scEU-seq
+            paper: https://science.sciencemag.org/content/367/6482/1151.
        save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig function
-            will use the {"path": None, "prefix": 'streamline_plot', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those keys
-            according to your needs.
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            save_fig function will use the {"path": None, "prefix": 'streamline_plot', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+            dictionary that properly modify those keys according to your needs.
         s_kwargs_dict: `dict` (default: {})
             The dictionary of the scatter arguments.
         streamline_kwargs:
@@ -924,8 +936,8 @@ def streamline_plot(
     if type(x) == str and type(y) == str:
         if len(adata.var_names[adata.var.use_for_dynamics].intersection([x, y])) != 2:
             raise ValueError(
-                f"If you want to plot the vector flow of two genes, please make sure those two genes "
-                f"belongs to dynamics genes or .var.use_for_dynamics is True."
+                "If you want to plot the vector flow of two genes, please make sure those two genes "
+                "belongs to dynamics genes or .var.use_for_dynamics is True."
             )
         X = adata[:, [x, y]].layers["M_s"].A
         V = adata[:, [x, y]].layers["velocity_S"].A
@@ -977,8 +989,8 @@ def streamline_plot(
         if "VecFld_" + basis not in adata.uns.keys():
             VectorField(adata, basis=basis, dims=[x, y])
         X_grid, V_grid = (
-            adata.uns["VecFld_" + basis]["VecFld"]["grid"],
-            adata.uns["VecFld_" + basis]["VecFld"]["grid_V"],
+            adata.uns["VecFld_" + basis]["grid"],
+            adata.uns["VecFld_" + basis]["grid_V"],
         )
         N = int(np.sqrt(V_grid.shape[0]))
 
@@ -1172,10 +1184,10 @@ def plot_energy(
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
             Whether to save, show or return the figure.
         save_kwargs: `dict` (default: `{}`)
-            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the save_fig
-            function will use the {"path": None, "prefix": 'energy', "dpi": None, "ext": 'pdf', "transparent": True, "close":
-            True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that properly modify those
-            keys according to your needs.
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            save_fig function will use the {"path": None, "prefix": 'energy', "dpi": None, "ext": 'pdf', "transparent":
+            True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a dictionary that
+            properly modify those keys according to your needs.
 
     Returns
     -------

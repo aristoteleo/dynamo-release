@@ -36,7 +36,6 @@ from .utils import (
 from ..dynamo_logger import (
     main_info,
     main_critical,
-    main_warning,
     LoggerManager,
 )
 from ..utils import copy_adata
@@ -1784,11 +1783,8 @@ def recipe_monocle(
     CM = CM[:, valid_ind]
     logger.info("applying %s ..." % (method.upper()))
     if method == "pca":
-        adata, fit, _ = pca(adata, CM, num_dim, "X_" + method.lower())
+        adata = pca(adata, CM, num_dim, "X_" + method.lower())
 
-        adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
-        adata.uns["pca_mean"] = fit.mean_ if hasattr(fit, "mean_") else None
-        adata.obsm["X"] = adata.obsm["X_" + method.lower()]
     elif method == "ica":
         fit = FastICA(
             num_dim,
@@ -1942,7 +1938,7 @@ def recipe_velocyto(
     CM = CM[:, valid_ind]
 
     if method == "pca":
-        adata, fit, _ = pca(adata, CM, num_dim, "X_" + method.lower())
+        adata, fit, _ = pca(adata, CM, num_dim, "X_" + method.lower(), return_all=True)
         # adata.obsm['X_' + method.lower()] = reduce_dim
 
     elif method == "ica":

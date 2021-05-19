@@ -19,8 +19,8 @@ def convert2gene_symbol(input_names, scopes="ensembl.gene"):
     Parameters
     ----------
         input_names: list-like
-            The ensemble gene id names that you want to convert to official gene names. All names should come from the same
-            species.
+            The ensemble gene id names that you want to convert to official gene names. All names should come from the
+            same species.
         scopes: `list-like` or `None` (default: `None`)
             Scopes are needed when you use non-official gene name as your gene indices (or adata.var_name). This
             arugument corresponds to type of types of identifiers, either a list or a comma-separated fields to specify
@@ -45,8 +45,6 @@ def convert2gene_symbol(input_names, scopes="ensembl.gene"):
             "You need to install the package `mygene` (pip install mygene --user) "
             "See https://pypi.org/project/mygene/ for more details."
         )
-
-    import mygene
 
     mg = mygene.MyGeneInfo()
 
@@ -100,9 +98,9 @@ def convert2symbol(adata, scopes=None, subset=True):
             adata.var.index
         )
         adata.var = merge_df
-        valid_ind = np.where(merge_df["notfound"] != True)[0]
+        valid_ind = np.where(merge_df["notfound"] != True)[0]  # noqa: E712
 
-        if subset:
+        if subset is True:
             adata._inplace_subset_var(valid_ind)
             adata.var.index = adata.var["symbol"].values.copy()
         else:
@@ -132,7 +130,8 @@ def gene_exp_fraction(X, threshold=0.001):
 
 # from __future__ import division, print_function
 
-# https://stats.stackexchange.com/questions/356053/the-identity-link-function-does-not-respect-the-domain-of-the-gamma-family
+# https://stats.stackexchange.com/questions/356053/the-identity-link-function-does-not-respect-the-domain-of-the-gamma-
+# family
 def _weight_matrix(fitted_model):
     """Calculates weight matrix in Poisson regression
 
@@ -269,8 +268,8 @@ def basic_stats(adata):
             if issparse(adata.X)
             else (adata.X[:, mito_genes]).sum(1) / adata.obs["nCounts"]
         )
-    except:
-        raise Exception(f"looks like your var_names may be corrupted (i.e. include nan values)")
+    except:  # noqa E722
+        raise ValueError("looks like your var_names may be corrupted (i.e. include nan values)")
 
 
 def unique_var_obs_adata(adata):
@@ -381,8 +380,8 @@ def clusters_stats(U, S, clusters_uid, cluster_ix, size_limit=40):
     """
     U_avgs = np.zeros((S.shape[1], len(clusters_uid)))
     S_avgs = np.zeros((S.shape[1], len(clusters_uid)))
-    avgU_div_avgS = np.zeros((S.shape[1], len(clusters_uid)))
-    slopes_by_clust = np.zeros((S.shape[1], len(clusters_uid)))
+    # avgU_div_avgS = np.zeros((S.shape[1], len(clusters_uid)))
+    # slopes_by_clust = np.zeros((S.shape[1], len(clusters_uid)))
 
     for i, uid in enumerate(clusters_uid):
         cluster_filter = cluster_ix == i
@@ -553,15 +552,63 @@ def decode(adata):
 # pca
 
 
-def pca(adata, CM, n_pca_components=30, pca_key="X", pcs_key="PCs"):
+def pca(
+    adata,
+    X_data=None,
+    n_pca_components=30,
+    pca_key="X",
+    pcs_key="PCs",
+    genes_to_append=None,
+    layer=None,
+    return_all=False,
+):
+    # only use genes pass filter (based on use_for_pca) to perform dimension reduction.
+    if X_data is None:
+        if "use_for_pca" not in adata.var.keys():
+            adata.var["use_for_pca"] = True
+
+        if layer is None:
+            X_data = adata.X[:, adata.var.use_for_pca.values]
+        else:
+            if "X" in layer:
+                X_data = adata.X[:, adata.var.use_for_pca.values]
+            elif "total" in layer:
+                X_data = adata.layers["X_total"][:, adata.var.use_for_pca.values]
+            elif "spliced" in layer:
+                X_data = adata.layers["X_spliced"][:, adata.var.use_for_pca.values]
+            elif "protein" in layer:
+                X_data = adata.obsm["X_protein"]
+            elif type(layer) is str:
+                X_data = adata.layers["X_" + layer][:, adata.var.use_for_pca.values]
+            else:
+                raise ValueError(
+                    f"your input layer argument should be either a `str` or a list that includes one of `X`, "
+                    f"`total`, `protein` element. `Layer` currently is {layer}."
+                )
+
+        cm_genesums = X_data.sum(axis=0)
+        valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
+        valid_ind = np.array(valid_ind).flatten()
+
+        bad_genes = np.where(adata.var.use_for_pca)[0][~valid_ind]
+        if genes_to_append is not None and len(adata.var.index[bad_genes].intersection(genes_to_append)) > 0:
+            raise ValueError(
+                f"The gene list passed to argument genes_to_append contains genes with no expression "
+                f"across cells or non finite values. Please check those genes:"
+                f"{set(bad_genes).intersection(genes_to_append)}!"
+            )
+
+        adata.var.iloc[bad_genes, adata.var.columns.tolist().index("use_for_pca")] = False
+        X_data = X_data[:, valid_ind]
+
     if adata.n_obs < 100000:
         pca = PCA(
-            n_components=min(n_pca_components, CM.shape[1] - 1),
+            n_components=min(n_pca_components, X_data.shape[1] - 1),
             svd_solver="arpack",
             random_state=0,
         )
-        fit = pca.fit(CM.toarray()) if issparse(CM) else pca.fit(CM)
-        X_pca = fit.transform(CM.toarray()) if issparse(CM) else fit.transform(CM)
+        fit = pca.fit(X_data.toarray()) if issparse(X_data) else pca.fit(X_data)
+        X_pca = fit.transform(X_data.toarray()) if issparse(X_data) else fit.transform(X_data)
         adata.obsm[pca_key] = X_pca
         adata.uns[pcs_key] = fit.components_.T
 
@@ -569,17 +616,23 @@ def pca(adata, CM, n_pca_components=30, pca_key="X", pcs_key="PCs"):
     else:
         # unscaled PCA
         fit = TruncatedSVD(
-            n_components=min(n_pca_components + 1, CM.shape[1] - 1),
+            n_components=min(n_pca_components + 1, X_data.shape[1] - 1),
             random_state=0,
         )
         # first columns is related to the total UMI (or library size)
-        X_pca = fit.fit_transform(CM)[:, 1:]
+        X_pca = fit.fit_transform(X_data)[:, 1:]
         adata.obsm[pca_key] = X_pca
         adata.uns[pcs_key] = fit.components_.T
 
         adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
 
-    return adata, fit, X_pca
+    adata.uns["explained_variance_ratio_"] = fit.explained_variance_ratio_[1:]
+    adata.uns["pca_mean"] = fit.mean_ if hasattr(fit, "mean_") else None
+
+    if return_all:
+        return adata, fit, X_pca
+    else:
+        return adata
 
 
 def pca_genes(PCs, n_top_genes=100):
@@ -797,15 +850,15 @@ def relative2abs(
         to_layers: `str`, `None` or `list-like`
             The layers that our ERCC based transformation will be applied to.
         mixture_type:
-            the type of spikein transcripts from the spikein mixture added in the experiments. By default, it is mixture 1.
-            Note that m/c we inferred are also based on mixture 1.
+            the type of spikein transcripts from the spikein mixture added in the experiments. By default, it is mixture
+            1. Note that m/c we inferred are also based on mixture 1.
         ERCC_controls:
-            the FPKM/TPM matrix for each ERCC spike-in transcript in the cells if user wants to perform the transformation based
-            on their spike-in data. Note that the row and column names should match up with the ERCC_annotation and relative_
-            exprs_matrix respectively.
+            the FPKM/TPM matrix for each ERCC spike-in transcript in the cells if user wants to perform the
+            transformation based on their spike-in data. Note that the row and column names should match up with the
+            ERCC_annotation and relative_exprs_matrix respectively.
         ERCC_annotation:
-            the ERCC_annotation matrix from illumina USE GUIDE which will be ued for calculating the ERCC transcript copy
-            number for performing the transformation.
+            the ERCC_annotation matrix from illumina USE GUIDE which will be ued for calculating the ERCC transcript
+            copy number for performing the transformation.
 
     Returns
     -------
@@ -822,7 +875,7 @@ def relative2abs(
 
     ERCC_id = adata.var_names.intersection(ERCC_id)
     if len(ERCC_id) < 10 and ERCC_controls is None:
-        raise Exception(f"The adata object you provided has less than 10 ERCC genes.")
+        raise Exception("The adata object you provided has less than 10 ERCC genes.")
 
     if to_layers is not None:
         to_layers = [to_layers] if to_layers is str else to_layers

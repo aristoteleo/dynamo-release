@@ -182,27 +182,28 @@ def pseudotime_velocity(
     adata.obsp[add_tkey] = T
 
     if dynamics_info:
-        if "dynamics" not in adata.uns["dynamics"]:
+        if "dynamics" not in adata.uns_keys():
             logger.info_insert_adata("dynamics", "uns")
             adata.uns["dynamics"] = {}
 
-        logger.info_insert_adata("has_labeling", "uns['has_labeling']", indent_level=2)
+        logger.info_insert_adata("has_labeling, has_splicing, splicing_labeling", "uns['dynamics']", indent_level=2)
         adata.uns["dynamics"]["has_labeling"] = False
-
-        logger.info_insert_adata("has_splicing", "uns['has_labeling']", indent_level=2)
         adata.uns["dynamics"]["has_splicing"] = True
-
-        logger.info_insert_adata("splicing_labeling", "uns['has_labeling']", indent_level=2)
         adata.uns["dynamics"]["splicing_labeling"] = False
 
-        logger.info_insert_adata("experiment_type", "uns['has_labeling']", indent_level=2)
+        logger.info_insert_adata(
+            "experiment_type, use_smoothed, NTR_vel, est_method", "uns['dynamics']", indent_level=2
+        )
         adata.uns["dynamics"]["experiment_type"] = "conventional"
+        adata.uns["dynamics"]["use_smoothed"] = True
+        adata.uns["dynamics"]["NTR_vel"] = True
+        adata.uns["dynamics"]["est_method"] = "conventional"
 
     if unspliced_RNA:
         logger.info("set velocity_S to be the unspliced RNA.")
 
         logger.info_insert_adata(add_ukey, "layers", indent_level=2)
-        adata.layers["M_u"] = adata.layers["velocity_S"].copy()
+        adata.layers[add_ukey] = adata.layers["velocity_S"].copy()
 
         logger.info("set gamma to be 0 in .var. so that velocity_S = unspliced RNA.")
         logger.info_insert_adata("gamma", "var", indent_level=2)

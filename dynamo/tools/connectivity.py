@@ -52,19 +52,15 @@ def adj_to_knn(adj, n_neighbors):
 
         # there could be more or less than n_neighbors because of an approximate search
         cur_n_neighbors = len(cur_neighbors[1])
+
         if cur_n_neighbors > n_neighbors - 1:
-            sorted_indices = np.argsort(adj[cur_cell][:, cur_neighbors[1]].A)[
-                0
-            ][: (n_neighbors - 1)]
+            sorted_indices = np.argsort(adj[cur_cell][:, cur_neighbors[1]].A)[0][: (n_neighbors - 1)]
             idx[cur_cell, 1:] = cur_neighbors[1][sorted_indices]
-            wgt[cur_cell, 1:] = adj[cur_cell][
-                0, cur_neighbors[1][sorted_indices]
-            ].A
+            wgt[cur_cell, 1:] = adj[cur_cell][0, cur_neighbors[1][sorted_indices]].A
         else:
-            idx[cur_cell, 1 : (cur_n_neighbors + 1)] = cur_neighbors[1]
-            wgt[cur_cell, 1 : (cur_n_neighbors + 1)] = adj[cur_cell][
-                :, cur_neighbors[1]
-            ].A
+            idx_ = np.arange(1, (cur_n_neighbors + 1))
+            idx[cur_cell, idx_] = cur_neighbors[1]
+            wgt[cur_cell, idx_] = adj[cur_cell][:, cur_neighbors[1]].A
 
     return idx, wgt
 
@@ -125,8 +121,9 @@ def umap_conn_indices_dist_embedding(
     verbose=False,
     **umap_kwargs,
 ):
-    """Compute connectivity graph, matrices for kNN neighbor indices, distance matrix and low dimension embedding with UMAP.
-    This code is adapted from umap-learn (https://github.com/lmcinnes/umap/blob/97d33f57459de796774ab2d7fcf73c639835676d/umap/umap_.py)
+    """Compute connectivity graph, matrices for kNN neighbor indices, distance matrix and low dimension embedding with
+    UMAP. This code is adapted from umap-learn:
+    (https://github.com/lmcinnes/umap/blob/97d33f57459de796774ab2d7fcf73c639835676d/umap/umap_.py)
 
     Arguments
     ---------
@@ -139,32 +136,33 @@ def umap_conn_indices_dist_embedding(
         metric: 'str' or `callable` (optional, default `cosine`)
             The metric to use for the computation.
         min_dist: 'float' (optional, default `0.1`)
-            The effective minimum distance between embedded points. Smaller values will result in a more clustered/clumped
-            embedding where nearby points on the manifold are drawn closer together, while larger values will result on a
-            more even dispersal of points. The value should be set relative to the ``spread`` value, which determines the
-            scale at which embedded points will be spread out.
+            The effective minimum distance between embedded points. Smaller values will result in a more
+            clustered/clumped embedding where nearby points on the manifold are drawn closer together, while larger
+            values will result on a more even dispersal of points. The value should be set relative to the ``spread``
+            value, which determines the scale at which embedded points will be spread out.
         spread: `float` (optional, default 1.0)
-            The effective scale of embedded points. In combination with min_dist this determines how clustered/clumped the
-            embedded points are.
+            The effective scale of embedded points. In combination with min_dist this determines how clustered/clumped
+            the embedded points are.
         n_epochs: 'int' (optional, default 0)
-            The number of training epochs to be used in optimizing the low dimensional embedding. Larger values result in
-            more accurate embeddings. If None is specified a value will be selected based on the size of the input dataset
-            (200 for large datasets, 500 for small).
+            The number of training epochs to be used in optimizing the low dimensional embedding. Larger values result
+            in more accurate embeddings. If None is specified a value will be selected based on the size of the input
+            dataset (200 for large datasets, 500 for small).
         alpha: `float` (optional, default 1.0)
             Initial learning rate for the SGD.
         gamma: `float` (optional, default 1.0)
             Weight to apply to negative samples. Values higher than one will result in greater weight being given to
             negative samples.
         negative_sample_rate: `float` (optional, default 5)
-            The number of negative samples to select per positive sample in the optimization process. Increasing this value
-             will result in greater repulsive force being applied, greater optimization cost, but slightly more accuracy.
-             The number of negative edge/1-simplex samples to use per positive edge/1-simplex sample in optimizing the low
-             dimensional embedding.
+            The number of negative samples to select per positive sample in the optimization process. Increasing this
+            value will result in greater repulsive force being applied, greater optimization cost, but slightly more
+            accuracy. The number of negative edge/1-simplex samples to use per positive edge/1-simplex sample in
+             optimizing the low dimensional embedding.
         init_pos: 'spectral':
             How to initialize the low dimensional embedding. Use a spectral embedding of the fuzzy 1-skeleton
         random_state: `int`, `RandomState` instance or `None`, optional (default: None)
-            If int, random_state is the seed used by the random number generator; If RandomState instance, random_state is
-            the random number generator; If None, the random number generator is the RandomState instance used by `numpy.random`.
+            If int, random_state is the seed used by the random number generator; If RandomState instance, random_state
+            is the random number generator; If None, the random number generator is the RandomState instance used by
+            `numpy.random`.
         dens_lambda: float (optional, default 2.0)
             Controls the regularization weight of the density correlation term
             in densMAP. Higher values prioritize density preservation over the
@@ -193,8 +191,8 @@ def umap_conn_indices_dist_embedding(
     Returns
     -------
         graph, knn_indices, knn_dists, embedding_
-            A tuple of kNN graph (`graph`), indices of nearest neighbors of each cell (knn_indicies), distances of nearest
-            neighbors (knn_dists) and finally the low dimensional embedding (embedding_).
+            A tuple of kNN graph (`graph`), indices of nearest neighbors of each cell (knn_indicies), distances of
+            nearest neighbors (knn_dists) and finally the low dimensional embedding (embedding_).
     """
 
     from sklearn.utils import check_random_state
@@ -250,7 +248,7 @@ def umap_conn_indices_dist_embedding(
         )
 
         _raw_data = X
-        _transform_available = True
+        # _transform_available = True
         # The corresponding nonzero values are stored in similar fashion in self.data.
         _search_graph, _ = get_conn_dist_graph(knn_indices, knn_dists)
         _search_graph = _search_graph.maximum(  # Element-wise maximum between this and another matrix.
@@ -383,31 +381,28 @@ def mnn(
         layers: str or list (default: `all`)
             The layer(s) to be normalized. Default is `all`, including RNA (X, raw) or spliced, unspliced, protein, etc.
         use_pca_fit: `bool` (default: `True`)
-            Whether to use the precomputed pca model to transform different data layers or calculate pca for each data layer
-            separately.
+            Whether to use the precomputed pca model to transform different data layers or calculate pca for each data
+            layer separately.
         save_all_to_adata: `bool` (default: `False`)
             Whether to save_fig all calculated data to adata object.
 
     Returns
     -------
         adata: :class:`~anndata.AnnData`
-            An updated anndata object that are updated with the `mnn` or other relevant data that are calculated during mnn
-            calculation.
+            An updated anndata object that are updated with the `mnn` or other relevant data that are calculated during
+            mnn calculation.
     """
     if use_pca_fit:
         if "pca_fit" in adata.uns.keys():
             fiter = adata.uns["pca_fit"]
         else:
-            raise Exception(
-                "use_pca_fit is set to be True, but there is no pca fit results in .uns attribute."
-            )
+            raise Exception("use_pca_fit is set to be True, but there is no pca fit results in .uns attribute.")
 
     layers = get_layer_keys(adata, layers, False, False)
     layers = [
         layer
         for layer in layers
-        if layer.startswith("X_")
-        and (not layer.endswith("_matrix") and not layer.endswith("_ambiguous"))
+        if layer.startswith("X_") and (not layer.endswith("_matrix") and not layer.endswith("_ambiguous"))
     ]
     knn_graph_list = []
     for layer in layers:
@@ -416,9 +411,7 @@ def mnn(
         if use_pca_fit:
             layer_pca = fiter.fit_transform(layer_X)[:, 1:]
         else:
-            transformer = TruncatedSVD(
-                n_components=n_pca_components + 1, random_state=0
-            )
+            transformer = TruncatedSVD(n_components=n_pca_components + 1, random_state=0)
             layer_pca = transformer.fit_transform(layer_X)[:, 1:]
 
         with warnings.catch_warnings():
@@ -428,18 +421,14 @@ def mnn(
                 knn_indices,
                 knn_dists,
                 X_dim,
-            ) = umap_conn_indices_dist_embedding(
-                layer_pca, n_neighbors=n_neighbors, return_mapper=False
-            )
+            ) = umap_conn_indices_dist_embedding(layer_pca, n_neighbors=n_neighbors, return_mapper=False)
 
         if save_all_to_adata:
             adata.obsm[layer + "_pca"], adata.obsm[layer + "_umap"] = (
                 layer_pca,
                 X_dim,
             )
-            n_neighbors = signature(
-                umap_conn_indices_dist_embedding
-            ).parameters["n_neighbors"]
+            n_neighbors = signature(umap_conn_indices_dist_embedding).parameters["n_neighbors"]
 
             adata.uns[layer + "_neighbors"] = {
                 "params": {"n_neighbors": eval(n_neighbors), "method": "umap"},
@@ -501,8 +490,8 @@ def neighbors(
             NNDescent for fast nearest neighbor search.
         metric: `str` or callable, default='euclidean'
             The distance metric to use for the tree.  The default metric is , and with p=2 is equivalent to the standard
-            Euclidean metric. See the documentation of :class:`DistanceMetric` for a list of available metrics. If metric
-            is "precomputed", X is assumed to be a distance matrix and must be square during fit. X may be a
+            Euclidean metric. See the documentation of :class:`DistanceMetric` for a list of available metrics. If
+            metric is "precomputed", X is assumed to be a distance matrix and must be square during fit. X may be a
             :term:`sparse graph`, in which case only "nonzero" elements may be considered neighbors.
         metric_params : dict, default=None
             Additional keyword arguments for the metric function.
@@ -530,12 +519,10 @@ def neighbors(
 
             CM = adata.X if genes is None else adata[:, genes].X
             cm_genesums = CM.sum(axis=0)
-            valid_ind = np.logical_and(
-                np.isfinite(cm_genesums), cm_genesums != 0
-            )
+            valid_ind = np.logical_and(np.isfinite(cm_genesums), cm_genesums != 0)
             valid_ind = np.array(valid_ind).flatten()
             CM = CM[:, valid_ind]
-            adata, _, _ = pca(adata, CM, n_pca_components=n_pca_components)
+            adata, _, _ = pca(adata, CM, n_pca_components=n_pca_components, return_all=True)
 
             X_data = adata.obsm["X_pca"]
         else:
@@ -577,25 +564,17 @@ def neighbors(
         ).fit(X_data)
         distances, knn = nbrs.kneighbors(X_data)
     else:
-        raise ImportError(
-            f"nearest neighbor search method {method} is not supported"
-        )
+        raise ImportError(f"nearest neighbor search method {method} is not supported")
 
     if result_prefix != "":
-        result_prefix = (
-            result_prefix
-            if result_prefix.endswith("_")
-            else result_prefix + "_"
-        )
+        result_prefix = result_prefix if result_prefix.endswith("_") else result_prefix + "_"
 
     conn_key, dist_key, neigh_key = (
         result_prefix + "connectivities",
         result_prefix + "distances",
         result_prefix + "neighbors",
     )
-    adata.obsp[conn_key], adata.obsp[dist_key] = get_conn_dist_graph(
-        knn, distances
-    )
+    adata.obsp[conn_key], adata.obsp[dist_key] = get_conn_dist_graph(knn, distances)
 
     adata.uns[neigh_key] = {}
     adata.uns[neigh_key]["indices"] = knn
