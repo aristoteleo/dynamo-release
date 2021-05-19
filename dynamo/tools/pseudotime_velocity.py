@@ -70,6 +70,7 @@ def pseudotime_velocity(
     ekey: str = "M_s",
     vkey: str = "velocity_S",
     add_tkey: str = "pseudotime_transition_matrix",
+    add_ukey: str = "M_u_pseudo",
     method: str = "hodge",
     dynamics_info: bool = False,
     unspliced_RNA: bool = False,
@@ -101,6 +102,9 @@ def pseudotime_velocity(
             The dictionary key that will be used to save the estimated velocity values in the layers attribute.
         add_tkey: str (default: `pseudotime_transition_matrix`)
             The dictionary key that will be used to keep the pseudotime-based transition matrix.
+        add_ukey: str (default: `M_u_pseudo`)
+            The dictionary key that will be used to save the estimated "unspliced mRNA". Since we assume gamma is 0, we
+            thus have M_u_pseudo essentially the estimated high dimensional velocity vector.
         method: str (default: `hodge`)
             Which pseudotime to vector field method to be used. There are three different methods, `hodge`, `naive`,
             `gradient`. By default the `hodge` method will be used.
@@ -197,13 +201,9 @@ def pseudotime_velocity(
     if unspliced_RNA:
         logger.info("set velocity_S to be the unspliced RNA.")
 
-        if ekey.startswith("M_s"):
-            logger.info_insert_adata("M_u", "layers", indent_level=2)
-            adata.layers["M_u"] = adata.layers["velocity_S"].copy()
-        else:
-            logger.info_insert_adata("X_spliced", "layers", indent_level=2)
-            adata.layers["X_spliced"] = adata.layers["velocity_S"].copy()
+        logger.info_insert_adata(add_ukey, "layers", indent_level=2)
+        adata.layers["M_u"] = adata.layers["velocity_S"].copy()
 
-        logger.info("set gamma to be 0 in .var. so that velocity_S = M_u.")
+        logger.info("set gamma to be 0 in .var. so that velocity_S = unspliced RNA.")
         logger.info_insert_adata("gamma", "var", indent_level=2)
         adata.var["gamma"] = 0
