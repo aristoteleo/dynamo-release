@@ -338,9 +338,10 @@ def scatters(
         # check whether it is an array
     )
 
-    point_size = (
-        16000.0 / np.sqrt(adata.shape[0]) if pointsize is None else 16000.0 / np.sqrt(adata.shape[0]) * pointsize
-    )
+    if pointsize is None:
+        point_size = 16000.0 / np.sqrt(adata.shape[0])
+    else:
+        point_size = 16000.0 / np.sqrt(adata.shape[0]) * pointsize
 
     scatter_kwargs = dict(
         alpha=0.1,
