@@ -22,15 +22,14 @@ from .utils import (
 from .scVectorField import svc_vectorfield
 from ..tools.sampling import sample
 from ..tools.utils import (
-    isarray,
-    ismatrix,
-    # areinstance,
     list_top_genes,
     create_layer,
     index_gene,
     table_top_genes,
     list_top_interactions,
 )
+
+from ..utils import isarray, ismatrix
 
 try:
     import dynode

@@ -26,4 +26,5 @@ from .utils import (
     scale,
     convert2symbol,
     filter_genes_by_pattern,
+    decode,
 )

@@ -1,8 +1,40 @@
 """General utilility functions
 """
-import anndata
+import numpy as np
+import scipy.sparse as sp
 
 from .dynamo_logger import LoggerManager
+
+
+def isarray(arr):
+    """
+    Check if a variable is an array. Essentially the variable has the attribute 'len'
+    and it is not a string.
+    """
+    return hasattr(arr, "__len__") and (not isinstance(arr, str) and (not isinstance(arr, type)))
+
+
+def ismatrix(arr):
+    """
+    Check if a variable is an array. Essentially the variable has the attribute 'len'
+    and it is not a string.
+    """
+    return type(arr) is np.matrix or sp.issparse(arr)
+
+
+def areinstance(arr, dtype, logic_func=all):
+    """
+    Check if elements of an array are all (by default) of 'dtype'.
+    """
+    if not isarray(dtype):
+        dtype = [dtype]
+    ret = None
+    for dt in dtype:
+        if ret is None:
+            ret = [isinstance(a, dt) for a in arr]
+        else:
+            ret = np.logical_or(ret, [isinstance(a, dt) for a in arr])
+    return logic_func(ret)
 
 
 def copy_adata(adata, logger=None):

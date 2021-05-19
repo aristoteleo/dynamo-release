@@ -31,7 +31,8 @@ def perturbation(
     pca_key: Union[str, np.ndarray, None] = None,
     PCs_key: Union[str, np.ndarray, None] = None,
     pca_mean_key: Union[str, np.ndarray, None] = None,
-    basis: Union[str, None] = "pca",
+    basis: str = "pca",
+    emb_basis: str = "umap",
     jac_key: str = "jacobian_pca",
     X_pca: Union[np.ndarray, None] = None,
     delta_Y: Union[np.ndarray, None] = None,
@@ -235,7 +236,7 @@ def perturbation(
         transition_key = add_transition_key
 
     if add_velocity_key is None:
-        velocity_key, embedding_key = "velocity_" + basis + "_perturbation", "X_" + basis + "_perturbation"
+        velocity_key, embedding_key = "velocity_" + emb_basis + "_perturbation", "X_" + emb_basis + "_perturbation"
     else:
         velocity_key, embedding_key = add_velocity_key, add_embedding_key
 
@@ -243,20 +244,20 @@ def perturbation(
         adata,
         X=X_pca,
         V=delta_Y,
-        basis=basis,
+        basis=emb_basis,
         enforce=True,
         method=projection_method,
         add_transition_key=transition_key,
         add_velocity_key=velocity_key,
     )
 
-    logger.info_insert_adata("X_" + basis + "_perturbation", "obsm", indent_level=1)
+    logger.info_insert_adata("X_" + emb_basis + "_perturbation", "obsm", indent_level=1)
 
     logger.info(
-        f"you can use dyn.pl.streamline_plot(adata, basis='{basis}_perturbation') to visualize the "
+        f"you can use dyn.pl.streamline_plot(adata, basis='{emb_basis}_perturbation') to visualize the "
         f"perturbation vector"
     )
-    adata.obsm[embedding_key] = adata.obsm["X_" + basis].copy()
+    adata.obsm[embedding_key] = adata.obsm["X_" + emb_basis].copy()
 
 
 def rank_perturbation_genes(adata, pkey="perturbation_vector", prefix_store="rank", **kwargs):

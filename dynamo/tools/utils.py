@@ -13,6 +13,7 @@ import time
 import itertools
 
 from ..preprocessing.utils import Freeman_Tukey
+from ..utils import areinstance, isarray
 
 
 # ---------------------------------------------------------------------------------------------------
@@ -252,37 +253,6 @@ def flatten(arr):
     else:
         ret = arr.flatten()
     return ret
-
-
-def isarray(arr):
-    """
-    Check if a variable is an array. Essentially the variable has the attribute 'len'
-    and it is not a string.
-    """
-    return hasattr(arr, "__len__") and (not isinstance(arr, str) and (not isinstance(arr, type)))
-
-
-def ismatrix(arr):
-    """
-    Check if a variable is an array. Essentially the variable has the attribute 'len'
-    and it is not a string.
-    """
-    return type(arr) is np.matrix or sp.issparse(arr)
-
-
-def areinstance(arr, dtype, logic_func=all):
-    """
-    Check if elements of an array are all (by default) of 'dtype'.
-    """
-    if not isarray(dtype):
-        dtype = [dtype]
-    ret = None
-    for dt in dtype:
-        if ret is None:
-            ret = [isinstance(a, dt) for a in arr]
-        else:
-            ret = np.logical_or(ret, [isinstance(a, dt) for a in arr])
-    return logic_func(ret)
 
 
 def closest_cell(coord, cells):
@@ -1494,27 +1464,6 @@ def select(array, pred=AlwaysTrue(), output_format="mask"):
     elif output_format == "index":
         ret = np.where(ret)[0]
     return ret
-
-
-def anndata_bytestring_decode(adata_item):
-    for key in adata_item.keys():
-        df = adata_item[key]
-        if df.dtype.name == "category" and areinstance(df.cat.categories, bytes):
-            cat = [c.decode() for c in df.cat.categories]
-            df.cat.rename_categories(cat, inplace=True)
-
-
-def decode_index(adata_item):
-    if areinstance(adata_item.index, bytes):
-        index = {i: i.decode() for i in adata_item.index}
-        adata_item.rename(index, inplace=True)
-
-
-def decode(adata):
-    decode_index(adata.obs)
-    decode_index(adata.var)
-    anndata_bytestring_decode(adata.obs)
-    anndata_bytestring_decode(adata.var)
 
 
 # ---------------------------------------------------------------------------------------------------
