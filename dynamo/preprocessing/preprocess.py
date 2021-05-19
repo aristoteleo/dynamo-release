@@ -40,6 +40,7 @@ from ..dynamo_logger import (
     LoggerManager,
 )
 from ..utils import copy_adata
+from ..configuration import keep_filtered_genes
 
 
 def szFactor(
@@ -861,11 +862,11 @@ def SVRs(
             score = -score
 
         prefix = "" if layer == "X" else layer + "_"
-        (
-            adata.var[prefix + "log_m"],
-            adata.var[prefix + "log_cv"],
-            adata.var[prefix + "score"],
-        ) = (np.nan, np.nan, -np.inf)
+        (adata.var[prefix + "log_m"], adata.var[prefix + "log_cv"], adata.var[prefix + "score"],) = (
+            np.nan,
+            np.nan,
+            -np.inf,
+        )
         (
             adata.var.loc[detected_bool, prefix + "log_m"],
             adata.var.loc[detected_bool, prefix + "log_cv"],
@@ -1261,7 +1262,7 @@ def recipe_monocle(
     maintain_n_top_genes: bool = True,
     relative_expr: bool = True,
     keep_filtered_cells: bool = True,
-    keep_filtered_genes: bool = True,
+    keep_filtered_genes: bool = keep_filtered_genes,
     keep_raw_layers: bool = True,
     scopes: Union[str, Iterable, None] = None,
     fc_kwargs: Union[dict, None] = None,
@@ -1853,7 +1854,7 @@ def recipe_velocyto(
     n_top_genes=2000,
     cluster="Clusters",
     relative_expr=True,
-    keep_filtered_genes=True,
+    keep_filtered_genes=keep_filtered_genes,
 ):
     """This function is adapted from the velocyto's DentateGyrus notebook.
     .
