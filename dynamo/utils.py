@@ -1,4 +1,4 @@
-"""General utilility functions
+"""General utility functions
 """
 import numpy as np
 import scipy.sparse as sp
