@@ -736,7 +736,7 @@ def grid_vectors(
         )
     elif "grid_velocity_" + basis in adata.uns.keys():
         X_grid, V_grid, _ = (
-            adata.uns["grid_velocity_" + basis]["VecFld"]["grid"],
+            adata.uns["grid_velocity_" + basis]["VecFld"]["X_grid"],
             adata.uns["grid_velocity_" + basis]["VecFld"]["V_grid"],
             adata.uns["grid_velocity_" + basis]["VecFld"]["D"],
         )

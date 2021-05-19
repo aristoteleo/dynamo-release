@@ -1784,6 +1784,7 @@ def recipe_monocle(
     logger.info("applying %s ..." % (method.upper()))
     if method == "pca":
         adata = pca(adata, CM, num_dim, "X_" + method.lower())
+        adata.obsm["X"] = adata.obsm["X_" + method.lower()]
 
     elif method == "ica":
         fit = FastICA(
