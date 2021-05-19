@@ -26,6 +26,8 @@ from .utils import (
     _matplotlib_points,
     _datashade_points,
     save_fig,
+    gen_rotation_2d,
+    affine_transform,
 )
 from ..tools.utils import (
     update_dict,
@@ -79,6 +81,9 @@ def scatters(
     marker: str = None,
     group: str = None,
     add_group_gamma_fit=False,
+    affine_transform_degree=0,
+    affine_transform_A=None,
+    affine_transform_b=None,
     **kwargs,
 ) -> Union[None, Axes]:
     """Plot an embedding as points. Currently this only works
@@ -267,6 +272,10 @@ def scatters(
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
+
+    if not (affine_transform_degree is None):
+        affine_transform_A = gen_rotation_2d(affine_transform_degree)
+        affine_transform_b = 0
 
     if contour:
         frontier = False
@@ -602,9 +611,15 @@ def scatters(
                         else calc_1nd_moment(values, knn ** smooth)[0]
                     )
 
+                if affine_transform_A is None or affine_transform_b is None:
+                    point_coords = points.values
+                else:
+                    point_coords = affine_transform(points.values, affine_transform_A, affine_transform_b)
+
                 if points.shape[0] <= figsize[0] * figsize[1] * 100000:
                     ax, color_out = _matplotlib_points(
-                        points.values,
+                        # points.values,
+                        point_coords,
                         ax,
                         labels,
                         values,
@@ -627,7 +642,8 @@ def scatters(
                     )
                 else:
                     ax = _datashade_points(
-                        points.values,
+                        # points.values,
+                        point_coords,
                         ax,
                         labels,
                         values,

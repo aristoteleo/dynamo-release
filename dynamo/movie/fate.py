@@ -22,7 +22,7 @@ class StreamFuncAnim:
         cell_states: Union[int, list, None] = None,
         color: str = "ntr",
         fig: Optional[matplotlib.figure.Figure] = None,
-        ax: matplotlib.Axis = None,
+        ax: matplotlib.axes.Axes = None,
         logspace: bool = False,
         max_time: Optional[float] = None,
         frame_color=None,
