@@ -1,4 +1,7 @@
-def remove_particles(pts, xlim, ylim):
+from typing import Union
+
+
+def remove_particles(pts: list, xlim: Union[tuple, list], ylim: Union[tuple, list]):
     if len(pts) == 0:
         return []
     outside_xlim = (pts[:, 0] < xlim[0]) | (pts[:, 0] > xlim[1])
