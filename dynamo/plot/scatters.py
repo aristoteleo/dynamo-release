@@ -289,7 +289,13 @@ def scatters(
         # if save_show_or_return != 'save': set_figure_params('dynamo', background=_background)
     x, y = (
         [x] if type(x) in [int, str] else x,
-        [y] if type(y) in [int, str,] else y,
+        [y]
+        if type(y)
+        in [
+            int,
+            str,
+        ]
+        else y,
     )
     if all([is_gene_name(adata, i) for i in basis]):
         if x[0] not in ["M_s", "X_spliced", "M_t", "X_total", "spliced", "total"] and y[0] not in [
@@ -347,7 +353,12 @@ def scatters(
         point_size = 16000.0 / np.sqrt(adata.shape[0]) * pointsize
 
     scatter_kwargs = dict(
-        alpha=0.1, s=point_size, edgecolor=None, linewidth=0, rasterized=True, marker=marker,
+        alpha=0.1,
+        s=point_size,
+        edgecolor=None,
+        linewidth=0,
+        rasterized=True,
+        marker=marker,
     )  # (0, 0, 0, 1)
     if kwargs is not None:
         scatter_kwargs.update(kwargs)
@@ -364,7 +375,10 @@ def scatters(
 
     if total_panels >= 1 and ax is None:
         plt.figure(
-            None, (figsize[0] * ncol, figsize[1] * nrow), facecolor=_background, dpi=dpi,
+            None,
+            (figsize[0] * ncol, figsize[1] * nrow),
+            facecolor=_background,
+            dpi=dpi,
         )
         gs = plt.GridSpec(nrow, ncol, wspace=0.12)
 
@@ -455,7 +469,12 @@ def scatters(
                     ]
                     cur_title = cur_x + " VS " + cur_y
                 elif is_cell_anno_column(adata, cur_x) and is_cell_anno_column(adata, cur_y):
-                    points = pd.DataFrame({cur_x: adata.obs_vector(cur_x), cur_y: adata.obs_vector(cur_y),})
+                    points = pd.DataFrame(
+                        {
+                            cur_x: adata.obs_vector(cur_x),
+                            cur_y: adata.obs_vector(cur_y),
+                        }
+                    )
                     points.columns = [cur_x, cur_y]
                     cur_title = cur_x + " VS " + cur_y
                 elif is_cell_anno_column(adata, cur_x) and is_gene_name(adata, cur_y):
@@ -525,14 +544,21 @@ def scatters(
                     )
 
                     for ind, cur_grp in enumerate(uniq_grp):
-                        group_median[ind, :] = np.nanmedian(points.iloc[np.where(groups == cur_grp)[0], :2], 0,)
+                        group_median[ind, :] = np.nanmedian(
+                            points.iloc[np.where(groups == cur_grp)[0], :2],
+                            0,
+                        )
                         if isinstance(_color[0], Number):
                             group_color[ind] = np.nanmedian(np.array(_color)[np.where(groups == cur_grp)[0]])
                         else:
                             group_color[ind] = pd.Series(_color)[np.where(groups == cur_grp)[0]].value_counts().index[0]
 
                     points, _color = (
-                        pd.DataFrame(group_median, index=uniq_grp, columns=points.columns,),
+                        pd.DataFrame(
+                            group_median,
+                            index=uniq_grp,
+                            columns=points.columns,
+                        ),
                         group_color,
                     )
                 # https://stackoverflow.com/questions/4187185/how-can-i-check-if-my-python-object-is-a-number
@@ -652,7 +678,10 @@ def scatters(
                 labels, values = None, None  # reset labels and values
 
                 if add_gamma_fit and cur_b in adata.var_names[adata.var.use_for_dynamics]:
-                    xnew = np.linspace(points.iloc[:, 0].min(), points.iloc[:, 0].max() * 0.80,)
+                    xnew = np.linspace(
+                        points.iloc[:, 0].min(),
+                        points.iloc[:, 0].max() * 0.80,
+                    )
                     k_name = "gamma_k" if adata.uns["dynamics"]["experiment_type"] == "one-shot" else "gamma"
                     if k_name in adata.var.columns:
                         if not ("gamma_b" in adata.var.columns) or all(adata.var.gamma_b.isna()):
@@ -679,7 +708,10 @@ def scatters(
                         group_adata = adata[adata.obs[group] == cur_group]
                         group_points = points.iloc[np.array(adata.obs[group] == cur_group)]
                         group_b_key = group + "_" + cur_group + "_" + "gamma_b"
-                        group_xnew = np.linspace(group_points.iloc[:, 0].min(), group_points.iloc[:, 0].max() * 0.90,)
+                        group_xnew = np.linspace(
+                            group_points.iloc[:, 0].min(),
+                            group_points.iloc[:, 0].max() * 0.90,
+                        )
                         group_ynew = (
                             group_xnew * group_adata[:, cur_b].var.loc[:, group_k_name].unique()
                             + group_adata[:, cur_b].var.loc[:, group_b_key].unique()
@@ -690,7 +722,10 @@ def scatters(
                                 group_adata.var.loc[:, group_b_key] = 0
                                 main_info("No %s found, setting all bias terms to zero" % group_b_key)
                             ax.plot(
-                                group_xnew, group_ynew, dashes=[6, 2], c=colors[group_idx % len(colors)],
+                                group_xnew,
+                                group_ynew,
+                                dashes=[6, 2],
+                                c=colors[group_idx % len(colors)],
                             )
                         else:
                             raise Exception(
