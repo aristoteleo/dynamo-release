@@ -1573,7 +1573,6 @@ def affine_transform(X, A, b):
     X = np.array(X)
     A = np.array(A)
     b = np.array(b)
-    print(X.shape, A.shape, b.shape)
     return (A @ X.T).T + b
 
 
