@@ -220,7 +220,8 @@ def perturbation(
 
     adata.obsm[add_delta_Y_key] = delta_Y
 
-    perturbation_csc = pca_to_expr(X_pca + delta_Y, PCs, means) - X
+    perturbation_csc = pca_to_expr(X_perturb_pca + delta_Y, PCs, means) - X_perturb
+
     adata.layers[add_delta_Y_key] = csr_matrix(adata.shape, dtype=np.float64)
     adata.layers[add_delta_Y_key][:, adata.var.use_for_pca] = perturbation_csc
     if zero_perturb_genes_vel:
@@ -260,7 +261,7 @@ def perturbation(
     adata.obsm[embedding_key] = adata.obsm["X_" + emb_basis].copy()
 
 
-def rank_perturbation_genes(adata, pkey="perturbation_vector", prefix_store="rank", **kwargs):
+def rank_perturbation_genes(adata, pkey="j_delta_x_perturbation", prefix_store="rank", **kwargs):
     """Rank genes based on their raw and absolute perturbation effects for each cell group.
 
     Parameters
@@ -285,7 +286,7 @@ def rank_perturbation_genes(adata, pkey="perturbation_vector", prefix_store="ran
     return adata
 
 
-def rank_perturbation_cells(adata, pkey="perturbation_vector", prefix_store="rank", **kwargs):
+def rank_perturbation_cells(adata, pkey="j_delta_x_perturbation", prefix_store="rank", **kwargs):
     """Rank cells based on their raw and absolute perturbation for each cell group.
 
     Parameters
@@ -310,7 +311,7 @@ def rank_perturbation_cells(adata, pkey="perturbation_vector", prefix_store="ran
     return adata
 
 
-def rank_perturbation_cell_clusters(adata, pkey="perturbation_vector", prefix_store="rank", **kwargs):
+def rank_perturbation_cell_clusters(adata, pkey="j_delta_x_perturbation", prefix_store="rank", **kwargs):
     """Rank cells based on their raw and absolute perturbation for each cell group.
 
     Parameters
