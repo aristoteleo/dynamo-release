@@ -1801,7 +1801,7 @@ def recipe_monocle(
 
     logger.info_insert_adata(method + "_fit", "uns")
     adata.uns[method + "_fit"], adata.uns["feature_selection"] = (
-        fit,
+        {},
         feature_selection,
     )
     # calculate NTR for every cell:

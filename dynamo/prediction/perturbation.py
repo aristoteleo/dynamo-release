@@ -220,7 +220,7 @@ def perturbation(
 
     adata.obsm[add_delta_Y_key] = delta_Y
 
-    perturbation_csc = pca_to_expr(delta_Y, PCs, means)
+    perturbation_csc = pca_to_expr(X_pca + delta_Y, PCs, means) - X
     adata.layers[add_delta_Y_key] = csr_matrix(adata.shape, dtype=np.float64)
     adata.layers[add_delta_Y_key][:, adata.var.use_for_pca] = perturbation_csc
     if zero_perturb_genes_vel:
