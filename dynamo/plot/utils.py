@@ -8,7 +8,9 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 import matplotlib.patheffects as PathEffects
-import matplotlib.tri as tri
+
+# import matplotlib.tri as tri
+import warnings
 from scipy.spatial import Delaunay
 from warnings import warn
 import copy
@@ -70,8 +72,10 @@ def _to_hex(arr):
 
 
 # https://stackoverflow.com/questions/8468855/convert-a-rgb-colour-value-to-decimal
-"""Convert RGB color to decimal RGB integers are typically treated as three distinct bytes where the left-most (highest-order) 
-byte is red, the middle byte is green and the right-most (lowest-order) byte is blue. """
+"""
+Convert RGB color to decimal RGB integers are typically treated as three distinct bytes where \
+the left-most (highest-order) byte is red, the middle byte is green and the right-most (lowest-order) byte is blue. \
+"""
 
 
 @numba.vectorize(["uint8(uint32)", "uint8(uint32)"])
@@ -353,7 +357,11 @@ def _matplotlib_points(
     elif values is not None:
         cmap_ = copy.copy(matplotlib.cm.get_cmap(cmap))
         cmap_.set_bad("lightgray")
-        matplotlib.cm.register_cmap(name=cmap_.name, cmap=cmap_, override_builtin=True)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            matplotlib.cm.register_cmap(name=cmap_.name, cmap=cmap_, override_builtin=True)
+
         if values.shape[0] != points.shape[0]:
             raise ValueError(
                 "Values must have a value for "
@@ -635,9 +643,10 @@ def _datashade_points(
                     data["label"] == "other",
                 )
                 reorder_data = data.copy(deep=True)
+                indices = np.arange(sum(background_ids), reorder_data.shape[0])
                 (
                     reorder_data.iloc[: sum(background_ids), :],
-                    reorder_data.iloc[sum(background_ids) :, :],
+                    reorder_data.iloc[indices, :],
                 ) = (data.iloc[background_ids, :], data.iloc[highlight_ids, :])
                 aggregation = canvas.points(reorder_data, "x", "y", agg=ds.count_cat("label"))
 
@@ -837,7 +846,8 @@ def interactive(
     """
     import bokeh.plotting as bpl
     import bokeh.transform as btr
-    from bokeh.plotting import output_notebook, output_file, show
+
+    # from bokeh.plotting import output_notebook, output_file, show
     import datashader as ds
 
     import holoviews as hv
@@ -1048,7 +1058,7 @@ def scatter_with_legend(fig, ax, df, font_color, x, y, c, cmap, legend, **scatte
     unique_labels = np.unique(c)
 
     if legend == "on data":
-        g = sns.scatterplot(x, y, hue=c, palette=cmap, ax=ax, legend=False, **scatter_kwargs)
+        _ = sns.scatterplot(x, y, hue=c, palette=cmap, ax=ax, legend=False, **scatter_kwargs)
 
         for i in unique_labels:
             color_cnt = np.nanmedian(df.iloc[np.where(c == i)[0], :2], 0)
@@ -1069,7 +1079,7 @@ def scatter_with_legend(fig, ax, df, font_color, x, y, c, cmap, legend, **scatte
                 ]
             )
     else:
-        g = sns.scatterplot(x, y, hue=c, palette=cmap, ax=ax, legend="full", **scatter_kwargs)
+        _ = sns.scatterplot(x, y, hue=c, palette=cmap, ax=ax, legend="full", **scatter_kwargs)
         ax.legend(loc=legend, ncol=unique_labels // 15)
 
     return fig, ax
@@ -1379,8 +1389,7 @@ def alpha_shape(x, y, alpha):
     # Start Using SHAPELY
     try:
         import shapely.geometry as geometry
-        from shapely.geometry import Polygon, MultiPoint, Point
-        from shapely.ops import triangulate
+        from shapely.geometry import MultiPoint
         from shapely.ops import cascaded_union, polygonize
     except ImportError:
         raise ImportError(
@@ -1453,8 +1462,6 @@ def plot_polygon(polygon, margin=1, fc="#999999", ec="#000000", fill=True, ax=No
             "If you want to use the tricontourf in plotting function, you need to install `descartes` "
             "package via `pip install descartes` see more details at https://pypi.org/project/descartes/,"
         )
-
-    from descartes.patch import PolygonPatch
 
     if ax is None:
         fig = plt.figure()
