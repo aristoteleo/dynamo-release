@@ -12,6 +12,7 @@ from ..tools.utils import (
 )
 
 from ..utils import isarray
+from ..tools.utils import nearest_neighbors
 
 
 def integrate_vf_ivp(
@@ -238,6 +239,59 @@ def integrate_vf_ivp(
         Y = Y.T
 
     return t, Y
+
+
+def integrate_sde(init_states, t, f, sigma, num_t=100, **interp_kwargs):
+    try:
+        from sdeint import itoint
+    except:
+        raise ImportError("Please install sdeint using `pip install sdeint`")
+
+    init_states = np.atleast_2d(init_states)
+    n, d = init_states.shape
+
+    if isarray(t):
+        if len(t) == 1:
+            t = np.linspace(0, t[0], num_t)
+        elif len(t) == 2:
+            t = np.linspace(t[0], t[-1], num_t)
+    else:
+        t = np.linspace(0, t, num_t)
+
+    if callable(sigma):
+        D_func = sigma
+    elif isarray(sigma):
+        if sigma.ndim == 1:
+            sigma = np.diag(sigma)
+        D_func = lambda x, t: sigma
+    else:
+        sigma = sigma * np.eye(d)
+        D_func = lambda x, t: sigma
+
+    trajs = []
+    for y0 in init_states:
+        y = itoint(lambda x, t: f(x), D_func, y0, t)
+        trajs.append(y)
+    if n == 1:
+        trajs = trajs[0]
+
+    return np.array(trajs)
+
+
+def estimate_sigma(X, V, diff_multiplier=1.0, num_nbrs=30, nbr_idx=None):
+    if nbr_idx is None:
+        nbr_idx = nearest_neighbors(X, X, k=num_nbrs)
+
+    MSD = np.zeros(X.shape)
+    for i, idx in enumerate(nbr_idx):
+        MSD[i] = np.std(X[idx], 0)
+
+    msd = np.mean(MSD, 0)
+    vm = np.abs(V).mean(0)
+    tau = msd / vm
+    sigma = msd / np.sqrt(tau) * np.sqrt(diff_multiplier)
+
+    return sigma
 
 
 def integrate_streamline(
