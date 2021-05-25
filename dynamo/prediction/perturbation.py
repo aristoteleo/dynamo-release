@@ -220,8 +220,8 @@ def perturbation(
 
     adata.obsm[add_delta_Y_key] = delta_Y
 
-    perturbation_csc = pca_to_expr(X_perturb_pca + delta_Y, PCs, means) - X_perturb
     perturbation_csc = vector_transformation(delta_Y, PCs)
+    perturbation_csc = pca_to_expr(X_perturb_pca + delta_Y, PCs, means) - X_perturb
 
     adata.layers[add_delta_Y_key] = csr_matrix(adata.shape, dtype=np.float64)
     adata.layers[add_delta_Y_key][:, adata.var.use_for_pca] = perturbation_csc
