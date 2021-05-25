@@ -4,7 +4,7 @@ import anndata
 from typing import Union
 
 from ..tools.cell_velocities import cell_velocities
-from ..vectorfield.vector_calculus import jacobian
+from ..vectorfield.vector_calculus import jacobian, vector_transformation
 from .utils import (
     expr_to_pca,
     pca_to_expr,
@@ -221,6 +221,7 @@ def perturbation(
     adata.obsm[add_delta_Y_key] = delta_Y
 
     perturbation_csc = pca_to_expr(X_perturb_pca + delta_Y, PCs, means) - X_perturb
+    perturbation_csc = vector_transformation(delta_Y, PCs)
 
     adata.layers[add_delta_Y_key] = csr_matrix(adata.shape, dtype=np.float64)
     adata.layers[add_delta_Y_key][:, adata.var.use_for_pca] = perturbation_csc
