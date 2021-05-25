@@ -4,7 +4,7 @@ import anndata
 from typing import Union
 
 from ..tools.cell_velocities import cell_velocities
-from ..vectorfield.vector_calculus import jacobian
+from ..vectorfield.vector_calculus import jacobian, vector_transformation
 from .utils import (
     expr_to_pca,
     pca_to_expr,
@@ -38,6 +38,8 @@ def perturbation(
     delta_Y: Union[np.ndarray, None] = None,
     projection_method: str = "fp",
     pertubation_method: str = "j_delta_x",
+    J_jv_delta_t: float = 1,
+    delta_t: float = 1,
     add_delta_Y_key: str = None,
     add_transition_key: str = None,
     add_velocity_key: str = None,
@@ -94,7 +96,11 @@ def perturbation(
             space.
         pertubation_method:
             The approach that will be used to calculate the perturbation effect vector after in-silico genetic
-            perturbation. Can only be one of `"j_delta_x", "j_x_prime", "f_x_prime", "f_x_prime_minus_f_x_0"`
+            perturbation. Can only be one of `"j_delta_x", "j_x_prime", "j_jv", "f_x_prime", "f_x_prime_minus_f_x_0"`
+        J_jv_delta_t:
+            If pertubation_method is `j_jv`, this will be used to determine the $\\delta x = jv \\delta t_{jv}$
+        delta_t:
+            This will be used to determine the $\\delta Y = jv \\delta t$
         add_delta_Y_key:
             The key that will be used to store the perturbation effect matrix. Both the pca dimension matrix (stored in
             obsm) or the matrix of the original gene expression space (stored in .layers) will use this key. By default
@@ -114,10 +120,10 @@ def perturbation(
 
     """
 
-    if pertubation_method.lower() not in ["j_delta_x", "j_x_prime", "f_x_prime", "f_x_prime_minus_f_x_0"]:
+    if pertubation_method.lower() not in ["j_delta_x", "j_x_prime", "j_jv", "f_x_prime", "f_x_prime_minus_f_x_0"]:
         raise ValueError(
             f"your method is set to be {pertubation_method.lower()} but must be one of `j_delta_x`, `j_x_prime`, "
-            "`f_x_prime`, `f_x_prime_minus_f_x_0`"
+            "`j_jv`,`f_x_prime`, `f_x_prime_minus_f_x_0`"
         )
 
     logger = LoggerManager.get_main_logger()
@@ -199,11 +205,19 @@ def perturbation(
         delta_Y = np.zeros_like(X_pca)
 
         # get the actual delta_X:
-        if pertubation_method.lower() in ["j_delta_x", "j_x_prime"]:
-            delta_X = X_perturb_pca - X_pca if pertubation_method.lower() == "j_delta_x" else X_perturb_pca
+        if pertubation_method.lower() in ["j_delta_x", "j_x_prime", "j_jv"]:
+            if pertubation_method.lower() == "j_delta_x":
+                delta_X = X_perturb_pca - X_pca
+            elif pertubation_method.lower() == "j_x_prime":
+                delta_X = X_perturb_pca
+            elif pertubation_method.lower() == "j_jv":
+                tmp = X_perturb_pca - X_pca
+                delta_X = np.zeros_like(X_pca)
+                for i in np.arange(adata.n_obs):
+                    delta_X[i, :] = Js[:, :, i].dot(tmp[i] * J_jv_delta_t)
 
             for i in np.arange(adata.n_obs):
-                delta_Y[i, :] = Js[:, :, i].dot(delta_X[i])
+                delta_Y[i, :] = Js[:, :, i].dot(delta_X[i] * delta_t)
 
     if add_delta_Y_key is None:
         add_delta_Y_key = pertubation_method + "_perturbation"
@@ -220,6 +234,7 @@ def perturbation(
 
     adata.obsm[add_delta_Y_key] = delta_Y
 
+    perturbation_csc = vector_transformation(delta_Y, PCs)
     perturbation_csc = pca_to_expr(X_perturb_pca + delta_Y, PCs, means) - X_perturb
 
     adata.layers[add_delta_Y_key] = csr_matrix(adata.shape, dtype=np.float64)
