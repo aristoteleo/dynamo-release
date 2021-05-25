@@ -4,7 +4,6 @@ import anndata
 from typing import Union
 
 from ..tools.cell_velocities import cell_velocities
-from ..vectorfield.vector_calculus import jacobian, vector_transformation
 from .utils import (
     expr_to_pca,
     pca_to_expr,
@@ -17,6 +16,8 @@ from ..vectorfield.vector_calculus import (
     rank_cells,
     rank_cell_groups,
     vecfld_from_adata,
+    jacobian, 
+    vector_transformation
 )
 from ..dynamo_logger import LoggerManager
 
@@ -235,7 +236,6 @@ def perturbation(
     adata.obsm[add_delta_Y_key] = delta_Y
 
     perturbation_csc = vector_transformation(delta_Y, PCs)
-    perturbation_csc = pca_to_expr(X_perturb_pca + delta_Y, PCs, means) - X_perturb
 
     adata.layers[add_delta_Y_key] = csr_matrix(adata.shape, dtype=np.float64)
     adata.layers[add_delta_Y_key][:, adata.var.use_for_pca] = perturbation_csc
