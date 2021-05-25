@@ -16,8 +16,8 @@ from ..vectorfield.vector_calculus import (
     rank_cells,
     rank_cell_groups,
     vecfld_from_adata,
-    jacobian, 
-    vector_transformation
+    jacobian,
+    vector_transformation,
 )
 from ..dynamo_logger import LoggerManager
 
