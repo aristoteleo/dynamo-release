@@ -211,7 +211,7 @@ def perturbation(
                 delta_X = X_perturb_pca - X_pca
             elif pertubation_method.lower() == "j_x_prime":
                 delta_X = X_perturb_pca
-                # elif pertubation_method.lower() == "j_jv":
+            elif pertubation_method.lower() == "j_jv":
                 tmp = X_perturb_pca - X_pca
                 delta_X = np.zeros_like(X_pca)
                 for i in np.arange(adata.n_obs):

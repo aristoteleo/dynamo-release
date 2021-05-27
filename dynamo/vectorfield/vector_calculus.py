@@ -215,7 +215,7 @@ def jacobian(
     -------
         adata: :class:`~anndata.AnnData`
             AnnData object that is updated with the `'jacobian'` key in the `.uns`. This is a 3-dimensional tensor with
-            dimensions n_obs x n_regulators x n_effectors.
+            dimensions n_regulators x n_effectors x n_obs.
     """
 
     if vector_field_class is None:

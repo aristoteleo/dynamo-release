@@ -328,7 +328,7 @@ def cell_wise_vectors(
     ax: Optional[Axes] = None,
     sort: str = "raw",
     aggregate: Optional[str] = None,
-    show_arrowed_spines: bool = True,
+    show_arrowed_spines: bool = False,
     inverse: True = False,
     cell_inds: str = "all",
     quiver_size: Optional[float] = None,
@@ -564,7 +564,7 @@ def grid_vectors(
     sort: str = "raw",
     # To-do: aggregate position not same as what is in scatters.py
     aggregate: Optional[str] = None,
-    show_arrowed_spines: bool = True,
+    show_arrowed_spines: bool = False,
     inverse: bool = False,
     cell_inds: Union[str, list] = "all",
     method: str = "gaussian",
@@ -867,7 +867,7 @@ def streamline_plot(
     sort: str = "raw",
     # To-do: aggregate position not same as what is in scatters.py
     aggregate: Optional[str] = None,
-    show_arrowed_spines: bool = True,
+    show_arrowed_spines: bool = False,
     inverse: bool = False,
     cell_inds: Union[str, list] = "all",
     method: str = "gaussian",
