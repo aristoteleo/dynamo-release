@@ -221,12 +221,7 @@ def _matplotlib_points(
                 #     reorder_data.loc[:(sum(background_ids) - 1), :],
                 #     reorder_data.loc[sum(background_ids):, :],
                 # ) = (points.loc[background_ids, :].values, points.loc[highlight_ids, :].values)
-                points = pd.concat(
-                    (
-                        points.loc[background_ids, :],
-                        points.loc[highlight_ids, :],
-                    )
-                ).values
+                points = pd.concat((points.loc[background_ids, :], points.loc[highlight_ids, :],)).values
                 labels = points[:, 2]
 
         if isinstance(color_key, dict):
@@ -234,14 +229,7 @@ def _matplotlib_points(
             unique_labels = np.unique(labels)
             legend_elements = [
                 # Patch(facecolor=color_key[k], label=k) for k in unique_labels
-                Line2D(
-                    [0],
-                    [0],
-                    marker="o",
-                    color=color_key[k],
-                    label=k,
-                    linestyle="None",
-                )
+                Line2D([0], [0], marker="o", color=color_key[k], label=k, linestyle="None",)
                 for k in unique_labels
             ]
         else:
@@ -252,14 +240,7 @@ def _matplotlib_points(
             new_color_key = {k: color_key[i] for i, k in enumerate(unique_labels)}
             legend_elements = [
                 # Patch(facecolor=color_key[i], label=k)
-                Line2D(
-                    [0],
-                    [0],
-                    marker="o",
-                    color=color_key[i],
-                    label=k,
-                    linestyle="None",
-                )
+                Line2D([0], [0], marker="o", color=color_key[i], label=k, linestyle="None",)
                 for i, k in enumerate(unique_labels)
             ]
             colors = pd.Series(labels).map(new_color_key)
@@ -267,27 +248,13 @@ def _matplotlib_points(
         if frontier:
             rasterized = kwargs["rasterized"] if "rasterized" in kwargs.keys() else None
             ax.scatter(
-                points[:, 0],
-                points[:, 1],
-                kwargs["s"] * 2,
-                "0.0",
-                lw=2,
-                rasterized=rasterized,
+                points[:, 0], points[:, 1], kwargs["s"] * 2, "0.0", lw=2, rasterized=rasterized,
             )
             ax.scatter(
-                points[:, 0],
-                points[:, 1],
-                kwargs["s"] * 2,
-                "1.0",
-                lw=0,
-                rasterized=rasterized,
+                points[:, 0], points[:, 1], kwargs["s"] * 2, "1.0", lw=0, rasterized=rasterized,
             )
             ax.scatter(
-                points[:, 0],
-                points[:, 1],
-                c=colors,
-                plotnonfinite=True,
-                **kwargs,
+                points[:, 0], points[:, 1], c=colors, plotnonfinite=True, **kwargs,
             )
         elif contour:
             # try:
@@ -337,20 +304,11 @@ def _matplotlib_points(
             )
             x, y = points[:, :2].T
             ax.scatter(
-                x,
-                y,
-                c=colors,
-                plotnonfinite=True,
-                zorder=21,
-                **kwargs,
+                x, y, c=colors, plotnonfinite=True, zorder=21, **kwargs,
             )
         else:
             ax.scatter(
-                points[:, 0],
-                points[:, 1],
-                c=colors,
-                plotnonfinite=True,
-                **kwargs,
+                points[:, 0], points[:, 1], c=colors, plotnonfinite=True, **kwargs,
             )
 
     # Color by values
@@ -414,30 +372,13 @@ def _matplotlib_points(
         if frontier:
             rasterized = kwargs["rasterized"] if "rasterized" in kwargs.keys() else None
             ax.scatter(
-                points[:, 0],
-                points[:, 1],
-                kwargs["s"] * 2,
-                "0.0",
-                lw=2,
-                rasterized=rasterized,
+                points[:, 0], points[:, 1], kwargs["s"] * 2, "0.0", lw=2, rasterized=rasterized,
             )
             ax.scatter(
-                points[:, 0],
-                points[:, 1],
-                kwargs["s"] * 2,
-                "1.0",
-                lw=0,
-                rasterized=rasterized,
+                points[:, 0], points[:, 1], kwargs["s"] * 2, "1.0", lw=0, rasterized=rasterized,
             )
             ax.scatter(
-                points[:, 0],
-                points[:, 1],
-                c=values,
-                cmap=cmap,
-                vmin=_vmin,
-                vmax=_vmax,
-                plotnonfinite=True,
-                **kwargs,
+                points[:, 0], points[:, 1], c=values, cmap=cmap, vmin=_vmin, vmax=_vmax, plotnonfinite=True, **kwargs,
             )
         elif contour:
             # try:
@@ -491,25 +432,11 @@ def _matplotlib_points(
                 levels=100,
             )
             ax.scatter(
-                points[:, 0],
-                points[:, 1],
-                c=values,
-                cmap=cmap,
-                vmin=_vmin,
-                vmax=_vmax,
-                plotnonfinite=True,
-                **kwargs,
+                points[:, 0], points[:, 1], c=values, cmap=cmap, vmin=_vmin, vmax=_vmax, plotnonfinite=True, **kwargs,
             )
         else:
             ax.scatter(
-                points[:, 0],
-                points[:, 1],
-                c=values,
-                cmap=cmap,
-                vmin=_vmin,
-                vmax=_vmax,
-                plotnonfinite=True,
-                **kwargs,
+                points[:, 0], points[:, 1], c=values, cmap=cmap, vmin=_vmin, vmax=_vmax, plotnonfinite=True, **kwargs,
             )
 
         if "norm" in kwargs:
@@ -550,17 +477,11 @@ def _matplotlib_points(
                     weight="bold",
                 )  #
                 txt.set_path_effects(
-                    [
-                        PathEffects.Stroke(linewidth=1.5, foreground=font_color, alpha=0.8),
-                        PathEffects.Normal(),
-                    ]
+                    [PathEffects.Stroke(linewidth=1.5, foreground=font_color, alpha=0.8), PathEffects.Normal(),]
                 )
         else:
             ax.legend(
-                handles=legend_elements,
-                bbox_to_anchor=(1.04, 1),
-                loc=show_legend,
-                ncol=len(unique_labels) // 15 + 1,
+                handles=legend_elements, bbox_to_anchor=(1.04, 1), loc=show_legend, ncol=len(unique_labels) // 15 + 1,
             )
 
     return ax, colors
@@ -595,10 +516,7 @@ def _datashade_points(
     """Use datashader to plot points"""
     extent = _get_extent(points)
     canvas = ds.Canvas(
-        plot_width=int(width),
-        plot_height=int(height),
-        x_range=(extent[0], extent[1]),
-        y_range=(extent[2], extent[3]),
+        plot_width=int(width), plot_height=int(height), x_range=(extent[0], extent[1]), y_range=(extent[2], extent[3]),
     )
     data = pd.DataFrame(points, columns=("x", "y"))
 
@@ -643,8 +561,7 @@ def _datashade_points(
                     data["label"] == "other",
                 )
                 reorder_data = data.copy(deep=True)
-                indices = np.arange(sum(background_ids), reorder_data.shape[0])
-                (reorder_data.iloc[: sum(background_ids), :], reorder_data.iloc[indices, :],) = (
+                (reorder_data.iloc[: sum(background_ids), :], reorder_data.iloc[sum(background_ids) :, :],) = (
                     data.iloc[background_ids, :],
                     data.iloc[highlight_ids, :],
                 )
@@ -719,23 +636,16 @@ def _datashade_points(
                         weight="bold",
                     )  #
                     txt.set_path_effects(
-                        [
-                            PathEffects.Stroke(linewidth=1.5, foreground=font_color, alpha=0.8),
-                            PathEffects.Normal(),
-                        ]
+                        [PathEffects.Stroke(linewidth=1.5, foreground=font_color, alpha=0.8), PathEffects.Normal(),]
                     )
             else:
                 if type(show_legend) == "str":
                     ax.legend(
-                        handles=legend_elements,
-                        loc=show_legend,
-                        ncol=len(unique_labels) // 15 + 1,
+                        handles=legend_elements, loc=show_legend, ncol=len(unique_labels) // 15 + 1,
                     )
                 else:
                     ax.legend(
-                        handles=legend_elements,
-                        loc="best",
-                        ncol=len(unique_labels) // 15 + 1,
+                        handles=legend_elements, loc="best", ncol=len(unique_labels) // 15 + 1,
                     )
         return ax
     else:
@@ -917,12 +827,7 @@ def interactive(
         # bpl.output_notebook(hide_banner=True) # this doesn't work for non-notebook use
         data_source = bpl.ColumnDataSource(data)
 
-        plot = bpl.figure(
-            width=width,
-            height=height,
-            tooltips=tooltips,
-            background_fill_color=background,
-        )
+        plot = bpl.figure(width=width, height=height, tooltips=tooltips, background_fill_color=background,)
         plot.circle(x="x", y="y", source=data_source, color=colors, size=point_size)
 
         plot.grid.visible = False
@@ -940,11 +845,7 @@ def interactive(
         if labels is not None:
             point_plot = hv.Points(data, kdims=["x", "y"], vdims=["color"])
             plot = hd.datashade(
-                point_plot,
-                aggregator=ds.count_cat("color"),
-                cmap=plt.get_cmap(cmap),
-                width=width,
-                height=height,
+                point_plot, aggregator=ds.count_cat("color"), cmap=plt.get_cmap(cmap), width=width, height=height,
             )
         elif values is not None:
             min_val = data.values.min()
@@ -952,21 +853,11 @@ def interactive(
             data["val_cat"] = pd.Categorical((data.values - min_val) // (val_range // 256))
             point_plot = hv.Points(data, kdims=["x", "y"], vdims=["val_cat"])
             plot = hd.datashade(
-                point_plot,
-                aggregator=ds.count_cat("val_cat"),
-                cmap=plt.get_cmap(cmap),
-                width=width,
-                height=height,
+                point_plot, aggregator=ds.count_cat("val_cat"), cmap=plt.get_cmap(cmap), width=width, height=height,
             )
         else:
             point_plot = hv.Points(data, kdims=["x", "y"])
-            plot = hd.datashade(
-                point_plot,
-                aggregator=ds.count(),
-                cmap=plt.get_cmap(cmap),
-                width=width,
-                height=height,
-            )
+            plot = hd.datashade(point_plot, aggregator=ds.count(), cmap=plt.get_cmap(cmap), width=width, height=height,)
 
     return plot
 
@@ -1073,10 +964,7 @@ def scatter_with_legend(fig, ax, df, font_color, x, y, c, cmap, legend, **scatte
                 weight="bold",
             )  # c
             txt.set_path_effects(
-                [
-                    PathEffects.Stroke(linewidth=1.5, foreground=font_color, alpha=0.8),
-                    PathEffects.Normal(),
-                ]  # 'w'
+                [PathEffects.Stroke(linewidth=1.5, foreground=font_color, alpha=0.8), PathEffects.Normal(),]  # 'w'
             )
     else:
         _ = sns.scatterplot(x, y, hue=c, palette=cmap, ax=ax, legend="full", **scatter_kwargs)
@@ -1305,13 +1193,7 @@ def set_stream_line_alpha(s=None, alpha=1):
 
 
 def save_fig(
-    path=None,
-    prefix=None,
-    dpi=None,
-    ext="pdf",
-    transparent=True,
-    close=True,
-    verbose=True,
+    path=None, prefix=None, dpi=None, ext="pdf", transparent=True, close=True, verbose=True,
 ):
     """Save a figure from pyplot.
     code adapated from http://www.jesshamrick.com/2012/09/03/saving-figures-from-pyplot/
@@ -1369,11 +1251,7 @@ def save_fig(
 
     # Actually save the figure
     plt.savefig(
-        savepath,
-        dpi=300 if dpi is None else dpi,
-        transparent=transparent,
-        format=ext,
-        bbox_inches="tight",
+        savepath, dpi=300 if dpi is None else dpi, transparent=transparent, format=ext, bbox_inches="tight",
     )
 
     # Close it
@@ -1570,3 +1448,26 @@ class Loess(object):
             a = mean_y - b * mean_x
             y = a + b * n_x
         return self.denormalize_y(y)
+
+
+# ---------------------------------------------------------------------------------------------------
+# coordinate/vector space operations
+
+
+def affine_transform(X, A, b):
+    X = np.array(X)
+    A = np.array(A)
+    b = np.array(b)
+    print(X.shape, A.shape, b.shape)
+    return (A @ X.T).T + b
+
+
+def gen_rotation_2d(degree: float):
+    from math import cos, sin, radians
+
+    rad = radians(degree)
+    R = [
+        [cos(rad), -sin(rad)],
+        [sin(rad), cos(rad)],
+    ]
+    return np.array(R)

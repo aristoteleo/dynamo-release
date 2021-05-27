@@ -26,6 +26,8 @@ from .utils import (
     _matplotlib_points,
     _datashade_points,
     save_fig,
+    gen_rotation_2d,
+    affine_transform,
 )
 from ..preprocessing.utils import (
     gen_rotation_2d,
