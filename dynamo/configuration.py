@@ -4,6 +4,18 @@ from matplotlib import rcParams, cm, colors
 from cycler import cycler
 import matplotlib.pyplot as plt
 
+# set the data store mode.
+# saving memory or storing more results
+# modes: verbose, succint
+data_store_mode = "verbose"
+keep_filtered_genes = True
+keep_raw_layers = True
+
+if data_store_mode == "succint":
+    keep_filtered_genes = False
+    keep_raw_layers = False
+
+
 # create cmap
 zebrafish_colors = [
     "#4876ff",
@@ -19,25 +31,15 @@ zebrafish_colors = [
     "#ff4241",
     "#b77df9",
 ]
-zebrafish_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-    "zebrafish", zebrafish_colors
-)
+zebrafish_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("zebrafish", zebrafish_colors)
 
-fire_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-    "fire", colorcet.fire
-)
-darkblue_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-    "darkblue", colorcet.kbc
-)
-darkgreen_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-    "darkgreen", colorcet.kgy
-)
+fire_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("fire", colorcet.fire)
+darkblue_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("darkblue", colorcet.kbc)
+darkgreen_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("darkgreen", colorcet.kgy)
 darkred_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
     "darkred", colors=colorcet.linear_kry_5_95_c72[:192], N=256
 )
-darkpurple_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-    "darkpurple", colorcet.linear_bmw_5_95_c89
-)
+darkpurple_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("darkpurple", colorcet.linear_bmw_5_95_c89)
 # add gkr theme for velocity
 div_blue_black_red_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
     "div_blue_black_red", colorcet.diverging_gkr_60_10_c40
@@ -47,9 +49,7 @@ div_blue_red_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
     "div_blue_red", colorcet.diverging_bwr_55_98_c37
 )
 # add glasbey_bw for cell annotation in white background
-glasbey_white_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
-    "glasbey_white", colorcet.glasbey_bw_minc_20
-)
+glasbey_white_cmap = matplotlib.colors.LinearSegmentedColormap.from_list("glasbey_white", colorcet.glasbey_bw_minc_20)
 # add glasbey_bw_minc_20_maxl_70 theme for cell annotation in dark background
 glasbey_dark_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
     "glasbey_dark", colorcet.glasbey_bw_minc_20_maxl_70
@@ -269,9 +269,7 @@ def config_dynamo_rcParams(
     # rcParams['axes.titlesize'] =  "x-large"
     # rcParams['axes.labelsize'] = "large"
     rcParams["axes.labelcolor"] = "555555"
-    rcParams[
-        "axes.axisbelow"
-    ] = True  # grid/ticks are below elements (e.g., lines, text)
+    rcParams["axes.axisbelow"] = True  # grid/ticks are below elements (e.g., lines, text)
 
     # rcParams['axes.prop_cycle'] = cycler('color', ['E24A33', '348ABD', '988ED5', '777777', 'FBC15E', '8EBA42', 'FFB5B8'])
     # # E24A33 : red
@@ -337,9 +335,7 @@ def config_dynamo_rcParams(
     rcParams["legend.handletextpad"] = 0.4
 
     # color cycle
-    rcParams["axes.prop_cycle"] = cycler(
-        color=prop_cycle
-    )  # use tab20c by default
+    rcParams["axes.prop_cycle"] = cycler(color=prop_cycle)  # use tab20c by default
 
     # lines
     rcParams["axes.linewidth"] = 0.8
@@ -431,9 +427,7 @@ def set_figure_params(
     file_format_figs = format
 
     if dynamo:
-        config_dynamo_rcParams(
-            background=background, fontsize=fontsize, color_map=color_map
-        )
+        config_dynamo_rcParams(background=background, fontsize=fontsize, color_map=color_map)
     if figsize is not None:
         rcParams["figure.figsize"] = figsize
 

@@ -28,3 +28,6 @@ from .dynamo_logger import (
     main_critical,
     main_exception,
 )
+
+# alias
+config = configuration

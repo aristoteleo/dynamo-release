@@ -1,4 +1,5 @@
 import matplotlib
+import numpy as np
 from .scatters import (
     scatters,
     docstrings,
@@ -11,7 +12,17 @@ docstrings.delete_params("scatters.parameters", "adata", "basis", "figsize")
 
 
 @docstrings.with_indent(4)
-def space(adata, space="spatial", width=6, marker="p", *args, **kwargs):
+def space(
+    adata,
+    genes="all",
+    space="spatial",
+    width=6,
+    marker="p",
+    pointsize=None,
+    pointsize_estimation_num=1000,
+    *args,
+    **kwargs
+):
     """\
     Scatter plot for physical coordinates of each cell.
 
@@ -45,15 +56,12 @@ def space(adata, space="spatial", width=6, marker="p", *args, **kwargs):
     figsize = (width, ptp_vec[1] / ptp_vec[0] * width)
 
     # calculate point size based on minimum radius
-    pointsize = compute_smallest_distance(adata.obsm[space_key])
-    main_finish_progress()
+    if pointsize is None:
+        selected_estimation_indices = np.random.choice(
+            len(adata), size=min(len(adata), pointsize_estimation_num), replace=False
+        )
+        pointsize = compute_smallest_distance(adata.obsm[space_key][selected_estimation_indices, :])
+        main_info("estimated point size for plotting each cell in space: %f" % (pointsize))
+    main_finish_progress("space plot")
     # here we should pass different point size, type (square or hexogon, etc), etc.
-    return scatters(
-        adata,
-        marker=marker,
-        basis=space_key,
-        figsize=figsize,
-        pointsize=pointsize,
-        *args,
-        **kwargs,
-    )
+    return scatters(adata, marker=marker, basis=space_key, figsize=figsize, pointsize=pointsize, *args, **kwargs,)

@@ -26,6 +26,8 @@ from .utils import (
     _matplotlib_points,
     _datashade_points,
     save_fig,
+    gen_rotation_2d,
+    affine_transform,
 )
 from ..tools.utils import (
     update_dict,
@@ -79,6 +81,9 @@ def scatters(
     marker: str = None,
     group: str = None,
     add_group_gamma_fit=False,
+    affine_transform_degree=0,
+    affine_transform_A=None,
+    affine_transform_b=None,
     **kwargs,
 ) -> Union[None, Axes]:
     """Plot an embedding as points. Currently this only works
@@ -268,6 +273,10 @@ def scatters(
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
 
+    if not (affine_transform_degree is None):
+        affine_transform_A = gen_rotation_2d(affine_transform_degree)
+        affine_transform_b = 0
+
     if contour:
         frontier = False
 
@@ -278,7 +287,6 @@ def scatters(
     else:
         _background = background
         # if save_show_or_return != 'save': set_figure_params('dynamo', background=_background)
-
     x, y = (
         [x] if type(x) in [int, str] else x,
         [y]
@@ -339,9 +347,10 @@ def scatters(
         # check whether it is an array
     )
 
-    point_size = (
-        16000.0 / np.sqrt(adata.shape[0]) if pointsize is None else 16000.0 / np.sqrt(adata.shape[0]) * pointsize
-    )
+    if pointsize is None:
+        point_size = 16000.0 / np.sqrt(adata.shape[0])
+    else:
+        point_size = 16000.0 / np.sqrt(adata.shape[0]) * pointsize
 
     scatter_kwargs = dict(
         alpha=0.1,
@@ -373,337 +382,361 @@ def scatters(
         )
         gs = plt.GridSpec(nrow, ncol, wspace=0.12)
 
-    i = 0
+    ax_index = 0
     axes_list, color_list = [], []
-    for cur_b in basis:
-        for cur_l in layer:
-            if cur_l in ["acceleration", "curvature"]:
-                cur_l_smoothed = cur_l
-                cmap, sym_c = "bwr", True
+    color_out = None
+
+    def _plot_basis_layer(cur_b, cur_l):
+        """a helper function for plotting a specific basis/layer data
+
+        Parameters
+        ----------
+        cur_b :
+            current basis
+        cur_l :
+            current layer
+
+        Raises
+        ------
+        Exception
+            [description]
+        ValueError
+            [description]
+        Exception
+            [description]
+        Exception
+            [description]
+        """
+        nonlocal x, y, _background, cmap, color_out, labels, values, ax, sym_c, scatter_kwargs, ax_index
+        if cur_l in ["acceleration", "curvature"]:
+            cur_l_smoothed = cur_l
+            cmap, sym_c = "bwr", True
+        else:
+            if use_smoothed:
+                cur_l_smoothed = cur_l if cur_l.startswith("M_") | cur_l.startswith("velocity") else mapper[cur_l]
+                if cur_l.startswith("velocity"):
+                    cmap, sym_c = "bwr", True
+
+        prefix = cur_l + "_" if any([key == cur_l + "_" + cur_b for key in adata.obsm.keys()]) else "X_"
+
+        # if prefix + cur_b in adata.obsm.keys():
+        #     if type(x) != str and type(y) != str:
+        #         x_, y_ = (
+        #             adata.obsm[prefix + cur_b][:, int(x)],
+        #             adata.obsm[prefix + cur_b][:, int(y)],
+        #         )
+        # else:
+        #     continue
+        for cur_c in color:
+            cur_title = cur_c
+            if cur_l in ["protein", "X_protein"]:
+                _color = adata.obsm[cur_l].loc[cur_c, :]
             else:
-                if use_smoothed:
-                    cur_l_smoothed = cur_l if cur_l.startswith("M_") | cur_l.startswith("velocity") else mapper[cur_l]
-                    if cur_l.startswith("velocity"):
-                        cmap, sym_c = "bwr", True
-
-            prefix = cur_l + "_" if any([i == cur_l + "_" + cur_b for i in adata.obsm.keys()]) else "X_"
-
-            # if prefix + cur_b in adata.obsm.keys():
-            #     if type(x) != str and type(y) != str:
-            #         x_, y_ = (
-            #             adata.obsm[prefix + cur_b][:, int(x)],
-            #             adata.obsm[prefix + cur_b][:, int(y)],
-            #         )
-            # else:
-            #     continue
-            for cur_c in color:
-                cur_title = cur_c
-                if cur_l in ["protein", "X_protein"]:
-                    _color = adata.obsm[cur_l].loc[cur_c, :]
-                else:
-                    _color = (
-                        adata.obs_vector(cur_c, layer=None) if cur_l == "X" else adata.obs_vector(cur_c, layer=cur_l)
+                _color = adata.obs_vector(cur_c, layer=None) if cur_l == "X" else adata.obs_vector(cur_c, layer=cur_l)
+            if hasattr(x, "__len__") and hasattr(y, "__len__"):
+                x, y = list(x), list(y)
+            elif (
+                type(x) in [anndata._core.views.ArrayView, np.ndarray]
+                and type(y) in [anndata._core.views.ArrayView, np.ndarray]
+                and len(x) == adata.n_obs
+                and len(y) == adata.n_obs
+            ):
+                x, y = [x], [y]
+            for cur_x, cur_y in zip(x, y):  # here x / y are arrays
+                if type(cur_x) is int and type(cur_y) is int:
+                    points = pd.DataFrame(
+                        {
+                            cur_b + "_0": adata.obsm[prefix + cur_b][:, cur_x],
+                            cur_b + "_1": adata.obsm[prefix + cur_b][:, cur_y],
+                        }
                     )
-                if hasattr(x, "__len__") and hasattr(y, "__len__"):
-                    x, y = list(x), list(y)
-                elif (
-                    type(x) in [anndata._core.views.ArrayView, np.ndarray]
-                    and type(y) in [anndata._core.views.ArrayView, np.ndarray]
-                    and len(x) == adata.n_obs
-                    and len(y) == adata.n_obs
-                ):
-                    x, y = [x], [y]
-                for cur_x, cur_y in zip(x, y):  # here x / y are arrays
-                    if type(cur_x) is int and type(cur_y) is int:
-                        points = pd.DataFrame(
-                            {
-                                cur_b + "_0": adata.obsm[prefix + cur_b][:, cur_x],
-                                cur_b + "_1": adata.obsm[prefix + cur_b][:, cur_y],
-                            }
+                    points.columns = [cur_b + "_0", cur_b + "_1"]
+                elif is_gene_name(adata, cur_x) and is_gene_name(adata, cur_y):
+                    points = pd.DataFrame(
+                        {
+                            cur_x: adata.obs_vector(k=cur_x, layer=None)
+                            if cur_l_smoothed == "X"
+                            else adata.obs_vector(k=cur_x, layer=cur_l_smoothed),
+                            cur_y: adata.obs_vector(k=cur_y, layer=None)
+                            if cur_l_smoothed == "X"
+                            else adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
+                        }
+                    )
+                    # points = points.loc[(points > 0).sum(1) > 1, :]
+                    points.columns = [
+                        cur_x + " (" + cur_l_smoothed + ")",
+                        cur_y + " (" + cur_l_smoothed + ")",
+                    ]
+                    cur_title = cur_x + " VS " + cur_y
+                elif is_cell_anno_column(adata, cur_x) and is_cell_anno_column(adata, cur_y):
+                    points = pd.DataFrame(
+                        {
+                            cur_x: adata.obs_vector(cur_x),
+                            cur_y: adata.obs_vector(cur_y),
+                        }
+                    )
+                    points.columns = [cur_x, cur_y]
+                    cur_title = cur_x + " VS " + cur_y
+                elif is_cell_anno_column(adata, cur_x) and is_gene_name(adata, cur_y):
+                    points = pd.DataFrame(
+                        {
+                            cur_x: adata.obs_vector(cur_x),
+                            cur_y: adata.obs_vector(k=cur_y, layer=None)
+                            if cur_l_smoothed == "X"
+                            else adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
+                        }
+                    )
+                    # points = points.loc[points.iloc[:, 1] > 0, :]
+                    points.columns = [
+                        cur_x,
+                        cur_y + " (" + cur_l_smoothed + ")",
+                    ]
+                    cur_title = cur_y
+                elif is_gene_name(adata, cur_x) and is_cell_anno_column(adata, cur_y):
+                    points = pd.DataFrame(
+                        {
+                            cur_x: adata.obs_vector(k=cur_x, layer=None)
+                            if cur_l_smoothed == "X"
+                            else adata.obs_vector(k=cur_x, layer=cur_l_smoothed),
+                            cur_y: adata.obs_vector(cur_y),
+                        }
+                    )
+                    # points = points.loc[points.iloc[:, 0] > 0, :]
+                    points.columns = [
+                        cur_x + " (" + cur_l_smoothed + ")",
+                        cur_y,
+                    ]
+                    cur_title = cur_x
+                elif is_layer_keys(adata, cur_x) and is_layer_keys(adata, cur_y):
+                    cur_x_, cur_y_ = (
+                        adata[:, cur_b].layers[cur_x],
+                        adata[:, cur_b].layers[cur_y],
+                    )
+                    points = pd.DataFrame({cur_x: flatten(cur_x_), cur_y: flatten(cur_y_)})
+                    # points = points.loc[points.iloc[:, 0] > 0, :]
+                    points.columns = [cur_x, cur_y]
+                    cur_title = cur_b
+                elif type(cur_x) in [anndata._core.views.ArrayView, np.ndarray] and type(cur_y) in [
+                    anndata._core.views.ArrayView,
+                    np.ndarray,
+                ]:
+                    points = pd.DataFrame({"x": flatten(cur_x), "y": flatten(cur_y)})
+                    points.columns = ["x", "y"]
+                    cur_title = cur_b
+                else:
+                    raise Exception("Make sure your `x` and `y` are integers, gene names, column names in .obs, etc.")
+
+                if aggregate is not None:
+                    groups, uniq_grp = (
+                        adata.obs[aggregate],
+                        list(adata.obs[aggregate].unique()),
+                    )
+                    group_color, group_median = (
+                        np.zeros((1, len(uniq_grp))).flatten()
+                        if isinstance(_color[0], Number)
+                        else np.zeros((1, len(uniq_grp))).astype("str").flatten(),
+                        np.zeros((len(uniq_grp), 2)),
+                    )
+
+                    grp_size = adata.obs[aggregate].value_counts()[uniq_grp].values
+                    scatter_kwargs = (
+                        {"s": grp_size} if scatter_kwargs is None else update_dict(scatter_kwargs, {"s": grp_size})
+                    )
+
+                    for ind, cur_grp in enumerate(uniq_grp):
+                        group_median[ind, :] = np.nanmedian(
+                            points.iloc[np.where(groups == cur_grp)[0], :2],
+                            0,
                         )
-                        points.columns = [cur_b + "_0", cur_b + "_1"]
-                    elif is_gene_name(adata, cur_x) and is_gene_name(adata, cur_y):
-                        points = pd.DataFrame(
-                            {
-                                cur_x: adata.obs_vector(k=cur_x, layer=None)
-                                if cur_l_smoothed == "X"
-                                else adata.obs_vector(k=cur_x, layer=cur_l_smoothed),
-                                cur_y: adata.obs_vector(k=cur_y, layer=None)
-                                if cur_l_smoothed == "X"
-                                else adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
-                            }
+                        if isinstance(_color[0], Number):
+                            group_color[ind] = np.nanmedian(np.array(_color)[np.where(groups == cur_grp)[0]])
+                        else:
+                            group_color[ind] = pd.Series(_color)[np.where(groups == cur_grp)[0]].value_counts().index[0]
+
+                    points, _color = (
+                        pd.DataFrame(
+                            group_median,
+                            index=uniq_grp,
+                            columns=points.columns,
+                        ),
+                        group_color,
+                    )
+                # https://stackoverflow.com/questions/4187185/how-can-i-check-if-my-python-object-is-a-number
+                # answer from Boris.
+                is_not_continuous = not isinstance(_color[0], Number) or _color.dtype.name == "category"
+
+                if is_not_continuous:
+                    labels = np.asarray(_color) if is_categorical_dtype(_color) else _color
+                    if theme is None:
+                        if _background in ["#ffffff", "black"]:
+                            _theme_ = "glasbey_dark"
+                        else:
+                            _theme_ = "glasbey_white"
+                    else:
+                        _theme_ = theme
+                else:
+                    values = _color
+                    if theme is None:
+                        if _background in ["#ffffff", "black"]:
+                            _theme_ = "inferno" if cur_l != "velocity" else "div_blue_black_red"
+                        else:
+                            _theme_ = "viridis" if not cur_l.startswith("velocity") else "div_blue_red"
+                    else:
+                        _theme_ = theme
+
+                _cmap = _themes[_theme_]["cmap"] if cmap is None else cmap
+                _color_key_cmap = _themes[_theme_]["color_key_cmap"] if color_key_cmap is None else color_key_cmap
+                _background = _themes[_theme_]["background"] if _background is None else _background
+
+                if labels is not None and values is not None:
+                    raise ValueError("Conflicting options; only one of labels or values should be set")
+
+                if total_panels > 1:
+                    ax = plt.subplot(gs[ax_index])
+                ax_index += 1
+
+                # if highligts is a list of lists - each list is relate to each color element
+                if highlights is not None:
+                    if is_list_of_lists(highlights):
+                        _highlights = highlights[color.index(cur_c)]
+                        _highlights = _highlights if all([i in _color for i in _highlights]) else None
+                    else:
+                        _highlights = highlights if all([i in _color for i in highlights]) else None
+
+                if smooth and not is_not_continuous:
+                    knn = adata.obsp["moments_con"]
+                    values = (
+                        calc_1nd_moment(values, knn)[0]
+                        if smooth in [1, True]
+                        else calc_1nd_moment(values, knn ** smooth)[0]
+                    )
+
+                if affine_transform_A is None or affine_transform_b is None:
+                    point_coords = points.values
+                else:
+                    point_coords = affine_transform(points.values, affine_transform_A, affine_transform_b)
+
+                if points.shape[0] <= figsize[0] * figsize[1] * 100000:
+                    ax, color_out = _matplotlib_points(
+                        # points.values,
+                        point_coords,
+                        ax,
+                        labels,
+                        values,
+                        highlights,
+                        _cmap,
+                        color_key,
+                        _color_key_cmap,
+                        _background,
+                        figsize[0],
+                        figsize[1],
+                        show_legend,
+                        sort=sort,
+                        frontier=frontier,
+                        contour=contour,
+                        ccmap=ccmap,
+                        calpha=calpha,
+                        sym_c=sym_c,
+                        inset_dict=inset_dict,
+                        **scatter_kwargs,
+                    )
+                else:
+                    ax = _datashade_points(
+                        # points.values,
+                        point_coords,
+                        ax,
+                        labels,
+                        values,
+                        highlights,
+                        _cmap,
+                        color_key,
+                        _color_key_cmap,
+                        _background,
+                        figsize[0],
+                        figsize[1],
+                        show_legend,
+                        sort=sort,
+                        frontier=frontier,
+                        contour=contour,
+                        ccmap=ccmap,
+                        calpha=calpha,
+                        sym_c=sym_c,
+                        **scatter_kwargs,
+                    )
+
+                if ax_index == 1 and show_arrowed_spines:
+                    arrowed_spines(ax, points.columns[:2], _background)
+                else:
+                    despline_all(ax)
+                    deaxis_all(ax)
+
+                ax.set_title(cur_title)
+
+                axes_list.append(ax)
+                color_list.append(color_out)
+
+                labels, values = None, None  # reset labels and values
+
+                if add_gamma_fit and cur_b in adata.var_names[adata.var.use_for_dynamics]:
+                    xnew = np.linspace(
+                        points.iloc[:, 0].min(),
+                        points.iloc[:, 0].max() * 0.80,
+                    )
+                    k_name = "gamma_k" if adata.uns["dynamics"]["experiment_type"] == "one-shot" else "gamma"
+                    if k_name in adata.var.columns:
+                        if not ("gamma_b" in adata.var.columns) or all(adata.var.gamma_b.isna()):
+                            adata.var.loc[:, "gamma_b"] = 0
+                        ax.plot(
+                            xnew,
+                            xnew * adata[:, cur_b].var.loc[:, k_name].unique()
+                            + adata[:, cur_b].var.loc[:, "gamma_b"].unique(),
+                            dashes=[6, 2],
+                            c=font_color,
                         )
-                        # points = points.loc[(points > 0).sum(1) > 1, :]
-                        points.columns = [
-                            cur_x + " (" + cur_l_smoothed + ")",
-                            cur_y + " (" + cur_l_smoothed + ")",
-                        ]
-                        cur_title = cur_x + " VS " + cur_y
-                    elif is_cell_anno_column(adata, cur_x) and is_cell_anno_column(adata, cur_y):
-                        points = pd.DataFrame(
-                            {
-                                cur_x: adata.obs_vector(cur_x),
-                                cur_y: adata.obs_vector(cur_y),
-                            }
-                        )
-                        points.columns = [cur_x, cur_y]
-                        cur_title = cur_x + " VS " + cur_y
-                    elif is_cell_anno_column(adata, cur_x) and is_gene_name(adata, cur_y):
-                        points = pd.DataFrame(
-                            {
-                                cur_x: adata.obs_vector(cur_x),
-                                cur_y: adata.obs_vector(k=cur_y, layer=None)
-                                if cur_l_smoothed == "X"
-                                else adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
-                            }
-                        )
-                        # points = points.loc[points.iloc[:, 1] > 0, :]
-                        points.columns = [
-                            cur_x,
-                            cur_y + " (" + cur_l_smoothed + ")",
-                        ]
-                        cur_title = cur_y
-                    elif is_gene_name(adata, cur_x) and is_cell_anno_column(adata, cur_y):
-                        points = pd.DataFrame(
-                            {
-                                cur_x: adata.obs_vector(k=cur_x, layer=None)
-                                if cur_l_smoothed == "X"
-                                else adata.obs_vector(k=cur_x, layer=cur_l_smoothed),
-                                cur_y: adata.obs_vector(cur_y),
-                            }
-                        )
-                        # points = points.loc[points.iloc[:, 0] > 0, :]
-                        points.columns = [
-                            cur_x + " (" + cur_l_smoothed + ")",
-                            cur_y,
-                        ]
-                        cur_title = cur_x
-                    elif is_layer_keys(adata, cur_x) and is_layer_keys(adata, cur_y):
-                        cur_x_, cur_y_ = (
-                            adata[:, cur_b].layers[cur_x],
-                            adata[:, cur_b].layers[cur_y],
-                        )
-                        points = pd.DataFrame({cur_x: flatten(cur_x_), cur_y: flatten(cur_y_)})
-                        # points = points.loc[points.iloc[:, 0] > 0, :]
-                        points.columns = [cur_x, cur_y]
-                        cur_title = cur_b
-                    elif type(cur_x) in [anndata._core.views.ArrayView, np.ndarray] and type(cur_y) in [
-                        anndata._core.views.ArrayView,
-                        np.ndarray,
-                    ]:
-                        points = pd.DataFrame({"x": flatten(cur_x), "y": flatten(cur_y)})
-                        points.columns = ["x", "y"]
-                        cur_title = cur_b
                     else:
                         raise Exception(
-                            "Make sure your `x` and `y` are integers, gene names, column names in .obs, etc."
+                            "adata does not seem to have %s column. Velocity estimation is required "
+                            "before running this function." % k_name
                         )
-
-                    if aggregate is not None:
-                        groups, uniq_grp = (
-                            adata.obs[aggregate],
-                            list(adata.obs[aggregate].unique()),
+                if group is not None and add_group_gamma_fit and cur_b in adata.var_names[adata.var.use_for_dynamics]:
+                    colors = ["b", "g", "r", "c", "m", "y", "k", "w"]
+                    cell_groups = adata.obs[group]
+                    unique_groups = np.unique(cell_groups)
+                    k_suffix = "gamma_k" if adata.uns["dynamics"]["experiment_type"] == "one-shot" else "gamma"
+                    for group_idx, cur_group in enumerate(unique_groups):
+                        group_k_name = group + "_" + cur_group + "_" + k_suffix
+                        group_adata = adata[adata.obs[group] == cur_group]
+                        group_points = points.iloc[np.array(adata.obs[group] == cur_group)]
+                        group_b_key = group + "_" + cur_group + "_" + "gamma_b"
+                        group_xnew = np.linspace(
+                            group_points.iloc[:, 0].min(),
+                            group_points.iloc[:, 0].max() * 0.90,
                         )
-                        group_color, group_median = (
-                            np.zeros((1, len(uniq_grp))).flatten()
-                            if isinstance(_color[0], Number)
-                            else np.zeros((1, len(uniq_grp))).astype("str").flatten(),
-                            np.zeros((len(uniq_grp), 2)),
+                        group_ynew = (
+                            group_xnew * group_adata[:, cur_b].var.loc[:, group_k_name].unique()
+                            + group_adata[:, cur_b].var.loc[:, group_b_key].unique()
                         )
-
-                        grp_size = adata.obs[aggregate].value_counts()[uniq_grp].values
-                        scatter_kwargs = (
-                            {"s": grp_size} if scatter_kwargs is None else update_dict(scatter_kwargs, {"s": grp_size})
-                        )
-
-                        for ind, cur_grp in enumerate(uniq_grp):
-                            group_median[ind, :] = np.nanmedian(
-                                points.iloc[np.where(groups == cur_grp)[0], :2],
-                                0,
-                            )
-                            if isinstance(_color[0], Number):
-                                group_color[ind] = np.nanmedian(np.array(_color)[np.where(groups == cur_grp)[0]])
-                            else:
-                                group_color[ind] = (
-                                    pd.Series(_color)[np.where(groups == cur_grp)[0]].value_counts().index[0]
-                                )
-
-                        points, _color = (
-                            pd.DataFrame(
-                                group_median,
-                                index=uniq_grp,
-                                columns=points.columns,
-                            ),
-                            group_color,
-                        )
-                    # https://stackoverflow.com/questions/4187185/how-can-i-check-if-my-python-object-is-a-number
-                    # answer from Boris.
-                    is_not_continous = not isinstance(_color[0], Number) or _color.dtype.name == "category"
-
-                    if is_not_continous:
-                        labels = np.asarray(_color) if is_categorical_dtype(_color) else _color
-                        if theme is None:
-                            if _background in ["#ffffff", "black"]:
-                                _theme_ = "glasbey_dark"
-                            else:
-                                _theme_ = "glasbey_white"
-                        else:
-                            _theme_ = theme
-                    else:
-                        values = _color
-                        if theme is None:
-                            if _background in ["#ffffff", "black"]:
-                                _theme_ = "inferno" if cur_l != "velocity" else "div_blue_black_red"
-                            else:
-                                _theme_ = "viridis" if not cur_l.startswith("velocity") else "div_blue_red"
-                        else:
-                            _theme_ = theme
-
-                    _cmap = _themes[_theme_]["cmap"] if cmap is None else cmap
-                    _color_key_cmap = _themes[_theme_]["color_key_cmap"] if color_key_cmap is None else color_key_cmap
-                    _background = _themes[_theme_]["background"] if _background is None else _background
-
-                    if labels is not None and values is not None:
-                        raise ValueError("Conflicting options; only one of labels or values should be set")
-
-                    if total_panels > 1:
-                        ax = plt.subplot(gs[i])
-                    i += 1
-
-                    # if highligts is a list of lists - each list is relate to each color element
-                    if highlights is not None:
-                        if is_list_of_lists(highlights):
-                            _highlights = highlights[color.index(cur_c)]
-                            _highlights = _highlights if all([i in _color for i in _highlights]) else None
-                        else:
-                            _highlights = highlights if all([i in _color for i in highlights]) else None
-
-                    color_out = None
-
-                    if smooth and not is_not_continous:
-                        knn = adata.obsp["moments_con"]
-                        values = (
-                            calc_1nd_moment(values, knn)[0]
-                            if smooth in [1, True]
-                            else calc_1nd_moment(values, knn ** smooth)[0]
-                        )
-
-                    if points.shape[0] <= figsize[0] * figsize[1] * 100000:
-                        ax, color_out = _matplotlib_points(
-                            points.values,
-                            ax,
-                            labels,
-                            values,
-                            highlights,
-                            _cmap,
-                            color_key,
-                            _color_key_cmap,
-                            _background,
-                            figsize[0],
-                            figsize[1],
-                            show_legend,
-                            sort=sort,
-                            frontier=frontier,
-                            contour=contour,
-                            ccmap=ccmap,
-                            calpha=calpha,
-                            sym_c=sym_c,
-                            inset_dict=inset_dict,
-                            **scatter_kwargs,
-                        )
-                    else:
-                        ax = _datashade_points(
-                            points.values,
-                            ax,
-                            labels,
-                            values,
-                            highlights,
-                            _cmap,
-                            color_key,
-                            _color_key_cmap,
-                            _background,
-                            figsize[0],
-                            figsize[1],
-                            show_legend,
-                            sort=sort,
-                            frontier=frontier,
-                            contour=contour,
-                            ccmap=ccmap,
-                            calpha=calpha,
-                            sym_c=sym_c,
-                            **scatter_kwargs,
-                        )
-
-                    if i == 1 and show_arrowed_spines:
-                        arrowed_spines(ax, points.columns[:2], _background)
-                    else:
-                        despline_all(ax)
-                        deaxis_all(ax)
-
-                    ax.set_title(cur_title)
-
-                    axes_list.append(ax)
-                    color_list.append(color_out)
-
-                    labels, values = None, None  # reset labels and values
-
-                    if add_gamma_fit and cur_b in adata.var_names[adata.var.use_for_dynamics]:
-                        xnew = np.linspace(
-                            points.iloc[:, 0].min(),
-                            points.iloc[:, 0].max() * 0.80,
-                        )
-                        k_name = "gamma_k" if adata.uns["dynamics"]["experiment_type"] == "one-shot" else "gamma"
-                        if k_name in adata.var.columns:
-                            if not ("gamma_b" in adata.var.columns) or all(adata.var.gamma_b.isna()):
-                                adata.var.loc[:, "gamma_b"] = 0
+                        ax.annotate(group + "_" + cur_group, xy=(group_xnew[-1], group_ynew[-1]))
+                        if group_k_name in group_adata.var.columns:
+                            if not (group_b_key in group_adata.var.columns) or all(group_adata.var[group_b_key].isna()):
+                                group_adata.var.loc[:, group_b_key] = 0
+                                main_info("No %s found, setting all bias terms to zero" % group_b_key)
                             ax.plot(
-                                xnew,
-                                xnew * adata[:, cur_b].var.loc[:, k_name].unique()
-                                + adata[:, cur_b].var.loc[:, "gamma_b"].unique(),
+                                group_xnew,
+                                group_ynew,
                                 dashes=[6, 2],
-                                c=font_color,
+                                c=colors[group_idx % len(colors)],
                             )
                         else:
                             raise Exception(
                                 "adata does not seem to have %s column. Velocity estimation is required "
-                                "before running this function." % k_name
+                                "before running this function." % group_k_name
                             )
-                    if group is not None and add_group_gamma_fit:
-                        colors = ["b", "g", "r", "c", "m", "y", "k", "w"]
-                        cell_groups = adata.obs[group]
-                        unique_groups = np.unique(cell_groups)
-                        k_suffix = "gamma_k" if adata.uns["dynamics"]["experiment_type"] == "one-shot" else "gamma"
-                        for group_idx, cur_group in enumerate(unique_groups):
-                            k_name = group + "_" + cur_group + "_" + k_suffix
-                            group_adata = adata[adata.obs[group] == cur_group]
-                            group_points = points.iloc[np.array(adata.obs[group] == cur_group)]
-                            group_gamma_key = group + "_" + cur_group + "_" + "gamma_b"
-                            group_xnew = np.linspace(
-                                group_points.iloc[:, 0].min(),
-                                group_points.iloc[:, 0].max() * 0.90,
-                            )
-                            group_ynew = (
-                                group_xnew * group_adata[:, cur_b].var.loc[:, k_name].unique()
-                                + group_adata[:, cur_b].var.loc[:, group_gamma_key].unique()
-                            )
-                            ax.annotate(group + "_" + cur_group, xy=(group_xnew[-1], group_ynew[-1]))
-                            if k_name in group_adata.var.columns:
-                                if not (group_gamma_key in group_adata.var.columns) or all(
-                                    group_adata.var.gamma_b.isna()
-                                ):
-                                    group_adata.var.loc[:, group_gamma_key] = 0
-                                    main_info("No %s found, setting all bias terms to zero" % group_gamma_key)
-                                ax.plot(
-                                    group_xnew,
-                                    group_ynew,
-                                    dashes=[6, 2],
-                                    c=colors[group_idx % len(colors)],
-                                )
-                            else:
-                                raise Exception(
-                                    "adata does not seem to have %s column. Velocity estimation is required "
-                                    "before running this function." % k_name
-                                )
+
+    for cur_b in basis:
+        for cur_l in layer:
+            _plot_basis_layer(cur_b, cur_l)
+
     if save_show_or_return in ["save", "both", "all"]:
         s_kwargs = {
             "path": None,

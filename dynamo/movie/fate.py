@@ -1,6 +1,10 @@
+from typing import Optional, Union
+import matplotlib
 import numpy as np
 import warnings
 from scipy.integrate import odeint
+from anndata import AnnData
+
 from ..vectorfield.scVectorField import svc_vectorfield
 from ..plot.topography import topography
 from .utils import remove_particles
@@ -11,16 +15,16 @@ class StreamFuncAnim:
 
     def __init__(
         self,
-        adata,
-        basis="umap",
-        dims=None,
-        n_steps=100,
-        cell_states=None,
-        color="ntr",
-        fig=None,
-        ax=None,
-        logspace=False,
-        max_time=None,
+        adata: AnnData,
+        basis: str = "umap",
+        dims: Optional[list] = None,
+        n_steps: int = 100,
+        cell_states: Union[int, list, None] = None,
+        color: str = "ntr",
+        fig: Optional[matplotlib.figure.Figure] = None,
+        ax: matplotlib.axes.Axes = None,
+        logspace: bool = False,
+        max_time: Optional[float] = None,
         frame_color=None,
     ):
         """Animating cell fate commitment prediction via reconstructed vector field function.
@@ -135,19 +139,11 @@ class StreamFuncAnim:
 
         self.logspace = logspace
         if self.logspace:
-            self.time_vec = (
-                np.logspace(0, np.log10(max(flat_list) + 1), n_steps) - 1
-            )
+            self.time_vec = np.logspace(0, np.log10(max(flat_list) + 1), n_steps) - 1
         else:
-            self.time_vec = flat_list[
-                (np.linspace(0, len(flat_list) - 1, n_steps)).astype(int)
-            ]
+            self.time_vec = flat_list[(np.linspace(0, len(flat_list) - 1, n_steps)).astype(int)]
 
-        self.time_scaler = (
-            None
-            if max_time is None
-            else max_time / (self.time_vec[-1] - self.time_vec[-2])
-        )
+        self.time_scaler = None if max_time is None else max_time / (self.time_vec[-1] - self.time_vec[-2])
 
         # init_states, VecFld, t_end, _valid_genes = fetch_states(
         #     adata, init_states, init_cells, basis, layer, False,
@@ -161,11 +157,7 @@ class StreamFuncAnim:
             )
         if cell_states is not None:
             if type(cell_states) is int:
-                self.init_states = self.init_states[
-                    np.random.choice(
-                        range(n_states), min(n_states, cell_states)
-                    )
-                ]
+                self.init_states = self.init_states[np.random.choice(range(n_states), min(n_states, cell_states))]
             elif type(cell_states) is list:
                 self.init_states = self.init_states[cell_states]
             else:
@@ -179,11 +171,7 @@ class StreamFuncAnim:
         self.displace = lambda x, dt: odeint(self.f, x, [0, dt])
 
         # Save bounds of plot
-        X_data = (
-            adata.obsm["X_" + basis][:, :2]
-            if dims is None
-            else adata.obsm["X_" + basis][:, dims]
-        )
+        X_data = adata.obsm["X_" + basis][:, :2] if dims is None else adata.obsm["X_" + basis][:, dims]
         m, M = np.min(X_data, 0), np.max(X_data, 0)
         m = m - 0.01 * np.abs(M - m)
         M = M + 0.01 * np.abs(M - m)
@@ -227,10 +215,7 @@ class StreamFuncAnim:
             (self.ln,) = self.ax.plot(x, y, "ro", zorder=20)
             return (self.ln,)  # return line so that blit works properly
         else:
-            pts = [
-                self.displace(cur_pts, time_vec[frame])[1].tolist()
-                for cur_pts in pts
-            ]
+            pts = [self.displace(cur_pts, time_vec[frame])[1].tolist() for cur_pts in pts]
             pts = np.asarray(pts)
 
         pts = np.asarray(pts)
@@ -244,9 +229,7 @@ class StreamFuncAnim:
 
         if self.time_scaler is not None:
             vf_time = (time_vec[frame] - time_vec[frame - 1]) * self.time_scaler
-            self.ax.set_title(
-                "current vector field time is: {:12.2f}".format(vf_time)
-            )
+            self.ax.set_title("current vector field time is: {:12.2f}".format(vf_time))
 
         # anim.event_source.interval = (time_vec[frame] - time_vec[frame - 1]) / 100
 

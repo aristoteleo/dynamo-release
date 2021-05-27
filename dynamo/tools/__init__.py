@@ -87,7 +87,15 @@ from .markers import (
 # Sampling methods
 from .sampling import TRNET, trn, sample_by_velocity, lhsclassic, sample
 
-from .utils import cell_norm, table_rank_dict, index_gene, select_cell, select, AnnDataPredicate
+from .utils import (
+    cell_norm,
+    table_rank_dict,
+    index_gene,
+    select_cell,
+    select,
+    AnnDataPredicate,
+    compute_smallest_distance,
+)
 
 # cell proliferation and death:
 from .growth import score_cells, cell_growth_rate, n_descentants, growth_rate
@@ -98,6 +106,3 @@ from .recipes import (
     recipe_deg_data,
     recipe_mix_kin_deg_data,
 )
-
-
-from .kdTree import compute_smallest_distance
