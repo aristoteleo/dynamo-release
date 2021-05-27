@@ -643,11 +643,10 @@ def _datashade_points(
                     data["label"] == "other",
                 )
                 reorder_data = data.copy(deep=True)
-                indices = np.arange(sum(background_ids), reorder_data.shape[0])
-                (
-                    reorder_data.iloc[: sum(background_ids), :],
-                    reorder_data.iloc[indices, :],
-                ) = (data.iloc[background_ids, :], data.iloc[highlight_ids, :])
+                (reorder_data.iloc[: sum(background_ids), :], reorder_data.iloc[sum(background_ids) :, :],) = (
+                    data.iloc[background_ids, :],
+                    data.iloc[highlight_ids, :],
+                )
                 aggregation = canvas.points(reorder_data, "x", "y", agg=ds.count_cat("label"))
 
             legend_elements = [Patch(facecolor=color_key[i], label=k) for i, k in enumerate(unique_labels)]
@@ -1074,9 +1073,9 @@ def scatter_with_legend(fig, ax, df, font_color, x, y, c, cmap, legend, **scatte
             )  # c
             txt.set_path_effects(
                 [
-                    PathEffects.Stroke(linewidth=1.5, foreground=font_color, alpha=0.8),  # 'w'
+                    PathEffects.Stroke(linewidth=1.5, foreground=font_color, alpha=0.8),
                     PathEffects.Normal(),
-                ]
+                ]  # 'w'
             )
     else:
         _ = sns.scatterplot(x, y, hue=c, palette=cmap, ax=ax, legend="full", **scatter_kwargs)
@@ -1570,3 +1569,26 @@ class Loess(object):
             a = mean_y - b * mean_x
             y = a + b * n_x
         return self.denormalize_y(y)
+
+
+# ---------------------------------------------------------------------------------------------------
+# coordinate/vector space operations
+
+
+def affine_transform(X, A, b):
+    X = np.array(X)
+    A = np.array(A)
+    b = np.array(b)
+    print(X.shape, A.shape, b.shape)
+    return (A @ X.T).T + b
+
+
+def gen_rotation_2d(degree: float):
+    from math import cos, sin, radians
+
+    rad = radians(degree)
+    R = [
+        [cos(rad), -sin(rad)],
+        [sin(rad), cos(rad)],
+    ]
+    return np.array(R)
