@@ -25,6 +25,7 @@ def plot_X(
     dim1=0,
     dim2=1,
     dim3=None,
+    dims=None,
     create_figure=False,
     figsize=(6, 6),
     sort_by_c="raw",
@@ -32,6 +33,12 @@ def plot_X(
 ):
     if create_figure:
         plt.figure(figsize=figsize)
+
+    if dims is not None:
+        dim1 = dims[0]
+        dim2 = dims[1]
+        if len(dims) > 2:
+            dim3 = dims[2]
 
     x, y = X[:, dim1], X[:, dim2]
     c = kwargs.pop("c", None)

@@ -1,11 +1,11 @@
-from scipy.sparse import issparse
+from scipy.sparse import issparse, isspmatrix
 import numpy as np
 import pandas as pd
 from multiprocessing.dummy import Pool as ThreadPool
 import itertools
 from tqdm import tqdm
 from anndata import AnnData
-from typing import Union, Optional
+from typing import Union
 
 from .utils import normalize_data, TF_link_gene_chip
 from ..tools.utils import flatten, einsum_correlation
@@ -13,9 +13,9 @@ from ..tools.utils import flatten, einsum_correlation
 
 def scribe(
     adata: AnnData,
-    genes: Union[list] = None,
-    TFs: Union[list] = None,
-    Targets: Optional[list] = None,
+    genes: Union[list, None] = None,
+    TFs: Union[list, None] = None,
+    Targets: Union[list, None] = None,
     gene_filter_rate: float = 0.1,
     cell_filter_UMI: int = 10000,
     motif_ref: str = "https://www.dropbox.com/s/s8em539ojl55kgf/motifAnnotations_hgnc.csv?dl=1",
@@ -26,8 +26,8 @@ def scribe(
     TF_link_ENCODE_ref: str = "https://www.dropbox.com/s/bjuope41pte7mf4/df_gene_TF_link_ENCODE.csv?dl=1",
 ) -> AnnData:
     """Apply Scribe to calculate causal network from spliced/unspliced, metabolic labeling based and other "real" time
-    series datasets. Note that this function can be applied to both of the metabolic labeling based single-cell assays with
-    newly synthesized and total RNA as well as the regular single cell assays with both the unspliced and spliced
+    series datasets. Note that this function can be applied to both of the metabolic labeling based single-cell assays
+    with newly synthesized and total RNA as well as the regular single cell assays with both the unspliced and spliced
     transcripts. Furthermore, you can also replace the either the new or unspliced RNA with dynamo estimated cell-wise
     velocity, transcription, splicing and degradation rates for each gene (similarly, replacing the expression values
     of transcription factors with RNA binding, ribosome, epigenetics or epitranscriptomic factors, etc.) to infer the
@@ -40,11 +40,11 @@ def scribe(
             adata object that includes both newly synthesized and total gene expression of cells. Alternatively,
             the object should include both unspliced and spliced gene expression of cells.
         genes:
-            The list of gene names that will be used for casual network inference. By default, it is `None` and thus will
-            use all genes.
+            The list of gene names that will be used for casual network inference. By default, it is `None` and thus
+            will use all genes.
         TFs:
-            The list of transcription factors that will be used for casual network inference. When it is `None` gene list
-            included in the file linked by `motif_ref` will be used.
+            The list of transcription factors that will be used for casual network inference. When it is `None` gene
+            list included in the file linked by `motif_ref` will be used.
         Targets:
             The list of target genes that will be used for casual network inference. When it is `None` gene list not
             included in the file linked by `motif_ref` will be used.
@@ -54,10 +54,12 @@ def scribe(
              minimum number of UMIs for cell filtering.
         motif_ref:
             It provides the list of TFs gene names and is used to parse the data to get the list of TFs and Targets
-            for the causal network inference from those TFs to Targets. But currently the motif based filtering is not implemented.
-            By default it is a dropbox link that store the data from us. Other motif reference can bed downloaded from RcisTarget:
-            https://resources.aertslab.org/cistarget/. For human motif matrix, it can be downloaded from June's shared folder:
-            https://shendure-web.gs.washington.edu/content/members/cao1025/public/nobackup/sci_fate/data/hg19-tss-centered-10kb-7species.mc9nr.feather
+            for the causal network inference from those TFs to Targets. But currently the motif based filtering is not
+            implemented. By default it is a dropbox link that store the data from us. Other motif reference can bed
+            downloaded from RcisTarget: https://resources.aertslab.org/cistarget/. For human motif matrix, it can be
+            downloaded from June's shared folder:
+            https://shendure-web.gs.washington.edu/content/members/cao1025/public/nobackup/sci_fate/data/hg19-tss-
+            centered-10kb-7species.mc9nr.feather
         nt_layers:
             The two keys for layers that will be used for the network inference. Note that the layers can be changed
             flexibly. See the description of this function above. The first key corresponds to the transcriptome of the
@@ -67,12 +69,13 @@ def scribe(
             velocity, old RNA from scSLAM-seq data.
         drop_zero_cells:
             Whether to drop cells that with zero expression for either the potential regulator or potential target. This
-            can signify the relationship between potential regulators and targets, speed up the calculation, but at the risk of ignoring strong inhibition effects from certain regulators to targets.
+            can signify the relationship between potential regulators and targets, speed up the calculation, but at the
+            risk of ignoring strong inhibition effects from certain regulators to targets.
         do_CLR:
             Whether to perform context likelihood relatedness analysis on the reconstructed causal network
         TF_link_ENCODE_ref:
-            The path to the TF chip-seq data. By default it is a dropbox link from us that stores the data. Other data can
-            be downloaded from: https://amp.pharm.mssm.edu/Harmonizome/dataset/ENCODE+Transcription+Factor+Targets.
+            The path to the TF chip-seq data. By default it is a dropbox link from us that stores the data. Other data
+            can be downloaded from: https://amp.pharm.mssm.edu/Harmonizome/dataset/ENCODE+Transcription+Factor+Targets.
 
     Returns
     -------
@@ -80,7 +83,7 @@ def scribe(
     """
 
     try:
-        import Scribe
+        from Scribe.Scribe import causal_net_dynamics_coupling, CLR
     except ImportError:
         raise ImportError(
             "You need to install the package `Scribe`."
@@ -88,8 +91,6 @@ def scribe(
             "Also check our paper: "
             "https://www.sciencedirect.com/science/article/abs/pii/S2405471220300363"
         )
-
-    from Scribe.Scribe import causal_net_dynamics_coupling, CLR
 
     # detect format of the gene name:
     str_format = (
@@ -112,24 +113,26 @@ def scribe(
     adata_ = adata.copy()
     n_obs, n_var = adata_.n_obs, adata_.n_vars
 
+    # generate the expression matrix for downstream analysis
+    if nt_layers[1] == "old" and "old" not in adata.layers.keys():
+        adata.layers["old"] = (
+            adata.layers["total"] - adata.layers["new"]
+            if "velocity" not in adata.layers.keys()
+            else adata.layers["total"] - adata.layers["velocity"]
+        )
+
     # filter genes
     print(f"Original gene number: {n_var}")
 
-    gene_filter_new = (adata.layers[nt_layers[0]] > 0).sum(0) > (
-        gene_filter_rate * n_obs
-    )
-    gene_filter_tot = (adata.layers[nt_layers[1]] > 0).sum(0) > (
-        gene_filter_rate * n_obs
-    )
+    gene_filter_new = (adata.layers[nt_layers[0]] > 0).sum(0) > (gene_filter_rate * n_obs)
+    gene_filter_tot = (adata.layers[nt_layers[1]] > 0).sum(0) > (gene_filter_rate * n_obs)
     if issparse(adata.layers[nt_layers[0]]):
         gene_filter_new = gene_filter_new.A1
     if issparse(adata.layers[nt_layers[1]]):
         gene_filter_tot = gene_filter_tot.A1
     adata = adata[:, gene_filter_new * gene_filter_tot]
 
-    print(
-        f"Gene number after filtering: {sum(gene_filter_new * gene_filter_tot)}"
-    )
+    print(f"Gene number after filtering: {sum(gene_filter_new * gene_filter_tot)}")
 
     # filter cells
     print(f"Original cell number: {n_obs}")
@@ -139,19 +142,9 @@ def scribe(
         cell_filter = cell_filter.A1
     adata = adata[cell_filter, :]
     if adata.n_obs == 0:
-        raise Exception(
-            "No cells remaining after filtering, try relaxing `cell_filtering_UMI`."
-        )
+        raise Exception("No cells remaining after filtering, try relaxing `cell_filtering_UMI`.")
 
     print(f"Cell number after filtering: {adata.n_obs}")
-
-    # generate the expression matrix for downstream analysis
-    if nt_layers[1] == "old" and "old" not in adata.layers.keys():
-        adata.layers["old"] = (
-            adata.layers["total"] - adata.layers["new"]
-            if "velocity" not in adata.layers.keys()
-            else adata.layers["total"] - adata.layers["velocity"]
-        )
 
     new = adata.layers[nt_layers[0]]
     total = adata.layers[nt_layers[1]]
@@ -169,24 +162,12 @@ def scribe(
         szfactors = adata.obs["Size_Factor"][:, None]
 
         # normalize data (size factor correction, log transform and the scaling)
-        adata.layers[nt_layers[0]] = normalize_data(
-            new, szfactors, pseudo_expr=0.1
-        )
-        adata.layers[nt_layers[1]] = normalize_data(
-            total, szfactors, pseudo_expr=0.1
-        )
+        adata.layers[nt_layers[0]] = normalize_data(new, szfactors, pseudo_expr=0.1)
+        adata.layers[nt_layers[1]] = normalize_data(total, szfactors, pseudo_expr=0.1)
 
-    TFs = (
-        adata.var_names[adata.var.index.isin(TF_list)].to_list()
-        if TFs is None
-        else np.unique(TFs)
-    )
+    TFs = adata.var_names[adata.var.index.isin(TF_list)].to_list() if TFs is None else np.unique(TFs)
 
-    Targets = (
-        adata.var_names.difference(TFs).to_list()
-        if Targets is None
-        else np.unique(Targets)
-    )
+    Targets = adata.var_names.difference(TFs).to_list() if Targets is None else np.unique(Targets)
 
     if genes is not None:
         TFs = list(set(genes).intersection(TFs))
@@ -216,9 +197,7 @@ def scribe(
     if TF_link_ENCODE_ref is not None:
         df_gene_TF_link_ENCODE = pd.read_csv(TF_link_ENCODE_ref, sep="\t")
         df_gene_TF_link_ENCODE["id_gene"] = (
-            df_gene_TF_link_ENCODE["id"].astype("str")
-            + "_"
-            + df_gene_TF_link_ENCODE["linked_gene_name"].astype("str")
+            df_gene_TF_link_ENCODE["id"].astype("str") + "_" + df_gene_TF_link_ENCODE["linked_gene_name"].astype("str")
         )
 
         df_gene = pd.DataFrame(adata.var.index, index=adata.var.index)
@@ -232,15 +211,9 @@ def scribe(
             value_name="corcoef",
         )
         net_var = net.merge(df_gene)
-        net_var["id_gene"] = (
-            net_var["id"].astype("str")
-            + "_"
-            + net_var["linked_gene_name"].astype("str")
-        )
+        net_var["id_gene"] = net_var["id"].astype("str") + "_" + net_var["linked_gene_name"].astype("str")
 
-        filtered = TF_link_gene_chip(
-            net_var, df_gene_TF_link_ENCODE, adata.var, cor_thresh=0.02
-        )
+        filtered = TF_link_gene_chip(net_var, df_gene_TF_link_ENCODE, adata.var, cor_thresh=0.02)
         res_dict.update({"filtered": filtered})
 
     adata_.uns["causal_net"] = res_dict
@@ -270,12 +243,12 @@ def coexp_measure(adata, genes, layer_x, layer_y, cores=1, skip_mi=True):
 
     Returns
     -------
-        An updated adata object that updated with a new columns (`mi`, `pearson`) in .var contains the mutual information
-        of input genes.
+        An updated adata object that updated with a new columns (`mi`, `pearson`) in .var contains the mutual
+        information of input genes.
     """
 
     try:
-        import Scribe
+        from Scribe.information_estimators import mi
     except ImportError:
         raise ImportError(
             "You need to install the package `Scribe`."
@@ -283,8 +256,6 @@ def coexp_measure(adata, genes, layer_x, layer_y, cores=1, skip_mi=True):
             "Also check our paper: "
             "https://www.sciencedirect.com/science/article/abs/pii/S2405471220300363"
         )
-
-    from Scribe.information_estimators import mi
 
     adata.var["mi"], adata.var["pearson"] = np.nan, np.nan
 
@@ -303,9 +274,7 @@ def coexp_measure(adata, genes, layer_x, layer_y, cores=1, skip_mi=True):
         ):
             x, y = X[i], Y[i]
             mask = np.logical_and(np.isfinite(x), np.isfinite(y))
-            pearson[i] = einsum_correlation(
-                x[None, mask], y[mask], type="pearson"
-            )
+            pearson[i] = einsum_correlation(x[None, mask], y[mask], type="pearson")
             x, y = [[i] for i in x[mask]], [[i] for i in y[mask]]
 
             if not skip_mi:
@@ -317,9 +286,7 @@ def coexp_measure(adata, genes, layer_x, layer_y, cores=1, skip_mi=True):
         ):
             x, y = X[i], Y[i]
             mask = np.logical_and(np.isfinite(x), np.isfinite(y))
-            pearson[i] = einsum_correlation(
-                x[None, mask], y[mask], type="pearson"
-            )
+            pearson[i] = einsum_correlation(x[None, mask], y[mask], type="pearson")
 
         if not skip_mi:
 
@@ -338,3 +305,169 @@ def coexp_measure(adata, genes, layer_x, layer_y, cores=1, skip_mi=True):
     if not skip_mi:
         adata.var.loc[genes, "mi"] = mi_vec
     adata.var.loc[genes, "pearson"] = pearson
+
+
+def coexp_measure_mat(
+    adata,
+    TFs=None,
+    Targets=None,
+    guide_keys=None,
+    t0_key="spliced",
+    t1_key="velocity",
+    normalize=True,
+    drop_zero_cells=True,
+    skip_mi=True,
+    cores=1,
+    copy=False,
+):
+    """Infer causal networks with dynamics-coupled single cells measurements.
+    Network inference is a insanely challenging problem which has a long history and that none of the existing
+    algorithms work well. However, it's quite possible that one or more of the algorithms could work if only they were
+    given enough data. Single-cell RNA-seq is exciting because it provides a ton of data. Somewhat surprisingly, just
+    having a lot of single-cell RNA-seq data won't make causal inference work well. We need a fundamentally better type
+    of measurement that couples information across cells and across time points. Experimental improvements are coming
+    now, and whether they are sufficient to power methods like Scribe is important future work. For example, the recent
+    developed computational algorithm (La Manno et al. 2018) estimates the levels of new (unspliced) versus mature
+    (spliced) transcripts from single-cell RNA-seq data for free. Moreover, exciting experimental approaches, like
+    single cell SLAM-seq methods (Hendriks et al. 2018; Erhard et al. 2019; Cao, Zhou, et al. 2019) are recently
+    developed that measures the transcriptome of two time points of the same cells. Datasets generated from those
+    methods will provide improvements of causal network inference as we comprehensively demonstrated from the manuscript
+    . This function take advantages of those datasets to infer the causal networks. We note that those technological
+    advance may be still not sufficient, radically different methods, for example something like highly multiplexed live
+    imaging that can record many genes may be needed.
+
+    Arguments
+    ---------
+    adata: `anndata`
+        Annotated data matrix.
+    TFs: `List` or `None` (default: None)
+        The list of transcription factors that will be used for casual network inference.
+    Targets: `List` or `None` (default: None)
+        The list of target genes that will be used for casual network inference.
+    guide_keys: `List` (default: None)
+        The key of the CRISPR-guides, stored as a column in the .obs attribute. This argument is useful
+        for identifying the knockout or knockin genes for a perturb-seq experiment. Currently not used.
+    t0_key: `str` (default: spliced)
+        Key corresponds to the transcriptome of the initial time point, for example spliced RNAs from RNA velocity, old
+        RNA from scSLAM-seq data.
+    t1_key: `str` (default: velocity)
+        Key corresponds to the transcriptome of the next time point, for example unspliced RNAs (or estimated velocity,
+        see Fig 6 of the Scribe preprint) from RNA velocity, old RNA from scSLAM-seq data.
+    normalize: `bool`
+        Whether to scale the expression or velocity values into 0 to 1 before calculating causal networks.
+    drop_zero_cells: `bool` (Default: True)
+        Whether to drop cells that with zero expression for either the potential regulator or potential target. This
+        can signify the relationship between potential regulators and targets, speed up the calculation, but at the risk
+        of ignoring strong inhibition effects from certain regulators to targets.
+    copy: `bool`
+        Whether to return a copy of the adata or just update adata in place.
+    Returns
+    ---------
+        An update AnnData object with inferred causal network stored as a matrix related to the key `causal_net` in the
+        `uns` slot.
+    """
+
+    try:
+        from Scribe.information_estimators import mi
+    except ImportError:
+        raise ImportError(
+            "You need to install the package `Scribe`."
+            "Please install from https://github.com/aristoteleo/Scribe-py."
+            "Also check our paper: "
+            "https://www.sciencedirect.com/science/article/abs/pii/S2405471220300363"
+        )
+
+    if TFs is None:
+        TFs = adata.var_names.tolist()
+    else:
+        TFs = adata.var_names.intersection(TFs).tolist()
+        if len(TFs) == 0:
+            raise Exception(
+                "The adata object has no gene names from .var_name that intersects with the TFs list you provided"
+            )
+
+    if Targets is None:
+        Targets = adata.var_names.tolist()
+    else:
+        Targets = adata.var_names.intersection(Targets).tolist()
+        if len(Targets) == 0:
+            raise Exception(
+                "The adata object has no gene names from .var_name that intersect with the Targets list you provided"
+            )
+
+    if guide_keys is not None:
+        guides = np.unique(adata.obs[guide_keys].tolist())
+        guides = np.setdiff1d(guides, ["*", "nan", "neg"])
+
+        idx_var = [vn in guides for vn in adata.var_names]
+        idx_var = np.argwhere(idx_var)
+        guides = adata.var_names.values[idx_var.flatten()].tolist()
+
+    # support sparse matrix:
+    genes = TFs + Targets
+    genes = np.unique(genes)
+    tmp = (
+        pd.DataFrame(adata[:, genes].layers[t0_key].todense())
+        if isspmatrix(adata.layers[t0_key])
+        else pd.DataFrame(adata[:, genes].layers[t0_key])
+    )
+    tmp.index = adata.obs_names
+    tmp.columns = adata[:, genes].var_names
+    spliced = tmp
+
+    tmp = (
+        pd.DataFrame(adata[:, genes].layers[t1_key].todense())
+        if isspmatrix(adata.layers[t1_key])
+        else pd.DataFrame(adata[:, genes].layers[t1_key])
+    )
+    tmp.index = adata.obs_names
+    tmp.columns = adata[:, genes].var_names
+    velocity = tmp
+    velocity[pd.isna(velocity)] = 0  # set NaN value to 0
+
+    if normalize:
+        spliced = (spliced - spliced.min()) / (spliced.max() - spliced.min())
+        velocity = (velocity - velocity.min()) / (velocity.max() - velocity.min())
+
+    pearson_mat, mi_mat = np.zeros_like((spliced.shape[1], spliced.shape[1])), np.zeros_like(
+        (spliced.shape[1], spliced.shape[1])
+    )
+
+    for g_a_ind, g_a in tqdm(enumerate(TFs), desc="Calculate causality score (RDI) from each TF to potential target:"):
+        for g_b_ind, g_b in enumerate(Targets):
+            if g_a == g_b:
+                continue
+            else:
+                x, y = spliced[:, g_a], velocity[:, g_b]
+                x, y = flatten(x), flatten(y)
+
+                k = min(5, int(adata.n_obs / 5 + 1))
+
+                mask = np.logical_and(np.isfinite(x), np.isfinite(y))
+                pearson_mat[g_a_ind, g_b_ind] = einsum_correlation(x[None, mask], y[mask], type="pearson")
+                x, y = [[i] for i in x[mask]], [[i] for i in y[mask]]
+
+                if not skip_mi and cores == 1:
+                    mi_mat[g_a_ind, g_b_ind] = mi(x, y, k=k)
+
+        if not skip_mi and cores > 1:
+
+            def pool_mi(x, y, k):
+                mask = np.logical_and(np.isfinite(x), np.isfinite(y))
+                x, y = [[i] for i in x[mask]], [[i] for i in y[mask]]
+
+                return mi(x, y, k)
+
+            X = np.repeat(x[:, None], len(Targets), axis=1)
+            Y = velocity[:, Targets] if issparse(velocity) else velocity[:, Targets].A
+            pool = ThreadPool(cores)
+            res = pool.starmap(pool_mi, zip(X, Y, itertools.repeat(k)))
+            pool.close()
+            pool.join()
+            mi_mat[g_a_ind, :] = res
+
+    adata.uns["pearson"] = pearson_mat
+    if not skip_mi:
+        adata.uns["mi"] = mi_mat
+
+    return adata if copy else None

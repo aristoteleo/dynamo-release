@@ -1371,11 +1371,11 @@ def recipe_monocle(
             MyGene.info docs (https://docs.mygene.info/en/latest/doc/query_service.html#available_fields) for full list
             of fields.
         fc_kwargs: `dict` or None (default: `None`)
-            Other Parameters passed into the filter_genes function.
-        fg_kwargs: `dict` or None (default: `None`)
             Other Parameters passed into the filter_cells function.
+        fg_kwargs: `dict` or None (default: `None`)
+            Other Parameters passed into the filter_genes function.
         sg_kwargs: `dict` or None (default: `None`)
-            Other Parameters passed into the select_cells function.
+            Other Parameters passed into the select_genes function.
         copy:
             Whether to return a new deep copy of `adata` instead of updating `adata` object passed in arguments.
 
