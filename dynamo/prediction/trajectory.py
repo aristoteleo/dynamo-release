@@ -1,8 +1,9 @@
 import numpy as np
 from scipy.interpolate import interp1d
 from ..vectorfield.utils import normalize_vectors, angle
-from .utils import arclength_sampling, remove_redundant_points_trajectory
-from .utils import pca_to_expr, expr_to_pca
+from .utils import arclength_sampling, remove_redundant_points_trajectory, pca_to_expr, expr_to_pca
+from ..tools.utils import flatten
+from ..dynamo_logger import LoggerManager
 
 
 class Trajectory:
@@ -97,16 +98,67 @@ class Trajectory:
 
 
 class GeneTrajectory(Trajectory):
-    def __init__(self, X=None, t=None) -> None:
+    def __init__(
+        self, adata, X=None, t=None, X_pca=None, PCs="PCs", mean="pca_mean", genes="use_for_pca", **kwargs
+    ) -> None:
         """
         This class is not fully functional yet.
         """
+        self.adata = adata
+        if type(PCs) is str:
+            PCs = self.adata.uns[PCs]
+        self.PCs = PCs
+
+        if type(mean) is str:
+            mean = self.adata.uns[mean]
+        self.mean = mean
+
+        if type(genes) is str:
+            genes = adata.var_names[adata.var[genes]].to_list()
+        self.genes = np.array(genes)
+
+        if X_pca is not None:
+            self.from_pca(X_pca, **kwargs)
+
         if X is not None:
             super().__init__(X, t=t)
 
-    def from_pca(self, X_pca, PCs, mean=None, func=np.expm1, t=None):
-        X = pca_to_expr(X_pca, PCs, mean=mean, func=func)
+    def from_pca(self, X_pca, func=None, t=None):
+        X = pca_to_expr(X_pca, self.PCs, mean=self.mean, func=func)
         super().__init__(X, t=t)
 
-    def to_pca(self, PCs, mean=None, func=np.log1p):
-        return expr_to_pca(self.X, PCs, mean=mean, func=func)
+    def to_pca(self, func=None):
+        return expr_to_pca(self.X, self.PCs, mean=self.mean, func=func)
+
+    def genes_to_mask(self):
+        mask = np.zeros(self.adata.n_vars, dtype=np.bool_)
+        for g in self.genes:
+            mask[self.adata.var_names == g] = True
+        return mask
+
+    def calc_msd(self, save_key="lap_msd", **kwargs):
+        msd = super().calc_msd(**kwargs)
+
+        LoggerManager.main_logger.info_insert_adata(save_key, "var")
+        self.adata.var[save_key] = np.ones(self.adata.n_vars) * np.nan
+        self.adata.var[save_key][self.genes_to_mask()] = msd
+
+        return msd
+
+    def save(self, save_key="gene_trajectory"):
+        LoggerManager.main_logger.info_insert_adata(save_key, "varm")
+        self.adata.varm[save_key] = np.ones((self.adata.n_vars, self.X.shape[0])) * np.nan
+        self.adata.varm[save_key][self.genes_to_mask(), :] = self.X.T
+
+    def select_gene(self, genes):
+        y = []
+        if self.genes is not None:
+            for g in genes:
+                if g not in self.genes:
+                    LoggerManager.main_logger.warning(f"{g} is not in `self.genes`.")
+                else:
+                    y.append(flatten(self.X[:, self.genes == g]))
+        else:
+            raise Exception("Cannot select genes since `self.genes` is `None`.")
+
+        return np.array(y)
