@@ -1,4 +1,4 @@
-from tqdm import tqdm
+# from tqdm import tqdm
 
 # from anndata._core.views import ArrayView
 # import scipy.sparse as sp
@@ -30,6 +30,7 @@ from ..tools.utils import (
 )
 
 from ..utils import isarray, ismatrix
+from ..dynamo_logger import LoggerManager
 
 try:
     import dynode
@@ -481,9 +482,8 @@ def sensitivity(
             Sensitivity = np.zeros_like(J)
             n_genes, n_genes_, n_cells = J.shape
             idenity = np.eye(n_genes)
-            for i in tqdm(
-                np.arange(n_cells),
-                desc="Calculating sensitivity matrix with precomputed gene-wise Jacobians",
+            for i in LoggerManager.progress_logger(
+                np.arange(n_cells), progress_name="Calculating sensitivity matrix with precomputed gene-wise Jacobians"
             ):
                 s = np.linalg.inv(idenity - J[:, :, i])  # np.transpose(J)
                 Sensitivity[:, :, i] = s.dot(np.diag(1 / np.diag(s)))
@@ -807,9 +807,8 @@ def divergence(
     if jkey in adata.uns_keys():
         Js = adata.uns[jkey]["jacobian"]
         cidx = adata.uns[jkey]["cell_idx"]
-        for i, c in tqdm(
-            enumerate(cell_idx),
-            desc="Calculating divergence with precomputed Jacobians",
+        for i, c in enumerate(
+            LoggerManager.progress_logger(cell_idx, progress_name="Calculating divergence with precomputed Jacobians")
         ):
             if c in cidx:
                 calculated[i] = True

@@ -13,6 +13,7 @@ from .perturbation import (
     rank_perturbation_cells,
     rank_perturbation_cell_clusters,
 )
+from .trajectory import Trajectory, GeneTrajectory
 
 # https://stackoverflow.com/questions/31079047/python-pep8-class-in-init-imported-but-not-used
 __all__ = [
@@ -25,4 +26,6 @@ __all__ = [
     "rank_perturbation_cells",
     "rank_perturbation_genes",
     "rank_perturbation_cell_clusters",
+    "Trajectory",
+    "GeneTrajectory",
 ]
