@@ -89,6 +89,7 @@ def space(
         pointsize = compute_smallest_distance(adata.obsm["X_" + space_key], sample_num=ps_sample_num)
         # here we will scale the point size by the dpi and the figure size in inch.
         pointsize *= figsize[0] * dpi
+        # meaning of s in scatters:
         # https://stackoverflow.com/questions/14827650/pyplot-scatter-plot-marker-size/47403507#47403507
         # Note that np.sqrt(adata.shape[0]) / 16000.0 is used in pl.scatters
         pointsize = pointsize ** 2 * np.sqrt(adata.shape[0]) / 16000.0
