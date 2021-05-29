@@ -2098,7 +2098,7 @@ def getTseq(init_states, t_end, step_size=None):
 
 # ---------------------------------------------------------------------------------------------------
 # spatial related
-def compute_smallest_distance(coords: list, leaf_size: int = 40) -> float:
+def compute_smallest_distance(coords: list, leaf_size: int = 40, sample_num=1000) -> float:
     """Compute and return smallest distance. A wrapper for sklearn API
 
     Parameters
@@ -2122,13 +2122,12 @@ def compute_smallest_distance(coords: list, leaf_size: int = 40) -> float:
         raise ValueError("Coordinates should be a NxM array.")
     # kd_tree = scipy.spatial.KDTree(coords)
     kd_tree = sklearn.neighbors.KDTree(coords, leaf_size=leaf_size)
-    N, M = coords.shape
+    N, _ = min(len(coords), sample_num), coords.shape[1]
+    selected_estimation_indices = np.random.choice(len(coords), size=N, replace=False)
 
     # Note k=2 here because the nearest query is always a point itself.
-    distances, indices = kd_tree.query(coords, k=2, return_distance=True)
-    min_dist = float("inf")
-    for i in range(N):
-        min_dist = min(min_dist, distances[i, 1])
+    distances, indices = kd_tree.query(coords[selected_estimation_indices, :], k=2, return_distance=True)
+    min_dist = min(distances[:, 1])
 
     return min_dist
 
