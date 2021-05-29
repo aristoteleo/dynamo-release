@@ -22,6 +22,7 @@ def space(
     pointsize: Union[float, None] = None,
     dpi: int = 100,
     ps_sample_num: int = 1000,
+    alpha: float = 0.8,
     *args,
     **kwargs
 ):
@@ -59,6 +60,8 @@ def space(
             https://stackoverflow.com/questions/47633546/relationship-between-dpi-and-figure-size
         ps_sample_num: `int`
             The number of bins / cells that will be sampled to estimate the distance between different bin / cells.
+        alpha: `float`
+            The alpha value of the scatter points.
         %(scatters.parameters.no_adata|basis|figsize)s
 
     Returns
@@ -82,13 +85,13 @@ def space(
     ptp_vec = adata.obsm["X_" + space_key].ptp(0)
     # calculate the figure size based on the width and the ratio between width and height
     # from the physical coordinate.
-    figsize = (width, ptp_vec[1] / ptp_vec[0] * width)
+    figsize = (width, ptp_vec[1] / ptp_vec[0] * width + 0.3)
 
     # calculate point size based on minimum radius
     if pointsize is None:
         pointsize = compute_smallest_distance(adata.obsm["X_" + space_key], sample_num=ps_sample_num)
         # here we will scale the point size by the dpi and the figure size in inch.
-        pointsize *= figsize[0] * dpi
+        pointsize *= figsize[0] / ptp_vec[0] * dpi
         # meaning of s in scatters:
         # https://stackoverflow.com/questions/14827650/pyplot-scatter-plot-marker-size/47403507#47403507
         # Note that np.sqrt(adata.shape[0]) / 16000.0 is used in pl.scatters
@@ -105,6 +108,7 @@ def space(
         figsize=figsize,
         pointsize=pointsize,
         dpi=dpi,
+        alpha=alpha,
         *args,
         **kwargs,
     )
