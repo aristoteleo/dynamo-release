@@ -952,3 +952,25 @@ def relative2abs(
 
                 res = k * X_i + b if logged else np.expm1(k * X_i + b)
                 adata.layers[cur_layer][i, :] = csr_matrix(res) if issparse(X) else res
+
+
+# ---------------------------------------------------------------------------------------------------
+# coordinate/vector space operations
+
+
+def affine_transform(X, A, b):
+    X = np.array(X)
+    A = np.array(A)
+    b = np.array(b)
+    return (A @ X.T).T + b
+
+
+def gen_rotation_2d(degree: float):
+    from math import cos, sin, radians
+
+    rad = radians(degree)
+    R = [
+        [cos(rad), -sin(rad)],
+        [sin(rad), cos(rad)],
+    ]
+    return np.array(R)

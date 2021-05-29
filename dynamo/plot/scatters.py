@@ -26,6 +26,8 @@ from .utils import (
     _matplotlib_points,
     _datashade_points,
     save_fig,
+)
+from ..preprocessing.utils import (
     gen_rotation_2d,
     affine_transform,
 )
@@ -35,7 +37,7 @@ from ..tools.utils import (
     flatten,
 )
 from ..tools.moments import calc_1nd_moment
-from ..dynamo_logger import *
+from ..dynamo_logger import main_info
 from ..docrep import DocstringProcessor
 
 docstrings = DocstringProcessor()
