@@ -189,6 +189,7 @@ def recipe_deg_data(
     keep_filtered_genes=keep_filtered_genes,
     keep_raw_layers=False,
     del_2nd_moments=True,
+    fraction_for_deg=False,
     ekey="M_s",
     vkey="velocity_S",
     basis="umap",
@@ -233,6 +234,8 @@ def recipe_deg_data(
             moments or covariance but it may take a lot memory when your dataset is big. Set this to `True` when your
             data is huge (like > 25, 000 cells or so) to reducing the memory footprint. Argument used for `dynamics`
             function.
+        fraction_for_deg: `bool` (default: `False`)
+            Whether to use the fraction of labeled RNA instead of the raw labeled RNA to estimate the degradation parameter.
         tkey: `str` (default: `time`)
             The column key for the time label of cells in .obs. Used for  the "kinetic" model.
             mode  with labeled data. When `group` is None, `tkey` will also be used for calculating  1st/2st moment or
@@ -314,6 +317,7 @@ def recipe_deg_data(
             model="deterministic",
             est_method="twostep",
             del_2nd_moments=del_2nd_moments,
+            fraction_for_deg=fraction_for_deg,
         )
         # then perform dimension reduction
         reduceDimension(adata, reduction_method=basis)
@@ -346,7 +350,12 @@ def recipe_deg_data(
             keep_raw_layers=keep_raw_layers,
             **rm_kwargs,
         )
-        dynamics(adata, model="deterministic", del_2nd_moments=del_2nd_moments)
+        dynamics(
+            adata,
+            model="deterministic",
+            del_2nd_moments=del_2nd_moments,
+            fraction_for_deg=fraction_for_deg,
+        )
         reduceDimension(adata, reduction_method=basis)
 
     return adata

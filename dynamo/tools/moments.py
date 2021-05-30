@@ -323,13 +323,16 @@ def prepare_data_deterministic(
     use_total_layers=True,
     total_layers=["X_ul", "X_sl", "X_uu", "X_su"],
     log=False,
+    return_ntr=False,
 ):
     from ..preprocessing.utils import sz_util, normalize_util
 
+    if return_ntr:
+        use_total_layers = True
     if use_total_layers:
         if "total_Size_Factor" not in adata.obs.keys():
             # total_layers = ["uu", "ul", "su", "sl"] if 'uu' in adata.layers.keys() else ['total']
-            sfs, _ = sz_util(
+            tot_sfs, _ = sz_util(
                 adata,
                 "_total_",
                 round_exprs=False,
@@ -338,8 +341,8 @@ def prepare_data_deterministic(
                 total_layers=total_layers,
             )
         else:
-            sfs = adata.obs.total_Size_Factor
-        sfs_x, sfs_y = sfs[:, None], sfs[:, None]
+            tot_sfs = adata.obs.total_Size_Factor
+        sfs_x, sfs_y = tot_sfs[:, None], tot_sfs[:, None]
 
     m = [None] * len(layers)
     v = [None] * len(layers)
@@ -348,7 +351,12 @@ def prepare_data_deterministic(
         if layer in ["X_total", "total", "M_t"]:
             if (layer == "X_total" and adata.uns["pp"]["norm_method"] is None) or layer == "M_t":
                 x_layer = adata[:, genes].layers[layer]
-                x_layer = x_layer - adata[:, genes].layers[get_layer_pair(layer)]
+                if return_ntr:
+                    T_genes = adata[:, genes].layers[get_layer_pair(layer)]
+                    T_genes = T_genes.A if issparse(T_genes) else T_genes
+                    x_layer = x_layer / (T_genes + 1e-5)
+                else:
+                    x_layer = x_layer - adata[:, genes].layers[get_layer_pair(layer)]
             else:
                 x_layer = adata.layers[layer]
                 group_pair_x_layer_ = get_layer_group(get_layer_pair(layer))
@@ -357,6 +365,7 @@ def prepare_data_deterministic(
                     adata.layers[get_layer_group(layer)],
                     None if group_pair_x_layer_ is None else adata.layers[group_pair_x_layer_],
                 )
+
                 if layer.startswith("X_"):
                     x_layer, pair_x_layer, group_x_layer, group_pair_x_layer = (
                         inverse_norm(adata, x_layer),
@@ -364,6 +373,8 @@ def prepare_data_deterministic(
                         inverse_norm(adata, group_x_layer),
                         0 if group_pair_x_layer_ is None else inverse_norm(adata, group_pair_x_layer),
                     )
+
+                t_layer_key = "M_t" if layer.startswith("M_") else "X_total" if layer.startswith("X_") else "total"
 
                 if not use_total_layers:
                     sfs_x, _ = sz_util(
@@ -401,17 +412,32 @@ def prepare_data_deterministic(
                     norm_method=None,
                 )
 
-                x_layer = x_layer - y_layer
+                if return_ntr:
+                    T_genes = adata[:, genes].layers[t_layer_key]
+                    T_genes = T_genes.A if issparse(T_genes) else T_genes
+                    x_layer = (x_layer - y_layer) / (T_genes + 1e-5)
+                else:
+                    x_layer = x_layer - y_layer
+
         else:
             if (layer == ["X_new"] and adata.uns["pp"]["norm_method"] is None) or layer == "M_n":
-                x_layer = adata[:, genes].layers[layer]
+                total_layer = "X_total" if layer == ["X_new"] else "M_t"
+
+                if return_ntr:
+                    T_genes = adata[:, genes].layers[total_layer]
+                    T_genes = T_genes.A if issparse(T_genes) else T_genes
+                    x_layer = adata[:, genes].layers[layer] / (T_genes + 1e-5)
+                else:
+                    x_layer = adata[:, genes].layers[layer]
             else:
                 x_layer = adata.layers[layer]
+                total_layer = adata.layers["X_total"]
                 if layer.startswith("X_"):
                     x_layer = inverse_norm(adata, x_layer)
+                    total_layer = inverse_norm(adata, total_layer)
 
                 if not use_total_layers:
-                    sfs, _ = sz_util(
+                    tot_sfs, _ = sz_util(
                         adata,
                         layer,
                         round_exprs=False,
@@ -422,12 +448,22 @@ def prepare_data_deterministic(
                     )
                 x_layer = normalize_util(
                     x_layer[:, adata.var_names.isin(genes)],
-                    szfactors=sfs[:, None],
+                    szfactors=tot_sfs[:, None],
                     relative_expr=True,
                     pseudo_expr=0,
                     norm_method=None,
                 )
 
+                if return_ntr:
+                    total_layer = normalize_util(
+                        total_layer[:, adata.var_names.isin(genes)],
+                        szfactors=tot_sfs[:, None],
+                        relative_expr=True,
+                        pseudo_expr=0,
+                        norm_method=None,
+                    )
+                    total_layer = total_layer.A if issparse(total_layer) else total_layer
+                    x_layer /= total_layer + 1e-5
         if log:
             if issparse(x_layer):
                 x_layer.data = np.log1p(x_layer.data)
@@ -448,7 +484,9 @@ def prepare_data_has_splicing(
     layer_s,
     use_total_layers=True,
     total_layers=["X_ul", "X_sl", "X_uu", "X_su"],
+    total_layer="X_total",
     return_cov=True,
+    return_ntr=False,
 ):
     """Prepare data when assumption is kinetic and data has splicing"""
     from ..preprocessing.utils import sz_util, normalize_util
@@ -460,6 +498,7 @@ def prepare_data_has_splicing(
         adata[:, genes].layers[layer_u] if layer_u == "M_ul" else None,
         adata[:, genes].layers[layer_s] if layer_s == "M_sl" else None,
     )
+    T = adata[:, genes].layers[total_layer] if total_layer == "M_t" else None
 
     layer_ul_data, layer_sl_data = adata.layers[layer_u], adata.layers[layer_s]
     layer_uu_data, layer_su_data = (
@@ -475,9 +514,12 @@ def prepare_data_has_splicing(
         layer_su_data if total_layers[3] == "M_su" else inverse_norm(adata, layer_su_data),
     )
 
+    total_layer_data = adata.layers[total_layer]
+    total_layer_data = total_layer_data if total_layer == "M_t" else inverse_norm(adata, total_layer_data)
+
     if use_total_layers:
         if "total_Size_Factor" not in adata.obs.keys():
-            sfs, _ = sz_util(
+            tot_sfs, _ = sz_util(
                 adata,
                 "_total_",
                 round_exprs=False,
@@ -486,10 +528,10 @@ def prepare_data_has_splicing(
                 total_layers=total_layers,
                 CM=layer_ul_data + layer_sl_data + layer_uu_data + layer_su_data,
             )
-            sfs_u, sfs_s = sfs[:, None], sfs[:, None]
+            sfs_u, sfs_s = tot_sfs[:, None], tot_sfs[:, None]
         else:
-            sfs = adata.obs.total_Size_Factor
-            sfs_u, sfs_s = sfs[:, None], sfs[:, None]
+            tot_sfs = adata.obs.total_Size_Factor
+            sfs_u, sfs_s = tot_sfs[:, None], tot_sfs[:, None]
     else:
         sfs_u, _ = sz_util(
             adata,
@@ -528,9 +570,37 @@ def prepare_data_has_splicing(
             norm_method=None,
         )
 
+    if "total_Size_Factor" not in adata.obs.keys():
+        tot_sfs, _ = sz_util(
+            adata,
+            "_total_",
+            round_exprs=False,
+            method="median",
+            locfunc=np.nanmean,
+            total_layers=total_layer,
+            CM=total_layer_data,
+        )
+    else:
+        tot_sfs = adata.obs.total_Size_Factor
+
+    if T is None:
+        T = normalize_util(
+            total_layer_data[:, adata.var_names.isin(genes)],
+            tot_sfs,
+            relative_expr=True,
+            pseudo_expr=0,
+            norm_method=None,
+        )
+
     for i, g in enumerate(genes):
-        u = U[:, i]
-        s = S[:, i]
+        if return_ntr:
+            T_i = T[:, i].A if issparse(T[:, i]) else T[:, i]
+            u = U[:, i] / (T_i + 1e-5)
+            s = S[:, i] / (T_i + 1e-5)
+        else:
+            u = U[:, i]
+            s = S[:, i]
+
         ut = strat_mom(u, time, np.mean)
         st = strat_mom(s, time, np.mean)
         uut = strat_mom(elem_prod(u, u), time, np.mean)
@@ -552,6 +622,7 @@ def prepare_data_no_splicing(
     use_total_layers=True,
     total_layer="X_total",
     return_old=False,
+    return_ntr=False,
 ):
     """Prepare data when assumption is kinetic and data has no splicing"""
     from ..preprocessing.utils import sz_util, normalize_util
@@ -625,7 +696,11 @@ def prepare_data_no_splicing(
         )
 
     for i, g in enumerate(genes):
-        u, t = U[:, i], T[:, i]
+        if return_ntr:
+            T_i = T[:, i].A if issparse(T[:, i]) else T[:, i]
+            u, t = U[:, i] / (T_i + 1e-5), T[:, i]
+        else:
+            u, t = U[:, i], T[:, i]
         ut = strat_mom(u, time, np.mean)
         uut = strat_mom(elem_prod(u, u), time, np.mean)
         res[i] = np.vstack([ut, uut])
