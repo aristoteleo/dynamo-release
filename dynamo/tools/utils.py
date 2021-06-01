@@ -16,7 +16,7 @@ import itertools
 
 from ..preprocessing.utils import Freeman_Tukey
 from ..utils import areinstance, isarray
-
+from ..dynamo_logger import main_info
 
 # ---------------------------------------------------------------------------------------------------
 # others
@@ -2099,7 +2099,7 @@ def getTseq(init_states, t_end, step_size=None):
 
 # ---------------------------------------------------------------------------------------------------
 # spatial related
-def compute_smallest_distance(coords: list, leaf_size: int = 40, sample_num=None) -> float:
+def compute_smallest_distance(coords: list, leaf_size: int = 40, sample_num=None, use_unique_coords=True) -> float:
     """Compute and return smallest distance. A wrapper for sklearn API
 
     Parameters
@@ -2110,6 +2110,8 @@ def compute_smallest_distance(coords: list, leaf_size: int = 40, sample_num=None
             Leaf size parameter for building Kd-tree, by default 40.
         sample_num:
             The number of cells to be sampled.
+        use_unique_coords:
+            Whether to remove duplicate coordinates
 
     Returns
     -------
@@ -2119,6 +2121,10 @@ def compute_smallest_distance(coords: list, leaf_size: int = 40, sample_num=None
     """
     if len(coords.shape) != 2:
         raise ValueError("Coordinates should be a NxM array.")
+    if use_unique_coords:
+        main_info("using unique coordinates for computing smallest distance")
+        coords = [tuple(coord) for coord in coords]
+        coords = np.array(list(set(coords)))
     # use cKDTree which is implmented in C++ and is much faster than KDTree
     kd_tree = cKDTree(coords, leafsize=leaf_size)
     if sample_num is None:

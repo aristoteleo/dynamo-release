@@ -19,7 +19,7 @@ def test_smallest_distance_simple_1():
     dist = dynamo.tl.compute_smallest_distance(input_mat)
     assert abs(dist - 2.23606797749979) < 1e-7
     input_mat = np.array([[0, 0], [3, 4], [5, 6], [0, 0]])
-    dist = dynamo.tl.compute_smallest_distance(input_mat)
+    dist = dynamo.tl.compute_smallest_distance(input_mat, use_unique_coords=False)
     assert dist == 0
 
 
