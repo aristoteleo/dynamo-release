@@ -1,4 +1,3 @@
-from dynamo.dynamo_logger import main_info
 from typing import Callable, Optional, Union
 from tqdm import tqdm
 import numpy as np
@@ -16,6 +15,7 @@ from ..tools.utils import (
 from .utils import integrate_vf_ivp
 from ..vectorfield import vector_field_function
 from ..vectorfield.utils import vector_transformation
+from ..dynamo_logger import main_info
 
 
 def fate(
