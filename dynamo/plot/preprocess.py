@@ -2,7 +2,8 @@ import numpy as np
 import pandas as pd
 from scipy.sparse import issparse, csr_matrix
 from anndata import AnnData
-from typing import Optional, Union
+from typing import Optional, Union, Sequence
+import matplotlib
 from matplotlib.axes import Axes
 
 from ..preprocessing import preprocess as pp
@@ -11,8 +12,7 @@ from ..preprocessing.utils import get_layer_keys
 from .utils import save_fig
 from ..tools.utils import update_dict, get_mapper
 from ..preprocessing.utils import detect_datatype
-from ..preprocessing import highest_frac_genes
-from ..dynamo_logger import main_info, main_critical, main_warning
+from ..dynamo_logger import main_warning
 
 
 def basic_stats(
@@ -427,6 +427,208 @@ def variance_explained(
         plt.show()
     elif save_show_or_return == "return":
         return ax
+
+
+def biplot(
+    adata: AnnData,
+    pca_components: Sequence[int] = [0, 1],
+    pca_key: str = "X_pca",
+    loading_key: str = "PCs",
+    figsize: tuple = (6, 4),
+    draw_pca_embedding: bool = False,
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
+    ax: Union[matplotlib.axes._subplots.SubplotBase, None] = None,
+):
+    """A biplot overlays a score plot and a loadings plot in a single graph. In such a plot, points are the projected
+    observations; vectors are the projected variables. If the data are well-approximated by the first two principal
+    components, a biplot enables you to visualize high-dimensional data by using a two-dimensional graph. See more at:
+    https://blogs.sas.com/content/iml/2019/11/06/what-are-biplots.html
+
+    In general, the score plot and the loadings plot will have different scales. Consequently, you need to rescale the
+    vectors or observations (or both) when you overlay the score and loadings plots. There are four common choices of
+    scaling. Each scaling emphasizes certain geometric relationships between pairs of observations (such as distances),
+    between pairs of variables (such as angles), or between observations and variables. This article discusses the
+    geometry behind two-dimensional biplots and shows how biplots enable you to understand relationships in multivariate
+    data.
+
+    Parameters
+    ----------
+        adata:
+            An Annodata object that has pca and loading information prepared.
+        pca_components:
+            The pca components that will be used to draw the biplot.
+        pca_key:
+            A key to the pca embedding matrix, in `.obsm`.
+        loading_key:
+            A key to the pca loading matrix, in either `.uns` or `.obsm`.
+        figsize
+            The figure size.
+        draw_pca_embedding:
+            Whether to draw the pca embedding.
+        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            save_fig function will use the {"path": None, "prefix": 'biplot', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+            dictionary that properly modify those keys according to your needs.
+        ax
+            An ax where the biplot will be appended to.
+
+    Returns
+    -------
+        If save_show_or_return is not `return`, return nothing but plot or save the biplot; otherwise return an axes
+        with the biplot in it.
+    """
+
+    import matplotlib.pyplot as plt
+
+    if loading_key in adata.uns.keys():
+        PCs = adata.uns[loading_key]
+    elif loading_key in adata.varm.keys():
+        PCs = adata.varm[loading_key]
+    else:
+        raise Exception(f"No PC matrix {loading_key} found in neither .uns nor .varm.")
+
+    # rotation matrix
+    xvector = PCs[:, pca_components[0]]
+    yvector = PCs[:, pca_components[1]]
+
+    # pca components
+    xs = adata.obsm[pca_key][:, pca_components[0]]
+    ys = adata.obsm[pca_key][:, pca_components[1]]
+
+    genes = adata.var_names[adata.var.use_for_pca]
+
+    if ax is None:
+        fig, ax = plt.subplots(1, 1, figsize=figsize)
+    for i in range(len(xvector)):
+        # arrows project features, e.g. genes, as vectors onto PC axes
+        ax.arrow(0, 0, xvector[i] * max(xs), yvector[i] * max(ys), color="r", width=0.0005, head_width=0.0025)
+        ax.text(xvector[i] * max(xs) * 1.01, yvector[i] * max(ys) * 1.01, genes[i], color="r")
+
+    ax.set_xlabel("PC" + str(pca_components[0]))
+    ax.set_ylabel("PC" + str(pca_components[1]))
+    if draw_pca_embedding:
+        for i in range(len(xs)):
+            # circles project cells
+            ax.plot(xs[i], ys[i], "b", alpha=0.1)
+            ax.text(xs[i] * 1.01, ys[i] * 1.01, list(adata.obs.cluster)[i], color="b", alpha=0.1)
+
+    if save_show_or_return == "save":
+        s_kwargs = {
+            "path": None,
+            "prefix": "biplot",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save_fig(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    else:
+        return ax
+
+
+def loading(
+    adata: AnnData,
+    n_pcs: int = 10,
+    loading_key: str = "PCs",
+    n_top_genes: int = 10,
+    ncol: int = 5,
+    figsize: tuple = (6, 4),
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
+):
+    """Plot the top absolute pca loading genes.
+
+    Red text are positive loading genes while black negative loading genes.
+
+    Parameters
+    ----------
+        adata:
+            An Annodata object that has pca and loading information prepared.
+        n_pcs:
+            Number of pca.
+        loading_key:
+            A key to the pca loading matrix, in either `.uns` or `.obsm`.
+        n_top_genes:
+            Number of top genes with highest absolute loading score.
+        ncol:
+            Number of panels on the resultant figure.
+        figsize:
+            Figure size.
+        save_show_or_return: {'show', 'save', 'return'} (default: `show`)
+            Whether to save, show or return the figure.
+        save_kwargs: `dict` (default: `{}`)
+            A dictionary that will passed to the save_fig function. By default it is an empty dictionary and the
+            save_fig function will use the {"path": None, "prefix": 'biplot', "dpi": None, "ext": 'pdf',
+            "transparent": True, "close": True, "verbose": True} as its parameters. Otherwise you can provide a
+            dictionary that properly modify those keys according to your needs.
+
+    Returns
+    -------
+        If save_show_or_return is not `return`, return nothing but plot or save the biplot; otherwise return an axes
+        with the loading plot in it.
+    """
+
+    import matplotlib.pyplot as plt
+
+    if loading_key in adata.uns.keys():
+        PCs = adata.uns[loading_key]
+    elif loading_key in adata.varm.keys():
+        PCs = adata.varm[loading_key]
+    else:
+        raise Exception(f"No PC matrix {loading_key} found in neither .uns nor .varm.")
+
+    if n_pcs is None:
+        n_pcs = PCs.shape[1]
+
+    x = np.arange(n_top_genes)
+    genes = adata.var_names[adata.var.use_for_pca]
+
+    nrow, ncol = int(n_pcs / ncol), min([ncol, n_pcs])
+    fig, axes = plt.subplots(nrow, ncol, figsize=(figsize[0] * ncol, figsize[1] * nrow))
+
+    for i in np.arange(n_pcs):
+        cur_row, cur_col = int(i / ncol), i % ncol
+
+        cur_pc = PCs[:, i]
+        cur_sign = np.sign(cur_pc)
+        cur_pc = np.abs(cur_pc)
+        sort_ind, sort_val = np.argsort(cur_pc)[::-1], np.sort(cur_pc)[::-1]
+        axes[cur_row, cur_col].scatter(x, sort_val[: len(x)])
+        for j in x:
+            axes[cur_row, cur_col].text(
+                x[j], sort_val[j] * 1.01, genes[sort_ind[j]], color="r" if cur_sign[sort_ind[j]] > 0 else "k"
+            )
+
+        axes[cur_row, cur_col].set_title("PC " + str(i))
+
+    if save_show_or_return == "save":
+        s_kwargs = {
+            "path": None,
+            "prefix": "loading",
+            "dpi": None,
+            "ext": "pdf",
+            "transparent": True,
+            "close": True,
+            "verbose": True,
+        }
+        s_kwargs = update_dict(s_kwargs, save_kwargs)
+
+        save_fig(**s_kwargs)
+    elif save_show_or_return == "show":
+        plt.tight_layout()
+        plt.show()
+    else:
+        return axes
 
 
 def feature_genes(

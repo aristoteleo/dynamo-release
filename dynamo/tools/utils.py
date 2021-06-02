@@ -324,6 +324,7 @@ def einsum_correlation(X, Y_i, type="pearson"):
     elif type == "cosine":
         X, Y_i = X, Y_i
     elif type == "spearman":
+        # check this
         X = stats.rankdata(X, axis=1)
         Y_i = stats.rankdata(Y_i)
     elif type == "kendalltau":

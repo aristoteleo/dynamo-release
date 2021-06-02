@@ -4,7 +4,7 @@ import pandas as pd
 # from scipy.sparse import issparse
 from matplotlib.axes import Axes
 from anndata import AnnData
-from typing import Union, Optional
+from typing import Union, Optional, List
 from matplotlib.figure import Figure
 
 from .scatters import scatters
@@ -310,7 +310,7 @@ def cell_wise_vectors(
     basis: str = "umap",
     x: int = 0,
     y: int = 1,
-    color: str = "ntr",
+    color: Union[str, List[str]] = "ntr",
     layer: str = "X",
     highlights: Optional[list] = None,
     labels: Optional[list] = None,
@@ -545,7 +545,7 @@ def grid_vectors(
     basis: str = "umap",
     x: int = 0,
     y: int = 1,
-    color: str = "ntr",
+    color: Union[str, List[str]] = "ntr",
     layer: str = "X",
     highlights: Optional[list] = None,
     labels: Optional[list] = None,
@@ -848,7 +848,7 @@ def streamline_plot(
     basis: str = "umap",
     x: int = 0,
     y: int = 1,
-    color: str = "ntr",
+    color: Union[str, List[str]] = "ntr",
     layer: str = "X",
     highlights: Optional[list] = None,
     labels: Optional[list] = None,
