@@ -15,9 +15,7 @@ def guestimate_alpha(x_data, time):
 
 def guestimate_gamma(x_data, time):
     """Roughly estimate gamma0 with the assumption that time starts at 0 for degradation data."""
-    ga0 = np.clip(
-        np.log(max(x_data[0], 0) / (x_data[-1] + 1e-6)) / time[-1], 1e-3, 1e3
-    )
+    ga0 = np.clip(np.log(max(x_data[0], 0) / (x_data[-1] + 1e-6)) / time[-1], 1e-3, 1e3)
     return ga0
 
 
@@ -59,31 +57,21 @@ class kinetic_estimation:
         self.simulator = simulator
 
         self.ranges = []
-        self.fixed_parameters = (
-            np.ones(len(param_ranges) + len(x0_ranges)) * np.nan
-        )
+        self.fixed_parameters = np.ones(len(param_ranges) + len(x0_ranges)) * np.nan
         for i in range(len(param_ranges)):
             if param_ranges[i][0] == param_ranges[i][1]:
                 self.fixed_parameters[i] = param_ranges[i][0]
             else:
                 self.ranges.append(param_ranges[i])
-        self.n_tot_kin_params = len(
-            param_ranges
-        )  # the total number of kinetic parameters
-        self.n_kin_params = len(
-            self.ranges
-        )  # the number of unfixed kinetic parameters
+        self.n_tot_kin_params = len(param_ranges)  # the total number of kinetic parameters
+        self.n_kin_params = len(self.ranges)  # the number of unfixed kinetic parameters
 
         for i in range(len(x0_ranges)):
             if x0_ranges[i][0] == x0_ranges[i][1]:
-                self.fixed_parameters[i + self.n_tot_kin_params] = x0_ranges[i][
-                    0
-                ]
+                self.fixed_parameters[i + self.n_tot_kin_params] = x0_ranges[i][0]
             else:
                 self.ranges.append(x0_ranges[i])
-        self.n_params = len(
-            self.ranges
-        )  # the number of unfixed parameters (including initial conditions)
+        self.n_params = len(self.ranges)  # the number of unfixed parameters (including initial conditions)
 
         self.popt = None
         self.cost = None
@@ -93,18 +81,12 @@ class kinetic_estimation:
         if method == "lhs":
             ret = self._lhsclassic(samples)
             for i in range(self.n_params):
-                ret[:, i] = (
-                    ret[:, i] * (self.ranges[i][1] - self.ranges[i][0])
-                    + self.ranges[i][0]
-                )
+                ret[:, i] = ret[:, i] * (self.ranges[i][1] - self.ranges[i][0]) + self.ranges[i][0]
         else:
             for n in range(samples):
                 for i in range(self.n_params):
                     r = np.random.rand()
-                    ret[n, i] = (
-                        r * (self.ranges[i][1] - self.ranges[i][0])
-                        + self.ranges[i][0]
-                    )
+                    ret[n, i] = r * (self.ranges[i][1] - self.ranges[i][0]) + self.ranges[i][0]
         return ret
 
     def _lhsclassic(self, samples):
@@ -124,8 +106,12 @@ class kinetic_estimation:
     def normalize_data(self, X):
         return np.log1p(X)
 
-    def extract_data_from_simulator(self):
-        return self.simulator.x.T
+    def extract_data_from_simulator(self, t=None, **kwargs):
+        if t is None:
+            return self.simulator.x.T
+        else:
+            x = self.simulator.integrate(t, **kwargs)
+            return x.T
 
     def assemble_kin_params(self, unfixed_params):
         p = np.array(self.fixed_parameters[: self.n_tot_kin_params], copy=True)
@@ -243,9 +229,7 @@ class kinetic_estimation:
     def get_SSE(self):
         return self.cost
 
-    def test_chi2(
-        self, t, x_data, species=None, method="matrix", normalize=True
-    ):
+    def test_chi2(self, t, x_data, species=None, method="matrix", normalize=True):
         """perform a Pearson's chi-square test. The statistics is computed as: sum_i (O_i - E_i)^2 / E_i, where O_i is the data and E_i is the model predication.
 
         The data can be either 1. stratified moments: 't' is an array of k distinct time points, 'x_data' is a m-by-k matrix of data, where m is the number of species.
@@ -307,9 +291,7 @@ class Estimation_Degradation(kinetic_estimation):
     def export_dictionary(self):
         mdl_name = type(self.simulator).__name__
         params = self.export_parameters()
-        param_dict = {
-            self.kin_param_keys[i]: params[i] for i in range(len(params))
-        }
+        param_dict = {self.kin_param_keys[i]: params[i] for i in range(len(params))}
         x0 = self.get_opt_x0_params()
         dictionary = {
             "model": mdl_name,
@@ -344,9 +326,7 @@ class Estimation_DeterministicDeg(Estimation_Degradation):
         x0_bound = np.hstack((np.zeros((len(x0), 1)), 1e2 * x0[None].T))
         self._initialize(beta_bound, gamma_bound, x0_bound)
 
-        popt, cost = self.fit_lsq(
-            time, x_data, p0=np.hstack((be0, ga0, x0)), **kwargs
-        )
+        popt, cost = self.fit_lsq(time, x_data, p0=np.hstack((be0, ga0, x0)), **kwargs)
         return popt, cost
 
 
@@ -365,9 +345,7 @@ class Estimation_DeterministicDegNosp(Estimation_Degradation):
             x0_ = np.array([x0])
         super().__init__(ranges, x0_, Deterministic_NoSplicing())
 
-    def auto_fit(
-        self, time, x_data, sample_method="lhs", method=None, normalize=False
-    ):
+    def auto_fit(self, time, x_data, sample_method="lhs", method=None, normalize=False):
         ga0 = self.guestimate_gamma(x_data, time)
         x0 = self.guestimate_init_cond(x_data[None])
         gamma_bound = np.array([0, 1e2 * ga0])
@@ -401,9 +379,7 @@ class Estimation_MomentDeg(Estimation_DeterministicDeg):
         ranges = np.zeros((2, 2))
         ranges[0] = beta * np.ones(2) if np.isscalar(beta) else beta
         ranges[1] = gamma * np.ones(2) if np.isscalar(gamma) else gamma
-        super(Estimation_DeterministicDeg, self).__init__(
-            ranges, x0, Moments_NoSwitching()
-        )
+        super(Estimation_DeterministicDeg, self).__init__(ranges, x0, Moments_NoSwitching())
 
     def extract_data_from_simulator(self):
         if self.include_cov:
@@ -436,9 +412,7 @@ class Estimation_MomentDegNosp(Estimation_Degradation):
         ranges = gamma * np.ones(2) if np.isscalar(gamma) else gamma
         super().__init__(ranges, x0, Moments_NoSwitchingNoSplicing())
 
-    def auto_fit(
-        self, time, x_data, sample_method="lhs", method=None, normalize=False
-    ):
+    def auto_fit(self, time, x_data, sample_method="lhs", method=None, normalize=False):
         ga0 = self.guestimate_gamma(x_data[0, :], time)
         x0 = self.guestimate_init_cond(x_data)
         gamma_bound = np.array([0, 1e2 * ga0])
@@ -462,9 +436,7 @@ class Estimation_MomentKin(kinetic_estimation):
     """
 
     def __init__(self, a, b, alpha_a, alpha_i, beta, gamma, include_cov=True):
-        self.param_keys = np.array(
-            ["a", "b", "alpha_a", "alpha_i", "beta", "gamma"]
-        )
+        self.param_keys = np.array(["a", "b", "alpha_a", "alpha_i", "beta", "gamma"])
         ranges = np.zeros((6, 2))
         ranges[0] = a * np.ones(2) if np.isscalar(a) else a
         ranges[1] = b * np.ones(2) if np.isscalar(b) else b
@@ -662,9 +634,7 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
     If beta is None, it is assumed that the data does not have the splicing process.
     """
 
-    def __init__(
-        self, model1, model2, alpha=None, gamma=None, x0=None, beta=None
-    ):
+    def __init__(self, model1, model2, alpha=None, gamma=None, x0=None, beta=None):
         self.model1 = model1
         self.model2 = model2
         self.scale = 1
@@ -678,14 +648,8 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
         else:
             self.param_distributor = [[0, 2, 3], [1, 2, 3]]
             self.param_keys = ["alpha", "alpha_2", "beta", "gamma"]
-        self.param_distributor = (
-            [[0, 2], [1, 2]]
-            if type(self.model1) in nosplicing_models
-            else [[0, 2, 3], [1, 2, 3]]
-        )
-        model = MixtureModels(
-            [self.model1, self.model2], self.param_distributor
-        )
+        self.param_distributor = [[0, 2], [1, 2]] if type(self.model1) in nosplicing_models else [[0, 2, 3], [1, 2, 3]]
+        model = MixtureModels([self.model1, self.model2], self.param_distributor)
 
         ranges = np.zeros((3, 2)) if beta is None else np.zeros((4, 2))
         ranges[0] = alpha
@@ -709,21 +673,9 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
 
         return x_data_norm, scale
 
-    def auto_fit(
-        self,
-        time,
-        x_data,
-        alpha_min=0.1,
-        beta_min=50,
-        gamma_min=10,
-        kin_weight=2,
-        use_p0=True,
-        **kwargs
-    ):
+    def auto_fit(self, time, x_data, alpha_min=0.1, beta_min=50, gamma_min=10, kin_weight=2, use_p0=True, **kwargs):
         if kin_weight is not None:
-            x_data_norm, self.scale = self.normalize_deg_data(
-                x_data, kin_weight
-            )
+            x_data_norm, self.scale = self.normalize_deg_data(x_data, kin_weight)
         else:
             x_data_norm = x_data
 
@@ -743,8 +695,7 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
         else:
             be0 = guestimate_gamma(x_data_norm[self.model1.n_species, :], time)
             ga0 = guestimate_gamma(
-                x_data_norm[self.model1.n_species, :]
-                + x_data_norm[self.model1.n_species + 1, :],
+                x_data_norm[self.model1.n_species, :] + x_data_norm[self.model1.n_species + 1, :],
                 time,
             )
             p0 = np.hstack((al0, be0, ga0, x0))
@@ -761,9 +712,7 @@ class Mixture_KinDeg_NoSwitching(kinetic_estimation):
 
     def export_model(self, reinstantiate=True):
         if reinstantiate:
-            return MixtureModels(
-                [self.model1, self.model2], self.param_distributor
-            )
+            return MixtureModels([self.model1, self.model2], self.param_distributor)
         else:
             return self.simulator
 
@@ -812,10 +761,7 @@ class Lambda_NoSwitching(Mixture_KinDeg_NoSwitching):
         """
         parameter order: alpha, lambda, (beta), gamma
         """
-        if (
-            type(self.model1) in nosplicing_models
-            and type(self.model2) in nosplicing_models
-        ):
+        if type(self.model1) in nosplicing_models and type(self.model2) in nosplicing_models:
             self.param_keys = ["alpha", "lambda", "gamma"]
         else:
             self.param_keys = ["alpha", "lambda", "beta", "gamma"]
@@ -833,9 +779,7 @@ class Lambda_NoSwitching(Mixture_KinDeg_NoSwitching):
         super(Mixture_KinDeg_NoSwitching, self).__init__(ranges, x0_, model)
 
     def auto_fit(self, time, x_data, **kwargs):
-        return super().auto_fit(
-            time, x_data, kin_weight=None, use_p0=False, **kwargs
-        )
+        return super().auto_fit(time, x_data, kin_weight=None, use_p0=False, **kwargs)
 
     def export_model(self, reinstantiate=True):
         if reinstantiate:
@@ -867,13 +811,7 @@ class Estimation_KineticChase(kinetic_estimation):
         gamma_bound = np.array([0, 1e2 * ga0 + 100])
         x0_bound = np.array([0, 1e2 * x0 + 100])
         self._initialize(alpha_bound, gamma_bound, x0_bound)
-        popt, cost = self.fit_lsq(
-            time,
-            x_data,
-            p0=np.hstack((al0, ga0, x0)),
-            normalize=False,
-            **kwargs
-        )
+        popt, cost = self.fit_lsq(time, x_data, p0=np.hstack((al0, ga0, x0)), normalize=False, **kwargs)
         return popt, cost
 
     def get_param(self, key):
@@ -891,9 +829,7 @@ class Estimation_KineticChase(kinetic_estimation):
     def export_dictionary(self):
         mdl_name = type(self.simulator).__name__
         params = self.export_parameters()
-        param_dict = {
-            self.kin_param_keys[i]: params[i] for i in range(len(params))
-        }
+        param_dict = {self.kin_param_keys[i]: params[i] for i in range(len(params))}
         x0 = self.get_opt_x0_params()
         dictionary = {
             "model": mdl_name,
@@ -959,11 +895,7 @@ class GoodnessOfFit:
             warnings.warn("Some standard deviations are 0; Set to 1 instead.")
             sig[sig == 0] = 1
         err = ((self.pred - self.mean) / sig).flatten()
-        ret = (
-            1
-            / (np.sqrt((2 * np.pi) ** len(err)) * np.prod(sig))
-            * np.exp(-0.5 * (err).dot(err))
-        )
+        ret = 1 / (np.sqrt((2 * np.pi) ** len(err)) * np.prod(sig)) * np.exp(-0.5 * (err).dot(err))
         return ret
 
     def calc_gaussian_loglikelihood(self):
@@ -972,11 +904,7 @@ class GoodnessOfFit:
             warnings.warn("Some standard deviations are 0; Set to 1 instead.")
             sig[sig == 0] = 1
         err = ((self.pred - self.mean) / sig).flatten()
-        ret = (
-            -len(err) / 2 * np.log(2 * np.pi)
-            - np.sum(np.log(sig))
-            - 0.5 * err.dot(err)
-        )
+        ret = -len(err) / 2 * np.log(2 * np.pi) - np.sum(np.log(sig)) - 0.5 * err.dot(err)
         return ret
 
     def calc_mean_squared_deviation(self, weighted=True):
