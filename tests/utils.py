@@ -1,3 +1,4 @@
+from dynamo import dynamo_logger
 import dynamo
 from dynamo import LoggerManager
 import dynamo.preprocessing
@@ -8,6 +9,7 @@ import numpy as np
 import os
 
 test_zebrafish_data_path = "./test_data/test_zebrafish.h5ad"
+test_spatial_genomics_path = "./test_data/allstage_processed.h5ad"
 
 
 def gen_zebrafish_test_data():
@@ -34,3 +36,10 @@ def gen_or_read_zebrafish_data():
     # To-do: use a fixture in future
     adata = dyn.read_h5ad(test_zebrafish_data_path)
     return adata
+
+
+def read_test_spatial_genomics_data():
+    return dyn.read_h5ad(test_spatial_genomics_path)
+
+
+LoggerManager.main_logger.setLevel(LoggerManager.DEBUG)

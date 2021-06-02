@@ -15,7 +15,7 @@ docstrings.delete_params("scatters.parameters", "adata", "basis", "figsize")
 @docstrings.with_indent(4)
 def space(
     adata: anndata.AnnData,
-    genes: Union[float, None] = None,
+    genes: Union[list, None] = None,
     space: str = "spatial",
     width: float = 6,
     marker: str = "p",
@@ -23,6 +23,7 @@ def space(
     dpi: int = 100,
     ps_sample_num: int = 1000,
     alpha: float = 0.8,
+    stack_genes: bool = False,
     *args,
     **kwargs
 ):
@@ -99,16 +100,20 @@ def space(
 
         main_info("estimated point size for plotting each cell in space: %f" % (pointsize))
 
-    main_finish_progress("space plot")
     # here we should pass different point size, type (square or hexogon, etc), etc.
-    return scatters(
+    res = scatters(
         adata,
         marker=marker,
         basis=space_key,
+        color=genes,
         figsize=figsize,
         pointsize=pointsize,
         dpi=dpi,
         alpha=alpha,
+        stack_colors=stack_genes,
         *args,
         **kwargs,
     )
+
+    main_finish_progress("space plot")
+    return res

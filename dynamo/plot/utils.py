@@ -17,7 +17,7 @@ import copy
 
 from ..configuration import _themes
 from ..tools.utils import integrate_vf  # integrate_vf_ivp
-
+from ..dynamo_logger import main_debug
 
 # ---------------------------------------------------------------------------------------------------
 # variable checking utilities
@@ -168,6 +168,7 @@ def _matplotlib_points(
 
     dpi = plt.rcParams["figure.dpi"]
     width, height = width * dpi, height * dpi
+    alpha = kwargs.get("alpha", "0.4")
 
     # """Use matplotlib to plot points"""
     # point_size = 500.0 / np.sqrt(points.shape[0])
@@ -265,6 +266,7 @@ def _matplotlib_points(
             colors = pd.Series(labels).map(new_color_key)
 
         if frontier:
+            main_debug("drawing frontier")
             rasterized = kwargs["rasterized"] if "rasterized" in kwargs.keys() else None
             ax.scatter(
                 points[:, 0],
@@ -290,6 +292,7 @@ def _matplotlib_points(
                 **kwargs,
             )
         elif contour:
+            main_debug("drawing contour")
             # try:
             #     from shapely.geometry import Polygon, MultiPoint, Point
             # except ImportError:
@@ -329,7 +332,7 @@ def _matplotlib_points(
                 x="x",
                 y="y",
                 fill=True,
-                alpha=kwargs.get("alpha", "0.4"),
+                alpha=alpha,
                 palette=ccmap,
                 ax=ax,
                 thresh=0,
@@ -345,16 +348,19 @@ def _matplotlib_points(
                 **kwargs,
             )
         else:
+            main_debug("drawing w/o frontiers and contour")
             ax.scatter(
                 points[:, 0],
                 points[:, 1],
                 c=colors,
                 plotnonfinite=True,
+                alpha=calpha,
                 **kwargs,
             )
 
     # Color by values
     elif values is not None:
+        main_debug("drawing points by values")
         cmap_ = copy.copy(matplotlib.cm.get_cmap(cmap))
         cmap_.set_bad("lightgray")
 
@@ -373,6 +379,7 @@ def _matplotlib_points(
         )
         values, points = values[sorted_id], points[sorted_id, :]
 
+        # to-do: relocate biology data related code below
         # if there are very few cells have expression, set the vmin/vmax only based on positive values
         if np.nanmin(values) == 0:
             n_pos_cells = sum(values > 0)
@@ -412,6 +419,7 @@ def _matplotlib_points(
             _vmin, _vmax = bounds
 
         if frontier:
+            main_debug("drawing frontier")
             rasterized = kwargs["rasterized"] if "rasterized" in kwargs.keys() else None
             ax.scatter(
                 points[:, 0],
@@ -440,6 +448,7 @@ def _matplotlib_points(
                 **kwargs,
             )
         elif contour:
+            main_debug("drawing contour")
             # try:
             #     from shapely.geometry import Polygon, MultiPoint, Point
             # except ImportError:
@@ -484,7 +493,7 @@ def _matplotlib_points(
                 x="x",
                 y="y",
                 fill=True,
-                alpha=kwargs.get("alpha", "0.4"),
+                alpha=alpha,
                 palette=ccmap,
                 ax=ax,
                 thresh=0,
@@ -501,6 +510,8 @@ def _matplotlib_points(
                 **kwargs,
             )
         else:
+            main_debug("drawing w/o frontiers and contour")
+            main_debug(kwargs)
             ax.scatter(
                 points[:, 0],
                 points[:, 1],
@@ -529,6 +540,7 @@ def _matplotlib_points(
         colors = cmap(values)
     # No color (just pick the midpoint of the cmap)
     else:
+        main_debug("drawing points without color passed in args, using midpoint of the cmap")
         colors = plt.get_cmap(cmap)(0.5)
         ax.scatter(points[:, 0], points[:, 1], c=colors, **kwargs)
 

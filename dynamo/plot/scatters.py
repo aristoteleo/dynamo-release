@@ -39,7 +39,7 @@ from ..tools.utils import (
     flatten,
 )
 from ..tools.moments import calc_1nd_moment
-from ..dynamo_logger import main_info
+from ..dynamo_logger import main_info, main_debug
 from ..docrep import DocstringProcessor
 
 docstrings = DocstringProcessor()
@@ -77,6 +77,7 @@ def scatters(
     frontier: bool = False,
     contour: bool = False,
     ccmap: Optional[str] = None,
+    alpha: float = 0.4,
     calpha: float = 2.3,
     sym_c: bool = False,
     smooth: bool = False,
@@ -88,6 +89,8 @@ def scatters(
     affine_transform_degree=0,
     affine_transform_A=None,
     affine_transform_b=None,
+    stack_colors=False,
+    stack_colors_threshold=0.5,
     **kwargs,
 ) -> Union[None, Axes]:
     """Plot an embedding as points. Currently this only works
@@ -357,7 +360,7 @@ def scatters(
         point_size = 16000.0 / np.sqrt(adata.shape[0]) * pointsize
 
     scatter_kwargs = dict(
-        alpha=0.1,
+        alpha=alpha,
         s=point_size,
         edgecolor=None,
         linewidth=0,
@@ -447,6 +450,9 @@ def scatters(
             ):
                 x, y = [x], [y]
             for cur_x, cur_y in zip(x, y):  # here x / y are arrays
+                print("cur_x:", cur_x)
+                print("cur_y:", cur_y)
+
                 if type(cur_x) is int and type(cur_y) is int:
                     points = pd.DataFrame(
                         {
@@ -595,7 +601,7 @@ def scatters(
                 if labels is not None and values is not None:
                     raise ValueError("Conflicting options; only one of labels or values should be set")
 
-                if total_panels > 1:
+                if total_panels > 1 and not stack_colors:
                     ax = plt.subplot(gs[ax_index])
                 ax_index += 1
 
@@ -621,6 +627,7 @@ def scatters(
                     point_coords = affine_transform(points.values, affine_transform_A, affine_transform_b)
 
                 if points.shape[0] <= figsize[0] * figsize[1] * 100000:
+                    main_debug("drawing with matplotlib_points utility")
                     ax, color_out = _matplotlib_points(
                         # points.values,
                         point_coords,
