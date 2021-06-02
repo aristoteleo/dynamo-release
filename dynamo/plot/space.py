@@ -24,6 +24,7 @@ def space(
     ps_sample_num: int = 1000,
     alpha: float = 0.8,
     stack_genes: bool = False,
+    stack_genes_threshold: float = 0.01,
     *args,
     **kwargs
 ):
@@ -111,6 +112,8 @@ def space(
         dpi=dpi,
         alpha=alpha,
         stack_colors=stack_genes,
+        stack_colors_threshold=stack_genes_threshold,
+        stack_color_title="stacked spatial genes",
         *args,
         **kwargs,
     )

@@ -16,9 +16,17 @@ def test_space_simple1(adata):
 
 def test_space_stack_color(adata):
     adata = read_test_spatial_genomics_data()
-    genes = adata.var_names[:50]
+    genes = adata.var_names[:18]
     # space(adata, genes=genes, marker="*", save_show_or_return="show", stack_genes=False)
-    space(adata, genes=genes, marker="*", save_show_or_return="show", stack_genes=True, alpha=0.1)
+    space(
+        adata,
+        genes=genes,
+        marker="p",
+        save_show_or_return="save",
+        stack_genes=True,
+        alpha=0.5,
+        show_legend="upper right",
+    )
 
 
 def test_space_data():

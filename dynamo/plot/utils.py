@@ -186,12 +186,14 @@ def _matplotlib_points(
     unique_labels = []
 
     if labels is not None:
+        main_debug("labels are not None")
         if labels.shape[0] != points.shape[0]:
             raise ValueError(
                 "Labels must have a label for "
                 "each sample (size mismatch: {} {})".format(labels.shape[0], points.shape[0])
             )
         if color_key is None:
+            main_debug("color_key is None")
             cmap = copy.copy(matplotlib.cm.get_cmap(color_key_cmap))
             cmap.set_bad("lightgray")
 
@@ -231,6 +233,7 @@ def _matplotlib_points(
                 labels = points[:, 2]
 
         if isinstance(color_key, dict):
+            main_debug("color_key is a dict")
             colors = pd.Series(labels).map(color_key).values
             unique_labels = np.unique(labels)
             legend_elements = [
@@ -246,6 +249,7 @@ def _matplotlib_points(
                 for k in unique_labels
             ]
         else:
+            main_debug("[_matplotlib_points] color_key is not a dict")
             unique_labels = np.unique(labels)
             if len(color_key) < unique_labels.shape[0]:
                 raise ValueError("Color key must have enough colors for the number of labels")
@@ -510,7 +514,7 @@ def _matplotlib_points(
                 **kwargs,
             )
         else:
-            main_debug("drawing w/o frontiers and contour")
+            main_debug("drawing without frontiers and contour")
             main_debug(kwargs)
             ax.scatter(
                 points[:, 0],
@@ -546,6 +550,7 @@ def _matplotlib_points(
 
     if show_legend and legend_elements is not None:
         if len(unique_labels) > 1 and show_legend == "on data":
+            main_debug("unique labels > 1 and show_legend is on data")
             font_color = "white" if background in ["black", "#ffffff"] else "black"
             for i in unique_labels:
                 if i == "other":
@@ -568,12 +573,15 @@ def _matplotlib_points(
                     ]
                 )
         else:
+            main_debug("drawing legend")
             ax.legend(
                 handles=legend_elements,
                 bbox_to_anchor=(1.04, 1),
                 loc=show_legend,
                 ncol=len(unique_labels) // 15 + 1,
             )
+    else:
+        main_debug("hiding legend")
 
     return ax, colors
 
