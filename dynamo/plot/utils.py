@@ -1590,26 +1590,3 @@ class Loess(object):
             a = mean_y - b * mean_x
             y = a + b * n_x
         return self.denormalize_y(y)
-
-
-# ---------------------------------------------------------------------------------------------------
-# coordinate/vector space operations
-
-
-def affine_transform(X, A, b):
-    X = np.array(X)
-    A = np.array(A)
-    b = np.array(b)
-    print(X.shape, A.shape, b.shape)
-    return (A @ X.T).T + b
-
-
-def gen_rotation_2d(degree: float):
-    from math import cos, sin, radians
-
-    rad = radians(degree)
-    R = [
-        [cos(rad), -sin(rad)],
-        [sin(rad), cos(rad)],
-    ]
-    return np.array(R)
