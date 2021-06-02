@@ -435,6 +435,7 @@ def biplot(
     pca_key: str = "X_pca",
     loading_key: str = "PCs",
     figsize: tuple = (6, 4),
+    scale_pca_embedding: bool = False,
     draw_pca_embedding: bool = False,
     save_show_or_return: str = "show",
     save_kwargs: dict = {},
@@ -462,8 +463,10 @@ def biplot(
             A key to the pca embedding matrix, in `.obsm`.
         loading_key:
             A key to the pca loading matrix, in either `.uns` or `.obsm`.
-        figsize
+        figsize:
             The figure size.
+        scale_pca_embedding:
+            Whether to scale the pca embedding.
         draw_pca_embedding:
             Whether to draw the pca embedding.
         save_show_or_return: {'show', 'save', 'return'} (default: `show`)
@@ -499,6 +502,11 @@ def biplot(
     xs = adata.obsm[pca_key][:, pca_components[0]]
     ys = adata.obsm[pca_key][:, pca_components[1]]
 
+    # scale pca component
+    if scale_pca_embedding:
+        scalex = 1.0 / (xs.max() - xs.min())
+        scaley = 1.0 / (ys.max() - ys.min())
+
     genes = adata.var_names[adata.var.use_for_pca]
 
     if ax is None:
@@ -513,8 +521,8 @@ def biplot(
     if draw_pca_embedding:
         for i in range(len(xs)):
             # circles project cells
-            ax.plot(xs[i], ys[i], "b", alpha=0.1)
-            ax.text(xs[i] * 1.01, ys[i] * 1.01, list(adata.obs.cluster)[i], color="b", alpha=0.1)
+            ax.plot(xs[i] * scalex, ys[i] * scaley, "b", alpha=0.1)
+            ax.text(xs[i] * scalex * 1.01, ys[i] * scaley * 1.01, list(adata.obs.cluster)[i], color="b", alpha=0.1)
 
     if save_show_or_return == "save":
         s_kwargs = {
