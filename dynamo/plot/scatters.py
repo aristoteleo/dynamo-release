@@ -38,7 +38,7 @@ from ..tools.utils import (
     flatten,
 )
 from ..tools.moments import calc_1nd_moment
-from ..dynamo_logger import main_info, main_debug
+from ..dynamo_logger import main_info, main_debug, main_warning
 from ..docrep import DocstringProcessor
 
 docstrings = DocstringProcessor()
@@ -90,8 +90,8 @@ def scatters(
     affine_transform_b=None,
     stack_colors=False,
     stack_colors_threshold=0.001,
-    stack_color_title="stacked colors",
-    stack_color_legend_size=2,
+    stack_colors_title="stacked colors",
+    stack_colors_legend_size=2,
     **kwargs,
 ) -> Union[None, Axes]:
     """Plot an embedding as points. Currently this only works
@@ -267,20 +267,22 @@ def scatters(
             The marker style. marker can be either an instance of the class or the text shorthand for a particular
             marker. See matplotlib.markers for more information about marker styles.
         affine_transform_degree:
-            Transform coordinates of points according to some degree
+            Transform coordinates of points according to some degree.
         affine_transform_A:
-            coefficients in affine transformation Ax + b. 2D for now
+            Coefficients in affine transformation Ax + b. 2D for now.
         affine_transform_b:
-            bias in affine transformation Ax + b.
+            Bias in affine transformation Ax + b.
         stack_colors:
-            whether to stack all color on the same ax passed above
+            Whether to stack all color on the same ax passed above.
+            Currently only support 18 sequential matplotlib default cmaps assigning to different color groups.
+            (#colors should be smaller than 18, reuse if #colors > 18. To-do: generate cmaps according to #colors)
         stack_colors_threshold:
-            threshold for filtering points values < threshold when drawing each color
-            e.g. if you do not want points with values < 1 showing up on axis, set threshold to be 1
-        stack_color_title:
-            title for the stack_color plot
-        stack_color_legend_size:
-            control the legend size in stack color plot
+            A threshold for filtering points values < threshold when drawing each color.
+            E.g. if you do not want points with values < 1 showing up on axis, set threshold to be 1
+        stack_colors_title:
+            The title for the stack_color plot.
+        stack_colors_legend_size:
+            Control the legend size in stack color plot.
         kwargs:
             Additional arguments passed to plt.scatters.
 
@@ -386,7 +388,7 @@ def scatters(
     if use_smoothed:
         mapper = get_mapper()
 
-    # check layer, basis -> convert to list
+    # check color, layer, basis -> convert to list
 
     if type(color) is str:
         color = [color]
@@ -394,6 +396,15 @@ def scatters(
         layer = [layer]
     if type(basis) is str:
         basis = [basis]
+
+    if stack_colors and len(color) > len(sequential_cmaps):
+        main_warning(
+            "#color: %d passed in is greater than #sequential cmaps: %d, will reuse sequential maps"(
+                len(color), len(sequential_cmaps)
+            )
+        )
+        main_warning("You should consider decreasing your #color")
+
     n_c, n_l, n_b, n_x, n_y = (
         1 if color is None else len(color),
         1 if layer is None else len(layer),
@@ -485,11 +496,12 @@ def scatters(
         #         )
         # else:
         #     continue
+
         for cur_c in color:
             if not stack_colors:
                 cur_title = cur_c
             else:
-                cur_title = stack_color_title
+                cur_title = stack_colors_title
             _color = _get_adata_color(adata, cur_l, cur_c)
 
             # select data rows based on stack color thresholding
@@ -817,7 +829,7 @@ def scatters(
         # collected during for loop above
         if stack_colors:
             ax.legend().set_visible(False)
-            ax.legend(handles=stack_legend_handles, loc="upper right", prop={"size": stack_color_legend_size})
+            ax.legend(handles=stack_legend_handles, loc="upper right", prop={"size": stack_colors_legend_size})
 
     for cur_b in basis:
         for cur_l in layer:
