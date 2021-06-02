@@ -1,5 +1,6 @@
 # code adapted from https://github.com/lmcinnes/umap/blob/7e051d8f3c4adca90ca81eb45f6a9d1372c076cf/umap/plot.py
 import warnings
+from matplotlib import patches
 import numpy as np
 import pandas as pd
 from pandas.api.types import is_categorical_dtype
@@ -302,6 +303,9 @@ def scatters(
         "BuGn",
         "YlGn",
     ]
+    stack_legend_handles = []
+    if stack_colors:
+        color_key = None
 
     def _get_adata_color(adata, cur_l, cur_c):
         if cur_l in ["protein", "X_protein"]:
@@ -473,18 +477,15 @@ def scatters(
             else:
                 cur_title = stack_color_title
             _color = _get_adata_color(adata, cur_l, cur_c)
-            main_debug("color: " + str(cur_c))
-            main_debug("_color: " + str(_color))
             original_adata = adata
             if stack_colors:
-                main_debug("_color: " + str(_color))
                 _adata = adata[_color > stack_colors_threshold]
                 if values:
                     _values = values[_color > stack_colors_threshold]
                 _color = _color[_color > stack_colors_threshold]
-                main_debug("_color: " + str(_color))
-                main_debug("stack colors: _adata len after thresholding: %d" % (len(_adata)))
+                main_debug("stack colors: _adata len after thresholding by color value: %d" % (len(_adata)))
                 if len(_color) == 0:
+                    main_info("skipping color %s because no point of %s is above threshold" % (cur_c, cur_c))
                     continue
             if hasattr(x, "__len__") and hasattr(y, "__len__"):
                 x, y = list(x), list(y)
@@ -496,9 +497,7 @@ def scatters(
             ):
                 x, y = [x], [y]
             for cur_x, cur_y in zip(x, y):  # here x / y are arrays
-                print("cur_x:", cur_x)
-                print("cur_y:", cur_y)
-
+                main_debug("cur_x: %s, cur_y: %s" % (cur_x, cur_y))
                 if type(cur_x) is int and type(cur_y) is int:
                     points = pd.DataFrame(
                         {
@@ -644,6 +643,10 @@ def scatters(
                 if stack_colors:
                     main_debug("stack colors: changing cmap")
                     _cmap = sequential_cmaps[ax_index % len(sequential_cmaps)]
+                    max_color = matplotlib.cm.get_cmap(_cmap)(float("inf"))
+                    patch = patches.Patch(color=max_color, label=cur_c)
+                    stack_legend_handles.append(patch)
+
                 _color_key_cmap = _themes[_theme_]["color_key_cmap"] if color_key_cmap is None else color_key_cmap
                 _background = _themes[_theme_]["background"] if _background is None else _background
 
@@ -791,8 +794,12 @@ def scatters(
                                 "_adata does not seem to have %s column. Velocity estimation is required "
                                 "before running this function." % group_k_name
                             )
+
+        # remove messy legends
         if stack_colors:
             _adata = original_adata
+            ax.legend().set_visible(False)
+            ax.legend(handles=stack_legend_handles, loc="upper right", prop={"size": 2})
 
     for cur_b in basis:
         for cur_l in layer:

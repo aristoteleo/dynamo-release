@@ -25,7 +25,7 @@ def test_space_stack_color(adata):
         save_show_or_return="save",
         stack_genes=True,
         alpha=0.5,
-        show_legend="upper right",
+        show_colorbar=False,
     )
 
 

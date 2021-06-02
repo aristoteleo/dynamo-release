@@ -161,6 +161,7 @@ def _matplotlib_points(
     calpha=2.3,
     sym_c=False,
     inset_dict={},
+    show_colorbar=True,
     **kwargs,
 ):
     import matplotlib.pyplot as plt
@@ -232,7 +233,7 @@ def _matplotlib_points(
                 ).values
                 labels = points[:, 2]
 
-        if isinstance(color_key, dict):
+        elif isinstance(color_key, dict):
             main_debug("color_key is a dict")
             colors = pd.Series(labels).map(color_key).values
             unique_labels = np.unique(labels)
@@ -249,7 +250,7 @@ def _matplotlib_points(
                 for k in unique_labels
             ]
         else:
-            main_debug("[_matplotlib_points] color_key is not a dict")
+            main_debug("color_key is not None and not a dict")
             unique_labels = np.unique(labels)
             if len(color_key) < unique_labels.shape[0]:
                 raise ValueError("Color key must have enough colors for the number of labels")
@@ -352,7 +353,7 @@ def _matplotlib_points(
                 **kwargs,
             )
         else:
-            main_debug("drawing w/o frontiers and contour")
+            main_debug("drawing without frontiers and contour")
             ax.scatter(
                 points[:, 0],
                 points[:, 1],
@@ -515,7 +516,6 @@ def _matplotlib_points(
             )
         else:
             main_debug("drawing without frontiers and contour")
-            main_debug(kwargs)
             ax.scatter(
                 points[:, 0],
                 points[:, 1],
@@ -534,11 +534,12 @@ def _matplotlib_points(
 
         mappable = matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
         mappable.set_array(values)
-        cb = plt.colorbar(mappable, cax=set_colorbar(ax, inset_dict), ax=ax)
-        cb.set_alpha(1)
-        cb.draw_all()
-        cb.locator = MaxNLocator(nbins=3, integer=True)
-        cb.update_ticks()
+        if show_colorbar:
+            cb = plt.colorbar(mappable, cax=set_colorbar(ax, inset_dict), ax=ax)
+            cb.set_alpha(1)
+            cb.draw_all()
+            cb.locator = MaxNLocator(nbins=3, integer=True)
+            cb.update_ticks()
 
         cmap = matplotlib.cm.get_cmap(cmap)
         colors = cmap(values)
@@ -576,7 +577,7 @@ def _matplotlib_points(
             main_debug("drawing legend")
             ax.legend(
                 handles=legend_elements,
-                bbox_to_anchor=(1.04, 1),
+                # bbox_to_anchor=(1.04, 1),
                 loc=show_legend,
                 ncol=len(unique_labels) // 15 + 1,
             )
