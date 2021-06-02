@@ -93,6 +93,7 @@ def scatters(
     stack_colors=False,
     stack_colors_threshold=0.001,
     stack_color_title="stacked colors",
+    stack_color_legend_size=2,
     **kwargs,
 ) -> Union[None, Axes]:
     """Plot an embedding as points. Currently this only works
@@ -267,6 +268,21 @@ def scatters(
         marker: `str` (default: None)
             The marker style. marker can be either an instance of the class or the text shorthand for a particular
             marker. See matplotlib.markers for more information about marker styles.
+        affine_transform_degree:
+            Transform coordinates of points according to some degree
+        affine_transform_A:
+            coefficients in affine transformation Ax + b. 2D for now
+        affine_transform_b:
+            bias in affine transformation Ax + b.
+        stack_colors:
+            whether to stack all color on the same ax passed above
+        stack_colors_threshold:
+            threshold for filtering points values < threshold when drawing each color
+            e.g. if you do not want points with values < 1 showing up on axis, set threshold to be 1
+        stack_color_title:
+            title for the stack_color plot
+        stack_color_legend_size:
+            control the legend size in stack color plot
         kwargs:
             Additional arguments passed to plt.scatters.
 
@@ -477,7 +493,8 @@ def scatters(
             else:
                 cur_title = stack_color_title
             _color = _get_adata_color(adata, cur_l, cur_c)
-            original_adata = adata
+
+            # select data rows based on stack color thresholding
             if stack_colors:
                 _adata = adata[_color > stack_colors_threshold]
                 if values:
@@ -487,6 +504,7 @@ def scatters(
                 if len(_color) == 0:
                     main_info("skipping color %s because no point of %s is above threshold" % (cur_c, cur_c))
                     continue
+
             if hasattr(x, "__len__") and hasattr(y, "__len__"):
                 x, y = list(x), list(y)
             elif (
@@ -666,6 +684,7 @@ def scatters(
                         _highlights = highlights if all([i in _color for i in highlights]) else None
 
                 if smooth and not is_not_continuous:
+                    main_debug("smooth and not continuous")
                     knn = _adata.obsp["moments_con"]
                     values = (
                         calc_1nd_moment(values, knn)[0]
@@ -704,6 +723,7 @@ def scatters(
                         **scatter_kwargs,
                     )
                 else:
+                    main_debug("drawing with _datashade_points function")
                     ax = _datashade_points(
                         # points.values,
                         point_coords,
@@ -795,11 +815,11 @@ def scatters(
                                 "before running this function." % group_k_name
                             )
 
-        # remove messy legends
+        # add legends according to colors and cmaps
+        # collected during for loop above
         if stack_colors:
-            _adata = original_adata
             ax.legend().set_visible(False)
-            ax.legend(handles=stack_legend_handles, loc="upper right", prop={"size": 2})
+            ax.legend(handles=stack_legend_handles, loc="upper right", prop={"size": stack_color_legend_size})
 
     for cur_b in basis:
         for cur_l in layer:
