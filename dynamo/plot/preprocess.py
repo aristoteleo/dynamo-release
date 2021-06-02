@@ -506,6 +506,8 @@ def biplot(
     if scale_pca_embedding:
         scalex = 1.0 / (xs.max() - xs.min())
         scaley = 1.0 / (ys.max() - ys.min())
+    else:
+        scalex, scaley = 1, 1
 
     genes = adata.var_names[adata.var.use_for_pca]
 
