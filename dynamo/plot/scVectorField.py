@@ -562,7 +562,6 @@ def grid_vectors(
     use_smoothed: bool = True,
     ax: Optional[Axes] = None,
     sort: str = "raw",
-    # To-do: aggregate position not same as what is in scatters.py
     aggregate: Optional[str] = None,
     show_arrowed_spines: bool = False,
     inverse: bool = False,
@@ -865,7 +864,6 @@ def streamline_plot(
     use_smoothed: bool = True,
     ax: Optional[Axes] = None,
     sort: str = "raw",
-    # To-do: aggregate position not same as what is in scatters.py
     aggregate: Optional[str] = None,
     show_arrowed_spines: bool = False,
     inverse: bool = False,

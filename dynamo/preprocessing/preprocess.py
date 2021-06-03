@@ -2054,10 +2054,6 @@ def highest_frac_genes(
     gene_names = _adata.var_names[selected_indices]
 
     gene_X_percents = gene_mat / cell_expression_sum.reshape([-1, 1])
-    # To-do: faster but not fails test, switch to the version below in future
-    # gene_X_percents = gene_mat[:, selected_indices] / cell_expression_sum[
-    #     selected_indices
-    # ].reshape([-1, 1])
 
     # assemble a dataframe
     selected_gene_X_percents = np.array(gene_X_percents)[:, selected_indices]

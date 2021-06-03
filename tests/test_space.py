@@ -21,7 +21,7 @@ def test_space_stack_color(adata):
     space(
         adata,
         genes=genes,
-        marker="p",
+        marker=".",
         save_show_or_return="save",
         stack_genes=True,
         alpha=0.5,

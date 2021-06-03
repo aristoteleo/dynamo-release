@@ -1,6 +1,7 @@
 # code adapted from https://github.com/lmcinnes/umap/blob/7e051d8f3c4adca90ca81eb45f6a9d1372c076cf/umap/plot.py
 import warnings
 from matplotlib import patches
+from matplotlib.lines import Line2D
 import numpy as np
 import pandas as pd
 from pandas.api.types import is_categorical_dtype
@@ -672,8 +673,16 @@ def scatters(
                     main_debug("stack colors: changing cmap")
                     _cmap = sequential_cmaps[ax_index % len(sequential_cmaps)]
                     max_color = matplotlib.cm.get_cmap(_cmap)(float("inf"))
-                    patch = patches.Patch(color=max_color, label=cur_c)
-                    stack_legend_handles.append(patch)
+                    legend_circle = Line2D(
+                        [0],
+                        [0],
+                        marker="o",
+                        color="w",
+                        markerfacecolor=max_color,
+                        label=cur_c,
+                        markersize=stack_colors_legend_size,
+                    )
+                    stack_legend_handles.append(legend_circle)
 
                 _color_key_cmap = _themes[_theme_]["color_key_cmap"] if color_key_cmap is None else color_key_cmap
                 _background = _themes[_theme_]["background"] if _background is None else _background

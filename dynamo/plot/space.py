@@ -18,7 +18,7 @@ def space(
     genes: Union[list, None] = None,
     space: str = "spatial",
     width: float = 6,
-    marker: str = "p",
+    marker: str = ".",
     pointsize: Union[float, None] = None,
     dpi: int = 100,
     ps_sample_num: int = 1000,
@@ -113,7 +113,7 @@ def space(
         alpha=alpha,
         stack_colors=stack_genes,
         stack_colors_threshold=stack_genes_threshold,
-        stack_color_title="stacked spatial genes",
+        stack_colors_title="stacked spatial genes",
         *args,
         **kwargs,
     )

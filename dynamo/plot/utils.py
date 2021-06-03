@@ -384,7 +384,7 @@ def _matplotlib_points(
         )
         values, points = values[sorted_id], points[sorted_id, :]
 
-        # to-do: relocate biology data related code below
+        # To-do: relocate biology data related logics below
         # if there are very few cells have expression, set the vmin/vmax only based on positive values
         if np.nanmin(values) == 0:
             n_pos_cells = sum(values > 0)
