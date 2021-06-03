@@ -1,4 +1,3 @@
-from dynamo.dynamo_logger import main_warning
 from tqdm import tqdm
 import inspect
 import numpy as np
@@ -10,6 +9,7 @@ from scipy.sparse import (
 )
 from anndata import AnnData
 from typing import Optional, Union
+import warnings
 
 from .moments import moments
 from ..estimation.csc.velocity import fit_linreg, velocity, ss_estimation
@@ -36,8 +36,7 @@ from .moments import (
     prepare_data_mix_has_splicing,
     prepare_data_mix_no_splicing,
 )
-
-import warnings
+from ..dynamo_logger import main_warning
 
 warnings.simplefilter("ignore", SparseEfficiencyWarning)
 
