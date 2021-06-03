@@ -1217,7 +1217,7 @@ def rank_acceleration_genes(adata, akey="acceleration", prefix_store="rank", **k
     return adata
 
 
-def rank_curvature_genes(adata, ckey="curvature", prefix_store="rank", basis=None, **kwargs):
+def rank_curvature_genes(adata, ckey="curvature", prefix_store="rank", **kwargs):
     """Rank gene's absolute, positive, negative curvature by different cell groups.
 
     Parameters
@@ -1234,8 +1234,6 @@ def rank_curvature_genes(adata, ckey="curvature", prefix_store="rank", basis=Non
         adata: :class:`~anndata.AnnData`
             AnnData object that is updated with the `'rank_curvature'` related information in the .uns.
     """
-    if basis:
-        ckey = ckey + "_" + basis
     rdict = rank_genes(adata, ckey, **kwargs)
     rdict_abs = rank_genes(adata, ckey, abs=True, **kwargs)
     adata.uns[prefix_store + "_" + ckey] = rdict

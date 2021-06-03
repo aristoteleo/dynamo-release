@@ -78,7 +78,7 @@ def scatters(
     contour: bool = False,
     ccmap: Optional[str] = None,
     alpha: float = 0.4,
-    calpha: float = 2.3,
+    calpha: float = 0.4,
     sym_c: bool = False,
     smooth: bool = False,
     dpi: int = 100,
@@ -234,9 +234,8 @@ def scatters(
             kdeplot.
         ccmap: `str` or `None` (default: `None`)
             The name of a matplotlib colormap to use for coloring or shading points the contour. See above.
-        calpha: `float` (default: `2.3`)
-            alpha value for identifying the alpha hull to influence the gooeyness of the border. Smaller numbers don't
-            fall inward as much as larger numbers. Too large, and you lose everything!
+        calpha: `float` (default: `0.4`)
+            Contour alpha value passed into sns.kdeplot. The value should be inbetween [0, 1]
         sym_c: `bool` (default: `False`)
             Whether do you want to make the limits of continuous color to be symmetric, normally this should be used for
             plotting velocity, jacobian, curl, divergence or other types of data with both positive or negative values.
@@ -299,6 +298,11 @@ def scatters(
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
 
+    if calpha < 0 or calpha > 1:
+        main_warning(
+            "calpha=%f is invalid (smaller than 0 or larger than 1) and may cause potential issues. Please check."
+            % (calpha)
+        )
     group_colors = ["b", "g", "r", "c", "m", "y", "k", "w"]
     sequential_cmaps = [
         "Greys",
