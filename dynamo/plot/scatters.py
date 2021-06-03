@@ -515,6 +515,8 @@ def scatters(
                 if len(_color) == 0:
                     main_info("skipping color %s because no point of %s is above threshold" % (cur_c, cur_c))
                     continue
+            else:
+                _adata = adata
 
             if hasattr(x, "__len__") and hasattr(y, "__len__"):
                 x, y = list(x), list(y)
