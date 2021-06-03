@@ -35,10 +35,7 @@ def shannon_entropy(p):
 def JSdistVec(p, q):
     """Calculate the Jessen-Shannon distance for two probability distribution"""
 
-    Jsdiv = (
-        shannon_entropy((p + q) / 2)
-        - (shannon_entropy(p) + shannon_entropy(q)) / 2
-    )
+    Jsdiv = shannon_entropy((p + q) / 2) - (shannon_entropy(p) + shannon_entropy(q)) / 2
     if np.isinf(Jsdiv):
         Jsdiv = 1
     if Jsdiv < 0:

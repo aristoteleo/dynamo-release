@@ -115,31 +115,19 @@ def moran_i(
     )
     if local_moran:
         l_moran = np.zeros(X_data.shape)
-    for cur_g in tqdm(
-        range(gene_num), desc="Moran’s I Global Autocorrelation Statistic"
-    ):
+    for cur_g in tqdm(range(gene_num), desc="Moran’s I Global Autocorrelation Statistic"):
         cur_X = X_data[:, cur_g].A if sparse else X_data[:, cur_g]
         mbi = pysal.explore.esda.moran.Moran(cur_X, W, two_tailed=False)
 
         Moran_I[cur_g] = mbi.I
         p_value[cur_g] = (
-            mbi.p_sim
-            if assumption == "permutation"
-            else mbi.p_norm
-            if assumption == "normality"
-            else mbi.p_rand
+            mbi.p_sim if assumption == "permutation" else mbi.p_norm if assumption == "normality" else mbi.p_rand
         )
         statistics[cur_g] = (
-            mbi.z_sim
-            if assumption == "permutation"
-            else mbi.z_norm
-            if assumption == "normality"
-            else mbi.z_sim
+            mbi.z_sim if assumption == "permutation" else mbi.z_norm if assumption == "normality" else mbi.z_sim
         )
         if local_moran:
-            l_moran[:, cur_g] = pysal.explore.esda.moran.Moran_Local(
-                cur_X, W
-            ).Is
+            l_moran[:, cur_g] = pysal.explore.esda.moran.Moran_Local(cur_X, W).Is
 
     Moran_res = pd.DataFrame(
         {
@@ -151,9 +139,7 @@ def moran_i(
         index=genes,
     )
 
-    adata.var = adata.var.merge(
-        Moran_res, left_index=True, right_index=True, how="left"
-    )
+    adata.var = adata.var.merge(Moran_res, left_index=True, right_index=True, how="left")
     if local_moran:
         adata.uns["local_moran"] = l_moran
 
@@ -223,39 +209,27 @@ def find_group_markers(
         a concated pandas DataFrame of the differential expression analysis result for all groups and a dictionary where keys are
         cluster numbers and values are lists of marker genes for the corresponding clusters.
     """
-    if layer is None or not (
-        layer.startswith("velocity") or layer in ["acceleration", "curvature"]
-    ):
+    if layer is None or not (layer.startswith("velocity") or layer in ["acceleration", "curvature"]):
         exp_frac_thresh = 0.1 if exp_frac_thresh is None else exp_frac_thresh
         log2_fc_thresh = 1 if log2_fc_thresh is None else log2_fc_thresh
-        subset_control_vals = (
-            True if subset_control_vals is None else subset_control_vals
-        )
+        subset_control_vals = True if subset_control_vals is None else subset_control_vals
     else:
         exp_frac_thresh = 0 if exp_frac_thresh is None else exp_frac_thresh
         log2_fc_thresh = None
-        subset_control_vals = (
-            False if subset_control_vals is None else subset_control_vals
-        )
+        subset_control_vals = False if subset_control_vals is None else subset_control_vals
 
     genes, X_data = fetch_X_data(adata, genes, layer)
     if len(genes) == 0:
-        raise ValueError(
-            f"No genes from your genes list appear in your adata object."
-        )
+        raise ValueError(f"No genes from your genes list appear in your adata object.")
 
     if group not in adata.obs.keys():
-        raise ValueError(
-            f"group {group} is not a valid key for .obs in your adata object."
-        )
+        raise ValueError(f"group {group} is not a valid key for .obs in your adata object.")
     else:
         adata.obs[group] = adata.obs[group].astype("str")
         cluster_set = adata.obs[group].unique()
 
         if len(cluster_set) < 2:
-            raise ValueError(
-                f"the number of groups for the argument {group} must be at least two."
-            )
+            raise ValueError(f"the number of groups for the argument {group} must be at least two.")
 
     de_tables = [None] * len(cluster_set)
     de_genes = {}
@@ -279,9 +253,7 @@ def find_group_markers(
             )
 
             de_tables[i] = de.copy()
-            de_genes[i] = [
-                k for k, v in Counter(de["gene"]).items() if v >= de_frequency
-            ]
+            de_genes[i] = [k for k, v in Counter(de["gene"]).items() if v >= de_frequency]
     else:
         de = two_groups_degs(
             adata,
@@ -298,9 +270,7 @@ def find_group_markers(
         )
 
         de_tables[0] = de.copy()
-        de_genes[0] = [
-            k for k, v in Counter(de["gene"]).items() if v >= de_frequency
-        ]
+        de_genes[0] = [k for k, v in Counter(de["gene"]).items() if v >= de_frequency]
 
     de_table = pd.concat(de_tables).reset_index().drop(columns=["index"])
     de_table["log2_fc"] = de_table["log2_fc"].astype("float")
@@ -374,20 +344,14 @@ def two_groups_degs(
         A pandas DataFrame of the differential expression analysis result between the two groups.
     """
 
-    if layer is None or not (
-        layer.startswith("velocity") or layer in ["acceleration", "curvature"]
-    ):
+    if layer is None or not (layer.startswith("velocity") or layer in ["acceleration", "curvature"]):
         exp_frac_thresh = 0.1 if exp_frac_thresh is None else exp_frac_thresh
         log2_fc_thresh = 1 if log2_fc_thresh is None else log2_fc_thresh
-        subset_control_vals = (
-            True if subset_control_vals is None else subset_control_vals
-        )
+        subset_control_vals = True if subset_control_vals is None else subset_control_vals
     else:
         exp_frac_thresh = 0 if exp_frac_thresh is None else exp_frac_thresh
         log2_fc_thresh = None
-        subset_control_vals = (
-            False if subset_control_vals is None else subset_control_vals
-        )
+        subset_control_vals = False if subset_control_vals is None else subset_control_vals
 
     if X_data is None:
         genes, X_data = fetch_X_data(adata, genes, layer)
@@ -412,47 +376,30 @@ def two_groups_degs(
     num_groups = len(control_groups)
 
     if subset_control_vals:
-        min_n = [
-            min(num_test_cells, sum(adata.obs[group] == x))
-            for x in control_groups
-        ]
+        min_n = [min(num_test_cells, sum(adata.obs[group] == x)) for x in control_groups]
         n1n2 = [num_test_cells * x for x in min_n]
 
     de = []
-    for i_gene, gene in tqdm(
-        enumerate(genes), desc="identifying top markers for each group"
-    ):
+    for i_gene, gene in tqdm(enumerate(genes), desc="identifying top markers for each group"):
         rbc, specificity_, mw_p, log_fc, ncells = 0, 0, 1, 0, 0
 
         all_vals = X_data[:, i_gene].A if sparse else X_data[:, i_gene]
         test_vals = all_vals[test_cells]
-        perc, ef = [len(test_vals.nonzero()[0]) / n_cells], len(
-            test_vals.nonzero()[0]
-        ) / num_test_cells
+        perc, ef = [len(test_vals.nonzero()[0]) / n_cells], len(test_vals.nonzero()[0]) / num_test_cells
         if ef < exp_frac_thresh:
             continue
 
         log_mean_test_vals = np.log2(test_vals.mean())
-        perc.extend(
-            [
-                len(all_vals[adata.obs[group] == x].nonzero()[0]) / n_cells
-                for x in control_groups
-            ]
-        )
+        perc.extend([len(all_vals[adata.obs[group] == x].nonzero()[0]) / n_cells for x in control_groups])
 
         for i in range(num_groups):
             control_vals = all_vals[adata.obs[group] == control_groups[i]]
 
             if subset_control_vals:
-                if layer is None or not (
-                    layer.startswith("velocity")
-                    or layer in ["acceleration", "curvature"]
-                ):
+                if layer is None or not (layer.startswith("velocity") or layer in ["acceleration", "curvature"]):
                     control_vals.sort()
                 else:
-                    control_vals = control_vals[
-                        np.argsort(np.absolute(control_vals))
-                    ]
+                    control_vals = control_vals[np.argsort(np.absolute(control_vals))]
 
                 control_vals = control_vals[-min_n[i] :]
                 cur_n1n2 = n1n2[i]
@@ -469,9 +416,7 @@ def two_groups_degs(
                 if abs(log_fc) < log2_fc_thresh:
                     continue
             else:
-                log_fc = (
-                    test_vals.mean() - control_vals.mean()
-                )  # for curvature, acceleration, log fc is meaningless
+                log_fc = test_vals.mean() - control_vals.mean()  # for curvature, acceleration, log fc is meaningless
 
             try:
                 u, mw_p = mannwhitneyu(test_vals, control_vals)
@@ -485,9 +430,7 @@ def two_groups_degs(
 
             specificity_ = specificity(perc, perfect_specificity)
 
-            tmp0, tmp1 = sum(np.sign(test_vals) > 0), sum(
-                np.sign(control_vals) > 0
-            )
+            tmp0, tmp1 = sum(np.sign(test_vals) > 0), sum(np.sign(control_vals) > 0)
             tmp0 = tmp0 if np.isscalar(tmp0) else tmp0[0]
             tmp1 = tmp0 if np.isscalar(tmp1) else tmp1[0]
 
@@ -604,9 +547,7 @@ def top_n_markers(
 
     if len(deg_table["log2_fc"].unique()) > 1:
         if np.abs(deg_table["log2_fc"]).max() < 1:
-            log2_fc_thresh = (
-                -np.inf if log2_fc_thresh is None else log2_fc_thresh
-            )
+            log2_fc_thresh = -np.inf if log2_fc_thresh is None else log2_fc_thresh
         else:
             log2_fc_thresh = 1 if log2_fc_thresh is None else log2_fc_thresh
         deg_table = deg_table.query(
@@ -617,9 +558,7 @@ def top_n_markers(
         )
     else:
         deg_table = deg_table.query(
-            "exp_frac > @exp_frac_thresh and "
-            "qval < @qval_thresh and "
-            "specificity > @specificity_thresh"
+            "exp_frac > @exp_frac_thresh and " "qval < @qval_thresh and " "specificity > @specificity_thresh"
         )
 
     if deg_table.shape[0] == 0:
@@ -641,18 +580,12 @@ def top_n_markers(
             adata = moran_i(adata)
 
         moran_i_df = adata.var[moran_i_columns]
-        deg_table = deg_table.merge(
-            moran_i_df, left_on="gene", right_index=True, how="left"
-        )
+        deg_table = deg_table.merge(moran_i_df, left_on="gene", right_index=True, how="left")
 
     top_n_df = (
-        deg_table.groupby(group_by).apply(
-            lambda grp: grp.nlargest(top_n_genes, sort_by)
-        )
+        deg_table.groupby(group_by).apply(lambda grp: grp.nlargest(top_n_genes, sort_by))
         if sort_order == "decreasing"
-        else deg_table.groupby(group_by).apply(
-            lambda grp: grp.nsmallest(top_n_genes, sort_by)
-        )
+        else deg_table.groupby(group_by).apply(lambda grp: grp.nsmallest(top_n_genes, sort_by))
     )
 
     if display:
@@ -671,9 +604,7 @@ def top_n_markers(
 
     if only_gene_list:
         for i in top_n_groups:
-            de_genes[i] = (
-                top_n_df[top_n_df[group_by] == i].loc[:, "gene"].to_list()
-            )
+            de_genes[i] = top_n_df[top_n_df[group_by] == i].loc[:, "gene"].to_list()
         return de_genes
     else:
         return top_n_df
@@ -761,15 +692,12 @@ def glm_degs(
             )
 
     factors = get_all_variables(fullModelFormulaStr)
-    factors = [
-        "Pseudotime" if i == "cr(Pseudotime, df=3)" else i for i in factors
-    ]
+    factors = ["Pseudotime" if i == "cr(Pseudotime, df=3)" else i for i in factors]
     if len(set(factors).difference(adata.obs.columns)) == 0:
         df_factors = adata.obs[factors]
     else:
         raise Exception(
-            f"adata object doesn't include the factors from the model formula "
-            f"{fullModelFormulaStr} you provided."
+            f"adata object doesn't include the factors from the model formula " f"{fullModelFormulaStr} you provided."
         )
 
     sparse = issparse(X_data)
@@ -780,9 +708,7 @@ def glm_degs(
     ):
         expression = X_data[:, i].A if sparse else X_data[:, i]
         df_factors["expression"] = expression
-        deg_df.iloc[i, :] = diff_test_helper(
-            df_factors, fullModelFormulaStr, reducedModelFormulaStr
-        )
+        deg_df.iloc[i, :] = diff_test_helper(df_factors, fullModelFormulaStr, reducedModelFormulaStr)
 
     deg_df["qval"] = multipletests(deg_df["pval"], method="fdr_bh")[1]
 
@@ -796,20 +722,13 @@ def diff_test_helper(
 ):
     # Dividing data into train and validation datasets
     transformed_x = dmatrix(fullModelFormulaStr, data, return_type="dataframe")
-    transformed_x_null = dmatrix(
-        reducedModelFormulaStr, data, return_type="dataframe"
-    )
+    transformed_x_null = dmatrix(reducedModelFormulaStr, data, return_type="dataframe")
 
     expression = data["expression"]
-    poisson_training_results = sm.GLM(
-        expression, transformed_x, family=sm.families.Poisson()
-    ).fit()
-    poisson_df = pd.DataFrame(
-        {"mu": poisson_training_results.mu, "expression": expression}
-    )
+    poisson_training_results = sm.GLM(expression, transformed_x, family=sm.families.Poisson()).fit()
+    poisson_df = pd.DataFrame({"mu": poisson_training_results.mu, "expression": expression})
     poisson_df["AUX_OLS_DEP"] = poisson_df.apply(
-        lambda x: ((x["expression"] - x["mu"]) ** 2 - x["expression"])
-        / x["mu"],
+        lambda x: ((x["expression"] - x["mu"]) ** 2 - x["expression"]) / x["mu"],
         axis=1,
     )
     ols_expr = """AUX_OLS_DEP ~ mu - 1"""
@@ -819,9 +738,7 @@ def diff_test_helper(
 
     try:
         nb2_full = sm.GLM(expression, transformed_x, family=nb2_family).fit()
-        nb2_null = sm.GLM(
-            expression, transformed_x_null, family=nb2_family
-        ).fit()
+        nb2_null = sm.GLM(expression, transformed_x_null, family=nb2_family).fit()
     except:
         return ("fail", "NB2", 1)
 
