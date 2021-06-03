@@ -10,7 +10,7 @@ from .utils import (
 )
 from .utils import set_velocity, set_param_ss, set_param_kinetic
 from .moments import moment_model
-
+from ..dynamo_logger import main_warning, main_info
 
 # incorporate the model selection code soon
 def _dynamics(

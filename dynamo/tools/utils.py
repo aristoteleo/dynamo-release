@@ -17,6 +17,7 @@ import itertools
 from ..preprocessing.utils import Freeman_Tukey
 from ..utils import areinstance, isarray
 from ..dynamo_logger import (
+    main_info_insert_adata,
     main_tqdm,
     main_info,
     main_warning,
@@ -128,6 +129,7 @@ def create_layer(adata, data, layer_key=None, genes=None, cells=None, **kwargs):
                 new[cells, igi] = data[:, i]
 
     if layer_key is not None:
+        main_info_insert_adata(layer_key, adata_attr="layers")
         adata.layers[layer_key] = new
     else:
         return new

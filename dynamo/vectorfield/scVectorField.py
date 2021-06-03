@@ -41,7 +41,7 @@ from .utils import (
     FixedPoints,
     remove_redundant_points,
 )
-from ..dynamo_logger import LoggerManager
+from ..dynamo_logger import LoggerManager, main_warning
 
 
 def norm(X, V, T):

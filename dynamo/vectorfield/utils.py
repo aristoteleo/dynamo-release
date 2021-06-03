@@ -542,7 +542,7 @@ def acceleration_(v, J):
     return J.dot(v)
 
 
-def curvature_1(a, v):
+def curvature_method1(a, v):
     """https://link.springer.com/article/10.1007/s12650-018-0474-6"""
     if v.ndim == 1:
         v = v[:, None]
@@ -551,7 +551,7 @@ def curvature_1(a, v):
     return kappa
 
 
-def curvature_2(a, v):
+def curvature_method2(a, v):
     """https://dl.acm.org/doi/10.5555/319351.319441"""
     # if v.ndim == 1: v = v[:, None]
     kappa = (np.multiply(a, np.dot(v, v)) - np.multiply(v, np.dot(v, a))) / np.linalg.norm(v) ** 4
@@ -615,9 +615,9 @@ def compute_curvature(vf, f_jac, X, formula=2):
 
     for i in LoggerManager.progress_logger(range(n), progress_name="Calculating curvature"):
         if formula == 1:
-            curv[i] = curvature_1(a[i], v[i])
+            curv[i] = curvature_method1(a[i], v[i])
         elif formula == 2:
-            cur_mat[i] = curvature_2(a[i], v[i])
+            cur_mat[i] = curvature_method2(a[i], v[i])
             curv[i] = np.linalg.norm(cur_mat[i])
 
     return curv, cur_mat
