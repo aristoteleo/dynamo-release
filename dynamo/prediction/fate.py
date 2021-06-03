@@ -485,11 +485,11 @@ def fate_bias(
     for i, prediction in tqdm(enumerate(cell_predictions), desc="calculating fate distributions"):
         cur_t, n_steps = t[i], len(t[i])
 
-        # ensure to identify sink where the speed is very slow if inds is not provided.
-        # if inds is set, use inds
-        # if use_sink_percentage is set, then calculate avg_speed and sink_checker
-        # if step_used_percentage is set, use the last percentage of steps to check for cell fate bias.
-        # otherwise inds need to be a list.
+        # Generate or set indices as step sample points. Meanwhile ensure
+        # identifying sink where the speed is very slow. If "inds" is set, use "inds",
+        # else if "use_sink_percentage" is set, calculate avg_speed and sink_checker
+        # else if "step_used_percentage" is set, use the last percentage of steps to check for cell fate bias.
+        # If none of the above arguments are set, use a list of n steps as indices
         if inds is not None:
             indices = inds
         elif use_sink_percentage:

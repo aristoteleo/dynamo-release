@@ -66,7 +66,7 @@ def plot_3d_streamtube(
         # 3D streamtube:
         import plotly.graph_objects as go
     except ImportError:
-        raise ImportError(f"You need to install the package `plotly`." f"install hiveplotlib via `pip install plotly`")
+        raise ImportError("You need to install the package `plotly`. Install hiveplotlib via `pip install plotly`")
 
     import matplotlib, matplotlib.pyplot as plt
     from matplotlib import rcParams
