@@ -187,7 +187,7 @@ def _matplotlib_points(
     unique_labels = []
 
     if labels is not None:
-        main_debug("labels are not None")
+        main_debug("labels are not None, drawing by labels")
         if labels.shape[0] != points.shape[0]:
             raise ValueError(
                 "Labels must have a label for "
@@ -197,6 +197,7 @@ def _matplotlib_points(
             main_debug("color_key is None")
             cmap = copy.copy(matplotlib.cm.get_cmap(color_key_cmap))
             cmap.set_bad("lightgray")
+            colors = None
 
             if highlights is None:
                 unique_labels = np.unique(labels)
@@ -354,12 +355,13 @@ def _matplotlib_points(
             )
         else:
             main_debug("drawing without frontiers and contour")
+            kwargs.pop("alpha")
             ax.scatter(
                 points[:, 0],
                 points[:, 1],
                 c=colors,
                 plotnonfinite=True,
-                alpha=calpha,
+                alpha=alpha,
                 **kwargs,
             )
 

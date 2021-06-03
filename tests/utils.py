@@ -8,6 +8,8 @@ import time
 import numpy as np
 import os
 
+LoggerManager.main_logger.setLevel(LoggerManager.DEBUG)
+
 test_zebrafish_data_path = "./test_data/test_zebrafish.h5ad"
 test_spatial_genomics_path = "./test_data/allstage_processed.h5ad"
 
@@ -40,6 +42,3 @@ def gen_or_read_zebrafish_data():
 
 def read_test_spatial_genomics_data():
     return dyn.read_h5ad(test_spatial_genomics_path)
-
-
-LoggerManager.main_logger.setLevel(LoggerManager.DEBUG)

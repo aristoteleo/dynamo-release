@@ -7,7 +7,7 @@ from sklearn.decomposition import PCA, TruncatedSVD
 import warnings
 import anndata
 from typing import Union
-from ..dynamo_logger import LoggerManager
+from ..dynamo_logger import LoggerManager, main_info, main_warning
 from ..utils import areinstance
 
 
@@ -495,7 +495,7 @@ def get_sz_exprs(adata, layer, total_szfactor=None):
         szfactors = adata.obs[total_szfactor][:, None]
     else:
         if total_szfactor is not None:
-            warnings.warn("`total_szfactor` is not `None` and it is not in adata object.")
+            main_warning("`total_szfactor` is not `None` and it is not in adata object.")
 
     return szfactors, CM
 

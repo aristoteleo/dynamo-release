@@ -505,6 +505,7 @@ def scatters(
             _color = _get_adata_color(adata, cur_l, cur_c)
 
             # select data rows based on stack color thresholding
+            _values = values
             if stack_colors:
                 _adata = adata[_color > stack_colors_threshold]
                 if values:

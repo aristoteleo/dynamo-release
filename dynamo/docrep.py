@@ -61,7 +61,7 @@ def safe_modulo(s, meta, checked="", print_warning=True, stacklevel=2):
     print_warning: bool
         If True and a key is not existent in `s`, a warning is raised
     stacklevel: int
-        The stacklevel for the :func:`warnings.warn` function
+        The stacklevel for the :func:`main_warn` function
     Examples
     --------
     The effects are demonstrated by this example::

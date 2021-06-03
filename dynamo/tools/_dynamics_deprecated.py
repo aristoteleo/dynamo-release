@@ -156,7 +156,7 @@ def _dynamics(
 
         if exp_type is not None:
             if experiment_type != exp_type:
-                warnings.warn(
+                main_warning(
                     "dynamo detects the experiment type of your data as {}, but your input experiment_type "
                     "is {}".format(exp_type, experiment_type)
                 )
@@ -302,7 +302,7 @@ def _dynamics(
             )
             # add protein related parameters in the moment model below:
         elif mode == "model_selection":
-            warnings.warn("Not implemented yet.")
+            main_warning("Not implemented yet.")
 
     if group is not None and group in adata.obs[group]:
         uns_key = group + "_dynamics"

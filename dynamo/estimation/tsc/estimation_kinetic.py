@@ -3,6 +3,7 @@ from ...tools.moments import strat_mom
 from scipy.optimize import least_squares
 from scipy.stats import chi2
 from .utils_kinetic import *
+from ...dynamo_logger import main_warning
 import warnings
 
 
@@ -892,7 +893,7 @@ class GoodnessOfFit:
     def calc_gaussian_likelihood(self):
         sig = np.array(self.sigm, copy=True)
         if np.any(sig == 0):
-            warnings.warn("Some standard deviations are 0; Set to 1 instead.")
+            main_warning("Some standard deviations are 0; Set to 1 instead.")
             sig[sig == 0] = 1
         err = ((self.pred - self.mean) / sig).flatten()
         ret = 1 / (np.sqrt((2 * np.pi) ** len(err)) * np.prod(sig)) * np.exp(-0.5 * (err).dot(err))
@@ -901,7 +902,7 @@ class GoodnessOfFit:
     def calc_gaussian_loglikelihood(self):
         sig = np.array(self.sigm, copy=True)
         if np.any(sig == 0):
-            warnings.warn("Some standard deviations are 0; Set to 1 instead.")
+            main_warning("Some standard deviations are 0; Set to 1 instead.")
             sig[sig == 0] = 1
         err = ((self.pred - self.mean) / sig).flatten()
         ret = -len(err) / 2 * np.log(2 * np.pi) - np.sum(np.log(sig)) - 0.5 * err.dot(err)
@@ -910,7 +911,7 @@ class GoodnessOfFit:
     def calc_mean_squared_deviation(self, weighted=True):
         sig = np.array(self.sigm, copy=True)
         if np.any(sig == 0):
-            warnings.warn("Some standard deviations are 0; Set to 1 instead.")
+            main_warning("Some standard deviations are 0; Set to 1 instead.")
             sig[sig == 0] = 1
         err = self.pred - self.mean
         if weighted:

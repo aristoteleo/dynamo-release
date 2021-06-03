@@ -14,6 +14,13 @@ import warnings
 from .utils import fetch_X_data
 from .utils_markers import specificity, fdr
 from ..preprocessing.utils import Freeman_Tukey
+from ..dynamo_logger import (
+    main_tqdm,
+    main_info,
+    main_warning,
+    main_critical,
+    main_exception,
+)
 
 
 def moran_i(
@@ -87,7 +94,7 @@ def moran_i(
     embedding_key = "X_umap" if layer is None else layer + "_umap"
     neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
     if neighbor_key not in adata.uns.keys():
-        warnings.warn(
+        main_warning(
             f"Neighbor graph is required for Moran's I test. No neighbor_key {neighbor_key} exists in the data. "
             f"Running reduceDimension which will generate the neighbor graph and the associated low dimension"
             f"embedding {embedding_key}. "
@@ -537,7 +544,7 @@ def top_n_markers(
     """
 
     if "cluster_markers" not in adata.uns.keys():
-        warnings.warn(
+        main_warning(
             f"No info of cluster markers stored in your adata. "
             f"Running `find_group_markers` with default parameters."
         )
@@ -573,7 +580,7 @@ def top_n_markers(
     if with_moran_i:
         moran_i_columns = ["moran_i", "moran_p_val", "moran_q_val", "moran_z"]
         if len(adata.var.columns.intersection(moran_i_columns)) != 4:
-            warnings.warn(
+            main_warning(
                 f"No info of cluster markers stored in your adata. "
                 f"Running `find_group_markers` with default parameters."
             )

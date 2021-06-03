@@ -36,6 +36,7 @@ from .utils import (
 from ..dynamo_logger import (
     main_info,
     main_critical,
+    main_warning,
     LoggerManager,
 )
 from ..utils import copy_adata
@@ -280,7 +281,7 @@ def normalize_expr_data(
 
         elif layer == "protein":  # norm_method == 'clr':
             if norm_method != "clr":
-                warnings.warn(
+                main_warning(
                     "For protein data, log transformation is not recommended. Using clr normalization by default."
                 )
             """This normalization implements the centered log-ratio (CLR) normalization from Seurat which is computed
@@ -299,7 +300,7 @@ def normalize_expr_data(
 
             CM = CM.T
         else:
-            warnings.warn(norm_method + " is not implemented yet")
+            main_warning(norm_method + " is not implemented yet")
 
         if layer in ["raw", "X"]:
             adata.X = CM
@@ -413,17 +414,17 @@ def parametricDispersionFit(disp_table: pd.DataFrame, initial_coefs: np.ndarray 
         if coefs[0] < initial_coefs[0]:
             coefs[0] = initial_coefs[0]
         if coefs[1] < 0:
-            warnings.warn("Parametric dispersion fit may be failed.")
+            main_warning("Parametric dispersion fit may be failed.")
 
         if np.sum(np.log(coefs / oldcoefs) ** 2 < coefs[0]):
             break
         iter += 1
 
         if iter > 10:
-            warnings.warn("Dispersion fit didn't converge")
+            main_warning("Dispersion fit didn't converge")
             break
         if not np.all(coefs > 0):
-            warnings.warn("Parametric dispersion fit may be failed.")
+            main_warning("Parametric dispersion fit may be failed.")
 
     return fit, coefs, good
 
@@ -1465,7 +1466,7 @@ def recipe_monocle(
     # reset adata.X
     if has_labeling:
         if tkey is None:
-            warnings.warn(
+            main_warning(
                 "\nWhen analyzing labeling based scRNA-seq without providing `tkey`, dynamo will try to use "
                 "\n `time` as the key for labeling time. Please correct this via supplying the correct `tkey`"
                 "\nif needed."
@@ -1490,7 +1491,7 @@ def recipe_monocle(
 
                 # total labeled RNA amount will increase (decrease) in kinetic (degradation) experiments over time.
                 experiment_type = "kin" if k > 0 else "deg"
-            warnings.warn(
+            main_warning(
                 f"\nDynamo detects your labeling data is from a {experiment_type} experiment, please correct "
                 f"\nthis via supplying the correct experiment_type (one of `one-shot`, `kin`, `deg`) as "
                 f"needed."
@@ -1529,7 +1530,7 @@ def recipe_monocle(
             if experiment_type.lower() in ["deg", "degradation"] and has_splicing:
                 adata.X = adata.layers["spliced"].copy()
             if experiment_type.lower() in ["deg", "degradation"] and not has_splicing:
-                warnings.warn(
+                main_warning(
                     "It is not possible to calculate RNA velocity from a degradation experiment which has no "
                     "splicing information."
                 )
@@ -1541,7 +1542,7 @@ def recipe_monocle(
 
     if tkey is not None:
         if adata.obs[tkey].max() > 60:
-            warnings.warn(
+            main_warning(
                 "Looks like you are using minutes as the time unit. For the purpose of numeric stability, "
                 "we recommend using hour as the time unit."
             )
@@ -1575,7 +1576,7 @@ def recipe_monocle(
                 )
 
         if _szFactor or _logged:
-            warnings.warn(
+            main_warning(
                 "dynamo detects your data is size factor normalized and/or log transformed. If this is not "
                 "right, plese set `normalized = False."
             )
@@ -1691,7 +1692,7 @@ def recipe_monocle(
             adata.var.loc[valid_genes, "use_for_pca"] = False
 
         if adata.var.use_for_pca.sum() < 50 and not maintain_n_top_genes:
-            warnings.warn(
+            main_warning(
                 "You only have less than 50 feature gene selected. Are you sure you want to exclude all "
                 "genes passed to the genes_to_exclude argument?"
             )

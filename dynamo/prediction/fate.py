@@ -15,7 +15,7 @@ from ..tools.utils import (
 from .utils import integrate_vf_ivp
 from ..vectorfield import vector_field_function
 from ..vectorfield.utils import vector_transformation
-from ..dynamo_logger import main_info
+from ..dynamo_logger import main_info, main_warning
 
 
 def fate(
@@ -112,7 +112,7 @@ def fate(
 
     if sampling in ["arc_length", "logspace", "uniform_indices"]:
         if average in ["origin", "trajectory", True]:
-            warnings.warn(
+            main_warning(
                 f"using {sampling} to sample data points along an integral path at different integration "
                 "time points. Average trajectory won't be calculated"
             )
