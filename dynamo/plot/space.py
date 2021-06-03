@@ -7,7 +7,7 @@ from .scatters import (
 )
 
 from ..tl import compute_smallest_distance
-from ..dynamo_logger import main_info, main_finish_progress, main_log_time
+from ..dynamo_logger import main_critical, main_info, main_finish_progress, main_log_time
 
 docstrings.delete_params("scatters.parameters", "adata", "basis", "figsize")
 
@@ -25,6 +25,7 @@ def space(
     alpha: float = 0.8,
     stack_genes: bool = False,
     stack_genes_threshold: float = 0.01,
+    figsize=None,
     *args,
     **kwargs
 ):
@@ -72,6 +73,9 @@ def space(
     """
     main_info("Plotting spatial info on adata")
     main_log_time()
+    if genes is None or (len(genes) == 0):
+        main_critical("No genes provided. Please check your argument passed in.")
+        return
     if "X_" + space in adata.obsm_keys():
         space_key = space
     elif space in adata.obsm_keys():
@@ -87,7 +91,8 @@ def space(
     ptp_vec = adata.obsm["X_" + space_key].ptp(0)
     # calculate the figure size based on the width and the ratio between width and height
     # from the physical coordinate.
-    figsize = (width, ptp_vec[1] / ptp_vec[0] * width + 0.3)
+    if figsize is None:
+        figsize = (width, ptp_vec[1] / ptp_vec[0] * width + 0.3)
 
     # calculate point size based on minimum radius
     if pointsize is None:

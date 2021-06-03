@@ -400,9 +400,8 @@ def scatters(
 
     if stack_colors and len(color) > len(sequential_cmaps):
         main_warning(
-            "#color: %d passed in is greater than #sequential cmaps: %d, will reuse sequential maps"(
-                len(color), len(sequential_cmaps)
-            )
+            "#color: %d passed in is greater than #sequential cmaps: %d, will reuse sequential maps"
+            % (len(color), len(sequential_cmaps))
         )
         main_warning("You should consider decreasing your #color")
 
