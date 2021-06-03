@@ -518,6 +518,7 @@ def _matplotlib_points(
             )
         else:
             main_debug("drawing without frontiers and contour")
+            main_debug("using cmap: %s" % (str(cmap)))
             ax.scatter(
                 points[:, 0],
                 points[:, 1],

@@ -843,7 +843,6 @@ def scatters(
         # add legends according to colors and cmaps
         # collected during for loop above
         if stack_colors:
-            ax.legend().set_visible(False)
             ax.legend(handles=stack_legend_handles, loc="upper right", prop={"size": stack_colors_legend_size})
 
     for cur_b in basis:
