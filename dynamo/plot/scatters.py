@@ -77,7 +77,7 @@ def scatters(
     frontier: bool = False,
     contour: bool = False,
     ccmap: Optional[str] = None,
-    alpha: float = 0.4,
+    alpha: float = 0.1,
     calpha: float = 0.4,
     sym_c: bool = False,
     smooth: bool = False,
@@ -467,17 +467,6 @@ def scatters(
             current basis
         cur_l :
             current layer
-
-        Raises
-        ------
-        Exception
-            [description]
-        ValueError
-            [description]
-        Exception
-            [description]
-        Exception
-            [description]
         """
         nonlocal adata, x, y, _background, cmap, color_out, labels, values, ax, sym_c, scatter_kwargs, ax_index
 

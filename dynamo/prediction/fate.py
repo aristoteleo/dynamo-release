@@ -486,7 +486,7 @@ def fate_bias(
         cur_t, n_steps = t[i], len(t[i])
 
         # Generate or set indices as step sample points. Meanwhile ensure
-        # identifying sink where the speed is very slow. If "inds" is set, use "inds",
+        # identifying sink where the speed is very slow. If "inds" is set, use "inds" and the speed_percentile is used to determine the time indicies for calculating the fate bias
         # else if "use_sink_percentage" is set, calculate avg_speed and sink_checker
         # else if "step_used_percentage" is set, use the last percentage of steps to check for cell fate bias.
         # If none of the above arguments are set, use a list of n steps as indices
