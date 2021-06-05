@@ -113,7 +113,7 @@ def lambda_correction(
                 )
 
     logger.info("detection rate correction starts", indent_level=1)
-    for i, layer in main_tqdm(enumerate(layers), desc="iterating all relevant layers"):
+    for i, layer in enumerate(main_tqdm(layers, desc="iterating all relevant layers")):
         if i < len(match_tot_layer):
             cur_layer = adata.layers[layer] if inplace else adata.layers[layer].copy()
             cur_total = adata.layers[match_tot_layer[i]]
