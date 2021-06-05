@@ -901,6 +901,10 @@ def topography(
     Parameters
     ----------
         %(scatters.parameters.no_show_legend|kwargs|save_kwargs)s
+        fps_basis: `str`
+            The basis that will be used for identifying or retrieving fixed points. Note that if `fps_basis` is
+            different from `basis`, the nearest cells of the fixed point from the `fps_basis` will be found and used to
+            visualize the position of the fixed point on `basis` embedding.
         xlim: `numpy.ndarray`
             The range of x-coordinate
         ylim: `numpy.ndarray`
