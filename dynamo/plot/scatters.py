@@ -489,6 +489,8 @@ def scatters(
         #         )
         # else:
         #     continue
+        if stack_colors:
+            _stack_background_adata_indices = np.ones(len(adata), dtype=bool)
 
         for cur_c in color:
             if not stack_colors:
@@ -501,6 +503,9 @@ def scatters(
             _values = values
             if stack_colors:
                 _adata = adata[_color > stack_colors_threshold]
+                _stack_background_adata_indices = np.logical_and(
+                    _stack_background_adata_indices, (_color < stack_colors_threshold)
+                )
                 if values:
                     _values = values[_color > stack_colors_threshold]
                 _color = _color[_color > stack_colors_threshold]
@@ -832,6 +837,8 @@ def scatters(
         # add legends according to colors and cmaps
         # collected during for loop above
         if stack_colors:
+            bg_adata = adata[_stack_background_adata_indices]
+
             ax.legend(handles=stack_legend_handles, loc="upper right", prop={"size": stack_colors_legend_size})
 
     for cur_b in basis:

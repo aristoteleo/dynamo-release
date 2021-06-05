@@ -169,7 +169,6 @@ def _matplotlib_points(
 
     dpi = plt.rcParams["figure.dpi"]
     width, height = width * dpi, height * dpi
-    alpha = kwargs.get("alpha", "0.4")
 
     # """Use matplotlib to plot points"""
     # point_size = 500.0 / np.sqrt(points.shape[0])
@@ -355,13 +354,11 @@ def _matplotlib_points(
             )
         else:
             main_debug("drawing without frontiers and contour")
-            kwargs.pop("alpha")
             ax.scatter(
                 points[:, 0],
                 points[:, 1],
                 c=colors,
                 plotnonfinite=True,
-                alpha=alpha,
                 **kwargs,
             )
 
@@ -500,7 +497,7 @@ def _matplotlib_points(
                 x="x",
                 y="y",
                 fill=True,
-                alpha=alpha,
+                alpha=calpha,
                 palette=ccmap,
                 ax=ax,
                 thresh=0,
