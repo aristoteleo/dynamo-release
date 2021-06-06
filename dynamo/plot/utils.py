@@ -233,7 +233,9 @@ def _matplotlib_points(
                 ).values
                 labels = points[:, 2]
 
-        elif isinstance(color_key, dict):
+        # WARNING: do not change the following line to "elif" during refactor
+        # This if-else branch is not logically parallel to the previous one. The following branch sets `colors`.
+        if isinstance(color_key, dict):
             main_debug("color_key is a dict")
             colors = pd.Series(labels).map(color_key).values
             unique_labels = np.unique(labels)
@@ -383,8 +385,8 @@ def _matplotlib_points(
         )
         values, points = values[sorted_id], points[sorted_id, :]
 
-        # To-do: relocate biology data related logics below
-        # if there are very few cells have expression, set the vmin/vmax only based on positive values
+        # if there are very few cells have expression, set the vmin/vmax only based on positive values to
+        # get rid of outliers
         if np.nanmin(values) == 0:
             n_pos_cells = sum(values > 0)
             if 0 < n_pos_cells / len(values) < 0.02:

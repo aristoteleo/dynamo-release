@@ -635,13 +635,27 @@ def pca(
         return adata
 
 
-def pca_genes(PCs, n_top_genes=100):
-    ret = np.zeros(PCs.shape[0], dtype=bool)
+def pca_genes(PCs: list, n_top_genes: int = 100):
+    """[summary]
+    For each gene, if the gene is n_top in some principle component
+    then it is valid. Return all such valid genes.
+    Parameters
+    ----------
+    PCs :
+        principle components(PC) of PCA
+    n_top_genes :
+        number of gene candidates in EACH PC
+
+    Returns
+    -------
+        ret
+    """
+    valid_genes = np.zeros(PCs.shape[0], dtype=bool)
     for q in PCs.T:
-        qq = np.sort(np.abs(q))[::-1]
-        idx = np.abs(q) > qq[n_top_genes]
-        ret = np.logical_or(idx, ret)
-    return ret
+        sorted_q = np.sort(np.abs(q))[::-1]
+        is_pc_top_n = np.abs(q) > sorted_q[n_top_genes]
+        valid_genes = np.logical_or(is_pc_top_n, valid_genes)
+    return valid_genes
 
 
 def top_pca_genes(adata, pc_key="PCs", n_top_genes=100, adata_store_key="top_pca_genes"):

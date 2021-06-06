@@ -394,7 +394,6 @@ def scatters(
         mapper = get_mapper()
 
     # check color, layer, basis -> convert to list
-
     if type(color) is str:
         color = [color]
     if type(layer) is str:
@@ -470,9 +469,9 @@ def scatters(
         """
         nonlocal adata, x, y, _background, cmap, color_out, labels, values, ax, sym_c, scatter_kwargs, ax_index
 
-        if cur_l in ["acceleration", "curvature"]:
+        if cur_l in ["acceleration", "curvature", "divergence", "velocity_S", "velocity_T"]:
             cur_l_smoothed = cur_l
-            cmap, sym_c = "bwr", True
+            cmap, sym_c = "bwr", True  # To-do: maybe use other divergent color map in future
         else:
             if use_smoothed:
                 cur_l_smoothed = cur_l if cur_l.startswith("M_") | cur_l.startswith("velocity") else mapper[cur_l]
@@ -493,6 +492,7 @@ def scatters(
             _stack_background_adata_indices = np.ones(len(adata), dtype=bool)
 
         for cur_c in color:
+            main_debug("coloring scatter of cur_c: %s" % str(cur_c))
             if not stack_colors:
                 cur_title = cur_c
             else:
@@ -502,6 +502,7 @@ def scatters(
             # select data rows based on stack color thresholding
             _values = values
             if stack_colors:
+                main_debug("Subsetting adata by stack_colors")
                 _adata = adata[_color > stack_colors_threshold]
                 _stack_background_adata_indices = np.logical_and(
                     _stack_background_adata_indices, (_color < stack_colors_threshold)
@@ -526,7 +527,7 @@ def scatters(
             ):
                 x, y = [x], [y]
             for cur_x, cur_y in zip(x, y):  # here x / y are arrays
-                main_debug("cur_x: %s, cur_y: %s" % (cur_x, cur_y))
+                main_debug("handling coordinates, cur_x: %s, cur_y: %s" % (cur_x, cur_y))
                 if type(cur_x) is int and type(cur_y) is int:
                     points = pd.DataFrame(
                         {
@@ -837,12 +838,12 @@ def scatters(
         # add legends according to colors and cmaps
         # collected during for loop above
         if stack_colors:
-            bg_adata = adata[_stack_background_adata_indices]
-
             ax.legend(handles=stack_legend_handles, loc="upper right", prop={"size": stack_colors_legend_size})
 
     for cur_b in basis:
         for cur_l in layer:
+            main_debug("Plotting basis:%s, layer: %s" % (str(basis), str(layer)))
+            main_debug("colors: %s" % (str(color)))
             _plot_basis_layer(cur_b, cur_l)
 
     if save_show_or_return in ["save", "both", "all"]:
