@@ -5,7 +5,7 @@ from utils import *
 
 
 def test_save_rank_info(adata):
-    dyn.save_rank_excel(adata)
+    dyn.export_rank_xlsx(adata)
 
 
 if __name__ == "__main__":

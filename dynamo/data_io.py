@@ -287,7 +287,7 @@ def cleanup(adata, del_prediction=False, del_2nd_moments=False):
     return adata
 
 
-def save_rank_excel(adata, path="rank_info.xlsx", ext="excel", rank_prefix="rank"):
+def export_rank_xlsx(adata, path="rank_info.xlsx", ext="excel", rank_prefix="rank"):
     with pd.ExcelWriter(path) as writer:
         for key in adata.uns.keys():
             if key[: len(rank_prefix)] == rank_prefix:
