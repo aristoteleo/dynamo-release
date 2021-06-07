@@ -56,14 +56,10 @@ def diffusionMatrix(
         if genes is not None:
             genes = adata.var_name.intersection(genes).to_list()
             if len(genes) == 0:
-                raise ValueError(
-                    f"no genes from your genes list appear in your adata object."
-                )
+                raise ValueError(f"no genes from your genes list appear in your adata object.")
         if layer is not None:
             if layer not in adata.layers.keys():
-                raise ValueError(
-                    f"the layer {layer} you provided is not included in the adata object!"
-                )
+                raise ValueError(f"the layer {layer} you provided is not included in the adata object!")
 
             if basis is None:
                 vkey = "velocity_" + layer[0].upper()
@@ -152,9 +148,7 @@ def diffusionMatrix(
         X_data, V_data = X_data[:, dims], V_data[:, dims]
 
     neighbor_key = "neighbors" if layer is None else layer + "_neighbors"
-    if neighbor_key not in adata.uns_keys() or (
-        X_data is not None and V_data is not None
-    ):
+    if neighbor_key not in adata.uns_keys() or (X_data is not None and V_data is not None):
         if X_data.shape[0] > 200000 and X_data.shape[1] > 2:
             from pynndescent import NNDescent
 
@@ -168,14 +162,10 @@ def diffusionMatrix(
             Idx, _ = nbrs.query(X_data, k=n)
         else:
             alg = "ball_tree" if X_data.shape[1] > 10 else "kd_tree"
-            nbrs = NearestNeighbors(
-                n_neighbors=n, algorithm=alg, n_jobs=-1
-            ).fit(X_data)
+            nbrs = NearestNeighbors(n_neighbors=n, algorithm=alg, n_jobs=-1).fit(X_data)
             _, Idx = nbrs.kneighbors(X_data)
     else:
-        conn_key = (
-            "connectivities" if layer is None else layer + "_connectivities"
-        )
+        conn_key = "connectivities" if layer is None else layer + "_connectivities"
         neighbors = adata.obsp[conn_key]
         Idx = neighbors.tolil().rows
 
@@ -196,9 +186,7 @@ def diffusionMatrix(
     val = np.zeros((V_data.shape[0], 1))
     dmatrix = [None] * V_data.shape[0]
 
-    for i in tqdm(
-        range(X_data.shape[0]), "calculating diffusion matrix for each cell."
-    ):
+    for i in tqdm(range(X_data.shape[0]), "calculating diffusion matrix for each cell."):
         vv = V_diff[Idx[i]]
         d = np.cov(vv.T)
         val[i] = np.sqrt(sum(sum(d)))
@@ -227,12 +215,8 @@ def diffusionMatrix2D(V_mat):
 
     D = np.zeros((V_mat.shape[0], 2, 2))
 
-    D[:, 0, 0] = np.mean(
-        (V_mat[:, :, 0] - np.mean(V_mat[:, :, 0], axis=1)[:, None]) ** 2, axis=1
-    )
-    D[:, 1, 1] = np.mean(
-        (V_mat[:, :, 1] - np.mean(V_mat[:, :, 1], axis=1)[:, None]) ** 2, axis=1
-    )
+    D[:, 0, 0] = np.mean((V_mat[:, :, 0] - np.mean(V_mat[:, :, 0], axis=1)[:, None]) ** 2, axis=1)
+    D[:, 1, 1] = np.mean((V_mat[:, :, 1] - np.mean(V_mat[:, :, 1], axis=1)[:, None]) ** 2, axis=1)
     D[:, 0, 1] = np.mean(
         (V_mat[:, :, 0] - np.mean(V_mat[:, :, 0], axis=1)[:, None])
         * (V_mat[:, :, 1] - np.mean(V_mat[:, :, 1], axis=1)[:, None]),

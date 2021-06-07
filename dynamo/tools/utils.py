@@ -8,6 +8,7 @@ from scipy.spatial.distance import squareform as spsquare
 from scipy.integrate import odeint
 from scipy.linalg.blas import dgemm
 from scipy.spatial import cKDTree
+import sklearn
 from sklearn.neighbors import NearestNeighbors
 import warnings
 import time
@@ -16,7 +17,14 @@ from inspect import signature
 
 from ..preprocessing.utils import Freeman_Tukey
 from ..utils import areinstance, isarray
-
+from ..dynamo_logger import (
+    main_info_insert_adata,
+    main_tqdm,
+    main_info,
+    main_warning,
+    main_critical,
+    main_exception,
+)
 
 # ---------------------------------------------------------------------------------------------------
 # others
@@ -122,6 +130,7 @@ def create_layer(adata, data, layer_key=None, genes=None, cells=None, **kwargs):
                 new[cells, igi] = data[:, i]
 
     if layer_key is not None:
+        main_info_insert_adata(layer_key, adata_attr="layers")
         adata.layers[layer_key] = new
     else:
         return new
@@ -382,7 +391,7 @@ def index_condensed_matrix(n, i, j):
             The index of the element in the condensed matrix.
     """
     if i == j:
-        warnings.warn("Diagonal elements (i=j) are not stored in condensed matrices.")
+        main_warning("Diagonal elements (i=j) are not stored in condensed matrices.")
         return None
     elif i > j:
         i, j = j, i
@@ -711,7 +720,7 @@ def get_data_for_kin_params_estimation(
 ):
     if not NTR_vel:
         if has_labeling and not has_splicing:
-            warnings.warn(
+            main_warning(
                 "Your adata only has labeling data, but `NTR_vel` is set to be "
                 "`False`. Dynamo will reset it to `True` to enable this analysis."
             )
@@ -850,7 +859,7 @@ def get_data_for_kin_params_estimation(
         P = subset_adata.obsm["protein"].T
     if P is not None:
         if protein_names is None:
-            warnings.warn(
+            main_warning(
                 "protein layer exists but protein_names is not provided. No estimation will be performed for protein "
                 "data."
             )
@@ -1573,7 +1582,7 @@ def set_transition_genes(
     ]:
         logLL_col = adata.var.columns[adata.var.columns.str.endswith("logLL")]
         if len(logLL_col) > 1:
-            warnings.warn(f"there are two columns ends with logLL: {logLL_col}")
+            main_warning(f"there are two columns ends with logLL: {logLL_col}")
 
         adata.var[store_key] = adata.var[logLL_col[-1]].astype(float) < np.nanpercentile(
             adata.var[logLL_col[-1]].astype(float), 10
@@ -1922,7 +1931,7 @@ def linear_least_squares(a, b, residuals=False):
         ``b - a*x``.
     """
     if type(a) != np.ndarray or not a.flags["C_CONTIGUOUS"]:
-        warnings.warn(
+        main_warning(
             "Matrix a is not a C-contiguous numpy array. The solver will create a copy, which will result"
             + " in increased memory usage."
         )
@@ -2100,7 +2109,7 @@ def getTseq(init_states, t_end, step_size=None):
 
 # ---------------------------------------------------------------------------------------------------
 # spatial related
-def compute_smallest_distance(coords: list, leaf_size: int = 40, sample_num=1000) -> float:
+def compute_smallest_distance(coords: list, leaf_size: int = 40, sample_num=None, use_unique_coords=True) -> float:
     """Compute and return smallest distance. A wrapper for sklearn API
 
     Parameters
@@ -2111,6 +2120,8 @@ def compute_smallest_distance(coords: list, leaf_size: int = 40, sample_num=1000
             Leaf size parameter for building Kd-tree, by default 40.
         sample_num:
             The number of cells to be sampled.
+        use_unique_coords:
+            Whether to remove duplicate coordinates
 
     Returns
     -------
@@ -2120,14 +2131,21 @@ def compute_smallest_distance(coords: list, leaf_size: int = 40, sample_num=1000
     """
     if len(coords.shape) != 2:
         raise ValueError("Coordinates should be a NxM array.")
+    if use_unique_coords:
+        main_info("using unique coordinates for computing smallest distance")
+        coords = [tuple(coord) for coord in coords]
+        coords = np.array(list(set(coords)))
     # use cKDTree which is implmented in C++ and is much faster than KDTree
     kd_tree = cKDTree(coords, leafsize=leaf_size)
+    if sample_num is None:
+        sample_num = len(coords)
     N, _ = min(len(coords), sample_num), coords.shape[1]
     selected_estimation_indices = np.random.choice(len(coords), size=N, replace=False)
 
     # Note k=2 here because the nearest query is always a point itself.
     distances, _ = kd_tree.query(coords[selected_estimation_indices, :], k=2)
-    min_dist = min(distances[:, 1][distances[:, 1] > 0])
+    print(distances)
+    min_dist = min(distances[:, 1])
 
     return min_dist
 

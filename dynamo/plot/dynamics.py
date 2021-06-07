@@ -25,6 +25,7 @@ from ..tools.utils import (
     index_gene,
 )
 from ..configuration import _themes
+from ..dynamo_logger import main_warning
 
 
 def phase_portraits(
@@ -242,7 +243,7 @@ def phase_portraits(
         )
 
     if not "X_" + basis in adata.obsm.keys():
-        warnings.warn("{} is not applied to adata.".format(basis))
+        main_warning("{} is not applied to adata.".format(basis))
         from ..tools.dimension_reduction import reduceDimension
 
         reduceDimension(adata, reduction_method=basis)
@@ -1202,7 +1203,7 @@ def dynamics(
 
     if experiment_type == "conventional":
         # run the phase_portraits plot
-        warnings.warn(
+        main_warning(
             "dynamics plot doesn't support conventional experiment type, using phase_portraits function instead."
         )
         phase_portraits(adata)

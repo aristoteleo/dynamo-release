@@ -39,9 +39,7 @@ def laplacian(f, x):
 # ---------------------------------------------------------------------------------------------------
 # vector field function
 @timeit
-def vector_field_function(
-    x, vf_dict, dim=None, kernel="full", X_ctrl_ind=None, **kernel_kwargs
-):
+def vector_field_function(x, vf_dict, dim=None, kernel="full", X_ctrl_ind=None, **kernel_kwargs):
     """vector field function constructed by sparseVFC.
     Reference: Regularized vector field learning with sparse approximation for mismatch removal, Ma, Jiayi, etc. al, Pattern Recognition
     """
@@ -63,9 +61,7 @@ def vector_field_function(
         elif kernel == "cf_kernel":
             kernel_ind = 2
         else:
-            raise ValueError(
-                f"the kernel can only be one of {'full', 'df_kernel', 'cf_kernel'}!"
-            )
+            raise ValueError(f"the kernel can only be one of {'full', 'df_kernel', 'cf_kernel'}!")
 
         K = con_K_div_cur_free(
             x,
@@ -100,15 +96,10 @@ def dynode_vector_field_function(x, vf_dict, dim=None, **kwargs):
         import dynode
         from dynode.vectorfield import Dynode
     except ImportError:
-        raise ImportError(
-            "You need to install the package `dynode`."
-            "install dynode via `pip install dynode`"
-        )
+        raise ImportError("You need to install the package `dynode`." "install dynode via `pip install dynode`")
     vf_dict["parameters"]["load_model_from_buffer"] = True
     dynode_inspect = inspect.getfullargspec(Dynode)
-    dynode_dict = subset_dict_with_key_list(
-        vf_dict["parameters"], dynode_inspect.args
-    )
+    dynode_dict = subset_dict_with_key_list(vf_dict["parameters"], dynode_inspect.args)
 
     nn = Dynode(**dynode_dict)
 
@@ -161,9 +152,7 @@ def con_K(x, y, beta, method="cdist", return_d=False):
 
         # https://stackoverflow.com/questions/1721802/what-is-the-equivalent-of-matlabs-repmat-in-numpy
         # https://stackoverflow.com/questions/12787475/matlabs-permute-in-python
-        D = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(
-            np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0]
-        )
+        D = np.matlib.tile(x[:, :, None], [1, 1, m]) - np.transpose(np.matlib.tile(y[:, :, None], [1, 1, n]), [2, 1, 0])
         K = np.squeeze(np.sum(D ** 2, 1))
     K = -beta * K
     K = np.exp(K)
@@ -199,9 +188,7 @@ def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
     m, d = x.shape
     n, d = y.shape
     sigma2 = sigma ** 2
-    G_tmp = np.matlib.tile(x[:, :, None], [1, 1, n]) - np.transpose(
-        np.matlib.tile(y[:, :, None], [1, 1, m]), [2, 1, 0]
-    )
+    G_tmp = np.matlib.tile(x[:, :, None], [1, 1, n]) - np.transpose(np.matlib.tile(y[:, :, None], [1, 1, m]), [2, 1, 0])
     G_tmp = np.squeeze(np.sum(G_tmp ** 2, 1))
     G_tmp3 = -G_tmp / sigma2
     G_tmp = -G_tmp / (2 * sigma2)
@@ -215,9 +202,7 @@ def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
     G_tmp2 = np.zeros((d * m, d * n))
 
     tmp4_ = np.zeros((d, d))
-    for i in tqdm(
-        range(d), desc="Iterating each dimension in con_K_div_cur_free:"
-    ):
+    for i in tqdm(range(d), desc="Iterating each dimension in con_K_div_cur_free:"):
         for j in np.arange(i, d):
             tmp1 = xminusy[:, i].reshape((m, n), order="F")
             tmp2 = xminusy[:, j].reshape((m, n), order="F")
@@ -230,9 +215,7 @@ def con_K_div_cur_free(x, y, sigma=0.8, eta=0.5):
     G_tmp2 = G_tmp2 / sigma2
     G_tmp3 = np.kron((G_tmp3 + d - 1), np.eye(d))
     G_tmp4 = np.kron(np.ones((m, n)), np.eye(d)) - G_tmp2
-    df_kernel, cf_kernel = (1 - eta) * G_tmp * (
-        G_tmp2 + G_tmp3
-    ), eta * G_tmp * G_tmp4
+    df_kernel, cf_kernel = (1 - eta) * G_tmp * (G_tmp2 + G_tmp3), eta * G_tmp * G_tmp4
     G = df_kernel + cf_kernel
 
     return G, df_kernel, cf_kernel
@@ -261,9 +244,7 @@ def vecfld_from_adata(adata, basis="", vf_key="VecFld"):
     elif method.lower() == "dynode":
         func = lambda x: dynode_vector_field_function(x, vf_dict)
     else:
-        raise ValueError(
-            f"current only support two methods, SparseVFC and dynode"
-        )
+        raise ValueError(f"current only support two methods, SparseVFC and dynode")
 
     return vf_dict, func
 
@@ -337,17 +318,13 @@ def Jacobian_rkhs_gaussian(x, vf_dict, vectorize=False):
         d is the number of dimensions and n the number of coordinates in x.
     """
     if x.ndim == 1:
-        K, D = con_K(
-            x[None, :], vf_dict["X_ctrl"], vf_dict["beta"], return_d=True
-        )
+        K, D = con_K(x[None, :], vf_dict["X_ctrl"], vf_dict["beta"], return_d=True)
         J = (vf_dict["C"].T * K) @ D[0].T
     elif not vectorize:
         n, d = x.shape
         J = np.zeros((d, d, n))
         for i, xi in enumerate(x):
-            K, D = con_K(
-                xi[None, :], vf_dict["X_ctrl"], vf_dict["beta"], return_d=True
-            )
+            K, D = con_K(xi[None, :], vf_dict["X_ctrl"], vf_dict["beta"], return_d=True)
             J[:, :, i] = (vf_dict["C"].T * K) @ D[0].T
     else:
         K, D = con_K(x, vf_dict["X_ctrl"], vf_dict["beta"], return_d=True)
@@ -369,9 +346,7 @@ def Jacobian_rkhs_gaussian_parallel(x, vf_dict, cores=None):
     # with mp.Pool(cores) as p:
     #    ret = p.starmap(Jacobian_rkhs_gaussian, zip(xx, itertools.repeat(vf_dict)))
     with ThreadPool(cores) as p:
-        ret = p.starmap(
-            Jacobian_rkhs_gaussian, zip(xx, itertools.repeat(vf_dict))
-        )
+        ret = p.starmap(Jacobian_rkhs_gaussian, zip(xx, itertools.repeat(vf_dict)))
     ret = [np.transpose(r, axes=(2, 0, 1)) for r in ret]
     ret = np.transpose(np.vstack(ret), axes=(1, 2, 0))
     return ret
@@ -567,7 +542,7 @@ def acceleration_(v, J):
     return J.dot(v)
 
 
-def curvature_1(a, v):
+def curvature_method1(a, v):
     """https://link.springer.com/article/10.1007/s12650-018-0474-6"""
     if v.ndim == 1:
         v = v[:, None]
@@ -576,12 +551,10 @@ def curvature_1(a, v):
     return kappa
 
 
-def curvature_2(a, v):
+def curvature_method2(a, v):
     """https://dl.acm.org/doi/10.5555/319351.319441"""
     # if v.ndim == 1: v = v[:, None]
-    kappa = (
-        np.multiply(a, np.dot(v, v)) - np.multiply(v, np.dot(v, a))
-    ) / np.linalg.norm(v) ** 4
+    kappa = (np.multiply(a, np.dot(v, v)) - np.multiply(v, np.dot(v, a))) / np.linalg.norm(v) ** 4
 
     return kappa
 
@@ -610,9 +583,7 @@ def compute_acceleration(vf, f_jac, X, return_all=False):
     v_ = vf(X)
     J_ = f_jac(X)
     temp_logger = LoggerManager.get_temp_timer_logger()
-    for i in LoggerManager.progress_logger(
-        range(n), temp_logger, progress_name="Calculating acceleration"
-    ):
+    for i in LoggerManager.progress_logger(range(n), temp_logger, progress_name="Calculating acceleration"):
         v = v_[i]
         J = J_[:, :, i]
         acce_mat[i] = acceleration_(v, J).flatten()
@@ -642,13 +613,11 @@ def compute_curvature(vf, f_jac, X, formula=2):
     v, _, _, a = compute_acceleration(vf, f_jac, X, return_all=True)
     cur_mat = np.zeros((n, X.shape[1])) if formula == 2 else None
 
-    for i in LoggerManager.progress_logger(
-        range(n), progress_name="Calculating curvature"
-    ):
+    for i in LoggerManager.progress_logger(range(n), progress_name="Calculating curvature"):
         if formula == 1:
-            curv[i] = curvature_1(a[i], v[i])
+            curv[i] = curvature_method1(a[i], v[i])
         elif formula == 2:
-            cur_mat[i] = curvature_2(a[i], v[i])
+            cur_mat[i] = curvature_method2(a[i], v[i])
             curv[i] = np.linalg.norm(cur_mat[i])
 
     return curv, cur_mat
@@ -709,9 +678,7 @@ def _curl(f, x, method="analytical", VecFld=None, jac=None):
         else:
             jac = nd.Jacobian(f)(x)
 
-    return np.array(
-        [jac[2, 1] - jac[1, 2], jac[0, 2] - jac[2, 0], jac[1, 0] - jac[0, 1]]
-    )
+    return np.array([jac[2, 1] - jac[1, 2], jac[0, 2] - jac[2, 0], jac[1, 0] - jac[0, 1]])
 
 
 def curl2d(f, x, method="analytical", VecFld=None, jac=None):
@@ -768,11 +735,7 @@ def get_metric_gene_in_rank_by_group(mat, genes, groups, grp, neg=False):
         mat[mask, :].mean(0).A1 if issparse(mat) else mat[mask, :].mean(0),
         mat[mask, :].mean(0).A1 if issparse(mat) else mat[mask, :].mean(0),
     )
-    rank = (
-        gene_wise_metrics.argsort()
-        if neg
-        else gene_wise_metrics.argsort()[::-1]
-    )
+    rank = gene_wise_metrics.argsort() if neg else gene_wise_metrics.argsort()[::-1]
     gene_wise_metrics, genes_in_rank = gene_wise_metrics[rank], genes[rank]
 
     return gene_wise_metrics, group_wise_metrics, genes_in_rank
@@ -781,21 +744,13 @@ def get_metric_gene_in_rank_by_group(mat, genes, groups, grp, neg=False):
 def get_sorted_metric_genes_df(df, genes, neg=False):
     sorted_metric = pd.DataFrame(
         {
-            key: (
-                sorted(values, reverse=False)
-                if neg
-                else sorted(values, reverse=True)
-            )
+            key: (sorted(values, reverse=False) if neg else sorted(values, reverse=True))
             for key, values in df.transpose().iterrows()
         }
     )
     sorted_genes = pd.DataFrame(
         {
-            key: (
-                genes[values.argsort()]
-                if neg
-                else genes[values.argsort()[::-1]]
-            )
+            key: (genes[values.argsort()] if neg else genes[values.argsort()[::-1]])
             for key, values in df.transpose().iterrows()
         }
     )
@@ -817,13 +772,9 @@ def rank_vector_calculus_metrics(mat, genes, group, groups, uniq_group):
     if group is None:
         metric_in_rank, genes_in_rank = get_metric_gene_in_rank(abs(mat), genes)
 
-        pos_metric_in_rank, pos_genes_in_rank = get_metric_gene_in_rank(
-            pos_mat, genes
-        )
+        pos_metric_in_rank, pos_genes_in_rank = get_metric_gene_in_rank(pos_mat, genes)
 
-        neg_metric_in_rank, neg_genes_in_rank = get_metric_gene_in_rank(
-            neg_mat, genes, neg=True
-        )
+        neg_metric_in_rank, neg_genes_in_rank = get_metric_gene_in_rank(neg_mat, genes, neg=True)
 
         return (
             metric_in_rank,
@@ -850,9 +801,7 @@ def rank_vector_calculus_metrics(mat, genes, group, groups, uniq_group):
             group_wise_neg_metrics,
             group_wise_neg_genes,
         ) = ({}, {}, {}, {}, {}, {})
-        for i, grp in tqdm(
-            enumerate(uniq_group), desc="ranking genes across gropus"
-        ):
+        for i, grp in tqdm(enumerate(uniq_group), desc="ranking genes across gropus"):
             (
                 gene_wise_metrics[grp],
                 group_wise_metrics[grp],
@@ -884,9 +833,7 @@ def rank_vector_calculus_metrics(mat, genes, group, groups, uniq_group):
                 gene_wise_neg_metrics[grp],
                 group_wise_neg_metrics[grp],
                 gene_wise_neg_genes[grp],
-            ) = get_metric_gene_in_rank_by_group(
-                neg_mat, genes, groups, grp, neg=True
-            )
+            ) = get_metric_gene_in_rank_by_group(neg_mat, genes, groups, grp, neg=True)
 
         (
             metric_in_group_rank_by_gene,
@@ -895,15 +842,11 @@ def rank_vector_calculus_metrics(mat, genes, group, groups, uniq_group):
         (
             pos_metric_gene_rank_by_group,
             pos_genes_group_rank_by_gene,
-        ) = get_sorted_metric_genes_df(
-            pd.DataFrame(group_wise_pos_metrics), genes
-        )
+        ) = get_sorted_metric_genes_df(pd.DataFrame(group_wise_pos_metrics), genes)
         (
             neg_metric_in_group_rank_by_gene,
             neg_genes_in_group_rank_by_gene,
-        ) = get_sorted_metric_genes_df(
-            pd.DataFrame(group_wise_neg_metrics), genes, neg=True
-        )
+        ) = get_sorted_metric_genes_df(pd.DataFrame(group_wise_neg_metrics), genes, neg=True)
 
         metric_in_gene_rank_by_group, genes_in_gene_rank_by_group = (
             pd.DataFrame(gene_wise_metrics),
@@ -975,6 +918,7 @@ def normalize_vectors(vectors, axis=1, **kwargs):
     vec = (vec.T / vec_norm).T
     return vec
 
+
 # ---------------------------------------------------------------------------------------------------
 # topology related utilies
 
@@ -1003,18 +947,14 @@ def remove_redundant_points(X, tol=1e-4, output_discard=False):
         return X
 
 
-def find_fixed_points(
-    X0, func_vf, domain=None, tol_redundant=1e-4, return_all=False
-):
+def find_fixed_points(X0, func_vf, domain=None, tol_redundant=1e-4, return_all=False):
     X = []
     J = []
     fval = []
     for x0 in X0:
         x, info_dict, _, _ = fsolve(func_vf, x0, full_output=True)
 
-        outside = (
-            is_outside(x[None, :], domain)[0] if domain is not None else False
-        )
+        outside = is_outside(x[None, :], domain)[0] if domain is not None else False
         if not outside:
             fval.append(info_dict["fvec"])
             # compute Jacobian
@@ -1035,9 +975,7 @@ def find_fixed_points(
     else:
         if X.size != 0:
             if tol_redundant is not None:
-                X, discard = remove_redundant_points(
-                    X, tol_redundant, output_discard=True
-                )
+                X, discard = remove_redundant_points(X, tol_redundant, output_discard=True)
                 J = J[~discard]
                 fval = fval[~discard]
 
@@ -1119,9 +1057,7 @@ class FixedPoints:
 
 # ---------------------------------------------------------------------------------------------------
 # data retrieval related utilies
-def intersect_sources_targets(
-    regulators, regulators_, effectors, effectors_, Der
-):
+def intersect_sources_targets(regulators, regulators_, effectors, effectors_, Der):
     regulators = regulators_ if regulators is None else regulators
     effectors = effectors_ if effectors is None else effectors
     if type(regulators) == str:
@@ -1139,11 +1075,7 @@ def intersect_sources_targets(
     # subset Der with correct index of selected source / target genes
     valid_source_idx = [i for i, e in enumerate(regulators_) if e in regulators]
     valid_target_idx = [i for i, e in enumerate(effectors_) if e in effectors]
-    Der = (
-        Der[valid_target_idx, :, :][:, valid_source_idx, :]
-        if len(regulators_) + len(effectors_) > 2
-        else Der
-    )
+    Der = Der[valid_target_idx, :, :][:, valid_source_idx, :] if len(regulators_) + len(effectors_) > 2 else Der
     regulators, effectors = (
         np.array(regulators_)[valid_source_idx],
         np.array(effectors_)[valid_target_idx],

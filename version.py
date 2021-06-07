@@ -17,9 +17,7 @@ ON_RTD = os.environ.get("READTHEDOCS") == "True"
 def match_groups(regex, target):
     match = re.match(regex, target)
     if match is None:
-        raise re.error(
-            f"Regex does not match “{target}”. RE Pattern: {regex}", regex
-        )
+        raise re.error(f"Regex does not match “{target}”. RE Pattern: {regex}", regex)
     return match.groups()
 
 
@@ -86,9 +84,7 @@ def get_version_from_git(parent):
         check=True,
     )
 
-    release, dev, hex_, dirty = match_groups(
-        f"{RE_GIT_DESCRIBE}$", p.stdout.rstrip("\r\n")
-    )
+    release, dev, hex_, dirty = match_groups(f"{RE_GIT_DESCRIBE}$", p.stdout.rstrip("\r\n"))
 
     labels = []
     if dev == "0":

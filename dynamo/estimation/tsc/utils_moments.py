@@ -26,9 +26,7 @@ spec = [
 
 # @jitclass(spec)
 class moments:
-    def __init__(
-        self, a=None, b=None, alpha_a=None, alpha_i=None, beta=None, gamma=None
-    ):
+    def __init__(self, a=None, b=None, alpha_a=None, alpha_i=None, beta=None, gamma=None):
         # species
         self.ua = 0
         self.ui = 1
@@ -48,14 +46,7 @@ class moments:
         self.p = None
 
         # parameters
-        if not (
-            a is None
-            or b is None
-            or alpha_a is None
-            or alpha_i is None
-            or beta is None
-            or gamma is None
-        ):
+        if not (a is None or b is None or alpha_a is None or alpha_i is None or beta is None or gamma is None):
             self.set_params(a, b, alpha_a, alpha_i, beta, gamma)
 
     def ode_moments(self, x, t):
@@ -71,24 +62,13 @@ class moments:
         # first moments
         dx[self.ua] = aa - be * x[self.ua] + a * (x[self.ui] - x[self.ua])
         dx[self.ui] = ai - be * x[self.ui] - b * (x[self.ui] - x[self.ua])
-        dx[self.xa] = (
-            be * x[self.ua] - ga * x[self.xa] + a * (x[self.xi] - x[self.xa])
-        )
-        dx[self.xi] = (
-            be * x[self.ui] - ga * x[self.xi] - b * (x[self.xi] - x[self.xa])
-        )
+        dx[self.xa] = be * x[self.ua] - ga * x[self.xa] + a * (x[self.xi] - x[self.xa])
+        dx[self.xi] = be * x[self.ui] - ga * x[self.xi] - b * (x[self.xi] - x[self.xa])
 
         # second moments
-        dx[self.uu] = (
-            2 * self.fbar(aa * x[self.ua], ai * x[self.ui])
-            - 2 * be * x[self.uu]
-        )
+        dx[self.uu] = 2 * self.fbar(aa * x[self.ua], ai * x[self.ui]) - 2 * be * x[self.uu]
         dx[self.xx] = 2 * be * x[self.ux] - 2 * ga * x[self.xx]
-        dx[self.ux] = (
-            self.fbar(aa * x[self.xa], ai * x[self.xi])
-            + be * x[self.uu]
-            - (be + ga) * x[self.ux]
-        )
+        dx[self.ux] = self.fbar(aa * x[self.xa], ai * x[self.xi]) + be * x[self.uu] - (be + ga) * x[self.ux]
 
         return dx
 
@@ -103,9 +83,7 @@ class moments:
         return sol
 
     def fbar(self, x_a, x_i):
-        return (
-            self.b / (self.a + self.b) * x_a + self.a / (self.a + self.b) * x_i
-        )
+        return self.b / (self.a + self.b) * x_a + self.a / (self.a + self.b) * x_i
 
     def set_params(self, a, b, alpha_a, alpha_i, beta, gamma):
         self.a = a
@@ -257,18 +235,12 @@ class estimation:
         if method == "lhs":
             ret = self._lhsclassic(samples)
             for i in range(self.n_params):
-                ret[:, i] = (
-                    ret[:, i] * (self.ranges[i][1] - self.ranges[i][0])
-                    + self.ranges[i][0]
-                )
+                ret[:, i] = ret[:, i] * (self.ranges[i][1] - self.ranges[i][0]) + self.ranges[i][0]
         else:
             for n in range(samples):
                 for i in range(self.n_params):
                     r = random.rand()
-                    ret[n, i] = (
-                        r * (self.ranges[i][1] - self.ranges[i][0])
-                        + self.ranges[i][0]
-                    )
+                    ret[n, i] = r * (self.ranges[i][1] - self.ranges[i][0]) + self.ranges[i][0]
         return ret
 
     def _lhsclassic(self, samples):

@@ -10,7 +10,7 @@ from scipy.integrate import odeint
 from sklearn.neighbors import NearestNeighbors
 import anndata
 from typing import Union
-from ..dynamo_logger import LoggerManager
+from ..dynamo_logger import LoggerManager, main_warning, main_info
 
 from .scVectorField import base_vectorfield, svc_vectorfield
 from ..tools.utils import (
@@ -705,7 +705,7 @@ def VectorField(
 
         if model_buffer_path is None:
             model_buffer_path = cwd + "/" + basis + "_" + str(cwt.year) + "_" + str(cwt.month) + "_" + str(cwt.day)
-            warnings.warn("the buffer path saving the dynode model is in %s" % (model_buffer_path))
+            main_warning("the buffer path saving the dynode model is in %s" % (model_buffer_path))
 
         vf_kwargs = {
             "model": networkModels,

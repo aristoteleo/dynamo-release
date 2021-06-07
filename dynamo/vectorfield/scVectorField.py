@@ -41,7 +41,7 @@ from .utils import (
     FixedPoints,
     remove_redundant_points,
 )
-from ..dynamo_logger import LoggerManager
+from ..dynamo_logger import LoggerManager, main_warning
 
 
 def norm(X, V, T):
@@ -178,7 +178,7 @@ def lstsq_solver(lhs, rhs, method="drouin"):
     elif method == "drouin":
         C = linear_least_squares(lhs, rhs)
     else:
-        warnings.warn("Invalid linear least squares solver. Use Drouin's method instead.")
+        main_warning("Invalid linear least squares solver. Use Drouin's method instead.")
         C = linear_least_squares(lhs, rhs)
     return C
 

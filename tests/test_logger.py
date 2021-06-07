@@ -42,6 +42,8 @@ def test_logger_simple_progress_logger(test_logger):
 
 
 def test_tqdm_style_loops():
+    for i in enumerate(main_tqdm(range(1, 11), desc="using TQDM style logging")):
+        time.sleep(0.1)
     for i in main_tqdm(range(1, 11), desc="using TQDM style logging"):
         time.sleep(0.1)
     for i in LoggerManager.progress_logger(range(1, 11), progress_name="using LoggerManager's progress_logger"):

@@ -9,6 +9,7 @@ from scipy.sparse import (
 )
 from anndata import AnnData
 from typing import Optional, Union
+import warnings
 
 from .moments import moments
 from ..estimation.csc.velocity import fit_linreg, velocity, ss_estimation
@@ -35,8 +36,14 @@ from .moments import (
     prepare_data_mix_has_splicing,
     prepare_data_mix_no_splicing,
 )
-
-import warnings
+from ..dynamo_logger import (
+    main_warning,
+    main_info,
+    main_tqdm,
+    main_info_insert_adata,
+    main_log_time,
+    main_finish_progress,
+)
 
 warnings.simplefilter("ignore", SparseEfficiencyWarning)
 
@@ -322,7 +329,7 @@ def dynamics(
 
     if tkey is not None:
         if adata.obs[tkey].max() > 60:
-            warnings.warn(
+            main_warning(
                 "Looks like you are using minutes as the time unit. For the purpose of numeric stability, "
                 "we recommend using hour as the time unit."
             )
@@ -342,7 +349,7 @@ def dynamics(
             else:
                 moments(adata, genes=valid_bools, group=tkey)
         elif tkey is not None:
-            warnings.warn(
+            main_warning(
                 f"You used tkey {tkey} (or group {group}), but you have calculated local smoothing (1st moment) "
                 f"for your data before. Please ensure you used the desired tkey or group when the smoothing was "
                 f"performed. Try setting re_smooth = True if not sure."
@@ -352,7 +359,7 @@ def dynamics(
     if group is not None and group in adata.obs.columns:
         _group = adata.obs[group].unique()
         if any(adata.obs[group].value_counts() < 50):
-            warnings.warn(
+            main_warning(
                 f"Note that some groups have less than 50 cells, this may lead to the velocities for some "
                 f"cells are all NaN values and cause issues for all downstream analysis. Please try to "
                 f"coarse-grain cell groupings. Cell number for each group are {adata.obs[group].value_counts()}"
@@ -421,7 +428,7 @@ def dynamics(
                     else False
                 )
             valid_bools_[indices_valid_bools[~valid_gene_checker]] = False
-            warnings.warn(f"filtering {gene_num - valid_gene_checker.sum()} genes after sanity check.")
+            main_warning(f"filtering {gene_num - valid_gene_checker.sum()} genes after sanity check.")
 
             if len(valid_bools_) < 5:
                 raise Exception(
@@ -926,7 +933,7 @@ def dynamics(
             )
             # add protein related parameters in the moment model below:
         elif model.lower() == "model_selection":
-            warnings.warn("Not implemented yet.")
+            main_warning("Not implemented yet.")
 
     if group is not None and group in adata.obs[group]:
         uns_key = group + "_dynamics"

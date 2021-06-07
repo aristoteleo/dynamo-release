@@ -36,6 +36,15 @@ import anndata
 from typing import Union
 import scipy
 
+# dynamo logger related
+from ..dynamo_logger import (
+    main_tqdm,
+    main_info,
+    main_warning,
+    main_critical,
+    main_exception,
+)
+
 
 def cell_velocities(
     adata: anndata.AnnData,
@@ -207,7 +216,7 @@ def cell_velocities(
                 idx[i, : len(nbr)] = nbr
             indices = idx
             if np.any(np.isnan(indices)):
-                warnings.warn("Resulting knn index matrix contains NaN. Check if n_neighbors is too large.")
+                main_warning("Resulting knn index matrix contains NaN. Check if n_neighbors is too large.")
 
     elif adj_key is not None and adj_key in adata.obsp.keys():
         if use_mnn:
@@ -250,7 +259,7 @@ def cell_velocities(
             transition_genes = adata.var_names[adata.var.use_for_transition.values]
         else:
             if not enforce:
-                warnings.warn(
+                main_warning(
                     "A new set of transition genes is used, but because enforce=False, "
                     "the transition matrix might not be recalculated if it is found in .obsp."
                 )
@@ -305,7 +314,7 @@ def cell_velocities(
             adata.uns["dynamics"]["has_labeling"],
         )
         if has_splicing and has_labeling:
-            warnings.warn(
+            main_warning(
                 "\nYour data has both labeling / splicing data, please ensuring using the right `basis` "
                 "({basis}):"
                 "\n   when using `velocity_S`, please use basis based on X_spliced data;"
@@ -655,7 +664,7 @@ def confident_cell_velocities(
 
     if only_transition_genes:
         if "use_for_transition" not in adata.var.keys():
-            warnings.warn(
+            main_warning(
                 "`dyn.tl.cell_velocities(adata)` is not performed yet. Rolling back to use all feature genes "
                 "as input for supervised RNA velocity analysis."
             )

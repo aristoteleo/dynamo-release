@@ -76,14 +76,10 @@ def score_cells(
     if basis is None and "X_pca" not in adata.obsm.keys():
         raise ValueError(f"Your adata doesn't have 'X_pca' basis in .obsm.")
     elif basis is not None and "X_" + basis not in adata.obsm.keys():
-        raise ValueError(
-            f"Your adata doesn't have the {basis} you inputted in .obsm attribute of your adata."
-        )
+        raise ValueError(f"Your adata doesn't have the {basis} you inputted in .obsm attribute of your adata.")
 
     if genes is None and "use_for_pca" not in adata.obs.keys():
-        raise ValueError(
-            f"Your adata doesn't have 'use_for_pca' column in .obs."
-        )
+        raise ValueError(f"Your adata doesn't have 'use_for_pca' column in .obs.")
 
     if genes is None:
         genes = adata.var_names[adata.use_for_pca]
@@ -91,18 +87,13 @@ def score_cells(
         genes = (
             list(adata.var_names.intersection(genes))
             if adata.var_names[0].isupper()
-            else list(
-                adata.var_names.intersection([i.capitalize() for i in genes])
-            )
-            if adata.var_names[0][0].isupper()
-            and adata.var_names[0][1:].islower()
+            else list(adata.var_names.intersection([i.capitalize() for i in genes]))
+            if adata.var_names[0][0].isupper() and adata.var_names[0][1:].islower()
             else list(adata.var_names.intersection([i.lower() for i in genes]))
         )
 
     if len(genes) < 1:
-        raise ValueError(
-            f"Your inputted gene list doesn't overlap any gene in your adata object."
-        )
+        raise ValueError(f"Your inputted gene list doesn't overlap any gene in your adata object.")
 
     X_basis = adata.obsm["X_pca"] if basis is None else adata.obsm["X_" + basis]
 
@@ -121,16 +112,10 @@ def score_cells(
         knn, distances = nbrs.query(X_basis, k=n_neighbors)
     else:
         alg = "ball_tree" if X_basis.shape[1] > 10 else "kd_tree"
-        nbrs = NearestNeighbors(
-            n_neighbors=n_neighbors, algorithm=alg, n_jobs=cores
-        ).fit(X_basis)
+        nbrs = NearestNeighbors(n_neighbors=n_neighbors, algorithm=alg, n_jobs=cores).fit(X_basis)
         distances, knn = nbrs.kneighbors(X_basis)
 
-    X_data = (
-        adata[:, genes].X
-        if layer in [None, "X"]
-        else adata[:, genes].layers[layer]
-    )
+    X_data = adata[:, genes].X if layer in [None, "X"] else adata[:, genes].layers[layer]
 
     prev_score = X_data.mean(1).A1 if issparse(X_data) else X_data.mean(1)
     cur_score = np.zeros(prev_score.shape)
@@ -231,31 +216,15 @@ def cell_growth_rate(
                 f"is not in your adata.obs[{group}] column."
             )
 
-        clone_time_count = (
-            obs.groupby([clone_column])[group]
-            .value_counts()
-            .unstack()
-            .fillna(0)
-            .astype(int)
-        )
+        clone_time_count = obs.groupby([clone_column])[group].value_counts().unstack().fillna(0).astype(int)
         source_meta = obs.loc[source_mask_]
         source_mask = (source_meta[clone_column] != np.nan).values
 
         target_meta = obs.loc[target_mask_]
         target_mask = (target_meta[clone_column] != np.nan).values
 
-        source_num = (
-            clone_time_count.loc[
-                source_meta.loc[source_mask, clone_column], source
-            ].values
-            + 1
-        )
-        target_num = (
-            clone_time_count.loc[
-                target_meta.loc[target_mask, clone_column], target
-            ].values
-            + 1
-        )
+        source_num = clone_time_count.loc[source_meta.loc[source_mask, clone_column], source].values + 1
+        target_num = clone_time_count.loc[target_meta.loc[target_mask, clone_column], target].values + 1
 
         growth_rates = target_num / source_num
     else:
