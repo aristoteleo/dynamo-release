@@ -40,7 +40,8 @@ def state_graph(
     arc_sample=False,
     sample_num=100,
 ):
-    """Estimate the transition probability between cell types using method of vector field integrations.
+    """Estimate the transition probability between cell types using method of vector field integrations or Markov chain
+    lumping.
 
     Parameters
     ----------

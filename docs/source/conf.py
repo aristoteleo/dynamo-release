@@ -39,6 +39,8 @@ master_doc = "index"
 notebooks_url = "https://github.com/aristoteleo/dynamo-tutorials/raw/master/"
 notebooks = [
     "Introduction.ipynb",
+    "Primer.ipynb",
+    "Differential_geometry.ipynb",
     "zebrafish.ipynb",
     # "dentategyrus_subset_scvelo.ipynb",
     # "pancreatic_endocrinogenesis.ipynb",
