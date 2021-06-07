@@ -204,7 +204,7 @@ Vector field (vf)
 .. autosummary::
     :toctree: _autosummary
 
-   vf.rank_speed_genes
+   vf.rank_velocity_genes
    vf.rank_divergence_genes
    vf.rank_acceleration_genes
    vf.rank_curvature_genes

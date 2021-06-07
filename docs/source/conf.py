@@ -150,7 +150,9 @@ autodoc_default_flags = [
 # a list of builtin themes.
 #
 html_theme = "sphinx_rtd_theme"
-html_theme_options = dict(navigation_depth=2)
+html_theme_options = dict(
+    navigation_depth=4,
+)
 html_context = dict(
     display_github=True,  # Integrate GitHub
     github_user="aristoteleo",  # organization
@@ -158,16 +160,16 @@ html_context = dict(
     github_version="master",  # Version
     conf_py_path="/docs/source/",
 )
-
-
-def setup(app):
-    app.add_css_file("custom.css")
-
-
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
+html_css_files = ["css/custom.css"]
+
+
+def setup(app):
+    app.add_css_file("css/custom.css")
+
 
 sphinx_enable_epub_build = False
 sphinx_enable_pdf_build = False
