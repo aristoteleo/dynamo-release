@@ -8,6 +8,7 @@ from anndata import AnnData
 from ..vectorfield.scVectorField import svc_vectorfield
 from ..plot.topography import topography
 from .utils import remove_particles
+from ..dynamo_logger import main_warning, main_info, main_tqdm
 
 
 class StreamFuncAnim:
@@ -151,7 +152,7 @@ class StreamFuncAnim:
         # )
         n_states = self.init_states.shape[0]
         if n_states > 50:
-            warnings.warn(
+            main_warning(
                 f"the number of cell states with fate prediction is more than 50. You may want to "
                 f"lower the max number of cell states to draw via cell_states argument."
             )

@@ -1,4 +1,9 @@
 import seaborn as sns
+from anndata import AnnData
+from typing import NamedTuple, List, Union, Optional
+import pandas as pd
+import matplotlib
+
 from .scatters import scatters, save_fig
 from .utils import map2color
 
@@ -7,14 +12,14 @@ from ..tools.utils import update_dict
 
 
 def fate_bias(
-    adata,
-    group,
-    basis="umap",
-    fate_bias_df=None,
-    figsize=(6, 4),
-    save_show_or_return="show",
-    save_kwargs={},
-    **cluster_maps_kwargs
+    adata: AnnData,
+    group: str,
+    basis: Union[str, None] = "umap",
+    fate_bias_df: Union[pd.DataFrame, None] = None,
+    figsize: tuple = (6, 4),
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
+    **cluster_maps_kwargs: dict
 ):
     """Plot the lineage (fate) bias of cells states whose vector field trajectories are predicted.
 
@@ -83,7 +88,17 @@ def fate_bias(
         return ax
 
 
-def fate(adata, x=0, y=1, basis="pca", color="ntr", ax=None, save_show_or_return="show", save_kwargs={}, **kwargs):
+def fate(
+    adata: AnnData,
+    x: int = 0,
+    y: int = 1,
+    basis: str = "pca",
+    color: str = "ntr",
+    ax: matplotlib.axes.Axes = None,
+    save_show_or_return: str = "show",
+    save_kwargs: dict = {},
+    **kwargs: dict
+):
     """Draw the predicted integration paths on the low-dimensional embedding.
 
     Parameters

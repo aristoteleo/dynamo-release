@@ -2,6 +2,7 @@
 
 # from anndata._core.views import ArrayView
 # import scipy.sparse as sp
+from anndata._core.anndata import AnnData
 import numpy as np
 import pandas as pd
 from ..tools.utils import (
@@ -31,6 +32,8 @@ from ..tools.utils import (
 
 from ..utils import isarray, ismatrix
 from ..dynamo_logger import LoggerManager
+from ..vectorfield import scVectorField
+from ..dynamo_logger import main_info_insert_adata, main_info, main_warning
 
 try:
     import dynode
@@ -584,12 +587,12 @@ def acceleration(
 
 
 def curvature(
-    adata,
-    basis="pca",
-    vector_field_class=None,
-    formula=2,
-    Qkey="PCs",
-    method="analytical",
+    adata: AnnData,
+    basis: str = "pca",
+    vector_field_class: scVectorField.base_vectorfield = None,
+    formula: int = 2,
+    Qkey: str = "PCs",
+    method: str = "analytical",
     **kwargs,
 ):
     """Calculate curvature for each cell with the reconstructed vector field function.
@@ -598,7 +601,7 @@ def curvature(
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        basis: str or None (default: `pca`)
+        basis:
             The embedding data in which the vector field was reconstructed.
         vector_field_class: :class:`~scVectorField.vectorfield`
             If not None, the divergene will be computed using this class instead of the vector field stored in adata.
@@ -647,7 +650,10 @@ def curvature(
 
     curv_key = "curvature" if basis is None else "curvature_" + basis
 
+    main_info_insert_adata(curv_key, adata_attr="obs", indent_level=1)
     adata.obs[curv_key] = curv
+
+    main_info_insert_adata(curv_key, adata_attr="obsm", indent_level=1)
     adata.obsm[curv_key] = curv_mat
     if basis == "pca":
         curv_hi = vector_transformation(curv_mat, adata.uns[Qkey])
@@ -1228,7 +1234,6 @@ def rank_curvature_genes(adata, ckey="curvature", prefix_store="rank", **kwargs)
         adata: :class:`~anndata.AnnData`
             AnnData object that is updated with the `'rank_curvature'` related information in the .uns.
     """
-
     rdict = rank_genes(adata, ckey, **kwargs)
     rdict_abs = rank_genes(adata, ckey, abs=True, **kwargs)
     adata.uns[prefix_store + "_" + ckey] = rdict

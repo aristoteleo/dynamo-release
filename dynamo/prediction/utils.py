@@ -1,3 +1,4 @@
+from typing import Callable
 from tqdm import tqdm
 
 # from anndata._core.views import ArrayView
@@ -7,9 +8,7 @@ from scipy.integrate import solve_ivp
 
 # import scipy.sparse as sp
 from ..vectorfield.topography import dup_osc_idx_iter
-from ..tools.utils import (
-    log1p_,
-)
+from ..tools.utils import log1p_
 
 from ..utils import isarray
 from ..tools.utils import nearest_neighbors
@@ -74,7 +73,7 @@ def integrate_vf_ivp(
     init_states,
     t,
     integration_direction,
-    f,
+    f: Callable,
     args=None,
     interpolation_num=250,
     average=True,

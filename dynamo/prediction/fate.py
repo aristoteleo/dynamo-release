@@ -1,3 +1,4 @@
+from typing import Callable, Optional, Union
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
@@ -5,36 +6,37 @@ from sklearn.neighbors import NearestNeighbors
 from multiprocessing.dummy import Pool as ThreadPool
 import itertools
 import warnings
+from anndata import AnnData
+
 from ..tools.utils import (
     fetch_states,
     getTseq,
 )
-from .utils import (
-    integrate_vf_ivp,
-)
+from .utils import integrate_vf_ivp
 from ..vectorfield import vector_field_function
 from ..vectorfield.utils import vector_transformation
+from ..dynamo_logger import main_info, main_warning
 
 
 def fate(
-    adata,
-    init_cells,
-    init_states=None,
-    basis=None,
-    layer="X",
-    dims=None,
-    genes=None,
-    t_end=None,
-    direction="both",
-    interpolation_num=250,
-    average=False,
-    sampling="arc_length",
-    VecFld_true=None,
-    inverse_transform=False,
-    Qkey="PCs",
-    scale=1,
-    cores=1,
-    **kwargs,
+    adata: AnnData,
+    init_cells: list,
+    init_states: Optional[np.ndarray] = None,
+    basis: Optional[None] = None,
+    layer: str = "X",
+    dims: Union[tuple([list, None] + list(np.ScalarType))] = None,
+    genes: Union[list, None] = None,
+    t_end: Optional[float] = None,
+    direction: str = "both",
+    interpolation_num: int = 250,
+    average: bool = False,
+    sampling: str = "arc_length",
+    VecFld_true: Callable = None,
+    inverse_transform: bool = False,
+    Qkey: str = "PCs",
+    scale: float = 1,
+    cores: int = 1,
+    **kwargs: dict,
 ):
     """Predict the historical and future cell transcriptomic states over arbitrary time scales.
 
@@ -46,7 +48,7 @@ def fate(
     ----------
         adata: :class:`~anndata.AnnData`
             AnnData object that contains the reconstructed vector field function in the `uns` attribute.
-        init_cells: `list` (default: None)
+        init_cells: `list`
             Cell name or indices of the initial cell states for the historical or future cell state prediction with
             numerical integration. If the names in init_cells are not find in the adata.obs_name, it will be treated as
             cell indices and must be integers.
@@ -110,7 +112,7 @@ def fate(
 
     if sampling in ["arc_length", "logspace", "uniform_indices"]:
         if average in ["origin", "trajectory", True]:
-            warnings.warn(
+            main_warning(
                 f"using {sampling} to sample data points along an integral path at different integration "
                 "time points. Average trajectory won't be calculated"
             )
@@ -325,17 +327,19 @@ def _fate(
 
 
 def fate_bias(
-    adata,
+    adata: AnnData,
     group,
-    basis="umap",
-    inds=None,
-    speed_percentile=5,
-    dist_threshold=None,
-    source_groups=None,
-    metric="euclidean",
-    metric_kwds=None,
-    cores=1,
-    seed=19491001,
+    basis: str = "umap",
+    inds: Union[list, None] = None,
+    use_sink_percentage: bool = True,
+    step_used_percentage: Optional[float] = None,
+    speed_percentile: float = 5,
+    dist_threshold: Optional[float] = None,
+    source_groups: Optional[list] = None,
+    metric: str = "euclidean",
+    metric_kwds: dict = None,
+    cores: int = 1,
+    seed: int = 19491001,
     **kwargs,
 ):
     """Calculate the lineage (fate) bias of states whose trajectory are predicted.
@@ -375,11 +379,16 @@ def fate_bias(
             state.
         basis: `str` or None (default: `None`)
             The embedding data space where cell fates were predicted and cell fates bias will be quantified.
-        inds `list` or `float` or None (default: `None`):
-            The indices of the time steps that will be used for calculating fate bias. If inds is None, the last a few
-            steps of the fate prediction based on the `sink_speed_percentile` will be use. If inds is the float (between
-            0 and 1), it will be regarded as a percentage, and the last percentage of steps will be used for fate bias
-            calculation. Otherwise inds need to be a list of integers of the time steps.
+        inds:
+            The indices of the time steps that will be used for calculating fate bias.
+            Otherwise inds need to be a list of integers of the time steps.
+        use_sink_percentage:
+            If inds is None and use_sink is True, sink calculation will be applied to calculate
+            indices used for fate bias calculation
+        step_used_percentage:
+            If inds is None and step_used_percentage is not None,
+            step_used_percentage will be regarded as a percentage,
+            and the LAST step_used_percentage of steps will be used for fate bias calculation.
         speed_percentile: `float` (default: `5`)
             The percentile of speed that will be used to determine the terminal cells (or sink region on the prediction
             path where speed is smaller than this speed percentile).
@@ -476,17 +485,22 @@ def fate_bias(
     for i, prediction in tqdm(enumerate(cell_predictions), desc="calculating fate distributions"):
         cur_t, n_steps = t[i], len(t[i])
 
-        # ensure to identify sink where the speed is very slow if inds is not provided.
-        # if inds is the percentage, use the last percentage of steps to check for cell fate bias.
-        # otherwise inds need to be a list.
-        if inds is None:
+        # Generate or set indices as step sample points. Meanwhile ensure
+        # identifying sink where the speed is very slow. If "inds" is set, use "inds" and the speed_percentile is used to determine the time indicies for calculating the fate bias
+        # else if "use_sink_percentage" is set, calculate avg_speed and sink_checker
+        # else if "step_used_percentage" is set, use the last percentage of steps to check for cell fate bias.
+        # If none of the above arguments are set, use a list of n steps as indices
+        if inds is not None:
+            indices = inds
+        elif use_sink_percentage:
             avg_speed = np.array([np.linalg.norm(i) for i in np.diff(prediction, 1).T]) / np.diff(cur_t)
             sink_checker = np.where(avg_speed[::-1] > np.percentile(avg_speed, speed_percentile))[0]
             indices = np.arange(n_steps - max(min(sink_checker), 10), n_steps)
-        elif inds is float:
-            indices = np.arange(int(n_steps - inds * n_steps), n_steps)
+        elif step_used_percentage is float:
+            indices = np.arange(int(n_steps - step_used_percentage * n_steps), n_steps)
         else:
-            indices = inds
+            main_info("using all steps data")
+            indices = np.arange(0, n_steps)
 
         if hasattr(nbrs, "query"):
             knn, distances = nbrs.query(prediction[:, indices].T, k=30)

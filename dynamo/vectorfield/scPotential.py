@@ -39,9 +39,7 @@ def search_fixed_points(
         n = x0
 
         if k > 2 and x0_method == "grid":
-            warn(
-                "The dimensionality is too high (%dD). Using lhs instead..." % k
-            )
+            warn("The dimensionality is too high (%dD). Using lhs instead..." % k)
             x0_method = "lhs"
 
         if x0_method == "lhs":
@@ -59,17 +57,13 @@ def search_fixed_points(
     fp = FixedPoints()
     succeed = 0
     for i in range(len(x0)):
-        x, fval_dict, ier, mesg = sp.optimize.fsolve(
-            func_, x0[i], full_output=True, **fsolve_kwargs
-        )
+        x, fval_dict, ier, mesg = sp.optimize.fsolve(func_, x0[i], full_output=True, **fsolve_kwargs)
 
         if ignore_fsolve_err:
             ier = 1
         if fval_dict["fvec"].dot(fval_dict["fvec"]) > fval_tol and ier == 1:
             ier = -1
-            mesg = (
-                "Function evaluated at the output is larger than the tolerance."
-            )
+            mesg = "Function evaluated at the output is larger than the tolerance."
         elif remove_outliers and is_outside_domain(x, domain) and ier == 1:
             ier = -2
             mesg = "The output is outside the domain."
@@ -144,14 +138,10 @@ def gen_fixed_points(
 
     if x_ini is None and EqNum < 4:
         _min, _max = [dim_range[0]] * EqNum, [dim_range[1]] * EqNum
-        Grid_list = np.meshgrid(
-            *[np.linspace(i, j, grid_num) for i, j in zip(_min, _max)]
-        )
+        Grid_list = np.meshgrid(*[np.linspace(i, j, grid_num) for i, j in zip(_min, _max)])
         x_ini = np.array([i.flatten() for i in Grid_list]).T
 
-    RandNum = (
-        RandNum if x_ini is None else x_ini.shape[0]
-    )  # RandNum set to the manually input steady state estimates
+    RandNum = RandNum if x_ini is None else x_ini.shape[0]  # RandNum set to the manually input steady state estimates
     FixedPoint = np.zeros((RandNum, EqNum))
     Type = np.zeros((RandNum, 1))
 
@@ -164,13 +154,8 @@ def gen_fixed_points(
 
     if x_ini is None:
         for time in range(RandNum):
-            x0 = (
-                np.random.uniform(0, 1, EqNum) * (dim_range[1] - dim_range[0])
-                + dim_range[0]
-            )
-            x, fval_dict, _, _ = sp.optimize.fsolve(
-                func_, x0, maxfev=450000, xtol=FixedPointConst, full_output=True
-            )
+            x0 = np.random.uniform(0, 1, EqNum) * (dim_range[1] - dim_range[0]) + dim_range[0]
+            x, fval_dict, _, _ = sp.optimize.fsolve(func_, x0, maxfev=450000, xtol=FixedPointConst, full_output=True)
             # fjac: the orthogonal matrix, q, produced by the QR factorization of the final approximate Jacobian matrix,
             # stored column wise; r: upper triangular matrix produced by QR factorization of the same matrix
             # if auto_func is None:
@@ -195,9 +180,7 @@ def gen_fixed_points(
     else:
         for time in range(x_ini.shape[0]):
             x0 = x_ini[time, :]
-            x, fval_dict, _, _ = sp.optimize.fsolve(
-                func_, x0, maxfev=450000, xtol=FixedPointConst, full_output=True
-            )
+            x, fval_dict, _, _ = sp.optimize.fsolve(func_, x0, maxfev=450000, xtol=FixedPointConst, full_output=True)
             # fjac: the orthogonal matrix, q, produced by the QR factorization of the final approximate Jacobian matrix,
             # stored column wise; r: upper triangular matrix produced by QR factorization of the same matrix
             # if auto_func is None:
@@ -226,9 +209,7 @@ def gen_fixed_points(
         elif Type[time] == 1:
             for i in range(StableNum + 1):
                 temp = StablePoint[i, :] - FixedPoint[time, :]
-                if (
-                    i is not StableNum + 1 and temp.dot(temp) < ZeroConst
-                ):  # avoid duplicated attractors
+                if i is not StableNum + 1 and temp.dot(temp) < ZeroConst:  # avoid duplicated attractors
                     StableTimes[i] = StableTimes[i] + 1
                     break
             if i is StableNum:
@@ -238,9 +219,7 @@ def gen_fixed_points(
         elif Type[time] == -1:
             for i in range(SaddleNum + 1):
                 temp = SaddlePoint[i, :] - FixedPoint[time, :]
-                if (
-                    i is not SaddlePoint and temp.dot(temp) < ZeroConst
-                ):  # avoid duplicated saddle point
+                if i is not SaddlePoint and temp.dot(temp) < ZeroConst:  # avoid duplicated saddle point
                     SaddleTimes[i] = SaddleTimes[i] + 1
                     break
             if i is SaddleNum:
@@ -292,12 +271,7 @@ def gen_gradient(dim, N, Function, DiffusionMatrix):
     for k in np.arange(1, N):  # equation 18
         k
         # S+1/4*dt*((X(:,k)-X(:,k-1))/dt-ODE(X(:,k-1))).'*(DiffusionMatrix(X(:,k-1)))^(-1)*((X(:,k)-X(:,k-1))/dt-ODE(X(:,k-1)));
-        t1 = (
-            1
-            / 4
-            * dt
-            * ((X[:, k] - X[:, k - 1]) / dt - Matrix(Function(X[:, k - 1]))).T
-        )
+        t1 = 1 / 4 * dt * ((X[:, k] - X[:, k - 1]) / dt - Matrix(Function(X[:, k - 1]))).T
 
         t2 = Matrix(np.linalg.inv(DiffusionMatrix(X[:, k - 1])))
         t3 = (X[:, k] - X[:, k - 1]) / dt - Matrix(Function(X[:, k - 1]))
@@ -312,9 +286,7 @@ def gen_gradient(dim, N, Function, DiffusionMatrix):
 
     # convert the result into a function by st.StringFunction
     str_V = str(V)
-    str_V_processed = str_V.replace("transpose", "").replace(
-        "Matrix", "np.array"
-    )
+    str_V_processed = str_V.replace("transpose", "").replace("Matrix", "np.array")
 
     f_str = """
     def graident(dt, x):
@@ -357,15 +329,9 @@ def IntGrad(points, Function, DiffusionMatrix, dt):
 
     integral = 0
     for k in np.arange(1, points.shape[1]):
-        Tmp = (points[:, k] - points[:, k - 1]).reshape(
-            (-1, 1)
-        ) / dt - Function(points[:, k - 1]).reshape((-1, 1))
+        Tmp = (points[:, k] - points[:, k - 1]).reshape((-1, 1)) / dt - Function(points[:, k - 1]).reshape((-1, 1))
         integral = (
-            integral
-            + (Tmp.T)
-            .dot(np.linalg.matrix_power(DiffusionMatrix(points[:, k - 1]), -1))
-            .dot(Tmp)
-            * dt
+            integral + (Tmp.T).dot(np.linalg.matrix_power(DiffusionMatrix(points[:, k - 1]), -1)).dot(Tmp) * dt
         )  # part of the Eq. 18 in Sci. Rep. paper
     integral = integral / 4
 
@@ -391,9 +357,7 @@ def DiffusionMatrix(x):
     return out
 
 
-def action(
-    n_points, tmax, point_start, point_end, boundary, Function, DiffusionMatrix
-):
+def action(n_points, tmax, point_start, point_end, boundary, Function, DiffusionMatrix):
     """It calculates the minimized action value given an initial path, ODE, and diffusion matrix. The minimization is
     realized by scipy.optimize.Bounds function in python (without using the gradient of the action function).
 
@@ -434,10 +398,7 @@ def action(
     # initial path as a line connecting start point and end point point_start*ones(1,n_points+1)+(point_end-point_start)*(0:tmax/n_points:tmax)/tmax;
     initpath = (
         point_start.dot(np.ones((1, n_points + 1)))
-        + (point_end - point_start).dot(
-            np.linspace(0, tmax, n_points + 1, endpoint=True).reshape(1, -1)
-        )
-        / tmax
+        + (point_end - point_start).dot(np.linspace(0, tmax, n_points + 1, endpoint=True).reshape(1, -1)) / tmax
     )
 
     Bounds = scipy.optimize.Bounds(
@@ -612,9 +573,7 @@ class Pot:
 
         if method == "Ao":
             X = adata.obsm["X_" + basis]
-            X, U, P, vecMat, S, A = Ao_pot_map(
-                self.VecFld["Function"], X, D=self.VecFld["DiffusionMatrix"]
-            )
+            X, U, P, vecMat, S, A = Ao_pot_map(self.VecFld["Function"], X, D=self.VecFld["DiffusionMatrix"])
 
             adata.uns["grid_Pot_" + basis] = {
                 "Xgrid": X,
@@ -624,15 +583,7 @@ class Pot:
                 "A": A,
             }
         elif method == "Bhattacharya":
-            (
-                numPaths,
-                numTimeSteps,
-                pot_path,
-                path_tag,
-                attractors_pot,
-                x_path,
-                y_path,
-            ) = path_integral(
+            (numPaths, numTimeSteps, pot_path, path_tag, attractors_pot, x_path, y_path,) = path_integral(
                 self.VecFld["Function"],
                 x_lim=x_lim,
                 y_lim=y_lim,
@@ -665,15 +616,7 @@ class Pot:
                 self.VecFld["Function"],
                 self.VecFld["DiffusionMatrix"],
             )
-            (
-                boundary,
-                n_points,
-                fixed_point_only,
-                find_fixed_points,
-                refpoint,
-                stable,
-                saddle,
-            ) = (
+            (boundary, n_points, fixed_point_only, find_fixed_points, refpoint, stable, saddle,) = (
                 self.parameters["boundary"],
                 self.parameters["n_points"],
                 self.parameters["fixed_point_only"],
@@ -719,11 +662,7 @@ class Pot:
                 points = np.vstack((X.flatten(), Y.flatten()))
                 I = range(points.shape[1])
 
-            for (
-                ind
-            ) in (
-                I
-            ):  # action(n_points,tmax,point_start,point_end, boundary, Function, DiffusionMatrix):
+            for ind in I:  # action(n_points,tmax,point_start,point_end, boundary, Function, DiffusionMatrix):
                 print("current ind is ", ind)
                 lav, lap = action(
                     TotalPoints,

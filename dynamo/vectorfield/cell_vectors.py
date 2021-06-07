@@ -4,13 +4,7 @@ from .vector_calculus import acceleration, curvature
 
 
 def cell_accelerations(
-    adata,
-    vf_basis="pca",
-    basis="umap",
-    enforce=True,
-    preserve_len=True,
-    other_kernels_dict={},
-    **kwargs
+    adata, vf_basis="pca", basis="umap", enforce=True, preserve_len=True, other_kernels_dict={}, **kwargs
 ):
     """Compute RNA acceleration field via reconstructed vector field and project it to low dimensional embeddings.
 
@@ -105,13 +99,7 @@ def cell_accelerations(
 
 
 def cell_curvatures(
-    adata,
-    vf_basis="pca",
-    basis="umap",
-    enforce=True,
-    preserve_len=True,
-    other_kernels_dict={},
-    **kwargs
+    adata, vf_basis="pca", basis="umap", enforce=True, preserve_len=True, other_kernels_dict={}, **kwargs
 ):
     """Compute RNA curvature field via reconstructed vector field and project it to low dimensional embeddings.
 

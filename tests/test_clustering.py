@@ -68,7 +68,7 @@ def test_simple_cluster_keys(adata):
 
 
 def test_leiden_membership_input(adata):
-    # to-do: fix the following test cases
+    # To-do: fix the following test cases
     # somehow this initial member ship works before, but not now
     initial_membership = np.random.randint(low=0, high=min(100, len(adata)), size=len(adata), dtype=int)
     dyn.tl.leiden(adata, initial_membership=initial_membership)

@@ -25,6 +25,8 @@ def format_logging_message(msg, logging_level, indent_level=1, indent_space_num=
         prefix += "?"
     elif logging_level == logging.CRITICAL:
         prefix += "!!"
+    elif logging_level == logging.DEBUG:
+        prefix += ">>>"
     new_msg = prefix + " " + str(msg)
     return new_msg
 
@@ -180,6 +182,11 @@ class Logger:
 
 class LoggerManager:
 
+    DEBUG = logging.DEBUG
+    INFO = logging.INFO
+    CRITICAL = logging.CRITICAL
+    EXCEPTION = logging.ERROR
+
     main_logger = Logger("dynamo")
     temp_timer_logger = Logger("dynamo-temp-timer-logger")
 
@@ -220,6 +227,10 @@ def main_info(message, indent_level=1):
     LoggerManager.main_logger.info(message, indent_level)
 
 
+def main_debug(message, indent_level=1):
+    LoggerManager.main_logger.debug(message, indent_level)
+
+
 def main_warning(message, indent_level=1):
     LoggerManager.main_logger.warning(message, indent_level)
 
@@ -254,3 +265,7 @@ def main_log_time():
 
 def main_finish_progress(progress_name=""):
     LoggerManager.main_logger.finish_progress(progress_name=progress_name)
+
+
+def main_info_insert_adata(key, adata_attr="obsm", indent_level=1, *args, **kwargs):
+    LoggerManager.main_logger.info_insert_adata(key, adata_attr=adata_attr, indent_level=indent_level, *args, **kwargs)

@@ -10,7 +10,7 @@ from .utils import (
 )
 from .utils import set_velocity, set_param_ss, set_param_kinetic
 from .moments import moment_model
-
+from ..dynamo_logger import main_warning, main_info
 
 # incorporate the model selection code soon
 def _dynamics(
@@ -100,18 +100,12 @@ def _dynamics(
             An updated AnnData object with estimated kinetic parameters and inferred velocity included.
     """
 
-    if (
-        "use_for_dynamics" not in adata.var.columns
-        and "pass_basic_filter" not in adata.var.columns
-    ):
+    if "use_for_dynamics" not in adata.var.columns and "pass_basic_filter" not in adata.var.columns:
         filter_gene_mode = "no"
 
     valid_ind = get_valid_bools(adata, filter_gene_mode)
 
-    if mode == "moment" or (
-        use_smoothed
-        and len([i for i in adata.layers.keys() if i.startswith("M_")]) < 2
-    ):
+    if mode == "moment" or (use_smoothed and len([i for i in adata.layers.keys() if i.startswith("M_")]) < 2):
         if experiment_type == "kin":
             use_smoothed = False
         else:
@@ -162,17 +156,13 @@ def _dynamics(
 
         if exp_type is not None:
             if experiment_type != exp_type:
-                warnings.warn(
+                main_warning(
                     "dynamo detects the experiment type of your data as {}, but your input experiment_type "
                     "is {}".format(exp_type, experiment_type)
                 )
 
             experiment_type = exp_type
-            assumption_mRNA = (
-                "ss"
-                if exp_type == "conventional" and mode == "deterministic"
-                else None
-            )
+            assumption_mRNA = "ss" if exp_type == "conventional" and mode == "deterministic" else None
             NTR_vel = False
 
         if mode == "moment" and experiment_type not in ["conventional", "kin"]:
@@ -182,9 +172,7 @@ def _dynamics(
 
             mode = "deterministic"
 
-        if mode == "deterministic" or (
-            experiment_type != "kin" and mode == "moment"
-        ):
+        if mode == "deterministic" or (experiment_type != "kin" and mode == "moment"):
             est = ss_estimation(
                 U=U,
                 Ul=Ul,
@@ -253,9 +241,7 @@ def _dynamics(
             )
 
         elif mode == "moment":
-            adata, Est, t_ind = moment_model(
-                adata, subset_adata, _group, cur_grp, log_unnormalized, tkey
-            )
+            adata, Est, t_ind = moment_model(adata, subset_adata, _group, cur_grp, log_unnormalized, tkey)
             t_ind += 1
 
             params, costs = Est.train()
@@ -316,7 +302,7 @@ def _dynamics(
             )
             # add protein related parameters in the moment model below:
         elif mode == "model_selection":
-            warnings.warn("Not implemented yet.")
+            main_warning("Not implemented yet.")
 
     if group is not None and group in adata.obs[group]:
         uns_key = group + "_dynamics"

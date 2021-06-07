@@ -17,7 +17,7 @@ import copy
 
 from ..configuration import _themes
 from ..tools.utils import integrate_vf  # integrate_vf_ivp
-
+from ..dynamo_logger import main_debug
 
 # ---------------------------------------------------------------------------------------------------
 # variable checking utilities
@@ -158,9 +158,10 @@ def _matplotlib_points(
     frontier=False,
     contour=False,
     ccmap=None,
-    calpha=2.3,
+    calpha=0.4,
     sym_c=False,
     inset_dict={},
+    show_colorbar=True,
     **kwargs,
 ):
     import matplotlib.pyplot as plt
@@ -185,14 +186,17 @@ def _matplotlib_points(
     unique_labels = []
 
     if labels is not None:
+        main_debug("labels are not None, drawing by labels")
         if labels.shape[0] != points.shape[0]:
             raise ValueError(
                 "Labels must have a label for "
                 "each sample (size mismatch: {} {})".format(labels.shape[0], points.shape[0])
             )
         if color_key is None:
+            main_debug("color_key is None")
             cmap = copy.copy(matplotlib.cm.get_cmap(color_key_cmap))
             cmap.set_bad("lightgray")
+            colors = None
 
             if highlights is None:
                 unique_labels = np.unique(labels)
@@ -229,7 +233,10 @@ def _matplotlib_points(
                 ).values
                 labels = points[:, 2]
 
+        # WARNING: do not change the following line to "elif" during refactor
+        # This if-else branch is not logically parallel to the previous one. The following branch sets `colors`.
         if isinstance(color_key, dict):
+            main_debug("color_key is a dict")
             colors = pd.Series(labels).map(color_key).values
             unique_labels = np.unique(labels)
             legend_elements = [
@@ -245,6 +252,7 @@ def _matplotlib_points(
                 for k in unique_labels
             ]
         else:
+            main_debug("color_key is not None and not a dict")
             unique_labels = np.unique(labels)
             if len(color_key) < unique_labels.shape[0]:
                 raise ValueError("Color key must have enough colors for the number of labels")
@@ -265,6 +273,7 @@ def _matplotlib_points(
             colors = pd.Series(labels).map(new_color_key)
 
         if frontier:
+            main_debug("drawing frontier")
             rasterized = kwargs["rasterized"] if "rasterized" in kwargs.keys() else None
             ax.scatter(
                 points[:, 0],
@@ -290,6 +299,7 @@ def _matplotlib_points(
                 **kwargs,
             )
         elif contour:
+            main_debug("drawing contour")
             # try:
             #     from shapely.geometry import Polygon, MultiPoint, Point
             # except ImportError:
@@ -329,7 +339,7 @@ def _matplotlib_points(
                 x="x",
                 y="y",
                 fill=True,
-                alpha=kwargs.get("alpha", "0.4"),
+                alpha=calpha,
                 palette=ccmap,
                 ax=ax,
                 thresh=0,
@@ -345,6 +355,7 @@ def _matplotlib_points(
                 **kwargs,
             )
         else:
+            main_debug("drawing without frontiers and contour")
             ax.scatter(
                 points[:, 0],
                 points[:, 1],
@@ -355,6 +366,7 @@ def _matplotlib_points(
 
     # Color by values
     elif values is not None:
+        main_debug("drawing points by values")
         cmap_ = copy.copy(matplotlib.cm.get_cmap(cmap))
         cmap_.set_bad("lightgray")
 
@@ -373,7 +385,8 @@ def _matplotlib_points(
         )
         values, points = values[sorted_id], points[sorted_id, :]
 
-        # if there are very few cells have expression, set the vmin/vmax only based on positive values
+        # if there are very few cells have expression, set the vmin/vmax only based on positive values to
+        # get rid of outliers
         if np.nanmin(values) == 0:
             n_pos_cells = sum(values > 0)
             if 0 < n_pos_cells / len(values) < 0.02:
@@ -412,6 +425,7 @@ def _matplotlib_points(
             _vmin, _vmax = bounds
 
         if frontier:
+            main_debug("drawing frontier")
             rasterized = kwargs["rasterized"] if "rasterized" in kwargs.keys() else None
             ax.scatter(
                 points[:, 0],
@@ -440,6 +454,7 @@ def _matplotlib_points(
                 **kwargs,
             )
         elif contour:
+            main_debug("drawing contour")
             # try:
             #     from shapely.geometry import Polygon, MultiPoint, Point
             # except ImportError:
@@ -484,7 +499,7 @@ def _matplotlib_points(
                 x="x",
                 y="y",
                 fill=True,
-                alpha=kwargs.get("alpha", "0.4"),
+                alpha=calpha,
                 palette=ccmap,
                 ax=ax,
                 thresh=0,
@@ -501,6 +516,8 @@ def _matplotlib_points(
                 **kwargs,
             )
         else:
+            main_debug("drawing without frontiers and contour")
+            main_debug("using cmap: %s" % (str(cmap)))
             ax.scatter(
                 points[:, 0],
                 points[:, 1],
@@ -519,21 +536,24 @@ def _matplotlib_points(
 
         mappable = matplotlib.cm.ScalarMappable(norm=norm, cmap=cmap)
         mappable.set_array(values)
-        cb = plt.colorbar(mappable, cax=set_colorbar(ax, inset_dict), ax=ax)
-        cb.set_alpha(1)
-        cb.draw_all()
-        cb.locator = MaxNLocator(nbins=3, integer=True)
-        cb.update_ticks()
+        if show_colorbar:
+            cb = plt.colorbar(mappable, cax=set_colorbar(ax, inset_dict), ax=ax)
+            cb.set_alpha(1)
+            cb.draw_all()
+            cb.locator = MaxNLocator(nbins=3, integer=True)
+            cb.update_ticks()
 
         cmap = matplotlib.cm.get_cmap(cmap)
         colors = cmap(values)
     # No color (just pick the midpoint of the cmap)
     else:
+        main_debug("drawing points without color passed in args, using midpoint of the cmap")
         colors = plt.get_cmap(cmap)(0.5)
         ax.scatter(points[:, 0], points[:, 1], c=colors, **kwargs)
 
     if show_legend and legend_elements is not None:
         if len(unique_labels) > 1 and show_legend == "on data":
+            main_debug("unique labels > 1 and show_legend is on data")
             font_color = "white" if background in ["black", "#ffffff"] else "black"
             for i in unique_labels:
                 if i == "other":
@@ -556,12 +576,15 @@ def _matplotlib_points(
                     ]
                 )
         else:
+            main_debug("drawing legend")
             ax.legend(
                 handles=legend_elements,
                 bbox_to_anchor=(1.04, 1),
                 loc=show_legend,
                 ncol=len(unique_labels) // 15 + 1,
             )
+    else:
+        main_debug("hiding legend")
 
     return ax, colors
 
@@ -643,8 +666,7 @@ def _datashade_points(
                     data["label"] == "other",
                 )
                 reorder_data = data.copy(deep=True)
-                indices = np.arange(sum(background_ids), reorder_data.shape[0])
-                (reorder_data.iloc[: sum(background_ids), :], reorder_data.iloc[indices, :],) = (
+                (reorder_data.iloc[: sum(background_ids), :], reorder_data.iloc[sum(background_ids) :, :],) = (
                     data.iloc[background_ids, :],
                     data.iloc[highlight_ids, :],
                 )

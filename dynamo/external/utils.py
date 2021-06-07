@@ -26,34 +26,24 @@ def normalize_data(mm, szfactors, pseudo_expr: float = 0.1):
     return mm
 
 
-def TF_link_gene_chip(
-    raw_glmnet_res_var, df_gene_TF_link_ENCODE, var, cor_thresh: float = 0.02
-):
+def TF_link_gene_chip(raw_glmnet_res_var, df_gene_TF_link_ENCODE, var, cor_thresh: float = 0.02):
     """Filter the raw lasso regression links via chip-seq data based on a Fisher exact test"""
 
-    glmnet_res_var_filtered = raw_glmnet_res_var.query(
-        "abs(corcoef) > @cor_thresh"
-    )
+    glmnet_res_var_filtered = raw_glmnet_res_var.query("abs(corcoef) > @cor_thresh")
     print(f"\n Number of possible links: glmnet_res_var_filtered.shape[0]")
 
     # source - target gene pairs
     df_gene_TF_link_ENCODE["id_gene"] = (
-        df_gene_TF_link_ENCODE["id"].astype("str")
-        + "_"
-        + df_gene_TF_link_ENCODE["linked_gene_name"].astype("str")
+        df_gene_TF_link_ENCODE["id"].astype("str") + "_" + df_gene_TF_link_ENCODE["linked_gene_name"].astype("str")
     )
     glmnet_res_var_filtered["id_gene"] = (
-        glmnet_res_var_filtered["id"].astype("str")
-        + "_"
-        + glmnet_res_var_filtered["linked_gene_name"].astype("str")
+        glmnet_res_var_filtered["id"].astype("str") + "_" + glmnet_res_var_filtered["linked_gene_name"].astype("str")
     )
 
-    df_gene_TF_link_ENCODE["glmnet_chip_links"] = df_gene_TF_link_ENCODE[
-        "id_gene"
-    ].isin(glmnet_res_var_filtered["id_gene"])
-    unique_TFs = glmnet_res_var_filtered.id[
-        glmnet_res_var_filtered.id.isin(df_gene_TF_link_ENCODE["id"])
-    ].unique()
+    df_gene_TF_link_ENCODE["glmnet_chip_links"] = df_gene_TF_link_ENCODE["id_gene"].isin(
+        glmnet_res_var_filtered["id_gene"]
+    )
+    unique_TFs = glmnet_res_var_filtered.id[glmnet_res_var_filtered.id.isin(df_gene_TF_link_ENCODE["id"])].unique()
 
     df_tb = pd.crosstab(
         df_gene_TF_link_ENCODE["glmnet_chip_links"],
@@ -84,21 +74,14 @@ def TF_link_gene_chip(
     print(f"Number of positive TFs: {df_unique_TF.shape[0]}")
 
     validated_TF = df_unique_TF["id"].unique()
-    df_gene_TF_link_chip = df_gene_TF_link_ENCODE.loc[
-        df_gene_TF_link_ENCODE.id.isin(validated_TF)
-    ]
-    df_gene_TF_link_chip = df_gene_TF_link_chip.merge(
-        glmnet_res_var_filtered[["id_gene", "corcoef", "r_squre"]]
-    )
+    df_gene_TF_link_chip = df_gene_TF_link_ENCODE.loc[df_gene_TF_link_ENCODE.id.isin(validated_TF)]
+    df_gene_TF_link_chip = df_gene_TF_link_chip.merge(glmnet_res_var_filtered[["id_gene", "corcoef", "r_squre"]])
     df_gene = var[["gene_id", "gene_short_name", "gene_type"]]
     df_gene.columns = ["linked_gene_id", "linked_gene_name", df_gene.columns[2]]
 
     df_gene_TF_link_chip = df_gene_TF_link_chip.merge(df_gene)
     df_gene_TF_link_chip["Conf"] = "Chip_peak"
-    df_gene_TF_link_chip["group"] = [
-        "has_link" if i else "no_link"
-        for i in df_gene_TF_link_chip["glmnet_chip_links"]
-    ]
+    df_gene_TF_link_chip["group"] = ["has_link" if i else "no_link" for i in df_gene_TF_link_chip["glmnet_chip_links"]]
 
     df_gene_TF_link_chip = df_gene_TF_link_chip.query("group == 'has_link'")
     df_gene_TF_link_chip = df_gene_TF_link_chip[

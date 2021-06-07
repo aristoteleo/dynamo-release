@@ -23,16 +23,10 @@ def evaluate(reference, prediction, metric="cosine"):
     """
 
     if metric == "cosine":
-        true_normalized = reference / np.linalg.norm(reference, axis=1).reshape(
-            -1, 1
-        )
-        predict_normalized = prediction / np.linalg.norm(
-            prediction, axis=1
-        ).reshape(-1, 1)
+        true_normalized = reference / np.linalg.norm(reference, axis=1).reshape(-1, 1)
+        predict_normalized = prediction / np.linalg.norm(prediction, axis=1).reshape(-1, 1)
 
-        res = (
-            np.mean(true_normalized * predict_normalized) * prediction.shape[1]
-        )
+        res = np.mean(true_normalized * predict_normalized) * prediction.shape[1]
 
     elif metric == "rmse":
         res = mean_squared_error(y_true=reference, y_pred=prediction)

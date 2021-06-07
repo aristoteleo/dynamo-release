@@ -1,5 +1,7 @@
 # code adapted from https://github.com/lmcinnes/umap/blob/7e051d8f3c4adca90ca81eb45f6a9d1372c076cf/umap/plot.py
 import warnings
+from matplotlib import patches
+from matplotlib.lines import Line2D
 import numpy as np
 import pandas as pd
 from pandas.api.types import is_categorical_dtype
@@ -37,7 +39,7 @@ from ..tools.utils import (
     flatten,
 )
 from ..tools.moments import calc_1nd_moment
-from ..dynamo_logger import main_info
+from ..dynamo_logger import main_info, main_debug, main_warning
 from ..docrep import DocstringProcessor
 
 docstrings = DocstringProcessor()
@@ -75,7 +77,8 @@ def scatters(
     frontier: bool = False,
     contour: bool = False,
     ccmap: Optional[str] = None,
-    calpha: float = 2.3,
+    alpha: float = 0.1,
+    calpha: float = 0.4,
     sym_c: bool = False,
     smooth: bool = False,
     dpi: int = 100,
@@ -86,6 +89,10 @@ def scatters(
     affine_transform_degree=0,
     affine_transform_A=None,
     affine_transform_b=None,
+    stack_colors=False,
+    stack_colors_threshold=0.001,
+    stack_colors_title="stacked colors",
+    stack_colors_legend_size=2,
     **kwargs,
 ) -> Union[None, Axes]:
     """Plot an embedding as points. Currently this only works
@@ -227,9 +234,8 @@ def scatters(
             kdeplot.
         ccmap: `str` or `None` (default: `None`)
             The name of a matplotlib colormap to use for coloring or shading points the contour. See above.
-        calpha: `float` (default: `2.3`)
-            alpha value for identifying the alpha hull to influence the gooeyness of the border. Smaller numbers don't
-            fall inward as much as larger numbers. Too large, and you lose everything!
+        calpha: `float` (default: `0.4`)
+            Contour alpha value passed into sns.kdeplot. The value should be inbetween [0, 1]
         sym_c: `bool` (default: `False`)
             Whether do you want to make the limits of continuous color to be symmetric, normally this should be used for
             plotting velocity, jacobian, curl, divergence or other types of data with both positive or negative values.
@@ -260,6 +266,23 @@ def scatters(
         marker: `str` (default: None)
             The marker style. marker can be either an instance of the class or the text shorthand for a particular
             marker. See matplotlib.markers for more information about marker styles.
+        affine_transform_degree:
+            Transform coordinates of points according to some degree.
+        affine_transform_A:
+            Coefficients in affine transformation Ax + b. 2D for now.
+        affine_transform_b:
+            Bias in affine transformation Ax + b.
+        stack_colors:
+            Whether to stack all color on the same ax passed above.
+            Currently only support 18 sequential matplotlib default cmaps assigning to different color groups.
+            (#colors should be smaller than 18, reuse if #colors > 18. To-do: generate cmaps according to #colors)
+        stack_colors_threshold:
+            A threshold for filtering points values < threshold when drawing each color.
+            E.g. if you do not want points with values < 1 showing up on axis, set threshold to be 1
+        stack_colors_title:
+            The title for the stack_color plot.
+        stack_colors_legend_size:
+            Control the legend size in stack color plot.
         kwargs:
             Additional arguments passed to plt.scatters.
 
@@ -274,6 +297,45 @@ def scatters(
     import matplotlib.pyplot as plt
     from matplotlib import rcParams
     from matplotlib.colors import to_hex
+
+    if calpha < 0 or calpha > 1:
+        main_warning(
+            "calpha=%f is invalid (smaller than 0 or larger than 1) and may cause potential issues. Please check."
+            % (calpha)
+        )
+    group_colors = ["b", "g", "r", "c", "m", "y", "k", "w"]
+    sequential_cmaps = [
+        "Greys",
+        "Purples",
+        "Blues",
+        "Greens",
+        "Oranges",
+        "Reds",
+        "YlOrBr",
+        "YlOrRd",
+        "OrRd",
+        "PuRd",
+        "RdPu",
+        "BuPu",
+        "GnBu",
+        "PuBu",
+        "YlGnBu",
+        "PuBuGn",
+        "BuGn",
+        "YlGn",
+    ]
+    stack_legend_handles = []
+    if stack_colors:
+        color_key = None
+
+    def _get_adata_color(adata, cur_l, cur_c):
+        if cur_l in ["protein", "X_protein"]:
+            _color = adata.obsm[cur_l].loc[cur_c, :]
+        elif cur_l == "X":
+            _color = adata.obs_vector(cur_c, layer=None)
+        else:
+            _color = adata.obs_vector(cur_c, layer=cur_l)
+        return _color
 
     if not (affine_transform_degree is None):
         affine_transform_A = gen_rotation_2d(affine_transform_degree)
@@ -331,14 +393,21 @@ def scatters(
     if use_smoothed:
         mapper = get_mapper()
 
-    # check layer, basis -> convert to list
-
+    # check color, layer, basis -> convert to list
     if type(color) is str:
         color = [color]
     if type(layer) is str:
         layer = [layer]
     if type(basis) is str:
         basis = [basis]
+
+    if stack_colors and len(color) > len(sequential_cmaps):
+        main_warning(
+            "#color: %d passed in is greater than #sequential cmaps: %d, will reuse sequential maps"
+            % (len(color), len(sequential_cmaps))
+        )
+        main_warning("You should consider decreasing your #color")
+
     n_c, n_l, n_b, n_x, n_y = (
         1 if color is None else len(color),
         1 if layer is None else len(layer),
@@ -355,7 +424,7 @@ def scatters(
         point_size = 16000.0 / np.sqrt(adata.shape[0]) * pointsize
 
     scatter_kwargs = dict(
-        alpha=0.1,
+        alpha=alpha,
         s=point_size,
         edgecolor=None,
         linewidth=0,
@@ -397,22 +466,12 @@ def scatters(
             current basis
         cur_l :
             current layer
-
-        Raises
-        ------
-        Exception
-            [description]
-        ValueError
-            [description]
-        Exception
-            [description]
-        Exception
-            [description]
         """
-        nonlocal x, y, _background, cmap, color_out, labels, values, ax, sym_c, scatter_kwargs, ax_index
-        if cur_l in ["acceleration", "curvature"]:
+        nonlocal adata, x, y, _background, cmap, color_out, labels, values, ax, sym_c, scatter_kwargs, ax_index
+
+        if cur_l in ["acceleration", "curvature", "divergence", "velocity_S", "velocity_T"]:
             cur_l_smoothed = cur_l
-            cmap, sym_c = "bwr", True
+            cmap, sym_c = "bwr", True  # To-do: maybe use other divergent color map in future
         else:
             if use_smoothed:
                 cur_l_smoothed = cur_l if cur_l.startswith("M_") | cur_l.startswith("velocity") else mapper[cur_l]
@@ -429,39 +488,63 @@ def scatters(
         #         )
         # else:
         #     continue
+        if stack_colors:
+            _stack_background_adata_indices = np.ones(len(adata), dtype=bool)
+
         for cur_c in color:
-            cur_title = cur_c
-            if cur_l in ["protein", "X_protein"]:
-                _color = adata.obsm[cur_l].loc[cur_c, :]
+            main_debug("coloring scatter of cur_c: %s" % str(cur_c))
+            if not stack_colors:
+                cur_title = cur_c
             else:
-                _color = adata.obs_vector(cur_c, layer=None) if cur_l == "X" else adata.obs_vector(cur_c, layer=cur_l)
+                cur_title = stack_colors_title
+            _color = _get_adata_color(adata, cur_l, cur_c)
+
+            # select data rows based on stack color thresholding
+            _values = values
+            if stack_colors:
+                main_debug("Subsetting adata by stack_colors")
+                _adata = adata[_color > stack_colors_threshold]
+                _stack_background_adata_indices = np.logical_and(
+                    _stack_background_adata_indices, (_color < stack_colors_threshold)
+                )
+                if values:
+                    _values = values[_color > stack_colors_threshold]
+                _color = _color[_color > stack_colors_threshold]
+                main_debug("stack colors: _adata len after thresholding by color value: %d" % (len(_adata)))
+                if len(_color) == 0:
+                    main_info("skipping color %s because no point of %s is above threshold" % (cur_c, cur_c))
+                    continue
+            else:
+                _adata = adata
+
             if hasattr(x, "__len__") and hasattr(y, "__len__"):
                 x, y = list(x), list(y)
             elif (
                 type(x) in [anndata._core.views.ArrayView, np.ndarray]
                 and type(y) in [anndata._core.views.ArrayView, np.ndarray]
-                and len(x) == adata.n_obs
-                and len(y) == adata.n_obs
+                and len(x) == _adata.n_obs
+                and len(y) == _adata.n_obs
             ):
                 x, y = [x], [y]
             for cur_x, cur_y in zip(x, y):  # here x / y are arrays
+                main_debug("handling coordinates, cur_x: %s, cur_y: %s" % (cur_x, cur_y))
                 if type(cur_x) is int and type(cur_y) is int:
                     points = pd.DataFrame(
                         {
-                            cur_b + "_0": adata.obsm[prefix + cur_b][:, cur_x],
-                            cur_b + "_1": adata.obsm[prefix + cur_b][:, cur_y],
+                            cur_b + "_0": _adata.obsm[prefix + cur_b][:, cur_x],
+                            cur_b + "_1": _adata.obsm[prefix + cur_b][:, cur_y],
                         }
                     )
                     points.columns = [cur_b + "_0", cur_b + "_1"]
-                elif is_gene_name(adata, cur_x) and is_gene_name(adata, cur_y):
+                elif is_gene_name(_adata, cur_x) and is_gene_name(_adata, cur_y):
                     points = pd.DataFrame(
                         {
-                            cur_x: adata.obs_vector(k=cur_x, layer=None)
+                            cur_x: _adata.obs_vector(k=cur_x, layer=None)
                             if cur_l_smoothed == "X"
-                            else adata.obs_vector(k=cur_x, layer=cur_l_smoothed),
-                            cur_y: adata.obs_vector(k=cur_y, layer=None)
+                            else _adata.obs_vector(k=cur_x, layer=cur_l_smoothed),
+                            cur_y: _adata.obs_vector(k=cur_y, layer=None)
                             if cur_l_smoothed == "X"
-                            else adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
+                            else _adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
                         }
                     )
                     # points = points.loc[(points > 0).sum(1) > 1, :]
@@ -470,22 +553,22 @@ def scatters(
                         cur_y + " (" + cur_l_smoothed + ")",
                     ]
                     cur_title = cur_x + " VS " + cur_y
-                elif is_cell_anno_column(adata, cur_x) and is_cell_anno_column(adata, cur_y):
+                elif is_cell_anno_column(_adata, cur_x) and is_cell_anno_column(_adata, cur_y):
                     points = pd.DataFrame(
                         {
-                            cur_x: adata.obs_vector(cur_x),
-                            cur_y: adata.obs_vector(cur_y),
+                            cur_x: _adata.obs_vector(cur_x),
+                            cur_y: _adata.obs_vector(cur_y),
                         }
                     )
                     points.columns = [cur_x, cur_y]
                     cur_title = cur_x + " VS " + cur_y
-                elif is_cell_anno_column(adata, cur_x) and is_gene_name(adata, cur_y):
+                elif is_cell_anno_column(_adata, cur_x) and is_gene_name(_adata, cur_y):
                     points = pd.DataFrame(
                         {
-                            cur_x: adata.obs_vector(cur_x),
-                            cur_y: adata.obs_vector(k=cur_y, layer=None)
+                            cur_x: _adata.obs_vector(cur_x),
+                            cur_y: _adata.obs_vector(k=cur_y, layer=None)
                             if cur_l_smoothed == "X"
-                            else adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
+                            else _adata.obs_vector(k=cur_y, layer=cur_l_smoothed),
                         }
                     )
                     # points = points.loc[points.iloc[:, 1] > 0, :]
@@ -494,13 +577,13 @@ def scatters(
                         cur_y + " (" + cur_l_smoothed + ")",
                     ]
                     cur_title = cur_y
-                elif is_gene_name(adata, cur_x) and is_cell_anno_column(adata, cur_y):
+                elif is_gene_name(_adata, cur_x) and is_cell_anno_column(_adata, cur_y):
                     points = pd.DataFrame(
                         {
-                            cur_x: adata.obs_vector(k=cur_x, layer=None)
+                            cur_x: _adata.obs_vector(k=cur_x, layer=None)
                             if cur_l_smoothed == "X"
-                            else adata.obs_vector(k=cur_x, layer=cur_l_smoothed),
-                            cur_y: adata.obs_vector(cur_y),
+                            else _adata.obs_vector(k=cur_x, layer=cur_l_smoothed),
+                            cur_y: _adata.obs_vector(cur_y),
                         }
                     )
                     # points = points.loc[points.iloc[:, 0] > 0, :]
@@ -509,10 +592,10 @@ def scatters(
                         cur_y,
                     ]
                     cur_title = cur_x
-                elif is_layer_keys(adata, cur_x) and is_layer_keys(adata, cur_y):
+                elif is_layer_keys(_adata, cur_x) and is_layer_keys(_adata, cur_y):
                     cur_x_, cur_y_ = (
-                        adata[:, cur_b].layers[cur_x],
-                        adata[:, cur_b].layers[cur_y],
+                        _adata[:, cur_b].layers[cur_x],
+                        _adata[:, cur_b].layers[cur_y],
                     )
                     points = pd.DataFrame({cur_x: flatten(cur_x_), cur_y: flatten(cur_y_)})
                     # points = points.loc[points.iloc[:, 0] > 0, :]
@@ -530,8 +613,8 @@ def scatters(
 
                 if aggregate is not None:
                     groups, uniq_grp = (
-                        adata.obs[aggregate],
-                        list(adata.obs[aggregate].unique()),
+                        _adata.obs[aggregate],
+                        list(_adata.obs[aggregate].unique()),
                     )
                     group_color, group_median = (
                         np.zeros((1, len(uniq_grp))).flatten()
@@ -540,7 +623,7 @@ def scatters(
                         np.zeros((len(uniq_grp), 2)),
                     )
 
-                    grp_size = adata.obs[aggregate].value_counts()[uniq_grp].values
+                    grp_size = _adata.obs[aggregate].value_counts()[uniq_grp].values
                     scatter_kwargs = (
                         {"s": grp_size} if scatter_kwargs is None else update_dict(scatter_kwargs, {"s": grp_size})
                     )
@@ -577,7 +660,7 @@ def scatters(
                     else:
                         _theme_ = theme
                 else:
-                    values = _color
+                    _values = _color
                     if theme is None:
                         if _background in ["#ffffff", "black"]:
                             _theme_ = "inferno" if cur_l != "velocity" else "div_blue_black_red"
@@ -587,13 +670,28 @@ def scatters(
                         _theme_ = theme
 
                 _cmap = _themes[_theme_]["cmap"] if cmap is None else cmap
+                if stack_colors:
+                    main_debug("stack colors: changing cmap")
+                    _cmap = sequential_cmaps[ax_index % len(sequential_cmaps)]
+                    max_color = matplotlib.cm.get_cmap(_cmap)(float("inf"))
+                    legend_circle = Line2D(
+                        [0],
+                        [0],
+                        marker="o",
+                        color="w",
+                        markerfacecolor=max_color,
+                        label=cur_c,
+                        markersize=stack_colors_legend_size,
+                    )
+                    stack_legend_handles.append(legend_circle)
+
                 _color_key_cmap = _themes[_theme_]["color_key_cmap"] if color_key_cmap is None else color_key_cmap
                 _background = _themes[_theme_]["background"] if _background is None else _background
 
                 if labels is not None and values is not None:
                     raise ValueError("Conflicting options; only one of labels or values should be set")
 
-                if total_panels > 1:
+                if total_panels > 1 and not stack_colors:
                     ax = plt.subplot(gs[ax_index])
                 ax_index += 1
 
@@ -606,7 +704,8 @@ def scatters(
                         _highlights = highlights if all([i in _color for i in highlights]) else None
 
                 if smooth and not is_not_continuous:
-                    knn = adata.obsp["moments_con"]
+                    main_debug("smooth and not continuous")
+                    knn = _adata.obsp["moments_con"]
                     values = (
                         calc_1nd_moment(values, knn)[0]
                         if smooth in [1, True]
@@ -619,12 +718,13 @@ def scatters(
                     point_coords = affine_transform(points.values, affine_transform_A, affine_transform_b)
 
                 if points.shape[0] <= figsize[0] * figsize[1] * 100000:
+                    main_debug("drawing with _matplotlib_points function")
                     ax, color_out = _matplotlib_points(
                         # points.values,
                         point_coords,
                         ax,
                         labels,
-                        values,
+                        _values,
                         highlights,
                         _cmap,
                         color_key,
@@ -643,6 +743,7 @@ def scatters(
                         **scatter_kwargs,
                     )
                 else:
+                    main_debug("drawing with _datashade_points function")
                     ax = _datashade_points(
                         # points.values,
                         point_coords,
@@ -679,36 +780,35 @@ def scatters(
 
                 labels, values = None, None  # reset labels and values
 
-                if add_gamma_fit and cur_b in adata.var_names[adata.var.use_for_dynamics]:
+                if add_gamma_fit and cur_b in _adata.var_names[_adata.var.use_for_dynamics]:
                     xnew = np.linspace(
                         points.iloc[:, 0].min(),
                         points.iloc[:, 0].max() * 0.80,
                     )
-                    k_name = "gamma_k" if adata.uns["dynamics"]["experiment_type"] == "one-shot" else "gamma"
-                    if k_name in adata.var.columns:
-                        if not ("gamma_b" in adata.var.columns) or all(adata.var.gamma_b.isna()):
-                            adata.var.loc[:, "gamma_b"] = 0
+                    k_name = "gamma_k" if _adata.uns["dynamics"]["experiment_type"] == "one-shot" else "gamma"
+                    if k_name in _adata.var.columns:
+                        if not ("gamma_b" in _adata.var.columns) or all(_adata.var.gamma_b.isna()):
+                            _adata.var.loc[:, "gamma_b"] = 0
                         ax.plot(
                             xnew,
-                            xnew * adata[:, cur_b].var.loc[:, k_name].unique()
-                            + adata[:, cur_b].var.loc[:, "gamma_b"].unique(),
+                            xnew * _adata[:, cur_b].var.loc[:, k_name].unique()
+                            + _adata[:, cur_b].var.loc[:, "gamma_b"].unique(),
                             dashes=[6, 2],
                             c=font_color,
                         )
                     else:
                         raise Exception(
-                            "adata does not seem to have %s column. Velocity estimation is required "
+                            "_adata does not seem to have %s column. Velocity estimation is required "
                             "before running this function." % k_name
                         )
-                if group is not None and add_group_gamma_fit and cur_b in adata.var_names[adata.var.use_for_dynamics]:
-                    colors = ["b", "g", "r", "c", "m", "y", "k", "w"]
-                    cell_groups = adata.obs[group]
+                if group is not None and add_group_gamma_fit and cur_b in _adata.var_names[_adata.var.use_for_dynamics]:
+                    cell_groups = _adata.obs[group]
                     unique_groups = np.unique(cell_groups)
-                    k_suffix = "gamma_k" if adata.uns["dynamics"]["experiment_type"] == "one-shot" else "gamma"
+                    k_suffix = "gamma_k" if _adata.uns["dynamics"]["experiment_type"] == "one-shot" else "gamma"
                     for group_idx, cur_group in enumerate(unique_groups):
                         group_k_name = group + "_" + cur_group + "_" + k_suffix
-                        group_adata = adata[adata.obs[group] == cur_group]
-                        group_points = points.iloc[np.array(adata.obs[group] == cur_group)]
+                        group_adata = _adata[_adata.obs[group] == cur_group]
+                        group_points = points.iloc[np.array(_adata.obs[group] == cur_group)]
                         group_b_key = group + "_" + cur_group + "_" + "gamma_b"
                         group_xnew = np.linspace(
                             group_points.iloc[:, 0].min(),
@@ -727,16 +827,23 @@ def scatters(
                                 group_xnew,
                                 group_ynew,
                                 dashes=[6, 2],
-                                c=colors[group_idx % len(colors)],
+                                c=group_colors[group_idx % len(group_colors)],
                             )
                         else:
                             raise Exception(
-                                "adata does not seem to have %s column. Velocity estimation is required "
+                                "_adata does not seem to have %s column. Velocity estimation is required "
                                 "before running this function." % group_k_name
                             )
 
+        # add legends according to colors and cmaps
+        # collected during for loop above
+        if stack_colors:
+            ax.legend(handles=stack_legend_handles, loc="upper right", prop={"size": stack_colors_legend_size})
+
     for cur_b in basis:
         for cur_l in layer:
+            main_debug("Plotting basis:%s, layer: %s" % (str(basis), str(layer)))
+            main_debug("colors: %s" % (str(color)))
             _plot_basis_layer(cur_b, cur_l)
 
     if save_show_or_return in ["save", "both", "all"]:
