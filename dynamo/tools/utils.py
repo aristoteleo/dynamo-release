@@ -12,6 +12,7 @@ from sklearn.neighbors import NearestNeighbors
 import warnings
 import time
 import itertools
+from inspect import signature
 
 from ..preprocessing.utils import Freeman_Tukey
 from ..utils import areinstance, isarray
@@ -1485,7 +1486,7 @@ def calc_R2(X, Y, k, f=lambda X, k: np.einsum("ij,i -> ij", X, k)):
     d = Y.T - Y_bar
     SS_tot = np.sum(np.einsum("ij,ij -> i", d, d))
 
-    F = f(X, k)
+    F = f(X, k) if len(signature(f).parameters) == 2 else f(X, *k)
     d = F - Y
     SS_res = np.sum(np.einsum("ij,ij -> j", d, d))
 
