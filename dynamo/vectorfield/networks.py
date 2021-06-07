@@ -1,5 +1,6 @@
 import numpy as np, pandas as pd
 from .vector_calculus import rank_jacobian_genes
+from ..dynamo_logger import main_info, main_tqdm, main_debug
 
 
 def get_interaction_in_cluster(
@@ -133,7 +134,7 @@ def build_network_per_cluster(
                 f"the clusters argument {cluster_names} provided doesn't match up with any clusters from the " f"adata."
             )
 
-    for c in reg_groups:
+    for c in main_tqdm(reg_groups, desc="iterating reg_groups"):
         if genes is None:
             reg_valid_genes, eff_valid_genes = (
                 full_reg_rank[c].columns.values,

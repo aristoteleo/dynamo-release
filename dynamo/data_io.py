@@ -1,3 +1,4 @@
+import pandas as pd
 from tqdm import tqdm
 import numpy as np
 from functools import reduce
@@ -14,6 +15,7 @@ from anndata import (
     read_text,
     AnnData,
 )
+from .dynamo_logger import main_info
 
 
 def convert2float(adata, columns, var=False):
@@ -257,6 +259,8 @@ def cleanup(adata, del_prediction=False, del_2nd_moments=False):
         adata.uns["velocity_pca_fit"] = None
     if "kmc" in adata.uns_keys():
         adata.uns["kmc"] = None
+    if "kinetics_heatmap" in adata.uns_keys():
+        adata.uns.pop("kinetics_heatmap")
 
     VF_keys = [i if i.startswith("VecFld") else None for i in adata.uns_keys()]
     for i in VF_keys:
@@ -281,3 +285,11 @@ def cleanup(adata, del_prediction=False, del_2nd_moments=False):
         remove_2nd_moments(adata)
 
     return adata
+
+
+def save_rank_excel(adata, path="rank_info.xlsx", ext="excel", rank_prefix="rank"):
+    with pd.ExcelWriter(path) as writer:
+        for key in adata.uns.keys():
+            if key[: len(rank_prefix)] == rank_prefix:
+                main_info("saving sheet: " + str(key))
+                adata.uns[key].to_excel(writer, sheet_name=str(key))
