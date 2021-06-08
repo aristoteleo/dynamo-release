@@ -7,3 +7,18 @@
    width: 100% !important;
    height: auto !important;
 }
+
+
+/* sidebar */
+.rst-content .sidebar {
+    /* margin: 0px 0px 0px 12px; */
+    padding-bottom: 0px;
+}
+.rst-content .sidebar p {
+    margin-bottom: 12px;
+}
+.rst-content .sidebar p,
+.rst-content .sidebar ul,
+.rst-content .sidebar dl {
+    font-size: 13px;
+}

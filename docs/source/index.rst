@@ -68,8 +68,7 @@ If you want to contribute to the development of dynamo, please check out CONTRIB
 
 
 .. toctree::
-   :maxdepth: 3
-   :caption: Vector field and differential geometry
+   :caption: Differential geometry
    :maxdepth: 1
    :hidden:
 
