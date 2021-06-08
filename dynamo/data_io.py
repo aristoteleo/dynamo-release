@@ -1,4 +1,3 @@
-import pandas as pd
 from tqdm import tqdm
 import numpy as np
 from functools import reduce
@@ -288,6 +287,8 @@ def cleanup(adata, del_prediction=False, del_2nd_moments=False):
 
 
 def export_rank_xlsx(adata, path="rank_info.xlsx", ext="excel", rank_prefix="rank"):
+    import pandas as pd
+
     with pd.ExcelWriter(path) as writer:
         for key in adata.uns.keys():
             if key[: len(rank_prefix)] == rank_prefix:
