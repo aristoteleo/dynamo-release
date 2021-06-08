@@ -20,7 +20,7 @@ Single-cell RNA-seq, together with RNA velocity and metabolic labeling, reveals 
 * Move beyond RNA velocity to continuous vector field function for functional and predictive analyses of cell fate transitions:
     * Dynamical systems approaches to identify stable cell types (fixed points), boundaries of cell states (separatrices), etc
     * Calculate RNA acceleration (reveals early drivers), curvature (reveals master regulators of fate decision points), divergence (stability of cell states) and RNA Jacobian (cell-state dependent regulatory networks) 
-    * Various downstream differential geometry analyses to rank and visualize early drivers, regulatory networks at key fate decision points    
+    * Various downstream differential geometry analyses to rank and visualize critical regulators/effectors, regulatory networks at key fate decision points    
 
 ## Discussion 
 Please use github issue tracker to report coding related [issues](https://github.com/aristoteleo/dynamo-release/issues) of dynamo. For community discussion of novel usage cases, analysis tips and biological interpretations of dynamo, please join our public slack workspace: [dynamo-discussion](https://join.slack.com/t/dynamo-discussionhq/shared_invite/zt-itnzjdxs-PV~C3Hr9uOArHZcmv622Kg) (Only a working email address is required from the slack side).

@@ -1,6 +1,6 @@
-Unreleased
+Released
 ==========
-v0.99 pre-release:
+v1.0.0 Release:
 
 Added for new features.
 
