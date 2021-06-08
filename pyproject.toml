@@ -54,10 +54,12 @@ dimension_reduction = ['fitsne>=1.0.1']
 docs = [
   'docutils',
   'setuptools',
-  'sphinx==3.1.1',
-  'sphinx-rtd-theme==0.5.0',
+  'sphinx',
+  'sphinx-rtd-theme',
   'sphinx_autodoc_typehints',
   'nbsphinx',
+  'mock',
+  'readthedocs-sphinx-ext',
 ]
 network = ["networkx", "nxviz", "hiveplotlib", "python-igraph", "leidenalg", "wurlitzer"]
 spatial = ['pysal>2.0.0']
