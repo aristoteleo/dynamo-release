@@ -84,7 +84,7 @@ release = "0.96.0"
 # ones.
 
 # specify sphinx version
-# needs_sphinx = "1.7"
+needs_sphinx = "4"
 
 extensions = [
     "nbsphinx",
