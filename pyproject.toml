@@ -59,6 +59,7 @@ docs = [
   'sphinx_autodoc_typehints',
   'nbsphinx',
   'mock',
+  'readthedocs-sphinx-ext',
 ]
 network = ["networkx", "nxviz", "hiveplotlib", "python-igraph", "leidenalg", "wurlitzer"]
 spatial = ['pysal>2.0.0']
