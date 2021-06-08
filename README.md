@@ -3,7 +3,7 @@
 
 Inclusive model of expression dynamics with metabolic labeling based scRNA-seq / multiomics, vector field reconstruction, potential landscape mapping and differential geometry analyses.
 
-[Installation](https://dynamo-release.readthedocs.io/en/latest/ten_minutes_to_dynamo.html#how-to-install) - [Ten minutes to dynamo](https://dynamo-release.readthedocs.io/en/latest/ten_minutes_to_dynamo.html) - [Tutorials](https://dynamo-release.readthedocs.io/en/latest/zebrafish.html) - [API](https://dynamo-release.readthedocs.io/en/latest/API.html) - [Citation](https://github.com/aristoteleo/dynamo-release/wiki/Dynamo-workflow#citation) - [Theory](https://github.com/aristoteleo/dynamo-release/wiki/Dynamo-workflow#theory-behind-dynamo)
+[Installation](https://dynamo-release.readthedocs.io/en/latest/ten_minutes_to_dynamo.html#how-to-install) - [Ten minutes to dynamo](https://dynamo-release.readthedocs.io/en/latest/ten_minutes_to_dynamo.html) - [Tutorials](https://dynamo-release.readthedocs.io/en/latest/zebrafish.html) - [API](https://dynamo-release.readthedocs.io/en/latest/API.html) - [Citation](https://www.biorxiv.org/content/10.1101/696724v2) - [Theory](https://dynamo-release.readthedocs.io/en/latest/Primer.html)
 
 ![Dynamo](https://user-images.githubusercontent.com/7456281/93838270-11d8da00-fc57-11ea-94de-d11b529731e1.png)
 
