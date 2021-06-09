@@ -1,5 +1,6 @@
+# Please import relevant packages in corresponding functions to avoid conflicts with dynamo's modules (e.g. dyn.pd.**)
+
 from tqdm import tqdm
-import numpy as np
 from functools import reduce
 from anndata import (
     read,
