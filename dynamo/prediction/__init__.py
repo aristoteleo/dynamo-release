@@ -14,6 +14,7 @@ from .perturbation import (
     rank_perturbation_cell_clusters,
 )
 from .trajectory import Trajectory, GeneTrajectory
+from .tscRNA_seq import get_pulse_r0
 
 # https://stackoverflow.com/questions/31079047/python-pep8-class-in-init-imported-but-not-used
 __all__ = [
@@ -28,4 +29,5 @@ __all__ = [
     "rank_perturbation_cell_clusters",
     "Trajectory",
     "GeneTrajectory",
+    "get_pulse_r0",
 ]
