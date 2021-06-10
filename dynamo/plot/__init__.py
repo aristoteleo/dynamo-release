@@ -62,7 +62,7 @@ from .networks import (
     hivePlot,
 )
 
-from .fate import fate_bias
+from .fate import fate_bias, fate
 from .state_graph import state_graph
 from .least_action_path import least_action
 
@@ -133,6 +133,7 @@ __all__ = [
     "circosPlot",
     "hivePlot",
     "fate_bias",
+    "fate",
     "state_graph",
     "least_action",
     "show_landscape",

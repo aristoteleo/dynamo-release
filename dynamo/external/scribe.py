@@ -20,7 +20,7 @@ def scribe(
     cell_filter_UMI: int = 10000,
     motif_ref: str = "https://www.dropbox.com/s/s8em539ojl55kgf/motifAnnotations_hgnc.csv?dl=1",
     nt_layers: list = ["X_new", "X_total"],
-    normalize: bool = True,
+    normalize: bool = False,
     do_CLR: bool = True,
     drop_zero_cells: bool = True,
     TF_link_ENCODE_ref: str = "https://www.dropbox.com/s/bjuope41pte7mf4/df_gene_TF_link_ENCODE.csv?dl=1",
@@ -64,7 +64,7 @@ def scribe(
             The two keys for layers that will be used for the network inference. Note that the layers can be changed
             flexibly. See the description of this function above. The first key corresponds to the transcriptome of the
             next time point, for example unspliced RNAs (or estimated velocitym, see Fig 6 of the Scribe preprint:
-            https://www.biorxiv.org/content/10.1101/426981v1) from RNA velocity, old RNA from scSLAM-seq data, etc.
+            https://www.biorxiv.org/content/10.1101/426981v1) from RNA velocity, new RNA from scSLAM-seq data, etc.
             The second key corresponds to the transcriptome of the initial time point, for example spliced RNAs from RNA
             velocity, old RNA from scSLAM-seq data.
         drop_zero_cells:
@@ -406,68 +406,62 @@ def coexp_measure_mat(
     # support sparse matrix:
     genes = TFs + Targets
     genes = np.unique(genes)
-    tmp = (
-        pd.DataFrame(adata[:, genes].layers[t0_key].todense())
+    t0_df = (
+        pd.DataFrame(adata[:, genes].layers[t0_key].todense(), index=adata.obs_names, columns=genes)
         if isspmatrix(adata.layers[t0_key])
-        else pd.DataFrame(adata[:, genes].layers[t0_key])
+        else pd.DataFrame(adata[:, genes].layers[t0_key], index=adata.obs_names, columns=genes)
     )
-    tmp.index = adata.obs_names
-    tmp.columns = adata[:, genes].var_names
-    spliced = tmp
 
-    tmp = (
-        pd.DataFrame(adata[:, genes].layers[t1_key].todense())
+    t1_df = (
+        pd.DataFrame(adata[:, genes].layers[t1_key].todense(), index=adata.obs_names, columns=genes)
         if isspmatrix(adata.layers[t1_key])
-        else pd.DataFrame(adata[:, genes].layers[t1_key])
+        else pd.DataFrame(adata[:, genes].layers[t1_key], index=adata.obs_names, columns=genes)
     )
-    tmp.index = adata.obs_names
-    tmp.columns = adata[:, genes].var_names
-    velocity = tmp
-    velocity[pd.isna(velocity)] = 0  # set NaN value to 0
+
+    t1_df[pd.isna(t1_df)] = 0  # set NaN value to 0
 
     if normalize:
-        spliced = (spliced - spliced.min()) / (spliced.max() - spliced.min())
-        velocity = (velocity - velocity.min()) / (velocity.max() - velocity.min())
+        t0_df = (t0_df - t0_df.min()) / (t0_df.max() - t0_df.min())
+        t1_df = (t1_df - t1_df.min()) / (t1_df.max() - t1_df.min())
 
-    pearson_mat, mi_mat = np.zeros_like((spliced.shape[1], spliced.shape[1])), np.zeros_like(
-        (spliced.shape[1], spliced.shape[1])
-    )
+    pearson_mat, mi_mat = np.zeros((t0_df.shape[1], t0_df.shape[1])), np.zeros((t0_df.shape[1], t0_df.shape[1]))
 
-    for g_a_ind, g_a in tqdm(enumerate(TFs), desc="Calculate causality score (RDI) from each TF to potential target:"):
+    for g_a_ind, g_a in tqdm(
+        enumerate(TFs), desc="Calculate pearson correlation or mutual information from each TF to " "potential target:"
+    ):
         for g_b_ind, g_b in enumerate(Targets):
-            if g_a == g_b:
-                continue
-            else:
-                x, y = spliced[:, g_a], velocity[:, g_b]
-                x, y = flatten(x), flatten(y)
+            x, y = t0_df.loc[:, g_a].values, t1_df.loc[:, g_b].values
+            x, y = flatten(x), flatten(y)
 
+            mask = np.logical_and(np.isfinite(x), np.isfinite(y))
+            pearson_mat[g_a_ind, g_b_ind] = einsum_correlation(x[None, mask], y[mask], type="pearson")[0]
+            x, y = [[i] for i in x[mask]], [[i] for i in y[mask]]
+
+            if not skip_mi and cores == 1:
                 k = min(5, int(adata.n_obs / 5 + 1))
+                mi_mat[g_a_ind, g_b_ind] = mi(x, y, k=k)
 
-                mask = np.logical_and(np.isfinite(x), np.isfinite(y))
-                pearson_mat[g_a_ind, g_b_ind] = einsum_correlation(x[None, mask], y[mask], type="pearson")
-                x, y = [[i] for i in x[mask]], [[i] for i in y[mask]]
+        if not skip_mi:
+            k = min(5, int(adata.n_obs / 5 + 1))
 
-                if not skip_mi and cores == 1:
-                    mi_mat[g_a_ind, g_b_ind] = mi(x, y, k=k)
+            if cores > 1:
 
-        if not skip_mi and cores > 1:
+                def pool_mi(x, y, k):
+                    mask = np.logical_and(np.isfinite(x), np.isfinite(y))
+                    x, y = [[i] for i in x[mask]], [[i] for i in y[mask]]
 
-            def pool_mi(x, y, k):
-                mask = np.logical_and(np.isfinite(x), np.isfinite(y))
-                x, y = [[i] for i in x[mask]], [[i] for i in y[mask]]
+                    return mi(x, y, k)
 
-                return mi(x, y, k)
+                X = np.repeat(x[:, None], len(Targets), axis=1)
+                Y = t1_df[:, Targets] if issparse(t1_df) else t1_df[:, Targets].A
+                pool = ThreadPool(cores)
+                res = pool.starmap(pool_mi, zip(X, Y, itertools.repeat(k)))
+                pool.close()
+                pool.join()
+                mi_mat[g_a_ind, :] = res
 
-            X = np.repeat(x[:, None], len(Targets), axis=1)
-            Y = velocity[:, Targets] if issparse(velocity) else velocity[:, Targets].A
-            pool = ThreadPool(cores)
-            res = pool.starmap(pool_mi, zip(X, Y, itertools.repeat(k)))
-            pool.close()
-            pool.join()
-            mi_mat[g_a_ind, :] = res
-
-    adata.uns["pearson"] = pearson_mat
+    adata.uns["pearson"] = pd.DataFrame(pearson_mat, index=genes, columns=genes)
     if not skip_mi:
-        adata.uns["mi"] = mi_mat
+        adata.uns["mi"] = pd.DataFrame(mi_mat, index=genes, columns=genes)
 
     return adata if copy else None
