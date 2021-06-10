@@ -14,16 +14,13 @@ def test_scatter_contour(adata):
 def test_circosPlot(adata):
     # genes from top acceleration rank
     selected_genes = ["hmgn2", "hmgb2a", "si:ch211-222l21.1", "mbpb", "h2afvb"]
-    full_reg_rank = dyn.vf.rank_jacobian_genes(adata, groups="Cell_type", mode="full_reg", abs=True, output_values=True)
-    full_eff_rank = dyn.vf.rank_jacobian_genes(adata, groups="Cell_type", mode="full_eff", abs=True, output_values=True)
     edges_list = dyn.vf.build_network_per_cluster(
         adata,
         cluster="Cell_type",
         cluster_names=None,
-        full_reg_rank=full_reg_rank,
-        full_eff_rank=full_eff_rank,
         genes=selected_genes,
         n_top_genes=1000,
+        abs=True,
     )
 
     print(edges_list["Unknown"])
