@@ -108,6 +108,13 @@ def convert2symbol(adata, scopes=None, subset=True):
             indices[valid_ind] = adata.var.loc[valid_ind, "symbol"].values.copy()
             adata.var.index = indices
 
+        if np.sum(adata.var_names.isnull()) > 0:
+            main_info(
+                "Subsetting adata object and removing Nan columns from adata when converting gene names.",
+                indent_level=1,
+            )
+            adata = adata[:, adata.var_names.notnull()]
+
     return adata
 
 
