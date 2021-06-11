@@ -1693,7 +1693,7 @@ def set_transition_genes(
             "from: \n"
             "  1. Very low intron/new RNA ratio, try filtering low ratio and poor quality cells \n"
             "  2. Your selection criteria may be set to be too stringent, try loosing those thresholds \n"
-            "  3. Your data has strange expression kinetics. Welcome reporting to us for more insights."
+            "  3. Your data has strange expression kinetics. Welcome reporting to Dynamo team for more insights."
         )
 
     return adata
