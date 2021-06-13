@@ -158,6 +158,10 @@ def ddhodge(
         else:
             raise ValueError(f"adjmethod can be only one of {'naive', 'graphize_vecfld'}")
 
+    # if not all cells are used in the graphize_vecfld function, set diagnoal to be 1
+    if len(np.unique(np.hstack(adj_mat.nonzero()))) != adata.n_obs:
+        adj_mat.setdiag(1)
+
     g = build_graph(adj_mat)
 
     if (prefix + "ddhodge" not in adata.obsp.keys() or enforce) and not to_downsample:
