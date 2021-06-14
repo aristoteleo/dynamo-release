@@ -532,7 +532,7 @@ def VectorField(
     grid_num: int = 50,
     velocity_key: str = "velocity_S",
     method: str = "SparseVFC",
-    min_vel_corr: float = 0.6,
+    min_vel_corr: float = 0.8,
     restart_num: int = 3,
     restart_seed: Union[None, list] = [0, 100, 200],
     model_buffer_path: Union[str, None] = None,
