@@ -29,9 +29,6 @@ def evaluate(reference, prediction, metric="cosine"):
 
         res = np.mean(true_normalized * predict_normalized) * prediction.shape[1]
 
-    elif metric == "spearman":
-        res = np.mean(einsum_correlation(reference, prediction))
-
     elif metric == "rmse":
         res = mean_squared_error(y_true=reference, y_pred=prediction)
 

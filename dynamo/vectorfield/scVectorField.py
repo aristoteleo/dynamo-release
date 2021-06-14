@@ -427,10 +427,9 @@ def SparseVFC(
     tmp_X, uid = np.unique(X, axis=0, return_index=True)  # return unique rows
     M = min(M, tmp_X.shape[0])
     if velocity_based_sampling:
-        np.random.seed(seed)
         if verbose > 1:
             print("Sampling control points based on data velocity magnitude...")
-        idx = sample_by_velocity(Y[uid], M)
+        idx = sample_by_velocity(Y[uid], M, seed=seed)
     else:
         idx = np.random.RandomState(seed=seed).permutation(tmp_X.shape[0])  # rand select some initial points
         idx = idx[range(M)]

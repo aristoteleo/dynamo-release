@@ -1204,8 +1204,8 @@ def plot_energy(
 
         vecfld_dict = adata.uns[vf_key]
 
-    E = vecfld_dict["VecFld"]["E_traj"] if "E_traj" in vecfld_dict["VecFld"] else None
-    tecr = vecfld_dict["VecFld"]["tecr_traj"] if "tecr_traj" in vecfld_dict["VecFld"] else None
+    E = vecfld_dict["E_traj"] if "E_traj" in vecfld_dict["VecFld"] else None
+    tecr = vecfld_dict["tecr_traj"] if "tecr_traj" in vecfld_dict["VecFld"] else None
 
     if E is not None and tecr is not None:
         fig = fig or plt.figure(figsize=figsize)
