@@ -532,8 +532,8 @@ def VectorField(
     grid_num: int = 50,
     velocity_key: str = "velocity_S",
     method: str = "SparseVFC",
-    min_vel_corr: float = 0.8,
-    restart_num: int = 3,
+    min_vel_corr: float = 0.6,
+    restart_num: int = 5,
     restart_seed: Union[None, list] = [0, 100, 200],
     model_buffer_path: Union[str, None] = None,
     return_vf_object: bool = False,
@@ -777,12 +777,13 @@ def VectorField(
                 # {"VecFld": VecFld.train(**kwargs)}
                 cur_vf_dict = VecFld.train(**train_kwargs)
 
+            # consider refactor with .simulation.evaluation.py
             reference, prediction = (
                 cur_vf_dict["Y"][cur_vf_dict["valid_ind"]],
                 cur_vf_dict["V"][cur_vf_dict["valid_ind"]],
             )
-            true_normalized = reference / np.linalg.norm(reference, axis=1).reshape(-1, 1)
-            predict_normalized = prediction / np.linalg.norm(prediction, axis=1).reshape(-1, 1)
+            true_normalized = reference / (np.linalg.norm(reference, axis=1).reshape(-1, 1) + 1e-20)
+            predict_normalized = prediction / (np.linalg.norm(prediction, axis=1).reshape(-1, 1) + 1e-20)
             res = np.mean(true_normalized * predict_normalized) * prediction.shape[1]
 
             cur_vf_list += [cur_vf_dict]
