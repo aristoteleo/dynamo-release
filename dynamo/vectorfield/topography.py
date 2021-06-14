@@ -534,7 +534,7 @@ def VectorField(
     method: str = "SparseVFC",
     min_vel_corr: float = 0.6,
     restart_num: int = 5,
-    restart_seed: Union[None, list] = [0, 100, 200],
+    restart_seed: Union[None, list] = [0, 100, 200, 300, 400],
     model_buffer_path: Union[str, None] = None,
     return_vf_object: bool = False,
     map_topography: bool = False,
