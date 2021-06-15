@@ -19,6 +19,7 @@ from ..preprocessing.utils import Freeman_Tukey
 from ..utils import areinstance, isarray
 from ..dynamo_logger import (
     main_info_insert_adata,
+    main_info_verbose_timeit,
     main_tqdm,
     main_info,
     main_warning,
@@ -442,7 +443,7 @@ def timeit(method):
             ts = time.time()
             result = method(*args, **kw)
             te = time.time()
-            print("Time elapsed for %r: %.4f s" % (method.__name__, (te - ts)))
+            main_info_verbose_timeit("Time elapsed for %r: %.4f s" % (method.__name__, (te - ts)))
         else:
             result = method(*args, **kw)
         return result

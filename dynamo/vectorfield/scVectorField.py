@@ -173,8 +173,6 @@ def denorm(VecFld, X_old, V_old, norm_dict):
 
 @timeit
 def lstsq_solver(lhs, rhs, method="drouin"):
-    temp_logger = LoggerManager.get_temp_timer_logger()
-    temp_logger.log_time()
     if method == "scipy":
         C = lstsq(lhs, rhs)[0]
     elif method == "drouin":
@@ -182,7 +180,6 @@ def lstsq_solver(lhs, rhs, method="drouin"):
     else:
         main_warning("Invalid linear least squares solver. Use Drouin's method instead.")
         C = linear_least_squares(lhs, rhs)
-    temp_logger.finish_progress(progress_name="lstsq_solver")
     return C
 
 
@@ -422,6 +419,7 @@ def SparseVFC(
     logger.info("[SparseVFC] begins...")
     logger.log_time()
 
+    need_utility_time_measure = verbose > 1
     X_ori, Y_ori = X.copy(), Y.copy()
     valid_ind = np.where(np.isfinite(Y.sum(1)))[0]
     X, Y = X[valid_ind], Y[valid_ind]
@@ -445,16 +443,20 @@ def SparseVFC(
         beta = 1 / h ** 2
 
     K = (
-        con_K(ctrl_pts, ctrl_pts, beta)
+        con_K(ctrl_pts, ctrl_pts, beta, timeit=need_utility_time_measure)
         if div_cur_free_kernels is False
-        else con_K_div_cur_free(ctrl_pts, ctrl_pts, sigma, eta)[0]
+        else con_K_div_cur_free(ctrl_pts, ctrl_pts, sigma, eta, timeit=need_utility_time_measure)[0]
     )
-    U = con_K(X, ctrl_pts, beta) if div_cur_free_kernels is False else con_K_div_cur_free(X, ctrl_pts, sigma, eta)[0]
+    U = (
+        con_K(X, ctrl_pts, beta, timeit=need_utility_time_measure)
+        if div_cur_free_kernels is False
+        else con_K_div_cur_free(X, ctrl_pts, sigma, eta, timeit=need_utility_time_measure)[0]
+    )
     if Grid is not None:
         grid_U = (
-            con_K(Grid, ctrl_pts, beta)
+            con_K(Grid, ctrl_pts, beta, timeit=need_utility_time_measure)
             if div_cur_free_kernels is False
-            else con_K_div_cur_free(Grid, ctrl_pts, sigma, eta)[0]
+            else con_K_div_cur_free(Grid, ctrl_pts, sigma, eta, timeit=need_utility_time_measure)[0]
         )
     M = ctrl_pts.shape[0] * D if div_cur_free_kernels else ctrl_pts.shape[0]
 
@@ -482,14 +484,15 @@ def SparseVFC(
         tecr = abs((E - E_old) / E)
         tecr_vec[i] = tecr
 
-        logger.info(
-            "iterate: %d, gamma: %.3f, energy change rate: %s, sigma2=%s"
-            % (i, gamma, scinot(tecr, 3), scinot(sigma2, 3))
-        )
+        # logger.report_progress(count=i, total=MaxIter, progress_name="E-step iteration")
+        if need_utility_time_measure:
+            logger.info(
+                "iterate: %d, gamma: %.3f, energy change rate: %s, sigma2=%s"
+                % (i, gamma, scinot(tecr, 3), scinot(sigma2, 3))
+            )
 
         # M-step. Solve linear system for C.
         temp_logger.log_time()
-
         P = np.maximum(P, minP)
         if div_cur_free_kernels:
             P = np.kron(P, np.ones((int(U.shape[0] / P.shape[0]), 1)))  # np.kron(P, np.ones((D, 1)))
@@ -499,9 +502,11 @@ def SparseVFC(
             UP = U.T * numpy.matlib.repmat(P.T, M, 1)
             lhs = UP.dot(U) + lambda_ * sigma2 * K
             rhs = UP.dot(Y)
-        temp_logger.finish_progress(progress_name="computing lhs and rhs")
+        if need_utility_time_measure:
+            temp_logger.finish_progress(progress_name="computing lhs and rhs")
+        temp_logger.log_time()
 
-        C = lstsq_solver(lhs, rhs, method=lstsq_method)
+        C = lstsq_solver(lhs, rhs, method=lstsq_method, timeit=need_utility_time_measure)
 
         # Update V and sigma**2
         V = U.dot(C)
@@ -558,7 +563,7 @@ def SparseVFC(
             _,
             VecFld["df_kernel"],
             VecFld["cf_kernel"],
-        ) = con_K_div_cur_free(X, ctrl_pts, sigma, eta)
+        ) = con_K_div_cur_free(X, ctrl_pts, sigma, eta, timeit=need_utility_time_measure)
         temp_logger.finish_progress(progress_name="con_K_div_cur_free")
 
     logger.finish_progress(progress_name="SparseVFC")

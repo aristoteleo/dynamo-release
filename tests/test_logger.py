@@ -75,14 +75,7 @@ def test_sparseVFC_logger():
     dyn.tl.dynamics(adata, model="stochastic", cores=8)
     dyn.tl.reduceDimension(adata, n_pca_components=5, enforce=True)
     dyn.tl.cell_velocities(adata, basis="pca")
-    dyn.vf.VectorField(adata, basis="pca", M=100, method="SparseVFC")
-    dyn.vf.VectorField(adata, basis="pca", M=100)
-    dyn.vf.curvature(adata, basis="pca")
-    dyn.vf.acceleration(adata, basis="pca")
-    dyn.vf.rank_acceleration_genes(adata, groups="Cell_type")
-    dyn.pp.top_pca_genes(adata)
-    top_pca_genes = adata.var.index[adata.var.top_pca_genes]
-    dyn.vf.jacobian(adata, regulators=top_pca_genes, effectors=top_pca_genes)
+    dyn.vf.VectorField(adata, basis="pca", M=100, method="SparseVFC", verbose=1)
 
 
 def test_zebrafish_topography_tutorial_logger():
@@ -116,7 +109,7 @@ def test_cell_cycle_score_logger_pancreatic_endocrinogenesis():
 
 
 if __name__ == "__main__":
-    # test_tqdm_style_loops()
+    test_tqdm_style_loops()
 
     test_logger_simple_output_1(LoggerManager.get_main_logger())
     test_logger_simple_progress_naive(LoggerManager.get_main_logger())
