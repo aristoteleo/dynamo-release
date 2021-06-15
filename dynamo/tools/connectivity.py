@@ -1,5 +1,3 @@
-from anndata import AnnData
-from pynndescent.distances import true_angular
 import numpy as np
 import scipy
 from scipy.sparse import issparse, csr_matrix
@@ -566,7 +564,18 @@ def neighbors(
     else:
         raise ImportError(f"nearest neighbor search method {method} is not supported")
 
+<<<<<<< HEAD
     conn_key, dist_key, neighbor_key = _gen_neighbor_keys(result_prefix)
+=======
+    if result_prefix != "":
+        result_prefix = result_prefix if result_prefix.endswith("_") else result_prefix + "_"
+
+    conn_key, dist_key, neighbor_key = (
+        result_prefix + "connectivities",
+        result_prefix + "distances",
+        result_prefix + "neighbors",
+    )
+>>>>>>> 6de8062 (add log info to neighbors)
     logger.info_insert_adata(conn_key, adata_attr="obsp")
     logger.info_insert_adata(dist_key, adata_attr="obsp")
     adata.obsp[conn_key], adata.obsp[dist_key] = get_conn_dist_graph(knn, distances)
