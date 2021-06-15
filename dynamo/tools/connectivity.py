@@ -1,3 +1,4 @@
+from ..dynamo_logger import LoggerManager
 import numpy as np
 import scipy
 from scipy.sparse import issparse, csr_matrix
@@ -512,9 +513,14 @@ def neighbors(
             An updated anndata object that are updated with the `indices`, `connectivity`, `distance` to the .obsp, as
             well as a new `neighbors` key in .uns.
     """
+    logger = LoggerManager.gen_logger("neighbors")
+    logger.info("Start computing neighbor graph...")
+    logger.log_time()
 
     if X_data is None:
+        logger.info("X_data is None, fetching or recomputing...", indent_level=2)
         if basis == "pca" and "X_pca" not in adata.obsm_keys():
+            logger.info("PCA as basis not X_pca not found, doing PCAs", indent_level=2)
             from ..preprocessing.utils import pca
 
             CM = adata.X if genes is None else adata[:, genes].X
@@ -526,10 +532,13 @@ def neighbors(
 
             X_data = adata.obsm["X_pca"]
         else:
+            logger.info("fetching X data from layer:%s, basis:%s" % (str(layer), str(basis)))
             genes, X_data = fetch_X_data(adata, genes, layer, basis)
 
     if method is None:
+        logger.info("method arg is None, choosing methods automatically...")
         if X_data.shape[0] > 200000 and X_data.shape[1] > 2:
+
             from pynndescent import NNDescent
 
             method = "pynn"
@@ -537,6 +546,7 @@ def neighbors(
             method = "ball_tree"
         else:
             method = "kd_tree"
+        logger.info("method %s selected" % (method), indent_level=2)
 
     # may distinguish between umap and pynndescent -- treat them equal for now
     if method.lower() in ["pynn", "umap"]:
@@ -569,16 +579,21 @@ def neighbors(
     if result_prefix != "":
         result_prefix = result_prefix if result_prefix.endswith("_") else result_prefix + "_"
 
-    conn_key, dist_key, neigh_key = (
+    conn_key, dist_key, neighbor_key = (
         result_prefix + "connectivities",
         result_prefix + "distances",
         result_prefix + "neighbors",
     )
+    logger.info_insert_adata(conn_key, adata_attr="obsp")
+    logger.info_insert_adata(dist_key, adata_attr="obsp")
     adata.obsp[conn_key], adata.obsp[dist_key] = get_conn_dist_graph(knn, distances)
 
-    adata.uns[neigh_key] = {}
-    adata.uns[neigh_key]["indices"] = knn
-    adata.uns[neigh_key]["params"] = {
+    logger.info_insert_adata(neighbor_key, adata_attr="uns")
+    logger.info_insert_adata(neighbor_key + ".indices", adata_attr="uns")
+    logger.info_insert_adata(neighbor_key + ".params", adata_attr="uns")
+    adata.uns[neighbor_key] = {}
+    adata.uns[neighbor_key]["indices"] = knn
+    adata.uns[neighbor_key]["params"] = {
         "n_neighbors": n_neighbors,
         "method": method,
         "metric": metric,
