@@ -111,13 +111,7 @@ def bandwidth_selector(X):
     if n > 200000 and m > 2:
         from pynndescent import NNDescent
 
-        nbrs = NNDescent(
-            X,
-            metric="euclidean",
-            n_neighbors=max(2, int(0.2 * n)),
-            n_jobs=-1,
-            random_state=19491001,
-        )
+        nbrs = NNDescent(X, metric="euclidean", n_neighbors=max(2, int(0.2 * n)), n_jobs=-1, random_state=19491001,)
         _, distances = nbrs.query(X, k=max(2, int(0.2 * n)))
     else:
         alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
@@ -173,6 +167,8 @@ def denorm(VecFld, X_old, V_old, norm_dict):
 
 @timeit
 def lstsq_solver(lhs, rhs, method="drouin"):
+    temp_logger = LoggerManager.get_temp_timer_logger()
+    temp_logger.log_time()
     if method == "scipy":
         C = lstsq(lhs, rhs)[0]
     elif method == "drouin":
@@ -180,6 +176,7 @@ def lstsq_solver(lhs, rhs, method="drouin"):
     else:
         main_warning("Invalid linear least squares solver. Use Drouin's method instead.")
         C = linear_least_squares(lhs, rhs)
+    temp_logger.finish_progress(progress_name="lstsq_solver")
     return C
 
 
@@ -228,14 +225,7 @@ def get_P(Y, V, sigma2, gamma, a, div_cur_free_kernels=False):
 
 @timeit
 def graphize_vecfld(
-    func,
-    X,
-    nbrs_idx=None,
-    dist=None,
-    k=30,
-    distance_free=True,
-    n_int_steps=20,
-    cores=1,
+    func, X, nbrs_idx=None, dist=None, k=30, distance_free=True, n_int_steps=20, cores=1,
 ):
     n, d = X.shape
 
@@ -244,13 +234,7 @@ def graphize_vecfld(
         if X.shape[0] > 200000 and X.shape[1] > 2:
             from pynndescent import NNDescent
 
-            nbrs = NNDescent(
-                X,
-                metric="euclidean",
-                n_neighbors=k + 1,
-                n_jobs=-1,
-                random_state=19491001,
-            )
+            nbrs = NNDescent(X, metric="euclidean", n_neighbors=k + 1, n_jobs=-1, random_state=19491001,)
             nbrs_idx, dist = nbrs.query(X, k=k + 1)
         else:
             alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
@@ -414,8 +398,10 @@ def SparseVFC(
         point in the gene expression state space).
 
     """
-
-    timeit_ = True if verbose > 1 else False
+    logger = LoggerManager.gen_logger("SparseVFC")
+    temp_logger = LoggerManager.get_temp_timer_logger()
+    logger.info("[SparseVFC] begins...")
+    logger.log_time()
 
     X_ori, Y_ori = X.copy(), Y.copy()
     valid_ind = np.where(np.isfinite(Y.sum(1)))[0]
@@ -427,9 +413,9 @@ def SparseVFC(
     tmp_X, uid = np.unique(X, axis=0, return_index=True)  # return unique rows
     M = min(M, tmp_X.shape[0])
     if velocity_based_sampling:
-        if verbose > 1:
-            print("Sampling control points based on data velocity magnitude...")
-        idx = sample_by_velocity(Y[uid], M, seed=seed)
+        np.random.seed(seed)
+        logger.info("Sampling control points based on data velocity magnitude...")
+        idx = sample_by_velocity(Y[uid], M)
     else:
         idx = np.random.RandomState(seed=seed).permutation(tmp_X.shape[0])  # rand select some initial points
         idx = idx[range(M)]
@@ -440,20 +426,16 @@ def SparseVFC(
         beta = 1 / h ** 2
 
     K = (
-        con_K(ctrl_pts, ctrl_pts, beta, timeit=timeit_)
+        con_K(ctrl_pts, ctrl_pts, beta)
         if div_cur_free_kernels is False
-        else con_K_div_cur_free(ctrl_pts, ctrl_pts, sigma, eta, timeit=timeit_)[0]
+        else con_K_div_cur_free(ctrl_pts, ctrl_pts, sigma, eta)[0]
     )
-    U = (
-        con_K(X, ctrl_pts, beta, timeit=timeit_)
-        if div_cur_free_kernels is False
-        else con_K_div_cur_free(X, ctrl_pts, sigma, eta, timeit=timeit_)[0]
-    )
+    U = con_K(X, ctrl_pts, beta) if div_cur_free_kernels is False else con_K_div_cur_free(X, ctrl_pts, sigma, eta)[0]
     if Grid is not None:
         grid_U = (
-            con_K(Grid, ctrl_pts, beta, timeit=timeit_)
+            con_K(Grid, ctrl_pts, beta)
             if div_cur_free_kernels is False
-            else con_K_div_cur_free(Grid, ctrl_pts, sigma, eta, timeit=timeit_)[0]
+            else con_K_div_cur_free(Grid, ctrl_pts, sigma, eta)[0]
         )
     M = ctrl_pts.shape[0] * D if div_cur_free_kernels else ctrl_pts.shape[0]
 
@@ -481,17 +463,16 @@ def SparseVFC(
         tecr = abs((E - E_old) / E)
         tecr_vec[i] = tecr
 
-        if verbose > 1:
-            print(
-                "\niterate: %d, gamma: %.3f, energy change rate: %s, sigma2=%s"
-                % (i, gamma, scinot(tecr, 3), scinot(sigma2, 3))
-            )
-        elif verbose > 0:
-            print("\niteration %d" % i)
+        # if verbose > 1:
+        logger.info(
+            "iterate: %d, gamma: %.3f, energy change rate: %s, sigma2=%s"
+            % (i, gamma, scinot(tecr, 3), scinot(sigma2, 3))
+        )
+        # elif verbose > 0:
+        #     logger.info("\niteration %d" % i)
 
         # M-step. Solve linear system for C.
-        if timeit_:
-            st = time.time()
+        temp_logger.log_time()
 
         P = np.maximum(P, minP)
         if div_cur_free_kernels:
@@ -502,11 +483,9 @@ def SparseVFC(
             UP = U.T * numpy.matlib.repmat(P.T, M, 1)
             lhs = UP.dot(U) + lambda_ * sigma2 * K
             rhs = UP.dot(Y)
+        temp_logger.finish_progress(progress_name="computing lhs and rhs")
 
-        if timeit_:
-            print("Time elapsed for computing lhs and rhs: %f s" % (time.time() - st))
-
-        C = lstsq_solver(lhs, rhs, method=lstsq_method, timeit=timeit_)
+        C = lstsq_solver(lhs, rhs, method=lstsq_method)
 
         # Update V and sigma**2
         V = U.dot(C)
@@ -558,23 +537,17 @@ def SparseVFC(
             sigma,
             eta,
         )
-        (
-            _,
-            VecFld["df_kernel"],
-            VecFld["cf_kernel"],
-        ) = con_K_div_cur_free(X, ctrl_pts, sigma, eta, timeit=timeit_)
+        temp_logger.log_time()
+        (_, VecFld["df_kernel"], VecFld["cf_kernel"],) = con_K_div_cur_free(X, ctrl_pts, sigma, eta)
+        temp_logger.finish_progress(progress_name="con_K_div_cur_free")
 
+    logger.finish_progress(progress_name="SparseVFC")
     return VecFld
 
 
 class base_vectorfield:
     def __init__(
-        self,
-        X=None,
-        V=None,
-        Grid=None,
-        *args,
-        **kwargs,
+        self, X=None, V=None, Grid=None, *args, **kwargs,
     ):
         self.data = {"X": X, "V": V, "Grid": Grid}
         self.vf_dict = kwargs.pop("vf_dict", {})
@@ -649,13 +622,7 @@ class base_vectorfield:
             domain = np.vstack((np.min(self.data["X"], axis=0), np.max(self.data["X"], axis=0))).T
 
         if cores == 1:
-            X, J, _ = find_fixed_points(
-                self.data["X"],
-                self.func,
-                domain=domain,
-                return_all=True,
-                **kwargs,
-            )
+            X, J, _ = find_fixed_points(self.data["X"], self.func, domain=domain, return_all=True, **kwargs,)
         else:
             pool = ThreadPool(cores)
 
@@ -1026,8 +993,7 @@ if use_dynode:
                 self.valid_ind = good_ind
 
                 velocity_data_sampler = VelocityDataSampler(
-                    adata={"X": good_X, "V": good_V},
-                    normalize_velocity=kwargs.get("normalize_velocity", False),
+                    adata={"X": good_X, "V": good_V}, normalize_velocity=kwargs.get("normalize_velocity", False),
                 )
 
                 vf_kwargs = {
