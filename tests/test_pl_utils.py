@@ -2,6 +2,7 @@ from utils import *
 import networkx as nx
 import dynamo as dyn
 import matplotlib.pyplot as plt
+import copy
 
 logger = LoggerManager.get_main_logger()
 
@@ -31,8 +32,7 @@ def test_circosPlot(adata):
         edge_attr="weight",
         create_using=nx.DiGraph(),
     )
-    print(network.nodes)
-    print(network.edges.data())
+    _network = copy.deepcopy(network)
     dyn.pl.circosPlot(
         adata,
         cluster="Cell_type",
@@ -40,13 +40,11 @@ def test_circosPlot(adata):
         edges_list=None,
         network=network,
         color="M_s",
+        save_show_or_return="return",
     )
-    plt.clf()
-    plt.cla()
-    plt.close()
-    print("====after first plot=====")
-    print(network.nodes)
-    print(network.edges.data())
+
+    for e in network.edges():
+        assert network.edges[e]["weight"] == _network.edges[e]["weight"]
     dyn.pl.circosPlot(
         adata,
         cluster="Cell_type",
@@ -54,8 +52,21 @@ def test_circosPlot(adata):
         edges_list=None,
         network=network,
         color="M_s",
+        save_show_or_return="return",
     )
     pass
+
+
+def test_scatter_group_gamma():
+    dyn.pl.scatters(
+        viral_adata,
+        basis=viral_adata.var_names.intersection(gene_list_df.index)[:5],
+        x="M_s",
+        y="M_u",
+        color="coarse_cluster",
+        group="coarse_cluster",
+        add_group_gamma_fit=True,
+    )
 
 
 if __name__ == "__main__":
