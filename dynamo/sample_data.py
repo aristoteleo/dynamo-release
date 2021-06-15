@@ -4,7 +4,7 @@ from pathlib import Path
 import os
 import ntpath
 
-from .dynamo_logger import main_info, main_log_time
+from .dynamo_logger import LoggerManager, main_info, main_log_time
 
 
 def get_adata(url, filename=None):
@@ -30,7 +30,8 @@ def get_adata(url, filename=None):
         if not os.path.exists("./data/"):
             os.mkdir("data")
 
-        urlretrieve(url, filename)  # download the data
+        # download the data
+        urlretrieve(url, filename, reporthook=LoggerManager.get_main_logger().request_report_hook)
 
     if Path(filename).suffixes[-1][1:] == "loom":
         adata = read_loom(filename=filename)

@@ -434,7 +434,7 @@ def SparseVFC(
     if velocity_based_sampling:
         np.random.seed(seed)
         logger.info("Sampling control points based on data velocity magnitude...")
-        idx = sample_by_velocity(Y[uid], M)
+        idx = sample_by_velocity(Y[uid], M, seed=seed)
     else:
         idx = np.random.RandomState(seed=seed).permutation(tmp_X.shape[0])  # rand select some initial points
         idx = idx[range(M)]
@@ -482,13 +482,10 @@ def SparseVFC(
         tecr = abs((E - E_old) / E)
         tecr_vec[i] = tecr
 
-        # if verbose > 1:
         logger.info(
             "iterate: %d, gamma: %.3f, energy change rate: %s, sigma2=%s"
             % (i, gamma, scinot(tecr, 3), scinot(sigma2, 3))
         )
-        # elif verbose > 0:
-        #     logger.info("\niteration %d" % i)
 
         # M-step. Solve linear system for C.
         temp_logger.log_time()

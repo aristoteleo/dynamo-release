@@ -16,7 +16,6 @@ def test_scEU_seq():
 
 
 if __name__ == "__main__":
-    test_scEU_seq()
     adata = gen_or_read_zebrafish_data()
-    print(adata)
+    test_scEU_seq()
     test_save_rank_info(adata)

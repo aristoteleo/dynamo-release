@@ -186,6 +186,34 @@ class Logger:
         # self.logger.info("|")
         self.logger_stream_handler.flush()
 
+    def request_report_hook(self, bn: int, rs: int, ts: int):
+        """A callback required by the request lib:
+        The reporthook argument should be a callable that accepts a block number, a read size, and the
+        total file size of the URL target. The data argument should be valid URL encoded data.
+
+        Parameters
+        ----------
+        bs :
+            block number
+        rs :
+            read size
+        ts :
+            total size
+
+        Returns
+        -------
+        [type]
+            [description]
+
+        Yields
+        -------
+        [type]
+            [description]
+        """
+        self.report_progress(count=rs * bn, total=ts)
+        if rs * bn >= ts:
+            self.finish_progress(progress_name="download")
+
 
 class LoggerManager:
 
