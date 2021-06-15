@@ -111,7 +111,13 @@ def bandwidth_selector(X):
     if n > 200000 and m > 2:
         from pynndescent import NNDescent
 
-        nbrs = NNDescent(X, metric="euclidean", n_neighbors=max(2, int(0.2 * n)), n_jobs=-1, random_state=19491001,)
+        nbrs = NNDescent(
+            X,
+            metric="euclidean",
+            n_neighbors=max(2, int(0.2 * n)),
+            n_jobs=-1,
+            random_state=19491001,
+        )
         _, distances = nbrs.query(X, k=max(2, int(0.2 * n)))
     else:
         alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
@@ -225,7 +231,14 @@ def get_P(Y, V, sigma2, gamma, a, div_cur_free_kernels=False):
 
 @timeit
 def graphize_vecfld(
-    func, X, nbrs_idx=None, dist=None, k=30, distance_free=True, n_int_steps=20, cores=1,
+    func,
+    X,
+    nbrs_idx=None,
+    dist=None,
+    k=30,
+    distance_free=True,
+    n_int_steps=20,
+    cores=1,
 ):
     n, d = X.shape
 
@@ -234,7 +247,13 @@ def graphize_vecfld(
         if X.shape[0] > 200000 and X.shape[1] > 2:
             from pynndescent import NNDescent
 
-            nbrs = NNDescent(X, metric="euclidean", n_neighbors=k + 1, n_jobs=-1, random_state=19491001,)
+            nbrs = NNDescent(
+                X,
+                metric="euclidean",
+                n_neighbors=k + 1,
+                n_jobs=-1,
+                random_state=19491001,
+            )
             nbrs_idx, dist = nbrs.query(X, k=k + 1)
         else:
             alg = "ball_tree" if X.shape[1] > 10 else "kd_tree"
@@ -538,7 +557,11 @@ def SparseVFC(
             eta,
         )
         temp_logger.log_time()
-        (_, VecFld["df_kernel"], VecFld["cf_kernel"],) = con_K_div_cur_free(X, ctrl_pts, sigma, eta)
+        (
+            _,
+            VecFld["df_kernel"],
+            VecFld["cf_kernel"],
+        ) = con_K_div_cur_free(X, ctrl_pts, sigma, eta)
         temp_logger.finish_progress(progress_name="con_K_div_cur_free")
 
     logger.finish_progress(progress_name="SparseVFC")
@@ -547,7 +570,12 @@ def SparseVFC(
 
 class base_vectorfield:
     def __init__(
-        self, X=None, V=None, Grid=None, *args, **kwargs,
+        self,
+        X=None,
+        V=None,
+        Grid=None,
+        *args,
+        **kwargs,
     ):
         self.data = {"X": X, "V": V, "Grid": Grid}
         self.vf_dict = kwargs.pop("vf_dict", {})
@@ -622,7 +650,13 @@ class base_vectorfield:
             domain = np.vstack((np.min(self.data["X"], axis=0), np.max(self.data["X"], axis=0))).T
 
         if cores == 1:
-            X, J, _ = find_fixed_points(self.data["X"], self.func, domain=domain, return_all=True, **kwargs,)
+            X, J, _ = find_fixed_points(
+                self.data["X"],
+                self.func,
+                domain=domain,
+                return_all=True,
+                **kwargs,
+            )
         else:
             pool = ThreadPool(cores)
 
@@ -993,7 +1027,8 @@ if use_dynode:
                 self.valid_ind = good_ind
 
                 velocity_data_sampler = VelocityDataSampler(
-                    adata={"X": good_X, "V": good_V}, normalize_velocity=kwargs.get("normalize_velocity", False),
+                    adata={"X": good_X, "V": good_V},
+                    normalize_velocity=kwargs.get("normalize_velocity", False),
                 )
 
                 vf_kwargs = {
