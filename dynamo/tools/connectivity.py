@@ -71,13 +71,7 @@ def adj_to_knn(adj, n_neighbors):
 
 def knn_to_adj(knn_indices, knn_weights):
     adj = csr_matrix(
-        (
-            knn_weights.flatten(),
-            (
-                np.repeat(knn_indices[:, 0], knn_indices.shape[1]),
-                knn_indices.flatten(),
-            ),
-        )
+        (knn_weights.flatten(), (np.repeat(knn_indices[:, 0], knn_indices.shape[1]), knn_indices.flatten(),),)
     )
     adj.eliminate_zeros()
 
@@ -87,11 +81,7 @@ def knn_to_adj(knn_indices, knn_weights):
 def get_conn_dist_graph(knn, distances):
     n_obs, n_neighbors = knn.shape
     distances = csr_matrix(
-        (
-            distances.flatten(),
-            (np.repeat(np.arange(n_obs), n_neighbors), knn.flatten()),
-        ),
-        shape=(n_obs, n_obs),
+        (distances.flatten(), (np.repeat(np.arange(n_obs), n_neighbors), knn.flatten()),), shape=(n_obs, n_obs),
     )
     connectivities = distances.copy()
     connectivities.data[connectivities.data > 0] = 1
@@ -215,11 +205,7 @@ def umap_conn_indices_dist_embedding(
     if X.shape[0] < 4096:  # 1
         dmat = pairwise_distances(X, metric=metric)
         graph = fuzzy_simplicial_set(
-            X=dmat,
-            n_neighbors=n_neighbors,
-            random_state=random_state,
-            metric="precomputed",
-            verbose=verbose,
+            X=dmat, n_neighbors=n_neighbors, random_state=random_state, metric="precomputed", verbose=verbose,
         )
         if type(graph) == tuple:
             graph = graph[0]
@@ -367,12 +353,7 @@ def normalize_knn_graph(knn):
 
 
 def mnn(
-    adata,
-    n_pca_components=30,
-    n_neighbors=250,
-    layers="all",
-    use_pca_fit=True,
-    save_all_to_adata=False,
+    adata, n_pca_components=30, n_neighbors=250, layers="all", use_pca_fit=True, save_all_to_adata=False,
 ):
     """Function to calculate mutual nearest neighbor graph across specific data layers.
 
@@ -420,12 +401,9 @@ def mnn(
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            (
-                graph,
-                knn_indices,
-                knn_dists,
-                X_dim,
-            ) = umap_conn_indices_dist_embedding(layer_pca, n_neighbors=n_neighbors, return_mapper=False)
+            (graph, knn_indices, knn_dists, X_dim,) = umap_conn_indices_dist_embedding(
+                layer_pca, n_neighbors=n_neighbors, return_mapper=False
+            )
 
         if save_all_to_adata:
             adata.obsm[layer + "_pca"], adata.obsm[layer + "_umap"] = (
@@ -440,10 +418,7 @@ def mnn(
                 # "distances": None,
                 "indices": knn_indices,
             }
-            (
-                adata.obsp[layer + "_connectivities"],
-                adata.obsp[layer + "_distances"],
-            ) = (graph, knn_dists)
+            (adata.obsp[layer + "_connectivities"], adata.obsp[layer + "_distances"],) = (graph, knn_dists)
 
         knn_graph_list.append(graph > 0)
 
