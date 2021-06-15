@@ -4,6 +4,8 @@ from pathlib import Path
 import os
 import ntpath
 
+from .dynamo_logger import LoggerManager, main_info, main_log_time
+
 
 def get_adata(url, filename=None):
     """Download example data to local folder.
@@ -22,11 +24,14 @@ def get_adata(url, filename=None):
     filename = ntpath.basename(url) if filename is None else filename
 
     filename = "./data/" + filename
+    main_info("Downloading data to " + filename)
+
     if not os.path.exists(filename):
         if not os.path.exists("./data/"):
             os.mkdir("data")
 
-        urlretrieve(url, filename)  # download the data
+        # download the data
+        urlretrieve(url, filename, reporthook=LoggerManager.get_main_logger().request_report_hook)
 
     if Path(filename).suffixes[-1][1:] == "loom":
         adata = read_loom(filename=filename)
@@ -214,6 +219,23 @@ def DentateGyrus_scvelo(
     """
     adata = get_adata(url, filename)
 
+    return adata
+
+
+def scEU_seq(
+    url: str = "https://www.dropbox.com/s/25enev458c8egn7/rpe1.h5ad?dl=1",
+    filename: str = "rpe1.h5ad",
+):
+    """
+    Download rpe1 dataset from Battich, et al (2020) via Dropbox link.
+    This data consists of 13, 913 genes across 2, 930 cells.
+
+    Returns
+    -------
+        Returns `adata` object
+    """
+    main_info("Downloading scEU_seq data")
+    adata = get_adata(url, filename)
     return adata
 
 

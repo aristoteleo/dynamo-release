@@ -2,6 +2,7 @@ from utils import *
 import networkx as nx
 import dynamo as dyn
 import matplotlib.pyplot as plt
+import copy
 
 logger = LoggerManager.get_main_logger()
 
@@ -14,16 +15,13 @@ def test_scatter_contour(adata):
 def test_circosPlot(adata):
     # genes from top acceleration rank
     selected_genes = ["hmgn2", "hmgb2a", "si:ch211-222l21.1", "mbpb", "h2afvb"]
-    full_reg_rank = dyn.vf.rank_jacobian_genes(adata, groups="Cell_type", mode="full_reg", abs=True, output_values=True)
-    full_eff_rank = dyn.vf.rank_jacobian_genes(adata, groups="Cell_type", mode="full_eff", abs=True, output_values=True)
     edges_list = dyn.vf.build_network_per_cluster(
         adata,
         cluster="Cell_type",
         cluster_names=None,
-        full_reg_rank=full_reg_rank,
-        full_eff_rank=full_eff_rank,
         genes=selected_genes,
         n_top_genes=1000,
+        abs=True,
     )
 
     print(edges_list["Unknown"])
@@ -34,8 +32,7 @@ def test_circosPlot(adata):
         edge_attr="weight",
         create_using=nx.DiGraph(),
     )
-    print(network.nodes)
-    print(network.edges.data())
+    _network = copy.deepcopy(network)
     dyn.pl.circosPlot(
         adata,
         cluster="Cell_type",
@@ -43,13 +40,11 @@ def test_circosPlot(adata):
         edges_list=None,
         network=network,
         color="M_s",
+        save_show_or_return="return",
     )
-    plt.clf()
-    plt.cla()
-    plt.close()
-    print("====after first plot=====")
-    print(network.nodes)
-    print(network.edges.data())
+
+    for e in network.edges():
+        assert network.edges[e]["weight"] == _network.edges[e]["weight"]
     dyn.pl.circosPlot(
         adata,
         cluster="Cell_type",
@@ -57,8 +52,21 @@ def test_circosPlot(adata):
         edges_list=None,
         network=network,
         color="M_s",
+        save_show_or_return="return",
     )
     pass
+
+
+def test_scatter_group_gamma():
+    dyn.pl.scatters(
+        viral_adata,
+        basis=viral_adata.var_names.intersection(gene_list_df.index)[:5],
+        x="M_s",
+        y="M_u",
+        color="coarse_cluster",
+        group="coarse_cluster",
+        add_group_gamma_fit=True,
+    )
 
 
 if __name__ == "__main__":
