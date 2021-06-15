@@ -1398,9 +1398,8 @@ def recipe_monocle(
     adata = convert2symbol(adata, scopes=scopes)
     n_cells, n_genes = adata.n_obs, adata.n_vars
 
-    # Since convert2symbol may subsetting adata and generate a new reference
-    # the subset of adata, we should create all following data after converting symbol (gene names)
-
+    # Since convert2symbol may subset adata and generate a new AnnData object,
+    # we should create all following data after convert2symbol (gene names)
     adata.uns["pp"] = {}
     if norm_method == "Freeman_Tukey":
         norm_method = Freeman_Tukey
