@@ -1,4 +1,5 @@
-from ..dynamo_logger import LoggerManager
+from anndata import AnnData
+from pynndescent.distances import true_angular
 import numpy as np
 import scipy
 from scipy.sparse import issparse, csr_matrix
@@ -14,6 +15,8 @@ from .utils import (
 )
 
 from ..docrep import DocstringProcessor
+from ..dynamo_logger import LoggerManager
+
 
 docstrings = DocstringProcessor()
 
@@ -450,6 +453,18 @@ def mnn(
     return adata
 
 
+def _gen_neighbor_keys(result_prefix=""):
+    if result_prefix:
+        result_prefix = result_prefix if result_prefix.endswith("_") else result_prefix + "_"
+
+    conn_key, dist_key, neighbor_key = (
+        result_prefix + "connectivities",
+        result_prefix + "distances",
+        result_prefix + "neighbors",
+    )
+    return conn_key, dist_key, neighbor_key
+
+
 def neighbors(
     adata,
     X_data=None,
@@ -576,14 +591,7 @@ def neighbors(
     else:
         raise ImportError(f"nearest neighbor search method {method} is not supported")
 
-    if result_prefix != "":
-        result_prefix = result_prefix if result_prefix.endswith("_") else result_prefix + "_"
-
-    conn_key, dist_key, neighbor_key = (
-        result_prefix + "connectivities",
-        result_prefix + "distances",
-        result_prefix + "neighbors",
-    )
+    conn_key, dist_key, neighbor_key = _gen_neighbor_keys(result_prefix)
     logger.info_insert_adata(conn_key, adata_attr="obsp")
     logger.info_insert_adata(dist_key, adata_attr="obsp")
     adata.obsp[conn_key], adata.obsp[dist_key] = get_conn_dist_graph(knn, distances)
@@ -601,3 +609,28 @@ def neighbors(
     }
 
     return adata
+
+
+def check_neighbors(adata: AnnData, result_prefix="") -> bool:
+    is_valid = True
+    conn_key, dist_key, neighbor_key = _gen_neighbor_keys(result_prefix)
+    keys = [conn_key, dist_key, neighbor_key]
+
+    # Old anndata version version
+    # conn_mat = adata.uns[neighbor_key]["connectivities"]
+    # dist_mat = adata.uns[neighbor_key]["distances"]
+
+    # New anndata stores connectivities and distances in obsp
+    conn_mat = adata.obsp["connectivities"]
+    dist_mat = adata.obsp["distances"]
+    n_obs = len(adata)
+
+    # check if connection matrix and distance matrix shapes are compatible with adata shape
+    is_valid = is_valid and tuple(conn_mat.shape) == tuple([n_obs, n_obs])
+    is_valid = is_valid and tuple(dist_mat.shape) == tuple([n_obs, n_obs])
+
+    # check if indices in nearest neighbor matrix are valid
+    neighbor_mat = adata.uns[neighbor_key]["indices"]
+    is_valid = is_valid and np.all(neighbor_mat < len(adata))
+
+    return is_valid
