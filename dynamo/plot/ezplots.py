@@ -64,9 +64,12 @@ def plot_X(
         plt.gca().scatter(x, y, z, c=c, **kwargs)
 
 
-def plot_V(X, V, dim1=0, dim2=1, create_figure=False, figsize=(6, 6), **kwargs):
+def plot_V(X, V, dim1=0, dim2=1, dims=None, create_figure=False, figsize=(6, 6), **kwargs):
     if create_figure:
         plt.figure(figsize=figsize)
+    if dims is not None:
+        dim1 = dims[0]
+        dim2 = dims[1]
     plt.quiver(X[:, dim1], X[:, dim2], V[:, dim1], V[:, dim2])
 
 
@@ -174,6 +177,7 @@ def zstreamline(
     v_layer="velocity",
     dim1=0,
     dim2=1,
+    dims=None,
     color="k",
     create_figure=False,
     figsize=(6, 4),
@@ -196,6 +200,11 @@ def zstreamline(
         v_emb = v_basis
     else:
         v_emb = "%s_%s" % (v_layer, v_basis)
+
+    if dims is not None:
+        dim1 = dims[0]
+        dim2 = dims[1]
+
     X = adata.obsm[emb][:, [dim1, dim2]]
     V = adata.obsm[v_emb][:, [dim1, dim2]]
 
