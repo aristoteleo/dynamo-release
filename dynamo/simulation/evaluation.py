@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn.metrics import mean_squared_error
+from ..tools.utils import einsum_correlation
 
 
 def evaluate(reference, prediction, metric="cosine"):
@@ -23,8 +24,8 @@ def evaluate(reference, prediction, metric="cosine"):
     """
 
     if metric == "cosine":
-        true_normalized = reference / np.linalg.norm(reference, axis=1).reshape(-1, 1)
-        predict_normalized = prediction / np.linalg.norm(prediction, axis=1).reshape(-1, 1)
+        true_normalized = reference / (np.linalg.norm(reference, axis=1).reshape(-1, 1) + 1e-20)
+        predict_normalized = prediction / (np.linalg.norm(prediction, axis=1).reshape(-1, 1) + 1e-20)
 
         res = np.mean(true_normalized * predict_normalized) * prediction.shape[1]
 

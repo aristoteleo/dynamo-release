@@ -1395,10 +1395,12 @@ def recipe_monocle(
     if "use_for_pca" in adata.var.columns:
         del adata.var["use_for_pca"]  # avoid use_for_pca was set previously.
 
-    adata.uns["pp"] = {}
-    n_cells, n_genes = adata.n_obs, adata.n_vars
     adata = convert2symbol(adata, scopes=scopes)
+    n_cells, n_genes = adata.n_obs, adata.n_vars
 
+    # Since convert2symbol may subset adata and generate a new AnnData object,
+    # we should create all following data after convert2symbol (gene names)
+    adata.uns["pp"] = {}
     if norm_method == "Freeman_Tukey":
         norm_method = Freeman_Tukey
 

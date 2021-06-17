@@ -414,9 +414,12 @@ def SparseVFC(
         point in the gene expression state space).
 
     """
+    logger = LoggerManager.gen_logger("SparseVFC")
+    temp_logger = LoggerManager.get_temp_timer_logger()
+    logger.info("[SparseVFC] begins...")
+    logger.log_time()
 
-    timeit_ = True if verbose > 1 else False
-
+    need_utility_time_measure = verbose > 1
     X_ori, Y_ori = X.copy(), Y.copy()
     valid_ind = np.where(np.isfinite(Y.sum(1)))[0]
     X, Y = X[valid_ind], Y[valid_ind]
@@ -427,10 +430,8 @@ def SparseVFC(
     tmp_X, uid = np.unique(X, axis=0, return_index=True)  # return unique rows
     M = min(M, tmp_X.shape[0])
     if velocity_based_sampling:
-        np.random.seed(seed)
-        if verbose > 1:
-            print("Sampling control points based on data velocity magnitude...")
-        idx = sample_by_velocity(Y[uid], M)
+        logger.info("Sampling control points based on data velocity magnitude...")
+        idx = sample_by_velocity(Y[uid], M, seed=seed)
     else:
         idx = np.random.RandomState(seed=seed).permutation(tmp_X.shape[0])  # rand select some initial points
         idx = idx[range(M)]
@@ -441,20 +442,20 @@ def SparseVFC(
         beta = 1 / h ** 2
 
     K = (
-        con_K(ctrl_pts, ctrl_pts, beta, timeit=timeit_)
+        con_K(ctrl_pts, ctrl_pts, beta, timeit=need_utility_time_measure)
         if div_cur_free_kernels is False
-        else con_K_div_cur_free(ctrl_pts, ctrl_pts, sigma, eta, timeit=timeit_)[0]
+        else con_K_div_cur_free(ctrl_pts, ctrl_pts, sigma, eta, timeit=need_utility_time_measure)[0]
     )
     U = (
-        con_K(X, ctrl_pts, beta, timeit=timeit_)
+        con_K(X, ctrl_pts, beta, timeit=need_utility_time_measure)
         if div_cur_free_kernels is False
-        else con_K_div_cur_free(X, ctrl_pts, sigma, eta, timeit=timeit_)[0]
+        else con_K_div_cur_free(X, ctrl_pts, sigma, eta, timeit=need_utility_time_measure)[0]
     )
     if Grid is not None:
         grid_U = (
-            con_K(Grid, ctrl_pts, beta, timeit=timeit_)
+            con_K(Grid, ctrl_pts, beta, timeit=need_utility_time_measure)
             if div_cur_free_kernels is False
-            else con_K_div_cur_free(Grid, ctrl_pts, sigma, eta, timeit=timeit_)[0]
+            else con_K_div_cur_free(Grid, ctrl_pts, sigma, eta, timeit=need_utility_time_measure)[0]
         )
     M = ctrl_pts.shape[0] * D if div_cur_free_kernels else ctrl_pts.shape[0]
 
@@ -482,18 +483,15 @@ def SparseVFC(
         tecr = abs((E - E_old) / E)
         tecr_vec[i] = tecr
 
-        if verbose > 1:
-            print(
-                "\niterate: %d, gamma: %.3f, energy change rate: %s, sigma2=%s"
+        # logger.report_progress(count=i, total=MaxIter, progress_name="E-step iteration")
+        if need_utility_time_measure:
+            logger.info(
+                "iterate: %d, gamma: %.3f, energy change rate: %s, sigma2=%s"
                 % (i, gamma, scinot(tecr, 3), scinot(sigma2, 3))
             )
-        elif verbose > 0:
-            print("\niteration %d" % i)
 
         # M-step. Solve linear system for C.
-        if timeit_:
-            st = time.time()
-
+        temp_logger.log_time()
         P = np.maximum(P, minP)
         if div_cur_free_kernels:
             P = np.kron(P, np.ones((int(U.shape[0] / P.shape[0]), 1)))  # np.kron(P, np.ones((D, 1)))
@@ -503,11 +501,11 @@ def SparseVFC(
             UP = U.T * numpy.matlib.repmat(P.T, M, 1)
             lhs = UP.dot(U) + lambda_ * sigma2 * K
             rhs = UP.dot(Y)
+        if need_utility_time_measure:
+            temp_logger.finish_progress(progress_name="computing lhs and rhs")
+        temp_logger.log_time()
 
-        if timeit_:
-            print("Time elapsed for computing lhs and rhs: %f s" % (time.time() - st))
-
-        C = lstsq_solver(lhs, rhs, method=lstsq_method, timeit=timeit_)
+        C = lstsq_solver(lhs, rhs, method=lstsq_method, timeit=need_utility_time_measure)
 
         # Update V and sigma**2
         V = U.dot(C)
@@ -559,12 +557,15 @@ def SparseVFC(
             sigma,
             eta,
         )
+        temp_logger.log_time()
         (
             _,
             VecFld["df_kernel"],
             VecFld["cf_kernel"],
-        ) = con_K_div_cur_free(X, ctrl_pts, sigma, eta, timeit=timeit_)
+        ) = con_K_div_cur_free(X, ctrl_pts, sigma, eta, timeit=need_utility_time_measure)
+        temp_logger.finish_progress(progress_name="con_K_div_cur_free")
 
+    logger.finish_progress(progress_name="SparseVFC")
     return VecFld
 
 

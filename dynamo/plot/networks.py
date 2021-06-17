@@ -168,6 +168,10 @@ def nxvizPlot(
             figsize=figsize,
         )
 
+    # recover network edge weights
+    for e in network.edges():
+        network.edges[e]["weight"] /= weight_scale
+
     if save_show_or_return == "save":
         # Draw a to the screen
         nv_ax.draw()

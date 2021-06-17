@@ -169,7 +169,13 @@ class Logger:
 
     def finish_progress(self, progress_name="", time_unit="s", indent_level=1):
         self.log_time()
-        self.logger.info("\r|")
+        self.report_progress(percent=100, progress_name=progress_name)
+
+        saved_terminator = self.logger_stream_handler.terminator
+        self.logger_stream_handler.terminator = ""
+        self.logger.info("\n")
+        self.logger_stream_handler.flush()
+        self.logger_stream_handler.terminator = saved_terminator
 
         if time_unit == "s":
             self.info("[%s] finished [%.4fs]" % (progress_name, self.time_passed), indent_level=indent_level)
@@ -177,7 +183,36 @@ class Logger:
             self.info("[%s] finished [%.4fms]" % (progress_name, self.time_passed * 1e3), indent_level=indent_level)
         else:
             raise NotImplementedError
+        # self.logger.info("|")
         self.logger_stream_handler.flush()
+
+    def request_report_hook(self, bn: int, rs: int, ts: int):
+        """A callback required by the request lib:
+        The reporthook argument should be a callable that accepts a block number, a read size, and the
+        total file size of the URL target. The data argument should be valid URL encoded data.
+
+        Parameters
+        ----------
+        bs :
+            block number
+        rs :
+            read size
+        ts :
+            total size
+
+        Returns
+        -------
+        [type]
+            [description]
+
+        Yields
+        -------
+        [type]
+            [description]
+        """
+        self.report_progress(count=rs * bn, total=ts)
+        if rs * bn >= ts:
+            self.finish_progress(progress_name="download")
 
 
 class LoggerManager:
@@ -269,3 +304,7 @@ def main_finish_progress(progress_name=""):
 
 def main_info_insert_adata(key, adata_attr="obsm", indent_level=1, *args, **kwargs):
     LoggerManager.main_logger.info_insert_adata(key, adata_attr=adata_attr, indent_level=indent_level, *args, **kwargs)
+
+
+def main_info_verbose_timeit(msg):
+    LoggerManager.main_logger.info(msg)

@@ -68,6 +68,7 @@ def dynamics(
     sanity_check: bool = False,
     del_2nd_moments: bool = False,
     cores: int = 1,
+    tkey: str = None,
     **est_kwargs,
 ):
     """Inclusive model of expression dynamics considers splicing, metabolic labeling and protein translation. It
@@ -189,6 +190,8 @@ def dynamics(
             Number of cores to run the estimation. If cores is set to be > 1, multiprocessing will be used to parallel
             the parameter estimation. Currently only applicable cases when assumption_mRNA is `ss` or cases when
             experiment_type is either "one-shot" or "mix_std_stm".
+        tkey:
+            The column key for the labeling time  of cells in .obs. Used for labeling based scRNA-seq data. If `tkey` is None, then  `adata.uns["pp"]["tkey"]` will be checked and used if exists.
         **est_kwargs
             Other arguments passed to the fit method (steady state models) or estimation methods (kinetic models).
 
@@ -291,8 +294,9 @@ def dynamics(
 
     if "pp" not in adata.uns_keys():
         raise ValueError(f"\nPlease run `dyn.pp.receipe_monocle(adata)` before running this function!")
-    (tkey, experiment_type, has_splicing, has_labeling, splicing_labeling, has_protein,) = (
-        adata.uns["pp"]["tkey"],
+    if tkey is None:
+        tkey = adata.uns["pp"]["tkey"]
+    (experiment_type, has_splicing, has_labeling, splicing_labeling, has_protein,) = (
         adata.uns["pp"]["experiment_type"],
         adata.uns["pp"]["has_splicing"],
         adata.uns["pp"]["has_labeling"],
