@@ -111,13 +111,25 @@ def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None)
             uns[key] = trans_mats[key]
     if cells_ixs is not None:
         uns["cell_ixs"] = cells_ixs
+
+    obsp = {}
     if hasattr(vlm, "embedding_knn"):
         from .connectivity import adj_to_knn
 
         n_neighbors = np.unique((vlm.embedding_knn > 0).sum(1)).min()
         ind_mat, dist_mat = adj_to_knn(vlm.embedding_knn, n_neighbors)
         uns["neighbors"] = {"indices": ind_mat}
-        obsp = {"distances": dist_mat, "connectivities": vlm.embedding_knn}
+        obsp = {"connectivities": vlm.embedding_knn}
+
+    uns["pp"] = {
+        "has_splicing": True,
+        "has_labeling": False,
+        "splicing_labeling": False,
+        "has_protein": False,
+        "tkey": None,
+        "experiment_type": "conventional",
+        "norm_method": None,
+    }
 
     uns["dynamics"] = {
         "filter_gene_mode": None,
@@ -132,6 +144,7 @@ def vlm_to_adata(vlm, n_comps=30, basis="umap", trans_mats=None, cells_ixs=None)
         "est_method": "ols",
         "has_splicing": True,
         "has_labeling": False,
+        "splicing_labeling": False,
         "has_protein": False,
         "use_smoothed": True,
         "NTR_vel": False,
