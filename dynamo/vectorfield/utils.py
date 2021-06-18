@@ -1,4 +1,3 @@
-from dynamo.vectorfield.scVectorField import base_vectorfield
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
@@ -18,6 +17,7 @@ from ..tools.utils import (
     timeit,
     subset_dict_with_key_list,
 )
+from .scVectorField import base_vectorfield
 from typing import Union, Callable
 from ..dynamo_logger import LoggerManager
 
