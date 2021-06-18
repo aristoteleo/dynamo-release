@@ -8,7 +8,6 @@ from scipy.spatial.distance import squareform as spsquare
 from scipy.integrate import odeint
 from scipy.linalg.blas import dgemm
 from scipy.spatial import cKDTree
-import sklearn
 from sklearn.neighbors import NearestNeighbors
 import warnings
 import time
