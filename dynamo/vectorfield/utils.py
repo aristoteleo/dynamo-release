@@ -17,8 +17,6 @@ from ..tools.utils import (
     timeit,
     subset_dict_with_key_list,
 )
-from .scVectorField import base_vectorfield
-from typing import Union, Callable
 from ..dynamo_logger import LoggerManager
 
 
@@ -297,62 +295,6 @@ def vector_field_function_transformation(vf_func, Q):
 
     """
     return lambda x: vf_func.func(x) @ Q.T
-
-
-def vector_field_function_knockout(
-    adata,
-    vecfld: Union[Callable, base_vectorfield],
-    ko_genes,
-    k_deg=None,
-    pca_genes="use_for_pca",
-    PCs="PCs",
-    mean="pca_mean",
-    return_vector_field_class=False,
-):
-
-    if type(pca_genes) is str:
-        pca_genes = adata.var[adata.var[pca_genes]].index
-
-    g_mask = np.zeros(len(pca_genes), dtype=bool)
-    for i, g in enumerate(pca_genes):
-        if g in ko_genes:
-            g_mask[i] = True
-
-    k = np.zeros(len(pca_genes))
-    if k_deg is None:
-        k_deg = np.ones(len(ko_genes))
-    k[g_mask] = k_deg
-
-    if type(PCs) is str:
-        if PCs not in adata.uns.keys():
-            raise Exception(f"The key {PCs} is not in `.uns`.")
-        PCs = adata.uns[PCs]
-
-    if type(mean) is str:
-        if mean not in adata.uns.keys():
-            raise Exception(f"The key {mean} is not in `.uns`.")
-        mean = adata.uns[mean]
-
-    if not callable(vecfld):
-        vf_func = vecfld.func
-    else:
-        vf_func = vecfld
-
-    def vf_func_perturb(x):
-        x_gene = np.abs(x @ PCs.T + mean)
-        v_gene = vector_transformation(vf_func(x), PCs)
-        v_gene = v_gene - k * x_gene
-        return v_gene @ PCs
-
-    if return_vector_field_class:
-        vf = base_vectorfield()
-        if not callable(vecfld):
-            vf.data["X"] = vecfld.data["X"]
-            vf.data["V"] = vf.func(vf.data["X"])
-        vf.func = vf_func_perturb
-        return vf
-    else:
-        return vf_func_perturb
 
 
 # ---------------------------------------------------------------------------------------------------
