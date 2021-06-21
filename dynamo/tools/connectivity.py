@@ -15,7 +15,7 @@ from .utils import (
 )
 
 from ..docrep import DocstringProcessor
-from ..dynamo_logger import LoggerManager
+from ..dynamo_logger import LoggerManager, main_info, main_warning
 
 
 docstrings = DocstringProcessor()
@@ -623,7 +623,26 @@ def neighbors(
     return adata
 
 
-def check_neighbors(adata: AnnData, result_prefix="") -> bool:
+def check_neighbors_completeness(
+    adata: AnnData, conn_key="connectivities", dist_key="distances", result_prefix=""
+) -> bool:
+    """Check if neighbor graph in adata is valid.
+
+    Parameters
+    ----------
+    adata : AnnData
+    conn_key : str, optional
+        connectivity key, by default "connectivities"
+    dist_key : str, optional
+        distance key, by default "distances"
+    result_prefix : str, optional
+        The result prefix in adata.uns for neighbor graph related data, by default ""
+
+    Returns
+    -------
+    bool
+        [description]
+    """
     is_valid = True
     conn_key, dist_key, neighbor_key = _gen_neighbor_keys(result_prefix)
     keys = [conn_key, dist_key, neighbor_key]
@@ -632,9 +651,11 @@ def check_neighbors(adata: AnnData, result_prefix="") -> bool:
     # conn_mat = adata.uns[neighbor_key]["connectivities"]
     # dist_mat = adata.uns[neighbor_key]["distances"]
 
+    if (conn_key not in adata.obsp) or (dist_key not in adata.obsp) or ("indices" not in adata.uns[neighbor_key]):
+        return False
     # New anndata stores connectivities and distances in obsp
-    conn_mat = adata.obsp["connectivities"]
-    dist_mat = adata.obsp["distances"]
+    conn_mat = adata.obsp[conn_key]
+    dist_mat = adata.obsp[dist_key]
     n_obs = len(adata)
 
     # check if connection matrix and distance matrix shapes are compatible with adata shape
@@ -643,6 +664,27 @@ def check_neighbors(adata: AnnData, result_prefix="") -> bool:
 
     # check if indices in nearest neighbor matrix are valid
     neighbor_mat = adata.uns[neighbor_key]["indices"]
-    is_valid = is_valid and np.all(neighbor_mat < len(adata))
+    is_indices_valid = np.all(neighbor_mat < len(adata))
+    if not is_indices_valid:
+        main_warning("Some value in %s is not valid." % (neighbor_key))
+    is_valid = is_valid and is_indices_valid
 
     return is_valid
+
+
+def check_and_recompute_neighbors(adata, result_prefix=""):
+    """[summary]
+
+    Parameters
+    ----------
+    adata : AnnData
+    result_prefix : str, optional
+        The result prefix in adata.uns for neighbor graph related data, by default ""
+    """
+    if result_prefix is None:
+        result_prefix = ""
+    conn_key, dist_key, neighbor_key = _gen_neighbor_keys(result_prefix)
+
+    if not check_neighbors_completeness(adata, conn_key=conn_key, dist_key=dist_key, result_prefix=result_prefix):
+        main_info("Neighbor graph is broken, recomputing....")
+        neighbors(adata, result_prefix=result_prefix)

@@ -68,7 +68,7 @@ from .clustering import (
 )
 
 # mnn related
-from .connectivity import mnn, neighbors, check_neighbors
+from .connectivity import mnn, neighbors, check_neighbors_completeness, check_and_recompute_neighbors
 
 # Pseudotime related
 from .DDRTree_py import DDRTree

@@ -3,7 +3,7 @@ import pandas as pd
 from tqdm import tqdm
 from scipy.sparse import issparse, csr_matrix
 from sklearn.neighbors import NearestNeighbors
-from .connectivity import umap_conn_indices_dist_embedding, mnn_from_list
+from .connectivity import check_and_recompute_neighbors, umap_conn_indices_dist_embedding, mnn_from_list
 from .utils import (
     get_finite_inds,
     inverse_norm,
@@ -72,6 +72,7 @@ def cell_wise_confidence(
         X = inverse_norm(adata, X) if X_data is None else X_data
 
     if not neighbors_from_basis:
+        check_and_recompute_neighbors(adata, result_prefix="")
         n_neigh, X_neighbors = (
             adata.uns["neighbors"]["params"]["n_neighbors"],
             adata.obsp["connectivities"],

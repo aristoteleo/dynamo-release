@@ -1,4 +1,4 @@
-from dynamo.tools.connectivity import check_neighbors
+from dynamo.tools.connectivity import check_and_recompute_neighbors, check_neighbors_completeness
 from utils import *
 import networkx as nx
 import dynamo as dyn
@@ -8,10 +8,10 @@ import numpy as np
 
 def test_neighbors_subset(adata):
     dyn.tl.neighbors(adata)
-    assert check_neighbors(adata)
+    assert check_neighbors_completeness(adata)
     indices = np.random.randint(0, len(adata), size=100)
     _adata = adata[indices].copy()
-    assert not check_neighbors(_adata)
+    assert not check_neighbors_completeness(_adata)
 
     # check obsp keys subsetting by AnnData Obj
     neighbor_key = "neighbors"
@@ -27,10 +27,21 @@ def test_neighbors_subset(adata):
 
     # recompute and neighbor graph should be fine
     dyn.tl.neighbors(_adata)
-    assert check_neighbors(_adata)
+    assert check_neighbors_completeness(_adata)
+
+
+def test_broken_neighbors_check_recompute(adata):
+    dyn.tl.neighbors(adata)
+    assert check_neighbors_completeness(adata)
+    indices = np.random.randint(0, len(adata), size=100)
+    _adata = adata[indices].copy()
+    assert not check_neighbors_completeness(_adata)
+    check_and_recompute_neighbors(_adata)
+    assert check_neighbors_completeness(_adata)
 
 
 if __name__ == "__main__":
     # generate data if needed
     adata = gen_or_read_zebrafish_data()
     test_neighbors_subset(adata)
+    test_broken_neighbors_check_recompute(adata)
